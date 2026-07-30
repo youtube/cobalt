@@ -314,11 +314,26 @@ HRESULT FakeWinWebAuthnApi::AuthenticatorMakeCredential(
                                       base::WideToUTF8(user->pwszDisplayName));
   }
 
-  if ((version_ >= WEBAUTHN_API_VERSION_6 && options->bEnablePrf) ||
+  bool has_hmac_secret_extension = false;
+  for (size_t i = 0; i < options->Extensions.cExtensions; ++i) {
+    WEBAUTHN_EXTENSION& extension = options->Extensions.pExtensions[i];
+    if (std::wstring_view(extension.pwszExtensionIdentifier) ==
+        WEBAUTHN_EXTENSIONS_IDENTIFIER_HMAC_SECRET) {
+      has_hmac_secret_extension = true;
+      break;
+    }
+  }
+
+  std::optional<cbor::Value> extensions;
+  cbor::Value::MapValue extensions_map;
+  if (has_hmac_secret_extension ||
+      (version_ >= WEBAUTHN_API_VERSION_6 && options->bEnablePrf) ||
       (version_ >= WEBAUTHN_API_VERSION_8 && options->pPRFGlobalEval)) {
     registration.hmac_key.emplace();
     registration.hmac_key->first = crypto::RandBytesAsArray<32>();
     registration.hmac_key->second = crypto::RandBytesAsArray<32>();
+    extensions_map.emplace(cbor::Value(kExtensionHmacSecret),
+                           cbor::Value(true));
   }
 
   std::array<uint8_t, 2> credential_id_length = {0, crypto::kSHA256Length};
@@ -328,12 +343,15 @@ HRESULT FakeWinWebAuthnApi::AuthenticatorMakeCredential(
   auto attestation = std::make_unique<WebAuthnAttestation>();
   bool performed_uv = options->dwUserVerificationRequirement !=
                       WEBAUTHN_USER_VERIFICATION_REQUIREMENT_DISCOURAGED;
+  if (!extensions_map.empty()) {
+    extensions = cbor::Value(std::move(extensions_map));
+  }
   attestation->authenticator_data =
       AuthenticatorData(registration.application_parameter,
                         /*user_present=*/true, performed_uv,
                         /*backup_eligible=*/false, /*backup_state=*/false,
                         registration.counter, std::move(credential_data),
-                        /*extensions=*/std::nullopt)
+                        std::move(extensions))
           .SerializeToByteArray();
   attestation->credential_id = credential_id;
   // For now, only support none attestation.

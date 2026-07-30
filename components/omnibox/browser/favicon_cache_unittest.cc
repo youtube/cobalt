@@ -5,6 +5,8 @@
 #include "components/omnibox/browser/favicon_cache.h"
 
 #include "base/functional/bind.h"
+#include "base/test/bind.h"
+#include "base/test/test_future.h"
 #include "components/favicon/core/test/mock_favicon_service.h"
 #include "components/history/core/browser/history_types.h"
 #include "components/variations/scoped_variations_ids_provider.h"
@@ -28,14 +30,6 @@ favicon_base::FaviconImageResult GetDummyFaviconResult() {
   bitmap.allocN32Pixels(gfx::kFaviconSize, gfx::kFaviconSize);
   bitmap.eraseColor(SK_ColorBLUE);
   result.image = gfx::Image::CreateFrom1xBitmap(bitmap);
-
-  return result;
-}
-
-favicon_base::FaviconRawBitmapResult GetDummyRawFaviconResult() {
-  favicon_base::FaviconRawBitmapResult result;
-
-  result.bitmap_data = GetDummyFaviconResult().image.As1xPNGBytes();
 
   return result;
 }
@@ -93,39 +87,6 @@ class FaviconCacheTest : public testing::Test {
     }
   }
 
-  void ExpectFaviconServiceForLargestFaviconPageUrlCalls(int a_site_calls,
-                                                         int b_site_calls) {
-    if (a_site_calls > 0) {
-      EXPECT_CALL(favicon_service_,
-                  GetRawFaviconForPageURL(kUrlA, _ /*icon_types */,
-                                          0 /* desired_size_in_pixel */,
-                                          false /* fallback_to_host */,
-                                          _ /* callback */, _ /* tracker */))
-          .Times(a_site_calls)
-          .WillRepeatedly([&](auto, auto, auto, auto,
-                              favicon_base::FaviconRawBitmapCallback callback,
-                              auto) {
-            favicon_service_a_site_raw_favicon_response_ = std::move(callback);
-            return base::CancelableTaskTracker::kBadTaskId;
-          });
-    }
-
-    if (b_site_calls > 0) {
-      EXPECT_CALL(favicon_service_,
-                  GetRawFaviconForPageURL(kUrlB, _ /*icon_types */,
-                                          0 /* desired_size_in_pixel */,
-                                          false /* fallback_to_host */,
-                                          _ /* callback */, _ /* tracker */))
-          .Times(b_site_calls)
-          .WillRepeatedly([&](auto, auto, auto, auto,
-                              favicon_base::FaviconRawBitmapCallback callback,
-                              auto) {
-            favicon_service_b_site_raw_favicon_response_ = std::move(callback);
-            return base::CancelableTaskTracker::kBadTaskId;
-          });
-    }
-  }
-
   void ExpectFaviconServiceForIconUrlCalls(int calls) {
     EXPECT_CALL(favicon_service_,
                 GetFaviconImage(kIconUrl, _ /* callback */, _ /* tracker */))
@@ -166,29 +127,6 @@ TEST_F(FaviconCacheTest, Basic) {
   EXPECT_EQ(1, response_count);
 }
 
-TEST_F(FaviconCacheTest, Largest) {
-  ExpectFaviconServiceForLargestFaviconPageUrlCalls(1, 0);
-  ExpectFaviconServiceForIconUrlCalls(0);
-
-  int response_count = 0;
-  gfx::Image result = cache_.GetLargestFaviconForPageUrl(
-      kUrlA, base::BindOnce(&VerifyFetchedFaviconAndCount, &response_count));
-
-  // Expect the synchronous result to be empty.
-  EXPECT_TRUE(result.IsEmpty());
-
-  std::move(favicon_service_a_site_raw_favicon_response_)
-      .Run(GetDummyRawFaviconResult());
-
-  // Re-request the same favicon and expect a non-empty result now that the
-  // cache is populated. The above EXPECT_CALL will also verify that the
-  // backing FaviconService is not hit again.
-  result = cache_.GetLargestFaviconForPageUrl(kUrlA, base::BindOnce(&Fail));
-
-  EXPECT_FALSE(result.IsEmpty());
-  EXPECT_EQ(1, response_count);
-}
-
 TEST_F(FaviconCacheTest, GetFaviconForIconUrl) {
   // Verify that the service receives a request by the icon URL.
   ExpectFaviconServiceForPageUrlCalls(0, 0);
@@ -196,8 +134,8 @@ TEST_F(FaviconCacheTest, GetFaviconForIconUrl) {
 
   // Since the other tests are comprehensive, we don't simulate or verify the
   // actual result.
-  gfx::Image result =
-      cache_.GetFaviconForIconUrl(kIconUrl, base::BindOnce(&Fail));
+  gfx::Image result = cache_.GetFaviconForIconUrl(
+      kIconUrl, base::BindOnce(&Fail), /*notify_on_empty=*/false);
   EXPECT_TRUE(result.IsEmpty());
 }
 
@@ -386,4 +324,60 @@ TEST_F(FaviconCacheTest, DoNotExpireNullFaviconsFor404) {
   // call to the mock underlying FaviconService.
   EXPECT_TRUE(
       cache_.GetFaviconForPageUrl(kUrlA, base::BindOnce(&Fail)).IsEmpty());
+}
+
+TEST_F(FaviconCacheTest, GetFaviconForIconUrl_NotifyOnEmpty) {
+  // `GetFaviconForIconUrl()` should call `FaviconService::GetFaviconImage()`.
+  favicon_base::FaviconImageCallback icon_url_callback;
+  EXPECT_CALL(favicon_service_, GetFaviconImage(kIconUrl, _, _))
+      .WillOnce([&](auto, favicon_base::FaviconImageCallback callback, auto) {
+        icon_url_callback = std::move(callback);
+        return base::CancelableTaskTracker::kBadTaskId;
+      });
+
+  // `GetFaviconForIconUrl()` should not call the callback sync since the
+  // request is not yet cached.
+  base::test::TestFuture<const gfx::Image&> future;
+  cache_.GetFaviconForIconUrl(kIconUrl, future.GetCallback(),
+                              /*notify_on_empty=*/true);
+  EXPECT_FALSE(future.IsReady());
+
+  // After `FaviconService::GetFaviconImage()` returns, the callback should be
+  // called with an empty image.
+  std::move(icon_url_callback).Run(favicon_base::FaviconImageResult());
+  EXPECT_TRUE(future.IsReady());
+  EXPECT_TRUE(future.Get().IsEmpty());
+
+  // Now that the request is cached, `GetFaviconForIconUrl()` should call the
+  // callback sync.
+  future.Clear();
+  cache_.GetFaviconForIconUrl(kIconUrl, future.GetCallback(),
+                              /*notify_on_empty=*/true);
+  EXPECT_TRUE(future.IsReady());
+  EXPECT_TRUE(future.Get().IsEmpty());
+}
+
+TEST_F(FaviconCacheTest, GetFaviconForIconUrl_PartialNotifyOnEmpty) {
+  // `GetFaviconForIconUrl()` should call `FaviconService::GetFaviconImage()`.
+  favicon_base::FaviconImageCallback icon_url_callback;
+  EXPECT_CALL(favicon_service_, GetFaviconImage(kIconUrl, _, _))
+      .WillOnce([&](auto, favicon_base::FaviconImageCallback callback, auto) {
+        icon_url_callback = std::move(callback);
+        return base::CancelableTaskTracker::kBadTaskId;
+      });
+
+  // Call `GetFaviconForIconUrl()` twice, with `notify_on_empty` false and true.
+  // Only the former's callback should be called.
+  base::test::TestFuture<const gfx::Image&> future;
+  cache_.GetFaviconForIconUrl(kIconUrl, base::BindOnce(&Fail),
+                              /*notify_on_empty=*/false);
+  cache_.GetFaviconForIconUrl(kIconUrl, future.GetCallback(),
+                              /*notify_on_empty=*/true);
+  EXPECT_FALSE(future.IsReady());
+
+  // After `FaviconService::GetFaviconImage()` returns, the callback should be
+  // called with an empty image.
+  std::move(icon_url_callback).Run(favicon_base::FaviconImageResult());
+  EXPECT_TRUE(future.IsReady());
+  EXPECT_TRUE(future.Get().IsEmpty());
 }

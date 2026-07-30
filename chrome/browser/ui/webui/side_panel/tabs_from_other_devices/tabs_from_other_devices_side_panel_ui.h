@@ -8,7 +8,8 @@
 #include "chrome/browser/ui/webui/top_chrome/top_chrome_web_ui_controller.h"
 #include "chrome/browser/ui/webui/top_chrome/top_chrome_webui_config.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
-#include "ui/webui/resources/cr_components/history/foreign_sessions.mojom-forward.h"
+#include "mojo/public/cpp/bindings/receiver.h"
+#include "ui/webui/resources/cr_components/history/foreign_sessions.mojom.h"
 
 class BrowserWindowInterface;
 class TabsFromOtherDevicesSidePanelMetrics;
@@ -28,7 +29,9 @@ class TabsFromOtherDevicesUIConfig
   std::optional<int> GetCommandIdForTesting() override;
 };
 
-class TabsFromOtherDevicesSidePanelUI : public TopChromeWebUIController {
+class TabsFromOtherDevicesSidePanelUI
+    : public TopChromeWebUIController,
+      public history::mojom::ForeignSessionPageHandlerFactory {
  public:
   explicit TabsFromOtherDevicesSidePanelUI(content::WebUI* web_ui);
   TabsFromOtherDevicesSidePanelUI(const TabsFromOtherDevicesSidePanelUI&) =
@@ -44,8 +47,14 @@ class TabsFromOtherDevicesSidePanelUI : public TopChromeWebUIController {
   // Instantiates the implementor of the mojom::PageHandlerFactory mojo
   // interface passing the pending receiver that will be internally bound.
   void BindInterface(
-      mojo::PendingReceiver<history::mojom::ForeignSessionPageHandler>
-          pending_page_handler);
+      mojo::PendingReceiver<history::mojom::ForeignSessionPageHandlerFactory>
+          pending_receiver);
+
+  // history::mojom::ForeignSessionPageHandlerFactory:
+  void CreateForeignSessionPageHandler(
+      mojo::PendingRemote<history::mojom::ForeignSessionPage> page,
+      mojo::PendingReceiver<history::mojom::ForeignSessionPageHandler> receiver)
+      override;
 
   BrowserWindowInterface* browser_window_interface() {
     return browser_window_interface_;
@@ -67,6 +76,9 @@ class TabsFromOtherDevicesSidePanelUI : public TopChromeWebUIController {
   raw_ptr<BrowserWindowInterface> browser_window_interface_;
 
   std::unique_ptr<browser_sync::ForeignSessionHandler> foreign_session_handler_;
+
+  mojo::Receiver<history::mojom::ForeignSessionPageHandlerFactory>
+      foreign_session_page_handler_factory_receiver_{this};
 
   base::WeakPtr<TabsFromOtherDevicesSidePanelMetrics> metrics_recorder_;
 

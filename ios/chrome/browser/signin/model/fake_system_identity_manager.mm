@@ -37,8 +37,9 @@ constexpr base::TimeDelta kAccessTokenExpiration = base::Minutes(5);
 
 // Returns a hosted domain for identity.
 NSString* FakeGetHostedDomainForIdentity(id<SystemIdentity> identity) {
-  return base::SysUTF8ToNSString(
+  NSString* domain = base::SysUTF8ToNSString(
       gaia::ExtractDomainName(base::SysNSStringToUTF8(identity.userEmail)));
+  return [domain isEqualToString:@"gmail.com"] ? @"" : domain;
 }
 
 // Stores a pointer to the last created FakeSystemIdentityManager*. Used to
@@ -500,8 +501,7 @@ NSString* FakeSystemIdentityManager::GetCachedHostedDomainForIdentity(
   CHECK(identity);
   if (instantly_fill_hosted_domain_cache_ ||
       [hosted_domain_cache_ containsObject:identity]) {
-    NSString* domain = FakeGetHostedDomainForIdentity(identity);
-    return [domain isEqualToString:@"gmail.com"] ? @"" : domain;
+    return FakeGetHostedDomainForIdentity(identity);
   }
   return nil;
 }

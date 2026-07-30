@@ -32,15 +32,15 @@ class SelectionSample final {
   // TDOO(editng-dev): We will have flat tree version of |SetSelectionText()|
   // and |GetSelectionText()| when we need.
   // Set |selection_text|, which is HTML markup with selection markers as inner
-  // HTML to |HTMLElement| and returns |SelectionInDOMTree|.
-  static SelectionInDOMTree SetSelectionText(HTMLElement*,
+  // HTML to |HTMLElement| and returns |SelectionInDomTree|.
+  static SelectionInDomTree SetSelectionText(HTMLElement*,
                                              const std::string& selection_text);
 
   // Note: We don't add namespace declaration if |ContainerNode| doesn't
   // have it.
   // Note: We don't escape "--" in comment.
   static std::string GetSelectionText(const ContainerNode&,
-                                      const SelectionInDOMTree&);
+                                      const SelectionInDomTree&);
   static std::string GetSelectionTextInFlatTree(const ContainerNode&,
                                                 const SelectionInFlatTree&);
   static void ConvertTemplatesToShadowRootsForTesring(HTMLElement&);

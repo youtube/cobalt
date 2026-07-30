@@ -9,7 +9,7 @@
 #include "third_party/blink/renderer/bindings/core/v8/v8_typedefs.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/dom/create_element_flags.h"
-#include "third_party/blink/renderer/core/dom/element_rare_data_field.h"
+#include "third_party/blink/renderer/core/dom/node_rare_data_field.h"
 #include "third_party/blink/renderer/core/html/custom/custom_element_descriptor.h"
 #include "third_party/blink/renderer/platform/bindings/name_client.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
@@ -35,7 +35,7 @@ enum class FormAssociationFlag {
 class CORE_EXPORT CustomElementDefinition
     : public GarbageCollected<CustomElementDefinition>,
       public NameClient,
-      public ElementRareDataField {
+      public NodeRareDataField {
  public:
   CustomElementDefinition(const CustomElementDefinition&) = delete;
   CustomElementDefinition& operator=(const CustomElementDefinition&) = delete;

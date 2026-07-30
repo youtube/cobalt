@@ -12,8 +12,8 @@ namespace input_method {
 
 // CandidateWindowController is used for controlling the input method
 // candidate window. Once the initialization is done, the controller
-// starts monitoring signals sent from the the background input method
-// daemon, and shows and hides the candidate window as neeeded. Upon
+// starts monitoring signals sent from the background input method
+// daemon, and shows and hides the candidate window as needed. Upon
 // deletion of the object, monitoring stops and the view used for
 // rendering the candidate view is deleted.
 class CandidateWindowController {

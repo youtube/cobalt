@@ -741,3 +741,99 @@ TEST_F(PinnedToolbarActionsContainerTest, MetricsRecordedForPinnableActions) {
   EXPECT_EQ(pinnable_count, expected_pinnable_count);
 #endif  // BUILDFLAG(IS_CHROMEOS)
 }
+
+TEST_F(PinnedToolbarActionsContainerTest,
+       PinnedActionToolbarButtonPriorityTest) {
+  UpdateActionItem(actions::kActionCut);
+  model()->UpdatePinnedState(actions::kActionCut, true);
+
+  auto toolbar_buttons = GetChildToolbarButtons();
+  ASSERT_EQ(toolbar_buttons.size(), 1u);
+  auto* pinned_button = toolbar_buttons[0];
+
+  // Verify that the initial priority is low.
+  EXPECT_EQ(static_cast<PinnedToolbarActionFlexPriority>(
+                pinned_button->GetProperty(kToolbarButtonFlexPriorityKey)),
+            PinnedToolbarActionFlexPriority::kLow);
+
+  // Verify setting the action as engaged updates the priority to medium.
+  pinned_button->SetActionEngaged(true);
+  EXPECT_EQ(static_cast<PinnedToolbarActionFlexPriority>(
+                pinned_button->GetProperty(kToolbarButtonFlexPriorityKey)),
+            PinnedToolbarActionFlexPriority::kMedium);
+
+  // Verify that disengaging the action reverts the priority to low.
+  pinned_button->SetActionEngaged(false);
+  EXPECT_EQ(static_cast<PinnedToolbarActionFlexPriority>(
+                pinned_button->GetProperty(kToolbarButtonFlexPriorityKey)),
+            PinnedToolbarActionFlexPriority::kLow);
+
+  // Verify that adding an anchor highlight raises the priority to high.
+  std::optional<views::Button::ScopedAnchorHighlight> anchor_highlight =
+      pinned_button->AddAnchorHighlight();
+  EXPECT_EQ(static_cast<PinnedToolbarActionFlexPriority>(
+                pinned_button->GetProperty(kToolbarButtonFlexPriorityKey)),
+            PinnedToolbarActionFlexPriority::kHigh);
+
+  // Verify setting the action to engaged while anchored stays high priority.
+  pinned_button->SetActionEngaged(true);
+  EXPECT_EQ(static_cast<PinnedToolbarActionFlexPriority>(
+                pinned_button->GetProperty(kToolbarButtonFlexPriorityKey)),
+            PinnedToolbarActionFlexPriority::kHigh);
+
+  // Verify disengaging the action while anchored stays high priority.
+  pinned_button->SetActionEngaged(false);
+  EXPECT_EQ(static_cast<PinnedToolbarActionFlexPriority>(
+                pinned_button->GetProperty(kToolbarButtonFlexPriorityKey)),
+            PinnedToolbarActionFlexPriority::kHigh);
+
+  // Verify that releasing the anchor returns priority to low.
+  anchor_highlight.reset();
+  EXPECT_EQ(static_cast<PinnedToolbarActionFlexPriority>(
+                pinned_button->GetProperty(kToolbarButtonFlexPriorityKey)),
+            PinnedToolbarActionFlexPriority::kLow);
+
+  // Verify toggling the anchoring while the action is engaged ends with medium
+  // priority.
+  pinned_button->SetActionEngaged(true);
+  EXPECT_EQ(static_cast<PinnedToolbarActionFlexPriority>(
+                pinned_button->GetProperty(kToolbarButtonFlexPriorityKey)),
+            PinnedToolbarActionFlexPriority::kMedium);
+  anchor_highlight = pinned_button->AddAnchorHighlight();
+  EXPECT_EQ(static_cast<PinnedToolbarActionFlexPriority>(
+                pinned_button->GetProperty(kToolbarButtonFlexPriorityKey)),
+            PinnedToolbarActionFlexPriority::kHigh);
+  anchor_highlight.reset();
+  EXPECT_EQ(static_cast<PinnedToolbarActionFlexPriority>(
+                pinned_button->GetProperty(kToolbarButtonFlexPriorityKey)),
+            PinnedToolbarActionFlexPriority::kMedium);
+}
+
+TEST_F(PinnedToolbarActionsContainerTest,
+       BubbleAnchorFallsBackToOverflowButtonWhenOverflowed) {
+  UpdateActionItem(actions::kActionCut);
+
+  container()->GetAnimatingLayoutManager()->disable_widget_check_for_testing();
+  container()->SetBounds(0, 0, 1000, 50);
+  container()->ShowActionEphemerallyInToolbar(actions::kActionCut, true);
+  container()->GetAnimatingLayoutManager()->ResetLayout();
+
+  // Set the overflow button visible on the toolbar.
+  auto* overflow_button = browser_view()->toolbar()->overflow_button();
+  ASSERT_TRUE(overflow_button);
+  overflow_button->SetVisible(true);
+
+  // When the container itself is visible, anchor should be the button itself.
+  container()->SetVisible(true);
+  EXPECT_FALSE(container()->IsOverflowed(actions::kActionCut));
+  auto normal_anchor = container()->GetBubbleAnchor(actions::kActionCut);
+  EXPECT_EQ(normal_anchor.GetIfView(),
+            container()->GetButtonFor(actions::kActionCut));
+
+  // When the container is not visible (simulating overflowed/hidden state),
+  // anchor should fall back to the overflow button.
+  container()->SetVisible(false);
+  EXPECT_TRUE(container()->IsOverflowed(actions::kActionCut));
+  auto overflow_anchor = container()->GetBubbleAnchor(actions::kActionCut);
+  EXPECT_EQ(overflow_anchor.GetIfView(), overflow_button);
+}

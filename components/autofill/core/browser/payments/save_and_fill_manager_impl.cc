@@ -346,7 +346,7 @@ void SaveAndFillManagerImpl::PopulateInitialUploadDetails() {
   }
 
   upload_details_.upload_card_source = UploadCardSource::kUpstreamSaveAndFill;
-  upload_details_.billing_customer_number = payments::GetBillingCustomerId(
+  upload_details_.billing_customer_number = GetBillingCustomerId(
       payments_autofill_client()->GetPaymentsDataManager());
   upload_details_.app_locale = autofill_client_->GetAppLocale();
   // For Save and Fill dialog, the account email should always be shown in the
@@ -405,8 +405,8 @@ void SaveAndFillManagerImpl::OnUserDidDecideOnUploadSave(
       PopulateCreditCardInfo(upload_details_.card,
                              user_provided_card_save_and_fill_details);
       if (!supported_card_bin_ranges_.empty() &&
-          !payments::IsCreditCardNumberSupported(upload_details_.card.number(),
-                                                 supported_card_bin_ranges_)) {
+          !IsCreditCardNumberSupported(upload_details_.card.number(),
+                                       supported_card_bin_ranges_)) {
         logging_context_.flow_scenario = autofill_metrics::
             SaveAndFillFlowScenario::kLocalSaveBinRangeNotSupported;
         // The card's BIN is not supported for upload save. Fallback to a local
@@ -537,7 +537,7 @@ void SaveAndFillManagerImpl::OnPendingDialogCanceled(
 
 void SaveAndFillManagerImpl::Reset() {
   weak_ptr_factory_.InvalidateWeakPtrs();
-  upload_details_ = payments::UploadCardRequestDetails();
+  upload_details_ = UploadCardRequestDetails();
   fill_card_callback_.Reset();
   supported_card_bin_ranges_.clear();
   upload_save_and_fill_dialog_accepted_ = false;

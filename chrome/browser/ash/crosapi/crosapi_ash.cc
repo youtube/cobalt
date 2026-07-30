@@ -13,7 +13,6 @@
 #include "base/notimplemented.h"
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
-#include "chrome/browser/ash/crosapi/local_printer_ash.h"
 #include "chrome/browser/ash/login/quick_unlock/quick_unlock_factory.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/browser_process.h"
@@ -29,7 +28,6 @@
 #include "chromeos/components/in_session_auth/in_session_auth.h"
 #include "chromeos/components/sensors/ash/sensor_hal_dispatcher.h"
 #include "chromeos/constants/chromeos_features.h"
-#include "chromeos/crosapi/mojom/local_printer.mojom.h"
 #include "chromeos/crosapi/mojom/telemetry_diagnostic_routine_service.mojom.h"
 #include "chromeos/services/chromebox_for_meetings/public/cpp/service_connection.h"
 #include "chromeos/services/chromebox_for_meetings/public/mojom/cfm_service_manager.mojom.h"
@@ -69,8 +67,7 @@ Profile* GetAshProfile() {
 }  // namespace
 
 CrosapiAsh::CrosapiAsh()
-    : local_printer_ash_(std::make_unique<LocalPrinterAsh>()),
-      telemetry_diagnostic_routine_service_ash_(
+    : telemetry_diagnostic_routine_service_ash_(
           std::make_unique<ash::TelemetryDiagnosticsRoutineServiceAsh>()),
       probe_service_ash_(std::make_unique<ash::ProbeServiceAsh>()) {
   receiver_set_.set_disconnect_handler(base::BindRepeating(
@@ -116,11 +113,6 @@ void CrosapiAsh::BindHidManager(
 void CrosapiAsh::BindInSessionAuth(
     mojo::PendingReceiver<chromeos::auth::mojom::InSessionAuth> receiver) {
   chromeos::auth::BindToInSessionAuthService(std::move(receiver));
-}
-
-void CrosapiAsh::BindLocalPrinter(
-    mojo::PendingReceiver<crosapi::mojom::LocalPrinter> receiver) {
-  local_printer_ash_->BindReceiver(std::move(receiver));
 }
 
 void CrosapiAsh::BindMachineLearningService(

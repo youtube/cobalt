@@ -50,11 +50,17 @@ public class TabGroupListBottomSheetMediator {
     private final FaviconResolver mFaviconResolver;
     private final @Nullable TabGroupSyncService mTabGroupSyncService;
     private final boolean mShowNewGroup;
+    private boolean mCurrentlyShowing;
 
     private final BottomSheetObserver mBottomSheetObserver =
             new EmptyBottomSheetObserver() {
+
                 @Override
                 public void onSheetClosed(@StateChangeReason int reason) {
+                    // This may be called when another bottom sheet was closed in order to show this
+                    // bottom sheet.
+                    if (!mCurrentlyShowing) return;
+                    mCurrentlyShowing = false;
                     mBottomSheetController.removeObserver(mBottomSheetObserver);
                     mModelList.clear();
                 }
@@ -68,9 +74,11 @@ public class TabGroupListBottomSheetMediator {
 
                 @Override
                 public void onSheetContentChanged(@Nullable BottomSheetContent newContent) {
-                    if (mDelegate.isSameContentView(newContent)
-                            && !mBottomSheetController.hasBottomInset()) {
-                        mDelegate.addPadding();
+                    if (mDelegate.isSameContentView(newContent)) {
+                        mCurrentlyShowing = true;
+                        if (!mBottomSheetController.hasBottomInset()) {
+                            mDelegate.addPadding();
+                        }
                     }
                 }
             };
@@ -123,6 +131,11 @@ public class TabGroupListBottomSheetMediator {
         if (!requestSuccess) {
             mBottomSheetController.removeObserver(mBottomSheetObserver);
         }
+    }
+
+    /** Destroys the mediator. */
+    void destroy() {
+        mBottomSheetController.removeObserver(mBottomSheetObserver);
     }
 
     /** Hides the bottom sheet. */

@@ -37,6 +37,18 @@ enum ReportTrigger : uint32_t {
   kTriggerSecurity = 1U << 4,    // Triggered by a security trigger.
 };
 
+inline std::string_view GetSecuritySignalsModeMetricSuffix(
+    SecuritySignalsMode mode) {
+  switch (mode) {
+    case SecuritySignalsMode::kNoSignals:
+      return "NoSignals";
+    case SecuritySignalsMode::kSignalsAttached:
+      return "SignalsAttached";
+    case SecuritySignalsMode::kSignalsOnly:
+      return "SignalsOnly";
+  }
+}
+
 // Struct that includes various configuration of report generation and upload
 // process. Only used by profile-level reporting for now.
 struct ReportGenerationConfig {

@@ -231,6 +231,12 @@ export class ComposeboxVoiceSearchElement extends
   private metricSource_: string = '';
   private blurTimeoutId_: number|null = null;
 
+  // Shared statically to coordinate the singleton SpeechRecognition service
+  // across element instances (which are destroyed/recreated on toggle) and
+  // prevent InvalidStateError crashes on rapid restarts.
+  private static activeRecognition_: SpeechRecognition|null = null;
+  private static pendingStartInstance_: ComposeboxVoiceSearchElement|null = null;
+
   private pageHandler_: PageHandlerRemote =
       ComposeboxProxyImpl.getInstance().handler;
   private voiceRecognition_: SpeechRecognition;
@@ -275,6 +281,9 @@ export class ComposeboxVoiceSearchElement extends
         (id: number) => assert(this.pageCallbackRouter!.removeListener(id)));
     this.listenerIds_ = [];
     this.removeOutsideListeners_();
+    if (ComposeboxVoiceSearchElement.pendingStartInstance_ === this) {
+      ComposeboxVoiceSearchElement.pendingStartInstance_ = null;
+    }
     this.voiceRecognition_.abort();
     super.disconnectedCallback();
   }
@@ -286,8 +295,8 @@ export class ComposeboxVoiceSearchElement extends
     if (changedProperties.has('pageCallbackRouter') &&
         this.pageCallbackRouter && this.listenerIds_.length === 0) {
       this.listenerIds_.push(
-          this.pageCallbackRouter.onEmbeddedPermissionPromptChanged.addListener(
-              this.onEmbeddedVoicePermissionPromptChanged.bind(this)),
+          this.pageCallbackRouter.onPermissionPromptChanged.addListener(
+              this.onVoicePermissionPromptChanged.bind(this)),
       );
     }
   }
@@ -301,11 +310,17 @@ export class ComposeboxVoiceSearchElement extends
         this.state_ !== State.ERROR_RECEIVED) {
       return;
     }
+    if (ComposeboxVoiceSearchElement.activeRecognition_ !== null) {
+      ComposeboxVoiceSearchElement.pendingStartInstance_ = this;
+      ComposeboxVoiceSearchElement.activeRecognition_.abort();
+      return;
+    }
     this.errorMessage_ = '';
     // If continuous is false, then speech webkit determines when to end, and
     // there is no manual set timeout.
     this.voiceRecognition_.continuous = !this.dynamicTimeoutEnabled;
     this.voiceRecognition_.start();
+    ComposeboxVoiceSearchElement.activeRecognition_ = this.voiceRecognition_;
     this.state_ = State.STARTED;
     this.resetIdleTimer_();
     // TODO(crbug.com/504726157): When the NTP searchbox migrates to use this
@@ -318,7 +333,10 @@ export class ComposeboxVoiceSearchElement extends
 
   private onOutsideInteraction_ = (e: Event) => {
     if (e.type === 'pointerdown') {
-      if (e.composedPath().includes(this)) {
+      const host = this.getRootNode() instanceof ShadowRoot ?
+          (this.getRootNode() as ShadowRoot).host : null;
+      if (e.composedPath().includes(this) ||
+          (host && e.composedPath().includes(host))) {
         return;
       }
       this.onStopClick_();
@@ -334,7 +352,7 @@ export class ComposeboxVoiceSearchElement extends
       }
 
       // Add a timeout before calling `stop()`. This gives a small delay for
-      // `onEmbeddedVoicePermissionPromptChanged` to run after any setup lag
+      // `onVoicePermissionPromptChanged` to run after any setup lag
       // (~15ms). This way, it is certain that this blur event is not due to
       // a permission prompt popping up.
       this.blurTimeoutId_ = WindowProxy.getInstance().setTimeout(() => {
@@ -378,8 +396,7 @@ export class ComposeboxVoiceSearchElement extends
     this.voiceModeEndCleanup_();
   }
 
-  private onEmbeddedVoicePermissionPromptChanged(
-      isOpened: boolean, promptSize: Size) {
+  private onVoicePermissionPromptChanged(isOpened: boolean, promptSize: Size) {
     // Track the state for the blur event handler to ignore if
     // permission prompt open.
     this.isPermissionPromptOpen_ = isOpened;
@@ -518,6 +535,17 @@ export class ComposeboxVoiceSearchElement extends
   }
 
   private onEnd_() {
+    if (ComposeboxVoiceSearchElement.activeRecognition_ === this.voiceRecognition_) {
+      ComposeboxVoiceSearchElement.activeRecognition_ = null;
+    }
+
+    if (ComposeboxVoiceSearchElement.pendingStartInstance_ !== null) {
+      const pending = ComposeboxVoiceSearchElement.pendingStartInstance_;
+      ComposeboxVoiceSearchElement.pendingStartInstance_ = null;
+      pending.start();
+      return;
+    }
+
     switch (this.state_) {
         // If voiceRecognition calls `onEnd_` with the state being anything
         // other than `RESULT_FINAL` or `ERROR_RECEIVED` or `SPEECH_RECEIVED` or

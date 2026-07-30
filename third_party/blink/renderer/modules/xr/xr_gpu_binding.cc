@@ -146,7 +146,7 @@ XRProjectionLayer* XRGPUBinding::createProjectionLayer(
   XRGPUTextureArraySwapChain* wrapped_swap_chain =
       MakeGarbageCollected<XRGPUTextureArraySwapChain>(
           device_, color_swap_chain, AsDawnEnum(init->colorFormat()),
-          session()->array_texture_layers());
+          base::checked_cast<uint32_t>(session()->array_texture_layers()));
 
   // Create the depth/stencil swap chain
   XRGPUStaticSwapChain* depth_stencil_swap_chain = nullptr;
@@ -170,7 +170,8 @@ XRProjectionLayer* XRGPUBinding::createProjectionLayer(
                                            ? V8XRLayerLayout::Enum::kStereo
                                            : V8XRLayerLayout::Enum::kMono;
 
-  return MakeGarbageCollected<XRProjectionLayer>(this, drawing_context, layout);
+  return MakeGarbageCollected<XRProjectionLayer>(session(), this,
+                                                 drawing_context, layout);
 }
 
 XRGPUSubImage* XRGPUBinding::getViewSubImage(XRProjectionLayer* layer,

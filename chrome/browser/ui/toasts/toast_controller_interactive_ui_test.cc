@@ -178,8 +178,9 @@ class ToastControllerInteractiveTest : public InteractiveBrowserTest {
   }
 
   void RemoveOmniboxFocus() {
-    ui_test_utils::ClickOnView(
-        BrowserView::GetBrowserViewForBrowser(browser())->contents_web_view());
+    BrowserView::GetBrowserViewForBrowser(browser())
+        ->GetFocusManager()
+        ->ClearFocus();
   }
 
  private:
@@ -324,7 +325,28 @@ IN_PROC_BROWSER_TEST_F(ToastControllerInteractiveTest,
                   ShowToast(ToastParams(ToastId::kNonMilestoneUpdate)),
                   WaitForShow(toasts::ToastView::kToastViewId),
                   NavigateWebContents(kFirstTab, GetURL()),
-                  EnsurePresent(toasts::ToastView::kToastViewId));
+                  EnsurePresent(toasts::ToastView::kToastViewId),
+                  // Explicitly close the persistent toast to prevent the widget
+                  // from leaking into browser teardown.
+                  Do([this]() {
+                    GetToastController()->GetToastWidgetForTesting()->Close();
+                  }),
+                  WaitForHide(toasts::ToastView::kToastViewId));
+}
+
+IN_PROC_BROWSER_TEST_F(ToastControllerInteractiveTest,
+                       NavigationPersistentToastStaysOnNavigation) {
+  ToastParams params(ToastId::kEmailVerified);
+  params.body_string_replacement_params = {u"dummy"};
+  params.menu_model = std::make_unique<TestMenuModel>(base::DoNothing());
+  RunTestSequence(InstrumentTab(kFirstTab), ShowToast(std::move(params)),
+                  WaitForShow(toasts::ToastView::kToastViewId),
+                  NavigateWebContents(kFirstTab, GetURL()),
+                  CheckShowingToastId(ToastId::kEmailVerified),
+                  // Explicitly fire the close timer to prevent the persistent
+                  // toast widget from leaking into browser teardown.
+                  FireToastCloseTimer(),
+                  WaitForHide(toasts::ToastView::kToastViewId));
 }
 
 // Tests that setting a menu model in `ToastParams` adds a menu button to the
@@ -408,14 +430,8 @@ IN_PROC_BROWSER_TEST_F(ToastControllerInteractiveTest,
   EXPECT_FALSE(toast_controller->GetToastWidgetForTesting()->IsVisible());
 }
 
-// TODO(crbug.com/427355902): Flaky on Linux.
-#if BUILDFLAG(IS_LINUX)
-#define MAYBE_HidesWhenOmniboxPopupShows DISABLED_HidesWhenOmniboxPopupShows
-#else
-#define MAYBE_HidesWhenOmniboxPopupShows HidesWhenOmniboxPopupShows
-#endif
 IN_PROC_BROWSER_TEST_F(ToastControllerInteractiveTest,
-                       MAYBE_HidesWhenOmniboxPopupShows) {
+                       HidesWhenOmniboxPopupShows) {
   // Even though the omnibox is focused, the toast should still show because
   // the omnibox doesn't have a popup and the user isn't interacting with the
   // omnibox.

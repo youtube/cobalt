@@ -37,6 +37,7 @@ import org.chromium.chrome.browser.omnibox.R;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxCoordinator.FuseboxLayoutMode;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxCoordinator.FuseboxState;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxCoordinator.PopupState;
+import org.chromium.chrome.browser.omnibox.fusebox.FuseboxProperties.BackgroundStyle;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxProperties.PopupButtonData;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxProperties.PopupButtonType;
 import org.chromium.chrome.browser.omnibox.styles.OmniboxResourceProvider;
@@ -106,6 +107,7 @@ class FuseboxViewBinder {
             reanchorViewsForCompactFusebox(model, view);
         } else if (propertyKey == FuseboxProperties.FUSEBOX_LAYOUT_MODE) {
             reanchorViewsForCompactFusebox(model, view);
+        } else if (propertyKey == FuseboxProperties.PLUS_BUTTON_BACKGROUND_STYLE) {
             updatePlusButtonVisuals(model, view);
         } else if (propertyKey == FuseboxProperties.PLUS_BUTTON_CLICKED) {
             view.plusButton.setOnClickListener(
@@ -552,17 +554,16 @@ class FuseboxViewBinder {
         Context context = view.parentView.getContext();
         ChromeImageView plusButton = view.plusButton;
         @BrandedColorScheme int brandedColorScheme = model.get(FuseboxProperties.COLOR_SCHEME);
+        @BackgroundStyle int style = model.get(FuseboxProperties.PLUS_BUTTON_BACKGROUND_STYLE);
+
         plusButton.setImageTintList(
                 OmniboxResourceProvider.getPrimaryIconTintList(context, brandedColorScheme));
-
-        if (model.get(FuseboxProperties.FUSEBOX_LAYOUT_MODE)
-                == FuseboxLayoutMode.SUGGESTIONS_POPOVER) {
+        if (style == BackgroundStyle.ALWAYS_VISIBLE_WIDE) {
             plusButton.setBackground(
                     OmniboxResourceProvider.getPopoverPlusButtonBackground(
                             context, brandedColorScheme));
-            // Null the outline provider in case we were previously in FuseboxLayoutMode.TOOLBAR.
-            // The SUGGESTIONS_POPOVER's drawable implicitly handles corner rounding, while the
-            // TOOLBAR's drawable needs to use the outline provider.
+            // Our drawable implicitly handles corner rounding, while the other background style's
+            // drawable needs the outline provider.
             plusButton.setOutlineProvider(null);
         } else {
             Resources resources = context.getResources();

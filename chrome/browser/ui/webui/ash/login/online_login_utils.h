@@ -150,7 +150,7 @@ bool IsFamilyLinkAllowed();
 // |OnCookieTimeoutCallback| is invoked.
 class GaiaCookieRetriever : public network::mojom::CookieChangeListener {
  public:
-  using OnCookieTimeoutCallback = base::OnceCallback<void(void)>;
+  using OnCookieTimeoutCallback = base::OnceClosure;
   using OnCookieRetrievedCallback =
       base::OnceCallback<void(login::GaiaCookiesData)>;
 

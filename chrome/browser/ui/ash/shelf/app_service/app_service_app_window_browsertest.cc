@@ -20,6 +20,7 @@
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
+#include "chrome/browser/apps/app_service/chrome_app_deprecation/chrome_app_deprecation.h"
 #include "chrome/browser/apps/platform_apps/app_browsertest_util.h"
 #include "chrome/browser/ash/app_list/arc/arc_app_list_prefs.h"
 #include "chrome/browser/ash/arc/arc_util.h"
@@ -299,6 +300,10 @@ IN_PROC_BROWSER_TEST_F(AppServiceAppWindowBrowserTest, MultipleWindows) {
 IN_PROC_BROWSER_TEST_F(AppServiceAppWindowBrowserTest,
                        HostedAppandExtensionApp) {
   const extensions::Extension* extension1 = InstallHostedApp();
+  // Allowlist the deprecated hosted app so it can still be launched for the
+  // test.
+  apps::chrome_app_deprecation::ScopedAddAppToAllowlistForTesting allowlist(
+      extension1->id());
   LaunchHostedApp(extension1);
 
   std::string app_id1 = extension1->id();
@@ -558,7 +563,7 @@ IN_PROC_BROWSER_TEST_F(AppServiceAppWindowWebAppBrowserTest,
             GetAppInstanceState(app_id, instance2->Window()));
 
   // Bring the browser window to foreground.
-  browser()->window()->Show();
+  browser()->GetWindow()->Show();
 
   EXPECT_EQ(apps::InstanceState::kStarted | apps::InstanceState::kRunning |
                 apps::InstanceState::kVisible,

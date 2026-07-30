@@ -21,7 +21,7 @@ MlLogRouterFactory* MlLogRouterFactory::GetInstance() {
 
 // static
 MlLogRouter* MlLogRouterFactory::GetForProfile(Profile* profile) {
-  return static_cast<autofill::MlLogRouter*>(
+  return static_cast<MlLogRouter*>(
       GetInstance()->GetServiceForBrowserContext(profile, /*create=*/true));
 }
 
@@ -38,7 +38,7 @@ MlLogRouterFactory::~MlLogRouterFactory() = default;
 std::unique_ptr<KeyedService>
 MlLogRouterFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  return std::make_unique<autofill::MlLogRouter>();
+  return std::make_unique<MlLogRouter>();
 }
 
 }  // namespace autofill

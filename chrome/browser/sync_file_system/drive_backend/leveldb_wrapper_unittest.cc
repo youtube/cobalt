@@ -187,7 +187,7 @@ TEST_F(LevelDBWrapperTest, PutTest) {
   SCOPED_TRACE("PutTest_Clear");
   CheckDBContents(orig_data);
 
-  // Add pending transactions again, with commiting.
+  // Add pending transactions again, with committing.
   GetDB()->Put("aa", "new0");
   GetDB()->Put("c", "new1");
   GetDB()->Put("bb", "new2");
@@ -226,7 +226,7 @@ TEST_F(LevelDBWrapperTest, DeleteTest) {
   SCOPED_TRACE("DeleteTest_Clear");
   CheckDBContents(orig_data);
 
-  // Add pending transactions again, with commiting.
+  // Add pending transactions again, with committing.
   GetDB()->Put("aa", "new0");
   GetDB()->Put("c", "new1");
   GetDB()->Put("bb", "new2");

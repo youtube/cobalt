@@ -73,6 +73,7 @@
 #include "chrome/browser/translate/chrome_translate_client.h"
 #include "chrome/browser/ui/accelerator_table.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
+#include "chrome/browser/ui/animation/browser_animation_controller.h"
 #include "chrome/browser/ui/autofill/autofill_bubble_base.h"
 #include "chrome/browser/ui/autofill/payments/save_card_ui.h"
 #include "chrome/browser/ui/bookmarks/bookmark_bar_controller.h"
@@ -1096,6 +1097,12 @@ BrowserView::BrowserView(Browser* browser)
           ->AddLockedForOnTaskUpdatedCallback(base::BindRepeating(
               &BrowserView::OnLockedForOnTaskUpdated, base::Unretained(this)));
 #endif
+
+  // This must be set before BrowserView::AddedToWidget() which relies on
+  // a fully-initialized BrowserAnimationController for initial layout setup.
+  auto* const animation_controller = BrowserAnimationController::From(browser_);
+  CHECK(animation_controller);
+  animation_controller->set_browser_view(this);
 }
 
 BrowserView::~BrowserView() {
@@ -2500,15 +2507,16 @@ bool BrowserView::IsWindowControlsOverlayEnabled() const {
 }
 
 void BrowserView::UpdateWindowControlsOverlayEnabled() {
-  UpdateWindowControlsOverlayToggleVisible();
+  UpdateWindowControlsOverlayAvailable();
 
-  // If the toggle is not visible, we can assume that Window Controls Overlay
-  // is not enabled.
-  // TODO(crbug.com/515812858): Rename
-  // `should_show_window_controls_overlay_toggle_`.
+  // Window Controls Overlay (WCO) is enabled when it is available in the window
+  // and declared in the app manifest. Additionally, if the
+  // `kDesktopPWAsWindowControlsOverlayWithNoToggle` feature flag is disabled,
+  // the user must also enable WCO via the toggle; otherwise, no further user
+  // action is required. See `UpdateWindowControlsOverlayAvailable()` for the
+  // conditions under which WCO is available.
   auto* const app_controller = web_app::AppBrowserController::From(browser());
-  bool enabled = should_show_window_controls_overlay_toggle_ &&
-                 app_controller &&
+  bool enabled = is_window_controls_overlay_available_ && app_controller &&
                  app_controller->IsWindowControlsOverlayEnabled();
 
   if (enabled == window_controls_overlay_enabled_) {
@@ -2558,17 +2566,17 @@ void BrowserView::UpdateWindowControlsOverlayEnabled() {
 #endif
 }
 
-void BrowserView::UpdateWindowControlsOverlayToggleVisible() {
-  bool should_show = AppUsesWindowControlsOverlay();
+void BrowserView::UpdateWindowControlsOverlayAvailable() {
+  bool available = AppUsesWindowControlsOverlay();
 
   if ((toolbar_ && toolbar_->custom_tab_bar() &&
        toolbar_->custom_tab_bar()->GetVisible()) ||
       (infobar_container_ && infobar_container_->GetVisible())) {
-    should_show = false;
+    available = false;
   }
 
   if (ImmersiveModeController::From(browser())->IsEnabled()) {
-    should_show = false;
+    available = false;
   }
 
 #if BUILDFLAG(IS_MAC)
@@ -2578,19 +2586,19 @@ void BrowserView::UpdateWindowControlsOverlayToggleVisible() {
   // Disable WCO when in fullscreen, because this space is inaccessible to
   // WebContents. https://crbug.com/41431787.
   if (browser_widget_ && IsFullscreen()) {
-    should_show = false;
+    available = false;
   }
 #endif
 
-  if (should_show == should_show_window_controls_overlay_toggle_) {
+  if (available == is_window_controls_overlay_available_) {
     return;
   }
 
   DCHECK(AppUsesWindowControlsOverlay());
-  should_show_window_controls_overlay_toggle_ = should_show;
+  is_window_controls_overlay_available_ = available;
 
   if (web_app_frame_toolbar()) {
-    web_app_frame_toolbar()->SetWindowControlsOverlayToggleVisible(should_show);
+    web_app_frame_toolbar()->SetWindowControlsOverlayToggleVisible(available);
   }
 }
 
@@ -3699,12 +3707,26 @@ BrowserView::GetNativeViewHostsForTopControlsSlide() {
 void BrowserView::ReparentTopContainerForStartOfImmersive() {
   top_container()->SetPaintToLayer();
   top_container()->layer()->SetFillsBoundsOpaquely(false);
-  top_container()->SetProperty(views::kViewDoesNotLayOutChildren, false);
 
   ReparentTabStripAndWebAppViewsToTopContainer(
       TabStripAndWebAppViewsReparentedState::kImmersiveMode);
 
   CHECK(overlay_view_tracker_);
+
+  // Note: while `BrowserViewLayout` is responsible for positioning controls in
+  // the top container, these controls can still internally invalidate. When the
+  // top container is not in the browser view, invalidations are not propagated
+  // up to the browser view, and the layout is not triggered.
+  //
+  // Therefore, let the top container lay itself out when it is not parented to
+  // the browser view.
+  //
+  // A more correct solution would be to let invalidations in the top container
+  // transfer over to the browser. See https://crbug.com/520458975 for analysis.
+  if (!Contains(overlay_view_tracker_.view())) {
+    top_container()->SetProperty(views::kViewDoesNotLayOutChildren, false);
+  }
+
   overlay_view_tracker_.view()->AddChildView(top_container());
 
   overlay_view_tracker_.view()->SetVisible(true);
@@ -3728,6 +3750,10 @@ void BrowserView::ReparentTopContainerForEndOfImmersive() {
       TabStripAndWebAppViewsReparentedState::kImmersiveMode);
 
   EnsureFocusOrder();
+
+  // See comment in `ReparentTopContainerForStartOfImmersive()`; this isn't
+  // strictly necessary on all platforms but doesn't break anything either as
+  // this is the default state.
   top_container()->SetProperty(views::kViewDoesNotLayOutChildren, true);
 }
 
@@ -4212,8 +4238,12 @@ void BrowserView::UpdateTabSearchBubbleHost() {
         toolbar_->tab_search_button(), browser_.get());
     auto* toolbar_button_controller =
         TabSearchToolbarButtonController::From(browser_.get());
-    CHECK(toolbar_button_controller);
-    toolbar_button_controller->UpdateBubbleHost(tab_search_bubble_host_.get());
+    // If TabSearchToolbarButtonController has not yet been instantiated at this
+    // point it will update the TabSearchBubbleHost when it is constructed.
+    if (toolbar_button_controller) {
+      toolbar_button_controller->UpdateBubbleHost(
+          tab_search_bubble_host_.get());
+    }
   } else {
     tab_search_bubble_host_ = std::make_unique<TabSearchBubbleHost>(
         BrowserElementsViews::From(browser_.get())
@@ -5027,13 +5057,7 @@ void BrowserView::AddedToWidget() {
   // be constructed following the check above.
   autofill_bubble_handler_ =
       std::make_unique<autofill::AutofillBubbleHandlerImpl>(
-          toolbar_button_provider);
-
-#if !BUILDFLAG(IS_CHROMEOS)
-  if (auto* controller = DownloadToolbarUIController::From(browser_.get())) {
-    controller->Init();
-  }
-#endif
+          browser_.get(), toolbar_button_provider);
 
   auto* const frame_view = GetFrameView();
   frame_view->OnBrowserViewInitViewsComplete();
@@ -5323,6 +5347,11 @@ bool BrowserView::MaybeUpdateSplitView(content::WebContents* contents) {
 bool BrowserView::MaybeUpdateDevtools(content::WebContents* contents) {
   const tabs::TabInterface* const new_tab =
       contents ? tabs::TabInterface::GetFromContents(contents) : nullptr;
+  auto* devtools_ui_controller =
+      browser_->GetFeatures().devtools_ui_controller();
+  if (!devtools_ui_controller) {
+    return false;
+  }
 
   bool devtools_layout_updated = false;
   if (IsInSplitView()) {
@@ -5333,13 +5362,11 @@ bool BrowserView::MaybeUpdateDevtools(content::WebContents* contents) {
     std::vector<tabs::TabInterface*> split_tabs = split_data->ListTabs();
     for (tabs::TabInterface* tab : split_tabs) {
       devtools_layout_updated |=
-          browser_->GetFeatures().devtools_ui_controller()->UpdateDevtools(
-              tab->GetContents(), false);
+          devtools_ui_controller->UpdateDevtools(tab->GetContents(), false);
     }
   } else {
     devtools_layout_updated =
-        browser_->GetFeatures().devtools_ui_controller()->UpdateDevtools(
-            contents, false);
+        devtools_ui_controller->UpdateDevtools(contents, false);
   }
   return devtools_layout_updated;
 }
@@ -5656,7 +5683,7 @@ void BrowserView::UpdateAcceleratorMetrics(const ui::Accelerator& accelerator,
   }
 
   if (command_id == IDC_FULLSCREEN) {
-    if (browser_->window()->IsFullscreen()) {
+    if (browser_->GetWindow()->IsFullscreen()) {
       base::RecordAction(base::UserMetricsAction("ExitFullscreen_Accelerator"));
     } else {
       base::RecordAction(

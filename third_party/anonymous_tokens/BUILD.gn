@@ -91,6 +91,8 @@ proto_library("anonymous_tokens_cc_proto") {
   cc_generator_options = "lite=true:"
 
   proto_in_dir = "src"
+
+  deps = [ "//third_party/protobuf:timestamp_proto" ]
 }
 
 source_set("proto_utils") {

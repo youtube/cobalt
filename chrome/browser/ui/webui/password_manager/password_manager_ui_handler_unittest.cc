@@ -343,4 +343,38 @@ TEST_F(PasswordManagerUIHandlerUnitTest,
             mojom::PasswordManagerActionableError::kTrustedVaultKeyNeeded);
 }
 
+TEST_F(PasswordManagerUIHandlerUnitTest,
+       ShowLastExportedFileInShell_CallsDelegate) {
+  handler().ShowLastExportedFileInShell();
+  EXPECT_TRUE(test_delegate().get_exported_file_shown_in_shell());
+}
+
+TEST_F(PasswordManagerUIHandlerUnitTest,
+       DisconnectCloudAuthenticator_CallsDelegate) {
+  base::test::TestFuture<bool> future;
+  EXPECT_FALSE(test_delegate().get_disconnect_cloud_authenticator_called());
+
+  handler().DisconnectCloudAuthenticator(future.GetCallback());
+
+  // The TestPasswordsPrivateDelegate hardcodes the response to false.
+  EXPECT_FALSE(future.Get());
+  EXPECT_TRUE(test_delegate().get_disconnect_cloud_authenticator_called());
+}
+
+TEST_F(PasswordManagerUIHandlerUnitTest,
+       IsConnectedToCloudAuthenticator_CallsDelegate) {
+  base::test::TestFuture<bool> future;
+  handler().IsConnectedToCloudAuthenticator(future.GetCallback());
+
+  // The TestPasswordsPrivateDelegate hardcodes the response to false.
+  EXPECT_FALSE(future.Get());
+}
+
+TEST_F(PasswordManagerUIHandlerUnitTest,
+       UndoRemoveSavedPasswordOrException_CallsDelegate) {
+  handler().UndoRemoveSavedPasswordOrException();
+  EXPECT_TRUE(
+      test_delegate().get_undo_remove_saved_password_or_exception_called());
+}
+
 }  // namespace password_manager

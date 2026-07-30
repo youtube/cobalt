@@ -9,7 +9,6 @@
 #include "base/containers/flat_set.h"
 #include "base/feature_list.h"
 #include "base/no_destructor.h"
-#include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
@@ -29,25 +28,6 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
   if (out) {
     *out = std::string(message);
   }
-}
-
-// Checks whether all requirements for `base::Feature` state are satisfied.
-[[nodiscard]] bool SatisfiesFeatureRequirements(
-    std::string* debug_message = nullptr) {
-  const base::Feature* const kRequiredFeatures[] = {
-      &features::kPersonalContext,
-      &features::kPersonalContextFirstRun,
-  };
-
-  for (const base::Feature* feature : kRequiredFeatures) {
-    if (!base::FeatureList::IsEnabled(*feature)) {
-      MaybeOutputReason(debug_message,
-                        base::StrCat({feature->name, " is not enabled."}));
-      return false;
-    }
-  }
-
-  return true;
 }
 
 // Checks whether all requirements for `IdentityManager` state are met.
@@ -84,8 +64,8 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
   // check is a very hacky way to check whether the user is underaged.
   // Consider defining a separate capability or syncing a separate setting
   // through ACCOUNT_SETTING instead.
-  if (extended_account_info.capabilities.can_use_model_execution_features() !=
-      signin::Tribool::kTrue) {
+  if (extended_account_info.GetAccountCapabilities()
+          .can_use_model_execution_features() != signin::Tribool::kTrue) {
     MaybeOutputReason(debug_message, "User is underaged.");
     return false;
   }
@@ -231,10 +211,6 @@ PersonalContextEnablementServiceImpl::GetEnablementState() {
 PersonalContextEnablementState
 PersonalContextEnablementServiceImpl::ComputeEnablementState() {
   using enum PersonalContextEnablementState;
-
-  if (!SatisfiesFeatureRequirements()) {
-    return kDisabledNotEligible;
-  }
 
   if (!SatisfiesAccountRequirements(identity_manager_.get())) {
     return kDisabledNotEligible;

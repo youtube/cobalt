@@ -256,61 +256,9 @@ public class ShareServiceImpl implements ShareService {
             // NullAway is failing due to the lambda.
             @NullUnmarked
             protected Boolean doInBackground() {
-                ArrayList<Uri> fileUris = new ArrayList<>(files.length);
-                ArrayList<FileOutputStream> outputStreams = new ArrayList<>(files.length);
-                boolean fileCreationSuccess = false;
-                try {
-                    File sharePath = ShareImageFileUtils.getSharedFilesDirectory();
-
-                    if (!sharePath.exists() && !sharePath.mkdir()) {
-                        throw new IOException("Failed to create directory for shared file.");
-                    }
-
-                    // As multiple files may have the same name, we create a distinct
-                    // subdirectory for each file.
-                    // Oreo (API level 26) has Files.createTempDirectory(). We emulate it here by
-                    // generating temp directories with random names.
-                    Random rand = new Random();
-                    for (SharedFile file : files) {
-                        File tempDir;
-                        File tempFile;
-                        int attempts = 0;
-                        do {
-                            if (++attempts > 10) {
-                                throw new IOException("Failed to create shared file.");
-                            }
-                            tempDir =
-                                    new File(
-                                            sharePath,
-                                            "share" + Integer.toHexString(rand.nextInt(1 << 30)));
-                            tempDir.mkdir();
-                            tempFile = new File(tempDir, file.name.path.path);
-                        } while (!tempFile.createNewFile());
-
-                        FileOutputStream outputStream = new FileOutputStream(tempFile);
-                        outputStreams.add(outputStream);
-
-                        fileUris.add(FileProviderUtils.getContentUriFromFile(tempFile));
-                        blobReceivers.add(
-                                new BlobReceiver(outputStream, MAX_SHARED_FILE_BYTES, TASK_RUNNER));
-                    }
-                    fileCreationSuccess = true;
-                } catch (IOException ie) {
-                    Log.w(TAG, "Error creating shared file", ie);
+                if (!prepareShareParamsWithFiles(files, paramsBuilder, blobReceivers)) {
                     return false;
-                } finally {
-                    if (!fileCreationSuccess) {
-                        // In case there is an IOException (or any other exception), this guarantees
-                        // that the FileOutputStreams are closed, since the BlobReceivers will not
-                        // be able to close them, and will be GC'd.
-                        for (FileOutputStream os : outputStreams) {
-                            StreamUtil.closeQuietly(os);
-                        }
-                    }
                 }
-
-                paramsBuilder.setFileContentType(SharedFileCollator.commonMimeType(files));
-                paramsBuilder.setFileUris(fileUris);
                 mCollator =
                         new SharedFileCollator(
                                 files.length,
@@ -327,6 +275,68 @@ public class ShareServiceImpl implements ShareService {
                 return true;
             }
         }.executeOnTaskRunner(TASK_RUNNER);
+    }
+
+    static boolean prepareShareParamsWithFiles(
+            SharedFile[] files,
+            ShareParams.Builder paramsBuilder,
+            ArrayList<BlobReceiver> blobReceivers) {
+        ArrayList<Uri> fileUris = new ArrayList<>(files.length);
+        ArrayList<FileOutputStream> outputStreams = new ArrayList<>(files.length);
+        boolean fileCreationSuccess = false;
+        try {
+            File sharePath = ShareImageFileUtils.getSharedFilesDirectory();
+
+            if (!sharePath.exists() && !sharePath.mkdir()) {
+                throw new IOException("Failed to create directory for shared file.");
+            }
+
+            // As multiple files may have the same name, we create a distinct
+            // subdirectory for each file.
+            // Oreo (API level 26) has Files.createTempDirectory(). We emulate it here by
+            // generating temp directories with random names.
+            Random rand = new Random();
+            for (SharedFile file : files) {
+                File tempDir;
+                File tempFile;
+                int attempts = 0;
+                do {
+                    if (++attempts > 10) {
+                        throw new IOException("Failed to create shared file.");
+                    }
+                    tempDir =
+                            new File(
+                                    sharePath,
+                                    "share" + Integer.toHexString(rand.nextInt(1 << 30)));
+                    tempDir.mkdir();
+                    tempFile = new File(tempDir, file.name.path.path);
+                } while (!tempFile.createNewFile());
+
+                FileOutputStream outputStream = new FileOutputStream(tempFile);
+                outputStreams.add(outputStream);
+
+                fileUris.add(FileProviderUtils.getContentUriFromFile(tempFile));
+                blobReceivers.add(
+                        new BlobReceiver(outputStream, MAX_SHARED_FILE_BYTES, TASK_RUNNER));
+            }
+            fileCreationSuccess = true;
+        } catch (IOException ie) {
+            Log.w(TAG, "Error creating shared file", ie);
+            return false;
+        } finally {
+            if (!fileCreationSuccess) {
+                // In case there is an IOException (or any other exception), this guarantees
+                // that the FileOutputStreams are closed, since the BlobReceivers will not
+                // be able to close them, and will be GC'd.
+                for (FileOutputStream os : outputStreams) {
+                    StreamUtil.closeQuietly(os);
+                }
+            }
+        }
+
+        paramsBuilder.setFileContentType(SharedFileCollator.commonMimeType(files));
+        paramsBuilder.setFileUris(fileUris);
+        return true;
     }
 
     // This function mimics the checks created by `SafeBaseName::Create()` as much as possible.

@@ -323,10 +323,6 @@ bool FreedesktopSecretKeyProvider::UseForEncryption() {
   return true;
 }
 
-bool FreedesktopSecretKeyProvider::IsCompatibleWithOsCryptSync() {
-  return true;
-}
-
 void FreedesktopSecretKeyProvider::InitializeFreedesktopSecretService() {
   dbus_utils::CheckForServiceAndStart(
       bus_, kSecretServiceName,
@@ -505,8 +501,31 @@ void FreedesktopSecretKeyProvider::OnSearchItems(
     return;
   }
 
-  auto* item_proxy =
-      bus_->GetObjectProxy(kSecretServiceName, result_paths.front());
+  auto* service_proxy = bus_->GetObjectProxy(
+      kSecretServiceName, dbus::ObjectPath(kSecretServicePath));
+
+  std::vector<dbus::ObjectPath> objects = {result_paths.front()};
+  Prompter<std::vector<dbus::ObjectPath>>::Prompt<"ao", "aoo">(
+      bus_, service_proxy, kSecretServiceInterface, kMethodUnlock,
+      base::BindOnce(&FreedesktopSecretKeyProvider::OnUnlockItems,
+                     weak_ptr_factory_.GetWeakPtr(), result_paths.front()),
+      objects);
+}
+
+void FreedesktopSecretKeyProvider::OnUnlockItems(
+    const dbus::ObjectPath& item_path,
+    base::expected<std::vector<dbus::ObjectPath>, ErrorDetail> unlocked_items) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!unlocked_items.has_value()) {
+    FinalizeFailure(InitStatus::kUnlockFailed, unlocked_items.error());
+    return;
+  }
+  if (unlocked_items->empty()) {
+    FinalizeFailure(InitStatus::kUnlockFailed, ErrorDetail::kEmptyObjectPaths);
+    return;
+  }
+
+  auto* item_proxy = bus_->GetObjectProxy(kSecretServiceName, item_path);
   dbus_utils::CallMethod<"o", "(oayays)">(
       item_proxy, kSecretItemInterface, kMethodGetSecret,
       base::BindOnce(&FreedesktopSecretKeyProvider::OnGetSecret,

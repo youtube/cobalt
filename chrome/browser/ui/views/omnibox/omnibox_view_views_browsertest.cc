@@ -251,27 +251,6 @@ IN_PROC_BROWSER_TEST_F(OmniboxViewViewsTest, PasteAndGoDoesNotLeavePopupOpen) {
                    ->IsPopupOpen());
 }
 
-IN_PROC_BROWSER_TEST_F(OmniboxViewViewsTest, DoNotNavigateOnDrop) {
-  OmniboxView* view = nullptr;
-  ASSERT_NO_FATAL_FAILURE(GetOmniboxViewForBrowser(browser(), &view));
-  OmniboxViewViews* omnibox_view_views = static_cast<OmniboxViewViews*>(view);
-
-  OSExchangeData data;
-  std::u16string input = u"Foo bar baz";
-  EXPECT_FALSE(data.HasString());
-  data.SetString(input);
-  EXPECT_TRUE(data.HasString());
-
-  ui::DropTargetEvent event(data, gfx::PointF(), gfx::PointF(),
-                            ui::DragDropTypes::DRAG_COPY);
-  omnibox_view_views->OnDrop(event);
-  EXPECT_EQ(input, omnibox_view_views->GetText());
-  EXPECT_TRUE(ui_test_utils::IsViewFocused(browser(), VIEW_ID_OMNIBOX));
-  EXPECT_TRUE(omnibox_view_views->IsSelectAll());
-  EXPECT_FALSE(
-      browser()->tab_strip_model()->GetActiveWebContents()->IsLoading());
-}
-
 IN_PROC_BROWSER_TEST_F(OmniboxViewViewsTest, AyncDropCallback) {
   OmniboxView* view = nullptr;
   ASSERT_NO_FATAL_FAILURE(GetOmniboxViewForBrowser(browser(), &view));
@@ -289,7 +268,9 @@ IN_PROC_BROWSER_TEST_F(OmniboxViewViewsTest, AyncDropCallback) {
   ui::mojom::DragOperation output_drag_op = ui::mojom::DragOperation::kNone;
   std::move(cb).Run(event, output_drag_op, /*drag_image_layer_owner=*/nullptr);
 
-  EXPECT_EQ(input, omnibox_view_views->GetText());
+  // Drop should focus the omnibox, replace & select its text, and not trigger a
+  // navigation.
+  EXPECT_EQ(omnibox_view_views->GetText(), input);
   EXPECT_TRUE(ui_test_utils::IsViewFocused(browser(), VIEW_ID_OMNIBOX));
   EXPECT_TRUE(omnibox_view_views->IsSelectAll());
   EXPECT_FALSE(
@@ -1457,17 +1438,17 @@ class OmniboxViewViewsOnFocusZpsTest : public OmniboxViewViewsTest {
 IN_PROC_BROWSER_TEST_F(OmniboxViewViewsOnFocusZpsTest, ShowHatsSurvey) {
   EXPECT_CALL(*mock_hats_service(), LaunchSurvey(_, _, _, _, _, _, _))
       .Times(1)
-      .WillOnce(
-          [](const std::string& trigger, base::OnceClosure success_callback,
-             base::OnceClosure failure_callback,
-             const SurveyBitsData& product_specific_bits_data,
-             const SurveyStringData& product_specific_string_data,
-             const std::optional<std::string>& supplied_trigger_id,
-             const HatsService::SurveyOptions& survey_options) -> void {
-            EXPECT_TRUE(
-                trigger == kHatsSurveyTriggerOnFocusZpsSuggestionsHappiness ||
-                trigger == kHatsSurveyTriggerOnFocusZpsSuggestionsUtility);
-          });
+      .WillOnce([](const std::string& trigger,
+                   base::OnceClosure success_callback,
+                   base::OnceClosure failure_callback,
+                   const SurveyBitsData& product_specific_bits_data,
+                   const SurveyStringData& product_specific_string_data,
+                   const std::optional<std::string>& supplied_trigger_id,
+                   const HatsService::SurveyOptions& survey_options) -> void {
+        EXPECT_TRUE(trigger ==
+                        kHatsSurveyTriggerOnFocusZpsSuggestionsHappiness ||
+                    trigger == kHatsSurveyTriggerOnFocusZpsSuggestionsUtility);
+      });
 
   ASSERT_TRUE(
       ui_test_utils::NavigateToURL(browser(), GURL("https://test.com/")));
@@ -1743,7 +1724,6 @@ class OmniboxViewViewsAIMButtonPreferenceTest
   }
 
  protected:
-
   void FocusOmnibox() {
     omnibox()->SetUserText(u"");
     OmniboxViewViews* view = static_cast<OmniboxViewViews*>(omnibox());
@@ -1786,6 +1766,30 @@ class OmniboxViewViewsPlaceholderTest : public InProcessBrowserTest {
         {});
   }
 
+  void SetUpInProcessBrowserTestFixture() override {
+    create_services_subscription_ =
+        BrowserContextDependencyManager::GetInstance()
+            ->RegisterCreateServicesCallbackForTesting(
+                base::BindRepeating(&OmniboxViewViewsPlaceholderTest::
+                                        OnWillCreateBrowserContextServices,
+                                    base::Unretained(this)));
+  }
+
+  virtual void OnWillCreateBrowserContextServices(
+      content::BrowserContext* context) {
+    AimEligibilityServiceFactory::GetInstance()->SetTestingFactory(
+        context, base::BindRepeating([](content::BrowserContext* context)
+                                         -> std::unique_ptr<KeyedService> {
+          auto service =
+              std::make_unique<testing::NiceMock<MockAimEligibilityService>>(
+                  *Profile::FromBrowserContext(context)->GetPrefs(), nullptr,
+                  nullptr, nullptr);
+          ON_CALL(*service, IsAimEligible())
+              .WillByDefault(testing::Return(true));
+          return service;
+        }));
+  }
+
  protected:
   OmniboxViewViews* omnibox_view() {
     return static_cast<OmniboxViewViews*>(
@@ -1798,6 +1802,7 @@ class OmniboxViewViewsPlaceholderTest : public InProcessBrowserTest {
 
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
+  base::CallbackListSubscription create_services_subscription_;
 };
 
 IN_PROC_BROWSER_TEST_F(OmniboxViewViewsPlaceholderTest,

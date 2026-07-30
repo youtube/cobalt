@@ -10,9 +10,9 @@
 #include "components/autofill/core/common/autofill_test_utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-using autofill::test::FormDescription;
-using autofill::test::GetHeuristicTypes;
-using autofill::test::GetServerTypes;
+using ::autofill::test::FormDescription;
+using ::autofill::test::GetHeuristicTypes;
+using ::autofill::test::GetServerTypes;
 
 namespace autofill {
 
@@ -50,7 +50,7 @@ class OtpSuggestionTest : public testing::Test {
 // If the OTP value is longer than the number of detected fields, it should be
 // filled completely into the trigger field.
 TEST_F(OtpSuggestionTest, OtpLongerThanNumberOfDetectedFields) {
-  autofill::OtpFillData fill_data = CreateFillDataForOtpSuggestion(
+  OtpFillData fill_data = CreateFillDataForOtpSuggestion(
       *form_structure_, *form_structure_->fields()[0], u"12345");
   EXPECT_EQ(1u, fill_data.size());
   EXPECT_EQ(u"12345", fill_data.at(field_id(0)));
@@ -59,7 +59,7 @@ TEST_F(OtpSuggestionTest, OtpLongerThanNumberOfDetectedFields) {
 // If the length of the OTP value matches the number of detected OTP fields, it
 // should be split across all fields.
 TEST_F(OtpSuggestionTest, OtpLengthEqualsNumberOfDetectedFields) {
-  autofill::OtpFillData fill_data = CreateFillDataForOtpSuggestion(
+  OtpFillData fill_data = CreateFillDataForOtpSuggestion(
       *form_structure_, *form_structure_->fields()[0], u"1234");
   EXPECT_EQ(4u, fill_data.size());
   EXPECT_EQ(u"1", fill_data.at(field_id(0)));
@@ -73,7 +73,7 @@ TEST_F(OtpSuggestionTest, OtpLengthEqualsNumberOfDetectedFields) {
 // field.
 TEST_F(OtpSuggestionTest,
        OtpLengthEqualsNumberOfDetectedFields_DifferentTriggerField) {
-  autofill::OtpFillData fill_data = CreateFillDataForOtpSuggestion(
+  OtpFillData fill_data = CreateFillDataForOtpSuggestion(
       *form_structure_, *form_structure_->fields()[3], u"1234");
   // The delta to the previous test OtpLengthEqualsNumberOfDetectedFields is
   // that the trigger field is the last field.
@@ -89,7 +89,7 @@ TEST_F(OtpSuggestionTest,
 // they should be filled starting at the trigger field. Previous fields may not
 // be detected as invisible.
 TEST_F(OtpSuggestionTest, OtpLengthSmallerThanNumberOfDetectedFields) {
-  autofill::OtpFillData fill_data = CreateFillDataForOtpSuggestion(
+  OtpFillData fill_data = CreateFillDataForOtpSuggestion(
       *form_structure_, *form_structure_->fields()[0], u"12");
   EXPECT_EQ(2u, fill_data.size());
   EXPECT_EQ(u"1", fill_data.at(field_id(0)));
@@ -101,7 +101,7 @@ TEST_F(OtpSuggestionTest, OtpLengthSmallerThanNumberOfDetectedFields) {
 // field, the entire OTP should be filled into the trigger field.
 TEST_F(OtpSuggestionTest,
        OtpLengthSmallerThanNumberOfDetectedFields_NotEnoughFields) {
-  autofill::OtpFillData fill_data = CreateFillDataForOtpSuggestion(
+  OtpFillData fill_data = CreateFillDataForOtpSuggestion(
       *form_structure_, *form_structure_->fields()[3], u"12");
   EXPECT_EQ(1u, fill_data.size());
   EXPECT_EQ(u"12", fill_data.at(field_id(3)));
@@ -111,7 +111,7 @@ TEST_F(OtpSuggestionTest,
 // fallback or because the form changed), fill the entire OTP into the trigger
 // field.
 TEST_F(OtpSuggestionTest, TriggerFieldIsNotOtpFieldAnymore) {
-  autofill::OtpFillData fill_data = CreateFillDataForOtpSuggestion(
+  OtpFillData fill_data = CreateFillDataForOtpSuggestion(
       *form_structure_, *form_structure_->fields()[4], u"1234");
   EXPECT_EQ(1u, fill_data.size());
   EXPECT_EQ(u"1234", fill_data.at(field_id(4)));

@@ -34,7 +34,6 @@ static id g_captured_stream = nil;
 
 // --- Swizzling Categories ----------------------------------------------------
 
-API_AVAILABLE(macos(12.3))
 @interface SCShareableContent (ScreenCaptureKitDeviceMacTest)
 + (void)fakeGetShareableContentWithCompletionHandler:
     (void (^)(SCShareableContent*, NSError*))completionHandler;
@@ -53,7 +52,6 @@ API_AVAILABLE(macos(12.3))
 }
 @end
 
-API_AVAILABLE(macos(12.3))
 @interface SCContentFilter (ScreenCaptureKitDeviceMacTest)
 - (instancetype)initFakeWithDisplay:(id)display
                    excludingWindows:(NSArray*)windows;
@@ -70,7 +68,6 @@ API_AVAILABLE(macos(12.3))
 }
 @end
 
-API_AVAILABLE(macos(12.3))
 @interface FakeSCStream : NSObject
 @property(class, copy) void (^onCreate)(FakeSCStream*);
 @property(copy) void (^onStart)(void (^)(NSError*));
@@ -86,7 +83,6 @@ API_AVAILABLE(macos(12.3))
 @synthesize onStop = _onStop;
 @synthesize output = _output;
 
-API_AVAILABLE(macos(12.3))
 static void (^g_onCreate)(FakeSCStream*) = nil;
 
 + (void (^)(FakeSCStream*))onCreate {
@@ -153,7 +149,6 @@ static void (^g_onCreate)(FakeSCStream*) = nil;
 
 @end
 
-API_AVAILABLE(macos(12.3))
 @interface SCStream (ScreenCaptureKitDeviceMacTest)
 - (instancetype)initFakeWithFilter:(SCContentFilter*)filter
                      configuration:(SCStreamConfiguration*)config
@@ -217,9 +212,7 @@ class ScreenCaptureKitDeviceMacTest : public testing::Test {
     g_simulated_displays = nil;
     g_captured_stream = nil;
 
-    if (@available(macOS 12.3, *)) {
-      [FakeSCStream setOnCreate:nil];
-    }
+    [FakeSCStream setOnCreate:nil];
   }
 
   void CreateDevice(const DesktopMediaID& source) {
@@ -252,8 +245,7 @@ class ScreenCaptureKitDeviceMacTest : public testing::Test {
   }
 
   void StartDevice(
-      std::unique_ptr<media::MockVideoCaptureDeviceClient> mock_client)
-      API_AVAILABLE(macos(12.3)) {
+      std::unique_ptr<media::MockVideoCaptureDeviceClient> mock_client) {
     [FakeSCStream setOnCreate:^(FakeSCStream* stream) {
       g_captured_stream = stream;
     }];
@@ -273,7 +265,7 @@ class ScreenCaptureKitDeviceMacTest : public testing::Test {
     ASSERT_TRUE(((FakeSCStream*)g_captured_stream).output);
   }
 
-  void SimulateFrame() API_AVAILABLE(macos(12.3)) {
+  void SimulateFrame() {
     ASSERT_TRUE(g_captured_stream);
     // Send a frame.
     base::apple::ScopedCFTypeRef<CMSampleBufferRef> sample_buffer;
@@ -313,8 +305,8 @@ class ScreenCaptureKitDeviceMacTest : public testing::Test {
                        ofType:SCStreamOutputTypeScreen];
   }
 
-  void SimulateAndVerifyFrame(media::MockVideoCaptureDeviceClient* mock_client)
-      API_AVAILABLE(macos(12.3)) {
+  void SimulateAndVerifyFrame(
+      media::MockVideoCaptureDeviceClient* mock_client) {
     base::RunLoop frame_loop;
     EXPECT_CALL(*mock_client,
                 OnIncomingCapturedExternalBuffer(_, _, _, _, _, _, _))

@@ -202,6 +202,8 @@ source_set("extensions") {
     "browser_extension_window_controller.h",
     "browser_window_util.cc",
     "browser_window_util.h",
+    "chrome_app_deprecation.cc",
+    "chrome_app_deprecation.h",
     "chrome_app_icon.cc",
     "chrome_app_icon.h",
     "chrome_app_icon_delegate.h",
@@ -367,6 +369,8 @@ source_set("extensions") {
     "forced_extensions/force_installed_tracker.h",
     "forced_extensions/install_stage_tracker_factory.cc",
     "forced_extensions/install_stage_tracker_factory.h",
+    "initial_external_extension_loader.cc",
+    "initial_external_extension_loader.h",
     "install_tracker_factory.cc",
     "install_tracker_factory.h",
     "install_verifier_factory.cc",
@@ -549,6 +553,8 @@ source_set("extensions") {
     "//chrome/browser/tab_list",
     "//chrome/browser/ui:accelerator_utils_headers",
     "//chrome/browser/ui:browser_element_identifiers",
+    "//chrome/browser/ui:incognito_allowed_url",
+    "//chrome/browser/ui:recently_audible_helper",
     "//chrome/browser/ui:simple_message_box_headers",
     "//chrome/browser/ui:ui_features",
     "//chrome/browser/ui/autofill",
@@ -562,6 +568,8 @@ source_set("extensions") {
     "//chrome/browser/ui/select_file_policy",
     "//chrome/browser/ui/side_panel",
     "//chrome/browser/ui/toolbar",
+    "//chrome/browser/ui/webui:favicon_source",
+    "//chrome/browser/ui/webui:theme_source",
     "//chrome/browser/ui/webui:webui_util",
     "//chrome/browser/undo",
     "//chrome/browser/update_client",
@@ -680,6 +688,14 @@ source_set("extensions") {
     ]
 
     if (enable_desktop_android_extensions) {
+      sources += [
+        # These files are temporary workarounds to allow for a lightweight
+        # extensions runtime in desktop-android builds. They should be removed
+        # (see https://crbug.com/356905053).
+        "extension_menu_model_android.cc",
+        "extension_menu_model_android.h",
+      ]
+
       # pack_extension_job.cc and developer_private_functions.cc include headers
       # from android extension bridges under IS_ANDROID.
       deps += [ "//chrome/browser/ui/android/extensions:public" ]
@@ -707,8 +723,8 @@ source_set("extensions") {
   if (!is_chromeos) {
     sources += [
       "chrome_kiosk_delegate_non_chromeos.cc",
-      "preinstalled_apps.cc",
-      "preinstalled_apps.h",
+      "preinstalled_extensions.cc",
+      "preinstalled_extensions.h",
     ]
     if (!is_android) {
       deps += [ "//chrome/browser/download/bubble" ]
@@ -839,8 +855,6 @@ source_set("extensions") {
       "extension_view_host_web_modal_handler.h",
       "external_install_error_desktop.cc",
       "external_install_error_desktop.h",
-      "initial_external_extension_loader.cc",
-      "initial_external_extension_loader.h",
       "theme_installed_infobar_delegate.cc",
       "theme_installed_infobar_delegate.h",
       "warning_badge_service.cc",
@@ -1589,16 +1603,33 @@ static_library("test_support") {
   testonly = true
 
   sources = [
+    "blocked_action_waiter.cc",
+    "blocked_action_waiter.h",
     "chrome_extension_test_notification_observer.cc",
     "chrome_extension_test_notification_observer.h",
     "chrome_test_extension_loader.cc",
     "chrome_test_extension_loader.h",
     "extension_action_test_util.cc",
     "extension_action_test_util.h",
+    "extension_apitest.cc",
+    "extension_apitest.h",
+    "extension_browser_test_util.cc",
+    "extension_browser_test_util.h",
+    "extension_browsertest.cc",
+    "extension_browsertest.h",
+    "extension_browsertest_platform_delegate.h",
     "extension_cookies_test_helper.cc",
     "extension_cookies_test_helper.h",
     "extension_management_test_util.cc",
     "extension_management_test_util.h",
+    "extension_service_test_base.cc",
+    "extension_service_test_base.h",
+    "extension_service_test_with_install.cc",
+    "extension_service_test_with_install.h",
+    "extension_service_user_test_base.cc",
+    "extension_service_user_test_base.h",
+    "extension_with_management_policy_apitest.cc",
+    "extension_with_management_policy_apitest.h",
     "external_testing_loader.cc",
     "external_testing_loader.h",
     "fake_crx_installer.cc",
@@ -1607,6 +1638,8 @@ static_library("test_support") {
     "load_error_waiter.h",
     "menu_manager_test_observer.cc",
     "menu_manager_test_observer.h",
+    "mixin_based_extension_apitest.cc",
+    "mixin_based_extension_apitest.h",
     "mock_crx_installer.cc",
     "mock_crx_installer.h",
     "mock_extension_special_storage_policy.cc",
@@ -1617,21 +1650,39 @@ static_library("test_support") {
     "scoped_test_mv2_enabler.h",
     "signin_test_util.cc",
     "signin_test_util.h",
+    "test_extension_action_dispatcher_observer.cc",
+    "test_extension_action_dispatcher_observer.h",
+    "test_extension_environment.cc",
+    "test_extension_environment.h",
+    "test_extension_menu_icon_loader.cc",
+    "test_extension_menu_icon_loader.h",
     "test_extension_service.cc",
     "test_extension_service.h",
     "test_extension_system.cc",
     "test_extension_system.h",
+    "user_scripts_test_util.cc",
+    "user_scripts_test_util.h",
   ]
 
   deps = [
     "//base",
     "//chrome/browser",
     "//chrome/browser:test_support",
+    "//chrome/browser/bookmarks:test_support",
     "//chrome/browser/extensions",
     "//chrome/browser/extensions:external_loader",
+    "//chrome/browser/prefs",
+    "//chrome/browser/preloading:test_support",
+    "//chrome/browser/sync",
     "//chrome/browser/tab_group_sync:factories",
+    "//chrome/browser/tab_list",
+    "//chrome/browser/trusted_vault",
+    "//chrome/browser/ui/browser_window",
+    "//chrome/browser/ui/browser_window:create_browser_window",
     "//chrome/browser/ui/toolbar",
+    "//chrome/browser/ui/webui:theme_source",
     "//components/crx_file",
+    "//components/feed:feature_list",
     "//components/policy/core/common:test_support",
     "//components/safe_browsing/core/browser/db:database_manager",
     "//components/services/unzip:in_process",
@@ -1639,20 +1690,74 @@ static_library("test_support") {
     "//components/sessions",
     "//components/signin/public/identity_manager:test_support",
     "//components/sync:test_support",
+    "//components/sync_preferences",
+    "//components/user_manager",
     "//components/value_store:test_support",
     "//content/test:test_support",
     "//extensions:test_support",
     "//extensions/browser:crx_installer",
+    "//extensions/browser:test_support",
     "//net:test_support",
     "//services/data_decoder/public/cpp:test_support",
     "//testing/gmock",
     "//url",
   ]
 
+  public_deps = []
+
+  if (is_android) {
+    sources += [
+      "extension_browsertest_platform_delegate_android.cc",
+      "test_extension_menu_model_android.cc",
+      "test_extension_menu_model_android.h",
+    ]
+    public_deps += [
+      "//extensions/browser:test_support",
+      "//extensions/common:test_support",
+    ]
+    deps += [
+      "//chrome/browser/android:tabs_public",
+      "//chrome/browser/renderer_context_menu:test_support",
+      "//chrome/browser/ui/android/tab_model:test_support",
+      "//chrome/test:test_support_ui_android",
+      "//extensions/common/api",
+    ]
+  } else {
+    sources += [ "extension_browsertest_platform_delegate_non_android.cc" ]
+    deps += [
+      "//chrome/browser/apps/app_service",
+      "//chrome/test:test_support_ui",
+    ]
+  }
+
+  if (is_chromeos) {
+    sources += [
+      "api/document_scan/document_scan_test_utils.cc",
+      "api/document_scan/document_scan_test_utils.h",
+    ]
+
+    deps += [
+      "//chrome/browser/ash/extensions",
+      "//chrome/browser/ash/login/users",
+      "//chrome/browser/ash/login/users:test_support",
+      "//chrome/browser/ash/settings:test_support",
+      "//chromeos/ash/components/dbus/lorgnette_manager:lorgnette_proto",
+      "//components/user_manager:test_support",
+    ]
+  }  # is_chromeos
+
   if (enable_extensions) {
     sources += [
+      "api/braille_display_private/mock_braille_controller.cc",
+      "api/braille_display_private/mock_braille_controller.h",
       "api/passwords_private/test_passwords_private_delegate.cc",
       "api/passwords_private/test_passwords_private_delegate.h",
+      "api/settings_private/generated_pref_test_base.cc",
+      "api/settings_private/generated_pref_test_base.h",
+      "browsertest_util.cc",
+      "browsertest_util.h",
+      "extension_api_unittest.cc",
+      "extension_api_unittest.h",
     ]
 
     deps += [
@@ -1669,19 +1774,7 @@ static_library("test_support") {
       "//extensions:test_support",
       "//extensions/browser",
     ]
-
-    if (is_chromeos) {
-      sources += [
-        "api/document_scan/document_scan_test_utils.cc",
-        "api/document_scan/document_scan_test_utils.h",
-      ]
-
-      deps += [
-        "//chromeos/ash/components/dbus/lorgnette_manager:lorgnette_proto",
-        "//components/user_manager:test_support",
-      ]
-    }
-  }
+  }  # enable_extensions
 }
 
 if (enable_extensions) {
@@ -1837,7 +1930,10 @@ source_set("unit_tests") {
     "api/enterprise_hardware_platform/enterprise_hardware_platform_api_unittest.cc",
     "api/extension_action/extension_action_api_unittest.cc",
     "api/gcm/extension_gcm_app_handler_unittest.cc",
+    "api/identity/extension_token_key_unittest.cc",
     "api/identity/identity_api_unittest.cc",
+    "api/identity/identity_mint_queue_unittest.cc",
+    "api/identity/identity_token_cache_unittest.cc",
     "api/management/management_api_unittest.cc",
     "api/notifications/extension_notification_handler_unittest.cc",
     "api/omnibox/omnibox_unittest.cc",
@@ -1900,6 +1996,7 @@ source_set("unit_tests") {
     "forced_extensions/force_installed_test_base.cc",
     "forced_extensions/force_installed_test_base.h",
     "forced_extensions/force_installed_tracker_unittest.cc",
+    "initial_external_extension_loader_unittest.cc",
     "install_verifier_unittest.cc",
     "installed_loader_unittest.cc",
     "omaha_attributes_handler_unittest.cc",
@@ -2007,7 +2104,7 @@ source_set("unit_tests") {
   ]
 
   if (!is_chromeos) {
-    sources += [ "preinstalled_apps_unittest.cc" ]
+    sources += [ "preinstalled_extensions_unittest.cc" ]
   }
 
   if (enable_extensions) {
@@ -2015,10 +2112,7 @@ source_set("unit_tests") {
       "api/device_permissions_manager_unittest.cc",
       "api/enterprise_reporting_private/enterprise_reporting_private_unittest.cc",
       "api/file_system/file_system_api_unittest.cc",
-      "api/identity/extension_token_key_unittest.cc",
       "api/identity/gaia_remote_consent_flow_unittest.cc",
-      "api/identity/identity_mint_queue_unittest.cc",
-      "api/identity/identity_token_cache_unittest.cc",
       "api/identity/web_auth_flow_info_bar_delegate_unittest.cc",
       "api/image_writer_private/destroy_partitions_operation_unittest.cc",
       "api/image_writer_private/extractor_unittest.cc",
@@ -2049,8 +2143,7 @@ source_set("unit_tests") {
       "chrome_app_icon_unittest.cc",
       "chrome_app_sorting_unittest.cc",
       "extension_error_ui_default_unittest.cc",
-      "initial_external_extension_loader_unittest.cc",
-      "manifest_v2_experiment_manager_unittest.cc",
+      "manifest_v2_handler_unittest.cc",
       "menu_manager_unittest.cc",
       "mv2_deprecation_impact_checker_unittest.cc",
       "safe_browsing_verdict_handler_unittest.cc",
@@ -2112,6 +2205,7 @@ source_set("unit_tests") {
         "//chrome/browser/ash/login/users",
         "//chrome/browser/ash/printing",
         "//chrome/browser/extensions/api/braille_display_private",
+        "//chrome/browser/prefs:util",
         "//chrome/browser/printing",
         "//chrome/test:test_support_unit",
         "//chromeos/ash/components/dbus/image_burner",
@@ -2152,7 +2246,9 @@ source_set("unit_tests") {
     }
   }
 
-  if (enable_desktop_android_extensions) {
+  if (is_android) {
+    sources += [ "system_display/display_info_provider_android_unittest.cc" ]
+
     # developer_private_api_unittest.cc includes extension_util_bridge.h under
     # IS_ANDROID.
     deps += [ "//chrome/browser/ui/android/extensions:public" ]
@@ -2164,10 +2260,6 @@ source_set("browser_tests") {
   testonly = true
 
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
-
-  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
-  # enable the diagnostic by removing this line.
-  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 
   sources = [
     "all_urls_apitest.cc",
@@ -2346,9 +2438,6 @@ source_set("browser_tests") {
 
     # TODO(crbug.com/469417243): Move to BUILD.gn files closer to sources.
     "//chrome/browser/task_manager/providers/web_contents/extension_tag_browsertest.cc",
-    "//chrome/browser/ui/extensions/extension_action_view_model_browsertest.cc",
-    "//chrome/browser/ui/extensions/extensions_menu_view_model_browsertest.cc",
-    "//chrome/browser/ui/extensions/extensions_toolbar_view_model_browsertest.cc",
     "//chrome/renderer/extensions/script_context_browsertest.cc",
   ]
 
@@ -2358,6 +2447,7 @@ source_set("browser_tests") {
     "//chrome/app:command_ids",
     "//chrome/browser:chrome_browser_main",
     "//chrome/browser:chrome_content_browser_client",
+    "//chrome/browser/autocomplete:aim_eligibility_service",
     "//chrome/browser/bookmarks",
     "//chrome/browser/content_settings:content_settings_factory",
     "//chrome/browser/devtools",
@@ -2455,7 +2545,12 @@ source_set("browser_tests") {
       "//components/messages/android:test_support",
     ]
   } else {
+    sources +=
+        [ "api/contextual_tasks_private/contextual_tasks_private_apitest.cc" ]
+
     deps += [
+      "//chrome/browser/contextual_tasks:test_support",
+      "//chrome/browser/contextual_tasks:ui",
       "//chrome/browser/ui/search:test_support_ui",
       "//chrome/browser/ui/tabs/saved_tab_groups",
       "//chrome/browser/ui/views/location_bar",
@@ -2597,7 +2692,7 @@ source_set("browser_tests") {
       "initial_external_extension_loader_browsertest.cc",
       "lazy_background_page_apitest.cc",
       "locked_fullscreen_window_apitest.cc",
-      "manifest_v2_experiment_manager_browsertest.cc",
+      "manifest_v2_handler_browsertest.cc",
       "native_bindings_apitest.cc",
       "orb_and_cors_extension_browsertest.cc",
       "permissions/active_tab_apitest.cc",

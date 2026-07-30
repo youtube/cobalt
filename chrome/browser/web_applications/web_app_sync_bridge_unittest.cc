@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "base/barrier_closure.h"
+#include "base/containers/span.h"
 #include "base/functional/bind.h"
 #include "base/notreached.h"
 #include "base/run_loop.h"
@@ -1047,7 +1048,7 @@ TEST_F(WebAppSyncBridgeTest,
   WebAppTestRegistryObserverAdapter observer{&registrar()};
 
   observer.SetWebAppWillBeUpdatedFromSyncDelegate(base::BindLambdaForTesting(
-      [&](const std::vector<const WebApp*>& apps_to_update) {
+      [&](base::span<const WebApp* const> apps_to_update) {
         std::vector<webapps::AppId> app_ids;
         for (const WebApp* source : apps_to_update) {
           app_ids.push_back(source->app_id());

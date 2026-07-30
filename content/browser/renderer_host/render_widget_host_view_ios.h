@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
 #include "build/ios_buildflags.h"
@@ -80,8 +81,6 @@ class CONTENT_EXPORT RenderWidgetHostViewIOS
   blink::mojom::PointerLockResult LockPointer(bool) override;
   blink::mojom::PointerLockResult ChangePointerLock(bool) override;
   void UnlockPointer() override;
-  void EnsureSurfaceSynchronizedForWebTest() override;
-  uint32_t GetCaptureSequenceNumber() const override;
   void TakeFallbackContentFrom(RenderWidgetHostView* view) override;
   std::unique_ptr<SyntheticGestureTarget> CreateSyntheticGestureTarget()
       override;
@@ -270,7 +269,7 @@ class CONTENT_EXPORT RenderWidgetHostViewIOS
 
   // Provides gesture synthesis given a stream of touch events and touch event
   // acks. This is for generating gesture events from injected touch events.
-  ui::FilteredGestureProvider gesture_provider_;
+  scoped_refptr<ui::FilteredGestureProvider> gesture_provider_;
   bool is_first_responder_ = false;
   bool is_getting_focus_ = false;
   bool is_visible_ = false;
@@ -286,10 +285,6 @@ class CONTENT_EXPORT RenderWidgetHostViewIOS
   // is locked.
   bool pointer_lock_unadjusted_movement_ = false;
 
-  // Latest capture sequence number which is incremented when the caller
-  // requests surfaces be synchronized via
-  // EnsureSurfaceSynchronizedForWebTest().
-  uint32_t latest_capture_sequence_number_ = 0u;
 
   std::optional<gfx::PointF> last_root_scroll_offset_;
   bool is_scrolling_ = false;

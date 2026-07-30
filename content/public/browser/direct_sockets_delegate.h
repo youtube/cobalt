@@ -34,8 +34,8 @@ class CONTENT_EXPORT DirectSocketsDelegate {
   virtual ~DirectSocketsDelegate() = default;
 
   // Allows the embedder to expose the API symbols in arbitrary contexts.
-  // Note that in this case direct-sockets, direct-sockets-private and
-  // direct-sockets-multicast permissions policies will be ignored; providing a
+  // Note that in this case direct-sockets and direct-sockets-multicast
+  // permissions policies will be ignored; providing a
   // Permissions-Policy: direct-sockets=() header won't take effect.
   virtual bool AreDirectSocketsAllowed(BrowserContext* browser_context,
                                        const url::Origin& origin) = 0;

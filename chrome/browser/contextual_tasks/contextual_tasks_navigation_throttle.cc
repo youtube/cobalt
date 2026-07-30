@@ -7,18 +7,23 @@
 #include "base/functional/bind.h"
 #include "base/memory/weak_ptr.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/uuid.h"
 #include "chrome/browser/autocomplete/aim_eligibility_service_factory.h"
+#include "chrome/browser/contextual_search/contextual_search_web_contents_helper.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_service_factory.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
+#include "components/contextual_search/contextual_search_session_handle.h"
 #include "components/contextual_tasks/public/features.h"
+#include "components/lens/lens_features.h"
 #include "components/omnibox/browser/aim_eligibility_service.h"
 #include "content/public/browser/global_routing_id.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/web_contents.h"
+#include "net/base/url_util.h"
 #include "net/http/http_request_headers.h"
 #include "third_party/blink/public/mojom/window_features/window_features.mojom.h"
 #include "url/origin.h"
@@ -69,8 +74,20 @@ ThrottleCheckResult ContextualTasksNavigationThrottle::ProcessNavigation() {
     bool is_cobrowse_eligible =
         ui_service && ui_service->GetEligibilityManager() &&
         ui_service->GetEligibilityManager()->IsEligibleWithoutIdentity();
-    if ((!base::FeatureList::IsEnabled(contextual_tasks::kContextualTasks) ||
-         !is_cobrowse_eligible) &&
+    base::Uuid task_id;
+    std::string task_id_str;
+    if (net::GetValueForKeyInQuery(url_params.url, kTaskQueryParam,
+                                   &task_id_str)) {
+      task_id = base::Uuid::ParseLowercase(task_id_str);
+    }
+    bool has_lens_override =
+        ui_service &&
+        ui_service->IsSessionAllowedWhileIneligible(web_contents, task_id);
+    bool should_redirect =
+        !base::FeatureList::IsEnabled(contextual_tasks::kContextualTasks) ||
+        (!is_cobrowse_eligible && !has_lens_override);
+
+    if (should_redirect &&
         ContextualTasksUiService::IsContextualTasksUrl(url_params.url)) {
       // Redirect contextual tasks URL to aim page URL.
       GURL url = ContextualTasksUiService::CopyParamsFromWebUIUrl(

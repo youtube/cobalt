@@ -306,9 +306,14 @@ ActorNavigationThrottle::WillStartOrRedirectRequest(bool is_redirection) {
                                        : "Check navigation safety")
           .Build());
 
+  if (!execution_engine_) {
+    return content::NavigationThrottle::CANCEL_AND_IGNORE;
+  }
+
   ::actor::MayActOnUrl(
       navigation_url, /*allow_insecure_http=*/true, GetProfile(), journal,
-      task_id_, task->policy_checker(),
+      task_id_, execution_engine_->origin_gating_cache(),
+      task->policy_checker(),
       base::BindOnce(&ActorNavigationThrottle::OnMayActOnUrlResult,
                      weak_factory_.GetWeakPtr(), std::move(journal_entry)));
 

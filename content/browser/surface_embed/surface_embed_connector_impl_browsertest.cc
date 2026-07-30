@@ -44,7 +44,10 @@ class MockSurfaceEmbedConnectorDelegate
   MockSurfaceEmbedConnectorDelegate() = default;
   ~MockSurfaceEmbedConnectorDelegate() = default;
 
-  MOCK_METHOD(void, SetFrameSinkId, (const viz::FrameSinkId&), (override));
+  MOCK_METHOD(void,
+              SetFrameSinkId,
+              (const viz::FrameSinkId&, bool),
+              (override));
   MOCK_METHOD(void,
               UpdateLocalSurfaceIdFromChild,
               (const viz::LocalSurfaceId&),
@@ -321,7 +324,6 @@ IN_PROC_BROWSER_TEST_F(SurfaceEmbedConnectorImplBrowserTest,
   visual_properties.screen_infos = display::ScreenInfos(screen_info);
   visual_properties.local_frame_size = gfx::Size(100, 200);
   visual_properties.rect_in_local_root = gfx::Rect(10, 20, 300, 400);
-  visual_properties.capture_sequence_number = 5u;
   visual_properties.css_zoom_factor = 1.25;
   visual_properties.local_surface_id =
       viz::LocalSurfaceId(1, base::UnguessableToken::CreateForTesting(2, 3));
@@ -349,8 +351,6 @@ IN_PROC_BROWSER_TEST_F(SurfaceEmbedConnectorImplBrowserTest,
 
   // Just check it returns valid reference
   connector->GetIntersectionState();
-
-  EXPECT_EQ(connector->GetCaptureSequenceNumber(), 5u);
 
   EXPECT_EQ(connector->GetRectInParentViewInDip(), gfx::Rect(5, 10, 150, 200));
   EXPECT_EQ(connector->GetLocalFrameSizeInDip(), gfx::Size(50, 100));
@@ -411,7 +411,7 @@ IN_PROC_BROWSER_TEST_F(SurfaceEmbedConnectorImplBrowserTest, SetView) {
   MockSurfaceEmbedConnectorDelegate delegate;
   auto context = SetupConnectorTest(&delegate);
 
-  EXPECT_CALL(delegate, SetFrameSinkId(testing::_)).Times(1);
+  EXPECT_CALL(delegate, SetFrameSinkId(testing::_, testing::_)).Times(1);
   FrameConnector* original_connector =
       context.rwhvcf->FrameConnectorForTesting();
 
@@ -434,7 +434,7 @@ IN_PROC_BROWSER_TEST_F(SurfaceEmbedConnectorImplBrowserTest,
   FrameConnector* original_connector =
       context.rwhvcf->FrameConnectorForTesting();
 
-  EXPECT_CALL(delegate, SetFrameSinkId(testing::_)).Times(3);
+  EXPECT_CALL(delegate, SetFrameSinkId(testing::_, testing::_)).Times(3);
 
   context.connector->SetView(context.rwhvcf, false);
 
@@ -445,6 +445,31 @@ IN_PROC_BROWSER_TEST_F(SurfaceEmbedConnectorImplBrowserTest,
   context.connector->OnVisibilityChanged(
       blink::mojom::FrameVisibility::kNotRendered);
   context.connector->SetView(context.rwhvcf, false);
+
+  context.connector->SetView(nullptr, false);
+  context.rwhvcf->SetFrameConnector(original_connector);
+}
+
+IN_PROC_BROWSER_TEST_F(SurfaceEmbedConnectorImplBrowserTest,
+                       SetViewPropagatesAllowPaintHolding) {
+  MockSurfaceEmbedConnectorDelegate delegate;
+  auto context = SetupConnectorTest(&delegate);
+
+  FrameConnector* original_connector =
+      context.rwhvcf->FrameConnectorForTesting();
+
+  EXPECT_CALL(delegate,
+              SetFrameSinkId(testing::_, /*allow_paint_holding=*/false))
+      .Times(1);
+  context.connector->SetView(context.rwhvcf, /*allow_paint_holding=*/false);
+  testing::Mock::VerifyAndClearExpectations(&delegate);
+
+  context.connector->SetView(nullptr, false);
+
+  EXPECT_CALL(delegate,
+              SetFrameSinkId(testing::_, /*allow_paint_holding=*/true))
+      .Times(1);
+  context.connector->SetView(context.rwhvcf, /*allow_paint_holding=*/true);
 
   context.connector->SetView(nullptr, false);
   context.rwhvcf->SetFrameConnector(original_connector);
@@ -506,6 +531,72 @@ IN_PROC_BROWSER_TEST_F(SurfaceEmbedConnectorImplBrowserTest,
 
   // Clean up.
   context.connector->SetView(nullptr, false);
+}
+
+IN_PROC_BROWSER_TEST_F(SurfaceEmbedConnectorImplBrowserTest,
+                       SameOriginNavigationSetsAllowPaintHolding) {
+  MockSurfaceEmbedConnectorDelegate delegate;
+  auto context = SetupConnectorTest(&delegate);
+
+  display::ScreenInfo screen_info;
+  screen_info.display_id = 1;
+  screen_info.device_scale_factor = 1.0f;
+  screen_info.rect = gfx::Rect(800, 600);
+  screen_info.available_rect = gfx::Rect(800, 600);
+  SetScreenInfos(context.connector, display::ScreenInfos(screen_info));
+  SetLocalSurfaceId(context.connector,
+                    viz::LocalSurfaceId(1, base::UnguessableToken::Create()));
+
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  // Navigate the child to an initial page.
+  GURL url1 = embedded_test_server()->GetURL("a.com", "/title1.html");
+  EXPECT_TRUE(NavigateToURL(context.child_web_contents.get(), url1));
+
+  context.rwhvcf = nullptr;  // Clear raw_ptr to avoid DanglingPtr check.
+
+  // Navigate same-site. The delegate should receive SetFrameSinkId with
+  // allow_paint_holding=true.
+  EXPECT_CALL(delegate,
+              SetFrameSinkId(testing::_, /*allow_paint_holding=*/true))
+      .Times(1);
+
+  GURL url2 = embedded_test_server()->GetURL("a.com", "/title2.html");
+  EXPECT_TRUE(NavigateToURL(context.child_web_contents.get(), url2));
+}
+
+IN_PROC_BROWSER_TEST_F(SurfaceEmbedConnectorImplBrowserTest,
+                       CrossOriginNavigationNotAllowPaintHolding) {
+  MockSurfaceEmbedConnectorDelegate delegate;
+  auto context = SetupConnectorTest(&delegate);
+
+  display::ScreenInfo screen_info;
+  screen_info.display_id = 1;
+  screen_info.device_scale_factor = 1.0f;
+  screen_info.rect = gfx::Rect(800, 600);
+  screen_info.available_rect = gfx::Rect(800, 600);
+  SetScreenInfos(context.connector, display::ScreenInfos(screen_info));
+  SetLocalSurfaceId(context.connector,
+                    viz::LocalSurfaceId(1, base::UnguessableToken::Create()));
+
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  // Navigate the child to an initial page.
+  GURL url1 = embedded_test_server()->GetURL("a.com", "/title1.html");
+  EXPECT_TRUE(NavigateToURL(context.child_web_contents.get(), url1));
+
+  context.rwhvcf = nullptr;  // Clear raw_ptr to avoid DanglingPtr check.
+
+  // Navigate cross-site without user interaction. The delegate should receive
+  // SetFrameSinkId with allow_paint_holding=false. See code in
+  // Navigator::DidNavigate() for detailed logic on deciding whether to allow
+  // paint holding for main frame.
+  EXPECT_CALL(delegate,
+              SetFrameSinkId(testing::_, /*allow_paint_holding=*/false))
+      .Times(1);
+
+  GURL url2 = embedded_test_server()->GetURL("b.com", "/title2.html");
+  EXPECT_TRUE(NavigateToURL(context.child_web_contents.get(), url2));
 }
 
 IN_PROC_BROWSER_TEST_F(SurfaceEmbedConnectorImplBrowserTest,

@@ -50,9 +50,8 @@ AutofillAiModelCacheFactory::BuildServiceInstanceForBrowserContext(
       HistoryServiceFactory::GetForProfile(profile,
                                            ServiceAccessType::EXPLICIT_ACCESS),
       profile->GetDefaultStoragePartition()->GetProtoDatabaseProvider(),
-      profile->GetPath(),
-      autofill::features::kAutofillAiServerModelCacheSize.Get(),
-      autofill::features::kAutofillAiServerModelCacheAge.Get());
+      profile->GetPath(), features::kAutofillAiServerModelCacheSize.Get(),
+      features::kAutofillAiServerModelCacheAge.Get());
 }
 
 bool AutofillAiModelCacheFactory::ServiceIsCreatedWithBrowserContext() const {

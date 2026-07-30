@@ -1,0 +1,15 @@
+This is a testharness.js-based test.
+[FAIL] font-style: attr(data-foo type(*)) with data-foo="revert"
+  assert_equals: expected "italic" but got "normal"
+[FAIL] color: attr(data-foo type(*)) with data-foo="initial"
+  assert_equals: expected "rgb(0, 0, 0)" but got "rgb(0, 0, 255)"
+[FAIL] --x: attr(data-foo type(*)) with data-foo="inherit"
+  assert_equals: expected "4px" but got "5px"
+[FAIL] --y: attr(data-foo type(*)) with data-foo="initial"
+  assert_equals: expected "5px" but got "4px"
+[FAIL] --x: attr(data-foo type(*)) with data-foo="attr(invalid, inherit)"
+  assert_equals: expected "4px" but got "5px"
+[FAIL] --y: attr(data-foo type(*)) with data-foo="attr(invalid, initial)"
+  assert_equals: expected "5px" but got "4px"
+Harness: the test ran to completion.
+

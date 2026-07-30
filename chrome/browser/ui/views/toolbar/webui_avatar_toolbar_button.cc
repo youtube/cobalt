@@ -15,8 +15,59 @@
 #include "chrome/browser/ui/views/toolbar/webui_toolbar_web_view.h"
 #include "components/browser_apis/ui_controllers/toolbar/toolbar_ui_api_data_model.mojom.h"
 #include "components/signin/public/base/signin_buildflags.h"
+#include "components/user_education/common/user_education_class_properties.h"
 #include "ui/base/models/image_model.h"
+#include "ui/base/webui/web_ui_util.h"
+#include "ui/color/color_provider.h"
 #include "ui/views/accessibility/view_accessibility.h"
+#include "ui/views/view.h"
+
+namespace {
+
+toolbar_ui_api::mojom::AvatarToolbarButtonState MapAvatarState(
+    ::AvatarToolbarButtonState state) {
+  switch (state) {
+    case ::AvatarToolbarButtonState::kGuestSession:
+      return toolbar_ui_api::mojom::AvatarToolbarButtonState::kGuestSession;
+    case ::AvatarToolbarButtonState::kIncognitoProfile:
+      return toolbar_ui_api::mojom::AvatarToolbarButtonState::kIncognitoProfile;
+    case ::AvatarToolbarButtonState::kExplicitTextShowing:
+      return toolbar_ui_api::mojom::AvatarToolbarButtonState::
+          kExplicitTextShowing;
+    case ::AvatarToolbarButtonState::kOnSignin:
+      return toolbar_ui_api::mojom::AvatarToolbarButtonState::kOnSignin;
+    case ::AvatarToolbarButtonState::kShowIdentityName:
+      return toolbar_ui_api::mojom::AvatarToolbarButtonState::kShowIdentityName;
+    case ::AvatarToolbarButtonState::kSigninPending:
+      return toolbar_ui_api::mojom::AvatarToolbarButtonState::kSigninPending;
+    case ::AvatarToolbarButtonState::kSyncPaused:
+      return toolbar_ui_api::mojom::AvatarToolbarButtonState::kSyncPaused;
+    case ::AvatarToolbarButtonState::kUpgradeClientError:
+      return toolbar_ui_api::mojom::AvatarToolbarButtonState::
+          kUpgradeClientError;
+    case ::AvatarToolbarButtonState::kPassphraseError:
+      return toolbar_ui_api::mojom::AvatarToolbarButtonState::kPassphraseError;
+    case ::AvatarToolbarButtonState::kBookmarksLimitExceeded:
+      return toolbar_ui_api::mojom::AvatarToolbarButtonState::
+          kBookmarksLimitExceeded;
+    case ::AvatarToolbarButtonState::kSyncError:
+      return toolbar_ui_api::mojom::AvatarToolbarButtonState::kSyncError;
+    case ::AvatarToolbarButtonState::kPasskeysLockedError:
+      return toolbar_ui_api::mojom::AvatarToolbarButtonState::
+          kPasskeysLockedError;
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+    case ::AvatarToolbarButtonState::kPromo:
+      return toolbar_ui_api::mojom::AvatarToolbarButtonState::kPromo;
+#endif
+    case ::AvatarToolbarButtonState::kManagement:
+      return toolbar_ui_api::mojom::AvatarToolbarButtonState::kManagement;
+    case ::AvatarToolbarButtonState::kNormal:
+      return toolbar_ui_api::mojom::AvatarToolbarButtonState::kNormal;
+  }
+  NOTREACHED();
+}
+
+}  // namespace
 
 WebUIAvatarToolbarButton::WebUIAvatarToolbarButton(
     WebUIToolbarControlDelegate* delegate,
@@ -39,9 +90,33 @@ void WebUIAvatarToolbarButton::Initialize() {
   }
 }
 
+void WebUIAvatarToolbarButton::SetAvatarButtonHovered(bool hovered) {
+  if (hovered != hovered_) {
+    hovered_ = hovered;
+    if (state_manager_ && !hovered_) {
+      state_manager_->NotifyMouseExited();
+    }
+    UpdateState();
+  }
+}
+
+void WebUIAvatarToolbarButton::SetAvatarButtonFocused(bool focused) {
+  if (focused != focused_) {
+    focused_ = focused;
+    if (state_manager_ && !focused_) {
+      state_manager_->NotifyBlur();
+    }
+    UpdateState();
+  }
+}
+
 void WebUIAvatarToolbarButton::UpdateIcon() {
   if (delegate_->GetView()->GetWidget()) {
     UpdateState();
+    if (state_manager_) {
+      state_manager_->NotifyIconUpdated();
+      state_manager_->NotifyIPHPromoChanged(IsShowingIPHPromo());
+    }
   }
 }
 
@@ -66,15 +141,16 @@ void WebUIAvatarToolbarButton::AnnounceInternal(std::u16string text) {
   }
 }
 
+bool WebUIAvatarToolbarButton::IsShowingIPHPromo() const {
+  return is_showing_iph_promo_;
+}
+
 bool WebUIAvatarToolbarButton::IsMouseHovered() const {
-  // TODO(crbug.com/470045174): Implement mouse hover state from WebUI if
-  // needed.
-  return false;
+  return hovered_;
 }
 
 bool WebUIAvatarToolbarButton::HasFocus() const {
-  // TODO(crbug.com/470045174): Implement focus state from WebUI if needed.
-  return false;
+  return focused_;
 }
 
 views::DialogDelegate* WebUIAvatarToolbarButton::GetDialogDelegate() {
@@ -183,17 +259,16 @@ void WebUIAvatarToolbarButton::UpdateState() {
     return;
   }
 
-  const StateProvider* state_provider =
-      std::as_const(*state_manager_).GetActiveStateProvider();
+  StateProvider* state_provider = state_manager_->GetActiveStateProvider();
   if (!state_provider) {
     return;
   }
 
   auto state = toolbar_ui_api::mojom::AvatarControlState::New();
 
-  // TODO(crbug.com/470045174): Resolve icon URL properly.
-  // For now, use a generic profile icon.
-  state->icon_url = "chrome://theme/IDR_PROFILE_AVATAR_0";
+  state->state = MapAvatarState(state_manager_->GetActiveState());
+
+  state->icon_url = state_provider->GetAvatarIconUrl();
 
   state->text = state_provider->GetText();
   state->tooltip = state_provider->GetAvatarTooltipText();

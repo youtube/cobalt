@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-
 #include "components/exo/wayland/clients/client_base.h"
 
 #include <aura-shell-client-protocol.h>
@@ -21,11 +20,13 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
 #include "base/bits.h"
 #include "base/command_line.h"
+#include "base/containers/span.h"
 #include "base/files/file.h"
 #include "base/logging.h"
 #include "base/memory/platform_shared_memory_region.h"
@@ -35,6 +36,7 @@
 #include "base/numerics/safe_conversions.h"
 #include "base/posix/eintr_wrapper.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/unguessable_token.h"
@@ -341,15 +343,16 @@ std::unique_ptr<ScopedVkCommandPool> CreateVkCommandPool(
   return vk_command_pool;
 }
 
-static std::vector<char> ReadFile(const std::string& filename) {
+static std::vector<uint32_t> ReadShaderFile(const std::string& filename) {
   base::File file(base::FilePath(filename),
                   base::File::FLAG_OPEN | base::File::FLAG_READ);
   if (!file.IsValid()) {
-    return std::vector<char>();
+    return std::vector<uint32_t>();
   }
 
   const size_t file_size = base::checked_cast<size_t>(file.GetLength());
-  std::vector<char> buffer(file_size);
+  CHECK_EQ(file_size % 4, 0u) << "Shader file size must be a multiple of 4.";
+  std::vector<uint32_t> buffer(file_size / 4);
   std::optional<size_t> bytes_read =
       file.Read(0, base::as_writable_byte_span(buffer));
   file.Close();
@@ -363,12 +366,11 @@ static std::vector<char> ReadFile(const std::string& filename) {
 VkShaderModule CreateShaderModule(VkDevice device,
                                   const std::string& filename) {
   VkShaderModule shader_module;
-  auto shader_code = ReadFile(filename);
+  auto shader_code = ReadShaderFile(filename);
   VkShaderModuleCreateInfo create_info{
       .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
-      .codeSize = shader_code.size(),
-      .pCode =
-          UNSAFE_TODO(reinterpret_cast<const uint32_t*>(shader_code.data()))};
+      .codeSize = shader_code.size() * sizeof(uint32_t),
+      .pCode = shader_code.data()};
 
   VkResult result =
       vkCreateShaderModule(device, &create_info, nullptr, &shader_module);
@@ -608,10 +610,10 @@ uint32_t FindMemoryType(VkInstance vk_instance,
   VkPhysicalDeviceMemoryProperties memProperties;
   vkGetPhysicalDeviceMemoryProperties(physical_device, &memProperties);
 
+  auto memory_types = base::span(memProperties.memoryTypes);
   for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
     if ((typeFilter & (1 << i)) &&
-        (UNSAFE_TODO(memProperties.memoryTypes[i]).propertyFlags &
-         properties) == properties) {
+        (memory_types[i].propertyFlags & properties) == properties) {
       return i;
     }
   }
@@ -771,7 +773,10 @@ void CreateTexture(VkInstance vk_instance,
 
   void* data;
   vkMapMemory(device, stagingBufferMemory, 0, imageSize, 0, &data);
-  UNSAFE_TODO(memset(data, 128, static_cast<size_t>(imageSize)));
+  // SAFETY: vkMapMemory maps imageSize bytes to data.
+  auto data_span = UNSAFE_BUFFERS(
+      base::span(static_cast<uint8_t*>(data), static_cast<size_t>(imageSize)));
+  std::ranges::fill(data_span, 128);
   vkUnmapMemory(device, stagingBufferMemory);
 
   VkImageCreateInfo imageInfo{
@@ -935,8 +940,10 @@ bool ClientBase::InitParams::FromCommandLine(
     const base::CommandLine& command_line) {
   if (command_line.HasSwitch(switches::kSize)) {
     std::string size_str = command_line.GetSwitchValueASCII(switches::kSize);
-    if (UNSAFE_TODO(sscanf(size_str.c_str(), "%zdx%zd", &width, &height)) !=
-        2) {
+    std::vector<std::string_view> parts = base::SplitStringPiece(
+        size_str, "x", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+    if (parts.size() != 2 || !base::StringToSizeT(parts[0], &width) ||
+        !base::StringToSizeT(parts[1], &height)) {
       LOG(ERROR) << "Invalid value for " << switches::kSize;
       return false;
     }
@@ -1098,10 +1105,11 @@ bool ClientBase::Init(const InitParams& params) {
         return false;
       }
       // We can't actually use the virtual GEM, so discard it like we do in CrOS
-      if (base::EqualsCaseInsensitiveASCII("vgem", drm_version->name))
+      if (base::EqualsCaseInsensitiveASCII("vgem", drm_version->name)) {
         continue;
-      if (UNSAFE_TODO(
-              strstr(drm_version->name, params.use_drm_value.c_str()))) {
+      }
+      std::string_view name_view(drm_version->name);
+      if (name_view.find(params.use_drm_value) != std::string_view::npos) {
         drm_fd_ = std::move(drm_fd);
         break;
       }
@@ -1566,8 +1574,10 @@ std::unique_ptr<ClientBase::Buffer> ClientBase::CreateBuffer(
         return nullptr;
       }
 
+      // SAFETY: mmap mapped length bytes. mapped_data points to the start of
+      // this mapped region, so the span of size length is valid.
       base::span<uint8_t> mapped_span =
-          UNSAFE_TODO(base::span<uint8_t>(mapped_data, length));
+          UNSAFE_BUFFERS(base::span<uint8_t>(mapped_data, length));
       buffer->shared_memory_mapping = MemfdMemoryMapping(mapped_span);
       buffer->shm_pool.reset(
           wl_shm_create_pool(globals_.shm.get(), memfd, length));

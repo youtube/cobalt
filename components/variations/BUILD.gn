@@ -334,6 +334,7 @@ if (use_fuzzing_engine_with_lpm) {
     sources = [ "fuzzers/create_trials_from_seed_test_case.proto" ]
     deps = [ "//components/variations/proto" ]
     proto_in_dir = "//"
+    use_experimental_fuzzable_proto = true
   }
 
   fuzzer_test("create_trial_from_study_fuzzer") {
@@ -341,6 +342,7 @@ if (use_fuzzing_engine_with_lpm) {
     deps = [
       ":variations",
       "proto",
+      "proto:proto_fuzzable",
       "//base/test:test_support",
       "//third_party/libprotobuf-mutator",
     ]
@@ -355,6 +357,7 @@ if (use_fuzzing_engine_with_lpm) {
       ":test_support",
       ":variations",
       "proto",
+      "proto:proto_fuzzable",
       "//base/test:test_support",
       "//third_party/libprotobuf-mutator",
     ]
@@ -367,9 +370,11 @@ if (use_fuzzing_engine_with_lpm) {
     sources = [ "fuzzers/create_trials_from_seed_fuzzer_v2.cc" ]
     deps = [
       ":test_cases_proto",
+      ":test_cases_proto_fuzzable",
       ":test_support",
       ":variations",
       "proto",
+      "proto:proto_fuzzable",
       "//base/test:test_support",
       "//components/metrics",
       "//components/metrics:test_support",

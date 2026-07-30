@@ -100,6 +100,8 @@ BASE_FEATURE_PARAM(bool,
                    "show_start_only",
                    false);
 
+BASE_FEATURE(kTabStripUnification, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enables Back-to-Opener behavior, allowing users to press the back button in a
 // newly opened tab to close that tab and return focus to the opener tab.
 BASE_FEATURE(kBackToOpener, base::FEATURE_DISABLED_BY_DEFAULT);

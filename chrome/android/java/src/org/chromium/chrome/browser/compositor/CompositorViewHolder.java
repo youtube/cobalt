@@ -27,7 +27,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.transition.ChangeBounds;
 import android.transition.Transition;
-import android.transition.TransitionSet;
+import android.util.ArrayMap;
 import android.util.AttributeSet;
 import android.util.Size;
 import android.view.DragAndDropPermissions;
@@ -101,7 +101,6 @@ import org.chromium.content_public.browser.NavigationHandle;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.KeyboardVisibilityDelegate;
 import org.chromium.ui.UiUtils;
-import org.chromium.ui.animation.transition.IntegerValueTransition;
 import org.chromium.ui.base.ApplicationViewportInsetTracker;
 import org.chromium.ui.base.EventForwarder;
 import org.chromium.ui.base.EventOffsetHandler;
@@ -121,6 +120,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 
 /**
@@ -192,10 +193,13 @@ public class CompositorViewHolder extends FrameLayout
 
     private TabModelSelector mTabModelSelector;
     private @Nullable BrowserControlsManager mBrowserControlsManager;
-    private @Nullable OneshotSupplier<SideUiStateProvider> mSideUiStateProviderSupplier;
-    private @Nullable SideUiStateProvider mSideUiStateProvider;
     @VisibleForTesting @Nullable View mAccessibilityView;
     private @Nullable CompositorAccessibilityProvider mNodeProvider;
+
+    // State for SideUI.
+    private @Nullable OneshotSupplier<SideUiStateProvider> mSideUiStateProviderSupplier;
+    private @Nullable SideUiStateProvider mSideUiStateProvider;
+    private @Nullable Runnable mResetClipToPaddingRunnable;
 
     /** The toolbar control container. */
     private @Nullable ControlContainer mControlContainer;
@@ -233,12 +237,7 @@ public class CompositorViewHolder extends FrameLayout
     private boolean mInGesture;
     private boolean mInTouch;
     private boolean mContentViewScrolling;
-    // The number of active touch pointers. We are sending a gesture begin
-    // event for every added touch point, and a gesnture end event for every
-    // removed touch point.
-    // TODO(crbug.com/265479149): We will remove |mInGesture| if we enable the
-    // SUPPRESS_TOOLBAR_CAPTURES_AT_GESTURE_END feature.
-    private int mNumGestureActiveTouches;
+
     private @Nullable ApplicationViewportInsetTracker mApplicationBottomInsetSupplier;
 
     // Handler for changes to viewport insets.
@@ -369,11 +368,6 @@ public class CompositorViewHolder extends FrameLayout
                 }
 
                 @Override
-                public void onCrash(Tab tab) {
-                    mNumGestureActiveTouches = 0;
-                }
-
-                @Override
                 public void onDidFinishNavigationInPrimaryMainFrame(
                         Tab tab, NavigationHandle navigation) {
                     if (!navigation.isSameDocument() && navigation.hasCommitted()) {
@@ -383,34 +377,16 @@ public class CompositorViewHolder extends FrameLayout
                     }
                 }
 
-                // TODO(crbug.com/265479149): Split out a specific delegate for
-                // gesture listening below and remove from TabObserver.
-                @Override
-                public void onGestureBegin() {
-                    mNumGestureActiveTouches++;
-                    updateInMotion();
-                }
-
-                @Override
-                public void onGestureEnd() {
-                    mNumGestureActiveTouches = Math.max(mNumGestureActiveTouches - 1, 0);
-                    updateInMotion();
-                }
-
                 @Override
                 public void onTouchDown() {
-                    if (ChromeFeatureList.sToolbarStaleCaptureBugFix.isEnabled()) {
-                        mInTouch = true;
-                        updateInMotion();
-                    }
+                    mInTouch = true;
+                    updateInMotion();
                 }
 
                 @Override
                 public void onTouchUp() {
-                    if (ChromeFeatureList.sToolbarStaleCaptureBugFix.isEnabled()) {
-                        mInTouch = false;
-                        updateInMotion();
-                    }
+                    mInTouch = false;
+                    updateInMotion();
                 }
             };
 
@@ -460,8 +436,7 @@ public class CompositorViewHolder extends FrameLayout
                     if (tab != null) {
                         // Set the size of NTP if we're in the attached state as it may have not
                         // been sized properly when initializing tab. See the comment in
-                        // #initializeTab()
-                        // for why.
+                        // #initializeTab() for why.
                         boolean attachedNativePage =
                                 tab.isNativePage() && isAttachedToWindow(tab.getView());
                         boolean sizeChanged =
@@ -957,14 +932,7 @@ public class CompositorViewHolder extends FrameLayout
 
     private void updateInMotion() {
         // TODO(crbug.com/40244051): Track fling as well.
-        boolean inMotion = mContentViewScrolling;
-        if (ChromeFeatureList.sToolbarStaleCaptureBugFix.isEnabled()) {
-            inMotion |= mInTouch;
-        } else if (ChromeFeatureList.sSuppressToolbarCapturesAtGestureEnd.isEnabled()) {
-            inMotion |= mNumGestureActiveTouches > 0;
-        } else {
-            inMotion |= mInGesture;
-        }
+        boolean inMotion = mContentViewScrolling || mInTouch;
         mInMotionSupplier.set(inMotion);
         if (mContentView != null) {
             mContentView.setDeferKeepScreenOnChanges(inMotion);
@@ -1107,6 +1075,13 @@ public class CompositorViewHolder extends FrameLayout
     /**
      * @see #updateWebContentsSize(Tab, Integer)
      */
+    void updateWebContentsSize() {
+        updateWebContentsSize(getCurrentTab(), /* widthOverride= */ null);
+    }
+
+    /**
+     * @see #updateWebContentsSize(Tab, Integer)
+     */
     @VisibleForTesting
     void updateWebContentsSize(@Nullable Tab tab) {
         updateWebContentsSize(tab, /* widthOverride= */ null);
@@ -1224,6 +1199,7 @@ public class CompositorViewHolder extends FrameLayout
                     MeasureSpec.makeMeasureSpec(height, MeasureSpec.EXACTLY));
             view.layout(0, 0, view.getMeasuredWidth(), view.getMeasuredHeight());
             webContents.setSize(webContentsWidth, webContentsHeight);
+
             requestRender();
         }
     }
@@ -1273,9 +1249,32 @@ public class CompositorViewHolder extends FrameLayout
     @Override
     public void onSurfaceResized(int width, int height) {
         View view = getContentView();
-        WebContents webContents = getWebContents();
-        if (view == null || webContents == null) return;
-        onPhysicalBackingSizeChanged(webContents, width, height);
+        WebContents activeWebContents = getWebContents();
+        if (view == null || activeWebContents == null) return;
+        onPhysicalBackingSizeChanged(activeWebContents, width, height);
+
+        // Background tabs skip physical surface updates to save resources.
+        // However, if a tab is being captured (e.g., screen sharing), it actively
+        // draws frames. We must sync its physical size here to prevent the video
+        // capture stream from freezing due to a frame containment failure.
+        syncBackgroundCapturedTabsPhysicalSize(activeWebContents, width, height);
+    }
+
+    private void syncBackgroundCapturedTabsPhysicalSize(
+            WebContents activeWebContents, int width, int height) {
+        if (mTabModelSelector == null) return;
+
+        for (TabModel tabModel : mTabModelSelector.getModels()) {
+            for (Tab tab : tabModel) {
+                if (tab == null) continue;
+                WebContents tabWebContents = tab.getWebContents();
+                if (tabWebContents != null
+                        && tabWebContents != activeWebContents
+                        && tabWebContents.isBeingCaptured()) {
+                    onPhysicalBackingSizeChanged(tabWebContents, width, height);
+                }
+            }
+        }
     }
 
     private void onPhysicalBackingSizeChanged(WebContents webContents, int width, int height) {
@@ -1422,36 +1421,23 @@ public class CompositorViewHolder extends FrameLayout
         WebContents webContents = currentTab.getWebContents();
         if (webContents == null) return null;
 
-        Point viewportSize = getViewportSize();
-        int sideUiTotalWidth =
-                sideUiSpecs.getWidth(AnchorSide.LEFT) + sideUiSpecs.getWidth(AnchorSide.RIGHT);
-        int startWidth = ViewUtils.dpToPx(mActivity, webContents.getWidth());
-        int targetWidth = viewportSize.x - sideUiTotalWidth;
+        if (mView == null) return null;
 
-        TransitionSet transitionSet = new TransitionSet();
+        // TODO(crbug.com/515834044): Investigate adding a Transition to instead resize WebContents
+        //  in the middle of the Transition to make the transition a bit smoother.
 
         // TODO(crbug.com/513304704): Add tests covering the Java View Transitions.
-        if (mView != null) {
-            // Apply a ChangeBounds() to the view and all its descendants to make sure any changes
-            // are properly animated. If this isn't applied to all the descendant Views, the
-            // animation may not be triggered at all.
-            ChangeBounds changeBounds = new ChangeBounds();
-            Collection<View> descendants = new ArrayList<>();
-            changeBounds.addTarget(mView);
-            ViewUtils.getAllDescendants(mView, descendants, emptySet());
-            for (View view : descendants) {
-                changeBounds.addTarget(view);
-            }
-            transitionSet.addTransition(changeBounds);
+        // Apply a ChangeBounds() to the view and all its descendants to make sure any changes are
+        // properly animated. If this isn't applied to all the descendant Views, the animation may
+        // not be triggered at all.
+        ChangeBounds changeBounds = new ChangeBounds();
+        Collection<View> descendants = new ArrayList<>();
+        changeBounds.addTarget(mView);
+        ViewUtils.getAllDescendants(mView, descendants, emptySet());
+        for (View view : descendants) {
+            changeBounds.addTarget(view);
         }
-
-        transitionSet.addTransition(
-                new IntegerValueTransition(
-                        this,
-                        startWidth,
-                        targetWidth,
-                        (desiredWidth) -> updateWebContentsSize(getCurrentTab(), desiredWidth)));
-        return transitionSet;
+        return changeBounds;
     }
 
     @Override
@@ -1459,19 +1445,27 @@ public class CompositorViewHolder extends FrameLayout
         // Trigger changes to Java Views, but delay any direct changes to composited views until
         // #onSideUiSpecsChanged().
         repositionTabViewForSideUi(sideUiSpecs);
+        // Padding will not be animated by the Transition as doing so would request a layout on
+        // every frame. Instead, padding is allowed to remain at its final state during a
+        // Transition. Disable clipToPadding to prevent clipping during the Transition. This will
+        // be reset on Transition end.
+        // TODO(crbug.com/521963994): Investigate alternatives, as this would still cause jank if a
+        //  native page relies on padding clipping.
+        disableClipToPaddingForCurrentTab();
     }
 
     @Override
     public void onTransitionEnded(SideUiSpecs sideUiSpecs) {
         onSideUiSpecsChanged(sideUiSpecs);
+        resetClipToPadding();
     }
 
     @Override
     public void onSideUiSpecsChanged(SideUiSpecs sideUiSpecs) {
-        int sideUiTotalWidth =
-                sideUiSpecs.getWidth(AnchorSide.RIGHT) + sideUiSpecs.getWidth(AnchorSide.LEFT);
-        int webContentsWidth = getViewportSize().x - sideUiTotalWidth;
-        updateWebContentsSize(getCurrentTab(), webContentsWidth);
+        // Delay #updateWebContentsSize to the end of the task queue. Some side panel instances
+        // rapidly close and re-open the side panel, which can cause a flicker if the web contents
+        // are updated synchronously.
+        post(this::updateWebContentsSize);
 
         // TODO(crbug.com/514774842): Account for offset X for animations.
         mLayoutManager.setContentOffsetX(sideUiSpecs.getWidth(AnchorSide.LEFT));
@@ -1511,6 +1505,38 @@ public class CompositorViewHolder extends FrameLayout
         layoutParams.leftMargin = sideUiSpecs.getWidth(AnchorSide.LEFT);
         layoutParams.rightMargin = sideUiSpecs.getWidth(AnchorSide.RIGHT);
         mView.setLayoutParams(layoutParams);
+    }
+
+    /** Calls {@code #setClipToPadding(false)} for the current tab's View subtree. */
+    private void disableClipToPaddingForCurrentTab() {
+        if (mView == null) return;
+        if (mResetClipToPaddingRunnable != null) resetClipToPadding();
+
+        Map<ViewGroup, Boolean> initialClipToPadding = new ArrayMap<>();
+        Collection<View> descendants = new ArrayList<>();
+
+        ViewUtils.getAllDescendants(mView, descendants, emptySet());
+        for (View view : descendants) {
+            if (view instanceof ViewGroup viewGroup) {
+                initialClipToPadding.put(viewGroup, viewGroup.getClipToPadding());
+                viewGroup.setClipToPadding(false);
+            }
+        }
+
+        mResetClipToPaddingRunnable =
+                () -> {
+                    for (Entry<ViewGroup, Boolean> entry : initialClipToPadding.entrySet()) {
+                        entry.getKey().setClipToPadding(entry.getValue());
+                    }
+                };
+    }
+
+    /** Runs then nulls the reset runnable from {@link #disableClipToPaddingForCurrentTab()}. */
+    private void resetClipToPadding() {
+        if (mResetClipToPaddingRunnable == null) return;
+
+        mResetClipToPaddingRunnable.run();
+        mResetClipToPaddingRunnable = null;
     }
 
     // View.OnHierarchyChangeListener implementation
@@ -1743,6 +1769,7 @@ public class CompositorViewHolder extends FrameLayout
                 (sideUiStateProvider) -> {
                     mSideUiStateProvider = sideUiStateProvider;
                     mSideUiStateProvider.addObserver(this);
+                    updateWebContentsSize(getCurrentTab());
                 });
     }
 
@@ -1945,7 +1972,6 @@ public class CompositorViewHolder extends FrameLayout
             mHasKeyboardGeometryChangeFired = false;
             if (mTabVisible != null) mTabVisible.removeObserver(mTabObserver);
             if (tab != null) {
-                mNumGestureActiveTouches = 0;
                 tab.addObserver(mTabObserver);
                 mCompositorView.onTabChanged();
             }
@@ -2343,6 +2369,16 @@ public class CompositorViewHolder extends FrameLayout
 
             event.setContentDescription(getAccessibilityDescription(view));
             event.setClassName(CompositorViewHolder.class.getName());
+
+            if (event.getEventType() == AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED) {
+                // TODO(crbug.com/522892476): This is not the "proper" place to respond to a11y
+                // events. It's intended to be a place to augment the AccessibilityEvent before it's
+                // actually fired. We listen here, since ExploreByTouchHelper does not emit
+                // #onPerformActionForVirtualView events on a11y focus. If we refactor to instead
+                // use an AccessibilityNodeProvider, we likely can listen to this event in the
+                // "proper" location.
+                view.onAccessibilityFocused();
+            }
         }
 
         @Override

@@ -2830,6 +2830,11 @@ inline constexpr char kFrozenUpdateNotificationDismissed[] =
 // User session related Prefs
 //-----------------------------------------------------------------------------
 
+// A boolean preference indicating whether user has seen first-run tutorial
+// already.
+inline constexpr char kFirstRunTutorialShown[] =
+    "settings.first_run_tutorial_shown";
+
 // A preference of the last user session length.
 inline constexpr char kLastSessionLength[] = "session.last_session_length";
 
@@ -2865,6 +2870,11 @@ inline constexpr char kSessionUserActivitySeen[] = "session.user_activity_seen";
 // user activity has been observed in a session.
 inline constexpr char kSessionWaitForInitialUserActivity[] =
     "session.wait_for_initial_user_activity";
+
+// Boolean preference that triggers chrome://settings/syncSetup to be opened
+// on user session start.
+inline constexpr char kShowSyncSettingsOnSessionStart[] =
+    "start_sync_settings_on_session_start";
 
 //-----------------------------------------------------------------------------
 // Login screen related Prefs
@@ -3102,6 +3112,14 @@ inline constexpr char kUse24HourClock[] = "settings.clock.use_24hour_clock";
 inline constexpr char kUserTimezone[] = "settings.timezone";
 
 //-----------------------------------------------------------------------------
+// Power related Prefs
+//-----------------------------------------------------------------------------
+
+// Integer pref used by the metrics::DailyEvent owned by
+// ash::PowerMetricsReporter.
+inline constexpr char kPowerMetricsDailySample[] = "power.metrics.daily_sample";
+
+//-----------------------------------------------------------------------------
 // Kerberos related Prefs
 //-----------------------------------------------------------------------------
 
@@ -3234,6 +3252,21 @@ inline constexpr char kRLZBrand[] = "rlz.brand";
 inline constexpr char kRLZDisabled[] = "rlz.disabled";
 
 //-----------------------------------------------------------------------------
+// Network related Prefs
+//-----------------------------------------------------------------------------
+
+// Dictionary indicating current network bandwidth throttling settings.
+// Contains a boolean (is throttling enabled) and two integers (upload rate
+// and download rate in kbits/s to throttle to)
+inline constexpr char kNetworkThrottlingEnabled[] = "net.throttling_enabled";
+
+// String user profile pref that contains the host and port of the local
+// proxy which tunnels user traffic, in the format <address>:<proxy>. Only set
+// when System-proxy and ARC++ are enabled by policy.
+inline constexpr char kSystemProxyUserTrafficHostAndPort[] =
+    "system_proxy.user_traffic_host_and_port";
+
+//-----------------------------------------------------------------------------
 // File manager/file system related Prefs
 //-----------------------------------------------------------------------------
 
@@ -3260,9 +3293,19 @@ inline constexpr char kDefaultHandlersForFileExtensions[] =
 inline constexpr char kFilesAppDefaultLocation[] =
     "filebrowser.default_location";
 
+// List of mounted file systems via the File System Provider API. Used to
+// restore them after a reboot.
+inline constexpr char kFileSystemProviderMounted[] =
+    "file_system_provider.mounted";
+
 // Pref that contains the value of the GoogleWorkspaceCloudUpload policy.
 inline constexpr char kGoogleWorkspaceCloudUpload[] =
     "filebrowser.office.google_workspace_cloud_upload";
+
+// A boolean pref which turns on Advanced Filesystem
+// (USB support, SD card, etc).
+inline constexpr char kLabsAdvancedFilesystemEnabled[] =
+    "settings.labs.advanced_filesystem";
 
 // Pref that contains the value of the LocalUserFilesAllowed policy.
 inline constexpr char kLocalUserFilesAllowed[] =
@@ -3452,6 +3495,22 @@ inline constexpr char kSecondEolWarningDismissed[] =
 // dismissed by the user.
 inline constexpr char kEolNotificationDismissed[] =
     "eol_notification_dismissed";
+
+//-----------------------------------------------------------------------------
+// Update related Prefs
+//-----------------------------------------------------------------------------
+
+inline constexpr char kConsumerAutoUpdateToggle[] =
+    "settings.consumer_auto_update_toggle";
+
+//-----------------------------------------------------------------------------
+// Release note related Prefs
+//-----------------------------------------------------------------------------
+
+// Amount of times the release notes suggestion chip should be
+// shown before it disappears.
+inline constexpr char kReleaseNotesSuggestionChipTimesLeftToShow[] =
+    "times_left_to_show_release_notes_suggestion_chip";
 
 //-----------------------------------------------------------------------------
 // HATS related Prefs
@@ -3714,6 +3773,15 @@ inline constexpr char kHatsSurveyCycleEndTimestamp[] =
     "hats_survey_cycle_end_timestamp";
 
 //-----------------------------------------------------------------------------
+// Document scan related Prefs
+//-----------------------------------------------------------------------------
+
+// The list of extensions allowed to skip discovery and scan confirmation
+// dialogs when using the chrome.documentScan API.
+inline constexpr char kDocumentScanAPITrustedExtensions[] =
+    "document_scan.document_scan_api_trusted_extensions";
+
+//-----------------------------------------------------------------------------
 // Printing related Prefs
 //-----------------------------------------------------------------------------
 
@@ -3801,6 +3869,40 @@ inline constexpr char kRecommendedPrintersBlocklist[] =
 // and use their own printers.
 inline constexpr char kUserPrintersAllowed[] =
     "native_printing.user_native_printers_allowed";
+
+//-----------------------------------------------------------------------------
+// Settings related Prefs
+//-----------------------------------------------------------------------------
+
+// A boolean representing whether the user has revoked their consent
+// for UMA at least one time in the lifetime of the device.
+//
+// If the value is true, the user has revoked consent for recording their
+// metrics at least once in the device's lifetime AND has made a change to
+// Settings when the consent was revoked. This is the final value of this pref,
+// ie. once the pref is set to true, the value will never change again. Even if
+// the user grants consent again, we will not record their metric in the
+// histogram
+// "ChromeOS.Settings.NumUniqueSettingsChanged.DeviceLifetime2.{Time}".
+inline constexpr char kHasEverRevokedMetricsConsent[] =
+    "settings.has_ever_revoked_metrics_consent";
+
+// A boolean representing whether the user has changed a unique Setting after at
+// least 7 days have passed since the user completed OOBE.
+inline constexpr char kHasResetFirst7DaysSettingsUsedCount[] =
+    "settings.has_reset_first_seven_days_settings_used_count";
+
+// A dictionary storing the string representation of
+// chromeos::settings::mojom::Setting IDs for the unique OS Settings changed.
+// Implicitly stores the total count of the unique OS Settings changed by each
+// user per device.
+// Key:string = the int equivalent of the Settings enum
+//      chromeos::settings::mojom::Setting casted to string. Need to cast to
+//      string since the keys in a dictionary can only be strings.
+// Value:int = constant number 1. It signifies whether that particular Settings
+//      has been used by the user during the device's lifetime.
+inline constexpr char kTotalUniqueOsSettingsChanged[] =
+    "settings.total_unique_os_settings_changed";
 
 //-----------------------------------------------------------------------------
 // Enrollment related Prefs
@@ -4006,6 +4108,13 @@ inline constexpr char kCustomizationDefaultWallpaperURL[] =
     "customization.default_wallpaper_url";
 
 //-----------------------------------------------------------------------------
+// Slow UI related Prefs
+//-----------------------------------------------------------------------------
+
+inline constexpr char kPerformanceTracingEnabled[] =
+    "feedback.performance_tracing_enabled";
+
+//-----------------------------------------------------------------------------
 // Apps related Prefs
 //-----------------------------------------------------------------------------
 
@@ -4014,6 +4123,9 @@ inline constexpr char kCustomizationDefaultWallpaperURL[] =
 // naming conventions) of the preferred note-taking app. An empty value
 // indicates that the user hasn't selected an app yet.
 inline constexpr char kNoteTakingAppId[] = "settings.note_taking_app_id";
+
+// Boolean pref to control whether to enable Lens integration with media app
+inline constexpr char kMediaAppLensEnabled[] = "media_app.enable_lens";
 
 // NOTE: New prefs should start with the "ash." prefix. Existing prefs moved
 // into this file should not be renamed, since they may be synced.

@@ -41,6 +41,7 @@
 #endif
 
 #if PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+#include "base/memory/advanced_memory_safety_checks.h"
 #include "base/no_destructor.h"
 #include "partition_alloc/shim/allocator_shim_default_dispatch_to_partition_alloc.h"
 #endif
@@ -173,6 +174,13 @@ void ReportPartitionAllocStats(ProcessMemoryDump* pmd,
                                   populate_discardable_bytes,
                                   &partition_stats_dumper);
   }
+
+  // Obtain information from an allocator for leaked security object.
+  auto* leaked_security_object_allocator =
+      base::internal::LeakedSecurityObjectAllocator();
+  leaked_security_object_allocator->DumpStats("leaked", is_light_dump,
+                                              populate_discardable_bytes,
+                                              &partition_stats_dumper);
 
   *total_virtual_size += partition_stats_dumper.total_resident_bytes();
   *resident_size += partition_stats_dumper.total_resident_bytes();
@@ -735,6 +743,10 @@ void MemoryDumpPartitionStatsDumper::PartitionDumpTotals(
         quarantine_dump_total,
         memory_stats->scheduler_loop_quarantine_stats_total);
   }
+
+  allocator_dump->AddScalar("intended_leak_size",
+                            MemoryAllocatorDump::kUnitsBytes,
+                            memory_stats->total_intended_leak_bytes);
 }
 
 void MemoryDumpPartitionStatsDumper::PartitionsDumpBucketStats(

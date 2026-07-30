@@ -60,52 +60,9 @@ constexpr net::NetworkTrafficAnnotationTag kGlicWebUITrafficAnnotation =
       }
     })");
 
-constexpr net::NetworkTrafficAnnotationTag kGlicFreWebUITrafficAnnotation =
-    net::DefineNetworkTrafficAnnotation("glic_fre_web_ui", R"(
-    semantics {
-      sender: "Gemini in Chrome"
-      description:
-        "Signed-in users who haven't already given consent to share page "
-        "content will encounter a first-run experience the first time they try "
-        "to use Gemini in Chrome."
-      trigger:
-        "The user clicks the Gemini button without having given consent to "
-        "share page content (i.e. first time user or previous deny/ignore of "
-        "consent). It can also be triggered by navigating to chrome://glic-fre."
-        "Also, pre-warming chrome://glic-fre, so it loads faster, would be "
-        "considered as a trigger."
-      data:
-        "Minimal data is exchanged. Cookies may also be sent to the "
-        "destination URL."
-      destination: GOOGLE_OWNED_SERVICE
-      internal {
-        contacts {
-          owners: "//chrome/browser/glic/OWNERS"
-        }
-      }
-      user_data {
-        type: ACCESS_TOKEN
-      }
-      last_reviewed: "2025-07-22"
-    }
-    policy {
-      cookies_allowed: YES
-      cookies_store: "uses a separate cookie store"
-      setting: "This feature cannot be disabled by settings."
-      chrome_policy {
-          GeminiSettings {
-              GeminiSettings: 1
-          }
-        GenAiDefaultSettings {
-          GenAiDefaultSettings: 2
-        }
-      }
-    })");
-
 }  // namespace
 
-void LogDummyNetworkRequestForTrafficAnnotation(const GURL& url,
-                                                GlicPage glic_page) {
+void LogDummyNetworkRequestForTrafficAnnotation(const GURL& url) {
   net::NetLogWithSource net_log =
       net::NetLogWithSource::Make(net::NetLogSourceType::URL_REQUEST);
   net_log.AddEvent(net::NetLogEventType::REQUEST_ALIVE, [&]() {
@@ -113,9 +70,7 @@ void LogDummyNetworkRequestForTrafficAnnotation(const GURL& url,
     dict.Set("priority", "IDLE");
     dict.Set("url", url.spec());
     dict.Set("traffic_annotation",
-             (glic_page == GlicPage::kGlicFre
-                  ? kGlicFreWebUITrafficAnnotation.unique_id_hash_code
-                  : kGlicWebUITrafficAnnotation.unique_id_hash_code));
+             kGlicWebUITrafficAnnotation.unique_id_hash_code);
     dict.Set("dummy_request", true);
     return dict;
   });

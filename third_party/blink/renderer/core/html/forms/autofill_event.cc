@@ -47,7 +47,6 @@ AutofillEvent* AutofillEvent::Create(
 
 void AutofillEvent::Trace(Visitor* visitor) const {
   visitor->Trace(field_data_);
-  visitor->Trace(refill_callback_);
   Event::Trace(visitor);
 }
 
@@ -92,14 +91,9 @@ V8AutofillRefillCallback* AutofillEvent::refill(ScriptState* script_state) {
     return nullptr;
   }
 
-  // Lazily create the callback on first access.
-  if (!refill_callback_) {
-    auto* function = MakeGarbageCollected<AutofillRefillFunction>(this);
-    refill_callback_ = V8AutofillRefillCallback::Create(
-        function->ToV8Function(script_state).template As<v8::Object>());
-  }
-
-  return refill_callback_.Get();
+  auto* function = MakeGarbageCollected<AutofillRefillFunction>(this);
+  return V8AutofillRefillCallback::Create(
+      function->ToV8Function(script_state).template As<v8::Object>());
 }
 
 void AutofillEvent::DoRefill(ScriptPromiseResolver<IDLUndefined>* resolver) {

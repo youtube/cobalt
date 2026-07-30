@@ -10,8 +10,8 @@
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/webui/signin/ash/user_cloud_signin_restriction_policy_fetcher.h"
 #include "components/account_manager_core/account.h"
+#include "components/account_manager_core/account_upsertion_result.h"
 #include "components/account_manager_core/chromeos/account_manager.h"
-#include "components/account_manager_core/chromeos/account_manager_mojo_service.h"
 #include "google_apis/gaia/gaia_access_token_fetcher.h"
 #include "google_apis/gaia/gaia_auth_consumer.h"
 #include "google_apis/gaia/gaia_auth_fetcher.h"
@@ -19,7 +19,6 @@
 
 namespace ash {
 
-class AccountManager;
 class AccountAppsAvailability;
 
 // A helper class for completing the inline login flow. Primarily, it is
@@ -30,6 +29,9 @@ class AccountAppsAvailability;
 // itself after its work is complete.
 class SigninHelper : public GaiaAuthConsumer {
  public:
+  using AccountUpsertionFinishedCallback = base::OnceCallback<void(
+      const account_manager::AccountUpsertionResult& result)>;
+
   // A helper class that is responsible for setting the ARC availability
   // after account addition depending on the flags passed in the constructor.
   class ArcHelper {
@@ -62,7 +64,7 @@ class SigninHelper : public GaiaAuthConsumer {
 
   SigninHelper(
       account_manager::AccountManager* account_manager,
-      crosapi::AccountManagerMojoService* account_manager_mojo_service,
+      AccountUpsertionFinishedCallback account_upsertion_finished_callback,
       const base::RepeatingClosure& close_dialog_closure,
       const base::RepeatingCallback<
           void(const std::string&, const std::string&)>& show_signin_error,
@@ -126,9 +128,7 @@ class SigninHelper : public GaiaAuthConsumer {
   std::string refresh_token_;
   // A non-owning pointer to Chrome OS AccountManager.
   const raw_ptr<account_manager::AccountManager> account_manager_;
-  // A non-owning pointer to AccountManagerMojoService.
-  const raw_ptr<crosapi::AccountManagerMojoService>
-      account_manager_mojo_service_;
+  AccountUpsertionFinishedCallback account_upsertion_finished_callback_;
   // Sets the ARC availability
   // after account addition. Owned by this class.
   std::unique_ptr<ArcHelper> arc_helper_;

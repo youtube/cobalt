@@ -17,6 +17,7 @@
 #include "base/logging.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/task/thread_pool/thread_pool_instance.h"
+#include "base/values.h"
 #include "components/named_mojo_ipc_server/connection_info.h"
 #include "mojo/public/cpp/bindings/pending_associated_receiver.h"
 #include "remoting/base/auto_thread_task_runner.h"
@@ -28,6 +29,7 @@
 #include "remoting/host/chromoting_host_services_server.h"
 #include "remoting/host/config_file_watcher.h"
 #include "remoting/host/desktop_session.h"
+#include "remoting/host/host_config.h"
 #include "remoting/host/host_event_logger.h"
 #include "remoting/host/host_status_observer.h"
 #include "remoting/protocol/transport.h"
@@ -75,6 +77,12 @@ void DaemonProcess::OnChannelConnected(int32_t peer_pid) {
   // by the the newly started process yet.
   next_terminal_id_ = 0;
 
+  BindAssociatedInterfaces();
+
+  if (!OnInitAfterChannelConnected(peer_pid)) {
+    return;
+  }
+
   SendHostConfigToNetworkProcess(serialized_config_);
 }
 
@@ -89,6 +97,10 @@ void DaemonProcess::OnPermanentError(int exit_code) {
 void DaemonProcess::OnWorkerProcessStopped() {
   desktop_session_manager_.reset();
   host_status_observer_.reset();
+  // Reset our IPC remote so it's ready to re-init if the network process is
+  // re-launched.
+  remoting_host_control_.reset();
+  desktop_session_connection_events_.reset();
   DeleteAllDesktopSessions();
 }
 
@@ -172,6 +184,8 @@ DaemonProcess::DaemonProcess(
     StoppedCallback stopped_callback)
     : caller_task_runner_(caller_task_runner),
       io_task_runner_(io_task_runner),
+      ipc_support_(io_task_runner->task_runner(),
+                   mojo::core::ScopedIPCSupport::ShutdownPolicy::FAST),
       next_terminal_id_(0),
       stopped_callback_(std::move(stopped_callback)),
       status_monitor_(new HostStatusMonitor()) {
@@ -277,6 +291,77 @@ void DaemonProcess::CrashNetworkProcess(const base::Location& location) {
 
   DoCrashNetworkProcess(location);
   DeleteAllDesktopSessions();
+}
+
+void DaemonProcess::DoCrashNetworkProcess(const base::Location& location) {
+  DCHECK(caller_task_runner()->BelongsToCurrentThread());
+  if (network_launcher_) {
+    network_launcher_->Crash(location);
+  }
+}
+
+void DaemonProcess::SetNetworkLauncherDelegate(
+    std::unique_ptr<WorkerProcessLauncher::Delegate> delegate) {
+  DCHECK(caller_task_runner()->BelongsToCurrentThread());
+  DCHECK(!network_launcher_);
+  network_launcher_ =
+      std::make_unique<WorkerProcessLauncher>(std::move(delegate), this);
+}
+
+bool DaemonProcess::OnDesktopSessionAgentAttached(
+    int terminal_id,
+    mojo::ScopedMessagePipeHandle desktop_pipe) {
+  if (desktop_session_connection_events_) {
+    desktop_session_connection_events_->OnDesktopSessionAgentAttached(
+        terminal_id, std::move(desktop_pipe));
+  }
+
+  return true;
+}
+
+void DaemonProcess::SendTerminalDisconnected(int terminal_id) {
+  if (desktop_session_connection_events_) {
+    desktop_session_connection_events_->OnTerminalDisconnected(terminal_id);
+  }
+}
+
+void DaemonProcess::SendHostConfigToNetworkProcess(
+    const std::string& serialized_config) {
+  if (!remoting_host_control_) {
+    return;
+  }
+
+  LOG_IF(ERROR, !remoting_host_control_.is_connected())
+      << "IPC channel not connected. HostConfig message will be dropped.";
+
+  std::optional<base::DictValue> config(HostConfigFromJson(serialized_config));
+  if (!config.has_value()) {
+    LOG(ERROR) << "Invalid host config, shutting down.";
+    OnPermanentError(kInvalidHostConfigurationExitCode);
+    return;
+  }
+
+  remoting_host_control_->ApplyHostConfig(std::move(config.value()));
+}
+
+void DaemonProcess::BindAssociatedInterfaces() {
+  if (!network_launcher_) {
+    return;
+  }
+  // Typically the Daemon process is responsible for disconnecting the remote
+  // however in cases where the network process crashes, we want to ensure that
+  // |remoting_host_control_| is reset so it can be reused after the network
+  // process is relaunched.
+  remoting_host_control_.reset();
+  network_launcher_->GetRemoteAssociatedInterface(
+      remoting_host_control_.BindNewEndpointAndPassReceiver());
+  desktop_session_connection_events_.reset();
+  network_launcher_->GetRemoteAssociatedInterface(
+      desktop_session_connection_events_.BindNewEndpointAndPassReceiver());
+}
+
+bool DaemonProcess::OnInitAfterChannelConnected(int32_t peer_pid) {
+  return true;
 }
 
 void DaemonProcess::Cleanup(base::OnceClosure callback) {

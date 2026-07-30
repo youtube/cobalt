@@ -149,7 +149,7 @@ class WebRtcVideoQualityBrowserTest : public WebRtcTestBase,
     // Set up ffmpeg to output at a certain resolution (-s) and bitrate (-b:v).
     // This is needed because WebRTC is free to start the call at a lower
     // resolution before ramping up. Without these flags, ffmpeg would output a
-    // video in the inital lower resolution, causing the SSIM and PSNR results
+    // video in the initial lower resolution, causing the SSIM and PSNR results
     // to become meaningless.
     base::CommandLine ffmpeg_command(path_to_ffmpeg);
     ffmpeg_command.AppendArg("-i");

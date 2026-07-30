@@ -1,0 +1,13 @@
+AXWebArea
+++AXTabGroup
+++++AXRadioButton AXSubrole=AXTabButton AXCustomActionNamesForTesting=['Rename'] AXTitle='Document.pdf' AXValue=0
+++AXButton AXTitle='Rename'
+++AXButton
+++AXGroup AXSubrole=AXApplicationGroup AXCustomActionNamesForTesting=['Archive']
+++++AXStaticText AXValue='File section'
+++AXButton AXTitle='Archive'
+++AXButton
+++AXGroup AXSubrole=AXApplicationGroup
+++++AXStaticText AXValue='Section with no valid actions'
+++AXButton
+++AXButton

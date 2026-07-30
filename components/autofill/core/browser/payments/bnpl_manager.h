@@ -318,7 +318,7 @@ class BnplManager : public AutofillManager::Observer {
   // Updates the existing suggestions list based on the amount extraction
   // response.
   void ReplaceLoadingThrobberWithIssuerSuggestions(
-      const std::vector<payments::BnplIssuerContext>& issuer_contexts);
+      const std::vector<BnplIssuerContext>& issuer_contexts);
 
   // Replace the existing BNPL suggestions on the Pay Later tab of the
   // suggestion dropdown with a loading throbber.

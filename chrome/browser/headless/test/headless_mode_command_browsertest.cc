@@ -563,9 +563,15 @@ IN_PROC_BROWSER_TEST_F(HeadlessModePrintToPdfCommandBrowserTest,
                                            SkColorSetRGB(0xff, 0xff, 0xff)));
 }
 
+// TODO(crbug.com/517342172): Flaky on MSan Linux bots
+#if defined(MEMORY_SANITIZER) && BUILDFLAG(IS_LINUX)
+#define MAYBE_PrintToPdfWithLazyLoading DISABLED_PrintToPdfWithLazyLoading
+#else
+#define MAYBE_PrintToPdfWithLazyLoading PrintToPdfWithLazyLoading
+#endif
 HEADLESS_MODE_COMMAND_BROWSER_TEST_WITH_TARGET_URL(
     HeadlessModePrintToPdfCommandBrowserTestBase,
-    PrintToPdfWithLazyLoading,
+    MAYBE_PrintToPdfWithLazyLoading,
     "/page_with_lazy_image.html") {
   ASSERT_THAT(ProcessCommands(),
               testing::Eq(HeadlessCommandHandler::Result::kSuccess));

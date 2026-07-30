@@ -46,9 +46,9 @@ class OverscrollRefreshTest : public OverscrollRefreshHandler,
     y_delta_ += y_delta;
   }
 
-  void PullRelease(bool allow_refresh) override {
+  void PullRelease(OverscrollActivationStatus status) override {
     released_ = true;
-    refresh_allowed_ = allow_refresh;
+    activation_status_ = status;
   }
 
   void PullReset() override { reset_ = true; }
@@ -79,9 +79,9 @@ class OverscrollRefreshTest : public OverscrollRefreshHandler,
     return result;
   }
 
-  bool GetAndResetRefreshAllowed() {
-    bool result = refresh_allowed_;
-    refresh_allowed_ = false;
+  OverscrollActivationStatus GetAndResetOverscrollActivationStatus() {
+    OverscrollActivationStatus result = activation_status_;
+    activation_status_ = OverscrollActivationStatus::kDisallowActivation;
     return result;
   }
 
@@ -112,7 +112,8 @@ class OverscrollRefreshTest : public OverscrollRefreshHandler,
   bool started_ = false;
   bool released_ = false;
   bool reset_ = false;
-  bool refresh_allowed_ = false;
+  OverscrollActivationStatus activation_status_ =
+      OverscrollActivationStatus::kDisallowActivation;
 };
 
 TEST_F(OverscrollRefreshTest, TriggerPullToRefreshWithTouchscreen) {
@@ -153,7 +154,8 @@ TEST_F(OverscrollRefreshTest, TriggerPullToRefreshWithTouchscreen) {
   effect_.OnScrollEnd(zero_velocity);
   EXPECT_FALSE(effect_.IsActive());
   EXPECT_TRUE(GetAndResetPullReleased());
-  EXPECT_TRUE(GetAndResetRefreshAllowed());
+  EXPECT_EQ(OverscrollActivationStatus::kAllowActivation,
+            GetAndResetOverscrollActivationStatus());
 }
 
 TEST_F(OverscrollRefreshTest, RefreshNotTriggeredWithTouchpad) {
@@ -305,7 +307,8 @@ TEST_F(OverscrollRefreshTest, RefreshNotTriggeredIfFlungDownward) {
   // Terminating the pull with a down-directed fling should prevent triggering.
   effect_.OnScrollEnd(gfx::Vector2dF(0, -1000));
   EXPECT_TRUE(GetAndResetPullReleased());
-  EXPECT_FALSE(GetAndResetRefreshAllowed());
+  EXPECT_EQ(OverscrollActivationStatus::kDisallowActivation,
+            GetAndResetOverscrollActivationStatus());
 }
 
 TEST_F(OverscrollRefreshTest, RefreshNotTriggeredIfReleasedWithoutActivation) {
@@ -322,7 +325,8 @@ TEST_F(OverscrollRefreshTest, RefreshNotTriggeredIfReleasedWithoutActivation) {
   effect_.ReleaseWithoutActivation();
   effect_.OnScrollEnd(gfx::Vector2dF());
   EXPECT_TRUE(GetAndResetPullReleased());
-  EXPECT_FALSE(GetAndResetRefreshAllowed());
+  EXPECT_EQ(OverscrollActivationStatus::kReset,
+            GetAndResetOverscrollActivationStatus());
 }
 
 TEST_F(OverscrollRefreshTest, RefreshNotTriggeredIfReset) {
@@ -384,7 +388,8 @@ TEST_F(OverscrollRefreshTest, TriggerPullFromBottomEdge) {
   effect_.OnScrollEnd(zero_velocity);
   EXPECT_FALSE(effect_.IsActive());
   EXPECT_TRUE(GetAndResetPullReleased());
-  EXPECT_TRUE(GetAndResetRefreshAllowed());
+  EXPECT_EQ(OverscrollActivationStatus::kAllowActivation,
+            GetAndResetOverscrollActivationStatus());
 }
 
 TEST_F(OverscrollRefreshTest, NotTriggeredIfInitialScrollNotFromBottom) {
@@ -456,7 +461,8 @@ TEST_F(OverscrollRefreshTest,
   // which is +500).
   effect_.OnScrollEnd(gfx::Vector2dF(0, 200));
   EXPECT_TRUE(GetAndResetPullReleased());
-  EXPECT_TRUE(GetAndResetRefreshAllowed());
+  EXPECT_EQ(OverscrollActivationStatus::kAllowActivation,
+            GetAndResetOverscrollActivationStatus());
 }
 
 TEST_F(OverscrollRefreshTest, PullFromBottomEdgeNotTriggeredIfFlungDownward) {
@@ -479,7 +485,8 @@ TEST_F(OverscrollRefreshTest, PullFromBottomEdgeNotTriggeredIfFlungDownward) {
   // direction.
   effect_.OnScrollEnd(gfx::Vector2dF(0, 1000));
   EXPECT_TRUE(GetAndResetPullReleased());
-  EXPECT_FALSE(GetAndResetRefreshAllowed());
+  EXPECT_EQ(OverscrollActivationStatus::kDisallowActivation,
+            GetAndResetOverscrollActivationStatus());
 }
 
 TEST_F(OverscrollRefreshTest, OverscrollBehaviorYAutoTriggersStart) {
@@ -536,7 +543,8 @@ TEST_F(OverscrollRefreshTest, TriggerSwipeToNavigate) {
   effect_.OnScrollEnd(zero_velocity);
   EXPECT_FALSE(effect_.IsActive());
   EXPECT_TRUE(GetAndResetPullReleased());
-  EXPECT_TRUE(GetAndResetRefreshAllowed());
+  EXPECT_EQ(OverscrollActivationStatus::kAllowActivation,
+            GetAndResetOverscrollActivationStatus());
 }
 
 TEST_F(OverscrollRefreshTest,
@@ -570,7 +578,8 @@ TEST_F(OverscrollRefreshTest,
   // navigation.
   effect_.OnScrollEnd(gfx::Vector2dF(-800, 0));
   EXPECT_TRUE(GetAndResetPullReleased());
-  EXPECT_FALSE(GetAndResetRefreshAllowed());
+  EXPECT_EQ(OverscrollActivationStatus::kDisallowActivation,
+            GetAndResetOverscrollActivationStatus());
 }
 
 TEST_F(OverscrollRefreshTest,
@@ -587,7 +596,8 @@ TEST_F(OverscrollRefreshTest,
   // navigation.
   effect_.OnScrollEnd(gfx::Vector2dF(800, 0));
   EXPECT_TRUE(GetAndResetPullReleased());
-  EXPECT_FALSE(GetAndResetRefreshAllowed());
+  EXPECT_EQ(OverscrollActivationStatus::kDisallowActivation,
+            GetAndResetOverscrollActivationStatus());
 }
 
 TEST_F(OverscrollRefreshTest,
@@ -631,7 +641,8 @@ TEST_F(OverscrollRefreshTest,
   effect_.OnScrollEnd(zero_velocity);
   EXPECT_FALSE(effect_.IsActive());
   EXPECT_TRUE(GetAndResetPullReleased());
-  EXPECT_TRUE(GetAndResetRefreshAllowed());
+  EXPECT_EQ(OverscrollActivationStatus::kAllowActivation,
+            GetAndResetOverscrollActivationStatus());
 }
 
 TEST_F(OverscrollRefreshTest,
@@ -667,6 +678,38 @@ TEST_F(OverscrollRefreshTest, OverscrollBehaviorXNonePreventsTriggerStart) {
   auto ob = cc::OverscrollBehavior();
   ob.x = cc::OverscrollBehavior::Type::kNone;
   TestOverscrollBehavior(ob, gfx::Vector2dF(10, 0), false);
+}
+
+TEST_F(OverscrollRefreshTest, LeftEdgeHistoryNavigationFlingToStart) {
+  effect_.SetTouchpadOverscrollHistoryNavigation(true);
+  effect_.OnScrollBegin(gfx::PointF(2.f, 50.f));
+  gfx::Vector2dF scroll_right(10, 0);
+  effect_.OnOverscrolled(cc::OverscrollBehavior(), -scroll_right,
+                         blink::WebGestureDevice::kTouchpad);
+  ASSERT_TRUE(effect_.IsActive());
+  EXPECT_TRUE(GetAndResetPullStarted());
+
+  // Set the fling speed to 1800 to exceed the fling-to-start threshold
+  effect_.OnScrollEnd(gfx::Vector2dF(1800, 0));
+  EXPECT_TRUE(GetAndResetPullReleased());
+  EXPECT_EQ(OverscrollActivationStatus::kForceActivation,
+            GetAndResetOverscrollActivationStatus());
+}
+
+TEST_F(OverscrollRefreshTest, RightEdgeHistoryNavigationFlingToStart) {
+  effect_.SetTouchpadOverscrollHistoryNavigation(true);
+  effect_.OnScrollBegin(gfx::PointF(98.f, 50.f));
+  gfx::Vector2dF scroll_left(-10, 0);
+  effect_.OnOverscrolled(cc::OverscrollBehavior(), -scroll_left,
+                         blink::WebGestureDevice::kTouchpad);
+  ASSERT_TRUE(effect_.IsActive());
+  EXPECT_TRUE(GetAndResetPullStarted());
+
+  // Set the fling speed to -1800 to exceed the fling-to-start threshold
+  effect_.OnScrollEnd(gfx::Vector2dF(-1800, 0));
+  EXPECT_TRUE(GetAndResetPullReleased());
+  EXPECT_EQ(OverscrollActivationStatus::kForceActivation,
+            GetAndResetOverscrollActivationStatus());
 }
 
 }  // namespace ui

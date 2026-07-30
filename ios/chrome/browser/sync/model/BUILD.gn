@@ -32,6 +32,7 @@ source_set("model") {
     "//components/history/core/browser",
     "//components/network_time",
     "//components/password_manager/core/browser",
+    "//components/password_manager/core/browser/features:password_features",
     "//components/password_manager/core/browser/sharing",
     "//components/pref_registry",
     "//components/prefs",
@@ -200,6 +201,8 @@ source_set("test_support") {
   sources = [
     "mock_sync_service_utils.cc",
     "mock_sync_service_utils.h",
+    "test_sync_service_utils.cc",
+    "test_sync_service_utils.h",
   ]
   deps = [
     ":model",
@@ -227,6 +230,7 @@ source_set("unit_tests") {
   deps = [
     ":model",
     ":sync_error_browser_agent",
+    ":test_support",
     "//base",
     "//base/test:test_support",
     "//components/autofill/core/common/",

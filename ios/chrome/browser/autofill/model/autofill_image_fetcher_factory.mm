@@ -32,7 +32,7 @@ AutofillImageFetcherFactory::~AutofillImageFetcherFactory() = default;
 std::unique_ptr<KeyedService>
 AutofillImageFetcherFactory::BuildServiceInstanceFor(
     ProfileIOS* profile) const {
-  return std::make_unique<autofill::AutofillImageFetcherImpl>(
+  return std::make_unique<AutofillImageFetcherImpl>(
       profile->GetSharedURLLoaderFactory());
 }
 

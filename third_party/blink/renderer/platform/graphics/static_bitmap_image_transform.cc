@@ -91,6 +91,8 @@ void BlitToCanvas(cc::PaintCanvas& canvas,
                   SkISize dest_size,
                   const StaticBitmapImageTransform::Params& options) {
   cc::PaintFlags paint;
+  paint.setTargetedHdrHeadroom(
+      cc::PaintFlags::TargetedHdrHeadroom::kDisableEverything);
   paint.setBlendMode(SkBlendMode::kSrc);
   if (options.flip_y) {
     if (source_orientation.UsesWidthAsHeight()) {

@@ -68,6 +68,7 @@ namespace {
 const char kXdgSettings[] = "xdg-settings";
 const char kXdgSettingsDefaultBrowser[] = "default-web-browser";
 const char kXdgSettingsDefaultSchemeHandler[] = "default-url-scheme-handler";
+const char kWebAppDesktopIdPrefixEnvVar[] = "CHROME_WEB_APP_DESKTOP_ID_PREFIX";
 
 #if defined(USE_GLIB)
 struct GKeyFileDataDeleter {
@@ -372,9 +373,18 @@ std::string GetXdgAppIdForWebApp(std::string app_name,
   if (remainder) {
     app_name = std::string(*remainder);
   }
-  return GetDesktopBaseName(
+  std::string app_id = GetDesktopBaseName(
       web_app::GetAppDesktopShortcutFilename(profile_path, app_name)
           .AsUTF8Unsafe());
+
+  std::unique_ptr<base::Environment> env = base::Environment::Create();
+  std::optional<std::string> desktop_id_prefix =
+      env->GetVar(kWebAppDesktopIdPrefixEnvVar);
+  if (desktop_id_prefix.has_value()) {
+    app_id.insert(0, desktop_id_prefix.value());
+  }
+
+  return app_id;
 }
 
 namespace internal {

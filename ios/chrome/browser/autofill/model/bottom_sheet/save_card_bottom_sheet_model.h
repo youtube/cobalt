@@ -71,7 +71,7 @@ class SaveCardBottomSheetModel {
   // after bottomsheet is closed upon showing the success confirmation.
   virtual void CreditCardUploadCompleted(
       bool card_saved,
-      autofill::payments::PaymentsAutofillClient::OnConfirmationClosedCallback
+      payments::PaymentsAutofillClient::OnConfirmationClosedCallback
           on_confirmation_closed_callback);
 
   void AddObserver(Observer* observer) { observer_list_.AddObserver(observer); }

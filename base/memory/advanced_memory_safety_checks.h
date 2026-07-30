@@ -172,6 +172,10 @@
   MEMORY_SAFETY_CHECKS_INTERNAL(          \
       ALWAYS_INLINE, kNone __VA_OPT__(, ) __VA_ARGS__, kNone, kNone)
 
+namespace partition_alloc {
+class PartitionRoot;
+}  // namespace partition_alloc
+
 // We cannot hide things behind anonymous namespace because they are referenced
 // via macro, which can be defined anywhere.
 // To avoid tainting ::base namespace, define things inside this namespace.
@@ -267,11 +271,7 @@ void HandleMemorySafetyCheckedOperatorDelete(void* ptr,
 FOR_EACH_BASE_INTERNAL_MEMORY_SAFETY_CHECK_VALUE(
     DECLARE_BASE_INTERNAL_HANDLE_MEMORY_SAFETY_CHECKED_OPERATORS)
 
-// Returns `PartitionRoot` for leaky security object allocation.
-// To only compare between roots from leaky security objects and roots
-// used at allocations, no need to return as `PartitionRoot*`.
-BASE_EXPORT uintptr_t
-GetPartitionRootForLeakySecurityObjectAllocationForTesting();
+BASE_EXPORT partition_alloc::PartitionRoot* LeakedSecurityObjectAllocator();
 
 }  // namespace base::internal
 

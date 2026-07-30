@@ -10,6 +10,7 @@
 #include <utility>
 
 #include "base/check.h"
+#include "base/containers/span.h"
 #include "base/functional/callback.h"
 #include "base/location.h"
 #include "base/memory/raw_ptr.h"
@@ -589,8 +590,7 @@ v8::MaybeLocal<v8::WasmModuleObject> AuctionV8Helper::CompileWasm(
   v8::TryCatch try_catch(isolate());
   v8::MaybeLocal<v8::WasmModuleObject> result = v8::WasmModuleObject::Compile(
       isolate(),
-      v8::MemorySpan<const uint8_t>(
-          reinterpret_cast<const uint8_t*>(payload.data()), payload.size()));
+      {reinterpret_cast<const uint8_t*>(payload.data()), payload.size()});
   if (try_catch.HasCaught()) {
     // WasmModuleObject::Compile doesn't know the URL, so FormatExceptionMessage
     // would produce unhelpful message w/o that important bit of context.

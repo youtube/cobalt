@@ -4,8 +4,11 @@
 
 #include "chromeos/ash/components/nearby/presence/credentials/nearby_presence_credential_manager_impl.h"
 
+#include <array>
+
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
+#include "base/no_destructor.h"
 #include "base/test/bind.h"
 #include "base/test/gmock_callback_support.h"
 #include "base/test/gtest_util.h"
@@ -40,22 +43,35 @@ const std::string kProfileUrl = "https://example.com";
 const std::string kDeviceId = "0123456789";
 const base::TimeDelta kServerResponseTimeout = base::Seconds(5);
 constexpr int kMaxUpdateCredentialRequestCount = 6;
-std::vector<base::TimeDelta> kUpdateCredentialCoolDownPeriods = {
+constexpr std::array<base::TimeDelta, 7> kUpdateCredentialCoolDownPeriods = {
     base::Seconds(0), base::Seconds(15), base::Seconds(30), base::Minutes(1),
     base::Minutes(2), base::Minutes(5),  base::Minutes(10)};
 constexpr int kServerCommunicationMaxAttempts = 5;
-const std::vector<uint8_t> kBluetoothMacAddress = {0x12, 0x34, 0x56,
-                                                   0x78, 0x9a, 0xbc};
-const std::vector<uint8_t> kMetadataDeviceId = {
-    0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
-    0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef};
+
 const long kId1 = 111;
 const long kId2 = 222;
 const long kId3 = 333;
-const std::vector<uint8_t> kKeySeed = {
-    0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44,
-    0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44,
-    0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44};
+
+const std::vector<uint8_t>& GetBluetoothMacAddress() {
+  static const base::NoDestructor<std::vector<uint8_t>> val(
+      {0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc});
+  return *val;
+}
+
+const std::vector<uint8_t>& GetMetadataDeviceId() {
+  static const base::NoDestructor<std::vector<uint8_t>> val(
+      {0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x01, 0x23, 0x45, 0x67,
+       0x89, 0xab, 0xcd, 0xef});
+  return *val;
+}
+
+const std::vector<uint8_t>& GetKeySeed() {
+  static const base::NoDestructor<std::vector<uint8_t>> val(
+      {0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44,
+       0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44,
+       0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44});
+  return *val;
+}
 
 ash::nearby::presence::mojom::SharedCredentialPtr BuildSharedCredential(
     long id) {
@@ -64,7 +80,7 @@ ash::nearby::presence::mojom::SharedCredentialPtr BuildSharedCredential(
   cred->id = id;
   // To communicate across the wire this field on the mojo struct needs to be
   // set since the mojo wire checks for this array to be size 32.
-  cred->key_seed = kKeySeed;
+  cred->key_seed = GetKeySeed();
   return cred;
 }
 
@@ -83,9 +99,10 @@ BuildSharedCredentials() {
       /*device_type=*/::nearby::internal::DeviceType::DEVICE_TYPE_CHROMEOS,
       /*device_name=*/kDeviceName,
       /*bluetooth_mac_address=*/
-      std::string(kBluetoothMacAddress.begin(), kBluetoothMacAddress.end()),
+      std::string(GetBluetoothMacAddress().begin(),
+                  GetBluetoothMacAddress().end()),
       /*device_id=*/
-      std::string(kMetadataDeviceId.begin(), kMetadataDeviceId.end()));
+      std::string(GetMetadataDeviceId().begin(), GetMetadataDeviceId().end()));
 }
 
 }  // namespace
@@ -360,8 +377,9 @@ TEST_F(NearbyPresenceCredentialManagerImplTest, SetDeviceMetadata) {
   EXPECT_EQ(mojom::PresenceDeviceType::kChromeos,
             local_device_metadata->device_type);
   EXPECT_EQ(kDeviceName, local_device_metadata->device_name);
-  EXPECT_EQ(kBluetoothMacAddress, local_device_metadata->bluetooth_mac_address);
-  EXPECT_EQ(kMetadataDeviceId, local_device_metadata->device_id);
+  EXPECT_EQ(GetBluetoothMacAddress(),
+            local_device_metadata->bluetooth_mac_address);
+  EXPECT_EQ(GetMetadataDeviceId(), local_device_metadata->device_id);
 }
 
 TEST_F(NearbyPresenceCredentialManagerImplTest, RegistrationSuccess) {

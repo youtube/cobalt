@@ -10,6 +10,8 @@ import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.lens.LensMetrics;
+import org.chromium.chrome.browser.lens.LensSupportStatusHelper;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.components.embedder_support.util.UrlUtilities;
 import org.chromium.url.GURL;
@@ -37,14 +39,22 @@ public class LensOverlayTabHelper implements UserData {
             return false;
         }
 
-        // Disable in Incognito for now since the prototype delegates to an external app.
-        if (tab.isIncognito()) {
+        GURL url = tab.getUrl();
+        // This also filters out NTPs and internal pages.
+        if (url == null || !UrlUtilities.isHttpOrHttps(url)) {
             return false;
         }
 
-        GURL url = tab.getUrl();
-        // This also filters out NTPs and internal pages.
-        return url != null && UrlUtilities.isHttpOrHttps(url);
+        @Nullable
+        @LensMetrics.LensSupportStatus
+        Integer supportStatus =
+                LensSupportStatusHelper.getLensSupportStatus(tab.getProfile(), tab.isIncognito());
+        if (supportStatus != null) {
+            LensMetrics.recordPageSearchSupportStatus(supportStatus);
+        }
+
+        return supportStatus != null
+                && supportStatus == LensMetrics.LensSupportStatus.LENS_SEARCH_SUPPORTED;
     }
 
     /**

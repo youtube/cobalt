@@ -9,12 +9,12 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ptr_exclusion.h"
 #include "chrome/browser/ui/extensions/extension_action_test_helper.h"
-#include "chrome/browser/ui/views/controls/hover_button.h"
 #include "ui/views/view_observer.h"
 
 class Browser;
 class ExtensionsMenuView;
 class ExtensionsToolbarDesktop;
+class HoverButton;
 
 // An implementation of ExtensionActionTestHelper that works with the
 // ExtensionsMenu.

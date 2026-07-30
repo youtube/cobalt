@@ -208,7 +208,7 @@ void AddCanShowHistorySyncOptInsWithoutMinorModeCapability(
   // present minor-safe screen; but the sync button is present on the screen
   // for the duration of that load (just invisible and not clickable), which
   // is difficult to be expressed in those tests without examining CSS.
-  AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+  AccountCapabilitiesTestMutator mutator(&account_info);
   mutator.set_can_show_history_sync_opt_ins_without_minor_mode_restrictions(
       true);
   signin::UpdateAccountInfoForAccount(identity_manager, account_info);
@@ -769,7 +769,7 @@ class DiceBrowserTest : public InProcessBrowserTest,
                        .SetAvatarUrl("https://example.com")
                        .Build();
     // Fill in the required account capabilities for the sign in intercept.
-    AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+    AccountCapabilitiesTestMutator mutator(&account_info);
     mutator.set_is_subject_to_parental_controls(false);
     mutator.set_is_subject_to_enterprise_features(false);
     mutator.set_is_subject_to_account_level_enterprise_policies(false);
@@ -1701,6 +1701,12 @@ IN_PROC_BROWSER_TEST_F(DiceBrowserTestWithExplicitSignin,
 
   EXPECT_TRUE(
       GetIdentityManager()->HasPrimaryAccount(signin::ConsentLevel::kSignin));
+  histogram_tester.ExpectUniqueSample(
+      "Signin.SignIn.Offered",
+      signin_metrics::AccessPoint::kSigninChoiceRemembered, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Signin.SignIn.Started",
+      signin_metrics::AccessPoint::kSigninChoiceRemembered, 1);
   histogram_tester.ExpectUniqueSample(
       "Signin.SignIn.Completed",
       signin_metrics::AccessPoint::kSigninChoiceRemembered, 1);

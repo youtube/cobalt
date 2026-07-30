@@ -139,6 +139,14 @@ function globalInterfaceListing(
     Notification: new Set([
       'getter image',
     ]),
+    SpeechRecognition: new Set([
+      'getter unspokenPunctuation',
+      'setter unspokenPunctuation',
+    ]),
+    webkitSpeechRecognition: new Set([
+      'getter unspokenPunctuation',
+      'setter unspokenPunctuation',
+    ]),
   };
 
   // List of all platform-specific global properties. Please update this list

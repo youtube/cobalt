@@ -135,6 +135,8 @@ def run_performance_test(video_file: str, driver: webdriver):
         '-y',
         # Set the input format to Video4Linux2.
         '-f', 'video4linux2',
+        # Force V4L2 capture framerate to 60fps.
+        '-framerate', '60',
         # Set the input pixel format.
         '-input_format', 'yuyv422',
         # Specify the input file (video device).

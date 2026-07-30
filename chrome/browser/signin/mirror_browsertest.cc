@@ -190,7 +190,7 @@ IN_PROC_BROWSER_TEST_F(MirrorBrowserTest, MirrorRequestHeader) {
       {embedded_test_server()->GetURL("www.header_adder.com", replacement_path),
        "/simple.html", true, true, true});
 
-  // First one should have the header, but not transfered to second one.
+  // First one should have the header, but not transferred to second one.
   replacement_text.clear();
   replacement_text.push_back(
       std::make_pair("{{PORT}}", base::NumberToString(https_server.port())));

@@ -21,17 +21,19 @@ enum EntityType {
   VEHICLE = 7;
 }
 
-// This is a mirror of google.protobuf.Timestamp.
-message Timestamp {
-  // Represents seconds of UTC time since Unix epoch
-  // 1970-01-01T00:00:00Z. Must be from 0001-01-01T00:00:00Z to
-  // 9999-12-31T23:59:59Z inclusive.
+// This is a mirror of google.protobuf.Duration.
+message Duration {
+  // Signed seconds of the span of time. Must be from -315,576,000,000
+  // to +315,576,000,000 inclusive. Note: these bounds are computed from:
+  // 60 sec/min * 60 min/hr * 24 hr/day * 365.25 days/year * 10000 years
   int64 seconds = 1;
 
-  // Non-negative fractions of a second at nanosecond resolution. Negative
-  // second values with fractions must still have non-negative nanos values
-  // that count forward in time. Must be from 0 to 999,999,999
-  // inclusive.
+  // Signed fractions of a second at nanosecond resolution of the span
+  // of time. Durations less than one second are represented with a 0
+  // `seconds` field and a positive or negative `nanos` field. For durations
+  // of one second or more, a non-zero value for the `nanos` field must be
+  // of the same sign as the `seconds` field. Must be from -999,999,999
+  // to +999,999,999 inclusive.
   int32 nanos = 2;
 }
 
@@ -52,6 +54,40 @@ message Date {
   int32 day = 3;
 }
 
+// Represents civil time (or occasionally physical time).
+//
+// This is a mirror of google.type.DateTime.
+message DateTime {
+  // Optional. Year of date. Must be from 1 to 9999, or 0 if specifying a
+  // datetime without a year.
+  int32 year = 1;
+  // Optional. Month of year. Must be from 1 to 12, or 0 if specifying a
+  // datetime without a month.
+  int32 month = 2;
+  // Optional. Day of month. Must be from 1 to 31 and valid for the year and
+  // month, or 0 if specifying a datetime without a day.
+  int32 day = 3;
+  // Optional. Hours of day in 24 hour format. Should be from 0 to 23, defaults
+  // to 0 (midnight). An API may choose to allow the value "24:00:00" for
+  // scenarios like business closing time.
+  int32 hours = 4;
+  // Optional. Minutes of hour of day. Must be from 0 to 59, defaults to 0.
+  int32 minutes = 5;
+  // Optional. Seconds of minutes of the time. Must normally be from 0 to 59,
+  // defaults to 0. An API may allow the value 60 if it allows leap-seconds.
+  int32 seconds = 6;
+  // Optional. Fractions of seconds in nanoseconds. Must be from 0 to
+  // 999,999,999, defaults to 0.
+  int32 nanos = 7;
+  // Optional. Specifies either the UTC offset or the time zone of the DateTime.
+  oneof time_offset {
+    // UTC offset. Must be whole seconds, between -18 hours and +18 hours.
+    // For example, a UTC offset of -4:00 would be represented as
+    // { seconds: -14400 }.
+    Duration utc_offset = 8;
+  }
+}
+
 message Entity {
   // Oneof to support different Chrome entity data types.
   oneof entity {
@@ -62,10 +98,13 @@ message Entity {
     NationalId national_id = 5;
     FlightReservation flight_reservation = 6;
     Vehicle vehicle = 7;
+    SensitivePiiPresence sensitive_pii_presence = 11;
   }
 
   // The source references for the entity.
   repeated SourceReference source_references = 8;
+
+  reserved 9, 10;
 }
 
 // Represents a reference to a source of an entity.
@@ -99,7 +138,7 @@ message Order {
   string account = 2;
 
   // The date when the order was placed.
-  Timestamp order_time = 3;
+  Date order_date = 3;
 
   // The name of the merchant.
   string merchant_name = 4;
@@ -128,7 +167,7 @@ message Shipment {
   string carrier_domain = 4;
 
   // The date on which the shipment is estimated to be delivered.
-  Timestamp estimated_delivery_time = 5;
+  Date estimated_delivery_date = 5;
 }
 
 // Represents a government-issued driver's license.
@@ -210,10 +249,10 @@ message FlightReservation {
   string arrival_airport = 6;
 
   // The scheduled date and time of departure.
-  Timestamp departure_time = 7;
+  DateTime departure_time = 7;
 
   // The scheduled date and time of arrival.
-  Timestamp arrival_time = 8;
+  DateTime arrival_time = 8;
 }
 
 // Represents a motor vehicle.
@@ -242,4 +281,99 @@ message Vehicle {
 
   // The name of the primary owner of the vehicle.
   string owner_name = 8;
+}
+
+// Signals the availability of sensitive PII for the user.
+message SensitivePiiPresence {
+  // The type of SPII data for which presence is indicated.
+  enum Type {
+    UNSPECIFIED = 0;
+    DRIVERS_LICENSE = 1;
+    PASSPORT = 2;
+    NATIONAL_ID = 3;
+  }
+
+  Type type = 1;
+}
+
+// Represents the memory data types supported by the Chrome client. This
+// includes both local Autofill data types and remote data types (e.g. Gmail,
+// Photos, etc.).
+enum MemoryDataType {
+  MEMORY_DATA_TYPE_UNSPECIFIED = 0;
+  MEMORY_DATA_TYPE_NAME_FULL = 1;
+  MEMORY_DATA_TYPE_ADDRESS_FULL = 2;
+  MEMORY_DATA_TYPE_ADDRESS_STREET_ADDRESS = 3;
+  MEMORY_DATA_TYPE_ADDRESS_CITY = 4;
+  MEMORY_DATA_TYPE_ADDRESS_STATE = 5;
+  MEMORY_DATA_TYPE_ADDRESS_ZIP = 6;
+  MEMORY_DATA_TYPE_ADDRESS_COUNTRY = 7;
+  MEMORY_DATA_TYPE_PHONE = 8;
+  MEMORY_DATA_TYPE_EMAIL = 9;
+  MEMORY_DATA_TYPE_COMPANY_NAME = 10;
+  MEMORY_DATA_TYPE_IBAN = 11;
+  MEMORY_DATA_TYPE_IBAN_NICKNAME = 12;
+  MEMORY_DATA_TYPE_VEHICLE = 13;
+  MEMORY_DATA_TYPE_VEHICLE_MAKE = 14;
+  MEMORY_DATA_TYPE_VEHICLE_MODEL = 15;
+  MEMORY_DATA_TYPE_VEHICLE_YEAR = 16;
+  MEMORY_DATA_TYPE_VEHICLE_OWNER = 17;
+  MEMORY_DATA_TYPE_VEHICLE_PLATE_NUMBER = 18;
+  MEMORY_DATA_TYPE_VEHICLE_PLATE_STATE = 19;
+  MEMORY_DATA_TYPE_VEHICLE_VIN = 20;
+  MEMORY_DATA_TYPE_PASSPORT_FULL = 21;
+  MEMORY_DATA_TYPE_PASSPORT_NAME = 22;
+  MEMORY_DATA_TYPE_PASSPORT_COUNTRY = 23;
+  MEMORY_DATA_TYPE_PASSPORT_NUMBER = 24;
+  MEMORY_DATA_TYPE_PASSPORT_ISSUE_DATE = 25;
+  MEMORY_DATA_TYPE_PASSPORT_EXPIRATION_DATE = 26;
+  MEMORY_DATA_TYPE_FLIGHT_RESERVATION_FULL = 27;
+  MEMORY_DATA_TYPE_FLIGHT_RESERVATION_FLIGHT_NUMBER = 28;
+  MEMORY_DATA_TYPE_FLIGHT_RESERVATION_TICKET_NUMBER = 29;
+  MEMORY_DATA_TYPE_FLIGHT_RESERVATION_CONFIRMATION_CODE = 30;
+  MEMORY_DATA_TYPE_FLIGHT_RESERVATION_PASSENGER_NAME = 31;
+  MEMORY_DATA_TYPE_FLIGHT_RESERVATION_DEPARTURE_AIRPORT = 32;
+  MEMORY_DATA_TYPE_FLIGHT_RESERVATION_ARRIVAL_AIRPORT = 33;
+  MEMORY_DATA_TYPE_FLIGHT_RESERVATION_DEPARTURE_DATE = 34;
+  MEMORY_DATA_TYPE_FLIGHT_RESERVATION_ARRIVAL_DATE = 35;
+  MEMORY_DATA_TYPE_SHIPMENT_FULL = 36;
+  MEMORY_DATA_TYPE_SHIPMENT_TRACKING_NUMBER = 37;
+  MEMORY_DATA_TYPE_SHIPMENT_ASSOCIATED_ORDER_ID = 38;
+  MEMORY_DATA_TYPE_SHIPMENT_DELIVERY_ADDRESS = 39;
+  MEMORY_DATA_TYPE_SHIPMENT_DELIVERY_ZIP_CODE = 40;
+  MEMORY_DATA_TYPE_SHIPMENT_CARRIER_NAME = 41;
+  MEMORY_DATA_TYPE_SHIPMENT_CARRIER_DOMAIN = 42;
+  MEMORY_DATA_TYPE_SHIPMENT_ESTIMATED_DELIVERY_DATE = 43;
+  MEMORY_DATA_TYPE_NATIONAL_ID_CARD_FULL = 44;
+  MEMORY_DATA_TYPE_NATIONAL_ID_CARD_NAME = 45;
+  MEMORY_DATA_TYPE_NATIONAL_ID_CARD_COUNTRY = 46;
+  MEMORY_DATA_TYPE_NATIONAL_ID_CARD_NUMBER = 47;
+  MEMORY_DATA_TYPE_NATIONAL_ID_CARD_ISSUE_DATE = 48;
+  MEMORY_DATA_TYPE_NATIONAL_ID_CARD_EXPIRATION_DATE = 49;
+  MEMORY_DATA_TYPE_REDRESS_NUMBER_FULL = 50;
+  MEMORY_DATA_TYPE_REDRESS_NUMBER_NAME = 51;
+  MEMORY_DATA_TYPE_REDRESS_NUMBER_NUMBER = 52;
+  MEMORY_DATA_TYPE_KNOWN_TRAVELER_NUMBER_FULL = 53;
+  MEMORY_DATA_TYPE_KNOWN_TRAVELER_NUMBER_NAME = 54;
+  MEMORY_DATA_TYPE_KNOWN_TRAVELER_NUMBER_NUMBER = 55;
+  MEMORY_DATA_TYPE_KNOWN_TRAVELER_NUMBER_EXPIRATION_DATE = 56;
+  MEMORY_DATA_TYPE_DRIVERS_LICENSE_FULL = 57;
+  MEMORY_DATA_TYPE_DRIVERS_LICENSE_NAME = 58;
+  MEMORY_DATA_TYPE_DRIVERS_LICENSE_STATE = 59;
+  MEMORY_DATA_TYPE_DRIVERS_LICENSE_NUMBER = 60;
+  MEMORY_DATA_TYPE_DRIVERS_LICENSE_ISSUE_DATE = 61;
+  MEMORY_DATA_TYPE_DRIVERS_LICENSE_EXPIRATION_DATE = 62;
+  MEMORY_DATA_TYPE_ORDER_FULL = 63;
+  MEMORY_DATA_TYPE_ORDER_ID = 64;
+  MEMORY_DATA_TYPE_ORDER_ACCOUNT = 65;
+  MEMORY_DATA_TYPE_ORDER_DATE = 66;
+  MEMORY_DATA_TYPE_ORDER_MERCHANT_NAME = 67;
+  MEMORY_DATA_TYPE_ORDER_MERCHANT_DOMAIN = 68;
+  MEMORY_DATA_TYPE_ORDER_PRODUCT_NAMES = 69;
+  MEMORY_DATA_TYPE_ORDER_GRAND_TOTAL = 70;
+  MEMORY_DATA_TYPE_CREDIT_CARD_NUMBER = 71;
+  MEMORY_DATA_TYPE_CREDIT_CARD_EXPIRATION_DATE = 72;
+  MEMORY_DATA_TYPE_CREDIT_CARD_SECURITY_CODE = 73;
+  MEMORY_DATA_TYPE_CREDIT_CARD_NAME_ON_CARD = 74;
+  MEMORY_DATA_TYPE_CREDIT_CARD_NICKNAME = 75;
 }

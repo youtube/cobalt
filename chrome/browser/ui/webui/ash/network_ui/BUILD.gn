@@ -37,6 +37,7 @@ static_library("network_ui") {
     "//chrome/browser/ui/ash/system",
     "//chrome/browser/ui/webui/ash/cellular_setup",
     "//chrome/browser/ui/webui/ash/internet",
+    "//chrome/browser/ui/webui/certificate_manager",
     "//chromeos/ash/components/browser_context_helper",
     "//chromeos/ash/components/dbus/debug_daemon",
     "//chromeos/ash/components/dbus/shill",

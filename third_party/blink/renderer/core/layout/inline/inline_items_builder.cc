@@ -1518,6 +1518,10 @@ void InlineItemsBuilderTemplate<MappingBuilder>::EnterBlock(
                      uchar::kPopDirectionalFormatting);
   }
 
+  if (style->GetTextEmphasisMark() != TextEmphasisMark::kNone) {
+    has_text_emphasis_ = true;
+  }
+
   if (style->IsDisplayListItem() && style->ListStyleType()) {
     is_block_level_ = false;
   }
@@ -1562,6 +1566,10 @@ void InlineItemsBuilderTemplate<MappingBuilder>::EnterInline(
                          uchar::kPopDirectionalFormatting);
         break;
     }
+  }
+
+  if (style->GetTextEmphasisMark() != TextEmphasisMark::kNone) {
+    has_text_emphasis_ = true;
   }
 
   has_ruby_ = has_ruby_ || node->IsInlineRubyText();
@@ -1741,6 +1749,7 @@ void InlineItemsBuilderTemplate<MappingBuilder>::DidFinishCollectInlines(
   data->has_out_of_flow_positioned_ = has_out_of_flow_positioned_;
   data->has_initial_letter_box_ = has_initial_letter_box_;
   data->has_ruby_ = has_ruby_;
+  data->has_text_emphasis_ = has_text_emphasis_;
   data->is_block_level_ = IsBlockLevel();
   data->changes_may_affect_earlier_lines_ = HasUnicodeBidiPlainText();
   data->is_bisect_line_break_disabled_ = is_bisect_line_break_disabled_;

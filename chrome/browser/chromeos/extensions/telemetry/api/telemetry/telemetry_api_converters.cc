@@ -5,15 +5,17 @@
 #include "chrome/browser/chromeos/extensions/telemetry/api/telemetry/telemetry_api_converters.h"
 
 #include <inttypes.h>
+#include <unistd.h>
 
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "base/check_op.h"
 #include "base/notreached.h"
+#include "base/time/time.h"
 #include "chrome/common/chromeos/extensions/api/telemetry.h"
-#include "chromeos/crosapi/mojom/probe_service.mojom.h"
 #include "chromeos/services/network_config/public/mojom/network_types.mojom.h"
 #include "chromeos/services/network_health/public/mojom/network_health_types.mojom.h"
 
@@ -22,7 +24,12 @@ namespace chromeos::converters::telemetry {
 namespace {
 
 namespace cx_telem = ::chromeos::api::os_telemetry;
-namespace crosapi = ::crosapi::mojom;
+
+uint64_t UserHz() {
+  const long user_hz = sysconf(_SC_CLK_TCK);
+  CHECK_GE(user_hz, 0);
+  return user_hz;
+}
 
 }  // namespace
 
@@ -88,42 +95,36 @@ cx_telem::AudioInfo UncheckedConvertPtr(
 }
 
 cx_telem::CpuCStateInfo UncheckedConvertPtr(
-    crosapi::ProbeCpuCStateInfoPtr input) {
+    ash::cros_healthd::mojom::CpuCStateInfoPtr input) {
   cx_telem::CpuCStateInfo result;
   result.name = input->name;
-  if (input->time_in_state_since_last_boot_us) {
-    result.time_in_state_since_last_boot_us =
-        input->time_in_state_since_last_boot_us->value;
-  }
+  result.time_in_state_since_last_boot_us =
+      input->time_in_state_since_last_boot_us;
   return result;
 }
 
 cx_telem::LogicalCpuInfo UncheckedConvertPtr(
-    crosapi::ProbeLogicalCpuInfoPtr input) {
+    ash::cros_healthd::mojom::LogicalCpuInfoPtr input) {
+  const auto user_hz = UserHz();
+  CHECK_GT(user_hz, 0u);
+
   cx_telem::LogicalCpuInfo result;
-  if (input->max_clock_speed_khz) {
-    result.max_clock_speed_khz = input->max_clock_speed_khz->value;
-  }
-  if (input->scaling_max_frequency_khz) {
-    result.scaling_max_frequency_khz = input->scaling_max_frequency_khz->value;
-  }
-  if (input->scaling_current_frequency_khz) {
-    result.scaling_current_frequency_khz =
-        input->scaling_current_frequency_khz->value;
-  }
-  if (input->idle_time_ms) {
-    result.idle_time_ms = input->idle_time_ms->value;
-  }
+
+  result.max_clock_speed_khz = input->max_clock_speed_khz;
+  result.scaling_max_frequency_khz = input->scaling_max_frequency_khz;
+  result.scaling_current_frequency_khz = input->scaling_current_frequency_khz;
+  result.idle_time_ms =
+      input->idle_time_user_hz * base::Time::kMillisecondsPerSecond / user_hz;
+
   result.c_states =
       ConvertPtrVector<cx_telem::CpuCStateInfo>(std::move(input->c_states));
-  if (input->core_id) {
-    result.core_id = input->core_id->value;
-  }
+  result.core_id = input->core_id;
+
   return result;
 }
 
 cx_telem::PhysicalCpuInfo UncheckedConvertPtr(
-    crosapi::ProbePhysicalCpuInfoPtr input) {
+    ash::cros_healthd::mojom::PhysicalCpuInfoPtr input) {
   cx_telem::PhysicalCpuInfo result;
   result.model_name = input->model_name;
   result.logical_cpus = ConvertPtrVector<cx_telem::LogicalCpuInfo>(
@@ -131,34 +132,21 @@ cx_telem::PhysicalCpuInfo UncheckedConvertPtr(
   return result;
 }
 
-cx_telem::BatteryInfo UncheckedConvertPtr(crosapi::ProbeBatteryInfoPtr input,
-                                          bool has_serial_number_permission) {
+cx_telem::BatteryInfo UncheckedConvertPtr(
+    ash::cros_healthd::mojom::BatteryInfoPtr input,
+    bool has_serial_number_permission) {
   cx_telem::BatteryInfo result;
   result.vendor = std::move(input->vendor);
   result.model_name = std::move(input->model_name);
   result.technology = std::move(input->technology);
   result.status = std::move(input->status);
-  if (input->cycle_count) {
-    result.cycle_count = input->cycle_count->value;
-  }
-  if (input->voltage_now) {
-    result.voltage_now = input->voltage_now->value;
-  }
-  if (input->charge_full_design) {
-    result.charge_full_design = input->charge_full_design->value;
-  }
-  if (input->charge_full) {
-    result.charge_full = input->charge_full->value;
-  }
-  if (input->voltage_min_design) {
-    result.voltage_min_design = input->voltage_min_design->value;
-  }
-  if (input->charge_now) {
-    result.charge_now = input->charge_now->value;
-  }
-  if (input->current_now) {
-    result.current_now = input->current_now->value;
-  }
+  result.cycle_count = input->cycle_count;
+  result.voltage_now = input->voltage_now;
+  result.charge_full_design = input->charge_full_design;
+  result.charge_full = input->charge_full;
+  result.voltage_min_design = input->voltage_min_design;
+  result.charge_now = input->charge_now;
+  result.current_now = input->current_now;
   if (input->temperature) {
     result.temperature = input->temperature->value;
   }
@@ -172,39 +160,23 @@ cx_telem::BatteryInfo UncheckedConvertPtr(crosapi::ProbeBatteryInfoPtr input,
 }
 
 cx_telem::NonRemovableBlockDeviceInfo UncheckedConvertPtr(
-    crosapi::ProbeNonRemovableBlockDeviceInfoPtr input) {
+    ash::cros_healthd::mojom::NonRemovableBlockDeviceInfoPtr input) {
   cx_telem::NonRemovableBlockDeviceInfo result;
-
-  if (input->size) {
-    result.size = input->size->value;
-  }
-
-  result.name = input->name.value();
-  result.type = input->type.value();
+  result.size = input->size;
+  result.name = input->name;
+  result.type = input->type;
 
   return result;
 }
 
-cx_telem::OsVersionInfo UncheckedConvertPtr(crosapi::ProbeOsVersionPtr input) {
+cx_telem::OsVersionInfo UncheckedConvertPtr(
+    ash::cros_healthd::mojom::OsVersionPtr input) {
   cx_telem::OsVersionInfo result;
 
   result.release_milestone = input->release_milestone;
   result.build_number = input->build_number;
   result.patch_number = input->patch_number;
   result.release_channel = input->release_channel;
-
-  return result;
-}
-
-cx_telem::StatefulPartitionInfo UncheckedConvertPtr(
-    crosapi::ProbeStatefulPartitionInfoPtr input) {
-  cx_telem::StatefulPartitionInfo result;
-  if (input->available_space) {
-    result.available_space = input->available_space->value;
-  }
-  if (input->total_space) {
-    result.total_space = input->total_space->value;
-  }
 
   return result;
 }
@@ -258,67 +230,46 @@ cx_telem::InternetConnectivityInfo UncheckedConvertPtr(
   return result;
 }
 
-cx_telem::TpmVersion UncheckedConvertPtr(crosapi::ProbeTpmVersionPtr input) {
+cx_telem::TpmVersion UncheckedConvertPtr(
+    ash::cros_healthd::mojom::TpmVersionPtr input) {
   cx_telem::TpmVersion result;
 
   result.gsc_version = Convert(input->gsc_version);
-  if (input->family) {
-    result.family = input->family->value;
-  }
-  if (input->spec_level) {
-    result.spec_level = input->spec_level->value;
-  }
-  if (input->manufacturer) {
-    result.manufacturer = input->manufacturer->value;
-  }
-  if (input->tpm_model) {
-    result.tpm_model = input->tpm_model->value;
-  }
-  if (input->firmware_version) {
-    result.firmware_version = input->firmware_version->value;
-  }
+  result.family = input->family;
+  result.spec_level = input->spec_level;
+  result.manufacturer = input->manufacturer;
+  result.tpm_model = input->tpm_model;
+  result.firmware_version = input->firmware_version;
   result.vendor_specific = input->vendor_specific;
 
   return result;
 }
 
-cx_telem::TpmStatus UncheckedConvertPtr(crosapi::ProbeTpmStatusPtr input) {
+cx_telem::TpmStatus UncheckedConvertPtr(
+    ash::cros_healthd::mojom::TpmStatusPtr input) {
   cx_telem::TpmStatus result;
 
-  if (input->enabled) {
-    result.enabled = input->enabled->value;
-  }
-  if (input->owned) {
-    result.owned = input->owned->value;
-  }
-  if (input->owner_password_is_present) {
-    result.owner_password_is_present = input->owner_password_is_present->value;
-  }
+  result.enabled = input->enabled;
+  result.owned = input->owned;
+  result.owner_password_is_present = input->owner_password_is_present;
 
   return result;
 }
 
 cx_telem::TpmDictionaryAttack UncheckedConvertPtr(
-    crosapi::ProbeTpmDictionaryAttackPtr input) {
+    ash::cros_healthd::mojom::TpmDictionaryAttackPtr input) {
   cx_telem::TpmDictionaryAttack result;
 
-  if (input->counter) {
-    result.counter = input->counter->value;
-  }
-  if (input->threshold) {
-    result.threshold = input->threshold->value;
-  }
-  if (input->lockout_in_effect) {
-    result.lockout_in_effect = input->lockout_in_effect->value;
-  }
-  if (input->lockout_seconds_remaining) {
-    result.lockout_seconds_remaining = input->lockout_seconds_remaining->value;
-  }
+  result.counter = input->counter;
+  result.threshold = input->threshold;
+  result.lockout_in_effect = input->lockout_in_effect;
+  result.lockout_seconds_remaining = input->lockout_seconds_remaining;
 
   return result;
 }
 
-cx_telem::TpmInfo UncheckedConvertPtr(crosapi::ProbeTpmInfoPtr input) {
+cx_telem::TpmInfo UncheckedConvertPtr(
+    ash::cros_healthd::mojom::TpmInfoPtr input) {
   cx_telem::TpmInfo result;
 
   if (input->version) {
@@ -335,28 +286,20 @@ cx_telem::TpmInfo UncheckedConvertPtr(crosapi::ProbeTpmInfoPtr input) {
 }
 
 cx_telem::UsbBusInterfaceInfo UncheckedConvertPtr(
-    crosapi::ProbeUsbBusInterfaceInfoPtr input) {
+    ash::cros_healthd::mojom::UsbBusInterfaceInfoPtr input) {
   cx_telem::UsbBusInterfaceInfo result;
 
-  if (input->interface_number) {
-    result.interface_number = input->interface_number->value;
-  }
-  if (input->class_id) {
-    result.class_id = input->class_id->value;
-  }
-  if (input->subclass_id) {
-    result.subclass_id = input->subclass_id->value;
-  }
-  if (input->protocol_id) {
-    result.protocol_id = input->protocol_id->value;
-  }
+  result.interface_number = input->interface_number;
+  result.class_id = input->class_id;
+  result.subclass_id = input->subclass_id;
+  result.protocol_id = input->protocol_id;
   result.driver = input->driver;
 
   return result;
 }
 
 cx_telem::FwupdFirmwareVersionInfo UncheckedConvertPtr(
-    crosapi::ProbeFwupdFirmwareVersionInfoPtr input) {
+    ash::cros_healthd::mojom::FwupdFirmwareVersionInfoPtr input) {
   cx_telem::FwupdFirmwareVersionInfo result;
 
   result.version = input->version;
@@ -365,28 +308,18 @@ cx_telem::FwupdFirmwareVersionInfo UncheckedConvertPtr(
   return result;
 }
 
-cx_telem::UsbBusInfo UncheckedConvertPtr(crosapi::ProbeUsbBusInfoPtr input) {
+cx_telem::UsbBusInfo UncheckedConvertPtr(
+    ash::cros_healthd::mojom::UsbBusInfoPtr input) {
   cx_telem::UsbBusInfo result;
 
-  if (input->class_id) {
-    result.class_id = input->class_id->value;
-  }
-  if (input->subclass_id) {
-    result.subclass_id = input->subclass_id->value;
-  }
-  if (input->protocol_id) {
-    result.protocol_id = input->protocol_id->value;
-  }
-  if (input->vendor_id) {
-    result.vendor_id = input->vendor_id->value;
-  }
-  if (input->product_id) {
-    result.product_id = input->product_id->value;
-  }
-  if (input->interfaces) {
-    result.interfaces = ConvertPtrVector<cx_telem::UsbBusInterfaceInfo>(
-        std::move(input->interfaces.value()));
-  }
+  result.class_id = input->class_id;
+  result.subclass_id = input->subclass_id;
+  result.protocol_id = input->protocol_id;
+  result.vendor_id = input->vendor_id;
+  result.product_id = input->product_id;
+
+  result.interfaces = ConvertPtrVector<cx_telem::UsbBusInterfaceInfo>(
+      std::move(input->interfaces));
   result.fwupd_firmware_version_info =
       ConvertPtr(std::move(input->fwupd_firmware_version_info));
   result.version = Convert(input->version);
@@ -396,11 +329,11 @@ cx_telem::UsbBusInfo UncheckedConvertPtr(crosapi::ProbeUsbBusInfoPtr input) {
 }
 
 chromeos::api::os_telemetry::VpdInfo UncheckedConvertPtr(
-    crosapi::ProbeCachedVpdInfoPtr input,
+    ash::cros_healthd::mojom::VpdInfoPtr input,
     bool has_serial_number_permission) {
   cx_telem::VpdInfo result;
 
-  result.activate_date = std::move(input->first_power_date);
+  result.activate_date = std::move(input->activate_date);
   result.model_name = std::move(input->model_name);
   result.sku_number = std::move(input->sku_number);
 
@@ -411,7 +344,8 @@ chromeos::api::os_telemetry::VpdInfo UncheckedConvertPtr(
   return result;
 }
 
-cx_telem::DisplayInfo UncheckedConvertPtr(crosapi::ProbeDisplayInfoPtr input) {
+cx_telem::DisplayInfo UncheckedConvertPtr(
+    ash::cros_healthd::mojom::DisplayInfoPtr input) {
   cx_telem::DisplayInfo result;
 
   result.embedded_display =
@@ -426,52 +360,97 @@ cx_telem::DisplayInfo UncheckedConvertPtr(crosapi::ProbeDisplayInfoPtr input) {
 }
 
 cx_telem::EmbeddedDisplayInfo UncheckedConvertPtr(
-    crosapi::ProbeEmbeddedDisplayInfoPtr input) {
+    ash::cros_healthd::mojom::EmbeddedDisplayInfoPtr input) {
   cx_telem::EmbeddedDisplayInfo result;
 
-  result.privacy_screen_supported = std::move(input->privacy_screen_supported);
-  result.privacy_screen_enabled = std::move(input->privacy_screen_enabled);
-  result.display_width = std::move(input->display_width);
-  result.display_height = std::move(input->display_height);
-  result.resolution_horizontal = std::move(input->resolution_horizontal);
-  result.resolution_vertical = std::move(input->resolution_vertical);
-  result.refresh_rate = std::move(input->refresh_rate);
-  result.manufacturer = std::move(input->manufacturer);
-  result.model_id = std::move(input->model_id);
+  result.privacy_screen_supported = input->privacy_screen_supported;
+  result.privacy_screen_enabled = input->privacy_screen_enabled;
+  if (input->display_width) {
+    result.display_width = input->display_width->value;
+  }
+  if (input->display_height) {
+    result.display_height = input->display_height->value;
+  }
+  if (input->resolution_horizontal) {
+    result.resolution_horizontal = input->resolution_horizontal->value;
+  }
+  if (input->resolution_vertical) {
+    result.resolution_vertical = input->resolution_vertical->value;
+  }
+  if (input->refresh_rate) {
+    result.refresh_rate = input->refresh_rate->value;
+  }
+  if (input->manufacturer) {
+    result.manufacturer = std::move(*input->manufacturer);
+  }
+  if (input->model_id) {
+    result.model_id = input->model_id->value;
+  }
   // Not reporting serial_number for now until we get Privacy's approval.
   // result.serial_number = std::move(input->serial_number);
-  result.manufacture_week = std::move(input->manufacture_week);
-  result.manufacture_year = std::move(input->manufacture_year);
-  result.edid_version = std::move(input->edid_version);
+  if (input->manufacture_week) {
+    result.manufacture_week = input->manufacture_week->value;
+  }
+  if (input->manufacture_year) {
+    result.manufacture_year = input->manufacture_year->value;
+  }
+  if (input->edid_version) {
+    result.edid_version = std::move(*input->edid_version);
+  }
   result.input_type = Convert(input->input_type);
-  result.display_name = (input->display_name);
+  if (input->display_name) {
+    result.display_name = std::move(*input->display_name);
+  }
 
   return result;
 }
 
 cx_telem::ExternalDisplayInfo UncheckedConvertPtr(
-    crosapi::ProbeExternalDisplayInfoPtr input) {
+    ash::cros_healthd::mojom::ExternalDisplayInfoPtr input) {
   cx_telem::ExternalDisplayInfo result;
 
-  result.display_width = std::move(input->display_width);
-  result.display_height = std::move(input->display_height);
-  result.resolution_horizontal = std::move(input->resolution_horizontal);
-  result.resolution_vertical = std::move(input->resolution_vertical);
-  result.refresh_rate = std::move(input->refresh_rate);
-  result.manufacturer = std::move(input->manufacturer);
-  result.model_id = std::move(input->model_id);
+  if (input->display_width) {
+    result.display_width = input->display_width->value;
+  }
+  if (input->display_height) {
+    result.display_height = input->display_height->value;
+  }
+  if (input->resolution_horizontal) {
+    result.resolution_horizontal = input->resolution_horizontal->value;
+  }
+  if (input->resolution_vertical) {
+    result.resolution_vertical = input->resolution_vertical->value;
+  }
+  if (input->refresh_rate) {
+    result.refresh_rate = input->refresh_rate->value;
+  }
+  if (input->manufacturer) {
+    result.manufacturer = std::move(*input->manufacturer);
+  }
+  if (input->model_id) {
+    result.model_id = input->model_id->value;
+  }
   // Not reporting serial_number for now until we get Privacy's approval.
   // result.serial_number = std::move(input->serial_number);
-  result.manufacture_week = std::move(input->manufacture_week);
-  result.manufacture_year = std::move(input->manufacture_year);
-  result.edid_version = std::move(input->edid_version);
+  if (input->manufacture_week) {
+    result.manufacture_week = input->manufacture_week->value;
+  }
+  if (input->manufacture_year) {
+    result.manufacture_year = input->manufacture_year->value;
+  }
+  if (input->edid_version) {
+    result.edid_version = std::move(*input->edid_version);
+  }
   result.input_type = Convert(input->input_type);
-  result.display_name = std::move(input->display_name);
+  if (input->display_name) {
+    result.display_name = std::move(*input->display_name);
+  }
 
   return result;
 }
 
-cx_telem::ThermalInfo UncheckedConvertPtr(crosapi::ProbeThermalInfoPtr input) {
+cx_telem::ThermalInfo UncheckedConvertPtr(
+    ash::cros_healthd::mojom::ThermalInfoPtr input) {
   cx_telem::ThermalInfo result;
 
   result.thermal_sensors =
@@ -482,7 +461,7 @@ cx_telem::ThermalInfo UncheckedConvertPtr(crosapi::ProbeThermalInfoPtr input) {
 }
 
 cx_telem::ThermalSensorInfo UncheckedConvertPtr(
-    crosapi::ProbeThermalSensorInfoPtr input) {
+    ash::cros_healthd::mojom::ThermalSensorInfoPtr input) {
   cx_telem::ThermalSensorInfo result;
 
   result.name = input->name;
@@ -494,15 +473,16 @@ cx_telem::ThermalSensorInfo UncheckedConvertPtr(
 
 }  // namespace unchecked
 
-cx_telem::CpuArchitectureEnum Convert(crosapi::ProbeCpuArchitectureEnum input) {
+cx_telem::CpuArchitectureEnum Convert(
+    ash::cros_healthd::mojom::CpuArchitectureEnum input) {
   switch (input) {
-    case crosapi::ProbeCpuArchitectureEnum::kUnknown:
+    case ash::cros_healthd::mojom::CpuArchitectureEnum::kUnknown:
       return cx_telem::CpuArchitectureEnum::kUnknown;
-    case crosapi::ProbeCpuArchitectureEnum::kX86_64:
+    case ash::cros_healthd::mojom::CpuArchitectureEnum::kX86_64:
       return cx_telem::CpuArchitectureEnum::kX86_64;
-    case crosapi::ProbeCpuArchitectureEnum::kAArch64:
+    case ash::cros_healthd::mojom::CpuArchitectureEnum::kAArch64:
       return cx_telem::CpuArchitectureEnum::kAarch64;
-    case crosapi::ProbeCpuArchitectureEnum::kArmv7l:
+    case ash::cros_healthd::mojom::CpuArchitectureEnum::kArmv7l:
       return cx_telem::CpuArchitectureEnum::kArmv7l;
   }
   NOTREACHED();
@@ -558,103 +538,111 @@ cx_telem::NetworkType Convert(
   NOTREACHED();
 }
 
-cx_telem::TpmGSCVersion Convert(crosapi::ProbeTpmGSCVersion input) {
+cx_telem::TpmGSCVersion Convert(ash::cros_healthd::mojom::TpmGSCVersion input) {
   switch (input) {
-    case crosapi::ProbeTpmGSCVersion::kNotGSC:
+    case ash::cros_healthd::mojom::TpmGSCVersion::kNotGSC:
       return cx_telem::TpmGSCVersion::kNotGsc;
-    case crosapi::ProbeTpmGSCVersion::kCr50:
+    case ash::cros_healthd::mojom::TpmGSCVersion::kCr50:
       return cx_telem::TpmGSCVersion::kCr50;
-    case crosapi::ProbeTpmGSCVersion::kTi50:
+    case ash::cros_healthd::mojom::TpmGSCVersion::kTi50:
       return cx_telem::TpmGSCVersion::kTi50;
   }
   NOTREACHED();
 }
 
-cx_telem::FwupdVersionFormat Convert(crosapi::ProbeFwupdVersionFormat input) {
+cx_telem::FwupdVersionFormat Convert(
+    ash::cros_healthd::mojom::FwupdVersionFormat input) {
   switch (input) {
-    case crosapi::ProbeFwupdVersionFormat::kUnknown:
+    case ash::cros_healthd::mojom::FwupdVersionFormat::kUnmappedEnumField:
+    case ash::cros_healthd::mojom::FwupdVersionFormat::kUnknown:
+    case ash::cros_healthd::mojom::FwupdVersionFormat::kPlain:
       return cx_telem::FwupdVersionFormat::kPlain;
-    case crosapi::ProbeFwupdVersionFormat::kPlain:
-      return cx_telem::FwupdVersionFormat::kPlain;
-    case crosapi::ProbeFwupdVersionFormat::kNumber:
+    case ash::cros_healthd::mojom::FwupdVersionFormat::kNumber:
       return cx_telem::FwupdVersionFormat::kNumber;
-    case crosapi::ProbeFwupdVersionFormat::kPair:
+    case ash::cros_healthd::mojom::FwupdVersionFormat::kPair:
       return cx_telem::FwupdVersionFormat::kPair;
-    case crosapi::ProbeFwupdVersionFormat::kTriplet:
+    case ash::cros_healthd::mojom::FwupdVersionFormat::kTriplet:
       return cx_telem::FwupdVersionFormat::kTriplet;
-    case crosapi::ProbeFwupdVersionFormat::kQuad:
+    case ash::cros_healthd::mojom::FwupdVersionFormat::kQuad:
       return cx_telem::FwupdVersionFormat::kQuad;
-    case crosapi::ProbeFwupdVersionFormat::kBcd:
+    case ash::cros_healthd::mojom::FwupdVersionFormat::kBcd:
       return cx_telem::FwupdVersionFormat::kBcd;
-    case crosapi::ProbeFwupdVersionFormat::kIntelMe:
+    case ash::cros_healthd::mojom::FwupdVersionFormat::kIntelMe:
       return cx_telem::FwupdVersionFormat::kIntelMe;
-    case crosapi::ProbeFwupdVersionFormat::kIntelMe2:
+    case ash::cros_healthd::mojom::FwupdVersionFormat::kIntelMe2:
       return cx_telem::FwupdVersionFormat::kIntelMe2;
-    case crosapi::ProbeFwupdVersionFormat::kSurfaceLegacy:
+    case ash::cros_healthd::mojom::FwupdVersionFormat::kSurfaceLegacy:
       return cx_telem::FwupdVersionFormat::kSurfaceLegacy;
-    case crosapi::ProbeFwupdVersionFormat::kSurface:
+    case ash::cros_healthd::mojom::FwupdVersionFormat::kSurface:
       return cx_telem::FwupdVersionFormat::kSurface;
-    case crosapi::ProbeFwupdVersionFormat::kDellBios:
+    case ash::cros_healthd::mojom::FwupdVersionFormat::kDellBios:
       return cx_telem::FwupdVersionFormat::kDellBios;
-    case crosapi::ProbeFwupdVersionFormat::kHex:
+    case ash::cros_healthd::mojom::FwupdVersionFormat::kHex:
       return cx_telem::FwupdVersionFormat::kHex;
   }
   NOTREACHED();
 }
 
-cx_telem::UsbVersion Convert(crosapi::ProbeUsbVersion input) {
+cx_telem::UsbVersion Convert(ash::cros_healthd::mojom::UsbVersion input) {
   switch (input) {
-    case crosapi::ProbeUsbVersion::kUnknown:
+    case ash::cros_healthd::mojom::UsbVersion::kUnmappedEnumField:
+    case ash::cros_healthd::mojom::UsbVersion::kUnknown:
       return cx_telem::UsbVersion::kUnknown;
-    case crosapi::ProbeUsbVersion::kUsb1:
+    case ash::cros_healthd::mojom::UsbVersion::kUsb1:
       return cx_telem::UsbVersion::kUsb1;
-    case crosapi::ProbeUsbVersion::kUsb2:
+    case ash::cros_healthd::mojom::UsbVersion::kUsb2:
       return cx_telem::UsbVersion::kUsb2;
-    case crosapi::ProbeUsbVersion::kUsb3:
+    case ash::cros_healthd::mojom::UsbVersion::kUsb3:
       return cx_telem::UsbVersion::kUsb3;
   }
   NOTREACHED();
 }
 
-cx_telem::UsbSpecSpeed Convert(crosapi::ProbeUsbSpecSpeed input) {
+cx_telem::UsbSpecSpeed Convert(ash::cros_healthd::mojom::UsbSpecSpeed input) {
   switch (input) {
-    case crosapi::ProbeUsbSpecSpeed::kUnknown:
+    case ash::cros_healthd::mojom::UsbSpecSpeed::kUnmappedEnumField:
+    case ash::cros_healthd::mojom::UsbSpecSpeed::kDeprecatedSpeed:
+    case ash::cros_healthd::mojom::UsbSpecSpeed::kUnknown:
       return cx_telem::UsbSpecSpeed::kUnknown;
-    case crosapi::ProbeUsbSpecSpeed::k1_5Mbps:
+    case ash::cros_healthd::mojom::UsbSpecSpeed::k1_5Mbps:
       return cx_telem::UsbSpecSpeed::kN1_5mbps;
-    case crosapi::ProbeUsbSpecSpeed::k12Mbps:
+    case ash::cros_healthd::mojom::UsbSpecSpeed::k12Mbps:
       return cx_telem::UsbSpecSpeed::kN12Mbps;
-    case crosapi::ProbeUsbSpecSpeed::k480Mbps:
+    case ash::cros_healthd::mojom::UsbSpecSpeed::k480Mbps:
       return cx_telem::UsbSpecSpeed::kN480Mbps;
-    case crosapi::ProbeUsbSpecSpeed::k5Gbps:
+    case ash::cros_healthd::mojom::UsbSpecSpeed::k5Gbps:
       return cx_telem::UsbSpecSpeed::kN5Gbps;
-    case crosapi::ProbeUsbSpecSpeed::k10Gbps:
+    case ash::cros_healthd::mojom::UsbSpecSpeed::k10Gbps:
       return cx_telem::UsbSpecSpeed::kN10Gbps;
-    case crosapi::ProbeUsbSpecSpeed::k20Gbps:
+    case ash::cros_healthd::mojom::UsbSpecSpeed::k20Gbps:
       return cx_telem::UsbSpecSpeed::kN20Gbps;
   }
   NOTREACHED();
 }
 
-cx_telem::DisplayInputType Convert(crosapi::ProbeDisplayInputType input) {
+cx_telem::DisplayInputType Convert(
+    ash::cros_healthd::mojom::DisplayInputType input) {
   switch (input) {
-    case crosapi::ProbeDisplayInputType::kUnmappedEnumField:
+    case ash::cros_healthd::mojom::DisplayInputType::kUnmappedEnumField:
       return cx_telem::DisplayInputType::kUnknown;
-    case crosapi::ProbeDisplayInputType::kDigital:
+    case ash::cros_healthd::mojom::DisplayInputType::kDigital:
       return cx_telem::DisplayInputType::kDigital;
-    case crosapi::ProbeDisplayInputType::kAnalog:
+    case ash::cros_healthd::mojom::DisplayInputType::kAnalog:
       return cx_telem::DisplayInputType::kAnalog;
   }
   NOTREACHED();
 }
 
-cx_telem::ThermalSensorSource Convert(crosapi::ProbeThermalSensorSource input) {
+cx_telem::ThermalSensorSource Convert(
+    ash::cros_healthd::mojom::ThermalSensorInfo::ThermalSensorSource input) {
   switch (input) {
-    case crosapi::ProbeThermalSensorSource::kUnmappedEnumField:
+    case ash::cros_healthd::mojom::ThermalSensorInfo::ThermalSensorSource::
+        kUnmappedEnumField:
       return cx_telem::ThermalSensorSource::kUnknown;
-    case crosapi::ProbeThermalSensorSource::kEc:
+    case ash::cros_healthd::mojom::ThermalSensorInfo::ThermalSensorSource::kEc:
       return cx_telem::ThermalSensorSource::kEc;
-    case crosapi::ProbeThermalSensorSource::kSysFs:
+    case ash::cros_healthd::mojom::ThermalSensorInfo::ThermalSensorSource::
+        kSysFs:
       return cx_telem::ThermalSensorSource::kSysFs;
   }
   NOTREACHED();

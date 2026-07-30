@@ -231,6 +231,13 @@ EcheTray::EcheTray(Shelf* shelf)
 }
 
 EcheTray::~EcheTray() {
+  // |event_interceptor_| is destroyed before the |bubble_| (declaration order),
+  // so it must be unregistered from the bubble window's pre-target list here to
+  // avoid a dangling RAW_PTR_EXCLUSION EventHandler* during ~TrayBubbleWrapper.
+  if (bubble_ && bubble_->GetBubbleWidget()) {
+    bubble_->GetBubbleWidget()->GetNativeWindow()->RemovePreTargetHandler(
+        event_interceptor_.get());
+  }
   if (bubble_) {
     bubble_->bubble_view()->ResetDelegate();
   }
@@ -311,6 +318,10 @@ void EcheTray::ShowBubble() {
   // We need this as `WorkspaceLayoutManager` conflicts with our resizing.
   // See b/229111865#comment5
   window_state->set_ignore_keyboard_bounds_change(true);
+  // ShowBubble() can be invoked repeatedly via OnStreamStatusChanged(); avoid
+  // accumulating duplicate pre-target handler entries.
+  bubble_->GetBubbleWidget()->GetNativeWindow()->RemovePreTargetHandler(
+      event_interceptor_.get());
   bubble_->GetBubbleWidget()->GetNativeWindow()->AddPreTargetHandler(
       event_interceptor_.get());
   shelf()->UpdateAutoHideState();
@@ -792,7 +803,7 @@ std::unique_ptr<views::View> EcheTray::CreateBubbleHeaderView(
                    kEcheArrowBackIcon, IDS_APP_ACCNAME_BACK));
 
   views::Label* title = header->AddChildView(std::make_unique<views::Label>(
-      l10n_util::GetStringFUTF16(ID_ASH_ECHE_APP_STREAMING_BUBBLE_TITLE,
+      l10n_util::GetStringFUTF16(IDS_ASH_ECHE_APP_STREAMING_BUBBLE_TITLE,
                                  phone_name),
       views::style::CONTEXT_DIALOG_TITLE, views::style::STYLE_PRIMARY,
       gfx::DirectionalityMode::DIRECTIONALITY_FROM_TEXT));

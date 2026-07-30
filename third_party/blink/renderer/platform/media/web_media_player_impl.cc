@@ -484,11 +484,12 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
       player_id_(GetNextMediaPlayerId()),
       defer_load_cb_(std::move(defer_load_cb)),
       isolate_(frame_->GetAgentGroupScheduler()->Isolate()),
-      demuxer_manager_(std::make_unique<media::DemuxerManager>(
-          this,
-          media_task_runner_,
-          media_log_.get(),
-          std::move(demuxer_override))),
+      demuxer_manager_(
+          std::make_unique<media::DemuxerManager>(this,
+                                                  frame_->GetSecurityOrigin(),
+                                                  media_task_runner_,
+                                                  media_log_.get(),
+                                                  std::move(demuxer_override))),
       tick_clock_(base::DefaultTickClock::GetInstance()),
       url_index_(url_index),
       raster_context_provider_(std::move(raster_context_provider)),
@@ -1566,7 +1567,7 @@ bool WebMediaPlayerImpl::DidLoadingProgress() {
 void WebMediaPlayerImpl::Paint(cc::PaintCanvas* canvas,
                                const gfx::Rect& rect,
                                const cc::PaintFlags& flags,
-                               bool force_pixel_readback) {
+                               bool acquire_texture_backing) {
   DCHECK(main_task_runner_->BelongsToCurrentThread());
   TRACE_EVENT0("media", "WebMediaPlayerImpl:paint");
 
@@ -1580,7 +1581,7 @@ void WebMediaPlayerImpl::Paint(cc::PaintCanvas* canvas,
   paint_params.dest_rect = gfx::RectF(rect);
   paint_params.transformation =
       pipeline_metadata_.video_decoder_config.video_transformation();
-  paint_params.force_pixel_readback = force_pixel_readback;
+  paint_params.acquire_texture_backing = acquire_texture_backing;
 
   video_renderer_.Paint(video_frame, canvas, flags, paint_params,
                         raster_context_provider_.get());
@@ -2760,6 +2761,7 @@ void WebMediaPlayerImpl::OnIdleTimeout() {
 void WebMediaPlayerImpl::OnFrameShown() {
   DCHECK(main_task_runner_->BelongsToCurrentThread());
   background_pause_timer_.Stop();
+  is_frame_hidden_ = false;
 
   // Foreground videos don't require user gesture to continue playback.
   allow_background_video_playback_ = true;
@@ -2781,6 +2783,7 @@ void WebMediaPlayerImpl::OnFrameShown() {
 
 void WebMediaPlayerImpl::OnFrameHidden() {
   DCHECK(main_task_runner_->BelongsToCurrentThread());
+  is_frame_hidden_ = true;
 
   // Backgrounding a video requires a user gesture to resume playback.
   if (IsFrameHidden()) {
@@ -3663,10 +3666,9 @@ bool WebMediaPlayerImpl::IsPageHidden() const {
 bool WebMediaPlayerImpl::IsFrameHidden() const {
   DCHECK(main_task_runner_->BelongsToCurrentThread());
   if (base::FeatureList::IsEnabled(media::kSuspendMediaForFrozenFrames)) {
-    return delegate_->IsFrameHidden();
+    return is_frame_hidden_;
   }
-  return delegate_->IsFrameHidden() &&
-         !was_suspended_for_frame_closed_or_frozen_;
+  return is_frame_hidden_ && !was_suspended_for_frame_closed_or_frozen_;
 }
 
 bool WebMediaPlayerImpl::IsPausedBecausePageHidden() const {

@@ -46,10 +46,6 @@ size_t ComputeUnsafeRuleCount(const ExtensionMetadataList* metadata_list) {
   return unsafe_rule_count;
 }
 
-bool IsRulesetStatic(const RulesetID& id) {
-  return id != kDynamicRulesetID && id != kSessionRulesetID;
-}
-
 void RecordOnBeforeRequestActionTime(const base::TimeTicks& start_time,
                                      const base::TimeDelta& regex_time,
                                      const base::TimeDelta& total_time,

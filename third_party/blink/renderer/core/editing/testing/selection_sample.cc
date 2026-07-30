@@ -60,21 +60,21 @@ class Parser final {
   ~Parser() = default;
 
   // Set |selection_text| as inner HTML of |element| and returns
-  // |SelectionInDOMTree| marked up within |selection_text|.
-  SelectionInDOMTree SetSelectionText(HTMLElement* element,
+  // |SelectionInDomTree| marked up within |selection_text|.
+  SelectionInDomTree SetSelectionText(HTMLElement* element,
                                       const std::string& selection_text) {
     element->SetInnerHTMLWithoutTrustedTypes(String::FromUtf8(selection_text));
     element->GetDocument().View()->UpdateAllLifecyclePhasesForTest();
     ConvertTemplatesToShadowRoots(*element);
     Traverse(element);
     if (anchor_node_ && focus_node_) {
-      return typename SelectionInDOMTree::Builder()
+      return typename SelectionInDomTree::Builder()
           .Collapse(Position(anchor_node_, anchor_offset_))
           .Extend(Position(focus_node_, focus_offset_))
           .Build();
     }
     DCHECK(focus_node_) << "Need just '|', or '^' and '|'";
-    return typename SelectionInDOMTree::Builder()
+    return typename SelectionInDomTree::Builder()
         .Collapse(Position(focus_node_, focus_offset_))
         .Build();
   }
@@ -353,10 +353,10 @@ void SelectionSample::ConvertTemplatesToShadowRootsForTesring(
   ConvertTemplatesToShadowRoots(element);
 }
 
-SelectionInDOMTree SelectionSample::SetSelectionText(
+SelectionInDomTree SelectionSample::SetSelectionText(
     HTMLElement* element,
     const std::string& selection_text) {
-  SelectionInDOMTree selection =
+  SelectionInDomTree selection =
       Parser().SetSelectionText(element, selection_text);
   DCHECK(!selection.IsNone()) << "|selection_text| should container caret "
                                  "marker '|' or selection marker '^' and "
@@ -366,7 +366,7 @@ SelectionInDOMTree SelectionSample::SetSelectionText(
 
 std::string SelectionSample::GetSelectionText(
     const ContainerNode& root,
-    const SelectionInDOMTree& selection) {
+    const SelectionInDomTree& selection) {
   return Serializer<EditingStrategy>(selection).Serialize(root);
 }
 

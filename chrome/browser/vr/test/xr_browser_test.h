@@ -150,6 +150,7 @@ class XrBrowserTestBase : public PlatformBrowserTest {
 
   void OpenNewTab(const std::string& url);
   void OpenNewTab(const std::string& url, bool incognito);
+  void CloseTab(content::WebContents* web_contents);
 
   // Convenience function for running RunJavaScriptOrFail with the return value
   // of GetCurrentWebContents.

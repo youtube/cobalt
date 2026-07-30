@@ -50,13 +50,16 @@ class TextPaintTimingDetector;
 //
 // Subsequent interactions: if a node is modified by more than one interaction,
 // paints are attributed to the most recent modification. This is accomplished
-// by updating the mapping during `UpdateOnPrePaint()`.
+// by updating or removing stale mappings during `UpdateOnPrePaint()`.
 //
 // Contentful nodes: paints are only tracked for text and image nodes, which
 // allows us to avoid storing the entire descendant subtree for modified nodes.
-// But since text is aggregated by `TextPaintTimingDetector` up to the nearest
-// non-anonymous, non-inline layout object's node, this is what we store for
-// attributable text nodes.
+// During pre-paint, when a contenful node is encountered, the state is
+// propagated to the relevant node and stored in `propagated_node_state_`, which
+// is the map used to determine the relevant context for a node during paint
+// (see `GetSoftNavigationContextForNode()`). Note that since text is aggregated
+// by `TextPaintTimingDetector` up to the nearest non-anonymous, non-inline
+// layout object's node, this is what we store for attributable text nodes.
 //
 // But, we need to be careful not to over-attribute DOM modifications and
 // paints. For example, <body> can be a text attribution node if a
@@ -64,10 +67,11 @@ class TextPaintTimingDetector;
 //
 // <body><b>Some text</b></body>
 //
-// And if such an element is appended to <body>, we want to track the paints
-// for the element, but not propagate the change to all descendants of <body>.
-// This is handled by only propagating directly modified nodes during the
-// pre-paint walk.
+// And if such an element is appended to <body>, we want to track the paints for
+// the element, but not propagate the change to all descendants of <body>. This
+// is handled by only propagating directly modified nodes (`marked_node_state_`)
+// during the pre-paint walk and propagating state up from directly modified
+// text nodes to aggregators (stored in `propagated_node_state_`).
 class CORE_EXPORT SoftNavigationPaintAttributionTracker
     : public GarbageCollected<SoftNavigationPaintAttributionTracker> {
  public:
@@ -80,27 +84,31 @@ class CORE_EXPORT SoftNavigationPaintAttributionTracker
   // Returns the `SoftNavigationContext` associated with `node` for paint
   // tracking, if any.
   SoftNavigationContext* GetSoftNavigationContextForNode(Node* node) const {
-    // Use the propagated state first, if any, since state propagated from below
-    // (from text nodes) does not take ownership of the node, and the owning
-    // state might actually be older.
     if (NodeState* state = GetPropagatedNodeState(node)) {
-      return state->GetSoftNavigationContext();
-    }
-    // Otherwise use the directly marked state.
-    if (NodeState* state = GetMarkedNodeState(node)) {
       return state->GetSoftNavigationContext();
     }
     return nullptr;
   }
 
-  // Returns true if the node is attributable to the given context, and false
-  // otherwise. The node must be an image, text aggregation node, or something
-  // explicitly modified, otherwise this returns false.
+  // Returns true if the node is associated with the given context for paint
+  // attribution, and false otherwise. The node must be a contentful node (an
+  // image or text aggregation node), otherwise this returns false.
   bool IsAttributable(Node* node, SoftNavigationContext* context) const {
     if (context == nullptr) {
       return false;
     }
     return GetSoftNavigationContextForNode(node) == context;
+  }
+
+  // Returns true if the `node` is marked as a container root associated with
+  // the given `context`. Note that this will return false for some directly
+  // marked nodes if the node is redundant (can inherit from ancestor) or
+  // obsolete (ancestor has a newer modification). Meant only for testing.
+  bool IsMarkedForTesting(Node* node, SoftNavigationContext* context) const {
+    if (NodeState* state = GetMarkedNodeState(node)) {
+      return context == state->GetSoftNavigationContext();
+    }
+    return false;
   }
 
   // Called during the pre-paint phase to propagate the `SoftNavigationContext`
@@ -146,13 +154,6 @@ class CORE_EXPORT SoftNavigationPaintAttributionTracker
   // handled if there are ancestors with an older context.
   using NodeStateMap = HeapHashMap<WeakMember<Node>, Member<NodeState>>;
 
-  // Removes the given `Node` from the `NodeStateMap` if the corresponding
-  // `NodeState` is not more recent than `inherited_state`. This is used to
-  // remove stale or redundant entries while propagating state during pre-paint.
-  static void MaybePruneObsoleteNodeState(Node*,
-                                          NodeState* inherited_state,
-                                          NodeStateMap&);
-
   NodeState* GetMarkedNodeState(Node* node) const {
     auto iter = marked_node_state_.find(node);
     return iter == marked_node_state_.end() ? nullptr : iter->value;
@@ -192,15 +193,13 @@ class CORE_EXPORT SoftNavigationPaintAttributionTracker
   // propagated from a marked container they belong to. For example, if a <div>
   // contains an image and the <div> was directly modified (i.e. in
   // `marked_node_state_`), then <div>'s `NodeState` is propagated to image and
-  // stored in this map. Note that:
-  //  1. As an optimization, if there is already a mapping for the propagation
-  //     in `marked_nodes_`, e.g. if the image in the example above was also
-  //     directly modified, the entry isn't duplicated here.
-  //  2. While state is typically pushed down from marked nodes (parent
-  //     containers) to children, it can also be pushed up from individually
-  //     modified or appended text nodes. Separating `marked_node_state_` from
-  //     `propagated_node_state_` ensures state is not pushed down to a text
-  //     node's siblings in that case (unless the parent was also marked).
+  // stored in this map.
+  //
+  // Note that while state is typically pushed down from marked nodes (parent
+  // containers) to children, it can also be pushed up from individually
+  // modified or appended text nodes. Separating `marked_node_state_` from
+  // `propagated_node_state_` ensures state is not pushed down to a text node's
+  // siblings in that case (unless the parent was also marked).
   NodeStateMap propagated_node_state_;
 
   Member<TextPaintTimingDetector> text_paint_timing_detector_;

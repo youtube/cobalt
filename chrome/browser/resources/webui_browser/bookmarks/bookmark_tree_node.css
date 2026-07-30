@@ -1,0 +1,44 @@
+/* Copyright 2026 The Chromium Authors
+ * Use of this source code is governed by a BSD-style license that can be
+ * found in the LICENSE file. */
+
+/* #css_wrapper_metadata_start
+ * #type=style-lit
+ * #scheme=relative
+ * #css_wrapper_metadata_end */
+
+:host {
+  display: block;
+}
+
+details {
+  margin-left: 12px;
+}
+
+summary {
+  cursor: pointer;
+  padding: 4px;
+  user-select: none;
+}
+
+summary:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.folder-children {
+  border-left: 1px dashed #ccc;
+  margin-left: 8px;
+}
+
+.bookmark-item {
+  padding: 4px 4px 4px 16px;
+}
+
+a {
+  color: var(--cr-link-color, #1a0dab);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}

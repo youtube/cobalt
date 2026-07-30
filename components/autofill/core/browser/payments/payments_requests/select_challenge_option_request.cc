@@ -27,7 +27,7 @@ const char kSelectChallengeOptionRequestPath[] =
 
 SelectChallengeOptionRequest::SelectChallengeOptionRequest(
     SelectChallengeOptionRequestDetails request_details,
-    base::OnceCallback<void(payments::PaymentsAutofillClient::PaymentsRpcResult,
+    base::OnceCallback<void(PaymentsAutofillClient::PaymentsRpcResult,
                             const std::string&)> callback)
     : request_details_(request_details), callback_(std::move(callback)) {}
 
@@ -106,7 +106,7 @@ bool SelectChallengeOptionRequest::IsResponseComplete() {
 }
 
 void SelectChallengeOptionRequest::RespondToDelegate(
-    payments::PaymentsAutofillClient::PaymentsRpcResult result) {
+    PaymentsAutofillClient::PaymentsRpcResult result) {
   std::move(callback_).Run(result, updated_context_token_);
 }
 

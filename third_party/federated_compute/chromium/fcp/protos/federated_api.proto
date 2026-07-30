@@ -1,0 +1,95 @@
+/*
+ * Copyright 2019 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto3";
+
+package google.internal.federatedml.v2;
+
+import "google/protobuf/duration.proto";
+
+option java_package = "com.google.internal.federatedml.v2";
+option java_multiple_files = true;
+option java_outer_classname = "FederatedProto";
+
+// Describes to the server which tasks a client is eligible for.
+message TaskEligibilityInfo {
+  // A semantic version describing how the set of eligibility descriptors should
+  // be interpreted. This fields enables assigning different semantics for how
+  // the server should interpret the descriptors, without having to change the
+  // wire format (e.g. different ways of interpreting `TaskWeight.weight`).
+  int64 version = 1;
+
+  // A list of task weights, which the server may use when assigning the client
+  // a task in response to the current request.
+  //
+  // If none of the `TaskWeight` messages match a given task, then the client
+  // must be considered ineligible for that task, and the server must not serve
+  // the client that task.
+  //
+  // Therefore, if a `TaskEligibilityInfo` message is provided but this field is
+  // empty then the client should be considered ineligible for all tasks in the
+  // population (although in practice the client will simply close the
+  // connection in that case, rather than issue a `CheckinRequest` with such an
+  // empty list of weights).
+  repeated TaskWeight task_weights = 2;
+}
+
+// Describes a weight that should be assigned to a specific task.
+message TaskWeight {
+  // Name of the task this weight applies to.
+  //
+  // These correspond to the task names provided by server in the
+  // `PopulationEligibilitySpec.TaskInfo.task_name` field (see
+  // fcp/protos/population_eligibility_spec.proto and
+  // fcp/client/eligibility_decider.cc).
+  string task_name = 1;
+
+  // The weight that should be applied to the specified task.
+  //
+  // Must be >0.
+  //
+  // This weight may (or may not) be used by the server to implement some form
+  // of task or client prioritization.
+  //
+  // NOTE: While this is a float field, it is currently only used to convey a
+  // boolean eligibility signal (0.0 = ineligible, 1.0 = eligible). See
+  // fcp/client/eligibility_decider.cc for how this field is used and populated.
+  float weight = 2;
+}
+
+// A suggestion to the client when to retry the connection to the service next
+// time
+message RetryWindow {
+  // Optional. If set, the server offers the client to call back in
+  // an interval [delay_min .. delay_max].
+  // The client must pass this token back to the server to identify he is
+  // retrying. If this is not set, the client can retry for another phase at a
+  // time of his choosing.
+  string retry_token = 1;
+
+  // Required (if retry_token is set).
+  // The suggested minimal duration after which the client should
+  // retry. If the client retries earlier, it is likely he will be rejected
+  // again.
+  google.protobuf.Duration delay_min = 2;
+
+  // Required. The suggested maximal duration after which the client should
+  // retry, provided scheduling conditions allow. The client is supposed to make
+  // a best effort to callback in the min..max window, and should avoid
+  // calling before min. If he calls after max, the likelihood to be rejected
+  // again is higher.
+  google.protobuf.Duration delay_max = 3;
+}

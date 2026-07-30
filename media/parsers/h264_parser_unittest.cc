@@ -169,7 +169,7 @@ TEST(H264ParserTest, ParseNALUsFromStreamFile) {
       << "Couldn't open stream file: " << file_path.MaybeAsASCII();
 
   std::vector<H264NALU> nalus;
-  ASSERT_TRUE(H264Parser::ParseNALUs(stream.data(), stream.length(), &nalus));
+  ASSERT_TRUE(H264Parser::ParseNALUs(stream.bytes(), &nalus));
   ASSERT_EQ(kTestFileNALUnits, nalus.size());
 }
 

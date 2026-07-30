@@ -7,9 +7,13 @@ import("//build/config/ui.gni")
 assert(toolkit_views)
 
 source_set("controls") {
-  public = [ "page_switcher_view.h" ]
+  sources = [
+    "hover_button.h",
+    "page_switcher_view.h",
+  ]
   public_deps = [
     "//base",
+    "//chrome/browser/ui/views:layout_provider",
     "//ui/base",
     "//ui/views",
   ]

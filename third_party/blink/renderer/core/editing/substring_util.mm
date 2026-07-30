@@ -200,8 +200,8 @@ SubstringUtil::AttributedWordAtPoint(WebFrameWidgetImpl* frame_widget,
   }
 
   // Expand to word under point.
-  const SelectionInDOMTree selection = ExpandWithGranularity(
-      SelectionInDOMTree::Builder().SetBaseAndExtent(range).Build(),
+  const SelectionInDomTree selection = ExpandWithGranularity(
+      SelectionInDomTree::Builder().SetBaseAndExtent(range).Build(),
       TextGranularity::kWord);
   const EphemeralRange word_range = NormalizeRange(selection);
 

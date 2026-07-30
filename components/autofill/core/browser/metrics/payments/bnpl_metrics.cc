@@ -20,7 +20,7 @@
 
 namespace autofill::autofill_metrics {
 
-using IssuerId = autofill::BnplIssuer::IssuerId;
+using IssuerId = ::autofill::BnplIssuer::IssuerId;
 
 std::string_view GetHistogramSuffixFromIssuerId(IssuerId issuer_id) {
   switch (issuer_id) {
@@ -133,7 +133,7 @@ void LogPayLaterTabSelected(ukm::SourceId ukm_source_id) {
       .Record(ukm::UkmRecorder::Get());
 }
 
-void LogPayLaterTabSuggestionAccepted(autofill::BnplIssuer::IssuerId issuer_id,
+void LogPayLaterTabSuggestionAccepted(IssuerId issuer_id,
                                       ukm::SourceId ukm_source_id) {
   ukm::builders::Autofill_PayLaterTabSuggestionAccepted(ukm_source_id)
       .SetAccepted(true)
@@ -175,11 +175,15 @@ void LogBnplSuggestionShown(ukm::SourceId ukm_source_id) {
       .Record(ukm::UkmRecorder::Get());
 }
 
-void LogBnplSuggestionAccepted(ukm::SourceId ukm_source_id) {
+void LogBnplSuggestionAccepted(ukm::SourceId ukm_source_id,
+                               int credit_card_suggestions_count) {
   LogBnplFormEvent(BnplFormEvent::kBnplSuggestionAccepted);
   ukm::builders::Autofill_BnplSuggestionAccepted(ukm_source_id)
       .SetAccepted(true)
       .Record(ukm::UkmRecorder::Get());
+  base::UmaHistogramCounts100(
+      "Autofill.Bnpl.SuggestionAccepted.CreditCardSuggestionsCount",
+      credit_card_suggestions_count);
 }
 
 void LogFormFilledWithBnplVcn(IssuerId issuer_id) {

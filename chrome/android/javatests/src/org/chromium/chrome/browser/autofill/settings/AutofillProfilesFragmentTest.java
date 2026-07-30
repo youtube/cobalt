@@ -225,6 +225,9 @@ public class AutofillProfilesFragmentTest {
         EntityDataManagerFactory.setInstanceForTesting(mEntityDataManager);
         when(mEntityDataManager.isWalletPublicPassStorageEnabled()).thenReturn(true);
         when(mEntityDataManager.canListEntityInstancesInSettings()).thenReturn(true);
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> SyncServiceFactory.setInstanceForTesting(mSyncService));
+        when(mSyncService.getSelectedTypes()).thenReturn(Collections.emptySet());
         mSettingsActivityTestRule.startSettingsActivity();
         mHelper = new AutofillTestHelper();
         mHelper.setProfile(sLocalOrSyncProfile);
@@ -2180,8 +2183,7 @@ public class AutofillProfilesFragmentTest {
 
     private void setUpMockSyncService(Set<Integer> selectedTypes) {
         ThreadUtils.runOnUiThreadBlocking(
-                () -> SyncServiceFactory.setInstanceForTesting(mSyncService));
-        when(mSyncService.getSelectedTypes()).thenReturn(selectedTypes);
+                () -> when(mSyncService.getSelectedTypes()).thenReturn(selectedTypes));
     }
 
     @Test

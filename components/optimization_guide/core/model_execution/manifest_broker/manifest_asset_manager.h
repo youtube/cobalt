@@ -8,6 +8,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "base/byte_count.h"
@@ -103,7 +104,8 @@ class ManifestAssetManager : public UsageTracker::Observer {
   std::vector<mojom::BrokerAssetInfoPtr> GetBrokerAssets() const;
 
   // Returns a list of models for the broker state info.
-  std::vector<mojom::BrokerModelInfoPtr> GetBrokerModels() const;
+  std::vector<std::pair<mojom::BrokerModelInfoPtr, base::FilePath>>
+  GetBrokerModels() const;
 
   // Returns whether the component installation is valid.
   static bool VerifyInstallation(const base::FilePath& install_dir,

@@ -311,8 +311,15 @@ def compare_build_artifacts(first_dir, second_dir, ninja_path, target_platform,
   with open(os.path.join(BASE_DIR, 'deterministic_build_ignorelist.pyl')) as f:
     raw_ignorelist = ast.literal_eval(f.read())
     ignorelist_list = raw_ignorelist[target_platform]
-    if re.search(r'\bis_component_build\s*=\s*true\b',
-                 open(os.path.join(first_dir, 'args.gn')).read()):
+    with open(os.path.join(first_dir, 'gn_logs.txt')) as f:
+      gn_logs = f.read()
+
+    m = re.search(r'\bis_component_build\s*=\s*(\w+)', gn_logs)
+    if not m:
+      raise Exception('is_component_build not found in gn_logs.txt')
+    is_component = m.group(1) == 'true'
+
+    if is_component:
       ignorelist_list += raw_ignorelist.get(target_platform + '_component', [])
     ignorelist = frozenset(ignorelist_list)
 

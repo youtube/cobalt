@@ -70,28 +70,28 @@ namespace autofill {
 
 namespace {
 
-using autofill::FormRendererId;
-using autofill::FormTracker;
-using autofill::mojom::FocusedFieldType;
-using autofill::mojom::SubmissionIndicatorEvent;
-using base::ASCIIToUTF16;
-using base::UTF16ToUTF8;
-using blink::WebAutofillState;
-using blink::WebDocument;
-using blink::WebElement;
-using blink::WebFormElement;
-using blink::WebFrame;
-using blink::WebInputElement;
-using blink::WebLocalFrame;
-using blink::WebString;
-using testing::_;
-using testing::AllOf;
-using testing::AtMost;
-using testing::Eq;
-using testing::Field;
-using testing::Optional;
-using testing::ResultOf;
-using testing::Truly;
+using ::autofill::FormRendererId;
+using ::autofill::FormTracker;
+using ::autofill::mojom::FocusedFieldType;
+using ::autofill::mojom::SubmissionIndicatorEvent;
+using ::base::ASCIIToUTF16;
+using ::base::UTF16ToUTF8;
+using ::blink::WebAutofillState;
+using ::blink::WebDocument;
+using ::blink::WebElement;
+using ::blink::WebFormElement;
+using ::blink::WebFrame;
+using ::blink::WebInputElement;
+using ::blink::WebLocalFrame;
+using ::blink::WebString;
+using ::testing::_;
+using ::testing::AllOf;
+using ::testing::AtMost;
+using ::testing::Eq;
+using ::testing::Field;
+using ::testing::Optional;
+using ::testing::ResultOf;
+using ::testing::Truly;
 
 // The name of the username/password element in the form.
 const char kUsernameName[] = "username";
@@ -361,8 +361,7 @@ void SetElementReadOnly(WebInputElement& element, bool read_only) {
                        read_only ? WebString("true") : WebString());
 }
 
-bool FormHasFieldWithValue(const autofill::FormData& form,
-                           const std::u16string& value) {
+bool FormHasFieldWithValue(const FormData& form, const std::u16string& value) {
   for (const auto& field : form.fields()) {
     if (field.value() == value) {
       return true;
@@ -419,79 +418,68 @@ class FakeAutofillDriver : public mojom::AutofillDriver {
 
   MOCK_METHOD(void,
               FormsSeen,
-              (const std::vector<autofill::FormData>& updated_forms,
-               const std::vector<autofill::FormRendererId>& removed_forms),
+              (const std::vector<FormData>& updated_forms,
+               const std::vector<FormRendererId>& removed_forms),
               (override));
   MOCK_METHOD(void,
               FormSubmitted,
-              (const autofill::FormData& form,
-               autofill::mojom::SubmissionSource source),
+              (const FormData& form, mojom::SubmissionSource source),
               (override));
   MOCK_METHOD(void,
               CaretMovedInFormField,
-              (const autofill::FormData& form,
-               autofill::FieldRendererId field_id,
+              (const FormData& form,
+               FieldRendererId field_id,
                const gfx::Rect& caret_bounds),
               (override));
   MOCK_METHOD(void,
               TextFieldValueChanged,
-              (const autofill::FormData& form,
-               autofill::FieldRendererId field_id,
+              (const FormData& form,
+               FieldRendererId field_id,
                base::TimeTicks timestamp),
               (override));
   MOCK_METHOD(void,
               TextFieldDidScroll,
-              (const autofill::FormData& form,
-               autofill::FieldRendererId field_id),
+              (const FormData& form, FieldRendererId field_id),
               (override));
   MOCK_METHOD(void,
               SelectControlSelectionChanged,
-              (const autofill::FormData& form,
-               autofill::FieldRendererId field_id),
+              (const FormData& form, FieldRendererId field_id),
               (override));
   MOCK_METHOD(void,
               SelectFieldOptionsDidChange,
-              (const autofill::FormData& form,
-               autofill::FieldRendererId field_id),
+              (const FormData& form, FieldRendererId field_id),
               (override));
   MOCK_METHOD(void,
               JavaScriptChangedAutofilledValue,
-              (const autofill::FormData& form,
-               autofill::FieldRendererId field_id,
+              (const FormData& form,
+               FieldRendererId field_id,
                const std::u16string& old_value),
               (override));
-  MOCK_METHOD(void,
-              AskForValuesToFill,
-              (const autofill::FormData& form,
-               autofill::FieldRendererId field_id,
-               const gfx::Rect& caret_bounds,
-               autofill::AutofillSuggestionTriggerSource trigger_source,
-               const std::optional<autofill::PasswordSuggestionRequest>&
-                   password_request),
-              (override));
+  MOCK_METHOD(
+      void,
+      AskForValuesToFill,
+      (const FormData& form,
+       FieldRendererId field_id,
+       const gfx::Rect& caret_bounds,
+       AutofillSuggestionTriggerSource trigger_source,
+       const std::optional<PasswordSuggestionRequest>& password_request),
+      (override));
   MOCK_METHOD(void, HidePopup, (), (override));
   MOCK_METHOD(void,
               SuppressAutomaticRefills,
-              (const autofill::FillId& fill_id),
+              (const FillId& fill_id),
               (override));
-  MOCK_METHOD(void,
-              RequestRefill,
-              (const autofill::FillId& fill_id),
-              (override));
+  MOCK_METHOD(void, RequestRefill, (const FillId& fill_id), (override));
   MOCK_METHOD(void, FocusOnNonFormField, (), (override));
   MOCK_METHOD(void,
               FocusOnFormField,
-              (const autofill::FormData& form,
-               autofill::FieldRendererId field_id),
+              (const FormData& form, FieldRendererId field_id),
               (override));
-  MOCK_METHOD(void,
-              DidAutofillForm,
-              (const autofill::FormData& form),
-              (override));
+  MOCK_METHOD(void, DidAutofillForm, (const FormData& form), (override));
   MOCK_METHOD(void, DidEndTextFieldEditing, (), (override));
   MOCK_METHOD(void,
-              OnEmailVerificationTokenShared,
-              (autofill::FieldRendererId field_id),
+              FormWithEmailVerificationTokenSubmitted,
+              (const FormData& form, FieldRendererId field_id),
               (override));
 
  private:
@@ -530,7 +518,7 @@ class PasswordAutofillAgentTest : public ChromeRenderViewTest {
 
     // TODO(crbug.com/41401202): Remove workaround preventing non-test classes
     // to bind fake_driver_ or fake_pw_client_.
-    password_autofill_agent_->GetPasswordManagerDriver();
+    password_autofill_agent_->unsafe_driver();
     password_generation_->RequestPasswordManagerClientForTesting();
     base::RunLoop().RunUntilIdle();  // Executes binding the interfaces.
     // Reject all requests to bind driver/client to anything but the test class:
@@ -611,35 +599,33 @@ class PasswordAutofillAgentTest : public ChromeRenderViewTest {
                             base::Unretained(this)));
 
     ON_CALL(fake_driver_, PasswordFormSubmitted)
-        .WillByDefault([this](const autofill::FormData& form_data) {
+        .WillByDefault([this](const FormData& form_data) {
           form_data_submitted_ = form_data;
         });
 
     ON_CALL(fake_driver_, DynamicFormSubmission)
-        .WillByDefault([this](autofill::mojom::SubmissionIndicatorEvent event) {
+        .WillByDefault([this](mojom::SubmissionIndicatorEvent event) {
           called_dynamic_form_submission_ = true;
           if (form_data_maybe_submitted_.has_value()) {
             // Since form_data_maybe_submitted_ is populated by
             // InformAboutUserInput, we update the event here.
-            autofill::FormData form_data = form_data_maybe_submitted_.value();
+            FormData form_data = form_data_maybe_submitted_.value();
             form_data.set_submission_event(event);
             form_data_maybe_submitted_for_dynamic_ = form_data;
           }
         });
 
     ON_CALL(fake_driver_, PasswordFormsParsed)
-        .WillByDefault(
-            [this](const std::vector<autofill::FormData>& forms_data) {
-              called_password_forms_parsed_ = true;
-              form_data_parsed_ = forms_data;
-            });
+        .WillByDefault([this](const std::vector<FormData>& forms_data) {
+          called_password_forms_parsed_ = true;
+          form_data_parsed_ = forms_data;
+        });
 
     ON_CALL(fake_driver_, PasswordFormsRendered)
-        .WillByDefault(
-            [this](const std::vector<autofill::FormData>& visible_forms_data) {
-              called_password_forms_rendered_ = true;
-              form_data_rendered_ = visible_forms_data;
-            });
+        .WillByDefault([this](const std::vector<FormData>& visible_forms_data) {
+          called_password_forms_rendered_ = true;
+          form_data_rendered_ = visible_forms_data;
+        });
 
     ON_CALL(fake_driver_, RecordSavePasswordProgress)
         .WillByDefault([this](const std::string&) {
@@ -652,18 +638,17 @@ class PasswordAutofillAgentTest : public ChromeRenderViewTest {
         });
 
     ON_CALL(fake_driver_, InformAboutUserInput)
-        .WillByDefault([this](const autofill::FormData& form_data) {
+        .WillByDefault([this](const FormData& form_data) {
           called_inform_about_user_input_count_++;
           form_data_maybe_submitted_ = form_data;
         });
 
     ON_CALL(fake_driver_, FocusedInputChanged)
-        .WillByDefault(
-            [this](autofill::FieldRendererId focused_field_id,
-                   autofill::mojom::FocusedFieldType focused_field_type) {
-              last_focused_field_id_ = focused_field_id;
-              last_focused_field_type_ = focused_field_type;
-            });
+        .WillByDefault([this](FieldRendererId focused_field_id,
+                              mojom::FocusedFieldType focused_field_type) {
+          last_focused_field_id_ = focused_field_id;
+          last_focused_field_type_ = focused_field_type;
+        });
   }
 
   void FocusElement(const std::string& element_id) {
@@ -716,14 +701,12 @@ class PasswordAutofillAgentTest : public ChromeRenderViewTest {
 
   void UpdateRendererIDsInFillData() {
     fill_data_.username_element_renderer_id =
-        username_element_
-            ? autofill::form_util::GetFieldRendererId(username_element_)
-            : autofill::FieldRendererId();
+        username_element_ ? form_util::GetFieldRendererId(username_element_)
+                          : FieldRendererId();
 
     fill_data_.password_element_renderer_id =
-        password_element_
-            ? autofill::form_util::GetFieldRendererId(password_element_)
-            : autofill::FieldRendererId();
+        password_element_ ? form_util::GetFieldRendererId(password_element_)
+                          : FieldRendererId();
 
     ASSERT_TRUE(username_element_ || password_element_);
     WebFormElement form =
@@ -828,7 +811,7 @@ class PasswordAutofillAgentTest : public ChromeRenderViewTest {
   void SimulateUsernameFormAutofill(const std::u16string& text) {
     FocusElement(kUsernameName);
     // Fill the form.
-    std::vector<autofill::FormFieldData::FillData> fields;
+    std::vector<FormFieldData::FillData> fields;
     FormFieldData::FillData field;
     field.value = text;
     field.is_autofilled = true;
@@ -961,13 +944,12 @@ class PasswordAutofillAgentTest : public ChromeRenderViewTest {
     std::u16string expected_username = show_all ? u"" : typed_username;
     SCOPED_TRACE(testing::Message()
                  << __func__ << " called from " << location.ToString());
-    EXPECT_CALL(
-        fake_autofill_driver_,
-        AskForValuesToFill(
-            _, _, _, _,
-            Optional(Field(&autofill::PasswordSuggestionRequest::field,
-                           Field(&autofill::TriggeringField::typed_username,
-                                 expected_username)))))
+    EXPECT_CALL(fake_autofill_driver_,
+                AskForValuesToFill(
+                    _, _, _, _,
+                    Optional(Field(&PasswordSuggestionRequest::field,
+                                   Field(&TriggeringField::typed_username,
+                                         expected_username)))))
         .Times(NumShowSuggestionsCalls());
     base::RunLoop().RunUntilIdle();
   }
@@ -981,9 +963,9 @@ class PasswordAutofillAgentTest : public ChromeRenderViewTest {
       PasswordFormSourceType expected_type,
       const std::map<std::u16string, FieldPropertiesMask>&
           expected_properties_masks,
-      autofill::mojom::SubmissionIndicatorEvent expected_submission_event) {
+      mojom::SubmissionIndicatorEvent expected_submission_event) {
     base::RunLoop().RunUntilIdle();
-    autofill::FormData form_data;
+    FormData form_data;
     if (expected_type == PasswordFormSubmitted) {
       ASSERT_TRUE(form_data_submitted_.has_value());
       form_data = *form_data_submitted_;
@@ -1018,7 +1000,7 @@ class PasswordAutofillAgentTest : public ChromeRenderViewTest {
   }
 
   void ExpectFormDataWithUsernameAndPasswordsAndEvent(
-      const autofill::FormData& form_data,
+      const FormData& form_data,
       FormRendererId form_renderer_id,
       base::optional_ref<const std::u16string> username_value,
       base::optional_ref<const std::u16string> password_value,
@@ -1158,20 +1140,20 @@ class PasswordAutofillAgentTest : public ChromeRenderViewTest {
   testing::NiceMock<FakePasswordGenerationDriver> fake_pw_client_;
   testing::NiceMock<FakeAutofillDriver> fake_autofill_driver_;
 
-  std::optional<autofill::FormData> form_data_submitted_;
+  std::optional<FormData> form_data_submitted_;
   bool called_dynamic_form_submission_ = false;
-  std::optional<autofill::FormData> form_data_maybe_submitted_for_dynamic_;
+  std::optional<FormData> form_data_maybe_submitted_for_dynamic_;
   bool called_password_forms_parsed_ = false;
-  std::optional<std::vector<autofill::FormData>> form_data_parsed_;
+  std::optional<std::vector<FormData>> form_data_parsed_;
   bool called_password_forms_rendered_ = false;
-  std::optional<std::vector<autofill::FormData>> form_data_rendered_;
+  std::optional<std::vector<FormData>> form_data_rendered_;
   bool called_record_save_progress_ = false;
   int called_check_safe_browsing_reputation_cnt_ = 0;
   int called_inform_about_user_input_count_ = 0;
-  std::optional<autofill::FormData> form_data_maybe_submitted_;
-  autofill::FieldRendererId last_focused_field_id_;
-  autofill::mojom::FocusedFieldType last_focused_field_type_ =
-      autofill::mojom::FocusedFieldType::kUnknown;
+  std::optional<FormData> form_data_maybe_submitted_;
+  FieldRendererId last_focused_field_id_;
+  mojom::FocusedFieldType last_focused_field_type_ =
+      mojom::FocusedFieldType::kUnknown;
 
   std::u16string username1_;
   std::u16string username2_;
@@ -1322,8 +1304,8 @@ TEST_F(PasswordAutofillAgentTest, NoFillingOnSignupForm_NoMetrics) {
   ASSERT_TRUE(element);
   username_element_ = element.To<WebInputElement>();
 
-  fill_data_.username_element_renderer_id = autofill::FieldRendererId();
-  fill_data_.password_element_renderer_id = autofill::FieldRendererId();
+  fill_data_.username_element_renderer_id = FieldRendererId();
+  fill_data_.password_element_renderer_id = FieldRendererId();
 
   WebFormElement form_element =
       document.GetElementById("LoginTestForm").To<WebFormElement>();
@@ -2389,8 +2371,7 @@ TEST_F(PasswordAutofillAgentTest, FillIntoReadonlyTextField) {
   EXPECT_CALL(mock_reply, Run(false));
   password_autofill_agent_->FillField(
       form_util::GetFieldRendererId(username_element_), kAliceUsername16,
-      autofill::FieldPropertiesFlags::kAutofilledOnUserTrigger,
-      mock_reply.Get());
+      FieldPropertiesFlags::kAutofilledOnUserTrigger, mock_reply.Get());
   CheckTextFieldsDOMState(
       /*username=*/std::string(), /*username_autofilled=*/false,
       /*password=*/std::string(), /*password_autofilled=*/false);
@@ -2410,8 +2391,7 @@ TEST_F(PasswordAutofillAgentTest, FillIntoUsernameField_FlagOn) {
   EXPECT_CALL(mock_reply, Run(true));
   password_autofill_agent_->FillField(
       form_util::GetFieldRendererId(username_element_), kAliceUsername16,
-      autofill::FieldPropertiesFlags::kAutofilledOnUserTrigger,
-      mock_reply.Get());
+      FieldPropertiesFlags::kAutofilledOnUserTrigger, mock_reply.Get());
 
   CheckTextFieldsDOMState(
       /*username=*/kAliceUsername, /*username_autofilled=*/true,
@@ -2433,8 +2413,7 @@ TEST_F(PasswordAutofillAgentTest, FillIntoUsernameField_FlagOff) {
   EXPECT_CALL(mock_reply, Run(true));
   password_autofill_agent_->FillField(
       form_util::GetFieldRendererId(username_element_), kAliceUsername16,
-      autofill::FieldPropertiesFlags::kAutofilledOnUserTrigger,
-      mock_reply.Get());
+      FieldPropertiesFlags::kAutofilledOnUserTrigger, mock_reply.Get());
 
   CheckTextFieldsDOMState(
       /*username=*/kAliceUsername, /*username_autofilled=*/true,
@@ -2454,8 +2433,7 @@ TEST_F(PasswordAutofillAgentTest, FillIntoPasswordField) {
   EXPECT_CALL(mock_reply, Run(true));
   password_autofill_agent_->FillField(
       form_util::GetFieldRendererId(password_element_), kAlicePassword16,
-      autofill::FieldPropertiesFlags::kAutofilledOnUserTrigger,
-      mock_reply.Get());
+      FieldPropertiesFlags::kAutofilledOnUserTrigger, mock_reply.Get());
   CheckTextFieldsDOMState(
       /*username=*/std::string(), /*username_autofilled=*/false,
       /*password=*/kAlicePassword, /*password_autofilled=*/true);
@@ -2472,8 +2450,7 @@ TEST_F(PasswordAutofillAgentTest, FillIntoRandomField) {
   EXPECT_CALL(mock_reply, Run(true));
   password_autofill_agent_->FillField(
       form_util::GetFieldRendererId(random_element), kAliceUsername16,
-      autofill::FieldPropertiesFlags::kAutofilledOnUserTrigger,
-      mock_reply.Get());
+      FieldPropertiesFlags::kAutofilledOnUserTrigger, mock_reply.Get());
   EXPECT_EQ(kAliceUsername, random_element.Value().Utf8());
 }
 
@@ -2491,8 +2468,7 @@ TEST_F(PasswordAutofillAgentTest, FillIntoNonExistingField) {
   EXPECT_CALL(mock_reply, Run(false));
   password_autofill_agent_->FillField(
       FieldRendererId(), kAliceUsername16,
-      autofill::FieldPropertiesFlags::kAutofilledOnUserTrigger,
-      mock_reply.Get());
+      FieldPropertiesFlags::kAutofilledOnUserTrigger, mock_reply.Get());
   // Neither field should be autocompleted.
   CheckTextFieldsDOMState(
       /*username=*/std::string(), /*username_autofilled=*/false,
@@ -2572,8 +2548,8 @@ TEST_F(PasswordAutofillAgentTest, ClickAndSelect) {
 
   histogram_tester_.ExpectUniqueSample(
       "PasswordManager.SuggestionPopupTriggerSource",
-      static_cast<int>(autofill::AutofillSuggestionTriggerSource::
-                           kFormControlElementClicked),
+      static_cast<int>(
+          AutofillSuggestionTriggerSource::kFormControlElementClicked),
       1);
 
   task_environment_.FastForwardBy(base::Seconds(1));
@@ -2684,8 +2660,8 @@ TEST_F(PasswordAutofillAgentTest, CredentialsOnClick) {
       fake_autofill_driver_,
       AskForValuesToFill(
           _, _, _, _,
-          Optional(Field(&autofill::PasswordSuggestionRequest::field,
-                         Field(&autofill::TriggeringField::element_id,
+          Optional(Field(&PasswordSuggestionRequest::field,
+                         Field(&TriggeringField::element_id,
                                FieldGlobalId(LocalFrameToken(),
                                              form_util::GetFieldRendererId(
                                                  username_element_)))))))
@@ -3507,8 +3483,8 @@ TEST_F(PasswordAutofillAgentTest, CanShowSuggestionsAfterManualGeneration) {
   task_environment_.FastForwardBy(base::Seconds(1));
 
   // Simulate manual generation triggering.
-  base::test::TestFuture<const std::optional<
-      ::autofill::password_generation::PasswordGenerationUIData>&>
+  base::test::TestFuture<
+      const std::optional<password_generation::PasswordGenerationUIData>&>
       future_for_waiting;
   password_generation_->TriggeredGeneratePassword(
       future_for_waiting.GetCallback());
@@ -3592,7 +3568,7 @@ TEST_F(PasswordAutofillAgentTest,
 // back data with only one credentials and empty username.
 TEST_F(PasswordAutofillAgentTest, NotAutofillNoUsername) {
   fill_data_.preferred_login.username_value.clear();
-  fill_data_.username_element_renderer_id = autofill::FieldRendererId();
+  fill_data_.username_element_renderer_id = FieldRendererId();
   fill_data_.additional_logins.clear();
   SimulateOnFillPasswordForm(fill_data_);
 
@@ -4515,8 +4491,7 @@ TEST_F(PasswordAutofillAgentTest, GaiaReauthenticationFormIgnored) {
   fake_driver_.Flush();
   // Check that information about Gaia reauthentication is sent to the browser.
   ASSERT_TRUE(called_password_forms_parsed_);
-  const std::vector<autofill::FormData>& parsed_form_data =
-      form_data_parsed_.value();
+  const std::vector<FormData>& parsed_form_data = form_data_parsed_.value();
   ASSERT_EQ(1u, parsed_form_data.size());
   EXPECT_TRUE(parsed_form_data[0].is_gaia_with_skip_save_password_form());
 }
@@ -4661,7 +4636,7 @@ TEST_F(PasswordAutofillAgentTest, DoNotRestoreWhenFormStructureWasChanged) {
 TEST_F(PasswordAutofillAgentTest, FillOnLoadSingleUsername) {
   // Simulate filling single username by clearing password fill data.
   fill_data_.preferred_login.password_value.clear();
-  fill_data_.password_element_renderer_id = autofill::FieldRendererId();
+  fill_data_.password_element_renderer_id = FieldRendererId();
 
   SimulateOnFillPasswordForm(fill_data_);
 
@@ -4680,7 +4655,7 @@ TEST_F(PasswordAutofillAgentTest, FillOnLoadSingleUsername) {
 // Tests that `PreviewSuggestion` properly previews the single username.
 TEST_F(PasswordAutofillAgentTest, SingleUsernamePreviewSuggestion) {
   fill_data_.preferred_login.password_value.clear();
-  fill_data_.password_element_renderer_id = autofill::FieldRendererId();
+  fill_data_.password_element_renderer_id = FieldRendererId();
   // Simulate the browser sending the login info, but set `wait_for_username` to
   // prevent the form from being immediately filled.
   fill_data_.wait_for_username = true;
@@ -4704,7 +4679,7 @@ TEST_F(PasswordAutofillAgentTest, SingleUsernamePreviewSuggestion) {
 // Tests that `FillSuggestion` properly fills the single username.
 TEST_F(PasswordAutofillAgentTest, SingleUsernameFillSuggestion) {
   fill_data_.preferred_login.password_value.clear();
-  fill_data_.password_element_renderer_id = autofill::FieldRendererId();
+  fill_data_.password_element_renderer_id = FieldRendererId();
   // Simulate the browser sending the login info, but set `wait_for_username`
   // to prevent the form from being immediately filled.
   fill_data_.wait_for_username = true;
@@ -4734,7 +4709,7 @@ TEST_F(PasswordAutofillAgentTest, SingleUsernameFillSuggestion) {
 // original selection range should stay untouched.
 TEST_F(PasswordAutofillAgentTest, SingleUsernameClearPreview) {
   fill_data_.preferred_login.password_value.clear();
-  fill_data_.password_element_renderer_id = autofill::FieldRendererId();
+  fill_data_.password_element_renderer_id = FieldRendererId();
   ResetFieldState(&username_element_, "ali", WebAutofillState::kPreviewed);
   ASSERT_TRUE(SimulateElementClick(kUsernameName));
   username_element_.SetSelectionRange(0, 0);
@@ -5038,8 +5013,8 @@ TEST_F(PasswordAutofillAgentTest, PasswordGenerationWhenFormTagHostsShadowDom) {
 
   // Simulate focusing the field and triggering password generation.
   SimulateElementClick(password_element_);
-  base::test::TestFuture<const std::optional<
-      ::autofill::password_generation::PasswordGenerationUIData>&>
+  base::test::TestFuture<
+      const std::optional<password_generation::PasswordGenerationUIData>&>
       future_for_waiting;
   password_generation_->TriggeredGeneratePassword(
       future_for_waiting.GetCallback());
@@ -5340,19 +5315,16 @@ TEST_F(PasswordAutofillAgentTest, FillChangePasswordForm) {
                     new_password = GetInputElementByID("newpassword"),
                     confirmation_password =
                         GetInputElementByID("confirmpassword");
-    auto password_id = autofill::form_util::GetFieldRendererId(password),
-         new_password_id =
-             autofill::form_util::GetFieldRendererId(new_password),
+    auto password_id = form_util::GetFieldRendererId(password),
+         new_password_id = form_util::GetFieldRendererId(new_password),
          password_confirmation =
-             autofill::form_util::GetFieldRendererId(confirmation_password);
+             form_util::GetFieldRendererId(confirmation_password);
 
     ASSERT_TRUE(form_data_parsed_);
-    const std::vector<autofill::FormData>& parsed_form_data =
-        form_data_parsed_.value();
+    const std::vector<FormData>& parsed_form_data = form_data_parsed_.value();
     EXPECT_EQ(1u, parsed_form_data.size());
 
-    base::MockCallback<
-        base::OnceCallback<void(const std::optional<autofill::FormData>&)>>
+    base::MockCallback<base::OnceCallback<void(const std::optional<FormData>&)>>
         mock_reply;
     EXPECT_CALL(mock_reply, Run(Optional(ResultOf(
                                 [](FormData form) {
@@ -5382,14 +5354,13 @@ TEST_F(PasswordAutofillAgentTest, FillChangePasswordFormFailed) {
                   confirmation_password =
                       GetInputElementByID("confirmpassword");
 
-  base::MockCallback<
-      base::OnceCallback<void(const std::optional<autofill::FormData>&)>>
+  base::MockCallback<base::OnceCallback<void(const std::optional<FormData>&)>>
       mock_reply;
   EXPECT_CALL(mock_reply, Run(Eq(std::nullopt)));
 
   password_autofill_agent_->FillChangePasswordForm(
-      autofill::FieldRendererId(0), autofill::FieldRendererId(0),
-      autofill::FieldRendererId(0), u"qwerty", u"Pa$sw0rD", mock_reply.Get());
+      FieldRendererId(0), FieldRendererId(0), FieldRendererId(0), u"qwerty",
+      u"Pa$sw0rD", mock_reply.Get());
 
   EXPECT_EQ(u"", password.Value().Utf16());
   EXPECT_EQ(u"", new_password.Value().Utf16());

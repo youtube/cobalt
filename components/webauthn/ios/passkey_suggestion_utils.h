@@ -31,9 +31,12 @@ NSArray<FormSuggestion*>* MergePasskeyAndPasswordSuggestions(
     NSArray<FormSuggestion*>* passkey_suggestions,
     NSArray<FormSuggestion*>* password_suggestions);
 
-// Computes the user-visible description for a passkey suggestion.
-NSString* ComputePasskeyDescription(NSString* username, NSString* display_name);
+// Formats the user-visible description for a passkey suggestion.
+NSString* FormatPasskeySuggestionDescription(NSString* username,
+                                             NSString* display_name);
 
+// Formats the user-visible subtext for a passkey Manual Fill cell.
+NSString* FormatPasskeyManualFillSubtitle(NSString* display_name);
 }  // namespace webauthn
 
 #endif  // COMPONENTS_WEBAUTHN_IOS_PASSKEY_SUGGESTION_UTILS_H_

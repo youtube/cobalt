@@ -89,7 +89,6 @@ class FreedesktopSecretKeyProvider : public KeyProvider {
   // KeyProvider:
   void GetKey(KeyCallback callback) override;
   bool UseForEncryption() override;
-  bool IsCompatibleWithOsCryptSync() override;
 
  private:
   FRIEND_TEST_ALL_PREFIXES(FreedesktopSecretKeyProviderTest, BasicHappyPath);
@@ -98,6 +97,8 @@ class FreedesktopSecretKeyProvider : public KeyProvider {
   FRIEND_TEST_ALL_PREFIXES(FreedesktopSecretKeyProviderTest, KWallet);
   FRIEND_TEST_ALL_PREFIXES(FreedesktopSecretKeyProviderTest,
                            KWalletCreateFolderAndPassword);
+  FRIEND_TEST_ALL_PREFIXES(FreedesktopSecretKeyProviderTest,
+                           SearchItemsWithItemUnlockPrompt);
   friend class FreedesktopSecretKeyProviderCompatTest;
 
   template <typename T>
@@ -191,6 +192,9 @@ class FreedesktopSecretKeyProvider : public KeyProvider {
       base::expected<dbus::ObjectPath, ErrorDetail> create_collection_reply);
   void OnUnlock(base::expected<std::vector<dbus::ObjectPath>, ErrorDetail>
                     unlocked_collection);
+  void OnUnlockItems(const dbus::ObjectPath& item_path,
+                     base::expected<std::vector<dbus::ObjectPath>, ErrorDetail>
+                         unlocked_items);
   void OnOpenSession(dbus_utils::CallMethodResultSig<"vo"> session_reply);
   void OnSearchItems(dbus_utils::CallMethodResultSig<"ao"> results);
   void OnGetSecret(dbus_utils::CallMethodResultSig<"(oayays)"> secret_reply);

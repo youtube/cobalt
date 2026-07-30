@@ -224,6 +224,7 @@ class ExtensionsToolbarDesktop : public ToolbarIconContainerView,
   bool CanStartDragForView(View* sender,
                            const gfx::Point& press_pt,
                            const gfx::Point& p) override;
+  bool IsFocusOnExtensionAction() const override;
 
   // ExtensionsToolbarViewModel::Delegate:
   std::unique_ptr<ExtensionActionViewModel> CreateActionViewModel(

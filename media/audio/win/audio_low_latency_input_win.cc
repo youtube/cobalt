@@ -65,6 +65,8 @@ using Microsoft::WRL::ComPtr;
 
 namespace media {
 
+using Error = AudioInputStream::AudioInputCallback::Error;
+
 namespace {
 
 constexpr uint32_t KSAUDIO_SPEAKER_UNSUPPORTED = 0;
@@ -1019,7 +1021,7 @@ void WASAPIAudioInputStream::Start(AudioInputCallback* callback) {
     // pipeline to let them know that no audio data will be coming and something
     // went wrong.
     if (sink_) {
-      sink_->OnError();
+      sink_->OnError(Error::kStartupFailed);
     }
   }
 
@@ -1332,7 +1334,7 @@ void WASAPIAudioInputStream::Run() {
     audio_client_->Stop();
 
     // There was an error while recording audio.
-    sink_->OnError();
+    sink_->OnError(Error::kRuntimeError);
   }
 
   // Disable MMCSS.

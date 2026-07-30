@@ -22,3 +22,19 @@ buildflag_header("buildflags") {
     "ENABLE_HOSTED_APPS=$enable_hosted_apps",
   ]
 }
+
+if (is_android) {
+  import("//build/config/android/rules.gni")
+
+  java_cpp_template("extensions_buildflags_javagen") {
+    sources = [ "java/templates/ExtensionsBuildflags.template" ]
+    defines = []
+    if (enable_extensions_core) {
+      defines += [ "_ENABLE_EXTENSIONS_CORE" ]
+    }
+  }
+
+  android_library("buildflags_java") {
+    srcjar_deps = [ ":extensions_buildflags_javagen" ]
+  }
+}

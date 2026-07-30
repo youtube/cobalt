@@ -9,20 +9,26 @@
 #import "base/functional/bind.h"
 #import "base/memory/raw_ptr.h"
 #import "base/strings/utf_string_conversions.h"
+#import "base/test/scoped_feature_list.h"
 #import "components/send_tab_to_self/fake_send_tab_to_self_model.h"
+#import "components/send_tab_to_self/features.h"
 #import "components/send_tab_to_self/page_context.h"
 #import "components/send_tab_to_self/send_tab_to_self_entry.h"
 #import "components/send_tab_to_self/send_tab_to_self_model.h"
 #import "components/send_tab_to_self/send_tab_to_self_sync_service.h"
 #import "components/send_tab_to_self/stub_send_tab_to_self_sync_service.h"
 #import "ios/chrome/browser/infobars/model/infobar_manager_impl.h"
+#import "ios/chrome/browser/send_tab_to_self/model/send_tab_to_self_load_navigation_user_data.h"
 #import "ios/chrome/browser/shared/model/browser/test/test_browser.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_ios.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_opener.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
+#import "ios/chrome/browser/shared/public/commands/open_new_tab_command.h"
 #import "ios/chrome/browser/shared/public/commands/scene_commands.h"
 #import "ios/chrome/browser/sync/model/send_tab_to_self_sync_service_factory.h"
+#import "ios/chrome/browser/url_loading/model/url_loading_notifier_browser_agent.h"
+#import "ios/chrome/browser/url_loading/model/url_loading_params.h"
 #import "ios/web/public/navigation/navigation_item.h"
 #import "ios/web/public/test/fakes/fake_navigation_manager.h"
 #import "ios/web/public/test/fakes/fake_web_state.h"
@@ -38,10 +44,15 @@ using send_tab_to_self::SendTabToSelfEntry;
 
 namespace {
 
+const char kBlankURL[] = "about:blank";
+const char kExampleURL[] = "https://www.example.com/";
+const char kDeviceID[] = "device_id";
 
 class SendTabToSelfBrowserAgentTest : public PlatformTest {
  public:
-  SendTabToSelfBrowserAgentTest() {
+  explicit SendTabToSelfBrowserAgentTest(
+      const std::vector<base::test::FeatureRef>& enabled_features = {}) {
+    feature_list_.InitWithFeatures(enabled_features, {});
     TestProfileIOS::Builder test_profile_builder;
     test_profile_builder.AddTestingFactory(
         SendTabToSelfSyncServiceFactory::GetInstance(),
@@ -58,6 +69,7 @@ class SendTabToSelfBrowserAgentTest : public PlatformTest {
     [browser_->GetCommandDispatcher()
         startDispatchingToTarget:mock_scene_commands_
                      forProtocol:@protocol(SceneCommands)];
+    UrlLoadingNotifierBrowserAgent::CreateForBrowser(browser_.get());
     SendTabToSelfBrowserAgent::CreateForBrowser(browser_.get());
     agent_ = SendTabToSelfBrowserAgent::FromBrowser(browser_.get());
     model_ = static_cast<FakeSendTabToSelfModel*>(
@@ -96,6 +108,7 @@ class SendTabToSelfBrowserAgentTest : public PlatformTest {
   }
 
   web::WebTaskEnvironment task_environment_;
+  base::test::ScopedFeatureList feature_list_;
   std::unique_ptr<TestProfileIOS> profile_;
   std::unique_ptr<Browser> browser_;
   raw_ptr<SendTabToSelfBrowserAgent> agent_;
@@ -115,7 +128,7 @@ TEST_F(SendTabToSelfBrowserAgentTest, TestRemoteAddSimple) {
   EXPECT_EQ(0UL, infobar_manager->infobars().size());
 
   model_->AddEntryRemotely(GURL("http://www.test.com/test-1"), "title",
-                           "device1", send_tab_to_self::PageContext(),
+                           kDeviceID, send_tab_to_self::PageContext(),
                            send_tab_to_self::NavigationHistory());
 
   // An infobar for the entry should have been added.
@@ -125,7 +138,7 @@ TEST_F(SendTabToSelfBrowserAgentTest, TestRemoteAddSimple) {
 TEST_F(SendTabToSelfBrowserAgentTest, TestRemoteAddNoTab) {
   // Remote entries added when there are no web states.
   model_->AddEntryRemotely(GURL("http://www.test.com/test-1"), "title",
-                           "device1", send_tab_to_self::PageContext(),
+                           kDeviceID, send_tab_to_self::PageContext(),
                            send_tab_to_self::NavigationHistory());
 
   // Add a web state, active and visible.
@@ -148,7 +161,7 @@ TEST_F(SendTabToSelfBrowserAgentTest, TestRemoteAddTabNotVisible) {
 
   // Remote entries added.
   model_->AddEntryRemotely(GURL("http://www.test.com/test-1"), "title",
-                           "device1", send_tab_to_self::PageContext(),
+                           kDeviceID, send_tab_to_self::PageContext(),
                            send_tab_to_self::NavigationHistory());
 
   // No visible web state, so expect no infobar.
@@ -172,7 +185,7 @@ TEST_F(SendTabToSelfBrowserAgentTest, TestRemoteAddTabNotActive) {
 
   // Remote entries added.
   model_->AddEntryRemotely(GURL("http://www.test.com/test-1"), "title",
-                           "device1", send_tab_to_self::PageContext(),
+                           kDeviceID, send_tab_to_self::PageContext(),
                            send_tab_to_self::NavigationHistory());
 
   // No active web state, so expect no infobar.
@@ -199,7 +212,7 @@ TEST_F(SendTabToSelfBrowserAgentTest, TestRemoteAddTabNotVisibleActivated) {
 
   // Remote entries added.
   model_->AddEntryRemotely(GURL("http://www.test.com/test-1"), "title",
-                           "device1", send_tab_to_self::PageContext(),
+                           kDeviceID, send_tab_to_self::PageContext(),
                            send_tab_to_self::NavigationHistory());
 
   // No visible web state, so expect no infobar.
@@ -224,7 +237,7 @@ TEST_F(SendTabToSelfBrowserAgentTest, TestRemoteRemoveSimple) {
   EXPECT_EQ(0UL, infobar_manager->infobars().size());
 
   const SendTabToSelfEntry* entry = model_->AddEntryRemotely(
-      GURL("http://www.test.com/test-1"), "title", "device1",
+      GURL("http://www.test.com/test-1"), "title", kDeviceID,
       send_tab_to_self::PageContext(), send_tab_to_self::NavigationHistory());
 
   // An infobar for the entry should have been added.
@@ -240,7 +253,7 @@ TEST_F(SendTabToSelfBrowserAgentTest, TestRemoteRemoveSimple) {
 TEST_F(SendTabToSelfBrowserAgentTest, TestRemoteRemovePending) {
   // Remote entry added when there are no web states (so it's pending).
   const SendTabToSelfEntry* entry = model_->AddEntryRemotely(
-      GURL("http://www.test.com/test-1"), "title", "device1",
+      GURL("http://www.test.com/test-1"), "title", kDeviceID,
       send_tab_to_self::PageContext(), send_tab_to_self::NavigationHistory());
 
   // Remove the entry remotely before any tab is shown.
@@ -253,6 +266,108 @@ TEST_F(SendTabToSelfBrowserAgentTest, TestRemoteRemovePending) {
 
   // No infobar should be added since the pending entry was removed.
   EXPECT_EQ(0UL, infobar_manager->infobars().size());
+}
+
+// Tests that SendTabToSelfLoadNavigationUserData is correctly attached or
+// detached when TabWillLoadUrl is triggered.
+TEST_F(SendTabToSelfBrowserAgentTest, TestTabWillLoadUrl) {
+  web::WebState* web_state = AppendNewWebState(GURL("http://www.blank.com"));
+
+  // 1. Trigger with non-STTS parameters. No user data should be attached.
+  UrlLoadParams params =
+      UrlLoadParams::InCurrentTab(GURL("http://www.test.com"));
+  EXPECT_FALSE(params.is_from_send_tab_to_self());
+  UrlLoadingNotifierBrowserAgent::FromBrowser(browser_.get())
+      ->TabWillLoadUrl(params, web_state->GetWeakPtr());
+  EXPECT_EQ(nullptr,
+            SendTabToSelfLoadNavigationUserData::FromWebState(web_state));
+
+  // 2. Trigger with STTS parameters. User data should be attached.
+  UrlLoadParams stts_params =
+      UrlLoadParams::InCurrentTab(GURL("http://www.test.com"));
+  stts_params.send_tab_to_self_entry_guid = "stts_guid_123";
+  EXPECT_TRUE(stts_params.is_from_send_tab_to_self());
+  UrlLoadingNotifierBrowserAgent::FromBrowser(browser_.get())
+      ->TabWillLoadUrl(stts_params, web_state->GetWeakPtr());
+
+  SendTabToSelfLoadNavigationUserData* user_data =
+      SendTabToSelfLoadNavigationUserData::FromWebState(web_state);
+  ASSERT_NE(nullptr, user_data);
+  EXPECT_EQ("stts_guid_123", user_data->entry_guid());
+
+  // 3. Trigger again with non-STTS parameters. The existing user data should be
+  // removed.
+  UrlLoadingNotifierBrowserAgent::FromBrowser(browser_.get())
+      ->TabWillLoadUrl(params, web_state->GetWeakPtr());
+  EXPECT_EQ(nullptr,
+            SendTabToSelfLoadNavigationUserData::FromWebState(web_state));
+}
+
+class SendTabToSelfBrowserAgentAutoOpenTest
+    : public SendTabToSelfBrowserAgentTest {
+ public:
+  SendTabToSelfBrowserAgentAutoOpenTest()
+      : SendTabToSelfBrowserAgentTest(
+            {send_tab_to_self::kSendTabToSelfAutoOpen}) {
+    model_->SetLocalCacheGuid(kDeviceID);
+  }
+};
+
+TEST_F(SendTabToSelfBrowserAgentAutoOpenTest,
+       ShouldAutoOpenNewEntriesInBackgroundIfActive) {
+  AppendNewWebState(GURL(kBlankURL));
+
+  OCMExpect([mock_scene_commands_
+      openURLInNewTab:[OCMArg checkWithBlock:^BOOL(OpenNewTabCommand* command) {
+        return command.inBackground == YES;
+      }]]);
+
+  const send_tab_to_self::SendTabToSelfEntry* entry = model_->AddEntryRemotely(
+      GURL(kExampleURL), "title", kDeviceID,
+      send_tab_to_self::PageContext(), send_tab_to_self::NavigationHistory());
+
+  [mock_scene_commands_ verify];
+  EXPECT_TRUE(model_->GetEntryByGUID(entry->GetGUID())->IsOpened());
+}
+
+TEST_F(SendTabToSelfBrowserAgentAutoOpenTest,
+       ShouldNotAutoOpenNewEntriesIfNotActive) {
+  AppendNewWebState(GURL(kBlankURL),
+                    /*activate=*/true, /*is_visible=*/false);
+
+  [[mock_scene_commands_ reject] openURLInNewTab:[OCMArg any]];
+
+  const send_tab_to_self::SendTabToSelfEntry* entry = model_->AddEntryRemotely(
+      GURL(kExampleURL), "title", kDeviceID,
+      send_tab_to_self::PageContext(), send_tab_to_self::NavigationHistory());
+
+  [mock_scene_commands_ verify];
+  EXPECT_FALSE(model_->GetEntryByGUID(entry->GetGUID())->IsOpened());
+}
+
+TEST_F(SendTabToSelfBrowserAgentAutoOpenTest,
+       ShouldAutoOpenPendingEntriesInBackgroundOnActivation) {
+  const send_tab_to_self::SendTabToSelfEntry* entry1 = model_->AddEntryRemotely(
+      GURL("https://www.google.com/"), "title", kDeviceID,
+      send_tab_to_self::PageContext(), send_tab_to_self::NavigationHistory());
+  const send_tab_to_self::SendTabToSelfEntry* entry2 = model_->AddEntryRemotely(
+      GURL("https://www.youtube.com/"), "title", kDeviceID,
+      send_tab_to_self::PageContext(), send_tab_to_self::NavigationHistory());
+
+  OCMExpect([mock_scene_commands_
+      openURLInNewTab:[OCMArg checkWithBlock:^BOOL(OpenNewTabCommand* command) {
+        return command.inBackground == YES;
+      }]]);
+  OCMExpect([mock_scene_commands_
+      openURLInNewTab:[OCMArg checkWithBlock:^BOOL(OpenNewTabCommand* command) {
+        return command.inBackground == YES;
+      }]]);
+
+  AppendNewWebState(GURL(kBlankURL));
+
+  [mock_scene_commands_ verify];
+  EXPECT_TRUE(model_->GetEntryByGUID(entry1->GetGUID())->IsOpened());
+  EXPECT_TRUE(model_->GetEntryByGUID(entry2->GetGUID())->IsOpened());
 }
 
 }  // anonymous namespace

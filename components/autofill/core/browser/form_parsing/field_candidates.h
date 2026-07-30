@@ -5,9 +5,11 @@
 #ifndef COMPONENTS_AUTOFILL_CORE_BROWSER_FORM_PARSING_FIELD_CANDIDATES_H_
 #define COMPONENTS_AUTOFILL_CORE_BROWSER_FORM_PARSING_FIELD_CANDIDATES_H_
 
+#include <array>
 #include <vector>
 
 #include "base/containers/flat_map.h"
+#include "base/notreached.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/form_parsing/autofill_parsing_utils.h"
 #include "components/autofill/core/common/dense_set.h"
@@ -15,6 +17,36 @@
 #include "components/autofill/core/common/unique_ids.h"
 
 namespace autofill {
+
+// Represents the source heuristic parser.
+enum class HeuristicParser {
+  kSearch,
+  kMerchantPromoCode,
+  kName,
+  kLoyaltyCard,
+  kPrice,
+  kIban,
+  kOneTimeCode,
+  kCreditCard,
+  kAddress,
+  kTravel,
+  kPhone,
+  kEmail
+};
+
+// Represents the priority of a field candidate classification.
+// Priorities are compared lexicographically:
+// 1. By match quality: A name match or high-quality label match takes
+//    precedence over a low-quality label match.
+// 2. By parser precedence: if the match quality is equal, the parser with the
+//    higher precedence wins.
+struct FieldCandidatePriority {
+  FieldCandidatePriority(bool is_name_or_high_quality_label_match,
+                         HeuristicParser parser_type);
+  bool is_name_or_high_quality_label_match;
+  size_t parser_priority;
+  auto operator<=>(const FieldCandidatePriority&) const = default;
+};
 
 // Represents a possible type for a given field.
 struct FieldCandidate {
@@ -26,7 +58,7 @@ struct FieldCandidate {
 
   // A non-negative number indicating how sure the type is for this specific
   // candidate. The higher the more confidence.
-  float score = internal::IsRequired();
+  FieldCandidatePriority priority = internal::IsRequired();
 };
 
 // Each field can be of different types. This class collects all these possible
@@ -47,7 +79,7 @@ class FieldCandidates {
   // field_candidates.cc for details on how this type is actually chosen.
   void AddFieldCandidate(FieldType type,
                          MatchAttribute match_attribute,
-                         float score);
+                         FieldCandidatePriority priority);
 
   // Determines the best type based on the current possible types.
   FieldType BestHeuristicType() const;

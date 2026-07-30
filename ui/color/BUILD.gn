@@ -118,7 +118,6 @@ source_set("unit_tests") {
     "color_provider_utils_unittest.cc",
     "color_recipe_unittest.cc",
     "color_transform_unittest.cc",
-    "dynamic_color/palette_factory_unittest.cc",
     "sys_color_mixer_unittest.cc",
   ]
 

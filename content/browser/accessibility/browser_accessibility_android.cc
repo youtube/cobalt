@@ -470,7 +470,7 @@ bool BrowserAccessibilityAndroid::IsMultiselectable() const {
 
 bool BrowserAccessibilityAndroid::IsRangeControlWithoutAriaValueText() const {
   return GetData().IsRangeValueSupported() &&
-         !HasStringAttribute(ax::mojom::StringAttribute::kValue) &&
+         !HasStringAttribute(ax::mojom::StringAttribute::kAriaValueText) &&
          HasFloatAttribute(ax::mojom::FloatAttribute::kValueForRange);
 }
 
@@ -590,6 +590,16 @@ bool BrowserAccessibilityAndroid::IsInterestingOnAndroid() const {
   // A kMenu container should not be interesting and navigatable.
   if (GetRole() == ax::mojom::Role::kMenu) {
     return false;
+  }
+
+  if (features::IsAccessibilityAndroidMathEnabled()) {
+    if (GetRole() == ax::mojom::Role::kMathMLMath) {
+      return true;
+    }
+
+    if (ui::IsMath(GetRole())) {
+      return false;
+    }
   }
 
   // Otherwise, focusable nodes are always interesting. Note that IsFocusable()
@@ -1030,10 +1040,10 @@ void BrowserAccessibilityAndroid::AppendSubtreeTextRecursive(
 
   AndroidNameTo name_to = ComputeAndroidNameTo();
   if (name_to == AndroidNameTo::kText && !is_non_atomic_text_field) {
-    // Skip this mapping for a range control with value (text). The value is not
-    // visually rendered, and should be mapped to state description instead.
+    // Skip this mapping for a range control with aria-valuetext. The value is
+    // not visually rendered, and should be mapped to state description instead.
     if (GetData().IsRangeValueSupported() &&
-        HasStringAttribute(ax::mojom::StringAttribute::kValue)) {
+        HasStringAttribute(ax::mojom::StringAttribute::kAriaValueText)) {
       return;
     }
     text = GetNameAsString16();
@@ -1211,16 +1221,17 @@ std::u16string BrowserAccessibilityAndroid::GetAndroidStateDescription() const {
     state_descs.push_back(GetAriaCurrentStateDescription());
   }
 
-  // For range controls, communicate the string value from aria-valuetext.
+  // For range controls, retrieve the aria-valuetext via kAriaValueText.
   if (GetData().IsRangeValueSupported()) {
-    std::u16string value =
-        GetString16Attribute(ax::mojom::StringAttribute::kValue);
-    if (value.empty() && GetRole() == ax::mojom::Role::kProgressIndicator &&
+    std::u16string value_text =
+        GetString16Attribute(ax::mojom::StringAttribute::kAriaValueText);
+    if (value_text.empty() &&
+        GetRole() == ax::mojom::Role::kProgressIndicator &&
         !HasFloatAttribute(ax::mojom::FloatAttribute::kValueForRange)) {
       state_descs.push_back(GetLocalizedString(IDS_AX_INDETERMINATE_VALUE));
     }
-    if (!value.empty()) {
-      state_descs.push_back(value);
+    if (!value_text.empty()) {
+      state_descs.push_back(value_text);
     }
   }
 
@@ -2559,6 +2570,7 @@ bool BrowserAccessibilityAndroid::ShouldPromoteValueToTextProperty(
     case ax::mojom::Role::kDate:
     case ax::mojom::Role::kDateTime:
     case ax::mojom::Role::kInputTime:
+    case ax::mojom::Role::kSpinButton:
       return true;
     case ax::mojom::Role::kColorWell:
       return false;
@@ -2767,6 +2779,7 @@ BrowserAccessibilityAndroid::ComputeAndroidNameTo() const {
       if (ui::IsImage(GetRole()) && !GetImageAnnotationText().empty()) {
         name_to_cache_ = AndroidNameTo::kContentDescription;
       } else {
+        // TODO(crbug.com/498093320): Add support for Canvas accessibility.
         name_to_cache_ = AndroidNameTo::kText;
       }
       break;

@@ -597,7 +597,6 @@
 <translation id="1433478348197382180">Режим читања</translation>
 <translation id="1433980411933182122">Покретање</translation>
 <translation id="1434659328474177625">Прегледач <ph name="ISSUER" /> је верификовао имејл</translation>
-<translation id="1434696352799406980">Ово ће ресетовати почетну страницу, страницу нове картице, претраживач и закачене картице. Такође ће онемогућити све додатке и обрисати привремене податке попут колачића. Обележивачи, историја и сачуване лозинке неће бити обрисани.</translation>
 <translation id="1434886155212424586">Почетна страница је страница Нова картица</translation>
 <translation id="1435940442311036198">Користите приступни кôд на другом уређају</translation>
 <translation id="1436390408194692385">Важи још <ph name="TICKET_TIME_LEFT" /></translation>
@@ -2558,6 +2557,7 @@
 <translation id="2822551631199737692">Камера се користи</translation>
 <translation id="2822634587701817431">Скупи/прошири</translation>
 <translation id="2824942875887026017"><ph name="IDS_SHORT_PRODUCT_NAME" /> користи подешавања проксија администратора</translation>
+<translation id="2825200993288778739">Направите своју вештину или додајте из збирке вештина</translation>
 <translation id="282525059261716597">Командна линија:</translation>
 <translation id="2825758591930162672">Јавни кључ субјекта</translation>
 <translation id="2826576843404243001">За сајтове који не подржавају безбедне везе, добијајте упозорење пре него што посетите сајт. Не можете да промените ово подешавање јер је омогућена Напредна заштита.</translation>
@@ -3698,7 +3698,6 @@
 <translation id="366484203224589850"><ph name="TASK_TITLE" />: Gemini ради на овом задатку већ дуже време и ускоро ће престати да би сачувао батерију</translation>
 <translation id="3664911592976620204">{NUM_OTHER_MEMBERS,plural, =0{Придружите се групи картица са корисником <ph name="OWNER_FIRST_NAME" />}=1{Придружите се групи картица са корисником <ph name="OWNER_FIRST_NAME" /> и још # особом}one{Придружите се групи картица са корисником <ph name="OWNER_FIRST_NAME" /> и још # особом}few{Придружите се групи картица са корисником <ph name="OWNER_FIRST_NAME" /> и још # особе}other{Придружите се групи картица са корисником <ph name="OWNER_FIRST_NAME" /> и још # особа}}</translation>
 <translation id="3665301845536101715">Отвори на бочној табли</translation>
-<translation id="3665589677786828986">Chrome је открио да је други програм оштетио нека од подешавања и ресетовао их је на првобитне подразумеване вредности.</translation>
 <translation id="3665918214153961651">Отпрема се фајл</translation>
 <translation id="3666196264870170605">Уклањање података о отклањању грешака за NIC-ове за Intel WiFi</translation>
 <translation id="3666971425390608309">Преузимање је паузирано: <ph name="FILE_NAME" />.</translation>
@@ -4635,6 +4634,7 @@
 <translation id="4321179778687042513">ctrl</translation>
 <translation id="432160826079505197">Прикажи фајл <ph name="FILE_NAME" /> у Finder-у</translation>
 <translation id="4322394346347055525">Затвори друге картице</translation>
+<translation id="4322400254469690320">Пронађите фајл <ph name="FILENAME" /> у <ph name="FEATURE_NAME" /> фолдеру</translation>
 <translation id="4324577459193912240">Датотека је непотпуна</translation>
 <translation id="4325433082696797523">Меморијски простор и напајање</translation>
 <translation id="4325515113816851466">Изабране опције родитеља неће важити када се одјавиш</translation>
@@ -4985,7 +4985,6 @@
 <translation id="4580596421317071374">Лозинке се чувају на овом уређају у:<ph name="GOOGLE_PASSWORD_MANAGER" />.</translation>
 <translation id="4580939929828762295">Останите безбедни уз Google менаџер лозинки</translation>
 <translation id="4582297591746054421">Сајтови обично читају привремену меморију за потребе функција попут задржавања форматирања текста који сте копирали</translation>
-<translation id="4582563038311694664">Ресетуј сва подешавања</translation>
 <translation id="4584094413232466841">Желите да уклоните ове информације из Chrome аутоматског попуњавања?</translation>
 <translation id="4584770411839426377">Прозор</translation>
 <translation id="4584836561445313300">Организација ће моћи да види постојеће податке прегледања, попут лозинки и другог садржаја, и да управља њима</translation>
@@ -6629,6 +6628,7 @@
 <translation id="5826993284769733527">Полутранспарентно</translation>
 <translation id="5827266244928330802">Safari</translation>
 <translation id="5827591412833386477">Прикажи сајтове у истој групи</translation>
+<translation id="5827835011646404677">Вештине се чувају на Google налогу</translation>
 <translation id="5828181959764767444">Залазак сунца</translation>
 <translation id="5828545842856466741">Додај профил…</translation>
 <translation id="5828633471261496623">Штампање...</translation>
@@ -7956,6 +7956,7 @@
 <translation id="6805478749741295868">Ово је експериментална функција вештачке интелигенције и неће увек радити како треба.</translation>
 <translation id="6805817411033102703">Повратне информације о дељеним групама картица</translation>
 <translation id="6806089545527108739">Не дозволи, али питај касније</translation>
+<translation id="6806123901116522137">Иди на иновације вештачке интелигенције</translation>
 <translation id="6806781719264274042">Само контакти са Google налогом. <ph name="LINK_BEGIN" />Прикажи контакте<ph name="LINK_END" /></translation>
 <translation id="6808039367995747522">Да бисте наставили, уметните и додирните безбедносни кључ</translation>
 <translation id="6808166974213191158">Уписивање слика Chrome OS Flex система</translation>
@@ -10074,7 +10075,6 @@
 <translation id="8327386430364625757">Математички фонт</translation>
 <translation id="8327490658947427005">Изабрана ставка није на језику <ph name="LANGUAGE" /></translation>
 <translation id="8327544198829180337">Затвори овај приказ</translation>
-<translation id="8327676037044516220">Подешавања дозвола и садржаја</translation>
 <translation id="8328228852664998535">Ако наставите, лозинке, приступни кључеви и други подаци ће бити трајно избрисани са уређаја <ph name="BRAND" />. Налози које сте отворили за сајтове или апликације неће бити избрисани.</translation>
 <translation id="8328777765163860529">Затвори све</translation>
 <translation id="8330617762701840933">Листа веб-сајтова који преусмеравају у алтернативни прегледач.</translation>
@@ -10895,7 +10895,6 @@
 <translation id="8925458182817574960">&amp;Подешавања</translation>
 <translation id="8926389886865778422">Не питај ме поново</translation>
 <translation id="8926555406617248399">Картице су скривене</translation>
-<translation id="892706138619340876">Нека подешавања су ресетована</translation>
 <translation id="8927438609932588163">Дозволите сајтовима да чувају податке на уређају</translation>
 <translation id="8929696694736010839">Само актуелна сесија без архивирања</translation>
 <translation id="8929738682246584251">Укључи/искључи лупу</translation>
@@ -11204,6 +11203,7 @@
 <translation id="9130015405878219958">Унет је неважећи режим.</translation>
 <translation id="9130135798965366513">Да бисте наставили, <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> ће делити <ph name="FIELDS_STRING" /> са овим сајтом. Погледајте <ph name="BEGIN_LINK1" />политику приватности<ph name="END_LINK1" /> и <ph name="BEGIN_LINK2" />услове коришћења услуге<ph name="END_LINK2" /> за овај сајт.</translation>
 <translation id="9130364135697530260">Уграђени садржај на овом сајту не може да користи информације које су сачуване о вама</translation>
+<translation id="9130857050314385402">Наслови картица и URL-ови шаљу се Google-у када користите вештину</translation>
 <translation id="9131209053278896908">Овде се приказују блокирани сајтови</translation>
 <translation id="9131487537093447019">Слање порука на Bluetooth уређаје и примање порука са њих.</translation>
 <translation id="9133568201369135151">Прикупљање дијагностичких података је завршено. У те податке су уврштени и неки лични подаци.</translation>

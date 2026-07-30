@@ -111,7 +111,7 @@ class CORE_EXPORT TextControlElement : public HTMLFormControlElementWithState {
       unsigned start,
       unsigned end,
       TextFieldSelectionDirection = kSelectionHasNoDirection);
-  SelectionInDOMTree Selection() const;
+  SelectionInDomTree Selection() const;
 
   int maxLength() const;
   int minLength() const;

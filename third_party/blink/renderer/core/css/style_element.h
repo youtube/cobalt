@@ -61,6 +61,7 @@ class CORE_EXPORT StyleElement : public GarbageCollectedMixin {
 
   void RemovedFrom(Element&, ContainerNode& insertion_point);
   void BlockingAttributeChanged(Element&);
+  void MediaAttributeChanged(Element&, const AtomicString& new_value);
   ProcessingResult ProcessStyleSheet(Document&, Element&);
   ProcessingResult ChildrenChanged(Element&);
   ProcessingResult FinishParsingChildren(Element&);

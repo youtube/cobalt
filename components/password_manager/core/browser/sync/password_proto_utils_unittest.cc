@@ -369,5 +369,38 @@ TEST_P(PasswordProtoUtilsTest,
                 .SerializeAsString(),
             specifics.SerializeAsString());
 }
+
+TEST_P(PasswordProtoUtilsTest,
+       StoredCredentialFromSpecificsEnforcesSkipZeroClick) {
+  sync_pb::PasswordSpecificsData specifics =
+      CreateSpecificsData("http://www.origin.com/", "username_element",
+                          "username_value", "password_element", "signon_realm",
+                          /*issue_types=*/{});
+
+  // Set type to kReceivedViaSharing and notification displayed to false.
+  specifics.set_type(static_cast<int>(PasswordForm::Type::kReceivedViaSharing));
+  specifics.set_sharing_notification_displayed(false);
+
+  StoredCredential credential = StoredCredentialFromSpecifics(specifics);
+
+  EXPECT_TRUE(credential.skip_zero_click);
+}
+
+TEST_P(
+    PasswordProtoUtilsTest,
+    StoredCredentialFromSpecificsDoesNotEnforceSkipZeroClickIfNotificationDisplayed) {
+  sync_pb::PasswordSpecificsData specifics =
+      CreateSpecificsData("http://www.origin.com/", "username_element",
+                          "username_value", "password_element", "signon_realm",
+                          /*issue_types=*/{});
+
+  // Set type to kReceivedViaSharing and notification displayed to true.
+  specifics.set_type(static_cast<int>(PasswordForm::Type::kReceivedViaSharing));
+  specifics.set_sharing_notification_displayed(true);
+
+  StoredCredential credential = StoredCredentialFromSpecifics(specifics);
+
+  EXPECT_FALSE(credential.skip_zero_click);
+}
 INSTANTIATE_FEATURE_OVERRIDE_TEST_SUITE(PasswordProtoUtilsTest);
 }  // namespace password_manager

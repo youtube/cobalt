@@ -95,7 +95,7 @@ class ArcAppUninstallDialogViewBrowserTest : public InProcessBrowserTest {
     ArcSessionManager::Get()->Shutdown();
   }
 
-  // Ensures the ArcAppDialogView is destoryed.
+  // Ensures the ArcAppDialogView is destroyed.
   void TearDown() override { ASSERT_FALSE(IsArcAppDialogViewAliveForTest()); }
 
   ArcAppListPrefs* arc_app_list_pref() { return arc_app_list_pref_; }

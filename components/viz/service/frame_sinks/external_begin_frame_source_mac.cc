@@ -188,7 +188,7 @@ void ExternalBeginFrameSourceMac::SetVSyncDisplayID(int64_t display_id,
   display_id_ = display_id;
 
   // Get DisplayLinkMac with the new CGDirectDisplayID.
-  display_link_mac_ = ui::DisplayLinkMac::GetForDisplay(display_id);
+  display_link_mac_ = GetForDisplay(display_id);
 
   // For debugging only. Use the timer for BeginFrameSource.
   if (base::FeatureList::IsEnabled(kForceMacVSyncTimerForDebugging)) {
@@ -239,7 +239,8 @@ void ExternalBeginFrameSourceMac::SetVSyncDisplayID(int64_t display_id,
                                         min_refresh_interval_);
     }
 
-    DLOG(ERROR) << "Switch to DelayBasedTimeSource. DisplayID " << display_id_;
+    DLOG(WARNING) << "Switch to DelayBasedTimeSource. DisplayID "
+                  << display_id_;
     TRACE_EVENT("viz", "ExternalBeginFrameSourceMac DisplayLinkMac failed.");
 
     // TODO: Set hw_takes_any_refresh_rate_ to true for Timer.
@@ -254,19 +255,6 @@ void ExternalBeginFrameSourceMac::SetVSyncDisplayID(int64_t display_id,
   }
 }
 
-void ExternalBeginFrameSourceMac::RefreshRateChangedOnSameDisplay() {
-  if (!ui::DisplayLinkMac::SupportsDisplayLinkMacInBrowser()) {
-    return;
-  }
-
-  // Forward the notification to output surface for frame presentation.
-  output_surface_->RefreshRateChangedOnSameDisplay();
-
-  if (display_link_mac_ && !display_link_mac_->NotifyEventAndCheckValidity()) {
-    // Recreate a new one.
-    SetVSyncDisplayID(display_id_, /*force_update=*/true);
-  }
-}
 void ExternalBeginFrameSourceMac::StartBeginFrame() {
   if (display_link_mac_) {
     if (vsync_callback_mac_) {
@@ -293,6 +281,7 @@ void ExternalBeginFrameSourceMac::StartBeginFrame() {
   }
 
   // Start the timer.
+  CreateDelayBasedTimeSourceIfNeeded();
   time_source_->SetActive(/*active=*/true);
 }
 
@@ -533,6 +522,14 @@ void ExternalBeginFrameSourceMac::SetPreferredInterval(
                "vsync_subsampling_factor", vsync_subsampling_factor_);
 }
 
+scoped_refptr<ui::DisplayLinkMac> ExternalBeginFrameSourceMac::GetForDisplay(
+    int64_t display_id) {
+  // Directly delegates to ui::DisplayLinkMac::GetForDisplay. Overridden by
+  // ExternalBeginFrameSourceMacWrapper in unit tests to inject a mock
+  // DisplayLink.
+  return ui::DisplayLinkMac::GetForDisplay(display_id);
+}
+
 base::TimeDelta ExternalBeginFrameSourceMac::GetMinimumFrameInterval() {
   if (display_link_mac_) {
     return display_link_mac_->GetRefreshInterval();
@@ -639,10 +636,4 @@ void ExternalBeginFrameSourceMac::OnSuspend() {
   }
 }
 
-void ExternalBeginFrameSourceMac::OnResume() {
-  if (display_link_mac_ && !display_link_mac_->NotifyEventAndCheckValidity()) {
-    // Recreate a new one.
-    SetVSyncDisplayID(display_id_, /*force_update=*/true);
-  }
-}
 }  // namespace viz

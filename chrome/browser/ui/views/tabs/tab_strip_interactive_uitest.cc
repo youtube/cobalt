@@ -2,10 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/scoped_observation.h"
+#include "base/test/run_until.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/tabs/split_tab_metrics.h"
 #include "chrome/browser/ui/tabs/tab_group_model.h"
+#include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/frame/horizontal_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/tabs/browser_tab_strip_controller.h"
 #include "chrome/browser/ui/views/tabs/new_tab_button.h"
 #include "chrome/browser/ui/views/tabs/tab.h"
@@ -22,6 +26,7 @@
 #include "ui/base/test/ui_controls.h"
 #include "ui/views/controls/menu/menu_item_view.h"
 #include "ui/views/interaction/polling_view_observer.h"
+#include "ui/views/view_observer.h"
 #include "url/gurl.h"
 
 namespace {
@@ -35,6 +40,10 @@ constexpr char kDocumentWithTitle[] = "/title3.html";
 class TabStripInteractiveUiTest
     : public TabStripInteractiveTestMixin<InteractiveBrowserTest> {
  public:
+  TabStripInteractiveUiTest() {
+    scoped_feature_list_.InitAndEnableFeature(
+        features::kTabStripNewTabButtonFlickerFix);
+  }
   ~TabStripInteractiveUiTest() override = default;
 
   void SetUp() override {
@@ -55,6 +64,9 @@ class TabStripInteractiveUiTest
   BrowserView* GetBrowserView() {
     return BrowserView::GetBrowserViewForBrowser(browser());
   }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 IN_PROC_BROWSER_TEST_F(TabStripInteractiveUiTest, HoverEffectShowsOnMouseOver) {
@@ -229,4 +241,176 @@ IN_PROC_BROWSER_TEST_F(TestNewTabButtonContextMenu,
                 ->tab_count();
           },
           2));
+}
+
+namespace {
+
+// Helper class to observe bounds changes on the New Tab Button and assert
+// that it only moves in a stable, jitter-free direction.
+class NewTabButtonBoundsObserver : public views::ViewObserver {
+ public:
+  enum class Mode { kOnlyGrow, kOnlyShrink, kConstant };
+
+  NewTabButtonBoundsObserver(views::View* view, Mode mode) : mode_(mode) {
+    observation_.Observe(view);
+  }
+  ~NewTabButtonBoundsObserver() override = default;
+
+  void OnViewBoundsChanged(views::View* observed_view) override {
+    int current_x = observed_view->bounds().x();
+    if (last_x_.has_value()) {
+      if (mode_ == Mode::kOnlyGrow) {
+        // Since we are only expanding the tab group, the New Tab Button
+        // should only move to the right (increase x) or stay in place.
+        // It should NEVER move to the left (jitter/flicker).
+        EXPECT_GE(current_x, last_x_.value())
+            << "New Tab Button moved to the left (flickered)! "
+            << "Previous x: " << last_x_.value()
+            << ", Current x: " << current_x;
+      } else if (mode_ == Mode::kOnlyShrink) {
+        // Since we are only shrinking (like during tab close), the New Tab
+        // Button should only move to the left (decrease x) or stay in place.
+        // It should NEVER move to the right (jitter/flicker).
+        EXPECT_LE(current_x, last_x_.value())
+            << "New Tab Button moved to the right (flickered)! "
+            << "Previous x: " << last_x_.value()
+            << ", Current x: " << current_x;
+      } else if (mode_ == Mode::kConstant) {
+        // In a constrained layout where the tab strip is already full, the
+        // New Tab Button should remain completely stationary.
+        EXPECT_EQ(current_x, last_x_.value())
+            << "New Tab Button moved in constrained layout (flickered)! "
+            << "Previous x: " << last_x_.value()
+            << ", Current x: " << current_x;
+      }
+    }
+    last_x_ = current_x;
+  }
+
+ private:
+  Mode mode_;
+  base::ScopedObservation<views::View, views::ViewObserver> observation_{this};
+  std::optional<int> last_x_;
+};
+
+}  // namespace
+
+// Verifies that in an unconstrained layout (wide window, few tabs), as a tab
+// group name is expanded, the New Tab Button slides smoothly to the right
+// without any backward jitter/flicker.
+IN_PROC_BROWSER_TEST_F(
+    TabStripInteractiveUiTest,
+    NewTabButtonPositionStableDuringGroupRenameUnconstrained) {
+  TabStripModel* tab_strip_model = browser()->tab_strip_model();
+  ASSERT_EQ(tab_strip_model->count(), 1);
+
+  // Create a tab group containing the single tab.
+  tab_groups::TabGroupId group = tab_strip_model->AddToNewGroup({0});
+
+  HorizontalTabStripRegionView* region_view =
+      views::AsViewClass<HorizontalTabStripRegionView>(
+          GetBrowserView()->tab_strip_view());
+  ASSERT_NE(region_view, nullptr);
+
+  views::View* new_tab_button = region_view->new_tab_button_for_testing();
+  ASSERT_NE(new_tab_button, nullptr);
+
+  // Set up the bounds observer to verify that it only moves right (grows).
+  NewTabButtonBoundsObserver observer(
+      new_tab_button, NewTabButtonBoundsObserver::Mode::kOnlyGrow);
+
+  // Simulate typing a long name character by character.
+  std::string name = "";
+  for (int i = 0; i < 30; ++i) {
+    name += "A";
+    tab_groups::TabGroupVisualData visual_data(
+        base::ASCIIToUTF16(name), tab_groups::TabGroupColorId::kGrey);
+    tab_strip_model->group_model()->GetTabGroup(group)->SetVisualData(
+        visual_data);
+
+    // Instantly complete the animation and force layout to verify bounds
+    // synchronously.
+    region_view->tab_strip()->StopAnimating();
+  }
+}
+
+// Verifies that in a constrained layout (narrow window or many tabs), as a tab
+// group name is expanded, the New Tab Button remains completely stationary
+// at the right edge without any 1-2px jitter.
+IN_PROC_BROWSER_TEST_F(TabStripInteractiveUiTest,
+                       NewTabButtonPositionStableDuringGroupRenameConstrained) {
+  TabStripModel* tab_strip_model = browser()->tab_strip_model();
+  // Add many tabs to fill up the tab strip and force it into a shrunk state.
+  for (int i = 0; i < 15; ++i) {
+    chrome::NewTab(browser(), NewTabTypes::kNewTabCommand);
+  }
+  ASSERT_EQ(tab_strip_model->count(), 16);
+
+  // Create a tab group.
+  tab_groups::TabGroupId group = tab_strip_model->AddToNewGroup({0});
+
+  HorizontalTabStripRegionView* region_view =
+      views::AsViewClass<HorizontalTabStripRegionView>(
+          GetBrowserView()->tab_strip_view());
+  ASSERT_NE(region_view, nullptr);
+
+  views::View* new_tab_button = region_view->new_tab_button_for_testing();
+  ASSERT_NE(new_tab_button, nullptr);
+
+  // Ensure the layout has settled into steady state first.
+  region_view->tab_strip()->StopAnimating();
+
+  // Set up the bounds observer to verify that the New Tab Button's position
+  // remains completely constant.
+  NewTabButtonBoundsObserver observer(
+      new_tab_button, NewTabButtonBoundsObserver::Mode::kConstant);
+
+  // Simulate typing a long name character by character.
+  std::string name = "";
+  for (int i = 0; i < 30; ++i) {
+    name += "A";
+    tab_groups::TabGroupVisualData visual_data(
+        base::ASCIIToUTF16(name), tab_groups::TabGroupColorId::kGrey);
+    tab_strip_model->group_model()->GetTabGroup(group)->SetVisualData(
+        visual_data);
+
+    // Instantly complete the animation and force layout to verify bounds
+    // synchronously.
+    region_view->tab_strip()->StopAnimating();
+  }
+}
+
+// Verifies that during tab closure, the New Tab Button slides smoothly to the
+// left without any backward jitter (jumping to the right) on any frame.
+IN_PROC_BROWSER_TEST_F(TabStripInteractiveUiTest,
+                       NewTabButtonPositionStableDuringTabClose) {
+  TabStripModel* tab_strip_model = browser()->tab_strip_model();
+
+  // Add a second tab so we can close one.
+  chrome::NewTab(browser(), NewTabTypes::kNewTabCommand);
+  ASSERT_EQ(tab_strip_model->count(), 2);
+
+  HorizontalTabStripRegionView* region_view =
+      views::AsViewClass<HorizontalTabStripRegionView>(
+          GetBrowserView()->tab_strip_view());
+  ASSERT_NE(region_view, nullptr);
+
+  views::View* new_tab_button = region_view->new_tab_button_for_testing();
+  ASSERT_NE(new_tab_button, nullptr);
+
+  // Ensure layout is settled first.
+  region_view->tab_strip()->StopAnimating();
+
+  // Set up the bounds observer to verify that it only moves left (shrinks).
+  NewTabButtonBoundsObserver observer(
+      new_tab_button, NewTabButtonBoundsObserver::Mode::kOnlyShrink);
+
+  // Close the second tab. This starts the tab closure animation in real-time.
+  tab_strip_model->CloseWebContentsAt(1, TabCloseTypes::CLOSE_USER_GESTURE);
+
+  // Wait for the tab strip animation to complete naturally.
+  // During this real-time animation, the observer will assert bounds safety on
+  // every single frame.
+  EXPECT_TRUE(base::test::RunUntil(
+      [&]() { return !region_view->tab_strip()->IsAnimatingInTabStrip(); }));
 }

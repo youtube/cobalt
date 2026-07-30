@@ -7,7 +7,10 @@ import("//services/webnn/public/webnn_features.gni")
 
 buildflag_header("buildflags") {
   header = "webnn_buildflags.h"
-  flags = [ "WEBNN_ENABLE_GRAPH_DUMP=$webnn_enable_graph_dump" ]
+  flags = [
+    "WEBNN_ENABLE_GRAPH_DUMP=$webnn_enable_graph_dump",
+    "WEBNN_USE_LITERT=$webnn_use_litert",
+  ]
 }
 
 component("cpp") {
@@ -48,6 +51,13 @@ component("cpp") {
     sources += [
       "coreml_initializer.cc",
       "coreml_initializer.h",
+    ]
+  }
+
+  if (is_win) {
+    sources += [
+      "webnn_sandbox_init.cc",
+      "webnn_sandbox_init.h",
     ]
   }
 

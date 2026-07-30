@@ -131,7 +131,7 @@ SelfCompactionManager& SelfCompactionManager::Instance() {
 
 // static
 void SelfCompactionManager::SetOnStartSelfCompactionCallback(
-    base::RepeatingCallback<void(void)> callback) {
+    base::RepeatingClosure callback) {
   base::AutoLock locker(lock());
   Instance().on_self_compact_callback_ = callback;
 }

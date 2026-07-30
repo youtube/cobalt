@@ -17,6 +17,40 @@ html {
   --viewer-icon-ink-fill-color: rgb(199, 199, 199);
   --viewer-icon-ink-selected-fill-color: rgb(168, 199, 250);
   --viewer-icon-ink-selected-background-color: rgba(76, 141, 246, 0.32);
+  /* Always use light mode version of cr-fallback-color-primary. */
+  --viewer-text-annotation-active-color: rgb(11, 87, 208);
+
+  /* Text annotation sizing and padding variables, shared between ink-text-box
+   * and ink-text-annotations.
+   * UX specified 10px/8px total padding from text to border. */
+  --viewer-text-annotation-border-width: 2px;
+  --viewer-text-annotation-handle-size: 10px;
+  --viewer-text-annotation-total-padding-inline: 10px;
+  --viewer-text-annotation-total-padding-vert: 8px;
+
+  /* Derived variables for easy consumption */
+  --viewer-text-annotation-offset-x: calc(
+      var(--viewer-text-annotation-border-width) +
+      var(--viewer-text-annotation-total-padding-inline));
+  --viewer-text-annotation-offset-y: calc(
+      var(--viewer-text-annotation-border-width) +
+      var(--viewer-text-annotation-total-padding-vert));
+  --viewer-text-annotation-padding-x:
+      calc(2 * var(--viewer-text-annotation-offset-x));
+  --viewer-text-annotation-padding-y:
+      calc(2 * var(--viewer-text-annotation-offset-y));
+
+  /* Flipped derived variables for rotated text (90/270 degrees) */
+  --viewer-text-annotation-offset-x-rotated: calc(
+      var(--viewer-text-annotation-border-width) +
+      var(--viewer-text-annotation-total-padding-vert));
+  --viewer-text-annotation-offset-y-rotated: calc(
+      var(--viewer-text-annotation-border-width) +
+      var(--viewer-text-annotation-total-padding-inline));
+  --viewer-text-annotation-padding-x-rotated:
+      calc(2 * var(--viewer-text-annotation-offset-x-rotated));
+  --viewer-text-annotation-padding-y-rotated:
+      calc(2 * var(--viewer-text-annotation-offset-y-rotated));
 </if>
   --viewer-pdf-toolbar-background-color: rgb(60, 60, 60);
   --viewer-side-background-color: rgb(40, 41, 42);

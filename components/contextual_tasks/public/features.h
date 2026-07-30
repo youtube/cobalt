@@ -71,6 +71,9 @@ BASE_DECLARE_FEATURE(kEnergyEffectInNextbox);
 // Fixes the composebox jump.
 BASE_DECLARE_FEATURE(kContextualTasksComposeboxJumpFix);
 
+// Switches the Contextual Tasks composebox to the forked embedder element.
+BASE_DECLARE_FEATURE(kContextualTasksComposeboxFork);
+
 // Enables the use of a rounded clip-path for the composebox.
 BASE_DECLARE_FEATURE(kContextualTasksRoundedClipPath);
 
@@ -112,6 +115,10 @@ BASE_DECLARE_FEATURE(kAimTriggeredThreadLinks);
 
 // Enables window tracking for Contextual Tasks.
 BASE_DECLARE_FEATURE(kContextualTasksWindowTracking);
+
+// When enabled, provides a list of query parameters that are required
+// for AI URLs being loaded from the contextual tasks extension API.
+BASE_DECLARE_FEATURE(kContextualTasksAiUrlAllowedParamsFilter);
 
 bool GetIsContextualTasksPdfCitationsEnabled();
 
@@ -320,6 +327,9 @@ extern bool ShouldForceCountryCodeUS();
 // Returns the user agent suffix to use for requests.
 extern std::string GetContextualTasksUserAgentSuffix();
 
+// Returns the allowed query parameters for AI URLs.
+extern std::vector<std::string> GetContextualTasksAiUrlAllowedParams();
+
 // Returns the URL parameter name to check for NLM mode.
 extern std::string GetContextualTasksNlmUrlParam();
 extern bool IsCustomNlmUiEnabled();
@@ -398,6 +408,10 @@ extern const char
     kContextualTasksOverrideShowBottomSheetOnLargeScreenDescription[];
 extern const char kContextualTasksCookiePrefetchName[];
 extern const char kContextualTasksCookiePrefetchDescription[];
+extern const char kEnableContextualTasksPinButtonInToolbarName[];
+extern const char kEnableContextualTasksPinButtonInToolbarDescription[];
+extern const char kContextualTasksHideMenuOnAiPageName[];
+extern const char kContextualTasksHideMenuOnAiPageDescription[];
 
 }  // namespace flag_descriptions
 

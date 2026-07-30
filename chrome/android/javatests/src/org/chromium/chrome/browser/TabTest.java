@@ -242,6 +242,10 @@ public class TabTest {
         attachOnUiThread(mTab);
         assertNotNull(mTab.getWebContents());
         assertFalse(mTab.isDetachedFromActivity());
+
+        // Clean up the tab since it was removed from the model and won't be destroyed
+        // automatically.
+        ThreadUtils.runOnUiThreadBlocking(() -> mTab.destroy());
     }
 
     @Test

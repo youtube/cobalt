@@ -286,6 +286,18 @@ void Animation::SetHoldTime(std::optional<base::TimeDelta> hold_time) {
   }
 }
 
+double Animation::GetPlaybackRate() const {
+  const gfx::KeyframeModel* km =
+      keyframe_effect()->keyframe_models().front().get();
+  return km->playback_rate();
+}
+
+void Animation::SetPlaybackRate(double playback_rate) {
+  for (auto& km : keyframe_effect()->keyframe_models()) {
+    km->set_playback_rate(playback_rate);
+  }
+}
+
 base::TimeDelta Animation::CalculateCurrentTime(
     base::TimeTicks monotonic_time) const {
   const gfx::KeyframeModel* km =
@@ -317,30 +329,54 @@ bool Animation::IsFinished() const {
 
 void Animation::Play(base::TimeTicks monotonic_time,
                      Animation::AutoRewind auto_rewind) {
-  bool forcing_rewind = (auto_rewind == Animation::AutoRewind::kForced);
+  PlayInternal(monotonic_time, auto_rewind, GetPlaybackRate());
+}
 
-  // If we are not forcing a rewind, ignore the call if we are already running.
-  if (!forcing_rewind &&
-      (GetRunState() == gfx::KeyframeModel::RunState::RUNNING ||
-       GetRunState() == gfx::KeyframeModel::RunState::STARTING)) {
-    return;
-  }
+void Animation::Reverse(base::TimeTicks monotonic_time,
+                        AutoRewind auto_rewind) {
+  PlayInternal(monotonic_time, auto_rewind, -GetPlaybackRate());
+}
+
+void Animation::PlayInternal(base::TimeTicks monotonic_time,
+                             AutoRewind auto_rewind,
+                             double new_playback_rate) {
+  // If not rewinding, we want to continue playing from whatever our current
+  // time was.
+  base::TimeDelta old_current_time = CalculateCurrentTime(monotonic_time);
+  double old_playback_rate = GetPlaybackRate();
+
+  SetPlaybackRate(new_playback_rate);
+
+  bool is_running = (GetRunState() == KeyframeModel::RunState::RUNNING ||
+                     GetRunState() == KeyframeModel::RunState::STARTING);
 
   KeyframeModel* first_km = KeyframeModel::ToCcKeyframeModel(
       keyframe_effect()->keyframe_models().front().get());
-  std::optional<base::TimeDelta> hold_time = first_km->hold_time();
 
-  // We need to set it up to start playing from the "beginning" if:
-  // - we are forcing a rewind, i.e. AutoRewind::kForced, or
-  // - we don't have a hold time, or
-  // - the animation had finished and auto rewind is enabled.
-  if (forcing_rewind || !hold_time ||
-      (auto_rewind == Animation::AutoRewind::kEnabled && IsFinished())) {
-    hold_time = first_km->CalculateInitialHoldTime(first_km->playback_rate());
+  // When in AutoRewind::kEnabled mode, we only rewind if finished in the *new*
+  // playback rate direction.
+  bool is_finished = new_playback_rate < 0
+                         ? old_current_time <= base::TimeDelta()
+                         : old_current_time >= first_km->CalculateEndTime();
+
+  bool should_rewind = (auto_rewind == AutoRewind::kForced ||
+                        (auto_rewind == AutoRewind::kEnabled && is_finished));
+
+  // If we are not rewinding, are already running or finished and are not
+  // changing playback rate, then we are maintaining the current time in the
+  // current direction. Thus, the start time isn't changing and we should exit
+  // early.
+  if (!should_rewind &&
+      ((is_running || is_finished) && old_playback_rate == new_playback_rate)) {
+    return;
   }
 
+  base::TimeDelta new_current_time =
+      should_rewind ? first_km->CalculateInitialHoldTime(new_playback_rate)
+                    : old_current_time;
+
   base::TimeTicks start_time =
-      monotonic_time - hold_time.value() / first_km->playback_rate();
+      monotonic_time - new_current_time / new_playback_rate;
 
   for (auto& km : keyframe_effect()->keyframe_models()) {
     KeyframeModel* cc_km = KeyframeModel::ToCcKeyframeModel(km.get());
@@ -350,6 +386,7 @@ void Animation::Play(base::TimeTicks monotonic_time,
     // start offset.
     cc_km->set_start_time(start_time);
     cc_km->set_hold_time(std::nullopt);
+    cc_km->set_needs_synchronized_start_time(false);
   }
 }
 

@@ -268,9 +268,7 @@ enum PermissionsPolicyFeature {
   // See https://github.com/WICG/controlled-frame.
   kControlledFrame = 125,
 
-  // Controls private network access in the context of Direct Sockets.
-  // See https://github.com/WICG/direct-sockets.
-  kDirectSocketsPrivate = 126,
+  // kDirectSocketsPrivate = 126, Removed in M151. https://crrev.com/c/7845254
 
   // Allow a site to issue fetchLater requests with minimal quota.
   // This is different from kDeferredFetch, which allows full quota and is

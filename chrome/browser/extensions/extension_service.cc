@@ -95,7 +95,7 @@
 #include "extensions/browser/install_flag.h"
 #include "extensions/browser/install_verifier.h"
 #include "extensions/browser/management_policy.h"
-#include "extensions/browser/manifest_v2_experiment_manager.h"
+#include "extensions/browser/manifest_v2_handler.h"
 #include "extensions/browser/pending_extension_manager.h"
 #include "extensions/browser/permissions/permissions_updater.h"
 #include "extensions/browser/pref_names.h"
@@ -563,8 +563,7 @@ void ExtensionService::CheckManagementPolicy() {
     PermissionsUpdater(profile()).ApplyPolicyHostRestrictions(*extension);
   }
 
-  ManifestV2ExperimentManager* mv2_experiment_manager =
-      ManifestV2ExperimentManager::Get(profile_);
+  ManifestV2Handler* mv2_handler = ManifestV2Handler::Get(profile_);
 
   // Loop through the disabled extension list, find extensions to re-enable
   // automatically. These extensions are exclusive from the |to_disable| list
@@ -617,14 +616,13 @@ void ExtensionService::CheckManagementPolicy() {
       to_remove.insert(disable_reason::DISABLE_BLOCKED_BY_POLICY);
     }
 
-    // Note: `mv2_experiment_manager` may be null for certain types of profiles
+    // Note: `mv2_handler` may be null for certain types of profiles
     // (such as the sign-in profile). We can ignore this check in this case,
     // since users can't install extensions in these profiles.
     // TODO(https://crbug.com/362756477): As above, this is effectively
     // fragmenting logic between the policy provider and here to ensure that
     // the extension gets properly re-enabled when appropriate.
-    if (mv2_experiment_manager &&
-        !mv2_experiment_manager->ShouldBlockExtensionEnable(*extension)) {
+    if (mv2_handler && !mv2_handler->ShouldBlockExtensionEnable(*extension)) {
       to_remove.insert(disable_reason::DISABLE_UNSUPPORTED_MANIFEST_VERSION);
     }
 

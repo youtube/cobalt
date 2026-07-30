@@ -39,6 +39,9 @@ enum class TipsNotificationType;
 // YES if the current interface language uses RTL layout.
 + (BOOL)isRTL;
 
+// Returns YES if the application window is in windowed mode (multitasking).
++ (BOOL)isWindowedMode;
+
 // Clears browsing history and waits for history to finish clearing before
 // returning. Returns nil on success, or else an NSError indicating why the
 // operation failed.

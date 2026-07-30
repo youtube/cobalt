@@ -5,14 +5,6 @@
 #ifndef CHROME_BROWSER_UI_TABS_TAB_ENUMS_H_
 #define CHROME_BROWSER_UI_TABS_TAB_ENUMS_H_
 
-// State indicating if the user is following the web feed of the site loaded in
-// a tab.
-enum class TabWebFeedFollowState {
-  kUnknown,      // The initial state before the follow state is determined.
-  kFollowed,     // The web feed is followed.
-  kNotFollowed,  // The web feed is not followed.
-};
-
 // The Service, UI, or Setting which muted the tab.
 enum class TabMutedReason {
   kNone,                  // The tab has never been muted or unmuted.

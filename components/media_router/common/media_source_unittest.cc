@@ -256,6 +256,8 @@ TEST(MediaSourceTest, IsDialAppName) {
   EXPECT_TRUE(IsDialAppName("com.google.YouTube"));
   EXPECT_TRUE(IsDialAppName("App_Name-1.2~"));
   EXPECT_FALSE(IsDialAppName(""));
+  EXPECT_FALSE(IsDialAppName("."));
+  EXPECT_FALSE(IsDialAppName(".."));
   EXPECT_FALSE(IsDialAppName("App Name"));
   EXPECT_FALSE(IsDialAppName("App/Name"));
   EXPECT_FALSE(IsDialAppName("."));
@@ -267,6 +269,12 @@ TEST(MediaSourceTest, AppNameFromDialSource) {
   MediaSource media_source(
       "cast-dial:YouTube?dialPostData=postData&clientId=1234");
   EXPECT_EQ("YouTube", media_source.AppNameFromDialSource());
+
+  media_source = MediaSource("cast-dial:..");
+  EXPECT_TRUE(media_source.AppNameFromDialSource().empty());
+
+  media_source = MediaSource("cast-dial:.");
+  EXPECT_TRUE(media_source.AppNameFromDialSource().empty());
 
   media_source = MediaSource("cast-dial:../YouTube");
   EXPECT_TRUE(media_source.AppNameFromDialSource().empty());

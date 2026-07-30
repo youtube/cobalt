@@ -60,9 +60,9 @@
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list_observer.h"
 #import "ios/chrome/browser/shared/public/commands/auto_deletion_commands.h"
 #import "ios/chrome/browser/shared/public/commands/browser_coordinator_commands.h"
-#import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/download_list_commands.h"
+#import "ios/chrome/browser/shared/public/commands/gemini_commands.h"
 #import "ios/chrome/browser/shared/public/commands/open_new_tab_command.h"
 #import "ios/chrome/browser/shared/public/commands/save_to_drive_commands.h"
 #import "ios/chrome/browser/shared/public/commands/scene_commands.h"
@@ -102,7 +102,7 @@
   // Restart when the animation ends.
   BOOL _restartPending;
   // Handler for Gemini commands.
-  __weak id<BWGCommands> _geminiHandler;
+  __weak id<GeminiCommands> _geminiHandler;
 }
 @end
 
@@ -121,8 +121,8 @@
   CHECK(self.presenter, base::NotFatalUntil::M150);
   CHECK(self.browser, base::NotFatalUntil::M150);
   if (IsGeminiCopresenceEnabled()) {
-    _geminiHandler =
-        HandlerForProtocol(self.browser->GetCommandDispatcher(), BWGCommands);
+    _geminiHandler = HandlerForProtocol(self.browser->GetCommandDispatcher(),
+                                        GeminiCommands);
   }
 
   if (_stopped && self.presenter.presentedViewController) {

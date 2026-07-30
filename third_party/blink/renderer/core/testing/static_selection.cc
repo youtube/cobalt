@@ -10,7 +10,7 @@ namespace blink {
 
 // static
 StaticSelection* StaticSelection::FromSelectionInDOMTree(
-    const SelectionInDOMTree& selection) {
+    const SelectionInDomTree& selection) {
   return MakeGarbageCollected<StaticSelection>(selection);
 }
 
@@ -20,7 +20,7 @@ StaticSelection* StaticSelection::FromSelectionInFlatTree(
   return MakeGarbageCollected<StaticSelection>(seleciton);
 }
 
-StaticSelection::StaticSelection(const SelectionInDOMTree& selection)
+StaticSelection::StaticSelection(const SelectionInDomTree& selection)
     : anchor_node_(selection.Anchor().ComputeContainerNode()),
       anchor_offset_(selection.Anchor().ComputeOffsetInContainerNode()),
       focus_node_(selection.Focus().ComputeContainerNode()),

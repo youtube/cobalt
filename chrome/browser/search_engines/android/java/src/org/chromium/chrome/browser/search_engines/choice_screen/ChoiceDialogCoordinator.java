@@ -36,6 +36,7 @@ import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modaldialog.ModalDialogManager.ModalDialogManagerObserver;
 import org.chromium.ui.modaldialog.ModalDialogProperties;
 import org.chromium.ui.modelutil.PropertyModel;
+import org.chromium.ui.util.CommonOnLayoutChangeListeners;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -291,15 +292,20 @@ public class ChoiceDialogCoordinator implements ChoiceDialogMediator.Delegate {
                 .removeKey(SEARCH_ENGINE_CHOICE_PENDING_OS_CHOICE_DIALOG_SHOWN_ATTEMPTS);
     }
 
-    private static class ViewHolderImpl implements ViewHolder, View.OnLayoutChangeListener {
+    private static class ViewHolderImpl implements ViewHolder {
         private final View mContentView;
         private final View mView;
+        private final View.OnLayoutChangeListener mLayoutChangeListener =
+                CommonOnLayoutChangeListeners.createHeightChangedListener(
+                        (v, left, top, right, bottom) -> {
+                            updateIllustrationVisibility(bottom - top);
+                        });
 
         @SuppressLint("InflateParams")
         ViewHolderImpl(Activity activity) {
             mContentView = activity.findViewById(android.R.id.content);
             mView = LayoutInflater.from(activity).inflate(R.layout.blocking_choice_dialog, null);
-            mContentView.addOnLayoutChangeListener(this);
+            mContentView.addOnLayoutChangeListener(mLayoutChangeListener);
         }
 
         @Override
@@ -334,24 +340,10 @@ public class ChoiceDialogCoordinator implements ChoiceDialogMediator.Delegate {
 
         @Override
         public void destroy() {
-            mContentView.removeOnLayoutChangeListener(this);
+            mContentView.removeOnLayoutChangeListener(mLayoutChangeListener);
         }
 
-        @Override
-        public void onLayoutChange(
-                View view,
-                int left,
-                int top,
-                int right,
-                int bottom,
-                int oldLeft,
-                int oldTop,
-                int oldRight,
-                int oldBottom) {
-            int oldHeight = oldBottom - oldTop;
-            int newHeight = bottom - top;
-            if (newHeight == oldHeight) return;
-
+        private void updateIllustrationVisibility(int newHeight) {
             int requiredHeight =
                     mView.getResources()
                             .getDimensionPixelSize(

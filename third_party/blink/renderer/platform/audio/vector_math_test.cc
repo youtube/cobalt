@@ -282,8 +282,7 @@ TEST_F(VectorMathTest, Conv) {
       if (filter_size >= source.size()) {
         break;
       }
-      uint32_t frames_to_process =
-          base::checked_cast<uint32_t>(source.size() - filter_size);
+      size_t frames_to_process = source.size() - filter_size;
       // The stride of a convolution filter must be -1. Let's first create
       // a reversed filter whose stride is 1.
       TestVector<const float> reversed_filter(
@@ -321,7 +320,7 @@ TEST_F(VectorMathTest, Vadd) {
       }
       for (auto& dest : GetSecondaryVectors(GetDestination(1u), source1)) {
         Vadd(source1.as_span(), source2.as_span(), dest.as_span(),
-             base::checked_cast<uint32_t>(source1.size()));
+             source1.size());
         EXPECT_EQ(expected_dest, dest);
       }
     }
@@ -337,7 +336,7 @@ TEST_F(VectorMathTest, Vsub) {
       }
       for (auto& dest : GetSecondaryVectors(GetDestination(1u), source1)) {
         Vsub(source1.as_span(), source2.as_span(), dest.as_span(),
-             base::checked_cast<uint32_t>(source1.size()));
+             source1.size());
         EXPECT_EQ(expected_dest, dest);
       }
     }
@@ -371,8 +370,7 @@ TEST_F(VectorMathTest, Vmaxmgv) {
     for (const auto& source : GetPrimaryVectors(source_base)) {
       const float expected_max =
           std::accumulate(source.begin(), source.end(), 0.0f, maxmg);
-      float max = Vmaxmgv(source.as_span(),
-                          base::checked_cast<uint32_t>(source.size()));
+      float max = Vmaxmgv(source.as_span(), source.size());
       EXPECT_EQ(expected_max, max) << testing::PrintToString(source);
     }
   }
@@ -387,7 +385,7 @@ TEST_F(VectorMathTest, Vmul) {
       }
       for (auto& dest : GetSecondaryVectors(GetDestination(1u), source1)) {
         Vmul(source1.as_span(), source2.as_span(), dest.as_span(),
-             base::checked_cast<uint32_t>(source1.size()));
+             source1.size());
         EXPECT_EQ(expected_dest, dest);
       }
     }
@@ -404,8 +402,7 @@ TEST_F(VectorMathTest, Vsma) {
     }
     for (auto& dest : GetSecondaryVectors(GetDestination(1u), source)) {
       std::ranges::copy(dest_source, dest.begin());
-      Vsma(source.as_span(), scale, dest.as_span(),
-           base::checked_cast<uint32_t>(source.size()));
+      Vsma(source.as_span(), scale, dest.as_span(), source.size());
       // Different optimizations may use different precisions for intermediate
       // results which may result in different rounding errors thus let's
       // expect only mostly equal floats.
@@ -435,8 +432,7 @@ TEST_F(VectorMathTest, Vsmul) {
       expected_dest[i] = scale * source[i];
     }
     for (auto& dest : GetSecondaryVectors(GetDestination(1u), source)) {
-      Vsmul(source.as_span(), scale, dest.as_span(),
-            base::checked_cast<uint32_t>(source.size()));
+      Vsmul(source.as_span(), scale, dest.as_span(), source.size());
       EXPECT_EQ(expected_dest, dest);
     }
   }
@@ -450,8 +446,7 @@ TEST_F(VectorMathTest, Vsadd) {
       expected_dest[i] = addend + source[i];
     }
     for (auto& dest : GetSecondaryVectors(GetDestination(1u), source)) {
-      Vsadd(source.as_span(), addend, dest.as_span(),
-            base::checked_cast<uint32_t>(source.size()));
+      Vsadd(source.as_span(), addend, dest.as_span(), source.size());
       EXPECT_EQ(expected_dest, dest);
     }
   }
@@ -464,8 +459,7 @@ TEST_F(VectorMathTest, Vsvesq) {
     for (const auto& source : GetPrimaryVectors(source_base)) {
       const float expected_sum =
           std::accumulate(source.begin(), source.end(), 0.0f, sqsum);
-      float sum =
-          Vsvesq(source.as_span(), base::checked_cast<uint32_t>(source.size()));
+      float sum = Vsvesq(source.as_span(), source.size());
       if (std::isfinite(expected_sum)) {
         // Optimized paths in Vsvesq use parallel partial sums which may result
         // in different rounding errors than the non-partial sum algorithm used
@@ -516,8 +510,7 @@ TEST_F(VectorMathTest, Zvmul) {
     for (auto& dest_real : GetSecondaryVectors(GetDestination(2u), real1)) {
       TestVector<float> dest_imag(GetDestination(3u), real1);
       Zvmul(real1.as_span(), imag1.as_span(), real2.as_span(), imag2.as_span(),
-            dest_real.as_span(), dest_imag.as_span(),
-            base::checked_cast<uint32_t>(real1.size()));
+            dest_real.as_span(), dest_imag.as_span(), real1.size());
       // Different optimizations may use different precisions for intermediate
       // results which may result in different rounding errors thus let's
       // expect only mostly equal floats.

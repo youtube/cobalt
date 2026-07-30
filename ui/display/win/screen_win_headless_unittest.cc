@@ -142,6 +142,7 @@ TEST_F(ScreenWinHeadlessTest, DefaultScreen) {
   EXPECT_THAT(display.bounds(), testing::Eq(gfx::Rect(0, 0, 800, 600)));
   EXPECT_THAT(display.work_area(), testing::Eq(gfx::Rect(0, 0, 800, 600)));
   EXPECT_THAT(display.device_scale_factor(), testing::Eq(1.0f));
+  EXPECT_THAT(display.text_scale_multiplier(), testing::Eq(1.0f));
   EXPECT_THAT(display.rotation(), testing::Eq(Display::Rotation::ROTATE_0));
   EXPECT_THAT(display.color_depth(), testing::Eq(24));
   EXPECT_TRUE(display.label().empty());
@@ -156,6 +157,7 @@ TEST_F(ScreenWinHeadlessTest, SpecifiedScreen) {
   EXPECT_THAT(display.bounds(), testing::Eq(gfx::Rect(0, 0, 1600, 1200)));
   EXPECT_THAT(display.work_area(), testing::Eq(gfx::Rect(0, 0, 1600, 1200)));
   EXPECT_THAT(display.device_scale_factor(), testing::Eq(1.0f));
+  EXPECT_THAT(display.text_scale_multiplier(), testing::Eq(1.0f));
   EXPECT_THAT(display.rotation(), testing::Eq(Display::Rotation::ROTATE_0));
   EXPECT_THAT(display.color_depth(), testing::Eq(24));
   EXPECT_THAT(display.label(), testing::Eq("Primary Screen"));

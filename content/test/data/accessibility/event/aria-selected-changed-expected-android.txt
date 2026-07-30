@@ -1,7 +1,7 @@
-TYPE_VIEW_CLICKED class_name=android.view.View
-TYPE_VIEW_CLICKED class_name=android.view.View
-TYPE_VIEW_CLICKED class_name=android.view.View
-TYPE_VIEW_CLICKED class_name=android.view.View
-TYPE_VIEW_CLICKED class_name=android.view.View
-TYPE_VIEW_CLICKED class_name=android.view.View
-TYPE_VIEW_CLICKED class_name=android.view.View
+TYPE_VIEW_CLICKED class_name=android.view.View on [Grid1, GridCell1] class_name=android.view.View
+TYPE_VIEW_CLICKED class_name=android.view.View on [Grid2, GridCell2] class_name=android.view.View
+TYPE_VIEW_CLICKED class_name=android.view.View on [Grid3, GridCell1] class_name=android.view.View
+TYPE_VIEW_CLICKED class_name=android.view.View on [Grid4, GridCell2] class_name=android.view.View
+TYPE_VIEW_CLICKED class_name=android.view.View on [Select1, Option1] class_name=android.view.View
+TYPE_VIEW_CLICKED class_name=android.view.View on [Select2, Option2] class_name=android.view.View
+TYPE_VIEW_CLICKED class_name=android.view.View on [DivSelect, Option2] class_name=android.view.View

@@ -60,20 +60,20 @@ BrowserWindowInterface* GetLastActiveBrowser() {
 using ArcOpenUrlDelegateImplBrowserTest = InProcessBrowserTest;
 
 class ArcOpenUrlDelegateImplWebAppBrowserTest
-    : public web_app::WebAppNavigationBrowserTest,
-      public testing::WithParamInterface<
-          apps::test::LinkCapturingFeatureVersion> {
+    : public web_app::WebAppNavigationBrowserTest {
  public:
   ArcOpenUrlDelegateImplWebAppBrowserTest() {
     features_list_.InitWithFeaturesAndParameters(
-        apps::test::GetFeaturesToEnableLinkCapturingUX(GetParam()), {});
+        apps::test::GetFeaturesToEnableLinkCapturingUX(
+            apps::test::LinkCapturingFeatureVersion::kV2DefaultOff),
+        {});
   }
 
  private:
   base::test::ScopedFeatureList features_list_;
 };
 
-IN_PROC_BROWSER_TEST_P(ArcOpenUrlDelegateImplWebAppBrowserTest, OpenWebApp) {
+IN_PROC_BROWSER_TEST_F(ArcOpenUrlDelegateImplWebAppBrowserTest, OpenWebApp) {
   InstallTestWebApp();
   // Enabling link capturing to ensure it doesn't interfere.
   ASSERT_EQ(apps::test::EnableLinkCapturingByUser(profile(), test_web_app_id()),
@@ -116,7 +116,7 @@ IN_PROC_BROWSER_TEST_P(ArcOpenUrlDelegateImplWebAppBrowserTest, OpenWebApp) {
   }
 }
 
-IN_PROC_BROWSER_TEST_P(ArcOpenUrlDelegateImplWebAppBrowserTest,
+IN_PROC_BROWSER_TEST_F(ArcOpenUrlDelegateImplWebAppBrowserTest,
                        OpenAppWithIntent) {
   const GURL app_url = embedded_https_test_server().GetURL(GetAppUrlHost(), GetAppUrlPath());
 
@@ -209,14 +209,6 @@ IN_PROC_BROWSER_TEST_P(ArcOpenUrlDelegateImplWebAppBrowserTest,
     EXPECT_EQ(launch_url, contents->GetLastCommittedURL());
   }
 }
-
-INSTANTIATE_TEST_SUITE_P(
-    ,
-    ArcOpenUrlDelegateImplWebAppBrowserTest,
-    testing::Values(apps::test::LinkCapturingFeatureVersion::kV2DefaultOff,
-                    apps::test::LinkCapturingFeatureVersion::
-                        kV2DefaultOffCaptureExistingFrames),
-    apps::test::LinkCapturingVersionToString);
 
 void TestOpenSettingFromArc(Browser* browser,
                             ChromePage page,

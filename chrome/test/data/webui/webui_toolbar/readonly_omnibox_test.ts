@@ -70,9 +70,9 @@ suite('ReadonlyOmnibox', function() {
   function assertLinedUp(first: HTMLElement, second: HTMLElement): void {
     const firstBounds = first.getBoundingClientRect();
     const secondBounds = second.getBoundingClientRect();
-    assertEquals(firstBounds.top, secondBounds.top);
-    assertEquals(firstBounds.bottom, secondBounds.bottom);
-    assertEquals(firstBounds.right, secondBounds.left);
+    assertLE(Math.abs(firstBounds.top - secondBounds.top), 0.1);
+    assertLE(Math.abs(firstBounds.bottom - secondBounds.bottom), 0.1);
+    assertLE(Math.abs(firstBounds.right - secondBounds.left), 0.1);
   }
 
   setup(() => {

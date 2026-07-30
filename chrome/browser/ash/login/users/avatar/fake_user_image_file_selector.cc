@@ -13,7 +13,7 @@ FakeUserImageFileSelector::~FakeUserImageFileSelector() = default;
 
 void FakeUserImageFileSelector::SelectFile(
     base::OnceCallback<void(const base::FilePath&)> selected_cb,
-    base::OnceCallback<void(void)> canceled_cb) {
+    base::OnceClosure canceled_cb) {
   std::move(selected_cb).Run(file_path_);
 }
 

@@ -95,8 +95,7 @@ ScopedJavaGlobalRef<jobject> ConvertAccessorySheetDataToJavaObject(
   ScopedJavaGlobalRef<jobject> j_tab_data;
   j_tab_data.Reset(Java_ManualFillingComponentBridge_createAccessorySheetData(
       env, static_cast<int>(tab_data.get_sheet_type()),
-      tab_data.user_info_title(), tab_data.plus_address_title(),
-      tab_data.warning()));
+      tab_data.user_info_title(), tab_data.warning()));
 
   if (tab_data.option_toggle().has_value()) {
     const autofill::OptionToggle& toggle = tab_data.option_toggle().value();
@@ -105,15 +104,6 @@ ScopedJavaGlobalRef<jobject> ConvertAccessorySheetDataToJavaObject(
         toggle.is_enabled(), static_cast<int>(toggle.accessory_action()));
   }
 
-  for (const autofill::PlusAddressInfo& plus_address_info :
-       tab_data.plus_address_info_list()) {
-    Java_ManualFillingComponentBridge_addPlusAddressInfoToAccessorySheetData(
-        env, java_object, j_tab_data,
-        static_cast<int>(tab_data.get_sheet_type()),
-        static_cast<int>(plus_address_info.plus_address().suggestion_type()),
-        plus_address_info.origin(),
-        plus_address_info.plus_address().display_text());
-  }
 
   for (const autofill::PasskeySection& passkey_section :
        tab_data.passkey_section_list()) {

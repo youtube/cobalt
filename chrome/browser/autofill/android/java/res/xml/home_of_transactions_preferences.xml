@@ -64,8 +64,17 @@ found in the LICENSE file.
         app:isPreferenceVisible="false" />
 
     <org.chromium.components.browser_ui.settings.ChromeBasePreference
-        android:key="autofill_and_passwords_settings"
+        android:key="autofill_and_passwords_personal_context"
         android:order="7"
+        android:title="@string/personal_context_autofill_settings_title_android"
+        android:icon="@drawable/ic_spark_24dp"
+        android:summary="@string/personal_context_autofill_settings_summary_android"
+        app:iconTint="@macro/default_icon_color"
+        app:isPreferenceVisible="false" />
+
+    <org.chromium.components.browser_ui.settings.ChromeBasePreference
+        android:key="autofill_and_passwords_settings"
+        android:order="8"
         android:title="@string/autofill_settings_title"
         android:icon="@drawable/ic_settings_24dp"
         android:summary="@string/autofill_and_passwords_settings_summary"/>

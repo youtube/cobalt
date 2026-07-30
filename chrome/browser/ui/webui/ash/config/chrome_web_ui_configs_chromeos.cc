@@ -121,9 +121,6 @@
 #include "ui/webui/webui_util.h"
 #if !defined(OFFICIAL_BUILD)
 #include "ash/webui/sample_system_web_app_ui/sample_system_web_app_ui.h"
-#if !defined(USE_REAL_DBUS_CLIENTS)
-#include "chrome/browser/ui/webui/ash/emulator/device_emulator_ui.h"
-#endif  // !defined(USE_REAL_DBUS_CLIENTS)
 #endif  // !defined(OFFICIAL_BUILD)
 
 namespace content {
@@ -357,9 +354,6 @@ void RegisterAshChromeWebUIConfigs() {
 #if !defined(OFFICIAL_BUILD)
   map.AddWebUIConfig(std::make_unique<SampleSystemWebAppUIConfig>());
   map.AddWebUIConfig(std::make_unique<StatusAreaInternalsUIConfig>());
-#if !defined(USE_REAL_DBUS_CLIENTS)
-  map.AddWebUIConfig(std::make_unique<DeviceEmulatorUIConfig>());
-#endif  // !defined(USE_REAL_DBUS_CLIENTS)
 #endif  // !defined(OFFICIAL_BUILD)
 }
 

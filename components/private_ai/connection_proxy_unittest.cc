@@ -192,7 +192,7 @@ TEST_F(ConnectionProxyTest, ProxyTokenFailure) {
 
   auto result = future.Get();
   EXPECT_FALSE(result.has_value());
-  EXPECT_EQ(result.error(), StatusCode::kError);
+  EXPECT_EQ(result.error(), StatusCode::kProxyTokenFetchFailed);
 
   // A subsequent request should also fail.
   base::test::TestFuture<base::expected<proto::PrivateAiResponse, StatusCode>>
@@ -201,7 +201,7 @@ TEST_F(ConnectionProxyTest, ProxyTokenFailure) {
                           future2.GetCallback());
   auto result2 = future2.Get();
   EXPECT_FALSE(result2.has_value());
-  EXPECT_EQ(result2.error(), StatusCode::kError);
+  EXPECT_EQ(result2.error(), StatusCode::kConnectionClosedByClient);
 }
 
 TEST_F(ConnectionProxyTest, ProxyConfigTokenFailure) {

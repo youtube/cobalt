@@ -48,6 +48,7 @@
 #include "third_party/blink/renderer/core/style_property_shorthand.h"
 #include "third_party/blink/renderer/core/testing/color_scheme_helper.h"
 #include "third_party/blink/renderer/core/testing/page_test_base.h"
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/testing/runtime_enabled_features_test_helpers.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 
@@ -4122,13 +4123,12 @@ class NullAnchorEvaluator : public AnchorEvaluator {
  public:
   std::optional<LayoutUnit> Evaluate(
       const AnchorQuery&,
-      const StylePositionAnchor& position_anchor,
+      const DefaultAnchorData&,
       const std::optional<PositionAreaOffsets>&) override {
     return std::nullopt;
   }
   std::optional<PositionAreaOffsets> ComputePositionAreaOffsetsForLayout(
-      const StylePositionAnchor&,
-      PositionArea) override {
+      const DefaultAnchorData&) override {
     return PositionAreaOffsets();
   }
   std::optional<PhysicalOffset> ComputeAnchorCenterOffsets(
@@ -4409,7 +4409,7 @@ class TopAnchorEvaluator : public NullAnchorEvaluator {
  public:
   std::optional<LayoutUnit> Evaluate(
       const AnchorQuery&,
-      const StylePositionAnchor& position_anchor,
+      const DefaultAnchorData&,
       const std::optional<PositionAreaOffsets>&) override {
     if (GetMode() == Mode::kTop) {
       return LayoutUnit(1);
@@ -4866,4 +4866,37 @@ TEST_F(StyleCascadeTest, CSSFunctionDoesNotExistInShorthand) {
   }
 }
 
+// When `line-clamp` is exposed as a longhand, it overlaps with
+// `-alternative-webkit-line-clamp`.
+TEST_F(StyleCascadeTest, LineClampCascadeOrder) {
+  ScopedCSSLineClampForTest scoped_feature1(true);
+  ScopedCSSLineClampAsShorthandForTest scoped_feature2(false);
+
+  {
+    TestCascade cascade(GetDocument());
+    cascade.Add("line-clamp", "6 auto");
+    cascade.Add("-webkit-line-clamp", "3");
+    cascade.Apply();
+    EXPECT_EQ("3 -webkit-legacy", cascade.ComputedValue("line-clamp"));
+    EXPECT_EQ("3", cascade.ComputedValue("-webkit-line-clamp"));
+  }
+
+  {
+    TestCascade cascade(GetDocument());
+    cascade.Add("-webkit-line-clamp", "3");
+    cascade.Add("line-clamp", "none");
+    cascade.Apply();
+    EXPECT_EQ("none", cascade.ComputedValue("line-clamp"));
+    EXPECT_EQ("none", cascade.ComputedValue("-webkit-line-clamp"));
+  }
+
+  {
+    TestCascade cascade(GetDocument());
+    cascade.Add("-webkit-line-clamp", "3", Origin::kUser);
+    cascade.Add("line-clamp", "6 auto", Origin::kAuthor);
+    cascade.Apply();
+    EXPECT_EQ("6 auto", cascade.ComputedValue("line-clamp"));
+    EXPECT_EQ(nullptr, cascade.ComputedValue("-webkit-line-clamp"));
+  }
+}
 }  // namespace blink

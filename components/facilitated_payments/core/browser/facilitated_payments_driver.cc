@@ -124,8 +124,8 @@ void FacilitatedPaymentsDriver::OnTextCopiedToClipboard(
         facilitated_payments_client_->GetOptimizationGuideDecider());
   }
   pix_manager_->OnPixCodeCopiedToClipboard(
-      main_frame_url, iframe_url, main_frame_origin, rust_validation_result,
-      std::move(copied_text_utf8), ukm_source_id);
+      main_frame_url, iframe_url, main_frame_origin, is_same_origin,
+      rust_validation_result, std::move(copied_text_utf8), ukm_source_id);
 }
 
 void FacilitatedPaymentsDriver::TriggerPaymentLinkPushPayment(

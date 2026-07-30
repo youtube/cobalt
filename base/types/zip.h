@@ -106,6 +106,16 @@ class Zipper {
 
   constexpr ZipEnd end() noexcept { return ZipEnd(); }
 
+  constexpr size_t size() const
+    requires(std::ranges::sized_range<Ranges> && ...)
+  {
+    return std::apply(
+        [](Ranges&... ranges) {
+          return std::min({std::ranges::size(ranges)...});
+        },
+        ranges_);
+  }
+
  private:
   template <size_t... Is>
   constexpr iterator begin_impl(std::index_sequence<Is...>) LIFETIME_BOUND {

@@ -46,27 +46,6 @@ static const float kDefaultCancelButtonSize = 9;
 static const float kMinCancelButtonSize = 5;
 static const float kMaxCancelButtonSize = 21;
 
-Color LayoutThemeDefault::active_selection_background_color_ =
-    Color::FromRGBA32(kDefaultActiveSelectionBgColor);
-Color LayoutThemeDefault::active_selection_foreground_color_ =
-    Color::FromRGBA32(kDefaultActiveSelectionFgColor);
-Color LayoutThemeDefault::inactive_selection_background_color_ =
-    Color::FromRGBA32(kDefaultInactiveSelectionBgColor);
-Color LayoutThemeDefault::inactive_selection_foreground_color_ =
-    Color::FromRGBA32(kDefaultInactiveSelectionFgColor);
-Color
-    LayoutThemeDefault::active_list_box_selection_background_color_dark_mode_ =
-        Color::FromRGBA32(0xFF99C8FF);
-Color
-    LayoutThemeDefault::active_list_box_selection_foreground_color_dark_mode_ =
-        Color::FromRGBA32(0xFF3B3B3B);
-Color LayoutThemeDefault::
-    inactive_list_box_selection_background_color_dark_mode_ =
-        Color::FromRGBA32(0x4D3B3B3B);
-Color LayoutThemeDefault::
-    inactive_list_box_selection_foreground_color_dark_mode_ =
-        Color::FromRGBA32(0xFF323232);
-
 LayoutThemeDefault::LayoutThemeDefault() : painter_(*this) {}
 
 LayoutThemeDefault::~LayoutThemeDefault() = default;
@@ -85,54 +64,6 @@ String LayoutThemeDefault::ExtraDefaultStyleSheet() {
   builder.Append(extra_style_sheet);
   builder.Append(multiple_fields_style_sheet);
   return builder.ToString();
-}
-
-Color LayoutThemeDefault::PlatformActiveSelectionBackgroundColor(
-    mojom::blink::ColorScheme color_scheme) const {
-  return active_selection_background_color_;
-}
-
-Color LayoutThemeDefault::PlatformInactiveSelectionBackgroundColor(
-    mojom::blink::ColorScheme color_scheme) const {
-  return inactive_selection_background_color_;
-}
-
-Color LayoutThemeDefault::PlatformActiveSelectionForegroundColor(
-    mojom::blink::ColorScheme color_scheme) const {
-  return active_selection_foreground_color_;
-}
-
-Color LayoutThemeDefault::PlatformInactiveSelectionForegroundColor(
-    mojom::blink::ColorScheme color_scheme) const {
-  return inactive_selection_foreground_color_;
-}
-
-Color LayoutThemeDefault::PlatformActiveListBoxSelectionBackgroundColor(
-    mojom::blink::ColorScheme color_scheme) const {
-  return color_scheme == mojom::blink::ColorScheme::kDark
-             ? active_list_box_selection_background_color_dark_mode_
-             : PlatformActiveSelectionBackgroundColor(color_scheme);
-}
-
-Color LayoutThemeDefault::PlatformInactiveListBoxSelectionBackgroundColor(
-    mojom::blink::ColorScheme color_scheme) const {
-  return color_scheme == mojom::blink::ColorScheme::kDark
-             ? inactive_list_box_selection_background_color_dark_mode_
-             : PlatformInactiveSelectionBackgroundColor(color_scheme);
-}
-
-Color LayoutThemeDefault::PlatformActiveListBoxSelectionForegroundColor(
-    mojom::blink::ColorScheme color_scheme) const {
-  return color_scheme == mojom::blink::ColorScheme::kDark
-             ? active_list_box_selection_foreground_color_dark_mode_
-             : PlatformActiveSelectionForegroundColor(color_scheme);
-}
-
-Color LayoutThemeDefault::PlatformInactiveListBoxSelectionForegroundColor(
-    mojom::blink::ColorScheme color_scheme) const {
-  return color_scheme == mojom::blink::ColorScheme::kDark
-             ? inactive_list_box_selection_foreground_color_dark_mode_
-             : PlatformInactiveSelectionForegroundColor(color_scheme);
 }
 
 gfx::Size LayoutThemeDefault::SliderTickSize() const {
@@ -161,22 +92,6 @@ void LayoutThemeDefault::AdjustSliderThumbSize(
              AppearanceValue::kSliderThumbVertical) {
     builder.SetWidth(Length::Fixed(size.height() * zoom_level));
     builder.SetHeight(Length::Fixed(size.width() * zoom_level));
-  }
-}
-
-void LayoutThemeDefault::SetSelectionColors(Color active_background_color,
-                                            Color active_foreground_color,
-                                            Color inactive_background_color,
-                                            Color inactive_foreground_color) {
-  if (active_selection_background_color_ != active_background_color ||
-      active_selection_foreground_color_ != active_foreground_color ||
-      inactive_selection_background_color_ != inactive_background_color ||
-      inactive_selection_foreground_color_ != inactive_foreground_color) {
-    active_selection_background_color_ = active_background_color;
-    active_selection_foreground_color_ = active_foreground_color;
-    inactive_selection_background_color_ = inactive_background_color;
-    inactive_selection_foreground_color_ = inactive_foreground_color;
-    PlatformColorsDidChange();
   }
 }
 
@@ -217,18 +132,6 @@ void LayoutThemeDefault::AdjustSearchFieldCancelButtonStyle(
       kMaxCancelButtonSize)));
   builder.SetWidth(Length::Fixed(cancel_button_size));
   builder.SetHeight(Length::Fixed(cancel_button_size));
-}
-
-void LayoutThemeDefault::AdjustMenuListStyle(
-    ComputedStyleBuilder& builder) const {
-  LayoutTheme::AdjustMenuListStyle(builder);
-  // Height is locked to auto on all browsers.
-  builder.ResetLineHeight();
-}
-
-void LayoutThemeDefault::AdjustMenuListButtonStyle(
-    ComputedStyleBuilder& builder) const {
-  AdjustMenuListStyle(builder);
 }
 
 // The following internal paddings are in addition to the user-supplied padding.

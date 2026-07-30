@@ -137,7 +137,7 @@ void SupervisionMixin::SetParentalControlsAccountCapability(
   CHECK_EQ(account_info.email, email_);
   AccountInfo account = identity_manager->FindExtendedAccountInfo(account_info);
 
-  AccountCapabilitiesTestMutator mutator(&account.capabilities);
+  AccountCapabilitiesTestMutator mutator(&account);
   mutator.set_is_subject_to_parental_controls(is_supervised_profile);
   mutator.set_can_fetch_family_member_info(is_supervised_profile);
   signin::UpdateAccountInfoForAccount(identity_manager, account);

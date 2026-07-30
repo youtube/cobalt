@@ -19,7 +19,8 @@ message ChromeFulfillmentInfo {
   optional DefaultSearchEngine default_search_engine = 6;
 }
 message ChromeFeatureUsage {
-  reserved 1;  // times_followed_from_web_page_menu
+  reserved 1;
+  reserved "times_followed_from_web_page_menu";
 }
 message ChromeSignInStatus {
   enum SignInStatus {

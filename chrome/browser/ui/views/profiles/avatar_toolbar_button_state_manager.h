@@ -110,6 +110,9 @@ class StateProvider {
       SkColor /*icon_color*/,
       const ui::ColorProvider& color_provider) const;
 
+  // Returns the avatar icon URL of the avatar button.
+  virtual std::string GetAvatarIconUrl() const;
+
   // Returns the tooltip text of the avatar button.
   virtual std::u16string GetAvatarTooltipText() const;
 
@@ -211,6 +214,7 @@ class AvatarToolbarButtonStateManager
   Browser* browser() const { return browser_; }
 
   StateProvider* GetActiveStateProvider() const;
+  ::AvatarToolbarButtonState GetActiveState() const;
 
   // Methods to register or remove observers of the button.
   void AddObserver(AvatarToolbarButtonInterface::Observer* observer);

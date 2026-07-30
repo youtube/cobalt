@@ -16,7 +16,7 @@
 #import "ios/chrome/browser/intelligence/page_action_menu/utils/ai_hub_metrics.h"
 #import "ios/chrome/browser/reader_mode/model/constants.h"
 #import "ios/chrome/browser/reader_mode/model/features.h"
-#import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
+#import "ios/chrome/browser/shared/public/commands/gemini_commands.h"
 #import "ios/chrome/browser/shared/public/commands/lens_overlay_commands.h"
 #import "ios/chrome/browser/shared/public/commands/page_action_menu_commands.h"
 #import "ios/chrome/browser/shared/public/commands/reader_mode_commands.h"
@@ -629,9 +629,10 @@ const CGFloat kDividerWidth = 1.0;
   RecordAIHubAction(IOSAIHubAction::kGemini);
   PageActionMenuViewController* __weak weakSelf = self;
   [self.pageActionMenuHandler dismissPageActionMenuWithCompletion:^{
-    [weakSelf.BWGHandler startGeminiFlowWithStartupState:
-                             [[GeminiStartupState alloc]
-                                 initWithEntryPoint:gemini::EntryPoint::AIHub]];
+    [weakSelf.geminiHandler
+        startGeminiFlowWithStartupState:
+            [[GeminiStartupState alloc]
+                initWithEntryPoint:gemini::EntryPoint::AIHub]];
   }];
 }
 
@@ -701,16 +702,22 @@ const CGFloat kDividerWidth = 1.0;
       [self.pageActionMenuHandler dismissPageActionMenuWithCompletion:nil];
       break;
     case PageActionMenuPriceTracking: {
-      // Capture the mutator before dismissal.
-      id<PageActionMenuMutator> mutator = self.mutator;
-      [self.pageActionMenuHandler dismissPageActionMenuWithCompletion:^{
-        [mutator openPriceInsightsPanel];
-      }];
+      [self handlePriceTrackingRowTap];
       break;
     }
     default:
       break;
   }
+}
+
+// Handles taps on the price tracking feature row.
+- (void)handlePriceTrackingRowTap {
+  CHECK(IsProactiveSuggestionsFrameworkEnabled());
+  // Capture the mutator before dismissal.
+  id<PageActionMenuMutator> mutator = self.mutator;
+  [self.pageActionMenuHandler dismissPageActionMenuWithCompletion:^{
+    [mutator openPriceInsightsPanel];
+  }];
 }
 
 // Handles taps on the left side of split action feature rows.
@@ -1143,6 +1150,13 @@ const CGFloat kDividerWidth = 1.0;
                 forControlEvents:UIControlEventTouchUpInside];
         [accessoryStack addArrangedSubview:chevronButton];
         [stackView addArrangedSubview:accessoryStack];
+
+        // Make the entire row tappable
+        UITapGestureRecognizer* tapRecognizer = [[UITapGestureRecognizer alloc]
+            initWithTarget:self
+                    action:@selector(handlePriceTrackingRowTap)];
+        tapRecognizer.cancelsTouchesInView = NO;
+        [containerView addGestureRecognizer:tapRecognizer];
       } else {
         if (feature.actionText && feature.actionText.length > 0) {
           UIButton* actionButton = [UIButton buttonWithType:UIButtonTypeSystem];

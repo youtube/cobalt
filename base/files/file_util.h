@@ -414,6 +414,19 @@ BASE_EXPORT File CreateAndOpenTemporaryFileInDir(const FilePath& dir,
                                                  FilePath* temp_file,
                                                  uint32_t additional_flags = 0);
 
+#if BUILDFLAG(IS_WIN)
+// Similar to `CreateAndOpenTemporaryFileInDir`, but allows the caller to
+// specify custom `base::File::Flags` (defined in base/files/file.h) when
+// opening the file.
+// The `base::File::FLAG_CREATE` flag is automatically added to ensure atomic
+// creation (i.e. it will fail if the file already exists).
+// These custom |flags| completely replace the default flags used by
+// `CreateAndOpenTemporaryFileInDir`.
+BASE_EXPORT File CreateAndOpenTemporaryFileInDirWithFlags(const FilePath& dir,
+                                                          FilePath* temp_file,
+                                                          uint32_t flags);
+#endif
+
 // Creates a temporary file. The full path is placed in `path`, and the
 // function returns true if was successful in creating the file. The file will
 // be empty and all handles closed after this function returns.

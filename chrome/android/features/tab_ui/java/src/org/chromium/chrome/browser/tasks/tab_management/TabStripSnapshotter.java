@@ -28,7 +28,7 @@ import java.util.Set;
  * of these tokens is to decide when the bottom toolbar should take a bitmap capture in preparation
  * for browser controls being scrolled off the screen. This class only watches properties that
  * directly effect the steady state of the view, and thus it implicitly tightly coupled with the
- * TabListMode.STRIP mode of the {@link TabListCoordinator} component.
+ * TabListMode.BOTTOM_STRIP mode of the {@link TabListCoordinator} component.
  */
 @NullMarked
 public class TabStripSnapshotter {

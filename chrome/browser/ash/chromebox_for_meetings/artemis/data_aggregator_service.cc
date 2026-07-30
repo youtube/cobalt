@@ -135,13 +135,6 @@ void DataAggregatorService::Initialize() {
 }
 
 // static
-void DataAggregatorService::InitializeForTesting(
-    DataAggregatorService* data_aggregator_service) {
-  CHECK(!g_data_aggregator_service);
-  g_data_aggregator_service = data_aggregator_service;
-}
-
-// static
 void DataAggregatorService::Shutdown() {
   CHECK(g_data_aggregator_service);
   delete g_data_aggregator_service;

@@ -324,8 +324,8 @@ bool ComputeMargins(LogicalSize margin_percentage_resolution_size,
 // its self-alignment properties.
 // https://drafts.csswg.org/css-position-3/#abspos-layout
 void ComputeInsets(const LayoutUnit available_size,
-                   const LayoutUnit container_start,
-                   const LayoutUnit container_end,
+                   const LayoutUnit overflow_limit_start,
+                   const LayoutUnit overflow_limit_end,
                    const LayoutUnit original_imcb_start,
                    const LayoutUnit original_imcb_end,
                    const bool has_default_alignment_overflow,
@@ -392,11 +392,11 @@ void ComputeInsets(const LayoutUnit available_size,
                                                  original_imcb_end;
 
     // If the insets shifted the IMCB outside the containing-block, we consider
-    // that to be the safe edge.
+    // that to be the safe edge (taking the union of the two).
     auto adjust_start = [&]() {
       const LayoutUnit safe_start =
           use_imcb ? original_imcb_start
-                   : std::min(original_imcb_start, -container_start);
+                   : std::min(original_imcb_start, overflow_limit_start);
       if (imcb_start < safe_start) {
         imcb_end += (imcb_start - safe_start);
         imcb_start = safe_start;
@@ -405,7 +405,7 @@ void ComputeInsets(const LayoutUnit available_size,
     auto adjust_end = [&]() {
       const LayoutUnit safe_end =
           use_imcb ? original_imcb_end
-                   : std::min(original_imcb_end, -container_end);
+                   : std::min(original_imcb_end, overflow_limit_end);
       if (imcb_end < safe_end) {
         imcb_start += (imcb_end - safe_end);
         imcb_end = safe_end;
@@ -626,7 +626,7 @@ bool ComputeOofInlineDimensions(
     const LogicalAlignment& alignment,
     const BoxStrut& border_padding,
     const std::optional<LogicalSize>& replaced_size,
-    const BoxStrut& container_insets,
+    const BoxStrut& overflow_limit_insets,
     AutoSizeBehavior inline_auto_size_behavior,
     AutoSizeBehavior block_auto_size_behavior,
     WritingDirectionMode container_writing_direction,
@@ -740,8 +740,8 @@ bool ComputeOofInlineDimensions(
         imcb.inline_end + dimensions->margins.inline_end;
   } else {
     ComputeInsets(
-        space.AvailableSize().inline_size, container_insets.inline_start,
-        container_insets.inline_end, imcb.inline_start, imcb.inline_end,
+        space.AvailableSize().inline_size, overflow_limit_insets.inline_start,
+        overflow_limit_insets.inline_end, imcb.inline_start, imcb.inline_end,
         imcb.inline_has_default_alignment_overflow, imcb.inline_inset_bias,
         imcb.inline_safe_inset_bias, imcb.inline_default_inset_bias,
         dimensions->margins.inline_start, dimensions->margins.inline_end,
@@ -762,7 +762,7 @@ const LayoutResult* ComputeOofBlockDimensions(
     const LogicalAlignment& alignment,
     const BoxStrut& border_padding,
     const std::optional<LogicalSize>& replaced_size,
-    const BoxStrut& container_insets,
+    const BoxStrut& overflow_limit_insets,
     AutoSizeBehavior block_auto_size_behavior,
     WritingDirectionMode container_writing_direction,
     LogicalOofDimensions* dimensions) {
@@ -862,8 +862,8 @@ const LayoutResult* ComputeOofBlockDimensions(
         imcb.block_end + dimensions->margins.block_end;
   } else {
     ComputeInsets(
-        space.AvailableSize().block_size, container_insets.block_start,
-        container_insets.block_end, imcb.block_start, imcb.block_end,
+        space.AvailableSize().block_size, overflow_limit_insets.block_start,
+        overflow_limit_insets.block_end, imcb.block_start, imcb.block_end,
         imcb.block_has_default_alignment_overflow, imcb.block_inset_bias,
         imcb.block_safe_inset_bias, imcb.block_default_inset_bias,
         dimensions->margins.block_start, dimensions->margins.block_end,

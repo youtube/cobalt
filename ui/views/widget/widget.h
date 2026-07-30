@@ -1433,6 +1433,9 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
   // e.g. if set to kDark, colors will always be for the dark theme.
   void SetColorModeOverride(
       std::optional<ui::ColorProviderKey::ColorMode> color_mode);
+  std::optional<ui::ColorProviderKey::ColorMode> color_mode_override() const {
+    return color_mode_override_;
+  }
 
   // Sets an override for `user_color` when `GetColorProvider()` is requested.
   // e.g. if set to kDark, colors will always be for the dark theme.

@@ -12,11 +12,13 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <algorithm>
 #include <array>
 #include <memory>
 
 #include "base/compiler_specific.h"
 #include "base/containers/heap_array.h"
+#include "base/containers/span.h"
 #include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
@@ -824,19 +826,19 @@ TEST_F(RasterImplementationTest, TransferCacheSerialization) {
   ScopedTransferBufferPtr buffer(buffer_size, helper_, transfer_buffer_);
   ASSERT_EQ(buffer.size(), buffer_size);
 
-  uint8_t* buffer_start = reinterpret_cast<uint8_t*>(buffer.address());
-  UNSAFE_TODO(memset(buffer_start, 0, buffer_size));
+  base::span<uint8_t> buffer_span = buffer.as_byte_span();
+  std::ranges::fill(buffer_span, 0u);
   gl_->SetRasterMappedBufferForTesting(std::move(buffer));
   auto transfer_cache = gl_->CreateTransferCacheHelperForTesting();
 
   std::vector<uint8_t> data(buffer_size - 16u);
-  uint8_t* memory = UNSAFE_TODO(buffer_start + 8u);
+  base::span<uint8_t> memory = buffer_span.subspan(8u);
   cc::ClientRawMemoryTransferCacheEntry inlined_entry(data);
   EXPECT_EQ(transfer_cache->CreateEntry(inlined_entry, memory), data.size());
-  UNSAFE_TODO(EXPECT_EQ(memcmp(data.data(), memory, data.size()), 0));
+  EXPECT_EQ(base::span(data), memory.first(data.size()));
 
   data.resize(buffer_size + 16u);
-  memory = UNSAFE_TODO(buffer_start + 8u);
+  memory = buffer_span.subspan(8u);
   cc::ClientRawMemoryTransferCacheEntry non_inlined_entry(data);
   EXPECT_EQ(transfer_cache->CreateEntry(non_inlined_entry, memory), 0u);
 }

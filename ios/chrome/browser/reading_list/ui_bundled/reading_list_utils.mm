@@ -35,20 +35,6 @@ void OnCanonicalUrlFetched(ReadingListBrowserAgent* readingListBrowserAgent,
 
 }  // namespace
 
-ReadingListUIDistillationStatus UIStatusFromModelStatus(
-    ReadingListEntry::DistillationState distillation_state) {
-  switch (distillation_state) {
-    case ReadingListEntry::WILL_RETRY:
-    case ReadingListEntry::PROCESSING:
-    case ReadingListEntry::WAITING:
-      return ReadingListUIDistillationStatusPending;
-    case ReadingListEntry::PROCESSED:
-      return ReadingListUIDistillationStatusSuccess;
-    case ReadingListEntry::DISTILLATION_ERROR:
-      return ReadingListUIDistillationStatusFailure;
-  }
-}
-
 void AddToReadingListUsingCanonicalUrl(
     ReadingListBrowserAgent* readingListBrowserAgent,
     web::WebState* web_state) {

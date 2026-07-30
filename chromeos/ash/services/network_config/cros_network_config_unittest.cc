@@ -14,6 +14,7 @@
 #include "base/json/json_reader.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
+#include "base/no_destructor.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/test/bind.h"
@@ -113,8 +114,6 @@ constexpr char kTestApnCellularShillDictFmt[] =
             "Cellular.ActivationState": "activated", "Cellular.ICCID": "%s",
             "Profile": "%s", "Cellular.LastGoodAPN": %s})";
 
-static const re2::RE2 kApnIdRegex("[0-9a-fA-F]{32}");
-
 // Escaped twice, as it will be embedded as part of a JSON string, which should
 // have a single level of escapes still present.
 const char kOpenVPNTLSAuthContents[] =
@@ -161,6 +160,11 @@ struct ApnHistogramCounts {
   size_t num_disable_type_attach = 0u;
   size_t num_disable_type_default_and_attach = 0u;
 };
+
+const re2::RE2& GetApnIdRegex() {
+  static const base::NoDestructor<re2::RE2> regex("[0-9a-fA-F]{32}");
+  return *regex;
+}
 
 void CompareTrafficCounters(
     const std::vector<mojom::TrafficCounterPtr>& actual_traffic_counters,
@@ -238,7 +242,7 @@ mojom::ConfigPropertiesPtr CreateFakeVpnConfig(std::string name,
 
 bool OncApnHasId(const base::DictValue& apn) {
   if (const std::string* id = apn.FindString(::onc::cellular_apn::kId)) {
-    return re2::RE2::FullMatch(*id, kApnIdRegex);
+    return re2::RE2::FullMatch(*id, GetApnIdRegex());
   }
   return false;
 }
@@ -269,7 +273,7 @@ bool MojoApnHasId(const mojom::ApnPropertiesPtr& apn) {
   if (!apn->id.has_value()) {
     return false;
   }
-  return re2::RE2::FullMatch(*apn->id, kApnIdRegex);
+  return re2::RE2::FullMatch(*apn->id, GetApnIdRegex());
 }
 
 }  // namespace

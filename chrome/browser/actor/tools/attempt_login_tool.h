@@ -15,11 +15,11 @@
 #include "base/task/cancelable_task_tracker.h"
 #include "chrome/browser/actor/tools/tool.h"
 #include "chrome/browser/actor/tools/tool_callbacks.h"
-#include "chrome/browser/password_manager/actor_login/actor_login_quality_logger.h"
-#include "chrome/browser/password_manager/actor_login/actor_login_service.h"
 #include "chrome/common/actor_webui.mojom-forward.h"
 #include "components/actor/core/shared_types.h"
 #include "components/actor/public/mojom/actor_types.mojom-forward.h"
+#include "components/password_manager/core/browser/actor_login/actor_login_quality_logger.h"
+#include "components/password_manager/core/browser/actor_login/actor_login_service.h"
 #include "components/tabs/public/tab_interface.h"
 
 class GURL;

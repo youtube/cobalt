@@ -9,11 +9,13 @@
 
 #include "base/barrier_closure.h"
 #include "base/containers/extend.h"
+#include "base/files/file_util.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/strcat.h"
 #include "base/strings/to_string.h"
+#include "base/task/thread_pool.h"
 #include "base/trace_event/trace_event.h"
 #include "components/optimization_guide/core/model_execution/manifest_broker/manifest_solution_factory.h"
 #include "components/optimization_guide/core/model_execution/manifest_broker/manifest_validation.h"
@@ -284,11 +286,31 @@ void ManifestBrokerState::GetStateInfo(
                performance_classifier_.GetBrokerProperties());
   base::Extend(result->properties, manifest_monitor_.GetBrokerProperties());
   result->use_cases = model_broker_impl_.GetBrokerUseCaseInfo();
+
+  std::vector<std::pair<mojom::BrokerModelInfoPtr, base::FilePath>>
+      models_with_paths;
   if (asset_manager_) {
     result->assets = asset_manager_->GetBrokerAssets();
-    result->models = asset_manager_->GetBrokerModels();
+    models_with_paths = asset_manager_->GetBrokerModels();
   }
-  std::move(callback).Run(std::move(result));
+
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE, {base::MayBlock(), base::TaskPriority::BEST_EFFORT},
+      base::BindOnce(
+          [](mojom::BrokerStateInfoPtr result,
+             std::vector<std::pair<mojom::BrokerModelInfoPtr, base::FilePath>>
+                 models_with_paths) {
+            for (auto& [model_info, path] : models_with_paths) {
+              if (!path.empty()) {
+                model_info->folder_size = static_cast<uint64_t>(
+                    base::ComputeDirectorySize(path));
+              }
+              result->models.push_back(std::move(model_info));
+            }
+            return result;
+          },
+          std::move(result), std::move(models_with_paths)),
+      std::move(callback));
 }
 
 void ManifestBrokerState::SetUseCaseRequested(const std::string& use_case,

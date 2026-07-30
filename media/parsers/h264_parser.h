@@ -488,8 +488,7 @@ class MEDIA_EXPORT H264Parser {
 
   // Parses the input stream and returns all the NALUs through |nalus|. Returns
   // false if the stream is invalid.
-  static bool ParseNALUs(const uint8_t* stream,
-                         size_t stream_size,
+  static bool ParseNALUs(base::span<const uint8_t> stream,
                          std::vector<H264NALU>* nalus);
 
   H264Parser();

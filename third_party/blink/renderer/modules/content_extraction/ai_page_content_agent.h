@@ -5,6 +5,8 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_CONTENT_EXTRACTION_AI_PAGE_CONTENT_AGENT_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_CONTENT_EXTRACTION_AI_PAGE_CONTENT_AGENT_H_
 
+#include <cstdint>
+
 #include "base/containers/enum_set.h"
 #include "base/functional/callback.h"
 #include "base/memory/stack_allocated.h"
@@ -66,6 +68,8 @@ class MODULES_EXPORT AIPageContentAgent final
   // mojom::blink::AIPageContentAgent overrides.
   void GetAIPageContent(mojom::blink::AIPageContentOptionsPtr options,
                         GetAIPageContentCallback callback) override;
+  void GetImageBytes(int32_t dom_node_id,
+                     GetImageBytesCallback callback) override;
 
   // public for testing.
   mojom::blink::AIPageContentPtr GetAIPageContentInternal(

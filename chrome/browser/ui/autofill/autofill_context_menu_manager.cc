@@ -172,8 +172,7 @@ bool IsLikelyDogfoodClient() {
 // Returns true if the field is a username or password field.
 bool IsPasswordFormField(ContentPasswordManagerDriver& password_manager_driver,
                          const content::ContextMenuParams& params) {
-  const autofill::FieldRendererId current_field_renderer_id(
-      params.field_renderer_id);
+  const FieldRendererId current_field_renderer_id(params.field_renderer_id);
   return password_manager_driver.GetPasswordManager()
       ->GetPasswordFormCache()
       ->GetPasswordForm(&password_manager_driver, current_field_renderer_id);
@@ -288,7 +287,7 @@ void AutofillContextMenuManager::ExecuteCommand(int command_id) {
     // This function also records metrics.
     password_manager_util::UserTriggeredManualGenerationFromContextMenu(
         ChromePasswordManagerClient::FromWebContents(web_contents),
-        autofill::ContentAutofillClient::FromWebContents(web_contents));
+        ContentAutofillClient::FromWebContents(web_contents));
     return;
   }
 }
@@ -473,7 +472,7 @@ void AutofillContextMenuManager::AddPasswordsManualFallbackItems(
       password_manager_util::ManualPasswordGenerationEnabled(
           &password_manager_driver) &&
       password_manager_driver.IsPasswordFieldForPasswordManager(
-          autofill::FieldRendererId(params_.field_renderer_id),
+          FieldRendererId(params_.field_renderer_id),
           params_.form_control_type);
   const bool add_passkey_from_another_device_option =
       webauthn::IsPasskeyFromAnotherDeviceContextMenuEnabled(
@@ -586,4 +585,3 @@ void AutofillContextMenuManager::MaybeMarkLastItemAsNewFeature(
 }
 
 }  // namespace autofill
-   // namespace autofill

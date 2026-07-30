@@ -550,14 +550,7 @@ AudioContext* AudioContext::Create(ExecutionContext* context,
     TRACE_EVENT1("webaudio", "AudioContext::Create - allowed to start",
                  "UUID", audio_context->Uuid());
     audio_context->StartRendering();
-    if (RuntimeEnabledFeatures::AudioContextAsyncStateTransitionsEnabled()) {
-      // The state of AudioContext is "suspended" immediately after construction
-      // and transitions to "running" asynchronously.
-      // https://webaudio.github.io/web-audio-api/#AudioContext-constructors
-      audio_context->ScheduleInitialTransitionToRunning();
-    } else {
-      audio_context->SetContextState(V8AudioContextState::Enum::kRunning);
-    }
+    audio_context->ScheduleInitialTransitionToRunning();
   } else {
     TRACE_EVENT1("webaudio", "AudioContext::Create - NOT allowed to start",
                  "UUID", audio_context->Uuid());
@@ -1001,19 +994,40 @@ void AudioContext::ScheduleInitialTransitionToRunning() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(main_thread_sequence_checker_);
   DCHECK(!pending_initial_transition_to_running_);
 
-  pending_initial_transition_to_running_ = true;
-
-  // Track pages creating an AudioContext with async state transitions enabled.
-  // Two other counters will measure state reads during pending transitions.
+  // Record for every AudioContext that starts (begins the initial
+  // transition to running), regardless of the feature, so it can be
+  // the denominator for the two state-read counters.
   UseCounter::Count(GetExecutionContext(),
                     WebFeature::kAudioContextAsyncStateTransitions);
 
+  pending_initial_transition_to_running_ = true;
+
+  base::OnceClosure callback;
+
+  if (RuntimeEnabledFeatures::AudioContextAsyncStateTransitionsEnabled()) {
+    // The state of AudioContext is "suspended" immediately after construction
+    // and transitions to "running" asynchronously.
+    // https://webaudio.github.io/web-audio-api/#AudioContext-constructors
+    callback = blink::BindOnce(&AudioContext::PerformInitialTransitionToRunning,
+                               WrapWeakPersistent(this));
+  } else {
+    SetContextState(V8AudioContextState::Enum::kRunning);
+    // Clear pending_initial_transition_to_running_ asynchronously for
+    // the kAudioContextAsyncTransitionToRunningStateRead use counter.
+    callback = blink::BindOnce(
+        [](AudioContext* context) {
+          if (context) {
+            DCHECK_CALLED_ON_VALID_SEQUENCE(
+                context->main_thread_sequence_checker_);
+            context->pending_initial_transition_to_running_ = false;
+          }
+        },
+        WrapWeakPersistent(this));
+  }
+
   GetExecutionContext()
       ->GetTaskRunner(TaskType::kMediaElementEvent)
-      ->PostTask(
-          FROM_HERE,
-          blink::BindOnce(&AudioContext::PerformInitialTransitionToRunning,
-                          WrapWeakPersistent(this)));
+      ->PostTask(FROM_HERE, std::move(callback));
 }
 
 void AudioContext::PerformInitialTransitionToRunning() {
@@ -1917,12 +1931,7 @@ void AudioContext::ResumeOnPrerenderActivation() {
       if (!suspended_by_user_ &&
           IsAllowedToStart(/*should_suppress_warning=*/true)) {
         StartRendering();
-        if (RuntimeEnabledFeatures::
-                AudioContextAsyncStateTransitionsEnabled()) {
-          ScheduleInitialTransitionToRunning();
-        } else {
-          SetContextState(V8AudioContextState::Enum::kRunning);
-        }
+        ScheduleInitialTransitionToRunning();
       }
       break;
     case V8AudioContextState::Enum::kRunning:
@@ -2037,8 +2046,9 @@ void AudioContext::set_clock_for_testing(const base::TickClock* clock) {
 void AudioContext::SendLogMessage(const char* const function_name,
                                   const String& message) {
   WebRtcLogMessage(base::StrCat(
-      {"[WA]AC::", function_name, " ", message.Utf8(), " [state=",
-       state().AsCStr(), " sink_descriptor_=", sink_descriptor_.SinkId().Utf8(),
+      {"[WA]AC::", function_name, " ", message.Utf8(),
+       " [state=", GetStateStringForLogMessage(),
+       " sink_descriptor_=", sink_descriptor_.SinkId().Utf8(),
        ", sink_id_given_=", base::ToString(is_sink_id_given_), "]"}));
 }
 

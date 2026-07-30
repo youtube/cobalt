@@ -55,8 +55,8 @@ class FormPredictionsTracker : public AutofillManager::Observer {
   void OnAfterFormsSeen(AutofillManager& manager,
                         base::span<const FormGlobalId> updated_forms,
                         base::span<const FormGlobalId> removed_forms) override;
-  void OnFieldTypesDetermined(autofill::AutofillManager& manager,
-                              autofill::FormGlobalId form_id,
+  void OnFieldTypesDetermined(AutofillManager& manager,
+                              FormGlobalId form_id,
                               FieldTypeSource source,
                               bool small_forms_were_parsed) override;
 

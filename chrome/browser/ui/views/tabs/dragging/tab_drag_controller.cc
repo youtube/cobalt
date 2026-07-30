@@ -1699,7 +1699,7 @@ TabDragController::DetachIntoNewBrowserAndRunMoveLoop(
 #endif
 
   dragged_widget->SetVisibilityChangedAnimationsEnabled(false);
-  browser->window()->Show();
+  browser->GetWindow()->Show();
   dragged_widget->SetVisibilityChangedAnimationsEnabled(true);
 
   // When InitialWebUI is enabled, the asynchronous loading of WebUI might cause
@@ -1731,7 +1731,7 @@ TabDragController::DetachIntoNewBrowserAndRunMoveLoop(
   // Activate may trigger a focus loss, destroying us.
   {
     base::WeakPtr<TabDragController> ref(weak_factory_.GetWeakPtr());
-    browser->window()->Activate();
+    browser->GetWindow()->Activate();
     if (!ref) {
       return Liveness::kDeleted;
     }
@@ -2701,7 +2701,7 @@ Browser* TabDragController::CreateBrowserForDrag(TabDragContext* source,
   // We need to reset them again so they are honored. On ChromeOS, this is
   // handled in NativeWidgetAura.
   if (!open_as_web_app) {
-    browser->window()->SetBounds(gfx::Rect(initial_size));
+    browser->GetWindow()->SetBounds(gfx::Rect(initial_size));
   }
 #endif
 
@@ -3069,15 +3069,17 @@ void TabDragController::OnDragDropClientDestroying() {
 
 void TabDragController::UpdateDragTarget(TabDragTarget* new_target,
                                          const gfx::Point& point_in_screen) {
-  if (current_drag_target_ && current_drag_target_ != new_target) {
-    current_drag_target_->OnTabDragExited(point_in_screen);
-  }
-  current_drag_target_ = new_target;
-  if (current_drag_target_) {
-    current_drag_target_->OnTabDragEntered();
-    drag_target_destroyed_subscription_ =
-        current_drag_target_->RegisterWillDestroyCallback(base::BindOnce(
-            &TabDragController::ResetDragTarget, base::Unretained(this)));
+  if (current_drag_target_ != new_target) {
+    if (current_drag_target_) {
+      current_drag_target_->OnTabDragExited(point_in_screen);
+    }
+    current_drag_target_ = new_target;
+    if (current_drag_target_) {
+      current_drag_target_->OnTabDragEntered();
+      drag_target_destroyed_subscription_ =
+          current_drag_target_->RegisterWillDestroyCallback(base::BindOnce(
+              &TabDragController::ResetDragTarget, base::Unretained(this)));
+    }
   }
 }
 

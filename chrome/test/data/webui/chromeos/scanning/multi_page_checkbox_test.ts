@@ -9,7 +9,7 @@ import {CrCheckboxElement} from 'chrome://resources/ash/common/cr_elements/cr_ch
 import {strictQuery} from 'chrome://resources/ash/common/typescript_utils/strict_query.js';
 import {assert} from 'chrome://resources/js/assert.js';
 import type {MultiPageCheckboxElement} from 'chrome://scanning/multi_page_checkbox.js';
-import {assertFalse, assertTrue} from 'chrome://webui-test/chromeos/chai_assert.js';
+import {assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 
 suite('multiPageCheckboxTest', function() {
   let multiPageCheckbox: MultiPageCheckboxElement|null = null;

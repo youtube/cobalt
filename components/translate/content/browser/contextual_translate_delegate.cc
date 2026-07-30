@@ -5,6 +5,7 @@
 #include "components/translate/content/browser/contextual_translate_delegate.h"
 
 #include "base/check.h"
+#include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/utf_string_conversions.h"
@@ -189,25 +190,17 @@ void ContextualTranslateDelegate::OnUrlLoadComplete(
   }
 
   // Parse JSON
-  data_decoder_.ParseJson(
-      *response_body,
-      base::BindOnce(&ContextualTranslateDelegate::OnJsonParsed,
-                     weak_ptr_factory_.GetWeakPtr(), std::move(target_language),
-                     std::move(source_language)));
-}
+  std::optional<base::ListValue> result =
+      base::JSONReader::ReadList(*response_body, base::JSON_PARSE_RFC);
 
-void ContextualTranslateDelegate::OnJsonParsed(
-    std::string target_language,
-    std::optional<std::string> source_language,
-    data_decoder::DataDecoder::ValueOrError result) {
   PartialTranslateResponse response;
   response.status = PartialTranslateStatus::kError;
 
   // The translateHtml endpoint using JSPB returns a JSON array.
   // Field 1 (index 0): translations (array of strings)
   // Field 2 (index 1): detected_languages (array of strings)
-  if (result.has_value() && result->is_list()) {
-    const auto& list = result->GetList();
+  if (result.has_value()) {
+    const auto& list = *result;
     if (!list.empty() && list[0].is_list() && !list[0].GetList().empty()) {
       const auto& translations = list[0].GetList();
       if (translations[0].is_string()) {

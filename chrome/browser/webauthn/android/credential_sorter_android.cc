@@ -16,7 +16,7 @@
 using password_manager::PasskeyCredential;
 using password_manager::UiCredential;
 
-using Credential = TouchToFillView::Credential;
+using Credential = TouchToFillPasswordManagerView::Credential;
 
 namespace webauthn::sorting {
 

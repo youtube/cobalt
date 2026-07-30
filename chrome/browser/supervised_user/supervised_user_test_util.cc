@@ -112,7 +112,7 @@ AccountInfo PopulateAccountInfoWithName(const AccountInfo& info,
                                    .SetAvatarUrl("https://example.com")
                                    .SetLocale("en")
                                    .Build();
-  AccountCapabilitiesTestMutator(&populated_info.capabilities)
+  AccountCapabilitiesTestMutator(&populated_info)
       .set_is_subject_to_enterprise_features(true);
 
   CHECK(populated_info.IsValid());

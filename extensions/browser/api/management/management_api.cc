@@ -35,7 +35,7 @@
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/extension_system.h"
 #include "extensions/browser/management_policy.h"
-#include "extensions/browser/manifest_v2_experiment_manager.h"
+#include "extensions/browser/manifest_v2_handler.h"
 #include "extensions/browser/requirements_checker.h"
 #include "extensions/browser/supervised_user_extensions_delegate.h"
 #include "extensions/browser/uninstall_reason.h"
@@ -587,12 +587,11 @@ void ManagementSetEnabledFunction::CheckManifestV2Deprecation() {
     return;
   }
 
-  auto* mv2_experiment_manager =
-      ManifestV2ExperimentManager::Get(browser_context());
-  if (mv2_experiment_manager) {
+  auto* mv2_handler = ManifestV2Handler::Get(browser_context());
+  if (mv2_handler) {
     // This should have been caught earlier as part of the policy-related
     // checks.
-    CHECK(!mv2_experiment_manager->ShouldBlockExtensionEnable(*extension));
+    CHECK(!mv2_handler->ShouldBlockExtensionEnable(*extension));
   }
 
   // This was the last check in the enable flow. We can now finish enabling

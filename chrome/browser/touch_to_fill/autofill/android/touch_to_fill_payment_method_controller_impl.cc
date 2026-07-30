@@ -12,10 +12,14 @@
 #include "base/android/jni_string.h"
 #include "base/containers/span.h"
 #include "base/functional/callback.h"
+#include "base/functional/callback_helpers.h"
 #include "base/strings/strcat.h"
 #include "chrome/browser/android/resource_mapper.h"
 #include "chrome/browser/touch_to_fill/autofill/android/touch_to_fill_delegate_android_impl.h"
 #include "chrome/browser/touch_to_fill/autofill/android/touch_to_fill_payment_method_view.h"
+#include "chrome/browser/ui/android/tab_model/tab_model.h"
+#include "chrome/browser/ui/android/tab_model/tab_model_list.h"
+#include "chrome/browser/ui/autofill/autofill_suggestion_controller_utils.h"
 #include "chrome/browser/ui/autofill/payments/android_bnpl_ui_delegate.h"
 #include "components/autofill/content/browser/content_autofill_client.h"
 #include "components/autofill/content/browser/content_autofill_driver.h"
@@ -24,11 +28,13 @@
 #include "components/autofill/core/browser/data_model/valuables/loyalty_card.h"
 #include "components/autofill/core/browser/foundations/autofill_manager.h"
 #include "components/autofill/core/browser/foundations/browser_autofill_manager.h"
-#include "components/autofill/core/browser/integrators/touch_to_fill/touch_to_fill_delegate.h"
+#include "components/autofill/core/browser/integrators/touch_to_fill/touch_to_fill_payment_method_delegate.h"
 #include "components/autofill/core/browser/payments/bnpl_util.h"
 #include "components/autofill/core/browser/payments/payments_util.h"
 #include "components/autofill/core/browser/suggestions/suggestion.h"
 #include "content/public/browser/navigation_handle.h"
+#include "content/public/browser/render_widget_host_view.h"
+#include "content/public/browser/web_contents.h"
 #include "ui/android/window_android.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
@@ -40,14 +46,13 @@ namespace {
 TouchToFillDelegateAndroidImpl* GetDelegate(AutofillManager& manager) {
   auto& bam = static_cast<BrowserAutofillManager&>(manager);
   return static_cast<TouchToFillDelegateAndroidImpl*>(
-      bam.touch_to_fill_delegate());
+      bam.touch_to_fill_payment_method_delegate());
 }
 }  // namespace
 
 TouchToFillPaymentMethodControllerImpl::TouchToFillPaymentMethodControllerImpl(
     ContentAutofillClient* autofill_client)
-    : content::WebContentsObserver(&autofill_client->GetWebContents()),
-      keyboard_suppressor_(
+    : keyboard_suppressor_(
           autofill_client,
           base::BindRepeating([](AutofillManager& manager) {
             return GetDelegate(manager) &&
@@ -70,9 +75,73 @@ TouchToFillPaymentMethodControllerImpl::
   ResetJavaObject();
 }
 
+content::WebContents* TouchToFillPaymentMethodControllerImpl::web_contents() {
+  return driver_factory_observation_.GetSource()->web_contents();
+}
+
+bool TouchToFillPaymentMethodControllerImpl::InitHideHelper(
+    TouchToFillPaymentMethodDelegate& delegate) {
+  // The focused frame may be a different frame than the one the delegate is
+  // associated with. This happens in two scenarios:
+  // - With frame-transcending forms: the focused frame is subframe, whose
+  //   form has been flattened into an ancestor form.
+  // - With race conditions: while Autofill parsed the form, the focus may
+  //   have moved to another frame.
+  // We support the case where the focused frame is a descendant of the
+  // `delegate_`'s frame. We observe the focused frame's RenderFrameDeleted()
+  // event.
+  content::RenderFrameHost* rfh = web_contents()->GetFocusedFrame();
+  content::RenderFrameHost* delegate_rfh =
+      static_cast<ContentAutofillDriver&>(
+          delegate.GetAutofillManager().driver())
+          .render_frame_host();
+
+  if (!rfh || !IsAncestorOf(delegate_rfh, rfh)) {
+    return false;
+  }
+
+  // The WebContents may have lost the focus because, for example, a new tab has
+  // just been opened.
+  // Beware that this check only works as intended before TTF is shown because
+  // the bottom sheet steals the focus from the RenderWidgetHostView.
+  if (auto* rwhv = web_contents()->GetRenderWidgetHostView();
+      !rwhv || !rwhv->HasFocus()) {
+    return false;
+  }
+
+  if (IsPointerLocked(web_contents())) {
+    return false;
+  }
+
+  // The bottom sheet steals the focus from the WebContents, so we cannot rely
+  // on AutofillPopupHideHelper's focus handling. Instead, we check if
+  // `IsActiveWebContents()` in the event handlers below.
+  AutofillPopupHideHelper::HidingParams params = {
+      .hide_on_web_contents_lost_focus = false};
+
+  AutofillPopupHideHelper::HidingCallback hide_callback =
+      base::IgnoreArgs<SuggestionHidingReason>(
+          base::BindRepeating(&TouchToFillPaymentMethodControllerImpl::Hide,
+                              base::Unretained(this)));
+
+  // TODO(crbug.com/521318493): Should we hide TTF in the face of a PiP?
+  AutofillPopupHideHelper::PictureInPictureDetectionCallback
+      pip_detection_callback = base::BindRepeating([]() { return false; });
+
+  hide_helper_.emplace(web_contents(), rfh->GetGlobalId(), std::move(params),
+                       std::move(hide_callback),
+                       std::move(pip_detection_callback));
+  return true;
+}
+
+bool TouchToFillPaymentMethodControllerImpl::IsActiveWebContents() {
+  TabModel* tab_model = TabModelList::GetTabModelForWebContents(web_contents());
+  return tab_model && tab_model->GetActiveWebContents() == web_contents();
+}
+
 bool TouchToFillPaymentMethodControllerImpl::ShowPaymentMethods(
     std::unique_ptr<TouchToFillPaymentMethodView> view,
-    base::WeakPtr<TouchToFillDelegate> delegate,
+    base::WeakPtr<TouchToFillPaymentMethodDelegate> delegate,
     base::span<const Suggestion> suggestions) {
   if (!keyboard_suppressor_.is_suppressing()) {
     return false;
@@ -80,6 +149,10 @@ bool TouchToFillPaymentMethodControllerImpl::ShowPaymentMethods(
 
   // Abort if TTF surface is already shown.
   if (view_) {
+    return false;
+  }
+
+  if (!InitHideHelper(*delegate)) {
     return false;
   }
 
@@ -99,7 +172,7 @@ bool TouchToFillPaymentMethodControllerImpl::ShowPaymentMethods(
 
 bool TouchToFillPaymentMethodControllerImpl::ShowIbans(
     std::unique_ptr<TouchToFillPaymentMethodView> view,
-    base::WeakPtr<TouchToFillDelegate> delegate,
+    base::WeakPtr<TouchToFillPaymentMethodDelegate> delegate,
     base::span<const Iban> ibans_to_suggest) {
   if (!keyboard_suppressor_.is_suppressing()) {
     return false;
@@ -107,6 +180,10 @@ bool TouchToFillPaymentMethodControllerImpl::ShowIbans(
 
   // Abort if TTF surface is already shown.
   if (view_) {
+    return false;
+  }
+
+  if (!InitHideHelper(*delegate)) {
     return false;
   }
 
@@ -122,11 +199,11 @@ bool TouchToFillPaymentMethodControllerImpl::ShowIbans(
 
 bool TouchToFillPaymentMethodControllerImpl::ShowAffiliatedLoyaltyCards(
     std::unique_ptr<TouchToFillPaymentMethodView> view,
-    base::WeakPtr<TouchToFillDelegate> delegate,
+    base::WeakPtr<TouchToFillPaymentMethodDelegate> delegate,
     base::span<const LoyaltyCard> affiliated_loyalty_cards,
     base::span<const LoyaltyCard> all_loyalty_cards,
     bool first_time_usage) {
-  // TODO(crbug.com/404437211): Unify `ShowX()` methods to avoid code
+  // TODO(crbug.com/521032396): Unify `ShowX()` methods to avoid code
   // duplication.
   if (!keyboard_suppressor_.is_suppressing()) {
     return false;
@@ -134,6 +211,10 @@ bool TouchToFillPaymentMethodControllerImpl::ShowAffiliatedLoyaltyCards(
 
   // Abort if TTF surface is already shown.
   if (view_) {
+    return false;
+  }
+
+  if (!InitHideHelper(*delegate)) {
     return false;
   }
 
@@ -150,10 +231,14 @@ bool TouchToFillPaymentMethodControllerImpl::ShowAffiliatedLoyaltyCards(
 
 bool TouchToFillPaymentMethodControllerImpl::ShowAllLoyaltyCards(
     std::unique_ptr<TouchToFillPaymentMethodView> view,
-    base::WeakPtr<TouchToFillDelegate> delegate,
+    base::WeakPtr<TouchToFillPaymentMethodDelegate> delegate,
     base::span<const LoyaltyCard> all_loyalty_cards) {
   // Abort if TTF surface is already shown.
   if (view_) {
+    return false;
+  }
+
+  if (!InitHideHelper(*delegate)) {
     return false;
   }
 
@@ -283,21 +368,6 @@ void TouchToFillPaymentMethodControllerImpl::SetVisible(bool visible) {
   }
 }
 
-void TouchToFillPaymentMethodControllerImpl::WebContentsDestroyed() {
-  Hide();
-}
-
-void TouchToFillPaymentMethodControllerImpl::DidFinishNavigation(
-    content::NavigationHandle* navigation_handle) {
-  if (!navigation_handle->HasCommitted() ||
-      navigation_handle->IsInPrerenderedMainFrame() ||
-      (!navigation_handle->IsInMainFrame() &&
-       !navigation_handle->HasSubframeNavigationEntryCommitted())) {
-    return;
-  }
-  Hide();
-}
-
 void TouchToFillPaymentMethodControllerImpl::
     OnContentAutofillDriverFactoryDestroyed(
         ContentAutofillDriverFactory& factory) {
@@ -309,7 +379,7 @@ void TouchToFillPaymentMethodControllerImpl::OnContentAutofillDriverCreated(
     ContentAutofillDriver& driver) {
   auto& manager =
       static_cast<BrowserAutofillManager&>(driver.GetAutofillManager());
-  manager.set_touch_to_fill_delegate(
+  manager.set_touch_to_fill_payment_method_delegate(
       std::make_unique<TouchToFillDelegateAndroidImpl>(&manager));
 }
 
@@ -323,6 +393,7 @@ void TouchToFillPaymentMethodControllerImpl::OnDismissed(JNIEnv* env,
   delegate_.reset();
   ResetJavaObject();
   keyboard_suppressor_.Unsuppress();
+  hide_helper_.reset();
 }
 
 void TouchToFillPaymentMethodControllerImpl::ScanCreditCard(JNIEnv* env) {
@@ -342,55 +413,69 @@ void TouchToFillPaymentMethodControllerImpl::CreditCardSuggestionSelected(
     JNIEnv* env,
     const std::string& unique_id,
     bool is_virtual) {
-  if (delegate_) {
-    delegate_->CreditCardSuggestionSelected(unique_id, is_virtual);
+  if (!IsActiveWebContents() || !delegate_) {
+    Hide();
+    return;
   }
+  delegate_->CreditCardSuggestionSelected(unique_id, is_virtual);
 }
 
 void TouchToFillPaymentMethodControllerImpl::BnplSuggestionSelected(
     JNIEnv* env,
     std::optional<int64_t> extracted_amount) {
-  if (delegate_) {
-    delegate_->BnplSuggestionSelected(extracted_amount);
+  if (!IsActiveWebContents() || !delegate_) {
+    Hide();
+    return;
   }
+  delegate_->BnplSuggestionSelected(extracted_amount);
 }
 
 void TouchToFillPaymentMethodControllerImpl::LocalIbanSuggestionSelected(
     JNIEnv* env,
     const std::string& guid) {
-  if (delegate_) {
-    delegate_->IbanSuggestionSelected(Iban::Guid(guid));
+  if (!IsActiveWebContents() || !delegate_) {
+    Hide();
+    return;
   }
+  delegate_->IbanSuggestionSelected(Iban::Guid(guid));
 }
 
 void TouchToFillPaymentMethodControllerImpl::ServerIbanSuggestionSelected(
     JNIEnv* env,
     long instrument_id) {
-  if (delegate_) {
-    delegate_->IbanSuggestionSelected(Iban::InstrumentId(instrument_id));
+  if (!IsActiveWebContents() || !delegate_) {
+    Hide();
+    return;
   }
+  delegate_->IbanSuggestionSelected(Iban::InstrumentId(instrument_id));
 }
 
 void TouchToFillPaymentMethodControllerImpl::LoyaltyCardSuggestionSelected(
     JNIEnv* env,
     const LoyaltyCard& loyalty_card) {
-  if (delegate_) {
-    delegate_->LoyaltyCardSuggestionSelected(loyalty_card);
+  if (!IsActiveWebContents() || !delegate_) {
+    Hide();
+    return;
   }
+  delegate_->LoyaltyCardSuggestionSelected(loyalty_card);
 }
 
 void TouchToFillPaymentMethodControllerImpl::OnBnplIssuerSuggestionSelected(
     JNIEnv* env,
     const std::string& issuer_id) {
-  if (delegate_) {
-    delegate_->OnBnplIssuerSuggestionSelected(issuer_id);
+  if (!IsActiveWebContents() || !delegate_) {
+    Hide();
+    return;
   }
+  delegate_->OnBnplIssuerSuggestionSelected(issuer_id);
 }
 
 void TouchToFillPaymentMethodControllerImpl::OnBnplTosAccepted(JNIEnv* env) {
-  if (delegate_) {
-    delegate_->OnBnplTosAccepted();
+  if (!IsActiveWebContents() || !delegate_) {
+    Hide();
+    return;
   }
+  delegate_->OnBnplTosAccepted();
 }
 
 int TouchToFillPaymentMethodControllerImpl::GetJavaResourceId(

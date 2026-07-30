@@ -78,12 +78,16 @@ if (is_android) {
       "java/src/org/chromium/chrome/browser/lens/LensMetrics.java",
       "java/src/org/chromium/chrome/browser/lens/LensQueryParams.java",
       "java/src/org/chromium/chrome/browser/lens/LensQueryResult.java",
+      "java/src/org/chromium/chrome/browser/lens/LensSupportStatusHelper.java",
     ]
     deps = [
       "//base:base_java",
       "//chrome/browser/flags:java",
+      "//chrome/browser/gsa:java",
       "//chrome/browser/profiles/android:java",
+      "//chrome/browser/search_engines/android:java",
       "//chrome/browser/signin/services/android:java",
+      "//components/search_engines/android:java",
       "//components/signin/public/android:java",
       "//content/public/android:content_java",
       "//third_party/androidx:androidx_annotation_annotation_java",
@@ -92,5 +96,22 @@ if (is_android) {
 
   android_resources("java_resources") {
     sources = [ "java/res/drawable/lens_icon.xml" ]
+  }
+
+  robolectric_library("junit") {
+    sources = [ "java/src/org/chromium/chrome/browser/lens/LensSupportStatusHelperUnitTest.java" ]
+    deps = [
+      ":util_java",
+      "//base:base_java",
+      "//base:base_java_test_support",
+      "//base:base_junit_test_support",
+      "//chrome/browser/gsa:java",
+      "//chrome/browser/profiles/android:java",
+      "//chrome/browser/search_engines/android:java",
+      "//components/search_engines/android:java",
+      "//third_party/androidx:androidx_annotation_annotation_java",
+      "//third_party/junit",
+      "//third_party/mockito:mockito_java",
+    ]
   }
 }

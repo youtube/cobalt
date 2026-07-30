@@ -14,6 +14,7 @@ class LocationBar;
 class OmniboxController;
 class OmniboxView;
 class OmniboxPopupPresenterDelegate;
+class OmniboxPopupHandler;
 
 class OmniboxPopupViewFullWebUI : public OmniboxPopupViewWebUI {
  public:
@@ -34,7 +35,7 @@ class OmniboxPopupViewFullWebUI : public OmniboxPopupViewWebUI {
   // user data, so it can be restored when switching back to this tab.
   void SaveStateToTab(content::WebContents* tab) override;
   // Pushes the current text to the WebUI.
-  void PushTextToWebUI() override;
+  void PushTextToWebUI(bool is_double_click) override;
   // Called when the active tab changes.
   void OnTabChanged(content::WebContents* contents) override;
   // Called when the omnibox gains focus.
@@ -45,6 +46,9 @@ class OmniboxPopupViewFullWebUI : public OmniboxPopupViewWebUI {
   // state is set to `kFull`. Enforces the order of operations to minimize
   // text flickers.
   void UpdatePopupStateAndContent(OmniboxPopupState state);
+
+  // Gets the OmniboxPopupHandler associated with this view's WebUI.
+  OmniboxPopupHandler* GetPopupHandler();
 
   // Caches the last text string sent to the WebUI to avoid redundant IPCs.
   // Null after a state reset (e.g., tab switch).

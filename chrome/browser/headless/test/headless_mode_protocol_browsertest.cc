@@ -519,4 +519,7 @@ HEADLESS_MODE_PROTOCOL_TEST(SetPrimaryScreenScaled,
 HEADLESS_MODE_PROTOCOL_TEST(RangeMouseEventAfterNodeRemoval,
                             "shared/range-mouse-event-after-node-removal.js")
 
+HEADLESS_MODE_PROTOCOL_TEST(GetCanvasContextWebGL,
+                            "shared/get-canvas-context-webgl.js")
+
 }  // namespace headless

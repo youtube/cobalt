@@ -34,6 +34,10 @@
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
+namespace gfx {
+class Size;
+}
+
 namespace blink {
 
 class AudioContextOptions;
@@ -170,7 +174,8 @@ class MODULES_EXPORT AudioContext final
   void RequestSeekForward(base::TimeDelta seek_time) override {}
   void RequestSeekBackward(base::TimeDelta seek_time) override {}
   void RequestSeekTo(base::TimeDelta seek_time) override {}
-  void RequestEnterPictureInPicture() override {}
+  void RequestEnterPictureInPicture(
+      const std::optional<gfx::Size>& min_size) override {}
   void RequestMute(bool mute) override {}
   void SetVolumeMultiplier(double multiplier) override;
   void SetPersistentState(bool persistent) override {}
@@ -187,6 +192,14 @@ class MODULES_EXPORT AudioContext final
   // BaseAudioContext override to enable UseCounter.
   // https://webaudio.github.io/web-audio-api/#BaseAudioContext
   V8AudioContextState state() const override;
+
+  // Returns the current state as a std::string for log messages. Uses the
+  // non-virtual BaseAudioContext::state() so logging does not record the
+  // UseCounters in AudioContext::state(). When formatting log messages,
+  // this must be used instead of state().
+  std::string GetStateStringForLogMessage() const {
+    return BaseAudioContext::state().AsCStr();
+  }
 
   // https://webaudio.github.io/web-audio-api/#AudioContext
   double baseLatency() const;
@@ -275,6 +288,7 @@ class MODULES_EXPORT AudioContext final
   FRIEND_TEST_ALL_PREFIXES(AudioContextTest, MediaDevicesService);
   FRIEND_TEST_ALL_PREFIXES(AudioContextTest,
                            OnRenderErrorFromPlatformDestination);
+  FRIEND_TEST_ALL_PREFIXES(AudioContextTest, AsyncStateUseCountersLogMessage);
 
   class StatsUpdateRestrictor;
 

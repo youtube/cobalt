@@ -423,6 +423,11 @@ BASE_DECLARE_FEATURE(kNetworkContextDirectReceiver);
 COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
 bool ShouldBindNetworkContextDirectReceiver();
 
+// When enabled, creates the NetworkContext on a background thread pool to avoid
+// being blocked by the busy main thread.
+COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
+BASE_DECLARE_FEATURE(kCreateNetworkContextNonBlocking);
+
 // Delays the initial DoH probe. When enabled, the delay is determined by
 // kDelayInitialDohProbeTimeoutParam. When disabled, the probe is activated
 // immediately.

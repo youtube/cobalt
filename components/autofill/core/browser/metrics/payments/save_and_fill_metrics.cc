@@ -18,7 +18,7 @@ namespace autofill::autofill_metrics {
 
 namespace {
 using PaymentsRpcResult =
-    autofill::payments::PaymentsAutofillClient::PaymentsRpcResult;
+    ::autofill::payments::PaymentsAutofillClient::PaymentsRpcResult;
 
 std::string_view GetSaveAndFillServerRequestTypeString(
     SaveAndFillServerRequestType type) {

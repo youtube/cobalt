@@ -148,10 +148,12 @@ TEST_F(SpatialNavigationTest, FindContainerWhenEnclosingContainerIsDocument) {
       "<a id='child'>link</a>");
 
   Element* child_element = GetDocument().getElementById(AtomicString("child"));
-  Node* enclosing_container = ScrollableAreaOrDocumentOf(child_element);
+  Node* enclosing_container = ScrollableAreaOrDocumentOf(
+      child_element, SpatialNavigationDirection::kNone);
 
   EXPECT_EQ(enclosing_container, GetDocument());
-  EXPECT_TRUE(IsScrollableAreaOrDocument(enclosing_container));
+  EXPECT_TRUE(IsScrollableAreaOrDocument(enclosing_container,
+                                         SpatialNavigationDirection::kNone));
 }
 
 TEST_F(SpatialNavigationTest, FindContainerWhenEnclosingContainerIsIframe) {
@@ -172,14 +174,16 @@ TEST_F(SpatialNavigationTest, FindContainerWhenEnclosingContainerIsIframe) {
   UpdateAllLifecyclePhasesForTest();
   Element* iframe = GetDocument().QuerySelector(AtomicString("iframe"));
   Element* link = ChildDocument().QuerySelector(AtomicString("a"));
-  Node* enclosing_container = ScrollableAreaOrDocumentOf(link);
+  Node* enclosing_container =
+      ScrollableAreaOrDocumentOf(link, SpatialNavigationDirection::kNone);
 
   EXPECT_FALSE(IsOffscreen(iframe));
   EXPECT_FALSE(IsOffscreen(&ChildDocument()));
   EXPECT_FALSE(IsOffscreen(link));
 
   EXPECT_EQ(enclosing_container, ChildDocument());
-  EXPECT_TRUE(IsScrollableAreaOrDocument(enclosing_container));
+  EXPECT_TRUE(IsScrollableAreaOrDocument(enclosing_container,
+                                         SpatialNavigationDirection::kNone));
 }
 
 TEST_F(SpatialNavigationTest,
@@ -202,7 +206,8 @@ TEST_F(SpatialNavigationTest,
 
   Element* content = GetDocument().getElementById(AtomicString("content"));
   Element* container = GetDocument().getElementById(AtomicString("container"));
-  Node* enclosing_container = ScrollableAreaOrDocumentOf(content);
+  Node* enclosing_container =
+      ScrollableAreaOrDocumentOf(content, SpatialNavigationDirection::kNone);
 
   // TODO(crbug.com/440374239): Update to EXPECT_TRUE once this is fixed.
   EXPECT_FALSE(content->VisibleBoundsInLocalRoot().IsEmpty());
@@ -211,7 +216,8 @@ TEST_F(SpatialNavigationTest,
   EXPECT_FALSE(IsOffscreen(container));
 
   EXPECT_EQ(enclosing_container, container);
-  EXPECT_TRUE(IsScrollableAreaOrDocument(enclosing_container));
+  EXPECT_TRUE(IsScrollableAreaOrDocument(enclosing_container,
+                                         SpatialNavigationDirection::kNone));
 }
 
 TEST_F(SpatialNavigationTest, ZoomPutsElementOffScreen) {
@@ -465,8 +471,10 @@ TEST_F(SpatialNavigationTest,
   Element* scroller2 = GetDocument().getElementById(AtomicString("scroller2"));
   Element* link = GetDocument().getElementById(AtomicString("link"));
 
-  EXPECT_TRUE(IsScrollableAreaOrDocument(scroller1));
-  EXPECT_TRUE(IsScrollableAreaOrDocument(scroller2));
+  EXPECT_TRUE(
+      IsScrollableAreaOrDocument(scroller1, SpatialNavigationDirection::kNone));
+  EXPECT_TRUE(
+      IsScrollableAreaOrDocument(scroller2, SpatialNavigationDirection::kNone));
   EXPECT_TRUE(IsOffscreen(scroller1));
   EXPECT_TRUE(IsOffscreen(scroller1));
   EXPECT_TRUE(IsOffscreen(link));
@@ -599,7 +607,8 @@ TEST_F(SpatialNavigationTest, PartiallyVisibleIFrame) {
   UpdateAllLifecyclePhasesForTest();
   Element* child_element =
       ChildDocument().getElementById(AtomicString("child"));
-  Node* enclosing_container = ScrollableAreaOrDocumentOf(child_element);
+  Node* enclosing_container = ScrollableAreaOrDocumentOf(
+      child_element, SpatialNavigationDirection::kNone);
   EXPECT_EQ(enclosing_container, ChildDocument());
 
   EXPECT_TRUE(IsOffscreen(child_element));         // Completely offscreen.

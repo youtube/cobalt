@@ -105,7 +105,7 @@ const Tribool kCanShowUnrestrictedOptInsFallbackValue = Tribool::kUnknown;
       _identityManager->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin);
   AccountInfo accountInfo =
       _identityManager->FindExtendedAccountInfo(primaryAccount);
-  return accountInfo.capabilities
+  return accountInfo.GetAccountCapabilities()
       .can_show_history_sync_opt_ins_without_minor_mode_restrictions();
 }
 
@@ -113,7 +113,7 @@ const Tribool kCanShowUnrestrictedOptInsFallbackValue = Tribool::kUnknown;
 
 - (void)onExtendedAccountInfoUpdated:(const AccountInfo&)accountInfo {
   signin::Tribool capability =
-      accountInfo.capabilities
+      accountInfo.GetAccountCapabilities()
           .can_show_history_sync_opt_ins_without_minor_mode_restrictions();
   // Only process known capability values.
   if (capability != Tribool::kUnknown) {

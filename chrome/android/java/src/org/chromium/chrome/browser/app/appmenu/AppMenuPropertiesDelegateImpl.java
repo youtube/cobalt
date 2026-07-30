@@ -61,6 +61,7 @@ import org.chromium.chrome.browser.ntp.SessionRecentlyClosedEntry;
 import org.chromium.chrome.browser.open_in_app.OpenInAppMenuItemProvider;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.readaloud.ReadAloudController;
+import org.chromium.chrome.browser.recent_tabs.ForeignSessionHelper.ForeignSessionTab;
 import org.chromium.chrome.browser.share.ShareHelper;
 import org.chromium.chrome.browser.sync.settings.SyncSettingsUtils;
 import org.chromium.chrome.browser.tab.Tab;
@@ -90,7 +91,6 @@ import org.chromium.components.commerce.core.IdentifierType;
 import org.chromium.components.commerce.core.ManagementType;
 import org.chromium.components.commerce.core.ShoppingService;
 import org.chromium.components.commerce.core.SubscriptionType;
-import org.chromium.components.dom_distiller.core.DomDistillerFeatures;
 import org.chromium.components.dom_distiller.core.DomDistillerUrlUtils;
 import org.chromium.components.embedder_support.util.UrlUtilities;
 import org.chromium.components.sync.UserActionableError;
@@ -125,6 +125,8 @@ public abstract class AppMenuPropertiesDelegateImpl implements AppMenuProperties
     public static final String TAB_ID_BUNDLE_KEY = "TabId";
     public static final String RECENT_ENTRY_SESSION_ID_BUNDLE_KEY = "RecentEntrySessionId";
     public static final String RECENT_ENTRY_INSTANCE_ID_BUNDLE_KEY = "RecentEntryInstanceId";
+    public static final String RECENT_ENTRY_SESSION_TAG_BUNDLE_KEY = "RecentEntrySessionTag";
+    public static final String RECENT_ENTRY_TAB_ID_BUNDLE_KEY = "RecentEntryTabId";
 
     private static @Nullable Boolean sItemBookmarkedForTesting;
 
@@ -278,12 +280,12 @@ public abstract class AppMenuPropertiesDelegateImpl implements AppMenuProperties
      */
     @VisibleForTesting(otherwise = VisibleForTesting.PROTECTED)
     public boolean shouldShowPageMenu() {
-        boolean isInTabSwitcher = isInTabSwitcher();
+        boolean isInHub = isInHub();
         if (mIsTablet) {
             boolean hasTabs = mTabModelSelector.getCurrentModel().getCount() != 0;
-            return hasTabs && !isInTabSwitcher;
+            return hasTabs && !isInHub;
         } else {
-            return !isInTabSwitcher;
+            return !isInHub;
         }
     }
 
@@ -294,15 +296,15 @@ public abstract class AppMenuPropertiesDelegateImpl implements AppMenuProperties
         @MenuGroup int menuGroup = MenuGroup.INVALID;
         if (shouldShowPageMenu()) menuGroup = MenuGroup.PAGE_MENU;
 
-        boolean isInTabSwitcher = isInTabSwitcher();
+        boolean isInHub = isInHub();
         if (mIsTablet) {
             boolean hasTabs = mTabModelSelector.getCurrentModel().getCount() != 0;
-            if (hasTabs && isInTabSwitcher) {
+            if (hasTabs && isInHub) {
                 menuGroup = MenuGroup.OVERVIEW_MODE_MENU;
             } else if (!hasTabs) {
                 menuGroup = MenuGroup.TABLET_EMPTY_MODE_MENU;
             }
-        } else if (isInTabSwitcher) {
+        } else if (isInHub) {
             menuGroup = MenuGroup.OVERVIEW_MODE_MENU;
         }
         assert menuGroup != MenuGroup.INVALID;
@@ -310,12 +312,12 @@ public abstract class AppMenuPropertiesDelegateImpl implements AppMenuProperties
     }
 
     /**
-     * @return Whether the grid tab switcher is showing.
+     * @return Whether the Hub is showing.
      */
-    private boolean isInTabSwitcher() {
+    private boolean isInHub() {
         return mLayoutStateProvider != null
-                && mLayoutStateProvider.isLayoutVisible(LayoutType.TAB_SWITCHER)
-                && !mLayoutStateProvider.isLayoutStartingToHide(LayoutType.TAB_SWITCHER);
+                && mLayoutStateProvider.isLayoutVisible(LayoutType.HUB)
+                && !mLayoutStateProvider.isLayoutStartingToHide(LayoutType.HUB);
     }
 
     @Override
@@ -590,18 +592,6 @@ public abstract class AppMenuPropertiesDelegateImpl implements AppMenuProperties
 
     /**
      * @param currentTab The currentTab for which the app menu is showing.
-     * @return Whether the reader mode preferences menu item should be displayed.
-     */
-    @VisibleForTesting(otherwise = VisibleForTesting.PROTECTED)
-    @Contract("null -> false")
-    public boolean shouldShowReaderModePrefs(@Nullable Tab currentTab) {
-        return currentTab != null
-                && DomDistillerUrlUtils.isDistilledPage(currentTab.getUrl())
-                && !DomDistillerFeatures.sReaderModeDistillInApp.isEnabled();
-    }
-
-    /**
-     * @param currentTab The currentTab for which the app menu is showing.
      * @return Whether reader mode is currently showing.
      */
     @VisibleForTesting(otherwise = VisibleForTesting.PROTECTED)
@@ -620,16 +610,6 @@ public abstract class AppMenuPropertiesDelegateImpl implements AppMenuProperties
                                 ? R.string.hide_reading_mode_text
                                 : R.string.show_reading_mode_text,
                         shouldShowIconBeforeItem() ? R.drawable.ic_mobile_friendly_24dp : 0));
-    }
-
-    /** Construct the reader mode preferences menu item. */
-    protected ListItem buildReaderModePrefsItem() {
-        return new MVCListAdapter.ListItem(
-                AppMenuHandler.AppMenuItemType.STANDARD,
-                buildModelForStandardMenuItem(
-                        R.id.reader_mode_prefs_id,
-                        R.string.menu_reader_mode_prefs,
-                        R.drawable.reader_mode_prefs_icon));
     }
 
     /**
@@ -940,13 +920,34 @@ public abstract class AppMenuPropertiesDelegateImpl implements AppMenuProperties
             bundle.putInt(TAB_ID_BUNDLE_KEY, model.get(AppMenuTabItemProperties.TAB_ID));
             return bundle;
         }
-        if (model.containsKey(AppMenuRecentEntryItemProperties.RECENT_ENTRY)) {
+        if (model.containsKey(AppMenuRecentEntryItemProperties.FOREIGN_SESSION_TAB)
+                && model.get(AppMenuRecentEntryItemProperties.FOREIGN_SESSION_TAB) != null) {
+            ForeignSessionTab tab =
+                    (ForeignSessionTab)
+                            model.get(AppMenuRecentEntryItemProperties.FOREIGN_SESSION_TAB);
+            assert tab != null;
+
+            String sessionTag = model.get(AppMenuRecentEntryItemProperties.FOREIGN_SESSION_TAG);
+            assert sessionTag != null;
+
+            Bundle bundle = new Bundle();
+            bundle.putString(RECENT_ENTRY_SESSION_TAG_BUNDLE_KEY, sessionTag);
+            bundle.putInt(RECENT_ENTRY_TAB_ID_BUNDLE_KEY, tab.id);
+            return bundle;
+        }
+        if (model.containsKey(AppMenuRecentEntryItemProperties.RECENT_ENTRY)
+                && model.get(AppMenuRecentEntryItemProperties.RECENT_ENTRY) != null) {
             RecentlyClosedEntry entry =
                     (RecentlyClosedEntry) model.get(AppMenuRecentEntryItemProperties.RECENT_ENTRY);
             assert entry != null;
             Bundle bundle = new Bundle();
             if (entry instanceof SessionRecentlyClosedEntry sessionEntry) {
                 bundle.putInt(RECENT_ENTRY_SESSION_ID_BUNDLE_KEY, sessionEntry.getSessionId());
+                if (model.containsKey(AppMenuRecentEntryItemProperties.WINDOW_ID)) {
+                    bundle.putInt(
+                            RECENT_ENTRY_INSTANCE_ID_BUNDLE_KEY,
+                            model.get(AppMenuRecentEntryItemProperties.WINDOW_ID));
+                }
             } else if (entry instanceof RecentlyClosedWindow window) {
                 bundle.putInt(RECENT_ENTRY_INSTANCE_ID_BUNDLE_KEY, window.getInstanceId());
             } else {
@@ -1283,7 +1284,6 @@ public abstract class AppMenuPropertiesDelegateImpl implements AppMenuProperties
         // always requests desktop sites.
         boolean itemVisible =
                 !isNativePage
-                        && !shouldShowReaderModePrefs(currentTab)
                         && currentTab != null
                         && currentTab.getWebContents() != null
                         && !DeviceInfo.isDesktop();

@@ -6,6 +6,9 @@
 
 #include <memory>
 
+#include "base/files/file.h"
+#include "base/files/file_enumerator.h"
+#include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/strings/string_util.h"
 #include "base/test/bind.h"
@@ -18,6 +21,7 @@
 #include "components/sessions/core/command_storage_manager_delegate.h"
 #include "components/sessions/core/command_storage_manager_test_helper.h"
 #include "components/sessions/core/session_command.h"
+#include "components/sessions/core/session_constants.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace sessions {
@@ -49,6 +53,20 @@ class CommandStorageManagerTest : public testing::TestWithParam<TestParams> {
     os_crypt_async_ = os_crypt_async::GetTestOSCryptAsyncForTesting(true);
   }
 
+  // Returns a list of the files in the encrypted sessions directory, sorted
+  // in chronological order (oldest first).
+  std::vector<base::FilePath> GetEncryptedSessionFiles() {
+    base::FilePath encrypted_dir = path_.Append(kEncryptedSessionsDirectory);
+    std::vector<base::FilePath> files;
+    base::FileEnumerator file_enum(encrypted_dir, false,
+                                   base::FileEnumerator::FILES);
+    for (base::FilePath name = file_enum.Next(); !name.empty();
+         name = file_enum.Next()) {
+      files.push_back(name);
+    }
+    std::sort(files.begin(), files.end());
+    return files;
+  }
   base::FilePath path_;
   std::unique_ptr<os_crypt_async::OSCryptAsync> os_crypt_async_;
   scoped_refptr<base::SequencedTaskRunner> backend_task_runner_;
@@ -174,6 +192,140 @@ TEST_P(CommandStorageManagerTest, OnErrorWritingSessionCommands) {
   test_helper.RunMessageLoopUntilBackendDone();
 
   EXPECT_EQ(1, delegate.error_count());
+}
+
+TEST_P(CommandStorageManagerTest,
+       GetLastSessionCommandsBeforeEncryptorIsReady) {
+  base::HistogramTester histogram_tester;
+  TestCommandStorageManagerDelegate delegate;
+  std::unique_ptr<os_crypt_async::OSCryptAsync> os_crypt;
+  os_crypt = os_crypt_async::GetTestOSCryptAsyncForTesting(
+      /*is_sync_for_unittests=*/false);
+  CommandStorageManager manager(GetParam().session_type, path_, &delegate,
+                                os_crypt.get(), backend_task_runner_);
+  CommandStorageManagerTestHelper test_helper(&manager);
+
+  // GetLastSessionCommands is called before the encryptor is ready.
+  std::vector<std::unique_ptr<SessionCommand>> commands;
+  bool error = false;
+  manager.GetLastSessionCommands(base::BindLambdaForTesting(
+      [&commands, &error](
+          std::vector<std::unique_ptr<SessionCommand>> commands_out,
+          bool error_out) {
+        commands = std::move(commands_out);
+        error = error_out;
+      }));
+  test_helper.RunMessageLoopUntilBackendDone();
+
+  EncryptSessionStorageStage stage = GetEncryptSessionStorageStage();
+  if (!GetParam().encryption_enabled ||
+      stage == EncryptSessionStorageStage::kClearOnly) {
+    EXPECT_FALSE(error);
+    EXPECT_TRUE(commands.empty());
+    histogram_tester.ExpectTotalCount(
+        "Session.CommandStorageManager.EncryptedBackendUninitialized", 0);
+  } else if (stage == EncryptSessionStorageStage::kWriteBothReadOnlyClear) {
+    EXPECT_FALSE(error);
+    EXPECT_TRUE(commands.empty());
+    // SessionEncryptedBackendUninitialized::kGetLastSessionCommands = 3
+    const int kGetLastSessionCommands = 3;
+    histogram_tester.ExpectUniqueSample(
+        "Session.CommandStorageManager.EncryptedBackendUninitialized",
+        kGetLastSessionCommands, 1);
+  } else if (stage ==
+                 EncryptSessionStorageStage::kWriteBothReadPreferEncrypted ||
+             stage == EncryptSessionStorageStage::
+                          kWriteEncryptedReadPreferEncrypted) {
+    // TODO: crbug.com/479420496 - Update when these stages are implemented.
+    GTEST_SKIP() << "Test not implemented for this stage yet: "
+                 << static_cast<int>(stage);
+  } else {
+    FAIL() << "Unhandled EncryptSessionStorageStage: "
+           << static_cast<int>(stage);
+  }
+}
+
+TEST_P(CommandStorageManagerTest, SaveBeforeEncryptorIsReady) {
+  base::HistogramTester histogram_tester;
+  TestCommandStorageManagerDelegate delegate;
+  std::unique_ptr<os_crypt_async::OSCryptAsync> os_crypt;
+  os_crypt = os_crypt_async::GetTestOSCryptAsyncForTesting(
+      /*is_sync_for_unittests=*/false);
+  CommandStorageManager manager(GetParam().session_type, path_, &delegate,
+                                os_crypt.get(), backend_task_runner_);
+  CommandStorageManagerTestHelper test_helper(&manager);
+
+  // Save is called before the encryptor is ready.
+  manager.AppendRebuildCommand(std::make_unique<SessionCommand>(101, 0));
+  manager.Save();
+  test_helper.RunMessageLoopUntilBackendDone();
+
+  EncryptSessionStorageStage stage = GetEncryptSessionStorageStage();
+  if (!GetParam().encryption_enabled ||
+      stage == EncryptSessionStorageStage::kClearOnly) {
+    EXPECT_EQ(0, delegate.error_count());
+    EXPECT_TRUE(manager.pending_commands().empty());
+    histogram_tester.ExpectTotalCount(
+        "Session.CommandStorageManager.EncryptedBackendUninitialized", 0);
+  } else if (stage == EncryptSessionStorageStage::kWriteBothReadOnlyClear) {
+    EXPECT_EQ(0, delegate.error_count());
+    EXPECT_TRUE(manager.pending_commands().empty());
+    // SessionEncryptedBackendUninitialized::kSave = 0
+    const int kSave = 0;
+    histogram_tester.ExpectUniqueSample(
+        "Session.CommandStorageManager.EncryptedBackendUninitialized", kSave,
+        1);
+  } else if (stage ==
+                 EncryptSessionStorageStage::kWriteBothReadPreferEncrypted ||
+             stage == EncryptSessionStorageStage::
+                          kWriteEncryptedReadPreferEncrypted) {
+    // TODO: crbug.com/479420496 - Update when these stages are implemented.
+    GTEST_SKIP() << "Test not implemented for this stage yet: "
+                 << static_cast<int>(stage);
+  } else {
+    FAIL() << "Unhandled EncryptSessionStorageStage: "
+           << static_cast<int>(stage);
+  }
+  EXPECT_FALSE(manager.pending_reset());
+  EXPECT_EQ(0, manager.commands_since_reset());
+}
+
+TEST_P(CommandStorageManagerTest,
+       MoveCurrentSessionToLastSessionBeforeEncryptorIsReady) {
+  base::HistogramTester histogram_tester;
+  TestCommandStorageManagerDelegate delegate;
+  std::unique_ptr<os_crypt_async::OSCryptAsync> os_crypt;
+  os_crypt = os_crypt_async::GetTestOSCryptAsyncForTesting(
+      /*is_sync_for_unittests=*/false);
+  CommandStorageManager manager(GetParam().session_type, path_, &delegate,
+                                os_crypt.get(), backend_task_runner_);
+  CommandStorageManagerTestHelper test_helper(&manager);
+
+  manager.MoveCurrentSessionToLastSession();
+  test_helper.RunMessageLoopUntilBackendDone();
+
+  EncryptSessionStorageStage stage = GetEncryptSessionStorageStage();
+  if (!GetParam().encryption_enabled ||
+      stage == EncryptSessionStorageStage::kClearOnly) {
+    histogram_tester.ExpectTotalCount(
+        "Session.CommandStorageManager.EncryptedBackendUninitialized", 0);
+  } else if (stage == EncryptSessionStorageStage::kWriteBothReadOnlyClear) {
+    // SessionEncryptedBackendUninitialized::kMoveCurrentSessionToLastSession
+    const int kMoveCurrentSessionToLastSession = 1;
+    histogram_tester.ExpectUniqueSample(
+        "Session.CommandStorageManager.EncryptedBackendUninitialized",
+        kMoveCurrentSessionToLastSession, 1);
+  } else if (stage ==
+                 EncryptSessionStorageStage::kWriteBothReadPreferEncrypted ||
+             stage == EncryptSessionStorageStage::
+                          kWriteEncryptedReadPreferEncrypted) {
+    // TODO: crbug.com/479420496 - Update when these stages are implemented.
+    GTEST_SKIP() << "Test not implemented for this stage yet: "
+                 << static_cast<int>(stage);
+  } else {
+    FAIL() << "Unhandled EncryptSessionStorageStage: "
+           << static_cast<int>(stage);
+  }
 }
 
 TEST_P(CommandStorageManagerTest, MoveCurrentSessionToLastSession) {
@@ -378,6 +530,222 @@ TEST_P(CommandStorageManagerTest, ShouldWriteEncryptedFiles) {
   EXPECT_FALSE(test_helper.ShouldWriteEncryptedFiles());
 }
 
+TEST_P(CommandStorageManagerTest, EncryptedReadMatch) {
+  base::HistogramTester histogram_tester;
+  TestCommandStorageManagerDelegate delegate;
+  // Setup by writing commands to the backend.
+  CommandStorageManager manager(GetParam().session_type, path_, &delegate,
+                                os_crypt_async_.get(), backend_task_runner_);
+  CommandStorageManagerTestHelper test_helper(&manager);
+  // Test only when both backends are written to and both are read.
+  if (!test_helper.ShouldWriteEncryptedFiles() ||
+      (std::string(GetParam().rollout_stage) != "write_both_read_only_clear")) {
+    GTEST_SKIP() << "Skipping test for non-encryption-related test params.";
+  }
+  manager.AppendRebuildCommand({std::make_unique<SessionCommand>(101, 0)});
+  manager.AppendRebuildCommand({std::make_unique<SessionCommand>(102, 0)});
+  manager.Save();
+  test_helper.RunMessageLoopUntilBackendDone();
+
+  manager.MoveCurrentSessionToLastSession();
+  // Read the commands from the backend (using the SAME manager).
+  std::vector<std::unique_ptr<SessionCommand>> commands;
+  bool error = false;
+  manager.GetLastSessionCommands(base::BindLambdaForTesting(
+      [&commands, &error](
+          std::vector<std::unique_ptr<SessionCommand>> commands_out,
+          bool error_out) {
+        commands = std::move(commands_out);
+        error = error_out;
+      }));
+  test_helper.RunMessageLoopUntilBackendDone();
+
+  EXPECT_FALSE(error);
+  EXPECT_EQ(2U, commands.size());
+
+  // There should be a single record indicating a match.
+  const int kMatch = 0;  // SessionReadComparisonResult::kMatch
+  histogram_tester.ExpectUniqueSample(
+      "Session.CommandStorageManager.EncryptedReadMatch", kMatch, 1);
+}
+
+TEST_P(CommandStorageManagerTest, EncryptedReadErrorWithBadEncryptedFile) {
+  base::HistogramTester histogram_tester;
+  TestCommandStorageManagerDelegate delegate;
+  // Setup by writing commands to the backend.
+  CommandStorageManager manager(GetParam().session_type, path_, &delegate,
+                                os_crypt_async_.get(), backend_task_runner_);
+  CommandStorageManagerTestHelper test_helper(&manager);
+  // Test only when both backends are written to and both are read.
+  if (!test_helper.ShouldWriteEncryptedFiles() ||
+      (std::string(GetParam().rollout_stage) != "write_both_read_only_clear")) {
+    GTEST_SKIP() << "Skipping test for non-encryption-related test params.";
+  }
+  manager.AppendRebuildCommand({std::make_unique<SessionCommand>(101, 0)});
+  manager.AppendRebuildCommand({std::make_unique<SessionCommand>(102, 0)});
+  manager.Save();
+  test_helper.RunMessageLoopUntilBackendDone();
+
+  manager.MoveCurrentSessionToLastSession();
+  test_helper.RunMessageLoopUntilBackendDone();
+
+  // Corrupt the encrypted last session file.
+  // Note that the cleartext version of this file remains intact.
+  base::FilePath encrypted_dir = path_.Append(kEncryptedSessionsDirectory);
+  base::FileEnumerator file_enum(encrypted_dir, false,
+                                 base::FileEnumerator::FILES);
+  std::vector<base::FilePath> files;
+  for (base::FilePath name = file_enum.Next(); !name.empty();
+       name = file_enum.Next()) {
+    files.push_back(name);
+  }
+  std::sort(files.begin(), files.end());
+  ASSERT_EQ(2U, files.size());
+  base::FilePath last_session_file = files[0];
+  ASSERT_TRUE(base::WriteFile(last_session_file, "garbage data"));
+
+  // Use the CommandStorageManager to read the commands.
+  std::vector<std::unique_ptr<SessionCommand>> commands;
+  bool error = false;
+  manager.GetLastSessionCommands(base::BindLambdaForTesting(
+      [&commands, &error](
+          std::vector<std::unique_ptr<SessionCommand>> commands_out,
+          bool error_out) {
+        commands = std::move(commands_out);
+        error = error_out;
+      }));
+  test_helper.RunMessageLoopUntilBackendDone();
+
+  // The read from should still succeed because the cleartext file is intact.
+  EXPECT_FALSE(error);
+  EXPECT_EQ(2U, commands.size());
+
+  // There should be a single record indicating a mismatch due to an error.
+  const int kErrorMismatch = 1;  // SessionReadComparisonResult::kErrorMismatch
+  histogram_tester.ExpectUniqueSample(
+      "Session.CommandStorageManager.EncryptedReadMatch", kErrorMismatch, 1);
+}
+
+TEST_P(CommandStorageManagerTest, EncryptedReadErrorWithMissingEncryptedFile) {
+  base::HistogramTester histogram_tester;
+  TestCommandStorageManagerDelegate delegate;
+  // Setup by writing commands to the backend.
+  CommandStorageManager manager(GetParam().session_type, path_, &delegate,
+                                os_crypt_async_.get(), backend_task_runner_);
+  CommandStorageManagerTestHelper test_helper(&manager);
+  // Test only when both backends are written to and both are read.
+  if (!test_helper.ShouldWriteEncryptedFiles() ||
+      (std::string(GetParam().rollout_stage) != "write_both_read_only_clear")) {
+    GTEST_SKIP() << "Skipping test for non-encryption-related test params.";
+  }
+  manager.AppendRebuildCommand({std::make_unique<SessionCommand>(101, 0)});
+  manager.AppendRebuildCommand({std::make_unique<SessionCommand>(102, 0)});
+  manager.Save();
+  test_helper.RunMessageLoopUntilBackendDone();
+
+  manager.MoveCurrentSessionToLastSession();
+  test_helper.RunMessageLoopUntilBackendDone();
+
+  // Delete the encrypted last session file so it's missing.
+  // We only delete `files[0]` because `MoveCurrentSessionToLastSession()`
+  // opens a new current session file (`files[1]`) which is still held open.
+  // On Windows, it's not possible to delete an actively open file.
+  std::vector<base::FilePath> files = GetEncryptedSessionFiles();
+  ASSERT_EQ(2U, files.size());
+  ASSERT_TRUE(base::DeleteFile(files[0]));
+
+  // Use the CommandStorageManager to read the commands.
+  // `GetLastSessionCommands()` only attempts to read the last session
+  // file (`files[0]` which is now missing); it does not attempt to read the
+  // current session file (`files[1]`).
+  std::vector<std::unique_ptr<SessionCommand>> commands;
+  bool error = false;
+  manager.GetLastSessionCommands(base::BindLambdaForTesting(
+      [&commands, &error](
+          std::vector<std::unique_ptr<SessionCommand>> commands_out,
+          bool error_out) {
+        commands = std::move(commands_out);
+        error = error_out;
+      }));
+  test_helper.RunMessageLoopUntilBackendDone();
+
+  // The read should still succeed because the cleartext file is intact.
+  EXPECT_FALSE(error);
+  EXPECT_EQ(2U, commands.size());
+
+  // There should be a single record indicating a mismatch due to an error.
+  const int kErrorMismatch = 1;  // SessionReadComparisonResult::kErrorMismatch
+  histogram_tester.ExpectUniqueSample(
+      "Session.CommandStorageManager.EncryptedReadMatch", kErrorMismatch, 1);
+}
+
+TEST_P(CommandStorageManagerTest, EncryptedReadCommandsMismatch) {
+  base::HistogramTester histogram_tester;
+  TestCommandStorageManagerDelegate delegate;
+  CommandStorageManager manager(GetParam().session_type, path_, &delegate,
+                                os_crypt_async_.get(), backend_task_runner_);
+  CommandStorageManagerTestHelper test_helper(&manager);
+  // Test only when both backends are written to and both are read.
+  if (!test_helper.ShouldWriteEncryptedFiles() ||
+      (std::string(GetParam().rollout_stage) != "write_both_read_only_clear")) {
+    GTEST_SKIP() << "Skipping test for non-encryption-related test params.";
+  }
+
+  // 1. Setup backup session with 1 command.
+  manager.AppendRebuildCommand({std::make_unique<SessionCommand>(101, 0)});
+  manager.Save();
+  test_helper.RunMessageLoopUntilBackendDone();
+
+  manager.MoveCurrentSessionToLastSession();
+  test_helper.RunMessageLoopUntilBackendDone();
+
+  std::vector<base::FilePath> files1 = GetEncryptedSessionFiles();
+  ASSERT_EQ(2U, files1.size());
+  base::FilePath last_session_file1 = files1[0];
+  base::FilePath temp_backup;
+  ASSERT_TRUE(base::CreateTemporaryFileInDir(path_, &temp_backup));
+  ASSERT_TRUE(base::CopyFile(last_session_file1, temp_backup));
+
+  // 2. Setup a new session with 2 commands.
+  manager.set_pending_reset(true);
+  manager.AppendRebuildCommand({std::make_unique<SessionCommand>(101, 0)});
+  manager.AppendRebuildCommand({std::make_unique<SessionCommand>(102, 0)});
+  manager.Save();
+  test_helper.RunMessageLoopUntilBackendDone();
+
+  manager.MoveCurrentSessionToLastSession();
+  test_helper.RunMessageLoopUntilBackendDone();
+
+  std::vector<base::FilePath> files2 = GetEncryptedSessionFiles();
+  ASSERT_EQ(2U, files2.size());
+  base::FilePath last_session_file2 = files2[0];
+
+  // 3. Overwrite the new "last" session with the backup.
+  ASSERT_TRUE(base::CopyFile(temp_backup, last_session_file2));
+
+  // 4. Read commands.
+  std::vector<std::unique_ptr<SessionCommand>> commands;
+  bool error = false;
+  manager.GetLastSessionCommands(base::BindLambdaForTesting(
+      [&commands, &error](
+          std::vector<std::unique_ptr<SessionCommand>> commands_out,
+          bool error_out) {
+        commands = std::move(commands_out);
+        error = error_out;
+      }));
+  test_helper.RunMessageLoopUntilBackendDone();
+
+  // The read from cleartext should still succeed.
+  EXPECT_FALSE(error);
+  EXPECT_EQ(2U, commands.size());
+
+  // There should be a single record indicating a commands mismatch.
+  // SessionReadComparisonResult::kCommandsMismatch = 2
+  const int kCommandsMismatch = 2;
+  histogram_tester.ExpectUniqueSample(
+      "Session.CommandStorageManager.EncryptedReadMatch", kCommandsMismatch, 1);
+}
+
 TEST_P(CommandStorageManagerTest, DeleteLastSession) {
   TestCommandStorageManagerDelegate delegate;
   // Setup by writing commands to the backend.
@@ -404,6 +772,43 @@ TEST_P(CommandStorageManagerTest, DeleteLastSession) {
 
   EXPECT_FALSE(error);
   EXPECT_TRUE(commands.empty());
+}
+
+TEST_P(CommandStorageManagerTest, DeleteLastSessionBeforeEncryptorIsReady) {
+  base::HistogramTester histogram_tester;
+  TestCommandStorageManagerDelegate delegate;
+  std::unique_ptr<os_crypt_async::OSCryptAsync> os_crypt;
+  os_crypt = os_crypt_async::GetTestOSCryptAsyncForTesting(
+      /*is_sync_for_unittests=*/false);
+  CommandStorageManager manager(GetParam().session_type, path_, &delegate,
+                                os_crypt.get(), backend_task_runner_);
+  CommandStorageManagerTestHelper test_helper(&manager);
+
+  manager.DeleteLastSession();
+  test_helper.RunMessageLoopUntilBackendDone();
+
+  EncryptSessionStorageStage stage = GetEncryptSessionStorageStage();
+  if (!GetParam().encryption_enabled ||
+      stage == EncryptSessionStorageStage::kClearOnly) {
+    histogram_tester.ExpectTotalCount(
+        "Session.CommandStorageManager.EncryptedBackendUninitialized", 0);
+  } else if (stage == EncryptSessionStorageStage::kWriteBothReadOnlyClear) {
+    // SessionReadComparisonResult::kDeleteLastSession =2
+    const int kDeleteLastSession = 2;
+    histogram_tester.ExpectUniqueSample(
+        "Session.CommandStorageManager.EncryptedBackendUninitialized",
+        kDeleteLastSession, 1);
+  } else if (stage ==
+                 EncryptSessionStorageStage::kWriteBothReadPreferEncrypted ||
+             stage == EncryptSessionStorageStage::
+                          kWriteEncryptedReadPreferEncrypted) {
+    // TODO: crbug.com/479420496 - Update when these stages are implemented.
+    GTEST_SKIP() << "Test not implemented for this stage yet: "
+                 << static_cast<int>(stage);
+  } else {
+    FAIL() << "Unhandled EncryptSessionStorageStage: "
+           << static_cast<int>(stage);
+  }
 }
 
 TEST_P(CommandStorageManagerTest, OnEncryptorReadyDurationRecorded) {

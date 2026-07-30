@@ -6,22 +6,28 @@
 #include <string>
 #include <utility>
 
+#include "ash/webui/settings/public/constants/routes.mojom.h"
+#include "ash/webui/settings/public/constants/routes_util.h"
 #include "base/check_deref.h"
 #include "base/command_line.h"
 #include "base/containers/flat_map.h"
 #include "base/strings/string_util.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/run_until.h"
+#include "chrome/browser/ash/system_web_apps/system_web_app_manager.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/ash/system_web_apps/system_web_app_ui_utils.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/navigator/browser_navigator.h"
 #include "chrome/browser/ui/navigator/browser_navigator_params.h"
+#include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/interactive_test_utils.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "chromeos/ash/components/account_manager/account_manager_factory.h"
+#include "chromeos/ash/components/system_web_apps/system_web_app_type.h"
 #include "components/account_manager_core/account_addition_options.h"
 #include "components/account_manager_core/account_manager_metrics.h"
 #include "components/account_manager_core/account_upsertion_result.h"
@@ -29,6 +35,7 @@
 #include "components/account_manager_core/chromeos/fake_account_manager_ui.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
+#include "content/public/test/test_navigation_observer.h"
 #include "google_apis/gaia/gaia_switches.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "ui/base/window_open_disposition.h"
@@ -58,9 +65,6 @@ FakeAccountManagerUI& SetFakeAccountManagerUI(Profile& profile) {
 // `signin::BuildManageAccountsParams()`
 // - triggers dialogs based on the action specified in the header, with
 //   `ProcessMirrorHeader`
-// The Account Manager UI tests don't display real dialogs. Instead they use
-// `FakeAccountManagerUI` to verify the requested action and relevant
-// options/UMA.
 // The tests are interactive_ui_tests because they depend on browser's window
 // activation state.
 class MirrorResponseBrowserTest : public InProcessBrowserTest {
@@ -156,7 +160,6 @@ IN_PROC_BROWSER_TEST_F(MirrorResponseBrowserTest,
                    ->show_arc_availability_picker);
   EXPECT_EQ(
       0, fake_account_manager_ui.show_account_reauthentication_dialog_calls());
-  EXPECT_EQ(0, fake_account_manager_ui.show_manage_accounts_settings_calls());
   histogram_tester.ExpectUniqueSample(
       account_manager::kAccountAdditionSourceHistogramName,
       account_manager::AccountAdditionSource::kOgbAddAccount,
@@ -181,12 +184,25 @@ IN_PROC_BROWSER_TEST_F(MirrorResponseBrowserTest,
   base::HistogramTester histogram_tester;
   FakeAccountManagerUI& fake_account_manager_ui =
       SetFakeAccountManagerUI(*browser()->profile());
+  ash::SystemWebAppManager::GetForTest(browser()->profile())
+      ->InstallSystemAppsForTesting();
+
+  const GURL os_settings_people = chromeos::settings::GetOSSettingsUrl(
+      chromeos::settings::mojom::kPeopleSectionPath);
+  content::TestNavigationObserver navigation_observer(os_settings_people);
+  navigation_observer.StartWatchingNewWebContents();
 
   ReceiveManageAccountsHeader({{"action", "DEFAULT"}});
 
-  ASSERT_TRUE(base::test::RunUntil([&fake_account_manager_ui] {
-    return fake_account_manager_ui.show_manage_accounts_settings_calls() == 1;
-  }));
+  navigation_observer.Wait();
+
+  Browser* settings_browser = ash::FindSystemWebAppBrowser(
+      browser()->profile(), ash::SystemWebAppType::SETTINGS);
+  ASSERT_TRUE(settings_browser);
+  content::WebContents* settings_contents =
+      settings_browser->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(settings_contents);
+  EXPECT_EQ(os_settings_people, settings_contents->GetLastCommittedURL());
   EXPECT_EQ(0, fake_account_manager_ui.show_account_addition_dialog_calls());
   EXPECT_EQ(
       0, fake_account_manager_ui.show_account_reauthentication_dialog_calls());
@@ -277,9 +293,9 @@ IN_PROC_BROWSER_TEST_F(MirrorResponseBrowserTest,
 // tab should not be opened.
 IN_PROC_BROWSER_TEST_F(MirrorResponseBrowserTest, BackgroundResponseIgnored) {
   // Minimize the browser window to disactivate it.
-  browser()->window()->Minimize();
+  browser()->GetWindow()->Minimize();
   ASSERT_TRUE(ui_test_utils::WaitForMinimized(browser()));
-  EXPECT_FALSE(browser()->window()->IsActive());
+  EXPECT_FALSE(browser()->GetWindow()->IsActive());
 
   size_t browser_count = GlobalBrowserCollection::GetInstance()->GetSize();
   GURL url = GetUrlWithManageAccountsHeader({{"action", "INCOGNITO"}});

@@ -61,8 +61,6 @@ class CWVPreferencesTest : public PlatformTest {
         ios_web_view::kCWVPasswordAffiliationEnabled, false);
     pref_registry->RegisterBooleanPref(
         ios_web_view::kCWVAutofillVCNUsageEnabled, false);
-    pref_registry->RegisterBooleanPref(
-        ios_web_view::kRiskBasedAuthenticationEnabled, false);
 
     base::FilePath temp_dir_path;
     EXPECT_TRUE(base::PathService::Get(base::DIR_TEMP, &temp_dir_path));

@@ -12,11 +12,15 @@
 #include "chrome/browser/ui/browser_command_controller.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/tabs/features.h"
+#include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
+#include "chrome/browser/ui/views/frame/immersive_mode_controller_stub.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/in_process_browser_test.h"
+#include "chrome/test/base/ui_test_utils.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/test/browser_test.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -188,5 +192,99 @@ IN_PROC_BROWSER_TEST_F(SystemMenuModelBuilderSimplificationTest,
   // Check bottom items (reverse order)
   EXPECT_EQ(menu->GetCommandIdAt(count - 1), IDC_CLOSE_WINDOW);
   EXPECT_EQ(menu->GetTypeAt(count - 2), ui::MenuModel::TYPE_SEPARATOR);
+}
+#endif
+
+class SystemMenuModelBuilderVerticalTabsTest : public InProcessBrowserTest {
+ protected:
+  void SetUp() override {
+    scoped_feature_list_.InitWithFeatures(
+        /* enabled_features */ {tabs::kVerticalTabs,
+                                tabs::kVerticalTabsExpandOnHover},
+        /* disabled_features */ {});
+    InProcessBrowserTest::SetUp();
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(SystemMenuModelBuilderVerticalTabsTest,
+                       VerticalTabsSystemMenuNotImmersive) {
+  auto* controller = tabs::VerticalTabStripStateController::From(browser());
+  ASSERT_TRUE(controller);
+
+  // Horizonal Tabs.
+  ASSERT_FALSE(controller->ShouldDisplayVerticalTabs());
+
+  ui::MenuModel* menu = BrowserView::GetBrowserViewForBrowser(browser())
+                            ->browser_widget()
+                            ->GetSystemMenuModel();
+
+  // In horizontal tabs, we should show:
+  // - IDC_TOGGLE_VERTICAL_TABS (to switch to vertical tabs)
+  EXPECT_TRUE(ContainsCommand(menu, IDC_TOGGLE_VERTICAL_TABS,
+                              IDS_SWITCH_TO_VERTICAL_TAB));
+  EXPECT_FALSE(ContainsCommand(menu, IDC_TOGGLE_VERTICAL_TABS_EXPAND_ON_HOVER,
+                               std::nullopt));
+
+  // Vertical Tabs.
+  controller->SetVerticalTabsEnabled(true);
+  ASSERT_TRUE(controller->ShouldDisplayVerticalTabs());
+
+  menu = BrowserView::GetBrowserViewForBrowser(browser())
+             ->browser_widget()
+             ->GetSystemMenuModel();
+
+  // In vertical tabs, we should show:
+  // - IDC_TOGGLE_VERTICAL_TABS (to switch to horizontal tabs)
+  // - IDC_TOGGLE_VERTICAL_TABS_EXPAND_ON_HOVER
+  EXPECT_TRUE(ContainsCommand(menu, IDC_TOGGLE_VERTICAL_TABS,
+                              IDS_SWITCH_TO_HORIZONTAL_TAB));
+  EXPECT_TRUE(ContainsCommand(menu, IDC_TOGGLE_VERTICAL_TABS_EXPAND_ON_HOVER,
+                              std::nullopt));
+}
+
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_MAC)
+// Immersive Mode only exists on Mac and ChromeOS.
+IN_PROC_BROWSER_TEST_F(SystemMenuModelBuilderVerticalTabsTest,
+                       VerticalTabsSystemMenuImmersive) {
+  auto* controller = tabs::VerticalTabStripStateController::From(browser());
+  ASSERT_TRUE(controller);
+
+  // Horizontal Tabs + Immersive Mode.
+  ASSERT_FALSE(controller->ShouldDisplayVerticalTabs());
+  ui_test_utils::ToggleFullscreenModeAndWait(browser());
+  ASSERT_TRUE(ImmersiveModeController::From(browser())->IsEnabled());
+
+  ui::MenuModel* menu = BrowserView::GetBrowserViewForBrowser(browser())
+                            ->browser_widget()
+                            ->GetSystemMenuModel();
+
+  // In horizontal tabs + immersive mode:
+  // None of the vertical tabs menu items should be visible.
+  EXPECT_FALSE(ContainsCommand(menu, IDC_TOGGLE_VERTICAL_TABS, std::nullopt));
+  EXPECT_FALSE(ContainsCommand(menu, IDC_TOGGLE_VERTICAL_TABS_EXPAND_ON_HOVER,
+                               std::nullopt));
+
+  // Exit immersive fullscreen so that we can change tab strip orientations.
+  ui_test_utils::ToggleFullscreenModeAndWait(browser());
+  ASSERT_FALSE(ImmersiveModeController::From(browser())->IsEnabled());
+
+  // Vertical Tabs + Immersive Mode.
+  controller->SetVerticalTabsEnabled(true);
+  ASSERT_TRUE(controller->ShouldDisplayVerticalTabs());
+  ui_test_utils::ToggleFullscreenModeAndWait(browser());
+  ASSERT_TRUE(ImmersiveModeController::From(browser())->IsEnabled());
+
+  menu = BrowserView::GetBrowserViewForBrowser(browser())
+             ->browser_widget()
+             ->GetSystemMenuModel();
+
+  // In vertical tabs + immersive mode:
+  // - IDC_TOGGLE_VERTICAL_TABS_EXPAND_ON_HOVER should be visible.
+  EXPECT_FALSE(ContainsCommand(menu, IDC_TOGGLE_VERTICAL_TABS, std::nullopt));
+  EXPECT_TRUE(ContainsCommand(menu, IDC_TOGGLE_VERTICAL_TABS_EXPAND_ON_HOVER,
+                              std::nullopt));
 }
 #endif

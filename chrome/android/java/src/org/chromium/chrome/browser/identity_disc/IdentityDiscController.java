@@ -94,6 +94,7 @@ public class IdentityDiscController
     private final SnackbarManager mSnackbarManager;
     private final MonotonicObservableSupplier<Profile> mProfileSupplier;
     private final Callback<Profile> mProfileSupplierObserver = this::setProfile;
+    private final Runnable mOnSigninTapped;
     private @Nullable Profile mProfile;
 
     // We observe IdentityManager to receive primary account state change notifications.
@@ -126,6 +127,7 @@ public class IdentityDiscController
      *     sheet.
      * @param modalDialogManager The {@link ModalDialogManager}.
      * @param snackbarManager The {@link SnackbarManager} to show sign-in/sign-out snackbars.
+     * @param onSigninTapped Runnable to be called when the identity disc is tapped.
      */
     public IdentityDiscController(
             Activity activity,
@@ -135,7 +137,8 @@ public class IdentityDiscController
             MonotonicObservableSupplier<Profile> profileSupplier,
             BottomSheetController bottomSheetController,
             ModalDialogManager modalDialogManager,
-            SnackbarManager snackbarManager) {
+            SnackbarManager snackbarManager,
+            Runnable onSigninTapped) {
         mContext = activity;
         mActivity = activity;
         mWindowAndroid = windowAndroid;
@@ -145,6 +148,7 @@ public class IdentityDiscController
         mBottomSheetController = bottomSheetController;
         mModalDialogManager = modalDialogManager;
         mSnackbarManager = snackbarManager;
+        mOnSigninTapped = onSigninTapped;
 
         mProfileSupplier.addSyncObserverAndPostIfNonNull(mProfileSupplierObserver);
 
@@ -445,6 +449,8 @@ public class IdentityDiscController
         if (mProfile == null) {
             return;
         }
+
+        mOnSigninTapped.run();
         recordIdentityDiscUsed();
 
         Profile originalProfile = mProfile.getOriginalProfile();

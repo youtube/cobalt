@@ -8,6 +8,7 @@
 #include "base/notimplemented.h"
 #include "base/run_loop.h"
 #include "base/test/run_until.h"
+#include "chrome/browser/headless/headless_command_processor.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
@@ -34,6 +35,9 @@
 
 void WaitUntilInitialWebUIPaintAndFlushMetricsForTesting(
     BrowserWindowInterface* browser) {
+  if (headless::ShouldProcessHeadlessCommands()) {
+    return;
+  }
   if (!browser || (!features::IsWebUIToolbarEnabled() &&
                    !base::FeatureList::IsEnabled(
                        features::kWebUIToolbarProcessOverheadExperiment))) {

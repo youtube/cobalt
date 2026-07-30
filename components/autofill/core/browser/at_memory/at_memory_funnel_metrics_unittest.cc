@@ -5,6 +5,7 @@
 #include "components/autofill/core/browser/at_memory/at_memory_funnel_metrics.h"
 
 #include "base/test/metrics/histogram_tester.h"
+#include "base/test/task_environment.h"
 #include "components/autofill/core/browser/metrics/autofill_metrics.h"
 #include "components/autofill/core/common/aliases.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -124,6 +125,24 @@ TEST_F(AtMemoryFunnelMetricsTest, MarkFilled_Filled) {
 
   histogram_tester_.ExpectBucketCount(
       "Autofill.AtMemory.Funnel.SuggestionFilled", false, 1);
+}
+
+// Tests that the unmasking duration metric is recorded correctly.
+TEST_F(AtMemoryFunnelMetricsTest, TimeToFetchUnmasked) {
+  base::test::TaskEnvironment task_environment{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
+  {
+    AtMemoryFunnelMetrics metrics;
+    metrics.OnPopupShown(AutofillSuggestionTriggerSource::kAtMemory);
+    metrics.OnSuggestionAccepted();
+    metrics.OnFetchStarted();
+    task_environment.FastForwardBy(base::Seconds(2));
+    metrics.OnFetchCompleted();
+    metrics.MarkFilled();
+  }
+
+  histogram_tester_.ExpectUniqueTimeSample(
+      "Autofill.AtMemory.Funnel.TimeToFetchUnmasked", base::Seconds(2), 1);
 }
 
 }  // namespace autofill

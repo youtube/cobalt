@@ -15,10 +15,6 @@
 #include "gpu/config/gpu_finch_features.h"
 #include "ui/gl/buildflags.h"
 
-#if BUILDFLAG(IS_MAC)
-#include "base/mac/mac_util.h"
-#endif
-
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/android_info.h"
 #endif
@@ -66,13 +62,6 @@ WebGPUBlocklistReason GetWebGPUAdapterBlocklistReason(
     const wgpu::AdapterInfo& info,
     const WebGPUBlocklistOptions& options) {
   WebGPUBlocklistReason reason = WebGPUBlocklistReason::None;
-#if BUILDFLAG(IS_MAC)
-  constexpr uint32_t kAMDVendorID = 0x1002;
-  if (base::mac::MacOSMajorVersion() < 13 && info.vendorID == kAMDVendorID &&
-      info.backendType == wgpu::BackendType::Metal) {
-    reason = reason | WebGPUBlocklistReason::DynamicArrayIndexInStruct;
-  }
-#endif
 
 #if BUILDFLAG(IS_WIN)
   constexpr uint32_t kAMDVendorID = 0x1002;
@@ -273,9 +262,6 @@ std::string BlocklistReasonToString(WebGPUBlocklistReason reason) {
           {WebGPUBlocklistReason::IndirectComputeRootConstants,
            "crbug.com/42240193: Indirect root constants in compute pass "
            "broken on Windows NVIDIA x86."},
-          {WebGPUBlocklistReason::DynamicArrayIndexInStruct,
-           "crbug.com/40643701: Metal compiler errors for dynamic indexing "
-           "of arrays in structures."},
           {WebGPUBlocklistReason::StringPatternOther,
            "Blocklisted by vendor/device/driver string pattern."},
           {WebGPUBlocklistReason::QualcommWindows,

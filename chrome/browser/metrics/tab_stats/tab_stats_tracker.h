@@ -140,6 +140,10 @@ class TabStatsTracker :
     // The name of the histogram that records the keyboard tab switch mode.
     static const char kKeyboardTabSwitchModeHistogramName[];
 
+    // The name of the histogram that records the number of pinned tabs in the
+    // tab strip.
+    static const char kPinnedTabCountHistogramName[];
+
     // The names of the histograms that record daily discard/reload counts
     // caused for each discard reason.
     static const char kDailyDiscardsExternalHistogramName[];
@@ -384,6 +388,9 @@ class TabStatsTracker::TabStripInterface {
 
   // Returns the count of tabs in this tab strip.
   size_t GetTabCount() const;
+
+  // Returns the count of pinned tabs in this tab strip.
+  size_t GetPinnedTabCount() const;
 
 #if !BUILDFLAG(IS_ANDROID)
   // Returns the count of tabs within Split Views in this tab strip.

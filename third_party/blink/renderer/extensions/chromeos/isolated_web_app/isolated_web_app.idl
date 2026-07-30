@@ -15,9 +15,11 @@
   //
   // Passing an empty list of `rects` resets the window shape back to normal.
   //
+  // The window display mode must be unframed for this API to work.
+  //
   // The returned promise is resolved when the operation is successful, and
-  // rejected if the shape couldn't be set (e.g. when `rects` are invalid, or
-  // the window could not be found).
+  // rejected if the shape couldn't be set (e.g. when `rects` are invalid,
+  // the window could not be found, or the window is not in unframed mode).
   [
     RuntimeEnabled=BlinkExtensionChromeOSIsolatedWebAppSetShape,
     CallWith=ScriptState,

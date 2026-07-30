@@ -12,9 +12,9 @@
 <img id="downloadedIcon" is="cr-auto-img"
     auto-src="[[getIconUrl_(engine.iconURL)]]" clear-src
     on-load="onDownloadedIconLoadSuccess_"
-    on-error="onDownloadedIconLoadError_"
+    on-error="onDownloadedIconLoadError_" alt=""
     hidden="[[!shouldShowDownloadedIcon_(showDownloadedIcon_, engine)]]">
 <site-favicon favicon-url="[[engine.iconURL]]" url="[[engine.url]]"
-    icon-path="[[engine.iconPath]]"
+    icon-path="[[engine.iconPath]]" aria-hidden="true"
     hidden="[[shouldShowDownloadedIcon_(showDownloadedIcon_, engine)]]">
 </site-favicon>

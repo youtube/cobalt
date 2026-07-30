@@ -45,7 +45,8 @@ enum class HandleSubmittedFormStatus {
   kRejectedNoFrameMatchingId = 4,
   kRejectedNoTrustedUrl = 5,
   kRejectedCantExtractFormData = 6,
-  kMaxValue = kRejectedCantExtractFormData
+  kRejectedNoUserInteraction = 7,
+  kMaxValue = kRejectedNoUserInteraction
 };
 
 // A protocol implemented by a delegate of PasswordFormHelper.

@@ -18,6 +18,9 @@ import org.chromium.blink.mojom.GetCredentialResponse;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Wrapper to manage the set of callbacks for a WebAuthn operation, enforcing that only one of
  * GetCredential, MakeCredential, or Report callbacks can be active.
@@ -38,7 +41,7 @@ public class WebauthnRequestCallback {
     }
 
     private final @CallbackType int mCallbackType;
-    private @Nullable Runnable mCompletionCallback;
+    private final List<Runnable> mCompletionCallbacks = new ArrayList<>();
 
     // Only one of the following callbacks should be non-null at any given time.
     private @Nullable GetCredential_Response mGetCredentialCallback;
@@ -143,14 +146,18 @@ public class WebauthnRequestCallback {
                 assert false;
         }
         clearCallbacks();
-        if (mCompletionCallback != null) {
-            mCompletionCallback.run();
-            mCompletionCallback = null;
+        for (Runnable callback : mCompletionCallbacks) {
+            callback.run();
         }
+        mCompletionCallbacks.clear();
+    }
+
+    public void addCompletionCallback(Runnable completionCallback) {
+        mCompletionCallbacks.add(completionCallback);
     }
 
     public void setCompletionCallback(Runnable completionCallback) {
-        mCompletionCallback = completionCallback;
+        addCompletionCallback(completionCallback);
     }
 
     private void recordOutcome(RequestMetrics result) {

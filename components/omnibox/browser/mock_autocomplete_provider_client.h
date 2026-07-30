@@ -222,6 +222,8 @@ class MockAutocompleteProviderClient
   MOCK_METHOD0(CloseIncognitoWindows, void());
   MOCK_METHOD0(PromptPageTranslation, void());
   MOCK_METHOD1(OpenLensOverlay, void(bool));
+  MOCK_METHOD(bool, ShouldOpenCoBrowsePanel, (), (const, override));
+  MOCK_METHOD(void, OpenCoBrowsePanel, (), (override));
   MOCK_METHOD3(IssueContextualSearchRequest,
                void(const GURL& destination_url,
                     AutocompleteMatchType::Type match_type,

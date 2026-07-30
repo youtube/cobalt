@@ -168,7 +168,9 @@ void FieldClassificationModelHandler::ApplySmallFormRules(
     candidates.AddFieldCandidate(
         predicted_types[i],
         // Arbitrary value to satisfy the API - not used.
-        MatchAttribute::kLabel, 1.0f);
+        MatchAttribute::kLabel,
+        {/*is_name_or_high_quality_label_match=*/true,
+         /*parser_type=*/HeuristicParser::kName});
     field_candidates_map.try_emplace(form.fields()[i].global_id(),
                                      std::move(candidates));
   }

@@ -9,7 +9,12 @@
 #include <utility>
 
 #include "components/autofill/core/browser/foundations/browser_autofill_manager_test_api.h"
+#include "content/public/browser/render_frame_host.h"
+#include "content/public/test/navigation_simulator.h"
+#include "content/public/test/test_renderer_host.h"
+#include "ui/base/page_transition_types.h"
 #include "ui/gfx/native_ui_types.h"
+#include "url/gurl.h"
 
 namespace autofill {
 

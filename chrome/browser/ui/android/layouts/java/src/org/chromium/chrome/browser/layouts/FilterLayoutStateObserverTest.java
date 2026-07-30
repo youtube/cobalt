@@ -66,7 +66,7 @@ public class FilterLayoutStateObserverTest {
                 "Event should not have triggered.",
                 initialCount,
                 mStartedShowingCallbackHelper.getCallCount());
-        observer.onStartedShowing(LayoutType.TAB_SWITCHER);
+        observer.onStartedShowing(LayoutType.HUB);
         assertEquals(
                 "Event should not have triggered with the specified layout.",
                 initialCount,

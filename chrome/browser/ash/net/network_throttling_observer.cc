@@ -7,10 +7,10 @@
 #include <algorithm>
 #include <string>
 
+#include "ash/constants/ash_pref_names.h"
 #include "base/functional/bind.h"
 #include "base/system/sys_info.h"
 #include "base/values.h"
-#include "chrome/common/pref_names.h"
 #include "chromeos/ash/components/network/network_state_handler.h"
 #include "components/prefs/pref_member.h"
 #include "components/prefs/pref_registry_simple.h"
@@ -25,22 +25,22 @@ NetworkThrottlingObserver::NetworkThrottlingObserver(PrefService* local_state)
   auto throttle_callback = base::BindRepeating(
       &NetworkThrottlingObserver::OnPreferenceChanged, base::Unretained(this));
 
-  pref_change_registrar_.Add(prefs::kNetworkThrottlingEnabled,
+  pref_change_registrar_.Add(ash::prefs::kNetworkThrottlingEnabled,
                              throttle_callback);
 }
 
 NetworkThrottlingObserver::~NetworkThrottlingObserver() = default;
 
 void NetworkThrottlingObserver::RegisterPrefs(PrefRegistrySimple* registry) {
-  registry->RegisterDictionaryPref(prefs::kNetworkThrottlingEnabled);
+  registry->RegisterDictionaryPref(ash::prefs::kNetworkThrottlingEnabled);
 }
 
 void NetworkThrottlingObserver::OnPreferenceChanged(
     const std::string& pref_name) {
-  DCHECK(pref_name == prefs::kNetworkThrottlingEnabled);
+  DCHECK(pref_name == ash::prefs::kNetworkThrottlingEnabled);
 
   const base::DictValue& throttling_policy =
-      local_state_->GetDict(prefs::kNetworkThrottlingEnabled);
+      local_state_->GetDict(ash::prefs::kNetworkThrottlingEnabled);
 
   // Default is to disable throttling if the policy is not found.
   const bool enabled = throttling_policy.FindBool("enabled").value_or(false);

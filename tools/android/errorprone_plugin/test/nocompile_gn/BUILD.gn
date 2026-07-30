@@ -40,3 +40,63 @@ android_library("no_android_log_test_java") {
     sources += no_android_log_test_nocompile_sources
   }
 }
+
+android_library("callback_bind_check_test_1_java") {
+  testonly = true
+  enable_errorprone = true
+  sources = [ empty_java ]
+  if (enable_android_nocompile_tests) {
+    sources += callback_bind_check_test_1_nocompile_sources
+  }
+  deps = [ "//base:base_java" ]
+}
+
+android_library("callback_bind_check_test_2_java") {
+  testonly = true
+  enable_errorprone = true
+  sources = [ empty_java ]
+  if (enable_android_nocompile_tests) {
+    sources += callback_bind_check_test_2_nocompile_sources
+  }
+  deps = [ "//base:base_java" ]
+}
+
+android_library("callback_bind_check_test_3_java") {
+  testonly = true
+  enable_errorprone = true
+  sources = [ empty_java ]
+  if (enable_android_nocompile_tests) {
+    sources += callback_bind_check_test_3_nocompile_sources
+  }
+  deps = [ "//base:base_java" ]
+}
+
+android_library("callback_bind_check_test_4_java") {
+  testonly = true
+  enable_errorprone = true
+  sources = [ empty_java ]
+  if (enable_android_nocompile_tests) {
+    sources += callback_bind_check_test_4_nocompile_sources
+  }
+  deps = [ "//base:base_java" ]
+}
+
+android_library("callback_bind_check_test_5_java") {
+  testonly = true
+  enable_errorprone = true
+  sources = [ empty_java ]
+  if (enable_android_nocompile_tests) {
+    sources += callback_bind_check_test_5_nocompile_sources
+  }
+  deps = [ "//base:base_java" ]
+}
+
+android_library("callback_bind_check_test_6_java") {
+  testonly = true
+  enable_errorprone = true
+  sources = [ empty_java ]
+  if (enable_android_nocompile_tests) {
+    sources += callback_bind_check_test_6_nocompile_sources
+  }
+  deps = [ "//base:base_java" ]
+}

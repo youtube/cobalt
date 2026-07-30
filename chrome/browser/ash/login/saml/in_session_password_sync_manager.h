@@ -12,12 +12,9 @@
 #include "base/memory/raw_ref.h"
 #include "chrome/browser/ash/login/saml/password_sync_token_fetcher.h"
 #include "chrome/browser/profiles/profile.h"
+#include "components/account_id/account_id.h"
 
 class PrefService;
-
-namespace user_manager {
-class User;
-}
 
 namespace ash {
 
@@ -48,7 +45,7 @@ class InSessionPasswordSyncManager : public PasswordSyncTokenFetcher::Consumer {
 
   const raw_ref<PrefService> local_state_;
   const raw_ptr<Profile> primary_profile_;
-  const raw_ptr<const user_manager::User, DanglingUntriaged> primary_user_;
+  const AccountId primary_account_id_;
   std::unique_ptr<PasswordSyncTokenFetcher> password_sync_token_fetcher_;
 
   friend class InSessionPasswordSyncManagerTest;

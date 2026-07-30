@@ -598,8 +598,8 @@ public class EdgeToEdgeControllerTest {
     public void testSwitchLayout() {
         Mockito.clearInvocations(mEdgeToEdgeManager);
 
-        doReturn(LayoutType.TAB_SWITCHER).when(mLayoutManager).getActiveLayoutType();
-        mEdgeToEdgeControllerImpl.onStartedShowing(LayoutType.TAB_SWITCHER);
+        doReturn(LayoutType.HUB).when(mLayoutManager).getActiveLayoutType();
+        mEdgeToEdgeControllerImpl.onStartedShowing(LayoutType.HUB);
         assertToEdgeExpectations();
 
         doReturn(LayoutType.BROWSING).when(mLayoutManager).getActiveLayoutType();
@@ -1000,7 +1000,7 @@ public class EdgeToEdgeControllerTest {
         mockPadAdjuster.checkInsets(BOTTOM_INSET);
 
         // Case 1: Tab Switcher active, Bottom Controls visible. Skip browser control check.
-        when(mLayoutManager.getActiveLayoutType()).thenReturn(LayoutType.TAB_SWITCHER);
+        when(mLayoutManager.getActiveLayoutType()).thenReturn(LayoutType.HUB);
         mEdgeToEdgeControllerImpl.onBottomControlsHeightChanged(browserControlsHeight, unused);
         mockPadAdjuster.checkInsets(BOTTOM_INSET);
 

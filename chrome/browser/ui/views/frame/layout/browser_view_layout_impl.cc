@@ -208,24 +208,14 @@ void BrowserViewLayoutImpl::Layout(views::View* host) {
   }
   base::AutoReset<bool> guard_reset(&reentrancy_guard_, true);
 
-  const auto params =
-      delegate().GetBrowserLayoutParams(/*use_browser_bounds=*/true);
+  auto params = delegate().GetBrowserLayoutParams(/*use_browser_bounds=*/true);
   if (params.IsEmpty()) {
     return;
   }
 
   DoPreLayoutComputations(params);
 
-  // Lay out the browser view itself.
-  auto layout = CalculateProposedLayout(params);
-  dialog_top_ = GetDialogTop(layout);
-  dialog_bottom_ = GetDialogBottom(layout);
-  std::move(layout).ApplyLayout(host, [this](views::View* view, bool visible) {
-    SetViewVisibility(view, visible);
-  });
-
-  // If the top container is not parented to the main container, it is an
-  // overlay and must be laid out separately.
+  // If the top container is separate from the browser view, lay it out now.
   if (views().top_container &&
       views().top_container->parent() != views().browser_view) {
     // In slide/immersive mode, animating the top container is handled by
@@ -246,7 +236,25 @@ void BrowserViewLayoutImpl::Layout(views::View* host) {
     // Position the top container in its parent, whatever that is.
     views().top_container->SetBoundsRect(
         GetTopContainerBoundsInParent(top_container_local_bounds, params));
+
+    // In (for example) fullscreen-with-toolbar, if the size of the top
+    // container changes, then the overall layout dimensions may also change.
+    // See https://crbug.com/519626620 for more information.
+    const auto new_params =
+        delegate().GetBrowserLayoutParams(/*use_browser_bounds=*/true);
+    if (params != new_params) {
+      OnLayoutParamsChanged(params, new_params);
+      params = new_params;
+    }
   }
+
+  // Lay out the browser view itself.
+  auto layout = CalculateProposedLayout(params);
+  dialog_top_ = GetDialogTop(layout);
+  dialog_bottom_ = GetDialogBottom(layout);
+  std::move(layout).ApplyLayout(host, [this](views::View* view, bool visible) {
+    SetViewVisibility(view, visible);
+  });
 
   // The normal clipping created by `View::Paint()` may not cover the bottom of
   // the TopContainerView at certain scale factor because both of the position
@@ -314,6 +322,10 @@ void BrowserViewLayoutImpl::DoPostLayoutVisualAdjustments(
     const BrowserLayoutParams& params) {}
 
 void BrowserViewLayoutImpl::DoPostLayoutCleanup() {}
+
+void BrowserViewLayoutImpl::OnLayoutParamsChanged(
+    const BrowserLayoutParams& old_params,
+    const BrowserLayoutParams& new_params) {}
 
 // Dialog positioning.
 

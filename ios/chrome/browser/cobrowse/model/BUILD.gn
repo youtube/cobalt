@@ -16,6 +16,8 @@ source_set("model") {
     "cobrowse_context.mm",
     "cobrowse_tab_helper.h",
     "cobrowse_tab_helper.mm",
+    "cobrowse_util.h",
+    "cobrowse_util.mm",
   ]
   deps = [
     ":aim_cobrowse_ts",
@@ -24,6 +26,7 @@ source_set("model") {
     "//components/prefs",
     "//components/search_engines",
     "//ios/chrome/browser/aim/model:aim_availability",
+    "//ios/chrome/browser/composebox/public:features",
     "//ios/chrome/browser/shared/coordinator/scene:scene_state_header",
     "//ios/chrome/browser/shared/coordinator/scene/state",
     "//ios/chrome/browser/shared/model/browser",
@@ -88,6 +91,7 @@ source_set("unit_tests") {
     "//components/omnibox/browser:test_support",
     "//components/search_engines",
     "//ios/chrome/browser/aim/model:aim_availability",
+    "//ios/chrome/browser/composebox/public:features",
     "//ios/chrome/browser/search_engines/model:template_url_service_factory",
     "//ios/chrome/browser/shared/coordinator/scene:scene_state_header",
     "//ios/chrome/browser/shared/coordinator/scene/state",

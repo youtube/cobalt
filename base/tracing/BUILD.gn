@@ -29,10 +29,10 @@ generate_wrapper("perfetto_diff_tests") {
       "$root_gen_dir/base/tracing/protos/chrome_track_event.descriptor"
   _rebased_chrome_track_event_descriptor =
       rebase_path(_chrome_track_event_descriptor, root_build_dir)
-  _winscope_extensions_descriptor =
-      "$_protos_path/perfetto/trace/android/winscope.descriptor"
-  _rebased_winscope_extensions_descriptor =
-      rebase_path(_winscope_extensions_descriptor, root_build_dir)
+  _android_extensions_descriptor =
+      "$_protos_path/third_party/android/android_extension.descriptor"
+  _rebased_android_extensions_descriptor =
+      rebase_path(_android_extensions_descriptor, root_build_dir)
   _gpu_extensions_descriptor =
       "$_protos_path/perfetto/trace/gpu/gpu_track_event.descriptor"
   _rebased_gpu_extensions_descriptor =
@@ -73,7 +73,7 @@ generate_wrapper("perfetto_diff_tests") {
     "--chrome-track-event-descriptor",
     "@WrappedPath($_rebased_chrome_track_event_descriptor)",
     "--winscope-extensions-descriptor",
-    "@WrappedPath($_rebased_winscope_extensions_descriptor)",
+    "@WrappedPath($_rebased_android_extensions_descriptor)",
     "--gpu-extensions-descriptor",
     "@WrappedPath($_rebased_gpu_extensions_descriptor)",
     "--gpu-interned-data-extensions",
@@ -91,10 +91,10 @@ generate_wrapper("perfetto_diff_tests") {
     "//third_party/perfetto/protos/perfetto/metrics/webview:descriptor",
     "//third_party/perfetto/protos/perfetto/trace:descriptor",
     "//third_party/perfetto/protos/perfetto/trace:test_extensions_descriptor",
-    "//third_party/perfetto/protos/perfetto/trace/android:winscope_descriptor",
     "//third_party/perfetto/protos/perfetto/trace/gpu:gpu_interned_data_descriptor",
     "//third_party/perfetto/protos/perfetto/trace/gpu:gpu_track_event_descriptor",
     "//third_party/perfetto/protos/perfetto/trace_summary:descriptor",
+    "//third_party/perfetto/protos/third_party/android:extension_descriptor_gen",
     "//third_party/perfetto/src/trace_processor:trace_processor_shell",
   ]
 
@@ -109,7 +109,7 @@ generate_wrapper("perfetto_diff_tests") {
     _all_chrome_metrics_descriptor,
     _all_webview_metrics_descriptor,
     _chrome_track_event_descriptor,
-    _winscope_extensions_descriptor,
+    _android_extensions_descriptor,
     _gpu_extensions_descriptor,
     _gpu_interned_data_extensions_descriptor,
     _trace_summary_descriptor,

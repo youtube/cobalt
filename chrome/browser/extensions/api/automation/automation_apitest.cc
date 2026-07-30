@@ -44,7 +44,6 @@
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/features.h"
-#include "ui/accessibility/accessibility_switches.h"
 #include "ui/accessibility/ax_mode.h"
 #include "ui/accessibility/ax_node.h"
 #include "ui/accessibility/ax_serializable_tree.h"
@@ -554,29 +553,6 @@ IN_PROC_BROWSER_TEST_P(AutomationApiTestWithContextType, SentenceBoundaries) {
       << message_;
 }
 
-class AutomationApiTestWithLanguageDetection
-    : public AutomationApiTestWithContextType {
- protected:
-  void SetUpCommandLine(base::CommandLine* command_line) override {
-    AutomationApiTest::SetUpCommandLine(command_line);
-    command_line->AppendSwitch(
-        ::switches::kEnableExperimentalAccessibilityLanguageDetection);
-  }
-};
-
-INSTANTIATE_TEST_SUITE_P(PersistentBackground,
-                         AutomationApiTestWithLanguageDetection,
-                         ::testing::Values(ContextType::kPersistentBackground));
-INSTANTIATE_TEST_SUITE_P(ServiceWorker,
-                         AutomationApiTestWithLanguageDetection,
-                         ::testing::Values(ContextType::kServiceWorker));
-
-IN_PROC_BROWSER_TEST_P(AutomationApiTestWithLanguageDetection,
-                       DetectedLanguage) {
-  StartEmbeddedTestServer();
-  ASSERT_TRUE(CreateExtensionAndRunTest("tabs/detected_language.js"))
-      << message_;
-}
 
 IN_PROC_BROWSER_TEST_P(AutomationApiTestWithContextType,
                        IgnoredNodesNotReturned) {

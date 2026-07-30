@@ -40,15 +40,10 @@ API_AVAILABLE(macos(14.0))
 
 namespace ui {
 
-BASE_FEATURE(kCADisplayLinkInGpuThenBrowser, base::FEATURE_DISABLED_BY_DEFAULT);
-
 namespace {
 struct CADisplayLinkGlobals {
   CADisplayLinkGlobals() = default;
   base::Lock lock;
-  // Set of display IDs where CADisplayLink has become unreliable in the GPU
-  // process (e.g., due to a power event or system refresh rate change).
-  absl::flat_hash_set<CGDirectDisplayID> invalidated_displays GUARDED_BY(lock);
 
   // Indicates whether the display creation has been logged within the
   // 'Viz.ExternalBeginFrameSourceMac.DisplayLink.Create2' histogram.
@@ -250,23 +245,6 @@ void CADisplayLinkMac::UnregisterCallback(VSyncCallbackMac* callback) {
   if (@available(macos 14.0, *)) {
     objc_state_->display_link.paused = YES;
   }
-}
-
-bool CADisplayLinkMac::NotifyEventAndCheckValidity() {
-  base::AutoLock lock(CADisplayLinkGlobals::Get().lock);
-  CADisplayLinkGlobals::Get().invalidated_displays.insert(display_id_);
-  return false;
-}
-
-// static
-bool CADisplayLinkMac::IsValidInGpuProcess(CGDirectDisplayID display_id) {
-  if (!base::FeatureList::IsEnabled(kCADisplayLinkInGpuThenBrowser)) {
-    return false;
-  }
-
-  base::AutoLock lock(CADisplayLinkGlobals::Get().lock);
-  auto& invalidated_displays = CADisplayLinkGlobals::Get().invalidated_displays;
-  return invalidated_displays.find(display_id) == invalidated_displays.end();
 }
 
 }  // namespace ui

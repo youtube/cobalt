@@ -33,16 +33,16 @@ bool AmountExtractionHeuristicRegexes::PopulateStringFromComponent(
     const std::string& binary_pb) {
   HeuristicRegexes heuristic_regexes;
   if (!heuristic_regexes.ParseFromString(binary_pb)) {
-    autofill::autofill_metrics::LogAmountExtractionComponentInstallationResult(
-        autofill::autofill_metrics::
-            AmountExtractionComponentInstallationResult::kParsingToProtoFailed);
+    autofill_metrics::LogAmountExtractionComponentInstallationResult(
+        autofill_metrics::AmountExtractionComponentInstallationResult::
+            kParsingToProtoFailed);
     return false;
   }
 
   if (!heuristic_regexes.has_generic_details()) {
-    autofill::autofill_metrics::LogAmountExtractionComponentInstallationResult(
-        autofill::autofill_metrics::
-            AmountExtractionComponentInstallationResult::kEmptyGenericDetails);
+    autofill_metrics::LogAmountExtractionComponentInstallationResult(
+        autofill_metrics::AmountExtractionComponentInstallationResult::
+            kEmptyGenericDetails);
     return false;
   }
 
@@ -53,8 +53,8 @@ bool AmountExtractionHeuristicRegexes::PopulateStringFromComponent(
   number_of_ancestor_levels_to_search_ =
       details->number_of_ancestor_levels_to_search();
 
-  autofill::autofill_metrics::LogAmountExtractionComponentInstallationResult(
-      autofill::autofill_metrics::AmountExtractionComponentInstallationResult::
+  autofill_metrics::LogAmountExtractionComponentInstallationResult(
+      autofill_metrics::AmountExtractionComponentInstallationResult::
           kSuccessful);
   return true;
 }

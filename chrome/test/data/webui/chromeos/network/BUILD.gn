@@ -6,7 +6,7 @@ import("../../build_webui_tests.gni")
 
 build_webui_tests("build") {
   ts_composite = true
-  cc_test_files = [ "../cr_components_chromeos_v3_browsertest.js" ]
+  cc_test_files = [ "../cr_components_chromeos_v3_browsertest.cc" ]
   files = [
     "apn_list_item_test.ts",
     "apn_list_test.ts",

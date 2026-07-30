@@ -6,6 +6,7 @@ package org.chromium.chrome.browser.autofill.settings;
 
 import static androidx.test.espresso.Espresso.onView;
 import static androidx.test.espresso.action.ViewActions.click;
+import static androidx.test.espresso.action.ViewActions.scrollTo;
 import static androidx.test.espresso.assertion.ViewAssertions.matches;
 import static androidx.test.espresso.matcher.RootMatchers.isDialog;
 import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
@@ -50,9 +51,11 @@ import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
+import org.chromium.base.test.util.UserActionTester;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.autofill.autofill_ai.EntityDataManager;
 import org.chromium.chrome.browser.autofill.autofill_ai.EntityDataManagerFactory;
+import org.chromium.chrome.browser.autofill.personal_context.AutofillPersonalContextFragment;
 import org.chromium.chrome.browser.device_reauth.ReauthenticatorBridge;
 import org.chromium.chrome.browser.feedback.HelpAndFeedbackLauncher;
 import org.chromium.chrome.browser.feedback.HelpAndFeedbackLauncherFactory;
@@ -61,12 +64,14 @@ import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.settings.SettingsActivity;
 import org.chromium.chrome.browser.settings.SettingsActivityTestRule;
+import org.chromium.chrome.browser.settings.SettingsNavigationFactory;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.components.autofill.autofill_ai.EntityInstance;
 import org.chromium.components.autofill.autofill_ai.EntityInstanceWithLabels;
 import org.chromium.components.autofill.autofill_ai.EntityType;
 import org.chromium.components.autofill.autofill_ai.utils.TestUtils;
 import org.chromium.components.browser_ui.settings.ChromeSwitchPreference;
+import org.chromium.components.browser_ui.settings.SettingsNavigation;
 import org.chromium.components.browser_ui.settings.search.SettingsIndexData;
 import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.ui.test.util.MockitoHelper;
@@ -96,6 +101,7 @@ public class AutofillTravelFragmentTest {
     @Mock private SettingsIndexData mSearchIndexDataMock;
     @Mock private EntityDataManager mEntityDataManager;
     @Mock private ReauthenticatorBridge mMockReauthenticatorBridge;
+    @Mock private SettingsNavigation mSettingsNavigation;
 
     @Before
     public void setUp() {
@@ -353,6 +359,29 @@ public class AutofillTravelFragmentTest {
                     assertThat(toggle.isEnabled()).isFalse();
                     assertThat(toggle.isChecked()).isFalse();
                 });
+    }
+
+    @Test
+    @MediumTest
+    public void testClickPersonalContextLaunchesPersonalContext() {
+        when(mEntityDataManager.isPersonalContextPreferenceVisible()).thenReturn(true);
+        mSettingsActivityTestRule.startSettingsActivity();
+
+        var userActionTester = new UserActionTester();
+        try {
+            SettingsNavigationFactory.setInstanceForTesting(mSettingsNavigation);
+            onView(withText(R.string.personal_context_autofill_settings_title_android))
+                    .perform(scrollTo(), click());
+
+            verify(mSettingsNavigation)
+                    .startSettings(
+                            any(), eq(AutofillPersonalContextFragment.class), any(), eq(true));
+
+            assertThat(userActionTester.getActions())
+                    .contains(AutofillPersonalContextFragment.ACTION_ENTRY_FROM_TRAVEL);
+        } finally {
+            userActionTester.tearDown();
+        }
     }
 
     private void setTravelTogglePreference(boolean value) {

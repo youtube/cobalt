@@ -181,6 +181,9 @@ enum class TabGridOpeningMode {
 // Displays the Assistant AIM interface.
 - (void)showAssistant;
 
+// Displays the Assistant AIM interface if hidden.
+- (void)revealAssistant;
+
 // Hides the assistant sheet if it is currently presented.
 - (void)hideAssistant;
 

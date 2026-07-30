@@ -62,15 +62,15 @@ TestingPrefServiceSimple* RegisterPrefs(TestingPrefServiceSimple* local_state) {
 class TestUserMetricsServiceClient
     : public ::metrics::TestMetricsServiceClient {
  public:
-  std::optional<bool> GetCurrentUserMetricsConsent() const override {
+  std::optional<bool> GetCurrentUserMetricsChoice() const override {
     if (should_use_user_consent_) {
-      return current_user_metrics_consent_;
+      return current_user_choice_;
     }
     return std::nullopt;
   }
 
-  void UpdateCurrentUserMetricsConsent(bool metrics_consent) override {
-    current_user_metrics_consent_ = metrics_consent;
+  void UpdateCurrentUserMetricsChoice(bool user_choice) override {
+    current_user_choice_ = user_choice;
   }
 
   void SetShouldUseUserConsent(bool should_use_user_consent) {
@@ -79,7 +79,7 @@ class TestUserMetricsServiceClient
 
  private:
   bool should_use_user_consent_ = true;
-  bool current_user_metrics_consent_ = false;
+  bool current_user_choice_ = false;
 };
 
 }  // namespace
@@ -95,21 +95,21 @@ class TestMetricsChoiceHandler : public MetricsChoiceHandler {
   }
   ~TestMetricsChoiceHandler() override = default;
 
-  void GetMetricsConsentState() {
+  void GetMetricsChoiceState() {
     base::ListValue args;
     args.Append("callback-id");
-    HandleGetMetricsConsentState(args);
+    HandleGetMetricsChoiceState(args);
   }
 
-  void UpdateMetricsConsent(bool metrics_consent) {
+  void UpdateMetricsChoice(bool metrics_choice) {
     base::ListValue args;
     args.Append("callback-id");
 
     base::DictValue dict;
-    dict.Set("consent", metrics_consent);
+    dict.Set("consent", metrics_choice);
     args.Append(std::move(dict));
 
-    HandleUpdateMetricsConsent(args);
+    HandleUpdateMetricsChoice(args);
   }
 };
 
@@ -206,8 +206,8 @@ class MetricsChoiceHandlerTest : public testing::Test {
 
   void TearDown() override { handler_->DisallowJavascript(); }
 
-  bool GetMetricsConsentStateMessage(std::string* pref_name,
-                                     bool* is_configurable) {
+  bool GetMetricsChoiceStateMessage(std::string* pref_name,
+                                    bool* is_configurable) {
     for (const std::unique_ptr<content::TestWebUI::CallData>& data :
          base::Reversed(web_ui_->call_data())) {
       const std::string* name = data->arg1()->GetIfString();
@@ -221,16 +221,16 @@ class MetricsChoiceHandlerTest : public testing::Test {
         return false;
       }
 
-      const base::DictValue& metrics_consent_state = data->arg3()->GetDict();
-      *pref_name = *metrics_consent_state.FindString("prefName");
-      *is_configurable = *metrics_consent_state.FindBool("isConfigurable");
+      const base::DictValue& metrics_choice_state = data->arg3()->GetDict();
+      *pref_name = *metrics_choice_state.FindString("prefName");
+      *is_configurable = *metrics_choice_state.FindBool("isConfigurable");
 
       return true;
     }
     return false;
   }
 
-  bool UpdateMetricsConsentMessage(bool* current_consent) {
+  bool UpdateMetricsChoiceMessage(bool* current_choice) {
     for (const std::unique_ptr<content::TestWebUI::CallData>& data :
          base::Reversed(web_ui_->call_data())) {
       const std::string* name = data->arg1()->GetIfString();
@@ -244,7 +244,7 @@ class MetricsChoiceHandlerTest : public testing::Test {
         return false;
       }
 
-      *current_consent = data->arg3()->GetBool();
+      *current_choice = data->arg3()->GetBool();
       return true;
     }
     return false;
@@ -286,32 +286,32 @@ TEST_F(MetricsChoiceHandlerTest, OwnerCanToggle) {
   auto owner_id = AccountId::FromUserEmailGaiaId(kOwner, GaiaId("2"));
   std::unique_ptr<TestingProfile> owner = RegisterOwner(owner_id);
 
-  // Owner should not use user consent, but local pref.
+  // Owner should not use user choice, but local pref.
   test_metrics_service_client_->SetShouldUseUserConsent(false);
 
   LoginUser(owner_id);
   EXPECT_TRUE(test_user_manager_->IsCurrentUserOwner());
 
   InitializeTestHandler(owner.get());
-  handler_->GetMetricsConsentState();
+  handler_->GetMetricsChoiceState();
 
   // Owner should be able to toggle the device stats reporting pref.
   std::string pref_name;
   bool is_configurable = false;
 
   // Owner should be able to toggle the device stats reporting pref.
-  EXPECT_TRUE(GetMetricsConsentStateMessage(&pref_name, &is_configurable));
+  EXPECT_TRUE(GetMetricsChoiceStateMessage(&pref_name, &is_configurable));
   EXPECT_THAT(kStatsReportingPref, Eq(pref_name));
   EXPECT_TRUE(is_configurable);
 
-  // Toggle true. Consent change should go through.
-  handler_->UpdateMetricsConsent(true);
+  // Toggle true. Choice change should go through.
+  handler_->UpdateMetricsChoice(true);
 
-  bool current_consent = false;
-  EXPECT_TRUE(UpdateMetricsConsentMessage(&current_consent));
+  bool current_choice = false;
+  EXPECT_TRUE(UpdateMetricsChoiceMessage(&current_choice));
 
-  // Consent should change for owner.
-  EXPECT_TRUE(current_consent);
+  // Choice should change for owner.
+  EXPECT_TRUE(current_choice);
 
   // Explicitly shutdown controller here because OwnerSettingsService is
   // destructed before TearDown() is called.
@@ -328,31 +328,31 @@ TEST_F(MetricsChoiceHandlerTest, NonOwnerWithUserConsentCanToggle) {
   test_user_manager_->AddUserWithAffiliationAndTypeAndProfile(
       non_owner_id, false, user_manager::UserType::kRegular, non_owner.get());
 
-  // User should use user consent pref.
+  // User should use user choice pref.
   test_metrics_service_client_->SetShouldUseUserConsent(true);
 
   LoginUser(non_owner_id);
   EXPECT_FALSE(test_user_manager_->IsCurrentUserOwner());
 
   InitializeTestHandler(non_owner.get());
-  handler_->GetMetricsConsentState();
+  handler_->GetMetricsChoiceState();
 
   std::string pref_name;
   bool is_configurable = false;
 
-  // Non-owner user should use user consent.
-  EXPECT_TRUE(GetMetricsConsentStateMessage(&pref_name, &is_configurable));
+  // Non-owner user should use user choice.
+  EXPECT_TRUE(GetMetricsChoiceStateMessage(&pref_name, &is_configurable));
   EXPECT_THAT(pref_name, Eq(::metrics::prefs::kMetricsUserConsent));
   EXPECT_TRUE(is_configurable);
 
   // Toggle true.
-  handler_->UpdateMetricsConsent(true);
+  handler_->UpdateMetricsChoice(true);
 
-  bool current_consent = false;
-  EXPECT_TRUE(UpdateMetricsConsentMessage(&current_consent));
+  bool current_choice = false;
+  EXPECT_TRUE(UpdateMetricsChoiceMessage(&current_choice));
 
-  // Consent should change.
-  EXPECT_TRUE(current_consent);
+  // Choice should change.
+  EXPECT_TRUE(current_choice);
 
   // Explicitly shutdown controller here because OwnerSettingsService is
   // destructed before TearDown() is called.
@@ -369,31 +369,31 @@ TEST_F(MetricsChoiceHandlerTest, NonOwnerWithoutUserConsentCannotToggle) {
   test_user_manager_->AddUserWithAffiliationAndTypeAndProfile(
       non_owner_id, false, user_manager::UserType::kRegular, non_owner.get());
 
-  // User cannot use user consent. This happens if the device is managed.
+  // User cannot use user choice. This happens if the device is managed.
   test_metrics_service_client_->SetShouldUseUserConsent(false);
 
   LoginUser(non_owner_id);
   EXPECT_FALSE(test_user_manager_->IsCurrentUserOwner());
 
   InitializeTestHandler(non_owner.get());
-  handler_->GetMetricsConsentState();
+  handler_->GetMetricsChoiceState();
 
   std::string pref_name;
   bool is_configurable = false;
 
-  // Display device consent.
-  EXPECT_TRUE(GetMetricsConsentStateMessage(&pref_name, &is_configurable));
+  // Display device choice.
+  EXPECT_TRUE(GetMetricsChoiceStateMessage(&pref_name, &is_configurable));
   EXPECT_THAT(kStatsReportingPref, Eq(pref_name));
   EXPECT_FALSE(is_configurable);
 
   // Try to toggle true.
-  handler_->UpdateMetricsConsent(true);
+  handler_->UpdateMetricsChoice(true);
 
-  bool current_consent = false;
-  EXPECT_TRUE(UpdateMetricsConsentMessage(&current_consent));
+  bool current_choice = false;
+  EXPECT_TRUE(UpdateMetricsChoiceMessage(&current_choice));
 
-  // Consent should not change.
-  EXPECT_FALSE(current_consent);
+  // Choice should not change.
+  EXPECT_FALSE(current_choice);
 
   // Explicitly shutdown controller here because OwnerSettingsService is
   // destructed before TearDown() is called.
@@ -411,22 +411,22 @@ TEST_F(MetricsChoiceHandlerTest, ChildUserCannotToggleAsNonOwner) {
   test_user_manager_->AddUserWithAffiliationAndTypeAndProfile(
       child_id, false, user_manager::UserType::kChild, child.get());
 
-  // User cannot use user consent. This happens if the device is managed.
+  // User cannot use user choice. This happens if the device is managed.
   test_metrics_service_client_->SetShouldUseUserConsent(true);
 
   LoginUser(child_id);
   EXPECT_FALSE(test_user_manager_->IsCurrentUserOwner());
 
-  // Set the javascript message object for metrics consent state.
+  // Set the javascript message object for metrics choice state.
   InitializeTestHandler(child.get());
-  handler_->GetMetricsConsentState();
+  handler_->GetMetricsChoiceState();
 
   // Check values of javascript callback response message.
   std::string pref_name;
   bool is_configurable;
-  EXPECT_TRUE(GetMetricsConsentStateMessage(&pref_name, &is_configurable));
+  EXPECT_TRUE(GetMetricsChoiceStateMessage(&pref_name, &is_configurable));
 
-  // Unmanaged child user should use user consent and should not be toggle-able.
+  // Unmanaged child user should use user choice and should not be toggle-able.
   EXPECT_THAT(pref_name, Eq(::metrics::prefs::kMetricsUserConsent));
   EXPECT_FALSE(is_configurable);
 

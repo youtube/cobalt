@@ -79,7 +79,6 @@ public class FeedStreamCtrlClickTest {
     @Mock private RecyclerView.Adapter<?> mAdapter;
     @Mock private FeedReliabilityLogger mReliabilityLogger;
     @Mock private FeedActionDelegate mActionDelegate;
-    @Mock private FeedContentFirstLoadWatcher mFeedContentFirstLoadWatcher;
     @Mock private Stream.StreamsMediator mStreamsMediator;
 
     private FeedSurfaceRendererBridge.Renderer mBridgeRenderer;
@@ -118,7 +117,6 @@ public class FeedStreamCtrlClickTest {
                         mShareDelegateSupplier,
                         StreamKind.FOR_YOU,
                         mActionDelegate,
-                        mFeedContentFirstLoadWatcher,
                         mStreamsMediator,
                         new FeedSurfaceRendererBridgeFactory());
 

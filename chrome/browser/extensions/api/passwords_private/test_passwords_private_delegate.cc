@@ -162,6 +162,7 @@ void TestPasswordsPrivateDelegate::RemovePasswordException(int id) {
 
 // Simplified version of undo logic, only use for testing.
 void TestPasswordsPrivateDelegate::UndoRemoveSavedPasswordOrException() {
+  undo_remove_saved_password_or_exception_called_ = true;
   if (last_deleted_entry_.has_value()) {
     current_entries_.insert(current_entries_.begin(),
                             std::move(last_deleted_entry_.value()));

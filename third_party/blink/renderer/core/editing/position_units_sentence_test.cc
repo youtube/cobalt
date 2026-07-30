@@ -15,7 +15,7 @@ namespace blink {
 
 class PositionUnitsSentenceTest : public EditingTestBase {};
 
-TEST_F(PositionUnitsSentenceTest, StartOfSentenceWithShadowDOM) {
+TEST_F(PositionUnitsSentenceTest, StartOfSentenceWithShadowDom) {
   const char* body_content =
       "<span id=host><b slot='#one' id=one>1</b><b slot='#two' "
       "id=two>22</b></span>";

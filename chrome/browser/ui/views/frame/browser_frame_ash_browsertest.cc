@@ -39,7 +39,7 @@ class BrowserTestParam : public InProcessBrowserTest,
 IN_PROC_BROWSER_TEST_P(BrowserTestParam,
                        TabbedOrAppBrowserWindowAutoManagementTest) {
   // Default |browser()| is not used by this test.
-  browser()->window()->Close();
+  browser()->GetWindow()->Close();
 
   // Open a new browser window (app or tabbed depending on a parameter).
   bool is_test_app = CreateV1App();
@@ -52,19 +52,19 @@ IN_PROC_BROWSER_TEST_P(BrowserTestParam,
   params.initial_show_state = ui::mojom::WindowShowState::kNormal;
   params.initial_bounds = original_bounds;
   Browser* browser = Browser::Create(params);
-  browser->window()->Show();
+  browser->GetWindow()->Show();
 
   // The bounds passed via |initial_bounds| should be respected regardless of
   // the window type.
-  EXPECT_EQ(original_bounds, browser->window()->GetBounds());
+  EXPECT_EQ(original_bounds, browser->GetWindow()->GetBounds());
 
   // Close the browser and re-create the browser window with the same app name.
   // Don't provide initial bounds. The bounds should have been saved, but for
   // tabbed windows, the position should be auto-managed.
-  browser->window()->Close();
+  browser->GetWindow()->Close();
   params.initial_bounds = gfx::Rect();
   browser = Browser::Create(params);
-  browser->window()->Show();
+  browser->GetWindow()->Show();
 
   // For tabbed browser window, it will be centered to work area by auto window
   // management logic; for app browser window, it will remain the given bounds.
@@ -72,13 +72,13 @@ IN_PROC_BROWSER_TEST_P(BrowserTestParam,
   if (!is_test_app) {
     expectation =
         display::Screen::Get()
-            ->GetDisplayNearestPoint(browser->window()->GetBounds().origin())
+            ->GetDisplayNearestPoint(browser->GetWindow()->GetBounds().origin())
             .work_area();
     expectation.ClampToCenteredSize(original_bounds.size());
     expectation.set_y(original_bounds.y());
   }
 
-  EXPECT_EQ(expectation, browser->window()->GetBounds())
+  EXPECT_EQ(expectation, browser->GetWindow()->GetBounds())
       << (is_test_app ? "for app window" : "for tabbed browser window");
 }
 
@@ -101,13 +101,13 @@ IN_PROC_BROWSER_TEST_F(BrowserFrameAshTest, SnappedWindowSaveBounds) {
   const gfx::Size snapped_size = window->GetBoundsInScreen().size();
 
   ui_test_utils::BrowserDestroyedObserver observer(browser);
-  browser->window()->Close();
+  browser->GetWindow()->Close();
   observer.Wait();
 
   // Recreate the browser window. Test that the bounds are the same as the
   // snapped size (position has been shifted by the ash auto window positioner).
   Browser* new_browser = CreateBrowser(profile);
-  new_browser->window()->Show();
+  new_browser->GetWindow()->Show();
   aura::Window* new_window = new_browser->GetWindow()->GetNativeWindow();
   EXPECT_EQ(snapped_size, new_window->GetBoundsInScreen().size());
 }

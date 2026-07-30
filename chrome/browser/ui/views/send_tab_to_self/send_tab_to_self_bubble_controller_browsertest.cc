@@ -4,8 +4,12 @@
 
 #include "chrome/browser/ui/views/send_tab_to_self/send_tab_to_self_bubble_controller.h"
 
+#include <ostream>
+#include <tuple>
+
 #include "base/run_loop.h"
 #include "base/scoped_observation.h"
+#include "base/strings/stringprintf.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
@@ -14,12 +18,14 @@
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/notifications/notification_display_service_tester.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/renderer_context_menu/render_view_context_menu_test_util.h"
 #include "chrome/browser/signin/signin_browser_test_base.h"
 #include "chrome/browser/sync/send_tab_to_self_sync_service_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/send_tab_to_self/send_tab_to_self_context_menu_delegate.h"
+#include "chrome/browser/ui/signin/promos/bubble_signin_promo_view.h"
 #include "chrome/browser/ui/toasts/api/toast_id.h"
 #include "chrome/browser/ui/toasts/toast_controller.h"
 #include "chrome/browser/ui/toasts/toast_view.h"
@@ -39,7 +45,9 @@
 #include "components/send_tab_to_self/stub_send_tab_to_self_sync_service.h"
 #include "components/signin/public/base/signin_buildflags.h"
 #include "components/strings/grit/components_strings.h"
+#include "components/sync/base/data_type.h"
 #include "components/sync/test/fake_data_type_controller_delegate.h"
+#include "components/sync/test/test_sync_service.h"
 #include "components/tabs/public/tab_interface.h"
 #include "components/vector_icons/vector_icons.h"
 #include "content/public/browser/render_frame_host.h"
@@ -54,6 +62,7 @@
 #include "ui/gfx/geometry/rect.h"
 #include "ui/strings/grit/ui_strings.h"
 #include "ui/views/controls/label.h"
+#include "ui/views/test/button_test_api.h"
 #include "ui/views/test/widget_test.h"
 
 namespace send_tab_to_self {
@@ -94,8 +103,6 @@ class TestSendTabToSelfModelObserver : public SendTabToSelfModelObserver {
       observation_{this};
 };
 
-}  // namespace
-
 class SendTabToSelfBubbleControllerBrowserTest : public SigninBrowserTestBase {
  public:
   SendTabToSelfBubbleControllerBrowserTest() = default;
@@ -118,6 +125,11 @@ class SendTabToSelfBubbleControllerBrowserTest : public SigninBrowserTestBase {
                                          -> std::unique_ptr<KeyedService> {
           return std::make_unique<StubSendTabToSelfSyncService>();
         }));
+  }
+
+  void SetUpOnMainThread() override {
+    SigninBrowserTestBase::SetUpOnMainThread();
+    ASSERT_TRUE(embedded_test_server()->Start());
   }
 
   void ExpectToastShown(ToastId expected_id,
@@ -155,6 +167,10 @@ class SendTabToSelfBubbleControllerBrowserTest : public SigninBrowserTestBase {
   }
 
  protected:
+  GURL empty_url() const {
+    return embedded_test_server()->GetURL("/empty.html");
+  }
+
   base::CallbackListSubscription create_services_subscription_;
 };
 
@@ -171,7 +187,7 @@ class SendTabToSelfPostSendToastBrowserTest
 
 IN_PROC_BROWSER_TEST_F(SendTabToSelfPostSendToastBrowserTest,
                        BubbleShowsToast_Desktop) {
-  GURL test_url("about:blank");
+  GURL test_url = empty_url();
 
   content::WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
@@ -204,7 +220,7 @@ IN_PROC_BROWSER_TEST_F(SendTabToSelfPostSendToastBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(SendTabToSelfPostSendToastBrowserTest,
                        BubbleShowsToast_Phone) {
-  GURL test_url("about:blank");
+  GURL test_url = empty_url();
 
   content::WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
@@ -237,7 +253,7 @@ IN_PROC_BROWSER_TEST_F(SendTabToSelfPostSendToastBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(SendTabToSelfPostSendToastBrowserTest,
                        BubbleShowsToast_Tablet) {
-  GURL test_url("about:blank");
+  GURL test_url = empty_url();
 
   content::WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
@@ -269,7 +285,7 @@ IN_PROC_BROWSER_TEST_F(SendTabToSelfPostSendToastBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(SendTabToSelfPostSendToastBrowserTest,
                        BubbleShowsThrottledToast) {
-  GURL test_url("about:blank");
+  GURL test_url = empty_url();
 
   content::WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
@@ -306,8 +322,7 @@ IN_PROC_BROWSER_TEST_F(SendTabToSelfPostSendToastBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(SendTabToSelfPostSendToastBrowserTest,
                        ContextMenuShowsToast) {
-  GURL test_url(
-      "data:text/html;charset=utf-8,<html><body><p>Test</p></body></html>");
+  GURL test_url = empty_url();
 
   content::WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
@@ -339,7 +354,7 @@ IN_PROC_BROWSER_TEST_F(SendTabToSelfPostSendToastBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(SendTabToSelfPostSendToastBrowserTest,
                        BubbleShowsFailureToast) {
-  GURL test_url("about:blank");
+  GURL test_url = empty_url();
 
   content::WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
@@ -378,7 +393,7 @@ class SendTabToSelfPostSendToastDisabledBrowserTest
 
 IN_PROC_BROWSER_TEST_F(SendTabToSelfPostSendToastDisabledBrowserTest,
                        BubbleShowsFailureNotification) {
-  GURL test_url("about:blank");
+  GURL test_url = empty_url();
 
   content::WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
@@ -422,14 +437,10 @@ class SendTabToSelfScrollPositionBrowserTest
 
 IN_PROC_BROWSER_TEST_F(SendTabToSelfScrollPositionBrowserTest,
                        ScrollPositionPropagated_HappyPath) {
-  ASSERT_TRUE(embedded_test_server()->Start());
   // Using a page with significant content ensures the renderer can generate
   // a selector for the center of the viewport.
-  GURL test_url(
-      "data:text/html;charset=utf-8,<html><body>"
-      "<p style='text-align: center'>This is some test content "
-      "that is long enough to be selected by the text fragment "
-      "generator.</p></body></html>");
+  GURL test_url =
+      embedded_test_server()->GetURL("/send_tab_to_self/scroll.html");
 
   content::WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
@@ -469,7 +480,6 @@ IN_PROC_BROWSER_TEST_F(SendTabToSelfScrollPositionBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(SendTabToSelfScrollPositionBrowserTest,
                        ScrollPositionPropagated_EmptyPage) {
-  ASSERT_TRUE(embedded_test_server()->Start());
   GURL test_url = embedded_test_server()->GetURL("/empty.html");
 
   content::WebContents* web_contents =
@@ -508,14 +518,8 @@ IN_PROC_BROWSER_TEST_F(SendTabToSelfScrollPositionBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(SendTabToSelfScrollPositionBrowserTest,
                        ScrollPositionPropagated_ScrolledPage) {
-  // Use a data URL to avoid external dependencies. The page is long enough to
-  // require scrolling.
-  GURL test_url(
-      "data:text/html;charset=utf-8,<html><body>"
-      "<div style='height: 2000px'>Spacer Top</div>"
-      "<p id='text' style='text-align: center'>Some interesting text</p>"
-      "<div style='height: 2000px'>Spacer Bottom</div>"
-      "</body></html>");
+  GURL test_url =
+      embedded_test_server()->GetURL("/send_tab_to_self/scroll.html");
 
   content::WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
@@ -525,7 +529,7 @@ IN_PROC_BROWSER_TEST_F(SendTabToSelfScrollPositionBrowserTest,
   EXPECT_TRUE(content::ExecJs(
       web_contents,
       "new Promise(r => {"
-      "  document.getElementById('text').scrollIntoView("
+      "  document.getElementById('target').scrollIntoView("
       "      {behavior: 'instant', block: 'center', inline: 'center'});"
       "  requestAnimationFrame(() => "
       "    requestAnimationFrame(r)"
@@ -564,10 +568,37 @@ IN_PROC_BROWSER_TEST_F(SendTabToSelfScrollPositionBrowserTest,
   EXPECT_FALSE(
       observer.last_added_entry()->GetPageContext().scroll_position.IsEmpty());
   // Verify that the generated selector matches the expected text.
-  EXPECT_EQ(observer.last_added_entry()
-                ->GetPageContext()
-                .scroll_position.text_fragment.text_start,
-            "interesting");
+  EXPECT_THAT(
+      observer.last_added_entry()
+          ->GetPageContext()
+          .scroll_position.text_fragment.text_start,
+      testing::AnyOf(testing::HasSubstr("fox"), testing::HasSubstr("jumps"),
+                     testing::HasSubstr("dog")));
+}
+
+IN_PROC_BROWSER_TEST_F(SendTabToSelfBubbleControllerBrowserTest,
+                       HideBubbleOnNavigation) {
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(content::NavigateToURL(web_contents, GURL("about:blank")));
+
+  identity_test_env()->MakePrimaryAccountAvailable(
+      "user@gmail.com", signin::ConsentLevel::kSignin);
+
+  StubSendTabToSelfSyncService* sync_service = GetStubSyncService();
+  ASSERT_TRUE(sync_service);
+  sync_service->SetEntryPointDisplayReason(
+      EntryPointDisplayReason::kOfferFeature);
+
+  SendTabToSelfBubbleController* controller =
+      SendTabToSelfBubbleController::GetOrCreateForWebContents(web_contents);
+
+  controller->ShowBubble();
+  EXPECT_TRUE(controller->IsBubbleShown());
+
+  // Navigate to a new URL. This should hide the bubble.
+  ASSERT_TRUE(content::NavigateToURL(web_contents, GURL("chrome://flags")));
+  EXPECT_FALSE(controller->IsBubbleShown());
 }
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
@@ -575,7 +606,7 @@ IN_PROC_BROWSER_TEST_F(SendTabToSelfBubbleControllerBrowserTest,
                        ShowPromoBubble) {
   content::WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
-  ASSERT_TRUE(content::NavigateToURL(web_contents, GURL("about:blank")));
+  ASSERT_TRUE(content::NavigateToURL(web_contents, empty_url()));
 
   StubSendTabToSelfSyncService* sync_service = GetStubSyncService();
   ASSERT_TRUE(sync_service);
@@ -595,7 +626,7 @@ IN_PROC_BROWSER_TEST_F(SendTabToSelfBubbleControllerBrowserTest,
                        PromoBubbleAccept_OpensDiceSignInTab) {
   content::WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
-  ASSERT_TRUE(content::NavigateToURL(web_contents, GURL("about:blank")));
+  ASSERT_TRUE(content::NavigateToURL(web_contents, empty_url()));
 
   // Trigger the 'Offer Sign-In' state by overriding the entry point display
   // reason.
@@ -621,5 +652,97 @@ IN_PROC_BROWSER_TEST_F(SendTabToSelfBubbleControllerBrowserTest,
   EXPECT_FALSE(controller->IsBubbleShown());
 }
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
+
+const char* DisplayReasonToString(EntryPointDisplayReason reason) {
+  switch (reason) {
+    case EntryPointDisplayReason::kOfferFeature:
+      return "OfferFeature";
+    case EntryPointDisplayReason::kOfferSignIn:
+      return "OfferSignIn";
+    case EntryPointDisplayReason::kInformNoTargetDevice:
+      return "InformNoTargetDevice";
+  }
+}
+
+[[maybe_unused]] std::ostream& operator<<(std::ostream& os,
+                                          EntryPointDisplayReason reason) {
+  return os << DisplayReasonToString(reason);
+}
+
+class SendTabToSelfContextMenuParamsTest
+    : public SendTabToSelfBubbleControllerBrowserTest,
+      public ::testing::WithParamInterface<
+          std::tuple<bool, EntryPointDisplayReason>> {
+ public:
+  SendTabToSelfContextMenuParamsTest() {
+    feature_list_.InitWithFeatureState(kSendTabToSelfEnhancedDesktopUI,
+                                       std::get<0>(GetParam()));
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_P(SendTabToSelfContextMenuParamsTest, VerifyMenuType) {
+  const bool enhanced_ui_enabled = std::get<0>(GetParam());
+  const EntryPointDisplayReason display_reason = std::get<1>(GetParam());
+  const bool expect_submenu =
+      enhanced_ui_enabled &&
+      display_reason == EntryPointDisplayReason::kOfferFeature;
+
+#if !BUILDFLAG(ENABLE_DICE_SUPPORT)
+  // The 'Offer Sign-In' flow is only relevant on platforms with DICE support.
+  // Skip this parameter on other platforms (like ChromeOS) where this state
+  // is not applicable in production.
+  if (display_reason == EntryPointDisplayReason::kOfferSignIn) {
+    GTEST_SKIP() << "Sign-in promo not supported on this platform.";
+  }
+#endif
+
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(content::NavigateToURL(web_contents, GURL("about:blank")));
+
+  StubSendTabToSelfSyncService* stts_sync_service = GetStubSyncService();
+  ASSERT_TRUE(stts_sync_service);
+  stts_sync_service->SetEntryPointDisplayReason(display_reason);
+
+  std::unique_ptr<TestRenderViewContextMenu> menu =
+      TestRenderViewContextMenu::Create(web_contents, GURL("about:blank"));
+
+  std::optional<std::pair<ui::MenuModel*, size_t>> model_and_index =
+      menu->GetMenuModelAndItemIndex(IDC_SEND_TAB_TO_SELF);
+  ASSERT_TRUE(model_and_index.has_value());
+  ui::MenuModel* model = model_and_index->first;
+  size_t index = model_and_index->second;
+
+  if (expect_submenu) {
+    EXPECT_EQ(model->GetTypeAt(index), ui::MenuModel::TYPE_SUBMENU);
+    EXPECT_NE(model->GetSubmenuModelAt(index), nullptr);
+  } else {
+    EXPECT_EQ(model->GetTypeAt(index), ui::MenuModel::TYPE_COMMAND);
+    EXPECT_FALSE(model->GetSubmenuModelAt(index));
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    SendTabToSelfContextMenuParamsTest,
+    ::testing::Combine(
+        ::testing::Bool(),  // enhanced_ui_enabled
+        ::testing::Values(EntryPointDisplayReason::kOfferFeature,
+                          EntryPointDisplayReason::kOfferSignIn,
+                          EntryPointDisplayReason::kInformNoTargetDevice)),
+    [](const ::testing::TestParamInfo<
+        SendTabToSelfContextMenuParamsTest::ParamType>& info) {
+      const bool enhanced_ui_enabled = std::get<0>(info.param);
+      const EntryPointDisplayReason display_reason = std::get<1>(info.param);
+      return base::StringPrintf(
+          "%s_%s",
+          enhanced_ui_enabled ? "EnhancedUiEnabled" : "EnhancedUiDisabled",
+          DisplayReasonToString(display_reason));
+    });
+
+}  // namespace
 
 }  // namespace send_tab_to_self

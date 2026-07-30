@@ -53,6 +53,9 @@ class ComposeboxHandler : public composebox::mojom::PageHandler,
       GetSmartTabSharingActiveCallback callback) override;
   void OnContextMenuOpened() override;
   void NotifyComposeboxQuerySubmittedWithContext() override;
+  void CanShowNextboxAnimation(
+      CanShowNextboxAnimationCallback callback) override;
+  void RecordNextboxAnimationImpression() override;
 
   // searchbox::mojom::PageHandler:
   void ExecuteAction(uint8_t line,
@@ -111,7 +114,6 @@ class ComposeboxHandler : public composebox::mojom::PageHandler,
       ClearSessionHandleCallback clear_session_callback);
 
  private:
-  raw_ptr<content::WebContents> web_contents_;
   ClearSessionHandleCallback clear_session_callback_;
 
   // These are located at the end of the list of member variables to ensure the

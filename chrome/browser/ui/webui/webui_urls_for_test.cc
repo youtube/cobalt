@@ -54,6 +54,7 @@ base::span<const std::string_view> GetChromeUrlsForTest() {
       "chrome://connectors-internals",
 #if !BUILDFLAG(IS_ANDROID)
       "chrome://content-annotator-internals",
+      "chrome://contextual-cueing-internals",
 #endif
       "chrome://context-hub",
       "chrome://crashes",
@@ -391,7 +392,6 @@ base::span<const std::string_view> GetUntestedChromeUrlsForTest() {
       // for confirm password change UI.
       "chrome://confirm-password-change",
       "chrome://crostini-credits",
-      "chrome://device-emulator",
       "chrome://dlp-internals",
       "chrome://eche-app",
       "chrome://enterprise-reporting",

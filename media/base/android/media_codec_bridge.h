@@ -21,6 +21,7 @@
 #include "media/base/encryption_scheme.h"
 #include "media/base/media_export.h"
 #include "media/base/status.h"
+#include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
 
 namespace media {
@@ -126,10 +127,13 @@ class MEDIA_EXPORT MediaCodecBridge {
   // if an unexpected error happens, or kOk otherwise.
   virtual MediaCodecResult Flush() = 0;
 
-  // Returns the output size. This is valid after DequeueOutputBuffer()
-  // signals a format change by returning OUTPUT_FORMAT_CHANGED.
-  // Returns kError if an error occurs, or kOk otherwise.
-  virtual MediaCodecResult GetOutputSize(gfx::Size* size) = 0;
+  // Returns the output size (MediaFormat.KEY_WIDTH/HEIHT) and crop rect
+  // (KEY_CROP_*). If crop rect is not set, it will be set to the whole output
+  // size. This is valid after DequeueOutputBuffer() signals a format change by
+  // returning OUTPUT_FORMAT_CHANGED. Returns kError if an error occurs, or kOk
+  // otherwise.
+  virtual MediaCodecResult GetOutputSizeAndCropRect(gfx::Size& size,
+                                                    gfx::Rect& crop_rect) = 0;
 
   // Gets the sampling rate. This is valid after DequeueOutputBuffer()
   // signals a format change by returning kOutputFormatChanged.

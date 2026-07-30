@@ -245,7 +245,8 @@ public class AutofillProviderTest {
     public void testTransformToWindowBounds() {
         RectF source = new RectF(10, 20, 300, 400);
         final int offsetY = 10;
-        Rect result = mAutofillProvider.transformToWindowBoundsWithOffsetY(source, offsetY);
+        when(mRenderCoordinates.getContentOffsetYPixInt()).thenReturn(offsetY);
+        Rect result = mAutofillProvider.transformToWindowBounds(source);
         assertEquals(10 * EXPECTED_DIP_SCALE + LOCATION_X, result.left, 0);
         assertEquals(20 * EXPECTED_DIP_SCALE + LOCATION_Y + offsetY, result.top, 0);
         assertEquals(300 * EXPECTED_DIP_SCALE + LOCATION_X, result.right, 0);
@@ -532,6 +533,100 @@ public class AutofillProviderTest {
         // Bounds should be clamped
         assertNotNull(mFocusBounds);
         assertEquals(new Rect(0, 0, 100, 30), mFocusBounds);
+    }
+
+    @Test
+    public void testSuppressNotificationOutsideBoundsWithOffsetY() {
+        // Mock container view to be at [0, 0, 100, 100] on screen.
+        doAnswer(
+                        invocation -> {
+                            Rect rect = invocation.getArgument(0);
+                            rect.set(0, 0, 100, 100);
+                            return true;
+                        })
+                .when(mContainerView)
+                .getGlobalVisibleRect(any(Rect.class));
+
+        doAnswer(
+                        invocation -> {
+                            int[] location = invocation.getArgument(0);
+                            location[0] = 0;
+                            location[1] = 0;
+                            return null;
+                        })
+                .when(mContainerView)
+                .getLocationOnScreen(any());
+
+        doAnswer(
+                        invocation -> {
+                            int[] location = invocation.getArgument(0);
+                            location[0] = 0;
+                            location[1] = 0;
+                            return null;
+                        })
+                .when(mContainerView)
+                .getLocationInWindow(any());
+
+        // Set offset Y to 40. Effective visible bounds top should be 40.
+        when(mRenderCoordinates.getContentOffsetYPixInt()).thenReturn(40);
+
+        // Reset mFocusVirtualId and mFocusBounds.
+        mFocusVirtualId = 0;
+        mFocusBounds = null;
+
+        FormFieldDataBuilder field1Builder = new FormFieldDataBuilder();
+        FormFieldDataBuilder field2Builder = new FormFieldDataBuilder();
+        FormData formData =
+                new FormData(
+                        123,
+                        /* name= */ null,
+                        /* host= */ null,
+                        Arrays.asList(field1Builder.build(), field2Builder.build()));
+
+        // Case 1: Field is in the "offset" area (under toolbar) and should be suppressed.
+        //
+        // Input bounds: [x=0, y=-30, w=50, h=20] -> [left=0, top=-30, right=50, bottom=-10].
+        // 1. Scale by dipScale=2: [left=0, top=-60, right=100, bottom=-20].
+        // 2. Translate by container location [0,0] and add offsetY=40:
+        //    [left=0, top=-20, right=100, bottom=20].
+        //
+        // Effective visible bounds top is 40.
+        // Suppressed because the field's bottom (20) < effective top (40).
+        mAutofillProvider.startAutofillSession(
+                formData,
+                /* focus= */ 0,
+                /* x= */ 0,
+                /* y= */ -30,
+                /* width= */ 50,
+                /* height= */ 20,
+                /* hasServerPrediction= */ false);
+
+        assertEquals(0, mFocusVirtualId);
+        assertNull(mFocusBounds);
+
+        // Case 2: Field is partially visible (crosses the effective top boundary).
+        //
+        // Input bounds: [x=0, y=-5, w=50, h=15] -> [left=0, top=-5, right=50, bottom=10].
+        // 1. Scale by dipScale=2: [left=0, top=-10, right=100, bottom=20].
+        // 2. Translate by container location [0,0] and add offsetY=40:
+        //    [left=0, top=30, right=100, bottom=60].
+        //
+        // Intersect [0, 30, 100, 60] with effective visible bounds
+        // [0, 40, 100, 100] -> [0, 40, 100, 60].
+        mAutofillProvider.startAutofillSession(
+                formData,
+                /* focus= */ 1,
+                /* x= */ 0,
+                /* y= */ -5,
+                /* width= */ 50,
+                /* height= */ 15,
+                /* hasServerPrediction= */ false);
+
+        // Should NOT be suppressed.
+        assertEquals(FormData.toFieldVirtualId(123, (short) 1), mFocusVirtualId);
+        // Bounds should be clamped.
+        assertNotNull(mFocusBounds);
+        assertEquals(new Rect(0, 40, 100, 60), mFocusBounds);
     }
 
     @Test

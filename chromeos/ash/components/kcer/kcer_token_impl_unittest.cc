@@ -8,6 +8,7 @@
 
 #include "base/base64.h"
 #include "base/compiler_specific.h"
+#include "base/no_destructor.h"
 #include "base/test/gmock_callback_support.h"
 #include "base/test/gmock_move_support.h"
 #include "base/test/test_future.h"
@@ -93,41 +94,46 @@ constexpr char kFakeCertificate[] =
     "6GzDsbwCyiKzpEBk3edl+aNfQ==";
 
 const std::vector<uint8_t>& GetRsaModulus() {
-  static std::vector<uint8_t> value =
-      base::Base64Decode(kFakeRsaModulusBase64).value();
-  return value;
+  static const base::NoDestructor<std::vector<uint8_t>> value(
+      base::Base64Decode(kFakeRsaModulusBase64).value());
+  return *value;
 }
 const std::vector<uint8_t>& GetRsaPublicExponent() {
-  static std::vector<uint8_t> value =
-      base::Base64Decode(kFakeRsaExponentBase64).value();
-  return value;
+  static const base::NoDestructor<std::vector<uint8_t>> value(
+      base::Base64Decode(kFakeRsaExponentBase64).value());
+  return *value;
 }
 const Pkcs11Id& GetRsaPkcs11Id() {
-  static Pkcs11Id value(base::Base64Decode(kFakeRsaPkcs11IdBase64).value());
-  return value;
+  static const base::NoDestructor<Pkcs11Id> value(
+      base::Base64Decode(kFakeRsaPkcs11IdBase64).value());
+  return *value;
 }
 const PublicKeySpki& GetRsaSpki() {
-  static PublicKeySpki value(base::Base64Decode(kFakeRsaSpkiBase64).value());
-  return value;
+  static const base::NoDestructor<PublicKeySpki> value(
+      base::Base64Decode(kFakeRsaSpkiBase64).value());
+  return *value;
 }
 
 const std::vector<uint8_t>& GetEcPublicValue() {
-  static std::vector<uint8_t> value =
-      base::Base64Decode(kFakeEcPublicValueOctetStringDerBase64).value();
-  return value;
+  static const base::NoDestructor<std::vector<uint8_t>> value(
+      base::Base64Decode(kFakeEcPublicValueOctetStringDerBase64).value());
+  return *value;
 }
 const Pkcs11Id& GetEcPkcs11Id() {
-  static Pkcs11Id value(base::Base64Decode(kFakeEcPkcs11IdBase64).value());
-  return value;
+  static const base::NoDestructor<Pkcs11Id> value(
+      base::Base64Decode(kFakeEcPkcs11IdBase64).value());
+  return *value;
 }
 const PublicKeySpki& GetEcSpki() {
-  static PublicKeySpki value(base::Base64Decode(kFakeEcSpkiBase64).value());
-  return value;
+  static const base::NoDestructor<PublicKeySpki> value(
+      base::Base64Decode(kFakeEcSpkiBase64).value());
+  return *value;
 }
 
 const CertDer& GetCertDer() {
-  static CertDer value(base::Base64Decode(kFakeCertificate).value());
-  return value;
+  static const base::NoDestructor<CertDer> value(
+      base::Base64Decode(kFakeCertificate).value());
+  return *value;
 }
 
 bool SpanEqual(base::span<const uint8_t> s1, base::span<const uint8_t> s2) {

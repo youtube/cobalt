@@ -177,9 +177,6 @@ class UrlBarProperties {
     public static final WritableBooleanPropertyKey SELECT_ALL_ON_FOCUS =
             new WritableBooleanPropertyKey();
 
-    /** Whether the cursor should be shown in the view. */
-    public static final WritableBooleanPropertyKey SHOW_CURSOR = new WritableBooleanPropertyKey();
-
     /** Whether the hint text should be shown in the view. */
     public static final WritableBooleanPropertyKey SHOW_HINT_TEXT =
             new WritableBooleanPropertyKey();
@@ -229,7 +226,6 @@ class UrlBarProperties {
                 MANAGE_SEARCH_ENGINES_CALLBACK,
                 RICH_TEXT_CHANGE_LISTENER,
                 SELECT_ALL_ON_FOCUS,
-                SHOW_CURSOR,
                 SHOW_HINT_TEXT,
                 TEXT_CHANGE_LISTENER,
                 TEXT_COLOR,

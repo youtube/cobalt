@@ -7,7 +7,7 @@
 
 #import <UIKit/UIKit.h>
 
-#import "ios/chrome/browser/tab_picker/coordinator/tab_picker_snackbar_presenter.h"
+#import "ios/chrome/browser/tab_picker/public/tab_picker_snackbar_presenter.h"
 
 class Browser;
 

@@ -56,6 +56,47 @@ A wrapper around a `shared_library` that bundles a `generate_jni_registration`.
 
 Same as `shared_library` but for a `component`.
 
+### generate_jar_jni_registration
+
+Generates a `RegisterNatives()` for a list of `.jar` files.
+
+```python
+import("//third_party/jni_zero/jni_zero.gni")
+
+generate_jar_jni_registration("my_library_jni_registration") {
+  # List of classes.jar files extracted from the AARs.
+  jar_files = [
+    "libs/my_library_classes.jar",
+  ]
+
+  # Optional: C++ namespace
+  namespace = "my_namespace"
+
+  # Optional: Name of the function (defaults to "RegisterNatives").
+  register_natives_name = "MyLibrary_RegisterNatives"
+
+  # Optional: Path to output a linker version script to prevent exporting these
+  #     JNI symbols.
+  linker_script_path = "$target_gen_dir/my_library_linker_script.txt"
+
+  # Optional: List of class name globs to exclude from registration.
+  # If specified, classes matching these globs will be ignored.
+  # Useful if the C++ library does not implement JNI for some classes in the JAR.
+  class_blocklist = [
+    "com.example.UnimplementedClass",
+    "com.example.exclude.*",
+  ]
+
+  # Ensure the AARs are unpacked before this target runs.
+  deps = [
+    ":my_aar_prebuilt",
+  ]
+}
+```
+
+This will generate a header at `$target_gen_dir/my_library_jni_registration.h`
+(using the target name as the header name) containing:
+
 ## Chromium-Specific Type Conversions {#jnitype}
 
 JNI Zero supports automatic type conversions via the `@JniType` annotation. See

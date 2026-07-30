@@ -9,7 +9,7 @@ import type {TextBadgeElement} from 'chrome://diagnostics/text_badge.js';
 import {BadgeType} from 'chrome://diagnostics/text_badge.js';
 import {strictQuery} from 'chrome://resources/ash/common/typescript_utils/strict_query.js';
 import {assert} from 'chrome://resources/js/assert.js';
-import {assertEquals, assertFalse} from 'chrome://webui-test/chromeos/chai_assert.js';
+import {assertEquals, assertFalse} from 'chrome://webui-test/chai_assert.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 
 import * as dx_utils from './diagnostics_test_utils.js';

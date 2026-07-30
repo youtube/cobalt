@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<title>SpatNav: a single-axis scroller consumes navigation along its own axis</title>
+<link rel="help" href="https://drafts.csswg.org/css-nav-1/#can-be-manually-scrolled">
+<!--
+  #scroller can only be manually scrolled along the y-axis. Along that axis it
+  still behaves like a scroller: Up and Down are consumed to scroll it rather
+  than to move focus, until it reaches the scroll boundary, after which focus
+  leaves it.
+-->
+<style>
+  a {
+    display: block;
+    width: 60px;
+    height: 20px;
+  }
+  #scroller {
+    width: 100px;
+    height: 100px;
+    margin: 10px 0;
+    border: 1px solid black;
+    overflow-x: clip;
+    overflow-y: scroll;
+  }
+  #spacer {
+    height: 140px;  /* Forces scrollable overflow on the y-axis. */
+  }
+  #trailer {
+    height: 60px;  /* Keeps #bottom visible after one scroll step. */
+  }
+</style>
+
+<a id="a" href="#">a</a>
+<div id="scroller">
+  <a id="b" href="#">b</a>
+  <div id="spacer"></div>
+  <a id="c" href="#">c</a>
+  <div id="trailer"></div>
+</div>
+<a id="d" href="#">d</a>
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="resources/snav-testharness.js"></script>
+<script>
+  // Start scrolled to the bottom (so #b is offscreen), focused on #c.
+  window.addEventListener('load', () => {
+    const scroller = document.getElementById("scroller");
+    scroller.scrollTop = scroller.scrollHeight;
+    document.getElementById("c").focus();
+  });
+
+  snav.assertFocusMoves([
+      // Up scrolls #scroller, keeping focus on #c (never escaping up)...
+      ["Up", "c"],
+      // ...and Down is consumed too, which only happens if Up scrolled.
+      ["Down", "c"],
+      // At the bottom boundary Down isn't consumed, so focus leaves.
+      ["Down", "d"]]);
+</script>

@@ -20,7 +20,7 @@ TEST_F(InsertTextCommandTest, WithTypingStyle) {
   SetBodyContent("<div contenteditable=true><option id=sample></option></div>");
   Element* const sample = GetDocument().getElementById(AtomicString("sample"));
   Selection().SetSelection(
-      SelectionInDOMTree::Builder().Collapse(Position(sample, 0)).Build(),
+      SelectionInDomTree::Builder().Collapse(Position(sample, 0)).Build(),
       SetSelectionOptions());
   // Register typing style to make |InsertTextCommand| to attempt to apply
   // style to inserted text.
@@ -259,7 +259,7 @@ TEST_F(InsertTextCommandTest, CheckTabSpanElementNoCrash) {
   body->parentNode()->appendChild(style);
   GetDocument().setDesignMode("on");
 
-  Selection().SetSelection(SelectionInDOMTree::Builder()
+  Selection().SetSelection(SelectionInDomTree::Builder()
                                .Collapse(Position(head, 0))
                                .Extend(Position(body, 0))
                                .Build(),
@@ -275,7 +275,7 @@ TEST_F(InsertTextCommandTest, CheckTabSpanElementNoCrash) {
       "head {-webkit-text-stroke-color: black; display: list-item;}"
       "</style>",
       SelectionSample::GetSelectionText(*GetDocument().documentElement(),
-                                        Selection().GetSelectionInDOMTree()));
+                                        Selection().GetSelectionInDomTree()));
 }
 
 // http://crbug.com/792548
@@ -302,7 +302,7 @@ TEST_F(InsertTextCommandTest, AnchorElementWithBlockCrash) {
 
   Node* const iElement_text_node = iElement->firstChild();
   Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .SetBaseAndExtent(Position(iElement_text_node, 0),
                             Position(iElement_text_node, 4))
           .Build(),

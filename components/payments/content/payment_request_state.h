@@ -263,6 +263,11 @@ class PaymentRequestState : public PaymentAppFactory::Delegate,
 
   bool is_retry_called() const { return is_retry_called_; }
 
+  bool user_interaction_in_web_payment_app() const {
+    return user_interaction_in_web_payment_app_;
+  }
+  void set_user_interaction_in_web_payment_app(bool user_interaction);
+
   const std::string& GetApplicationLocale();
   autofill::PersonalDataManager* GetPersonalDataManager();
 
@@ -365,6 +370,9 @@ class PaymentRequestState : public PaymentAppFactory::Delegate,
 
   // Whether retry() has been called by the merchant.
   bool is_retry_called_ = false;
+
+  // Whether the user has interacted with the web payment app.
+  bool user_interaction_in_web_payment_app_ = false;
 
   const std::string app_locale_;
 

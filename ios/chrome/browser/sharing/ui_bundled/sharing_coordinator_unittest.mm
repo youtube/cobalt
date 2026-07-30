@@ -9,6 +9,7 @@
 #import "base/files/scoped_temp_dir.h"
 #import "base/ios/block_types.h"
 #import "base/strings/sys_string_conversions.h"
+#import "base/task/thread_pool/thread_pool_instance.h"
 #import "base/test/ios/wait_util.h"
 #import "base/test/run_until.h"
 #import "base/test/scoped_feature_list.h"
@@ -54,6 +55,10 @@
 using base::test::ios::kWaitForActionTimeout;
 using base::test::ios::WaitUntilConditionOrTimeout;
 using bookmarks::BookmarkNode;
+
+@interface SharingCoordinator (Testing)
+- (void)startDownloadFromWebState:(web::WebState*)webState;
+@end
 
 // Test fixture for testing SharingCoordinator.
 class SharingCoordinatorTest : public BookmarkIOSUnitTestSupport {
@@ -479,4 +484,107 @@ TEST_F(SharingCoordinatorTest, Start_TabStayOnDifferentTabCancelsShare) {
 
   EXPECT_OCMOCK_VERIFY(vc_partial_mock);
   [coordinator stop];
+}
+
+// Test that starting a download creates a unique destination directory on disk,
+// and stopping/tearing down the coordinator destroys it.
+TEST_F(SharingCoordinatorTest, Start_CreatesAndDestroysDirectory) {
+  url_value_ = base::Value("https://example.com/test.pdf");
+  SetupForFileDownload();
+
+  SharingParams* params =
+      [[SharingParams alloc] initWithScenario:test_scenario_];
+
+  SharingCoordinator* coordinator = [[SharingCoordinator alloc]
+      initWithBaseViewController:base_view_controller_
+                         browser:browser_.get()
+                          params:params
+                      sourceItem:fake_origin_view_];
+
+  NSString* temp_dir =
+      [NSTemporaryDirectory() stringByAppendingPathComponent:@"OpenIn"];
+  NSFileManager* file_manager = [NSFileManager defaultManager];
+
+  NSArray<NSString*>* files_before = nil;
+  if ([file_manager fileExistsAtPath:temp_dir]) {
+    files_before = [file_manager contentsOfDirectoryAtPath:temp_dir error:nil];
+  }
+  size_t count_before = files_before.count;
+
+  [coordinator start];
+  base::ThreadPoolInstance::Get()->FlushForTesting();
+  ASSERT_TRUE(base::test::RunUntil(^bool {
+    NSArray<NSString*>* files = [file_manager contentsOfDirectoryAtPath:temp_dir
+                                                                  error:nil];
+    return files.count == count_before + 1;
+  }));
+
+  [coordinator stop];
+  base::ThreadPoolInstance::Get()->FlushForTesting();
+  ASSERT_TRUE(base::test::RunUntil(^bool {
+    NSArray<NSString*>* files = nil;
+    if ([file_manager fileExistsAtPath:temp_dir]) {
+      files = [file_manager contentsOfDirectoryAtPath:temp_dir error:nil];
+    }
+    return files.count == count_before;
+  }));
+}
+
+// Test that stopping the coordinator before the directory is created on the
+// background thread cleans up the directory and does not start the download.
+TEST_F(SharingCoordinatorTest, StopBeforeDirectoryCreated_NoLeakAndNoDownload) {
+  url_value_ = base::Value("https://example.com/test.pdf");
+  SetupForFileDownload();
+
+  SharingParams* params =
+      [[SharingParams alloc] initWithScenario:test_scenario_];
+
+  SharingCoordinator* coordinator = [[SharingCoordinator alloc]
+      initWithBaseViewController:base_view_controller_
+                         browser:browser_.get()
+                          params:params
+                      sourceItem:fake_origin_view_];
+
+  id coordinator_mock = OCMPartialMock(coordinator);
+  [[coordinator_mock reject]
+      startDownloadFromWebState:static_cast<web::WebState*>(
+                                    [OCMArg anyPointer])];
+
+  NSString* temp_dir =
+      [NSTemporaryDirectory() stringByAppendingPathComponent:@"OpenIn"];
+  NSFileManager* file_manager = [NSFileManager defaultManager];
+
+  NSArray<NSString*>* files_before = nil;
+  if ([file_manager fileExistsAtPath:temp_dir]) {
+    files_before = [file_manager contentsOfDirectoryAtPath:temp_dir error:nil];
+  }
+  size_t count_before = files_before.count;
+
+  [coordinator start];
+  [coordinator stop];
+
+  base::ThreadPoolInstance::Get()->FlushForTesting();
+
+  // The directory has been created by the background thread (so count is +1)
+  // but the reply hasn't processed on the main thread yet. Checking this
+  // immediately after `FlushForTesting` is safe and not flaky because the main
+  // thread has not run its message loop yet, meaning the reply task (which
+  // deletes the directory since the coordinator was stopped) has not had a
+  // chance to execute.
+  NSArray<NSString*>* files_after_start =
+      [file_manager contentsOfDirectoryAtPath:temp_dir error:nil];
+  EXPECT_EQ(files_after_start.count, count_before + 1);
+
+  // Now run the loop until the reply is executed on the main thread, which will
+  // schedule the deletion task on the background thread, and the background
+  // task completes the deletion.
+  ASSERT_TRUE(base::test::RunUntil(^bool {
+    NSArray<NSString*>* files = nil;
+    if ([file_manager fileExistsAtPath:temp_dir]) {
+      files = [file_manager contentsOfDirectoryAtPath:temp_dir error:nil];
+    }
+    return files.count == count_before;
+  }));
+
+  EXPECT_OCMOCK_VERIFY(coordinator_mock);
 }

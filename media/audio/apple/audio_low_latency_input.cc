@@ -9,6 +9,7 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 #include <utility>
 
 #include "base/apple/foundation_util.h"
@@ -16,6 +17,7 @@
 #include "base/apple/scoped_cftyperef.h"
 #include "base/apple/scoped_mach_port.h"
 #include "base/compiler_specific.h"
+#include "base/debug/leak_annotations.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
@@ -73,6 +75,44 @@ constexpr base::TimeDelta kInputCallbackStartTimeout = base::Seconds(5);
 
 constexpr char kChosenSampleFormatHistogram[] =
     "Media.Audio.Capture.Mac.AUAudioInputStream.ChosenSampleFormat";
+
+// Proxy to intercept callbacks and prevent Use-After-Free on teardown failure.
+class AUCallbackProxy {
+ public:
+  explicit AUCallbackProxy(raw_ptr<AUAudioInputStream> stream)
+      : stream_(stream) {}
+
+  void Detach() {
+    base::AutoLock al(lock_);
+    stream_ = nullptr;
+  }
+
+  OSStatus OnDataIsAvailable(AudioUnitRenderActionFlags* flags,
+                             const AudioTimeStamp* time_stamp,
+                             UInt32 bus_number,
+                             UInt32 number_of_frames) {
+    base::AutoLock al(lock_);
+    if (stream_) {
+      return stream_->OnDataIsAvailable(flags, time_stamp, bus_number,
+                                        number_of_frames);
+    }
+    return kAudioUnitErr_Uninitialized;
+  }
+
+ private:
+  base::Lock lock_;
+  raw_ptr<AUAudioInputStream> stream_ GUARDED_BY(lock_);
+};
+
+// Logs and returns true if `result` is an error.
+static bool CheckAndLogFailure(OSStatus result, std::string_view message) {
+  if (result == noErr) {
+    return false;
+  }
+
+  OSSTATUS_DLOG(ERROR, result) << message;
+  return true;
+}
 
 // Returns true if the format flags in |format_flags| has the "non-interleaved"
 // flag (kAudioFormatFlagIsNonInterleaved) cleared (set to 0).
@@ -347,9 +387,10 @@ bool AUAudioInputStream::OpenAUHAL() {
 
   // Register the input procedure for the AUHAL. This procedure will be called
   // when the AUHAL has received new data from the input device.
+  data_callback_proxy_ = std::make_unique<AUCallbackProxy>(this);
   AURenderCallbackStruct callback;
   callback.inputProc = &DataIsAvailable;
-  callback.inputProcRefCon = this;
+  callback.inputProcRefCon = data_callback_proxy_.get();
   result = AudioUnitSetProperty(
       audio_unit_, kAudioOutputUnitProperty_SetInputCallback,
       kAudioUnitScope_Global, AUElement::OUTPUT, &callback, sizeof(callback));
@@ -487,9 +528,10 @@ bool AUAudioInputStream::OpenVoiceProcessingAU() {
 
   // Register the input procedure for the AUHAL. This procedure will be called
   // when the AUHAL has received new data from the input device.
+  data_callback_proxy_ = std::make_unique<AUCallbackProxy>(this);
   AURenderCallbackStruct callback;
   callback.inputProc = &DataIsAvailable;
-  callback.inputProcRefCon = this;
+  callback.inputProcRefCon = data_callback_proxy_.get();
 
   result = AudioUnitSetProperty(
       audio_unit_, kAudioOutputUnitProperty_SetInputCallback,
@@ -660,7 +702,8 @@ void AUAudioInputStream::SetSystemAGC(bool enable) {
       &property_size);
   if (result != noErr) {
     base::AutoLock al(lock_);
-    HandleErrorAndNotify_Locked(result, "Error reading System AGC property");
+    HandleErrorAndNotify_Locked(Error::kStartupFailed, result,
+                                "Error reading System AGC property");
     return;
   }
 
@@ -676,7 +719,8 @@ void AUAudioInputStream::SetSystemAGC(bool enable) {
 
     if (result != noErr) {
       base::AutoLock al(lock_);
-      HandleErrorAndNotify_Locked(result, "Error setting System AGC property");
+      HandleErrorAndNotify_Locked(Error::kStartupFailed, result,
+                                  "Error setting System AGC property");
       return;
     }
 
@@ -692,6 +736,8 @@ void AUAudioInputStream::Start(AudioInputCallback* callback) {
   DLOG_IF(ERROR, !audio_unit_) << "Open() has not been called successfully";
   if (IsRunning())
     return;
+
+  stop_failed_ = false;
 
 #if BUILDFLAG(IS_MAC)
   // Check if we should defer Start() for http://crbug.com/160920.
@@ -726,7 +772,11 @@ void AUAudioInputStream::Start(AudioInputCallback* callback) {
   StartAgc();
   OSStatus result = AudioOutputUnitStart(audio_unit_);
   if (result != noErr) {
-    SendLog("Failed to start acquiring data", result);
+    {
+      base::AutoLock al(lock_);
+      HandleErrorAndNotify_Locked(Error::kStartupFailed, result,
+                                  "AudioOutputUnitStart failed");
+    }
     Stop();
     return;
   }
@@ -767,6 +817,8 @@ void AUAudioInputStream::Stop() {
     // Stop the I/O audio unit.
     OSStatus result = AudioOutputUnitStop(audio_unit_);
     DCHECK_EQ(result, noErr);
+    stop_failed_ |= CheckAndLogFailure(result, "Failed to stop audio unit.");
+
     // Add a DCHECK here just in case. AFAIK, the call to AudioOutputUnitStop()
     // seems to set this state synchronously, hence it should always report
     // false after a successful call.
@@ -776,8 +828,7 @@ void AUAudioInputStream::Stop() {
     // It does not allocate or free memory resources.
     result = AudioUnitReset(audio_unit_, kAudioUnitScope_Global, 0);
     DCHECK_EQ(result, noErr);
-    OSSTATUS_DLOG_IF(ERROR, result != noErr, result)
-        << "Failed to stop acquiring data";
+    stop_failed_ |= CheckAndLogFailure(result, "Failed to stop acquiring data");
   }
 
   SetInputCallbackIsActive(false);
@@ -989,12 +1040,12 @@ OSStatus AUAudioInputStream::DataIsAvailable(void* context,
   DCHECK_EQ(bus_number, 1u);
   // No data buffer should be allocated at this stage.
   DCHECK(!io_data);
-  AUAudioInputStream* self = reinterpret_cast<AUAudioInputStream*>(context);
+  AUCallbackProxy* proxy = reinterpret_cast<AUCallbackProxy*>(context);
   // Propagate render action flags, time stamp, bus number and number
   // of frames requested to the AudioUnitRender() call where the actual data
   // is received from the input device via the output scope of the audio unit.
-  return self->OnDataIsAvailable(flags, time_stamp, bus_number,
-                                 number_of_frames);
+  return proxy->OnDataIsAvailable(flags, time_stamp, bus_number,
+                                  number_of_frames);
 }
 
 OSStatus AUAudioInputStream::OnDataIsAvailable(
@@ -1105,7 +1156,8 @@ OSStatus AUAudioInputStream::OnDataIsAvailable(
     LOG(ERROR) << "Too long sequence of " << err << " errors!";
   }
 
-  HandleErrorAndNotify_Locked(result, "AudioUnitRender() failed");
+  HandleErrorAndNotify_Locked(Error::kRuntimeError, result,
+                              "AudioUnitRender() failed");
   return result;
 }
 
@@ -1231,13 +1283,14 @@ void AUAudioInputStream::HandleError(OSStatus err,
 }
 
 void AUAudioInputStream::HandleErrorAndNotify_Locked(
+    Error error_code,
     OSStatus err,
     const char* message,
     const base::Location& location) {
   lock_.AssertAcquired();
   HandleError(err, message, location);
   if (sink_) {
-    sink_->OnError();
+    sink_->OnError(error_code);
   }
 }
 
@@ -1272,6 +1325,8 @@ void AUAudioInputStream::CloseAudioUnit() {
   if (!audio_unit_)
     return;
 
+  bool close_failed = false;
+
   // Clear the input callback.
   AURenderCallbackStruct callback;
   callback.inputProc = nullptr;
@@ -1281,8 +1336,8 @@ void AUAudioInputStream::CloseAudioUnit() {
       kAudioUnitScope_Global,
       use_voice_processing_ ? AUElement::INPUT : AUElement::OUTPUT, &callback,
       sizeof(callback));
-  OSSTATUS_DLOG_IF(ERROR, result != noErr, result)
-      << "Failed to clear AU input callback.";
+  close_failed |=
+      CheckAndLogFailure(result, "Failed to clear AU input callback.");
 
   if (use_voice_processing_) {
     AURenderCallbackStruct playout_callback;
@@ -1292,17 +1347,31 @@ void AUAudioInputStream::CloseAudioUnit() {
         AudioUnitSetProperty(audio_unit_, kAudioUnitProperty_SetRenderCallback,
                              kAudioUnitScope_Input, AUElement::OUTPUT,
                              &playout_callback, sizeof(playout_callback));
-    OSSTATUS_DLOG_IF(ERROR, result != noErr, result)
-        << "Failed to clear AU render callback.";
+    close_failed |=
+        CheckAndLogFailure(result, "Failed to clear AU render callback.");
   }
 
   result = AudioUnitUninitialize(audio_unit_);
-  OSSTATUS_DLOG_IF(ERROR, result != noErr, result)
-      << "AudioUnitUninitialize() failed.";
+  close_failed |= CheckAndLogFailure(result, "AudioUnitUninitialize() failed.");
   result = AudioComponentInstanceDispose(audio_unit_);
-  OSSTATUS_DLOG_IF(ERROR, result != noErr, result)
-      << "AudioComponentInstanceDispose() failed.";
+  close_failed |=
+      CheckAndLogFailure(result, "AudioComponentInstanceDispose() failed.");
   audio_unit_ = 0;
+
+  if (data_callback_proxy_) {
+    data_callback_proxy_->Detach();
+    if (close_failed || stop_failed_) {
+      // INTENTIONAL LEAK
+      // The OS failed to release the IOProc. The CoreAudio thread might still
+      // fire. We leak the proxy so the OS thread reads valid memory instead of
+      // triggering a Use-After-Free.
+      ANNOTATE_LEAKING_OBJECT_PTR(data_callback_proxy_.get());
+      data_callback_proxy_.release();
+    } else {
+      data_callback_proxy_.reset();
+    }
+  }
+  stop_failed_ = false;
 }
 
 void AUAudioInputStream::ReportAndResetStats() {

@@ -478,12 +478,6 @@ void RecalcFragmentScrollableOverflow(RecalcScrollableOverflowResult& result,
   }
 }
 
-bool IsAppearanceAutoMenuList(const LayoutBox& obj) {
-  return obj.IsMenuList() &&
-         obj.StyleRef().EffectiveAppearance() != AppearanceValue::kBase &&
-         obj.StyleRef().EffectiveAppearance() != AppearanceValue::kBaseSelect;
-}
-
 const PhysicalBoxFragment* FragmentForEdge(const LayoutBox& box,
                                            const PhysicalBoxSides& edges) {
   // Should only be here if there are multiple fragments. There's a fast-path
@@ -710,7 +704,11 @@ void LayoutBox::StyleDidChange(StyleDifference diff,
           diff.border_radius_changed ||
           (diff.border_shape_changed &&
            (new_style.HasBorderShape() || old_style->HasBorderShape())) ||
-          (HasControlClip() && !old_style->PaddingEqual(new_style))) {
+          (HasControlClip() && !old_style->PaddingEqual(new_style)) ||
+          (new_style.OverflowClipMargin() &&
+           new_style.OverflowClipMargin()->GetReferenceBox() ==
+               StyleOverflowClipMargin::ReferenceBox::kContentBox &&
+           !old_style->PaddingEqual(new_style))) {
         SetNeedsPaintPropertyUpdate();
       }
     }
@@ -2466,13 +2464,10 @@ PhysicalRect LayoutBox::OverflowClipRect(
                       kExcludeScrollbarGutter);
   }
 
-  if (IsAppearanceAutoMenuList(*this)) [[unlikely]] {
-    DCHECK(HasControlClip());
+  if (HasControlClip()) [[unlikely]] {
     PhysicalRect control_clip = PhysicalContentBoxRect();
     control_clip.Move(location);
     clip_rect.Intersect(control_clip);
-  } else {
-    DCHECK(!HasControlClip());
   }
 
   return clip_rect;
@@ -2485,7 +2480,9 @@ PhysicalRect LayoutBox::OverflowClipRectForScrollNode(
 
 bool LayoutBox::HasControlClip() const {
   NOT_DESTROYED();
-  return IsAppearanceAutoMenuList(*this);
+  return !RuntimeEnabledFeatures::SelectUsesUAClipEnabled() && IsMenuList() &&
+         StyleRef().EffectiveAppearance() != AppearanceValue::kBase &&
+         StyleRef().EffectiveAppearance() != AppearanceValue::kBaseSelect;
 }
 
 void LayoutBox::ExcludeScrollbars(

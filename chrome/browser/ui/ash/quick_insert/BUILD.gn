@@ -37,6 +37,7 @@ static_library("quick_insert") {
     "//chrome/browser/favicon",
     "//chrome/browser/history",
     "//chrome/browser/profiles:profile",
+    "//chrome/browser/search_engines",
     "//chrome/browser/ui/ash/thumbnail_loader",
     "//chrome/common",
     "//chromeos/ash/components/browser_context_helper",

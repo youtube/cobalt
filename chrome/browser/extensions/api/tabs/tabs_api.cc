@@ -14,6 +14,7 @@
 #include "base/types/expected.h"
 #include "base/types/expected_macros.h"
 #include "base/types/optional_util.h"
+#include "base/unguessable_token.h"
 #include "chrome/browser/devtools/devtools_window.h"
 #include "chrome/browser/extensions/api/tabs/tabs_constants.h"
 #include "chrome/browser/extensions/api/tabs/windows_util.h"
@@ -64,6 +65,7 @@
 #include "extensions/common/permissions/permissions_data.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
 #include "services/metrics/public/cpp/ukm_recorder.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 #include "third_party/blink/public/common/page/page_zoom.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/base/base_window.h"
@@ -1248,9 +1250,9 @@ ExtensionFunction::ResponseValue WindowsCreateFunction::OnBrowserWindowCreated(
       NavigateParams navigate_params = create_nav_params(
           registrar.GetAppStartUrl(iwa_id), /*is_first_nav=*/true);
       webapps::LaunchParams launch_params;
-      launch_params.app_id = iwa_id;
-      launch_params.target_url = original_url;
       CHECK(navigate_params.web_app_navigation_data);
+      launch_params.set_app_id(iwa_id);
+      launch_params.set_target_url(original_url);
       navigate_params.web_app_navigation_data->SetLaunchParams(
           std::move(launch_params));
 
@@ -4082,8 +4084,24 @@ ExtensionFunction::ResponseAction TabsDiscardFunction::Run() {
 
     contents = tab_list->DiscardTab(tab_list->GetTab(tab_index)->GetHandle());
   } else {
+    // Make sure we only discard tabs from profiles the extension is allowed to
+    // access.
+    Profile* profile = Profile::FromBrowserContext(browser_context());
+    absl::flat_hash_set<base::UnguessableToken> allowed_tokens;
+    allowed_tokens.insert(profile->UniqueToken());
+
+    if (include_incognito_information()) {
+      Profile* maybe_incognito_profile =
+          profile->GetPrimaryOTRProfile(/*create_if_needed=*/false);
+      if (maybe_incognito_profile) {
+        allowed_tokens.insert(maybe_incognito_profile->UniqueToken());
+      }
+    }
+
     contents = resource_coordinator::DiscardLeastImportantTab(
-        ::mojom::LifecycleUnitDiscardReason::EXTERNAL);
+        ::mojom::LifecycleUnitDiscardReason::EXTERNAL,
+        /*ignore_recent_visibility=*/false,
+        /*allowed_browser_context_ids=*/std::move(allowed_tokens));
   }
 
   if (!contents) {

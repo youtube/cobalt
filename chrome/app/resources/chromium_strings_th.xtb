@@ -115,19 +115,11 @@
 <translation id="2236949375853147973">กิจกรรมของฉัน</translation>
 <translation id="2238130810669087193">ลงชื่อเข้าใช้ Chromium เพื่อรับที่อยู่และข้อมูลอื่นๆ ในทุกอุปกรณ์ ระบบจะบันทึกที่อยู่นี้ไว้ในบัญชี Google หลังจากที่คุณลงชื่อเข้าใช้</translation>
 <translation id="2241627712206172106">ถ้าคุณให้ผู้อื่นใช้คอมพิวเตอร์ร่วมด้วย เพื่อนๆ และครอบครัวของคุณสามารถท่องเว็บแยกกันได้และตั้งค่า Chromium ได้ตามที่พวกเขาต้องการ</translation>
+<translation id="22571759390241347">ทักษะใน Chromium</translation>
 <translation id="2283803047247799269">ค้นหาแท็บนี้ด้วยการค้นหารูปภาพ</translation>
 <translation id="2287771843518581140">{NUM_TABS,plural, =1{Chromium แนะนำให้หยุดแท็บที่ทำให้เบราว์เซอร์ทำงานช้าลงชั่วคราว}other{Chromium แนะนำให้หยุดแท็บที่ทําให้เบราว์เซอร์ทำงานช้าลงชั่วคราว}}</translation>
 <translation id="2307973900865360088">ปักหมุดไว้ที่แถบแอป</translation>
 <translation id="2313870531055795960">ตรวจสอบ URL กับรายการเว็บไซต์ที่ไม่ปลอดภัยซึ่งจัดเก็บไว้ใน Chromium หากเว็บไซต์พยายามขโมยรหัสผ่าน หรือคุณดาวน์โหลดไฟล์ที่เป็นอันตราย Chromium อาจส่ง URL รวมถึงเนื้อหาบางส่วนในหน้าไปยัง Google Safe Browsing ด้วย</translation>
-<translation id="2332076562712130931">การดำเนินการนี้จะ
-        <ph name="LINE_BREAKS" />
-          • รีเซ็ตการตั้งค่าและทางลัดบางอย่างของ Chromium
-          <ph name="LINE_BREAK" />
-          • ปิดใช้ส่วนขยาย
-          <ph name="LINE_BREAK" />
-          • ลบคุกกี้และข้อมูลชั่วคราวอื่นๆ ของเว็บไซต์
-          <ph name="LINE_BREAKS" />
-          การดำเนินการนี้จะไม่มีผลกับบุ๊กมาร์ก ประวัติการเข้าชม และรหัสผ่านที่บันทึกไว้</translation>
 <translation id="2343156876103232566">หากต้องการส่งหมายเลขจากที่นี่ไปยังโทรศัพท์ Android ให้ลงชื่อเข้าใช้ Chromium ในอุปกรณ์ทั้งสองเครื่อง</translation>
 <translation id="2356070529366658676">ถาม</translation>
 <translation id="2359808026110333948">ต่อไป</translation>
@@ -189,6 +181,7 @@
 <translation id="3003694935412297923">งานทั้งหมด</translation>
 <translation id="3012615494352020668">{count,plural, =1{Chromium จำเป็นต้องยืนยันว่าเป็นคุณก่อนจึงจะบันทึกข้อมูลบางอย่างในบัญชี Google และใช้ในอุปกรณ์ทุกเครื่องได้ หากคุณออกจากระบบตอนนี้ ระบบจะลบข้อมูลนี้ (1 รายการ)}other{Chromium จำเป็นต้องยืนยันว่าเป็นคุณก่อนจึงจะบันทึกข้อมูลบางอย่างในบัญชี Google และใช้ในอุปกรณ์ทุกเครื่องได้ หากคุณออกจากระบบตอนนี้ ระบบจะลบข้อมูลนี้ ({count} รายการ)}}</translation>
 <translation id="3013473503895162900">เปิด <ph name="URL" /> ในแท็บใหม่ใน Chromium</translation>
+<translation id="302551344979399011">นวัตกรรม AI เช่น ทักษะ จะบันทึกไว้ในบัญชี Google และจัดการแยกต่างหากจากการซิงค์ Chromium</translation>
 <translation id="3032787606318309379">กำลังเพิ่มลงใน Chromium...</translation>
 <translation id="3038232873781883849">กำลังรอติดตั้ง...</translation>
 <translation id="3045032126857188731">ภาษาที่แปล: <ph name="LANGUAGE" /></translation>
@@ -380,6 +373,7 @@
 <translation id="5289287148052354622">ดาวน์โหลดแอป Chromium</translation>
 <translation id="5294316920224716406">เมื่อท่องเว็บในโหมดไม่ระบุตัวตน Chromium จะแจ้งเตือนคุณก่อนโหลดเว็บไซต์โดยใช้การเชื่อมต่อที่ไม่ปลอดภัย</translation>
 <translation id="5313228254328109263">บริการภายในของ Chromium Updater</translation>
+<translation id="5324450571874973775">ใช้พร้อมกับฟีเจอร์อื่นๆ ของ Gemini ใน Chromium</translation>
 <translation id="5346389065299425353">เจาะลึกการค้นหาด้วยการเพิ่มแท็บ ไฟล์ และเครื่องมือหลายรายการ</translation>
 <translation id="5348677704241861105">ดูภาพรวมของเอกสารนี้อย่างรวดเร็วและถามคำถามด้วย Gemini ใน Chromium</translation>
 <translation id="5352264705793813212">Chromium พบคำแนะนำด้านความปลอดภัยบางอย่างที่คุณควรตรวจสอบ</translation>
@@ -671,6 +665,7 @@ Chromium ไม่สามารถกู้คืนการตั้งค�
 <translation id="8318772038038596122">องค์กรจะปิด Chromium เมื่อไม่มีการใช้งานเป็นเวลา <ph name="TIMEOUT_DURATION" /></translation>
 <translation id="8321888067342493336">บันทึกเป็นรูปภาพ</translation>
 <translation id="8340674089072921962"><ph name="USER_EMAIL_ADDRESS" /> ใช้ Chromium อยู่ก่อนหน้านี้</translation>
+<translation id="8351551329754447960">เปิดใช้ทักษะใน Chromium</translation>
 <translation id="8359544530202147897">อัปเดต Chromium เพื่อใช้ข้อมูล Chromium ในบัญชี Google (<ph name="ACCOUNT_EMAIL" />) ของคุณต่อไป</translation>
 <translation id="8360718212975266891">คุณจะต้องใช้ Windows 10 ขึ้นไปเพื่อรับการอัปเดต Chromium ในอนาคต คอมพิวเตอร์เครื่องนี้ใช้ Windows 8</translation>
 <translation id="8362914115861174987">แปลเป็นภาษา</translation>

@@ -213,8 +213,8 @@ void GlicInvokeHandler::Invoke() {
 
   if (!options_.tab_sharing.tabs_to_pin.empty()) {
     CHECK(options_.tab_sharing.pin_trigger != GlicPinTrigger::kUnknown);
-    instance_->sharing_manager().PinTabs(options_.tab_sharing.tabs_to_pin,
-                                         options_.tab_sharing.pin_trigger);
+    instance_->GetSharingManagerInternal().PinTabs(
+        options_.tab_sharing.tabs_to_pin, options_.tab_sharing.pin_trigger);
   }
 
   std::vector<std::unique_ptr<GlicInvokeTask>> tasks;
@@ -261,11 +261,15 @@ void GlicInvokeHandler::Invoke() {
         instance_->GetWeakPtr(), std::move(options_.on_client_connected))));
   }
   // TODO(b/505086089): Handle client disconnects.
-  tasks.push_back(std::make_unique<NotifyIsInvokingTask>(instance_->host()));
 
   if (options_.wait_for_panel_open && IsTabTarget()) {
     tasks.push_back(
         std::make_unique<StabilizationTask>(GetTab().GetContents()));
+  }
+
+  if (options_.on_panel_opened) {
+    tasks.push_back(std::make_unique<PostCallbackTask>(
+        std::move(options_.on_panel_opened)));
   }
 
   if (options_.additional_context.has_value() &&
@@ -277,8 +281,10 @@ void GlicInvokeHandler::Invoke() {
                        weak_ptr_factory_.GetWeakPtr())));
   }
 
-  tasks.push_back(std::make_unique<WaitForFreCompletionTask>(
-      instance_->profile(), options_.fre_override));
+  if (options_.fre_completion_wait_mode == FreCompletionWaitMode::kDefault) {
+    tasks.push_back(std::make_unique<WaitForFreCompletionTask>(
+        instance_->profile(), options_.fre_override));
+  }
 
   tasks.push_back(std::make_unique<SendToClientTask>(
       &*instance_, CreateMojoOptions(), auto_submit_passkey_));
@@ -397,6 +403,16 @@ mojom::InvokeOptionsPtr GlicInvokeHandler::CreateMojoOptions() {
       options_.feature_mode.value_or(mojom::FeatureMode::kUnspecified);
   mojo_options->actuation_target = options_.target.actuation_target;
   mojo_options->disable_zero_state_suggestions = options_.disable_zss;
+
+  if (mojo_options->actuation_target ==
+      mojom::ActuationTarget::kTargetSurface) {
+    // If the target surface is not a tab, no specific tab ID is passed to the
+    // client. The actuation will still happen, but it won't be targeted at a
+    // specific tab.
+    if (IsTabTarget()) {
+      mojo_options->actuation_tab_id = GetTab().GetHandle().raw_value();
+    }
+  }
 
   if (options_.skill_id) {
     mojo_options->skill_id = *options_.skill_id;

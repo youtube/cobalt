@@ -7,6 +7,7 @@
 #include <windows.h>
 
 #include <array>
+#include <functional>
 #include <utility>
 
 #include "base/check.h"
@@ -27,11 +28,17 @@ namespace {
 
 // Waits for either the watched process to terminate or for the shutdown event
 // to be signaled. In the former case, the `on_terminated` closure is
-// run before exiting.
+// run before exiting. `completed_event` is signaled when the task is complete.
 void WatchInThreadPool(base::Process process,
                        base::OnceClosure on_terminated,
                        HANDLE startup_event,
-                       base::win::ScopedHandle shutdown_event) {
+                       base::win::ScopedHandle shutdown_event,
+                       base::win::ScopedHandle completed_event,
+                       base::PlatformThreadId& watch_thread_id) {
+  // Give the ID of this thread to the ProcessWatcher so that it can avoid
+  // waiting on itself during destruction.
+  watch_thread_id = base::PlatformThread::CurrentId();
+
   // Signal that the task is ready to watch.
   ::SetEvent(std::exchange(startup_event, nullptr));
 
@@ -48,6 +55,8 @@ void WatchInThreadPool(base::Process process,
   if (result == WAIT_OBJECT_0) {
     std::move(on_terminated).Run();
   }  // else the shutdown event was signaled.
+
+  ::SetEvent(completed_event.get());
 }
 
 }  // namespace
@@ -66,13 +75,22 @@ ProcessWatcher::ProcessWatcher(base::Process process,
                           /*dwDesiredAccess=*/0,
                           /*bInheritHandle=*/FALSE, DUPLICATE_SAME_ACCESS));
 
+  // Prepare a dup of the completed event for the task to signal.
+  HANDLE completed_event = nullptr;
+  CHECK(::DuplicateHandle(::GetCurrentProcess(), completed_event_.handle(),
+                          ::GetCurrentProcess(), &completed_event,
+                          /*dwDesiredAccess=*/0,
+                          /*bInheritHandle=*/FALSE, DUPLICATE_SAME_ACCESS));
+
   base::ThreadPool::CreateTaskRunner(
       {base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN, base::MayBlock()})
       ->PostTask(
           FROM_HERE,
           base::BindOnce(&WatchInThreadPool, std::move(process),
                          std::move(on_terminated), startup_event.handle(),
-                         base::win::ScopedHandle(shutdown_event)));
+                         base::win::ScopedHandle(shutdown_event),
+                         base::win::ScopedHandle(completed_event),
+                         std::ref(watch_thread_id_)));
 
   // Wait for the watch task to signal that it is ready.
   startup_event.Wait();
@@ -81,6 +99,13 @@ ProcessWatcher::ProcessWatcher(base::Process process,
 ProcessWatcher::~ProcessWatcher() {
   // Signal that the watch task should exit if it is still watching the process.
   shutdown_event_.Signal();
+
+  // Wait for the watch task to complete before continuing with destruction,
+  // unless destruction is taking place on the watch thread itself. This can
+  // happen if client termination synchronously triggers destruction via COM.
+  if (base::PlatformThread::CurrentId() != watch_thread_id_) {
+    completed_event_.Wait();
+  }
 }
 
 }  // namespace elevated_tracing_service

@@ -25,7 +25,7 @@ class SimplifiedBackwardsTextIteratorTest : public EditingTestBase {
   std::string ExtractStringInRange(
       const std::string selection_text,
       const TextIteratorBehavior& behavior = TextIteratorBehavior()) {
-    const SelectionInDOMTree selection = SetSelectionTextToBody(selection_text);
+    const SelectionInDomTree selection = SetSelectionTextToBody(selection_text);
     StringBuilder builder;
     bool is_first = true;
     for (SimplifiedBackwardsTextIterator iterator(selection.ComputeRange(),

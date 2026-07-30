@@ -6,8 +6,6 @@ package org.chromium.chrome.browser.pdf;
 
 import android.content.ContentResolver;
 import android.content.Context;
-import android.content.pm.PackageManager;
-import android.content.pm.ProviderInfo;
 import android.net.Uri;
 import android.os.Build;
 import android.os.ext.SdkExtensions;
@@ -461,19 +459,7 @@ public class PdfUtils {
             return false;
         }
 
-        PackageManager pm = context.getPackageManager();
-        ProviderInfo providerInfo = pm.resolveContentProvider(authority, 0);
-        // If the provider cannot be resolved, it is either not registered or belongs to a
-        // third-party app that Chrome cannot query due to Android package visibility restrictions.
-        // In either case, it is not Chrome's provider, so it is safe to allow.
-        if (providerInfo == null) {
-            return true;
-        }
-
-        String myPackageName = context.getPackageName();
-        // We only restrict URIs pointing to Chrome's own providers. Third-party providers
-        // are responsible for their own security.
-        if (!myPackageName.equals(providerInfo.packageName)) {
+        if (!ContentUriUtils.isUriFromThisApp(uri, context)) {
             return true;
         }
 

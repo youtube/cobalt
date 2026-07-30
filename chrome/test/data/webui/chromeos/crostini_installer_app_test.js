@@ -82,7 +82,7 @@ suite('<crostini-installer-app>', () => {
     BrowserProxy.setInstance(fakeBrowserProxy);
 
     app = document.createElement('crostini-installer-app');
-    PolymerTest.clearBody();
+    document.body.innerHTML = window.trustedTypes.emptyHTML;
     document.body.appendChild(app);
 
     await flushTasks();

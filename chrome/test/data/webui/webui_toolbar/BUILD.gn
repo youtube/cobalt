@@ -11,6 +11,7 @@ build_webui_tests("build") {
   ]
 
   files = [
+    "battery_saver_button_test.ts",
     "content_setting_icon_test.ts",
     "icon_from_table_test.ts",
     "location_bar_test.ts",
@@ -34,9 +35,14 @@ build_webui_tests("build") {
     "//ui/webui/resources/mojo:build_ts",
   ]
 
-  ts_path_mappings =
-      [ "chrome://webui-toolbar.top-chrome*|" +
+  ts_path_mappings = [
+    "chrome://webui-toolbar.top-chrome*|" +
         rebase_path(
             "$root_gen_dir/chrome/browser/resources/webui_toolbar/tsc/*",
-            target_gen_dir) ]
+            target_gen_dir),
+    "chrome://webui-toolbar.top-chrome/shared/*|" +
+        rebase_path(
+            "$root_gen_dir/chrome/browser/resources/webui_toolbar_shared/tsc/*",
+            target_gen_dir),
+  ]
 }

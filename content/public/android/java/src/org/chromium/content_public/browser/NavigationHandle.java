@@ -57,6 +57,7 @@ public class NavigationHandle {
     private @Nullable WebContents mWebContents;
     private @Nullable Page mCommittedPage;
     private boolean mIsSameOrigin;
+    private int mIgnoredDuplicateNavigationCount;
 
     private boolean mStarted;
 
@@ -199,7 +200,8 @@ public class NavigationHandle {
             boolean isPdf,
             String mimeType,
             Page currentPage,
-            boolean isSameOrigin) {
+            boolean isSameOrigin,
+            int ignoredDuplicateNavigationCount) {
         mUrl = url;
         mIsErrorPage = isErrorPage;
         mHasCommitted = hasCommitted;
@@ -217,6 +219,7 @@ public class NavigationHandle {
             mCommittedPage = currentPage;
         }
         mIsSameOrigin = isSameOrigin;
+        mIgnoredDuplicateNavigationCount = ignoredDuplicateNavigationCount;
     }
 
     /** Release the C++ pointer. */
@@ -472,5 +475,10 @@ public class NavigationHandle {
      */
     public @Nullable Page getCommittedPage() {
         return mCommittedPage;
+    }
+
+    /** Returns the number of duplicate navigations ignored during this navigation. */
+    public int getIgnoredDuplicateNavigationCount() {
+        return mIgnoredDuplicateNavigationCount;
     }
 }

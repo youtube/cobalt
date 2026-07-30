@@ -9,6 +9,7 @@
 
 #include "base/functional/callback_forward.h"
 #include "base/memory/weak_ptr.h"
+#include "base/supports_user_data.h"
 #include "base/time/time.h"
 #include "components/password_manager/core/browser/actor_login/actor_login_types.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
@@ -21,8 +22,9 @@ class TranslateManager;
 }
 
 namespace password_manager {
+class PasswordManagerClient;
 class PasswordManagerDriver;
-}
+}  // namespace password_manager
 
 namespace actor_login {
 
@@ -35,10 +37,10 @@ class ActorLoginSiwgControllerInterface;
 class ActorLoginWebContentInterface;
 
 // Client interface for `ActorLoginDelegate`.
-class ActorLoginDelegateClient {
+class ActorLoginDelegateClient : public base::SupportsUserData {
  public:
   ActorLoginDelegateClient() = default;
-  virtual ~ActorLoginDelegateClient() = default;
+  ~ActorLoginDelegateClient() override = default;
 
   // Not copyable or movable.
   ActorLoginDelegateClient(const ActorLoginDelegateClient&) = delete;
@@ -51,6 +53,11 @@ class ActorLoginDelegateClient {
 
   // Returns the preference service associated with the profile.
   virtual PrefService* GetPrefs() = 0;
+
+  // Returns the password manager client. This might return `nullptr` if the
+  // user is using a third-party password manager on Android.
+  virtual password_manager::PasswordManagerClient*
+  GetPasswordManagerClient() = 0;
 
   // Returns the password manager driver associated with the primary main frame
   // of the page.

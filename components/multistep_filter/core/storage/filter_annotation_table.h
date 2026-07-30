@@ -32,6 +32,7 @@ struct FilterAnnotation;
 //   task_type               An identifier classifying the purpose of the
 //                           annotation.
 //   source_domain           The eTLD+1 domain of the source URL.
+//   source_host             The host of the source URL.
 //   creation_timestamp      The timestamp when the annotation was generated in
 //                           base::Time format.
 // -----------------------------------------------------------------------------
@@ -74,11 +75,11 @@ class FilterAnnotationTable {
   // Returns the number of annotations deleted, or std::nullopt on failure.
   std::optional<int64_t> DeleteAnnotationsForTask(std::string_view task_type);
 
-  // Deletes annotations for specific domains and time range.
-  // If `domains` is empty, deletes data for all domains in the time range.
+  // Deletes annotations for specific hosts and time range.
+  // If `hosts` is empty, deletes data for all hosts in the time range.
   // Returns the number of annotations deleted, or std::nullopt on failure.
-  std::optional<int64_t> DeleteAnnotationsForDomains(
-      const std::vector<std::string>& domains,
+  std::optional<int64_t> DeleteAnnotationsForHosts(
+      const std::vector<std::string>& hosts,
       base::Time delete_begin,
       base::Time delete_end);
 
@@ -87,12 +88,12 @@ class FilterAnnotationTable {
  private:
   sql::Database* db() { return db_; }
 
-  // Helper methods for DeleteAnnotationsForDomains.
+  // Helper methods for DeleteAnnotationsForHosts.
   std::optional<int64_t> DeleteAnnotationsForTimeRange(base::Time begin,
                                                        base::Time end);
-  std::optional<int64_t> DeleteAnnotationsForDomain(std::string_view domain,
-                                                    base::Time begin,
-                                                    base::Time end);
+  std::optional<int64_t> DeleteAnnotationsForHost(std::string_view host,
+                                                  base::Time begin,
+                                                  base::Time end);
 
   // Non-null, except before `Init()` and after `Shutdown()`. Effectively, this
   // means that it is non-null except during the constructor and destructor.

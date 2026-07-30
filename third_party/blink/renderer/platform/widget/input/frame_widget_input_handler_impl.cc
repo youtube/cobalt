@@ -79,6 +79,12 @@ void FrameWidgetInputHandlerImpl::ClearImeTextSpansByType(
       widget_, main_thread_frame_widget_input_handler_, start, end, type));
 }
 
+void FrameWidgetInputHandlerImpl::CancelStylusGesturePreview() {
+  RunOnMainThread(base::BindOnce(
+      &mojom::blink::FrameWidgetInputHandler::CancelStylusGesturePreview,
+      main_thread_frame_widget_input_handler_));
+}
+
 void FrameWidgetInputHandlerImpl::SetCompositionFromExistingText(
     int32_t start,
     int32_t end,

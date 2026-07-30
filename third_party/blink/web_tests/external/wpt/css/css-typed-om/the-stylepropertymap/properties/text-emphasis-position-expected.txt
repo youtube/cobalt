@@ -1,0 +1,9 @@
+This is a testharness.js-based test.
+[FAIL] Can set 'text-emphasis-position' to the 'auto' keyword: auto
+  Failed to execute 'set' on 'StylePropertyMap': Invalid type for property
+[FAIL] Can set 'text-emphasis-position' to the 'over' keyword: over
+  Failed to execute 'set' on 'StylePropertyMap': Invalid type for property
+[FAIL] Can set 'text-emphasis-position' to the 'under' keyword: under
+  Failed to execute 'set' on 'StylePropertyMap': Invalid type for property
+Harness: the test ran to completion.
+

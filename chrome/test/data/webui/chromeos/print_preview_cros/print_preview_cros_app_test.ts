@@ -5,7 +5,7 @@
 import 'chrome://os-print/js/print_preview_cros_app.js';
 
 import {PrintPreviewCrosAppElement} from 'chrome://os-print/js/print_preview_cros_app.js';
-import {assertTrue} from 'chrome://webui-test/chromeos/chai_assert.js';
+import {assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {isVisible} from 'chrome://webui-test/test_util.js';
 
 import {resetDataManagersAndProviders} from './test_utils.js';

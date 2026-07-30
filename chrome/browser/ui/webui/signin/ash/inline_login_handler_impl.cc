@@ -165,7 +165,8 @@ class EduCoexistenceChildSigninHelper : public SigninHelper {
  public:
   EduCoexistenceChildSigninHelper(
       account_manager::AccountManager* account_manager,
-      crosapi::AccountManagerMojoService* account_manager_mojo_service,
+      SigninHelper::AccountUpsertionFinishedCallback
+          account_upsertion_finished_callback,
       scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
       std::unique_ptr<SigninHelper::ArcHelper> arc_helper,
       const GaiaId& gaia_id,
@@ -175,7 +176,7 @@ class EduCoexistenceChildSigninHelper : public SigninHelper {
       PrefService* pref_service,
       const content::WebUI* web_ui)
       : SigninHelper(account_manager,
-                     account_manager_mojo_service,
+                     std::move(account_upsertion_finished_callback),
                      // EduCoexistenceChildSigninHelper will not be closing the
                      // dialog. Therefore, passing a void callback.
                      /*close_dialog_closure=*/base::DoNothing(),
@@ -375,6 +376,10 @@ void InlineLoginHandlerImpl::CreateSigninHelper(
   crosapi::AccountManagerMojoService* account_manager_mojo_service =
       AccountManagerFactory::Get()->GetAccountManagerMojoService(
           profile->GetPath().value());
+  SigninHelper::AccountUpsertionFinishedCallback
+      account_upsertion_finished_callback =
+          account_manager_mojo_service
+              ->CreateInlineLoginAccountUpsertionFinishedCallback();
 
   signin::IdentityManager* identity_manager =
       IdentityManagerFactory::GetForProfile(profile);
@@ -387,7 +392,7 @@ void InlineLoginHandlerImpl::CreateSigninHelper(
   if (profile->IsChild() &&
       !gaia::AreEmailsSame(primary_account_email, params.email)) {
     new EduCoexistenceChildSigninHelper(
-        account_manager, account_manager_mojo_service,
+        account_manager, std::move(account_upsertion_finished_callback),
         profile->GetURLLoaderFactory(), std::move(arc_helper), params.gaia_id,
         params.email, params.auth_code,
         GetAccountDeviceId(GetSigninScopedDeviceIdForProfile(profile),
@@ -399,9 +404,9 @@ void InlineLoginHandlerImpl::CreateSigninHelper(
 
   // SigninHelper deletes itself after its work is done.
   new SigninHelper(
-      account_manager, account_manager_mojo_service, close_dialog_closure_,
-      show_signin_error_, profile->GetURLLoaderFactory(), std::move(arc_helper),
-      params.gaia_id, params.email, params.auth_code,
+      account_manager, std::move(account_upsertion_finished_callback),
+      close_dialog_closure_, show_signin_error_, profile->GetURLLoaderFactory(),
+      std::move(arc_helper), params.gaia_id, params.email, params.auth_code,
       GetAccountDeviceId(GetSigninScopedDeviceIdForProfile(profile),
                          primary_account_gaia_id, params.gaia_id));
 }

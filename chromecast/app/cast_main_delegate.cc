@@ -16,6 +16,7 @@
 #include "base/cpu.h"
 #include "base/debug/leak_annotations.h"
 #include "base/files/file.h"
+#include "base/files/file_path.h"
 #include "base/files/file_enumerator.h"
 #include "base/files/file_util.h"
 #include "base/logging.h"
@@ -76,6 +77,10 @@ std::optional<int> CastMainDelegate::BasicStartupComplete() {
       logging::LOG_TO_SYSTEM_DEBUG_LOG | logging::LOG_TO_STDERR;
 
   const base::CommandLine* command_line(base::CommandLine::ForCurrentProcess());
+  std::string cast_assets_dir = command_line->GetSwitchValueASCII(switches::kCastAssetsDir);
+  if (!cast_assets_dir.empty()) {
+    base::PathService::Override(base::DIR_ASSETS, base::FilePath::FromASCII(cast_assets_dir));
+  }
   std::string process_type =
       command_line->GetSwitchValueASCII(switches::kProcessType);
 

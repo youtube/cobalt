@@ -153,9 +153,11 @@ def test_crashed(root):
 
 
 def xcode16_test_crashed(summary):
-  # both numbers of passed and failed tests are equal to 0.
+  """All of passed, failed and expectedly failed tests are equal to 0."""
   crashed = (
-      summary.get('failedTests', 0) == 0 and summary.get('passedTests', 0) == 0)
+      summary.get('failedTests', 0) == 0 and
+      summary.get('passedTests', 0) == 0 and
+      summary.get('expectedFailures', 0) == 0)
   return crashed
 
 

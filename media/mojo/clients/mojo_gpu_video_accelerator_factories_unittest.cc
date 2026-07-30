@@ -17,7 +17,6 @@
 #include "build/build_config.h"
 #include "components/viz/common/gpu/context_cache_controller.h"
 #include "components/viz/common/gpu/context_lost_observer.h"
-#include "gpu/command_buffer/client/gles2_interface_stub.h"
 #include "gpu/command_buffer/common/capabilities.h"
 #include "gpu/command_buffer/common/context_creation_attribs.h"
 #include "gpu/command_buffer/common/context_result.h"
@@ -158,6 +157,7 @@ class MockContextProviderCommandBuffer
   MOCK_METHOD(gpu::ContextResult, BindToCurrentSequence, (), (override));
   MOCK_METHOD(gpu::gles2::GLES2Interface*, ContextGL, (), (override));
   MOCK_METHOD(gpu::raster::RasterInterface*, RasterInterface, (), (override));
+  MOCK_METHOD(bool, IsLost, (), (override));
   MOCK_METHOD(gpu::ContextSupport*, ContextSupport, (), (override));
   MOCK_METHOD(gpu::SharedImageInterface*, SharedImageInterface, (), (override));
   MOCK_METHOD(viz::ContextCacheController*, CacheController, (), (override));
@@ -176,11 +176,6 @@ class MockContextProviderCommandBuffer
 
  protected:
   ~MockContextProviderCommandBuffer() override = default;
-};
-
-class MockGLESInterface : public gpu::gles2::GLES2InterfaceStub {
- public:
-  MOCK_METHOD(GLenum, GetGraphicsResetStatusKHR, ());
 };
 
 class FakeVEAProviderImpl
@@ -390,7 +385,6 @@ class MojoGpuVideoAcceleratorFactoriesTest : public testing::Test {
     task_environment_.RunUntilQuit();
 
     ASSERT_TRUE(testing::Mock::VerifyAndClear(&mock_context_provider_));
-    ASSERT_TRUE(testing::Mock::VerifyAndClear(&mock_context_gl_));
     ASSERT_TRUE(testing::Mock::VerifyAndClear(&mock_gpu_channel_));
     gpu_command_buffer_proxy_.reset();
     mock_context_provider_.reset();
@@ -428,10 +422,7 @@ class MojoGpuVideoAcceleratorFactoriesTest : public testing::Test {
   void MockContextProvider() {
     ON_CALL(*mock_context_provider_, BindToCurrentSequence())
         .WillByDefault(Return(gpu::ContextResult::kSuccess));
-    ON_CALL(mock_context_gl_, GetGraphicsResetStatusKHR())
-        .WillByDefault(Return(GL_NO_ERROR));
-    ON_CALL(*mock_context_provider_, ContextGL())
-        .WillByDefault(Return(&mock_context_gl_));
+    ON_CALL(*mock_context_provider_, IsLost()).WillByDefault(Return(false));
 
     gpu_command_buffer_proxy_ = std::make_unique<gpu::CommandBufferProxyImpl>(
         gpu_channel_host_, kGpuStreamIdDefault,
@@ -512,7 +503,6 @@ class MojoGpuVideoAcceleratorFactoriesTest : public testing::Test {
       base::test::TaskEnvironment::ThreadingMode::MULTIPLE_THREADS};
 
   NiceMock<gpu::MockGpuChannel> mock_gpu_channel_;
-  NiceMock<MockGLESInterface> mock_context_gl_;
   scoped_refptr<TestGpuChannelHost> gpu_channel_host_;
   scoped_refptr<MockContextProviderCommandBuffer> mock_context_provider_;
   std::unique_ptr<gpu::CommandBufferProxyImpl> gpu_command_buffer_proxy_;

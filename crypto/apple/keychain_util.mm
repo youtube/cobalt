@@ -145,7 +145,7 @@ void RecordKeychainMigrationStatus(std::string_view access_group) {
   }
 
   OSStatus status = KeychainV2::GetInstance().ItemCopyMatching(
-      base::apple::NSToCFOwnershipCast(query), nullptr);
+      base::apple::NSToCFPtrCast(query), nullptr);
 
   if (status == errSecSuccess) {
     // Found at least one item that needs migration.
@@ -172,7 +172,7 @@ void RecordKeychainMigrationStatus(std::string_view access_group) {
     }
 
     OSStatus all_status = KeychainV2::GetInstance().ItemCopyMatching(
-        base::apple::NSToCFOwnershipCast(all_items_query), nullptr);
+        base::apple::NSToCFPtrCast(all_items_query), nullptr);
     if (all_status == errSecSuccess) {
       base::UmaHistogramEnumeration("Security.iOS.KeychainMigration.UserStatus",
                                     KeychainMigrationUserStatus::kMigrated);

@@ -6,7 +6,6 @@
 #include "third_party/blink/renderer/core/layout/inline/inline_node.h"
 #include "third_party/blink/renderer/core/testing/core_unit_test_helper.h"
 #include "third_party/blink/renderer/platform/fonts/shaping/shape_result_spacing.h"
-#include "third_party/blink/renderer/platform/testing/runtime_enabled_features_test_helpers.h"
 
 namespace blink {
 
@@ -24,11 +23,7 @@ class InlineNodeForTest : public InlineNode {
   void CollectInlines() { InlineNode::CollectInlines(MutableData()); }
 };
 
-class InlineNodeShapeCacheTest : public RenderingTest,
-                                 private ScopedExtendedShapeCacheForTest {
- public:
-  InlineNodeShapeCacheTest() : ScopedExtendedShapeCacheForTest(true) {}
-
+class InlineNodeShapeCacheTest : public RenderingTest {
  protected:
   static InlineNodeForTest CreateInlineNode(
       LayoutBlockFlow* layout_block_flow) {

@@ -59,6 +59,13 @@ class CORE_EXPORT InlineNode : public LayoutInputNode {
   const InlineItemsData& ItemsData(bool is_first_line) const {
     return Data().ItemsData(is_first_line);
   }
+  const std::optional<TextOffsetMap>& FirstLineOffsetMap() const {
+    if (const auto* first_line = Data().first_line_items_.Get()) [[unlikely]] {
+      return first_line->OffsetMap();
+    }
+    static const std::optional<TextOffsetMap> kEmpty;
+    return kEmpty;
+  }
 
   // True if `this` should use the first-line `InlineItemsData` for its first
   // formatted line. See `ItemsData()`. Valid only when pre-layout is clean.
@@ -102,6 +109,7 @@ class CORE_EXPORT InlineNode : public LayoutInputNode {
   bool HasFloats() const { return Data().HasFloats(); }
   bool HasInitialLetterBox() const { return Data().has_initial_letter_box_; }
   bool HasRuby() const { return Data().has_ruby_; }
+  bool HasTextEmphasis() const { return Data().HasTextEmphasis(); }
 
   bool IsBlockLevel() { return EnsureData().is_block_level_; }
 

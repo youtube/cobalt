@@ -13,6 +13,7 @@
 namespace blink {
 
 class ContainerNode;
+class Document;
 class Element;
 class HTMLSlotElement;
 class InvalidationSet;

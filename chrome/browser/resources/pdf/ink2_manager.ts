@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {assert, assertNotReached} from 'chrome://resources/js/assert.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {PromiseResolver} from 'chrome://resources/js/promise_resolver.js';
 
 import type {AnnotationBrush, Color, Point, TextAnnotation, TextAnnotationMessageData, TextAttributes, TextBoxRect, TextStyles} from './constants.js';
 import {AnnotationBrushType, TextAlignment, TextAnnotationSource, TextStyle, TextTypeface} from './constants.js';
 import {PluginController, PluginControllerEventType} from './controller.js';
+import {pageToScreenCoordinates, screenToPageCoordinates} from './ink_text_annotation_utils.js';
 import {UndoRedoStack} from './undo_redo_stack.js';
 import type {Viewport, ViewportRect} from './viewport.js';
 
@@ -35,74 +36,6 @@ export function colorsEqual(color1: Color, color2: Color): boolean {
 
 export function stylesEqual(style1: TextStyles, style2: TextStyles): boolean {
   return style1.bold === style2.bold && style1.italic === style2.italic;
-}
-
-/**
- * Converts `rect` from `oldRotations` clockwise rotations to `newRotations`
- * clockwise rotations. `newPageWidth` should be the page width in
- * `newRotations` coordinates, and `newPageHeight` should be the page height in
- * `newRotations` coordinates.
- */
-export function convertRotatedCoordinates(
-    rect: TextBoxRect, oldRotations: number, newRotations: number,
-    newPageWidth: number, newPageHeight: number): TextBoxRect {
-  const pageWidthNR = newRotations % 2 === 0 ? newPageWidth : newPageHeight;
-  const pageHeightNR = newRotations % 2 === 0 ? newPageHeight : newPageWidth;
-  const nonRotated: TextBoxRect = {
-    locationX: rect.locationX,
-    locationY: rect.locationY,
-    width: oldRotations % 2 === 0 ? rect.width : rect.height,
-    height: oldRotations % 2 === 0 ? rect.height : rect.width,
-  };
-  switch (oldRotations % 4) {
-    case 0:
-      // Already populated correctly.
-      break;
-    case 1:
-      nonRotated.locationX = rect.locationY;
-      nonRotated.locationY = pageHeightNR - rect.locationX - rect.width;
-      break;
-    case 2:
-      nonRotated.locationX = pageWidthNR - rect.locationX - rect.width;
-      nonRotated.locationY = pageHeightNR - rect.locationY - rect.height;
-      break;
-    case 3:
-      nonRotated.locationX = pageWidthNR - rect.locationY - rect.height;
-      nonRotated.locationY = rect.locationX;
-      break;
-    default:
-      assertNotReached();
-  }
-
-  const newRotated = {
-    locationX: nonRotated.locationX,
-    locationY: nonRotated.locationY,
-    width: newRotations % 2 === 0 ? nonRotated.width : nonRotated.height,
-    height: newRotations % 2 === 0 ? nonRotated.height : nonRotated.width,
-  };
-  switch (newRotations % 4) {
-    case 0:
-      break;
-    case 1:
-      newRotated.locationX =
-          pageHeightNR - nonRotated.locationY - nonRotated.height;
-      newRotated.locationY = nonRotated.locationX;
-      break;
-    case 2:
-      newRotated.locationX =
-          pageWidthNR - nonRotated.locationX - nonRotated.width;
-      newRotated.locationY =
-          pageHeightNR - nonRotated.locationY - nonRotated.height;
-      break;
-    case 3:
-      newRotated.locationX = nonRotated.locationY;
-      newRotated.locationY =
-          pageWidthNR - nonRotated.locationX - nonRotated.width;
-      break;
-    default:
-      assertNotReached();
-  }
-  return newRotated;
 }
 
 export class Ink2Manager extends EventTarget {
@@ -160,7 +93,7 @@ export class Ink2Manager extends EventTarget {
     this.viewport_ = viewport;
   }
 
-  getAnnotationsForTesting(): Map<number, Map<number, TextAnnotation>> {
+  get annotations(): Map<number, Map<number, TextAnnotation>> {
     return this.annotations_;
   }
 
@@ -228,7 +161,7 @@ export class Ink2Manager extends EventTarget {
     for (const annotation of annotations) {
       // Convert box to screen coordinates.
       const screenBox =
-          this.pageToScreenCoordinates_(page, annotation.textBoxRect);
+          pageToScreenCoordinates(page, annotation.textBoxRect, this.viewport_);
       if (location.x >= screenBox.locationX &&
           location.x <= (screenBox.locationX + screenBox.width) &&
           location.y >= screenBox.locationY &&
@@ -273,6 +206,7 @@ export class Ink2Manager extends EventTarget {
     }
 
     this.pageIndex_ = page;
+    const viewportRotations = this.viewport_.getClockwiseRotations();
     const annotation: TextAnnotation = existing ? existing : {
       id: this.nextAnnotationId_,
       mojoTextInfo: new ArrayBuffer(0),
@@ -286,7 +220,8 @@ export class Ink2Manager extends EventTarget {
         locationY: location.y,
         width: newBoxWidth,
       },
-      textOrientation: (4 - this.viewport_.getClockwiseRotations()) % 4,
+      textOrientation: (4 - viewportRotations) % 4,
+      viewportOrientation: viewportRotations,
     };
 
     if (existing) {
@@ -394,6 +329,7 @@ export class Ink2Manager extends EventTarget {
             Math.max(this.nextAnnotationId_, annotation.id + 1);
       });
       this.textResolver_!.resolve();
+      this.dispatchEvent(new CustomEvent('annotations-updated'));
     });
     return this.textResolver_.promise;
   }
@@ -488,68 +424,6 @@ export class Ink2Manager extends EventTarget {
     this.knownFontIds_.push(id);
   }
 
-  private pageToScreenCoordinates_(pageIndex: number, pageRect: TextBoxRect):
-      TextBoxRect {
-    assert(this.viewport_);
-    const pageDimensions = this.viewport_.getPageScreenRect(pageIndex);
-    const zoom = this.viewport_.getZoom();
-
-    // Apply zoom.
-    const zoomed = {
-      locationX: pageRect.locationX * zoom,
-      locationY: pageRect.locationY * zoom,
-      width: pageRect.width * zoom,
-      height: pageRect.height * zoom,
-    };
-
-    // Apply rotation
-    const rotated = convertRotatedCoordinates(
-        zoomed, 0, this.viewport_.getClockwiseRotations(), pageDimensions.width,
-        pageDimensions.height);
-
-    // Apply offsets.
-    return {
-      locationX: rotated.locationX + pageDimensions.x,
-      locationY: rotated.locationY + pageDimensions.y,
-      height: rotated.height,
-      width: rotated.width,
-    };
-  }
-
-  private screenToPageCoordinates_(pageIndex: number, screenRect: TextBoxRect):
-      TextBoxRect {
-    assert(this.viewport_);
-    const zoom = this.viewport_.getZoom();
-    const pageDimensions = this.viewport_.getPageScreenRect(pageIndex);
-
-    // Undo offset
-    const noOffset = {
-      locationX: screenRect.locationX - pageDimensions.x,
-      locationY: screenRect.locationY - pageDimensions.y,
-      width: screenRect.width,
-      height: screenRect.height,
-    };
-
-    // Undo rotation
-    const rotations = this.viewport_.getClockwiseRotations();
-    // Need to pass the width and height for the new number of desired rotations
-    // (0 in this case) to convertRotatedCoordinates().
-    const pageWidth =
-        rotations % 2 === 0 ? pageDimensions.width : pageDimensions.height;
-    const pageHeight =
-        rotations % 2 === 0 ? pageDimensions.height : pageDimensions.width;
-    const noRotation = convertRotatedCoordinates(
-        noOffset, rotations, 0, pageWidth, pageHeight);
-
-    // Undo zoom.
-    return {
-      height: noRotation.height / zoom,
-      locationX: noRotation.locationX / zoom,
-      locationY: noRotation.locationY / zoom,
-      width: noRotation.width / zoom,
-    };
-  }
-
   // Returns the previous version of the annotation, or null if it is new.
   private updateStoredAnnotation_(annotation: TextAnnotation): TextAnnotation
       |null {
@@ -578,8 +452,9 @@ export class Ink2Manager extends EventTarget {
   commitTextAnnotation(
       annotation: TextAnnotation, isEdited: boolean,
       newTypefaces: chrome.pdfViewerPrivate.Typeface[]) {
-    annotation.textBoxRect = this.screenToPageCoordinates_(
-        annotation.pageIndex, annotation.textBoxRect);
+    assert(this.viewport_);
+    annotation.textBoxRect = screenToPageCoordinates(
+        annotation.pageIndex, annotation.textBoxRect, this.viewport_);
 
     if (isEdited) {
       const before = this.updateStoredAnnotation_(annotation);
@@ -593,7 +468,6 @@ export class Ink2Manager extends EventTarget {
       }
     }
 
-    assert(this.viewport_);
     const messageData: TextAnnotationMessageData = {
       ...annotation,
       isEdited,
@@ -602,6 +476,7 @@ export class Ink2Manager extends EventTarget {
     };
     this.pluginController_.finishTextAnnotation(messageData);
     this.existingAnnotationAttributes_ = null;
+    this.dispatchEvent(new CustomEvent('annotations-updated'));
   }
 
   textBoxFocused(textBoxRect: TextBoxRect) {
@@ -724,6 +599,7 @@ export class Ink2Manager extends EventTarget {
       messageData.text = '';
     }
     this.pluginController_.finishTextAnnotation(messageData);
+    this.dispatchEvent(new CustomEvent('annotations-updated'));
   }
 
   initiateSave() {

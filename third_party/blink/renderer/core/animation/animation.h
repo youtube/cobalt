@@ -91,6 +91,7 @@ class CORE_EXPORT Animation : public EventTarget,
   USING_PRE_FINALIZER(Animation, Dispose);
 
  public:
+  using AutoRewind = cc::Animation::AutoRewind;
   // Priority for sorting getAnimation by Animation class, arranged from lowest
   // priority to highest priority as per spec:
   // https://w3.org/TR/web-animations-1/#dom-document-getanimations
@@ -365,7 +366,8 @@ class CORE_EXPORT Animation : public EventTarget,
   // Synchronize to the impl thread start time. This is only called for
   // triggered[1] animations.
   // [1] https://drafts.csswg.org/animation-triggers-1/
-  void NotifyAnimationStartedAsync(base::TimeDelta monotonic_time);
+  void NotifyAnimationStartedAsync(base::TimeDelta monotonic_time,
+                                   AutoRewind auto_rewind);
   // The compositor paused this animation on the impl thread.
   // This is only called for triggered animations.
   void NotifyAnimationPausedAsync(base::TimeDelta monotonic_time);
@@ -506,10 +508,9 @@ class CORE_EXPORT Animation : public EventTarget,
   // Plays an animation. When auto_rewind is enabled, the current time can be
   // adjusted to accommodate reversal of an animation or snapping to an
   // endpoint.
-  using AutoRewind = cc::Animation::AutoRewind;
   void PlayInternal(AutoRewind auto_rewind, ExceptionState& exception_state);
   void PauseInternal(ExceptionState& exception_state);
-  void ReverseInternal(ExceptionState& exception_state);
+  void ReverseInternal(AutoRewind auto_rewind, ExceptionState& exception_state);
 
   void AddTrigger(AnimationTrigger* trigger);
   void RemoveTrigger(AnimationTrigger* trigger);

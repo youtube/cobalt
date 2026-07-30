@@ -34,6 +34,7 @@
 #include "media/capture/video/video_capture_device_client.h"
 #include "media/capture/video/video_frame_receiver.h"
 #include "media/capture/video/video_frame_receiver_on_task_runner.h"
+#include "media/webrtc/webrtc_features.h"
 #include "third_party/blink/public/common/mediastream/media_stream_request.h"
 
 #if BUILDFLAG(ENABLE_SCREEN_CAPTURE)
@@ -341,12 +342,27 @@ void InProcessVideoCaptureDeviceLauncher::LaunchDeviceAsync(
       // All cases other than tab capture or Aura desktop/window capture.
       TRACE_EVENT_INSTANT(TRACE_DISABLED_BY_DEFAULT("video_and_image_capture"),
                           "UsingDesktopCapturer");
+
+      int max_buffer_count = kMaxNumberOfBuffers;
+      media::VideoCaptureBufferType buffer_type =
+          media::VideoCaptureBufferType::kSharedMemory;
+#if BUILDFLAG(IS_WIN)
+      // WGC (Windows Graphics Capture) is always used for window captures and
+      // conditionally enabled for screen captures.
+      const bool wgc_may_be_used =
+          desktop_id.type == DesktopMediaID::TYPE_WINDOW ||
+          IsWgcEnabledForScreenCapture();
+      if (base::FeatureList::IsEnabled(features::kWebRtcAllowWgcUsingTexture) &&
+          wgc_may_be_used) {
+        buffer_type = media::VideoCaptureBufferType::kGpuMemoryBuffer;
+        max_buffer_count = 10;
+      }
+#endif
       start_capture_closure = base::BindOnce(
           &InProcessVideoCaptureDeviceLauncher::
               DoStartDesktopCaptureOnDeviceThread,
           base::Unretained(this), desktop_id, params,
-          CreateDeviceClient(media::VideoCaptureBufferType::kSharedMemory,
-                             kMaxNumberOfBuffers, std::move(receiver),
+          CreateDeviceClient(buffer_type, max_buffer_count, std::move(receiver),
                              std::move(receiver_on_io_thread)),
           std::move(after_start_capture_callback));
       break;

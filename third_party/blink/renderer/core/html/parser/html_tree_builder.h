@@ -46,7 +46,6 @@ namespace blink {
 
 class AtomicHTMLToken;
 class Element;
-class HTMLDocument;
 class HTMLDocumentParser;
 class ParserRootInsertionPoint;
 class StreamingSanitizer;

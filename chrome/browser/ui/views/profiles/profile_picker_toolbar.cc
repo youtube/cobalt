@@ -26,12 +26,15 @@
 #include "ui/views/border.h"
 #include "ui/views/controls/button/button.h"
 #include "ui/views/controls/button/label_button.h"
+#include "ui/views/controls/separator.h"
 #include "ui/views/layout/flex_layout.h"
 #include "ui/views/layout/flex_layout_types.h"
 #include "ui/views/view.h"
 #include "ui/views/view_class_properties.h"
 
 DEFINE_ELEMENT_IDENTIFIER_VALUE(kProfilePickerToolbarDontSignInButtonElementId);
+DEFINE_ELEMENT_IDENTIFIER_VALUE(
+    kProfilePickerToolbarEffectsControlButtonElementId);
 
 namespace {
 
@@ -115,8 +118,9 @@ class DontSignInButton : public ProfilePickerToolbarButton {
   METADATA_HEADER(DontSignInButton, ProfilePickerToolbarButton)
 
  public:
-  explicit DontSignInButton(PressedCallback callback)
-      : ProfilePickerToolbarButton(std::move(callback)) {
+  explicit DontSignInButton(PressedCallback callback, bool paint_border)
+      : ProfilePickerToolbarButton(std::move(callback)),
+        paint_border_(paint_border) {
     SetHighlight(l10n_util::GetStringUTF16(
                      IDS_FRE_NATIVE_TOOLBAR_DONT_SIGN_IN_BUTTON_LABEL),
                  SK_ColorTRANSPARENT);
@@ -131,6 +135,9 @@ class DontSignInButton : public ProfilePickerToolbarButton {
   ~DontSignInButton() override = default;
 
   std::optional<SkColor> GetHighlightBorderColor() const override {
+    if (!paint_border_) {
+      return std::nullopt;
+    }
     const auto* const color_provider = GetColorProvider();
     CHECK(color_provider);
     return color_provider->GetColor(ui::kColorSysPrimary);
@@ -151,6 +158,9 @@ class DontSignInButton : public ProfilePickerToolbarButton {
     // Also add some padding on both sides.
     label()->SetBorder(views::CreateEmptyBorder(gfx::Insets::VH(0, 8)));
   }
+
+ private:
+  const bool paint_border_;
 };
 
 BEGIN_METADATA(DontSignInButton)
@@ -208,6 +218,10 @@ ProfilePickerToolbar::Builder::Builder(base::RepeatingClosure on_back_callback)
 
 ProfilePickerToolbar::Builder::~Builder() = default;
 
+ProfilePickerToolbar::Builder::Builder(Builder&&) = default;
+ProfilePickerToolbar::Builder& ProfilePickerToolbar::Builder::operator=(
+    Builder&&) = default;
+
 ProfilePickerToolbar::Builder&
 ProfilePickerToolbar::Builder::WithDontSignInButton(
     base::RepeatingClosure on_dont_sign_in_callback) {
@@ -228,12 +242,14 @@ std::unique_ptr<ProfilePickerToolbar> ProfilePickerToolbar::Builder::Build() {
   // Add a spacer to push the subsequent button(s) to the other side.
   toolbar->AddSpacer();
   if (!on_dont_sign_in_callback_.is_null()) {
-    toolbar->AddDontSignInButton(on_dont_sign_in_callback_);
+    toolbar->AddDontSignInButton(
+        on_dont_sign_in_callback_,
+        /*paint_border=*/on_effects_control_callback_.is_null());
   }
   if (!on_effects_control_callback_.is_null()) {
-    // TODO(crbug.com/515028732): Consider adding a separator between the
-    // effects control button and the rest of the buttons pushed to the other
-    // side (e.g. the "Don't sign in" button).
+    if (!on_dont_sign_in_callback_.is_null()) {
+      toolbar->AddSeparator();
+    }
     toolbar->AddEffectsControlButton(on_effects_control_callback_);
   }
   return toolbar;
@@ -279,12 +295,32 @@ void ProfilePickerToolbar::AddBackButton(
 }
 
 void ProfilePickerToolbar::AddDontSignInButton(
-    base::RepeatingClosure on_dont_sign_in_callback) {
+    base::RepeatingClosure on_dont_sign_in_callback,
+    bool paint_border) {
   CHECK(dont_sign_in_button_ == nullptr);
   CHECK(!on_dont_sign_in_callback.is_null());
-  dont_sign_in_button_ = AddChildView(
-      std::make_unique<DontSignInButton>(std::move(on_dont_sign_in_callback)));
+  dont_sign_in_button_ = AddChildView(std::make_unique<DontSignInButton>(
+      std::move(on_dont_sign_in_callback), paint_border));
   dont_sign_in_button_->SetVisible(false);
+}
+
+void ProfilePickerToolbar::AddSeparator() {
+  CHECK(separator_ == nullptr);
+  auto separator_view = std::make_unique<views::Separator>();
+  separator_view->SetOrientation(views::Separator::Orientation::kVertical);
+  separator_view->SetColorId(ui::kColorSysDivider);
+  separator_view->SetPreferredSize(gfx::Size(2, 16));
+  // Set asymmetric horizontal margins to make the separator visually centered.
+  separator_view->SetProperty(views::kMarginsKey,
+                              gfx::Insets().set_left(2).set_right(6));
+
+  // Ensure the separator's layer is non-opaque so it shows through the
+  // transparent background.
+  separator_view->SetPaintToLayer();
+  CHECK_DEREF(separator_view->layer()).SetFillsBoundsOpaquely(false);
+
+  separator_ = AddChildView(std::move(separator_view));
+  separator_->SetVisible(false);
 }
 
 void ProfilePickerToolbar::AddEffectsControlButton(
@@ -292,6 +328,9 @@ void ProfilePickerToolbar::AddEffectsControlButton(
   CHECK(effects_control_button_ == nullptr);
   effects_control_button_ = AddChildView(std::make_unique<EffectsControlButton>(
       std::move(on_effects_control_callback)));
+  effects_control_button_->SetProperty(
+      views::kElementIdentifierKey,
+      kProfilePickerToolbarEffectsControlButtonElementId);
 }
 
 void ProfilePickerToolbar::SetSigninButtonsVisible(bool visible) {
@@ -311,6 +350,9 @@ bool ProfilePickerToolbar::AreSigninButtonsVisibleForTesting() const {
 void ProfilePickerToolbar::SetDontSignInButtonVisible(bool visible) {
   if (dont_sign_in_button_) {
     dont_sign_in_button_->SetVisible(visible);
+  }
+  if (separator_) {
+    separator_->SetVisible(visible);
   }
 }
 

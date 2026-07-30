@@ -258,6 +258,19 @@ source_set("model_execution") {
       "//google_apis",
       "//services/network/public/cpp",
     ]
+    if (!is_ios) {
+      sources += [
+        "model_execution/private_ai_model_execution_fetcher.cc",
+        "model_execution/private_ai_model_execution_fetcher.h",
+        "model_execution/private_ai_utils.cc",
+        "model_execution/private_ai_utils.h",
+      ]
+      deps += [
+        "//components/private_ai",
+        "//components/private_ai:proto",
+        "//components/variations",
+      ]
+    }
   }
 }
 
@@ -893,6 +906,14 @@ source_set("model_execution_unit_tests") {
       deps += [
         "//services/on_device_model/android",
         "//services/on_device_model/android:test_support",
+      ]
+    }
+    if (!is_ios) {
+      sources +=
+          [ "model_execution/private_ai_model_execution_fetcher_unittest.cc" ]
+      deps += [
+        "//components/private_ai:proto",
+        "//components/private_ai:testing",
       ]
     }
   }

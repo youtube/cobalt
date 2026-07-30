@@ -34,6 +34,7 @@
 #include "third_party/blink/renderer/core/fileapi/file_reader_client.h"
 #include "third_party/blink/renderer/core/frame/web_feature.h"
 #include "third_party/blink/renderer/core/imagebitmap/image_bitmap.h"
+#include "third_party/blink/renderer/core/inspector/console_message.h"
 #include "third_party/blink/renderer/core/offscreencanvas/offscreen_canvas.h"
 #include "third_party/blink/renderer/core/streams/readable_stream.h"
 #include "third_party/blink/renderer/modules/ai/ai_utils.h"
@@ -670,6 +671,26 @@ void LanguageModelPromptBuilder::ToMojo(AudioBuffer* audio_buffer,
           : 48000);
   audio_data->channel_count = info_->audio_channel_count.value_or(1);
   CHECK_EQ(audio_data->channel_count, 1) << "Multi-channel audio not supported";
+
+  // TODO(crbug.com/513591452): Get multimodal format info from model configs
+  if (audio_data->sample_rate != audio_buffer->sampleRate() &&
+      audio_data->sample_rate > 0) {
+    double sample_rate_ratio = static_cast<double>(audio_buffer->sampleRate()) /
+                               audio_data->sample_rate;
+    if (sample_rate_ratio > 2.0 || sample_rate_ratio < 0.5) {
+      if (ExecutionContext* execution_context =
+              ExecutionContext::From(script_state_)) {
+        execution_context->AddConsoleMessage(
+            mojom::blink::ConsoleMessageSource::kJavaScript,
+            mojom::blink::ConsoleMessageLevel::kWarning,
+            String::Format("Audio input will be resampled from %dHz to %dHz. "
+                           "This may adversely affect AI model comprehension.",
+                           static_cast<int>(audio_buffer->sampleRate()),
+                           static_cast<int>(audio_data->sample_rate)));
+      }
+    }
+  }
+
   const bool mix_to_mono = audio_buffer->numberOfChannels() > 1u;
   if (audio_data->sample_rate != audio_buffer->sampleRate() || mix_to_mono) {
     bus = AudioBus::TryCreateBySampleRateConverting(bus.get(), mix_to_mono,
@@ -819,6 +840,40 @@ void LanguageModelPromptBuilder::OnBitmapLoaded(PendingEntry* entry,
         "Invalid image bitmap.",
         DOMException::GetErrorName(DOMExceptionCode::kDataError)));
     return;
+  }
+
+  const unsigned original_width = bitmap->width();
+  const unsigned original_height = bitmap->height();
+
+  ExecutionContext* execution_context = ExecutionContext::From(script_state);
+  if (execution_context) {
+    // TODO(crbug.com/513591452): Get multimodal format info from model configs
+    // 1. Drastic resize warning (e.g., width or height > 1536px, meaning >2x
+    //    downscaling to the model's native 768px resolution)
+    if (original_width > 1536 || original_height > 1536) {
+      execution_context->AddConsoleMessage(
+          mojom::blink::ConsoleMessageSource::kJavaScript,
+          mojom::blink::ConsoleMessageLevel::kWarning,
+          String::Format("Image input (%ux%u) will be downscaled to 768x768. "
+                         "Dense spatial details like small text may be lost. "
+                         "This may adversely affect AI model comprehension.",
+                         original_width, original_height));
+    }
+
+    // 2. Aspect ratio skew warning
+    if (original_height > 0) {
+      double aspect_ratio =
+          static_cast<double>(original_width) / original_height;
+      if (aspect_ratio > 3.0 || aspect_ratio < 0.33) {
+        execution_context->AddConsoleMessage(
+            mojom::blink::ConsoleMessageSource::kJavaScript,
+            mojom::blink::ConsoleMessageLevel::kWarning,
+            String::Format("Image input will be stretched from %.2f:1 to a "
+                           "square aspect ratio. "
+                           "This may adversely affect AI model comprehension.",
+                           aspect_ratio));
+      }
+    }
   }
 
   std::optional<SkBitmap> skia_bitmap;

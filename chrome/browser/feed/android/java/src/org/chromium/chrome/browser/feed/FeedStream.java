@@ -565,7 +565,6 @@ public class FeedStream implements Stream {
     private ShareHelperWrapper mShareHelper;
     private final SnackbarManager mSnackManager;
     private final WindowAndroid mWindowAndroid;
-    @Nullable FeedContentFirstLoadWatcher mFeedContentFirstLoadWatcher;
     private final Stream.StreamsMediator mStreamsMediator;
     InProgressWorkTracker mInProgressWorkTracker = new InProgressWorkTracker();
 
@@ -629,7 +628,6 @@ public class FeedStream implements Stream {
             Supplier<@Nullable ShareDelegate> shareDelegateSupplier,
             int streamKind,
             FeedActionDelegate actionDelegate,
-            FeedContentFirstLoadWatcher feedContentFirstLoadWatcher,
             StreamsMediator streamsMediator,
             FeedSurfaceRendererBridge.Factory feedSurfaceRendererBridgeFactory) {
         mReliabilityLoggingBridge = new FeedReliabilityLoggingBridge();
@@ -644,7 +642,6 @@ public class FeedStream implements Stream {
         mSnackManager = snackbarManager;
         mWindowAndroid = windowAndroid;
         mRotationObserver = new RotationObserver();
-        mFeedContentFirstLoadWatcher = feedContentFirstLoadWatcher;
         mStreamsMediator = streamsMediator;
 
         mHandlersMap = new HashMap<>();
@@ -699,7 +696,6 @@ public class FeedStream implements Stream {
         // Nulls remaining references.
         mReliabilityLogger = null;
         mRenderer = null;
-        mFeedContentFirstLoadWatcher = null;
         mScrollStateToRestore = null;
         mSpacerViewContent = null;
         mHandlersMap.clear();
@@ -1051,8 +1047,6 @@ public class FeedStream implements Stream {
                 assumeNonNull(mRenderer).update(state.getXsurfaceSharedState().toByteArray());
             }
 
-            boolean foundNewContent = false;
-
             // Builds the new list containing:
             // * existing headers
             // * both new and existing contents
@@ -1064,18 +1058,12 @@ public class FeedStream implements Stream {
                             createContentFromSlice(sliceUpdate.getSlice(), loggingParameters);
                     if (content != null) {
                         newContentList.add(content);
-                        if (!content.isNativeView()) {
-                            foundNewContent = true;
-                        }
                     }
                 } else {
                     String existingSliceId = sliceUpdate.getSliceId();
                     int position = mContentManager.findContentPositionByKey(existingSliceId);
                     if (position != -1) {
                         newContentList.add(mContentManager.getContent(position));
-                        if (!mContentManager.getContent(position).isNativeView()) {
-                            foundNewContent = true;
-                        }
                     }
                     // We intentionially don't add the spacer back in. The spacer has a key
                     // SPACER_KEY, not a slice id.
@@ -1112,13 +1100,6 @@ public class FeedStream implements Stream {
             assert isBound();
             mRecyclerView.post(mReliabilityLoggingBridge::onStreamUpdateFinished);
 
-            // If we have new content, and the new content callback is set, then call it, and clear
-            // the callback.
-            if (mFeedContentFirstLoadWatcher != null && foundNewContent) {
-                mFeedContentFirstLoadWatcher.nonNativeContentLoaded(mStreamKind);
-                mFeedContentFirstLoadWatcher = null;
-            }
-
             // If all of the cards fit on the screen, load more content. The view
             // may not be scrollable, preventing the user from otherwise triggering
             // load more.
@@ -1150,11 +1131,8 @@ public class FeedStream implements Stream {
             return new FeedListContentManager.NativeViewContent(
                     getLateralPaddingsPx(), sliceId, R.layout.no_connection);
         }
-        // TODO(crbug.com/40158714): Add new UI for NO_WEB_FEED_SUBSCRIPTIONS.
         assert slice.getZeroStateSlice().getType()
-                        == FeedUiProto.ZeroStateSlice.Type.NO_CARDS_AVAILABLE
-                || slice.getZeroStateSlice().getType()
-                        == FeedUiProto.ZeroStateSlice.Type.NO_WEB_FEED_SUBSCRIPTIONS;
+                == FeedUiProto.ZeroStateSlice.Type.NO_CARDS_AVAILABLE;
         return new FeedListContentManager.NativeViewContent(
                 getLateralPaddingsPx(), sliceId, R.layout.no_content_v2);
     }

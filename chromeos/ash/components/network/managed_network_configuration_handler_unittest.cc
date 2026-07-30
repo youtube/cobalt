@@ -498,6 +498,105 @@ TEST_F(ManagedNetworkConfigurationHandlerTest, RemoveIrrelevantFields) {
               Pointee(DictionaryHasValues(expected_shill_properties)));
 }
 
+// Demonstrates that the kNetworkAlreadyConfigured guard in
+// CreateConfiguration() correctly blocks attempts to bypass it by supplying a
+// WiFi.HexSSID whose hex digits differ only in *letter case* from the
+// in-memory policy's HexSSID.
+TEST_F(ManagedNetworkConfigurationHandlerTest,
+       CreateConfigurationHexSSIDCaseBypass) {
+  InitializeStandardProfiles();
+
+  // 1. Load a device policy that manages SSID "CorpWiFi".
+  // base::HexEncode("CorpWiFi") == "436F727057694669" (uppercase) — this is
+  // exactly what NetworkConfigurationUpdater::ParseCurrentPolicy →
+  // ParseAndValidateOncForImport → FillInHexSSIDField produces in production
+  // when the admin authors the policy with the human-readable SSID.
+  const char* const onc_policy = R"(
+      {
+        "NetworkConfigurations": [
+          {
+            "GUID": "corp-wifi-policy",
+            "Type": "WiFi",
+            "Name": "CorpWiFi",
+            "WiFi": {
+              "HexSSID": "436F727057694669",
+              "SSID": "CorpWiFi",
+              "Security": "WPA-PSK",
+              "Passphrase": "policy-pass"
+            }
+          }
+        ],
+        "Type": "UnencryptedConfiguration"
+      })";
+  ASSERT_TRUE(SetPolicy(::onc::ONC_SOURCE_DEVICE_POLICY, std::string(),
+                        base::test::ParseJsonDict(onc_policy)));
+  // CreateConfiguration also checks user-policy; provide an empty one so the
+  // user-policy ProfilePolicies object exists.
+  ASSERT_TRUE(SetPolicy(::onc::ONC_SOURCE_USER_POLICY, kUser1, std::string()));
+  base::RunLoop().RunUntilIdle();
+
+  std::string policy_service =
+      GetShillServiceClient()->FindServiceMatchingGUID("corp-wifi-policy");
+  ASSERT_FALSE(policy_service.empty());
+
+  // 2. Control: same HexSSID case as the policy → guard fires correctly.
+  {
+    base::DictValue user_onc = base::test::ParseJsonDict(R"(
+        {
+          "Type": "WiFi",
+          "WiFi": {
+            "HexSSID": "436F727057694669",
+            "Security": "WPA-PSK",
+            "Passphrase": "attacker-pass"
+          }
+        })");
+    std::string error;
+    managed_handler()->CreateConfiguration(
+        kUser1, user_onc,
+        base::BindOnce([](const std::string&, const std::string&) {
+          ADD_FAILURE() << "control case: CreateConfiguration unexpectedly "
+                           "succeeded for matching-case HexSSID";
+        }),
+        base::BindOnce(
+            [](std::string* out, const std::string& err) { *out = err; },
+            &error));
+    base::RunLoop().RunUntilIdle();
+    EXPECT_EQ("NetworkAlreadyConfigured", error)
+        << "control failed — guard not working at all?";
+  }
+
+  // 3. Lowercase HexSSID — SAME on-air SSID bytes, DIFFERENT string case.
+  // Ensure that policy_util::IsPolicyMatching correctly considers hex SSIDs
+  // to be equivalent despite letter casing differences. When checking the
+  // provided "436f727057694669" against the policy's "436F727057694669",
+  // the match succeeds, the kNetworkAlreadyConfigured guard fires, and
+  // no new service is created.
+  {
+    base::DictValue user_onc = base::test::ParseJsonDict(R"(
+        {
+          "Type": "WiFi",
+          "WiFi": {
+            "HexSSID": "436f727057694669",
+            "Security": "WPA-PSK",
+            "Passphrase": "attacker-pass"
+          }
+        })");
+    std::string error;
+    std::string created_service_path;
+    managed_handler()->CreateConfiguration(
+        kUser1, user_onc,
+        base::BindOnce([](std::string* out, const std::string& sp,
+                          const std::string&) { *out = sp; },
+                       &created_service_path),
+        base::BindOnce(
+            [](std::string* out, const std::string& err) { *out = err; },
+            &error));
+    base::RunLoop().RunUntilIdle();
+    EXPECT_EQ("NetworkAlreadyConfigured", error);
+    EXPECT_TRUE(created_service_path.empty());
+  }
+}
+
 // A network policy uses a variable expansion which is set after the policy has
 // been initially applied.
 TEST_F(ManagedNetworkConfigurationHandlerTest, VariableSetAfterPolicy) {

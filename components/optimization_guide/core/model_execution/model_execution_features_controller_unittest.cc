@@ -73,7 +73,7 @@ class ModelExecutionFeaturesControllerTest : public testing::Test {
   void EnableSignIn() {
     auto account_info = identity_test_env()->MakePrimaryAccountAvailable(
         "test_email", signin::ConsentLevel::kSignin);
-    AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+    AccountCapabilitiesTestMutator mutator(&account_info);
     mutator.set_can_use_model_execution_features(true);
     signin::UpdateAccountInfoForAccount(identity_test_env_.identity_manager(),
                                         account_info);
@@ -83,7 +83,7 @@ class ModelExecutionFeaturesControllerTest : public testing::Test {
   void EnableSignInWithoutCapability() {
     auto account_info = identity_test_env()->MakePrimaryAccountAvailable(
         "test_email", signin::ConsentLevel::kSignin);
-    AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+    AccountCapabilitiesTestMutator mutator(&account_info);
     mutator.set_can_use_model_execution_features(false);
     signin::UpdateAccountInfoForAccount(identity_test_env_.identity_manager(),
                                         account_info);

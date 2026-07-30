@@ -150,8 +150,6 @@ feedwire::Request CreateFeedQueryRequest(
   }
 
   feed_request.add_client_capability(Capability::READ_LATER);
-  // TODO(crbug.com/407797637): remove OPEN_WEB_FEED_COMMAND from
-  // components/feed/core/proto/v2/wire/capability.proto
 
   if (base::FeatureList::IsEnabled(kPersonalizeFeedUnsignedUsers)) {
     feed_request.add_client_capability(Capability::ON_DEVICE_USER_PROFILE);
@@ -176,6 +174,11 @@ feedwire::Request CreateFeedQueryRequest(
       base::FeatureList::IsEnabled(kWideScreenFeedForFoldables)) {
     feed_request.add_client_capability(
         Capability::WIDE_SCREEN_SINGLE_COLUMN_FEED);
+  }
+
+  if (request_metadata.is_user_feedback_disabled) {
+    feed_request.add_client_capability(
+        Capability::USER_FEEDBACK_DISABLED_BY_POLICY);
   }
 #endif
 

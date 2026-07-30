@@ -23,7 +23,7 @@ bool UntrustedAnnotatorUIConfig::IsWebUIEnabled(
     content::BrowserContext* browser_context) {
   Profile* profile = Profile::FromBrowserContext(browser_context);
   // TODO(b/342104047): Remove this check once the annotator is completely
-  // independant.
+  // independent.
   return IsProjectorAppEnabled(profile);
 }
 

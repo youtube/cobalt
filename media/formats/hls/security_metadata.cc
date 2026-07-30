@@ -4,16 +4,28 @@
 
 #include "media/formats/hls/security_metadata.h"
 
+#include "url/gurl.h"
+
 namespace media::hls {
 
 // static
-SecurityMetadata SecurityMetadata::CreateForTesting(bool would_taint_origin,
+SecurityMetadata SecurityMetadata::CreateForTesting(std::string url,
+                                                    bool would_taint_origin,
                                                     bool did_redirect) {
   return SecurityMetadata{
       .would_taint_origin = would_taint_origin,
       .did_redirect = did_redirect,
       .has_range_request = false,
+      .response_origins = {url::Origin::Create(GURL(url))},
   };
+}
+
+void SecurityMetadata::MergeFrom(const SecurityMetadata& other) {
+  would_taint_origin |= other.would_taint_origin;
+  did_redirect |= other.did_redirect;
+  has_range_request |= other.has_range_request;
+  response_origins.insert(std::begin(other.response_origins),
+                          std::end(other.response_origins));
 }
 
 }  // namespace media::hls

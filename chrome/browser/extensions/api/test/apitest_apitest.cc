@@ -761,11 +761,12 @@ enum class NonstandardizedOutcome {
 class TestStandardizedAPITest : public TestAPITest,
                                 public testing::WithParamInterface<bool> {
  protected:
-  std::string SetUseStandardizedApiBehaviorForTesting(
-      bool standardized_behavior_enabled) const {
-    return base::StringPrintf(
-        "chrome.test.setUseStandardizedApiBehaviorForTesting(%s);",
-        standardized_behavior_enabled ? "true" : "false");
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    TestAPITest::SetUpCommandLine(command_line);
+    if (GetParam()) {
+      command_line->AppendSwitch(
+          switches::kExtensionTestApiStandardizedBehavior);
+    }
   }
 };
 
@@ -773,8 +774,6 @@ class TestStandardizedAPITest : public TestAPITest,
 // Object.is() more extensively.
 IN_PROC_BROWSER_TEST_P(TestStandardizedAPITest, assertEq) {
   bool standardized_behavior_enabled = GetParam();
-  std::string set_api_behavior =
-      SetUseStandardizedApiBehaviorForTesting(standardized_behavior_enabled);
 
   struct {
     std::string title;
@@ -811,14 +810,13 @@ IN_PROC_BROWSER_TEST_P(TestStandardizedAPITest, assertEq) {
     SCOPED_TRACE(base::StringPrintf("Case: %s", c.title.c_str()));
     ResultCatcher result_catcher;
     std::string script = base::StringPrintf(
-        R"(%s
-           chrome.test.runTests([
+        R"(chrome.test.runTests([
              function test() {
                %s
                chrome.test.succeed();
              }
            ]);)",
-        set_api_behavior.c_str(), c.test_case.c_str());
+        c.test_case.c_str());
 
     ASSERT_TRUE(LoadExtensionWithScript(script.c_str()));
 
@@ -854,26 +852,38 @@ class TestHarnessEventsBrowserTest : public TestAPITest {
     return base::StringPrintf(
         R"(
            // Setup the listeners before running the test.
-           let onTestStartedFired = false;
+           // We use a counter instead of a boolean to ensure that
+           // `chrome.test.onTestStarted` is only fired once. This prevents
+           // regressions where the browser sends the event back to the source
+           // process (which should be excluded via
+           // `extensions::Event::exclude_process_id`).
+           let onTestStartedFiredCount = 0;
            chrome.test.onTestStarted.addListener((info) => {
-               chrome.test.assertEq('%s', info.testName);
-               onTestStartedFired = true;
+             if (info.testName === '%s') {
+               onTestStartedFiredCount++;
+             }
            });
 
            const finishedListener = (info) => {
+             // Skip unknown test finished events.
+             if (info.testName !== '%s') {
+               return;
+             }
              if (info.result === false) {
                // The test already failed, don't call chrome.test.fail() again
                // to avoid infinite recursion.
                return;
              }
-             if (onTestStartedFired &&
+             if (onTestStartedFiredCount === 1 &&
                  info.remainingTests === 0 &&
-                 info.assertionDescription === 'Test succeeded') {
+                 info.assertionDescription === '%s PASS') {
                // Send message indicating we successfully received the finished
                // event for this test.
                chrome.test.sendMessage('finished:' + info.testName);
              } else {
-               chrome.test.fail('Unexpected info: ' + JSON.stringify(info));
+               chrome.test.fail('Unexpected info: ' + JSON.stringify(info) +
+                                ', onTestStartedFiredCount: ' +
+                                onTestStartedFiredCount);
              }
            };
            chrome.test.onTestFinished.addListener(finishedListener);
@@ -883,18 +893,21 @@ class TestHarnessEventsBrowserTest : public TestAPITest {
            // a message back to the test C++.
            chrome.test.runTests([
              function %s() {
-               chrome.test.assertTrue(onTestStartedFired);
+               // Assert that `chrome.test.onTestStarted` fired exactly once.
+               // If it fired more than once, it likely means the exclusion
+               // logic in browser-side `extensions::EventRouter` failed.
+               chrome.test.assertEq(1, onTestStartedFiredCount);
                chrome.test.succeed();
              }
            ]);)",
-        test_name.c_str(), test_name.c_str());
+        test_name.c_str(), test_name.c_str(), test_name.c_str(),
+        test_name.c_str());
   }
 };
 
-// Tests that `chrome.test.onTestStarted` and `chrome.test.onTestFinished` fired
-// when `chrome.test.runTests` is called in various contexts (background
-// scripts, extension pages, content scripts, and web pages).
-IN_PROC_BROWSER_TEST_F(TestHarnessEventsBrowserTest, AllContexts) {
+// Tests that `chrome.test.onTestStarted` and `chrome.test.onTestFinished` fire
+// in the same script context where `chrome.test.runTests` is called.
+IN_PROC_BROWSER_TEST_F(TestHarnessEventsBrowserTest, SameContext) {
   ResultCatcher result_catcher;
 
   // We will use ExtensionTestMessageListener to verify `onTestFinished` fires.
@@ -957,6 +970,99 @@ IN_PROC_BROWSER_TEST_F(TestHarnessEventsBrowserTest, AllContexts) {
   ASSERT_TRUE(content::ExecJs(GetActiveWebContents(), web_page_js));
   EXPECT_TRUE(result_catcher.GetNextResult()) << result_catcher.message();
   EXPECT_TRUE(web_listener.WaitUntilSatisfied());
+}
+
+// Tests that `chrome.test.onTestStarted` and `chrome.test.onTestFinished`
+// events are broadcast to other listening script contexts outside of the script
+// context that called `chrome.test.runTests`. In this case the script context
+// that calls `chrome.test.runTests` is an extension background script and the
+// broadcasted-to listening script context is a non-extension web page.
+IN_PROC_BROWSER_TEST_F(TestHarnessEventsBrowserTest, CrossContextEvents) {
+  ResultCatcher result_catcher;
+
+  // Set up listeners for messages from the web page.
+  // The web page will send `webpage_started` when it receives the
+  // `chrome.test.onTestStarted` event, and `webpage_finished_success` when it
+  // receives the `chrome.test.onTestFinished` event for the expected test.
+  ExtensionTestMessageListener web_ready_listener("webpage_ready");
+  ExtensionTestMessageListener web_listener_test_started_success(
+      "webpage_test_started:testSuccess");
+  ExtensionTestMessageListener web_listener_test_started_failure(
+      "webpage_test_started:testFailure");
+  ExtensionTestMessageListener web_listener_test_finished_success(
+      "webpage_finished_success:testSuccess");
+  ExtensionTestMessageListener web_listener_test_finished_failure(
+      "webpage_finished_failure:testFailure");
+
+  // Start the embedded test server to serve the web page.
+  ASSERT_TRUE(StartEmbeddedTestServer());
+
+  // Navigate to a non-extension web page.
+  GURL web_url = embedded_test_server()->GetURL("/extensions/test_file.html");
+  ASSERT_TRUE(NavigateToURL(GetActiveWebContents(), web_url));
+
+  // Register test started and finished listeners on the web page. We verify
+  // that these listeners are triggered by the test run in the extension
+  // background script context.
+  constexpr char kWebPageSetupJs[] = R"(
+    chrome.test.onTestStarted.addListener((info) => {
+      chrome.test.sendMessage(`webpage_test_started:${info.testName}`);
+    });
+    chrome.test.onTestFinished.addListener((info) => {
+      if (info.result === true) {
+        chrome.test.sendMessage(`webpage_finished_success:${info.testName}`);
+      } else {
+        chrome.test.sendMessage(`webpage_finished_failure:${info.testName}`);
+      }
+    });
+
+    chrome.test.sendMessage('webpage_ready');
+  )";
+  ASSERT_TRUE(content::ExecJs(GetActiveWebContents(), kWebPageSetupJs));
+  EXPECT_TRUE(web_ready_listener.WaitUntilSatisfied());
+
+  // Define the extension that will run the test.
+  constexpr char kExtensionManifest[] =
+      R"({
+           "name": "test extension",
+           "version": "1.0",
+           "manifest_version": 3,
+           "background": { "service_worker": "background.js" }
+         })";
+
+  TestExtensionDir test_dir;
+  test_dir.WriteManifest(kExtensionManifest);
+  // The background script will run a successful and then a failing test to test
+  // both event pathways.
+  constexpr char kBackgroundJs[] = R"(
+    chrome.test.runTests([
+      function testSuccess() {
+        chrome.test.succeed();
+      },
+      function testFailure() {
+        chrome.test.fail();
+      }
+    ]);
+  )";
+  test_dir.WriteFile(FILE_PATH_LITERAL("background.js"), kBackgroundJs);
+
+  // Load the extension, which automatically starts running the tests in the
+  // service worker context.
+  const Extension* extension = LoadExtension(test_dir.UnpackedPath());
+  ASSERT_TRUE(extension);
+
+  // Wait for the extension test to finish and verify. One test fails so we
+  // expect false here.
+  EXPECT_FALSE(result_catcher.GetNextResult()) << result_catcher.message();
+
+  // Verify that the web page listeners were fired. We should see that the web
+  // page loaded, it's listeners saw two started tests, then two finished tests
+  // (one successful one failure).
+  EXPECT_TRUE(web_ready_listener.WaitUntilSatisfied());
+  EXPECT_TRUE(web_listener_test_started_success.WaitUntilSatisfied());
+  EXPECT_TRUE(web_listener_test_started_failure.WaitUntilSatisfied());
+  EXPECT_TRUE(web_listener_test_finished_success.WaitUntilSatisfied());
+  EXPECT_TRUE(web_listener_test_finished_failure.WaitUntilSatisfied());
 }
 
 }  // namespace extensions

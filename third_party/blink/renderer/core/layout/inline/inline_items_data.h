@@ -5,13 +5,17 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_INLINE_INLINE_ITEMS_DATA_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_INLINE_INLINE_ITEMS_DATA_H_
 
+#include <optional>
+
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/layout/inline/inline_item.h"
 #include "third_party/blink/renderer/core/layout/inline/inline_item_text_index.h"
+#include "third_party/blink/renderer/platform/wtf/text/text_offset_map.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 
 namespace blink {
 
+struct InlineItemsDataWithOffsetMap;
 class InlineItemSegments;
 struct InlineNodeData;
 class OffsetMapping;
@@ -62,6 +66,10 @@ struct CORE_EXPORT InlineItemsData : public GarbageCollected<InlineItemsData> {
                        wtf_size_t size,
                        OpenTagItems* open_items) const;
 
+  // When the `::first-line` style changed the text length, this returns a
+  // `TextOffsetMap` that translates text offsets. Otherwise `nullopt`.
+  const std::optional<TextOffsetMap>& OffsetMap() const;
+
 #if DCHECK_IS_ON()
   void CheckConsistency() const;
 #endif
@@ -72,13 +80,43 @@ struct CORE_EXPORT InlineItemsData : public GarbageCollected<InlineItemsData> {
   void TraceAfterDispatch(Visitor* visitor) const;
 
  protected:
-  friend struct DowncastTraits<InlineNodeData>;
+  enum class DataType : uint8_t {
+    kBase,
+    kNodeData,
+    kWithOffsetMap,
+  };
 
-  explicit InlineItemsData(bool is_node_data) : is_node_data_(is_node_data) {}
-  bool IsNodeData() const { return is_node_data_; }
+  friend struct DowncastTraits<InlineNodeData>;
+  friend struct DowncastTraits<InlineItemsDataWithOffsetMap>;
+
+  explicit InlineItemsData(DataType data_type) : data_type_(data_type) {}
+  bool IsNodeData() const { return data_type_ == DataType::kNodeData; }
+  bool IsWithOffsetMap() const {
+    return data_type_ == DataType::kWithOffsetMap;
+  }
 
  private:
-  bool is_node_data_ = false;
+  DataType data_type_ = DataType::kBase;
+};
+
+// Represents inline items data with a text offset map.
+// Used for `::first-line` styles that change the text lengths.
+struct CORE_EXPORT InlineItemsDataWithOffsetMap : public InlineItemsData {
+ public:
+  InlineItemsDataWithOffsetMap() : InlineItemsData(DataType::kWithOffsetMap) {}
+
+  void TraceAfterDispatch(Visitor* visitor) const {
+    InlineItemsData::TraceAfterDispatch(visitor);
+  }
+
+  std::optional<TextOffsetMap> offset_map;
+};
+
+template <>
+struct DowncastTraits<InlineItemsDataWithOffsetMap> {
+  static bool AllowFrom(const InlineItemsData& value) {
+    return value.IsWithOffsetMap();
+  }
 };
 
 }  // namespace blink

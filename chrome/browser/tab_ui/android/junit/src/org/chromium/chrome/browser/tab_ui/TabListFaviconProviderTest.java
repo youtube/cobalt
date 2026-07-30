@@ -105,7 +105,7 @@ public class TabListFaviconProviderTest {
         mTabListFaviconProvider =
                 new TabListFaviconProvider(
                         mActivity,
-                        /* isTabStrip= */ false,
+                        TabListMode.GRID,
                         R.dimen.default_favicon_corner_radius,
                         mTabWebContentsFaviconDelegate);
         mTabListFaviconProvider.initWithNative(mProfile);
@@ -279,6 +279,67 @@ public class TabListFaviconProviderTest {
                                 },
                                 fetcher);
         Assert.assertEquals(favicon, new UrlTabFavicon(newDrawable(), mUrl1));
+    }
+
+    @Test
+    public void testVerticalMode_DefaultFavicon() {
+        TabListFaviconProvider verticalProvider =
+                new TabListFaviconProvider(
+                        mActivity,
+                        TabListMode.VERTICAL,
+                        R.dimen.default_favicon_corner_radius,
+                        mTabWebContentsFaviconDelegate);
+        verticalProvider.initWithNative(mProfile);
+
+        // 1. Test regular (non-incognito) vertical default favicon
+        TabFaviconFetcher fetcher = verticalProvider.getDefaultFaviconFetcher(false);
+        TabFavicon favicon = doFetchFavicon(fetcher);
+        Assert.assertEquals(
+                favicon,
+                new ResourceTabFavicon(
+                        newDrawable(), StaticTabFaviconType.ROUNDED_GLOBE_FOR_VERTICAL));
+        Assert.assertFalse(
+                "Vertical favicons should not recolor on select", favicon.hasSelectedState());
+
+        // 2. Test incognito vertical default favicon
+        TabFaviconFetcher otrFetcher = verticalProvider.getDefaultFaviconFetcher(true);
+        TabFavicon otrFavicon = doFetchFavicon(otrFetcher);
+        Assert.assertEquals(
+                otrFavicon,
+                new ResourceTabFavicon(
+                        newDrawable(), StaticTabFaviconType.ROUNDED_GLOBE_FOR_VERTICAL_INCOGNITO));
+        Assert.assertFalse(otrFavicon.hasSelectedState());
+
+        verticalProvider.destroy();
+    }
+
+    @Test
+    public void testVerticalMode_RoundedChromeFavicon() {
+        TabListFaviconProvider verticalProvider =
+                new TabListFaviconProvider(
+                        mActivity,
+                        TabListMode.VERTICAL,
+                        R.dimen.default_favicon_corner_radius,
+                        mTabWebContentsFaviconDelegate);
+        verticalProvider.initWithNative(mProfile);
+
+        // 1. Test regular Chrome favicon in vertical mode
+        TabFavicon favicon = verticalProvider.getRoundedChromeFavicon(false);
+        Assert.assertEquals(
+                favicon,
+                new ResourceTabFavicon(
+                        newDrawable(), StaticTabFaviconType.ROUNDED_CHROME_FOR_VERTICAL));
+        Assert.assertFalse(favicon.hasSelectedState());
+
+        // 2. Test incognito Chrome favicon in vertical mode
+        TabFavicon otrFavicon = verticalProvider.getRoundedChromeFavicon(true);
+        Assert.assertEquals(
+                otrFavicon,
+                new ResourceTabFavicon(
+                        newDrawable(), StaticTabFaviconType.ROUNDED_CHROME_FOR_VERTICAL_INCOGNITO));
+        Assert.assertFalse(otrFavicon.hasSelectedState());
+
+        verticalProvider.destroy();
     }
 
     private TabFavicon doFetchFavicon(Runnable after, TabFaviconFetcher fetcher) {

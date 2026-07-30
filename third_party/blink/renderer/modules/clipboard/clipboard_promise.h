@@ -201,6 +201,8 @@ class MODULES_EXPORT ClipboardPromise final
   bool will_read_unprocessed_html_ = false;
   // Plain text data to be written to the clipboard.
   String plain_text_;
+  // Clipboard sequence number captured at the start of paste event.
+  std::optional<absl::uint128> sequence_number_at_paste_start_;
   // The list of formats read from the clipboard.
   HeapVector<std::pair<String, Member<V8UnionBlobOrString>>>
       clipboard_item_data_;

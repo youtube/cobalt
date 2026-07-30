@@ -117,7 +117,7 @@ INSTANTIATE_TEST_SUITE_P(
 // Ensures Create() copies the passed-in enrollment fields to the model.
 TEST(VirtualCardEnrollUiModelEnrollmentFieldsTest, CopiesEnrollmentFields) {
   VirtualCardEnrollmentFields enrollment_fields;
-  enrollment_fields.credit_card = autofill::test::GetCreditCard();
+  enrollment_fields.credit_card = test::GetCreditCard();
   enrollment_fields.google_legal_message =
       LegalMessageLines({TestLegalMessageLine("google_legal_message")});
   enrollment_fields.issuer_legal_message =

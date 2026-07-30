@@ -25,6 +25,7 @@ namespace {
 
 constexpr char kPathPrefix[] = "layout_constants";
 constexpr char kPathV0[] = "layout_constants_v0.css";
+constexpr int kAvatarChipIconLabelSpacing = 6;
 
 std::string_view LayoutConstantToCssVarName(LayoutConstant layout_constant) {
   using enum LayoutConstant;
@@ -225,6 +226,14 @@ std::string WebUIToolbarLayoutCssHelper::GenerateLayoutConstantsCss() {
 
   AddInsets("--location-bar-icon-interior-padding",
             GetLayoutInsets(LOCATION_BAR_ICON_INTERIOR_PADDING), css_string);
+
+  AddInsets("--avatar-chip-padding", GetLayoutInsets(AVATAR_CHIP_PADDING),
+            css_string);
+  AddInsets("--toolbar-button-padding", GetLayoutInsets(TOOLBAR_BUTTON),
+            css_string);
+  base::StrAppend(&css_string,
+                  {"--avatar-chip-icon-label-spacing:",
+                   base::NumberToString(kAvatarChipIconLabelSpacing), "px;"});
 
   // Add fonts.
   const auto& typography_provider = views::TypographyProvider::Get();

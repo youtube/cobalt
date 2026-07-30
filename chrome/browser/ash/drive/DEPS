@@ -30,7 +30,6 @@ include_rules = [
   "+chrome/common/chrome_constants.h",
   "+chrome/common/chrome_paths.h",
   "+chrome/common/chrome_paths_internal.h",
-  "+chrome/common/pref_names.h",
   "+chrome/test/base",
 ]
 

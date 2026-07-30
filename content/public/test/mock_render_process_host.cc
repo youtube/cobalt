@@ -240,9 +240,17 @@ void MockRenderProcessHost::OnBoostForLoadingAdded() {}
 
 void MockRenderProcessHost::OnBoostForLoadingRemoved() {}
 
-void MockRenderProcessHost::OnImmersiveXrSessionStarted() {}
+void MockRenderProcessHost::OnImmersiveXrSessionStarted() {
+  has_immersive_xr_session_ = true;
+}
 
-void MockRenderProcessHost::OnImmersiveXrSessionStopped() {}
+void MockRenderProcessHost::OnImmersiveXrSessionStopped() {
+  has_immersive_xr_session_ = false;
+}
+
+bool MockRenderProcessHost::HasImmersiveXrSessionForTesting() const {
+  return has_immersive_xr_session_;
+}
 
 StoragePartition* MockRenderProcessHost::GetStoragePartition() {
   return browser_context_->GetStoragePartition(storage_partition_config_);

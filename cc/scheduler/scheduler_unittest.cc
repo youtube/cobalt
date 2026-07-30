@@ -743,37 +743,6 @@ TEST_P(SchedulerTest, SendEarlyFinalBeginMainFrame_HalfInterval) {
             base_seq + 1);
 }
 
-TEST_P(SchedulerTest, SendEarlyFinalBeginMainFrame_Throttling) {
-  SetUpScheduler(EXTERNAL_BFS);
-
-  // Send a regular frame first.
-  scheduler_->SetNeedsBeginMainFrame();
-  EXPECT_SCOPED(AdvanceFrame());
-  scheduler_->NotifyBeginMainFrameStarted(task_runner_->NowTicks());
-  scheduler_->NotifyReadyToCommit(nullptr);
-  scheduler_->NotifyReadyToActivate();
-  task_runner_->RunPendingTasks();
-  client_->Reset();
-
-  // Enable throttling.
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeatureWithParameters(
-      features::kRenderThrottleFrameRate,
-      {{"render-throttled-frame-interval-hz", "30"}});
-  scheduler_->SetShouldThrottleFrameRate(true);
-
-  uint64_t base_seq =
-      client_->last_begin_main_frame_args().frame_id.sequence_number;
-
-  // Send the early last frame signal.
-  scheduler_->SendEarlyFinalBeginMainFrame();
-
-  // Check if the last BeginMainFrame sequence number had advanced, despite
-  // throttling.
-  EXPECT_GT(client_->last_begin_main_frame_args().frame_id.sequence_number,
-            base_seq);
-  EXPECT_TRUE(client_->IsInsideBeginImplFrame());
-}
 
 TEST_P(SchedulerTest, SendEarlyFinalBeginMainFrame_DuringCommit) {
   // This is always set in proxy_impl.
@@ -4160,53 +4129,6 @@ TEST_P(SchedulerTest,
   EXPECT_ACTIONS("WillBeginImplFrame");
 }
 
-TEST_P(SchedulerTest, ProactiveThrottling) {
-  // Verify that the SchedulerClient gets updates when the begin frame interval
-  // changes.
-  SetUpScheduler(EXTERNAL_BFS);
-  constexpr uint64_t kSourceId = viz::BeginFrameArgs::kStartingSourceId;
-  uint64_t sequence_number = viz::BeginFrameArgs::kStartingFrameNumber;
-
-  // Enable the proactive throttling feature.
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeatureWithParameters(
-      features::kRenderThrottleFrameRate,
-      {{"render-throttled-frame-interval-hz", "30"}});
-  base::TimeDelta throttled_interval =
-      base::Hertz(features::kRenderThrottledFrameIntervalHz.Get());
-
-  // No throttling by default.
-  base::TimeDelta interval = base::Hertz(120);
-  SendTestBeginFrameAfterInterval(interval, kSourceId, sequence_number++);
-  if (base::FeatureList::IsEnabled(features::kThrottleMainFrameTo60Hz)) {
-    EXPECT_GT(scheduler_->state_machine().MainFrameThrottledInterval(),
-              base::Hertz(120));
-  } else {
-    EXPECT_TRUE(
-        scheduler_->state_machine().MainFrameThrottledInterval().is_zero());
-  }
-
-  scheduler_->SetShouldThrottleFrameRate(true);
-
-  // Throttling at 60fps.
-  interval = base::Hertz(60);
-  SendTestBeginFrameAfterInterval(interval, kSourceId, sequence_number++);
-  EXPECT_EQ(scheduler_->state_machine().MainFrameThrottledInterval(),
-            throttled_interval);
-
-  // Not at 10fps.
-  interval = base::Hertz(10);
-  SendTestBeginFrameAfterInterval(interval, kSourceId, sequence_number++);
-  EXPECT_TRUE(
-      scheduler_->state_machine().MainFrameThrottledInterval().is_zero());
-
-  // Not throttling after stopping the throttle.
-  scheduler_->SetShouldThrottleFrameRate(false);
-  interval = base::Hertz(60);
-  SendTestBeginFrameAfterInterval(interval, kSourceId, sequence_number++);
-  EXPECT_TRUE(
-      scheduler_->state_machine().MainFrameThrottledInterval().is_zero());
-}
 
 // Tests that `SetShouldWarmUp()` will start initial `LayerTreeFrameSink`
 // creation even if invisible.

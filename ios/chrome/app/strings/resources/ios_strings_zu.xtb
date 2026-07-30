@@ -6,6 +6,7 @@
 <translation id="1005230401424685968">YYYY</translation>
 <translation id="1013952917065545813">Ungabuya lapha futhi ukuze uphinde uvule amathebhu osanda kuwavala</translation>
 <translation id="1016495303386450659">Into ibuyekeziwe</translation>
+<translation id="1018804590490383958">Skena futhi uzigcwalisele</translation>
 <translation id="1019990162050689579">Umsebenzi we-App yeGemini</translation>
 <translation id="102916930470544692">Ukhiye wokudlula</translation>
 <translation id="1030376737535466765">Vula Isiphathi Sephasiwedi</translation>
@@ -873,6 +874,7 @@
 <translation id="4021447724486050609">Buyekeza ibhrawuza yakho</translation>
 <translation id="4021931095789478915">Engeza ${url} ohlwini lokufunda</translation>
 <translation id="4028871427853484857">Londoloza ku-akhawunti</translation>
+<translation id="4036529942385659684">Bonisa ikhasi lokuqala ngemva kwenkathi yokungasebenzi</translation>
 <translation id="4038354071007134711">Alukho uhlelo lokusebenza kule divayisi olungavula ifayela.</translation>
 <translation id="4042870976416480368">Thola ekhasini</translation>
 <translation id="4045441967987592849">Phinda uvule</translation>
@@ -910,7 +912,6 @@
 <translation id="417138788035229076">Lawula iqembu</translation>
 <translation id="4172051516777682613">Bonisa njalo</translation>
 <translation id="417273154673973994">{count,plural, =1{Iqembu lethebhu eli-1 livaliwe futhi lalondolozwa}one{Amaqembu ethebhu angu-{count} avaliwe futhi alondolozwa}other{Amaqembu ethebhu angu-{count} avaliwe futhi alondolozwa}}</translation>
-<translation id="417612446554534067">Thumela Kumadivayisi Wakho</translation>
 <translation id="4180726336228139707">Kule divayisi kuphela</translation>
 <translation id="4181841719683918333">Izilimi</translation>
 <translation id="4183350924949589798">Ukuvikeleka okwengeziwe?</translation>
@@ -1134,6 +1135,7 @@
 <translation id="4896467949657706481">Amathebhu avaliwe; ukhishwe ngemvume</translation>
 <translation id="4911042367886397055">Siyakwamukela futhi, <ph name="USER_NAME" />!</translation>
 <translation id="4913626501929406101">Ungakwazi ukwabelana ngokuphephile nekhophi yephasiwedi yakho nomuntu othile eqenjini lomndeni wakho. <ph name="BEGIN_LINK" />Funda kabanzi<ph name="END_LINK" /></translation>
+<translation id="4916679969857390442">Ilensi</translation>
 <translation id="4917025507570489430">Ungasebenzisa idatha yopheqululo ekhona lapho ungene ngemvume njengo-<ph name="USER_EMAIL" />. Inhlangano yakho ingase ikwazi ukubona le datha.</translation>
 <translation id="4918086044614829423">Yamukela</translation>
 <translation id="4930714375720679147">Vula</translation>
@@ -1549,6 +1551,7 @@ I-Handoff futhi kufanele inikwe amandla esigabeni sokuvamile zezilungiselelo, fu
 <translation id="6301767200000930965">Aa</translation>
 <translation id="630308129961693966">Khetha isikhundla sebha yekheli</translation>
 <translation id="6307241780749477694">Qinisekisa ukuthi nguwe ukuze uthole wonke amaphasiwedi akho kule divayisi</translation>
+<translation id="6307792728709337290">Londoloza ikhadi lakho kuGoogle Account yakho ukuze uzigcwalisele kulokhu kuthenga kanye nokuthenga kwesikhathi esizayo okwenziwe kuChrome.</translation>
 <translation id="6316141353357700666">Khetha iphasiwedi ofuna ukuyisebenzisa ohlwini oluvelayo.</translation>
 <translation id="6321526113093607004">Engeza kumabhukhimakhi</translation>
 <translation id="6327249202318869726">IGemini ivalelwe i-akhawunti yakho. Xhumana nomphathi wakho ukuze uthole ulwazi olwengeziwe.</translation>
@@ -2143,6 +2146,7 @@ Ukuze uqhubeke kukhompyutha yakho, shintshela ku-<ph name="OTHER_EMAIL" />. Uzot
 <translation id="8263809106706527890">Kungenzeka kube noshintsho kumasethingi akho ebhrawuza evuleka ngokuzenzekela. Ungahlola lokhu kumasethingi.</translation>
 <translation id="8264966119170358612">Amanye amaphasiwedi wakho alondoloziwe aye adalulwa ekwephulweni kwesivumelwano sedatha engeyona eye-Google. <ph name="BEGIN_LINK" />Funda kabanzi<ph name="END_LINK" /></translation>
 <translation id="826614135184049678">Ukhishwe ngemvume ku-akhawunti yakho, <ph name="USER_NAME" />, njengengxenye yokusetha kabusha i-iPad yakho. Ukuze uphinde ungenge ngemvume, thepha okuthi "Qhubeka" ngezansi.</translation>
+<translation id="8270320981823560179">I-Drive</translation>
 <translation id="8273982424131314219">Uzogcwalisa ulwazi ku-<ph name="URL" /></translation>
 <translation id="8275068909952022340">Okuningi…</translation>
 <translation id="8281781826761538115">Okuzenzakalelayo - <ph name="DEFAULT_LOCALE" /></translation>

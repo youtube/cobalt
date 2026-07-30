@@ -689,10 +689,10 @@ class PrerenderBrowserTest : public ContentBrowserTest,
   }
 
   void TestHostPrerenderingState(const GURL& prerender_url) {
-    const GURL kInitialUrl = GetUrl("/empty.html");
+    const GURL initial_url = GetUrl("/empty.html");
 
     // Navigate to an initial page.
-    ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+    ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
     // The initial page should not be in prerendered state.
     RenderFrameHostImpl* initiator_render_frame_host = current_frame_host();
@@ -1255,24 +1255,24 @@ IN_PROC_BROWSER_TEST_P(
 
   ASSERT_TRUE(embedded_test_server()->Start());
 
-  const GURL kInitialUrl = embedded_test_server()->GetURL("/empty.html");
-  const GURL kPrerenderingUrl =
+  const GURL initial_url = embedded_test_server()->GetURL("/empty.html");
+  const GURL prerendering_url =
       embedded_test_server()->GetURL(kPrerenderingRelativeUrl);
-  const GURL kNavigationUrl =
+  const GURL navigation_url =
       embedded_test_server()->GetURL(kTestingRelativeUrl + "&a=3");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
-  ASSERT_EQ(web_contents()->GetLastCommittedURL(), kInitialUrl);
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+  ASSERT_EQ(web_contents()->GetLastCommittedURL(), initial_url);
 
   // Inject mock time task runner.
   auto task_runner = base::MakeRefCounted<base::TestMockTimeTaskRunner>();
   PrerenderNoVarySearchHintCommitDeferringCondition::
       SetTimerTaskRunnerForTesting(task_runner);
 
-  // Start prerendering `kPrerenderingUrl`.
+  // Start prerendering `prerendering_url`.
   content::test::PrerenderHostCreationWaiter host_creation_waiter;
-  AddPrerenderAsync(kPrerenderingUrl, R"(params=(\\\"a\\\"))");
+  AddPrerenderAsync(prerendering_url, R"(params=(\\\"a\\\"))");
   PrerenderHostId host_id = host_creation_waiter.Wait();
   auto* host =
       web_contents_impl()->GetPrerenderHostRegistry()->FindNonReservedHostById(
@@ -1284,12 +1284,12 @@ IN_PROC_BROWSER_TEST_P(
   // to activate.
   NoVarySearchHintPrerenderHostObserver observer(*host);
 
-  // Start navigation in primary page to kNavigationUrl.
-  TestActivationManager primary_page_manager(web_contents(), kNavigationUrl);
-  // Start to navigate to kNavigationUrl
+  // Start navigation in primary page to navigation_url.
+  TestActivationManager primary_page_manager(web_contents(), navigation_url);
+  // Start to navigate to navigation_url
   std::unique_ptr<content::TestNavigationObserver> nav_observer =
       test::PrerenderTestHelper::NavigatePrimaryPageAsync(*web_contents_impl(),
-                                                          kNavigationUrl);
+                                                          navigation_url);
 
   // Wait until the navigation is deferred by CommitDeferringCondition.
   ASSERT_TRUE(primary_page_manager.WaitForBeforeChecks());
@@ -1328,7 +1328,7 @@ IN_PROC_BROWSER_TEST_P(
   ASSERT_EQ(false, EvalJs(web_contents(), "document.prerendering"));
 
   // The prerender host should be consumed.
-  EXPECT_FALSE(HasHostForUrl(kPrerenderingUrl));
+  EXPECT_FALSE(HasHostForUrl(prerendering_url));
 
   ASSERT_TRUE(observer.wait_for_headers_start_reason().has_value());
   ASSERT_TRUE(observer.wait_for_headers_finish_reason().has_value());
@@ -1480,24 +1480,24 @@ IN_PROC_BROWSER_TEST_P(
 
   ASSERT_TRUE(embedded_test_server()->Start());
 
-  const GURL kInitialUrl = embedded_test_server()->GetURL("/empty.html");
-  const GURL kPrerenderingUrl =
+  const GURL initial_url = embedded_test_server()->GetURL("/empty.html");
+  const GURL prerendering_url =
       embedded_test_server()->GetURL(kPrerenderingRelativeUrl);
-  const GURL kNavigationUrl =
+  const GURL navigation_url =
       embedded_test_server()->GetURL(kNavigationRelativeUrl);
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
-  ASSERT_EQ(web_contents()->GetLastCommittedURL(), kInitialUrl);
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+  ASSERT_EQ(web_contents()->GetLastCommittedURL(), initial_url);
 
   // Inject mock time task runner.
   auto task_runner = base::MakeRefCounted<base::TestMockTimeTaskRunner>();
   PrerenderNoVarySearchHintCommitDeferringCondition::
       SetTimerTaskRunnerForTesting(task_runner);
 
-  // Start prerendering `kPrerenderingUrl`.
+  // Start prerendering `prerendering_url`.
   content::test::PrerenderHostCreationWaiter host_creation_waiter;
-  AddPrerenderAsync(kPrerenderingUrl, R"(params=(\\\"a\\\"))");
+  AddPrerenderAsync(prerendering_url, R"(params=(\\\"a\\\"))");
   PrerenderHostId host_id = host_creation_waiter.Wait();
   auto* host =
       web_contents_impl()->GetPrerenderHostRegistry()->FindNonReservedHostById(
@@ -1509,12 +1509,12 @@ IN_PROC_BROWSER_TEST_P(
   // to activate.
   NoVarySearchHintPrerenderHostObserver observer(*host);
 
-  // Start navigation in primary page to kNavigationUrl.
-  TestActivationManager primary_page_manager(web_contents(), kNavigationUrl);
-  // Start to navigate to kNavigationUrl
+  // Start navigation in primary page to navigation_url.
+  TestActivationManager primary_page_manager(web_contents(), navigation_url);
+  // Start to navigate to navigation_url
   std::unique_ptr<content::TestNavigationObserver> nav_observer =
       test::PrerenderTestHelper::NavigatePrimaryPageAsync(*web_contents_impl(),
-                                                          kNavigationUrl);
+                                                          navigation_url);
 
   // Wait until the navigation is deferred by CommitDeferringCondition.
   ASSERT_TRUE(primary_page_manager.WaitForBeforeChecks());
@@ -1556,7 +1556,7 @@ IN_PROC_BROWSER_TEST_P(
   ASSERT_EQ(false, EvalJs(web_contents(), "document.prerendering"));
 
   // The prerender host should be destroyed.
-  EXPECT_FALSE(HasHostForUrl(kPrerenderingUrl));
+  EXPECT_FALSE(HasHostForUrl(prerendering_url));
 
   ASSERT_TRUE(observer.wait_for_headers_start_reason().has_value());
   ASSERT_TRUE(observer.wait_for_headers_finish_reason().has_value());
@@ -1588,24 +1588,24 @@ void NoVarySearchPrerenderBrowserTest::TestNoVarySearchHeaderFailure(
 
   ASSERT_TRUE(embedded_test_server()->Start());
 
-  const GURL kInitialUrl = embedded_test_server()->GetURL("/empty.html");
-  const GURL kPrerenderingUrl =
+  const GURL initial_url = embedded_test_server()->GetURL("/empty.html");
+  const GURL prerendering_url =
       embedded_test_server()->GetURL(kPrerenderingRelativeUrl);
-  const GURL kNavigationUrl =
+  const GURL navigation_url =
       embedded_test_server()->GetURL(kTestingRelativeUrl + "&a=3");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
-  ASSERT_EQ(web_contents()->GetLastCommittedURL(), kInitialUrl);
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+  ASSERT_EQ(web_contents()->GetLastCommittedURL(), initial_url);
 
   // Inject mock time task runner to avoid timeout.
   auto task_runner = base::MakeRefCounted<base::TestMockTimeTaskRunner>();
   PrerenderNoVarySearchHintCommitDeferringCondition::
       SetTimerTaskRunnerForTesting(task_runner);
 
-  // Start prerendering `kPrerenderingUrl`.
+  // Start prerendering `prerendering_url`.
   content::test::PrerenderHostCreationWaiter host_creation_waiter;
-  AddPrerenderAsync(kPrerenderingUrl, R"(params=(\\\"a\\\"))");
+  AddPrerenderAsync(prerendering_url, R"(params=(\\\"a\\\"))");
   PrerenderHostId host_id = host_creation_waiter.Wait();
   auto* host =
       web_contents_impl()->GetPrerenderHostRegistry()->FindNonReservedHostById(
@@ -1617,12 +1617,12 @@ void NoVarySearchPrerenderBrowserTest::TestNoVarySearchHeaderFailure(
   // to activate.
   NoVarySearchHintPrerenderHostObserver observer(*host);
 
-  // Start navigation in primary page to kNavigationUrl.
-  TestActivationManager primary_page_manager(web_contents(), kNavigationUrl);
-  // Start to navigate to kNavigationUrl
+  // Start navigation in primary page to navigation_url.
+  TestActivationManager primary_page_manager(web_contents(), navigation_url);
+  // Start to navigate to navigation_url
   std::unique_ptr<content::TestNavigationObserver> nav_observer =
       test::PrerenderTestHelper::NavigatePrimaryPageAsync(*web_contents_impl(),
-                                                          kNavigationUrl);
+                                                          navigation_url);
 
   // Wait until the navigation is deferred by CommitDeferringCondition.
   ASSERT_TRUE(primary_page_manager.WaitForBeforeChecks());
@@ -1712,19 +1712,19 @@ IN_PROC_BROWSER_TEST_P(NoVarySearchPrerenderBrowserTest,
 
   ASSERT_TRUE(embedded_test_server()->Start());
 
-  const GURL kInitialUrl = embedded_test_server()->GetURL("/empty.html");
-  const GURL kPrerenderingUrl =
+  const GURL initial_url = embedded_test_server()->GetURL("/empty.html");
+  const GURL prerendering_url =
       embedded_test_server()->GetURL(kPrerenderingRelativeUrl);
-  const GURL kNavigationUrl =
+  const GURL navigation_url =
       embedded_test_server()->GetURL(kTestingRelativeUrl + "&a=3");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
-  ASSERT_EQ(web_contents()->GetLastCommittedURL(), kInitialUrl);
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+  ASSERT_EQ(web_contents()->GetLastCommittedURL(), initial_url);
 
-  // Start prerendering `kPrerenderingUrl`.
+  // Start prerendering `prerendering_url`.
   content::test::PrerenderHostCreationWaiter host_creation_waiter;
-  AddPrerenderAsync(kPrerenderingUrl, R"(params=(\\\"a\\\"))");
+  AddPrerenderAsync(prerendering_url, R"(params=(\\\"a\\\"))");
   PrerenderHostId host_id = host_creation_waiter.Wait();
   auto* host =
       web_contents_impl()->GetPrerenderHostRegistry()->FindNonReservedHostById(
@@ -1737,14 +1737,14 @@ IN_PROC_BROWSER_TEST_P(NoVarySearchPrerenderBrowserTest,
   PrerenderHost::Observer empty_observer;
   host->AddObserver(&empty_observer);
 
-  NavigationHandleObserver activation_observer(web_contents(), kNavigationUrl);
-  // Start navigation in primary page to kNavigationUrl.
+  NavigationHandleObserver activation_observer(web_contents(), navigation_url);
+  // Start navigation in primary page to navigation_url.
   TestActivationManager primary_page_manager(shell()->web_contents(),
-                                             kNavigationUrl);
-  // Start to navigate to kNavigationUrl
+                                             navigation_url);
+  // Start to navigate to navigation_url
   std::unique_ptr<content::TestNavigationObserver> nav_observer =
       test::PrerenderTestHelper::NavigatePrimaryPageAsync(*web_contents_impl(),
-                                                          kNavigationUrl);
+                                                          navigation_url);
 
   // Wait until the navigation is deferred by CommitDeferringCondition.
   ASSERT_TRUE(primary_page_manager.WaitForBeforeChecks());
@@ -1752,7 +1752,7 @@ IN_PROC_BROWSER_TEST_P(NoVarySearchPrerenderBrowserTest,
   ASSERT_FALSE(host->were_headers_received());
 
   // Make sure that the prerender host is not a match by IsUrlMatch.
-  ASSERT_FALSE(host->IsUrlMatch(kNavigationUrl));
+  ASSERT_FALSE(host->IsUrlMatch(navigation_url));
   auto* prerender_web_contents =
       test::PrerenderTestHelper::GetPrerenderWebContents(host_id);
   content::test::PrerenderHostObserver host_observer(*prerender_web_contents,
@@ -1777,7 +1777,7 @@ IN_PROC_BROWSER_TEST_P(NoVarySearchPrerenderBrowserTest,
   ASSERT_TRUE(host->were_headers_received());
   // Make sure that, after receiving headers the prerender host is a match by
   // IsUrlMatch.
-  ASSERT_TRUE(host->IsUrlMatch(kNavigationUrl));
+  ASSERT_TRUE(host->IsUrlMatch(navigation_url));
   EXPECT_TRUE(nav_request->IsCommitDeferringConditionDeferredForTesting());
   main_prerender_response.Send("Some Content");
   main_prerender_response.Done();
@@ -1795,11 +1795,11 @@ IN_PROC_BROWSER_TEST_P(NoVarySearchPrerenderBrowserTest,
   ASSERT_EQ(false, EvalJs(web_contents(), "document.prerendering"));
 
   // The prerender host should be consumed.
-  EXPECT_FALSE(HasHostForUrl(kPrerenderingUrl));
+  EXPECT_FALSE(HasHostForUrl(prerendering_url));
 
   // Activating the prerendered page should not issue a request.
   ExpectFinalStatusForSpeculationRule(PrerenderFinalStatus::kActivated);
-  ASSERT_EQ(web_contents()->GetLastCommittedURL(), kNavigationUrl);
+  ASSERT_EQ(web_contents()->GetLastCommittedURL(), navigation_url);
 
   ukm::SourceId ukm_source_id = activation_observer.next_page_ukm_source_id();
   if (IsPrerender2FallbackPrefetchSpecRulesEnabled()) {
@@ -1856,19 +1856,19 @@ IN_PROC_BROWSER_TEST_P(NoVarySearchPrerenderBrowserTest,
 
   ASSERT_TRUE(embedded_test_server()->Start());
 
-  const GURL kInitialUrl = embedded_test_server()->GetURL("/empty.html");
-  const GURL kPrerenderingUrl =
+  const GURL initial_url = embedded_test_server()->GetURL("/empty.html");
+  const GURL prerendering_url =
       embedded_test_server()->GetURL(kPrerenderingRelativeUrl);
-  const GURL kNavigationUrl =
+  const GURL navigation_url =
       embedded_test_server()->GetURL(kNavigationRelativeUrl);
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
-  ASSERT_EQ(web_contents()->GetLastCommittedURL(), kInitialUrl);
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+  ASSERT_EQ(web_contents()->GetLastCommittedURL(), initial_url);
 
-  // Start prerendering `kPrerenderingUrl`.
+  // Start prerendering `prerendering_url`.
   content::test::PrerenderHostCreationWaiter host_creation_waiter;
-  AddPrerenderAsync(kPrerenderingUrl, R"(params=(\\\"a\\\"))");
+  AddPrerenderAsync(prerendering_url, R"(params=(\\\"a\\\"))");
   PrerenderHostId host_id = host_creation_waiter.Wait();
   auto* host =
       web_contents_impl()->GetPrerenderHostRegistry()->FindNonReservedHostById(
@@ -1877,11 +1877,11 @@ IN_PROC_BROWSER_TEST_P(NoVarySearchPrerenderBrowserTest,
   ASSERT_TRUE(host->no_vary_search_hint().has_value());
 
   TestActivationManager primary_page_manager(shell()->web_contents(),
-                                             kNavigationUrl);
-  // Start navigation to kNavigationUrl.
+                                             navigation_url);
+  // Start navigation to navigation_url.
   std::unique_ptr<content::TestNavigationObserver> nav_observer =
       test::PrerenderTestHelper::NavigatePrimaryPageAsync(*web_contents_impl(),
-                                                          kNavigationUrl);
+                                                          navigation_url);
   // Wait until the navigation is deferred by CommitDeferringCondition.
   ASSERT_TRUE(primary_page_manager.WaitForBeforeChecks());
   primary_page_manager.ResumeActivation();
@@ -1891,9 +1891,9 @@ IN_PROC_BROWSER_TEST_P(NoVarySearchPrerenderBrowserTest,
       web_contents_impl()->GetPrimaryFrameTree().root()->navigation_request();
   // Make sure PrerenderHostRegistry selects this prerender as a potential
   // prerender host to activate.
-  ASSERT_TRUE(host->IsNoVarySearchHintUrlMatch(kNavigationUrl));
+  ASSERT_TRUE(host->IsNoVarySearchHintUrlMatch(navigation_url));
   // Make sure that the prerender host is not a match by IsUrlMatch.
-  ASSERT_FALSE(host->IsUrlMatch(kNavigationUrl));
+  ASSERT_FALSE(host->IsUrlMatch(navigation_url));
 
   // Check that PrerenderNoVarySearchHintCommitDeferringCondition is deferring
   // the commit.
@@ -1915,7 +1915,7 @@ IN_PROC_BROWSER_TEST_P(NoVarySearchPrerenderBrowserTest,
   ASSERT_TRUE(host->were_headers_received());
   // Make sure that, after receiving headers the prerender host is not a match
   // by IsUrlMatch.
-  ASSERT_FALSE(host->IsUrlMatch(kNavigationUrl));
+  ASSERT_FALSE(host->IsUrlMatch(navigation_url));
   main_prerender_response.Done();
 
   main_navigation_response.WaitForRequest();
@@ -1930,7 +1930,7 @@ IN_PROC_BROWSER_TEST_P(NoVarySearchPrerenderBrowserTest,
   // Wait for the navigation to finish.
   nav_observer->Wait();
   // The navigation should issue a request.
-  ASSERT_EQ(web_contents()->GetLastCommittedURL(), kNavigationUrl);
+  ASSERT_EQ(web_contents()->GetLastCommittedURL(), navigation_url);
 
   histogram_tester().ExpectUniqueSample(
       "Prerender.Experimental.MatchableHostCountOnActivation", 1, 1);
@@ -1959,7 +1959,7 @@ IN_PROC_BROWSER_TEST_P(NoVarySearchPrerenderBrowserTest,
   ASSERT_TRUE(NavigateToURL(shell(), initial_url));
   ASSERT_EQ(web_contents()->GetLastCommittedURL(), initial_url);
 
-  // Start prerendering `kPrerenderingUrl`.
+  // Start prerendering `prerendering_url`.
   content::test::PrerenderHostCreationWaiter host_creation_waiter;
   AddPrerenderAsync(prerendering_url, R"(params=(\\\"a\\\"))");
   PrerenderHostId host_id = host_creation_waiter.Wait();
@@ -1970,10 +1970,10 @@ IN_PROC_BROWSER_TEST_P(NoVarySearchPrerenderBrowserTest,
   ASSERT_TRUE(host->no_vary_search_hint().has_value());
 
   NavigationHandleObserver activation_observer(web_contents(), navigation_url);
-  // Start navigation in primary page to kNavigationUrl.
+  // Start navigation in primary page to navigation_url.
   TestActivationManager primary_page_manager(shell()->web_contents(),
                                              navigation_url);
-  // Start to navigate to kNavigationUrl
+  // Start to navigate to navigation_url
   std::unique_ptr<content::TestNavigationObserver> nav_observer =
       test::PrerenderTestHelper::NavigatePrimaryPageAsync(*web_contents_impl(),
                                                           navigation_url);
@@ -2149,17 +2149,17 @@ IN_PROC_BROWSER_TEST_P(NoVarySearchPrerenderBrowserTest,
 // Tests that the speculationrules No-Vary-Search hint is populated for the
 // PrerenderHost.
 IN_PROC_BROWSER_TEST_P(NoVarySearchPrerenderBrowserTest, HintIsPopulated) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/no_vary_search_a.html?prerender");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/no_vary_search_a.html?prerender");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
-  ASSERT_EQ(web_contents()->GetLastCommittedURL(), kInitialUrl);
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+  ASSERT_EQ(web_contents()->GetLastCommittedURL(), initial_url);
 
-  // Start prerendering `kPrerenderingUrl`.
-  ASSERT_EQ(GetRequestCount(kPrerenderingUrl), 0);
+  // Start prerendering `prerendering_url`.
+  ASSERT_EQ(GetRequestCount(prerendering_url), 0);
   PrerenderHostId host_id =
-      AddPrerender(kPrerenderingUrl, R"(params=(\\\"a\\\"))");
+      AddPrerender(prerendering_url, R"(params=(\\\"a\\\"))");
   auto* host =
       web_contents_impl()->GetPrerenderHostRegistry()->FindNonReservedHostById(
           host_id);
@@ -2170,32 +2170,32 @@ IN_PROC_BROWSER_TEST_P(NoVarySearchPrerenderBrowserTest, HintIsPopulated) {
 // Tests that the speculationrules trigger works in the presence of
 // No-Vary-Search for same URL.
 IN_PROC_BROWSER_TEST_P(NoVarySearchPrerenderBrowserTest, ExactUrlMatch) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/no_vary_search_a.html?prerender");
-  const GURL kNavigationUrl = kPrerenderingUrl;
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/no_vary_search_a.html?prerender");
+  const GURL navigation_url = prerendering_url;
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
-  ASSERT_EQ(web_contents()->GetLastCommittedURL(), kInitialUrl);
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+  ASSERT_EQ(web_contents()->GetLastCommittedURL(), initial_url);
 
-  // Start prerendering `kPrerenderingUrl`.
-  ASSERT_EQ(GetRequestCount(kPrerenderingUrl), 0);
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  // Start prerendering `prerendering_url`.
+  ASSERT_EQ(GetRequestCount(prerendering_url), 0);
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
   ASSERT_TRUE(host_id);
-  ASSERT_EQ(GetRequestCount(kPrerenderingUrl), 1);
+  ASSERT_EQ(GetRequestCount(prerendering_url), 1);
 
-  NavigationHandleObserver activation_observer(web_contents(), kNavigationUrl);
-  NavigatePrimaryPage(kNavigationUrl);
+  NavigationHandleObserver activation_observer(web_contents(), navigation_url);
+  NavigatePrimaryPage(navigation_url);
   // Ensure the state has been propagated to renderer processes.
   ASSERT_EQ(false, EvalJs(web_contents(), "document.prerendering"));
 
   // The prerender host should be consumed.
-  EXPECT_FALSE(HasHostForUrl(kPrerenderingUrl));
+  EXPECT_FALSE(HasHostForUrl(prerendering_url));
 
   // Activating the prerendered page should not issue a request.
-  EXPECT_EQ(GetRequestCount(kNavigationUrl), 1);
+  EXPECT_EQ(GetRequestCount(navigation_url), 1);
   ExpectFinalStatusForSpeculationRule(PrerenderFinalStatus::kActivated);
-  ASSERT_EQ(web_contents()->GetLastCommittedURL(), kNavigationUrl);
+  ASSERT_EQ(web_contents()->GetLastCommittedURL(), navigation_url);
   histogram_tester().ExpectTotalCount(
       "Navigation.Prerender.NoVarySearchCommitDeferTime.SpeculationRule", 0);
 
@@ -2235,35 +2235,35 @@ IN_PROC_BROWSER_TEST_P(NoVarySearchPrerenderBrowserTest, ExactUrlMatch) {
 // Tests that the speculationrules trigger works in the presence of
 // No-Vary-Search.
 IN_PROC_BROWSER_TEST_P(NoVarySearchPrerenderBrowserTest, InexactUrlMatch) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/no_vary_search_a.html?prerender");
-  const GURL kNavigationUrl = GetUrl("/no_vary_search_a.html?prerender&a=3");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/no_vary_search_a.html?prerender");
+  const GURL navigation_url = GetUrl("/no_vary_search_a.html?prerender&a=3");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
-  ASSERT_EQ(web_contents()->GetLastCommittedURL(), kInitialUrl);
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+  ASSERT_EQ(web_contents()->GetLastCommittedURL(), initial_url);
 
-  // Start prerendering `kPrerenderingUrl`.
-  ASSERT_EQ(GetRequestCount(kPrerenderingUrl), 0);
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  // Start prerendering `prerendering_url`.
+  ASSERT_EQ(GetRequestCount(prerendering_url), 0);
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
   ASSERT_TRUE(host_id);
-  ASSERT_EQ(GetRequestCount(kPrerenderingUrl), 1);
+  ASSERT_EQ(GetRequestCount(prerendering_url), 1);
 
-  NavigationHandleObserver activation_observer(web_contents(), kNavigationUrl);
-  NavigatePrimaryPage(kNavigationUrl);
+  NavigationHandleObserver activation_observer(web_contents(), navigation_url);
+  NavigatePrimaryPage(navigation_url);
   // Ensure the state has been propagated to renderer processes.
   ASSERT_EQ(false, EvalJs(web_contents(), "document.prerendering"));
 
   // The prerender host should be consumed.
-  EXPECT_FALSE(HasHostForUrl(kPrerenderingUrl));
-  EXPECT_FALSE(HasHostForUrl(kNavigationUrl));
-  EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 1);
+  EXPECT_FALSE(HasHostForUrl(prerendering_url));
+  EXPECT_FALSE(HasHostForUrl(navigation_url));
+  EXPECT_EQ(GetRequestCount(prerendering_url), 1);
 
   // Activating the prerendered page should not issue a request.
-  EXPECT_EQ(GetRequestCount(kNavigationUrl), 0);
+  EXPECT_EQ(GetRequestCount(navigation_url), 0);
   ExpectFinalStatusForSpeculationRule(PrerenderFinalStatus::kActivated);
-  ASSERT_EQ(web_contents()->GetLastCommittedURL(), kNavigationUrl);
-  ASSERT_EQ(kNavigationUrl, EvalJs(web_contents(), "window.location.href"));
+  ASSERT_EQ(web_contents()->GetLastCommittedURL(), navigation_url);
+  ASSERT_EQ(navigation_url, EvalJs(web_contents(), "window.location.href"));
   histogram_tester().ExpectTotalCount(
       "Navigation.Prerender.NoVarySearchCommitDeferTime.SpeculationRule", 1);
 
@@ -2306,38 +2306,38 @@ IN_PROC_BROWSER_TEST_P(NoVarySearchPrerenderBrowserTest, InexactUrlMatch) {
 IN_PROC_BROWSER_TEST_P(NoVarySearchPrerenderBrowserTest,
                        ExactMatchWithUrlRedirection) {
   // Navigate to an initial page.
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  const GURL initial_url = GetUrl("/empty.html");
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Start prerendering a URL that causes same-origin redirection.
-  const GURL kRedirectedUrl = GetUrl("/no_vary_search_a.html?prerender");
-  const GURL kPrerenderingUrl =
-      GetUrl("/server-redirect?" + kRedirectedUrl.spec());
+  const GURL redirected_url = GetUrl("/no_vary_search_a.html?prerender");
+  const GURL prerendering_url =
+      GetUrl("/server-redirect?" + redirected_url.spec());
 
-  AddPrerender(kPrerenderingUrl);
-  EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 1);
-  EXPECT_EQ(GetRequestCount(kRedirectedUrl), 1);
+  AddPrerender(prerendering_url);
+  EXPECT_EQ(GetRequestCount(prerendering_url), 1);
+  EXPECT_EQ(GetRequestCount(redirected_url), 1);
 
   // The prerender host should be registered for the initial request URL, not
   // the redirected URL.
-  EXPECT_TRUE(HasHostForUrl(kPrerenderingUrl));
-  EXPECT_FALSE(HasHostForUrl(kRedirectedUrl));
+  EXPECT_TRUE(HasHostForUrl(prerendering_url));
+  EXPECT_FALSE(HasHostForUrl(redirected_url));
 
   NavigationHandleObserver activation_observer(web_contents(),
-                                               kPrerenderingUrl);
-  NavigatePrimaryPage(kPrerenderingUrl);
+                                               prerendering_url);
+  NavigatePrimaryPage(prerendering_url);
   // Ensure the state has been propagated to renderer processes.
   ASSERT_EQ(false, EvalJs(web_contents(), "document.prerendering"));
 
   // The prerender host should be consumed.
-  EXPECT_FALSE(HasHostForUrl(kPrerenderingUrl));
+  EXPECT_FALSE(HasHostForUrl(prerendering_url));
 
   // Activating the prerendered page should not issue a request.
-  EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 1);
-  EXPECT_EQ(GetRequestCount(kRedirectedUrl), 1);
+  EXPECT_EQ(GetRequestCount(prerendering_url), 1);
+  EXPECT_EQ(GetRequestCount(redirected_url), 1);
 
   ExpectFinalStatusForSpeculationRule(PrerenderFinalStatus::kActivated);
-  ASSERT_EQ(web_contents()->GetLastCommittedURL(), kRedirectedUrl);
+  ASSERT_EQ(web_contents()->GetLastCommittedURL(), redirected_url);
   histogram_tester().ExpectTotalCount(
       "Navigation.Prerender.NoVarySearchCommitDeferTime.SpeculationRule", 0);
 
@@ -2379,47 +2379,47 @@ IN_PROC_BROWSER_TEST_P(NoVarySearchPrerenderBrowserTest,
 IN_PROC_BROWSER_TEST_P(NoVarySearchPrerenderBrowserTest,
                        InexactMatchWithUrlRedirection) {
   // Navigate to an initial page.
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  const GURL initial_url = GetUrl("/empty.html");
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Start prerendering a URL that causes same-origin redirection.
-  const GURL kRedirectedUrl = GetUrl("/no_vary_search_a.html?prerender&a=2");
-  const GURL kRedirectedUrlWithIgnoredQueryParam =
+  const GURL redirected_url = GetUrl("/no_vary_search_a.html?prerender&a=2");
+  const GURL redirected_url_with_ignored_query_param =
       GetUrl("/no_vary_search_a.html?prerender&a=3");
-  const GURL kPrerenderingUrl =
-      GetUrl("/server-redirect?" + kRedirectedUrl.spec());
-  const GURL kNavigationUrl =
-      GetUrl("/server-redirect?" + kRedirectedUrlWithIgnoredQueryParam.spec());
+  const GURL prerendering_url =
+      GetUrl("/server-redirect?" + redirected_url.spec());
+  const GURL navigation_url = GetUrl(
+      "/server-redirect?" + redirected_url_with_ignored_query_param.spec());
 
-  AddPrerender(kPrerenderingUrl);
-  EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 1);
-  EXPECT_EQ(GetRequestCount(kRedirectedUrl), 1);
+  AddPrerender(prerendering_url);
+  EXPECT_EQ(GetRequestCount(prerendering_url), 1);
+  EXPECT_EQ(GetRequestCount(redirected_url), 1);
 
   // The prerender host should be registered for the initial request URL, not
   // the redirected URL.
-  EXPECT_TRUE(HasHostForUrl(kPrerenderingUrl));
-  EXPECT_FALSE(HasHostForUrl(kRedirectedUrl));
+  EXPECT_TRUE(HasHostForUrl(prerendering_url));
+  EXPECT_FALSE(HasHostForUrl(redirected_url));
 
-  NavigationHandleObserver activation_observer(web_contents(), kNavigationUrl);
-  NavigatePrimaryPage(kNavigationUrl);
+  NavigationHandleObserver activation_observer(web_contents(), navigation_url);
+  NavigatePrimaryPage(navigation_url);
   // Ensure the state has been propagated to renderer processes.
   ASSERT_EQ(false, EvalJs(web_contents(), "document.prerendering"));
 
   // The prerender host should be consumed.
-  EXPECT_FALSE(HasHostForUrl(kPrerenderingUrl));
+  EXPECT_FALSE(HasHostForUrl(prerendering_url));
 
   // Activating the prerendered page should not issue a request.
-  EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 1);
-  EXPECT_EQ(GetRequestCount(kRedirectedUrl), 1);
-  EXPECT_EQ(GetRequestCount(kNavigationUrl), 0);
-  EXPECT_EQ(GetRequestCount(kRedirectedUrlWithIgnoredQueryParam), 0);
+  EXPECT_EQ(GetRequestCount(prerendering_url), 1);
+  EXPECT_EQ(GetRequestCount(redirected_url), 1);
+  EXPECT_EQ(GetRequestCount(navigation_url), 0);
+  EXPECT_EQ(GetRequestCount(redirected_url_with_ignored_query_param), 0);
 
   ExpectFinalStatusForSpeculationRule(PrerenderFinalStatus::kActivated);
   // Make sure the omnibox URL hasn't been updated to
-  // kRedirectedUrlWithIgnoredQueryParam because we've used at navigation
+  // redirected_url_with_ignored_query_param because we've used at navigation
   // the already redirected prerender renderer.
-  ASSERT_EQ(web_contents()->GetLastCommittedURL(), kRedirectedUrl);
-  ASSERT_EQ(kRedirectedUrl, EvalJs(web_contents(), "window.location.href"));
+  ASSERT_EQ(web_contents()->GetLastCommittedURL(), redirected_url);
+  ASSERT_EQ(redirected_url, EvalJs(web_contents(), "window.location.href"));
   histogram_tester().ExpectTotalCount(
       "Navigation.Prerender.NoVarySearchCommitDeferTime.SpeculationRule", 0);
 
@@ -2461,41 +2461,41 @@ IN_PROC_BROWSER_TEST_P(NoVarySearchPrerenderBrowserTest,
 // No-Vary-Search for inexact URL in the presence of main frame navigation.
 IN_PROC_BROWSER_TEST_P(NoVarySearchPrerenderBrowserTest,
                        InexactUrlMatchWithMainFrameNavigation) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/no_vary_search_a.html?prerender");
-  const GURL kPrerenderingNextUrl = GetUrl("/empty.html?next");
-  const GURL kNavigationUrl = GetUrl("/no_vary_search_a.html?prerender&a=3");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/no_vary_search_a.html?prerender");
+  const GURL prerendering_next_url = GetUrl("/empty.html?next");
+  const GURL navigation_url = GetUrl("/no_vary_search_a.html?prerender&a=3");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
-  ASSERT_EQ(web_contents()->GetLastCommittedURL(), kInitialUrl);
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+  ASSERT_EQ(web_contents()->GetLastCommittedURL(), initial_url);
 
-  // Start prerendering `kPrerenderingUrl`.
-  ASSERT_EQ(GetRequestCount(kPrerenderingUrl), 0);
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  // Start prerendering `prerendering_url`.
+  ASSERT_EQ(GetRequestCount(prerendering_url), 0);
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
   ASSERT_TRUE(host_id);
-  ASSERT_EQ(GetRequestCount(kPrerenderingUrl), 1);
+  ASSERT_EQ(GetRequestCount(prerendering_url), 1);
 
-  // Navigate the prerendered page to `kPrerenderingNextUrl`.
-  NavigatePrerenderedPage(host_id, kPrerenderingNextUrl);
+  // Navigate the prerendered page to `prerendering_next_url`.
+  NavigatePrerenderedPage(host_id, prerendering_next_url);
   WaitForPrerenderLoadCompletion(host_id);
 
-  NavigationHandleObserver activation_observer(web_contents(), kNavigationUrl);
-  NavigatePrimaryPage(kNavigationUrl);
+  NavigationHandleObserver activation_observer(web_contents(), navigation_url);
+  NavigatePrimaryPage(navigation_url);
   // Ensure the state has been propagated to renderer processes.
   ASSERT_EQ(false, EvalJs(web_contents(), "document.prerendering"));
 
   // The prerender host should be consumed.
-  EXPECT_FALSE(HasHostForUrl(kPrerenderingUrl));
-  EXPECT_FALSE(HasHostForUrl(kNavigationUrl));
-  EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 1);
-  EXPECT_EQ(GetRequestCount(kPrerenderingNextUrl), 1);
+  EXPECT_FALSE(HasHostForUrl(prerendering_url));
+  EXPECT_FALSE(HasHostForUrl(navigation_url));
+  EXPECT_EQ(GetRequestCount(prerendering_url), 1);
+  EXPECT_EQ(GetRequestCount(prerendering_next_url), 1);
 
   // Activating the prerendered page should not issue a request.
-  EXPECT_EQ(GetRequestCount(kNavigationUrl), 0);
+  EXPECT_EQ(GetRequestCount(navigation_url), 0);
   ExpectFinalStatusForSpeculationRule(PrerenderFinalStatus::kActivated);
-  ASSERT_EQ(web_contents()->GetLastCommittedURL(), kPrerenderingNextUrl);
-  ASSERT_EQ(kPrerenderingNextUrl,
+  ASSERT_EQ(web_contents()->GetLastCommittedURL(), prerendering_next_url);
+  ASSERT_EQ(prerendering_next_url,
             EvalJs(web_contents(), "window.location.href"));
 
   // URL match was inexact but should be recorded as accurate.
@@ -2535,30 +2535,30 @@ IN_PROC_BROWSER_TEST_P(NoVarySearchPrerenderBrowserTest,
 // Tests that the speculationrules trigger works.
 IN_PROC_BROWSER_TEST_P(PrerenderBrowserTestFallbackEnabledDisabled,
                        SpeculationRulesPrerender) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/empty.html?prerender");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/empty.html?prerender");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
-  ASSERT_EQ(web_contents()->GetLastCommittedURL(), kInitialUrl);
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+  ASSERT_EQ(web_contents()->GetLastCommittedURL(), initial_url);
 
-  // Start prerendering `kPrerenderingUrl`.
-  ASSERT_EQ(GetRequestCount(kPrerenderingUrl), 0);
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  // Start prerendering `prerendering_url`.
+  ASSERT_EQ(GetRequestCount(prerendering_url), 0);
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
   ASSERT_TRUE(host_id);
-  ASSERT_EQ(GetRequestCount(kPrerenderingUrl), 1);
+  ASSERT_EQ(GetRequestCount(prerendering_url), 1);
 
   NavigationHandleObserver activation_observer(web_contents(),
-                                               kPrerenderingUrl);
-  NavigatePrimaryPage(kPrerenderingUrl);
+                                               prerendering_url);
+  NavigatePrimaryPage(prerendering_url);
   // Ensure the state has been propagated to renderer processes.
   ASSERT_EQ(false, EvalJs(web_contents(), "document.prerendering"));
 
   // The prerender host should be consumed.
-  EXPECT_FALSE(HasHostForUrl(kPrerenderingUrl));
+  EXPECT_FALSE(HasHostForUrl(prerendering_url));
 
   // Activating the prerendered page should not issue a request.
-  EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 1);
+  EXPECT_EQ(GetRequestCount(prerendering_url), 1);
   ExpectFinalStatusForSpeculationRule(PrerenderFinalStatus::kActivated);
 
   {
@@ -2793,26 +2793,26 @@ INSTANTIATE_TEST_SUITE_P(/* no prefix */,
                          testing::Bool());
 
 IN_PROC_BROWSER_TEST_P(AutoSpeculationRulesPrerenderBrowserTest, Metrics) {
-  const GURL kInitialUrl = GetInitialUrl();
-  const GURL kPrerenderingUrl = GetPrerenderedUrl();
+  const GURL initial_url = GetInitialUrl();
+  const GURL prerendering_url = GetPrerenderedUrl();
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
-  WaitForPrerenderLoadCompletion(kPrerenderingUrl);
-  ASSERT_EQ(GetRequestCount(kPrerenderingUrl), 1);
+  WaitForPrerenderLoadCompletion(prerendering_url);
+  ASSERT_EQ(GetRequestCount(prerendering_url), 1);
 
   NavigationHandleObserver activation_observer(web_contents(),
-                                               kPrerenderingUrl);
-  NavigatePrimaryPage(kPrerenderingUrl);
+                                               prerendering_url);
+  NavigatePrimaryPage(prerendering_url);
   // Ensure the state has been propagated to renderer processes.
   ASSERT_EQ(false, EvalJs(web_contents(), "document.prerendering"));
 
   // The prerender host should be consumed.
-  EXPECT_FALSE(HasHostForUrl(kPrerenderingUrl));
+  EXPECT_FALSE(HasHostForUrl(prerendering_url));
 
   // Activating the prerendered page should not issue a request.
-  EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 1);
+  EXPECT_EQ(GetRequestCount(prerendering_url), 1);
 
   // Check UMA final status
   ExpectFinalStatusForSpeculationRuleFromAutoSpeculationRules(
@@ -2893,22 +2893,22 @@ IN_PROC_BROWSER_TEST_P(AutoSpeculationRulesPrerenderBrowserTestWithHoldback,
   }
 #endif
 
-  const GURL kInitialUrl = GetInitialUrl();
-  const GURL kPrerenderingUrl = GetPrerenderedUrl();
+  const GURL initial_url = GetInitialUrl();
+  const GURL prerendering_url = GetPrerenderedUrl();
 
   test::PrerenderHostRegistryObserver registry_observer(*web_contents_impl());
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Wait for PrerenderHostRegistry to receive the holdback prerender
   // request, and it should be ignored.
-  registry_observer.WaitForTrigger(kPrerenderingUrl);
-  EXPECT_FALSE(HasHostForUrl(kPrerenderingUrl));
-  EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 0);
+  registry_observer.WaitForTrigger(prerendering_url);
+  EXPECT_FALSE(HasHostForUrl(prerendering_url));
+  EXPECT_EQ(GetRequestCount(prerendering_url), 0);
 
-  NavigationHandleObserver next_page_observer(web_contents(), kPrerenderingUrl);
-  NavigatePrimaryPage(kPrerenderingUrl);
+  NavigationHandleObserver next_page_observer(web_contents(), prerendering_url);
+  NavigatePrimaryPage(prerendering_url);
 
   // No final status for holdbacks.
 
@@ -3032,16 +3032,16 @@ class PrerenderAndPrefetchBrowserTest
 
 IN_PROC_BROWSER_TEST_P(PrerenderAndPrefetchBrowserTest,
                        SpeculationRulesPrefetchThenPrerender) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = std::get<1>(GetParam()) == BodySize::kSmall
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = std::get<1>(GetParam()) == BodySize::kSmall
                                     ? GetUrl("/cacheable.html?prerender")
                                     : GetUrl("/cacheable_long.html?prerender");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
-  ASSERT_EQ(web_contents()->GetLastCommittedURL(), kInitialUrl);
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+  ASSERT_EQ(web_contents()->GetLastCommittedURL(), initial_url);
 
-  // Start prefetching `kPrerenderingUrl` and wait for its completion.
+  // Start prefetching `prerendering_url` and wait for its completion.
   PrefetchService* prefetch_service = PrefetchService::GetFromFrameTreeNodeId(
       current_frame_host()->GetFrameTreeNodeId());
   ASSERT_TRUE(prefetch_service);
@@ -3054,20 +3054,20 @@ IN_PROC_BROWSER_TEST_P(PrerenderAndPrefetchBrowserTest,
             CHECK_EQ(prefetch_container->GetURL(), url);
             run_loop->Quit();
           },
-          &run_loop, kPrerenderingUrl));
-  ASSERT_EQ(GetRequestCount(kPrerenderingUrl), 0);
-  AddPrefetchAsync(kPrerenderingUrl);
+          &run_loop, prerendering_url));
+  ASSERT_EQ(GetRequestCount(prerendering_url), 0);
+  AddPrefetchAsync(prerendering_url);
   run_loop.Run();
-  ASSERT_EQ(GetRequestCount(kPrerenderingUrl), 1);
+  ASSERT_EQ(GetRequestCount(prerendering_url), 1);
 
-  // Start prerendering `kPrerenderingUrl`.
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  // Start prerendering `prerendering_url`.
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
   ASSERT_TRUE(host_id);
-  ASSERT_EQ(GetRequestCount(kPrerenderingUrl), 1);
+  ASSERT_EQ(GetRequestCount(prerendering_url), 1);
 
   switch (std::get<0>(GetParam())) {
     case PrerenderingResult::kSuccess:
-      EXPECT_TRUE(HasHostForUrl(kPrerenderingUrl));
+      EXPECT_TRUE(HasHostForUrl(prerendering_url));
       break;
     case PrerenderingResult::kFailed:
       // Cancel prerendered page.
@@ -3078,14 +3078,14 @@ IN_PROC_BROWSER_TEST_P(PrerenderAndPrefetchBrowserTest,
       ASSERT_TRUE(web_contents_impl()->CancelPrerendering(
           FrameTreeNode::GloballyFindByID(frame_tree_node_id),
           PrerenderFinalStatus::kCancelAllHostsForTesting));
-      EXPECT_FALSE(HasHostForUrl(kPrerenderingUrl));
+      EXPECT_FALSE(HasHostForUrl(prerendering_url));
       break;
   }
 
   // Start main navigation.
   NavigationHandleObserver activation_observer(web_contents(),
-                                               kPrerenderingUrl);
-  NavigatePrimaryPage(kPrerenderingUrl);
+                                               prerendering_url);
+  NavigatePrimaryPage(prerendering_url);
   auto delivery_type =
       EvalJs(web_contents()->GetPrimaryMainFrame(),
              "performance.getEntriesByType('navigation')[0].deliveryType");
@@ -3094,7 +3094,7 @@ IN_PROC_BROWSER_TEST_P(PrerenderAndPrefetchBrowserTest,
     case PrerenderingResult::kSuccess:
       // Main navigation activates the prerendered page even for the large page.
       ExpectFinalStatusForSpeculationRule(PrerenderFinalStatus::kActivated);
-      EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 1);
+      EXPECT_EQ(GetRequestCount(prerendering_url), 1);
       EXPECT_EQ(delivery_type, "navigational-prefetch");
       break;
     case PrerenderingResult::kFailed:
@@ -3106,13 +3106,13 @@ IN_PROC_BROWSER_TEST_P(PrerenderAndPrefetchBrowserTest,
       if (std::get<1>(GetParam()) == BodySize::kSmall) {
         // The prefetched result should be still used for navigation for small
         // body, because it fits within PrefetchDataPipeTee buffer limit.
-        EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 1);
+        EXPECT_EQ(GetRequestCount(prerendering_url), 1);
         EXPECT_EQ(delivery_type, "navigational-prefetch");
       } else {
         // The prefetched result can't be used for navigation for large body
         // due to PrefetchDataPipeTee buffer limit. A cached response from the
         // HTTP cache is used instead, we still should not see another request.
-        EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 1);
+        EXPECT_EQ(GetRequestCount(prerendering_url), 1);
         EXPECT_EQ(delivery_type, "cache");
       }
       break;
@@ -3143,11 +3143,11 @@ INSTANTIATE_TEST_SUITE_P(
 // its initiator navigates away.
 IN_PROC_BROWSER_TEST_P(PrerenderBrowserTestFallbackEnabledDisabled,
                        SpeculationInitiatorNavigateAway) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/empty.html?prerender");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/empty.html?prerender");
 
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
 
   // Navigate the initiator page to a non-prerendered page. This destroys the
   // prerendered page.
@@ -3156,7 +3156,7 @@ IN_PROC_BROWSER_TEST_P(PrerenderBrowserTestFallbackEnabledDisabled,
   host_observer.WaitForDestroyed();
 
   // The prerender host should be destroyed.
-  EXPECT_FALSE(HasHostForUrl(kPrerenderingUrl));
+  EXPECT_FALSE(HasHostForUrl(prerendering_url));
 
   // Cross-check that in case where the navigation happens to a different page,
   // we log the correct metrics.
@@ -3199,14 +3199,14 @@ IN_PROC_BROWSER_TEST_P(PrerenderBrowserTestFallbackEnabledDisabled,
 
 // Tests that clicking a link can activate a prerender.
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, ActivateOnLinkClick) {
-  const GURL kInitialUrl = GetUrl("/simple_links.html");
-  const GURL kPrerenderingUrl = GetUrl("/title2.html");
+  const GURL initial_url = GetUrl("/simple_links.html");
+  const GURL prerendering_url = GetUrl("/title2.html");
 
-  // Navigate to an initial page which has a link to `kPrerenderingUrl`.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  // Navigate to an initial page which has a link to `prerendering_url`.
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
-  // Start prerendering `kPrerenderingUrl`.
-  PrerenderHostId prerender_host_id = AddPrerender(kPrerenderingUrl);
+  // Start prerendering `prerendering_url`.
+  PrerenderHostId prerender_host_id = AddPrerender(prerendering_url);
   test::PrerenderHostObserver prerender_observer(*web_contents(),
                                                  prerender_host_id);
 
@@ -3218,46 +3218,46 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, ActivateOnLinkClick) {
   )";
   EXPECT_TRUE(ExecJs(web_contents(), kLinkClickScript));
   nav_observer.WaitForNavigationFinished();
-  EXPECT_EQ(web_contents()->GetLastCommittedURL(), kPrerenderingUrl);
+  EXPECT_EQ(web_contents()->GetLastCommittedURL(), prerendering_url);
   EXPECT_TRUE(prerender_observer.was_activated());
 }
 
 // Tests that clicking a link annotated with "target=_blank" cannot activate a
 // prerender.
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, ActivateOnLinkClick_TargetBlank) {
-  const GURL kInitialUrl = GetUrl("/simple_links.html");
-  const GURL kPrerenderingUrl = GetUrl("/title2.html");
+  const GURL initial_url = GetUrl("/simple_links.html");
+  const GURL prerendering_url = GetUrl("/title2.html");
 
-  // Navigate to an initial page which has a link to `kPrerenderingUrl`.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  // Navigate to an initial page which has a link to `prerendering_url`.
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
-  // Start prerendering `kPrerenderingUrl`.
-  PrerenderHostId prerender_host_id = AddPrerender(kPrerenderingUrl);
+  // Start prerendering `prerendering_url`.
+  PrerenderHostId prerender_host_id = AddPrerender(prerendering_url);
   test::PrerenderHostObserver prerender_observer(*web_contents(),
                                                  prerender_host_id);
 
   // Click the link annotated with "target=_blank". This should not activate the
   // prerendered page.
-  TestNavigationObserver nav_observer(kPrerenderingUrl);
+  TestNavigationObserver nav_observer(prerendering_url);
   nav_observer.StartWatchingNewWebContents();
   const std::string kLinkClickScript = R"(
       clickSameSiteNewWindowLink();
   )";
   EXPECT_TRUE(ExecJs(web_contents(), kLinkClickScript));
   nav_observer.WaitForNavigationFinished();
-  EXPECT_EQ(nav_observer.last_navigation_url(), kPrerenderingUrl);
+  EXPECT_EQ(nav_observer.last_navigation_url(), prerendering_url);
   EXPECT_FALSE(prerender_observer.was_activated());
 
   // The navigation occurred in a new WebContents, so the original WebContents
   // should still be showing the initial trigger page.
-  EXPECT_EQ(web_contents()->GetLastCommittedURL(), kInitialUrl);
+  EXPECT_EQ(web_contents()->GetLastCommittedURL(), initial_url);
   // Also, the prerendered page should still be alive.
-  EXPECT_TRUE(HasHostForUrl(kPrerenderingUrl));
+  EXPECT_TRUE(HasHostForUrl(prerendering_url));
 
-  // Navigate to `kPrerenderingUrl` on the original WebContents. This should
+  // Navigate to `prerendering_url` on the original WebContents. This should
   // activate the prerendered page.
-  NavigatePrimaryPage(kPrerenderingUrl);
-  EXPECT_EQ(web_contents()->GetLastCommittedURL(), kPrerenderingUrl);
+  NavigatePrimaryPage(prerendering_url);
+  EXPECT_EQ(web_contents()->GetLastCommittedURL(), prerendering_url);
   EXPECT_TRUE(prerender_observer.was_activated());
   ExpectFinalStatusForSpeculationRule(PrerenderFinalStatus::kActivated);
 }
@@ -3333,15 +3333,15 @@ class PrerenderTargetHintBrowserTest : public PrerenderBrowserTest {
 // prerender whose target_hint is "_blank".
 IN_PROC_BROWSER_TEST_F(PrerenderTargetHintBrowserTest,
                        ActivateOnLinkClick_TargetBlank_WithTargetHintBlank) {
-  const GURL kInitialUrl = GetUrl("/simple_links.html");
-  const GURL kPrerenderingUrl = GetUrl("/title2.html");
+  const GURL initial_url = GetUrl("/simple_links.html");
+  const GURL prerendering_url = GetUrl("/title2.html");
 
-  // Navigate to an initial page which has a link to `kPrerenderingUrl`.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  // Navigate to an initial page which has a link to `prerendering_url`.
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
-  // Start prerendering `kPrerenderingUrl`.
+  // Start prerendering `prerendering_url`.
   PrerenderHostId host_id = prerender_helper()->AddPrerender(
-      kPrerenderingUrl, /*eagerness=*/std::nullopt, "_blank");
+      prerendering_url, /*eagerness=*/std::nullopt, "_blank");
   auto* prerender_web_contents =
       test::PrerenderTestHelper::GetPrerenderWebContents(host_id);
   ASSERT_NE(prerender_web_contents, web_contents_impl());
@@ -3349,7 +3349,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderTargetHintBrowserTest,
 
   // Click the link annotated with "target=_blank". This should activate the
   // prerendered page.
-  TestNavigationObserver activation_observer(kPrerenderingUrl);
+  TestNavigationObserver activation_observer(prerendering_url);
   activation_observer.WatchExistingWebContents();
   test::PrerenderHostObserver prerender_observer(*prerender_web_contents,
                                                  host_id);
@@ -3358,10 +3358,10 @@ IN_PROC_BROWSER_TEST_F(PrerenderTargetHintBrowserTest,
   )";
   EXPECT_TRUE(ExecJs(web_contents(), kLinkClickScript));
   activation_observer.WaitForNavigationFinished();
-  EXPECT_EQ(prerender_web_contents->GetLastCommittedURL(), kPrerenderingUrl);
-  EXPECT_EQ(activation_observer.last_navigation_url(), kPrerenderingUrl);
+  EXPECT_EQ(prerender_web_contents->GetLastCommittedURL(), prerendering_url);
+  EXPECT_EQ(activation_observer.last_navigation_url(), prerendering_url);
   EXPECT_TRUE(prerender_observer.was_activated());
-  EXPECT_FALSE(HasHostForUrl(kPrerenderingUrl));
+  EXPECT_FALSE(HasHostForUrl(prerendering_url));
 
   ExpectFinalStatusForSpeculationRule(PrerenderFinalStatus::kActivated);
 
@@ -3382,7 +3382,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderTargetHintBrowserTest,
 
   // The navigation occurred in a new WebContents, so the original WebContents
   // should still be showing the initial trigger page.
-  EXPECT_EQ(web_contents()->GetLastCommittedURL(), kInitialUrl);
+  EXPECT_EQ(web_contents()->GetLastCommittedURL(), initial_url);
 }
 
 // Tests that clicking a link annotated with "target=_blank" does not activate a
@@ -3654,39 +3654,39 @@ IN_PROC_BROWSER_TEST_F(
 // activate a prerender.
 IN_PROC_BROWSER_TEST_F(PrerenderTargetHintBrowserTest,
                        ActivateOnLinkClick_TargetBlankWithNoopener) {
-  const GURL kInitialUrl = GetUrl("/simple_links.html");
-  const GURL kPrerenderingUrl = GetUrl("/title2.html");
+  const GURL initial_url = GetUrl("/simple_links.html");
+  const GURL prerendering_url = GetUrl("/title2.html");
 
-  // Navigate to an initial page which has a link to `kPrerenderingUrl`.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  // Navigate to an initial page which has a link to `prerendering_url`.
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
-  // Start prerendering `kPrerenderingUrl`.
-  PrerenderHostId prerender_host_id = AddPrerender(kPrerenderingUrl);
+  // Start prerendering `prerendering_url`.
+  PrerenderHostId prerender_host_id = AddPrerender(prerendering_url);
   test::PrerenderHostObserver prerender_observer(*web_contents(),
                                                  prerender_host_id);
 
   // Click the link annotated with "target=_blank rel=noopener". This should not
   // activate the prerendered page.
-  TestNavigationObserver nav_observer(kPrerenderingUrl);
+  TestNavigationObserver nav_observer(prerendering_url);
   nav_observer.StartWatchingNewWebContents();
   const std::string kLinkClickScript = R"(
       clickSameSiteNewWindowWithNoopenerLink();
   )";
   EXPECT_TRUE(ExecJs(web_contents(), kLinkClickScript));
   nav_observer.WaitForNavigationFinished();
-  EXPECT_EQ(nav_observer.last_navigation_url(), kPrerenderingUrl);
+  EXPECT_EQ(nav_observer.last_navigation_url(), prerendering_url);
   EXPECT_FALSE(prerender_observer.was_activated());
 
   // The navigation occurred in a new WebContents, so the original WebContents
   // should still be showing the initial trigger page.
-  EXPECT_EQ(web_contents()->GetLastCommittedURL(), kInitialUrl);
+  EXPECT_EQ(web_contents()->GetLastCommittedURL(), initial_url);
   // Also, the prerendered page should still be alive.
-  EXPECT_TRUE(HasHostForUrl(kPrerenderingUrl));
+  EXPECT_TRUE(HasHostForUrl(prerendering_url));
 
-  // Navigate to `kPrerenderingUrl` on the original WebContents. This should
+  // Navigate to `prerendering_url` on the original WebContents. This should
   // activate the prerendered page.
-  NavigatePrimaryPage(kPrerenderingUrl);
-  EXPECT_EQ(web_contents()->GetLastCommittedURL(), kPrerenderingUrl);
+  NavigatePrimaryPage(prerendering_url);
+  EXPECT_EQ(web_contents()->GetLastCommittedURL(), prerendering_url);
   EXPECT_TRUE(prerender_observer.was_activated());
   ExpectFinalStatusForSpeculationRule(PrerenderFinalStatus::kActivated);
 }
@@ -3696,15 +3696,15 @@ IN_PROC_BROWSER_TEST_F(PrerenderTargetHintBrowserTest,
 IN_PROC_BROWSER_TEST_F(
     PrerenderTargetHintBrowserTest,
     ActivateOnLinkClick_TargetBlankWithNoopener_WithTargetHintBlank) {
-  const GURL kInitialUrl = GetUrl("/simple_links.html");
-  const GURL kPrerenderingUrl = GetUrl("/title2.html");
+  const GURL initial_url = GetUrl("/simple_links.html");
+  const GURL prerendering_url = GetUrl("/title2.html");
 
-  // Navigate to an initial page which has a link to `kPrerenderingUrl`.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  // Navigate to an initial page which has a link to `prerendering_url`.
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
-  // Start prerendering `kPrerenderingUrl`.
+  // Start prerendering `prerendering_url`.
   PrerenderHostId host_id = prerender_helper()->AddPrerender(
-      kPrerenderingUrl, /*eagerness=*/std::nullopt, "_blank");
+      prerendering_url, /*eagerness=*/std::nullopt, "_blank");
   auto* prerender_web_contents =
       test::PrerenderTestHelper::GetPrerenderWebContents(host_id);
   ASSERT_NE(prerender_web_contents, web_contents_impl());
@@ -3712,7 +3712,7 @@ IN_PROC_BROWSER_TEST_F(
 
   // Click the link annotated with "target=_blank rel=noopener". This should
   // activate the prerendered page.
-  TestNavigationObserver activation_observer(kPrerenderingUrl);
+  TestNavigationObserver activation_observer(prerendering_url);
   activation_observer.WatchExistingWebContents();
   test::PrerenderHostObserver prerender_observer(*prerender_web_contents,
                                                  host_id);
@@ -3721,11 +3721,11 @@ IN_PROC_BROWSER_TEST_F(
   )";
   EXPECT_TRUE(ExecJs(web_contents(), kLinkClickScript));
   activation_observer.WaitForNavigationFinished();
-  EXPECT_EQ(prerender_web_contents->GetLastCommittedURL(), kPrerenderingUrl);
-  EXPECT_EQ(activation_observer.last_navigation_url(), kPrerenderingUrl);
-  EXPECT_EQ(prerender_web_contents->GetLastCommittedURL(), kPrerenderingUrl);
+  EXPECT_EQ(prerender_web_contents->GetLastCommittedURL(), prerendering_url);
+  EXPECT_EQ(activation_observer.last_navigation_url(), prerendering_url);
+  EXPECT_EQ(prerender_web_contents->GetLastCommittedURL(), prerendering_url);
   EXPECT_TRUE(prerender_observer.was_activated());
-  EXPECT_FALSE(HasHostForUrl(kPrerenderingUrl));
+  EXPECT_FALSE(HasHostForUrl(prerendering_url));
 
   ExpectFinalStatusForSpeculationRule(PrerenderFinalStatus::kActivated);
 
@@ -3746,51 +3746,51 @@ IN_PROC_BROWSER_TEST_F(
 
   // The navigation occurred in a new WebContents, so the original WebContents
   // should still be showing the initial trigger page.
-  EXPECT_EQ(web_contents()->GetLastCommittedURL(), kInitialUrl);
+  EXPECT_EQ(web_contents()->GetLastCommittedURL(), initial_url);
 }
 
 // Tests that clicking a link annotated with "target=_blank rel=opener" cannot
 // activate a prerender.
 IN_PROC_BROWSER_TEST_F(PrerenderTargetHintBrowserTest,
                        ActivateOnLinkClick_TargetBlankWithOpener) {
-  const GURL kInitialUrl = GetUrl("/simple_links.html");
-  const GURL kPrerenderingUrl = GetUrl("/title2.html");
+  const GURL initial_url = GetUrl("/simple_links.html");
+  const GURL prerendering_url = GetUrl("/title2.html");
 
-  // Navigate to an initial page which has a link to `kPrerenderingUrl`.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  // Navigate to an initial page which has a link to `prerendering_url`.
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
-  // Start prerendering `kPrerenderingUrl`.
-  PrerenderHostId prerender_host_id = AddPrerender(kPrerenderingUrl);
+  // Start prerendering `prerendering_url`.
+  PrerenderHostId prerender_host_id = AddPrerender(prerendering_url);
   test::PrerenderHostObserver prerender_observer(*web_contents(),
                                                  prerender_host_id);
 
   // Click the link annotated with "target=_blank rel=opener". This should not
   // activate the prerendered page.
-  TestNavigationObserver nav_observer(kPrerenderingUrl);
+  TestNavigationObserver nav_observer(prerendering_url);
   nav_observer.StartWatchingNewWebContents();
   const std::string kLinkClickScript = R"(
       clickSameSiteNewWindowWithOpenerLink();
   )";
   EXPECT_TRUE(ExecJs(web_contents(), kLinkClickScript));
   nav_observer.WaitForNavigationFinished();
-  EXPECT_EQ(nav_observer.last_navigation_url(), kPrerenderingUrl);
+  EXPECT_EQ(nav_observer.last_navigation_url(), prerendering_url);
   EXPECT_FALSE(prerender_observer.was_activated());
 
   // The navigation occurred in a new WebContents, so the original WebContents
   // should still be showing the initial trigger page.
-  EXPECT_EQ(web_contents()->GetLastCommittedURL(), kInitialUrl);
+  EXPECT_EQ(web_contents()->GetLastCommittedURL(), initial_url);
   // Also, the prerendered page should still be alive.
-  EXPECT_TRUE(HasHostForUrl(kPrerenderingUrl));
+  EXPECT_TRUE(HasHostForUrl(prerendering_url));
 
-  // Navigate to `kPrerenderingUrl` on the original WebContents. The page opened
+  // Navigate to `prerendering_url` on the original WebContents. The page opened
   // with "rel=opener" should prevent it from activating the prerendered page.
-  NavigatePrimaryPage(kPrerenderingUrl);
-  EXPECT_EQ(web_contents()->GetLastCommittedURL(), kPrerenderingUrl);
+  NavigatePrimaryPage(prerendering_url);
+  EXPECT_EQ(web_contents()->GetLastCommittedURL(), prerendering_url);
   EXPECT_FALSE(prerender_observer.was_activated());
 
   // The prerendered page should be destroyed on activation attempt.
   prerender_observer.WaitForDestroyed();
-  EXPECT_TRUE(GetHostForUrl(kPrerenderingUrl).is_null());
+  EXPECT_TRUE(GetHostForUrl(prerendering_url).is_null());
   ExpectFinalStatusForSpeculationRule(
       PrerenderFinalStatus::kActivatedWithAuxiliaryBrowsingContexts);
 }
@@ -3800,15 +3800,15 @@ IN_PROC_BROWSER_TEST_F(PrerenderTargetHintBrowserTest,
 IN_PROC_BROWSER_TEST_F(
     PrerenderTargetHintBrowserTest,
     ActivateOnLinkClick_TargetBlankWithOpener_WithTargetHintBlank) {
-  const GURL kInitialUrl = GetUrl("/simple_links.html");
-  const GURL kPrerenderingUrl = GetUrl("/title2.html");
+  const GURL initial_url = GetUrl("/simple_links.html");
+  const GURL prerendering_url = GetUrl("/title2.html");
 
-  // Navigate to an initial page which has a link to `kPrerenderingUrl`.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  // Navigate to an initial page which has a link to `prerendering_url`.
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
-  // Start prerendering `kPrerenderingUrl`.
+  // Start prerendering `prerendering_url`.
   PrerenderHostId host_id = prerender_helper()->AddPrerender(
-      kPrerenderingUrl, /*eagerness=*/std::nullopt, "_blank");
+      prerendering_url, /*eagerness=*/std::nullopt, "_blank");
   auto* prerender_web_contents =
       test::PrerenderTestHelper::GetPrerenderWebContents(host_id);
   ASSERT_NE(prerender_web_contents, web_contents_impl());
@@ -3826,22 +3826,22 @@ IN_PROC_BROWSER_TEST_F(
   )";
   EXPECT_TRUE(ExecJs(web_contents(), kLinkClickScript));
   // The WebContents pre-created for prerendering should not be used.
-  EXPECT_NE(prerender_web_contents->GetLastCommittedURL(), kPrerenderingUrl);
+  EXPECT_NE(prerender_web_contents->GetLastCommittedURL(), prerendering_url);
   EXPECT_FALSE(prerender_observer.was_activated());
   // The host should still be available.
-  EXPECT_TRUE(HasHostForUrl(*prerender_web_contents, kPrerenderingUrl));
+  EXPECT_TRUE(HasHostForUrl(*prerender_web_contents, prerendering_url));
 
   // The navigation occurred in a new WebContents, so the original WebContents
   // should still be showing the initial trigger page.
-  EXPECT_EQ(web_contents()->GetLastCommittedURL(), kInitialUrl);
+  EXPECT_EQ(web_contents()->GetLastCommittedURL(), initial_url);
 
-  // Navigate to `kPrerenderingUrl` on the original WebContents. This should
+  // Navigate to `prerendering_url` on the original WebContents. This should
   // destroy the prerendered page and its WebContents.
-  NavigatePrimaryPage(kPrerenderingUrl);
-  EXPECT_EQ(web_contents()->GetLastCommittedURL(), kPrerenderingUrl);
+  NavigatePrimaryPage(prerendering_url);
+  EXPECT_EQ(web_contents()->GetLastCommittedURL(), prerendering_url);
   EXPECT_FALSE(prerender_observer.was_activated());
   prerender_observer.WaitForDestroyed();
-  EXPECT_TRUE(GetHostForUrl(kPrerenderingUrl).is_null());
+  EXPECT_TRUE(GetHostForUrl(prerendering_url).is_null());
   ExpectFinalStatusForSpeculationRule(PrerenderFinalStatus::kTriggerDestroyed);
 
   // Wait for UKM recording in PreloadingDataImpl::WebContentsDestroyed() on
@@ -4209,24 +4209,24 @@ IN_PROC_BROWSER_TEST_F(PrerenderTargetHintBrowserTest,
 //   first navigation should activate the prerendered page.
 
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, ResponseHeaders) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/set-header?X-Foo: bar");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/set-header?X-Foo: bar");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
-  ASSERT_EQ(web_contents()->GetLastCommittedURL(), kInitialUrl);
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+  ASSERT_EQ(web_contents()->GetLastCommittedURL(), initial_url);
 
-  // Start prerendering `kPrerenderingUrl` and check if `X-Foo` header is
+  // Start prerendering `prerendering_url` and check if `X-Foo` header is
   // observed.
-  NavigationHandleObserver observer1(web_contents(), kPrerenderingUrl);
-  AddPrerender(kPrerenderingUrl);
-  ASSERT_EQ(GetRequestCount(kPrerenderingUrl), 1);
+  NavigationHandleObserver observer1(web_contents(), prerendering_url);
+  AddPrerender(prerendering_url);
+  ASSERT_EQ(GetRequestCount(prerendering_url), 1);
   EXPECT_TRUE(observer1.has_committed());
   EXPECT_EQ("bar", observer1.GetNormalizedResponseHeader("x-foo"));
 
   // Activate the page and check if `X-Foo` header is observed again.
-  NavigationHandleObserver observer2(web_contents(), kPrerenderingUrl);
-  NavigatePrimaryPage(kPrerenderingUrl);
+  NavigationHandleObserver observer2(web_contents(), prerendering_url);
+  NavigatePrimaryPage(prerendering_url);
   EXPECT_TRUE(observer2.has_committed());
   EXPECT_EQ("bar", observer2.GetNormalizedResponseHeader("x-foo"));
 }
@@ -4360,24 +4360,24 @@ IN_PROC_BROWSER_TEST_F(PrerenderTargetHintBrowserTest,
 // navigation results in an empty response with 404 status.
 IN_PROC_BROWSER_TEST_P(PrerenderTargetAgnosticBrowserTest,
                        PrerenderCancelledOnEmptyBody404) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
+  const GURL initial_url = GetUrl("/empty.html");
   // Specify a URL for which we don't have a corresponding file in the data dir.
-  const GURL kPrerenderingUrl = GetUrl("/404");
+  const GURL prerendering_url = GetUrl("/404");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
-  // Start prerendering `kPrerenderingUrl`.
+  // Start prerendering `prerendering_url`.
   test::PrerenderHostCreationWaiter host_creation_waiter;
   prerender_helper()->AddPrerendersAsync(
-      {kPrerenderingUrl}, /*eagerness=*/std::nullopt, GetTargetHint());
+      {prerendering_url}, /*eagerness=*/std::nullopt, GetTargetHint());
   PrerenderHostId host_id = host_creation_waiter.Wait();
   auto* prerender_web_contents =
       test::PrerenderTestHelper::GetPrerenderWebContents(host_id);
   test::PrerenderHostObserver host_observer(*prerender_web_contents, host_id);
   host_observer.WaitForDestroyed();
 
-  EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 1);
+  EXPECT_EQ(GetRequestCount(prerendering_url), 1);
   if (IsPrefetchAheadOfPrerenderTriggered()) {
     ExpectFinalStatusForSpeculationRule(
         PrerenderFinalStatus::kPrerenderFailedDuringPrefetch);
@@ -4395,23 +4395,23 @@ IN_PROC_BROWSER_TEST_P(PrerenderTargetAgnosticBrowserTest,
 // navigation results in an non-empty response with 404 status.
 IN_PROC_BROWSER_TEST_P(PrerenderTargetAgnosticBrowserTest,
                        PrerenderCancelledOnNonEmptyBody404) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/page404.html");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/page404.html");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Add prerendering to the 404 error page, then check that it got cancelled.
   test::PrerenderHostCreationWaiter host_creation_waiter;
   prerender_helper()->AddPrerendersAsync(
-      {kPrerenderingUrl}, /*eagerness=*/std::nullopt, GetTargetHint());
+      {prerendering_url}, /*eagerness=*/std::nullopt, GetTargetHint());
   PrerenderHostId host_id = host_creation_waiter.Wait();
   auto* prerender_web_contents =
       test::PrerenderTestHelper::GetPrerenderWebContents(host_id);
   test::PrerenderHostObserver host_observer(*prerender_web_contents, host_id);
   host_observer.WaitForDestroyed();
 
-  EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 1);
+  EXPECT_EQ(GetRequestCount(prerendering_url), 1);
   if (IsPrefetchAheadOfPrerenderTriggered()) {
     ExpectFinalStatusForSpeculationRule(
         PrerenderFinalStatus::kPrerenderFailedDuringPrefetch);
@@ -4429,23 +4429,23 @@ IN_PROC_BROWSER_TEST_P(PrerenderTargetAgnosticBrowserTest,
 // navigation results in an non-empty response with 500 status.
 IN_PROC_BROWSER_TEST_P(PrerenderTargetAgnosticBrowserTest,
                        PrerenderCancelledOn500Page) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/page500.html");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/page500.html");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Add prerendering to the 500 error page, then check that it got cancelled.
   test::PrerenderHostCreationWaiter host_creation_waiter;
   prerender_helper()->AddPrerendersAsync(
-      {kPrerenderingUrl}, /*eagerness=*/std::nullopt, GetTargetHint());
+      {prerendering_url}, /*eagerness=*/std::nullopt, GetTargetHint());
   PrerenderHostId host_id = host_creation_waiter.Wait();
   auto* prerender_web_contents =
       test::PrerenderTestHelper::GetPrerenderWebContents(host_id);
   test::PrerenderHostObserver host_observer(*prerender_web_contents, host_id);
   host_observer.WaitForDestroyed();
 
-  EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 1);
+  EXPECT_EQ(GetRequestCount(prerendering_url), 1);
   if (IsPrefetchAheadOfPrerenderTriggered()) {
     ExpectFinalStatusForSpeculationRule(
         PrerenderFinalStatus::kPrerenderFailedDuringPrefetch);
@@ -4462,14 +4462,14 @@ IN_PROC_BROWSER_TEST_P(PrerenderTargetAgnosticBrowserTest,
 IN_PROC_BROWSER_TEST_P(PrerenderTargetAgnosticBrowserTest,
                        PrerenderCancelledOn204Page) {
   // Navigate to an initial page.
-  const GURL kInitialUrl = GetUrl("/title1.html");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  const GURL initial_url = GetUrl("/title1.html");
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
-  // Start prerendering `kPrerenderingUrl` that returns 204 response code.
-  const GURL kPrerenderingUrl = GetUrl("/echo?status=204");
+  // Start prerendering `prerendering_url` that returns 204 response code.
+  const GURL prerendering_url = GetUrl("/echo?status=204");
   test::PrerenderHostCreationWaiter host_creation_waiter;
   prerender_helper()->AddPrerendersAsync(
-      {kPrerenderingUrl}, /*eagerness=*/std::nullopt, GetTargetHint());
+      {prerendering_url}, /*eagerness=*/std::nullopt, GetTargetHint());
   PrerenderHostId host_id = host_creation_waiter.Wait();
   auto* prerender_web_contents =
       test::PrerenderTestHelper::GetPrerenderWebContents(host_id);
@@ -4479,7 +4479,7 @@ IN_PROC_BROWSER_TEST_P(PrerenderTargetAgnosticBrowserTest,
   host_observer.WaitForDestroyed();
 
   // Cancellation must have occurred due to bad http status code.
-  EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 1);
+  EXPECT_EQ(GetRequestCount(prerendering_url), 1);
   ExpectFinalStatusForSpeculationRule(
       PrerenderFinalStatus::kNavigationBadHttpStatus);
 }
@@ -4487,14 +4487,14 @@ IN_PROC_BROWSER_TEST_P(PrerenderTargetAgnosticBrowserTest,
 IN_PROC_BROWSER_TEST_P(PrerenderTargetAgnosticBrowserTest,
                        PrerenderCancelledOn205Page) {
   // Navigate to an initial page.
-  const GURL kInitialUrl = GetUrl("/title1.html");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  const GURL initial_url = GetUrl("/title1.html");
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
-  // Start prerendering `kPrerenderingUrl` that returns 205 response code.
-  const GURL kPrerenderingUrl = GetUrl("/echo?status=205");
+  // Start prerendering `prerendering_url` that returns 205 response code.
+  const GURL prerendering_url = GetUrl("/echo?status=205");
   test::PrerenderHostCreationWaiter host_creation_waiter;
   prerender_helper()->AddPrerendersAsync(
-      {kPrerenderingUrl}, /*eagerness=*/std::nullopt, GetTargetHint());
+      {prerendering_url}, /*eagerness=*/std::nullopt, GetTargetHint());
   PrerenderHostId host_id = host_creation_waiter.Wait();
   auto* prerender_web_contents =
       test::PrerenderTestHelper::GetPrerenderWebContents(host_id);
@@ -4504,7 +4504,7 @@ IN_PROC_BROWSER_TEST_P(PrerenderTargetAgnosticBrowserTest,
   host_observer.WaitForDestroyed();
 
   // Cancellation must have occurred due to bad http status code.
-  EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 1);
+  EXPECT_EQ(GetRequestCount(prerendering_url), 1);
   ExpectFinalStatusForSpeculationRule(
       PrerenderFinalStatus::kNavigationBadHttpStatus);
 }
@@ -4521,12 +4521,12 @@ void PrerenderBrowserTest::TestPrerenderAllowedOnIframeWithStatusCode(
   ASSERT_TRUE(status_code == "204" || status_code == "205");
 
   // Navigate to an initial page.
-  const GURL kInitialUrl = GetUrl("/title1.html");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  const GURL initial_url = GetUrl("/title1.html");
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
-  // Start prerendering `kPrerenderingUrl`.
-  const GURL kPrerenderingUrl = GetUrl("/title1.html");
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  // Start prerendering `prerendering_url`.
+  const GURL prerendering_url = GetUrl("/title1.html");
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
   test::PrerenderHostObserver host_observer(*web_contents_impl(), host_id);
 
   // Construct an iframe URL whose response has 204/205.
@@ -4581,7 +4581,7 @@ void PrerenderBrowserTest::TestPrerenderAllowedOnIframeWithStatusCode(
   // Fetching an iframe whose response has 204/205 status code shouldn't cancel
   // prerendering unlike the mainframe whose response has 204/205 status code.
   // https://wicg.github.io/nav-speculation/prerendering.html#no-bad-navs
-  EXPECT_EQ(GetHostForUrl(kPrerenderingUrl), host_id);
+  EXPECT_EQ(GetHostForUrl(prerendering_url), host_id);
 }
 
 }  // namespace
@@ -4624,22 +4624,22 @@ void PrerenderBrowserTest::TestCancelOnAuthRequested(TriggerType trigger_type) {
       IsPrerender2FallbackPrefetchSpecRulesEnabled();
 
   // Navigate to an initial page.
-  const GURL kInitialUrl = GetUrl("/title1.html");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  const GURL initial_url = GetUrl("/title1.html");
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
-  // Start prerendering `kPrerenderingUrl`.
-  const GURL kPrerenderingUrl = GetUrl("/auth-basic");
+  // Start prerendering `prerendering_url`.
+  const GURL prerendering_url = GetUrl("/auth-basic");
   test::PrerenderHostObserver host_observer(*web_contents_impl(),
-                                            kPrerenderingUrl);
-  auto handle = TriggerPrerender(kPrerenderingUrl, trigger_type);
+                                            prerendering_url);
+  auto handle = TriggerPrerender(prerendering_url, trigger_type);
 
   // The prerender should be destroyed.
   host_observer.WaitForDestroyed();
-  EXPECT_TRUE(GetHostForUrl(kPrerenderingUrl).is_null());
+  EXPECT_TRUE(GetHostForUrl(prerendering_url).is_null());
 
   // Navigate primary page to flush the metrics.
-  const GURL kNavigatedURL = GetUrl("/title2.html");
-  ASSERT_TRUE(NavigateToURL(shell(), kNavigatedURL));
+  const GURL navigated_url = GetUrl("/title2.html");
+  ASSERT_TRUE(NavigateToURL(shell(), navigated_url));
 
   handle.reset();
   // Cross-check that Preloading.Attempt logs the correct failure reason.
@@ -4739,25 +4739,25 @@ IN_PROC_BROWSER_TEST_P(
 
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, CancelOnAuthRequestedSubframe) {
   // Navigate to an initial page.
-  const GURL kInitialUrl = GetUrl("/title1.html");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  const GURL initial_url = GetUrl("/title1.html");
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
-  // Start prerendering `kPrerenderingUrl`.
-  const GURL kPrerenderingUrl = GetUrl("/title1.html");
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  // Start prerendering `prerendering_url`.
+  const GURL prerendering_url = GetUrl("/title1.html");
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
   test::PrerenderHostObserver host_observer(*web_contents_impl(), host_id);
 
   // Fetch a subframe that requires authentication.
-  const GURL kAuthIFrameUrl = GetUrl("/auth-basic");
+  const GURL auth_i_frame_url = GetUrl("/auth-basic");
   RenderFrameHost* prerender_rfh = GetPrerenderedMainFrameHost(host_id);
   std::ignore =
       ExecJs(prerender_rfh,
              "const i = document.createElement('iframe'); i.src = '" +
-                 kAuthIFrameUrl.spec() + "'; document.body.appendChild(i);");
+                 auth_i_frame_url.spec() + "'; document.body.appendChild(i);");
 
   // The prerender should be destroyed.
   host_observer.WaitForDestroyed();
-  EXPECT_TRUE(GetHostForUrl(kPrerenderingUrl).is_null());
+  EXPECT_TRUE(GetHostForUrl(prerendering_url).is_null());
 
   // Cancellation must have occurred due to authentication request.
   ExpectFinalStatusForSpeculationRule(
@@ -4766,15 +4766,15 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, CancelOnAuthRequestedSubframe) {
 
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, CancelOnAuthRequestedSubResource) {
   // Navigate to an initial page.
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  const GURL initial_url = GetUrl("/empty.html");
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
-  // Start prerendering `kPrerenderingUrl`.
-  const GURL kPrerenderingUrl = GetUrl("/title1.html");
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  // Start prerendering `prerendering_url`.
+  const GURL prerendering_url = GetUrl("/title1.html");
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
   test::PrerenderHostObserver host_observer(*web_contents_impl(), host_id);
 
-  ASSERT_TRUE(GetHostForUrl(kPrerenderingUrl));
+  ASSERT_TRUE(GetHostForUrl(prerendering_url));
 
   // Fetch a subresrouce.
   std::string fetch_subresource_script = R"(
@@ -4787,7 +4787,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, CancelOnAuthRequestedSubResource) {
 
   // The prerender should be destroyed.
   host_observer.WaitForDestroyed();
-  EXPECT_TRUE(GetHostForUrl(kPrerenderingUrl).is_null());
+  EXPECT_TRUE(GetHostForUrl(prerendering_url).is_null());
 
   // Cancellation must have occurred due to authentication request.
   ExpectFinalStatusForSpeculationRule(
@@ -4805,8 +4805,8 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, CancelOnAuthRequestedSubResource) {
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
                        PrefetchCancelOnAuthRequested_NoServiceWorker) {
   // Navigate to an initial page.
-  const GURL kInitialUrl = GetUrl("/title1.html");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  const GURL initial_url = GetUrl("/title1.html");
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Start a prefetch and wait for its completion.
   test::TestPrefetchWatcher test_prefetch_watcher;
@@ -4829,8 +4829,8 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
                        PrefetchCancelOnAuthRequested_ServiceWorkerFallback) {
   // Navigate to an initial page.
-  const GURL kInitialUrl = GetUrl("/title1.html");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  const GURL initial_url = GetUrl("/title1.html");
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   RegisterServiceWorker("/fetch_event_passthrough.js");
 
@@ -4855,8 +4855,8 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
                        PrefetchCancelOnAuthRequested_ServiceWorkerSubresource) {
   // Navigate to an initial page.
-  const GURL kInitialUrl = GetUrl("/title1.html");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  const GURL initial_url = GetUrl("/title1.html");
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   RegisterServiceWorker("/fetch_event_respond_with_fetch.js");
 
@@ -4883,17 +4883,17 @@ IN_PROC_BROWSER_TEST_F(PrerenderTargetHintBrowserTest,
   GURL url_ping(GetUrl(kPagehideEventPath));
 
   // Navigate to an initial page.
-  const GURL kInitialUrl = GetUrl("/title1.html");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  const GURL initial_url = GetUrl("/title1.html");
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Start prerendering.
-  const GURL kPrerenderingUrl = GetUrl("/title1.html?prerender");
+  const GURL prerendering_url = GetUrl("/title1.html?prerender");
   test::PrerenderHostRegistryObserver registry_observer(*web_contents_impl());
-  AddPrerenderAsync(kPrerenderingUrl);
-  registry_observer.WaitForTrigger(kPrerenderingUrl);
-  PrerenderHostId host_id = GetHostForUrl(kPrerenderingUrl);
+  AddPrerenderAsync(prerendering_url);
+  registry_observer.WaitForTrigger(prerendering_url);
+  PrerenderHostId host_id = GetHostForUrl(prerendering_url);
   ASSERT_TRUE(host_id);
-  WaitForPrerenderLoadCompletion(kPrerenderingUrl);
+  WaitForPrerenderLoadCompletion(prerendering_url);
 
   RenderFrameHost* prerender_host = GetPrerenderedMainFrameHost(host_id);
   // Call fetchLater() to record that the pagehide event is fired.
@@ -4911,7 +4911,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderTargetHintBrowserTest,
       web_contents_impl()->GetPrimaryMainFrame(),
       "document.querySelector('script[type=speculationrules]').remove()"));
   host_observer.WaitForDestroyed();
-  EXPECT_TRUE(GetHostForUrl(kPrerenderingUrl).is_null());
+  EXPECT_TRUE(GetHostForUrl(prerendering_url).is_null());
   ExpectFinalStatusForSpeculationRule(
       PrerenderFinalStatus::kSpeculationRuleRemoved);
 
@@ -4930,13 +4930,13 @@ IN_PROC_BROWSER_TEST_F(
   GURL url_ping(GetUrl(kPagehideEventPath));
 
   // Navigate to an initial page.
-  const GURL kInitialUrl = GetUrl("/title1.html");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  const GURL initial_url = GetUrl("/title1.html");
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Start prerendering.
-  const GURL kPrerenderingUrl = GetUrl("/title1.html?prerender");
+  const GURL prerendering_url = GetUrl("/title1.html?prerender");
   PrerenderHostId host_id = prerender_helper()->AddPrerender(
-      kPrerenderingUrl, /*eagerness=*/std::nullopt, "_blank");
+      prerendering_url, /*eagerness=*/std::nullopt, "_blank");
   auto* prerender_web_contents =
       test::PrerenderTestHelper::GetPrerenderWebContents(host_id);
   ASSERT_NE(prerender_web_contents, web_contents_impl());
@@ -4996,11 +4996,11 @@ IN_PROC_BROWSER_TEST_F(
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
                        DontCancelOnSpeculationUpdateIfStillEligible) {
   // Navigate to an initial page.
-  const GURL kInitialUrl = GetUrl("/title1.html");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  const GURL initial_url = GetUrl("/title1.html");
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Start prerendering.
-  const GURL kPrerenderingUrl = GetUrl("/title2.html");
+  const GURL prerendering_url = GetUrl("/title2.html");
   test::PrerenderHostRegistryObserver registry_observer(*web_contents_impl());
   ASSERT_TRUE(ExecJs(web_contents_impl()->GetPrimaryMainFrame(),
                      JsReplace(
@@ -5014,9 +5014,9 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
                          });
                          document.head.appendChild(sc);
                          )",
-                         kPrerenderingUrl)));
-  registry_observer.WaitForTrigger(kPrerenderingUrl);
-  PrerenderHostId host_id = GetHostForUrl(kPrerenderingUrl);
+                         prerendering_url)));
+  registry_observer.WaitForTrigger(prerendering_url);
+  PrerenderHostId host_id = GetHostForUrl(prerendering_url);
   ASSERT_TRUE(host_id);
 
   ASSERT_TRUE(ExecJs(web_contents_impl()->GetPrimaryMainFrame(),
@@ -5033,7 +5033,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
                          });
                          document.head.appendChild(sc);
                          )",
-                         kPrerenderingUrl)));
+                         prerendering_url)));
 
   // Replace the rules. Even though the original rules are gone, the new ones
   // still permit the prerender so it continues.
@@ -5042,7 +5042,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
     base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
         FROM_HERE, run_loop.QuitClosure(), TestTimeouts::action_timeout());
     run_loop.Run();
-    ASSERT_TRUE(GetHostForUrl(kPrerenderingUrl));
+    ASSERT_TRUE(GetHostForUrl(prerendering_url));
   }
 
   // Remove the rules and check that the prerender is cancelled.
@@ -5051,17 +5051,17 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
       web_contents_impl()->GetPrimaryMainFrame(),
       "document.querySelector('script[type=speculationrules]').remove()"));
   host_observer.WaitForDestroyed();
-  EXPECT_TRUE(GetHostForUrl(kPrerenderingUrl).is_null());
+  EXPECT_TRUE(GetHostForUrl(prerendering_url).is_null());
 }
 
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
                        CanStartSecondPrerenderWhenCancellingFirst) {
   // Navigate to an initial page.
-  const GURL kInitialUrl = GetUrl("/title1.html");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  const GURL initial_url = GetUrl("/title1.html");
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Start prerendering.
-  const GURL kPrerenderingUrl = GetUrl("/title2.html");
+  const GURL prerendering_url = GetUrl("/title2.html");
   test::PrerenderHostRegistryObserver registry_observer(*web_contents_impl());
   ASSERT_TRUE(ExecJs(web_contents_impl()->GetPrimaryMainFrame(),
                      JsReplace(
@@ -5075,15 +5075,15 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
                          });
                          document.head.appendChild(sc);
                          )",
-                         kPrerenderingUrl)));
-  registry_observer.WaitForTrigger(kPrerenderingUrl);
-  PrerenderHostId host_id = GetHostForUrl(kPrerenderingUrl);
+                         prerendering_url)));
+  registry_observer.WaitForTrigger(prerendering_url);
+  PrerenderHostId host_id = GetHostForUrl(prerendering_url);
   ASSERT_TRUE(host_id);
 
   // Starting a different prerender still works.
   // (For now, this works unconditionally. In the future this might depend on
   // some other conditions.)
-  const GURL kPrerenderingUrl2 = GetUrl("/title3.html");
+  const GURL prerendering_url2 = GetUrl("/title3.html");
   test::PrerenderHostObserver host_observer(*web_contents_impl(), host_id);
   ASSERT_TRUE(ExecJs(web_contents_impl()->GetPrimaryMainFrame(),
                      JsReplace(
@@ -5099,25 +5099,25 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
                          });
                          document.head.appendChild(sc);
                          )",
-                         kPrerenderingUrl2)));
+                         prerendering_url2)));
 
   // The original prerender should be cancelled.
   host_observer.WaitForDestroyed();
-  EXPECT_TRUE(GetHostForUrl(kPrerenderingUrl).is_null());
+  EXPECT_TRUE(GetHostForUrl(prerendering_url).is_null());
 
   // And the new one should be discovered.
-  registry_observer.WaitForTrigger(kPrerenderingUrl2);
-  PrerenderHostId second_host_id = GetHostForUrl(kPrerenderingUrl2);
+  registry_observer.WaitForTrigger(prerendering_url2);
+  PrerenderHostId second_host_id = GetHostForUrl(prerendering_url2);
   EXPECT_TRUE(second_host_id);
 }
 
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, RetriggerPrerenderAfterRemoval) {
   // Navigate to an initial page.
-  const GURL kInitialUrl = GetUrl("/title1.html");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  const GURL initial_url = GetUrl("/title1.html");
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Start prerendering.
-  const GURL kPrerenderingUrl = GetUrl("/title2.html");
+  const GURL prerendering_url = GetUrl("/title2.html");
   {
     test::PrerenderHostRegistryObserver registry_observer(*web_contents_impl());
     ASSERT_TRUE(ExecJs(web_contents_impl()->GetPrimaryMainFrame(),
@@ -5132,9 +5132,9 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, RetriggerPrerenderAfterRemoval) {
                           });
                           document.head.appendChild(sc);
                           )",
-                           kPrerenderingUrl)));
-    registry_observer.WaitForTrigger(kPrerenderingUrl);
-    PrerenderHostId host_id = GetHostForUrl(kPrerenderingUrl);
+                           prerendering_url)));
+    registry_observer.WaitForTrigger(prerendering_url);
+    PrerenderHostId host_id = GetHostForUrl(prerendering_url);
     ASSERT_TRUE(host_id);
     test::PrerenderHostObserver host_observer(*web_contents_impl(), host_id);
 
@@ -5144,11 +5144,11 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, RetriggerPrerenderAfterRemoval) {
         web_contents_impl()->GetPrimaryMainFrame(),
         "document.querySelector('script[type=speculationrules]').remove()"));
     host_observer.WaitForDestroyed();
-    EXPECT_TRUE(GetHostForUrl(kPrerenderingUrl).is_null());
+    EXPECT_TRUE(GetHostForUrl(prerendering_url).is_null());
   }
   {
-    AddPrerender(kPrerenderingUrl);
-    PrerenderHostId host_id = GetHostForUrl(kPrerenderingUrl);
+    AddPrerender(prerendering_url);
+    PrerenderHostId host_id = GetHostForUrl(prerendering_url);
     EXPECT_TRUE(host_id);
   }
 }
@@ -5156,26 +5156,26 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, RetriggerPrerenderAfterRemoval) {
 // Tests that prerendering triggered by prerendered pages is deferred until
 // activation.
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, PrerenderChain) {
-  // kInitialUrl prerenders kPrerenderChain1, then kPrerenderChain1 prerenders
-  // kPrerenderChain2.
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderChain1 =
+  // initial_url prerenders prerender_chain1, then prerender_chain1 prerenders
+  // prerender_chain2.
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerender_chain1 =
       GetUrl("/prerender/page_with_trigger_function.html?1");
-  const GURL kPrerenderChain2 =
+  const GURL prerender_chain2 =
       GetUrl("/prerender/page_with_trigger_function.html?2");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
-  PrerenderHostId host_id = AddPrerender(kPrerenderChain1);
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+  PrerenderHostId host_id = AddPrerender(prerender_chain1);
 
-  EXPECT_EQ(GetRequestCount(kPrerenderChain1), 1);
+  EXPECT_EQ(GetRequestCount(prerender_chain1), 1);
   EXPECT_TRUE(host_id);
   RenderFrameHost* prerender_host = GetPrerenderedMainFrameHost(host_id);
   EXPECT_TRUE(AddTestUtilJS(prerender_host));
 
   // Add a prerender trigger to the prerendering page.
   EXPECT_TRUE(ExecJs(prerender_host,
-                     JsReplace("add_speculation_rules($1)", kPrerenderChain2)));
+                     JsReplace("add_speculation_rules($1)", prerender_chain2)));
 
   // Speculation rules is processed by the idle task runner in Blink. To ensure
   // the speculation candidates has been sent by renderer processes, we should
@@ -5186,10 +5186,10 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, PrerenderChain) {
   )"));
 
   // Start a navigation request that should not be deferred, and wait it to
-  // reach the server. If the prerender request for kPrerenderChain2 is not
-  // deferred, the navigation request for kPrerenderChain2 will reach the server
+  // reach the server. If the prerender request for prerender_chain2 is not
+  // deferred, the navigation request for prerender_chain2 will reach the server
   // earlier than the non-deferred one, so we can wait until the latest request
-  // reaches the sever to prove that the prerender request for kPrerenderChain2
+  // reaches the sever to prove that the prerender request for prerender_chain2
   // is deferred.
   EXPECT_TRUE(ExecJs(prerender_host, "add_iframe_async('/title1.html')",
                      EvalJsOptions::EXECUTE_SCRIPT_NO_RESOLVE_PROMISES));
@@ -5197,39 +5197,39 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, PrerenderChain) {
 
   // The prerender requests were deferred by Mojo capability control, so
   // prerendering pages should not trigger prerendering.
-  EXPECT_EQ(GetRequestCount(kPrerenderChain2), 0);
-  EXPECT_FALSE(HasHostForUrl(kPrerenderChain2));
+  EXPECT_EQ(GetRequestCount(prerender_chain2), 0);
+  EXPECT_FALSE(HasHostForUrl(prerender_chain2));
 
   // Activate the prerendering page to grant the deferred prerender requests.
-  NavigatePrimaryPage(kPrerenderChain1);
-  EXPECT_EQ(web_contents()->GetLastCommittedURL(), kPrerenderChain1);
+  NavigatePrimaryPage(prerender_chain1);
+  EXPECT_EQ(web_contents()->GetLastCommittedURL(), prerender_chain1);
 
   // The prerendered page was activated. The prerender requests should be
   // processed.
-  WaitForPrerenderLoadCompletion(kPrerenderChain2);
-  EXPECT_EQ(GetRequestCount(kPrerenderChain2), 1);
-  EXPECT_TRUE(HasHostForUrl(kPrerenderChain2));
+  WaitForPrerenderLoadCompletion(prerender_chain2);
+  EXPECT_EQ(GetRequestCount(prerender_chain2), 1);
+  EXPECT_TRUE(HasHostForUrl(prerender_chain2));
 }
 
 // Tests that sub-frames cannot trigger prerendering.
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, IgnoreSubFrameInitiatedPrerender) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kSubFrameUrl =
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL sub_frame_url =
       GetUrl("/prerender/page_with_trigger_function.html");
-  const GURL kPrerenderingUrl = GetUrl("/title.html");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  const GURL prerendering_url = GetUrl("/title.html");
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   RenderFrameHostImpl* main_frame_host = current_frame_host();
   EXPECT_TRUE(AddTestUtilJS(main_frame_host));
   EXPECT_EQ("LOADED",
-            EvalJs(web_contents(), JsReplace("add_iframe($1)", kSubFrameUrl)));
+            EvalJs(web_contents(), JsReplace("add_iframe($1)", sub_frame_url)));
   RenderFrameHost* child_frame_host = ChildFrameAt(main_frame_host, 0);
   ASSERT_NE(child_frame_host, nullptr);
-  ASSERT_EQ(child_frame_host->GetLastCommittedURL(), kSubFrameUrl);
+  ASSERT_EQ(child_frame_host->GetLastCommittedURL(), sub_frame_url);
 
   // Add a prerender trigger to the subframe.
   EXPECT_TRUE(ExecJs(child_frame_host,
-                     JsReplace("add_speculation_rules($1)", kPrerenderingUrl)));
+                     JsReplace("add_speculation_rules($1)", prerendering_url)));
 
   // Speculation rules is processed by the idle task runner in Blink. To ensure
   // the speculation candidates has been sent by renderer processes, we should
@@ -5241,34 +5241,34 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, IgnoreSubFrameInitiatedPrerender) {
 
   // Start a navigation request that should not be ignored, and wait it to
   // reach the server. If the prerender request is not ignored, the navigation
-  // request for kPrerenderingUrl will reach the server earlier than the
+  // request for prerendering_url will reach the server earlier than the
   // non-ignored one, so we can wait until the latest request reaches the sever
-  // to prove that the prerender request for kPrerenderingUrl is ignored.
+  // to prove that the prerender request for prerendering_url is ignored.
   EXPECT_TRUE(ExecJs(main_frame_host, "add_iframe_async('/title1.html')",
                      EvalJsOptions::EXECUTE_SCRIPT_NO_RESOLVE_PROMISES));
   WaitForRequest(GetUrl("/title1.html"), 1);
 
   // The prerender requests were ignored by SpeculationHostImpl.
-  EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 0);
-  EXPECT_FALSE(HasHostForUrl(kPrerenderingUrl));
+  EXPECT_EQ(GetRequestCount(prerendering_url), 0);
+  EXPECT_FALSE(HasHostForUrl(prerendering_url));
 }
 
 // Regression test for https://crbug.com/1194865.
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, CloseOnPrerendering) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/empty.html?prerender");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/empty.html?prerender");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
-  ASSERT_EQ(web_contents()->GetLastCommittedURL(), kInitialUrl);
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+  ASSERT_EQ(web_contents()->GetLastCommittedURL(), initial_url);
 
-  // Start prerendering `kPrerenderingUrl`.
-  ASSERT_EQ(GetRequestCount(kPrerenderingUrl), 0);
-  AddPrerender(kPrerenderingUrl);
-  EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 1);
+  // Start prerendering `prerendering_url`.
+  ASSERT_EQ(GetRequestCount(prerendering_url), 0);
+  AddPrerender(prerendering_url);
+  EXPECT_EQ(GetRequestCount(prerendering_url), 1);
 
   // A prerender host for the URL should be registered.
-  EXPECT_TRUE(HasHostForUrl(kPrerenderingUrl));
+  EXPECT_TRUE(HasHostForUrl(prerendering_url));
 
   // Should not crash.
   shell()->Close();
@@ -5302,39 +5302,39 @@ class RedirectChainObserver : public WebContentsObserver {
 IN_PROC_BROWSER_TEST_P(PrerenderBrowserTestFallbackEnabledDisabled,
                        SameOriginRedirection) {
   // Navigate to an initial page.
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  const GURL initial_url = GetUrl("/empty.html");
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Start prerendering a URL that causes same-origin redirection.
-  const GURL kRedirectedUrl = GetUrl("/empty.html?prerender");
-  const GURL kPrerenderingUrl =
-      GetUrl("/server-redirect?" + kRedirectedUrl.spec());
+  const GURL redirected_url = GetUrl("/empty.html?prerender");
+  const GURL prerendering_url =
+      GetUrl("/server-redirect?" + redirected_url.spec());
   RedirectChainObserver redirect_chain_observer(*shell()->web_contents(),
-                                                kRedirectedUrl);
-  AddPrerender(kPrerenderingUrl);
-  EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 1);
-  EXPECT_EQ(GetRequestCount(kRedirectedUrl), 1);
+                                                redirected_url);
+  AddPrerender(prerendering_url);
+  EXPECT_EQ(GetRequestCount(prerendering_url), 1);
+  EXPECT_EQ(GetRequestCount(redirected_url), 1);
 
   ASSERT_EQ(2u, redirect_chain_observer.redirect_chain().size());
-  EXPECT_EQ(kPrerenderingUrl, redirect_chain_observer.redirect_chain()[0]);
-  EXPECT_EQ(kRedirectedUrl, redirect_chain_observer.redirect_chain()[1]);
+  EXPECT_EQ(prerendering_url, redirect_chain_observer.redirect_chain()[0]);
+  EXPECT_EQ(redirected_url, redirect_chain_observer.redirect_chain()[1]);
 
   // The prerender host should be registered for the initial request URL, not
   // the redirected URL.
-  EXPECT_TRUE(HasHostForUrl(kPrerenderingUrl));
-  EXPECT_FALSE(HasHostForUrl(kRedirectedUrl));
+  EXPECT_TRUE(HasHostForUrl(prerendering_url));
+  EXPECT_FALSE(HasHostForUrl(redirected_url));
 
   // Regression test for https://crbug.com/1211274. Make sure that we don't
   // crash when activating a prerendered page which performed a same-origin
   // redirect.
   RedirectChainObserver activation_redirect_chain_observer(
-      *shell()->web_contents(), kRedirectedUrl);
+      *shell()->web_contents(), redirected_url);
 
   NavigationHandleObserver activation_observer(web_contents(),
-                                               kPrerenderingUrl);
-  NavigatePrimaryPage(kPrerenderingUrl);
+                                               prerendering_url);
+  NavigatePrimaryPage(prerendering_url);
   ASSERT_EQ(1u, activation_redirect_chain_observer.redirect_chain().size());
-  EXPECT_EQ(kRedirectedUrl,
+  EXPECT_EQ(redirected_url,
             activation_redirect_chain_observer.redirect_chain()[0]);
 
   // Cross-check that in case redirection when the prerender navigates and user
@@ -5375,30 +5375,30 @@ IN_PROC_BROWSER_TEST_P(PrerenderBrowserTestFallbackEnabledDisabled,
 IN_PROC_BROWSER_TEST_P(PrerenderBrowserTestFallbackEnabledDisabled,
                        CrossSiteRedirection) {
   // Navigate to an initial page.
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  const GURL initial_url = GetUrl("/empty.html");
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Start prerendering a URL that causes cross-origin redirection. The
   // cross-origin redirection should fail prerendering.
-  const GURL kRedirectedUrl = GetCrossSiteUrl("/empty.html?prerender");
-  const GURL kPrerenderingUrl =
-      GetUrl("/server-redirect?" + kRedirectedUrl.spec());
+  const GURL redirected_url = GetCrossSiteUrl("/empty.html?prerender");
+  const GURL prerendering_url =
+      GetUrl("/server-redirect?" + redirected_url.spec());
   test::PrerenderHostObserver host_observer(*web_contents_impl(),
-                                            kPrerenderingUrl);
+                                            prerendering_url);
 
   base::RunLoop run_loop;
   std::optional<PrefetchStatus> prefetch_status;
   PrefetchContainer::SetPrefetchResponseCompletedCallbackForTesting(
       base::BindLambdaForTesting(
           [&](base::WeakPtr<PrefetchContainer> prefetch_container) {
-            if (prefetch_container->GetURL() != kPrerenderingUrl) {
+            if (prefetch_container->GetURL() != prerendering_url) {
               return;
             }
             prefetch_status = prefetch_container->GetPrefetchStatus();
             run_loop.Quit();
           }));
 
-  AddPrerenderAsync(kPrerenderingUrl);
+  AddPrerenderAsync(prerendering_url);
   host_observer.WaitForDestroyed();
 
   if (IsPrerender2FallbackPrefetchSpecRulesEnabled()) {
@@ -5410,15 +5410,15 @@ IN_PROC_BROWSER_TEST_P(PrerenderBrowserTestFallbackEnabledDisabled,
     run_loop.Run();
     EXPECT_TRUE(prefetch_status.has_value());
     EXPECT_EQ(prefetch_status.value(), PrefetchStatus::kPrefetchSuccessful);
-    EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 1);
-    EXPECT_EQ(GetRequestCount(kRedirectedUrl), 1);
+    EXPECT_EQ(GetRequestCount(prerendering_url), 1);
+    EXPECT_EQ(GetRequestCount(redirected_url), 1);
   } else {
-    EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 1);
-    EXPECT_EQ(GetRequestCount(kRedirectedUrl), 0);
+    EXPECT_EQ(GetRequestCount(prerendering_url), 1);
+    EXPECT_EQ(GetRequestCount(redirected_url), 0);
   }
 
-  EXPECT_FALSE(HasHostForUrl(kPrerenderingUrl));
-  EXPECT_FALSE(HasHostForUrl(kRedirectedUrl));
+  EXPECT_FALSE(HasHostForUrl(prerendering_url));
+  EXPECT_FALSE(HasHostForUrl(redirected_url));
   ExpectFinalStatusForSpeculationRule(
       PrerenderFinalStatus::kCrossSiteRedirectInInitialNavigation);
 }
@@ -5426,23 +5426,23 @@ IN_PROC_BROWSER_TEST_P(PrerenderBrowserTestFallbackEnabledDisabled,
 // Makes sure that activation on navigation for an iframes doesn't happen.
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, Activation_iFrame) {
   // Navigate to an initial page.
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  const GURL initial_url = GetUrl("/empty.html");
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
   EXPECT_TRUE(AddTestUtilJS(current_frame_host()));
 
   // Start a prerender.
-  const GURL kPrerenderingUrl = GetUrl("/empty.html?prerender");
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  const GURL prerendering_url = GetUrl("/empty.html?prerender");
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
 
   // Attempt to activate the prerendered page for an iframe. This should fail
   // and fallback to network request.
-  ASSERT_EQ(GetRequestCount(kPrerenderingUrl), 1);
+  ASSERT_EQ(GetRequestCount(prerendering_url), 1);
   EXPECT_EQ("LOADED", EvalJs(web_contents(),
-                             JsReplace("add_iframe($1)", kPrerenderingUrl)));
-  EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 2);
+                             JsReplace("add_iframe($1)", prerendering_url)));
+  EXPECT_EQ(GetRequestCount(prerendering_url), 2);
 
   // Activation shouldn't happen, so the prerender host should not be consumed.
-  EXPECT_EQ(GetHostForUrl(kPrerenderingUrl), host_id);
+  EXPECT_EQ(GetHostForUrl(prerendering_url), host_id);
 }
 
 // Make sure that the prerendering browsing context has an isolated trivial
@@ -5455,27 +5455,27 @@ IN_PROC_BROWSER_TEST_F(
     PrerenderBrowserTest,
     SessionHistoryShouldHaveSingleNavigationEntryInPrerender) {
   // Navigate the primary main frame to an initial page.
-  const GURL kInitialUrl = GetUrl("/empty.html?initial");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
-  TestNavigationHistory(kInitialUrl, /*expected_history_index=*/0,
+  const GURL initial_url = GetUrl("/empty.html?initial");
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+  TestNavigationHistory(initial_url, /*expected_history_index=*/0,
                         /*expected_history_length=*/1);
 
   // Navigate the primary main frame to another page so that the initiator
   // page's `history.length` becomes 2. That helps us to distinguish the initial
   // page's session history and the prerendering page's session history. This is
   // not a robust way, but probably good enough in this test.
-  const GURL k2ndUrl = GetUrl("/empty.html?2nd");
-  ASSERT_TRUE(NavigateToURL(shell(), k2ndUrl));
-  TestNavigationHistory(k2ndUrl, /*expected_history_index=*/1,
+  const GURL second_url = GetUrl("/empty.html?2nd");
+  ASSERT_TRUE(NavigateToURL(shell(), second_url));
+  TestNavigationHistory(second_url, /*expected_history_index=*/1,
                         /*expected_history_length=*/2);
 
   // Start a prerender.
-  const GURL kPrerenderingUrl = GetUrl("/empty.html?prerender");
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  const GURL prerendering_url = GetUrl("/empty.html?prerender");
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
   RenderFrameHost* prerender_frame_host = GetPrerenderedMainFrameHost(host_id);
-  ASSERT_EQ(GetRequestCount(kPrerenderingUrl), 1);
+  ASSERT_EQ(GetRequestCount(prerendering_url), 1);
 
-  TestNavigationHistory(k2ndUrl, /*expected_history_index=*/1,
+  TestNavigationHistory(second_url, /*expected_history_index=*/1,
                         /*expected_history_length=*/2);
   AssertPrerenderHistoryLength(host_id, prerender_frame_host);
 
@@ -5498,7 +5498,7 @@ IN_PROC_BROWSER_TEST_F(
               EvalJs(prerender_frame_host,
                      "history.replaceState('state1', null, null)"));
 
-    TestNavigationHistory(k2ndUrl, /*expected_history_index=*/1,
+    TestNavigationHistory(second_url, /*expected_history_index=*/1,
                           /*expected_history_length=*/2);
     AssertPrerenderHistoryLength(host_id, prerender_frame_host);
     EXPECT_EQ("state1", EvalJs(prerender_frame_host, "history.state"));
@@ -5517,7 +5517,7 @@ IN_PROC_BROWSER_TEST_F(
     ASSERT_EQ(base::Value(), EvalJs(prerender_frame_host,
                                     "history.pushState('state2', null, null)"));
 
-    TestNavigationHistory(k2ndUrl, /*expected_history_index=*/1,
+    TestNavigationHistory(second_url, /*expected_history_index=*/1,
                           /*expected_history_length=*/2);
     AssertPrerenderHistoryLength(host_id, prerender_frame_host);
     EXPECT_EQ("state2", EvalJs(prerender_frame_host, "history.state"));
@@ -5533,12 +5533,12 @@ IN_PROC_BROWSER_TEST_F(
     FrameNavigateParamsCapturer capturer(
         FrameTreeNode::From(prerender_frame_host));
 
-    const GURL kPrerenderingAnchorUrl = GetUrl("/empty.html?prerender#anchor");
-    NavigatePrerenderedPage(host_id, kPrerenderingAnchorUrl);
+    const GURL prerendering_anchor_url = GetUrl("/empty.html?prerender#anchor");
+    NavigatePrerenderedPage(host_id, prerendering_anchor_url);
     WaitForPrerenderLoadCompletion(host_id);
-    ASSERT_EQ(GetRequestCount(kPrerenderingAnchorUrl), 1);
+    ASSERT_EQ(GetRequestCount(prerendering_anchor_url), 1);
 
-    TestNavigationHistory(k2ndUrl, /*expected_history_index=*/1,
+    TestNavigationHistory(second_url, /*expected_history_index=*/1,
                           /*expected_history_length=*/2);
     AssertPrerenderHistoryLength(host_id, prerender_frame_host);
     // history.state should be replaced with a fragment navigation.
@@ -5554,32 +5554,32 @@ IN_PROC_BROWSER_TEST_F(
   // different same-origin URL.
   {
     // Add an iframe.
-    const GURL kSameOriginSubframeUrl1 =
+    const GURL same_origin_subframe_url1 =
         GetUrl("/empty.html?same_origin_iframe1");
     EXPECT_TRUE(AddTestUtilJS(prerender_frame_host));
     ASSERT_EQ("LOADED",
               EvalJs(prerender_frame_host,
-                     JsReplace("add_iframe($1)", kSameOriginSubframeUrl1)));
-    ASSERT_EQ(GetRequestCount(kSameOriginSubframeUrl1), 1);
+                     JsReplace("add_iframe($1)", same_origin_subframe_url1)));
+    ASSERT_EQ(GetRequestCount(same_origin_subframe_url1), 1);
 
     auto* child_frame = ChildFrameAt(prerender_frame_host, 0);
     ASSERT_NE(nullptr, child_frame);
-    EXPECT_EQ(kSameOriginSubframeUrl1, child_frame->GetLastCommittedURL());
+    EXPECT_EQ(same_origin_subframe_url1, child_frame->GetLastCommittedURL());
 
     // Let the added iframe navigate to the different URL.
     {
       FrameNavigateParamsCapturer capturer(FrameTreeNode::From(child_frame));
-      const GURL kSameOriginSubframeUrl2 =
+      const GURL same_origin_subframe_url2 =
           GetUrl("/empty.html?same_origin_iframe2");
-      ASSERT_EQ(kSameOriginSubframeUrl2,
+      ASSERT_EQ(same_origin_subframe_url2,
                 EvalJs(child_frame,
-                       JsReplace("location = $1", kSameOriginSubframeUrl2)));
+                       JsReplace("location = $1", same_origin_subframe_url2)));
       capturer.Wait();
       child_frame = ChildFrameAt(prerender_frame_host, 0);
-      EXPECT_EQ(kSameOriginSubframeUrl2, child_frame->GetLastCommittedURL());
-      ASSERT_EQ(GetRequestCount(kSameOriginSubframeUrl2), 1);
+      EXPECT_EQ(same_origin_subframe_url2, child_frame->GetLastCommittedURL());
+      ASSERT_EQ(GetRequestCount(same_origin_subframe_url2), 1);
 
-      TestNavigationHistory(k2ndUrl, /*expected_history_index=*/1,
+      TestNavigationHistory(second_url, /*expected_history_index=*/1,
                             /*expected_history_length=*/2);
       AssertPrerenderHistoryLength(host_id, prerender_frame_host);
       EXPECT_EQ(base::Value(), EvalJs(prerender_frame_host, "history.state"));
@@ -5593,10 +5593,10 @@ IN_PROC_BROWSER_TEST_F(
     // Use WebContents::OpenURL() to let the added iframe navigate.
     {
       FrameNavigateParamsCapturer capturer(FrameTreeNode::From(child_frame));
-      const GURL kSameOriginSubframeUrl3 =
+      const GURL same_origin_subframe_url3 =
           GetUrl("/empty.html?same_origin_iframe3");
       shell()->web_contents()->OpenURL(
-          OpenURLParams(kSameOriginSubframeUrl3, Referrer(),
+          OpenURLParams(same_origin_subframe_url3, Referrer(),
                         child_frame->GetFrameTreeNodeId(),
                         WindowOpenDisposition::CURRENT_TAB,
                         ui::PAGE_TRANSITION_AUTO_SUBFRAME,
@@ -5604,10 +5604,10 @@ IN_PROC_BROWSER_TEST_F(
           /*navigation_handle_callback=*/{});
       capturer.Wait();
       child_frame = ChildFrameAt(prerender_frame_host, 0);
-      EXPECT_EQ(kSameOriginSubframeUrl3, child_frame->GetLastCommittedURL());
-      ASSERT_EQ(GetRequestCount(kSameOriginSubframeUrl3), 1);
+      EXPECT_EQ(same_origin_subframe_url3, child_frame->GetLastCommittedURL());
+      ASSERT_EQ(GetRequestCount(same_origin_subframe_url3), 1);
 
-      TestNavigationHistory(k2ndUrl, /*expected_history_index=*/1,
+      TestNavigationHistory(second_url, /*expected_history_index=*/1,
                             /*expected_history_length=*/2);
       AssertPrerenderHistoryLength(host_id, prerender_frame_host);
       EXPECT_EQ(base::Value(), EvalJs(prerender_frame_host, "history.state"));
@@ -5621,7 +5621,7 @@ IN_PROC_BROWSER_TEST_F(
 
   // Perform history.back() in the prerendered page, which should be no-op.
   {
-    int current_request_count = GetRequestCount(k2ndUrl);
+    int current_request_count = GetRequestCount(second_url);
     ASSERT_EQ(base::Value(), EvalJs(prerender_frame_host, "history.back()"));
     // Make sure that loading is not happening.
     EXPECT_FALSE(FrameTreeNode::GloballyFindByID(
@@ -5629,16 +5629,16 @@ IN_PROC_BROWSER_TEST_F(
                      ->frame_tree()
                      .IsLoadingIncludingInnerFrameTrees());
 
-    TestNavigationHistory(k2ndUrl, /*expected_history_index=*/1,
+    TestNavigationHistory(second_url, /*expected_history_index=*/1,
                           /*expected_history_length=*/2);
     AssertPrerenderHistoryLength(host_id, prerender_frame_host);
     EXPECT_EQ(base::Value(), EvalJs(prerender_frame_host, "history.state"));
-    EXPECT_EQ(current_request_count, GetRequestCount(k2ndUrl));
+    EXPECT_EQ(current_request_count, GetRequestCount(second_url));
   }
 
   // Perform history.forward() in the prerendered page, which should be no-op.
   {
-    int current_request_count = GetRequestCount(k2ndUrl);
+    int current_request_count = GetRequestCount(second_url);
     ASSERT_EQ(base::Value(), EvalJs(prerender_frame_host, "history.forward()"));
     // Make sure that loading is not happening.
     EXPECT_FALSE(FrameTreeNode::GloballyFindByID(
@@ -5646,11 +5646,11 @@ IN_PROC_BROWSER_TEST_F(
                      ->frame_tree()
                      .IsLoadingIncludingInnerFrameTrees());
 
-    TestNavigationHistory(k2ndUrl, /*expected_history_index=*/1,
+    TestNavigationHistory(second_url, /*expected_history_index=*/1,
                           /*expected_history_length=*/2);
     AssertPrerenderHistoryLength(host_id, prerender_frame_host);
     EXPECT_EQ(base::Value(), EvalJs(prerender_frame_host, "history.state"));
-    EXPECT_EQ(current_request_count, GetRequestCount(k2ndUrl));
+    EXPECT_EQ(current_request_count, GetRequestCount(second_url));
   }
 }
 
@@ -5659,35 +5659,35 @@ IN_PROC_BROWSER_TEST_F(
 // forward after activation.
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, SessionHistoryAfterActivation) {
   // Navigate to an initial page.
-  const GURL kInitialUrl = GetUrl("/empty.html?initial");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
-  TestNavigationHistory(kInitialUrl, 0, 1);
+  const GURL initial_url = GetUrl("/empty.html?initial");
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+  TestNavigationHistory(initial_url, 0, 1);
 
   // Navigate to another page.
-  const GURL k2ndUrl = GetUrl("/empty.html?2nd");
-  ASSERT_TRUE(NavigateToURL(shell(), k2ndUrl));
-  ASSERT_EQ(GetRequestCount(k2ndUrl), 1);
-  TestNavigationHistory(k2ndUrl, 1, 2);
+  const GURL second_url = GetUrl("/empty.html?2nd");
+  ASSERT_TRUE(NavigateToURL(shell(), second_url));
+  ASSERT_EQ(GetRequestCount(second_url), 1);
+  TestNavigationHistory(second_url, 1, 2);
 
   // Start a prerender.
-  const GURL kPrerenderingUrl = GetUrl("/empty.html?prerender");
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  const GURL prerendering_url = GetUrl("/empty.html?prerender");
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
   RenderFrameHost* prerender_frame_host = GetPrerenderedMainFrameHost(host_id);
-  ASSERT_EQ(GetRequestCount(kPrerenderingUrl), 1);
-  TestNavigationHistory(k2ndUrl, 1, 2);
+  ASSERT_EQ(GetRequestCount(prerendering_url), 1);
+  TestNavigationHistory(second_url, 1, 2);
 
   // Call history.pushState(...) in  prerendering.
   ASSERT_EQ(base::Value(),
             EvalJs(prerender_frame_host,
                    "history.pushState('teststate', null, null)"));
-  TestNavigationHistory(k2ndUrl, 1, 2);
+  TestNavigationHistory(second_url, 1, 2);
   AssertPrerenderHistoryLength(host_id, prerender_frame_host);
   EXPECT_EQ("teststate", EvalJs(prerender_frame_host, "history.state"));
 
   // Activate.
-  NavigatePrimaryPage(kPrerenderingUrl);
+  NavigatePrimaryPage(prerendering_url);
   // The joint session history becomes [initial, 2nd, <prerender>].
-  TestNavigationHistory(kPrerenderingUrl, 2, 3);
+  TestNavigationHistory(prerendering_url, 2, 3);
   EXPECT_EQ("teststate", EvalJs(web_contents(), "history.state"));
 
   FrameTreeNode* root = static_cast<WebContentsImpl*>(web_contents())
@@ -5698,7 +5698,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, SessionHistoryAfterActivation) {
     FrameNavigateParamsCapturer capturer(root);
     GoBack();
     // The joint session history becomes [initial, <2nd>, prerender].
-    TestNavigationHistory(k2ndUrl, 1, 3);
+    TestNavigationHistory(second_url, 1, 3);
     EXPECT_EQ(base::Value(), EvalJs(web_contents(), "history.state"));
 
     EXPECT_EQ(NAVIGATION_TYPE_MAIN_FRAME_EXISTING_ENTRY,
@@ -5711,7 +5711,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, SessionHistoryAfterActivation) {
     FrameNavigateParamsCapturer capturer(root);
     GoForward();
     // The joint session history becomes [initial, 2nd, <prerender>].
-    TestNavigationHistory(kPrerenderingUrl, 2, 3);
+    TestNavigationHistory(prerendering_url, 2, 3);
     EXPECT_EQ("teststate", EvalJs(web_contents(), "history.state"));
 
     EXPECT_EQ(NAVIGATION_TYPE_MAIN_FRAME_EXISTING_ENTRY,
@@ -5745,15 +5745,15 @@ class PrerenderOopsifBrowserTest : public PrerenderBrowserTest {
 IN_PROC_BROWSER_TEST_F(PrerenderOopsifBrowserTest,
                        OopsifSrcdocSandboxIframeWithPostmessage) {
   // Navigate to an initial page.
-  const GURL kInitialUrl =
+  const GURL initial_url =
       GetUrl("/prerender/cross_origin_prerender.html?initial");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
   EXPECT_TRUE(AddTestUtilJS(current_frame_host()));
 
   // Start a prerender.
-  const GURL kPrerenderingUrl =
+  const GURL prerendering_url =
       GetUrl("/prerender/cross_origin_srcdoc_sandboxed_postmessage.html");
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
   RenderFrameHost* prerender_frame_host = GetPrerenderedMainFrameHost(host_id);
   EXPECT_TRUE(AddTestUtilJS(prerender_frame_host));
   // Create a srcdoc iframe in the prerendered page.
@@ -5762,15 +5762,15 @@ IN_PROC_BROWSER_TEST_F(PrerenderOopsifBrowserTest,
 
   // Load another same-origin iframe to ensure loading the srcdoc iframe
   // starts and then it's deferred until activation.
-  const GURL kSameOriginSubframeUrl =
+  const GURL same_origin_subframe_url =
       GetUrl("/prerender/cross_origin_prerender.html");
   ASSERT_EQ("LOADED",
             EvalJs(prerender_frame_host,
-                   JsReplace("add_iframe($1)", kSameOriginSubframeUrl)));
+                   JsReplace("add_iframe($1)", same_origin_subframe_url)));
 
   // Activate.
-  NavigatePrimaryPage(kPrerenderingUrl);
-  ASSERT_EQ(web_contents()->GetLastCommittedURL(), kPrerenderingUrl);
+  NavigatePrimaryPage(prerendering_url);
+  ASSERT_EQ(web_contents()->GetLastCommittedURL(), prerendering_url);
 
   // Verify postMessage from srcdoc to mainframe completed.
   RenderFrameHostImpl* main_frame =
@@ -5797,24 +5797,24 @@ IN_PROC_BROWSER_TEST_F(PrerenderOopsifBrowserTest,
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
                        DeferCrossOriginSubframeNavigation) {
   // Navigate to an initial page.
-  const GURL kInitialUrl =
+  const GURL initial_url =
       GetUrl("/prerender/cross_origin_prerender.html?initial");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
   EXPECT_TRUE(AddTestUtilJS(current_frame_host()));
 
   // Start a prerender.
-  const GURL kPrerenderingUrl =
+  const GURL prerendering_url =
       GetUrl("/prerender/cross_origin_prerender.html?prerender");
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
 
-  const GURL kSameOriginSubframeUrl =
+  const GURL same_origin_subframe_url =
       GetUrl("/prerender/cross_origin_prerender.html?same_origin_iframe");
-  const GURL kCrossOriginSubframeUrl = GetCrossSiteUrl(
+  const GURL cross_origin_subframe_url = GetCrossSiteUrl(
       "/prerender/cross_origin_prerender.html?cross_origin_iframe");
 
-  ASSERT_EQ(GetRequestCount(kPrerenderingUrl), 1);
-  ASSERT_EQ(GetRequestCount(kSameOriginSubframeUrl), 0);
-  ASSERT_EQ(GetRequestCount(kCrossOriginSubframeUrl), 0);
+  ASSERT_EQ(GetRequestCount(prerendering_url), 1);
+  ASSERT_EQ(GetRequestCount(same_origin_subframe_url), 0);
+  ASSERT_EQ(GetRequestCount(cross_origin_subframe_url), 0);
 
   // Add a cross-origin iframe to the prerendering page.
   RenderFrameHost* prerender_frame_host = GetPrerenderedMainFrameHost(host_id);
@@ -5823,27 +5823,28 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
   // Use ExecuteScriptAsync instead of EvalJs as inserted cross-origin iframe
   // navigation would be deferred and script execution does not finish until
   // the activation.
-  ExecuteScriptAsync(prerender_frame_host, JsReplace("add_iframe_async($1)",
-                                                     kCrossOriginSubframeUrl));
+  ExecuteScriptAsync(
+      prerender_frame_host,
+      JsReplace("add_iframe_async($1)", cross_origin_subframe_url));
   base::RunLoop().RunUntilIdle();
 
   // Add a same-origin iframe to the prerendering page.
   ASSERT_EQ("LOADED",
             EvalJs(prerender_frame_host,
-                   JsReplace("add_iframe($1)", kSameOriginSubframeUrl)));
-  ASSERT_EQ(GetRequestCount(kPrerenderingUrl), 1);
-  ASSERT_EQ(GetRequestCount(kSameOriginSubframeUrl), 1);
-  ASSERT_EQ(GetRequestCount(kCrossOriginSubframeUrl), 0);
+                   JsReplace("add_iframe($1)", same_origin_subframe_url)));
+  ASSERT_EQ(GetRequestCount(prerendering_url), 1);
+  ASSERT_EQ(GetRequestCount(same_origin_subframe_url), 1);
+  ASSERT_EQ(GetRequestCount(cross_origin_subframe_url), 0);
 
   // Activate.
-  NavigatePrimaryPage(kPrerenderingUrl);
-  ASSERT_EQ(web_contents()->GetLastCommittedURL(), kPrerenderingUrl);
+  NavigatePrimaryPage(prerendering_url);
+  ASSERT_EQ(web_contents()->GetLastCommittedURL(), prerendering_url);
   ASSERT_EQ("LOADED",
             EvalJs(prerender_frame_host, JsReplace("wait_iframe_async($1)",
-                                                   kCrossOriginSubframeUrl)));
-  ASSERT_EQ(GetRequestCount(kPrerenderingUrl), 1);
-  ASSERT_EQ(GetRequestCount(kSameOriginSubframeUrl), 1);
-  EXPECT_EQ(GetRequestCount(kCrossOriginSubframeUrl), 1);
+                                                   cross_origin_subframe_url)));
+  ASSERT_EQ(GetRequestCount(prerendering_url), 1);
+  ASSERT_EQ(GetRequestCount(same_origin_subframe_url), 1);
+  EXPECT_EQ(GetRequestCount(cross_origin_subframe_url), 1);
 
   const char kInitialDocumentPrerenderingScript[] =
       "initial_document_prerendering";
@@ -5861,7 +5862,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
   EXPECT_NE(0, EvalJs(prerender_frame_host, kActivationStartScript));
 
   RenderFrameHost* same_origin_render_frame_host = FindRenderFrameHost(
-      prerender_frame_host->GetPage(), kSameOriginSubframeUrl);
+      prerender_frame_host->GetPage(), same_origin_subframe_url);
   CHECK(same_origin_render_frame_host);
   EXPECT_EQ(true, EvalJs(same_origin_render_frame_host,
                          kInitialDocumentPrerenderingScript));
@@ -5872,7 +5873,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
   EXPECT_NE(0, EvalJs(same_origin_render_frame_host, kActivationStartScript));
 
   RenderFrameHost* cross_origin_render_frame_host = FindRenderFrameHost(
-      prerender_frame_host->GetPage(), kCrossOriginSubframeUrl);
+      prerender_frame_host->GetPage(), cross_origin_subframe_url);
   CHECK(cross_origin_render_frame_host);
   EXPECT_EQ(false, EvalJs(cross_origin_render_frame_host,
                           kInitialDocumentPrerenderingScript));
@@ -5888,23 +5889,23 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
                        DeferCrossOriginRedirectsOnSubframeNavigation) {
   // Navigate to an initial page.
-  const GURL kInitialUrl =
+  const GURL initial_url =
       GetUrl("/prerender/cross_origin_prerender.html?initial");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Start a prerender.
-  const GURL kPrerenderingUrl =
+  const GURL prerendering_url =
       GetUrl("/prerender/cross_origin_prerender.html?prerender");
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
 
-  const GURL kCrossOriginSubframeUrl = GetCrossSiteUrl(
+  const GURL cross_origin_subframe_url = GetCrossSiteUrl(
       "/prerender/cross_origin_prerender.html?cross_origin_iframe");
-  const GURL kServerRedirectSubframeUrl =
-      GetUrl("/server-redirect?" + kCrossOriginSubframeUrl.spec());
+  const GURL server_redirect_subframe_url =
+      GetUrl("/server-redirect?" + cross_origin_subframe_url.spec());
 
-  ASSERT_EQ(GetRequestCount(kPrerenderingUrl), 1);
-  ASSERT_EQ(GetRequestCount(kServerRedirectSubframeUrl), 0);
-  ASSERT_EQ(GetRequestCount(kCrossOriginSubframeUrl), 0);
+  ASSERT_EQ(GetRequestCount(prerendering_url), 1);
+  ASSERT_EQ(GetRequestCount(server_redirect_subframe_url), 0);
+  ASSERT_EQ(GetRequestCount(cross_origin_subframe_url), 0);
 
   // Add an iframe pointing to a server redirect page to the prerendering page.
   RenderFrameHost* prerender_frame_host = GetPrerenderedMainFrameHost(host_id);
@@ -5914,19 +5915,19 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
   // the activation.
   ExecuteScriptAsync(
       prerender_frame_host,
-      JsReplace("add_iframe_async($1)", kServerRedirectSubframeUrl));
-  WaitForRequest(kServerRedirectSubframeUrl, 1);
-  ASSERT_EQ(GetRequestCount(kServerRedirectSubframeUrl), 1);
-  ASSERT_EQ(GetRequestCount(kCrossOriginSubframeUrl), 0);
+      JsReplace("add_iframe_async($1)", server_redirect_subframe_url));
+  WaitForRequest(server_redirect_subframe_url, 1);
+  ASSERT_EQ(GetRequestCount(server_redirect_subframe_url), 1);
+  ASSERT_EQ(GetRequestCount(cross_origin_subframe_url), 0);
 
   // Activate.
-  NavigatePrimaryPage(kPrerenderingUrl);
-  ASSERT_EQ(web_contents()->GetLastCommittedURL(), kPrerenderingUrl);
+  NavigatePrimaryPage(prerendering_url);
+  ASSERT_EQ(web_contents()->GetLastCommittedURL(), prerendering_url);
   ASSERT_EQ("LOADED", EvalJs(prerender_frame_host,
                              JsReplace("wait_iframe_async($1)",
-                                       kServerRedirectSubframeUrl)));
-  EXPECT_EQ(GetRequestCount(kServerRedirectSubframeUrl), 1);
-  EXPECT_EQ(GetRequestCount(kCrossOriginSubframeUrl), 1);
+                                       server_redirect_subframe_url)));
+  EXPECT_EQ(GetRequestCount(server_redirect_subframe_url), 1);
+  EXPECT_EQ(GetRequestCount(cross_origin_subframe_url), 1);
 
   const char kInitialDocumentPrerenderingScript[] =
       "initial_document_prerendering";
@@ -5941,7 +5942,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
             EvalJs(prerender_frame_host, kOnprerenderingchangeObservedScript));
 
   RenderFrameHost* cross_origin_render_frame_host = FindRenderFrameHost(
-      prerender_frame_host->GetPage(), kCrossOriginSubframeUrl);
+      prerender_frame_host->GetPage(), cross_origin_subframe_url);
   CHECK(cross_origin_render_frame_host);
   EXPECT_EQ(false, EvalJs(cross_origin_render_frame_host,
                           kInitialDocumentPrerenderingScript));
@@ -5976,24 +5977,24 @@ class PrerenderMainFrameNavigationBrowserTest
       urls.push_back(CreateUrl(type));
     }
 
-    const GURL kInitialUrl = GetUrl("/empty.html");
-    const GURL kPrerenderingUrl = GetUrl("/empty.html?prerender");
+    const GURL initial_url = GetUrl("/empty.html");
+    const GURL prerendering_url = GetUrl("/empty.html?prerender");
 
     // Navigate to an initial page.
-    ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+    ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
     // Start a prerender.
     PrerenderHostId host_id;
     std::unique_ptr<PrerenderHandle> prerender_handle;
     switch (trigger_type) {
       case PreloadingTriggerType::kSpeculationRule:
-        host_id = AddPrerender(kPrerenderingUrl);
+        host_id = AddPrerender(prerendering_url);
         break;
       case PreloadingTriggerType::kSpeculationRuleFromIsolatedWorld:
-        host_id = AddPrerender(kPrerenderingUrl, /*world_id=*/1);
+        host_id = AddPrerender(prerendering_url, /*world_id=*/1);
         break;
       case PreloadingTriggerType::kEmbedder:
-        prerender_handle = AddEmbedderTriggeredPrerender(kPrerenderingUrl);
+        prerender_handle = AddEmbedderTriggeredPrerender(prerendering_url);
         host_id = static_cast<PrerenderHandleImpl*>(prerender_handle.get())
                       ->prerender_host_id_for_testing();
         break;
@@ -6030,10 +6031,10 @@ class PrerenderMainFrameNavigationBrowserTest
         switch (trigger_type) {
           case PreloadingTriggerType::kSpeculationRule:
           case PreloadingTriggerType::kSpeculationRuleFromIsolatedWorld:
-            NavigatePrimaryPage(kPrerenderingUrl);
+            NavigatePrimaryPage(prerendering_url);
             break;
           case PreloadingTriggerType::kEmbedder:
-            NavigatePrimaryPageFromAddressBar(kPrerenderingUrl);
+            NavigatePrimaryPageFromAddressBar(prerendering_url);
             break;
           case PreloadingTriggerType::kSpeculationRuleFromAutoSpeculationRules:
             FAIL() << "Auto speculation rules does not work with empty.html";
@@ -6047,7 +6048,7 @@ class PrerenderMainFrameNavigationBrowserTest
         // Navigation to the last URL should cancel prerendering.
         NavigatePrerenderedPage(host_id, last_url);
         observer.WaitForDestroyed();
-        EXPECT_FALSE(HasHostForUrl(kPrerenderingUrl));
+        EXPECT_FALSE(HasHostForUrl(prerendering_url));
         break;
       }
     }
@@ -6087,24 +6088,24 @@ class PrerenderMainFrameNavigationBrowserTest
       url = CreateRedirectionUrl(*it, url);
     }
 
-    const GURL kInitialUrl = GetUrl("/empty.html");
-    const GURL kPrerenderingUrl = GetUrl("/empty.html?prerender");
+    const GURL initial_url = GetUrl("/empty.html");
+    const GURL prerendering_url = GetUrl("/empty.html?prerender");
 
     // Navigate to an initial page.
-    ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+    ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
     // Start a prerender.
     PrerenderHostId host_id;
     std::unique_ptr<PrerenderHandle> prerender_handle;
     switch (trigger_type) {
       case PreloadingTriggerType::kSpeculationRule:
-        host_id = AddPrerender(kPrerenderingUrl);
+        host_id = AddPrerender(prerendering_url);
         break;
       case PreloadingTriggerType::kSpeculationRuleFromIsolatedWorld:
-        host_id = AddPrerender(kPrerenderingUrl, /*world_id=*/1);
+        host_id = AddPrerender(prerendering_url, /*world_id=*/1);
         break;
       case PreloadingTriggerType::kEmbedder:
-        prerender_handle = AddEmbedderTriggeredPrerender(kPrerenderingUrl);
+        prerender_handle = AddEmbedderTriggeredPrerender(prerendering_url);
         host_id = static_cast<PrerenderHandleImpl*>(prerender_handle.get())
                       ->prerender_host_id_for_testing();
         break;
@@ -6129,10 +6130,10 @@ class PrerenderMainFrameNavigationBrowserTest
         switch (trigger_type) {
           case PreloadingTriggerType::kSpeculationRule:
           case PreloadingTriggerType::kSpeculationRuleFromIsolatedWorld:
-            NavigatePrimaryPage(kPrerenderingUrl);
+            NavigatePrimaryPage(prerendering_url);
             break;
           case PreloadingTriggerType::kEmbedder:
-            NavigatePrimaryPageFromAddressBar(kPrerenderingUrl);
+            NavigatePrimaryPageFromAddressBar(prerendering_url);
             break;
           case PreloadingTriggerType::kSpeculationRuleFromAutoSpeculationRules:
             FAIL() << "Auto speculation rules does not work with empty.html";
@@ -6146,7 +6147,7 @@ class PrerenderMainFrameNavigationBrowserTest
         // Redirections should cancel prerendering.
         EXPECT_FALSE(navigation_observer.was_successful());
         observer.WaitForDestroyed();
-        EXPECT_FALSE(HasHostForUrl(kPrerenderingUrl));
+        EXPECT_FALSE(HasHostForUrl(prerendering_url));
         break;
       }
     }
@@ -6479,69 +6480,69 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, MainFrameNavigation_NonHttpUrl) {
 
 // Regression test for https://crbug.com/1198051
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, MainFrameFragmentNavigation) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl =
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url =
       GetUrl("/navigation_controller/hash_anchor_with_iframe.html");
-  const GURL kAnchorUrl =
+  const GURL anchor_url =
       GetUrl("/navigation_controller/hash_anchor_with_iframe.html#Test");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Start a prerender.
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
 
   // Do a fragment navigation.
-  NavigatePrerenderedPage(host_id, kAnchorUrl);
+  NavigatePrerenderedPage(host_id, anchor_url);
   WaitForPrerenderLoadCompletion(host_id);
 
   RedirectChainObserver redirect_chain_observer(*shell()->web_contents(),
-                                                kAnchorUrl);
+                                                anchor_url);
 
   // Activate.
-  NavigatePrimaryPage(kPrerenderingUrl);
+  NavigatePrimaryPage(prerendering_url);
   // Regression test for https://crbug.com/1211274. Make sure that we don't
   // crash when activating a prerendered page which performed a fragment
   // navigation.
   ASSERT_EQ(1u, redirect_chain_observer.redirect_chain().size());
-  EXPECT_EQ(kAnchorUrl, redirect_chain_observer.redirect_chain()[0]);
+  EXPECT_EQ(anchor_url, redirect_chain_observer.redirect_chain()[0]);
 
   // Make sure the render is not dead by doing a same page navigation.
-  NavigatePrimaryPage(kAnchorUrl);
+  NavigatePrimaryPage(anchor_url);
 
   // Make sure we did activate the page and issued no network requests
-  EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 1);
+  EXPECT_EQ(GetRequestCount(prerendering_url), 1);
 }
 
 // Makes sure that activation on navigation for a pop-up window doesn't happen.
 IN_PROC_BROWSER_TEST_P(PrerenderBrowserTestFallbackEnabledDisabled,
                        Activation_PopUpWindow) {
   // Navigate to an initial page.
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  const GURL initial_url = GetUrl("/empty.html");
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
   EXPECT_TRUE(AddTestUtilJS(current_frame_host()));
 
   // Start a prerender.
-  const GURL kPrerenderingUrl = GetUrl("/empty.html?prerender");
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  const GURL prerendering_url = GetUrl("/empty.html?prerender");
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
 
   // Attempt to activate the prerendered page for a pop-up window. This should
   // fail.
-  ASSERT_EQ(GetRequestCount(kPrerenderingUrl), 1);
+  ASSERT_EQ(GetRequestCount(prerendering_url), 1);
   EXPECT_EQ("LOADED", EvalJs(web_contents(),
-                             JsReplace("open_window($1)", kPrerenderingUrl)));
+                             JsReplace("open_window($1)", prerendering_url)));
 
   if (IsPrerender2FallbackPrefetchSpecRulesEnabled()) {
     // It uses prefetch ahead of prerender and doesn't fallback to a network
     // request.
-    EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 1);
+    EXPECT_EQ(GetRequestCount(prerendering_url), 1);
   } else {
     // Otherwise, it falls back to a network request.
-    EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 2);
+    EXPECT_EQ(GetRequestCount(prerendering_url), 2);
   }
 
   // Activation shouldn't happen, so the prerender host should not be consumed.
-  EXPECT_EQ(GetHostForUrl(kPrerenderingUrl), host_id);
+  EXPECT_EQ(GetHostForUrl(prerendering_url), host_id);
 }
 
 // Makes sure that activation on navigation for a page that has a pop-up window
@@ -6549,33 +6550,33 @@ IN_PROC_BROWSER_TEST_P(PrerenderBrowserTestFallbackEnabledDisabled,
 IN_PROC_BROWSER_TEST_P(PrerenderBrowserTestFallbackEnabledDisabled,
                        Activation_PageWithPopUpWindow) {
   // Navigate to an initial page.
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  const GURL initial_url = GetUrl("/empty.html");
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
   EXPECT_TRUE(AddTestUtilJS(current_frame_host()));
 
   // Start a prerender.
-  const GURL kPrerenderingUrl = GetUrl("/empty.html?prerender_next");
-  AddPrerender(kPrerenderingUrl);
-  ASSERT_TRUE(HasHostForUrl(kPrerenderingUrl));
+  const GURL prerendering_url = GetUrl("/empty.html?prerender_next");
+  AddPrerender(prerendering_url);
+  ASSERT_TRUE(HasHostForUrl(prerendering_url));
 
   // Open a pop-up window.
-  const GURL kWindowUrl = GetUrl("/empty.html?prerender_window");
+  const GURL window_url = GetUrl("/empty.html?prerender_window");
   EXPECT_EQ("LOADED",
-            EvalJs(web_contents(), JsReplace("open_window($1)", kWindowUrl)));
+            EvalJs(web_contents(), JsReplace("open_window($1)", window_url)));
 
   // Attempt to activate the prerendered page for the top-level frame. This
   // should fail because the pop-up window exists.
-  ASSERT_EQ(GetRequestCount(kPrerenderingUrl), 1);
-  NavigatePrimaryPage(kPrerenderingUrl);
-  EXPECT_EQ(web_contents()->GetLastCommittedURL(), kPrerenderingUrl);
+  ASSERT_EQ(GetRequestCount(prerendering_url), 1);
+  NavigatePrimaryPage(prerendering_url);
+  EXPECT_EQ(web_contents()->GetLastCommittedURL(), prerendering_url);
 
   if (IsPrerender2FallbackPrefetchSpecRulesEnabled()) {
     // It uses prefetch ahead of prerender and doesn't fallback to a network
     // request.
-    EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 1);
+    EXPECT_EQ(GetRequestCount(prerendering_url), 1);
   } else {
     // Otherwise, it falls back to a network request.
-    EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 2);
+    EXPECT_EQ(GetRequestCount(prerendering_url), 2);
   }
 
   // The prerender host should be canceled.
@@ -6650,12 +6651,12 @@ using PrerenderBrowserDeathTest = PrerenderBrowserTest;
 // See https://crbug.com/40191159 for details.
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserDeathTest,
                        PrerenderCannotHaveInnerContents) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/page_with_blank_iframe.html");
-  const GURL kInnerContentsUrl = GetUrl("/empty.html?prerender");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/page_with_blank_iframe.html");
+  const GURL inner_contents_url = GetUrl("/empty.html?prerender");
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
   RenderFrameHostImpl* prerendered_render_frame_host =
       GetPrerenderedMainFrameHost(host_id);
 
@@ -6690,28 +6691,28 @@ class IsActivationObserver : public WebContentsObserver {
 
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
                        NavigationRequestIsPrerenderedPageActivation) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/empty.html?prerender");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/empty.html?prerender");
 
   test::PrerenderHostObserver prerender_observer(*shell()->web_contents(),
-                                                 kPrerenderingUrl);
+                                                 prerendering_url);
 
   // Navigate to an initial page and start a prerender. Note, AddPrerender will
   // wait until the prerendered page has finished navigating.
   {
-    ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
-    ASSERT_EQ(web_contents()->GetLastCommittedURL(), kInitialUrl);
-    AddPrerender(kPrerenderingUrl);
+    ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+    ASSERT_EQ(web_contents()->GetLastCommittedURL(), initial_url);
+    AddPrerender(prerendering_url);
   }
 
   IsActivationObserver is_activation_observer(*shell()->web_contents(),
-                                              kPrerenderingUrl);
+                                              prerendering_url);
 
   // Now navigate the primary page to the prerendered URL so that we activate
   // the prerender.
   {
     ASSERT_TRUE(ExecJs(web_contents()->GetPrimaryMainFrame(),
-                       JsReplace("location = $1", kPrerenderingUrl)));
+                       JsReplace("location = $1", prerendering_url)));
     prerender_observer.WaitForActivation();
   }
 
@@ -6722,15 +6723,15 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, ActivationDoesntRunThrottles) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/empty.html?prerender");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/empty.html?prerender");
 
   test::PrerenderHostObserver prerender_observer(*shell()->web_contents(),
-                                                 kPrerenderingUrl);
+                                                 prerendering_url);
 
   // Navigate to the initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
-  ASSERT_EQ(web_contents()->GetLastCommittedURL(), kInitialUrl);
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+  ASSERT_EQ(web_contents()->GetLastCommittedURL(), initial_url);
   ASSERT_TRUE(WaitForLoadStop(shell()->web_contents()));
 
   NavigationThrottle* throttle = nullptr;
@@ -6755,8 +6756,8 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, ActivationDoesntRunThrottles) {
   // navigation and load completes.
   {
     TestNavigationManager prerender_manager(shell()->web_contents(),
-                                            kPrerenderingUrl);
-    AddPrerenderAsync(kPrerenderingUrl);
+                                            prerendering_url);
+    AddPrerenderAsync(prerendering_url);
     ASSERT_TRUE(prerender_manager.WaitForFirstYieldAfterDidStartNavigation());
     ASSERT_NE(throttle, nullptr);
 
@@ -6770,18 +6771,18 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, ActivationDoesntRunThrottles) {
     throttle = nullptr;
     ASSERT_TRUE(prerender_manager.WaitForNavigationFinished());
 
-    PrerenderHostId host_id = GetHostForUrl(kPrerenderingUrl);
+    PrerenderHostId host_id = GetHostForUrl(prerendering_url);
     EXPECT_EQ(GetPrerenderedMainFrameHost(host_id)->GetLastCommittedURL(),
-              kPrerenderingUrl);
+              prerendering_url);
   }
 
   // Now navigate the primary page to the prerendered URL so that we activate
   // the prerender. The throttle should not have been registered for the
   // activating navigation.
   {
-    NavigatePrimaryPage(kPrerenderingUrl);
+    NavigatePrimaryPage(prerendering_url);
     prerender_observer.WaitForActivation();
-    EXPECT_EQ(web_contents()->GetLastCommittedURL(), kPrerenderingUrl);
+    EXPECT_EQ(web_contents()->GetLastCommittedURL(), prerendering_url);
     EXPECT_EQ(throttle, nullptr);
   }
 }
@@ -6789,25 +6790,25 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, ActivationDoesntRunThrottles) {
 // Ensures that if we attempt to open a URL while prerendering with a window
 // disposition other than CURRENT_TAB, we fail.
 IN_PROC_BROWSER_TEST_P(PrerenderTargetAgnosticBrowserTest, SuppressOpenURL) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/empty.html?prerender1");
-  const GURL kSecondUrl = GetUrl("/empty.html?prerender2");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/empty.html?prerender1");
+  const GURL second_url = GetUrl("/empty.html?prerender2");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
-  ASSERT_EQ(web_contents()->GetLastCommittedURL(), kInitialUrl);
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+  ASSERT_EQ(web_contents()->GetLastCommittedURL(), initial_url);
 
-  // Start prerendering `kPrerenderingUrl`.
-  ASSERT_EQ(GetRequestCount(kPrerenderingUrl), 0);
+  // Start prerendering `prerendering_url`.
+  ASSERT_EQ(GetRequestCount(prerendering_url), 0);
   PrerenderHostId host_id = prerender_helper()->AddPrerender(
-      kPrerenderingUrl, /*eagerness=*/std::nullopt, GetTargetHint());
+      prerendering_url, /*eagerness=*/std::nullopt, GetTargetHint());
   auto* prerender_web_contents =
       test::PrerenderTestHelper::GetPrerenderWebContents(host_id);
   RenderFrameHost* prerendered_render_frame_host =
       test::PrerenderTestHelper::GetPrerenderedMainFrameHost(
           *prerender_web_contents, host_id);
-  EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 1);
-  OpenURLParams params(kSecondUrl, Referrer(),
+  EXPECT_EQ(GetRequestCount(prerendering_url), 1);
+  OpenURLParams params(second_url, Referrer(),
                        prerendered_render_frame_host->GetFrameTreeNodeId(),
                        WindowOpenDisposition::NEW_WINDOW,
                        ui::PAGE_TRANSITION_LINK, true);
@@ -6825,16 +6826,16 @@ IN_PROC_BROWSER_TEST_P(PrerenderTargetAgnosticBrowserTest, SuppressOpenURL) {
 // `WebContentsImpl::ForEachRenderFrameHostImpl` behave correctly when
 // prerendering.
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, ForEachRenderFrameHostImpl) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
+  const GURL initial_url = GetUrl("/empty.html");
   // All frames are same-origin due to prerendering restrictions for
   // cross-origin.
-  const GURL kPrerenderingUrl =
+  const GURL prerendering_url =
       GetUrl("/cross_site_iframe_factory.html?a.test(a.test(a.test),a.test)");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   RenderFrameHostImpl* initiator_render_frame_host = current_frame_host();
 
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
   RenderFrameHostImpl* prerendered_render_frame_host =
       GetPrerenderedMainFrameHost(host_id);
   RenderFrameHostImpl* rfh_sub_1 =
@@ -6896,31 +6897,31 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, ForEachRenderFrameHostImpl) {
 // Tests that a prerendering page cannot change the visible URL of the
 // corresponding WebContentsImpl instance before activation.
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, TabVisibleURL) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/title1.html");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/title1.html");
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
-  ASSERT_EQ(shell()->web_contents()->GetVisibleURL(), kInitialUrl);
-  AddPrerender(kPrerenderingUrl);
+  ASSERT_EQ(shell()->web_contents()->GetVisibleURL(), initial_url);
+  AddPrerender(prerendering_url);
 
   // The visible URL should not be modified by the prerendering page.
-  EXPECT_EQ(shell()->web_contents()->GetVisibleURL(), kInitialUrl);
+  EXPECT_EQ(shell()->web_contents()->GetVisibleURL(), initial_url);
 
   // Activate the prerendered page.
-  NavigatePrimaryPage(kPrerenderingUrl);
+  NavigatePrimaryPage(prerendering_url);
 
   // The visible URL should be updated after activation.
-  EXPECT_EQ(shell()->web_contents()->GetVisibleURL(), kPrerenderingUrl);
+  EXPECT_EQ(shell()->web_contents()->GetVisibleURL(), prerendering_url);
 }
 
 // Tests that prerendering will be cancelled if a prerendering page wants to set
 // a WebContents-level preferred size.
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, CancelOnPreferredSizeChanged) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/title1.html");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/title1.html");
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
   test::PrerenderHostObserver host_observer(*web_contents_impl(), host_id);
 
   // Enable PreferredSize mode in the prerendering page. Usually this mode is
@@ -6932,7 +6933,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, CancelOnPreferredSizeChanged) {
   prerender_main_frame->GetRenderViewHost()->EnablePreferredSizeMode();
 
   host_observer.WaitForDestroyed();
-  EXPECT_FALSE(HasHostForUrl(kPrerenderingUrl));
+  EXPECT_FALSE(HasHostForUrl(prerendering_url));
   ExpectFinalStatusForSpeculationRule(
       PrerenderFinalStatus::kInactivePageRestriction);
   histogram_tester().ExpectUniqueSample(
@@ -6943,11 +6944,11 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, CancelOnPreferredSizeChanged) {
 
 // Tests that prerendering cannot request the browser to create a popup widget.
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, NoPopupWidget) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/title1.html");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/title1.html");
 
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
   RenderFrameHostWrapper prerender_main_frame(
       GetPrerenderedMainFrameHost(host_id));
 
@@ -6972,7 +6973,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, NoPopupWidget) {
 
   // Give the test a chance to fail if the click() is not ignored.
   base::RunLoop().RunUntilIdle();
-  EXPECT_TRUE(HasHostForUrl(kPrerenderingUrl));
+  EXPECT_TRUE(HasHostForUrl(prerendering_url));
 }
 
 // This throttle cancels prerendering on subframe navigation in prerendered
@@ -7017,18 +7018,18 @@ class TestPrerenderCancellerSubframeNavigationThrottle
 // PrerenderHost is being destroyed should not crash.
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
                        SubframeNavigationWhilePrerenderHostIsBeingDestroyed) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/empty.html?prerender");
-  const GURL kCrossOriginSubframeUrl =
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/empty.html?prerender");
+  const GURL cross_origin_subframe_url =
       GetCrossSiteUrl("/empty.html?cross_origin_iframe");
 
   // Navigate to the initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
-  ASSERT_EQ(web_contents()->GetLastCommittedURL(), kInitialUrl);
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+  ASSERT_EQ(web_contents()->GetLastCommittedURL(), initial_url);
   ASSERT_TRUE(WaitForLoadStop(shell()->web_contents()));
 
   // Start a prerender.
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
   test::PrerenderHostObserver observer(*web_contents_impl(), host_id);
 
   // Insert TestPrerenderCancellerSubframeNavigationThrottle that cancels
@@ -7048,13 +7049,14 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
   // completion.
   RenderFrameHost* prerender_frame_host = GetPrerenderedMainFrameHost(host_id);
   EXPECT_TRUE(AddTestUtilJS(prerender_frame_host));
-  ExecuteScriptAsync(prerender_frame_host, JsReplace("add_iframe_async($1)",
-                                                     kCrossOriginSubframeUrl));
+  ExecuteScriptAsync(
+      prerender_frame_host,
+      JsReplace("add_iframe_async($1)", cross_origin_subframe_url));
 
   // Wait for the cancellation triggered by the throttle. The subframe
   // navigation should not crash during the period.
   observer.WaitForDestroyed();
-  EXPECT_FALSE(HasHostForUrl(kPrerenderingUrl));
+  EXPECT_FALSE(HasHostForUrl(prerendering_url));
   ExpectFinalStatusForSpeculationRule(PrerenderFinalStatus::kMaxValue);
 }
 
@@ -7086,15 +7088,15 @@ class MojoCapabilityControlTestContentBrowserClient
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, MojoCapabilityControl) {
   MojoCapabilityControlTestContentBrowserClient test_browser_client;
 
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/page_with_iframe.html");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/page_with_iframe.html");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
-  ASSERT_EQ(web_contents()->GetLastCommittedURL(), kInitialUrl);
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+  ASSERT_EQ(web_contents()->GetLastCommittedURL(), initial_url);
 
   // Start a prerender.
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
   RenderFrameHost* prerendered_render_frame_host =
       GetPrerenderedMainFrameHost(host_id);
   std::vector<RenderFrameHost*> frames =
@@ -7142,8 +7144,8 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, MojoCapabilityControl) {
   EXPECT_EQ(test_browser_client.GetGrantReceiverSetSize(), frames.size());
 
   // Activate the prerendered page.
-  NavigatePrimaryPage(kPrerenderingUrl);
-  EXPECT_EQ(web_contents()->GetLastCommittedURL(), kPrerenderingUrl);
+  NavigatePrimaryPage(prerendering_url);
+  EXPECT_EQ(web_contents()->GetLastCommittedURL(), prerendering_url);
 
   // Wait until the deferred interface is granted on all frames.
   run_loop.Run();
@@ -7156,15 +7158,15 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
                        MojoCapabilityControl_CancelMainFrame) {
   MojoCapabilityControlTestContentBrowserClient test_browser_client;
 
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/page_with_iframe.html");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/page_with_iframe.html");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
-  ASSERT_EQ(web_contents()->GetLastCommittedURL(), kInitialUrl);
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+  ASSERT_EQ(web_contents()->GetLastCommittedURL(), initial_url);
 
   // Start a prerender.
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
   auto* prerendered_render_frame_host = GetPrerenderedMainFrameHost(host_id);
   mojo::Receiver<blink::mojom::BrowserInterfaceBroker>& bib =
       prerendered_render_frame_host
@@ -7173,10 +7175,10 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
       bib.internal_state()->impl();
 
   // Send a kCancel request to cancel prerendering.
-  EXPECT_TRUE(HasHostForUrl(kPrerenderingUrl));
+  EXPECT_TRUE(HasHostForUrl(prerendering_url));
   mojo::Remote<mojom::TestInterfaceForCancel> remote;
   prerender_broker->GetInterface(remote.BindNewPipeAndPassReceiver());
-  EXPECT_FALSE(HasHostForUrl(kPrerenderingUrl));
+  EXPECT_FALSE(HasHostForUrl(prerendering_url));
   ExpectFinalStatusForSpeculationRule(PrerenderFinalStatus::kMojoBinderPolicy);
   // `TestInterfaceForCancel` doesn't have a enum value because it is not used
   // in production, so histogram_tester_ should log
@@ -7196,15 +7198,15 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
                        MojoCapabilityControl_CancelIframe) {
   MojoCapabilityControlTestContentBrowserClient test_browser_client;
 
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/page_with_iframe.html");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/page_with_iframe.html");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
-  ASSERT_EQ(web_contents()->GetLastCommittedURL(), kInitialUrl);
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+  ASSERT_EQ(web_contents()->GetLastCommittedURL(), initial_url);
 
   // Start a prerender.
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
   auto* main_render_frame_host = GetPrerenderedMainFrameHost(host_id);
   ASSERT_GE(main_render_frame_host->child_count(), 1U);
   RenderFrameHostImpl* child_render_frame_host =
@@ -7217,11 +7219,11 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
       bib.internal_state()->impl();
 
   // Send a kCancel request to cancel prerendering.
-  EXPECT_TRUE(HasHostForUrl(kPrerenderingUrl));
+  EXPECT_TRUE(HasHostForUrl(prerendering_url));
 
   mojo::Remote<mojom::TestInterfaceForCancel> remote;
   prerender_broker->GetInterface(remote.BindNewPipeAndPassReceiver());
-  EXPECT_FALSE(HasHostForUrl(kPrerenderingUrl));
+  EXPECT_FALSE(HasHostForUrl(prerendering_url));
 
   ExpectFinalStatusForSpeculationRule(PrerenderFinalStatus::kMojoBinderPolicy);
   // `TestInterfaceForCancel` doesn't have a enum value because it is not used
@@ -7242,12 +7244,12 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
                        MojoCapabilityControl_HandleUnexpected) {
   MojoCapabilityControlTestContentBrowserClient test_browser_client;
 
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/empty.html?prerender1");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/empty.html?prerender1");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
-  ASSERT_EQ(web_contents()->GetLastCommittedURL(), kInitialUrl);
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+  ASSERT_EQ(web_contents()->GetLastCommittedURL(), initial_url);
 
   // Set up the error handler for bad mojo messages.
   std::string bad_message_error;
@@ -7259,7 +7261,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
       }));
 
   // Start a prerender.
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
   auto* main_render_frame_host = GetPrerenderedMainFrameHost(host_id);
 
   // Rebind a receiver for testing.
@@ -7278,11 +7280,11 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
       std::move(fake_receiver));
 
   // Send a kUnexpected request.
-  EXPECT_TRUE(HasHostForUrl(kPrerenderingUrl));
+  EXPECT_TRUE(HasHostForUrl(prerendering_url));
   mojo::Remote<mojom::TestInterfaceForUnexpected> remote;
   remote_broker->GetInterface(remote.BindNewPipeAndPassReceiver());
   remote_broker.FlushForTesting();
-  EXPECT_FALSE(HasHostForUrl(kPrerenderingUrl));
+  EXPECT_FALSE(HasHostForUrl(prerendering_url));
   EXPECT_EQ(bad_message_error,
             "MBPA_BAD_INTERFACE: content.mojom.TestInterfaceForUnexpected");
 }
@@ -7429,17 +7431,17 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, MojoCapabilityControl_LoosenMode) {
 // background timeout timer is fired.
 void PrerenderBrowserTest::TestCancelPrerendersWhenTimeout(
     std::vector<Visibility> visibility_transitions) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderUrl1 = GetUrl("/empty.html?prerender1");
-  const GURL kPrerenderUrl2 = GetUrl("/empty.html?prerender2");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerender_url1 = GetUrl("/empty.html?prerender1");
+  const GURL prerender_url2 = GetUrl("/empty.html?prerender2");
 
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
-  AddPrerender(kPrerenderUrl1);
-  AddPrerender(kPrerenderUrl2);
+  AddPrerender(prerender_url1);
+  AddPrerender(prerender_url2);
 
   test::PrerenderHostObserver prerender_observer(*web_contents_impl(),
-                                                 kPrerenderUrl1);
+                                                 prerender_url1);
 
   PrerenderHostRegistry* registry =
       web_contents_impl()->GetPrerenderHostRegistry();
@@ -7525,20 +7527,20 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
 // in the background.
 void PrerenderBrowserTest::TestCancelOnlyEmbedderTriggeredPrerenderWhenTimeout(
     std::vector<Visibility> visibility_transitions) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderUrl1 = GetUrl("/empty.html?prerender1");
-  const GURL kPrerenderUrl2 = GetUrl("/empty.html?prerender2");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerender_url1 = GetUrl("/empty.html?prerender1");
+  const GURL prerender_url2 = GetUrl("/empty.html?prerender2");
 
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Start prerendering by speculation rules.
-  AddPrerender(kPrerenderUrl1);
+  AddPrerender(prerender_url1);
 
   test::PrerenderHostObserver host_observer(*web_contents_impl(),
-                                            kPrerenderUrl2);
+                                            prerender_url2);
   // Start prerendering by embedder.
   std::unique_ptr<PrerenderHandle> prerender_handle =
-      AddEmbedderTriggeredPrerenderAsync(kPrerenderUrl2);
+      AddEmbedderTriggeredPrerenderAsync(prerender_url2);
 
   PrerenderHostRegistry* registry =
       web_contents_impl()->GetPrerenderHostRegistry();
@@ -7594,7 +7596,7 @@ void PrerenderBrowserTest::TestCancelOnlyEmbedderTriggeredPrerenderWhenTimeout(
   // speculation rules is alive.
   ASSERT_FALSE(registry->GetEmbedderTimerForTesting()->IsRunning());
   ASSERT_TRUE(registry->GetSpeculationRulesTimerForTesting()->IsRunning());
-  EXPECT_TRUE(GetHostForUrl(kPrerenderUrl1));
+  EXPECT_TRUE(GetHostForUrl(prerender_url1));
 
   histogram_tester().ExpectUniqueSample(
       "Prerender.Experimental.PrerenderHostFinalStatus.Embedder_"
@@ -7640,11 +7642,11 @@ IN_PROC_BROWSER_TEST_F(
 // hidden/occluded page gets visible.
 void PrerenderBrowserTest::TestTimerResetWhenPageGoBackToForeground(
     Visibility visibility) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderUrl = GetUrl("/empty.html?prerender");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerender_url = GetUrl("/empty.html?prerender");
 
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
-  AddPrerender(kPrerenderUrl);
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+  AddPrerender(prerender_url);
 
   PrerenderHostRegistry* registry =
       web_contents_impl()->GetPrerenderHostRegistry();
@@ -7680,10 +7682,10 @@ void PrerenderBrowserTest::TestTimerResetWhenPageGoBackToForeground(
 
   // Activate the prerendered page.
   test::PrerenderHostObserver prerender_observer(*web_contents(),
-                                                 GetHostForUrl(kPrerenderUrl));
-  NavigatePrimaryPage(kPrerenderUrl);
+                                                 GetHostForUrl(prerender_url));
+  NavigatePrimaryPage(prerender_url);
   prerender_observer.WaitForActivation();
-  EXPECT_EQ(web_contents()->GetLastCommittedURL(), kPrerenderUrl);
+  EXPECT_EQ(web_contents()->GetLastCommittedURL(), prerender_url);
   histogram_tester().ExpectUniqueSample(
       "Prerender.Experimental.PrerenderHostFinalStatus.SpeculationRule",
       PrerenderFinalStatus::kActivated, 1);
@@ -7703,15 +7705,15 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
 // "target=_blank" are canceled when it times out in the background .
 void PrerenderBrowserTest::TestCancelPrerenderWithTargetBlankWhenTimeout(
     Visibility visibility) {
-  const GURL kInitialUrl = GetUrl("/simple_links.html");
-  const GURL kPrerenderUrl = GetUrl("/title2.html");
+  const GURL initial_url = GetUrl("/simple_links.html");
+  const GURL prerender_url = GetUrl("/title2.html");
 
-  // Navigate to an initial page which has a link to `kPrerenderUrl`.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  // Navigate to an initial page which has a link to `prerender_url`.
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
-  // Start prerendering `kPrerenderUrl`.
+  // Start prerendering `prerender_url`.
   PrerenderHostId host_id = prerender_helper()->AddPrerender(
-      kPrerenderUrl, /*eagerness=*/std::nullopt, "_blank");
+      prerender_url, /*eagerness=*/std::nullopt, "_blank");
   auto* prerender_web_contents =
       test::PrerenderTestHelper::GetPrerenderWebContents(host_id);
   ASSERT_NE(prerender_web_contents, web_contents_impl());
@@ -7763,7 +7765,7 @@ void PrerenderBrowserTest::TestCancelPrerenderWithTargetBlankWhenTimeout(
 
   // The navigation occurred in a new WebContents, so the original WebContents
   // should still be showing the initial trigger page.
-  EXPECT_EQ(web_contents()->GetLastCommittedURL(), kInitialUrl);
+  EXPECT_EQ(web_contents()->GetLastCommittedURL(), initial_url);
 }
 
 IN_PROC_BROWSER_TEST_F(PrerenderTargetHintBrowserTest,
@@ -7902,21 +7904,21 @@ INSTANTIATE_TEST_SUITE_P(
 IN_PROC_BROWSER_TEST_P(SSLPrerenderBrowserTest,
                        CertificateValidation_Navigation) {
   // Navigate to an initial page.
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  const GURL initial_url = GetUrl("/empty.html");
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Reset the server's config.
   RequireClientCertsOrSendExpiredCerts();
 
-  const GURL kPrerenderingUrl = GetUrl("/title1.html");
+  const GURL prerendering_url = GetUrl("/title1.html");
 
-  // Start prerendering `kPrerenderingUrl`.
-  test::PrerenderHostObserver host_observer(*web_contents(), kPrerenderingUrl);
-  auto handle = TriggerPrerender(kPrerenderingUrl);
+  // Start prerendering `prerendering_url`.
+  test::PrerenderHostObserver host_observer(*web_contents(), prerendering_url);
+  auto handle = TriggerPrerender(prerendering_url);
 
   // The prerender should be destroyed.
   host_observer.WaitForDestroyed();
-  EXPECT_TRUE(prerender_helper()->GetHostForUrl(kPrerenderingUrl).is_null());
+  EXPECT_TRUE(prerender_helper()->GetHostForUrl(prerendering_url).is_null());
 
   PrerenderFinalStatus final_status = [&]() {
     if (IsPrefetchAheadOfPrerenderTriggered()) {
@@ -7951,22 +7953,22 @@ IN_PROC_BROWSER_TEST_P(SSLPrerenderBrowserTest,
 IN_PROC_BROWSER_TEST_P(SSLPrerenderBrowserTest,
                        CertificateValidation_Subresource) {
   // Navigate to an initial page.
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  const GURL initial_url = GetUrl("/empty.html");
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
-  // Start prerendering `kPrerenderingUrl`.
-  const GURL kPrerenderingUrl = GetUrl("/title1.html");
-  auto handle = TriggerPrerender(kPrerenderingUrl);
+  // Start prerendering `prerendering_url`.
+  const GURL prerendering_url = GetUrl("/title1.html");
+  auto handle = TriggerPrerender(prerendering_url);
   prerender_helper()->WaitForPrerenderLoadCompletion(*web_contents(),
-                                                     kPrerenderingUrl);
+                                                     prerendering_url);
   PrerenderHostId host_id =
-      prerender_helper()->GetHostForUrl(*web_contents(), kPrerenderingUrl);
+      prerender_helper()->GetHostForUrl(*web_contents(), prerendering_url);
   test::PrerenderHostObserver host_observer(*web_contents(), host_id);
 
   // Reset the server's config.
   RequireClientCertsOrSendExpiredCerts();
 
-  ASSERT_TRUE(prerender_helper()->GetHostForUrl(kPrerenderingUrl));
+  ASSERT_TRUE(prerender_helper()->GetHostForUrl(prerendering_url));
 
   // Fetch a subresrouce.
   std::string fetch_subresource_script = R"(
@@ -7979,7 +7981,7 @@ IN_PROC_BROWSER_TEST_P(SSLPrerenderBrowserTest,
 
   // The prerender should be destroyed.
   host_observer.WaitForDestroyed();
-  EXPECT_TRUE(prerender_helper()->GetHostForUrl(kPrerenderingUrl).is_null());
+  EXPECT_TRUE(prerender_helper()->GetHostForUrl(prerendering_url).is_null());
 
   PrerenderFinalStatus final_status = [&]() {
     switch (GetSSLPrerenderTestErrorBlockType()) {
@@ -8010,22 +8012,22 @@ IN_PROC_BROWSER_TEST_P(SSLPrerenderBrowserTest,
 IN_PROC_BROWSER_TEST_P(SSLPrerenderBrowserTest,
                        CertificateValidation_SWMainResource) {
   // Register a service worker that intercepts resource requests.
-  const GURL kInitialUrl = GetUrl("/workers/service_worker_setup.html");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  const GURL initial_url = GetUrl("/workers/service_worker_setup.html");
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
   EXPECT_EQ("ok", EvalJs(web_contents(), "setup();"));
 
   // Reset the server's config.
   RequireClientCertsOrSendExpiredCerts();
 
-  const GURL kPrerenderingUrl = GetUrl("/workers/simple.html?intercept");
+  const GURL prerendering_url = GetUrl("/workers/simple.html?intercept");
 
-  // Start prerendering `kPrerenderingUrl`.
-  test::PrerenderHostObserver host_observer(*web_contents(), kPrerenderingUrl);
-  auto handle = TriggerPrerender(kPrerenderingUrl);
+  // Start prerendering `prerendering_url`.
+  test::PrerenderHostObserver host_observer(*web_contents(), prerendering_url);
+  auto handle = TriggerPrerender(prerendering_url);
 
   // The prerender should be destroyed.
   host_observer.WaitForDestroyed();
-  EXPECT_TRUE(prerender_helper()->GetHostForUrl(kPrerenderingUrl).is_null());
+  EXPECT_TRUE(prerender_helper()->GetHostForUrl(prerendering_url).is_null());
 
   // For the kCertError case, StoragePartitionImpl cannot locate any
   // WebContents. So, the certificate error does not cause any UI changes; it
@@ -8073,17 +8075,17 @@ IN_PROC_BROWSER_TEST_P(SSLPrerenderBrowserTest,
 
   // Load an initial page and register a service worker that intercepts
   // resources requests.
-  const GURL kInitialUrl = GetUrl("/workers/service_worker_setup.html");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  const GURL initial_url = GetUrl("/workers/service_worker_setup.html");
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
   EXPECT_EQ("ok", EvalJs(current_frame_host(), "setup();"));
 
   // Prerender a page.
-  const GURL kPrerenderingUrl = GetUrl("/workers/empty.html");
-  auto handle = TriggerPrerender(kPrerenderingUrl);
+  const GURL prerendering_url = GetUrl("/workers/empty.html");
+  auto handle = TriggerPrerender(prerendering_url);
   prerender_helper()->WaitForPrerenderLoadCompletion(*web_contents(),
-                                                     kPrerenderingUrl);
+                                                     prerendering_url);
   PrerenderHostId host_id =
-      prerender_helper()->GetHostForUrl(*web_contents(), kPrerenderingUrl);
+      prerender_helper()->GetHostForUrl(*web_contents(), prerendering_url);
   test::PrerenderHostObserver host_observer(*web_contents(), host_id);
   RequireClientCertsOrSendExpiredCerts();
 
@@ -8096,7 +8098,7 @@ IN_PROC_BROWSER_TEST_P(SSLPrerenderBrowserTest,
 
   // Check the prerender was destroyed.
   host_observer.WaitForDestroyed();
-  EXPECT_TRUE(prerender_helper()->GetHostForUrl(kPrerenderingUrl).is_null());
+  EXPECT_TRUE(prerender_helper()->GetHostForUrl(prerendering_url).is_null());
 
   PrerenderFinalStatus final_status = [&]() {
     switch (GetSSLPrerenderTestErrorBlockType()) {
@@ -8126,8 +8128,8 @@ IN_PROC_BROWSER_TEST_P(SSLPrerenderBrowserTest,
 IN_PROC_BROWSER_TEST_P(SSLPrerenderBrowserTest,
                        PrefetchCertificateValidation_NoServiceWorker) {
   // Navigate to an initial page.
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  const GURL initial_url = GetUrl("/empty.html");
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Reset the server's config.
   RequireClientCertsOrSendExpiredCerts();
@@ -8151,8 +8153,8 @@ IN_PROC_BROWSER_TEST_P(SSLPrerenderBrowserTest,
 IN_PROC_BROWSER_TEST_P(SSLPrerenderBrowserTest,
                        PrefetchCertificateValidation_ServiceWorkerFallback) {
   // Navigate to an initial page.
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  const GURL initial_url = GetUrl("/empty.html");
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   RegisterServiceWorker("/fetch_event_passthrough.js");
 
@@ -8178,8 +8180,8 @@ IN_PROC_BROWSER_TEST_P(SSLPrerenderBrowserTest,
 IN_PROC_BROWSER_TEST_P(SSLPrerenderBrowserTest,
                        PrefetchCertificateValidation_ServiceWorkerSubresource) {
   // Navigate to an initial page.
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  const GURL initial_url = GetUrl("/empty.html");
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   RegisterServiceWorker("/fetch_event_respond_with_fetch.js");
 
@@ -8211,39 +8213,39 @@ IN_PROC_BROWSER_TEST_P(SSLPrerenderBrowserTest,
 // Tests that window.open() in a prerendering page fails.
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, FeatureRestriction_WindowOpen) {
   // Navigate to an initial page.
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  const GURL initial_url = GetUrl("/empty.html");
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Start a prerender.
-  const GURL kPrerenderingUrl = GetUrl("/empty.html?prerendering");
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  const GURL prerendering_url = GetUrl("/empty.html?prerendering");
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
   auto* prerender_frame = GetPrerenderedMainFrameHost(host_id);
   EXPECT_TRUE(AddTestUtilJS(prerender_frame));
 
   // Attempt to open a window in the prerendered page. This should fail.
-  const GURL kWindowOpenUrl = GetUrl("/empty.html?prerender");
+  const GURL window_open_url = GetUrl("/empty.html?prerender");
 
   EXPECT_EQ("FAILED", EvalJs(prerender_frame,
-                             JsReplace("open_window($1)", kWindowOpenUrl)));
-  EXPECT_EQ(GetRequestCount(kWindowOpenUrl), 0);
+                             JsReplace("open_window($1)", window_open_url)));
+  EXPECT_EQ(GetRequestCount(window_open_url), 0);
 
   // Opening a window shouldn't cancel prerendering.
-  EXPECT_EQ(GetHostForUrl(kPrerenderingUrl), host_id);
+  EXPECT_EQ(GetHostForUrl(prerendering_url), host_id);
 }
 
 IN_PROC_BROWSER_TEST_P(PrerenderTargetAgnosticBrowserTest,
                        RenderFrameHostLifecycleState) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/empty.html");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/empty.html");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
   EXPECT_EQ(current_frame_host()->lifecycle_state(),
             LifecycleStateImpl::kActive);
 
   // Start a prerender.
   PrerenderHostId host_id = prerender_helper()->AddPrerender(
-      kPrerenderingUrl, /*eagerness=*/std::nullopt, GetTargetHint());
+      prerendering_url, /*eagerness=*/std::nullopt, GetTargetHint());
   auto* prerender_web_contents =
       test::PrerenderTestHelper::GetPrerenderWebContents(host_id);
 
@@ -8264,7 +8266,7 @@ IN_PROC_BROWSER_TEST_P(PrerenderTargetAgnosticBrowserTest,
   EXPECT_FALSE(rfh_b->IsInPrimaryMainFrame());
 
   // Activate the prerendered page.
-  ActivatePrerenderedPage(*prerender_web_contents, kPrerenderingUrl);
+  ActivatePrerenderedPage(*prerender_web_contents, prerendering_url);
 
   // Both rfh_a and rfh_b lifecycle state's should be kActive after activation.
   EXPECT_EQ(LifecycleStateImpl::kActive, rfh_a->lifecycle_state());
@@ -8288,33 +8290,33 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
 
   ASSERT_TRUE(embedded_test_server()->Start());
 
-  const GURL kInitialUrl = embedded_test_server()->GetURL("/empty.html");
-  const GURL kPrerenderingUrl =
+  const GURL initial_url = embedded_test_server()->GetURL("/empty.html");
+  const GURL prerendering_url =
       embedded_test_server()->GetURL("/main_document");
 
   // Navigate to an initial page in primary frame tree.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Start a prerender, and navigate to a page that doesn't commit navigation.
   {
     test::PrerenderHostRegistryObserver registry_observer(*web_contents_impl());
-    AddPrerenderAsync(kPrerenderingUrl);
-    registry_observer.WaitForTrigger(kPrerenderingUrl);
-    EXPECT_TRUE(HasHostForUrl(kPrerenderingUrl));
+    AddPrerenderAsync(prerendering_url);
+    registry_observer.WaitForTrigger(prerendering_url);
+    EXPECT_TRUE(HasHostForUrl(prerendering_url));
   }
 
-  PrerenderHostId host_id = GetHostForUrl(kPrerenderingUrl);
+  PrerenderHostId host_id = GetHostForUrl(prerendering_url);
   test::PrerenderHostObserver prerender_observer(*web_contents_impl(), host_id);
   EXPECT_FALSE(prerender_observer.was_activated());
 
   // Defer the activation until the ongoing main-frame navigation in prerender
   // frame tree commits.
   {
-    // Start navigation in primary page to kPrerenderingUrl.
+    // Start navigation in primary page to prerendering_url.
     TestActivationManager primary_page_manager(shell()->web_contents(),
-                                               kPrerenderingUrl);
+                                               prerendering_url);
     ASSERT_TRUE(ExecJs(shell()->web_contents()->GetPrimaryMainFrame(),
-                       JsReplace("location = $1", kPrerenderingUrl)));
+                       JsReplace("location = $1", prerendering_url)));
 
     NavigationRequest* request =
         web_contents_impl()->GetPrimaryFrameTree().root()->navigation_request();
@@ -8337,9 +8339,9 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
     main_document_response.Send(net::HTTP_OK, "main_document");
     main_document_response.Done();
 
-    // The URL should still point to the kInitialUrl until the activation is
+    // The URL should still point to the initial_url until the activation is
     // completed.
-    EXPECT_EQ(shell()->web_contents()->GetLastCommittedURL(), kInitialUrl);
+    EXPECT_EQ(shell()->web_contents()->GetLastCommittedURL(), initial_url);
 
     // Make sure that the prerender was not activated yet.
     EXPECT_FALSE(prerender_observer.was_activated());
@@ -8348,11 +8350,11 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
     prerender_observer.WaitForActivation();
   }
 
-  // Prerender should be activated and the URL should point to kPrerenderingUrl.
+  // Prerender should be activated and the URL should point to prerendering_url.
   {
     EXPECT_TRUE(prerender_observer.was_activated());
-    EXPECT_FALSE(HasHostForUrl(kPrerenderingUrl));
-    EXPECT_EQ(shell()->web_contents()->GetLastCommittedURL(), kPrerenderingUrl);
+    EXPECT_FALSE(HasHostForUrl(prerendering_url));
+    EXPECT_EQ(shell()->web_contents()->GetLastCommittedURL(), prerendering_url);
   }
 
   // "Navigation.Prerender.ActivationCommitDeferTime" histogram should be
@@ -8373,15 +8375,15 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
 // Access API is deferred until activating the prerendered page.
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
                        MAYBE_DeferPrivateOriginFileSystem) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl =
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url =
       GetUrl("/prerender/restriction_file_system.html");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Make a prerendered page.
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
   auto* prerender_render_frame_host = GetPrerenderedMainFrameHost(host_id);
 
   EXPECT_EQ(
@@ -8393,7 +8395,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
   EXPECT_TRUE(ExecJs(prerender_render_frame_host, "runLoop();"));
 
   // Activate the page.
-  NavigatePrimaryPage(kPrerenderingUrl);
+  NavigatePrimaryPage(prerendering_url);
 
   // Wait for the completion of `accessOriginPrivateFileSystem`.
   EXPECT_EQ(true, EvalJs(prerender_render_frame_host, "result;"));
@@ -8414,15 +8416,15 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
 // Tests that DocumentUserData object is not cleared on activating a
 // prerendered page.
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, DocumentUserData) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/empty.html?prerender");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/empty.html?prerender");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
-  ASSERT_EQ(web_contents()->GetLastCommittedURL(), kInitialUrl);
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+  ASSERT_EQ(web_contents()->GetLastCommittedURL(), initial_url);
 
   // Start a prerender.
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
   auto* prerender_render_frame_host = GetPrerenderedMainFrameHost(host_id);
 
   // Get the DocumentData associated with prerender RenderFrameHost.
@@ -8433,11 +8435,11 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, DocumentUserData) {
   EXPECT_TRUE(data);
 
   // Activate the prerendered page.
-  NavigatePrimaryPage(kPrerenderingUrl);
-  EXPECT_EQ(web_contents()->GetLastCommittedURL(), kPrerenderingUrl);
+  NavigatePrimaryPage(prerendering_url);
+  EXPECT_EQ(web_contents()->GetLastCommittedURL(), prerendering_url);
 
   // The prerender host should be consumed.
-  EXPECT_FALSE(HasHostForUrl(kPrerenderingUrl));
+  EXPECT_FALSE(HasHostForUrl(prerendering_url));
 
   // DocumentData associated with document shouldn't have been cleared on
   // activating prerendered page.
@@ -8492,40 +8494,40 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, GamepadMonitorCancelPrerendering) {
 // This test cannot be a web test because web tests handles the GamepadMonitor
 // interface on the renderer side. See GamepadController::Install().
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, GamepadMonitorAfterNavigation) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/prerender/restriction-gamepad.html");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/prerender/restriction-gamepad.html");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Make a prerendered page.
-  ASSERT_EQ(GetRequestCount(kPrerenderingUrl), 0);
-  AddPrerender(kPrerenderingUrl);
-  ASSERT_EQ(GetRequestCount(kPrerenderingUrl), 1);
+  ASSERT_EQ(GetRequestCount(prerendering_url), 0);
+  AddPrerender(prerendering_url);
+  ASSERT_EQ(GetRequestCount(prerendering_url), 1);
 
   // Activate the prerendered page to dispatch the prerenderingchange event and
   // run the Gamepad API in the event.
-  NavigatePrimaryPage(kPrerenderingUrl);
-  EXPECT_EQ(shell()->web_contents()->GetLastCommittedURL(), kPrerenderingUrl);
+  NavigatePrimaryPage(prerendering_url);
+  EXPECT_EQ(shell()->web_contents()->GetLastCommittedURL(), prerendering_url);
   // Wait for the completion of the prerenderingchange event to make sure the
   // API is called.
   EXPECT_EQ(true, EvalJs(shell()->web_contents(), "prerenderingChanged"));
   // The API call shouldn't discard the prerendered page and shouldn't restart
   // navigation.
-  EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 1);
+  EXPECT_EQ(GetRequestCount(prerendering_url), 1);
 }
 
 // Tests that accessing the clipboard via the execCommand API fails because the
 // page does not has any user activation.
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, ClipboardByExecCommandFail) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/empty.html?prerender");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/empty.html?prerender");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Make a prerendered page.
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
   auto* prerender_render_frame_host = GetPrerenderedMainFrameHost(host_id);
 
   // Access the clipboard and fail.
@@ -8562,14 +8564,14 @@ void LoadAndWaitForPrerenderDestroyed(test::PrerenderTestHelper* helper,
 // Tests that we will get the exception from the prerendering if the
 // prerendering page attempts to use notification.
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, NotificationConstructorAndroid) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/empty.html?prerender");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/empty.html?prerender");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Make a prerendered page.
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
   auto* prerender_render_frame_host = GetPrerenderedMainFrameHost(host_id);
 
   // Create the Notification and fail.
@@ -8585,21 +8587,21 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, NotificationConstructorAndroid) {
 // TODO(crbug.com/40184233): Make a WPT when we have a stable way to wait
 // cancellation runs.
 IN_PROC_BROWSER_TEST_P(PrerenderTargetAgnosticBrowserTest, DownloadByScript) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/empty.html?prerendering");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/empty.html?prerendering");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Make a prerendered page.
   test::PrerenderHostCreationWaiter host_creation_waiter;
   prerender_helper()->AddPrerendersAsync(
-      {kPrerenderingUrl}, /*eagerness=*/std::nullopt, GetTargetHint());
+      {prerendering_url}, /*eagerness=*/std::nullopt, GetTargetHint());
   PrerenderHostId host_id = host_creation_waiter.Wait();
   auto* prerender_web_contents =
       test::PrerenderTestHelper::GetPrerenderWebContents(host_id);
   test::PrerenderTestHelper::WaitForPrerenderLoadCompletion(
-      *prerender_web_contents, kPrerenderingUrl);
+      *prerender_web_contents, prerendering_url);
 
   test::PrerenderHostObserver host_observer(*prerender_web_contents, host_id);
   auto* prerender_host = test::PrerenderTestHelper::GetPrerenderedMainFrameHost(
@@ -8616,7 +8618,7 @@ IN_PROC_BROWSER_TEST_P(PrerenderTargetAgnosticBrowserTest, DownloadByScript) {
     EXPECT_FALSE(prerender_helper()->HasNewTabHandle(host_id));
   } else {
     EXPECT_TRUE(prerender_helper()
-                    ->GetHostForUrl(*prerender_web_contents, kPrerenderingUrl)
+                    ->GetHostForUrl(*prerender_web_contents, prerendering_url)
                     .is_null());
   }
 
@@ -8625,37 +8627,37 @@ IN_PROC_BROWSER_TEST_P(PrerenderTargetAgnosticBrowserTest, DownloadByScript) {
 
 IN_PROC_BROWSER_TEST_P(PrerenderTargetAgnosticBrowserTest,
                        DownloadInMainFrame) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
+  const GURL initial_url = GetUrl("/empty.html");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // TODO(crbug.com/40184233): Make a WPT for the content-disposition WPT test.
-  const GURL kDownloadUrl =
+  const GURL download_url =
       GetUrl("/set-header?Content-Disposition: attachment");
 
-  LoadAndWaitForPrerenderDestroyed(prerender_helper(), kDownloadUrl,
+  LoadAndWaitForPrerenderDestroyed(prerender_helper(), download_url,
                                    GetTargetHint());
 
   ExpectFinalStatusForSpeculationRule(PrerenderFinalStatus::kDownload);
 }
 
 IN_PROC_BROWSER_TEST_P(PrerenderTargetAgnosticBrowserTest, DownloadInSubframe) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/empty.html?prerendering");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/empty.html?prerendering");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Make a prerendered page.
   test::PrerenderHostCreationWaiter host_creation_waiter;
   prerender_helper()->AddPrerendersAsync(
-      {kPrerenderingUrl}, /*eagerness=*/std::nullopt, GetTargetHint());
+      {prerendering_url}, /*eagerness=*/std::nullopt, GetTargetHint());
   PrerenderHostId host_id = host_creation_waiter.Wait();
   auto* prerender_web_contents =
       test::PrerenderTestHelper::GetPrerenderWebContents(host_id);
   test::PrerenderTestHelper::WaitForPrerenderLoadCompletion(
-      *prerender_web_contents, kPrerenderingUrl);
+      *prerender_web_contents, prerendering_url);
 
   test::PrerenderHostObserver host_observer(*prerender_web_contents, host_id);
   auto* prerender_host = test::PrerenderTestHelper::GetPrerenderedMainFrameHost(
@@ -8663,17 +8665,17 @@ IN_PROC_BROWSER_TEST_P(PrerenderTargetAgnosticBrowserTest, DownloadInSubframe) {
   EXPECT_TRUE(AddTestUtilJS(prerender_host));
 
   // TODO(crbug.com/40184233): Make a WPT for the content-disposition WPT test.
-  const GURL kDownloadUrl =
+  const GURL download_url =
       GetUrl("/set-header?Content-Disposition: attachment");
   ExecuteScriptAsync(prerender_host,
-                     JsReplace("add_iframe_async($1)", kDownloadUrl));
+                     JsReplace("add_iframe_async($1)", download_url));
 
   host_observer.WaitForDestroyed();
   if (GetTargetHint() == "_blank") {
     EXPECT_FALSE(prerender_helper()->HasNewTabHandle(host_id));
   } else {
     EXPECT_TRUE(prerender_helper()
-                    ->GetHostForUrl(*prerender_web_contents, kPrerenderingUrl)
+                    ->GetHostForUrl(*prerender_web_contents, prerendering_url)
                     .is_null());
   }
 
@@ -8726,12 +8728,12 @@ class TestViewportWebContentsObserver : public WebContentsObserver {
 // * After activating the prerendered page, WebContents's viewport property can
 //   be updated.
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, ViewportFit) {
-  const GURL kInitialUrl = GetUrl("/prerender/viewport.html");
-  const GURL kPrerenderingUrl = GetUrl("/prerender/viewport.html?prerendering");
+  const GURL initial_url = GetUrl("/prerender/viewport.html");
+  const GURL prerendering_url = GetUrl("/prerender/viewport.html?prerendering");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
   test::PrerenderHostObserver host_observer(*web_contents(), host_id);
   RenderFrameHostImpl* prerender_rfh = GetPrerenderedMainFrameHost(host_id);
   RenderFrameHostImpl* primary_rfh = web_contents_impl()->GetPrimaryMainFrame();
@@ -8753,7 +8755,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, ViewportFit) {
     // should be updated.
     TestViewportWebContentsObserver observer(
         web_contents_impl(), blink::mojom::ViewportFit::kContain);
-    prerender_helper()->NavigatePrimaryPage(kPrerenderingUrl);
+    prerender_helper()->NavigatePrimaryPage(prerendering_url);
     web_contents_impl()->FullscreenStateChanged(
         prerender_rfh, true, blink::mojom::FullscreenOptions::New());
     observer.WaitForWantedValue();
@@ -8821,21 +8823,21 @@ INSTANTIATE_TEST_SUITE_P(
 
 // Tests that prerendering doesn't run for low-end devices.
 IN_PROC_BROWSER_TEST_P(PrerenderLowMemoryBrowserTest, NoPrerender) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/empty.html?prerender");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/empty.html?prerender");
 
   // Attempt to prerender.
   test::PrerenderHostRegistryObserver observer(*web_contents_impl());
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
-  AddPrerenderAsync(kPrerenderingUrl);
-  observer.WaitForTrigger(kPrerenderingUrl);
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+  AddPrerenderAsync(prerendering_url);
+  observer.WaitForTrigger(prerendering_url);
 
   // It should fail.
-  EXPECT_FALSE(HasHostForUrl(kPrerenderingUrl));
+  EXPECT_FALSE(HasHostForUrl(prerendering_url));
   ExpectFinalStatusForSpeculationRule(PrerenderFinalStatus::kLowEndDevice);
 
   // Navigate primary page to flush the metrics.
-  NavigatePrimaryPage(kPrerenderingUrl);
+  NavigatePrimaryPage(prerendering_url);
   // Cross-check that in case of low memory the eligibility reason points to
   // kLowMemory.
   if (IsPrerender2FallbackPrefetchSpecRulesEnabled()) {
@@ -8927,8 +8929,8 @@ class SequentialPrerenderObserver : public WebContentsObserver {
 // Tests that multiple prerenderings should be enqueued and the pending request
 // starts right after the previous prerender calls DidFinishNavigation.
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, SequentialPrerendering) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  const GURL initial_url = GetUrl("/empty.html");
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   std::vector<GURL> prerender_urls;
   for (int i = 0; i < 3; i++) {
@@ -8986,25 +8988,25 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
   net::test_server::ControllableHttpResponse response1(
       embedded_test_server(), "/empty.html?prerender1");
   ASSERT_TRUE(embedded_test_server()->Start());
-  const GURL kInitialUrl = embedded_test_server()->GetURL("/empty.html");
-  const GURL kPrerender1 =
+  const GURL initial_url = embedded_test_server()->GetURL("/empty.html");
+  const GURL prerender1 =
       embedded_test_server()->GetURL("/empty.html?prerender1");
-  const GURL kPrerender2 =
+  const GURL prerender2 =
       embedded_test_server()->GetURL("/empty.html?prerender2");
-  const GURL kPrerender3 =
+  const GURL prerender3 =
       embedded_test_server()->GetURL("/empty.html?prerender3");
 
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   test::PrerenderHostRegistryObserver registry_observer(*web_contents_impl());
 
   // Insert 3 URLs into the speculation rules at the same time. The first
   // prerender should start immediately, and the other two requests enqueued.
-  AddPrerendersAsync({kPrerender1, kPrerender2, kPrerender3});
+  AddPrerendersAsync({prerender1, prerender2, prerender3});
 
-  registry_observer.WaitForTrigger(kPrerender3);
+  registry_observer.WaitForTrigger(prerender3);
   test::PrerenderHostObserver prerender3_observer(*web_contents(),
-                                                  GetHostForUrl(kPrerender3));
+                                                  GetHostForUrl(prerender3));
 
   // Stop the first prerendering initial navigation.
   response1.WaitForRequest();
@@ -9012,7 +9014,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
   // Cancel the second prerender, and this cancellation shouldn't prevent the
   // incoming third prerender from starting.
   web_contents_impl()->GetPrerenderHostRegistry()->CancelHost(
-      GetHostForUrl(kPrerender2), PrerenderFinalStatus::kDestroyed);
+      GetHostForUrl(prerender2), PrerenderFinalStatus::kDestroyed);
 
   // Resume the first prerender. The second one doesn't send
   // request as the host has been already destroyed.
@@ -9020,12 +9022,12 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
   response1.Done();
 
   // Wait for the third prerender completes its initial navigation.
-  WaitForPrerenderLoadCompletion(kPrerender3);
+  WaitForPrerenderLoadCompletion(prerender3);
 
   // Activate the third prerender and it should succeed.
-  NavigatePrimaryPage(kPrerender3);
+  NavigatePrimaryPage(prerender3);
   prerender3_observer.WaitForActivation();
-  EXPECT_EQ(web_contents()->GetLastCommittedURL(), kPrerender3);
+  EXPECT_EQ(web_contents()->GetLastCommittedURL(), prerender3);
   EXPECT_TRUE(prerender3_observer.was_activated());
 
   // The first prerender is destroyed during activation.
@@ -9052,42 +9054,42 @@ IN_PROC_BROWSER_TEST_F(
   net::test_server::ControllableHttpResponse response2(
       embedded_test_server(), "/empty.html?prerender2");
   ASSERT_TRUE(embedded_test_server()->Start());
-  const GURL kInitialUrl = embedded_test_server()->GetURL("/empty.html");
-  const GURL kPrerender1 =
+  const GURL initial_url = embedded_test_server()->GetURL("/empty.html");
+  const GURL prerender1 =
       embedded_test_server()->GetURL("/empty.html?prerender1");
-  const GURL kPrerender2 =
+  const GURL prerender2 =
       embedded_test_server()->GetURL("/empty.html?prerender2");
-  const GURL kPrerender3 =
+  const GURL prerender3 =
       embedded_test_server()->GetURL("/empty.html?prerender3");
-  const GURL kIframeUrl = embedded_test_server()->GetURL("/empty.html?iframe");
+  const GURL iframe_url = embedded_test_server()->GetURL("/empty.html?iframe");
 
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Insert 3 URLs into the speculation rules at the same time. The first
   // prerender should start immediately.
-  AddPrerendersAsync({kPrerender1, kPrerender2, kPrerender3});
+  AddPrerendersAsync({prerender1, prerender2, prerender3});
 
   // Stop the second prerendering initial navigation.
   response2.WaitForRequest();
 
-  WaitForPrerenderLoadCompletion(kPrerender1);
-  PrerenderHostId host_id = GetHostForUrl(kPrerender1);
+  WaitForPrerenderLoadCompletion(prerender1);
+  PrerenderHostId host_id = GetHostForUrl(prerender1);
   ASSERT_TRUE(host_id);
 
   // Insert an iframe into the first prerender's main frame host.
   RenderFrameHost* prerender_frame_host = GetPrerenderedMainFrameHost(host_id);
   EXPECT_TRUE(AddTestUtilJS(prerender_frame_host));
   EXPECT_EQ("LOADED", EvalJs(prerender_frame_host,
-                             JsReplace("add_iframe($1)", kIframeUrl)));
+                             JsReplace("add_iframe($1)", iframe_url)));
   RenderFrameHost* child_frame_host = ChildFrameAt(prerender_frame_host, 0);
   ASSERT_NE(child_frame_host, nullptr);
-  ASSERT_EQ(child_frame_host->GetLastCommittedURL(), kIframeUrl);
+  ASSERT_EQ(child_frame_host->GetLastCommittedURL(), iframe_url);
 
   // Confirm that the third prerender doesn't start even if the iframe
   // navigation within the prerendered main frame has finished.
   PrerenderHost* prerender3_host =
       web_contents_impl()->GetPrerenderHostRegistry()->FindHostByUrlForTesting(
-          kPrerender3);
+          prerender3);
   EXPECT_FALSE(prerender3_host->GetInitialNavigationId().has_value());
 }
 
@@ -9100,29 +9102,29 @@ IN_PROC_BROWSER_TEST_P(PrerenderBrowserTestFallbackEnabledDisabled,
   net::test_server::ControllableHttpResponse response(embedded_test_server(),
                                                       "/empty.html?prerender1");
   ASSERT_TRUE(embedded_test_server()->Start());
-  const GURL kInitialUrl = embedded_test_server()->GetURL("/empty.html");
-  const GURL kPrerender1 =
+  const GURL initial_url = embedded_test_server()->GetURL("/empty.html");
+  const GURL prerender1 =
       embedded_test_server()->GetURL("/empty.html?prerender1");
-  const GURL kPrerender2 =
+  const GURL prerender2 =
       embedded_test_server()->GetURL("/empty.html?prerender2");
 
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   test::PrerenderHostRegistryObserver registry_observer(*web_contents_impl());
 
   // Insert 2 URLs into the speculation rules at the same time.
-  AddPrerendersAsync({kPrerender1, kPrerender2});
+  AddPrerendersAsync({prerender1, prerender2});
 
-  registry_observer.WaitForTrigger(kPrerender2);
+  registry_observer.WaitForTrigger(prerender2);
   test::PrerenderHostObserver prerender2_observer(*web_contents(),
-                                                  GetHostForUrl(kPrerender2));
+                                                  GetHostForUrl(prerender2));
 
   // Stop the first prerendering initial navigation.
   response.WaitForRequest();
 
   // Activate the page with pending prerender.
-  NavigatePrimaryPage(kPrerender2);
-  EXPECT_EQ(web_contents()->GetLastCommittedURL(), kPrerender2);
+  NavigatePrimaryPage(prerender2);
+  EXPECT_EQ(web_contents()->GetLastCommittedURL(), prerender2);
   EXPECT_FALSE(prerender2_observer.was_activated());
 
   // The first prerender was destroyed by SpeculationHostImpl.
@@ -9195,7 +9197,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, ExceedTheRequestNumberLimit) {
                                                       "/empty.html?prerender1");
   ASSERT_TRUE(embedded_test_server()->Start());
 
-  const GURL kInitialUrl = embedded_test_server()->GetURL("/empty.html");
+  const GURL initial_url = embedded_test_server()->GetURL("/empty.html");
 
   std::vector<GURL> prerender_urls;
 
@@ -9208,7 +9210,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, ExceedTheRequestNumberLimit) {
         "/empty.html?prerender" + base::NumberToString(i)));
   }
 
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   test::PrerenderHostRegistryObserver registry_observer(*web_contents_impl());
 
@@ -9236,18 +9238,18 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
   net::test_server::ControllableHttpResponse prerender1_response(
       embedded_test_server(), "/empty.html?prerender1");
   ASSERT_TRUE(embedded_test_server()->Start());
-  const GURL kInitialUrl = embedded_test_server()->GetURL("/empty.html");
-  const GURL kPrerender1 =
+  const GURL initial_url = embedded_test_server()->GetURL("/empty.html");
+  const GURL prerender1 =
       embedded_test_server()->GetURL("/empty.html?prerender1");
-  const GURL kPrerender2 =
+  const GURL prerender2 =
       embedded_test_server()->GetURL("/empty.html?prerender2");
-  const GURL kEmbedderPrerender =
+  const GURL embedder_prerender =
       embedded_test_server()->GetURL("/empty.html?embedder");
 
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Insert 2 URLs into the speculation rules at the same time.
-  AddPrerendersAsync({kPrerender1, kPrerender2});
+  AddPrerendersAsync({prerender1, prerender2});
 
   // Stop the first prerender's initial navigation.
   prerender1_response.WaitForRequest();
@@ -9255,14 +9257,14 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
   // Start prerendering by embedder triggered prerendering; this should start
   // immediately instead of being enqueued.
   std::unique_ptr<PrerenderHandle> prerender_handle =
-      AddEmbedderTriggeredPrerender(kEmbedderPrerender);
+      AddEmbedderTriggeredPrerender(embedder_prerender);
   EXPECT_TRUE(prerender_handle);
 
   // Confirm that embedder triggered prerender does not affect the pending
   // prerender triggered by speculation rules.
   PrerenderHost* prerender2_host =
       web_contents_impl()->GetPrerenderHostRegistry()->FindHostByUrlForTesting(
-          kPrerender2);
+          prerender2);
   EXPECT_FALSE(prerender2_host->GetInitialNavigationId());
 
   // Also confirm the remaining request triggered by speculation rules can
@@ -9270,19 +9272,19 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
   // prioritized embedder request doesn't break conditions of other requests.
   prerender1_response.Send(net::HTTP_OK, "");
   prerender1_response.Done();
-  WaitForPrerenderLoadCompletion(kPrerender2);
-  EXPECT_TRUE(HasHostForUrl(kPrerender2));
+  WaitForPrerenderLoadCompletion(prerender2);
+  EXPECT_TRUE(HasHostForUrl(prerender2));
 
   // Activate the embedder triggered prerender.
   test::PrerenderHostObserver embedder_observer(
-      *web_contents(), GetHostForUrl(kEmbedderPrerender));
+      *web_contents(), GetHostForUrl(embedder_prerender));
   prerender_helper()->NavigatePrimaryPageAsync(
-      kEmbedderPrerender,
+      embedder_prerender,
       ui::PageTransitionFromInt(ui::PAGE_TRANSITION_TYPED |
                                 ui::PAGE_TRANSITION_FROM_ADDRESS_BAR));
 
   embedder_observer.WaitForActivation();
-  EXPECT_EQ(web_contents()->GetLastCommittedURL(), kEmbedderPrerender);
+  EXPECT_EQ(web_contents()->GetLastCommittedURL(), embedder_prerender);
   EXPECT_TRUE(embedder_observer.was_activated());
 }
 
@@ -9294,22 +9296,22 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
   net::test_server::ControllableHttpResponse response(embedded_test_server(),
                                                       "/empty.html?prerender1");
   ASSERT_TRUE(embedded_test_server()->Start());
-  const GURL kInitialUrl = embedded_test_server()->GetURL("/empty.html");
-  const GURL kPrerender1 =
+  const GURL initial_url = embedded_test_server()->GetURL("/empty.html");
+  const GURL prerender1 =
       embedded_test_server()->GetURL("/empty.html?prerender1");
-  const GURL kPrerender2 =
+  const GURL prerender2 =
       embedded_test_server()->GetURL("/empty.html?prerender2");
 
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   test::PrerenderHostRegistryObserver registry_observer(*web_contents_impl());
 
   // Insert 2 URLs into the speculation rules at the same time.
-  AddPrerendersAsync({kPrerender1, kPrerender2});
+  AddPrerendersAsync({prerender1, prerender2});
 
-  registry_observer.WaitForTrigger(kPrerender2);
+  registry_observer.WaitForTrigger(prerender2);
   test::PrerenderHostObserver prerender2_observer(*web_contents(),
-                                                  GetHostForUrl(kPrerender2));
+                                                  GetHostForUrl(prerender2));
 
   // Stop the first prerendering initial navigation.
   response.WaitForRequest();
@@ -9317,13 +9319,13 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
   // Cancel the running prerender. The next pending prerender should start upon
   // this cancellation.
   web_contents_impl()->GetPrerenderHostRegistry()->CancelHost(
-      GetHostForUrl(kPrerender1), PrerenderFinalStatus::kDestroyed);
-  WaitForPrerenderLoadCompletion(kPrerender2);
+      GetHostForUrl(prerender1), PrerenderFinalStatus::kDestroyed);
+  WaitForPrerenderLoadCompletion(prerender2);
 
   // Activate the page with the prerender that was pending.
-  NavigatePrimaryPage(kPrerender2);
+  NavigatePrimaryPage(prerender2);
   prerender2_observer.WaitForActivation();
-  EXPECT_EQ(web_contents()->GetLastCommittedURL(), kPrerender2);
+  EXPECT_EQ(web_contents()->GetLastCommittedURL(), prerender2);
   EXPECT_TRUE(prerender2_observer.was_activated());
 
   // The first prerender should be manually destroyed.
@@ -9344,18 +9346,18 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
   net::test_server::ControllableHttpResponse response(embedded_test_server(),
                                                       "/empty.html?prerender1");
   ASSERT_TRUE(embedded_test_server()->Start());
-  const GURL kInitialUrl = embedded_test_server()->GetURL("/empty.html");
-  const GURL kPrerender1 =
+  const GURL initial_url = embedded_test_server()->GetURL("/empty.html");
+  const GURL prerender1 =
       embedded_test_server()->GetURL("/empty.html?prerender1");
-  const GURL kPrerender2 =
+  const GURL prerender2 =
       embedded_test_server()->GetURL("/empty.html?prerender2");
 
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   test::PrerenderHostRegistryObserver registry_observer(*web_contents_impl());
 
   // Insert 2 URLs into the speculation rules in order. The prerender for
-  // `kPrerender1` should start first.
+  // `prerender1` should start first.
   std::string script = R"(
                         let sc = document.createElement('script');
                         sc.type = 'speculationrules';
@@ -9368,13 +9370,13 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
                         document.head.appendChild(sc);
                         )";
   ASSERT_TRUE(ExecJs(web_contents_impl()->GetPrimaryMainFrame(),
-                     JsReplace(script, "prerender1", kPrerender1)));
+                     JsReplace(script, "prerender1", prerender1)));
   ASSERT_TRUE(ExecJs(web_contents_impl()->GetPrimaryMainFrame(),
-                     JsReplace(script, "prerender2", kPrerender2)));
+                     JsReplace(script, "prerender2", prerender2)));
 
-  registry_observer.WaitForTrigger(kPrerender2);
+  registry_observer.WaitForTrigger(prerender2);
   test::PrerenderHostObserver prerender2_observer(*web_contents(),
-                                                  GetHostForUrl(kPrerender2));
+                                                  GetHostForUrl(prerender2));
 
   // Stop the first prerendering initial navigation.
   response.WaitForRequest();
@@ -9384,12 +9386,12 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
   // prerender should start upon the cancellation.
   ASSERT_TRUE(ExecJs(web_contents_impl()->GetPrimaryMainFrame(),
                      "document.querySelector('#prerender1').remove()"));
-  WaitForPrerenderLoadCompletion(kPrerender2);
+  WaitForPrerenderLoadCompletion(prerender2);
 
   // Activate the page with the prerender that was pending.
-  NavigatePrimaryPage(kPrerender2);
+  NavigatePrimaryPage(prerender2);
   prerender2_observer.WaitForActivation();
-  EXPECT_EQ(web_contents()->GetLastCommittedURL(), kPrerender2);
+  EXPECT_EQ(web_contents()->GetLastCommittedURL(), prerender2);
   EXPECT_TRUE(prerender2_observer.was_activated());
 
   // The first prerender should be cancelled by the trigger.
@@ -9416,19 +9418,19 @@ IN_PROC_BROWSER_TEST_P(PrerenderBrowserTestFallbackEnabledDisabled,
   net::test_server::ControllableHttpResponse response1(
       embedded_test_server(), "/empty.html?prerender1");
   ASSERT_TRUE(embedded_test_server()->Start());
-  const GURL kInitialUrl = embedded_test_server()->GetURL("/empty.html");
-  const GURL kPrerender1 =
+  const GURL initial_url = embedded_test_server()->GetURL("/empty.html");
+  const GURL prerender1 =
       embedded_test_server()->GetURL("/empty.html?prerender1");
-  const GURL kPrerender2 =
+  const GURL prerender2 =
       embedded_test_server()->GetURL("/empty.html?prerender2");
 
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   test::PrerenderHostRegistryObserver registry_observer(*web_contents_impl());
 
   // Insert 2 URLs into the speculation rules at the same time.
-  AddPrerendersAsync({kPrerender1, kPrerender2});
-  registry_observer.WaitForTrigger(kPrerender2);
+  AddPrerendersAsync({prerender1, prerender2});
+  registry_observer.WaitForTrigger(prerender2);
 
   // Stop the first prerendering initial navigation.
   response1.WaitForRequest();
@@ -9437,23 +9439,23 @@ IN_PROC_BROWSER_TEST_P(PrerenderBrowserTestFallbackEnabledDisabled,
   // `PreloadingTriggeringOutcome::kTriggeredButPending`.
   PrerenderHost* prerender2_host =
       web_contents_impl()->GetPrerenderHostRegistry()->FindHostByUrlForTesting(
-          kPrerender2);
+          prerender2);
   auto* preloading_attempt_impl = static_cast<PreloadingAttemptImpl*>(
       prerender2_host->preloading_attempt().get());
   EXPECT_EQ(test::PreloadingAttemptAccessor(preloading_attempt_impl)
                 .GetTriggeringOutcome(),
             PreloadingTriggeringOutcome::kTriggeredButPending);
 
-  NavigationHandleObserver activation_observer(web_contents(), kPrerender1);
+  NavigationHandleObserver activation_observer(web_contents(), prerender1);
   test::PrerenderHostObserver prerender1_observer(*web_contents(),
-                                                  GetHostForUrl(kPrerender1));
+                                                  GetHostForUrl(prerender1));
 
   // Defer the activation until the ongoing initial navigation in prerender
   // frame tree commits.
   TestActivationManager primary_page_manager(shell()->web_contents(),
-                                             kPrerender1);
+                                             prerender1);
   ASSERT_TRUE(ExecJs(shell()->web_contents()->GetPrimaryMainFrame(),
-                     JsReplace("location = $1", kPrerender1)));
+                     JsReplace("location = $1", prerender1)));
 
   NavigationRequest* request =
       web_contents_impl()->GetPrimaryFrameTree().root()->navigation_request();
@@ -9480,7 +9482,7 @@ IN_PROC_BROWSER_TEST_P(PrerenderBrowserTestFallbackEnabledDisabled,
   ukm::SourceId ukm_source_id = activation_observer.next_page_ukm_source_id();
   if (IsPrerender2FallbackPrefetchSpecRulesEnabled()) {
     ExpectPreloadingAttemptUkm({
-        // kPrerender1 successful activation (prefetch part).
+        // prerender1 successful activation (prefetch part).
         attempt_ukm_entry_builder().BuildEntry(
             ukm_source_id, PreloadingType::kPrefetch,
             PreloadingEligibility::kEligible,
@@ -9490,7 +9492,7 @@ IN_PROC_BROWSER_TEST_P(PrerenderBrowserTestFallbackEnabledDisabled,
             /*accurate=*/true,
             /*ready_time=*/kMockElapsedTime,
             blink::mojom::SpeculationEagerness::kImmediate),
-        // kPrerender1 successful activation (prerender part).
+        // prerender1 successful activation (prerender part).
         attempt_ukm_entry_builder().BuildEntry(
             ukm_source_id, PreloadingType::kPrerender,
             PreloadingEligibility::kEligible,
@@ -9500,7 +9502,7 @@ IN_PROC_BROWSER_TEST_P(PrerenderBrowserTestFallbackEnabledDisabled,
             /*accurate=*/true,
             /*ready_time=*/kMockElapsedTime,
             blink::mojom::SpeculationEagerness::kImmediate),
-        // kPrerender2 cancellation (prefetch part).
+        // prerender2 cancellation (prefetch part).
         attempt_ukm_entry_builder().BuildEntry(
             ukm_source_id, PreloadingType::kPrefetch,
             PreloadingEligibility::kEligible,
@@ -9510,7 +9512,7 @@ IN_PROC_BROWSER_TEST_P(PrerenderBrowserTestFallbackEnabledDisabled,
             /*accurate=*/false,
             /*ready_time=*/kMockElapsedTime,
             blink::mojom::SpeculationEagerness::kImmediate),
-        // kPrerender2 cancellation (prerender part).
+        // prerender2 cancellation (prerender part).
         attempt_ukm_entry_builder().BuildEntry(
             ukm_source_id, PreloadingType::kPrerender,
             PreloadingEligibility::kEligible,
@@ -9559,34 +9561,34 @@ IN_PROC_BROWSER_TEST_F(
   net::test_server::ControllableHttpResponse response2(
       embedded_test_server(), "/empty.html?prerender2");
   ASSERT_TRUE(embedded_test_server()->Start());
-  const GURL kInitialUrl = embedded_test_server()->GetURL("/empty.html");
-  const GURL kPrerender1 =
+  const GURL initial_url = embedded_test_server()->GetURL("/empty.html");
+  const GURL prerender1 =
       embedded_test_server()->GetURL("/empty.html?prerender1");
-  const GURL kPrerender2 =
+  const GURL prerender2 =
       embedded_test_server()->GetURL("/empty.html?prerender2");
-  const GURL kPrerender3 =
+  const GURL prerender3 =
       embedded_test_server()->GetURL("/empty.html?prerender3");
 
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   test::PrerenderHostRegistryObserver registry_observer(*web_contents_impl());
 
   // Insert 3 URLs into the speculation rules at the same time.
-  AddPrerendersAsync({kPrerender1, kPrerender2, kPrerender3});
-  registry_observer.WaitForTrigger(kPrerender3);
+  AddPrerendersAsync({prerender1, prerender2, prerender3});
+  registry_observer.WaitForTrigger(prerender3);
   test::PrerenderHostObserver prerender1_observer(*web_contents(),
-                                                  GetHostForUrl(kPrerender1));
+                                                  GetHostForUrl(prerender1));
 
   // Stop the second prerendering initial navigation.
   response2.WaitForRequest();
 
-  NavigationHandleObserver activation_observer(web_contents(), kPrerender1);
+  NavigationHandleObserver activation_observer(web_contents(), prerender1);
 
   // Activate prerender1. The trigger should destroy all the other prerender
   // hosts.
-  NavigatePrimaryPage(kPrerender1);
+  NavigatePrimaryPage(prerender1);
   prerender1_observer.WaitForActivation();
-  EXPECT_EQ(web_contents()->GetLastCommittedURL(), kPrerender1);
+  EXPECT_EQ(web_contents()->GetLastCommittedURL(), prerender1);
   EXPECT_TRUE(prerender1_observer.was_activated());
 
   ukm::SourceId ukm_source_id = activation_observer.next_page_ukm_source_id();
@@ -9631,7 +9633,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTestFallbackDisabled,
   net::test_server::ControllableHttpResponse response3(
       embedded_test_server(), "/empty.html?prerender3");
   ASSERT_TRUE(embedded_test_server()->Start());
-  const GURL kInitialUrl = embedded_test_server()->GetURL("/empty.html");
+  const GURL initial_url = embedded_test_server()->GetURL("/empty.html");
 
   // This test only makes sense if we don't hit the limit.
   ASSERT_GE(
@@ -9643,7 +9645,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTestFallbackDisabled,
         "/empty.html?prerender" + base::NumberToString(i)));
   }
 
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   test::PrerenderHostRegistryObserver registry_observer(*web_contents_impl());
 
@@ -10015,15 +10017,15 @@ IN_PROC_BROWSER_TEST_F(
 
 IN_PROC_BROWSER_TEST_P(PrerenderBrowserTestFallbackEnabledDisabled,
                        IsInactiveAndDisallowActivationCancelsPrerendering) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/empty.html?prerender");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/empty.html?prerender");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
-  ASSERT_EQ(web_contents()->GetLastCommittedURL(), kInitialUrl);
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+  ASSERT_EQ(web_contents()->GetLastCommittedURL(), initial_url);
 
-  // Start prerendering `kPrerenderingUrl`.
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  // Start prerendering `prerendering_url`.
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
   auto* prerender_render_frame_host = GetPrerenderedMainFrameHost(host_id);
 
   // Invoke IsInactiveAndDisallowActivation for the prerendered document.
@@ -10035,19 +10037,19 @@ IN_PROC_BROWSER_TEST_P(PrerenderBrowserTestFallbackEnabledDisabled,
   // The prerender host for the URL should be destroyed as
   // RenderFrameHost::IsInactiveAndDisallowActivation cancels prerendering in
   // LifecycleStateImpl::kPrerendering state.
-  EXPECT_FALSE(HasHostForUrl(kPrerenderingUrl));
+  EXPECT_FALSE(HasHostForUrl(prerendering_url));
 
   // Cancelling the prerendering disables the activation. The navigation
   // should issue a request again.
-  NavigatePrimaryPage(kPrerenderingUrl);
+  NavigatePrimaryPage(prerendering_url);
 
   if (IsPrerender2FallbackPrefetchSpecRulesEnabled()) {
     // It uses prefetch ahead of prerender and doesn't fallback to a network
     // request.
-    EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 1);
+    EXPECT_EQ(GetRequestCount(prerendering_url), 1);
   } else {
     // Otherwise, it falls back to a network request.
-    EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 2);
+    EXPECT_EQ(GetRequestCount(prerendering_url), 2);
   }
 
   ExpectFinalStatusForSpeculationRule(
@@ -10061,12 +10063,12 @@ IN_PROC_BROWSER_TEST_P(PrerenderBrowserTestFallbackEnabledDisabled,
 // Make sure input events are routed to the primary FrameTree not the prerender
 // one. See https://crbug.com/1197136
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, InputRoutedToPrimaryFrameTree) {
-  const GURL kInitialUrl = GetUrl("/prerender/simple_prerender.html");
-  const GURL kPrerenderingUrl = GetUrl("/empty.html");
+  const GURL initial_url = GetUrl("/prerender/simple_prerender.html");
+  const GURL prerendering_url = GetUrl("/empty.html");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
-  WaitForPrerenderLoadCompletion(kPrerenderingUrl);
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+  WaitForPrerenderLoadCompletion(prerendering_url);
 
   // Touch / click the link and wait for the navigation to complete.
   TestNavigationObserver navigation_observer(web_contents());
@@ -10077,19 +10079,19 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, InputRoutedToPrimaryFrameTree) {
       std::make_unique<SyntheticTapGesture>(params), base::DoNothing());
   navigation_observer.Wait();
 
-  EXPECT_EQ(shell()->web_contents()->GetLastCommittedURL(), kPrerenderingUrl);
+  EXPECT_EQ(shell()->web_contents()->GetLastCommittedURL(), prerendering_url);
 }
 
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, VisibilityWhilePrerendering) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/empty.html?prerender");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/empty.html?prerender");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
-  ASSERT_EQ(shell()->web_contents()->GetLastCommittedURL(), kInitialUrl);
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+  ASSERT_EQ(shell()->web_contents()->GetLastCommittedURL(), initial_url);
 
-  // Start prerendering `kPrerenderingUrl`.
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  // Start prerendering `prerendering_url`.
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
   auto* prerendered_render_frame_host = GetPrerenderedMainFrameHost(host_id);
 
   // The visibility state must be "hidden" while prerendering.
@@ -10103,7 +10105,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, VisibilityWhilePrerendering) {
             PageVisibilityState::kHidden);
 
   // Activate prerendering page.
-  NavigatePrimaryPage(kPrerenderingUrl);
+  NavigatePrimaryPage(prerendering_url);
 
   // The visibility state should be "visible" after activation.
   EXPECT_EQ(rvh->GetPageLifecycleStateManager()
@@ -10116,26 +10118,26 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, VisibilityWhilePrerendering) {
 
 // Tests that prerendering doesn't affect WebContents::GetTitle().
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, TitleWhilePrerendering) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/simple_page.html");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/simple_page.html");
   const std::u16string kInitialTitle(u"title");
   const std::u16string kPrerenderingTitle(u"OK");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
   EXPECT_TRUE(ExecJs(shell()->web_contents(),
                      JsReplace("document.title = $1", kInitialTitle)));
   EXPECT_EQ(shell()->web_contents()->GetTitle(), kInitialTitle);
 
-  // Start a prerender to `kPrerenderUrl` that has title `kPrerenderingTitle`.
-  ASSERT_TRUE(AddPrerender(kPrerenderingUrl));
+  // Start a prerender to `prerender_url` that has title `kPrerenderingTitle`.
+  ASSERT_TRUE(AddPrerender(prerendering_url));
 
   // Make sure that WebContents::GetTitle() returns the current title from the
   // primary page.
   EXPECT_EQ(shell()->web_contents()->GetTitle(), kInitialTitle);
 
-  NavigatePrimaryPage(kPrerenderingUrl);
-  EXPECT_EQ(shell()->web_contents()->GetLastCommittedURL(), kPrerenderingUrl);
+  NavigatePrimaryPage(prerendering_url);
+  EXPECT_EQ(shell()->web_contents()->GetLastCommittedURL(), prerendering_url);
   // The title should be updated with the activated page.
   EXPECT_EQ(shell()->web_contents()->GetTitle(), kPrerenderingTitle);
 }
@@ -10143,9 +10145,9 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, TitleWhilePrerendering) {
 // Tests that WebContentsObserver::TitleWasSet is not dispatched when title is
 // set during prerendering, but is later dispatched after activation.
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, TitleWasSetWithPrerendering) {
-  const GURL kInitialUrl = GetUrl("/title2.html");
-  const GURL kPrerenderingUrlWithTitle = GetUrl("/simple_page.html");
-  const GURL kPrerenderingUrlWithoutTitle = GetUrl("/title1.html");
+  const GURL initial_url = GetUrl("/title2.html");
+  const GURL prerendering_url_with_title = GetUrl("/simple_page.html");
+  const GURL prerendering_url_without_title = GetUrl("/title1.html");
   const std::u16string kInitialTitle(u"Title Of Awesomeness");
   const std::u16string kPrerenderingTitle(u"OK");
 
@@ -10155,7 +10157,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, TitleWasSetWithPrerendering) {
     testing::NiceMock<MockWebContentsObserver> mock_observer(
         shell()->web_contents());
     EXPECT_CALL(mock_observer, TitleWasSet(testing::_));
-    ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+    ASSERT_TRUE(NavigateToURL(shell(), initial_url));
     EXPECT_EQ(shell()->web_contents()->GetTitle(), kInitialTitle);
   }
 
@@ -10165,7 +10167,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, TitleWasSetWithPrerendering) {
     testing::NiceMock<MockWebContentsObserver> mock_observer(
         shell()->web_contents());
     EXPECT_CALL(mock_observer, TitleWasSet(testing::_)).Times(0);
-    ASSERT_TRUE(AddPrerender(kPrerenderingUrlWithTitle));
+    ASSERT_TRUE(AddPrerender(prerendering_url_with_title));
   }
 
   // Activate prerendered page; TitleWasSet should now be called.
@@ -10176,7 +10178,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, TitleWasSetWithPrerendering) {
         .WillOnce([kPrerenderingTitle](NavigationEntry* entry) {
           EXPECT_EQ(entry->GetTitleForDisplay(), kPrerenderingTitle);
         });
-    NavigatePrimaryPage(kPrerenderingUrlWithTitle);
+    NavigatePrimaryPage(prerendering_url_with_title);
   }
 
   // Prerender a page without a title and then activate it; TitleWasSet should
@@ -10185,8 +10187,8 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, TitleWasSetWithPrerendering) {
     testing::NiceMock<MockWebContentsObserver> mock_observer(
         shell()->web_contents());
     EXPECT_CALL(mock_observer, TitleWasSet(testing::_)).Times(0);
-    ASSERT_TRUE(AddPrerender(kPrerenderingUrlWithoutTitle));
-    NavigatePrimaryPage(kPrerenderingUrlWithoutTitle);
+    ASSERT_TRUE(AddPrerender(prerendering_url_without_title));
+    NavigatePrimaryPage(prerendering_url_without_title);
   }
 }
 
@@ -10194,20 +10196,20 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, TitleWasSetWithPrerendering) {
 // should fail because `PrerenderNavigationThrottle` discards the request. This
 // is a regression test for https://crbug.com/1361210.
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, EmbedderPrerenderToNonHttpUrl) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderUrl = GURL("file://example.txt");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerender_url = GURL("file://example.txt");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
-  ASSERT_EQ(shell()->web_contents()->GetLastCommittedURL(), kInitialUrl);
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+  ASSERT_EQ(shell()->web_contents()->GetLastCommittedURL(), initial_url);
 
   // Start prerendering by embedder triggered prerendering.
   std::unique_ptr<PrerenderHandle> prerender_handle =
-      AddEmbedderTriggeredPrerenderAsync(kPrerenderUrl);
+      AddEmbedderTriggeredPrerenderAsync(prerender_url);
 
   // Both the creation of PrerenderHandle and PrerenderHost should fail.
   EXPECT_FALSE(prerender_handle);
-  EXPECT_TRUE(GetHostForUrl(kPrerenderUrl).is_null());
+  EXPECT_TRUE(GetHostForUrl(prerender_url).is_null());
   histogram_tester().ExpectUniqueSample(
       "Prerender.Experimental.PrerenderHostFinalStatus.Embedder_"
       "EmbedderSuffixForTest",
@@ -10217,43 +10219,44 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, EmbedderPrerenderToNonHttpUrl) {
 // Ensures WebContents::OpenURL targeting a frame in a prerendered host will
 // successfully navigate that frame.
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, OpenURLInPrerenderingFrame) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/page_with_blank_iframe.html");
-  const GURL kNewIframeUrl = GetUrl("/simple_page.html");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/page_with_blank_iframe.html");
+  const GURL new_iframe_url = GetUrl("/simple_page.html");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
-  ASSERT_EQ(shell()->web_contents()->GetLastCommittedURL(), kInitialUrl);
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+  ASSERT_EQ(shell()->web_contents()->GetLastCommittedURL(), initial_url);
 
-  // Start prerendering `kPrerenderingUrl`.
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  // Start prerendering `prerendering_url`.
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
   auto* prerendered_render_frame_host = GetPrerenderedMainFrameHost(host_id);
   auto* child_frame = ChildFrameAt(prerendered_render_frame_host, 0);
   ASSERT_TRUE(child_frame);
 
   // Navigate the iframe's FrameTreeNode in the prerendering frame tree. This
   // should successfully navigate.
-  TestNavigationManager iframe_observer(shell()->web_contents(), kNewIframeUrl);
+  TestNavigationManager iframe_observer(shell()->web_contents(),
+                                        new_iframe_url);
   shell()->web_contents()->OpenURL(
       OpenURLParams(
-          kNewIframeUrl, Referrer(), child_frame->GetFrameTreeNodeId(),
+          new_iframe_url, Referrer(), child_frame->GetFrameTreeNodeId(),
           WindowOpenDisposition::CURRENT_TAB, ui::PAGE_TRANSITION_AUTO_SUBFRAME,
           /*is_renderer_initiated=*/false),
       /*navigation_handle_callback=*/{});
   ASSERT_TRUE(iframe_observer.WaitForNavigationFinished());
   EXPECT_TRUE(iframe_observer.was_committed());
   EXPECT_TRUE(iframe_observer.was_successful());
-  EXPECT_EQ(child_frame->GetLastCommittedURL(), kNewIframeUrl);
+  EXPECT_EQ(child_frame->GetLastCommittedURL(), new_iframe_url);
 }
 
 // Ensure that WebContentsObserver::DidFailLoad is not invoked and cancels
 // prerendering when invoked on the prerendering main frame.
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, DidFailLoadCancelsPrerendering) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/page_with_iframe.html");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/page_with_iframe.html");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Initialize a MockWebContentsObserver and ensure that DidFailLoad is not
   // invoked inside prerender frame tree.
@@ -10262,25 +10265,25 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, DidFailLoadCancelsPrerendering) {
       .Times(0);
 
   // Start a prerender.
-  PrerenderHostId prerender_host_id = AddPrerender(kPrerenderingUrl);
+  PrerenderHostId prerender_host_id = AddPrerender(prerendering_url);
   RenderFrameHostImpl* prerender_frame_host =
       GetPrerenderedMainFrameHost(prerender_host_id);
 
   // Trigger DidFailLoad, this should cancel prerendering.
-  prerender_frame_host->DidFailLoadWithError(kPrerenderingUrl, net::ERR_FAILED);
+  prerender_frame_host->DidFailLoadWithError(prerendering_url, net::ERR_FAILED);
 
   // The prerender host for the URL should be deleted as DidFailLoad cancels
   // prerendering.
   test::PrerenderHostObserver prerender_observer(*web_contents(),
-                                                 kPrerenderingUrl);
+                                                 prerendering_url);
   TestNavigationManager navigation_observer(shell()->web_contents(),
-                                            kPrerenderingUrl);
-  EXPECT_FALSE(HasHostForUrl(kPrerenderingUrl));
+                                            prerendering_url);
+  EXPECT_FALSE(HasHostForUrl(prerendering_url));
 
   // Now navigate the primary page to the prerendered URL. Cancelling the
   // prerender disables the activation due to DidFailLoad.
   ASSERT_TRUE(ExecJs(web_contents()->GetPrimaryMainFrame(),
-                     JsReplace("location = $1", kPrerenderingUrl)));
+                     JsReplace("location = $1", prerendering_url)));
   ASSERT_TRUE(navigation_observer.WaitForNavigationFinished());
   EXPECT_FALSE(prerender_observer.was_activated());
 
@@ -10334,16 +10337,16 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
                        DidFailLoadMainFrameCancelsPrerendering) {
   DidFailLoadWebContentsObserver observer(web_contents());
 
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/stop.html");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/stop.html");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Start a prerender and wait until it is canceled.
   test::PrerenderHostObserver host_observer(*web_contents_impl(),
-                                            kPrerenderingUrl);
-  AddPrerenderAsync(kPrerenderingUrl);
+                                            prerendering_url);
+  AddPrerenderAsync(prerendering_url);
   host_observer.WaitForDestroyed();
 
   // DidFailLoad callback should not be called.
@@ -10358,28 +10361,29 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
 // deferred until activation.
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
                        OpenURLCrossOriginInPrerenderingFrame) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/page_with_blank_iframe.html");
-  const GURL kNewIframeUrl = GetCrossSiteUrl("/simple_page.html");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/page_with_blank_iframe.html");
+  const GURL new_iframe_url = GetCrossSiteUrl("/simple_page.html");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
-  ASSERT_EQ(shell()->web_contents()->GetLastCommittedURL(), kInitialUrl);
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+  ASSERT_EQ(shell()->web_contents()->GetLastCommittedURL(), initial_url);
 
-  // Start prerendering `kPrerenderingUrl`.
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  // Start prerendering `prerendering_url`.
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
   auto* prerendered_render_frame_host = GetPrerenderedMainFrameHost(host_id);
   auto* child_frame = ChildFrameAt(prerendered_render_frame_host, 0);
   ASSERT_TRUE(child_frame);
 
-  TestNavigationManager iframe_observer(shell()->web_contents(), kNewIframeUrl);
+  TestNavigationManager iframe_observer(shell()->web_contents(),
+                                        new_iframe_url);
 
   // Navigate the iframe's FrameTreeNode in the prerendering frame tree. This
   // should successfully navigate but the navigation will be deferred until the
   // prerendering page is activated.
   {
     shell()->web_contents()->OpenURL(
-        OpenURLParams(kNewIframeUrl, Referrer(),
+        OpenURLParams(new_iframe_url, Referrer(),
                       child_frame->GetFrameTreeNodeId(),
                       WindowOpenDisposition::CURRENT_TAB,
                       ui::PAGE_TRANSITION_AUTO_SUBFRAME,
@@ -10396,9 +10400,9 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
   // the prerender.
   {
     test::PrerenderHostObserver prerender_observer(*web_contents(),
-                                                   kPrerenderingUrl);
+                                                   prerendering_url);
     ASSERT_TRUE(ExecJs(web_contents()->GetPrimaryMainFrame(),
-                       JsReplace("location = $1", kPrerenderingUrl)));
+                       JsReplace("location = $1", prerendering_url)));
     prerender_observer.WaitForActivation();
   }
 
@@ -10408,7 +10412,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
     ASSERT_TRUE(iframe_observer.WaitForNavigationFinished());
     child_frame = ChildFrameAt(web_contents()->GetPrimaryMainFrame(), 0);
     ASSERT_TRUE(child_frame);
-    EXPECT_EQ(child_frame->GetLastCommittedURL(), kNewIframeUrl);
+    EXPECT_EQ(child_frame->GetLastCommittedURL(), new_iframe_url);
   }
 }
 
@@ -10423,14 +10427,14 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
 // 5. activation resumes/finishes
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
                        MainFrameNavigationDuringActivation) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/empty.html?1");
-  const GURL kPrerenderingUrl2 = GetUrl("/empty.html?2");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/empty.html?1");
+  const GURL prerendering_url2 = GetUrl("/empty.html?2");
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Start a prerender.
-  PrerenderHostId prerender_host_id = AddPrerender(kPrerenderingUrl);
+  PrerenderHostId prerender_host_id = AddPrerender(prerendering_url);
   RenderFrameHostImpl* prerendered_rfh =
       GetPrerenderedMainFrameHost(prerender_host_id);
   test::PrerenderHostObserver prerender_observer(*web_contents(),
@@ -10441,26 +10445,26 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
   // Start an activation navigation for the prerender and pause it before it
   // completes.
   TestActivationManager activation_observer(shell()->web_contents(),
-                                            kPrerenderingUrl);
+                                            prerendering_url);
   {
     ASSERT_TRUE(ExecJs(web_contents()->GetPrimaryMainFrame(),
-                       JsReplace("location = $1", kPrerenderingUrl)));
+                       JsReplace("location = $1", prerendering_url)));
 
     // Pause the activation before it's committed.
     EXPECT_TRUE(activation_observer.WaitForBeforeChecks());
     EXPECT_TRUE(activation_observer.GetNavigationHandle()
                     ->IsCommitDeferringConditionDeferredForTesting());
-    EXPECT_EQ(web_contents()->GetLastCommittedURL(), kInitialUrl);
+    EXPECT_EQ(web_contents()->GetLastCommittedURL(), initial_url);
   }
 
   // Make a navigation in the prerendered page. This navigation should succeed.
-  TestNavigationManager navigation_observer(web_contents(), kPrerenderingUrl2);
-  NavigatePrerenderedPage(prerender_host_id, kPrerenderingUrl2);
+  TestNavigationManager navigation_observer(web_contents(), prerendering_url2);
+  NavigatePrerenderedPage(prerender_host_id, prerendering_url2);
   ASSERT_TRUE(navigation_observer.WaitForNavigationFinished());
   EXPECT_TRUE(navigation_observer.was_successful());
 
   // Verify that all RenderFrameHostImpls are the prerendering state.
-  EXPECT_TRUE(prerender_helper()->VerifyPrerenderingState(kPrerenderingUrl));
+  EXPECT_TRUE(prerender_helper()->VerifyPrerenderingState(prerendering_url));
 
   // The activation isn't cancelled because there is no ongoing navigation.
   activation_observer.ResumeActivation();
@@ -10479,7 +10483,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
 
   EXPECT_TRUE(activation_observer.was_activated());
   EXPECT_TRUE(activation_observer.was_successful());
-  EXPECT_EQ(shell()->web_contents()->GetLastCommittedURL(), kPrerenderingUrl2);
+  EXPECT_EQ(shell()->web_contents()->GetLastCommittedURL(), prerendering_url2);
 }
 
 // Test that a main frame navigation after the initial prerender navigation
@@ -10493,15 +10497,15 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
 // 6. activation finishes
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
                        MainFrameNavigationConcurrentWithActivation) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/empty.html?1");
-  const GURL kPrerenderingUrl2 = GetUrl("/empty.html?2");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/empty.html?1");
+  const GURL prerendering_url2 = GetUrl("/empty.html?2");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Start a prerender.
-  PrerenderHostId prerender_host_id = AddPrerender(kPrerenderingUrl);
+  PrerenderHostId prerender_host_id = AddPrerender(prerendering_url);
   RenderFrameHostImpl* prerendered_rfh =
       GetPrerenderedMainFrameHost(prerender_host_id);
   test::PrerenderHostObserver prerender_observer(*web_contents(),
@@ -10512,21 +10516,21 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
   // Start an activation navigation for the prerender and pause it before it
   // completes.
   TestActivationManager activation_observer(shell()->web_contents(),
-                                            kPrerenderingUrl);
+                                            prerendering_url);
   {
     ASSERT_TRUE(ExecJs(web_contents()->GetPrimaryMainFrame(),
-                       JsReplace("location = $1", kPrerenderingUrl)));
+                       JsReplace("location = $1", prerendering_url)));
 
     // Pause the activation before it's committed.
     EXPECT_TRUE(activation_observer.WaitForBeforeChecks());
     EXPECT_TRUE(activation_observer.GetNavigationHandle()
                     ->IsCommitDeferringConditionDeferredForTesting());
-    EXPECT_EQ(web_contents()->GetLastCommittedURL(), kInitialUrl);
+    EXPECT_EQ(web_contents()->GetLastCommittedURL(), initial_url);
   }
 
   // Make a navigation in the prerendered page. This navigation should succeed.
-  TestNavigationManager navigation_observer(web_contents(), kPrerenderingUrl2);
-  NavigatePrerenderedPage(prerender_host_id, kPrerenderingUrl2);
+  TestNavigationManager navigation_observer(web_contents(), prerendering_url2);
+  NavigatePrerenderedPage(prerender_host_id, prerendering_url2);
 
   // Resume an activation navigation before completing the navigation in the
   // prerendered page. The activation isn't cancelled because
@@ -10539,7 +10543,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
   EXPECT_TRUE(navigation_observer.was_successful());
 
   // Verify that all RenderFrameHostImpls are the prerendering state.
-  EXPECT_TRUE(prerender_helper()->VerifyPrerenderingState(kPrerenderingUrl));
+  EXPECT_TRUE(prerender_helper()->VerifyPrerenderingState(prerendering_url));
 
   // Wait for the completion of the navigation. This should be the prerendered
   // page activation.
@@ -10553,10 +10557,10 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
   EXPECT_FALSE(
       web_contents_impl()->GetPrerenderHostRegistry()->HasReservedHost());
 
-  EXPECT_EQ(web_contents()->GetLastCommittedURL(), kPrerenderingUrl2);
+  EXPECT_EQ(web_contents()->GetLastCommittedURL(), prerendering_url2);
   EXPECT_TRUE(activation_observer.was_activated());
   EXPECT_TRUE(activation_observer.was_successful());
-  EXPECT_EQ(shell()->web_contents()->GetLastCommittedURL(), kPrerenderingUrl2);
+  EXPECT_EQ(shell()->web_contents()->GetLastCommittedURL(), prerendering_url2);
 }
 
 // Test that a main frame navigation after the initial prerender navigation and
@@ -10584,20 +10588,20 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
       }));
   ASSERT_TRUE(embedded_test_server()->Start());
 
-  const GURL kInitialUrl = embedded_test_server()->GetURL("/empty.html");
-  const GURL kPrerenderingUrl = embedded_test_server()->GetURL("/empty.html?1");
-  const GURL kPrerenderingUrl2 =
+  const GURL initial_url = embedded_test_server()->GetURL("/empty.html");
+  const GURL prerendering_url = embedded_test_server()->GetURL("/empty.html?1");
+  const GURL prerendering_url2 =
       embedded_test_server()->GetURL("/empty.html?2");
-  // The server returns a HungResponse to the request to kPrerenderingUrl3,
+  // The server returns a HungResponse to the request to prerendering_url3,
   // which doesn't actually respond until the server is destroyed.
-  const GURL kPrerenderingUrl3 =
+  const GURL prerendering_url3 =
       embedded_test_server()->GetURL("/empty.html?3");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Start a prerender.
-  PrerenderHostId prerender_host_id = AddPrerender(kPrerenderingUrl);
+  PrerenderHostId prerender_host_id = AddPrerender(prerendering_url);
   RenderFrameHostImpl* prerendered_rfh =
       GetPrerenderedMainFrameHost(prerender_host_id);
   test::PrerenderHostObserver prerender_observer(*web_contents(),
@@ -10606,34 +10610,34 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
   EXPECT_FALSE(prerender_ftn->HasNavigation());
 
   TestActivationManager activation_observer(shell()->web_contents(),
-                                            kPrerenderingUrl);
+                                            prerendering_url);
 
   // Set a callback that will be called after the last commit deferring
   // condition is executed. The callback starts a main frame navigation in a
   // prerendered page after activation is resumed.
   activation_observer.SetCallbackCalledAfterActivationIsReady(base::BindOnce(
       &PrerenderBrowserTest::NavigatePrerenderedPage, base::Unretained(this),
-      prerender_host_id, kPrerenderingUrl3));
+      prerender_host_id, prerendering_url3));
 
   // Start an activation.
   {
     ASSERT_TRUE(ExecJs(web_contents()->GetPrimaryMainFrame(),
-                       JsReplace("location = $1", kPrerenderingUrl)));
+                       JsReplace("location = $1", prerendering_url)));
 
     // Pause the activation before it's committed.
     EXPECT_TRUE(activation_observer.WaitForBeforeChecks());
     EXPECT_TRUE(activation_observer.GetNavigationHandle()
                     ->IsCommitDeferringConditionDeferredForTesting());
-    EXPECT_EQ(web_contents()->GetLastCommittedURL(), kInitialUrl);
+    EXPECT_EQ(web_contents()->GetLastCommittedURL(), initial_url);
   }
 
   // Start a main frame navigation in a prerendered page. It defers the
   // activation commit.
-  TestNavigationManager navigation_observer(web_contents(), kPrerenderingUrl2);
-  NavigatePrerenderedPage(prerender_host_id, kPrerenderingUrl2);
+  TestNavigationManager navigation_observer(web_contents(), prerendering_url2);
+  NavigatePrerenderedPage(prerender_host_id, prerendering_url2);
 
   // Verify that all RenderFrameHostImpls are the prerendering state.
-  EXPECT_TRUE(prerender_helper()->VerifyPrerenderingState(kPrerenderingUrl));
+  EXPECT_TRUE(prerender_helper()->VerifyPrerenderingState(prerendering_url));
 
   // Resume an activation navigation before completing the navigation in the
   // prerendered page. The activation isn't cancelled because
@@ -10658,7 +10662,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
 
   EXPECT_FALSE(activation_observer.was_activated());
   EXPECT_TRUE(activation_observer.was_successful());
-  EXPECT_EQ(shell()->web_contents()->GetLastCommittedURL(), kPrerenderingUrl);
+  EXPECT_EQ(shell()->web_contents()->GetLastCommittedURL(), prerendering_url);
 
   ExpectFinalStatusForSpeculationRule(
       PrerenderFinalStatus::kActivatedDuringMainFrameNavigation);
@@ -10726,11 +10730,11 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
 // activation.
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
                        DidFinishLoadInvokedAfterActivation) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/simple_page.html");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/simple_page.html");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Initialize a MockWebContentsObserver and ensure that DidFinishLoad is not
   // invoked while prerendering.
@@ -10738,7 +10742,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
   EXPECT_CALL(observer, DidFinishLoad(testing::_, testing::_)).Times(0);
 
   // Start a prerender.
-  PrerenderHostId prerender_host_id = AddPrerender(kPrerenderingUrl);
+  PrerenderHostId prerender_host_id = AddPrerender(prerendering_url);
   RenderFrameHostImpl* prerender_frame_host =
       GetPrerenderedMainFrameHost(prerender_host_id);
   EXPECT_EQ(0u, prerender_frame_host->child_count());
@@ -10756,10 +10760,10 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
     EXPECT_CALL(observer, DidFinishNavigation(testing::_));
 
     EXPECT_CALL(observer,
-                DidFinishLoad(prerender_frame_host, kPrerenderingUrl));
+                DidFinishLoad(prerender_frame_host, prerendering_url));
   }
-  NavigatePrimaryPage(kPrerenderingUrl);
-  EXPECT_EQ(web_contents()->GetLastCommittedURL(), kPrerenderingUrl);
+  NavigatePrimaryPage(prerendering_url);
+  EXPECT_EQ(web_contents()->GetLastCommittedURL(), prerendering_url);
 }
 
 // Test that WebContentsObserver::DidFinishLoad is not invoked when the page
@@ -10767,11 +10771,11 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
 // activation for both main and sub-frames.
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
                        DidFinishLoadInvokedAfterActivationWithSubframes) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/page_with_iframe.html");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/page_with_iframe.html");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Initialize a MockWebContentsObserver and ensure that DidFinishLoad is not
   // invoked while prerendering.
@@ -10780,7 +10784,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
   EXPECT_CALL(observer, DidFinishLoad(testing::_, testing::_)).Times(0);
 
   // Start a prerender.
-  PrerenderHostId prerender_host_id = AddPrerender(kPrerenderingUrl);
+  PrerenderHostId prerender_host_id = AddPrerender(prerendering_url);
   RenderFrameHostImpl* prerender_main_frame_host =
       GetPrerenderedMainFrameHost(prerender_host_id);
   RenderFrameHost* child_frame = ChildFrameAt(prerender_main_frame_host, 0);
@@ -10797,13 +10801,13 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
     EXPECT_CALL(observer, DidFinishNavigation(testing::_));
 
     EXPECT_CALL(observer,
-                DidFinishLoad(prerender_main_frame_host, kPrerenderingUrl));
+                DidFinishLoad(prerender_main_frame_host, prerendering_url));
 
     EXPECT_CALL(observer,
                 DidFinishLoad(child_frame, child_frame->GetLastCommittedURL()));
   }
-  NavigatePrimaryPage(kPrerenderingUrl);
-  EXPECT_EQ(web_contents()->GetLastCommittedURL(), kPrerenderingUrl);
+  NavigatePrimaryPage(prerendering_url);
+  EXPECT_EQ(web_contents()->GetLastCommittedURL(), prerendering_url);
 }
 
 // Test that WebContentsObserver::DOMContentLoaded is not invoked while
@@ -10811,11 +10815,11 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
 // main and sub-frames.
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
                        DOMContentLoadedInvokedAfterActivationWithSubframes) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/page_with_iframe.html");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/page_with_iframe.html");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Initialize a MockWebContentsObserver and ensure that DOMContentLoaded is
   // not invoked while prerendering.
@@ -10823,7 +10827,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
   EXPECT_CALL(observer, DOMContentLoaded(testing::_)).Times(0);
 
   // Start a prerender.
-  PrerenderHostId prerender_host_id = AddPrerender(kPrerenderingUrl);
+  PrerenderHostId prerender_host_id = AddPrerender(prerendering_url);
   RenderFrameHostImpl* prerender_main_frame_host =
       GetPrerenderedMainFrameHost(prerender_host_id);
   RenderFrameHost* child_frame = ChildFrameAt(prerender_main_frame_host, 0);
@@ -10846,8 +10850,8 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
 
     EXPECT_CALL(observer, DOMContentLoaded(child_frame)).Times(1);
   }
-  NavigatePrimaryPage(kPrerenderingUrl);
-  EXPECT_EQ(web_contents()->GetLastCommittedURL(), kPrerenderingUrl);
+  NavigatePrimaryPage(prerendering_url);
+  EXPECT_EQ(web_contents()->GetLastCommittedURL(), prerendering_url);
 }
 
 // Test that WebContentsObserver::DocumentOnLoadCompletedInPrimaryMainFrame is
@@ -10856,11 +10860,11 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
 IN_PROC_BROWSER_TEST_F(
     PrerenderBrowserTest,
     DocumentOnLoadCompletedInPrimaryMainFrameInvokedAfterActivation) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/page_with_iframe.html");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/page_with_iframe.html");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Initialize a MockWebContentsObserver and ensure that
   // DocumentOnLoadCompletedInPrimaryMainFrame is not invoked while
@@ -10869,7 +10873,7 @@ IN_PROC_BROWSER_TEST_F(
   EXPECT_CALL(observer, DocumentOnLoadCompletedInPrimaryMainFrame()).Times(0);
 
   // Start a prerender.
-  PrerenderHostId prerender_host_id = AddPrerender(kPrerenderingUrl);
+  PrerenderHostId prerender_host_id = AddPrerender(prerendering_url);
   RenderFrameHostImpl* prerender_frame_host =
       GetPrerenderedMainFrameHost(prerender_host_id);
   EXPECT_EQ(prerender_frame_host->child_count(), 1u);
@@ -10889,8 +10893,8 @@ IN_PROC_BROWSER_TEST_F(
 
     EXPECT_CALL(observer, DocumentOnLoadCompletedInPrimaryMainFrame()).Times(1);
   }
-  NavigatePrimaryPage(kPrerenderingUrl);
-  EXPECT_EQ(web_contents()->GetLastCommittedURL(), kPrerenderingUrl);
+  NavigatePrimaryPage(prerendering_url);
+  EXPECT_EQ(web_contents()->GetLastCommittedURL(), prerendering_url);
 }
 
 // Test that WebContentsObserver::PrimaryMainDocumentElementAvailable is not
@@ -10899,11 +10903,11 @@ IN_PROC_BROWSER_TEST_F(
 IN_PROC_BROWSER_TEST_F(
     PrerenderBrowserTest,
     PrimaryMainDocumentElementAvailableInvokedAfterActivation) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/page_with_iframe.html");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/page_with_iframe.html");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Initialize a MockWebContentsObserver and ensure that
   // PrimaryMainDocumentElementAvailable is not invoked while prerendering.
@@ -10913,7 +10917,7 @@ IN_PROC_BROWSER_TEST_F(
   // AddPrerender() below waits until WebContentsObserver::DidStopLoading() is
   // called and RenderFrameHostImpl::PrimaryMainDocumentElementAvailable() call
   // is expected before it returns.
-  PrerenderHostId prerender_host_id = AddPrerender(kPrerenderingUrl);
+  PrerenderHostId prerender_host_id = AddPrerender(prerendering_url);
   RenderFrameHostImpl* prerender_frame_host =
       GetPrerenderedMainFrameHost(prerender_host_id);
   EXPECT_EQ(prerender_frame_host->child_count(), 1u);
@@ -10931,8 +10935,8 @@ IN_PROC_BROWSER_TEST_F(
   EXPECT_CALL(observer, DidFinishNavigation(testing::_));
 
   EXPECT_CALL(observer, PrimaryMainDocumentElementAvailable()).Times(1);
-  NavigatePrimaryPage(kPrerenderingUrl);
-  EXPECT_EQ(web_contents()->GetLastCommittedURL(), kPrerenderingUrl);
+  NavigatePrimaryPage(prerendering_url);
+  EXPECT_EQ(web_contents()->GetLastCommittedURL(), prerendering_url);
 }
 
 // Test that WebContentsObserver::LoadProgressChanged is not invoked when the
@@ -10942,14 +10946,14 @@ IN_PROC_BROWSER_TEST_F(
 // activation.
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
                        LoadProgressChangedInvokedOnActivation) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/simple_page.html");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/simple_page.html");
 
   web_contents_impl()->set_minimum_delay_between_loading_updates_for_testing(
       base::Milliseconds(0));
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Initialize a MockWebContentsObserver and ensure that LoadProgressChanged is
   // not invoked while prerendering.
@@ -10958,7 +10962,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
   EXPECT_CALL(observer, LoadProgressChanged(testing::_)).Times(0);
 
   // Start a prerender.
-  PrerenderHostId prerender_host_id = AddPrerender(kPrerenderingUrl);
+  PrerenderHostId prerender_host_id = AddPrerender(prerendering_url);
   ASSERT_TRUE(prerender_host_id);
   RenderFrameHostImpl* prerender_frame_host =
       GetPrerenderedMainFrameHost(prerender_host_id);
@@ -10988,8 +10992,8 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
   // should result in invoking LoadProgressChanged(blink::kFinalLoadProgress)
   // only once on activation during call to DidStopLoading.
   prerender_frame_host->GetPage().set_load_progress(blink::kFinalLoadProgress);
-  NavigatePrimaryPage(kPrerenderingUrl);
-  EXPECT_EQ(web_contents()->GetLastCommittedURL(), kPrerenderingUrl);
+  NavigatePrimaryPage(prerendering_url);
+  EXPECT_EQ(web_contents()->GetLastCommittedURL(), prerendering_url);
 }
 
 // Test that WebContentsObserver::DidStopLoading is not invoked when the page
@@ -11095,18 +11099,18 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
 
 // Test the dispatch order of various load events on prerender activation.
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, OrderingOfDifferentLoadEvents) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/simple_page.html");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/simple_page.html");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Initialize a MockWebContentsObserver to check order of different load
   // events.
   testing::NiceMock<MockWebContentsObserver> observer(shell()->web_contents());
 
   // Start a prerender.
-  PrerenderHostId prerender_host_id = AddPrerender(kPrerenderingUrl);
+  PrerenderHostId prerender_host_id = AddPrerender(prerendering_url);
   ASSERT_TRUE(prerender_host_id);
 
   // Verify and clear all expectations on the mock observer before setting new
@@ -11131,8 +11135,8 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, OrderingOfDifferentLoadEvents) {
 
     EXPECT_CALL(observer, DidStopLoading()).Times(1);
   }
-  NavigatePrimaryPage(kPrerenderingUrl);
-  EXPECT_EQ(web_contents()->GetLastCommittedURL(), kPrerenderingUrl);
+  NavigatePrimaryPage(prerendering_url);
+  EXPECT_EQ(web_contents()->GetLastCommittedURL(), prerendering_url);
 }
 
 // Tests that cross-origin subframe navigations in a prerendered page are
@@ -11142,19 +11146,19 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, OrderingOfDifferentLoadEvents) {
 // Regression test for https://crbug.com/1190262.
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
                        CrossOriginSubframeNavigationDuringActivation) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/page_with_blank_iframe.html");
-  const GURL kCrossOriginUrl = GetCrossSiteUrl("/simple_page.html");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/page_with_blank_iframe.html");
+  const GURL cross_origin_url = GetCrossSiteUrl("/simple_page.html");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
-  ASSERT_EQ(shell()->web_contents()->GetLastCommittedURL(), kInitialUrl);
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+  ASSERT_EQ(shell()->web_contents()->GetLastCommittedURL(), initial_url);
 
-  // Start prerendering `kPrerenderingUrl`.
+  // Start prerendering `prerendering_url`.
   PrerenderHostId prerender_host_id;
   RenderFrameHost* prerender_main_frame = nullptr;
   {
-    prerender_host_id = AddPrerender(kPrerenderingUrl);
+    prerender_host_id = AddPrerender(prerendering_url);
     prerender_main_frame = GetPrerenderedMainFrameHost(prerender_host_id);
     RenderFrameHost* child_frame = ChildFrameAt(prerender_main_frame, 0);
     ASSERT_TRUE(child_frame);
@@ -11163,17 +11167,17 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
   // Start an activation navigation for the prerender. Pause activation before
   // it completes.
   test::PrerenderHostObserver prerender_observer(*web_contents(),
-                                                 kPrerenderingUrl);
+                                                 prerendering_url);
   TestActivationManager activation_observer(shell()->web_contents(),
-                                            kPrerenderingUrl);
+                                            prerendering_url);
   {
     ASSERT_TRUE(ExecJs(web_contents()->GetPrimaryMainFrame(),
-                       JsReplace("location = $1", kPrerenderingUrl)));
+                       JsReplace("location = $1", prerendering_url)));
 
     EXPECT_TRUE(activation_observer.WaitForBeforeChecks());
     EXPECT_TRUE(activation_observer.GetNavigationHandle()
                     ->IsCommitDeferringConditionDeferredForTesting());
-    EXPECT_EQ(web_contents()->GetLastCommittedURL(), kInitialUrl);
+    EXPECT_EQ(web_contents()->GetLastCommittedURL(), initial_url);
   }
 
   // Start a cross-origin subframe navigation in the prerendered page. It
@@ -11182,9 +11186,9 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
     document.querySelector('iframe').src = $1;
   )";
   TestNavigationManager iframe_nav_observer(shell()->web_contents(),
-                                            kCrossOriginUrl);
+                                            cross_origin_url);
   ASSERT_TRUE(ExecJs(prerender_main_frame,
-                     JsReplace(kNavigateScript, kCrossOriginUrl)));
+                     JsReplace(kNavigateScript, cross_origin_url)));
 
   ASSERT_TRUE(iframe_nav_observer.WaitForFirstYieldAfterDidStartNavigation());
 
@@ -11204,7 +11208,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
   // The iframe navigation should finish.
   ASSERT_TRUE(iframe_nav_observer.WaitForNavigationFinished());
   EXPECT_EQ(ChildFrameAt(prerender_main_frame, 0)->GetLastCommittedURL(),
-            kCrossOriginUrl);
+            cross_origin_url);
 }
 
 // Tests WebContents::OpenURL to a frame in a prerendered page when a
@@ -11212,19 +11216,19 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
 // subframe navigation should succeed.
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
                        OpenURLInSubframeDuringActivation) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/page_with_blank_iframe.html");
-  const GURL kNewIframeUrl = GetUrl("/simple_page.html");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/page_with_blank_iframe.html");
+  const GURL new_iframe_url = GetUrl("/simple_page.html");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
-  ASSERT_EQ(shell()->web_contents()->GetLastCommittedURL(), kInitialUrl);
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+  ASSERT_EQ(shell()->web_contents()->GetLastCommittedURL(), initial_url);
 
-  // Start prerendering `kPrerenderingUrl`.
+  // Start prerendering `prerendering_url`.
   PrerenderHostId prerender_host_id;
   RenderFrameHost* child_frame = nullptr;
   {
-    prerender_host_id = AddPrerender(kPrerenderingUrl);
+    prerender_host_id = AddPrerender(prerendering_url);
     auto* prerendered_render_frame_host =
         GetPrerenderedMainFrameHost(prerender_host_id);
     child_frame = ChildFrameAt(prerendered_render_frame_host, 0);
@@ -11234,33 +11238,33 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
   // Start an activation navigation for the prerender and pause before it
   // completes.
   test::PrerenderHostObserver prerender_observer(*web_contents(),
-                                                 kPrerenderingUrl);
+                                                 prerendering_url);
   TestActivationManager activation_observer(shell()->web_contents(),
-                                            kPrerenderingUrl);
+                                            prerendering_url);
   {
     ASSERT_TRUE(ExecJs(web_contents()->GetPrimaryMainFrame(),
-                       JsReplace("location = $1", kPrerenderingUrl)));
+                       JsReplace("location = $1", prerendering_url)));
 
     EXPECT_TRUE(activation_observer.WaitForBeforeChecks());
     EXPECT_TRUE(activation_observer.GetNavigationHandle()
                     ->IsCommitDeferringConditionDeferredForTesting());
-    EXPECT_EQ(web_contents()->GetLastCommittedURL(), kInitialUrl);
+    EXPECT_EQ(web_contents()->GetLastCommittedURL(), initial_url);
   }
 
   // Use the OpenURL API to navigate the iframe in the prerendering frame tree.
   // This navigation should succeed.
   {
     TestNavigationManager iframe_observer(shell()->web_contents(),
-                                          kNewIframeUrl);
+                                          new_iframe_url);
     shell()->web_contents()->OpenURL(
-        OpenURLParams(kNewIframeUrl, Referrer(),
+        OpenURLParams(new_iframe_url, Referrer(),
                       child_frame->GetFrameTreeNodeId(),
                       WindowOpenDisposition::CURRENT_TAB,
                       ui::PAGE_TRANSITION_AUTO_SUBFRAME,
                       /*is_renderer_initiated=*/false),
         /*navigation_handle_callback=*/{});
     ASSERT_TRUE(iframe_observer.WaitForNavigationFinished());
-    EXPECT_EQ(child_frame->GetLastCommittedURL(), kNewIframeUrl);
+    EXPECT_EQ(child_frame->GetLastCommittedURL(), new_iframe_url);
   }
 
   // Allow the activation navigation to complete.
@@ -11268,122 +11272,41 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
   EXPECT_TRUE(activation_observer.was_activated());
 }
 
-class InvisiblePageLazyLoadingImageBrowserTest
-    : public PrerenderBrowserTest,
-      public testing::WithParamInterface<
-          blink::features::EnableLazyLoadImageForInvisiblePageType> {
- public:
-  static std::string GetFieldTrialParamName(
-      blink::features::EnableLazyLoadImageForInvisiblePageType
-          target_page_type) {
-    switch (target_page_type) {
-      case blink::features::EnableLazyLoadImageForInvisiblePageType::
-          kAllInvisiblePage:
-        return "all_invisible_page";
-      case blink::features::EnableLazyLoadImageForInvisiblePageType::
-          kPrerenderPage:
-        return "prerender_page";
-    }
-  }
-
-  InvisiblePageLazyLoadingImageBrowserTest() {
-    feature_list_.InitWithFeaturesAndParameters(
-        {{blink::features::kEnableLazyLoadImageForInvisiblePage,
-          {
-              {"enabled_page_type", GetFieldTrialParamName(GetParam())},
-          }}},
-        {});
-  }
-
- private:
-  base::test::ScopedFeatureList feature_list_;
-};
-
-INSTANTIATE_TEST_SUITE_P(
-    All,
-    InvisiblePageLazyLoadingImageBrowserTest,
-    testing::Values(blink::features::EnableLazyLoadImageForInvisiblePageType::
-                        kAllInvisiblePage,
-                    blink::features::EnableLazyLoadImageForInvisiblePageType::
-                        kPrerenderPage),
-    [](const testing::TestParamInfo<
-        blink::features::EnableLazyLoadImageForInvisiblePageType>& info) {
-      return InvisiblePageLazyLoadingImageBrowserTest::GetFieldTrialParamName(
-          info.param);
-    });
-
 // Tests that loading=lazy can prevent image load in a prerendered page.
 // TODO(https://crbug.com/381110833): The image, positioned in the top-left
 // corner of the page, should be visible in the initial viewport after the page
 // gets activated. Ideally it should be loaded during prerendering, and we need
 // to figure out how to make that happen.
-IN_PROC_BROWSER_TEST_P(InvisiblePageLazyLoadingImageBrowserTest, LazyLoading) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/prerender/image_loading_lazy.html");
-  const GURL kImageUrl = GetUrl("/blank.jpg");
+IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, LazyLoading) {
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/prerender/image_loading_lazy.html");
+  const GURL image_url = GetUrl("/blank.jpg");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
-  ASSERT_EQ(shell()->web_contents()->GetLastCommittedURL(), kInitialUrl);
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+  ASSERT_EQ(shell()->web_contents()->GetLastCommittedURL(), initial_url);
 
-  // Start prerendering `kPrerenderingUrl`.
-  ASSERT_EQ(GetRequestCount(kPrerenderingUrl), 0);
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  // Start prerendering `prerendering_url`.
+  ASSERT_EQ(GetRequestCount(prerendering_url), 0);
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
   RenderFrameHost* prerender_frame_host = GetPrerenderedMainFrameHost(host_id);
 
-  EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 1);
+  EXPECT_EQ(GetRequestCount(prerendering_url), 1);
 
   // A request for the image in the prerendered page should be prevented by
   // loading=lazy.
-  EXPECT_EQ(GetRequestCount(kImageUrl), 0);
+  EXPECT_EQ(GetRequestCount(image_url), 0);
   EXPECT_TRUE(ExecJs(prerender_frame_host, "runLoop()"));
 
   EXPECT_EQ(EvalJs(prerender_frame_host, "image_loaded"), false);
 
-  test::PrerenderHostObserver host_observer(*web_contents(), kPrerenderingUrl);
-  NavigatePrimaryPage(kPrerenderingUrl);
+  test::PrerenderHostObserver host_observer(*web_contents(), prerendering_url);
+  NavigatePrimaryPage(prerendering_url);
   EXPECT_TRUE(host_observer.was_activated());
-  EXPECT_EQ(web_contents()->GetLastCommittedURL(), kPrerenderingUrl);
+  EXPECT_EQ(web_contents()->GetLastCommittedURL(), prerendering_url);
 
   EXPECT_TRUE(ExecJs(prerender_frame_host, "promise_with_resolvers.promise"));
   EXPECT_EQ(EvalJs(prerender_frame_host, "image_loaded"), true);
-}
-
-class DisabledInvisiblePageLazyLoadingImageBrowserTest
-    : public PrerenderBrowserTest {
- public:
-  DisabledInvisiblePageLazyLoadingImageBrowserTest() {
-    feature_list_.InitAndDisableFeature(
-        blink::features::kEnableLazyLoadImageForInvisiblePage);
-  }
-
- private:
-  base::test::ScopedFeatureList feature_list_;
-};
-
-// Tests that loading=lazy doesn't prevent image load in a prerendered page.
-// This test is tested under the condition that
-// blink::features::kEnableLazyLoadImageForInvisiblePage is disabled.
-IN_PROC_BROWSER_TEST_F(DisabledInvisiblePageLazyLoadingImageBrowserTest,
-                       LazyLoading) {
-  ASSERT_FALSE(base::FeatureList::IsEnabled(
-      blink::features::kEnableLazyLoadImageForInvisiblePage));
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/prerender/image_loading_lazy.html");
-  const GURL kImageUrl = GetUrl("/blank.jpg");
-
-  // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
-  ASSERT_EQ(shell()->web_contents()->GetLastCommittedURL(), kInitialUrl);
-
-  // Start prerendering `kPrerenderingUrl`.
-  ASSERT_EQ(GetRequestCount(kPrerenderingUrl), 0);
-  AddPrerender(kPrerenderingUrl);
-  EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 1);
-
-  // A request for the image in the prerendered page shouldn't be prevented by
-  // loading=lazy.
-  EXPECT_EQ(GetRequestCount(kImageUrl), 1);
 }
 
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
@@ -11394,20 +11317,20 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
   DisableBackForwardCacheForTesting(shell()->web_contents(),
                                     BackForwardCache::TEST_REQUIRES_NO_CACHING);
 
-  const GURL kInitialUrl = GetUrl("/prerender/session_storage.html");
-  const GURL kPrerenderingUrl =
+  const GURL initial_url = GetUrl("/prerender/session_storage.html");
+  const GURL prerendering_url =
       GetUrl("/prerender/session_storage.html?prerendering=");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   std::unique_ptr<RenderProcessHostWatcher> process_host_watcher =
       std::make_unique<RenderProcessHostWatcher>(
           current_frame_host()->GetProcess(),
           RenderProcessHostWatcher::WATCH_FOR_HOST_DESTRUCTION);
 
-  AddPrerender(kPrerenderingUrl);
-  NavigatePrimaryPage(kPrerenderingUrl);
+  AddPrerender(prerendering_url);
+  NavigatePrimaryPage(prerendering_url);
 
   EXPECT_EQ("initial", EvalJs(current_frame_host(),
                               "window.sessionKeysInPrerenderingchange")
@@ -11430,7 +11353,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
   TestNavigationObserver observer(shell()->web_contents());
   shell()->GoBackOrForward(-1);
   observer.Wait();
-  EXPECT_EQ(shell()->web_contents()->GetLastCommittedURL(), kInitialUrl);
+  EXPECT_EQ(shell()->web_contents()->GetLastCommittedURL(), initial_url);
 
   EXPECT_EQ(
       "activated, initial",
@@ -11439,12 +11362,12 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
                        SessionStorageAfterBackNavigation_KeepInitialProcess) {
-  const GURL kInitialUrl = GetUrl("/prerender/session_storage.html");
-  const GURL kPrerenderingUrl =
+  const GURL initial_url = GetUrl("/prerender/session_storage.html");
+  const GURL prerendering_url =
       GetUrl("/prerender/session_storage.html?prerendering=");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   RenderProcessHostImpl* initial_process_host =
       static_cast<RenderProcessHostImpl*>(current_frame_host()->GetProcess());
@@ -11454,8 +11377,8 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
   // after a back navigation that uses an existing renderer process.
   initial_process_host->IncrementWorkerRefCount();
 
-  AddPrerender(kPrerenderingUrl);
-  NavigatePrimaryPage(kPrerenderingUrl);
+  AddPrerender(prerendering_url);
+  NavigatePrimaryPage(prerendering_url);
 
   EXPECT_EQ("initial", EvalJs(current_frame_host(),
                               "window.sessionKeysInPrerenderingchange")
@@ -11473,7 +11396,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
   TestNavigationObserver observer(shell()->web_contents());
   shell()->GoBackOrForward(-1);
   observer.Wait();
-  EXPECT_EQ(shell()->web_contents()->GetLastCommittedURL(), kInitialUrl);
+  EXPECT_EQ(shell()->web_contents()->GetLastCommittedURL(), initial_url);
 
   EXPECT_EQ(
       "activated, initial",
@@ -11485,16 +11408,16 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
 // same storage.
 IN_PROC_BROWSER_TEST_F(PrerenderTargetHintBrowserTest,
                        SessionStorage_TargetBlank_WithTargetHintBlank) {
-  const GURL kInitialUrl = GetUrl("/prerender/session_storage.html");
-  const GURL kPrerenderingUrl =
+  const GURL initial_url = GetUrl("/prerender/session_storage.html");
+  const GURL prerendering_url =
       GetUrl("/prerender/session_storage.html?prerendering=");
 
-  // Navigate to an initial page which has a link to `kPrerenderingUrl`.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  // Navigate to an initial page which has a link to `prerendering_url`.
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
-  // Start prerendering `kPrerenderingUrl`.
+  // Start prerendering `prerendering_url`.
   PrerenderHostId host_id = prerender_helper()->AddPrerender(
-      kPrerenderingUrl, /*eagerness=*/std::nullopt, "_blank");
+      prerendering_url, /*eagerness=*/std::nullopt, "_blank");
   auto* prerender_web_contents = static_cast<WebContentsImpl*>(
       test::PrerenderTestHelper::GetPrerenderWebContents(host_id));
   ExpectWebContentsIsForNewTabPrerendering(*prerender_web_contents);
@@ -11519,7 +11442,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderTargetHintBrowserTest,
 
   // Click the link annotated with "target=_blank". This should activate the
   // prerendered page.
-  TestNavigationObserver activation_observer(kPrerenderingUrl);
+  TestNavigationObserver activation_observer(prerendering_url);
   activation_observer.WatchExistingWebContents();
   test::PrerenderHostObserver prerender_observer(*prerender_web_contents,
                                                  host_id);
@@ -11528,10 +11451,10 @@ IN_PROC_BROWSER_TEST_F(PrerenderTargetHintBrowserTest,
   )";
   EXPECT_TRUE(ExecJs(web_contents(), kLinkClickScript));
   activation_observer.WaitForNavigationFinished();
-  EXPECT_EQ(prerender_web_contents->GetLastCommittedURL(), kPrerenderingUrl);
-  EXPECT_EQ(activation_observer.last_navigation_url(), kPrerenderingUrl);
+  EXPECT_EQ(prerender_web_contents->GetLastCommittedURL(), prerendering_url);
+  EXPECT_EQ(activation_observer.last_navigation_url(), prerendering_url);
   EXPECT_TRUE(prerender_observer.was_activated());
-  EXPECT_FALSE(HasHostForUrl(kPrerenderingUrl));
+  EXPECT_FALSE(HasHostForUrl(prerendering_url));
 
   // The initiator's session storage is expected to be different from the
   // prerender's.
@@ -11563,20 +11486,20 @@ IN_PROC_BROWSER_TEST_F(PrerenderTargetHintBrowserTest,
 
   // The navigation occurred in a new WebContents, so the original WebContents
   // should still be showing the initial trigger page.
-  EXPECT_EQ(web_contents()->GetLastCommittedURL(), kInitialUrl);
+  EXPECT_EQ(web_contents()->GetLastCommittedURL(), initial_url);
 }
 
 // Test if the host is abandoned when the renderer page crashes.
 IN_PROC_BROWSER_TEST_P(PrerenderBrowserTestFallbackEnabledDisabled,
                        AbandonIfRendererProcessCrashes) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/empty.html?prerender");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/empty.html?prerender");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Start a prerender.
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
 
   // Crash the relevant renderer.
   {
@@ -11597,14 +11520,14 @@ IN_PROC_BROWSER_TEST_P(PrerenderBrowserTestFallbackEnabledDisabled,
 
 // Test if the host is abandoned when the renderer page is killed.
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, AbandonIfRendererProcessIsKilled) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/empty.html?prerender");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/empty.html?prerender");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Start a prerender.
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
 
   // Shut down the relevant renderer.
   {
@@ -11624,14 +11547,14 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, AbandonIfRendererProcessIsKilled) {
 // prerendering is killed.
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
                        AbandonIfPrimaryMainFrameRendererProcessIsKilled) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/empty.html?prerender");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/empty.html?prerender");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Start a prerender.
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
 
   // Shut down the current renderer.
   {
@@ -11662,18 +11585,18 @@ class PrerenderBackForwardCacheBrowserTest : public PrerenderBrowserTest {
 
 IN_PROC_BROWSER_TEST_F(PrerenderBackForwardCacheBrowserTest,
                        SessionStorageAfterBackNavigation) {
-  const GURL kInitialUrl = GetUrl("/prerender/session_storage.html");
-  const GURL kPrerenderingUrl =
+  const GURL initial_url = GetUrl("/prerender/session_storage.html");
+  const GURL prerendering_url =
       GetUrl("/prerender/session_storage.html?prerendering=");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   RenderFrameHostWrapper main_frame(
       shell()->web_contents()->GetPrimaryMainFrame());
 
-  AddPrerender(kPrerenderingUrl);
-  NavigatePrimaryPage(kPrerenderingUrl);
+  AddPrerender(prerendering_url);
+  NavigatePrimaryPage(prerendering_url);
 
   EXPECT_EQ("initial", EvalJs(current_frame_host(),
                               "window.sessionKeysInPrerenderingchange")
@@ -11730,12 +11653,12 @@ class PrerenderRestartStorageServiceBrowserTest : public PrerenderBrowserTest {
 
 IN_PROC_BROWSER_TEST_F(PrerenderRestartStorageServiceBrowserTest,
                        RestartStorageServiceBeforePrerendering) {
-  const GURL kInitialUrl = GetUrl("/prerender/session_storage.html");
-  const GURL kPrerenderingUrl =
+  const GURL initial_url = GetUrl("/prerender/session_storage.html");
+  const GURL prerendering_url =
       GetUrl("/prerender/session_storage.html?prerendering=");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   CrashStorageServiceAndWaitForRestart();
 
@@ -11743,8 +11666,8 @@ IN_PROC_BROWSER_TEST_F(PrerenderRestartStorageServiceBrowserTest,
       "initial",
       EvalJs(current_frame_host(), "getSessionStorageKeys()").ExtractString());
 
-  AddPrerender(kPrerenderingUrl);
-  NavigatePrimaryPage(kPrerenderingUrl);
+  AddPrerender(prerendering_url);
+  NavigatePrimaryPage(prerendering_url);
 
   EXPECT_EQ("initial", EvalJs(current_frame_host(),
                               "window.sessionKeysInPrerenderingchange")
@@ -11756,14 +11679,14 @@ IN_PROC_BROWSER_TEST_F(PrerenderRestartStorageServiceBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(PrerenderRestartStorageServiceBrowserTest,
                        RestartStorageServiceWhilePrerendering) {
-  const GURL kInitialUrl = GetUrl("/prerender/session_storage.html");
-  const GURL kPrerenderingUrl =
+  const GURL initial_url = GetUrl("/prerender/session_storage.html");
+  const GURL prerendering_url =
       GetUrl("/prerender/session_storage.html?prerendering=");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
 
   CrashStorageServiceAndWaitForRestart();
 
@@ -11775,7 +11698,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderRestartStorageServiceBrowserTest,
       EvalJs(GetPrerenderedMainFrameHost(host_id), "getSessionStorageKeys()")
           .ExtractString());
 
-  NavigatePrimaryPage(kPrerenderingUrl);
+  NavigatePrimaryPage(prerendering_url);
 
   EXPECT_EQ("initial", EvalJs(current_frame_host(),
                               "window.sessionKeysInPrerenderingchange")
@@ -11792,31 +11715,31 @@ IN_PROC_BROWSER_TEST_F(PrerenderRestartStorageServiceBrowserTest,
 // speculative RFH (redirects allowing). Once that is done we should either
 // change this test (if redirects allowed) or remove it completely.
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, SpeculationRulesScript) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/empty.html?prerender");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/empty.html?prerender");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
-  ASSERT_EQ(web_contents()->GetLastCommittedURL(), kInitialUrl);
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+  ASSERT_EQ(web_contents()->GetLastCommittedURL(), initial_url);
 
-  ASSERT_EQ(GetRequestCount(kPrerenderingUrl), 0);
-  AddPrerender(kPrerenderingUrl);
-  EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 1);
+  ASSERT_EQ(GetRequestCount(prerendering_url), 0);
+  AddPrerender(prerendering_url);
+  EXPECT_EQ(GetRequestCount(prerendering_url), 1);
 
   // A prerender host for the URL should be registered.
-  EXPECT_TRUE(HasHostForUrl(kPrerenderingUrl));
+  EXPECT_TRUE(HasHostForUrl(prerendering_url));
 
   // Activate the prerendered page.
   // The test passes if we don't crash while cleaning up speculative render
   // frame host.
-  NavigatePrimaryPage(kPrerenderingUrl);
-  EXPECT_EQ(web_contents()->GetLastCommittedURL(), kPrerenderingUrl);
+  NavigatePrimaryPage(prerendering_url);
+  EXPECT_EQ(web_contents()->GetLastCommittedURL(), prerendering_url);
 
   // The prerender host should be consumed.
-  EXPECT_FALSE(HasHostForUrl(kPrerenderingUrl));
+  EXPECT_FALSE(HasHostForUrl(prerendering_url));
 
   // Activating the prerendered page should not issue a request.
-  EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 1);
+  EXPECT_EQ(GetRequestCount(prerendering_url), 1);
 }
 
 class PrerenderEagernessBrowserTest : public PrerenderBrowserTest {
@@ -12448,11 +12371,11 @@ INSTANTIATE_TEST_SUITE_P(All,
 // This is a regression test for https://crbug.com/1201914.
 IN_PROC_BROWSER_TEST_P(PrerenderWithBackForwardCacheBrowserTest,
                        HistoryNavigationAfterActivation) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/empty.html?prerender");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/empty.html?prerender");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
   RenderFrameHostImpl* initial_frame_host = current_frame_host();
   blink::LocalFrameToken initial_frame_token =
       initial_frame_host->GetFrameToken();
@@ -12462,9 +12385,9 @@ IN_PROC_BROWSER_TEST_P(PrerenderWithBackForwardCacheBrowserTest,
   RenderFrameDeletedObserver delete_observer(initial_frame_host);
 
   // Make and activate a prerendered page.
-  AddPrerender(kPrerenderingUrl);
-  NavigatePrimaryPage(kPrerenderingUrl);
-  EXPECT_EQ(web_contents()->GetLastCommittedURL(), kPrerenderingUrl);
+  AddPrerender(prerendering_url);
+  NavigatePrimaryPage(prerendering_url);
+  EXPECT_EQ(web_contents()->GetLastCommittedURL(), prerendering_url);
 
   // Check if the initial page is in the BFCache.
   switch (GetParam()) {
@@ -12486,7 +12409,7 @@ IN_PROC_BROWSER_TEST_P(PrerenderWithBackForwardCacheBrowserTest,
   TestNavigationObserver observer(web_contents());
   shell()->GoBackOrForward(-1);
   observer.Wait();
-  EXPECT_EQ(web_contents()->GetLastCommittedURL(), kInitialUrl);
+  EXPECT_EQ(web_contents()->GetLastCommittedURL(), initial_url);
 
   // Check if the back navigation is served from the BFCache.
   switch (GetParam()) {
@@ -12506,20 +12429,20 @@ IN_PROC_BROWSER_TEST_P(PrerenderWithBackForwardCacheBrowserTest,
 // forward and goes into the back/forward cache.
 IN_PROC_BROWSER_TEST_P(PrerenderWithBackForwardCacheBrowserTest,
                        CancelOnAfterTriggerIsStoredInBackForwardCache_Forward) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kNextUrl = GetUrl("/empty.html?next");
-  const GURL kPrerenderingUrl = GetUrl("/empty.html?prerender");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL next_url = GetUrl("/empty.html?next");
+  const GURL prerendering_url = GetUrl("/empty.html?prerender");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
   RenderFrameHostImplWrapper initial_frame_host(current_frame_host());
 
   // Make a prerendered page from the initial page.
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
   test::PrerenderHostObserver prerender_observer(*web_contents_impl(), host_id);
 
   // Navigate the initial page to a non-prerendered page.
-  ASSERT_TRUE(NavigateToURL(shell(), kNextUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), next_url));
 
   // Check if the initial page is in the back/forward cache.
   switch (GetParam()) {
@@ -12543,7 +12466,7 @@ IN_PROC_BROWSER_TEST_P(PrerenderWithBackForwardCacheBrowserTest,
   // The navigation should destroy the prerendered page regardless of if the
   // initial page was in the back/forward cache.
   prerender_observer.WaitForDestroyed();
-  EXPECT_FALSE(HasHostForUrl(kPrerenderingUrl));
+  EXPECT_FALSE(HasHostForUrl(prerendering_url));
   ExpectFinalStatusForSpeculationRule(PrerenderFinalStatus::kTriggerDestroyed);
 }
 
@@ -12551,26 +12474,26 @@ IN_PROC_BROWSER_TEST_P(PrerenderWithBackForwardCacheBrowserTest,
 // and goes into the BFCache.
 IN_PROC_BROWSER_TEST_P(PrerenderWithBackForwardCacheBrowserTest,
                        CancelOnAfterTriggerIsStoredInBackForwardCache_Back) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kNextUrl = GetUrl("/empty.html?next");
-  const GURL kPrerenderingUrl = GetUrl("/empty.html?prerender");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL next_url = GetUrl("/empty.html?next");
+  const GURL prerendering_url = GetUrl("/empty.html?prerender");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Navigate to a next page.
-  ASSERT_TRUE(NavigateToURL(shell(), kNextUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), next_url));
   RenderFrameHostImplWrapper next_frame_host(current_frame_host());
 
   // Make a prerendered page from the next page.
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
   test::PrerenderHostObserver prerender_observer(*web_contents_impl(), host_id);
 
   // Navigate back to the initial page.
   TestNavigationObserver navigation_observer(web_contents());
   shell()->GoBackOrForward(-1);
   navigation_observer.Wait();
-  EXPECT_EQ(web_contents()->GetLastCommittedURL(), kInitialUrl);
+  EXPECT_EQ(web_contents()->GetLastCommittedURL(), initial_url);
 
   // Check if the next page is in the back/forward cache.
   switch (GetParam()) {
@@ -12594,7 +12517,7 @@ IN_PROC_BROWSER_TEST_P(PrerenderWithBackForwardCacheBrowserTest,
   // The navigation should destroy the prerendered page regardless of if the
   // next page was in the back/forward cache.
   prerender_observer.WaitForDestroyed();
-  EXPECT_FALSE(HasHostForUrl(kPrerenderingUrl));
+  EXPECT_FALSE(HasHostForUrl(prerendering_url));
   ExpectFinalStatusForSpeculationRule(PrerenderFinalStatus::kTriggerDestroyed);
 }
 
@@ -12863,16 +12786,16 @@ IN_PROC_BROWSER_TEST_P(PrerenderBackForwardCacheRestorationBrowserTest,
 // Tests that PrerenderHostRegistry can hold up to two prerendering for the
 // prerender embedders it receives.
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, StartByEmbeddersMultipleTimes) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kFirstPrerenderingUrl = GetUrl("/empty.html?prerender1");
-  const GURL kSecondPrerenderingUrl = GetUrl("/empty.html?prerender2");
-  const GURL kThirdPrerenderingUrl = GetUrl("/empty.html?prerender3");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL first_prerendering_url = GetUrl("/empty.html?prerender1");
+  const GURL second_prerendering_url = GetUrl("/empty.html?prerender2");
+  const GURL third_prerendering_url = GetUrl("/empty.html?prerender3");
 
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
   // Start prerendering by embedder triggered prerendering; this should be
   // trigger successfully.
   std::unique_ptr<PrerenderHandle> prerender_handle1 =
-      AddEmbedderTriggeredPrerenderAsync(kFirstPrerenderingUrl);
+      AddEmbedderTriggeredPrerenderAsync(first_prerendering_url);
   EXPECT_TRUE(prerender_handle1);
 
   histogram_tester().ExpectBucketCount(
@@ -12883,7 +12806,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, StartByEmbeddersMultipleTimes) {
   // Start prerendering by embedder triggered prerendering; this should be
   // trigger successfully.
   std::unique_ptr<PrerenderHandle> prerender_handle2 =
-      AddEmbedderTriggeredPrerenderAsync(kSecondPrerenderingUrl);
+      AddEmbedderTriggeredPrerenderAsync(second_prerendering_url);
   EXPECT_TRUE(prerender_handle2);
 
   histogram_tester().ExpectBucketCount(
@@ -12894,7 +12817,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, StartByEmbeddersMultipleTimes) {
   // Start prerendering by embedder triggered prerendering; this should hit the
   // limit.
   std::unique_ptr<PrerenderHandle> prerender_handle3 =
-      AddEmbedderTriggeredPrerenderAsync(kThirdPrerenderingUrl);
+      AddEmbedderTriggeredPrerenderAsync(third_prerendering_url);
   EXPECT_FALSE(prerender_handle3);
 
   histogram_tester().ExpectBucketCount(
@@ -12907,16 +12830,16 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, StartByEmbeddersMultipleTimes) {
 // prerender speculation rule and prerender embedders in total.
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
                        StartByEmbeddersAndSpeculationRulesMultipleTimes) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kSpeculationRulesPrerenderingUrl =
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL speculation_rules_prerendering_url =
       GetUrl("/empty.html?prerender1");
-  const GURL kEmbedderPrerenderingUrl1 = GetUrl("/empty.html?prerender2");
-  const GURL kEmbedderPrerenderingUrl2 = GetUrl("/empty.html?prerender3");
-  const GURL kEmbedderPrerenderingUrl3 = GetUrl("/empty.html?prerender4");
+  const GURL embedder_prerendering_url1 = GetUrl("/empty.html?prerender2");
+  const GURL embedder_prerendering_url2 = GetUrl("/empty.html?prerender3");
+  const GURL embedder_prerendering_url3 = GetUrl("/empty.html?prerender4");
 
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
   // Add a prerender speculation rule; this should be triggered successfully.
-  AddPrerender(kSpeculationRulesPrerenderingUrl);
+  AddPrerender(speculation_rules_prerendering_url);
 
   // Add the first prerender speculation rule; it should trigger prerendering
   // successfully.
@@ -12932,13 +12855,13 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
   // Start the first embedder triggered prerendering; this should be triggered
   // successfully.
   std::unique_ptr<PrerenderHandle> prerender_handle1 =
-      AddEmbedderTriggeredPrerenderAsync(kEmbedderPrerenderingUrl1);
+      AddEmbedderTriggeredPrerenderAsync(embedder_prerendering_url1);
   EXPECT_TRUE(prerender_handle1);
 
   // Start the second embedder triggered prerendering; this should be triggered
   // successfully.
   std::unique_ptr<PrerenderHandle> prerender_handle2 =
-      AddEmbedderTriggeredPrerenderAsync(kEmbedderPrerenderingUrl2);
+      AddEmbedderTriggeredPrerenderAsync(embedder_prerendering_url2);
   EXPECT_TRUE(prerender_handle2);
 
   histogram_tester().ExpectBucketCount(
@@ -12948,7 +12871,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
 
   // Start the third embedder triggered prerendering; this should hit the limit.
   std::unique_ptr<PrerenderHandle> prerender_handle3 =
-      AddEmbedderTriggeredPrerenderAsync(kEmbedderPrerenderingUrl3);
+      AddEmbedderTriggeredPrerenderAsync(embedder_prerendering_url3);
   EXPECT_FALSE(prerender_handle3);
 
   histogram_tester().ExpectBucketCount(
@@ -12960,7 +12883,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
   // this should succeed as one of the prerenders is freed.
   prerender_handle2.reset();
   prerender_handle3 =
-      AddEmbedderTriggeredPrerenderAsync(kEmbedderPrerenderingUrl3);
+      AddEmbedderTriggeredPrerenderAsync(embedder_prerendering_url3);
   EXPECT_TRUE(prerender_handle3);
 }
 
@@ -13117,8 +13040,8 @@ IN_PROC_BROWSER_TEST_F(MultiplePrerendersBrowserTest,
 // up to `max_num_of_running_speculation_rules` defined by a Finch param.
 IN_PROC_BROWSER_TEST_F(MultiplePrerendersBrowserTest,
                        AddSpeculationRulesMultipleTimes) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  const GURL initial_url = GetUrl("/empty.html");
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   for (int i = 0;
        i <
@@ -13134,24 +13057,24 @@ IN_PROC_BROWSER_TEST_F(MultiplePrerendersBrowserTest,
 
   test::PrerenderHostRegistryObserver registry_observer(*web_contents_impl());
 
-  const GURL kExceededPrerenderingUrl =
+  const GURL exceeded_prerendering_url =
       GetUrl("/empty.html?exceeded-prerender");
   // Add a new prerender speculation rule. Since PrerenderHostRegistry limits
   // the number of running prerenders to `max_num_of_running_speculation_rules`
   // defined by a Finch param, this rule should not be applied.
-  AddPrerenderAsync(kExceededPrerenderingUrl);
-  registry_observer.WaitForTrigger(kExceededPrerenderingUrl);
-  EXPECT_FALSE(HasHostForUrl(kExceededPrerenderingUrl));
+  AddPrerenderAsync(exceeded_prerendering_url);
+  registry_observer.WaitForTrigger(exceeded_prerendering_url);
+  EXPECT_FALSE(HasHostForUrl(exceeded_prerendering_url));
 
   ExpectFinalStatusForSpeculationRule(
       PrerenderFinalStatus::kMaxNumOfRunningImmediatePrerendersExceeded);
 
-  const GURL kEmbedderTriggeredPrerenderingUrl =
+  const GURL embedder_triggered_prerendering_url =
       GetUrl("/empty.html?embedder-triggered-prerender");
   // Start an embedder triggered prerendering; this should be triggered
   // successfully because its limitation is independent from speculation rules.
   std::unique_ptr<PrerenderHandle> prerender_handle =
-      AddEmbedderTriggeredPrerenderAsync(kEmbedderTriggeredPrerenderingUrl);
+      AddEmbedderTriggeredPrerenderAsync(embedder_triggered_prerendering_url);
   EXPECT_TRUE(prerender_handle);
 }
 
@@ -13198,32 +13121,32 @@ IN_PROC_BROWSER_TEST_F(MultiplePrerendersWithLimitedMemoryBrowserTest,
 // Tests that cross-site urls cannot be prerendered.
 IN_PROC_BROWSER_TEST_P(PrerenderBrowserTestFallbackEnabledDisabled,
                        SkipCrossSitePrerender) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetCrossSiteUrl("/empty.html?crossorigin");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetCrossSiteUrl("/empty.html?crossorigin");
 
   base::RunLoop run_loop;
   PrefetchContainer::SetPrefetchResponseCompletedCallbackForTesting(
       base::BindLambdaForTesting(
           [&](base::WeakPtr<PrefetchContainer> prefetch_container) {
-            if (prefetch_container->GetURL() != kPrerenderingUrl) {
+            if (prefetch_container->GetURL() != prerendering_url) {
               return;
             }
             run_loop.Quit();
           }));
 
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
   test::PrerenderHostRegistryObserver registry_observer(*web_contents_impl());
 
-  url::Origin initiator_origin = url::Origin::Create(kInitialUrl);
-  url::Origin prerender_origin = url::Origin::Create(kPrerenderingUrl);
+  url::Origin initiator_origin = url::Origin::Create(initial_url);
+  url::Origin prerender_origin = url::Origin::Create(prerendering_url);
 
   // Add a cross-origin prerender rule.
-  AddPrerenderAsync(kPrerenderingUrl);
+  AddPrerenderAsync(prerendering_url);
 
   // Wait for PrerenderHostRegistry to receive the cross-origin prerender
   // request, and it should be ignored.
-  registry_observer.WaitForTrigger(kPrerenderingUrl);
-  EXPECT_FALSE(HasHostForUrl(kPrerenderingUrl));
+  registry_observer.WaitForTrigger(prerendering_url);
+  EXPECT_FALSE(HasHostForUrl(prerendering_url));
 
   if (IsPrerender2FallbackPrefetchSpecRulesEnabled()) {
     // Wait prefetch completion.
@@ -13235,7 +13158,7 @@ IN_PROC_BROWSER_TEST_P(PrerenderBrowserTestFallbackEnabledDisabled,
 
   // Cross-check that in case of cross-origin navigation the eligibility
   // reason points to kCrossOrigin.
-  ASSERT_TRUE(NavigateToURL(shell(), kPrerenderingUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), prerendering_url));
 
   // Prefetch admits cross-site, prerender doesn't.
   if (IsPrerender2FallbackPrefetchSpecRulesEnabled()) {
@@ -13276,22 +13199,22 @@ IN_PROC_BROWSER_TEST_P(PrerenderBrowserTestFallbackEnabledDisabled,
 IN_PROC_BROWSER_TEST_F(
     PrerenderBrowserTest,
     SameSiteCrossOriginNavigationSpeculationRulesWithoutOptInHeader) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl =
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url =
       GetSameSiteCrossOriginUrl("/empty.html?samesitecrossorigin");
 
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Add a same-site cross-origin prerender rule.
   test::PrerenderHostRegistryObserver registry_observer(*web_contents_impl());
-  AddPrerenderAsync(kPrerenderingUrl);
+  AddPrerenderAsync(prerendering_url);
   // Wait for PrerenderHostRegistry to receive the same-site cross-origin
   // prerender request, but it will be ignored because the opt-in header is
   // missing.
-  registry_observer.WaitForTrigger(kPrerenderingUrl);
+  registry_observer.WaitForTrigger(prerendering_url);
   // Navigate to the prerendering URL. This should result in regular navigation,
   // not prerender activation.
-  NavigatePrimaryPage(kPrerenderingUrl);
+  NavigatePrimaryPage(prerendering_url);
 
   ExpectFinalStatusForSpeculationRule(
       PrerenderFinalStatus::
@@ -13304,23 +13227,23 @@ IN_PROC_BROWSER_TEST_P(
     PrerenderBrowserTestFallbackEnabledDisabled,
     SameSiteCrossOriginRedirectionSpeculationRulesWithoutOptInHeader) {
   // Navigate to an initial page.
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  const GURL initial_url = GetUrl("/empty.html");
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Start prerendering a URL that causes cross-origin redirection. The
   // cross-origin redirection should fail prerendering without an opt-in header.
-  const GURL kRedirectedUrl =
+  const GURL redirected_url =
       GetSameSiteCrossOriginUrl("/empty.html?samesitecrossorigin");
-  const GURL kPrerenderingUrl =
-      GetUrl("/server-redirect?" + kRedirectedUrl.spec());
+  const GURL prerendering_url =
+      GetUrl("/server-redirect?" + redirected_url.spec());
   test::PrerenderHostObserver host_observer(*web_contents_impl(),
-                                            kPrerenderingUrl);
-  AddPrerenderAsync(kPrerenderingUrl);
+                                            prerendering_url);
+  AddPrerenderAsync(prerendering_url);
   host_observer.WaitForDestroyed();
-  EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 1);
-  EXPECT_EQ(GetRequestCount(kRedirectedUrl), 1);
-  EXPECT_FALSE(HasHostForUrl(kPrerenderingUrl));
-  EXPECT_FALSE(HasHostForUrl(kRedirectedUrl));
+  EXPECT_EQ(GetRequestCount(prerendering_url), 1);
+  EXPECT_EQ(GetRequestCount(redirected_url), 1);
+  EXPECT_FALSE(HasHostForUrl(prerendering_url));
+  EXPECT_FALSE(HasHostForUrl(redirected_url));
   ExpectFinalStatusForSpeculationRule(
       PrerenderFinalStatus::
           kSameSiteCrossOriginRedirectNotOptInInInitialNavigation);
@@ -13334,23 +13257,23 @@ IN_PROC_BROWSER_TEST_P(
     PrerenderBrowserTestFallbackEnabledDisabled,
     SameSiteCrossOriginCredentialedPrerenderRedirectionSpeculationRulesWithoutOptInHeader) {
   // Navigate to an initial page.
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  const GURL initial_url = GetUrl("/empty.html");
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Start prerendering a URL that causes cross-origin redirection. The
   // cross-origin redirection should fail prerendering without an opt-in header.
-  const GURL kRedirectedUrl =
+  const GURL redirected_url =
       GetSameSiteCrossOriginUrl("/empty.html?samesitecrossorigin");
-  const GURL kPrerenderingUrl = GetUrl(
-      "/server-redirect-credentialed-prerender?" + kRedirectedUrl.spec());
+  const GURL prerendering_url = GetUrl(
+      "/server-redirect-credentialed-prerender?" + redirected_url.spec());
   test::PrerenderHostObserver host_observer(*web_contents_impl(),
-                                            kPrerenderingUrl);
-  AddPrerenderAsync(kPrerenderingUrl);
+                                            prerendering_url);
+  AddPrerenderAsync(prerendering_url);
   host_observer.WaitForDestroyed();
-  EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 1);
-  EXPECT_EQ(GetRequestCount(kRedirectedUrl), 1);
-  EXPECT_FALSE(HasHostForUrl(kPrerenderingUrl));
-  EXPECT_FALSE(HasHostForUrl(kRedirectedUrl));
+  EXPECT_EQ(GetRequestCount(prerendering_url), 1);
+  EXPECT_EQ(GetRequestCount(redirected_url), 1);
+  EXPECT_FALSE(HasHostForUrl(prerendering_url));
+  EXPECT_FALSE(HasHostForUrl(redirected_url));
   ExpectFinalStatusForSpeculationRule(
       PrerenderFinalStatus::
           kSameSiteCrossOriginRedirectNotOptInInInitialNavigation);
@@ -13364,23 +13287,23 @@ IN_PROC_BROWSER_TEST_P(
     PrerenderBrowserTestFallbackEnabledDisabled,
     SameSiteCrossOriginCredentialedPrerenderRedirectionSpeculationRulesWithoutOptInHeader2) {
   // Navigate to an initial page.
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  const GURL initial_url = GetUrl("/empty.html");
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Start prerendering a URL that causes cross-origin redirection. The
   // cross-origin redirection should fail prerendering without an opt-in header.
-  const GURL kRedirectedUrl =
+  const GURL redirected_url =
       GetSameSiteCrossOriginUrl("/empty.html?samesitecrossorigin");
-  const GURL kPrerenderingUrl = GetSameSiteCrossOriginUrl(
-      "/server-redirect-credentialed-prerender?" + kRedirectedUrl.spec());
+  const GURL prerendering_url = GetSameSiteCrossOriginUrl(
+      "/server-redirect-credentialed-prerender?" + redirected_url.spec());
   test::PrerenderHostObserver host_observer(*web_contents_impl(),
-                                            kPrerenderingUrl);
-  AddPrerenderAsync(kPrerenderingUrl);
+                                            prerendering_url);
+  AddPrerenderAsync(prerendering_url);
   host_observer.WaitForDestroyed();
-  EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 1);
-  EXPECT_EQ(GetRequestCount(kRedirectedUrl), 1);
-  EXPECT_FALSE(HasHostForUrl(kPrerenderingUrl));
-  EXPECT_FALSE(HasHostForUrl(kRedirectedUrl));
+  EXPECT_EQ(GetRequestCount(prerendering_url), 1);
+  EXPECT_EQ(GetRequestCount(redirected_url), 1);
+  EXPECT_FALSE(HasHostForUrl(prerendering_url));
+  EXPECT_FALSE(HasHostForUrl(redirected_url));
   ExpectFinalStatusForSpeculationRule(
       PrerenderFinalStatus::
           kSameSiteCrossOriginRedirectNotOptInInInitialNavigation);
@@ -13392,35 +13315,35 @@ IN_PROC_BROWSER_TEST_P(
     PrerenderBrowserTestFallbackEnabledDisabled,
     SameSiteCrossOriginNavigationBackToSameOriginWithoutOptInHeader) {
   // Navigate to an initial page.
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  const GURL initial_url = GetUrl("/empty.html");
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Start prerendering a URL that causes same-site cross-origin navigation and
   // redirects back to the same-origin. This should not fail even without
   // same-site cross-origin opt-in header.
-  const GURL kRedirectedUrl = GetUrl("/empty.html?samesitecrossorigin");
-  const GURL kPrerenderingUrl =
-      GetSameSiteCrossOriginUrl("/server-redirect?" + kRedirectedUrl.spec());
+  const GURL redirected_url = GetUrl("/empty.html?samesitecrossorigin");
+  const GURL prerendering_url =
+      GetSameSiteCrossOriginUrl("/server-redirect?" + redirected_url.spec());
   test::PrerenderHostObserver host_observer(*web_contents_impl(),
-                                            kPrerenderingUrl);
+                                            prerendering_url);
 
   RedirectChainObserver redirect_chain_observer(*shell()->web_contents(),
-                                                kRedirectedUrl);
-  ASSERT_EQ(GetRequestCount(kPrerenderingUrl), 0);
-  ASSERT_EQ(GetRequestCount(kPrerenderingUrl), 0);
-  AddPrerender(kPrerenderingUrl);
-  EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 1);
-  ASSERT_EQ(GetRequestCount(kPrerenderingUrl), 1);
+                                                redirected_url);
+  ASSERT_EQ(GetRequestCount(prerendering_url), 0);
+  ASSERT_EQ(GetRequestCount(prerendering_url), 0);
+  AddPrerender(prerendering_url);
+  EXPECT_EQ(GetRequestCount(prerendering_url), 1);
+  ASSERT_EQ(GetRequestCount(prerendering_url), 1);
 
   ASSERT_EQ(2u, redirect_chain_observer.redirect_chain().size());
-  EXPECT_EQ(kPrerenderingUrl, redirect_chain_observer.redirect_chain()[0]);
-  EXPECT_EQ(kRedirectedUrl, redirect_chain_observer.redirect_chain()[1]);
+  EXPECT_EQ(prerendering_url, redirect_chain_observer.redirect_chain()[0]);
+  EXPECT_EQ(redirected_url, redirect_chain_observer.redirect_chain()[1]);
 
-  NavigatePrimaryPage(kPrerenderingUrl);
-  ASSERT_EQ(web_contents()->GetLastCommittedURL(), kRedirectedUrl);
+  NavigatePrimaryPage(prerendering_url);
+  ASSERT_EQ(web_contents()->GetLastCommittedURL(), redirected_url);
   // Activating the prerendered page should not issue a request.
-  EXPECT_EQ(GetRequestCount(kRedirectedUrl), 1);
-  EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 1);
+  EXPECT_EQ(GetRequestCount(redirected_url), 1);
+  EXPECT_EQ(GetRequestCount(prerendering_url), 1);
   ExpectFinalStatusForSpeculationRule(PrerenderFinalStatus::kActivated);
 }
 
@@ -13429,34 +13352,34 @@ IN_PROC_BROWSER_TEST_P(
 IN_PROC_BROWSER_TEST_P(PrerenderBrowserTestFallbackEnabledDisabled,
                        CrossSiteMultipleRedirectionSpeculationRules) {
   // Navigate to an initial page.
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  const GURL initial_url = GetUrl("/empty.html");
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Start prerendering a URL that causes cross-origin redirection. The
   // cross-origin redirection should fail prerendering without an opt-in
   // header.
-  const GURL kRedirectedUrl = GetSameSiteCrossOriginUrl(
+  const GURL redirected_url = GetSameSiteCrossOriginUrl(
       "/prerender/prerender_with_opt_in_header.html?prerender");
-  const GURL kRedirectedUrl2 =
-      GetCrossSiteUrl("/server-redirect?" + kRedirectedUrl.spec());
-  const GURL kPrerenderingUrl =
-      GetUrl("/server-redirect?" + kRedirectedUrl2.spec());
+  const GURL redirected_url2 =
+      GetCrossSiteUrl("/server-redirect?" + redirected_url.spec());
+  const GURL prerendering_url =
+      GetUrl("/server-redirect?" + redirected_url2.spec());
   test::PrerenderHostObserver host_observer(*web_contents_impl(),
-                                            kPrerenderingUrl);
+                                            prerendering_url);
 
   base::RunLoop run_loop;
   std::optional<PrefetchStatus> prefetch_status;
   PrefetchContainer::SetPrefetchResponseCompletedCallbackForTesting(
       base::BindLambdaForTesting(
           [&](base::WeakPtr<PrefetchContainer> prefetch_container) {
-            if (prefetch_container->GetURL() != kPrerenderingUrl) {
+            if (prefetch_container->GetURL() != prerendering_url) {
               return;
             }
             prefetch_status = prefetch_container->GetPrefetchStatus();
             run_loop.Quit();
           }));
 
-  AddPrerenderAsync(kPrerenderingUrl);
+  AddPrerenderAsync(prerendering_url);
   host_observer.WaitForDestroyed();
 
   if (IsPrerender2FallbackPrefetchSpecRulesEnabled()) {
@@ -13468,17 +13391,17 @@ IN_PROC_BROWSER_TEST_P(PrerenderBrowserTestFallbackEnabledDisabled,
     run_loop.Run();
     EXPECT_TRUE(prefetch_status.has_value());
     EXPECT_EQ(prefetch_status.value(), PrefetchStatus::kPrefetchSuccessful);
-    EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 1);
-    EXPECT_EQ(GetRequestCount(kRedirectedUrl), 1);
-    EXPECT_EQ(GetRequestCount(kRedirectedUrl2), 1);
+    EXPECT_EQ(GetRequestCount(prerendering_url), 1);
+    EXPECT_EQ(GetRequestCount(redirected_url), 1);
+    EXPECT_EQ(GetRequestCount(redirected_url2), 1);
   } else {
-    EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 1);
-    EXPECT_EQ(GetRequestCount(kRedirectedUrl), 0);
-    EXPECT_EQ(GetRequestCount(kRedirectedUrl2), 0);
+    EXPECT_EQ(GetRequestCount(prerendering_url), 1);
+    EXPECT_EQ(GetRequestCount(redirected_url), 0);
+    EXPECT_EQ(GetRequestCount(redirected_url2), 0);
   }
-  EXPECT_FALSE(HasHostForUrl(kPrerenderingUrl));
-  EXPECT_FALSE(HasHostForUrl(kRedirectedUrl));
-  EXPECT_FALSE(HasHostForUrl(kRedirectedUrl2));
+  EXPECT_FALSE(HasHostForUrl(prerendering_url));
+  EXPECT_FALSE(HasHostForUrl(redirected_url));
+  EXPECT_FALSE(HasHostForUrl(redirected_url2));
   ExpectFinalStatusForSpeculationRule(
       PrerenderFinalStatus::kCrossSiteRedirectInInitialNavigation);
 }
@@ -13487,21 +13410,21 @@ IN_PROC_BROWSER_TEST_P(PrerenderBrowserTestFallbackEnabledDisabled,
 // prerendered with the feature enabled.
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
                        CheckSameSiteCrossOriginSpeculationRulesPrerender) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl =
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url =
       GetSameSiteCrossOriginUrl("/prerender/prerender_with_opt_in_header.html");
 
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Add a same-site cross-origin prerender rule.
-  ASSERT_EQ(GetRequestCount(kPrerenderingUrl), 0);
-  AddPrerender(kPrerenderingUrl);
-  EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 1);
+  ASSERT_EQ(GetRequestCount(prerendering_url), 0);
+  AddPrerender(prerendering_url);
+  EXPECT_EQ(GetRequestCount(prerendering_url), 1);
 
-  NavigatePrimaryPage(kPrerenderingUrl);
-  ASSERT_EQ(web_contents()->GetLastCommittedURL(), kPrerenderingUrl);
+  NavigatePrimaryPage(prerendering_url);
+  ASSERT_EQ(web_contents()->GetLastCommittedURL(), prerendering_url);
   // Activating the prerendered page should not issue a request.
-  EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 1);
+  EXPECT_EQ(GetRequestCount(prerendering_url), 1);
   ExpectFinalStatusForSpeculationRule(PrerenderFinalStatus::kActivated);
 }
 
@@ -13510,45 +13433,45 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
 IN_PROC_BROWSER_TEST_P(PrerenderBrowserTestFallbackEnabledDisabled,
                        SameSiteCrossOriginSpeculationRulesRedirection) {
   // Navigate to an initial page.
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  const GURL initial_url = GetUrl("/empty.html");
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Start prerendering a URL that causes same-origin redirection.
-  const GURL kRedirectedUrl = GetSameSiteCrossOriginUrl(
+  const GURL redirected_url = GetSameSiteCrossOriginUrl(
       "/prerender/prerender_with_opt_in_header.html?prerender");
-  const GURL kPrerenderingUrl =
-      GetSameSiteCrossOriginUrl("/server-redirect?" + kRedirectedUrl.spec());
+  const GURL prerendering_url =
+      GetSameSiteCrossOriginUrl("/server-redirect?" + redirected_url.spec());
   RedirectChainObserver redirect_chain_observer(*shell()->web_contents(),
-                                                kRedirectedUrl);
-  ASSERT_EQ(GetRequestCount(kPrerenderingUrl), 0);
-  ASSERT_EQ(GetRequestCount(kRedirectedUrl), 0);
-  AddPrerender(kPrerenderingUrl);
-  EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 1);
-  EXPECT_EQ(GetRequestCount(kRedirectedUrl), 1);
+                                                redirected_url);
+  ASSERT_EQ(GetRequestCount(prerendering_url), 0);
+  ASSERT_EQ(GetRequestCount(redirected_url), 0);
+  AddPrerender(prerendering_url);
+  EXPECT_EQ(GetRequestCount(prerendering_url), 1);
+  EXPECT_EQ(GetRequestCount(redirected_url), 1);
 
   ASSERT_EQ(2u, redirect_chain_observer.redirect_chain().size());
-  EXPECT_EQ(kPrerenderingUrl, redirect_chain_observer.redirect_chain()[0]);
-  EXPECT_EQ(kRedirectedUrl, redirect_chain_observer.redirect_chain()[1]);
+  EXPECT_EQ(prerendering_url, redirect_chain_observer.redirect_chain()[0]);
+  EXPECT_EQ(redirected_url, redirect_chain_observer.redirect_chain()[1]);
 
   // The prerender host should be registered for the initial request URL, not
   // the redirected URL.
-  EXPECT_TRUE(HasHostForUrl(kPrerenderingUrl));
-  EXPECT_FALSE(HasHostForUrl(kRedirectedUrl));
+  EXPECT_TRUE(HasHostForUrl(prerendering_url));
+  EXPECT_FALSE(HasHostForUrl(redirected_url));
 
   RedirectChainObserver activation_redirect_chain_observer(
-      *shell()->web_contents(), kRedirectedUrl);
+      *shell()->web_contents(), redirected_url);
   NavigationHandleObserver activation_observer(web_contents(),
-                                               kPrerenderingUrl);
-  NavigatePrimaryPage(kPrerenderingUrl);
+                                               prerendering_url);
+  NavigatePrimaryPage(prerendering_url);
   ASSERT_EQ(1u, activation_redirect_chain_observer.redirect_chain().size());
-  EXPECT_EQ(kRedirectedUrl,
+  EXPECT_EQ(redirected_url,
             activation_redirect_chain_observer.redirect_chain()[0]);
 
-  ASSERT_EQ(web_contents()->GetLastCommittedURL(), kRedirectedUrl);
+  ASSERT_EQ(web_contents()->GetLastCommittedURL(), redirected_url);
   ExpectFinalStatusForSpeculationRule(PrerenderFinalStatus::kActivated);
   // Activating the prerendered page should not issue a request.
-  EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 1);
-  EXPECT_EQ(GetRequestCount(kRedirectedUrl), 1);
+  EXPECT_EQ(GetRequestCount(prerendering_url), 1);
+  EXPECT_EQ(GetRequestCount(redirected_url), 1);
 
   // Cross-check that in case redirection when the prerender navigates and
   // user ends up navigating to the redirected URL. accurate_triggering is
@@ -13592,52 +13515,52 @@ IN_PROC_BROWSER_TEST_P(
     PrerenderBrowserTestFallbackEnabledDisabled,
     SameSiteCrossOriginSpeculationRulesMultipleRedirections) {
   // Navigate to an initial page.
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  const GURL initial_url = GetUrl("/empty.html");
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Start prerendering a URL that causes same-origin redirection.
-  const GURL kRedirectedUrl = GetSameSiteCrossOriginUrl(
+  const GURL redirected_url = GetSameSiteCrossOriginUrl(
       "/prerender/prerender_with_opt_in_header.html?prerender");
-  const GURL kRedirectedUrl2 =
-      GetSameSiteCrossOriginUrl("/server-redirect?" + kRedirectedUrl.spec());
-  const GURL kPrerenderingUrl =
-      GetSameSiteCrossOriginUrl("/server-redirect?" + kRedirectedUrl2.spec());
+  const GURL redirected_url2 =
+      GetSameSiteCrossOriginUrl("/server-redirect?" + redirected_url.spec());
+  const GURL prerendering_url =
+      GetSameSiteCrossOriginUrl("/server-redirect?" + redirected_url2.spec());
   RedirectChainObserver redirect_chain_observer(*shell()->web_contents(),
-                                                kRedirectedUrl);
-  ASSERT_EQ(GetRequestCount(kPrerenderingUrl), 0);
-  ASSERT_EQ(GetRequestCount(kRedirectedUrl), 0);
-  ASSERT_EQ(GetRequestCount(kRedirectedUrl2), 0);
-  AddPrerender(kPrerenderingUrl);
-  EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 1);
-  EXPECT_EQ(GetRequestCount(kRedirectedUrl), 1);
-  EXPECT_EQ(GetRequestCount(kRedirectedUrl2), 1);
+                                                redirected_url);
+  ASSERT_EQ(GetRequestCount(prerendering_url), 0);
+  ASSERT_EQ(GetRequestCount(redirected_url), 0);
+  ASSERT_EQ(GetRequestCount(redirected_url2), 0);
+  AddPrerender(prerendering_url);
+  EXPECT_EQ(GetRequestCount(prerendering_url), 1);
+  EXPECT_EQ(GetRequestCount(redirected_url), 1);
+  EXPECT_EQ(GetRequestCount(redirected_url2), 1);
 
   ASSERT_EQ(3u, redirect_chain_observer.redirect_chain().size());
-  EXPECT_EQ(kPrerenderingUrl, redirect_chain_observer.redirect_chain()[0]);
-  EXPECT_EQ(kRedirectedUrl2, redirect_chain_observer.redirect_chain()[1]);
-  EXPECT_EQ(kRedirectedUrl, redirect_chain_observer.redirect_chain()[2]);
+  EXPECT_EQ(prerendering_url, redirect_chain_observer.redirect_chain()[0]);
+  EXPECT_EQ(redirected_url2, redirect_chain_observer.redirect_chain()[1]);
+  EXPECT_EQ(redirected_url, redirect_chain_observer.redirect_chain()[2]);
 
   // The prerender host should be registered for the initial request URL, not
   // the redirected URL.
-  EXPECT_TRUE(HasHostForUrl(kPrerenderingUrl));
-  EXPECT_FALSE(HasHostForUrl(kRedirectedUrl));
-  EXPECT_FALSE(HasHostForUrl(kRedirectedUrl2));
+  EXPECT_TRUE(HasHostForUrl(prerendering_url));
+  EXPECT_FALSE(HasHostForUrl(redirected_url));
+  EXPECT_FALSE(HasHostForUrl(redirected_url2));
 
   RedirectChainObserver activation_redirect_chain_observer(
-      *shell()->web_contents(), kRedirectedUrl);
+      *shell()->web_contents(), redirected_url);
   NavigationHandleObserver activation_observer(web_contents(),
-                                               kPrerenderingUrl);
-  NavigatePrimaryPage(kPrerenderingUrl);
+                                               prerendering_url);
+  NavigatePrimaryPage(prerendering_url);
   ASSERT_EQ(1u, activation_redirect_chain_observer.redirect_chain().size());
-  EXPECT_EQ(kRedirectedUrl,
+  EXPECT_EQ(redirected_url,
             activation_redirect_chain_observer.redirect_chain()[0]);
 
-  ASSERT_EQ(web_contents()->GetLastCommittedURL(), kRedirectedUrl);
+  ASSERT_EQ(web_contents()->GetLastCommittedURL(), redirected_url);
   ExpectFinalStatusForSpeculationRule(PrerenderFinalStatus::kActivated);
   // Activating the prerendered page should not issue a request.
-  EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 1);
-  EXPECT_EQ(GetRequestCount(kRedirectedUrl), 1);
-  EXPECT_EQ(GetRequestCount(kRedirectedUrl2), 1);
+  EXPECT_EQ(GetRequestCount(prerendering_url), 1);
+  EXPECT_EQ(GetRequestCount(redirected_url), 1);
+  EXPECT_EQ(GetRequestCount(redirected_url2), 1);
 
   // Cross-check that in case redirection when the prerender navigates and user
   // ends up navigating to the redirected URL. accurate_triggering is true.
@@ -13872,16 +13795,16 @@ class FrameDisplayStateChangedObserver : public WebContentsObserver {
 
 // Tests that FrameOwnerProperties are in sync after activation.
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, FrameOwnerPropertiesDisplayNone) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl =
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url =
       GetUrl("/prerender/doc-with-display-none-iframe.html");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
   EXPECT_TRUE(AddTestUtilJS(current_frame_host()));
 
   // Start prerendering a document with a display:none iframe.
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
   RenderFrameHost* prerender_frame_host = GetPrerenderedMainFrameHost(host_id);
   EXPECT_TRUE(ExecJs(prerender_frame_host, "loaded;"));
 
@@ -13892,8 +13815,8 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, FrameOwnerPropertiesDisplayNone) {
   EXPECT_TRUE(iframe_host->IsFrameDisplayNone());
 
   // Activate.
-  NavigatePrimaryPage(kPrerenderingUrl);
-  ASSERT_EQ(web_contents()->GetLastCommittedURL(), kPrerenderingUrl);
+  NavigatePrimaryPage(prerendering_url);
+  ASSERT_EQ(web_contents()->GetLastCommittedURL(), prerendering_url);
 
   // The frames should still have the same display properties.
   EXPECT_FALSE(prerender_frame_host->IsFrameDisplayNone());
@@ -13913,12 +13836,12 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, FrameOwnerPropertiesDisplayNone) {
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, TriggeredPrerenderUkm) {
   ukm::TestAutoSetUkmRecorder ukm_recorder;
 
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/empty.html?prerender");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/empty.html?prerender");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
-  ASSERT_EQ(web_contents()->GetLastCommittedURL(), kInitialUrl);
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+  ASSERT_EQ(web_contents()->GetLastCommittedURL(), initial_url);
 
   // PrerenderPageLoad metric should not be recorded yet.
   EXPECT_EQ(0u,
@@ -13927,7 +13850,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, TriggeredPrerenderUkm) {
                 .size());
 
   // Start a prerender.
-  ASSERT_TRUE(AddPrerender(kPrerenderingUrl));
+  ASSERT_TRUE(AddPrerender(prerendering_url));
 
   // PrerenderPageLoad:TriggeredPrerender is recorded for the initiator page
   // load.
@@ -13945,14 +13868,14 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, TriggeredPrerenderUkm) {
 // Tests that background color in a prerendered page does not affect
 // the primary page.
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, ColorSchemeDarkInNonPrimaryPage) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/color-scheme-dark.html");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/color-scheme-dark.html");
 
   // Expect initial page background color to be white.
   BackgroundColorChangeWaiter empty_page_background_waiter(web_contents());
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
   // Wait for the page background to change to white.
   empty_page_background_waiter.Wait();
 
@@ -13964,7 +13887,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, ColorSchemeDarkInNonPrimaryPage) {
     EXPECT_CALL(background_color_observer, OnBackgroundColorChanged())
         .Times(Exactly(0));
 
-    AddPrerender(kPrerenderingUrl);
+    AddPrerender(prerendering_url);
   }
 
   BackgroundColorChangeWaiter prerendered_page_background_waiter(
@@ -13976,8 +13899,8 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, ColorSchemeDarkInNonPrimaryPage) {
       web_contents());
   EXPECT_CALL(background_color_observer, OnBackgroundColorChanged())
       .Times(Exactly(1));
-  NavigatePrimaryPage(kPrerenderingUrl);
-  ASSERT_EQ(web_contents()->GetLastCommittedURL(), kPrerenderingUrl);
+  NavigatePrimaryPage(prerendering_url);
+  ASSERT_EQ(web_contents()->GetLastCommittedURL(), prerendering_url);
   // Wait for the page background to change.
   prerendered_page_background_waiter.Wait();
 }
@@ -13994,11 +13917,11 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, ColorSchemeDarkInNonPrimaryPage) {
 // the primary page.
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
                        MAYBE_ThemeColorSchemeChangeInNonPrimaryPage) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/theme_color.html");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/theme_color.html");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   {
     // Now set up a mock observer for DidChangeThemeColor, to test if the
@@ -14007,7 +13930,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
         web_contents());
     EXPECT_CALL(theme_color_observer, DidChangeThemeColor()).Times(Exactly(0));
 
-    AddPrerender(kPrerenderingUrl);
+    AddPrerender(prerendering_url);
   }
 
   ThemeChangeWaiter theme_change_waiter(web_contents());
@@ -14015,22 +13938,22 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
       web_contents());
   EXPECT_CALL(theme_color_observer, DidChangeThemeColor()).Times(Exactly(1));
 
-  NavigatePrimaryPage(kPrerenderingUrl);
-  ASSERT_EQ(web_contents()->GetLastCommittedURL(), kPrerenderingUrl);
+  NavigatePrimaryPage(prerendering_url);
+  ASSERT_EQ(web_contents()->GetLastCommittedURL(), prerendering_url);
   theme_change_waiter.Wait();
 }
 
 // Check that the prerendered page window.name is maintained after activation.
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
                        VerifyFrameNameMaintainedAfterActivation) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/title1.html");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/title1.html");
 
   // 1. Load initiator page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // 2. Load prerender.
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
   RenderFrameHostImpl* prerendered_render_frame_host =
       GetPrerenderedMainFrameHost(host_id);
 
@@ -14042,10 +13965,10 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
   EXPECT_EQ(current_frame_host()->GetFrameName(), "");
 
   // 4. Activate prerender.
-  test::PrerenderHostObserver host_observer(*web_contents(), kPrerenderingUrl);
-  NavigatePrimaryPage(kPrerenderingUrl);
+  test::PrerenderHostObserver host_observer(*web_contents(), prerendering_url);
+  NavigatePrimaryPage(prerendering_url);
   EXPECT_TRUE(host_observer.was_activated());
-  EXPECT_EQ(web_contents()->GetLastCommittedURL(), kPrerenderingUrl);
+  EXPECT_EQ(web_contents()->GetLastCommittedURL(), prerendering_url);
 
   // 5. Ensure that the window.name is preserved.
   EXPECT_EQ(current_frame_host()->GetFrameName(), "prerender_page");
@@ -14060,17 +13983,17 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, ActivateWhileReloadingSubframe) {
 
   ASSERT_TRUE(embedded_test_server()->Start());
 
-  const GURL kInitialUrl = embedded_test_server()->GetURL("/empty.html");
-  const GURL kPrerenderingUrl =
+  const GURL initial_url = embedded_test_server()->GetURL("/empty.html");
+  const GURL prerendering_url =
       embedded_test_server()->GetURL("/page_with_iframe.html");
-  const GURL kSubframeUrl = embedded_test_server()->GetURL(kSubframePath);
+  const GURL subframe_url = embedded_test_server()->GetURL(kSubframePath);
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Start a prerender.
   test::PrerenderHostRegistryObserver registry_observer(*web_contents_impl());
-  AddPrerenderAsync(kPrerenderingUrl);
+  AddPrerenderAsync(prerendering_url);
 
   // Handle a response for the subframe main resource.
   first_response.WaitForRequest();
@@ -14078,14 +14001,14 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, ActivateWhileReloadingSubframe) {
   first_response.Done();
 
   // Now we can wait for the prerendering navigation finishes.
-  registry_observer.WaitForTrigger(kPrerenderingUrl);
-  PrerenderHostId host_id = GetHostForUrl(kPrerenderingUrl);
+  registry_observer.WaitForTrigger(prerendering_url);
+  PrerenderHostId host_id = GetHostForUrl(prerendering_url);
   WaitForPrerenderLoadCompletion(host_id);
 
   RenderFrameHostImpl* prerender_rfh = GetPrerenderedMainFrameHost(host_id);
   RenderFrameHostImpl* child_rfh =
       prerender_rfh->child_at(0)->current_frame_host();
-  EXPECT_EQ(child_rfh->GetLastCommittedURL(), kSubframeUrl);
+  EXPECT_EQ(child_rfh->GetLastCommittedURL(), subframe_url);
 
   // Reload the iframe.
   EXPECT_TRUE(ExecJs(child_rfh, "window.location.reload();"));
@@ -14095,7 +14018,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, ActivateWhileReloadingSubframe) {
   // Ensure that activation works even while the iframe is under the reload.
   TestNavigationObserver nav_observer(web_contents());
   EXPECT_TRUE(
-      ExecJs(web_contents(), JsReplace("location = $1", kPrerenderingUrl)));
+      ExecJs(web_contents(), JsReplace("location = $1", prerendering_url)));
   second_response.Send(net::HTTP_OK, "");
   second_response.Done();
   nav_observer.WaitForNavigationFinished();
@@ -14103,14 +14026,14 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, ActivateWhileReloadingSubframe) {
 
 // Check that the inactive RFH shouldn't update UserActivation.
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, DoNotUpdateUserActivationState) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/title1.html");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/title1.html");
 
   // 1. Load initiator page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // 2. Load prerender.
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
   RenderFrameHostImpl* prerendered_rfh = GetPrerenderedMainFrameHost(host_id);
 
   EXPECT_FALSE(
@@ -14142,15 +14065,15 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, DoNotUpdateUserActivationState) {
 // Tests that prerendering is cancelled when a mixed content subframe is
 // detected.
 IN_PROC_BROWSER_TEST_P(PrerenderTargetAgnosticBrowserTest, MixedContent) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/empty.html?prerendering");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/empty.html?prerendering");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Make a prerendered page.
   PrerenderHostId host_id = prerender_helper()->AddPrerender(
-      kPrerenderingUrl, /*eagerness=*/std::nullopt, GetTargetHint());
+      prerendering_url, /*eagerness=*/std::nullopt, GetTargetHint());
   auto* prerender_web_contents =
       test::PrerenderTestHelper::GetPrerenderWebContents(host_id);
   auto* prerendered_rfh =
@@ -14172,7 +14095,7 @@ IN_PROC_BROWSER_TEST_P(PrerenderTargetAgnosticBrowserTest, MixedContent) {
     EXPECT_FALSE(prerender_helper()->HasNewTabHandle(host_id));
   } else {
     EXPECT_TRUE(prerender_helper()
-                    ->GetHostForUrl(*prerender_web_contents, kPrerenderingUrl)
+                    ->GetHostForUrl(*prerender_web_contents, prerendering_url)
                     .is_null());
   }
 
@@ -14183,12 +14106,12 @@ IN_PROC_BROWSER_TEST_P(PrerenderTargetAgnosticBrowserTest, MixedContent) {
 // activation. This test verifies that that the web sandbox flags value is none.
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
                        ActivatePageWithCspHeaderFrameSrc) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl =
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url =
       GetUrl("/set-header?Content-Security-Policy: frame-src 'none'");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
   RenderFrameHostImpl* prerendered_render_frame_host =
       GetPrerenderedMainFrameHost(host_id);
 
@@ -14204,10 +14127,10 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
               network::mojom::WebSandboxFlags::kNone);
   }
 
-  test::PrerenderHostObserver host_observer(*web_contents(), kPrerenderingUrl);
-  NavigatePrimaryPage(kPrerenderingUrl);
+  test::PrerenderHostObserver host_observer(*web_contents(), prerendering_url);
+  NavigatePrimaryPage(prerendering_url);
   EXPECT_TRUE(host_observer.was_activated());
-  EXPECT_EQ(web_contents()->GetLastCommittedURL(), kPrerenderingUrl);
+  EXPECT_EQ(web_contents()->GetLastCommittedURL(), prerendering_url);
 
   // Check that CSP was set on the prerendered page after activation.
   {
@@ -14233,12 +14156,12 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
 // to allow scripts.
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
                        ActivatePageWithCspHeaderSandboxFlags) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl =
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url =
       GetUrl("/set-header?Content-Security-Policy: sandbox allow-scripts");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
   RenderFrameHostImpl* prerendered_render_frame_host =
       GetPrerenderedMainFrameHost(host_id);
 
@@ -14256,10 +14179,10 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
                   ~network::mojom::WebSandboxFlags::kAutomaticFeatures);
   }
 
-  test::PrerenderHostObserver host_observer(*web_contents(), kPrerenderingUrl);
-  NavigatePrimaryPage(kPrerenderingUrl);
+  test::PrerenderHostObserver host_observer(*web_contents(), prerendering_url);
+  NavigatePrimaryPage(prerendering_url);
   EXPECT_TRUE(host_observer.was_activated());
-  EXPECT_EQ(web_contents()->GetLastCommittedURL(), kPrerenderingUrl);
+  EXPECT_EQ(web_contents()->GetLastCommittedURL(), prerendering_url);
 
   // Check that CSP was set on the prerendered page after activation.
   {
@@ -14286,12 +14209,12 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, VerifyPrerenderProcessVisibility) {
   // Navigate the primary main frame to an initial page.
-  const GURL kInitialUrl = GetUrl("/empty.html?initial");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  const GURL initial_url = GetUrl("/empty.html?initial");
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Start a prerender.
-  const GURL kPrerenderingUrl = GetUrl("/empty.html?prerender");
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  const GURL prerendering_url = GetUrl("/empty.html?prerender");
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
   RenderFrameHost* prerender_frame_host = GetPrerenderedMainFrameHost(host_id);
   RenderProcessHost* prerender_process_host =
       prerender_frame_host->GetProcess();
@@ -14303,8 +14226,8 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, VerifyPrerenderProcessVisibility) {
               base::Process::Priority::kBestEffort);
 
   // Activate the prerendered page.
-  test::PrerenderHostObserver host_observer(*web_contents(), kPrerenderingUrl);
-  NavigatePrimaryPage(kPrerenderingUrl);
+  test::PrerenderHostObserver host_observer(*web_contents(), prerendering_url);
+  NavigatePrimaryPage(prerendering_url);
   EXPECT_TRUE(host_observer.was_activated());
   // Expect the change in the ChildProcessLauncherPriority to increase priority.
   EXPECT_NE(prerender_process_host->GetPriority(),
@@ -14399,24 +14322,24 @@ IN_PROC_BROWSER_TEST_F(PrerenderSpecificRequestHeadersBrowserTest,
   ASSERT_TRUE(NavigateToURL(shell(), GetUrl("/empty.html")));
 
   // Start prerendering a URL that causes same-origin redirection.
-  const GURL kRedirectedUrl = GetUrl("/empty.html?prerender");
-  const GURL kPrerenderingUrl =
-      GetUrl("/server-redirect?" + kRedirectedUrl.spec());
+  const GURL redirected_url = GetUrl("/empty.html?prerender");
+  const GURL prerendering_url =
+      GetUrl("/server-redirect?" + redirected_url.spec());
   RedirectChainObserver redirect_chain_observer(*shell()->web_contents(),
-                                                kRedirectedUrl);
-  AddPrerender(kPrerenderingUrl);
+                                                redirected_url);
+  AddPrerender(prerendering_url);
   ASSERT_EQ(2u, redirect_chain_observer.redirect_chain().size());
-  EXPECT_EQ(kPrerenderingUrl, redirect_chain_observer.redirect_chain()[0]);
-  EXPECT_EQ(kRedirectedUrl, redirect_chain_observer.redirect_chain()[1]);
+  EXPECT_EQ(prerendering_url, redirect_chain_observer.redirect_chain()[0]);
+  EXPECT_EQ(redirected_url, redirect_chain_observer.redirect_chain()[1]);
 
   // Both the initial request and the redirected request should have the
   // headers.
-  EXPECT_TRUE(TestSecPurposePrefetchHeader(kPrerenderingUrl));
-  EXPECT_TRUE(HasSecSpeculationTagsHeader(kPrerenderingUrl));
-  EXPECT_EQ(GetSecSpeculationTagsHeader(kPrerenderingUrl), "null");
-  EXPECT_TRUE(TestSecPurposePrefetchHeader(kRedirectedUrl));
-  EXPECT_TRUE(HasSecSpeculationTagsHeader(kRedirectedUrl));
-  EXPECT_EQ(GetSecSpeculationTagsHeader(kRedirectedUrl), "null");
+  EXPECT_TRUE(TestSecPurposePrefetchHeader(prerendering_url));
+  EXPECT_TRUE(HasSecSpeculationTagsHeader(prerendering_url));
+  EXPECT_EQ(GetSecSpeculationTagsHeader(prerendering_url), "null");
+  EXPECT_TRUE(TestSecPurposePrefetchHeader(redirected_url));
+  EXPECT_TRUE(HasSecSpeculationTagsHeader(redirected_url));
+  EXPECT_EQ(GetSecSpeculationTagsHeader(redirected_url), "null");
 }
 
 IN_PROC_BROWSER_TEST_F(PrerenderSpecificRequestHeadersBrowserTest,
@@ -14676,14 +14599,14 @@ IN_PROC_BROWSER_TEST_F(PrerenderUserAgentOverrideBrowserTest, Inherit) {
 }
 
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, EnterFullscreen) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/empty.html?prerendering");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/empty.html?prerendering");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Start a prerender.
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
   auto* prerendered_rfh = GetPrerenderedMainFrameHost(host_id);
 
   // We should disallow to enter Fullscreen by the inactive RFH.
@@ -14745,22 +14668,22 @@ class PrerenderWithRenderDocumentBrowserTest : public PrerenderBrowserTest {
 IN_PROC_BROWSER_TEST_F(
     PrerenderWithRenderDocumentBrowserTest,
     ModalDialogShouldNotBeDismissedAfterPrerenderSubframeNavigation) {
-  const GURL kPrerenderingUrl = GetUrl("/title1.html");
-  const GURL kSubframeUrl1 = GetUrl("/empty.html");
-  const GURL kSubframeUrl2 = GetUrl("/title2.html");
+  const GURL prerendering_url = GetUrl("/title1.html");
+  const GURL subframe_url1 = GetUrl("/empty.html");
+  const GURL subframe_url2 = GetUrl("/title2.html");
 
   // Navigate to an initial page.
   ASSERT_TRUE(NavigateToURL(shell(), GetUrl("/empty.html")));
 
   // Start prerendering.
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
   RenderFrameHost* prerender_rfh = GetPrerenderedMainFrameHost(host_id);
   CHECK(prerender_rfh);
   AddTestUtilJS(prerender_rfh);
 
   // Add subframe in prerendering page.
   ASSERT_TRUE(
-      ExecJs(prerender_rfh, JsReplace("add_iframe($1)", kSubframeUrl1)));
+      ExecJs(prerender_rfh, JsReplace("add_iframe($1)", subframe_url1)));
 
   // Setup test dialog manager and create dialog.
   TestJavaScriptDialogManager dialog_manager;
@@ -14771,10 +14694,10 @@ IN_PROC_BROWSER_TEST_F(
 
   // Navigate subframe (with render document enabled, this should cause a RFH
   // swap).
-  TestNavigationManager subframe_nav_manager(web_contents(), kSubframeUrl2);
+  TestNavigationManager subframe_nav_manager(web_contents(), subframe_url2);
   ASSERT_TRUE(ExecJs(
       prerender_rfh,
-      JsReplace("document.querySelector('iframe').src = $1", kSubframeUrl2)));
+      JsReplace("document.querySelector('iframe').src = $1", subframe_url2)));
   ASSERT_TRUE(subframe_nav_manager.WaitForNavigationFinished());
 
   // We should not dismiss dialogs when the prerender's subframe navigates and
@@ -14789,7 +14712,7 @@ IN_PROC_BROWSER_TEST_F(
 // type in prerendering and after activation.
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, NavigationHandleFrameType) {
   {
-    const GURL kInitialUrl = GetUrl("/empty.html");
+    const GURL initial_url = GetUrl("/empty.html");
     DidFinishNavigationObserver observer(
         web_contents(),
         base::BindLambdaForTesting([](NavigationHandle* navigation_handle) {
@@ -14798,10 +14721,10 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, NavigationHandleFrameType) {
                    FrameType::kPrimaryMainFrame);
         }));
     // Navigate to an initial page.
-    ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+    ASSERT_TRUE(NavigateToURL(shell(), initial_url));
   }
 
-  const GURL kPrerenderingUrl = GetUrl("/empty.html?prerender");
+  const GURL prerendering_url = GetUrl("/empty.html?prerender");
   {
     DidFinishNavigationObserver observer(
         web_contents(),
@@ -14811,7 +14734,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, NavigationHandleFrameType) {
                    FrameType::kPrerenderMainFrame);
         }));
     // Start prerendering.
-    AddPrerender(kPrerenderingUrl);
+    AddPrerender(prerendering_url);
   }
 
   {
@@ -14823,7 +14746,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, NavigationHandleFrameType) {
           CHECK_EQ(navigation_handle->GetNavigatingFrameType(),
                    FrameType::kPrimaryMainFrame);
         }));
-    NavigatePrimaryPage(kPrerenderingUrl);
+    NavigatePrimaryPage(prerendering_url);
   }
 }
 
@@ -14831,9 +14754,9 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, NavigationHandleFrameType) {
 // = true correctly.
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
                        NavigationHandleIsRendererInitiatedTrue) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
-  const GURL kPrerenderingUrl = GetUrl("/empty.html?prerender");
+  const GURL initial_url = GetUrl("/empty.html");
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+  const GURL prerendering_url = GetUrl("/empty.html?prerender");
   {
     DidFinishNavigationObserver observer(
         web_contents(),
@@ -14842,9 +14765,9 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
           EXPECT_TRUE(navigation_handle->IsRendererInitiated());
         }));
     // Start prerendering.
-    AddPrerender(kPrerenderingUrl);
+    AddPrerender(prerendering_url);
   }
-  NavigatePrimaryPage(kPrerenderingUrl);
+  NavigatePrimaryPage(prerendering_url);
 }
 
 // Tests that FrameTreeNode::has_received_user_gesture_before_nav_ is not set on
@@ -15005,25 +14928,25 @@ INSTANTIATE_TEST_SUITE_P(/* no prefix */,
 
 IN_PROC_BROWSER_TEST_P(PrerenderSpeculationRulesHoldbackBrowserTest,
                        PrerenderHoldbackTest) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/empty.html?prerender");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/empty.html?prerender");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
-  // Start prerendering `kPrerenderingUrl` this should fail as we are in
+  // Start prerendering `prerendering_url` this should fail as we are in
   // holdback.
   test::PrerenderHostRegistryObserver registry_observer(*web_contents_impl());
-  AddPrerenderAsync(kPrerenderingUrl);
+  AddPrerenderAsync(prerendering_url);
 
   // Wait for PrerenderHostRegistry to receive the holdback prerender
   // request, and it should be ignored.
-  registry_observer.WaitForTrigger(kPrerenderingUrl);
-  EXPECT_FALSE(HasHostForUrl(kPrerenderingUrl));
+  registry_observer.WaitForTrigger(prerendering_url);
+  EXPECT_FALSE(HasHostForUrl(prerendering_url));
 
   NavigationHandleObserver activation_observer(web_contents(),
-                                               kPrerenderingUrl);
-  NavigatePrimaryPage(kPrerenderingUrl);
+                                               prerendering_url);
+  NavigatePrimaryPage(prerendering_url);
 
   // Cross-check that PreloadingHoldbackStatus is correctly set.
   ukm::SourceId ukm_source_id = activation_observer.next_page_ukm_source_id();
@@ -15148,9 +15071,9 @@ class PrerenderFencedFrameBrowserTest : public PrerenderBrowserTest {
 // activation.
 IN_PROC_BROWSER_TEST_F(PrerenderFencedFrameBrowserTest,
                        CreateFencedFrameInPrerenderedPage) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/empty.html?prerender");
-  const GURL kFencedFrameUrl = GetUrl("/title1.html");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/empty.html?prerender");
+  const GURL fenced_frame_url = GetUrl("/title1.html");
   constexpr char kAddFencedFrameScript[] = R"({
     const fenced_frame = document.createElement('fencedframe');
     fenced_frame.config = new FencedFrameConfig($1);
@@ -15160,14 +15083,14 @@ IN_PROC_BROWSER_TEST_F(PrerenderFencedFrameBrowserTest,
   const int kNumNavigations = 3;
   TestNavigationObserver nav_observer(web_contents(), kNumNavigations);
 
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
-  EXPECT_EQ(kInitialUrl, nav_observer.last_navigation_url());
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+  EXPECT_EQ(initial_url, nav_observer.last_navigation_url());
 
   // Start a prerender.
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
   auto* prerendered_rfh = GetPrerenderedMainFrameHost(host_id);
   EXPECT_TRUE(ExecJs(prerendered_rfh,
-                     JsReplace(kAddFencedFrameScript, kFencedFrameUrl)));
+                     JsReplace(kAddFencedFrameScript, fenced_frame_url)));
   // Since we've deferred creating the fenced frame delegate, we should see no
   // child frames.
   size_t child_frame_count = 0;
@@ -15178,10 +15101,10 @@ IN_PROC_BROWSER_TEST_F(PrerenderFencedFrameBrowserTest,
   });
   EXPECT_EQ(0lu, child_frame_count);
 
-  NavigatePrimaryPage(kPrerenderingUrl);
-  EXPECT_EQ(kPrerenderingUrl, nav_observer.last_navigation_url());
+  NavigatePrimaryPage(prerendering_url);
+  EXPECT_EQ(prerendering_url, nav_observer.last_navigation_url());
   nav_observer.Wait();
-  EXPECT_EQ(kFencedFrameUrl, nav_observer.last_navigation_url());
+  EXPECT_EQ(fenced_frame_url, nav_observer.last_navigation_url());
 }
 
 // Test that prerendering triggered by fenced frames with speculation rules is
@@ -15312,26 +15235,26 @@ IN_PROC_BROWSER_TEST_F(PrerenderWithSiteIsolationDisabledBrowserTest,
   // prerendering pages from getting dedicated processes by default.
   RenderProcessHost::SetMaxRendererProcessCount(1);
 
-  const GURL kInitialUrl =
+  const GURL initial_url =
       ssl_server().GetURL("isolated.b.test", "/empty.html");
-  const GURL kIframeUrl = ssl_server().GetURL("a.test", "/empty.html");
-  const GURL kPrerenderingUrl =
+  const GURL iframe_url = ssl_server().GetURL("a.test", "/empty.html");
+  const GURL prerendering_url =
       ssl_server().GetURL("isolated.b.test", "/title1.html");
 
   auto* policy = ChildProcessSecurityPolicyImpl::GetInstance();
   policy->AddFutureIsolatedOrigins(
-      {url::Origin::Create(kInitialUrl)},
+      {url::Origin::Create(initial_url)},
       ChildProcessSecurityPolicy::IsolatedOriginSource::TEST);
 
   // Navigate primary main frame to b.test. It will be assigned to a process
   // that is locked to b.test.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Add an a.test iframe, which will be loaded in a new process that isn't
   // locked.
   ASSERT_TRUE(AddTestUtilJS(current_frame_host()));
   ASSERT_TRUE(
-      ExecJs(current_frame_host(), JsReplace("add_iframe($1)", kIframeUrl)));
+      ExecJs(current_frame_host(), JsReplace("add_iframe($1)", iframe_url)));
   RenderFrameHostImplWrapper iframe(
       static_cast<RenderFrameHostImpl*>(ChildFrameAt(current_frame_host(), 0)));
   ASSERT_NE(current_frame_host()->GetProcess(), iframe->GetProcess());
@@ -15340,7 +15263,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderWithSiteIsolationDisabledBrowserTest,
   // the same process as the a.test iframe, but on navigation to b.test, it
   // can no longer use the same process, and the SiteInstance will have to be
   // changed in order to assign the document to a different process.
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
   RenderFrameHostImplWrapper prerender_rfh(
       GetPrerenderedMainFrameHost(host_id));
   EXPECT_EQ(prerender_rfh->lifecycle_state(),
@@ -15791,12 +15714,12 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
                        EmbedderTrigger_CrossOriginRedirection_DifferentDomain) {
   base::HistogramTester histogram_tester;
-  GURL kInitialUrl = GetUrl("/empty.html");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
-  GURL kRedirectedUrl = GetCrossSiteUrl("/empty.html?prerender");
-  GURL kPrerenderingUrl = GetUrl("/server-redirect?" + kRedirectedUrl.spec());
+  GURL initial_url = GetUrl("/empty.html");
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+  GURL redirected_url = GetCrossSiteUrl("/empty.html?prerender");
+  GURL prerendering_url = GetUrl("/server-redirect?" + redirected_url.spec());
   PrerenderEmbedderTriggeredCrossOriginRedirectionPage(
-      *web_contents_impl(), kPrerenderingUrl, kRedirectedUrl);
+      *web_contents_impl(), prerendering_url, redirected_url);
   CheckExpectedCrossOriginMetrics(
       histogram_tester, PrerenderCrossOriginRedirectionMismatch::kHostMismatch,
       /*protocol_change=*/std::nullopt);
@@ -15805,27 +15728,27 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
 // Tests that prerender works with accessibility.
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
                        PrerenderWithAccessibilityEnabled) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/page_with_iframe.html");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/page_with_iframe.html");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
-  ASSERT_EQ(web_contents()->GetLastCommittedURL(), kInitialUrl);
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+  ASSERT_EQ(web_contents()->GetLastCommittedURL(), initial_url);
 
   // Enable accessibility.
   ScopedAccessibilityModeOverride inner_scoped_accessibility_mode(
       shell()->web_contents(), ui::kAXModeComplete);
 
-  // Start prerendering `kPrerenderingUrl`, which has an iframe attached.
-  ASSERT_EQ(GetRequestCount(kPrerenderingUrl), 0);
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  // Start prerendering `prerendering_url`, which has an iframe attached.
+  ASSERT_EQ(GetRequestCount(prerendering_url), 0);
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
   ASSERT_TRUE(host_id);
-  ASSERT_EQ(GetRequestCount(kPrerenderingUrl), 1);
+  ASSERT_EQ(GetRequestCount(prerendering_url), 1);
 
   test::PrerenderHostObserver prerender_observer(*web_contents_impl(),
-                                                 kPrerenderingUrl);
+                                                 prerendering_url);
 
-  NavigatePrimaryPage(kPrerenderingUrl);
+  NavigatePrimaryPage(prerendering_url);
 
   prerender_observer.WaitForActivation();
   ExpectFinalStatusForSpeculationRule(PrerenderFinalStatus::kActivated);
@@ -15852,13 +15775,13 @@ class UpdateTargetURLDelegate : public WebContentsDelegate {
 
 // Tests that text autosizer works per page.
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, FocusChangeInPrerenderedPage) {
-  const GURL kInitialUrl = GetUrl("/empty.html");
-  const GURL kPrerenderingUrl = GetUrl("/simple_links.html");
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/simple_links.html");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
   RenderFrameHostImpl* prerender_frame_host =
       GetPrerenderedMainFrameHost(host_id);
 
@@ -15888,20 +15811,20 @@ IN_PROC_BROWSER_TEST_F(
   IsolateAllSitesForTesting(base::CommandLine::ForCurrentProcess());
 
   // Navigate to an initial page.
-  const GURL kInitialUrl = GetUrl("/title1.html");
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  const GURL initial_url = GetUrl("/title1.html");
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
   EXPECT_TRUE(AddTestUtilJS(current_frame_host()));
 
   // Start a prerender.
-  const GURL kPrerenderingUrl = GetUrl("/title2.html");
-  PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
+  const GURL prerendering_url = GetUrl("/title2.html");
+  PrerenderHostId host_id = AddPrerender(prerendering_url);
 
   // Add a cross-origin iframe to the prerendering page.
-  const GURL kCrossOriginSubframeUrl = GetCrossSiteUrl("/title2.html");
+  const GURL cross_origin_subframe_url = GetCrossSiteUrl("/title2.html");
   RenderFrameHostImpl* prerender_rfh = GetPrerenderedMainFrameHost(host_id);
   EXPECT_TRUE(AddTestUtilJS(prerender_rfh));
   EXPECT_TRUE(ExecJs(prerender_rfh, JsReplace("add_iframe_async($1)",
-                                              kCrossOriginSubframeUrl)));
+                                              cross_origin_subframe_url)));
   base::RunLoop().RunUntilIdle();
 
   ASSERT_EQ(prerender_rfh->child_count(), 1u);
@@ -15914,12 +15837,12 @@ IN_PROC_BROWSER_TEST_F(
       iframe->render_manager()->speculative_frame_host()->render_view_host();
 
   // Activate.
-  NavigatePrimaryPage(kPrerenderingUrl);
-  ASSERT_EQ(web_contents()->GetLastCommittedURL(), kPrerenderingUrl);
+  NavigatePrimaryPage(prerendering_url);
+  ASSERT_EQ(web_contents()->GetLastCommittedURL(), prerendering_url);
   // Wait for iframe to finish navigating.
   ASSERT_EQ("LOADED",
             EvalJs(prerender_rfh, JsReplace("wait_iframe_async($1)",
-                                            kCrossOriginSubframeUrl)));
+                                            cross_origin_subframe_url)));
   // This asserts that the current RenderViewHost was created before activation
   // (to make sure we're testing the right thing).
   EXPECT_EQ(render_view_host, iframe->current_frame_host()->render_view_host());
@@ -15936,9 +15859,9 @@ IN_PROC_BROWSER_TEST_F(
   // be used. If the |render_widget_host| points to the wrong frame_tree, this
   // will result in a segfault (reproducing crbug.com/1324149) when we try to
   // focus the new page's view.
-  const GURL kCrossOriginUrl = GetCrossSiteUrl("/title1.html");
+  const GURL cross_origin_url = GetCrossSiteUrl("/title1.html");
   DisableProactiveBrowsingInstanceSwapFor(current_frame_host());
-  NavigatePrimaryPage(kCrossOriginUrl);
+  NavigatePrimaryPage(cross_origin_url);
   ASSERT_EQ(current_frame_host()->render_view_host(), render_view_host);
   ASSERT_EQ(current_frame_host()->GetRenderWidgetHost(), render_widget_host);
 }
@@ -15947,16 +15870,16 @@ IN_PROC_BROWSER_TEST_F(
 IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, WindowClosedSpeculationRules) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
-  const GURL kInitialUrl = embedded_test_server()->GetURL("/empty.html");
-  const GURL kPrerenderingUrl = embedded_test_server()->GetURL("/title1.html");
+  const GURL initial_url = embedded_test_server()->GetURL("/empty.html");
+  const GURL prerendering_url = embedded_test_server()->GetURL("/title1.html");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Start a prerender.
-  AddPrerender(kPrerenderingUrl);
+  AddPrerender(prerendering_url);
 
-  PrerenderHostId host_id = GetHostForUrl(kPrerenderingUrl);
+  PrerenderHostId host_id = GetHostForUrl(prerendering_url);
   WaitForPrerenderLoadCompletion(host_id);
 
   test::PrerenderHostObserver host_observer(*web_contents(), host_id);
@@ -15975,15 +15898,15 @@ IN_PROC_BROWSER_TEST_F(PrerenderTargetHintBrowserTest,
                        WindowClosedSpeculationRules_WithTargetHintBlank) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
-  const GURL kInitialUrl = embedded_test_server()->GetURL("/empty.html");
-  const GURL kPrerenderingUrl = embedded_test_server()->GetURL("/title1.html");
+  const GURL initial_url = embedded_test_server()->GetURL("/empty.html");
+  const GURL prerendering_url = embedded_test_server()->GetURL("/title1.html");
 
   // Navigate to an initial page.
-  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
 
   // Start a prerender.
   PrerenderHostId host_id = prerender_helper()->AddPrerender(
-      kPrerenderingUrl, /*eagerness=*/std::nullopt, "_blank");
+      prerendering_url, /*eagerness=*/std::nullopt, "_blank");
   auto* prerender_web_contents =
       test::PrerenderTestHelper::GetPrerenderWebContents(host_id);
   ASSERT_NE(prerender_web_contents, web_contents_impl());
@@ -18304,11 +18227,23 @@ IN_PROC_BROWSER_TEST_F(PrerenderUntilScriptUpgradeDisabledBrowserTest,
             blink::mojom::SpeculationAction::kPrerenderUntilScript);
 }
 
-class PrerenderActivationBeaconBrowserTest : public PrerenderBrowserTest {
+class PrerenderActivationBeaconBrowserTest
+    : public PrerenderBrowserTest,
+      public ::testing::WithParamInterface<bool> {
  public:
   PrerenderActivationBeaconBrowserTest() {
-    scoped_feature_list_.InitAndEnableFeature(
-        features::kPrerenderActivationBeacon);
+    std::vector<base::test::FeatureRef> enabled_features = {
+        features::kPrerenderActivationBeacon};
+    std::vector<base::test::FeatureRef> disabled_features;
+
+    if (GetParam()) {
+      enabled_features.push_back(
+          features::kPreloadActivationReportWithExtensionInterception);
+    } else {
+      disabled_features.push_back(
+          features::kPreloadActivationReportWithExtensionInterception);
+    }
+    scoped_feature_list_.InitWithFeatures(enabled_features, disabled_features);
   }
 
   void SetUp() override {
@@ -18418,7 +18353,7 @@ class PrerenderActivationBeaconBrowserTest : public PrerenderBrowserTest {
   std::set<GURL> seen_beacons_;
 };
 
-IN_PROC_BROWSER_TEST_F(PrerenderActivationBeaconBrowserTest,
+IN_PROC_BROWSER_TEST_P(PrerenderActivationBeaconBrowserTest,
                        PrerenderOnlyActivationBeaconSent) {
   GURL referrer_url = GetUrl("/empty.html");
   GURL prerender_url = GetUrl("/prerender?beacon=/beacon");
@@ -18442,7 +18377,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderActivationBeaconBrowserTest,
   EXPECT_TRUE(WasBeaconSeen(beacon_url));
 }
 
-IN_PROC_BROWSER_TEST_F(PrerenderActivationBeaconBrowserTest,
+IN_PROC_BROWSER_TEST_P(PrerenderActivationBeaconBrowserTest,
                        PrerenderOnlyActivationBeaconCrossOriginNotSent) {
   GURL referrer_url = GetUrl("/empty.html");
   GURL cross_origin_beacon_url = GetCrossSiteUrl("/beacon");
@@ -18509,7 +18444,7 @@ class PrerenderActivationBeaconRedirectBrowserTest
   }
 };
 
-IN_PROC_BROWSER_TEST_F(PrerenderActivationBeaconRedirectBrowserTest,
+IN_PROC_BROWSER_TEST_P(PrerenderActivationBeaconRedirectBrowserTest,
                        ActivationBeaconRedirected) {
   GURL referrer_url = GetUrl("/empty.html");
   GURL redirected_url = GetUrl("/redirected.html");
@@ -18538,7 +18473,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderActivationBeaconRedirectBrowserTest,
   EXPECT_FALSE(HasHostForUrl(prerender_url));
 }
 
-IN_PROC_BROWSER_TEST_F(PrerenderActivationBeaconBrowserTest,
+IN_PROC_BROWSER_TEST_P(PrerenderActivationBeaconBrowserTest,
                        ActivationBeaconNavigatedAway) {
   GURL referrer_url = GetUrl("/empty.html");
   GURL prerender_url = GetUrl("/prerender?beacon=/beacon1");
@@ -18573,15 +18508,25 @@ class PrefetchToPrerenderActivationBeaconBrowserTest
     : public PrerenderActivationBeaconBrowserTest {
  public:
   PrefetchToPrerenderActivationBeaconBrowserTest() {
-    scoped_feature_list_.InitWithFeatures(
-        {features::kPrefetchTesting, features::kPrefetchActivationBeacon}, {});
+    std::vector<base::test::FeatureRef> enabled_features = {
+        features::kPrefetchTesting, features::kPrefetchActivationBeacon};
+    std::vector<base::test::FeatureRef> disabled_features;
+
+    if (GetParam()) {
+      enabled_features.push_back(
+          features::kPreloadActivationReportWithExtensionInterception);
+    } else {
+      disabled_features.push_back(
+          features::kPreloadActivationReportWithExtensionInterception);
+    }
+    scoped_feature_list_.InitWithFeatures(enabled_features, disabled_features);
   }
 
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
-IN_PROC_BROWSER_TEST_F(PrefetchToPrerenderActivationBeaconBrowserTest,
+IN_PROC_BROWSER_TEST_P(PrefetchToPrerenderActivationBeaconBrowserTest,
                        PrefetchToPrerenderUpgradeActivationBeaconSent) {
   GURL referrer_url = GetUrl("/empty.html");
   GURL url = GetUrl("/prefetch_and_prerender?beacon=/beacon");
@@ -18627,7 +18572,7 @@ IN_PROC_BROWSER_TEST_F(PrefetchToPrerenderActivationBeaconBrowserTest,
   EXPECT_TRUE(WasBeaconSeen(beacon_url));
 }
 
-IN_PROC_BROWSER_TEST_F(PrerenderActivationBeaconBrowserTest,
+IN_PROC_BROWSER_TEST_P(PrerenderActivationBeaconBrowserTest,
                        SameSiteCrossOriginPrerenderSendsBeacon) {
   GURL referrer_url = GetUrl("/empty.html");
   GURL prerender_url = GetSameSiteCrossOriginUrl(
@@ -18742,7 +18687,7 @@ class PrerenderActivationBeaconRedirectSameSiteBrowserTest
   bool beacon_seen_ = false;
 };
 
-IN_PROC_BROWSER_TEST_F(
+IN_PROC_BROWSER_TEST_P(
     PrerenderActivationBeaconRedirectSameSiteBrowserTest,
     SameOriginRedirectToSameSiteCrossOrigin_BeaconInRedirectIgnored) {
   GURL referrer_url = GetUrl("/empty.html");
@@ -18767,7 +18712,7 @@ IN_PROC_BROWSER_TEST_F(
   EXPECT_FALSE(beacon_seen());
 }
 
-IN_PROC_BROWSER_TEST_F(
+IN_PROC_BROWSER_TEST_P(
     PrerenderActivationBeaconRedirectSameSiteBrowserTest,
     SameOriginRedirectToSameSiteCrossOrigin_BeaconInFinalResponseSent) {
   GURL referrer_url = GetUrl("/empty.html");
@@ -18791,7 +18736,7 @@ IN_PROC_BROWSER_TEST_F(
   EXPECT_TRUE(beacon_seen());
 }
 
-IN_PROC_BROWSER_TEST_F(
+IN_PROC_BROWSER_TEST_P(
     PrerenderActivationBeaconBrowserTest,
     SameSiteCrossOriginPrerender_CrossOriginBeaconDiscarded) {
   GURL referrer_url = GetUrl("/empty.html");
@@ -18816,7 +18761,7 @@ IN_PROC_BROWSER_TEST_F(
   EXPECT_FALSE(WasBeaconSeen(cross_origin_beacon_url));
 }
 
-IN_PROC_BROWSER_TEST_F(PrerenderActivationBeaconBrowserTest,
+IN_PROC_BROWSER_TEST_P(PrerenderActivationBeaconBrowserTest,
                        ActivationBeaconRedirectToCrossOriginDiscarded) {
   GURL referrer_url = GetUrl("/empty.html");
   GURL cross_origin_beacon_url = GetCrossSiteUrl("/beacon");
@@ -18849,6 +18794,19 @@ IN_PROC_BROWSER_TEST_F(PrerenderActivationBeaconBrowserTest,
   EXPECT_TRUE(WasBeaconSeen(beacon_url));
   EXPECT_FALSE(WasBeaconSeen(cross_origin_beacon_url));
 }
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         PrerenderActivationBeaconBrowserTest,
+                         ::testing::Bool());
+INSTANTIATE_TEST_SUITE_P(All,
+                         PrerenderActivationBeaconRedirectBrowserTest,
+                         ::testing::Bool());
+INSTANTIATE_TEST_SUITE_P(All,
+                         PrefetchToPrerenderActivationBeaconBrowserTest,
+                         ::testing::Bool());
+INSTANTIATE_TEST_SUITE_P(All,
+                         PrerenderActivationBeaconRedirectSameSiteBrowserTest,
+                         ::testing::Bool());
 
 // Tests for the multi-RenderViewHost propagation of the
 // prerender-until-script to full prerender upgrade IPC. These exercise the

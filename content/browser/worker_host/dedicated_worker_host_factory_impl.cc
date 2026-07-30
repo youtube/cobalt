@@ -56,8 +56,7 @@ DedicatedWorkerHostFactoryImpl::DedicatedWorkerHostFactoryImpl(
     network::mojom::ClientSecurityStatePtr creator_client_security_state,
     const PolicyContainerPolicies& creator_policies,
     base::WeakPtr<CrossOriginEmbedderPolicyReporter> creator_coep_reporter,
-    const std::optional<base::UnguessableToken>&
-        creator_network_restrictions_id)
+    const base::UnguessableToken& creator_network_restrictions_id)
     : worker_process_id_(worker_process_id),
       creator_(creator),
       ancestor_render_frame_host_id_(ancestor_render_frame_host_id),

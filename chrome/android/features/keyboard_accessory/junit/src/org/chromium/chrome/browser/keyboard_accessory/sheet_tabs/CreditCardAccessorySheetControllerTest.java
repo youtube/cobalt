@@ -116,7 +116,6 @@ public class CreditCardAccessorySheetControllerTest {
                 new AccessorySheetData(
                         AccessoryTabType.CREDIT_CARDS,
                         /* userInfoTitle= */ "Payments",
-                        /* plusAddressTitle= */ "",
                         /* warning= */ ""));
         verify(mMockItemListObserver).onItemRangeInserted(mSheetDataPieces, 0, 1);
         assertThat(mSheetDataPieces.size(), is(1));
@@ -126,7 +125,6 @@ public class CreditCardAccessorySheetControllerTest {
                 new AccessorySheetData(
                         AccessoryTabType.CREDIT_CARDS,
                         /* userInfoTitle= */ "Other Payments",
-                        /* plusAddressTitle= */ "",
                         /* warning= */ ""));
         verify(mMockItemListObserver).onItemRangeChanged(mSheetDataPieces, 0, 1, null);
         assertThat(mSheetDataPieces.size(), is(1));
@@ -149,7 +147,6 @@ public class CreditCardAccessorySheetControllerTest {
                 new AccessorySheetData(
                         AccessoryTabType.CREDIT_CARDS,
                         /* userInfoTitle= */ "",
-                        /* plusAddressTitle= */ "",
                         /* warning= */ "");
         testData.getUserInfoList().add(new UserInfo("", false));
         testData.getUserInfoList()
@@ -203,7 +200,6 @@ public class CreditCardAccessorySheetControllerTest {
                 new AccessorySheetData(
                         AccessoryTabType.CREDIT_CARDS,
                         /* userInfoTitle= */ "Payments",
-                        /* plusAddressTitle= */ "",
                         /* warning= */ "");
         mCoordinator.registerDataProvider(testProvider);
 
@@ -222,7 +218,6 @@ public class CreditCardAccessorySheetControllerTest {
                 new AccessorySheetData(
                         AccessoryTabType.CREDIT_CARDS,
                         /* userInfoTitle= */ "No payment methods",
-                        /* plusAddressTitle= */ "",
                         /* warning= */ "");
 
         testData.getPromoCodeInfoList().add(new PromoCodeInfo());

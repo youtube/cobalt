@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "components/browser_apis/ui_controllers/toolbar/extensions_bar_data_model.mojom.h"
 #include "mojo/public/cpp/bindings/clone_traits.h"
 #include "skia/ext/skia_utils_base.h"
 
@@ -49,6 +50,7 @@ CreateValidNavigationControlsState() {
       toolbar_ui_api::mojom::HomeControlState::New(),
       toolbar_ui_api::mojom::AppMenuControlState::New(),
       toolbar_ui_api::mojom::AvatarControlState::New(),
+      /*battery_saver_button_visible=*/false,
       toolbar_ui_api::mojom::LocationBarState::New(
           toolbar_ui_api::mojom::OmniboxViewState::New(),
           toolbar_ui_api::mojom::LocationBarFlags::New(),
@@ -67,8 +69,10 @@ CreateValidNavigationControlsState() {
               std::vector<toolbar_ui_api::mojom::ContentSettingImageStatePtr>(),
               /*permission_dashboard=*/nullptr),
           toolbar_ui_api::mojom::SelectedKeywordStatePtr()),
+      std::vector<extensions_bar::mojom::ExtensionActionInfoPtr>(),
       std::vector<toolbar_ui_api::mojom::PinnedToolbarActionStatePtr>(),
-      /*layout_constants_version=*/0);
+      /*layout_constants_version=*/0,
+      /*touch_ui=*/false);
 }
 
 MockCommandUpdater::MockCommandUpdater() = default;

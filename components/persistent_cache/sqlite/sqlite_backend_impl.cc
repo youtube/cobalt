@@ -6,6 +6,7 @@
 
 #include <stdint.h>
 
+#include <functional>
 #include <memory>
 #include <optional>
 #include <tuple>
@@ -13,6 +14,7 @@
 
 #include "base/check_op.h"
 #include "base/containers/span.h"
+#include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/ref_counted_memory.h"
 #include "base/memory/scoped_refptr.h"
@@ -131,8 +133,24 @@ base::expected<void, TransactionError> SqliteBackendImpl::Initialize() {
 }
 
 base::expected<void, int> SqliteBackendImpl::InitializeImpl() {
-  if (!db_->Open(database_path_)) {
-    return base::unexpected(db_->GetErrorCode());
+  // Install an error callback to capture the first error, if any, encountered
+  // while opening a database. Database::GetErrorCode() returns a generic error
+  // after a failed Open(), so it is of no use in this case.
+  std::optional<int> error_code;
+  db_->set_error_callback(base::BindRepeating(
+      [](std::optional<int>& error_code_out, int error,
+         sql::Statement* statement) {
+        if (!error_code_out.has_value()) {
+          error_code_out = error;
+        }
+      },
+      std::ref(error_code)));
+
+  const bool open_success = db_->Open(database_path_);
+  db_->reset_error_callback();
+
+  if (!open_success) {
+    return base::unexpected(error_code.value_or(SQLITE_CANTOPEN));
   }
 
   // Check the user-version (https://sqlite.org/pragma.html#pragma_user_version)

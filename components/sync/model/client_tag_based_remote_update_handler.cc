@@ -208,7 +208,7 @@ ProcessorEntity* ClientTagBasedRemoteUpdateHandler::ProcessUpdate(
   }
 
   ProcessorEntity* entity =
-      entity_tracker_->GetEntityForTagHash(client_tag_hash);
+      entity_tracker_->GetEntityForClientTagHash(client_tag_hash);
 
   // Handle corner cases first.
   if (entity == nullptr && data.is_deleted()) {

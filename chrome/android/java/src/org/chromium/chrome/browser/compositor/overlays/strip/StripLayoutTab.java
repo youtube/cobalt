@@ -228,6 +228,7 @@ public class StripLayoutTab extends StripLayoutView {
      * @param id The id of the {@link Tab} to visually represent.
      * @param clickHandler Handles clicks on this {@link StripLayoutTab}.
      * @param keyboardFocusHandler Handles keyboard focus gain/loss on this {@link StripLayoutTab}.
+     * @param accessibilityFocusHandler Handles accessibility focus on this {@link StripLayoutTab}.
      * @param loadTrackerCallback The {@link TabLoadTrackerCallback} to be notified of loading state
      *     changes.
      * @param updateHost The {@link LayoutUpdateHost}.
@@ -240,12 +241,13 @@ public class StripLayoutTab extends StripLayoutView {
             int id,
             StripLayoutViewOnClickHandler clickHandler,
             StripLayoutViewOnKeyboardFocusHandler keyboardFocusHandler,
+            StripLayoutViewOnAccessibilityFocusHandler accessibilityFocusHandler,
             TabLoadTrackerCallback loadTrackerCallback,
             LayoutUpdateHost updateHost,
             boolean incognito,
             boolean isPinned,
             @MediaState int mediaState) {
-        super(incognito, clickHandler, keyboardFocusHandler, context);
+        super(incognito, clickHandler, keyboardFocusHandler, accessibilityFocusHandler, context);
         mTabId = id;
         mMediaState = mediaState;
         mIsPinned = isPinned;
@@ -780,7 +782,7 @@ public class StripLayoutTab extends StripLayoutView {
     /**
      * @return How far to vertically offset the tab content.
      */
-    public float getContentOffsetY() {
+    public static float getContentOffsetY() {
         return FOLIO_CONTENT_OFFSET_Y - (TOP_MARGIN_DP / 2);
     }
 
@@ -808,7 +810,7 @@ public class StripLayoutTab extends StripLayoutView {
     /**
      * @return How far to offset the top of the tab container from the top of the tab strip.
      */
-    public float getTopMargin() {
+    public static float getTopMargin() {
         return TOP_MARGIN_DP;
     }
 

@@ -121,7 +121,7 @@ ScopedJavaLocalRef<jobject> AutocompleteMatch::GetOrCreateJavaObject(
           matching_tab_group_uuid
               ? std::make_optional(matching_tab_group_uuid->AsLowercaseString())
               : std::nullopt,
-          associated_keyword, j_suggest_template));
+          associated_keyword, j_suggest_template, document_type));
 
   return ScopedJavaLocalRef<jobject>(*java_match_);
 }

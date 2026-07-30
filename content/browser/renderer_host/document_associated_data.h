@@ -146,8 +146,7 @@ class CONTENT_EXPORT DocumentAssociatedData : public base::SupportsUserData {
   // Sets the network restrictions id. Should only be called when the document
   // is being committed. For more details see
   // NavigationRequest::network_restrictions_id_
-  void SetNetworkRestrictionsId(
-      std::optional<base::UnguessableToken> network_restrictions_id);
+  void SetNetworkRestrictionsId(base::UnguessableToken network_restrictions_id);
 
   // Shares the network restrictions id from another document (e.g. the
   // creator's), incrementing the reference count. The nonce will only be
@@ -157,7 +156,7 @@ class CONTENT_EXPORT DocumentAssociatedData : public base::SupportsUserData {
       scoped_refptr<base::RefCountedData<base::UnguessableToken>>
           network_restrictions_id);
 
-  std::optional<base::UnguessableToken> NetworkRestrictionsId() const;
+  base::UnguessableToken NetworkRestrictionsId() const;
 
   // Returns the shared ref-counted handle for the network restrictions id.
   // Used internally for sharing the id between documents (e.g. initial empty

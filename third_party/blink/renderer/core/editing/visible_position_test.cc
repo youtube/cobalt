@@ -154,7 +154,7 @@ TEST_F(VisiblePositionTest, NonNullIsValidBeforeMutation) {
   EXPECT_TRUE(CreateVisiblePosition(position).IsValid());
 }
 
-TEST_F(VisiblePositionTest, NonNullInvalidatedAfterDOMChange) {
+TEST_F(VisiblePositionTest, NonNullInvalidatedAfterDomChange) {
   SetBodyContent("<p>one</p>");
 
   Element* paragraph = QuerySelector("p");

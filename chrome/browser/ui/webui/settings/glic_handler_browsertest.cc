@@ -147,13 +147,7 @@ IN_PROC_BROWSER_TEST_F(GlicHandlerBrowserTest, UpdateShortcutSuspension) {
 }
 #endif  //  !BUILDFLAG(SUPPORTS_OZONE_WAYLAND)
 
-// TODO(crbug.com/416160303): Enable the test.
-#if BUILDFLAG(IS_WIN)
-#define MAYBE_UpdateGlicShortcut DISABLED_UpdateGlicShortcut
-#else
-#define MAYBE_UpdateGlicShortcut UpdateGlicShortcut
-#endif
-IN_PROC_BROWSER_TEST_F(GlicHandlerBrowserTest, MAYBE_UpdateGlicShortcut) {
+IN_PROC_BROWSER_TEST_F(GlicHandlerBrowserTest, UpdateGlicShortcut) {
   const ui::Accelerator invalid_shortcut(ui::VKEY_A, ui::EF_NONE);
   glic_handler()->HandleSetGlicShortcut(
       base::ListValue()

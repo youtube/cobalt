@@ -4093,16 +4093,50 @@ TEST_P(PaymentsDataManagerServerTest, AreBnplIssuersSupported_LocaleIsEnUS) {
   EXPECT_TRUE(test_api(payments_data_manager()).AreBnplIssuersSupported());
 }
 
-// Tests that BNPL issuers are not supported for "es-US" app locales.
-TEST_P(PaymentsDataManagerServerTest, AreBnplIssuersSupported_LocaleIsEsUS) {
+// Tests that BNPL issuers are not supported for "es-US" app locales when
+// internationalization flags are all disabled.
+TEST_P(PaymentsDataManagerServerTest,
+       AreBnplIssuersSupported_InternationalizationDisabled) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatures(
+      /*enabled_features=*/
+      {features::kAutofillEnableBuyNowPayLaterSyncing},
+      /*disabled_features=*/{
+          features::kAutofillEnableBnplAffirmInternationalization,
+          features::kAutofillEnableBnplKlarnaInternationalization});
   ResetPaymentsDataManager(UseSyncTransportMode(), "es-US", "US");
   EXPECT_FALSE(test_api(payments_data_manager()).AreBnplIssuersSupported());
 }
 
+// Tests that app locale and country checks in `AreBnplIssuersSupported` are
+// skipped when internationalization flags are enabled.
+TEST_P(
+    PaymentsDataManagerServerTest,
+    AreBnplIssuersSupported_LocaleIsEsUS_CountryIsCa_WithInternationalization) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatures(
+      /*enabled_features=*/
+      {features::kAutofillEnableBuyNowPayLaterSyncing,
+       features::kAutofillEnableBnplAffirmInternationalization,
+       features::kAutofillEnableBnplKlarnaInternationalization},
+      /*disabled_features=*/{});
+  ResetPaymentsDataManager(UseSyncTransportMode(), "es-US", "CA");
+  EXPECT_TRUE(test_api(payments_data_manager()).AreBnplIssuersSupported());
+}
+
 // Tests that Buy-now-pay-later issuer getters does not return any issuers if
-// `experiment_country_code` is not "US".
+// `experiment_country_code` is not "US" when internationalization flags are all
+// disabled.
 TEST_P(PaymentsDataManagerServerTest,
        BnplIssuerGetters_AutofillBnplCountryNotSupported) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatures(
+      /*enabled_features=*/
+      {features::kAutofillEnableBuyNowPayLaterSyncing},
+      /*disabled_features=*/{
+          features::kAutofillEnableBnplAffirmInternationalization,
+          features::kAutofillEnableBnplKlarnaInternationalization});
+
   test_api(payments_data_manager())
       .AddBnplIssuer(test::GetTestLinkedBnplIssuer());
   test_api(payments_data_manager())

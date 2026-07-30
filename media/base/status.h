@@ -138,6 +138,16 @@ struct StatusTraitsHelper {
            "::", base::NumberToString(static_cast<StatusCodeType>(code))});
     }
   }
+
+  static constexpr bool IsOk(T::Codes code) {
+    if constexpr (requires { &T::OkEnumValue; }) {
+      return code == T::OkEnumValue();
+    } else if constexpr (requires { T::Codes::kOk; }) {
+      return code == T::Codes::kOk;
+    } else {
+      return false;
+    }
+  }
 };
 
 // Implicitly converts to an ok value for any implementation of TypedStatus.
@@ -149,6 +159,22 @@ struct OkStatusImplicitConstructionHelper {};
 MEDIA_EXPORT std::ostream& operator<<(
     std::ostream& stream,
     const OkStatusImplicitConstructionHelper&);
+
+// A non-constexpr function that serves as a way to block OK status codes from
+// being used with data.
+void An_Ok_Status_May_Not_Be_Used_For_Construction_With_Data();
+
+template <TypedStatusImplTraits T>
+struct OkCodeInhibitor {
+  using Codes = typename T::Codes;
+  Codes value;
+
+  consteval OkCodeInhibitor(Codes c) : value(c) {
+    if (StatusTraitsHelper<T>::IsOk(c)) {
+      An_Ok_Status_May_Not_Be_Used_For_Construction_With_Data();
+    }
+  }
+};
 
 }  // namespace internal
 
@@ -174,6 +200,9 @@ class MEDIA_EXPORT TypedStatus {
   // Convenience aliases to allow, e.g., MyStatusType::Codes::kGreatDisturbance.
   using Codes = typename T::Codes;
 
+  // A tag type to allow passing a code as a template parameter to constructors.
+  using NonOkCode = internal::OkCodeInhibitor<T>;
+
   // See media/base/status.md for the ways that an instantiation of TypedStatus
   // can be constructed, since there are a few.
 
@@ -189,18 +218,23 @@ class MEDIA_EXPORT TypedStatus {
       : TypedStatus() {}
 
   // Used to implicitly create a TypedStatus from a TypedStatus::Codes value.
-  TypedStatus(Codes code, const base::Location& location = FROM_HERE)
-      : TypedStatus(code, "", location) {}
+  TypedStatus(Codes code, const base::Location& location = FROM_HERE) {
+    if (code != internal::StatusTraitsHelper<Traits>::OkEnumValue()) {
+      data_ = std::make_unique<internal::StatusData>(
+          internal::StatusTraitsHelper<Traits>::RenderGroupAndCode(code),
+          static_cast<StatusCodeType>(code), "");
+      data_->AddLocation(location);
+    }
+  }
 
   // Used to allow returning {TypedStatus::Codes::kValue, CastFrom} implicitly
   // iff TypedStatus::T::OnCreateFrom is implemented.
   template <typename D>
     requires(TypedStatusConstructableFrom<TypedStatus<T>, D>)
-  TypedStatus(Codes code,
+  TypedStatus(NonOkCode code,
               const D& data,
               const base::Location& location = FROM_HERE)
       : TypedStatus(code, "", location) {
-    DCHECK(data_);
     T::OnCreateFrom(this, data);
   }
 
@@ -208,45 +242,41 @@ class MEDIA_EXPORT TypedStatus {
   // implicitly iff TypedStatus::T::OnCreateFrom is implemented.
   template <typename D>
     requires(TypedStatusConstructableFrom<TypedStatus<T>, D>)
-  TypedStatus(Codes code,
+  TypedStatus(NonOkCode code,
               std::string message,
               const D& data,
               const base::Location& location = FROM_HERE)
       : TypedStatus(code, std::move(message), location) {
-    DCHECK(data_);
     T::OnCreateFrom(this, data);
   }
 
   // Used to allow returning {TypedStatus::Codes::kValue, cause}
   template <TypedStatusImplTraits O>
     requires(!std::is_same_v<O, T>)
-  TypedStatus(Codes code,
+  TypedStatus(NonOkCode code,
               TypedStatus<O>&& cause,
               const base::Location& location = FROM_HERE)
       : TypedStatus(code, "", location) {
-    DCHECK(data_);
     AddCause(std::move(cause));
   }
 
   // Used to allow returning {TypedStatus::Codes::kValue, "message", cause}
   template <TypedStatusImplTraits O>
-  TypedStatus(Codes code,
+  TypedStatus(NonOkCode code,
               std::string message,
               TypedStatus<O>&& cause,
               const base::Location& location = FROM_HERE)
       : TypedStatus(code, std::move(message), location) {
-    DCHECK(data_);
     AddCause(std::move(cause));
   }
 
   template <typename D>
-  TypedStatus(Codes code,
+  TypedStatus(NonOkCode code,
               std::string message,
               std::string data_name,
               const D& data,
               const base::Location& location = FROM_HERE)
       : TypedStatus(code, std::move(message), location) {
-    DCHECK(data_);
     data_->data.GetDict().Set(std::move(data_name), MediaSerialize(data));
   }
 
@@ -257,18 +287,12 @@ class MEDIA_EXPORT TypedStatus {
   // defaulted in order to grab the caller location.
   // Also used to allow returning {TypedStatus::Codes::kValue, "message"}
   // implicitly as a typed status.
-  TypedStatus(Codes code,
+  TypedStatus(NonOkCode code,
               std::string message,
               const base::Location& location = FROM_HERE) {
-    // Note that |message| would be dropped when code is the default value,
-    // so DCHECK that it is not set.
-    if (code == internal::StatusTraitsHelper<Traits>::OkEnumValue()) {
-      DCHECK(!!message.empty());
-      return;
-    }
     data_ = std::make_unique<internal::StatusData>(
-        internal::StatusTraitsHelper<Traits>::RenderGroupAndCode(code),
-        static_cast<StatusCodeType>(code), std::move(message));
+        internal::StatusTraitsHelper<Traits>::RenderGroupAndCode(code.value),
+        static_cast<StatusCodeType>(code.value), std::move(message));
     data_->AddLocation(location);
   }
 
@@ -383,17 +407,16 @@ class MEDIA_EXPORT TypedStatus {
 
     // Create an Or type implicitly from a TypedStatus
     Or(TypedStatus<T>&& error) : error_(std::move(error)) {
-      // `error_` must not be ok.
       if constexpr (internal::StatusTraitsHelper<Traits>::HasOkEnumValue()) {
         // `error_` must not be ok.
-        DCHECK(!error_->is_ok());
+        CHECK(!error_->is_ok());
       }
     }
 
     Or(const TypedStatus<T>& error) : error_(error) {
       if constexpr (internal::StatusTraitsHelper<Traits>::HasOkEnumValue()) {
         // `error_` must not be ok.
-        DCHECK(!error_->is_ok());
+        CHECK(!error_->is_ok());
       }
     }
 
@@ -403,16 +426,16 @@ class MEDIA_EXPORT TypedStatus {
 
     // Create an Or type explicitly from a code
     Or(typename T::Codes code, const base::Location& location = FROM_HERE)
-        : error_(TypedStatus<T>(code, "", location)) {
+        : error_(TypedStatus<T>(code, location)) {
       if constexpr (internal::StatusTraitsHelper<Traits>::HasOkEnumValue()) {
         // `error_` must not be ok.
-        DCHECK(!error_->is_ok());
+        CHECK(!error_->is_ok());
       }
     }
 
     // Create an Or type explicitly from a code and a cause
     template <TypedStatusImplTraits C>
-    Or(typename T::Codes code,
+    Or(NonOkCode code,
        TypedStatus<C>&& cause,
        const ::base::Location& location = FROM_HERE)
         : error_(TypedStatus<T>(code, std::move(cause), location)) {
@@ -425,14 +448,14 @@ class MEDIA_EXPORT TypedStatus {
     // Create an Or type implicitly from any brace-initializer list that could
     // have been used to create the typed status
     template <typename First, typename... Rest>
-    Or(typename T::Codes code,
+    Or(NonOkCode code,
        const First& first,
        const Rest&... rest,
        const base::Location& location = FROM_HERE)
         : error_(TypedStatus<T>(code, first, rest..., location)) {
       if constexpr (internal::StatusTraitsHelper<Traits>::HasOkEnumValue()) {
         // `error_` must not be ok.
-        DCHECK(!error_->is_ok());
+        CHECK(!error_->is_ok());
       }
     }
 

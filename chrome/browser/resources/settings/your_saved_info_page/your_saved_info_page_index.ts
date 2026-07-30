@@ -56,11 +56,19 @@ export class SettingsYourSavedInfoPageIndexElement extends
           return loadTimeData.getBoolean('enableYourSavedInfoShoppingPage');
         },
       },
+
+      showSuggestionsFromGeminiSettings_: {
+        type: Boolean,
+        value() {
+          return loadTimeData.getBoolean('showSuggestionsFromGeminiSettings');
+        },
+      },
     };
   }
 
   declare prefs: Record<string, unknown>;
   declare private enableYourSavedInfoShoppingPage_: boolean;
+  declare private showSuggestionsFromGeminiSettings_: boolean;
 
   override currentRouteChanged(newRoute: Route, oldRoute?: Route) {
     super.currentRouteChanged(newRoute, oldRoute);
@@ -116,6 +124,11 @@ export class SettingsYourSavedInfoPageIndexElement extends
           assert(this.enableYourSavedInfoShoppingPage_);
           this.$.viewManager.switchView(
               'shopping', 'no-animation', 'no-animation');
+          break;
+        case routes.SUGGESTIONS_FROM_GEMINI:
+          assert(this.showSuggestionsFromGeminiSettings_);
+          this.$.viewManager.switchView(
+              'suggestionsFromGemini', 'no-animation', 'no-animation');
           break;
         default:
           // Nothing to do. Other parent elements are responsible for updating

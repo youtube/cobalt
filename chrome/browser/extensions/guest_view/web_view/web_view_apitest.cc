@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <string>
+#include <tuple>
 #include <utility>
 
 #include "apps/launcher.h"
@@ -509,12 +510,54 @@ IN_PROC_BROWSER_TEST_F(WebViewDPIAPITest, TestAutosizeBeforeNavigation) {
   RunTest("testAutosizeBeforeNavigation", "web_view/apitest");
 }
 
-IN_PROC_BROWSER_TEST_F(WebViewAPITest, TestAutosizeHeight) {
-  RunTest("testAutosizeHeight", "web_view/apitest");
-}
+constexpr char kAutoSizeUsesScrollWidthForOverflow[] =
+    "AutoSizeUsesScrollWidthForOverflow";
 
-IN_PROC_BROWSER_TEST_F(WebViewDPIAPITest, TestAutosizeHeight) {
-  RunTest("testAutosizeHeight", "web_view/apitest");
+class WebViewAPIAutosizeHeightTest
+    : public WebViewAPITest,
+      public testing::WithParamInterface<std::tuple<bool, bool>> {
+ public:
+  static std::string DescribeParams(
+      const testing::TestParamInfo<ParamType>& info) {
+    const auto [use_device_scale_factor, auto_size_enabled] = info.param;
+    return base::StringPrintf(
+        "%s_%s", use_device_scale_factor ? "DPI" : "DefaultDPI",
+        auto_size_enabled ? "AutoSizeUsesScrollWidthForOverflowEnabled"
+                          : "AutoSizeUsesScrollWidthForOverflowDisabled");
+  }
+
+ protected:
+  void SetUp() override {
+    if (use_device_scale_factor()) {
+      base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(
+          ::switches::kForceDeviceScaleFactor, base::StringPrintf("%f", 2.0f));
+    }
+    WebViewAPITest::SetUp();
+  }
+
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    WebViewAPITest::SetUpCommandLine(command_line);
+    command_line->AppendSwitchASCII(auto_size_enabled()
+                                        ? ::switches::kEnableBlinkFeatures
+                                        : ::switches::kDisableBlinkFeatures,
+                                    kAutoSizeUsesScrollWidthForOverflow);
+  }
+
+  bool use_device_scale_factor() const { return std::get<0>(GetParam()); }
+  bool auto_size_enabled() const { return std::get<1>(GetParam()); }
+  const char* test_name() const {
+    return auto_size_enabled() ? "testAutosizeHeightFeatureEnabled"
+                               : "testAutosizeHeightFeatureDisabled";
+  }
+};
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         WebViewAPIAutosizeHeightTest,
+                         testing::Combine(testing::Bool(), testing::Bool()),
+                         WebViewAPIAutosizeHeightTest::DescribeParams);
+
+IN_PROC_BROWSER_TEST_P(WebViewAPIAutosizeHeightTest, TestAutosizeHeight) {
+  RunTest(test_name(), "web_view/apitest");
 }
 
 IN_PROC_BROWSER_TEST_F(WebViewAPITest, TestAutosizeRemoveAttributes) {

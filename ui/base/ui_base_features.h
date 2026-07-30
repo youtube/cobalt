@@ -289,10 +289,6 @@ BASE_DECLARE_FEATURE(kTSFHonorAutocorrectOff);
 COMPONENT_EXPORT(UI_BASE_FEATURES)
 bool IsTSFHonorAutocorrectOffEnabled();
 
-// Controls whether the default system accent colors should be used.
-COMPONENT_EXPORT(UI_BASE_FEATURES)
-BASE_DECLARE_FEATURE(kUseSystemDefaultAccentColors);
-
 COMPONENT_EXPORT(UI_BASE_FEATURES)
 BASE_DECLARE_FEATURE(kStringWidthCache);
 

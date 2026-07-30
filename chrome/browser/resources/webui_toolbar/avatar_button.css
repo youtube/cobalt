@@ -4,20 +4,62 @@
 
 /* #css_wrapper_metadata_start
  * #type=style-lit
+ * #import=//resources/cr_elements/cr_hidden_style_lit.css.js
  * #scheme=relative
+ * #include=cr-hidden-style-lit
  * #css_wrapper_metadata_end */
 
 :host {
   display: flex;
   align-self: center;
-}
-
-:host([hidden]) {
-  display: none !important;
+  /* Enable interpolation between 'max-content' and 0 */
+  interpolate-size: allow-keywords;
 }
 
 #button {
-  --cr-icon-button-icon-size: 24px;
-  --cr-icon-button-size: var(--toolbar-button-height);
+  border-radius: calc(max(var(--toolbar-button-height),
+                          var(--toolbar-button-width, 0px)) / 2);
+  height: var(--toolbar-button-height);
   margin: 0;
+  min-width: var(--toolbar-button-height);
+  padding-inline-start: var(--toolbar-button-padding-left);
+  padding-inline-end: var(--toolbar-button-padding-right);
+}
+
+#button:has(#text[visible]) {
+  padding-inline-start: var(--avatar-chip-padding-left);
+  padding-inline-end: var(--avatar-chip-padding-right);
+}
+
+:host(.anchor-highlight) #button {
+  background-color: var(--cr-toolbar-button-highlight-color);
+  color: var(--cr-toolbar-button-highlight-text-color);
+}
+
+#button[has-border] {
+  border: 1px solid var(--cr-toolbar-button-border-color);
+}
+
+#icon {
+  border-radius: 50%;
+  height: var(--toolbar-button-icon-size);
+  object-fit: contain;
+  width: var(--toolbar-button-icon-size);
+}
+
+#text {
+  display: inline-block;
+  margin-inline-start: var(--avatar-chip-icon-label-spacing);
+  max-width: max-content;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: max-width 200ms ease-out, margin-inline-start 200ms ease-out,
+      opacity 200ms ease-out;
+  white-space: nowrap;
+}
+
+#text:not([visible]) {
+  margin-inline-start: 0;
+  max-width: 0;
+  opacity: 0;
 }

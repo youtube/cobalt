@@ -687,13 +687,13 @@ class A {
  public:
   A(const std::list<T*>& arg) : v(arg) {}
 
-  virtual const std::list<T*>& get() {
+  virtual const std::list<raw_ptr<T>>& get() {
     do_something(v);
     return v;
   }
 
  protected:
-  std::list<T*> v;
+  std::list<raw_ptr<T>> v;
 };
 
 void fctttttt() {

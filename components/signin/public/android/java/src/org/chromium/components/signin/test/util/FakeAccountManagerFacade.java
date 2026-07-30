@@ -320,7 +320,7 @@ public class FakeAccountManagerFacade implements AccountManagerFacade {
     public void updateCredentials(
             CoreAccountId accountId, Activity activity, @Nullable Callback<Boolean> callback) {
         if (callback != null) {
-            ThreadUtils.postOnUiThread(() -> callback.onResult(true));
+            ThreadUtils.postOnUiThread(callback.bind(true));
         }
     }
 

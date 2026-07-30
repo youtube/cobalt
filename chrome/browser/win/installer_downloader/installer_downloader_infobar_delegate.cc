@@ -14,7 +14,6 @@
 #include "chrome/browser/ui/views/infobars/confirm_infobar.h"
 #include "chrome/browser/win/installer_downloader/installer_downloader_feature.h"
 #include "chrome/grit/branded_strings.h"
-#include "chrome/grit/generated_resources.h"
 #include "components/infobars/content/content_infobar_manager.h"
 #include "components/infobars/core/infobar.h"
 #include "components/infobars/core/infobar_manager.h"

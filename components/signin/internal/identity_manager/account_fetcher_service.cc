@@ -228,7 +228,7 @@ void AccountFetcherService::StartFetchingAccountCapabilities(
 
     request = account_fetcher_factory_->CreateAccountCapabilitiesFetcher(
         core_account_info,
-        account_info.capabilities.AreAnyCapabilitiesKnown()
+        account_info.GetAccountCapabilities().AreAnyCapabilitiesKnown()
             ? AccountCapabilitiesFetcher::FetchPriority::kBackground
             : AccountCapabilitiesFetcher::FetchPriority::kForeground,
         base::BindRepeating(
@@ -256,7 +256,8 @@ void AccountFetcherService::RefreshAccountInfo(const CoreAccountId& account_id,
 
   AccountInfo info = account_tracker_service_->GetAccountInfo(account_id);
 
-  if (!only_fetch_if_invalid || !info.capabilities.AreAllCapabilitiesKnown()) {
+  if (!only_fetch_if_invalid ||
+      !info.GetAccountCapabilities().AreAllCapabilitiesKnown()) {
     StartFetchingAccountCapabilities(info);
   }
 

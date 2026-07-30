@@ -1,6 +1,6 @@
 Tests that syntax errors in eval are logged into console, contains correct link and doesn't cause browser crash.
 
-VM:1 Uncaught SyntaxError: Unexpected token '}'
+VM:1 Uncaught SyntaxError: Unexpected token '}' (at VM:1:1)
     at foo (<anonymous>:15:11)
 foo @ VM:15
 setTimeout

@@ -56,6 +56,11 @@ bool StructTraits<media::mojom::VideoDecoderConfigDataView,
   if (!input.ReadHdrMetadata(&hdr_metadata))
     return false;
 
+  media::VideoSpatialFormat spatial_format;
+  if (!input.ReadSpatialFormat(&spatial_format)) {
+    return false;
+  }
+
   output->Initialize(codec, profile,
                      input.has_alpha()
                          ? media::VideoDecoderConfig::AlphaMode::kHasAlpha
@@ -66,6 +71,7 @@ bool StructTraits<media::mojom::VideoDecoderConfigDataView,
   output->set_level(input.level());
   output->set_aspect_ratio(aspect_ratio);
   output->set_hdr_metadata(hdr_metadata);
+  output->set_spatial_format(spatial_format);
 
   return true;
 }

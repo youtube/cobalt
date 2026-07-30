@@ -50,7 +50,6 @@ class AuthController;
 class ContextualCueingService;
 class GlicActorPolicyChecker;
 class GlicEnabling;
-class GlicFreController;
 class GlicMetrics;
 class GlicProfileManager;
 class GlicShareImageHandler;
@@ -134,7 +133,6 @@ class GlicKeyedService : public KeyedService, public base::SupportsUserData {
   GlicEnabling& enabling() { return *enabling_.get(); }
 
   GlicMetrics* metrics() { return metrics_.get(); }
-  virtual GlicFreController& fre_controller();
 #if !BUILDFLAG(IS_ANDROID)
   virtual GlicExperimentalOptInController& opt_in_controller();
 #endif
@@ -144,7 +142,7 @@ class GlicKeyedService : public KeyedService, public base::SupportsUserData {
   // for whichever instance is active. Please prefer to use the sharing manager
   // on the `GlicInstance` if you don't need one that automatically tracks the
   // active instance.
-  GlicSharingManager& active_instance_sharing_manager();
+  GlicSharingManagerInternal& active_instance_sharing_manager();
 
   // Returns true if `bwi` has a glic panel showing for its active tab. Virtual
   // for testing.
@@ -277,7 +275,6 @@ class GlicKeyedService : public KeyedService, public base::SupportsUserData {
 
   std::unique_ptr<GlicEnabling> enabling_;
   std::unique_ptr<GlicMetrics> metrics_;
-  std::unique_ptr<GlicFreController> fre_controller_;
 #if !BUILDFLAG(IS_ANDROID)
   std::unique_ptr<GlicExperimentalOptInController> opt_in_controller_;
 #endif

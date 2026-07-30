@@ -12,7 +12,7 @@
 namespace apps {
 
 // AudioFocusWebContentsObserver manages audio focus group ids for apps. This
-// means that apps will have seperate audio focus from the browser.
+// means that apps will have separate audio focus from the browser.
 class AudioFocusWebContentsObserver
     : public content::WebContentsObserver,
       public content::WebContentsUserData<AudioFocusWebContentsObserver> {

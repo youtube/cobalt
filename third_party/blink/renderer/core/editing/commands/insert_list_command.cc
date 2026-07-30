@@ -174,7 +174,7 @@ void InsertListCommand::DoApply(EditingState* editing_state) {
       IsStartOfParagraph(visible_end, kCanSkipOverEditingBoundary)) {
     const VisiblePosition& new_end =
         PreviousPositionOf(visible_end, kCannotCrossEditingBoundary);
-    SelectionInDOMTree::Builder builder;
+    SelectionInDomTree::Builder builder;
     builder.Collapse(visible_start.ToPositionWithAffinity());
     if (new_end.IsNotNull())
       builder.Extend(new_end.DeepEquivalent());
@@ -254,7 +254,7 @@ void InsertListCommand::DoApply(EditingState* editing_state) {
       if (!start_of_last_paragraph.IsConnected())
         return;
       SetEndingSelection(SelectionForUndoStep::From(
-          SelectionInDOMTree::Builder()
+          SelectionInDomTree::Builder()
               .Collapse(start_of_current_paragraph.DeepEquivalent())
               .Build()));
       if (RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()) {
@@ -315,7 +315,7 @@ void InsertListCommand::DoApply(EditingState* editing_state) {
       }
     }
     SetEndingSelection(SelectionForUndoStep::From(
-        SelectionInDOMTree::Builder()
+        SelectionInDomTree::Builder()
             .Collapse(visible_end_of_selection.DeepEquivalent())
             .Build()));
     if (RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()) {
@@ -352,7 +352,7 @@ void InsertListCommand::DoApply(EditingState* editing_state) {
   }
 
   SetEndingSelection(SelectionForUndoStep::From(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .SetAffinity(visible_start_of_selection.Affinity())
           .SetBaseAndExtentDeprecated(
               visible_start_of_selection.DeepEquivalent(),
@@ -490,7 +490,7 @@ bool InsertListCommand::DoApplyForSingleParagraph(
       }
 
       SetEndingSelection(SelectionForUndoStep::From(
-          SelectionInDOMTree::Builder()
+          SelectionInDomTree::Builder()
               .Collapse(Position::FirstPositionInNode(*new_list))
               .Build()));
       if (RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()) {
@@ -860,7 +860,7 @@ void InsertListCommand::MoveParagraphOverPositionIntoEmptyListItem(
     }
   } else {
     SetEndingSelection(SelectionForUndoStep::From(
-        SelectionInDOMTree::Builder()
+        SelectionInDomTree::Builder()
             .Collapse(Position::FirstPositionInNode(*list_item_element))
             .Build()));
     if (RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()) {

@@ -159,6 +159,12 @@
                   '|.*SidePanel.*\.java'\
                   '|.*SideUi.*\.java'
     },
+    'android_side_panel_ui': {
+      'filepath': 'chrome/browser/ui/side_panel_container/'\
+                  '|chrome/browser/ui/side_ui/'\
+                  '|.*SidePanel.*\.java'\
+                  '|.*SideUi.*\.java'
+    },
     'android_startup_metrics': {
       'filepath': 'chrome/android/java/src/org/chromium/chrome/browser/metrics/.*StartupMetricsTracker.java' \
                   '|chrome/android/java/src/org/chromium/chrome/browser/metrics/SimpleStartupForegroundSessionDetector.java'
@@ -2597,9 +2603,9 @@
                            'clhager@google.com',
                            'linyuh@google.com',
                            'mschillaci@google.com',
-                           'nemco@google.com',
                            'shuyng@google.com',
                            'sinansahin@google.com'],
+    'android_side_panel_ui': ['nemco+watch@google.com'],
     'android_startup_metrics': ['pasko+watch@chromium.org'],
     'android_studio': ['wnwen+watch@chromium.org',
                        'nyquist+watch@chromium.org'],

@@ -429,7 +429,7 @@ void SanitizeSubkeyPath(std::wstring* input) {
   // Remove leading backslashes.
   input->erase(0, input->find_first_not_of(L'\\'));
 
-  // Replace any occurances of more than 1 backslash in a row with just 1.
+  // Replace any occurrences of more than 1 backslash in a row with just 1.
   size_t index = input->find_first_of(L"\\");
   while (index != std::wstring::npos) {
     // Remove a second consecutive backslash, and leave index where it is,

@@ -69,6 +69,9 @@ bool IsEmbedderInitiatedLoginEnabled();
 // Whether the ambient UI is enabled.
 bool IsFedCmAmbientUIEnabled();
 
+// Whether native IdPs are enabled.
+bool IsFedCmNativeIdPsEnabled();
+
 }  // namespace content::webid
 
 #endif  // CONTENT_BROWSER_WEBID_FLAGS_H_

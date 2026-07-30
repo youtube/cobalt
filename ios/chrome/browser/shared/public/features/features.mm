@@ -66,7 +66,7 @@ BASE_FEATURE(kSharedHighlightingIOS, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kIOSBrowserEditMenuMetrics, base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kIOSCustomFileUploadMenu, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kIOSCustomFileUploadMenu, base::FEATURE_ENABLED_BY_DEFAULT);
 
 const char kIOSDockingPromoV2VariationParam[] =
     "IOSDockingPromoV2VariationParam";
@@ -233,6 +233,12 @@ DownloadListUIType CurrentDownloadListUIType() {
 }
 
 BASE_FEATURE(kDownloadList, base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kDownloadListPagination, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsDownloadListPaginationEnabled() {
+  return base::FeatureList::IsEnabled(kDownloadListPagination);
+}
 
 const char kEnableServerDrivenBackgroundRefreshSchedule[] =
     "EnableServerDrivenBackgroundRefreshSchedule";
@@ -1043,28 +1049,10 @@ bool IsChromeNextIaShareIconVisible() {
   return IsChromeNextIaEnabled() && kChromeNextIaShareIconVisible.Get();
 }
 
-BASE_FEATURE(kComposeboxAIMDisabled, base::FEATURE_ENABLED_BY_DEFAULT);
-
-bool IsAIOmniboxLaunchedCountry() {
-  variations::VariationsService* variations_service =
-      GetApplicationContext()->GetVariationsService();
-  bool is_launched_country =
-      variations_service &&
-      base::ToLowerASCII(GetCurrentCountryCode(variations_service)) == "us";
-  return is_launched_country;
-}
+BASE_FEATURE(kComposeboxAIMDisabled, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsComposeboxAIMDisabled() {
-  auto* feature_list = base::FeatureList::GetInstance();
-  if (feature_list &&
-      feature_list->IsFeatureOverridden(kComposeboxAIMDisabled.name)) {
-    // Important: If a server-side config applies to this client (i.e. after
-    // accounting for its filters), but the client gets assigned to the default
-    // group, they will still take this code path and receive the state
-    // specified via BASE_FEATURE() above.
-    return base::FeatureList::IsEnabled(kComposeboxAIMDisabled);
-  }
-  return !IsAIOmniboxLaunchedCountry();
+  return base::FeatureList::IsEnabled(kComposeboxAIMDisabled);
 }
 
 NSString* const kNewStartupFlowKey = @"IsEnableNewStartupFlowEnabled";
@@ -1118,6 +1106,12 @@ bool IsUseSceneViewControllerEnabled() {
     return true;
   }
   return base::FeatureList::IsEnabled(kUseSceneViewController);
+}
+
+BASE_FEATURE(kDisplayTracing, base::FEATURE_ENABLED_BY_DEFAULT);
+
+bool IsDisplayTracingEnabled() {
+  return base::FeatureList::IsEnabled(kDisplayTracing);
 }
 
 BASE_FEATURE(kDisableComposeboxFromAIMNTP, base::FEATURE_ENABLED_BY_DEFAULT);

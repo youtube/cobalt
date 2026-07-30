@@ -63,14 +63,14 @@ IN_PROC_BROWSER_TEST_F(GlicActiveInstanceSharingManagerBrowserTest,
   ASSERT_TRUE(instance);
 
   // 4. Pin a tab on the instance's sharing manager.
-  auto& instance_sharing_manager = instance->host().sharing_manager();
+  auto* instance_sharing_manager = instance->GetSharingManager();
 
   // Get a tab handle.
   tabs::TabInterface* tab = browser()->GetActiveTabInterface();
   ASSERT_TRUE(tab);
 
-  instance_sharing_manager.PinTabs({tab->GetHandle()},
-                                   GlicPinTrigger::kUnknown);
+  instance_sharing_manager->PinTabs({tab->GetHandle()},
+                                    GlicPinTrigger::kUnknown);
 
   // 5. Verify the main sharing manager sees it (delegation working).
   EXPECT_TRUE(manager.IsTabPinned(tab->GetHandle()));
@@ -79,7 +79,7 @@ IN_PROC_BROWSER_TEST_F(GlicActiveInstanceSharingManagerBrowserTest,
   // window). Create another browser.
   Browser* browser2 = CreateBrowser(browser()->profile());
   // Helper to activate.
-  browser2->window()->Activate();
+  browser2->GetWindow()->Activate();
 
   // Now `active_instance` for the sharing manager should be null (or whatever
   // is on browser2, which is nothing yet). Note:
@@ -103,9 +103,9 @@ IN_PROC_BROWSER_TEST_F(GlicActiveInstanceSharingManagerBrowserTest,
   // browsers).
   ASSERT_NE(tab->GetHandle(), tab2->GetHandle());
 
-  auto& instance2_sharing_manager = instance2->host().sharing_manager();
-  instance2_sharing_manager.PinTabs({tab2->GetHandle()},
-                                    GlicPinTrigger::kUnknown);
+  auto* instance2_sharing_manager = instance2->GetSharingManager();
+  instance2_sharing_manager->PinTabs({tab2->GetHandle()},
+                                     GlicPinTrigger::kUnknown);
 
   // Verify delegation to instance2: tab2 pinned, tab1 NOT pinned.
   // Use RunUntil to handle potential window activation delays on Linux.
@@ -117,7 +117,7 @@ IN_PROC_BROWSER_TEST_F(GlicActiveInstanceSharingManagerBrowserTest,
   }));
 
   // Switch back to browser1.
-  browser()->window()->Activate();
+  browser()->GetWindow()->Activate();
 
   // Verify delegation to instance1: tab1 pinned, tab2 NOT pinned.
   EXPECT_TRUE(base::test::RunUntil([&]() {
@@ -163,8 +163,8 @@ IN_PROC_BROWSER_TEST_F(GlicActiveInstanceSharingManagerProfileStateTest,
   auto* instance = service->GetInstanceForActiveTab(browser());
   ASSERT_TRUE(instance);
 
-  instance->host().sharing_manager().PinTabs({tab->GetHandle()},
-                                             GlicPinTrigger::kUnknown);
+  instance->GetSharingManager()->PinTabs({tab->GetHandle()},
+                                         GlicPinTrigger::kUnknown);
 
   // Verify delegation is OFF (manager doesn't see it).
   EXPECT_FALSE(manager.IsTabPinned(tab->GetHandle()));

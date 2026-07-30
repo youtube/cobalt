@@ -226,8 +226,8 @@ void DevToolsSession::AttachToAgent(blink::mojom::DevToolsAgent* agent,
       receiver_.BindNewEndpointAndPassRemote(),
       session_.BindNewEndpointAndPassReceiver(),
       io_session_.BindNewPipeAndPassReceiver(), session_state_cookie_.Clone(),
-      script_to_evaluate_on_load_, client_->UsesBinaryProtocol(),
-      client_->IsTrusted(), session_id_, IsWaitingForDebuggerOnStart());
+      client_->UsesBinaryProtocol(), client_->IsTrusted(), session_id_,
+      IsWaitingForDebuggerOnStart());
   session_.set_disconnect_handler(base::BindOnce(
       &DevToolsSession::MojoConnectionDestroyed, base::Unretained(this)));
 
@@ -237,8 +237,9 @@ void DevToolsSession::AttachToAgent(blink::mojom::DevToolsAgent* agent,
         blink::mojom::RendererOriginatingSessionState::New();
   }
 
-  // Only use script_to_evaluate_on_load_ once.
-  script_to_evaluate_on_load_.clear();
+  // Only use script_to_evaluate_on_load_once once.
+  session_state_cookie_->browser_originating_session_state
+      ->script_to_evaluate_on_load_once.clear();
 
   // We're attaching to a new agent while suspended; therefore, messages that
   // have been sent previously either need to be terminated or re-sent once we
@@ -572,8 +573,26 @@ void DevToolsSession::DispatchProtocolResponseOrNotification(
     blink::mojom::DevToolsMessagePtr message,
     const std::string& session_id,
     const bool& is_notification) {
-  base::span<const uint8_t> message_span = message->data;
-  if (!ValidateMessage(session_id, /*expected_has_id=*/!is_notification,
+  // If BigBuffer is backed by shared memory, make a copy so that a compromised
+  // renderer wouldn't be able to mess with the message as we validate it.
+  std::vector<uint8_t> message_bytes;
+  base::span<const uint8_t> message_span;
+  switch (message->data.storage_type()) {
+    case mojo_base::BigBuffer::StorageType::kBytes:
+      message_span = message->data.byte_span();
+      break;
+    case mojo_base::BigBuffer::StorageType::kSharedMemory:
+      message_bytes.assign(message->data.begin(), message->data.end());
+      message_span = message_bytes;
+      break;
+    default:
+      // just keep span empty, this will cause renderer killed for invalid
+      // message below.
+      break;
+  }
+
+  if (message_span.empty() ||
+      !ValidateMessage(session_id, /*expected_has_id=*/!is_notification,
                        message_span)) {
     if (RenderProcessHost* process_host = agent_host->GetProcessHost()) {
       bad_message::ReceivedBadMessage(
@@ -706,7 +725,8 @@ void DevToolsSession::RemoveObserver(ChildObserver* obs) {
 
 
 void DevToolsSession::PrepareForReload(std::string script_to_evaluate_on_load) {
-  script_to_evaluate_on_load_ = std::move(script_to_evaluate_on_load);
+  session_state_cookie_->browser_originating_session_state
+      ->script_to_evaluate_on_load_once = std::move(script_to_evaluate_on_load);
   io_session_->UnpauseAndTerminate();
 }
 

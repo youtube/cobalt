@@ -1064,9 +1064,6 @@ bool ProxyImpl::DataForCommit::IsValid() const {
   return commit_completion_event.get() && commit_state.get() && unsafe_state;
 }
 
-void ProxyImpl::SetShouldThrottleFrameRate(bool flag) {
-  scheduler_->SetShouldThrottleFrameRate(flag);
-}
 
 void ProxyImpl::SetRequestHighFramerate(bool flag) {
   scheduler_->SetRequestHighFramerate(flag);

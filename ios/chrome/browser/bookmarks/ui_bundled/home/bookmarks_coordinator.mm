@@ -122,10 +122,10 @@ enum class PresentedState {
 
 @implementation BookmarksCoordinator {
   // The profile of the current user.
-  base::WeakPtr<ProfileIOS> _currentBrowserState;
-  // The profile to use, might be different from _currentBrowserState if
+  base::WeakPtr<ProfileIOS> _currentProfile;
+  // The profile to use, might be different from _currentProfile if
   // it is incognito.
-  base::WeakPtr<ProfileIOS> _profile;
+  base::WeakPtr<ProfileIOS> _regularProfile;
 
   base::WeakPtr<bookmarks::BookmarkModel> _bookmarkModel;
 
@@ -143,17 +143,18 @@ enum class PresentedState {
   if (self) {
     // Bookmarks are always opened with the main profile, even in
     // incognito mode.
-    _currentBrowserState = browser->GetProfile()->AsWeakPtr();
-    _profile = _currentBrowserState->GetOriginalProfile()->AsWeakPtr();
+    _currentProfile = browser->GetProfile()->AsWeakPtr();
+    _regularProfile = _currentProfile->GetOriginalProfile()->AsWeakPtr();
     _bookmarkModel =
-        ios::BookmarkModelFactory::GetForProfile(_profile.get())->AsWeakPtr();
+        ios::BookmarkModelFactory::GetForProfile(_regularProfile.get())
+            ->AsWeakPtr();
     _mediator = [[BookmarkMediator alloc]
         initWithBookmarkModel:_bookmarkModel.get()
-                        prefs:_profile->GetPrefs()
+                        prefs:_regularProfile->GetPrefs()
         authenticationService:AuthenticationServiceFactory::GetForProfile(
-                                  _profile.get())
+                                  _regularProfile.get())
                   syncService:SyncServiceFactory::GetForProfile(
-                                  _profile.get())];
+                                  _regularProfile.get())];
     _currentPresentedState = PresentedState::NONE;
     CHECK(_bookmarkModel, base::NotFatalUntil::M152) << [self description];
   }
@@ -161,7 +162,7 @@ enum class PresentedState {
 }
 
 - (void)dealloc {
-  CHECK(!_profile, base::NotFatalUntil::M152);
+  CHECK(!_regularProfile, base::NotFatalUntil::M152);
 }
 
 - (void)stop {
@@ -180,8 +181,8 @@ enum class PresentedState {
     case PresentedState::NONE:
       break;
   }
-  _profile = nullptr;
-  _currentBrowserState = nullptr;
+  _regularProfile = nullptr;
+  _currentProfile = nullptr;
   _bookmarkModel = nullptr;
   _mediator = nil;
   CHECK_EQ(PresentedState::NONE, self.currentPresentedState,
@@ -242,8 +243,7 @@ enum class PresentedState {
       showNonModalSignInPromoWithType:NonModalSignInPromoType::kBookmark];
 
   default_browser::NotifyBookmarkAddOrEdit(
-      feature_engagement::TrackerFactory::GetForProfile(
-          _currentBrowserState.get()));
+      feature_engagement::TrackerFactory::GetForProfile(_currentProfile.get()));
 }
 
 - (void)presentBookmarkEditorForURL:(const GURL&)URL {
@@ -259,8 +259,7 @@ enum class PresentedState {
   [self presentEditorForURLNode:bookmark];
 
   default_browser::NotifyBookmarkAddOrEdit(
-      feature_engagement::TrackerFactory::GetForProfile(
-          _currentBrowserState.get()));
+      feature_engagement::TrackerFactory::GetForProfile(_currentProfile.get()));
 }
 
 - (void)presentBookmarks {
@@ -268,8 +267,7 @@ enum class PresentedState {
                             selectingBookmark:nil];
 
   default_browser::NotifyBookmarkManagerOpened(
-      feature_engagement::TrackerFactory::GetForProfile(
-          _currentBrowserState.get()));
+      feature_engagement::TrackerFactory::GetForProfile(_currentProfile.get()));
 }
 
 - (void)presentFolderChooser {
@@ -326,11 +324,11 @@ enum class PresentedState {
   if (urlsToOpen.empty()) {
     default_browser::NotifyBookmarkManagerClosed(
         feature_engagement::TrackerFactory::GetForProfile(
-            _currentBrowserState.get()));
+            _currentProfile.get()));
   } else {
     default_browser::NotifyURLFromBookmarkOpened(
         feature_engagement::TrackerFactory::GetForProfile(
-            _currentBrowserState.get()));
+            _currentProfile.get()));
   }
 
   GURL urlBeforeDismissal;
@@ -453,14 +451,13 @@ enum class PresentedState {
 
   BookmarkStorageType type =
       bookmark_utils_ios::GetBookmarkStorageType(folder, _bookmarkModel.get());
-  SetLastUsedBookmarkFolder(_profile->GetPrefs(), folder, type);
+  SetLastUsedBookmarkFolder(_regularProfile->GetPrefs(), folder, type);
   [self.snackbarCommandsHandler
       showSnackbarMessage:[self.mediator addBookmarks:_URLs toFolder:folder]];
   _URLs = nil;
 
   default_browser::NotifyBookmarkAddOrEdit(
-      feature_engagement::TrackerFactory::GetForProfile(
-          _currentBrowserState.get()));
+      feature_engagement::TrackerFactory::GetForProfile(_currentProfile.get()));
 }
 
 - (void)bookmarksFolderChooserCoordinatorDidCancel:
@@ -474,11 +471,11 @@ enum class PresentedState {
             (BookmarksHomeViewController*)controller
                                 navigationToUrls:
                                     (const std::vector<GURL>&)urls {
-  [self bookmarkHomeViewControllerWantsDismissal:controller
-                                navigationToUrls:urls
-                                     inIncognito:_currentBrowserState
-                                                     ->IsOffTheRecord()
-                                          newTab:NO];
+  [self
+      bookmarkHomeViewControllerWantsDismissal:controller
+                              navigationToUrls:urls
+                                   inIncognito:_currentProfile->IsOffTheRecord()
+                                        newTab:NO];
 }
 
 - (void)bookmarkHomeViewControllerWantsDismissal:
@@ -504,6 +501,9 @@ enum class PresentedState {
            inIncognito:(BOOL)inIncognito
                 newTab:(BOOL)newTab
     urlBeforeDismissal:(const GURL&)urlBeforeDismissal {
+  if (!_currentProfile || !self.browser) {
+    return;
+  }
   BOOL openInForegroundTab = YES;
   WebStateList* webStateList = self.browser->GetWebStateList();
   for (const GURL& url : urls) {
@@ -517,19 +517,19 @@ enum class PresentedState {
 
       // TODO(crbug.com/40508042): See if we need different metrics for 'Open
       // all', 'Open all in incognito' and 'Open in incognito'.
-      bool is_ntp = webStateList->GetActiveWebState()->GetVisibleURL() ==
-                    kChromeUINewTabURL;
+      web::WebState* activeWebState = webStateList->GetActiveWebState();
+      bool is_ntp = activeWebState &&
+                    activeWebState->GetVisibleURL() == kChromeUINewTabURL;
       new_tab_page_uma::RecordNTPAction(
-          _profile->IsOffTheRecord(), is_ntp,
+          _currentProfile->IsOffTheRecord(), is_ntp,
           new_tab_page_uma::ACTION_OPENED_BOOKMARK);
       base::RecordAction(
           base::UserMetricsAction("MobileBookmarkManagerEntryOpened"));
       default_browser::NotifyURLFromBookmarkOpened(
           feature_engagement::TrackerFactory::GetForProfile(
-              _currentBrowserState.get()));
+              _currentProfile.get()));
 
-      if (newTab ||
-          ((!!inIncognito) != _currentBrowserState->IsOffTheRecord())) {
+      if (newTab || ((!!inIncognito) != _currentProfile->IsOffTheRecord())) {
         // Open in new tab if it is specified or target tab mode is different
         // from current tab mode.
         [self openURLInNewTab:url inIncognito:inIncognito inBackground:NO];

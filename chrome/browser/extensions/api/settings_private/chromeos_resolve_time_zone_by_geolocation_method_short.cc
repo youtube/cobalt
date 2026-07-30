@@ -5,6 +5,7 @@
 #include "chrome/browser/extensions/api/settings_private/chromeos_resolve_time_zone_by_geolocation_method_short.h"
 
 #include "ash/constants/ash_pref_names.h"
+#include "base/check_deref.h"
 #include "chrome/browser/ash/system/timezone_resolver_manager.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/browser_process_platform_part.h"
@@ -54,10 +55,12 @@ GeneratedResolveTimezoneByGeolocationMethodShort::GetPrefObject() const {
 
   pref_object.key = pref_name_;
   pref_object.type = settings_api::PrefType::kNumber;
-  pref_object.value = base::Value(static_cast<int>(
-      g_browser_process->platform_part()
-          ->GetTimezoneResolverManager()
-          ->GetEffectiveUserTimeZoneResolveMethod(profile_->GetPrefs(), true)));
+  pref_object.value = base::Value(
+      static_cast<int>(g_browser_process->platform_part()
+                           ->GetTimezoneResolverManager()
+                           ->GetEffectiveUserTimeZoneResolveMethod(
+                               CHECK_DEREF(g_browser_process->local_state()),
+                               profile_->GetPrefs(), true)));
   UpdateTimeZonePrefControlledBy(&pref_object);
 
   return pref_object;
@@ -71,7 +74,8 @@ SetPrefResult GeneratedResolveTimezoneByGeolocationMethodShort::SetPref(
 
   // Check if preference is policy or primary-user controlled.
   if (ash::system::TimeZoneResolverManager::
-          IsTimeZoneResolutionPolicyControlled() ||
+          IsTimeZoneResolutionPolicyControlled(
+              CHECK_DEREF(g_browser_process->local_state())) ||
       !profile_->IsSameOrParent(profile_util::GetPrimaryUserProfile())) {
     return SetPrefResult::PREF_NOT_MODIFIABLE;
   }
@@ -91,6 +95,7 @@ SetPrefResult GeneratedResolveTimezoneByGeolocationMethodShort::SetPref(
       current_value = g_browser_process->platform_part()
                           ->GetTimezoneResolverManager()
                           ->GetEffectiveUserTimeZoneResolveMethod(
+                              CHECK_DEREF(g_browser_process->local_state()),
                               profile_->GetPrefs(), true);
   if (new_value == current_value) {
     return SetPrefResult::SUCCESS;

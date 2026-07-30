@@ -65,6 +65,7 @@ source_set("unit_tests") {
     "//chrome/browser/prefs",
     "//chrome/browser/profiles:profile_util",
     "//chrome/browser/profiles:profiles_extra_parts",
+    "//chrome/browser/ui/views:layout_provider",
     "//chrome/common:constants",
     "//chrome/test:test_support",
     "//components/infobars/content",

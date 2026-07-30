@@ -484,6 +484,7 @@ source_set("browser_tests") {
     "//ash",
     "//ash:test_support",
     "//ash/constants",
+    "//ash/login/resources:login_strings",
     "//ash/public/cpp",
     "//ash/webui/help_app_ui:help_app_ui_pref",
     "//base",

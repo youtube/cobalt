@@ -678,9 +678,11 @@ group("gn_all") {
     if (is_mac || is_win || is_android || is_linux || is_chromeos) {
       deps += [
         "//third_party/crashpad/crashpad:crashpad_tests",
-        "//third_party/crashpad/crashpad/handler:crashpad_handler",
         "//third_party/crashpad/crashpad/tools:crashpad_database_util",
       ]
+      if (!is_android) {
+        deps += [ "//third_party/crashpad/crashpad/handler:crashpad_handler" ]
+      }
     }
 
     if (enable_message_center) {
@@ -1558,7 +1560,7 @@ group("chromium_builder_perf") {
 }
 
 if (!is_ios && !is_android && !is_castos && !is_cronet_build) {
-  group("chromium_builder_asan") {
+  group("blackbox_fuzzing_targets") {
     testonly = true
     write_runtime_deps = "${root_out_dir}/${target_name}.runtime_deps"
 

@@ -143,7 +143,7 @@ UNKNOWN focusable has_input_focus
 ++++++UNKNOWN
 ++++++++STATIC_TEXT label='Range: '
 ++++++++++UNKNOWN label='Range: '
-++++++++SLIDER focusable label='Range:' actions='{SET_VALUE}'
+++++++++SLIDER focusable label='Range:' actions='{SET_VALUE}' value='50'
 ++++++UNKNOWN
 ++++++++STATIC_TEXT label='Reset: '
 ++++++++++UNKNOWN label='Reset: '

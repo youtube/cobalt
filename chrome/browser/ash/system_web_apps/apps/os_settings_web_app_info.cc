@@ -6,7 +6,6 @@
 
 #include <memory>
 
-#include "ash/constants/ash_features.h"
 #include "ash/constants/chrome_webui_url_constants.h"
 #include "ash/constants/webui_url_constants.h"
 #include "ash/public/cpp/resources/grit/ash_public_unscaled_resources.h"
@@ -63,8 +62,4 @@ gfx::Size OSSettingsSystemAppDelegate::GetMinimumWindowSize() const {
 std::vector<std::string>
 OSSettingsSystemAppDelegate::GetAppIdsToUninstallAndReplace() const {
   return {ash::kSettingsAppId, ash::kInternalAppIdSettings};
-}
-
-bool OSSettingsSystemAppDelegate::ShouldAnimateThemeChanges() const {
-  return ash::features::IsSettingsAppThemeChangeAnimationEnabled();
 }

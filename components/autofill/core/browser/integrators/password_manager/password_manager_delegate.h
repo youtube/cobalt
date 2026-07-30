@@ -24,8 +24,7 @@ class PasswordManagerDelegate {
  public:
   virtual ~PasswordManagerDelegate() = default;
 
-  virtual void ShowSuggestions(
-      const autofill::TriggeringField& triggering_field) = 0;
+  virtual void ShowSuggestions(const TriggeringField& triggering_field) = 0;
 
   // Performs password-specific select action for the passed `suggestion`.
   virtual void SelectSuggestion(const Suggestion& suggestion) = 0;
@@ -37,7 +36,7 @@ class PasswordManagerDelegate {
 
 #if BUILDFLAG(IS_ANDROID)
   virtual void ShowKeyboardReplacingSurface(
-      const autofill::PasswordSuggestionRequest& request) = 0;
+      const PasswordSuggestionRequest& request) = 0;
 #endif  // BUILDFLAG(IS_ANDROID)
 
   // Returns a suggestion to sign in with a passkey from another device.

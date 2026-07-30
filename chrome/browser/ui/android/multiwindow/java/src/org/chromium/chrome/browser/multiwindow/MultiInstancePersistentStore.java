@@ -151,8 +151,7 @@ public class MultiInstancePersistentStore {
                             if (onComplete != null) {
                                 final boolean finalSuccess = success;
                                 PostTask.postTask(
-                                        TaskTraits.UI_DEFAULT,
-                                        () -> onComplete.onResult(finalSuccess));
+                                        TaskTraits.UI_DEFAULT, onComplete.bind(finalSuccess));
                             }
                         });
     }

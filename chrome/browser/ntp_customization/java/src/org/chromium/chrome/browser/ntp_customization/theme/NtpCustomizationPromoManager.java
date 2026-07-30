@@ -57,12 +57,12 @@ public class NtpCustomizationPromoManager {
      * Returns whether to trigger the NTP theme tip bottom sheet showing.
      *
      * @param windowAndroid The instance of {@link WindowAndroid}
-     * @param isTablet Whether the current device is a tablet.
+     * @param isLff Whether the current device is a large form factor (LFF) device.
      * @param ntpOpenedCount The number of times that a NTP has been opened.
      */
     public static boolean canTriggerCustomizationBottomSheet(
-            WindowAndroid windowAndroid, boolean isTablet, int ntpOpenedCount) {
-        if (!NtpCustomizationUtils.isNtpThemeCustomizationEnabled(windowAndroid, isTablet)) {
+            WindowAndroid windowAndroid, boolean isLff, int ntpOpenedCount) {
+        if (!NtpCustomizationUtils.isNtpThemeCustomizationEnabled(windowAndroid, isLff)) {
             return false;
         }
 
@@ -97,11 +97,11 @@ public class NtpCustomizationPromoManager {
      *
      * @param tab The current {@link Tab}.
      * @param windowAndroid The instance of {@link WindowAndroid}
-     * @param isTablet Whether the current device is a tablet.
+     * @param isLff Whether the current device is a large form factor (LFF) device.
      */
     public static boolean canShowCustomizationIph(
-            Tab tab, WindowAndroid windowAndroid, boolean isTablet) {
-        if (!NtpCustomizationUtils.isNtpThemeCustomizationEnabled(windowAndroid, isTablet)) {
+            Tab tab, WindowAndroid windowAndroid, boolean isLff) {
+        if (!NtpCustomizationUtils.isNtpThemeCustomizationEnabled(windowAndroid, isLff)) {
             return false;
         }
 
@@ -130,11 +130,10 @@ public class NtpCustomizationPromoManager {
      * Returns whether to trigger the customized NTP theme promo.
      *
      * @param windowAndroid The instance of {@link WindowAndroid}
-     * @param isTablet Whether the current device is a tablet.
+     * @param isLff Whether the current device is a large form factor (LFF) device.
      */
-    public static boolean canTriggerCustomizationPromo(
-            WindowAndroid windowAndroid, boolean isTablet) {
-        return NtpCustomizationUtils.isNtpThemeCustomizationEnabled(windowAndroid, isTablet);
+    public static boolean canTriggerCustomizationPromo(WindowAndroid windowAndroid, boolean isLff) {
+        return NtpCustomizationUtils.isNtpThemeCustomizationEnabled(windowAndroid, isLff);
     }
 
     /**

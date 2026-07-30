@@ -137,9 +137,8 @@ public class UndoTabModelTest {
         boolean shouldLeaveTabSwitcher =
                 ThreadUtils.runOnUiThreadBlocking(
                         () -> {
-                            return layoutManager.isLayoutVisible(LayoutType.TAB_SWITCHER)
-                                    && !layoutManager.isLayoutStartingToHide(
-                                            LayoutType.TAB_SWITCHER);
+                            return layoutManager.isLayoutVisible(LayoutType.HUB)
+                                    && !layoutManager.isLayoutStartingToHide(LayoutType.HUB);
                         });
         if (shouldLeaveTabSwitcher) {
             leaveTabSwitcher(cta);

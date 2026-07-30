@@ -22,6 +22,10 @@ namespace viz {
 class RasterContextProvider;
 }  // namespace viz
 
+namespace cc {
+class TextureBackingContext;
+}
+
 namespace blink {
 class MailboxRef;
 
@@ -35,6 +39,8 @@ class MailboxTextureBacking : public TextureBacking {
   ~MailboxTextureBacking() override;
   const SkImageInfo& GetSkImageInfo() override;
   gpu::Mailbox GetMailbox() const override;
+  void Bind(scoped_refptr<cc::TextureBackingContext>) override;
+  void Unbind() override;
   sk_sp<SkImage> GetSkImageViaReadback() override;
   bool readPixels(const SkImageInfo& dst_info,
                   void* dst_pixels,

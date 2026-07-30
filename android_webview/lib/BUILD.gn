@@ -33,6 +33,7 @@ source_set("lib") {
     "//components/metrics",
     "//components/payments/content/android",
     "//components/safe_browsing/android:safe_browsing_api_handler",
+    "//components/sampling_profiler:profile_params",
     "//components/services/heap_profiling/public/cpp",
     "//components/spellcheck:buildflags",
     "//components/stylus_handwriting/android",

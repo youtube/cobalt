@@ -50,10 +50,16 @@ const openscreen::IPEndpoint GetReceiverStreamingEndpoint() {
 bool CreateDataPipeForStreamType(media::DemuxerStream::Type type,
                                  mojo::ScopedDataPipeProducerHandle* producer,
                                  mojo::ScopedDataPipeConsumerHandle* consumer) {
+  uint32_t capacity = media::GetDefaultDecoderBufferConverterCapacity(type);
+  if (type == media::DemuxerStream::Type::VIDEO) {
+    // Match the 10MB kMaxFrameSize in StreamConsumer to avoid chunked Mojo transfers
+    // and high IPC latency.
+    capacity = 10 * 1024 * 1024;
+  }
   const MojoCreateDataPipeOptions data_pipe_options{
       sizeof(MojoCreateDataPipeOptions), MOJO_CREATE_DATA_PIPE_FLAG_NONE,
       1u /* element_num_bytes */,
-      media::GetDefaultDecoderBufferConverterCapacity(type)};
+      capacity};
   MojoResult result =
       mojo::CreateDataPipe(&data_pipe_options, *producer, *consumer);
   return result == MOJO_RESULT_OK;

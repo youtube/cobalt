@@ -81,6 +81,32 @@ def CheckPromptfooTestCases(input_api, output_api):
     return []
 
 
+def CheckPromptfooEvalAssociation(input_api, output_api):
+    """Checks prompt.md and skill.md files have associated promptfoo evals."""
+    warning = []
+    prompt_or_skill_added = False
+    eval_file_affected = False
+
+    for f in input_api.AffectedFiles(include_deletes=False):
+        abs_path = f.AbsoluteLocalPath()
+        basename = input_api.os_path.basename(abs_path)
+        if f.Action() == 'A' and basename.lower() in ('prompt.md', 'skill.md'):
+            prompt_or_skill_added = True
+        elif f.Action() in ('A', 'M') and basename.endswith('.promptfoo.yaml'):
+            eval_file_affected = True
+
+    if prompt_or_skill_added and not eval_file_affected:
+        warning.append(
+            output_api.PresubmitPromptWarning(
+                'Added prompt.md or skill.md but no promptfoo evaluation '
+                'file (*.promptfoo.yaml) was modified or added.\n'
+                'It is highly encouraged to add an evaluation using '
+                'promptfoo to validate your prompt or skill changes.'
+            )
+        )
+    return warning
+
+
 def CheckSkillFiles(input_api, output_api):
     """Checks that SKILL.md files are valid."""
     return input_api.canned_checks.CheckSkillFiles(input_api, output_api)

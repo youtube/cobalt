@@ -42,26 +42,26 @@ namespace metrics {
 // assumption is only true in Ash Chrome.
 //
 // This class integrates into the MetricsService in order to separately handle
-// UMA reporting consent for unmanaged secondary users. Profile prefs are
-// used to handle the consent for each user. These profile settings interact
+// UMA reporting choice for unmanaged secondary users. Profile prefs are
+// used to handle the choice for each user. These profile settings interact
 // with the local state pref that controls the overall device reporting
-// consent, and UMA uploading logic.
+// choice, and UMA uploading logic.
 //
 // Ownership status needs to be asynchronously retrieved first in order to know
 // whether the device has no ownership yet, or whether the device is owned and
-// we are controlling consent for a secondary user.
+// we are controlling choice for a secondary user.
 //
-// This class does not manage the device owner reporting consent.
-// Device owner consent is handled separately by
+// This class does not manage the device owner reporting choice.
+// Device owner choice is handled separately by
 // |ash::StatsReportingController|. In the future, we may want to consider
 // simplifying the code by using a single class to manage both device owner
-// consent and secondary user consent.
+// choice and secondary user choice.
 class PerUserStateManagerChromeOS
     : public user_manager::UserManager::Observer,
       public user_manager::UserManager::UserSessionStateObserver,
       public ash::SessionTerminationManager::Observer {
  public:
-  // Callback to handle changes in user metrics consent.
+  // Callback to handle changes in user metrics choice.
   using MetricsConsentHandler = base::RepeatingCallback<void(bool)>;
 
   // Does not own params passed by pointer. Caller should ensure that the
@@ -95,8 +95,8 @@ class PerUserStateManagerChromeOS
   // this will return the pseudo-anonymous identifier associated with the user.
   std::optional<std::string> GetCurrentUserId() const;
 
-  // Returns the consent of the current logged in user only if current user's
-  // consent should be applied to metrics reporting.
+  // Returns the choice of the current logged in user only if current user's
+  // choice should be applied to metrics reporting.
   //
   // The cases in which this occurs are:
   //
@@ -106,29 +106,29 @@ class PerUserStateManagerChromeOS
   // If no user is logged in, returns std::nullopt. True means that the user
   // has opted-into metrics collection during the session and False means that
   // the user has opted-out.
-  std::optional<bool> GetCurrentUserReportingConsentIfApplicable() const;
+  std::optional<bool> GetCurrentUserReportingChoiceIfApplicable() const;
 
-  // Sets the metric consent for the current logged in user. If no user is
+  // Sets the metric choice for the current logged in user. If no user is
   // logged in, no-ops.
   //
-  // This method will reset the client id if a user toggles from a non-consent
-  // to consent state AND the user had consented to metrics collection in the
+  // This method will reset the client id if a user toggles from a non-choice
+  // to choice state AND the user had chosen metrics collection in the
   // past. This is to preserve the pseudo-anonymity of <user_id, client_id>
   // identifier.
   //
-  // This call should be used to toggle consent from the UI or during OOBE flow
+  // This call should be used to toggle choice from the UI or during OOBE flow
   // for the current user.
-  void SetCurrentUserMetricsConsent(bool metrics_consent);
+  void SetCurrentUserMetricsChoice(bool user_choice);
 
   // Returns true if |user| should have the ability to toggle user metrics
   // collection for themselves.
   //
   // This will return false for managed device users as well as guest users.
-  bool IsUserAllowedToChangeConsent(user_manager::User* user) const;
+  bool IsUserAllowedToChoose(user_manager::User* user) const;
 
-  // Adds an observer |callback| to be called when a user consent should be
+  // Adds an observer |callback| to be called when a user choice should be
   // applied. This happens either when an applicable user logs in or an
-  // applicable user changes metrics consent.
+  // applicable user changes metrics choice.
   base::CallbackListSubscription AddObserver(
       const MetricsConsentHandler& callback);
 
@@ -153,8 +153,8 @@ class PerUserStateManagerChromeOS
   // implementation.
   virtual void UnsetUserLogStore();
 
-  // Resets the client ID. Should be called when user consent is turned off->on
-  // and the user has opted-in metrics consent in the past. Default uses
+  // Resets the client ID. Should be called when user choice is turned off->on
+  // and the user has opted-in metrics choice in the past. Default uses
   // |metrics_service_client_| implementation.
   virtual void ForceClientIdReset();
 
@@ -187,10 +187,10 @@ class PerUserStateManagerChromeOS
 
   // Returns true if a user log store in the user cryptohome should be used for
   // the current logged in user.
-  // Certain users (ie demo mode sessions with metrics consent on) should not
+  // Certain users (ie demo mode sessions with metrics choice on) should not
   // use a user log store since the user log store will be stored on the
   // temporary cryptohome and will be deleted at the end of the session.
-  // Demo mode sessions with metric consent on should be stored in local state
+  // Demo mode sessions with metric choice on should be stored in local state
   // to be persistent.
   bool ShouldUseUserLogStore() const;
 
@@ -248,11 +248,11 @@ class PerUserStateManagerChromeOS
   void AssignUserLogStore();
 
   // Sets the reporting state for metrics collection. Notifies observers that
-  // user metrics consent has changed to |metrics_consent|.
-  void SetReportingState(bool metrics_consent);
+  // user metrics choice has changed to |user_choice|.
+  void SetReportingState(bool user_choice);
 
-  // Notifies observers of the per-user state change |metrics_consent|.
-  void NotifyObservers(bool metrics_consent);
+  // Notifies observers of the per-user state change |user_choice|.
+  void NotifyObservers(bool user_choice);
 
   // Updates local state prefs based on |metrics_enabled|. If |metrics_enabled|
   // is true,

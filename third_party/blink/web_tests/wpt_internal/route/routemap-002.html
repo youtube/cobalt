@@ -6,11 +6,11 @@
   {
     "routes": [
       {
-        "name": "r1",
+        "name": "--r1",
         "pattern": { "protocol": "http*" }
       },
       {
-        "name": "r2",
+        "name": "--r2",
         "pattern": { "pathname": "/*/match-later" }
       }
     ]
@@ -22,13 +22,13 @@
     height: 7px;
   }
 
-  @navigation (at: r1) {
+  @navigation (at: --r1) {
     #target {
       width: 100px;
     }
   }
 
-  @navigation (at: r2) {
+  @navigation (at: --r2) {
     #target {
       height: 100px;
     }
@@ -67,7 +67,7 @@
 
     await committed.promise;
 
-    // Initially only route r1 should match
+    // Initially only route --r1 should match
     assert_true(r1_matched_in_precommit, "initially");
     assert_false(r2_matched_in_precommit, "initially");
 

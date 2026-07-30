@@ -93,6 +93,10 @@ void RemoteFrameOwner::ClearLastNaturalSizingInfo() {
   }
 }
 
+void RemoteFrameOwner::ClearAllNaturalSizingInfo() {
+  ClearLastNaturalSizingInfo();
+}
+
 void RemoteFrameOwner::SetNeedsOcclusionTracking(bool needs_tracking) {
   if (needs_tracking == needs_occlusion_tracking_)
     return;

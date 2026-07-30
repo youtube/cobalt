@@ -41,7 +41,7 @@ source_set("modals") {
     "//ios/chrome/browser/infobars/ui_bundled/coordinators:translate_public",
     "//ios/chrome/browser/infobars/ui_bundled/presentation",
     "//ios/chrome/browser/net/model:crurl",
-    "//ios/chrome/browser/passwords/model:public",
+    "//ios/chrome/browser/passwords/infobars/public",
     "//ios/chrome/browser/shared/ui/symbols",
     "//ios/chrome/browser/shared/ui/table_view",
     "//ios/chrome/browser/shared/ui/table_view:styler",

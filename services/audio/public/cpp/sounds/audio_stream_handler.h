@@ -5,18 +5,12 @@
 #ifndef SERVICES_AUDIO_PUBLIC_CPP_SOUNDS_AUDIO_STREAM_HANDLER_H_
 #define SERVICES_AUDIO_PUBLIC_CPP_SOUNDS_AUDIO_STREAM_HANDLER_H_
 
-#include <string_view>
-
 #include "base/compiler_specific.h"
 #include "base/component_export.h"
 #include "base/sequence_checker.h"
 #include "base/threading/sequence_bound.h"
 #include "base/time/time.h"
-#include "media/audio/audio_io.h"
 #include "media/base/audio_codecs.h"
-#include "media/base/audio_parameters.h"
-#include "media/base/audio_renderer_sink.h"
-#include "media/base/media_export.h"
 #include "services/audio/public/cpp/sounds/sounds_manager.h"
 
 namespace audio {
@@ -24,23 +18,6 @@ namespace audio {
 // This class sends a sound to the audio output device.
 class COMPONENT_EXPORT(AUDIO_PUBLIC_CPP) AudioStreamHandler {
  public:
-  class TestObserver {
-   public:
-    virtual ~TestObserver() {}
-
-    // Following methods will be called only from the audio thread.
-
-    // Called when AudioStreamContainer was successfully created.
-    virtual void Initialize(media::AudioRendererSink::RenderCallback* callback,
-                            media::AudioParameters params) = 0;
-
-    // Called when AudioOutputStreamProxy::Start() was successfully called.
-    virtual void OnPlay() = 0;
-
-    // Called when AudioOutputStreamProxy::Stop() was successfully called.
-    virtual void OnStop() = 0;
-  };
-
   // `resource_id` for the corresponding audio (WAV or FLAC) data which will be
   // sent to the audio output device.
   AudioStreamHandler(SoundsManager::StreamFactoryBinder stream_factory_binder,
@@ -67,15 +44,13 @@ class COMPONENT_EXPORT(AUDIO_PUBLIC_CPP) AudioStreamHandler {
   // Stops current playback.
   void Stop();
 
+  // Pauses current playback. Returns true iff playback was successfully paused.
+  bool Pause();
+
   // Get the duration of the WAV data passed in.
   base::TimeDelta duration() const;
 
-  static void SetObserverForTesting(TestObserver* observer);
-
  private:
-  friend class AudioStreamHandlerTest;
-  friend class SoundsManagerTest;
-
   class AudioStreamContainer;
 
   base::TimeDelta duration_;

@@ -214,10 +214,12 @@ HlsManifestDemuxerEngine::HlsManifestDemuxerEngine(
     scoped_refptr<base::SequencedTaskRunner> media_task_runner,
     std::unique_ptr<TrackManager> track_manager,
     bool was_already_tainted,
+    url::Origin security_origin,
     GURL root_playlist_uri,
     MediaLog* media_log)
     : media_task_runner_(std::move(media_task_runner)),
       track_manager_(std::move(track_manager)),
+      security_origin_(std::move(security_origin)),
       root_playlist_uri_(std::move(root_playlist_uri)),
       media_log_(media_log->Clone()),
       network_access_(std::make_unique<HlsNetworkAccessImpl>(std::move(dsp))),
@@ -564,6 +566,27 @@ void HlsManifestDemuxerEngine::UpdateMediaPlaylistForRole(
     return;
   }
   auto stream = std::move(maybe_stream).value();
+  std::optional<url::Origin> manifest_origin = std::nullopt;
+
+  switch (stream->SecurityInfo().response_origins.size()) {
+    // A single security origin is the norm, and acceptable.
+    case 1: {
+      manifest_origin = *stream->SecurityInfo().response_origins.begin();
+      break;
+    }
+    case 0: {
+      if (uri.SchemeIs("data")) {
+        // Data URIs have no security origin. Any other url should have one.
+        break;
+      }
+      [[fallthrough]];
+    }
+    default: {
+      std::move(cb).Run({HlsDemuxerStatus::Codes::kInvalidManifest,
+                         "Manifest origin was insecurely indeterminate"});
+      return;
+    }
+  }
 
   auto maybe_info = hls::Playlist::IdentifyPlaylist(stream->AsString());
   if (!maybe_info.has_value()) {
@@ -579,8 +602,15 @@ void HlsManifestDemuxerEngine::UpdateMediaPlaylistForRole(
     return;
   }
 
+  if (!manifest_origin && multivariant_root_) {
+    // Media playlists can be loaded from data urls - in which case we just
+    // use the multivariant origin.
+    manifest_origin = multivariant_root_->SecurityOrigin();
+  }
+
   auto maybe_playlist = ParseMediaPlaylistFromStringSource(
-      stream->AsString(), std::move(uri), (*maybe_info).version);
+      stream->AsString(), std::move(uri),
+      manifest_origin.value_or(security_origin_), (*maybe_info).version);
   if (!maybe_playlist.has_value()) {
     auto error = std::move(maybe_playlist).error();
     RecordParserFailure(error.code());
@@ -675,6 +705,28 @@ void HlsManifestDemuxerEngine::ParsePlaylist(
     return;
   }
   auto stream = std::move(m_stream).value();
+  std::optional<url::Origin> manifest_origin = std::nullopt;
+
+  switch (stream->SecurityInfo().response_origins.size()) {
+    // A single security origin is the norm, and acceptable.
+    case 1: {
+      manifest_origin = *stream->SecurityInfo().response_origins.begin();
+      break;
+    }
+    case 0: {
+      if (parse_info.uri.SchemeIs("data")) {
+        // Data URIs have no security origin. Any other url should have one.
+        break;
+      }
+      [[fallthrough]];
+    }
+    default: {
+      std::move(parse_complete_cb)
+          .Run({HlsDemuxerStatus::Codes::kInvalidManifest,
+                "Manifest origin was insecurely indeterminate"});
+      return;
+    }
+  }
 
   // A four hour movie manifest is ~100Kb.
   if (stream->buffer_size() > 102400) {
@@ -700,7 +752,8 @@ void HlsManifestDemuxerEngine::ParsePlaylist(
         return;
       }
       auto playlist = hls::MultivariantPlaylist::Parse(
-          stream->AsString(), parse_info.uri, (*m_info).version);
+          stream->AsString(), parse_info.uri,
+          manifest_origin.value_or(security_origin_), (*m_info).version);
       if (!playlist.has_value()) {
         auto error = std::move(playlist).error();
         RecordParserFailure(error.code());
@@ -713,13 +766,15 @@ void HlsManifestDemuxerEngine::ParsePlaylist(
                                     std::move(playlist).value());
     }
     case hls::Playlist::Kind::kMediaPlaylist: {
-      if (parse_info.allow_multivariant_playlist) {
-        // Only a root playlist is allowed to be multivariant, so if the root
-        // is only a media playlist, then this entire playback is not
-        // multivariant.
+      if (!manifest_origin && multivariant_root_) {
+        // Media playlists can be loaded from data urls - in which case we just
+        // use the multivariant origin.
+        manifest_origin = multivariant_root_->SecurityOrigin();
       }
+
       auto playlist = ParseMediaPlaylistFromStringSource(
-          stream->AsString(), parse_info.uri, (*m_info).version);
+          stream->AsString(), parse_info.uri,
+          manifest_origin.value_or(security_origin_), (*m_info).version);
       if (!playlist.has_value()) {
         auto error = std::move(playlist).error();
         RecordParserFailure(error.code());
@@ -739,9 +794,10 @@ hls::ParseStatus::Or<scoped_refptr<hls::MediaPlaylist>>
 HlsManifestDemuxerEngine::ParseMediaPlaylistFromStringSource(
     std::string_view source,
     GURL uri,
+    const url::Origin& manifest_origin,
     hls::types::DecimalInteger version) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(media_sequence_checker_);
-  return hls::MediaPlaylist::Parse(source, uri, version,
+  return hls::MediaPlaylist::Parse(source, uri, manifest_origin, version,
                                    multivariant_root_.get());
 }
 

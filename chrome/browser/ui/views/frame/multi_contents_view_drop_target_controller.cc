@@ -348,8 +348,23 @@ void MultiContentsViewDropTargetController::HandleDragUpdate(
       drop_target_parent_view_->height(),
       MultiContentsDropTargetView::DropTargetState::kFull, drag_type);
 
+  // This differs from drop_target_view_->side() in that it is also std::nullopt
+  // if the drop target view is currently hiding.
+  std::optional<MultiContentsDropTargetView::DropSide> currently_showing_side =
+      drop_target_view_->GetVisible() && !drop_target_view_->IsClosing()
+          ? drop_target_view_->side()
+          : std::nullopt;
   MultiContentsDropTargetView::DropSide drop_side;
-  if (point_in_view.x() <= drop_entry_point_width) {
+  if (drag_type == MultiContentsDropTargetView::DragType::kTab &&
+      currently_showing_side == MultiContentsDropTargetView::DropSide::BOTTOM &&
+      point_in_view.y() >=
+          drop_target_parent_view_->height() - drop_entry_point_height) {
+    // If the bottom drop target is already showing during a tab drag, test for
+    // the bottom drop side first so that going to the corner does not close it.
+    // Not needed for link dragging since we do not get drag updates while in
+    // the drop target.
+    drop_side = MultiContentsDropTargetView::DropSide::BOTTOM;
+  } else if (point_in_view.x() <= drop_entry_point_width) {
     drop_side = is_rtl ? MultiContentsDropTargetView::DropSide::END
                        : MultiContentsDropTargetView::DropSide::START;
   } else if (point_in_view.x() >=
@@ -366,9 +381,11 @@ void MultiContentsViewDropTargetController::HandleDragUpdate(
     return;
   }
 
-  // If we are showing the nudge on the wrong side, hide the drop target.
-  if (can_show_nudge && drop_target_view_->GetVisible() &&
-      drop_target_view_->side() != drop_side) {
+  // If we are showing the drop target on the wrong side, hide the drop target.
+  // In the case that we are showing the full drop target during a link drag,
+  // OnDragExited() will have already called HideDropTarget(), but calling it
+  // again should be a no-op.
+  if (currently_showing_side != drop_side) {
     HideDropTarget();
   }
 
@@ -380,7 +397,7 @@ void MultiContentsViewDropTargetController::HandleDragUpdate(
     const bool nudge_timer_running_on_same_side =
         show_nudge_timer_.has_value() && show_nudge_timer_->timer.IsRunning() &&
         show_nudge_timer_->drop_side == drop_side;
-    if (drop_target_view_->side() != drop_side &&
+    if (currently_showing_side != drop_side &&
         !nudge_timer_running_on_same_side) {
       StartNudgeShowTimer(drop_side);
     }
@@ -478,7 +495,7 @@ void MultiContentsViewDropTargetController::StartDropTargetHideTimer() {
 
 void MultiContentsViewDropTargetController::HideDropTarget(
     bool suppress_animation) {
-  if (drop_target_view_->GetVisible()) {
+  if (drop_target_view_->GetVisible() && !drop_target_view_->IsClosing()) {
     drop_target_view_->Hide(suppress_animation);
     drop_target_last_hidden_ = base::Time::Now();
   }

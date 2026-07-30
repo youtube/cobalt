@@ -36,7 +36,11 @@ constexpr GaiaId::Literal kUnknownAccountId("{unknown account id}");
 #endif
 
 // See RunRevokeConsentTest().
-enum class RevokeConsentAction { kRevokeSyncConsent, kClearPrimaryAccount };
+enum class RevokeConsentAction {
+  kRevokeSyncConsent,
+  kClearPrimaryAccount,
+  kRemovePrimaryAccountButKeepTokens
+};
 enum class AuthExpectation { kAuthNormal, kAuthError };
 enum class RemoveAccountExpectation { kKeepAll, kRemoveAll };
 
@@ -199,6 +203,10 @@ void RunRevokeConsentTest(
       break;
     case RevokeConsentAction::kClearPrimaryAccount:
       primary_account_mutator->ClearPrimaryAccount(
+          signin_metrics::ProfileSignout::kTest);
+      break;
+    case RevokeConsentAction::kRemovePrimaryAccountButKeepTokens:
+      primary_account_mutator->RemovePrimaryAccountButKeepTokens(
           signin_metrics::ProfileSignout::kTest);
       break;
   }
@@ -661,5 +669,68 @@ TEST_F(PrimaryAccountMutatorTest, RevokeSyncConsent) {
 
 TEST_F(PrimaryAccountMutatorTest, ClearPrimaryAccount_SigninOnly) {
   RunClearPrimaryAccountTestForSigninOnly();
+}
+
+TEST_F(PrimaryAccountMutatorTest,
+       RemovePrimaryAccountButKeepTokens_NotSignedIn) {
+  base::test::TaskEnvironment task_environment;
+  signin::IdentityTestEnvironment environment;
+
+  signin::IdentityManager* identity_manager = environment.identity_manager();
+  signin::PrimaryAccountMutator* primary_account_mutator =
+      identity_manager->GetPrimaryAccountMutator();
+  EXPECT_FALSE(
+      identity_manager->HasPrimaryAccount(signin::ConsentLevel::kSignin));
+  EXPECT_FALSE(primary_account_mutator->RemovePrimaryAccountButKeepTokens(
+      signin_metrics::ProfileSignout::kTest));
+}
+
+TEST_F(PrimaryAccountMutatorTest, RemovePrimaryAccountButKeepTokens) {
+  RunRevokeConsentTest(RevokeConsentAction::kRemovePrimaryAccountButKeepTokens,
+                       RemoveAccountExpectation::kKeepAll,
+                       AuthExpectation::kAuthNormal);
+}
+
+TEST_F(PrimaryAccountMutatorTest,
+       RemovePrimaryAccountButKeepTokens_SigninOnly) {
+  base::test::TaskEnvironment task_environment;
+  signin::IdentityTestEnvironment environment;
+
+  signin::IdentityManager* identity_manager = environment.identity_manager();
+  signin::PrimaryAccountMutator* primary_account_mutator =
+      identity_manager->GetPrimaryAccountMutator();
+
+  AccountInfo primary_account_info =
+      environment.MakeAccountAvailable(kPrimaryAccountEmail);
+  AccountInfo secondary_account_info =
+      environment.MakeAccountAvailable(kAnotherAccountEmail);
+  EXPECT_EQ(primary_account_mutator->SetPrimaryAccount(
+                primary_account_info.account_id, signin::ConsentLevel::kSignin,
+                signin_metrics::AccessPoint::kStartPage),
+            signin::PrimaryAccountMutator::PrimaryAccountError::kNoError);
+
+  base::RunLoop run_loop;
+  MockIdentityManagerObserver observer(identity_manager);
+  EXPECT_CALL(observer, OnPrimaryAccountChanged)
+      .WillOnce([&](const signin::PrimaryAccountChangeEvent& event) {
+        ASSERT_EQ(event.GetEventTypeFor(signin::ConsentLevel::kSignin),
+                  signin::PrimaryAccountChangeEvent::Type::kCleared);
+        run_loop.Quit();
+      });
+  EXPECT_CALL(observer, OnRefreshTokenRemovedForAccount).Times(0);
+
+  primary_account_mutator->RemovePrimaryAccountButKeepTokens(
+      signin_metrics::ProfileSignout::kTest);
+  run_loop.Run();
+
+  EXPECT_FALSE(
+      identity_manager->HasPrimaryAccount(signin::ConsentLevel::kSignin));
+  EXPECT_FALSE(identity_manager->HasPrimaryAccountWithRefreshToken(
+      signin::ConsentLevel::kSignin));
+
+  EXPECT_TRUE(identity_manager->HasAccountWithRefreshToken(
+      primary_account_info.account_id));
+  EXPECT_TRUE(identity_manager->HasAccountWithRefreshToken(
+      secondary_account_info.account_id));
 }
 #endif  // !BUILDFLAG(IS_CHROMEOS)

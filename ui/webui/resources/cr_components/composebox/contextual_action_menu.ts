@@ -33,10 +33,49 @@ const MENU_WIDTH_PX = 190;
 
 const SHARE_TABS_MENU_WIDTH_PX = 240;
 const SHARE_TABS_FLYOUT_CLOSE_DELAY_MS = 300;
+export const SHARE_TABS_FLYOUT_GAP_PX = 0;
+export const DEFAULT_FLYOUT_WIDTH_PX = 320;
 
 const ALIGNMENT_THRESHOLD_PX = 160;
-const VIEWPORT_BUFFER_PX = 16;
-const MIN_MENU_HEIGHT_PX = 100;
+const ANCHOR_RIGHT_THRESHOLD_PX = 362;
+export const VIEWPORT_BUFFER_PX = 16;
+export const MIN_MENU_HEIGHT_PX = 100;
+export const SHARE_TABS_FLYOUT_MAX_HEIGHT_PX = 344;
+
+// Gap between tab shared menu and context menu in px.
+const MENU_GAP = 0;
+
+// Time in MS to associate 'PointerLeave' events with
+// adding first tab.
+const FIRST_TAB_DELAY = 1000;
+
+interface ShowAtConfig {
+  top?: number;
+  left?: number;
+  width?: number;
+  height?: number;
+  anchorAlignmentX?: AnchorAlignment;
+  anchorAlignmentY?: AnchorAlignment;
+  noOffset?: boolean;
+}
+
+function querySelectorAllShadows(root: Node, selector: string): HTMLElement[] {
+  const results: HTMLElement[] = [];
+
+  if (root instanceof HTMLElement && root.matches(selector)) {
+    results.push(root);
+  }
+
+  if (root instanceof Element && root.shadowRoot) {
+    results.push(...querySelectorAllShadows(root.shadowRoot, selector));
+  }
+
+  root.childNodes.forEach(child => {
+    results.push(...querySelectorAllShadows(child, selector));
+  });
+
+  return results;
+}
 
 export interface ContextualActionMenuElement {
   $: {
@@ -82,7 +121,7 @@ export class ContextualActionMenuElement extends
         type: Boolean,
         attribute: 'context-management-enabled',
       },
-      shareTabsFlyoutOpen_: {type: Boolean},
+      shareTabsFlyoutOpen: {type: Boolean},
       shareTabsFlyoutPosition_: {type: String},
       sharingTabsText_: {type: String},
       uploadButtonDisabled: {type: Boolean},
@@ -102,6 +141,12 @@ export class ContextualActionMenuElement extends
   accessor disableAutoReposition: boolean = false;
   accessor uploadButtonDisabled: boolean = false;
   accessor isSidePanel: boolean = false;
+  accessor shareTabsFlyoutOpen: boolean = false;
+
+  private setShareTabsFlyoutOpen_(open: boolean) {
+    this.shareTabsFlyoutOpen = open;
+    this.fire('share-tabs-flyout-open-changed', {open});
+  }
 
   protected accessor enableMultiTabSelection_: boolean =
       loadTimeData.getBoolean('composeboxContextMenuEnableMultiTabSelection');
@@ -115,13 +160,15 @@ export class ContextualActionMenuElement extends
       loadTimeData.getBoolean('ShowContextMenuHeaders');
   protected accessor contextManagementInComposeboxEnabled_: boolean =
       getLoadTimeBoolean('contextManagementInComposeboxEnabled', false);
-  protected accessor shareTabsFlyoutOpen_: boolean = false;
   protected accessor shareTabsFlyoutPosition_: string = 'right';
   protected accessor sharingTabsText_: string = '';
+  protected closeMenuOnSelect: boolean =
+      !getLoadTimeBoolean('keepMenuOpenOnTabSelectForRealbox', false);
 
   private closeTimer_: number|null = null;
   private pointerOverTrigger_: boolean = false;
   private pointerOverFlyout_: boolean = false;
+  private firstTabBeingAdded_: boolean = false;
 
   protected get supportedTools_(): Map<ToolMode, {
     icon: string,
@@ -151,12 +198,6 @@ export class ContextualActionMenuElement extends
   protected get supportedModels_(): Map<ModelMode, {
     icon: string,
   }> {
-    const thinkingIcon =
-        (loadTimeData.getBoolean('thinkingModelIconUpdate') &&
-         this.inputState &&
-         this.inputState.allowedModels.includes(ModelMode.kGeminiProNoGenUi)) ?
-        'composebox:astrophotographyMode' :
-        'composebox:thinkingModel';
     return new Map([
       [
         ModelMode.kGeminiRegular,
@@ -173,7 +214,7 @@ export class ContextualActionMenuElement extends
       [
         ModelMode.kGeminiPro,
         {
-          icon: thinkingIcon,
+          icon: 'composebox:thinkingModel',
         },
       ],
       [
@@ -183,6 +224,11 @@ export class ContextualActionMenuElement extends
         },
       ],
     ]);
+  }
+
+  override connectedCallback() {
+    super.connectedCallback();
+    this.setAttribute('style', `--menu-gap: ${MENU_GAP}px;`);
   }
 
   override disconnectedCallback() {
@@ -200,6 +246,14 @@ export class ContextualActionMenuElement extends
       }
       this.manageShareTabsInitialFocus_(changedProperties);
     }
+
+    if (changedProperties.has('tabSuggestions') ||
+        changedProperties.has('inputState')) {
+      this.updateScrollable_();
+      if (this.shareTabsFlyoutOpen) {
+        this.updateFlyoutPosition_();
+      }
+    }
   }
   get open(): boolean {
     return this.$.menu.open;
@@ -209,61 +263,125 @@ export class ContextualActionMenuElement extends
     this.$.menu.close();
   }
 
+  private onWindowBlur_ = this.close.bind(this);
+
   getDialog(): HTMLDialogElement {
     return this.$.menu.getDialog();
   }
 
-  private onWindowBlur_ = this.close.bind(this);
+  private computeMenuWidth_(): number {
+    return this.contextManagementInComposeboxEnabled_ ?
+        SHARE_TABS_MENU_WIDTH_PX :
+        MENU_WIDTH_PX;
+  }
+
+  private constrainMenuHeight_(maxHeight: number) {
+    const menuHeight = this.$.menu.getDialog().offsetHeight;
+    if (menuHeight > maxHeight) {
+      const constrainedHeight = Math.max(MIN_MENU_HEIGHT_PX, maxHeight);
+      this.$.menu.style.setProperty(
+          '--contextual-menu-max-height', `${constrainedHeight}px`);
+    } else {
+      this.$.menu.style.removeProperty('--contextual-menu-max-height');
+    }
+  }
+
+  private computeHorizontalLimit_(iconRect: DOMRect): number {
+    let limitX = window.innerWidth;
+    const obstacleButtons = querySelectorAllShadows(
+        document.body,
+        '#voiceSearchButton, .voice-icon, #voiceSearch, #lensSearchButton, #lensIcon, .lens-icon');
+
+    for (const btn of obstacleButtons) {
+      const btnRect = btn.getBoundingClientRect();
+      if (btnRect.width > 0 && btnRect.height > 0) {
+        // Only consider obstacles that are in the same rough horizontal row/band as the anchor
+        if (btnRect.bottom > iconRect.top - 20 &&
+            btnRect.top < iconRect.bottom + 20) {
+          if (btnRect.left > iconRect.left) {
+            limitX = Math.min(limitX, btnRect.left);
+          }
+        }
+      }
+    }
+    return limitX;
+  }
 
   showAt(anchor: HTMLElement) {
+    const menuWidth = this.computeMenuWidth_();
     // Show the menu initially to render it and measure its natural height.
     this.$.menu.showAt(anchor, {
-      width: this.contextManagementInComposeboxEnabled_ ?
-          SHARE_TABS_MENU_WIDTH_PX :
-          MENU_WIDTH_PX,
+      width: menuWidth,
       anchorAlignmentX: AnchorAlignment.AFTER_START,
       anchorAlignmentY: AnchorAlignment.AFTER_END,
       noOffset: true,
     });
 
     const rect = anchor.getBoundingClientRect();
-    const menuHeight = this.$.menu.getDialog().offsetHeight;
+    const iconElement = anchor.querySelector('#entrypointIcon') || anchor;
+    const iconRect = iconElement.getBoundingClientRect();
+
     const spaceBelow = window.innerHeight - rect.bottom;
     const spaceAbove = rect.top;
 
-    // Decide alignment strictly based on the threshold.
-    const anchorAlignmentY = spaceBelow >= ALIGNMENT_THRESHOLD_PX ?
-        AnchorAlignment.AFTER_END :
-        AnchorAlignment.BEFORE_START;
+    // Decide whether to anchor to the right of the plus button.
+    let shouldAnchorRight = spaceBelow < ANCHOR_RIGHT_THRESHOLD_PX &&
+        spaceAbove < ANCHOR_RIGHT_THRESHOLD_PX;
 
-    // Calculate max height based on the chosen alignment.
-    const availableSpace = anchorAlignmentY === AnchorAlignment.AFTER_END ?
-        spaceBelow :
-        spaceAbove;
-    const maxHeight = availableSpace - VIEWPORT_BUFFER_PX;
+    if (shouldAnchorRight) {
+      const limitX = this.computeHorizontalLimit_(iconRect);
+      const menuRight = iconRect.right + menuWidth;
+      if (menuRight > limitX - VIEWPORT_BUFFER_PX) {
+        shouldAnchorRight = false;
+      }
+    }
 
-    // Constrain height if the menu is taller than available space.
-    if (menuHeight > maxHeight) {
-      const constrainedHeight = Math.max(MIN_MENU_HEIGHT_PX, maxHeight);
-      this.$.menu.style.setProperty('--contextual-menu-max-height', `${constrainedHeight}px`);
+    let config: ShowAtConfig = {
+      width: menuWidth,
+      noOffset: true,
+    };
+
+    if (shouldAnchorRight) {
+      this.constrainMenuHeight_(window.innerHeight - VIEWPORT_BUFFER_PX * 2);
+
+      // Override the anchor dimensions to match the icon's dimensions.
+      config = {
+        ...config,
+        top: iconRect.top,
+        left: iconRect.left,
+        width: iconRect.width,
+        height: iconRect.height,
+        anchorAlignmentX: AnchorAlignment.AFTER_END,
+        anchorAlignmentY: AnchorAlignment.AFTER_START,
+      };
     } else {
-      this.$.menu.style.removeProperty('--contextual-menu-max-height');
+      const anchorAlignmentY = spaceBelow >= ALIGNMENT_THRESHOLD_PX ?
+          AnchorAlignment.AFTER_END :
+          AnchorAlignment.BEFORE_START;
+
+      const availableSpace = anchorAlignmentY === AnchorAlignment.AFTER_END ?
+          spaceBelow :
+          spaceAbove;
+      this.constrainMenuHeight_(availableSpace - VIEWPORT_BUFFER_PX);
+
+      config = {
+        ...config,
+        anchorAlignmentX: AnchorAlignment.AFTER_START,
+        anchorAlignmentY,
+      };
     }
 
     // Position the menu using the finalized alignment.
-    this.$.menu.showAt(anchor, {
-      width: this.contextManagementInComposeboxEnabled_ ?
-          SHARE_TABS_MENU_WIDTH_PX :
-          MENU_WIDTH_PX,
-      anchorAlignmentX: AnchorAlignment.AFTER_START,
-      anchorAlignmentY: anchorAlignmentY,
-      noOffset: true,
-    });
+    this.$.menu.showAt(anchor, config);
     window.addEventListener('blur', this.onWindowBlur_);
 
     if (this.contextManagementInComposeboxEnabled_) {
       this.updateSharingTabsText_();
+      if (this.shareTabsFlyoutOpen) {
+        this.updateFlyoutPosition_();
+      }
     }
+    this.updateScrollable_();
   }
 
   private manageShareTabsInitialFocus_(
@@ -535,6 +653,14 @@ export class ContextualActionMenuElement extends
 
     assert(tabInfo);
 
+    // First tab takes ~1000ms to be added. During this time, ignore
+    // `pointerLeave` events caused by adding the first tab.
+    this.firstTabBeingAdded_ = true;
+    WindowProxy.getInstance().setTimeout(() => {
+      this.firstTabBeingAdded_ = false;
+    }, FIRST_TAB_DELAY);
+
+
     if (this.enableMultiTabSelection_ && this.isTabSelected_(tabInfo.tabId)) {
       this.deleteTabContext_(this.disabledTabIds.get(tabInfo.tabId)!);
       return;
@@ -544,13 +670,17 @@ export class ContextualActionMenuElement extends
         ComposeboxContextAddedMethod.CONTEXT_MENU, this.metricsSource_);
   }
 
-  protected deleteTabContext_(uuid: UnguessableToken) {
-    this.fire('delete-tab-context', {uuid: uuid, fromUserAction: true});
+  protected maybeCloseMenuBasedOnEntrypoint_() {
     if (!this.enableMultiTabSelection_ ||
-        this.metricsSource_ === 'NewTabPage' ||
+        (this.closeMenuOnSelect && this.metricsSource_ === 'NewTabPage') ||
         this.metricsSource_ === 'Omnibox') {
       this.$.menu.close();
     }
+  }
+
+  protected deleteTabContext_(uuid: UnguessableToken) {
+    this.fire('delete-tab-context', {uuid: uuid, fromUserAction: true});
+    this.maybeCloseMenuBasedOnEntrypoint_();
   }
 
   protected addTabContext_(tabInfo: TabInfo) {
@@ -561,11 +691,7 @@ export class ContextualActionMenuElement extends
       delayUpload: false,
       origin: TabUploadOrigin.CONTEXT_MENU,
     });
-    if (!this.enableMultiTabSelection_ ||
-        this.metricsSource_ === 'NewTabPage' ||
-        this.metricsSource_ === 'Omnibox') {
-      this.$.menu.close();
-    }
+    this.maybeCloseMenuBasedOnEntrypoint_();
   }
 
   private get hasTabSuggestions_(): boolean {
@@ -578,12 +704,15 @@ export class ContextualActionMenuElement extends
     }
     this.pointerOverTrigger_ = true;
     this.cancelCloseTimer_();
-    this.shareTabsFlyoutOpen_ = true;
+    this.setShareTabsFlyoutOpen_(true);
     this.updateFlyoutPosition_();
   }
 
   protected onShareTabsRowPointerleave_() {
     if (!this.hasTabSuggestions_) {
+      return;
+    }
+    if (this.firstTabBeingAdded_) {
       return;
     }
     this.pointerOverTrigger_ = false;
@@ -594,12 +723,16 @@ export class ContextualActionMenuElement extends
     if (!this.hasTabSuggestions_) {
       return;
     }
+    this.firstTabBeingAdded_ = false;
     this.pointerOverFlyout_ = true;
     this.cancelCloseTimer_();
   }
 
   protected onShareTabsFlyoutPointerleave_() {
     if (!this.hasTabSuggestions_) {
+      return;
+    }
+    if (this.firstTabBeingAdded_) {
       return;
     }
     this.pointerOverFlyout_ = false;
@@ -613,7 +746,7 @@ export class ContextualActionMenuElement extends
       }
       e.preventDefault();
       e.stopPropagation();
-      this.shareTabsFlyoutOpen_ = true;
+      this.setShareTabsFlyoutOpen_(true);
       this.updateFlyoutPosition_();
 
       this.updateComplete.then(() => {
@@ -626,17 +759,50 @@ export class ContextualActionMenuElement extends
     }
   }
 
+  // For navigating the tab submenu once in the submenu.
   protected onShareTabsFlyoutKeydown_(e: KeyboardEvent) {
     if (e.key === 'ArrowLeft' || e.key === 'Escape') {
       e.preventDefault();
       e.stopPropagation();
-      this.shareTabsFlyoutOpen_ = false;
+      this.setShareTabsFlyoutOpen_(false);
+
 
       const row =
           this.shadowRoot.querySelector<HTMLElement>('#shareTabsTrigger');
       if (row) {
         row.focus();
       }
+      return;
+    }
+
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      const flyout =
+          this.shadowRoot.querySelector<HTMLElement>('.share-tabs-flyout');
+      if (!flyout) {
+        return;
+      }
+      const items = Array.from(flyout.querySelectorAll<HTMLElement>(
+          'button.dropdown-item:not([disabled])'));
+      if (items.length === 0) {
+        return;
+      }
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      const focused = this.shadowRoot.activeElement as HTMLElement;
+      const index = items.indexOf(focused);
+
+      const next = e.key === 'ArrowDown';
+      const numOptions = items.length;
+      let nextIndex;
+      if (index === -1) {
+        nextIndex = next ? 0 : numOptions - 1;
+      } else {
+        const delta = next ? 1 : -1;
+        nextIndex = (numOptions + index + delta) % numOptions;
+      }
+      items[nextIndex]!.focus();
     }
   }
 
@@ -651,32 +817,41 @@ export class ContextualActionMenuElement extends
       }
 
       const triggerRect = trigger.getBoundingClientRect();
-      const flyoutWidth = flyout.offsetWidth || 320;
+      const flyoutWidth = flyout.offsetWidth || DEFAULT_FLYOUT_WIDTH_PX;
       const viewportWidth = window.innerWidth;
 
-      if (triggerRect.right + flyoutWidth + 4 <= viewportWidth) {
+      let flyoutTop: number;
+      if (flyoutWidth + SHARE_TABS_FLYOUT_GAP_PX <=
+          viewportWidth - triggerRect.right) {
         this.shareTabsFlyoutPosition_ = 'right';
-        flyout.style.left = '';
+        flyout.style.left = `${triggerRect.right + SHARE_TABS_FLYOUT_GAP_PX}px`;
         flyout.style.right = '';
-      } else if (triggerRect.left >= flyoutWidth + 4) {
+        flyoutTop = triggerRect.top;
+      } else if (triggerRect.left >= flyoutWidth + SHARE_TABS_FLYOUT_GAP_PX) {
         this.shareTabsFlyoutPosition_ = 'left';
-        flyout.style.left = '';
+        flyout.style.left =
+            `${triggerRect.left - flyoutWidth - SHARE_TABS_FLYOUT_GAP_PX}px`;
         flyout.style.right = '';
+        flyoutTop = triggerRect.top;
       } else {
         this.shareTabsFlyoutPosition_ = 'bottom';
+        flyoutTop = triggerRect.bottom + SHARE_TABS_FLYOUT_GAP_PX;
         const rtl = getComputedStyle(this).direction === 'rtl';
         if (rtl) {
-          const maxRight = triggerRect.right - flyoutWidth - 12;
-          const boundedRight = Math.max(0, Math.min(110, maxRight));
-          flyout.style.right = `${boundedRight}px`;
-          flyout.style.left = 'auto';
+          flyout.style.left = `${triggerRect.right - flyoutWidth}px`;
         } else {
-          const maxLeft = viewportWidth - triggerRect.left - flyoutWidth - 12;
-          const boundedLeft = Math.max(0, Math.min(110, maxLeft));
-          flyout.style.left = `${boundedLeft}px`;
-          flyout.style.right = 'auto';
+          flyout.style.left = `${triggerRect.left}px`;
         }
       }
+      flyout.style.top = `${flyoutTop}px`;
+
+      const spaceBelow = window.innerHeight - flyoutTop;
+      const maxFlyoutHeight = Math.max(
+          MIN_MENU_HEIGHT_PX,
+          Math.min(
+              SHARE_TABS_FLYOUT_MAX_HEIGHT_PX,
+              spaceBelow - VIEWPORT_BUFFER_PX));
+      flyout.style.maxHeight = `${maxFlyoutHeight}px`;
     });
   }
 
@@ -686,7 +861,7 @@ export class ContextualActionMenuElement extends
     this.closeTimer_ = WindowProxy.getInstance().setTimeout(() => {
       this.closeTimer_ = null;
       if (!this.pointerOverTrigger_ && !this.pointerOverFlyout_) {
-        this.shareTabsFlyoutOpen_ = false;
+        this.setShareTabsFlyoutOpen_(false);
       }
     }, SHARE_TABS_FLYOUT_CLOSE_DELAY_MS);
   }
@@ -702,7 +877,21 @@ export class ContextualActionMenuElement extends
     this.cancelCloseTimer_();
     this.pointerOverTrigger_ = false;
     this.pointerOverFlyout_ = false;
-    this.shareTabsFlyoutOpen_ = false;
+    this.setShareTabsFlyoutOpen_(false);
+
+    const flyout =
+        this.shadowRoot.querySelector<HTMLElement>('.share-tabs-flyout');
+    if (flyout) {
+      flyout.style.maxHeight = '';
+    }
+  }
+
+  private updateScrollable_() {
+    this.updateComplete.then(() => {
+      const dialog = this.$.menu.getDialog();
+      const isScrollable = dialog.scrollHeight > dialog.offsetHeight;
+      this.$.menu.toggleAttribute('scrollable', isScrollable);
+    });
   }
 
   protected onTabPointerenter_(e: Event) {

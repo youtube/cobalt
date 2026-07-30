@@ -228,8 +228,9 @@ WebInputEventResult PointerEventManager::DispatchPointerEvent(
 Element* PointerEventManager::GetEffectiveTargetForPointerEvent(
     Element* target,
     PointerId pointer_id) {
-  if (pointer_capture_target_.Contains(pointer_id)) {
-    return pointer_capture_target_.at(pointer_id);
+  const auto it = pointer_capture_target_.find(pointer_id);
+  if (it != pointer_capture_target_.end()) {
+    return it->value;
   }
   return target;
 }
@@ -280,8 +281,9 @@ void PointerEventManager::SetElementUnderPointer(PointerEvent* pointer_event,
       !original_element_under_pointer_removed_.Contains(pointer_id) ||
       RuntimeEnabledFeatures::BoundaryEventDispatchTracksNodeRemovalEnabled());
 
-  Element* exited_target = element_under_pointer_.Contains(pointer_id)
-                               ? element_under_pointer_.at(pointer_id)
+  const auto exited_target_it = element_under_pointer_.find(pointer_id);
+  Element* exited_target = exited_target_it != element_under_pointer_.end()
+                               ? exited_target_it->value
                                : nullptr;
   bool original_exited_target_removed =
       original_element_under_pointer_removed_.Contains(pointer_id);
@@ -403,8 +405,10 @@ void PointerEventManager::HandlePointerInterruption(
     // If we are sending a pointercancel we have sent the pointerevent to some
     // target before.
     Element* target = nullptr;
-    if (element_under_pointer_.Contains(pointer_event->pointerId()))
-      target = element_under_pointer_.at(pointer_event->pointerId());
+    const auto it = element_under_pointer_.find(pointer_event->pointerId());
+    if (it != element_under_pointer_.end()) {
+      target = it->value;
+    }
 
     DispatchPointerEvent(
         GetEffectiveTargetForPointerEvent(target, pointer_event->pointerId()),
@@ -1408,15 +1412,10 @@ void PointerEventManager::ProcessPendingPointerCapture(
 void PointerEventManager::RemoveTargetFromPointerCapturingMapping(
     PointerCapturingMap& map,
     const Element* target) {
-  // We could have kept a reverse mapping to make this deletion possibly
-  // faster but it adds some code complication which might not be worth of
-  // the performance improvement considering there might not be a lot of
-  // active pointer or pointer captures at the same time.
-  PointerCapturingMap tmp = map;
-  for (PointerCapturingMap::iterator it = tmp.begin(); it != tmp.end(); ++it) {
-    if (it->value == target)
-      map.erase(it->key);
-  }
+  // No reverse (Element -> PointerId) mapping is kept: there are rarely many
+  // active pointers or captures at once, so a linear scan is cheap enough and
+  // avoids the cost of maintaining a second map on every capture change.
+  map.erase_if([target](const auto& entry) { return entry.value == target; });
 }
 
 void PointerEventManager::RemovePointer(PointerEvent* pointer_event) {
@@ -1474,8 +1473,11 @@ void PointerEventManager::ReleasePointerCapture(PointerId pointer_id) {
 }
 
 Element* PointerEventManager::GetMouseCaptureTarget() {
-  if (pending_pointer_capture_target_.Contains(PointerEventFactory::kMouseId))
-    return pending_pointer_capture_target_.at(PointerEventFactory::kMouseId);
+  const auto it =
+      pending_pointer_capture_target_.find(PointerEventFactory::kMouseId);
+  if (it != pending_pointer_capture_target_.end()) {
+    return it->value;
+  }
   return nullptr;
 }
 
@@ -1494,10 +1496,9 @@ bool PointerEventManager::IsActive(const PointerId pointer_id) const {
 // those managers will keep track of these pointer events.
 bool PointerEventManager::IsPointerIdActiveOnFrame(PointerId pointer_id,
                                                    LocalFrame* frame) const {
+  const auto it = element_under_pointer_.find(pointer_id);
   Element* last_element_receiving_event =
-      element_under_pointer_.Contains(pointer_id)
-          ? element_under_pointer_.at(pointer_id)
-          : nullptr;
+      it != element_under_pointer_.end() ? it->value : nullptr;
   return last_element_receiving_event &&
          last_element_receiving_event->GetDocument().GetFrame() == frame;
 }
@@ -1528,9 +1529,9 @@ void PointerEventManager::SetLastPointerPositionForFrameBoundary(
     Element* new_target) {
   PointerId pointer_id =
       pointer_event_factory_->GetPointerEventId(web_pointer_event);
-  Element* last_target = element_under_pointer_.Contains(pointer_id)
-                             ? element_under_pointer_.at(pointer_id)
-                             : nullptr;
+  const auto it = element_under_pointer_.find(pointer_id);
+  Element* last_target =
+      it != element_under_pointer_.end() ? it->value : nullptr;
   if (!new_target) {
     pointer_event_factory_->RemoveLastPosition(pointer_id);
   } else if (!last_target || new_target->GetDocument().GetFrame() !=

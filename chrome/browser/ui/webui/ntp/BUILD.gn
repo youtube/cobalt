@@ -1,0 +1,96 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+if (!is_android) {
+  # ntp_resource_cache is split out from :ntp so //chrome/browser/ui/webui theme
+  # targets can depend on it without forming a cycle with new_tab_ui.cc (which
+  # constructs ThemeSource/ThemeHandler).
+  source_set("ntp_resource_cache") {
+    sources = [
+      "ntp_resource_cache.cc",
+      "ntp_resource_cache_factory.cc",
+    ]
+    public = [
+      "ntp_resource_cache.h",
+      "ntp_resource_cache_factory.h",
+    ]
+    public_deps = [ "//chrome/browser:browser_public_dependencies" ]
+    deps = [
+      "//base",
+      "//chrome/app:branded_strings",
+      "//chrome/app:generated_resources",
+      "//chrome/app/theme:theme_resources",
+      "//chrome/browser:browser_process",
+      "//chrome/browser:browser_process_platform_part",
+      "//chrome/browser/profiles:profile",
+      "//chrome/browser/signin",
+      "//chrome/browser/themes",
+      "//chrome/browser/ui:layout_constants",
+      "//chrome/browser/ui/color:color_headers",
+      "//chrome/browser/ui/webui/util",
+      "//chrome/common",
+      "//chrome/common:channel_info",
+      "//components/keyed_service/core",
+      "//components/prefs",
+      "//components/search",
+      "//components/strings:components_strings",
+      "//content/public/browser",
+      "//services/network/public/mojom",
+      "//ui/base",
+      "//ui/color",
+      "//ui/gfx",
+      "//ui/native_theme",
+      "//url",
+    ]
+
+    if (is_chromeos) {
+      deps += [
+        "//chrome/browser/ash/policy/core",
+        "//chromeos/strings:strings_grit",
+        "//ui/chromeos",
+      ]
+    }
+  }
+
+  source_set("ntp") {
+    sources = [
+      "core_app_launcher_handler.cc",
+      "new_tab_ui.cc",
+    ]
+    public = [
+      "core_app_launcher_handler.h",
+      "new_tab_ui.h",
+    ]
+    public_deps = [ "//chrome/browser:browser_public_dependencies" ]
+    deps = [
+      ":ntp_resource_cache",
+      "//base",
+      "//chrome/browser/profiles:profile",
+      "//chrome/browser/ui/webui:theme_handler",
+      "//chrome/browser/ui/webui:theme_source",
+      "//chrome/common",
+      "//components/pref_registry",
+      "//components/prefs",
+      "//components/strings:components_strings",
+      "//content/public/browser",
+      "//extensions/browser",
+      "//extensions/common",
+      "//ui/base",
+      "//ui/native_theme",
+    ]
+  }
+
+  source_set("browser_tests") {
+    testonly = true
+    defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+    sources = [ "new_tab_ui_browsertest.cc" ]
+    deps = [
+      ":ntp",
+      "//chrome/browser/ui",
+      "//chrome/test:test_support_ui",
+      "//content/test:test_support",
+      "//testing/gtest",
+    ]
+  }
+}

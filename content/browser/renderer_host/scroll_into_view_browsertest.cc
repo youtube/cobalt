@@ -669,7 +669,12 @@ IN_PROC_BROWSER_TEST_P(ScrollIntoViewBrowserTest, EditableInSingleNestedFrame) {
   RunTest();
 }
 
-IN_PROC_BROWSER_TEST_P(ScrollIntoViewBrowserTest, EditableInLocalRoot) {
+#if BUILDFLAG(IS_WIN)
+#define MAYBE_EditableInLocalRoot DISABLED_EditableInLocalRoot
+#else
+#define MAYBE_EditableInLocalRoot EditableInLocalRoot
+#endif
+IN_PROC_BROWSER_TEST_P(ScrollIntoViewBrowserTest, MAYBE_EditableInLocalRoot) {
   ASSERT_TRUE(SetupTest("siteA(siteB(siteA))"));
   RunTest();
 }

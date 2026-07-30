@@ -47,7 +47,6 @@
 #include "chrome/browser/ui/views/web_apps/web_app_install_intro_view.h"
 #include "chrome/browser/ui/views/web_apps/web_app_install_options_view.h"
 #include "chrome/browser/ui/views/web_apps/web_app_install_progress_view.h"
-#include "chrome/browser/ui/views/web_apps/web_app_testing_flags.h"
 #include "chrome/browser/ui/web_applications/web_app_dialogs.h"
 #include "chrome/browser/ui/web_applications/web_app_info_image_source.h"
 #include "chrome/browser/web_applications/model/dialog_image_info.h"
@@ -423,8 +422,18 @@ void WebAppInstallFlowDialogDelegate::OnAccept() {
   install_tracker_->ReportResult(webapps::MlInstallUserResponse::kAccepted);
   received_user_response_ = true;
 
+  bool should_auto_respond_for_test = false;
+  InstallDialogTestResponse auto_response =
+      GetPwaInstallationDialogAutoResponseForTesting();  // IN-TEST
+  if (auto_response != InstallDialogTestResponse::kNone) {
+    if (auto_response == InstallDialogTestResponse::kAcceptAndLaunch ||
+        auto_response == InstallDialogTestResponse::kAcceptNoLaunch) {
+      should_auto_respond_for_test = true;
+    }
+  }
+
   auto result_callback =
-      test::g_auto_accept_all_install_dialogs_for_testing
+      should_auto_respond_for_test
           ? base::BindOnce(&WebAppInstallFlowDialogDelegate::
                                OnAutoAcceptInstallResultForTesting,  // IN-TEST
                            AsWeakPtr())
@@ -665,11 +674,19 @@ void WebAppInstallFlowDialogDelegate::
         bool success,
         base::OnceClosure reparent_closure) {  // IN-TEST
   CHECK_IS_TEST();
-  // Decline/Cancel the dialog. Note: Since we are in mock testing and bypassing
-  // standard step transitions, closing the dialog this way results in metric
-  // close reasons of `views::Widget::ClosedReason::kCancelButtonClicked`. This
-  // is expected and does not affect functional browser tests.
-  DeclineForTesting();  // IN-TEST
+
+  if (GetPwaInstallationDialogAutoResponseForTesting() ==  // IN-TEST
+          InstallDialogTestResponse::kAcceptAndLaunch &&
+      success && reparent_closure) {
+    std::move(reparent_closure).Run();
+  } else {
+    // Decline/Cancel the dialog. Note: Since we are in mock testing and
+    // bypassing standard step transitions, closing the dialog this way
+    // results in metric close reasons of
+    // `views::Widget::ClosedReason::kCancelButtonClicked`. This is expected and
+    // does not affect functional browser tests.
+    DeclineForTesting();  // IN-TEST
+  }
 }
 
 void WebAppInstallFlowDialogDelegate::DeclineForTesting() {  // IN-TEST
@@ -894,11 +911,14 @@ WebAppInstallFlowDialogDelegate::Show(
     return nullptr;
   }
   delegate_weak_ptr->OnWidgetShownStartTracking(widget);
-  if (test::g_auto_decline_install_dialogs_for_testing) {
-    delegate_weak_ptr->DeclineForTesting();  // IN-TEST
-  }
-  if (test::g_auto_accept_all_install_dialogs_for_testing) {
-    delegate_weak_ptr->AcceptForTesting();  // IN-TEST
+  InstallDialogTestResponse auto_response =
+      GetPwaInstallationDialogAutoResponseForTesting();  // IN-TEST
+  if (auto_response != InstallDialogTestResponse::kNone) {
+    if (auto_response == InstallDialogTestResponse::kDeny) {
+      delegate_weak_ptr->DeclineForTesting();  // IN-TEST
+    } else {
+      delegate_weak_ptr->AcceptForTesting();  // IN-TEST
+    }
   }
   return delegate_weak_ptr;
 }

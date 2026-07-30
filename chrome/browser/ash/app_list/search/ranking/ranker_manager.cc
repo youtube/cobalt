@@ -50,11 +50,6 @@ RankerManager::RankerManager(Profile* profile) {
   mrfu_result_params.max_items = 200u;
 
   // Category ranking parameters.
-  FtrlOptimizer::Params ftrl_category_params;
-  ftrl_category_params.alpha = 0.1;
-  ftrl_category_params.gamma = 0.1;
-  ftrl_category_params.num_experts = 2u;
-
   MrfuCache::Params mrfu_category_params;
   mrfu_category_params.half_life = 20.0f;
   mrfu_category_params.boost_factor = 7.0f;
@@ -85,7 +80,7 @@ RankerManager::RankerManager(Profile* profile) {
 
   // 3b. Ensembling between MRFU and normalized score ranking.
   auto ftrl_ranker = std::make_unique<FtrlRanker>(
-      FtrlRanker::RankingKind::kResults, ftrl_result_params,
+      ftrl_result_params,
       ash::PersistentProto<FtrlOptimizerProto>(
           state_dir.AppendASCII("ftrl_results.pb"), kStandardWriteDelay));
   ftrl_ranker->AddExpert(std::make_unique<ResultScoringShim>(

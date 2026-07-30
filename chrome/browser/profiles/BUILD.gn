@@ -212,6 +212,8 @@ source_set("misc") {
 
   if (is_win) {
     sources += [
+      "profile_load_tracker_win.cc",
+      "profile_load_tracker_win.h",
       "profile_shortcut_manager_win.cc",
       "profile_shortcut_manager_win.h",
     ]
@@ -702,6 +704,7 @@ source_set("profiles_extra_parts_impl") {
     "//chrome/browser/privacy_sandbox/notice:factory",
     "//chrome/browser/private_ai",
     "//chrome/browser/private_insights",
+    "//chrome/browser/private_verification_tokens",
     "//chrome/browser/push_messaging",
     "//chrome/browser/reading_list",
     "//chrome/browser/reduce_accept_language",
@@ -729,11 +732,13 @@ source_set("profiles_extra_parts_impl") {
     "//chrome/browser/supervised_user",
     "//chrome/browser/sync",
     "//chrome/browser/tab_group_sync:factories",
+    "//chrome/browser/tips",
     "//chrome/browser/ui",
     "//chrome/browser/ui:ui_features",
     "//chrome/browser/ui/autofill",
     "//chrome/browser/ui/find_bar",
     "//chrome/browser/ui/hats",
+    "//chrome/browser/ui/omnibox",
     "//chrome/browser/ui/prefs",
     "//chrome/browser/ui/safety_hub",
     "//chrome/browser/ui/startup",
@@ -822,12 +827,12 @@ source_set("profiles_extra_parts_impl") {
       "//chrome/browser/ui/global_media_controls",
       "//chrome/browser/ui/lens",
       "//chrome/browser/ui/media_router",
-      "//chrome/browser/ui/omnibox",
       "//chrome/browser/ui/performance_controls",
       "//chrome/browser/ui/read_anything",
       "//chrome/browser/ui/tabs/saved_tab_groups",
       "//chrome/browser/ui/views/side_panel",
       "//chrome/browser/ui/waap",
+      "//chrome/browser/ui/webui/ntp:ntp_resource_cache",
       "//chrome/browser/ui/webui/signin",
       "//chrome/browser/ui/webui/signin:login_ui_service",
       "//chrome/browser/user_education",
@@ -853,7 +858,6 @@ source_set("profiles_extra_parts_impl") {
       "//chrome/browser/ash/policy/dlp",
       "//chrome/browser/ash/policy/skyvault",
       "//chrome/browser/ash/scanner",
-      "//chrome/browser/chromeos/cros_apps",
       "//chrome/browser/chromeos/enterprise/cloud_storage",
       "//chrome/browser/chromeos/extensions/telemetry/api:keyed_service_factory",
       "//chrome/browser/chromeos/policy/dlp",
@@ -876,6 +880,7 @@ source_set("profiles_extra_parts_impl") {
     deps += [
       "//chrome/browser/enterprise/network_header_injection",
       "//chrome/browser/multistep_filter",
+      "//components/enterprise/network_header_injection/core",
     ]
   }
 

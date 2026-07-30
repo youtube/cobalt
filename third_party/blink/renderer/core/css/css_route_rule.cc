@@ -4,6 +4,7 @@
 
 #include "third_party/blink/renderer/core/css/css_route_rule.h"
 
+#include "third_party/blink/renderer/core/css/css_markup.h"
 #include "third_party/blink/renderer/core/css/style_rule_route.h"
 
 namespace blink {
@@ -16,7 +17,11 @@ CSSRouteRule::~CSSRouteRule() = default;
 String CSSRouteRule::cssText() const {
   StringBuilder result;
   result.Append("@route ");
-  NOTREACHED() << "Not implemented.";
+  SerializeIdentifier(route_rule_->GetName(), result);
+  // TODO(crbug.com/436805487): Serialize descriptors. There are also
+  // alternative spec proposals here, so better wait....
+  result.Append(" {\n}");
+  return result.ToString();
 }
 
 void CSSRouteRule::Reattach(StyleRuleBase* rule) {

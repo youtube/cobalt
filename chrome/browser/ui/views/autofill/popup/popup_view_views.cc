@@ -323,7 +323,9 @@ bool PopupViewViews::Show(
   MaybeAnnounceCurrentTabAndFootnote();
   MaybeAnnouncePasswordRecoveryPopup();
   MaybeAnnounceLoadingState();
-  MaybeA11yFocusInformationalSuggestion();
+  if (!MaybeA11yFocusInformationalSuggestion()) {
+    return false;
+  }
 
   return !CanActivate() || (GetWidget() && GetWidget()->IsActive());
 }
@@ -811,7 +813,9 @@ void PopupViewViews::OnSuggestionsChanged(bool prefer_prev_arrow_side) {
   MaybeAutoSelectSuggestion();
   MaybeAnnouncePasswordRecoveryPopup();
   MaybeAnnounceLoadingState();
-  MaybeA11yFocusInformationalSuggestion();
+  if (!MaybeA11yFocusInformationalSuggestion()) {
+    return;
+  }
   ShowIPHFeaturePromos();
 }
 
@@ -1111,11 +1115,14 @@ void PopupViewViews::InitViews() {
       views::BoxLayout::Orientation::kVertical));
 
   if (search_bar_config_) {
+    const bool is_at_memory =
+        controller_ &&
+        controller_->GetMainFillingProduct() == FillingProduct::kAtMemory;
     search_bar_ = AddChildView(std::make_unique<PopupSearchBarView>(
         search_bar_config_->placeholder, *this,
-        controller_ &&
-            controller_->GetMainFillingProduct() == FillingProduct::kAtMemory,
-        controller_ && controller_->IsSearching()));
+        /*show_indicator=*/is_at_memory,
+        /*is_loading=*/controller_ && controller_->IsSearching(),
+        /*show_search_icon_sparkle=*/is_at_memory));
     search_bar_->SetProperty(views::kMarginsKey,
                              gfx::Insets::VH(GetContentsVerticalPadding(), 0));
     AddChildView(std::make_unique<PopupSeparatorView>(/*vertical_padding=*/0));
@@ -1364,7 +1371,8 @@ void PopupViewViews::CreateSuggestionViews() {
     } else if (suggestions[current_line_number].type ==
                SuggestionType::kPersonalContextNotice) {
       rows_.push_back(footer_container_->AddChildView(
-          std::make_unique<PopupPersonalContextNoticeView>()));
+          std::make_unique<PopupPersonalContextNoticeView>(
+              controller(), current_line_number)));
     } else {
       rows_.push_back(footer_container_->AddChildView(CreatePopupRowView(
           controller(), /*a11y_selection_delegate=*/*this,
@@ -1686,21 +1694,23 @@ bool PopupViewViews::SelectParentPopupContentCell() {
   return true;
 }
 
-void PopupViewViews::MaybeA11yFocusInformationalSuggestion() {
+bool PopupViewViews::MaybeA11yFocusInformationalSuggestion() {
   if (rows_.size() != 1) {
-    return;
+    return true;
   }
 
   if (auto* warning_view = std::get_if<PopupWarningView*>(&rows_[0]);
       warning_view && *warning_view) {
     PopupWarningView* view_ptr = *warning_view;
-    TrackAndRun(
+    return TrackAndRun(
         view_ptr, [this, view_ptr]() { NotifyAXSelection(*view_ptr); },
         [view_ptr]() {
           view_ptr->NotifyAccessibilityEventDeprecated(ax::mojom::Event::kFocus,
                                                        true);
         });
   }
+
+  return true;
 }
 
 base::WeakPtr<AutofillPopupView> PopupViewViews::GetWeakPtr() {

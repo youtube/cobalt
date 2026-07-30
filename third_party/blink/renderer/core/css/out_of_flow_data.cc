@@ -12,7 +12,7 @@
 namespace blink {
 
 void OutOfFlowData::Trace(Visitor* visitor) const {
-  ElementRareDataField::Trace(visitor);
+  NodeRareDataField::Trace(visitor);
   visitor->Trace(last_successful_position_fallback_);
   visitor->Trace(new_successful_position_fallback_);
   visitor->Trace(remembered_scroll_offsets_);

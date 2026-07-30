@@ -42,14 +42,8 @@ class ZeroStateSuggestionsService {
   void FetchZeroStateSuggestions(
       base::OnceCallback<void(NSArray<NSString*>*)> callback);
 
-  // Clears cached suggestions and resets can_apply state.
+  // Clears cached suggestions.
   void ClearCachedSuggestions();
-
-  // Sets whether model-led suggestions can be applied.
-  void SetCanApply(bool can_apply);
-
-  // Returns whether model-led suggestions can be applied.
-  bool CanApply() const;
 
  private:
   // Adding test classes as friend to facilitate setting state.
@@ -76,9 +70,6 @@ class ZeroStateSuggestionsService {
 
   // The URL for which the suggestions are cached.
   GURL suggestions_url_;
-
-  // Whether the zero-state suggestions can be applied to the current page.
-  bool can_apply_ = false;
 
   // Weak pointer factory.
   base::WeakPtrFactory<ZeroStateSuggestionsService> weak_ptr_factory_{this};

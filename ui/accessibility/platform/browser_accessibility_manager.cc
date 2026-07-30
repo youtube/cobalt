@@ -164,7 +164,9 @@ BrowserAccessibilityManager::BrowserAccessibilityManager(
       node_id_delegate_(node_id_delegate),
       user_is_navigating_away_(false),
       device_scale_factor_(1.0f),
-      use_custom_device_scale_factor_for_testing_(false) {}
+      use_custom_device_scale_factor_for_testing_(false) {
+  ax_tree()->language_detection_manager->RegisterLanguageDetectionObserver();
+}
 
 BrowserAccessibilityManager::~BrowserAccessibilityManager() = default;
 
@@ -738,17 +740,6 @@ bool BrowserAccessibilityManager::OnAccessibilityEvents(
     // the platform independent events have already fired.
     // Some screen readers need a focus event in order to work properly.
     FireFocusEventsIfNeeded();
-
-    // Perform the initial run of language detection.
-    ax_tree()->language_detection_manager->DetectLanguages();
-    ax_tree()->language_detection_manager->LabelLanguages();
-
-    // After initial language detection, enable language detection for future
-    // content updates in order to support dynamic content changes.
-    //
-    // If the LanguageDetectionDynamic feature flag is not enabled then this
-    // is a no-op.
-    ax_tree()->language_detection_manager->RegisterLanguageDetectionObserver();
   }
 
   // Allow derived classes to do event post-processing. This must run after

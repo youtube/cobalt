@@ -7,6 +7,7 @@
 namespace page_actions {
 
 MockPageActionController::MockPageActionController() {
+  ON_CALL(*this, ActionExists(testing::_)).WillByDefault(testing::Return(true));
   ON_CALL(*this, AddObserver(testing::_, testing::_))
       .WillByDefault(
           [&](actions::ActionId id,

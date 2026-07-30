@@ -9,10 +9,11 @@
 #include "base/time/time.h"
 #include "base/values.h"
 #include "content/common/content_export.h"
+#include "content/public/browser/document_user_data.h"
 #include "content/public/browser/global_routing_id.h"
-#include "content/public/browser/web_contents_observer.h"
-#include "content/public/browser/web_contents_user_data.h"
-#include "mojo/public/cpp/bindings/receiver_set.h"
+#include "content/public/browser/render_frame_host.h"
+#include "content/public/browser/visibility.h"
+#include "mojo/public/cpp/bindings/receiver.h"
 #include "net/base/network_anonymization_key.h"
 #include "services/network/public/mojom/declarative_performance_observer.mojom.h"
 #include "third_party/blink/public/mojom/timing/declarative_performance_observer.mojom.h"
@@ -20,12 +21,23 @@
 
 namespace content {
 
+class NavigationHandle;
+class StoragePartition;
+
+// Observes and buffers performance timeline entries (navigation timing,
+// visibility state changes, and performance marks) for a single committed
+// document.
+//
+// Created per-document when a navigation commits with a valid
+// Performance-Observer policy. Buffers entries in memory up to a session quota
+// (or session end) and queues reporting beacons via the NetworkContext. Relies
+// on DeclarativePerformanceObserverCoordinator to forward tab-scoped
+// WebContentsObserver lifecycle updates (visibility flips, BFCache
+// transitions).
 class CONTENT_EXPORT DeclarativePerformanceObserver
-    : public WebContentsObserver,
-      public WebContentsUserData<DeclarativePerformanceObserver>,
+    : public DocumentUserData<DeclarativePerformanceObserver>,
       public blink::mojom::DeclarativePerformanceObserverHost {
  public:
-  explicit DeclarativePerformanceObserver(WebContents* web_contents);
   ~DeclarativePerformanceObserver() override;
 
   DeclarativePerformanceObserver(const DeclarativePerformanceObserver&) =
@@ -33,14 +45,12 @@ class CONTENT_EXPORT DeclarativePerformanceObserver
   DeclarativePerformanceObserver& operator=(
       const DeclarativePerformanceObserver&) = delete;
 
-  // WebContentsObserver overrides:
-  void DidFinishNavigation(NavigationHandle* navigation_handle) override;
-  void OnVisibilityChanged(Visibility visibility) override;
-  void RenderFrameDeleted(RenderFrameHost* render_frame_host) override;
-  void RenderFrameHostStateChanged(
-      RenderFrameHost* render_frame_host,
-      RenderFrameHost::LifecycleState old_state,
-      RenderFrameHost::LifecycleState new_state) override;
+  // Called by DeclarativePerformanceObserverCoordinator:
+  void OnVisibilityChanged(Visibility visibility);
+  void OnFrameDeleted();
+  void OnEnterBFCache();
+  void OnDidFinishNavigation(NavigationHandle* navigation_handle);
+  void OnPrerenderActivation(NavigationHandle* navigation_handle);
 
   // blink::mojom::DeclarativePerformanceObserverHost:
   void DidObservePerformanceEntries(
@@ -56,15 +66,16 @@ class CONTENT_EXPORT DeclarativePerformanceObserver
       StoragePartition* storage_partition);
 
  private:
-  friend class WebContentsUserData<DeclarativePerformanceObserver>;
+  friend class DocumentUserData<DeclarativePerformanceObserver>;
+  DeclarativePerformanceObserver(RenderFrameHost* rfh,
+                                 NavigationHandle* navigation_handle);
 
   void BindReceiver(
-      RenderFrameHost* rfh,
       mojo::PendingReceiver<blink::mojom::DeclarativePerformanceObserverHost>
           receiver);
 
   void AddEntryToBuffer(base::DictValue entry);
-  void FlushMetrics(RenderFrameHost* rfh);
+  void FlushMetrics();
   void AppendSessionEndEntry();
 
   std::string reporting_endpoint_;
@@ -72,18 +83,17 @@ class CONTENT_EXPORT DeclarativePerformanceObserver
   std::optional<base::flat_set<std::string>> include_user_timing_;
   base::ListValue buffered_entries_;
   bool started_in_foreground_ = false;
+  bool is_session_ended_ = false;
   base::TimeTicks navigation_start_;
   GURL committed_url_;
   net::NetworkAnonymizationKey network_anonymization_key_;
   base::UnguessableToken reporting_source_;
-  GlobalRenderFrameHostId active_rfh_;
   raw_ptr<StoragePartition> storage_partition_for_testing_ = nullptr;
 
-  mojo::ReceiverSet<blink::mojom::DeclarativePerformanceObserverHost,
-                    GlobalRenderFrameHostId>
-      receivers_;
+  mojo::Receiver<blink::mojom::DeclarativePerformanceObserverHost> receiver_{
+      this};
 
-  WEB_CONTENTS_USER_DATA_KEY_DECL();
+  DOCUMENT_USER_DATA_KEY_DECL();
 };
 
 }  // namespace content

@@ -197,8 +197,7 @@ class FieldClassificationModelHandlerTest : public testing::Test {
     }
   }
 
-  base::test::ScopedFeatureList features_{
-      autofill::features::kAutofillModelPredictions};
+  base::test::ScopedFeatureList features_{features::kAutofillModelPredictions};
   std::unique_ptr<optimization_guide::TestOptimizationGuideModelProvider>
       model_provider_;
   base::test::TaskEnvironment task_environment_;

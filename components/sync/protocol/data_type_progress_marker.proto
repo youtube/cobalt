@@ -105,6 +105,13 @@ message GarbageCollectionDirective {
     repeated string active_collaboration_ids = 1;
   }
   optional CollaborationGarbageCollection collaboration_gc = 5;
+
+  // When `clear_metadata` is true, the client must clear all local sync
+  // metadata (like server IDs and versions) for this data type, but keep the
+  // local user data. This is a modern equivalent of `MIGRATION_DONE` and
+  // `CLIENT_DATA_OBSOLETE` errors, allowing the server to trigger a re-sync and
+  // metadata reset without stopping the data type.
+  optional bool clear_metadata = 6;
 }
 
 // This message communicates additional per-type information related to

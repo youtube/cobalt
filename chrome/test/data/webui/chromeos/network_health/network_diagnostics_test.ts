@@ -13,7 +13,7 @@ import {Icons} from 'chrome://resources/ash/common/network_health/network_diagno
 import type {NetworkHealthContainerElement} from 'chrome://resources/ash/common/network_health/network_health_container.js';
 import type {RoutineGroupElement} from 'chrome://resources/ash/common/network_health/routine_group.js';
 import {RoutineVerdict} from 'chrome://resources/mojo/chromeos/services/network_health/public/mojom/network_diagnostics.mojom-webui.js';
-import {assertEquals, assertFalse, assertGT, assertNotReached, assertTrue} from 'chrome://webui-test/chromeos/chai_assert.js';
+import {assertEquals, assertFalse, assertGT, assertNotReached, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {isVisible} from 'chrome://webui-test/chromeos/test_util.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 
@@ -80,7 +80,7 @@ suite('NetworkDiagnosticsTest', () => {
       const icon =
           group.shadowRoot!.querySelector<HTMLImageElement>('.routine-icon');
       assertTrue(!!icon);
-      const src = icon!.src;
+      const src = icon.src;
       assertTrue(!!src);
       switch (verdict) {
         case RoutineVerdict.kNoProblem:
@@ -107,15 +107,15 @@ suite('NetworkDiagnosticsTest', () => {
           group.shadowRoot!.querySelector<NetworkHealthContainerElement>(
               'network-health-container');
       assertTrue(!!container);
-      const header = container!.shadowRoot!.querySelector<HTMLElement>(
-          '.container-header');
+      const header =
+          container.shadowRoot!.querySelector<HTMLElement>('.container-header');
       assertTrue(!!header);
-      header!.click();
+      header.click();
       await flushTasks();
       assertTrue(group.expanded.valueOf());
 
       const routineContainers =
-          container!.querySelectorAll<HTMLElement>('.routine-container');
+          container.querySelectorAll<HTMLElement>('.routine-container');
       assertGT(routineContainers.length, 0);
       for (const routine of routineContainers) {
         const msg = routine.querySelector('#result-msg')!.textContent.trim();

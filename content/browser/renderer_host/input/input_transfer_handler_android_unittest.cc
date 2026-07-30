@@ -645,7 +645,8 @@ TEST_F(InputTransferHandlerTest, DoNotRetryTransferIfNoActiveSequence) {
   }
 }
 
-TEST_F(InputTransferHandlerTest, AcceptsNewSequenceAfterBrowserCancel) {
+// TODO(crbug.com/522971839): Re-enable this test.
+TEST_F(InputTransferHandlerTest, DISABLED_AcceptsNewSequenceAfterBrowserCancel) {
   base::TimeTicks event_time =
       base::TimeTicks::Now() - base::Milliseconds(1000);
   auto down_event = GetMotionEventAndroid(

@@ -25,7 +25,6 @@ class OSSettingsSystemAppDelegate : public ash::SystemWebAppDelegate {
   bool ShouldCaptureNavigations() const override;
   gfx::Size GetMinimumWindowSize() const override;
   std::vector<std::string> GetAppIdsToUninstallAndReplace() const override;
-  bool ShouldAnimateThemeChanges() const override;
 };
 
 #endif  // CHROME_BROWSER_ASH_SYSTEM_WEB_APPS_APPS_OS_SETTINGS_WEB_APP_INFO_H_

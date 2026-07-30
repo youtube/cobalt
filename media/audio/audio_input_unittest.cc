@@ -39,6 +39,8 @@
 
 namespace media {
 
+using Error = AudioInputStream::AudioInputCallback::Error;
+
 #if BUILDFLAG(IS_FUCHSIA)
 class FakeAudio : public fuchsia::media::testing::Audio_TestBase {
  public:
@@ -80,7 +82,7 @@ class TestInputCallback : public AudioInputStream::AudioInputCallback {
       }
     }
   }
-  void OnError() override {
+  void OnError(Error error_code) override {
     if (!quit_closure_.is_null()) {
       ++had_error_;
       std::move(quit_closure_).Run();

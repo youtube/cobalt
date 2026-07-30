@@ -39,6 +39,7 @@ class HistoryEmbeddingsHandler : public history_embeddings::mojom::PageHandler {
   HistoryEmbeddingsHandler(
       mojo::PendingReceiver<history_embeddings::mojom::PageHandler>
           pending_page_handler,
+      mojo::PendingRemote<history_embeddings::mojom::Page> pending_page,
       base::WeakPtr<Profile> profile,
       content::WebUI* web_ui,
       bool for_side_panel);
@@ -47,8 +48,6 @@ class HistoryEmbeddingsHandler : public history_embeddings::mojom::PageHandler {
   ~HistoryEmbeddingsHandler() override;
 
   // history_embeddings::mojom::PageHandler:
-  void SetPage(mojo::PendingRemote<history_embeddings::mojom::Page>
-                   pending_page) override;
   void Search(history_embeddings::mojom::SearchQueryPtr query) override;
   void RecordSearchResultsMetrics(bool non_empty_results,
                                   bool user_clicked_results,

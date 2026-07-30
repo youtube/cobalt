@@ -56,15 +56,6 @@
 
 namespace blink {
 
-namespace {
-
-// Controls whether CanvasResource::WaitSyncToken(const SyncToken&) should
-// defer wait (when enabled) or wait immediately (when disabled).
-BASE_FEATURE(kCanvasResourceDefersWaitSyncToken,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-}  // namespace
-
 CanvasResource::CanvasResource(
     scoped_refptr<gpu::ClientSharedImage> shared_image)
     : gpu::ClientImage(std::move(shared_image)),
@@ -420,12 +411,6 @@ void CanvasResourceSharedImage::WaitSyncToken(
   if (sync_token.HasData()) {
     acquire_sync_token_ = sync_token;
     GetSharedImage()->UpdateDestructionSyncToken(acquire_sync_token_);
-    if (!base::FeatureList::IsEnabled(kCanvasResourceDefersWaitSyncToken)) {
-      if (auto* interface_base = InterfaceBase()) {
-        interface_base->WaitSyncTokenCHROMIUM(
-            acquire_sync_token_.GetConstData());
-      }
-    }
   }
 }
 

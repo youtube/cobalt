@@ -225,28 +225,10 @@ VRServiceImpl::VRServiceImpl(content::RenderFrameHost* render_frame_host)
                                  // owned by VRServiceImpl.
 }
 
-// Constructor for testing.
-VRServiceImpl::VRServiceImpl(base::PassKey<XRRuntimeManagerTest>)
-    : render_frame_host_(nullptr) {
-  DVLOG(2) << __func__;
-  runtime_manager_ = XRRuntimeManagerImpl::GetOrCreateInstanceForTesting();
-  runtime_manager_->AddService(this);
-}
 
 VRServiceImpl::~VRServiceImpl() {
   DVLOG(2) << __func__;
-  // Ensure that any active magic window sessions are disconnected to avoid
-  // collisions when a new session starts. See https://crbug.com/40655152, the
-  // disconnect handler doesn't get called automatically on page navigation.
-  for (auto it = magic_window_controllers_.begin();
-       it != magic_window_controllers_.end(); ++it) {
-    OnInlineSessionDisconnected(it.id());
-  }
-  magic_window_controllers_.Clear();
-
-  OnExitPresent();
-
-  runtime_manager_->RemoveService(this);
+  Teardown();
 }
 
 void VRServiceImpl::Create(
@@ -310,8 +292,9 @@ void VRServiceImpl::RenderFrameDeleted(content::RenderFrameHost* host) {
   if (host != render_frame_host_)
     return;
 
-  // Clear out the render_frame_host_ before doing any closing activities.
-  render_frame_host_ = nullptr;
+  // |Teardown| will clear the `render_frame_host_` and also clean up any state
+  // before doing so.
+  Teardown();
 
   // Receiver should always be live here, as this is a SelfOwnedReceiver.
   // Close the receiver (and delete this VrServiceImpl) when the RenderFrameHost
@@ -322,7 +305,7 @@ void VRServiceImpl::RenderFrameDeleted(content::RenderFrameHost* host) {
 
 void VRServiceImpl::OnWebContentsFocusChanged(content::RenderWidgetHost* host,
                                               bool focused) {
-  if (!render_frame_host_->GetView() ||
+  if (!render_frame_host_ || !render_frame_host_->GetView() ||
       render_frame_host_->GetView()->GetRenderWidgetHost() != host) {
     return;
   }
@@ -1031,6 +1014,23 @@ void VRServiceImpl::OnVisibilityStateChanged(
 
 content::WebContents* VRServiceImpl::GetWebContents() {
   return content::WebContents::FromRenderFrameHost(render_frame_host_);
+}
+
+void VRServiceImpl::Teardown() {
+  if (!render_frame_host_) {
+    return;
+  }
+
+  for (auto it = magic_window_controllers_.begin();
+       it != magic_window_controllers_.end(); ++it) {
+    OnInlineSessionDisconnected(it.id());
+  }
+  magic_window_controllers_.Clear();
+
+  OnExitPresent();
+
+  runtime_manager_->RemoveService(this);
+  render_frame_host_ = nullptr;
 }
 
 }  // namespace content

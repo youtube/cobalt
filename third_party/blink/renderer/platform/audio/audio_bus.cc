@@ -40,6 +40,7 @@
 #include "media/base/audio_bus.h"
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/public/platform/web_audio_bus.h"
+#include "third_party/blink/renderer/platform/audio/audio_utilities.h"
 #include "third_party/blink/renderer/platform/audio/denormal_disabler.h"
 #include "third_party/blink/renderer/platform/audio/sinc_resampler.h"
 #include "third_party/blink/renderer/platform/audio/vector_math.h"
@@ -637,10 +638,8 @@ scoped_refptr<AudioBus> AudioBus::TryCreateBySampleRateConverting(
     const AudioBus* source_bus,
     bool mix_to_mono,
     double new_sample_rate) {
-  // sourceBus's sample-rate must be known.
-  DCHECK(source_bus);
-  DCHECK(source_bus->SampleRate());
-  if (!source_bus || !source_bus->SampleRate()) {
+  if (!source_bus || !audio_utilities::IsValidAudioBufferSampleRate(
+                         source_bus->SampleRate())) {
     return nullptr;
   }
 

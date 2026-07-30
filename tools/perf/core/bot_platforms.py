@@ -458,6 +458,18 @@ def _speedometer3_crossbench(estimated_runtime: int = 60,
                           flags=flags)
 
 
+@_register("speedometer3-turbolev.crossbench")
+def _speedometer3_turbolev_crossbench(estimated_runtime: int = 60,
+                                      flags: tuple[str, ...] = ()):
+  flags += ("--js-flags=--turbolev", )
+  return CrossbenchConfig(
+      "speedometer3-turbolev.crossbench",
+      "speedometer_3",
+      estimated_runtime=estimated_runtime,
+      flags=flags,
+  )
+
+
 @_register("speedometer3-turbolev_future.crossbench")
 def _speedometer3_turbolev_future_crossbench(estimated_runtime: int = 60,
                                              flags: tuple[str, ...] = ()):
@@ -553,6 +565,17 @@ def _motionmark1_3_crossbench(estimated_runtime: int = 360,
                           flags=flags)
 
 
+@_register('motionmark1.3-turbolev.crossbench')
+def _motionmark1_3_turbolev_crossbench(estimated_runtime: int = 360,
+                                       flags: tuple[str, ...] = ()):
+  flags += ('--js-flags=--turbolev', )
+  return CrossbenchConfig('motionmark1.3-turbolev.crossbench',
+                          'motionmark_1.3',
+                          estimated_runtime=estimated_runtime,
+                          flags=flags)
+
+
+
 @_register('motionmark_main.crossbench')
 def _motionmark_main_crossbench(estimated_runtime: int = 360,
                                 flags: tuple[str, ...] = ()):
@@ -627,6 +650,16 @@ def _jetstream_main_crossbench(estimated_runtime: int = 180,
                           flags=flags)
 
 
+@_register('jetstream3-turbolev.crossbench')
+def _jetstream3_turbolev_crossbench(estimated_runtime: int = 180,
+                                    flags: tuple[str, ...] = ()):
+  flags += ('--js-flags=--turbolev', )
+  return CrossbenchConfig('jetstream3-turbolev.crossbench',
+                          'jetstream_3',
+                          estimated_runtime=estimated_runtime,
+                          flags=flags)
+
+
 @_register('jetstream3-turbolev_future.crossbench')
 def _jetstream3_turbolev_future_crossbench(estimated_runtime: int = 180,
                                            flags: tuple[str, ...] = ()):
@@ -690,6 +723,16 @@ def _crossbench_embedder(estimated_runtime: int = 900,
 def _crossbench_gma_embedder(estimated_runtime: int = 900,
                             flags: tuple[str, ...] = ()):
   return CrossbenchConfig('gma.embedder.crossbench',
+                          'embedder',
+                          estimated_runtime=estimated_runtime,
+                          flags=flags,
+                          auto_enable_field_trials=False)
+
+
+@_register('shell.embedder.crossbench')
+def _crossbench_shell_embedder(estimated_runtime: int = 900,
+                            flags: tuple[str, ...] = ()):
+  return CrossbenchConfig('shell.embedder.crossbench',
                           'embedder',
                           estimated_runtime=estimated_runtime,
                           flags=flags,

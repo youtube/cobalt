@@ -117,19 +117,11 @@
 <translation id="2236949375853147973">내 활동</translation>
 <translation id="2238130810669087193">모든 기기에서 내 주소 등을 가져오려면 Chromium에 로그인하세요. 로그인하면 이 주소가 Google 계정에 저장됩니다</translation>
 <translation id="2241627712206172106">컴퓨터를 공유하는 경우 친구와 가족이 개별적으로 탐색하고 원하는 대로 Chromium을 설정할 수 있습니다.</translation>
+<translation id="22571759390241347">Chromium의 스킬</translation>
 <translation id="2283803047247799269">이미지 검색으로 이 탭 검색</translation>
 <translation id="2287771843518581140">{NUM_TABS,plural, =1{브라우저 속도를 저하시키는 탭을 일시중지하는 것이 좋습니다}other{브라우저 속도를 저하시키는 탭을 일시중지하는 것이 좋습니다}}</translation>
 <translation id="2307973900865360088">도크에 고정</translation>
 <translation id="2313870531055795960">Chromium에 저장된 안전하지 않은 사이트 목록을 사용하여 URL을 검사합니다. 사이트에서 사용자의 비밀번호를 도용하려고 하거나 사용자가 유해한 파일을 다운로드하는 경우, Chromium에서 페이지 콘텐츠 일부를 비롯한 URL을 세이프 브라우징 서비스에 보낼 수 있습니다.</translation>
-<translation id="2332076562712130931">이 작업으로 인해 나타날 수 있는 결과는 다음과 같습니다.
-          <ph name="LINE_BREAKS" />
-           • 일부 Chromium 설정 및 Chromium 바로가기 재설정
-           <ph name="LINE_BREAK" />
-           • 확장 프로그램 사용 중지
-           <ph name="LINE_BREAK" />
-           • 쿠키 및 기타 임시 사이트 데이터 삭제
-            <ph name="LINE_BREAKS" />
-           북마크, 방문 기록, 저장된 비밀번호는 영향을 받지 않습니다.</translation>
 <translation id="2343156876103232566">여기에서 Android 휴대전화로 번호를 전송하려면 두 기기 모두에서 Chromium에 로그인하세요.</translation>
 <translation id="2356070529366658676">확인</translation>
 <translation id="2359808026110333948">계속</translation>
@@ -191,6 +183,7 @@
 <translation id="3003694935412297923">모든 작업</translation>
 <translation id="3012615494352020668">{count,plural, =1{일부 데이터를 Google 계정에 저장하고 모든 기기에서 사용하려면 Chromium에서 본인 인증을 거쳐야 합니다. 지금 로그아웃하면 이 데이터(항목 1개)가 삭제됩니다}other{일부 데이터를 Google 계정에 저장하고 모든 기기에서 사용하려면 Chromium에서 본인 인증을 거쳐야 합니다. 지금 로그아웃하면 이 데이터(항목 {count}개)가 삭제됩니다}}</translation>
 <translation id="3013473503895162900">Chromium의 새 탭에서 <ph name="URL" /> 주소가 열립니다.</translation>
+<translation id="302551344979399011">스킬과 같은 AI 혁신 기술은 Google 계정에 저장되며 Chromium 동기화와 별도로 관리됩니다</translation>
 <translation id="3032787606318309379">Chromium에 추가하는 중...</translation>
 <translation id="3038232873781883849">설치 대기 중...</translation>
 <translation id="3045032126857188731">번역된 언어, <ph name="LANGUAGE" /></translation>
@@ -382,6 +375,7 @@
 <translation id="5289287148052354622">Chromium 앱 다운로드</translation>
 <translation id="5294316920224716406">시크릿 모드로 탐색할 때 Chromium에서 안전하지 않은 연결을 사용해 사이트를 로드하기 전에 경고를 표시합니다.</translation>
 <translation id="5313228254328109263">Chromium 업데이터 내부 서비스</translation>
+<translation id="5324450571874973775">Chromium에서 다른 Gemini 기능과 함께 사용하세요</translation>
 <translation id="5346389065299425353">여러 탭, 파일, 도구를 추가하여 심층적으로 검색하세요.</translation>
 <translation id="5348677704241861105">Chromium의 Gemini를 사용하여 이 문서의 간략한 개요를 확인하고 질문하세요</translation>
 <translation id="5352264705793813212">Chromium에서 발견한 보안 권장사항을 검토해 주세요</translation>
@@ -673,6 +667,7 @@ Chromium에서 설정을 복구할 수 없습니다.</translation>
 <translation id="8318772038038596122"><ph name="TIMEOUT_DURATION" /> 동안 사용하지 않으면 조직에서 Chromium을 종료합니다.</translation>
 <translation id="8321888067342493336">이미지로 저장</translation>
 <translation id="8340674089072921962"><ph name="USER_EMAIL_ADDRESS" />에서 이전에 Chromium을 사용한 적이 있음</translation>
+<translation id="8351551329754447960">Chromium에서 스킬 사용 설정</translation>
 <translation id="8359544530202147897">Google 계정(<ph name="ACCOUNT_EMAIL" />)의 Chromium 데이터를 계속 사용하려면 Chromium을 업데이트하세요</translation>
 <translation id="8360718212975266891">향후 Chromium 업데이트를 받으려면 Windows 10 이상이 필요합니다. 이 컴퓨터에서는 Windows 8을 사용 중입니다.</translation>
 <translation id="8362914115861174987">도착어</translation>

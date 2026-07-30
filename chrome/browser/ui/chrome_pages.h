@@ -89,6 +89,7 @@ void ShowChromeTips(BrowserWindowInterface* browser);
 void ShowChromeWhatsNew(BrowserWindowInterface* browser);
 #endif
 void LaunchReleaseNotes(Profile* profile, apps::LaunchSource source);
+void ShowChromeEnterpriseReleaseNotes(BrowserWindowInterface* browser);
 void ShowBetaForum(BrowserWindowInterface* browser);
 void ShowSlow(BrowserWindowInterface* browser);
 

@@ -4,10 +4,17 @@
 
 package org.chromium.ui.base;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.when;
+
 import android.app.Activity;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
+import android.content.pm.PackageManager;
+import android.content.pm.ProviderInfo;
+import android.net.Uri;
 import android.os.Build;
 import android.text.SpannableString;
 import android.text.Spanned;
@@ -21,9 +28,14 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Mock;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
+import org.chromium.base.ContextUtils;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.BaseActivityTestRule;
 import org.chromium.base.test.BaseJUnit4ClassRunner;
@@ -33,6 +45,7 @@ import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.base.test.util.DisableIf;
 import org.chromium.base.test.util.DisabledTest;
+import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.MinAndroidSdkLevel;
 import org.chromium.content_public.browser.test.NativeLibraryTestUtils;
 import org.chromium.ui.test.util.BlankUiTestActivity;
@@ -62,6 +75,11 @@ public class ClipboardAndroidTest {
             new BaseActivityTestRule<>(BlankUiTestActivity.class);
 
     private static Activity sActivity;
+
+    @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
+
+    @Mock private PackageManager mMockPm;
+    @Mock private Context mMockContext;
 
     @BeforeClass
     public static void setupSuite() {
@@ -247,5 +265,40 @@ public class ClipboardAndroidTest {
                             "Native write to clipboard should trigger change notifications",
                             ClipboardAndroidTestSupport.testNativeClipboardNotifications());
                 });
+    }
+
+    @Test
+    @SmallTest
+    @EnableFeatures(UiAndroidFeatures.CLIPBOARD_CONFUSED_DEPUTY_DEFENSE_IMAGES)
+    public void testConfusedDeputyDefenseForImages() {
+        Context appContext = sActivity.getApplicationContext();
+        ClipboardManager realClipboardManager =
+                (ClipboardManager) appContext.getSystemService(Context.CLIPBOARD_SERVICE);
+        when(mMockContext.getSystemService(Context.CLIPBOARD_SERVICE))
+                .thenReturn(realClipboardManager);
+        when(mMockContext.getPackageName()).thenReturn(appContext.getPackageName());
+
+        ProviderInfo info = new ProviderInfo();
+        info.packageName = appContext.getPackageName();
+        when(mMockPm.resolveContentProvider(any(), anyInt())).thenReturn(info);
+        when(mMockContext.getPackageManager()).thenReturn(mMockPm);
+
+        ContextUtils.initApplicationContextForTests(mMockContext);
+
+        Clipboard.resetForTesting();
+        ClipboardImpl clipboard = (ClipboardImpl) Clipboard.getInstance();
+        clipboard.setImageFileProvider(null); // Simulates external copy.
+
+        ClipData clipData =
+                new ClipData(
+                        "image",
+                        new String[] {"image/png"},
+                        new ClipData.Item(Uri.parse("content://any/path")));
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    clipboard.setPrimaryClipNoException(clipData);
+                });
+        Assert.assertNull(
+                "Paste of own-app URI from malicious app should be rejected", clipboard.getPng());
     }
 }

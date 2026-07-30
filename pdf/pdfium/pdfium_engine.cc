@@ -51,6 +51,7 @@
 #include "pdf/loader/url_loader.h"
 #include "pdf/loader/url_loader_wrapper_impl.h"
 #include "pdf/page_character_index.h"
+#include "pdf/page_orientation.h"
 #include "pdf/pdf_accessibility_constants.h"
 #include "pdf/pdf_caret.h"
 #include "pdf/pdf_features.h"
@@ -245,7 +246,6 @@ FS_MATRIX CalculateTextObjectOriginTransform(
     const InkTextInfo& item,
     double pdf_zoom,
     const InkTextBoxAttributes& attributes,
-    PageOrientation current_orientation,
     float ascent) {
   gfx::RectF text_run_textbox_rect = item.location;
   text_run_textbox_rect.InvScale(pdf_zoom);
@@ -257,7 +257,8 @@ FS_MATRIX CalculateTextObjectOriginTransform(
   }
 
   const int total_rotations =
-      GetClockwiseRotationSteps(current_orientation) + attributes.orientation;
+      GetClockwiseRotationSteps(attributes.viewport_orientation) +
+      attributes.orientation;
   gfx::PointF canonical_text_run_origin = CalculateCanonicalTextRunOrigin(
       text_run_textbox_rect, canonical_textbox_size, total_rotations);
 
@@ -5305,8 +5306,8 @@ void PDFiumEngine::DrawText(int page_index,
                                   positions.size()));
     }
 
-    FS_MATRIX text_origin_matrix = CalculateTextObjectOriginTransform(
-        item, pdf_zoom, attributes, GetCurrentOrientation(), ascent);
+    FS_MATRIX text_origin_matrix =
+        CalculateTextObjectOriginTransform(item, pdf_zoom, attributes, ascent);
     // Local translation must be applied before the textbox's global transform
     // to ensure correct rotation/scaling of the offset.
     CHECK(FPDFPageObj_TransformF(text_object.get(), &text_origin_matrix));

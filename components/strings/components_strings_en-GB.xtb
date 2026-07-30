@@ -269,6 +269,7 @@ This will otherwise be blocked by your privacy settings. This will allow the con
 <translation id="1407135791313364759">Open all</translation>
 <translation id="1408696301184924537">To autofill this IBAN next time, save it in your Google Account</translation>
 <translation id="1408787208417187241">Triple staple top</translation>
+<translation id="1410306713026702438"><ph name="SUGGESTION_TITLE" />, <ph name="SUGGESTION_DESCRIPTION" />. <ph name="SUGGESTION_TYPE" />. <ph name="MATCH_POSITION" /> of <ph name="NUM_MATCHES_IN_GROUP" /> in the group <ph name="GROUP_HEADER" />.</translation>
 <translation id="1410365862999780287">Others who use this device won’t see your activity, so you can browse more privately. This won't change how data is collected by websites that you visit and the services that they use, including Google. Downloads, bookmarks and reading list items will be saved.</translation>
 <translation id="1410941016594047814">Envelope Invite</translation>
 <translation id="1413235258620101697">This card's CVC will be encrypted and saved in Google Wallet for faster checkout</translation>
@@ -660,6 +661,7 @@ This will otherwise be blocked by your privacy settings. This will allow the con
 <translation id="2045871135676061132">Envelope Personal</translation>
 <translation id="2046951263634619614">Book Retailers</translation>
 <translation id="2048261947532620704">Translating page</translation>
+<translation id="2055016614992422886">Conversation</translation>
 <translation id="2059166748188874810">Municipality</translation>
 <translation id="2059202684901022309">22 in x 34 in</translation>
 <translation id="2064568741209980952">Credit and Lending</translation>
@@ -3557,6 +3559,7 @@ To hide pay later options, go to <ph name="BEGIN_LINK" />payment settings<ph nam
 <translation id="6550245281449521513">Mouse lock not allowed</translation>
 <translation id="6551737294564628267"><ph name="ATTRIBUTE_NAME" />, new</translation>
 <translation id="6552566579578780089">Payments</translation>
+<translation id="6553777254569586547"><ph name="SUGGESTION_TITLE" />. <ph name="SUGGESTION_TYPE" />. <ph name="MATCH_POSITION" /> of <ph name="NUM_MATCHES_IN_GROUP" /> in the group <ph name="GROUP_HEADER" />.</translation>
 <translation id="6554732001434021288">Last visited <ph name="NUM_DAYS" /> days ago</translation>
 <translation id="6556866813142980365">Redo</translation>
 <translation id="6557715786897013164">14 in x 17 in</translation>

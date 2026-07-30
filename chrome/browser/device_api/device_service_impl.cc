@@ -39,6 +39,7 @@
 #include "chrome/browser/ash/app_mode/isolated_web_app/kiosk_iwa_manager.h"
 #include "chrome/browser/ash/app_mode/web_app/kiosk_web_app_data.h"
 #include "chrome/browser/ash/app_mode/web_app/kiosk_web_app_manager.h"
+#include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/common/url_constants.h"
 #include "chromeos/components/kiosk/kiosk_utils.h"
 #include "components/user_manager/user_manager.h"
@@ -115,10 +116,10 @@ bool IsDevModeInstalledIwaOrigin(content::RenderFrameHost& host,
       .has_value();
 }
 
-bool IsAffiliatedUser() {
+bool IsAffiliatedUser(Profile* profile) {
 #if BUILDFLAG(IS_CHROMEOS)
   const user_manager::User* user =
-      user_manager::UserManager::Get()->GetPrimaryUser();
+      ash::ProfileHelper::Get()->GetUserByProfile(profile);
   return (user != nullptr) && user->IsAffiliated();
 #else
   return false;
@@ -311,7 +312,7 @@ void DeviceServiceImpl::GetAnnotatedLocation(
 void DeviceServiceImpl::GetDeviceAttribute(
     void (DeviceAttributeApi::*method)(DeviceAttributeCallback callback),
     DeviceAttributeCallback callback) {
-  if (!IsAffiliatedUser() &&
+  if (!IsAffiliatedUser(GetProfile(render_frame_host())) &&
       !IsDevModeInstalledIwaOrigin(render_frame_host(), origin())) {
     device_attribute_api_->ReportNotAffiliatedError(std::move(callback));
     return;

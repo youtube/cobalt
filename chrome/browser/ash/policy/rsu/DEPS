@@ -17,5 +17,4 @@ include_rules = [
   "+chrome/browser/ash/attestation",
   "+chrome/browser/ash/policy/core",
   "+chrome/browser/ash/settings",
-  "+chrome/common/pref_names.h",
 ]

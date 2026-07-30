@@ -756,7 +756,10 @@ void ContentSecurityPolicy::AddHashReportIfNeeded(
       }
 
       CSPHashReportBody* body = MakeGarbageCollected<CSPHashReportBody>(
-          url, integrity_hash, "subresource", "script");
+          StripURLForUseInReport(
+              window->GetContentSecurityPolicyDelegate().GetSecurityOrigin(),
+              KURL(url), CSPDirectiveName::DefaultSrc),
+          integrity_hash, "subresource", "script");
       Report* report_to_queue = MakeGarbageCollected<Report>(
           ReportType::kCSPHash,
           StripURLForUseInReport(
@@ -806,9 +809,10 @@ std::optional<CSPDirectiveName> GetDirectiveTypeFromRequestContextType(
     case mojom::blink::RequestContextType::FETCH:
     case mojom::blink::RequestContextType::JSON:
     case mojom::blink::RequestContextType::PING:
-    case mojom::blink::RequestContextType::XML_HTTP_REQUEST:
     case mojom::blink::RequestContextType::SUBRESOURCE:
     case mojom::blink::RequestContextType::SUBRESOURCE_WEBBUNDLE:
+    case mojom::blink::RequestContextType::TEXT:
+    case mojom::blink::RequestContextType::XML_HTTP_REQUEST:
       return CSPDirectiveName::ConnectSrc;
 
     case mojom::blink::RequestContextType::EMBED:

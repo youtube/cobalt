@@ -9,7 +9,7 @@
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
-#include "components/user_education/common/product_messaging_controller.h"
+#include "components/user_education/product_messaging/product_messaging_controller.h"
 
 namespace user_education::internal {
 
@@ -34,7 +34,7 @@ class MessagingCoordinator {
   };
 
   // Returns whether a promo can be shown right now.
-  bool CanShowPromo(bool high_priority) const;
+  bool ReadyToShow(bool high_priority) const;
 
   // Allows the client to update the promo state. This may result in acquiring
   // or releasing the promo handle.
@@ -67,17 +67,19 @@ class MessagingCoordinator {
  private:
   friend class MessagingCoordinatorTest;
 
-  DECLARE_CLASS_REQUIRED_NOTICE_IDENTIFIER(kLowPriorityNoticeId);
-  DECLARE_CLASS_REQUIRED_NOTICE_IDENTIFIER(kHighPriorityNoticeId);
+  DECLARE_CLASS_PRODUCT_MESSAGE_KEY(kLowPriorityNoticeId,
+                                    ProductMessageType::kLowPriorityIph);
+  DECLARE_CLASS_PRODUCT_MESSAGE_KEY(kHighPriorityNoticeId,
+                                    ProductMessageType::kHighPriorityIph);
 
-  void MaybeRequestPriority(bool high_priority);
+  void RequestPriority(bool high_priority);
   void ReleaseAll();
-  void OnPriorityReceived(RequiredNoticePriorityHandle handle);
-  void OnMessageShown(RequiredNoticeId message_id);
+  void OnPriorityReceived(ProductMessagingHandle handle);
+  void OnStatusChange(ProductMessageKey message_key,
+                      ProductMessageStatus status);
 
   PromoState promo_state_ = PromoState::kNone;
-  RequiredNoticePriorityHandle handle_;
-  base::CallbackListSubscription message_shown_subscription_;
+  ProductMessagingHandle handle_;
   base::RepeatingClosureList promo_preempted_callbacks_;
   base::RepeatingClosureList promo_ready_callbacks_;
   raw_ref<ProductMessagingController> controller_;

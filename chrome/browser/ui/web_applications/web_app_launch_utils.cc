@@ -483,10 +483,11 @@ bool MaybeHandleIntentPickerFocusExistingOrNavigateExisting(
   FocusAppContainer(existing_app_host->browser, existing_app_host->tab_index);
 
   webapps::LaunchParams launch_params;
-  launch_params.app_id = app_id;
-  launch_params.target_url = launch_url;
+  launch_params.set_app_id(app_id);
+  launch_params.set_target_url(launch_url);
   if (!time_reparent_started.is_null()) {
-    launch_params.time_navigation_started_for_enqueue = time_reparent_started;
+    launch_params.set_time_navigation_started_for_enqueue(
+        time_reparent_started);
   }
 
   if (client_mode == LaunchHandler::ClientMode::kNavigateExisting) {
@@ -704,14 +705,11 @@ void MaybeAddPinnedHomeTab(BrowserWindowInterface* browser,
 void MaybeShowNavigationCaptureIph(webapps::AppId app_id,
                                    Profile* profile,
                                    Browser* browser) {
-  // Prevent ChromeOS from reaching this function in tests.
-#if !BUILDFLAG(IS_CHROMEOS)
   web_app::WebAppProvider* provider =
       web_app::WebAppProvider::GetForWebApps(profile);
   CHECK(provider);
   provider->ui_manager().MaybeShowIPHPromoForAppsLaunchedViaLinkCapturing(
       browser, profile, app_id);
-#endif
 }
 
 Browser::CreateParams CreateParamsForApp(const webapps::AppId& app_id,

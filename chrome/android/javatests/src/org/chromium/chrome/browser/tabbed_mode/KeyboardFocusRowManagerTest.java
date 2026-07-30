@@ -406,6 +406,7 @@ public class KeyboardFocusRowManagerTest {
     private void switchRow() {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> mActivity.onMenuOrKeyboardAction(R.id.switch_keyboard_focus_row, false));
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync();
     }
 
     private void assertOnToolbar() {

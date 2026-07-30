@@ -22,6 +22,7 @@
 #include "third_party/blink/renderer/core/paint/paint_layer_scrollable_area.h"
 #include "third_party/blink/renderer/core/paint/paint_property_tree_builder.h"
 #include "third_party/blink/renderer/core/view_transition/view_transition_supplement.h"
+#include "third_party/blink/renderer/platform/graphics/compositing/paint_artifact_compositor.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 
 namespace blink {
@@ -77,8 +78,14 @@ bool SetFragmentContentsCullRect(PaintLayer& layer,
     }
   } else {
     SetLayerNeedsRepaintOnCullRectChange(layer);
-    if (auto* scrollable_area = layer.GetScrollableArea())
+    if (auto* scrollable_area = layer.GetScrollableArea()) {
       scrollable_area->DidUpdateCullRect();
+      if (auto* compositor = layer.GetLayoutObject()
+                                 .GetFrameView()
+                                 ->GetPaintArtifactCompositor()) {
+        compositor->SetScrollingContentsCullRectChanged();
+      }
+    }
   }
 
   fragment.SetContentsCullRect(contents_cull_rect);

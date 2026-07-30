@@ -94,7 +94,7 @@ bool StyleCommands::ApplyCommandToFrame(LocalFrame& frame,
     case EditorCommandSource::kMenuOrKeyBinding:
       ApplyStyleToSelection(frame, style, input_type);
       return true;
-    case EditorCommandSource::kDOM:
+    case EditorCommandSource::kDom:
       ApplyStyle(frame, style, input_type);
       return true;
   }

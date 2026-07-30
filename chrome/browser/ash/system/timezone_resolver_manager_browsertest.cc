@@ -456,7 +456,8 @@ IN_PROC_BROWSER_TEST_F(TimeZoneResolverManagerEnrolledDeviceTest,
       em::SystemTimezoneProto::AutomaticTimezoneDetectionType::
           SystemTimezoneProto_AutomaticTimezoneDetectionType_DISABLED);
   ASSERT_TRUE(
-      system::TimeZoneResolverManager::IsTimeZoneResolutionPolicyControlled());
+      system::TimeZoneResolverManager::IsTimeZoneResolutionPolicyControlled(
+          CHECK_DEREF(g_browser_process->local_state())));
   EXPECT_FALSE(tz_resolver_manager->TimeZoneResolverShouldBeRunning());
 
   // Re-enable timezone detection:
@@ -469,7 +470,8 @@ IN_PROC_BROWSER_TEST_F(TimeZoneResolverManagerEnrolledDeviceTest,
 IN_PROC_BROWSER_TEST_F(TimeZoneResolverManagerUnenrolledDeviceTest,
                        CheckSystemGeolocationPermission) {
   ASSERT_FALSE(
-      system::TimeZoneResolverManager::IsTimeZoneResolutionPolicyControlled());
+      system::TimeZoneResolverManager::IsTimeZoneResolutionPolicyControlled(
+          CHECK_DEREF(g_browser_process->local_state())));
 
   ash::system::TimeZoneResolverManager* tz_resolver_manager =
       g_browser_process->platform_part()->GetTimezoneResolverManager();
@@ -479,8 +481,9 @@ IN_PROC_BROWSER_TEST_F(TimeZoneResolverManagerUnenrolledDeviceTest,
   ASSERT_NE(tz_resolver, nullptr);
 
   // Login-screen geolocation permission is On by default.
-  EXPECT_TRUE(system::TimeZoneResolverManager::
-                  IfServiceShouldBeRunningForSigninScreen());
+  EXPECT_TRUE(
+      system::TimeZoneResolverManager::IfServiceShouldBeRunningForSigninScreen(
+          CHECK_DEREF(g_browser_process->local_state())));
 
   // Log in a user.
   LoginUser(regular_primary_user_id_);
@@ -493,7 +496,7 @@ IN_PROC_BROWSER_TEST_F(TimeZoneResolverManagerUnenrolledDeviceTest,
       tz_resolver_manager->TimeZoneResolverAllowedByTimeZoneConfigData());
   EXPECT_EQ(
       system::TimeZoneResolverManager::GetEffectiveUserTimeZoneResolveMethod(
-          pref_service, true),
+          CHECK_DEREF(g_browser_process->local_state()), pref_service, true),
       system::TimeZoneResolverManager::TimeZoneResolveMethod::IP_ONLY);
 
   // Check the permission is granted and timezone resolver is actually running.

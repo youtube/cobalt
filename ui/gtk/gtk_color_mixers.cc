@@ -12,6 +12,8 @@
 #include "ui/color/color_recipe.h"
 #include "ui/color/color_transform.h"
 #include "ui/gfx/color_palette.h"
+#include "ui/gfx/color_utils.h"
+#include "ui/gtk/gtk_compat.h"
 #include "ui/gtk/gtk_util.h"
 
 namespace gtk {
@@ -118,10 +120,26 @@ void AddGtkNativeColorMixer(ui::ColorProvider* provider,
   mixer[ui::kColorFrameActive] = {frame_color};
   mixer[ui::kColorFrameCaptionForegroundActive] = {
       GetFgColor(header_selector + " label.title")};
-  // TODO: The :backdrop foreground color query does not work on GTK4. Replace
-  // this approximation with the actual query once a solution is found.
-  mixer[ui::kColorFrameCaptionForegroundInactive] = ui::AlphaBlend(
-      ui::kColorFrameCaptionForegroundActive, ui::kColorFrameInactive, 0x80);
+  mixer[ui::kColorFrameCaptionForegroundInactive] = [&] {
+    // Apply :backdrop to every node so themes that cascade the title color
+    // from .background:backdrop apply.
+    auto window = AppendCssNodeToStyleContext({}, "window.background:backdrop");
+    auto header =
+        AppendCssNodeToStyleContext(window, header_selector + ":backdrop");
+    auto label = AppendCssNodeToStyleContext(header, "label.title:backdrop");
+    SkColor fg = GtkStyleContextGetColor(label);
+    if (SkColorGetA(fg) != SK_AlphaOPAQUE) {
+      fg = color_utils::GetResultingPaintColor(
+          fg, GetBgColorFromStyleContext(label));
+    }
+    // Some GTK4 themes apply transparency using CSS filters instead of
+    // overriding the color. If the query returns the active color, blend
+    // against the inactive frame to produce a similar effect.
+    return fg == GetFgColor(header_selector + " label.title")
+               ? ui::AlphaBlend(ui::kColorFrameCaptionForegroundActive,
+                                ui::kColorFrameInactive, 0x80)
+               : ui::ColorTransform(fg);
+  }();
   mixer[ui::kColorFrameInactive] = {frame_color_inactive};
   mixer[ui::kColorFocusableBorderUnfocused] = {entry_border};
   mixer[ui::kColorHelpIconActive] = {GetFgColor("button.image-button:hover")};

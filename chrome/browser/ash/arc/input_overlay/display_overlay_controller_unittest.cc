@@ -23,6 +23,7 @@
 #include "ui/aura/window.h"
 #include "ui/events/event_constants.h"
 #include "ui/views/accessibility/view_accessibility.h"
+#include "ui/views/test/widget_test.h"
 #include "ui/views/widget/widget.h"
 
 namespace arc::input_overlay {
@@ -388,10 +389,12 @@ TEST_F(EditModeDisplayOverlayControllerTest, TestDeleteEditMenu) {
       /*input_mapping_visible=*/true, /*editing_list_visible=*/true,
       /*button_options_visible=*/false, /*delete_edit_menu_visible=*/true);
 
+  views::test::WidgetDestroyedWaiter delete_edit_destroyed_waiter(
+      GetDeleteEditShortcut()->GetWidget());
+
   // Close the delete-edit menu inexplicitly.
   GetEventGenerator()->PressAndReleaseKey(ui::VKEY_ESCAPE, ui::EF_NONE);
-  // Delete-edit menu is closed asynchronously.
-  base::RunLoop().RunUntilIdle();
+  delete_edit_destroyed_waiter.Wait();
   CheckWidgetsVisible(
       /*input_mapping_visible=*/true, /*editing_list_visible=*/true,
       /*button_options_visible=*/false, /*delete_edit_menu_visible=*/false);

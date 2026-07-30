@@ -148,21 +148,21 @@ std::optional<PageTarget> ToPageTarget(
                     target.document_identifier().serialized_token()});
   }
 }
-std::variant<std::unique_ptr<ToolRequest>, mojom::ActionResultCode>
+base::expected<std::unique_ptr<ToolRequest>, mojom::ActionResultCode>
 CreateClickRequest(const ClickAction& action) {
   TabHandle tab_handle = GetTabHandle(action);
 
   if (tab_handle == TabHandle::Null()) {
-    return mojom::ActionResultCode::kTabWentAway;
+    return base::unexpected(mojom::ActionResultCode::kTabWentAway);
   }
   if (!action.has_target()) {
-    return mojom::ActionResultCode::kClickMissingTarget;
+    return base::unexpected(mojom::ActionResultCode::kClickMissingTarget);
   }
   if (!action.has_click_type()) {
-    return mojom::ActionResultCode::kClickMissingType;
+    return base::unexpected(mojom::ActionResultCode::kClickMissingType);
   }
   if (!action.has_click_count()) {
-    return mojom::ActionResultCode::kClickInvalidCount;
+    return base::unexpected(mojom::ActionResultCode::kClickInvalidCount);
   }
 
   mojom::ClickCount count;
@@ -203,7 +203,7 @@ CreateClickRequest(const ClickAction& action) {
 
   auto target = ToPageTarget(action.target());
   if (!target.has_value()) {
-    return mojom::ActionResultCode::kArgumentsInvalid;
+    return base::unexpected(mojom::ActionResultCode::kArgumentsInvalid);
   }
 
   return std::make_unique<ClickToolRequest>(tab_handle, target.value(), type,
@@ -250,14 +250,20 @@ std::unique_ptr<ToolRequest> CreateTypeRequest(const TypeAction& action) {
                                            action.follow_by_enter(), mode);
 }
 
-std::unique_ptr<ToolRequest> CreateScrollRequest(const ScrollAction& action) {
+base::expected<std::unique_ptr<ToolRequest>, mojom::ActionResultCode>
+CreateScrollRequest(const ScrollAction& action) {
   using Direction = ScrollToolRequest::Direction;
 
   TabHandle tab_handle = GetTabHandle(action);
 
-  if (!action.has_direction() || !action.has_distance() ||
-      tab_handle == TabHandle::Null()) {
-    return nullptr;
+  if (tab_handle == TabHandle::Null()) {
+    return base::unexpected(mojom::ActionResultCode::kTabWentAway);
+  }
+  if (!action.has_direction()) {
+    return base::unexpected(mojom::ActionResultCode::kScrollMissingDirection);
+  }
+  if (!action.has_distance()) {
+    return base::unexpected(mojom::ActionResultCode::kScrollMissingDistance);
   }
 
   std::optional<PageTarget> target;
@@ -753,7 +759,7 @@ class ActorJournalFetchPageProgressListener
   std::unique_ptr<AggregatedJournal::PendingAsyncEntry> apc_entry_;
 };
 
-std::variant<std::unique_ptr<ToolRequest>, mojom::ActionResultCode>
+base::expected<std::unique_ptr<ToolRequest>, mojom::ActionResultCode>
 CreateToolRequest(const optimization_guide::proto::Action& action) {
   TRACE_EVENT1("actor", "CreateToolRequest", "action_type",
                static_cast<int>(action.action_case()));
@@ -870,7 +876,7 @@ CreateToolRequest(const optimization_guide::proto::Action& action) {
       break;
   }
 
-  return mojom::ActionResultCode::kArgumentsInvalid;
+  return base::unexpected(mojom::ActionResultCode::kArgumentsInvalid);
 }
 
 }  // namespace
@@ -883,12 +889,11 @@ BuildToolRequest(const optimization_guide::proto::Actions& actions) {
   requests.reserve(actions.actions_size());
   for (int i = 0; i < actions.actions_size(); ++i) {
     auto result = CreateToolRequest(actions.actions().at(i));
-    if (std::holds_alternative<mojom::ActionResultCode>(result)) {
+    if (!result.has_value()) {
       return base::unexpected(
-          std::make_pair(base::checked_cast<size_t>(i),
-                         std::get<mojom::ActionResultCode>(result)));
+          std::make_pair(base::checked_cast<size_t>(i), result.error()));
     }
-    auto& tool_request = std::get<std::unique_ptr<ToolRequest>>(result);
+    auto& tool_request = result.value();
     if (!tool_request) {
       return base::unexpected(
           std::make_pair(base::checked_cast<size_t>(i),

@@ -25,7 +25,7 @@ class ManageAccountsDelegate {
   // property.
   // |url| is the continuation URL received from the server. If it is valid,
   // then this delegate should navigate to |url|.
-  virtual void OnManageAccounts(const GURL& url) = 0;
+  virtual void OnManageAccounts(const GURL& url, web::WebState* web_state) = 0;
 
   // Called when the user taps on an add account button in a Google web
   // property.
@@ -33,20 +33,21 @@ class ManageAccountsDelegate {
   // then this delegate should navigate to |url|.
   // |prefilled_email| is the email to pre-fill, if available.
   virtual void OnAddAccount(const GURL& url,
-                            const std::string& prefilled_email) = 0;
+                            const std::string& prefilled_email,
+                            web::WebState* web_state) = 0;
 
   // Called when the user taps a sign-in or add account button in a Google web
   // property.
   // |url| is the continuation URL received from the server. If it is valid,
   // then this delegate should navigate to |url|.
   virtual void OnShowConsistencyPromo(const GURL& url,
-                                      web::WebState* webState) = 0;
+                                      web::WebState* web_state) = 0;
 
   // Called when the user taps on go incognito button in a Google web property.
   // |url| is the continuation URL received from the server. If it is valid,
   // then this delegate should open an incognito tab and navigate to |url|.
   // If it is not valid, then this delegate should open a new incognito tab.
-  virtual void OnGoIncognito(const GURL& url) = 0;
+  virtual void OnGoIncognito(const GURL& url, web::WebState* web_state) = 0;
 
   // Whether the sign-in is not disabled.
   virtual bool SigninEnabled() const = 0;

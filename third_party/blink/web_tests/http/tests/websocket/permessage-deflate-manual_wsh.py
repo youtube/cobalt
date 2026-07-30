@@ -26,7 +26,8 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from six.moves.urllib import parse
+from urllib import parse
+
 import zlib
 from mod_pywebsocket import common
 from mod_pywebsocket import util

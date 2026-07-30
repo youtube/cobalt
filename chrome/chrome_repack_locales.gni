@@ -76,6 +76,7 @@ template("chrome_repack_locales") {
 
     if (is_chromeos) {
       source_patterns += [
+        "${root_gen_dir}/ash/login/resources/ash_login_strings_",
         "${root_gen_dir}/ash/strings/ash_strings_",
         "${root_gen_dir}/ash/webui/camera_app_ui/resources/strings/ash_camera_app_strings_",
         "${root_gen_dir}/chromeos/strings/chromeos_strings_",
@@ -83,6 +84,7 @@ template("chrome_repack_locales") {
         "${root_gen_dir}/ui/chromeos/strings/ui_chromeos_strings_",
       ]
       deps += [
+        "//ash/login/resources:login_strings",
         "//ash/strings",
         "//ash/webui/camera_app_ui/resources/strings",
         "//chromeos/strings",

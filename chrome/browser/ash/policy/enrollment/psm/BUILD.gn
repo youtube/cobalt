@@ -6,8 +6,6 @@ assert(is_chromeos)
 
 static_library("psm") {
   sources = [
-    "fake_rlwe_dmserver_client.cc",
-    "fake_rlwe_dmserver_client.h",
     "rlwe_dmserver_client.h",
     "rlwe_dmserver_client_impl.cc",
     "rlwe_dmserver_client_impl.h",

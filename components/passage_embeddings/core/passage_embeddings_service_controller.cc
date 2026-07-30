@@ -38,8 +38,9 @@ mojom::PassageEmbeddingsLoadModelsParamsPtr MakeModelParams(
 }
 
 // Makes the parameters used to run the passage embedder.
-mojom::PassageEmbedderParamsPtr MakeEmbedderParams() {
+mojom::PassageEmbedderParamsPtr MakeEmbedderParams(bool execute_for_gemma) {
   auto params = mojom::PassageEmbedderParams::New();
+  params->execute_for_gemma = execute_for_gemma;
   params->user_initiated_priority_num_threads =
       kUserInitiatedPriorityNumThreads.Get();
   params->urgent_priority_num_threads = kUrgentPriorityNumThreads.Get();
@@ -77,7 +78,8 @@ class ScopedEmbeddingsModelInfoStatusLogger {
 
 }  // namespace
 
-PassageEmbeddingsServiceController::PassageEmbeddingsServiceController()
+PassageEmbeddingsServiceController::PassageEmbeddingsServiceController(
+    bool execute_for_gemma)
     : embedder_(std::make_unique<SchedulingEmbedder>(
           /*embedder_metadata_provider=*/this,
           /*get_embeddings_callback=*/
@@ -86,7 +88,9 @@ PassageEmbeddingsServiceController::PassageEmbeddingsServiceController()
               base::Unretained(this)),
           kSchedulerMaxJobs.Get(),
           kSchedulerMaxBatchSize.Get(),
-          kUsePerformanceScenario.Get())) {}
+          kUsePerformanceScenario.Get(),
+          execute_for_gemma)),
+      execute_for_gemma_(execute_for_gemma) {}
 
 PassageEmbeddingsServiceController::~PassageEmbeddingsServiceController() =
     default;
@@ -162,7 +166,8 @@ void PassageEmbeddingsServiceController::LoadModelsToService(
   }
 
   service_remote_->LoadModels(
-      std::move(params), MakeEmbedderParams(), std::move(receiver),
+      std::move(params), MakeEmbedderParams(execute_for_gemma_),
+      std::move(receiver),
       base::BindOnce(&PassageEmbeddingsServiceController::OnLoadModelsResult,
                      weak_ptr_factory_.GetWeakPtr(),
                      std::move(service_launch_timer)));
@@ -176,8 +181,13 @@ void PassageEmbeddingsServiceController::OnLoadModelsResult(
     return;
   }
 
-  base::UmaHistogramTimes("History.Embeddings.Embedder.LaunchDuration",
-                          service_launch_timer.Elapsed());
+  if (!execute_for_gemma_) {
+    base::UmaHistogramTimes("History.Embeddings.Embedder.LaunchDuration",
+                            service_launch_timer.Elapsed());
+  } else {
+    base::UmaHistogramTimes("AI.SemanticEmbedder.LaunchDuration",
+                            service_launch_timer.Elapsed());
+  }
 }
 
 Embedder* PassageEmbeddingsServiceController::GetEmbedder() {
@@ -291,29 +301,34 @@ void PassageEmbeddingsServiceController::OnGotEmbeddings(
 
   auto status = results.empty() ? ComputeEmbeddingsStatus::kExecutionFailure
                                 : ComputeEmbeddingsStatus::kSuccess;
+
   std::move(callback).Run(std::move(results), status);
 
   if (status == ComputeEmbeddingsStatus::kSuccess) {
     const base::TimeDelta duration = generate_embeddings_timer.Elapsed();
-    base::UmaHistogramTimes("History.Embeddings.TaskDuration", duration);
-    const char* priority_histogram = nullptr;
-    switch (priority) {
-      case kUserInitiated:
-        priority_histogram = "History.Embeddings.TaskDuration.UserInitiated";
-        break;
+    if (execute_for_gemma_) {
+      base::UmaHistogramTimes("AI.SemanticEmbedder.TaskDuration", duration);
+    } else {
+      base::UmaHistogramTimes("History.Embeddings.TaskDuration", duration);
+      const char* priority_histogram = nullptr;
+      switch (priority) {
+        case kUserInitiated:
+          priority_histogram = "History.Embeddings.TaskDuration.UserInitiated";
+          break;
 
-      case kUrgent:
-        priority_histogram = "History.Embeddings.TaskDuration.Urgent";
-        break;
+        case kUrgent:
+          priority_histogram = "History.Embeddings.TaskDuration.Urgent";
+          break;
 
-      case kPassive:
-        priority_histogram = "History.Embeddings.TaskDuration.Passive";
-        break;
+        case kPassive:
+          priority_histogram = "History.Embeddings.TaskDuration.Passive";
+          break;
 
-      default:
-        priority_histogram = "History.Embeddings.TaskDuration.Other";
+        default:
+          priority_histogram = "History.Embeddings.TaskDuration.Other";
+      }
+      base::UmaHistogramTimes(priority_histogram, duration);
     }
-    base::UmaHistogramTimes(priority_histogram, duration);
   }
 }
 

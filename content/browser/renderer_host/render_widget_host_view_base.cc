@@ -37,12 +37,14 @@
 #include "content/browser/renderer_host/render_widget_host_view_child_frame.h"
 #include "content/browser/renderer_host/scoped_view_transition_resources.h"
 #include "content/browser/renderer_host/text_input_manager.h"
+#include "content/browser/renderer_host/unbounded_surface_window.h"
 #include "content/browser/renderer_host/visible_time_request_trigger.h"
 #include "content/common/content_switches_internal.h"
 #include "content/common/features.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/common/page_visibility_state.h"
 #include "third_party/blink/public/mojom/frame/intrinsic_sizing_info.mojom.h"
+#include "third_party/blink/public/mojom/unbounded_element/unbounded_element.mojom.h"
 #include "ui/base/ui_base_types.h"
 #include "ui/display/display_util.h"
 #include "ui/display/screen.h"
@@ -151,12 +153,6 @@ gfx::Size RenderWidgetHostViewBase::GetRequestedRendererSize() {
 gfx::Size RenderWidgetHostViewBase::GetRequestedRendererSizeDevicePx() {
   return gfx::ScaleToCeiledSize(GetRequestedRendererSize(),
                                 GetDeviceScaleFactor());
-}
-
-uint32_t RenderWidgetHostViewBase::GetCaptureSequenceNumber() const {
-  // TODO(vmpstr): Implement this for overrides other than aura and child frame.
-  NOTIMPLEMENTED_LOG_ONCE();
-  return 0u;
 }
 
 ui::TextInputClient* RenderWidgetHostViewBase::GetTextInputClient() {
@@ -910,6 +906,61 @@ display::ScreenInfos RenderWidgetHostViewBase::GetNewScreenInfosForUpdate() {
 void RenderWidgetHostViewBase::DidNavigate() {
   if (host())
     host()->SynchronizeVisualProperties();
+}
+
+void RenderWidgetHostViewBase::CreateUnboundedSurface(
+    mojo::PendingAssociatedReceiver<blink::mojom::UnboundedSurfaceHost> host,
+    mojo::PendingAssociatedRemote<blink::mojom::UnboundedSurfaceClient> client,
+    const gfx::Rect& bounds_in_dips) {}
+
+void RenderWidgetHostViewBase::UpdateUnboundedSurfaceBounds(
+    const gfx::Rect& bounds_in_screen) {
+  if (unbounded_surface_window_) {
+    unbounded_surface_window_->SetBounds(bounds_in_screen);
+  }
+}
+
+void RenderWidgetHostViewBase::DismissUnboundedSurface() {
+  if (unbounded_surface_window_) {
+    unbounded_surface_window_->Dismiss();
+  }
+}
+
+void RenderWidgetHostViewBase::DestroyUnboundedSurface() {
+  unbounded_surface_window_.reset();
+}
+
+bool RenderWidgetHostViewBase::HasActiveUnboundedSurface() const {
+  return !!unbounded_surface_window_;
+}
+
+viz::FrameSinkId RenderWidgetHostViewBase::GetUnboundedSurfaceFrameSinkId()
+    const {
+  return unbounded_surface_window_ ? unbounded_surface_window_->GetFrameSinkId()
+                                   : viz::FrameSinkId();
+}
+
+viz::LocalSurfaceId
+RenderWidgetHostViewBase::GetUnboundedSurfaceLocalSurfaceId() const {
+  return unbounded_surface_window_
+             ? unbounded_surface_window_->GetLocalSurfaceId()
+             : viz::LocalSurfaceId();
+}
+
+void RenderWidgetHostViewBase::GetUnboundedSurfaceCompositorFrameSink(
+    mojo::PendingReceiver<viz::mojom::CompositorFrameSink> sink,
+    mojo::PendingRemote<viz::mojom::CompositorFrameSinkClient> client) {
+  if (unbounded_surface_window_) {
+    unbounded_surface_window_->GetCompositorFrameSink(std::move(sink),
+                                                      std::move(client));
+  }
+}
+
+UnboundedSurfaceWindow* RenderWidgetHostViewBase::GetUnboundedSurfaceWindow()
+    const {
+  DCHECK(!unbounded_surface_window_ ||
+         base::FeatureList::IsEnabled(blink::features::kUnboundedElement));
+  return unbounded_surface_window_.get();
 }
 
 WebContentsAccessibility*

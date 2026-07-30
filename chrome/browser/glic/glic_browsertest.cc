@@ -14,11 +14,16 @@
 #include "chrome/browser/glic/test_support/glic_browser_test.h"
 #include "chrome/browser/glic/test_support/glic_test_environment.h"
 #include "chrome/browser/glic/test_support/glic_test_util.h"
+#include "chrome/browser/glic/widget/glic_view.h"
+#include "chrome/browser/glic/widget/glic_widget.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/sync/device_info_sync_service_factory.h"
 #include "chrome/browser/sync/sync_service_factory.h"
+#include "chrome/browser/themes/theme_service.h"
+#include "chrome/browser/themes/theme_service_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/ui_features.h"
@@ -36,6 +41,10 @@
 #include "content/public/test/browser_test_utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/window_open_disposition.h"
+#include "ui/color/color_provider_manager.h"
+#include "ui/compositor/layer.h"
+#include "ui/views/widget/widget.h"
+#include "ui/views/widget/widget_delegate.h"
 
 namespace glic {
 namespace {
@@ -261,6 +270,81 @@ IN_PROC_BROWSER_TEST_F(GlicKeyedServiceSyncBrowserTest,
   // 5. Toggle it back to true -> should trigger refresh (state becomes kReady).
   enabling.SetExperimentalTriggeringEnabled(true);
   EXPECT_EQ(fake_device_info_sync_service()->RefreshLocalDeviceInfoCount(), 4);
+}
+
+class GlicWidgetThemeBrowserTest : public glic::GlicBrowserTest {
+ public:
+  GlicWidgetThemeBrowserTest() = default;
+  ~GlicWidgetThemeBrowserTest() override = default;
+
+  void SetUpOnMainThread() override {
+    glic::GlicBrowserTest::SetUpOnMainThread();
+    SetFRECompletion(GetProfile(), prefs::FreStatus::kCompleted);
+  }
+};
+
+IN_PROC_BROWSER_TEST_F(GlicWidgetThemeBrowserTest,
+                       InitialThemePropagationOnCreation) {
+  ThemeService* theme_service =
+      ThemeServiceFactory::GetForProfile(GetProfile());
+
+  auto initial_color_scheme = theme_service->GetBrowserColorScheme();
+
+  // 1. Set the profile color scheme to Light.
+  theme_service->SetBrowserColorScheme(
+      ThemeService::BrowserColorScheme::kLight);
+
+  // 2. Verify that GlicWidget created with Light color scheme is light.
+  {
+    auto glic_view =
+        std::make_unique<GlicView>(GetProfile(), gfx::Size(100, 100), nullptr);
+    auto delegate =
+        GlicWidget::CreateWidgetDelegate(std::move(glic_view), false);
+    std::unique_ptr<GlicWidget> widget = GlicWidget::Create(
+        delegate.get(), GetProfile(), gfx::Rect(0, 0, 100, 100), false);
+    ASSERT_TRUE(widget);
+
+    GlicView* view = widget->GetGlicView();
+    ASSERT_TRUE(view);
+    ASSERT_TRUE(view->layer());
+
+    ui::ColorProviderKey key = widget->GetColorProviderKeyForTesting();
+    key.color_mode = ui::ColorProviderKey::ColorMode::kLight;
+    const ui::ColorProvider* light_provider =
+        ui::ColorProviderManager::Get().GetColorProviderFor(key);
+    EXPECT_EQ(light_provider->GetColor(kColorGlicBackground),
+              view->layer()->background_color());
+  }
+
+  // 3. Set the profile color scheme to Dark.
+  theme_service->SetBrowserColorScheme(ThemeService::BrowserColorScheme::kDark);
+
+  // 4. Create the GlicWidget directly without showing it.
+  {
+    auto glic_view =
+        std::make_unique<GlicView>(GetProfile(), gfx::Size(100, 100), nullptr);
+    auto delegate =
+        GlicWidget::CreateWidgetDelegate(std::move(glic_view), false);
+    std::unique_ptr<GlicWidget> widget = GlicWidget::Create(
+        delegate.get(), GetProfile(), gfx::Rect(0, 0, 100, 100), false);
+    ASSERT_TRUE(widget);
+
+    // 5. Get GlicView.
+    GlicView* view = widget->GetGlicView();
+    ASSERT_TRUE(view);
+    ASSERT_TRUE(view->layer());
+
+    // 6. Verify that GlicView's background color is in dark mode.
+    ui::ColorProviderKey key = widget->GetColorProviderKeyForTesting();
+    key.color_mode = ui::ColorProviderKey::ColorMode::kDark;
+    const ui::ColorProvider* dark_provider =
+        ui::ColorProviderManager::Get().GetColorProviderFor(key);
+    EXPECT_EQ(dark_provider->GetColor(kColorGlicBackground),
+              view->layer()->background_color());
+  }
+
+  // Restore initial color scheme.
+  theme_service->SetBrowserColorScheme(initial_color_scheme);
 }
 
 }  // namespace

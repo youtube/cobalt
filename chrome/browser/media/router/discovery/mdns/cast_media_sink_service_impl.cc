@@ -86,7 +86,7 @@ MediaRouterChannelError RecordError(cast_channel::ChannelError channel_error,
 
   switch (channel_error) {
     // TODO(crbug.com/41345758): Add in errors for transient socket and timeout
-    // errors, but only after X number of occurences.
+    // errors, but only after X number of occurrences.
     case cast_channel::ChannelError::UNKNOWN:
       error_code = MediaRouterChannelError::UNKNOWN;
       break;

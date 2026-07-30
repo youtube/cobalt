@@ -20,7 +20,6 @@ mojom("mojo_bindings") {
 build_webui("build") {
   grd_prefix = "cr_components_history_embeddings"
   ts_files = [
-    "browser_proxy.ts",
     "filter_chips.html.ts",
     "filter_chips.ts",
     "history_embeddings.html.ts",

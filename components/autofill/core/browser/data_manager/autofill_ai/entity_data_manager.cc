@@ -222,7 +222,6 @@ void EntityDataManager::OnHistoryDeletions(
   }
 }
 
-
 void EntityDataManager::RecordEntityUsed(const EntityInstance::EntityId& guid,
                                          base::Time use_date) {
   base::optional_ref<EntityInstance> entity = GetMutableEntityInstance(guid);

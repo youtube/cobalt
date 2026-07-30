@@ -82,6 +82,12 @@ public class TabListModel extends ModelList {
                 new PropertyModel.WritableIntPropertyKey();
     }
 
+    /** Returns whether the given model is a TAB or TAB_GROUP card. */
+    public static boolean isTabOrTabGroup(PropertyModel model) {
+        @CardProperties.ModelType int type = model.get(CARD_TYPE);
+        return type == TAB || type == TAB_GROUP;
+    }
+
     /**
      * Lookup the position of a tab by its tab ID.
      *
@@ -89,10 +95,10 @@ public class TabListModel extends ModelList {
      * @return The index within the model list or {@link TabModel.INVALID_TAB_INDEX}.
      */
     public int indexFromTabId(int tabId) {
-        // Search in reverse to find the child tab card first rather than the group header card,
-        // since the first child and header share the same tab ID.
-        for (int i = size() - 1; i >= 0; i--) {
+        for (int i = 0; i < size(); i++) {
             PropertyModel model = get(i).model;
+            // This intentionally skips TAB_GROUP cards because this method is meant
+            // to find the index of a specific tab, not a group header.
             if (model.get(CARD_TYPE) == TAB && model.get(TAB_ID) == tabId) return i;
         }
         return TabModel.INVALID_TAB_INDEX;
@@ -121,9 +127,10 @@ public class TabListModel extends ModelList {
      * @return The property model in the model list or null.
      */
     public @Nullable PropertyModel getModelFromTabId(int tabId) {
-        // Search in reverse to find the child tab card first rather than the group header card.
-        for (int i = size() - 1; i >= 0; i--) {
+        for (int i = 0; i < size(); i++) {
             PropertyModel model = get(i).model;
+            // This intentionally skips TAB_GROUP cards because this method is meant
+            // to find the model of a specific tab, not a group header.
             if (model.get(CARD_TYPE) == TAB && model.get(TAB_ID) == tabId) return model;
         }
         return null;
@@ -149,7 +156,7 @@ public class TabListModel extends ModelList {
     public @Nullable PropertyModel getFirstTabPropertyModel() {
         for (int i = 0; i < size(); i++) {
             PropertyModel model = get(i).model;
-            if (model.get(CARD_TYPE) == TAB) {
+            if (isTabOrTabGroup(model)) {
                 return model;
             }
         }
@@ -165,7 +172,7 @@ public class TabListModel extends ModelList {
      */
     public int indexOfNthTabCardOrInvalid(int n) {
         int index = indexOfNthTabCard(n);
-        if (index < 0 || index >= size() || get(index).model.get(CARD_TYPE) != TAB) {
+        if (index < 0 || index >= size() || !isTabOrTabGroup(get(index).model)) {
             return TabModel.INVALID_TAB_INDEX;
         }
         return index;
@@ -184,7 +191,7 @@ public class TabListModel extends ModelList {
         int lastTabIndex = TabModel.INVALID_TAB_INDEX;
         for (int i = 0; i < size(); i++) {
             PropertyModel model = get(i).model;
-            if (model.get(CARD_TYPE) == TAB || model.get(CARD_TYPE) == TAB_GROUP) {
+            if (TabListModel.isTabOrTabGroup(model)) {
                 if (tabCount++ == n) return i;
                 lastTabIndex = i;
             }
@@ -196,7 +203,7 @@ public class TabListModel extends ModelList {
 
     /** Returns the filter index of a tab from its view index. */
     public int indexOfTabCardsOrInvalid(int index) {
-        if (index < 0 || index >= size() || get(index).model.get(CARD_TYPE) != TAB) {
+        if (index < 0 || index >= size() || !isTabOrTabGroup(get(index).model)) {
             return TabModel.INVALID_TAB_INDEX;
         }
 
@@ -226,31 +233,33 @@ public class TabListModel extends ModelList {
         if (index > size()) index = size();
         int tabCount = 0;
         for (int i = 0; i < index; i++) {
-            if (get(i).model.get(CARD_TYPE) == TAB) tabCount++;
+            if (isTabOrTabGroup(get(i).model)) tabCount++;
         }
         return tabCount;
     }
 
     /**
      * Get the index of the last tab before the given index in TabListModel.
+     *
      * @param index The given index in TabListModel.
      * @return The index of the tab before the given index in TabListModel.
      */
     public int getTabIndexBefore(int index) {
         for (int i = index - 1; i >= 0; i--) {
-            if (get(i).model.get(CARD_TYPE) == TAB) return i;
+            if (isTabOrTabGroup(get(i).model)) return i;
         }
         return TabModel.INVALID_TAB_INDEX;
     }
 
     /**
      * Get the index of the first tab after the given index in TabListModel.
+     *
      * @param index The given index in TabListModel.
      * @return The index of the tab after the given index in TabListModel.
      */
     public int getTabIndexAfter(int index) {
         for (int i = index + 1; i < size(); i++) {
-            if (get(i).model.get(CARD_TYPE) == TAB) return i;
+            if (isTabOrTabGroup(get(i).model)) return i;
         }
         return TabModel.INVALID_TAB_INDEX;
     }
@@ -315,7 +324,8 @@ public class TabListModel extends ModelList {
     }
 
     private void destroyTabGroupColorViewProviderIfNotNull(PropertyModel model) {
-        if (model.get(CARD_TYPE) == TAB) {
+        int cardType = model.get(CARD_TYPE);
+        if (cardType == TAB || cardType == TAB_GROUP) {
             @Nullable TabGroupColorViewProvider provider =
                     model.get(TabProperties.TAB_GROUP_COLOR_VIEW_PROVIDER);
             if (provider != null) provider.destroy();
@@ -451,7 +461,7 @@ public class TabListModel extends ModelList {
 
         PropertyModel model = get(index).model;
 
-        assert model.get(CARD_TYPE) == TAB
+        assert isTabOrTabGroup(model)
                 || (model.get(CARD_TYPE) == MESSAGE
                         && model.get(MESSAGE_TYPE) == ARCHIVED_TABS_MESSAGE);
         return model;

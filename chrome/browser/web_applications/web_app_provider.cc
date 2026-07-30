@@ -67,7 +67,6 @@
 #include "chrome/browser/web_applications/web_contents/web_contents_manager.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/pref_names.h"
-#include "chrome/grit/generated_resources.h"
 #include "components/prefs/pref_service.h"
 #include "components/sync/model/data_type_store_service.h"
 #include "components/webapps/common/manifest_id_constants.h"

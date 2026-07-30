@@ -42,6 +42,7 @@ void RecordHomeAction(IOSHomeActionType type, bool isStartSurface) {
   } else {
     UMA_HISTOGRAM_ENUMERATION(kActionOnNTPHistogram, type);
   }
+  UMA_HISTOGRAM_ENUMERATION(kActionOnHomeHistogram, type);
 }
 
 void RecordMagicStackClick(ContentSuggestionsModuleType type,

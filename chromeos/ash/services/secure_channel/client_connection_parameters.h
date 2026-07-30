@@ -8,6 +8,7 @@
 #include <optional>
 #include <ostream>
 #include <string>
+#include <string_view>
 
 #include "base/observer_list.h"
 #include "base/unguessable_token.h"
@@ -97,7 +98,7 @@ class ClientConnectionParameters {
   void NotifyConnectionRequestCanceled();
 
  private:
-  void VerifyDelegateWaitingForResponse(const std::string& function_name);
+  void VerifyDelegateWaitingForResponse(std::string_view function_name);
 
   std::string feature_;
   base::UnguessableToken id_;

@@ -29,7 +29,6 @@ source_set("data_controls") {
 
   deps = [
     "//base",
-    "//chrome/app:generated_resources",
     "//chrome/browser/glic",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/safe_browsing",

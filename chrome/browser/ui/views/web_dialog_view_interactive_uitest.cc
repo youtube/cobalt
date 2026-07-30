@@ -151,7 +151,7 @@ IN_PROC_BROWSER_TEST_F(WebDialogBrowserTest, MAYBE_SizeWindow) {
 
   auto check_bounds = [&](const gfx::Rect& set, const gfx::Rect& actual) {
     if (centered_in_window) {
-      gfx::Rect expected = browser()->window()->GetBounds();
+      gfx::Rect expected = browser()->GetWindow()->GetBounds();
       expected.ClampToCenteredSize(set.size());
       EXPECT_EQ(expected, actual);
     } else {
@@ -282,7 +282,7 @@ IN_PROC_BROWSER_TEST_F(WebDialogBrowserTest, CloseParentWindow) {
   // Close the parent window. Tear down may happen asynchronously.
   EXPECT_FALSE(web_dialog_delegate_destroyed_);
   EXPECT_FALSE(was_view_deleted());
-  browser()->window()->Close();
+  browser()->GetWindow()->Close();
   base::RunLoop().RunUntilIdle();
   EXPECT_TRUE(web_dialog_delegate_destroyed_);
   EXPECT_TRUE(was_view_deleted());
@@ -321,7 +321,7 @@ IN_PROC_BROWSER_TEST_F(WebDialogBrowserTest, CloseDialogOnEscapeDisabled) {
 
 // Test that key event is translated to a text input properly.
 // TODO(crbug.com/500602996): Enable the test.
-#if BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 #define MAYBE_TextInputViaKeyEvent DISABLED_TextInputViaKeyEvent
 #else
 #define MAYBE_TextInputViaKeyEvent TextInputViaKeyEvent

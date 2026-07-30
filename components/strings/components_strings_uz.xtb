@@ -269,6 +269,7 @@ Aks holda bu maxfiylik sozlamalaringiz tomonidan bloklanadi. Bunda siz ochgan sa
 <translation id="1407135791313364759">Barchasini ochish</translation>
 <translation id="1408696301184924537">Bu IBAN raqami keyingi safar avtomatik kiritilishi uchun uni Google hisobiga saqlang</translation>
 <translation id="1408787208417187241">Yuqoridan uch marta steplerlash</translation>
+<translation id="1410306713026702438"><ph name="SUGGESTION_TITLE" />, <ph name="SUGGESTION_DESCRIPTION" />. <ph name="SUGGESTION_TYPE" />. <ph name="GROUP_HEADER" /> guruhidagi <ph name="MATCH_POSITION" />/<ph name="NUM_MATCHES_IN_GROUP" /></translation>
 <translation id="1410365862999780287">Faoliyatingiz bu qurilmaning boshqa foydalanuvchilariga koʻrinmaydi va saytlarni yanada maxfiy kezishingiz mumkin. Bunda ochilgan saytlar va Google kabi xizmatlarning maʼlumotlarni qanday jamlashi oʻzgarmaydi. Yuklanmalar, bukmarklar va mutolaa roʻyxatlari saqlanib qoladi.</translation>
 <translation id="1410941016594047814">Envelope Invite</translation>
 <translation id="1413235258620101697">Bu kartaning CVC kodi tezkor hisob-kitob uchun shifrlanadi va Google Wallet hamyonida saqlanadi</translation>
@@ -300,6 +301,7 @@ Aks holda bu maxfiylik sozlamalaringiz tomonidan bloklanadi. Bunda siz ochgan sa
 <translation id="1445896388055045436">Hisob-kitob vaqtida karta imtiyozlari va bonuslari axborotini chiqarish. Noshir shartlari amal qiladi.</translation>
 <translation id="1447067628680007684">(x86_64)</translation>
 <translation id="1448166547804028941">"<ph name="DATA_CONTROLS_FIRST_KEY_SET" />" kalitlari "<ph name="DATA_CONTROLS_SECOND_KEY_SET" />" kalitlari bilan bir xil lugʻatda sozlanmaydi</translation>
+<translation id="1449251255954293933">Redress raqamini Google Walletga saqlang</translation>
 <translation id="1455413310270022028">Oʻchirgʻich</translation>
 <translation id="1457992721081300557">{NUM_REVIEWS,plural, =0{Sharhlar mavjud emas}=1{1 ta sharhni koʻrish}other{Barcha sharhlarni (# ta) koʻrish}}</translation>
 <translation id="1458059624921545588">Odamlar va jamiyat</translation>
@@ -659,6 +661,7 @@ Aks holda bu maxfiylik sozlamalaringiz tomonidan bloklanadi. Bunda siz ochgan sa
 <translation id="2045871135676061132">Envelope Personal</translation>
 <translation id="2046951263634619614">Kitob sotuvchilar</translation>
 <translation id="2048261947532620704">Sahifa tarjima qilinmoqda</translation>
+<translation id="2055016614992422886">Suhbat</translation>
 <translation id="2059166748188874810">Munitsipalitet</translation>
 <translation id="2059202684901022309">22 x 34 in</translation>
 <translation id="2064568741209980952">Kredit va ssuda</translation>
@@ -1154,6 +1157,7 @@ Aks holda bu maxfiylik sozlamalaringiz tomonidan bloklanadi. Bunda siz ochgan sa
 <translation id="2782088940970074970">Avtomobil ijarasi</translation>
 <translation id="278436560439594386">Uy jihozlari</translation>
 <translation id="2784474685437057136">B5 Ekstra</translation>
+<translation id="2784795832957740711">Parollar · Kirish kalitlari</translation>
 <translation id="2784949926578158345">Aloqa qayta o‘rnatildi.</translation>
 <translation id="2786008859124691917">Velosiped va aksessuarlar</translation>
 <translation id="2792012897584536778">Qurilmaga administratorlar tomonidan xavfsizlik sertifikatlari oʻrnatilgan va ular ochiladigan saytlardagi kontentni koʻrishi mumkin.</translation>
@@ -2300,6 +2304,7 @@ Keyinroq toʻlash usullarini berkitish uchun <ph name="BEGIN_LINK" />toʻlov soz
 <translation id="46128681529823442">Sokker jihozlari</translation>
 <translation id="4612904677925722054">Bu saytda kattalar uchun kontent boʻlishi mumkin. Bu saytga kirishingiz uchun ota-onangiz yoki vasiyingiz ruxsat berishi kerak.</translation>
 <translation id="4619564267100705184">Bu siz ekaningizni isbotlang</translation>
+<translation id="4619669610757527494">Haydovchilik guvohnomasini Google Walletga saqlang</translation>
 <translation id="4622292761762557753">Uzatilsin</translation>
 <translation id="4622647778991854660">Bildirishnomalarni Bildirishnomalar markazi orqali yoqing. <ph name="LINK" /> ilovasini oching.</translation>
 <translation id="4623894491222334521">Shaxsni tasdiqlovchi hujjatlar</translation>
@@ -2829,6 +2834,7 @@ Keyinroq toʻlash usullarini berkitish uchun <ph name="BEGIN_LINK" />toʻlov soz
 <translation id="543656192084990644">Harakat sensorlaridan foydalanish ruxsati berilmagan</translation>
 <translation id="5441409130426352029"><ph name="ATTRIBUTE_VALUE" />, ilgari <ph name="PREVIOUS_VALUE" /> edi</translation>
 <translation id="5443468954631487277">Teskari tartibda old tomonida</translation>
+<translation id="5447103258548475868">Pasportni Google Walletga saqlang</translation>
 <translation id="5447235695608032700"><ph name="SITE" /> saytiga siz haqingizdagi saqlangan maʼlumotlardan foydalanishiga ruxsat bering</translation>
 <translation id="5447973833955560753">Zaxiraviy parol</translation>
 <translation id="5451331376824595378">Xavfsizlikka oid hodisalarni Chrome aniqlasa, bunga aloqador hodisalar haqidagi maʼlumotlar administratorga yuboriladi. Bu ochilgan sahifalar hamda axborot nusxalangan sahifalarning URL manzillari, fayl nomlari yoki meta-axborotlar, IP manzillar, brauzer yoki varaqlarning ishdan chiqishi hamda qurilma va Chrome foydalanuvchilari nomlaridan iborat boʻlishi mumkin.</translation>
@@ -3011,6 +3017,7 @@ Keyinroq toʻlash usullarini berkitish uchun <ph name="BEGIN_LINK" />toʻlov soz
 <translation id="5718601519531438273">Pasport hamda haydovchilik guvohnomalari kabi axborotlar ham kiradi</translation>
 <translation id="5720705177508910913">Joriy foydalanuvchi</translation>
 <translation id="5720895412771013401">Kompyuterlar</translation>
+<translation id="5721147290164931316">Telefon orqali kirish uchun skanerlang</translation>
 <translation id="5721367770070844253">{count,plural, =1{{website_1}}=2{{website_1}, {website_2}}=3{{website_1}, {website_2} va yana 1 ta}other{{website_1}, {website_2} va yana {more_count} ta}}</translation>
 <translation id="572328651809341494">Oxirgi varaqlar</translation>
 <translation id="5723873695528696965">MIDI qurilmalaringizni boshqaring va qayta dasturlang</translation>
@@ -3551,6 +3558,7 @@ Keyinroq toʻlash usullarini berkitish uchun <ph name="BEGIN_LINK" />toʻlov soz
 <translation id="6550245281449521513">Sichqoncha qulflash taqiqlangan</translation>
 <translation id="6551737294564628267"><ph name="ATTRIBUTE_NAME" />, yangi</translation>
 <translation id="6552566579578780089">Toʻlovlar</translation>
+<translation id="6553777254569586547"><ph name="SUGGESTION_TITLE" />. <ph name="SUGGESTION_TYPE" />. <ph name="GROUP_HEADER" /> guruhidagi <ph name="MATCH_POSITION" />/<ph name="NUM_MATCHES_IN_GROUP" /></translation>
 <translation id="6554732001434021288">Oxirgi tashrif: <ph name="NUM_DAYS" /> kun oldin</translation>
 <translation id="6556866813142980365">Qaytarish</translation>
 <translation id="6557715786897013164">14 x 17 in</translation>
@@ -4227,6 +4235,7 @@ Batafsil axborot:
 <translation id="7599089013883397081">Yuklab olish vaqti tugadi</translation>
 <translation id="7602868996817972616">Bu sahifa haqida Googlega savol bering</translation>
 <translation id="7606123685356405076">Gemini 3 modellari</translation>
+<translation id="760632772920590778">Transportni Google Walletga saqlang</translation>
 <translation id="7610193165460212391">Diapazondan tashqaridagi qiymat: <ph name="VALUE" />.</translation>
 <translation id="761261689936461781">Qalin</translation>
 <translation id="7613889955535752492">Muddati: <ph name="EXPIRATION_MONTH" />/<ph name="EXPIRATION_YEAR" /></translation>
@@ -4255,7 +4264,9 @@ Batafsil axborot:
 <translation id="7646681339175747202">Hozirgina siz foydalangan parol oshkor qilingan. Google Parollar menejeri bu parolni hoziroq almashtirishni tavsiya etadi.</translation>
 <translation id="7647206758853451655">Bosma sifati</translation>
 <translation id="7648133459447652947">Kursorni chiqarish uchun ilovalarni almashtiring, sahifani qayta yuklang yoki orqaga qayting</translation>
+<translation id="764847582138410250">Telefon orqali kirish uchun skanerlang</translation>
 <translation id="7648527891719919697"><ph name="BEGIN_ANDROID_SETTINGS_LINK" />Android sozlamalarida<ph name="END_ANDROID_SETTINGS_LINK" /> Google Kuchaytirilgan himoya yoqilgani uchun bu sayt bloklangan holatda qoladi. <ph name="BEGIN_LEARN_MORE_LINK" />Bu ogohlantirish haqida batafsil<ph name="END_LEARN_MORE_LINK" /></translation>
+<translation id="7648900539798595789">Tanish sayohatchi raqamini Google Walletga saqlang</translation>
 <translation id="7648992873808071793">Fayllarni bu qurilmada saqlash</translation>
 <translation id="7649070708921625228">Yordam</translation>
 <translation id="7650141368285545431">Boshqa qurilmada kirish kalitini ishlating</translation>
@@ -4348,6 +4359,7 @@ Batafsil axborot:
 <translation id="7773005668374414287">Bir xil tartibda old tomonida</translation>
 <translation id="7779418012194492374"><ph name="DEVICE_NAME" /> ruxsatini bekor qilish</translation>
 <translation id="7781829728241885113">Kecha</translation>
+<translation id="7782228658217918863">ID kartani Google Walletga saqlang</translation>
 <translation id="7782465647372057580">Hisob axboroti shifrlanadi va maxfiy saqlanadi</translation>
 <translation id="7785471469930192436">Imkon boʻlsa, qidiruv tarixini qanday tozalash haqidagi qidiruv tizimi koʻrsatmalarini oching</translation>
 <translation id="7785790577395078482">shu planshet</translation>
@@ -4882,6 +4894,7 @@ Batafsil axborot:
 <translation id="8671519637524426245"><ph name="SECURE_DNS_SALT" /> qiymati oʻlcham talablariga mos emas.</translation>
 <translation id="867224526087042813">Imzo</translation>
 <translation id="8672535691554698269">Kompyuter tarmoqlari</translation>
+<translation id="8673710317985154384">{NUM_TABS,plural, =1{Varaq ulashish tafsilotlarini chiqarish. {WEBSITE_LIST_STR} saytidan 1 ta varaq ulashilmoqda}other{Varaq ulashish tafsilotlarini chiqarish. {WEBSITE_LIST_STR} saytidan {NUM_TABS} ta varaq ulashilmoqda}}</translation>
 <translation id="8675446170353411473">Fayllar <ph name="CLOUD_PROVIDER" /> omboriga yuklanmoqda</translation>
 <translation id="8676424191133491403">Kechikishsiz</translation>
 <translation id="8680536109547170164"><ph name="QUERY" />, javob, <ph name="ANSWER" /></translation>

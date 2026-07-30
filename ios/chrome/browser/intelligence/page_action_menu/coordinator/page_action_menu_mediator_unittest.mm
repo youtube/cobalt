@@ -149,10 +149,8 @@ class PageActionMenuMediatorTest : public PlatformTest {
 // Tests that isGeminiAvailable accurately reflects underlying service and
 // tab helper state.
 TEST_F(PageActionMenuMediatorTest, IsGeminiAvailable) {
-  // Enable PageActionMenu and GeminiFloatyAllPages to simplify availability
-  // checks.
-  scoped_feature_list_.InitWithFeatures(
-      {kPageActionMenu, kGeminiFloatyAllPages}, {});
+  // Enable PageActionMenu to simplify availability checks.
+  scoped_feature_list_.InitWithFeatures({kPageActionMenu}, {});
 
   // Happy Path: Profile is eligible AND WebState has an eligible URL.
   fake_gemini_service_->SetIsEligible(true);

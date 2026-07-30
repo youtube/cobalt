@@ -99,6 +99,29 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(/components/send_tab_to_self/metrics_util.h:AutoOpenOutcome) -->
 
+<!-- LINT.IfChange(SendTabToSelfFormFactorCombination) -->
+
+<enum name="SendTabToSelfFormFactorCombination">
+  <int value="0" label="Desktop to Desktop"/>
+  <int value="1" label="Desktop to Phone"/>
+  <int value="2" label="Desktop to Tablet"/>
+  <int value="3" label="Desktop to Unknown/Other"/>
+  <int value="4" label="Phone to Desktop"/>
+  <int value="5" label="Phone to Phone"/>
+  <int value="6" label="Phone to Tablet"/>
+  <int value="7" label="Phone to Unknown/Other"/>
+  <int value="8" label="Tablet to Desktop"/>
+  <int value="9" label="Tablet to Phone"/>
+  <int value="10" label="Tablet to Tablet"/>
+  <int value="11" label="Tablet to Unknown/Other"/>
+  <int value="12" label="Unknown/Other to Desktop"/>
+  <int value="13" label="Unknown/Other to Phone"/>
+  <int value="14" label="Unknown/Other to Tablet"/>
+  <int value="15" label="Unknown/Other to Unknown/Other"/>
+</enum>
+
+<!-- LINT.ThenChange(/components/send_tab_to_self/metrics_util.h:SendTabToSelfFormFactorCombination) -->
+
 <!-- LINT.IfChange(SendTabToSelfFormFieldMatchOutcome) -->
 
 <enum name="SendTabToSelfFormFieldMatchOutcome">

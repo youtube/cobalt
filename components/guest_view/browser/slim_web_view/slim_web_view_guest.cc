@@ -29,6 +29,7 @@
 #include "content/public/common/content_features.h"
 #include "net/base/net_errors.h"
 #include "net/http/http_util.h"
+#include "third_party/blink/public/common/user_agent/user_agent_metadata.h"
 #include "third_party/blink/public/mojom/window_features/window_features.mojom.h"
 #include "url/gurl.h"
 #include "url/origin.h"
@@ -266,7 +267,21 @@ void SlimWebViewGuest::Navigate(const GURL& url) {
   TRACE_EVENT_INSTANT("content", "SlimWebViewGuest::Navigate",
                       perfetto::Flow::FromPointer(this));
   content::NavigationController::LoadURLParams load_url_params(url);
+  if (is_overriding_user_agent_) {
+    load_url_params.override_user_agent =
+        content::NavigationController::UA_OVERRIDE_TRUE;
+  }
   GetController().LoadURLWithParams(load_url_params);
+}
+
+void SlimWebViewGuest::SetUserAgentOverride(
+    const std::string& user_agent_override) {
+  CHECK(!base::FeatureList::IsEnabled(features::kGuestViewMPArch));
+  is_overriding_user_agent_ = !user_agent_override.empty();
+  if (web_contents()) {
+    web_contents()->SetUserAgentOverride(
+        blink::UserAgentOverride::UserAgentOnly(user_agent_override), false);
+  }
 }
 
 bool SlimWebViewGuest::HasAllowedOrigins() const {
@@ -555,6 +570,12 @@ void SlimWebViewGuest::CreateInnerPage(
   SetCreateParams(create_params, stored_params);
   std::unique_ptr<content::WebContents> new_contents =
       content::WebContents::Create(stored_params);
+  if (const std::string* user_agent_override =
+          create_params.FindString(slim_web_view::kUserAgentOverride)) {
+    is_overriding_user_agent_ = !user_agent_override->empty();
+    new_contents->SetUserAgentOverride(
+        blink::UserAgentOverride::UserAgentOnly(*user_agent_override), false);
+  }
   std::move(callback).Run(std::move(owned_this), std::move(new_contents));
 }
 

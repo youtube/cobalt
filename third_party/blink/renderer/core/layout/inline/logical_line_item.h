@@ -20,6 +20,7 @@ namespace blink {
 
 class LayoutObject;
 class LayoutResult;
+class UsedFont;
 
 // This class represents an item in a line, after line break, but still mutable
 // and in the logical coordinate system.
@@ -212,6 +213,7 @@ struct LogicalLineItem {
   LayoutObject* GetMutableLayoutObject() const;
   const Node* GetNode() const;
   const ComputedStyle* Style() const;
+  UsedFont GetUsedFont() const;
 
   unsigned StartOffset() const { return text_offset.start; }
   unsigned EndOffset() const { return text_offset.end; }

@@ -83,6 +83,7 @@ class PerfContextProvider
   base::Lock* GetLock() override { return &context_lock_; }
   void AddObserver(viz::ContextLostObserver* obs) override {}
   void RemoveObserver(viz::ContextLostObserver* obs) override {}
+  bool IsLost() override { return false; }
 
  private:
   friend class base::RefCountedThreadSafe<PerfContextProvider>;

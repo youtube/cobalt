@@ -268,7 +268,6 @@ if (enable_vr) {
 
     deps = [
       "//base",
-      "//chrome/app:generated_resources",
       "//components/security_state/core",
       "//components/ukm/content",
       "//components/url_formatter",
@@ -482,6 +481,7 @@ if (enable_vr) {
           "webxr_vr_indicators_browser_test.cc",
           "webxr_vr_input_browser_test.cc",
           "webxr_vr_isolated_device_service_test.cc",
+          "webxr_vr_lifecycle_browser_test.cc",
           "webxr_vr_permission_browser_test.cc",
           "webxr_vr_permission_request_browser_test.cc",
           "webxr_vr_pixel_browser_test.cc",

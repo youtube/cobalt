@@ -18,6 +18,7 @@
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service_factory.h"
 #include "components/prefs/pref_value_store.h"
+#include "components/prefs/scoped_user_pref_update.h"
 #include "components/prefs/testing_pref_service.h"
 #include "components/prefs/testing_pref_store.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -66,6 +67,36 @@ TEST(PrefServiceTest, NoObserverFire) {
   EXPECT_CALL(obs, OnPreferenceChanged(_)).Times(0);
   prefs.ClearPref(pref_name);
   Mock::VerifyAndClearExpectations(&obs);
+}
+
+TEST(PrefServiceTest, GetMutableUserPrefRecoversFromTypeConflict) {
+  TestingPrefServiceSimple prefs;
+
+  // Register a nested dictionary preference.
+  const char kNestedDictPref[] = "parent.child";
+  prefs.registry()->RegisterDictionaryPref(kNestedDictPref);
+
+  // Simulate a type conflict: write a non-dictionary value directly to the
+  // parent path.
+  prefs.SetUserPref("parent", base::Value(true));
+
+  // Attempting to access the nested dictionary should trigger recovery.
+  ScopedDictPrefUpdate update(&prefs, kNestedDictPref);
+
+  // The update should be successful (not null/fallback) and we can mutate it.
+  update->Set("key", "value");
+
+  // Verify that the parent node was cleared and reconstructed as a dictionary
+  // containing "child" by checking that the registered pref "parent.child" now
+  // works and has our mutation.
+  const base::Value* recovered_val = prefs.GetUserPrefValue(kNestedDictPref);
+  ASSERT_TRUE(recovered_val);
+  ASSERT_TRUE(recovered_val->is_dict());
+
+  // Verify our mutation exists.
+  const std::string* inner_val = recovered_val->GetDict().FindString("key");
+  ASSERT_TRUE(inner_val);
+  EXPECT_EQ(*inner_val, "value");
 }
 
 TEST(PrefServiceTest, HasPrefPath) {

@@ -9,6 +9,7 @@
 
 #include "base/functional/callback_forward.h"
 #include "components/signin/public/base/signin_buildflags.h"
+#include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
 
 namespace content {
 class WebContents;
@@ -37,6 +38,8 @@ enum class MandatoryReauthBubbleType;
 // bubbles.
 class AutofillBubbleHandler {
  public:
+  DECLARE_USER_DATA(AutofillBubbleHandler);
+
   AutofillBubbleHandler() = default;
 
   AutofillBubbleHandler(const AutofillBubbleHandler&) = delete;

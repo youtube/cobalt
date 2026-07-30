@@ -127,12 +127,18 @@ class MockContextualTasksUiServiceForThreadLink
 class ContextualTasksPageHandlerTest : public ChromeRenderViewHostTestHarness {
  public:
   void SetUp() override {
+#if !BUILDFLAG(IS_ANDROID)
+    feature_list_.InitWithFeatures(
+        {kContextualTasksContextLibrary,
+         kEnableContextualTasksPinButtonInToolbar,
+         feature_engagement::kIPHSidePanelContextualTasksPinnableFeature},
+        {});
+    InitializeActionIdStringMapping();
+#else
     feature_list_.InitWithFeatures(
         {kContextualTasksContextLibrary,
          kEnableContextualTasksPinButtonInToolbar},
         {});
-#if !BUILDFLAG(IS_ANDROID)
-    InitializeActionIdStringMapping();
 #endif
     profile_manager_ = std::make_unique<TestingProfileManager>(
         TestingBrowserProcess::GetGlobal());

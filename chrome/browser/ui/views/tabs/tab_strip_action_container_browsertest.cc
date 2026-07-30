@@ -97,17 +97,8 @@ class TabStripActionContainerBrowserTest : public InProcessBrowserTest {
   void SetUp() override {
     // This will temporarily disable preloading.
     glic::GlicProfileManager::SetPrewarmingEnabledForTesting(false);
-    fre_server_.ServeFilesFromDirectory(
-        base::PathService::CheckedGet(base::DIR_ASSETS)
-            .AppendASCII("gen/chrome/test/data/webui/glic/"));
-    ASSERT_TRUE(fre_server_.Start());
-    fre_url_ = fre_server_.GetURL("/glic/test_client/fre.html");
 
     InProcessBrowserTest::SetUp();
-  }
-
-  void SetUpCommandLine(base::CommandLine* command_line) override {
-    command_line->AppendSwitchASCII(switches::kGlicFreURL, fre_url_.spec());
   }
 
   void TearDown() override {
@@ -193,7 +184,6 @@ class TabStripActionContainerBrowserTest : public InProcessBrowserTest {
     glic::GlicProfileManager::SetPrewarmingEnabledForTesting(true);
   }
 
-  const GURL& fre_url() { return fre_url_; }
   void ResetAnimation(int value) {
     if (tab_strip_action_container()->animation_session_for_testing()) {
       tab_strip_action_container()
@@ -236,8 +226,6 @@ class TabStripActionContainerBrowserTest : public InProcessBrowserTest {
 
  protected:
   glic::GlicTestEnvironment glic_test_environment_;
-  net::EmbeddedTestServer fre_server_;
-  GURL fre_url_;
   base::test::ScopedFeatureList feature_list_;
 };
 

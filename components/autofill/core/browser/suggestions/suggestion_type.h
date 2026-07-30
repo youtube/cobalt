@@ -206,8 +206,11 @@ enum class SuggestionType {
   // selectable suggestion.
   kPersonalContextNotice = 85,
 
-  // Next ID: 87
-  kMaxValue = kWebauthnPasskeyQrCode
+  // Suggestion shown when fetching Ambient Autofill suggestions is in progress.
+  kFetchingAmbientData = 87,
+
+  // Next ID: 88
+  kMaxValue = kFetchingAmbientData
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/autofill/enums.xml:SuggestionType)
 

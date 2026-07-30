@@ -49,6 +49,10 @@
 #include "ui/accessibility/platform/browser_accessibility_manager.h"
 #include "ui/base/ui_base_features.h"
 
+#if BUILDFLAG(IS_MAC)
+#include "ui/accessibility/platform/browser_accessibility_cocoa_test_helpers.h"
+#endif
+
 #if BUILDFLAG(IS_ANDROID)
 #include "ui/accessibility/android/accessibility_state.h"
 #endif
@@ -223,6 +227,16 @@ void DumpAccessibilityTestBase::SetUp() {
   // AccessibilityInputColorWithPopupOpen requires the ability to read pixels
   // from a Canvas, so we need to be able to produce pixel output.
   EnablePixelOutput();
+
+#if BUILDFLAG(IS_MAC)
+  // Opt the dump-test infrastructure into the AXCustomActionNamesForTesting
+  // projection attribute on BrowserAccessibilityCocoa, so cross-process
+  // AXUIElementCopyAttributeValue queries can observe aria-actions custom
+  // action names (NSAccessibilityCustomAction objects do not marshal
+  // across the AX bridge). Without this opt-in the attribute is invisible
+  // to AT (not enumerated, and direct queries return nil).
+  ui::EnableAXCustomActionNamesForTestingProjection();
+#endif
 
   ContentBrowserTest::SetUp();
 }

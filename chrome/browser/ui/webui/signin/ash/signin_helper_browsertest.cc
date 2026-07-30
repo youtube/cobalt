@@ -24,8 +24,8 @@
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chromeos/ash/components/account_manager/account_manager_factory.h"
 #include "components/account_manager_core/account.h"
+#include "components/account_manager_core/account_upsertion_result.h"
 #include "components/account_manager_core/chromeos/account_manager.h"
-#include "components/account_manager_core/chromeos/account_manager_mojo_service.h"
 #include "components/user_manager/user_manager.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/test/browser_test.h"
@@ -88,7 +88,8 @@ class TestSigninHelper : public SigninHelper {
   TestSigninHelper(
       const base::RepeatingClosure& delete_closure,
       account_manager::AccountManager* account_manager,
-      crosapi::AccountManagerMojoService* account_manager_mojo_service,
+      SigninHelper::AccountUpsertionFinishedCallback
+          account_upsertion_finished_callback,
       const base::RepeatingClosure& close_dialog_closure,
       const base::RepeatingCallback<
           void(const std::string&, const std::string&)>& show_signin_error,
@@ -99,7 +100,7 @@ class TestSigninHelper : public SigninHelper {
       const std::string& auth_code,
       const std::string& signin_scoped_device_id)
       : SigninHelper(account_manager,
-                     account_manager_mojo_service,
+                     std::move(account_upsertion_finished_callback),
                      close_dialog_closure,
                      show_signin_error,
                      url_loader_factory,
@@ -135,9 +136,6 @@ class SigninHelperTest : public InProcessBrowserTest,
     auto* profile = browser()->profile();
     account_manager_ = AccountManagerFactory::Get()->GetAccountManager(
         profile->GetPath().value());
-    account_manager_mojo_service_ =
-        AccountManagerFactory::Get()->GetAccountManagerMojoService(
-            profile->GetPath().value());
     account_manager_->SetUrlLoaderFactoryForTests(shared_url_loader_factory());
     account_manager_->AddObserver(this);
 
@@ -157,14 +155,19 @@ class SigninHelperTest : public InProcessBrowserTest,
     on_token_upserted_account_ = std::nullopt;
   }
 
-  void CreateSigninHelper(const base::RepeatingClosure& exit_closure,
-                          const base::RepeatingClosure& close_dialog_closure) {
+  void CreateSigninHelper(
+      const base::RepeatingClosure& exit_closure,
+      const base::RepeatingClosure& close_dialog_closure,
+      SigninHelper::AccountUpsertionFinishedCallback
+          account_upsertion_finished_callback = base::DoNothingAs<
+              void(const account_manager::AccountUpsertionResult&)>()) {
     std::unique_ptr<SigninHelper::ArcHelper> arc_helper =
         std::make_unique<SigninHelper::ArcHelper>(
             /*is_available_in_arc=*/false, /*is_account_addition=*/false,
             /*account_apps_availability=*/nullptr);
     new TestSigninHelper(exit_closure, account_manager(),
-                         account_manager_mojo_service(), close_dialog_closure,
+                         std::move(account_upsertion_finished_callback),
+                         close_dialog_closure,
                          /*show_signin_error=*/base::DoNothing(),
                          shared_url_loader_factory(), std::move(arc_helper),
                          kFakeGaiaId, kFakeEmail, kFakeAuthCode, kFakeDeviceId);
@@ -172,13 +175,17 @@ class SigninHelperTest : public InProcessBrowserTest,
 
   void CreateSigninHelperWithSiginErrorClosure(
       const base::RepeatingClosure& exit_closure,
-      const base::RepeatingClosure& show_signin_error) {
+      const base::RepeatingClosure& show_signin_error,
+      SigninHelper::AccountUpsertionFinishedCallback
+          account_upsertion_finished_callback = base::DoNothingAs<
+              void(const account_manager::AccountUpsertionResult&)>()) {
     std::unique_ptr<SigninHelper::ArcHelper> arc_helper =
         std::make_unique<SigninHelper::ArcHelper>(
             /*is_available_in_arc=*/false, /*is_account_addition=*/false,
             /*account_apps_availability=*/nullptr);
     new TestSigninHelper(
-        exit_closure, account_manager(), account_manager_mojo_service(),
+        exit_closure, account_manager(),
+        std::move(account_upsertion_finished_callback),
         /*close_dialog_closure=*/base::DoNothing(),
         base::IgnoreArgs<const std::string&, const std::string&>(
             show_signin_error),
@@ -204,10 +211,6 @@ class SigninHelperTest : public InProcessBrowserTest,
 
   account_manager::AccountManager* account_manager() {
     return account_manager_;
-  }
-
-  crosapi::AccountManagerMojoService* account_manager_mojo_service() {
-    return account_manager_mojo_service_;
   }
 
  protected:
@@ -282,8 +285,6 @@ class SigninHelperTest : public InProcessBrowserTest,
 
   raw_ptr<account_manager::AccountManager, DanglingUntriaged> account_manager_ =
       nullptr;
-  raw_ptr<crosapi::AccountManagerMojoService, DanglingUntriaged>
-      account_manager_mojo_service_ = nullptr;
   int on_token_upserted_call_count_ = 0;
   std::optional<account_manager::Account> on_token_upserted_account_;
   network::TestURLLoaderFactory test_url_loader_factory_;
@@ -293,12 +294,19 @@ class SigninHelperTest : public InProcessBrowserTest,
 IN_PROC_BROWSER_TEST_F(SigninHelperTest,
                        NoAccountAddedWhenAuthTokenFetchFails) {
   base::test::RepeatingTestFuture exit_future, signin_error_future;
+  base::test::TestFuture<const account_manager::AccountUpsertionResult&>
+      account_upsertion_finished_future;
   // Set auth token fetch to fail.
   AddResponseClientOAuthFailure();
-  CreateSigninHelperWithSiginErrorClosure(exit_future.GetCallback(),
-                                          signin_error_future.GetCallback());
+  CreateSigninHelperWithSiginErrorClosure(
+      exit_future.GetCallback(), signin_error_future.GetCallback(),
+      account_upsertion_finished_future.GetCallback());
   // Make sure the show_signin_error was called.
   EXPECT_TRUE(signin_error_future.Wait());
+  account_manager::AccountUpsertionResult result =
+      account_upsertion_finished_future.Get();
+  EXPECT_EQ(account_manager::AccountUpsertionResult::Status::kNetworkError,
+            result.status());
   EXPECT_TRUE(exit_future.Wait());
   // No account should be added.
   EXPECT_EQ(on_token_upserted_call_count(), 0);
@@ -307,12 +315,21 @@ IN_PROC_BROWSER_TEST_F(SigninHelperTest,
 IN_PROC_BROWSER_TEST_F(SigninHelperTest,
                        AccountAddedWhenAuthTokenFetchSucceeds) {
   base::test::RepeatingTestFuture exit_future, close_dialog_future;
+  base::test::TestFuture<const account_manager::AccountUpsertionResult&>
+      account_upsertion_finished_future;
   CreateSigninHelper(exit_future.GetCallback(),
-                     close_dialog_future.GetCallback());
+                     close_dialog_future.GetCallback(),
+                     account_upsertion_finished_future.GetCallback());
   // Set auth token fetch to succeed.
   AddResponseClientOAuthSuccess();
   // Make sure the close_dialog_closure was called.
   EXPECT_TRUE(close_dialog_future.Wait());
+  account_manager::AccountUpsertionResult result =
+      account_upsertion_finished_future.Get();
+  EXPECT_EQ(account_manager::AccountUpsertionResult::Status::kSuccess,
+            result.status());
+  ASSERT_TRUE(result.account().has_value());
+  EXPECT_EQ(result.account()->raw_email, kFakeEmail);
   // Wait until SigninHelper finishes and deletes itself.
   EXPECT_TRUE(exit_future.Wait());
   // 1 account should be added.
@@ -337,14 +354,18 @@ class SigninHelperTestSecondaryGoogleAccountUsage : public SigninHelperTest {
       const base::RepeatingClosure& close_dialog_closure,
       const base::RepeatingClosure& show_signin_error,
       const GaiaId& gaia_id,
-      const std::string& email) {
+      const std::string& email,
+      SigninHelper::AccountUpsertionFinishedCallback
+          account_upsertion_finished_callback = base::DoNothingAs<
+              void(const account_manager::AccountUpsertionResult&)>()) {
     std::unique_ptr<SigninHelper::ArcHelper> arc_helper =
         std::make_unique<SigninHelper::ArcHelper>(
             /*is_available_in_arc=*/false, /*is_account_addition=*/false,
             /*account_apps_availability=*/nullptr);
     // The `TestSigninHelper` deletes itself after its work is complete.
     return new TestSigninHelper(
-        exit_closure, account_manager(), account_manager_mojo_service(),
+        exit_closure, account_manager(),
+        std::move(account_upsertion_finished_callback),
         /*close_dialog_closure=*/close_dialog_closure,
         /*show_signin_error=*/
         base::IgnoreArgs<const std::string&, const std::string&>(
@@ -486,14 +507,21 @@ IN_PROC_BROWSER_TEST_F(
   AddResponseRevokeGaiaTokenOnServer();
 
   base::test::RepeatingTestFuture exit_future, show_signin_error_future;
+  base::test::TestFuture<const account_manager::AccountUpsertionResult&>
+      account_upsertion_finished_future;
   // Enterprise account tries to sign in.
   CreateSigninHelper(exit_future.GetCallback(),
                      /*close_dialog_closure=*/base::BindRepeating(&NotReached),
                      /*show_signin_error=*/
                      show_signin_error_future.GetCallback(),
-                     kFakeEnterpriseGaiaId, kFakeEnterpriseEmail);
+                     kFakeEnterpriseGaiaId, kFakeEnterpriseEmail,
+                     account_upsertion_finished_future.GetCallback());
   // Make sure the show_signin_blocked_error_closure_run_loop was called.
   EXPECT_TRUE(show_signin_error_future.Wait());
+  account_manager::AccountUpsertionResult result =
+      account_upsertion_finished_future.Get();
+  EXPECT_EQ(account_manager::AccountUpsertionResult::Status::kBlockedByPolicy,
+            result.status());
   // Wait until SigninHelper finishes and deletes itself.
   EXPECT_TRUE(exit_future.Wait());
 

@@ -88,12 +88,13 @@ class ResizeToggleMenu : public views::WidgetObserver,
 
   bool IsBubbleShown() const;
 
+ protected:
+  virtual void UpdateSelectedButton();
+
  private:
   friend class ResizeToggleMenuTest;
 
   void OnBubbleWidgetClosing(views::Widget::ClosedReason reason);
-
-  void UpdateSelectedButton();
 
   void ApplyResizeCompatMode(ash::ResizeCompatMode mode);
 

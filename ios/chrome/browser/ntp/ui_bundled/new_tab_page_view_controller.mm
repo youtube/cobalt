@@ -1404,6 +1404,8 @@ const CGFloat kBackgroundImageAnimationDuration = 0.2;
                                     screenWidth:width
                                  safeAreaInsets:insets
                          animateScrollAnimation:!self.disableScrollAnimation];
+    [self.NTPContentDelegate
+        didUpdateNTPTabOmniboxScrollProgress:self.headerView.scrollProgress];
   } else {
     [self.headerView updateFakeOmniboxForWidth:width];
   }
@@ -1429,6 +1431,8 @@ const CGFloat kBackgroundImageAnimationDuration = 0.2;
                        screenWidth:self.collectionView.frame.size.width
                     safeAreaInsets:insets
             animateScrollAnimation:animateScrollAnimation];
+    [self.NTPContentDelegate
+        didUpdateNTPTabOmniboxScrollProgress:self.headerView.scrollProgress];
   }
 }
 

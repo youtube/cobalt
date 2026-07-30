@@ -40,6 +40,7 @@ class NavigationHandle;
 
 namespace webapps {
 class MlInstallOperationTracker;
+enum class WebappUninstallSource;
 }
 namespace web_app {
 class FakeWebAppUiManager;
@@ -320,6 +321,12 @@ class WebAppUiManager {
       gfx::NativeWindow parent_window,
       UninstallCompleteCallback callback,
       UninstallScheduledCallback scheduled_callback) = 0;
+
+  // TODO(crbug.com/428031098): Remove this method after this bug is complete,
+  // and instead have code uninstall directly with the web applications system
+  // or the extensions system via the extensions manager.
+  virtual void UninstallAppSilentlyForMigration(
+      const webapps::AppId& app_id) = 0;
 
   virtual void ShowProfileErrorDialogForCorruptDB() = 0;
 

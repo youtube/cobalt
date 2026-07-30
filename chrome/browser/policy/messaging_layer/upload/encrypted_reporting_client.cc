@@ -879,9 +879,7 @@ void EncryptedReportingClient::AccountForAllowedJob(Priority priority,
   auto* const state = GetState(priority, generation_id);
   // Update state to reflect `last_sequence_id` (we never allow upload with
   // lower sequence_id).
-  if (state->last_sequence_id < last_sequence_id) {
-    state->last_sequence_id = last_sequence_id;
-  }
+  state->last_sequence_id = std::max(state->last_sequence_id, last_sequence_id);
   // Calculate delay as exponential backoff (based on the retry_count).
   // Update backoff under assumption that this request fails.
   // If it is responded successfully, we will reset it.

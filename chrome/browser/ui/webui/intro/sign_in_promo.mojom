@@ -1,0 +1,33 @@
+// Copyright 2026 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module intro.mojom;
+
+// Used by the WebUI page to bootstrap bidirectional communication.
+interface SignInPromoPageHandlerFactory {
+  // Creates a PageHandler for the sign-in promo page.
+  CreateSignInPromoPageHandler(pending_remote<SignInPromoPage> page,
+                               pending_receiver<SignInPromoPageHandler> handler);
+};
+
+// Browser-side handler for requests from WebUI.
+interface SignInPromoPageHandler {
+  // Requests the managed device disclaimer. Returns empty string if
+  // non-managed.
+  GetManagedDeviceDisclaimer() => (string disclaimer);
+
+  // Called when the user clicks the sign-in button on the sign-in promo page
+  // in the first run flow.
+  ContinueWithAccount();
+
+  // Called when the user clicks the don't sign in button on the sign-in promo
+  // page in the first run flow.
+  ContinueWithoutAccount();
+};
+
+// WebUI-side handler for requests from browser.
+interface SignInPromoPage {
+  // Requests the WebUI to reset the buttons state.
+  OnResetButtons();
+};

@@ -362,6 +362,9 @@ std::string GenerateCertProvisioningId() {
   std::string result = base::UnguessableToken::Create().ToString();
   // Server-side stores the id and expects it to be <=32 characters long.
   CHECK_LE(result.size(), 32u);
+  if (result.empty()) {
+    LOG(ERROR) << "Failed to generate cert provisioning id";
+  }
   return result;
 }
 

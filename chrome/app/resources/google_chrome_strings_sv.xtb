@@ -404,6 +404,7 @@ Vissa funktioner är kanske inte tillgängliga. Ange en annan profilkatalog om d
 <translation id="5234764350956374838">Stäng</translation>
 <translation id="5239627039202700673">Använd Chrome varje gång du klickar på länkar i meddelanden, dokument och andra appar</translation>
 <translation id="5251420635869119124">Gäster kan använda Chrome utan att lämna spår.</translation>
+<translation id="5271833978500241046">Använd dem tillsammans med andra Gemini-funktioner i Chrome</translation>
 <translation id="5286907366254680517">Identifierades</translation>
 <translation id="5320351714793324716">Om du tillåter cookies kan Chrome använda dem när innehåll läses in i förväg</translation>
 <translation id="5321325624576443340">Google Lens är inte tillgängligt. Försök igen senare.</translation>
@@ -442,15 +443,6 @@ Google Chrome kan inte återställa dina inställningar.</translation>
 <translation id="569897634095159764">Det går inte att ansluta till internet. Proxyservern kräver autentisering.</translation>
 <translation id="5709557627224531708">Ange Chrome som standardwebbläsare</translation>
 <translation id="5719246646468301581">Ytterligare användarvillkor för Google Chrome och ChromeOS</translation>
-<translation id="5719324992913248873">Den här åtgärden kommer att
-          <ph name="LINE_BREAKS" />
-           • återställa vissa inställningar och genvägar för Chrome
-           <ph name="LINE_BREAK" />
-           • inaktivera tillägg
-           <ph name="LINE_BREAK" />
-           • radera cookies och annan tillfällig webbplatsdata.
-            <ph name="LINE_BREAKS" />
-           Bokmärken, historiken och sparade lösenord påverkas inte.</translation>
 <translation id="5736850870166430177">Om du utsätts för försök att kapa ditt lösenord på en webbplats eller om du laddar ned en skadlig fil kan webbadresserna skickas från Chrome till Säker webbsökning tillsammans med delar av sidinnehållet</translation>
 <translation id="5756509061973259733">Det finns redan en Chrome-profil med detta konto på enheten</translation>
 <translation id="5759947850379142561">Välj text eller bild att söka efter med Google Lens eller tryck på Escape för att avsluta Google Lens</translation>
@@ -648,6 +640,7 @@ Google Chrome kan inte återställa dina inställningar.</translation>
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
 <translation id="7627609214560473136">Låt Chrome ta bort behörigheter från webbplatser som du inte har besökt nyligen för att skydda din data.</translation>
 <translation id="7629695634924605473">Om dina lösenord någonsin skulle läcka ut får du veta det i Chrome</translation>
+<translation id="7629898584100520089">AI-innovationer som färdigheter sparas i Google-kontot och hanteras separat från Chrome Sync</translation>
 <translation id="7641148173327520642">Systemadministratören har konfigurerat Google Chrome så att <ph name="TARGET_URL_HOSTNAME" /> öppnas i <ph name="ALTERNATIVE_BROWSER_NAME" />.</translation>
 <translation id="7649070708921625228">Hjälp</translation>
 <translation id="7651907282515937834">Logotyp för Chrome Enterprise</translation>

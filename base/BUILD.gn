@@ -338,6 +338,8 @@ component("base") {
     "feature_internal.h",
     "feature_list.cc",
     "feature_list.h",
+    "feature_list_internal.cc",
+    "feature_list_internal.h",
     "feature_visitor.h",
     "features.cc",
     "features.h",
@@ -4891,6 +4893,7 @@ if (is_android) {
       "allocator/partition_alloc_features.cc",
       "features.cc",
       "task/task_features.cc",
+      "threading/platform_thread_android.cc",
     ]
     class_name = "org.chromium.base.BaseFeatures"
   }

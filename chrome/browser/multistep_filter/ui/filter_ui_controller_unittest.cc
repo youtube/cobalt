@@ -52,7 +52,6 @@ class MockFilterUiController : public FilterUiController {
   ~MockFilterUiController() override = default;
 
   MOCK_METHOD(void, NavigateTo, (const GURL& url), (override));
-  MOCK_METHOD(void, ClearSuggestion, (), (override));
 };
 
 class TestFilterUiController : public FilterUiController {
@@ -116,12 +115,21 @@ UrlFilterSuggestion CreateDummySuggestion(
   return UrlFilterSuggestion(
       {.navigation_url = url,
        .source_domain = base::UTF8ToUTF16(GetEtldPlusOne(url)),
+       .source_host = base::UTF8ToUTF16(url.GetHost()),
        .extraction_timestamp = base::Time::Now(),
        .attribute_ui_labels = std::move(attribute_ui_labels),
        .triggering_navigation_id = kTestNavigationId,
        .triggering_domain = GetEtldPlusOne(url),
+       .triggering_host = url.GetHost(),
        .task_type = "task1",
        .suggestion_message = u"Test Message"});
+}
+
+page_actions::PageActionState ActionState(bool showing = false) {
+  page_actions::PageActionState state;
+  state.action_id = kActionMultistepFilter;
+  state.showing = showing;
+  return state;
 }
 
 class FilterUiControllerTest : public ChromeRenderViewHostTestHarness {
@@ -196,12 +204,11 @@ TEST_F(FilterUiControllerTest, FromReturnsNullIfNotFound) {
 
 // === Group 2: Suggestion Generation (OnSuggestionGenerated) ===
 
-TEST_F(FilterUiControllerTest, SuggestionCallbackGeneratesSuggestion) {
-  testing::NiceMock<page_actions::MockPageActionController> mock_controller;
-  test_api(*controller_).set_page_action_controller(&mock_controller);
-
-  EXPECT_CALL(mock_controller, Show(kActionMultistepFilter)).Times(1);
-  EXPECT_CALL(mock_controller, ShowAnchoredMessage(kActionMultistepFilter, _))
+TEST_F(FilterUiControllerTest, OnSuggestionGeneratedShowsCue) {
+  EXPECT_CALL(*mock_page_action_controller_, Show(kActionMultistepFilter))
+      .Times(1);
+  EXPECT_CALL(*mock_page_action_controller_,
+              ShowAnchoredMessage(kActionMultistepFilter, _))
       .Times(1);
 
   GURL url("https://example.com");
@@ -216,55 +223,27 @@ TEST_F(FilterUiControllerTest, SuggestionCallbackGeneratesSuggestion) {
   // in a synthetic test environment.
   test_api(*controller_).OnFaviconAvailable(suggestion, result);
 
-  const std::optional<UrlFilterSuggestion>& cached_suggestion =
-      test_api(*controller_).current_url_filter_suggestion();
-  ASSERT_TRUE(cached_suggestion.has_value());
-  EXPECT_EQ(*cached_suggestion, suggestion);
-}
-
-TEST_F(FilterUiControllerTest, SuggestionCallbackTriggersService) {
-  GURL url("https://example.com");
-  UrlFilterSuggestion suggestion =
-      CreateDummySuggestion(url, DefaultAttributes());
-
-  EXPECT_CALL(*mock_service_,
-              DeleteAnnotationsForTask(testing::Eq("task1"),
-                                       testing::Eq(kTestNavigationId),
-                                       testing::Eq("example.com")));
-
-  controller_->OnSuggestionGenerated(suggestion);
+  const std::optional<FilterUiController::SuggestionState>& state =
+      test_api(*controller_).suggestion_state();
+  ASSERT_TRUE(state.has_value());
+  EXPECT_EQ(state->suggestion, suggestion);
 }
 
 TEST_F(FilterUiControllerTest, SuggestionCallbackDoesNothingIfServiceNull) {
-  GURL url("https://example.com");
-  UrlFilterSuggestion suggestion =
-      CreateDummySuggestion(url, DefaultAttributes());
-
   // service_ is null by default.
   test_api(*controller_).set_service(nullptr);
 
-  testing::NiceMock<page_actions::MockPageActionController> mock_controller;
-  test_api(*controller_).set_page_action_controller(&mock_controller);
-
-  EXPECT_CALL(mock_controller, Show(_)).Times(0);
-  EXPECT_CALL(mock_controller, ShowAnchoredMessage(_, _)).Times(0);
+  UrlFilterSuggestion suggestion =
+      CreateDummySuggestion(GURL("https://example.com"), DefaultAttributes());
 
   controller_->OnSuggestionGenerated(suggestion);
-  EXPECT_FALSE(
-      test_api(*controller_).current_url_filter_suggestion().has_value());
+  EXPECT_FALSE(test_api(*controller_).suggestion_state().has_value());
 }
 
 TEST_F(FilterUiControllerTest, SuggestionCallbackIgnoresNullopt) {
   // Also verify that direct calls with nullopt are ignored.
-  testing::NiceMock<page_actions::MockPageActionController> mock_controller;
-  test_api(*controller_).set_page_action_controller(&mock_controller);
-
-  EXPECT_CALL(mock_controller, Show(_)).Times(0);
-  EXPECT_CALL(mock_controller, ShowAnchoredMessage(_, _)).Times(0);
-
   controller_->OnSuggestionGenerated(std::nullopt);
-  EXPECT_FALSE(
-      test_api(*controller_).current_url_filter_suggestion().has_value());
+  EXPECT_FALSE(test_api(*controller_).suggestion_state().has_value());
 }
 
 TEST_F(FilterUiControllerTest,
@@ -276,8 +255,7 @@ TEST_F(FilterUiControllerTest,
   suggestion.suggestion_message = u"Test Message";
 
   controller_->OnSuggestionGenerated(suggestion);
-  EXPECT_FALSE(
-      test_api(*controller_).current_url_filter_suggestion().has_value());
+  EXPECT_FALSE(test_api(*controller_).suggestion_state().has_value());
 }
 
 TEST_F(FilterUiControllerTest, OnSuggestionGeneratedWithNullFaviconService) {
@@ -288,30 +266,26 @@ TEST_F(FilterUiControllerTest, OnSuggestionGeneratedWithNullFaviconService) {
   suggestion.suggestion_message = u"Test Message";
 
   controller_->OnSuggestionGenerated(suggestion);
-  EXPECT_FALSE(
-      test_api(*controller_).current_url_filter_suggestion().has_value());
+  EXPECT_FALSE(test_api(*controller_).suggestion_state().has_value());
 }
 
 // === Group 3: Clear & Dismissal ===
 
-TEST_F(FilterUiControllerTest, ClearSuggestion) {
+TEST_F(FilterUiControllerTest, ClearSuggestionResetsCachedSuggestion) {
   GURL url("https://example.com");
   UrlFilterSuggestion suggestion =
       CreateDummySuggestion(url, DefaultAttributes());
 
   controller_->OnSuggestionGenerated(suggestion);
 
-  controller_->FilterUiController::ClearSuggestion();
+  controller_->FilterUiController::ClearSuggestion(
+      FilterUiController::SuggestionUserDecision::kIgnored);
 
   // Verify that the current suggestion is reset.
-  EXPECT_CALL(*controller_, NavigateTo(_)).Times(0);
-  controller_->ApplySuggestion();
+  EXPECT_FALSE(test_api(*controller_).suggestion_state().has_value());
 }
 
 TEST_F(FilterUiControllerTest, ClearSuggestionHidesPageAction) {
-  testing::NiceMock<page_actions::MockPageActionController> mock_controller;
-  test_api(*controller_).set_page_action_controller(&mock_controller);
-
   EXPECT_CALL(mock_favicon_service_, GetFaviconImageForPageURL(_, _, _))
       .WillOnce(Return(base::CancelableTaskTracker::TaskId()));
 
@@ -320,7 +294,8 @@ TEST_F(FilterUiControllerTest, ClearSuggestionHidesPageAction) {
   suggestion.suggestion_message = u"Test Message";
 
   // Generate suggestion to set up state and show cue.
-  EXPECT_CALL(mock_controller, Show(kActionMultistepFilter)).Times(1);
+  EXPECT_CALL(*mock_page_action_controller_, Show(kActionMultistepFilter))
+      .Times(1);
   controller_->OnSuggestionGenerated(suggestion);
 
   favicon_base::FaviconImageResult result;
@@ -329,11 +304,28 @@ TEST_F(FilterUiControllerTest, ClearSuggestionHidesPageAction) {
   test_api(*controller_).OnFaviconAvailable(suggestion, result);
 
   // Now clear suggestion and verify it hides the cue.
-  EXPECT_CALL(mock_controller, Hide(kActionMultistepFilter)).Times(1);
-  EXPECT_CALL(mock_controller, HideAnchoredMessage(kActionMultistepFilter))
+  EXPECT_CALL(*mock_page_action_controller_, Hide(kActionMultistepFilter))
+      .Times(1);
+  EXPECT_CALL(*mock_page_action_controller_,
+              HideAnchoredMessage(kActionMultistepFilter))
       .Times(1);
 
-  controller_->FilterUiController::ClearSuggestion();
+  controller_->FilterUiController::ClearSuggestion(
+      FilterUiController::SuggestionUserDecision::kIgnored);
+}
+
+TEST_F(FilterUiControllerTest, ClearSuggestionResetsViewState) {
+  UrlFilterSuggestion suggestion =
+      CreateDummySuggestion(GURL("https://example.com"), DefaultAttributes());
+  controller_->OnSuggestionGenerated(suggestion);
+
+  test_api(*controller_).OnPageActionAnchoredMessageShown(ActionState());
+  EXPECT_EQ(test_api(*controller_).suggestion_state()->view_state,
+            FilterUiController::SuggestionViewState::kShowingInitialCue);
+
+  controller_->ClearSuggestion(
+      FilterUiController::SuggestionUserDecision::kIgnored);
+  EXPECT_FALSE(test_api(*controller_).suggestion_state().has_value());
 }
 
 // === Group 4: Apply Suggestion & Navigation ===
@@ -403,56 +395,124 @@ TEST_F(FilterUiControllerTest, NavigateToWithWebContents) {
   controller->NavigateTo(url);
 }
 
-// === Group 5: Commands (ExecuteCommand) ===
+// === Group 5: Menu Delegate Methods (IsCommandIdChecked, IsCommandIdEnabled,
+// ExecuteCommand) ===
 
-TEST_F(FilterUiControllerTest, ExecuteCommandDismissClearsSuggestion) {
-  EXPECT_CALL(*controller_, ClearSuggestion()).Times(1);
-  controller_->ExecuteCommand(internal::kDismissCommand, 0);
+TEST_F(FilterUiControllerTest, IsCommandIdCheckedReturnsFalse) {
+  EXPECT_FALSE(
+      test_api(*controller_).IsCommandIdChecked(internal::kDismissCommand));
+  EXPECT_FALSE(
+      test_api(*controller_).IsCommandIdChecked(internal::kSettingsCommand));
 }
 
-TEST_F(FilterUiControllerTest, ExecuteCommandSettingsClearsSuggestion) {
-  EXPECT_CALL(*controller_, ClearSuggestion()).Times(1);
-  controller_->ExecuteCommand(internal::kSettingsCommand, 0);
+TEST_F(FilterUiControllerTest, IsCommandIdEnabledReturnsTrue) {
+  EXPECT_TRUE(
+      test_api(*controller_).IsCommandIdEnabled(internal::kDismissCommand));
+  EXPECT_TRUE(
+      test_api(*controller_).IsCommandIdEnabled(internal::kSettingsCommand));
 }
 
-TEST_F(FilterUiControllerTest, ExecuteCommandWithNullWebContents) {
-  EXPECT_CALL(*mock_tab_, GetContents()).WillOnce(Return(nullptr));
+// === Group 6: Action Invocation (OnActionInvoked) ===
 
-  EXPECT_CALL(*controller_, ClearSuggestion()).Times(1);
-
-  // Should not crash when attempting to open settings.
-  controller_->ExecuteCommand(internal::kSettingsCommand, 0);
-}
-
-// === Group 7: Action Invocation (OnActionInvoked) ===
-
-TEST_F(FilterUiControllerTest,
-       OnActionInvokedAppliesSuggestionWhenBubbleShowing) {
+TEST_F(FilterUiControllerTest, OnActionInvokedAppliesSuggestionWhenShowing) {
   UrlFilterSuggestion suggestion =
       CreateDummySuggestion(GURL("https://example.com"), DefaultAttributes());
   controller_->OnSuggestionGenerated(suggestion);
 
-  // Simulate bubble showing!
-  EXPECT_CALL(*mock_page_action_controller_, GetActiveAnchoredMessage())
-      .WillRepeatedly(Return(kActionMultistepFilter));
+  // Simulate bubble showing
+  test_api(*controller_).OnPageActionAnchoredMessageShown(ActionState());
+  EXPECT_EQ(test_api(*controller_).suggestion_state()->view_state,
+            FilterUiController::SuggestionViewState::kShowingInitialCue);
 
   EXPECT_CALL(*controller_, NavigateTo(_)).Times(1);
   controller_->OnActionInvoked();
 }
 
-TEST_F(FilterUiControllerTest, OnActionInvokedShowsCueWhenBubbleNotShowing) {
+TEST_F(FilterUiControllerTest, OnActionInvokedReopensBubbleWhenCollapsed) {
   UrlFilterSuggestion suggestion =
       CreateDummySuggestion(GURL("https://example.com"), DefaultAttributes());
   controller_->OnSuggestionGenerated(suggestion);
 
-  // Simulate bubble NOT showing!
-  EXPECT_CALL(*mock_page_action_controller_, GetActiveAnchoredMessage())
-      .WillRepeatedly(Return(std::nullopt));
+  // Simulate cue shown then collapsed
+  test_api(*controller_).OnPageActionAnchoredMessageShown(ActionState());
+  test_api(*controller_).OnPageActionAnchoredMessageHidden(ActionState());
+  EXPECT_EQ(test_api(*controller_).suggestion_state()->view_state,
+            FilterUiController::SuggestionViewState::kCollapsedInOmnibox);
 
-  // ShowCue is not virtual, so we verify that it does NOT call NavigateTo!
+  // Invoking action when collapsed should reopen cue (no navigation)
   EXPECT_CALL(*controller_, NavigateTo(_)).Times(0);
-
   controller_->OnActionInvoked();
+
+  // Simulate bubble shown again (reopened)
+  test_api(*controller_).OnPageActionAnchoredMessageShown(ActionState());
+  EXPECT_EQ(test_api(*controller_).suggestion_state()->view_state,
+            FilterUiController::SuggestionViewState::kReopenedFromOmnibox);
+}
+
+// === Group 7: Observer Lifecycle & State Transitions ===
+
+TEST_F(FilterUiControllerTest,
+       OnPageActionAnchoredMessageShownUpdatesViewState) {
+  UrlFilterSuggestion suggestion =
+      CreateDummySuggestion(GURL("https://example.com"), DefaultAttributes());
+  controller_->OnSuggestionGenerated(suggestion);
+  EXPECT_EQ(test_api(*controller_).suggestion_state()->view_state,
+            FilterUiController::SuggestionViewState::kInactive);
+
+  test_api(*controller_).OnPageActionAnchoredMessageShown(ActionState());
+  EXPECT_EQ(test_api(*controller_).suggestion_state()->view_state,
+            FilterUiController::SuggestionViewState::kShowingInitialCue);
+}
+
+TEST_F(FilterUiControllerTest,
+       OnPageActionAnchoredMessageHiddenUpdatesViewState) {
+  UrlFilterSuggestion suggestion =
+      CreateDummySuggestion(GURL("https://example.com"), DefaultAttributes());
+  controller_->OnSuggestionGenerated(suggestion);
+
+  test_api(*controller_).OnPageActionAnchoredMessageShown(ActionState());
+  test_api(*controller_).OnPageActionAnchoredMessageHidden(ActionState());
+  EXPECT_EQ(test_api(*controller_).suggestion_state()->view_state,
+            FilterUiController::SuggestionViewState::kCollapsedInOmnibox);
+  EXPECT_TRUE(test_api(*controller_).suggestion_state().has_value());
+}
+
+TEST_F(FilterUiControllerTest,
+       OnPageActionAnchoredMessageShownDeletesAnnotations) {
+  GURL url("https://example.com");
+  UrlFilterSuggestion suggestion =
+      CreateDummySuggestion(url, DefaultAttributes());
+
+  controller_->OnSuggestionGenerated(suggestion);
+
+  EXPECT_CALL(*mock_service_,
+              DeleteAnnotationsForTask(testing::Eq("task1"),
+                                       testing::Eq(kTestNavigationId),
+                                       testing::Eq("example.com")));
+
+  test_api(*controller_).OnPageActionAnchoredMessageShown(ActionState());
+}
+
+TEST_F(FilterUiControllerTest,
+       OnPageActionAnchoredMessageHiddenFromReopenedStateCollapsesToOmnibox) {
+  UrlFilterSuggestion suggestion =
+      CreateDummySuggestion(GURL("https://example.com"), DefaultAttributes());
+  controller_->OnSuggestionGenerated(suggestion);
+
+  // Transition: Inactive -> ShowingInitialCue -> CollapsedInOmnibox ->
+  // ReopenedFromOmnibox
+  test_api(*controller_).OnPageActionAnchoredMessageShown(ActionState());
+  test_api(*controller_).OnPageActionAnchoredMessageHidden(ActionState());
+  controller_->OnActionInvoked();
+  test_api(*controller_).OnPageActionAnchoredMessageShown(ActionState());
+  EXPECT_EQ(test_api(*controller_).suggestion_state()->view_state,
+            FilterUiController::SuggestionViewState::kReopenedFromOmnibox);
+
+  // Transition: ReopenedFromOmnibox -> CollapsedInOmnibox (on hidden)
+  test_api(*controller_).OnPageActionAnchoredMessageHidden(ActionState());
+  EXPECT_EQ(test_api(*controller_).suggestion_state()->view_state,
+            FilterUiController::SuggestionViewState::kCollapsedInOmnibox);
+  EXPECT_TRUE(test_api(*controller_).suggestion_state().has_value());
 }
 
 }  // namespace

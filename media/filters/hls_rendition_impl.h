@@ -87,7 +87,7 @@ class MEDIA_EXPORT HlsRenditionImpl : public HlsRendition {
   // the delay between fetching new playlists for live content.
   void FetchManifestUpdates(ManifestDemuxer::DelayCallback, base::TimeDelta);
   void MaybeFetchManifestUpdates(ManifestDemuxer::DelayCallback,
-                                 base::TimeDelta);
+                                 std::optional<base::TimeDelta>);
 
   // Callback helper to receive notice when a new manifest has been updated.
   void OnManifestUpdate(ManifestDemuxer::DelayCallback cb,

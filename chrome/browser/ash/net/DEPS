@@ -25,11 +25,13 @@ include_rules = [
   "+chrome/browser/sync",
   "+chrome/browser/ui/ash/login",
   "+chrome/browser/ui/login",
-  "+chrome/common/pref_names.h",
   "+chrome/test/base",
 ]
 
 specific_include_rules = {
+  "secure_dns_manager_unittest\\.cc": [
+    "+chrome/common/pref_names.h",
+  ],
   "system_proxy_manager_unittest\\.cc": [
     "+services/network/network_context.h"
   ],

@@ -20,7 +20,6 @@ import org.chromium.base.StreamUtil;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.task.AsyncTask;
-import org.chromium.base.task.BackgroundOnlyAsyncTask;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskRunner;
 import org.chromium.base.task.TaskTraits;
@@ -83,6 +82,7 @@ public class TabbedModeTabPersistencePolicy implements TabPersistencePolicy {
 
     private static @Nullable AsyncTask<Void> sMigrationTask;
     private static @Nullable AsyncTask<Void> sCleanupTask;
+    private static boolean sMigrationAttempted;
 
     private final String mMetadataFileName;
     private final @Nullable String mOtherWindowTag;
@@ -199,9 +199,10 @@ public class TabbedModeTabPersistencePolicy implements TabPersistencePolicy {
         if (hasRunLegacyMigration && hasRunMultiInstanceMigration) return false;
 
         synchronized (MIGRATION_LOCK) {
-            if (sMigrationTask != null) return true;
+            if (sMigrationAttempted) return true;
+            sMigrationAttempted = true;
             sMigrationTask =
-                    new BackgroundOnlyAsyncTask<Void>() {
+                    new AsyncTask<Void>() {
                         @Override
                         protected Void doInBackground() {
                             if (!hasRunLegacyMigration) {
@@ -218,6 +219,16 @@ public class TabbedModeTabPersistencePolicy implements TabPersistencePolicy {
                                 performMultiInstanceMigration();
                             }
                             return null;
+                        }
+
+                        @Override
+                        protected void onPostExecute(Void result) {
+                            sMigrationTask = null;
+                        }
+
+                        @Override
+                        protected void onCancelled(@Nullable Void result) {
+                            sMigrationTask = null;
                         }
                     }.executeOnTaskRunner(taskRunner);
             return true;
@@ -351,9 +362,10 @@ public class TabbedModeTabPersistencePolicy implements TabPersistencePolicy {
 
     @Override
     public void waitForInitializationToFinish() {
-        if (sMigrationTask == null) return;
+        AsyncTask<Void> task = sMigrationTask;
+        if (task == null) return;
         try {
-            sMigrationTask.get();
+            task.get();
         } catch (InterruptedException e) {
         } catch (ExecutionException e) {
         }
@@ -660,11 +672,7 @@ public class TabbedModeTabPersistencePolicy implements TabPersistencePolicy {
                     for (String metadataFileName : getAllMetadataFileNames()) {
                         getTabsFromMetadataFile(tabIds, metadataFileName);
                     }
-                    PostTask.postTask(
-                            TaskTraits.UI_DEFAULT,
-                            () -> {
-                                tabIdsCallback.onResult(tabIds);
-                            });
+                    PostTask.postTask(TaskTraits.UI_DEFAULT, tabIdsCallback.bind(tabIds));
                 });
     }
 
@@ -684,5 +692,6 @@ public class TabbedModeTabPersistencePolicy implements TabPersistencePolicy {
 
     protected static void resetMigrationTaskForTesting() {
         sMigrationTask = null;
+        sMigrationAttempted = false;
     }
 }

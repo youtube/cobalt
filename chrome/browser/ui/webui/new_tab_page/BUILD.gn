@@ -2,6 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//build/config/compiler/compiler.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
 import("//third_party/jni_zero/jni_zero.gni")
 import("//ui/webui/webui_features.gni")
@@ -27,3 +28,240 @@ mojom("mojo_bindings") {
         [ "//chrome/browser/ui/webui/new_tab_page/ntp_promo:mojo_bindings" ]
   }
 }
+
+# Thin public target providing new_tab_page_ui.h and untrusted_source.h without
+# heavy deps. Used by targets that include the UI headers but don't need the
+# full implementation.
+source_set("new_tab_page") {
+  public = [
+    "new_tab_page_ui.h",
+    "untrusted_source.h",
+  ]
+  public_deps = [
+    ":mojo_bindings",
+    "//chrome/browser:browser_public_dependencies",
+    "//chrome/browser/new_tab_page",
+    "//chrome/browser/search/background",
+    "//chrome/browser/ui/webui/customize_buttons:mojo_bindings",
+    "//chrome/browser/ui/webui/new_tab_page/action_chips",
+    "//chrome/browser/ui/webui/new_tab_page/action_chips:mojo_bindings",
+    "//components/page_image_service/mojom:mojo_bindings",
+    "//components/themes",
+    "//ui/webui",
+    "//ui/webui/resources/cr_components/composebox:mojo_bindings",
+    "//ui/webui/resources/cr_components/help_bubble:mojo_bindings",
+    "//ui/webui/resources/js/browser_command:mojo_bindings",
+  ]
+  if (!is_android) {
+    public_deps += [ "//components/user_education/webui" ]
+  }
+}
+
+# Full implementation target.
+source_set("impl") {
+  sources = [
+    "new_tab_page_handler.cc",
+    "new_tab_page_ui.cc",
+    "untrusted_source.cc",
+  ]
+  public = [ "new_tab_page_handler.h" ]
+  public_deps = [ "//chrome/browser:browser_public_dependencies" ]
+  deps = [
+    ":mojo_bindings",
+    ":new_tab_page",
+    "//base",
+    "//base:i18n",
+    "//build:branding_buildflags",
+    "//chrome/app:branded_strings",
+    "//chrome/app:generated_resources_grit",
+    "//chrome/app/theme:theme_resources",
+    "//chrome/browser:browser_features",
+    "//chrome/browser:browser_process",
+    "//chrome/browser:buildflags",
+    "//chrome/browser/autocomplete:aim_eligibility_service",
+    "//chrome/browser/contextual_search",
+    "//chrome/browser/desktop_to_mobile_promos:utils",
+    "//chrome/browser/enterprise",
+    "//chrome/browser/new_tab_page",
+    "//chrome/browser/new_tab_page:impl",
+    "//chrome/browser/new_tab_page/modules/file_suggestion:mojo_bindings",
+    "//chrome/browser/new_tab_page/modules/v2/authentication:mojo_bindings",
+    "//chrome/browser/new_tab_page/modules/v2/calendar:mojo_bindings",
+    "//chrome/browser/new_tab_page/modules/v2/most_relevant_tab_resumption:mojo_bindings",
+    "//chrome/browser/new_tab_page/modules/v2/tab_groups:mojo_bindings",
+    "//chrome/browser/optimization_guide",
+    "//chrome/browser/page_image_service",
+    "//chrome/browser/policy",
+    "//chrome/browser/profiles:profile",
+    "//chrome/browser/resources/new_tab_page:resources",
+    "//chrome/browser/resources/new_tab_page/untrusted:resources",
+    "//chrome/browser/resources/new_tab_shared:resources",
+    "//chrome/browser/search/background",
+    "//chrome/browser/search_engines",
+    "//chrome/browser/search_provider_logos",
+    "//chrome/browser/segmentation_platform",
+    "//chrome/browser/signin",
+    "//chrome/browser/sync",
+    "//chrome/browser/ui/actions:actions_headers",
+    "//chrome/browser/ui/browser_window",
+    "//chrome/browser/ui/color:color_headers",
+    "//chrome/browser/ui/search",
+    "//chrome/browser/ui/search:impl",
+    "//chrome/browser/ui/tabs:tabs_public",
+    "//chrome/browser/ui/webui:favicon_source",
+    "//chrome/browser/ui/webui:plural_string_handler",
+    "//chrome/browser/ui/webui:theme_source",
+    "//chrome/browser/ui/webui:webui_util",
+    "//chrome/browser/ui/webui/cr_components/composebox",
+    "//chrome/browser/ui/webui/cr_components/most_visited",
+    "//chrome/browser/ui/webui/cr_components/searchbox",
+    "//chrome/browser/ui/webui/cr_components/searchbox:searchbox_impl",
+    "//chrome/browser/ui/webui/new_tab_page/composebox/variations",
+    "//chrome/browser/ui/webui/ntp_microsoft_auth:untrusted",
+    "//chrome/browser/ui/webui/page_not_available_for_guest",
+    "//chrome/browser/ui/webui/sanitized_image:sanitized_image_source",
+    "//chrome/browser/ui/webui/searchbox",
+    "//chrome/common",
+    "//chrome/common:constants",
+    "//chrome/common/search:mojo_bindings",
+    "//components/commerce/core:feature_list",
+    "//components/content_settings/core/common",
+    "//components/contextual_search:public",
+    "//components/favicon_base",
+    "//components/feature_engagement/public",
+    "//components/feature_engagement/public:feature_constants",
+    "//components/google/core/common",
+    "//components/history_clusters/core",
+    "//components/lens",
+    "//components/ntp_tiles",
+    "//components/ntp_tiles:pref_names",
+    "//components/omnibox/browser",
+    "//components/omnibox/common",
+    "//components/omnibox/common:features",
+    "//components/optimization_guide/core:model_execution",
+    "//components/page_image_service",
+    "//components/prefs",
+    "//components/resources:components_scaled_resources",
+    "//components/search",
+    "//components/search_engines",
+    "//components/search_provider_logos",
+    "//components/segmentation_platform/public",
+    "//components/signin/public/identity_manager",
+    "//components/strings:components_strings_grit",
+    "//components/sync",
+    "//components/tabs:public",
+    "//components/themes",
+    "//components/user_education/common",
+    "//content/public/browser",
+    "//google_apis",
+    "//media",
+    "//mojo/public/cpp/base",
+    "//mojo/public/cpp/bindings",
+    "//net",
+    "//services/network/public/cpp",
+    "//services/network/public/mojom",
+    "//skia",
+    "//third_party/omnibox_proto",
+    "//third_party/re2",
+    "//ui/actions",
+    "//ui/base",
+    "//ui/base/interaction",
+    "//ui/color",
+    "//ui/gfx/codec",
+    "//ui/native_theme",
+    "//ui/webui",
+    "//ui/webui/resources",
+    "//ui/webui/resources/cr_components/composebox:mojo_bindings",
+    "//ui/webui/resources/cr_components/help_bubble:mojo_bindings",
+    "//ui/webui/resources/cr_components/most_visited:mojom",
+    "//ui/webui/tracked_element",
+    "//url",
+  ]
+
+  if (!is_android) {
+    deps += [
+      "//chrome/browser/themes",
+      "//chrome/browser/ui/user_education",
+      "//chrome/browser/ui/views/new_tab_footer",
+      "//chrome/browser/ui/views/side_panel",
+      "//chrome/browser/ui/webui/browser_command",
+      "//chrome/browser/ui/webui/customize_buttons",
+      "//chrome/browser/ui/webui/customize_buttons:impl",
+      "//chrome/browser/ui/webui/new_tab_page/ntp_promo",
+      "//chrome/browser/ui/webui/new_tab_page/ntp_promo:mojo_bindings",
+      "//chrome/browser/ui/webui/util",
+      "//chrome/browser/ui/webui_browser",
+      "//chrome/browser/user_education",
+      "//components/user_education/webui",
+      "//ui/webui/tracked_element",
+    ]
+  }
+
+  if (!is_official_build) {
+    deps += [ "//chrome/browser/ui/webui/new_tab_page/foo:mojo_bindings" ]
+  }
+}
+
+if (!is_android) {
+  source_set("unit_tests") {
+    testonly = true
+    sources = [
+      "new_tab_page_handler_unittest.cc",
+      "new_tab_page_ui_unittest.cc",
+      "untrusted_source_unittest.cc",
+    ]
+    deps = [
+      ":impl",
+      ":new_tab_page",
+      "//base",
+      "//base/test:test_support",
+      "//chrome/browser/desktop_to_mobile_promos:utils",
+      "//chrome/browser/new_tab_page",
+      "//chrome/browser/optimization_guide:test_support",
+      "//chrome/browser/search/background",
+      "//chrome/browser/search_engines",
+      "//chrome/browser/themes",
+      "//chrome/browser/ui/hats:test_support",
+      "//chrome/test:test_support",
+      "//components/feature_engagement/test:test_support",
+      "//components/search",
+      "//components/search_engines",
+      "//components/search_provider_logos",
+      "//components/segmentation_platform/embedder/default_model",
+      "//components/segmentation_platform/public:test_support",
+      "//components/themes",
+      "//content/test:test_support",
+      "//testing/gmock",
+      "//testing/gtest",
+    ]
+  }
+
+  source_set("browser_tests") {
+    testonly = true
+    defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
+    sources = [
+      "new_tab_page_handler_browsertest.cc",
+      "webui_ntp_browsertest.cc",
+    ]
+    deps = [
+      ":impl",
+      ":new_tab_page",
+      "//base",
+      "//base/test:test_support",
+      "//chrome/browser/new_tab_page",
+      "//chrome/browser/search_provider_logos",
+      "//chrome/browser/ui:ui_features",
+      "//chrome/browser/ui/side_panel",
+      "//chrome/browser/ui/side_panel:side_panel_views_dependent",
+      "//chrome/browser/ui/webui:webui_util",
+      "//chrome/browser/ui/webui/cr_components/most_visited",
+      "//chrome/browser/ui/webui/customize_buttons",
+      "//chrome/test:test_support",
+      "//components/user_education/views",
+      "//content/test:test_support",
+      "//testing/gmock",
+      "//testing/gtest",
+    ]
+  }
+}  # if (!is_android)

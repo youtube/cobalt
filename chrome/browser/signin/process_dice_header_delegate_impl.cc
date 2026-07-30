@@ -11,6 +11,7 @@
 #include "base/functional/callback.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
+#include "chrome/browser/metrics/profile_metrics_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/signin/dice_tab_helper.h"
 #include "chrome/browser/signin/dice_web_signin_interceptor.h"
@@ -249,6 +250,8 @@ void ProcessDiceHeaderDelegateImpl::AttemptChromeSignin(
   bool should_auto_sign_in = false;
   AccountInfo account_info =
       identity_manager->FindExtendedAccountInfoByAccountId(account_id);
+  const bool has_primary_account =
+      identity_manager->HasPrimaryAccount(signin::ConsentLevel::kSignin);
   if (access_point_ == signin_metrics::AccessPoint::kWebSignin) {
     // When automation is enabled, automatically promote web sign in to Chrome
     // sign in.
@@ -269,13 +272,18 @@ void ProcessDiceHeaderDelegateImpl::AttemptChromeSignin(
 
     // Proceed with the access point as the choice remembered.
     access_point_ = signin_metrics::AccessPoint::kSigninChoiceRemembered;
+    if (!has_primary_account) {
+      signin_metrics::LogSignInOffered(
+          access_point_,
+          signin_metrics::PromoAction::PROMO_ACTION_NO_SIGNIN_PROMO);
+      signin_metrics::LogSignInStarted(
+          access_point_,
+          *ProfileMetricsServiceFactory::GetForProfile(&profile_.get()));
+    }
   }
 
   // This access point should only be used as a result of a non Uno flow.
   CHECK_NE(signin_metrics::AccessPoint::kDesktopSigninManager, access_point_);
-
-  const bool has_primary_account =
-      identity_manager->HasPrimaryAccount(signin::ConsentLevel::kSignin);
   if (should_auto_sign_in && !has_primary_account) {
     // Sign-in the user in the browser if user can sign. If not, we fail
     // silently as the signin attempt was not an explicit user action.

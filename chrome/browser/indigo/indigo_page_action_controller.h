@@ -11,6 +11,7 @@
 #include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
+#include "base/timer/timer.h"
 #include "chrome/browser/indigo/api_client.h"
 #include "chrome/browser/indigo/indigo_service.h"
 #include "chrome/browser/ui/page_action/page_action_observer.h"
@@ -28,9 +29,7 @@ class OptimizationGuideDecider;
 class OptimizationMetadata;
 }  // namespace optimization_guide
 
-namespace page_actions {
-class PageActionController;
-}  // namespace page_actions
+#include "chrome/browser/ui/page_action/page_action_controller.h"
 
 namespace tabs {
 class TabInterface;
@@ -60,7 +59,8 @@ enum class IndigoTransformationResult {
   kNotOnboarded = 9,
   kGenerateImageError = 10,
   kRefreshTokenInPersistentErrorState = 11,
-  kMaxValue = kRefreshTokenInPersistentErrorState,
+  kManagedDomain = 12,
+  kMaxValue = kManagedDomain,
 };
 
 // LINT.ThenChange(//tools/metrics/histograms/metadata/indigo/enums.xml:IndigoTransformationResult)
@@ -126,6 +126,8 @@ class IndigoPageActionController : public tabs::ContentsObservingTabFeature,
       content::NavigationHandle* navigation_handle) override;
   void RenderViewHostChanged(content::RenderViewHost* old_host,
                              content::RenderViewHost* new_host) override;
+  void FrameSizeChanged(content::RenderFrameHost* render_frame_host,
+                        const gfx::Size& frame_size) override;
 
   // content::TrackedElementObserver:
   void OnTrackedElementRectsChanged(const viz::TrackedElementRects& rects,
@@ -176,6 +178,11 @@ class IndigoPageActionController : public tabs::ContentsObservingTabFeature,
   // Called when eligibility is known and onboarding is completed (if needed).
   void ContinueInvoke(const CombinedEligibility& eligibility);
 
+  // Helper to invoke IndigoAgent.
+  void TriggerIndigoAgent();
+  // Same as above, but introduces a delay before invoking.
+  void TriggerIndigoAgentWithDelay();
+
   // Updates state and handles preference changes when the dialog closes.
   void OnOnboardingDialogClosed(OnboardingDisposition disposition,
                                 const OnboardingResult& result);
@@ -204,6 +211,9 @@ class IndigoPageActionController : public tabs::ContentsObservingTabFeature,
 
   // Hides the toolbar if it is currently shown.
   void DestroyToolbar();
+
+  // Shows the page action anchored message and notifies IndigoService.
+  void ShowAnchoredMessage(page_actions::PageActionPriorityCategory priority);
 
   // `page_action_controller_` is owned by the same `TabFeatures` that owns
   // `this`. Since `page_action_controller_` is initialized before `this` and
@@ -236,6 +246,10 @@ class IndigoPageActionController : public tabs::ContentsObservingTabFeature,
 
   // The latest tracked bounds of the primary image, in DIPs.
   std::optional<gfx::Rect> tracked_bounds_;
+
+  // Timer to delay the invocation of IndigoAgent after Glic is invoked and the
+  // side panel is opened, to allow for the page to stabilize.
+  base::OneShotTimer delay_agent_invoke_timer_;
 
   base::CallbackListSubscription tab_became_hidden_subscription_;
   base::CallbackListSubscription tab_became_visible_subscription_;

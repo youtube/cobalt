@@ -44,12 +44,16 @@ chromium-metrics-reviews@google.com.
   <int value="9" label="'Use passkey on a different device' link"/>
   <int value="10"
       label="'(Obsolete) Create plus address' link in the address sheet"/>
-  <int value="11" label="'Select plus address' link in the address sheet"/>
-  <int value="12" label="'Manage plus addresses' link in the address sheet"/>
+  <int value="11"
+      label="'(Obsolete) Select plus address' link in the address sheet"/>
+  <int value="12"
+      label="'(Obsolete) Manage plus addresses' link in the address sheet"/>
   <int value="13"
       label="'(Obsolete) Create plus address' link in the password sheet"/>
-  <int value="14" label="'Select plus address' link in the password sheet"/>
-  <int value="15" label="'Manage plus addresses' link in the password sheet"/>
+  <int value="14"
+      label="'(Obsolete) Select plus address' link in the password sheet"/>
+  <int value="15"
+      label="'(Obsolete) Manage plus addresses' link in the password sheet"/>
   <int value="16" label="'Manage loyalty cards' link"/>
   <int value="17" label="'Verify it's you' link"/>
   <int value="18" label="'Autofill suggestion from accessory sheet"/>
@@ -84,7 +88,7 @@ chromium-metrics-reviews@google.com.
   <int value="17" label="CREDENTIAL_USERNAME"/>
   <int value="18" label="CREDENTIAL_PASSWORD"/>
   <int value="19" label="PASSKEY"/>
-  <int value="20" label="PLUS_ADDRESS"/>
+  <int value="20" label="(Obsolete) PLUS_ADDRESS"/>
   <int value="21" label="LOYALTY_CARD"/>
 </enum>
 
@@ -562,6 +566,7 @@ chromium-metrics-reviews@google.com.
   <int value="4" label="Rejected, no frame for id"/>
   <int value="5" label="Rejected, no trusted URL"/>
   <int value="6" label="Rejected, can't extract form data"/>
+  <int value="7" label="Rejected, no user interaction"/>
 </enum>
 
 <enum name="HistogramExportResult">
@@ -994,6 +999,7 @@ chromium-metrics-reviews@google.com.
   <int value="7" label="Sign in with another WebAuthn device"/>
   <int value="8" label="Backup password"/>
   <int value="9" label="Trouble signing in"/>
+  <int value="10" label="WebAuthn passkey QR code"/>
 </enum>
 
 <enum name="PasswordDropdownState">

@@ -112,6 +112,10 @@ const char AccountReconcilor::kTriggerNoopHistogramName[] =
 const char AccountReconcilor::kTriggerThrottledHistogramName[] =
     "Signin.Reconciler.Trigger.Throttled";
 
+// static
+const char AccountReconcilor::kCookieJarIsFreshHistogramName[] =
+    "Signin.Reconciler.CookieJar.IsFresh";
+
 AccountReconcilor::Lock::Lock(AccountReconcilor* reconcilor)
     : reconcilor_(reconcilor->weak_factory_.GetWeakPtr()) {
   DCHECK(reconcilor_);
@@ -461,10 +465,13 @@ void AccountReconcilor::StartReconcile(Trigger trigger) {
   // above).
   signin::AccountsInCookieJarInfo accounts_in_cookie_jar =
       identity_manager_->GetAccountsInCookieJar();
+  base::UmaHistogramBoolean(kCookieJarIsFreshHistogramName,
+                            accounts_in_cookie_jar.AreAccountsFresh());
   if (accounts_in_cookie_jar.AreAccountsFresh()) {
     OnAccountsInCookieUpdated(accounts_in_cookie_jar,
                               GoogleServiceAuthError::AuthErrorNone());
   }
+
 }
 
 void AccountReconcilor::FinishReconcileWithMultiloginEndpoint(

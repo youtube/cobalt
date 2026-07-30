@@ -88,6 +88,26 @@ struct VideoTransformation {
   bool mirrored;
 };
 
+// See media/base/video_spatial_format.h for descriptions.
+enum VideoStereoMode {
+  kMono,
+  kSideBySideLeftFirst,
+  kTopBottomLeftFirst,
+};
+
+// See media/base/video_spatial_format.h for descriptions.
+enum VideoProjectionType {
+  kNone,
+  kEquirect180,
+  kEquirect360,
+};
+
+// See media/base/video_spatial_format.h for descriptions.
+struct VideoSpatialFormat {
+  VideoProjectionType projection_type;
+  VideoStereoMode stereo_mode;
+};
+
 // See media/base/waiting.h for descriptions.
 [Native]
 enum WaitingReason;
@@ -235,6 +255,7 @@ struct VideoDecoderConfig {
   EncryptionScheme encryption_scheme;
   VideoColorSpace color_space_info;
   gfx.mojom.HDRMetadata hdr_metadata;
+  VideoSpatialFormat spatial_format;
 };
 
 // Native struct media::SubsampleEntry;

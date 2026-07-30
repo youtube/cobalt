@@ -5,22 +5,38 @@
 #import "ios/chrome/browser/cobrowse/coordinator/assistant_aim_mediator.h"
 
 #import "base/memory/raw_ptr.h"
+#import "base/strings/sys_string_conversions.h"
 #import "base/test/scoped_feature_list.h"
 #import "components/contextual_tasks/public/features.h"
+#import "components/strings/grit/components_strings.h"
 #import "ios/chrome/browser/assistant/coordinator/assistant_container_commands.h"
 #import "ios/chrome/browser/assistant/ui/assistant_container_detent.h"
 #import "ios/chrome/browser/cobrowse/model/aim_cobrowse_java_script_feature.h"
 #import "ios/chrome/browser/cobrowse/model/assistant_aim_tab_helper.h"
+#import "ios/chrome/browser/cobrowse/model/cobrowse_browser_agent.h"
+#import "ios/chrome/browser/cobrowse/ui/assistant_aim_consumer.h"
 #import "ios/chrome/browser/cobrowse/ui/assistant_aim_ui_constants.h"
+#import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/browser/test/test_browser.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_ios.h"
 #import "ios/chrome/browser/shared/public/commands/open_new_tab_command.h"
 #import "ios/chrome/browser/shared/public/commands/scene_commands.h"
+#import "ios/chrome/browser/shared/public/features/features.h"
+#import "ios/chrome/browser/signin/model/authentication_service.h"
+#import "ios/chrome/browser/signin/model/authentication_service_factory.h"
+#import "ios/chrome/browser/signin/model/fake_authentication_service_delegate.h"
+#import "ios/chrome/browser/signin/model/fake_system_identity.h"
+#import "ios/chrome/browser/signin/model/fake_system_identity_manager.h"
 #import "ios/chrome/browser/url_loading/model/fake_url_loading_browser_agent.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_notifier_browser_agent.h"
 #import "ios/chrome/browser/web/model/chrome_web_client.h"
+#import "ios/chrome/grit/ios_strings.h"
+#import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
+#import "ios/web/public/navigation/navigation_item.h"
+#import "ios/web/public/navigation/navigation_manager.h"
 #import "ios/web/public/navigation/web_state_policy_decider_bridge.h"
 #import "ios/web/public/test/fakes/fake_navigation_context.h"
+#import "ios/web/public/test/fakes/fake_navigation_manager.h"
 #import "ios/web/public/test/fakes/fake_web_frame.h"
 #import "ios/web/public/test/fakes/fake_web_frames_manager.h"
 #import "ios/web/public/test/fakes/fake_web_state.h"
@@ -33,6 +49,7 @@
 #import "testing/platform_test.h"
 #import "third_party/lens_server_proto/aim_communication.pb.h"
 #import "third_party/ocmock/OCMock/OCMock.h"
+#import "ui/base/l10n/l10n_util.h"
 #import "ui/base/page_transition_types.h"
 #import "url/gurl.h"
 
@@ -40,9 +57,13 @@ class AssistantAIMMediatorTest : public PlatformTest {
  protected:
   AssistantAIMMediatorTest()
       : web_client_(std::make_unique<ChromeWebClient>()) {
-    scoped_feature_list_.InitAndEnableFeature(
-        contextual_tasks::kContextualTasks);
+    scoped_feature_list_.InitWithFeatures(
+        {contextual_tasks::kContextualTasks, kAimCobrowse}, {});
     TestProfileIOS::Builder builder;
+    builder.AddTestingFactory(
+        AuthenticationServiceFactory::GetInstance(),
+        AuthenticationServiceFactory::GetFactoryWithDelegate(
+            std::make_unique<FakeAuthenticationServiceDelegate>()));
     profile_ = std::move(builder).Build();
     browser_ = std::make_unique<TestBrowser>(profile_.get());
     UrlLoadingNotifierBrowserAgent::CreateForBrowser(browser_.get());
@@ -54,6 +75,8 @@ class AssistantAIMMediatorTest : public PlatformTest {
   void SetUp() override {
     PlatformTest::SetUp();
     auto fake_web_state = std::make_unique<web::FakeWebState>();
+    fake_web_state->SetNavigationManager(
+        std::make_unique<web::FakeNavigationManager>());
     fake_web_state_ = fake_web_state.get();
     fake_web_state->SetBrowserState(profile_.get());
     auto manager = std::make_unique<web::FakeWebFramesManager>();
@@ -67,16 +90,25 @@ class AssistantAIMMediatorTest : public PlatformTest {
         OCMProtocolMock(@protocol(AssistantContainerCommands));
     mock_scene_handler_ = OCMProtocolMock(@protocol(SceneCommands));
 
-    mediator_ =
-        [[AssistantAIMMediator alloc] initWithWebState:std::move(fake_web_state)
-                                               context:nullptr
-                                      containerHandler:mock_container_handler_
-                                contextualTasksService:nullptr
-                                             URLLoader:url_loader_];
+    CobrowseBrowserAgent::CreateForBrowser(browser_.get());
+    CobrowseBrowserAgent* agent =
+        CobrowseBrowserAgent::FromBrowser(browser_.get());
+
+    mediator_ = [[AssistantAIMMediator alloc]
+              initWithWebState:std::move(fake_web_state)
+          cobrowseBrowserAgent:agent
+              containerHandler:mock_container_handler_
+        contextualTasksService:nullptr
+                     URLLoader:url_loader_
+         authenticationService:AuthenticationServiceFactory::GetForProfile(
+                                   profile_.get())];
     mediator_.sceneHandler = mock_scene_handler_;
 
     mock_delegate_ = OCMProtocolMock(@protocol(AssistantAIMMediatorDelegate));
     mediator_.delegate = mock_delegate_;
+
+    mock_consumer_ = OCMProtocolMock(@protocol(AssistantAIMConsumer));
+    mediator_.consumer = mock_consumer_;
   }
 
   void TearDown() override {
@@ -90,12 +122,14 @@ class AssistantAIMMediatorTest : public PlatformTest {
       web::WebTaskEnvironment::TimeSource::MOCK_TIME};
   web::ScopedTestingWebClient web_client_;
   base::test::ScopedFeatureList scoped_feature_list_;
+  IOSChromeScopedTestingLocalState scoped_testing_local_state_;
   std::unique_ptr<TestProfileIOS> profile_;
   std::unique_ptr<TestBrowser> browser_;
   raw_ptr<FakeUrlLoadingBrowserAgent> url_loader_;
   raw_ptr<web::FakeWebState> fake_web_state_ = nullptr;
   AssistantAIMMediator* mediator_;
   id mock_delegate_;
+  id mock_consumer_;
   id mock_container_handler_;
   id mock_scene_handler_;
 };
@@ -544,4 +578,104 @@ TEST_F(AssistantAIMMediatorTest, OpensWebStateInNewTabViaDelegate) {
   EXPECT_EQ(result, nullptr);
   [mock_scene_handler_ verify];
   [mock_container_handler_ verify];
+}
+
+// Tests that the navigation policy decider allows the zero-state URL.
+TEST_F(AssistantAIMMediatorTest, AllowsGoogleAIMZeroStateURL) {
+  id<CRWWebStatePolicyDecider> policy_decider =
+      static_cast<id<CRWWebStatePolicyDecider>>(mediator_);
+
+  GURL zero_state_url("https://www.google.com/"
+                      "search?udm=50&gsc=2&sourceid=chrome-mobile&gsas=4");
+  __block web::WebStatePolicyDecider::PolicyDecision allowed_decision =
+      web::WebStatePolicyDecider::PolicyDecision::Cancel();
+  [policy_decider
+      shouldAllowRequest:[NSURLRequest
+                             requestWithURL:net::NSURLWithGURL(zero_state_url)]
+             requestInfo:web::WebStatePolicyDecider::RequestInfo(
+                             ui::PageTransition::PAGE_TRANSITION_LINK,
+                             /*target_frame_is_main=*/true,
+                             /*target_frame_is_cross_origin=*/false,
+                             /*target_window_is_cross_origin=*/false,
+                             /*is_user_initiated=*/true,
+                             /*user_tapped_recently=*/true)
+         decisionHandler:^(
+             web::WebStatePolicyDecider::PolicyDecision decision) {
+           allowed_decision = decision;
+         }];
+  EXPECT_TRUE(allowed_decision.ShouldAllowNavigation());
+}
+
+// Tests that didTapStartNewThread loads the zero-state URL, sets the default
+// greeting message when not signed in, and notifies the delegate.
+TEST_F(AssistantAIMMediatorTest,
+       StartsNewThreadLoadsZeroStateWithDefaultGreetingWhenNotSignedIn) {
+  [[mock_delegate_ expect] assistantAIMMediatorDidStartNewThread:mediator_];
+
+  NSString* default_greeting = l10n_util::GetNSString(
+      IDS_AI_MODE_FRIENDLY_ZERO_STATE_TITLE_WITHOUT_NAME);
+  [[mock_consumer_ expect] setGreetingMessage:default_greeting];
+
+  [mediator_ didTapStartNewThread];
+
+  [mock_delegate_ verify];
+  [mock_consumer_ verify];
+
+  // Verify that the default search URL was loaded.
+  web::FakeNavigationManager* navigation_manager =
+      static_cast<web::FakeNavigationManager*>(
+          fake_web_state_->GetNavigationManager());
+  ASSERT_TRUE(navigation_manager->LoadURLWithParamsWasCalled());
+  EXPECT_EQ(navigation_manager->GetLastLoadURLWithParams()->url,
+            GURL("https://www.google.com/"
+                 "search?udm=50&gsc=2&sourceid=chrome-mobile&gsas=4"));
+}
+
+// Tests that didTapStartNewThread loads the zero-state URL, sets a personalized
+// greeting message when signed in, and notifies the delegate.
+TEST_F(AssistantAIMMediatorTest,
+       StartsNewThreadLoadsZeroStateWithPersonalizedGreetingWhenSignedIn) {
+  // Sign in the user.
+  FakeSystemIdentity* identity = [FakeSystemIdentity fakeIdentity1];
+  FakeSystemIdentityManager* system_identity_manager =
+      FakeSystemIdentityManager::FromSystemIdentityManager(
+          GetApplicationContext()->GetSystemIdentityManager());
+  system_identity_manager->AddIdentity(identity);
+  AuthenticationServiceFactory::GetForProfile(profile_.get())
+      ->SignIn(identity, signin_metrics::AccessPoint::kStartPage);
+
+  [[mock_delegate_ expect] assistantAIMMediatorDidStartNewThread:mediator_];
+
+  std::u16string userName = base::SysNSStringToUTF16(identity.userGivenName);
+  std::u16string expected_message = l10n_util::GetStringFUTF16(
+      IDS_AI_MODE_FRIENDLY_ZERO_STATE_TITLE, {userName});
+  NSString* personalized_greeting = base::SysUTF16ToNSString(expected_message);
+
+  [[mock_consumer_ expect] setGreetingMessage:personalized_greeting];
+
+  [mediator_ didTapStartNewThread];
+
+  [mock_delegate_ verify];
+  [mock_consumer_ verify];
+
+  // Verify that the default search URL was loaded.
+  web::FakeNavigationManager* navigation_manager =
+      static_cast<web::FakeNavigationManager*>(
+          fake_web_state_->GetNavigationManager());
+  ASSERT_TRUE(navigation_manager->LoadURLWithParamsWasCalled());
+  EXPECT_EQ(navigation_manager->GetLastLoadURLWithParams()->url,
+            GURL("https://www.google.com/"
+                 "search?udm=50&gsc=2&sourceid=chrome-mobile&gsas=4"));
+}
+
+// Tests that loadedURL returns the URL of the current WebState, and returns
+// GURL() if the WebState is null.
+TEST_F(AssistantAIMMediatorTest, LoadedURL) {
+  GURL expected_url("https://www.example.com");
+  fake_web_state_->SetCurrentURL(expected_url);
+  EXPECT_EQ(mediator_.loadedURL, expected_url);
+
+  fake_web_state_ = nullptr;
+  [mediator_ disconnect];
+  EXPECT_EQ(mediator_.loadedURL, GURL());
 }

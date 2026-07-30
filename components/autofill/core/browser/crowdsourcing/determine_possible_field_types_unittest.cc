@@ -1515,14 +1515,13 @@ TEST_F(DeterminePossibleFieldTypesForUploadTest,
                  {.role = PHONE_HOME_COUNTRY_CODE,
                   .autocomplete_attribute = "tel-country-code",
                   .form_control_type = FormControlType::kSelectOne,
-                  .select_options =
-                      {
-                          {.value = u"US", .text = u"United States (+1)"},
-                          {.value = u"CA", .text = u"Canada (+1)"},
-                          {.value = u"FR", .text = u"France (+33)"},
-                          {.value = u"DE", .text = u"Germany (+49)"},
-                          {.value = u"LB", .text = u"Lebanon (+961)"},
-                      }},
+                  .select_options = {{
+                      {.value = u"US", .text = u"United States (+1)"},
+                      {.value = u"CA", .text = u"Canada (+1)"},
+                      {.value = u"FR", .text = u"France (+33)"},
+                      {.value = u"DE", .text = u"Germany (+49)"},
+                      {.value = u"LB", .text = u"Lebanon (+961)"},
+                  }}},
                  {.role = PHONE_HOME_CITY_AND_NUMBER_WITHOUT_TRUNK_PREFIX}},
   });
   test_api(form).field(1).set_value(u"US");

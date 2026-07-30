@@ -269,6 +269,7 @@ Ndryshe kjo do të bllokohet nga cilësimet e tua të privatësisë. Kjo do ta l
 <translation id="1407135791313364759">Hapi të gjitha</translation>
 <translation id="1408696301184924537">Për të plotësuar automatikisht këtë numër IBAN, ruaje atë në "Llogarinë tënde të Google"</translation>
 <translation id="1408787208417187241">Tri kapje me tel lart</translation>
+<translation id="1410306713026702438"><ph name="SUGGESTION_TITLE" />, <ph name="SUGGESTION_DESCRIPTION" />. <ph name="SUGGESTION_TYPE" />. <ph name="MATCH_POSITION" /> nga <ph name="NUM_MATCHES_IN_GROUP" /> në grupin "<ph name="GROUP_HEADER" />".</translation>
 <translation id="1410365862999780287">Të tjerët që e përdorin këtë pajisje nuk do të shikojnë aktivitetin tënd, kështu që mund të shfletosh në mënyrë më private. Kjo nuk do të ndryshojë mënyrën se si mblidhen të dhënat nga uebsajtet që viziton ti dhe shërbimet që përdorin ato, duke përfshirë Google. Do të ruhen shkarkimet, faqeshënuesit dhe artikujt e listës së leximit.</translation>
 <translation id="1410941016594047814">Zarf ftese</translation>
 <translation id="1413235258620101697">CVC-ja e kësaj karte do të enkriptohet dhe do të ruhet te "Portofoli i Google" për përfundim më të shpejtë të blerjes</translation>
@@ -300,6 +301,7 @@ Ndryshe kjo do të bllokohet nga cilësimet e tua të privatësisë. Kjo do ta l
 <translation id="1445896388055045436">Shfaq përfitimet dhe shpërblimet e disponueshme të kartës në përfundim të blerjes. Zbatohen kushtet e lëshuesit.</translation>
 <translation id="1447067628680007684">(x86_64)</translation>
 <translation id="1448166547804028941">Çelësat "<ph name="DATA_CONTROLS_FIRST_KEY_SET" />" nuk mund të caktohen në të njëjtin fjalor me çelësat "<ph name="DATA_CONTROLS_SECOND_KEY_SET" />"</translation>
+<translation id="1449251255954293933">Ruaj numrin e kompensimit te "Portofoli i Google"</translation>
 <translation id="1455413310270022028">Goma</translation>
 <translation id="1457992721081300557">{NUM_REVIEWS,plural, =0{Shiko 0 komente}=1{Shiko 1 koment}other{Shiko të # komentet}}</translation>
 <translation id="1458059624921545588">Njerëzit dhe shoqëria</translation>
@@ -660,6 +662,7 @@ Ndryshe kjo do të bllokohet nga cilësimet e tua të privatësisë. Kjo do ta l
 <translation id="2045871135676061132">Zarf personal</translation>
 <translation id="2046951263634619614">Shitës me pakicë të librave</translation>
 <translation id="2048261947532620704">Faqja po përkthet</translation>
+<translation id="2055016614992422886">Bisedë</translation>
 <translation id="2059166748188874810">Komunë</translation>
 <translation id="2059202684901022309">22 x 34 inç</translation>
 <translation id="2064568741209980952">Kredi dhe kredidhënie</translation>
@@ -1155,6 +1158,7 @@ Ndryshe kjo do të bllokohet nga cilësimet e tua të privatësisë. Kjo do ta l
 <translation id="2782088940970074970">Makina me qira</translation>
 <translation id="278436560439594386">Elektroshtëpiake</translation>
 <translation id="2784474685437057136">B5 Extra</translation>
+<translation id="2784795832957740711">Fjalëkalimet · Çelësat e kalimit</translation>
 <translation id="2784949926578158345">Lidhja u rivendos.</translation>
 <translation id="2786008859124691917">Biçikleta dhe aksesorë</translation>
 <translation id="2792012897584536778">Administratorët e kësaj pajisjeje kanë konfiguruar certifikatat e sigurisë që mund t'i lejojnë të shohin përmbajtjen e sajteve të uebit që viziton.</translation>
@@ -2305,6 +2309,7 @@ Për të fshehur opsionet e "Paguaj më vonë", shko te <ph name="BEGIN_LINK" />
 <translation id="46128681529823442">Pajisja për futboll</translation>
 <translation id="4612904677925722054">Ky sajt mund të ketë përmbajtje për të rritur. Një prind ose kujdestar duhet të pranojë që ta vizitosh këtë uebsajt.</translation>
 <translation id="4619564267100705184">Verifiko që je ti</translation>
+<translation id="4619669610757527494">Ruaj lejen e drejtimit te "Portofoli i Google"</translation>
 <translation id="4622292761762557753">Transfero gjithsesi</translation>
 <translation id="4622647778991854660">Aktivizo njoftimet në "Qendrën e njoftimeve". Hap <ph name="LINK" />.</translation>
 <translation id="4623894491222334521">Dokumentet e identitetit</translation>
@@ -2834,6 +2839,7 @@ Për të fshehur opsionet e "Paguaj më vonë", shko te <ph name="BEGIN_LINK" />
 <translation id="543656192084990644">Sensorët e lëvizjes nuk lejohen</translation>
 <translation id="5441409130426352029"><ph name="ATTRIBUTE_VALUE" />, ishte <ph name="PREVIOUS_VALUE" /></translation>
 <translation id="5443468954631487277">Renditja e kundërt e kthyer lart</translation>
+<translation id="5447103258548475868">Ruaj pasaportën te "Portofoli i Google"</translation>
 <translation id="5447235695608032700">Lejo që <ph name="SITE" /> të përdorë informacionet e ruajtura për ty</translation>
 <translation id="5447973833955560753">Fjalëkalimi i rikuperimit</translation>
 <translation id="5451331376824595378">Kur sinjalizohen ngjarje sigurie nga Chrome, të dhënat përkatëse rreth ngjarjeve i dërgohen administratorit tënd. Kjo mund të përfshijë URL-të e faqeve që viziton në Chrome, URL-të e faqeve nga të cilat ke kopjuar të dhënat, emrat ose metadatat e skedarëve, adresat IP, ndërprerjet aksidentale të shfletuesit ose të skedës dhe emrin e përdoruesit që përdor ti për t'u identifikuar në aplikacionet bazuar në ueb, në pajisjen tënde dhe në Chrome.</translation>
@@ -3556,6 +3562,7 @@ Për të fshehur opsionet e "Paguaj më vonë", shko te <ph name="BEGIN_LINK" />
 <translation id="6550245281449521513">Kyçja e miut nuk lejohet</translation>
 <translation id="6551737294564628267"><ph name="ATTRIBUTE_NAME" />, i ri</translation>
 <translation id="6552566579578780089">Pagesat</translation>
+<translation id="6553777254569586547"><ph name="SUGGESTION_TITLE" />. <ph name="SUGGESTION_TYPE" />. <ph name="MATCH_POSITION" /> nga <ph name="NUM_MATCHES_IN_GROUP" /> në grupin "<ph name="GROUP_HEADER" />".</translation>
 <translation id="6554732001434021288">Vizituar së fundi <ph name="NUM_DAYS" /> ditë më parë</translation>
 <translation id="6556866813142980365">Ribëje</translation>
 <translation id="6557715786897013164">14 x 17 inç</translation>
@@ -4232,6 +4239,7 @@ Detaje shtesë:
 <translation id="7599089013883397081">Koha e shkarkimit skadoi</translation>
 <translation id="7602868996817972616">Pyet Google rreth kësaj faqeje</translation>
 <translation id="7606123685356405076">Modelet e Gemini 3</translation>
+<translation id="760632772920590778">Ruaj automjetin te "Portofoli i Google"</translation>
 <translation id="7610193165460212391">Vlera është jashtë gamës <ph name="VALUE" />.</translation>
 <translation id="761261689936461781">E trashë</translation>
 <translation id="7613889955535752492">Data e skadimit: <ph name="EXPIRATION_MONTH" />/<ph name="EXPIRATION_YEAR" /></translation>
@@ -4261,6 +4269,7 @@ Detaje shtesë:
 <translation id="7647206758853451655">Cilësia e printimit</translation>
 <translation id="7648133459447652947">Për të shfaqur kursorin, ndërro aplikacionet, ringarko faqen ose kthehu prapa</translation>
 <translation id="7648527891719919697">Ky sajt do të qëndrojë i bllokuar sepse ke të aktivizuar "Mbrojtjen e përparuar" te <ph name="BEGIN_ANDROID_SETTINGS_LINK" />Cilësimet e Android<ph name="END_ANDROID_SETTINGS_LINK" />. <ph name="BEGIN_LEARN_MORE_LINK" />Mëso më shumë për këtë paralajmërim<ph name="END_LEARN_MORE_LINK" /></translation>
+<translation id="7648900539798595789">Ruaj numrin e udhëtarit të njohur te "Portofoli i Google"</translation>
 <translation id="7648992873808071793">Ruaji skedarët në këtë pajisje</translation>
 <translation id="7649070708921625228">Ndihma</translation>
 <translation id="7650141368285545431">Përdor çelësin e kalimit nga një pajisje tjetër</translation>
@@ -4353,6 +4362,7 @@ Detaje shtesë:
 <translation id="7773005668374414287">E njëjta renditje e kthyer lart</translation>
 <translation id="7779418012194492374">Revoko qasjen për <ph name="DEVICE_NAME" /></translation>
 <translation id="7781829728241885113">Dje</translation>
+<translation id="7782228658217918863">Ruaj kartën e identitetit te "Portofoli i Google"</translation>
 <translation id="7782465647372057580">Informacionet e llogarisë janë të enkriptuara dhe mbahen private</translation>
 <translation id="7785471469930192436">Shiko udhëzimet e motorit të kërkimit për fshirjen e historikut të kërkimit, nëse është e vlefshme.</translation>
 <translation id="7785790577395078482">këtë tablet</translation>

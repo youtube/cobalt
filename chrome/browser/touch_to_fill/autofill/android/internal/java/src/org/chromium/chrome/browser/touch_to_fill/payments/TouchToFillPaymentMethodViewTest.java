@@ -1441,6 +1441,7 @@ public class TouchToFillPaymentMethodViewTest {
      */
     @Test
     @MediumTest
+    @DisabledTest(message = "crbug.com/523228313")
     public void testAllLoyaltyCardsScreenWithManyLoyaltyCards() {
         final int loyaltyCardNumber = 25;
         Runnable actionCallback = mock(Runnable.class);

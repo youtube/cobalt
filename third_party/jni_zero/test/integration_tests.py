@@ -32,6 +32,7 @@ _EXTRA_INCLUDES = 'extra_include.h'
 _JAVA_SRC_DIR = os.path.join(_SCRIPT_DIR, 'java', 'src', 'org', 'jni_zero')
 _JAVA_BIN_DIR = os.path.join(_SCRIPT_DIR, os.pardir, os.pardir, 'jdk',
                              'current', 'bin')
+_JAVAP_PATH = os.path.normpath(os.path.join(_JAVA_BIN_DIR, 'javap'))
 
 # Set this environment variable in order to regenerate the golden text
 # files.
@@ -41,20 +42,31 @@ _accessed_goldens = set()
 
 
 class CliOptions:
-  def __init__(self, is_final=False, is_javap=False, **kwargs):
+
+  def __init__(self,
+               is_final=False,
+               is_javap=False,
+               is_gen_register_natives=False,
+               **kwargs):
     if is_final:
       self.action = 'generate-final'
     elif is_javap:
       self.action = 'from-jar'
+    elif is_gen_register_natives:
+      self.action = 'gen-register-natives'
     else:
       self.action = 'from-source'
 
     self.input_files = []
     self.jar_file = None
+    self.jar_files = []
     self.output_dir = None
     self.shared_header_files = None if is_final else []
     self.unshared_header_files = None if is_final else []
     self.header_path = None
+    self.linker_script_path = None
+    self.register_natives_name = None
+    self.class_blocklist = None
     self.enable_jni_multiplexing = False
     self.enable_definition_macros = self.action == 'from-source'
     self.use_std_primitive_types = self.action.startswith('from')
@@ -67,6 +79,7 @@ class CliOptions:
     self.include_test_only = False
     self.manual_jni_registration = False
     self.remove_uncalled_methods = False
+    self.needs_javap = is_javap or is_gen_register_natives
     self.__dict__.update(kwargs)
 
   def to_args(self):
@@ -74,8 +87,10 @@ class CliOptions:
         os.path.join(_SCRIPT_DIR, os.pardir, 'jni_zero.py'),
         self.action,
         '--include-path-prefix=overridden/',
-        '--enable-legacy-natives',
     ]
+    if self.action != 'gen-register-natives':
+      ret.append('--enable-legacy-natives')
+
     if self.enable_jni_multiplexing:
       ret.append('--enable-jni-multiplexing')
     if self.enable_definition_macros:
@@ -107,6 +122,12 @@ class CliOptions:
       ret.append('--add-stubs-for-missing-native')
     if self.header_path:
       ret += ['--header-path', self.header_path]
+    if self.linker_script_path:
+      ret += ['--linker-script-path', self.linker_script_path]
+    if self.register_natives_name:
+      ret += ['--register-natives-name', self.register_natives_name]
+    if self.class_blocklist:
+      ret += ['--class-blocklist', self.class_blocklist]
     if self.include_test_only:
       ret.append('--include-test-only')
     if self.manual_jni_registration:
@@ -115,6 +136,10 @@ class CliOptions:
       ret += ['--module-name', self.module_name]
     if self.remove_uncalled_methods:
       ret.append('--remove-uncalled-methods')
+    if self.action == 'gen-register-natives':
+      ret += self.jar_files
+    if self.needs_javap:
+      ret += ['--javap', _JAVAP_PATH]
     return ret
 
 
@@ -223,12 +248,8 @@ class BaseTest(unittest.TestCase):
       if per_file_natives:
         cmd += ['--per-file-natives']
 
-      env = os.environ.copy()
-      if _JAVA_BIN_DIR not in env['PATH']:
-        env['PATH'] = os.pathsep.join([_JAVA_BIN_DIR, env['PATH']])
-
       logging.info('Running: %s', shlex.join(cmd))
-      subprocess.check_call(cmd, env=env)
+      subprocess.check_call(cmd)
       for o in (options.shared_header_files + options.unshared_header_files):
         output_path = os.path.join(tdir, o)
         with open(output_path, 'r') as f:
@@ -565,6 +586,49 @@ class Tests(BaseTest):
     self._TestEndToEndRegistration(['SampleForAnnotationProcessor.java'],
                                    enable_jni_multiplexing=True,
                                    manual_jni_registration=True)
+
+  def testGenRegisterNatives(self):
+    with tempfile.TemporaryDirectory() as tdir:
+      java_file = os.path.join(_JAVA_SRC_DIR, 'SampleForLinker.java')
+
+      javac_cmd = [
+          os.path.normpath(os.path.join(_JAVA_BIN_DIR, 'javac')), '-d', tdir,
+          java_file
+      ]
+      logging.info('Running: %s', shlex.join(javac_cmd))
+      subprocess.check_call(javac_cmd)
+
+      jar_path = os.path.join(tdir, 'test.jar')
+      class_relative_path = 'org/jni_zero/SampleForLinker.class'
+      class_absolute_path = os.path.join(tdir, class_relative_path)
+      with zipfile.ZipFile(jar_path, 'w') as z:
+        z.write(class_absolute_path, class_relative_path)
+
+      header_path = os.path.join(tdir, 'header.h')
+      linker_script_path = os.path.join(tdir, 'linker_script.txt')
+
+      options = CliOptions(is_gen_register_natives=True)
+      options.jar_files = [jar_path]
+      options.header_path = header_path
+      options.linker_script_path = linker_script_path
+      options.register_natives_name = 'RegisterNativesForTest'
+
+      cmd = options.to_args()
+
+      logging.info('Running: %s', shlex.join(cmd))
+      subprocess.check_call(cmd)
+
+      self.assertTrue(os.path.exists(header_path))
+      self.assertTrue(os.path.exists(linker_script_path))
+
+      header_content = pathlib.Path(header_path).read_text().replace(
+          tdir.replace('/', '_').upper(), 'TEMP_DIR')
+      linker_content = pathlib.Path(linker_script_path).read_text()
+
+      self.AssertGoldenTextEquals(
+          header_content, 'testGenRegisterNatives-Registration.h.golden')
+      self.AssertGoldenTextEquals(
+          linker_content, 'testGenRegisterNatives-LinkerScript.txt.golden')
 
   def testParseError_noPackage(self):
     data = """

@@ -41,10 +41,13 @@ void AutofillMessageControllerImpl::Show(
       messages::MessageScopeType::WEB_CONTENTS,
       messages::MessagePriority::kNormal);
 
-  base::UmaHistogramBoolean(
-      base::StrCat({"Autofill.Message.", message_model_ptr->GetTypeAsString(),
-                    ".Shown"}),
-      true);
+  if (message_model_ptr->GetType() ==
+      AutofillMessageModel::Type::kEntitySaveUpdateFlow) {
+    base::UmaHistogramBoolean(
+        base::StrCat({"Autofill.Message.", message_model_ptr->GetTypeAsString(),
+                      ".Shown"}),
+        true);
+  }
 }
 
 void AutofillMessageControllerImpl::OnActionClicked(
@@ -53,10 +56,14 @@ void AutofillMessageControllerImpl::OnActionClicked(
   CHECK(message_model_it != message_models_.end());
   (*message_model_it)->OnActionClicked();
 
-  base::UmaHistogramBoolean(
-      base::StrCat({"Autofill.Message.", (*message_model_it)->GetTypeAsString(),
-                    ".ActionClicked"}),
-      true);
+  if (message_model_ptr->GetType() ==
+      AutofillMessageModel::Type::kEntitySaveUpdateFlow) {
+    base::UmaHistogramBoolean(
+        base::StrCat({"Autofill.Message.",
+                      (*message_model_it)->GetTypeAsString(),
+                      ".ActionClicked"}),
+        true);
+  }
 }
 
 void AutofillMessageControllerImpl::OnDismissed(
@@ -66,10 +73,13 @@ void AutofillMessageControllerImpl::OnDismissed(
   CHECK(message_model_it != message_models_.end());
   (*message_model_it)->OnDismissed(reason);
 
-  base::UmaHistogramEnumeration(
-      base::StrCat({"Autofill.Message.", (*message_model_it)->GetTypeAsString(),
-                    ".Dismissed"}),
-      reason);
+  if (message_model_ptr->GetType() ==
+      AutofillMessageModel::Type::kEntitySaveUpdateFlow) {
+    base::UmaHistogramEnumeration(
+        base::StrCat({"Autofill.Message.",
+                      (*message_model_it)->GetTypeAsString(), ".Dismissed"}),
+        reason);
+  }
 
   message_models_.erase(message_model_it);
 }

@@ -122,6 +122,10 @@ class ContextualTasksSidePanelCoordinatorTest : public testing::Test {
           return std::make_unique<NiceMock<MockContextualTasksUiService>>(
               controller);
         }));
+    // Eagerly instantiate the MockContextualTasksUiService (as is done in
+    // production) so it exists when retrieved by the coordinator via
+    // GetForBrowserContextIfExists.
+    ContextualTasksUiServiceFactory::GetForBrowserContext(profile_.get());
 
     browser_window_ = std::make_unique<NiceMock<MockBrowserWindowInterface>>();
     ON_CALL(*browser_window_, GetProfile())
@@ -323,6 +327,77 @@ TEST_F(ContextualTasksSidePanelCoordinatorTest, CloseSidePanelWhenNotEligible) {
   EXPECT_EQ(0u, coordinator_->GetNumberOfActiveTasks());
 }
 
+TEST_F(ContextualTasksSidePanelCoordinatorTest,
+       CloseSidePanelDiscardsCacheIfNoEntryPoint) {
+  base::test::ScopedFeatureList local_feature_list;
+  local_feature_list.InitAndEnableFeatureWithParameters(
+      kContextualTasks, {{"ContextualTasksEntryPoint", "no-entry-point"}});
+
+  ClearCacheForTesting();
+
+  base::Uuid active_task_id = base::Uuid::GenerateRandomV4();
+  CreateCachedWebContentsForTesting(active_task_id, true);
+
+  base::Uuid inactive_task_id = base::Uuid::GenerateRandomV4();
+  CreateCachedWebContentsForTesting(inactive_task_id, true);
+
+  tabs::TabInterface* active_tab = tab_list_->GetActiveTab();
+  SessionID active_tab_id =
+      sessions::SessionTabHelper::IdForTab(active_tab->GetContents());
+  EXPECT_CALL(*mock_controller_, GetContextualTaskForTab(active_tab_id))
+      .WillRepeatedly(Return(ContextualTask(active_task_id)));
+  EXPECT_CALL(*mock_controller_, GetTabsAssociatedWithTask(active_task_id))
+      .WillRepeatedly(Return(std::vector<SessionID>{active_tab_id}));
+
+  UpdateWebContentsForActiveTab();
+  ASSERT_EQ(coordinator_->GetActiveWebContents(),
+            GetWebContentsForTaskForTesting(active_task_id));
+
+  EXPECT_EQ(2u, coordinator_->GetNumberOfActiveTasks());
+
+  EXPECT_CALL(*mock_panel_host_,
+              Close(ContextualTasksPanelHost::AnimationStyle::kStandard));
+  coordinator_->Close();
+
+  EXPECT_EQ(1u, coordinator_->GetNumberOfActiveTasks());
+  EXPECT_EQ(0u, GetNumberOfActiveTasksForTesting(active_task_id));
+  EXPECT_EQ(1u, GetNumberOfActiveTasksForTesting(inactive_task_id));
+}
+
+TEST_F(ContextualTasksSidePanelCoordinatorTest,
+       CloseSidePanelKeepsCacheIfEntryPointSet) {
+  base::test::ScopedFeatureList local_feature_list;
+  local_feature_list.InitAndEnableFeatureWithParameters(
+      kContextualTasks,
+      {{"ContextualTasksEntryPoint", "toolbar-ephemeral-branded"}});
+
+  ClearCacheForTesting();
+
+  base::Uuid active_task_id = base::Uuid::GenerateRandomV4();
+  CreateCachedWebContentsForTesting(active_task_id, true);
+
+  tabs::TabInterface* active_tab = tab_list_->GetActiveTab();
+  SessionID active_tab_id =
+      sessions::SessionTabHelper::IdForTab(active_tab->GetContents());
+  EXPECT_CALL(*mock_controller_, GetContextualTaskForTab(active_tab_id))
+      .WillRepeatedly(Return(ContextualTask(active_task_id)));
+  EXPECT_CALL(*mock_controller_, GetTabsAssociatedWithTask(active_task_id))
+      .WillRepeatedly(Return(std::vector<SessionID>{active_tab_id}));
+
+  UpdateWebContentsForActiveTab();
+  ASSERT_EQ(coordinator_->GetActiveWebContents(),
+            GetWebContentsForTaskForTesting(active_task_id));
+
+  EXPECT_EQ(1u, coordinator_->GetNumberOfActiveTasks());
+
+  EXPECT_CALL(*mock_panel_host_,
+              Close(ContextualTasksPanelHost::AnimationStyle::kStandard));
+  coordinator_->Close();
+
+  EXPECT_EQ(1u, coordinator_->GetNumberOfActiveTasks());
+  EXPECT_EQ(1u, GetNumberOfActiveTasksForTesting(active_task_id));
+}
+
 #if !BUILDFLAG(IS_ANDROID)
 TEST_F(ContextualTasksSidePanelCoordinatorTest,
        ShowSidePanelLaunchesSurveyArm1) {
@@ -418,4 +493,24 @@ TEST_F(ContextualTasksSidePanelCoordinatorTest, CleanUpUnusedWebContents) {
   EXPECT_EQ(1u, GetNumberOfActiveTasksForTesting(task_id2));
 }
 
+TEST_F(ContextualTasksSidePanelCoordinatorTest, OpenInZeroStateCreatesNewTask) {
+  ContextualTask old_task(base::Uuid::GenerateRandomV4());
+  tabs::TabInterface* active_tab = tab_list_->GetActiveTab();
+  SessionID active_tab_id =
+      sessions::SessionTabHelper::IdForTab(active_tab->GetContents());
+
+  // Setup: The active tab is currently associated with old_task.
+  EXPECT_CALL(*mock_controller_, GetContextualTaskForTab(active_tab_id))
+      .WillOnce(Return(old_task))
+      .WillRepeatedly(Return(std::nullopt));
+
+  EXPECT_CALL(*mock_controller_,
+              DisassociateTabFromTask(old_task.GetTaskId(), active_tab_id))
+      .Times(1);
+  EXPECT_CALL(*mock_controller_, CreateTask()).Times(1);
+
+  coordinator_->OpenInZeroState();
+}
+
 }  // namespace contextual_tasks
+

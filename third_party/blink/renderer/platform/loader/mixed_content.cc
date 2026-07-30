@@ -83,6 +83,7 @@ MixedContent::ContextTypeFromRequestContext(
     case mojom::RequestContextType::STYLE:
     case mojom::RequestContextType::SUBRESOURCE:
     case mojom::RequestContextType::SUBRESOURCE_WEBBUNDLE:
+    case mojom::RequestContextType::TEXT:
     case mojom::RequestContextType::TRACK:
     case mojom::RequestContextType::WORKER:
     case mojom::RequestContextType::XML_HTTP_REQUEST:

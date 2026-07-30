@@ -334,9 +334,19 @@ bool WillRequireServerFetch(const EntityInstance& entity,
                             const FormStructure& form,
                             const Section& section,
                             std::string_view app_locale) {
-  return entity.IsMaskedEntity() && entity.IsServerInstance() &&
-         WillFillSensitiveAttributes(entity, form, section, app_locale) &&
-         base::FeatureList::IsEnabled(features::kAutofillAiWalletPrivatePasses);
+  if (!entity.IsMaskedEntity() || !entity.IsServerInstance() ||
+      !WillFillSensitiveAttributes(entity, form, section, app_locale)) {
+    return false;
+  }
+  const bool is_ambient_enabled =
+      entity.record_type() == EntityInstance::RecordType::kPersonalContext &&
+      base::FeatureList::IsEnabled(features::kAutofillAmbientAutofill);
+
+  const bool is_wallet_enabled =
+      entity.record_type() == EntityInstance::RecordType::kServerWallet &&
+      base::FeatureList::IsEnabled(features::kAutofillAiWalletPrivatePasses);
+
+  return is_ambient_enabled || is_wallet_enabled;
 }
 
 }  // namespace autofill

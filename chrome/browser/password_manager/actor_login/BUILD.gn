@@ -4,49 +4,36 @@
 
 import("//chrome/common/features.gni")
 
-source_set("service") {
-  public = [ "actor_login_service.h" ]
+source_set("client") {
+  public = [ "chrome_actor_login_delegate_client.h" ]
+  sources = [ "chrome_actor_login_delegate_client.cc" ]
 
   public_deps = [
-    "//base",
-    "//components/password_manager/core/browser/actor_login:common",
-    "//components/tabs:public",
-  ]
-}
-source_set("service_impl") {
-  public = [
-    "actor_login_quality_logger.h",
-    "actor_login_service_impl.h",
-    "automated_password_change_credential_filler.h",
-    "password_change_from_checkup_actor_login_service.h",
-  ]
-  sources = [
-    "actor_login_quality_logger.cc",
-    "actor_login_service_impl.cc",
-    "automated_password_change_credential_filler.cc",
-    "password_change_from_checkup_actor_login_service.cc",
-  ]
-
-  public_deps = [
-    ":service",
     "//components/password_manager/core/browser/actor_login/internal:delegate",
   ]
 
   deps = [
+    ":factories",
     "//base",
-    "//chrome/browser:browser_process",
+    "//chrome/browser/actor",
+    "//chrome/browser/glic",
     "//chrome/browser/password_manager/actor_login/internal",
-    "//chrome/browser/profiles:profile",
-    "//components/affiliations/core/browser:affiliations",
-    "//components/optimization_guide/core:model_execution",
+    "//chrome/browser/password_manager/factories",
+    "//chrome/browser/translate",
+    "//chrome/browser/ui/browser_window",
+    "//chrome/browser/webid",
+    "//chrome/common:buildflags",
     "//components/password_manager/content/browser",
     "//components/password_manager/core/browser",
     "//components/password_manager/core/browser/actor_login:common",
-    "//components/password_manager/core/browser/actor_login/internal:delegate",
+    "//components/password_manager/core/browser/actor_login/internal:permission_cleaner",
+    "//components/password_manager/core/browser/features:password_features",
     "//components/tabs:public",
-    "//components/translate/core/browser",
-    "//components/variations/service",
+    "//components/url_formatter",
     "//content/public/browser",
+    "//content/public/common",
+    "//services/metrics/public/cpp:ukm_builders",
+    "//third_party/re2",
   ]
 }
 
@@ -67,33 +54,5 @@ source_set("factories") {
     "//components/password_manager/core/browser/actor_login/internal:permission_cleaner",
     "//components/password_manager/core/browser/actor_login/internal:permission_service_impl",
     "//components/signin/public/identity_manager",
-  ]
-}
-
-source_set("unit_tests") {
-  testonly = true
-  sources = [
-    "actor_login_quality_logger_unittest.cc",
-    "actor_login_service_impl_unittest.cc",
-  ]
-
-  deps = [
-    ":service_impl",
-    "//base/test:test_support",
-    "//chrome/browser/password_manager/actor_login/internal",
-    "//chrome/browser/password_manager/actor_login/internal:unit_tests",
-    "//chrome/test:test_support",
-    "//components/language/core/browser",
-    "//components/optimization_guide/core:model_execution_test_support",
-    "//components/password_manager/core/browser/actor_login:common",
-    "//components/password_manager/core/browser/actor_login/internal:delegate",
-    "//components/password_manager/core/browser/actor_login/test:test_support",
-    "//components/tabs:public",
-    "//components/tabs:test_support",
-    "//components/translate/core/browser:test_support",
-    "//content/public/browser",
-    "//content/test:test_support",
-    "//testing/gmock",
-    "//testing/gtest",
   ]
 }

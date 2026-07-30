@@ -239,88 +239,13 @@ class FormForest {
   // Returns the browser form of a known |renderer_form|.
   const FormData& GetBrowserForm(FormGlobalId renderer_form) const;
 
-  // Parameter type of GetRendererFormsOfBrowserFields().
-  class SecurityOptions {
-   public:
-    // Dangerous: only use this if you know what you're doing.
-    // See GetRendererFormsOfBrowserFields() to understand the consequences.
-    static constexpr SecurityOptions TrustAllOrigins() { return {}; }
-
-    SecurityOptions(
-        const url::Origin* main_origin,
-        const url::Origin* triggered_origin,
-        const absl::flat_hash_map<FieldGlobalId, FieldType>* field_type_map);
-
-    bool all_origins_are_trusted() const { return !main_origin_; }
-    const url::Origin& main_origin() const { return *main_origin_; }
-    const url::Origin& triggered_origin() const { return *triggered_origin_; }
-    FieldType GetFieldType(const FieldGlobalId& field) const;
-
-   private:
-    constexpr SecurityOptions() = default;
-
-    // The main frame's origin. If null, all (!) origins are trusted.
-    const raw_ptr<const url::Origin> main_origin_ = nullptr;
-    // The origin of the field from which Autofill was queried.
-    const raw_ptr<const url::Origin> triggered_origin_ = nullptr;
-    // Contains the field types of the fields in the browser form.
-    const raw_ptr<const absl::flat_hash_map<FieldGlobalId, FieldType>>
-        field_type_map_ = nullptr;
-  };
-
-  // Return type of GetRendererFormsOfBrowserFields().
-  struct RendererForms {
-    RendererForms();
-    RendererForms(RendererForms&&);
-    RendererForms& operator=(RendererForms&&);
-    ~RendererForms();
-    std::vector<FormData> renderer_forms;
-    base::flat_set<FieldGlobalId> safe_fields;
-  };
-
-  // Returns the renderer forms that host the `browser_fields`. The field values
-  // are subject to the security policy for cross-frame previewing and filling.
+  // Returns the renderer forms that host the `browser_fields`.
   //
   // The function reinstates each of the `browser_fields` in the renderer form
   // it originates from. These reinstated fields have the (possibly autofilled)
-  // value from `browser_fields`, provided that they are considered safe to fill
-  // according to the security policy defined below. The FormFieldData::value
-  // of unsafe fields is reset to the empty string.
-  //
-  // A field is *safe to fill* iff at least one of the conditions (1–4) and
-  // additionally condition (5) hold:
-  //
-  // (1) All origins are trusted (that's dangerous!).
-  // (2) The field's origin is the triggered origin.
-  // (3) The field's origin is the main origin, the field's type is
-  //     non-sensitive, and the policy-controlled feature "autofill" is enabled
-  //     in the field's frame.
-  // (4) The triggered origin is the main origin and the policy-controlled
-  //     feature "autofill" is enabled in the field's frame.
-  // (5) The field is in the same frame tree as the field on which Autofill was
-  //     triggered.
-  //
-  // All origins are trusted iff `security_options.all_origins_are_trusted()`.
-  //
-  // The *origin of a field* is the origin of the frame that contains the
-  // corresponding form-control element.
-  //
-  // The *triggered origin* is the origin of the field from which Autofill was
-  // queried, `security_options.triggered_origin()`.
-  //
-  // The *main origin* is the origin of the main frame of the frame of the field
-  // from which Autofill was queried, `security_options.main_origin()`.
-  //
-  // A *type of a field* is determined by `security_options.GetFieldType()`. The
-  // non-sensitive field types are credit card types, cardholder names, and
-  // expiration dates.
-  //
-  // The "allow" attribute of the <iframe> element controls whether the
-  // *policy-controlled feature "autofill"* is enabled in a document
-  // (see https://www.w3.org/TR/permissions-policy-1/).
-  RendererForms GetRendererFormsOfBrowserFields(
-      base::span<const FormFieldData> browser_fields,
-      const SecurityOptions& security_options) const;
+  // value from `browser_fields`.
+  std::vector<FormData> GetRendererFormsOfBrowserFields(
+      base::span<const FormFieldData> browser_fields) const;
 
   // Deletes all forms and fields that originate from the |renderer_forms| and
   // unsets the FrameData::parent_form pointers of all child forms.

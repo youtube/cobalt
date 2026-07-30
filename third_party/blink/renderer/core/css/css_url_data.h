@@ -102,8 +102,14 @@ class CORE_EXPORT CSSUrlData : public GarbageCollected<CSSUrlData> {
   // Returns a copy where the referrer has been reset.
   const CSSUrlData* MakeWithoutReferrer() const;
 
+  // For dangling-markup URLs, return the raw relative form so that
+  // round-tripping through computed-style serialization cannot launder the
+  // potentially-dangling-markup flag. See MakeResolved()/MakeComputed() for
+  // the same rationale.
   const AtomicString& ValueForSerialization() const {
-    return is_local_ || absolute_url_.empty() ? relative_url_ : absolute_url_;
+    return is_local_ || absolute_url_.empty() || potentially_dangling_markup_
+               ? relative_url_
+               : absolute_url_;
   }
 
   const AtomicString& UnresolvedUrl() const { return relative_url_; }

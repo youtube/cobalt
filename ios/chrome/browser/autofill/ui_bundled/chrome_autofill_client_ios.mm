@@ -126,7 +126,7 @@ ChromeAutofillClientIOS::ChromeAutofillClientIOS(
       ablation_study_(GetApplicationContext()->GetLocalState()) {
   if (base::FeatureList::IsEnabled(features::kAutofillAiWithDataSchema)) {
     autofill_ai_manager_ = std::make_unique<AutofillAiManager>(
-        this, autofill::StrikeDatabaseFactory::GetForProfile(profile));
+        this, StrikeDatabaseFactory::GetForProfile(profile));
   }
   // TODO(crbug.com/449708427): Remove once `AccountInfo` supports full_name on
   // IOS.
@@ -167,7 +167,7 @@ void ChromeAutofillClientIOS::SetBaseViewController(
   base_view_controller_ = base_view_controller;
 }
 
-base::WeakPtr<autofill::AutofillClient> ChromeAutofillClientIOS::GetWeakPtr() {
+base::WeakPtr<AutofillClient> ChromeAutofillClientIOS::GetWeakPtr() {
   return weak_ptr_factory_.GetWeakPtr();
 }
 
@@ -388,7 +388,7 @@ translate::TranslateDriver* ChromeAutofillClientIOS::GetTranslateDriver() {
 
 GeoIpCountryCode ChromeAutofillClientIOS::GetVariationConfigCountryCode()
     const {
-  return GeoIpCountryCode(autofill::GetCountryCodeFromVariations());
+  return GeoIpCountryCode(GetCountryCodeFromVariations());
 }
 
 void ChromeAutofillClientIOS::ShowAutofillSettings(
@@ -448,7 +448,7 @@ ChromeAutofillClientIOS::ShowAutofillSuggestions(
 }
 
 void ChromeAutofillClientIOS::UpdateAutofillDataListValues(
-    base::span<const autofill::SelectOption> datalist) {
+    base::span<const SelectOption> datalist) {
   // No op. ios/web_view does not support display datalist.
 }
 
@@ -580,8 +580,7 @@ PasswordFormClassification ChromeAutofillClientIOS::ClassifyAsPasswordForm(
   };
 
   const std::optional<FormData> renderer_form =
-      base::FeatureList::IsEnabled(
-          autofill::features::kAutofillAcrossIframesIos)
+      base::FeatureList::IsEnabled(features::kAutofillAcrossIframesIos)
           ? GetRendererForm()
           : std::move(form_data);
 
@@ -589,8 +588,8 @@ PasswordFormClassification ChromeAutofillClientIOS::ClassifyAsPasswordForm(
     return {};
   }
 
-  auto field_ids = base::ToVector(renderer_form.value().fields(),
-                                  &autofill::FormFieldData::global_id);
+  auto field_ids =
+      base::ToVector(renderer_form.value().fields(), &FormFieldData::global_id);
   return password_manager::ClassifyAsPasswordForm(
       *renderer_form,
       password_manager::ConvertToFormPredictions(
@@ -668,23 +667,21 @@ void ChromeAutofillClientIOS::CloseEntityImportBubble() {
 }
 
 void ChromeAutofillClientIOS::ShowAutofillAiLocalSaveNotification() {
-  autofill::AutofillAiErrorDialogContext errorContext;
-  errorContext.type = autofill::AutofillAiErrorDialogType::kTypeLocalSave;
+  AutofillAiErrorDialogContext errorContext;
+  errorContext.type = AutofillAiErrorDialogType::kTypeLocalSave;
   [commands_handler_ showAutofillAiErrorDialog:std::move(errorContext)];
 }
 
 void ChromeAutofillClientIOS::ShowAutofillAiSaveToWalletFailureNotification() {
-  autofill::AutofillAiErrorDialogContext errorContext;
-  errorContext.type =
-      autofill::AutofillAiErrorDialogType::kTypeSaveToWalletFailure;
+  AutofillAiErrorDialogContext errorContext;
+  errorContext.type = AutofillAiErrorDialogType::kTypeSaveToWalletFailure;
   [commands_handler_ showAutofillAiErrorDialog:std::move(errorContext)];
 }
 
 void ChromeAutofillClientIOS::
     ShowAutofillAiFetchFromWalletFailureNotification() {
-  autofill::AutofillAiErrorDialogContext errorContext;
-  errorContext.type =
-      autofill::AutofillAiErrorDialogType::kTypeFetchFromWalletFailure;
+  AutofillAiErrorDialogContext errorContext;
+  errorContext.type = AutofillAiErrorDialogType::kTypeFetchFromWalletFailure;
   [commands_handler_ showAutofillAiErrorDialog:std::move(errorContext)];
 }
 
@@ -710,7 +707,7 @@ void ChromeAutofillClientIOS::ShowAutofillAiSaveUpdateUI() {
     return;
   }
 
-  autofill::SaveEntityParams params = delegate->ExtractParams();
+  SaveEntityParams params = delegate->ExtractParams();
   [commands_handler_ showSaveEntityDialog:std::move(params)];
 }
 

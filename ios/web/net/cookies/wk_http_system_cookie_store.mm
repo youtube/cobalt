@@ -30,7 +30,7 @@ namespace {
 // Some aliases for callbacks, blocks and SequencedTaskRunner to make the
 // Objective-C wrapper using those types easier to read.
 
-using NoParamCallback = base::OnceCallback<void(void)>;
+using NoParamCallback = base::OnceClosure;
 using CookiesCallback = base::OnceCallback<void(NSArray<NSHTTPCookie*>*)>;
 
 using NoParamBlock = void (^)(void);

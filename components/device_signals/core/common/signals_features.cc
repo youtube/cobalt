@@ -68,19 +68,6 @@ bool IsContentBindingVersioningEnabled() {
   return base::FeatureList::IsEnabled(kContentBindingVersioningEnabled);
 }
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || \
-    BUILDFLAG(IS_CHROMEOS)
-// Enables the triggering of device signals consent dialog when conditions met
-// This feature also requires UnmanagedDeviceSignalsConsentFlowEnabled policy to
-// be enabled
-BASE_FEATURE(kDeviceSignalsConsentDialog, base::FEATURE_ENABLED_BY_DEFAULT);
-
-bool IsConsentDialogEnabled() {
-  return base::FeatureList::IsEnabled(kDeviceSignalsConsentDialog);
-}
-#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) ||
-        // BUILDFLAG(IS_CHROMEOS)
-
 BASE_FEATURE(kNewEvSignalsUnaffiliatedEnabled,
              base::FEATURE_DISABLED_BY_DEFAULT);
 

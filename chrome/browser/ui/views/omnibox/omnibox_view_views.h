@@ -45,6 +45,10 @@
 class LocationBarView;
 class IconLabelBubbleView;
 
+namespace ai_mode_button_config {
+struct AiModeButtonConfig;
+}
+
 namespace content {
 class WebContents;
 }  // namespace content
@@ -350,7 +354,6 @@ class OmniboxViewViews
   void AppendDropFormats(
       int* formats,
       std::set<ui::ClipboardFormatType>* format_types) override;
-  ui::mojom::DragOperation OnDrop(const ui::DropTargetEvent& event) override;
   views::View::DropCallback CreateDropCallback(
       const ui::DropTargetEvent& event) override;
   void UpdateContextMenu(ui::SimpleMenuModel* menu_contents) override;
@@ -405,6 +408,9 @@ class OmniboxViewViews
   // Returns true if the Contextual Tasks placeholder text should be installed
   // instead of the DSE placeholder text.
   bool ShouldInstallContextualTasksPlaceholderText() const;
+
+  // Helper to get the current `AiModeButtonConfig` if available.
+  const ai_mode_button_config::AiModeButtonConfig* GetAiModeConfig() const;
 
   // Records an impression of the AIM hint text.
   void RecordAimHintImpression();

@@ -102,11 +102,19 @@ public class ClipboardImpl extends Clipboard
         // getPrimaryClip() has been observed to throw unexpected exceptions for some devices (see
         // crbug.com/654802 and b/31501780)
         try {
-            return mClipboardManager
-                    .getPrimaryClip()
-                    .getItemAt(0)
-                    .coerceToText(mContext)
-                    .toString();
+            ClipData.Item item = mClipboardManager.getPrimaryClip().getItemAt(0);
+
+            // Reject URIs that point to this app when pasting as text. This prevents malicious
+            // apps from using us to read our own private files via coerceToText().
+            if (UiAndroidFeatureMap.isEnabled(
+                    UiAndroidFeatures.CLIPBOARD_CONFUSED_DEPUTY_DEFENSE_TEXT)) {
+                Uri uri = item.getUri();
+                if (item.getText() == null && ContentUriUtils.isUriFromThisApp(uri)) {
+                    return null;
+                }
+            }
+
+            return item.coerceToText(mContext).toString();
         } catch (Exception e) {
             return null;
         }
@@ -302,6 +310,16 @@ public class ClipboardImpl extends Clipboard
         Uri uri = getImageUri();
         if (uri == null) return null;
 
+        // Only honor URIs originating from this app when they match the exact one recorded during a
+        // copy operation. Other apps' URIs are bounded by the OS grant model.
+        if (UiAndroidFeatureMap.isEnabled(
+                UiAndroidFeatures.CLIPBOARD_CONFUSED_DEPUTY_DEFENSE_IMAGES)) {
+            if (ContentUriUtils.isUriFromThisApp(uri)
+                    && !uri.equals(getImageUriIfSharedByThisApp())) {
+                return null;
+            }
+        }
+
         ContentResolver cr = ContextUtils.getApplicationContext().getContentResolver();
         String mimeType = cr.getType(uri);
         if (!PNG_MIME_TYPE.equalsIgnoreCase(mimeType)) {
@@ -375,7 +393,14 @@ public class ClipboardImpl extends Clipboard
             ClipData clipData = mClipboardManager.getPrimaryClip();
             for (int i = 0; i < clipData.getItemCount(); i++) {
                 Uri uri = clipData.getItemAt(i).getUri();
-                if (uri != null && ContentUriUtils.isOpenableFile(uri)) {
+                // Reject URIs originating from this app to prevent the
+                // browser from opening private files on behalf of an untrusted paste request.
+                if (UiAndroidFeatureMap.isEnabled(
+                                UiAndroidFeatures.CLIPBOARD_CONFUSED_DEPUTY_DEFENSE_FILES)
+                        && ContentUriUtils.isUriFromThisApp(uri)) {
+                    continue;
+                }
+                if (ContentUriUtils.isOpenableFile(uri)) {
                     String uriString = uri.toString();
                     String displayName = ContentUriUtils.maybeGetDisplayName(uriString);
                     if (displayName == null) {
@@ -398,7 +423,14 @@ public class ClipboardImpl extends Clipboard
             ClipData clipData = mClipboardManager.getPrimaryClip();
             for (int i = 0; i < clipData.getItemCount(); i++) {
                 Uri uri = clipData.getItemAt(i).getUri();
-                if (uri != null && ContentUriUtils.isOpenableFile(uri)) {
+                // Reject URIs originating from this app to prevent the browser from opening private
+                // files on behalf of an untrusted paste request.
+                if (UiAndroidFeatureMap.isEnabled(
+                                UiAndroidFeatures.CLIPBOARD_CONFUSED_DEPUTY_DEFENSE_FILES)
+                        && ContentUriUtils.isUriFromThisApp(uri)) {
+                    continue;
+                }
+                if (ContentUriUtils.isOpenableFile(uri)) {
                     return true;
                 }
             }

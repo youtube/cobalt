@@ -62,12 +62,12 @@ class DISPLAY_EXPORT VSyncProviderMac {
   void AddSupportedDisplayLinkId(CGDirectDisplayID display_id);
   void RemoveSupportedDisplayLinkId(CGDirectDisplayID display_id);
 
-  NeedsBeginFrameCB needs_begin_frame_callback_;
-
-  // Updated on Viz thread and read back on both Viz and gpu main thread.
-  // Use this lock when it's written on the Viz thread and read back on the gpu
-  // main thread. No need to lock when read on Viz thread.
+  // Protects `callback_lists_` and `needs_begin_frame_callback_` when updated
+  // on the Viz sequence and read concurrently from other threads (e.g.,
+  // CrGpuMain or CompositorGpuThread). Lock acquisition is bypassed when
+  // accessing these members directly on the Viz sequence.
   base::Lock id_lock_;
+  NeedsBeginFrameCB needs_begin_frame_callback_;
   std::map<CGDirectDisplayID, std::list<VSyncCallbackMac::Callback>>
       callback_lists_;
 

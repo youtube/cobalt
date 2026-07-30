@@ -81,7 +81,7 @@ void OnCreateDirectoryError(AsyncFileUtil::StatusCallback callback,
 
 // Called when ReadDirectory method call failed to enumerate the directory
 // objects. |callback| is invoked to notify the caller about the |error|
-// that occured while reading the directory objects.
+// that occurred while reading the directory objects.
 void OnReadDirectoryError(AsyncFileUtil::ReadDirectoryCallback callback,
                           base::File::Error error) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::IO);

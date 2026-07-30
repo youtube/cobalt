@@ -5,7 +5,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_DOM_CSS_PSEUDO_ELEMENT_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_DOM_CSS_PSEUDO_ELEMENT_H_
 
-#include "third_party/blink/renderer/core/dom/element_rare_data_field.h"
+#include "third_party/blink/renderer/core/dom/node_rare_data_field.h"
 #include "third_party/blink/renderer/core/dom/pseudo_element.h"
 
 namespace blink {
@@ -26,7 +26,7 @@ class V8UnionCSSPseudoElementOrElement;
 // (blink::PseudoElement) from JS.
 // The entry point to this class is Element::pseudo(type) which provides
 // an identity-consistent (cached) CSSPseudoElement object which is cached
-// in Element's ElementRareData. The identity consistency is needed
+// in Element's NodeRareData. The identity consistency is needed
 // for better developer experience, as most uses cases rely on object staying
 // the same between two `.pseudo` calls (e.g. to add/remove event listeners).
 // Spec: https://www.w3.org/TR/css-pseudo-4/#CSSPseudoElement-interface
@@ -157,11 +157,11 @@ struct HashTraits<PseudoElementCacheKey>
   }
 };
 
-// The cache of CSSPseudoElement objects for a Element(lives on
-// ElementRareData)/CSSPseudoElement.
+// The cache of CSSPseudoElement objects for an Element or CSSPseudoElement
+// (stored in NodeRareData).
 class CSSPseudoElementsCacheData
     : public GarbageCollected<CSSPseudoElementsCacheData>,
-      public ElementRareDataField {
+      public NodeRareDataField {
  public:
   void CacheCSSPseudoElement(PseudoId, const AtomicString&, CSSPseudoElement&);
 

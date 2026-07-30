@@ -86,7 +86,7 @@ class PaintLayerScrollableArea;
 
 class ScrollMarkerGroupData : public GarbageCollected<ScrollMarkerGroupData>,
                               public PostLayoutSnapshotClient,
-                              public ElementRareDataField {
+                              public NodeRareDataField {
  public:
   explicit ScrollMarkerGroupData(LocalFrame* frame)
       : PostLayoutSnapshotClient(frame) {}

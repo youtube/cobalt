@@ -19,7 +19,7 @@ class NetLog;
 struct NetLogSource;
 
 // A client socket that uses UDP as the transport layer.
-class NET_EXPORT_PRIVATE UDPClientSocket : public DatagramClientSocket {
+class NET_EXPORT_PRIVATE UDPClientSocket final : public DatagramClientSocket {
  public:
   // If `network` is specified, the socket will be bound to it. All data traffic
   // on the socket will be sent and received via `network`. Communication using
@@ -59,6 +59,12 @@ class NET_EXPORT_PRIVATE UDPClientSocket : public DatagramClientSocket {
   int Read(IOBuffer* buf,
            int buf_len,
            CompletionOnceCallback callback) override;
+  base::expected<DatagramsMetadata, Error> ReadMultiple(
+      IOBuffer* buf,
+      size_t buf_len,
+      size_t maximum_packet_size,
+      base::OnceCallback<void(base::expected<DatagramsMetadata, Error>)>
+          callback) override;
   int Write(IOBuffer* buf,
             int buf_len,
             CompletionOnceCallback callback,

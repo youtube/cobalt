@@ -99,7 +99,9 @@ void AccountConsistencyBrowserAgent::OnRestoreGaiaCookies() {
       showSigninAccountNotificationFromViewController:base_view_controller_];
 }
 
-void AccountConsistencyBrowserAgent::OnManageAccounts(const GURL& url) {
+void AccountConsistencyBrowserAgent::OnManageAccounts(
+    const GURL& url,
+    web::WebState* web_state) {
   Browser::Type browser_type = browser_->type();
   base::UmaHistogramEnumeration("Signin.ShowManageAccountFromGaia.BrowserType",
                                 browser_type);
@@ -110,6 +112,9 @@ void AccountConsistencyBrowserAgent::OnManageAccounts(const GURL& url) {
       ios::AccountReconcilorFactory::GetForProfile(browser_->GetProfile())
           ->GetState());
 
+  if (!IsActiveWebstate(web_state)) {
+    return;
+  }
   size_t num_profiles = GetApplicationContext()
                             ->GetProfileManager()
                             ->GetProfileAttributesStorage()
@@ -128,21 +133,25 @@ void AccountConsistencyBrowserAgent::OnManageAccounts(const GURL& url) {
 void AccountConsistencyBrowserAgent::OnShowConsistencyPromo(
     const GURL& url,
     web::WebState* web_state) {
+  if (!IsActiveWebstate(web_state)) {
+    return;
+  }
   signin_metrics::LogAccountReconcilorStateOnGaiaResponse(
       ios::AccountReconcilorFactory::GetForProfile(browser_->GetProfile())
           ->GetState());
-  web::WebState* current_web_state =
-      browser_->GetWebStateList()->GetActiveWebState();
-  if (current_web_state == web_state) {
-    [application_handler_
-        showWebSigninPromoFromViewController:base_view_controller_
-                                         URL:url];
-  }
+  [application_handler_
+      showWebSigninPromoFromViewController:base_view_controller_
+                                       URL:url];
 }
 
 void AccountConsistencyBrowserAgent::OnAddAccount(
     const GURL& url,
-    const std::string& prefilled_email) {
+    const std::string& prefilled_email,
+    web::WebState* web_state) {
+  if (!IsActiveWebstate(web_state)) {
+    return;
+  }
+
   if ([base_view_controller_ presentedViewController]) {
     // If the base view controller is already presenting a view, the sign-in
     // should not appear on top of it.
@@ -211,7 +220,12 @@ void AccountConsistencyBrowserAgent::OnAddUnkwownAccount(const GURL& url) {
   }
 }
 
-void AccountConsistencyBrowserAgent::OnGoIncognito(const GURL& url) {
+void AccountConsistencyBrowserAgent::OnGoIncognito(const GURL& url,
+                                                   web::WebState* web_state) {
+  if (!IsActiveWebstate(web_state)) {
+    return;
+  }
+
   // The user taps on go incognito from the mobile U-turn webpage (the web
   // page that displays all users accounts available in the content area). As
   // the user chooses to go to incognito, the mobile U-turn page is no longer
@@ -247,4 +261,9 @@ bool AccountConsistencyBrowserAgent::CanShowAccountMenu() const {
 
 void AccountConsistencyBrowserAgent::ShowAccountMenu(const GURL& url) {
   [application_handler_ showAccountMenuFromWebWithURL:url];
+}
+
+bool AccountConsistencyBrowserAgent::IsActiveWebstate(
+    web::WebState* web_state) {
+  return web_state == browser_->GetWebStateList()->GetActiveWebState();
 }

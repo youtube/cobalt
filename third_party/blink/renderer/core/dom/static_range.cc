@@ -81,7 +81,7 @@ bool StaticRange::IsValid() const {
       start_offset_ <= AbstractRange::LengthOfContents(start_container_) &&
       end_offset_ <= AbstractRange::LengthOfContents(end_container_) &&
       !HasDifferentRootContainer(start_container_, end_container_) &&
-      ComparePositionsInDOMTree(start_container_, start_offset_, end_container_,
+      ComparePositionsInDomTree(start_container_, start_offset_, end_container_,
                                 end_offset_) <= 0;
 
   return is_valid_;

@@ -391,10 +391,7 @@ const Timing::CalculatedTiming& AnimationEffect::EnsureCalculated() const {
   return calculated_;
 }
 
-Animation* AnimationEffect::GetAnimation() {
-  return owner_ ? owner_->GetAnimation() : nullptr;
-}
-const Animation* AnimationEffect::GetAnimation() const {
+Animation* AnimationEffect::GetAnimation() const {
   return owner_ ? owner_->GetAnimation() : nullptr;
 }
 

@@ -72,6 +72,11 @@ public class ChromePickerAdapter extends PickerAdapter implements ProfileDataCac
         removeProfileDataObserver();
     }
 
+    @Override
+    public void destroy() {
+        removeProfileDataObserver();
+    }
+
     // ProfileDataCache.Observer:
 
     @Override

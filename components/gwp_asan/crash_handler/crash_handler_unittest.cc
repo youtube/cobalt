@@ -24,6 +24,7 @@
 #include "base/test/multiprocess_test.h"
 #include "base/test/test_timeouts.h"
 #include "build/build_config.h"
+#include "components/crash/core/app/crashpad.h"
 #include "components/gwp_asan/client/guarded_page_allocator.h"
 #include "components/gwp_asan/client/gwp_asan.h"
 #include "components/gwp_asan/client/lightweight_detector/poison_metadata_recorder.h"
@@ -185,24 +186,19 @@ MULTIPROCESS_TEST_MAIN(CrashingProcess) {
                                   /* annotations */ annotations,
                                   /* arguments */ arguments);
 #elif BUILDFLAG(IS_ANDROID)
-  // TODO: Once the minSdkVersion is >= Q define a CrashpadHandlerMain() and
-  // use the /system/bin/linker approach instead of using
-  // libchrome_crashpad_handler.so
-  base::FilePath modules;
-  if (!base::PathService::Get(base::DIR_MODULE, &modules)) {
-    LOG(ERROR) << "Failed to read DIR_MODULE";
-    return kSuccess;
-  }
 
-  base::FilePath executable_path =
-      modules.AppendASCII("libchrome_crashpad_handler.so");
+  std::string trampoline_library_path;
+  std::string handler_library_path;
+  std::vector<std::string> env;
+  CHECK(crash_reporter::internal::GetHandlerTrampoline(&trampoline_library_path,
+                                                       &handler_library_path));
+  CHECK(crash_reporter::internal::BuildEnvironmentWithApk(
+      /* use_64_bit */ sizeof(void*) == 8, &env));
 
-  std::unique_ptr<base::Environment> env(base::Environment::Create());
-  std::string library_path = env->GetVar("LD_LIBRARY_PATH").value_or("");
-  env->SetVar("LD_LIBRARY_PATH", library_path + ":" + modules.value());
-
-  bool handler = client->StartHandlerAtCrash(
-      executable_path, directory, metrics_dir, "", annotations, arguments);
+  bool handler = client->StartHandlerWithLinkerAtCrash(
+      trampoline_library_path, handler_library_path,
+      /* is_64_bit */ sizeof(void*) == 8, &env, directory, metrics_dir,
+      /* url */ "", annotations, arguments);
 #else
   bool handler = client->StartHandler(/* handler */ cmd_line->GetProgram(),
                                       /* database */ directory,

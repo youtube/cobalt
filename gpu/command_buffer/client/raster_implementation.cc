@@ -196,7 +196,7 @@ class RasterImplementation::TransferCacheSerializeHelperImpl final
   }
 
   uint32_t CreateEntryInternal(const cc::ClientTransferCacheEntry& entry,
-                               uint8_t* memory) final {
+                               base::span<uint8_t> memory) final {
     uint32_t size = entry.SerializedSize();
     // Cap the entries inlined to a specific size.
     if (size <= ri_->max_inlined_entry_size_ && ri_->raster_mapped_buffer_) {
@@ -226,32 +226,29 @@ class RasterImplementation::TransferCacheSerializeHelperImpl final
     ri_->UnlockTransferCacheEntries(transformed);
   }
 
-  // Writes the entry into |memory| if there is enough space. Returns the number
+  // Writes the entry into `memory` if there is enough space. Returns the number
   // of bytes written on success or 0u on failure due to insufficient size.
   uint32_t InlineEntry(const cc::ClientTransferCacheEntry& entry,
-                       uint8_t* memory) {
-    DCHECK(memory);
-    DCHECK(SkIsAlign4(reinterpret_cast<uintptr_t>(memory)));
+                       base::span<uint8_t> memory) {
+    DCHECK(SkIsAlign4(reinterpret_cast<uintptr_t>(memory.data())));
 
     // The memory passed from the PaintOpWriter for inlining the transfer cache
     // entry must be from the transfer buffer mapped during RasterCHROMIUM.
     const auto& buffer = ri_->raster_mapped_buffer_;
-    DCHECK(buffer->BelongsToBuffer(memory));
+    DCHECK(buffer->BelongsToBuffer(memory.data()));
 
-    DCHECK(base::CheckedNumeric<uint32_t>(
-               memory - static_cast<uint8_t*>(buffer->address()))
+    base::span<const uint8_t> buffer_span = buffer->as_byte_span();
+    DCHECK(base::CheckedNumeric<uint32_t>(memory.data() - buffer_span.data())
                .IsValid());
-    uint32_t memory_offset = memory - static_cast<uint8_t*>(buffer->address());
+    uint32_t memory_offset = memory.data() - buffer_span.data();
     uint32_t bytes_to_write = entry.SerializedSize();
-    uint32_t bytes_remaining = buffer->size() - memory_offset;
     DCHECK_GT(bytes_to_write, 0u);
 
-    if (bytes_to_write > bytes_remaining) {
+    if (bytes_to_write > memory.size()) {
       return 0u;
     }
 
-    bool succeeded =
-        entry.Serialize(UNSAFE_TODO(base::span(memory, bytes_remaining)));
+    bool succeeded = entry.Serialize(memory.first(bytes_to_write));
     DCHECK(succeeded);
     ri_->transfer_cache_.AddTransferCacheEntry(
         entry.UnsafeType(), entry.Id(), buffer->shm_id(),
@@ -1352,7 +1349,8 @@ void RasterImplementation::RasterCHROMIUM(
     const gfx::Vector2dF& post_scale,
     bool requires_clear,
     const ScrollOffsetMap* raster_inducing_scroll_offsets,
-    size_t* max_op_size_hint) {
+    size_t* max_op_size_hint,
+    base::RepeatingCallback<void(SkCanvas*, uint32_t)> custom_raster_callback) {
   TRACE_EVENT1("gpu", "RasterImplementation::RasterCHROMIUM",
                "raster_chromium_id", ++raster_chromium_id_);
   DCHECK(max_op_size_hint);
@@ -1397,15 +1395,17 @@ void RasterImplementation::RasterCHROMIUM(
                                   &transfer_cache_serialize_helper,
                                   &font_manager_, max_op_size_hint);
 
-  cc::PaintOpBufferSerializer serializer(
-      PaintOpSerializer::Serialize, &op_serializer,
-      cc::PaintOp::SerializeOptions(
-          &stashing_image_provider, &transfer_cache_serialize_helper,
-          GetOrCreatePaintCache(), font_manager_.strike_server(),
-          raster_properties_->color_space, &skottie_serialization_history_,
-          raster_properties_->can_use_lcd_text,
-          capabilities().context_supports_distance_field_text,
-          capabilities().max_texture_size, raster_inducing_scroll_offsets));
+  cc::PaintOp::SerializeOptions options(
+      &stashing_image_provider, &transfer_cache_serialize_helper,
+      GetOrCreatePaintCache(), font_manager_.strike_server(),
+      raster_properties_->color_space, &skottie_serialization_history_,
+      raster_properties_->can_use_lcd_text,
+      capabilities().context_supports_distance_field_text,
+      capabilities().max_texture_size, raster_inducing_scroll_offsets);
+  options.custom_callback = custom_raster_callback;
+
+  cc::PaintOpBufferSerializer serializer(PaintOpSerializer::Serialize,
+                                         &op_serializer, options);
   serializer.Serialize(list->paint_op_buffer(), &temp_raster_offsets_,
                        preamble);
   // TODO(piman): raise error if !serializer.valid()?

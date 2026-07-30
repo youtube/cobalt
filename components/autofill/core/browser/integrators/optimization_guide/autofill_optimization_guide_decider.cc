@@ -487,7 +487,7 @@ bool AutofillOptimizationGuideDecider::IsUrlEligibleForBnplIssuer(
     BnplIssuer::IssuerId issuer_id,
     const GURL& url) const {
   if (base::FeatureList::IsEnabled(
-          ::autofill::features::kAutofillEnableAmountExtractionTesting)) {
+          features::kAutofillEnableAmountExtractionTesting)) {
     return true;
   }
 

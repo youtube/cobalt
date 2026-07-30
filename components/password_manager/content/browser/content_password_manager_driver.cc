@@ -547,7 +547,9 @@ void ContentPasswordManagerDriver::PasswordFormsRendered(
 
 void ContentPasswordManagerDriver::PasswordFormSubmitted(
     const autofill::FormData& raw_form) {
-  if (!CheckFrameActiveAndNotPrerendering(render_frame_host_)) {
+  // Don't check IsActive(): the submitting frame may have entered BFCache.
+  if (!password_manager::bad_message::CheckFrameNotPrerendering(
+          render_frame_host_)) {
     return;
   }
 
@@ -598,7 +600,9 @@ void ContentPasswordManagerDriver::InformAboutUserInput(
 
 void ContentPasswordManagerDriver::DynamicFormSubmission(
     autofill::mojom::SubmissionIndicatorEvent submission_indication_event) {
-  if (!CheckFrameActiveAndNotPrerendering(render_frame_host_)) {
+  // Don't check IsActive(): the submitting frame may have entered BFCache.
+  if (!password_manager::bad_message::CheckFrameNotPrerendering(
+          render_frame_host_)) {
     return;
   }
   GetPasswordManager()->OnDynamicFormSubmission(this,
@@ -700,7 +704,7 @@ ContentPasswordManagerDriver::GetAutofillAgent() {
       autofill::ContentAutofillDriver::GetForRenderFrameHost(
           render_frame_host_);
   DCHECK(autofill_driver);
-  return autofill_driver->GetAutofillAgent();
+  return autofill_driver->GetAutofillAgent(/*pass_key=*/{});
 }
 
 const mojo::AssociatedRemote<autofill::mojom::PasswordAutofillAgent>&

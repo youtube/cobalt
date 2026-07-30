@@ -35,7 +35,7 @@ SvgTextLayoutAlgorithm::SvgTextLayoutAlgorithm(InlineNode node,
 }
 
 PhysicalSize SvgTextLayoutAlgorithm::Layout(
-    const String& ifc_text_content,
+    const FragmentItemsBuilder& builder,
     FragmentItemsBuilder::ItemWithOffsetList& items) {
   TRACE_EVENT0("blink", "SvgTextLayoutAlgorithm::Layout");
   // https://svgwg.org/svg2-draft/text.html#TextLayoutAlgorithm
@@ -45,12 +45,12 @@ PhysicalSize SvgTextLayoutAlgorithm::Layout(
   // "CSS_positions", and "resolved" is the number of addressable characters.
 
   // 1. Setup
-  if (!Setup(ifc_text_content.length())) {
+  if (!Setup(builder.TextContentLengthMax())) {
     return PhysicalSize();
   }
 
   // 2. Set flags and assign initial positions
-  SetFlags(ifc_text_content, items);
+  SetFlags(builder, items);
   if (addressable_count_ == 0) {
     return PhysicalSize();
   }
@@ -113,7 +113,7 @@ bool SvgTextLayoutAlgorithm::Setup(wtf_size_t approximate_count) {
 
 // This function updates |result_|.
 void SvgTextLayoutAlgorithm::SetFlags(
-    const String& ifc_text_content,
+    const FragmentItemsBuilder& builder,
     const FragmentItemsBuilder::ItemWithOffsetList& items) {
   // This function collects information per an "addressable" character in DOM
   // order. So we need to access FragmentItems in the logical order.
@@ -171,8 +171,8 @@ void SvgTextLayoutAlgorithm::SetFlags(
     info.inline_size = horizontal_ ? item.Size().width : item.Size().height;
     result_.push_back(info);
 
-    StringView item_string(ifc_text_content, item.StartOffset(),
-                           item.TextLength());
+    const String& text_content = builder.TextContent(item.UsesFirstLineStyle());
+    StringView item_string(text_content, item.StartOffset(), item.TextLength());
     // 2.2. Set middle to true if the character at index i is the second or
     // later character that corresponds to a typographic character.
     CodePointIterator iterator = item_string.begin();

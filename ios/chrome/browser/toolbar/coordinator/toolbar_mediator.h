@@ -28,8 +28,8 @@ class WebStateList;
 class TabBasedIPHBrowserAgent;
 
 class AuthenticationService;
-@protocol BWGCommands;
 class GeminiBrowserAgent;
+@protocol GeminiCommands;
 class GeminiService;
 
 // Mediator for the toolbar.
@@ -54,7 +54,7 @@ class GeminiService;
 @property(nonatomic, weak) id<SettingsCommands> settingsHandler;
 
 // Dispatcher for Gemini commands.
-@property(nonatomic, weak) id<BWGCommands> geminiHandler;
+@property(nonatomic, weak) id<GeminiCommands> geminiHandler;
 
 // Base view controller for presenting UI sheets.
 @property(nonatomic, weak) UIViewController* baseViewController;

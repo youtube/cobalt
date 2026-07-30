@@ -22,9 +22,11 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.ActivityUtils;
 import org.chromium.chrome.browser.IntentHandler;
+import org.chromium.chrome.browser.app.tabwindow.TabWindowManagerSingleton;
 import org.chromium.chrome.browser.document.ChromeLauncherActivity;
 import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
 import org.chromium.chrome.browser.tab.TabLaunchType;
+import org.chromium.chrome.browser.tabwindow.TabWindowManager;
 import org.chromium.components.bookmarks.BookmarkId;
 import org.chromium.components.bookmarks.BookmarkItem;
 import org.chromium.components.bookmarks.BookmarkType;
@@ -44,7 +46,7 @@ public class BookmarkOpenerImpl implements BookmarkOpener {
     /**
      * @param bookmarkModelSupplier Supplies the bookmark model, used to query for bookmark urls and
      *     type.
-     * @param context The android context, used to build the intent to open bookmarks.
+     * @param context The android activity context, used to build the intent to open bookmarks.
      * @param componentName The name of the parent component, can be null on tablets.
      */
     public BookmarkOpenerImpl(
@@ -65,7 +67,7 @@ public class BookmarkOpenerImpl implements BookmarkOpener {
         recordMetricsForOpenBookmarkInCurrentTab(item);
 
         Intent intent = createBasicOpenIntent(item, incognito);
-        IntentHandler.startActivityForTrustedIntent(intent);
+        startIntentInSameWindow(intent);
 
         return true;
     }
@@ -106,7 +108,7 @@ public class BookmarkOpenerImpl implements BookmarkOpener {
         if (tabLaunchType != null) {
             IntentHandler.setTabLaunchType(intent, tabLaunchType);
         }
-        IntentHandler.startActivityForTrustedIntent(intent);
+        startIntentInSameWindow(intent);
 
         return true;
     }
@@ -154,7 +156,7 @@ public class BookmarkOpenerImpl implements BookmarkOpener {
             }
         }
 
-        IntentHandler.startActivityForTrustedIntent(intent);
+        IntentHandler.startActivityForTrustedIntent(mContext, intent);
 
         return true;
     }
@@ -205,6 +207,21 @@ public class BookmarkOpenerImpl implements BookmarkOpener {
             assumeNonNull(mBookmarkModelSupplier.get())
                     .setReadStatusForReadingList(item.getId(), true);
         }
+    }
+
+    private void startIntentInSameWindow(Intent intent) {
+        Activity activity = ContextUtils.activityFromContext(mContext);
+        assert activity != null;
+
+        int windowId = TabWindowManagerSingleton.getInstance().getIdForWindow(activity);
+        if (windowId != TabWindowManager.INVALID_WINDOW_ID
+                && MultiWindowUtils.launchIntentInInstance(intent, windowId)) {
+            return;
+        }
+
+        // As a fallback for when launching in the specific instance fails we start the intent
+        // normally.
+        IntentHandler.startActivityForTrustedIntent(mContext, intent);
     }
 
     // Metrics

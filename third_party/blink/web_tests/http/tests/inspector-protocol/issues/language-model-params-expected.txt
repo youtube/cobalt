@@ -1,13 +1,14 @@
 Tests LanguageModel params API surfaces and deprecation issues
+LanguageModel deprecation issue found: LanguageModelTopK
+LanguageModel deprecation issue found: LanguageModelTemperature
 Test Results: {
     results : {
-        languageModelParamsExists : true
-        paramsExists : true
-        session1TemperatureExists : true
-        session1TopKExists : true
-        session2TemperatureExists : true
-        session2TopKExists : true
+        languageModelParamsExists : false
+        paramsExists : false
+        session1TemperatureExists : false
+        session1TopKExists : false
+        session2TemperatureExists : false
+        session2TopKExists : false
     }
 }
-No LanguageModel deprecation issues found.
 

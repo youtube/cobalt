@@ -64,7 +64,7 @@ class EditAddressProfileDialogControllerImplBrowserTest
         web_contents());
   }
 
-  autofill::test::AutofillBrowserTestEnvironment autofill_test_environment_;
+  test::AutofillBrowserTestEnvironment autofill_test_environment_;
   std::optional<AutofillProfile> profile_;
   base::MockOnceCallback<void(AutofillClient::AddressPromptUserDecision,
                               profile_ref profile)>

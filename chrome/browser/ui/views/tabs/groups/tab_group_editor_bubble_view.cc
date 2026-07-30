@@ -37,6 +37,7 @@
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_metrics.h"
@@ -206,8 +207,10 @@ namespace shared_tab_group_metrics = tab_groups::saved_tab_groups::metrics;
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(TabGroupEditorBubbleView,
                                       kTabGroupEditorBubbleViewId);
 
+TabGroupEditorBubbleView::~TabGroupEditorBubbleView() = default;
+
 // static
-views::Widget* TabGroupEditorBubbleView::Show(
+std::unique_ptr<views::Widget> TabGroupEditorBubbleView::Show(
     Browser* browser,
     const tab_groups::TabGroupId& group,
     views::View* anchor_view,
@@ -246,8 +249,8 @@ views::Widget* TabGroupEditorBubbleView::Show(
   }
 #endif
 
-  views::Widget* const widget =
-      BubbleDialogDelegateView::CreateBubble(tab_group_editor_bubble_view);
+  std::unique_ptr<views::Widget> widget =
+      BubbleDialogDelegate::CreateBubble(tab_group_editor_bubble_view);
   tab_group_editor_bubble_view->set_adjust_if_offscreen(true);
   tab_group_editor_bubble_view->GetBubbleFrameView()
       ->SetPreferredArrowAdjustment(
@@ -333,6 +336,10 @@ TabGroupEditorBubbleView::TabGroupEditorBubbleView(
       use_set_anchor_rect_(anchor_rect),
       title_at_opening_(GetGroupTitle()),
       stop_context_menu_propagation_(stop_context_menu_propagation) {
+  browser_close_subscription_ = browser_->RegisterBrowserDidClose(
+      base::BindRepeating(&TabGroupEditorBubbleView::OnBrowserDidClose,
+                          base::Unretained(this)));
+
   // This dialog should only show up if the browser supports tab groups.
   DCHECK(browser_->tab_strip_model()->SupportsTabGroups());
 
@@ -375,8 +382,6 @@ TabGroupEditorBubbleView::TabGroupEditorBubbleView(
 
   browser_->tab_strip_model()->AddObserver(this);
 }
-
-TabGroupEditorBubbleView::~TabGroupEditorBubbleView() = default;
 
 // TabStripModelObserver:
 void TabGroupEditorBubbleView::OnTabGroupChanged(const TabGroupChange& change) {
@@ -909,6 +914,9 @@ void TabGroupEditorBubbleView::NewTabInGroupPressed() {
 void TabGroupEditorBubbleView::UngroupPressed() {
   base::RecordAction(
       base::UserMetricsAction("TabGroups_TabGroupBubble_Ungroup"));
+
+  base::WeakPtr<views::Widget> widget = GetWidget()->GetWeakPtr();
+
   tab_groups::TabGroupSyncService* tab_group_service =
       tab_groups::TabGroupSyncServiceFactory::GetForProfile(
           browser_->profile());
@@ -925,7 +933,10 @@ void TabGroupEditorBubbleView::UngroupPressed() {
   } else {
     Ungroup(browser_, group_);
   }
-  GetWidget()->Close();
+
+  if (widget) {
+    widget->Close();
+  }
 }
 
 void TabGroupEditorBubbleView::ShareOrManagePressed() {
@@ -955,13 +966,17 @@ void TabGroupEditorBubbleView::CloseGroupPressed() {
       base::UserMetricsAction("TabGroups_TabGroupBubble_CloseGroup"));
 
   bool is_group_shared = IsGroupShared();
+  base::WeakPtr<views::Widget> widget = GetWidget()->GetWeakPtr();
 
   DeleteGroupFromTabstrip();
-  GetWidget()->Close();
 
   if (is_group_shared) {
     shared_tab_group_metrics::RecordSharedTabGroupRecallType(
         shared_tab_group_metrics::SharedTabGroupRecallTypeDesktop::kClosed);
+  }
+
+  if (widget) {
+    widget->Close();
   }
 }
 
@@ -1022,6 +1037,8 @@ void TabGroupEditorBubbleView::DeleteGroupPressed() {
     return CloseGroupPressed();
   }
 
+  base::WeakPtr<views::Widget> widget = GetWidget()->GetWeakPtr();
+
   bool is_group_shared = saved_group->is_shared_tab_group();
   tab_groups::SavedTabGroupUtils::DeleteSavedGroup(browser_,
                                                    saved_group->saved_guid());
@@ -1031,7 +1048,9 @@ void TabGroupEditorBubbleView::DeleteGroupPressed() {
             kDeleteGroup);
   }
 
-  GetWidget()->Close();
+  if (widget) {
+    widget->Close();
+  }
 }
 
 void TabGroupEditorBubbleView::LeaveGroupPressed() {
@@ -1048,14 +1067,24 @@ void TabGroupEditorBubbleView::LeaveGroupPressed() {
     return;
   }
 
+  base::WeakPtr<views::Widget> widget = GetWidget()->GetWeakPtr();
+
   tab_groups::SavedTabGroupUtils::LeaveSharedGroup(browser_,
                                                    saved_group->saved_guid());
-  GetWidget()->Close();
+
+  if (widget) {
+    widget->Close();
+  }
 }
 
 void TabGroupEditorBubbleView::MoveGroupToNewWindowPressed() {
+  base::WeakPtr<views::Widget> widget = GetWidget()->GetWeakPtr();
+
   browser_->tab_strip_model()->delegate()->MoveGroupToNewWindow(group_);
-  GetWidget()->Close();
+
+  if (widget) {
+    widget->Close();
+  }
 }
 
 void TabGroupEditorBubbleView::FocusGroupPressed() {
@@ -1112,7 +1141,8 @@ void TabGroupEditorBubbleView::OnBubbleClose() {
         base::UserMetricsAction("TabGroups_TabGroupBubble_NameChanged"));
   }
 
-  if (browser_->tab_strip_model()->group_model()->ContainsTabGroup(group_)) {
+  if (browser_ &&
+      browser_->tab_strip_model()->group_model()->ContainsTabGroup(group_)) {
     const int tab_count = browser_->tab_strip_model()
                               ->group_model()
                               ->GetTabGroup(group_)
@@ -1122,6 +1152,11 @@ void TabGroupEditorBubbleView::OnBubbleClose() {
                                   tab_count);
     }
   }
+}
+
+void TabGroupEditorBubbleView::OnBrowserDidClose(
+    BrowserWindowInterface* browser) {
+  browser_ = nullptr;
 }
 
 #if BUILDFLAG(IS_CHROMEOS)

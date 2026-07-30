@@ -1,5 +1,5 @@
 TYPE_WINDOW_CONTENT_CHANGED class_name=android.view.View - [contentTypes=SUBTREE] [First alert]
-TYPE_WINDOW_CONTENT_CHANGED class_name=android.view.View - [contentTypes=SUBTREE]
+TYPE_WINDOW_CONTENT_CHANGED class_name=android.view.View - [contentTypes=SUBTREE] [Bar]
 TYPE_WINDOW_CONTENT_CHANGED class_name=android.widget.TextView - [contentTypes=SUBTREE] [Second alert]
-TYPE_WINDOW_CONTENT_CHANGED class_name=android.view.View - [contentTypes=SUBTREE]
+TYPE_WINDOW_CONTENT_CHANGED class_name=android.view.View - [contentTypes=SUBTREE] [Baz]
 TYPE_WINDOW_CONTENT_CHANGED class_name=android.widget.TextView - [contentTypes=SUBTREE] [Third alert]

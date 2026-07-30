@@ -439,7 +439,7 @@ base::DictValue NetLogQuicClientSessionParams(
             base::as_byte_span(*ssl_config.trust_anchor_ids))));
   }
   if (ssl_config.server_padding_to_request.has_value()) {
-    dict.Set("server_padding_to_request",
+    dict.Set("requested_server_padding",
              ssl_config.server_padding_to_request.value());
   }
   net_log.source().AddToEventParameters(dict);
@@ -4044,6 +4044,14 @@ void QuicChromiumClientSession::OnCryptoHandshakeComplete() {
   // Indicate that the handshake is complete so that we can safely send pings
   // to the peer.
   crypto_handshake_complete_ = true;
+
+  net_log_.AddEvent(
+      NetLogEventType::QUIC_SESSION_CRYPTO_HANDSHAKE_COMPLETE, [&] {
+        return base::DictValue().Set(
+            "received_server_padding",
+            SSL_server_sent_requested_padding(crypto_stream_->GetSsl()) == 1);
+      });
+
   // We explicitly kick off pings here, since we do not want to ping when there
   // are no available encrypters available.
   if (enable_periodic_ping_) {

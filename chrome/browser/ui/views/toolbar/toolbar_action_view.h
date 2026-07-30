@@ -61,6 +61,9 @@ class ToolbarActionView : public views::MenuButton,
     // Called when a context menu has closed.
     virtual void OnContextMenuClosed(const std::string& action_id) = 0;
 
+    // Returns whether the focus is on an extension action view.
+    virtual bool IsFocusOnExtensionAction() const = 0;
+
    protected:
     ~Delegate() override = default;
   };
@@ -101,6 +104,8 @@ class ToolbarActionView : public views::MenuButton,
   bool OnKeyPressed(const ui::KeyEvent& event) override;
   void OnMouseMoved(const ui::MouseEvent& event) override;
   void OnMouseEntered(const ui::MouseEvent& event) override;
+  void OnFocus() override;
+  void OnBlur() override;
 
   ToolbarActionViewModel* view_model() { return view_model_; }
 

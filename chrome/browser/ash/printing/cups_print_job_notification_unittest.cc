@@ -2,16 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "chrome/browser/ash/printing/cups_print_job_notification_manager.h"
+#include "chrome/browser/ash/printing/cups_print_job_notification.h"
 
+#include "ash/strings/grit/ash_strings.h"
 #include "base/check_deref.h"
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/apps/app_service/app_service_test.h"
 #include "chrome/browser/ash/printing/cups_print_job.h"
-#include "chrome/browser/ash/printing/cups_print_job_notification.h"
+#include "chrome/browser/ash/printing/cups_print_job_notification_manager.h"
 #include "chrome/browser/ash/printing/fake_cups_print_job_manager.h"
 #include "chrome/grit/branded_strings.h"
-#include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/services/app_service/public/cpp/app_types.h"
 #include "content/public/test/browser_task_environment.h"

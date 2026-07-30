@@ -169,6 +169,9 @@ if (!is_android) {
   domatolpm_fuzzer("webcodecs_fuzzer_grammar") {
     template_file = "//chrome/test/fuzzing/webcodecs_in_process_fuzzer_grammar/template.html"
     grammars = [ "webcodecs_fuzzer://chrome/test/fuzzing/webcodecs_in_process_fuzzer_grammar/webcodecs.txt" ]
+    inputs = [
+      "//chrome/test/fuzzing/webcodecs_in_process_fuzzer_grammar/helpers.txt",
+    ]
   }
   in_process_fuzzer("webcodecs_in_process_fuzzer") {
     sources = [ "webcodecs_in_process_fuzzer.cc" ]

@@ -1,0 +1,11 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+source_set("public") {
+  sources = [
+    "ios_chrome_password_infobar_metrics_recorder.h",
+    "ios_chrome_password_infobar_metrics_recorder.mm",
+  ]
+  deps = [ "//base" ]
+}

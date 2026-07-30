@@ -32,25 +32,17 @@ found in the LICENSE file.
         android:title="@string/settings_autofill_ai_page_title"
         app:isPreferenceVisible="false">
 
-        <org.chromium.components.browser_ui.settings.ChromeBasePreference
-            android:id="@+id/autofill_ai_personal_context"
-            android:key="autofill_ai_personal_context"
-            android:order="0"
-            android:title="@string/personal_context_settings_title"
-            android:summary="@string/personal_context_settings_description_android"
-            android:widgetLayout="@layout/preference_widget_open_in_new"
-            app:isPreferenceVisible="false" />
         <org.chromium.chrome.browser.autofill.options.AutofillAiPreference
             android:key="autofill_ai_switch"
             android:layout="@layout/autofill_ai_preference"
-            android:order="1"
+            android:order="0"
             android:title="@string/settings_autofill_ai_page_title"
             android:summary="@string/settings_autofill_ai_description" />
 
         <org.chromium.components.browser_ui.settings.ChromeSwitchPreference
             android:id="@+id/autofill_ai_authentication_switch"
             android:key="autofill_ai_authentication_switch"
-            android:order="2"
+            android:order="1"
             android:title="@string/settings_autofill_ai_authentication_toggle_title"
             android:summary="@string/settings_autofill_ai_authentication_toggle_subtitle" />
     </PreferenceCategory>

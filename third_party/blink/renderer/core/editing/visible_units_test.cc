@@ -273,7 +273,7 @@ TEST_F(VisibleUnitsTest, endOfDocument) {
 
 TEST_F(VisibleUnitsTest,
        AdjustForwardPositionToAvoidCrossingEditingBoundariesNestedEditable) {
-  const SelectionInDOMTree& selection = SetSelectionTextToBody(
+  const SelectionInDomTree& selection = SetSelectionTextToBody(
       "<div contenteditable>"
       "abc"
       "<span contenteditable=\"false\">A^BC</span>"
@@ -1100,7 +1100,7 @@ TEST_F(VisibleUnitsTest, SnapForwardWithZeroWidthSpace) {
 TEST_F(VisibleUnitsTest, FirstRectForRangeHorizontal) {
   LoadAhem();
   InsertStyleElement("div { font:20px/20px Ahem;}");
-  const SelectionInDOMTree selection =
+  const SelectionInDomTree selection =
       SetSelectionTextToBody("<div>^abcdef|</div>");
   const gfx::Rect rect = FirstRectForRange(selection.ComputeRange());
   EXPECT_EQ(gfx::Rect(8, 8, 120, 20), rect);
@@ -1109,7 +1109,7 @@ TEST_F(VisibleUnitsTest, FirstRectForRangeHorizontal) {
 TEST_F(VisibleUnitsTest, FirstRectForRangeHorizontalWrap) {
   LoadAhem();
   InsertStyleElement("div { font:20px/20px Ahem; inline-size:60px;}");
-  const SelectionInDOMTree selection =
+  const SelectionInDomTree selection =
       SetSelectionTextToBody("<div>^abc def|</div>");
   const gfx::Rect rect = FirstRectForRange(selection.ComputeRange());
   EXPECT_EQ(gfx::Rect(8, 8, 59, 20), rect);
@@ -1118,7 +1118,7 @@ TEST_F(VisibleUnitsTest, FirstRectForRangeHorizontalWrap) {
 TEST_F(VisibleUnitsTest, FirstRectForRangeVertical) {
   LoadAhem();
   InsertStyleElement("div { writing-mode:vertical-rl; font:20px/20px Ahem;}");
-  const SelectionInDOMTree selection =
+  const SelectionInDomTree selection =
       SetSelectionTextToBody("<div>^abcdef|</div>");
   const gfx::Rect rect = FirstRectForRange(selection.ComputeRange());
   EXPECT_EQ(gfx::Rect(8, 8, 20, 119), rect);
@@ -1129,7 +1129,7 @@ TEST_F(VisibleUnitsTest, FirstRectForRangeVerticalWrap) {
   InsertStyleElement(
       "div { writing-mode:vertical-rl; font:20px/20px Ahem; "
       "inline-size:60px;}");
-  const SelectionInDOMTree selection =
+  const SelectionInDomTree selection =
       SetSelectionTextToBody("<div>^abc def|</div>");
   const gfx::Rect rect = FirstRectForRange(selection.ComputeRange());
   EXPECT_EQ(gfx::Rect(28, 8, 20, 59), rect);

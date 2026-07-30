@@ -914,7 +914,7 @@ TEST_F(EventHandlerTest, sendContextMenuEventWithHover) {
   GetDocument().body()->AppendChild(script);
   GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kTest);
   GetDocument().GetFrame()->Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .Collapse(Position(GetDocument().body(), 0))
           .Build(),
       SetSelectionOptions());

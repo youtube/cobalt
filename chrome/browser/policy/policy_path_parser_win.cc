@@ -38,7 +38,7 @@ namespace policy {
 
 namespace path_parser {
 
-// Replaces all variable occurances in the policy string with the respective
+// Replaces all variable occurrences in the policy string with the respective
 // system settings values.
 base::FilePath::StringType ExpandPathVariables(
     const base::FilePath::StringType& untranslated_string) {

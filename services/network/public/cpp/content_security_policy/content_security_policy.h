@@ -9,6 +9,7 @@
 
 #include "base/component_export.h"
 #include "services/network/public/mojom/content_security_policy.mojom.h"
+#include "services/network/public/mojom/origin_or_wildcard_header_value.mojom.h"
 
 class GURL;
 
@@ -79,7 +80,7 @@ std::vector<mojom::ContentSecurityPolicyPtr> ParseContentSecurityPolicies(
 
 // Parse and return the Allow-CSP-From header value from |headers|.
 COMPONENT_EXPORT(NETWORK_CPP_WEB_PLATFORM)
-mojom::AllowCSPFromHeaderValuePtr ParseAllowCSPFromHeader(
+mojom::OriginOrWildcardHeaderValuePtr ParseAllowCSPFromHeader(
     const net::HttpResponseHeaders& headers);
 
 // Parses a CSP source expression.
@@ -150,7 +151,7 @@ std::string ToString(mojom::CSPDirectiveName name);
 COMPONENT_EXPORT(NETWORK_CPP_WEB_PLATFORM)
 bool AllowCspFromAllowOrigin(
     const url::Origin& request_origin,
-    const network::mojom::AllowCSPFromHeaderValue* allow_csp_from);
+    const network::mojom::OriginOrWildcardHeaderValue* allow_csp_from);
 
 // Return true if the response allows the embedder to enforce arbitrary policy
 // on its behalf. |required_csp| is modified so that its self_origin matches the
@@ -160,7 +161,7 @@ COMPONENT_EXPORT(NETWORK_CPP_WEB_PLATFORM)
 bool AllowsBlanketEnforcementOfRequiredCSP(
     const url::Origin& request_origin,
     const GURL& response_url,
-    const network::mojom::AllowCSPFromHeaderValue* allow_csp_from,
+    const network::mojom::OriginOrWildcardHeaderValue* allow_csp_from,
     network::mojom::ContentSecurityPolicyPtr& required_csp);
 
 }  // namespace network

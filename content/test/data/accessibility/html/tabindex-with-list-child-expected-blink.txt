@@ -1,0 +1,16 @@
+rootWebArea
+++genericContainer ignored
+++++genericContainer ignored
+++++++paragraph
+++++++++staticText name='hello'
+++++++++++inlineTextBox name='hello'
+++++++region name='hello'
+++++++++list
+++++++++++listItem
+++++++++++++listMarker name='%E2%80%A2 '
+++++++++++++++staticText ignored
+++++++++++++staticText name='apple'
+++++++++++++++inlineTextBox name='apple'
+++++++++paragraph
+++++++++++staticText name='banana'
+++++++++++++inlineTextBox name='banana'

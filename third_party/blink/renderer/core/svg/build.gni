@@ -247,6 +247,8 @@ blink_core_sources_svg = [
   "svg_path_parser.h",
   "svg_path_query.cc",
   "svg_path_query.h",
+  "svg_path_segments_builder.cc",
+  "svg_path_segments_builder.h",
   "svg_path_string_builder.cc",
   "svg_path_string_builder.h",
   "svg_path_string_source.cc",

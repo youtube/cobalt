@@ -151,6 +151,45 @@ suite('FeedbackTest', function() {
     assertEquals('', feedbackInfo.email);
   });
 
+  test('ReportsUserConsentFalse', async function() {
+    app.getRequiredElement('#description-text').textContent = 'test';
+    app.getRequiredElement('#send-report-button').click();
+
+    const feedbackInfo = await browserProxy.whenCalled('sendFeedback');
+    assertDeepEquals(
+        feedbackInfo.systemInformation,
+        [{key: 'feedbackUserCtlConsent', value: 'false'}]);
+  });
+
+  test('ReportsUserConsentTrue', async function() {
+    app.getRequiredElement('#description-text').textContent = 'test';
+    app.getRequiredElement('#consent-checkbox').click();
+    app.getRequiredElement('#send-report-button').click();
+
+    const feedbackInfo = await browserProxy.whenCalled('sendFeedback');
+    assertDeepEquals(
+        feedbackInfo.systemInformation,
+        [{key: 'feedbackUserCtlConsent', value: 'true'}]);
+  });
+
+  test('PreservesSystemInformation', async function() {
+    browserProxy.setDialogArguments(JSON.stringify({
+      systemInformation: [
+        {key: 'EXTRA_DIAGNOSTICS', value: 'some diagnostics'},
+      ],
+    }));
+    app = await createAppElement();
+
+    app.getRequiredElement('#description-text').textContent = 'test';
+    app.getRequiredElement('#send-report-button').click();
+
+    const feedbackInfo = await browserProxy.whenCalled('sendFeedback');
+    assertDeepEquals(feedbackInfo.systemInformation, [
+      {key: 'EXTRA_DIAGNOSTICS', value: 'some diagnostics'},
+      {key: 'feedbackUserCtlConsent', value: 'false'},
+    ]);
+  });
+
   test('CloseButtonClosesDialog', function() {
     const button = app.getRequiredElement('#cancel-button');
     button.click();

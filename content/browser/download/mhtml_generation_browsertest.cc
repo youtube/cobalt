@@ -280,57 +280,60 @@ class RespondAndDisconnectMockWriter
   void SerializeAsMHTML(mojom::SerializeAsMHTMLParamsPtr params,
                         SerializeAsMHTMLCallback callback) override {
     // Upon using the overridden mock interface implementation, this will be
-    // handled by the product code as illustrated below.  (1), (2), (3) depict
-    // points in time when product code runs on UI thread and download sequence.
-    // For the repro, the message pipe disconnection needs to happen between (1)
-    // and (3).
+    // handled by the product code as illustrated below. (1), (2), (3), (4)
+    // depict points in time when product code runs on UI thread and download
+    // sequence. For the repro, the message pipe disconnection needs to happen
+    // after the browser has completed writing to disk (2) and before the job is
+    // destroyed in OnFinished (4).
     //
-    //   Test instance     UI thread         download sequence
-    //     ---------       ---------           -----------
-    //        |                |                     |
-    //    WE ARE HERE          |                     |
-    //        |                |                     |
-    //        |                |                     |
-    //        +--------------->+                     |
-    //        |                |                     |
-    //        |                |                     |
-    //        |                |                     |
-    //        |                |                     |
-    //        |                |                     |
-    //        |                |                     |
-    // (1)    |      MHTMLGenerationManager::Job     |
-    //        |      ::SerializeAsMHTMLResponse      |
-    //        |                +-------------------->+
-    //        |                |                     |
-    //        |                |                     |
-    //        |                |                     |
-    // (2)    |                |          MHTMLGenerationManager::Job
-    //        |                |          ::CloseFileOnFileThread
-    //        |                |                     |
-    //        |                |                     |
-    //        |           test needs to              |
-    //        |       disconnect message pipe        |
-    //        |      HERE - between (1) and (3)      |
-    //        |                |                     |
-    //        |                |                     |
-    //        |                +<--------------------+
-    //        |                |                     |
-    // (3)    |      MHTMLGenerationManager          |
-    //        |      Job::OnFinished                 |
-    //        |                |                     |
+    //   Test instance      UI thread          download sequence
+    //     ---------        ---------            -----------
+    //        |                 |                      |
+    //    WE ARE HERE           |                      |
+    //        |                 |                      |
+    //        +---------------->+                      |
+    //        |                 |                      |
+    //        |                 |                      |
+    // (1)    |       MHTMLGenerationManager::Job      |
+    //        |       ::SerializeAsMHTMLResponse       |
+    //        |                 |                      |
+    //        |                 |                      |
+    //        |                 |               [Streams MHTML data]
+    //        |                 |                      +
+    // (2)    |                 +<---------------------+
+    //        |       MHTMLGenerationManager::Job      |
+    //        |       ::DoneWritingToDisk              |
+    //        |                 +-------------------->+
+    //        |                 |                      |
+    // (3)    |                 |           MHTMLGenerationManager::Job
+    //        |                 |           ::FinalizeOnFileThread
+    //        |                 |                      |
+    //        |                 |                      |
+    //        |            test needs to               |
+    //        |       disconnect message pipe          |
+    //        |       HERE - between (2) and (4)       |
+    //        |                 |                      |
+    //        |                 |                      |
+    //        |                 +<---------------------+
+    //        |                 |                      |
+    // (4)    |       MHTMLGenerationManager           |
+    //        |       Job::OnFinished                  |
+    //        |                 |                      |
     //
-    // We hope that the error handler is invoked between (1) and (3) by doing
+    // We ensure the disconnect handler is invoked between (2) and (4) by doing
     // the following:
     // - From here, run the callback response to the UI thread. This queues
     //   the response message onto the bound message pipe.
-    // - After running the callback response, immediately unbind the message
-    //   pipe in order to queue a message onto the bound message pipe to notify
-    //   the Browser the connection was closed and invoke the error handler.
-    // - Upon resuming operation, the FIFO ordering property of associated
-    //   interfaces guarantees the execution of (1) before the error handler.
-    //   (1) posts (2) to the download sequence and terminates. The client end
-    //   then accepts the error notification and invokes the connection error
-    //   handler, guaranteeing its execution before (3).
+    // - After running the callback response, we post a sequence of tasks to
+    //   the download thread (DelayDisconnectionStep1 -> Step2 -> Step3 ->
+    //   DisconnectMojoReceiver) to delay resetting the Mojo connection until
+    //   after the data pipe streaming has completed and DoneWritingToDisk (2)
+    //   has run on the UI thread.
+    // - Upon resuming operation, the FIFO ordering property of Mojo interfaces
+    //   guarantees that (1) executes before the error handler. In parallel,
+    //   the data pipe is drained, posting (2) which then posts (3). The client
+    //   end then accepts the error notification and invokes the connection
+    //   error handler, guaranteeing its execution before (4).
 
     bool compute_contents_hash = params->output_handle->is_producer_handle();
 
@@ -359,31 +362,39 @@ class RespondAndDisconnectMockWriter
     // we must ensure the write complete notification arrives before the
     // connection error notification, otherwise the Browser will report
     // an MhtmlSaveStatus != kSuccess. We can guarantee this by potentially
-    // running tasks after each watcher invocation to send notifications that
-    // it has been completed. We need at least two tasks to guarantee this,
-    // as there can be at most two watcher invocations to write a block of
-    // data smaller than the data pipe buffer to file.
+    // running tasks sequentially on the download thread to delay the Mojo
+    // connection reset. We need three task hops on the download sequence to
+    // ensure that the reader has completed reading the EOF, and the completion
+    // task has been posted to the UI thread (DoneWritingToDisk) before the
+    // receiver is reset.
     download::GetDownloadTaskRunner()->PostTask(
         FROM_HERE,
-        base::BindOnce(&RespondAndDisconnectMockWriter::TaskX,
+        base::BindOnce(&RespondAndDisconnectMockWriter::DelayDisconnectionStep1,
                        scoped_refptr<RespondAndDisconnectMockWriter>(this)));
   }
 
-  void TaskX() {
+  void DelayDisconnectionStep1() {
     download::GetDownloadTaskRunner()->PostTask(
         FROM_HERE,
-        base::BindOnce(&RespondAndDisconnectMockWriter::TaskY,
+        base::BindOnce(&RespondAndDisconnectMockWriter::DelayDisconnectionStep2,
                        scoped_refptr<RespondAndDisconnectMockWriter>(this)));
   }
 
-  void TaskY() {
+  void DelayDisconnectionStep2() {
+    download::GetDownloadTaskRunner()->PostTask(
+        FROM_HERE,
+        base::BindOnce(&RespondAndDisconnectMockWriter::DelayDisconnectionStep3,
+                       scoped_refptr<RespondAndDisconnectMockWriter>(this)));
+  }
+
+  void DelayDisconnectionStep3() {
     GetUIThreadTaskRunner({})->PostTask(
         FROM_HERE,
-        base::BindOnce(&RespondAndDisconnectMockWriter::TaskZ,
+        base::BindOnce(&RespondAndDisconnectMockWriter::DisconnectMojoReceiver,
                        scoped_refptr<RespondAndDisconnectMockWriter>(this)));
   }
 
-  void TaskZ() { receiver_.reset(); }
+  void DisconnectMojoReceiver() { receiver_.reset(); }
 
  private:
   friend base::RefCountedThreadSafe<RespondAndDisconnectMockWriter>;

@@ -35,8 +35,8 @@ const char kUploadIbanRequestFormat[] =
 UploadIbanRequest::UploadIbanRequest(
     const UploadIbanRequestDetails& details,
     bool full_sync_enabled,
-    base::OnceCallback<
-        void(payments::PaymentsAutofillClient::PaymentsRpcResult)> callback)
+    base::OnceCallback<void(PaymentsAutofillClient::PaymentsRpcResult)>
+        callback)
     : request_details_(details),
       full_sync_enabled_(full_sync_enabled),
       callback_(std::move(callback)) {}

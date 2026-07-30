@@ -105,6 +105,10 @@ GURL GetSearchResultsUrlFromRedirectUrl(const GURL& url);
 // results.
 GURL RemoveIgnoredSearchURLParameters(const GURL& url);
 
+// If the given URL is a shopping URL (udm=28), strips certain parameters
+// (like "stick") that should not be carried over to the new tab.
+GURL MaybeStripParamsForShopping(const GURL& url);
+
 // Returns the URL to open in a new tab by adding a unique vsrid to the side
 // panel new tab URL. If the given URL is empty, or is a URL for a contextual
 // query, returns an empty URL since they cannot be opened in a new tab.

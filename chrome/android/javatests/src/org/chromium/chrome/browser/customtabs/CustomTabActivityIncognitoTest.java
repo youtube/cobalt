@@ -420,13 +420,13 @@ public class CustomTabActivityIncognitoTest {
                         mCustomTabActivityTestRule.getAppMenuCoordinator());
         int expectedMenuSize =
                 BrowserUiUtils.isPageInfoMovedToAppMenu(mCustomTabActivityTestRule.getActivity())
-                        ? 3
-                        : 2;
+                        ? 2
+                        : 1;
 
-        // Check the menu items have only 2 or 3 items visible "not" including the top icon row
+        // Check the menu items have only 1 or 2 items visible "not" including the top icon row
         // menu.
         CustomTabsTestUtils.assertMenuSize(menuItemsModelList, expectedMenuSize);
-        assertNotNull(
+        assertNull(
                 AppMenuTestSupport.getMenuItemPropertyModel(
                         mCustomTabActivityTestRule.getAppMenuCoordinator(),
                         R.id.reader_mode_prefs_id));

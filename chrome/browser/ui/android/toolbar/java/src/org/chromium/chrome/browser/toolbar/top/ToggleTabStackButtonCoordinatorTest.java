@@ -99,7 +99,7 @@ public class ToggleTabStackButtonCoordinatorTest {
 
         doAnswer(invocation -> mOverviewOpen)
                 .when(mLayoutStateProvider)
-                .isLayoutVisible(LayoutType.TAB_SWITCHER);
+                .isLayoutVisible(LayoutType.HUB);
         doAnswer(
                         invocation -> {
                             mLayoutStateObserverSet.add(invocation.getArgument(0));
@@ -160,20 +160,20 @@ public class ToggleTabStackButtonCoordinatorTest {
     private void showOverviewMode() {
         mOverviewOpen = true;
         for (LayoutStateProvider.LayoutStateObserver observer : mLayoutStateObserverSet) {
-            observer.onStartedShowing(/* layoutType= */ LayoutType.TAB_SWITCHER);
+            observer.onStartedShowing(/* layoutType= */ LayoutType.HUB);
         }
         for (LayoutStateProvider.LayoutStateObserver observer : mLayoutStateObserverSet) {
-            observer.onFinishedShowing(LayoutType.TAB_SWITCHER);
+            observer.onFinishedShowing(LayoutType.HUB);
         }
     }
 
     private void hideOverviewMode() {
         mOverviewOpen = false;
         for (LayoutStateProvider.LayoutStateObserver observer : mLayoutStateObserverSet) {
-            observer.onStartedHiding(LayoutType.TAB_SWITCHER);
+            observer.onStartedHiding(LayoutType.HUB);
         }
         for (LayoutStateProvider.LayoutStateObserver observer : mLayoutStateObserverSet) {
-            observer.onFinishedHiding(LayoutType.TAB_SWITCHER);
+            observer.onFinishedHiding(LayoutType.HUB);
         }
     }
 

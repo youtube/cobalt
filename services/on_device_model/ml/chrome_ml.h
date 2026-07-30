@@ -45,8 +45,8 @@ class COMPONENT_EXPORT(ON_DEVICE_MODEL_ML) ChromeML {
   // Wrappers for C-API function pointers. Centralizes DISABLE_CFI_DLSYM
   // annotations here to avoid spreading them across the codebase.
   DISABLE_CFI_DLSYM
-  void InitDawnProcs(const DawnProcTable& procs) const {
-    api_->InitDawnProcs(procs);
+  bool TryInitDawnProcs(const DawnProcTable& procs) const {
+    return api_->TryInitDawnProcs(procs);
   }
 
   DISABLE_CFI_DLSYM
@@ -61,14 +61,6 @@ class COMPONENT_EXPORT(ON_DEVICE_MODEL_ML) ChromeML {
     if (api_->SetFatalErrorFn) {
       api_->SetFatalErrorFn(error_fn);
     }
-  }
-
-  DISABLE_CFI_DLSYM
-  ChromeMLSafetyResult ClassifyTextSafety(ChromeMLModel model,
-                                          const char* text,
-                                          float* scores,
-                                          size_t* num_scores) const {
-    return api_->ClassifyTextSafety(model, text, scores, num_scores);
   }
 
   DISABLE_CFI_DLSYM
@@ -239,26 +231,6 @@ class COMPONENT_EXPORT(ON_DEVICE_MODEL_ML) ChromeML {
     if (api_->DestroyGpuDelegate) {
       api_->DestroyGpuDelegate(delegate);
     }
-  }
-
-  // TS API methods
-  DISABLE_CFI_DLSYM
-  ChromeMLTSModel TSCreateModel(
-      const ChromeMLTSModelDescriptor* descriptor) const {
-    return api_->ts_api.CreateModel(descriptor);
-  }
-
-  DISABLE_CFI_DLSYM
-  void TSDestroyModel(ChromeMLTSModel model) const {
-    api_->ts_api.DestroyModel(model);
-  }
-
-  DISABLE_CFI_DLSYM
-  ChromeMLSafetyResult TSClassifyTextSafety(ChromeMLTSModel model,
-                                            const char* text,
-                                            float* scores,
-                                            size_t* num_scores) const {
-    return api_->ts_api.ClassifyTextSafety(model, text, scores, num_scores);
   }
 
   // ASR API methods

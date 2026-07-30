@@ -33,6 +33,9 @@ bool CanEnableBlockingJavascriptOptimizersForUnfamiliarSites(Profile* profile);
 content_settings::JavascriptOptimizerSetting
 ComputeDefaultJavascriptOptimizerSetting(Profile* profile);
 
+// Returns whether the V8 optimizer migration is running in dry-run mode.
+bool IsV8OptimizerMigrationDryRun(Profile* profile);
+
 // Checks if V8 optimizations are disabled in the renderer process of the given
 // WebContents. Returns nullopt if the web_contents or the associated renderer
 // process are not available.

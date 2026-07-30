@@ -687,9 +687,25 @@ void AIManager::AddReceiver(
   receivers_.Add(this, std::move(receiver));
 }
 
+bool AIManager::IsPromptApiEnabled() const {
+  if (base::FeatureList::IsEnabled(blink::features::kAIPromptAPI)) {
+    return true;
+  }
+  if (base::FeatureList::IsEnabled(
+          blink::features::kAIPromptAPIMultimodalInput)) {
+    return true;
+  }
+  return false;
+}
+
 void AIManager::CanCreateLanguageModel(
     blink::mojom::AILanguageModelCreateOptionsPtr options,
     CanCreateLanguageModelCallback callback) {
+  if (!IsPromptApiEnabled()) {
+    std::move(callback).Run(blink::mojom::ModelAvailabilityCheckResult::
+                                kUnavailableFeatureNotEnabled);
+    return;
+  }
   if (IsPermissionsPolicyBlocked(
           network::mojom::PermissionsPolicyFeature::kLanguageModel)) {
     receivers_.ReportBadMessage("Permissions policy disabled");
@@ -758,6 +774,10 @@ void AIManager::CreateLanguageModel(
     blink::mojom::AILanguageModelCreateOptionsPtr options,
     mojo::PendingRemote<on_device_model::mojom::DownloadObserver> monitor) {
   CHECK(options);
+  if (!IsPromptApiEnabled()) {
+    receivers_.ReportBadMessage("Feature not enabled");
+    return;
+  }
   if (IsBlocked(network::mojom::PermissionsPolicyFeature::kLanguageModel)) {
     receivers_.ReportBadMessage("Policy or user setting disabled");
     return;
@@ -936,6 +956,11 @@ void AIManager::CreateLanguageModelInternal(
 void AIManager::CanCreateSummarizer(
     blink::mojom::AISummarizerCreateOptionsPtr options,
     CanCreateSummarizerCallback callback) {
+  if (!base::FeatureList::IsEnabled(blink::features::kAISummarizationAPI)) {
+    std::move(callback).Run(blink::mojom::ModelAvailabilityCheckResult::
+                                kUnavailableFeatureNotEnabled);
+    return;
+  }
   if (IsPermissionsPolicyBlocked(
           network::mojom::PermissionsPolicyFeature::kSummarizer)) {
     receivers_.ReportBadMessage("Permissions policy disabled");
@@ -989,6 +1014,10 @@ void AIManager::CreateSummarizer(
     mojo::PendingRemote<blink::mojom::AIManagerCreateSummarizerClient> client,
     blink::mojom::AISummarizerCreateOptionsPtr options,
     mojo::PendingRemote<on_device_model::mojom::DownloadObserver> monitor) {
+  if (!base::FeatureList::IsEnabled(blink::features::kAISummarizationAPI)) {
+    receivers_.ReportBadMessage("Feature not enabled");
+    return;
+  }
   if (IsBlocked(network::mojom::PermissionsPolicyFeature::kSummarizer)) {
     receivers_.ReportBadMessage("Policy or user setting disabled");
     return;
@@ -1103,6 +1132,11 @@ AIManager::CreateSummarizerSessionCallback(
 void AIManager::CanCreateProofreader(
     blink::mojom::AIProofreaderCreateOptionsPtr options,
     CanCreateProofreaderCallback callback) {
+  if (!base::FeatureList::IsEnabled(blink::features::kAIProofreadingAPI)) {
+    std::move(callback).Run(blink::mojom::ModelAvailabilityCheckResult::
+                                kUnavailableFeatureNotEnabled);
+    return;
+  }
   // TODO(crbug.com/466425250): Enforce permissions policy.
   // TODO(crbug.com/424673180): Add a warning message when options
   // `includeCorrectionTypes` and `includeCorrectionExplanations` are set to
@@ -1126,6 +1160,10 @@ void AIManager::CreateProofreader(
     mojo::PendingRemote<blink::mojom::AIManagerCreateProofreaderClient> client,
     blink::mojom::AIProofreaderCreateOptionsPtr options,
     mojo::PendingRemote<on_device_model::mojom::DownloadObserver> monitor) {
+  if (!base::FeatureList::IsEnabled(blink::features::kAIProofreadingAPI)) {
+    receivers_.ReportBadMessage("Feature not enabled");
+    return;
+  }
   // TODO(crbug.com/466425250): Enforce permissions policy.
   if (IsBlocked()) {
     receivers_.ReportBadMessage("Policy or user setting disabled");
@@ -1234,6 +1272,11 @@ void AIManager::GetLanguageModelParams(
 
 void AIManager::CanCreateWriter(blink::mojom::AIWriterCreateOptionsPtr options,
                                 CanCreateWriterCallback callback) {
+  if (!base::FeatureList::IsEnabled(blink::features::kAIWriterAPI)) {
+    std::move(callback).Run(blink::mojom::ModelAvailabilityCheckResult::
+                                kUnavailableFeatureNotEnabled);
+    return;
+  }
   if (IsPermissionsPolicyBlocked(
           network::mojom::PermissionsPolicyFeature::kWriter)) {
     receivers_.ReportBadMessage("Permissions policy disabled");
@@ -1268,6 +1311,10 @@ void AIManager::CreateWriter(
     mojo::PendingRemote<blink::mojom::AIManagerCreateWriterClient> client,
     blink::mojom::AIWriterCreateOptionsPtr options,
     mojo::PendingRemote<on_device_model::mojom::DownloadObserver> monitor) {
+  if (!base::FeatureList::IsEnabled(blink::features::kAIWriterAPI)) {
+    receivers_.ReportBadMessage("Feature not enabled");
+    return;
+  }
   if (IsBlocked(network::mojom::PermissionsPolicyFeature::kWriter)) {
     receivers_.ReportBadMessage("Policy or user setting disabled");
     return;
@@ -1337,6 +1384,11 @@ void AIManager::CreateWriter(
 void AIManager::CanCreateRewriter(
     blink::mojom::AIRewriterCreateOptionsPtr options,
     CanCreateRewriterCallback callback) {
+  if (!base::FeatureList::IsEnabled(blink::features::kAIRewriterAPI)) {
+    std::move(callback).Run(blink::mojom::ModelAvailabilityCheckResult::
+                                kUnavailableFeatureNotEnabled);
+    return;
+  }
   if (IsPermissionsPolicyBlocked(
           network::mojom::PermissionsPolicyFeature::kRewriter)) {
     receivers_.ReportBadMessage("Permissions policy disabled");
@@ -1370,6 +1422,10 @@ void AIManager::CreateRewriter(
     mojo::PendingRemote<blink::mojom::AIManagerCreateRewriterClient> client,
     blink::mojom::AIRewriterCreateOptionsPtr options,
     mojo::PendingRemote<on_device_model::mojom::DownloadObserver> monitor) {
+  if (!base::FeatureList::IsEnabled(blink::features::kAIRewriterAPI)) {
+    receivers_.ReportBadMessage("Feature not enabled");
+    return;
+  }
   if (IsBlocked(network::mojom::PermissionsPolicyFeature::kRewriter)) {
     receivers_.ReportBadMessage("Policy or user setting disabled");
     return;
@@ -1440,7 +1496,8 @@ void AIManager::CanCreateClassifier(
     blink::mojom::AIClassifierCreateOptionsPtr options,
     CanCreateClassifierCallback callback) {
   if (!base::FeatureList::IsEnabled(blink::features::kAIClassifierAPI)) {
-    receivers_.ReportBadMessage("Feature not enabled");
+    std::move(callback).Run(blink::mojom::ModelAvailabilityCheckResult::
+                                kUnavailableFeatureNotEnabled);
     return;
   }
   // TODO(crbug.com/499365168): Enforce permissions policy and

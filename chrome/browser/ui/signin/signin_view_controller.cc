@@ -783,8 +783,8 @@ void SigninViewController::SignoutOrReauthWithPromptWithUnsyncedDataTypes(
       identity_manager->FindExtendedAccountInfoByAccountId(primary_account_id);
   if (base::FeatureList::IsEnabled(
           supervised_user::kEnableSupervisedUserVersionSignOutDialog) &&
-      extended_account_info.capabilities.is_subject_to_parental_controls() ==
-          signin::Tribool::kTrue) {
+      extended_account_info.GetAccountCapabilities()
+              .is_subject_to_parental_controls() == signin::Tribool::kTrue) {
     prompt_variant =
         ChromeSignoutConfirmationPromptVariant::kProfileWithParentalControls;
   }

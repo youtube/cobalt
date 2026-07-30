@@ -124,14 +124,6 @@ export class ComposeboxElement extends ComposeboxEmbedderMixin
         reflect: true,
       },
       isFollowupQuery: {type: Boolean},
-      energyEffectEnabled: {
-        type: Boolean,
-        reflect: true,
-      },
-      energyEffectAnimationEnabled: {
-        type: Boolean,
-        reflect: true,
-      },
       isZeroState: {
         type: Boolean,
         reflect: true,
@@ -152,9 +144,7 @@ export class ComposeboxElement extends ComposeboxEmbedderMixin
     };
   }
 
-  accessor energyEffectEnabled: boolean = false;
   accessor isSidePanel: boolean = false;
-  accessor energyEffectAnimationEnabled: boolean = false;
   accessor isZeroState: boolean = false;
   accessor glifAnimationState: GlifAnimationState =
       GlifAnimationState.INELIGIBLE;
@@ -776,6 +766,9 @@ export class ComposeboxElement extends ComposeboxEmbedderMixin
   // TODO(crbug.com/486706573): Refactor this function and move the common logic
   // to the mixin class. Move embedder specific logic to the embedder class.
   override onAutocompleteResultChanged(result: AutocompleteResult) {
+    if (this.submitting) {
+      return;
+    }
     if (this.lastQueriedInput === null ||
         this.lastQueriedInput.trimStart() !== result.input) {
       return;
@@ -888,8 +881,11 @@ export class ComposeboxElement extends ComposeboxEmbedderMixin
     const composeboxFile = ComposeboxFile.createFromFile(
         fileAttachment.uuid as unknown as UnguessableToken,
         {name: fileAttachment.name, type: fileAttachment.mimeType},
-        pendingStatus ?? ContextUploadStatus.kNotUploaded,
-        {dataUrl: fileAttachment.imageDataUrl ?? null, supportsUnimodal: true});
+        pendingStatus ?? ContextUploadStatus.kNotUploaded, {
+          dataUrl: fileAttachment.imageDataUrl ?? null,
+          iconUrl: fileAttachment.iconUrl ?? null,
+          supportsUnimodal: true,
+        });
     this.onFileContextAdded(composeboxFile);
   }
 
@@ -902,10 +898,6 @@ export class ComposeboxElement extends ComposeboxEmbedderMixin
       delayUpload: /*delay_upload=*/ false,
       origin: TabUploadOrigin.OTHER,
     } as TabUpload);
-  }
-
-  addFileContextForTesting(file: ComposeboxFile) {
-    this.onFileContextAdded(file);
   }
 
   // TODO(crbug.com/486707842): Move this to contextual tasks composebox.

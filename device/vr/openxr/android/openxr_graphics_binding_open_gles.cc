@@ -278,6 +278,11 @@ void OpenXrGraphicsBindingOpenGLES::ResizeSharedBuffer(
       gpu::SHARED_IMAGE_USAGE_SCANOUT | gpu::SHARED_IMAGE_USAGE_DISPLAY_READ |
       gpu::SHARED_IMAGE_USAGE_GLES2_READ | gpu::SHARED_IMAGE_USAGE_GLES2_WRITE;
 
+  if (layer.read_only_data().needs_raster_access) {
+    shared_image_usage |= gpu::SHARED_IMAGE_USAGE_RASTER_READ |
+                          gpu::SHARED_IMAGE_USAGE_RASTER_WRITE;
+  }
+
   // If the XRSession is producing frames with WebGPU then the appropriate usage
   // also needs to be added.
   if (IsWebGPUSession()) {
@@ -440,9 +445,13 @@ bool OpenXrGraphicsBindingOpenGLES::WaitOnFence(OpenXrCompositionLayer& layer,
 
 bool OpenXrGraphicsBindingOpenGLES::ShouldFlipSubmittedImage(
     OpenXrCompositionLayer& layer) const {
+  bool should_flip = layer.flip_y();
   // WebGPU produces textures that are y-flipped relative to WebGL, which needs
   // to be accounted for during frame submission.
-  return IsWebGPUSession();
+  if (IsWebGPUSession()) {
+    should_flip = !should_flip;
+  }
+  return should_flip;
 }
 
 void OpenXrGraphicsBindingOpenGLES::OnSwapchainImageActivated(

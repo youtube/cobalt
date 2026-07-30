@@ -348,6 +348,13 @@ enum class TestType {
 // Navigate to an HTTP URL directly. The upgraded HTTPS version serves good SSL
 // which redirects to the original HTTP URL. This should show the interstitial.
 - (void)test_HTTPSRedirectsToHTTP_ShouldFallback {
+  // TODO(crbug.com/521729379): Fails on iOS 26 and below on physical device.
+#if !TARGET_IPHONE_SIMULATOR
+  if (!@available(iOS 26.0, *)) {
+    EARL_GREY_TEST_DISABLED(@"Fails on iOS 26.0 and below on device.");
+  }
+#endif
+
   [HttpsUpgradeAppInterface setHTTPSPortForTesting:self.goodHTTPSServer->port()
                                       useFakeHTTPS:true];
 
@@ -889,6 +896,13 @@ enum class TestType {
 // navigate to a new page and go back. This should load the HTTP URL
 // without showing the interstitial again.
 - (void)test_BadHTTPS_GoBackToAllowlistedSite {
+  // TODO(crbug.com/521729379): Fails on iOS 26 and below on physical device.
+#if !TARGET_IPHONE_SIMULATOR
+  if (!@available(iOS 26.0, *)) {
+    EARL_GREY_TEST_DISABLED(@"Fails on iOS 26.0 and below on device.");
+  }
+#endif
+
   [HttpsUpgradeAppInterface setHTTPSPortForTesting:self.badHTTPSServer->port()
                                       useFakeHTTPS:false];
 
@@ -925,6 +939,13 @@ enum class TestType {
 // interstitial. Then, navigate to a new page and go back. This should load the
 // HTTP URL without showing the interstitial again.
 - (void)test_SlowHTTPS_GoBackToAllowlistedSite {
+  // TODO(crbug.com/521729379): Fails on iOS 26 and below on physical device.
+#if !TARGET_IPHONE_SIMULATOR
+  if (!@available(iOS 26.0, *)) {
+    EARL_GREY_TEST_DISABLED(@"Fails on iOS 26.0 and below on device.");
+  }
+#endif
+
   [HttpsUpgradeAppInterface setHTTPSPortForTesting:self.slowServer->port()
                                       useFakeHTTPS:true];
   // Set the fallback delay to zero. This will immediately stop the HTTPS

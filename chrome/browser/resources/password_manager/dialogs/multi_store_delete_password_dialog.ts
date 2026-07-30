@@ -19,6 +19,7 @@ import type {CrCheckboxElement} from 'chrome://resources/cr_elements/cr_checkbox
 import type {CrDialogElement} from 'chrome://resources/cr_elements/cr_dialog/cr_dialog.js';
 import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
 import {assert} from 'chrome://resources/js/assert.js';
+import {htmlEscape} from 'chrome://resources/js/util.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {PasswordManagerImpl} from '../password_manager_proxy.js';
@@ -119,9 +120,9 @@ export class MultiStoreDeletePasswordDialogElement extends
     assert(this.duplicatedPassword.affiliatedDomains);
 
     return this.i18nAdvanced('deletePasswordDialogBody', {
-      substitutions:
-          [this.duplicatedPassword.affiliatedDomains.map(domain => domain.name)
-               .join(', ')],
+      substitutions: [this.duplicatedPassword.affiliatedDomains
+                          .map(domain => htmlEscape(domain.name))
+                          .join(', ')],
       tags: ['b'],
     });
   }

@@ -18,6 +18,7 @@
 #include "components/bookmarks/browser/bookmark_node.h"
 #include "components/bookmarks/browser/bookmark_uuids.h"
 #include "components/sync/base/data_type.h"
+#include "components/sync/base/server_defined_unique_tags.h"
 #include "components/sync/base/time.h"
 #include "components/sync/protocol/bookmark_specifics.pb.h"
 #include "components/sync/protocol/entity_metadata.pb.h"
@@ -39,25 +40,6 @@ using syncer::UpdateResponseData;
 using syncer::UpdateResponseDataList;
 
 static const size_t kInvalidIndex = -1;
-
-// The sync protocol identifies top-level entities by means of well-known tags,
-// (aka server defined tags) which should not be confused with titles or client
-// tags that aren't supported by bookmarks (at the time of writing). Each tag
-// corresponds to a singleton instance of a particular top-level node in a
-// user's share; the tags are consistent across users. The tags allow us to
-// locate the specific folders whose contents we care about synchronizing,
-// without having to do a lookup by name or path.  The tags should not be made
-// user-visible. For example, the tag "bookmark_bar" represents the permanent
-// node for bookmarks bar in Chrome. The tag "other_bookmarks" represents the
-// permanent folder Other Bookmarks in Chrome.
-//
-// It is the responsibility of something upstream (at time of writing, the sync
-// server) to create these tagged nodes when initializing sync for the first
-// time for a user.  Thus, once the backend finishes initializing, the
-// SyncService can rely on the presence of tagged nodes.
-const char kBookmarkBarTag[] = "bookmark_bar";
-const char kMobileBookmarksTag[] = "synced_bookmarks";
-const char kOtherBookmarksTag[] = "other_bookmarks";
 
 // Maximum depth to sync bookmarks tree to protect against stack overflow.
 // Keep in sync with |base::internal::kAbsoluteMaxDepth| in json_common.h.
@@ -142,40 +124,19 @@ const bookmarks::BookmarkNode* GetPermanentFolderForServerDefinedUniqueTag(
 
   // WARNING: Keep this logic consistent with the analogous in
   // GetPermanentFolderUuidForServerDefinedUniqueTag().
-  if (server_defined_unique_tag == kBookmarkBarTag) {
+  if (server_defined_unique_tag == syncer::kBookmarkBarTag) {
     return bookmark_model->bookmark_bar_node();
   }
-  if (server_defined_unique_tag == kOtherBookmarksTag) {
+  if (server_defined_unique_tag == syncer::kOtherBookmarksTag) {
     return bookmark_model->other_node();
   }
-  if (server_defined_unique_tag == kMobileBookmarksTag) {
+  if (server_defined_unique_tag == syncer::kSyncedBookmarksTag) {
     return bookmark_model->mobile_node();
   }
 
   return nullptr;
 }
 
-// Gets the bookmark UUID corresponding to a permanent folder identified by
-// |served_defined_unique_tag| or an invalid UUID if the tag is unknown.
-// |server_defined_unique_tag| must not be empty.
-base::Uuid GetPermanentFolderUuidForServerDefinedUniqueTag(
-    const std::string& server_defined_unique_tag) {
-  DCHECK(!server_defined_unique_tag.empty());
-
-  // WARNING: Keep this logic consistent with the analogous in
-  // GetPermanentFolderForServerDefinedUniqueTag().
-  if (server_defined_unique_tag == kBookmarkBarTag) {
-    return base::Uuid::ParseLowercase(bookmarks::kBookmarkBarNodeUuid);
-  }
-  if (server_defined_unique_tag == kOtherBookmarksTag) {
-    return base::Uuid::ParseLowercase(bookmarks::kOtherBookmarksNodeUuid);
-  }
-  if (server_defined_unique_tag == kMobileBookmarksTag) {
-    return base::Uuid::ParseLowercase(bookmarks::kMobileBookmarksNodeUuid);
-  }
-
-  return base::Uuid();
-}
 
 std::string LegacyCanonicalizedTitleFromSpecifics(
     const sync_pb::BookmarkSpecifics& specifics) {
@@ -809,12 +770,8 @@ void BookmarkModelMerger::MigrateBookmarksInSubtreeWithoutClientTagHash(
   const sync_pb::EntitySpecifics specifics = CreateSpecificsFromBookmarkNode(
       node, bookmark_model_, pos.ToProto(), /*force_favicon_load=*/true);
 
-  const SyncedBookmarkTrackerEntity* new_entity = bookmark_tracker_->Add(
-      node, /*sync_id=*/new_guid.AsLowercaseString(),
-      syncer::kUncommittedVersion, creation_time, specifics);
-
-  // Mark the entity that it needs to be committed.
-  bookmark_tracker_->IncrementSequenceNumber(new_entity);
+  bookmark_tracker_->AddLocalCreation(
+      node, /*sync_id=*/new_guid.AsLowercaseString(), creation_time, specifics);
 
   // Make sure all direct children are marked for commit, because their parent
   // changed.
@@ -830,7 +787,7 @@ void BookmarkModelMerger::MergeSubtree(
     const bookmarks::BookmarkNode* local_subtree_root,
     const RemoteTreeNode& remote_node) {
   const EntityData& remote_update_entity = remote_node.entity();
-  const SyncedBookmarkTrackerEntity* entity = bookmark_tracker_->Add(
+  const SyncedBookmarkTrackerEntity* entity = bookmark_tracker_->AddRemote(
       local_subtree_root, remote_update_entity.id,
       remote_node.response_version(), remote_update_entity.creation_time,
       remote_update_entity.specifics);
@@ -987,7 +944,7 @@ void BookmarkModelMerger::ProcessRemoteCreation(
       CreateBookmarkNodeFromSpecifics(specifics.bookmark(), local_parent, index,
                                       bookmark_model_, favicon_service_);
   DCHECK(bookmark_node);
-  const SyncedBookmarkTrackerEntity* entity = bookmark_tracker_->Add(
+  const SyncedBookmarkTrackerEntity* entity = bookmark_tracker_->AddRemote(
       bookmark_node, remote_update_entity.id, remote_node.response_version(),
       remote_update_entity.creation_time, specifics);
   const bool is_reupload_needed =
@@ -1045,11 +1002,9 @@ void BookmarkModelMerger::ProcessLocalCreation(
       GenerateUniquePositionForLocalCreation(parent, index, suffix);
   const sync_pb::EntitySpecifics specifics = CreateSpecificsFromBookmarkNode(
       node, bookmark_model_, pos.ToProto(), /*force_favicon_load=*/true);
-  const SyncedBookmarkTrackerEntity* entity = bookmark_tracker_->Add(
-      node, /*sync_id=*/node->uuid().AsLowercaseString(),
-      syncer::kUncommittedVersion, creation_time, specifics);
-  // Mark the entity that it needs to be committed.
-  bookmark_tracker_->IncrementSequenceNumber(entity);
+  bookmark_tracker_->AddLocalCreation(
+      node, /*sync_id=*/node->uuid().AsLowercaseString(), creation_time,
+      specifics);
   for (size_t i = 0; i < node->children().size(); ++i) {
     // If a local node hasn't matched with any remote entity, its descendants
     // will neither, unless they have been or will be matched by UUID, in which

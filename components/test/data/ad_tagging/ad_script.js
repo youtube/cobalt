@@ -56,6 +56,14 @@ function windowOpenFromAdScript(url) {
   window.open(url);
 }
 
+function clickDownloadLinkFromAdScript(url) {
+  const a = document.createElement('a');
+  a.setAttribute('href', url);
+  a.download = '';
+  document.body.appendChild(a);
+  a.click();
+}
+
 function navigatePopupFromAdScript(url) {
   window.my_popup.location.href = url;
 }

@@ -292,6 +292,11 @@ bool IdentityManager::HasAccountWithBoundRefreshToken(
   return !token_service_->GetWrappedBindingKey(account_id).empty();
 }
 
+bool IdentityManager::HasAccountWithRefreshTokenBoundToMtls(
+    const CoreAccountId& account_id) const {
+  return token_service_->IsRefreshTokenBoundToMtls(account_id);
+}
+
 bool IdentityManager::AllBoundTokensShareSameBindingKey() const {
   return token_service_->AllBoundTokensShareSameBindingKey();
 }
@@ -381,7 +386,12 @@ AccountInfo IdentityManager::FindExtendedAccountInfoByGaiaId(
 }
 
 AccountsInCookieJarInfo IdentityManager::GetAccountsInCookieJar() const {
-  return gaia_cookie_manager_service_->ListAccounts();
+  if (base::FeatureList::IsEnabled(
+          switches::kAvoidAutoTriggerListAccountsOnStale)) {
+    return gaia_cookie_manager_service_->GetCachedListAccounts();
+  } else {
+    return gaia_cookie_manager_service_->ListAccounts();
+  }
 }
 
 AccountsInCookieJarInfo IdentityManager::GetCachedAccountsInCookieJar() const {
@@ -441,6 +451,12 @@ void IdentityManager::RemoveDiagnosticsObserver(DiagnosticsObserver* observer) {
 void IdentityManager::OnNetworkInitialized() {
   gaia_cookie_manager_service_->InitCookieListener();
   account_fetcher_service_->OnNetworkInitialized();
+  // Trigger ListAccounts once the network is initialized to ensure the accounts
+  // in cookie jar are up to date.
+  if (base::FeatureList::IsEnabled(
+          switches::kAvoidAutoTriggerListAccountsOnStale)) {
+    gaia_cookie_manager_service_->ListAccounts();
+  }
 }
 
 CoreAccountId IdentityManager::PickAccountIdForAccount(

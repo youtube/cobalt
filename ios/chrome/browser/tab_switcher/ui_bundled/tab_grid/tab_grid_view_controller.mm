@@ -25,7 +25,7 @@
 #import "ios/chrome/browser/menu/ui_bundled/action_factory.h"
 #import "ios/chrome/browser/shared/coordinator/scene/state/layout_state.h"
 #import "ios/chrome/browser/shared/model/web_state_list/tab_utils.h"
-#import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
+#import "ios/chrome/browser/shared/public/commands/gemini_commands.h"
 #import "ios/chrome/browser/shared/public/commands/scene_commands.h"
 #import "ios/chrome/browser/shared/public/commands/tab_grid_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
@@ -2300,6 +2300,13 @@ NSUInteger GetPageIndexFromPage(TabGridPage page) {
   if (IsPinnedTabsEnabled()) {
     [self updatePinnedTabsViewControllerConstraints];
   }
+}
+
+- (id<UIContextMenuInteractionAnimating>)activeContextMenuAnimator {
+  id activeVC = self.currentPageViewController;
+  return [activeVC respondsToSelector:@selector(activeContextMenuAnimator)]
+             ? [activeVC activeContextMenuAnimator]
+             : nil;
 }
 
 @end

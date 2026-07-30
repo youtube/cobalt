@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {GatedSender, ObservableValue, PostMessageRequestSender, PostMessageRouterImpl, Queue} from 'chrome://glic/glic.js';
+import {PostMessageRequestSender, PostMessageRouterImpl, Queue} from 'chrome://glic/glic.js';
 import type {RequestMessage} from 'chrome://glic/glic.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 
@@ -15,17 +15,6 @@ class StubSender {
       void {
     this.sentMessages.push(message);
   }
-}
-
-interface DemoInterface {
-  requestType: {
-    request: {field: string},
-    backgroundAllowed: true,
-  };
-  requestType2: {
-    request: {field: string},
-    backgroundAllowed: true,
-  };
 }
 
 
@@ -80,111 +69,6 @@ suite('Queue', () => {
 });
 
 suite('GlicApiHost', () => {
-  interface TestPayload {
-    field: string;
-  }
-
-  function createSenders() {
-    const stubSender = new StubSender();
-    const router = new PostMessageRouterImpl(
-        'origin', 'senderid', stubSender, 'logPrefix', true);
-    new PostMessageRequestSender(router);
-    const shouldGate = ObservableValue.withValue(true);
-    const gatedSender = new GatedSender<DemoInterface>(
-        router.newPipeWithRemote<DemoInterface>().remote, shouldGate);
-    return {stubSender, gatedSender, shouldGate};
-  }
-
-  test('GatedSender.sendWhenActive queues message', () => {
-    const {stubSender, gatedSender, shouldGate} = createSenders();
-
-    gatedSender.sendWhenActive('requestType', {field: 'hi'});
-    assertEquals(0, stubSender.sentMessages.length);
-
-    shouldGate.assignAndSignal(false);
-    assertEquals(1, stubSender.sentMessages.length);
-    assertEquals(
-        'hi',
-        (stubSender.sentMessages[0]?.requestPayload as TestPayload).field);
-  });
-
-  test('GatedSender.sendWhenActive while ungated', () => {
-    const {stubSender, gatedSender, shouldGate} = createSenders();
-    shouldGate.assignAndSignal(false);
-    gatedSender.sendWhenActive('requestType', {field: 'hi'});
-    assertEquals(1, stubSender.sentMessages.length);
-    assertEquals(
-        'hi',
-        (stubSender.sentMessages[0]?.requestPayload as TestPayload).field);
-  });
-
-  test('GatedSender.sendIfActiveOrDrop while ungated', () => {
-    const {stubSender, gatedSender, shouldGate} = createSenders();
-    shouldGate.assignAndSignal(false);
-    gatedSender.sendIfActiveOrDrop('requestType', {field: 'hi'});
-
-    assertEquals(1, stubSender.sentMessages.length);
-    assertEquals(
-        'hi',
-        (stubSender.sentMessages[0]?.requestPayload as TestPayload).field);
-  });
-
-  test('GatedSender.sendIfActiveOrDrop while gated', () => {
-    const {stubSender, gatedSender, shouldGate} = createSenders();
-    gatedSender.sendIfActiveOrDrop('requestType', {field: 'hi'});
-    shouldGate.assignAndSignal(false);
-
-    assertEquals(0, stubSender.sentMessages.length);
-  });
-
-  test('GatedSender.sendLatestWhenActive while gated', () => {
-    const {stubSender, gatedSender, shouldGate} = createSenders();
-    gatedSender.sendLatestWhenActive('requestType', {field: 'A'}, [], 'key');
-    // Same request type, same key: should replace 'A'.
-    gatedSender.sendLatestWhenActive('requestType', {field: 'B'}, [], 'key');
-    // Different request type: should enqueue.
-    gatedSender.sendLatestWhenActive('requestType2', {field: 'C'}, [], 'key');
-    // Different request key: should enqueue.
-    gatedSender.sendLatestWhenActive('requestType2', {field: 'D'}, [], 'key2');
-    shouldGate.assignAndSignal(false);
-
-    assertEquals(3, stubSender.sentMessages.length);
-    assertEquals(
-        'B', (stubSender.sentMessages[0]?.requestPayload as TestPayload).field);
-    assertEquals(
-        'C', (stubSender.sentMessages[1]?.requestPayload as TestPayload).field);
-    assertEquals(
-        'D', (stubSender.sentMessages[2]?.requestPayload as TestPayload).field);
-  });
-
-  test('GatedSender sends queued messages in order', () => {
-    const {stubSender, gatedSender, shouldGate} = createSenders();
-    gatedSender.sendLatestWhenActive('requestType', {field: 'A'}, [], 'key');
-    gatedSender.sendLatestWhenActive('requestType', {field: 'B'}, [], 'key2');
-    gatedSender.sendWhenActive('requestType', {field: 'C'});
-    gatedSender.sendLatestWhenActive(
-        'requestType', {field: 'D'}, [], 'key2');  // Replaces B.
-    shouldGate.assignAndSignal(false);
-
-    assertEquals(3, stubSender.sentMessages.length);
-    assertEquals(
-        'A', (stubSender.sentMessages[0]?.requestPayload as TestPayload).field);
-    assertEquals(
-        'C', (stubSender.sentMessages[1]?.requestPayload as TestPayload).field);
-    assertEquals(
-        'D', (stubSender.sentMessages[2]?.requestPayload as TestPayload).field);
-  });
-
-  test('GatedSender toggle gating doesnt send messages more than once', () => {
-    const {stubSender, gatedSender, shouldGate} = createSenders();
-    gatedSender.sendLatestWhenActive('requestType', {field: 'A'}, [], 'key');
-    gatedSender.sendWhenActive('requestType', {field: 'C'});
-    shouldGate.assignAndSignal(false);
-    shouldGate.assignAndSignal(true);
-    shouldGate.assignAndSignal(false);
-
-    assertEquals(2, stubSender.sentMessages.length);
-  });
 
   test('PostMessageRequestSender limits in-flight requests', async () => {
     const stubSender = new StubSender();

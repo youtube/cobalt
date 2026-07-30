@@ -61,17 +61,19 @@ std::optional<SupervisedUserLogRecord::Segment> GetSupervisionStatus(
 
   AccountInfo account_info = identity_manager->FindExtendedAccountInfo(
       identity_manager->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin));
-  if (!AreParentalSupervisionCapabilitiesKnown(account_info.capabilities)) {
+  if (!AreParentalSupervisionCapabilitiesKnown(
+          account_info.GetAccountCapabilities())) {
     // The user is signed in, but the parental supervision capabilities are
     // not known.
     return std::nullopt;
   }
 
   auto is_subject_to_parental_controls =
-      account_info.capabilities.is_subject_to_parental_controls();
+      account_info.GetAccountCapabilities().is_subject_to_parental_controls();
   if (is_subject_to_parental_controls == signin::Tribool::kTrue) {
     auto is_opted_in_to_parental_supervision =
-        account_info.capabilities.is_opted_in_to_parental_supervision();
+        account_info.GetAccountCapabilities()
+            .is_opted_in_to_parental_supervision();
     if (is_opted_in_to_parental_supervision == signin::Tribool::kTrue) {
       return SupervisedUserLogRecord::Segment::
           kSupervisionEnabledByFamilyLinkUser;
@@ -81,8 +83,8 @@ std::optional<SupervisedUserLogRecord::Segment> GetSupervisionStatus(
       return SupervisedUserLogRecord::Segment::
           kSupervisionEnabledByFamilyLinkPolicy;
     }
-  } else if (account_info.capabilities.can_fetch_family_member_info() ==
-             signin::Tribool::kTrue) {
+  } else if (account_info.GetAccountCapabilities()
+                 .can_fetch_family_member_info() == signin::Tribool::kTrue) {
     if (IsParentFamilyMemberRole(pref_service)) {
       return SupervisedUserLogRecord::Segment::kParent;
     }

@@ -174,6 +174,7 @@ GpuArcVideoEncodeAccelerator::InitializeTask(
   }
 
   visible_size_ = config.input_visible_size;
+  coded_size_ = gfx::Size();
   accelerator_.reset();
   auto accelerator_or_error =
       media::GpuVideoEncodeAcceleratorFactory::CreateVEA(
@@ -205,8 +206,24 @@ void GpuArcVideoEncodeAccelerator::Encode(
     return;
   }
 
+  // |coded_size_| is only set when the (asynchronous) RequireBitstreamBuffers()
+  // callback fires. Until then it is empty (reset in Initialize()) and cannot
+  // be used to validate the incoming dmabuf. Reject early instead.
+  if (coded_size_.IsEmpty()) {
+    DLOG(ERROR) << "Encode() called before RequireBitstreamBuffers().";
+    if (client_) {
+      client_->NotifyError(Error::kIllegalStateError);
+    }
+    return;
+  }
+
   if (planes.empty()) {  // EOS
     accelerator_->Encode(media::VideoFrame::CreateEOSFrame(), force_keyframe);
+    return;
+  }
+
+  if (!client_) {
+    DLOG(ERROR) << "No client is bound.";
     return;
   }
 

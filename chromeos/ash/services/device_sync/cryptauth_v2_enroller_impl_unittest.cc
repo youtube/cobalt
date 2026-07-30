@@ -78,27 +78,12 @@ const char kRandomSessionId[] = "random_session_id";
 const char kOldActivePublicKey[] = "old_active_public_key";
 const char kOldActivePrivateKey[] = "old_active_private_key";
 
-// User key pair active handle must be kCryptAuthFixedUserKeyPairHandle.
-const CryptAuthKey kOldActiveAsymmetricKey(kOldActivePublicKey,
-                                           kOldActivePrivateKey,
-                                           CryptAuthKey::Status::kActive,
-                                           KeyType::P256,
-                                           kCryptAuthFixedUserKeyPairHandle);
-
 const char kOldActiveSymmetricKeyMaterial[] = "old_active_symmetric_key";
 const char kOldActiveSymmetricKeyHandle[] = "old_active_symmetric_key_handle";
-CryptAuthKey kOldActiveSymmetricKey(kOldActiveSymmetricKeyMaterial,
-                                    CryptAuthKey::Status::kActive,
-                                    KeyType::RAW128,
-                                    kOldActiveSymmetricKeyHandle);
 
 const char kOldInactiveSymmetricKeyMaterial[] = "old_inactive_symmetric_key";
 const char kOldInactiveSymmetricKeyHandle[] =
     "old_inactive_symmetric_key_handle";
-CryptAuthKey kOldInactiveSymmetricKey(kOldInactiveSymmetricKeyMaterial,
-                                      CryptAuthKey::Status::kInactive,
-                                      KeyType::RAW256,
-                                      kOldInactiveSymmetricKeyHandle);
 
 const char kNewPublicKey[] = "new_public_key";
 const char kNewPrivateKey[] = "new_private_key";
@@ -109,10 +94,30 @@ const char kNewSymmetricKeyHandle[] = "new_symmetric_key_handle";
 const char kServerEphemeralDh[] = "server_ephemeral_dh";
 const char kClientDhPublicKey[] = "client_ephemeral_dh_public_key";
 const char kClientDhPrivateKey[] = "client_ephemeral_dh_private_key";
-const CryptAuthKey kClientEphemeralDh(kClientDhPublicKey,
-                                      kClientDhPrivateKey,
-                                      CryptAuthKey::Status::kActive,
-                                      KeyType::P256);
+
+// User key pair active handle must be kCryptAuthFixedUserKeyPairHandle.
+CryptAuthKey GetOldActiveAsymmetricKey() {
+  return CryptAuthKey(kOldActivePublicKey, kOldActivePrivateKey,
+                      CryptAuthKey::Status::kActive, KeyType::P256,
+                      kCryptAuthFixedUserKeyPairHandle);
+}
+
+CryptAuthKey GetOldActiveSymmetricKey() {
+  return CryptAuthKey(kOldActiveSymmetricKeyMaterial,
+                      CryptAuthKey::Status::kActive, KeyType::RAW128,
+                      kOldActiveSymmetricKeyHandle);
+}
+
+CryptAuthKey GetOldInactiveSymmetricKey() {
+  return CryptAuthKey(kOldInactiveSymmetricKeyMaterial,
+                      CryptAuthKey::Status::kInactive, KeyType::RAW256,
+                      kOldInactiveSymmetricKeyHandle);
+}
+
+CryptAuthKey GetClientEphemeralDh() {
+  return CryptAuthKey(kClientDhPublicKey, kClientDhPrivateKey,
+                      CryptAuthKey::Status::kActive, KeyType::P256);
+}
 
 class FakeCryptAuthKeyProofComputerFactory
     : public CryptAuthKeyProofComputerImpl::Factory {
@@ -540,16 +545,16 @@ class DeviceSyncCryptAuthV2EnrollerImplTest
 TEST_F(DeviceSyncCryptAuthV2EnrollerImplTest, SuccessfulEnrollment) {
   // Seed key registry.
   key_registry()->AddKey(CryptAuthKeyBundle::Name::kUserKeyPair,
-                         kOldActiveAsymmetricKey);
+                         GetOldActiveAsymmetricKey());
   key_registry()->SetKeyDirective(CryptAuthKeyBundle::Name::kUserKeyPair,
                                   GetOldKeyDirectiveForTest());
   CryptAuthKeyBundle expected_key_bundle_user_key_pair(
       *key_registry()->GetKeyBundle(CryptAuthKeyBundle::Name::kUserKeyPair));
 
   key_registry()->AddKey(CryptAuthKeyBundle::Name::kLegacyAuthzenKey,
-                         kOldActiveSymmetricKey);
+                         GetOldActiveSymmetricKey());
   key_registry()->AddKey(CryptAuthKeyBundle::Name::kLegacyAuthzenKey,
-                         kOldInactiveSymmetricKey);
+                         GetOldInactiveSymmetricKey());
   key_registry()->SetKeyDirective(CryptAuthKeyBundle::Name::kLegacyAuthzenKey,
                                   GetOldKeyDirectiveForTest());
   CryptAuthKeyBundle expected_key_bundle_legacy_authzen_key(
@@ -630,7 +635,7 @@ TEST_F(DeviceSyncCryptAuthV2EnrollerImplTest, SuccessfulEnrollment) {
       expected_new_keys,
       kServerEphemeralDh /* expected_server_ephemeral_dh_public_key */);
 
-  RunKeyCreator(expected_new_keys, kClientEphemeralDh);
+  RunKeyCreator(expected_new_keys, GetClientEphemeralDh());
 
   // Verify EnrollKeysRequest.
   EXPECT_EQ(kRandomSessionId, enroll_keys_request()->random_session_id());
@@ -709,7 +714,7 @@ TEST_F(DeviceSyncCryptAuthV2EnrollerImplTest,
       expected_new_keys,
       kServerEphemeralDh /* expected_server_ephemeral_dh_public_key */);
 
-  RunKeyCreator(expected_new_keys, kClientEphemeralDh);
+  RunKeyCreator(expected_new_keys, GetClientEphemeralDh());
 
   EXPECT_EQ(1, enroll_keys_request()->enroll_single_key_requests_size());
   VerifyEnrollSingleKeyRequest(
@@ -735,9 +740,9 @@ TEST_F(DeviceSyncCryptAuthV2EnrollerImplTest,
 TEST_F(DeviceSyncCryptAuthV2EnrollerImplTest,
        SuccessfulEnrollment_NoKeysCreated) {
   key_registry()->AddKey(CryptAuthKeyBundle::Name::kLegacyAuthzenKey,
-                         kOldActiveSymmetricKey);
+                         GetOldActiveSymmetricKey());
   key_registry()->AddKey(CryptAuthKeyBundle::Name::kLegacyAuthzenKey,
-                         kOldInactiveSymmetricKey);
+                         GetOldInactiveSymmetricKey());
   key_registry()->SetKeyDirective(CryptAuthKeyBundle::Name::kLegacyAuthzenKey,
                                   GetOldKeyDirectiveForTest());
   CryptAuthKeyBundle expected_key_bundle(*key_registry()->GetKeyBundle(
@@ -862,7 +867,7 @@ TEST_F(DeviceSyncCryptAuthV2EnrollerImplTest, Failure_InvalidKeyActions_Size) {
 TEST_F(DeviceSyncCryptAuthV2EnrollerImplTest,
        Failure_InvalidKeyActions_NoActiveKey) {
   key_registry()->AddKey(CryptAuthKeyBundle::Name::kLegacyAuthzenKey,
-                         kOldActiveAsymmetricKey);
+                         GetOldActiveAsymmetricKey());
 
   CallEnroll(GetClientMetadataForTest(),
              cryptauthv2::GetClientAppMetadataForTest(),
@@ -997,7 +1002,7 @@ TEST_F(DeviceSyncCryptAuthV2EnrollerImplTest, Failure_KeyCreation_UserKeyPair) {
   base::flat_map<CryptAuthKeyBundle::Name, std::optional<CryptAuthKey>>
       expected_new_keys = {
           {CryptAuthKeyBundle::Name::kUserKeyPair, std::nullopt}};
-  RunKeyCreator(expected_new_keys, kClientEphemeralDh);
+  RunKeyCreator(expected_new_keys, GetClientEphemeralDh());
 
   EXPECT_EQ(CryptAuthEnrollmentResult(CryptAuthEnrollmentResult::ResultCode::
                                           kErrorUserKeyPairCreationFailed,
@@ -1023,7 +1028,7 @@ TEST_F(DeviceSyncCryptAuthV2EnrollerImplTest,
   base::flat_map<CryptAuthKeyBundle::Name, std::optional<CryptAuthKey>>
       expected_new_keys = {
           {CryptAuthKeyBundle::Name::kLegacyAuthzenKey, std::nullopt}};
-  RunKeyCreator(expected_new_keys, kClientEphemeralDh);
+  RunKeyCreator(expected_new_keys, GetClientEphemeralDh());
 
   EXPECT_EQ(CryptAuthEnrollmentResult(CryptAuthEnrollmentResult::ResultCode::
                                           kErrorLegacyAuthzenKeyCreationFailed,
@@ -1049,7 +1054,7 @@ TEST_F(DeviceSyncCryptAuthV2EnrollerImplTest,
   base::flat_map<CryptAuthKeyBundle::Name, std::optional<CryptAuthKey>>
       expected_new_keys = {
           {CryptAuthKeyBundle::Name::kDeviceSyncBetterTogether, std::nullopt}};
-  RunKeyCreator(expected_new_keys, kClientEphemeralDh);
+  RunKeyCreator(expected_new_keys, GetClientEphemeralDh());
 
   EXPECT_EQ(CryptAuthEnrollmentResult(
                 CryptAuthEnrollmentResult::ResultCode::
@@ -1081,7 +1086,7 @@ TEST_F(DeviceSyncCryptAuthV2EnrollerImplTest,
            std::make_optional(CryptAuthKey(
                kNewPublicKey, kNewPrivateKey, CryptAuthKey::Status::kActive,
                KeyType::P256, kCryptAuthFixedUserKeyPairHandle))}};
-  RunKeyCreator(expected_new_keys, kClientEphemeralDh);
+  RunKeyCreator(expected_new_keys, GetClientEphemeralDh());
 
   EXPECT_EQ(CryptAuthEnrollmentResult(CryptAuthEnrollmentResult::ResultCode::
                                           kErrorKeyProofComputationFailed,
@@ -1123,7 +1128,7 @@ TEST_F(DeviceSyncCryptAuthV2EnrollerImplTest, Failure_EnrollKeysApiCall) {
            std::make_optional(CryptAuthKey(
                kNewPublicKey, kNewPrivateKey, CryptAuthKey::Status::kActive,
                KeyType::P256, kCryptAuthFixedUserKeyPairHandle))}};
-  RunKeyCreator(expected_new_keys, kClientEphemeralDh);
+  RunKeyCreator(expected_new_keys, GetClientEphemeralDh());
 
   FailEnrollKeysRequest(NetworkRequestError::kBadRequest);
 
@@ -1196,7 +1201,7 @@ TEST_F(DeviceSyncCryptAuthV2EnrollerImplTest,
            std::make_optional(CryptAuthKey(
                kNewPublicKey, kNewPrivateKey, CryptAuthKey::Status::kActive,
                KeyType::P256, kCryptAuthFixedUserKeyPairHandle))}};
-  RunKeyCreator(expected_new_keys, kClientEphemeralDh);
+  RunKeyCreator(expected_new_keys, GetClientEphemeralDh());
 
   // Timeout waiting for EnrollKeysResponse.
   EXPECT_TRUE(timer()->IsRunning());

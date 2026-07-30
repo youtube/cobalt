@@ -573,7 +573,7 @@ BASE_FEATURE_PARAM(size_t,
                    1'000'000);
 
 BASE_FEATURE(kCompressionDictionaryLimitEarlyMatching,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kNetworkServiceTaskScheduler, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE_PARAM(bool,
@@ -638,6 +638,9 @@ bool ShouldBindNetworkContextDirectReceiver() {
   return mojo::IsDirectReceiverSupported() && base::CurrentIOThread::IsSet() &&
          base::FeatureList::IsEnabled(features::kNetworkContextDirectReceiver);
 }
+
+BASE_FEATURE(kCreateNetworkContextNonBlocking,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kDelayInitialDohProbeTimeout, base::FEATURE_ENABLED_BY_DEFAULT);
 

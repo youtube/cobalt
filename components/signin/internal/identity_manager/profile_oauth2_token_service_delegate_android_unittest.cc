@@ -105,7 +105,7 @@ class OAuth2TokenServiceDelegateAndroidTest : public testing::Test {
             .SetAccountId(account_tracker_service_.PickAccountIdForAccount(
                 gaia_id, email))
             .Build();
-    AccountCapabilitiesTestMutator(&account_info.capabilities)
+    AccountCapabilitiesTestMutator(&account_info)
         .set_is_subject_to_enterprise_features(true);
     CHECK(account_info.IsValid());
     return account_info;

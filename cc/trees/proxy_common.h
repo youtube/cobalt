@@ -35,8 +35,8 @@ struct CC_EXPORT BeginMainFrameAndCommitState {
   ActiveFrameSequenceTrackers active_sequence_trackers = 0;
   bool evicted_ui_resources = false;
   BeginMainFrameTraceId trace_id;
-  // Bitset of BeginMainFrameReason, used for metrics only.
-  std::bitset<BeginMainFrameReasonSize> reason;
+  // Reasons that BeginMainFrame was triggered, used for metrics only.
+  BeginMainFrameReasons reason;
 };
 
 }  // namespace cc

@@ -19,18 +19,15 @@ source_set("telemetry") {
   deps = [
     "//base",
     "//chrome/browser/chromeos/extensions/telemetry/api/common",
-    "//chrome/browser/chromeos/extensions/telemetry/api/common:remote_probe_strategy",
     "//chrome/browser/extensions",
     "//chrome/common/chromeos/extensions/api",
     "//chromeos/ash/components/dbus/debug_daemon",
     "//chromeos/ash/services/cros_healthd/public/cpp",
     "//chromeos/ash/services/cros_healthd/public/mojom",
-    "//chromeos/crosapi/mojom",
     "//chromeos/services/network_config/public/mojom:network_types",
     "//chromeos/services/network_health/public/mojom:types",
     "//extensions/browser",
     "//extensions/common",
-    "//mojo/public/cpp/bindings",
     "//third_party/abseil-cpp:absl",
   ]
 }
@@ -65,7 +62,7 @@ source_set("unit_tests") {
   deps = [
     ":telemetry",
     "//chrome/common/chromeos/extensions/api",
-    "//chromeos/crosapi/mojom",
+    "//chromeos/ash/services/cros_healthd/public/mojom",
     "//chromeos/services/network_config/public/mojom:network_types",
     "//chromeos/services/network_health/public/mojom:types",
     "//testing/gtest",

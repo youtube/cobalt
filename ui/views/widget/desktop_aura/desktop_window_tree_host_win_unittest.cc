@@ -4,7 +4,10 @@
 
 #include "ui/views/widget/desktop_aura/desktop_window_tree_host_win.h"
 
+// clang-format off
+#include "base/test/scoped_feature_list.h"
 #include <windows.h>
+// clang-format on
 
 #include <oleacc.h>
 
@@ -15,6 +18,7 @@
 #include "ui/accessibility/platform/ax_system_caret_win.h"
 #include "ui/views/test/desktop_window_tree_host_win_test_api.h"
 #include "ui/views/test/widget_test.h"
+#include "ui/views/views_features.h"
 #include "ui/views/widget/widget.h"
 #include "ui/views/win/hwnd_message_handler.h"
 
@@ -106,6 +110,10 @@ TEST_F(DesktopWindowTreeHostWinTest, SetExcludeFromScreenCapture) {
       widget.GetNativeWindow()->GetHost());
   DesktopWindowTreeHostWinTestApi host_api(host);
 
+  // Force simulation of local session so the test behaves consistently
+  // regardless of whether the build/test host is a remote session VM.
+  host_api.SetRemoteSessionForTesting(false);
+
   // Set exclude from screen capture.
   widget.SetExcludeFromScreenCapture(true);
 
@@ -129,6 +137,79 @@ TEST_F(DesktopWindowTreeHostWinTest, SetExcludeFromScreenCapture) {
   EXPECT_TRUE(::GetWindowDisplayAffinity(hwnd, &affinity));
   EXPECT_EQ(static_cast<DWORD>(WDA_NONE), affinity);
 }
+
+struct RemoteSessionExclusionTestParams {
+  bool is_remote;
+  bool feature_enabled;
+  bool expect_exclusion;
+};
+
+class DesktopWindowTreeHostWinRemoteSessionTest
+    : public DesktopWindowTreeHostWinTest,
+      public ::testing::WithParamInterface<RemoteSessionExclusionTestParams> {
+ public:
+  DesktopWindowTreeHostWinRemoteSessionTest() = default;
+};
+
+TEST_P(DesktopWindowTreeHostWinRemoteSessionTest, UpdateDisplayAffinity) {
+  const RemoteSessionExclusionTestParams& test_params = GetParam();
+
+  ::base::test::ScopedFeatureList scoped_feature_list;
+  if (test_params.feature_enabled) {
+    scoped_feature_list.InitAndEnableFeature(
+        views::features::kAllowWindowCaptureExclusionInRemoteSessions);
+  } else {
+    scoped_feature_list.InitAndDisableFeature(
+        views::features::kAllowWindowCaptureExclusionInRemoteSessions);
+  }
+
+  Widget widget;
+  Widget::InitParams params = CreateParams(
+      Widget::InitParams::CLIENT_OWNS_WIDGET, Widget::InitParams::TYPE_WINDOW);
+  widget.Init(std::move(params));
+
+  DesktopWindowTreeHostWin* host = static_cast<DesktopWindowTreeHostWin*>(
+      widget.GetNativeWindow()->GetHost());
+  DesktopWindowTreeHostWinTestApi host_api(host);
+
+  // Configure simulated remote session state before setting capture exclusion
+  // and showing.
+  host_api.SetRemoteSessionForTesting(test_params.is_remote);
+  widget.SetExcludeFromScreenCapture(true);
+  widget.Show();
+
+  DWORD affinity;
+  HWND hwnd = host_api.GetHWND();
+  EXPECT_TRUE(::GetWindowDisplayAffinity(hwnd, &affinity));
+
+  if (test_params.expect_exclusion) {
+    if (base::win::GetVersion() >= base::win::Version::WIN10_20H1) {
+      EXPECT_EQ(static_cast<DWORD>(WDA_EXCLUDEFROMCAPTURE), affinity);
+    } else {
+      EXPECT_EQ(static_cast<DWORD>(WDA_MONITOR), affinity);
+    }
+  } else {
+    EXPECT_EQ(static_cast<DWORD>(WDA_NONE), affinity);
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    DesktopWindowTreeHostWinRemoteSessionTest,
+    ::testing::Values(
+        // Remote active, feature disabled (default) -> Bypassed (affinity
+        // WDA_NONE)
+        RemoteSessionExclusionTestParams{/*is_remote=*/true,
+                                         /*feature_enabled=*/false,
+                                         /*expect_exclusion=*/false},
+        // Remote active, feature enabled -> Exclusion allowed
+        RemoteSessionExclusionTestParams{/*is_remote=*/true,
+                                         /*feature_enabled=*/true,
+                                         /*expect_exclusion=*/true},
+        // Remote inactive, feature disabled -> Exclusion allowed
+        RemoteSessionExclusionTestParams{/*is_remote=*/false,
+                                         /*feature_enabled=*/false,
+                                         /*expect_exclusion=*/true}));
 
 class DesktopWindowTreeHostWinAccessibilityObjectTest
     : public DesktopWidgetTest {

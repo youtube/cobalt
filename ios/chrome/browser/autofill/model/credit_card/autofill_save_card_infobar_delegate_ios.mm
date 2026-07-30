@@ -94,8 +94,8 @@ bool AutofillSaveCardInfoBarDelegateIOS::UpdateAndAccept(
 
 void AutofillSaveCardInfoBarDelegateIOS::CreditCardUploadCompleted(
     bool card_saved,
-    std::optional<autofill::payments::PaymentsAutofillClient::
-                      OnConfirmationClosedCallback>
+    std::optional<
+        payments::PaymentsAutofillClient::OnConfirmationClosedCallback>
         on_confirmation_closed_callback) {
   credit_card_upload_completed_ = true;
   on_confirmation_closed_callback_ = std::move(on_confirmation_closed_callback);

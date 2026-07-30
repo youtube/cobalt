@@ -243,33 +243,41 @@ class PrefetchingMetricsTestBase : public RenderViewHostTestHarness {
     return attempt_entry_builder_.get();
   }
 
+  base::HistogramTester& histogram_tester() { return *histogram_tester_; }
+
   void SetUp() override;
   void TearDown() override;
+
+  // Checks the prefetch metrics recorded when the response is received.
+  void ExpectPrefetchResponseReceivedNotRecorded();
+  void ExpectPrefetchResponseReceivedRecorded(
+      net::HttpStatusCode response_code = net::HTTP_OK);
+
+  // Checks the prefetch metrics recorded when the prefetch is completed.
+  void ExpectPrefetchCompleteNotRecorded();
+  void ExpectPrefetchCompleteRecorded(std::optional<int> body_length,
+                                      int net_error = net::OK);
 
   // Prefetch didn't receive any net errors nor non-redirect responses.
   // Use more specific methods below to check UKMs, if applicable.
   void ExpectPrefetchNoNetErrorOrResponseReceived(
-      const base::HistogramTester& histogram_tester,
       bool is_eligible,
       bool browser_initiated_prefetch = false);
 
   // Prefetch was not started because it was not eligible.
-  void ExpectPrefetchNotEligible(const base::HistogramTester& histogram_tester,
-                                 PreloadingEligibility expected_eligibility,
+  void ExpectPrefetchNotEligible(PreloadingEligibility expected_eligibility,
                                  bool is_accurate = false,
                                  bool browser_initiated_prefetch = false);
 
   // Prefetch was started but failed before the final response nor any network
   // error is received.
   void ExpectPrefetchFailedBeforeResponseReceived(
-      const base::HistogramTester& histogram_tester,
       PrefetchStatus expected_prefetch_status,
       bool is_accurate = false);
 
   // Prefetch was started but failed due to a network error, before the final
   // response is received.
   void ExpectPrefetchFailedNetError(
-      const base::HistogramTester& histogram_tester,
       int expected_net_error_code,
       blink::mojom::SpeculationEagerness eagerness =
           blink::mojom::SpeculationEagerness::kImmediate,
@@ -279,13 +287,11 @@ class PrefetchingMetricsTestBase : public RenderViewHostTestHarness {
   // Prefetch was started but failed on or after the final response is
   // received.
   void ExpectPrefetchFailedAfterResponseReceived(
-      const base::HistogramTester& histogram_tester,
       net::HttpStatusCode expected_response_code,
       int expected_body_length,
       PrefetchStatus expected_prefetch_status);
 
-  void ExpectPrefetchSuccess(const base::HistogramTester& histogram_tester,
-                             int expected_body_length,
+  void ExpectPrefetchSuccess(int expected_body_length,
                              blink::mojom::SpeculationEagerness eagerness =
                                  blink::mojom::SpeculationEagerness::kImmediate,
                              bool is_accurate = false);
@@ -319,6 +325,7 @@ class PrefetchingMetricsTestBase : public RenderViewHostTestHarness {
   std::unique_ptr<ukm::TestAutoSetUkmRecorder> test_ukm_recorder_;
   std::unique_ptr<test::PreloadingAttemptUkmEntryBuilder>
       attempt_entry_builder_;
+  std::unique_ptr<base::HistogramTester> histogram_tester_;
 
   // Except for some tests related to variations header (using
   // `variations::VariationsIdsProvider::GetInstance()`), this is just to

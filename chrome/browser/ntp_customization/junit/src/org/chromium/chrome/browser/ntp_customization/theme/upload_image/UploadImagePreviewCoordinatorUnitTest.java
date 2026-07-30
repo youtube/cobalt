@@ -61,6 +61,7 @@ import org.chromium.ui.modelutil.PropertyModel;
 /** Unit tests for {@link UploadImagePreviewCoordinator}. */
 @RunWith(BaseRobolectricTestRunner.class)
 public class UploadImagePreviewCoordinatorUnitTest {
+    private static final String TEST_FILE_ID_HASH = "test_file_id_hash";
 
     @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
 
@@ -99,7 +100,8 @@ public class UploadImagePreviewCoordinatorUnitTest {
         when(mTemplateUrlService.isDefaultSearchEngineGoogle()).thenReturn(true);
 
         mUploadImagePreviewCoordinator =
-                new UploadImagePreviewCoordinator(mActivity, mProfile, mBitmap, mOnClickedCallback);
+                new UploadImagePreviewCoordinator(
+                        mActivity, mProfile, mBitmap, TEST_FILE_ID_HASH, mOnClickedCallback);
         mDialog = ShadowDialog.getLatestDialog();
         View contentView = mDialog.findViewById(android.R.id.content);
         mSaveButton = contentView.findViewById(R.id.save_button);
@@ -131,7 +133,8 @@ public class UploadImagePreviewCoordinatorUnitTest {
         HistogramWatcher histogramWatcher =
                 HistogramWatcher.newSingleRecordWatcher(histogramName, true);
         mUploadImagePreviewCoordinator =
-                new UploadImagePreviewCoordinator(mActivity, mProfile, mBitmap, mOnClickedCallback);
+                new UploadImagePreviewCoordinator(
+                        mActivity, mProfile, mBitmap, TEST_FILE_ID_HASH, mOnClickedCallback);
 
         histogramWatcher.assertExpected();
     }
@@ -446,7 +449,8 @@ public class UploadImagePreviewCoordinatorUnitTest {
         when(mComposeplateUtilsJni.isAimEntrypointEligible(any())).thenReturn(true);
 
         mUploadImagePreviewCoordinator =
-                new UploadImagePreviewCoordinator(mActivity, mProfile, mBitmap, mOnClickedCallback);
+                new UploadImagePreviewCoordinator(
+                        mActivity, mProfile, mBitmap, TEST_FILE_ID_HASH, mOnClickedCallback);
 
         PropertyModel model = mUploadImagePreviewCoordinator.getPropertyModelForTesting();
 
@@ -665,7 +669,8 @@ public class UploadImagePreviewCoordinatorUnitTest {
 
         // Re-create coordinator to run constructor logic
         mUploadImagePreviewCoordinator =
-                new UploadImagePreviewCoordinator(mActivity, mProfile, mBitmap, mOnClickedCallback);
+                new UploadImagePreviewCoordinator(
+                        mActivity, mProfile, mBitmap, TEST_FILE_ID_HASH, mOnClickedCallback);
 
         mPropertyModel = mUploadImagePreviewCoordinator.getPropertyModelForTesting();
 

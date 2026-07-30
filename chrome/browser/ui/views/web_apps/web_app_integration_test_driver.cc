@@ -86,8 +86,7 @@
 #include "chrome/browser/ui/views/web_apps/frame_toolbar/web_app_frame_toolbar_view.h"
 #include "chrome/browser/ui/views/web_apps/frame_toolbar/web_app_toolbar_button_container.h"
 #include "chrome/browser/ui/views/web_apps/frame_toolbar/window_controls_overlay_toggle_button.h"
-#include "chrome/browser/ui/views/web_apps/sub_apps_install_dialog_controller.h"
-#include "chrome/browser/ui/views/web_apps/web_app_dialog_test_support.h"
+#include "chrome/browser/ui/views/web_apps/sub_apps/sub_apps_install_dialog_controller.h"
 #include "chrome/browser/ui/views/web_apps/web_app_link_capturing_test_utils.h"
 #include "chrome/browser/ui/views/web_apps/web_app_update_review_dialog.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
@@ -1268,7 +1267,7 @@ void WebAppIntegrationTestDriver::ClosePwa() {
 
   ui_test_utils::BrowserDestroyedObserver browser_destroyed_observer(
       app_browser());
-  app_browser()->window()->Close();
+  app_browser()->GetWindow()->Close();
   browser_destroyed_observer.Wait();
   app_browser_ = nullptr;
 
@@ -1414,13 +1413,15 @@ void WebAppIntegrationTestDriver::CreateShortcut(Site site,
   observer.BeginListening();
   BrowserAddedWaiter browser_added_waiter;
   {
-    std::unique_ptr<web_app::test::ScopedAutoCheckChromeOsOpenInWindow>
-        auto_check;
+    std::optional<base::AutoReset<CreateShortcutDialogCheckState>> auto_check;
     if (open_in_window) {
-      auto_check = std::make_unique<
-          web_app::test::ScopedAutoCheckChromeOsOpenInWindow>();
+      auto_check.emplace(
+          SetCreateShortcutDialogCheckStateForTesting(  // IN-TEST
+              CreateShortcutDialogCheckState::kChecked));
     }
-    web_app::test::ScopedAutoAcceptCreateShortcutDialog auto_accept;
+    base::AutoReset<InstallDialogTestResponse> auto_accept =
+        SetPwaInstallationAutoRespondForTesting(  // IN-TEST
+            InstallDialogTestResponse::kAcceptAndLaunch);
     CHECK(chrome::ExecuteCommand(browser(), IDC_CREATE_SHORTCUT));
     active_app_id_ = observer.Wait();
   }
@@ -1442,8 +1443,10 @@ void WebAppIntegrationTestDriver::InstallMenuOption(Site site) {
   BrowserAddedWaiter browser_added_waiter;
   WebAppTestInstallWithOsHooksObserver install_observer(profile());
   install_observer.BeginListening();
-  web_app::test::ScopedDontCloseInstallDialogsOnDeactivate
-      dont_close_bubble_on_deactivate;
+  base::AutoReset<web_app::InstallDialogDeactivateAction>
+      dont_close_bubble_on_deactivate =
+          web_app::SetPwaInstallationDialogDeactivateActionForTesting(
+              web_app::InstallDialogDeactivateAction::kKeepOpen);
 
   CHECK(chrome::ExecuteCommand(browser(), IDC_INSTALL_PWA));
 
@@ -1501,8 +1504,10 @@ void WebAppIntegrationTestDriver::InstallOmniboxIcon(InstallableSite site) {
         run_loop.Quit();
       }));
 
-  web_app::test::ScopedDontCloseInstallDialogsOnDeactivate
-      dont_close_bubble_on_deactivate;
+  base::AutoReset<web_app::InstallDialogDeactivateAction>
+      dont_close_bubble_on_deactivate =
+          web_app::SetPwaInstallationDialogDeactivateActionForTesting(
+              web_app::InstallDialogDeactivateAction::kKeepOpen);
 
   BrowserAddedWaiter browser_added_waiter;
   views::test::PropertyWaiter(

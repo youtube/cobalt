@@ -3,6 +3,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import io
 import json
 import logging
 import os
@@ -11,8 +12,6 @@ import sys
 import tempfile
 import unittest
 from unittest import mock
-
-import six
 
 import common_merge_script_tests
 import standard_gtest_merge
@@ -425,7 +424,7 @@ class MergeShardResultsTest(_StandardGtestMergeTest):
       self.test_files.append(abs_path)
 
   def call(self):
-    stdout = six.StringIO()
+    stdout = io.StringIO()
     with mock.patch('sys.stdout', stdout):
       merged = standard_gtest_merge.merge_shard_results(self.summary,
                                                         self.test_files)
@@ -435,7 +434,7 @@ class MergeShardResultsTest(_StandardGtestMergeTest):
 
     def convert_to_unicode(key_or_value):
       if isinstance(key_or_value, str):
-        return six.text_type(key_or_value)
+        return str(key_or_value)
       if isinstance(key_or_value, dict):
         return {
             convert_to_unicode(k): convert_to_unicode(v)

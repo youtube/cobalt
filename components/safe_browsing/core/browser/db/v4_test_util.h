@@ -29,7 +29,8 @@ std::ostream& operator<<(std::ostream& os, const ThreatMetadata& meta);
 class TestV4Store : public V4Store {
  public:
   TestV4Store(const scoped_refptr<base::SequencedTaskRunner>& task_runner,
-              const base::FilePath& store_path);
+              const base::FilePath& store_path,
+              PrefixSize v5_prefix_size);
   ~TestV4Store() override;
 
   bool HasValidData() override;
@@ -54,7 +55,8 @@ class TestV4StoreFactory : public V4StoreFactory {
 
   V4StorePtr CreateV4Store(
       const scoped_refptr<base::SequencedTaskRunner>& task_runner,
-      const base::FilePath& store_path) override;
+      const base::FilePath& store_path,
+      PrefixSize v5_prefix_size) override;
 };
 
 class TestV4Database : public V4Database {

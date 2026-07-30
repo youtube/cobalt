@@ -20,7 +20,6 @@ import org.chromium.android_webview.AwPage;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CallbackHelper;
-import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Feature;
 import org.chromium.net.test.util.TestWebServer;
 
@@ -170,7 +169,6 @@ public class AwNavigationTest extends AwParameterizedTest {
     @Test
     @SmallTest
     @Feature({"AndroidWebView"})
-    @DisabledTest(message = "https://crbug.com/520371218")
     public void testHistoryNavigation() throws Throwable {
         final String url1 =
                 mWebServer.setResponse("/page1.html", "<html><body>Page 1</body></html>", null);
@@ -190,9 +188,9 @@ public class AwNavigationTest extends AwParameterizedTest {
                 url2);
 
         // Go Back
-        int currentCallCount = mContentsClient.getOnPageFinishedHelper().getCallCount();
+        int currentCallCount = mContentsClient.getOnPageStartedHelper().getCallCount();
         ThreadUtils.runOnUiThreadBlocking(() -> mTestContainerView.getAwContents().goBack());
-        mContentsClient.getOnPageFinishedHelper().waitForCallback(currentCallCount);
+        mContentsClient.getOnPageStartedHelper().waitForCallback(currentCallCount);
 
         AwNavigation backNavigation = mNavigationListener.getLastCompletedNavigation();
         Assert.assertNotNull(backNavigation);
@@ -202,9 +200,9 @@ public class AwNavigationTest extends AwParameterizedTest {
         Assert.assertFalse(backNavigation.isForward());
 
         // Go Forward
-        currentCallCount = mContentsClient.getOnPageFinishedHelper().getCallCount();
+        currentCallCount = mContentsClient.getOnPageStartedHelper().getCallCount();
         ThreadUtils.runOnUiThreadBlocking(() -> mTestContainerView.getAwContents().goForward());
-        mContentsClient.getOnPageFinishedHelper().waitForCallback(currentCallCount);
+        mContentsClient.getOnPageStartedHelper().waitForCallback(currentCallCount);
 
         AwNavigation forwardNavigation = mNavigationListener.getLastCompletedNavigation();
         Assert.assertNotNull(forwardNavigation);

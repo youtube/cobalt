@@ -117,6 +117,7 @@
 <translation id="1373120905936431262">Отпремите слику да бисте је ремиксовали уз Nano Banana</translation>
 <translation id="1377508275003315939">Лозинке</translation>
 <translation id="1381022135873211423">{count,plural, =1{{position}. од {count} адресе}one{{position}. од {count} адресе}few{{position}. од {count} адресе}other{{position}. од {count} адреса}}</translation>
+<translation id="13813615483058219">Дошло је до грешке. Проверите интернет везу, појачајте звук или пробајте поново.</translation>
 <translation id="1383876407941801731">Претражи</translation>
 <translation id="138618066238211776">Настави као <ph name="USER_NAME" /></translation>
 <translation id="138692594145659985">Опције за чување картице</translation>
@@ -874,6 +875,7 @@
 <translation id="4021447724486050609">Ажурирајте прегледач</translation>
 <translation id="4021931095789478915">Додај ${url} на листу за читање</translation>
 <translation id="4028871427853484857">Сачувај на налогу…</translation>
+<translation id="4036529942385659684">Прикажи почетну страницу после периода неактивности</translation>
 <translation id="4038354071007134711">Ниједна апликација на овом уређају не може да отвори датотеку.</translation>
 <translation id="4042870976416480368">Нађи на страници</translation>
 <translation id="4045441967987592849">Поново отвори</translation>
@@ -911,7 +913,6 @@
 <translation id="417138788035229076">Управљајте групом</translation>
 <translation id="4172051516777682613">Увек прикажи</translation>
 <translation id="417273154673973994">{count,plural, =1{1 група картица је затворена и сачувана}one{{count} група картица је затворена и сачувана}few{{count} групе картица су затворене и сачуване}other{{count} група картица је затворено и сачувано}}</translation>
-<translation id="417612446554534067">Пошаљите на своје уређаје</translation>
 <translation id="4180726336228139707">Само на овом уређају</translation>
 <translation id="4181841719683918333">Језици</translation>
 <translation id="4183350924949589798">Више безбедности?</translation>
@@ -1135,6 +1136,7 @@
 <translation id="4896467949657706481">Картице су затворене; одјављени сте</translation>
 <translation id="4911042367886397055">Добро нам дошли поново, <ph name="USER_NAME" />.</translation>
 <translation id="4913626501929406101">Можете безбедно да делите копију лозинке са неким у групи за породицу. <ph name="BEGIN_LINK" />Сазнајте више<ph name="END_LINK" /></translation>
+<translation id="4916679969857390442">Објектив</translation>
 <translation id="4917025507570489430">Можете да користите постојеће податке прегледања када сте пријављени као <ph name="USER_EMAIL" />. Ваша организација може да види ове податке.</translation>
 <translation id="4918086044614829423">Прихвати</translation>
 <translation id="4930714375720679147">Укључи</translation>
@@ -2145,6 +2147,7 @@ Handoff треба да се омогући у одељку General (Опште)
 <translation id="8263809106706527890">Можда је дошло до промене подешавања подразумеваног прегледача. Ово можете да проверите у подешавањима.</translation>
 <translation id="8264966119170358612">Неке од ваших сачуваних лозинки су откривене током повреде података који нису Google подаци. <ph name="BEGIN_LINK" />Сазнајте више<ph name="END_LINK" /></translation>
 <translation id="826614135184049678">Одјављени сте са налога <ph name="USER_NAME" /> у склопу ресетовања на iPad-у. Да бисте се поново пријавили, додирните Настави испод.</translation>
+<translation id="8270320981823560179">Диск</translation>
 <translation id="8273982424131314219">Попунићете информације на <ph name="URL" /></translation>
 <translation id="8275068909952022340">Још…</translation>
 <translation id="8281781826761538115">Подразумевано – <ph name="DEFAULT_LOCALE" /></translation>

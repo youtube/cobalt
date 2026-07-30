@@ -11,6 +11,7 @@ import type {BookmarkProductInfo} from '//resources/cr_components/commerce/share
 import {loadTimeData} from '//resources/js/load_time_data.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
+import {assert} from 'chrome://resources/js/assert.js';
 
 import {getHtml} from './power_bookmarks_labels.html.js';
 import type {Label} from './power_bookmarks_service.js';
@@ -75,7 +76,8 @@ export class PowerBookmarksLabelsElement extends CrLitElement {
     event.stopPropagation();
     const index = Number((event.currentTarget as HTMLElement).dataset['index']);
     const labels = [...this.labels];
-    labels[index] = {...labels[index], active: !labels[index].active};
+    assert(index >= 0 && index < labels.length);
+    labels[index] = {...labels[index]!, active: !labels[index]!.active};
     this.labels = labels;
   }
 }

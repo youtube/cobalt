@@ -26,8 +26,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import six
-from six.moves.urllib import parse
+from urllib import parse
 
 from mod_pywebsocket.extensions import PerMessageDeflateExtensionProcessor
 from mod_pywebsocket.extensions import ExtensionProcessorInterface
@@ -74,7 +73,7 @@ def web_socket_transfer_data(request):
         line = request.ws_stream.receive_message()
         if line is None:
             return
-        if isinstance(line, six.text_type):
+        if isinstance(line, str):
             if processor:
                 if line == _ENABLE_MESSAGE:
                     processor.enable_outgoing_compression()

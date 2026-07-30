@@ -111,11 +111,14 @@ class FakeServiceEndpointRequest : public HostResolver::ServiceEndpointRequest {
   // CallOnServiceEndpointRequestFinished()
   FakeServiceEndpointRequest& CallOnServiceEndpointsUpdated();
 
-  // Calls `delegate_->OnServiceEndpointRequestFinished()`. Mut not be used
+  // Calls `delegate_->OnServiceEndpointRequestFinished()`. Must not be used
   // after calling CompleteStartSynchronously().
   FakeServiceEndpointRequest& CallOnServiceEndpointRequestFinished(int rv);
 
   RequestPriority priority() const { return resolution_.priority(); }
+  const HostResolver::ResolveHostParameters& resolve_host_params() const {
+    return resolve_host_params_;
+  }
 
   // HostResolver::ServiceEndpointRequest methods:
   int Start(Delegate* delegate) override;
@@ -124,7 +127,7 @@ class FakeServiceEndpointRequest : public HostResolver::ServiceEndpointRequest {
   bool EndpointsCryptoReady() override;
   ResolveErrorInfo GetResolveErrorInfo() override;
   const HostCache::EntryStaleness* GetStaleInfo() const override;
-  bool IsStaleWhileRefresing() const override;
+  bool IsStaleWhileRefreshing() const override;
   void ChangeRequestPriority(RequestPriority priority) override;
   std::optional<ResolutionDetails> GetResolutionDetails() const override;
 
@@ -138,6 +141,7 @@ class FakeServiceEndpointRequest : public HostResolver::ServiceEndpointRequest {
   FakeServiceEndpointResolution resolution_;
 
   base::OnceClosure start_callback_;
+  HostResolver::ResolveHostParameters resolve_host_params_;
 
   base::WeakPtrFactory<FakeServiceEndpointRequest> weak_ptr_factory_{this};
 };

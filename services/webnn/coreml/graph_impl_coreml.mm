@@ -79,7 +79,6 @@ namespace webnn::coreml {
 
 namespace {
 
-API_AVAILABLE(macos(12.3))
 base::flat_map<std::string,
                scoped_refptr<QueueableResourceState<BufferContent>>>
 ToNamedBufferStateMap(

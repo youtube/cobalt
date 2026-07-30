@@ -309,8 +309,6 @@ bool EntrySorter(scoped_refptr<const ReadingListEntry> rhs,
         [itemsToReconfigure addObject:oldItem];
         oldItem.title = newItem.title;
         oldItem.entryURL = newItem.entryURL;
-        oldItem.distillationState = newItem.distillationState;
-        oldItem.distillationDateText = newItem.distillationDateText;
         oldItem.showCloudSlashIcon = newItem.showCloudSlashIcon;
       }
       if (oldItem.faviconPageURL != newItem.faviconPageURL) {

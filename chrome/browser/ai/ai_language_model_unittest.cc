@@ -275,7 +275,8 @@ class AILanguageModelTest : public AITestUtils::AITestBase {
  public:
   AILanguageModelTest() {
     scoped_feature_list_.InitWithFeaturesAndParameters(
-        {{blink::features::kAIPromptAPIMultimodalInput, {}},
+        {{blink::features::kAIPromptAPI, {}},
+         {blink::features::kAIPromptAPIMultimodalInput, {}},
          {features::kAILanguageModelOverrideConfiguration,
           {{"ai_language_model_output_buffer", "100"}}},
          {features::kAILanguageModelAppendOutputTokensToContext, {}},

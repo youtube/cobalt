@@ -508,6 +508,7 @@ robolectric_library("junit") {
     "java/src/org/chromium/components/browser_ui/widget/ChromeDialogUnitTest.java",
     "java/src/org/chromium/components/browser_ui/widget/ChromeTransitionDrawableTest.java",
     "java/src/org/chromium/components/browser_ui/widget/CompositeTouchDelegateUnitTest.java",
+    "java/src/org/chromium/components/browser_ui/widget/CoordinatorLayoutForPointerUnitTest.java",
     "java/src/org/chromium/components/browser_ui/widget/ContextMenuDialogUnitTest.java",
     "java/src/org/chromium/components/browser_ui/widget/DateDividedAdapterUnitTest.java",
     "java/src/org/chromium/components/browser_ui/widget/FullscreenAlertDialogUnitTest.java",

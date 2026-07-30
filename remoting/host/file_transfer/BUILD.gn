@@ -53,20 +53,27 @@ source_set("common") {
     "file_chooser.h",
     "file_operations.h",
     "file_transfer_message_handler.h",
-    "ipc_file_operations.h",
     "local_file_operations.h",
     "rtc_log_file_operations.h",
-    "session_file_operations_handler.h",
   ]
 
   sources = [
     "buffered_file_writer.cc",
     "file_transfer_message_handler.cc",
-    "ipc_file_operations.cc",
     "local_file_operations.cc",
     "rtc_log_file_operations.cc",
-    "session_file_operations_handler.cc",
   ]
+
+  if (remoting_multi_process) {
+    public += [
+      "ipc_file_operations.h",
+      "session_file_operations_handler.h",
+    ]
+    sources += [
+      "ipc_file_operations.cc",
+      "session_file_operations_handler.cc",
+    ]
+  }
 
   deps = [
     "//base",
@@ -174,10 +181,10 @@ source_set("unit_tests") {
       "//ui/shell_dialogs",
     ]
   } else {
-    sources += [
-      "ipc_file_operations_unittest.cc",
-      "local_file_operations_unittest.cc",
-    ]
+    sources += [ "local_file_operations_unittest.cc" ]
+    if (remoting_multi_process) {
+      sources += [ "ipc_file_operations_unittest.cc" ]
+    }
   }
 
   # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and

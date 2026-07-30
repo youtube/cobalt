@@ -17,7 +17,7 @@ class InlineItemsBuilderTemplate;
 // Data which is required for inline nodes.
 struct CORE_EXPORT InlineNodeData final : InlineItemsData {
  public:
-  InlineNodeData() : InlineItemsData(/*is_node_data=*/true) {}
+  InlineNodeData() : InlineItemsData(DataType::kNodeData) {}
   // Returns true if `text_content` contains non-latin1 characters other than
   // kObjectReplacementCharacter.
   bool HasNonOrc16BitCharacters() const { return has_non_orc_16bit_; }
@@ -34,6 +34,7 @@ struct CORE_EXPORT InlineNodeData final : InlineItemsData {
   }
   bool HasInitialLetterBox() const { return has_initial_letter_box_; }
   bool HasRuby() const { return has_ruby_; }
+  bool HasTextEmphasis() const { return has_text_emphasis_; }
 
   bool IsBlockLevel() const { return is_block_level_; }
 
@@ -90,6 +91,9 @@ struct CORE_EXPORT InlineNodeData final : InlineItemsData {
 
   // The node contains <ruby>.
   bool has_ruby_ : 1;
+
+  // The node contains elements with text-emphasis.
+  bool has_text_emphasis_ : 1;
 
   // We use this flag to determine if we have *only* floats, and OOF-positioned
   // children. If so we consider them block-level, and run the

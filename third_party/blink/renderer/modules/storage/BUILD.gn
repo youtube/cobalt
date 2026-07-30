@@ -25,6 +25,8 @@ blink_modules_sources("storage") {
     "storage_namespace.cc",
     "storage_namespace.h",
   ]
+
+  configs += [ "//third_party/blink/renderer:narrowing" ]
 }
 
 source_set("unit_tests") {
@@ -42,6 +44,7 @@ source_set("unit_tests") {
   configs += [
     "//third_party/blink/renderer:config",
     "//third_party/blink/renderer:inside_blink",
+    "//third_party/blink/renderer:narrowing",
     "//third_party/blink/renderer/core:blink_core_pch",
   ]
 

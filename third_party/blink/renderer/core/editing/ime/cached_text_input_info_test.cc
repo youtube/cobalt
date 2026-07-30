@@ -74,7 +74,7 @@ TEST_F(CachedTextInputInfoTest, PlaceholderBRInTextArea) {
 
   // Inner editor is <div>abc<br></div>.
   GetFrame().Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .Collapse(Position::LastPositionInNode(*target.InnerEditorElement()))
           .Build(),
       SetSelectionOptions());
@@ -95,7 +95,7 @@ TEST_F(CachedTextInputInfoTest, PlaceholderBROnlyInTextArea) {
 
   // Inner editor is <div><br></div>.
   GetFrame().Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .Collapse(Position::LastPositionInNode(*target.InnerEditorElement()))
           .Build(),
       SetSelectionOptions());
@@ -154,7 +154,7 @@ TEST_F(CachedTextInputInfoTest, PositionAbsolute) {
 
   // Move caret after "cd"
   GetFrame().Selection().SetSelection(
-      SelectionInDOMTree::Builder().Collapse(Position(text_cd, 2)).Build(),
+      SelectionInDomTree::Builder().Collapse(Position(text_cd, 2)).Build(),
       SetSelectionOptions());
 
   // Insert "CD" after "cd"
@@ -184,7 +184,7 @@ TEST_F(CachedTextInputInfoTest, ShadowTree) {
 
   // Ask |CachedTextInputInfo| to compute |PlainTextRange| for selection.
   GetFrame().Selection().SetSelection(
-      SelectionInDOMTree::Builder()
+      SelectionInDomTree::Builder()
           .Collapse(Position(*To<Text>(shadow_root.lastChild()), 0))
           .Build(),
       SetSelectionOptions());

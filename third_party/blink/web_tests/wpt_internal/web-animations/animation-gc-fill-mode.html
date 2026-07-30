@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<title>Tests that programmatic animations with fill mode are not garbage collected</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<body>
+<script>
+function asyncGC() {
+  return new Promise(resolve => {
+    GCController.asyncCollectAll(resolve);
+  });
+}
+
+promise_test(async t => {
+  const target = document.createElement('div');
+  document.body.appendChild(target);
+  let weakRef;
+
+  // Create animation in a block scope and return its finished promise.
+  await (() => {
+    const animation = new Animation(
+      new KeyframeEffect(
+        target,
+        [
+          { opacity: 0 },
+          { opacity: 1 }
+        ],
+        { duration: 1, fill: 'both' }
+      )
+    );
+    animation.play();
+    weakRef = new WeakRef(animation);
+    return animation.finished;
+  })();
+
+  assert_equals(target.getAnimations().length, 1,
+      'Animation should be returned by getAnimations before GC');
+
+  // Trigger GC.
+  await asyncGC();
+
+  // The animation should still be alive because it is in effect.
+  assert_not_equals(weakRef.deref(), undefined,
+      'Animation should not be GCed because it is in effect');
+  assert_equals(target.getAnimations().length, 1,
+      'Animation should be returned by getAnimations after GC');
+
+  target.remove();
+}, 'Programmatic animation with fill: both is not garbage collected after it finishes');
+
+promise_test(async t => {
+  const target = document.createElement('div');
+  document.body.appendChild(target);
+  let weakRef;
+
+  // Create animation in a block scope and return its finished promise.
+  await (() => {
+    const animation = new Animation(
+      new KeyframeEffect(
+        target,
+        [
+          { opacity: 0 },
+          { opacity: 1 }
+        ],
+        { duration: 1, fill: 'none' }
+      )
+    );
+    animation.play();
+    weakRef = new WeakRef(animation);
+    return animation.finished;
+  })();
+
+  assert_equals(target.getAnimations().length, 0,
+      'Animation should not be returned by getAnimations before GC');
+
+  // Trigger GC.
+  await asyncGC();
+
+  // The animation should be GCed because it is not in effect.
+  assert_equals(weakRef.deref(), undefined,
+      'Animation should be GCed because it is not in effect');
+
+  target.remove();
+}, 'Programmatic animation with fill: none is garbage collected after it finishes');
+
+promise_test(async t => {
+  const target = document.createElement('div');
+  document.body.appendChild(target);
+  let weakRef;
+
+  // Create animation in a block scope and return its finished promise.
+  await (() => {
+    const animation = new Animation(
+      new KeyframeEffect(
+        target,
+        [
+          { opacity: 0 },
+          { opacity: 1 }
+        ],
+        { duration: 1, fill: 'both' }
+      )
+    );
+    animation.play();
+    weakRef = new WeakRef(animation);
+    return animation.finished;
+  })();
+
+  // Disconnect the target, but keep JS reference 'target' alive.
+  target.remove();
+
+  // getAnimations() returns 0 for disconnected elements in Blink.
+  assert_equals(target.getAnimations().length, 0,
+      'Animation should not be returned by getAnimations on disconnected element');
+
+  // Trigger GC.
+  await asyncGC();
+
+  // The animation should still be alive because 'target' is alive and it is in effect.
+  assert_not_equals(weakRef.deref(), undefined,
+      'Animation should not be GCed because target is kept alive by JS');
+
+  // Re-attach the target to DOM.
+  document.body.appendChild(target);
+
+  // Now it should be returned by getAnimations again!
+  assert_equals(target.getAnimations().length, 1,
+      'Animation should be returned by getAnimations after re-attaching');
+
+  // Clean up
+  target.remove();
+}, 'Programmatic animation with fill: both on disconnected element kept alive by JS is not garbage collected');
+
+promise_test(async t => {
+  let elementRef;
+  let animationRef;
+
+  // Create target and animation in a block scope and return finished promise.
+  await (() => {
+    const target = document.createElement('div');
+    const animation = new Animation(
+      new KeyframeEffect(
+        target,
+        [
+          { opacity: 0 },
+          { opacity: 1 }
+        ],
+        { duration: 1, fill: 'both' }
+      )
+    );
+    animation.play();
+    elementRef = new WeakRef(target);
+    animationRef = new WeakRef(animation);
+    return animation.finished;
+  })();
+
+  // Trigger GC.
+  await asyncGC();
+
+  // Both should be GCed because the element was disconnected and had no JS references.
+  assert_equals(elementRef.deref(), undefined, 'Element should be GCed');
+  assert_equals(animationRef.deref(), undefined, 'Animation should be GCed');
+}, 'Orphaned element and filling animation are garbage collected');
+</script>
+</body>

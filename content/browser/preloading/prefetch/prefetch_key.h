@@ -66,6 +66,10 @@ class CONTENT_EXPORT PrefetchKey final {
 
   const GURL& url() const { return url_; }
 
+  // Returns the document token if this key is associated with a document.
+  // Returns std::nullopt for NIK-based keys or if no token is present.
+  std::optional<blink::DocumentToken> GetDocumentToken() const;
+
   PrefetchKey WithNewUrl(const GURL& new_url) const {
     return std::visit([&](const auto& e) { return PrefetchKey(e, new_url); },
                       referring_document_token_or_nik_);

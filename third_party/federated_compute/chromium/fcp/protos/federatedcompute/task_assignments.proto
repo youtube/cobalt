@@ -1,0 +1,300 @@
+// Copyright 2021 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package google.internal.federatedcompute.v1;
+
+import "google/protobuf/duration.proto";
+import "google/rpc/code.proto";
+import "fcp/protos/federated_api.proto";
+import "fcp/protos/federatedcompute/common.proto";
+
+option java_package = "com.google.internal.federatedcompute.v1";
+option java_multiple_files = true;
+
+message StartTaskAssignmentRequest {
+  // The name of the population this client belongs to.
+  //
+  // Note that http clients set this value in the request URL instead of the
+  // request body.
+  string population_name = 1;
+      ;
+
+  // The session id returned by the server in an earlier
+  // `EligibilityEvalTaskResponse`.
+  //
+  // Note that http clients set this value in the request URL instead of the
+  // request body.
+  string session_id = 2;
+      ;
+
+  reserved 3;
+
+  ClientVersion client_version = 4;
+
+  // The client computes this message using the task returned by a previous
+  // `RequestEligibilityEvalTask` call.
+  //
+  // If this field is set, it describes to the server which tasks the client is
+  // (in)eligible for, out of the set of tasks currently being served by the
+  // server. The server must only use this information to decide which task to
+  // serve to the client in response to this request, must use this information
+  // only during this specific protocol session, and must not persist this
+  // information in any way.
+  //
+  // If this field is unset, it may indicate that the client previously received
+  // an `EligibilityEvalTask` without an `EligibilityEvalPayload` message (i.e.
+  // the population did not have an eligibility-computing task configured at the
+  // time of the request). It may also indicate a client for which the
+  // eligibility-computing task feature has been disabled, or an old client that
+  // does not support this feature yet.
+  //
+  // If this field is unset but the population has an eligibility-computing task
+  // configured, then the server must reject this client, since the server has
+  // no way to determine which tasks the client is (in)eligible for.
+  //
+  // If this field is unset and the population does not have an
+  // eligibility-computing task configured, then the server may serve this
+  // client any task.
+  //
+  google.internal.federatedml.v2.TaskEligibilityInfo task_eligibility_info = 5;
+
+  // The client's capabilities when downloading and processing resources.
+  ResourceCapabilities resource_capabilities = 6;
+
+  // The attestation measurement providing evidence of integrity for this
+  // client. The measurement should be bound to the session_id value in this
+  // request.
+  //
+  // Note that the previous `EligibilityEvalTaskRequest` could have set this
+  // field to an attestation measurement not tied to the session_id. In that
+  // case this field will be ignored, since the attestation was already verified
+  // for the client.
+  AttestationMeasurement attestation_measurement = 7;
+}
+
+message StartTaskAssignmentMetadata {
+  // The suggested duration between instances of polling the StartTaskAssignment
+  // LRO.
+  google.protobuf.Duration polling_interval = 1;
+}
+
+message StartTaskAssignmentResponse {
+  // One of two outcomes, depending on server's decision on participation of the
+  // client.
+  oneof result {
+    // If the client joined the task with this call, information on how to
+    // proceed.
+    TaskAssignment task_assignment = 1;
+
+    // If the client was not accepted, information how to proceed.
+    RejectionInfo rejection_info = 2;
+  }
+}
+
+message PerformMultipleTaskAssignmentsRequest {
+  // The name of the population this client belongs to.
+  //
+  // Note that http clients set this value in the request URL instead of the
+  // request body.
+  string population_name = 1;
+      ;
+
+  // The session id returned by the server in an earlier
+  // `EligibilityEvalTaskResponse`.
+  string session_id = 2;
+      ;
+
+  // The client's version information.
+  ClientVersion client_version = 3;
+
+  // The client's capabilities when downloading and processing resources.
+  ResourceCapabilities resource_capabilities = 4;
+
+  // The list of tasks for which the client would like TaskAssignments. These
+  // names are produced by running the population's Eligibility Eval task (see
+  // /EligibilityEvalTasks.RequestEligibilityEvalTask).
+  repeated string task_names = 5;
+      ;
+
+  // The attestation measurement providing evidence of integrity for this
+  // client. The measurement should be bound to the session_id value in this
+  // request.
+  //
+  // Note that the previous `EligibilityEvalTaskRequest` could have set this
+  // field to an attestation measurement not tied to the session_id. In that
+  // case this field will be ignored, since the attestation was already verified
+  // for the client.
+  AttestationMeasurement attestation_measurement = 7;
+}
+
+message PerformMultipleTaskAssignmentsResponse {
+  // The TaskAssignments requested by the client. The server may omit requested
+  // TaskAssignments, e.g. for any tasks that no longer exist or are not
+  // currently accepting client contributions; these cases should be infrequent.
+  repeated TaskAssignment task_assignments = 1;
+}
+
+// When client (device) is accepted for the current task, this data structure
+// carries information necessary to begin task execution.
+message TaskAssignment {
+  // Information to construct the URI to use for providing resulting aggregation
+  // data after task execution.
+  ForwardingInfo aggregation_data_forwarding_info = 1;
+
+  message AggregationInfo {}
+
+  message SecureAggregationInfo {
+    // The minimum number of clients' values that must be aggregated together
+    // before the server can gain access to the aggregate,
+    // even transiently (e.g. in RAM).
+    // This isn't needed by Secure Aggregation protocol on the client side but
+    // shared by the server with clients for transparency or policy reasons.
+    int32 minimum_clients_in_server_visible_aggregate = 1;
+  }
+
+  message ConfidentialAggregationInfo {
+    // The `fcp.confidentialcompute.DataAccessPolicy` that will apply to client
+    // contributions.
+    Resource data_access_policy = 1;
+
+    // the serialized fcp.confidentialcompute.SignedEndorsements that authorize
+    // the `data_access_policy`.  The client will verify that these
+    // SignedEndorsements are valid and sufficient for contribution.
+    Resource signed_endorsements = 2;
+  }
+
+  message WillowAggregationInfo {
+    // The input spec that will be used to encode the client's contribution
+    // before it is sent to the server.
+    Resource input_spec = 1;
+
+    // The maximum number of clients that can participate in the aggregations.
+    int64 max_number_of_clients = 2;
+
+    reserved 3;
+  }
+
+  oneof aggregation_type {
+    // If set, indicates that the Aggregations service (see
+    // `aggregations.proto`) should be used to perform aggregation.
+    AggregationInfo aggregation_info = 9;
+
+    // If set, indicates that the SecureAggregations service (see
+    // `secure_aggregations.proto`) should be used to perform aggregation.
+    SecureAggregationInfo secure_aggregation_info = 10;
+
+    // If set, indicates that the ConfidentialAggregations service (see
+    // `confidential_aggregations.proto`) should be used to perform aggregation.
+    ConfidentialAggregationInfo confidential_aggregation_info = 11;
+
+    // If set, indicates that the Willow encryption should be used in
+    // conjunction with the ConfidentialAggregations service (see
+    // `confidential_aggregations.proto`).
+    WillowAggregationInfo willow_aggregation_info = 12;
+  }
+
+  // Identifier for the client's protocol session, matching the session_id sent
+  // in the request.
+  string session_id = 5;
+
+  // The opaque id of the aggregation session the client has joined. This is a
+  // string generated by the server and MUST NOT contain any information that
+  // could be used to identify a specific device. Clients must not assume that
+  // aggregation_ids are unique across different task assignments.
+  string aggregation_id = 2;
+
+  // Unique identifier for the client's participation in an aggregation session.
+  string authorization_token = 6;
+
+  // The name identifying the task that was assigned.
+  string task_name = 7;
+
+  // The checkpoint from which to start execution.
+  Resource init_checkpoint = 3;
+
+  // The plan to be used for execution.
+  Resource plan = 4;
+
+  // Info for how to generate URIs for fetching slices at runtime.
+  FederatedSelectUriInfo federated_select_uri_info = 8;
+}
+
+// Info for how to generate URIs for fetching slices that the task might request
+// to be downloaded at runtime.
+//
+// When one or more slices are requested by the task, the template specified
+// here should be used to form a URI from which the client can download the
+// slice data, by replacing the "{served_at_id}" and "{key_base10}" substrings
+// with the `google.internal.federated.plan.SlicesSelector.served_at_id` and the
+// base-10 representation of the `SlicesSelector.keys` value. The client must
+// not perform any URI escaping to the values that the substrings are replaced
+// with.
+message FederatedSelectUriInfo {
+  // The URI template to use for fetching slices.
+  //
+  // This template must always start with "https://".
+  //
+  // This template must contain the following substrings: "{served_at_id}" and
+  // "{key_base10}", as per the above documentation.
+  string uri_template = 1;
+}
+
+message ReportTaskResultRequest {
+  // The name of the population this client belongs to.
+  //
+  // Note that http clients set this value in the request URL instead of the
+  // request body.
+  string population_name = 1;
+      ;
+
+  // The session id returned by the server.
+  //
+  // Note that http clients set this value in the request URL instead of the
+  // request body.
+  string session_id = 2;
+      ;
+
+  // The opaque id of the aggregation session the client has joined. This is a
+  // string generated by the server and MUST NOT contain any information that
+  // could be used to identify a specific device.
+  string aggregation_id = 5;
+      ;
+
+  // The name identifying the task that was assigned.
+  string task_name = 6;
+
+  // Computation status code reported by client.
+  // Code.OK indicates that the client computation completed successfully. Any
+  // other code indicates unsuccessful computation execution and termination of
+  // the protocol session.
+  google.rpc.Code computation_status_code = 3;
+
+  // Stats produced during the client-side execution of the task.
+  ClientStats client_stats = 4;
+}
+
+// This message is used to report client stats and execution duration to the
+// server.
+message ClientStats {
+  // The time spent on running the task (includes I/O such as reading examples,
+  // but does not include time spent on the network for retrieving the task
+  // or uploading results).
+  google.protobuf.Duration computation_execution_duration = 1;
+
+  reserved 2;
+}
+
+message ReportTaskResultResponse {}

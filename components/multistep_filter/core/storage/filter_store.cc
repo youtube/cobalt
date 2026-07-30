@@ -63,13 +63,13 @@ void FilterStore::DeleteAnnotationsForTask(
       .Then(std::move(callback));
 }
 
-void FilterStore::DeleteAnnotationsForDomains(
-    std::vector<std::string> domains,
+void FilterStore::DeleteAnnotationsForHosts(
+    std::vector<std::string> hosts,
     base::Time delete_begin,
     base::Time delete_end,
     base::OnceCallback<void(std::optional<int64_t>)> callback) {
-  backend_.AsyncCall(&FilterStoreBackend::DeleteAnnotationsForDomains)
-      .WithArgs(std::move(domains), delete_begin, delete_end)
+  backend_.AsyncCall(&FilterStoreBackend::DeleteAnnotationsForHosts)
+      .WithArgs(std::move(hosts), delete_begin, delete_end)
       .Then(std::move(callback));
 }
 

@@ -7,7 +7,7 @@ import 'chrome://healthd-internals/app.js';
 import type {HealthdInternalsAppElement} from 'chrome://healthd-internals/app.js';
 import {strictQuery} from 'chrome://resources/ash/common/typescript_utils/strict_query.js';
 import {assert} from 'chrome://resources/js/assert.js';
-import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chromeos/chai_assert.js';
+import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 
 suite('healthdInternalsTestSuite', function() {

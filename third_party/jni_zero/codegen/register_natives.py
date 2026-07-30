@@ -74,10 +74,14 @@ return true;
 """)
 
 
-def main_register_function(sb, jni_objs, namespace, gen_jni_class=None):
+def main_register_function(sb,
+                           jni_objs,
+                           namespace,
+                           gen_jni_class=None,
+                           register_natives_name='RegisterNatives'):
   """RegisterNatives() that calls the helper RegisterNatives() methods."""
   with sb.namespace(namespace or ''):
-    sb('bool RegisterNatives(JNIEnv* env)')
+    sb(f'bool {register_natives_name}(JNIEnv* env)')
     with sb.block():
       if gen_jni_class:
         sb(f"""// Register natives in a proxy.

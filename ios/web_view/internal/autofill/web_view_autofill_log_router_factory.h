@@ -16,11 +16,11 @@ namespace autofill {
 
 class LogRouter;
 
-// A factory that associates autofill::LogRouter instances with
-// web::BrowserState. This returns nullptr of off-the-record browser states.
+// A factory that associates LogRouter instances with web::BrowserState. This
+// returns nullptr of off-the-record browser states.
 class WebViewAutofillLogRouterFactory : public BrowserStateKeyedServiceFactory {
  public:
-  static autofill::LogRouter* GetForBrowserState(
+  static LogRouter* GetForBrowserState(
       ios_web_view::WebViewBrowserState* browser_state);
 
   static WebViewAutofillLogRouterFactory* GetInstance();

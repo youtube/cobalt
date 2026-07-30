@@ -14,7 +14,6 @@
 #include "chrome/browser/glic/browser_ui/glic_vector_icon_manager.h"
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/public/features.h"
-#include "chrome/grit/generated_resources.h"
 #include "components/omnibox/browser/vector_icons.h"  // nogncheck
 #include "components/prefs/pref_service.h"
 #include "third_party/skia/include/core/SkColor.h"

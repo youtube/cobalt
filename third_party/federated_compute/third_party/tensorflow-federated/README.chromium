@@ -1,0 +1,19 @@
+Name: tensorflow-federated
+URL: https://github.com/google-parfait/tensorflow-federated
+Version: N/A
+Date: 2026-05-21
+Revision: 8f0a2d9fad426763e9df64b6d1bf845eaed3c9a8
+Update Mechanism: Manual
+License: Apache-2.0
+License File: src/LICENSE
+Shipped: yes
+Security Critical: yes
+
+Description:
+An open-source framework for machine learning and other computations on
+decentralized data.
+
+Local Modifications:
+
+- The majority of unneeded code is removed, only parts related to aggregation
+  are used by FCP.

@@ -205,17 +205,6 @@ public class SigninTestRule implements TestRule {
         mIsSignedIn = true;
     }
 
-    /** Adds and signs in an account with the default name using consent level Sync. */
-    // TODO(crbug.com/40066949): Remove once Sync-the-feature is fully removed.
-    public CoreAccountInfo addTestAccountThenSigninWithConsentLevelSync() {
-        assert !mIsSignedIn : "An account is already signed in!";
-        AccountInfo accountInfo = TestAccounts.ACCOUNT1;
-        addAccount(accountInfo);
-        SigninTestUtil.signinWithConsentLevelSync(accountInfo);
-        mIsSignedIn = true;
-        return accountInfo;
-    }
-
     /** Waits for the account corresponding to coreAccountInfo to finish signin. */
     public void waitForSignin(CoreAccountInfo coreAccountInfo) {
         CriteriaHelper.pollUiThread(

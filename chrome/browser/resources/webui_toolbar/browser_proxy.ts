@@ -4,13 +4,14 @@
 
 import '//resources/js/cr.js';
 
-import {BrowserControlsService} from './browser_controls_api.mojom-webui.js';
-import type {BrowserControlsServiceInterface} from './browser_controls_api.mojom-webui.js';
-import {EventDispositionFlag} from './browser_controls_api_data_model.mojom-webui.js';
-import {ToolbarUIObserverCallbackRouter, ToolbarUIService} from './toolbar_ui_api.mojom-webui.js';
-import type {ToolbarUIServiceInterface} from './toolbar_ui_api.mojom-webui.js';
-import {ContextMenuType} from './toolbar_ui_api_data_model.mojom-webui.js';
-import type {BackForwardButtonState, FocusRequestTarget, IconUpdate, NavigationControlsState, OmniboxViewState, ReloadControlState} from './toolbar_ui_api_data_model.mojom-webui.js';
+import {BrowserControlsService} from '/shared/browser_controls_api.mojom-webui.js';
+import type {BrowserControlsServiceInterface} from '/shared/browser_controls_api.mojom-webui.js';
+import {EventDispositionFlag} from '/shared/browser_controls_api_data_model.mojom-webui.js';
+import type {IconUpdate} from '/shared/icon_handle.mojom-webui.js';
+import {ToolbarUIObserverCallbackRouter, ToolbarUIService} from '/shared/toolbar_ui_api.mojom-webui.js';
+import type {ToolbarUIServiceInterface} from '/shared/toolbar_ui_api.mojom-webui.js';
+import {ContextMenuType} from '/shared/toolbar_ui_api_data_model.mojom-webui.js';
+import type {BackForwardButtonState, FocusRequestTarget, NavigationControlsState, OmniboxViewState, ReloadControlState} from '/shared/toolbar_ui_api_data_model.mojom-webui.js';
 
 export {
   ContextMenuType,

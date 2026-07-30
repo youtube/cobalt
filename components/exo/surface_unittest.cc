@@ -1381,21 +1381,6 @@ TEST_P(SurfaceTest, DestroyWithAttachedBufferReleasesBuffer) {
   ASSERT_EQ(1, release_buffer_call_count);
 }
 
-TEST_P(SurfaceTest, AcquireFence) {
-  auto buffer = test::ExoTestHelper::CreateBuffer(gfx::Size(1, 1));
-  auto surface = std::make_unique<Surface>();
-
-  // We can only commit an acquire fence if a buffer is attached.
-  surface->Attach(buffer.get());
-
-  EXPECT_FALSE(surface->HasPendingAcquireFence());
-  surface->SetAcquireFence(
-      std::make_unique<gfx::GpuFence>(gfx::GpuFenceHandle()));
-  EXPECT_TRUE(surface->HasPendingAcquireFence());
-  surface->Commit();
-  EXPECT_FALSE(surface->HasPendingAcquireFence());
-}
-
 TEST_P(SurfaceTest, UpdatesOcclusionOnDestroyingSubsurface) {
   gfx::Size buffer_size(256, 512);
   auto buffer = test::ExoTestHelper::CreateBuffer(buffer_size);

@@ -77,6 +77,8 @@ enum RequestDestination {
   kSharedStorageWorklet = 27,
   // Requests for email verification.
   kEmailVerification = 28,
+  // Requests for text modules.
+  kText = 29,
 };
 
 // Corresponds to Fetch request's "redirect mode":

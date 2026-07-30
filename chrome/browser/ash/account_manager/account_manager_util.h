@@ -19,6 +19,8 @@ namespace ash {
 
 bool IsAccountManagerAvailable(Profile* profile);
 
+void OpenAccountManagerSettingsForActiveUser();
+
 // Initializes account manager if it has not been initialized yet. Safe to call
 // multiple times. |cryptohome_root_dir| is root of user's home partition (same
 // as the Profile directory). |initialization_callback| is used by the caller to

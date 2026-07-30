@@ -46,7 +46,7 @@ constexpr base::TimeDelta kNewUploadFrequency = base::Hours(10);
 ACTION_P(ScheduleGeneratorCallback, request_number) {
   ReportRequestQueue requests;
   for (int i = 0; i < request_number; i++) {
-    requests.push(std::make_unique<ReportRequest>(ReportType::kFull));
+    requests.push(std::make_unique<ReportRequest>(ReportType::kBrowser));
   }
   base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(std::move(arg0), std::move(requests)));
@@ -108,7 +108,7 @@ class ReportSchedulerIOSTest : public PlatformTest,
   ReportRequestQueue CreateRequests(int number) {
     ReportRequestQueue requests;
     for (int i = 0; i < number; i++) {
-      requests.push(std::make_unique<ReportRequest>(ReportType::kFull));
+      requests.push(std::make_unique<ReportRequest>(ReportType::kBrowser));
     }
     return requests;
   }
@@ -215,7 +215,7 @@ TEST_F(BrowserReportSchedulerIOSTest, NoReportWithoutClientId) {
 
 TEST_F(BrowserReportSchedulerIOSTest, UploadReportSucceeded) {
   EXPECT_CALL_SetupRegistration();
-  EXPECT_CALL(*generator_, OnGenerate(ReportType::kFull, _))
+  EXPECT_CALL(*generator_, OnGenerate(ReportType::kBrowser, _))
       .WillOnce(WithArgs<1>(ScheduleGeneratorCallback(1)));
   EXPECT_CALL(*uploader_,
               SetRequestAndUpload(
@@ -238,7 +238,7 @@ TEST_F(BrowserReportSchedulerIOSTest, UploadReportSucceeded) {
 
 TEST_F(BrowserReportSchedulerIOSTest, UploadReportTransientError) {
   EXPECT_CALL_SetupRegistration();
-  EXPECT_CALL(*generator_, OnGenerate(ReportType::kFull, _))
+  EXPECT_CALL(*generator_, OnGenerate(ReportType::kBrowser, _))
       .WillOnce(WithArgs<1>(ScheduleGeneratorCallback(1)));
   EXPECT_CALL(*uploader_,
               SetRequestAndUpload(
@@ -261,7 +261,7 @@ TEST_F(BrowserReportSchedulerIOSTest, UploadReportTransientError) {
 
 TEST_F(BrowserReportSchedulerIOSTest, UploadReportPersistentError) {
   EXPECT_CALL_SetupRegistrationWithSetDMToken();
-  EXPECT_CALL(*generator_, OnGenerate(ReportType::kFull, _))
+  EXPECT_CALL(*generator_, OnGenerate(ReportType::kBrowser, _))
       .WillOnce(WithArgs<1>(ScheduleGeneratorCallback(1)));
   EXPECT_CALL(*uploader_,
               SetRequestAndUpload(
@@ -289,7 +289,7 @@ TEST_F(BrowserReportSchedulerIOSTest, UploadReportPersistentError) {
 
 TEST_F(BrowserReportSchedulerIOSTest, NoReportGenerate) {
   EXPECT_CALL_SetupRegistrationWithSetDMToken();
-  EXPECT_CALL(*generator_, OnGenerate(ReportType::kFull, _))
+  EXPECT_CALL(*generator_, OnGenerate(ReportType::kBrowser, _))
       .WillOnce(WithArgs<1>(ScheduleGeneratorCallback(0)));
   EXPECT_CALL(*uploader_, SetRequestAndUpload(_, _, _)).Times(0);
 
@@ -318,7 +318,7 @@ TEST_F(BrowserReportSchedulerIOSTest, TimerDelayWithLastUploadTimestamp) {
   SetReportFrequency(kUploadFrequency);
 
   EXPECT_CALL_SetupRegistration();
-  EXPECT_CALL(*generator_, OnGenerate(ReportType::kFull, _))
+  EXPECT_CALL(*generator_, OnGenerate(ReportType::kBrowser, _))
       .WillOnce(WithArgs<1>(ScheduleGeneratorCallback(1)));
   EXPECT_CALL(*uploader_,
               SetRequestAndUpload(
@@ -340,7 +340,7 @@ TEST_F(BrowserReportSchedulerIOSTest, TimerDelayWithLastUploadTimestamp) {
 
 TEST_F(BrowserReportSchedulerIOSTest, TimerDelayWithoutLastUploadTimestamp) {
   EXPECT_CALL_SetupRegistration();
-  EXPECT_CALL(*generator_, OnGenerate(ReportType::kFull, _))
+  EXPECT_CALL(*generator_, OnGenerate(ReportType::kBrowser, _))
       .WillOnce(WithArgs<1>(ScheduleGeneratorCallback(1)));
   EXPECT_CALL(*uploader_,
               SetRequestAndUpload(
@@ -363,7 +363,7 @@ TEST_F(BrowserReportSchedulerIOSTest, TimerDelayUpdate) {
   SetReportFrequency(kUploadFrequency);
 
   EXPECT_CALL_SetupRegistration();
-  EXPECT_CALL(*generator_, OnGenerate(ReportType::kFull, _))
+  EXPECT_CALL(*generator_, OnGenerate(ReportType::kBrowser, _))
       .WillOnce(WithArgs<1>(ScheduleGeneratorCallback(1)));
   EXPECT_CALL(*uploader_,
               SetRequestAndUpload(
@@ -432,7 +432,7 @@ TEST_F(BrowserReportSchedulerIOSTest,
 TEST_F(BrowserReportSchedulerIOSTest,
        ReportingIsDisabledWhileNewReportIsPosted) {
   EXPECT_CALL_SetupRegistration();
-  EXPECT_CALL(*generator_, OnGenerate(ReportType::kFull, _))
+  EXPECT_CALL(*generator_, OnGenerate(ReportType::kBrowser, _))
       .WillOnce(WithArgs<1>(ScheduleGeneratorCallback(1)));
   EXPECT_CALL(*uploader_,
               SetRequestAndUpload(

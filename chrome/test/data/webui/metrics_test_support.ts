@@ -31,17 +31,24 @@ export class MetricsTracker {
  */
 export function fakeMetricsPrivate(): MetricsTracker {
   const metrics = new MetricsTracker();
-  chrome.metricsPrivate.recordUserAction = (m) => metrics.record(m, 0);
-  chrome.metricsPrivate.recordSparseValueWithHashMetricName = (m, v) =>
+  const metricsPrivate =
+      (chrome as any).metricsPrivate || ((chrome as any).metricsPrivate = {});
+  metricsPrivate.recordUserAction = (m: string) => metrics.record(m, 0);
+  metricsPrivate.recordSparseValueWithHashMetricName = (m: string, v: number) =>
       metrics.record(m, v);
-  chrome.metricsPrivate.recordSparseValueWithPersistentHash = (m, v) =>
+  metricsPrivate.recordSparseValueWithPersistentHash = (m: string, v: number) =>
       metrics.record(m, v);
-  chrome.metricsPrivate.recordBoolean = (m, v) => metrics.record(m, v);
-  chrome.metricsPrivate.recordValue = (m, v) => metrics.record(m.metricName, v);
-  chrome.metricsPrivate.recordEnumerationValue = (m, v) => metrics.record(m, v);
-  chrome.metricsPrivate.recordSmallCount = (m, v) => metrics.record(m, v);
-  chrome.metricsPrivate.recordMediumCount = (m, v) => metrics.record(m, v);
-  chrome.metricsPrivate.recordTime = (m, v) => metrics.record(m, v);
+  metricsPrivate.recordBoolean = (m: string, v: boolean) =>
+      metrics.record(m, v);
+  metricsPrivate.recordValue = (m: {metricName: string}, v: number) =>
+      metrics.record(m.metricName, v);
+  metricsPrivate.recordEnumerationValue = (m: string, v: number) =>
+      metrics.record(m, v);
+  metricsPrivate.recordSmallCount = (m: string, v: number) =>
+      metrics.record(m, v);
+  metricsPrivate.recordMediumCount = (m: string, v: number) =>
+      metrics.record(m, v);
+  metricsPrivate.recordTime = (m: string, v: number) => metrics.record(m, v);
 
   // Mirror for chrome.histograms callers.
   const histograms =

@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "components/policy/core/common/features.h"
 #include "components/policy/core/common/policy_pref_names.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "components/prefs/pref_service.h"
@@ -93,6 +94,37 @@ PolicyBlocklistService::GetURLBlocklistState(const GURL& url) const {
 PolicyBlocklistService::PolicyBlocklistState
 PolicyBlocklistService::GetURLBlocklistStateWithPolicySource(
     const GURL& url) const {
+  const auto general_state = url_blocklist_manager_->GetURLBlocklistState(url);
+
+  // If the feature is enabled we will check the Incognito blocklist state
+  // against the general blocklist state. If the URL is allowlisted against the
+  // Incognito blocklist but blocklisted against the general blocklist, we will
+  // block it.
+  if (base::FeatureList::IsEnabled(
+          policy::features::kURLBlocklistOverridesIncognitoAllowlist)) {
+    if (incognito_url_blocklist_manager_) {
+      const auto incognito_state =
+          incognito_url_blocklist_manager_->GetURLBlocklistState(url);
+
+      if (incognito_state != policy::URLBlocklist::URL_IN_BLOCKLIST &&
+          general_state == policy::URLBlocklist::URL_IN_BLOCKLIST) {
+        return {.url_blocklist_state = policy::URLBlocklist::URL_IN_BLOCKLIST,
+                .policy_source =
+                    PolicyBlocklistService::PolicyBlocklistState::URL_POLICY};
+      }
+
+      if (incognito_state != policy::URLBlocklist::URL_NEUTRAL_STATE) {
+        return {
+            .url_blocklist_state = incognito_state,
+            .policy_source =
+                PolicyBlocklistService::PolicyBlocklistState::INCOGNITO_POLICY};
+      }
+    }
+    return {.url_blocklist_state = general_state,
+            .policy_source =
+                PolicyBlocklistService::PolicyBlocklistState::URL_POLICY};
+  }
+
   if (incognito_url_blocklist_manager_) {
     const auto incognito_state =
         incognito_url_blocklist_manager_->GetURLBlocklistState(url);
@@ -103,10 +135,9 @@ PolicyBlocklistService::GetURLBlocklistStateWithPolicySource(
               PolicyBlocklistService::PolicyBlocklistState::INCOGNITO_POLICY};
     }
   }
-  return {
-      .url_blocklist_state = url_blocklist_manager_->GetURLBlocklistState(url),
-      .policy_source =
-          PolicyBlocklistService::PolicyBlocklistState::URL_POLICY};
+  return {.url_blocklist_state = general_state,
+          .policy_source =
+              PolicyBlocklistService::PolicyBlocklistState::URL_POLICY};
 }
 
 #if BUILDFLAG(IS_CHROMEOS)

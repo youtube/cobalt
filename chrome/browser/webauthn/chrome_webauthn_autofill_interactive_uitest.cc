@@ -4,6 +4,7 @@
 
 #include <memory>
 #include <string>
+#include <variant>
 #include <vector>
 
 #include "base/feature_list.h"
@@ -12,6 +13,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/run_loop.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/test/bind.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/scoped_logging_settings.h"
 #include "base/time/time.h"
@@ -35,6 +37,7 @@
 #include "components/autofill/core/browser/suggestions/suggestion_type.h"
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/keyed_service/content/browser_context_dependency_manager.h"
+#include "components/password_manager/core/browser/features/password_features.h"
 #include "components/password_manager/core/browser/password_store/password_form_converters.h"
 #include "components/password_manager/core/browser/password_store/password_store_interface.h"
 #include "components/strings/grit/components_strings.h"
@@ -579,5 +582,132 @@ IN_PROC_BROWSER_TEST_F(WebAuthnWindowsAutofillIntegrationTest, Abort) {
   RunAbortTest();
 }
 #endif  // BUILDFLAG(IS_WIN)
+
+class WebAuthnMagiChromeQrAutofillIntegrationTest
+    : public WebAuthnAutofillIntegrationTest {
+ public:
+  WebAuthnMagiChromeQrAutofillIntegrationTest() {
+    scoped_feature_list_.InitAndEnableFeature(
+        password_manager::features::kMagiChromeQrCodeAutofill);
+  }
+
+  void SetUpOnMainThread() override {
+    WebAuthnAutofillIntegrationTest::SetUpOnMainThread();
+
+    // Set up a fake virtual device supporting hybrid.
+    auto virtual_device_factory =
+        std::make_unique<device::test::VirtualFidoDeviceFactory>();
+    virtual_device_factory->SetTransport(
+        device::FidoTransportProtocol::kHybrid);
+    virtual_device_factory_ = virtual_device_factory.get();
+    virtual_device_factory->mutable_state()->InjectResidentKey(
+        kCredentialID1, kRpId, std::vector<uint8_t>{5, 6, 7, 8}, "flandre",
+        "Flandre Scarlet");
+    virtual_device_factory->mutable_state()->fingerprints_enrolled = true;
+    virtual_device_factory->mutable_state()->simulate_press_callback =
+        base::BindLambdaForTesting(
+            [](device::VirtualFidoDevice* device) { return false; });
+    device::VirtualCtap2Device::Config config;
+    config.resident_key_support = true;
+    config.internal_uv_support = true;
+    virtual_device_factory->SetCtap2Config(std::move(config));
+    scoped_auth_env_ =
+        std::make_unique<content::ScopedAuthenticatorEnvironmentForTesting>(
+            std::move(virtual_device_factory));
+  }
+
+  void PostRunTestOnMainThread() override {
+    virtual_device_factory_ = nullptr;
+    scoped_auth_env_.reset();
+    WebAuthnAutofillIntegrationTest::PostRunTestOnMainThread();
+  }
+
+  std::u16string GetDeviceString() override {
+    return l10n_util::GetStringUTF16(IDS_PASSWORD_MANAGER_USE_GENERIC_DEVICE);
+  }
+
+  bool HasWebauthnQrCodeSuggestionInPopup(content::WebContents* web_contents) {
+    base::WeakPtr<autofill::AutofillSuggestionController>
+        suggestion_controller =
+            GetSuggestionsControllerForWebContents(web_contents);
+    if (!suggestion_controller) {
+      return false;  // No popup is open.
+    }
+    return std::ranges::any_of(
+        suggestion_controller->GetSuggestions(), [](const auto& suggestion) {
+          return suggestion.type ==
+                 autofill::SuggestionType::kWebauthnPasskeyQrCode;
+        });
+  }
+
+  [[nodiscard]] testing::AssertionResult
+  TapUsernameFieldUntilPopupWithWebauthnQrCodeSuggestionAppears(
+      content::WebContents* web_contents) {
+    base::TimeTicks start_time = base::TimeTicks::Now();
+    while (!HasWebauthnQrCodeSuggestionInPopup(web_contents)) {
+      if (base::TimeTicks::Now() - start_time > base::Seconds(5)) {
+        return testing::AssertionFailure()
+               << "Timed out waiting for WebAuthn QR Code suggestion in popup.";
+      }
+      content::SimulateMouseClickOrTapElementWithId(web_contents, "username");
+    }
+    return testing::AssertionSuccess();
+  }
+
+ private:
+  std::unique_ptr<content::ScopedAuthenticatorEnvironmentForTesting>
+      scoped_auth_env_;
+  raw_ptr<device::test::VirtualFidoDeviceFactory> virtual_device_factory_;
+};
+
+IN_PROC_BROWSER_TEST_F(WebAuthnMagiChromeQrAutofillIntegrationTest,
+                       ShowQrCodeSuggestion) {
+  // Make sure input events cannot close the autofill popup.
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  autofill::ChromeAutofillClient* autofill_client =
+      autofill::ChromeAutofillClient::FromWebContentsForTesting(web_contents);
+  autofill_client->SetKeepPopupOpenForTesting(true);
+
+  // Execute the Conditional UI request.
+  content::DOMMessageQueue message_queue(web_contents);
+  content::ExecuteScriptAsync(web_contents, kConditionalUIRequest);
+
+  delegate_observer_->WaitForUI();
+
+  ASSERT_TRUE(TapUsernameFieldUntilPopupWithWebauthnQrCodeSuggestionAppears(
+      web_contents));
+  base::WeakPtr<autofill::AutofillSuggestionController> suggestion_controller =
+      autofill_client->suggestion_controller_for_testing();
+  const std::vector<autofill::Suggestion>& suggestions =
+      suggestion_controller->GetSuggestions();
+
+  // Find the webauthn QR code suggestion on the suggestions list.
+  auto it = std::ranges::find(suggestions,
+                              autofill::SuggestionType::kWebauthnPasskeyQrCode,
+                              &autofill::Suggestion::type);
+  ASSERT_NE(it, suggestions.end()) << "WebAuthn QR Code suggestion not found";
+
+  // It should replace "Sign in with another device..."
+  auto another_device_it = std::ranges::find(
+      suggestions, autofill::SuggestionType::kWebauthnSignInWithAnotherDevice,
+      &autofill::Suggestion::type);
+  EXPECT_EQ(another_device_it, suggestions.end())
+      << "Old 'Sign in with another device...' suggestion should not be "
+         "present";
+
+  // Main text of QR suggestion should be correct:
+  EXPECT_EQ(
+      it->main_text.value,
+      l10n_util::GetStringUTF16(IDS_PASSWORD_MANAGER_PASSKEY_QR_CODE_TITLE));
+
+  // Suggestion payload should not be empty (it contains the CaBLE string)
+  const autofill::Suggestion::Guid* qr_guid_payload =
+      std::get_if<autofill::Suggestion::Guid>(&it->payload);
+  ASSERT_TRUE(qr_guid_payload) << "QR Suggestion payload must be a Guid";
+  EXPECT_FALSE(qr_guid_payload->value().empty())
+      << "QR string payload is empty";
+  EXPECT_THAT(qr_guid_payload->value(), testing::StartsWith("FIDO:/"));
+}
 
 }  // namespace

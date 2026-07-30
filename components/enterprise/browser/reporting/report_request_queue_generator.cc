@@ -27,8 +27,8 @@ const size_t kMaximumReportSize =
 
 constexpr char kRequestCountMetricsName[] =
     "Enterprise.CloudReportingRequestCount";
-constexpr char kRequestSizeMetricsName[] =
-    "Enterprise.CloudReportingRequestSize";
+constexpr char kDroppedReportSizeMetricsName[] =
+    "Enterprise.CloudReporting.DroppedReportSize";
 constexpr char kBasicRequestSizeMetricsName[] =
     "Enterprise.CloudReportingBasicRequestSize";
 
@@ -116,7 +116,7 @@ void ReportRequestQueueGenerator::GenerateProfileReportWithIndex(
                            .browser_report()
                            .chrome_user_profile_infos(profile_index);
   profile_report_generator_.MaybeGenerate(
-      base::FilePath::FromUTF8Unsafe(basic_profile.id()), ReportType::kFull,
+      base::FilePath::FromUTF8Unsafe(basic_profile.id()), ReportType::kBrowser,
       SecuritySignalsMode::kNoSignals,
       base::BindOnce(ToIndexedReportPair, profile_index)
           .Then(std::move(callback)));
@@ -167,11 +167,7 @@ void ReportRequestQueueGenerator::OnAllProfileReportsGenerated(
     } else if (basic_request_size + profile_report_incremental_size <=
                maximum_report_size_) {
       // The new full Profile report is too big to be appended into the current
-      // request, move it to the next request if possible. Record metrics for
-      // the current request's size.
-      base::UmaHistogramMemoryKB(
-          kRequestSizeMetricsName,
-          requests.back()->GetDeviceReportRequest().ByteSizeLong() / 1024);
+      // request, move it to the next request if possible.
       requests.push(basic_request->Clone());
       requests.back()
           ->GetDeviceReportRequest()
@@ -179,23 +175,14 @@ void ReportRequestQueueGenerator::OnAllProfileReportsGenerated(
           ->mutable_chrome_user_profile_infos(profile_index)
           ->Swap(profile_report.get());
     } else {
-      // The new full Profile report is too big to be uploaded, skip this
-      // Profile report. But we still add the report size into metrics so
-      // that we could understand the situation better.
       base::UmaHistogramMemoryKB(
-          kRequestSizeMetricsName,
+          kDroppedReportSizeMetricsName,
           (basic_request_size + profile_report_incremental_size) / 1024);
     }
   }
 
   base::UmaHistogramExactLinear(kRequestCountMetricsName, requests.size(),
                                 kRequestCountMetricMaxValue);
-
-  if (!requests.empty()) {
-    base::UmaHistogramMemoryKB(
-        kRequestSizeMetricsName,
-        requests.back()->GetDeviceReportRequest().ByteSizeLong() / 1024);
-  }
 
   std::move(callback).Run(std::move(requests));
 }

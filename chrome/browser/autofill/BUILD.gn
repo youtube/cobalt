@@ -79,6 +79,7 @@ static_library("autofill") {
     "//chrome/browser/profiles",
     "//chrome/browser/signin",
     "//chrome/browser/strike_database",
+    "//chrome/browser/subscription_eligibility",
     "//chrome/browser/sync:factories",
     "//chrome/browser/webdata_services",
     "//chrome/common:constants",
@@ -143,7 +144,6 @@ static_library("autofill") {
     public_deps += [ "//components/messages/android" ]
     deps += [
       "//chrome/android:jni_headers",
-      "//chrome/app:generated_resources",
       "//chrome/browser/autofill/android:jni_headers",
       "//chrome/browser/consent_auditor",
       "//chrome/browser/keyboard_accessory/android",

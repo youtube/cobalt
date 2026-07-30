@@ -16,6 +16,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
@@ -28,6 +29,7 @@ import org.chromium.chrome.browser.ui.signin.signin_promo.SigninPromoCoordinator
 import org.chromium.components.browser_ui.widget.MoreProgressButton;
 import org.chromium.components.browser_ui.widget.chips.ChipView;
 
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.concurrent.TimeUnit;
 
@@ -623,5 +625,31 @@ public class HistoryAdapterTest {
         Assert.assertFalse(
                 "Expanding one cluster should not expand the other independent cluster",
                 clusterHead4.isExpanded());
+    }
+
+    @Test
+    public void testSearch_SetsIsLoadingItems() {
+        HistoryProvider mockProvider = Mockito.mock(HistoryProvider.class);
+        mAdapter =
+                new HistoryAdapter(
+                        mContentManager,
+                        mockProvider,
+                        mHistorySyncPromoCoordinator,
+                        /* shouldClusterByDomain= */ false,
+                        /* snackbarManager= */ null,
+                        /* profile= */ null);
+
+        Assert.assertFalse(mAdapter.canLoadMoreItems());
+
+        mAdapter.search("query");
+
+        Mockito.verify(mockProvider).queryHistory("query", null);
+        // While the query is ongoing, no more items can be loaded.
+        Assert.assertFalse(mAdapter.canLoadMoreItems());
+
+        // Once the query completes (and indicates that more results are
+        // available), more items can be loaded.
+        mAdapter.onQueryHistoryComplete(new ArrayList<>(), true);
+        Assert.assertTrue(mAdapter.canLoadMoreItems());
     }
 }

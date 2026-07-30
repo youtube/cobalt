@@ -23,6 +23,7 @@ import org.chromium.url.GURL;
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public class NativePageTest {
+
     public static class UrlCombo {
         public String url;
         public @NativePageType int expectedType;
@@ -99,6 +100,28 @@ public class NativePageTest {
     }
 
     @Test
+    @EnableFeatures(ChromeFeatureList.SETTINGS_IN_TAB)
+    public void testNativePageType_Settings() {
+        String url = "chrome://settings";
+        GURL gurl = new GURL(url);
+        Assert.assertEquals(
+                "Settings page should be a native page",
+                NativePageType.SETTINGS,
+                NativePage.nativePageType(gurl, null, false, false));
+    }
+
+    @Test
+    @DisableFeatures(ChromeFeatureList.SETTINGS_IN_TAB)
+    public void testNativePageType_SettingsDisabled() {
+        String url = "chrome://settings";
+        GURL gurl = new GURL(url);
+        Assert.assertEquals(
+                "Settings page should not be a native page",
+                NativePageType.NONE,
+                NativePage.nativePageType(gurl, null, false, false));
+    }
+
+    @Test
     public void testNativePageType_Pdf() {
         String url1 = "chrome-native://pdf/link?url=xyz";
         String url2 = "chrome-native://pdf/link?url=abc";
@@ -125,40 +148,19 @@ public class NativePageTest {
     }
 
     @Test
-    @DisableFeatures(ChromeFeatureList.CHROME_NATIVE_URL_OVERRIDING)
-    public void testManagementNativePageType_FeatureDisabled() {
+    public void testManagementNativePageType() {
         GURL url = new GURL("chrome://management");
         Assert.assertEquals(
-                "Management page should be a native page when feature is disabled",
+                "Management page should be a native page",
                 NativePageType.MANAGEMENT,
                 NativePage.nativePageType(url, null, false, false));
     }
 
     @Test
-    @EnableFeatures(ChromeFeatureList.CHROME_NATIVE_URL_OVERRIDING)
-    public void testManagementNativePageType_FeatureEnabled() {
-        GURL url = new GURL("chrome://management");
-        Assert.assertEquals(
-                "Management page should NOT be a native page when feature is enabled",
-                NativePageType.NONE,
-                NativePage.nativePageType(url, null, false, false));
-    }
-
-    @Test
-    @DisableFeatures(ChromeFeatureList.CHROME_NATIVE_URL_OVERRIDING)
-    public void testIsNativePageUrl_Management_FeatureDisabled() {
+    public void testIsNativePageUrl_Management() {
         GURL url = new GURL("chrome://management");
         Assert.assertTrue(
-                "isNativePageUrl should be true for management host when feature is disabled",
-                NativePage.isNativePageUrl(url, false, false));
-    }
-
-    @Test
-    @EnableFeatures(ChromeFeatureList.CHROME_NATIVE_URL_OVERRIDING)
-    public void testIsNativePageUrl_Management_FeatureEnabled() {
-        GURL url = new GURL("chrome://management");
-        Assert.assertFalse(
-                "isNativePageUrl should be false for management host when feature is enabled",
+                "isNativePageUrl should be true for management host",
                 NativePage.isNativePageUrl(url, false, false));
     }
 }

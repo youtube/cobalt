@@ -82,7 +82,7 @@ aggregate_vector_icons("omnibox_vector_icons") {
     "offline_pin_filled.icon",
     "offline_pin_old.icon",
     "page_chrome_refresh_old.icon",
-    "page_info.icon",
+    "page_info_custom.icon",
     "price_tracking_disabled_old.icon",
     "product_chrome_refresh_old.icon",
     "product_old.icon",
@@ -172,6 +172,10 @@ static_library("browser") {
     "actions/omnibox_pedal_provider.h",
     "actions/tab_switch_action.cc",
     "actions/tab_switch_action.h",
+    "ai_mode_button_config.cc",
+    "ai_mode_button_config.h",
+    "ai_mode_button_service.cc",
+    "ai_mode_button_service.h",
     "aim_eligibility_service.cc",
     "aim_eligibility_service.h",
     "answers_cache.cc",
@@ -285,6 +289,7 @@ static_library("browser") {
     "omnibox_log.h",
     "omnibox_logging_utils.cc",
     "omnibox_logging_utils.h",
+    "omnibox_metrics_constants.h",
     "omnibox_metrics_provider.cc",
     "omnibox_metrics_provider.h",
     "omnibox_navigation_observer.h",
@@ -389,7 +394,6 @@ static_library("browser") {
     "//components/omnibox/resources:omnibox_pedal_synonyms",
     "//components/saved_tab_groups/public",
     "//components/security_state/core",
-    "//services/data_decoder/public/cpp",
     "//third_party/metrics_proto",
     "//third_party/omnibox_proto",
     "//third_party/tflite",
@@ -800,6 +804,7 @@ static_library("test_support") {
     "mock_unscoped_extension_provider_delegate.h",
     "shortcuts_provider_test_util.cc",
     "shortcuts_provider_test_util.h",
+    "test_ai_mode_button_service.h",
     "test_location_bar_model.cc",
     "test_location_bar_model.h",
     "test_omnibox_client.cc",
@@ -873,6 +878,8 @@ source_set("unit_tests") {
     "actions/omnibox_extension_action_unittest.cc",
     "actions/omnibox_pedal_provider_unittest.cc",
     "actions/omnibox_pedal_unittest.cc",
+    "ai_mode_button_config_unittest.cc",
+    "ai_mode_button_service_unittest.cc",
     "aim_eligibility_service_unittest.cc",
     "answers_cache_unittest.cc",
     "autocomplete_controller_metrics_unittest.cc",
@@ -1086,10 +1093,6 @@ fuzzer_test("search_suggestion_parser_fuzzer") {
 
 mojom("mojo_bindings") {
   sources = [ "omnibox.mojom" ]
-  if (!is_ios) {
-    sources += [ "searchbox.mojom" ]
-  }
-
   webui_module_path = "chrome://resources/mojo/components/omnibox/browser"
 
   public_deps = [
@@ -1099,4 +1102,23 @@ mojom("mojo_bindings") {
     "//ui/gfx/mojom",
     "//url/mojom:url_mojom_gurl",
   ]
+
+  cpp_typemaps = []
+
+  if (!is_ios) {
+    sources += [ "searchbox.mojom" ]
+    cpp_typemaps += [
+      {
+        types = [
+          {
+            mojom = "searchbox.mojom.SuggestInventory"
+            cpp = "::omnibox::SuggestInventory"
+          },
+        ]
+        traits_headers = [ "searchbox_mojom_traits.h" ]
+        traits_sources = [ "searchbox_mojom_traits.cc" ]
+        traits_deps = [ "//third_party/omnibox_proto" ]
+      },
+    ]
+  }
 }

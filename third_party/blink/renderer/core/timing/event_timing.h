@@ -17,7 +17,6 @@
 namespace blink {
 
 class Event;
-class EventTarget;
 class LocalFrame;
 class PerformanceEventTiming;
 

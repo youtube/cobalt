@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {loadTimeData} from '//resources/js/load_time_data.js';
 import type {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import {MenuSourceType} from '//resources/mojo/ui/base/mojom/menu_source_type.mojom-webui.js';
 import {HelpBubbleMixinLit} from 'chrome://resources/cr_components/help_bubble/help_bubble_mixin_lit.js';
@@ -227,8 +228,10 @@ export class PressHandler {
       return;
     }
 
+    // On Mac, Ctrl+LeftClick is a Context Menu action. We return early to
+    // bypass pointer capture and short-press logic, and let the native
+    // contextmenu event handle it.
     if (isMac && e.button === BUTTON_LEFT && e.ctrlKey) {
-      this.onLongPress_(getContextMenuSourceType(e));
       return;
     }
 
@@ -301,7 +304,7 @@ export class PressHandler {
       return;
     }
 
-    // If it's Ctrl+LeftClick on Mac, skip the rest.
+    // If it's Ctrl+LeftClick on Mac, abort the click.
     if (isMac && e.button === BUTTON_LEFT && e.ctrlKey) {
       this.resetContextMenuState_();
       return;
@@ -329,13 +332,9 @@ export class PressHandler {
 
   onContextmenu = (e: PointerEvent) => {
     e.preventDefault();
-    // If it's a Mac Ctrl+LeftClick, the browser natively fires a contextmenu
-    // event. We already showed the menu in pointerdown. We MUST suppress the
-    // native contextmenu event.
-    if (isMac && e.button === BUTTON_LEFT && e.ctrlKey) {
-      return;
-    }
-
+    // For Mac Ctrl+LeftClick, the browser natively fires this event immediately
+    // after pointerdown (no wait for pointerup), perfectly matching Views'
+    // context menu timing.
     this.onLongPress_(getContextMenuSourceType(e));
   };
 }
@@ -408,4 +407,8 @@ export function getEventDispositionFlags(
     flags.push(EventDispositionFlag.kAltGrKeyDown);
   }
   return flags;
+}
+
+export function roundedIconsEnabled() {
+  return loadTimeData.getBoolean('roundedIconsEnabled');
 }

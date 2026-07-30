@@ -99,15 +99,6 @@ class CONTENT_EXPORT DownloadManagerImpl
   void Shutdown() override;
   void GetAllDownloads(
       download::SimpleDownloadManager::DownloadVector* result) override;
-  void GetAllDownloadsAsync(
-      download::SimpleDownloadManager::GetAllDownloadsCallback callback)
-      override;
-  void GetDownloadByGuidAsync(
-      const std::string& guid,
-      download::SimpleDownloadManager::GetDownloadCallback callback) override;
-  void GetDownloadAsync(
-      uint32_t id,
-      download::SimpleDownloadManager::GetDownloadCallback callback) override;
   void GetUninitializedActiveDownloadsIfAny(
       download::SimpleDownloadManager::DownloadVector* result) override;
   int RemoveDownloadsByURLAndTime(

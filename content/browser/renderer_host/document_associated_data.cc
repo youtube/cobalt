@@ -12,6 +12,7 @@
 #include "base/containers/queue.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/no_destructor.h"
+#include "base/not_fatal_until.h"
 #include "content/browser/navigation_or_document_handle.h"
 #include "content/browser/renderer_host/frame_tree.h"
 #include "content/browser/renderer_host/page_factory.h"
@@ -21,6 +22,7 @@
 #include "content/public/browser/document_service_internal.h"
 #include "content/public/browser/render_frame_host.h"
 #include "net/cookies/cookie_setting_override.h"
+#include "services/network/public/cpp/constants.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 #include "third_party/blink/public/common/tokens/tokens.h"
 
@@ -45,6 +47,9 @@ DocumentAssociatedData::DocumentAssociatedData(
     RenderFrameHostImpl& document,
     const blink::DocumentToken& token)
     : token_(token),
+      network_restrictions_id_(
+          base::MakeRefCounted<base::RefCountedData<base::UnguessableToken>>(
+              network::GetNoOpNetworkRestrictionsId())),
       weak_factory_(&document) {
   auto [_, inserted] = GetDocumentTokenMap().insert({token_, &document});
   CHECK(inserted);
@@ -87,7 +92,7 @@ DocumentAssociatedData::~DocumentAssociatedData() {
   // The network_restrictions_id is ref-counted: multiple documents may share
   // the same id (e.g. initial empty documents inherit their creator's id).
   // Only the last document holding a reference should schedule the clearing.
-  if (network_restrictions_id_ && network_restrictions_id_->HasOneRef()) {
+  if (network_restrictions_id_->HasOneRef()) {
     StoragePartitionImpl* storage_partition =
         GetWeakPtr()->GetStoragePartition();
     storage_partition->ClearNetworkRestrictionsAfterDelay({
@@ -106,29 +111,23 @@ void DocumentAssociatedData::set_navigation_or_document_handle(
 }
 
 void DocumentAssociatedData::SetNetworkRestrictionsId(
-    std::optional<base::UnguessableToken> network_restrictions_id) {
-  // Wrap in a new RefCountedData so this document owns its own ref.
-  if (network_restrictions_id.has_value()) {
-    network_restrictions_id_ =
-        base::MakeRefCounted<base::RefCountedData<base::UnguessableToken>>(
-            network_restrictions_id.value());
-  } else {
-    network_restrictions_id_ = nullptr;
-  }
+    base::UnguessableToken network_restrictions_id) {
+  CHECK(!network_restrictions_id.is_empty(), base::NotFatalUntil::M165);
+  network_restrictions_id_ =
+      base::MakeRefCounted<base::RefCountedData<base::UnguessableToken>>(
+          network_restrictions_id);
 }
 
 void DocumentAssociatedData::ShareNetworkRestrictionsId(
     scoped_refptr<base::RefCountedData<base::UnguessableToken>>
         network_restrictions_id) {
+  CHECK(network_restrictions_id, base::NotFatalUntil::M165);
   network_restrictions_id_ = std::move(network_restrictions_id);
 }
 
-std::optional<base::UnguessableToken>
-DocumentAssociatedData::NetworkRestrictionsId() const {
-  if (network_restrictions_id_) {
-    return network_restrictions_id_->data;
-  }
-  return std::nullopt;
+base::UnguessableToken DocumentAssociatedData::NetworkRestrictionsId() const {
+  CHECK(network_restrictions_id_, base::NotFatalUntil::M165);
+  return network_restrictions_id_->data;
 }
 
 const scoped_refptr<base::RefCountedData<base::UnguessableToken>>&

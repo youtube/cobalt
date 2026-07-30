@@ -54,7 +54,7 @@ void NodeEventContext::HandleLocalEvents(Event& event) const {
   if (TouchEventContext* touch_context = GetTouchEventContext()) {
     touch_context->HandleLocalEvents(event);
   } else if (RelatedTarget()) {
-    event.SetRelatedTargetIfExists(RelatedTarget());
+    event.SetRelatedTarget(RelatedTarget());
   }
   event.SetTarget(Target());
   event.SetCurrentTarget(current_target_.Get());

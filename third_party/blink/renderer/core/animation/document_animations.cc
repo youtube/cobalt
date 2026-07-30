@@ -290,6 +290,69 @@ HeapVector<Member<Animation>> DocumentAnimations::getAnimations(
   return animations;
 }
 
+void SVGImageAnimationsToReset::Trace(Visitor* visitor) const {
+  visitor->Trace(animations_to_resume_);
+}
+
+void SVGImageAnimationsToReset::Clear() {
+  animations_to_resume_.clear();
+}
+
+void SVGImageAnimationsToReset::Add(CSSAnimation& animation) {
+  animations_to_resume_.push_back(animation);
+}
+
+void SVGImageAnimationsToReset::Resume() {
+  HeapVector<Member<CSSAnimation>> animations_to_resume;
+  animations_to_resume.swap(animations_to_resume_);
+  for (CSSAnimation* animation : animations_to_resume) {
+    if (!animation || animation->ReplaceStateRemoved() ||
+        !animation->effect()) {
+      continue;
+    }
+    animation->Unpause();
+  }
+}
+
+bool SVGImageAnimationsToReset::HasAnimationForTesting(
+    const CSSAnimation& animation) const {
+  for (const CSSAnimation* animation_to_resume : animations_to_resume_) {
+    if (animation_to_resume == &animation) {
+      return true;
+    }
+  }
+  return false;
+}
+
+void DocumentAnimations::PrepareAnimationsForSVGImageReset(
+    SVGImageAnimationsToReset& animations_to_reset) {
+  DCHECK(document_);
+  DCHECK(document_->View());
+  DCHECK(document_->GetFrame());
+  DCHECK(document_->GetFrame()->GetChromeClient().IsIsolatedSVGChromeClient());
+
+  // Called only from the isolated SVG image reset path. Rewind CSS animations
+  // to time=0 and collect the ones that were running so the caller can resume
+  // them later. Explicitly paused animations keep their paused state and are
+  // not collected for resuming.
+  animations_to_reset.Clear();
+  for (auto& timeline : timelines_) {
+    for (const auto& animation : timeline->GetAnimations()) {
+      auto* css_animation = DynamicTo<CSSAnimation>(animation.Get());
+      if (!css_animation || css_animation->ReplaceStateRemoved() ||
+          !css_animation->effect()) {
+        continue;
+      }
+      const bool should_resume_after_paint = !css_animation->Paused();
+      css_animation->SetCurrentTimeInternal(AnimationTimeDelta());
+      if (should_resume_after_paint) {
+        css_animation->pause();
+        animations_to_reset.Add(*css_animation);
+      }
+    }
+  }
+}
+
 void DocumentAnimations::DetachCompositorTimelines() {
   if (!Platform::Current()->IsThreadedAnimationEnabled() ||
       !document_->GetSettings()->GetAcceleratedCompositingEnabled() ||

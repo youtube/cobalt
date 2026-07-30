@@ -1267,8 +1267,8 @@ IN_PROC_BROWSER_TEST_F(QuietChipFailFastInteractiveTest,
 // `PermissionStatus.onchange` and `PermissionStatus.addEventListener`. There
 // are two ways of removing the listener: `PermissionStatus.onchange = null`,
 // `PermissionStatus.removeEventListener`. Any of the listeners should
-// initialize internal subscribtion map. We should remove the internal
-// subscribtion only if there is no `change` event listener left.
+// initialize internal subscription map. We should remove the internal
+// subscription only if there is no `change` event listener left.
 IN_PROC_BROWSER_TEST_F(QuietChipFailFastInteractiveTest,
                        EventListenerRemovedTest) {
   ASSERT_TRUE(embedded_test_server()->Start());

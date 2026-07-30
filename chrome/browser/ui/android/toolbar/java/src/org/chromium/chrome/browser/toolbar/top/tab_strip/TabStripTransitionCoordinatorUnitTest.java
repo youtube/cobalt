@@ -161,6 +161,25 @@ public class TabStripTransitionCoordinatorUnitTest {
     }
 
     @Test
+    public void initWithVerticalTabsEnabled() {
+        setUpTabStripTransitionCoordinator(
+                /* isInDesktopWindow= */ false,
+                LARGE_NORMAL_WINDOW_WIDTH,
+                /* initDelegate= */ true,
+                /* suppressTabStripAtStart= */ true);
+
+        assertEquals(
+                "Tab strip height should be 0 when vertical tabs are enabled.",
+                0,
+                mCoordinator.getTabStripHeight());
+
+        assertEquals(
+                "No height transition should be requested.",
+                NOTHING_OBSERVED,
+                mTestHandler.heightRequested);
+    }
+
+    @Test
     public void hideTabStrip() {
         setDeviceWidthDp(NARROW_NORMAL_WINDOW_WIDTH);
 
@@ -979,11 +998,23 @@ public class TabStripTransitionCoordinatorUnitTest {
 
     private void setUpTabStripTransitionCoordinator(boolean isInDesktopWindow, int windowWidth) {
         setUpTabStripTransitionCoordinator(
-                isInDesktopWindow, windowWidth, /* initDelegate= */ true);
+                isInDesktopWindow,
+                windowWidth,
+                /* initDelegate= */ true,
+                /* suppressTabStripAtStart= */ false);
     }
 
     private void setUpTabStripTransitionCoordinator(
             boolean isInDesktopWindow, int windowWidth, boolean initDelegate) {
+        setUpTabStripTransitionCoordinator(
+                isInDesktopWindow, windowWidth, initDelegate, /* suppressTabStripAtStart= */ false);
+    }
+
+    private void setUpTabStripTransitionCoordinator(
+            boolean isInDesktopWindow,
+            int windowWidth,
+            boolean initDelegate,
+            boolean suppressTabStripAtStart) {
         if (mDesktopWindowStateManager != null) {
             int stripHeight = TEST_TAB_STRIP_HEIGHT + (isInDesktopWindow ? mReservedTopPadding : 0);
             var appHeaderRect =
@@ -1005,7 +1036,8 @@ public class TabStripTransitionCoordinatorUnitTest {
                         mTabObscuringHandler,
                         mDesktopWindowStateManager,
                         mDelegateSupplier,
-                        mTestHandler);
+                        mTestHandler,
+                        suppressTabStripAtStart);
         RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
     }
 

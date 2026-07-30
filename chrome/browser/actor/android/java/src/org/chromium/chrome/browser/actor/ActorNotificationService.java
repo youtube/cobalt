@@ -113,8 +113,11 @@ public class ActorNotificationService {
 
         if (cachedNotification == null
                 || oldState == null
-                || ActorNotificationFactory.shouldUpdateNotification(oldState, state)) {
-            cachedNotification = ActorNotificationFactory.buildNotification(task, state, isSilent);
+                || ActorNotificationFactory.shouldUpdateNotification(
+                        oldState, /* wasWarning= */ false, state, /* isWarning= */ false)) {
+            cachedNotification =
+                    ActorNotificationFactory.buildNotification(
+                            task, state, isSilent, /* isWarning= */ false);
             mNotificationCache.put(taskId, cachedNotification);
         }
 

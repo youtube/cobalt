@@ -53,7 +53,6 @@
 #include "mojo/public/cpp/bindings/pipe_control_message_proxy.h"
 #include "mojo/public/cpp/bindings/scoped_message_error_crash_key.h"
 #include "mojo/public/cpp/bindings/sequence_local_sync_event_watcher.h"
-#include "mojo/public/cpp/bindings/tracing_helpers.h"
 
 namespace IPC {
 

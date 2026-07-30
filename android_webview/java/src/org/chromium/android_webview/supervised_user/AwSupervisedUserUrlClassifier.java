@@ -74,11 +74,13 @@ public class AwSupervisedUserUrlClassifier {
     public void checkIfNeedRestrictedContentBlocking() {
         mDelegate.needsRestrictedContentBlocking(
                 result -> {
-                    ThreadUtils.postOnUiThread(
-                            () -> {
-                                AwSupervisedUserUrlClassifierJni.get()
-                                        .setUserRequiresUrlChecks(result);
-                            });
+                    if (result != null) {
+                        ThreadUtils.postOnUiThread(
+                                () -> {
+                                    AwSupervisedUserUrlClassifierJni.get()
+                                            .setUserRequiresUrlChecks(result);
+                                });
+                    }
                 });
     }
 
@@ -95,7 +97,7 @@ public class AwSupervisedUserUrlClassifier {
                 .shouldBlockUrl(
                         requestUrl,
                         shouldBlockUrl -> {
-                            ThreadUtils.postOnUiThread(() -> callback.onResult(shouldBlockUrl));
+                            ThreadUtils.postOnUiThread(callback.bind(shouldBlockUrl));
                         });
     }
 

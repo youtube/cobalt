@@ -1008,12 +1008,10 @@ void Pointer::CaptureCursor(const gfx::Point& hotspot) {
   // use the bitmap to create cursor.
   // Otherwise, send RequestCopyOfOutput request to viz
   // to capture cursor bitmap.
-  if (!root_surface()->HasAcquireFence()) {
-    SkBitmap bitmap = buffer->CreateBitmap();
-    if (!bitmap.empty()) {
-      OnCursorBitmapObtained(hotspot, bitmap, root_surface()->GetBufferScale());
-      return;
-    }
+  SkBitmap bitmap = buffer->CreateBitmap();
+  if (!bitmap.empty()) {
+    OnCursorBitmapObtained(hotspot, bitmap, root_surface()->GetBufferScale());
+    return;
   }
 
   // Advance the surface id to ensure capturing the correct compositor frame.

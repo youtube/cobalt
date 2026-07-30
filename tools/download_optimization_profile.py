@@ -20,8 +20,7 @@ import contextlib
 import os
 import subprocess
 import sys
-
-from urllib.request import urlopen
+import requests
 
 GS_HTTP_URL = 'https://storage.googleapis.com'
 
@@ -84,13 +83,11 @@ def RetrieveProfile(desired_profile_name, out_path, gs_url_base):
   else:
     gs_url = '/'.join([GS_HTTP_URL, desired_profile_name[len(gs_prefix):]])
 
-  with contextlib.closing(urlopen(gs_url)) as u:
+  with requests.get(gs_url, stream=True, timeout=120) as r:
+    r.raise_for_status()
     with open(out_path, 'wb') as f:
-      while True:
-        buf = u.read(4096)
-        if not buf:
-          break
-        f.write(buf)
+      for chunk in r.iter_content(chunk_size=64 * 1024):
+        f.write(chunk)
 
   if ext == '.bz2':
     # NOTE: we can't use Python's bzip module, since it doesn't support

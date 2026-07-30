@@ -11,6 +11,7 @@
 #include "base/strings/strcat.h"
 #include "base/test/gmock_expected_support.h"
 #include "base/test/metrics/histogram_tester.h"
+#include "base/test/protobuf_matchers.h"
 #include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
@@ -1207,6 +1208,13 @@ IN_PROC_BROWSER_TEST_F(IframeInfoMultiSourcePageContextFetcherBrowserTest,
   // The iframe is 300x200, but the bounding box is 304x204 due to the border.
   EXPECT_EQ(iframe_info[0].bounding_box().width(), 304);
   EXPECT_EQ(iframe_info[0].bounding_box().height(), 204);
+
+  ASSERT_TRUE(result->screenshot_info.has_value());
+  EXPECT_THAT(
+      result->screenshot_info.value(),
+      base::test::EqualsProto(result->annotated_page_content_result->proto
+                                  .gemini_in_chrome_page_metadata()
+                                  .screenshot_info()));
 }
 
 class OtpRedactionMultiSourcePageContextFetcherBrowserTest

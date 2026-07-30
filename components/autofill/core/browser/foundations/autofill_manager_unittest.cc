@@ -876,23 +876,22 @@ TEST_F(AutofillManagerTest, GetHeuristicPredictionForForm) {
   ASSERT_NE(seen_form.global_id(), unseen_form.global_id());
 
   // Check that predictions are returned for the form that was seen.
-  EXPECT_EQ(autofill_manager()
-                .GetHeuristicPredictionForForm(
-                    autofill::HeuristicSource::kPasswordManagerMachineLearning,
-                    seen_form.global_id(),
-                    base::ToVector(seen_form.fields(),
-                                   &autofill::FormFieldData::global_id))
-                .size(),
-            seen_form.fields().size());
+  EXPECT_EQ(
+      autofill_manager()
+          .GetHeuristicPredictionForForm(
+              HeuristicSource::kPasswordManagerMachineLearning,
+              seen_form.global_id(),
+              base::ToVector(seen_form.fields(), &FormFieldData::global_id))
+          .size(),
+      seen_form.fields().size());
 
   // Check that no predictions are returned for the unseen form.
   EXPECT_TRUE(
       autofill_manager()
           .GetHeuristicPredictionForForm(
-              autofill::HeuristicSource::kPasswordManagerMachineLearning,
+              HeuristicSource::kPasswordManagerMachineLearning,
               unseen_form.global_id(),
-              base::ToVector(unseen_form.fields(),
-                             &autofill::FormFieldData::global_id))
+              base::ToVector(unseen_form.fields(), &FormFieldData::global_id))
           .empty());
 }
 
@@ -947,8 +946,8 @@ TEST_F(AutofillManagerTest,
   // version for server predictions.
   FormData updated_form = initial_form;
   updated_form.set_action(GURL("https://example.test/"));
-  updated_form.set_version(autofill::FormVersion::FromUnsafeValue(
-      initial_form.version().value() + 1));
+  updated_form.set_version(
+      FormVersion::FromUnsafeValue(initial_form.version().value() + 1));
   std::vector<FormSignature> form_signatures = {
       CalculateFormSignature(updated_form)};
   ASSERT_NE(test_api(autofill_manager()).form_structures()[0]->form_signature(),
@@ -1003,8 +1002,8 @@ TEST_F(
   // Create a form with the same form ID but same form signature and higher
   // version for server predictions.
   FormData updated_form = initial_form;
-  updated_form.set_version(autofill::FormVersion::FromUnsafeValue(
-      initial_form.version().value() + 1));
+  updated_form.set_version(
+      FormVersion::FromUnsafeValue(initial_form.version().value() + 1));
   std::vector<FormSignature> form_signatures = {
       CalculateFormSignature(updated_form)};
   ASSERT_EQ(test_api(autofill_manager()).form_structures()[0]->form_signature(),
@@ -1049,7 +1048,7 @@ TEST_F(
   EXPECT_CALL(autofill_manager(), ShouldParseForms).WillOnce(Return(true));
   TestAutofillManagerWaiter waiter(autofill_manager());
   FormData initial_form = test::CreateTestAddressFormData();
-  initial_form.set_version(autofill::FormVersion::FromUnsafeValue(1));
+  initial_form.set_version(FormVersion::FromUnsafeValue(1));
   autofill_manager().OnFormsSeen({initial_form}, /*removed_forms=*/{});
   ASSERT_TRUE(waiter.Wait());
   ASSERT_EQ(test_api(autofill_manager()).form_structures().size(), 1u);
@@ -1058,8 +1057,8 @@ TEST_F(
   // version for server predictions.
   FormData previous_form = initial_form;
   previous_form.set_action(GURL("https://example.test/"));
-  previous_form.set_version(autofill::FormVersion::FromUnsafeValue(
-      initial_form.version().value() - 1));
+  previous_form.set_version(
+      FormVersion::FromUnsafeValue(initial_form.version().value() - 1));
   std::vector<FormSignature> form_signatures = {
       CalculateFormSignature(previous_form)};
   ASSERT_NE(test_api(autofill_manager()).form_structures()[0]->form_signature(),

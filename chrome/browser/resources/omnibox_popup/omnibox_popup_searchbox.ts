@@ -19,7 +19,7 @@ import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import type {AutocompleteResult, PageCallbackRouter as SearchboxPageCallbackRouter, PageHandlerInterface as SearchboxPageHandlerInterface} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 
 import {browserProxyFactory} from './omnibox_popup.mojom-webui.js';
-import type {PageCallbackRouter as PopupPageCallbackRouter, PageHandlerInterface as PopupPageHandlerInterface} from './omnibox_popup.mojom-webui.js';
+import type {OmniboxInputState, PageCallbackRouter as PopupPageCallbackRouter, PageHandlerInterface as PopupPageHandlerInterface} from './omnibox_popup.mojom-webui.js';
 import {getCss} from './omnibox_popup_searchbox.css.js';
 import {getHtml} from './omnibox_popup_searchbox.html.js';
 
@@ -115,6 +115,14 @@ export class OmniboxPopupSearchboxElement extends
   private popupPageHandler_: PopupPageHandlerInterface;
   private listenerIds_: number[] = [];
   private popupListenerIds_: number[] = [];
+  // Sequence number of the current content state received from C++.
+  private currentSequenceNum_: number = 0;
+  // True if the user has modified the text in the input field (e.g., typed or
+  // deleted characters), as opposed to displaying permanent text set from C++.
+  private userInputInProgress_: boolean = false;
+  // True during an active IME (Input Method Editor) text composition session.
+  // Used to suppress intermediate selection updates until composition finishes.
+  private isComposing_: boolean = false;
 
   constructor() {
     super();
@@ -135,14 +143,26 @@ export class OmniboxPopupSearchboxElement extends
           this.onAutocompleteResultChanged.bind(this)),
     ];
     this.popupListenerIds_ = [
-      this.popupCallbackRouter_.setInputText.addListener(
-          (input: string) => this.$.input.setInputText(input)),
+      this.popupCallbackRouter_.setInputState.addListener(
+          this.onSetInputState_.bind(this)),
     ];
 
     this.eventTracker_.add(this, 'escape-searchbox', () => {
       if (!this.dropdownIsVisible) {
         this.popupPageHandler_.closeUI();
       }
+    });
+    this.eventTracker_.add(
+        document, 'selectionchange', this.onSelectionChanged_.bind(this));
+    // TODO(b/522957982): Establish closer IME parity with the native Views
+    // Omnibox (e.g., render inline autocompletion in a separate overlaid span
+    // rather than modifying input value during active composition).
+    this.eventTracker_.add(this.$.input, 'compositionstart', () => {
+      this.isComposing_ = true;
+    });
+    this.eventTracker_.add(this.$.input, 'compositionend', () => {
+      this.isComposing_ = false;
+      this.onSelectionChanged_();
     });
   }
 
@@ -154,6 +174,7 @@ export class OmniboxPopupSearchboxElement extends
     this.popupListenerIds_.forEach(
         id => this.popupCallbackRouter_.removeListener(id));
     this.popupListenerIds_ = [];
+    this.eventTracker_.removeAll();
   }
 
   override willUpdate(changedProperties: PropertyValues<this>) {
@@ -264,12 +285,49 @@ export class OmniboxPopupSearchboxElement extends
   }
 
   override onInputFocusChanged(e: CustomEvent<{value: string}>) {
-    // Don't populate results if there is already a query, when a user
-    // clicks into input (i.e. drafting state with query).
-    if (this.lastQueriedInput) {
+    // Don't populate results if the user edited the input.
+    if (this.userInputInProgress_) {
       return;
     }
     super.onInputFocusChanged(e);
+  }
+
+  /**
+   * Reports selection changes back to C++.
+   */
+  private onSelectionChanged_() {
+    const input = this.$.input.inputElement;
+    // Suppress selection updates during active IME text composition.
+    if (this.shadowRoot.activeElement !== this.$.input || this.isComposing_) {
+      return;
+    }
+    this.popupPageHandler_.onSelectionChanged(
+        {start: input.selectionStart || 0, end: input.selectionEnd || 0},
+        this.currentSequenceNum_);
+  }
+
+  /**
+   * Sets the input text and applies selection range synchronously regardless of
+   * focus.
+   */
+  private onSetInputState_(state: OmniboxInputState) {
+    this.$.input.setInputText(state.text);
+    this.userInputInProgress_ = state.userInputInProgress;
+    this.currentSequenceNum_ = state.sequenceNumber;
+    if (state.selection.start <= state.selection.end) {
+      if (state.isDoubleClick) {
+        this.$.input.setInputText(state.fullUrl);
+      }
+      this.$.input.setSelectionRange(
+          state.selection.start, state.selection.end);
+    } else {
+      // Backend can pass reversed ranges for single clicks. This should still
+      // select all.
+      this.$.input.select();
+    }
+    this.getDropdownElement().unselect();
+    this.pageHandler().stopAutocomplete(/*clearResult=*/ false);
+    this.lastQueriedInput = state.text;
   }
 
   protected onInputFocusin_() {
@@ -285,6 +343,7 @@ export class OmniboxPopupSearchboxElement extends
 
   protected onSearchboxInputTextUpdated_(
       e: CustomEvent<{value: string, isComposing: boolean}>) {
+    this.userInputInProgress_ = true;
     this.onSearchboxInputTextUpdated(e, /*forceAutocomplete=*/ false);
   }
 

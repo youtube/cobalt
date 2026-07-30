@@ -169,6 +169,11 @@ class TemplateUrlServiceAndroid : public TemplateURLServiceObserver {
       JNIEnv* env,
       const base::android::JavaRef<jobject>& template_url_list_obj);
 
+  // Get the available search engines separated into two vectors from
+  // `TemplateURLService::GetPrepopulatedAndRecentlyVisitedTemplateURLs()`.
+  base::android::ScopedJavaLocalRef<jobject>
+  GetPrepopulatedAndRecentlyVisitedTemplateURLs(JNIEnv* env);
+
   // Get the available search engines filtered by |category|.
   // For site search sections, the returned vector will be sorted by
   // {@link OrderTemplateUrlsByManagedAndAlphabetically}.

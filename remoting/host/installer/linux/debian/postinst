@@ -22,6 +22,7 @@ INSTALL_DIR="/opt/google/chrome-remote-desktop"
 HOST_PATH="$INSTALL_DIR/chrome-remote-desktop-host"
 # Per Debian policy 9.2.1, system usernames should all start with an underscore.
 CRD_NETWORK_USER="_crd_network"
+CRD_PEER_CONNECTION_USER="_crd_peer_connection"
 
 kill_processes() {
   # Kill CRD processes except for the service script process. The script process
@@ -40,8 +41,8 @@ kill_processes() {
 
 case "$1" in
   "configure")
-    echo "Adding user $CRD_NETWORK_USER to allow the Chrome Remote Desktop network "
-    echo 'process to be run in a sandboxed environment.'
+    echo "Adding users $CRD_NETWORK_USER and $CRD_PEER_CONNECTION_USER to allow"
+    echo 'Chrome Remote Desktop processes to be run in sandboxed environments.'
     # On Debian 11 or older, usernames with a leading underscore are not allowed
     # unless --allow-bad-names or --force-badname is set. --allow-bad-names is
     # only available in newer versions (>= 3.134) of adduser.
@@ -53,6 +54,7 @@ case "$1" in
       ADDUSER_OPTS="$ADDUSER_OPTS --force-badname"
     fi
     adduser $ADDUSER_OPTS "$CRD_NETWORK_USER"
+    adduser $ADDUSER_OPTS "$CRD_PEER_CONNECTION_USER"
 
     kill_processes
 

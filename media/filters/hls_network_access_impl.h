@@ -19,8 +19,6 @@ class MEDIA_EXPORT HlsNetworkAccessImpl final : public HlsNetworkAccess {
   ~HlsNetworkAccessImpl() override;
 
   // HlsNetworkAccess implementation
-  void ReadKey(const hls::MediaSegment::EncryptionData& data,
-               HlsDataSourceProvider::ReadCb cb) override;
   void ReadManifest(const GURL& uri, HlsDataSourceProvider::ReadCb cb) override;
   void ReadMediaSegment(const hls::MediaSegment& segment,
                         bool read_chunked,
@@ -31,6 +29,8 @@ class MEDIA_EXPORT HlsNetworkAccessImpl final : public HlsNetworkAccess {
   void AbortPendingReads(base::OnceClosure cb) override;
 
  private:
+  void ReadKey(const hls::MediaSegment::EncryptionData& data,
+               HlsDataSourceProvider::ReadCb cb);
   void ReadUntilExhausted(HlsDataSourceProvider::ReadCb cb,
                           HlsDataSourceProvider::ReadResult result);
   void ReadSegmentQueueInternal(

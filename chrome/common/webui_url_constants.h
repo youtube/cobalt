@@ -98,6 +98,12 @@ inline constexpr char kChromeUIContentAnnotatorInternalsURL[] =
 #endif
 inline constexpr char kChromeUIContextHubHost[] = "context-hub";
 inline constexpr char kChromeUIContextHubURL[] = "chrome://context-hub/";
+#if !BUILDFLAG(IS_ANDROID)
+inline constexpr char kChromeUIContextualCueingInternalsHost[] =
+    "contextual-cueing-internals";
+inline constexpr char kChromeUIContextualCueingInternalsURL[] =
+    "chrome://contextual-cueing-internals/";
+#endif
 inline constexpr char kChromeUIContextualTasksHost[] = "contextual-tasks";
 inline constexpr char kChromeUIContextualTasksURL[] =
     "chrome://contextual-tasks/";
@@ -270,10 +276,6 @@ inline constexpr char kChromeUIPrefsInternalsHost[] = "prefs-internals";
 inline constexpr char kChromeUIPrintURL[] = "chrome://print/";
 inline constexpr char16_t kChromeUIPrivacySandboxFledgeURL[] =
     u"chrome://settings/adPrivacy/sites";
-inline constexpr char kChromeUIPrivacySandboxInternalsHost[] =
-    "privacy-sandbox-internals";
-inline constexpr char kChromeUIPrivacySandboxInternalsURL[] =
-    "chrome://privacy-sandbox-internals";
 inline constexpr char16_t kChromeUIPrivacySandboxManageTopicsLearnMoreURL[] =
     u"https://support.google.com/chrome?p=ad_privacy";
 inline constexpr char16_t kChromeUIPrivacySandboxTopicsURL[] =

@@ -16,6 +16,7 @@
 #include "components/sharing_message/sharing_constants.h"
 #include "components/sharing_message/sharing_target_device_info.h"
 #include "components/sharing_message/sharing_utils.h"
+#include "components/sync/base/features.h"
 #include "components/sync/service/sync_service.h"
 #include "components/sync_device_info/device_info.h"
 #include "components/sync_device_info/device_name_util.h"
@@ -68,8 +69,13 @@ std::optional<SharingTargetDeviceInfo> SharingDeviceSourceSync::GetDeviceByGuid(
     return std::nullopt;
   }
 
+  std::string display_name =
+      base::FeatureList::IsEnabled(syncer::kSyncSimplifyDeviceNaming)
+          ? syncer::GetDeviceDisplayName(device_info)
+          : syncer::GetDisplayNameCandidates(device_info).fallback_full_name;
+
   return SharingTargetDeviceInfo(
-      device_info->guid(), syncer::GetDeviceDisplayNames(device_info).full_name,
+      device_info->guid(), std::move(display_name),
       GetDevicePlatform(*device_info), device_info->pulse_interval(),
       device_info->form_factor(), device_info->last_updated_timestamp());
 }
@@ -122,9 +128,22 @@ SharingDeviceSourceSync::FilterDeviceCandidates(
   std::set<syncer::DeviceInfo::SharingFeature> accepted_features{
       required_feature};
   bool can_send_via_sender_id = CanSendViaSenderID(sync_service_);
+  const syncer::DeviceInfo* local_device =
+      local_device_info_provider_->GetLocalDeviceInfo();
 
-  std::erase_if(devices, [accepted_features, can_send_via_sender_id](
-                             const syncer::DeviceInfo* device) {
+  std::erase_if(devices, [accepted_features, can_send_via_sender_id,
+                          local_device](const syncer::DeviceInfo* device) {
+    // TODO(crbug.com/522788942): Make this filtering unconditional once the
+    // legacy ClickToCall and SharedClipboard features are removed or their
+    // tests are fixed. Currently, filtering by GUID unconditionally breaks
+    // browser tests because they rely on the local device not being filtered
+    // out (due to name mismatch in test setup).
+    if (base::FeatureList::IsEnabled(syncer::kSyncSimplifyDeviceNaming)) {
+      if (local_device && device->guid() == local_device->guid()) {
+        return true;
+      }
+    }
+
     // Checks if |last_updated_timestamp| is not too old.
     if (IsStale(*device)) {
       return true;
@@ -164,11 +183,22 @@ SharingDeviceSourceSync::ConvertAndDeduplicateDevices(
                      device2->last_updated_timestamp();
             });
 
+  if (base::FeatureList::IsEnabled(syncer::kSyncSimplifyDeviceNaming)) {
+    // Resolve display names for the filtered list by using the preferred name.
+    return base::ToVector(devices, [](const auto& device) {
+      return SharingTargetDeviceInfo(
+          device->guid(), syncer::GetDeviceDisplayName(device),
+          GetDevicePlatform(*device), device->pulse_interval(),
+          device->form_factor(), device->last_updated_timestamp());
+    });
+  }
+
   const syncer::DeviceInfo* local_device =
       local_device_info_provider_->GetLocalDeviceInfo();
   std::optional<std::string> local_full_name;
   if (local_device) {
-    local_full_name = syncer::GetDeviceDisplayNames(local_device).full_name;
+    local_full_name =
+        syncer::GetDisplayNameCandidates(local_device).fallback_full_name;
   }
 
   // Resolve display names for the filtered list. This handles de-duplication

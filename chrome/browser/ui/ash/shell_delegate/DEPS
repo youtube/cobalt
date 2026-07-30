@@ -24,7 +24,6 @@ include_rules = [
   "+chrome/browser/ui/ash/back_gesture",
   "+chrome/browser/ui/ash/boca",
   "+chrome/browser/ui/ash/capture_mode",
-  "+chrome/browser/ui/ash/clipboard",
   "+chrome/browser/ui/ash/desks",
   "+chrome/browser/ui/ash/focus_mode",
   "+chrome/browser/ui/ash/game_dashboard",
@@ -45,7 +44,6 @@ include_rules = [
   "+chrome/browser/ui/views/frame",
   "+chrome/browser/ui/views/tabs",
   "+chrome/browser/ui/webui/ash/diagnostics_dialog/diagnostics_dialog.h",
-  "+chrome/browser/ui/webui/tab_strip",
   "+chrome/browser/web_applications",
   "+chrome/common",
 ]

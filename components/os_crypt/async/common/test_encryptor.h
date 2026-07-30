@@ -38,14 +38,9 @@ class TestEncryptor : public Encryptor {
 
   TestEncryptor() = default;
 
-  TestEncryptor(
-      KeyRing keys,
-      const std::string& provider_for_encryption,
-      const std::string& provider_for_os_crypt_sync_compatible_encryption);
+  TestEncryptor(KeyRing keys, const std::string& provider_for_encryption);
 
   ~TestEncryptor() override = default;
-
-  scoped_refptr<TestEncryptor> Clone(Option option) const;
 
   std::optional<bool> is_encryption_available_;
   std::optional<bool> is_decryption_available_;

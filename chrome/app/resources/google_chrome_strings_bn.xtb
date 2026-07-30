@@ -402,6 +402,7 @@
 <translation id="5234764350956374838">খারিজ</translation>
 <translation id="5239627039202700673">যেকোনও সময় মেসেজ, ডকুমেন্ট এবং অন্যান্য অ্যাপে থাকা লিঙ্কে ক্লিক করতে Chrome ব্যবহার করুন</translation>
 <translation id="5251420635869119124">অতিথিগণ কোনো কিছুর জন্য অভাব বোধ না করেই Chrome ব্যবহার করতে পারবেন৷</translation>
+<translation id="5271833978500241046">Chrome-এ অন্যান্য Gemini ফিচারের পাশাপাশি সেগুলি ব্যবহার করুন</translation>
 <translation id="5286907366254680517">শনাক্ত করা হয়েছে</translation>
 <translation id="5320351714793324716">আপনি কুকি ব্যবহার করার অনুমতি দিলে, প্রিলোড করার জন্য Chrome তা ব্যবহার করতে পারে</translation>
 <translation id="5321325624576443340">Google Lens উপলভ্য নেই। পরে আবার চেষ্টা করুন।</translation>
@@ -438,15 +439,6 @@
 <translation id="569897634095159764">ইন্টারনেটের সাথে কানেক্ট করা যায়নি। প্রক্সি সার্ভার যাচাই করতে হবে।</translation>
 <translation id="5709557627224531708">Chrome-কে আপনার ডিফল্ট ব্রাউজার হিসেবে সেট করুন</translation>
 <translation id="5719246646468301581">Google Chrome ও Chrome OS-এর পরিষেবার অতিরিক্ত শর্তাবলী</translation>
-<translation id="5719324992913248873">এই অ্যাকশনের ফলে:
-        <ph name="LINE_BREAKS" />
-          • কিছু Chrome সেটিংস ও Chrome শর্টকাট রিসেট হয়ে যাবে
-          <ph name="LINE_BREAK" />
-          • এক্সটেনশন বন্ধ হয়ে যাবে
-          <ph name="LINE_BREAK" />
-          • কুকি ও অন্যান্য অস্থায়ী সাইট ডেটা মুছে যাবে
-          <ph name="LINE_BREAKS" />
-          বুকমার্ক, ইতিহাস ও সেভ করা পাসওয়ার্ডের উপর কোনও প্রভাব পড়বে না।</translation>
 <translation id="5736850870166430177">যদি কোনও সাইট আপনার পাসওয়ার্ড চুরি করার চেষ্টা করে বা আপনি কোনও ক্ষতিকারক ফাইল ডাউনলোড করলে, Chrome, পৃষ্ঠার কিছু কন্টেন্ট সহ URL ও হয়ত Safe Browsing-এ পাঠাতে পারে</translation>
 <translation id="5756509061973259733">এই ডিভাইসে এই অ্যাকাউন্টের সাথে Chrome প্রোফাইল আগে থেকেই আছে</translation>
 <translation id="5759947850379142561">Google Lens ব্যবহার করে সার্চ করতে যেকোনও টেক্সট বা ছবি বেছে নিন অথবা Escape বোতাম প্রেস করে Google Lens থেকে বেরিয়ে আসুন</translation>
@@ -644,6 +636,7 @@
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
 <translation id="7627609214560473136">আপনার ডেটা সুরক্ষিত রাখতে, আপনি সম্প্রতি ভিজিট করেননি এমন সাইট থেকে Chrome-কে অনুমতি সরাতে দিন।</translation>
 <translation id="7629695634924605473">আপনার পাসওয়ার্ড কখনও চুরি হলে তা Chrome আপনাকে জানিয়ে দেবে</translation>
+<translation id="7629898584100520089">স্কিলের মতো AI উদ্ভাবন আপনার Google অ্যাকাউন্টে সেভ করা হয় এবং Chrome সিঙ্ক থেকে আলাদাভাবে ম্যানেজ করা হয়</translation>
 <translation id="7641148173327520642"><ph name="TARGET_URL_HOSTNAME" /> অ্যাক্সেস করতে <ph name="ALTERNATIVE_BROWSER_NAME" /> ব্যবহার করার জন্য আপনার সিস্টেম অ্যাডমিনিস্ট্রেটর Google Chrome কনফিগার করেছে।</translation>
 <translation id="7649070708921625228">সহায়তা</translation>
 <translation id="7651907282515937834">Chrome এন্টারপ্রাইজ লোগো</translation>

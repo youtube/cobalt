@@ -46,7 +46,7 @@ using ::i18n::addressinput::RECIPIENT;
 
 static std::string JNI_AutofillProfileBridge_GetDefaultCountryCode(
     JNIEnv* env) {
-  return autofill::AutofillCountry::CountryCodeForLocale(
+  return AutofillCountry::CountryCodeForLocale(
       g_browser_process->GetApplicationLocale());
 }
 
@@ -126,8 +126,7 @@ JNI_AutofillProfileBridge_GetAddressEditorUiInfo(
     }
     components.emplace_back(
         ui_component.field, ui_component.name, is_required,
-        ui_component.length_hint ==
-            autofill::AutofillAddressUIComponent::HINT_LONG);
+        ui_component.length_hint == AutofillAddressUIComponent::HINT_LONG);
   }
 
   return AutofillAddressEditorUiInfoAndroid(best_language_tag, components);

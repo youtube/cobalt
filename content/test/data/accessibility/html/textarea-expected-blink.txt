@@ -13,5 +13,3 @@ rootWebArea
 ++++++++++++inlineTextBox name='control.'
 ++++++++++lineBreak name='<newline>'
 ++++++++++++inlineTextBox name='<newline>'
-++++++++++lineBreak name='<newline>'
-++++++++++++inlineTextBox name='<newline>'

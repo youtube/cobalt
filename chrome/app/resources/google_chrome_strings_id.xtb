@@ -398,6 +398,7 @@ Jika halaman ini tidak berfungsi sebagaimana mestinya, coba izinkan pengoptimala
 <translation id="5234764350956374838">Tutup</translation>
 <translation id="5239627039202700673">Gunakan Chrome kapan saja dengan mengklik link di pesan, dokumen, dan aplikasi lainnya.</translation>
 <translation id="5251420635869119124">Tamu dapat menggunakan Chrome tanpa meninggalkan apa pun.</translation>
+<translation id="5271833978500241046">Gunakan bersama fitur Gemini lainnya di Chrome</translation>
 <translation id="5286907366254680517">Terdeteksi</translation>
 <translation id="5320351714793324716">Jika Anda mengizinkan cookie, Chrome dapat menggunakannya saat melakukan pramuat</translation>
 <translation id="5321325624576443340">Google Lens tidak tersedia. Coba lagi nanti.</translation>
@@ -434,15 +435,6 @@ Jika halaman ini tidak berfungsi sebagaimana mestinya, coba izinkan pengoptimala
 <translation id="569897634095159764">Tidak dapat terhubung ke internet. Server proxy memerlukan autentikasi.</translation>
 <translation id="5709557627224531708">Setel Chrome sebagai browser default Anda</translation>
 <translation id="5719246646468301581">Persyaratan layanan tambahan Google Chrome dan ChromeOS</translation>
-<translation id="5719324992913248873">Tindakan ini akan:
-        <ph name="LINE_BREAKS" />
-          • Mereset beberapa setelan dan pintasan Chrome
-          <ph name="LINE_BREAK" />
-          • Menonaktifkan ekstensi
-          <ph name="LINE_BREAK" />
-          • Menghapus cookie dan data situs sementara lainnya
-          <ph name="LINE_BREAKS" />
-          Bookmark, histori, dan sandi tersimpan tidak akan terpengaruh.</translation>
 <translation id="5736850870166430177">Jika situs berusaha mencuri sandi Anda, atau jika Anda mendownload file berbahaya, Chrome mungkin juga mengirimkan URL, termasuk bit konten halaman, ke Safe Browsing</translation>
 <translation id="5756509061973259733">Profil Chrome dengan akun ini sudah ada di perangkat ini</translation>
 <translation id="5759947850379142561">Pilih teks atau gambar untuk ditelusuri dengan Google Lens atau tekan escape untuk keluar dari Google Lens</translation>
@@ -640,6 +632,7 @@ Jika halaman ini tidak berfungsi sebagaimana mestinya, coba izinkan pengoptimala
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
 <translation id="7627609214560473136">Untuk melindungi data Anda, izinkan Chrome menghapus izin dari situs yang tidak Anda kunjungi baru-baru ini.</translation>
 <translation id="7629695634924605473">Chrome akan memberi tahu jika sandi Anda disusupi</translation>
+<translation id="7629898584100520089">Inovasi AI seperti keahlian disimpan ke Akun Google Anda dan dikelola secara terpisah dari sinkronisasi Chrome</translation>
 <translation id="7641148173327520642">Administrator sistem Anda telah mengonfigurasi Google Chrome untuk membuka <ph name="ALTERNATIVE_BROWSER_NAME" /> guna mengakses <ph name="TARGET_URL_HOSTNAME" />.</translation>
 <translation id="7649070708921625228">Bantuan</translation>
 <translation id="7651907282515937834">Logo Chrome Enterprise</translation>

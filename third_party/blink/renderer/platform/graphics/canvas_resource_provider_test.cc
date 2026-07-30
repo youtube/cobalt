@@ -126,8 +126,7 @@ class CanvasResourceProviderTest : public Test {
     return resource->sync_token();
   }
 
-  void EnsureResourceRecycled(CanvasResourceProvider* provider,
-                              scoped_refptr<CanvasResource>&& resource) {
+  void EnsureResourceRecycled(scoped_refptr<CanvasResource>&& resource) {
     viz::TransferableResource transferable_resource;
     CHECK(resource->PrepareTransferableResource(
         &transferable_resource,
@@ -366,7 +365,7 @@ TEST_F(CanvasResourceProviderTest,
   EXPECT_NE(GetSyncToken(resource.get()), GetSyncToken(new_resource.get()));
   auto* resource_ptr = resource.get();
 
-  EnsureResourceRecycled(provider.get(), std::move(resource));
+  EnsureResourceRecycled(std::move(resource));
 
   provider->GetCanvasForTesting().clear(SkColors::kBlack);
   auto resource_again = provider->ProduceCanvasResource(FlushReason::kOther);
@@ -387,7 +386,7 @@ TEST_F(CanvasResourceProviderTest, CanvasResourceProviderUnusedResources) {
 
   EXPECT_FALSE(
       provider->unused_resources_reclaim_timer_is_running_for_testing());
-  EnsureResourceRecycled(provider.get(), std::move(resource));
+  EnsureResourceRecycled(std::move(resource));
   // The reclaim task has been posted.
   EXPECT_TRUE(
       provider->unused_resources_reclaim_timer_is_running_for_testing());
@@ -395,7 +394,7 @@ TEST_F(CanvasResourceProviderTest, CanvasResourceProviderUnusedResources) {
   // There is a ready-to-reuse resource
   EXPECT_TRUE(provider->HasUnusedResourcesForTesting());
   task_environment_.FastForwardBy(
-      CanvasResourceProvider::kUnusedResourceExpirationTime);
+      Canvas2DResourceProviderSharedImage::kUnusedResourceExpirationTime);
   // The resource is freed, don't repost the task.
   EXPECT_FALSE(provider->HasUnusedResourcesForTesting());
   EXPECT_FALSE(
@@ -415,7 +414,7 @@ TEST_F(CanvasResourceProviderTest,
   ASSERT_NE(GetSyncToken(resource.get()), GetSyncToken(new_resource.get()));
   EXPECT_FALSE(
       provider->unused_resources_reclaim_timer_is_running_for_testing());
-  EnsureResourceRecycled(provider.get(), std::move(resource));
+  EnsureResourceRecycled(std::move(resource));
   // There is a ready-to-reuse resource
   EXPECT_TRUE(provider->HasUnusedResourcesForTesting());
   // No task posted.
@@ -435,14 +434,15 @@ TEST_F(CanvasResourceProviderTest,
   ASSERT_NE(GetSyncToken(resource.get()), GetSyncToken(new_resource.get()));
   EXPECT_FALSE(
       provider->unused_resources_reclaim_timer_is_running_for_testing());
-  EnsureResourceRecycled(provider.get(), std::move(resource));
+  EnsureResourceRecycled(std::move(resource));
   EXPECT_TRUE(
       provider->unused_resources_reclaim_timer_is_running_for_testing());
 
   // There is a ready-to-reuse resource
   EXPECT_TRUE(provider->HasUnusedResourcesForTesting());
   task_environment_.FastForwardBy(
-      CanvasResourceProvider::kUnusedResourceExpirationTime - base::Seconds(1));
+      Canvas2DResourceProviderSharedImage::kUnusedResourceExpirationTime -
+      base::Seconds(1));
   // The reclaim task hasn't run yet.
   EXPECT_TRUE(
       provider->unused_resources_reclaim_timer_is_running_for_testing());
@@ -453,7 +453,7 @@ TEST_F(CanvasResourceProviderTest,
   ASSERT_NE(resource, new_resource);
   ASSERT_NE(GetSyncToken(resource.get()), GetSyncToken(new_resource.get()));
 
-  EnsureResourceRecycled(provider.get(), std::move(resource));
+  EnsureResourceRecycled(std::move(resource));
   EXPECT_TRUE(provider->HasUnusedResourcesForTesting());
   task_environment_.FastForwardBy(base::Seconds(1));
 
@@ -464,7 +464,7 @@ TEST_F(CanvasResourceProviderTest,
       provider->unused_resources_reclaim_timer_is_running_for_testing());
 
   task_environment_.FastForwardBy(
-      CanvasResourceProvider::kUnusedResourceExpirationTime);
+      Canvas2DResourceProviderSharedImage::kUnusedResourceExpirationTime);
   // Now it's collected.
   EXPECT_FALSE(provider->HasUnusedResourcesForTesting());
   // And no new task is posted.
@@ -712,8 +712,7 @@ TEST_F(CanvasResourceProviderTest, ImageCacheOnContextLost) {
 }
 
 TEST_F(CanvasResourceProviderTest, FlushCanvasReleasesAllReleasableOps) {
-  std::unique_ptr<CanvasResourceProvider> provider =
-      MakeCanvas2DResourceProvider(context_provider_wrapper_);
+  auto provider = MakeCanvas2DResourceProvider(context_provider_wrapper_);
 
   EXPECT_FALSE(provider->Recorder().HasRecordedDrawOps());
   EXPECT_FALSE(provider->Recorder().HasReleasableDrawOps());
@@ -729,8 +728,7 @@ TEST_F(CanvasResourceProviderTest, FlushCanvasReleasesAllReleasableOps) {
 }
 
 TEST_F(CanvasResourceProviderTest, FlushCanvasReleasesAllOpsOutsideLayers) {
-  std::unique_ptr<CanvasResourceProvider> provider =
-      MakeCanvas2DResourceProvider(context_provider_wrapper_);
+  auto provider = MakeCanvas2DResourceProvider(context_provider_wrapper_);
 
   EXPECT_FALSE(provider->Recorder().HasRecordedDrawOps());
   EXPECT_FALSE(provider->Recorder().HasReleasableDrawOps());

@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "pdf/mojom/pdf.mojom.h"
+#include "pdf/page_orientation.h"
 #include "pdf/pdf_ink_ids.h"
 #include "ui/gfx/geometry/rect_f.h"
 #include "ui/gfx/geometry/vector2d_f.h"
@@ -50,6 +51,7 @@ struct InkTextBoxAttributes {
                        TextTypeface typeface,
                        TextAlignment alignment,
                        int orientation,
+                       PageOrientation viewport_orientation,
                        bool is_bold,
                        bool is_italic,
                        const std::string& text);
@@ -65,8 +67,12 @@ struct InkTextBoxAttributes {
   float css_font_size;
   TextTypeface typeface;
   TextAlignment alignment;
-  // `orientation` is in 90-degree units clockwise.
+  // The orientation of the textbox relative to the PDF page, in number of 90
+  // degree clockwise rotations from 0 to 3.
   int orientation;
+  // The orientation of the viewport (in 90 degree clockwise rotations) when the
+  // text annotation was committed.
+  PageOrientation viewport_orientation;
   bool is_bold;
   bool is_italic;
   std::string text;

@@ -109,6 +109,9 @@ class COMPONENTS_DOWNLOAD_EXPORT DownloadResponseHandler
   DownloadSource download_source_;
   net::CertStatus cert_status_ = 0;
   bool has_strong_validators_;
+  // Whether the response was served by a Service Worker. Captured in
+  // OnReceiveResponse so it is available when mapping the completion status.
+  bool fetched_via_service_worker_ = false;
   std::optional<url::Origin> request_initiator_;
   ::network::mojom::CredentialsMode credentials_mode_;
   std::optional<net::IsolationInfo> isolation_info_;

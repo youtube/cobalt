@@ -55,6 +55,7 @@ class TestToolbarActionViewDelegate : public ToolbarActionView::Delegate {
               (override));
   void UpdateHoverCard(ToolbarActionView* action_view,
                        ToolbarActionHoverCardUpdateType update_type) override {}
+  bool IsFocusOnExtensionAction() const override { return false; }
   void OnContextMenuShown(const std::string& action_id) override {}
   void OnContextMenuClosed(const std::string& action_id) override {}
   void WriteDragDataForView(views::View* sender,

@@ -55,7 +55,7 @@ void FileDataSource::Read(int64_t position,
 }
 
 bool FileDataSource::GetSize(int64_t* size_out) {
-  *size_out = file_.length();
+  *size_out = file_.bytes().size();
   return true;
 }
 

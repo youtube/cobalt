@@ -14,6 +14,9 @@
   --color-composebox-file-chip-text: var(--color-omnibox-text);
   --cr-composebox-font-size: 14px;
 
+  --cr-searchbox-match-icon-container-background-fallback: var(--color-omnibox-results-background-hovered);
+  --color-searchbox-background: var(--color-omnibox-results-background);
+  --color-searchbox-foreground: var(--color-omnibox-text);
   --color-searchbox-results-background-hovered: var(--color-omnibox-results-background-hover-overlay);
   --color-searchbox-results-background-selected: var(--color-omnibox-results-background-selected);
   --color-searchbox-results-button-hover: var(--color-omnibox-results-button-ink-drop-row-hovered);
@@ -22,7 +25,31 @@
   --color-searchbox-results-foreground-selected: var(--color-omnibox-results-text-selected);
   --color-searchbox-results-icon-focused-outline: var(--color-omnibox-results-focus-indicator);
   --color-searchbox-results-icon-selected: var(--color-omnibox-results-icon-selected);
+  --color-searchbox-answer-icon-background: var(--color-omnibox-answer-icon-g-m3-background);
+  --color-searchbox-answer-icon-foreground: var(--color-omnibox-answer-icon-g-m3-foreground);
+  --color-searchbox-results-action-chip-focus-outline: var(--color-omnibox-results-focus-indicator);
+  --color-searchbox-results-action-chip: var(--color-omnibox-results-button-border);
+  --color-searchbox-results-action-chip-icon: var(--color-omnibox-results-button-icon);
+  --color-searchbox-results-action-chip-icon-selected: var(--color-omnibox-results-button-icon-selected);
+  --color-searchbox-results-background: var(--color-omnibox-results-background);
+  --color-searchbox-results-button-selected-hover: var(--color-omnibox-results-button-ink-drop-row-selected);
+  --color-searchbox-results-dim-selected: var(--color-omnibox-results-text-dimmed-selected);
+  --color-searchbox-results-foreground-dimmed: var(--color-omnibox-results-text-dimmed);
+  --color-searchbox-results-icon: var(--color-omnibox-results-icon);
+  --color-searchbox-results-icon-container-background: unset;
+  --color-searchbox-results-starter-pack-icon: var(--color-omnibox-results-starter-pack-icon);
+  --color-searchbox-results-typed-prefix: unset;
+  --color-searchbox-results-url-selected: var(--color-omnibox-results-url-selected);
+  --color-searchbox-results-url: var(--color-omnibox-results-url);
+  --color-searchbox-search-icon-background: var(--color-omnibox-results-icon);
   --cr-searchbox-match-text-padding-inline-start: 12px;
+  /* TODO(b/524320143): Move other non-shared composebox colors from app.css once
+   * aim_app.css / composebox CSS variables are refactored/reconciled.
+   * Remaining variables to reconcile:
+   *   - --color-composebox-context-entrypoint-background
+   *   - --color-composebox-context-entrypoint-hover-background
+   *   - --color-composebox-context-entrypoint-text
+   *   - --composebox-context-menu-entrypoint-button-color */
   --color-composebox-document-chip-icon: var(--color-sys-on-surface-subtle);
 
   /* Closely resembles the views Omnibox input font size.

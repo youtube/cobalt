@@ -27,7 +27,8 @@ void MockOverscrollRefreshHandlerAndroid::PullUpdate(float, float) {
   OnPullUpdate();
 }
 
-void MockOverscrollRefreshHandlerAndroid::PullRelease(bool) {
+void MockOverscrollRefreshHandlerAndroid::PullRelease(
+    OverscrollActivationStatus) {
   OnPullEnd();
 }
 

@@ -31,6 +31,8 @@ class BLINK_COMMON_EXPORT
       const blink::NavigationDownloadPolicy::NavigationDownloadTypes& types);
   static bool no_gesture(
       const blink::NavigationDownloadPolicy::NavigationDownloadTypes& types);
+  static bool ad_script(
+      const blink::NavigationDownloadPolicy::NavigationDownloadTypes& types);
 
   static bool Read(
       blink::mojom::NavigationDownloadTypesDataView in,

@@ -24,7 +24,7 @@ const char WeeklyTime::kDayOfWeek[] = "day_of_week";
 const char WeeklyTime::kTime[] = "time";
 const char WeeklyTime::kTimezoneOffset[] = "timezone_offset";
 
-const std::vector<std::string> WeeklyTime::kWeekDays = {
+const std::array<const char*, 8> WeeklyTime::kWeekDays = {
     "UNSPECIFIED", "MONDAY", "TUESDAY",  "WEDNESDAY",
     "THURSDAY",    "FRIDAY", "SATURDAY", "SUNDAY"};
 

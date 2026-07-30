@@ -139,7 +139,8 @@ std::unique_ptr<Connection> ConnectionFactoryImpl::Create(
 
   connection = std::make_unique<ConnectionTimeout>(std::move(connection));
 
-  connection = std::make_unique<ConnectionMetrics>(std::move(connection));
+  connection =
+      std::make_unique<ConnectionMetrics>(std::move(connection), feature_name);
 
   return connection;
 }

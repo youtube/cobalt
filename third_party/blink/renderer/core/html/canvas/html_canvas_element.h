@@ -255,8 +255,6 @@ class CORE_EXPORT HTMLCanvasElement final
   // CanvasResourceProvider::Delegate implementation
   void NotifyGpuContextLost() override;
   bool IsPrinting() const override;
-  scoped_refptr<const cc::AnimatedImageFrameIndexMap>
-  GetAnimatedImageFrameIndexes() const override;
 
   // CanvasRenderingContextHost implementation
   bool ShouldAccelerate2dContext() const override;
@@ -370,7 +368,8 @@ class CORE_EXPORT HTMLCanvasElement final
 
   ElementImage* captureElementImage(Element* element, ExceptionState&);
 
-  void OnAxObjectCreated(bool is_ignored);
+  // Called when AxObject is created or its ignored state is changed.
+  void OnAxObjectIgnoredStateChanged(bool is_ignored);
 
  protected:
   void DidMoveToNewDocument(Document& old_document) override;

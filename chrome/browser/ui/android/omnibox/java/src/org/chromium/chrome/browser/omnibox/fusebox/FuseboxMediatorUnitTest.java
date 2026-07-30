@@ -78,6 +78,7 @@ import org.chromium.chrome.browser.omnibox.fusebox.FuseboxCoordinator.FuseboxLay
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxCoordinator.FuseboxState;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxCoordinator.PopupState;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxMetrics.FuseboxAttachmentButtonType;
+import org.chromium.chrome.browser.omnibox.fusebox.FuseboxProperties.BackgroundStyle;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxProperties.PopupButtonData;
 import org.chromium.chrome.browser.omnibox.styles.OmniboxResourceProvider;
 import org.chromium.chrome.browser.omnibox.suggestions.AutocompleteController;
@@ -509,6 +510,39 @@ public class FuseboxMediatorUnitTest {
     }
 
     @Test
+    public void plusButtonBackground_aiModePopover() {
+        mInput.setRequestType(AutocompleteRequestType.AI_MODE);
+        mModel.set(FuseboxProperties.FUSEBOX_LAYOUT_MODE, FuseboxLayoutMode.SUGGESTIONS_POPOVER);
+        recreateMediator();
+
+        assertEquals(
+                BackgroundStyle.ALWAYS_VISIBLE_WIDE,
+                mModel.get(FuseboxProperties.PLUS_BUTTON_BACKGROUND_STYLE).intValue());
+    }
+
+    @Test
+    public void plusButtonBackground_imageGenPopover() {
+        mInput.setRequestType(AutocompleteRequestType.IMAGE_GENERATION);
+        mModel.set(FuseboxProperties.FUSEBOX_LAYOUT_MODE, FuseboxLayoutMode.SUGGESTIONS_POPOVER);
+        recreateMediator();
+
+        assertEquals(
+                BackgroundStyle.INTERACT_ONLY_SMALL,
+                mModel.get(FuseboxProperties.PLUS_BUTTON_BACKGROUND_STYLE).intValue());
+    }
+
+    @Test
+    public void plusButtonBackground_aiModeToolbar() {
+        mInput.setRequestType(AutocompleteRequestType.AI_MODE);
+        mModel.set(FuseboxProperties.FUSEBOX_LAYOUT_MODE, FuseboxLayoutMode.TOOLBAR);
+        recreateMediator();
+
+        assertEquals(
+                BackgroundStyle.INTERACT_ONLY_SMALL,
+                mModel.get(FuseboxProperties.PLUS_BUTTON_BACKGROUND_STYLE).intValue());
+    }
+
+    @Test
     public void updateFuseboxState_desktopPlatform_nonEmptyModelList_isExpanded() {
         OmniboxCapabilities.setIsDesktopPlatformForTesting(true);
         recreateMediator();
@@ -608,6 +642,42 @@ public class FuseboxMediatorUnitTest {
         assertEquals(AutocompleteRequestType.AI_MODE, mInput.getRequestType());
         verify(mOnActivationChipClickedWithQuery, never()).run();
         verify(mClearUrlBarTextCallback).run();
+    }
+
+    @Test
+    public void testActivationChipSelectionChanged_clearsUrl() {
+        mInput.setRequestType(AutocompleteRequestType.SEARCH);
+        mInput.setInitialUserText("google.com");
+        mUrlBarText.set("google.com");
+        recreateMediator();
+
+        mMediator.onActivationChipSelectionChanged(true);
+
+        verify(mClearUrlBarTextCallback).run();
+    }
+
+    @Test
+    public void testActivationChipSelectionChanged_doesNotClearIfDifferent() {
+        mInput.setRequestType(AutocompleteRequestType.SEARCH);
+        mInput.setInitialUserText("google.com");
+        mUrlBarText.set("different text");
+        recreateMediator();
+
+        mMediator.onActivationChipSelectionChanged(true);
+
+        verify(mClearUrlBarTextCallback, never()).run();
+    }
+
+    @Test
+    public void testActivationChipSelectionChanged_doesNotClearIfEmpty() {
+        mInput.setRequestType(AutocompleteRequestType.SEARCH);
+        mInput.setInitialUserText("google.com");
+        mUrlBarText.set("");
+        recreateMediator();
+
+        mMediator.onActivationChipSelectionChanged(true);
+
+        verify(mClearUrlBarTextCallback, never()).run();
     }
 
     @Test

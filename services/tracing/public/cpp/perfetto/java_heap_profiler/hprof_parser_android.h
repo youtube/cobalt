@@ -13,13 +13,13 @@
 #include "base/gtest_prod_util.h"
 #include "services/tracing/public/cpp/perfetto/java_heap_profiler/hprof_buffer_android.h"
 #include "services/tracing/public/cpp/perfetto/java_heap_profiler/hprof_instances_android.h"
-#include "third_party/perfetto/protos/perfetto/trace/profiling/heap_graph.pbzero.h"
+#include "third_party/perfetto/protos/third_party/android/art/heap_graph.pbzero.h"
 
 namespace tracing {
 
 using ObjectId = uint64_t;
-using RootType = ::perfetto::protos::pbzero::HeapGraphRoot::Type;
-using HeapGraphRoot = ::perfetto::protos::pbzero::HeapGraphRoot;
+using RootType = ::com::android::art::tracing::pbzero::HeapGraphRoot::Type;
+using HeapGraphRoot = ::com::android::art::tracing::pbzero::HeapGraphRoot;
 const uint64_t kInvalidObjectId = std::numeric_limits<uint64_t>::max();
 
 // This class takes in a temporary file_path where Java API endpoint

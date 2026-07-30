@@ -30,6 +30,7 @@
 #include "components/safe_browsing/core/common/utils.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "content/public/browser/browser_context.h"
+#include "content/public/browser/storage_partition.h"
 #include "services/network/public/cpp/cross_thread_pending_shared_url_loader_factory.h"
 #include "url/gurl.h"
 
@@ -96,6 +97,12 @@ std::unique_ptr<KeyedService> ChromeEnterpriseRealTimeUrlLookupServiceFactory::
     return nullptr;
   }
   Profile* profile = Profile::FromBrowserContext(context);
+
+  base::RepeatingCallback<network::mojom::NetworkContext*()>
+      network_context_getter = base::BindRepeating(
+          &ChromeEnterpriseRealTimeUrlLookupServiceFactory::GetNetworkContext,
+          profile);
+
   auto url_loader_factory =
       std::make_unique<network::CrossThreadPendingSharedURLLoaderFactory>(
           profile->GetURLLoaderFactory());
@@ -120,8 +127,15 @@ std::unique_ptr<KeyedService> ChromeEnterpriseRealTimeUrlLookupServiceFactory::
           IdentityManagerFactory::GetForProfile(profile)),
       base::BindRepeating(&enterprise_util::IsProfileAffiliated, profile),
       /*is_command_line_switch_supported=*/IsCommandLineSwitchSupported(),
-      ClientSideDetectionIntelligentScanDelegateFactory::GetForProfile(
-          profile));
+      ClientSideDetectionIntelligentScanDelegateFactory::GetForProfile(profile),
+      network_context_getter);
+}
+
+// static
+network::mojom::NetworkContext*
+ChromeEnterpriseRealTimeUrlLookupServiceFactory::GetNetworkContext(
+    Profile* profile) {
+  return profile->GetDefaultStoragePartition()->GetNetworkContext();
 }
 
 }  // namespace safe_browsing

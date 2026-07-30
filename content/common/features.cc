@@ -195,6 +195,11 @@ BASE_FEATURE(kDocumentIsolationPolicyWithoutSiteIsolation,
 // Enable document policy negotiation mechanism.
 BASE_FEATURE(kDocumentPolicyNegotiation, base::FEATURE_DISABLED_BY_DEFAULT);
 
+// When enabled `EditContext::updateSelection` calls from async selectionchange
+// handlers sync the selection to the browser.
+// See https://crbug.com/516839844
+BASE_FEATURE(kEditContextSelectionSync, base::FEATURE_ENABLED_BY_DEFAULT);
+
 // When enabled, the renderer is killed if a renderer process provides
 // an Origin header on a navigation request.
 BASE_FEATURE(kKillOnUnexpectedOriginHeader, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -558,6 +563,10 @@ BASE_FEATURE(kPrefetchCookieIndices, base::FEATURE_DISABLED_BY_DEFAULT);
 // and prerender) on all predictors. This is useful in comparing the impact of
 // blink::features::kPrerender2 experiment with and without them.
 
+// Enables extension interception for preload activation report beacons.
+BASE_FEATURE(kPreloadActivationReportWithExtensionInterception,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // This Feature allows configuring preloading features via a parameter string.
 // See content/browser/preloading/preloading_config.cc to see how to use this
 // feature.
@@ -640,6 +649,13 @@ BASE_FEATURE(kPreferWarmRendererProcess, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kReusePrerenderingProcessForMainFrames,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Allows a reload to replace the initial navigation entry if it is
+// the first navigation to commit. This fixes the case where a browser-initiated
+// reload occurs before the first navigation has committed, resulting in
+// discarding the pending entry and remaining on the about:blank page. See
+// https://crbug.com/324117294.
+BASE_FEATURE(kReplaceInitialEntryForReload, base::FEATURE_ENABLED_BY_DEFAULT);
+
 #if BUILDFLAG(IS_ANDROID)
 // If enabled, then orientation lock won't claim to work on anything but phone
 // form factors.  Tablets already do unpredictable things, such as letterboxing
@@ -696,14 +712,6 @@ const base::FeatureParam<std::string>
 // (crbug.com/41411856): When enabled, the srcdoc iframes are controlled by the
 // same service worker that controls their parent.
 BASE_FEATURE(kServiceWorkerSrcdocSupport, base::FEATURE_ENABLED_BY_DEFAULT);
-
-// When this is enabled, it fixes the object lifetime issue when
-// `race-network-and-fetch-handler` is used, the object should be deleted after
-// the fetch event completion, regardless of the result of racing.
-//
-// crbug.com/340949948 for more details.
-BASE_FEATURE(kServiceWorkerStaticRouterRaceRequestFix2,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enforce CORP check for Service Worker Static Router's cache source.
 BASE_FEATURE(kServiceWorkerStaticRouterCORPCheck,

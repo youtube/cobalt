@@ -897,7 +897,7 @@ class SaveCardBubbleViewsFullFormBrowserTest
   void HideAccountNameEmailProfile() {
     signin::IdentityManager* identity_manager =
         IdentityManagerFactory::GetForProfile(GetProfile(0));
-    autofill::test::HideAccountNameEmailProfile(
+    test::HideAccountNameEmailProfile(
         GetProfile(0)->GetPrefs(), identity_manager->FindExtendedAccountInfo(
                                        identity_manager->GetPrimaryAccountInfo(
                                            signin::ConsentLevel::kSignin)));
@@ -917,7 +917,7 @@ class SaveCardBubbleViewsFullFormBrowserTest
   bool is_icon_showing_ = false;
   bool is_bubble_showing_ = false;
 
-  std::unique_ptr<autofill::EventWaiter<DialogEvent>> event_waiter_;
+  std::unique_ptr<EventWaiter<DialogEvent>> event_waiter_;
   std::unique_ptr<views::AnyWidgetObserver> any_widget_observer_;
 
   test::AutofillBrowserTestEnvironment autofill_test_environment_;
@@ -1887,7 +1887,7 @@ IN_PROC_BROWSER_TEST_P(
 
   // Set now to next month. Setting test_clock will not affect the dropdown to
   // be selected, so selecting the current January will always be expired.
-  autofill::TestAutofillClock test_clock;
+  TestAutofillClock test_clock;
   test_clock.SetNow(base::Time::Now());
   test_clock.Advance(base::Days(40));
   // Selecting expired date will disable [Save] button.
@@ -1981,7 +1981,7 @@ IN_PROC_BROWSER_TEST_P(
   SetupSyncAndHideAccountNameEmailProfile();
   const base::Time kJune2017 =
       base::Time::FromSecondsSinceUnixEpoch(1497552271);
-  autofill::TestAutofillClock test_clock;
+  TestAutofillClock test_clock;
   test_clock.SetNow(kJune2017);
   // Fill form with a valid month but a passed year.
   FillFormWithSpecificExpirationDate("03", "2017");

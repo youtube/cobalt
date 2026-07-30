@@ -161,7 +161,7 @@ public class AnchoredPopupWindow implements OnTouchListener, RectProvider.Observ
     private final SpecCalculator mSpecCalculator;
 
     /** The actual {@link PopupWindow}. Internalized to prevent API leakage. */
-    private final PopupWindow mPopupWindow;
+    private final ChromePopupWindow mPopupWindow;
 
     /** Provides the {@link Rect} to anchor the popup to in screen space. */
     private final RectProvider mRectProvider;
@@ -294,6 +294,7 @@ public class AnchoredPopupWindow implements OnTouchListener, RectProvider.Observ
         private boolean mIsOutsideTouchableSet;
         private int mWindowLayoutType;
         private boolean mIsWindowLayoutTypeSet;
+        private boolean mAllowOverlapCaptionBar;
 
         /**
          * Constructs an {@link AnchoredPopupWindow} instance.
@@ -544,6 +545,14 @@ public class AnchoredPopupWindow implements OnTouchListener, RectProvider.Observ
         }
 
         /**
+         * @param allow True if the popup is allowed to overlap the caption bar in desktop mode.
+         */
+        public Builder setAllowOverlapCaptionBar(boolean allow) {
+            mAllowOverlapCaptionBar = allow;
+            return this;
+        }
+
+        /**
          * @return A new {@link AnchoredPopupWindow}.
          */
         public AnchoredPopupWindow build() {
@@ -597,6 +606,7 @@ public class AnchoredPopupWindow implements OnTouchListener, RectProvider.Observ
         if (builder.mIsWindowLayoutTypeSet) {
             setWindowLayoutType(builder.mWindowLayoutType);
         }
+        setAllowOverlapCaptionBar(builder.mAllowOverlapCaptionBar);
     }
 
     /**
@@ -817,6 +827,14 @@ public class AnchoredPopupWindow implements OnTouchListener, RectProvider.Observ
     @Deprecated
     public void setOutsideTouchable(boolean touchable) {
         mPopupWindow.setOutsideTouchable(touchable);
+    }
+
+    /**
+     * Sets whether this popup window is allowed to overlap the caption bar/window decorations in
+     * desktop mode.
+     */
+    public void setAllowOverlapCaptionBar(boolean allow) {
+        mPopupWindow.setAllowOverlapCaptionBar(allow);
     }
 
     /**

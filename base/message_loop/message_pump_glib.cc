@@ -160,7 +160,7 @@ bool RunningOnMainThread() {
 //     Then, considering nesting case B, |state_->do_work_depth| is incremented
 // during any Chrome work, to allow the pump to detect re-entrancy during a
 // chrome work item. This is required because `g_main_depth` is not incremented
-// in any `DoWork` call not occuring during `Dispatch()` (i.e. during
+// in any `DoWork` call not occurring during `Dispatch()` (i.e. during
 // `MessagePumpGlib::Run()`). In this case, a nested loop is recorded, and the
 // pump sets-and-clears scoped work items during Prepare, Check, and Dispatch. A
 // work item can never be active when control flow returns to GLib (i.e. on

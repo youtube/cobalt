@@ -108,11 +108,13 @@ void ListFamilyMembersService::OnExtendedAccountInfoUpdated(
 
   signin::Tribool can_start_fetch = signin::Tribool::kUnknown;
   if (FetchListFamilyMembersWithCapability()) {
-    can_start_fetch = info.capabilities.can_fetch_family_member_info();
+    can_start_fetch =
+        info.GetAccountCapabilities().can_fetch_family_member_info();
   } else {
     // The default fetcher only retrieves Family account info from accounts
     // subject to parental controls.
-    can_start_fetch = info.capabilities.is_subject_to_parental_controls();
+    can_start_fetch =
+        info.GetAccountCapabilities().is_subject_to_parental_controls();
   }
 
   switch (can_start_fetch) {

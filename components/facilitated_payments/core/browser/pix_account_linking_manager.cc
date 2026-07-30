@@ -4,6 +4,7 @@
 
 #include "components/facilitated_payments/core/browser/pix_account_linking_manager.h"
 
+#include <string_view>
 #include <utility>
 
 #include "base/check_deref.h"
@@ -23,6 +24,8 @@
 
 namespace payments::facilitated {
 
+constexpr std::string_view kPixFopSuffix = "Pix";
+
 PixAccountLinkingManager::PixAccountLinkingManager(
     FacilitatedPaymentsClient* client)
     : client_(CHECK_DEREF(client)) {}
@@ -41,12 +44,13 @@ void PixAccountLinkingManager::MaybeShowPixAccountLinkingPrompt(
       case PixAccountLinkingStrikeDatabase::kDoNotBlock:
         break;
       case PixAccountLinkingStrikeDatabase::kMaxStrikeLimitReached:
-        LogPixAccountLinkingFlowExitedReason(
-            PixAccountLinkingFlowExitedReason::kMaxStrikes);
+        LogAccountLinkingFlowExitedReason(
+            kPixFopSuffix, AccountLinkingFlowExitedReason::kMaxStrikes);
         return;
       case PixAccountLinkingStrikeDatabase::kRequiredDelayNotPassed:
-        LogPixAccountLinkingFlowExitedReason(
-            PixAccountLinkingFlowExitedReason::kRequiredDelayNotPassed);
+        LogAccountLinkingFlowExitedReason(
+            kPixFopSuffix,
+            AccountLinkingFlowExitedReason::kRequiredDelayNotPassed);
         return;
     }
   }
@@ -55,12 +59,13 @@ void PixAccountLinkingManager::MaybeShowPixAccountLinkingPrompt(
       client_->GetDeviceDelegate()->IsPixAccountLinkingSupported();
   switch (wallet_eligibility) {
     case WalletEligibilityForPixAccountLinking::kWalletNotInstalled:
-      LogPixAccountLinkingFlowExitedReason(
-          PixAccountLinkingFlowExitedReason::kWalletNotInstalled);
+      LogAccountLinkingFlowExitedReason(
+          kPixFopSuffix, AccountLinkingFlowExitedReason::kWalletNotInstalled);
       return;
     case WalletEligibilityForPixAccountLinking::kWalletVersionNotSupported:
-      LogPixAccountLinkingFlowExitedReason(
-          PixAccountLinkingFlowExitedReason::kWalletVersionNotSupported);
+      LogAccountLinkingFlowExitedReason(
+          kPixFopSuffix,
+          AccountLinkingFlowExitedReason::kWalletVersionNotSupported);
       return;
     case WalletEligibilityForPixAccountLinking::kEligible:
       break;
@@ -68,14 +73,15 @@ void PixAccountLinkingManager::MaybeShowPixAccountLinkingPrompt(
 
   if (!client_->GetPaymentsDataManager()
            ->IsFacilitatedPaymentsPixAccountLinkingUserPrefEnabled()) {
-    LogPixAccountLinkingFlowExitedReason(
-        PixAccountLinkingFlowExitedReason::kUserOptedOut);
+    LogAccountLinkingFlowExitedReason(
+        kPixFopSuffix, AccountLinkingFlowExitedReason::kUserOptedOut);
     return;
   }
 
   if (!client_->HasScreenlockOrBiometricSetup()) {
-    LogPixAccountLinkingFlowExitedReason(
-        PixAccountLinkingFlowExitedReason::kNoScreenlockOrBiometricSetup);
+    LogAccountLinkingFlowExitedReason(
+        kPixFopSuffix,
+        AccountLinkingFlowExitedReason::kNoScreenlockOrBiometricSetup);
     return;
   }
 
@@ -93,6 +99,7 @@ void PixAccountLinkingManager::MaybeShowPixAccountLinkingPrompt(
     client_->GetFacilitatedPaymentsNetworkInterface()
         ->GetDetailsForCreatePaymentInstrument(
             billing_customer_id,
+            /*client_token=*/std::vector<uint8_t>{},
             base::BindOnce(
                 &PixAccountLinkingManager::
                     OnGetDetailsForCreatePaymentInstrumentResponseReceived,
@@ -127,15 +134,15 @@ void PixAccountLinkingManager::ShowPixAccountLinkingPromptIfEligible() {
   // account linking, exit.
   if (!is_eligible_for_pix_account_linking_.has_value() ||
       !is_eligible_for_pix_account_linking_.value()) {
-    LogPixAccountLinkingFlowExitedReason(
-        PixAccountLinkingFlowExitedReason::kServerSideIneligible);
+    LogAccountLinkingFlowExitedReason(
+        kPixFopSuffix, AccountLinkingFlowExitedReason::kServerSideIneligible);
     return;
   }
 
   // If the user has switched to a different tab, don't show the prompt.
   if (!client_->IsWebContentsVisibleOrOccluded()) {
-    LogPixAccountLinkingFlowExitedReason(
-        PixAccountLinkingFlowExitedReason::kTabIsNotActive);
+    LogAccountLinkingFlowExitedReason(
+        kPixFopSuffix, AccountLinkingFlowExitedReason::kTabIsNotActive);
     return;
   }
 
@@ -144,8 +151,8 @@ void PixAccountLinkingManager::ShowPixAccountLinkingPromptIfEligible() {
   // URLs have the same scheme, the same host, and the same port.
   if (!pix_payment_page_origin_.IsSameOriginWith(
           client_->GetLastCommittedOrigin())) {
-    LogPixAccountLinkingFlowExitedReason(
-        PixAccountLinkingFlowExitedReason::kUserSwitchedWebsite);
+    LogAccountLinkingFlowExitedReason(
+        kPixFopSuffix, AccountLinkingFlowExitedReason::kUserSwitchedWebsite);
     return;
   }
 
@@ -200,8 +207,8 @@ void PixAccountLinkingManager::OnAccepted() {
 }
 
 void PixAccountLinkingManager::OnDeclined() {
-  LogPixAccountLinkingFlowExitedReason(
-      PixAccountLinkingFlowExitedReason::kUserDeclined);
+  LogAccountLinkingFlowExitedReason(
+      kPixFopSuffix, AccountLinkingFlowExitedReason::kUserDeclined);
   DismissPrompt();
 
   if (auto* strike_database = GetOrCreateStrikeDatabase()) {
@@ -218,23 +225,24 @@ void PixAccountLinkingManager::OnUiScreenEvent(UiEvent ui_event_type) {
     }
     case UiEvent::kScreenCouldNotBeShown: {
       CHECK(is_prompt_showing_);
-      LogPixAccountLinkingFlowExitedReason(
-          PixAccountLinkingFlowExitedReason::kScreenNotShown);
+      LogAccountLinkingFlowExitedReason(
+          kPixFopSuffix, AccountLinkingFlowExitedReason::kScreenNotShown);
       is_prompt_showing_ = false;
       break;
     }
     case UiEvent::kScreenClosedNotByUser: {
       if (is_prompt_showing_) {
-        LogPixAccountLinkingFlowExitedReason(
-            PixAccountLinkingFlowExitedReason::kScreenClosedNotByUser);
+        LogAccountLinkingFlowExitedReason(
+            kPixFopSuffix,
+            AccountLinkingFlowExitedReason::kScreenClosedNotByUser);
       }
       is_prompt_showing_ = false;
       break;
     }
     case UiEvent::kScreenClosedByUser: {
       CHECK(is_prompt_showing_);
-      LogPixAccountLinkingFlowExitedReason(
-          PixAccountLinkingFlowExitedReason::kScreenClosedByUser);
+      LogAccountLinkingFlowExitedReason(
+          kPixFopSuffix, AccountLinkingFlowExitedReason::kScreenClosedByUser);
       is_prompt_showing_ = false;
       break;
     }
@@ -247,9 +255,16 @@ void PixAccountLinkingManager::
     OnGetDetailsForCreatePaymentInstrumentResponseReceived(
         base::TimeTicks start_time,
         autofill::payments::PaymentsAutofillClient::PaymentsRpcResult result,
-        bool is_eligible_for_pix_account_linking) {
-  LogGetDetailsForCreatePaymentInstrumentResultAndLatency(
-      is_eligible_for_pix_account_linking, base::TimeTicks::Now() - start_time);
+        bool is_eligible_for_pix_account_linking,
+        const std::vector<uint8_t>& /*action_token*/) {
+  // `action_token` is unused here because web-based Pix account linking does
+  // not require it. The native account linking flow is coordinated by
+  // `NativeAccountLinkingHandler`, which caches the token in its own callback
+  // `OnGetDetailsForCreatePaymentInstrumentResponseReceived` and uses it to
+  // invoke the native instrument manager.
+  LogAccountLinkingGetDetailsForCreatePaymentInstrumentResultAndLatency(
+      kPixFopSuffix, is_eligible_for_pix_account_linking,
+      base::TimeTicks::Now() - start_time);
   is_eligible_for_pix_account_linking_ = is_eligible_for_pix_account_linking;
 }
 

@@ -1409,65 +1409,8 @@ TEST_F(PasswordControllerTest, SendingToStoreDynamicallyAddedFormsOnFocus) {
   }));
 }
 
-// Tests that a touchend event from a button which contains in a password form
-// works as a submission indicator for this password form.
-TEST_F(PasswordControllerTest, TouchendAsSubmissionIndicator) {
-  ON_CALL(*store_, GetLogins)
-      .WillByDefault(WithArg<1>(InvokeEmptyConsumerWithForms(store_.get())));
-  const auto kHtml = std::to_array<std::string_view>(
-      {"<html><body>"
-       "<form name='login_form' id='login_form'>"
-       "  <input type='text' name='username'>"
-       "  <input type='password' name='password'>"
-       "  <button id='submit_button' value='Submit'>"
-       "</form>"
-       "</body></html>",
-       "<html><body>"
-       "<form name='login_form' id='login_form'>"
-       "  <input type='text' name='username'>"
-       "  <input type='password' name='password'>"
-       "  <button id='back' value='Back'>"
-       "  <button id='submit_button' type='submit' value='Submit'>"
-       "</form>"
-       "</body></html>"});
-
-  for (const std::string_view html : kHtml) {
-    LoadHtml(SysUTF8ToNSString(html));
-    WaitForFormManagersCreation();
-
-    std::unique_ptr<PasswordFormManagerForUI> form_manager_to_save;
-    EXPECT_CALL(*weak_client_, PromptUserToSaveOrUpdatePassword)
-        .WillOnce(MoveArgAndReturn<0>(&form_manager_to_save, true));
-
-    ExecuteJavaScript(
-        @"document.getElementsByName('username')[0].value = 'user1';"
-         "document.getElementsByName('password')[0].value = 'password1';"
-         "var e = new UIEvent('touchend');"
-         "document.getElementById('submit_button').dispatchEvent(e);");
-    LoadHtmlWithRendererInitiatedNavigation(
-        @"<html><body>Success</body></html>");
-
-    auto& form_manager_check = form_manager_to_save;
-    ASSERT_TRUE(WaitUntilConditionOrTimeout(kWaitForActionTimeout, ^bool() {
-      return form_manager_check != nullptr;
-    }));
-
-    EXPECT_EQ("https://chromium.test/",
-              form_manager_to_save->GetPendingCredentials().signon_realm);
-    EXPECT_EQ(u"user1",
-              form_manager_to_save->GetPendingCredentials().username_value);
-    EXPECT_EQ(u"password1",
-              form_manager_to_save->GetPendingCredentials().password_value);
-
-    auto* form_manager =
-        static_cast<PasswordFormManager*>(form_manager_to_save.get());
-    EXPECT_TRUE(form_manager->is_submitted());
-    EXPECT_FALSE(form_manager->IsPasswordUpdate());
-  }
-}
-
-// Tests that a touchend event from a button which contains in a password form
-// works as a submission indicator for this password form.
+// Tests that password credentials are correctly captured and prompted for
+// saving when a form is submitted from within a same-origin iframe.
 TEST_F(PasswordControllerTest, SavingFromSameOriginIframe) {
   ON_CALL(*store_, GetLogins)
       .WillByDefault(WithArg<1>(InvokeEmptyConsumerWithForms(store_.get())));

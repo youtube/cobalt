@@ -98,11 +98,11 @@ void AlsaPcmInputStream::Start(AudioInputCallback* callback) {
   StartAgc();
   int error = wrapper_->PcmPrepare(device_handle_);
   if (error < 0) {
-    HandleError("PcmPrepare", error);
+    HandleError("PcmPrepare", error, Error::kStartupFailed);
   } else {
     error = wrapper_->PcmStart(device_handle_);
     if (error < 0)
-      HandleError("PcmStart", error);
+      HandleError("PcmStart", error, Error::kStartupFailed);
   }
 
   if (error < 0) {
@@ -142,7 +142,7 @@ bool AlsaPcmInputStream::Recover(int original_error) {
     // data flowing again.
     error = wrapper_->PcmStart(device_handle_);
     if (error < 0) {
-      HandleError("PcmStart", error);
+      HandleError("PcmStart", error, Error::kRuntimeError);
       return false;
     }
   }
@@ -261,8 +261,9 @@ void AlsaPcmInputStream::Stop() {
   StopRunningOnCaptureThread();
   capture_thread_.Stop();
   int error = wrapper_->PcmDrop(device_handle_);
-  if (error < 0)
-    HandleError("PcmDrop", error);
+  if (error < 0) {
+    HandleError("PcmDrop", error, Error::kRuntimeError);
+  }
 
   callback_ = nullptr;
 }
@@ -274,7 +275,7 @@ void AlsaPcmInputStream::Close() {
         alsa_util::CloseDevice(wrapper_, device_handle_.ExtractAsDangling());
 
     if (error < 0) {
-      HandleError("PcmClose", error);
+      HandleError("PcmClose", error, Error::kRuntimeError);
     }
 
     mixer_element_handle_ = nullptr;
@@ -360,10 +361,12 @@ void AlsaPcmInputStream::SetOutputDeviceForAec(
   // Not supported. Do nothing.
 }
 
-void AlsaPcmInputStream::HandleError(const char* method, int error) {
+void AlsaPcmInputStream::HandleError(const char* method,
+                                     int error,
+                                     Error error_code) {
   LOG(WARNING) << method << ": " << wrapper_->StrError(error);
   if (callback_)
-    callback_->OnError();
+    callback_->OnError(error_code);
 }
 
 }  // namespace media

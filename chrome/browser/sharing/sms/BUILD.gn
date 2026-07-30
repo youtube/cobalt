@@ -36,7 +36,6 @@ source_set("sms") {
       "//components/sharing_message",
     ]
     deps += [
-      "//chrome/app:generated_resources",
       "//chrome/app/vector_icons",
       "//chrome/browser:shell_integration",
       "//chrome/browser/ui",

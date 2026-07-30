@@ -1026,8 +1026,9 @@ class SaveToFileBodyHandler : public BodyHandler {
           file_ = base::CreateAndOpenTemporaryFileInDir(temp_dir, &path_);
         }
       } else {
-        file_.Initialize(
-            path_, base::File::FLAG_WRITE | base::File::FLAG_CREATE_ALWAYS);
+        file_.Initialize(path_, base::File::FLAG_WRITE |
+                                    base::File::FLAG_CREATE_ALWAYS |
+                                    base::File::FLAG_NO_FOLLOW);
       }
 
       // If CreateTemporaryFile() or File::Initialize() failed, report failure.

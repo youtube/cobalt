@@ -70,6 +70,7 @@ import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabId;
 import org.chromium.chrome.browser.tab_ui.RecyclerViewPosition;
 import org.chromium.chrome.browser.tab_ui.TabContentManager;
+import org.chromium.chrome.browser.tab_ui.TabListMode;
 import org.chromium.chrome.browser.tab_ui.TabSwitcherCustomViewManager;
 import org.chromium.chrome.browser.tab_ui.TabSwitcherGroupSuggestionService;
 import org.chromium.chrome.browser.tab_ui.TabSwitcherGroupSuggestionService.SuggestionUiEvent;
@@ -81,7 +82,6 @@ import org.chromium.chrome.browser.tasks.tab_management.TabGridContextMenuCoordi
 import org.chromium.chrome.browser.tasks.tab_management.TabGridDialogMediator.DialogController;
 import org.chromium.chrome.browser.tasks.tab_management.TabGridItemLongPressOrchestrator.CancelLongPressTabItemEventListener;
 import org.chromium.chrome.browser.tasks.tab_management.TabListCoordinator.DragObserver;
-import org.chromium.chrome.browser.tasks.tab_management.TabListCoordinator.TabListMode;
 import org.chromium.chrome.browser.tasks.tab_management.TabListEditorCoordinator.TabListEditorController;
 import org.chromium.chrome.browser.tasks.tab_management.TabListMediator.TabListItemOnClickListenerProvider;
 import org.chromium.chrome.browser.tasks.tab_management.TabSwitcherMessageManager.MessageUpdateObserver;
@@ -226,6 +226,7 @@ public class TabSwitcherPaneCoordinator implements BackPressHandler {
     private final Callback<EdgeToEdgeController> mOnEdgeToEdgeControllerChangedCallback =
             new ValueChangedCallback<>(this::onEdgeToEdgeControllerChanged);
     private final @Nullable TabGroupLabeller mTabGroupLabeller;
+    private final @Nullable SendTabToSelfTabLabeller mSendTabToSelfTabLabeller;
     private final MonotonicObservableSupplier<TabModel> mTabModelSupplier;
     private final MonotonicObservableSupplier<ShareDelegate> mShareDelegateSupplier;
     private final MonotonicObservableSupplier<TabBookmarker> mTabBookmarkerSupplier;
@@ -331,7 +332,7 @@ public class TabSwitcherPaneCoordinator implements BackPressHandler {
             mTabBookmarkerSupplier = tabBookmarkerSupplier;
             mHubSearchBoxVisibilitySupplier = hubSearchBoxVisibilitySupplier;
 
-            assert mode != TabListMode.STRIP : "TabListMode.STRIP not supported.";
+            assert mode != TabListMode.BOTTOM_STRIP : "TabListMode.BOTTOM_STRIP not supported.";
 
             ViewGroup coordinatorView = activity.findViewById(R.id.coordinator);
 
@@ -617,6 +618,14 @@ public class TabSwitcherPaneCoordinator implements BackPressHandler {
             } else {
                 mTabGroupLabeller = null;
             }
+            if (ChromeFeatureList.isEnabled(ChromeFeatureList.SEND_TAB_TO_SELF_AUTO_OPEN)) {
+                mSendTabToSelfTabLabeller =
+                        new SendTabToSelfTabLabeller(
+                                mTabListCoordinator.getTabListNotificationHandler(),
+                                tabModelSupplier);
+            } else {
+                mSendTabToSelfTabLabeller = null;
+            }
 
             mOnVisibilityChanged.onResult(
                     isVisibleSupplier.addSyncObserverAndPostIfNonNull(mOnVisibilityChanged));
@@ -687,6 +696,9 @@ public class TabSwitcherPaneCoordinator implements BackPressHandler {
         if (mTabGroupLabeller != null) {
             mTabGroupLabeller.destroy();
         }
+        if (mSendTabToSelfTabLabeller != null) {
+            mSendTabToSelfTabLabeller.destroy();
+        }
         mTabModelSupplier.removeObserver(mOnTabModelChange);
         if (mTabGroupListBottomSheetCoordinator != null) {
             mTabGroupListBottomSheetCoordinator.destroy();
@@ -735,6 +747,9 @@ public class TabSwitcherPaneCoordinator implements BackPressHandler {
         mTabListOnScrollListener.postUpdate(mTabListCoordinator.getContainerView());
         if (mTabGroupLabeller != null) {
             mTabGroupLabeller.showAll();
+        }
+        if (mSendTabToSelfTabLabeller != null) {
+            mSendTabToSelfTabLabeller.showAll(tabs);
         }
     }
 

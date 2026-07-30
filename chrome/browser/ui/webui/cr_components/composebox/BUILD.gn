@@ -17,6 +17,7 @@ source_set("composebox") {
     "//chrome/browser/ui/omnibox",
     "//chrome/browser/ui/webui:webui_util",
     "//chrome/browser/ui/webui/cr_components/searchbox",
+    "//chrome/common:constants",
     "//components/contextual_search:public",
     "//components/contextual_tasks/public:feature_list",
     "//components/feature_engagement/public",
@@ -37,6 +38,29 @@ source_set("composebox") {
     deps += [
       "//chrome/browser/ui/user_education",
       "//chrome/browser/ui/webui/top_chrome",
+    ]
+  }
+}
+
+if (!is_android) {
+  source_set("unit_tests") {
+    testonly = true
+    sources = [ "composebox_handler_unittest.cc" ]
+    deps = [
+      ":composebox",
+      "//base",
+      "//base/test:test_support",
+      "//chrome/browser/contextual_search",
+      "//chrome/browser/ui/webui/searchbox:searchbox_test_utils",
+      "//components/contextual_search:public",
+      "//components/contextual_search:test_support",
+      "//components/contextual_tasks/public",
+      "//components/omnibox/browser:mojo_bindings",
+      "//content/public/browser",
+      "//content/test:test_support",
+      "//testing/gmock",
+      "//testing/gtest",
+      "//ui/webui/resources/cr_components/composebox:mojo_bindings",
     ]
   }
 }

@@ -60,7 +60,7 @@ void CreateLinkCommand::DoApply(EditingState* editing_state) {
     if (editing_state->IsAborted())
       return;
     SetEndingSelection(SelectionForUndoStep::From(
-        SelectionInDOMTree::Builder()
+        SelectionInDomTree::Builder()
             .Collapse(Position::FirstPositionInNode(*anchor_element))
             .Extend(Position::LastPositionInNode(*anchor_element))
             .Build()));

@@ -153,6 +153,7 @@ class ProgressWnd : public CompleteWnd, public AppInstallProgress {
   void HandleCancelRequest();
   void UpdateWindowRgn();
   void ApplyDpiScaling(int dpi);
+  int GetScaledCornerRadius() const;
 
   void DeterminePostInstallUrls(const ObserverCompletionInfo& info);
 

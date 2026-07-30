@@ -476,7 +476,6 @@ https://chromeenterprise.google/policies/url-patterns/ 페이지를 참고하세
       정책을 사용 설정하면 개선된 국제 키보드 단축키가 사용됩니다.
       정책을 설정하지 않으면 정책이 관리 기기와 일반 사용자 소유의 기기 모두에서 사용 설정됩니다.
       이는 관리 대상 사용자가 지원 중단된 기존 단축키를 계속 사용할 수 있도록 허용하기 위한 임시 정책일 뿐입니다. 맞춤 키보드 단축키가 제공되면 이 정책은 지원 중단됩니다.</translation>
-<translation id="1359459742455216057"><ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /> 앱의 고유 식별자입니다.</translation>
 <translation id="1361661842732478894">툴바에 홈 버튼 표시</translation>
 <translation id="1363275621236827384">하드웨어 프로필 Quirks 서버에 검색어를 사용합니다.</translation>
 <translation id="1363839375295535439">이 정책을 사용 설정하거나 설정하지 않은 상태로 두면 시스템 구성에서 지원하는 경우 항상 인쇄 서비스에 LPAC 샌드박스를 사용 설정합니다.
@@ -7352,9 +7351,6 @@ Microsoft SharePoint 및 OneDrive 카드에는 추가 관리자 구성이 필요
 <translation id="5649788773465136073">사이트에서 보호된 콘텐츠 식별자를 사용하지 않도록 설정하며, 이로 인해 보호된 콘텐츠 재생 품질이 저하될 수 있습니다.</translation>
 <translation id="5650256117857913687">원격 액세스 사용자가 로컬 클라이언트 브라우저에서 호스트 측 URL을 열지 못하도록 차단</translation>
 <translation id="5650716720715977549">비공개 수준이 더 높은 네트워크 엔드포인트에 대한 요청에 제한사항 적용</translation>
-<translation id="5651538748810288218">정책을 1로 설정하면 웹사이트에서 움직임 감지 센서 및 조도 센서 등의 센서에 액세스하고 이러한 센서를 사용할 수 있습니다. 정책을 2로 설정하면 센서 액세스가 거부됩니다.
-
-      정책을 설정하지 않으면 <ph name="ALLOW_SENSORS_POLICY_NAME" /> 정책이 적용되지만 사용자가 이 설정을 변경할 수 있습니다.</translation>
 <translation id="5652250453612826983">자녀 계정에만 적용되는 부모 감독 기능 정책을 제어합니다.
       이러한 정책은 관리 콘솔에서 설정되지 않고 Kids API 서버에서 바로 구성됩니다.</translation>
 <translation id="5654682237531873653">정책을 사용 설정하면 맞춤법 검사가 켜지며 사용자가 끌 수 없습니다. 그러나 <ph name="MS_WIN_NAME" />, <ph name="PRODUCT_OS_NAME" />, <ph name="LINUX_OS_NAME" />에서는 맞춤법 검사 언어를 개별적으로 켜거나 끌 수 있기 때문에 사용자가 모든 맞춤법 검사 언어를 끄면 맞춤법 검사도 꺼집니다. 이러한 상황을 방지하려면 <ph name="SPELLCHECK_LANGUAGE_POLICY_NAME" /> 정책을 사용해 특정 맞춤법 검사 언어가 강제로 사용되도록 설정하세요.
@@ -7842,6 +7838,7 @@ IP 주소 공간 재정의에는 두 가지 형식이 있습니다.
 <translation id="5962271004971310788">시크릿 모드에서 탐색하려면 사용자가 시크릿 모드에서 실행하도록 허용해야 하는 확장 프로그램</translation>
 <translation id="5963752574792883406">포트 990(2022년 2월 1일까지 차단 해제될 수 있음)</translation>
 <translation id="596523880465577341">이 정책은 지원 중단되었으며 지원되지 않습니다. 대신 '<ph name="EXTENSION_INSTALL_ALLOWLIST_POLICY_NAME" />' 정책을 사용하세요.</translation>
+<translation id="5965344524743236327">사용 설정할 <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /> 인스턴스에 해당하는 <ph name="GOOGLE_CLOUD_PRODUCT_NAME" /> 프로젝트의 ID 또는 번호입니다. https://docs.cloud.google.com/resource-manager/docs/creating-managing-projects에서 프로젝트 ID에 대해 자세히 알아보세요.</translation>
 <translation id="5966615072639944554">원격 인증 API를 사용하도록 허용된 확장 프로그램입니다.</translation>
 <translation id="596732417280023843">인증서 프로필의 이름입니다.</translation>
 <translation id="5972538402066550344">상세 보고 제어 허용</translation>
@@ -8260,6 +8257,7 @@ ArcEnabled 및 UnaffiliatedArcAllowed 정책에서 적용하는 제한사항과 
 <translation id="6264247808139384018">정책을 사용 설정하거나 설정하지 않으면 비밀번호로 인증하는 사용자가 화면을 잠글 수 있습니다.
 
 정책을 사용 중지하면 사용자가 화면을 잠글 수 없습니다. (사용자 세션에서 로그아웃만 할 수 있음)</translation>
+<translation id="6265114688953151459"><ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /> 엔진의 고유 식별자입니다. 형식은 [a-z0-9][a-z0-9-_]* 패턴과 일치하는 1~63자(영문 기준)여야 합니다. https://docs.cloud.google.com/gemini/enterprise/docs/reference/rest/v1/projects.locations.collections.engines#Engine에서 자세히 알아보세요.</translation>
 <translation id="6265892395051519509">이 사이트에서 센서에 액세스하도록 허용</translation>
 <translation id="6266043141694454734">Chrome Root Store 및 내장된 인증서 확인 기능을 서버 인증서 확인에 사용할지 결정합니다.</translation>
 <translation id="6266686172120601139">Web Audio의 적응형 버퍼링 사용 설정</translation>
@@ -9070,7 +9068,6 @@ false로 설정되면 Crostini 컨테이너로 포트 전달이 사용 중지됩
 
 <ph name="PRODUCT_NAME" />의 경우 정책은 기기가 <ph name="CLOUD_MANAGEMENT_ENROLLMENT_TOKEN" />으로 등록되어 있을 때만 적용됩니다.
 <ph name="PRODUCT_OS_NAME" />의 경우 정책이 항상 적용됩니다.</translation>
-<translation id="6714333117401088746">사용 설정할 <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /> 인스턴스에 대응되는 <ph name="GOOGLE_CLOUD_PRODUCT_NAME" /> 프로젝트의 ID입니다.</translation>
 <translation id="6720330829631914048">하루가 시작된 이후 경과한 시간(24시간 형식)입니다.</translation>
 <translation id="6720862827454058309">IP 주소 공간 매핑 재정의</translation>
 <translation id="6721252203593581486">타사 컨텍스트에서 WebSQL(예: 크로스 사이트 iframe)은 M97부터 기본적으로 사용 중지되며 M101에서 완전히 삭제됩니다.

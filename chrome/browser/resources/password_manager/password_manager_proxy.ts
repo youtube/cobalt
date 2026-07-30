@@ -8,6 +8,8 @@
  * testing. The chrome.passwordsPrivate API is being migrated to use Mojo.
  */
 
+import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
+
 import {PageCallbackRouter, PageHandlerFactory, PageHandlerRemote, PasswordManagerActionableError} from './password_manager.mojom-webui.js';
 import type {ActorLoginPermission} from './password_manager.mojom-webui.js';
 
@@ -342,7 +344,7 @@ export interface PasswordManagerProxy {
   /**
    * Shows the file with the exported passwords in the OS shell.
    */
-  showExportedFileInShell(filePath: string): void;
+  showLastExportedFileInShell(): void;
 
   /**
    * Requests whether the given |url| meets the requirements to save a password
@@ -652,7 +654,11 @@ export class PasswordManagerImpl implements PasswordManagerProxy {
   }
 
   undoRemoveSavedPasswordOrException() {
-    chrome.passwordsPrivate.undoRemoveSavedPasswordOrException();
+    if (!loadTimeData.getBoolean('enablePasswordManagerMojoApi')) {
+      chrome.passwordsPrivate.undoRemoveSavedPasswordOrException();
+      return;
+    }
+    this.handler.undoRemoveSavedPasswordOrException();
   }
 
   fetchFamilyMembers() {
@@ -700,8 +706,8 @@ export class PasswordManagerImpl implements PasswordManagerProxy {
         result => result.success);
   }
 
-  showExportedFileInShell(filePath: string) {
-    chrome.passwordsPrivate.showExportedFileInShell(filePath);
+  showLastExportedFileInShell() {
+    this.handler.showLastExportedFileInShell();
   }
 
   getUrlCollection(url: string) {
@@ -791,11 +797,19 @@ export class PasswordManagerImpl implements PasswordManagerProxy {
   }
 
   disconnectCloudAuthenticator() {
-    return chrome.passwordsPrivate.disconnectCloudAuthenticator();
+    if (!loadTimeData.getBoolean('enablePasswordManagerMojoApi')) {
+      return chrome.passwordsPrivate.disconnectCloudAuthenticator();
+    }
+    return this.handler.disconnectCloudAuthenticator().then(
+        result => result.success);
   }
 
   isConnectedToCloudAuthenticator() {
-    return chrome.passwordsPrivate.isConnectedToCloudAuthenticator();
+    if (!loadTimeData.getBoolean('enablePasswordManagerMojoApi')) {
+      return chrome.passwordsPrivate.isConnectedToCloudAuthenticator();
+    }
+    return this.handler.isConnectedToCloudAuthenticator().then(
+        result => result.connected);
   }
 
   deleteAllPasswordManagerData() {

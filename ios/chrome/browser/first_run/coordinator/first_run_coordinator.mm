@@ -280,6 +280,7 @@ class FirstRunCoordinatorMetricsHelper final {
 #pragma mark - Private
 
 - (void)stopChildCoordinator {
+  // The child's `stop` method must unset the delegate.
   [self.childCoordinator stop];
   self.childCoordinator = nil;
 }

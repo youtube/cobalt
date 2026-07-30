@@ -5,10 +5,13 @@
 #ifndef CHROMEOS_ASH_EXPERIENCES_ISOLATED_WEB_APP_ISOLATED_WEB_APP_API_BRIDGE_IMPL_H_
 #define CHROMEOS_ASH_EXPERIENCES_ISOLATED_WEB_APP_ISOLATED_WEB_APP_API_BRIDGE_IMPL_H_
 
+#include <optional>
 #include <vector>
 
 #include "base/component_export.h"
 #include "content/public/browser/document_user_data.h"
+#include "content/public/browser/permission_controller.h"
+#include "content/public/browser/permission_result.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "third_party/blink/public/mojom/chromeos/isolated_web_app_api_bridge.mojom.h"
@@ -64,6 +67,18 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_ISOLATED_WEB_APP)
   explicit IsolatedWebAppApiBridgeImpl(
       content::RenderFrameHost* render_frame_host);
 
+  // Resets any custom shape and event targeter in the window back to default.
+  void ResetShape();
+
+  // Callback triggered when WINDOW_MANAGEMENT permission changes.
+  void OnWindowManagementPermissionChanged(content::PermissionResult result);
+
+  // Subscribes to WINDOW_MANAGEMENT permission changes.
+  void SubscribeToWindowManagementPermissionChanges();
+
+  // Unsubscribes from WINDOW_MANAGEMENT permission changes.
+  void UnsubscribeFromWindowManagementPermissionChanges();
+
   // Binds `receiver` to `receiver_`. If the `receiver_` is already bound,
   // it will be re-bound to the new pipe.
   void Bind(
@@ -74,6 +89,10 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_ISOLATED_WEB_APP)
   views::Widget* GetWidget();
 
   mojo::Receiver<blink::mojom::IsolatedWebAppApiBridge> receiver_{this};
+
+  // The ID set when a WINDOW_MANAGEMENT subscription is active.
+  std::optional<content::PermissionController::SubscriptionId>
+      permission_subscription_id_;
 
   // When true the API is enabled for every document. Must only be set in tests.
   bool force_enable_api_for_testing_ = false;

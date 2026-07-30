@@ -45,15 +45,13 @@ struct SavePaymentMethodAndVirtualCardEnrollConfirmationUiParams {
   std::u16string title_text;
   std::u16string description_text;
   std::u16string failure_ok_button_text;
-  std::u16string failure_ok_button_accessible_name;
 
  private:
   SavePaymentMethodAndVirtualCardEnrollConfirmationUiParams(
       bool is_success,
       bool should_display_wallet_logo,
       std::u16string title_text,
-      std::u16string description_text,
-      std::u16string failure_ok_button_accessible_name);
+      std::u16string description_text);
 };
 
 }  // namespace autofill

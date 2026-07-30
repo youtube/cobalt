@@ -55,6 +55,7 @@ struct MultiloginCookieBindingParams {
   enum class Mode { kDisabled, kEnabledUnenforced, kEnabledEnforced };
 
   Mode mode = Mode::kDisabled;
+  Mode youtube_mode = Mode::kDisabled;
   // Indicates whether the bound session credentials from the server response
   // should be parsed according to the standard format.
   bool standard_device_bound_session_credentials = false;

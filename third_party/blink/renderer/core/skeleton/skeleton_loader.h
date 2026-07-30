@@ -64,10 +64,10 @@ class CORE_EXPORT SkeletonLoader : public GarbageCollected<SkeletonLoader>,
   void InsertSkeletonTree(Document& skeleton_document);
 
   // The currently rendered skeleton
-  Member<Skeleton> skeleton_;
+  Member<Skeleton> current_skeleton_;
 
-  // The set of urls we should load skeletons for.
-  HashSet<KURL> use_skeleton_for_;
+  // A map from url to Skeleton for urls we should load skeletons for
+  HeapHashMap<KURL, Member<Skeleton>> skeletons_;
 };
 
 }  // namespace blink

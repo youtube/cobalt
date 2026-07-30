@@ -8,6 +8,7 @@
 #include <memory>
 #include <optional>
 
+#include "base/memory/raw_ref.h"
 #include "components/webapps/common/web_app_id.h"
 
 class Profile;
@@ -42,6 +43,10 @@ class NavigationCapturingSettings {
   virtual bool ShouldAuxiliaryContextsKeepSameContainer(
       const std::optional<webapps::AppId>& source_browser_app_id,
       const GURL& url);
+
+ protected:
+  explicit NavigationCapturingSettings(Profile&);
+  raw_ref<Profile> profile_;
 };
 
 }  // namespace web_app

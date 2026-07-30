@@ -23,6 +23,23 @@ struct DISPLAY_EXPORT ScreenInfo {
   // pixels.
   float device_scale_factor = 1.f;
 
+  // The system text scale multiplier.
+  //
+  // For most users this is expected to be 1.0, but some platforms offer an
+  // accessibility option to increase the text size without increasing the size
+  // of other UI elements. When the user has selected such an option, this value
+  // is expected to match their selection.
+  //
+  // This value is also expected to be factored into the device_scale_factor.
+  // For example, if the user has selected a 1.5x text size, and the actual
+  // native device scale factor is 2.0x, then this value is expected to be 1.5,
+  // and the device_scale_factor is expected to be 1.5x2.0=3.0. This means views
+  // that only handle scaling everything by device_scale_factor will still
+  // provide the user with correctly sized text, while views that handle text
+  // scaling independently of overall device scale (like web pages that use
+  // text-scale) can factor out the text and device portions.
+  float text_scale_multiplier = 1.f;
+
   // The color spaces used by output display for various content types.
   gfx::DisplayColorSpaces display_color_spaces;
 

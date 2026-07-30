@@ -67,12 +67,14 @@ bool IsLocalFile(const GURL& url) {
 
 DemuxerManager::DemuxerManager(
     Client* client,
+    url::Origin security_origin,
     scoped_refptr<base::SequencedTaskRunner> media_task_runner,
     MediaLog* log,
     std::unique_ptr<Demuxer> demuxer_override)
     : client_(client),
       media_task_runner_(std::move(media_task_runner)),
       media_log_(log->Clone()),
+      security_origin_(std::move(security_origin)),
       demuxer_override_(std::move(demuxer_override)) {
   DCHECK(client_);
 }
@@ -449,7 +451,7 @@ DemuxerManager::CreateHlsDemuxer() {
           &DemuxerManager::SetTrackState, weak_factory_.GetWeakPtr())));
   auto engine = std::make_unique<HlsManifestDemuxerEngine>(
       client_->GetHlsDataSourceProvider(), media_task_runner_, std::move(m),
-      would_taint_origin, loaded_url_, media_log_.get());
+      would_taint_origin, security_origin_, loaded_url_, media_log_.get());
 
   raw_ptr<DataSourceInfo> datasource_info = engine.get();
   return std::make_tuple(

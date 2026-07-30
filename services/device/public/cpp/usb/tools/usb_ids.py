@@ -2,139 +2,161 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+# Parses usb.ids and emits a compact little-endian binary blob suitable for
+# shipping as a Chrome resource (loaded via ResourceBundle at runtime).
+#
+# Binary layout (all integers little-endian):
+#
+#   header (16 bytes):
+#     u32 magic                = 'USBI' (0x49425355)
+#     u32 version              = 2
+#     u32 vendor_count
+#     u32 string_blob_size
+#
+#   vendor table (vendor_count * 12 bytes, sorted by vid):
+#     u16 vid
+#     u16 product_count
+#     u32 vendor_name_offset    // offset into string blob
+#     u32 products_offset       // absolute file offset; 0 if product_count == 0
+#
+#   product blocks, concatenated in vendor order:
+#     product entries (product_count * 4 bytes, sorted by pid within vendor):
+#       u16 pid
+#       u16 product_name_offset  // offset into this vendor's product strings
+#     product strings:
+#       concatenated NUL-terminated UTF-8 product strings, deduplicated within
+#       the vendor. The first byte is a NUL so offset 0 is valid.
+#
+#   vendor string blob (string_blob_size bytes):
+#     concatenated NUL-terminated UTF-8 vendor strings, deduplicated. The first
+#     byte is a NUL so that offset 0 is valid.
+
 import io
-import itertools
 import optparse
 import re
+import struct
 
 VENDOR_PATTERN = re.compile(r"^(?P<id>[0-9a-fA-F]{4})\s+(?P<name>.+)$")
 PRODUCT_PATTERN = re.compile(r"^\t(?P<id>[0-9a-fA-F]{4})\s+(?P<name>.+)$")
 
-def EscapeName(name):
-  name = name.replace("\\", "\\\\")
-  name = name.replace('"', r'\"')
-  name = name.replace("?", r"\?")
-  name = name.replace('\0', r'\u0000')
-  return name
+MAGIC = 0x49425355  # 'USBI'
+VERSION = 2
+HEADER_SIZE = 16
+VENDOR_ENTRY_SIZE = 12
+PRODUCT_ENTRY_SIZE = 4
+
 
 def ParseTable(input_path):
-  input_file = io.open(input_path, "r", encoding="ascii", errors="ignore")
-  input = input_file.read().split("\n")
-  input_file.close()
+  with io.open(input_path, "r", encoding="ascii", errors="ignore") as f:
+    lines = f.read().split("\n")
 
   table = {}
   vendor = None
 
-  for line in input:
+  for line in lines:
     vendor_match = VENDOR_PATTERN.match(line)
     if vendor_match:
-      if vendor:
-        table[vendor["id"]] = vendor
-      vendor = {}
-      vendor["id"] = int(vendor_match.group("id"), 16)
-      vendor["name"] = vendor_match.group("name")
-      vendor["products"] = []
+      vendor = {
+          "id": int(vendor_match.group("id"), 16),
+          "name": vendor_match.group("name"),
+          "products": [],
+      }
+      table[vendor["id"]] = vendor
       continue
 
     product_match = PRODUCT_PATTERN.match(line)
     if product_match:
       if not vendor:
-        raise Exception("Product seems to appear before vendor.")
-      product = {}
-      product["id"] = int(product_match.group("id"), 16)
-      product["name"] = product_match.group("name")
-      vendor["products"].append(product)
+        raise Exception("Product appears before any vendor.")
+      vendor["products"].append({
+          "id": int(product_match.group("id"), 16),
+          "name": product_match.group("name"),
+      })
 
   return table
 
-def GenerateStringRelPointer(data, output_tables):
-  # At time of writing, there are 1232 strings that appear more than once in the
-  # USB ID database.
-  # Since this script concatenates all strings together, rather than leaving
-  # them as individual literals, the linker can't deduplicate them for us
-  # anymore; so do it manually here.
-  if data not in output_tables["offset_by_string"]:
-    data_with_nul = data + '\0'
-    output_tables["offset_by_string"][data] = output_tables["string_bytes"]
-    output_tables["strings"].append(data_with_nul)
-    output_tables["string_bytes"] += len(bytes(data_with_nul, 'utf-8'))
-  off = output_tables["offset_by_string"][data]
-  return "base::subtle::IndexPointer<char, device::usb_strings>("+str(off)+")"
 
-def GenerateDeviceDefinitions(table, output_tables):
-  output = ""
+class StringBlob(object):
+  """Deduplicated, NUL-terminated UTF-8 string pool."""
 
-  for vendor_id in sorted(table.keys()):
-    vendor = table[vendor_id]
-    if len(vendor["products"]) == 0:
-      continue
+  def __init__(self):
+    # First byte is a NUL so offset 0 is a valid empty string.
+    self._buf = bytearray(b"\0")
+    self._offsets = {}
 
-    output += "static const UsbProduct vendor_%.4x_products[] = {\n" % \
-        vendor["id"]
-    for product in vendor["products"]:
-      output += "  {0x%.4x, %s/*%s*/},\n" % (
-          product["id"],
-          GenerateStringRelPointer(product["name"], output_tables),
-          product["name"])
-    output += "};\n"
+  def Add(self, s):
+    cached = self._offsets.get(s)
+    if cached is not None:
+      return cached
+    encoded = s.encode("utf-8") + b"\0"
+    offset = len(self._buf)
+    self._buf.extend(encoded)
+    self._offsets[s] = offset
+    return offset
 
-  return output
+  def Bytes(self):
+    return bytes(self._buf)
 
-def GenerateVendorDefinitions(table, output_tables):
-  output = "static const UsbVendor vendors[] = {\n"
 
-  for vendor_id in sorted(table.keys()):
-    vendor = table[vendor_id]
+def Build(table):
+  vendor_ids = sorted(table.keys())
+  vendor_count = len(vendor_ids)
 
-    product_table = "{}"
-    if len(vendor["products"]) != 0:
-      product_table = "vendor_%.4x_products" % (vendor["id"])
-    output += "  {%s/*%s*/, 0x%.4x, %s},\n" % (
-        GenerateStringRelPointer(vendor["name"], output_tables),
-        vendor["name"],
-        vendor["id"],
-        product_table)
+  # Compute the fixed-position offset of the product blocks section.
+  vendor_table_off = HEADER_SIZE
+  products_section_off = vendor_table_off + vendor_count * VENDOR_ENTRY_SIZE
 
-  output += "};\n"
-  output += "const base::span<const UsbVendor> UsbIds::vendors_ = vendors;\n"
-  return output
+  vendor_strings = StringBlob()
+
+  vendor_entries = bytearray()
+  product_blocks = bytearray()
+  cursor = products_section_off
+
+  for vid in vendor_ids:
+    vendor = table[vid]
+    products = sorted(vendor["products"], key=lambda p: p["id"])
+    name_off = vendor_strings.Add(vendor["name"])
+    if products:
+      products_off = cursor
+      product_strings = StringBlob()
+      product_entries = bytearray()
+      for p in products:
+        product_name_off = product_strings.Add(p["name"])
+        if product_name_off > 0xffff:
+          raise Exception("Product string offset exceeds u16.")
+        product_entries += struct.pack("<HH", p["id"], product_name_off)
+      product_block = product_entries + product_strings.Bytes()
+      product_blocks += product_block
+      cursor += len(product_block)
+    else:
+      products_off = 0
+    vendor_entries += struct.pack("<HHII", vid, len(products),
+                                  name_off, products_off)
+
+  string_bytes = vendor_strings.Bytes()
+
+  header = struct.pack("<IIII", MAGIC, VERSION, vendor_count, len(string_bytes))
+
+  out = bytearray()
+  out += header
+  out += vendor_entries
+  out += product_blocks
+  out += string_bytes
+
+  expected = cursor + len(string_bytes)
+  assert len(out) == expected, "size mismatch: %d vs %d" % (len(out), expected)
+  return bytes(out)
+
 
 if __name__ == "__main__":
   parser = optparse.OptionParser(
-      description="Generates a C++ USB ID lookup table.")
+      description="Generates a compact binary USB ID lookup table.")
   parser.add_option("-i", "--input", help="Path to usb.ids")
-  parser.add_option("-o", "--output", help="Output file path")
+  parser.add_option("-o", "--output", help="Output blob path")
 
   (opts, args) = parser.parse_args()
   table = ParseTable(opts.input)
+  blob = Build(table)
 
-  output_tables = {"strings":[], "string_bytes":0, "offset_by_string":{}}
-
-  device_definitions = GenerateDeviceDefinitions(table, output_tables)
-  vendor_definitions = GenerateVendorDefinitions(table, output_tables)
-
-  output = """// Generated from %s
-#ifndef GENERATED_USB_IDS_H_
-#define GENERATED_USB_IDS_H_
-
-#include <stddef.h>
-
-#include "base/memory/index_pointer.h"
-#include "services/device/public/cpp/usb/usb_ids.h"
-
-namespace device {
-
-""" % (opts.input)
-  output += "const char usb_strings[] = \"" + EscapeName(''.join(output_tables["strings"])) + "\";"
-  output += device_definitions
-  output += vendor_definitions
-  output += """
-
-}  // namespace device
-
-#endif  // GENERATED_USB_IDS_H_
-"""
-
-  output_file = open(opts.output, "w+")
-  output_file.write(output)
-  output_file.close()
+  with open(opts.output, "wb") as f:
+    f.write(blob)

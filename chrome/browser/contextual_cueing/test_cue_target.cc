@@ -4,9 +4,11 @@
 
 #include "chrome/browser/contextual_cueing/test_cue_target.h"
 
+#include "base/functional/bind.h"
 #include "base/logging.h"
 #include "chrome/browser/contextual_cueing/contextual_cueing_metrics.h"
 #include "components/optimization_guide/proto/features/contextual_cueing.pb.h"
+#include "content/public/browser/web_contents.h"
 
 namespace contextual_cueing {
 
@@ -17,8 +19,37 @@ bool TestCueTarget::HasClickData() const {
   return !std::holds_alternative<std::monostate>(click_data);
 }
 
+CueTargetType TestCueTarget::GetType() const {
+  return CueTargetType::kTestSource;
+}
+
 bool TestCueTarget::IsEligible() const {
   return eligible;
+}
+
+void TestCueTarget::CheckEligibility(
+    base::WeakPtr<content::WebContents> web_contents,
+    CueIntrusiveness intrusiveness,
+    EligibilityCallback callback) {
+  if (eligible && (!eligible_intrusiveness.has_value() ||
+                   eligible_intrusiveness == intrusiveness)) {
+    ContentGenerator generator;
+    if (generate_result.has_value()) {
+      generator = base::BindOnce(
+          [](std::optional<optimization_guide::proto::ContextualCue> result,
+             GenerateCallback cb) { std::move(cb).Run(std::move(result)); },
+          generate_result);
+    }
+    std::move(callback).Run(true, std::move(generator));
+  } else {
+    std::move(callback).Run(false, ContentGenerator());
+  }
+}
+
+bool TestCueTarget::IsPageEligible(
+    const page_content_annotations::PageContentAnnotationsResult& result,
+    content::WebContents* active_web_contents) const {
+  return page_eligible;
 }
 
 void TestCueTarget::OnClick(CueActionData data) {

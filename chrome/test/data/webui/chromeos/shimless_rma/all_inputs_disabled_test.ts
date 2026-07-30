@@ -7,7 +7,7 @@ import {FakeShimlessRmaService} from 'chrome://shimless-rma/fake_shimless_rma_se
 import {populateFakeShimlessRmaService, setShimlessRmaServiceForTesting} from 'chrome://shimless-rma/mojo_interface_provider.js';
 import type {ShimlessCustomElementType} from 'chrome://shimless-rma/shimless_rma.js';
 import {StateComponentMapping} from 'chrome://shimless-rma/shimless_rma.js';
-import {assertTrue} from 'chrome://webui-test/chromeos/chai_assert.js';
+import {assertTrue} from 'chrome://webui-test/chai_assert.js';
 
 suite('allInputsDisabledTest', function() {
   const INPUT_TYPES =

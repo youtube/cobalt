@@ -4,6 +4,7 @@
 
 #include "chrome/browser/policy/cloud/policy_invalidator.h"
 
+#include <algorithm>
 #include <memory>
 
 #include "base/functional/bind.h"
@@ -334,13 +335,7 @@ void PolicyInvalidator::PolicyInvalidationHandler::UpdateMaxFetchDelay(
 
 void PolicyInvalidator::PolicyInvalidationHandler::set_max_fetch_delay(
     base::TimeDelta delay) {
-  if (delay < kMaxFetchDelayMin) {
-    max_fetch_delay_ = kMaxFetchDelayMin;
-  } else if (delay > kMaxFetchDelayMax) {
-    max_fetch_delay_ = kMaxFetchDelayMax;
-  } else {
-    max_fetch_delay_ = delay;
-  }
+  max_fetch_delay_ = std::clamp(delay, kMaxFetchDelayMin, kMaxFetchDelayMax);
 }
 
 void PolicyInvalidator::PolicyInvalidationHandler::UpdateInvalidationsEnabled(

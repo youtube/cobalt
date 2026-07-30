@@ -239,11 +239,7 @@ bool CanvasRenderingContext2D::IsComposited() const {
     return false;
   }
 
-  if (!resource_provider_) [[unlikely]] {
-    return false;
-  }
-
-  if (!resource_provider_->AsSharedImageProvider()) {
+  if (!GetSharedImageProvider()) {
     return false;
   }
 
@@ -286,7 +282,8 @@ void CanvasRenderingContext2D::LoseContext(LostContextMode lost_mode) {
   ResetInternal();
   HTMLCanvasElement* const element = canvas();
   if (element != nullptr) [[likely]] {
-    resource_provider_ = nullptr;
+    shared_image_provider_ = nullptr;
+    bitmap_provider_ = nullptr;
     element->DiscardResources();
     element->DiscardResourceDispatcher();
 
@@ -333,13 +330,12 @@ bool CanvasRenderingContext2D::WritePixels(const SkImageInfo& orig_info,
                                            size_t row_bytes,
                                            int x,
                                            int y) {
-  if (!resource_provider_ || !canvas() || isContextLost() ||
-      !resource_provider_->IsValid()) {
+  CanvasResourceProvider* provider = resource_provider();
+  if (!provider || !canvas() || isContextLost() || !provider->IsValid()) {
     return false;
   }
 
   CanvasRenderingContextHost* host = Host();
-  CanvasResourceProvider* provider = resource_provider_.get();
 
   if (x <= 0 && y <= 0 && x + orig_info.width() >= host->Size().width() &&
       y + orig_info.height() >= host->Size().height()) {
@@ -737,7 +733,7 @@ CanvasRenderingContext2D::PaintRenderingResultsToResource(
   }
 
   // Only CRPSI can produce CanvasResources.
-  auto* si_provider = resource_provider_->AsSharedImageProvider();
+  auto* si_provider = GetSharedImageProvider();
   if (!si_provider) {
     return nullptr;
   }
@@ -768,8 +764,8 @@ scoped_refptr<StaticBitmapImage> blink::CanvasRenderingContext2D::GetImage() {
     return nullptr;
   }
 
-  resource_provider_->Flush();
-  return resource_provider_->Snapshot();
+  resource_provider()->Flush();
+  return resource_provider()->Snapshot();
 }
 
 ImageData* CanvasRenderingContext2D::getImageDataInternal(
@@ -871,9 +867,8 @@ void CanvasRenderingContext2D::PageVisibilityChanged() {
 
   // If the canvas is backed by a SharedImage resource provider, toggle
   // whether resource recycling is enabled based on page visibility.
-  auto* resource_provider = GetResourceProvider();
-  auto* resource_provider_si =
-      resource_provider ? resource_provider->AsSharedImageProvider() : nullptr;
+  auto* resource_provider = this->resource_provider();
+  auto* resource_provider_si = GetSharedImageProvider();
   if (resource_provider_si) {
     resource_provider_si->SetResourceRecyclingEnabled(page_is_visible);
   }
@@ -1073,7 +1068,8 @@ UniqueFontSelector* CanvasRenderingContext2D::GetFontSelector() const {
 }
 
 void CanvasRenderingContext2D::SizeChanged() {
-  resource_provider_ = nullptr;
+  shared_image_provider_ = nullptr;
+  bitmap_provider_ = nullptr;
   did_fail_to_create_resource_provider_ = false;
 }
 
@@ -1084,17 +1080,16 @@ CanvasHibernationHandler* CanvasRenderingContext2D::GetHibernationHandler()
 
 void CanvasRenderingContext2D::Dispose() {
   hibernation_handler_ = nullptr;
-  resource_provider_ = nullptr;
+  shared_image_provider_ = nullptr;
+  bitmap_provider_ = nullptr;
   CanvasRenderingContext::Dispose();
 }
 
-std::unique_ptr<CanvasResourceProvider>
-CanvasRenderingContext2D::CreateCanvasResourceProvider() {
+void CanvasRenderingContext2D::CreateCanvasResourceProvider() {
   CHECK(!GetResourceProvider());
 
   canvas()->GetOrCreateResourceDispatcher();
 
-  std::unique_ptr<CanvasResourceProvider> provider;
   const SkAlphaType alpha_type = color_params_.GetAlphaType();
   const viz::SharedImageFormat format = color_params_.GetSharedImageFormat();
   const gfx::ColorSpace color_space = color_params_.GetGfxColorSpace();
@@ -1131,36 +1126,54 @@ CanvasRenderingContext2D::CreateCanvasResourceProvider() {
       }
     }
 
-    provider = Canvas2DResourceProviderSharedImage::CreateWithClear(
-        canvas()->Size(), format, alpha_type, color_space, hdr_metadata,
-        SharedGpuContext::ContextProviderWrapper(), raster_mode,
-        shared_image_usage_flags, canvas());
+    shared_image_provider_ =
+        Canvas2DResourceProviderSharedImage::CreateWithClear(
+            canvas()->Size(), format, alpha_type, color_space, hdr_metadata,
+            SharedGpuContext::ContextProviderWrapper(), raster_mode,
+            shared_image_usage_flags, canvas());
   } else if (!is_gpu_compositing_enabled) {
     // Create a CanvasResourceProvider that uses a SharedImage backed by a
     // shared-memory buffer that can be written by canvas SW raster and read by
     // the SW compositor.
-    provider = Canvas2DResourceProviderSharedImage::
+    shared_image_provider_ = Canvas2DResourceProviderSharedImage::
         CreateWithClearForSoftwareCompositor(
             canvas()->Size(), format, alpha_type, color_space, hdr_metadata,
             SharedGpuContext::SharedImageInterfaceProvider(), canvas());
   }
-  if (!provider) {
+  if (!shared_image_provider_) {
     // The final fallback is to raster into a bitmap that will then either be
     // uploaded into GPU memory (for GPU compositing) or copied into the Viz
     // process (for software compositing).
-    provider = Canvas2DResourceProviderBitmap::CreateWithClear(
+    bitmap_provider_ = Canvas2DResourceProviderBitmap::CreateWithClear(
         canvas()->Size(), format, alpha_type, color_space, hdr_metadata,
         canvas());
   }
-
-  return provider;
 }
 
 CanvasResourceProvider* CanvasRenderingContext2D::GetResourceProvider() const {
   if (!canvas()) {
     return nullptr;
   }
-  return resource_provider_.get();
+  if (shared_image_provider_) {
+    return shared_image_provider_.get();
+  }
+  return bitmap_provider_.get();
+}
+
+CanvasResourceProvider* CanvasRenderingContext2D::resource_provider() const {
+  if (shared_image_provider_) {
+    return shared_image_provider_.get();
+  }
+  return bitmap_provider_.get();
+}
+
+Canvas2DResourceProviderSharedImage*
+CanvasRenderingContext2D::GetSharedImageProvider() const {
+  return shared_image_provider_.get();
+}
+
+bool CanvasRenderingContext2D::HasResourceProvider() const {
+  return shared_image_provider_ != nullptr || bitmap_provider_ != nullptr;
 }
 
 CanvasResourceProvider*
@@ -1218,15 +1231,34 @@ CanvasRenderingContext2D::GetOrCreateResourceProvider() {
 
   canvas()->SetNeedsCompositingUpdate();
 
-  return resource_provider_.get();
+  return this->resource_provider();
 }
 
 std::unique_ptr<CanvasResourceProvider>
 CanvasRenderingContext2D::ReplaceResourceProvider(
     std::unique_ptr<CanvasResourceProvider> provider) {
-  std::unique_ptr<CanvasResourceProvider> old_resource_provider =
-      std::move(resource_provider_);
-  resource_provider_ = std::move(provider);
+  std::unique_ptr<CanvasResourceProvider> old_resource_provider;
+  if (shared_image_provider_) {
+    old_resource_provider = std::move(shared_image_provider_);
+  } else {
+    old_resource_provider = std::move(bitmap_provider_);
+  }
+
+  shared_image_provider_ = nullptr;
+  bitmap_provider_ = nullptr;
+
+  if (provider) {
+    if (provider->GetType() == CanvasResourceProvider::kBitmap) {
+      bitmap_provider_ = std::unique_ptr<Canvas2DResourceProviderBitmap>(
+          static_cast<Canvas2DResourceProviderBitmap*>(provider.release()));
+    } else {
+      shared_image_provider_ =
+          std::unique_ptr<Canvas2DResourceProviderSharedImage>(
+              static_cast<Canvas2DResourceProviderSharedImage*>(
+                  provider.release()));
+    }
+  }
+
   canvas()->UpdateMemoryUsage();
   if (old_resource_provider) {
     old_resource_provider->SetDelegate(nullptr);
@@ -1259,38 +1291,40 @@ void CanvasRenderingContext2D::DropAndRecreateExistingResourceProvider() {
 
   // Bail out if it's not possible to create a new provider.
   RecreateResourceProvider();
-  if (!resource_provider_) {
+  CanvasResourceProvider* provider = resource_provider();
+  if (!provider) {
     return;
   }
 
-  resource_provider_->RestoreBackBuffer(image->PaintImageForCurrentFrame());
-  resource_provider_->SetRecorder(std::move(recorder));
+  provider->RestoreBackBuffer(image->PaintImageForCurrentFrame());
+  provider->SetRecorder(std::move(recorder));
 
   canvas()->UpdateMemoryUsage();
 }
 
 void CanvasRenderingContext2D::RecreateResourceProvider() {
   CHECK(GetHibernationHandler());
-  CHECK(!resource_provider_);
+  CHECK(!shared_image_provider_ && !bitmap_provider_);
 
   if (did_fail_to_create_resource_provider_) {
     return;
   }
 
   if (canvas()->IsValidImageSize()) {
-    resource_provider_ = CreateCanvasResourceProvider();
+    CreateCanvasResourceProvider();
     canvas()->UpdateMemoryUsage();
   }
-  if (!resource_provider_) {
+  CanvasResourceProvider* provider = resource_provider();
+  if (!provider) {
     did_fail_to_create_resource_provider_ = true;
     return;
   }
 
-  CHECK(resource_provider_->IsValid());
+  CHECK(provider->IsValid());
   base::UmaHistogramBoolean("Blink.Canvas.ResourceProviderIsAccelerated",
-                            resource_provider_->IsAccelerated());
+                            provider->IsAccelerated());
   base::UmaHistogramEnumeration("Blink.Canvas.ResourceProviderType",
-                                resource_provider_->GetType());
+                                provider->GetType());
 
   if (GetHibernationHandler()->IsHibernating()) {
     WakeUpFromHibernation();
@@ -1300,12 +1334,14 @@ void CanvasRenderingContext2D::RecreateResourceProvider() {
 void CanvasRenderingContext2D::WakeUpFromHibernation() {
   TRACE_EVENT0("base", "Canvas2dWakeUpFromHibernation");
 
+  CanvasResourceProvider* provider = resource_provider();
+
   if (!canvas()->IsPageVisible()) {
     CanvasHibernationHandler::ReportHibernationEvent(
         CanvasHibernationHandler::HibernationEvent::
             kHibernationEndedWithSwitchToBackgroundRendering);
   } else {
-    if (resource_provider_->IsAccelerated()) {
+    if (provider->IsAccelerated()) {
       CanvasHibernationHandler::ReportHibernationEvent(
           CanvasHibernationHandler::HibernationEvent::
               kHibernationEndedNormally);
@@ -1321,8 +1357,8 @@ void CanvasRenderingContext2D::WakeUpFromHibernation() {
   builder.set_image(hibernation_handler->GetImage(),
                     PaintImage::GetNextContentId());
   builder.set_id(PaintImage::GetNextId());
-  resource_provider_->RestoreBackBuffer(builder.TakePaintImage());
-  resource_provider_->SetRecorder(hibernation_handler->ReleaseRecorder());
+  provider->RestoreBackBuffer(builder.TakePaintImage());
+  provider->SetRecorder(hibernation_handler->ReleaseRecorder());
   // The hibernation image is no longer valid, clear it.
   hibernation_handler->Clear();
   DCHECK(!hibernation_handler->IsHibernating());

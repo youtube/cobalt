@@ -17,6 +17,7 @@
 #include "third_party/blink/renderer/core/frame/navigator.h"
 #include "third_party/blink/renderer/core/imagebitmap/image_bitmap.h"
 #include "third_party/blink/renderer/core/loader/document_loader.h"
+#include "third_party/blink/renderer/core/timing/dom_window_performance.h"
 #include "third_party/blink/renderer/modules/webgpu/gpu_device.h"
 #include "third_party/blink/renderer/modules/webgpu/gpu_texture.h"
 #include "third_party/blink/renderer/modules/xr/xr_gpu_binding.h"
@@ -663,11 +664,8 @@ double XRFrameProvider::UpdateImmersiveFrameTime(
       *first_immersive_frame_time_ + current_frame_time_from_first_frame;
 
   double high_res_now_ms =
-      window->document()
-          ->Loader()
-          ->GetTiming()
-          .MonotonicTimeToZeroBasedDocumentTime(current_frame_time)
-          .InMillisecondsF();
+      DOMWindowPerformance::performance(*window)
+          ->MonotonicTimeToDOMHighResTimeStamp(current_frame_time);
 
   return high_res_now_ms;
 }
@@ -819,7 +817,7 @@ void XRFrameProvider::ClearCachedLayersData() {
 }
 
 void XRFrameProvider::SubmitFrame(XRFrameTransportDelegate* transport_delegate,
-                                  Vector<gpu::SyncToken> camera_sync_tokens) {
+                                  gpu::SharedImageExportResult export_result) {
   CHECK(transport_delegate);
 
   if (!immersive_presentation_provider_.is_bound()) {
@@ -856,7 +854,8 @@ void XRFrameProvider::SubmitFrame(XRFrameTransportDelegate* transport_delegate,
     // Just tell the device side that there was no submitted frame instead of
     // executing the implicit end-of-frame submit.
     frame_transport_->FrameSubmitMissing(immersive_presentation_provider_.get(),
-                                         transport_delegate, this_frame_id);
+                                         std::move(export_result),
+                                         this_frame_id);
     dropped_frames_++;
 
     return;
@@ -874,7 +873,7 @@ void XRFrameProvider::SubmitFrame(XRFrameTransportDelegate* transport_delegate,
 
   bool succeeded = frame_transport_->FrameSubmit(
       immersive_presentation_provider_.get(), transport_delegate,
-      std::move(layers_), std::move(camera_sync_tokens), this_frame_id);
+      std::move(layers_), std::move(export_result), this_frame_id);
 
   succeeded ? num_frames_++ : dropped_frames_++;
   if (succeeded) {

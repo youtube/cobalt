@@ -123,7 +123,7 @@ class SystemClipboardTest : public testing::Test {
 
   // Helper to trigger clipboard change notification and wait for processing
   void TriggerClipboardChangeAndWait() {
-    mock_clipboard_host()->OnClipboardDataChanged();
+    mock_clipboard_host()->OnClipboardDataChangedForTesting();
     RunUntilIdle();
   }
 
@@ -235,7 +235,7 @@ TEST_F(SystemClipboardTest, Rtf) {
   EXPECT_EQ(system_clipboard().ReadRTF(), "");
 
   // Setting text in the host is visible in system.
-  mock_clipboard_host()->WriteRtf("first");
+  mock_clipboard_host()->WriteRtfForTesting("first");
   EXPECT_EQ(system_clipboard().ReadRTF(), "first");
 
   // Inside a snapshot scope, the first read from the system clipboard
@@ -243,10 +243,10 @@ TEST_F(SystemClipboardTest, Rtf) {
   {
     ScopedSystemClipboardSnapshot snapshot(system_clipboard());
 
-    mock_clipboard_host()->WriteRtf("second");
+    mock_clipboard_host()->WriteRtfForTesting("second");
     EXPECT_EQ(system_clipboard().ReadRTF(), "second");
 
-    mock_clipboard_host()->WriteRtf("third");
+    mock_clipboard_host()->WriteRtfForTesting("third");
     EXPECT_EQ(system_clipboard().ReadRTF(), "second");
   }
 
@@ -320,7 +320,7 @@ TEST_F(SystemClipboardTest, Files) {
   EXPECT_EQ(files->files.size(), 0u);
 
   // Setting file in the host is visible in system.
-  mock_clipboard_host()->WriteFiles(CreateFiles(1));
+  mock_clipboard_host()->WriteFilesForTesting(CreateFiles(1));
   EXPECT_EQ(system_clipboard().ReadFiles()->files.size(), 1u);
 
   // Inside a snapshot scope, the first read from the system clipboard
@@ -328,10 +328,10 @@ TEST_F(SystemClipboardTest, Files) {
   {
     ScopedSystemClipboardSnapshot snapshot(system_clipboard());
 
-    mock_clipboard_host()->WriteFiles(CreateFiles(2));
+    mock_clipboard_host()->WriteFilesForTesting(CreateFiles(2));
     EXPECT_EQ(system_clipboard().ReadFiles()->files.size(), 2u);
 
-    mock_clipboard_host()->WriteFiles(CreateFiles(3));
+    mock_clipboard_host()->WriteFilesForTesting(CreateFiles(3));
     EXPECT_EQ(system_clipboard().ReadFiles()->files.size(), 2u);
   }
 
@@ -453,7 +453,7 @@ TEST_F(SystemClipboardTest, ReadRtfWithUnboundClipboardHost) {
   EXPECT_EQ(system_clipboard().ReadRTF(), "");
 
   // Setting text in the host is visible in system clipboard.
-  mock_clipboard_host()->WriteRtf("first");
+  mock_clipboard_host()->WriteRtfForTesting("first");
   EXPECT_EQ(system_clipboard().ReadRTF(), "first");
 
   reset_remote_and_validate_buffer();
@@ -461,7 +461,7 @@ TEST_F(SystemClipboardTest, ReadRtfWithUnboundClipboardHost) {
   // Now the Reads should return null string.
   EXPECT_EQ(system_clipboard().ReadRTF(), String());
   // Writes will fail since the mojo remote is unbound.
-  mock_clipboard_host()->WriteRtf("second");
+  mock_clipboard_host()->WriteRtfForTesting("second");
   EXPECT_EQ(system_clipboard().ReadRTF(), String());
 }
 
@@ -506,7 +506,7 @@ TEST_F(SystemClipboardTest, ReadFilesWithUnboundClipboardHost) {
   EXPECT_EQ(files->files.size(), 0u);
 
   // Setting file in the host is visible in system clipboard.
-  mock_clipboard_host()->WriteFiles(CreateFiles(1));
+  mock_clipboard_host()->WriteFilesForTesting(CreateFiles(1));
   EXPECT_EQ(system_clipboard().ReadFiles()->files.size(), 1u);
 
   reset_remote_and_validate_buffer();
@@ -514,7 +514,7 @@ TEST_F(SystemClipboardTest, ReadFilesWithUnboundClipboardHost) {
   // Now the Reads should return null pointer to files.
   EXPECT_TRUE(system_clipboard().ReadFiles().is_null());
   // Writes will fail since the mojo remote is unbound.
-  mock_clipboard_host()->WriteFiles(CreateFiles(1));
+  mock_clipboard_host()->WriteFilesForTesting(CreateFiles(1));
   EXPECT_TRUE(system_clipboard().ReadFiles().is_null());
 }
 
@@ -654,7 +654,7 @@ TEST_F(SystemClipboardTest, GetPlatformPermissionStateCallback) {
   bool callback_called = false;
   mojom::blink::PlatformClipboardPermissionState received_state;
 
-  mock_clipboard_host()->SetPlatformPermissionState(
+  mock_clipboard_host()->SetPlatformPermissionStateForTesting(
       mojom::blink::PlatformClipboardPermissionState::kAllow);
   system_clipboard().GetPlatformPermissionState(BindOnce(
       [](bool* called, mojom::blink::PlatformClipboardPermissionState* state,

@@ -29,6 +29,7 @@
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "services/audio/public/cpp/output_device.h"
 #include "services/audio/public/cpp/sounds/test_data.h"
+#include "services/audio/test/fake_output_stream.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/resource/mock_resource_bundle_delegate.h"
@@ -65,8 +66,7 @@ struct TestParams {
 
 std::vector<TestParams> GetTestParams() {
   return {
-      {.data_factory = base::BindRepeating(
-           []() { return std::string(kTestAudioData, kTestAudioDataSize); }),
+      {.data_factory = base::BindRepeating(&ReadTestMediaFile, "bear_pcm.wav"),
        .codec = media::AudioCodec::kPCM,
        .test_suffix = "Wav"},
       {.data_factory = base::BindRepeating(&ReadTestMediaFile, "bear.flac"),
@@ -114,100 +114,165 @@ class AudioStreamHandlerTestWithParams
     : public AudioStreamHandlerTest,
       public testing::WithParamInterface<TestParams> {
  protected:
-  std::unique_ptr<AudioStreamHandler> CreateHandler(bool loop = false) {
+  std::unique_ptr<AudioStreamHandler> CreateHandler(
+      SoundsManager::StreamFactoryBinder binder,
+      bool loop = false) {
     const std::string audio_data = GetParam().data_factory.Run();
     EXPECT_CALL(mock_resource_delegate(),
                 GetRawDataResource(kTestResourceId, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(audio_data), Return(true)));
     return std::make_unique<AudioStreamHandler>(
-        /*stream_factory_binder=*/base::DoNothing(), kTestResourceId,
-        GetParam().codec, loop);
+        std::move(binder), kTestResourceId, GetParam().codec, loop);
   }
 };
 
 TEST_P(AudioStreamHandlerTestWithParams, Play) {
-  std::unique_ptr<AudioStreamHandler> handler = CreateHandler();
+  FakeOutputStream fake_output_stream;
+  std::unique_ptr<AudioStreamHandler> handler =
+      CreateHandler(fake_output_stream.GetBinder());
   ASSERT_NE(handler, nullptr);
-
-  base::RunLoop run_loop;
-  TestObserver observer(run_loop.QuitClosure());
-  AudioStreamHandler::SetObserverForTesting(&observer);
 
   ASSERT_TRUE(handler->IsInitialized());
   ASSERT_TRUE(handler->Play());
 
-  run_loop.Run();
+  fake_output_stream.ExpectPlay();
+  EXPECT_EQ(1, fake_output_stream.play_count());
+  int frames = fake_output_stream.ConsumeAllAudioFrames();
+  EXPECT_GT(frames, 0);
 
-  AudioStreamHandler::SetObserverForTesting(nullptr);
-
-  EXPECT_EQ(observer.num_play_requests(), 1);
-  EXPECT_EQ(observer.num_stop_requests(), 1);
+  handler->Stop();
+  fake_output_stream.ExpectPause();
+  EXPECT_EQ(1, fake_output_stream.pause_count());
+  fake_output_stream.ExpectDisconnect();
 }
 
 TEST_P(AudioStreamHandlerTestWithParams, ConsecutivePlayRequests) {
-  std::unique_ptr<AudioStreamHandler> handler = CreateHandler();
+  FakeOutputStream fake_output_stream;
+  std::unique_ptr<AudioStreamHandler> handler =
+      CreateHandler(fake_output_stream.GetBinder());
   ASSERT_NE(handler, nullptr);
-
-  base::RunLoop run_loop;
-  TestObserver observer(run_loop.QuitClosure());
-  AudioStreamHandler::SetObserverForTesting(&observer);
 
   ASSERT_TRUE(handler->IsInitialized());
   ASSERT_TRUE(handler->Play());
 
-  base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
-      FROM_HERE,
-      base::BindOnce(base::IgnoreResult(&AudioStreamHandler::Play),
-                     base::Unretained(handler.get())),
-      base::Seconds(1));
-  base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
-      FROM_HERE,
-      base::BindOnce(&AudioStreamHandler::Stop,
-                     base::Unretained(handler.get())),
-      base::Seconds(2));
+  fake_output_stream.ExpectPlay();
+  EXPECT_EQ(1, fake_output_stream.play_count());
 
-  run_loop.Run();
+  // Second play request should be ignored.
+  EXPECT_TRUE(handler->Play());
 
-  AudioStreamHandler::SetObserverForTesting(nullptr);
-
-  EXPECT_EQ(observer.num_play_requests(), 1);
-  EXPECT_EQ(observer.num_stop_requests(), 1);
+  // Stop the handler.
+  handler->Stop();
+  fake_output_stream.ExpectPause();
+  EXPECT_EQ(1, fake_output_stream.pause_count());
+  fake_output_stream.ExpectDisconnect();
 }
 
 TEST_P(AudioStreamHandlerTestWithParams, PlayWithLoop) {
-  std::unique_ptr<AudioStreamHandler> handler = CreateHandler(/*loop=*/true);
+  FakeOutputStream fake_output_stream;
+  std::unique_ptr<AudioStreamHandler> handler =
+      CreateHandler(fake_output_stream.GetBinder(), /*loop=*/true);
   ASSERT_NE(handler, nullptr);
-
-  base::RunLoop quit_run_loop;
-  base::RunLoop render_run_loop;
-  int render_count = 0;
-  TestObserver observer(
-      quit_run_loop.QuitClosure(),
-      /*render=*/base::BindLambdaForTesting([&render_run_loop, &render_count] {
-        // Quit after 10 render callbacks, the test uses a
-        // small source audio data (exhausted after the first
-        // render), 10 is enough then to test the loop.
-        if (++render_count >= 10) {
-          render_run_loop.Quit();
-        }
-      }));
-  AudioStreamHandler::SetObserverForTesting(&observer);
 
   ASSERT_TRUE(handler->IsInitialized());
   ASSERT_TRUE(handler->Play());
 
-  render_run_loop.Run();
+  fake_output_stream.ExpectPlay();
+  EXPECT_EQ(1, fake_output_stream.play_count());
+
+  // Read 10 buffers to verify it loops.
+  int frames = fake_output_stream.ReadBuffers(10);
+  EXPECT_EQ(frames, 10 * 1024);
 
   handler->Stop();
-  // Wait until the playback is stopped before teardown.
-  quit_run_loop.Run();
+  fake_output_stream.ExpectPause();
+  EXPECT_EQ(1, fake_output_stream.pause_count());
+  fake_output_stream.ExpectDisconnect();
+}
 
-  AudioStreamHandler::SetObserverForTesting(nullptr);
+TEST_P(AudioStreamHandlerTestWithParams, PauseAndResume) {
+  int baseline_frames = 0;
+  {
+    FakeOutputStream fake_output_stream;
+    std::unique_ptr<AudioStreamHandler> handler =
+        CreateHandler(fake_output_stream.GetBinder());
+    ASSERT_TRUE(handler->Play());
+    fake_output_stream.ExpectPlay();
+    EXPECT_EQ(1, fake_output_stream.play_count());
+    baseline_frames = fake_output_stream.ConsumeAllAudioFrames();
+    EXPECT_GT(baseline_frames, 0);
+    handler->Stop();
+    fake_output_stream.ExpectPause();
+    EXPECT_EQ(1, fake_output_stream.pause_count());
+    fake_output_stream.ExpectDisconnect();
+  }
 
-  // The render callback is called 10 times (looping), but the play callback
-  // is called only once.
-  EXPECT_EQ(observer.num_play_requests(), 1);
-  EXPECT_EQ(observer.num_stop_requests(), 1);
+  FakeOutputStream fake_output_stream;
+  std::unique_ptr<AudioStreamHandler> handler =
+      CreateHandler(fake_output_stream.GetBinder());
+  ASSERT_NE(handler, nullptr);
+
+  ASSERT_TRUE(handler->IsInitialized());
+  ASSERT_TRUE(handler->Play());
+  fake_output_stream.ExpectPlay();
+  EXPECT_EQ(1, fake_output_stream.play_count());
+
+  // Read only 1 buffer to simulate pause on first render.
+  const int frames_before_pause = fake_output_stream.ReadBuffers(1);
+  ASSERT_EQ(frames_before_pause, 1024);
+
+  EXPECT_TRUE(handler->Pause());
+  fake_output_stream.ExpectPause();
+  EXPECT_EQ(1, fake_output_stream.pause_count());
+  fake_output_stream.ExpectDisconnect();
+
+  // Resume play.
+  ASSERT_TRUE(handler->Play());
+  fake_output_stream.ExpectPlay();
+  EXPECT_EQ(2, fake_output_stream.play_count());
+
+  int remaining_frames = fake_output_stream.ConsumeAllAudioFrames();
+  handler->Stop();
+  fake_output_stream.ExpectPause();
+  EXPECT_EQ(2, fake_output_stream.pause_count());
+  fake_output_stream.ExpectDisconnect();
+
+  const int total_frames = frames_before_pause + remaining_frames;
+  EXPECT_GT(total_frames, 0);
+  EXPECT_GT(frames_before_pause, 0);
+  EXPECT_GT(total_frames, frames_before_pause);
+  EXPECT_EQ(total_frames, baseline_frames);
+}
+
+TEST_P(AudioStreamHandlerTestWithParams, StopAndPlay) {
+  FakeOutputStream fake_output_stream;
+  std::unique_ptr<AudioStreamHandler> handler =
+      CreateHandler(fake_output_stream.GetBinder());
+  ASSERT_NE(handler, nullptr);
+
+  ASSERT_TRUE(handler->IsInitialized());
+  ASSERT_TRUE(handler->Play());
+  fake_output_stream.ExpectPlay();
+  EXPECT_EQ(1, fake_output_stream.play_count());
+  int frames1 = fake_output_stream.ConsumeAllAudioFrames();
+  EXPECT_GT(frames1, 0);
+
+  handler->Stop();
+  fake_output_stream.ExpectPause();
+  EXPECT_EQ(1, fake_output_stream.pause_count());
+  fake_output_stream.ExpectDisconnect();
+
+  // Play again on the same handler.
+  ASSERT_TRUE(handler->Play());
+  fake_output_stream.ExpectPlay();
+  EXPECT_EQ(2, fake_output_stream.play_count());
+  int frames2 = fake_output_stream.ConsumeAllAudioFrames();
+  EXPECT_EQ(frames2, frames1);
+
+  handler->Stop();
+  fake_output_stream.ExpectPause();
+  EXPECT_EQ(2, fake_output_stream.pause_count());
+  fake_output_stream.ExpectDisconnect();
 }
 
 INSTANTIATE_TEST_SUITE_P(,

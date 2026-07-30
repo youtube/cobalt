@@ -149,6 +149,13 @@ class MEDIA_EXPORT AudioInputStream {
  public:
   class MEDIA_EXPORT AudioInputCallback {
    public:
+    enum class Error {
+      // The stream failed to start.
+      kStartupFailed,
+      // A mid-stream error occurred during active audio capturing.
+      kRuntimeError,
+    };
+
     // Called by the audio recorder when a full packet of audio data is
     // available. This is called from a special audio thread and the
     // implementation should return as soon as possible.
@@ -162,15 +169,14 @@ class MEDIA_EXPORT AudioInputStream {
                         double volume,
                         const AudioGlitchInfo& audio_glitch_info) = 0;
 
-    // There was an error while recording audio. The audio sink cannot be
-    // destroyed yet. No direct action needed by the AudioInputStream, but it
-    // is a good place to stop accumulating sound data since is is likely that
-    // recording will not continue.
+    // Called when an error occurs.
+    // |error_code| indicates the specific type of error (e.g., a startup
+    // failure, or a mid-stream runtime error).
     //
     // Note: Calls should not be made directly to `AudioInputStream` from the
     // `OnError` callback, as some implementations are holding locks. Calls
     // should be posted instead.
-    virtual void OnError() = 0;
+    virtual void OnError(Error error_code) = 0;
 
    protected:
     virtual ~AudioInputCallback() {}

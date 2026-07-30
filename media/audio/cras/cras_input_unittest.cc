@@ -37,6 +37,8 @@ using testing::StrictMock;
 
 namespace media {
 
+using Error = AudioInputStream::AudioInputCallback::Error;
+
 class MockAudioInputCallback : public AudioInputStream::AudioInputCallback {
  public:
   MOCK_METHOD4(OnData,
@@ -44,7 +46,7 @@ class MockAudioInputCallback : public AudioInputStream::AudioInputCallback {
                     base::TimeTicks,
                     double,
                     const AudioGlitchInfo& glitch_info));
-  MOCK_METHOD0(OnError, void());
+  MOCK_METHOD1(OnError, void(Error));
 };
 
 class MockAudioManagerCrasInput : public AudioManagerCrasBase {

@@ -7,6 +7,7 @@ source_set("autofill_and_passwords") {
     "autofill_ai_base_item_type.h",
     "autofill_ai_base_mutator.h",
     "autofill_and_passwords_consumer.h",
+    "autofill_and_passwords_signin_promo_consumer.h",
     "autofill_and_passwords_table_view_controller.h",
     "autofill_and_passwords_table_view_controller.mm",
     "autofill_settings_consumer.h",
@@ -27,15 +28,19 @@ source_set("autofill_and_passwords") {
     "//ios/chrome/browser/authentication/ui_bundled/cells",
     "//ios/chrome/browser/settings/autofill/autofill_ai/ui",
     "//ios/chrome/browser/settings/autofill/autofill_and_passwords/utils:autofill_and_passwords_item_utils",
+    "//ios/chrome/browser/settings/autofill/utils:autofill_settings_ui_util",
     "//ios/chrome/browser/settings/ui_bundled:constants",
     "//ios/chrome/browser/settings/ui_bundled:settings_root",
     "//ios/chrome/browser/settings/ui_bundled:settings_root_categories",
+    "//ios/chrome/browser/shared/public/features",
     "//ios/chrome/browser/shared/ui/list_model",
     "//ios/chrome/browser/shared/ui/table_view",
     "//ios/chrome/browser/shared/ui/table_view:utils",
     "//ios/chrome/browser/shared/ui/table_view/cells",
+    "//ios/chrome/common/ui/colors",
     "//ios/chrome/common/ui/table_view:cells_constants",
     "//ui/base",
+    "//ui/strings",
   ]
 }
 

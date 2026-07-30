@@ -310,8 +310,8 @@ void PrefetchManager::PrefetchUrl(
 
   ++inflight_jobs_count_;
 
-  // Since the CORS-RFC1918 check is skipped when the client security state is
-  // unknown, just block any local request to be safe for now.
+  // Since the Local Network Access check is skipped when the client security
+  // state is unknown, just block any local request to be safe for now.
   int options = base::CommandLine::ForCurrentProcess()->HasSwitch(
                     switches::kLoadingPredictorAllowLocalRequestForTesting)
                     ? network::mojom::kURLLoadOptionNone
@@ -447,29 +447,30 @@ std::optional<blink::mojom::ResourceType> GetResourceTypeForPrefetch(
       return blink::mojom::ResourceType::kFontResource;
     case network::mojom::RequestDestination::kAudio:
     case network::mojom::RequestDestination::kAudioWorklet:
+    case network::mojom::RequestDestination::kDictionary:
     case network::mojom::RequestDestination::kDocument:
+    case network::mojom::RequestDestination::kEmailVerification:
     case network::mojom::RequestDestination::kEmbed:
+    case network::mojom::RequestDestination::kFencedframe:
     case network::mojom::RequestDestination::kFrame:
     case network::mojom::RequestDestination::kIframe:
     case network::mojom::RequestDestination::kImage:
+    case network::mojom::RequestDestination::kJson:
     case network::mojom::RequestDestination::kManifest:
     case network::mojom::RequestDestination::kObject:
     case network::mojom::RequestDestination::kPaintWorklet:
     case network::mojom::RequestDestination::kReport:
     case network::mojom::RequestDestination::kServiceWorker:
+    case network::mojom::RequestDestination::kSharedStorageWorklet:
     case network::mojom::RequestDestination::kSharedWorker:
+    case network::mojom::RequestDestination::kSpeculationRules:
+    case network::mojom::RequestDestination::kText:
     case network::mojom::RequestDestination::kTrack:
     case network::mojom::RequestDestination::kVideo:
     case network::mojom::RequestDestination::kWebBundle:
+    case network::mojom::RequestDestination::kWebIdentity:
     case network::mojom::RequestDestination::kWorker:
     case network::mojom::RequestDestination::kXslt:
-    case network::mojom::RequestDestination::kFencedframe:
-    case network::mojom::RequestDestination::kWebIdentity:
-    case network::mojom::RequestDestination::kEmailVerification:
-    case network::mojom::RequestDestination::kDictionary:
-    case network::mojom::RequestDestination::kSpeculationRules:
-    case network::mojom::RequestDestination::kJson:
-    case network::mojom::RequestDestination::kSharedStorageWorklet:
       return std::nullopt;
   }
 }

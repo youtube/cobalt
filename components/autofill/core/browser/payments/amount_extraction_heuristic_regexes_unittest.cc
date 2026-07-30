@@ -10,14 +10,14 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace autofill::payments {
+
 using ::autofill::core::browser::payments::HeuristicRegexes;
 
 namespace {
 const char* kAmountExtractionComponentInstallationResult =
     "Autofill.AmountExtraction.HeuristicRegexesComponentInstallationResult";
 }  // namespace
-
-namespace autofill::payments {
 
 class AmountExtractionHeuristicRegexesTest : public testing::Test {
  protected:
@@ -34,7 +34,7 @@ TEST_F(AmountExtractionHeuristicRegexesTest, EmptyProto) {
   EXPECT_FALSE(heuristic_regexes_.PopulateStringFromComponent(std::string()));
   histogram_tester.ExpectBucketCount(
       kAmountExtractionComponentInstallationResult,
-      autofill::autofill_metrics::AmountExtractionComponentInstallationResult::
+      autofill_metrics::AmountExtractionComponentInstallationResult::
           kEmptyGenericDetails,
       1);
 }
@@ -45,7 +45,7 @@ TEST_F(AmountExtractionHeuristicRegexesTest, BadProto) {
   EXPECT_FALSE(heuristic_regexes_.PopulateStringFromComponent("rrr"));
   histogram_tester.ExpectBucketCount(
       kAmountExtractionComponentInstallationResult,
-      autofill::autofill_metrics::AmountExtractionComponentInstallationResult::
+      autofill_metrics::AmountExtractionComponentInstallationResult::
           kParsingToProtoFailed,
       1);
 }
@@ -67,7 +67,7 @@ TEST_F(AmountExtractionHeuristicRegexesTest, ParsingSuccessful) {
             static_cast<unsigned int>(4));
   histogram_tester.ExpectBucketCount(
       kAmountExtractionComponentInstallationResult,
-      autofill::autofill_metrics::AmountExtractionComponentInstallationResult::
+      autofill_metrics::AmountExtractionComponentInstallationResult::
           kSuccessful,
       1);
 }

@@ -1097,6 +1097,10 @@ void SerializeLayer(LayerImpl& layer,
             picture_layer.IsDirectlyCompositedImage();
         tile_display_extra->nearest_neighbor =
             picture_layer.GetNearestNeighbor();
+        tile_display_extra->has_animated_image_update_rect =
+            picture_layer.has_animated_image_update_rect();
+        tile_display_extra->has_non_animated_image_update_rect =
+            picture_layer.has_non_animated_image_update_rect();
         tile_display_extra->content_color_usage =
             picture_layer.GetContentColorUsage();
         tile_display_extra->recorded_bounds =

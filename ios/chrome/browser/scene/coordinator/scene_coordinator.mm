@@ -87,8 +87,8 @@
 #import "ios/chrome/browser/shared/public/commands/app_bar_commands.h"
 #import "ios/chrome/browser/shared/public/commands/bookmarks_commands.h"
 #import "ios/chrome/browser/shared/public/commands/browser_coordinator_commands.h"
-#import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
+#import "ios/chrome/browser/shared/public/commands/gemini_commands.h"
 #import "ios/chrome/browser/shared/public/commands/open_new_tab_command.h"
 #import "ios/chrome/browser/shared/public/commands/policy_change_commands.h"
 #import "ios/chrome/browser/shared/public/commands/scene_commands.h"
@@ -240,6 +240,8 @@ void OnListFamilyMembersResponse(
   base::CancelableOnceClosure _familyMembersTimeoutClosure;
   // Navigation View controller for the settings.
   SettingsNavigationController* _settingsNavigationController;
+  // Completion block called when Settings are dismissed.
+  ProceduralBlock _settingsDismissalCompletion;
   // Coordinator for the first step of the guided tour (NTP).
   GuidedTourCoordinator* _guidedTourCoordinator;
 }
@@ -675,13 +677,17 @@ void OnListFamilyMembersResponse(
     return;
   }
   if (_assistantAIMCoordinator) {
-    [_assistantAIMCoordinator setVisible:YES];
+    [self revealAssistant];
     return;
   }
   _assistantAIMCoordinator = [[AssistantAIMCoordinator alloc]
       initWithBaseViewController:self.activeViewController
                          browser:self.currentBrowser];
   [_assistantAIMCoordinator start];
+}
+
+- (void)revealAssistant {
+  [_assistantAIMCoordinator setVisible:YES];
 }
 
 - (void)hideAssistant {
@@ -780,7 +786,8 @@ void OnListFamilyMembersResponse(
         identityManager->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin);
     AccountInfo info = identityManager->FindExtendedAccountInfoByAccountId(
         primaryAccountInfo.account_id);
-    if (info.capabilities.can_submit_feedback() == signin::Tribool::kFalse) {
+    if (info.GetAccountCapabilities().can_submit_feedback() ==
+        signin::Tribool::kFalse) {
       // TODO(crbug.com/512043635): Remove this test once Chrome uses Aloha
       // feedback. Aloha feedback is responsible for checking the capability.
       base::UmaHistogramEnumeration("IOS.Feedback.ReportAnIssue.NotDisplayed",
@@ -1242,6 +1249,15 @@ void OnListFamilyMembersResponse(
 // TODO(crbug.com/41352590) : Do not pass baseViewController through dispatcher.
 - (void)showSyncPassphraseSettingsFromViewController:
     (UIViewController*)baseViewController {
+  [self showSyncPassphraseSettingsFromViewController:baseViewController
+                                          completion:nil];
+}
+
+// TODO(crbug.com/41352590) : Do not pass baseViewController through dispatcher.
+- (void)showSyncPassphraseSettingsFromViewController:
+            (UIViewController*)baseViewController
+                                          completion:
+                                              (ProceduralBlock)completion {
   DCHECK(!self.isSigninInProgress);
   if (_settingsNavigationController) {
     [_settingsNavigationController
@@ -1253,6 +1269,7 @@ void OnListFamilyMembersResponse(
     // simultaneous taps. See crbug.com/368310663.
     return;
   }
+  _settingsDismissalCompletion = [completion copy];
   _settingsNavigationController = [SettingsNavigationController
       syncPassphraseControllerForBrowser:_regularBrowser.get()
                                 delegate:self];
@@ -1629,6 +1646,10 @@ void OnListFamilyMembersResponse(
   [_settingsNavigationController cleanUpSettings];
   _settingsNavigationController = nil;
   [self stopPasswordCheckupCoordinator];
+  if (_settingsDismissalCompletion) {
+    _settingsDismissalCompletion();
+    _settingsDismissalCompletion = nil;
+  }
 }
 
 #pragma mark - Private
@@ -1637,6 +1658,10 @@ void OnListFamilyMembersResponse(
 // controller and call the completion if it is non nil.
 - (void)stopSettingsCallbackWithCompletion:(ProceduralBlock)completion {
   _settingsNavigationController = nil;
+  if (_settingsDismissalCompletion) {
+    _settingsDismissalCompletion();
+    _settingsDismissalCompletion = nil;
+  }
   if (completion) {
     completion();
   }
@@ -2211,8 +2236,9 @@ void OnListFamilyMembersResponse(
 - (void)sceneViewControllerShowGeminiFloatyIfInvoked:
     (SceneViewController*)viewController {
   CommandDispatcher* dispatcher = _regularBrowser->GetCommandDispatcher();
-  if ([dispatcher dispatchingForProtocol:@protocol(BWGCommands)]) {
-    id<BWGCommands> geminiHandler = HandlerForProtocol(dispatcher, BWGCommands);
+  if ([dispatcher dispatchingForProtocol:@protocol(GeminiCommands)]) {
+    id<GeminiCommands> geminiHandler =
+        HandlerForProtocol(dispatcher, GeminiCommands);
     [geminiHandler
         updateFloatyVisibilityIfEligibleAnimated:NO
                                       fromSource:gemini::FloatyUpdateSource::

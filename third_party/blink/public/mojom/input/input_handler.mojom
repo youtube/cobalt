@@ -318,6 +318,9 @@ interface FrameWidgetInputHandler {
   ClearImeTextSpansByType(
       uint32 start, uint32 end, ui.mojom.ImeTextSpanType type);
 
+  // Signals Blink to clear any active stylus gesture preview highlights.
+  CancelStylusGesturePreview();
+
   // Sets the text composition to be between the given start and end offsets in
   // the currently focused editable field.
   SetCompositionFromExistingText(

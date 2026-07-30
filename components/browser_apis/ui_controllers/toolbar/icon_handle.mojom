@@ -1,0 +1,41 @@
+// Copyright 2026 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module toolbar_ui_api.mojom;
+
+import "skia/public/mojom/skcolor.mojom";
+
+// A reference to a separately uploaded icon. See IconHandle in icon_handle.h
+// and webui_toolbar::IconTable.
+// Note that this can only be sent C++ -> JS; if you try to sent it towards
+// C++ you'll just end up with a null IconHandle, since the traits don't know
+// what IconTable (or other implementation!) is supposed to be interpreting the
+// number.
+struct IconHandle {
+  uint64 handle_id;
+};
+
+enum IconType {
+  kIconSet,
+  kMaskUrl,
+  kFullColorUrl,
+};
+
+// Used to update binding of an IconHandle.
+struct IconUpdate {
+  uint64 handle_id;
+  // If this is null, the icon is deleted.
+  // Otherwise, the semantics depend on icon_type:
+  // kIconSet: `icon_url_or_name` is the name of an icon provided by a
+  //           <cr-iconset>
+  // kMaskUrl: `icon_url_or_name` is a URL to a monochrome mask image,
+  //           which should be painted with current pen (for now).
+  // kFullColorUrl: `icon_url_or_name` is a URL to a multi-color image,
+  //                that's not controlled by pen colors.
+  string? icon_url_or_name;
+  IconType icon_type;
+
+  // Color to apply to vector icons.
+  skia.mojom.SkColor? color;
+};

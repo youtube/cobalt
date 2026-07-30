@@ -24,6 +24,7 @@
 #include "content/browser/renderer_host/media/media_stream_ui_proxy.h"
 #include "content/browser/speech/network_speech_recognition_engine_impl.h"
 #include "content/browser/speech/speech_recognizer_impl.h"
+#include "content/browser/web_contents/web_contents_impl.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/content_browser_client.h"
@@ -107,7 +108,8 @@ void SpeechRecognitionManagerImpl::LogBackendSpecificErrorOccurred(
 int SpeechRecognitionManagerImpl::next_requester_id_ = 0;
 
 class FrameSessionTracker
-    : public content::DocumentUserData<FrameSessionTracker> {
+    : public content::DocumentUserData<FrameSessionTracker>,
+      public content::WebContentsObserver {
  public:
   using FrameDeletedCallback =
       base::RepeatingCallback<void(int /* session_id */)>;
@@ -121,6 +123,28 @@ class FrameSessionTracker
     }
   }
 
+  void OnVisibilityChanged(content::Visibility visibility) override {
+#if BUILDFLAG(IS_ANDROID)
+    // On Android, background speech recognition is not permitted. (Desktop
+    // intentionally allows background recognition).
+    // The session is terminated and remains terminated even if the page
+    // becomes visible again. The web application must explicitly call start()
+    // again to initiate a new session.
+    WebContentsImpl* web_contents_impl =
+        static_cast<WebContentsImpl*>(web_contents());
+    if (!web_contents_impl || web_contents_impl->GetPageVisibilityState() !=
+                                  PageVisibilityState::kVisible) {
+      for (int session : sessions_) {
+        GetIOThreadTaskRunner({})->PostTask(
+            FROM_HERE, base::BindOnce(frame_deleted_callback_, session));
+      }
+      sessions_.clear();
+    }
+#else
+    (void)visibility;  // Suppress unused parameter warning
+#endif
+  }
+
   static void CreateObserverForSession(GlobalRenderFrameHostId global_id,
                                        int session_id,
                                        FrameDeletedCallback callback) {
@@ -129,6 +153,19 @@ class FrameSessionTracker
     RenderFrameHost* render_frame_host = RenderFrameHost::FromID(global_id);
     if (!render_frame_host)
       return;
+
+#if BUILDFLAG(IS_ANDROID)
+    // On Android, background speech recognition is not permitted. (Desktop
+    // intentionally allows background recognition).
+    WebContentsImpl* web_contents = static_cast<WebContentsImpl*>(
+        content::WebContents::FromRenderFrameHost(render_frame_host));
+    if (!web_contents || web_contents->GetPageVisibilityState() !=
+                             PageVisibilityState::kVisible) {
+      GetIOThreadTaskRunner({})->PostTask(FROM_HERE,
+                                          base::BindOnce(callback, session_id));
+      return;
+    }
+#endif
 
     FrameSessionTracker* tracker =
         GetOrCreateForCurrentDocument(render_frame_host);
@@ -165,7 +202,8 @@ class FrameSessionTracker
 
  private:
   explicit FrameSessionTracker(content::RenderFrameHost* rfh)
-      : DocumentUserData<FrameSessionTracker>(rfh) {}
+      : DocumentUserData<FrameSessionTracker>(rfh),
+        WebContentsObserver(content::WebContents::FromRenderFrameHost(rfh)) {}
 
   friend class content::DocumentUserData<FrameSessionTracker>;
   DOCUMENT_USER_DATA_KEY_DECL();

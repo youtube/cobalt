@@ -38,14 +38,15 @@ class SpeechRecognitionControllerTest : public PageTestBase {
     PageTestBase::TearDown();
   }
 
-  media::mojom::blink::StartSpeechRecognitionRequestParamsPtr BuildParams() {
+  media::mojom::blink::StartSpeechRecognitionRequestParamsPtr BuildParams(
+      bool unspoken_punctuation = false) {
     SpeechGrammarList* grammars = MakeGarbageCollected<SpeechGrammarList>();
     return controller_->BuildStartSpeechRecognitionRequestParams(
         remote_.InitWithNewPipeAndPassReceiver(),
         receiver_.InitWithNewPipeAndPassRemote(), *grammars, phrases_.Get(),
         "en-US",
         /*continuous=*/true, /*interim_results=*/true, /*max_alternatives=*/5,
-        /*unspoken_punctuation=*/false,
+        unspoken_punctuation,
         /*on_device=*/true, /*allow_cloud_fallback=*/true,
         media::mojom::blink::SpeechRecognitionQuality::kCommand);
   }
@@ -76,6 +77,12 @@ TEST_F(SpeechRecognitionControllerTest, BuildParams) {
   EXPECT_TRUE(params->client.is_valid());
   EXPECT_TRUE(params->session_receiver.is_valid());
   EXPECT_FALSE(params->audio_forwarder.is_valid());
+  EXPECT_FALSE(params->unspoken_punctuation);
+}
+
+TEST_F(SpeechRecognitionControllerTest, BuildParamsWithUnspokenPunctuation) {
+  auto params = BuildParams(/*unspoken_punctuation=*/true);
+  EXPECT_TRUE(params->unspoken_punctuation);
 }
 
 TEST_F(SpeechRecognitionControllerTest,

@@ -332,14 +332,8 @@ public class SigninAndHistorySyncActivity extends FullscreenSigninAndHistorySync
         return intent;
     }
 
-    /**
-     * Implements {@link FullscreenSigninAndHistorySyncCoordinator.Delegate} and {@link
-     * BottomSheetSigninAndHistorySyncCoordinator.ActivityDelegate}
-     *
-     * @deprecated Use {@link #addAccount(String)} instead.
-     */
+    /** Implements {@link BottomSheetSigninAndHistorySyncCoordinator.ActivityDelegate} */
     @Override
-    @Deprecated
     public void addAccount() {
         addAccount(null);
     }

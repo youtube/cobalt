@@ -44,4 +44,6 @@ blink_modules_sources("mediarecorder") {
     "//third_party/libyuv",
     "//third_party/opus",
   ]
+
+  configs += [ "//third_party/blink/renderer:narrowing" ]
 }

@@ -18,10 +18,6 @@ const char kEnableExperimentalAccessibilityAutoclick[] =
 const char kEnableExperimentalAccessibilityLabelsDebugging[] =
     "enable-experimental-accessibility-labels-debugging";
 
-// Enables language detection on in-page text content which is then exposed to
-// assistive technology such as screen readers.
-const char kEnableExperimentalAccessibilityLanguageDetection[] =
-    "enable-experimental-accessibility-language-detection";
 
 // Enables language detection for dynamic content which is then exposed to
 // assistive technology such as screen readers.
@@ -45,10 +41,6 @@ const char kEnableMagnifierDebugDrawRect[] = "enable-magnifier-debug-draw-rect";
 const char kEnableMacAccessibilityAPIMigration[] =
     "enable-mac-accessibility-api-migration";
 
-bool IsExperimentalAccessibilityLanguageDetectionEnabled() {
-  return base::CommandLine::ForCurrentProcess()->HasSwitch(
-      ::switches::kEnableExperimentalAccessibilityLanguageDetection);
-}
 
 bool IsExperimentalAccessibilityLanguageDetectionDynamicEnabled() {
   return base::CommandLine::ForCurrentProcess()->HasSwitch(

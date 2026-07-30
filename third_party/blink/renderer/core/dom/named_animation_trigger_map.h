@@ -18,9 +18,6 @@ class ScopedCSSName;
 using NamedAnimationTriggerMap =
     HeapHashMap<Member<const ScopedCSSName>, Member<AnimationTrigger>>;
 
-using GCedNamedAnimationTriggerMap =
-    GCedHeapHashMap<Member<const ScopedCSSName>, Member<AnimationTrigger>>;
-
 }  // namespace blink
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_CORE_DOM_NAMED_ANIMATION_TRIGGER_MAP_H_

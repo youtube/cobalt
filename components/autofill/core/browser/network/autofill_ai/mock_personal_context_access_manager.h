@@ -11,7 +11,6 @@
 #include "base/containers/span.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type.h"
-#include "components/autofill/core/browser/data_model/autofill_ai/entity_type_names.h"
 #include "components/autofill/core/browser/network/autofill_ai/personal_context_access_manager.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
@@ -39,9 +38,12 @@ class MockPersonalContextAccessManager : public PersonalContextAccessManager {
               GetCachedEntities,
               (),
               (const, override));
-  MOCK_METHOD(bool,
-              IsTypeCached,
-              (EntityTypeName type_name),
+  MOCK_METHOD(bool, IsTypeCached, (EntityType type), (const, override));
+  MOCK_METHOD(void, AddObserver, (Observer * observer), (override));
+  MOCK_METHOD(void, RemoveObserver, (Observer * observer), (override));
+  MOCK_METHOD(RequestStatus,
+              GetPrefetchAmbientAutofillStatusByEntityType,
+              (EntityType type),
               (const, override));
 };
 

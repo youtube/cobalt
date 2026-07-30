@@ -1,0 +1,23 @@
+AXWebArea
+++AXGroup AXSubrole=AXLandmarkMain AXCustomActionNamesForTesting=['Target A']
+++AXButton AXTitle='Target A'
+++AXLink AXDescription='Target B'
+++++AXStaticText AXValue='Target B'
+=== Start Continuation ===
+AXWebArea AXTitle='switch-reference'
+++AXGroup AXSubrole=AXLandmarkMain AXCustomActionNamesForTesting=['Target B']
+++AXButton AXTitle='Target A'
+++AXLink AXDescription='Target B'
+++++AXStaticText AXValue='Target B'
+=== Start Continuation ===
+AXWebArea AXTitle='remove-reference'
+++AXGroup AXSubrole=AXLandmarkMain
+++AXButton AXTitle='Target A'
+++AXLink AXDescription='Target B'
+++++AXStaticText AXValue='Target B'
+=== Start Continuation ===
+AXWebArea AXTitle='restore-reference'
+++AXGroup AXSubrole=AXLandmarkMain AXCustomActionNamesForTesting=['Target A']
+++AXButton AXTitle='Target A'
+++AXLink AXDescription='Target B'
+++++AXStaticText AXValue='Target B'

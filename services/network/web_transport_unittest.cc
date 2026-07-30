@@ -32,6 +32,7 @@
 #include "net/url_request/url_request_context.h"
 #include "services/network/network_context.h"
 #include "services/network/network_service.h"
+#include "services/network/public/cpp/constants.h"
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/mojom/client_security_state.mojom.h"
 #include "services/network/public/mojom/ip_address_space.mojom.h"
@@ -380,7 +381,7 @@ class WebTransportTest : public testing::TestWithParam<std::string_view> {
         /*anticipated_concurrent_incoming_bidirectional_streams=*/std::nullopt,
         std::move(handshake_client), std::move(url_loader_network_observer),
         std::move(client_security_state),
-        /*network_restrictions_id=*/std::nullopt);
+        network::GetTestNetworkRestrictionsId());
   }
 
   void CreateWebTransport(

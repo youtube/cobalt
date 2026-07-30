@@ -18,6 +18,7 @@ source_set("android") {
     ":jni_headers",
     "//base",
     "//chrome/browser/android:tabs_public",
+    "//chrome/browser/context_sharing/tab_bottom_sheet/public/android:jni_headers",
     "//components/zoom",
     "//content/public/browser",
     "//ui/android",
@@ -87,6 +88,7 @@ android_library("java") {
     "//chrome/browser/tab:java",
     "//chrome/browser/tabmodel:java",
     "//chrome/browser/ui/android/edge_to_edge:java",
+    "//chrome/browser/ui/android/ephemeraltab:java",
     "//chrome/browser/ui/android/layouts:java",
     "//chrome/browser/ui/android/multiwindow:java",
     "//chrome/browser/ui/android/omnibox:java",
@@ -109,6 +111,7 @@ android_library("java") {
     "//content/public/android:content_java",
     "//third_party/android_deps:material_design_java",
     "//third_party/androidx:androidx_annotation_annotation_java",
+    "//third_party/androidx:androidx_core_core_java",
     "//third_party/jni_zero:jni_zero_java",
     "//third_party/metrics_proto:metrics_proto_java",
     "//ui/android:ui_java",
@@ -220,8 +223,8 @@ source_set("browser_tests") {
 android_library("test_support_java") {
   testonly = true
   sources = [
+    "java/src/org/chromium/chrome/browser/tab_bottom_sheet/TestCoBrowseComponentProvider.java",
     "java/src/org/chromium/chrome/browser/tab_bottom_sheet/TestTabBottomSheetContent.java",
-    "java/src/org/chromium/chrome/browser/tab_bottom_sheet/TestTabBottomSheetContentProvider.java",
   ]
   deps = [
     ":java",
@@ -236,5 +239,5 @@ android_library("test_support_java") {
 
 generate_jni("test_jni_headers") {
   testonly = true
-  sources = [ "java/src/org/chromium/chrome/browser/tab_bottom_sheet/TestTabBottomSheetContentProvider.java" ]
+  sources = [ "java/src/org/chromium/chrome/browser/tab_bottom_sheet/TestCoBrowseComponentProvider.java" ]
 }

@@ -100,6 +100,8 @@ class BASE_EXPORT MemoryConsumer : public CheckedObserver {
   MemoryConsumer();
   ~MemoryConsumer() override = default;
 
+  virtual bool IsPassive() const;
+
   // The memory limit, expressed as a percentage.
   int memory_limit() const { return memory_limit_; }
 
@@ -143,6 +145,7 @@ class BASE_EXPORT PassiveMemoryConsumer : public MemoryConsumer {
   // MemoryConsumer:
   void OnReleaseMemory() final {}
   void OnUpdateMemoryLimit() final {}
+  bool IsPassive() const final;
 };
 
 // Similar to ScopedObservation, registers a MemoryConsumer with the global

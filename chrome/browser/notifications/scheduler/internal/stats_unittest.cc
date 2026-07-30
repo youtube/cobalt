@@ -76,7 +76,7 @@ TEST(NotificationSchedulerStatsTest, LogTipsNotificationFeatureTypeAction) {
   base::HistogramTester histograms;
   LogTipsNotificationFeatureTypeAction(
       UserActionType::kClick,
-      TipsNotificationsFeatureType::kEnhancedSafeBrowsing);
+      tips::TipsNotificationsFeatureType::kEnhancedSafeBrowsing);
   histograms.ExpectBucketCount("Notifications.Scheduler.Tips.FeatureTypeAction",
                                UserActionType::kClick, 1);
   histograms.ExpectBucketCount(
@@ -87,9 +87,10 @@ TEST(NotificationSchedulerStatsTest, LogTipsNotificationFeatureTypeAction) {
 TEST(NotificationSchedulerStatsTest, LogTipsNotificationFeatureTypeShown) {
   base::HistogramTester histograms;
   LogTipsNotificationFeatureTypeShown(
-      TipsNotificationsFeatureType::kQuickDelete);
+      tips::TipsNotificationsFeatureType::kQuickDelete);
   histograms.ExpectBucketCount("Notifications.Scheduler.Tips.FeatureTypeShown",
-                               TipsNotificationsFeatureType::kQuickDelete, 1);
+                               tips::TipsNotificationsFeatureType::kQuickDelete,
+                               1);
 }
 
 }  // namespace

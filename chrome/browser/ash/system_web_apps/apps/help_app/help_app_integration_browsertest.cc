@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "ash/constants/ash_features.h"
+#include "ash/constants/ash_pref_names.h"
 #include "ash/constants/ash_switches.h"
 #include "ash/constants/webui_url_constants.h"
 #include "ash/shell.h"
@@ -54,7 +55,6 @@
 #include "chrome/browser/web_applications/web_app_utils.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_switches.h"
-#include "chrome/common/pref_names.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/test/base/interactive_test_utils.h"
 #include "chrome/test/base/ui_test_utils.h"
@@ -195,7 +195,7 @@ IN_PROC_BROWSER_TEST_P(HelpAppIntegrationTest, HelpAppV2DefaultWindowBounds) {
       display::Screen::Get()->GetDisplayForNewWindows().work_area();
   int x = (work_area.width() - 960) / 2;
   int y = (work_area.height() - 600) / 2;
-  EXPECT_EQ(browser->window()->GetBounds(), gfx::Rect(x, y, 960, 600));
+  EXPECT_EQ(browser->GetWindow()->GetBounds(), gfx::Rect(x, y, 960, 600));
 }
 
 // Test that the Help App logs metric when launching the app using the
@@ -380,7 +380,7 @@ IN_PROC_BROWSER_TEST_P(HelpAppIntegrationTest,
   profile()->GetPrefs()->SetInteger(
       ash::help_app::prefs::kHelpAppNotificationLastShownMilestone, 20);
   EXPECT_EQ(profile()->GetPrefs()->GetInteger(
-                prefs::kReleaseNotesSuggestionChipTimesLeftToShow),
+                ash::prefs::kReleaseNotesSuggestionChipTimesLeftToShow),
             0);
 
   // Script that simulates what the Help App background page would do to show
@@ -398,7 +398,7 @@ IN_PROC_BROWSER_TEST_P(HelpAppIntegrationTest,
             content::EvalJs(
                 SandboxedWebUiAppTestBase::GetAppFrame(web_contents), kScript));
   EXPECT_EQ(profile()->GetPrefs()->GetInteger(
-                prefs::kReleaseNotesSuggestionChipTimesLeftToShow),
+                ash::prefs::kReleaseNotesSuggestionChipTimesLeftToShow),
             0);
 
   BrowserWindowInterface* help_app_browser =
@@ -452,7 +452,7 @@ IN_PROC_BROWSER_TEST_P(
   EXPECT_EQ(0u, notifications.size());
   // The release notes suggestion chip should not appear.
   EXPECT_EQ(profile()->GetPrefs()->GetInteger(
-                prefs::kReleaseNotesSuggestionChipTimesLeftToShow),
+                ash::prefs::kReleaseNotesSuggestionChipTimesLeftToShow),
             0);
 
 #if !BUILDFLAG(ENABLE_CROS_HELP_APP)
@@ -486,7 +486,7 @@ IN_PROC_BROWSER_TEST_P(
   EXPECT_EQ(0u, notifications.size());
   // The release notes suggestion chip should not appear.
   EXPECT_EQ(profile()->GetPrefs()->GetInteger(
-                prefs::kReleaseNotesSuggestionChipTimesLeftToShow),
+                ash::prefs::kReleaseNotesSuggestionChipTimesLeftToShow),
             0);
 #if BUILDFLAG(ENABLE_CROS_HELP_APP)
   // No new app should open because of birch flag.

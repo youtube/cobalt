@@ -3,6 +3,8 @@
 // found in the LICENSE file.
 
 export enum UmaName {
+  HEADING_TO_PARAGRAPH_RATIO =
+      'Accessibility.ReadAnything.DistilledPageStructure.HeadingToParagraphRatio',
   HIGHLIGHT_GRANULARITY =
       'Accessibility.ReadAnything.ReadAloud.HighlightGranularity',
   LANGUAGE = 'Accessibility.ReadAnything.ReadAloud.Language',
@@ -21,6 +23,8 @@ export enum UmaName {
       'Accessibility.ReadAnything.DistilledPageStructure.TopTwoHeadersCount',
   TOP_TWO_HEADERS_HAVE_MINIMUM_TWO_ITEMS =
       'Accessibility.ReadAnything.DistilledPageStructure.TopTwoHeadersHaveMinimumTwoItems',
+  TOP_TWO_HEADING_RATIO =
+      'Accessibility.ReadAnything.DistilledPageStructure.TopTwoHeadingRatio',
   UNIQUE_HEADER_TAGS =
       'Accessibility.ReadAnything.DistilledPageStructure.UniqueHeaderTags',
   VOICE = 'Accessibility.ReadAnything.ReadAloud.Voice',

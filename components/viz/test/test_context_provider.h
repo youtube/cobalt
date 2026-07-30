@@ -70,6 +70,7 @@ class TestContextProvider
   base::Lock* GetLock() override;
   void AddObserver(ContextLostObserver* obs) override;
   void RemoveObserver(ContextLostObserver* obs) override;
+  bool IsLost() override;
 
   // In order to ensure that these methods return the same objects as the
   // methods below, they should not be overridden by subclasses.

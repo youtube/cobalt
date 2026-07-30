@@ -7,12 +7,11 @@
 #include <string>
 #include <utility>
 
+#include "base/check.h"
+#include "base/check_deref.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "chrome/browser/ash/policy/core/browser_policy_connector_ash.h"
-#include "chrome/browser/browser_process.h"
-#include "chrome/browser/browser_process_platform_part.h"
-#include "chrome/browser/net/system_network_context_manager.h"
 #include "components/policy/core/common/cloud/device_management_service.h"
 #include "components/policy/core/common/cloud/dm_auth.h"
 #include "components/policy/core/common/cloud/dmserver_job_configurations.h"
@@ -26,36 +25,26 @@ namespace {
 constexpr char kAndoidClientId[] =
     "1070009224336-sdh77n7uot3oc99ais00jmuft6sk2fg9.apps.googleusercontent.com";
 
-policy::DeviceManagementService* GetDeviceManagementService() {
-  policy::BrowserPolicyConnectorAsh* const connector =
-      g_browser_process->platform_part()->browser_policy_connector_ash();
-  return connector->device_management_service();
-}
-
-const policy::CloudPolicyClient* GetCloudPolicyClient() {
-  const policy::BrowserPolicyConnectorAsh* connector =
-      g_browser_process->platform_part()->browser_policy_connector_ash();
-  const policy::DeviceCloudPolicyManagerAsh* policy_manager =
-      connector->GetDeviceCloudPolicyManager();
-  return policy_manager->core()->client();
-}
-
 }  // namespace
 
 namespace arc {
 
-ArcRobotAuthCodeFetcher::ArcRobotAuthCodeFetcher() = default;
+ArcRobotAuthCodeFetcher::ArcRobotAuthCodeFetcher(
+    scoped_refptr<network::SharedURLLoaderFactory> shared_url_loader_factory,
+    policy::BrowserPolicyConnectorAsh* browser_policy_connector_ash)
+    : shared_url_loader_factory_(std::move(shared_url_loader_factory)),
+      browser_policy_connector_ash_(CHECK_DEREF(browser_policy_connector_ash)) {
+  CHECK(shared_url_loader_factory_);
+}
 
 ArcRobotAuthCodeFetcher::~ArcRobotAuthCodeFetcher() = default;
 
-void ArcRobotAuthCodeFetcher::SetURLLoaderFactoryForTesting(
-    scoped_refptr<network::SharedURLLoaderFactory> factory) {
-  url_loader_factory_for_testing_ = factory;
-}
-
 void ArcRobotAuthCodeFetcher::Fetch(FetchCallback callback) {
   DCHECK(!fetch_request_job_);
-  const policy::CloudPolicyClient* client = GetCloudPolicyClient();
+  const policy::CloudPolicyClient* client =
+      browser_policy_connector_ash_->GetDeviceCloudPolicyManager()
+          ->core()
+          ->client();
   if (!client) {
     LOG(WARNING) << "Synchronously failing auth request because "
                     "CloudPolicyClient is not initialized.";
@@ -63,7 +52,8 @@ void ArcRobotAuthCodeFetcher::Fetch(FetchCallback callback) {
     return;
   }
 
-  policy::DeviceManagementService* service = GetDeviceManagementService();
+  policy::DeviceManagementService* service =
+      browser_policy_connector_ash_->device_management_service();
   std::unique_ptr<policy::DMServerJobConfiguration> config =
       std::make_unique<policy::DMServerJobConfiguration>(
           service,
@@ -71,11 +61,7 @@ void ArcRobotAuthCodeFetcher::Fetch(FetchCallback callback) {
               TYPE_API_AUTH_CODE_FETCH,
           client->client_id(), /*critical=*/false,
           policy::DMAuth::FromDMToken(client->dm_token()),
-          /*oauth_token=*/std::nullopt,
-          url_loader_factory_for_testing_
-              ? url_loader_factory_for_testing_
-              : g_browser_process->system_network_context_manager()
-                    ->GetSharedURLLoaderFactory(),
+          /*oauth_token=*/std::nullopt, shared_url_loader_factory_,
           base::BindOnce(
               &ArcRobotAuthCodeFetcher::OnFetchRobotAuthCodeCompleted,
               weak_ptr_factory_.GetWeakPtr(), std::move(callback)));

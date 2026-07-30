@@ -56,7 +56,7 @@ const CGFloat kHeaderIconSizeMultiplier = 0.55;
   [self configureMainStackView];
 }
 
-#pragma mark - GeminiFREViewControllerProtocol
+#pragma mark - GeminiFirstRunViewControllerProtocol
 
 - (CGFloat)contentHeight {
   return
@@ -176,7 +176,7 @@ const CGFloat kHeaderIconSizeMultiplier = 0.55;
 
 // Helper to handle link actions.
 - (void)handleLinkAction:(NSString*)actionString {
-  RecordFREConsentAction(IOSGeminiFREAction::kLinkClick);
+  RecordFirstRunConsentAction(IOSGeminiFirstRunAction::kLinkClick);
   if ([actionString isEqualToString:kGeminiFirstFootnoteLinkAction]) {
     [self.mutator openNewTabWithURL:GURL(kFirstFootnoteLinkURL)];
   } else if ([actionString isEqualToString:kGeminiSecondFootnoteLinkAction]) {

@@ -39,20 +39,8 @@ source_set("tab_drag") {
   ]
 }
 
-source_set("unit_tests") {
+group("unit_tests") {
   testonly = true
 
-  sources = [ "sessions/tab_drag_session_unittest.cc" ]
-
-  deps = [
-    ":tab_drag",
-    "//base",
-    "//base/test:test_support",
-    "//components/browser_apis/tab_drag/adapters",
-    "//components/browser_apis/tab_drag/sessions",
-    "//components/browser_apis/tab_drag/sessions:impl",
-    "//components/browser_apis/tab_drag/testing",
-    "//components/browser_apis/tab_strip/types",
-    "//testing/gtest",
-  ]
+  deps = [ "//components/browser_apis/tab_drag/sessions:unit_tests" ]
 }

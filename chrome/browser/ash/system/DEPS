@@ -33,7 +33,6 @@ include_rules = [
   "+chrome/browser/ui/ash/session",
   "+chrome/browser/ui/webui/ash/login",
   "+chrome/common/chrome_switches.h",
-  "+chrome/common/pref_names.h",
   "+chrome/grit",
   "+chrome/test/base",
 ]

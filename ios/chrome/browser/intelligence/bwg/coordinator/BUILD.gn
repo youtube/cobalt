@@ -4,6 +4,8 @@
 
 source_set("coordinator") {
   sources = [
+    "gemini_container_coordinator.h",
+    "gemini_container_coordinator.mm",
     "gemini_entry_flow_coordinator.h",
     "gemini_entry_flow_coordinator.mm",
     "gemini_first_run_coordinator.h",
@@ -18,6 +20,8 @@ source_set("coordinator") {
     "//components/prefs",
     "//components/variations/service",
     "//ios/chrome/app/strings",
+    "//ios/chrome/browser/assistant/coordinator:commands",
+    "//ios/chrome/browser/assistant/ui",
     "//ios/chrome/browser/authentication/account_menu/coordinator",
     "//ios/chrome/browser/authentication/account_menu/public",
     "//ios/chrome/browser/authentication/ui_bundled:continuation",
@@ -26,6 +30,7 @@ source_set("coordinator") {
     "//ios/chrome/browser/fullscreen/ui_bundled",
     "//ios/chrome/browser/intelligence/bwg/metrics",
     "//ios/chrome/browser/intelligence/bwg/model:browser_agent",
+    "//ios/chrome/browser/intelligence/bwg/model:config",
     "//ios/chrome/browser/intelligence/bwg/model:gemini_service",
     "//ios/chrome/browser/intelligence/bwg/model:gemini_service_factory",
     "//ios/chrome/browser/intelligence/bwg/model:tab_helper",
@@ -41,6 +46,7 @@ source_set("coordinator") {
     "//ios/chrome/browser/shared/coordinator/chrome_coordinator",
     "//ios/chrome/browser/shared/coordinator/scene:observing_scene_agent",
     "//ios/chrome/browser/shared/model/application_context",
+    "//ios/chrome/browser/shared/model/browser",
     "//ios/chrome/browser/shared/model/prefs:pref_names",
     "//ios/chrome/browser/shared/model/profile",
     "//ios/chrome/browser/shared/public/commands",
@@ -50,6 +56,7 @@ source_set("coordinator") {
     "//ios/chrome/browser/signin/model:authentication_service",
     "//ios/chrome/browser/signin/model:authentication_service_factory",
     "//ios/public/provider/chrome/browser/bwg:bwg_api",
+    "//ios/public/provider/chrome/browser/bwg:gemini_api",
     "//ios/web/public",
   ]
 }

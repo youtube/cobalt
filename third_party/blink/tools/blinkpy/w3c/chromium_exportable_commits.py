@@ -139,6 +139,14 @@ def get_commit_export_state(chromium_commit,
 
 def _is_commit_exported(chromium_commit, local_wpt, wpt_github,
                         verify_merged_pr):
+    change_id = chromium_commit.change_id()
+    if change_id and change_id in KNOWN_EXPORTED_CHANGE_IDS:
+        _log.info(
+            'Checking if commit is exported: '
+            'Commit %s (Change-Id: %s) is considered exported via manual override list.',
+            chromium_commit.short_sha, change_id)
+        return True
+
     pull_request = wpt_github.pr_for_chromium_commit(chromium_commit)
     if not pull_request:
         _log.info(
@@ -165,15 +173,6 @@ def _is_commit_exported(chromium_commit, local_wpt, wpt_github,
 
     if not wpt_github.is_pr_merged(pull_request.number):
         # PR is abandoned.
-        return True
-
-    # PR is merged, and we need to verify that local WPT contains the commit.
-    change_id = chromium_commit.change_id()
-    if change_id and change_id in KNOWN_EXPORTED_CHANGE_IDS:
-        _log.info(
-            'Checking if commit is exported: '
-            'Commit %s (Change-Id: %s) is considered exported via manual override list.',
-            chromium_commit.short_sha, change_id)
         return True
 
     found_in_upstream = bool(

@@ -5,5 +5,4 @@
 [RuntimeEnabled=UserMediaElement, ImplementedAs=HTMLUserMediaElementMediaStream]
 partial interface HTMLUserMediaElement {
     readonly attribute MediaStream? stream;
-    readonly attribute DOMException? error;
 };

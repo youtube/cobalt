@@ -160,7 +160,7 @@ class AvatarMenu : public SupervisedUserServiceObserver,
   // SupervisedUserServiceObserver:
   void OnCustodianInfoChanged() override;
 
-  // Rebuilds the menu and notifies any observers that an update occured.
+  // Rebuilds the menu and notifies any observers that an update occurred.
   void Update();
 
   // The model that provides the list of menu items.

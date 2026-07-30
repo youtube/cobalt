@@ -34,6 +34,17 @@ SessionCommand::SessionCommand(id_type id, const base::Pickle& pickle)
   contents().copy_from(pickle);
 }
 
+std::unique_ptr<SessionCommand> SessionCommand::Clone() const {
+  auto clone = std::make_unique<SessionCommand>(
+      id(), static_cast<size_type>(contents().size()));
+  clone->contents().copy_from(contents());
+  return clone;
+}
+
+bool SessionCommand::operator==(const SessionCommand& command) const {
+  return id_ == command.id_ && contents_ == command.contents_;
+}
+
 bool SessionCommand::GetContents(void* dest, size_t count) const {
   if (contents_.size() != count) {
     return false;

@@ -146,4 +146,7 @@ source_set("unit_tests") {
     "//services/device/public/cpp:test_support",
     "//services/network/public/cpp",
   ]
+  if (!is_android) {
+    deps += [ "//chrome/browser/ui/views:layout_provider" ]
+  }
 }

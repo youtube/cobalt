@@ -11,10 +11,15 @@ namespace updater::ui {
 
 inline constexpr COLORREF kBkColor = RGB(0XFB, 0XFB, 0XFB);
 inline constexpr COLORREF kTextColor = RGB(0x29, 0x29, 0x29);
+inline constexpr COLORREF kTextColorDark = RGB(0xFF, 0xFF, 0xFF);
+inline constexpr COLORREF kBgColorDark = RGB(0x20, 0x20, 0x20);
+inline constexpr COLORREF kBgColorLight = RGB(0xFF, 0xFF, 0xFF);
 
 inline constexpr COLORREF kCaptionBkHover = RGB(0xE9, 0xE9, 0xE9);
 inline constexpr COLORREF kCaptionForegroundColor = RGB(0x01, 0x57, 0xDE);
 inline constexpr COLORREF kCaptionFrameColor = RGB(0xC1, 0xC1, 0xC1);
+
+inline constexpr COLORREF kWindowBorderColor = RGB(0x3C, 0x40, 0x43);
 
 inline constexpr COLORREF kProgressBarFillColor = RGB(0x01, 0x57, 0xDE);
 inline constexpr COLORREF kProgressEmptyFillColor = RGB(0xE1, 0xE3, 0xE1);

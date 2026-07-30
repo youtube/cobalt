@@ -9,8 +9,11 @@
 #include <string>
 #include <vector>
 
+#include "extensions/buildflags/buildflags.h"
 #include "google_apis/gaia/gaia_id.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
 TEST(IdentityExtensionTokenKeyTest, Ordering) {
   std::string extension_id1("ext_id_1");

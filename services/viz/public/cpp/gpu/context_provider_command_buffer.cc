@@ -549,6 +549,18 @@ void ContextProviderCommandBuffer::RemoveObserver(ContextLostObserver* obs) {
   observers_.RemoveObserver(obs);
 }
 
+bool ContextProviderCommandBuffer::IsLost() {
+  CheckValidSequenceOrLockAcquired();
+  if (gles2_impl_) {
+    return gles2_impl_->GetGraphicsResetStatusKHR() != GL_NO_ERROR;
+  }
+  if (raster_interface_) {
+    return raster_interface_->GetGraphicsResetStatusKHR() != GL_NO_ERROR;
+  }
+
+  NOTREACHED();
+}
+
 gpu::webgpu::WebGPUInterface* ContextProviderCommandBuffer::WebGPUInterface() {
   DCHECK(bind_tried_);
   DCHECK_EQ(bind_result_, gpu::ContextResult::kSuccess);

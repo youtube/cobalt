@@ -134,9 +134,9 @@ class PLATFORM_EXPORT Font : public GarbageCollected<Font> {
   }
   LayoutUnit TabWidth(const TabSize&, LayoutUnit position) const;
 
-  int EmphasisMarkAscent(const AtomicString&) const;
-  int EmphasisMarkDescent(const AtomicString&) const;
-  int EmphasisMarkHeight(const AtomicString&) const;
+  LayoutUnit EmphasisMarkAscent(const AtomicString&) const;
+  LayoutUnit EmphasisMarkDescent(const AtomicString&) const;
+  LayoutUnit EmphasisMarkHeight(const AtomicString&) const;
 
   // The inter-script spacing by the CSS `text-autospace` property.
   // https://drafts.csswg.org/css-text-4/#inter-script-spacing
@@ -159,10 +159,6 @@ class PLATFORM_EXPORT Font : public GarbageCollected<Font> {
   // Returns a list of font features for this `FontDescription`. The returned
   // list is common for all `SimpleFontData` for `this`.
   base::span<const FontFeatureRange> GetFontFeatures() const;
-
-  // True if `this` has any non-initial font features. This includes not only
-  // `GetFontFeatures()` but also features computed in later stages.
-  bool HasNonInitialFontFeatures() const;
 
   // True if `this` has font-features which encompass the entire range.
   bool HasSimpleFontFeatures() const;

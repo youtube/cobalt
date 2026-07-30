@@ -46,7 +46,7 @@ NSString* const kSendTabToSelfActivityType =
 }
 
 - (NSString*)activityTitle {
-  return l10n_util::GetNSString(IDS_IOS_SHARE_MENU_SEND_TAB_TO_SELF_ACTION);
+  return l10n_util::GetNSString(IDS_IOS_SEND_TAB_TO_SELF_TARGET_DEVICE_ACTION);
 }
 
 - (UIImage*)activityImage {

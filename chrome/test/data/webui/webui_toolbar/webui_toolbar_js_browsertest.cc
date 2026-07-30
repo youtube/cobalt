@@ -74,3 +74,7 @@ IN_PROC_BROWSER_TEST_F(WebUiToolbarJsTest, ToolbarApp) {
 IN_PROC_BROWSER_TEST_F(WebUiToolbarJsTest, IPH) {
   RunTest("webui_toolbar/iph_test.js", "mocha.run();");
 }
+
+IN_PROC_BROWSER_TEST_F(WebUiToolbarJsTest, BatterySaverButton) {
+  RunTest("webui_toolbar/battery_saver_button_test.js", "mocha.run();");
+}

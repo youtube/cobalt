@@ -209,7 +209,7 @@ TEST_F(MediaEngagementScoreTest, PopulatedDictionary) {
                                  true, true);
 }
 
-// Test getting and commiting the score works correctly with different
+// Test getting and committing the score works correctly with different
 // origins.
 TEST_F(MediaEngagementScoreTest, ContentSettingsMultiOrigin) {
   url::Origin origin = url::Origin::Create(GURL("https://www.google.com"));

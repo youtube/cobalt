@@ -502,7 +502,6 @@ class AutofillField : public FormFieldData {
  private:
   friend class AutofillFieldTestApi;
 
-  using FormFieldData::is_autofilled_according_to_renderer;
   using FormFieldData::set_is_autofilled_according_to_renderer;
 
   struct PredictionResult {

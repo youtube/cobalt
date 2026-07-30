@@ -57,6 +57,7 @@ import org.chromium.chrome.browser.dom_distiller.ReaderModeManager.DistillationS
 import org.chromium.chrome.browser.dom_distiller.ReaderModeManager.EntryPoint;
 import org.chromium.chrome.browser.dom_distiller.TabDistillabilityProvider.DistillabilityObserver;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.glic.GlicEnabling;
 import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
@@ -133,6 +134,7 @@ public class ReaderModeManagerTest {
 
     @Before
     public void setUp() throws TimeoutException {
+        GlicEnabling.setEnabledForTesting(false);
         DomDistillerTabUtilsJni.setInstanceForTesting(mDistillerTabUtilsJniMock);
         DomDistillerUrlUtilsJni.setInstanceForTesting(mDistillerUrlUtilsJniMock);
         DomDistillerTabUtils.setDistillerHeuristicsForTesting(
@@ -815,6 +817,7 @@ public class ReaderModeManagerTest {
     @Feature("ReaderMode")
     @EnableFeatures(ChromeFeatureList.GLIC)
     public void testActivateReaderMode_WithActiveTask_Confirm() {
+        GlicEnabling.setEnabledForTesting(true);
         mUserDataHost.setUserData(ActorUiTabController.class, mActorUiTabController);
         when(mActorUiTabController.isActorActive()).thenReturn(true);
         when(mActorUiTabController.showTaskAbortConfirmationDialog(any()))
@@ -836,6 +839,7 @@ public class ReaderModeManagerTest {
     @Feature("ReaderMode")
     @EnableFeatures(ChromeFeatureList.GLIC)
     public void testActivateReaderMode_WithActiveTask_Cancel() {
+        GlicEnabling.setEnabledForTesting(true);
         mUserDataHost.setUserData(ActorUiTabController.class, mActorUiTabController);
         when(mActorUiTabController.isActorActive()).thenReturn(true);
         when(mActorUiTabController.showTaskAbortConfirmationDialog(any())).thenReturn(true);

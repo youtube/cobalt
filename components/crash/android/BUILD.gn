@@ -103,34 +103,6 @@ source_set("unit_tests") {
   ]
 }
 
-_java_handler_jni_sources =
-    [ "java/src/org/chromium/components/crash/browser/CrashpadMain.java" ]
-
-generate_jni("java_handler_jni_headers") {
-  sources = _java_handler_jni_sources
-}
-
-android_library("handler_java") {
-  deps = [
-    "//build/android:build_java",
-    "//third_party/jni_zero:jni_zero_java",
-  ]
-
-  srcjar_deps = [ ":java_handler_jni_headers" ]
-  sources = _java_handler_jni_sources
-}
-
-static_library("crashpad_main") {
-  sources = [ "crashpad_main.cc" ]
-
-  deps = [
-    ":java_handler_jni_headers",
-    "//base",
-    "//third_party/crashpad/crashpad/client",
-    "//third_party/crashpad/crashpad/handler",
-  ]
-}
-
 source_set("anr_skipped_reason") {
   sources = [ "anr_skipped_reason.h" ]
 }

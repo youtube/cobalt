@@ -269,6 +269,7 @@ Lokhu uma kungenjalo kuzovinjelwa izilungiselelo zakho zobumfihlo. Lokhu kuzovum
 <translation id="1407135791313364759">Vula konke</translation>
 <translation id="1408696301184924537">Ukuze ugcwalise ngokuzenzekelayo le IBAN ngokuzayo, ilondoloze kuGoogle Account yakho</translation>
 <translation id="1408787208417187241">Ukunamathisela okuthathu phezulu</translation>
+<translation id="1410306713026702438"><ph name="SUGGESTION_TITLE" />, <ph name="SUGGESTION_DESCRIPTION" />. <ph name="SUGGESTION_TYPE" />. U-<ph name="MATCH_POSITION" />, kokungu-<ph name="NUM_MATCHES_IN_GROUP" />, eqenjini elithi <ph name="GROUP_HEADER" />.</translation>
 <translation id="1410365862999780287">Abanye abasebenzisa le divayisi ngeke bawubone umsebenzi wakho, ukuze ukwazi ukubhrawuza ngokuyimfihlo kakhulu. Lokhu ngeke kushintshe indlela idatha eqoqwa ngayo amawebhusayithi owavakashelayo kanye namasevisi ewasebenzisayo, okuhlanganisa ne-Google. Nokho, okudawunilodiwe, amabhukhimakhi nezinto zohlu lokufunda kuzolondolozwa.</translation>
 <translation id="1410941016594047814">Imvilophu ye-Invite</translation>
 <translation id="1413235258620101697">I-CVC yaleli khadi izobethelwa bese ilondolozwa kuGoogle Wallet ukuze kusheshe lapho uphuma</translation>
@@ -660,6 +661,7 @@ Lokhu uma kungenjalo kuzovinjelwa izilungiselelo zakho zobumfihlo. Lokhu kuzovum
 <translation id="2045871135676061132">Imvilophu ye-Personal</translation>
 <translation id="2046951263634619614">Izitolo Zezincwadi</translation>
 <translation id="2048261947532620704">Ihumusha ikhasi</translation>
+<translation id="2055016614992422886">Ingxoxo</translation>
 <translation id="2059166748188874810">Umasipala</translation>
 <translation id="2059202684901022309">U-22 x 34 phakathi</translation>
 <translation id="2064568741209980952">Isikweletu Nokubolekisa</translation>
@@ -3554,6 +3556,7 @@ Ukuze ufihle okungakhethwa kukho kokukhokha kamuva, iya <ph name="BEGIN_LINK" />
 <translation id="6550245281449521513">Ukukhiya imouse akuvunyelwe</translation>
 <translation id="6551737294564628267"><ph name="ATTRIBUTE_NAME" />, okusha</translation>
 <translation id="6552566579578780089">Izinkokhelo</translation>
+<translation id="6553777254569586547"><ph name="SUGGESTION_TITLE" />. <ph name="SUGGESTION_TYPE" />. U-<ph name="MATCH_POSITION" />, kokungu-<ph name="NUM_MATCHES_IN_GROUP" />, eqenjini elithi <ph name="GROUP_HEADER" />.</translation>
 <translation id="6554732001434021288">Kugcine ukuvakashelwa ezinsukwini ezi-<ph name="NUM_DAYS" /> ezedlule</translation>
 <translation id="6556866813142980365">Yenza kabusha</translation>
 <translation id="6557715786897013164">U-14 x 17 phakathi</translation>

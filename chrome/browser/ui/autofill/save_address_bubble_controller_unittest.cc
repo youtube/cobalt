@@ -116,9 +116,8 @@ TEST_F(SaveAddressBubbleControllerTest, SavingNonAccountAddress) {
                               /*include_country=*/true));
   EXPECT_EQ(controller->GetProfileEmail(),
             profile.GetInfo(EMAIL_ADDRESS, app_locale()));
-  EXPECT_EQ(
-      controller->GetProfilePhone(),
-      autofill::i18n::GetFormattedPhoneNumberForDisplay(profile, app_locale()));
+  EXPECT_EQ(controller->GetProfilePhone(),
+            i18n::GetFormattedPhoneNumberForDisplay(profile, app_locale()));
   EXPECT_EQ(controller->GetOkButtonLabel(),
             l10n_util::GetStringUTF16(
                 IDS_AUTOFILL_EDIT_ADDRESS_DIALOG_OK_BUTTON_LABEL_SAVE));
@@ -147,9 +146,8 @@ TEST_F(SaveAddressBubbleControllerTest, SavingAccountAddress) {
                               /*include_country=*/true));
   EXPECT_EQ(controller->GetProfileEmail(),
             profile.GetInfo(EMAIL_ADDRESS, app_locale()));
-  EXPECT_EQ(
-      controller->GetProfilePhone(),
-      autofill::i18n::GetFormattedPhoneNumberForDisplay(profile, app_locale()));
+  EXPECT_EQ(controller->GetProfilePhone(),
+            i18n::GetFormattedPhoneNumberForDisplay(profile, app_locale()));
   EXPECT_EQ(controller->GetOkButtonLabel(),
             l10n_util::GetStringUTF16(
                 IDS_AUTOFILL_EDIT_ADDRESS_DIALOG_OK_BUTTON_LABEL_SAVE));

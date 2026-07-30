@@ -1168,7 +1168,7 @@ public class PaymentUiService
             if (mLayoutStateProvider != null) {
                 mLayoutStateProvider.removeObserver(this);
             }
-            if (layoutStateProvider.isLayoutVisible(LayoutType.TAB_SWITCHER)) {
+            if (layoutStateProvider.isLayoutVisible(LayoutType.HUB)) {
                 return ErrorStrings.TAB_OVERVIEW_MODE;
             }
             mLayoutStateProvider = layoutStateProvider;
@@ -1476,10 +1476,10 @@ public class PaymentUiService
 
         mHandler.post(
                 () -> {
-                    if (mPaymentRequestUi != null
-                            && mPaymentInformationCallback
-                                    != null // Verify callback not canceled before post.
-                    ) providePaymentInformationToPaymentRequestUi();
+                    if (mPaymentRequestUi != null && mPaymentInformationCallback != null) {
+                        // Verify callback not canceled before post.
+                        providePaymentInformationToPaymentRequestUi();
+                    }
                 });
     }
 

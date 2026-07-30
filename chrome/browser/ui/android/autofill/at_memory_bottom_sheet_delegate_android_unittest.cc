@@ -22,8 +22,9 @@ class AtMemoryBottomSheetDelegateAndroidTest : public ::testing::Test {
 };
 
 TEST_F(AtMemoryBottomSheetDelegateAndroidTest, OnDismissedHidesSuggestions) {
-  AtMemoryBottomSheetDelegateAndroid delegate(&client_);
   testing::NiceMock<MockAutofillSuggestionDelegate> mock_suggestion_delegate;
+  AtMemoryBottomSheetDelegateAndroid delegate(
+      &client_, mock_suggestion_delegate.GetWeakPtr());
   ON_CALL(mock_suggestion_delegate, GetMainFillingProduct)
       .WillByDefault(testing::Return(FillingProduct::kAtMemory));
   client_.ShowAutofillSuggestions(AutofillClient::PopupOpenArgs(),
@@ -33,6 +34,16 @@ TEST_F(AtMemoryBottomSheetDelegateAndroidTest, OnDismissedHidesSuggestions) {
 
   EXPECT_EQ(client_.popup_hiding_reason(),
             SuggestionHidingReason::kUserAborted);
+}
+
+TEST_F(AtMemoryBottomSheetDelegateAndroidTest, OnQuerySubmittedCallsDelegate) {
+  testing::NiceMock<MockAutofillSuggestionDelegate> mock_suggestion_delegate;
+  AtMemoryBottomSheetDelegateAndroid delegate(
+      &client_, mock_suggestion_delegate.GetWeakPtr());
+
+  EXPECT_CALL(mock_suggestion_delegate,
+              OnSearchSubmitted(std::u16string(u"query")));
+  delegate.OnQuerySubmitted(u"query");
 }
 
 }  // namespace autofill

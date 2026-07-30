@@ -5,8 +5,10 @@
 #include "chrome/browser/glic/browser_ui/glic_selection_widget.h"
 
 #include "base/test/bind.h"
+#include "chrome/browser/glic/public/features.h"
+#include "chrome/grit/generated_resources.h"
 #include "chrome/test/views/chrome_views_test_base.h"
-#include "testing/gtest/include/gtest/gtest.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/events/base_event_utils.h"
 #include "ui/views/controls/button/image_button.h"
 #include "ui/views/controls/button/md_text_button.h"
@@ -19,32 +21,46 @@ class GlicSelectionWidgetTest : public ChromeViewsTestBase {
  public:
   GlicSelectionWidgetTest() = default;
   ~GlicSelectionWidgetTest() override = default;
+
+ protected:
+  void TriggerMenuCommand(GlicSelectionWidgetDelegate* delegate,
+                          int command_id) {
+    delegate->TriggerMenuCommandForTesting(command_id);
+  }
 };
 
-TEST_F(GlicSelectionWidgetTest, ButtonsTriggerCallbacks) {
+class TestWidgetActionDelegate
+    : public GlicSelectionWidgetDelegate::ActionDelegate {
+ public:
+  void OnAskGemini() override { ask_gemini_called = true; }
+  void OnCopy() override { copy_called = true; }
+  void OnCopyLink() override { copy_link_called = true; }
+  void OnPinToggled(bool is_pinned) override {
+    pin_toggled_called = true;
+    pin_toggled_val = is_pinned;
+  }
+  void OnHideForThisSite() override { hide_for_this_site_called = true; }
+  void OnSettings() override { settings_called = true; }
+
   bool ask_gemini_called = false;
   bool copy_called = false;
   bool copy_link_called = false;
   bool pin_toggled_called = false;
   bool pin_toggled_val = false;
+  bool hide_for_this_site_called = false;
+  bool settings_called = false;
+};
 
+TEST_F(GlicSelectionWidgetTest, ButtonsTriggerCallbacks) {
   gfx::Rect anchor_rect(10, 10, 100, 100);
   std::u16string selected_text = u"selected text";
 
-  bool dismiss_called = false;
+  auto test_delegate = std::make_unique<TestWidgetActionDelegate>();
+  auto widget_delegate = std::make_unique<GlicSelectionWidgetDelegate>(
+      *test_delegate, anchor_rect, gfx::Rect(), selected_text,
+      /*is_pinned=*/false);
 
-  GlicSelectionWidgetDelegate* delegate = new GlicSelectionWidgetDelegate(
-      anchor_rect, gfx::Rect(), selected_text, /*is_pinned=*/false,
-      base::BindLambdaForTesting([&]() { ask_gemini_called = true; }),
-      base::BindLambdaForTesting([&]() { copy_called = true; }),
-      base::BindLambdaForTesting([&]() { copy_link_called = true; }),
-      base::BindLambdaForTesting([&](bool val) {
-        pin_toggled_called = true;
-        pin_toggled_val = val;
-      }),
-      base::BindLambdaForTesting([&]() { dismiss_called = true; }));
-
-  views::View* contents_view = delegate->GetContentsView();
+  views::View* contents_view = widget_delegate->GetContentsView();
   ASSERT_TRUE(contents_view);
 
   auto children = contents_view->children();
@@ -61,17 +77,18 @@ TEST_F(GlicSelectionWidgetTest, ButtonsTriggerCallbacks) {
 
   auto pill2_children = children[1]->children();
   ASSERT_EQ(pill2_children.size(), 1u);
-  auto* dismiss_btn = views::AsViewClass<views::ImageButton>(pill2_children[0]);
+  auto* menu_btn = views::AsViewClass<views::ImageButton>(pill2_children[0]);
 
   ASSERT_TRUE(ask_gemini_btn);
   ASSERT_TRUE(copy_btn);
   ASSERT_TRUE(copy_link_btn);
+  ASSERT_TRUE(menu_btn);
 
   // Verify the copy link button is initially disabled.
   EXPECT_FALSE(copy_link_btn->GetEnabled());
 
   // Enable it and test.
-  delegate->UpdateCopyLinkButton(true);
+  widget_delegate->UpdateCopyLinkButton(true);
   EXPECT_TRUE(copy_link_btn->GetEnabled());
 
   // Manually run callbacks since we don't have a widget to receive events.
@@ -80,29 +97,39 @@ TEST_F(GlicSelectionWidgetTest, ButtonsTriggerCallbacks) {
                                   gfx::Point(), ui::EventTimeForNow(),
                                   ui::EF_LEFT_MOUSE_BUTTON,
                                   ui::EF_LEFT_MOUSE_BUTTON));
-  EXPECT_TRUE(ask_gemini_called);
+  EXPECT_TRUE(test_delegate->ask_gemini_called);
 
   views::test::ButtonTestApi(copy_btn).NotifyClick(
       ui::MouseEvent(ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
                      ui::EventTimeForNow(), ui::EF_LEFT_MOUSE_BUTTON,
                      ui::EF_LEFT_MOUSE_BUTTON));
-  EXPECT_TRUE(copy_called);
+  EXPECT_TRUE(test_delegate->copy_called);
 
   views::test::ButtonTestApi(copy_link_btn)
       .NotifyClick(ui::MouseEvent(ui::EventType::kMousePressed, gfx::Point(),
                                   gfx::Point(), ui::EventTimeForNow(),
                                   ui::EF_LEFT_MOUSE_BUTTON,
                                   ui::EF_LEFT_MOUSE_BUTTON));
-  EXPECT_TRUE(copy_link_called);
+  EXPECT_TRUE(test_delegate->copy_link_called);
 
-  views::test::ButtonTestApi(dismiss_btn)
-      .NotifyClick(ui::MouseEvent(ui::EventType::kMousePressed, gfx::Point(),
-                                  gfx::Point(), ui::EventTimeForNow(),
-                                  ui::EF_LEFT_MOUSE_BUTTON,
-                                  ui::EF_LEFT_MOUSE_BUTTON));
-  EXPECT_TRUE(dismiss_called);
+  EXPECT_EQ(menu_btn->GetTooltipText(),
+            l10n_util::GetStringUTF16(IDS_TOAST_MENU_BUTTON_NAME));
 
-  delete delegate;
+  views::test::ButtonTestApi(menu_btn).NotifyClick(
+      ui::MouseEvent(ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
+                     ui::EventTimeForNow(), ui::EF_LEFT_MOUSE_BUTTON,
+                     ui::EF_LEFT_MOUSE_BUTTON));
+
+  // Test menu command execution.
+  TriggerMenuCommand(
+      widget_delegate.get(),
+      static_cast<int>(GlicSelectionWidgetDelegate::MenuCommand::kHideForSite));
+  EXPECT_TRUE(test_delegate->hide_for_this_site_called);
+
+  TriggerMenuCommand(
+      widget_delegate.get(),
+      static_cast<int>(GlicSelectionWidgetDelegate::MenuCommand::kSettings));
+  EXPECT_TRUE(test_delegate->settings_called);
 }
 
 }  // namespace glic

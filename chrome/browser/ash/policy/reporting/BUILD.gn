@@ -42,8 +42,6 @@ static_library("reporting") {
     "remoting_host_event_reporter_delegate_impl.h",
     "single_arc_app_install_event_log.cc",
     "single_arc_app_install_event_log.h",
-    "single_extension_install_event_log.cc",
-    "single_extension_install_event_log.h",
     "single_install_event_log.h",
     "user_event_reporter_helper.cc",
     "user_event_reporter_helper.h",

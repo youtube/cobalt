@@ -8,6 +8,7 @@
 #import <Foundation/Foundation.h>
 
 class AuthenticationService;
+class LevelUpService;
 @protocol LevelUpConsumer;
 @protocol LevelUpProfileConsumer;
 
@@ -19,9 +20,12 @@ class AuthenticationService;
 // The consumer for user profile credentials updates.
 @property(nonatomic, weak) id<LevelUpProfileConsumer> profileConsumer;
 
-// Initializes this mediator with the authentication service.
+// Initializes this mediator with the authentication service and level up
+// service.
 - (instancetype)initWithAuthenticationService:
-    (AuthenticationService*)authService NS_DESIGNATED_INITIALIZER;
+                    (AuthenticationService*)authService
+                               levelUpService:(LevelUpService*)levelUpService
+    NS_DESIGNATED_INITIALIZER;
 
 - (instancetype)init NS_UNAVAILABLE;
 

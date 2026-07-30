@@ -233,41 +233,6 @@ public class KeyboardAccessoryData {
         }
     }
 
-    public static final class PlusAddressInfo {
-        private final String mOrigin;
-        private final UserInfoField mPlusAddressInfo;
-
-        public PlusAddressInfo(String origin, UserInfoField plusAddressInfo) {
-            mOrigin = origin;
-            mPlusAddressInfo = plusAddressInfo;
-        }
-
-        public String getOrigin() {
-            return mOrigin;
-        }
-
-        public UserInfoField getPlusAddress() {
-            return mPlusAddressInfo;
-        }
-    }
-
-    public static final class PlusAddressSection {
-        private final String mTitle;
-        private final List<PlusAddressInfo> mPlusAddressInfoList = new ArrayList<>();
-
-        public PlusAddressSection(String title) {
-            mTitle = title;
-        }
-
-        public String getTitle() {
-            return mTitle;
-        }
-
-        public List<PlusAddressInfo> getPlusAddressInfoList() {
-            return mPlusAddressInfoList;
-        }
-    }
-
     /** Represents a Passkey (name and ID), to be shown on the manual fallback UI. */
     public static final class PasskeySection {
         private final String mDisplayName;
@@ -499,7 +464,6 @@ public class KeyboardAccessoryData {
         private final String mWarning;
         private final @AccessoryTabType int mSheetType;
         private @Nullable OptionToggle mToggle;
-        private final PlusAddressSection mPlusAddressSection;
         private final UserInfoSection mUserInfoSection;
         private final List<PasskeySection> mPasskeySectionList = new ArrayList<>();
         private final List<PromoCodeInfo> mPromoCodeInfoList = new ArrayList<>();
@@ -513,19 +477,14 @@ public class KeyboardAccessoryData {
          * @param sheetType The type of the accessory manual filling sheet (addresses, credit cards,
          *     passwords).
          * @param userInfoTitle The user info title of accessory sheet tab.
-         * @param plusAddressTitle The plus address section title.
          * @param warning An optional warning to be displayed the beginning of the sheet.
          */
         public AccessorySheetData(
-                @AccessoryTabType int sheetType,
-                String userInfoTitle,
-                String plusAddressTitle,
-                String warning) {
+                @AccessoryTabType int sheetType, String userInfoTitle, String warning) {
             mWarning = warning;
             mSheetType = sheetType;
             mToggle = null;
             mUserInfoSection = new UserInfoSection(userInfoTitle);
-            mPlusAddressSection = new PlusAddressSection(plusAddressTitle);
         }
 
         public @AccessoryTabType int getSheetType() {
@@ -558,21 +517,6 @@ public class KeyboardAccessoryData {
         /** Returns the list of {@link UserInfo} to be shown on the accessory sheet. */
         public List<UserInfo> getUserInfoList() {
             return mUserInfoSection.getUserInfoList();
-        }
-
-        /**
-         * @return a possibly empty title for the plus address section to be shown on the accessory
-         *     sheet
-         */
-        public String getPlusAddressSectionTitle() {
-            return mPlusAddressSection.getTitle();
-        }
-
-        /**
-         * @return a list if {@link PlusAddressInfo} to be shown on the accessory sheet.
-         */
-        public List<PlusAddressInfo> getPlusAddressInfoList() {
-            return mPlusAddressSection.getPlusAddressInfoList();
         }
 
         /** Returns the list of {@link PasskeySection} to be shown on the accessory sheet. */

@@ -13,7 +13,7 @@
 #include "base/task/thread_pool.h"
 #include "build/build_config.h"
 #include "gpu/config/gpu_driver_bug_workarounds.h"
-#include "gpu/ipc/client/client_shared_image_interface.h"
+#include "gpu/ipc/client/gpu_channel_observer.h"
 #include "media/capture/video/create_video_capture_device_factory.h"
 #include "media/capture/video/video_capture_buffer_pool.h"
 #include "media/capture/video/video_capture_buffer_tracker.h"
@@ -36,7 +36,6 @@
 #if BUILDFLAG(ENABLE_GPU_CHANNEL_MEDIA_CAPTURE)
 #include "media/capture/capture_switches.h"
 #include "media/capture/video/video_capture_gpu_channel_host.h"
-#include "services/viz/public/cpp/gpu/context_provider_command_buffer.h"
 #endif  // BUILDFLAG(ENABLE_GPU_CHANNEL_MEDIA_CAPTURE)
 
 namespace video_capture {
@@ -112,7 +111,7 @@ class VideoCaptureServiceImpl::GpuDependenciesContext {
 // the |main_task_runner_| sequence, which will be notified to the
 // media::VideoCaptureGpuChannelHost.
 class VideoCaptureServiceImpl::VizGpuContextProvider
-    : public viz::ContextLostObserver {
+    : public gpu::GpuChannelLostObserver {
  public:
   VizGpuContextProvider(std::unique_ptr<viz::Gpu> viz_gpu)
       : main_task_runner_(base::SingleThreadTaskRunner::GetCurrentDefault()),
@@ -120,10 +119,11 @@ class VideoCaptureServiceImpl::VizGpuContextProvider
     StartContextProviderIfNeeded();
   }
 
-  ~VizGpuContextProvider() override {
+  virtual ~VizGpuContextProvider() {
+    DCHECK(main_task_runner_->BelongsToCurrentThread());
     // Ensure destroy context provider and not receive callbacks before clear up
     // |viz_gpu_|.
-    if (context_provider_) {
+    if (shared_image_interface_) {
       // Ensure there are no dangling pointers.
       media::VideoCaptureGpuChannelHost::GetInstance().SetSharedImageInterface(
           nullptr);
@@ -133,14 +133,23 @@ class VideoCaptureServiceImpl::VizGpuContextProvider
       media::VideoCaptureDeviceFactoryChromeOS::SetSharedImageInterface(
           nullptr);
 #endif  // BUILDFLAG(IS_CHROMEOS)
-      context_provider_.reset();
+      shared_image_interface_->RemoveGpuChannelLostObserver(this);
+      shared_image_interface_.reset();
     }
   }
 
-  // viz::ContextLostObserver implementation.
-  void OnContextLost() override {
-    context_provider_->RemoveObserver(this);
-    context_provider_.reset();
+  // gpu::GpuChannelLostObserver implementation.
+  void OnGpuChannelLost() override {
+    // GpuChannelHost automatically unsubscribes observers, we don't need to do
+    // it here.
+    main_task_runner_->PostTask(
+        FROM_HERE,
+        base::BindOnce(&VizGpuContextProvider::OnGpuChannelLostOnMainThread,
+                       weak_ptr_factory_.GetWeakPtr()));
+  }
+
+  void OnGpuChannelLostOnMainThread() {
+    shared_image_interface_.reset();
     StartContextProviderIfNeeded();
 
     // Notify context lost after new context ready.
@@ -163,7 +172,7 @@ class VideoCaptureServiceImpl::VizGpuContextProvider
 
  private:
   void StartContextProviderIfNeeded() {
-    DCHECK_EQ(context_provider_, nullptr);
+    DCHECK_EQ(shared_image_interface_, nullptr);
     DCHECK(main_task_runner_->BelongsToCurrentThread());
 
     // Reset GpuChannelHost and related objects to begin
@@ -190,40 +199,32 @@ class VideoCaptureServiceImpl::VizGpuContextProvider
       return;
     }
 
-    scoped_refptr<viz::ContextProvider> context_provider =
-        viz::ContextProviderCommandBuffer::CreateForGL(
-            std::move(gpu_channel_host), 0 /* stream ID */,
-            gpu::SchedulingPriority::kNormal, GURL("chrome://gpu/VideoCapture"),
-            viz::command_buffer_metrics::ContextType::VIDEO_CAPTURE);
+    shared_image_interface_ =
+        gpu_channel_host->CreateClientSharedImageInterface();
 
-    const gpu::ContextResult context_result =
-        context_provider->BindToCurrentSequence();
-    if (context_result != gpu::ContextResult::kSuccess) {
-      LOG(ERROR) << "Bind context provider failed.";
+    if (!shared_image_interface_->AddGpuChannelLostObserver(this)) {
+      shared_image_interface_.reset();
+      LOG(ERROR) << "Context already lost.";
       return;
     }
-
-    context_provider->AddObserver(this);
-    context_provider_ = std::move(context_provider);
 
     media::VideoCaptureGpuChannelHost::GetInstance().SetGpuChannel(
         viz_gpu_->GetGpuChannel());
     media::VideoCaptureGpuChannelHost::GetInstance().SetSharedImageInterface(
-        viz_gpu_->GetGpuChannel()->CreateClientSharedImageInterface());
+        shared_image_interface_);
 #if BUILDFLAG(IS_CHROMEOS)
     media::VideoCaptureDeviceFactoryChromeOS::SetGpuChannelHost(
         viz_gpu_->GetGpuChannel());
     media::VideoCaptureDeviceFactoryChromeOS::SetSharedImageInterface(
-        viz_gpu_->GetGpuChannel()->CreateClientSharedImageInterface());
+        shared_image_interface_);
 #endif  // BUILDFLAG(IS_CHROMEOS)
   }
 
-  // Task runner for operating |viz_gpu_| and
-  // |context_provider_| on. This must be the main service thread as the
-  // |viz_gpu_| required.
+  // Task runner for operating |viz_gpu_|. This must be the main service thread
+  // as the |viz_gpu_| required.
   scoped_refptr<base::SingleThreadTaskRunner> main_task_runner_;
   std::unique_ptr<viz::Gpu> viz_gpu_;
-  scoped_refptr<viz::ContextProvider> context_provider_;
+  scoped_refptr<gpu::SharedImageInterface> shared_image_interface_;
   base::WeakPtrFactory<VizGpuContextProvider> weak_ptr_factory_{this};
 };
 #endif  // BUILDFLAG(ENABLE_GPU_CHANNEL_MEDIA_CAPTURE)

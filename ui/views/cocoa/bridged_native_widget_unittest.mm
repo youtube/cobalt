@@ -303,7 +303,7 @@ NSTextInputContext* g_fake_current_input_context = nullptr;
 @end
 
 // An NSTextStorage subclass for our DummyTextView, to work around test
-// failures with macOS 13. See crbug.com/1446817 .
+// failures. See https://crbug.com/40268765.
 @interface DummyTextStorage : NSTextStorage {
   NSMutableAttributedString* __strong _backingStore;
 }
@@ -348,7 +348,7 @@ NSTextInputContext* g_fake_current_input_context = nullptr;
 @end
 
 // An NSTextView subclass that uses its own NSTextStorage subclass, to work
-// around test failures with macOS 13. See crbug.com/1446817 .
+// around test failures. See https://crbug.com/40268765.
 @interface DummyTextView : NSTextView {
 }
 @end

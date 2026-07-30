@@ -118,10 +118,15 @@ void GetTextInfoForGlyphCallback(void* context,
   size_t start_index = static_cast<TextInfoContext*>(context)->start_index;
 
   sk_sp<SkTypeface> typeface = font_data->PlatformData().TypefaceSp();
-  if (results.empty() || results.back().typeface != typeface) {
-    results.emplace_back(std::move(typeface),
-                         std::vector<WebFormControlElement::GlyphInfo>{},
-                         is_horizontal);
+  bool synthetic_bold = font_data->PlatformData().SyntheticBold();
+  bool synthetic_italic = font_data->PlatformData().SyntheticItalic();
+  if (results.empty() || results.back().typeface != typeface ||
+      results.back().is_synthetic_bold != synthetic_bold ||
+      results.back().is_synthetic_italic != synthetic_italic) {
+    results.emplace_back(
+        std::move(typeface), std::vector<WebFormControlElement::GlyphInfo>{},
+        /*is_horizontal=*/is_horizontal, /*is_synthetic_bold=*/synthetic_bold,
+        /*is_synthetic_italic=*/synthetic_italic);
   }
 
   CHECK_EQ(results.back().is_horizontal, is_horizontal);
@@ -153,7 +158,13 @@ HTMLTextAreaElement::HTMLTextAreaElement(Document& document)
 }
 
 void HTMLTextAreaElement::DidAddUserAgentShadowRoot(ShadowRoot& root) {
-  root.AppendChild(CreateInnerEditorElement());
+  auto* inner_editor = CreateInnerEditorElement();
+  if (RuntimeEnabledFeatures::TextAreaEmptyPlaceholderBreakEnabled()) {
+    // We need a placeholder break for an empty value in order to provide one
+    // line-height and a baseline even if this element is not editable.
+    inner_editor->AppendChild(CreatePlaceholderBreakElement());
+  }
+  root.AppendChild(inner_editor);
 }
 
 FormControlType HTMLTextAreaElement::FormControlType() const {

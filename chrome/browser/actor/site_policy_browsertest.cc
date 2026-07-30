@@ -20,7 +20,7 @@
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/actor/core/actor_features.h"
 #include "components/actor/core/actor_switches.h"
-#include "components/actor/core/origin_checker.h"
+#include "components/actor/core/origin_gating_cache.h"
 #include "components/optimization_guide/core/filters/optimization_hints_component_update_listener.h"
 #include "components/safe_browsing/buildflags.h"
 #include "content/public/browser/browser_thread.h"
@@ -102,7 +102,7 @@ class ActorSitePolicyBrowserTest : public InProcessBrowserTest {
     auto* actor_service = ActorKeyedService::Get(browser()->profile());
     MayActOnTab(
         *browser()->tab_strip_model()->GetActiveTab(),
-        actor_service->GetJournal(), TaskId(), OriginChecker(),
+        actor_service->GetJournal(), TaskId(), {},
         MockPolicyChecker(EnterprisePolicyChecker::UrlBlockReason::kNotBlocked),
         allowed.GetCallback());
     // The result should not be provided synchronously.
@@ -179,7 +179,7 @@ IN_PROC_BROWSER_TEST_F(ActorSitePolicyMissingBlocklistBrowserTest, FailOpen) {
   auto* actor_service = ActorKeyedService::Get(browser()->profile());
   MayActOnTab(
       *browser()->tab_strip_model()->GetActiveTab(),
-      actor_service->GetJournal(), TaskId(), OriginChecker(),
+      actor_service->GetJournal(), TaskId(), {},
       MockPolicyChecker(EnterprisePolicyChecker::UrlBlockReason::kNotBlocked),
       allowed.GetCallback());
   EXPECT_TRUE(allowed.Get() == MayActOnUrlBlockReason::kAllowed);

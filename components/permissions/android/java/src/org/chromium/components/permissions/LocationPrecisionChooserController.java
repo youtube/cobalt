@@ -26,8 +26,6 @@ import java.util.function.Consumer;
 @NullMarked
 public class LocationPrecisionChooserController {
 
-    private int mArm = ApproximateGeolocationPromptArm.NO_ARM_SELECTED;
-
     private final Context mContext;
     private final LinearLayout mContainer;
     private final @LocationAccuracy int mInitialSelection;
@@ -48,13 +46,6 @@ public class LocationPrecisionChooserController {
         mInitialSelection = initialSelection;
         mSelectionListener = selectionListener;
 
-        mArm =
-                PermissionsAndroidFeatureList.APPROXIMATE_GEOLOCATION_PROMPT_ARM.getValue()
-                                == ApproximateGeolocationPromptArm.NO_ARM_SELECTED
-                        ? ApproximateGeolocationPromptArm.ARM_1
-                        : PermissionsAndroidFeatureList.APPROXIMATE_GEOLOCATION_PROMPT_ARM
-                                .getValue();
-
         mIdToAccuracyMap = new HashMap<>();
         mOptionsToDisplay = buildRichRadioButtonOptions();
     }
@@ -74,10 +65,9 @@ public class LocationPrecisionChooserController {
                         LinearLayout.LayoutParams.MATCH_PARENT,
                         LinearLayout.LayoutParams.WRAP_CONTENT));
 
-        @RichRadioButtonList.LayoutMode int currentLayoutMode = getLayoutMode();
         mRichRadioButtonList.initialize(
                 mOptionsToDisplay,
-                currentLayoutMode,
+                RichRadioButtonList.LayoutMode.VERTICAL_SINGLE_COLUMN,
                 (selectedId) -> {
                     if (mSelectionListener != null) {
                         @LocationAccuracy Integer accuracy = mIdToAccuracyMap.get(selectedId);
@@ -103,33 +93,7 @@ public class LocationPrecisionChooserController {
         }
     }
 
-    /**
-     * Returns the overall layout mode for the RichRadioButtonList based on the experiment arm.
-     *
-     * @return The layout mode for the RichRadioButtonList.
-     */
-    private @RichRadioButtonList.LayoutMode int getLayoutMode() {
-        @RichRadioButtonList.LayoutMode
-        int currentLayoutMode = RichRadioButtonList.LayoutMode.VERTICAL_SINGLE_COLUMN;
-
-        if (mArm == ApproximateGeolocationPromptArm.ARM_1
-                || mArm == ApproximateGeolocationPromptArm.ARM_2
-                || mArm == ApproximateGeolocationPromptArm.ARM_3
-                || mArm == ApproximateGeolocationPromptArm.ARM_6) {
-            currentLayoutMode = RichRadioButtonList.LayoutMode.VERTICAL_SINGLE_COLUMN;
-        } else if (mArm == ApproximateGeolocationPromptArm.ARM_4
-                || mArm == ApproximateGeolocationPromptArm.ARM_5) {
-            currentLayoutMode = RichRadioButtonList.LayoutMode.TWO_COLUMN_GRID;
-        }
-
-        return currentLayoutMode;
-    }
-
-    /**
-     * Builds the list of {@link RichRadioButtonData} options for the chooser. The internal
-     * vertical/horizontal layout of each RichRadioButton will be determined by RichRadioButtonList
-     * based on the overall LayoutMode (single column vs. grid).
-     */
+    /** Builds the list of {@link RichRadioButtonData} options for the chooser. */
     private List<RichRadioButtonData> buildRichRadioButtonOptions() {
         List<RichRadioButtonData> options = new ArrayList<>();
 
@@ -147,46 +111,14 @@ public class LocationPrecisionChooserController {
                         approximateId,
                         mContext.getString(R.string.permission_allow_approximate_geo));
 
-        switch (mArm) {
-            case ApproximateGeolocationPromptArm.ARM_1:
-                break;
-            case ApproximateGeolocationPromptArm.ARM_2:
-            case ApproximateGeolocationPromptArm.ARM_4:
-                preciseOptionBuilder.setIconResId(R.drawable.location_precise);
-                approximateOptionBuilder.setIconResId(R.drawable.location_approximate);
-                break;
-
-            case ApproximateGeolocationPromptArm.ARM_3:
-            case ApproximateGeolocationPromptArm.ARM_5:
-                preciseOptionBuilder
-                        .setIconResId(R.drawable.location_precise)
-                        .setDescription(
-                                mContext.getString(
-                                        R.string.permission_allow_precise_geo_description));
-                approximateOptionBuilder
-                        .setIconResId(R.drawable.location_approximate)
-                        .setDescription(
-                                mContext.getString(
-                                        R.string.permission_allow_approximate_geo_description));
-                break;
-
-            case ApproximateGeolocationPromptArm.ARM_6:
-                preciseOptionBuilder
-                        .setIconResId(R.drawable.location_precise)
-                        .setDescription(
-                                mContext.getString(
-                                        R.string.permission_allow_precise_geo_long_description));
-                approximateOptionBuilder
-                        .setIconResId(R.drawable.location_approximate)
-                        .setDescription(
-                                mContext.getString(
-                                        R.string
-                                                .permission_allow_approximate_geo_long_description));
-                break;
-
-            default:
-                break;
-        }
+        preciseOptionBuilder
+                .setIconResId(R.drawable.location_precise)
+                .setDescription(
+                        mContext.getString(R.string.permission_allow_precise_geo_description));
+        approximateOptionBuilder
+                .setIconResId(R.drawable.location_approximate)
+                .setDescription(
+                        mContext.getString(R.string.permission_allow_approximate_geo_description));
 
         options.add(preciseOptionBuilder.build());
         options.add(approximateOptionBuilder.build());

@@ -29,7 +29,7 @@ namespace metrics {
 // Primary functionality is to facilitate enabling metrics in desired
 // circumstances, such as:
 // * The primary user hasn't been set.
-// * The primary user hasn't consented or dissented to metrics collection.
+// * The primary user hasn't made a choice regarding metrics collection.
 // * The device is restarted and any of the above is true.
 //
 // This object is disabled during OOBE when the metrics is set by primary user
@@ -45,12 +45,12 @@ class CrOSPreChoiceMetricsManager : public policy::CloudPolicyStore::Observer {
  public:
   ~CrOSPreChoiceMetricsManager() override;
 
-  // Enables pre-consent metrics. This will force metrics to be enabled and
+  // Enables pre-choice metrics. This will force metrics to be enabled and
   // metrics will be uploaded.
   void Enable();
 
-  // Disables pre-consent metrics. This will write a marker file to signify
-  // that the primary user has given their metrics consent.
+  // Disables pre-choice metrics. This will write a marker file to signify
+  // that the primary user has made their metrics choice.
   void Disable();
 
   // The upload interval to use while enabled.

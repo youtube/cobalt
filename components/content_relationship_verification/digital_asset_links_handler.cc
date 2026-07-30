@@ -218,30 +218,19 @@ void DigitalAssetLinksHandler::OnURLLoadComplete(
     return;
   }
 
-  data_decoder::DataDecoder::ParseJsonIsolated(
-      *response_body,
-      base::BindOnce(&DigitalAssetLinksHandler::OnJSONParseResult,
-                     weak_ptr_factory_.GetWeakPtr(), std::move(relationship),
-                     std::move(fingerprints), std::move(target_values),
-                     std::move(callback)));
-}
-
-void DigitalAssetLinksHandler::OnJSONParseResult(
-    std::string relationship,
-    std::optional<std::vector<std::string>> fingerprints,
-    std::map<std::string, std::set<std::string>> target_values,
-    RelationshipCheckResultCallback callback,
-    data_decoder::DataDecoder::ValueOrError result) {
+  base::JSONReader::Result result =
+      base::JSONReader::ReadAndReturnValueWithError(*response_body,
+                                                    base::JSON_PARSE_RFC);
   if (!result.has_value()) {
     AddMessageToConsole(
         web_contents_.get(),
         "Digital Asset Links response parsing failed with message: " +
-            result.error());
+            result.error().message);
     std::move(callback).Run(RelationshipCheckResult::kFailure);
     return;
   }
 
-  base::ListValue* statement_list = result->GetIfList();
+  const base::ListValue* statement_list = result->GetIfList();
   if (!statement_list) {
     AddMessageToConsole(web_contents_.get(), "Statement List is not a list.");
     std::move(callback).Run(RelationshipCheckResult::kFailure);

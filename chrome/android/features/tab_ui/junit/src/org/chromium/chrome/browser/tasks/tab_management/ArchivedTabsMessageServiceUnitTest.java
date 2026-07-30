@@ -57,11 +57,11 @@ import org.chromium.chrome.browser.tab.TabArchiver;
 import org.chromium.chrome.browser.tab.TabId;
 import org.chromium.chrome.browser.tab_ui.OnTabSelectingListener;
 import org.chromium.chrome.browser.tab_ui.TabContentManager;
+import org.chromium.chrome.browser.tab_ui.TabListMode;
 import org.chromium.chrome.browser.tabmodel.TabCreator;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tasks.tab_management.MessageCardView.ServiceDismissActionProvider;
 import org.chromium.chrome.browser.tasks.tab_management.TabGridItemTouchHelperCallback.OnDropOnArchivalMessageCardEventListener;
-import org.chromium.chrome.browser.tasks.tab_management.TabListCoordinator.TabListMode;
 import org.chromium.chrome.browser.tasks.tab_management.TabSwitcherMessageManager.MessageType;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeController;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
@@ -293,7 +293,7 @@ public class ArchivedTabsMessageServiceUnitTest {
         verify(mArchivedTabsDialogCoordinator, times(0)).destroy();
         assertNotNull(mArchivedTabsMessageService.getArchivedTabsDialogCoordinatorForTesting());
 
-        mLayoutStateObserverCaptor.getValue().onStartedHiding(LayoutType.TAB_SWITCHER);
+        mLayoutStateObserverCaptor.getValue().onStartedHiding(LayoutType.HUB);
         verify(mArchivedTabsDialogCoordinator).destroy();
         assertNull(mArchivedTabsMessageService.getArchivedTabsDialogCoordinatorForTesting());
     }

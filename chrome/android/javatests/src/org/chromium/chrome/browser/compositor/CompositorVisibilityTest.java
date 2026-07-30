@@ -9,6 +9,7 @@ import android.view.View;
 
 import androidx.test.filters.SmallTest;
 
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -57,6 +58,17 @@ public class CompositorVisibilityTest {
                 @Override
                 public void invalidateAccessibilityProvider() {}
             };
+
+    @After
+    public void tearDown() {
+        if (mCompositorView != null) {
+            ThreadUtils.runOnUiThreadBlocking(
+                    () -> {
+                        mCompositorView.shutDown();
+                        mCompositorView = null;
+                    });
+        }
+    }
 
     // Verify that setVisibility on |mCompositorView| is transferred to its children.  Otherwise,
     // the underlying surface is not destroyed.  This can interfere with VR, which hides the

@@ -53,7 +53,7 @@ class COMPONENT_EXPORT(RESOURCE_COORDINATOR_PUBLIC_MEMORY_INSTRUMENTATION)
 
   void ResetForTesting();
 
-  using OnChromeDumpCallback = base::OnceCallback<void(void)>;
+  using OnChromeDumpCallback = base::OnceClosure;
 
   // Set a callback that will fire after a dump is written into trace, but only
   // once. Useful in tracing tests.

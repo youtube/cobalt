@@ -14,7 +14,6 @@ ToyTabDragSessionInputAdapter::~ToyTabDragSessionInputAdapter() = default;
 
 base::expected<void, mojo_base::mojom::ErrorPtr>
 ToyTabDragSessionInputAdapter::StartInputCapture(
-    const std::vector<tabs_api::NodeId>& source_tab_ids,
     EventCallback callback) {
   capture_started_ = true;
   callback_ = std::move(callback);

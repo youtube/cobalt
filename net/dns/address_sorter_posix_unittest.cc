@@ -70,6 +70,16 @@ class TestUDPClientSocket : public DatagramClientSocket {
     NOTIMPLEMENTED();
     return OK;
   }
+  base::expected<DatagramsMetadata, Error> ReadMultiple(
+      IOBuffer* buf,
+      size_t buf_len,
+      size_t maximum_packet_size,
+      base::OnceCallback<void(base::expected<DatagramsMetadata, Error>)>
+          callback) override {
+    NOTIMPLEMENTED();
+    return base::unexpected(ERR_NOT_IMPLEMENTED);
+  }
+
   int Write(IOBuffer*,
             int,
             CompletionOnceCallback,

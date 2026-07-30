@@ -466,6 +466,15 @@ int UDPSocketWin::Read(IOBuffer* buf,
   return RecvFrom(buf, buf_len, nullptr, std::move(callback));
 }
 
+base::expected<DatagramsMetadata, Error> UDPSocketWin::ReadMultiple(
+    IOBuffer* buffer,
+    size_t buf_len,
+    size_t maximum_packet_size,
+    base::OnceCallback<void(base::expected<DatagramsMetadata, Error>)>
+        callback) {
+  NOTREACHED();
+}
+
 int UDPSocketWin::RecvFrom(IOBuffer* buf,
                            int buf_len,
                            IPEndPoint* address,

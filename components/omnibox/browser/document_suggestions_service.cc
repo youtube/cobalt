@@ -181,7 +181,8 @@ signin::Tribool DocumentSuggestionsService::IsAccountWorkspaceManaged() {
       identity_manager_->GetPrimaryAccountId(signin::ConsentLevel::kSignin);
   const auto& account_info =
       identity_manager_->FindExtendedAccountInfoByAccountId(account_id);
-  return account_info.capabilities.is_subject_to_enterprise_features();
+  return account_info.GetAccountCapabilities()
+      .is_subject_to_enterprise_features();
 }
 
 void DocumentSuggestionsService::AccessTokenAvailable(
@@ -240,7 +241,7 @@ void DocumentSuggestionsService::OnPrimaryAccountChanged(
 void DocumentSuggestionsService::OnExtendedAccountInfoUpdated(
     const AccountInfo& account_info) {
   account_is_workspace_managed_ =
-      account_info.capabilities.is_subject_to_enterprise_features();
+      account_info.GetAccountCapabilities().is_subject_to_enterprise_features();
 }
 
 void DocumentSuggestionsService::OnIdentityManagerShutdown(

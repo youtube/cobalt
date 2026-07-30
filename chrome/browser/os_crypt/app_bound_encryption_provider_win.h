@@ -76,7 +76,6 @@ class AppBoundEncryptionProviderWin : public os_crypt_async::KeyProvider {
   // os_crypt_async::KeyProvider interface.
   void GetKey(KeyCallback callback) override;
   bool UseForEncryption() override;
-  bool IsCompatibleWithOsCryptSync() override;
 
  private:
   using ReadOnlyKeyData = const std::vector<uint8_t>;

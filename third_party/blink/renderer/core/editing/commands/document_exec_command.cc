@@ -57,7 +57,7 @@ EditorCommand GetCommand(Document* document, const String& command_name) {
 
   document->UpdateStyleAndLayoutTree();
   return frame->GetEditor().CreateCommand(command_name,
-                                          EditorCommandSource::kDOM);
+                                          EditorCommandSource::kDom);
 }
 
 // Trusted Types requires that HTML (or Script, or script URLs) to be

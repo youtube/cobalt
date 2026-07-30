@@ -19,6 +19,7 @@
 #include "components/variations/client_filterable_state.h"
 #include "components/variations/entropy_provider.h"
 #include "components/variations/fuzzers/create_trials_from_seed_test_case.pb.h"
+#include "components/variations/fuzzers/create_trials_from_seed_test_case_fuzzable.pb.h"
 #include "components/variations/proto/study.pb.h"
 #include "components/variations/service/limited_entropy_randomization.h"
 #include "components/variations/variations_layers.h"
@@ -185,9 +186,14 @@ void CreateTrialsFromSeedFuzzer(
 
 }  // namespace
 
-DEFINE_PROTO_FUZZER(const variations::CreateTrialsFromSeedTestCase& test_case) {
+DEFINE_PROTO_FUZZER(
+    const fuzzable::variations::CreateTrialsFromSeedTestCase& test_case) {
+  variations::CreateTrialsFromSeedTestCase lite_test_case;
+  if (!lite_test_case.ParseFromString(test_case.SerializeAsString())) {
+    return;
+  }
   static Environment env;
-  CreateTrialsFromSeedFuzzer(test_case, &env.pref_service,
+  CreateTrialsFromSeedFuzzer(lite_test_case, &env.pref_service,
                              &env.enabled_state_provider);
 }
 

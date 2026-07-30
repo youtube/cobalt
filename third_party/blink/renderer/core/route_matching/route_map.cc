@@ -6,8 +6,11 @@
 
 #include "base/auto_reset.h"
 #include "base/check_is_test.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_union_urlpatterninit_usvstring.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_url_pattern_init.h"
 #include "third_party/blink/renderer/core/css/style_engine.h"
 #include "third_party/blink/renderer/core/dom/document.h"
+#include "third_party/blink/renderer/core/dom/element.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/route_matching/route.h"
 #include "third_party/blink/renderer/core/route_matching/route_event.h"
@@ -19,11 +22,6 @@
 
 namespace blink {
 
-namespace {
-
-
-}  // anonymous namespace
-
 RouteMap::RouteMap(Document& document) : Supplement<Document>(document) {}
 RouteMap::RouteMap() : Supplement<Document>(nullptr) {
   CHECK_IS_TEST();
@@ -32,6 +30,7 @@ RouteMap::RouteMap() : Supplement<Document>(nullptr) {
 void RouteMap::Trace(Visitor* v) const {
   v->Trace(routes_);
   v->Trace(anonymous_routes_);
+  v->Trace(navigation_state_);
   Supplement<Document>::Trace(v);
   ScriptWrappable::Trace(v);
 }
@@ -108,16 +107,6 @@ RouteMap::ParseResult RouteMap::ParseAndApplyRoutes(
                            "Invalid data type or missing name entry for route");
       }
 
-      if (name.starts_with("--")) {
-        // Don't clash with CSS @route rules.
-        //
-        // TODO(crbug.com/436805487): Add a test for this (if support for
-        // <script type="routemap"> (this code) actually won't end up getting
-        // removed).
-        return ParseResult(ParseResult::kTypeError,
-                           "Route names cannot start with '--'");
-      }
-
       auto it = routes_.find(name);
       Route* route;
       if (it == routes_.end()) {
@@ -176,26 +165,33 @@ void RouteMap::AddRouteFromRule(const String& dashed_ident,
   UpdateMatchStatus(*route);
 }
 
-void RouteMap::AddAnonymousRoute(URLPattern* pattern) {
-  String pattern_string = pattern->ToString();
+void RouteMap::AddAnonymousRoute(const AtomicString& url_pattern_string) {
   Member<Route>& route =
-      anonymous_routes_.insert(pattern_string, nullptr).stored_value->value;
+      anonymous_routes_.insert(url_pattern_string, nullptr).stored_value->value;
   if (route) {
     return;
   }
+
+  V8URLPatternInput* url_pattern_input =
+      MakeGarbageCollected<V8URLPatternInput>(url_pattern_string);
+  const Document& document = GetDocument();
+  URLPattern* url_pattern =
+      URLPattern::Create(document.GetExecutionContext()->GetIsolate(),
+                         url_pattern_input, document.Url(), IGNORE_EXCEPTION);
+
   route = MakeGarbageCollected<Route>(GetDocument());
-  route->AddPattern(pattern);
+  route->AddPattern(url_pattern);
   UpdateMatchStatus(*route);
 }
 
-const Route* RouteMap::FindRoute(const String& route_name) const {
+const Route* RouteMap::FindRoute(const AtomicString& route_name) const {
   const auto it = routes_.find(route_name);
   return it == routes_.end() ? nullptr : it->value;
 }
 
-const Route* RouteMap::FindRoute(const URLPattern* pattern) const {
-  String pattern_string = pattern->ToString();
-  auto it = anonymous_routes_.find(pattern_string);
+const Route* RouteMap::FindAnonymousRoute(
+    const AtomicString& url_pattern_string) const {
+  auto it = anonymous_routes_.find(url_pattern_string);
   return it == anonymous_routes_.end() ? nullptr : it->value;
 }
 
@@ -224,8 +220,8 @@ void RouteMap::UpdateActiveRoutes() {
   }
 }
 
-void RouteMap::GetActiveRoutes(NavigationPreposition preposition,
-                               MatchCollection* collection) const {
+void RouteMap::GetActiveRoutesForTesting(NavigationPreposition preposition,
+                                         MatchCollection* collection) const {
   collection->clear();
   for (const auto& entry : routes_) {
     Route& route = *entry.value;
@@ -242,86 +238,84 @@ void RouteMap::GetActiveRoutes(NavigationPreposition preposition,
 }
 
 void RouteMap::OnNavigationStart(const KURL& previous_url,
-                                 const KURL& next_url) {
-  navigation_phase_ = NavigationPhase::kLoading;
-  previous_url_ = previous_url;
-  next_url_ = next_url;
+                                 const KURL& next_url,
+                                 Element* source_element) {
+  DCHECK(!navigation_state_);
+  navigation_state_ = MakeGarbageCollected<NavigationState>(
+      previous_url, next_url, source_element);
   UpdateActiveRoutes();
   GetDocument().GetStyleEngine().NavigationsMayHaveChanged();
+
+  if (source_element) {
+    source_element->PseudoStateChanged(CSSSelector::kPseudoTriggerLink);
+  }
 }
 
-void RouteMap::OnNavigationTraverse(HistoryTraverseType type) {
-  history_traverse_type_ = type;
+void RouteMap::OnNavigationTraverse(NavigationState::HistoryTraverseType type) {
+  DCHECK(navigation_state_);
+  navigation_state_->SetTraverseType(type);
   GetDocument().GetStyleEngine().NavigationsMayHaveChanged();
 }
 
 void RouteMap::OnNavigationCommitted() {
-  navigation_phase_ = NavigationPhase::kCommitted;
+  DCHECK(navigation_state_);
+  navigation_state_->SetPhase(NavigationPhase::kCommitted);
   UpdateActiveRoutes();
   GetDocument().GetStyleEngine().NavigationsMayHaveChanged();
 }
 
 void RouteMap::OnNavigationDone() {
-  navigation_phase_ = NavigationPhase::kInactive;
-  previous_url_ = KURL();
-  next_url_ = KURL();
+  if (navigation_state_) {
+    if (Element* source_element = navigation_state_->GetSourceElement()) {
+      source_element->PseudoStateChanged(CSSSelector::kPseudoTriggerLink);
+    }
+  }
+  navigation_state_ = nullptr;
   UpdateActiveRoutes();
-  history_traverse_type_ = kNotTraversing;
   GetDocument().GetStyleEngine().NavigationsMayHaveChanged();
 }
 
 void RouteMap::OnPreviewStart() {
-  CHECK(!in_preview_);
+  CHECK(navigation_state_);
+  CHECK(!navigation_state_->IsInPreview());
   CHECK(RuntimeEnabledFeatures::TwoPhaseViewTransitionEnabled());
-  in_preview_ = true;
+  navigation_state_->SetIsInPreview(true);
   GetDocument().GetStyleEngine().NavigationsMayHaveChanged();
 }
 
 void RouteMap::OnPreviewFinished() {
-  if (!in_preview_) {
+  if (!navigation_state_ || navigation_state_->IsInPreview()) {
     return;
   }
   CHECK(RuntimeEnabledFeatures::TwoPhaseViewTransitionEnabled());
-  in_preview_ = false;
+  navigation_state_->SetIsInPreview(false);
   GetDocument().GetStyleEngine().NavigationsMayHaveChanged();
-}
-
-KURL RouteMap::GetWithURL() const {
-  if (!IsActiveNavigation()) {
-    return KURL();
-  }
-  DCHECK(GetDocument().Url() == next_url_ ||
-         GetDocument().Url() == previous_url_);
-  // Return the URL that we're navigating towards or away from, i.e. the
-  // opposite of the "at" URL.
-  if (GetDocument().Url() == next_url_) {
-    return previous_url_;
-  }
-  return next_url_;
-}
-
-KURL RouteMap::GetAtURL() const {
-  if (!IsActiveNavigation()) {
-    return KURL();
-  }
-  DCHECK(GetDocument().Url() == next_url_ ||
-         GetDocument().Url() == previous_url_);
-  return GetDocument().Url();
 }
 
 // Get the "active navigation URL", given the specified preposition.
 //
 // https://drafts.csswg.org/css-navigation-1/#active-navigation-url
 KURL RouteMap::GetActiveNavigationURL(NavigationPreposition preposition) const {
+  if (!navigation_state_) {
+    return KURL();
+  }
+  const NavigationState& state = *navigation_state_;
+  DCHECK(GetDocument().Url() == state.GetOldURL() ||
+         GetDocument().Url() == state.GetNewURL());
+
+  auto at_old_url = [&] {
+    return state.GetPhase() == NavigationPhase::kLoading;
+  };
+
   switch (preposition) {
     case NavigationPreposition::kAt:
-      return GetAtURL();
+      return at_old_url() ? state.GetOldURL() : state.GetNewURL();
     case NavigationPreposition::kFrom:
-      return GetFromURL();
+      return state.GetOldURL();
     case NavigationPreposition::kTo:
-      return GetToURL();
+      return state.GetNewURL();
     case NavigationPreposition::kWith:
-      return GetWithURL();
+      return !at_old_url() ? state.GetOldURL() : state.GetNewURL();
   }
 }
 
@@ -348,8 +342,7 @@ bool RouteMap::UpdateMatchStatus(
     Route& route,
     HeapVector<Member<Route>>* routes_needing_event) {
   bool matched_at = route.Matches(NavigationPreposition::kAt);
-
-  if (!route.UpdateMatchStatus(GetFromURL(), GetToURL(), navigation_phase_)) {
+  if (!route.UpdateMatchStatus(navigation_state_)) {
     return false;
   }
   if (routes_needing_event) {

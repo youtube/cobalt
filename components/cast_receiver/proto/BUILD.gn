@@ -7,6 +7,7 @@ import("//third_party/protobuf/proto_library.gni")
 proto_library("proto") {
   proto_in_dir = "//"
   sources = [
+    "input_capabilities.proto",
     "input_event.proto",
     "keyboard_input_service.proto",
     "mouse_input_service.proto",

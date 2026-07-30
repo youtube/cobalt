@@ -170,6 +170,9 @@ enum class QuickActionsVisibility {
   error = [MetricsAppInterface expectTotalCount:1
                                    forHistogram:@"IOS.NTP.Impression"];
   chrome_test_util::GREYAssertErrorNil(error);
+  error = [MetricsAppInterface expectTotalCount:1
+                                   forHistogram:@"IOS.Home.Impression"];
+  chrome_test_util::GREYAssertErrorNil(error);
   [self releaseHistogramTester];
 
   // Open an incognito NTP and close it.
@@ -182,9 +185,12 @@ enum class QuickActionsVisibility {
   [ChromeEarlGrey closeAllTabs];
   error = [MetricsAppInterface expectTotalCount:0
                                    forHistogram:@"NewTabPage.TimeSpent"];
+  chrome_test_util::GREYAssertErrorNil(error);
   error = [MetricsAppInterface expectTotalCount:0
                                    forHistogram:@"IOS.NTP.Impression"];
   chrome_test_util::GREYAssertErrorNil(error);
+  error = [MetricsAppInterface expectTotalCount:0
+                                   forHistogram:@"IOS.Home.Impression"];
   chrome_test_util::GREYAssertErrorNil(error);
   [self releaseHistogramTester];
 
@@ -199,9 +205,12 @@ enum class QuickActionsVisibility {
 
   error = [MetricsAppInterface expectTotalCount:1
                                    forHistogram:@"NewTabPage.TimeSpent"];
+  chrome_test_util::GREYAssertErrorNil(error);
   error = [MetricsAppInterface expectTotalCount:1
                                    forHistogram:@"IOS.NTP.Impression"];
   chrome_test_util::GREYAssertErrorNil(error);
+  error = [MetricsAppInterface expectTotalCount:1
+                                   forHistogram:@"IOS.Home.Impression"];
   chrome_test_util::GREYAssertErrorNil(error);
   [self releaseHistogramTester];
 
@@ -218,9 +227,15 @@ enum class QuickActionsVisibility {
   error = [MetricsAppInterface expectTotalCount:0
                                    forHistogram:@"IOS.NTP.Impression"];
   chrome_test_util::GREYAssertErrorNil(error);
+  error = [MetricsAppInterface expectTotalCount:0
+                                   forHistogram:@"IOS.Home.Impression"];
+  chrome_test_util::GREYAssertErrorNil(error);
   [ChromeEarlGrey openNewTab];
   error = [MetricsAppInterface expectTotalCount:1
                                    forHistogram:@"IOS.NTP.Impression"];
+  chrome_test_util::GREYAssertErrorNil(error);
+  error = [MetricsAppInterface expectTotalCount:1
+                                   forHistogram:@"IOS.Home.Impression"];
   chrome_test_util::GREYAssertErrorNil(error);
   [ChromeEarlGrey selectTabAtIndex:0];
   error = [MetricsAppInterface expectTotalCount:1
@@ -246,6 +261,9 @@ enum class QuickActionsVisibility {
   error = [MetricsAppInterface expectTotalCount:0
                                    forHistogram:@"IOS.NTP.Impression"];
   chrome_test_util::GREYAssertErrorNil(error);
+  error = [MetricsAppInterface expectTotalCount:0
+                                   forHistogram:@"IOS.Home.Impression"];
+  chrome_test_util::GREYAssertErrorNil(error);
   [ChromeEarlGrey openNewTab];
   [ChromeEarlGrey openNewTab];
   error = [MetricsAppInterface expectTotalCount:1
@@ -254,12 +272,19 @@ enum class QuickActionsVisibility {
   error = [MetricsAppInterface expectTotalCount:2
                                    forHistogram:@"IOS.NTP.Impression"];
   chrome_test_util::GREYAssertErrorNil(error);
+  error = [MetricsAppInterface expectTotalCount:2
+                                   forHistogram:@"IOS.Home.Impression"];
+  chrome_test_util::GREYAssertErrorNil(error);
   [ChromeEarlGrey closeAllTabs];
   error = [MetricsAppInterface expectTotalCount:2
                                    forHistogram:@"NewTabPage.TimeSpent"];
   chrome_test_util::GREYAssertErrorNil(error);
   error = [MetricsAppInterface expectTotalCount:2
                                    forHistogram:@"IOS.NTP.Impression"];
+  chrome_test_util::GREYAssertErrorNil(error);
+  error = [MetricsAppInterface expectTotalCount:2
+                                   forHistogram:@"IOS.Home.Impression"];
+  chrome_test_util::GREYAssertErrorNil(error);
   [self releaseHistogramTester];
 }
 

@@ -11,6 +11,8 @@
 
 namespace blink {
 
+class HTMLScriptElementOrSVGScriptElement;
+
 class MockScriptElementBase : public GarbageCollected<MockScriptElementBase>,
                               public ScriptElementBase {
  public:

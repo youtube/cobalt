@@ -44,10 +44,10 @@ const int kActorLoginDelegateUserDataKey = 0;
 }  // namespace
 
 ActorLoginDelegateImpl::ActorLoginDelegateImpl(
-    ActorLoginDelegateClient* actor_login_delegate_client,
-    password_manager::PasswordManagerClient* password_manager_client)
+    ActorLoginDelegateClient* actor_login_delegate_client)
     : actor_login_delegate_client_(actor_login_delegate_client),
-      password_manager_client_(password_manager_client) {
+      password_manager_client_(
+          actor_login_delegate_client->GetPasswordManagerClient()) {
   CHECK(actor_login_delegate_client_);
   actor_login_delegate_client_->SetActorLoginWebContentInterface(this);
 }
@@ -56,31 +56,27 @@ ActorLoginDelegateImpl::~ActorLoginDelegateImpl() = default;
 
 // static
 ActorLoginDelegateImpl* ActorLoginDelegateImpl::FromUserData(
-    base::SupportsUserData* user_data) {
-  CHECK(user_data);
+    ActorLoginDelegateClient* client) {
+  CHECK(client);
   return static_cast<ActorLoginDelegateImpl*>(
-      user_data->GetUserData(&kActorLoginDelegateUserDataKey));
+      client->GetUserData(&kActorLoginDelegateUserDataKey));
 }
 
 // static
 ActorLoginDelegateImpl* ActorLoginDelegateImpl::CreateForUserData(
-    base::SupportsUserData* user_data,
-    ActorLoginDelegateClient* actor_login_delegate_client,
-    password_manager::PasswordManagerClient* password_manager_client) {
-  CHECK(user_data);
-  CHECK(actor_login_delegate_client);
-  auto delegate = base::WrapUnique(new ActorLoginDelegateImpl(
-      actor_login_delegate_client, password_manager_client));
+    ActorLoginDelegateClient* client) {
+  CHECK(client);
+  auto delegate = base::WrapUnique(new ActorLoginDelegateImpl(client));
   auto* delegate_raw_ptr = delegate.get();
-  user_data->SetUserData(&kActorLoginDelegateUserDataKey, std::move(delegate));
+  client->SetUserData(&kActorLoginDelegateUserDataKey, std::move(delegate));
   return delegate_raw_ptr;
 }
 
 // static
 void ActorLoginDelegateImpl::RemoveFromUserDataForTesting(
-    base::SupportsUserData* user_data) {
-  CHECK(user_data);
-  user_data->RemoveUserData(&kActorLoginDelegateUserDataKey);
+    ActorLoginDelegateClient* client) {
+  CHECK(client);
+  client->RemoveUserData(&kActorLoginDelegateUserDataKey);
 }
 
 void ActorLoginDelegateImpl::GetCredentials(

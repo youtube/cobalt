@@ -159,7 +159,7 @@ public class TabSwitcherActionProviderUnitTest {
         mModel.addObserver(mPropertyObserver);
 
         // Trigger show
-        observer.onStartedShowing(LayoutType.TAB_SWITCHER);
+        observer.onStartedShowing(LayoutType.HUB);
 
         // Verify trigger was emitted
         verify(mPropertyObserver)
@@ -167,7 +167,7 @@ public class TabSwitcherActionProviderUnitTest {
                         eq(mModel), eq(TabSwitcherActionProperties.SHOW_TAB_SWITCHER_TRIGGER));
 
         // Trigger show again
-        observer.onStartedShowing(LayoutType.TAB_SWITCHER);
+        observer.onStartedShowing(LayoutType.HUB);
 
         // Verify trigger emitted again
         verify(mPropertyObserver, times(2))

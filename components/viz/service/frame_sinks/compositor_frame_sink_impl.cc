@@ -183,7 +183,15 @@ void CompositorFrameSinkImpl::SubmitCompositorFrame(
 
 void CompositorFrameSinkImpl::DidNotProduceFrame(
     const BeginFrameAck& begin_frame_ack) {
-  support_->DidNotProduceFrame(begin_frame_ack);
+  if (!support_->DidNotProduceFrame(begin_frame_ack)) {
+    std::visit(
+        [&](auto& receiver) {
+          receiver.ResetWithReason(
+              static_cast<uint32_t>(SubmitResult::INVALID_BEGIN_FRAME_ACK),
+              "Invalid BeginFrameAck");
+        },
+        compositor_frame_sink_receiver_);
+  }
 }
 
 void CompositorFrameSinkImpl::NotifyNewLocalSurfaceIdExpectedWhilePaused() {

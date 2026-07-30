@@ -56,10 +56,7 @@ class IOSSendTabToSelfInfoBarDelegate : public ConfirmInfoBarDelegate {
   // Send the notice of conclusion of this infobar to other windows.
   void SendConclusionNotification();
 
-  // The entry that was share to this device. Must outlive this instance.
-  raw_ptr<const SendTabToSelfEntry, DanglingUntriaged> entry_ = nullptr;
-
-  // The SendTabToSelfModel that holds the `entry_`. Must outlive this instance.
+  // The SendTabToSelfModel. Must outlive this instance.
   raw_ptr<SendTabToSelfModel> model_ = nullptr;
 
   // Registration with NSNotificationCenter for this window.

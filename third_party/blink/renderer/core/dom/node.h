@@ -68,7 +68,7 @@ class ContainerNode;
 class DOMNodeIds;
 class Document;
 class Element;
-class ElementRareDataVector;
+class NodeRareData;
 class Event;
 class EventDispatchHandlingState;
 class ExceptionState;
@@ -86,7 +86,6 @@ class MutationObserverRegistration;
 class NodeCloningData;
 class NodeList;
 class NodeListsNodeData;
-class Part;
 class QualifiedName;
 class RegisteredEventListener;
 class ScrollTimeline;
@@ -105,8 +104,6 @@ class V8UnionSetHTMLUnsafeOptionsOrTrustedParserOptions;
 class WebPluginContainerImpl;
 class WritableStream;
 struct PhysicalRect;
-
-using PartsList = HeapDeque<Member<Part>>;
 
 const int kElementNamespaceTypeShift = 5;
 const int kNodeStyleChangeShift = 16;
@@ -1368,10 +1365,8 @@ class CORE_EXPORT Node : public EventTarget {
                                        Document& new_document);
 
   // |RareData| cannot be replaced or removed once assigned.
-  ElementRareDataVector* RareData() const { return data_.Get(); }
-  ElementRareDataVector& EnsureRareData() {
-    return data_ ? *data_ : CreateRareData();
-  }
+  NodeRareData* RareData() const { return data_.Get(); }
+  NodeRareData& EnsureRareData() { return data_ ? *data_ : CreateRareData(); }
 
   void SetHasCustomStyleCallbacks() {
     SetFlag(true, kHasCustomStyleCallbacksFlag);
@@ -1394,8 +1389,8 @@ class CORE_EXPORT Node : public EventTarget {
   // is updated if needed, as all Set...() and Ensure...() in RareData can
   // return a new, reallocated data_.
   template <class T>
-  T& UnpackAndRefresh(std::pair<std::reference_wrapper<T>,
-                                ElementRareDataVector*> raredata_and_new_vec) {
+  T& UnpackAndRefresh(std::pair<std::reference_wrapper<T>, NodeRareData*>
+                          raredata_and_new_vec) {
     data_ = raredata_and_new_vec.second;
     return raredata_and_new_vec.first;
   }
@@ -1423,7 +1418,7 @@ class CORE_EXPORT Node : public EventTarget {
   }
 
   // Used exclusively by |EnsureRareData|.
-  ElementRareDataVector& CreateRareData();
+  NodeRareData& CreateRareData();
 
   void MaybeAddNodeInsertedTraceEvent();
 
@@ -1452,7 +1447,7 @@ class CORE_EXPORT Node : public EventTarget {
   Member<LayoutObject> layout_object_;
 
  protected:
-  Member<ElementRareDataVector> data_;
+  Member<NodeRareData> data_;
 };
 
 inline void Node::SetParentNode(ContainerNode* parent) {

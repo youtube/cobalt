@@ -132,6 +132,18 @@ public class DownloadUtils {
         // careful to only parse for eTLD+1 if the origin has a host portion (some URL schemes
         // don't).
         GURL originAsUrl = url.getOrigin();
+        if (GURL.isEmptyOrInvalid(originAsUrl) && url.getScheme().equals("blob")) {
+            Origin origin = Origin.create(url);
+            if (!origin.isOpaque()) {
+                originAsUrl =
+                        new GURL(
+                                origin.getScheme()
+                                        + "://"
+                                        + origin.getHost()
+                                        + ":"
+                                        + origin.getPort());
+            }
+        }
         String fallback =
                 !GURL.isEmptyOrInvalid(originAsUrl) && !originAsUrl.getHost().isEmpty()
                         ? UrlUtilities.getDomainAndRegistry(

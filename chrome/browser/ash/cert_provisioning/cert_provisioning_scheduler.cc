@@ -482,11 +482,17 @@ void CertProvisioningSchedulerImpl::CreateCertProvisioningWorker(
     CertProfile cert_profile) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
+  std::string id = GenerateCertProvisioningId();
+  if (id.empty()) {
+    // If the id generation fails, something is seriously wrong with the system.
+    // The cert profile will be retried later, as if it failed here.
+    return;
+  }
+
   std::unique_ptr<CertProvisioningWorker> worker =
       CertProvisioningWorkerFactory::Get()->Create(
-          GenerateCertProvisioningId(), cert_scope_, profile_, pref_service_,
-          cert_profile, cert_provisioning_client_.get(),
-          invalidator_factory_->Create(),
+          std::move(id), cert_scope_, profile_, pref_service_, cert_profile,
+          cert_provisioning_client_.get(), invalidator_factory_->Create(),
           base::BindRepeating(
               &CertProvisioningSchedulerImpl::OnVisibleStateChanged,
               weak_factory_.GetWeakPtr()),

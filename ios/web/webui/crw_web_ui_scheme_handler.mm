@@ -64,10 +64,22 @@ NSInteger GetErrorCodeForUrl(const GURL& URL) {
   // The "Access-Control-Allow-Origin" header is required below to allow
   // requests from any WebUI page to load chrome://resources URLs. However,
   // requests between different WebUI pages are blocked directly instead.
-  if (!webView.URL ||
+  // Anchor the same-origin check on the *last-committed* URL rather than
+  // `webView.URL`. `webView.URL` flips to the destination as soon as a
+  // provisional load starts (see crw_web_view_navigation_observer.mm:275-278),
+  // while the previous (potentially compromised) document is still live and
+  // can issue WKURLSchemeTasks.
+  NSURL* sameOriginCheckURL = webView.backForwardList.currentItem.URL;
+  if (!sameOriginCheckURL) {
+    sameOriginCheckURL = webView.URL;
+  }
+  // Allow the main-frame navigation request itself (its URL matches the
+  // provisional webView.URL).
+  BOOL isMainFrameNavigation = (URL == net::GURLWithNSURL(webView.URL));
+  if (!isMainFrameNavigation &&
       (!URL.DomainIs(web::kWebUIResourcesHost) &&
        url::SchemeHostPort(URL) !=
-           url::SchemeHostPort(net::GURLWithNSURL(webView.URL)))) {
+           url::SchemeHostPort(net::GURLWithNSURL(sameOriginCheckURL)))) {
     NSError* error = [NSError
         errorWithDomain:NSURLErrorDomain
                    code:NSURLErrorNoPermissionsToReadFile

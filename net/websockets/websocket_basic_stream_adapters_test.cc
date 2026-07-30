@@ -98,6 +98,7 @@
 #include "net/third_party/quiche/src/quiche/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quiche/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quiche/quic/platform/api/quic_socket_address.h"
+#include "net/third_party/quiche/src/quiche/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quiche/quic/test_tools/crypto_test_utils.h"
 #include "net/third_party/quiche/src/quiche/quic/test_tools/mock_clock.h"
 #include "net/third_party/quiche/src/quiche/quic/test_tools/mock_connection_id_generator.h"
@@ -1557,6 +1558,7 @@ TEST_P(WebSocketQuicStreamAdapterTest, DisconnectDropsPendingReadCallback) {
 TEST_P(WebSocketQuicStreamAdapterTest, DisconnectDropsPendingWriteCallback) {
   // Set a very low buffer threshold so that buffered data immediately exceeds
   // it, causing Write() to return ERR_IO_PENDING.
+  quic::test::QuicFlagSaver flag_saver;
   SetQuicheFlag(quic_buffered_data_threshold, 1);
 
   int client_packet_number = 1;
@@ -2227,6 +2229,57 @@ TEST_P(WebSocketQuicStreamAdapterTest, ReadCallbackDestroysAdapter) {
   EXPECT_TRUE(mock_quic_data_.AllWriteDataConsumed());
 }
 
+// Verifies that WebSocketQuicStreamAdapter::Write() safely returns when
+// QuicSpdyStream::WriteOrBufferBody() synchronously closes the QUIC stream and
+// a pending read callback deletes the adapter before Write() continues.
+TEST_P(WebSocketQuicStreamAdapterTest,
+       WriteSyncSocketErrorDestroysAdapterWithPendingRead) {
+  int packet_number = 1;
+
+  mock_quic_data_.AddWrite(SYNCHRONOUS,
+                           ConstructSettingsPacket(packet_number++));
+  mock_quic_data_.AddWrite(
+      SYNCHRONOUS, client_maker_.MakeRequestHeadersPacket(
+                       packet_number++, client_data_stream_id1_, /*fin=*/false,
+                       ConvertRequestPriorityToQuicPriority(LOWEST),
+                       RequestHeaders(), nullptr));
+  // This write is the DATA packet from WebSocketQuicStreamAdapter::Write().
+  // Fail it synchronously to close the connection inside WriteOrBufferBody().
+  mock_quic_data_.AddWrite(SYNCHRONOUS, ERR_CONNECTION_REFUSED);
+
+  Initialize();
+
+  net::QuicChromiumClientSession::Handle* session_handle =
+      GetQuicSessionHandle();
+  ASSERT_TRUE(session_handle);
+
+  TestWebSocketQuicStreamAdapterCompletionCallback creation_callback;
+  auto adapter = session_handle->CreateWebSocketQuicStreamAdapter(
+      &mock_delegate_, creation_callback.callback(),
+      TRAFFIC_ANNOTATION_FOR_TESTS);
+  ASSERT_TRUE(adapter);
+  adapter->WriteHeaders(RequestHeaders(), false);
+
+  // Start a Read() that will finish later. DeleterCallback owns the adapter and
+  // deletes it when the read callback runs.
+  DeleterCallback callback(std::move(adapter));
+  constexpr int kReadBufSize = 1024;
+  auto read_buf = base::MakeRefCounted<IOBufferWithSize>(kReadBufSize);
+  int rv = callback.adapter()->Read(read_buf.get(), kReadBufSize,
+                                    callback.callback());
+  EXPECT_THAT(rv, IsError(ERR_IO_PENDING));
+
+  // This WebSocketQuicStreamAdapter::Write() triggers the mocked socket error.
+  // Closing the stream runs the pending read callback, which deletes the
+  // adapter. Write() must return without using the deleted adapter.
+  auto write_buf = base::MakeRefCounted<StringIOBuffer>("test data");
+  rv = callback.adapter()->Write(write_buf.get(), write_buf->size(),
+                                 base::DoNothing(),
+                                 TRAFFIC_ANNOTATION_FOR_TESTS);
+  EXPECT_THAT(rv, IsError(ERR_CONNECTION_CLOSED));
+  EXPECT_THAT(callback.WaitForResult(), IsError(ERR_QUIC_PROTOCOL_ERROR));
+}
+
 // Tests that the adapter correctly handles being destroyed from within its own
 // OnClose() delegate method, when there are no pending read or write
 // callbacks.
@@ -2303,6 +2356,7 @@ TEST_P(WebSocketQuicStreamAdapterTest, WritePendingWhenBufferFull) {
   // Set a threshold so we can control when buffer crosses it.
   // With threshold=100, first write of 90 bytes succeeds, second write of 20
   // bytes (total 110 >= 100) returns ERR_IO_PENDING.
+  quic::test::QuicFlagSaver flag_saver;
   SetQuicheFlag(quic_buffered_data_threshold, 100);
 
   int client_packet_number = 1;
@@ -2506,6 +2560,7 @@ TEST_P(WebSocketQuicStreamAdapterTest, WritePendingWhenBufferFull) {
 // Tests that receiving a RST_STREAM from the server while a Write() is pending
 // correctly completes the write callback with an error.
 TEST_P(WebSocketQuicStreamAdapterTest, RstStreamReceivedWhileWritePending) {
+  quic::test::QuicFlagSaver flag_saver;
   SetQuicheFlag(quic_buffered_data_threshold, 100);
 
   int client_packet_number = 1;
@@ -2720,6 +2775,7 @@ TEST_P(WebSocketQuicStreamAdapterTest,
   // Set a very low buffer threshold. When combined with flow control blocking,
   // any buffered data will exceed this threshold and cause Write() to return
   // ERR_IO_PENDING.
+  quic::test::QuicFlagSaver flag_saver;
   SetQuicheFlag(quic_buffered_data_threshold, 1);
 
   int packet_number = 1;
@@ -2834,6 +2890,7 @@ TEST_P(WebSocketQuicStreamAdapterTest, WriteCallbackDestroysAdapter) {
   // Set a very low buffer threshold. When combined with flow control blocking,
   // any buffered data will exceed this threshold and cause Write() to return
   // ERR_IO_PENDING.
+  quic::test::QuicFlagSaver flag_saver;
   SetQuicheFlag(quic_buffered_data_threshold, 1);
 
   int packet_number = 1;

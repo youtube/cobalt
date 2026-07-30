@@ -59,7 +59,9 @@ class MEDIA_EXPORT AudioInputStreamDataInterceptor
               double volume,
               const AudioGlitchInfo& audio_glitch_info) override;
 
-  void OnError() override;
+  using Error = AudioInputStream::AudioInputCallback::Error;
+
+  void OnError(Error error_code) override;
 
   // Returns the underlying stream.
   AudioInputStream* GetUnderlyingStreamForTesting() const { return stream_; }

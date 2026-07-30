@@ -118,19 +118,11 @@ Some features may be unavailable and changes to preferences won't be saved.</tra
 <translation id="2236949375853147973">My Activity</translation>
 <translation id="2238130810669087193">To get your addresses and more on all your devices, sign in to Chromium. This address will be saved in your Google Account after you sign in.</translation>
 <translation id="2241627712206172106">If you share a computer, friends and family can browse separately and set up Chromium just the way they want.</translation>
+<translation id="22571759390241347">Skills in Chromium</translation>
 <translation id="2283803047247799269">Search this tab with image search</translation>
 <translation id="2287771843518581140">{NUM_TABS,plural, =1{Chromium recommends pausing the tab that's slowing your browser}other{Chromium recommends pausing the tabs that are slowing your browser}}</translation>
 <translation id="2307973900865360088">Keep in Dock</translation>
 <translation id="2313870531055795960">Checks URLs with a list of unsafe sites stored in Chromium. If a site tries to steal your password, or when you download a harmful file, Chromium may also send URLs, including bits of page content, to Safe Browsing.</translation>
-<translation id="2332076562712130931">This action will:
-        <ph name="LINE_BREAKS" />
-          • Reset some Chromium settings and Chromium shortcuts
-          <ph name="LINE_BREAK" />
-          • Disable extensions
-          <ph name="LINE_BREAK" />
-          • Delete cookies and other temporary site data
-          <ph name="LINE_BREAKS" />
-          Bookmarks, history and saved passwords won't be affected.</translation>
 <translation id="2343156876103232566">To send a number from here to your Android phone, sign in to Chromium on both devices.</translation>
 <translation id="2356070529366658676">Ask</translation>
 <translation id="2359808026110333948">Continue</translation>
@@ -192,6 +184,7 @@ Some features may be unavailable and changes to preferences won't be saved.</tra
 <translation id="3003694935412297923">All tasks</translation>
 <translation id="3012615494352020668">{count,plural, =1{Chromium needs to verify that it's you before some data can be saved in your Google Account and used on all your devices. If you sign out now, this data (1 item) will be deleted.}other{Chromium needs to verify that it's you before some data can be saved in your Google Account and used on all your devices. If you sign out now, this data ({count} items) will be deleted.}}</translation>
 <translation id="3013473503895162900">Open <ph name="URL" /> in a new tab in Chromium.</translation>
+<translation id="302551344979399011">AI innovations like skills are saved to your Google Account and managed separately from Chromium sync</translation>
 <translation id="3032787606318309379">Adding to Chromium ...</translation>
 <translation id="3038232873781883849">Waiting to install…</translation>
 <translation id="3045032126857188731">Translated language: <ph name="LANGUAGE" /></translation>
@@ -383,6 +376,7 @@ Some features may be unavailable and changes to preferences won't be saved.</tra
 <translation id="5289287148052354622">Get the Chromium app</translation>
 <translation id="5294316920224716406">When browsing in Incognito mode, Chromium will warn you before loading a site using an insecure connection</translation>
 <translation id="5313228254328109263">Chromium updater internal service</translation>
+<translation id="5324450571874973775">Use them alongside other Gemini features in Chromium</translation>
 <translation id="5346389065299425353">Deepen your search by adding multiple tabs, files and tools</translation>
 <translation id="5348677704241861105">Get a quick overview of this document and ask questions with Gemini in Chromium</translation>
 <translation id="5352264705793813212">Chromium found some safety recommendations for your review</translation>
@@ -674,6 +668,7 @@ Google Chrome is unable to recover your settings.</translation>
 <translation id="8318772038038596122">Your organisation closes Chromium when it isn't used for <ph name="TIMEOUT_DURATION" />.</translation>
 <translation id="8321888067342493336">Save as image</translation>
 <translation id="8340674089072921962"><ph name="USER_EMAIL_ADDRESS" /> was previously using Chromium</translation>
+<translation id="8351551329754447960">Enable skills in Chromium</translation>
 <translation id="8359544530202147897">Update Chromium to keeping using the Chromium data in your Google Account, <ph name="ACCOUNT_EMAIL" /></translation>
 <translation id="8360718212975266891">To get future Chromium updates, you'll need Windows 10 or later. This computer is using Windows 8.</translation>
 <translation id="8362914115861174987">Translate to</translation>

@@ -43,13 +43,13 @@ void TravelFieldParser::AddClassifications(
     FieldCandidatesMap& field_candidates) const {
   // Simply tag all the fields as unknown types. Travel is currently used as
   // filter.
-  AddClassification(passport_, UNKNOWN_TYPE, kBaseTravelParserScore,
+  AddClassification(passport_, UNKNOWN_TYPE, HeuristicParser::kTravel,
                     field_candidates);
-  AddClassification(origin_, UNKNOWN_TYPE, kBaseTravelParserScore,
+  AddClassification(origin_, UNKNOWN_TYPE, HeuristicParser::kTravel,
                     field_candidates);
-  AddClassification(destination_, UNKNOWN_TYPE, kBaseTravelParserScore,
+  AddClassification(destination_, UNKNOWN_TYPE, HeuristicParser::kTravel,
                     field_candidates);
-  AddClassification(flight_, UNKNOWN_TYPE, kBaseTravelParserScore,
+  AddClassification(flight_, UNKNOWN_TYPE, HeuristicParser::kTravel,
                     field_candidates);
 }
 

@@ -57,6 +57,7 @@ AudioProcessMlModelForwarder::WrappedFilePtr OpenFileAndReturn(
   }
   return {file.release(), base::OnTaskRunnerDeleter(deletion_task_runner)};
 }
+
 }  // namespace
 
 // Used to monitor audio process launches and bind to the audio service
@@ -164,6 +165,17 @@ AudioProcessMlModelForwarder::AudioProcessMlModelForwarder(
       background_task_runner_(base::ThreadPool::CreateSequencedTaskRunner(
           {base::MayBlock(), base::TaskPriority::BEST_EFFORT})) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  model_forwarders_[audio::mojom::MlModelType::kResidualEchoEstimation] =
+      std::make_unique<SingleModelForwarder>(
+          optimization_guide::proto::
+              OPTIMIZATION_TARGET_WEBRTC_NEURAL_RESIDUAL_ECHO_ESTIMATOR,
+          audio::mojom::MlModelType::kResidualEchoEstimation, /*owner=*/this);
+  model_forwarders_[audio::mojom::MlModelType::kVoiceIsolationDenoiser] =
+      std::make_unique<SingleModelForwarder>(
+          optimization_guide::proto::
+              OPTIMIZATION_TARGET_WEBRTC_VOICE_ISOLATION_DENOISER,
+          audio::mojom::MlModelType::kVoiceIsolationDenoiser, /*owner=*/this);
+
   if (audio_process_observer_) {
     // base::Unretained is safe since `this` owns and outlives the observer.
     audio_process_observer_->Start(base::BindRepeating(
@@ -176,12 +188,99 @@ AudioProcessMlModelForwarder::~AudioProcessMlModelForwarder() {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 }
 
+AudioProcessMlModelForwarder::SingleModelForwarder::SingleModelForwarder(
+    optimization_guide::proto::OptimizationTarget target,
+    audio::mojom::MlModelType mojo_type,
+    AudioProcessMlModelForwarder* owner)
+    : target_(target), mojo_type_(mojo_type), owner_(owner) {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+}
+
+AudioProcessMlModelForwarder::SingleModelForwarder::~SingleModelForwarder() {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+}
+
+void AudioProcessMlModelForwarder::SingleModelForwarder::Initialize(
+    optimization_guide::OptimizationGuideModelProvider* model_provider,
+    scoped_refptr<base::SequencedTaskRunner> background_task_runner) {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  CHECK(!model_observation_);
+  background_task_runner_ = background_task_runner;
+  model_observation_.emplace(model_provider, background_task_runner_, this);
+}
+
+void AudioProcessMlModelForwarder::SingleModelForwarder::
+    MaybeRegisterModelObserver(bool audio_input_stream_creation_observed) {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  // Avoid registering the model observer until we have an indication that a
+  // model is likely to be used. This reduces unnecessary model downloads.
+  if (!audio_input_stream_creation_observed) {
+    return;
+  }
+  if (model_observation_ && !model_observation_->IsRegistered()) {
+    model_observation_->Observe(target_, /*model_metadata=*/std::nullopt);
+  }
+}
+
+void AudioProcessMlModelForwarder::SingleModelForwarder::
+    CancelModelLoadingTasks() {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  weak_factory_.InvalidateWeakPtrs();
+}
+
+void AudioProcessMlModelForwarder::SingleModelForwarder::OnModelUpdated(
+    optimization_guide::proto::OptimizationTarget optimization_target,
+    base::optional_ref<const optimization_guide::ModelInfo> model_info) {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  CHECK_EQ(optimization_target, target_);
+  model_path_ = model_info.has_value() ? model_info->GetModelFilePath()
+                                       : base::FilePath();
+  if (model_path_.empty() && owner_->audio_process_model_manager_) {
+    CancelModelLoadingTasks();
+    owner_->audio_process_model_manager_->StopServingModel(mojo_type_);
+    return;
+  }
+  MaybeSendModelToAudioProcess();
+}
+
+void AudioProcessMlModelForwarder::SingleModelForwarder::
+    MaybeSendModelToAudioProcess() {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+
+  CancelModelLoadingTasks();
+
+  if (!owner_->audio_process_model_manager_) {
+    // No audio process to forward to.
+    return;
+  }
+  if (model_path_.empty()) {
+    // No model to forward.
+    return;
+  }
+  background_task_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
+      base::BindOnce(&OpenFileAndReturn, model_path_, background_task_runner_),
+      base::BindOnce(&AudioProcessMlModelForwarder::SingleModelForwarder::
+                         OnModelFileOpened,
+                     weak_factory_.GetWeakPtr()));
+}
+
+void AudioProcessMlModelForwarder::SingleModelForwarder::OnModelFileOpened(
+    WrappedFilePtr file) {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  if (!file || !owner_->audio_process_model_manager_) {
+    // No file or nowhere to send it.
+    return;
+  }
+  owner_->audio_process_model_manager_->SetModel(mojo_type_, std::move(*file));
+}
+
 void AudioProcessMlModelForwarder::Initialize(
     optimization_guide::OptimizationGuideModelProvider& model_provider) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-  CHECK(!model_observation_);
-  model_observation_.emplace(&model_provider, background_task_runner_,
-                             /*observer=*/this);
+  for (auto& [_, forwarder] : model_forwarders_) {
+    forwarder->Initialize(&model_provider, background_task_runner_);
+  }
 
   if (pref_service_) {
     base::Time last_audio_input_stream_creation_time =
@@ -195,7 +294,7 @@ void AudioProcessMlModelForwarder::Initialize(
   audio_capture_request_observer_ =
       std::make_unique<AudioCaptureRequestObserver>(*this);
 
-  MaybeRegisterModelObserver();
+  MaybeRegisterModelObservers();
 }
 
 void AudioProcessMlModelForwarder::OnAudioCaptureStarted() {
@@ -206,26 +305,7 @@ void AudioProcessMlModelForwarder::OnAudioCaptureStarted() {
     pref_service_->SetTime(prefs::kAudioInputStreamLastTimeCreated,
                            base::Time::Now());
   }
-  MaybeRegisterModelObserver();
-}
-
-void AudioProcessMlModelForwarder::CancelModelLoadingTasks() {
-  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-  weak_factory_.InvalidateWeakPtrs();
-}
-
-void AudioProcessMlModelForwarder::OnModelUpdated(
-    optimization_guide::proto::OptimizationTarget optimization_target,
-    base::optional_ref<const optimization_guide::ModelInfo> model_info) {
-  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-  model_path_ = model_info.has_value() ? model_info->GetModelFilePath()
-                                       : base::FilePath();
-  if (model_path_.empty() && audio_process_model_manager_) {
-    CancelModelLoadingTasks();
-    audio_process_model_manager_->StopServingResidualEchoEstimationModel();
-    return;
-  }
-  MaybeSendModelToAudioProcess();
+  MaybeRegisterModelObservers();
 }
 
 void AudioProcessMlModelForwarder::OnAudioProcessLaunched(
@@ -234,53 +314,24 @@ void AudioProcessMlModelForwarder::OnAudioProcessLaunched(
   audio_process_model_manager_ = std::move(model_manager);
   audio_process_model_manager_.reset_on_disconnect();
 
-  // Call MaybeSendModelToAudioProcess before registering, to avoid scheduling
-  // double file open tasks in the case when a model is immediately available.
-  MaybeSendModelToAudioProcess();
-  MaybeRegisterModelObserver();
+  // Call MaybeSendModelsToAudioProcess() before registering, to avoid
+  // scheduling double file open tasks in the case when a model is immediately
+  // available.
+  MaybeSendModelsToAudioProcess();
+  MaybeRegisterModelObservers();
 }
 
-void AudioProcessMlModelForwarder::MaybeRegisterModelObserver() {
+void AudioProcessMlModelForwarder::MaybeRegisterModelObservers() {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-  // Avoid registering the model observer until we have an indication that a
-  // model is likely to be used. This reduces unnecessary model downloads.
-  if (!audio_input_stream_creation_observed_) {
-    return;
-  }
-  if (model_observation_ && !model_observation_->IsRegistered()) {
-    model_observation_->Observe(
-        optimization_guide::proto::
-            OPTIMIZATION_TARGET_WEBRTC_NEURAL_RESIDUAL_ECHO_ESTIMATOR,
-        /*model_metadata=*/std::nullopt);
+  for (auto& [_, forwarder] : model_forwarders_) {
+    forwarder->MaybeRegisterModelObserver(
+        audio_input_stream_creation_observed_);
   }
 }
 
-void AudioProcessMlModelForwarder::MaybeSendModelToAudioProcess() {
+void AudioProcessMlModelForwarder::MaybeSendModelsToAudioProcess() {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-
-  CancelModelLoadingTasks();
-
-  if (!audio_process_model_manager_) {
-    // No audio process to forward to.
-    return;
+  for (auto& [_, forwarder] : model_forwarders_) {
+    forwarder->MaybeSendModelToAudioProcess();
   }
-  if (model_path_.empty()) {
-    // No model to forward.
-    return;
-  }
-  background_task_runner_->PostTaskAndReplyWithResult(
-      FROM_HERE,
-      base::BindOnce(&OpenFileAndReturn, model_path_, background_task_runner_),
-      base::BindOnce(&AudioProcessMlModelForwarder::OnModelFileOpened,
-                     weak_factory_.GetWeakPtr()));
-}
-
-void AudioProcessMlModelForwarder::OnModelFileOpened(WrappedFilePtr file) {
-  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-  if (!file || !audio_process_model_manager_) {
-    // No file or nowhere to send it.
-    return;
-  }
-  audio_process_model_manager_->SetResidualEchoEstimationModel(
-      std::move(*file));
 }

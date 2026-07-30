@@ -500,6 +500,17 @@ void VideoCaptureDeviceClient::OnIncomingCapturedImage(
                                     natural_size, metadata, frame_feedback_id);
     return;
   }
+#elif BUILDFLAG(IS_WIN)
+  if (shared_image->usage().Has(gpu::SHARED_IMAGE_USAGE_SCANOUT)) {
+    // On Windows, shared images backed by DXGI textures (e.g. from WGC texture
+    // capture) cannot be CPU-mapped. Use the zero-copy path to pass the GPU
+    // texture directly to downstream consumers (e.g. video encoder).
+    OnIncomingCapturedImageZeroCopy(std::move(shared_image), frame_format,
+                                    clockwise_rotation, reference_time,
+                                    timestamp, capture_begin_timestamp,
+                                    natural_size, metadata, frame_feedback_id);
+    return;
+  }
 #endif
 
   int destination_width = shared_image->size().width();

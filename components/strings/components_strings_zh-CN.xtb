@@ -269,6 +269,7 @@
 <translation id="1407135791313364759">全部打开</translation>
 <translation id="1408696301184924537">如需下次自动填充此 IBAN，请将其保存到您的 Google 账号中</translation>
 <translation id="1408787208417187241">三钉（顶部）</translation>
+<translation id="1410306713026702438"><ph name="SUGGESTION_TITLE" />，<ph name="SUGGESTION_DESCRIPTION" />。<ph name="SUGGESTION_TYPE" />。分组“<ph name="GROUP_HEADER" />”中的第 <ph name="MATCH_POSITION" /> 项，共 <ph name="NUM_MATCHES_IN_GROUP" /> 项。</translation>
 <translation id="1410365862999780287">与您共用设备的其他人不会看到您的活动记录，因此您可以获得更私密的浏览体验。无痕模式不会改变您访问的网站及其所用服务（包括 Google）收集数据的方式。下载内容、书签和阅读清单中的内容仍会保存在此设备上。</translation>
 <translation id="1410941016594047814">Invite 信封</translation>
 <translation id="1413235258620101697">此卡的银行卡验证码 (CVC) 将加密保存至 Google 钱包，以便您更快捷地结账</translation>
@@ -660,6 +661,7 @@
 <translation id="2045871135676061132">Personal 信封</translation>
 <translation id="2046951263634619614">图书零售商</translation>
 <translation id="2048261947532620704">正在翻译网页</translation>
+<translation id="2055016614992422886">对话</translation>
 <translation id="2059166748188874810">自治市</translation>
 <translation id="2059202684901022309">22 x 34 英寸</translation>
 <translation id="2064568741209980952">信贷</translation>
@@ -3552,6 +3554,7 @@
 <translation id="6550245281449521513">不允许锁定鼠标</translation>
 <translation id="6551737294564628267"><ph name="ATTRIBUTE_NAME" />，新增项目</translation>
 <translation id="6552566579578780089">支付方式</translation>
+<translation id="6553777254569586547"><ph name="SUGGESTION_TITLE" />。<ph name="SUGGESTION_TYPE" />。分组“<ph name="GROUP_HEADER" />”中的第 <ph name="MATCH_POSITION" /> 项，共 <ph name="NUM_MATCHES_IN_GROUP" /> 项。</translation>
 <translation id="6554732001434021288">上次访问时间：<ph name="NUM_DAYS" /> 天前</translation>
 <translation id="6556866813142980365">重做</translation>
 <translation id="6557715786897013164">14 x 17 英寸</translation>

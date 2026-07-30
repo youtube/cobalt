@@ -1,0 +1,9 @@
+Tests that setBreakpointByUrl works across navigations.
+Discovered scripts: yes
+Setting breakpoints with conditions...
+Navigating to page 2 (should hit url and script hash breakpoints)...
+Hit breakpoint: by url
+Hit breakpoint: by script hash
+Navigating to page 3 (should hit url regexp breakpoint)...
+Hit breakpoint: by url regexp
+

@@ -86,6 +86,10 @@ class TabSearchPageHandler
   void SaveRecentlyClosedExpandedPref(bool expanded) override;
   void StartTabGroupTutorial() override;
   void MaybeShowUI() override;
+  void GetRangesIgnoringCaseAndAccents(
+      const std::string& search_text,
+      const std::vector<std::string>& targets,
+      GetRangesIgnoringCaseAndAccentsCallback callback) override;
 
   // TabStripApiBatchedObserver:
   void OnTabEvents(

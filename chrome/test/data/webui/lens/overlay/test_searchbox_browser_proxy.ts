@@ -3,7 +3,8 @@
 // found in the LICENSE file.
 
 import type {NavigationPredictor} from '//resources/mojo/components/omnibox/browser/omnibox.mojom-webui.js';
-import type {OmniboxPopupSelection, PageHandlerInterface, PageRemote, PlaceholderConfig, SelectedFileInfo, SmartComposeStats} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
+import type {OmniboxPopupSelection, PageHandlerInterface, PageRemote, PlaceholderConfig, SelectedFileInfo, SmartComposeStats, SuggestInventory} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
+import {DriveDisclaimerStatus} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import type {ModelMode, ToolMode} from '//resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
 import type {BigBuffer} from '//resources/mojo/mojo/public/mojom/base/big_buffer.mojom-webui.js';
 import type {String16} from '//resources/mojo/mojo/public/mojom/base/string16.mojom-webui.js';
@@ -32,12 +33,14 @@ class FakePageHandler extends TestBrowserProxy implements PageHandlerInterface {
       'onThumbnailRemoved',
       'openAutocompleteMatch',
       'queryAutocomplete',
+      'queryAutocompleteWithSuggestInventory',
       'stopAutocomplete',
       'toggleSuggestionGroupIdVisibility',
       'onFocusChanged',
       'getPlaceholderConfig',
       'getRecentTabs',
       'getTabPreview',
+      'waitForTabFaviconLoad',
       'notifySessionStarted',
       'notifySessionAbandoned',
       'addFileContext',
@@ -58,6 +61,7 @@ class FakePageHandler extends TestBrowserProxy implements PageHandlerInterface {
       'openPopupSelection',
       'getPageClassification',
       'setSmartComposeStats',
+      'getDriveDisclaimerStatus',
     ]);
   }
 
@@ -133,8 +137,20 @@ class FakePageHandler extends TestBrowserProxy implements PageHandlerInterface {
     this.methodCalled('onThumbnailRemoved', {});
   }
 
-  queryAutocomplete(input: String16, preventInlineAutocomplete: boolean) {
-    this.methodCalled('queryAutocomplete', {input, preventInlineAutocomplete});
+  queryAutocomplete(
+      input: String16, preventInlineAutocomplete: boolean,
+      cursorPosition: number) {
+    this.methodCalled(
+        'queryAutocomplete',
+        {input, preventInlineAutocomplete, cursorPosition});
+  }
+
+  queryAutocompleteWithSuggestInventory(
+      input: String16, preventInlineAutocomplete: boolean,
+      cursorPosition: number, suggestInventory: SuggestInventory) {
+    this.methodCalled(
+        'queryAutocompleteWithSuggestInventory',
+        {input, preventInlineAutocomplete, cursorPosition, suggestInventory});
   }
 
   stopAutocomplete(clearResult: boolean) {
@@ -164,6 +180,11 @@ class FakePageHandler extends TestBrowserProxy implements PageHandlerInterface {
   getTabPreview(tabId: number) {
     this.methodCalled('getTabPreview', {tabId});
     return Promise.resolve({previewDataUrl: ''});
+  }
+
+  waitForTabFaviconLoad(tabId: number) {
+    this.methodCalled('waitForTabFaviconLoad', {tabId});
+    return Promise.resolve({faviconDataUrl: null});
   }
 
   getInputState() {
@@ -245,8 +266,9 @@ class FakePageHandler extends TestBrowserProxy implements PageHandlerInterface {
         'openPopupSelection', {resultSequenceId, selection, disposition});
   }
 
-  shouldShowDriveDisclaimer() {
-    return Promise.resolve({shouldShow: false});
+  getDriveDisclaimerStatus() {
+    this.methodCalled('getDriveDisclaimerStatus');
+    return Promise.resolve({status: DriveDisclaimerStatus.kRestricted});
   }
 
   onDriveDisclaimerAccepted() {}

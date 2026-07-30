@@ -22,12 +22,15 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_SVG_SVG_PATH_ELEMENT_H_
 
 #include "third_party/blink/renderer/core/svg/svg_geometry_element.h"
+#include "third_party/blink/renderer/platform/heap/collection_support/heap_vector.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 
 namespace blink {
 
 class SVGAnimatedPath;
 class SVGPathByteStream;
+class SVGPathDataSettings;
+class SVGPathSegment;
 class StylePath;
 
 class SVGPathElement final : public SVGGeometryElement {
@@ -44,6 +47,9 @@ class SVGPathElement final : public SVGGeometryElement {
 
   float getTotalLength(ExceptionState&) override;
   SVGPointTearOff* getPointAtLength(float distance, ExceptionState&) override;
+
+  HeapVector<Member<SVGPathSegment>> getPathData(
+      const SVGPathDataSettings* settings);
 
   SVGAnimatedPath* GetPath() const { return path_.Get(); }
 

@@ -27,8 +27,8 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
-#include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/support_tool/data_collector.h"
+#include "chromeos/ash/components/browser_context_helper/browser_context_helper.h"
 #include "components/feedback/redaction_tool/pii_types.h"
 #include "components/feedback/redaction_tool/redaction_tool.h"
 #include "components/user_manager/user.h"
@@ -223,7 +223,8 @@ void ChromeUserLogsDataCollector::OnTempDirCreated(
   std::string user_hash = user->username_hash();
   DCHECK(!user_hash.empty());
   base::FilePath profile_dir =
-      ash::ProfileHelper::GetProfilePathByUserIdHash(user_hash);
+      ash::BrowserContextHelper::Get()->GetBrowserContextPathByUserIdHash(
+          user_hash);
 
   base::ThreadPool::PostTaskAndReplyWithResult(
       FROM_HERE, {base::MayBlock()},

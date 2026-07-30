@@ -17,10 +17,9 @@
 #include "ui/views/layout/box_layout.h"
 #include "ui/views/view_class_properties.h"
 
-ShareAudioView::ShareAudioView(
-    const std::u16string& label_text,
-    bool audio_offered,
-    base::RepeatingCallback<void(void)> audio_check_callback)
+ShareAudioView::ShareAudioView(const std::u16string& label_text,
+                               bool audio_offered,
+                               base::RepeatingClosure audio_check_callback)
     : audio_check_callback_(audio_check_callback) {
   SetProperty(views::kMarginsKey, gfx::Insets::TLBR(8, 16, 16, 16));
 

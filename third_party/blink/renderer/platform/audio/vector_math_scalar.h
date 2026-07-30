@@ -9,6 +9,7 @@
 #include <cmath>
 
 #include "base/check_op.h"
+#include "base/containers/span.h"
 #include "third_party/blink/renderer/platform/audio/audio_array.h"
 #include "third_party/blink/renderer/platform/wtf/math_extras.h"
 
@@ -22,7 +23,7 @@ ALWAYS_INLINE static void Conv(const float* source_p,
                                int filter_stride,
                                float* dest_p,
                                int dest_stride,
-                               uint32_t frames_to_process,
+                               size_t frames_to_process,
                                size_t filter_size,
                                const AudioFloatArray* /*prepared_filter*/) {
   // Only contiguous convolution is implemented. Correlation (positive
@@ -308,35 +309,23 @@ ALWAYS_INLINE static void Conv(const float* source_p,
 #undef CONVOLVE_ONE_SAMPLE
 }
 
-ALWAYS_INLINE static void Vadd(const float* source1p,
-                               int source_stride1,
-                               const float* source2p,
-                               int source_stride2,
-                               float* dest_p,
-                               int dest_stride,
-                               uint32_t frames_to_process) {
-  while (frames_to_process > 0u) {
-    *dest_p = *source1p + *source2p;
-    UNSAFE_TODO(source1p += source_stride1);
-    UNSAFE_TODO(source2p += source_stride2);
-    UNSAFE_TODO(dest_p += dest_stride);
-    --frames_to_process;
+ALWAYS_INLINE static void Vadd(base::span<const float> source1,
+                               base::span<const float> source2,
+                               base::span<float> dest) {
+  DCHECK_EQ(source1.size(), dest.size());
+  DCHECK_EQ(source2.size(), dest.size());
+  for (size_t i = 0; i < dest.size(); ++i) {
+    dest[i] = source1[i] + source2[i];
   }
 }
 
-ALWAYS_INLINE static void Vsub(const float* source1p,
-                               int source_stride1,
-                               const float* source2p,
-                               int source_stride2,
-                               float* dest_p,
-                               int dest_stride,
-                               uint32_t frames_to_process) {
-  while (frames_to_process > 0u) {
-    *dest_p = *source1p - *source2p;
-    UNSAFE_TODO(source1p += source_stride1);
-    UNSAFE_TODO(source2p += source_stride2);
-    UNSAFE_TODO(dest_p += dest_stride);
-    --frames_to_process;
+ALWAYS_INLINE static void Vsub(base::span<const float> source1,
+                               base::span<const float> source2,
+                               base::span<float> dest) {
+  DCHECK_EQ(source1.size(), dest.size());
+  DCHECK_EQ(source2.size(), dest.size());
+  for (size_t i = 0; i < dest.size(); ++i) {
+    dest[i] = source1[i] - source2[i];
   }
 }
 
@@ -346,7 +335,7 @@ ALWAYS_INLINE static void Vclip(const float* source_p,
                                 const float* high_threshold_p,
                                 float* dest_p,
                                 int dest_stride,
-                                uint32_t frames_to_process) {
+                                size_t frames_to_process) {
   while (frames_to_process > 0u) {
     *dest_p = ClampTo(*source_p, *low_threshold_p, *high_threshold_p);
     UNSAFE_TODO(source_p += source_stride);
@@ -358,7 +347,7 @@ ALWAYS_INLINE static void Vclip(const float* source_p,
 ALWAYS_INLINE static void Vmaxmgv(const float* source_p,
                                   int source_stride,
                                   float* max_p,
-                                  uint32_t frames_to_process) {
+                                  size_t frames_to_process) {
   while (frames_to_process > 0u) {
     *max_p = std::max(*max_p, std::abs(*source_p));
     UNSAFE_TODO(source_p += source_stride);
@@ -366,19 +355,13 @@ ALWAYS_INLINE static void Vmaxmgv(const float* source_p,
   }
 }
 
-ALWAYS_INLINE static void Vmul(const float* source1p,
-                               int source_stride1,
-                               const float* source2p,
-                               int source_stride2,
-                               float* dest_p,
-                               int dest_stride,
-                               uint32_t frames_to_process) {
-  while (frames_to_process > 0u) {
-    *dest_p = *source1p * *source2p;
-    UNSAFE_TODO(source1p += source_stride1);
-    UNSAFE_TODO(source2p += source_stride2);
-    UNSAFE_TODO(dest_p += dest_stride);
-    --frames_to_process;
+ALWAYS_INLINE static void Vmul(base::span<const float> source1,
+                               base::span<const float> source2,
+                               base::span<float> dest) {
+  DCHECK_EQ(source1.size(), dest.size());
+  DCHECK_EQ(source2.size(), dest.size());
+  for (size_t i = 0; i < dest.size(); ++i) {
+    dest[i] = source1[i] * source2[i];
   }
 }
 
@@ -387,7 +370,7 @@ ALWAYS_INLINE static void Vsma(const float* source_p,
                                const float* scale,
                                float* dest_p,
                                int dest_stride,
-                               uint32_t frames_to_process) {
+                               size_t frames_to_process) {
   const float k = *scale;
   while (frames_to_process > 0u) {
     *dest_p += k * *source_p;
@@ -402,7 +385,7 @@ ALWAYS_INLINE static void Vsmul(const float* source_p,
                                 const float* scale,
                                 float* dest_p,
                                 int dest_stride,
-                                uint32_t frames_to_process) {
+                                size_t frames_to_process) {
   const float k = *scale;
   while (frames_to_process > 0u) {
     *dest_p = k * *source_p;
@@ -417,7 +400,7 @@ ALWAYS_INLINE static void Vsadd(const float* source_p,
                                 const float* addend,
                                 float* dest_p,
                                 int dest_stride,
-                                uint32_t frames_to_process) {
+                                size_t frames_to_process) {
   const float k = *addend;
   while (frames_to_process > 0u) {
     *dest_p = *source_p + k;
@@ -430,7 +413,7 @@ ALWAYS_INLINE static void Vsadd(const float* source_p,
 ALWAYS_INLINE static void Vsvesq(const float* source_p,
                                  int source_stride,
                                  float* sum_p,
-                                 uint32_t frames_to_process) {
+                                 size_t frames_to_process) {
   while (frames_to_process > 0u) {
     const float sample = *source_p;
     *sum_p += sample * sample;
@@ -445,7 +428,7 @@ ALWAYS_INLINE static void Zvmul(const float* real1p,
                                 const float* imag2p,
                                 float* real_dest_p,
                                 float* imag_dest_p,
-                                uint32_t frames_to_process) {
+                                size_t frames_to_process) {
   for (size_t i = 0u; i < frames_to_process; ++i) {
     // Read and compute result before storing them, in case the
     // destination is the same as one of the sources.

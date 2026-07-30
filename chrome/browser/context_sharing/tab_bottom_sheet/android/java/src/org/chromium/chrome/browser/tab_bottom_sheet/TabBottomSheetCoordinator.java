@@ -4,7 +4,10 @@
 
 package org.chromium.chrome.browser.tab_bottom_sheet;
 
+import static org.chromium.chrome.browser.tab_bottom_sheet.TabBottomSheetUtils.canResizeWebView;
 import static org.chromium.chrome.browser.tab_bottom_sheet.TabBottomSheetUtils.isActivityInactive;
+
+import static java.lang.Math.max;
 
 import android.content.ComponentCallbacks;
 import android.content.Context;
@@ -23,7 +26,6 @@ import org.chromium.base.Log;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.context_sharing.R;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.glic.GlicMetrics;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetContent;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
@@ -160,6 +162,7 @@ public class TabBottomSheetCoordinator {
     private boolean mIsShowingTabBottomSheet;
     private boolean mExpectingLayoutChange;
     private boolean mInitialContainerSizeChanged;
+
     private @Nullable KeyboardVisibilityListener mKeyboardVisibilityListener;
     private @Nullable ModalDialogManager mObservedModalDialogManager;
     private @Nullable ModalDialogManagerObserver mModalDialogManagerObserver;
@@ -218,16 +221,18 @@ public class TabBottomSheetCoordinator {
         if (mIsShowingTabBottomSheet || mSheetEventsCallback == null) {
             return false;
         }
+        assert mSheetContent == null;
+        assert mViewBinder == null;
         if (mCoBrowseViews.hasPeekView()) {
             mMediator.onSheetStateChanged(startsExpanded ? SheetState.FULL : SheetState.PEEK);
         }
         mContentView = mCoBrowseViews.getView();
         mContentView.setOutlineProvider(mOutlineProvider);
         mContentView.setClipToOutline(true);
-        TabBottomSheetContentProvider provider = mCoBrowseViews.getContentProvider();
-        assert provider != null : "TabBottomSheetContentProvider must not be null";
+        CoBrowseComponentProvider provider = mCoBrowseViews.getContentProvider();
+        assert provider != null : "CoBrowseComponentProvider must not be null";
         mSheetContent =
-                provider.create(
+                provider.createContent(
                         mContentView,
                         FULL_HEIGHT_RATIO,
                         mCoBrowseViews.getBackgroundColor(),
@@ -451,7 +456,7 @@ public class TabBottomSheetCoordinator {
                     stopObservingCompositorViewInteractions();
                 }
 
-                if (ChromeFeatureList.sTabBottomSheetResizeWebview.getValue()) {
+                if (canResizeWebView()) {
                     mMediator.onSheetResizingStatusChanged(state == SheetState.SCROLLING);
                 }
 
@@ -477,7 +482,7 @@ public class TabBottomSheetCoordinator {
                     mBottomSheetController.collapseSheet(/* animate= */ true);
                     mExpectingLayoutChange = false;
                 }
-                if (ChromeFeatureList.sTabBottomSheetResizeWebview.getValue()) {
+                if (canResizeWebView()) {
                     if (mInitialContainerSizeChanged) {
                         setToFlexibleHeight();
                     } else {
@@ -485,6 +490,17 @@ public class TabBottomSheetCoordinator {
                     }
                     mInitialContainerSizeChanged = true;
                 } else {
+                    setToFixedHeightOrFallback();
+                }
+            }
+
+            @Override
+            public void onContainerBottomMarginChanged(@Px int bottomMargin) {
+                if (mSheetContent == null || !mIsShowingTabBottomSheet) {
+                    return;
+                }
+
+                if (!canResizeWebView()) {
                     setToFixedHeightOrFallback();
                 }
             }
@@ -514,6 +530,18 @@ public class TabBottomSheetCoordinator {
                         mMediator.onSheetStateChanged(BottomSheetController.SheetState.HIDDEN);
                         mSheetEventsCallback.onBottomSheetClosed();
                         stopObservingCompositorViewInteractions();
+
+                        // Destroy sheet content and view binder when the sheet hides so that they
+                        // do not remain active while hidden, and can be cleanly recreated if the
+                        // sheet is reshown after suppression.
+                        if (mSheetContent != null) {
+                            mSheetContent.destroy();
+                            mSheetContent = null;
+                        }
+                        if (mViewBinder != null) {
+                            mViewBinder.destroy();
+                            mViewBinder = null;
+                        }
                     }
                     mIsShowingTabBottomSheet = false;
                 }
@@ -609,7 +637,17 @@ public class TabBottomSheetCoordinator {
     }
 
     private @Px int getDesiredFixedHeight() {
-        return (int) (getVisibleViewportHeight() * getDefaultHeightRatio());
+        int viewportHeight = getVisibleViewportHeight();
+        int desiredHeight = (int) (viewportHeight * getDefaultHeightRatio());
+
+        int bottomMargin = mBottomSheetController.getContainerBottomMargin();
+
+        // Prevent the bottom sheet from covering the bottom controls.
+        if (desiredHeight + bottomMargin > viewportHeight) {
+            desiredHeight = viewportHeight - bottomMargin;
+        }
+
+        return max(0, desiredHeight);
     }
 
     private void setToFixedHeightOrFallback() {
@@ -619,8 +657,7 @@ public class TabBottomSheetCoordinator {
 
         // In the case the bottom sheet is unable to set to our desired fixed height, fallback to
         // use of flexible heights.
-        if (ChromeFeatureList.sTabBottomSheetResizeWebview.getValue()
-                && mBottomSheetController.getContainerHeight() != fixedHeight) {
+        if (canResizeWebView() && mBottomSheetController.getContainerHeight() != fixedHeight) {
             setToFlexibleHeight();
         }
     }

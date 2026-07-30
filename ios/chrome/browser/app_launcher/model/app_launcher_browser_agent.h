@@ -69,7 +69,7 @@ class AppLauncherBrowserAgent : public BrowserUserData<AppLauncherBrowserAgent>,
 
     // If app_launch_completion_ was called with `true`, this callback will be
     // called on next time scene leave the foreground/inactive state.
-    base::OnceCallback<void(void)> back_to_app_completion_;
+    base::OnceClosure back_to_app_completion_;
 
     // Private method called on `UIApplication openURL:...` completion.
     void OnAppLaunchCompleted(bool success);

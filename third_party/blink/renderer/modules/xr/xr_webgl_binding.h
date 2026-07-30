@@ -112,8 +112,6 @@ class XRWebGLBinding final : public ScriptWrappable, public XRGraphicsBinding {
   GLenum FormatForLayerFormat(GLenum format);
   GLenum InternalFormatForLayerFormat(GLenum format);
   GLenum TypeForLayerFormat(GLenum format);
-  V8XRLayerLayout::Enum DetermineLayout(V8XRLayerLayout layout,
-                                        V8XRTextureType::Enum texture_type);
 
   gfx::Size GetTextureSizeForLayer(const XRLayerInit*,
                                    V8XRLayerLayout::Enum final_layout) const;

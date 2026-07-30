@@ -61,7 +61,8 @@ class SSLConfigServiceManagerTest : public testing::Test,
   }
 
   // Waits for a single SSLConfigUpdate call. Expected to be called once for
-  // every update, and does not support multple updates occuring between calls.
+  // every update, and does not support multiple updates occurring between
+  // calls.
   void WaitForUpdate() {
     ASSERT_FALSE(run_loop_);
 

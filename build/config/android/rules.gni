@@ -10,6 +10,10 @@ import("//build/config/rts.gni")
 import("//build/config/sanitizers/sanitizers.gni")
 import("//build_overrides/build.gni")
 
+if (build_with_chromium) {
+  import("//build/config/gclient_args.gni")
+}
+
 assert(
     is_android || is_robolectric,
     "current_toolchain=$current_toolchain default_toolchain=$default_toolchain")
@@ -2299,8 +2303,26 @@ if (!is_robolectric && enable_java_templates) {
 
     _use_chromium_linker =
         defined(invoker.use_chromium_linker) && invoker.use_chromium_linker
+    _rebased_build_config = rebase_path(_build_config, root_build_dir)
 
-    not_needed([ "_use_chromium_linker" ])
+    _generate_productconfig_java =
+        defined(invoker.product_config_java_packages) && !_omit_dex
+
+    _proguard_enabled =
+        defined(invoker.proguard_enabled) && invoker.proguard_enabled
+
+    if (!_is_bundle_module && _proguard_enabled) {
+      _proguard_mapping_path = "$_final_apk_path.mapping"
+    }
+
+    if (defined(invoker.resource_ids_provider_dep)) {
+      _resource_ids_provider_dep = invoker.resource_ids_provider_dep
+    }
+
+    not_needed([
+                 "_rebased_build_config",
+                 "_use_chromium_linker",
+               ])
 
     # The dependency that makes the chromium linker, if any is needed.
     _native_libs_deps = []
@@ -2350,21 +2372,38 @@ if (!is_robolectric && enable_java_templates) {
       }
     }
 
-    _rebased_build_config = rebase_path(_build_config, root_build_dir)
-    assert(_rebased_build_config != "")  # Mark as used.
-
-    _generate_productconfig_java =
-        defined(invoker.product_config_java_packages) && !_omit_dex
-
-    if (!_is_bundle_module && _proguard_enabled) {
-      _proguard_mapping_path = "$_final_apk_path.mapping"
-    }
-
-    if (defined(invoker.resource_ids_provider_dep)) {
-      _resource_ids_provider_dep = invoker.resource_ids_provider_dep
-    }
-
     _uses_static_library = defined(invoker.static_library_provider)
+
+    _loadable_modules = []
+    if (defined(invoker.loadable_modules)) {
+      _loadable_modules = invoker.loadable_modules
+    }
+    _sanitizer_loadable_modules = []
+    _sanitizer_deps = []
+    if (_is_base_module && _native_libs_deps != [] && !_uses_static_library) {
+      _sanitizer_loadable_modules += _sanitizer_runtimes
+    }
+    if (enable_wrap_sh && _is_base_module &&
+        (_uses_static_library || _native_libs_deps != [])) {
+      _sanitizer_loadable_modules +=
+          [ "$root_gen_dir/build/android/generate_wrap_sh/wrap.sh" ]
+      _sanitizer_deps += [ "//build/android:generate_wrap_sh" ]
+    }
+
+    _all_native_libs_deps = _native_libs_deps + _secondary_abi_native_libs_deps
+    if (_all_native_libs_deps != []) {
+      _native_libs_filearg_dep = ":$_build_config_target"
+      _all_native_libs_deps += [ _native_libs_filearg_dep ]
+
+      if (!_is_bundle_module) {
+        _native_libs_filearg =
+            "@FileArg($_rebased_build_config:native:libraries)"
+      }
+    }
+
+    _has_native_libs =
+        defined(_native_libs_filearg) || _loadable_modules != [] ||
+        _sanitizer_loadable_modules != []
 
     # TODO(crbug.com/40585188): Allow incremental installs of bundle modules.
     _incremental_apk =
@@ -2401,6 +2440,9 @@ if (!is_robolectric && enable_java_templates) {
       manifest_build_config = _manifest_build_config
       min_sdk_version = _min_sdk_version
       target_sdk_version = _target_sdk_version
+
+      # Bundletool will add extractNativeLibraries for us.
+      inject_extract_native_libs = _has_native_libs && !_is_bundle_module
 
       # Depend on android_resources() targets that use generated files
       # in mergeable_android_manifests (such as android_aar_prebuilt).
@@ -2628,22 +2670,6 @@ if (!is_robolectric && enable_java_templates) {
         # instead captured via a depfile.
       }
       _srcjar_deps += [ ":${_template_name}__native_libraries" ]
-    }
-
-    _loadable_modules = []
-    if (defined(invoker.loadable_modules)) {
-      _loadable_modules = invoker.loadable_modules
-    }
-    _sanitizer_loadable_modules = []
-    _sanitizer_deps = []
-    if (_is_base_module && _native_libs_deps != [] && !_uses_static_library) {
-      _sanitizer_loadable_modules += _sanitizer_runtimes
-    }
-    if (enable_wrap_sh && _is_base_module &&
-        (_uses_static_library || _native_libs_deps != [])) {
-      _sanitizer_loadable_modules +=
-          [ "$root_gen_dir/build/android/generate_wrap_sh/wrap.sh" ]
-      _sanitizer_deps += [ "//build/android:generate_wrap_sh" ]
     }
 
     _assertions_implicitly_enabled = defined(invoker.custom_assertion_handler)
@@ -2939,17 +2965,6 @@ if (!is_robolectric && enable_java_templates) {
       _final_deps += [ ":$_copy_pathmap_target" ]
     }
 
-    _all_native_libs_deps = _native_libs_deps + _secondary_abi_native_libs_deps
-    if (_all_native_libs_deps != []) {
-      _native_libs_filearg_dep = ":$_build_config_target"
-      _all_native_libs_deps += [ _native_libs_filearg_dep ]
-
-      if (!_is_bundle_module) {
-        _native_libs_filearg =
-            "@FileArg($_rebased_build_config:native:libraries)"
-      }
-    }
-
     if (_is_bundle_module) {
       _final_deps += [
                        ":$_build_config_target",
@@ -3045,9 +3060,6 @@ if (!is_robolectric && enable_java_templates) {
 
           # All native libraries are side-loaded, so use a placeholder to force
           # the proper bitness for the app.
-          _has_native_libs =
-              defined(_native_libs_filearg) || _loadable_modules != [] ||
-              _sanitizer_loadable_modules != []
           if (_has_native_libs && loadable_modules == [] &&
               !defined(native_lib_placeholders)) {
             native_lib_placeholders = [ "libfix.crbug.384638.so" ]
@@ -3657,6 +3669,12 @@ if (!is_robolectric && enable_java_templates) {
                                "proguard_mapping_path",
                                "use_webview_provider",
                              ])
+      if (!defined(data)) {
+        data = []
+      }
+      if (build_with_chromium && generate_location_tags) {
+        data += [ "//testing/location_tags.json" ]
+      }
       test_name = invoker.target_name
       test_type = "instrumentation"
       apk_target = invoker.android_test_apk

@@ -85,6 +85,7 @@
 #include "third_party/blink/renderer/core/timing/performance_observer.h"
 #include "third_party/blink/renderer/core/timing/performance_paint_timing.h"
 #include "third_party/blink/renderer/core/timing/performance_resource_timing.h"
+#include "third_party/blink/renderer/core/timing/performance_scroll_timing.h"
 #include "third_party/blink/renderer/core/timing/performance_server_timing.h"
 #include "third_party/blink/renderer/core/timing/performance_soft_navigation.h"
 #include "third_party/blink/renderer/core/timing/performance_user_timing.h"
@@ -162,6 +163,7 @@ PerformanceEntry::EntryType kDroppableEntryTypes[] = {
     PerformanceEntry::kBackForwardCacheRestoration,
     PerformanceEntry::kSoftNavigation,
     PerformanceEntry::kInteractionContentfulPaint,
+    PerformanceEntry::kScroll,
 };
 
 void SwapEntries(PerformanceEntryVector& entries,
@@ -254,6 +256,7 @@ constexpr size_t kDefaultResourceTimingBufferSize = 250;
 constexpr size_t kDefaultEventTimingBufferSize = 150;
 constexpr size_t kDefaultContainerTimingBufferSize = 150;
 constexpr size_t kDefaultElementTimingBufferSize = 150;
+constexpr size_t kDefaultScrollTimingBufferSize = 150;
 constexpr size_t kDefaultLayoutShiftBufferSize = 150;
 constexpr size_t kDefaultLargestContenfulPaintSize = 150;
 constexpr size_t kDefaultInteractionContenfulPaintSize = 150;
@@ -278,6 +281,7 @@ Performance::Performance(
       event_timing_buffer_max_size_(kDefaultEventTimingBufferSize),
       container_timing_buffer_max_size_(kDefaultContainerTimingBufferSize),
       element_timing_buffer_max_size_(kDefaultElementTimingBufferSize),
+      scroll_timing_buffer_max_size_(kDefaultScrollTimingBufferSize),
       user_timing_(nullptr),
       time_origin_(time_origin),
       cross_origin_isolated_capability_(cross_origin_isolated_capability),
@@ -534,10 +538,10 @@ PerformanceEntryVector Performance::getEntriesByTypeInternal(
     case PerformanceEntry::kScript:
       break;
 
-    // TODO(crbug.com/504094429): Scroll entries are not emitted yet. A
-    // follow-up CL will add scroll instrumentation that delivers entries
-    // through PerformanceObserver.
+    // Scroll entries are buffered and observed via the PerformanceScrollTiming
+    // API.
     case PerformanceEntry::kScroll:
+      entries = &scroll_timing_buffer_;
       break;
 
     case PerformanceEntry::kLayoutShift:
@@ -720,6 +724,18 @@ void Performance::AddToElementTimingBuffer(PerformanceElementTiming& entry) {
     InsertEntryIntoSortedBuffer(element_timing_buffer_, entry);
   } else {
     ++(dropped_entries_count_map_.find(PerformanceEntry::kElement)->value);
+  }
+}
+
+bool Performance::IsScrollTimingBufferFull() const {
+  return scroll_timing_buffer_.size() >= scroll_timing_buffer_max_size_;
+}
+
+void Performance::AddToScrollTimingBuffer(PerformanceScrollTiming& entry) {
+  if (!IsScrollTimingBufferFull()) {
+    InsertEntryIntoSortedBuffer(scroll_timing_buffer_, entry);
+  } else {
+    ++(dropped_entries_count_map_.find(PerformanceEntry::kScroll)->value);
   }
 }
 
@@ -1368,6 +1384,7 @@ void Performance::Trace(Visitor* visitor) const {
   visitor->Trace(resource_timing_secondary_buffer_);
   visitor->Trace(container_timing_buffer_);
   visitor->Trace(element_timing_buffer_);
+  visitor->Trace(scroll_timing_buffer_);
   visitor->Trace(event_timing_buffer_);
   visitor->Trace(layout_shift_buffer_);
   visitor->Trace(largest_contentful_paint_buffer_);

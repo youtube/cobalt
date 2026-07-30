@@ -55,6 +55,7 @@ public class SigninButtonCoordinator extends ToolbarChildButton implements UrlFo
             ViewStub viewStub,
             NullableObservableSupplier<Tab> tabSupplier,
             OneshotSupplier<OmniboxStub> omniboxStubSupplier,
+            Runnable onSigninTapped,
             Runnable transitionTrigger,
             MonotonicObservableSupplier<Profile> profileSupplier,
             SigninAndHistorySyncActivityLauncher signinAndHistorySyncActivityLauncher,
@@ -82,7 +83,8 @@ public class SigninButtonCoordinator extends ToolbarChildButton implements UrlFo
                         bottomSheetController,
                         modalDialogManager,
                         snackbarManager,
-                        themeColorProvider);
+                        themeColorProvider,
+                        onSigninTapped);
 
         // Defers setting the view and binding the model until the button needs to be shown.
         mViewStub = viewStub;

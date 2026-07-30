@@ -26,6 +26,7 @@ class AudioParameters;
 namespace audio {
 class MlModelHandle;
 class MlModelManager;
+class ProcessingAudioFifo;
 
 // Encapsulates audio processing effects in the audio process, using a
 // media::AudioProcessor. Forwards capture audio, playout audio, and
@@ -41,10 +42,29 @@ class MlModelManager;
 // specified. It is the responsibility of the owner to ensure that the playout
 // thread and capture thread stop calling into the AudioProcessorHandler before
 // destruction.
+//
+// Audio data flow through AudioProcessorHandler:
+//
+// * Without a dedicated processing thread (lightweight / no FIFO):
+//   Audio capture thread:
+//     AudioProcessorHandler::ProcessCapturedAudio()
+//     -> AudioProcessorHandler::ProcessCapturedAudioInternal()
+//     --> |deliver_processed_audio_callback_|
+//
+// * With a dedicated processing thread (heavy / using FIFO):
+//   Audio capture thread:
+//     AudioProcessorHandler::ProcessCapturedAudio()
+//     -> |processing_fifo_|::PushData()
+//   Audio processing thread:
+//     -> AudioProcessorHandler::ProcessCapturedAudioInternal() (via FIFO
+//     callback)
+//     --> |deliver_processed_audio_callback_|
 class AudioProcessorHandler final : public ReferenceOutput::Listener,
                                     public media::mojom::AudioProcessorControls,
                                     public media::AecdumpRecordingSource {
  public:
+  static constexpr int kProcessingFifoSize = 10;
+
   using DeliverProcessedAudioCallback = base::RepeatingCallback<void(
       const media::AudioBus& audio_bus,
       base::TimeTicks audio_capture_time,
@@ -83,7 +103,19 @@ class AudioProcessorHandler final : public ReferenceOutput::Listener,
   AudioProcessorHandler& operator=(const AudioProcessorHandler&) = delete;
   ~AudioProcessorHandler() final;
 
-  // Processes and delivers capture audio.
+  // Prepares the handler to start processing captured audio. Must be called
+  // before the capture stream is started.
+  // Called on `owning_sequence_`.
+  void StartProcessing();
+
+  // Stops audio processing and resets internal resources (including destroying
+  // the FIFO if present). Must be called after the capture stream has been
+  // synchronously stopped. The caller must guarantee that no concurrent calls
+  // to ProcessCapturedAudio() are in progress or will be made after
+  // StopProcessing() starts. Called on `owning_sequence_`.
+  void StopProcessing();
+
+  // Processes and delivers captured audio.
   // See media::AudioProcessor::ProcessCapturedAudio for API details.
   // Called on the capture thread.
   void ProcessCapturedAudio(const media::AudioBus& audio_source,
@@ -104,6 +136,8 @@ class AudioProcessorHandler final : public ReferenceOutput::Listener,
   }
 
  private:
+  friend class InputControllerTestHelper;
+
   // Used in the mojom::AudioProcessorControls implementation.
   using GetStatsCallback =
       base::OnceCallback<void(const media::AudioProcessingStats& stats)>;
@@ -123,6 +157,12 @@ class AudioProcessorHandler final : public ReferenceOutput::Listener,
   // media::AecdumpRecordingSource implementation.
   void StartAecdump(base::File aecdump_file) final;
   void StopAecdump() final;
+
+  void ProcessCapturedAudioInternal(
+      const media::AudioBus& audio_source,
+      base::TimeTicks audio_capture_time,
+      double volume,
+      const media::AudioGlitchInfo& audio_glitch_info);
 
   void DeliverProcessedAudio(const media::AudioBus& audio_bus,
                              base::TimeTicks audio_capture_time,
@@ -160,6 +200,8 @@ class AudioProcessorHandler final : public ReferenceOutput::Listener,
   std::atomic<int32_t> num_preferred_channels_ = 1;
 
   media::AudioGlitchInfo::Accumulator glitch_info_accumulator_;
+
+  std::unique_ptr<ProcessingAudioFifo> processing_fifo_;
 };
 
 }  // namespace audio

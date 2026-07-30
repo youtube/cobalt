@@ -230,7 +230,6 @@ generate_jni("core_jni") {
 android_library("core_java") {
   srcjar_deps = [ ":core_jni" ]
   sources = [
-    "java/src/org/chromium/components/permissions/ApproximateGeolocationPromptArm.java",
     "java/src/org/chromium/components/permissions/PermissionsAndroidFeatureList.java",
     "java/src/org/chromium/components/permissions/PermissionsAndroidFeatureMap.java",
   ]

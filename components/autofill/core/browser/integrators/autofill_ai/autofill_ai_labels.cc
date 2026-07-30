@@ -24,11 +24,13 @@
 #include "base/types/optional_ref.h"
 #include "base/types/zip.h"
 #include "components/autofill/core/browser/autofill_format_string.h"
+#include "components/autofill/core/browser/data_model/addresses/autofill_normalization_utils.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type_names.h"
 #include "components/autofill/core/browser/data_model/data_model_utils.h"
 #include "components/autofill/core/browser/filling/field_filling_util.h"
+#include "components/autofill/core/browser/geo/autofill_country.h"
 #include "components/autofill/core/browser/proto/server.pb.h"
 #include "components/autofill/core/common/dense_set.h"
 
@@ -147,9 +149,13 @@ GetOrderedAttributeTypesForDisambiguation(
     }
     std::vector<std::u16string> values =
         base::ToVector(entities, [&](const EntityInstance* entity) {
-          return GetValueAndTypesForLabel(*entity, attribute_type,
-                                          obfuscate_sensitive_types, app_locale)
-              .first;
+          return normalization::NormalizeForComparison(
+              GetValueAndTypesForLabel(*entity, attribute_type,
+                                       obfuscate_sensitive_types, app_locale)
+                  .first,
+              normalization::WhitespaceSpec::kRetain,
+              AddressCountryCode(
+                  AutofillCountry::CountryCodeForLocale(app_locale)));
         });
     return values.size() == 1
                ? !values.back().empty()

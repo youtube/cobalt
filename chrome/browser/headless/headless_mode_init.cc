@@ -20,6 +20,7 @@
 #include "base/files/scoped_temp_dir.h"
 #include "chrome/browser/headless/headless_mode_platform.h"
 #include "chrome/browser/headless/headless_mode_switches.h"
+#include "chrome/common/chrome_paths_internal.h"
 #include "chrome/common/chrome_switches.h"
 #include "content/public/common/content_switches.h"
 
@@ -139,7 +140,18 @@ class HeadlessModeHandleImpl : public HeadlessModeHandle {
       }
     }
 #else   // BUILDFLAG(IS_WIN)
-    if (!user_data_dir_.CreateUniqueTempDir()) {
+    base::FilePath default_user_data_dir;
+    if (!chrome::GetDefaultUserDataDirectory(&default_user_data_dir)) {
+      return base::unexpected("Failed to get default user data directory.");
+    }
+
+    base::FilePath headless_user_data_dir(default_user_data_dir.value() +
+                                          FILE_PATH_LITERAL("-headless"));
+    if (!base::CreateDirectory(headless_user_data_dir)) {
+      return base::unexpected(
+          "Failed to create headless user data directory container.");
+    }
+    if (!user_data_dir_.CreateUniqueTempDirUnderPath(headless_user_data_dir)) {
       return base::unexpected(
           "Failed to create a unique user data directory for headless.");
     }

@@ -1433,6 +1433,11 @@ IN_PROC_BROWSER_TEST_P(
   const bool ignore_duplicate_navs_enabled = IsIgnoreDuplicateNavsEnabled();
   EXPECT_TRUE(content::NavigateToURL(web_contents(), url_non_srp()));
 
+  auto waiter = CreatePageLoadMetricsTestWaiter();
+  waiter->AddPageExpectation(
+      PageLoadMetricsTestWaiter::TimingField::kLoadEvent);
+  waiter->AddCustomUserTimingMarkExpectation("SearchBodyEnd");
+
   // 1. Start renderer-initiated navigation to `url_srp()`
   content::TestNavigationManager nav_manager(web_contents(), url_srp());
   EXPECT_TRUE(ExecJs(web_contents(),
@@ -1449,7 +1454,7 @@ IN_PROC_BROWSER_TEST_P(
   // Otherwise, it's cancelled by the second.
   EXPECT_EQ(nav_manager.was_committed(), ignore_duplicate_navs_enabled);
 
-  EXPECT_TRUE(content::WaitForLoadStop(web_contents()));
+  waiter->Wait();
   EXPECT_EQ(url_srp(),
             web_contents()->GetPrimaryMainFrame()->GetLastCommittedURL());
 

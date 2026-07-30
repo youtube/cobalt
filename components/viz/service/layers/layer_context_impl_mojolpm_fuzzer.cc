@@ -80,6 +80,43 @@ void FixUpColorSpace(mojolpm::gfx::mojom::ColorSpace* color_space) {
   }
 }
 
+void FixUpSharedImageFormat(mojolpm::viz::mojom::SharedImageFormat* format,
+                            int index) {
+  if (format->instance_case() ==
+      mojolpm::viz::mojom::SharedImageFormat::INSTANCE_NOT_SET) {
+    format->mutable_new_();
+  }
+  if (format->instance_case() != mojolpm::viz::mojom::SharedImageFormat::kNew) {
+    return;
+  }
+  auto* union_ptr = format->mutable_new_();
+  if (!union_ptr->has_id()) {
+    union_ptr->set_id(0);
+  }
+
+  bool needs_fixup = true;
+  if (union_ptr->union_member_case() ==
+      mojolpm::viz::mojom::SharedImageFormat_ProtoUnion::kMSingleplanarFormat) {
+    auto single_format = union_ptr->m_singleplanar_format();
+    if (single_format ==
+            mojolpm::viz::mojom::MojoLPM_SingleplanarFormat_RGBA_8888 ||
+        single_format ==
+            mojolpm::viz::mojom::MojoLPM_SingleplanarFormat_BGRA_8888) {
+      needs_fixup = false;
+    }
+  }
+
+  if (needs_fixup) {
+    if (index % 2 == 0) {
+      union_ptr->set_m_singleplanar_format(
+          mojolpm::viz::mojom::MojoLPM_SingleplanarFormat_RGBA_8888);
+    } else {
+      union_ptr->set_m_singleplanar_format(
+          mojolpm::viz::mojom::MojoLPM_SingleplanarFormat_BGRA_8888);
+    }
+  }
+}
+
 void FixUpDisplayColorSpaces(mojolpm::gfx::mojom::DisplayColorSpaces* dcs) {
   if (dcs->instance_case() ==
       mojolpm::gfx::mojom::DisplayColorSpaces::INSTANCE_NOT_SET) {
@@ -112,6 +149,10 @@ void FixUpDisplayColorSpaces(mojolpm::gfx::mojom::DisplayColorSpaces* dcs) {
   }
   while (new_dcs->m_formats().values_size() > 6) {
     new_dcs->mutable_m_formats()->mutable_values()->RemoveLast();
+  }
+  for (int i = 0; i < new_dcs->m_formats().values_size(); ++i) {
+    FixUpSharedImageFormat(
+        new_dcs->mutable_m_formats()->mutable_values(i)->mutable_value(), i);
   }
 }
 

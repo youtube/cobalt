@@ -42,7 +42,6 @@
 #include "chrome/browser/ui/ash/birch/birch_lost_media_provider.h"
 #include "chrome/browser/ui/ash/birch/birch_self_share_provider.h"
 #include "chrome/browser/ui/ash/holding_space/scoped_test_mount_point.h"
-#include "chrome/common/pref_names.h"
 #include "chrome/test/base/browser_with_test_window_test.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
@@ -463,7 +462,7 @@ class BirchKeyedServiceTest : public BrowserWithTestWindowTest {
 
   void ClearReleaseNotesSurfacesTimesLeftToShowPref() {
     GetProfile()->GetPrefs()->ClearPref(
-        ::prefs::kReleaseNotesSuggestionChipTimesLeftToShow);
+        ash::prefs::kReleaseNotesSuggestionChipTimesLeftToShow);
   }
 
   void MarkMilestoneUpToDate() {
@@ -472,7 +471,7 @@ class BirchKeyedServiceTest : public BrowserWithTestWindowTest {
 
   void MarkReleaseNotesSurfacesTimesLeftToShow(int times_left_to_show) {
     GetProfile()->GetPrefs()->SetInteger(
-        ::prefs::kReleaseNotesSuggestionChipTimesLeftToShow,
+        ash::prefs::kReleaseNotesSuggestionChipTimesLeftToShow,
         times_left_to_show);
   }
 
@@ -744,7 +743,7 @@ TEST_F(BirchKeyedServiceTest, ReleaseNotesProvider) {
   EXPECT_EQ(release_notes_items[0].subtitle(), u"See what's new");
   EXPECT_EQ(release_notes_items[0].url(), GURL("chrome://help-app/updates"));
   EXPECT_EQ(GetProfile()->GetPrefs()->GetInteger(
-                ::prefs::kReleaseNotesSuggestionChipTimesLeftToShow),
+                ash::prefs::kReleaseNotesSuggestionChipTimesLeftToShow),
             3);
 
   MarkMilestoneUpToDate();
@@ -762,7 +761,7 @@ TEST_F(BirchKeyedServiceTest, ReleaseNotesProvider) {
                 ash::help_app::prefs::kHelpAppNotificationLastShownMilestone),
             GetCurrentMilestone());
   EXPECT_EQ(GetProfile()->GetPrefs()->GetInteger(
-                ::prefs::kReleaseNotesSuggestionChipTimesLeftToShow),
+                ash::prefs::kReleaseNotesSuggestionChipTimesLeftToShow),
             1);
 
   ClearReleaseNotesSurfacesTimesLeftToShowPref();
@@ -777,11 +776,11 @@ TEST_F(BirchKeyedServiceTest, ReleaseNotesProvider) {
   EXPECT_EQ(GetProfile()->GetPrefs()->GetInteger(
                 ash::help_app::prefs::kHelpAppNotificationLastShownMilestone),
             GetCurrentMilestone());
-  EXPECT_TRUE(
-      GetProfile()
-          ->GetPrefs()
-          ->FindPreference(::prefs::kReleaseNotesSuggestionChipTimesLeftToShow)
-          ->IsDefaultValue());
+  EXPECT_TRUE(GetProfile()
+                  ->GetPrefs()
+                  ->FindPreference(
+                      ash::prefs::kReleaseNotesSuggestionChipTimesLeftToShow)
+                  ->IsDefaultValue());
 }
 
 TEST_F(BirchKeyedServiceTest, BirchRecentTabsWaitForForeignSessionsChange) {

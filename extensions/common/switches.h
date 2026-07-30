@@ -102,6 +102,10 @@ extern const char kAllowFutureManifestVersion[];
 // actually use it in browser tests.
 extern const char kExtensionTestApiOnWebPages[];
 
+// Forces the `chrome.test` API to use standardized behavior matching the
+// `browser.test` proposal.
+extern const char kExtensionTestApiStandardizedBehavior[];
+
 // The feature parameter name that controls the variant of IPH shown when the
 // user has no extensions installed.
 extern const char kZeroStatePromoIphVariantParamName[];

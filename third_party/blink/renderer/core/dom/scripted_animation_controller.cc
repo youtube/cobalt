@@ -94,7 +94,7 @@ void ScriptedAnimationController::DispatchMediaQueryListEventsAndCallbacks() {
 void ScriptedAnimationController::ScheduleVideoFrameCallbacksExecution(
     ExecuteVfcCallback execute_vfc_callback) {
   vfc_execution_queue_.push_back(std::move(execute_vfc_callback));
-  ScheduleAnimationIfNeeded();
+  ScheduleAnimationIfNeeded(cc::BeginMainFrameReason::kVideoFrameCallback);
 }
 
 ScriptedAnimationController::CallbackId

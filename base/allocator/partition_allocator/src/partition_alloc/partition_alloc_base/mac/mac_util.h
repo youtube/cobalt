@@ -12,8 +12,8 @@
 
 namespace partition_alloc::internal::base::mac {
 
-// MacOSMajorVersion() returns the major version number (e.g. macOS 12.6.5
-// returns 12) of the macOS currently running. Use for runtime OS version
+// MacOSMajorVersion() returns the major version number (e.g. macOS 14.8.7
+// returns 14) of the macOS currently running. Use for runtime OS version
 // checking. Prefer to use @available in Objective-C files. Note that this does
 // not include any Rapid Security Response (RSR) suffixes (the "(a)" at the end
 // of version numbers.)

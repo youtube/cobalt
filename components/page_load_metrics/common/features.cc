@@ -5,12 +5,13 @@
 #include "components/page_load_metrics/common/features.h"
 
 #include "base/feature_list.h"
+#include "build/build_config.h"
 
 namespace page_load_metrics::features {
 
 // Throttle sending custom user timings to the browser process.
 // crbug.com/467177770 for more details.
 BASE_FEATURE(kThrottleSendingCustomUserTimings,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 }  // namespace page_load_metrics::features

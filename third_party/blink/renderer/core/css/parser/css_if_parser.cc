@@ -85,7 +85,7 @@ const ConditionalExpNode* CSSIfParser::ConsumeFunction(
       RuntimeEnabledFeatures::RouteMatchingEnabled()) {
     CSSParserTokenStream::RestoringBlockGuard guard(stream);
     stream.ConsumeWhitespace();
-    NavigationParser navigation_parser(*parser_context_.GetDocument());
+    NavigationParser navigation_parser;
     CSSParserTokenStream::State savepoint = stream.Save();
     // We're inside the function's parentheses. Don't require any additional
     // ones. Look for <navigation-test>.

@@ -123,6 +123,7 @@ void DownloadResponseHandler::OnReceiveResponse(
     std::optional<mojo_base::BigBuffer> cached_metadata) {
   create_info_ = CreateDownloadCreateInfo(*head);
   cert_status_ = head->cert_status;
+  fetched_via_service_worker_ = head->was_fetched_via_service_worker;
 
   // TODO(xingliu): Do not use http cache.
   if (head->headers) {
@@ -277,7 +278,8 @@ void DownloadResponseHandler::OnComplete(
   completed_ = true;
   DownloadInterruptReason reason = HandleRequestCompletionStatus(
       static_cast<net::Error>(status.error_code), has_strong_validators_,
-      cert_status_, is_partial_request_, abort_reason_);
+      cert_status_, is_partial_request_, abort_reason_,
+      fetched_via_service_worker_);
 
   if (client_remote_) {
     client_remote_->OnStreamCompleted(

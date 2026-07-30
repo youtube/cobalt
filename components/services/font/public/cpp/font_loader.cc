@@ -105,12 +105,12 @@ bool FontLoader::FallbackFontForCharacter(
 bool FontLoader::FontRenderStyleForStrike(
     std::string family,
     uint32_t size,
-    bool is_italic,
     bool is_bold,
+    bool is_italic,
     float device_scale_factor,
     mojom::FontRenderStylePtr* out_font_render_style) {
-  return thread_->FontRenderStyleForStrike(std::move(family), size, is_italic,
-                                           is_bold, device_scale_factor,
+  return thread_->FontRenderStyleForStrike(std::move(family), size, is_bold,
+                                           is_italic, device_scale_factor,
                                            out_font_render_style);
 }
 

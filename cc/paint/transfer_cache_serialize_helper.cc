@@ -29,7 +29,7 @@ bool TransferCacheSerializeHelper::LockEntry(TransferCacheEntryType type,
 
 uint32_t TransferCacheSerializeHelper::CreateEntry(
     const ClientTransferCacheEntry& entry,
-    uint8_t* memory) {
+    base::span<uint8_t> memory) {
   // We shouldn't be creating entries if they were already created or locked.
   EntryKey key(entry.Type(), entry.Id());
   DCHECK_EQ(added_entries_.count(key), 0u);

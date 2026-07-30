@@ -65,7 +65,7 @@ class BrowserAutofillManagerTestDelegateImpl
   // form.
   void SetIgnoreBackToBackMessages(ObservedUiEvents type, bool ignore);
 
-  // autofill::BrowserAutofillManagerTestDelegate:
+  // BrowserAutofillManagerTestDelegate:
   void DidPreviewFormData() override;
   void DidFillFormData() override;
   void DidShowSuggestions() override;

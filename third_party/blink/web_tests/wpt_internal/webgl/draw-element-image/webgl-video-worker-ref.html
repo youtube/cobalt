@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<head>
+  <title>texElementImage2D paints video frames in worker thread (reference)</title>
+  <link rel="author" href="mailto:szager@chromium.org">
+  <style>
+    #canvas {
+      width: 200px;
+      height: 200px;
+      display: grid;
+      grid: 100px / 1fr 1fr;
+      background-color: white;
+    }
+    #canvas > div {
+      width: 100px;
+      height: 100px;
+    }
+  </style>
+</head>
+<body>
+  <div id="canvas">
+    <div style="background-color: rgb(255 1 0)"></div>
+    <div style="background-color: rgb(0 153 0)"></div>
+    <div style="background-color: rgb(0 0 255)"></div>
+  </div>
+</body>

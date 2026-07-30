@@ -53,6 +53,7 @@
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_vector.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
 #include "third_party/blink/renderer/platform/wtf/wtf_size_t.h"
+#include "ui/events/types/scroll_input_type.h"
 
 namespace viz {
 class FrameTimingDetails;
@@ -64,6 +65,7 @@ class AnimationFrameTimingInfo;
 class InteractionContentfulPaint;
 class InteractiveDetector;
 class LocalDOMWindow;
+class Node;
 class PerformanceSoftNavigation;
 class PerformanceTimingForReporting;
 class SoftNavigationContext;
@@ -167,6 +169,11 @@ class CORE_EXPORT WindowPerformance final : public Performance,
                           const AtomicString& identifier,
                           Element* last_painted_element,
                           const DOMPaintTimingInfo& first_paint_timing_info);
+
+  void AddScrollTiming(base::TimeTicks start_time,
+                       base::TimeTicks end_time,
+                       ui::ScrollInputType input_type,
+                       Node* target);
 
   void OnBodyLoadFinished(int64_t encoded_body_size, int64_t decoded_body_size);
   void QueueLongAnimationFrameTiming(

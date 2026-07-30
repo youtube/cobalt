@@ -54,7 +54,7 @@ def ListFiles(bucket, path='', sort_by='name'):
   """
   bucket_prefix = 'gs://%s' % bucket
   full_path = '%s/%s' % (bucket_prefix, path)
-  stdout = _RunCommand(['ls', '-l', '-d', full_path])
+  stdout = _RunCommand(['ls', '-l', full_path])
 
   # Filter out directories and the summary line.
   file_infos = [

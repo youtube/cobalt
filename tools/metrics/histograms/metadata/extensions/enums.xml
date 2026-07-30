@@ -2910,6 +2910,8 @@ Called by update_extension_histograms.py.-->
   <int value="1971" label="MIMEHANDLER_GETMIMEHANDLEROPTIONS"/>
   <int value="1972" label="GLICPRIVATE_HASCONVERSATION"/>
   <int value="1973" label="GLICPRIVATE_ACTIVATETABWITHCONVERSATION"/>
+  <int value="1974" label="CONTEXTUALTASKSPRIVATE_GETSTATE"/>
+  <int value="1975" label="CONTEXTUALTASKSPRIVATE_LAUNCHPANELINNEWTAB"/>
 </enum>
 
 <!-- LINT.ThenChange(//extensions/browser/extension_function_histogram_value.h:HistogramValue) -->
@@ -3298,6 +3300,7 @@ Called by update_extension_permission.py.-->
   <int value="265" label="kGlicPrivate"/>
   <int value="266" label="kGlicPrivateInvoke"/>
   <int value="267" label="kIndigoPrivate"/>
+  <int value="268" label="kContextualTasksPrivate"/>
 </enum>
 
 <enum name="ExtensionPolicyReinstallReason">
@@ -3494,6 +3497,7 @@ Called by update_extension_permission.py.-->
   <int value="3" label="Load failed - Checksum mismatch"/>
   <int value="4" label="Load failed - Version mismatch"/>
   <int value="5" label="Load failed - Checksum not found in prefs"/>
+  <int value="6" label="Load failed - Ruleset file size limit exceeded"/>
 </enum>
 
 <enum name="ManifestInvalidAppStatusError">
@@ -3598,6 +3602,7 @@ Called by update_extension_permission.py.-->
   <int value="3" label="kJSONParseError"/>
   <int value="4" label="kJSONIsNotList"/>
   <int value="5" label="kRuleCountLimitExceeded"/>
+  <int value="6" label="kRulesetFileSizeLimitExceeded"/>
 </enum>
 
 <enum name="RegexRuleStatus">
@@ -3687,6 +3692,8 @@ Called by update_extension_permission.py.-->
   <int value="16" label="kErrorSerializeToJson"/>
   <int value="17" label="kErrorWriteJson"/>
   <int value="18" label="kErrorWriteFlatbuffer"/>
+  <int value="19" label="kErrorUnsafeRuleCountExceeded"/>
+  <int value="20" label="kErrorCreateMatcher_RulesetFileSizeLimitExceeded"/>
 </enum>
 
 <enum name="ValueStoreStatusCode">

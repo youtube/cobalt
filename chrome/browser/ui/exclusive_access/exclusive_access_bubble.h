@@ -24,6 +24,9 @@ class ExclusiveAccessBubble {
   // Called on user input to update timers and/or re-show the bubble.
   void OnUserInput();
 
+  // Returns the parameters used to configure the bubble.
+  const ExclusiveAccessBubbleParams& params() const { return params_; }
+
   // Time the bubble is shown before hiding automatically.
   static constexpr base::TimeDelta kShowTime = base::Milliseconds(3800);
   // Time without user input that must elapse before the bubble is re-shown.

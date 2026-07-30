@@ -40,8 +40,9 @@ tabs::ConstChildPtr GetNodeFromHandle(
 RootTabCollectionNode::RootTabCollectionNode(
     TabStripModel* tab_strip_model,
     CustomAddChildViewCallback add_node_view_to_parent,
-    CustomRemoveChildViewCallback remove_node_view_from_parent)
-    : TabCollectionNode(tab_strip_model->Root()),
+    CustomRemoveChildViewCallback remove_node_view_from_parent,
+    TabStripOrientation orientation)
+    : TabCollectionNode(tab_strip_model->Root(), orientation),
       tab_strip_model_(tab_strip_model),
       add_node_view_to_parent_(add_node_view_to_parent),
       remove_node_view_from_parent_(remove_node_view_from_parent) {}

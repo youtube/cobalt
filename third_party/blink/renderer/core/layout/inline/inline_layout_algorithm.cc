@@ -48,6 +48,7 @@
 #include "third_party/blink/renderer/core/layout/unpositioned_float.h"
 #include "third_party/blink/renderer/core/style/computed_style.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/clear_collection_scope.h"
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 
 namespace blink {
 
@@ -277,9 +278,11 @@ void InlineLayoutAlgorithm::PrepareBoxStates(
 
   // Check if the box states in InlineChildLayoutContext is valid for this line.
   // If the previous line was ::first-line, always rebuild because box states
-  // have ::first-line styles.
+  // have ::first-line styles. If the previous line was a line-clamp displaced
+  // line, we also rebuild because the box states might have the wrong metrics.
   const InlineItems& items = line_info.ItemsData().items;
-  if (!break_token->UseFirstLineStyle() && !apply_text_fit_) {
+  if (!break_token->UseFirstLineStyle() &&
+      !break_token->IsLineClampDisplacedLine() && !apply_text_fit_) {
     box_states_ = context_->BoxStatesIfValidForItemIndex(
         items, break_token->StartItemIndex());
     if (box_states_) {
@@ -319,7 +322,10 @@ void InlineLayoutAlgorithm::CheckBoxStates(
                      should_scale_line_height)
       .RebuildBoxStates(line_info, 0u, GetBreakToken()->StartItemIndex());
   LogicalLineItems& line_box = context_->AcquireTempLogicalLineItems();
-  rebuilt.OnBeginPlaceItems(Node(), line_info, baseline_type_, quirks_mode_,
+  const bool is_only_line_clamp_ellipsis =
+      line_clamp_ellipsis_.has_value() && line_info.Results().empty();
+  rebuilt.OnBeginPlaceItems(Node(), line_info, baseline_type_,
+                            quirks_mode_ || is_only_line_clamp_ellipsis,
                             should_scale_line_height, &line_box);
   DCHECK(box_states_);
   box_states_->CheckSame(rebuilt);
@@ -337,7 +343,7 @@ InlineLayoutAlgorithm::GetLineClampState(const LineInfo* line_info) const {
   if (!(line_info && line_info->IsBlockInInline()) &&
       line_clamp_data.IsAtClampPoint()) {
     EBlockEllipsis block_ellipsis =
-        RuntimeEnabledFeatures::CSSLineClampEnabled()
+        RuntimeEnabledFeatures::CSSLineClampAsShorthandEnabled()
             ? Style().BlockEllipsis()
             : line_clamp_data.block_ellipsis;
     if (block_ellipsis == EBlockEllipsis::kEllipsis) [[likely]] {
@@ -395,7 +401,11 @@ void InlineLayoutAlgorithm::CreateLine(const LineLayoutOpportunity& opportunity,
 
   const FontHeight& line_box_metrics = box_states_->LineBoxState().metrics;
 
-  if (Node().HasRuby() && !line_info->IsEmptyLine()) [[unlikely]] {
+  const bool has_text_emphasis =
+      RuntimeEnabledFeatures::TextEmphasisAsRubyEnabled() &&
+      Node().HasTextEmphasis();
+  if ((Node().HasRuby() || has_text_emphasis) && !line_info->IsEmptyLine())
+      [[unlikely]] {
     std::optional<FontHeight> annotation_metrics;
     if (!box_states_->RubyColumnList().empty()) {
       HeapVector<Member<LogicalRubyColumn>>& column_list =
@@ -954,9 +964,11 @@ LayoutUnit InlineLayoutAlgorithm::SetAnnotationOverflow(
     const LogicalLineItems& line_box,
     const FontHeight& line_box_metrics,
     std::optional<FontHeight> annotation_font_height) {
-  AnnotationMetrics annotation_metrics =
-      ComputeAnnotationOverflow(line_box, line_box_metrics,
-                                line_info.LineStyle(), annotation_font_height);
+  AnnotationMetrics annotation_metrics = ComputeAnnotationOverflow(
+      line_box, line_box_metrics,
+      LayoutUnit(line_info.LineStyle().ComputedFontSize() *
+                 line_info.TextFitScale()),
+      annotation_font_height);
   LayoutUnit annotation_overflow_block_start;
   LayoutUnit annotation_overflow_block_end;
   LayoutUnit annotation_space_block_start;

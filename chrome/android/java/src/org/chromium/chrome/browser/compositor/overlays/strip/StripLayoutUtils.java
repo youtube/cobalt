@@ -425,6 +425,22 @@ public class StripLayoutUtils {
             boolean isIncognito,
             float topPaddingDp,
             RectProvider anchorRectProvider) {
+        getAdjustedAnchorRect(
+                context,
+                toolbarContainerView,
+                isIncognito,
+                topPaddingDp,
+                anchorRectProvider,
+                /* includeTopPadding= */ true);
+    }
+
+    public static void getAdjustedAnchorRect(
+            Context context,
+            View toolbarContainerView,
+            boolean isIncognito,
+            float topPaddingDp,
+            RectProvider anchorRectProvider,
+            boolean includeTopPadding) {
         if (toolbarContainerView == null) return;
         int[] toolbarCoordinates = new int[2];
         Rect backgroundPadding = new Rect();
@@ -437,7 +453,10 @@ public class StripLayoutUtils {
                         toolbarCoordinates[0] - backgroundPadding.left,
                         LocalizationUtils.isLayoutRtl());
         int topPaddingPx =
-                Math.round(topPaddingDp * context.getResources().getDisplayMetrics().density);
+                includeTopPadding
+                        ? Math.round(
+                                topPaddingDp * context.getResources().getDisplayMetrics().density)
+                        : 0;
         anchorRectProvider.getRect().offset(xOffset, toolbarCoordinates[1] + topPaddingPx);
     }
 

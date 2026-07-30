@@ -30,7 +30,6 @@ static_library("cellular_setup") {
     "//chrome/browser:resources",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/ui:simple_message_box_headers",
-    "//chrome/common",
     "//chromeos/ash/components/network",
     "//components/login",
     "//components/strings:components_strings",

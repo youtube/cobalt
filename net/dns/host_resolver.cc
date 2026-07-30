@@ -148,7 +148,7 @@ class FailingServiceEndpointRequestImpl
     return nullptr;
   }
 
-  bool IsStaleWhileRefresing() const override { return false; }
+  bool IsStaleWhileRefreshing() const override { return false; }
 
   std::optional<ResolutionDetails> GetResolutionDetails() const override {
     return std::nullopt;

@@ -17,6 +17,7 @@ InfobarOverlayRequestConfig::InfobarOverlayRequestConfig(
       infobar_type_(infobar->infobar_type()),
       has_badge_(BadgeTypeForInfobarType(infobar_type_) != kBadgeTypeNone),
       is_high_priority_(is_high_priority),
-      overlay_type_(overlay_type) {}
+      overlay_type_(overlay_type),
+      start_animated_(infobar->start_animated()) {}
 
 InfobarOverlayRequestConfig::~InfobarOverlayRequestConfig() = default;

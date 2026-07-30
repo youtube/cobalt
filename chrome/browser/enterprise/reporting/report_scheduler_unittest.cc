@@ -80,7 +80,7 @@ constexpr char kSignalsReportingModeMetricName[] =
 ACTION_P(ScheduleGeneratorCallback, request_number) {
   ReportRequestQueue requests;
   for (int i = 0; i < request_number; i++)
-    requests.push(std::make_unique<ReportRequest>(ReportType::kFull));
+    requests.push(std::make_unique<ReportRequest>(ReportType::kBrowser));
 
   base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(std::move(arg0), std::move(requests)));
@@ -280,7 +280,7 @@ class ReportSchedulerTest : public ::testing::Test {
   ReportRequestQueue CreateRequests(int number) {
     ReportRequestQueue requests;
     for (int i = 0; i < number; i++)
-      requests.push(std::make_unique<ReportRequest>(ReportType::kFull));
+      requests.push(std::make_unique<ReportRequest>(ReportType::kBrowser));
     return requests;
   }
 
@@ -349,15 +349,15 @@ TEST_F(ReportSchedulerTest, NoReportWithoutClientId) {
 
 TEST_F(ReportSchedulerTest, UploadReportSucceeded) {
   EXPECT_CALL_SetupRegistration();
-  EXPECT_CALL(*generator_, OnGenerate(ReportType::kFull, _))
+  EXPECT_CALL(*generator_, OnGenerate(ReportType::kBrowser, _))
       .WillOnce(WithArgs<1>(ScheduleGeneratorCallback(1)));
-  EXPECT_CALL(
-      *uploader_,
-      SetRequestAndUpload(ReportGenerationConfig(
-                              ReportTrigger::kTriggerTimer, ReportType::kFull,
-                              SecuritySignalsMode::kNoSignals,
-                              /*use_cookies=*/false),
-                          _, _))
+  EXPECT_CALL(*uploader_,
+              SetRequestAndUpload(
+                  ReportGenerationConfig(ReportTrigger::kTriggerTimer,
+                                         ReportType::kBrowser,
+                                         SecuritySignalsMode::kNoSignals,
+                                         /*use_cookies=*/false),
+                  _, _))
       .WillOnce(RunOnceCallback<2>(ReportUploader::kSuccess));
 
   CreateScheduler();
@@ -412,15 +412,15 @@ TEST_F(ReportSchedulerTest, UploadReportSucceededForProfileReporting) {
 
 TEST_F(ReportSchedulerTest, UploadReportTransientError) {
   EXPECT_CALL_SetupRegistration();
-  EXPECT_CALL(*generator_, OnGenerate(ReportType::kFull, _))
+  EXPECT_CALL(*generator_, OnGenerate(ReportType::kBrowser, _))
       .WillOnce(WithArgs<1>(ScheduleGeneratorCallback(1)));
-  EXPECT_CALL(
-      *uploader_,
-      SetRequestAndUpload(ReportGenerationConfig(
-                              ReportTrigger::kTriggerTimer, ReportType::kFull,
-                              SecuritySignalsMode::kNoSignals,
-                              /*use_cookies=*/false),
-                          _, _))
+  EXPECT_CALL(*uploader_,
+              SetRequestAndUpload(
+                  ReportGenerationConfig(ReportTrigger::kTriggerTimer,
+                                         ReportType::kBrowser,
+                                         SecuritySignalsMode::kNoSignals,
+                                         /*use_cookies=*/false),
+                  _, _))
       .WillOnce(RunOnceCallback<2>(ReportUploader::kTransientError));
 
   CreateScheduler();
@@ -439,15 +439,15 @@ TEST_F(ReportSchedulerTest, UploadReportTransientError) {
 
 TEST_F(ReportSchedulerTest, UploadReportPersistentError) {
   EXPECT_CALL_SetupRegistration();
-  EXPECT_CALL(*generator_, OnGenerate(ReportType::kFull, _))
+  EXPECT_CALL(*generator_, OnGenerate(ReportType::kBrowser, _))
       .WillOnce(WithArgs<1>(ScheduleGeneratorCallback(1)));
-  EXPECT_CALL(
-      *uploader_,
-      SetRequestAndUpload(ReportGenerationConfig(
-                              ReportTrigger::kTriggerTimer, ReportType::kFull,
-                              SecuritySignalsMode::kNoSignals,
-                              /*use_cookies=*/false),
-                          _, _))
+  EXPECT_CALL(*uploader_,
+              SetRequestAndUpload(
+                  ReportGenerationConfig(ReportTrigger::kTriggerTimer,
+                                         ReportType::kBrowser,
+                                         SecuritySignalsMode::kNoSignals,
+                                         /*use_cookies=*/false),
+                  _, _))
       .WillOnce(RunOnceCallback<2>(ReportUploader::kPersistentError));
 
   CreateScheduler();
@@ -471,7 +471,7 @@ TEST_F(ReportSchedulerTest, UploadReportPersistentError) {
 
 TEST_F(ReportSchedulerTest, NoReportGenerate) {
   EXPECT_CALL_SetupRegistration();
-  EXPECT_CALL(*generator_, OnGenerate(ReportType::kFull, _))
+  EXPECT_CALL(*generator_, OnGenerate(ReportType::kBrowser, _))
       .WillOnce(WithArgs<1>(ScheduleGeneratorCallback(0)));
   EXPECT_CALL(*uploader_, SetRequestAndUpload(_, _, _)).Times(0);
 
@@ -500,15 +500,15 @@ TEST_F(ReportSchedulerTest, TimerDelayWithLastUploadTimestamp) {
   SetReportFrequency(kUploadFrequency);
 
   EXPECT_CALL_SetupRegistration();
-  EXPECT_CALL(*generator_, OnGenerate(ReportType::kFull, _))
+  EXPECT_CALL(*generator_, OnGenerate(ReportType::kBrowser, _))
       .WillOnce(WithArgs<1>(ScheduleGeneratorCallback(1)));
-  EXPECT_CALL(
-      *uploader_,
-      SetRequestAndUpload(ReportGenerationConfig(
-                              ReportTrigger::kTriggerTimer, ReportType::kFull,
-                              SecuritySignalsMode::kNoSignals,
-                              /*use_cookies=*/false),
-                          _, _))
+  EXPECT_CALL(*uploader_,
+              SetRequestAndUpload(
+                  ReportGenerationConfig(ReportTrigger::kTriggerTimer,
+                                         ReportType::kBrowser,
+                                         SecuritySignalsMode::kNoSignals,
+                                         /*use_cookies=*/false),
+                  _, _))
       .WillOnce(RunOnceCallback<2>(ReportUploader::kSuccess));
 
   CreateScheduler();
@@ -526,15 +526,15 @@ TEST_F(ReportSchedulerTest, TimerDelayWithLastUploadTimestamp) {
 
 TEST_F(ReportSchedulerTest, TimerDelayWithoutLastUploadTimestamp) {
   EXPECT_CALL_SetupRegistration();
-  EXPECT_CALL(*generator_, OnGenerate(ReportType::kFull, _))
+  EXPECT_CALL(*generator_, OnGenerate(ReportType::kBrowser, _))
       .WillOnce(WithArgs<1>(ScheduleGeneratorCallback(1)));
-  EXPECT_CALL(
-      *uploader_,
-      SetRequestAndUpload(ReportGenerationConfig(
-                              ReportTrigger::kTriggerTimer, ReportType::kFull,
-                              SecuritySignalsMode::kNoSignals,
-                              /*use_cookies=*/false),
-                          _, _))
+  EXPECT_CALL(*uploader_,
+              SetRequestAndUpload(
+                  ReportGenerationConfig(ReportTrigger::kTriggerTimer,
+                                         ReportType::kBrowser,
+                                         SecuritySignalsMode::kNoSignals,
+                                         /*use_cookies=*/false),
+                  _, _))
       .WillOnce(RunOnceCallback<2>(ReportUploader::kSuccess));
 
   CreateScheduler();
@@ -553,15 +553,15 @@ TEST_F(ReportSchedulerTest, TimerDelayUpdate) {
   SetReportFrequency(kUploadFrequency);
 
   EXPECT_CALL_SetupRegistration();
-  EXPECT_CALL(*generator_, OnGenerate(ReportType::kFull, _))
+  EXPECT_CALL(*generator_, OnGenerate(ReportType::kBrowser, _))
       .WillOnce(WithArgs<1>(ScheduleGeneratorCallback(1)));
-  EXPECT_CALL(
-      *uploader_,
-      SetRequestAndUpload(ReportGenerationConfig(
-                              ReportTrigger::kTriggerTimer, ReportType::kFull,
-                              SecuritySignalsMode::kNoSignals,
-                              /*use_cookies=*/false),
-                          _, _))
+  EXPECT_CALL(*uploader_,
+              SetRequestAndUpload(
+                  ReportGenerationConfig(ReportTrigger::kTriggerTimer,
+                                         ReportType::kBrowser,
+                                         SecuritySignalsMode::kNoSignals,
+                                         /*use_cookies=*/false),
+                  _, _))
       .WillOnce(RunOnceCallback<2>(ReportUploader::kSuccess));
 
   CreateScheduler();
@@ -625,15 +625,15 @@ TEST_F(ReportSchedulerTest,
 
 TEST_F(ReportSchedulerTest, ReportingIsDisabledWhileNewReportIsPosted) {
   EXPECT_CALL_SetupRegistration();
-  EXPECT_CALL(*generator_, OnGenerate(ReportType::kFull, _))
+  EXPECT_CALL(*generator_, OnGenerate(ReportType::kBrowser, _))
       .WillOnce(WithArgs<1>(ScheduleGeneratorCallback(1)));
-  EXPECT_CALL(
-      *uploader_,
-      SetRequestAndUpload(ReportGenerationConfig(
-                              ReportTrigger::kTriggerTimer, ReportType::kFull,
-                              SecuritySignalsMode::kNoSignals,
-                              /*use_cookies=*/false),
-                          _, _))
+  EXPECT_CALL(*uploader_,
+              SetRequestAndUpload(
+                  ReportGenerationConfig(ReportTrigger::kTriggerTimer,
+                                         ReportType::kBrowser,
+                                         SecuritySignalsMode::kNoSignals,
+                                         /*use_cookies=*/false),
+                  _, _))
       .WillOnce(RunOnceCallback<2>(ReportUploader::kSuccess));
 
   CreateScheduler();
@@ -659,22 +659,22 @@ TEST_F(ReportSchedulerTest, ManualReport) {
   SetLastUploadInHour(base::Hours(1));
   EXPECT_CALL_SetupRegistration();
 
-  EXPECT_CALL(*generator_, OnGenerate(ReportType::kFull, _))
+  EXPECT_CALL(*generator_, OnGenerate(ReportType::kBrowser, _))
       .WillOnce(WithArgs<1>(ScheduleGeneratorCallback(1)));
-  EXPECT_CALL(
-      *uploader_,
-      SetRequestAndUpload(ReportGenerationConfig(
-                              ReportTrigger::kTriggerManual, ReportType::kFull,
-                              SecuritySignalsMode::kNoSignals,
-                              /*use_cookies=*/false),
-                          _, _))
+  EXPECT_CALL(*uploader_,
+              SetRequestAndUpload(
+                  ReportGenerationConfig(ReportTrigger::kTriggerManual,
+                                         ReportType::kBrowser,
+                                         SecuritySignalsMode::kNoSignals,
+                                         /*use_cookies=*/false),
+                  _, _))
       .WillOnce(RunOnceCallback<2>(ReportUploader::kSuccess));
 
   CreateScheduler();
 
   base::MockOnceClosure callback;
   EXPECT_CALL(callback, Run()).Times(1);
-  scheduler_->UploadFullReport(callback.Get());
+  scheduler_->UploadReport(callback.Get());
   task_environment_.RunUntilIdle();
 
   ExpectLastUploadTimestampUpdated(true);
@@ -686,15 +686,15 @@ TEST_F(ReportSchedulerTest, ManualReport) {
 
 TEST_F(ReportSchedulerTest, ScheduledReportAfterManualReport) {
   EXPECT_CALL_SetupRegistration();
-  EXPECT_CALL(*generator_, OnGenerate(ReportType::kFull, _))
+  EXPECT_CALL(*generator_, OnGenerate(ReportType::kBrowser, _))
       .WillOnce(WithArgs<1>(ScheduleGeneratorCallback(1)));
-  EXPECT_CALL(
-      *uploader_,
-      SetRequestAndUpload(ReportGenerationConfig(
-                              ReportTrigger::kTriggerManual, ReportType::kFull,
-                              SecuritySignalsMode::kNoSignals,
-                              /*use_cookies=*/false),
-                          _, _))
+  EXPECT_CALL(*uploader_,
+              SetRequestAndUpload(
+                  ReportGenerationConfig(ReportTrigger::kTriggerManual,
+                                         ReportType::kBrowser,
+                                         SecuritySignalsMode::kNoSignals,
+                                         /*use_cookies=*/false),
+                  _, _))
       .WillOnce(RunOnceCallback<2>(ReportUploader::kSuccess));
 
   CreateScheduler();
@@ -704,7 +704,7 @@ TEST_F(ReportSchedulerTest, ScheduledReportAfterManualReport) {
 
   // Trigger manual report first and then move forward time to trigger timer
   // report.
-  scheduler_->UploadFullReport(callback.Get());
+  scheduler_->UploadReport(callback.Get());
   task_environment_.RunUntilIdle();
 
   ExpectLastUploadTimestampUpdated(true);
@@ -715,18 +715,18 @@ TEST_F(ReportSchedulerTest, ScheduledReportAfterManualReport) {
 
 TEST_F(ReportSchedulerTest, ManualReportWithRegularOneOngoing) {
   EXPECT_CALL_SetupRegistration();
-  EXPECT_CALL(*generator_, OnGenerate(ReportType::kFull, _))
+  EXPECT_CALL(*generator_, OnGenerate(ReportType::kBrowser, _))
       .WillOnce(WithArgs<1>(ScheduleGeneratorCallback(1)));
 
   // Callback for timer report will be held.
   ReportUploader::ReportCallback saved_timer_callback;
-  EXPECT_CALL(
-      *uploader_,
-      SetRequestAndUpload(ReportGenerationConfig(
-                              ReportTrigger::kTriggerTimer, ReportType::kFull,
-                              SecuritySignalsMode::kNoSignals,
-                              /*use_cookies=*/false),
-                          _, _))
+  EXPECT_CALL(*uploader_,
+              SetRequestAndUpload(
+                  ReportGenerationConfig(ReportTrigger::kTriggerTimer,
+                                         ReportType::kBrowser,
+                                         SecuritySignalsMode::kNoSignals,
+                                         /*use_cookies=*/false),
+                  _, _))
       .WillOnce([&saved_timer_callback](
                     ReportGenerationConfig config, ReportRequestQueue requests,
                     ReportUploader::ReportCallback callback) {
@@ -740,7 +740,7 @@ TEST_F(ReportSchedulerTest, ManualReportWithRegularOneOngoing) {
   EXPECT_CALL(callback, Run()).Times(1);
 
   // Trigger manual report and then release timer report callback.
-  scheduler_->UploadFullReport(callback.Get());
+  scheduler_->UploadReport(callback.Get());
   std::move(saved_timer_callback).Run(ReportUploader::kSuccess);
   task_environment_.RunUntilIdle();
 
@@ -822,8 +822,8 @@ TEST_F(ReportSchedulerTest, OnUpdateAndPersistentError) {
   histogram_tester_.ExpectUniqueSample(kUploadTriggerMetricName, 2, 1);
 }
 
-// Tests that a full report is generated and uploaded following a basic report
-// if the timer fires while the basic report is being uploaded.
+// Tests that a browser report is generated and uploaded following a browser
+// version report if the timer fires while the basic report is being uploaded.
 TEST_F(ReportSchedulerTest, DeferredTimer) {
   EXPECT_CALL_SetupRegistration();
   CreateScheduler();
@@ -862,16 +862,16 @@ TEST_F(ReportSchedulerTest, DeferredTimer) {
 
   // Once the previous upload completes, a new report should be generated
   // forthwith.
-  EXPECT_CALL(*generator_, OnGenerate(ReportType::kFull, _))
+  EXPECT_CALL(*generator_, OnGenerate(ReportType::kBrowser, _))
       .WillOnce(WithArgs<1>(ScheduleGeneratorCallback(1)));
   auto new_uploader = std::make_unique<MockReportUploader>();
-  EXPECT_CALL(
-      *new_uploader,
-      SetRequestAndUpload(ReportGenerationConfig(
-                              ReportTrigger::kTriggerTimer, ReportType::kFull,
-                              SecuritySignalsMode::kNoSignals,
-                              /*use_cookies=*/false),
-                          _, _))
+  EXPECT_CALL(*new_uploader,
+              SetRequestAndUpload(
+                  ReportGenerationConfig(ReportTrigger::kTriggerTimer,
+                                         ReportType::kBrowser,
+                                         SecuritySignalsMode::kNoSignals,
+                                         /*use_cookies=*/false),
+                  _, _))
       .WillOnce(RunOnceCallback<2>(ReportUploader::kSuccess));
   std::move(saved_callback).Run(ReportUploader::kSuccess);
   ExpectLastUploadTimestampUpdated(false);
@@ -924,7 +924,7 @@ TEST_F(ReportSchedulerTest, OnNewVersion) {
   histogram_tester_.ExpectUniqueSample(kUploadTriggerMetricName, 3, 1);
 }
 
-// Tests that a full report is generated and uploaded during startup when a
+// Tests that a browser report is generated and uploaded during startup when a
 // new version is being run and the last periodic upload was more than a day
 // ago.
 TEST_F(ReportSchedulerTest, OnNewVersionRegularReport) {
@@ -935,15 +935,15 @@ TEST_F(ReportSchedulerTest, OnNewVersionRegularReport) {
   SetLastUploadInHour(base::Hours(25));
 
   EXPECT_CALL_SetupRegistration();
-  EXPECT_CALL(*generator_, OnGenerate(ReportType::kFull, _))
+  EXPECT_CALL(*generator_, OnGenerate(ReportType::kBrowser, _))
       .WillOnce(WithArgs<1>(ScheduleGeneratorCallback(1)));
-  EXPECT_CALL(
-      *uploader_,
-      SetRequestAndUpload(ReportGenerationConfig(
-                              ReportTrigger::kTriggerTimer, ReportType::kFull,
-                              SecuritySignalsMode::kNoSignals,
-                              /*use_cookies=*/false),
-                          _, _))
+  EXPECT_CALL(*uploader_,
+              SetRequestAndUpload(
+                  ReportGenerationConfig(ReportTrigger::kTriggerTimer,
+                                         ReportType::kBrowser,
+                                         SecuritySignalsMode::kNoSignals,
+                                         /*use_cookies=*/false),
+                  _, _))
       .WillOnce(RunOnceCallback<2>(ReportUploader::kSuccess));
 
   CreateScheduler();
@@ -1116,7 +1116,7 @@ TEST_F(EnabledProfileSecuritySignalsReportSchedulerTest,
   EXPECT_TRUE(scheduler_->IsNextReportScheduledForTesting());
 
   base::RunLoop run_loop;
-  scheduler_->UploadFullReport(run_loop.QuitClosure());
+  scheduler_->UploadReport(run_loop.QuitClosure());
   run_loop.Run();
 
   histogram_tester_.ExpectTotalCount(kSignalsReportingModeMetricName, 0);
@@ -1165,7 +1165,7 @@ TEST_F(EnabledProfileSecuritySignalsReportSchedulerTest,
   scheduler_->QueueReportUploaderForTesting(std::move(second_uploader));
 
   base::RunLoop run_loop;
-  scheduler_->UploadFullReport(run_loop.QuitClosure());
+  scheduler_->UploadReport(run_loop.QuitClosure());
   run_loop.Run();
 
   // A status report with signals and a signals-only report
@@ -1215,7 +1215,7 @@ TEST_F(EnabledProfileSecuritySignalsReportSchedulerTest,
   scheduler_->QueueReportUploaderForTesting(std::move(second_uploader));
 
   base::RunLoop run_loop;
-  scheduler_->UploadFullReport(run_loop.QuitClosure());
+  scheduler_->UploadReport(run_loop.QuitClosure());
   run_loop.Run();
 
   histogram_tester_.ExpectUniqueSample(kSignalsReportingModeMetricName, 2, 2);
@@ -1235,7 +1235,7 @@ TEST_F(EnabledProfileSecuritySignalsReportSchedulerTest,
   EXPECT_FALSE(scheduler_->IsNextReportScheduledForTesting());
 
   base::RunLoop run_loop;
-  scheduler_->UploadFullReport(run_loop.QuitClosure());
+  scheduler_->UploadReport(run_loop.QuitClosure());
   run_loop.Run();
 
   histogram_tester_.ExpectTotalCount(kSignalsReportingModeMetricName, 0);

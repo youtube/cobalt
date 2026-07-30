@@ -27,6 +27,7 @@
 #include "base/time/time.h"
 #include "base/trace_event/memory_usage_estimator.h"
 #include "base/trace_event/trace_event.h"
+#include "build/android_buildflags.h"
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "components/history_embeddings/core/history_embeddings_features.h"
@@ -65,8 +66,10 @@
 #include "components/vector_icons/vector_icons.h"     // nogncheck
 #endif
 
-constexpr bool kIsDesktop = !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS);
 constexpr bool kIsAndroid = BUILDFLAG(IS_ANDROID);
+constexpr bool kIsDesktopAndroid = BUILDFLAG(IS_DESKTOP_ANDROID);
+constexpr bool kIsDesktop =
+    (!BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)) || kIsDesktopAndroid;
 
 namespace {
 
@@ -1678,7 +1681,7 @@ int AutocompleteMatch::GetSortingOrder() const {
     return 1;
   }
 
-  if constexpr (kIsAndroid) {
+  if constexpr (kIsAndroid && !kIsDesktopAndroid) {
     if (IsClipboardType(type)) {
       return 1;
     }

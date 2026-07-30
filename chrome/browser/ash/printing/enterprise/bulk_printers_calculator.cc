@@ -41,8 +41,8 @@ using PrinterCache = std::vector<std::optional<chromeos::Printer>>;
 using TaskData = std::unique_ptr<TaskDataInternal>;
 
 // Parses |data|, a JSON blob, into a vector of Printers.  If |data| cannot be
-// parsed, returns nullptr.  This is run off the UI thread as it could be very
-// slow.
+// parsed, returns std::nullopt.  This is run off the UI thread as it could be
+// very slow.
 std::optional<PrinterCache> ParsePrinters(std::unique_ptr<std::string> data) {
   if (!data) {
     PRINTER_LOG(ERROR) << "Failed to parse printers policy ("

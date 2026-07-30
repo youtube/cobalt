@@ -4,6 +4,8 @@
 
 #include <memory>
 #include <optional>
+#include <tuple>
+#include <utility>
 #include <vector>
 
 #include "base/containers/circular_deque.h"
@@ -18,6 +20,8 @@
 #include "chrome/browser/sync/test/integration/sync_test.h"
 #include "chrome/common/pref_names.h"
 #include "components/bookmarks/browser/bookmark_model.h"
+#include "components/prefs/pref_service.h"
+#include "components/signin/public/base/signin_switches.h"
 #include "components/sync/base/data_type.h"
 #include "components/sync/base/features.h"
 #include "components/sync/protocol/data_type_progress_marker.pb.h"
@@ -25,15 +29,18 @@
 #include "content/public/test/browser_test.h"
 
 using bookmarks_helper::AddURL;
+using bookmarks_helper::GetBookmarkModel;
 using bookmarks_helper::GetUniqueNodeByURL;
 using bookmarks_helper::IndexedURL;
 using bookmarks_helper::IndexedURLTitle;
+using bookmarks_helper::Remove;
 using bookmarks_helper::ServerBookmarksEqualityChecker;
 using bookmarks_helper::SetTitle;
 using bookmarks_helper::StoreType;
 
 using preferences_helper::BooleanPrefMatches;
 using preferences_helper::ChangeBooleanPref;
+using preferences_helper::GetPrefs;
 
 namespace {
 
@@ -176,15 +183,18 @@ class MigrationCompletionChecker : public SingleClientStatusChangeChecker {
   const syncer::DataTypeSet expected_types_;
 };
 
-class MigrationTest
-    : public SyncTest,
-      public testing::WithParamInterface<SyncTest::SetupSyncMode> {
+class MigrationTest : public SyncTest,
+                      public testing::WithParamInterface<
+                          std::tuple<SyncTest::SetupSyncMode, bool>> {
  public:
   explicit MigrationTest(TestType test_type) : SyncTest(test_type) {
     if (GetSetupSyncMode() == SetupSyncMode::kSyncTransportOnly) {
       scoped_feature_list_.InitWithFeatures(
           {syncer::kReplaceSyncPromosWithSignInPromos,
-           syncer::kSpellcheckSeparateLocalAndAccountDictionaries},
+           syncer::kSpellcheckSeparateLocalAndAccountDictionaries,
+           switches::kSyncEnableBookmarksInTransportMode,
+           syncer::kSeparateLocalAndAccountSearchEngines,
+           syncer::kSeparateLocalAndAccountThemes},
           {});
     }
   }
@@ -195,8 +205,10 @@ class MigrationTest
   ~MigrationTest() override = default;
 
   SyncTest::SetupSyncMode GetSetupSyncMode() const override {
-    return GetParam();
+    return std::get<0>(GetParam());
   }
+
+  bool UseGcDirective() const { return std::get<1>(GetParam()); }
 
   enum TriggerMethod { MODIFY_PREF, MODIFY_BOOKMARK, TRIGGER_REFRESH };
 
@@ -288,6 +300,13 @@ class MigrationTest
     }
   }
 
+  void SetUpOnMainThread() override {
+    SyncTest::SetUpOnMainThread();
+    if (UseGcDirective()) {
+      GetFakeServer()->EnableGcDirectiveForMigration();
+    }
+  }
+
   // Makes sure migration works with the given migration list and
   // trigger method.
   void RunMigrationTest(const MigrationList& migration_list,
@@ -331,10 +350,26 @@ class MigrationSingleClientTest : public MigrationTest {
   }
 };
 
+namespace {
+
+std::string ParamNameGenerator(
+    const testing::TestParamInfo<std::tuple<SyncTest::SetupSyncMode, bool>>&
+        info) {
+  std::string name = SetupSyncModeAsString(std::get<0>(info.param));
+  if (std::get<1>(info.param)) {
+    name += "_GcDirective";
+  } else {
+    name += "_MigrationDone";
+  }
+  return name;
+}
+
+}  // namespace
+
 INSTANTIATE_TEST_SUITE_P(,
                          MigrationSingleClientTest,
-                         GetSyncTestModes(),
-                         testing::PrintToStringParamName());
+                         testing::Combine(GetSyncTestModes(), testing::Bool()),
+                         ParamNameGenerator);
 
 // The simplest possible migration tests -- a single data type.
 
@@ -534,6 +569,195 @@ IN_PROC_BROWSER_TEST_P(MigrationSingleClientTest,
          "post-migration!";
 }
 
+IN_PROC_BROWSER_TEST_P(MigrationSingleClientTest,
+                       BookmarksMigrationPreservesLocalChanges) {
+  ASSERT_TRUE(SetupSync());
+
+  // 1. Create bookmark nodes before migration.
+  const bookmarks::BookmarkNode* const node_to_modify =
+      AddURL(0, u"Original Title", GURL("http://modify.com"), GetStoreType());
+  const bookmarks::BookmarkNode* const node_to_delete =
+      AddURL(0, u"To Delete", GURL("http://delete.com"), GetStoreType());
+  const bookmarks::BookmarkNode* const node_to_keep =
+      AddURL(0, u"To Keep", GURL("http://keep.com"), GetStoreType());
+  ASSERT_TRUE(node_to_modify);
+  ASSERT_TRUE(node_to_delete);
+  ASSERT_TRUE(node_to_keep);
+
+  // Wait until they get uploaded to the server.
+  ASSERT_TRUE(ServerBookmarksEqualityChecker(
+                  {{u"Original Title", GURL("http://modify.com")},
+                   {u"To Delete", GURL("http://delete.com")},
+                   {u"To Keep", GURL("http://keep.com")}},
+                  nullptr)
+                  .Wait());
+
+  // 2. Trigger migration for Bookmarks on the server.
+  TriggerMigrationDoneError({syncer::BOOKMARKS});
+
+  // 3. Make local changes (pending commit).
+  // - Add a new bookmark
+  const bookmarks::BookmarkNode* const node_added =
+      AddURL(0, u"Added Locally", GURL("http://added.com"), GetStoreType());
+  ASSERT_TRUE(node_added);
+  // - Modify the existing bookmark
+  SetTitle(0, node_to_modify, u"Modified Locally");
+  // - Delete the other bookmark
+  const bookmarks::BookmarkNode* parent = node_to_delete->parent();
+  size_t index = parent->GetIndexOf(node_to_delete).value();
+  Remove(0, parent, index);
+
+  // 4. Trigger migration on the client and wait for it.
+  TriggerSyncForDataTypes(0, {syncer::BOOKMARKS});
+  AwaitMigration({syncer::BOOKMARKS});
+
+  // 5. Verify the state of the local model and server.
+  const bool is_gc = UseGcDirective();
+  const bool is_transport =
+      GetSetupSyncMode() == SyncTest::SetupSyncMode::kSyncTransportOnly;
+
+  // 1. Verify local model state.
+  if (is_gc) {
+    // Preserved.
+    EXPECT_TRUE(
+        GetBookmarkModel(0)->GetNodesByURL(GURL("http://delete.com")).empty());
+    const bookmarks::BookmarkNode* modified_node =
+        GetUniqueNodeByURL(0, GURL("http://modify.com"));
+    ASSERT_TRUE(modified_node);
+    EXPECT_EQ(modified_node->GetTitle(), u"Modified Locally");
+    EXPECT_FALSE(
+        GetBookmarkModel(0)->GetNodesByURL(GURL("http://added.com")).empty());
+    EXPECT_FALSE(
+        GetBookmarkModel(0)->GetNodesByURL(GURL("http://keep.com")).empty());
+  } else {
+    // Legacy MigrationDone.
+    // Deletion and modification are lost.
+    EXPECT_FALSE(
+        GetBookmarkModel(0)->GetNodesByURL(GURL("http://delete.com")).empty());
+    const bookmarks::BookmarkNode* modified_node =
+        GetUniqueNodeByURL(0, GURL("http://modify.com"));
+    ASSERT_TRUE(modified_node);
+    EXPECT_EQ(modified_node->GetTitle(), u"Original Title");
+    EXPECT_FALSE(
+        GetBookmarkModel(0)->GetNodesByURL(GURL("http://keep.com")).empty());
+
+    // Addition is lost only in transport-only mode.
+    if (is_transport) {
+      EXPECT_TRUE(
+          GetBookmarkModel(0)->GetNodesByURL(GURL("http://added.com")).empty());
+    } else {
+      EXPECT_FALSE(
+          GetBookmarkModel(0)->GetNodesByURL(GURL("http://added.com")).empty());
+    }
+  }
+
+  // 2. Verify server state.
+  std::vector<ServerBookmarksEqualityChecker::ExpectedBookmark>
+      expected_server_bookmarks;
+  if (is_gc) {
+    expected_server_bookmarks = {
+        {u"Modified Locally", GURL("http://modify.com")},
+        {u"Added Locally", GURL("http://added.com")},
+        {u"To Keep", GURL("http://keep.com")}};
+  } else {
+    if (is_transport) {
+      expected_server_bookmarks = {
+          {u"To Delete", GURL("http://delete.com")},
+          {u"Original Title", GURL("http://modify.com")},
+          {u"To Keep", GURL("http://keep.com")}};
+    } else {
+      expected_server_bookmarks = {
+          {u"To Delete", GURL("http://delete.com")},
+          {u"Original Title", GURL("http://modify.com")},
+          {u"Added Locally", GURL("http://added.com")},
+          {u"To Keep", GURL("http://keep.com")}};
+    }
+  }
+
+  ASSERT_TRUE(ServerBookmarksEqualityChecker(expected_server_bookmarks, nullptr)
+                  .Wait());
+}
+
+IN_PROC_BROWSER_TEST_P(MigrationSingleClientTest,
+                       PrefsMigrationPreservesLocalChanges) {
+  ASSERT_TRUE(SetupSync());
+
+  const char* pref_name = prefs::kShowHomeButton;
+  const char* pref_to_keep = prefs::kHomePageIsNewTabPage;
+  PrefService* prefs = GetPrefs(0);
+
+  // Ensure we start with a known state (false).
+  if (prefs->GetBoolean(pref_name)) {
+    ChangeBooleanPref(0, pref_name);
+  }
+  if (prefs->GetBoolean(pref_to_keep)) {
+    ChangeBooleanPref(0, pref_to_keep);
+  }
+  ASSERT_TRUE(PrefValueChecker(prefs, pref_name, base::Value(false)).Wait());
+  ASSERT_TRUE(PrefValueChecker(prefs, pref_to_keep, base::Value(false)).Wait());
+
+  // 1. Change both prefs to true and sync them.
+  ChangeBooleanPref(0, pref_name);
+  ChangeBooleanPref(0, pref_to_keep);
+  ASSERT_TRUE(prefs->GetBoolean(pref_name));
+  ASSERT_TRUE(prefs->GetBoolean(pref_to_keep));
+  ASSERT_TRUE(PrefValueChecker(prefs, pref_name, base::Value(true)).Wait());
+  ASSERT_TRUE(PrefValueChecker(prefs, pref_to_keep, base::Value(true)).Wait());
+  ASSERT_TRUE(FakeServerPrefMatchesValueChecker(
+                  syncer::PREFERENCES, pref_name,
+                  preferences_helper::ConvertPrefValueToValueInSpecifics(
+                      base::Value(true)))
+                  .Wait());
+  ASSERT_TRUE(FakeServerPrefMatchesValueChecker(
+                  syncer::PREFERENCES, pref_to_keep,
+                  preferences_helper::ConvertPrefValueToValueInSpecifics(
+                      base::Value(true)))
+                  .Wait());
+
+  // 2. Change pref_name back to false locally (pending change).
+  // Keep pref_to_keep as true (no pending change).
+  ChangeBooleanPref(0, pref_name);
+  ASSERT_FALSE(prefs->GetBoolean(pref_name));
+  ASSERT_TRUE(prefs->GetBoolean(pref_to_keep));
+
+  // 3. Trigger migration for Preferences on the server.
+  TriggerMigrationDoneError({syncer::PREFERENCES});
+
+  // 4. Trigger migration on the client and wait for it.
+  TriggerSyncForDataTypes(0, {syncer::PREFERENCES});
+  AwaitMigration({syncer::PREFERENCES});
+
+  // 5. Verify the state of the local pref and server.
+  const bool is_gc = UseGcDirective();
+
+  // In all cases, pref_to_keep should remain true.
+  EXPECT_TRUE(prefs->GetBoolean(pref_to_keep));
+  EXPECT_TRUE(FakeServerPrefMatchesValueChecker(
+                  syncer::PREFERENCES, pref_to_keep,
+                  preferences_helper::ConvertPrefValueToValueInSpecifics(
+                      base::Value(true)))
+                  .Wait());
+
+  if (is_gc) {
+    // Preserved. Local should be false, and server should eventually be false.
+    EXPECT_FALSE(prefs->GetBoolean(pref_name));
+    EXPECT_TRUE(FakeServerPrefMatchesValueChecker(
+                    syncer::PREFERENCES, pref_name,
+                    preferences_helper::ConvertPrefValueToValueInSpecifics(
+                        base::Value(false)))
+                    .Wait());
+  } else {
+    // Lost. Local should revert to true (server value), and server remains
+    // true.
+    EXPECT_TRUE(prefs->GetBoolean(pref_name));
+    EXPECT_TRUE(FakeServerPrefMatchesValueChecker(
+                    syncer::PREFERENCES, pref_name,
+                    preferences_helper::ConvertPrefValueToValueInSpecifics(
+                        base::Value(true)))
+                    .Wait());
+  }
+}
+
 class MigrationTwoClientTest : public MigrationTest {
  public:
   MigrationTwoClientTest() : MigrationTest(TWO_CLIENT) {}
@@ -565,10 +789,17 @@ class MigrationTwoClientTest : public MigrationTest {
   }
 };
 
+#if defined(ADDRESS_SANITIZER) || defined(THREAD_SANITIZER) || \
+    defined(MEMORY_SANITIZER)
+// MigrationTwoClientTest is too slow to run under sanitizers (takes ~90s and
+// causes timeouts).
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(MigrationTwoClientTest);
+#else
 INSTANTIATE_TEST_SUITE_P(,
                          MigrationTwoClientTest,
-                         GetSyncTestModes(),
-                         testing::PrintToStringParamName());
+                         testing::Combine(GetSyncTestModes(), testing::Bool()),
+                         ParamNameGenerator);
+#endif
 
 // Easiest possible test of migration errors: triggers a server
 // migration on one datatype, then modifies some other datatype.

@@ -18,11 +18,6 @@ class MEDIA_EXPORT HlsNetworkAccess {
  public:
   virtual ~HlsNetworkAccess() = 0;
 
-  // Reads the encryption key from the url specified within, and posts the
-  // result back through `cb`.
-  virtual void ReadKey(const hls::MediaSegment::EncryptionData& data,
-                       HlsDataSourceProvider::ReadCb cb) = 0;
-
   // Reads the entirety of an HLS manifest from `uri`, and posts the result back
   // through `cb`.
   virtual void ReadManifest(const GURL& uri,

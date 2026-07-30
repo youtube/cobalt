@@ -120,6 +120,7 @@ std::unique_ptr<WebNNContextImpl, OnTaskRunnerDeleter> ContextImplOrt::Create(
     mojo::ScopedDataPipeConsumerHandle write_tensor_consumer,
     mojo::ScopedDataPipeProducerHandle read_tensor_producer,
     scoped_refptr<Environment> env,
+    scoped_refptr<SessionOptions> session_options,
     std::unique_ptr<GpuTaskScheduler> gpu_task_scheduler,
     scoped_refptr<gpu::MemoryTracker> memory_tracker,
     scoped_refptr<base::SingleThreadTaskRunner> owning_task_runner,
@@ -135,8 +136,6 @@ std::unique_ptr<WebNNContextImpl, OnTaskRunnerDeleter> ContextImplOrt::Create(
   // attributes from WebNN context options to determine ORT device type.
   OrtHardwareDeviceType device_type = WebnnToOrtDeviceType(options->device);
   const EpWorkarounds ep_workarounds = env->GetEpWorkarounds(device_type);
-  scoped_refptr<SessionOptions> session_options =
-      SessionOptions::Create(device_type, env);
 
   // The ONNX Runtime default CPU EP has a limitation that DequantizeLinear with
   // type int32 should have no zero point or all zero points should be 0. This
@@ -507,12 +506,10 @@ ContextImplOrt::CreateTensorImpl(
   const OrtApi* ort_api = PlatformFunctions::GetInstance()->ort_api();
 
   OrtAllocator* allocator = nullptr;
-  bool can_access_on_cpu = true;
-  // Use the device allocator if it's present and should be used. Otherwise, use
-  // the default allocator which is CPU based and non-arena.
-  if (device_allocator_ && device_allocator_->ShouldUse(tensor_info)) {
+  // Use the device allocator if it's present. Otherwise, use the default
+  // allocator which is CPU based and non-arena.
+  if (device_allocator_) {
     allocator = device_allocator_->get();
-    can_access_on_cpu = device_allocator_->CanAccessOnCPU();
   } else {
     // `GetAllocatorWithDefaultOptions()` always returns the same pointer to the
     // same default allocator and its returned value should NOT be freed.
@@ -543,7 +540,7 @@ ContextImplOrt::CreateTensorImpl(
 
   return base::MakeRefCounted<TensorImplOrt>(
       std::move(receiver), *this, std::move(tensor_info), size,
-      std::move(tensor), can_access_on_cpu, device_allocator_);
+      std::move(tensor), device_allocator_);
 }
 
 base::expected<scoped_refptr<WebNNTensorImpl>, mojom::ErrorPtr>

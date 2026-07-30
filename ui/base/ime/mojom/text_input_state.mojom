@@ -77,5 +77,11 @@ struct TextInputState {
 
   // Information of ime text spans at the cursor position.
   array<ImeTextSpanInfo> ime_text_spans_info;
+
+  // HTML metadata fields.
+  mojo_base.mojom.String16? html_label;
+  mojo_base.mojom.String16? html_name;
+  mojo_base.mojom.String16? html_id;
+  mojo_base.mojom.String16? html_placeholder;
 };
 

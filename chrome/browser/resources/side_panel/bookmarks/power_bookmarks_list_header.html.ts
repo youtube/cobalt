@@ -31,7 +31,7 @@ export function getHtml(this: PowerBookmarksListHeaderElement) {
   <cr-icon-button id="viewButton" slot="buttons"
       iron-icon="${this.getViewButtonIcon_()}"
       title="${this.getViewButtonTooltip_()}"
-      aria-label="${this.getViewButtonTooltip_()}"
+      aria-label="${this.getViewButtonA11yLabel_()}"
       @click="${this.onViewToggleClick_}">
   </cr-icon-button>
   <cr-icon-button id="editButton" slot="buttons" class="icon-edit"

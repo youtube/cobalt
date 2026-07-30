@@ -14,6 +14,8 @@ namespace storage {
 //
 // The numeric values are not guaranteed to be stable across Chrome versions.
 // Do not save them to persistent logs, preferences, etc.
+// TODO(crbug.com/522247731): Add linter here to ensure that when this is
+// modified the rust enum is modified as well.
 enum FileSystemType {
   // Indicates uninitialized or invalid filesystem type.
   kFileSystemTypeUnknown = -1,

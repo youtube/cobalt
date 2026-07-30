@@ -269,6 +269,7 @@ I motsatt fall blir dette blokkert av personverninnstillingene. Dette gjør at i
 <translation id="1407135791313364759">Åpne alle</translation>
 <translation id="1408696301184924537">For å fylle ut dette IBAN-nummeret automatisk neste gang, lagre det i Google-kontoen din</translation>
 <translation id="1408787208417187241">Tre stifter topp</translation>
+<translation id="1410306713026702438"><ph name="SUGGESTION_TITLE" />, <ph name="SUGGESTION_DESCRIPTION" />. <ph name="SUGGESTION_TYPE" />. <ph name="MATCH_POSITION" /> av <ph name="NUM_MATCHES_IN_GROUP" /> i gruppen <ph name="GROUP_HEADER" />.</translation>
 <translation id="1410365862999780287">Andre som bruker denne enheten, ser ikke aktiviteten din. Dermed kan du surfe mer privat. Dette endrer ikke hvordan data samles inn av nettsteder du besøker, eller tjenestene disse bruker, inkludert Google. Nedlastinger, bokmerker og elementer på leselisten blir lagret.</translation>
 <translation id="1410941016594047814">Invite-konvolutt</translation>
 <translation id="1413235258620101697">Verifiseringskoden for dette kortet krypteres og lagres i Google Wallet for raskere betaling</translation>
@@ -300,6 +301,7 @@ I motsatt fall blir dette blokkert av personverninnstillingene. Dette gjør at i
 <translation id="1445896388055045436">Vis tilgjengelige kortfordeler og -belønninger i kassen. Utstederens vilkår gjelder.</translation>
 <translation id="1447067628680007684">(x86_64)</translation>
 <translation id="1448166547804028941">Nøklene «<ph name="DATA_CONTROLS_FIRST_KEY_SET" />» kan ikke være angitt i samme ordliste som nøklene «<ph name="DATA_CONTROLS_SECOND_KEY_SET" />»</translation>
+<translation id="1449251255954293933">Lagre Redress Number i Google Wallet</translation>
 <translation id="1455413310270022028">Viskelær</translation>
 <translation id="1457992721081300557">{NUM_REVIEWS,plural, =0{Vis 0 anmeldelser}=1{Vis 1 anmeldelse}other{Vis alle # anmeldelsene}}</translation>
 <translation id="1458059624921545588">Personer og samfunn</translation>
@@ -660,6 +662,7 @@ I motsatt fall blir dette blokkert av personverninnstillingene. Dette gjør at i
 <translation id="2045871135676061132">Personal-konvolutt</translation>
 <translation id="2046951263634619614">Bokhandlere</translation>
 <translation id="2048261947532620704">Oversetter siden</translation>
+<translation id="2055016614992422886">Samtale</translation>
 <translation id="2059166748188874810">Kommune</translation>
 <translation id="2059202684901022309">22 x 34 tommer</translation>
 <translation id="2064568741209980952">Kreditt og lån</translation>
@@ -1155,6 +1158,7 @@ I motsatt fall blir dette blokkert av personverninnstillingene. Dette gjør at i
 <translation id="2782088940970074970">Bilutleie</translation>
 <translation id="278436560439594386">Hvitevarer</translation>
 <translation id="2784474685437057136">B5 Extra</translation>
+<translation id="2784795832957740711">Passord · Passnøkler</translation>
 <translation id="2784949926578158345">Tilkoblingen ble tilbakestilt.</translation>
 <translation id="2786008859124691917">Sykler og tilbehør</translation>
 <translation id="2792012897584536778">Enhetsadministratorene har satt opp sikkerhetssertifikater som kan gjøre det mulig for dem å se innholdet på nettsteder du besøker.</translation>
@@ -2305,6 +2309,7 @@ Gå til <ph name="BEGIN_LINK" />betalingsinnstillingene<ph name="END_LINK" /> fo
 <translation id="46128681529823442">Fotballutstyr</translation>
 <translation id="4612904677925722054">Dette nettstedet kan ha innhold for voksne. En forelder eller foresatt må gi deg lov til å besøke dette nettstedet.</translation>
 <translation id="4619564267100705184">Bekreft at det er deg</translation>
+<translation id="4619669610757527494">Lagre førerkortet i Google Wallet</translation>
 <translation id="4622292761762557753">Overfør likevel</translation>
 <translation id="4622647778991854660">Slå på varsler i varselsenteret. Åpne <ph name="LINK" />.</translation>
 <translation id="4623894491222334521">Identitetsdokumenter</translation>
@@ -2834,6 +2839,7 @@ Gå til <ph name="BEGIN_LINK" />betalingsinnstillingene<ph name="END_LINK" /> fo
 <translation id="543656192084990644">Bevegelsessensorer er ikke tillatt</translation>
 <translation id="5441409130426352029"><ph name="ATTRIBUTE_VALUE" /> – før <ph name="PREVIOUS_VALUE" /></translation>
 <translation id="5443468954631487277">Motsatt rekkefølge – forsiden opp</translation>
+<translation id="5447103258548475868">Lagre passet i Google Wallet</translation>
 <translation id="5447235695608032700">Tillat at <ph name="SITE" /> bruker informasjon de har lagret om deg</translation>
 <translation id="5447973833955560753">Gjenopprettingspassord</translation>
 <translation id="5451331376824595378">Når Chrome flagger sikkerhetshendelser, sendes relevante data om hendelsen til administratoren din. Dette kan omfatte nettadressene til sider du besøker i Chrome, nettadressene til sider du har kopiert data fra, filnavn eller metadata, IP-adresser, nettleser- eller fanekrasj og brukernavnet du bruker for å logge på nettbaserte apper, enheten din og Chrome.</translation>
@@ -3016,6 +3022,7 @@ Gå til <ph name="BEGIN_LINK" />betalingsinnstillingene<ph name="END_LINK" /> fo
 <translation id="5718601519531438273">Inkluderer informasjon som pass og førerkort</translation>
 <translation id="5720705177508910913">Gjeldende bruker</translation>
 <translation id="5720895412771013401">Stasjonære datamaskiner</translation>
+<translation id="5721147290164931316">Skann for å logge på med telefonen</translation>
 <translation id="5721367770070844253">{count,plural, =1{{website_1}}=2{{website_1} og {website_2}}=3{{website_1}, {website_2} og 1 til}other{{website_1}, {website_2} og {more_count} til}}</translation>
 <translation id="572328651809341494">Nylige faner</translation>
 <translation id="5723873695528696965">kontrollere og omprogrammere MIDI-enhetene dine</translation>
@@ -3557,6 +3564,7 @@ Gå til <ph name="BEGIN_LINK" />betalingsinnstillingene<ph name="END_LINK" /> fo
 <translation id="6550245281449521513">Muselås er ikke tillatt</translation>
 <translation id="6551737294564628267"><ph name="ATTRIBUTE_NAME" />, nyhet</translation>
 <translation id="6552566579578780089">Betalinger</translation>
+<translation id="6553777254569586547"><ph name="SUGGESTION_TITLE" />. <ph name="SUGGESTION_TYPE" />. <ph name="MATCH_POSITION" /> av <ph name="NUM_MATCHES_IN_GROUP" /> i gruppen <ph name="GROUP_HEADER" />.</translation>
 <translation id="6554732001434021288">Sist besøkt for <ph name="NUM_DAYS" /> dager siden</translation>
 <translation id="6556866813142980365">Gjør om</translation>
 <translation id="6557715786897013164">14 x 17 tommer</translation>
@@ -4233,6 +4241,7 @@ Gå til <ph name="BEGIN_LINK" />betalingsinnstillingene<ph name="END_LINK" /> fo
 <translation id="7599089013883397081">Nedlastingen ble tidsavbrutt</translation>
 <translation id="7602868996817972616">Spør Google om denne siden</translation>
 <translation id="7606123685356405076">Gemini 3-modeller</translation>
+<translation id="760632772920590778">Lagre kjøretøyet i Google Wallet</translation>
 <translation id="7610193165460212391">Verdien er utenfor rekkevidden <ph name="VALUE" />.</translation>
 <translation id="761261689936461781">Tykk</translation>
 <translation id="7613889955535752492">Utløpsdato: <ph name="EXPIRATION_MONTH" />/<ph name="EXPIRATION_YEAR" /></translation>
@@ -4261,7 +4270,9 @@ Gå til <ph name="BEGIN_LINK" />betalingsinnstillingene<ph name="END_LINK" /> fo
 <translation id="7646681339175747202">Passordet du nettopp brukte, er funnet i et databrudd. Google Passordlagring anbefaler at du endrer passordet nå.</translation>
 <translation id="7647206758853451655">Utskriftskvalitet</translation>
 <translation id="7648133459447652947">For å vise markøren, bytt app, last inn siden på nytt eller gå tilbake</translation>
+<translation id="764847582138410250">Skann for å logge på med telefonen</translation>
 <translation id="7648527891719919697">Dette nettstedet forblir blokkert fordi du har Avansert beskyttelse påslått i <ph name="BEGIN_ANDROID_SETTINGS_LINK" />Android-innstillingene<ph name="END_ANDROID_SETTINGS_LINK" />. <ph name="BEGIN_LEARN_MORE_LINK" />Finn ut mer om denne advarselen<ph name="END_LEARN_MORE_LINK" /></translation>
+<translation id="7648900539798595789">Lagre Known Traveler Number i Google Wallet</translation>
 <translation id="7648992873808071793">lagre filer på denne enheten</translation>
 <translation id="7649070708921625228">Hjelp</translation>
 <translation id="7650141368285545431">Bruk passnøkkel fra en annen enhet</translation>
@@ -4354,6 +4365,7 @@ Gå til <ph name="BEGIN_LINK" />betalingsinnstillingene<ph name="END_LINK" /> fo
 <translation id="7773005668374414287">Samme rekkefølge – forsiden opp</translation>
 <translation id="7779418012194492374">Opphev tilgangen for <ph name="DEVICE_NAME" /></translation>
 <translation id="7781829728241885113">I går</translation>
+<translation id="7782228658217918863">Lagre identitetskortet i Google Wallet</translation>
 <translation id="7782465647372057580">Kontoinformasjonen krypteres og holdes privat</translation>
 <translation id="7785471469930192436">Se eventuelt instruksjonene fra søkemotoren din om hvordan du sletter søkeloggen</translation>
 <translation id="7785790577395078482">dette nettbrettet</translation>

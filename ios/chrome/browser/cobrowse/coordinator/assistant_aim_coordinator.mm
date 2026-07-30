@@ -13,8 +13,10 @@
 #import "ios/chrome/browser/assistant/ui/assistant_container_view_controller.h"
 #import "ios/chrome/browser/cobrowse/coordinator/assistant_aim_mediator.h"
 #import "ios/chrome/browser/cobrowse/debugger/aim_srp_debugger_breadcrumbs_view_controller.h"
+#import "ios/chrome/browser/cobrowse/debugger/aim_srp_debugger_url_view_controller.h"
 #import "ios/chrome/browser/cobrowse/model/cobrowse_browser_agent.h"
 #import "ios/chrome/browser/cobrowse/model/cobrowse_context.h"
+#import "ios/chrome/browser/cobrowse/model/cobrowse_util.h"
 #import "ios/chrome/browser/cobrowse/model/ios_contextual_tasks_service_factory.h"
 #import "ios/chrome/browser/cobrowse/ui/assistant_aim_ui_constants.h"
 #import "ios/chrome/browser/cobrowse/ui/assistant_aim_view_controller.h"
@@ -31,16 +33,24 @@
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/open_new_tab_command.h"
 #import "ios/chrome/browser/shared/public/commands/scene_commands.h"
+#import "ios/chrome/browser/shared/public/commands/snackbar_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
+#import "ios/chrome/browser/shared/public/snackbar/snackbar_message.h"
+#import "ios/chrome/browser/shared/public/snackbar/snackbar_message_action.h"
+#import "ios/chrome/browser/signin/model/authentication_service_factory.h"
 #import "ios/chrome/browser/tabs/model/tab_helper_filter.h"
 #import "ios/chrome/browser/tabs/model/tab_helper_util.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_browser_agent.h"
+#import "ios/chrome/grit/ios_strings.h"
 #import "ios/web/public/web_state.h"
+#import "ui/base/l10n/l10n_util_mac.h"
+#import "url/gurl.h"
 
-@interface AssistantAIMCoordinator () <AssistantAIMViewControllerDelegate,
-                                       AssistantContainerDelegate,
+@interface AssistantAIMCoordinator () <AIMSRPDebuggerURLViewControllerDelegate,
                                        AssistantAIMMediatorDelegate,
-                                       TabGridStateObserver>
+                                       AssistantAIMViewControllerDelegate,
+                                       AssistantContainerDelegate,
+                                       TabGridStateObserving>
 
 // Returns whether the tab grid is currently visible.
 - (BOOL)isTabGridVisible;
@@ -76,9 +86,13 @@ class AssistantAIMUIStateProvider
   __weak id<AssistantContainerCommands> _containerHandler;
 }
 
+- (instancetype)initWithBaseViewController:(UIViewController*)viewController
+                                   browser:(Browser*)browser {
+  CHECK(IsAimCobrowseEligible(browser->GetProfile()));
+  return [super initWithBaseViewController:viewController browser:browser];
+}
 
 - (void)start {
-  CHECK(IsAimCobrowseEnabled());
   if (base::FeatureList::IsEnabled(kAssistantAimMinimizedState)) {
     _currentDetent = AssistantContainerDetent::kMinimized;
   } else {
@@ -102,29 +116,24 @@ class AssistantAIMUIStateProvider
   _containerHandler = HandlerForProtocol(self.browser->GetCommandDispatcher(),
                                          AssistantContainerCommands);
 
-  web::WebState::CreateParams params(self.browser->GetProfile());
-  CobrowseContext* context = agent ? agent->GetCobrowseContext() : nil;
-  if (!context) {
-    context = [CobrowseContext defaultContext];
-    if (agent) {
-      agent->SetCobrowseContext(context);
-    }
-  }
   contextual_tasks::ContextualTasksService* contextualTasksService = nullptr;
   if (IsCobrowseAimHistoryEnabled()) {
     contextualTasksService = IOSContextualTasksServiceFactory::GetForProfile(
         self.browser->GetProfile());
   }
 
+  web::WebState::CreateParams params(self.browser->GetProfile());
   std::unique_ptr<web::WebState> webState = web::WebState::Create(params);
   AttachTabHelpers(webState.get(), TabHelperFilter::kAssistantAim);
 
   _mediator = [[AssistantAIMMediator alloc]
             initWithWebState:std::move(webState)
-                     context:context
+        cobrowseBrowserAgent:agent
             containerHandler:_containerHandler
       contextualTasksService:contextualTasksService
-                   URLLoader:UrlLoadingBrowserAgent::FromBrowser(self.browser)];
+                   URLLoader:UrlLoadingBrowserAgent::FromBrowser(self.browser)
+       authenticationService:AuthenticationServiceFactory::GetForProfile(
+                                 self.browser->GetProfile())];
 
   _mediator.delegate = self;
   _mediator.sceneHandler =
@@ -213,7 +222,7 @@ class AssistantAIMUIStateProvider
   return self.browser->GetSceneState().tabGridState.tabGridVisible;
 }
 
-#pragma mark - TabGridStateObserver
+#pragma mark - TabGridStateObserving
 
 - (void)willEnterTabGrid {
   [self setVisible:NO];
@@ -232,6 +241,7 @@ class AssistantAIMUIStateProvider
   CHECK(browserAgent);
   browserAgent->SetSessionActive(false);
   [self dismissAssistantContainerAnimated:YES];
+  [self showUndoSnackbar];
 }
 
 - (void)assistantAIMViewController:(AssistantAIMViewController*)viewController
@@ -290,6 +300,34 @@ class AssistantAIMUIStateProvider
   }
 }
 
+// Shows the undo snackbar with a confirmation message.
+//
+// While the snackbar is shown the assistant is hidden. If the user presses
+// "undo" the assistant is revealed, otherwise it is permanently closed.
+- (void)showUndoSnackbar {
+  __weak id<SceneCommands> sceneHandler =
+      HandlerForProtocol(self.browser->GetCommandDispatcher(), SceneCommands);
+  __block BOOL didUndo = NO;
+  SnackbarMessage* message = [[SnackbarMessage alloc]
+      initWithTitle:l10n_util::GetNSString(IDS_IOS_AIM_CLOSE_SNACKBAR_TITLE)];
+
+  message.action = [[SnackbarMessageAction alloc] init];
+  message.action.title =
+      l10n_util::GetNSString(IDS_IOS_AIM_SNACKBAR_UNDO_BUTTON);
+  message.action.handler = ^{
+    didUndo = YES;
+    [sceneHandler revealAssistant];
+  };
+  message.completionHandler = ^(BOOL success) {
+    if (!didUndo) {
+      [sceneHandler closeAssistant];
+    }
+  };
+
+  [HandlerForProtocol(self.browser->GetCommandDispatcher(), SnackbarCommands)
+      showSnackbarMessage:message];
+}
+
 #pragma mark - AssistantContainerDelegate
 
 - (void)assistantContainer:(AssistantContainerViewController*)container
@@ -332,6 +370,10 @@ class AssistantAIMUIStateProvider
   [self dismissKeyboard];
 }
 
+- (void)assistantAIMMediatorDidStartNewThread:(AssistantAIMMediator*)mediator {
+  [self dismissKeyboard];
+}
+
 - (BOOL)assistantContainer:(AssistantContainerViewController*)container
      shouldPauseScrollView:(UIScrollView*)scrollView
                 forGesture:(UIGestureRecognizer*)otherGesture {
@@ -355,6 +397,26 @@ class AssistantAIMUIStateProvider
   [_viewController presentViewController:navController
                                 animated:YES
                               completion:nil];
+}
+
+- (void)assistantAIMViewControllerDidRequestLoadedURL:
+    (AssistantAIMViewController*)viewController {
+  AIMSRPDebuggerURLViewController* URLVC =
+      [[AIMSRPDebuggerURLViewController alloc] initWithURL:_mediator.loadedURL];
+  URLVC.delegate = self;
+  UINavigationController* navController =
+      [[UINavigationController alloc] initWithRootViewController:URLVC];
+  [_viewController presentViewController:navController
+                                animated:YES
+                              completion:nil];
+}
+
+#pragma mark - AIMSRPDebuggerURLViewControllerDelegate
+
+- (void)debuggerURLViewController:
+            (AIMSRPDebuggerURLViewController*)viewController
+                     didUpdateURL:(const GURL&)url {
+  [_mediator loadURL:url];
 }
 
 @end

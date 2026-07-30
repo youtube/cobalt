@@ -20,6 +20,5 @@ include_rules = [
   "+chrome/browser/chromeos/printing",
   "+chrome/browser/printing",
   "+chrome/browser/profiles",
-  "+chrome/common/pref_names.h",
   "+chrome/test/base",
 ]

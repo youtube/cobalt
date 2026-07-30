@@ -57,7 +57,10 @@ class CORE_EXPORT LayoutImageResource
   }
   ResourcePriority ComputeResourcePriority() const;
 
+  // Kept as the legacy reset path when SvgImageAnimationReset is disabled.
+  // The enabled path resets the image directly and uses InvalidatePaint().
   void ResetAnimation();
+  void InvalidatePaint();
   bool MaybeAnimated() const;
 
   virtual scoped_refptr<Image> GetImage(const gfx::SizeF&) const;

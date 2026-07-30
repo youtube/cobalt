@@ -5,6 +5,7 @@
 #include "third_party/blink/renderer/controller/blink_leak_detector.h"
 
 #include "base/command_line.h"
+#include "base/dcheck_is_on.h"
 #include "base/task/single_thread_task_runner.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "third_party/blink/public/common/switches.h"
@@ -173,7 +174,7 @@ void BlinkLeakDetector::ReportResult() {
   result->number_of_live_resource_fetchers =
       InstanceCounters::CounterValue(InstanceCounters::kResourceFetcherCounter);
 
-#ifndef NDEBUG
+#if DCHECK_IS_ON()
   ShowLiveDocumentInstances();
 #endif
 

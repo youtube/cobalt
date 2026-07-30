@@ -119,10 +119,8 @@ class TestRenderWidgetHostView : public RenderWidgetHostViewBase,
   void OnUnconfirmedTapConvertedToTap() override;
 
   void TakeFallbackContentFrom(RenderWidgetHostView* view) override;
-  void EnsureSurfaceSynchronizedForWebTest() override;
 
   // RenderWidgetHostViewBase:
-  uint32_t GetCaptureSequenceNumber() const override;
   void InitAsPopup(RenderWidgetHostView* parent_host_view,
                    const gfx::Rect& bounds,
                    const gfx::Rect& anchor_rect) override {}
@@ -198,11 +196,6 @@ class TestRenderWidgetHostView : public RenderWidgetHostViewBase,
   ui::DummyTextInputClient text_input_client_;
 #endif
   ui::Cursor last_cursor_;
-
-  // Latest capture sequence number which is incremented when the caller
-  // requests surfaces be synchronized via
-  // EnsureSurfaceSynchronizedForWebTest().
-  uint32_t latest_capture_sequence_number_ = 0u;
 
   bool clear_fallback_surface_for_commit_pending_called_ = false;
   bool take_fallback_content_from_called_ = false;

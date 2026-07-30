@@ -217,6 +217,7 @@ export class ManagedUserProfileNoticeAppRefreshElement extends
         break;
       case ScreenType.ENTERPRISE_ACCOUNT_CREATION:
       case ScreenType.ENTERPRISE_OIDC:
+      case ScreenType.DEVICE_SIGNALS_DISCLAIMER:
         assertNotReached();
       default:
         assertNotReachedCase(screenType);

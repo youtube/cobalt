@@ -435,6 +435,7 @@ public class AwContentsTest extends AwParameterizedTest {
     @Test
     @SmallTest
     @Feature({"AndroidWebView"})
+    @CommandLineFlags.Add({"enable-features=WebViewDownloadFavicons"})
     public void testGetFavicon() throws Throwable {
         mActivityTestRule.startBrowserProcess();
         AwSettings.setShouldDownloadFaviconsGlobal();

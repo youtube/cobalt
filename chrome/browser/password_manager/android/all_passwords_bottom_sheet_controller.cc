@@ -8,7 +8,6 @@
 #include <vector>
 
 #include "chrome/browser/password_manager/chrome_password_manager_client.h"
-#include "chrome/browser/plus_addresses/plus_address_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/safe_browsing/chrome_password_reuse_detection_manager_client.h"
 #include "chrome/browser/ui/android/passwords/all_passwords_bottom_sheet_view.h"
@@ -21,7 +20,6 @@
 #include "components/password_manager/core/browser/password_manager_metrics_util.h"
 #include "components/password_manager/core/browser/password_store/password_form_converters.h"
 #include "components/password_manager/core/browser/password_store/password_store_interface.h"
-#include "components/plus_addresses/core/browser/plus_address_service.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/gfx/native_ui_types.h"
 
@@ -51,9 +49,7 @@ AllPasswordsBottomSheetController::AllPasswordsBottomSheetController(
       focused_field_type_(focused_field_type),
       client_(client),
       password_reuse_detection_manager_client_(
-          password_reuse_detection_manager_client),
-      plus_address_service_(PlusAddressServiceFactory::GetForBrowserContext(
-          web_contents_->GetBrowserContext())) {}
+          password_reuse_detection_manager_client) {}
 
 AllPasswordsBottomSheetController::AllPasswordsBottomSheetController(
     content::WebContents* web_contents,
@@ -66,9 +62,7 @@ AllPasswordsBottomSheetController::AllPasswordsBottomSheetController(
       profile_store_(profile_store),
       account_store_(account_store),
       dismissal_callback_(std::move(dismissal_callback)),
-      focused_field_type_(focused_field_type),
-      plus_address_service_(PlusAddressServiceFactory::GetForBrowserContext(
-          web_contents_->GetBrowserContext())) {
+      focused_field_type_(focused_field_type) {
   CHECK(web_contents_);
   CHECK(profile_store);
   CHECK(dismissal_callback_);
@@ -179,12 +173,6 @@ void AllPasswordsBottomSheetController::OnDismiss() {
 
 const GURL& AllPasswordsBottomSheetController::GetFrameUrl() {
   return driver_->GetLastCommittedURL();
-}
-
-bool AllPasswordsBottomSheetController::IsPlusAddress(
-    const std::string& potential_plus_address) const {
-  return plus_address_service_ &&
-         plus_address_service_->IsPlusAddress(potential_plus_address);
 }
 
 void AllPasswordsBottomSheetController::OnReauthCompleted(

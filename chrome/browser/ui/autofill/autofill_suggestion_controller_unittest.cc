@@ -82,37 +82,6 @@ using TestAutofillSuggestionControllerAutofillClient =
     TestAutofillPopupControllerAutofillClient<>;
 #endif
 
-content::RenderFrameHost* CreateAndNavigateChildFrame(
-    content::RenderFrameHost* parent,
-    const GURL& url,
-    std::string_view name) {
-  content::RenderFrameHost* rfh =
-      content::RenderFrameHostTester::For(parent)->AppendChild(
-          std::string(name));
-  // ContentAutofillDriverFactory::DidFinishNavigation() creates a driver for
-  // subframes only if
-  // `NavigationHandle::HasSubframeNavigationEntryCommitted()` is true. This
-  // is not the case for the first navigation. (In non-unit-tests, the first
-  // navigation creates a driver in
-  // ContentAutofillDriverFactory::BindAutofillDriver().) Therefore,
-  // we simulate *two* navigations here, and explicitly set the transition
-  // type for the second navigation.
-  std::unique_ptr<content::NavigationSimulator> simulator;
-  // First navigation: `HasSubframeNavigationEntryCommitted() == false`.
-  // Must be a different URL from the second navigation.
-  GURL about_blank("about:blank");
-  CHECK_NE(about_blank, url);
-  simulator =
-      content::NavigationSimulator::CreateRendererInitiated(about_blank, rfh);
-  simulator->Commit();
-  rfh = simulator->GetFinalRenderFrameHost();
-  // Second navigation: `HasSubframeNavigationEntryCommitted() == true`.
-  // Must set the transition type to ui::PAGE_TRANSITION_MANUAL_SUBFRAME.
-  simulator = content::NavigationSimulator::CreateRendererInitiated(url, rfh);
-  simulator->SetTransition(ui::PAGE_TRANSITION_MANUAL_SUBFRAME);
-  simulator->Commit();
-  return simulator->GetFinalRenderFrameHost();
-}
 
 content::RenderFrameHost* NavigateAndCommitFrame(content::RenderFrameHost* rfh,
                                                  const GURL& url) {

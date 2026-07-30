@@ -29,6 +29,7 @@
 #include "ash/wm/window_state.h"
 #include "base/bit_cast.h"
 #include "base/compiler_specific.h"
+#include "base/containers/span.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "base/notimplemented.h"
@@ -1379,7 +1380,11 @@ class WaylandAuraShell : public ash::DesksController::Observer,
       std::string name = base::UTF16ToUTF8(desk->name());
       char* desk_name =
           static_cast<char*>(wl_array_add(&desk_names, name.size() + 1));
-      UNSAFE_TODO(strcpy(desk_name, name.c_str()));
+      // SAFETY: wl_array_add allocates name.size() + 1 bytes, so desk_name
+      // points to a buffer of at least that size.
+      auto dest_span = UNSAFE_BUFFERS(base::span(desk_name, name.size() + 1));
+      dest_span.first(name.size()).copy_from(name);
+      dest_span[name.size()] = '\0';
     }
 
     zaura_shell_send_desks_changed(aura_shell_resource_, &desk_names);

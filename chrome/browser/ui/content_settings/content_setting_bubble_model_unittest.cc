@@ -211,7 +211,13 @@ INSTANTIATE_TEST_SUITE_P(
         std::make_tuple(CONTENT_SETTING_ALLOW, CONTENT_SETTING_BLOCK),
         std::make_tuple(CONTENT_SETTING_BLOCK, CONTENT_SETTING_ALLOW)));
 
-TEST_F(ContentSettingBubbleModelTest, MediastreamMicAndCamera) {
+// TODO(crbug.com/522276380): Re-enable this test
+#if BUILDFLAG(IS_MAC)
+#define MAYBE_MediastreamMicAndCamera DISABLED_MediastreamMicAndCamera
+#else
+#define MAYBE_MediastreamMicAndCamera MediastreamMicAndCamera
+#endif
+TEST_F(ContentSettingBubbleModelTest, MAYBE_MediastreamMicAndCamera) {
   WebContentsTester::For(web_contents())
       ->NavigateAndCommit(GURL("https://www.example.com"));
   // Required to break dependency on BrowserMainLoop.
@@ -391,7 +397,13 @@ TEST_F(ContentSettingBubbleModelTest, MediastreamContentBubble) {
   }
 }
 
-TEST_F(ContentSettingBubbleModelTest, MediastreamMic) {
+// TODO(crbug.com/514291799): Re-enable when not flakey on Mac.
+#if BUILDFLAG(IS_MAC)
+#define MAYBE_MediastreamMic DISABLED_MediastreamMic
+#else
+#define MAYBE_MediastreamMic MediastreamMic
+#endif
+TEST_F(ContentSettingBubbleModelTest, MAYBE_MediastreamMic) {
   // Keep `kLeftHandSideActivityIndicators` disabled to test camera/mic content
   // setting bubble.
   base::test::ScopedFeatureList scoped_list;
@@ -460,7 +472,13 @@ TEST_F(ContentSettingBubbleModelTest, MediastreamMic) {
   EXPECT_FALSE(new_bubble_content.manage_text.empty());
 }
 
-TEST_F(ContentSettingBubbleModelTest, MediastreamCamera) {
+// TODO(crbug.com/522276380): Re-enable this test
+#if BUILDFLAG(IS_MAC)
+#define MAYBE_MediastreamCamera DISABLED_MediastreamCamera
+#else
+#define MAYBE_MediastreamCamera MediastreamCamera
+#endif
+TEST_F(ContentSettingBubbleModelTest, MAYBE_MediastreamCamera) {
   // Keep `kLeftHandSideActivityIndicators` disabled to test camera/mic content
   // setting bubble.
   base::test::ScopedFeatureList scoped_list;
@@ -530,7 +548,15 @@ TEST_F(ContentSettingBubbleModelTest, MediastreamCamera) {
   EXPECT_FALSE(new_bubble_content.manage_text.empty());
 }
 
-TEST_F(ContentSettingBubbleModelTest, AccumulateMediastreamMicAndCamera) {
+// TODO(crbug.com/514291799): Re-enable when not flakey on Mac.
+#if BUILDFLAG(IS_MAC)
+#define MAYBE_AccumulateMediastreamMicAndCamera \
+  DISABLED_AccumulateMediastreamMicAndCamera
+#else
+#define MAYBE_AccumulateMediastreamMicAndCamera \
+  AccumulateMediastreamMicAndCamera
+#endif
+TEST_F(ContentSettingBubbleModelTest, MAYBE_AccumulateMediastreamMicAndCamera) {
   // Keep `kLeftHandSideActivityIndicators` disabled to test camera/mic content
   // setting bubble.
   base::test::ScopedFeatureList scoped_list;

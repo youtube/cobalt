@@ -78,12 +78,6 @@ void ExtensionSettingsTestBase::SetDevModeEnabled(bool enabled) {
                                        enabled);
 }
 
-void ExtensionSettingsTestBase::SetSilenceDeprecatedManifestVersionWarnings(
-    bool silence) {
-  Extension::set_silence_deprecated_manifest_version_warnings_for_testing(
-      silence);
-}
-
 const Extension* ExtensionSettingsTestBase::InstallExtension(
     const base::FilePath& path) {
   extensions::ChromeTestExtensionLoader loader(GetProfile());

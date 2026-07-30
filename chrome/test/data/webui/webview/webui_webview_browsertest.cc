@@ -217,6 +217,7 @@ class WebUIWebViewBrowserPEPCTest : public WebUIWebViewBrowserTest {
   WebUIWebViewBrowserPEPCTest() {
     scoped_feature_list_.InitWithFeatures(
         {blink::features::kUserMediaElement,
+         blink::features::kUserMediaElementLegacy,
          blink::features::kBypassPepcSecurityForTesting},
         {});
   }

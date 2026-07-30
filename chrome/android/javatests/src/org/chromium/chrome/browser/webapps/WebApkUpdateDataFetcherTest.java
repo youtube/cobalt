@@ -6,12 +6,14 @@ package org.chromium.chrome.browser.webapps;
 
 import androidx.test.filters.MediumTest;
 
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import org.chromium.base.ThreadUtils;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
 import org.chromium.base.test.util.Batch;
@@ -73,6 +75,7 @@ public class WebApkUpdateDataFetcherTest {
     private EmbeddedTestServer mTestServer;
     private WebPageStation mPage;
     private Tab mTab;
+    private WebApkUpdateDataFetcher mFetcher;
 
     // CallbackHelper which blocks until the {@link ManifestUpgradeDetectorFetcher.Callback}
     // callback is called.
@@ -129,6 +132,13 @@ public class WebApkUpdateDataFetcherTest {
         mTab = mPage.getTab();
     }
 
+    @After
+    public void tearDown() {
+        if (mFetcher != null) {
+            ThreadUtils.runOnUiThreadBlocking(() -> mFetcher.destroy());
+        }
+    }
+
     private WebApkIntentDataProviderBuilder getTestIntentDataProviderBuilder(
             final String manifestUrl) {
         WebApkIntentDataProviderBuilder builder =
@@ -143,11 +153,11 @@ public class WebApkUpdateDataFetcherTest {
     private void startWebApkUpdateDataFetcher(
             final WebApkIntentDataProviderBuilder builder,
             final WebApkUpdateDataFetcher.Observer observer) {
-        final WebApkUpdateDataFetcher fetcher = new WebApkUpdateDataFetcher();
+        mFetcher = new WebApkUpdateDataFetcher();
         PostTask.runOrPostTask(
                 TaskTraits.UI_DEFAULT,
                 () -> {
-                    fetcher.start(mTab, WebappInfo.create(builder.build()), observer);
+                    mFetcher.start(mTab, WebappInfo.create(builder.build()), observer);
                 });
     }
 

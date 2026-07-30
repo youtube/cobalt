@@ -37,6 +37,8 @@
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/webui_toolbar_resources.h"
 #include "chrome/grit/webui_toolbar_resources_map.h"
+#include "chrome/grit/webui_toolbar_shared_resources.h"
+#include "chrome/grit/webui_toolbar_shared_resources_map.h"
 #include "components/browser_apis/browser_controls/browser_controls_api.mojom.h"
 #include "components/browser_apis/ui_controllers/toolbar/toolbar_ui_api.mojom.h"
 #include "components/strings/grit/components_strings.h"
@@ -46,6 +48,7 @@
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "third_party/blink/public/common/features.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/views/widget/widget.h"
 #include "ui/webui/tracked_element/tracked_element_handler_document_singleton.h"
 #include "ui/webui/webui_util.h"
@@ -70,6 +73,8 @@ WebUIToolbarUI::WebUIToolbarUI(content::WebUI* web_ui)
       // go/keep-sorted start
       {"backButtonAccName", IDS_ACCNAME_BACK},
       {"backButtonTooltip", IDS_TOOLTIP_BACK},
+      {"batterySaverButtonAccName", IDS_BATTERY_SAVER_BUTTON_ACCNAME},
+      {"batterySaverButtonTooltip", IDS_BATTERY_SAVER_BUTTON_TOOLTIP},
       {"forwardButtonAccName", IDS_ACCNAME_FORWARD},
       {"forwardButtonTooltip", IDS_TOOLTIP_FORWARD},
       {"homeButtonAccName", IDS_ACCNAME_HOME},
@@ -87,9 +92,12 @@ WebUIToolbarUI::WebUIToolbarUI(content::WebUI* web_ui)
 
   WebUIToolbarLayoutCssHelper::SetAsRequestFilter(source);
 
+  source->AddBoolean("roundedIconsEnabled", features::IsRoundedIconsEnabled());
   source->AddBoolean("enableReloadButton",
                      features::IsWebUIReloadButtonEnabled());
   source->AddBoolean("enableHomeButton", features::IsWebUIHomeButtonEnabled());
+  source->AddBoolean("enableBatterySaverButton",
+                     features::IsWebUIBatterySaverButtonEnabled());
   source->AddBoolean("enableLocationBar",
                      features::IsWebUILocationBarEnabled());
   source->AddBoolean("enableBackForwardButtons",
@@ -109,6 +117,8 @@ WebUIToolbarUI::WebUIToolbarUI(content::WebUI* web_ui)
   BrowserWindowInterface* browser =
       webui::GetBrowserWindowInterface(web_ui->GetWebContents());
   webui_toolbar::PopulateSplitTabsDataSource(source, browser);
+
+  source->AddResourcePaths(kWebuiToolbarSharedResources);
 
   // Handles chrome.send() calls that records non-timestamp histograms.
   web_ui->AddMessageHandler(std::make_unique<MetricsHandler>());
@@ -156,12 +166,6 @@ void WebUIToolbarUI::BindInterface(
   CHECK(toolbar_channel_client_end_.is_valid())
       << "toolbar client end already bound";
   CHECK(FusePipes(std::move(receiver), std::move(toolbar_channel_client_end_)));
-}
-
-void WebUIToolbarUI::BindInterface(
-    mojo::PendingReceiver<extensions_bar::mojom::PageHandlerFactory> receiver) {
-  extensions_bar_page_factory_receiver_.reset();
-  extensions_bar_page_factory_receiver_.Bind(std::move(receiver));
 }
 
 void WebUIToolbarUI::BindInterface(
@@ -280,18 +284,6 @@ void WebUIToolbarUI::CreateHelpBubbleHandler(
           web_ui()->GetRenderFrameHost()));
 }
 
-void WebUIToolbarUI::CreatePageHandler(
-    mojo::PendingRemote<extensions_bar::mojom::Page> page,
-    mojo::PendingReceiver<extensions_bar::mojom::PageHandler> receiver) {
-  BrowserWindowInterface* browser_interface =
-      webui::GetBrowserWindowInterface(web_ui()->GetWebContents());
-  if (browser_interface) {
-    static_cast<WebUIToolbarExtensionsContainer*>(
-        ExtensionsContainer::From(*browser_interface))
-        ->Bind(std::move(page), std::move(receiver));
-  }
-}
-
 const std::vector<ui::ElementIdentifier>
 WebUIToolbarUI::GetKnownElementIdentifiers() {
   static const base::NoDestructor<std::vector<ui::ElementIdentifier>> ids(
@@ -302,10 +294,12 @@ WebUIToolbarUI::GetKnownElementIdentifiers() {
        kToolbarAppMenuButtonElementId, kSharedTabGroupCommentsActionElementId,
        kPinnedToolbarActionShowSidePanelLensOverlayResultsElementId,
        kPinnedToolbarActionShowSidePanelBookmarksElementId,
+       kPinnedToolbarActionShowSidePanelContextualTasksElementId,
        kPinnedToolbarActionSendTabToSelfElementId,
        kToolbarAvatarButtonElementId,
        PermissionChipView::kPermissionRequestChipElementId,
-       PermissionChipView::kIndicatorChipElementId});
+       PermissionChipView::kIndicatorChipElementId,
+       kToolbarBatterySaverButtonElementId});
   auto pinned_ids = webui_toolbar::GetPinnedToolbarActionElementIds();
   pinned_ids.reserve(pinned_ids.size() + ids->size());
   pinned_ids.insert(pinned_ids.end(), ids->begin(), ids->end());

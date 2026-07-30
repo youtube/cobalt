@@ -76,6 +76,8 @@ class TestRasterContextProvider
   }
   void AddObserver(viz::ContextLostObserver* obs) override { ADD_FAILURE(); }
   void RemoveObserver(viz::ContextLostObserver* obs) override { ADD_FAILURE(); }
+  bool IsLost() override { return false; }
+
   base::Lock* GetLock() override {
     ADD_FAILURE();
     return nullptr;

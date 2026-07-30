@@ -1056,8 +1056,7 @@ void PasswordsPrivateDelegateImpl::DeleteAllPasswordManagerData(
 #if BUILDFLAG(IS_MAC)
   message = l10n_util::GetStringFUTF16(
       IDS_PASSWORDS_PAGE_DELETE_ALL_DATA_AUTHENTICATION_PROMPT_BIOMETRIC_SUFFIX,
-      l10n_util::GetStringUTF16(
-          IDS_PASSWORD_BUBBLES_PASSWORD_MANAGER_LINK_TEXT_SAVING_ON_DEVICE));
+      l10n_util::GetStringUTF16(IDS_PASSWORD_MANAGER_BRAND_NAME));
 #elif BUILDFLAG(IS_WIN)
   message = l10n_util::GetStringUTF16(
       IDS_PASSWORDS_PAGE_DELETE_ALL_DATA_AUTHENTICATION_PROMPT);
@@ -1434,6 +1433,7 @@ PasswordsPrivateDelegateImpl::CreatePasswordUiEntryFromCredentialUiEntry(
   if (change_password_url.has_value()) {
     entry.change_password_url = change_password_url->spec();
   }
+
   if (credential.backup_password.has_value()) {
     api::passwords_private::BackupPasswordInfo backup_password_info;
     backup_password_info.value =

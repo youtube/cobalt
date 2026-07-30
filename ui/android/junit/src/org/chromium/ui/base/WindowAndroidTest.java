@@ -5,6 +5,7 @@
 package org.chromium.ui.base;
 
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -21,6 +22,7 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import android.app.Activity;
 import android.content.ComponentCallbacks;
 import android.content.Context;
 import android.content.res.Configuration;
@@ -45,6 +47,7 @@ import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.ui.display.DisplayAndroid;
+import org.chromium.ui.display.DisplayUtil;
 import org.chromium.ui.insets.InsetObserver;
 import org.chromium.ui.insets.InsetObserver.WindowInsetObserver;
 
@@ -80,6 +83,7 @@ public class WindowAndroidTest {
 
     @Before
     public void setup() {
+        DisplayUtil.setIsOnDefaultDisplayForTesting(true);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             doReturn(mWindowManager).when(mContext).getSystemService(WindowManager.class);
             doReturn(mWindowMetrics).when(mWindowManager).getCurrentWindowMetrics();
@@ -480,5 +484,124 @@ public class WindowAndroidTest {
         ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
 
         histogramWatcher.assertExpected();
+    }
+
+    @Test
+    @EnableFeatures({UiAndroidFeatures.ANDROID_UPDATE_DISPLAY_FOR_CONTEXT})
+    public void
+            testUpdateDisplayForContext_resetsPreferredDisplayModeId_whenMovingToExternalDisplay() {
+        // Initially, isOnDefaultDisplay is true, so refresh rate changes are allowed.
+        DisplayUtil.setIsOnDefaultDisplayForTesting(true);
+
+        // Build a real Robolectric activity.
+        Activity activity =
+                org.robolectric.Robolectric.buildActivity(Activity.class).create().get();
+
+        // Create a real ActivityWindowAndroid using the real activity.
+        ActivityWindowAndroid windowAndroid =
+                new ActivityWindowAndroid(activity, false, null, mInsetObserver, true);
+        windowAndroid.setNativePointerForTesting(MOCK_NATIVE_POINTER);
+
+        // Get the real window's attributes and set preferredDisplayModeId to a non-zero value.
+        android.view.Window window = activity.getWindow();
+        WindowManager.LayoutParams params = window.getAttributes();
+        params.preferredDisplayModeId = 123;
+        window.setAttributes(params);
+
+        // Mock moving to an external display (isOnDefaultDisplay becomes false).
+        DisplayUtil.setIsOnDefaultDisplayForTesting(false);
+
+        DisplayAndroid newDisplay = mock(DisplayAndroid.class);
+        when(newDisplay.getAdaptiveRefreshRateInfo())
+                .thenReturn(new DisplayAndroid.AdaptiveRefreshRateInfo(false, 0, null));
+        DisplayAndroid.setNonMultiDisplayForTesting(newDisplay);
+
+        // Trigger updateDisplayForContext via onActivityResumed().
+        windowAndroid.onActivityResumed();
+
+        // Verify that the real window layout params.preferredDisplayModeId was reset to 0!
+        assertEquals(
+                "preferredDisplayModeId should be reset to 0 on the real window",
+                0,
+                window.getAttributes().preferredDisplayModeId);
+        windowAndroid.destroy();
+    }
+
+    @Test
+    @EnableFeatures({UiAndroidFeatures.ANDROID_UPDATE_DISPLAY_FOR_CONTEXT})
+    public void
+            testUpdateDisplayForContext_doesNotResetPreferredDisplayModeId_whenRemainingOnDefaultDisplay() {
+        // Initially, isOnDefaultDisplay is true, so refresh rate changes are allowed.
+        DisplayUtil.setIsOnDefaultDisplayForTesting(true);
+
+        // Build a real Robolectric activity.
+        Activity activity =
+                org.robolectric.Robolectric.buildActivity(Activity.class).create().get();
+
+        // Create a real ActivityWindowAndroid using the real activity.
+        ActivityWindowAndroid windowAndroid =
+                new ActivityWindowAndroid(activity, false, null, mInsetObserver, true);
+        windowAndroid.setNativePointerForTesting(MOCK_NATIVE_POINTER);
+
+        // Get the real window's attributes and set preferredDisplayModeId to a non-zero value.
+        android.view.Window window = activity.getWindow();
+        WindowManager.LayoutParams params = window.getAttributes();
+        params.preferredDisplayModeId = 123;
+        window.setAttributes(params);
+
+        // Mock display change but still remaining on default display (isOnDefaultDisplay is true).
+        DisplayUtil.setIsOnDefaultDisplayForTesting(true);
+
+        DisplayAndroid newDisplay = mock(DisplayAndroid.class);
+        when(newDisplay.getAdaptiveRefreshRateInfo())
+                .thenReturn(new DisplayAndroid.AdaptiveRefreshRateInfo(false, 0, null));
+        DisplayAndroid.setNonMultiDisplayForTesting(newDisplay);
+
+        // Trigger updateDisplayForContext via onActivityResumed().
+        windowAndroid.onActivityResumed();
+
+        // Verify that the real window layout params.preferredDisplayModeId remains 123!
+        assertEquals(
+                "preferredDisplayModeId should not be reset on default display",
+                123,
+                window.getAttributes().preferredDisplayModeId);
+        windowAndroid.destroy();
+    }
+
+    @Test
+    public void testConstructor_initializesAllowChangeRefreshRateCorrectly_onDefaultDisplay()
+            throws Exception {
+        DisplayUtil.setIsOnDefaultDisplayForTesting(true);
+        Activity activity =
+                org.robolectric.Robolectric.buildActivity(Activity.class).create().get();
+        ActivityWindowAndroid windowAndroid =
+                new ActivityWindowAndroid(activity, false, null, mInsetObserver, true);
+
+        assertTrue(
+                "mAllowChangeRefreshRate should be true on default display",
+                getAllowChangeRefreshRate(windowAndroid));
+        windowAndroid.destroy();
+    }
+
+    @Test
+    public void testConstructor_initializesAllowChangeRefreshRateCorrectly_onExternalDisplay()
+            throws Exception {
+        DisplayUtil.setIsOnDefaultDisplayForTesting(false);
+        Activity activity =
+                org.robolectric.Robolectric.buildActivity(Activity.class).create().get();
+        ActivityWindowAndroid windowAndroid =
+                new ActivityWindowAndroid(activity, false, null, mInsetObserver, true);
+
+        assertFalse(
+                "mAllowChangeRefreshRate should be false on external display",
+                getAllowChangeRefreshRate(windowAndroid));
+        windowAndroid.destroy();
+    }
+
+    private boolean getAllowChangeRefreshRate(WindowAndroid windowAndroid) throws Exception {
+        java.lang.reflect.Field field =
+                WindowAndroid.class.getDeclaredField("mAllowChangeRefreshRate");
+        field.setAccessible(true);
+        return (boolean) field.get(windowAndroid);
     }
 }

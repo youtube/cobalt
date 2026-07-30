@@ -133,7 +133,7 @@ MatchBubbleParameters(
 }
 
 void MakeValidAccountCapabilities(AccountInfo* info) {
-  AccountCapabilitiesTestMutator mutator(&info->capabilities);
+  AccountCapabilitiesTestMutator mutator(info);
   mutator.set_is_subject_to_parental_controls(true);
   bool is_managed = info->IsManaged() == signin::Tribool::kTrue;
   mutator.set_is_subject_to_enterprise_features(is_managed);
@@ -434,7 +434,7 @@ TEST_F(DiceWebSigninInterceptorTest, ShouldShowEnterpriseBubble) {
   other_account_info = AccountInfo::Builder(other_account_info)
                            .SetHostedDomain("example.com")
                            .Build();
-  AccountCapabilitiesTestMutator(&other_account_info.capabilities)
+  AccountCapabilitiesTestMutator(&other_account_info)
       .set_is_subject_to_account_level_enterprise_policies(true);
   identity_test_env()->UpdateAccountInfoForAccount(other_account_info);
   AccountInfo account_info =
@@ -454,7 +454,7 @@ TEST_F(DiceWebSigninInterceptorTest, ShouldShowEnterpriseBubble) {
   EXPECT_FALSE(interceptor()->ShouldShowEnterpriseBubble(account_info));
   account_info =
       AccountInfo::Builder(account_info).SetHostedDomain("example.com").Build();
-  AccountCapabilitiesTestMutator(&account_info.capabilities)
+  AccountCapabilitiesTestMutator(&account_info)
       .set_is_subject_to_account_level_enterprise_policies(true);
   identity_test_env()->UpdateAccountInfoForAccount(account_info);
   EXPECT_TRUE(interceptor()->ShouldShowEnterpriseBubble(account_info));
@@ -467,7 +467,7 @@ TEST_F(DiceWebSigninInterceptorTest, ShouldShowEnterpriseBubble) {
   // Two consumer accounts.
   account_info =
       AccountInfo::Builder(account_info).SetHostedDomain(std::string()).Build();
-  AccountCapabilitiesTestMutator(&account_info.capabilities)
+  AccountCapabilitiesTestMutator(&account_info)
       .set_is_subject_to_account_level_enterprise_policies(false);
   identity_test_env()->UpdateAccountInfoForAccount(account_info);
   EXPECT_FALSE(interceptor()->ShouldShowEnterpriseBubble(account_info));
@@ -475,7 +475,7 @@ TEST_F(DiceWebSigninInterceptorTest, ShouldShowEnterpriseBubble) {
   primary_account_info = AccountInfo::Builder(primary_account_info)
                              .SetHostedDomain("example.com")
                              .Build();
-  AccountCapabilitiesTestMutator(&account_info.capabilities)
+  AccountCapabilitiesTestMutator(&account_info)
       .set_is_subject_to_account_level_enterprise_policies(true);
   identity_test_env()->UpdateAccountInfoForAccount(primary_account_info);
   EXPECT_TRUE(interceptor()->ShouldShowEnterpriseBubble(account_info));
@@ -500,7 +500,7 @@ TEST_F(DiceWebSigninInterceptorTest, ShouldEnforceEnterpriseProfileSeparation) {
   other_account_info = AccountInfo::Builder(other_account_info)
                            .SetHostedDomain("example.com")
                            .Build();
-  AccountCapabilitiesTestMutator(&other_account_info.capabilities)
+  AccountCapabilitiesTestMutator(&other_account_info)
       .set_is_subject_to_account_level_enterprise_policies(true);
   identity_test_env()->UpdateAccountInfoForAccount(other_account_info);
   AccountInfo account_info =
@@ -516,7 +516,7 @@ TEST_F(DiceWebSigninInterceptorTest, ShouldEnforceEnterpriseProfileSeparation) {
       interceptor()->ShouldEnforceEnterpriseProfileSeparation(account_info));
   account_info =
       AccountInfo::Builder(account_info).SetHostedDomain("example.com").Build();
-  AccountCapabilitiesTestMutator(&account_info.capabilities)
+  AccountCapabilitiesTestMutator(&account_info)
       .set_is_subject_to_account_level_enterprise_policies(true);
   identity_test_env()->UpdateAccountInfoForAccount(account_info);
   // Managed account intercepted.
@@ -533,7 +533,7 @@ TEST_F(DiceWebSigninInterceptorTest,
   AccountInfo account_info_1 =
       identity_test_env()->MakeAccountAvailable("bob@example.com");
   MakeValidAccountInfo(&account_info_1, "example.com");
-  AccountCapabilitiesTestMutator(&account_info_1.capabilities)
+  AccountCapabilitiesTestMutator(&account_info_1)
       .set_is_subject_to_account_level_enterprise_policies(true);
   identity_test_env()->UpdateAccountInfoForAccount(account_info_1);
 
@@ -553,7 +553,7 @@ TEST_F(DiceWebSigninInterceptorTest,
       identity_test_env()->MakePrimaryAccountAvailable(
           "alice@example.com", signin::ConsentLevel::kSignin);
   MakeValidAccountInfo(&primary_account_info, "example.com");
-  AccountCapabilitiesTestMutator(&primary_account_info.capabilities)
+  AccountCapabilitiesTestMutator(&primary_account_info)
       .set_is_subject_to_account_level_enterprise_policies(true);
   identity_test_env()->UpdateAccountInfoForAccount(primary_account_info);
 
@@ -1079,7 +1079,7 @@ TEST_F(DiceWebSigninInterceptorTest, ShouldShowEnterpriseBubbleWithoutUPA) {
                        .SetHostedDomain("example.com")
                        .Build();
   {
-    AccountCapabilitiesTestMutator(&account_info_1.capabilities)
+    AccountCapabilitiesTestMutator(&account_info_1)
         .set_is_subject_to_account_level_enterprise_policies(true);
   }
   identity_test_env()->UpdateAccountInfoForAccount(account_info_1);
@@ -1089,7 +1089,7 @@ TEST_F(DiceWebSigninInterceptorTest, ShouldShowEnterpriseBubbleWithoutUPA) {
   account_info_2 = AccountInfo::Builder(account_info_2)
                        .SetHostedDomain("example.com")
                        .Build();
-  AccountCapabilitiesTestMutator(&account_info_2.capabilities)
+  AccountCapabilitiesTestMutator(&account_info_2)
       .set_is_subject_to_account_level_enterprise_policies(true);
   identity_test_env()->UpdateAccountInfoForAccount(account_info_2);
 
@@ -1878,7 +1878,7 @@ TEST_F(DiceWebSigninInterceptorTest,
   primary_account_info = AccountInfo::Builder(primary_account_info)
                              .SetHostedDomain("example.com")
                              .Build();
-  AccountCapabilitiesTestMutator(&primary_account_info.capabilities)
+  AccountCapabilitiesTestMutator(&primary_account_info)
       .set_is_subject_to_account_level_enterprise_policies(true);
   identity_test_env()->UpdateAccountInfoForAccount(primary_account_info);
 

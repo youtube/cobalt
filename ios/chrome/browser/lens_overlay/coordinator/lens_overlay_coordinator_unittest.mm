@@ -25,9 +25,9 @@
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_manager_ios.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/public/commands/browser_coordinator_commands.h"
-#import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/fullscreen_commands.h"
+#import "ios/chrome/browser/shared/public/commands/gemini_commands.h"
 #import "ios/chrome/browser/shared/public/commands/lens_commands.h"
 #import "ios/chrome/browser/shared/public/commands/lens_overlay_commands.h"
 #import "ios/chrome/browser/shared/public/commands/scene_commands.h"
@@ -156,11 +156,11 @@ class LensOverlayCoordinatorTest : public PlatformTest {
         startDispatchingToTarget:toolbar_commands_handler_
                      forProtocol:@protocol(ToolbarCommands)];
 
-    gemini_commands_handler_ = OCMProtocolMock(@protocol(BWGCommands));
+    gemini_handler_ = OCMProtocolMock(@protocol(GeminiCommands));
 
     [browser_->GetCommandDispatcher()
-        startDispatchingToTarget:gemini_commands_handler_
-                     forProtocol:@protocol(BWGCommands)];
+        startDispatchingToTarget:gemini_handler_
+                     forProtocol:@protocol(GeminiCommands)];
 
     fullscreen_handler_ = OCMProtocolMock(@protocol(FullscreenCommands));
     [browser_->GetCommandDispatcher()
@@ -266,7 +266,7 @@ class LensOverlayCoordinatorTest : public PlatformTest {
   id<LensCommands> lens_commands_handler_;
   id<BrowserCoordinatorCommands> browser_coordinator_commands_handler_;
   id<ToolbarCommands> toolbar_commands_handler_;
-  id<BWGCommands> gemini_commands_handler_;
+  id<GeminiCommands> gemini_handler_;
   id<FullscreenCommands> fullscreen_handler_;
 
   void DeliverMemoryWarningNotification() {

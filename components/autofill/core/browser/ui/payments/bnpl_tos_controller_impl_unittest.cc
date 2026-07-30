@@ -100,8 +100,7 @@ class BnplTosControllerImplTest : public Test {
         /*instrument_id=*/123, BnplIssuer::IssuerId::kBnplKlarna,
         std::vector<BnplIssuer::EligiblePriceRange>{},
         /*action_required=*/
-        autofill::DenseSet(
-            {autofill::PaymentInstrument::ActionRequired::kAcceptTos}));
+        DenseSet({PaymentInstrument::ActionRequired::kAcceptTos}));
   }
 
   base::test::TaskEnvironment task_environment_;

@@ -8,6 +8,7 @@
 #include <memory>
 #include <optional>
 
+#include "base/containers/flat_map.h"
 #include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/memory/raw_ptr.h"
@@ -28,8 +29,7 @@ class ModelInfo;
 class PrefService;
 
 // Propagates ML models from the Optimization Guide to the audio process.
-// Currently only a single model, for residual echo estimation, but may be
-// extended to other optimization targets in the future.
+// Currently supports residual echo estimation and voice isolation denoising.
 //
 // Does nothing until both an Optimization Guide model provider has been set and
 // an audio input stream has been opened. Then, subscribes to models from the
@@ -40,8 +40,7 @@ class PrefService;
 // currently not expected to be used when running in the browser process.
 //
 // Lives on the UI thread.
-class AudioProcessMlModelForwarder
-    : public optimization_guide::OptimizationTargetModelObserver {
+class AudioProcessMlModelForwarder {
  public:
   using WrappedFilePtr = std::unique_ptr<base::File, base::OnTaskRunnerDeleter>;
 
@@ -55,7 +54,7 @@ class AudioProcessMlModelForwarder
   static std::unique_ptr<AudioProcessMlModelForwarder>
   CreateWithoutAudioProcessObserverForTesting(PrefService* pref_service);
 
-  ~AudioProcessMlModelForwarder() override;
+  ~AudioProcessMlModelForwarder();
 
   // Set the Optimization Guide model provider. May only be called once. The
   // model provider must outlive the AudioProcessMlModelForwarder.
@@ -68,11 +67,25 @@ class AudioProcessMlModelForwarder
   void OnAudioProcessLaunched(
       mojo::Remote<audio::mojom::MlModelManager> ml_model_manager);
 
-  bool HasPendingTasksForTesting() const { return weak_factory_.HasWeakPtrs(); }
+  bool HasPendingTasksForTesting() const {
+    for (const auto& [_, forwarder] : model_forwarders_) {
+      if (forwarder->HasPendingTasksForTesting()) {
+        return true;
+      }
+    }
+    return false;
+  }
   bool HasBoundAudioProcessRemoteForTesting() const {
     return audio_process_model_manager_.is_bound();
   }
-  bool HasModelForTesting() const { return !model_path_.empty(); }
+  bool HasModelForTesting() const {
+    for (const auto& [_, forwarder] : model_forwarders_) {
+      if (forwarder->HasModelForTesting()) {
+        return true;
+      }
+    }
+    return false;
+  }
 
   // Signal that an audio capture stream has been opened. Media may not yet be
   // flowing, but permission checks have concluded successfully.
@@ -82,11 +95,67 @@ class AudioProcessMlModelForwarder
   class AudioCaptureRequestObserver;
   class AudioProcessObserver;
 
-  // optimization_guide::OptimizationTargetModelObserver:
-  void OnModelUpdated(
-      optimization_guide::proto::OptimizationTarget optimization_target,
-      base::optional_ref<const optimization_guide::ModelInfo> model_info)
-      override;
+  // Manages the subscription, loading, and forwarding of a single ML model
+  // type (specified by `OptimizationTarget`).
+  //
+  // SingleModelForwarder registers as an observer with the Optimization Guide
+  // for a specific target. When a new model is available, it receives the
+  // update on the UI thread, loads/opens the model file asynchronously on a
+  // background task runner, and then forwards the opened file to the audio
+  // process via the owner's mojo remote.
+  //
+  // Lives on the UI thread.
+  class SingleModelForwarder
+      : public optimization_guide::OptimizationTargetModelObserver {
+   public:
+    SingleModelForwarder(optimization_guide::proto::OptimizationTarget target,
+                         audio::mojom::MlModelType mojo_type,
+                         AudioProcessMlModelForwarder* owner);
+    ~SingleModelForwarder() override;
+
+    void Initialize(
+        optimization_guide::OptimizationGuideModelProvider* model_provider,
+        scoped_refptr<base::SequencedTaskRunner> background_task_runner);
+
+    // NOTE: OnModelUpdated() may be called immediately upon registering, even
+    // within the call to MaybeRegisterModelObserver().
+    void MaybeRegisterModelObserver(bool audio_input_stream_creation_observed);
+
+    void MaybeSendModelToAudioProcess();
+
+    // Stops any ongoing loading of models.
+    void CancelModelLoadingTasks();
+    bool HasPendingTasksForTesting() const {
+      return weak_factory_.HasWeakPtrs();
+    }
+    bool HasModelForTesting() const { return !model_path_.empty(); }
+
+   private:
+    void OnModelUpdated(
+        optimization_guide::proto::OptimizationTarget optimization_target,
+        base::optional_ref<const optimization_guide::ModelInfo> model_info)
+        override;
+
+    // Continuation for MaybeSendModelToAudioProcess(), expecting either a
+    // nullptr or an open, valid model file.
+    void OnModelFileOpened(WrappedFilePtr file);
+
+    const optimization_guide::proto::OptimizationTarget target_;
+    const audio::mojom::MlModelType mojo_type_;
+
+    const raw_ptr<AudioProcessMlModelForwarder> owner_;
+
+    scoped_refptr<base::SequencedTaskRunner> background_task_runner_;
+
+    // Latest update from the model provider. Empty if no path received yet or
+    // if a nullopt model update has been received.
+    base::FilePath model_path_;
+
+    // Handles registration / deregistration with the Optimization Guide.
+    std::optional<optimization_guide::OptimizationGuideModelProviderObservation>
+        model_observation_;
+    base::WeakPtrFactory<SingleModelForwarder> weak_factory_{this};
+  };
 
   // If `audio_process_observer` is null, the forwarder does not handle audio
   // service process monitoring internally. See Create*() for details.
@@ -94,21 +163,11 @@ class AudioProcessMlModelForwarder
       std::unique_ptr<AudioProcessObserver> audio_process_observer,
       PrefService* pref_service);
 
-  // Stops any ongoing loading of models.
-  void CancelModelLoadingTasks();
-
   // Register model observation if the audio process has been launched and a
   // model provider is available.
-  //
-  // NOTE: OnModelUpdated() may be called immediately upon registering, even
-  // within the call to MaybeRegisterModelObserver().
-  void MaybeRegisterModelObserver();
+  void MaybeRegisterModelObservers();
 
-  void MaybeSendModelToAudioProcess();
-
-  // Continuation for MaybeSendModelToAudioProcess(), expecting either a nullptr
-  // or an open, valid model file.
-  void OnModelFileOpened(WrappedFilePtr file);
+  void MaybeSendModelsToAudioProcess();
 
   // Signals when the audio process is ready to start receiving model updates.
   const std::unique_ptr<AudioProcessObserver> audio_process_observer_;
@@ -123,23 +182,17 @@ class AudioProcessMlModelForwarder
   // Handle for passing models to the audio process.
   mojo::Remote<audio::mojom::MlModelManager> audio_process_model_manager_;
 
-  // Latest update from the model provider. Empty if no path received yet or if
-  // a nullopt model update has been received.
-  base::FilePath model_path_;
-
-  // Handles registration / deregistration with the Optimization Guide.
-  std::optional<optimization_guide::OptimizationGuideModelProviderObservation>
-      model_observation_;
-
   // True if and only if an audio input stream was recently created. Used to
-  // gate registering `model_observation_` with the Optimization Guide.
+  // gate registering model observations with the Optimization Guide.
   bool audio_input_stream_creation_observed_ = false;
 
   // Observes creation of audio capture streams in order to detect when models
   // are likely to be needed.
   std::unique_ptr<AudioCaptureRequestObserver> audio_capture_request_observer_;
 
-  base::WeakPtrFactory<AudioProcessMlModelForwarder> weak_factory_{this};
+  base::flat_map<audio::mojom::MlModelType,
+                 std::unique_ptr<SingleModelForwarder>>
+      model_forwarders_;
 };
 
 #endif  // CHROME_BROWSER_MEDIA_AUDIO_PROCESS_ML_MODEL_FORWARDER_H_

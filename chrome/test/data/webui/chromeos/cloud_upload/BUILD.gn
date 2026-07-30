@@ -6,10 +6,10 @@ import("../../build_webui_tests.gni")
 
 build_webui_tests("build_webui_tests") {
   cc_test_files = [
-    "cloud_upload_dialog_browsertest.js",
-    "connect_onedrive_browsertest.js",
-    "file_handler_page_browsertest.js",
-    "move_confirmation_page_browsertest.js",
+    "cloud_upload_dialog_browsertest.cc",
+    "connect_onedrive_browsertest.cc",
+    "file_handler_page_browsertest.cc",
+    "move_confirmation_page_browsertest.cc",
   ]
 
   files = [

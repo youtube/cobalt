@@ -80,7 +80,7 @@ void SetHistorySyncOptinRestrictionModeCapability(
     signin::IdentityTestEnvironment& environment,
     AccountInfo& account_info,
     bool is_unrestricted) {
-  AccountCapabilitiesTestMutator(&account_info.capabilities)
+  AccountCapabilitiesTestMutator(&account_info)
       .set_can_show_history_sync_opt_ins_without_minor_mode_restrictions(
           is_unrestricted);
   environment.UpdateAccountInfoForAccount(account_info);

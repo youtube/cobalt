@@ -174,6 +174,14 @@ const CGFloat kOpacityAnimationDuration = 0.4;
   // No-op. Sheet size is constant in this presentation.
 }
 
+- (void)hideSearchBar {
+  // No-op.
+}
+
+- (void)showSearchBar {
+  // No-op.
+}
+
 - (void)adjustForSelectionResult {
   [self adjustSelectionOcclusionInsets];
 }

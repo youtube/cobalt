@@ -15,8 +15,6 @@ import shutil
 import sys
 import tempfile
 import textwrap
-import six
-from six.moves import input  # pylint: disable=redefined-builtin
 
 import cross_device_test_config
 
@@ -48,13 +46,8 @@ def GetParser():
   parser = argparse.ArgumentParser(
       description=_SCRIPT_USAGE, formatter_class=argparse.RawTextHelpFormatter)
 
-  if six.PY2:
-    subparsers = parser.add_subparsers()
-  else:
-    # Python 3 needs required=True in order to issue an error when subcommand is
-    # missing. Without metavar, argparse would crash while issuing error (bug?).
-    subparsers = parser.add_subparsers(
-        required=True, metavar='{update,update-timing,deschedule,validate}')
+  subparsers = parser.add_subparsers(
+      required=True, metavar='{update,update-timing,deschedule,validate}')
 
   parser_update = subparsers.add_parser(
       'update',

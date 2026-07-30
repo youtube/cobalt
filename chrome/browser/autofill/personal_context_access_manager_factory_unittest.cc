@@ -19,7 +19,7 @@ class PersonalContextAccessManagerFactoryTest : public testing::Test {
  public:
   PersonalContextAccessManagerFactoryTest() {
     scoped_feature_list_.InitWithFeatures(
-        {autofill::features::kAutofillAmbientAutofill,
+        {features::kAutofillAmbientAutofill,
          personal_context::features::kPersonalContext},
         {});
   }

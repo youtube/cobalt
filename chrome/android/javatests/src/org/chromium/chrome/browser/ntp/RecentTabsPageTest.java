@@ -756,8 +756,7 @@ public class RecentTabsPageTest {
         mPage = loadRecentTabsPage();
         var tabStripHeightChangeCallback = mPage.getTabStripHeightChangeCallbackForTesting();
         int newTabStripHeight = 40;
-        ThreadUtils.runOnUiThreadBlocking(
-                () -> tabStripHeightChangeCallback.onResult(newTabStripHeight));
+        ThreadUtils.runOnUiThreadBlocking(tabStripHeightChangeCallback.bind(newTabStripHeight));
         assertEquals(
                 "Top padding of page view should be updated when tab strip height changes.",
                 newTabStripHeight,

@@ -58,6 +58,7 @@ bool FakeSyncSigninDelegateDesktop::SignIn(SyncTestAccount account,
     // mark the current access token as invalid. Since tests typically
     // always hand out the same access token string, any new access token
     // acquired later would also be considered invalid.
+    signin::WaitForRefreshTokensLoaded(identity_manager);
     if (!identity_manager->HasPrimaryAccountWithRefreshToken(consent_level)) {
       signin::SetRefreshTokenForPrimaryAccount(identity_manager);
     }
@@ -75,6 +76,7 @@ bool FakeSyncSigninDelegateDesktop::SignIn(SyncTestAccount account,
     // Similarly to the above: if there is a primary account already with a
     // refresh token, and this is about upgrading to ConsentLevel::kSync, avoid
     // setting a new refresh token. Otherwise access token requests may fail.
+    signin::WaitForRefreshTokensLoaded(identity_manager);
     if (identity_manager->HasPrimaryAccountWithRefreshToken(
             signin::ConsentLevel::kSignin)) {
       options.WithoutRefreshToken();

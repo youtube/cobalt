@@ -661,7 +661,7 @@ void WebBundleURLLoaderFactory::StartLoader(base::WeakPtr<URLLoader> loader) {
     return;
   }
   loader->trusted_header_client()->OnBeforeSendHeaders(
-      loader->request_headers(),
+      loader->url(), loader->request_headers(),
       base::BindOnce(&WebBundleURLLoaderFactory::OnBeforeSendHeadersComplete,
                      weak_ptr_factory_.GetWeakPtr(), loader->GetWeakPtr()));
 }

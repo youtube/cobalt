@@ -127,7 +127,7 @@ public class TabGroupSuggestionProcessorUnitTest {
 
         createTabGroupSuggestion(OmniboxSuggestionType.TAB_GROUP);
         assertEquals(
-                R.drawable.ic_features_24dp,
+                R.drawable.ic_grid_view_24dp,
                 shadowOf(mModel.get(BaseSuggestionViewProperties.ICON).drawable)
                         .getCreatedFromResId());
 

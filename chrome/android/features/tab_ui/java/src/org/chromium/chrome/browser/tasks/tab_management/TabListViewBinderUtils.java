@@ -131,24 +131,44 @@ public class TabListViewBinderUtils {
     }
 
     /**
-     * Asynchronously fetches and binds the favicon drawable to the specified ImageView, using a
-     * tag-validation system to protect against recycler view recycling race conditions and
-     * performing drawable mutation for color isolation safety.
+     * Updates the favicon drawable of the specified {@link ImageView} and manages its visibility.
      *
-     * @param model the model containing the tab properties.
-     * @param faviconView the ImageView to receive the favicon drawable.
+     * <p>This method delegates the asynchronous fetching and binding of the image to {@link
+     * #updateFaviconImage(PropertyModel, ImageView)}. It then adjusts the visibility of the {@code
+     * faviconView} to {@link View#GONE} if no favicon fetcher is available, or {@link View#VISIBLE}
+     * otherwise.
+     *
+     * @param model The model containing tab properties, specifically {@link
+     *     TabProperties#FAVICON_FETCHER}.
+     * @param faviconView The {@link ImageView} whose favicon image and visibility will be updated.
      */
-    public static void updateFavicon(PropertyModel model, ImageView faviconView) {
+    public static void updateFaviconAndVisibility(PropertyModel model, ImageView faviconView) {
+        updateFaviconImage(model, faviconView);
+        faviconView.setVisibility(
+                model.get(TabProperties.FAVICON_FETCHER) == null ? View.GONE : View.VISIBLE);
+    }
+
+    /**
+     * Asynchronously fetches and applies the favicon drawable to the specified {@link ImageView}.
+     *
+     * <p>This method handles the lifecycle of resolving the favicon image, choosing between the
+     * selected and default drawables, mutating the drawable for color isolation, and safeguarding
+     * against recycler view recycling race conditions by validating the view's tag. It does not
+     * alter the visibility of the view.
+     *
+     * @param model The model containing tab properties, specifically {@link
+     *     TabProperties#FAVICON_FETCHER} and {@link TabProperties#IS_SELECTED}.
+     * @param faviconView The {@link ImageView} to update with the fetched favicon drawable.
+     */
+    public static void updateFaviconImage(PropertyModel model, ImageView faviconView) {
         @Nullable TabFaviconFetcher fetcher = model.get(TabProperties.FAVICON_FETCHER);
         faviconView.setTag(fetcher);
 
         if (fetcher == null) {
-            faviconView.setVisibility(View.GONE);
             faviconView.setImageDrawable(null);
             return;
         }
 
-        faviconView.setVisibility(View.VISIBLE);
         fetcher.fetch(
                 tabFavicon -> {
                     if (faviconView.getTag() != fetcher) return;

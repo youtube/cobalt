@@ -109,6 +109,22 @@ ComputeDefaultJavascriptOptimizerSetting(Profile* profile) {
   return content_settings::JavascriptOptimizerSetting::kAllowed;
 }
 
+bool IsV8OptimizerMigrationDryRun(Profile* profile) {
+  if (ComputeDefaultJavascriptOptimizerSetting(profile) !=
+      content_settings::JavascriptOptimizerSetting::
+          kBlockedForUnfamiliarSites) {
+    return false;
+  }
+
+  PrefService* prefs = profile->GetPrefs();
+  if (prefs->HasPrefPath(
+          prefs::kJavascriptOptimizerBlockedForUnfamiliarSites)) {
+    return false;  // Opted in via pref, so don't apply dry run.
+  }
+
+  return safe_browsing::kMigrateToBlockV8OptimizerOnUnfamiliarSitesDryRun.Get();
+}
+
 std::optional<bool> AreV8OptimizationsDisabled(
     content::WebContents* web_contents) {
   if (!web_contents) {

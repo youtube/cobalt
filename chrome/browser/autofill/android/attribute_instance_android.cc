@@ -65,17 +65,17 @@ AttributeInstanceAndroid::AttributeInstanceAndroid(
           attribute_instance.type().field_type())) {
   if (attribute_type.data_type == AttributeType::DataType::kDate) {
     const std::string& app_locale = g_browser_process->GetApplicationLocale();
-    std::optional<autofill::FieldType> field_type =
+    std::optional<FieldType> field_type =
         attribute_instance.type().field_type();
     const std::u16string day = attribute_instance.GetInfo(
         field_type, app_locale,
-        AutofillFormatString(u"D", autofill::FormatString_Type_DATE));
+        AutofillFormatString(u"D", FormatString_Type_DATE));
     const std::u16string month = attribute_instance.GetInfo(
         field_type, app_locale,
-        AutofillFormatString(u"M", autofill::FormatString_Type_DATE));
+        AutofillFormatString(u"M", FormatString_Type_DATE));
     const std::u16string year = attribute_instance.GetInfo(
         field_type, app_locale,
-        AutofillFormatString(u"YYYY", autofill::FormatString_Type_DATE));
+        AutofillFormatString(u"YYYY", FormatString_Type_DATE));
     value = AttributeInstanceAndroidDateType{
         .day = day, .month = month, .year = year};
   } else {
@@ -93,22 +93,19 @@ AttributeInstance AttributeInstanceAndroid::ToAttributeInstance() const {
   AttributeInstance instance(attribute_type.ToAttributeType());
   if (std::holds_alternative<AttributeInstanceAndroidDateType>(value)) {
     const std::string& app_locale = g_browser_process->GetApplicationLocale();
-    std::optional<autofill::FieldType> field_type =
+    std::optional<FieldType> field_type =
         attribute_type.ToAttributeType().field_type();
     const AttributeInstanceAndroidDateType& date_value =
         std::get<AttributeInstanceAndroidDateType>(value);
-    instance.SetInfo(
-        field_type, date_value.day, app_locale,
-        AutofillFormatString(u"D", autofill::FormatString_Type_DATE),
-        verification_status);
-    instance.SetInfo(
-        field_type, date_value.month, app_locale,
-        AutofillFormatString(u"M", autofill::FormatString_Type_DATE),
-        verification_status);
-    instance.SetInfo(
-        field_type, date_value.year, app_locale,
-        AutofillFormatString(u"YYYY", autofill::FormatString_Type_DATE),
-        verification_status);
+    instance.SetInfo(field_type, date_value.day, app_locale,
+                     AutofillFormatString(u"D", FormatString_Type_DATE),
+                     verification_status);
+    instance.SetInfo(field_type, date_value.month, app_locale,
+                     AutofillFormatString(u"M", FormatString_Type_DATE),
+                     verification_status);
+    instance.SetInfo(field_type, date_value.year, app_locale,
+                     AutofillFormatString(u"YYYY", FormatString_Type_DATE),
+                     verification_status);
   } else {
     instance.SetRawInfo(attribute_type.ToAttributeType().field_type(),
                         std::get<std::u16string>(value), verification_status);

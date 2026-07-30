@@ -35,7 +35,7 @@ TEST(GetDetailsForCreateCardRequestTest,
           .Set("context",
                base::DictValue()
                    .Set("billable_service",
-                        payments::kUploadPaymentMethodBillableServiceNumber)
+                        kUploadPaymentMethodBillableServiceNumber)
                    .Set("customer_context",
                         PaymentsRequest::BuildCustomerContextDictionary(
                             kBillingCustomerNumber))
@@ -117,5 +117,4 @@ TEST(GetDetailsForCreateCardRequestTest,
 }
 
 }  // namespace
-
 }  // namespace autofill::payments

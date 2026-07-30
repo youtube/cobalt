@@ -8,6 +8,7 @@
 #include "components/webcrypto/algorithms/util.h"
 #include "components/webcrypto/blink_key_handle.h"
 #include "components/webcrypto/generate_key_result.h"
+#include "components/webcrypto/jwk.h"
 #include "components/webcrypto/status.h"
 #include "crypto/openssl_util.h"
 #include "third_party/blink/public/platform/web_crypto_algorithm_params.h"
@@ -89,6 +90,8 @@ Status MlKem768X25519Implementation::ImportKey(
       return ImportKeyRawPublic(key_data, algorithm, extractable, usages, key);
     case blink::kWebCryptoKeyFormatRawSeed:
       return ImportKeyRawSeed(key_data, algorithm, extractable, usages, key);
+    case blink::kWebCryptoKeyFormatJwk:
+      return ImportKeyJwk(key_data, algorithm, extractable, usages, key);
     default:
       return Status::ErrorUnsupportedImportKeyFormat();
   }
@@ -103,6 +106,8 @@ Status MlKem768X25519Implementation::ExportKey(
       return ExportKeyRawPublic(key, buffer);
     case blink::kWebCryptoKeyFormatRawSeed:
       return ExportKeyRawSeed(key, buffer);
+    case blink::kWebCryptoKeyFormatJwk:
+      return ExportKeyJwk(key, buffer);
     default:
       return Status::ErrorUnsupportedExportKeyFormat();
   }
@@ -301,6 +306,106 @@ Status MlKem768X25519Implementation::ExportKeyRawSeed(
   }
   buffer->resize(len);
 
+  return Status::Success();
+}
+
+Status MlKem768X25519Implementation::ImportKeyJwk(
+    base::span<const uint8_t> key_data,
+    const blink::WebCryptoAlgorithm& algorithm,
+    bool extractable,
+    blink::WebCryptoKeyUsageMask usages,
+    blink::WebCryptoKey* key) const {
+  crypto::OpenSSLErrStackTracer err_tracer(FROM_HERE);
+  JwkReader jwk;
+  Status status =
+      jwk.Init(key_data, extractable, usages, "AKP", "MLKEM768-X25519");
+  if (status.IsError()) {
+    return status;
+  }
+
+  bool is_private_key = jwk.HasMember("priv");
+  status = is_private_key
+               ? CheckKeyCreationUsages(all_private_key_usages_, usages)
+               : CheckKeyCreationUsages(all_public_key_usages_, usages);
+  if (status.IsError()) {
+    return status;
+  }
+
+  std::vector<uint8_t> raw_public_key;
+  status = jwk.GetBytes("pub", &raw_public_key);
+  if (status.IsError()) {
+    return status;
+  }
+
+  blink::WebCryptoKeyAlgorithm key_algorithm =
+      blink::WebCryptoKeyAlgorithm::CreateWithoutParams(algorithm.Id());
+  const EVP_PKEY_ALG* alg = EVP_pkey_xwing();
+  bssl::UniquePtr<EVP_PKEY> public_evp_pkey(EVP_PKEY_from_raw_public_key(
+      alg, raw_public_key.data(), raw_public_key.size()));
+  if (!public_evp_pkey) {
+    return Status::DataError();
+  }
+
+  if (!is_private_key) {
+    return CreateWebCryptoPublicKey(std::move(public_evp_pkey), key_algorithm,
+                                    extractable, usages, key);
+  }
+
+  std::vector<uint8_t> raw_private_key;
+  status = jwk.GetBytes("priv", &raw_private_key);
+  if (status.IsError()) {
+    return status;
+  }
+  bssl::UniquePtr<EVP_PKEY> private_evp_pkey(EVP_PKEY_from_private_seed(
+      alg, raw_private_key.data(), raw_private_key.size()));
+  if (!private_evp_pkey) {
+    return Status::DataError();
+  }
+
+  // Check the public key matches the private key by comparing the JWK's public
+  // key to the JWK's private key, which ensures the public key generated from
+  // the private key matches.
+  if (!EVP_PKEY_cmp(private_evp_pkey.get(), public_evp_pkey.get())) {
+    return Status::DataError();
+  }
+
+  return CreateWebCryptoPrivateKey(std::move(private_evp_pkey), key_algorithm,
+                                   extractable, usages, key);
+}
+
+Status MlKem768X25519Implementation::ExportKeyJwk(
+    const blink::WebCryptoKey& key,
+    std::vector<uint8_t>* buffer) const {
+  EVP_PKEY* pkey = GetEVP_PKEY(key);
+  size_t keylen = 0;
+  if (!EVP_PKEY_get_raw_public_key(pkey, nullptr, &keylen)) {
+    return Status::OperationError();
+  }
+
+  std::vector<uint8_t> raw_public_key(keylen);
+  if (!EVP_PKEY_get_raw_public_key(pkey, raw_public_key.data(), &keylen)) {
+    return Status::OperationError();
+  }
+  raw_public_key.resize(keylen);
+
+  JwkWriter jwk("MLKEM768-X25519", key.Extractable(), key.Usages(), "AKP");
+
+  jwk.SetBytes("pub", raw_public_key);
+  if (key.GetType() == blink::kWebCryptoKeyTypePrivate) {
+    if (!EVP_PKEY_get_private_seed(pkey, nullptr, &keylen)) {
+      return Status::OperationError();
+    }
+
+    std::vector<uint8_t> raw_private_key(keylen);
+    if (!EVP_PKEY_get_private_seed(pkey, raw_private_key.data(), &keylen)) {
+      return Status::OperationError();
+    }
+    raw_private_key.resize(keylen);
+
+    jwk.SetBytes("priv", raw_private_key);
+  }
+
+  jwk.ToJson(buffer);
   return Status::Success();
 }
 

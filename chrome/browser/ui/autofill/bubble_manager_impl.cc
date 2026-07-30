@@ -26,6 +26,8 @@ constexpr base::TimeDelta kPendingRequestTimeout = base::Seconds(3600);
 // indicates higher priority.
 int GetPriorityForBubbleType(BubbleType type) {
   switch (type) {
+    case BubbleType::kOmniboxAutofill:
+      return 11;
     case BubbleType::kFilledCardInformation:
       return 10;
     case BubbleType::kPassword:
@@ -59,6 +61,7 @@ bool ShouldAlwaysPreemptSameType(BubbleType bubble_type) {
     case BubbleType::kFilledCardInformation:
     case BubbleType::kPassword:
       return true;
+    case BubbleType::kOmniboxAutofill:
     case BubbleType::kSaveUpdateAutofillAi:
     case BubbleType::kSaveUpdateCard:
     case BubbleType::kVirtualCardEnrollConfirmation:
@@ -76,6 +79,8 @@ bool ShouldAlwaysPreemptSameType(BubbleType bubble_type) {
 // LINT.IfChange(BubbleTypeToMetricSuffix)
 std::string_view BubbleTypeToMetricSuffix(BubbleType bubble_type) {
   switch (bubble_type) {
+    case BubbleType::kOmniboxAutofill:
+      return "OmniboxAutofill";
     case BubbleType::kSaveUpdateAddress:
       return "SaveUpdateAddress";
     case BubbleType::kSaveIban:

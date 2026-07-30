@@ -103,8 +103,8 @@ zucchini::status::Code MainRead(MainParams params) {
     return input.status;
 
   bool do_dump = params.command_line->HasSwitch(kSwitchDump);
-  zucchini::status::Code status = zucchini::ReadReferences(
-      {input.data(), input.length()}, do_dump, *params.out);
+  zucchini::status::Code status =
+      zucchini::ReadReferences(input.region(), do_dump, *params.out);
   if (status != kStatusSuccess)
     *params.err << "Fatal error found when dumping references." << std::endl;
   return status;
@@ -119,7 +119,7 @@ zucchini::status::Code MainDetect(MainParams params) {
 
   std::vector<zucchini::ConstBufferView> sub_image_list;
   zucchini::status::Code result = zucchini::DetectAll(
-      {input.data(), input.length()}, options, *params.out, &sub_image_list);
+      input.region(), options, *params.out, &sub_image_list);
   if (result != kStatusSuccess)
     *params.err << "Fatal error found when detecting executables." << std::endl;
   return result;
@@ -136,8 +136,7 @@ zucchini::status::Code MainMatch(MainParams params) {
     return new_image.status;
 
   zucchini::status::Code status = zucchini::MatchAll(
-      {old_image.data(), old_image.length()},
-      {new_image.data(), new_image.length()}, options, *params.out);
+      old_image.region(), new_image.region(), options, *params.out);
   if (status != kStatusSuccess)
     *params.err << "Fatal error found when matching executables." << std::endl;
   return status;
@@ -149,8 +148,8 @@ zucchini::status::Code MainCrc32(MainParams params) {
   if (input.status != kStatusSuccess)
     return input.status;
 
-  uint32_t crc = zucchini::CalculateCrc32(
-      input.data(), UNSAFE_TODO(input.data() + input.length()));
+  uint32_t crc =
+      zucchini::CalculateCrc32(input.region().begin(), input.region().end());
   *params.out << "CRC32: " << zucchini::AsHex<8>(crc) << std::endl;
   return kStatusSuccess;
 }

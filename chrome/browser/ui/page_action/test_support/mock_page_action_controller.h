@@ -92,6 +92,7 @@ class MockPageActionController : public PageActionController {
               (actions::ActionId,
                std::optional<AnchoredMessageExpandableContent>),
               (override));
+  MOCK_METHOD(bool, ActionExists, (actions::ActionId), (const override));
   MOCK_METHOD(void,
               AddObserver,
               (actions::ActionId,

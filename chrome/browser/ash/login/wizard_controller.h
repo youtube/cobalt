@@ -644,8 +644,8 @@ class WizardController : public OobeUI::Observer {
   void MaybeAbortQuickStartFlow(
       quick_start::QuickStartController::AbortFlowReason reason);
 
-  // Tries to enable pre-consent metrics.
-  void MaybeEnablePreConsentMetrics();
+  // Tries to enable pre-choice metrics.
+  void MaybeEnablePreChoiceMetrics();
 
   // Notifies the FjordOobeStateManager of an OOBE state change. This is a no-op
   // for devices that do not implement the Fjord variant of OOBE.

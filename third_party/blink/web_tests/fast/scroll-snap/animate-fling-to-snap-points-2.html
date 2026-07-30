@@ -36,45 +36,51 @@ div {
 <script>
 if (window.internals) {
   internals.runtimeFlags.implicitRootScrollerEnabled = true;
-  // Jump directly to the snap position.
-  internals.settings.setScrollAnimatorEnabled(false);
 }
 
-var body = document.body;
-var scroller = document.getElementById("scroller");
-var space = document.getElementById("space");
+const body = document.body;
+const scroller = document.getElementById("scroller");
+const space = document.getElementById("space");
 
-function scrollLeft() {
-  return scroller.scrollLeft;
+function reset() {
+  return Promise.all([
+    waitForScrollReset(scroller),
+    waitForCompositorCommit()
+  ]);
 }
 
-function MakeUnscrollable() {
-  scroller.removeChild(space);
+function updateDuringFling(update) {
+  const scroll_promise = waitForScrollEvent(scroller);
+  const gesture = swipe(100, 200, 200, 'upleft', 1000);
+  // Once the promises for the scroll gestures and the update during scroll
+  // have both resolved, wait a few more frames to ensure there is no crash.
+  return Promise.all([
+    scroll_promise.then(update),
+    gesture
+  ]).then(waitForAnimationFrames(2));
 }
-function MakeScrollable() {
-  scroller.appendChild(space);
-}
+
 promise_test (async () => {
-  await waitForScrollReset(scroller);
-  await waitForCompositorCommit();
-  const scrollPromise = waitForScrollEvent(scroller);
-  await swipe(100, 200, 200, 'upleft', 1000);
-  await scrollPromise;
-  MakeUnscrollable();
-  // Wait a little to see if we crash.
-  await waitForAnimationFrames(2);
-  MakeScrollable();
+  await reset();
+  await updateDuringFling(() => {
+    scroller.removeChild(space);
+  });
+  scroller.appendChild(space);
+}, "Should not crash if the scroll range becomes zero during fling.");
+
+promise_test (async () => {
+  await reset();
+  await updateDuringFling(() => {
+    scroller.style.overflow = 'clip';
+  });
+  scroller.style = '';
 }, "Should not crash if the scroller becomes unscrollable during fling.");
 
 promise_test (async () => {
-  await waitForScrollReset(scroller);
-  await waitForCompositorCommit();
-  const scrollPromise = waitForScrollEvent(scroller);
-  await swipe(100, 200, 200, 'upleft', 1000);
-  await scrollPromise;
-  body.removeChild(scroller);
-  // Wait a little to see if we crash.
-  await waitForAnimationFrames(2);
+  await reset();
+  await updateDuringFling(() => {
+    body.removeChild(scroller);
+  });
   body.appendChild(scroller);
 }, "Should not crash if the scroller is removed during fling.");
 </script>

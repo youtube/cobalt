@@ -488,7 +488,7 @@ IN_PROC_BROWSER_TEST_F(DiceWebSigninInterceptionBubbleBrowserTest,
   run_loop.Run();
   Browser::CreateParams browser_params(new_profile, /*user_gesture=*/true);
   Browser* new_browser = Browser::Create(browser_params);
-  new_browser->window()->Show();
+  new_browser->GetWindow()->Show();
 
   // Create a bubble using the temporary profile, but not attached to its view
   // hierarchy. This bubble won't be destroyed when the new browser is closed,
@@ -505,7 +505,7 @@ IN_PROC_BROWSER_TEST_F(DiceWebSigninInterceptionBubbleBrowserTest,
 
   // Close the browser without closing the bubble.
   ProfileDestructionWaiter profile_destruction_waiter(new_profile);
-  new_browser->window()->Close();
+  new_browser->GetWindow()->Close();
 
   // The profile is not destroyed, because the bubble is retaining it.
   EXPECT_TRUE(g_browser_process->profile_manager()->HasKeepAliveForTesting(

@@ -28,7 +28,6 @@
 #include "components/prefs/pref_service.h"
 #include "components/session_manager/core/session_manager.h"
 #include "content/public/test/browser_test.h"
-#include "content/public/test/test_utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace ash {
@@ -125,7 +124,6 @@ class ScreenTimeControllerTest : public MixinBasedInProcessBrowserTest {
   }
 
   bool IsLocked() {
-    base::RunLoop().RunUntilIdle();
     return session_manager::SessionManager::Get()->IsScreenLocked();
   }
 
@@ -568,6 +566,7 @@ IN_PROC_BROWSER_TEST_F(ScreenTimeControllerTest, ActiveSessionBedtime) {
 
   // Verify that device is locked at 11 PM (start of bedtime).
   task_runner_->FastForwardBy(base::Hours(1));
+  ScreenLockerTester().WaitForLock();
   EXPECT_TRUE(IsLocked());
 
   // Forward to 8 AM and check that auth was re-enabled (end of bedtime).
@@ -596,6 +595,7 @@ IN_PROC_BROWSER_TEST_F(ScreenTimeControllerTest, ActiveSessionDailyLimit) {
   // locked (start of daily limit).
   MockChildScreenTime(base::Hours(1));
   task_runner_->FastForwardBy(base::Hours(1));
+  ScreenLockerTester().WaitForLock();
   EXPECT_TRUE(IsLocked());
 
   // Forward to 6 AM, reset the usage time and check that auth was re-enabled.

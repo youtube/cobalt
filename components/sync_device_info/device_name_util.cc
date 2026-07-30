@@ -12,6 +12,7 @@
 #include "base/strings/strcat.h"
 #include "base/trace_event/trace_event.h"
 #include "components/strings/grit/components_strings.h"
+#include "components/sync/base/features.h"
 #include "components/sync_device_info/device_info.h"
 #include "third_party/abseil-cpp/absl/strings/ascii.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -61,8 +62,8 @@ std::string CapitalizeWords(const std::string& sentence) {
 
 }  // namespace
 
-DeviceDisplayNames GetDeviceDisplayNames(const DeviceInfo* device) {
-  TRACE_EVENT0("sync", "syncer::GetDeviceDisplayNames");
+DisplayNameCandidates GetDisplayNameCandidates(const DeviceInfo* device) {
+  TRACE_EVENT0("sync", "syncer::GetDisplayNameCandidates");
   DCHECK(device);
   std::string model = device->model_name();
   std::string client_name = device->client_name();
@@ -83,7 +84,8 @@ DeviceDisplayNames GetDeviceDisplayNames(const DeviceInfo* device) {
   // 1. Skip renaming for M78- devices where HardwareInfo is not available.
   // 2. Skip renaming if client_name is high quality.
   if (model.empty() || client_name_is_high_quality) {
-    return {client_name, client_name};
+    return {.preferred_name_if_unique = client_name,
+            .fallback_full_name = client_name};
   }
 
   std::string manufacturer = CapitalizeWords(device->manufacturer_name());
@@ -91,19 +93,30 @@ DeviceDisplayNames GetDeviceDisplayNames(const DeviceInfo* device) {
   // For chromeOS, return manufacturer + model.
   if (device->os_type() == DeviceInfo::OsType::kChromeOsAsh) {
     std::string name = base::StrCat({manufacturer, " ", model});
-    return {name, name};
+    return {.preferred_name_if_unique = name, .fallback_full_name = name};
   }
 
   // Internal names of Apple devices are formatted as MacbookPro2,3 or
   // iPhone2,1 or Ipad4,1.
   if (manufacturer == "Apple Inc.") {
-    return {model, model.substr(0, model.find_first_of("0123456789,"))};
+    std::string model_prefix =
+        model.substr(0, model.find_first_of("0123456789,"));
+    return {.preferred_name_if_unique = model_prefix,
+            .fallback_full_name = model};
   }
 
-  std::string short_name =
+  std::string preferred_name_if_unique =
       base::StrCat({manufacturer, " ", GetDeviceType(device->form_factor())});
-  std::string full_name = base::StrCat({short_name, " ", model});
-  return {full_name, short_name};
+  std::string fallback_full_name =
+      base::StrCat({preferred_name_if_unique, " ", model});
+  return {.preferred_name_if_unique = preferred_name_if_unique,
+          .fallback_full_name = fallback_full_name};
+}
+
+std::string GetDeviceDisplayName(const DeviceInfo* device) {
+  CHECK(base::FeatureList::IsEnabled(kSyncSimplifyDeviceNaming));
+
+  return GetDisplayNameCandidates(device).preferred_name_if_unique;
 }
 
 // `devices` should be sorted by recency (most recent first) to ensure that
@@ -114,41 +127,45 @@ std::vector<DeviceInfoWithName> DetermineDisplayNamesAndDeduplicate(
   TRACE_EVENT0("sync", "syncer::DetermineDisplayNamesAndDeduplicate");
   struct DeviceEntry {
     raw_ptr<const DeviceInfo> device;
-    DeviceDisplayNames names;
+    DisplayNameCandidates candidates;
   };
   std::vector<DeviceEntry> filtered_devices;
-  base::flat_set<std::string> seen_full_names;
-  base::flat_map<std::string, int> short_names_counter;
+  base::flat_set<std::string> seen_fallback_full_names;
+  base::flat_map<std::string, int> preferred_names_counter;
 
-  // 1. Initialize `seen_full_names` with local device's full name to prevent
-  // adding candidates with the same name.
+  // 1. Initialize `seen_fallback_full_names` with local device's fallback full
+  // name to prevent adding candidates with the same name.
   if (local_device_name) {
-    seen_full_names.insert(*local_device_name);
+    seen_fallback_full_names.insert(*local_device_name);
   }
 
   // 2. Iterate through devices (expected to be sorted by recency) to:
-  //    - De-duplicate by full name.
-  //    - Filter out devices with the same full name as the local device.
-  //    - Count short name occurrences.
+  //    - De-duplicate by fallback full name.
+  //    - Filter out devices with the same fallback full name as the local
+  //      device.
+  //    - Count preferred name if unique occurrences.
   for (const DeviceInfo* device : devices) {
-    DeviceDisplayNames device_names = GetDeviceDisplayNames(device);
+    DisplayNameCandidates candidates = GetDisplayNameCandidates(device);
 
     // Filter out duplicates and local device.
-    if (!seen_full_names.insert(device_names.full_name).second) {
+    if (!seen_fallback_full_names.insert(candidates.fallback_full_name)
+             .second) {
       continue;
     }
 
-    ++short_names_counter[device_names.short_name];
-    filtered_devices.emplace_back(device, std::move(device_names));
+    ++preferred_names_counter[candidates.preferred_name_if_unique];
+    filtered_devices.emplace_back(device, std::move(candidates));
   }
 
   // 3. Construct the final list.
   return base::ToVector(filtered_devices, [&](const DeviceEntry& entry) {
     return DeviceInfoWithName{
         .device = entry.device,
-        .display_name = short_names_counter[entry.names.short_name] == 1
-                            ? entry.names.short_name
-                            : entry.names.full_name};
+        .display_name =
+            preferred_names_counter[entry.candidates
+                                        .preferred_name_if_unique] == 1
+                ? entry.candidates.preferred_name_if_unique
+                : entry.candidates.fallback_full_name};
   });
 }
 

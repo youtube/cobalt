@@ -24,11 +24,9 @@ namespace os_crypt_async {
 
 namespace {
 
-scoped_refptr<Encryptor> GetInstanceSync(
-    OSCryptAsync& factory,
-    Encryptor::Option option = Encryptor::Option::kNone) {
+scoped_refptr<Encryptor> GetInstanceSync(OSCryptAsync& factory) {
   base::test::TestFuture<scoped_refptr<Encryptor>> future;
-  factory.GetInstance(future.GetCallback(), option);
+  factory.GetInstance(future.GetCallback());
   return future.Take();
 }
 
@@ -91,38 +89,5 @@ IN_PROC_BROWSER_TEST_F(OSCryptAsyncBrowserTest, SandboxedEncryptionTest) {
   EXPECT_EQ(*plaintext, kTestData);
 }
 
-// This test verifies that an Encryptor obtained with the kEncryptSyncCompat
-// option encrypts data that can be decrypted by OSCrypt, as well as ensuring
-// that kEncryptSyncCompat and kNone options are interoperable with each other.
-IN_PROC_BROWSER_TEST_F(OSCryptAsyncBrowserTest, OSCryptBackwardsCompatTest) {
-  auto encryptor = GetInstanceSync(*g_browser_process->os_crypt_async(),
-                                   Encryptor::Option::kEncryptSyncCompat);
-  auto ciphertext = encryptor->EncryptString("plaintext");
-  ASSERT_TRUE(ciphertext);
-
-  {
-    const auto decrypted = encryptor->DecryptData(*ciphertext);
-    ASSERT_TRUE(decrypted);
-    EXPECT_EQ(*decrypted, "plaintext");
-  }
-
-  {
-    // Verify that data encrypted from a kEncryptSyncCompat encryptor can be
-    // decrypted with a kNone encryptor.
-    auto full_encryptor = GetInstanceSync(*g_browser_process->os_crypt_async(),
-                                          Encryptor::Option::kNone);
-    const auto decrypted = full_encryptor->DecryptData(*ciphertext);
-    ASSERT_TRUE(decrypted);
-    EXPECT_EQ(decrypted, "plaintext");
-
-    // Verify that data encrypted from a kNone encryptor can be decrypted with a
-    // kEncryptSyncCompat encryptor.
-    const auto ciphertext2 = full_encryptor->EncryptString("more_plaintext");
-    ASSERT_TRUE(ciphertext2);
-    const auto decrypted2 = encryptor->DecryptData(*ciphertext2);
-    ASSERT_TRUE(decrypted2);
-    EXPECT_EQ(*decrypted2, "more_plaintext");
-  }
-}
 
 }  // namespace os_crypt_async

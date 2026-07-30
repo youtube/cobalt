@@ -109,6 +109,8 @@ V8RequestDestination::Enum DestinationToV8Enum(
       return V8RequestDestination::Enum::kSharedworker;
     case network::mojom::RequestDestination::kStyle:
       return V8RequestDestination::Enum::kStyle;
+    case network::mojom::RequestDestination::kText:
+      return V8RequestDestination::Enum::kText;
     case network::mojom::RequestDestination::kTrack:
       return V8RequestDestination::Enum::kTrack;
     case network::mojom::RequestDestination::kVideo:

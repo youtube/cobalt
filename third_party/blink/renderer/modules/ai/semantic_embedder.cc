@@ -1,12 +1,14 @@
-// Copyright 2026 The Chromium Authors
+// Copyright 2024 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "third_party/blink/renderer/modules/ai/semantic_embedder.h"
 
 #include "base/task/single_thread_task_runner.h"
+#include "mojo/public/cpp/bindings/callback_helpers.h"
 #include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom-blink.h"
 #include "third_party/blink/public/mojom/ai/ai_manager.mojom-blink.h"
+#include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_string_stringsequence.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_content_embedding.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_semantic_embedder_result.h"
@@ -46,8 +48,8 @@ mojom::blink::AISemanticEmbedderTaskType ToMojoTaskType(
   NOTREACHED();
 }
 
-[[maybe_unused]] mojom::blink::AISemanticEmbedderEmbedOptionsPtr
-EmbedOptionsToMojo(const SemanticEmbedderEmbedOptions* options) {
+mojom::blink::AISemanticEmbedderEmbedOptionsPtr EmbedOptionsToMojo(
+    const SemanticEmbedderEmbedOptions* options) {
   auto mojo_options = mojom::blink::AISemanticEmbedderEmbedOptions::New();
   if (options && options->hasTaskType()) {
     mojo_options->task_type = ToMojoTaskType(options->taskType());
@@ -282,9 +284,35 @@ ScriptPromise<SemanticEmbedderResult> SemanticEmbedder::embed(
       break;
   }
 
-  // Stubbed out
-  resolver->RejectWithDOMException(DOMExceptionCode::kNotSupportedError,
-                                   "Not implemented");
+  embedder_remote_->Embed(
+      inputs, EmbedOptionsToMojo(options),
+      mojo::WrapCallbackWithDefaultInvokeIfNotRun(
+          BindOnce(
+              [](ScriptPromiseResolver<SemanticEmbedderResult>* resolver,
+                 mojom::blink::SemanticEmbedderResultPtr result) {
+                if (!result) {
+                  resolver->RejectWithDOMException(
+                      DOMExceptionCode::kInvalidStateError,
+                      kExceptionMessageSessionDestroyed);
+                  return;
+                }
+
+                auto* embedder_result = SemanticEmbedderResult::Create();
+
+                HeapVector<Member<ContentEmbedding>> embeddings;
+                embeddings.ReserveInitialCapacity(result->embeddings.size());
+                for (const auto& embedding : result->embeddings) {
+                  auto* content_embedding = ContentEmbedding::Create();
+                  content_embedding->setValues(NotShared<DOMFloat32Array>(
+                      DOMFloat32Array::Create(embedding->values)));
+                  embeddings.push_back(content_embedding);
+                }
+                embedder_result->setEmbeddings(embeddings);
+
+                resolver->Resolve(embedder_result);
+              },
+              WrapPersistent(resolver)),
+          nullptr));
   return promise;
 }
 

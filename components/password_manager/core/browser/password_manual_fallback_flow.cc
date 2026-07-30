@@ -361,13 +361,6 @@ void PasswordManualFallbackFlow::DidAcceptSuggestion(
       GetMainFillingProduct());
 }
 
-void PasswordManualFallbackFlow::DidPerformButtonActionForSuggestion(
-    const Suggestion&,
-    const autofill::SuggestionButtonAction&) {
-  // Button actions do currently not exist for password entries.
-  NOTREACHED();
-}
-
 bool PasswordManualFallbackFlow::RemoveSuggestion(
     const Suggestion& suggestion) {
   // Password suggestions cannot be deleted this way.

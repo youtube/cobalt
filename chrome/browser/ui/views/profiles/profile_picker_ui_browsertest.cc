@@ -408,10 +408,9 @@ class ProfilePickerUIPixelTest
     ProfilePicker::Params params =
         is_glic_version
             ? ProfilePicker::Params::ForGlicManager(base::DoNothing())
-            // We use `ProfilePicker::Params::ForFirstRun` here because it is
-            // the only constructor that lets us force a profile to use.
-            : ProfilePicker::Params::ForFirstRun(
-                  browser()->profile()->GetPath(), base::DoNothing());
+            : ProfilePicker::Params::ForTesting(
+                  ProfilePicker::EntryPoint::kOnStartup,
+                  browser()->profile()->GetPath());
 
     if (!GetParam().is_profile_picker_first_run) {
       ProfilePicker::Show(ProfilePicker::Params::FromEntryPoint(

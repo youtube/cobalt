@@ -5,18 +5,12 @@
 #ifndef IOS_CHROME_BROWSER_READING_LIST_UI_BUNDLED_READING_LIST_UTILS_H_
 #define IOS_CHROME_BROWSER_READING_LIST_UI_BUNDLED_READING_LIST_UTILS_H_
 
-#include "components/reading_list/core/reading_list_entry.h"
-#import "ios/chrome/browser/reading_list/ui_bundled/reading_list_ui_distillation_status.h"
-
 class ReadingListBrowserAgent;
 namespace web {
 class WebState;
 }  // namespace web
 
 namespace reading_list {
-
-ReadingListUIDistillationStatus UIStatusFromModelStatus(
-    ReadingListEntry::DistillationState distillation_state);
 
 // Adds `web_state` visible or canonical URL to reading list using
 // `readingListBrowserAgent`. This function retrieves the canonical URL

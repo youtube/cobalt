@@ -35,7 +35,7 @@ NavigationCapturingSettings::Create(Profile& profile) {
 
 NavigationCapturingSettingsCrosImpl::NavigationCapturingSettingsCrosImpl(
     Profile& profile)
-    : profile_(profile) {}
+    : NavigationCapturingSettings(profile) {}
 
 NavigationCapturingSettingsCrosImpl::~NavigationCapturingSettingsCrosImpl() =
     default;

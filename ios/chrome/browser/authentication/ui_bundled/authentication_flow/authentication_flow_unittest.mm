@@ -58,6 +58,7 @@
 #import "ios/chrome/browser/signin/model/fake_system_identity.h"
 #import "ios/chrome/browser/signin/model/fake_system_identity_manager.h"
 #import "ios/chrome/browser/sync/model/sync_service_factory.h"
+#import "ios/chrome/browser/sync/model/test_sync_service_utils.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
 #import "ios/web/public/test/web_task_environment.h"
 #import "testing/gtest_mac.h"
@@ -127,12 +128,8 @@ class AuthenticationFlowTest : public PlatformTest {
         AuthenticationServiceFactory::GetInstance(),
         AuthenticationServiceFactory::GetFactoryWithDelegate(
             std::make_unique<FakeAuthenticationServiceDelegate>()));
-    builder.AddTestingFactory(
-        SyncServiceFactory::GetInstance(),
-        base::BindRepeating(
-            [](ProfileIOS* profile) -> std::unique_ptr<KeyedService> {
-              return std::make_unique<syncer::TestSyncService>();
-            }));
+    builder.AddTestingFactory(SyncServiceFactory::GetInstance(),
+                              base::BindRepeating(&CreateTestSyncService));
     builder.SetPrefService(CreatePrefService());
     return profile_manager_.AddProfileWithBuilder(std::move(builder));
   }
@@ -193,25 +190,24 @@ class AuthenticationFlowTest : public PlatformTest {
           .andReturn(in_profile_performer_mock_);
     }
 
-    signin_ui::SigninCompletionCallback sign_in_completion =
-        ^(signin_ui::CancelationReason cancelationReason) {
-          cancelation_reason_ = cancelationReason;
-          run_loop_->Quit();
-          switch (cancelationReason) {
-            case signin_ui::CancelationReason::kNotCanceled:
-              signin_result_ = signin::Tribool::kTrue;
-              break;
-            case signin_ui::CancelationReason::kUserCanceled:
-            case signin_ui::CancelationReason::kAgeMismatchCanceled:
-            case signin_ui::CancelationReason::
-                kAgeMismatchCanceledStaySignedOut:
-            case signin_ui::CancelationReason::kFailed:
-            case signin_ui::CancelationReason::kSignInNotAllowed:
-              signin_result_ = signin::Tribool::kFalse;
-              break;
-          }
-          authentication_flow_ = nil;
-        };
+    signin_ui::SigninCompletionCallback sign_in_completion = ^(
+        signin_ui::CancelationReason cancelationReason) {
+      cancelation_reason_ = cancelationReason;
+      run_loop_->Quit();
+      switch (cancelationReason) {
+        case signin_ui::CancelationReason::kNotCanceled:
+          signin_result_ = signin::Tribool::kTrue;
+          break;
+        case signin_ui::CancelationReason::kUserCanceled:
+        case signin_ui::CancelationReason::kAgeMismatchCanceled:
+        case signin_ui::CancelationReason::kAgeMismatchCanceledStaySignedOut:
+        case signin_ui::CancelationReason::kFailed:
+        case signin_ui::CancelationReason::kSignInNotAllowed:
+          signin_result_ = signin::Tribool::kFalse;
+          break;
+      }
+      authentication_flow_ = nil;
+    };
     // Runs the sign_in_completion with Success and the closure.
     ChangeProfileContinuationProvider continuation_provider =
         base::BindRepeating(

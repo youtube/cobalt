@@ -4,8 +4,8 @@
 
 #include "chrome/browser/ui/webui/ash/login/parental_handoff_screen_handler.h"
 
+#include "ash/login/resources/grit/ash_login_strings.h"
 #include "chrome/browser/ash/login/screens/parental_handoff_screen.h"
-#include "chrome/grit/generated_resources.h"
 #include "components/login/localized_values_builder.h"
 #include "ui/base/l10n/l10n_util.h"
 

@@ -448,8 +448,8 @@ std::optional<PhysicalSize> FragmentItemsBuilder::ToFragmentItems(
   ConvertToPhysical(outer_size);
   std::optional<PhysicalSize> new_size;
   if (node_.IsSvgText()) {
-    new_size = SvgTextLayoutAlgorithm(node_, GetWritingMode())
-                   .Layout(TextContent(false), items_);
+    new_size =
+        SvgTextLayoutAlgorithm(node_, GetWritingMode()).Layout(*this, items_);
   }
   new (data) FragmentItems(this);
   return new_size;

@@ -575,9 +575,21 @@ void ExtensionFunction::SetDispatcher(
 }
 
 void ExtensionFunction::Shutdown() {
-  // Wait until the end of this function to delete |this|, in case
-  // OnBrowserContextShutdown() decrements the refcount.
-  scoped_refptr<ExtensionFunction> keep_alive{this};
+  // Keep `this` alive until the end of the function, in case
+  // OnBrowserContextShutdown() drops the last reference.
+  //
+  // The keep-alive is taken only when the refcount is non-zero. A zero refcount
+  // means the last reference was already released off the UI thread, so the
+  // DeleteOnUIThread deleter has scheduled deletion via DeleteSoon (which will
+  // delete `this` via a raw pointer) and RefCountedThreadSafe has marked `this`
+  // as being destroyed. Taking another reference here would cause a double free
+  // in production builds (and a DCHECK failure with DCHECKs enabled); there is
+  // no last reference left for OnBrowserContextShutdown() to drop, so it can
+  // run safely without the keep-alive.
+  scoped_refptr<ExtensionFunction> keep_alive;
+  if (HasAtLeastOneRef()) {
+    keep_alive = this;
+  }
 
   // Allow the extension function to perform any cleanup before nulling out
   // `browser_context_`.

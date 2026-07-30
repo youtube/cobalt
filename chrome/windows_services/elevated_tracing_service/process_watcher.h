@@ -8,6 +8,7 @@
 #include "base/functional/callback_forward.h"
 #include "base/process/process.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/threading/platform_thread.h"
 
 namespace elevated_tracing_service {
 
@@ -22,10 +23,14 @@ class ProcessWatcher {
   ~ProcessWatcher();
 
  private:
-  class ThreadDelegate;
-
   // An event that is signaled at destruction to cancel the watch.
   base::WaitableEvent shutdown_event_;
+
+  // An event that is signaled when the watch task has completed.
+  base::WaitableEvent completed_event_;
+
+  // The TID of the thread servicing the watch task.
+  base::PlatformThreadId watch_thread_id_ = base::kInvalidThreadId;
 };
 
 }  // namespace elevated_tracing_service

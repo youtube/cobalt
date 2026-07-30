@@ -184,7 +184,6 @@ public class AccessorySheetRenderTest {
                 new KeyboardAccessoryData.AccessorySheetData(
                         AccessoryTabType.PASSWORDS,
                         /* userInfoTitle= */ "",
-                        /* plusAddressTitle= */ "",
                         /* warning= */ "");
         sheet.getUserInfoList()
                 .add(new KeyboardAccessoryData.UserInfo("http://psl.origin.com/", true));
@@ -221,40 +220,6 @@ public class AccessorySheetRenderTest {
         mRenderTestRule.render(mContentView, "Passwords");
     }
 
-    @Test
-    @MediumTest
-    @Feature({"RenderTest"})
-    public void testAddingPlusAddressesToPasswordTabRendersTabsView() throws Exception {
-        final KeyboardAccessoryData.AccessorySheetData sheet =
-                new KeyboardAccessoryData.AccessorySheetData(
-                        AccessoryTabType.PASSWORDS,
-                        /* userInfoTitle= */ "No saved passwords for google.com",
-                        /* plusAddressTitle= */ "",
-                        /* warning= */ "");
-        sheet.getPlusAddressInfoList()
-                .add(
-                        new KeyboardAccessoryData.PlusAddressInfo(
-                                /* origin= */ "google.com",
-                                new UserInfoField.Builder()
-                                        .setSuggestionType(AccessorySuggestionType.PLUS_ADDRESS)
-                                        .setDisplayText("example@gmail.com")
-                                        .setA11yDescription("example@gmail.com")
-                                        .setCallback(unused -> {})
-                                        .build()));
-        sheet.getFooterCommands()
-                .add(new KeyboardAccessoryData.FooterCommand("Suggest strong password", cb -> {}));
-        sheet.getFooterCommands()
-                .add(new KeyboardAccessoryData.FooterCommand("Manage Passwords", cb -> {}));
-
-        PasswordAccessorySheetCoordinator coordinator =
-                ThreadUtils.runOnUiThreadBlocking(
-                        () ->
-                                new PasswordAccessorySheetCoordinator(
-                                        mActivityTestRule.getActivity(), mProfile, null));
-        showSheetTab(coordinator, sheet);
-
-        mRenderTestRule.render(mContentView, "Passwords with plus address");
-    }
 
     // Tests rendering of Payments tab with both credit cards and promo code offers.
     // Promo code offers should appear above the credit cards.
@@ -266,7 +231,6 @@ public class AccessorySheetRenderTest {
                 new KeyboardAccessoryData.AccessorySheetData(
                         AccessoryTabType.CREDIT_CARDS,
                         /* userInfoTitle= */ "",
-                        /* plusAddressTitle= */ "",
                         /* warning= */ "");
         sheet.getUserInfoList().add(new KeyboardAccessoryData.UserInfo("", true));
         sheet.getUserInfoList()
@@ -356,7 +320,6 @@ public class AccessorySheetRenderTest {
                 new KeyboardAccessoryData.AccessorySheetData(
                         AccessoryTabType.CREDIT_CARDS,
                         /* userInfoTitle= */ "",
-                        /* plusAddressTitle= */ "",
                         /* warning= */ "");
         sheet.getIbanInfoList().add(new KeyboardAccessoryData.IbanInfo());
         sheet.getIbanInfoList()
@@ -391,7 +354,6 @@ public class AccessorySheetRenderTest {
                 new KeyboardAccessoryData.AccessorySheetData(
                         AccessoryTabType.CREDIT_CARDS,
                         /* userInfoTitle= */ "No payment methods",
-                        /* plusAddressTitle= */ "",
                         /* warning= */ "");
         sheet.getLoyaltyCardInfoList()
                 .add(
@@ -427,7 +389,6 @@ public class AccessorySheetRenderTest {
                 new KeyboardAccessoryData.AccessorySheetData(
                         AccessoryTabType.ADDRESSES,
                         /* userInfoTitle= */ "",
-                        /* plusAddressTitle= */ "",
                         /* warning= */ "");
         sheet.getUserInfoList().add(new KeyboardAccessoryData.UserInfo("", true));
         sheet.getUserInfoList()
@@ -528,38 +489,6 @@ public class AccessorySheetRenderTest {
         mRenderTestRule.render(mContentView, "Addresses");
     }
 
-    @Test
-    @MediumTest
-    @Feature({"RenderTest"})
-    public void testAddingPlusAddressToModelRendersTabsView() throws Exception {
-        final KeyboardAccessoryData.AccessorySheetData sheet =
-                new KeyboardAccessoryData.AccessorySheetData(
-                        AccessoryTabType.ADDRESSES,
-                        /* userInfoTitle= */ "No saved addresses",
-                        /* plusAddressTitle= */ "",
-                        /* warning= */ "");
-        sheet.getPlusAddressInfoList()
-                .add(
-                        new KeyboardAccessoryData.PlusAddressInfo(
-                                /* origin= */ "google.com",
-                                new UserInfoField.Builder()
-                                        .setSuggestionType(AccessorySuggestionType.PLUS_ADDRESS)
-                                        .setDisplayText("example@gmail.com")
-                                        .setA11yDescription("example@gmail.com")
-                                        .setCallback(unused -> {})
-                                        .build()));
-        sheet.getFooterCommands()
-                .add(new KeyboardAccessoryData.FooterCommand("Manage addresses", cb -> {}));
-
-        AddressAccessorySheetCoordinator coordinator =
-                ThreadUtils.runOnUiThreadBlocking(
-                        () ->
-                                new AddressAccessorySheetCoordinator(
-                                        mActivityTestRule.getActivity(), mProfile, null));
-        showSheetTab(coordinator, sheet);
-
-        mRenderTestRule.render(mContentView, "Addresses with plus address");
-    }
 
     private AsyncViewStub initializeContentViewWithSheetStub() {
         mContentView =

@@ -9,16 +9,15 @@ import android.graphics.Canvas;
 import android.graphics.Rect;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
-import android.text.Editable;
-import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.View;
-import android.widget.EditText;
 
+import androidx.appcompat.widget.SearchView;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.recyclerview.widget.RecyclerView.Adapter;
 
+import org.chromium.base.Callback;
 import org.chromium.base.ui.KeyboardUtils;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.ui.autofill.internal.R;
@@ -29,6 +28,7 @@ import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 public class AtMemoryBottomSheetView {
     private final View mContentView;
     private final RecyclerView mRecyclerView;
+    private final SearchView mSearchView;
 
     public AtMemoryBottomSheetView(Context context) {
         mContentView = LayoutInflater.from(context).inflate(R.layout.at_memory_bottom_sheet, null);
@@ -37,28 +37,7 @@ public class AtMemoryBottomSheetView {
         mRecyclerView.setLayoutManager(new LinearLayoutManager(context));
         mRecyclerView.addItemDecoration(new AtMemoryDividerItemDecoration(context));
 
-        initializeSearchQueryInput();
-    }
-
-    private void initializeSearchQueryInput() {
-        EditText searchInput = mContentView.findViewById(R.id.search_query_input);
-        View clearButton = mContentView.findViewById(R.id.clear_search_button);
-
-        clearButton.setOnClickListener(v -> clearSearchText());
-        searchInput.addTextChangedListener(
-                new TextWatcher() {
-                    @Override
-                    public void beforeTextChanged(
-                            CharSequence s, int start, int count, int after) {}
-
-                    @Override
-                    public void onTextChanged(CharSequence s, int start, int before, int count) {
-                        clearButton.setVisibility(s.length() > 0 ? View.VISIBLE : View.GONE);
-                    }
-
-                    @Override
-                    public void afterTextChanged(Editable s) {}
-                });
+        mSearchView = mContentView.findViewById(R.id.search_query_input);
     }
 
     public View getContentView() {
@@ -70,18 +49,33 @@ public class AtMemoryBottomSheetView {
     }
 
     public void focusSearchArea() {
-        View searchInput = mContentView.findViewById(R.id.search_query_input);
-        assert searchInput != null;
         // TODO(crbug.com/512802813): Fix cursor not blinking on subsequent openings of the bottom
         // sheet.
-        searchInput.requestFocus();
-        KeyboardUtils.showKeyboard(searchInput);
+        mSearchView.requestFocus();
+        // SearchView is a wrapper layout. We must find and pass its focused child (the internal
+        // edit text) to show the keyboard.
+        View focusedChild = mSearchView.findFocus();
+        KeyboardUtils.showKeyboard(focusedChild != null ? focusedChild : mSearchView);
     }
 
     public void clearSearchText() {
-        View searchInput = mContentView.findViewById(R.id.search_query_input);
-        assert searchInput instanceof EditText;
-        ((EditText) searchInput).setText("");
+        mSearchView.setQuery("", /* submit= */ false);
+    }
+
+    public void setOnQuerySubmittedCallback(Callback<String> callback) {
+        mSearchView.setOnQueryTextListener(
+                new SearchView.OnQueryTextListener() {
+                    @Override
+                    public boolean onQueryTextSubmit(String query) {
+                        callback.onResult(query);
+                        return true;
+                    }
+
+                    @Override
+                    public boolean onQueryTextChange(String newText) {
+                        return false;
+                    }
+                });
     }
 
     /** Draws a divider line below each item in the list except for the last item. */
