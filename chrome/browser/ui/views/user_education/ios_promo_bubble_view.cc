@@ -5,6 +5,7 @@
 #include "chrome/browser/ui/views/user_education/ios_promo_bubble_view.h"
 
 #include "base/functional/bind.h"
+#include "chrome/browser/desktop_to_mobile_promos/promos_utils.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/desktop_to_mobile_promos/ios_promo_trigger_service.h"
@@ -109,11 +110,14 @@ class IOSPromoBubbleHeaderView : public views::View {
                           .SetMultiLine(true)
                           .SetTextContext(views::style::CONTEXT_DIALOG_TITLE)
                           .SetTextStyle(views::style::STYLE_HEADLINE_4))
-            .AddChild(views::Builder<views::Label>()
-                          .SetText(subtitle)
-                          .SetMultiLine(true)
-                          .SetTextContext(views::style::CONTEXT_LABEL)
-                          .SetTextStyle(views::style::STYLE_SECONDARY))
+            .AddChild(
+                views::Builder<views::Label>()
+                    .SetText(subtitle)
+                    .SetMultiLine(true)
+                    .SetTextContext(views::style::CONTEXT_DIALOG_BODY_TEXT)
+                    .SetTextStyle(views::style::STYLE_SECONDARY)
+                    .SetHorizontalAlignment(
+                        gfx::HorizontalAlignment::ALIGN_TO_HEAD))
             .Build());
   }
   ~IOSPromoBubbleHeaderView() override = default;
@@ -208,6 +212,8 @@ IOSPromoBubbleView::IOSPromoBubbleView(BrowserView* browser_view,
   set_highlight_button_when_shown(ShouldHighlightAnchorButton());
 
   LogDesktopPromoBubbleCreated(promo_type_, promo_bubble_type_);
+
+  promos_utils::IOSDesktopPromoShown(profile_, promo_type_);
 }
 
 IOSPromoBubbleView::~IOSPromoBubbleView() = default;
@@ -227,11 +233,17 @@ void IOSPromoBubbleView::AddedToWidget() {
 gfx::Rect IOSPromoBubbleView::GetBubbleBounds() {
   gfx::Rect bubble_bounds = BubbleDialogDelegateView::GetBubbleBounds();
   gfx::Rect anchor_rect = GetAnchorRect();
-  // Manually position the bubble to be right-aligned with the anchor and below
-  // it. This mimics TOP_RIGHT anchor behavior but without the arrow inset
-  // logic.
-  bubble_bounds.set_x(anchor_rect.right() - bubble_bounds.width());
-  bubble_bounds.set_y(anchor_rect.bottom());
+
+  // Manually position the bubble relative to the anchor. This mimics TOP_RIGHT
+  // anchor behavior but without the arrow inset logic. For the Lens promo,
+  // the bubble is attached at the top-left corner of the anchor.
+  if (promo_type_ == PromoType::kLens) {
+    bubble_bounds.set_x(anchor_rect.x());
+    bubble_bounds.set_y(anchor_rect.y());
+  } else {
+    bubble_bounds.set_x(anchor_rect.right() - bubble_bounds.width());
+    bubble_bounds.set_y(anchor_rect.bottom());
+  }
   return bubble_bounds;
 }
 

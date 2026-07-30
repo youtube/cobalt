@@ -12,6 +12,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "components/autofill/core/browser/autofill_ai_form_rationalization.h"
 #include "components/autofill/core/browser/autofill_field.h"
+#include "components/autofill/core/browser/autofill_format_string.h"
 #include "components/autofill/core/browser/data_manager/autofill_ai/entity_data_manager.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
 #include "components/autofill/core/browser/data_quality/addresses/address_normalizer.h"
@@ -280,8 +281,6 @@ std::u16string GetFillValueForEntity(
       action_persistence != mojom::ActionPersistence::kFill &&
       !field.IsSelectElement() && attribute->type().is_obfuscated();
 
-  // TODO(crbug.com/394011769): Investigate whether the obfuscation should
-  // should include some of the attribute's value, e.g. the last x characters.
   return should_obfuscate ? GetObfuscatedValue(fill_value) : fill_value;
 }
 

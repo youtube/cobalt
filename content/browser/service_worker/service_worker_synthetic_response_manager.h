@@ -109,7 +109,8 @@ class CONTENT_EXPORT ServiceWorkerSyntheticResponseManager {
   void MaybeSetResponseHead(
       const network::mojom::URLResponseHead& response_head);
 
-  void TransferResponseBody(mojo::ScopedDataPipeConsumerHandle body);
+  void TransferResponseBody(mojo::ScopedDataPipeConsumerHandle consumer,
+                            mojo::ScopedDataPipeProducerHandle producer);
 
   // Read response data from the data pipe which has the actual response from
   // the network, and keep it in buffer.
@@ -159,6 +160,9 @@ class CONTENT_EXPORT ServiceWorkerSyntheticResponseManager {
   std::optional<ServiceWorkerSyntheticResponseDataPipeConnector>
       data_pipe_connector_;
   bool did_start_synthetic_response_ = false;
+  bool is_initiated_by_prefetch_ = false;
+  bool is_guest_ = false;
+  size_t factory_interceptor_count_ = 0;
 
   base::TimeTicks request_start_time_;
   base::TimeTicks response_received_time_;

@@ -49,21 +49,21 @@ struct EnumTraits<composebox_query::mojom::InputType, omnibox::InputType> {
 
 template <>
 
-struct EnumTraits<composebox_query::mojom::FileUploadStatus,
-                  contextual_search::FileUploadStatus> {
-  static composebox_query::mojom::FileUploadStatus ToMojom(
-      contextual_search::FileUploadStatus input);
-  static bool FromMojom(composebox_query::mojom::FileUploadStatus input,
-                        contextual_search::FileUploadStatus* output);
+struct EnumTraits<composebox_query::mojom::ContextUploadStatus,
+                  contextual_search::ContextUploadStatus> {
+  static composebox_query::mojom::ContextUploadStatus ToMojom(
+      contextual_search::ContextUploadStatus input);
+  static bool FromMojom(composebox_query::mojom::ContextUploadStatus input,
+                        contextual_search::ContextUploadStatus* output);
 };
 
 template <>
-struct EnumTraits<composebox_query::mojom::FileUploadErrorType,
-                  contextual_search::FileUploadErrorType> {
-  static composebox_query::mojom::FileUploadErrorType ToMojom(
-      contextual_search::FileUploadErrorType input);
-  static bool FromMojom(composebox_query::mojom::FileUploadErrorType input,
-                        contextual_search::FileUploadErrorType* output);
+struct EnumTraits<composebox_query::mojom::ContextUploadErrorType,
+                  contextual_search::ContextUploadErrorType> {
+  static composebox_query::mojom::ContextUploadErrorType ToMojom(
+      contextual_search::ContextUploadErrorType input);
+  static bool FromMojom(composebox_query::mojom::ContextUploadErrorType input,
+                        contextual_search::ContextUploadErrorType* output);
 };
 
 template <>

@@ -7,11 +7,13 @@ package org.chromium.chrome.browser.autofill.settings;
 import static androidx.test.espresso.Espresso.onView;
 import static androidx.test.espresso.action.ViewActions.click;
 import static androidx.test.espresso.action.ViewActions.scrollTo;
+import static androidx.test.espresso.assertion.ViewAssertions.doesNotExist;
 import static androidx.test.espresso.assertion.ViewAssertions.matches;
 import static androidx.test.espresso.intent.Intents.intended;
 import static androidx.test.espresso.intent.Intents.intending;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasAction;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasData;
+import static androidx.test.espresso.matcher.RootMatchers.isDialog;
 import static androidx.test.espresso.matcher.ViewMatchers.isDescendantOfA;
 import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
 import static androidx.test.espresso.matcher.ViewMatchers.withEffectiveVisibility;
@@ -46,6 +48,7 @@ import android.widget.TextView;
 import androidx.annotation.LayoutRes;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceCategory;
+import androidx.preference.PreferenceGroup;
 import androidx.preference.PreferenceScreen;
 import androidx.test.espresso.intent.Intents;
 import androidx.test.espresso.matcher.ViewMatchers.Visibility;
@@ -64,6 +67,7 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
+import org.chromium.base.Callback;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Criteria;
@@ -71,18 +75,21 @@ import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.DoNotBatch;
 import org.chromium.base.test.util.Feature;
+import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.autofill.AndroidAutofillAvailabilityStatus;
 import org.chromium.chrome.browser.autofill.AutofillClientProviderUtils;
 import org.chromium.chrome.browser.autofill.AutofillTestHelper;
+import org.chromium.chrome.browser.autofill.GoogleWalletLauncher;
 import org.chromium.chrome.browser.autofill.autofill_ai.EntityDataManager;
 import org.chromium.chrome.browser.autofill.autofill_ai.EntityDataManager.EntityDataManagerObserver;
 import org.chromium.chrome.browser.autofill.autofill_ai.EntityDataManagerFactory;
 import org.chromium.chrome.browser.autofill.editors.address.AddressEditorMediator;
 import org.chromium.chrome.browser.autofill.editors.address.EditorDialogView;
 import org.chromium.chrome.browser.autofill.options.AutofillOptionsFragment;
+import org.chromium.chrome.browser.device_reauth.ReauthenticatorBridge;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.settings.SettingsActivity;
@@ -96,6 +103,7 @@ import org.chromium.components.autofill.FieldType;
 import org.chromium.components.autofill.RecordType;
 import org.chromium.components.autofill.autofill_ai.EntityInstance;
 import org.chromium.components.autofill.autofill_ai.EntityInstanceWithLabels;
+import org.chromium.components.autofill.autofill_ai.EntityType;
 import org.chromium.components.autofill.autofill_ai.utils.TestUtils;
 import org.chromium.components.browser_ui.settings.CardWithButtonPreference;
 import org.chromium.components.browser_ui.settings.ChromeSwitchPreference;
@@ -114,6 +122,7 @@ import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeoutException;
@@ -207,6 +216,7 @@ public class AutofillProfilesFragmentTest {
     @Mock private IdentityServicesProvider mIdentityServicesProvider;
     @Mock private IdentityManager mIdentityManagerMock;
     @Mock private SyncService mSyncService;
+    @Mock private ReauthenticatorBridge mMockReauthenticatorBridge;
     private static EntityDataManager sEntityDataManager;
 
     private final AutofillTestHelper mHelper = new AutofillTestHelper();
@@ -221,6 +231,7 @@ public class AutofillProfilesFragmentTest {
 
     @Before
     public void setUp() throws TimeoutException {
+        ReauthenticatorBridge.setInstanceForTesting(mMockReauthenticatorBridge);
         Intents.init();
         mHelper.setProfile(sLocalOrSyncProfile);
         mHelper.setProfile(
@@ -1023,9 +1034,14 @@ public class AutofillProfilesFragmentTest {
     @MediumTest
     @Feature({"Preferences"})
     public void testAutofillAiEntities_renderedCorrectly() throws Exception {
+        EntityType vehicleType = TestUtils.getVehicleEntityType();
+        EntityType passportType = TestUtils.getPassportEntityType();
+        EntityType nationalIdType = TestUtils.getNationalIdEntityType();
+
         EntityInstanceWithLabels entity1 =
                 new EntityInstanceWithLabels(
                         "guid1",
+                        vehicleType,
                         /* entityInstanceLabel= */ "Vehicle",
                         /* entityInstanceSubLabel= */ "Mercedez",
                         /* storedInWallet= */ false);
@@ -1033,12 +1049,18 @@ public class AutofillProfilesFragmentTest {
         EntityInstanceWithLabels entity2 =
                 new EntityInstanceWithLabels(
                         "guid2",
+                        passportType,
                         /*entityName*/ "Passport",
                         /* entityInstanceSubLabel= */ "Germany",
                         /* storedInWallet= */ false);
 
-        when(sEntityDataManager.getEntitiesWithLabels())
-                .thenReturn(Arrays.asList(entity1, entity2));
+        LinkedHashMap<EntityType, List<EntityInstanceWithLabels>> instancesMap =
+                new LinkedHashMap<>();
+        instancesMap.put(vehicleType, Arrays.asList(entity1));
+        instancesMap.put(passportType, Arrays.asList(entity2));
+        instancesMap.put(nationalIdType, Collections.emptyList());
+
+        when(sEntityDataManager.getInstancesToList()).thenReturn(instancesMap);
         EntityDataManagerFactory.setInstanceForTesting(sEntityDataManager);
 
         // Trigger a rebuild of the profile list to pick up the new mock entities.
@@ -1053,6 +1075,7 @@ public class AutofillProfilesFragmentTest {
                             "Vehicle entity category should exist",
                             vehicleCategory,
                             Matchers.notNullValue());
+                    PreferenceGroup vehicleGroup = (PreferenceGroup) vehicleCategory;
                     Preference vehicleEntity = fragment.findPreference("guid1");
                     Criteria.checkThat(
                             "Vehicle entity should exist", vehicleEntity, Matchers.notNullValue());
@@ -1060,49 +1083,275 @@ public class AutofillProfilesFragmentTest {
                             "Vehicle summary should match",
                             vehicleEntity.getSummary(),
                             Matchers.is("Mercedez"));
+                    Preference addVehicle = vehicleGroup.findPreference("Vehicle" + " Add");
+                    Criteria.checkThat(
+                            "Add Vehicle button should exist in category",
+                            addVehicle,
+                            Matchers.notNullValue());
 
                     Preference passportCategory = fragment.findPreference("Passport");
                     Criteria.checkThat(
                             "Passport entity category should exist",
                             passportCategory,
                             Matchers.notNullValue());
+                    PreferenceGroup passportGroup = (PreferenceGroup) passportCategory;
                     Preference passportEntity = fragment.findPreference("guid2");
                     Criteria.checkThat(
                             "Passport entity should exist",
                             passportEntity,
                             Matchers.notNullValue());
+                    Preference addPassport = passportGroup.findPreference("Passport" + " Add");
                     Criteria.checkThat(
-                            "Passport summary should match",
-                            passportEntity.getSummary(),
-                            Matchers.is("Germany"));
+                            "Add Passport button should exist because it is writable by default in"
+                                    + " TestUtils",
+                            addPassport,
+                            Matchers.notNullValue());
+
+                    Preference nationalIdCategory = fragment.findPreference("National ID");
+                    Criteria.checkThat(
+                            "National ID entity category should exist",
+                            nationalIdCategory,
+                            Matchers.notNullValue());
+                    PreferenceGroup nationalIdGroup = (PreferenceGroup) nationalIdCategory;
+                    Preference addNationalId =
+                            nationalIdGroup.findPreference("National ID" + " Add");
+                    Criteria.checkThat(
+                            "Add National ID button should exist in category even if no entities"
+                                    + " exist",
+                            addNationalId,
+                            Matchers.notNullValue());
 
                     PreferenceScreen screen = fragment.getPreferenceScreen();
                     int categoryCount = 0;
                     for (int i = 0; i < screen.getPreferenceCount(); i++) {
-                        if (screen.getPreference(i) instanceof PreferenceCategory) {
+                        Preference pref = screen.getPreference(i);
+                        if (pref instanceof PreferenceCategory) {
                             categoryCount++;
                         }
                     }
                     Criteria.checkThat(
-                            "Entities category count should be 2", categoryCount, Matchers.is(2));
+                            "Entities category count should be 3 (Passport, Vehicle, and National"
+                                    + " ID)",
+                            categoryCount,
+                            Matchers.is(3));
                 });
     }
 
     @Test
     @MediumTest
     @Feature({"Preferences"})
-    public void testAutofillAiEntities_opensEditorOnClick() throws Exception {
+    public void testAutofillAiEntities_notRenderedIfDisabledAndEmpty() throws Exception {
+        EntityType disabledType =
+                TestUtils.getVehicleEntityType(/* isReadOnly= */ false, /* isEnabled= */ false);
+
+        LinkedHashMap<EntityType, List<EntityInstanceWithLabels>> instancesMap =
+                new LinkedHashMap<>();
+        instancesMap.put(disabledType, Collections.emptyList());
+
+        when(sEntityDataManager.getInstancesToList()).thenReturn(instancesMap);
+        EntityDataManagerFactory.setInstanceForTesting(sEntityDataManager);
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> sSettingsActivityTestRule.getFragment().onPersonalDataChanged());
+
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    AutofillProfilesFragment fragment = sSettingsActivityTestRule.getFragment();
+                    Preference category =
+                            fragment.findPreference(disabledType.getTypeNameAsString());
+                    Criteria.checkThat(
+                            "Disabled empty category should NOT exist",
+                            category,
+                            Matchers.nullValue());
+                });
+    }
+
+    @Test
+    @MediumTest
+    @Feature({"Preferences"})
+    public void testAutofillAiEntities_notRenderedIfReadOnlyAndEmpty() throws Exception {
+        EntityType readOnlyType =
+                TestUtils.getPassportEntityType(/* isReadOnly= */ true, /* isEnabled= */ true);
+
+        LinkedHashMap<EntityType, List<EntityInstanceWithLabels>> instancesMap =
+                new LinkedHashMap<>();
+        instancesMap.put(readOnlyType, Collections.emptyList());
+
+        when(sEntityDataManager.getInstancesToList()).thenReturn(instancesMap);
+        EntityDataManagerFactory.setInstanceForTesting(sEntityDataManager);
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> sSettingsActivityTestRule.getFragment().onPersonalDataChanged());
+
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    AutofillProfilesFragment fragment = sSettingsActivityTestRule.getFragment();
+                    Preference category =
+                            fragment.findPreference(readOnlyType.getTypeNameAsString());
+                    Criteria.checkThat(
+                            "ReadOnly empty category should NOT exist",
+                            category,
+                            Matchers.nullValue());
+                });
+    }
+
+    @Test
+    @MediumTest
+    @Feature({"Preferences"})
+    public void testAutofillAiEntities_renderedIfDisabledButNotEmpty() throws Exception {
+        EntityType disabledType =
+                TestUtils.getVehicleEntityType(/* isReadOnly= */ false, /* isEnabled= */ false);
+
+        EntityInstanceWithLabels entity =
+                new EntityInstanceWithLabels(
+                        "guid1", disabledType, "Label", "Sublabel", /* storedInWallet= */ false);
+
+        LinkedHashMap<EntityType, List<EntityInstanceWithLabels>> instancesMap =
+                new LinkedHashMap<>();
+        instancesMap.put(disabledType, Arrays.asList(entity));
+
+        when(sEntityDataManager.getInstancesToList()).thenReturn(instancesMap);
+        EntityDataManagerFactory.setInstanceForTesting(sEntityDataManager);
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> sSettingsActivityTestRule.getFragment().onPersonalDataChanged());
+
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    AutofillProfilesFragment fragment = sSettingsActivityTestRule.getFragment();
+                    Preference category =
+                            fragment.findPreference(disabledType.getTypeNameAsString());
+                    Criteria.checkThat(
+                            "Disabled NOT empty category should exist",
+                            category,
+                            Matchers.notNullValue());
+                    PreferenceGroup group = (PreferenceGroup) category;
+                    assertNotNull(group.findPreference("guid1"));
+                    assertNull(group.findPreference(disabledType.getTypeNameAsString() + " Add"));
+                });
+    }
+
+    @Test
+    @MediumTest
+    @Feature({"Preferences"})
+    public void testAutofillAiEntities_sorting() throws Exception {
+        EntityType vehicleType = TestUtils.getVehicleEntityType();
+
         EntityInstanceWithLabels entity1 =
                 new EntityInstanceWithLabels(
                         "guid1",
+                        vehicleType,
+                        /* entityInstanceLabel= */ "B",
+                        /* entityInstanceSubLabel= */ "2",
+                        /* storedInWallet= */ false);
+
+        EntityInstanceWithLabels entity2 =
+                new EntityInstanceWithLabels(
+                        "guid2",
+                        vehicleType,
+                        /* entityInstanceLabel= */ "A",
+                        /* entityInstanceSubLabel= */ "1",
+                        /* storedInWallet= */ false);
+
+        EntityInstanceWithLabels entity3 =
+                new EntityInstanceWithLabels(
+                        "guid3",
+                        vehicleType,
+                        /* entityInstanceLabel= */ "A",
+                        /* entityInstanceSubLabel= */ "2",
+                        /* storedInWallet= */ false);
+
+        // Sorting is now expected to be done by getInstancesToList.
+        LinkedHashMap<EntityType, List<EntityInstanceWithLabels>> instancesMap =
+                new LinkedHashMap<>();
+        instancesMap.put(vehicleType, Arrays.asList(entity2, entity3, entity1));
+
+        when(sEntityDataManager.getInstancesToList()).thenReturn(instancesMap);
+        EntityDataManagerFactory.setInstanceForTesting(sEntityDataManager);
+
+        // Trigger a rebuild of the profile list to pick up the new mock entities.
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> sSettingsActivityTestRule.getFragment().onPersonalDataChanged());
+
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    AutofillProfilesFragment fragment = sSettingsActivityTestRule.getFragment();
+                    PreferenceCategory category = fragment.findPreference("Vehicle");
+                    Criteria.checkThat(
+                            "Vehicle category should exist", category, Matchers.notNullValue());
+                    Criteria.checkThat(
+                            "Category should have 4 preferences (3 entities + 1 add button)",
+                            category.getPreferenceCount(),
+                            Matchers.is(4));
+                    Criteria.checkThat(
+                            "First entity should be guid2 (A1)",
+                            category.getPreference(0).getKey(),
+                            Matchers.is("guid2"));
+                    Criteria.checkThat(
+                            "Second entity should be guid3 (A2)",
+                            category.getPreference(1).getKey(),
+                            Matchers.is("guid3"));
+                    Criteria.checkThat(
+                            "Third entity should be guid1 (B2)",
+                            category.getPreference(2).getKey(),
+                            Matchers.is("guid1"));
+                });
+    }
+
+    @Test
+    @MediumTest
+    @Feature({"Preferences"})
+    public void testAutofillAiEntities_opensEditorOnAddClick() throws Exception {
+        EntityType vehicleType = TestUtils.getVehicleEntityType();
+
+        LinkedHashMap<EntityType, List<EntityInstanceWithLabels>> instancesMap =
+                new LinkedHashMap<>();
+        instancesMap.put(vehicleType, Collections.emptyList());
+
+        when(sEntityDataManager.getInstancesToList()).thenReturn(instancesMap);
+        EntityDataManagerFactory.setInstanceForTesting(sEntityDataManager);
+
+        // Trigger a rebuild of the profile list to pick up the new mock entities.
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> sSettingsActivityTestRule.getFragment().onPersonalDataChanged());
+
+        Preference addVehicle =
+                ThreadUtils.runOnUiThreadBlocking(
+                        () -> {
+                            PreferenceCategory category =
+                                    sSettingsActivityTestRule
+                                            .getFragment()
+                                            .findPreference("Vehicle");
+                            return category.findPreference("Vehicle" + " Add");
+                        });
+        assertNotNull(addVehicle);
+        ThreadUtils.runOnUiThreadBlocking(addVehicle::performClick);
+
+        onView(withText("Add Vehicle")).check(matches(isDisplayed()));
+    }
+
+    @Test
+    @MediumTest
+    @Feature({"Preferences"})
+    public void testAutofillAiEntities_opensEditorOnClick() throws Exception {
+        EntityType vehicleType = TestUtils.getVehicleEntityType();
+
+        EntityInstanceWithLabels entity1 =
+                new EntityInstanceWithLabels(
+                        "guid1",
+                        vehicleType,
                         /* entityInstanceLabel= */ "Vehicle",
                         /* entityInstanceSubLabel= */ "Mercedez",
                         /* storedInWallet= */ false);
 
-        when(sEntityDataManager.getEntitiesWithLabels()).thenReturn(Arrays.asList(entity1));
+        LinkedHashMap<EntityType, List<EntityInstanceWithLabels>> instancesMap =
+                new LinkedHashMap<>();
+        instancesMap.put(vehicleType, Arrays.asList(entity1));
+
+        when(sEntityDataManager.getInstancesToList()).thenReturn(instancesMap);
 
         EntityInstance entityInstance =
-                new EntityInstance.Builder(TestUtils.getVehicleEntityType())
+                new EntityInstance.Builder(vehicleType)
                         .setGUID("guid1")
                         .setRecordType(
                                 org.chromium.components.autofill.autofill_ai.RecordType.LOCAL)
@@ -1120,6 +1369,7 @@ public class AutofillProfilesFragmentTest {
         Preference vehicleEntity =
                 ThreadUtils.runOnUiThreadBlocking(
                         () -> sSettingsActivityTestRule.getFragment().findPreference("guid1"));
+        assertNotNull(vehicleEntity);
         ThreadUtils.runOnUiThreadBlocking(vehicleEntity::performClick);
 
         onView(withText("Edit Vehicle")).check(matches(isDisplayed()));
@@ -1128,15 +1378,67 @@ public class AutofillProfilesFragmentTest {
     @Test
     @MediumTest
     @Feature({"Preferences"})
-    public void testAutofillAiEntities_rebuildsOnEntityChange() throws Exception {
+    public void testAutofillAiEntities_opensWalletOnClick() throws Exception {
+        EntityType vehicleType = TestUtils.getVehicleEntityType();
+
         EntityInstanceWithLabels entity1 =
                 new EntityInstanceWithLabels(
                         "guid1",
+                        vehicleType,
+                        /* entityInstanceLabel= */ "Vehicle",
+                        /* entityInstanceSubLabel= */ "Mercedez",
+                        /* storedInWallet= */ true);
+
+        LinkedHashMap<EntityType, List<EntityInstanceWithLabels>> instancesMap =
+                new LinkedHashMap<>();
+        instancesMap.put(vehicleType, Arrays.asList(entity1));
+
+        when(sEntityDataManager.getInstancesToList()).thenReturn(instancesMap);
+        EntityDataManagerFactory.setInstanceForTesting(sEntityDataManager);
+
+        // Trigger a rebuild of the profile list to pick up the new mock entities.
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> sSettingsActivityTestRule.getFragment().onPersonalDataChanged());
+
+        Preference vehicleEntity =
+                ThreadUtils.runOnUiThreadBlocking(
+                        () -> sSettingsActivityTestRule.getFragment().findPreference("guid1"));
+        assertNotNull(vehicleEntity);
+
+        // Mock the intent that should be fired.
+        Instrumentation.ActivityResult result =
+                new Instrumentation.ActivityResult(Activity.RESULT_OK, null);
+        // Since we don't have Google Wallet installed in tests, it will fallback to CCT.
+        var intentMatcher =
+                allOf(
+                        hasAction(Intent.ACTION_VIEW),
+                        hasData(Uri.parse(GoogleWalletLauncher.GOOGLE_WALLET_PASSES_URL)));
+        intending(intentMatcher).respondWith(result);
+
+        ThreadUtils.runOnUiThreadBlocking(vehicleEntity::performClick);
+
+        intended(intentMatcher);
+    }
+
+    @Test
+    @MediumTest
+    @Feature({"Preferences"})
+    public void testAutofillAiEntities_rebuildsOnEntityChange() throws Exception {
+        EntityType vehicleType = TestUtils.getVehicleEntityType();
+
+        EntityInstanceWithLabels entity1 =
+                new EntityInstanceWithLabels(
+                        "guid1",
+                        vehicleType,
                         /* entityInstanceLabel= */ "Vehicle",
                         /* entityInstanceSubLabel= */ "Mercedez",
                         /* storedInWallet= */ false);
 
-        when(sEntityDataManager.getEntitiesWithLabels()).thenReturn(Arrays.asList(entity1));
+        LinkedHashMap<EntityType, List<EntityInstanceWithLabels>> instancesMap1 =
+                new LinkedHashMap<>();
+        instancesMap1.put(vehicleType, Arrays.asList(entity1));
+
+        when(sEntityDataManager.getInstancesToList()).thenReturn(instancesMap1);
         EntityDataManagerFactory.setInstanceForTesting(sEntityDataManager);
 
         // Capture the observer registered by the fragment.
@@ -1156,7 +1458,10 @@ public class AutofillProfilesFragmentTest {
                 });
 
         // Change the entities and notify the observer.
-        when(sEntityDataManager.getEntitiesWithLabels()).thenReturn(Collections.emptyList());
+        LinkedHashMap<EntityType, List<EntityInstanceWithLabels>> instancesMap2 =
+                new LinkedHashMap<>();
+        instancesMap2.put(vehicleType, Collections.emptyList());
+        when(sEntityDataManager.getInstancesToList()).thenReturn(instancesMap2);
         ThreadUtils.runOnUiThreadBlocking(() -> observer.onEntityInstancesChanged());
 
         // Verify that the entity is gone.
@@ -1169,6 +1474,137 @@ public class AutofillProfilesFragmentTest {
                             vehicleEntity,
                             Matchers.nullValue());
                 });
+    }
+
+    @Test
+    @MediumTest
+    @DisableFeatures({
+        ChromeFeatureList.YOUR_SAVED_INFO_SETTINGS_PAGE_ANDROID
+    })
+    public void testTitle_HoTDisabled_showsAddresses() throws Exception {
+        sSettingsActivityTestRule.startSettingsActivity();
+
+        AutofillProfilesFragment fragment = sSettingsActivityTestRule.getFragment();
+        assertThat(fragment.getPageTitle().get())
+                .isEqualTo(
+                        sSettingsActivityTestRule
+                                .getActivity()
+                                .getString(R.string.autofill_addresses_settings_title));
+    }
+
+    @Test
+    @MediumTest
+    @EnableFeatures({
+        ChromeFeatureList.YOUR_SAVED_INFO_SETTINGS_PAGE_ANDROID
+    })
+    public void testTitle_HoTEnabled_showsContactInfo() throws Exception {
+        sSettingsActivityTestRule.startSettingsActivity();
+
+        AutofillProfilesFragment fragment = sSettingsActivityTestRule.getFragment();
+        assertThat(fragment.getPageTitle().get())
+                .isEqualTo(
+                        sSettingsActivityTestRule
+                                .getActivity()
+                                .getString(R.string.autofill_contact_info_title));
+    }
+
+    @Test
+    @MediumTest
+    @Feature({"Preferences"})
+    public void testAutofillAiEntities_opensEditorOnSuccessfulReauth() throws Exception {
+        EntityInstanceWithLabels entity1 =
+                new EntityInstanceWithLabels(
+                        "guid1",
+                        TestUtils.getVehicleEntityType(),
+                        /* entityInstanceLabel= */ "Vehicle",
+                        /* entityInstanceSubLabel= */ "Mercedez",
+                        /* storedInWallet= */ false);
+
+        LinkedHashMap<EntityType, List<EntityInstanceWithLabels>> instancesMap =
+                new LinkedHashMap<>();
+        instancesMap.put(TestUtils.getVehicleEntityType(), Arrays.asList(entity1));
+        when(sEntityDataManager.getInstancesToList()).thenReturn(instancesMap);
+
+        EntityInstance entityInstance =
+                new EntityInstance.Builder(TestUtils.getVehicleEntityType())
+                        .setGUID("guid1")
+                        .setRecordType(
+                                org.chromium.components.autofill.autofill_ai.RecordType.LOCAL)
+                        .setModifiedDate(LocalDate.of(2026, 2, 12))
+                        .setUseCount(0)
+                        .setRequiresReauthToSee(true)
+                        .build();
+
+        when(sEntityDataManager.getEntityInstance("guid1")).thenReturn(entityInstance);
+        EntityDataManagerFactory.setInstanceForTesting(sEntityDataManager);
+
+        // Trigger a rebuild of the profile list.
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> sSettingsActivityTestRule.getFragment().onPersonalDataChanged());
+
+        Preference vehicleEntity =
+                ThreadUtils.runOnUiThreadBlocking(
+                        () -> sSettingsActivityTestRule.getFragment().findPreference("guid1"));
+
+        // Click entity and capture reauth callback.
+        ThreadUtils.runOnUiThreadBlocking(vehicleEntity::performClick);
+        ArgumentCaptor<Callback<Boolean>> callbackCaptor = ArgumentCaptor.forClass(Callback.class);
+        verify(mMockReauthenticatorBridge).reauthenticate(callbackCaptor.capture());
+
+        // Simulate successful reauth.
+        ThreadUtils.runOnUiThreadBlocking(() -> callbackCaptor.getValue().onResult(true));
+
+        onView(withText("Edit Vehicle")).inRoot(isDialog()).check(matches(isDisplayed()));
+    }
+
+    @Test
+    @MediumTest
+    @Feature({"Preferences"})
+    public void testAutofillAiEntities_doesNotOpenEditorOnFailedReauth() throws Exception {
+        EntityInstanceWithLabels entity1 =
+                new EntityInstanceWithLabels(
+                        "guid1",
+                        TestUtils.getVehicleEntityType(),
+                        /* entityInstanceLabel= */ "Vehicle",
+                        /* entityInstanceSubLabel= */ "Mercedez",
+                        /* storedInWallet= */ false);
+
+        LinkedHashMap<EntityType, List<EntityInstanceWithLabels>> instancesMap =
+                new LinkedHashMap<>();
+        instancesMap.put(TestUtils.getVehicleEntityType(), Arrays.asList(entity1));
+        when(sEntityDataManager.getInstancesToList()).thenReturn(instancesMap);
+
+        EntityInstance entityInstance =
+                new EntityInstance.Builder(TestUtils.getVehicleEntityType())
+                        .setGUID("guid1")
+                        .setRecordType(
+                                org.chromium.components.autofill.autofill_ai.RecordType.LOCAL)
+                        .setModifiedDate(LocalDate.of(2026, 2, 12))
+                        .setUseCount(0)
+                        .setRequiresReauthToSee(true)
+                        .build();
+
+        when(sEntityDataManager.getEntityInstance("guid1")).thenReturn(entityInstance);
+        EntityDataManagerFactory.setInstanceForTesting(sEntityDataManager);
+
+        // Trigger a rebuild of the profile list.
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> sSettingsActivityTestRule.getFragment().onPersonalDataChanged());
+
+        Preference vehicleEntity =
+                ThreadUtils.runOnUiThreadBlocking(
+                        () -> sSettingsActivityTestRule.getFragment().findPreference("guid1"));
+
+        // Click entity and capture reauth callback.
+        ThreadUtils.runOnUiThreadBlocking(vehicleEntity::performClick);
+        ArgumentCaptor<Callback<Boolean>> callbackCaptor = ArgumentCaptor.forClass(Callback.class);
+        verify(mMockReauthenticatorBridge).reauthenticate(callbackCaptor.capture());
+
+        // Simulate failed reauth.
+        ThreadUtils.runOnUiThreadBlocking(() -> callbackCaptor.getValue().onResult(false));
+
+        // Editor should NOT be displayed.
+        onView(withText("Edit Vehicle")).check(doesNotExist());
     }
 
     private void checkPreferenceCount(int expectedPreferenceCount) {

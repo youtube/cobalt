@@ -544,9 +544,11 @@ TEST_F(SigninHeaderHelperTest, TestMirrorHeaderRequestDriveSignedIn) {
 
 TEST_F(SigninHeaderHelperTest, TestDiceInvalidResponseParams) {
   DiceResponseParams params = BuildDiceSigninResponseParams("blah");
+  EXPECT_FALSE(params.IsValid());
   EXPECT_EQ(DiceAction::NONE, params.user_intention);
   params = BuildDiceSignoutResponseParams("blah");
-  EXPECT_EQ(DiceAction::NONE, params.user_intention);
+  EXPECT_FALSE(params.IsValid());
+  EXPECT_EQ(DiceAction::SIGNOUT, params.user_intention);
 }
 
 TEST_F(SigninHeaderHelperTest, TestBuildDiceResponseParams) {
@@ -567,12 +569,14 @@ TEST_F(SigninHeaderHelperTest, TestBuildDiceResponseParams) {
             kSupportedTokenBindingAlgorithms));
     EXPECT_EQ(DiceAction::SIGNIN, params.user_intention);
     ASSERT_TRUE(params.signin_info);
-    EXPECT_EQ(kGaiaID, params.signin_info->account_info.gaia_id);
-    EXPECT_EQ(kEmail, params.signin_info->account_info.email);
-    EXPECT_EQ(kSessionIndex, params.signin_info->account_info.session_index);
-    EXPECT_EQ(kAuthorizationCode, params.signin_info->authorization_code);
+    const auto* account = params.signin_info->GetInitiator();
+    ASSERT_TRUE(account);
+    EXPECT_EQ(kGaiaID, account->account_info.gaia_id);
+    EXPECT_EQ(kEmail, account->account_info.email);
+    EXPECT_EQ(kSessionIndex, account->account_info.session_index);
+    EXPECT_EQ(kAuthorizationCode, account->authorization_code);
     EXPECT_EQ(kSupportedTokenBindingAlgorithms,
-              params.signin_info->supported_algorithms_for_token_binding);
+              account->supported_algorithms_for_token_binding);
     histogram_tester.ExpectUniqueSample("Signin.DiceAuthorizationCode", true,
                                         1);
   }
@@ -640,11 +644,13 @@ TEST_F(SigninHeaderHelperTest, TestBuildDiceResponseParams) {
                            kGaiaID.ToString(), kEmail, kSessionIndex));
     EXPECT_EQ(DiceAction::SIGNIN, params.user_intention);
     ASSERT_TRUE(params.signin_info);
-    EXPECT_EQ(kGaiaID, params.signin_info->account_info.gaia_id);
-    EXPECT_EQ(kEmail, params.signin_info->account_info.email);
-    EXPECT_EQ(kSessionIndex, params.signin_info->account_info.session_index);
-    EXPECT_TRUE(params.signin_info->authorization_code.empty());
-    EXPECT_TRUE(params.signin_info->no_authorization_code);
+    const auto* account = params.signin_info->GetInitiator();
+    ASSERT_TRUE(account);
+    EXPECT_EQ(kGaiaID, account->account_info.gaia_id);
+    EXPECT_EQ(kEmail, account->account_info.email);
+    EXPECT_EQ(kSessionIndex, account->account_info.session_index);
+    EXPECT_TRUE(account->authorization_code.empty());
+    EXPECT_TRUE(account->no_authorization_code);
     histogram_tester.ExpectUniqueSample("Signin.DiceAuthorizationCode", false,
                                         1);
   }
@@ -655,7 +661,8 @@ TEST_F(SigninHeaderHelperTest, TestBuildDiceResponseParams) {
     DiceResponseParams params = BuildDiceSigninResponseParams(
         base::StringPrintf("action=SIGNIN,id=%s,email=%s,authuser=%i",
                            kGaiaID.ToString(), kEmail, kSessionIndex));
-    EXPECT_EQ(DiceAction::NONE, params.user_intention);
+    EXPECT_EQ(DiceAction::SIGNIN, params.user_intention);
+    EXPECT_FALSE(params.IsValid());
     histogram_tester.ExpectTotalCount("Signin.DiceAuthorizationCode", 0);
   }
 
@@ -665,7 +672,8 @@ TEST_F(SigninHeaderHelperTest, TestBuildDiceResponseParams) {
         BuildDiceSigninResponseParams(base::StringPrintf(
             "action=SIGNIN,id=%s,authuser=%i,authorization_code=%s",
             kGaiaID.ToString(), kSessionIndex, kAuthorizationCode));
-    EXPECT_EQ(DiceAction::NONE, params.user_intention);
+    EXPECT_EQ(DiceAction::SIGNIN, params.user_intention);
+    EXPECT_FALSE(params.IsValid());
   }
 
   {
@@ -674,7 +682,8 @@ TEST_F(SigninHeaderHelperTest, TestBuildDiceResponseParams) {
         base::StringPrintf("email=%s, sessionindex=%i, obfuscatedid=%s, "
                            "sessionindex=2, obfuscatedid=bar",
                            kEmail, kSessionIndex, kGaiaID.ToString()));
-    EXPECT_EQ(DiceAction::NONE, params.user_intention);
+    EXPECT_EQ(DiceAction::SIGNOUT, params.user_intention);
+    EXPECT_FALSE(params.IsValid());
   }
 }
 
@@ -691,8 +700,9 @@ TEST_F(SigninHeaderHelperTest,
       kGaiaID.ToString(), kEmail, kSessionIndex, kAuthorizationCode));
   EXPECT_EQ(DiceAction::SIGNIN, params.user_intention);
   ASSERT_TRUE(params.signin_info);
-  EXPECT_TRUE(
-      params.signin_info->supported_algorithms_for_token_binding.empty());
+  ASSERT_EQ(1u, params.signin_info->accounts().size());
+  EXPECT_TRUE(params.signin_info->GetInitiator()
+                  ->supported_algorithms_for_token_binding.empty());
 }
 
 // Mainly tests that whitespace characters in the middle of a header don't break
@@ -711,12 +721,14 @@ TEST_F(SigninHeaderHelperTest, BuildDiceSigninResponseParamsMixedOrder) {
       kEmail, kAuthorizationCode));
   EXPECT_EQ(DiceAction::SIGNIN, params.user_intention);
   ASSERT_TRUE(params.signin_info);
-  EXPECT_EQ(kGaiaID, params.signin_info->account_info.gaia_id);
-  EXPECT_EQ(kEmail, params.signin_info->account_info.email);
-  EXPECT_EQ(kSessionIndex, params.signin_info->account_info.session_index);
-  EXPECT_EQ(kAuthorizationCode, params.signin_info->authorization_code);
+  const auto* account = params.signin_info->GetInitiator();
+  ASSERT_TRUE(account);
+  EXPECT_EQ(kGaiaID, account->account_info.gaia_id);
+  EXPECT_EQ(kEmail, account->account_info.email);
+  EXPECT_EQ(kSessionIndex, account->account_info.session_index);
+  EXPECT_EQ(kAuthorizationCode, account->authorization_code);
   EXPECT_EQ(kSupportedTokenBindingAlgorithms,
-            params.signin_info->supported_algorithms_for_token_binding);
+            account->supported_algorithms_for_token_binding);
 }
 
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)

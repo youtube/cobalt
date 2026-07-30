@@ -55,6 +55,7 @@
 #include "third_party/blink/renderer/core/dom/whitespace_attacher.h"
 #include "third_party/blink/renderer/core/html/parser/fragment_parser_options.h"
 #include "third_party/blink/renderer/core/html_names.h"
+#include "third_party/blink/renderer/core/scroll/scoped_scroll_promise_resolver.h"
 #include "third_party/blink/renderer/core/style/computed_style_constants.h"
 #include "third_party/blink/renderer/core/trustedtypes/trusted_types_names.h"
 #include "third_party/blink/renderer/core/trustedtypes/trusted_types_util.h"
@@ -586,7 +587,7 @@ class CORE_EXPORT Element : public ContainerNode {
   void scrollToForTesting(double x, double y);
 
   bool ScrollTo(const ScrollToOptions*,
-                ScriptPromiseResolver<ScrollResult>* = nullptr);
+                std::unique_ptr<ScopedScrollPromiseResolver> = nullptr);
 
   // Returns the bounds of this Element, unclipped, in the coordinate space of
   // the local root's widget. That is, in the outermost main frame, this will
@@ -1408,8 +1409,8 @@ class CORE_EXPORT Element : public ContainerNode {
   void SetOuterHTMLWithoutTrustedTypes(const String&,
                                        ExceptionState& = ASSERT_NO_EXCEPTION);
   void SetOuterHTMLInternal(const String&, ExceptionState&);
-  V8UnionStringLegacyNullToEmptyStringOrTrustedHTML* innerHTML() const;
-  V8UnionStringLegacyNullToEmptyStringOrTrustedHTML* outerHTML() const;
+  String innerHTML() const;
+  String outerHTML() const;
   void setInnerHTML(const V8UnionStringLegacyNullToEmptyStringOrTrustedHTML*,
                     ExceptionState&);
   void setOuterHTML(const V8UnionStringLegacyNullToEmptyStringOrTrustedHTML*,
@@ -2159,13 +2160,13 @@ class CORE_EXPORT Element : public ContainerNode {
   bool HasSiblingBoxPseudoElements() const;
 
   bool ScrollLayoutBoxBy(const ScrollToOptions*,
-                         ScriptPromiseResolver<ScrollResult>*);
+                         std::unique_ptr<ScopedScrollPromiseResolver>);
   bool ScrollLayoutBoxTo(const ScrollToOptions*,
-                         ScriptPromiseResolver<ScrollResult>*);
+                         std::unique_ptr<ScopedScrollPromiseResolver>);
   bool ScrollFrameBy(const ScrollToOptions*,
-                     ScriptPromiseResolver<ScrollResult>*);
+                     std::unique_ptr<ScopedScrollPromiseResolver>);
   bool ScrollFrameTo(const ScrollToOptions*,
-                     ScriptPromiseResolver<ScrollResult>*);
+                     std::unique_ptr<ScopedScrollPromiseResolver>);
 
   bool HasElementFlag(ElementFlags mask) const;
   void SetElementFlag(ElementFlags, bool value = true);
@@ -2254,6 +2255,7 @@ class CORE_EXPORT Element : public ContainerNode {
   void RebuildColumnLayoutTrees(WhitespaceAttacher&);
   void RebuildFirstLetterLayoutTree();
   void RebuildTransitionLayoutTree(WhitespaceAttacher&);
+  void RebuildOverscrollAreaLayoutTree(WhitespaceAttacher&);
   void RebuildShadowRootLayoutTree(WhitespaceAttacher&);
   inline void CheckForEmptyStyleChange(const Node* node_before_change,
                                        const Node* node_after_change);

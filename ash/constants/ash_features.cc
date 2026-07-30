@@ -59,6 +59,11 @@ BASE_FEATURE(kAnnotatorMode, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kApnRevamp, base::FEATURE_ENABLED_BY_DEFAULT);
 
+// Controls whether to enable ARC ADB sideloading support.
+BASE_FEATURE(kArcAdbSideloadingFeature,
+             "ArcAdbSideloading",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Controls whether to defer loading of active tabs of background (occluded)
 // browser windows during session restore.
 BASE_FEATURE(kAshSessionRestoreDeferOccludedActiveTabLoad,
@@ -759,6 +764,10 @@ BASE_FEATURE(kFilesTrashDrive, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables the v2 version of the Firmware Updates app.
 BASE_FEATURE(kFirmwareUpdateUIV2, base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Fix manual ip address persistence on managed device with 2 ethernet ports.
+BASE_FEATURE(kFixStaticIpForTwoManagedEthPorts,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Controls if the Fjord variant of OOBE is shown.
 BASE_FEATURE(kFjordOobe, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -1730,9 +1739,6 @@ BASE_FEATURE(kShelfAutoHideSeparation, base::FEATURE_DISABLED_BY_DEFAULT);
 // Enables or disables the OS update page in the Shimless RMA flow.
 BASE_FEATURE(kShimlessRMAOsUpdate, base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Enables 3p diagnostics in the Shimless RMA flow.
-BASE_FEATURE(kShimlessRMA3pDiagnostics, base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Enables 3p diagnostics dev mode in the Shimless RMA flow. This will skip some
 // checks to allow developers to use dev-signed extensions for development
 // purpose.
@@ -2529,6 +2535,10 @@ bool IsFirmwareUpdateUIV2Enabled() {
   return base::FeatureList::IsEnabled(kFirmwareUpdateUIV2);
 }
 
+bool IsFixStaticIpForTwoManagedEthPortsEnabled() {
+  return base::FeatureList::IsEnabled(kFixStaticIpForTwoManagedEthPorts);
+}
+
 bool IsFjordOobeEnabled() {
   return base::FeatureList::IsEnabled(kFjordOobe);
 }
@@ -3096,10 +3106,6 @@ bool IsSettingsAppThemeChangeAnimationEnabled() {
 
 bool IsShimlessRMAOsUpdateEnabled() {
   return base::FeatureList::IsEnabled(kShimlessRMAOsUpdate);
-}
-
-bool IsShimlessRMA3pDiagnosticsEnabled() {
-  return base::FeatureList::IsEnabled(kShimlessRMA3pDiagnostics);
 }
 
 bool IsShimlessRMA3pDiagnosticsDevModeEnabled() {

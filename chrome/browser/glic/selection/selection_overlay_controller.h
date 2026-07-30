@@ -8,6 +8,8 @@
 #include "base/containers/flat_map.h"
 #include "base/memory/weak_ptr.h"
 #include "base/unguessable_token.h"
+#include "chrome/browser/glic/host/context/glic_page_context_fetcher.h"
+#include "chrome/browser/glic/host/glic.mojom-forward.h"
 #include "chrome/browser/glic/selection/selection_overlay.mojom.h"
 #include "chrome/browser/ui/lens/overlay_base_controller.h"
 #include "components/page_content_annotations/content/page_context_fetcher.h"
@@ -51,7 +53,7 @@ class SelectionOverlayController
       mojo::PendingRemote<selection::SelectionOverlayPage> page);
 
   void Show();
-  void Hide();
+  void Close();
 
   std::optional<std::vector<uint8_t>>& GetEncodedData() { return encoded_; }
 
@@ -80,12 +82,17 @@ class SelectionOverlayController
   void DismissOverlay(selection::DismissOverlayReason reason) override;
   void AdjustRegion(selection::SelectedRegionPtr target) override;
   void DeleteRegion(const base::UnguessableToken& id) override;
+  void ClosePreselectionBubble() override;
+  void AddBackgroundBlur() override;
+  void SetLiveBlur(bool enabled) override;
 
  private:
   void OnScreenshotTaken(const SkBitmap& bitmap);
   void OnScreenshotRedacted(const SkBitmap& bitmap);
-  void PageAnnotationReady(
-      page_content_annotations::FetchPageContextResultCallbackArg result);
+  void PageContextReady(
+      base::expected<glic::mojom::GetContextResultPtr,
+                     page_content_annotations::FetchPageContextErrorDetails>
+          fetch_result);
 
   void SetScreenshot(const SkBitmap& screenshot, SkBitmap rgb_screenshot);
 
@@ -94,6 +101,8 @@ class SelectionOverlayController
   void RegionsRendererd(std::optional<std::vector<uint8_t>> encoded);
 
   void Reset();
+  glic::mojom::AdditionalContextPtr CreateAdditionalContext(
+      const std::vector<gfx::Rect>& regions);
 
   // Connections to and from the overlay WebUI. Only valid while
   // `OverlayBaseController::overlay_view_` is showing and the underlying
@@ -106,7 +115,7 @@ class SelectionOverlayController
   SkBitmap initial_rgb_screenshot_;
   SkBitmap redacted_screenshot_;
   std::optional<std::vector<uint8_t>> encoded_;
-  optimization_guide::proto::AnnotatedPageContent ai_page_content_;
+  mojom::TabContextPtr tab_context_;
   // Caches the user-selected region. To be renderer on top of
   // `initial_screenshot_`.
   base::flat_map<base::UnguessableToken, selection::SelectedRegionPtr>

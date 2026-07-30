@@ -6,6 +6,8 @@
 
 #include "base/run_loop.h"
 #include "base/test/task_environment.h"
+#include "base/uuid.h"
+#include "components/sync/base/data_type.h"
 #include "components/sync/model/data_batch.h"
 #include "components/sync/model/data_type_store.h"
 #include "components/sync/protocol/gemini_thread_specifics.pb.h"
@@ -15,10 +17,10 @@
 
 namespace {
 
-const char kInitConversationId[] = "init_conversation_id";
+const char kInitConversationId[] = "00000000-0000-0000-0000-000000000001";
 const char kInitTitle[] = "init_title";
 const int64_t kInitLastTurnTimeUnixEpochMillis = 1700000000;
-const char kMockConversationId[] = "my_conversation_id";
+const char kMockConversationId[] = "00000000-0000-0000-0000-000000000002";
 const char kMockTitle[] = "my_title";
 const int64_t kMockLastTurnTimeUnixEpochMillis = 1771020815;
 
@@ -71,6 +73,26 @@ void VerifyTestGeminiSpecificsRemoved(
   EXPECT_FALSE(data_batch->HasNext());
 }
 
+MATCHER_P3(SpecificsMatcher, conversation_id, title, last_turn_time, "") {
+  *result_listener << "Actual conversation_id:  " << arg[0].conversation_id()
+                   << "\n";
+  *result_listener << "Actual title:  " << arg[0].title() << "\n";
+  *result_listener << "Actual last_turn_time:  "
+                   << arg[0].last_turn_time_unix_epoch_millis() << "\n";
+  *result_listener << "Expected conversation_id:  " << conversation_id << "\n";
+  *result_listener << "Expected title:  " << title << "\n";
+  *result_listener << "Expected last turn time:  " << last_turn_time << "\n";
+  return arg[0].conversation_id() == conversation_id &&
+         arg[0].title() == title &&
+         arg[0].last_turn_time_unix_epoch_millis() == last_turn_time;
+}
+
+MATCHER_P(UuidMatcher, uuid, "") {
+  *result_listener << "Actual uuid " << arg[0] << "\n";
+  *result_listener << "Expected uuid:  " << uuid << "\n";
+  return arg[0].AsLowercaseString() == uuid;
+}
+
 }  // namespace
 
 namespace contextual_tasks {
@@ -99,6 +121,14 @@ class MockObserver : public GeminiThreadSyncBridge::Observer {
   ~MockObserver() override = default;
 
   MOCK_METHOD(void, OnGeminiThreadDataStoreLoaded, (), (override));
+  MOCK_METHOD(void,
+              OnGeminiThreadAddedOrUpdatedRemotely,
+              (const std::vector<sync_pb::GeminiThreadSpecifics>& specifics),
+              (override));
+  MOCK_METHOD(void,
+              OnGeminiThreadRemovedRemotely,
+              (const std::vector<base::Uuid>& thread_ids),
+              (override));
 };
 
 class GeminiThreadSyncBridgeWithInitSpecificsTest
@@ -126,6 +156,23 @@ class GeminiThreadSyncBridgeWithInitSpecificsTest
   std::unordered_map<std::string, sync_pb::GeminiThreadSpecifics>&
   gemini_thread_specifics() {
     return bridge_->gemini_thread_specifics_for_testing();
+  }
+
+  testing::NiceMock<MockObserver>* observer() { return &observer_; }
+
+  syncer::EntityData CreateEntityData(const std::string& conversation_id,
+                                      const std::string& title,
+                                      int64_t last_turn_time) {
+    syncer::EntityData data;
+    data.specifics.mutable_gemini_thread()->set_conversation_id(
+        conversation_id);
+    data.specifics.mutable_gemini_thread()->set_title(title);
+    data.specifics.mutable_gemini_thread()
+        ->set_last_turn_time_unix_epoch_millis(last_turn_time);
+
+    data.client_tag_hash = syncer::ClientTagHash::FromUnhashed(
+        syncer::GEMINI_THREAD, bridge()->GetClientTag(data));
+    return data;
   }
 
  private:
@@ -199,6 +246,61 @@ TEST_F(GeminiThreadSyncBridgeWithInitSpecificsTest, TestReadAllData) {
   EXPECT_EQ(gemini_specifics.title(), kInitTitle);
   EXPECT_EQ(gemini_specifics.last_turn_time_unix_epoch_millis(),
             kInitLastTurnTimeUnixEpochMillis);
+}
+
+TEST_F(GeminiThreadSyncBridgeWithInitSpecificsTest, TestAddObserver) {
+  syncer::EntityChangeList entity_change_list;
+  syncer::EntityData data =
+      CreateEntityData("add_conversation_id", "add_title", 1);
+  std::string storage_key = bridge()->GetStorageKey(data);
+  entity_change_list.push_back(
+      syncer::EntityChange::CreateAdd(storage_key, std::move(data)));
+
+  EXPECT_CALL(*observer(),
+              OnGeminiThreadAddedOrUpdatedRemotely(
+                  SpecificsMatcher("add_conversation_id", "add_title", 1)))
+      .Times(1);
+
+  bridge()->ApplyIncrementalSyncChanges(bridge()->CreateMetadataChangeList(),
+                                        std::move(entity_change_list));
+}
+
+TEST_F(GeminiThreadSyncBridgeWithInitSpecificsTest, TestUpdateObserver) {
+  syncer::EntityChangeList entity_change_list;
+  syncer::EntityData data =
+      CreateEntityData("update_conversation_id", "update_title", 1);
+  std::string storage_key = bridge()->GetStorageKey(data);
+  entity_change_list.push_back(
+      syncer::EntityChange::CreateUpdate(storage_key, std::move(data)));
+
+  EXPECT_CALL(*observer(),
+              OnGeminiThreadAddedOrUpdatedRemotely(SpecificsMatcher(
+                  "update_conversation_id", "update_title", 1)))
+      .Times(1);
+
+  bridge()->ApplyIncrementalSyncChanges(bridge()->CreateMetadataChangeList(),
+                                        std::move(entity_change_list));
+}
+
+TEST_F(GeminiThreadSyncBridgeWithInitSpecificsTest, TestRemoveObserver) {
+  syncer::EntityChangeList delete_changes;
+  delete_changes.push_back(syncer::EntityChange::CreateDelete(
+      kInitConversationId, syncer::EntityData()));
+  EXPECT_CALL(*observer(),
+              OnGeminiThreadRemovedRemotely(UuidMatcher(kInitConversationId)))
+      .Times(1);
+
+  bridge()->ApplyIncrementalSyncChanges(bridge()->CreateMetadataChangeList(),
+                                        std::move(delete_changes));
+}
+
+TEST_F(GeminiThreadSyncBridgeWithInitSpecificsTest, GetThreads) {
+  const auto& threads = bridge()->GetThreads();
+  EXPECT_EQ(1u, threads.size());
+  EXPECT_EQ(kInitConversationId, threads[0].server_id);
+  EXPECT_EQ(kInitTitle, threads[0].title);
+  EXPECT_EQ(kInitLastTurnTimeUnixEpochMillis,
+            threads[0].last_turn_time.InMillisecondsSinceUnixEpoch());
 }
 
 }  // namespace

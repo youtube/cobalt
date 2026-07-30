@@ -37,6 +37,7 @@ import org.chromium.chrome.browser.omnibox.LocationBarDataProvider;
 import org.chromium.chrome.browser.omnibox.OmniboxMetrics;
 import org.chromium.chrome.browser.omnibox.R;
 import org.chromium.chrome.browser.omnibox.UrlBarEditingTextStateProvider;
+import org.chromium.chrome.browser.omnibox.fusebox.FuseboxAttachmentModelList;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxAttachmentModelList.FuseboxAttachmentChangeListener;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxCoordinator;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxCoordinator.FuseboxState;
@@ -58,6 +59,7 @@ import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
 import org.chromium.components.metrics.OmniboxEventProtos.OmniboxEventProto.PageClassification;
 import org.chromium.components.omnibox.AutocompleteInput;
 import org.chromium.components.omnibox.AutocompleteInput.RefineActionUsage;
+import org.chromium.components.omnibox.AutocompleteInput.SiteSearchData;
 import org.chromium.components.omnibox.AutocompleteMatch;
 import org.chromium.components.omnibox.AutocompleteRequestType;
 import org.chromium.components.omnibox.AutocompleteResult;
@@ -119,12 +121,14 @@ class AutocompleteMediator
     private final OmniboxSuggestionsDropdownEmbedder mEmbedder;
     private @Nullable AutocompleteInput mAutocompleteInput;
     private @Nullable FuseboxSessionState mSessionState;
+    private @Nullable FuseboxAttachmentModelList mFuseboxAttachmentModelList;
     private final boolean mForcePhoneStyleOmnibox;
     private final Callback<@ControlsPosition Integer> mToolbarPositionChangedCallback =
             this::onToolbarPositionChanged;
     private final Callback<@AutocompleteRequestType Integer> mOnAutocompleteRequestTypeChanged =
             this::onAutocompleteRequestTypeChanged;
-    private final Callback<@Nullable String> mOnKeywordChanged = this::onKeywordChanged;
+    private final Callback<@Nullable SiteSearchData> mOnSiteSearchDataChanged =
+            this::onSiteSearchDataChanged;
     private final Callback<Integer> mOnFuseboxStateChanged = this::onFuseboxStateChanged;
 
     private @Nullable AutocompleteController mAutocomplete;
@@ -234,7 +238,6 @@ class AutocompleteMediator
 
         mAnimationDriver = initializeAnimationDriver();
 
-        mFuseboxCoordinator.addAttachmentChangeListener(this);
         mFuseboxCoordinator.getFuseboxStateSupplier().addSyncObserver(mOnFuseboxStateChanged);
 
         mDataProvider
@@ -277,7 +280,6 @@ class AutocompleteMediator
         if (mNativeInitialized) {
             OmniboxActionFactoryImpl.get().destroyNativeFactory();
         }
-        mFuseboxCoordinator.removeAttachmentChangeListener(this);
         mFuseboxCoordinator.getFuseboxStateSupplier().removeObserver(mOnFuseboxStateChanged);
         mHandler.removeCallbacksAndMessages(null);
         mDropdownViewInfoListBuilder.destroy();
@@ -382,7 +384,6 @@ class AutocompleteMediator
 
         if (OmniboxFeatures.sServeJavaCachedZeroSuggest.isEnabled() && mAutocomplete == null) {
             serveCachedZeroSuggest(mAutocompleteInput);
-            return;
         }
 
         postAutocompleteRequest(this::fetchZeroSuggest, SCHEDULE_FOR_IMMEDIATE_EXECUTION);
@@ -444,6 +445,7 @@ class AutocompleteMediator
         cancelAutocompleteRequests();
         setAutocompleteInput(session.getAutocompleteInput());
         mSessionState = session;
+        setFuseboxAttachmentModelList(mSessionState.getFuseboxAttachmentModelList());
 
         if (!alreadyInInput) {
             // Propagate the information about omnibox session state change to all the processors
@@ -518,7 +520,7 @@ class AutocompleteMediator
         OmniboxMetrics.recordOmniboxFocusResultedInNavigation(
                 mAutocompleteInput.getRequestType(),
                 mOmniboxFocusResultedInNavigation,
-                mFuseboxCoordinator.getAttachmentsCount() > 0);
+                hasAttachments());
         OmniboxMetrics.recordRefineActionUsage(mAutocompleteInput.getRefineActionUsage());
 
         OmniboxMetrics.recordSuggestionsListScrolled(
@@ -538,7 +540,9 @@ class AutocompleteMediator
         // a consequence the omnibox is unfocused).
         clearSuggestions();
         setAutocompleteInput(null);
+
         mSessionState = null;
+        setFuseboxAttachmentModelList(null);
     }
 
     private void setAutocompleteInput(@Nullable AutocompleteInput input) {
@@ -546,7 +550,7 @@ class AutocompleteMediator
             mAutocompleteInput
                     .getRequestTypeSupplier()
                     .removeObserver(mOnAutocompleteRequestTypeChanged);
-            mAutocompleteInput.getKeywordSupplier().removeObserver(mOnKeywordChanged);
+            mAutocompleteInput.getSiteSearchDataSupplier().removeObserver(mOnSiteSearchDataChanged);
             mUrlBarEditingTextProvider.setSiteSearchChip(null);
         }
         mAutocompleteInput = input;
@@ -555,7 +559,9 @@ class AutocompleteMediator
             mAutocompleteInput
                     .getRequestTypeSupplier()
                     .addSyncObserver(mOnAutocompleteRequestTypeChanged);
-            mAutocompleteInput.getKeywordSupplier().addSyncObserver(mOnKeywordChanged);
+            mAutocompleteInput
+                    .getSiteSearchDataSupplier()
+                    .addSyncObserver(mOnSiteSearchDataChanged);
         }
     }
 
@@ -1057,8 +1063,9 @@ class AutocompleteMediator
         onTextChanged(mAutocompleteInput.getUserText(), /* isOnFocusContext= */ false);
     }
 
-    private void onKeywordChanged(@Nullable String keyword) {
-        mUrlBarEditingTextProvider.setSiteSearchChip(keyword);
+    private void onSiteSearchDataChanged(@Nullable SiteSearchData siteSearchData) {
+        mUrlBarEditingTextProvider.setSiteSearchChip(
+                siteSearchData != null ? siteSearchData.fullName : null);
         if (isInInputSession()) {
             onTextChanged(
                     mUrlBarEditingTextProvider.getTextWithoutAutocomplete(),
@@ -1606,29 +1613,12 @@ class AutocompleteMediator
 
     @VisibleForTesting
     SuggestionsListAnimationDriver initializeAnimationDriver() {
-        SuggestionsListAnimationDriver driver;
-        if (mDelegate.isToolbarPositionCustomizationEnabled()
-                || OmniboxFeatures.shouldAnimateSuggestionsListAppearance()) {
-            driver =
-                    new UnsyncedSuggestionsListAnimationDriver(
-                            mListPropertyModel,
-                            () -> propagateOmniboxSessionStateChange(),
-                            mDelegate::isToolbarBottomAnchored,
-                            mEmbedder::getVerticalTranslationForAnimation,
-                            mContext);
-        } else {
-            driver =
-                    new SuggestionsListAnimationDriver() {
-                        @Override
-                        public void onOmniboxSessionStateChange(boolean active) {}
-
-                        @Override
-                        public boolean isAnimationEnabled() {
-                            return false;
-                        }
-                    };
-        }
-        return driver;
+        return new UnsyncedSuggestionsListAnimationDriver(
+                mListPropertyModel,
+                () -> propagateOmniboxSessionStateChange(),
+                mDelegate::isToolbarBottomAnchored,
+                mEmbedder::getVerticalTranslationForAnimation,
+                mContext);
     }
 
     private void onToolbarPositionChanged(@ControlsPosition Integer newPosition) {
@@ -1663,8 +1653,6 @@ class AutocompleteMediator
     @Override
     public void onAttachmentListChanged() {
         if (!isInInputSession()) return;
-
-        mAutocompleteInput.setHasAttachments(mFuseboxCoordinator.getAttachmentsCount() > 0);
         // Re-request ZPS in the event of attachments being removed/replaced.
         onTextChanged(mAutocompleteInput.getUserText(), /* isOnFocusContext= */ false);
     }
@@ -1792,5 +1780,22 @@ class AutocompleteMediator
                 };
 
         mHandler.postDelayed(mRecordZpsSuppressionRunnable, ZPS_SUPPRESSION_METRIC_DEBOUNCE_MS);
+    }
+
+    private void setFuseboxAttachmentModelList(
+            @Nullable FuseboxAttachmentModelList fuseboxAttachmentModelList) {
+        if (mFuseboxAttachmentModelList != null) {
+            mFuseboxAttachmentModelList.removeAttachmentChangeListener(this);
+        }
+        mFuseboxAttachmentModelList = fuseboxAttachmentModelList;
+        if (mFuseboxAttachmentModelList != null) {
+            mFuseboxAttachmentModelList.addAttachmentChangeListener(this);
+        }
+    }
+
+    private boolean hasAttachments() {
+        if (!isInInputSession()) return false;
+        FuseboxAttachmentModelList attachments = mSessionState.getFuseboxAttachmentModelList();
+        return attachments != null && !attachments.isEmpty();
     }
 }

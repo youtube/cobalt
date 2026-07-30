@@ -76,6 +76,7 @@ Disa funksione mund të mos ofrohen dhe ndryshimet në preferenca nuk do të ruh
 <translation id="1698376642261615901">Google Chrome është një shfletues uebi që ekzekuton faqe uebi dhe aplikacione me një shpejtësi jashtëzakonisht të lartë. Është i shpejtë, i qëndrueshëm dhe i lehtë në përdorim. Shfleto në ueb në mënyrë më të sigurt, me mbrojtje të integruar në Google Chrome kundër mashtrimeve dhe softuerëve keqdashës.</translation>
 <translation id="1713301662689114961">{0,plural, =1{Chrome do të hapet përsëri për një orë}other{Chrome do të hapet përsëri për # orë}}</translation>
 <translation id="1722488837206509557">Kjo do të të lejojë që të zgjedhësh nga pajisjet e disponueshme dhe të shfaqësh përmbajtjet në to.</translation>
+<translation id="177180974022074201">Provo me Gemini në Chrome</translation>
 <translation id="1786003790898721085">Sigurohu që të jesh identifikuar në Chrome në pajisjen tënde <ph name="TARGET_DEVICE_NAME" /> dhe më pas provo ta dërgosh përsëri.</translation>
 <translation id="1786044937610313874">Shkurtoret hapen në Chrome</translation>
 <translation id="178701303897325119">Kjo shtesë nuk mbështetet më. Chrome rekomandon që ta heqësh më mirë atë.</translation>
@@ -154,6 +155,7 @@ Disa funksione mund të mos ofrohen dhe ndryshimet në preferenca nuk do të ruh
 <translation id="2586406160782125153">Kjo do të fshijë të dhënat e shfletimit nga kjo pajisje. Për t'i marrë më vonë të dhënat, identifikohu te Chrome si <ph name="USER_EMAIL" />.</translation>
 <translation id="259935314519650377">Instaluesi i shkarkuar nuk u ruajt te memoria specifike. Gabim: <ph name="UNPACK_CACHING_ERROR_CODE" />.</translation>
 <translation id="2620436844016719705">Sistemi</translation>
+<translation id="263447411082773721">Mbaji fjalëkalimet, faqeshënuesit dhe historikun të sinkronizuar në mënyrë të përsosur në pajisje. Qasu me lehtësi te veçoritë që njeh dhe që të pëlqejnë duke e përditësuar shfletuesin tënd të parazgjedhur në Chrome. Chrome do të gozhdohet te shiriti i detyrave për qasje të shpejtë.</translation>
 <translation id="2645435784669275700">ChromeOS</translation>
 <translation id="2649768380733403658">Chrome kontrollon rregullisht për t'u siguruar që shfletuesi yt ka cilësimet më të sigurta. Do të të informojmë nëse ka nevojë të rishikosh diçka.</translation>
 <translation id="2652691236519827073">Hape lidhjen në një &amp;skedë të re të Chrome</translation>
@@ -232,6 +234,7 @@ Disa funksione mund të mos ofrohen dhe ndryshimet në preferenca nuk do të ruh
 <translation id="3327226547491422998">Më vonë, Chrome mund të të pyesë nëse dëshiron të përdorësh informacionet e ruajtura për të plotësuar automatikisht formularët për ty</translation>
 <translation id="3352986031709923790">këndi lart djathtas i zonës së kërkimit: djathtas <ph name="RIGHT" />%, lart<ph name="TOP" />%</translation>
 <translation id="3360895254066713204">Ndihmësi i Chrome</translation>
+<translation id="3373752068427117404">Disa veçori dhe shtesa të Chrome vijnë me shkurtore. Mund të zgjedhësh që t'i aktivizosh përsëri.</translation>
 <translation id="3379938682270551431">{0,plural, =0{Chrome do të hapet përsëri tani}=1{Chrome do të hapet përsëri për 1 sekondë}other{Chrome do të hapet përsëri për # sekonda}}</translation>
 <translation id="3380249972812870825">Për të hapur Gemini në Chrome, shtyp <ph name="GLOBAL_HOTKEY" /></translation>
 <translation id="3396977131400919238">Ndodhi një gabim në sistemin operativ gjatë instalimit. Shkarko përsëri Google Chrome.</translation>
@@ -283,7 +286,6 @@ Disa funksione mund të mos ofrohen dhe ndryshimet në preferenca nuk do të ruh
 <translation id="3892148308691398805">Kopjo tekstin</translation>
 <translation id="3893985792899396936">Këshillë për Chrome: Kërko me "Lenten"</translation>
 <translation id="3906096710440765802">Identifikohu në Chrome për të marrë fjalëkalimet, faqeshënuesit dhe më shumë në të gjitha pajisjet e tua</translation>
-<translation id="3921132130819999051">Lejo që Chrome të shfletojë për ty</translation>
 <translation id="3941890832296813527">Gabim gjatë instalimit: Emri i skedarit të instaluesit është i pavlefshëm ose nuk mbështetet.</translation>
 <translation id="395904275706073188">Faqet e mbrojtura nuk mund të lexohen. Provo një faqe tjetër.</translation>
 <translation id="3968962723676998462">Fut frazën e kalimit për të përdorur dhe ruajtur të dhënat e Chrome në llogarinë tënde <ph name="ACCOUNT_EMAIL" /></translation>
@@ -498,7 +500,6 @@ Google Chrome nuk është në gjendje të rikuperojë cilësimet e tua.</transla
 <translation id="6173637689840186878"><ph name="PAGE_TITLE" /> - Google Chrome Beta</translation>
 <translation id="6180522807229584611">Kjo skedë po përdor burime shtesë. Për të përmirësuar performancën tënde, lejo që Chrome ta bëjë atë joaktive.</translation>
 <translation id="6182736845697986886">Instalimi dështoi për shkak të një gabimi të brendshëm të serverit të përditësimit.</translation>
-<translation id="6183773856988300112">Gemini në Chrome përdor shfletimin automatik për të punuar në skedat e tua dhe për të përfunduar detyrat që ti i jep. <ph name="LINK_BEGIN" />Mëso më shumë<ph name="LINK_END" /></translation>
 <translation id="6187085551300363958">Këshillë për Chrome: Ruaj fjalëkalimet</translation>
 <translation id="6192058120268468905">Llogaria jote në Chrome</translation>
 <translation id="6220551899604141979"><ph name="PARTNER_NAME" /> ka shtuar një shtesë që mund të ndryshojë mënyrën se si funksionon Chrome.
@@ -534,6 +535,7 @@ Google Chrome nuk është në gjendje të rikuperojë cilësimet e tua.</transla
 <translation id="6481963882741794338">Lidh Chrome dhe shërbimet e tjera të Google për personalizimin dhe qëllime të tjera</translation>
 <translation id="648319183876919572">"Shfletimi i sigurt i përmirësuar" bën më shumë për të të mbrojtur nga uebsajtet dhe shkarkimet e rrezikshme</translation>
 <translation id="6489302989675808168">Aktive • Chrome nuk mund të verifikojë se nga vjen kjo shtesë</translation>
+<translation id="6491330562720922580">Kodi QR për të shkarkuar shfletuesin Chrome në pajisjet celulare</translation>
 <translation id="6493527311031785448">Google Chrome po përpiqet <ph name="AUTHENTICATION_PURPOSE" /></translation>
 <translation id="6497147134301593682">Chrome u mbyll automatikisht</translation>
 <translation id="6506909944137591434">Chrome ka nevojë për lejen e kamerës për të krijuar një hartë 3D të ambientit tënd rrethues</translation>
@@ -696,6 +698,7 @@ Google Chrome nuk është në gjendje të rikuperojë cilësimet e tua.</transla
 <translation id="80471789339884597">Faleminderit që e instalove. Duhet të rinisësh të gjithë shfletuesit e tu përpara se të përdorësh <ph name="BUNDLE_NAME" />.</translation>
 <translation id="8064015586118426197">Chrome OS Flex</translation>
 <translation id="8064965390968184078">1. Kliko <ph name="BUTTON_LABEL" /> më poshtë Kliko <ph name="BUTTON_2" /> te cilësimet e Windows Kliko <ph name="BUTTON_3" /> në njoftimin e Windows për të gozhduar Chrome te shiriti i detyrave për qasje të shpejtë</translation>
+<translation id="8074398340364918139">Për të kërkuar një veçori ose shtesë specifike të Chrome, shkruaj shkurtoren e saj në shiritin e adresave, të ndjekur nga tasti i zgjedhur i tastierës</translation>
 <translation id="8077579734294125741">Profilet e tjera të Chrome</translation>
 <translation id="8086881907087796310">Instalimi dështoi sepse kompjuteri yt nuk i përmbush kërkesat minimale për harduerin.</translation>
 <translation id="8113883687556086139">Verifiko që je ti për të përdorur dhe ruajtur të dhënat e Chrome në llogarinë tënde <ph name="ACCOUNT_EMAIL" /></translation>
@@ -704,6 +707,7 @@ Google Chrome nuk është në gjendje të rikuperojë cilësimet e tua.</transla
 <translation id="8129812357326543296">Informacion rreth &amp;Google Chrome</translation>
 <translation id="813913629614996137">Po fillon...</translation>
 <translation id="8162006532256575008">Përdor Chrome pa pasur llogari</translation>
+<translation id="8172231188687329735">Merr aplikacionin e Chrome për t'i ruajtur fjalëkalimet kur je në lëvizje</translation>
 <translation id="8177472873527554730">Nuk mund të gjenden përmbajtjet në faqe</translation>
 <translation id="8221491193165283816">Ti i bllokon zakonisht njoftimet. Për ta lejuar këtë sajt që të të njoftojë, kliko këtu.</translation>
 <translation id="8253851811470049684">Hap lidhjet në Chrome nga çdo aplikacion dhe mbaje shfletuesin të qasshëm në shiritin e detyrave</translation>
@@ -731,6 +735,7 @@ Google Chrome nuk është në gjendje të rikuperojë cilësimet e tua.</transla
 
 Faqeshënuesit e rinj nuk mund të ruhen në llogarinë tënde derisa të fshish disa. Nëse del tani, faqeshënuesit e paruajtur do të fshihen.</translation>
 <translation id="8433638294851456451">Për të dërguar një numër nga këtu te telefoni yt Android, identifikohu në Chrome në të dyja pajisjet.</translation>
+<translation id="8458117863387545390">Merr Chrome në telefonin tënd</translation>
 <translation id="8496177819998570653">Men&amp;axheri i fjalëkalimeve i Google</translation>
 <translation id="8498858610309223613">Sapo është zbatuar një përditësim special i sigurisë për Google Chrome. Rinise tani dhe do të restaurojmë skedat e tua.</translation>
 <translation id="8516431725144212809">Interesat e tua sipas përllogaritjes nga Chrome</translation>

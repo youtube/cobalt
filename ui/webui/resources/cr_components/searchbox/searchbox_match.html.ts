@@ -10,7 +10,7 @@ export function getHtml(this: SearchboxMatchElement) {
   // clang-format off
   return html`<!--_html_template_start_-->
 <div class="container" aria-hidden="true">
-  <div id="focus-indicator" class="${this.getFocusIndicatorCssClass_()}"></div>
+  <div id="focusIndicator" class="${this.getFocusIndicatorCssClass_()}"></div>
   <cr-searchbox-icon id="icon" .match="${this.match}"></cr-searchbox-icon>
   <div id="text-container">
     <span id="tail-suggest-prefix" ?hidden="${!this.tailSuggestPrefix_}">
@@ -36,7 +36,7 @@ export function getHtml(this: SearchboxMatchElement) {
             hint="${this.match.keywordChipHint}"
             icon-path="//resources/images/icon_search.svg"
             aria-label="${this.match.keywordChipA11y}"
-            @execute-action="${this.onActivateKeyword_}"
+            @execute-action="${this.onKeywordExecuteAction_}"
             tabindex="1">
         </cr-searchbox-action>
       </div>
@@ -64,7 +64,7 @@ export function getHtml(this: SearchboxMatchElement) {
       title="${this.removeButtonTitle_}"
       ?hidden="${!this.match.supportsDeletion}"
       @click="${this.onRemoveButtonClick_}"
-      @mousedown="${this.onRemoveButtonMouseDown_}">
+      @mousedown="${this.onRemoveButtonMousedown_}">
   </cr-icon-button>
 </div>
 <!--_html_template_end_-->`;

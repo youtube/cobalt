@@ -132,6 +132,8 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kAudioDuckingWin);
 
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kAudioFocusDuckFlash);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kAutoPictureInPictureForVideoPlayback);
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kAutoPictureInPictureSurveys);
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kAutoplayBypassForMicCamera);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kAutoplayDisableSettings);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kAVDColorSpaceChanges);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(
@@ -204,6 +206,7 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kCrOSSystemVoiceIsolationOption);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kAudioFlexibleLoopbackForSystemLoopback);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCrOSEnforceMonoAudioCapture);
 #endif
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kD3D11VideoDecoderForceSingleTexture);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kD3D11VideoDecoderUseSharedHandle);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kDedicatedMediaServiceThread);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kDeferAudioFocusUntilAudible);
@@ -269,6 +272,7 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kApplicationAudioCaptureMac);
 #endif  // BUILDFLAG(IS_MAC)
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kMediaCapabilitiesQueryGpuFactories);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kMediaCapabilitiesWithParameters);
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kAutoplayPoliciesAndroid);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kMediaEngagementBypassAutoplayPolicies);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kMediaEngagementHTTPSOnly);
 #if BUILDFLAG(IS_WIN)
@@ -363,12 +367,14 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kMatchSourceAudioChannelLayout);
 #if BUILDFLAG(IS_ANDROID)
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kAllowDelayedAudioFocusGainAndroid);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kAllowEnhancedPipTransition);
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kAllowMediaCodecSoftwareDecoder);
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kAndroidZeroCopyVideoCapture);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kAutoDocPiPPermissionPromptAndroid);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kAutoPictureInPictureAndroid);
-MEDIA_EXPORT BASE_DECLARE_FEATURE(kEnableAudioMonitoringOnAndroid);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kContextMenuPictureInPictureAndroid);
-MEDIA_EXPORT BASE_DECLARE_FEATURE(kSurfaceInputForAndroidVEA);
-MEDIA_EXPORT BASE_DECLARE_FEATURE(kAndroidZeroCopyVideoCapture);
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kEnableAudioMonitoringOnAndroid);
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kFullscreenVideoPictureInPicture);
+
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kMediaCodecBlockModel);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kMediaCodecLowDelayMode);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kMediaControlsExpandGesture);
@@ -378,10 +384,10 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kMediaDrmPreprovisioningAtStartup);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kMediaDrmGetStatusForPolicy);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kMediaDrmQueryInSeparateProcess);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kRequestSystemAudioFocus);
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kSurfaceInputForAndroidVEA);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kUseAudioLatencyFromHAL);
-MEDIA_EXPORT BASE_DECLARE_FEATURE(kUseSecurityLevelWhenCheckingMediaDrmVersion);
-MEDIA_EXPORT BASE_DECLARE_FEATURE(kAllowMediaCodecSoftwareDecoder);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kUseAudioManagerMaxChannelLayout);
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kUseSecurityLevelWhenCheckingMediaDrmVersion);
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
@@ -470,6 +476,8 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kMediaLogToConsole);
 
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kAomVpxUsePresentationThreadType);
 
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kUseRustJpegParser);
+
 #if BUILDFLAG(IS_WIN)
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kD3D12VideoDecoder);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kD3D12VideoEncodeAccelerator);
@@ -508,10 +516,6 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kMediaLinkHelpers);
 
 // Enables showing auto picture-in-picture permission details in page info.
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kAutoPictureInPicturePageInfoDetails);
-
-// Enables sending provisioning requests in the body of the POST request rather
-// than encoding it inside the URL.
-MEDIA_EXPORT BASE_DECLARE_FEATURE(kUsePostBodyForUrlProvisionFetcher);
 
 // Causes the AVC parser to output Treats H.264 SEI recovery points with a
 // `recovery_frame_cnt=0` as keyframes.

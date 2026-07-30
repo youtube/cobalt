@@ -251,7 +251,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Profile.Guest.ForcedByPolicy" enum="BooleanForced"
-    expires_after="2026-06-27">
+    expires_after="2026-08-30">
   <owner>duellweber@chromium.org</owner>
   <owner>arabm@google.com</owner>
   <owner>chrome-incognito@google.com</owner>
@@ -772,7 +772,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Profile.ZombieProfileCount" units="profiles"
-    expires_after="2026-07-01">
+    expires_after="2026-08-30">
   <owner>nicolaso@chromium.org</owner>
   <owner>cbe-eng@google.com</owner>
   <summary>
@@ -926,9 +926,10 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ProfilePicker.FirstRun.PolicyStoreState"
-    enum="FirstRunCloudPolicyStoreState" expires_after="2026-03-15">
-  <owner>dgn@chromium.org</owner>
-  <owner>chrome-signin-team@google.com</owner>
+    enum="FirstRunCloudPolicyStoreState" expires_after="2026-09-15">
+  <owner>ernn@google.com</owner>
+  <owner>rsult@google.com</owner>
+  <owner>chrome-signin-desktop-team@google.com</owner>
   <summary>
     Records the loading state of the clould policy store when it is loaded or
     after a specified time delay. This is recorded for the first run experience
@@ -1064,7 +1065,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ProfilePicker.{ProfilePickerFlowType}.FlowEndedAtStep"
-    enum="ProfileManagementFlowStep" expires_after="2026-07-01">
+    enum="ProfileManagementFlowStep" expires_after="2026-08-30">
   <owner>rsult@google.com</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -1076,7 +1077,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ProfilePicker.{ProfilePickerFlowType}.FlowTotalDuration"
-    units="ms" expires_after="2026-07-01">
+    units="ms" expires_after="2026-08-30">
   <owner>rsult@google.com</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -1100,7 +1101,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="ProfilePicker.{ProfilePickerFlowType}.{StepFlowDuration}{StepName}"
-    units="ms" expires_after="2026-07-01">
+    units="ms" expires_after="2026-08-30">
   <owner>rsult@google.com</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -1139,7 +1140,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ProfilePicker.{ProfilePickerFlowType}.{StepStatus}"
-    enum="ProfileManagementFlowStep" expires_after="2026-07-01">
+    enum="ProfileManagementFlowStep" expires_after="2026-08-30">
   <owner>rsult@google.com</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>

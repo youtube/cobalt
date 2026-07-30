@@ -42,6 +42,11 @@ const AUDIO_PLAYER_BACKGROUND =
 const AUDIO_PLAYER_ICON = 'var(--color-read-anything-audio-player-icon';
 // Immersive mode specific colors.
 const TOOLBAR_ICON = 'var(--color-read-anything-toolbar-icon';
+const TOOLBAR_ICON_HOVER_BACKGROUND =
+    'var(--color-read-anything-toolbar-icon-hover-background';
+const TOOLBAR_FOCUS_OUTLINE = 'var(--color-read-anything-toolbar-focus-outline';
+const ON_AUDIO_PLAYER_FOCUS_OUTLINE =
+    'var(--color-read-anything-on-audio-player-focus-outline';
 const AUDIO_CONTROLS_ICON = 'var(--color-read-anything-audio-controls-icon';
 // Line focus styles.
 // Determined by experimentation to balance visibility without risking
@@ -157,11 +162,11 @@ export class AppStyleUpdater {
   setLetterSpacing() {
     const letterSpacing = chrome.readingMode.getLetterSpacingValue(
         chrome.readingMode.letterSpacing);
-    this.setStyle_('--letter-spacing', letterSpacing + 'em');
+    this.setStyle_('--letter-spacing', `${letterSpacing}em`);
   }
 
   setFontSize() {
-    this.setStyle_('--font-size', chrome.readingMode.fontSize + 'em');
+    this.setStyle_('--font-size', `${chrome.readingMode.fontSize}em`);
   }
 
   setFont() {
@@ -220,6 +225,15 @@ export class AppStyleUpdater {
     this.setStyle_(
         '--toolbar-icon-color', this.getToolbarIconColor_(colorSuffix));
     this.setStyle_(
+        '--toolbar-icon-hover-background-color',
+        this.getToolbarIconHoverBackgroundColor_(colorSuffix));
+    this.setStyle_(
+        '--toolbar-focus-outline-color',
+        this.getToolbarFocusOutlineColor_(colorSuffix));
+    this.setStyle_(
+        '--on-audio-player-focus-outline-color',
+        this.getOnAudioPlayerFocusOutlineColor_(colorSuffix));
+    this.setStyle_(
         '--audio-controls-icon-color',
         this.getAudioControlsIconColor_(colorSuffix));
     const lineFocusBg = this.app_.style.getPropertyValue('--line-focus-bg');
@@ -263,7 +277,7 @@ export class AppStyleUpdater {
       case ColorSuffix.DEFAULT:
         return EMPTY_STATE_BODY_DEFAULT;
       default:
-        return EMPTY_STATE_HEADING + `${colorSuffix})`;
+        return `${EMPTY_STATE_HEADING}${colorSuffix})`;
     }
   }
 
@@ -274,31 +288,31 @@ export class AppStyleUpdater {
     if (colorSuffix === ColorSuffix.DEFAULT) {
       return SELECTION_BACKGROUND_DEFAULT;
     }
-    return HIGHLIGHT_CURRENT + `${colorSuffix})`;
+    return `${HIGHLIGHT_CURRENT}${colorSuffix})`;
   }
 
   private getPreviousHighlightColor_(colorSuffix: ColorSuffix): string {
     return (colorSuffix === ColorSuffix.DEFAULT) ?
         HIGHLIGHT_PREVIOUS_DEFAULT :
-        (HIGHLIGHT_PREVIOUS_CUSTOM + `${colorSuffix})`);
+        `${HIGHLIGHT_PREVIOUS_CUSTOM}${colorSuffix})`;
   }
 
   private getBackgroundColor_(colorSuffix: ColorSuffix): string {
     return (colorSuffix === ColorSuffix.DEFAULT) ?
         BACKGROUND_DEFAULT :
-        (BACKGROUND_CUSTOM + `${colorSuffix})`);
+        `${BACKGROUND_CUSTOM}${colorSuffix})`;
   }
 
   private getForegroundColor_(colorSuffix: ColorSuffix): string {
     return (colorSuffix === ColorSuffix.DEFAULT) ?
         FOREGROUND_DEFAULT :
-        (FOREGROUND_CUSTOM + `${colorSuffix})`);
+        `${FOREGROUND_CUSTOM}${colorSuffix})`;
   }
 
   private getSelectionColor_(colorSuffix: ColorSuffix): string {
     return (colorSuffix === ColorSuffix.DEFAULT) ?
         SELECTION_BACKGROUND_DEFAULT :
-        (SELECTION_BACKGROUND_CUSTOM + `${colorSuffix})`);
+        `${SELECTION_BACKGROUND_CUSTOM}${colorSuffix})`;
   }
 
   private getSelectionTextColor_(colorSuffix: ColorSuffix): string {
@@ -314,30 +328,49 @@ export class AppStyleUpdater {
   private getLineFocusColor_(colorSuffix: ColorSuffix): string {
     return (colorSuffix === ColorSuffix.DEFAULT) ?
         LINE_FOCUS_BG_LINE_DEFAULT :
-        (LINE_FOCUS_BG_LINE_CUSTOM + `${colorSuffix})`);
+        `${LINE_FOCUS_BG_LINE_CUSTOM}${colorSuffix})`;
   }
 
   private getAudioPlayerBackgroundColor_(colorSuffix: ColorSuffix): string {
     return (colorSuffix === ColorSuffix.DEFAULT) ?
         AUDIO_PLAYER_BACKGROUND :
-        (AUDIO_PLAYER_BACKGROUND + `${colorSuffix})`);
+        `${AUDIO_PLAYER_BACKGROUND}${colorSuffix})`;
   }
 
   private getAudioPlayerIconColor_(colorSuffix: ColorSuffix): string {
     return (colorSuffix === ColorSuffix.DEFAULT) ?
         AUDIO_PLAYER_ICON :
-        (AUDIO_PLAYER_ICON + `${colorSuffix})`);
+        `${AUDIO_PLAYER_ICON}${colorSuffix})`;
   }
 
   private getToolbarIconColor_(colorSuffix: ColorSuffix): string {
     return (colorSuffix === ColorSuffix.DEFAULT) ?
         TOOLBAR_ICON :
-        (TOOLBAR_ICON + `${colorSuffix})`);
+        `${TOOLBAR_ICON}${colorSuffix})`;
+  }
+
+  private getToolbarIconHoverBackgroundColor_(colorSuffix: ColorSuffix):
+      string {
+    return (colorSuffix === ColorSuffix.DEFAULT) ?
+        TOOLBAR_ICON_HOVER_BACKGROUND :
+        (`${TOOLBAR_ICON_HOVER_BACKGROUND}${colorSuffix})`);
+  }
+
+  private getToolbarFocusOutlineColor_(colorSuffix: ColorSuffix): string {
+    return (colorSuffix === ColorSuffix.DEFAULT) ?
+        TOOLBAR_FOCUS_OUTLINE :
+        (`${TOOLBAR_FOCUS_OUTLINE}${colorSuffix})`);
+  }
+
+  private getOnAudioPlayerFocusOutlineColor_(colorSuffix: ColorSuffix): string {
+    return (colorSuffix === ColorSuffix.DEFAULT) ?
+        ON_AUDIO_PLAYER_FOCUS_OUTLINE :
+        (`${ON_AUDIO_PLAYER_FOCUS_OUTLINE}${colorSuffix})`);
   }
 
   private getAudioControlsIconColor_(colorSuffix: ColorSuffix): string {
     return (colorSuffix === ColorSuffix.DEFAULT) ?
         AUDIO_CONTROLS_ICON :
-        (AUDIO_CONTROLS_ICON + `${colorSuffix})`);
+        `${AUDIO_CONTROLS_ICON}${colorSuffix})`;
   }
 }

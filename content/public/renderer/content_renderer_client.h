@@ -253,12 +253,6 @@ class CONTENT_EXPORT ContentRendererClient {
                                 bool is_redirect);
 #endif
 
-  // Waits for critical security settings to be processed by the renderer.
-  // These settings (such as cross-origin isolation) are sent via
-  // `RenderProcessHostImpl::NotifyRendererOfLockedStateUpdate()` and must be
-  // in place before the renderer can safely process web content.
-  virtual void WaitForProcessReady();
-
   // Notifies the embedder that the given frame is requesting the resource at
   // `target_url`. If the function returns a valid `new_url`, the request must
   // be updated to use it.
@@ -399,7 +393,8 @@ class CONTENT_EXPORT ContentRendererClient {
   virtual void DidStartServiceWorkerContextOnWorkerThread(
       int64_t service_worker_version_id,
       const GURL& service_worker_scope,
-      const GURL& script_url) {}
+      const GURL& script_url,
+      const blink::ServiceWorkerToken& service_worker_token) {}
 
   // Notifies that a service worker context will be destroyed. This function
   // is called from the worker thread.
@@ -407,7 +402,8 @@ class CONTENT_EXPORT ContentRendererClient {
       v8::Local<v8::Context> context,
       int64_t service_worker_version_id,
       const GURL& service_worker_scope,
-      const GURL& script_url) {}
+      const GURL& script_url,
+      const blink::ServiceWorkerToken& service_worker_token) {}
 
   // Whether this renderer should enforce preferences related to the WebRTC
   // routing logic, i.e. allowing multiple routes and non-proxied UDP.

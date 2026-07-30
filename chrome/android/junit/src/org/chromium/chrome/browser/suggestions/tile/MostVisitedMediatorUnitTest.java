@@ -4,6 +4,8 @@
 
 package org.chromium.chrome.browser.suggestions.tile;
 
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -21,7 +23,12 @@ import static org.chromium.chrome.browser.suggestions.tile.MostVisitedTilesPrope
 import android.content.Context;
 import android.content.res.Configuration;
 import android.content.res.Resources;
-import android.util.DisplayMetrics;
+import android.view.ContextThemeWrapper;
+import android.view.ViewGroup;
+import android.view.ViewGroup.LayoutParams;
+import android.view.ViewGroup.MarginLayoutParams;
+
+import androidx.test.core.app.ApplicationProvider;
 
 import org.junit.Assert;
 import org.junit.Before;
@@ -44,6 +51,7 @@ import org.chromium.chrome.R;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.native_page.ContextMenuManager;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationConfigManager;
+import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils;
 import org.chromium.chrome.browser.offlinepages.OfflinePageBridge;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.suggestions.SiteSuggestion;
@@ -65,11 +73,7 @@ import java.util.ArrayList;
 @Config(manifest = Config.NONE)
 public class MostVisitedMediatorUnitTest {
     @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
-    @Mock private Context mContext;
-    @Mock Resources mResources;
-    @Mock Configuration mConfiguration;
     @Mock UiConfig mUiConfig;
-    @Mock DisplayMetrics mDisplayMetrics;
     @Mock MostVisitedTilesLayout mMvTilesLayout;
     @Mock Tile mTile;
     @Mock SuggestionsTileView mTileView;
@@ -89,20 +93,29 @@ public class MostVisitedMediatorUnitTest {
     private ArgumentCaptor<NtpCustomizationConfigManager.HomepageStateListener>
             mHomepageStateListenerCaptor;
 
+    private Context mContext;
+    private Resources mResources;
     private FakeMostVisitedSites mMostVisitedSites;
     private PropertyModel mModel;
     private MostVisitedTilesMediator mMediator;
 
+    private int mTileViewPaddingEdgePortrait;
+    private int mTileViewPaddingLandscape;
+
     @Before
     public void setUp() {
+        mContext =
+                new ContextThemeWrapper(
+                        ApplicationProvider.getApplicationContext(),
+                        R.style.Theme_BrowserUI_DayNight);
+        mResources = mContext.getResources();
+        mResources.getDisplayMetrics().widthPixels = 1000;
         mModel = new PropertyModel(MostVisitedTilesProperties.ALL_KEYS);
-        when(mResources.getConfiguration()).thenReturn(mConfiguration);
-        mDisplayMetrics.widthPixels = 1000;
-        when(mResources.getDisplayMetrics()).thenReturn(mDisplayMetrics);
-        when(mResources.getDimensionPixelSize(R.dimen.tile_view_padding_edge_portrait))
-                .thenReturn(12);
-        when(mResources.getDimensionPixelSize(R.dimen.tile_view_padding_landscape)).thenReturn(16);
-        when(mResources.getDimensionPixelOffset(R.dimen.tile_view_width)).thenReturn(80);
+
+        mTileViewPaddingEdgePortrait =
+                mResources.getDimensionPixelSize(R.dimen.tile_view_padding_edge_portrait);
+        mTileViewPaddingLandscape =
+                mResources.getDimensionPixelSize(R.dimen.tile_view_padding_landscape);
 
         when(mUiConfig.getCurrentDisplayStyle())
                 .thenReturn(
@@ -232,17 +245,20 @@ public class MostVisitedMediatorUnitTest {
     @Test
     @SuppressWarnings("DirectInvocationOnMock")
     public void testSetPortraitPaddings_NotSmallDevice() {
-        mConfiguration.orientation = Configuration.ORIENTATION_PORTRAIT;
+        mResources.getConfiguration().orientation = Configuration.ORIENTATION_PORTRAIT;
         createMediator();
         mMediator.onTileDataChanged();
 
         Assert.assertEquals(
-                mResources.getDimensionPixelSize(R.dimen.tile_view_padding_edge_portrait),
-                (int) mModel.get(HORIZONTAL_EDGE_PADDINGS));
+                mTileViewPaddingEdgePortrait, (int) mModel.get(HORIZONTAL_EDGE_PADDINGS));
+
         int tileViewWidth = mResources.getDimensionPixelOffset(R.dimen.tile_view_width);
+        int lateralMarginSum =
+                mResources.getDimensionPixelSize(R.dimen.mvt_container_lateral_margin) * 2;
         Assert.assertEquals(
                 (int)
-                        ((mDisplayMetrics.widthPixels
+                        ((mResources.getDisplayMetrics().widthPixels
+                                        - lateralMarginSum
                                         - mModel.get(HORIZONTAL_EDGE_PADDINGS)
                                         - tileViewWidth * 4.5)
                                 / 4),
@@ -252,7 +268,7 @@ public class MostVisitedMediatorUnitTest {
     @Test
     @SuppressWarnings("DirectInvocationOnMock")
     public void testSetPortraitPaddings_SmallDevice() {
-        mConfiguration.orientation = Configuration.ORIENTATION_PORTRAIT;
+        mResources.getConfiguration().orientation = Configuration.ORIENTATION_PORTRAIT;
         when(mUiConfig.getCurrentDisplayStyle())
                 .thenReturn(
                         new DisplayStyle(HorizontalDisplayStyle.NARROW, VerticalDisplayStyle.FLAT));
@@ -260,14 +276,16 @@ public class MostVisitedMediatorUnitTest {
         mMediator.onTileDataChanged();
 
         Assert.assertEquals(
-                mResources.getDimensionPixelSize(R.dimen.tile_view_padding_edge_portrait),
-                (int) mModel.get(HORIZONTAL_EDGE_PADDINGS));
+                mTileViewPaddingEdgePortrait, (int) mModel.get(HORIZONTAL_EDGE_PADDINGS));
         int tileViewWidth = mResources.getDimensionPixelOffset(R.dimen.tile_view_width_condensed);
+        int lateralMarginSum =
+                mResources.getDimensionPixelSize(R.dimen.mvt_container_lateral_margin) * 2;
         Assert.assertEquals(
                 Integer.max(
                         0,
                         (int)
-                                ((mDisplayMetrics.widthPixels
+                                ((mResources.getDisplayMetrics().widthPixels
+                                                - lateralMarginSum
                                                 - mModel.get(HORIZONTAL_EDGE_PADDINGS)
                                                 - tileViewWidth * 4.5)
                                         / 4)),
@@ -277,16 +295,13 @@ public class MostVisitedMediatorUnitTest {
     @Test
     @SuppressWarnings("DirectInvocationOnMock")
     public void testSetLandscapePaddings() {
-        mConfiguration.orientation = Configuration.ORIENTATION_LANDSCAPE;
+        mResources.getConfiguration().orientation = Configuration.ORIENTATION_LANDSCAPE;
         createMediator();
         mMediator.onTileDataChanged();
 
+        Assert.assertEquals(mTileViewPaddingLandscape, (int) mModel.get(HORIZONTAL_EDGE_PADDINGS));
         Assert.assertEquals(
-                mResources.getDimensionPixelSize(R.dimen.tile_view_padding_landscape),
-                (int) mModel.get(HORIZONTAL_EDGE_PADDINGS));
-        Assert.assertEquals(
-                mResources.getDimensionPixelSize(R.dimen.tile_view_padding_landscape),
-                (int) mModel.get(HORIZONTAL_INTERVAL_PADDINGS));
+                mTileViewPaddingLandscape, (int) mModel.get(HORIZONTAL_INTERVAL_PADDINGS));
     }
 
     @Test
@@ -305,7 +320,7 @@ public class MostVisitedMediatorUnitTest {
                 mResources.getDimensionPixelSize(R.dimen.tile_view_padding_edge_tablet);
         int expectedTileViewIntervalPadding =
                 mResources.getDimensionPixelSize(R.dimen.tile_view_padding_interval_tablet);
-        mConfiguration.orientation = Configuration.ORIENTATION_PORTRAIT;
+        mResources.getConfiguration().orientation = Configuration.ORIENTATION_PORTRAIT;
         createMediator(/* isTablet= */ true);
         mMediator.onTileDataChanged();
         Assert.assertEquals(
@@ -317,7 +332,7 @@ public class MostVisitedMediatorUnitTest {
                 expectedTileViewIntervalPadding,
                 (int) mModel.get(HORIZONTAL_INTERVAL_PADDINGS));
 
-        mConfiguration.orientation = Configuration.ORIENTATION_LANDSCAPE;
+        mResources.getConfiguration().orientation = Configuration.ORIENTATION_LANDSCAPE;
         createMediator(/* isTablet= */ true);
         mMediator.onTileDataChanged();
         Assert.assertEquals(
@@ -333,21 +348,21 @@ public class MostVisitedMediatorUnitTest {
     @Test
     @SuppressWarnings("DirectInvocationOnMock")
     public void testUpdateTilesView_Phone() {
-        mConfiguration.orientation = Configuration.ORIENTATION_PORTRAIT;
+        mResources.getConfiguration().orientation = Configuration.ORIENTATION_PORTRAIT;
         createMediator(/* isTablet= */ false);
         mMediator.onTileDataChanged();
         // tile_view_padding_edge_portrait
         Assert.assertEquals(
                 "The horizontal edge padding passed to the model is wrong",
-                mResources.getDimensionPixelSize(R.dimen.tile_view_padding_edge_portrait),
+                mTileViewPaddingEdgePortrait,
                 (int) mModel.get(HORIZONTAL_EDGE_PADDINGS));
 
-        mConfiguration.orientation = Configuration.ORIENTATION_LANDSCAPE;
+        mResources.getConfiguration().orientation = Configuration.ORIENTATION_LANDSCAPE;
         createMediator(/* isTablet= */ false);
         mMediator.onTileDataChanged();
         Assert.assertEquals(
                 "The horizontal edge padding passed to the model is wrong",
-                mResources.getDimensionPixelSize(R.dimen.tile_view_padding_landscape),
+                mTileViewPaddingLandscape,
                 (int) mModel.get(HORIZONTAL_EDGE_PADDINGS));
     }
 
@@ -535,6 +550,41 @@ public class MostVisitedMediatorUnitTest {
         verify(mNtpCustomizationConfigManager, never()).removeListener(any());
     }
 
+    @Test
+    public void testUpdateMvtOnTablet() {
+        createMediator(/* isTablet= */ true);
+        int totalWidth = 1000;
+        ViewGroup.MarginLayoutParams marginLayoutParams =
+                new ViewGroup.MarginLayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        when(mMvTilesLayout.getLayoutParams()).thenReturn(marginLayoutParams);
+        when(mMvTilesLayout.contentFitsOnTablet(totalWidth)).thenReturn(true);
+
+        // Test case of regular tablets.
+        UiConfig.DisplayStyle displayStyleWide =
+                new DisplayStyle(HorizontalDisplayStyle.WIDE, VerticalDisplayStyle.REGULAR);
+        when(mUiConfig.getCurrentDisplayStyle()).thenReturn(displayStyleWide);
+        assertFalse(
+                NtpCustomizationUtils.isInNarrowWindowOnTablet(/* isTablet= */ true, mUiConfig));
+
+        int lateralMargin = mResources.getDimensionPixelSize(R.dimen.mvt_container_lateral_margin);
+        mMediator.updateMvtOnTablet(totalWidth);
+        verifyLayoutParams(marginLayoutParams, LayoutParams.WRAP_CONTENT, lateralMargin);
+
+        // Test case of narrow window on tablets.
+        UiConfig.DisplayStyle displayStyleRegular =
+                new DisplayStyle(HorizontalDisplayStyle.REGULAR, VerticalDisplayStyle.REGULAR);
+        when(mUiConfig.getCurrentDisplayStyle()).thenReturn(displayStyleRegular);
+        assertTrue(NtpCustomizationUtils.isInNarrowWindowOnTablet(true, mUiConfig));
+
+        int lateralMarginNarrowWindowTablet =
+                mResources.getDimensionPixelSize(
+                        R.dimen.ntp_search_box_lateral_margin_narrow_window_tablet);
+        mMediator.updateMvtOnTablet(totalWidth);
+        verifyLayoutParams(
+                marginLayoutParams, LayoutParams.WRAP_CONTENT, lateralMarginNarrowWindowTablet);
+    }
+
     private void createMediator() {
         createMediator(/* isTablet= */ false);
     }
@@ -547,7 +597,6 @@ public class MostVisitedMediatorUnitTest {
         when(mMvTilesLayout.getChildAt(0)).thenReturn(mTileView);
         when(mMvTilesLayout.getTileCount()).thenReturn(1);
         when(mMvTilesLayout.getTileAt(0)).thenReturn(mTileView);
-        when(mContext.getResources()).thenReturn(mResources);
 
         mMediator =
                 new MostVisitedTilesMediator(
@@ -567,5 +616,12 @@ public class MostVisitedMediatorUnitTest {
                 mTileGroupDelegate,
                 mOfflinePageBridge,
                 mTileRenderer);
+    }
+
+    private void verifyLayoutParams(
+            MarginLayoutParams marginLayoutParams, int expectedWidth, int expectedLateralMargin) {
+        Assert.assertEquals(expectedWidth, marginLayoutParams.width);
+        Assert.assertEquals(expectedLateralMargin, marginLayoutParams.leftMargin);
+        Assert.assertEquals(expectedLateralMargin, marginLayoutParams.rightMargin);
     }
 }

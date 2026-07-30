@@ -29,6 +29,7 @@
 <translation id="126567311906253476">Када се пријављујете у Google услуге као што су Gmail или YouTube помоћу налога <ph name="USER_EMAIL" />, можете аутоматски да се пријавите у Chromium помоћу истог налога</translation>
 <translation id="1290883685122687410">Грешка при подешавању: <ph name="METAINSTALLER_EXIT_CODE" />. <ph name="WINDOWS_ERROR" /></translation>
 <translation id="1315551408014407711">Подесите нов Chromium профил</translation>
+<translation id="132092532143527429">Испробајте са Gemini-јем у Chromium-у</translation>
 <translation id="1324107359134968521">Chromium захтева приступ Bluetooth-у да би истраживао 
  Bluetooth уређаје. <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="1330562121671411446">Откривени језик</translation>
@@ -241,6 +242,7 @@
 <translation id="3509308970982693815">Затворите све Chromium прозоре и покушајте поново.</translation>
 <translation id="3522404737534491619">Да бисте делили прозор, дозволите снимање екрана за Chromium у подешавањима система</translation>
 <translation id="3530103706039034513">Корисник <ph name="EXISTING_USER" /> је већ пријављен.  Да би вам прегледање било раздвојено, пријавите се у Chromium преко свог профила као <ph name="USER_EMAIL_ADDRESS" />.</translation>
+<translation id="3531741627422851418">QR кôд за преузимање Chromium прегледача на мобилним уређајима</translation>
 <translation id="3561853857681580870">Да бисте делили екран, дозволите снимање екрана за Chromium у подешавањима система.</translation>
 <translation id="3588112919289558122">Побољшана заштита искључује оптимизацију JavaScript-а за сајтове које Chromium не препознаје</translation>
 <translation id="3597003331831379823">Покретање подешавања са пуним привилегијама није успело. <ph name="METAINSTALLER_ERROR" /></translation>
@@ -376,7 +378,6 @@
 <translation id="5174969993834422967">Обично блокирате обавештења. Да бисте дозволили овом сајту да вас обавештава, кликните на икону обавештења у десном углу траке за локацију.</translation>
 <translation id="5174983315706567306">Нема довољно простора на диску.</translation>
 <translation id="5187123684706427865">Chromium налог захтева поновну потврду идентитета</translation>
-<translation id="5219681158518957165">Користите препоручена подешавања прегледача</translation>
 <translation id="5224391634244552924">Нема сачуваних лозинки. Chromium може да проверава лозинке када их сачувате.</translation>
 <translation id="5231355151045086930">Одјавите се из Chromium-а</translation>
 <translation id="5234764350956374838">Одбаци</translation>
@@ -610,6 +611,7 @@ Chromium не може да врати подешавања.</translation>
 <translation id="7622753900276619808">Сада имате још функција доступних у Chromium-у</translation>
 <translation id="7624307931717240213">Информације користимо да бисмо побољшали ову услугу. Погледајте политику приватности и услове коришћења услуге.</translation>
 <translation id="7649070708921625228">Помоћ</translation>
+<translation id="7650134251917003571">Преузми апликацију Chromium</translation>
 <translation id="7656340475565475526">Дозволите да Chromium прегледа за вас</translation>
 <translation id="7658239707568436148">Откажи</translation>
 <translation id="7686590090926151193">Chromium није подразумевани прегледач</translation>

@@ -287,7 +287,6 @@ extern const char kStartupForegroundLaunch[];
 extern const char kUninstall[];
 extern const char kUninstallAppId[];
 extern const char kIsolated[];
-extern const char kLaunchIsolated[];
 #endif  // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(ENABLE_PRINT_PREVIEW) && !defined(OFFICIAL_BUILD)
@@ -302,6 +301,7 @@ extern const char kGuest[];
 
 extern const char kGlicGuestURL[];
 extern const char kGlicAlwaysOpenFre[];
+extern const char kGlicAlwaysSkipFre[];
 extern const char kGlicFreURL[];
 extern const char kGlicShortcutsLearnMoreURL[];
 extern const char kGlicOpenOnStartup[];

@@ -9,11 +9,13 @@ source_set("projects") {
     "projects_panel_controls_view.h",
     "projects_panel_no_tab_groups_view.h",
     "projects_panel_recent_threads_view.h",
+    "projects_panel_tab_groups_drag_scroll_handler.h",
     "projects_panel_tab_groups_item_view.h",
     "projects_panel_tab_groups_view.h",
     "projects_panel_thread_item_view.h",
     "projects_panel_utils.h",
     "projects_panel_view.h",
+    "projects_panel_view_layout.h",
   ]
 
   public_deps = [
@@ -33,11 +35,13 @@ source_set("impl") {
     "projects_panel_controls_view.cc",
     "projects_panel_no_tab_groups_view.cc",
     "projects_panel_recent_threads_view.cc",
+    "projects_panel_tab_groups_drag_scroll_handler.cc",
     "projects_panel_tab_groups_item_view.cc",
     "projects_panel_tab_groups_view.cc",
     "projects_panel_thread_item_view.cc",
     "projects_panel_utils.cc",
     "projects_panel_view.cc",
+    "projects_panel_view_layout.cc",
   ]
 
   public_deps = [ ":projects" ]
@@ -72,9 +76,11 @@ source_set("unit_tests") {
   sources = [
     "projects_panel_controller_unittest.cc",
     "projects_panel_recent_threads_view_unittest.cc",
+    "projects_panel_tab_groups_drag_scroll_handler_unittest.cc",
     "projects_panel_tab_groups_item_view_unittest.cc",
     "projects_panel_tab_groups_view_unittest.cc",
     "projects_panel_thread_item_view_unittest.cc",
+    "projects_panel_view_layout_unittest.cc",
     "projects_panel_view_unittest.cc",
   ]
   deps = [
@@ -93,6 +99,7 @@ source_set("unit_tests") {
     "//components/saved_tab_groups/public",
     "//components/saved_tab_groups/test_support",
     "//components/sync/base",
+    "//ui/events:test_support",
     "//ui/views",
     "//ui/views:test_support",
   ]
@@ -130,6 +137,7 @@ source_set("interactive_ui_tests") {
     "//chrome/browser/ui/tabs:features",
     "//chrome/browser/ui/tabs/projects",
     "//chrome/test:test_support",
+    "//components/contextual_tasks/public:test_support",
     "//components/saved_tab_groups/public",
     "//components/saved_tab_groups/test_support",
     "//content/test:test_support",

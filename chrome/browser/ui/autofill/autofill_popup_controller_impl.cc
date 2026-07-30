@@ -28,6 +28,9 @@
 #include "chrome/browser/ui/autofill/autofill_suggestion_controller_utils.h"
 #include "chrome/browser/ui/autofill/next_idle_barrier.h"
 #include "chrome/browser/ui/autofill/popup_controller_common.h"
+#include "components/accessibility_annotator/core/accessibility_query_service.h"
+#include "components/accessibility_annotator/core/annotation_reducer/memory_search_result.h"
+#include "components/autofill/content/browser/content_autofill_client.h"
 #include "components/autofill/core/browser/data_manager/personal_data_manager.h"
 #include "components/autofill/core/browser/filling/filling_product.h"
 #include "components/autofill/core/browser/foundations/autofill_manager.h"
@@ -182,12 +185,19 @@ void AutofillPopupControllerImpl::Show(
     AutofillSuggestionsIgnoreFocusLoss ignore_focus_loss) {
   ui_session_id_ = ui_session_id;
   ignore_focus_loss_ = ignore_focus_loss;
-  suggestions_filling_product_ =
-      !suggestions.empty() && IsStandaloneSuggestionType(suggestions[0].type)
-          ? GetFillingProductFromSuggestionType(suggestions[0].type)
-          : FillingProduct::kNone;
+  trigger_source_ = trigger_source;
+  if (trigger_source_ == AutofillSuggestionTriggerSource::kAtMemory) {
+    suggestions_filling_product_ = FillingProduct::kAtMemory;
+  } else if (!suggestions.empty() &&
+             IsStandaloneSuggestionType(suggestions[0].type)) {
+    suggestions_filling_product_ =
+        GetFillingProductFromSuggestionType(suggestions[0].type);
+  } else {
+    suggestions_filling_product_ = FillingProduct::kNone;
+  }
 
   if (suggestions.empty() &&
+      trigger_source_ != AutofillSuggestionTriggerSource::kAtMemory &&
       base::FeatureList::IsEnabled(
           features::kAutofillAndroidKeyboardAccessoryDynamicPositioning)) {
     Hide(SuggestionHidingReason::kNoSuggestions);
@@ -245,7 +255,6 @@ void AutofillPopupControllerImpl::Show(
 
   SetSuggestions(std::move(suggestions));
 
-  trigger_source_ = trigger_source;
   should_ignore_mouse_observed_outside_item_bounds_check_ =
       kTriggerSourcesExemptFromPaintChecks.contains(trigger_source_);
   if (!kTriggerSourcesExemptFromTimeReset.contains(trigger_source_)) {
@@ -256,19 +265,10 @@ void AutofillPopupControllerImpl::Show(
     OnSuggestionsChanged();
   } else {
     bool has_parent = parent_controller_ && parent_controller_->get();
-    auto search_bar_config =
-        trigger_source_ ==
-                AutofillSuggestionTriggerSource::kManualFallbackPasswords
-            ? std::optional<AutofillPopupView::SearchBarConfig>(
-                  {.placeholder = l10n_util::GetStringUTF16(
-                       IDS_AUTOFILL_POPUP_SEARCH_BAR_PASSWORDS_INPUT_PLACEHOLDER),
-                   .no_results_message = l10n_util::GetStringUTF16(
-                       IDS_AUTOFILL_POPUP_SEARCH_BAR_PASSWORDS_NOT_FOUND)})
-            : std::nullopt;
     view_ = has_parent
                 ? parent_controller_->get()->CreateSubPopupView(GetWeakPtr())
                 : AutofillPopupView::Create(GetWeakPtr(),
-                                            std::move(search_bar_config));
+                                            GetSearchBarConfig(trigger_source));
 
     // It is possible to fail to create the popup, in this case
     // treat the popup as hiding right away.
@@ -466,6 +466,43 @@ void AutofillPopupControllerImpl::OnSuggestionsChanged(
   if (view_) {
     view_->OnSuggestionsChanged(prefer_prev_arrow_side);
   }
+}
+
+std::optional<AutofillPopupView::SearchBarConfig>
+AutofillPopupControllerImpl::GetSearchBarConfig(
+    AutofillSuggestionTriggerSource trigger_source) const {
+  switch (trigger_source) {
+    case AutofillSuggestionTriggerSource::kAtMemory:
+      return AutofillPopupView::SearchBarConfig{
+          .placeholder = l10n_util::GetStringUTF16(
+              IDS_AUTOFILL_AT_MEMORY_POPUP_SEARCH_BAR_PLACEHOLDER),
+          // TODO(crbug.com/484900654): Add a localized "no results" label.
+          .no_results_message = u""};
+    case AutofillSuggestionTriggerSource::kManualFallbackPasswords:
+      return AutofillPopupView::SearchBarConfig{
+          .placeholder = l10n_util::GetStringUTF16(
+              IDS_AUTOFILL_POPUP_SEARCH_BAR_PASSWORDS_INPUT_PLACEHOLDER),
+          .no_results_message = l10n_util::GetStringUTF16(
+              IDS_AUTOFILL_POPUP_SEARCH_BAR_PASSWORDS_NOT_FOUND)};
+    case AutofillSuggestionTriggerSource::kFormControlElementClicked:
+    case AutofillSuggestionTriggerSource::kTextareaFocusedWithoutClick:
+    case AutofillSuggestionTriggerSource::kContentEditableClicked:
+    case AutofillSuggestionTriggerSource::kTextFieldValueChanged:
+    case AutofillSuggestionTriggerSource::kTextFieldDidReceiveKeyDown:
+    case AutofillSuggestionTriggerSource::kOpenTextDataListChooser:
+    case AutofillSuggestionTriggerSource::kPasswordManager:
+    case AutofillSuggestionTriggerSource::kiOS:
+    case AutofillSuggestionTriggerSource::kManualFallbackPlusAddresses:
+    case AutofillSuggestionTriggerSource::kComposeDialogLostFocus:
+    case AutofillSuggestionTriggerSource::kComposeDelayedProactiveNudge:
+    case AutofillSuggestionTriggerSource::kPasswordManagerProcessedFocusedField:
+    case AutofillSuggestionTriggerSource::kPlusAddressUpdatedInBrowserProcess:
+    case AutofillSuggestionTriggerSource::kProactivePasswordRecovery:
+    case AutofillSuggestionTriggerSource::kGlic:
+    case AutofillSuggestionTriggerSource::kUnspecified:
+      return std::nullopt;
+  }
+  NOTREACHED();
 }
 
 void AutofillPopupControllerImpl::UpdateFilteredSuggestions() {
@@ -835,6 +872,25 @@ AutofillPopupControllerImpl::GetSuggestionFilterMatches() const {
 
 void AutofillPopupControllerImpl::SetFilter(
     std::optional<SuggestionFilter> filter) {
+  if (suggestions_filling_product_ == FillingProduct::kAtMemory && filter) {
+    std::vector<Suggestion> suggestions;
+    if (ContentAutofillClient* client =
+            ContentAutofillClient::FromWebContents(web_contents_.get())) {
+      if (accessibility_annotator::AccessibilityQueryService* query_service =
+              client->GetAccessibilityQueryService()) {
+        for (const accessibility_annotator::MemorySearchResult& result :
+             query_service->Query(**filter)) {
+          Suggestion& s = suggestions.emplace_back(
+              result.value, SuggestionType::kAtMemorySearchResult);
+          s.labels = {{Suggestion::Text(result.description)}};
+          s.payload = Suggestion::AtMemoryPayload(result.value);
+          s.filtration_policy = Suggestion::FiltrationPolicy::kStatic;
+        }
+      }
+    }
+    SetSuggestions(std::move(suggestions));
+  }
+
   filter_ = std::move(filter);
   UpdateFilteredSuggestions();
   OnSuggestionsChanged(/*prefer_prev_arrow_side=*/true);

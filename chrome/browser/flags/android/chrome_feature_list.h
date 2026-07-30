@@ -44,6 +44,7 @@ BASE_DECLARE_FEATURE(kAndroidDataImporterService);
 BASE_DECLARE_FEATURE(kAndroidDesktopDensity);
 BASE_DECLARE_FEATURE(kAndroidElegantTextHeight);
 BASE_DECLARE_FEATURE(kAndroidFirstRunLaunchBounds);
+BASE_DECLARE_FEATURE(kAndroidHistoryClustering);
 BASE_DECLARE_FEATURE(kAndroidNewMediaPicker);
 BASE_DECLARE_FEATURE(kAndroidNoVisibleHintForDifferentTLD);
 BASE_DECLARE_FEATURE(kAndroidOmniboxFocusedNewTabPage);
@@ -55,7 +56,6 @@ BASE_DECLARE_FEATURE(kAndroidSettingsContainment);
 BASE_DECLARE_FEATURE(kAndroidSetupList);
 BASE_DECLARE_FEATURE(kAndroidSurfaceColorUpdate);
 BASE_DECLARE_FEATURE(kAndroidTabDeclutterDedupeTabIdsKillSwitch);
-BASE_DECLARE_FEATURE(kAndroidTabHighlighting);
 BASE_DECLARE_FEATURE(kAndroidTabSkipSaveTabsKillswitch);
 BASE_DECLARE_FEATURE(kAndroidThemeModule);
 BASE_DECLARE_FEATURE(kAndroidThemeResourceProvider);
@@ -69,6 +69,7 @@ BASE_DECLARE_FEATURE(kAndroidXRUsesSurfaceControl);
 BASE_DECLARE_FEATURE(kAnimatedGifRefactor);
 BASE_DECLARE_FEATURE(kAnimatedImageDragShadow);
 BASE_DECLARE_FEATURE(kAnnotatedPageContentsVirtualStructure);
+BASE_DECLARE_FEATURE(kApb144Patch1);
 BASE_DECLARE_FEATURE(kAppSpecificHistory);
 BASE_DECLARE_FEATURE(kAppSpecificHistoryViewIntent);
 BASE_DECLARE_FEATURE(kAsyncNotificationManager);
@@ -163,6 +164,8 @@ BASE_DECLARE_FEATURE(kEdgeToEdgeUseBackupNavbarInsets);
 BASE_DECLARE_FEATURE(kEducationalTipDefaultBrowserPromoCard);
 BASE_DECLARE_FEATURE(kEmptyTabListAnimationKillSwitch);
 BASE_DECLARE_FEATURE(kEnableAndroidSidePanel);
+BASE_DECLARE_FEATURE(kEnableAndroidSidePanelDevFeature);
+BASE_DECLARE_FEATURE(kEnableBrowserWindowInterfaceForCustomTabActivity);
 BASE_DECLARE_FEATURE(kEnableContextMenuForPreviewTab);
 BASE_DECLARE_FEATURE(kEnableEscapeHandlingForSecondaryActivities);
 BASE_DECLARE_FEATURE(kEnableSwipeToSwitchPane);
@@ -227,7 +230,6 @@ BASE_DECLARE_FEATURE(kProtectRecentlyVisibleTab);
 BASE_DECLARE_FEATURE(kProtectedTabsAndroid);
 BASE_DECLARE_FEATURE(kPwaRestoreUi);
 BASE_DECLARE_FEATURE(kPwaRestoreUiAtStartup);
-BASE_DECLARE_FEATURE(kReadAloud);
 BASE_DECLARE_FEATURE(kReadAloudAudioOverviews);
 BASE_DECLARE_FEATURE(kReadAloudIPHMenuButtonHighlightCCT);
 BASE_DECLARE_FEATURE(kReadAloudPlayback);
@@ -292,6 +294,7 @@ BASE_DECLARE_FEATURE(kUseInitialNetworkStateAtStartup);
 BASE_DECLARE_FEATURE(kUseLibunwindstackNativeUnwinderAndroid);
 BASE_DECLARE_FEATURE(kWebOtpCrossDeviceSimpleString);
 BASE_DECLARE_FEATURE(kXplatSyncedSetup);
+BASE_DECLARE_FEATURE(kYourSavedInfoSettingsPageAndroid);
 // go/keep-sorted end
 // BASE_DECLARE_FEATURE_END
 
@@ -360,12 +363,6 @@ inline constexpr base::FeatureParam<bool>
         "read_aloud_audio_overviews_should_consider_language_in_overview_"
         "readability",
         /* default_value=*/false);
-
-inline constexpr base::FeatureParam<int>
-    kReadAloudAudioReadabilityDelayMsAfterPageLoad(
-        &kReadAloud,
-        "read_aloud_readability_delay_ms_after_page_load",
-        /* default_value=*/500);
 
 inline constexpr base::FeatureParam<std::string>
     kReadAloudAudioOverviewsSupportedLanguages(

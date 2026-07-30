@@ -267,6 +267,10 @@ extern const char kGeminiImageRemixToolShowAboveSearchImage[];
 bool IsGeminiImageRemixToolShowBelowSearchImageEnabled();
 extern const char kGeminiImageRemixToolShowBelowSearchImage[];
 
+// Returns true if the image remix tool should remove/disable PageContext.
+bool IsGeminiImageRemixToolRemovePageContextEnabled();
+extern const char kGeminiImageRemixToolRemovePageContext[];
+
 // Feature flag for enabling the Gemini eligibility ablation experiment.
 BASE_DECLARE_FEATURE(kGeminiEligibilityAblation);
 bool IsGeminiEligibilityAblationEnabled();
@@ -287,9 +291,9 @@ bool IsGeminiCopresenceEnabled();
 extern const char kGeminiCopresenceResponseReadyInterval[];
 double GetGeminiCopresenceResponseReadyInterval();
 
-// Returns true if the zero state with chat history is enabled.
-bool IsGeminiCopresenceZeroStateWithChatHistoryEnabled();
-extern const char kGeminiCopresenceZeroStateWithChatHistory[];
+// Returns true if the Gemini chat persistence is enabled.
+bool IsGeminiChatPersistenceEnabled();
+BASE_DECLARE_FEATURE(kGeminiChatPersistence);
 
 // Returns true if the fullscreen disabler is enabled with Gemini Copresence.
 bool IsGeminiCopresenceWithFullscreenDisablerEnabled();
@@ -354,5 +358,23 @@ bool IsGeminiRichAPCExtractionEnabled();
 // Feature flag to enable Gemini Floaty on all pages.
 BASE_DECLARE_FEATURE(kGeminiFloatyAllPages);
 bool IsGeminiFloatyAllPagesEnabled();
+
+// Enables the GeminiMapsRichUI feature.
+BASE_DECLARE_FEATURE(kGeminiMapsRichUI);
+
+// Returns true if the GeminiMapsRichUI feature is enabled.
+bool IsGeminiMapsRichUIEnabled();
+
+// Enables the GeminiUnaryMigration feature.
+BASE_DECLARE_FEATURE(kGeminiUnaryMigration);
+
+// Returns true if the GeminiUnaryMigration feature is enabled.
+bool IsGeminiUnaryMigrationEnabled();
+
+// Enables the GeminiBinaryMigration feature.
+BASE_DECLARE_FEATURE(kGeminiBinaryMigration);
+
+// Returns true if the GeminiBinaryMigration feature is enabled.
+bool IsGeminiBinaryMigrationEnabled();
 
 #endif  // IOS_CHROME_BROWSER_INTELLIGENCE_FEATURES_FEATURES_H_

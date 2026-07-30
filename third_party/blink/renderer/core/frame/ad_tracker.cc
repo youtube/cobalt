@@ -10,6 +10,7 @@
 #include <variant>
 
 #include "base/compiler_specific.h"
+#include "base/containers/span.h"
 #include "base/feature_list.h"
 #include "base/metrics/histogram_functions.h"
 #include "third_party/abseil-cpp/absl/functional/overload.h"
@@ -38,12 +39,17 @@ namespace {
 
 // Maps a MonkeyPatchableApi enum value to the corresponding property path
 // to access that API, starting from the context's global object.
-std::vector<const char*> GetApiPropertyPath(AdTracker::MonkeyPatchableApi api) {
+base::span<const char* const> GetApiPropertyPath(
+    AdTracker::MonkeyPatchableApi api) {
   switch (api) {
-    case AdTracker::MonkeyPatchableApi::kHistoryPushState:
-      return {"history", "pushState"};
-    case AdTracker::MonkeyPatchableApi::kNodeAppendChild:
-      return {"Node", "prototype", "appendChild"};
+    case AdTracker::MonkeyPatchableApi::kHistoryPushState: {
+      static const char* const kPath[] = {"history", "pushState"};
+      return kPath;
+    }
+    case AdTracker::MonkeyPatchableApi::kNodeAppendChild: {
+      static const char* const kPath[] = {"Node", "prototype", "appendChild"};
+      return kPath;
+    }
     case AdTracker::MonkeyPatchableApi::kNone:
       NOTREACHED();
   }
@@ -73,7 +79,7 @@ ApiFunctionInfo GetApiFunctionInfo(v8::Isolate* isolate,
 
   // Start with the global object.
   v8::Local<v8::Value> current_value = context->Global();
-  const std::vector<const char*> property_path = GetApiPropertyPath(api);
+  const base::span<const char* const> property_path = GetApiPropertyPath(api);
 
   // Traverse the property path (e.g., global object -> `history` ->
   // `pushState`).
@@ -84,8 +90,7 @@ ApiFunctionInfo GetApiFunctionInfo(v8::Isolate* isolate,
     }
 
     v8::Local<v8::Object> current_object = current_value.As<v8::Object>();
-    v8::Local<v8::String> property_key =
-        v8::String::NewFromUtf8(isolate, property_name).ToLocalChecked();
+    v8::Local<v8::String> property_key = V8AtomicString(isolate, property_name);
 
     v8::MaybeLocal<v8::Value> maybe_next_value =
         current_object->Get(context, property_key);
@@ -123,13 +128,14 @@ bool IsKnownAdExecutionContext(ExecutionContext* execution_context) {
   return false;
 }
 
-String GenerateFakeUrlFromScriptId(int script_id) {
+String GenerateFakeUrlFromScriptId(V8ScriptId script_id) {
   // Null string is used to represent scripts with neither a name nor an ID.
-  if (script_id == v8::Message::kNoScriptIdInfo)
+  if (script_id == AdScriptIdentifier::kEmptyId) {
     return String();
+  }
 
   // The prefix cannot appear in real URLs.
-  return String::Format("{ id %d }", script_id);
+  return String::Format("{ id %d }", script_id.value());
 }
 
 v8_inspector::V8DebuggerId GetDebuggerIdForContext(
@@ -150,18 +156,20 @@ v8_inspector::V8DebuggerId GetDebuggerIdForContext(
 
 String AdTracker::AdScriptAncestry::ToString() const {
   if (ancestry_chain.empty() || !root_script_filterlist_rule.IsValid()) {
-    return "";
+    return String();
   }
 
   StringBuilder builder;
-  builder.AppendFormat("Debug info: adscript '%s' ",
-                       ancestry_chain[0].name.Ascii().c_str());
+  builder.Append("Debug info: adscript '");
+  builder.Append(ancestry_chain[0].name);
+  builder.Append("' ");
   for (size_t i = 1; i < ancestry_chain.size(); ++i) {
-    builder.AppendFormat("(loaded by '%s') ",
-                         ancestry_chain[i].name.Ascii().c_str());
+    builder.Append("(loaded by '");
+    builder.Append(ancestry_chain[i].name);
+    builder.Append("') ");
   }
-  builder.AppendFormat("matched ad filterlist rule: %s",
-                       root_script_filterlist_rule.ToString().c_str());
+  builder.Append("matched ad filterlist rule: ");
+  builder.Append(String::FromUTF8(root_script_filterlist_rule.ToString()));
   return builder.ReleaseString();
 }
 
@@ -214,11 +222,13 @@ void AdTracker::Will(const probe::ExecuteScript& probe) {
     return;
   }
 
+  V8ScriptId script_id(probe.script_id);
+
   // We're executing a script's top-level. This is our first time seeing the
   // script id for the given url.
   bool is_inline_script = probe.script_url.empty();
 
-  String url = is_inline_script ? GenerateFakeUrlFromScriptId(probe.script_id)
+  String url = is_inline_script ? GenerateFakeUrlFromScriptId(script_id)
                                 : probe.script_url;
 
   bool is_ad = IsKnownAdScript(probe.context, url);
@@ -248,11 +258,11 @@ void AdTracker::Will(const probe::ExecuteScript& probe) {
   // by id rather than string.
   if (is_ad && !IsKnownAdExecutionContext(probe.context)) {
     OnScriptIdAvailableForKnownAdScript(probe.context, probe.v8_context, url,
-                                        probe.script_id);
+                                        script_id);
   }
 
   if (is_ad && !bottom_most_ad_script_.has_value()) {
-    bottom_most_ad_script_ = probe.script_id;
+    bottom_most_ad_script_ = script_id;
   }
 }
 
@@ -263,7 +273,7 @@ void AdTracker::Did(const probe::ExecuteScript& probe) {
   }
 
   if (bottom_most_ad_script_.has_value() &&
-      bottom_most_ad_script_.value() == probe.script_id) {
+      bottom_most_ad_script_.value() == V8ScriptId(probe.script_id)) {
     bottom_most_ad_script_.reset();
   }
 }
@@ -277,9 +287,10 @@ void AdTracker::Will(const probe::CallFunction& probe) {
     return;
   }
 
+  V8ScriptId script_id(probe.function->ScriptId());
   if (!bottom_most_ad_script_.has_value() &&
-      ad_script_data_.Contains(probe.function->ScriptId())) {
-    bottom_most_ad_script_ = probe.function->ScriptId();
+      ad_script_data_.Contains(script_id)) {
+    bottom_most_ad_script_ = script_id;
   }
 }
 
@@ -293,25 +304,26 @@ void AdTracker::Did(const probe::CallFunction& probe) {
     return;
   }
   if (bottom_most_ad_script_.has_value() &&
-      bottom_most_ad_script_.value() == probe.function->ScriptId()) {
+      bottom_most_ad_script_.value() ==
+          V8ScriptId(probe.function->ScriptId())) {
     bottom_most_ad_script_.reset();
   }
 }
 
-bool AdTracker::CalculateIfAdSubresource(
+std::optional<AdProvenance> AdTracker::CalculateIfAdSubresource(
     ExecutionContext* execution_context,
     const KURL& request_url,
     ResourceType resource_type,
     const FetchInitiatorInfo& initiator_info,
-    bool known_ad,
-    bool scan_stack_for_ads,
-    const subresource_filter::ScopedRule& rule) {
-  DCHECK(!rule.IsValid() || known_ad);
-
+    std::optional<AdProvenance> known_ad_provenance,
+    bool scan_stack_for_ads) {
   // Check if the document loading the resource is an ad.
   const bool is_ad_execution_context =
       IsKnownAdExecutionContext(execution_context);
-  known_ad = known_ad || is_ad_execution_context;
+
+  if (!known_ad_provenance && is_ad_execution_context) {
+    known_ad_provenance = NoProvenance{};
+  }
 
   // We skip script checking for stylesheet-initiated resource requests as the
   // stack may represent the cause of a style recalculation rather than the
@@ -319,41 +331,33 @@ bool AdTracker::CalculateIfAdSubresource(
   // CSSParserContext when the request is made. See crbug.com/1051605.
   if (initiator_info.name == fetch_initiator_type_names::kCSS ||
       initiator_info.name == fetch_initiator_type_names::kUacss) {
-    return known_ad;
+    return known_ad_provenance;
   }
 
   // Check if any executing script is an ad.
-  std::optional<AdScriptIdentifier> ancestor_ad_script;
-  if (scan_stack_for_ads) {
-    known_ad = known_ad ||
-               IsAdScriptInStackHelper(
-                   StackType::kTopOnly,
-                   /*ignore_monkey_patch=*/MonkeyPatchableApi::kNodeAppendChild,
-                   &ancestor_ad_script);
+  if (!known_ad_provenance && scan_stack_for_ads) {
+    std::optional<AdScriptIdentifier> ancestor_ad_script;
+    if (IsAdScriptInStackHelper(
+            StackType::kTopOnly,
+            /*ignore_monkey_patch=*/MonkeyPatchableApi::kNodeAppendChild,
+            &ancestor_ad_script)) {
+      known_ad_provenance = ancestor_ad_script
+                                ? AdProvenance(ancestor_ad_script->id)
+                                : AdProvenance(NoProvenance{});
+    }
   }
 
   // If it is a script marked as an ad and it's not in an ad context, append it
   // to the known ad script set. We don't need to keep track of ad scripts in ad
   // contexts, because any script executed inside an ad context is considered an
   // ad script by IsKnownAdScript.
-  if (resource_type == ResourceType::kScript && known_ad &&
+  if (resource_type == ResourceType::kScript && known_ad_provenance &&
       !is_ad_execution_context) {
-    DCHECK(!ancestor_ad_script || !rule.IsValid());
-
-    AdProvenance ad_provenance;
-    if (!ancestor_ad_script && !rule.IsValid()) {
-      ad_provenance = NoProvenance{};
-    } else if (ancestor_ad_script) {
-      ad_provenance = ancestor_ad_script->id;
-    } else {
-      DCHECK(rule.IsValid());
-      ad_provenance = rule;
-    }
     AppendToKnownAdScripts(*execution_context, request_url.GetString(),
-                           std::move(ad_provenance));
+                           *known_ad_provenance);
   }
 
-  return known_ad;
+  return known_ad_provenance;
 }
 
 void AdTracker::DidCreateAsyncTask(probe::AsyncTaskContext* task_context) {
@@ -475,14 +479,14 @@ bool AdTracker::IsAdScriptInStackHelper(
   int ad_script_index = -1;
 
   for (size_t i = 0; i < stack.size(); ++i) {
-    int script_id = stack[i].id;
-    if (script_id <= 0) {
+    V8ScriptId script_id(stack[i].id);
+    if (script_id.value() <= 0) {
       return false;
     }
 
     auto it = ad_script_data_.find(script_id);
     if (it != ad_script_data_.end()) {
-      ad_script_index = i;
+      ad_script_index = static_cast<int>(i);
       ad_script_it = it;
       break;
     }
@@ -500,14 +504,11 @@ bool AdTracker::IsAdScriptInStackHelper(
 
   if (ad_script_index > 0) {
     // The top script on the stack is non-ad, but a script further down (at
-    // `ad_script_index`) is an ad.
-    //
-    // Handle the scenario where an ad script calls a non-ad monkey patch (e.g.,
-    // a publisher monkey patch that passively invokes an ad's intent). If the
-    // called function matches the specific API being tracked, we classify the
-    // stack as ad-related.
+    // `ad_script_index`) is an ad. If an ad is calling a monkeypatched non-ad
+    // API, consider it still ad related.
     if (ignore_monkey_patch != MonkeyPatchableApi::kNone &&
-        WasApiCalledByAdScript(isolate, ignore_monkey_patch, ad_script_index)) {
+        IsFunctionAMonkeyPatch(isolate, stack[ad_script_index - 1].function,
+                               ignore_monkey_patch)) {
       if (out_ad_script) {
         *out_ad_script = ad_script_it->value.id;
       }
@@ -585,7 +586,7 @@ bool AdTracker::WasApiCalledByNonAdScript(v8::Isolate* isolate,
     v8::StackTrace::ScriptData& frame = stack_trace[i];
 
     // If this frame is still ad related, continue up the stack.
-    if (ad_script_data_.Contains(frame.id)) {
+    if (ad_script_data_.Contains(V8ScriptId(frame.id))) {
       continue;
     }
 
@@ -606,15 +607,10 @@ bool AdTracker::WasApiCalledByNonAdScript(v8::Isolate* isolate,
   return false;
 }
 
-bool AdTracker::WasApiCalledByAdScript(v8::Isolate* isolate,
-                                       MonkeyPatchableApi api,
-                                       int ad_script_index) const {
-  // `ad_script_index` is the index of the ad script (the caller).
-  // We need to check the frame immediately above it (the callee), which must
-  // be the monkey patched API.
-  DCHECK_GT(ad_script_index, 0);
-  size_t monkey_patch_frame_index = ad_script_index - 1;
-
+bool AdTracker::IsFunctionAMonkeyPatch(v8::Isolate* isolate,
+                                       const v8::Local<v8::Function>& function,
+                                       MonkeyPatchableApi api) const {
+  // 1. Get the implementation of `api` from the v8 context.
   ApiFunctionInfo api_info = GetApiFunctionInfo(isolate, api);
   if (!api_info.is_monkey_patched) {
     return false;
@@ -626,20 +622,8 @@ bool AdTracker::WasApiCalledByAdScript(v8::Isolate* isolate,
     return false;
   }
 
-  // We only need the stack up to the ad script.
-  Vector<v8::StackTrace::ScriptData> stack_buffer(ad_script_index);
-  auto stack_trace = v8::StackTrace::CurrentScriptData(
-      isolate, {stack_buffer.data(), stack_buffer.size()});
-
-  if (stack_trace.empty() || stack_trace.size() <= monkey_patch_frame_index) {
-    return false;
-  }
-
-  // Verify that the non-ad function being called is the API wrapper we are
-  // interested in. This ensures we only flag the specific scenario where the
-  // ad is trying to use the API, rather than general event handlers or
-  // callbacks invoked by the ad.
-  return api_function == stack_trace[monkey_patch_frame_index].function;
+  // 2. If the `api` is monkeypatched, see if it matches `function`.
+  return function == api_function;
 }
 
 bool AdTracker::IsKnownAdScript(ExecutionContext* execution_context,
@@ -684,9 +668,9 @@ void AdTracker::OnScriptIdAvailableForKnownAdScript(
     ExecutionContext* execution_context,
     const v8::Local<v8::Context>& v8_context,
     const String& script_name,
-    int script_id) {
+    V8ScriptId script_id) {
   DCHECK(!script_name.empty());
-  DCHECK_NE(v8::Message::kNoScriptIdInfo, script_id);
+  DCHECK_NE(v8::Message::kNoScriptIdInfo, script_id.value());
   auto it = context_known_ad_scripts_.find(execution_context);
   DCHECK(it != context_known_ad_scripts_.end());
 
@@ -720,7 +704,7 @@ AdTracker::AdScriptAncestry AdTracker::GetAncestry(
     return ancestry;
   }
 
-  HashSet<int> seen_script_ids;
+  HashSet<V8ScriptId> seen_script_ids;
   bool duplicate = false;
 
   ancestry.ancestry_chain.push_back(provenance_it->value.id);
@@ -732,7 +716,7 @@ AdTracker::AdScriptAncestry AdTracker::GetAncestry(
     // Update `ancestry` based on the type of the `ad_provenance` variant.
     bool root_reached = std::visit(
         absl::Overload{[&](NoProvenance) { return true; },
-                       [&](int script_id) {
+                       [&](V8ScriptId script_id) {
                          // Prevent an infinite loop due to cycles.
                          if (!seen_script_ids.insert(script_id).is_new_entry) {
                            duplicate = true;

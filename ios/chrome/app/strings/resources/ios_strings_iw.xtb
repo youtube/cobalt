@@ -58,6 +58,7 @@
 <translation id="1204075260022434100">{count,plural, =1{הסימנייה נשמרה בתיקייה ‘{title}‘ בחשבון שלך, {email}}one{‫{count} סימניות נשמרו בתיקייה ‘{title}' בחשבון שלך, {email}}two{‫{count} סימניות נשמרו בתיקייה ‘{title}' בחשבון שלך, {email}}other{‫{count} סימניות נשמרו בתיקייה ‘{title}' בחשבון שלך, {email}}}</translation>
 <translation id="1207493287814084192">17:30</translation>
 <translation id="1217294226280635614">תצוגה מפוצלת</translation>
+<translation id="1218730690561976633">החלפת מצב של אימות משתמשים במילוי אוטומטי משופר</translation>
 <translation id="1219674500290482172">לא ניתן להתחבר לאינטרנט.</translation>
 <translation id="1223498995510244364">סיכום</translation>
 <translation id="1227113644794103810">כרטיסיות לא פעילות</translation>
@@ -193,6 +194,7 @@
 <translation id="1657011748321897393">השיתוף נכשל משום שאין לך חיבור לרשת.</translation>
 <translation id="1668001730617725852">פתיחה בקבוצת כרטיסיות חדשה</translation>
 <translation id="1674504678466460478"><ph name="SOURCE_LANGUAGE" /> ל<ph name="TARGET_LANGUAGE" /></translation>
+<translation id="1678855624321223424">לפי מדיניות הארגון שלך, יכול להיות שהקובץ הזה מכיל מידע רגיש</translation>
 <translation id="168389590065701766">‏עכשיו אפשר לפתוח את Google Lens מסרגל הכתובות ולחפש את כל מה שרואים</translation>
 <translation id="1689333818294560261">כינוי</translation>
 <translation id="169048873465870056">להסיר את הכרטיסייה ולמחוק את הקבוצה?</translation>
@@ -599,6 +601,7 @@
 <translation id="3174662312949010067">יש לך גם אפשרות להשתמש בסיסמאות שמורות במכשירים אחרים.</translation>
 <translation id="3177338796769255211">לאחר הכניסה לחשבון, הסימניות ונתונים נוספים יופיעו בכל המכשירים שלך</translation>
 <translation id="3181954750937456830">גלישה בטוחה (מגנה עליך ועל המכשיר מפני אתרים מסוכנים)</translation>
+<translation id="3183362380688692618">קבוצת כרטיסיות חדשה...</translation>
 <translation id="3186796054637504691">מחיקת ההיסטוריה ונתוני האתר</translation>
 <translation id="3190736958609431397">ביטול המעקב</translation>
 <translation id="3208260410153224535">הכניסה הושבתה על ידי הארגון שלך. סימניות, סיסמאות ונתונים נוספים חדשים יישמרו רק במכשיר הזה.</translation>
@@ -668,6 +671,7 @@
 <translation id="3476450923187944815">יש לך גישה לסיסמאות שלך באפליקציות אחרות.</translation>
 <translation id="3485558910355485767">חלון פרטי חדש</translation>
 <translation id="3488501490964659223">הכרטיסיות נסגרו ונתוני הגלישה נמחקו. המערכת הוציאה אותך מהחשבון</translation>
+<translation id="3490396108106323715">שיתוף הכרטיסייה הנוכחית</translation>
 <translation id="3493531032208478708"><ph name="BEGIN_LINK" />מידע נוסף<ph name="END_LINK" /> על הצעות לתוכן</translation>
 <translation id="349446645805573740">צריך לבחור מיקום לשמירת הקובץ "<ph name="BEGIN_BOLD" /><ph name="FILENAME" /><ph name="END_BOLD" />"</translation>
 <translation id="3504377992102007712">הגדרות</translation>
@@ -694,6 +698,7 @@
 <translation id="3565012355885596568">לא הצלחנו לטעון את התמונות</translation>
 <translation id="3565930036634619844">‏מקש Tab. ‫<ph name="TAB_INDEX" /> מתוך <ph name="NUMBER_OF_TABS" />.</translation>
 <translation id="3567168891086460374">שמירה בדרך אחרת</translation>
+<translation id="3572503683475187385">‏הכרטיסייה הנוכחית תשותף עם Gemini כששיחה חדשה תתחיל. כשמשתפים כרטיסייה עם Gemini, התוכן וכתובת ה-URL שלה נשלחים אל Google. <ph name="BEGIN_LINK" />מידע נוסף<ph name="END_LINK" /></translation>
 <translation id="3572607909481582402">‏בחשבון Google שלך</translation>
 <translation id="3575234738189584619">‏חיפוש באמצעות Lens</translation>
 <translation id="3575426792457739946">הרשימה הזו מכילה את כל הפרופילים שאפשר לעבור אליהם.</translation>
@@ -737,6 +742,7 @@
 <translation id="3751873026576444885">‏הפסקת החיפוש במסך באמצעות Google Lens</translation>
 <translation id="3753408171347588045">מתבצע מעקב אחר מחירים</translation>
 <translation id="3753618528540214374">עיצוב ירוק כהה</translation>
+<translation id="3759491607478608474">‏כדי לקבל תשובות רלוונטיות יותר, כדאי לשתף את תוכן הכרטיסייה הנוכחית עם Gemini</translation>
 <translation id="3762232513783804601">‏מותאם ל-iPad שלך</translation>
 <translation id="3768725474733206671">פתיחה מחדש של הכרטיסייה האחרונה שנסגרה</translation>
 <translation id="3779810277399252432">אין חיבור לאינטרנט.</translation>
@@ -984,6 +990,7 @@
 <translation id="4650125387981512669">המשך בשם <ph name="FIRST_RUN_ACCOUNT_NAME" /></translation>
 <translation id="4651927776207937667">{count,plural, =1{הסתרה לאחר דקה אחת}one{הסתרה לאחר {count} דקות}two{הסתרה לאחר {count} דקות}other{הסתרה לאחר {count} דקות}}</translation>
 <translation id="4652817563047461855">חשוב לוודא שהסיסמאות מאובטחות, לבדוק אם הן נחשפו ולקבל עצות שיעזרו לך להגן על עצמך אונליין. <ph name="BEGIN_LINK" />מידע נוסף<ph name="END_LINK" /></translation>
+<translation id="4653053602672040238">הפעלת שיתוף הכרטיסיות</translation>
 <translation id="4658335131052370646">שמירה</translation>
 <translation id="466307903888586355">הארגון שלך חסם את האפשרות לשמור קבצים</translation>
 <translation id="4668929960204016307">,</translation>
@@ -1112,6 +1119,7 @@
 <translation id="507187271399539513">{count,plural, =1{אמצעי תשלום אחד ({position}) מתוך {count}}one{‫{position} מתוך {count} אמצעי תשלום}two{‫{position} מתוך {count} אמצעי תשלום}other{‫{position} מתוך {count} אמצעי תשלום}}</translation>
 <translation id="5075939510584558547">שמירה ללא הצפנה</translation>
 <translation id="5076534614343816664">מעקב מחירים</translation>
+<translation id="507762438756999615">אי אפשר לשתף את הקובץ בגלל מדיניות הארגון שלך</translation>
 <translation id="5078303485429639424">הפעלת ההתראות של <ph name="FEATURE_NAME" /></translation>
 <translation id="5079950360618752063">שימוש בסיסמה המוצעת</translation>
 <translation id="5083464117946352670">גודל הקובץ אינו ידוע.</translation>
@@ -1232,7 +1240,7 @@
 <translation id="5506763544823940561">שמירת התמונה ב…</translation>
 <translation id="5511959326926949696">יש אפשרות להפעיל הגנה מתקדמת מאוד בדפדפן. חשוב להשתמש באפשרות הזו רק אם לדעתך סומנת כיעד למתקפת סייבר מתוחכמת במיוחד.</translation>
 <translation id="5513681519188741830">לפני <ph name="TIME" /> שעות</translation>
-<translation id="5520668942302483373">עזיבת הקבוצה</translation>
+<translation id="5520668942302483373">יציאה מהקבוצה</translation>
 <translation id="5524590039848017563">הכפתור הראשי בסרגל הכלים נסגר</translation>
 <translation id="553151287733286479">{COUNT,plural, =1{יש סיסמה חלשה אחת ({COUNT})}one{יש {COUNT} סיסמאות חלשות}two{יש {COUNT} סיסמאות חלשות}other{יש {COUNT} סיסמאות חלשות}}</translation>
 <translation id="5532545557415295622">תיבת דו-שיח של פרק הזמן הקצוב לתפוגה שהוגדר לחוסר פעילות</translation>
@@ -1297,6 +1305,7 @@
 <translation id="5718049162805123412">עליך לשנות את הסיסמאות האלה עכשיו</translation>
 <translation id="5721040778297053709">צריך למקם את כרטיס האשראי במסגרת הזו</translation>
 <translation id="572328651809341494">כרטיסיות אחרונות</translation>
+<translation id="5724590854763964497">‏כברירת מחדל, הכרטיסייה הנוכחית תשותף כששיחה חדשה תתחיל. כשמשתפים כרטיסיות, התוכן וכתובות ה-URL שלהן נשלחים אל Google, אבל הם לא ישמשו לשיפור מודלים של AI גנרטיבי. אפשר לשנות את ההגדרה הזו בכל שלב.</translation>
 <translation id="5724941645893276623">כדי לגלוש באינטרנט בפרטיות צריך להוסיף כרטיסייה חדשה</translation>
 <translation id="5728072125198221967">‏שירותי Google מקושרים</translation>
 <translation id="5728700505257787410">מצטערים, אירעה בעיה בכניסה לחשבון שלך.</translation>
@@ -1964,6 +1973,8 @@
 <translation id="8059533439631660104">מכווץ את הקטע.</translation>
 <translation id="8061584726507121204">היסטוריה</translation>
 <translation id="8064946459644399612">ההעדפות של דף הכרטיסייה החדשה הופעלו</translation>
+<translation id="8065136076319366194">לא מומלץ לשמור את הקובץ</translation>
+<translation id="8065556469005366939">כדי לקבל תשובות רלוונטיות יותר, כדאי לשתף את הכרטיסיות</translation>
 <translation id="8069394452933076548">אפשר לבחור מתי כרטיסיות שלא השתמשו בהן לאחרונה יועברו לקטע הכרטיסיות הלא פעילות.</translation>
 <translation id="8073670137947914548">ההורדה הסתיימה</translation>
 <translation id="8076492880354921740">כרטיסיות</translation>
@@ -1985,6 +1996,7 @@
 <translation id="8131740175452115882">אישור</translation>
 <translation id="8132598642024322408">עכשיו במחיר <ph name="PRICE" />, היה <ph name="PREVIOUS_PRICE" />.</translation>
 <translation id="813370552429173916">יש להשתמש בסיסמה ייחודית לכל אתר או אפליקציה. אם מישהו יגלה סיסמה שהשתמשת בה במקומות שונים, הוא יוכל להשתמש בה כדי להיכנס גם לשאר החשבונות שלך. יש ללחוץ כדי לפתוח את האתר ולשנות את הסיסמאות עכשיו.</translation>
+<translation id="8133810265969517544">לא מומלץ לשתף את הקובץ</translation>
 <translation id="8135556271852808840">{count,plural, =1{מספר הכרטיסיות שנסגרו: {count}}one{מספר הכרטיסיות שנסגרו: {count}}two{מספר הכרטיסיות שנסגרו: {count}}other{מספר הכרטיסיות שנסגרו: {count}}}</translation>
 <translation id="8135643032449715400">{COUNT,plural, =1{אחד נוסף}one{‫# אחרים}two{‫# אחרים}other{‫# אחרים}}</translation>
 <translation id="8150167929304790980">שם מלא</translation>
@@ -2132,6 +2144,7 @@
 <translation id="8660600697590740984">‏תמונה שהועתקה מ-Lens</translation>
 <translation id="866266761389616183">אוי, לא!</translation>
 <translation id="8663764600409216912">בחרת סיסמאות שקשה לנחש</translation>
+<translation id="8664992138761940052">‏כברירת מחדל, הכרטיסייה הנוכחית תשותף כששיחה חדשה תתחיל. כשמשתפים כרטיסיות, התוכן וכתובות ה-URL שלהן נשלחים אל Google. אפשר לשנות את ההגדרה הזו בכל שלב.</translation>
 <translation id="8668210798914567634">דף זה נשמר ברשימת הקריאה שלך.</translation>
 <translation id="8672642291731179042">תרגום דפים</translation>
 <translation id="8672733398999596205">הפעלת הכול</translation>
@@ -2233,6 +2246,7 @@
 <translation id="8976414606286374109">‏הכרטיסים נשמרים בחשבון Google.</translation>
 <translation id="8981454092730389528">‏בחירת הפעילויות ב-Google</translation>
 <translation id="8988107725234939347">‫<ph name="WEBSITE_TITLE" />, אתר מוצמד</translation>
+<translation id="8990960056509724223">אי אפשר לשמור את הקובץ בגלל המדיניות של הארגון שלך</translation>
 <translation id="8998289560386111590">לא זמין במכשיר שלך</translation>
 <translation id="9000532564152265066">כל הכרטיסיות</translation>
 <translation id="9003677638446136377">בדיקה נוספת</translation>

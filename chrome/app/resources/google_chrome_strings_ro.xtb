@@ -72,6 +72,7 @@
 <translation id="1698376642261615901">Google Chrome este un browser web care rulează pagini web și aplicații cu o viteză extraordinară. Este rapid, stabil și ușor de utilizat. Navigați pe web beneficiind de mai multă siguranță datorită protecției împotriva programelor malware și a phishingului, care este încorporată în Google Chrome.</translation>
 <translation id="1713301662689114961">{0,plural, =1{Chrome se va relansa într-o oră}few{Chrome se va relansa în # ore}other{Chrome se va relansa în # de ore}}</translation>
 <translation id="1722488837206509557">Astfel, vei putea să selectezi dintre dispozitivele disponibile și să afișezi conținut pe acestea.</translation>
+<translation id="177180974022074201">Încearcă cu Gemini în Chrome</translation>
 <translation id="1786003790898721085">Asigură-te că te-ai conectat la Chrome pe <ph name="TARGET_DEVICE_NAME" /> și încearcă din nou să trimiți.</translation>
 <translation id="1786044937610313874">Comenzile rapide se deschid în Chrome</translation>
 <translation id="178701303897325119">Extensia nu mai este acceptată. Chrome recomandă să o elimini.</translation>
@@ -221,6 +222,7 @@
 <translation id="3226612997184048185">Dacă salvezi marcajele și în Contul Google, poți să urmărești prețurile produselor în Chrome și să primești notificări când scad</translation>
 <translation id="3242123554343253302">Adaugă un profil Chrome</translation>
 <translation id="3245429137663807393">Dacă trimiți rapoarte privind folosirea Chrome, acestea includ adresele URL pe care le accesezi</translation>
+<translation id="3259748324892322072">Descarcă aplicația Chrome</translation>
 <translation id="3286538390144397061">Repornește acum</translation>
 <translation id="3292333338048274092">Apoi va trebui să repornești Chrome.</translation>
 <translation id="3324218984287646518">Întreabă Google Lens despre acest videoclip</translation>
@@ -279,7 +281,6 @@
 <translation id="3892148308691398805">Copiază textul</translation>
 <translation id="3893985792899396936">Sfat pentru Chrome: caută cu Lens</translation>
 <translation id="3906096710440765802">Conectează-te la Chrome pentru a accesa parolele, marcajele și altele pe toate dispozitivele tale</translation>
-<translation id="3921132130819999051">Permite browserului Chromium să navigheze pentru tine</translation>
 <translation id="3941890832296813527">Eroare la instalare: numele de fișier al programului de instalare nu este valid sau acceptat.</translation>
 <translation id="395904275706073188">Paginile protejate nu pot fi citite. Încearcă altă pagină.</translation>
 <translation id="3968962723676998462">Introdu expresia de acces pentru a folosi și a salva datele Chrome în contul <ph name="ACCOUNT_EMAIL" /></translation>
@@ -490,7 +491,6 @@
 <translation id="6173637689840186878"><ph name="PAGE_TITLE" /> – Google Chrome Beta</translation>
 <translation id="6180522807229584611">Această filă folosește resurse suplimentare. Pentru a-ți îmbunătăți performanța, permite-i browserului Chrome să le dezactiveze.</translation>
 <translation id="6182736845697986886">Nu s-a instalat, din cauza unei erori interne a serverului de actualizare.</translation>
-<translation id="6183773856988300112">Gemini folosește navigarea automată în Chrome ca să lucreze în filele tale și să finalizeze activitățile pe care i le aloci. <ph name="LINK_BEGIN" />Află mai multe<ph name="LINK_END" /></translation>
 <translation id="6187085551300363958">Sfat pentru Chrome: salvează parolele</translation>
 <translation id="6192058120268468905">Contul tău în Chrome</translation>
 <translation id="6220551899604141979"><ph name="PARTNER_NAME" /> a adăugat o extensie care poate schimba modul în care funcționează Chrome.
@@ -526,6 +526,7 @@
 <translation id="6481963882741794338">Conectează Chrome și alte servicii Google pentru personalizare și alte scopuri</translation>
 <translation id="648319183876919572">Navigarea sigură îmbunătățită face mai multe pentru a te proteja împotriva site-urilor și a descărcărilor periculoase</translation>
 <translation id="6489302989675808168">Activată • Chrome nu poate verifica de unde provine această extensie</translation>
+<translation id="6491330562720922580">Cod QR pentru descărcarea browserului Chrome pe dispozitive mobile</translation>
 <translation id="6493527311031785448">Google Chrome încearcă să <ph name="AUTHENTICATION_PURPOSE" /></translation>
 <translation id="6497147134301593682">Chrome s-a închis automat</translation>
 <translation id="6506909944137591434">Chrome are nevoie de acces la cameră pentru a crea o hartă 3D a lucrurilor din jurul tău</translation>

@@ -24,6 +24,7 @@
 #include "chrome/browser/content_settings/page_specific_content_settings_delegate.h"
 #include "chrome/browser/file_system_access/file_system_access_features.h"
 #include "chrome/browser/history/history_service_factory.h"
+#include "chrome/browser/permissions/permission_decision_auto_blocker_factory.h"
 #include "chrome/browser/picture_in_picture/auto_picture_in_picture_tab_helper.h"
 #include "chrome/browser/ssl/stateful_ssl_host_state_delegate_factory.h"
 #include "chrome/browser/subresource_filter/subresource_filter_profile_context_factory.h"
@@ -43,6 +44,7 @@
 #include "components/page_info/core/features.h"
 #include "components/page_info/page_info_ui.h"
 #include "components/permissions/features.h"
+#include "components/permissions/permission_decision_auto_blocker.h"
 #include "components/permissions/permission_recovery_success_rate_tracker.h"
 #include "components/privacy_sandbox/privacy_sandbox_prefs.h"
 #include "components/safe_browsing/buildflags.h"
@@ -67,6 +69,7 @@
 #include "services/device/public/cpp/test/fake_usb_device_manager.h"
 #include "services/device/public/mojom/usb_device.mojom.h"
 #include "services/media_session/public/mojom/media_session.mojom.h"
+#include "services/network/public/cpp/features.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -787,6 +790,78 @@ TEST_F(PageInfoTest, AutoPictureInPicturePermissionShownOnChange) {
                            last_permission_info_list());
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
+
+// Test that Local Network Access permissions are filtered based on the
+// kLocalNetworkAccessChecksSplitPermissions feature flag.
+TEST_F(PageInfoTest, LocalNetworkAccessPermissionsWithSplitEnabled) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      network::features::kLocalNetworkAccessChecksSplitPermissions);
+
+  std::set<ContentSettingsType> expected_visible_permissions;
+#if BUILDFLAG(IS_ANDROID)
+  // Geolocation is always allowed to pass through to Android-specific logic to
+  // check for DSE settings (so expect 1 item), but isn't actually shown later
+  // on because this test isn't testing with a default search engine origin.
+  expected_visible_permissions.insert(ContentSettingsType::GEOLOCATION);
+#endif
+  // Set permissions for all three Local Network Access types
+  page_info()->OnSitePermissionChanged(
+      ContentSettingsType::LOCAL_NETWORK_ACCESS, CONTENT_SETTING_ALLOW,
+      /*requesting_origin=*/std::nullopt,
+      /*is_one_time=*/false);
+  page_info()->OnSitePermissionChanged(ContentSettingsType::LOCAL_NETWORK,
+                                       CONTENT_SETTING_ALLOW,
+                                       /*requesting_origin=*/std::nullopt,
+                                       /*is_one_time=*/false);
+  page_info()->OnSitePermissionChanged(ContentSettingsType::LOOPBACK_NETWORK,
+                                       CONTENT_SETTING_ALLOW,
+                                       /*requesting_origin=*/std::nullopt,
+                                       /*is_one_time=*/false);
+
+  // When split permissions are enabled, only LOCAL_NETWORK and LOOPBACK_NETWORK
+  // should be visible, not LOCAL_NETWORK_ACCESS
+  expected_visible_permissions.insert(ContentSettingsType::LOCAL_NETWORK);
+  expected_visible_permissions.insert(ContentSettingsType::LOOPBACK_NETWORK);
+
+  ExpectPermissionInfoList(expected_visible_permissions,
+                           last_permission_info_list());
+}
+
+TEST_F(PageInfoTest, LocalNetworkAccessPermissionsWithSplitDisabled) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(
+      network::features::kLocalNetworkAccessChecksSplitPermissions);
+
+  std::set<ContentSettingsType> expected_visible_permissions;
+#if BUILDFLAG(IS_ANDROID)
+  // Geolocation is always allowed to pass through to Android-specific logic to
+  // check for DSE settings (so expect 1 item), but isn't actually shown later
+  // on because this test isn't testing with a default search engine origin.
+  expected_visible_permissions.insert(ContentSettingsType::GEOLOCATION);
+#endif
+  // Set permissions for all three Local Network Access types
+  page_info()->OnSitePermissionChanged(
+      ContentSettingsType::LOCAL_NETWORK_ACCESS, CONTENT_SETTING_ALLOW,
+      /*requesting_origin=*/std::nullopt,
+      /*is_one_time=*/false);
+  page_info()->OnSitePermissionChanged(ContentSettingsType::LOCAL_NETWORK,
+                                       CONTENT_SETTING_ALLOW,
+                                       /*requesting_origin=*/std::nullopt,
+                                       /*is_one_time=*/false);
+  page_info()->OnSitePermissionChanged(ContentSettingsType::LOOPBACK_NETWORK,
+                                       CONTENT_SETTING_ALLOW,
+                                       /*requesting_origin=*/std::nullopt,
+                                       /*is_one_time=*/false);
+
+  // When split permissions are disabled, only LOCAL_NETWORK_ACCESS should be
+  // visible, not LOCAL_NETWORK or LOOPBACK_NETWORK
+  expected_visible_permissions.insert(
+      ContentSettingsType::LOCAL_NETWORK_ACCESS);
+
+  ExpectPermissionInfoList(expected_visible_permissions,
+                           last_permission_info_list());
+}
 
 TEST_F(PageInfoTest, IncognitoPermissionsEmptyByDefault) {
   incognito_page_info()->PresentSitePermissionsForTesting();
@@ -2782,4 +2857,31 @@ TEST_F(PageInfoTest, SiteExceptionScopeTypeMetrics) {
   tester.ExpectBucketCount(kScopeTypeHistogram,
                            ContentSettingsPattern::Scope::kCustomScope,
                            1 /* expected_count */);
+}
+
+TEST_F(PageInfoTest, ResetPermissionClearsEmbargo) {
+  auto* autoblocker =
+      PermissionDecisionAutoBlockerFactory::GetForProfile(profile());
+  GURL target_url = url();
+
+  // Record 3 dismissals to trigger embargo.
+  autoblocker->RecordDismissAndEmbargo(target_url,
+                                       ContentSettingsType::GEOLOCATION,
+                                       /*dismissed_prompt_was_quiet=*/false);
+  autoblocker->RecordDismissAndEmbargo(target_url,
+                                       ContentSettingsType::GEOLOCATION,
+                                       /*dismissed_prompt_was_quiet=*/false);
+  autoblocker->RecordDismissAndEmbargo(target_url,
+                                       ContentSettingsType::GEOLOCATION,
+                                       /*dismissed_prompt_was_quiet=*/false);
+
+  EXPECT_TRUE(
+      autoblocker->IsEmbargoed(target_url, ContentSettingsType::GEOLOCATION));
+
+  // Reset the permission
+  page_info()->OnSitePermissionChanged(ContentSettingsType::GEOLOCATION,
+                                       std::nullopt, std::nullopt, false);
+
+  EXPECT_FALSE(
+      autoblocker->IsEmbargoed(target_url, ContentSettingsType::GEOLOCATION));
 }

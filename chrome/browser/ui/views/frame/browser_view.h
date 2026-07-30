@@ -23,8 +23,8 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/tabs/projects/projects_panel_state_controller.h"
-#include "chrome/browser/ui/tabs/tab_renderer_data.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
+#include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
 #include "chrome/browser/ui/translate/partial_translate_bubble_model.h"
 #include "chrome/browser/ui/user_education/browser_user_education_interface.h"
 #include "chrome/browser/ui/views/frame/browser_widget.h"
@@ -51,7 +51,7 @@
 #include "content/public/browser/web_contents_observer.h"
 #include "third_party/blink/public/common/permissions/permission_utils.h"
 #include "ui/base/accelerators/accelerator.h"
-#include "ui/base/interaction/typed_identifier.h"
+#include "ui/base/identifier/typed_identifier.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/mojom/window_show_state.mojom-forward.h"
 #include "ui/base/pointer/touch_ui_controller.h"
@@ -807,10 +807,9 @@ class BrowserView : public BrowserWindow,
   // feature is enabled).
   std::vector<views::NativeViewHost*> GetNativeViewHostsForTopControlsSlide();
 
-  using BrowserWindow::CreateTabSearchBubble;
   void CreateTabSearchBubble(
-      tab_search::mojom::TabSearchSection section,
-      tab_search::mojom::TabOrganizationFeature organization_feature) override;
+      tab_search::mojom::TabSearchSection section =
+          tab_search::mojom::TabSearchSection::kSearch) override;
   void CloseTabSearchBubble() override;
 
 #if !BUILDFLAG(IS_CHROMEOS)
@@ -1442,6 +1441,9 @@ class BrowserView : public BrowserWindow,
   PrefChangeRegistrar registrar_;
 
   base::CallbackListSubscription vertical_tab_subscription_;
+
+  std::unique_ptr<tabs::VerticalTabStripStateController::ScopedEnableStateLock>
+      vertical_tabs_enable_state_lock_;
 
   base::CallbackListSubscription projects_panel_subscription_;
 

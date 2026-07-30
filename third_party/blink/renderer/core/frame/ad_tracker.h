@@ -8,13 +8,13 @@
 #include <stdint.h>
 
 #include <optional>
-#include <variant>
 
 #include "components/subresource_filter/core/common/scoped_rule.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/frame/ad_script_identifier.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_map.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+#include "third_party/blink/renderer/platform/loader/fetch/ad_tagging_utils.h"
 #include "third_party/blink/renderer/platform/loader/fetch/fetch_initiator_info.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
 #include "third_party/blink/renderer/platform/wtf/hash_set.h"
@@ -54,18 +54,6 @@ class CORE_EXPORT AdTracker : public GarbageCollected<AdTracker> {
     kNodeAppendChild
   };
 
-  struct NoProvenance {};
-
-  // Represents the reason why a script is classified as an ad. It can be one
-  // of:
-  // - NoProvenance: The script has neither an ancestor nor a rule match.
-  // - subresource_filter::ScopedRule: The script is flagged by the subresource
-  //   filter.
-  // - script_id: The script itself is not flagged, but another ad
-  //   script (the "ancestor") exists in its creation stack.
-  using AdProvenance =
-      std::variant<NoProvenance, subresource_filter::ScopedRule, int>;
-
   // Stack scans of `kBottomOnly` will only scan the bottom frame of the sync
   // stack and also include async frames. `kTopOnly` will scan the top
   // frame, and fall back on the async stack if there is no top frame (e.g.,
@@ -103,20 +91,22 @@ class CORE_EXPORT AdTracker : public GarbageCollected<AdTracker> {
   void Did(const probe::CallFunction&);
 
   // Called when a subresource request is about to be sent or is redirected.
-  // Returns true if any of the following are true:
-  // - the resource is loaded in an ad iframe
-  // - `known_ad` is true
-  // - ad script is in the v8 stack and the resource was not requested by CSS.
-  // This check is only done if `scan_stack_for_ads` is true.
+  // Returns the `AdProvenance` of the subresource if it is identified as an ad,
+  // or `std::nullopt` otherwise. A subresource is considered an ad if any of
+  // the following are true:
+  // - `known_ad_provenance` has a value.
+  // - The resource is loaded in an ad iframe.
+  // - An ad script is in the v8 stack and the resource was not requested by
+  //   CSS. This stack check is only performed if `scan_stack_for_ads` is true.
+  //
   // Virtual for testing.
-  virtual bool CalculateIfAdSubresource(
+  virtual std::optional<AdProvenance> CalculateIfAdSubresource(
       ExecutionContext* execution_context,
       const KURL& request_url,
       ResourceType resource_type,
       const FetchInitiatorInfo& initiator_info,
-      bool known_ad,
-      bool scan_stack_for_ads,
-      const subresource_filter::ScopedRule& rule);
+      std::optional<AdProvenance> known_ad_provenance,
+      bool scan_stack_for_ads);
 
   // Called when an async task is created. Check at this point for ad script on
   // the stack and annotate the task if so.
@@ -205,12 +195,12 @@ class CORE_EXPORT AdTracker : public GarbageCollected<AdTracker> {
   bool WasApiCalledByNonAdScript(v8::Isolate* isolate,
                                  MonkeyPatchableApi api) const;
 
-  // Helper for `IsAdScriptInStack` that checks if a non-ad script at the top
-  // of the stack is a monkey patch called by an ad script.
-  // `ad_script_index` is the index of the ad script in the stack.
-  bool WasApiCalledByAdScript(v8::Isolate* isolate,
-                              MonkeyPatchableApi api,
-                              int ad_script_index) const;
+  // Returns true if `api` is a monkeyaptched function and matches `function` in
+  // the `isolate`'s current context.
+  // TODO(jkarlin): This function really wants a context, not an isolate.
+  bool IsFunctionAMonkeyPatch(v8::Isolate* isolate,
+                              const v8::Local<v8::Function>& function,
+                              MonkeyPatchableApi api) const;
 
   bool IsKnownAdScript(ExecutionContext*, const String& url);
 
@@ -229,7 +219,7 @@ class CORE_EXPORT AdTracker : public GarbageCollected<AdTracker> {
       ExecutionContext* execution_context,
       const v8::Local<v8::Context>& v8_context,
       const String& script_name,
-      int script_id);
+      V8ScriptId script_id);
 
   // Retrieves the ancestry chain of a given ad script (inclusive) and and the
   // triggering filterlist rule. See `AdScriptAncestry` for more details on the
@@ -240,7 +230,7 @@ class CORE_EXPORT AdTracker : public GarbageCollected<AdTracker> {
 
   // Indicates the bottom-most synchronous ad script on the stack or
   // `std::nullopt` if there isn't one.
-  std::optional<int> bottom_most_ad_script_;
+  std::optional<V8ScriptId> bottom_most_ad_script_;
 
   // The current async script stack. The optional is set for ad-related async
   // events and nullopt otherwise. We prefer to calculate ad relatedness from
@@ -262,7 +252,7 @@ class CORE_EXPORT AdTracker : public GarbageCollected<AdTracker> {
       context_known_ad_scripts_;
 
   // A map of all known ad script ids to their metadata.
-  HashMap<int, AdScriptData> ad_script_data_;
+  HashMap<V8ScriptId, AdScriptData> ad_script_data_;
 
   // Tracks APIs that have been identified as being called through an ad
   // script's monkey patch within the current synchronous task. This set is

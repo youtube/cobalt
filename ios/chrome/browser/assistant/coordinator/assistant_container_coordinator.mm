@@ -8,6 +8,7 @@
 #import "ios/chrome/browser/assistant/coordinator/assistant_container_commands.h"
 #import "ios/chrome/browser/assistant/ui/assistant_container_animator.h"
 #import "ios/chrome/browser/assistant/ui/assistant_container_delegate.h"
+#import "ios/chrome/browser/assistant/ui/assistant_container_detent.h"
 #import "ios/chrome/browser/assistant/ui/assistant_container_view_controller.h"
 #import "ios/chrome/browser/shared/coordinator/layout_guide/layout_guide_util.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
@@ -29,7 +30,18 @@
   // Completion block to be executed after dismissal.
   ProceduralBlock _dismissalCompletion;
   // The available detents for the container.
-  NSArray<AssistantContainerDetent*>* _detents;
+  std::vector<AssistantContainerDetent> _detents;
+  // The height for the minimized detent.
+  NSInteger _minimizedDetentHeight;
+}
+
+- (instancetype)initWithBaseViewController:(UIViewController*)viewController
+                                   browser:(Browser*)browser {
+  self = [super initWithBaseViewController:viewController browser:browser];
+  if (self) {
+    _minimizedDetentHeight = kAssistantContainerMinimizedDetentHeight;
+  }
+  return self;
 }
 
 - (void)start {
@@ -63,7 +75,8 @@
   _containerViewController = [[AssistantContainerViewController alloc]
       initWithViewController:_contentViewController];
   _containerViewController.delegate = _delegate;
-  if (_detents) {
+  _containerViewController.minimizedDetentHeight = _minimizedDetentHeight;
+  if (!_detents.empty()) {
     _containerViewController.detents = _detents;
   }
 
@@ -101,17 +114,27 @@
 }
 
 - (void)setAssistantContainerDetents:
-    (NSArray<AssistantContainerDetent*>*)detents {
+    (std::vector<AssistantContainerDetent>)detents {
+  if (ShouldShowAssistantContainerDebugElements()) {
+    return;
+  }
   _detents = detents;
   [_containerViewController setDetents:detents];
 }
 
-- (void)animateAssistantContainerToDetent:(NSString*)detentIdentifier
+- (void)animateAssistantContainerToDetent:(AssistantContainerDetent)detent
                                  duration:(NSTimeInterval)duration
                                     curve:(UIViewAnimationCurve)curve {
-  [_containerViewController animateToDetent:detentIdentifier
+  [_containerViewController animateToDetent:detent
                                    duration:duration
                                       curve:curve];
+}
+
+- (void)setAssistantContainerMinimizedDetentHeight:(NSInteger)height {
+  _minimizedDetentHeight = height;
+  if (_containerViewController) {
+    _containerViewController.minimizedDetentHeight = height;
+  }
 }
 
 - (void)dismissAssistantContainerAnimated:(BOOL)animated
@@ -196,7 +219,7 @@
   _animator = nil;
   _contentViewController = nil;
   _delegate = nil;
-  _detents = nil;
+  _detents.clear();
 
   if (_dismissalCompletion) {
     ProceduralBlock completion = _dismissalCompletion;

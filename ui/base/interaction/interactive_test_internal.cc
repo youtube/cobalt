@@ -4,6 +4,7 @@
 
 #include "ui/base/interaction/interactive_test_internal.h"
 
+#include <cstdlib>
 #include <iterator>
 #include <memory>
 #include <ostream>
@@ -18,6 +19,7 @@
 #include "base/functional/bind.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
+#include "base/types/pass_key.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/abseil-cpp/absl/functional/overload.h"
 #include "ui/base/interaction/element_identifier.h"
@@ -199,13 +201,18 @@ void InteractiveTestPrivate::HandleActionResult(
     InteractionSequence* seq,
     const TrackedElement* el,
     const std::string& operation_name,
-    ActionResult result) {
+    ActionResult result,
+    bool defer_failure) {
   switch (result) {
     case ActionResult::kSucceeded:
       break;
     case ActionResult::kFailed:
-      LOG(ERROR) << operation_name << " failed for " << *el;
-      seq->FailForTesting();
+      if (defer_failure) {
+        ReportDeferredFailure(operation_name, el->context());
+      } else {
+        LOG(ERROR) << operation_name << " failed for " << *el;
+        seq->FailForTesting();
+      }
       break;
     case ActionResult::kNotAttempted:
       LOG(ERROR) << operation_name << " could not be applied to " << *el;
@@ -246,14 +253,16 @@ TrackedElement* InteractiveTestPrivate::GetPivotElement(
   return it->second.get();
 }
 
-bool InteractiveTestPrivate::RemoveStateObserver(ElementIdentifier id,
+bool InteractiveTestPrivate::RemoveStateObserver(UntypedStateIdentifier id,
                                                  ElementContext context) {
   using It = decltype(state_observer_elements_.begin());
   It found = state_observer_elements_.end();
+  const auto element_id = StateToElementId(id);
   for (It it = state_observer_elements_.begin();
        it != state_observer_elements_.end(); ++it) {
     auto& entry = **it;
-    if (entry.identifier() == id && (!context || entry.context() == context)) {
+    if (entry.identifier() == element_id &&
+        (!context || entry.context() == context)) {
       CHECK(found == state_observer_elements_.end())
           << "RemoveStateObserver: Duplicate entries found for " << id;
       found = it;
@@ -297,7 +306,28 @@ void InteractiveTestPrivate::OnSequenceComplete() {
   for (auto& framework : base::Reversed(framework_implementations_)) {
     framework.OnSequenceComplete();
   }
-  success_ = true;
+
+  if (deferred_failures_.empty()) {
+    success_ = true;
+  } else {
+    std::ostringstream full_error_message;
+    full_error_message
+        << "Interactive test failed.\n"
+           "Some steps reported errors (see test log for more details):";
+    for (const auto& failure : deferred_failures_) {
+      full_error_message << "\n" << failure;
+    }
+    if (aborted_callback_for_testing_) {
+      InteractionSequence::AbortedData data;
+      data.aborted_reason =
+          InteractionSequence::AbortedReason::kFailedForTesting;
+      data.context = default_context();
+      data.step_description = full_error_message.str();
+      std::move(aborted_callback_for_testing_).Run(data);
+      return;
+    }
+    GTEST_FAIL() << full_error_message.str();
+  }
 }
 
 void InteractiveTestPrivate::OnSequenceAborted(
@@ -336,9 +366,24 @@ void InteractiveTestPrivate::OnSequenceAborted(
       }
     }
     DebugDumpElements(data.context).PrintTo(additional_message);
+    if (!deferred_failures_.empty()) {
+      additional_message << "\n" << "Some prior steps also failed:";
+      for (const auto& failure : deferred_failures_) {
+        additional_message << "\n" << failure;
+      }
+    }
     GTEST_FAIL() << "Interactive test failed " << data
                  << additional_message.str();
   }
+}
+
+void InteractiveTestPrivate::ReportDeferredFailure(
+    std::string_view error_message,
+    ElementContext current_context) {
+  std::ostringstream full_error_message;
+  full_error_message << error_message << "\n";
+  DebugDumpContext(current_context).PrintTo(full_error_message);
+  deferred_failures_.push_back(full_error_message.str());
 }
 
 InteractiveTestPrivateFrameworkBase::InteractiveTestPrivateFrameworkBase(
@@ -422,6 +467,13 @@ void PrintDebugTree(std::ostream& stream,
 void InteractiveTestPrivate::DebugTreeNode::PrintTo(
     std::ostream& stream) const {
   PrintDebugTree(stream, *this, "", true);
+}
+
+// static
+ElementIdentifier InteractiveTestPrivate::StateToElementId(
+    UntypedStateIdentifier id) {
+  return ElementIdentifier::FromRawValue(
+      id.GetRawValue(base::PassKey<InteractiveTestPrivate>()));
 }
 
 InteractiveTestPrivate::DebugTreeNode InteractiveTestPrivate::DebugDumpElements(

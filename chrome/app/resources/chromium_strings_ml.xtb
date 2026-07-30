@@ -29,6 +29,7 @@
 <translation id="126567311906253476"><ph name="USER_EMAIL" /> ഉപയോഗിച്ച് Gmail അല്ലെങ്കിൽ Youtube പോലുള്ള Google സേവനങ്ങളിലേക്ക് സൈൻ ഇൻ ചെയ്യുമ്പോൾ, അതേ അക്കൗണ്ട് ഉപയോഗിച്ച് നിങ്ങൾക്ക് Chromium-ലേക്കും സ്വയമേവ സൈൻ ഇൻ ചെയ്യാം</translation>
 <translation id="1290883685122687410">സജ്ജീകരണത്തിലെ പിശക്: <ph name="METAINSTALLER_EXIT_CODE" />. <ph name="WINDOWS_ERROR" /></translation>
 <translation id="1315551408014407711">നിങ്ങളുടെ പുതിയ Chromium പ്രൊഫൈൽ സജ്ജീകരിക്കുക</translation>
+<translation id="132092532143527429">Chromium-ലെ Gemini ഉപയോഗിച്ച് പരീക്ഷിക്കൂ</translation>
 <translation id="1324107359134968521">Bluetooth ഉപകരണങ്ങൾ 
  അടുത്തറിയാൻ Chromium-ന് Bluetooth ആക്‌സസ് ആവശ്യമാണ്. <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="1330562121671411446">ഭാഷ കണ്ടെത്തുക</translation>
@@ -241,6 +242,7 @@
 <translation id="3509308970982693815">എല്ലാ Chromium വിൻഡോകളും അടച്ചതിനുശേഷം വീണ്ടും ശ്രമിക്കുക.</translation>
 <translation id="3522404737534491619">നിങ്ങളുടെ വിൻഡോ പങ്കിടാൻ, സിസ്റ്റം ക്രമീകരണത്തിൽ Chromium-നായി സ്‌ക്രീൻ റെക്കോർഡിംഗ് അനുവദിക്കുക</translation>
 <translation id="3530103706039034513"><ph name="EXISTING_USER" />, ഇതിനകം സൈൻ ഇൻ ചെയ്‌തിട്ടുണ്ട്.  നിങ്ങൾക്ക് ഒറ്റയ്ക്ക് ബ്രൗസ് ചെയ്യാൻ, <ph name="USER_EMAIL_ADDRESS" /> എന്ന വിലാസത്തിൽ നിങ്ങളുടെ സ്വന്തം പ്രൊഫൈലിൽ Chromium-ലേക്ക് സൈൻ ഇൻ ചെയ്യുക.</translation>
+<translation id="3531741627422851418">മൊബൈലുകളിൽ Chromium ബ്രൗസർ ഡൗൺലോഡ് ചെയ്യാനുള്ള QR കോഡ്</translation>
 <translation id="3561853857681580870">നിങ്ങളുടെ സ്‌ക്രീൻ പങ്കിടാൻ, സിസ്റ്റം ക്രമീകരണത്തിൽ Chromium-നായി സ്‌ക്രീൻ റെക്കോർഡിംഗ് അനുവദിക്കുക.</translation>
 <translation id="3588112919289558122">മെച്ചപ്പെടുത്തിയ പരിരക്ഷ, Chromium തിരിച്ചറിയാത്ത സൈറ്റുകൾക്കുള്ള JavaScript ഒപ്റ്റിമൈസേഷൻ ഓഫാക്കുന്നു</translation>
 <translation id="3597003331831379823">പ്രത്യേക പ്രിവിലേജുകൾ ആവശ്യമുള്ള സജ്ജീകരണം റൺ ചെയ്യാനായില്ല. <ph name="METAINSTALLER_ERROR" /></translation>
@@ -376,7 +378,6 @@
 <translation id="5174969993834422967">നിങ്ങൾ സാധാരണയായി അറിയിപ്പുകൾ ബ്ലോക്ക് ചെയ്യാറുണ്ട്. നിങ്ങൾക്ക് അറിയിപ്പ് അയയ്ക്കുന്നതിന് ഈ സൈറ്റിനെ അനുവദിക്കാൻ, നിങ്ങളുടെ ലൊക്കേഷൻ ബാറിന്റെ വലത് മൂലയിലെ അറിയിപ്പ് ഐക്കൺ ക്ലിക്ക് ചെയ്യുക.</translation>
 <translation id="5174983315706567306">മതിയായ ഡിസ്‌ക് സ്പെയ്‌സ് ഇല്ല.</translation>
 <translation id="5187123684706427865">Chromium അക്കൗണ്ട് വീണ്ടും പരിശോധിച്ചുറപ്പിക്കേണ്ടതുണ്ട്</translation>
-<translation id="5219681158518957165">നിർദ്ദേശിക്കുന്ന ബ്രൗസർ ക്രമീകരണം ഉപയോഗിക്കുക</translation>
 <translation id="5224391634244552924">സംരക്ഷിച്ച പാസ്‌വേഡുകളൊന്നുമില്ല. നിങ്ങളുടെ പാസ്‌വേഡുകൾ സംരക്ഷിക്കുകയാണങ്കിൽ, Chromium-ന് അവ പരിശോധിക്കാനാവും.</translation>
 <translation id="5231355151045086930">Chromium-ത്തിൽ നിന്ന് സൈൻ ഔട്ട് ചെയ്യുക</translation>
 <translation id="5234764350956374838">ഡിസ്മിസ്സ് ചെയ്യുക</translation>
@@ -609,6 +610,7 @@
 <translation id="7622753900276619808">നിങ്ങൾക്ക് ഇപ്പോൾ Chromium-ൽ കൂടുതൽ ഫീച്ചറുകൾ ലഭ്യമാണ്</translation>
 <translation id="7624307931717240213">ഈ സേവനം മെച്ചപ്പെടുത്താൻ ഞങ്ങൾ വിവരങ്ങൾ ഉപയോഗിക്കുന്നു. സ്വകാര്യതാ നയം, സേവന നിബന്ധനകൾ എന്നിവ കാണുക.</translation>
 <translation id="7649070708921625228">സഹായം</translation>
+<translation id="7650134251917003571">Chromium ആപ്പ് നേടുക</translation>
 <translation id="7656340475565475526">നിങ്ങൾക്കായി ബ്രൗസ് ചെയ്യാൻ Chromium-നെ അനുവദിക്കുക</translation>
 <translation id="7658239707568436148">റദ്ദാക്കൂ</translation>
 <translation id="7686590090926151193">Chromium നിങ്ങളുടെ ഡിഫോൾട്ട് ബ്രൗസറല്ല</translation>

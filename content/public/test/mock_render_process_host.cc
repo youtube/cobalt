@@ -193,11 +193,9 @@ bool MockRenderProcessHost::GetIntersectsViewport() {
   return true;
 }
 
-#if !BUILDFLAG(IS_ANDROID)
-bool MockRenderProcessHost::IsForInitialWebUI() const {
-  return false;
+bool MockRenderProcessHost::IsForTopChromeWebUI() const {
+  return is_for_top_chrome_web_ui_;
 }
-#endif  // !BUILDFLAG(IS_ANDROID)
 
 bool MockRenderProcessHost::IsForGuestsOnly() {
   return is_for_guests_only_;
@@ -255,11 +253,13 @@ bool MockRenderProcessHost::ShutdownRequested() {
   return shutdown_requested_;
 }
 
-bool MockRenderProcessHost::FastShutdownIfPossible(size_t page_count,
-                                                   bool skip_unload_handlers,
-                                                   bool ignore_workers,
-                                                   bool ignore_keep_alive,
-                                                   bool ignore_pending_reuse) {
+bool MockRenderProcessHost::FastShutdownIfPossible(
+    size_t page_count,
+    bool skip_unload_handlers,
+    bool ignore_workers,
+    bool ignore_keep_alive,
+    bool ignore_pending_reuse,
+    bool use_outermost_main_frame_check) {
   if (GetActiveViewCount() != page_count)
     return false;
   // We aren't actually going to do anything, but set |fast_shutdown_started_|

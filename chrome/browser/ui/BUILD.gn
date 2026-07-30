@@ -303,6 +303,8 @@ static_library("ui") {
     "//chrome/browser/favicon",
     "//chrome/browser/feedback:feedback_impl",
     "//chrome/browser/file_system_access",
+    "//chrome/browser/finds",
+    "//chrome/browser/finds/core",
     "//chrome/browser/gcm",
     "//chrome/browser/glic",
     "//chrome/browser/glic/actor",
@@ -312,6 +314,8 @@ static_library("ui") {
     "//chrome/browser/gpu",
     "//chrome/browser/hang_monitor",
     "//chrome/browser/history",
+    "//chrome/browser/history_clusters",
+    "//chrome/browser/history_embeddings",
     "//chrome/browser/image_decoder",
     "//chrome/browser/image_fetcher",
     "//chrome/browser/lookalikes",
@@ -319,6 +323,7 @@ static_library("ui") {
     "//chrome/browser/media/router/discovery/access_code:access_code_cast_feature",
     "//chrome/browser/new_tab_page/chrome_colors:generate_chrome_colors_info",
     "//chrome/browser/new_tab_page/chrome_colors:selected_colors_info",
+    "//chrome/browser/obsolete_system",
     "//chrome/browser/omnibox",
     "//chrome/browser/optimization_guide",
     "//chrome/browser/page_content_annotations",
@@ -481,6 +486,7 @@ static_library("ui") {
     "//components/enterprise",
     "//components/enterprise/browser/identifiers",
     "//components/enterprise/browser/promotion",
+    "//components/enterprise/connectors/core",
     "//components/error_page/content/browser",
     "//components/facilitated_payments/core/features",
     "//components/favicon/content",
@@ -1437,6 +1443,15 @@ static_library("ui") {
       ]
     }
 
+    if (enable_dice_support) {
+      sources += [
+        "views/search_ai_mode/signin_promo_controller.cc",
+        "views/search_ai_mode/signin_promo_controller.h",
+        "views/search_ai_mode/signin_promo_view.cc",
+        "views/search_ai_mode/signin_promo_view.h",
+      ]
+    }
+
     # Non-android deps for "ui" target.
     deps += [
       ":browser_tab_strip",
@@ -1482,6 +1497,7 @@ static_library("ui") {
       "//chrome/browser/ui/browser_window:create_browser_window",
       "//chrome/browser/ui/contextual_search",
       "//chrome/browser/ui/desktop_to_mobile_promos:controller",
+      "//chrome/browser/ui/desktop_to_mobile_promos:service",
       "//chrome/browser/ui/interaction",
       "//chrome/browser/ui/location_bar",
       "//chrome/browser/ui/passwords/bubble_controllers",
@@ -1774,6 +1790,7 @@ static_library("ui") {
     allow_circular_includes_from += [
       # TODO(crbug.com/40110173): Resolve circular dependencies.
       "//chrome/browser/media/router",
+      "//chrome/browser/ui/desktop_to_mobile_promos:service",
 
       # TODO(crbug.com/40251079): Remove circular dependencies.
       "//chrome/browser/apps/app_service",
@@ -3647,6 +3664,8 @@ static_library("ui") {
       "views/autofill/popup/password_favicon_loader.h",
       "views/autofill/popup/popup_base_view.cc",
       "views/autofill/popup/popup_base_view.h",
+      "views/autofill/popup/popup_bnpl_footnote_view.cc",
+      "views/autofill/popup/popup_bnpl_footnote_view.h",
       "views/autofill/popup/popup_cell_utils.cc",
       "views/autofill/popup/popup_cell_utils.h",
       "views/autofill/popup/popup_loading_view.cc",
@@ -3744,20 +3763,14 @@ static_library("ui") {
       "views/commerce/discounts_bubble_dialog_view.h",
       "views/commerce/discounts_coupon_code_label_view.cc",
       "views/commerce/discounts_coupon_code_label_view.h",
-      "views/commerce/discounts_icon_view.cc",
-      "views/commerce/discounts_icon_view.h",
       "views/commerce/discounts_page_action_view_controller.cc",
       "views/commerce/discounts_page_action_view_controller.h",
-      "views/commerce/price_insights_icon_view.cc",
-      "views/commerce/price_insights_icon_view.h",
       "views/commerce/price_insights_page_action_view_controller.cc",
       "views/commerce/price_insights_page_action_view_controller.h",
       "views/commerce/price_tracking_bubble_dialog_view.cc",
       "views/commerce/price_tracking_bubble_dialog_view.h",
       "views/commerce/price_tracking_email_dialog_view.cc",
       "views/commerce/price_tracking_email_dialog_view.h",
-      "views/commerce/price_tracking_icon_view.cc",
-      "views/commerce/price_tracking_icon_view.h",
       "views/commerce/price_tracking_view.cc",
       "views/commerce/price_tracking_view.h",
       "views/commerce/shopping_collection_iph_view.cc",
@@ -4406,6 +4419,8 @@ static_library("ui") {
       "views/sharing_hub/sharing_hub_bubble_util.h",
       "views/sharing_hub/sharing_hub_icon_view.cc",
       "views/sharing_hub/sharing_hub_icon_view.h",
+      "views/simple_web_view_dialog.cc",
+      "views/simple_web_view_dialog.h",
       "views/site_data/page_specific_site_data_dialog.cc",
       "views/site_data/page_specific_site_data_dialog.h",
       "views/site_data/page_specific_site_data_dialog_controller.cc",
@@ -4420,6 +4435,8 @@ static_library("ui") {
       "views/status_bubble_views.h",
       "views/storage/storage_pressure_bubble_view.cc",
       "views/storage/storage_pressure_bubble_view.h",
+      "views/sub_apps_permission_explanation.cc",
+      "views/sub_apps_permission_explanation.h",
       "views/tab_contents/chrome_web_contents_view_focus_helper.cc",
       "views/tab_contents/chrome_web_contents_view_focus_helper.h",
       "views/tab_dialogs_views.cc",
@@ -4770,6 +4787,7 @@ static_library("ui") {
       "//chrome/browser/collaboration",
       "//chrome/browser/collaboration/messaging",
       "//chrome/browser/desktop_to_mobile_promos:utils",
+      "//chrome/browser/digital_credentials",
       "//chrome/browser/infobars",
       "//chrome/browser/profiles/keep_alive",
       "//chrome/browser/ui/actions",
@@ -4832,6 +4850,7 @@ static_library("ui") {
       "//chrome/browser/ui/webauthn:impl",
       "//chrome/browser/ui/webui/app_service_internals",
       "//chrome/browser/ui/webui/autofill_ml_internals",
+      "//chrome/browser/ui/webui/content_annotator_internals",
       "//chrome/browser/ui/webui/side_panel/customize_chrome",
       "//chrome/browser/ui/window_name_prompt",
       "//components/collaboration/public",
@@ -4890,6 +4909,9 @@ static_library("ui") {
 
     # Any circular includes must depend on the target "//chrome/browser:browser_public_dependencies".
     allow_circular_includes_from += [
+      # Remove this circular dependency once tab_ui_helpers are modularized.
+      "//chrome/browser/ui/tabs/tab_strip_api/converters",
+
       "//chrome/browser/ui/qrcode_generator:impl",
       "//chrome/browser/ui/send_tab_to_self:impl",
       "//chrome/browser/ui/dialogs:impl",
@@ -4956,6 +4978,12 @@ static_library("ui") {
       # c/b/ui/views/controls/hover_button.h
       # c/b/ui/views/frame/browser_view.h
       "//chrome/browser/ui/views/send_tab_to_self:impl",
+
+      # TODO(crbug.com/353332589): Remove this circular dependency when the following
+      # headers get componentized:
+      # - c/b/ui/views/digital_credentials/digital_identity_bluetooth_manual_dialog_controller.h
+      # - c/b/ui/views/digital_credentials/digital_identity_multi_step_dialog.h
+      "//chrome/browser/digital_credentials",
     ]
 
     if (is_linux) {

@@ -167,7 +167,8 @@ void GlicSidePanelUi::SwitchConversation(
 void GlicSidePanelUi::CaptureScreenshot(
     glic::mojom::WebClientHandler::CaptureScreenshotCallback callback) {
   // Not implemented on Android yet.
-  std::move(callback).Run(nullptr);
+  std::move(callback).Run(mojom::CaptureScreenshotResult::NewErrorReason(
+      mojom::CaptureScreenshotErrorReason::kUnknown));
 }
 
 bool GlicSidePanelUi::IsShowing() const {
@@ -206,7 +207,11 @@ void GlicSidePanelUi::OnBrowserDeactivated(BrowserWindowInterface* browser) {
 void GlicSidePanelUi::SidePanelStateChanged(
     GlicSidePanelCoordinator::State state) {
   if (state != GlicSidePanelCoordinator::State::kShown && tab_) {
-    instance_metrics_->OnSidePanelClosed(tab_.get());
+    GlicInstanceMetrics::CloseReason reason =
+        state == GlicSidePanelCoordinator::State::kBackgrounded
+            ? GlicInstanceMetrics::CloseReason::kTabSwitched
+            : GlicInstanceMetrics::CloseReason::kExplicitlyClosed;
+    instance_metrics_->OnSidePanelClosed(tab_.get(), reason);
     panel_state_.kind = mojom::PanelStateKind::kHidden;
     delegate_->NotifyPanelStateChanged();
     // NOTE: `this` will be destroyed after this call.

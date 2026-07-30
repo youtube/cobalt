@@ -18,6 +18,11 @@ namespace {
 
 constexpr char kResponseOriginToken[] = "response-origin";
 
+constexpr char kReportToParam[] = "report-to";
+
+constexpr char kRedirectsParam[] = "redirects";
+constexpr char kWebRtcParam[] = "webrtc";
+
 std::optional<std::string> ParsePattern(
     const net::structured_headers::ParameterizedItem& pattern,
     std::vector<mojom::ConnectionAllowlistIssue>& issues) {
@@ -86,15 +91,26 @@ std::optional<ConnectionAllowlist> ParseHeader(const std::string& header_string,
     }
   }
 
-  // Process the list's parameters, ignoring any other than `report-to`.
+  // Process the list's parameters, ignoring any other than `report-to` or
+  // special global tokens like `redirection-allowed` or `webrtc-allowed`.
   for (const auto& param : inner_list.params) {
-    if (param.first == "report-to") {
+    if (param.first == kReportToParam) {
       if (param.second.is_token()) {
         parsed.reporting_endpoint = param.second.GetString();
       } else {
         parsed.issues.push_back(
             mojom::ConnectionAllowlistIssue::kReportingEndpointNotToken);
       }
+    } else if (param.first == kRedirectsParam) {
+      parsed.redirect_behavior =
+          (param.second.is_token() && param.second.GetString() != "block")
+              ? ConnectionAllowlist::RedirectBehavior::kAllow
+              : ConnectionAllowlist::RedirectBehavior::kBlock;
+    } else if (param.first == kWebRtcParam) {
+      parsed.webrtc_behavior =
+          (param.second.is_token() && param.second.GetString() != "block")
+              ? ConnectionAllowlist::WebRtcBehavior::kAllow
+              : ConnectionAllowlist::WebRtcBehavior::kBlock;
     }
   }
   return parsed;

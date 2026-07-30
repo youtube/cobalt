@@ -170,7 +170,7 @@ TEST_F(DevtoolsDurableMessageCollectorManagerTest, ReportAggregateMemoryUsage) {
   auto durable_message = collector->CreateDurableMessage("request_id1");
   const std::string message_str(5 * 1024 * 1024, 'a');
   const auto message = base::as_byte_span(message_str);
-  durable_message->AddBytes(message, message.size());
+  durable_message->AddBytes(message);
 
   base::trace_event::MemoryDumpArgs args = {
       base::trace_event::MemoryDumpLevelOfDetail::kDetailed};
@@ -180,12 +180,11 @@ TEST_F(DevtoolsDurableMessageCollectorManagerTest, ReportAggregateMemoryUsage) {
   ASSERT_NE(dump, nullptr);
   MemoryAllocatorDump::Entry entry("size", "bytes", 5 * 1024 * 1024u);
   EXPECT_THAT(dump->entries(), Contains(Eq(ByRef(entry))));
-  MemoryAllocatorDump::Entry object_count_entry(
-      MemoryAllocatorDump::kNameObjectCount, MemoryAllocatorDump::kUnitsObjects,
-      1u);
-  EXPECT_THAT(dump->entries(), Contains(Eq(ByRef(object_count_entry))));
-  MemoryAllocatorDump::Entry entry_count("object_count", "objects", 1u);
+  MemoryAllocatorDump::Entry entry_count("message_count", "objects", 1u);
   EXPECT_THAT(dump->entries(), Contains(Eq(ByRef(entry_count))));
+  MemoryAllocatorDump::Entry collector_count_entry("collector_count", "objects",
+                                                   1u);
+  EXPECT_THAT(dump->entries(), Contains(Eq(ByRef(collector_count_entry))));
 
   collector_remote.reset();
   EXPECT_TRUE(base::test::RunUntil(
@@ -198,8 +197,11 @@ TEST_F(DevtoolsDurableMessageCollectorManagerTest, ReportAggregateMemoryUsage) {
   ASSERT_NE(dump2, nullptr);
   MemoryAllocatorDump::Entry entry2("size", "bytes", 0u);
   EXPECT_THAT(dump2->entries(), Contains(Eq(ByRef(entry2))));
-  MemoryAllocatorDump::Entry entry2_count("object_count", "objects", 0u);
+  MemoryAllocatorDump::Entry entry2_count("message_count", "objects", 0u);
   EXPECT_THAT(dump2->entries(), Contains(Eq(ByRef(entry2_count))));
+  MemoryAllocatorDump::Entry entry2_collector_count("collector_count",
+                                                    "objects", 0u);
+  EXPECT_THAT(dump2->entries(), Contains(Eq(ByRef(entry2_collector_count))));
 }
 
 TEST_F(DevtoolsDurableMessageCollectorManagerTest, GlobalLimit) {
@@ -229,8 +231,7 @@ TEST_F(DevtoolsDurableMessageCollectorManagerTest, GlobalLimit) {
   // MiB)
   auto durable_message1 = collector1->CreateDurableMessage("request_id1");
   const std::string message_str1(10 * 1024 * 1024, 'a');
-  durable_message1->AddBytes(base::as_byte_span(message_str1),
-                             message_str1.size());
+  durable_message1->AddBytes(base::as_byte_span(message_str1));
   EXPECT_EQ(manager.total_memory_usage_for_testing(), 10 * 1024 * 1024u);
 
   // Add second collector
@@ -253,8 +254,7 @@ TEST_F(DevtoolsDurableMessageCollectorManagerTest, GlobalLimit) {
   // MiB)
   auto durable_message2 = collector2->CreateDurableMessage("request_id2");
   const std::string message_str2(4 * 1024 * 1024, 'b');
-  durable_message2->AddBytes(base::as_byte_span(message_str2),
-                             message_str2.size());
+  durable_message2->AddBytes(base::as_byte_span(message_str2));
   EXPECT_EQ(manager.total_memory_usage_for_testing(), 14 * 1024 * 1024u);
 
   // Add 6 MiB to the second collector
@@ -265,8 +265,7 @@ TEST_F(DevtoolsDurableMessageCollectorManagerTest, GlobalLimit) {
   // drops the 6MB addition because it still can't accommodate it globally.
   auto durable_message3 = collector2->CreateDurableMessage("request_id3");
   const std::string message_str3(6 * 1024 * 1024, 'c');
-  durable_message3->AddBytes(base::as_byte_span(message_str3),
-                             message_str3.size());
+  durable_message3->AddBytes(base::as_byte_span(message_str3));
 
   // The 4MB message was evicted. The 6MB message was dropped.
   // Total usage should be 10MB (from the first collector).

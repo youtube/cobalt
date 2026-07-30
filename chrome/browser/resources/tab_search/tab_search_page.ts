@@ -98,16 +98,9 @@ export class TabSearchPageElement extends TabSearchSearchFieldBase {
        */
       searchOptions_: {type: Object},
       recentlyClosedDefaultItemDisplayCount_: {type: Number},
-
-      tabOrganizationEnabled: {
-        type: Boolean,
-        reflect: true,
-      },
     };
   }
 
-  accessor tabOrganizationEnabled: boolean =
-      loadTimeData.getBoolean('tabOrganizationEnabled');
   accessor availableHeight: number|undefined;
   private accessor searchText_: string = '';
   protected accessor listMaxHeight_: number|undefined;
@@ -339,7 +332,7 @@ export class TabSearchPageElement extends TabSearchSearchFieldBase {
       // or scroll position change triggers the viewport fill logic.
       listenOnce(
           this.$.tabsList, 'viewport-filled',
-          () => this.apiProxy_.notifySearchUiReadyToShow());
+          () => this.apiProxy_.maybeShowUi());
 
       this.tabsChanged_(profileData);
     });

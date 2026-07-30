@@ -121,22 +121,12 @@ proto_library("amount_extraction_heuristic_regexes_proto") {
   sources = [ "payments/amount_extraction_heuristic_regexes.proto" ]
 }
 
-source_set("unique_ids") {
-  sources = [ "../common/unique_ids.h" ]
-  deps = [
-    "//base",
-    "//components/autofill/core/common",
-  ]
-}
-
 static_library("browser") {
   sources = [
     "at_memory/at_memory_data_type.cc",
     "at_memory/at_memory_data_type.h",
-    "at_memory/autofill_data_retriever.cc",
-    "at_memory/autofill_data_retriever.h",
-    "at_memory/memory_search_result.cc",
-    "at_memory/memory_search_result.h",
+    "at_memory/autofill_data_provider_impl.cc",
+    "at_memory/autofill_data_provider_impl.h",
     "autofill_ai_form_rationalization.cc",
     "autofill_ai_form_rationalization.h",
     "autofill_browser_util.cc",
@@ -145,6 +135,8 @@ static_library("browser") {
     "autofill_feedback_data.h",
     "autofill_field.cc",
     "autofill_field.h",
+    "autofill_format_string.cc",
+    "autofill_format_string.h",
     "autofill_server_prediction.cc",
     "autofill_server_prediction.h",
     "autofill_shared_storage_handler.h",
@@ -1011,7 +1003,6 @@ static_library("browser") {
     ":country_data",
     ":legal_message_line",
     ":payments_sync_utils",
-    ":unique_ids",
     "//components/autofill/core/browser/payments:card_unmask_challenge_option",
     "//components/autofill/core/browser/proto",
     "//components/autofill/core/browser/proto:autofill_ai_proto",
@@ -1055,7 +1046,7 @@ static_library("browser") {
     "//base:i18n",
     "//base/version_info",
     "//build:branding_buildflags",
-    "//components/accessibility_annotator/annotation_reducer",
+    "//components/accessibility_annotator/core/annotation_reducer",
     "//components/affiliations/core/browser:affiliations",
     "//components/autofill/core/common:autofill_regex",
     "//components/autofill/core/common:credit_card_number_validation",
@@ -1410,6 +1401,8 @@ static_library("test_support") {
 
   public_deps = [
     ":browser",
+    "//components/accessibility_annotator/core",
+    "//components/accessibility_annotator/core/annotation_reducer",
     "//components/autofill/core/common:test_support",
     "//components/one_time_tokens/core/browser",
     "//components/one_time_tokens/core/browser:test_support",
@@ -1525,7 +1518,7 @@ source_set("unit_tests") {
   testonly = true
   sources = [
     "at_memory/at_memory_data_type_unittest.cc",
-    "at_memory/autofill_data_retriever_unittest.cc",
+    "at_memory/autofill_data_provider_impl_unittest.cc",
     "autofill_ai_form_rationalization_unittest.cc",
     "autofill_feedback_data_unittest.cc",
     "autofill_field_unittest.cc",
@@ -1597,6 +1590,8 @@ source_set("unit_tests") {
     "form_import/addresses/address_form_data_importer_unittest.cc",
     "form_import/addresses/address_profile_save_manager_unittest.cc",
     "form_import/addresses/autofill_profile_import_process_unittest.cc",
+    "form_import/form_data_importer_test_utils.cc",
+    "form_import/form_data_importer_test_utils.h",
     "form_import/form_data_importer_unittest.cc",
     "form_import/form_data_importer_utils_unittest.cc",
     "form_import/payments/payments_form_data_importer_unittest.cc",
@@ -1882,7 +1877,8 @@ source_set("unit_tests") {
     "//base",
     "//base/test:test_support",
     "//base/version_info",
-    "//components/accessibility_annotator/annotation_reducer",
+    "//components/accessibility_annotator/core",
+    "//components/accessibility_annotator/core/annotation_reducer",
     "//components/autofill/core/common:autofill_regex",
     "//components/autofill/core/common:credit_card_number_validation",
     "//components/device_reauth",

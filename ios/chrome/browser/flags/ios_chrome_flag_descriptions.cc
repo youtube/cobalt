@@ -56,6 +56,10 @@ const char kApplyClientsideModelPredictionsForPasswordTypesName[] =
 const char kApplyClientsideModelPredictionsForPasswordTypesDescription[] =
     "Enable using clientside model predictions to fill password forms.";
 
+const char kAskAboutThisPageName[] = "AskAboutThisPage";
+const char kAskAboutThisPageDescription[] =
+    "Enables the AskAboutThisPage feature.";
+
 const char kAskGeminiChipName[] = "Ask Gemini Chip";
 const char kAskGeminiChipDescription[] = "Enables the Ask Gemini Chip feature.";
 
@@ -67,6 +71,19 @@ const char kAutofillAcrossIframesName[] = "Enables Autofill across iframes";
 const char kAutofillAcrossIframesDescription[] =
     "When enabled, Autofill will fill and save information on forms that "
     "spread across multiple iframes.";
+
+const char kAutofillAiCreateEntityDataManagerName[] =
+    "Autofill AI Create Entity Data Manager";
+const char kAutofillAiCreateEntityDataManagerDescription[] =
+    "Enables Autofill AI Create Entity Data Manager.";
+
+const char kAutofillAiReauthRequiredName[] = "Autofill AI Reauth Required";
+const char kAutofillAiReauthRequiredDescription[] =
+    "Enables Autofill AI Reauth Required.";
+
+const char kAutofillAiWithDataSchemaName[] = "Autofill AI With Data Schema";
+const char kAutofillAiWithDataSchemaDescription[] =
+    "Enables Autofill AI With Data Schema.";
 
 const char kAutofillBottomSheetNewBlurName[] =
     "New Blur Method for Autofill Bottom Sheet";
@@ -200,12 +217,6 @@ const char kAutofillPruneSuggestionsName[] = "Autofill Prune Suggestions";
 const char kAutofillPruneSuggestionsDescription[] =
     "Further limits the number of suggestions in the Autofill dropdown.";
 
-const char kAutofillShowManualFillForVirtualCardsName[] =
-    "Show Manual Fill for Virtual Cards";
-const char kAutofillShowManualFillForVirtualCardsDescription[] =
-    "When enabled, Autfoill will show the manual fill view directly on form "
-    "focusing events for virtual cards.";
-
 const char kAutofillThrottleDocumentFormScanName[] =
     "Throttle Autofill Document Form Scans";
 const char kAutofillThrottleDocumentFormScanDescription[] =
@@ -245,13 +256,6 @@ const char kBWGPromoConsentName[] = "BWG Promo Consent";
 const char kBWGPromoConsentDescription[] =
     "Whether the promo consent flow is composed of a single or a double screen "
     "view.";
-
-const char kBeginCursorAtPointTentativeFixName[] =
-    "Begin cursor at point tentative fix";
-const char kBeginCursorAtPointTentativeFixDescription[] =
-    "A tentative fix for crbug.com/361003475. When enabled, it prevents a call "
-    "to "
-    "setSelectedTextRange.";
 
 const char kBestFeaturesScreenInFirstRunName[] =
     "Display Best Features screen in the FRE";
@@ -529,6 +533,12 @@ const char kEnableAutofillAddressSavePromptName[] =
 const char kEnableAutofillAddressSavePromptDescription[] =
     "Enable the Autofill address save prompts.";
 
+const char kEnableClientCertificateProvisioningOnIOSName[] =
+    "Enable client certificate provisioning on iOS";
+const char kEnableClientCertificateProvisioningOnIOSDescription[] =
+    "When enabled, client certificate provisioning from the cloud is allowed "
+    "for enterprise users on iOS.";
+
 const char kEnableCompromisedPasswordsMutingName[] =
     "Enable the muting of compromised passwords in the Password Manager";
 const char kEnableCompromisedPasswordsMutingDescription[] =
@@ -654,6 +664,14 @@ const char kGeminiBackendMigrationName[] = "Gemini Backend Migration";
 const char kGeminiBackendMigrationDescription[] =
     "Enables the backend migration for Gemini.";
 
+const char kGeminiBinaryMigrationName[] = "Gemini Binary Migration";
+const char kGeminiBinaryMigrationDescription[] =
+    "Enables the binary network migration for Gemini.";
+
+const char kGeminiChatPersistenceName[] = "Gemini Chat Persistence";
+const char kGeminiChatPersistenceDescription[] =
+    "Enables improvements to Gemini Chat persistence.";
+
 const char kGeminiCopresenceName[] = "Gemini Copresence";
 const char kGeminiCopresenceDescription[] =
     "Enables the Gemini Copresence feature, which provides a persistent Gemini "
@@ -686,6 +704,10 @@ const char kGeminiLoadingStateRedesignName[] = "GeminiLoadingStateRedesign";
 const char kGeminiLoadingStateRedesignDescription[] =
     "Enables the redesigned UI for the floaty's loading state.";
 
+const char kGeminiMapsRichUIName[] = "Gemini Maps Rich UI";
+const char kGeminiMapsRichUIDescription[] =
+    "Enables the rich Maps UI in Gemini.";
+
 const char kGeminiNavigationPromoName[] = "GeminiNavigationPromo";
 const char kGeminiNavigationPromoDescription[] =
     "Enables the automatic promo for Gemini on navigation.";
@@ -706,6 +728,10 @@ const char kGeminiResponseViewDynamicResizingDescription[] =
 const char kGeminiRichAPCExtractionName[] = "Gemini Rich APC Extraction";
 const char kGeminiRichAPCExtractionDescription[] =
     "Enables rich APC extraction for Gemini.";
+
+const char kGeminiUnaryMigrationName[] = "Gemini Unary Migration";
+const char kGeminiUnaryMigrationDescription[] =
+    "Enables the unary network migration for Gemini.";
 
 const char kGeminiUpdatedEligibilityName[] = "Gemini Updated Eligibility";
 const char kGeminiUpdatedEligibilityDescription[] =
@@ -754,6 +780,9 @@ const char kIOSChooseFromDriveDescription[] =
 const char kIOSChooseFromDriveSignedOutName[] = "Choose from Drive Signed Out";
 const char kIOSChooseFromDriveSignedOutDescription[] =
     "Enables the Choose from Drive feature to signed out users.";
+
+const char kIOSCobaltName[] = "IOS Cobalt";
+const char kIOSCobaltDescription[] = "Enables the Cobalt feature on iOS.";
 
 const char kIOSCustomFileUploadMenuName[] = "Custom file upload menu";
 const char kIOSCustomFileUploadMenuDescription[] =
@@ -867,6 +896,10 @@ const char kIOSSyncedSetUpName[] = "Synced Set Up";
 const char kIOSSyncedSetUpDescription[] =
     "Enables the Synced Set Up experience, allowing the user to locally apply "
     "settings from their synced devices.";
+
+const char kIOSTabRemindersName[] = "Tab Reminders";
+const char kIOSTabRemindersDescription[] =
+    "Enables the Tab Reminder notifications feature on iOS.";
 
 const char kIOSTipsNotificationsStringAlternativesName[] =
     "Tips notifications alternative string experiment";
@@ -1464,12 +1497,6 @@ const char kSendTabToSelfEnhancedHandoffDescription[] =
     "Enables an enhanced version of Send Tab To Self that propagates more "
     "information, such as form fields.";
 
-const char kSendTabToSelfIOSPushNotificationsName[] =
-    "Send tab to self iOS push notifications";
-const char kSendTabToSelfIOSPushNotificationsDescription[] =
-    "Feature to allow users to send tabs to their iOS device through a system "
-    "push notitification.";
-
 const char kShareInOmniboxLongPressName[] = "Share in Omnibox Long Press";
 const char kShareInOmniboxLongPressDescription[] =
     "Displays an option to share current page in the omnibox long press menu";
@@ -1675,21 +1702,6 @@ const char kWaitThresholdMillisecondsForCapabilitiesApiDescription[] =
 const char kWalletServiceUseSandboxName[] = "Use Google Payments sandbox";
 const char kWalletServiceUseSandboxDescription[] =
     "Uses the sandbox service for Google Payments API calls.";
-
-const char kWebPageAlternativeTextZoomName[] =
-    "Use different method for zooming web pages";
-const char kWebPageAlternativeTextZoomDescription[] =
-    "When enabled, switches the method used to zoom web pages.";
-
-const char kWebPageDefaultZoomFromDynamicTypeName[] =
-    "Use dynamic type size for default text zoom level";
-const char kWebPageDefaultZoomFromDynamicTypeDescription[] =
-    "When enabled, the default text zoom level for a website comes from the "
-    "current dynamic type setting.";
-
-const char kWebPageTextZoomIPadName[] = "Enable text zoom on iPad";
-const char kWebPageTextZoomIPadDescription[] =
-    "When enabled, text zoom works again on iPad";
 
 const char kWelcomeBackName[] = "Enable Welcome Back screen";
 const char kWelcomeBackDescription[] =

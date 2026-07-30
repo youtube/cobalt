@@ -7,6 +7,7 @@
 <translation id="1070329623210597193">Skrár sem þetta svæði getur skoðað eða breytt</translation>
 <translation id="1073417869336441572">Hjálpaðu okkur að bæta Chrome með því að segja okkur hvers vegna þú leyfðir fótspor þriðju aðila. <ph name="BEGIN_LINK" />Senda ábendingu<ph name="END_LINK" /></translation>
 <translation id="1074758928858737435">Þú getur beðið um að sjá borðtölvuútgáfu vefsvæða</translation>
+<translation id="1109482864356262001">Eiginleikar sem þurfa hreyfi- eða birtuskynjara virka ekki</translation>
 <translation id="1126523729897810826">Ljúktu ráðlögðu aðgerðunum hér að neðan til að nýta Chrome sem best</translation>
 <translation id="113098737392899175">Skoða síður með textabendli þegar lyklaborðið er tengt</translation>
 <translation id="1148624853678088576">Allt er til reiðu!</translation>
@@ -66,7 +67,6 @@
 <translation id="1677097821151855053">Fótspor og önnur gögn af síðunni eru notuð til að muna eftir þér, t.d. til að skrá þig inn eða sérsníða auglýsingar. Upplýsingar um stjórnun fótspora fyrir öll vefsvæði eru í <ph name="BEGIN_LINK" />Stillingar<ph name="END_LINK" />.</translation>
 <translation id="1679305402657584804">Vefsvæði geta beðið um að fá að nota NFC-tæki</translation>
 <translation id="1686785653877010442">Vefsvæði senda yfirleitt tilkynningar til að láta þig vita af nýjustu fréttum eða spjallskilaboðum.</translation>
-<translation id="169515064810179024">Loka fyrir aðgang vefsvæða að hreyfiskynjurum</translation>
 <translation id="1703666494654169921">Ekki leyfa vefsvæðum að nota sýndarveruleikatæki eða -gögn</translation>
 <translation id="1704230497453185209">Ekki leyfa vefsvæðum að spila hljóð</translation>
 <translation id="1717218214683051432">Hreyfiskynjarar</translation>
@@ -129,6 +129,7 @@
 <translation id="2241587408274973373">Kort nýrrar flipasíðu</translation>
 <translation id="2241634353105152135">Bara einu sinni</translation>
 <translation id="2253414712144136228"><ph name="NAME_OF_LIST_ITEM" /> Fjarlægja</translation>
+<translation id="227763434929139750">Ekki leyfa vefsvæðum að nota hreyfi- eða birtuskynjara</translation>
 <translation id="228293613124499805">Flest vefsvæði sem þú skoðar vista líklega gögn í tækinu, oft í þeim tilgangi að bæta upplifun þína með því að vista valið þitt eða upplýsingar sem þú deilir með vefsvæðinu. Við mælum með að hafa kveikt á þessari stillingu.</translation>
 <translation id="2289270750774289114">Spyrja þegar vefsvæði vill finna nálæg Bluetooth-tæki (ráðlagt)</translation>
 <translation id="2315043854645842844">Stýrikerfið styður ekki vottorðsval hjá biðlara.</translation>
@@ -235,7 +236,6 @@
 <translation id="3232293466644486101">Eyða vefskoðunargögnum…</translation>
 <translation id="3242646949159196181">Þegar kveikt er á þessu geta vefsvæði spilað hljóð. Þegar slökkt er á þessu geta vefsvæði ekki spilað hljóð.</translation>
 <translation id="3273479183583863618">Verðlækkun á flipum</translation>
-<translation id="3277252321222022663">Leyfa vefsvæðum að fá aðgang að skynjurum (ráðlagt)</translation>
 <translation id="3285500645985761267">Leyfa tengdum vefsvæðum að sjá virkni þína í hópnum</translation>
 <translation id="3295019059349372795">11. kafli: Smaragðsborgin dásamlega í Oz</translation>
 <translation id="3295602654194328831">Fela upplýsingar</translation>
@@ -269,6 +269,7 @@
 <translation id="3658847490588580244">Blað neðst í sjálfgefnum vafra</translation>
 <translation id="3669841141196828854">{COUNT,plural, =1{<ph name="RWS_MEMBERS_COUNT" /> vefsvæði í hópi vefsvæða í eigu <ph name="RWS_OWNER" /> sem geta séð virkni þína í hópnum}one{<ph name="RWS_MEMBERS_COUNT" /> vefsvæði í hópi vefsvæða í eigu <ph name="RWS_OWNER" /> sem geta séð virkni þína í hópnum}other{<ph name="RWS_MEMBERS_COUNT" /> vefsvæði í hópi vefsvæða í eigu <ph name="RWS_OWNER" /> sem geta séð virkni þína í hópnum}}</translation>
 <translation id="3676777756440746804">Lokað er á að vefsvæði geti beðið um að fá að nota upplýsingar sem þau hafa vistað um þig</translation>
+<translation id="3677897809642449131">Vefsvæði geta beðið um að fá að nota hreyfiskynjara</translation>
 <translation id="3678318839615834650">Blað neðst á spjöldum síðu nýrra flipa, opnað til fulls</translation>
 <translation id="3697164069658504920">Þegar kveikt er á þessu geta vefsvæði beðið um að fá að nota USB-tæki. Þegar slökkt er á þessu geta vefsvæði ekki notað USB-tæki.</translation>
 <translation id="3703430731944883733">Stjórna straumnum þínum</translation>
@@ -300,6 +301,7 @@
 <translation id="3922092564198021702">Opnaðu Stillingar í símanum</translation>
 <translation id="3924858949939391676">Sýna tengla þegar kveikt er á lesstillingu</translation>
 <translation id="3933121352599513978">Minnka óumbeðnar beiðnir (ráðlagt)</translation>
+<translation id="393417216277380082">Hreyfi- og birtuskynjarar</translation>
 <translation id="3934905113567851655">Færðu fingur saman til að breyta stærð</translation>
 <translation id="3955321697524543127">Ekki leyfa vefsvæðum að tengjast USB-tækjum</translation>
 <translation id="3965467402665811906">Vefsvæði geta beðið um að fá að nota upplýsingar sem þau hafa vistað um þig</translation>
@@ -371,7 +373,7 @@
 <translation id="4672315773691449562">Ýttu á „Vafraforrit“ og síðan á „Chrome“</translation>
 <translation id="4676059169848868271">Til að leyfa <ph name="APP_NAME" /> að nota rakningu handahreyfinga skaltu líka kveikja á rakningu handahreyfinga í <ph name="BEGIN_LINK" />kerfisstillingum<ph name="END_LINK" />.</translation>
 <translation id="4688045258817337666">Stjórnaðu kortunum þínum</translation>
-<translation id="4751476147751820511">Hreyfi- eða birtuskynjarar</translation>
+<translation id="4722332387043141878">Vefsvæði nota yfirleitt hreyfi- og birtuskynjara tækisins þíns fyrir eiginleika á borð við sýndarveruleika eða hreystimælingar</translation>
 <translation id="4755971844837804407">Þegar kveikt er á þessu geta vefsvæði birt þér hvaða auglýsingar sem er. Þegar slökkt er á þessu geta vefsvæði ekki sýnt ágengar eða villandi auglýsingar.</translation>
 <translation id="4779083564647765204">Aðdráttur</translation>
 <translation id="4807122856660838973">Kveikja á öruggri vefskoðun</translation>
@@ -398,7 +400,6 @@
 <translation id="5001526427543320409">Fótspor þriðju aðila</translation>
 <translation id="5007392906805964215">Yfirfara</translation>
 <translation id="5039804452771397117">Leyfa</translation>
-<translation id="5048398596102334565">Leyfa vefsvæðum að fá aðgang að hreyfiskynjurunum (ráðlagt)</translation>
 <translation id="5048841907079026162">Stjórnaðu vefskoðunargögnunum þínum</translation>
 <translation id="5050380848339752099">Vefsvæðið er við það að deila upplýsingum með forriti fyrir utan huliðsstillingu.</translation>
 <translation id="5063480226653192405">Notkun</translation>
@@ -517,6 +518,7 @@
 <translation id="6196640612572343990">Loka á fótspor frá þriðja aðila</translation>
 <translation id="6205314730813004066">Persónuvernd auglýsinga</translation>
 <translation id="6207207788774442484">Eyða gögnum og endurstilla heimildir</translation>
+<translation id="6211409961905616543">Vefsvæði geta notað hreyfi- og birtuskynjara</translation>
 <translation id="6218508144653756827">Fúksíuþema</translation>
 <translation id="6231752747840485235">Fjarlægja „<ph name="APP_NAME" />“?</translation>
 <translation id="6234351944623978659">Ýttu á Vafraforrit &gt; Chrome</translation>
@@ -686,7 +688,6 @@
 <translation id="8088603949666785339">Fleiri valkostir í <ph name="BANNER_TITLE" /></translation>
 <translation id="8112925981674547014">Sjá flipa á forritalista</translation>
 <translation id="8116925261070264013">Þögguð</translation>
-<translation id="8117244575099414087">Þegar kveikt er á þessu geta vefsvæði notað skynjara tækisins þíns. Þegar slökkt er á þessu geta vefsvæði ekki notað skynjara.</translation>
 <translation id="813082847718468539">Skoða upplýsingar um vefsvæði</translation>
 <translation id="8131740175452115882">Staðfesta</translation>
 <translation id="8148160259207090265">Kveikt er á þessari stillingu svo lengi sem þú ert með kveikt á ítarlegri vernd í stillingum Android.</translation>
@@ -748,6 +749,7 @@
 <translation id="8707904142362025782">Vefsvæði geta beðið um myndavélina þína</translation>
 <translation id="8712637175834984815">Ég skil</translation>
 <translation id="8715862698998036666">Dragðu niður frá efsta hluta skjásins og strjúktu frá vinstri eða hægri brún til að hætta að nota allan skjáinn.</translation>
+<translation id="8716050156658570300">Vefsvæði geta beðið um að fá að nota hreyfi- og birtuskynjara</translation>
 <translation id="8719283222052720129">Kveiktu á heimild fyrir <ph name="APP_NAME" /> í <ph name="BEGIN_LINK" />stillingum Android<ph name="END_LINK" />.</translation>
 <translation id="8721719390026067591">Þegar kveikt er á þessu geta vefsvæði beðið um að leita að Bluetooth-tækjum. Þegar slökkt er á þessu geta vefsvæði ekki leitað að Bluetooth-tækjum.</translation>
 <translation id="8725066075913043281">Reyna aftur</translation>
@@ -762,7 +764,7 @@
 <translation id="8801657293260363985">V8 er JavaScript- and WebAssembly-vél Chrome sem er notuð til að bæta afköst vefsvæða</translation>
 <translation id="8803526663383843427">Þegar kveikt er á þessu</translation>
 <translation id="8805385115381080995">Vefskoðun verður hraðari vegna þess að ólíklegra er að vefsvæði biðji þig um að staðfesta að þú sért manneskja.</translation>
-<translation id="8816026460808729765">Loka fyrir aðgang vefsvæða að skynjurum</translation>
+<translation id="881644524232657178">Þegar kveikt er á þessu geta vefsvæði notað hreyfi- og birtuskynjara tækisins þíns. Þegar slökkt er á þessu geta vefsvæði ekki notað skynjara.</translation>
 <translation id="8847988622838149491">USB</translation>
 <translation id="8874790741333031443">Prófaðu að leyfa fótspor þriðju aðila tímabundið, það þýðir minni vernd við vefskoðun en líklegra er að eiginleikar vefsvæðisins virki sem skyldi.</translation>
 <translation id="8889294078294184559">Þegar þú heldur áfram að vafra geta vefsvæði athugað upplýsingarnar hjá Chrome og staðfest frá fyrra vefsvæði að þú sért líklega mennskur notandi</translation>

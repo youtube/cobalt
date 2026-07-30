@@ -439,6 +439,15 @@ void HTMLInputElement::UpdateType(const AtomicString& type_attribute_value) {
     return;
   }
 
+  if (isConnected()) {
+    UseCounter::Count(GetDocument(),
+                      WebFeature::kHTMLInputElementTypeChangedWhileConnected);
+  } else {
+    UseCounter::Count(
+        GetDocument(),
+        WebFeature::kHTMLInputElementTypeChangedWhileDisconnected);
+  }
+
   InputType* new_type = InputType::Create(*this, new_type_name);
   RemoveFromRadioButtonGroup();
 
@@ -618,6 +627,11 @@ void HTMLInputElement::UpdateType(const AtomicString& type_attribute_value) {
   // and set its selection direction to "none".
   if (!previously_selectable && now_selectable)
     SetSelectionRange(0, 0, kSelectionHasNoDirection);
+
+  // Disconnect all OpaqueRanges on any type change.
+  if (previously_selectable && RuntimeEnabledFeatures::OpaqueRangeEnabled()) {
+    DisconnectAllOpaqueRanges();
+  }
 
   UpdateHasBeenPasswordField(new_type_name);
 
@@ -2134,7 +2148,8 @@ bool HTMLInputElement::ShouldAppearIndeterminate() const {
   return input_type_->ShouldAppearIndeterminate();
 }
 
-PopoverTriggerSupport HTMLInputElement::SupportsPopoverTriggering() const {
+HTMLFormControlElement::PopoverTriggerSupport
+HTMLInputElement::SupportsPopoverTriggering() const {
   return input_type_->SupportsPopoverTriggering();
 }
 

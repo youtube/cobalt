@@ -900,6 +900,9 @@ chromium-metrics-reviews@google.com.
     The admin configured organization unit initial enrollment limit has been
     exceeded.
   </int>
+  <int value="70" label="Device management error">
+    There is a device management error for this account.
+  </int>
 </enum>
 
 <!-- LINT.ThenChange(//components/policy/core/common/cloud/enterprise_metrics.h:MetricEnrollment) -->
@@ -2370,6 +2373,7 @@ chromium-metrics-reviews@google.com.
   <int value="1431" label="ForceForegroundPriorityForAllTabs"/>
   <int value="1432" label="WebRtcDiagnosticLogCollectionAllowedForOrigins"/>
   <int value="1433" label="IsolatedWebAppUserInstallationEnabled"/>
+  <int value="1434" label="ExtensionDOMActivityLoggingEnabled"/>
 </enum>
 
 <enum name="EnterprisePoliciesSources">

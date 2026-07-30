@@ -167,6 +167,7 @@
 <translation id="1621067168122174824">အားဝင်ရောက်မှု စစ်ဆေးရန်</translation>
 <translation id="1622402072367425417">တောက်ပသောပူဖောင်း</translation>
 <translation id="1626590945318984973">ဖြတ်လမ်းလင့်ခ် မရနိုင်ပါ။ လုပ်ဆောင်ချက်နှင့် <ph name="META_KEY" /> ခလုတ်များ မသုံးဘဲ ဖြတ်လမ်းလင့်ခ်အသစ်နှိပ်ပါ။</translation>
+<translation id="163774412591892664">သင့်စီမံခန့်ခွဲသူသည် သင့်စက်ကို ပိတ်ထားပြီး ၎င်း၏တည်နေရာကို သုံးနိုင်သည်။</translation>
 <translation id="1639239467298939599">တင်ပေးနေ</translation>
 <translation id="1641857168437328880">စာရွက်စာတမ်း ထည့်ရန်ဗန်း (တစ်ဘက်သုံး)</translation>
 <translation id="1642396894598555413">စက်ဘီး</translation>
@@ -727,6 +728,7 @@
 <translation id="4212169537710712814"><ph name="LANGUAGE_NAME" /> စာသားမှတ်တမ်းမော်ဒယ်ကို ဒေါင်းလုဒ်လုပ်ပြီးပါပြီ</translation>
 <translation id="42126664696688958">တင်ပို့ရန်</translation>
 <translation id="4213104098953699324">USB ကီးဘုတ်</translation>
+<translation id="4217571870635786043">အသံထွက်၍ ဖတ်ပေးခြင်း</translation>
 <translation id="4227825898293920515">စကားဝှက်သည် <ph name="TIME" /> တွင် သက်တမ်းကုန်ပါမည်</translation>
 <translation id="4238516577297848345">ပရင့်ထုတ်ရန် ဖိုင်များ လုပ်ဆောင်မနေပါ</translation>
 <translation id="4239069858505860023">GPRS</translation>
@@ -1685,6 +1687,7 @@
 <translation id="8420955526972171689">ဟာ့ဒ်ဝဲပြဿနာအတွက် စစ်ဆေးမှုများနှင့် ပြဿနာရှာဖွေဖြေရှင်းခြင်းကို လုပ်ဆောင်နိုင်သည်</translation>
 <translation id="8422748173858722634">IMEI</translation>
 <translation id="8424039430705546751">အောက်သို့</translation>
+<translation id="8427213022735114808">စာရိုက်ရန်အကွက်များတွင် စကားသံဖြင့်စာရိုက်ခြင်းကို ခွင့်ပြုရန် Dictation သည် သင့်အသံကို Google သို့ ပို့သည်။</translation>
 <translation id="8428213095426709021">ဆက်တင်များ</translation>
 <translation id="8431300646573772016">ChromeOS ၏ အသစ်ပါဝင်မှု</translation>
 <translation id="8433186206711564395">ကွန်ရက် ဆက်တင်များ</translation>
@@ -1723,6 +1726,7 @@
 <translation id="8584654835905316966"><ph name="DEVICE_NAME" /> အတွက် ဖာမ်းဝဲဗားရှင်း <ph name="VERSION" /> ထည့်သွင်းမှုကို အပြီးသတ်ရန်အတွက် ပြန်စရန်လိုအပ်သည်။ သင့်ကွန်ပျူတာကို အကြိမ်များစွာ ပြန်လည်စတင်နိုင်သည်။ ဤလုပ်ဆောင်ချက်သည် ပုံမှန်ဖြစ်သည်။</translation>
 <translation id="8593058461203131755">မီဒီယာကို ခဏရပ်ရန်</translation>
 <translation id="8620617069779373398">ကွန်ရက်ပြင်ပဒေတာသုံးခြင်း အခြေအနေ</translation>
+<translation id="8624524972189162859">သင်၏ <ph name="DOMAIN_NAME" /> စီမံခန့်ခွဲသူသည် သင့်စက်ကို ပိတ်ထားပြီး ၎င်း၏တည်နေရာကို သုံးနိုင်သည်။</translation>
 <translation id="8626489604350149811"><ph name="APN_NAME" /> အတွက် နောက်ထပ်လုပ်ဆောင်ချက်များ</translation>
 <translation id="86356131183441916">ခရမ်းနု</translation>
 <translation id="8647595191512746911">အသံစာသားမှတ်တမ်း</translation>

@@ -576,7 +576,6 @@ result.links = linksArray;
       }));
 
   std::string nonce = base::Token::CreateRandom().ToString();
-  bool includeAnchors = IsPageActionMenuEnabled();
 
   if (_config->use_refactored_extractor()) {
     // Use the new way for extracting context.
@@ -612,9 +611,9 @@ result.links = linksArray;
       annotatedPageContentBarrier.Run();
     } else {
       extractor_feature->ExtractPageContext(
-          mainFrame, includeAnchors,
-          _config->graft_cross_origin_frame_content(),
-          _config->use_rich_extraction(), nonce, js_timeout,
+          mainFrame, _config->graft_cross_origin_frame_content(),
+          _config->use_rich_extraction(),
+          _config->use_rich_extraction_with_actionable(), nonce, js_timeout,
           base::BindOnce(
               callback, weakSelf, annotatedPageContentBarrier,
               /*isMainFrame=*/YES, mainFrame->GetSecurityOrigin(),
@@ -636,8 +635,9 @@ result.links = linksArray;
       }
 
       extractor_feature->ExtractPageContext(
-          webFrame, includeAnchors, _config->graft_cross_origin_frame_content(),
-          _config->use_rich_extraction(), nonce, js_timeout,
+          webFrame, _config->graft_cross_origin_frame_content(),
+          _config->use_rich_extraction(),
+          _config->use_rich_extraction_with_actionable(), nonce, js_timeout,
           base::BindOnce(
               callback, weakSelf, annotatedPageContentBarrier,
               /*isMainFrame=*/NO, webFrame->GetSecurityOrigin(),
@@ -662,13 +662,11 @@ result.links = linksArray;
 
     // Construct the JavaScript script to be executed on each Web Frame with a
     // random token as nonce to differentiate between runs/executions.
-    std::u16string maybeAnchorTagsJavaScript =
-        IsPageActionMenuEnabled() ? kAnchorTagsJavaScript : u"";
     std::u16string script = base::ReplaceStringPlaceholders(
         kInnerTextTreeJavaScript,
         base::span<const std::u16string>(
             {ios::provider::GetPageContextShouldDetachScript(),
-             maybeAnchorTagsJavaScript, base::UTF8ToUTF16(nonce)}),
+             kAnchorTagsJavaScript, base::UTF8ToUTF16(nonce)}),
         nullptr);
 
     // TODO(crbug.com/452568673): Refactor the force detach logic.
@@ -1191,11 +1189,8 @@ result.links = linksArray;
                            parentNode:_rootAPCNode->mutable_root_node()];
 
   // Set its children anchor nodes.
-  if (IsPageActionMenuEnabled()) {
-    [self
-        populateAnchorNodeChildrenWithValue:value
+  [self populateAnchorNodeChildrenWithValue:value
                                  parentNode:_rootAPCNode->mutable_root_node()];
-  }
 }
 
 // Populate a ContentNode with a TextInfo node and its correct values.
@@ -1283,9 +1278,7 @@ result.links = linksArray;
                            parentNode:childRootNode];
 
   // Create the children anchor nodes.
-  if (IsPageActionMenuEnabled()) {
-    [self populateAnchorNodeChildrenWithValue:value parentNode:childRootNode];
-  }
+  [self populateAnchorNodeChildrenWithValue:value parentNode:childRootNode];
 
   // Recursively populate the ContentNode subtree for any children iframes.
   // Child frame content will either be filled immediately or claimed for

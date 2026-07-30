@@ -55,6 +55,16 @@ public class ExtensionsMenuBridge implements Destroyable {
         return ExtensionsMenuBridgeJni.get().getMenuEntries(mNativeExtensionsMenuDelegateAndroid);
     }
 
+    /**
+     * Returns the menu entry state for the given extension index from native.
+     *
+     * @param actionIndex The index of the extension in the menu.
+     */
+    public ExtensionsMenuTypes.MenuEntryState getMenuEntry(int actionIndex) {
+        return ExtensionsMenuBridgeJni.get()
+                .getMenuEntry(mNativeExtensionsMenuDelegateAndroid, actionIndex);
+    }
+
     /** Returns the site settings state from native. */
     public ExtensionsMenuTypes.SiteSettingsState getSiteSettingsState() {
         return ExtensionsMenuBridgeJni.get().getSiteSettings(mNativeExtensionsMenuDelegateAndroid);
@@ -73,6 +83,16 @@ public class ExtensionsMenuBridge implements Destroyable {
     /** Returns whether the native menu model is ready. */
     public boolean isReady() {
         return ExtensionsMenuBridgeJni.get().isReady(mNativeExtensionsMenuDelegateAndroid);
+    }
+
+    /**
+     * Callback from native indicating that an action has been added.
+     *
+     * @param actionIndex The index of the menu entry in the menu corresponding to the action added.
+     */
+    @CalledByNative
+    public void onActionAdded(int actionIndex) {
+        mObserver.onActionAdded(actionIndex);
     }
 
     /**
@@ -98,6 +118,17 @@ public class ExtensionsMenuBridge implements Destroyable {
     }
 
     /**
+     * Callback from native indicating that an extension has been updated.
+     *
+     * @param actionIndex The index of the menu entry in the menu corresponding to the action
+     *     updated.
+     */
+    @CalledByNative
+    public void onActionUpdated(int actionIndex) {
+        mObserver.onActionUpdated(actionIndex);
+    }
+
+    /**
      * Callback from native indicating that the menu data is ready. This will not be called if the
      * menu data is ready at the menu bridge initialization.
      */
@@ -117,8 +148,14 @@ public class ExtensionsMenuBridge implements Destroyable {
         /** Called when an extension icon has been updated on actionIndex. */
         void onActionIconUpdated(int actionIndex);
 
+        /** Called when an action has been added to the menu. */
+        void onActionAdded(int actionIndex);
+
         /** Called when an action has been removed from the menu. */
         void onActionRemoved(int actionIndex);
+
+        /** Called when an extension has been updated on actionIndex. */
+        void onActionUpdated(int actionIndex);
 
         /** Called when the menu data is ready to be consumed. */
         void onReady();
@@ -151,6 +188,12 @@ public class ExtensionsMenuBridge implements Destroyable {
         @JniType("std::vector<base::android::ScopedJavaLocalRef<jobject>>")
         List<ExtensionsMenuTypes.MenuEntryState> getMenuEntries(
                 long nativeExtensionsMenuDelegateAndroid);
+
+        /**
+         * Returns the menu entry state corresponding to the extension at actionIndex from native.
+         */
+        ExtensionsMenuTypes.MenuEntryState getMenuEntry(
+                long nativeExtensionsMenuDelegateAndroid, int actionIndex);
 
         /** Returns whether the native menu model is ready. */
         boolean isReady(long nativeExtensionsMenuDelegateAndroid);

@@ -9,7 +9,6 @@
 #include "chrome/browser/actor/ui/actor_overlay_ui.h"
 #include "chrome/browser/chrome_browser_interface_binders_webui_parts.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks.mojom.h"
-#include "chrome/browser/contextual_tasks/contextual_tasks_context_service_factory.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_internals.mojom.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui.h"
 #include "chrome/browser/glic/selection/selection_overlay_untrusted_ui.h"
@@ -594,14 +593,10 @@ void PopulateChromeWebUIFrameBindersPartsDesktop(
   if (base::FeatureList::IsEnabled(private_ai::kPrivateAi)) {
     RegisterWebUIControllerInterfaceBinder<
         private_ai_internals::mojom::PrivateAiInternalsPageHandler,
-        PrivateAiInternalsUI>(map);
+        private_ai::PrivateAiInternalsUI>(map);
   }
 
-  auto* contextual_tasks_context_service =
-      contextual_tasks::ContextualTasksContextServiceFactory::GetForProfile(
-          Profile::FromBrowserContext(
-              render_frame_host->GetProcess()->GetBrowserContext()));
-  if (contextual_tasks_context_service) {
+  if (is_contextual_tasks_enabled) {
     RegisterWebUIControllerInterfaceBinder<
         contextual_tasks_internals::mojom::
             ContextualTasksInternalsPageHandlerFactory,
@@ -620,7 +615,12 @@ void PopulateChromeWebUIFrameBindersPartsDesktop(
 #endif  // BUILDFLAG(IS_MAC)
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS)
-  if (default_browser::IsDefaultBrowserFrameworkEnabled()) {
+  auto prompt_surface = default_browser::GetDefaultBrowserPromptSurface();
+
+  if (prompt_surface == default_browser::DefaultBrowserPromptSurface::
+                            kModalDialogWithoutSettingsIllustration ||
+      prompt_surface == default_browser::DefaultBrowserPromptSurface::
+                            kModalDialogWithSettingsIllustration) {
     RegisterWebUIControllerInterfaceBinder<
         default_browser_modal::mojom::PageHandlerFactory,
         DefaultBrowserModalUI>(map);

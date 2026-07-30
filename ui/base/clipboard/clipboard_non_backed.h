@@ -54,8 +54,8 @@ class COMPONENT_EXPORT(UI_BASE_CLIPBOARD) ClipboardNonBacked
       ClipboardBuffer buffer = ClipboardBuffer::kCopyPaste);
 
   // Clipboard overrides:
-  std::optional<DataTransferEndpoint> GetSource(
-      ClipboardBuffer buffer) const override;
+  void GetSource(ClipboardBuffer buffer,
+                 GetSourceCallback callback) const override;
   const ClipboardSequenceNumberToken& GetSequenceNumber(
       ClipboardBuffer buffer) const override;
 
@@ -80,9 +80,9 @@ class COMPONENT_EXPORT(UI_BASE_CLIPBOARD) ClipboardNonBacked
 
   // Clipboard overrides:
   void OnPreShutdown() override;
-  std::vector<std::u16string> GetStandardFormats(
-      ClipboardBuffer buffer,
-      const DataTransferEndpoint* data_dst) const override;
+  void GetStandardFormats(ClipboardBuffer buffer,
+                          const std::optional<DataTransferEndpoint>& data_dst,
+                          GetStandardFormatsCallback callback) const override;
   bool IsFormatAvailable(const ClipboardFormatType& format,
                          ClipboardBuffer buffer,
                          const DataTransferEndpoint* data_dst) const override;

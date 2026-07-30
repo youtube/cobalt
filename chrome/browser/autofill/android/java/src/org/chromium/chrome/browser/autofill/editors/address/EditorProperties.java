@@ -4,20 +4,13 @@
 
 package org.chromium.chrome.browser.autofill.editors.address;
 
-import static org.chromium.chrome.browser.autofill.editors.common.EditorComponentsProperties.isEditable;
-import static org.chromium.chrome.browser.autofill.editors.common.field.FieldProperties.ERROR_MESSAGE;
-import static org.chromium.chrome.browser.autofill.editors.common.field.FieldProperties.FOCUSED;
-import static org.chromium.chrome.browser.autofill.editors.common.field.FieldProperties.VALIDATOR;
-
 import android.app.Activity;
 
 import org.chromium.base.Callback;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.autofill.editors.common.EditorComponentsProperties.EditorItem;
 import org.chromium.ui.modelutil.ListModel;
-import org.chromium.ui.modelutil.MVCListAdapter.ListItem;
 import org.chromium.ui.modelutil.PropertyKey;
-import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModel.ReadableBooleanPropertyKey;
 import org.chromium.ui.modelutil.PropertyModel.ReadableIntPropertyKey;
 import org.chromium.ui.modelutil.PropertyModel.ReadableObjectPropertyKey;
@@ -81,49 +74,4 @@ public class EditorProperties {
     };
 
     private EditorProperties() {}
-
-    public static boolean validateForm(PropertyModel editorModel) {
-        boolean isValid = true;
-        for (ListItem item : editorModel.get(EditorProperties.EDITOR_FIELDS)) {
-            if (!isEditable(item)) {
-                continue;
-            }
-            if (item.model.get(VALIDATOR) == null) {
-                continue;
-            }
-            item.model.get(VALIDATOR).validate(item.model);
-            isValid &= item.model.get(ERROR_MESSAGE) == null;
-        }
-        return isValid;
-    }
-
-    public static void scrollToFieldWithErrorMessage(PropertyModel editorModel) {
-        // Check if a field with an error is already focused.
-        ListModel<EditorItem> fields = editorModel.get(EditorProperties.EDITOR_FIELDS);
-        for (EditorItem item : fields) {
-            if (!isEditable(item)) {
-                continue;
-            }
-            if (item.model.get(FOCUSED) && item.model.get(ERROR_MESSAGE) != null) {
-                // Hack: Although the field is focused, it may be off screen. Toggle FOCUSED in
-                // order to scroll the field into view.
-                item.model.set(FOCUSED, false);
-                item.model.set(FOCUSED, true);
-                return;
-            }
-        }
-
-        // Focus first field with an error.
-        for (EditorItem item : fields) {
-            if (!isEditable(item)) {
-                continue;
-            }
-            if (item.model.get(ERROR_MESSAGE) != null) {
-                item.model.set(FOCUSED, true);
-                break;
-            }
-            // The field (ex {@link TextFieldView}) is responsible for clearing FOCUSED property
-            // when the field loses focus.
-        }
-    }
 }

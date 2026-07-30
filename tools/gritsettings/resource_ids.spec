@@ -389,6 +389,10 @@
     "META": {"sizes": {"includes": [15]}},
     "includes": [3760],
   },
+  "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/content_annotator_internals/resources.grd": {
+    "META": {"sizes": {"includes": [10]}},
+    "includes": [3765],
+  },
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/contextual_tasks/resources.grd": {
     "META": {"sizes": {"includes": [50]}},
     "includes": [3770],
@@ -606,7 +610,7 @@
     "includes": [4660],
   },
    "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/webui_toolbar/resources.grd": {
-    "META": {"sizes": {"includes": [20]}},
+    "META": {"sizes": {"includes": [30]}},
     "includes": [4670],
   },
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/sandbox_internals/resources.grd": {

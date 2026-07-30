@@ -330,6 +330,15 @@ class MockBrowserAutofillManager : public TestBrowserAutofillManager {
                AutofillTriggerSource),
               (override));
   MOCK_METHOD(void,
+              FillOrPreviewFields,
+              (mojom::ActionPersistence,
+               const FormData&,
+               const FieldGlobalId&,
+               const FillingPayload&,
+               AutofillTriggerSource,
+               const base::flat_set<FieldGlobalId>&),
+              (override));
+  MOCK_METHOD(void,
               FillOrPreviewField,
               (mojom::ActionPersistence,
                mojom::FieldActionType,
@@ -614,6 +623,15 @@ TEST_F(AutofillExternalDelegateTest, GetMainFillingProduct) {
                                 u"save and fill suggestion")});
   EXPECT_EQ(external_delegate().GetMainFillingProduct(),
             FillingProduct::kCreditCard);
+}
+
+TEST_F(AutofillExternalDelegateTest, AtMemoryDoesNotHideOnEmptySuggestions) {
+  IssueOnQuery(AutofillSuggestionTriggerSource::kAtMemory);
+
+  EXPECT_CALL(autofill_client(), HideAutofillSuggestions).Times(0);
+
+  // Return empty suggestions.
+  OnSuggestionsReturned(queried_field().global_id(), {});
 }
 
 // Test that our external delegate called the virtual methods at the right time.

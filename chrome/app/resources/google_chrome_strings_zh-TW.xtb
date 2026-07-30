@@ -72,6 +72,7 @@
 <translation id="1698376642261615901">Google Chrome 瀏覽器開啟網頁和執行應用程式的速度奇快無比！除了執行速度迅速、穩定且容易使用之外，內建防護機制還可讓你安心瀏覽網頁，無需擔心受到網路釣魚與惡意軟體的威脅。</translation>
 <translation id="1713301662689114961">{0,plural, =1{Chrome 將在 1 小時後重新啟動}other{Chrome 將在 # 小時後重新啟動}}</translation>
 <translation id="1722488837206509557">這樣你就能選取可用裝置，並在這些裝置上顯示內容。</translation>
+<translation id="177180974022074201">試用 Chrome 內建 Gemini</translation>
 <translation id="1786003790898721085">請確認你已在「<ph name="TARGET_DEVICE_NAME" />」上登入 Chrome，然後再傳送一次。</translation>
 <translation id="1786044937610313874">在 Chrome 中開啟捷徑</translation>
 <translation id="178701303897325119">Chrome 不再支援這項擴充功能，建議你移除。</translation>
@@ -221,6 +222,7 @@
 <translation id="3226612997184048185">如果一併將書籤儲存在 Google 帳戶中，就可以在 Chrome 中追蹤產品價格，並在降價時收到通知</translation>
 <translation id="3242123554343253302">新增 Chrome 設定檔</translation>
 <translation id="3245429137663807393">如果你一併提供 Chrome 使用報告，這些報告中會包含你造訪的網址</translation>
+<translation id="3259748324892322072">下載 Chrome 應用程式</translation>
 <translation id="3286538390144397061">立即重新啟動</translation>
 <translation id="3292333338048274092">接著，你必須重新啟動 Chrome。</translation>
 <translation id="3324218984287646518">向 Google 智慧鏡頭詢問這部影片的相關問題</translation>
@@ -278,7 +280,6 @@
 <translation id="3892148308691398805">複製文字</translation>
 <translation id="3893985792899396936">Chrome 提示：使用智慧鏡頭搜尋</translation>
 <translation id="3906096710440765802">只要登入 Chrome，即可在所有裝置上使用你的密碼、書籤和其他資料</translation>
-<translation id="3921132130819999051">讓 Chrome 幫你瀏覽網頁</translation>
 <translation id="3941890832296813527">安裝錯誤：安裝程式檔案名稱無效或不受支援。</translation>
 <translation id="395904275706073188">受保護的頁面無法讀取，請試試其他頁面。</translation>
 <translation id="3968962723676998462">請輸入通關密語，才能將 Chrome 資料儲存到帳戶 (<ph name="ACCOUNT_EMAIL" />)，或使用帳戶中的 Chrome 資料</translation>
@@ -491,7 +492,6 @@ Google Chrome 無法復原你的設定。</translation>
 <translation id="6173637689840186878"><ph name="PAGE_TITLE" /> - Google Chrome Beta 版</translation>
 <translation id="6180522807229584611">這個分頁使用的資源過多。為提升效能，請讓 Chrome 將其設為閒置分頁。</translation>
 <translation id="6182736845697986886">更新伺服器發生內部錯誤，因此安裝失敗。</translation>
-<translation id="6183773856988300112">Chrome 內建 Gemini 使用自動瀏覽功能，能在分頁中完成你交辦的工作。<ph name="LINK_BEGIN" />瞭解詳情<ph name="LINK_END" /></translation>
 <translation id="6187085551300363958">Chrome 提示：儲存密碼</translation>
 <translation id="6192058120268468905">你在 Chrome 中的帳戶</translation>
 <translation id="6220551899604141979">「<ph name="PARTNER_NAME" />」新增了一個擴充功能，可能會改變 Chrome 的運作方式。
@@ -527,6 +527,7 @@ Google Chrome 無法復原你的設定。</translation>
 <translation id="6481963882741794338">連結 Chrome 和其他 Google 服務，用於個人化等用途</translation>
 <translation id="648319183876919572">安全瀏覽強化防護功能可進一步協助你防範危險的網站和下載內容</translation>
 <translation id="6489302989675808168">已開啟 • Chrome 無法驗證這個擴充功能的來源</translation>
+<translation id="6491330562720922580">QR code，連結至 Chrome 行動版應用程式的下載頁面</translation>
 <translation id="6493527311031785448">Google Chrome 正在嘗試<ph name="AUTHENTICATION_PURPOSE" /></translation>
 <translation id="6497147134301593682">Chrome 已自動關閉</translation>
 <translation id="6506909944137591434">Chrome 需要相機權限，才能根據你的周遭環境製作 3D 地圖</translation>
@@ -710,7 +711,7 @@ Google Chrome 無法復原你的設定。</translation>
 <translation id="8321888067342493336">另存成圖片</translation>
 <translation id="8336463659890584292">當網站要求以私密方式預先載入網頁上的連結時，Chrome 會使用 Google 伺服器進行預先載入作業。這麼做可在預先載入網站中隱藏你的身分，但 Google 會知道這類網站預先載入的內容。</translation>
 <translation id="8342675569599923794">這個檔案並不安全，因此遭到 Chrome 封鎖。</translation>
-<translation id="835927394551949760">向 Google 提問</translation>
+<translation id="835927394551949760">問問 Google</translation>
 <translation id="8362914115861174987">譯文語言：</translation>
 <translation id="8366770919198174997">降低效能但提高 Chrome 防範攻擊的能力</translation>
 <translation id="8367705492654390392">提出問題</translation>

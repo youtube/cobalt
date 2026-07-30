@@ -92,9 +92,7 @@ class MockRenderProcessHost : public RenderProcessHost {
   int VisibleClientCount() override;
   unsigned int GetFrameDepth() override;
   bool GetIntersectsViewport() override;
-#if !BUILDFLAG(IS_ANDROID)
-  bool IsForInitialWebUI() const override;
-#endif  // !BUILDFLAG(IS_ANDROID)
+  bool IsForTopChromeWebUI() const override;
   bool IsForGuestsOnly() override;
   bool IsJitDisabled() override;
   bool AreV8OptimizationsDisabled() override;
@@ -116,7 +114,8 @@ class MockRenderProcessHost : public RenderProcessHost {
                               bool skip_unload_handlers,
                               bool ignore_workers,
                               bool ignore_keep_alive,
-                              bool ignore_pending_reuse) override;
+                              bool ignore_pending_reuse,
+                              bool use_outermost_main_frame_check) override;
   bool FastShutdownStarted() override;
   const base::Process& GetProcess() override;
   bool IsReady() override;
@@ -298,6 +297,10 @@ class MockRenderProcessHost : public RenderProcessHost {
 
   void set_priority(base::Process::Priority priority) { priority_ = priority; }
 
+  void SetIsForTopChromeWebUI(bool is_for_top_chrome_web_ui) {
+    is_for_top_chrome_web_ui_ = is_for_top_chrome_web_ui;
+  }
+
   void SetProcess(base::Process&& new_process) {
     process = std::move(new_process);
   }
@@ -343,6 +346,7 @@ class MockRenderProcessHost : public RenderProcessHost {
   bool is_for_guests_only_;
   base::Process::Priority priority_;
   bool is_unused_;
+  bool is_for_top_chrome_web_ui_ = false;
   bool is_ready_ = false;
   base::Process process;
   int pending_view_count_;

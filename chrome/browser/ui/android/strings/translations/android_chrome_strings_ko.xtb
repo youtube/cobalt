@@ -56,6 +56,7 @@
 <translation id="1197267115302279827">북마크 이동</translation>
 <translation id="1197761954713363183">패스키 확인 시트 닫힘</translation>
 <translation id="1197933394627598677">읽기 모드 표시</translation>
+<translation id="1197935538609051549">비활성화</translation>
 <translation id="1201402288615127009">다음</translation>
 <translation id="1202892408424955784">추적 중인 제품</translation>
 <translation id="1204037785786432551">링크 다운로드</translation>
@@ -178,7 +179,6 @@ Chrome 환경을 개선하는 데 데이터를 사용하는 설정을 더 보려
 <translation id="1750238553597293878">Google 계정의 비밀번호를 계속 사용하세요.</translation>
 <translation id="17513872634828108">열린 탭</translation>
 <translation id="1753744496844366747">Aa</translation>
-<translation id="1755203724116202818">광고 실적을 측정하기 위해 제한된 유형의 데이터(예: 사이트 방문 후 구매했는지)가 사이트 간에 공유됩니다.</translation>
 <translation id="1760873718737761808">{FILE_COUNT,plural, =1{페이지, 목록에 있는 페이지 1개}other{페이지, 목록에 있는 페이지 #개}}</translation>
 <translation id="1771929606532798550">Chrome 사용에 관한 정보가 Google로 전송되지만 사용자와 연결되지 않습니다.\n\nChrome이 다운되면 관련 정보에 일부 개인 정보가 포함될 수 있습니다.\n\n방문 기록을 Google 계정에 동기화하면 측정항목에 내가 방문한 URL에 관한 정보도 포함될 수 있습니다.</translation>
 <translation id="1778457539567749232">읽지 않은 상태로 표시</translation>
@@ -286,6 +286,7 @@ Chrome 환경을 개선하는 데 데이터를 사용하는 설정을 더 보려
 <translation id="2230777942707397948">빈 창</translation>
 <translation id="223356358902285214">웹 및 앱 활동</translation>
 <translation id="2233735624724508540">기간을 선택한 후 데이터 삭제를 탭합니다.</translation>
+<translation id="2234031676056123135">단축키 맞춤설정</translation>
 <translation id="2234827758954819389">개인 정보 보호 가이드</translation>
 <translation id="2238038374973843156">그룹을 다른 창으로 이동</translation>
 <translation id="2239812875700136898">디스커버 버튼 옵션으로 새 탭 페이지에 표시될 뉴스를 관리하세요</translation>
@@ -319,6 +320,7 @@ Chrome 환경을 개선하는 데 데이터를 사용하는 설정을 더 보려
 <translation id="2385605401818128172">알림을 많이 보내는 사이트를 검토하고, 향후 알림을 보내지 못하도록 할 수 있습니다.</translation>
 <translation id="2386938421315164605">주제 숨기기 및 숨기기 해제</translation>
 <translation id="2390510615457643724"><ph name="FILE_NAME" />(<ph name="FILE_SIZE" />) 파일을 다시 다운로드하시겠습니까?</translation>
+<translation id="2392369802118427583">활성화</translation>
 <translation id="2397175985681716533"><ph name="TAB_TITLE" />, 녹화 중인 시크릿 탭</translation>
 <translation id="2410754283952462441">계정 선택</translation>
 <translation id="2411239243988279592"><ph name="TAB_TITLE" />, 선택되고 청취 가능한 탭</translation>
@@ -478,7 +480,6 @@ Chrome 환경을 개선하는 데 데이터를 사용하는 설정을 더 보려
 <translation id="2992473221983447149">이미지 설명</translation>
 <translation id="2996291259634659425">암호 만들기</translation>
 <translation id="2996809686854298943">URL이 필요합니다.</translation>
-<translation id="3008916997590006706">다음에 로그인할 때 이 비밀번호를 자동으로 입력하려면 저장을 탭하세요.</translation>
 <translation id="3024215143424744261">읽기 모드 환경설정 닫힘</translation>
 <translation id="3026955690410463085">링크 포함</translation>
 <translation id="3027644380269727216">사이트 내 활동을 기반으로 추천됩니다. 이 설정을 사용하고 있습니다.</translation>
@@ -491,6 +492,7 @@ Chrome 환경을 개선하는 데 데이터를 사용하는 설정을 더 보려
 <translation id="3037177537145227281">가격 추적</translation>
 <translation id="3037517125981011456">Chrome에 로그인하기 위한 메시지를 표시합니다.</translation>
 <translation id="3038272154009688107">모든 사이트 보기</translation>
+<translation id="3057938290530993634">다음에 쉽게 액세스할 수 있도록 자주 방문하는 웹사이트를 고정하려면 길게 탭하세요.</translation>
 <translation id="3060635849835183725">{BOOKMARKS_COUNT,plural, =1{북마크 <ph name="BOOKMARKS_COUNT_ONE" />개}other{북마크 <ph name="BOOKMARKS_COUNT_MANY" />개}}</translation>
 <translation id="3062802207422175757">Chrome에서 관심분야 기사를 읽어보세요.</translation>
 <translation id="3066573403916685335">아래로 이동</translation>
@@ -505,6 +507,7 @@ Chrome 환경을 개선하는 데 데이터를 사용하는 설정을 더 보려
 <translation id="3122883569442693641">세부정보 더보기</translation>
 <translation id="3123734510202723619">공지사항</translation>
 <translation id="3134385238404760368">최근 탭 없음</translation>
+<translation id="3135655388926735587">최근 탭을 탭합니다</translation>
 <translation id="314939179385989105">Chrome 홈페이지</translation>
 <translation id="3158667104057012316">직접 정렬</translation>
 <translation id="3159335509547415276">차단된 계정에 관해 자세히 알아보기</translation>
@@ -550,6 +553,7 @@ Chrome 환경을 개선하는 데 데이터를 사용하는 설정을 더 보려
 <translation id="333863344734218290">안전하지 않은 공개 및 비공개 사이트에 대해 경고 표시</translation>
 <translation id="3340978935015468852">설정</translation>
 <translation id="3341262203274374114">팔로우를 해제할 수 없습니다. 문제가 발생했습니다.</translation>
+<translation id="3351959803838327376">웹사이트를 길게 누르고 메뉴를 엽니다.</translation>
 <translation id="3359667936385849800">현재 서비스 제공업체 사용</translation>
 <translation id="3373701465337594448">이 설정을 사용하면 내 관심분야를 추측하는 내가 방문한 사이트 목록이 여기에 표시됩니다.</translation>
 <translation id="3384347053049321195">이미지 공유</translation>
@@ -566,7 +570,6 @@ Chrome 환경을 개선하는 데 데이터를 사용하는 설정을 더 보려
 <translation id="3444179773590444986">사이트의 어두운 테마에 관한 의견을 공유할까요?</translation>
 <translation id="3448874648066942074">AI로 페이지 요약</translation>
 <translation id="3452832259067974318">Chrome에서는 개인 정보 보호를 위해 이 입력란의 비밀번호를 자동 완성하지 않습니다.</translation>
-<translation id="3467081767799433066">광고 측정을 사용하면 광고 실적을 측정하기 위해 제한된 유형의 데이터(예: 사이트 방문 후 구매했는지)가 사이트 간에 공유됩니다.</translation>
 <translation id="3474624961160222204"><ph name="NAME" /> 계정으로 계속</translation>
 <translation id="3478363558367712427">검색엔진을 선택할 수 있습니다.</translation>
 <translation id="3482805106082349287">키보드, 음성, 시크릿 모드 또는 카메라를 사용하여 검색</translation>
@@ -592,6 +595,7 @@ Chrome 환경을 개선하는 데 데이터를 사용하는 설정을 더 보려
 <translation id="3549537543136628349">미리 로드된 페이지는 암호화되어 있으며, 페이지로 연결하는 사이트 또는 앱이 Google 사이트 또는 앱이므로 이러한 페이지를 비공개로 미리 로드할 때 Google 서버에 새로운 정보가 수신되지 않습니다.</translation>
 <translation id="3549657413697417275">방문 기록 검색</translation>
 <translation id="3557336313807607643">주소록에 추가</translation>
+<translation id="3560831525486613327">새 탭 페이지를 엽니다.</translation>
 <translation id="3563767357928833671">클립보드 콘텐츠 표시됨</translation>
 <translation id="3566639033325271639">설정 업데이트</translation>
 <translation id="3568945271227339929">유출된 비밀번호 없음</translation>
@@ -742,6 +746,7 @@ Chrome 환경을 개선하는 데 데이터를 사용하는 설정을 더 보려
 <translation id="4198423547019359126">사용할 수 있는 다운로드 위치가 없음</translation>
 <translation id="4209029522667123437"><ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> • 이 사이트에서 사용</translation>
 <translation id="4214315110991671325">사용자가 쿠키를 허용하면 Chrome에서 미리 로드할 때 쿠키를 사용할 수 있습니다.</translation>
+<translation id="421517251707893998">이 바로가기 고정을 탭합니다.</translation>
 <translation id="4216511743389425832">이 페이지의 내용 듣기</translation>
 <translation id="4225725533026049334">팔로우 중</translation>
 <translation id="4225895483398857530">툴바 바로가기</translation>
@@ -848,6 +853,7 @@ Chrome 환경을 개선하는 데 데이터를 사용하는 설정을 더 보려
 <translation id="4640331037679501949">{NUM_PASSWORDS,plural, =1{유출된 비밀번호 1개}other{유출된 비밀번호 #개}}</translation>
 <translation id="4641919525231168205">다음 페이지로 이동</translation>
 <translation id="4642472735733036929">가격 추적이 중지됨</translation>
+<translation id="4649493483932335039">최근 탭 보기</translation>
 <translation id="465657074423018424">세이프 브라우징은 사기성 웹사이트로부터 사용자를 보호합니다. 이 기능을 사용 중지하는 경우 인터넷을 탐색할 때, 특히 비밀번호를 입력할 때 주의하시기 바랍니다.</translation>
 <translation id="4662373422909645029">닉네임에 숫자를 포함할 수 없음</translation>
 <translation id="4663756553811254707">북마크 <ph name="NUMBER_OF_BOOKMARKS" />개 삭제됨</translation>
@@ -887,7 +893,6 @@ Chrome 환경을 개선하는 데 데이터를 사용하는 설정을 더 보려
 <translation id="4763480195061959176">동영상</translation>
 <translation id="4766313118839197559">비밀번호가 이 기기의 비밀번호 관리자에 저장됩니다.</translation>
 <translation id="4766678251456904326">기기에 계정 추가</translation>
-<translation id="4767947714785277816">광고 측정이라는 새로운 광고 개인 정보 보호 기능이 출시됩니다. Chrome에서 광고가 사용자에게 게시된 시기 등의 제한된 정보만 사이트 및 앱 간에 공유되어 광고 실적을 측정하도록 돕습니다.</translation>
 <translation id="4769095993849849966">새 파일 이름</translation>
 <translation id="4769632191812288342">표준 보호 모드를 사용 중입니다</translation>
 <translation id="4773122030389014189">'<ph name="GROUP_NAME" />' 탭 그룹 공유</translation>
@@ -1108,7 +1113,6 @@ Chrome 환경을 개선하는 데 데이터를 사용하는 설정을 더 보려
 <translation id="572328651809341494">최근 탭</translation>
 <translation id="5728072125198221967">연결된 Google 서비스</translation>
 <translation id="5734658507307260911"><ph name="TAB_TITLE" />, 고정되고 청취 가능한 시크릿 탭</translation>
-<translation id="5736345781200955827">Chrome을 사용하여 사이트와 앱에 쉽게 로그인할 수 있도록 비밀번호를 만들고, 저장하고, 관리하세요.</translation>
 <translation id="5744751019568455640">다음은 웹페이지를 소리 내어 읽을 때 사용하실 수 있는 음성입니다. 이 음성이 마음에 들어 계속 사용하고 싶다면 음성 이름을 탭하세요.</translation>
 <translation id="574845902699630049"><ph name="OWNER_FULL_NAME" /> 이름으로 공유</translation>
 <translation id="5749068826913805084">Chrome에서 파일을 다운로드하려면 저장소 액세스 권한이 있어야 합니다.</translation>
@@ -1186,6 +1190,7 @@ Chrome 환경을 개선하는 데 데이터를 사용하는 설정을 더 보려
 <translation id="6040143037577758943">닫기</translation>
 <translation id="604124094241169006">자동</translation>
 <translation id="6042308850641462728">더보기</translation>
+<translation id="6047066316630165190">그리드 탭 전환 도구 열기</translation>
 <translation id="604996488070107836">알 수 없는 오류로 인해 <ph name="FILE_NAME" /> 다운로드에 실패했습니다.</translation>
 <translation id="605721222689873409">YY</translation>
 <translation id="6059830886158432458">여기에서 스토리 및 활동을 관리하세요.</translation>
@@ -1259,6 +1264,7 @@ Chrome 환경을 개선하는 데 데이터를 사용하는 설정을 더 보려
 <translation id="6301526076346731664">개발자 도구 열기</translation>
 <translation id="630308129961693966">주소 표시줄 위치 선택</translation>
 <translation id="6303969859164067831">로그아웃하고 동기화 사용 중지</translation>
+<translation id="6305257382500066042">지금 사용해 보기</translation>
 <translation id="6307241780749477694">이 기기에서 모든 비밀번호를 가져오려면 본인 인증을 진행하세요.</translation>
 <translation id="6309082029962045994"><ph name="TAB_TITLE" />, 여러 개 선택되고 고정되고 청취 가능한 탭</translation>
 <translation id="6312687380483398334">웹 앱(무음)</translation>
@@ -1320,6 +1326,7 @@ Chrome 환경을 개선하는 데 데이터를 사용하는 설정을 더 보려
 <translation id="6508722015517270189">Chrome 다시 시작하기</translation>
 <translation id="6513924416597632811"><ph name="SEARCH_QUERY" />에 대한 검색 결과 페이지 링크를 복사합니다. 출처: <ph name="PAGE_URL" /></translation>
 <translation id="6518133107902771759">확인</translation>
+<translation id="6521218807522232085">쉽게 로그인할 수 있도록 비밀번호를 만들고, 저장하고, 관리하세요</translation>
 <translation id="6527303717912515753">공유</translation>
 <translation id="652948702951888897">Chrome 방문 기록</translation>
 <translation id="6532866250404780454">Chrome에서 방문한 사이트가 표시되지 않습니다. 모든 사이트 타이머가 삭제됩니다.</translation>
@@ -1333,7 +1340,6 @@ Chrome 환경을 개선하는 데 데이터를 사용하는 설정을 더 보려
 <translation id="6556501700899673703">Lexend</translation>
 <translation id="6560414384669816528">Sogou로 검색</translation>
 <translation id="656065428026159829">더보기</translation>
-<translation id="6564820424018738527">Android 기기에 비슷한 설정이 포함되어 있을 수 있습니다. Chrome과 Android 기기에서 광고 측정이 사용 설정되어 있으면 회사에서 사용자가 방문하는 웹사이트와 사용하는 앱에서 광고 효과를 측정할 수 있습니다.</translation>
 <translation id="6565959834589222080">가능한 경우 Wi-Fi가 사용됨</translation>
 <translation id="6569373978618239158">이제 새 탭을 열 때 <ph name="SITE_NAME" /> 스토리가 표시됩니다. 내가 팔로우하는 사이트는 Google 계정에 저장되며 디스커버 설정에서 관리할 수 있습니다.</translation>
 <translation id="657177046675873214">어느 기기에서나 내 북마크를 사용하려면 설정에서 ‘북마크’를 사용 설정하세요.</translation>
@@ -1369,6 +1375,7 @@ Chrome 환경을 개선하는 데 데이터를 사용하는 설정을 더 보려
 <translation id="6684262542644248484">웹사이트에 로그인합니다.</translation>
 <translation id="6684809838922667136">Chrome 개선에 참여</translation>
 <translation id="6689436252814043643">읽기 모드를 사용할 수 없습니다.</translation>
+<translation id="669971068476817798">저장을 탭합니다.</translation>
 <translation id="6700279777779583398">선택사항 저장됨</translation>
 <translation id="670498945988402717">어제 확인됨</translation>
 <translation id="6710213216561001401">이전</translation>
@@ -1478,6 +1485,7 @@ Chrome 환경을 개선하는 데 데이터를 사용하는 설정을 더 보려
 <translation id="7054588988317389591">이미지 설명을 표시하시겠습니까?</translation>
 <translation id="7057969023583258980">전체 Chrome 방문 기록 열기</translation>
 <translation id="7063006564040364415">동기화 서버에 연결할 수 없습니다.</translation>
+<translation id="7063106218165698546">탭 그룹을 맞춤설정하고 완료를 탭합니다.</translation>
 <translation id="7071521146534760487">계정 관리</translation>
 <translation id="707155805709242880">아래에서 동기화할 대상을 선택하세요.</translation>
 <translation id="7077143737582773186">SD 카드</translation>
@@ -1545,7 +1553,6 @@ Chrome 환경을 개선하는 데 데이터를 사용하는 설정을 더 보려
 <translation id="7291910923717764901">이 페이지에 추가된 이미지 설명</translation>
 <translation id="7293429513719260019">언어 선택</translation>
 <translation id="7298319215489933099"><ph name="TAB_TITLE" />, 선택되고 고정되고 공유 중인 탭</translation>
-<translation id="7304072650267745798">Android 기기에 비슷한 설정이 포함되어 있을 수 있습니다. Chrome과 Android 기기에서 이 설정을 사용 설정하면 사용자가 방문하는 웹사이트와 사용하는 앱에서 광고 효과를 측정할 수 있습니다.</translation>
 <translation id="7311244614769792472">검색 결과 없음</translation>
 <translation id="7313188324932846546">동기화를 설정하려면 탭하세요.</translation>
 <translation id="7314734791127433392">비밀번호를 확인할 수 없음</translation>
@@ -1562,6 +1569,7 @@ Chrome 환경을 개선하는 데 데이터를 사용하는 설정을 더 보려
 <translation id="7363349185727752629">개인 정보 보호 선택 가이드</translation>
 <translation id="7364103838544876661">인터넷 사용 기록 삭제 옵션 더보기</translation>
 <translation id="7365073365123878797">Google 비밀번호 관리자로 비밀번호를 저장하고 사용하려면 Google Play 서비스를 업데이트하세요.</translation>
+<translation id="7368009310682364976">최근에 연 탭 보기</translation>
 <translation id="7368927539449986686">사이트 검색 편집</translation>
 <translation id="7375125077091615385">유형:</translation>
 <translation id="7376560087009844242">페이지 텍스트를 더 많이 포함하면 터치하여 검색 기능을 사용할 때 더 나은 검색결과를 확인할 수 있습니다. 이를 변경하려면 언제든지 <ph name="BEGIN_LINK" />설정<ph name="END_LINK" />을 방문하세요.</translation>
@@ -1679,6 +1687,7 @@ Chrome 환경을 개선하는 데 데이터를 사용하는 설정을 더 보려
 <translation id="7824665136384946951">조직에서 세이프 브라우징을 사용 중지했습니다.</translation>
 <translation id="7826342993930002256">어디에서나 나만의 Chrome을 사용하세요</translation>
 <translation id="7844171778363018843">동기화할 데이터 선택 안됨</translation>
+<translation id="784453721355882533">Chrome의 Gemini를 사용해 답변을 얻고 핵심 내용 등을 확인하세요.</translation>
 <translation id="7846161022626028328">오류가 발생했습니다. 다시 시도하세요.</translation>
 <translation id="7846296061357476882">Google 서비스</translation>
 <translation id="784652447248278262">현재 창</translation>
@@ -1688,6 +1697,7 @@ Chrome 환경을 개선하는 데 데이터를 사용하는 설정을 더 보려
 <translation id="7853202427316060426">활동</translation>
 <translation id="7859988229622350291">번역 안 함</translation>
 <translation id="7866213166286285359">여기에 페이지 번역하기</translation>
+<translation id="7873610418439765081">Chrome의 Gemini를 사용해 보세요. '옵션 더보기' 버튼을 눌러 답변을 얻고 핵심 내용 등을 확인할 수 있습니다.</translation>
 <translation id="7875915731392087153">이메일 작성</translation>
 <translation id="7876243839304621966">모두 삭제</translation>
 <translation id="7886917304091689118">Chrome에서 실행 중</translation>
@@ -1738,6 +1748,7 @@ Chrome 환경을 개선하는 데 데이터를 사용하는 설정을 더 보려
 <translation id="8062594758852531064">확장된 미리 로드:</translation>
 <translation id="8063895661287329888">북마크를 추가하지 못했습니다.</translation>
 <translation id="8066816452984416180">이 페이지를 빠르게 북마크에 추가합니다. 바로가기를 수정하려면 길게 터치하세요.</translation>
+<translation id="8072436850275034464">Chrome을 사용하면 어디서나 최근에 닫은 탭을 다시 열 수 있습니다</translation>
 <translation id="8073388330009372546">새 탭에서 이미지 열기</translation>
 <translation id="8076492880354921740">탭</translation>
 <translation id="8078096376109663956">텍스트만 공유하세요.</translation>
@@ -1846,8 +1857,10 @@ Chrome 환경을 개선하는 데 데이터를 사용하는 설정을 더 보려
 <translation id="8458341576712814616">바로가기</translation>
 <translation id="8458413889418591446">방문한 사이트로 빠르게 돌아가려면 방문 기록과 탭을 동기화하세요.</translation>
 <translation id="84594714173170813">Google 계정의 Chrome 데이터를 계속 사용하세요.</translation>
+<translation id="8460008946585880786">탭을 다른 탭 위로 드래그 앤 드롭하세요</translation>
 <translation id="8460448946170646641">주요 개인 정보 보호 및 보안 제어 기능 검토</translation>
 <translation id="8460932807646981183">검색엔진 및 사이트 검색 관리</translation>
+<translation id="8465252176946159372">잘못된 값입니다.</translation>
 <translation id="8473863474539038330">주소 및 기타</translation>
 <translation id="847433688444405067">여러 기기에서 탐색하기</translation>
 <translation id="8477178913400731244">데이터 삭제</translation>

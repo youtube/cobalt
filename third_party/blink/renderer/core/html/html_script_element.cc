@@ -244,12 +244,11 @@ void HTMLScriptElement::setTextContent(const String& string) {
   Node::setTextContent(string);
 }
 
-V8UnionStringOrTrustedScript* HTMLScriptElement::scriptTextContentForBinding() {
+String HTMLScriptElement::scriptTextContentForBinding() {
   return textContentForBinding();
 }
 
-V8UnionStringLegacyNullToEmptyStringOrTrustedScript*
-HTMLScriptElement::scriptInnerTextForBinding() {
+String HTMLScriptElement::scriptInnerTextForBinding() {
   return innerTextForBinding();
 }
 
@@ -272,9 +271,8 @@ void HTMLScriptElement::setTextWithoutTrustedTypes(const String& value) {
   setTextContent(value);
 }
 
-V8UnionTrustedScriptURLOrUSVString* HTMLScriptElement::src() {
-  return MakeGarbageCollected<V8UnionTrustedScriptURLOrUSVString>(
-      GetURLAttribute(html_names::kSrcAttr));
+String HTMLScriptElement::src() {
+  return GetURLAttribute(html_names::kSrcAttr);
 }
 
 void HTMLScriptElement::setSrc(const V8UnionTrustedScriptURLOrUSVString* value,

@@ -246,6 +246,7 @@ const InterpolationTypes* InterpolationTypesMap::Get(
       case CSSPropertyID::kOpacity:
       case CSSPropertyID::kOrder:
       case CSSPropertyID::kOrphans:
+      case CSSPropertyID::kPathLength:
       case CSSPropertyID::kReadingOrder:
       case CSSPropertyID::kShapeImageThreshold:
       case CSSPropertyID::kStopOpacity:
@@ -294,6 +295,7 @@ const InterpolationTypes* InterpolationTypesMap::Get(
       case CSSPropertyID::kStopColor:
       case CSSPropertyID::kTextDecorationColor:
       case CSSPropertyID::kTextEmphasisColor:
+      case CSSPropertyID::kWebkitTextFillColor:
       case CSSPropertyID::kWebkitTextStrokeColor:
         applicable_types->push_back(
             MakeGarbageCollected<CSSColorInterpolationType>(property));

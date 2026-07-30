@@ -198,6 +198,7 @@ class AutofillAiSuggestionGeneratorTest : public testing::Test {
   static std::vector<base::test::FeatureRef> GetDefaultEnabledFeatures() {
     return {features::kAutofillAiWithDataSchema,
             features::kAutofillAiServerModel,
+            features::kAutofillAiWalletPrivatePasses,
             features::kAutofillAiWalletFlightReservation};
   }
 
@@ -944,6 +945,7 @@ class AutofillAiSuggestionGeneratorSplitManageSuggestionTest
     auto features = GetDefaultEnabledFeatures();
     features.push_back(
         autofill::features::kSuggestionManageButtonSplitForEnhancedAutofill);
+    features.push_back(autofill::features::kYourSavedInfoSettingsPage);
     return features;
   }
 };

@@ -83,6 +83,8 @@ class PageInfoDelegate {
   CreateCookieControlsController() = 0;
 
   virtual bool IsIsolatedWebApp() = 0;
+  virtual bool IsSubApp() = 0;
+  virtual bool HasSubApps() = 0;
   virtual void ShowSiteSettings(const GURL& site_url) = 0;
   virtual void ShowCookiesSettings() = 0;
   virtual void ShowAllSitesSettingsFilteredByRwsOwner(
@@ -136,6 +138,11 @@ class PageInfoDelegate {
 #endif
   virtual bool IsHttpsFirstModeEnabled() = 0;
   virtual bool IsIncognitoProfile() = 0;
+  // Returns whether the Local Network Access split permissions feature is
+  // enabled. When enabled, LOCAL_NETWORK and LOOPBACK_NETWORK permissions
+  // are shown. When disabled, only LOCAL_NETWORK_ACCESS permission is shown.
+  virtual bool IsLocalNetworkAccessSplitPermissionsEnabled() = 0;
+
 #if BUILDFLAG(IS_CHROMEOS)
   virtual bool ShouldSyncCookiesForUrl(const GURL& url) = 0;
 #endif

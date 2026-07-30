@@ -1,0 +1,28 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+source_set("data_models") {
+  sources = [
+    "filter_annotation.cc",
+    "filter_annotation.h",
+    "url_filter_suggestion.h",
+  ]
+  deps = [
+    "//base",
+    "//url",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "filter_annotation_unittest.cc" ]
+
+  deps = [
+    ":data_models",
+    "//base",
+    "//base/test:test_support",
+    "//testing/gtest",
+    "//url",
+  ]
+}

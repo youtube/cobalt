@@ -12,7 +12,7 @@ import type {CrActionMenuElement} from '//resources/cr_elements/cr_action_menu/c
 import type {CrLazyRenderLitElement} from '//resources/cr_elements/cr_lazy_render/cr_lazy_render_lit.js';
 import {WebUiListenerMixinLit} from '//resources/cr_elements/web_ui_listener_mixin_lit.js';
 import {loadTimeData} from '//resources/js/load_time_data.js';
-import {CrLitElement, type PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
+import {CrLitElement, nothing, type PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
 
 import type {SettingsPrefs} from '../content/read_anything_types.js';
 import {DEFAULT_SETTINGS, SettingsOption, ToolbarEvent} from '../content/read_anything_types.js';
@@ -151,6 +151,7 @@ export class SettingsMenuElement extends SettingsMenuElementBase {
       isImmersiveMode: {type: Boolean},
       isReadAnythingPinned: {type: Boolean},
       settingsPrefs: {type: Object},
+      currentOpenId_: {type: String, attribute: false},
     };
   }
 
@@ -159,7 +160,7 @@ export class SettingsMenuElement extends SettingsMenuElementBase {
   accessor settingsPrefs: SettingsPrefs = DEFAULT_SETTINGS;
 
   protected options_: SettingsItem[] = [];
-  private currentOpenId_: string|null = null;
+  protected accessor currentOpenId_: string|null = null;
   private interceptedEvents_: string[] =
       ['click', 'pointerdown', 'pointermove'];
   private openTimer_: number|null = null;
@@ -188,6 +189,13 @@ export class SettingsMenuElement extends SettingsMenuElementBase {
         changedProperties.has('isReadAnythingPinned')) {
       this.initializeMenuOptions_();
     }
+  }
+
+  protected getAriaExpanded_(item: SettingsItem): string|typeof nothing {
+    if (item.itemType !== SettingsItemType.MENU) {
+      return nothing;
+    }
+    return this.currentOpenId_ === item.id ? 'true' : 'false';
   }
 
   private initializeMenuOptions_() {
@@ -387,11 +395,36 @@ export class SettingsMenuElement extends SettingsMenuElementBase {
     }, delay);
   }
 
-  protected onPointerleave_() {
+  protected onPointerleave_(event: PointerEvent) {
     // Clear the open timer so that submenus aren't opened after the cursor
     // stops hovering.
     this.clearOpenTimer_();
-    this.startCloseTimer_();
+
+    // TODO (crbug.com/473578189): Make submenus children of the settings menu
+    // The submenus are siblings of this menu, living inside the same host
+    // (the toolbar). We use the host as a boundary to avoid traversing the
+    // entire document if the cursor leaves the toolbar completely.
+    const boundary = (this.getRootNode() as ShadowRoot)?.host;
+    let current = event.relatedTarget as Element | null;
+    let isOverSubmenu = false;
+
+    // Manually walk up the DOM to check if the cursor moved into a submenu.
+    // We cannot use element.closest() because it does not pierce Shadow DOM
+    // boundaries, and event.composedPath() only applies to the event target
+    // (the element we are leaving), not the relatedTarget (the destination).
+    while (current && current !== boundary) {
+      if (current.classList && current.classList.contains('settings-submenu')) {
+        isOverSubmenu = true;
+        break;
+      }
+      // Move up the tree, piercing through shadow roots if necessary.
+      current =
+          current.parentElement || (current.getRootNode() as ShadowRoot)?.host;
+    }
+
+    if (!isOverSubmenu) {
+      this.startCloseTimer_();
+    }
   }
 
   private startCloseTimer_() {

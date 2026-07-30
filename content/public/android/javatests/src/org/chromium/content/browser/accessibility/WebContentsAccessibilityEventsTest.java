@@ -8,6 +8,7 @@ import static org.chromium.content.browser.accessibility.AccessibilityContentShe
 import static org.chromium.content.browser.accessibility.AccessibilityContentShellActivityTestRule.RESULTS_NULL;
 
 import android.annotation.SuppressLint;
+import android.os.Build;
 
 import androidx.test.filters.SmallTest;
 
@@ -21,10 +22,13 @@ import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
+import org.chromium.base.test.util.MinAndroidSdkLevel;
 import org.chromium.base.test.util.Restriction;
 import org.chromium.base.test.util.TestAnimations;
+import org.chromium.content.common.ContentInternalFeatures;
 import org.chromium.content_public.browser.ContentFeatureList;
 import org.chromium.content_public.browser.test.ContentJUnit4ClassRunner;
+import org.chromium.content_public.common.ContentFeatures;
 import org.chromium.ui.test.util.DeviceRestriction;
 
 /** Tests for WebContentsAccessibilityImpl integration with accessibility services. */
@@ -1491,5 +1495,36 @@ public class WebContentsAccessibilityEventsTest {
     public void test_visibilityHiddenChanged() {
         performTest(
                 "visibility-hidden-changed.html", "visibility-hidden-changed-expected-android.txt");
+    }
+
+    @Test
+    @SmallTest
+    @EnableFeatures(ContentInternalFeatures.ACCESSIBILITY_EXPOSE_NON_ATOMIC_TEXT_FIELD_CHILDREN)
+    public void test_contenteditableSelectionRetargeting() {
+        performTest(
+                "contenteditable-selection-retargeting.html",
+                "contenteditable-selection-retargeting-expected-android.txt");
+    }
+
+    @Test
+    @SmallTest
+    // Whenever ACCESSIBILITY_REQUEST_SCOPED_CONTENT_CHANGED_EVENTS is enabled, we perform parceling
+    // on the node info, which requires tiramisu or higher.
+    @MinAndroidSdkLevel(Build.VERSION_CODES.TIRAMISU)
+    @EnableFeatures(ContentFeatures.ACCESSIBILITY_REQUEST_SCOPED_CONTENT_CHANGED_EVENTS)
+    public void test_scopedContentChanged_enabled() {
+        performTest(
+                "scoped-content-changed.html",
+                "scoped-content-changed-enabled-expected-android.txt",
+                false);
+    }
+
+    @Test
+    @SmallTest
+    public void test_scopedContentChanged_disabled() {
+        performTest(
+                "scoped-content-changed.html",
+                "scoped-content-changed-disabled-expected-android.txt",
+                false);
     }
 }

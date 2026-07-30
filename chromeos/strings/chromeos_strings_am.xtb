@@ -167,6 +167,7 @@
 <translation id="1621067168122174824">የባትሪ መሙላት ሙከራን አሂድ</translation>
 <translation id="1622402072367425417">የሚያበሩ አረፋዎች</translation>
 <translation id="1626590945318984973">አቋራጭ አይገኝም። ተግባርን እና <ph name="META_KEY" /> ቁልፎችን ሳይጠቀሙ አዲስ አቋራጭን ይጫኑ።</translation>
+<translation id="163774412591892664">አስተዳዳሪዎ መሣሪያዎን አሰናክሏል እና አካባቢውን መድረስ ይችላል።</translation>
 <translation id="1639239467298939599">በመጫን ላይ</translation>
 <translation id="1641857168437328880">ሰነድ መጋቢ (ባለአንድ ጎን)</translation>
 <translation id="1642396894598555413">ብስክሌቶች</translation>
@@ -727,6 +728,7 @@
 <translation id="4212169537710712814">የ<ph name="LANGUAGE_NAME" /> ወደ ጽሑፍ ግልባጭ ሞዴል ውርድ ተጠናቋል</translation>
 <translation id="42126664696688958">ወደ ውጭ ላክ</translation>
 <translation id="4213104098953699324">የዩኤስቢ ቁልፍ ሰሌዳ</translation>
+<translation id="4217571870635786043">በቃል ማስጻፍ</translation>
 <translation id="4227825898293920515">የይለፍ ቃል በ <ph name="TIME" /> ውስጥ አገልግሎት ጊዜው ያበቃል</translation>
 <translation id="4238516577297848345">በሂደት ላይ ያሉ ምንም የህትመት ስራዎች የሉም</translation>
 <translation id="4239069858505860023">ጂፒአርኤስ</translation>
@@ -1685,6 +1687,7 @@
 <translation id="8420955526972171689">ለሃርድዌር ችግሮች ሙከራዎችን እና መላ ፍለጋን ያሂዱ</translation>
 <translation id="8422748173858722634">IMEI</translation>
 <translation id="8424039430705546751">ታች</translation>
+<translation id="8427213022735114808">በቃል ማስጻፍ በማንኛውም የጽሑፍ መስክ ውስጥ የድምጽ ትየባን ለመፍቀድ ድምጽዎን ወደ Google ይልካል።</translation>
 <translation id="8428213095426709021">ቅንብሮች</translation>
 <translation id="8431300646573772016">በChromeOS ምን አዲስ ነገር አለ</translation>
 <translation id="8433186206711564395">የአውታረ መረብ ቅንብሮች</translation>
@@ -1723,6 +1726,7 @@
 <translation id="8584654835905316966"><ph name="DEVICE_NAME" /> ወደ ሥሪት <ph name="VERSION" /> ፊርምዌር መጫኑን ለማጠናቀቅ ዳግም ማስጀመር ያስፈልጋል። ኮምፒውተርዎ በርካታ ጊዜያት ዳግም ሊነሳ የሚችል ይመስላል። ይህ ባህሪ የሚጠበቅ ነው።</translation>
 <translation id="8593058461203131755">ሚዲያን ባለበት ማቆሚያ</translation>
 <translation id="8620617069779373398">የውሂብ ዝውውር ሁኔታ</translation>
+<translation id="8624524972189162859">የእርስዎ <ph name="DOMAIN_NAME" /> አስተዳዳሪ መሣሪያዎን አሰናክሏል እና አካባቢውን መድረስ ይችላል።</translation>
 <translation id="8626489604350149811">ለ<ph name="APN_NAME" /> ተጨማሪ እርምጃዎች</translation>
 <translation id="86356131183441916">ፈዛዛ ወይን ጠጅ</translation>
 <translation id="8647595191512746911">የኦዲዮ ጽሑፍ ግልባጭ</translation>

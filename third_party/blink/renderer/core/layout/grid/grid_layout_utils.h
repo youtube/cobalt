@@ -20,6 +20,7 @@ class BlockNode;
 class BoxFragmentBuilder;
 class ConstraintSpace;
 class GridLayoutData;
+class GridItems;
 class GridLayoutTrackCollection;
 class GridLineResolver;
 class GridSizingTrackCollection;
@@ -46,7 +47,8 @@ class BaselineAccumulator {
   virtual void Accumulate(const GridItemData& item,
                           const LogicalBoxFragment& fragment,
                           const LayoutUnit block_offset,
-                          LayoutUnit item_stacking_position) = 0;
+                          LayoutUnit item_stacking_position,
+                          bool item_moved_to_earlier_opening) = 0;
 
   virtual std::optional<LayoutUnit> FirstBaseline() const = 0;
   virtual std::optional<LayoutUnit> LastBaseline() const = 0;
@@ -176,6 +178,7 @@ LayoutUnit ComputeBaselineOffset(
 template <typename LayoutAlgorithmType>
 void BuildGridSizingSubtree(
     const LayoutAlgorithmType& algorithm,
+    const GridLineResolver& line_resolver,
     GridSizingTree* sizing_tree,
     HeapVector<Member<LayoutBox>>* opt_oof_children,
     const SubgriddedItemData& opt_subgrid_data = kNoSubgriddedItemData,
@@ -186,11 +189,13 @@ void BuildGridSizingSubtree(
 template <typename LayoutAlgorithmType>
 GridSizingTree BuildGridSizingTree(
     const LayoutAlgorithmType& algorithm,
+    const GridLineResolver& line_resolver,
     HeapVector<Member<LayoutBox>>* opt_oof_children = nullptr);
 
 template <typename LayoutAlgorithmType>
 GridSizingTree BuildGridSizingTreeIgnoringChildren(
-    const LayoutAlgorithmType& algorithm);
+    const LayoutAlgorithmType& algorithm,
+    const GridLineResolver& line_resolver);
 
 // Calculate the initial fragment geometry for a subgrid item.
 FragmentGeometry CalculateInitialFragmentGeometryForSubgrid(
@@ -256,6 +261,10 @@ void InitializeTrackCollection(const SubgriddedItemData& opt_subgrid_data,
                                const LogicalSize grid_available_size,
                                GridTrackSizingDirection track_direction,
                                GridLayoutData* layout_data);
+
+// Checks if any of the items within `grid_items` have block-size dependent
+// sizing.
+bool HasBlockSizeDependentGridItem(const GridItems& grid_items);
 
 }  // namespace blink
 

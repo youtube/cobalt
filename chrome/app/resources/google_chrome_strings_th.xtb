@@ -72,6 +72,7 @@
 <translation id="1698376642261615901">Google Chrome คือเว็บเบราว์เซอร์ที่แสดงหน้าเว็บและแอปพลิเคชันต่างๆ ได้รวดเร็วในพริบตา โดยทำงานได้เร็ว มีเสถียรภาพ และใช้งานง่าย ช่วยให้คุณเรียกดูเว็บได้อย่างปลอดภัยมากขึ้นด้วยการป้องกันมัลแวร์และฟิชชิงซึ่งมีอยู่ใน Google Chrome</translation>
 <translation id="1713301662689114961">{0,plural, =1{Chrome จะเปิดขึ้นมาใหม่ใน 1 ชั่วโมง}other{Chrome จะเปิดขึ้นมาใหม่ใน # ชั่วโมง}}</translation>
 <translation id="1722488837206509557">สิทธิ์นี้จะช่วยให้คุณสามารถเลือกจากอุปกรณ์ที่พร้อมใช้งานและแสดงเนื้อหาบนอุปกรณ์เหล่านั้น</translation>
+<translation id="177180974022074201">ลองใช้ Gemini ใน Chrome</translation>
 <translation id="1786003790898721085">ตรวจสอบว่าคุณลงชื่อเข้าใช้ Chrome ใน <ph name="TARGET_DEVICE_NAME" /> แล้วลองส่งอีกครั้ง</translation>
 <translation id="1786044937610313874">ทางลัดจะเปิดใน Chrome</translation>
 <translation id="178701303897325119">ระบบไม่รองรับส่วนขยายนี้แล้ว Chrome แนะนำให้คุณนำออกแทน</translation>
@@ -221,6 +222,7 @@
 <translation id="3226612997184048185">หากบันทึกบุ๊กมาร์กไว้ในบัญชี Google ด้วย คุณจะติดตามราคาผลิตภัณฑ์ใน Chrome และรับการแจ้งเตือนเมื่อราคาต่ำลงได้</translation>
 <translation id="3242123554343253302">เพิ่มโปรไฟล์ Chrome</translation>
 <translation id="3245429137663807393">หากคุณแชร์รายงานการใช้งาน Chrome ด้วย รายงานดังกล่าวจะรวม URL ที่คุณเข้าชม</translation>
+<translation id="3259748324892322072">ดาวน์โหลดแอป Chrome</translation>
 <translation id="3286538390144397061">รีสตาร์ทเดี๋ยวนี้</translation>
 <translation id="3292333338048274092">จากนั้นคุณต้องรีสตาร์ท Chrome</translation>
 <translation id="3324218984287646518">ถาม Google Lens เกี่ยวกับวิดีโอนี้</translation>
@@ -278,7 +280,6 @@
 <translation id="3892148308691398805">คัดลอกข้อความ</translation>
 <translation id="3893985792899396936">เคล็ดลับสำหรับ Chrome: ค้นหาด้วย Lens</translation>
 <translation id="3906096710440765802">ลงชื่อเข้าใช้ Chrome เพื่อรับรหัสผ่าน บุ๊กมาร์ก และข้อมูลอื่นๆ ในอุปกรณ์ทุกเครื่องของคุณ</translation>
-<translation id="3921132130819999051">ให้ Chrome ท่องเว็บแทนคุณ</translation>
 <translation id="3941890832296813527">ข้อผิดพลาดในการติดตั้ง: ชื่อไฟล์ของโปรแกรมติดตั้งไม่ถูกต้องหรือระบบไม่รองรับ</translation>
 <translation id="395904275706073188">อ่านหน้าเว็บที่มีการป้องกันไม่ได้ โปรดลองใช้หน้าอื่น</translation>
 <translation id="3968962723676998462">ป้อนรหัสผ่านเพื่อใช้และบันทึกข้อมูล Chrome ในบัญชี <ph name="ACCOUNT_EMAIL" /></translation>
@@ -489,7 +490,6 @@
 <translation id="6173637689840186878"><ph name="PAGE_TITLE" /> - Google Chrome เบต้า</translation>
 <translation id="6180522807229584611">แท็บนี้ใช้ทรัพยากรมากเป็นพิเศษ ให้ Chrome ช่วยปิดใช้งานแท็บเหล่านี้เพื่อปรับปรุงประสิทธิภาพ</translation>
 <translation id="6182736845697986886">การติดตั้งไม่สำเร็จเนื่องจากเกิดข้อผิดพลาดภายในเซิร์ฟเวอร์การอัปเดต</translation>
-<translation id="6183773856988300112">Gemini ใน Chrome ใช้การท่องเว็บอัตโนมัติเพื่อทำงานในแท็บและดำเนินงานที่คุณมอบหมายให้เสร็จสมบูรณ์ <ph name="LINK_BEGIN" />ดูข้อมูลเพิ่มเติม<ph name="LINK_END" /></translation>
 <translation id="6187085551300363958">เคล็ดลับสำหรับ Chrome: บันทึกรหัสผ่าน</translation>
 <translation id="6192058120268468905">บัญชีของคุณใน Chrome</translation>
 <translation id="6220551899604141979"><ph name="PARTNER_NAME" /> ได้เพิ่มส่วนขยายที่อาจเปลี่ยนวิธีการทำงานของ Chrome
@@ -525,6 +525,7 @@
 <translation id="6481963882741794338">ลิงก์ Chrome กับบริการอื่นๆ ของ Google เพื่อการปรับเปลี่ยนในแบบของคุณและวัตถุประสงค์อื่นๆ</translation>
 <translation id="648319183876919572">Safe Browsing พร้อมการปกป้องที่ดียิ่งขึ้นทำสิ่งต่างๆ ได้มากขึ้นเพื่อปกป้องคุณจากเว็บไซต์และการดาวน์โหลดที่เป็นอันตราย</translation>
 <translation id="6489302989675808168">เปิด • Chrome ยืนยันไม่ได้ว่าส่วนขยายนี้มาจากไหน</translation>
+<translation id="6491330562720922580">คิวอาร์โค้ดสำหรับดาวน์โหลดเบราว์เซอร์ Chrome บนมือถือ</translation>
 <translation id="6493527311031785448">Google Chrome กำลังพยายาม<ph name="AUTHENTICATION_PURPOSE" /></translation>
 <translation id="6497147134301593682">มีการปิด Chrome โดยอัตโนมัติ</translation>
 <translation id="6506909944137591434">Chrome ต้องการสิทธิ์เข้าถึงกล้องเพื่อสร้างแผนที่ 3 มิติของสิ่งที่อยู่รอบตัวคุณ</translation>

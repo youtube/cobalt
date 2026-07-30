@@ -398,6 +398,18 @@ public final class ChromePreferenceKeys {
     /** Whether the Glic button is pinned in the tab strip. */
     public static final String GLIC_BUTTON_PINNED = "Chrome.Glic.ButtonPinned";
 
+    /** Whether the precise location setting is enabled for Glic */
+    public static final String GLIC_PRECISE_LOCATION_SETTING_ENABLED =
+            "Chrome.Glic.PreciseLocationSettingEnabled";
+
+    /** Whether the share current tab default access is enabled for Glic */
+    public static final String GLIC_SHARE_CURRENT_TAB_DEFAULT_ACCESS_ENABLED =
+            "Chrome.Glic.ShareCurrentTabDefaultAccessEnabled";
+
+    /** Whether the auto-browse setting is enabled for Glic */
+    public static final String GLIC_AUTO_BROWSE_SETTING_ENABLED =
+            "Chrome.Glic.AutoBrowseSettingEnabled";
+
     public static final String HISTORY_SHOW_HISTORY_INFO = "history_home_show_info";
 
     /** Whether the app-specific history info text was already seen by users. */
@@ -919,10 +931,6 @@ public final class ChromePreferenceKeys {
     // Segmentation platform related prefs.
     public static final String SEGMENTATION_FEED_ACTIVE_USER = "Chrome.Segmentation.FeedActiveUser";
 
-    /** Timestamp for when the user first saw the Setup List on the New Tab Page. */
-    public static final String SETUP_LIST_FIRST_SHOWN_TIMESTAMP =
-            "Chrome.SetupList.FirstShownTimestamp";
-
     /**
      * Key prefix for boolean preferences indicating whether a specific Setup List item has been
      * completed by the user. The ModuleType integer is appended to this prefix to form the unique
@@ -1256,6 +1264,9 @@ public final class ChromePreferenceKeys {
                 FIRST_CTA_START_TIMESTAMP,
                 FLAGS_LAST_CACHED_MINIMAL_BROWSER_FLAGS_TIME_MILLIS,
                 GLIC_BUTTON_PINNED,
+                GLIC_PRECISE_LOCATION_SETTING_ENABLED,
+                GLIC_SHARE_CURRENT_TAB_DEFAULT_ACCESS_ENABLED,
+                GLIC_AUTO_BROWSE_SETTING_ENABLED,
                 HISTORY_APP_SPECIFIC_INFO_SEEN,
                 HOME_MODULE_CARDS_ENABLED,
                 HOME_MODULES_MODULE_TYPE.pattern(),
@@ -1353,7 +1364,6 @@ public final class ChromePreferenceKeys {
                 SEARCH_ENGINE_CHOICE_PENDING_OS_CHOICE_DIALOG_SHOWN_ATTEMPTS,
                 SEGMENTATION_FEED_ACTIVE_USER,
                 SERIAL_NOTIFICATION_IDS,
-                SETUP_LIST_FIRST_SHOWN_TIMESTAMP,
                 SETUP_LIST_COMPLETED_KEY_PREFIX.pattern(),
                 SETTINGS_SAFETY_CHECK_LAST_RUN_TIMESTAMP,
                 SETTINGS_SAFETY_CHECK_RUN_COUNTER,

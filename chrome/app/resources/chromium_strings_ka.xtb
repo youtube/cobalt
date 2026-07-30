@@ -29,6 +29,7 @@
 <translation id="126567311906253476">Google სერვისებში, მაგალითად, Gmail-სა თუ YouTube-ში <ph name="USER_EMAIL" />-ით შესვლისას შეგიძლიათ Chromium-შიც იმავე ანგარიშით შეხვიდეთ</translation>
 <translation id="1290883685122687410">დაყენების შეცდომა: <ph name="METAINSTALLER_EXIT_CODE" />. <ph name="WINDOWS_ERROR" /></translation>
 <translation id="1315551408014407711">შექმენით ახალი Chromium პროფილი</translation>
+<translation id="132092532143527429">ცადეთ Gemini Chromium-ში</translation>
 <translation id="1324107359134968521">Chromium საჭიროებს Bluetooth-ს, რომ აღმოაჩინოს 
  Bluetooth მოწყობილობები. <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="1330562121671411446">ენის ამოცნობა</translation>
@@ -241,6 +242,7 @@
 <translation id="3509308970982693815">დახურეთ Chromium-ის ყველა ფანჯარა და ხელახლა სცადეთ.</translation>
 <translation id="3522404737534491619">თქვენი ფანჯრის გასაზიარებლად დაუშვით ეკრანის ჩაწერა Chromium-ისთვის სისტემის პარამეტრებში</translation>
 <translation id="3530103706039034513"><ph name="EXISTING_USER" /> მზად არის შესასვლელად.  ცალკე დათვალიერების გასაგრძელებლად შედით Chromium-ში თქვენს პირად პროფილში <ph name="USER_EMAIL_ADDRESS" />.</translation>
+<translation id="3531741627422851418">QR კოდი Chromium ბრაუზერის მობილურ მოწყობილობებზე ჩამოსატვირთად</translation>
 <translation id="3561853857681580870">თქვენი ეკრანის გასაზიარებლად დაუშვით ეკრანის ჩაწერა Chromium-ისთვის სისტემის პარამეტრებში.</translation>
 <translation id="3588112919289558122">გაძლიერებული დაცვა თიშავს JavaScript-ის ოპტიმიზაციას იმ საიტებისთვის, რომლებსაც Chromium ვერ ამოიცნობს</translation>
 <translation id="3597003331831379823">მაღალი პრივილეგიებით დაყენების გაშვება ვერ მოხერხდა. <ph name="METAINSTALLER_ERROR" /></translation>
@@ -376,7 +378,6 @@
 <translation id="5174969993834422967">როგორც წესი, თქვენ ბლოკავთ შეტყობინებებს. ამ საიტისგან შეტყობინებების მისაღებად დააწკაპუნეთ მდებარეობის ზოლის მარჯვენა კუთხეში მდებარე ხატულას.</translation>
 <translation id="5174983315706567306">სივრცე დისკზე საკმარისი არ არის.</translation>
 <translation id="5187123684706427865">Chromium ანგარიში საჭიროებს ხელახლა ავტორიზაციას</translation>
-<translation id="5219681158518957165">ბრაუზერის რეკომენდებული პარამეტრების გამოყენება</translation>
 <translation id="5224391634244552924">შენახული პაროლები არ არის. პაროლების შემოწმებას Chromium შეძლებს მათი შენახვის შემდეგ.</translation>
 <translation id="5231355151045086930">Chromium-იდან გამოსვლა</translation>
 <translation id="5234764350956374838">გაუქმება</translation>
@@ -610,6 +611,7 @@ Chromium ვერ შეძლებს თქვენი პარამე�
 <translation id="7622753900276619808">ახლა თქვენთვის ხელმისაწვდომია მეტი ფუნქცია Chromium-ში</translation>
 <translation id="7624307931717240213">ინფორმაციას ვიყენებთ ამ სერვისის გასაუმჯობესებლად. იხილეთ კონფიდენციალურობის დებულება და მომსახურების პირობები.</translation>
 <translation id="7649070708921625228">დახმარება</translation>
+<translation id="7650134251917003571">Chromium აპის ჩამოტვირთვა</translation>
 <translation id="7656340475565475526">ნება დართეთ Chromium-ს, დაათვალიეროს თქვენთვის</translation>
 <translation id="7658239707568436148">გაუქმება</translation>
 <translation id="7686590090926151193">Chromium არ არის თქვენი ნაგულისხმევი ბრაუზერი</translation>

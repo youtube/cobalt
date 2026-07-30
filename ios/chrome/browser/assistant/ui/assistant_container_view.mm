@@ -15,9 +15,6 @@ constexpr float kShadowOpacity = 0.1f;
 constexpr CGFloat kShadowRadius = 10.0;
 constexpr CGSize kShadowOffset = {0, 5};
 
-// Corner styling.
-const CGFloat kCornerRadius = 22.0;
-
 // Grabber styling.
 constexpr CGFloat kGrabberWidth = 33.0;
 constexpr CGFloat kGrabberHeight = 4.0;
@@ -27,13 +24,6 @@ constexpr CGFloat kGrabberAlpha = 0.24;
 // Content styling.
 constexpr CGFloat kContentTopMargin = 16.0;
 
-// Returns the background color for the container.
-constexpr CGFloat kContainerBackgroundAlpha = 0.5;
-UIColor* ContainerBackgroundColor() {
-  return [[UIColor colorNamed:kSecondaryBackgroundColor]
-      colorWithAlphaComponent:kContainerBackgroundAlpha];
-}
-
 }  // namespace
 
 @implementation AssistantContainerView {
@@ -41,11 +31,15 @@ UIColor* ContainerBackgroundColor() {
   UIScrollView* _scrollView;
   UIView* _grabberView;
   CAGradientLayer* _maskLayer;
+  CGFloat _cornerRadius;
+  CACornerMask _maskedCorners;
 }
 
 - (instancetype)initWithFrame:(CGRect)frame {
   self = [super initWithFrame:frame];
   if (self) {
+    _maskedCorners = kCALayerMinXMinYCorner | kCALayerMaxXMinYCorner |
+                     kCALayerMinXMaxYCorner | kCALayerMaxXMaxYCorner;
     [self configureContainerStyling];
     [self setUpSubviews];
   }
@@ -56,57 +50,61 @@ UIColor* ContainerBackgroundColor() {
 
 - (void)layoutSubviews {
   [super layoutSubviews];
-  // Update shadow path to match the view's bounds and corner radius.
-  self.layer.shadowPath = [UIBezierPath bezierPathWithRoundedRect:self.bounds
-                                                     cornerRadius:kCornerRadius]
-                              .CGPath;
+
+  // Translate CACornerMask to UIRectCorner for the bezier path.
+  // Mapping the active mask to `UIRectCorner` ensures the shadow perfectly
+  // matches the layer's actual geometry.
+  UIRectCorner rectCorners = 0;
+  if (_maskedCorners & kCALayerMinXMinYCorner) {
+    rectCorners |= UIRectCornerTopLeft;
+  }
+  if (_maskedCorners & kCALayerMaxXMinYCorner) {
+    rectCorners |= UIRectCornerTopRight;
+  }
+  if (_maskedCorners & kCALayerMinXMaxYCorner) {
+    rectCorners |= UIRectCornerBottomLeft;
+  }
+  if (_maskedCorners & kCALayerMaxXMaxYCorner) {
+    rectCorners |= UIRectCornerBottomRight;
+  }
+
+  // Update shadow path to match the view's bounds and specific corner masking.
+  self.layer.shadowPath =
+      [UIBezierPath
+          bezierPathWithRoundedRect:self.bounds
+                  byRoundingCorners:rectCorners
+                        cornerRadii:CGSizeMake(_cornerRadius, _cornerRadius)]
+          .CGPath;
 
   [self updateScrollContainerMask];
-}
-
-- (NSInteger)preferredHeight {
-  CGSize targetSize =
-      CGSizeMake(self.bounds.size.width, UILayoutFittingCompressedSize.height);
-  CGFloat contentHeight =
-      [_contentView
-            systemLayoutSizeFittingSize:targetSize
-          withHorizontalFittingPriority:UILayoutPriorityRequired
-                verticalFittingPriority:UILayoutPriorityFittingSizeLevel]
-          .height;
-  return round(kContentTopMargin + contentHeight);
 }
 
 #pragma mark - Private
 
 // Configures the visual styling of the container.
-// TODO(crbug.com/390204874): Update the container styling to perfectly match
-// the design.
 - (void)configureContainerStyling {
-  // Container for visual effects (Blur + Tint) that clips to corners.
-  UIBlurEffect* blurEffect =
-      [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemMaterial];
-  UIVisualEffectView* blurView =
-      [[UIVisualEffectView alloc] initWithEffect:blurEffect];
-  blurView.translatesAutoresizingMaskIntoConstraints = NO;
-  blurView.layer.cornerRadius = kCornerRadius;
-  blurView.clipsToBounds = YES;
-  [self insertSubview:blurView atIndex:0];
-
-  AddSameConstraints(blurView, self);
-
-  // Tint view overlaying the blur effect to provide the background color.
-  UIView* tintView = [[UIView alloc] init];
-  tintView.translatesAutoresizingMaskIntoConstraints = NO;
-  tintView.backgroundColor = ContainerBackgroundColor();
-  [blurView.contentView
-      addSubview:tintView];  // Add to visual effect contentView.
-
-  AddSameConstraints(tintView, blurView);
+  self.backgroundColor = [UIColor colorNamed:kPrimaryBackgroundColor];
+  self.clipsToBounds = YES;
 
   self.layer.shadowColor = [UIColor blackColor].CGColor;
   self.layer.shadowOpacity = kShadowOpacity;
   self.layer.shadowOffset = kShadowOffset;
   self.layer.shadowRadius = kShadowRadius;
+  self.layer.cornerRadius = _cornerRadius;
+  self.layer.maskedCorners = _maskedCorners;
+}
+
+// Allows the controller to dynamically morph the container radius.
+- (void)updateCornerRadius:(CGFloat)cornerRadius
+             maskedCorners:(CACornerMask)maskedCorners {
+  if (_cornerRadius == cornerRadius && _maskedCorners == maskedCorners) {
+    return;
+  }
+  _cornerRadius = cornerRadius;
+  _maskedCorners = maskedCorners;
+  self.layer.cornerRadius = _cornerRadius;
+  self.layer.maskedCorners = _maskedCorners;
+  [self setNeedsLayout];
 }
 
 // Sets up the view hierarchy by creating and adding subviews.

@@ -18,6 +18,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.inputmethod.EditorInfo;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.widget.SearchView;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.DividerItemDecoration;
@@ -28,6 +29,7 @@ import androidx.recyclerview.widget.RecyclerView.ViewHolder;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
+import org.chromium.base.ui.KeyboardUtils;
 import org.chromium.build.annotations.MonotonicNonNull;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -119,6 +121,8 @@ public class SelectLanguageFragment extends Fragment
 
     private final SettableMonotonicObservableSupplier<String> mPageTitle =
             ObservableSuppliers.createMonotonic();
+
+    private @Nullable OnBackPressedCallback mBackPressCallback;
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
@@ -228,6 +232,27 @@ public class SelectLanguageFragment extends Fragment
                         return true;
                     }
                 });
+
+        mBackPressCallback =
+                new OnBackPressedCallback(true) {
+                    @Override
+                    public void handleOnBackPressed() {
+                        if (!assumeNonNull(mSearchView).isIconified()) {
+                            KeyboardUtils.hideAndroidSoftKeyboard(mSearchView);
+                            mSearchView.clearFocus();
+                        } else {
+                            // If search is already closed, disable this callback and
+                            // let the Activity handle the back press (e.g., exit the fragment).
+                            setEnabled(false);
+                            requireActivity().onBackPressed();
+                        }
+                        assumeNonNull(mBackPressCallback).remove();
+                        mBackPressCallback = null;
+                    }
+                };
+        requireActivity()
+                .getOnBackPressedDispatcher()
+                .addCallback(getViewLifecycleOwner(), mBackPressCallback);
     }
 
     @Override
@@ -239,6 +264,7 @@ public class SelectLanguageFragment extends Fragment
     public void onDestroy() {
         super.onDestroy();
         if (mSearchViewObserver != null) mSearchViewObserver.onUpdated(false);
+        if (mBackPressCallback != null) mBackPressCallback.remove();
     }
 
     @Override

@@ -75,6 +75,7 @@
 #include "third_party/blink/public/common/service_worker/service_worker_scope_match.h"
 #include "third_party/blink/public/common/service_worker/service_worker_status_code.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
+#include "third_party/blink/public/mojom/frame/policy_container.mojom.h"
 #include "third_party/blink/public/mojom/service_worker/service_worker_registration.mojom.h"
 
 namespace content {
@@ -141,8 +142,8 @@ void DidStartWorker(
   }
   EmbeddedWorkerInstance* instance = version->embedded_worker();
   std::move(info_callback)
-      .Run(version->version_id(), instance->process_id(),
-           instance->thread_id());
+      .Run(version->version_id(), instance->process_id(), instance->thread_id(),
+           version->worker_host()->token());
 }
 
 void FoundRegistrationForStartWorker(
@@ -611,7 +612,12 @@ void ServiceWorkerContextWrapper::RegisterServiceWorker(
   context()->RegisterServiceWorker(
       net::SimplifyUrlForRequest(script_url), key, options_to_pass,
       blink::mojom::FetchClientSettingsObject::New(
-          network::mojom::ReferrerPolicy::kDefault,
+          []() {
+            auto policies = blink::mojom::PolicyContainerPolicies::New();
+            policies->referrer_policy =
+                network::mojom::ReferrerPolicy::kDefault;
+            return policies;
+          }(),
           /*outgoing_referrer=*/script_url,
           blink::mojom::InsecureRequestsPolicy::kDoNotUpgrade),
       base::BindOnce(
@@ -1070,6 +1076,15 @@ bool ServiceWorkerContextWrapper::IsLiveRunningServiceWorker(
   return (version) ? version->running_status() ==
                          blink::EmbeddedWorkerStatus::kRunning
                    : false;
+}
+
+bool ServiceWorkerContextWrapper::IsLiveServiceWorkerWithToken(
+    int64_t service_worker_version_id,
+    const blink::ServiceWorkerToken& token) {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  auto* version = GetLiveServiceWorker(service_worker_version_id);
+  return version && version->worker_host() &&
+         version->worker_host()->token() == token;
 }
 
 service_manager::InterfaceProvider&

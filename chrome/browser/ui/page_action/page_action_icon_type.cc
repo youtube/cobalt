@@ -18,10 +18,6 @@ const base::FeatureParam<bool>* GetPageActionsMigrationParam(
       return &features::kPageActionsMigrationZoom;
     case PageActionIconType::kFileSystemAccess:
       return &features::kPageActionsMigrationFileSystemAccess;
-    case PageActionIconType::kPriceInsights:
-      return &features::kPageActionsMigrationPriceInsights;
-    case PageActionIconType::kDiscounts:
-      return &features::kPageActionsMigrationDiscounts;
     case PageActionIconType::kManagePasswords:
       return &features::kPageActionsMigrationManagePasswords;
     case PageActionIconType::kCookieControls:
@@ -32,8 +28,6 @@ const base::FeatureParam<bool>* GetPageActionsMigrationParam(
       return &features::kPageActionsMigrationFind;
     case PageActionIconType::kCollaborationMessaging:
       return &features::kPageActionsMigrationCollaborationMessaging;
-    case PageActionIconType::kPriceTracking:
-      return &features::kPageActionsMigrationPriceTracking;
     case PageActionIconType::kMandatoryReauth:
       return &features::kPageActionsMigrationAutofillMandatoryReauth;
     case PageActionIconType::kClickToCall:
@@ -79,6 +73,8 @@ bool IsPageActionMigrated(PageActionIconType page_action) {
     case PageActionIconType::kJsOptimizations:
     case PageActionIconType::kIndigo:
     case PageActionIconType::kRecordReplay:
+    case PageActionIconType::kPriceInsights:
+    case PageActionIconType::kDiscounts:
       return true;
     default:
       break;

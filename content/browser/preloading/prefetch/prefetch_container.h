@@ -262,8 +262,7 @@ class CONTENT_EXPORT PrefetchContainer {
     // `PrefetchContainerLoadState::kFailed`.
     virtual void OnPrefetchCompletedOrFailed(
         const PrefetchContainer& prefetch_container,
-        const network::URLLoaderCompletionStatus& completion_status,
-        const std::optional<int>& response_code) = 0;
+        const network::URLLoaderCompletionStatus& completion_status) = 0;
   };
 
   void OnWillBeDestroyed();
@@ -289,16 +288,18 @@ class CONTENT_EXPORT PrefetchContainer {
 
   base::WeakPtr<PrefetchResponseReader> GetResponseReaderForCurrentPrefetch();
 
-  // Creates the initial resource request based on `PrefetchRequest`.
-  // `UpdateResourceRequest()`, which will be called on redirect, may update
-  // this resource request later on.
+  // `OnPrefetchStarted()` creates the initial resource request based on
+  // `PrefetchRequest`. `UpdateResourceRequest()`, which will be called on
+  // redirect, may update this resource request later on.
+  // TODO(crbug.com/483079815): Remove and inline
+  // `MakeInitialResourceRequest()`.
   void MakeInitialResourceRequest();
   const network::ResourceRequest* GetResourceRequest() const {
     return resource_request_.get();
   }
 
   // Returns the devtools request id that should be set to resource request
-  // during `MakeInitialResourceRequest()`.
+  // during `OnPrefetchStarted()`.
   // Note that this is also called via
   // `SetPrefetchStatusWithoutUpdatingTriggeringOutcome()`, where resource
   // request might not yet created.
@@ -368,7 +369,6 @@ class CONTENT_EXPORT PrefetchContainer {
 
   // Allows for |PrefetchCookieListener|s to be registered for
   // `GetCurrentSingleRedirectHopToPrefetch()`.
-  void RegisterCookieListenerForTesting();
   void PauseAllCookieListeners();
   void ResumeAllCookieListeners();
 
@@ -418,6 +418,13 @@ class CONTENT_EXPORT PrefetchContainer {
   // received all redirects are already completed.
   const PrefetchResponseReader* GetNonRedirectResponseReader() const;
   const network::mojom::URLResponseHead* GetNonRedirectHead() const;
+
+  // Returns the HTTP response code of the non-redirect response, if received.
+  // Note that this returns the response code even on failures, e.g. when a
+  // non-2xx response is received, or the prefetch is failed after response is
+  // received. This is for the intentional usage of getting the non-2xxx
+  // response code for failed response.
+  std::optional<int> GetResponseCode() const;
 
   // Clears |streaming_loader_| and cancels its loading, if any of its
   // corresponding `PrefetchResponseReader` does NOT start serving.
@@ -495,6 +502,9 @@ class CONTENT_EXPORT PrefetchContainer {
   // - `SimulatePrefetchCompletedForTest()`
   void SimulatePrefetchEligibleForTest();
   void SimulatePrefetchStartedForTest();
+  void SimulatePrefetchRedirectedForTest(
+      const GURL& redirect_url,
+      PreloadingEligibility eligibility = PreloadingEligibility::kEligible);
   void SimulatePrefetchCompletedForTest();
 
   // Simulates a prefetch container that failed at the eligibility check
@@ -607,8 +617,6 @@ class CONTENT_EXPORT PrefetchContainer {
       const network::mojom::URLResponseHead& head);
   void NotifyPrefetchRequestComplete(
       const network::URLLoaderCompletionStatus& completion_status);
-  mojo::PendingRemote<network::mojom::DevToolsObserver>
-  MaybeMakeSelfOwnedNetworkServiceDevToolsObserver();
 
   bool is_in_dtor() const { return is_in_dtor_; }
 
@@ -665,14 +673,15 @@ class CONTENT_EXPORT PrefetchContainer {
   // The returned value is for an initial guess and shouldn't be used without a
   // plan for the header validation (crbug.com/444065296).
   bool ShouldApplyUserAgentOverride(const GURL& request_url) const;
-  // Adds the User-Agent header by UA override if applicable.
-  void MaybeApplyOverrideForUserAgentHeader(
+  // Adds the User-Agent header by UA override from WebContents if applicable.
+  void MaybeApplyOverrideForWebContentsUserAgentHeader(
       network::ResourceRequest& resource_request);
+  // Adds the User-Agent header by UA override by Devtools if applicable.
+  void MaybeApplyOverrideForDevtoolsUserAgentHeader(
+      net::HttpRequestHeaders* request_headers) const;
   // Adds client hints headers to a request bound for |origin|.
   void AddClientHintsHeaders(const url::Origin& origin,
                              net::HttpRequestHeaders* request_headers) const;
-  // Adds X-Client-Data request header to a request.
-  void AddXClientDataHeader(network::ResourceRequest& request);
 
   // Returns the `PrefetchSingleRedirectHop` to be prefetched next.
   // This is the last element in `redirect_chain_`, because, during prefetching

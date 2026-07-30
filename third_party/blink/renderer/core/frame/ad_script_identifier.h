@@ -8,21 +8,24 @@
 #include "base/containers/span.h"
 #include "base/hash/hash.h"
 #include "third_party/blink/renderer/core/core_export.h"
+#include "third_party/blink/renderer/platform/loader/fetch/ad_tagging_utils.h"
+#include "third_party/blink/renderer/platform/wtf/hash_functions.h"
 #include "third_party/blink/renderer/platform/wtf/hash_traits.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #include "v8/include/v8-inspector.h"
+#include "v8/include/v8.h"
 
 namespace blink {
 
 // Used to uniquely identify ad script on the stack.
 struct CORE_EXPORT AdScriptIdentifier {
-  static constexpr int kEmptyId = -1;
+  static constexpr V8ScriptId kEmptyId{v8::Message::kNoScriptIdInfo};
 
   // Creates an empty/unspecified identifier.
   AdScriptIdentifier();
 
   AdScriptIdentifier(const v8_inspector::V8DebuggerId& context_id,
-                     int id,
+                     V8ScriptId id,
                      String name);
 
   bool operator==(const AdScriptIdentifier& other) const;
@@ -31,7 +34,7 @@ struct CORE_EXPORT AdScriptIdentifier {
   v8_inspector::V8DebuggerId context_id;
 
   // The script's v8 identifier.
-  int id;
+  V8ScriptId id;
 
   // The script's url (or generated name based on id if inline script). This is
   // a convenience field useful for intervention messages and debugging, as only
@@ -44,7 +47,8 @@ template <>
 struct HashTraits<AdScriptIdentifier> : GenericHashTraits<AdScriptIdentifier> {
   static unsigned GetHash(const AdScriptIdentifier& script_id) {
     std::pair<int64_t, int64_t> p = script_id.context_id.pair();
-    int64_t arr[] = {p.first, p.second, script_id.id};
+    int64_t arr[] = {p.first, p.second,
+                     static_cast<int64_t>(script_id.id.value())};
     return base::FastHash(base::as_byte_span(arr));
   }
 

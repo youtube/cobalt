@@ -27,6 +27,7 @@
 <translation id="126567311906253476">Amikor <ph name="USER_EMAIL" /> fiókjával bejelentkezik a Google-szolgáltatásokba (például a Gmailbe vagy a YouTube-ba), ugyanazzal a fiókkal automatikusan bejelentkezhet a Chromiumba is.</translation>
 <translation id="1290883685122687410">Beállítási hiba: <ph name="METAINSTALLER_EXIT_CODE" />. <ph name="WINDOWS_ERROR" />.</translation>
 <translation id="1315551408014407711">Új Chromium-profil beállítása</translation>
+<translation id="132092532143527429">Kipróbálás a Gemini a Chromiumban funkcióval</translation>
 <translation id="1324107359134968521">A Chromiumnak Bluetooth-hozzáférésre van szüksége a 
  Bluetooth-eszközök felfedezéséhez. <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="1330562121671411446">Nyelvfelismerés</translation>
@@ -239,6 +240,7 @@
 <translation id="3509308970982693815">Zárjon be minden Chromium-ablakot, és próbálkozzon újra.</translation>
 <translation id="3522404737534491619">Az ablak megosztásához engedélyezze a Chromium számára a képernyőrögzítést a Rendszerbeállításokban.</translation>
 <translation id="3530103706039034513"><ph name="EXISTING_USER" /> már bejelentkezett.  Ha szeretné elkülöníteni böngészési tevékenységeit, jelentkezzen be a Chromiumban a saját profiljába a következő e-mail-címmel: <ph name="USER_EMAIL_ADDRESS" />.</translation>
+<translation id="3531741627422851418">QR-kód a Chromium böngésző mobileszközökre való letöltéséhez</translation>
 <translation id="3561853857681580870">A képernyő megosztásához engedélyezze a Chromium számára a képernyőrögzítést a Rendszerbeállításokban.</translation>
 <translation id="3588112919289558122">A Speciális védelem kikapcsolja a JavaScript-optimalizálást a Chromium által fel nem ismert webhelyeknél</translation>
 <translation id="3597003331831379823">Nem sikerült futtatni a beállítást emelt szintű jogosultságokkal. <ph name="METAINSTALLER_ERROR" /></translation>
@@ -374,7 +376,6 @@
 <translation id="5174969993834422967">Ön általában letiltja az értesítéseket. Ha azt szeretné, hogy ez a webhely küldjön értesítéseket, kattintson a helysáv jobb sarkában lévő értesítési ikonra.</translation>
 <translation id="5174983315706567306">Nincs elég lemezterület.</translation>
 <translation id="5187123684706427865">A Chromium-fiókot újból hitelesíteni kell</translation>
-<translation id="5219681158518957165">Ajánlott böngészőbeállítások használata</translation>
 <translation id="5224391634244552924">Nincsenek mentett jelszavak. A Chromium képes a jelszavak ellenőrzésére, ha Ön elmenti őket.</translation>
 <translation id="5231355151045086930">Kijelentkezés a Chromiumból</translation>
 <translation id="5234764350956374838">Elvetés</translation>
@@ -606,6 +607,7 @@ A Chromium nem tudja visszaállítani a beállításait.</translation>
 <translation id="7622753900276619808">Mostantól több funkció áll rendelkezésre a Chromiumban</translation>
 <translation id="7624307931717240213">Ezeket az információkat a szolgáltatás továbbfejlesztésére használjuk fel. Lásd: Adatvédelmi irányelvek és Általános Szerződési Feltételek.</translation>
 <translation id="7649070708921625228">Súgó</translation>
+<translation id="7650134251917003571">A Chromium app letöltése</translation>
 <translation id="7656340475565475526">A Chromium böngészhet Ön helyett</translation>
 <translation id="7658239707568436148">Mégse</translation>
 <translation id="7686590090926151193">A Chromium nem az alapértelmezett böngésző</translation>

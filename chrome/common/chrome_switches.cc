@@ -949,11 +949,6 @@ const char kUninstallAppId[] = "uninstall-app-id";
 // start a second isolated browser.
 const char kIsolated[] = "isolated";
 
-// Specifies that the browser should attempt to launch an isolated browser.
-// TODO(crbug.com/433545123): This is a temporary switch - replace this with a
-// configurable toggle in a future CL.
-const char kLaunchIsolated[] = "launch-isolated";
-
 // Specifies the version of the Progressive-Web-App launcher that launched
 // Chrome, used to determine whether to update all launchers.
 // NOTE: changing this switch requires adding legacy handling for the previous
@@ -979,6 +974,7 @@ const char kGuest[] = "guest";
 // Overrides the glic guest URL.
 const char kGlicGuestURL[] = "glic-guest-url";
 const char kGlicAlwaysOpenFre[] = "glic-always-open-fre";
+const char kGlicAlwaysSkipFre[] = "glic-always-skip-fre";
 const char kGlicFreURL[] = "glic-fre-url";
 const char kGlicShortcutsLearnMoreURL[] = "glic-shortcuts-learn-more-url";
 // Use --glic-open-on-startup=attached or --glic-open-on-startup=detached.

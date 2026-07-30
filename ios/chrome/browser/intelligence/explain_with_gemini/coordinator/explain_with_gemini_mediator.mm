@@ -12,15 +12,18 @@
 #import "base/strings/sys_string_conversions.h"
 #import "components/signin/public/identity_manager/identity_manager.h"
 #import "ios/chrome/browser/browser_content/ui_bundled/browser_edit_menu_utils.h"
+#import "ios/chrome/browser/intelligence/bwg/metrics/gemini_metrics.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_service.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_service_factory.h"
-#import "ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h"
+#import "ios/chrome/browser/intelligence/bwg/model/bwg_tab_helper.h"
+#import "ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
 #import "ios/chrome/browser/shared/public/commands/open_new_tab_command.h"
 #import "ios/chrome/browser/shared/public/commands/scene_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
+#import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/signin/model/authentication_service.h"
 #import "ios/chrome/browser/web_selection/model/web_selection_response.h"
 #import "ios/chrome/browser/web_selection/model/web_selection_tab_helper.h"
@@ -56,8 +59,10 @@ typedef void (^ProceduralBlockWithBlockWithItemArray)(
   ProfileIOS* profile =
       ProfileIOS::FromBrowserState(webState->GetBrowserState());
   raw_ptr<BwgService> geminiService = BwgServiceFactory::GetForProfile(profile);
+  BwgTabHelper* geminiTabHelper = BwgTabHelper::FromWebState(webState);
   const BOOL geminiAvailable =
-      geminiService && geminiService->IsBwgAvailableForWebState(webState);
+      geminiService && geminiService->IsProfileEligibleForGemini() &&
+      geminiTabHelper && geminiTabHelper->IsGeminiAvailableForWebState();
   if (!geminiAvailable) {
     return NO;
   }
@@ -69,6 +74,28 @@ typedef void (^ProceduralBlockWithBlockWithItemArray)(
 // Returns the title of button Explain With Gemini.
 - (NSString*)buttonTitle {
   return l10n_util::GetNSString(IDS_IOS_EXPLAIN_GEMINI_EDIT_MENU);
+}
+
+// When shown after Search, the button is prepended with the Gemini icon to match
+// the style of the other items in the list.
+- (UIImage*)imageSymbol {
+  if (ExplainGeminiEditMenuPosition() ==
+      PositionForExplainGeminiEditMenu::kAfterSearch) {
+    return [self askGeminiIcon];
+  } else {
+    return nil;
+  }
+}
+
+// Returns the symbol for the Ask Gemini button.
+- (UIImage*)askGeminiIcon {
+#if BUILDFLAG(IOS_USE_BRANDED_ASSETS)
+  return CustomSymbolWithPointSize(kGeminiBrandedLogoSymbol,
+                                   kSymbolActionPointSize);
+#else
+  return DefaultSymbolWithPointSize(kGeminiNonBrandedLogoSymbol,
+                                    kSymbolActionPointSize);
+#endif
 }
 
 // Fetches the selection in the web page. On success, trigger a "Explain with
@@ -160,7 +187,8 @@ typedef void (^ProceduralBlockWithBlockWithItemArray)(
                                      IDS_IOS_EXPLAIN_GEMINI_PROMPT_PREFIX),
                                  text];
 
-  // TODO(crbug.com/483004001): Add metrics logging.
+  RecordGeminiEditMenuSelectedTextLength(text.length);
+
   GeminiStartupState* startupState = [[GeminiStartupState alloc]
       initWithEntryPoint:gemini::EntryPoint::EditMenu];
   startupState.prepopulatedPrompt = prepopulatedPrompt;
@@ -173,7 +201,7 @@ typedef void (^ProceduralBlockWithBlockWithItemArray)(
   NSString* explainWithGeminiMenuId = @"chromeAction.explainGemini";
   NSString* explainWithGeminiMenuTitle = [self buttonTitle];
   return [UIAction actionWithTitle:explainWithGeminiMenuTitle
-                             image:nil
+                             image:[self imageSymbol]
                         identifier:explainWithGeminiMenuId
                            handler:handler];
 }

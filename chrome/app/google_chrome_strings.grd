@@ -758,14 +758,20 @@ Google Chrome is unable to recover your settings.
         <message name="IDS_DEFAULT_BROWSER_MODAL_BODY_WITH_SETTINGS_ILLUSTRATION" desc="Body text of the default browser modal with settings illustration.">
           Keep your passwords, bookmarks, and history perfectly synced across devices. Easily access the features you know and love by updating your default browser to Chrome.
         </message>
+        <message name="IDS_DEFAULT_BROWSER_MODAL_BODY_WITH_SETTINGS_ILLUSTRATION_UNPINNED" desc="Body text of the default browser modal with settings illustration when Chrome is not pinned to the taskbar.">
+          Keep your passwords, bookmarks, and history perfectly synced across devices. Easily access the features you know and love by updating your default browser to Chrome. Chrome will be pinned to your taskbar for quick access.
+        </message>
         <message name="IDS_DEFAULT_BROWSER_MODAL_TITLE_WITHOUT_SETTINGS_ILLUSTRATION" desc="Title of the default browser modal without settings illustration.">
           Use Google recommended browser settings
         </message>
         <message name="IDS_DEFAULT_BROWSER_MODAL_BODY_WITHOUT_SETTINGS_ILLUSTRATION" desc="Body text of the default browser modal without settings illustration.">
+          Get easy access to the features you know, love, and trust by setting Chrome as your default browser.
+        </message>
+        <message name="IDS_DEFAULT_BROWSER_MODAL_BODY_WITHOUT_SETTINGS_ILLUSTRATION_UNPINNED" desc="Body text of the default browser modal without settings illustration when Chrome is not pinned to the taskbar.">
           Get easy access to the features you know, love, and trust by setting Chrome as your default browser. Chrome will be pinned to your taskbar for quick access.
         </message>
         <message name="IDS_DEFAULT_BROWSER_BUBBLE_DIALOG_TITLE" desc="Title of the dialog prompting the user to set Chrome as the default browser.">
-          Use Google recommended browser settings
+          Set Chrome as your default browser
         </message>
         <message name="IDS_DEFAULT_BROWSER_BUBBLE_DIALOG_BODY" desc="Main explanatory text in the default browser dialog.">
           Get easy access to the features you know, love, and trust by setting Chrome as your default browser.
@@ -1127,6 +1133,15 @@ Google Chrome is unable to recover your settings.
         Settings, opens in new tab.
       </message>
 
+      <!-- Signin Search AI Mode promo -->
+      <!-- TODO(crbug.com/486858498): Finalize and make transalteable. -->
+      <message name="IDS_AI_SIGNIN_PROMO_SUBTITLE" translateable="false">
+        Sign in to Chrome to ask AI mode about your tabs. You'll also get your passwords and more on all your devices.
+      </message>
+      <message name="IDS_AI_SIGNIN_PROMO_AVATAR_PILL_TEXT" translateable="false" meaning="Text shown on the expanded avatar pill when the Signin Search AI Bubble promo is shown to the user">
+        Sign in to Chrome?
+      </message>
+
       <!-- Enterprise sign-in dialog -->
       <message name="IDS_ENTERPRISE_VALUE_PROPOSITION_PROFILE_REQUIRED_BY_ORG_TITLE" desc="Title of the screen in the profile creation flow where the user is asked whether they want to confirm signing in to Chrome with their enterprise account when it is mandatory to sign in to Chrome with the enterprise account.">
         Your organization requires you to sign into Chrome
@@ -1206,6 +1221,12 @@ Google Chrome is unable to recover your settings.
       <if expr="not is_android">
         <message name="IDS_NTP_CUSTOMIZATION_PROMO" desc="The text shown in the body of the New Tab Page browser customization promotion">
           Customize Chrome to give your browser a new look
+        </message>
+        <message name="IDS_NTP_MOBILE_PROMO_TITLE" desc="Title of the NTP promo that promotes Chrome on mobile.">
+          Get Chrome on your phone
+        </message>
+        <message name="IDS_NTP_MOBILE_PROMO_PASSWORDS_TITLE" desc="Title of the NTP promo that promotes Chrome on mobile for passwords.">
+          Get the Chrome app to save passwords on the go
         </message>
         <message name="IDS_NTP_SIGN_IN_PROMO_WITH_BOOKMARKS" desc="The text shown in the body of the New Tab Page sign in promotion">
           Sign in to Chrome to get your passwords, bookmarks, and more on all your devices
@@ -1579,6 +1600,14 @@ Google Chrome is unable to recover your settings.
       </message>
       <message name="IDS_EXTENSIONS_SETTINGS_API_SECOND_LINE_START_AND_SEARCH" desc="Second line in the Settings API bubble. Only shown if the secondary change by the extension was both the start page and the search engine. See IDS_EXTENSIONS_SETTINGS_API_SECOND_LINE_START_PAGES for reason for triple quotes.">
         ''' It also controls what page is shown when you start Chrome or search from the Omnibox. '''
+      </message>
+
+      <!-- Search Settings Page -->
+      <message name="IDS_SETTINGS_SEARCH_EXTENSION_ENGINES_ACTIVE_SHORTCUTS_EXPLANATION" desc="Subtitle for the active features and extensions subsection, explaining how they can be used.">
+        To search a specific Chrome feature or extension, type its shortcut in the address bar, followed by your selected keyboard key
+      </message>
+      <message name="IDS_SETTINGS_SEARCH_EXTENSION_ENGINES_INACTIVE_SHORTCUTS_EXPLANATION" desc="Subtitle for the inactive features and extensions subsection, explaining how they can be used.">
+        Some Chrome features and extensions come with shortcuts. You can choose to turn them back on.
       </message>
 
       <!-- Webstore strings -->
@@ -2309,6 +2338,18 @@ Google Chrome is unable to recover your settings.
         <message name="IDS_AVATAR_BUTTON_MAKING_CHROME_YOURS" desc="The avatar button label when the user has just signed in. When clicked, it opens the profile menu.">
           Making Chrome yours...
         </message>
+
+        <!-- Sign-in Promo Avatar Button Label Desktop -->
+        <if expr="not use_titlecase">
+          <message name="IDS_AVATAR_BUTTON_SIGNIN_PROMO" desc="The avatar button promo label inviting the user to sign-in. Shown for signed out users, and signed in to the web only. When clicked, it opens the profile menu.">
+            Sign in to Chrome?
+          </message>
+        </if>
+        <if expr="use_titlecase">
+           <message name="IDS_AVATAR_BUTTON_SIGNIN_PROMO" desc="The avatar button promo label inviting the user to sign-in. Shown for signed out users, and signed in to the web only. When clicked, it opens the profile menu.">
+            Sign In to Chrome?
+          </message>
+        </if>
       </if>
 
       <!-- OOBE -->
@@ -3044,22 +3085,16 @@ Google Chrome is unable to recover your settings.
         To use Gemini in Chrome, sign in with a different Google Account
       </message>
 
-      <!-- Experimental Glic settings -->
-      <message name="IDS_SETTINGS_GLIC_PAGE_TITLE" desc="Title of the Gemini settings subpage. Also shown in tab strip.">
-        Gemini in Chrome
-      </message>
-      <message name="IDS_SETTINGS_GLIC_SECTION_TITLE" desc="Text of the Gemini section header on the AI settings page.">
-        Gemini in Chrome
-      </message>
-      <message name="IDS_SETTINGS_GLIC_ROW_LABEL" desc="Label of the Gemini row button on the AI settings page leading to the Gemini subpage.">
-        Gemini in Chrome
-      </message>
-      <message name="IDS_SETTINGS_GLIC_PERMISSIONS_WEB_ACTUATION_TOGGLE" desc="Title for the Gemini feature introduction screen">
-        Let Chrome browse for you
-      </message>
-      <message name="IDS_SETTINGS_GLIC_PERMISSIONS_WEB_ACTUATION_TOGGLE_SUBLABEL" desc="Subheader explaining what the Gemini feature does">
-        Gemini in Chrome uses auto browse to work in your tabs and complete tasks you give it. <ph name="LINK_BEGIN">&lt;a href="#"&gt;</ph>Learn more<ph name="LINK_END">&lt;/a&gt;</ph>
-      </message>
+        <!-- Experimental Glic settings -->
+        <message name="IDS_SETTINGS_GLIC_PAGE_TITLE" desc="Title of the Gemini settings subpage. Also shown in tab strip.">
+          Gemini in Chrome
+        </message>
+        <message name="IDS_SETTINGS_GLIC_SECTION_TITLE" desc="Text of the Gemini section header on the AI settings page.">
+          Gemini in Chrome
+        </message>
+        <message name="IDS_SETTINGS_GLIC_ROW_LABEL" desc="Label of the Gemini row button on the AI settings page leading to the Gemini subpage.">
+          Gemini in Chrome
+        </message>
 
       <!-- Profile Picker Glic version-->
       <message name="IDS_PROFILE_PICKER_MAIN_VIEW_TITLE_GLIC" desc="Heading describing that the section below choosing a Chrome profile to use with Gemini. 'Gemini' has a special styling.">

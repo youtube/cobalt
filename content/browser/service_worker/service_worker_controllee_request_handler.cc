@@ -175,7 +175,8 @@ void ServiceWorkerControlleeRequestHandler::MaybeCreateLoader(
   // `ServiceWorkerMainResourceLoaderInterceptor::MaybeCreateLoader()` to use
   // `skip_service_worker` flag.
   if (service_worker_loader_helpers::IsEligibleForSyntheticResponse(
-          browser_context, tentative_resource_request.url)) {
+          browser_context, context_->wrapper()->storage_partition(),
+          tentative_resource_request.url)) {
     const int kReloadFlags = net::LOAD_VALIDATE_CACHE | net::LOAD_BYPASS_CACHE;
     // If the navigation is from reloading, do not inject the service worker
     // registration.
@@ -323,14 +324,18 @@ void ServiceWorkerControlleeRequestHandler::ContinueWithRegistration(
   const bool need_to_update = !force_update_started_ &&
                               context_->force_update_on_page_load() &&
                               can_update;
+  // Passing an empty outside fetch client settings object as there is no
+  // associated execution context.
+  auto fetch_client_settings_object =
+      blink::mojom::FetchClientSettingsObject::New();
+  fetch_client_settings_object->policy_container_policies =
+      blink::mojom::PolicyContainerPolicies::New();
   if (need_to_update) {
     force_update_started_ = true;
     context_->UpdateServiceWorker(
         registration.get(), true /* force_bypass_cache */,
         true /* skip_script_comparison */,
-        // Passing an empty outside fetch client settings object as there is no
-        // associated execution context.
-        blink::mojom::FetchClientSettingsObject::New(),
+        std::move(fetch_client_settings_object),
         base::BindOnce(
             &ServiceWorkerControlleeRequestHandler::DidUpdateRegistration,
             weak_factory_.GetWeakPtr(), registration));

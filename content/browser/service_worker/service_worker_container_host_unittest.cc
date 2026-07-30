@@ -196,9 +196,12 @@ class ServiceWorkerContainerHostTest : public testing::Test {
         blink::mojom::ServiceWorkerErrorType::kUnknown;
     auto options = blink::mojom::ServiceWorkerRegistrationOptions::New();
     options->scope = scope;
+    auto fetch_client_settings_object =
+        blink::mojom::FetchClientSettingsObject::New();
+    fetch_client_settings_object->policy_container_policies =
+        blink::mojom::PolicyContainerPolicies::New();
     container_host->Register(
-        worker_url, std::move(options),
-        blink::mojom::FetchClientSettingsObject::New(),
+        worker_url, std::move(options), std::move(fetch_client_settings_object),
         base::BindOnce([](blink::mojom::ServiceWorkerErrorType* out_error,
                           blink::mojom::ServiceWorkerErrorType error,
                           const std::optional<std::string>& error_msg,
@@ -1082,6 +1085,7 @@ class ServiceWorkerContainerHostTestByClientType
  public:
   ServiceWorkerContainerHostTestByClientType() = default;
 
+  // TODO(crbug.com/379869738) Remove FromUnsafeValue.
   ScopedServiceWorkerClient CreateClient() {
     switch (GetParam()) {
       case ClientType::kWindow:
@@ -1091,14 +1095,16 @@ class ServiceWorkerContainerHostTestByClientType
             helper_->context()
                 ->service_worker_client_owner()
                 .CreateServiceWorkerClientForWorker(
-                    helper_->mock_render_process_id(),
+                    ChildProcessId::FromUnsafeValue(
+                        helper_->mock_render_process_id()),
                     ServiceWorkerClientInfo(blink::DedicatedWorkerToken())));
       case ClientType::kSharedWorker:
         return ScopedServiceWorkerClient(
             helper_->context()
                 ->service_worker_client_owner()
                 .CreateServiceWorkerClientForWorker(
-                    helper_->mock_render_process_id(),
+                    ChildProcessId::FromUnsafeValue(
+                        helper_->mock_render_process_id()),
                     ServiceWorkerClientInfo(blink::SharedWorkerToken())));
     }
   }

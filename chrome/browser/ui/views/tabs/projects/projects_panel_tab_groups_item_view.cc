@@ -4,6 +4,8 @@
 
 #include "chrome/browser/ui/views/tabs/projects/projects_panel_tab_groups_item_view.h"
 
+#include "build/build_config.h"
+#include "build/buildflag.h"
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/tab_group_menu_utils.h"
@@ -51,12 +53,6 @@ constexpr gfx::Insets kShareIconMargins =
                       4,
                       4);
 
-// The size of the Tab groups icon.
-constexpr int kTabGroupIconSize = 12;
-
-// The margins for the Tab groups icon.
-constexpr auto kTabGroupsIconMargins = gfx::Insets(6);
-
 // Height and width of shared Tab group icon and more button icon.
 constexpr int kTrailingIconSize = 16;
 
@@ -83,7 +79,8 @@ ProjectsPanelTabGroupsItemView::ProjectsPanelTabGroupsItemView(
   projects_panel::ConfigureInkDropForButton(this);
 
   tab_group_icon_ = AddChildView(std::make_unique<views::ImageView>());
-  tab_group_icon_->SetProperty(views::kMarginsKey, kTabGroupsIconMargins);
+  tab_group_icon_->SetProperty(views::kMarginsKey,
+                               projects_panel::kTabGroupIconMargins);
 
   auto group_title = tab_groups::TabGroupMenuUtils::GetMenuTextForGroup(group);
   title_ = AddChildView(std::make_unique<views::Label>(group_title));
@@ -217,7 +214,7 @@ void ProjectsPanelTabGroupsItemView::OnThemeChanged() {
   ui::ColorId color_id = GetTabGroupContextMenuColorId(tab_group_color_id_);
   tab_group_icon_->SetImage(ui::ImageModel::FromVectorIcon(
       *tab_group_vector_icon_, GetColorProvider()->GetColor(color_id),
-      kTabGroupIconSize));
+      projects_panel::kTabGroupIconSize));
 }
 
 void ProjectsPanelTabGroupsItemView::OnMouseEntered(
@@ -227,7 +224,13 @@ void ProjectsPanelTabGroupsItemView::OnMouseEntered(
 
 void ProjectsPanelTabGroupsItemView::OnMouseExited(
     const ui::MouseEvent& event) {
+#if BUILDFLAG(IS_LINUX)
+  // Bypasses the synchronous IsMouseHovered() check which can be stale on Linux
+  // Wayland/X11 due to asynchronous cursor updates during mouse exit events.
+  UpdateHoverStateForced(/*is_hovered=*/false);
+#else
   UpdateHoverState();
+#endif
 }
 
 void ProjectsPanelTabGroupsItemView::OnMouseMoved(const ui::MouseEvent& event) {
@@ -269,6 +272,11 @@ void ProjectsPanelTabGroupsItemView::disable_animations_for_testing() {
   disable_animations_for_testing_ = true;
 }
 
+// static
+void ProjectsPanelTabGroupsItemView::enable_animations_for_testing() {
+  disable_animations_for_testing_ = false;
+}
+
 void ProjectsPanelTabGroupsItemView::OnMoreButtonPressed() {
   more_button_callback_.Run(group_guid_, *more_button_);
   UpdateHoverState();
@@ -279,10 +287,13 @@ void ProjectsPanelTabGroupsItemView::OnMoreButtonStateChanged() {
 }
 
 void ProjectsPanelTabGroupsItemView::UpdateHoverState() {
+  UpdateHoverStateForced(IsMouseHovered());
+}
+
+void ProjectsPanelTabGroupsItemView::UpdateHoverStateForced(bool is_hovered) {
   const bool show_more =
       !dragging_ &&
-      (IsMouseHovered() || (more_button_ && more_button_->GetState() ==
-                                                views::Button::STATE_PRESSED));
+      (is_hovered || more_button_->GetState() == views::Button::STATE_PRESSED);
 
   if (!disable_animations_for_testing_) {
     if (show_more) {

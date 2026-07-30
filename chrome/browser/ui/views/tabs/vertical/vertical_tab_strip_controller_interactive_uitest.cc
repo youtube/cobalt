@@ -139,6 +139,39 @@ IN_PROC_BROWSER_TEST_F(VerticalTabStripControllerInteractiveUiTest,
       WaitForHide(kFirstTabName));
 }
 
+IN_PROC_BROWSER_TEST_F(
+    VerticalTabStripControllerInteractiveUiTest,
+    VerifyNotClosingTabWhenMiddleMouseButtonReleasedElsewhere) {
+  RunTestSequence(
+      // Verify Vertical Tabs is showing.
+      WaitForShow(kVerticalTabStripBottomContainerElementId),
+      // Create a second tab.
+      EnsurePresent(kNewTabButtonElementId),
+      PressButton(kNewTabButtonElementId,
+                  ui::test::InteractionTestUtil::InputType::kDontCare),
+      CheckResult([this]() { return browser()->tab_strip_model()->count(); },
+                  2),
+      // Name views so we can interact with them.
+      NameDescendantViewByType<VerticalTabView>(kBrowserViewElementId,
+                                                kFirstTabName, 0),
+      // Move mouse to tab at index 0.
+      MoveMouseTo(kFirstTabName),
+      // We pass a point outside the view's local bounds so that HitTestPoint()
+      // fails.
+      WithView(kFirstTabName,
+               [](views::View* view) {
+                 gfx::Point off_tab_point(-10, -10);
+                 ui::MouseEvent event(
+                     ui::EventType::kMouseReleased, off_tab_point,
+                     off_tab_point, ui::EventTimeForNow(),
+                     ui::EF_MIDDLE_MOUSE_BUTTON, ui::EF_MIDDLE_MOUSE_BUTTON);
+                 view->OnMouseReleased(event);
+               }),
+      // Verify that the tab count is still 2 (the tab did not close).
+      CheckResult([this]() { return browser()->tab_strip_model()->count(); },
+                  2));
+}
+
 // TODO(crbug.com/469912247): Fails on mac-rel-ready and linux-rel-ready bots.
 IN_PROC_BROWSER_TEST_F(VerticalTabStripControllerInteractiveUiTest,
                        DISABLED_ShiftMultiTabSelection) {
@@ -508,21 +541,4 @@ IN_PROC_BROWSER_TEST_F(VerticalTabStripControllerInteractiveUiTest,
       MoveMouseTo(kFirstTabName),
       WaitForShow(TabHoverCardBubbleView::kHoverCardBubbleElementId));
 }
-
-IN_PROC_BROWSER_TEST_F(VerticalTabStripControllerInteractiveUiTest,
-                       DISABLED_VerticalTabHoverCardSplitView) {
-  TabStripModel* model = browser()->tab_strip_model();
-  chrome::NewTab(browser());
-  model->ActivateTabAt(0);
-  model->AddToNewSplit({1}, {},
-                       split_tabs::SplitTabCreatedSource::kTabContextMenu);
-  RunTestSequence(
-      WaitForShow(kVerticalTabStripBottomContainerElementId),
-      NameDescendantViewByType<VerticalTabView>(kBrowserViewElementId,
-                                                kFirstTabName, 0),
-      MoveMouseTo(kVerticalTabStripBottomContainerElementId),
-      MoveMouseTo(kFirstTabName),
-      WaitForShow(TabHoverCardBubbleView::kHoverCardBubbleElementId));
-}
-
 }  // namespace

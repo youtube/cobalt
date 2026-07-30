@@ -249,6 +249,7 @@ class EslintTsTest(unittest.TestCase):
     _EXPECTED_MISSING_TAG_NAME_REGISTRATION_ERROR = "Tag/class name pair registration to HTMLElementTagNameMap interface missing for %(domName)s ↔ %(className)s"
     _EXPECTED_USE_FIRE_HELPER_ERROR = "Use this.fire(...) instead of this.dispatchEvent(new CustomEvent(...))."
     _EXPECTED_USE_FIRE_HELPER_WITH_EVENT_NAME_ERROR = "Use this.fire(...) instead of this.dispatchEvent(new CustomEvent(...)), for event \'%(eventName)s\'"
+    _EXPECTED_MISSING_CUSTOM_EVENT_TYPE_PARAMETER_ERROR = "Missing CustomEvent type parameter for %(type)s \'%(name)s\' (use CustomEvent<void> or CustomEvent<SomeType>)"
 
     super_call_required_methods = [
         'connectedCallback', 'disconnectedCallback', 'willUpdate', 'updated'
@@ -304,6 +305,14 @@ class EslintTsTest(unittest.TestCase):
         _EXPECTED_INCORRECT_DOLLAR_SIGN_NOTATION_ERROR % {
             'dashCaseName': 'hello-button',
             'camelCaseName': 'helloButton',
+        },
+        _EXPECTED_MISSING_CUSTOM_EVENT_TYPE_PARAMETER_ERROR % {
+            'type': 'function parameter',
+            'name': 'someEvent',
+        },
+        _EXPECTED_MISSING_CUSTOM_EVENT_TYPE_PARAMETER_ERROR % {
+            'type': 'variable',
+            'name': '_otherEvent',
         },
         # Case 1.7
         _EXPECTED_INCORRECT_CLASS_NAME_ERROR % {
@@ -397,6 +406,14 @@ class EslintTsTest(unittest.TestCase):
             'dashCaseName': 'hello-other-button',
             'camelCaseName': 'helloOtherButton',
         },
+        _EXPECTED_MISSING_CUSTOM_EVENT_TYPE_PARAMETER_ERROR % {
+            'type': 'function parameter',
+            'name': 'someEvent2',
+        },
+        _EXPECTED_MISSING_CUSTOM_EVENT_TYPE_PARAMETER_ERROR % {
+            'type': 'variable',
+            'name': '_otherEvent2',
+        },
         # Case 2.4
         _EXPECTED_INCORRECT_CLASS_NAME_ERROR % {
             'className': 'TestNoError4Element',
@@ -423,6 +440,8 @@ class EslintTsTest(unittest.TestCase):
 
     _VARIABLE_DECLARATION_ERROR = "Local (const/let) variable '%(variableName)s' found in the HTML template file. Logic should be delegated to the class definition file"
 
+    _INCORRECT_EVENT_LISTENER_NAME_ERROR = "Incorrect event listener naming found for event '%(eventName)s'. Rename '%(listenerName)s' to follow the '%(suggestedListenerName)s' pattern"
+
     # The following strings *should* appear in the error output.
     errors = [
         _FOR_STATEMENT_ERROR,
@@ -448,6 +467,11 @@ class EslintTsTest(unittest.TestCase):
         _VARIABLE_DECLARATION_ERROR % {
             'variableName': 'messagesToRender'
         },
+        _INCORRECT_EVENT_LISTENER_NAME_ERROR % {
+            'eventName': 'click',
+            'suggestedListenerName': 'on<OptionalContext>Click_',
+            'listenerName': 'click_',
+        },
     ]
     for e in errors:
       self.assertTrue(
@@ -459,11 +483,165 @@ class EslintTsTest(unittest.TestCase):
         _FUNCTION_DEFINITION_ERROR % {
             'functionName': 'getHtml'
         },
+        _INCORRECT_EVENT_LISTENER_NAME_ERROR % {
+            'eventName': 'focus',
+            'suggestedListenerName': 'on<OptionalContext>Focus_',
+            'listenerName': 'onFocus_',
+        },
     ]
     for e in non_errors:
       self.assertFalse(
           e in str(context.exception), f'Found unexpected error: {e}')
 
+  def testWebUiEslintPlugin_LitElementInvalidInterface(self):
+    with self.assertRaises(RuntimeError) as context:
+      self._run_test([
+          "with_webui_plugin_lit_element_invalid_interface_violations.ts",
+          "with_webui_plugin_lit_element_invalid_interface_violations.html.ts",
+          "with_webui_plugin_lit_element_invalid_interface_violations_no_template_file.ts",
+      ])
+
+    _EXPECTED_STRING = "@webui-eslint/lit-element-invalid-interface"
+    self.assertTrue(_EXPECTED_STRING in str(context.exception))
+
+    _INCORRECT_NOTATION_ERROR = "Use camelCase identifiers, not dash-case literals, for DOM ids in the interface. Change %(incorrectIdentifier)s to %(suggestedName)s in the interface for %(className)s"
+
+    _MISSING_ID_ERROR = "Id '%(domId)s' is listed in the interface definition for %(className)s, but no element with that ID was found in the template file 'with_webui_plugin_lit_element_invalid_interface_violations.html.ts'"
+
+    _MISSING_ID_NO_TEMPLATE_ERROR = "Id '%(domId)s' is listed in the interface definition for %(className)s, but no element with that ID was found in the template"
+    # The following strings *should* appear in the error output.
+    errors = [
+        _INCORRECT_NOTATION_ERROR % {
+            'incorrectIdentifier': '\'three\'',
+            'suggestedName': 'three',
+            'className': 'MyDummyElement',
+        },
+        _INCORRECT_NOTATION_ERROR % {
+            'incorrectIdentifier': '\'four-four\'',
+            'suggestedName': 'fourFour',
+            'className': 'MyDummyElement',
+        },
+        _MISSING_ID_ERROR % {
+            'domId': 'doesNotExist',
+            'className': 'MyDummyElement',
+        },
+        _MISSING_ID_NO_TEMPLATE_ERROR % {
+            'domId': 'doesNotExistTest',
+            'className': 'MyDummyTestElement',
+        },
+    ]
+    for e in errors:
+      self.assertTrue(
+          e in str(context.exception), f'Didn\'t find expected error: {e}')
+
+    # The following strings *should not* appear in the error output.
+    non_errors = [
+        _INCORRECT_NOTATION_ERROR % {
+            'incorrectIdentifier': 'one',
+            'suggestedName': 'one',
+            'className': 'MyDummyElement',
+        },
+        _INCORRECT_NOTATION_ERROR % {
+            'incorrectIdentifier': 'two',
+            'suggestedName': 'two',
+            'className': 'MyDummyElement',
+        },
+        _INCORRECT_NOTATION_ERROR % {
+            'incorrectIdentifier': 'one',
+            'suggestedName': 'one',
+            'className': 'MyDummyTestElement',
+        },
+        _INCORRECT_NOTATION_ERROR % {
+            'incorrectIdentifier': 'two',
+            'suggestedName': 'two',
+            'className': 'MyDummyTestElement',
+        },
+        _MISSING_ID_ERROR % {
+            'domId': 'one',
+            'className': 'MyDummyElement',
+        },
+        _MISSING_ID_NO_TEMPLATE_ERROR % {
+            'domId': 'one',
+            'className': 'MyDummyTestElement',
+        },
+        _MISSING_ID_ERROR % {
+            'domId': 'two',
+            'className': 'MyDummyElement',
+        },
+        _MISSING_ID_NO_TEMPLATE_ERROR % {
+            'domId': 'two',
+            'className': 'MyDummyTestElement',
+        },
+    ]
+    for e in non_errors:
+      self.assertFalse(
+          e in str(context.exception), f'Found unexpected error: {e}')
+
+  def testWebUiEslintPlugin_LitElementBindings(self):
+    with self.assertRaises(RuntimeError) as context:
+      self._run_test([
+          "with_webui_plugin_lit_element_bindings_violations.ts",
+          "with_webui_plugin_lit_element_bindings_violations.html.ts",
+      ])
+
+    _EXPECTED_STRING = "@webui-eslint/lit-element-expressions"
+    self.assertTrue(_EXPECTED_STRING in str(context.exception))
+
+    _INCORRECT_ATTRIBUTE_ERROR = "Incorrect assignment to property '%(propertyName)s' using attribute expression '%(attributeName)s='. Object/Array Lit properties can only be initialized with property expressions. Change to '%(propertyExpression)s' instead, or update the property's type if Object/Array is not accurate"
+
+    _INCORRECT_BOOLEAN_ERROR = "Incorrect assignment to property '%(propertyName)s' using boolean attribute expression '?%(attributeName)s='. Boolean attribute expressions should only be assigned to boolean properties. To bind to the truthiness of '%(propertyName)s', convert it to a boolean using '!!'"
+
+    # The following strings *should* appear in the error output.
+    errors = [
+        _INCORRECT_ATTRIBUTE_ERROR % {
+            'attributeName': 'value',
+            'propertyName': 'value',
+            'propertyExpression': '.value=',
+        },
+        _INCORRECT_ATTRIBUTE_ERROR % {
+            'attributeName': 'aria-description',
+            'propertyName': 'description',
+            'propertyExpression': '.ariaDescription=',
+        },
+        _INCORRECT_BOOLEAN_ERROR % {
+            'attributeName': 'invalid',
+            'propertyName': 'errorMessage',
+        },
+    ]
+    for e in errors:
+      self.assertTrue(
+          e in str(context.exception), f'Didn\'t find expected error: {e}')
+
+    # The following strings *should not* appear in the error output.
+    non_errors = [
+        _INCORRECT_ATTRIBUTE_ERROR % {
+            'attributeName': 'aria-label',
+            'propertyName': 'label',
+            'propertyExpression': '.ariaLabel=',
+        },
+        _INCORRECT_ATTRIBUTE_ERROR % {
+            'attributeName': 'error-message',
+            'propertyName': 'errorMessage',
+            'propertyExpression': '.errorMessage=',
+        },
+        _INCORRECT_BOOLEAN_ERROR % {
+            'attributeName': 'disabled',
+            'propertyName': 'disabled',
+        },
+        _INCORRECT_ATTRIBUTE_ERROR % {
+            'attributeName': 'min',
+            'propertyName': 'limits',
+            'propertyExpression': '.min=',
+        },
+        _INCORRECT_ATTRIBUTE_ERROR % {
+            'attributeName': 'max',
+            'propertyName': 'limits',
+            'propertyExpression': '.max=',
+        },
+    ]
+    for e in non_errors:
+      self.assertFalse(
+          e in str(context.exception), f'Found unexpected error: {e}')
 
 if __name__ == "__main__":
   unittest.main()

@@ -84,7 +84,7 @@ void LogInstallCriteria(
       !criteria.is_already_installing) {
     LogInstallCriteria(
         "InitialInstall", "IsBackground",
-        criteria.get_install_mode() == ModelInstallMode::kBackground);
+        criteria.get_install_mode() == ModelInstallMode::kRegisterOnly);
   }
 }
 
@@ -159,6 +159,29 @@ base::DictValue MakeOverrideManifest() {
           .Set("name", "override")
           .Set("version", "override")
           .Set("supported_performance_hints", std::move(hints)));
+}
+
+enum class BaseModel {
+  kUnknown = 0,
+  kXxs = 1,
+  kXs = 2,
+  kV2Nano = 3,
+  kV3Nano = 4,
+  kMaxValue = kV3Nano,
+};
+
+BaseModel ConvertModelNameToEnum(std::string& model_name) {
+  if (model_name == "v3Nano") {
+    return BaseModel::kV3Nano;
+  } else if (model_name == "v2Nano") {
+    return BaseModel::kV2Nano;
+  } else if (model_name == "XS") {
+    return BaseModel::kXs;
+  } else if (model_name == "XXS") {
+    return BaseModel::kXxs;
+  } else {
+    return BaseModel::kUnknown;
+  }
 }
 
 }  // namespace
@@ -272,6 +295,9 @@ OnDeviceModelComponentStateManager::OnDeviceModelComponentStateManager(
   performance_classifier_->ListenForPerformanceClassAvailable(base::BindOnce(
       &OnDeviceModelComponentStateManager::OnPerformanceClassAvailable,
       weak_ptr_factory_.GetWeakPtr()));
+  base::UmaHistogramBoolean(
+      "OptimizationGuide.OnDeviceModel.OnDeviceModelComponentInstantiated",
+      true);
 }
 
 OnDeviceModelComponentStateManager::~OnDeviceModelComponentStateManager() =
@@ -342,6 +368,9 @@ void OnDeviceModelComponentStateManager::SetReady(
     state_ = std::make_unique<OnDeviceModelComponentState>(install_dir, version,
                                                            *model_spec);
     component_installer_state_ = ComponentInstallerState::kInstalled;
+    base::UmaHistogramEnumeration(
+        "OptimizationGuide.OnDeviceModel.InstalledModel",
+        ConvertModelNameToEnum(model_spec->model_name));
   }
 
   NotifyStateChanged();
@@ -405,6 +434,13 @@ void OnDeviceModelComponentStateManager::MaybeBeginBackgroundModelDownload() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   background_download_requested_ = true;
   BeginUpdateRegistration();
+}
+
+void OnDeviceModelComponentStateManager::GetFreeDiskSpaceForLogging(
+    base::OnceCallback<void(std::optional<base::ByteCount>)> callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  delegate_->GetFreeDiskSpace(delegate_->GetInstallDirectory(),
+                              std::move(callback));
 }
 
 void OnDeviceModelComponentStateManager::BeginUpdateRegistration() {
@@ -537,21 +573,6 @@ void OnDeviceModelComponentStateManager::UpdateRegistration() {
   }
 
   if (component_installer_state_ == ComponentInstallerState::kRegistered) {
-    if (registration_criteria_->get_install_mode() ==
-        ModelInstallMode::kOnDemand) {
-      component_installer_state_ =
-          ComponentInstallerState::kOnDemandDownloading;
-      delegate_->RequestUpdate(/*is_background=*/false);
-    } else {
-      component_installer_state_ =
-          ComponentInstallerState::kBackgroundDownloading;
-      delegate_->RequestUpdate(/*is_background=*/true);
-    }
-    return;
-  }
-
-  if (component_installer_state_ ==
-      ComponentInstallerState::kBackgroundDownloading) {
     if (registration_criteria_->get_install_mode() ==
         ModelInstallMode::kOnDemand) {
       component_installer_state_ =

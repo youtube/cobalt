@@ -41,14 +41,6 @@ class CORE_EXPORT CSSParserLocalContext {
     return CSSParserLocalContext();
   }
 
-  // TODO(crbug.com/413385732): We used this constructor to create a local
-  // context for animations, i.e. in all css_parsing_utils::Consume* calls from
-  // files inside `third_party/blink/renderer/core/animation/`. Figure out if we
-  // actually need property context for random() in there.
-  static CSSParserLocalContext CreateWithoutPropertyForAnimations() {
-    return CSSParserLocalContext();
-  }
-
   // Should only be used for testing.
   static CSSParserLocalContext CreateWithoutPropertyForTest() {
     return CSSParserLocalContext();
@@ -72,11 +64,8 @@ class CORE_EXPORT CSSParserLocalContext {
     return CSSParserLocalContext();
   }
 
-  // TODO(crbug.com/413385732): This is used for parsing colors without element
-  // context in `blink/renderer/modules/canvas/canvas2d/canvas_style.cc`. We
-  // don't have property context there, so will use empty string as property
-  // name for property-dependent random() values. We might want to disallow
-  // random() at parse time for setting values on the canvas contexts.
+  // This constructor is used for canvas context. Since we don't have property
+  // context there, we don't allow random() values there.
   static CSSParserLocalContext CreateWithoutPropertyForCanvas() {
     return CSSParserLocalContext();
   }
@@ -86,13 +75,6 @@ class CORE_EXPORT CSSParserLocalContext {
   // Since we don't support resolution of random() functions in DevTools for now
   // we don't need property context for random() in there.
   static CSSParserLocalContext CreateWithoutPropertyForInspector() {
-    return CSSParserLocalContext();
-  }
-
-  // TODO(crbug.com/413385732): Used to create a local context to parse input
-  // arguments against syntax for CSSPaintValue. Figure out if we actually need
-  // the property context for property dependent random() values there.
-  static CSSParserLocalContext CreateWithoutPropertyForPaintValue() {
     return CSSParserLocalContext();
   }
 
@@ -185,10 +167,15 @@ class CORE_EXPORT CSSParserLocalContext {
   CSSParserLocalContext() = default;
 
   CSSPropertyID current_shorthand_ = CSSPropertyID::kInvalid;
+  // The property name used as context for value resolution. This should ideally
+  // be a longhand property. However, shorthands with custom expansion logic
+  // (e.g., background-position) that avoid generic helpers like
+  // ConsumeShorthandGreedilyViaLonghands may leave this as a shorthand ID.
+  // This is currently acceptable for features like random() resolution.
   std::optional<CSSPropertyName> unresolved_property_name_;
   HeapVector<CSSValueID> functions_stack_;
 
-  // TODO(crbug.com/413385732): We might have the same function name between
+  // TODO(crbug.com/489688671): We might have the same function name between
   // different tree scopes, then we need to make CSSParserLocalContext aware
   // of tree scope name.
   AtomicString custom_function_name_ = g_null_atom;

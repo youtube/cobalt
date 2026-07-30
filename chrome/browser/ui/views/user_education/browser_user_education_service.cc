@@ -1343,6 +1343,26 @@ void MaybeRegisterChromeFeaturePromos(
                        "Triggered when the tab search button has been moved "
                        "into the toolbar.")));
 
+  // kIPHTabSearchComboButtonFeature:
+  registry.RegisterFeature(std::move(
+      FeaturePromoSpecification::CreateForToastPromo(
+          feature_engagement::kIPHTabSearchComboButtonFeature,
+          kTabSearchButtonElementId, IDS_TAB_SEARCH_COMBO_BUTTON_PROMO_BODY,
+          IDS_TAB_SEARCH_COMBO_BUTTON_PROMO_SCREENREADER,
+          FeaturePromoSpecification::AcceleratorInfo())
+          .SetBubbleArrow(HelpBubbleArrow::kTopLeft)
+          .SetBubbleTitleText(IDS_TAB_SEARCH_COMBO_BUTTON_PROMO_TITLE)
+          // Overriding due to director-level guidance that we show a more
+          // prominent promo than the move to the tab search toolbar button
+          .OverrideBubbleShouldTimeOut(false)
+          .SetAdditionalConditions(std::move(
+              AdditionalConditions().AddAdditionalCondition(AdditionalCondition{
+                  feature_engagement::events::kTabSearchComboButtonUsed,
+                  AdditionalConditions::Constraint::kExactly, 0})))
+          .SetMetadata(147, "emshack@chromium.org",
+                       "Triggered when the tab search button has been moved "
+                       "into the tab strip combo button.")));
+
   // kIPHDesktopSharedHighlightingFeature:
   registry.RegisterFeature(std::move(
       FeaturePromoSpecification::CreateForLegacyPromo(
@@ -1627,7 +1647,7 @@ void MaybeRegisterChromeFeaturePromos(
     registry.RegisterFeature(
         std::move(FeaturePromoSpecification::CreateForCustomUi(
                       feature_engagement::kIPHiOSLensPromoDesktopFeature,
-                      kToolbarAppMenuButtonElementId,
+                      kIOSLensPromoAnchorElementId,
                       user_education::CreateCustomHelpBubbleViewFactoryCallback(
                           base::BindRepeating(
                               &IOSPromoBubbleView::Create,
@@ -1715,6 +1735,21 @@ void MaybeRegisterChromeFeaturePromos(
                     FeaturePromoSpecification::AcceleratorInfo())
                     .SetBubbleArrow(HelpBubbleArrow::kBottomRight)));
 #endif  // BUILDFLAG(ENABLE_COMPOSE)
+
+  // kIPHVerticalTabstripTutorialFeature:
+  registry.RegisterFeature(std::move(
+      FeaturePromoSpecification::CreateForTutorialPromo(
+          feature_engagement::kIPHVerticalTabstripTutorialFeature,
+          kBrowserDialogAnchorElementId, IDS_VERTICAL_TABS_IPH_BODY,
+          kVerticalTabsTutorialId)
+          .SetBubbleArrow(HelpBubbleArrow::kNone)
+          .SetBubbleIcon(kLightbulbOutlineIcon)
+          .SetBubbleTitleText(IDS_VERTICAL_TABS_IPH_TITLE)
+          .SetMetadata(
+              147, "charlesmeng@google.com",
+              "Triggered when there are enough tabs in the tabstrip and"
+              "the size of the tabs are shrunk significantly compared to their "
+              "ideal width.")));
 }
 
 void MaybeRegisterChromeFeaturePromos(
@@ -2009,6 +2044,34 @@ void MaybeRegisterChromeTutorials(
     tutorial_registry.AddTutorial(kSplitViewTutorialId,
                                   std::move(split_view_tutorial));
   }
+
+  {  // Vertical tabs tutorial
+    auto vertical_tabs_tutorial =
+        TutorialDescription::Create<kVerticalTabsTutorialMetricPrefix>(
+            BubbleStep(kTabStripFrameDialogAnchorId)
+                .SetBubbleBodyText(
+                    IDS_VERTICAL_TABS_TUTORIAL_STEP_SHOW_VERTICAL)
+                .SetBubbleArrow(HelpBubbleArrow::kTopCenter)
+                .AbortIfVisibilityLost(false),
+
+            BubbleStep(kVerticalTabStripCollapseButtonElementId)
+                .SetBubbleBodyText(IDS_VERTICAL_TABS_TUTORIAL_STEP_COLLAPSE)
+                .SetBubbleArrow(HelpBubbleArrow::kLeftTop),
+            EventStep(kVerticalTabStripCollapsedCustomEventId),
+
+            BubbleStep(kBrowserDialogAnchorElementId)
+                .SetBubbleTitleText(IDS_TUTORIAL_GENERIC_SUCCESS_TITLE)
+                .SetBubbleBodyText(IDS_VERTICAL_TABS_TUTORIAL_STEP_END)
+                .SetBubbleArrow(HelpBubbleArrow::kNone));
+
+    vertical_tabs_tutorial.metadata.additional_description =
+        "Tutorial for Vertical Tabs.";
+    vertical_tabs_tutorial.metadata.launch_milestone = 147;
+    vertical_tabs_tutorial.metadata.owners = "charlesmeng@google.com";
+
+    tutorial_registry.AddTutorial(kVerticalTabsTutorialId,
+                                  std::move(vertical_tabs_tutorial));
+  }
 }
 
 // NOTES FOR FEATURE TEAMS:
@@ -2068,12 +2131,6 @@ void MaybeRegisterChromeNewBadges(user_education::NewBadgeRegistry& registry) {
       user_education::Metadata(128, "jkeitel@google.com",
                                "Shown in the autofill popup for suggestions to "
                                "create a new plus address.")));
-
-  registry.RegisterFeature(user_education::NewBadgeSpecification(
-      features::kTabstripDeclutter,
-      user_education::Metadata(
-          132, "emshack@chromium.org",
-          "Shown in app menu when Tab Declutter menu item is enabled.")));
 
   // This is a custom UI new badge that uses a small help bubble to annotate the
   // element instead of a badge.

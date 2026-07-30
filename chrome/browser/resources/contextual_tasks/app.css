@@ -125,6 +125,7 @@
   --thumbnail-chip-overlay-width: 100%;
   --thumbnail-chip-padding: 6px;
   --thumbnail-chip-width: 154px;
+  --aim-icon-color: rgba(86, 89, 94, 1);
 
   /* Toolbar colors */
   --toolbar-background-color: var(--search-background-color);
@@ -230,6 +231,7 @@
   --search-background-color-rgb: 16, 18, 23;
   --ghost-loader-base: #333438;
   --ghost-loader-highlight: #3A3F50;
+  --aim-icon-color: rgba(173, 175, 184, 1);
 
   /* Toolbar colors - Dark mode */
   --toolbar-divider-color: rgb(94,94,94);
@@ -280,10 +282,12 @@ error-page {
   top: 76px;
 }
 
+:host([is-loading-zero-state-from-results_]) #threadFrame,
 :host([is-error-page-visible_]) #threadFrame,
 :host([is-error-page-visible_]) #composebox,
 :host([is-error-page-visible_]) #flexCenterContainer,
 :host([is-ghost-loader-visible_]) #threadFrame,
+:host([is-zero-state_]) #ghostLoader,
 :host([is-shown-in-tab_]) #ghostLoader,
 :host(:not([is-ghost-loader-visible_])) #ghostLoader,
 :host([is-error-page-visible_]) #ghostLoader {
@@ -300,23 +304,23 @@ error-page {
   width: var(--composebox-width);
 }
 
-:host([is-zero-state_][is-shown-in-tab_]) {
-  --composebox-max-width: 750px;
-}
-
 :host([is-zero-state_]) #composebox {
   animation: zero-state-intro 600ms ease
       forwards;
   opacity: 0;
 }
 
-:host([is-zero-state_][is-shown-in-tab_]) #composebox {
+:host([is-zero-state_][is-shown-in-tab_]) {
   /* Since is flexbox centered in this mode,
    * does not need start indent. Just make composebox width
    * shorter by desired amount of indent on each side.
    */
   --composebox-start-indent: 0px;
   --composebox-width: calc(100% - 40px);
+  --composebox-max-width: 750px;
+}
+
+:host([is-zero-state_][is-shown-in-tab_]) #composebox {
   bottom: 0;
   pointer-events: auto;
   position: relative;
@@ -334,6 +338,7 @@ error-page {
   grid-column: 1;
   grid-row: 2;
   position: relative;
+  pointer-events: none;
 }
 
 :host([is-zero-state_]) #flexCenterContainer {
@@ -401,7 +406,7 @@ error-page {
 }
 
 @media (min-width: 789px) {
-  :host([is-zero-state_]:not([is-shown-in-tab_])) #flexCenterContainer {
+  :host([is-zero-state_]:not([is-shown-in-tab_])[is-ai-page_]) #flexCenterContainer {
     /* 96px gutter + 5px for text indentation in thread. */
     --wrapper-indent_: 101px;
     inset-inline-start: var(--wrapper-indent_);
@@ -415,7 +420,7 @@ error-page {
  * composebox.css min-width: 1420px for full explanation.
  */
 @media (min-width: 1420px) {
-  :host(:not([is-shown-in-tab_])[is-zero-state_]) #flexCenterContainer {
+  :host(:not([is-shown-in-tab_])[is-zero-state_][is-ai-page_]) #flexCenterContainer {
     --wrapper-indent_: max(285px, calc(50% - 570px));
     inset-inline-start: var(--wrapper-indent_);
     width: calc(100% - var(--wrapper-indent_));
@@ -427,7 +432,7 @@ error-page {
  */
 
 @media (min-width: 789px) {
-  :host(:not([is-zero-state_]):not([is-shown-in-tab_])) #composebox {
+  :host(:not([is-zero-state_]):not([is-shown-in-tab_])[is-ai-page_]) {
     /* 96px gutter + 5px for text indentation in thread. */
     --composebox-start-indent: 101px;
     /* Refresh the width variable since we define --composebox-start-indent in
@@ -439,7 +444,7 @@ error-page {
 }
 
 @media (min-width: 480px) {
-  :host(:not([is-zero-state_])[is-shown-in-tab_]) #composebox {
+  :host(:not([is-zero-state_])[is-shown-in-tab_][is-ai-page_]) {
     /* Google.com uses 96px for indent column, and 5px left padding.
      * Aligns the input text of the composebox with the AIM thread.
      */
@@ -451,8 +456,8 @@ error-page {
 /* W/more space, indent further to match AIM for both side panel and full tab.*/
 @media (min-width: 1420px) {
   /* Need both selectors to have higher specificity. */
-  :host(:not([is-zero-state_])[is-shown-in-tab_]) #composebox,
-  :host(:not([is-zero-state_]):not([is-shown-in-tab_])) #composebox {
+  :host(:not([is-zero-state_])[is-shown-in-tab_][is-ai-page_]),
+  :host(:not([is-zero-state_]):not([is-shown-in-tab_])[is-ai-page_]) {
     /* At this width, indent column should be 280px + 5px left padding.
      * Google.com AIM has 20 other 36px columns as "inset end space",
      * with 20px gaps, which = 720px of cols, 21 * 20px = 420px of gaps.
@@ -468,6 +473,14 @@ error-page {
     --composebox-width: calc(100% - var(--composebox-start-indent) - 20px);
   }
 }
+
+/* Lens results specific styles. They are always left aligned and the same
+ * width as the results column. */
+:host(:not([is-ai-page_])) {
+  --composebox-max-width: 652px;
+  --composebox-width: calc(100% - var(--composebox-start-indent) * 2);
+}
+
 
 @media (max-height: 800px) {
   :host([is-zero-state_]:not([enable-native-zero-state-suggestions_]))
@@ -599,7 +612,10 @@ error-page {
   grid-row: 2;
   height: 100%;
   overflow: hidden;
-  width: 100%;
+  width: var(--composebox-width);
+  max-width: var(--composebox-max-width);
+  inset-inline-start: var(--composebox-start-indent);
+  position: relative;
 }
 
 @keyframes zero-state-intro {

@@ -167,6 +167,7 @@
 <translation id="1621067168122174824">Käita laadimistest</translation>
 <translation id="1622402072367425417">helendavad mullid</translation>
 <translation id="1626590945318984973">Otsetee pole saadaval. Vajutage uut otseteed ilma funktsiooni ja klahve <ph name="META_KEY" /> kasutamata.</translation>
+<translation id="163774412591892664">Teie administraator keelas teie seadme ja pääseb selle asukohale juurde.</translation>
 <translation id="1639239467298939599">Laadimine</translation>
 <translation id="1641857168437328880">Dokumendisöötur (ühepoolne)</translation>
 <translation id="1642396894598555413">jalgrattad</translation>
@@ -727,6 +728,7 @@
 <translation id="4212169537710712814"><ph name="LANGUAGE_NAME" /> keele transkriptsioonimudeli allalaadimine on lõpule jõudnud</translation>
 <translation id="42126664696688958">Eksportimine</translation>
 <translation id="4213104098953699324">USB-klaviatuur</translation>
+<translation id="4217571870635786043">Dikteerimine</translation>
 <translation id="4227825898293920515">Parooli aegumiseni on jäänud <ph name="TIME" /></translation>
 <translation id="4238516577297848345">Ühtegi prinditööd pole pooleli</translation>
 <translation id="4239069858505860023">GPRS</translation>
@@ -1685,6 +1687,7 @@ Laadige nende transkriptsioonide hankimiseks alla transkriptsiooni mudel (kuni 1
 <translation id="8420955526972171689">Käitage teste ja tehke veaotsingut, et lahendada riistvaraprobleeme</translation>
 <translation id="8422748173858722634">IMEI</translation>
 <translation id="8424039430705546751">alla</translation>
+<translation id="8427213022735114808">Dikteerimisel saadetakse teie hääl Google'ile, et lubada häälsisestus kõigil tekstiväljadel.</translation>
 <translation id="8428213095426709021">Seaded</translation>
 <translation id="8431300646573772016">Mis on Chrome OS-is uut?</translation>
 <translation id="8433186206711564395">Võrguseaded</translation>
@@ -1723,6 +1726,7 @@ Laadige nende transkriptsioonide hankimiseks alla transkriptsiooni mudel (kuni 1
 <translation id="8584654835905316966">Seadme <ph name="DEVICE_NAME" /> püsivara versiooni <ph name="VERSION" /> installimiseks on vajalik taaskäivitamine. Teie arvuti võib mitu korda taaskäivituda. See on ootuspärane käitumine.</translation>
 <translation id="8593058461203131755">peatab meediasisu</translation>
 <translation id="8620617069779373398">Rändluse olek</translation>
+<translation id="8624524972189162859">Teie teenuse <ph name="DOMAIN_NAME" /> administraator keelas teie seadme ja pääseb selle asukohale juurde.</translation>
 <translation id="8626489604350149811">Rohkem toiminguid: <ph name="APN_NAME" /></translation>
 <translation id="86356131183441916">Helelilla</translation>
 <translation id="8647595191512746911">Heli transkribeerimine</translation>

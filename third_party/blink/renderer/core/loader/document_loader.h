@@ -82,6 +82,7 @@
 #include "third_party/blink/renderer/core/page/viewport_description.h"
 #include "third_party/blink/renderer/core/permissions_policy/policy_helper.h"
 #include "third_party/blink/renderer/core/speculation_rules/speculation_rule_set.h"
+#include "third_party/blink/renderer/core/timing/performance_timeline_entry_id_generator.h"
 #include "third_party/blink/renderer/platform/allow_discouraged_type.h"
 #include "third_party/blink/renderer/platform/bindings/source_location.h"
 #include "third_party/blink/renderer/platform/exported/wrapped_resource_response.h"
@@ -241,15 +242,19 @@ class CORE_EXPORT DocumentLoader : public GarbageCollected<DocumentLoader>,
       const JavaScriptFrameworkDetectionResult&);
 
   // https://html.spec.whatwg.org/multipage/history.html#url-and-history-update-steps
-  void RunURLAndHistoryUpdateSteps(const KURL&,
-                                   HistoryItem*,
-                                   mojom::blink::SameDocumentNavigationType,
-                                   scoped_refptr<SerializedScriptValue>,
-                                   WebFrameLoadType,
-                                   FirePopstate,
-                                   bool should_skip_screenshot,
-                                   bool is_browser_initiated = false,
-                                   bool is_synchronously_committed = true);
+  void RunURLAndHistoryUpdateSteps(
+      const KURL&,
+      HistoryItem*,
+      mojom::blink::SameDocumentNavigationType,
+      scoped_refptr<SerializedScriptValue>,
+      WebFrameLoadType,
+      FirePopstate,
+      bool should_skip_screenshot,
+      UserNavigationInvolvement involvement,
+      PerformanceTimelineEntryIdInfo interaction_id =
+          PerformanceTimelineEntryIdInfo::kNone,
+      bool is_browser_initiated = false,
+      bool is_synchronously_committed = true);
 
   // |is_synchronously_committed| is described in comment for
   // CommitSameDocumentNavigation.
@@ -264,8 +269,11 @@ class CORE_EXPORT DocumentLoader : public GarbageCollected<DocumentLoader>,
       bool is_browser_initiated,
       bool is_synchronously_committed,
       bool has_transient_user_activation,
+      UserNavigationInvolvement involvement,
       bool has_ua_visual_transition,
-      bool should_skip_screenshot);
+      bool should_skip_screenshot,
+      PerformanceTimelineEntryIdInfo interaction_id =
+          PerformanceTimelineEntryIdInfo::kNone);
 
   const ResourceResponse& GetResponse() const { return response_; }
 
@@ -552,8 +560,11 @@ class CORE_EXPORT DocumentLoader : public GarbageCollected<DocumentLoader>,
       bool is_browser_initiated,
       bool is_synchronously_committed,
       mojom::blink::TriggeringEventInfo,
+      UserNavigationInvolvement involvement,
       bool has_ua_visual_transition,
-      bool should_skip_screenshot);
+      bool should_skip_screenshot,
+      PerformanceTimelineEntryIdInfo interaction_id =
+          PerformanceTimelineEntryIdInfo::kNone);
 
   // Use these method only where it's guaranteed that |m_frame| hasn't been
   // cleared.
@@ -901,6 +912,12 @@ class CORE_EXPORT DocumentLoader : public GarbageCollected<DocumentLoader>,
   // cross-document navigations that will cancel each other if one doesn't have
   // time to finish before the next one begins.
   TaskHandle cross_origin_parent_load_event_task_;
+
+  // Token used to derive a consistent opaque origin for the initial empty
+  // document of a newly created sandboxed frame or window. Non-null only
+  // when committing the initial empty document with the `kOrigin` sandbox
+  // flag set, null for all cross-document navigations.
+  std::unique_ptr<base::UnguessableToken> sandbox_origin_token_;
 };
 
 DECLARE_WEAK_IDENTIFIER_MAP(DocumentLoader);

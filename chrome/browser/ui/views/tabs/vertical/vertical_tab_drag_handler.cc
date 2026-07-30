@@ -112,8 +112,6 @@ VerticalTabDragHandlerImpl::~VerticalTabDragHandlerImpl() = default;
 
 void VerticalTabDragHandlerImpl::InitializeDrag(TabCollectionNode& node,
                                                 const ui::MouseEvent& event) {
-  // TODO(crbug.com/439963720): Look into why the state is not reset elsewhere
-  // after initializing a drag.
   ResetDragState();
   drag_controller_ = std::make_unique<TabDragController>();
 
@@ -306,14 +304,6 @@ void VerticalTabDragHandlerImpl::HandleDraggedTabsIntoNode(
   CHECK(drag_controller_);
   const auto& drag_session_data = drag_controller_->GetSessionData();
 
-  // Do nothing if the group is not being changed and either one tab is being
-  // dragged or all tabs in the strip are being dragged.
-  if (node.type() != TabCollectionNode::Type::GROUP &&
-      (drag_session_data.num_dragging_tabs() == 1 ||
-       drag_session_data.num_dragging_tabs() == tab_strip_model_->count())) {
-    return;
-  }
-
   const TabDragData* source_drag_data =
       drag_session_data.source_view_drag_data();
   const content::WebContents* source_contents = source_drag_data->contents;
@@ -362,6 +352,7 @@ void VerticalTabDragHandlerImpl::HandleDraggedTabsIntoNode(
   }
   target_index = target_index - num_dragged_tabs_before_target;
   target_index = std::clamp(target_index, 0, tab_strip_model_->count() - 1);
+
   tab_strip_model_->MoveSelectedTabsTo(target_index, target_group_id);
 }
 
@@ -475,6 +466,7 @@ void VerticalTabDragHandlerImpl::HandleTabDragOverGroup(
       (first_selected_index < first_tab_in_group)
           ? last_tab_in_group - selection_model.selected_tabs().size() + 1
           : first_tab_in_group;
+
   if (auto dragged_group = GetDraggingGroupHeaderId()) {
     tab_strip_model_->MoveGroupTo(*dragged_group, insertion_idx);
   } else {
@@ -487,7 +479,8 @@ TabDragContext* VerticalTabDragHandlerImpl::GetDragContext() {
 }
 
 bool VerticalTabDragHandlerImpl::IsDragging() const {
-  return drag_controller_ && drag_controller_->active();
+  return drag_controller_ && drag_controller_->started_drag() &&
+         drag_controller_->active();
 }
 
 bool VerticalTabDragHandlerImpl::IsViewDragging(const views::View& view) const {

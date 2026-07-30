@@ -11,16 +11,16 @@
 #include "base/functional/bind.h"
 #include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
-#include "base/test/scoped_feature_list.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/simple_test_clock.h"
 #include "base/test/task_environment.h"
 #include "components/history/core/browser/history_service.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/testing_pref_service.h"
-#include "components/send_tab_to_self/features.h"
 #include "components/send_tab_to_self/page_context.h"
 #include "components/send_tab_to_self/pref_names.h"
 #include "components/send_tab_to_self/proto/send_tab_to_self.pb.h"
+#include "components/send_tab_to_self/proto_conversions.h"
 #include "components/send_tab_to_self/target_device_info.h"
 #include "components/sync/model/entity_change.h"
 #include "components/sync/model/in_memory_metadata_change_list.h"
@@ -33,6 +33,7 @@
 #include "components/sync/test/test_matchers.h"
 #include "components/sync_device_info/device_info.h"
 #include "components/sync_device_info/device_info_util.h"
+#include "components/sync_device_info/device_name_util.h"
 #include "components/sync_device_info/fake_device_info_tracker.h"
 #include "components/sync_sessions/fake_open_tabs_ui_delegate.h"
 #include "components/sync_sessions/open_tabs_ui_delegate.h"
@@ -983,13 +984,6 @@ TEST_F(SendTabToSelfBridgeTest, NotifyRemoteSendTabToSelfEntryOpened) {
 
 #if BUILDFLAG(IS_IOS)
 TEST_F(SendTabToSelfBridgeTest, WriteToLastTabReceivedPref) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitWithFeaturesAndParameters(
-      {{send_tab_to_self::kSendTabToSelfIOSPushNotifications,
-        {{send_tab_to_self::kSendTabIOSPushNotificationsWithMagicStackCardParam,
-          "true"}}}},
-      {});
-
   InitializeBridge();
 
   // Add two remote entries.
@@ -1146,7 +1140,8 @@ TEST_F(SendTabToSelfBridgeTest,
       /*interested_data_types=*/syncer::DataTypeSet(),
       /*auto_sign_out_last_signin_timestamp=*/std::nullopt,
       /*desktop_to_ios_promo_receiving_enabled=*/false);
-  SharingDeviceNames names1 = GetSharingDeviceNames(device1.get());
+  syncer::DeviceDisplayNames names1 =
+      syncer::GetDeviceDisplayNames(device1.get());
   ASSERT_EQ("Manufacturer Phone model1", names1.full_name);
   ASSERT_EQ("Manufacturer Phone", names1.short_name);
   AddTestDevice(device1.get());
@@ -1167,7 +1162,8 @@ TEST_F(SendTabToSelfBridgeTest,
       /*interested_data_types=*/syncer::DataTypeSet(),
       /*auto_sign_out_last_signin_timestamp=*/std::nullopt,
       /*desktop_to_ios_promo_receiving_enabled=*/false);
-  SharingDeviceNames names2 = GetSharingDeviceNames(device2.get());
+  syncer::DeviceDisplayNames names2 =
+      syncer::GetDeviceDisplayNames(device2.get());
   ASSERT_EQ("Manufacturer Phone model2", names2.full_name);
   ASSERT_EQ("Manufacturer Phone", names2.short_name);
   AddTestDevice(device2.get());
@@ -1363,7 +1359,7 @@ TEST_F(SendTabToSelfBridgeTest,
   // Set local cache GUID.
   SetLocalDeviceCacheGuid(kMyLocalGuid);
 
-  // Add a local device where GetSharingDeviceNames returns a specific full
+  // Add a local device where GetDeviceDisplayNames returns a specific full
   // name. Using a specific model ensures the complex naming logic is used.
   std::unique_ptr<syncer::DeviceInfo> local_device =
       CreateDevice(kMyLocalGuid, "local_name", clock()->Now(), "local_model");
@@ -1390,7 +1386,7 @@ TEST_F(SendTabToSelfBridgeTest, AddEntry_UsesFullName) {
   std::unique_ptr<syncer::DeviceInfo> local_device =
       CreateDevice(kMyLocalGuid, "local_name", clock()->Now(), "local_model");
   const std::string full_name =
-      GetSharingDeviceNames(local_device.get()).full_name;
+      syncer::GetDeviceDisplayNames(local_device.get()).full_name;
 
   device_info_tracker()->Add(std::move(local_device));
   device_info_tracker()->SetLocalCacheGuid(kMyLocalGuid);
@@ -1400,6 +1396,44 @@ TEST_F(SendTabToSelfBridgeTest, AddEntry_UsesFullName) {
 
   ASSERT_NE(nullptr, result);
   EXPECT_EQ(full_name, result->GetDeviceName());
+}
+
+TEST_F(SendTabToSelfBridgeTest, AddEntry_RecordsPageContextSize) {
+  InitializeBridge();
+
+  base::HistogramTester histogram_tester;
+
+  PageContext context;
+  context.scroll_position.text_fragment.text_start = "fragment";
+
+  bridge()->AddEntry(GURL("http://www.example.com/"), "title",
+                     kLocalDeviceCacheGuid, context);
+
+  histogram_tester.ExpectUniqueSample(
+      "Sharing.SendTabToSelf.PageContextSize",
+      PageContextToProto(context).ByteSizeLong(), 1);
+}
+
+TEST_F(SendTabToSelfBridgeTest, AddEntry_RecordsPageContextSize_ExceedsLimit) {
+  InitializeBridge();
+
+  base::HistogramTester histogram_tester;
+
+  PageContext context;
+  // Create a context that exceeds kMaxPageContextSizeBytes (4096 bytes).
+  constexpr size_t kLargeSize = 5000;
+  static_assert(kLargeSize > kMaxPageContextSizeBytes);
+  context.scroll_position.text_fragment.text_start =
+      std::string(kLargeSize, 'a');
+
+  bridge()->AddEntry(GURL("http://www.example.com/"), "title",
+                     kLocalDeviceCacheGuid, context);
+
+  size_t size = PageContextToProto(context).ByteSizeLong();
+  ASSERT_GT(size, kMaxPageContextSizeBytes);
+
+  histogram_tester.ExpectUniqueSample("Sharing.SendTabToSelf.PageContextSize",
+                                      size, 1);
 }
 
 }  // namespace

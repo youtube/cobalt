@@ -76,6 +76,7 @@ Some features may be unavailable and changes to preferences won't be saved.</tra
 <translation id="1698376642261615901">Google Chrome is a web browser that runs web pages and applications with lightning speed. It's fast, stable and easy to use. Browse the web more safely with malware and phishing protection built into Google Chrome.</translation>
 <translation id="1713301662689114961">{0,plural, =1{Chrome will relaunch in an hour}other{Chrome will relaunch in # hours}}</translation>
 <translation id="1722488837206509557">This will allow you to select from available devices and display content on them.</translation>
+<translation id="177180974022074201">Try with Gemini in Chrome</translation>
 <translation id="1786003790898721085">Make sure that you are signed in to Chrome on your <ph name="TARGET_DEVICE_NAME" /> and then try sending again.</translation>
 <translation id="1786044937610313874">Shortcuts open in Chrome</translation>
 <translation id="178701303897325119">This extension is no longer supported. Chrome recommends that you remove it instead.</translation>
@@ -225,6 +226,7 @@ Some features may be unavailable and changes to preferences won't be saved.</tra
 <translation id="3226612997184048185">If you also save your bookmarks in your Google Account, you can track product prices in Chrome and get notified when the price drops</translation>
 <translation id="3242123554343253302">Add Chrome profile</translation>
 <translation id="3245429137663807393">If you also share Chrome usage reports, those reports include the URLs that you visit</translation>
+<translation id="3259748324892322072">Get the Chrome app</translation>
 <translation id="3286538390144397061">Restart Now</translation>
 <translation id="3292333338048274092">You'll then need to restart Chrome.</translation>
 <translation id="3324218984287646518">Ask Google Lens about this video</translation>
@@ -283,7 +285,6 @@ Some features may be unavailable and changes to preferences won't be saved.</tra
 <translation id="3892148308691398805">Copy text</translation>
 <translation id="3893985792899396936">Chrome tip: Search with Lens</translation>
 <translation id="3906096710440765802">Sign in to Chrome to get your passwords, bookmarks and more on all your devices</translation>
-<translation id="3921132130819999051">Let Chrome browse for you</translation>
 <translation id="3941890832296813527">Install error: The installer filename is invalid or unsupported.</translation>
 <translation id="395904275706073188">Protected pages can't be read. Try a different page.</translation>
 <translation id="3968962723676998462">Enter your passphrase to use and save Chrome data in your account, <ph name="ACCOUNT_EMAIL" /></translation>
@@ -498,7 +499,6 @@ Google Chrome is unable to recover your settings.</translation>
 <translation id="6173637689840186878"><ph name="PAGE_TITLE" /> – Google Chrome Beta</translation>
 <translation id="6180522807229584611">This tab is using extra resources. To improve your performance, let Chrome make it inactive.</translation>
 <translation id="6182736845697986886">Installation failed because of an update server internal error.</translation>
-<translation id="6183773856988300112">Gemini in Chrome uses auto-browse to work in your tabs and complete tasks that you give it. <ph name="LINK_BEGIN" />Learn more<ph name="LINK_END" /></translation>
 <translation id="6187085551300363958">Chrome tip: Save passwords</translation>
 <translation id="6192058120268468905">Your account in Chrome</translation>
 <translation id="6220551899604141979"><ph name="PARTNER_NAME" /> has added an extension that may change the way that Chrome works.
@@ -534,6 +534,7 @@ Google Chrome is unable to recover your settings.</translation>
 <translation id="6481963882741794338">Link Chrome and other Google services for personalisation and other purposes</translation>
 <translation id="648319183876919572">Enhanced Safe Browsing does more to protect you against dangerous websites and downloads</translation>
 <translation id="6489302989675808168">On • Chrome can't verify where this extension comes from</translation>
+<translation id="6491330562720922580">QR code to download Chrome browser on mobile devices</translation>
 <translation id="6493527311031785448">Google Chrome is trying to <ph name="AUTHENTICATION_PURPOSE" /></translation>
 <translation id="6497147134301593682">Chrome was automatically closed</translation>
 <translation id="6506909944137591434">Chrome needs camera permission to create a 3D map of your surroundings</translation>

@@ -5814,11 +5814,11 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5219" label="SrcSetUsedHigherDensityImageFromCache"/>
   <int value="5220" label="HTMLElementWritingSuggestions"/>
   <int value="5221" label="CSSPseudoOpen"/>
-  <int value="5222" label="AdScriptInStackOnGeoLocation"/>
-  <int value="5223" label="AdScriptInStackOnClipboardRead"/>
-  <int value="5224" label="AdScriptInStackOnBluetooth"/>
-  <int value="5225" label="AdScriptInStackOnMicrophoneRead"/>
-  <int value="5226" label="AdScriptInStackOnCameraRead"/>
+  <int value="5222" label="OBSOLETE_AdScriptInStackOnGeoLocation"/>
+  <int value="5223" label="OBSOLETE_AdScriptInStackOnClipboardRead"/>
+  <int value="5224" label="OBSOLETE_AdScriptInStackOnBluetooth"/>
+  <int value="5225" label="OBSOLETE_AdScriptInStackOnMicrophoneRead"/>
+  <int value="5226" label="OBSOLETE_AdScriptInStackOnCameraRead"/>
   <int value="5227" label="ClipboardCustomFormatRead"/>
   <int value="5228" label="ClipboardCustomFormatWrite"/>
   <int value="5229" label="ClipboardSvgRead"/>
@@ -5935,8 +5935,9 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5323" label="ScrollButtonPseudoElement"/>
   <int value="5324" label="ScrollMarkerPseudoElement"/>
   <int value="5325" label="OBSOLETE_V8AITranslatorFactory_Availability_Method"/>
-  <int value="5326" label="GeolocationWouldSucceedWhenAdScriptInStack"/>
-  <int value="5327" label="AdScriptInStackOnWatchGeoLocation"/>
+  <int value="5326"
+      label="OBSOLETE_GeolocationWouldSucceedWhenAdScriptInStack"/>
+  <int value="5327" label="OBSOLETE_AdScriptInStackOnWatchGeoLocation"/>
   <int value="5328" label="DeviceBoundSessionRegistered"/>
   <int value="5329"
       label="OBSOLETE_V8AILanguageDetectorFactory_Availability_Method"/>
@@ -6441,6 +6442,19 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5804" label="HTMLInstallElement"/>
   <int value="5805" label="HTMLUserMediaElement"/>
   <int value="5806" label="AutofillEvent"/>
+  <int value="5807" label="WebAppManifestMigrateFrom"/>
+  <int value="5808" label="WebAppManifestMigrateTo"/>
+  <int value="5809" label="LongAnimationFrameTimingStyleDuration"/>
+  <int value="5810" label="LongAnimationFrameTimingLayoutDuration"/>
+  <int value="5811" label="PerformanceScriptTimingForcedStyleDuration"/>
+  <int value="5812" label="PerformanceScriptTimingForcedLayoutDuration"/>
+  <int value="5813"
+      label="PaymentRequestGetSecurePaymentConfirmationCapabilities"/>
+  <int value="5814" label="OpaqueRange"/>
+  <int value="5815" label="HTMLButtonElementTypeChangedWhileConnected"/>
+  <int value="5816" label="HTMLInputElementTypeChangedWhileConnected"/>
+  <int value="5817" label="HTMLButtonElementTypeChangedWhileDisconnected"/>
+  <int value="5818" label="HTMLInputElementTypeChangedWhileDisconnected"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom:WebFeature) -->
@@ -8292,6 +8306,7 @@ Called by update_use_counter_css.py.-->
   <int value="937" label="row-rule-inset-end"/>
   <int value="938" label="rule-inset-start"/>
   <int value="939" label="rule-inset-end"/>
+  <int value="940" label="path-length"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/css_property_id.mojom:CSSSampleId) -->
@@ -8627,11 +8642,11 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="198" label="DynamicRange"/>
   <int value="199" label="DisplayMode"/>
   <int value="200" label="Canvas"/>
-  <int value="201" label="Canvas2D"/>
-  <int value="202" label="Canvas2DAlpha"/>
-  <int value="203" label="Canvas2DColorManagement"/>
-  <int value="204" label="Canvas2DDesynchronized"/>
-  <int value="205" label="Canvas2DWillreadfrequently"/>
+  <int value="201" label="Canvas_2d"/>
+  <int value="202" label="Canvas_2dAlpha"/>
+  <int value="203" label="Canvas_2dColorManagement"/>
+  <int value="204" label="Canvas_2dDesynchronized"/>
+  <int value="205" label="Canvas_2dWillreadfrequently"/>
   <int value="206" label="Ch"/>
   <int value="207" label="Rch"/>
   <int value="208" label="RubyAlign"/>
@@ -8724,7 +8739,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="295" label="ScrollMarkers"/>
   <int value="296" label="PopoverHint"/>
   <int value="297" label="RegexpEscape"/>
-  <int value="298" label="Float16Array"/>
+  <int value="298" label="Float16array"/>
   <int value="299" label="AppFileHandlers"/>
   <int value="300" label="AppProtocolHandlers"/>
   <int value="301" label="Badging"/>
@@ -8760,7 +8775,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="331" label="TextUnderlineOffset"/>
   <int value="332" label="WindowManagement"/>
   <int value="333" label="Requestclose"/>
-  <int value="334" label="Uint8ArrayBase64Hex"/>
+  <int value="334" label="Uint8arrayBase64Hex"/>
   <int value="335" label="LineBreak"/>
   <int value="336" label="OverflowClip"/>
   <int value="337" label="LightDark"/>
@@ -8857,6 +8872,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="428" label="DRAFT_LoadingLazyMedia"/>
   <int value="429" label="ManifestLocalization"/>
   <int value="430" label="ContrastColor"/>
+  <int value="431" label="DRAFT_WebAppMigration"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/webdx_feature.mojom:WebDXFeature) -->

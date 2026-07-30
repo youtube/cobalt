@@ -81,11 +81,11 @@ import org.chromium.components.favicon.LargeIconBridge;
 import org.chromium.components.favicon.LargeIconBridgeJni;
 import org.chromium.components.metrics.OmniboxEventProtos.OmniboxEventProto.PageClassification;
 import org.chromium.components.omnibox.AutocompleteInput;
+import org.chromium.components.omnibox.AutocompleteInput.SiteSearchData;
 import org.chromium.components.omnibox.AutocompleteMatch;
 import org.chromium.components.omnibox.AutocompleteMatchBuilder;
 import org.chromium.components.omnibox.AutocompleteRequestType;
 import org.chromium.components.omnibox.AutocompleteResult;
-import org.chromium.components.omnibox.OmniboxFeatureList;
 import org.chromium.components.omnibox.OmniboxFeatures;
 import org.chromium.components.omnibox.OmniboxSuggestionType;
 import org.chromium.components.omnibox.action.OmniboxActionFactoryJni;
@@ -187,8 +187,6 @@ public class AutocompleteMediatorUnitTest {
                 .doReturn(mFuseboxStateSupplier)
                 .when(mFuseboxCoordinator)
                 .getFuseboxStateSupplier();
-
-        lenient().doReturn(0).when(mFuseboxCoordinator).getAttachmentsCount();
 
         mMediator =
                 new AutocompleteMediator(
@@ -316,8 +314,9 @@ public class AutocompleteMediatorUnitTest {
     public void endInput_clearsSiteSearchChip() {
         var session = createEmptySession();
         mMediator.beginInput(session);
-        session.getAutocompleteInput().setKeyword("history");
-        verify(mTextStateProvider).setSiteSearchChip("history");
+        session.getAutocompleteInput()
+                .setSiteSearchData(new SiteSearchData("history", "Search history"));
+        verify(mTextStateProvider).setSiteSearchChip("Search history");
 
         mMediator.endInput();
         verify(mTextStateProvider).setSiteSearchChip(null);
@@ -1600,7 +1599,6 @@ public class AutocompleteMediatorUnitTest {
 
     @Test
     @SmallTest
-    @EnableFeatures(OmniboxFeatureList.ANIMATE_SUGGESTIONS_LIST_APPEARANCE)
     public void setSessionState_attachesImeCallback() {
         mMediator.onNativeInitialized();
 

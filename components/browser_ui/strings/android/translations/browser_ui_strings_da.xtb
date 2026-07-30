@@ -7,6 +7,7 @@
 <translation id="1070329623210597193">Filer, som dette website kan se eller redigere</translation>
 <translation id="1073417869336441572">Hjælp os med at forbedre Chrome ved at fortælle os, hvorfor du har tilladt tredjepartscookies. <ph name="BEGIN_LINK" />Send feedback<ph name="END_LINK" /></translation>
 <translation id="1074758928858737435">Du kan anmode om at se computerversionen af websites</translation>
+<translation id="1109482864356262001">Funktioner, der skal bruge bevægelses- eller lyssensorer, fungerer ikke</translation>
 <translation id="1126523729897810826">Udfør de foreslåede handlinger nedenfor for at få mest muligt ud af Chrome</translation>
 <translation id="113098737392899175">Naviger på sider med en tekstmarkør, når der er tilsluttet et tastatur</translation>
 <translation id="1148624853678088576">Så er du klar</translation>
@@ -66,7 +67,6 @@
 <translation id="1677097821151855053">Cookies og andre websitedata bruges til at huske dig, f.eks. for at logge dig ind eller give dig personligt tilpassede annoncer. Gå til <ph name="BEGIN_LINK" />Indstillinger<ph name="END_LINK" /> for at administrere cookies for alle websites.</translation>
 <translation id="1679305402657584804">Websites kan anmode om tilladelse til at bruge NFC-enheder</translation>
 <translation id="1686785653877010442">Websites sender normalt notifikationer for at informere dig om de seneste nyheder eller chatbeskeder.</translation>
-<translation id="169515064810179024">Bloker adgang til bevægelsessensorer på websites</translation>
 <translation id="1703666494654169921">Tillad ikke, at websites bruger virtual reality-enheder eller -data</translation>
 <translation id="1704230497453185209">Tillad ikke, at websites afspiller lyd</translation>
 <translation id="1717218214683051432">Bevægelsessensorer</translation>
@@ -129,6 +129,7 @@
 <translation id="2241587408274973373">Kort på siden Ny fane</translation>
 <translation id="2241634353105152135">Kun én gang</translation>
 <translation id="2253414712144136228">Fjern <ph name="NAME_OF_LIST_ITEM" /></translation>
+<translation id="227763434929139750">Tillad ikke, at websites anvender bevægelses- eller lyssensorer</translation>
 <translation id="228293613124499805">De fleste af de websites, du besøger, gemmer sandsynligvis data på din enhed, ofte for at forbedre din brugeroplevelse ved at gemme de præferencer eller oplysninger, du deler med websitet. Vi anbefaler, at denne indstilling forbliver aktiveret.</translation>
 <translation id="2289270750774289114">Spørg, når et website vil søge efter Bluetooth-enheder i nærheden (anbefalet)</translation>
 <translation id="2315043854645842844">Klientens certifikatvalg understøttes ikke af operativsystemet.</translation>
@@ -235,7 +236,6 @@ Avanceret beskyttelse styrer disse Chrome-indstillinger:
 <translation id="3232293466644486101">Slet browserdata…</translation>
 <translation id="3242646949159196181">Når dette er slået til, kan websites afspille lyd. Når dette er slået fra, kan websites ikke afspille lyd.</translation>
 <translation id="3273479183583863618">Prisfald på faner</translation>
-<translation id="3277252321222022663">Tillad, at websites kan få adgang til sensorer (anbefales)</translation>
 <translation id="3285500645985761267">Giv relaterede websites tilladelse til at se din aktivitet i gruppen</translation>
 <translation id="3295019059349372795">Kapitel 11: Den vidunderlige smaragdby i Oz</translation>
 <translation id="3295602654194328831">Skjul oplysninger</translation>
@@ -300,6 +300,7 @@ Avanceret beskyttelse styrer disse Chrome-indstillinger:
 <translation id="3922092564198021702">Åbn Indstillinger på din telefon</translation>
 <translation id="3924858949939391676">Vis links, når Læsetilstand er aktiveret</translation>
 <translation id="3933121352599513978">Skjul uønskede anmodninger (anbefales)</translation>
+<translation id="393417216277380082">Bevægelses- og lyssensorer</translation>
 <translation id="3934905113567851655">Knib fingrene sammen for at tilpasse størrelse</translation>
 <translation id="3955321697524543127">Tillad ikke, at websites opretter forbindelse til USB-enheder</translation>
 <translation id="3965467402665811906">Websites kan anmode om at bruge oplysninger, de har gemt om dig</translation>
@@ -371,7 +372,7 @@ Avanceret beskyttelse styrer disse Chrome-indstillinger:
 <translation id="4672315773691449562">Tryk på Browserapp og derefter på Chrome</translation>
 <translation id="4676059169848868271">Aktivér desuden registrering af håndbevægelser i <ph name="BEGIN_LINK" />systemindstillingerne<ph name="END_LINK" /> for at give <ph name="APP_NAME" /> tilladelse til at bruge håndregistrering.</translation>
 <translation id="4688045258817337666">Administrer dine kort</translation>
-<translation id="4751476147751820511">Bevægelses- eller lyssensorer</translation>
+<translation id="4722332387043141878">Websites bruger normalt din enheds bevægelses- og lyssensorer til funktioner som f.eks. virtual reality eller registrering af motion</translation>
 <translation id="4755971844837804407">Når dette er slået til, kan websites vise dig en hvilken som helst annonce. Når dette er slået fra, kan websites ikke vise påtrængende eller vildledende annoncer.</translation>
 <translation id="4779083564647765204">Zoom</translation>
 <translation id="4807122856660838973">Aktivér Beskyttet browsing</translation>
@@ -398,7 +399,6 @@ Avanceret beskyttelse styrer disse Chrome-indstillinger:
 <translation id="5001526427543320409">Tredjepartscookies</translation>
 <translation id="5007392906805964215">Gennemgå</translation>
 <translation id="5039804452771397117">Tillad</translation>
-<translation id="5048398596102334565">Tillad, at websites kan få adgang til bevægelsessensorer (anbefales)</translation>
 <translation id="5048841907079026162">Administrer dine browserdata</translation>
 <translation id="5050380848339752099">Dette website skal til at dele oplysninger med en app uden for inkognitotilstand.</translation>
 <translation id="5063480226653192405">Databrug</translation>
@@ -517,6 +517,7 @@ Avanceret beskyttelse styrer disse Chrome-indstillinger:
 <translation id="6196640612572343990">Bloker cookies fra tredjeparter</translation>
 <translation id="6205314730813004066">Privatliv vedrørende annoncering</translation>
 <translation id="6207207788774442484">Slet data, og nulstil tilladelser</translation>
+<translation id="6211409961905616543">Websites kan bruge bevægelses- og lyssensorer</translation>
 <translation id="6218508144653756827">Pink tema</translation>
 <translation id="6231752747840485235">Vil du afinstallere "<ph name="APP_NAME" />"?</translation>
 <translation id="6234351944623978659">Tryk på Browserapp &gt; Chrome</translation>
@@ -686,7 +687,6 @@ Avanceret beskyttelse styrer disse Chrome-indstillinger:
 <translation id="8088603949666785339">Flere valgmuligheder i <ph name="BANNER_TITLE" /></translation>
 <translation id="8112925981674547014">Se faner på din appliste</translation>
 <translation id="8116925261070264013">Websites, hvor lyden er slået fra</translation>
-<translation id="8117244575099414087">Når dette er slået til, kan websites anvende din enheds sensorer. Når dette er slået fra, kan websites ikke anvende sensorer.</translation>
 <translation id="813082847718468539">Se websiteoplysninger</translation>
 <translation id="8131740175452115882">Bekræft</translation>
 <translation id="8148160259207090265">Denne indstilling forbliver aktiveret, så længe Avanceret beskyttelse er aktiveret i Android-indstillingerne.</translation>
@@ -762,7 +762,7 @@ Avanceret beskyttelse styrer disse Chrome-indstillinger:
 <translation id="8801657293260363985">V8 er Chromes JavaScript- og WebAssembly-maskine, der bruges til at forbedre websitets effektivitet</translation>
 <translation id="8803526663383843427">Når funktionen er aktiveret</translation>
 <translation id="8805385115381080995">Dette skaber færre afbrydelser, når du bruger nettet, da det er mindre sandsynligt, at et website beder dig om at verificere, at du er en rigtig person</translation>
-<translation id="8816026460808729765">Bloker adgang til sensorer på websites</translation>
+<translation id="881644524232657178">Når denne indstilling er aktiveret, kan websites anvende din enheds bevægelses- og lyssensorer. Når denne indstilling er deaktiveret, kan websites ikke anvende sensorer.</translation>
 <translation id="8847988622838149491">USB</translation>
 <translation id="8874790741333031443">Prøv midlertidigt at tillade tredjepartscookies, hvilket vil betyde mindre browserbeskyttelse, men større sandsynlighed for, at websitefunktionerne fungerer som forventet.</translation>
 <translation id="8889294078294184559">Når du derefter bruger nettet, kan websites ved hjælp af Chrome tjekke og verificere via et website, du tidligere har besøgt, at du sandsynligvis er en rigtig person</translation>

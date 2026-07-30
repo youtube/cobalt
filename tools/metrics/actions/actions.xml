@@ -760,6 +760,8 @@ should be able to be added at any place in this file.
       summary="For the tab organization feature."/>
   <variant name="_TabPinnedFeature" summary="For tab pinned overflow hint."/>
   <variant name="_TabSearch" summary="For the tab search feature."/>
+  <variant name="_TabSearchComboButton"
+      summary="For the tab search migration to a tab strip combo button."/>
   <variant name="_TabSearchToolbarButton"
       summary="For the tab search migration to a toolbar button."/>
   <variant name="_TabSwitcherButton" summary="For tab switcher button."/>
@@ -4159,6 +4161,17 @@ should be able to be added at any place in this file.
   <description>
     Recorded when the user taps on the &quot;Apply&quot; button in the
     cross-device settings import snackbar.
+  </description>
+</action>
+
+<action name="Android.CrossDeviceSettingImport.CheckForRemoteSettings"
+    not_user_triggered="true">
+  <owner>clank-app-team@google.com</owner>
+  <owner>jhimawan@google.com</owner>
+  <description>
+    Recorded after checking for remote settings to import from another device.
+    This happens the first time the user lands on the NTP or a URL page (after
+    FRE or if a user arrives in Chrome through a URL intent).
   </description>
 </action>
 
@@ -10960,6 +10973,21 @@ should be able to be added at any place in this file.
     The user viewed the Contextual Search bar and panel for a duration between
     three and three seconds.
   </description>
+</action>
+
+<action
+    name="ContextualSearch.ZeroSuggestClick.{Type}.{ContextualSearchSource}">
+  <owner>niharm@google.com</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <description>
+    Recorded when a user clicks on a {Type} suggestion in the zero-suggest mode
+    from {ContextualSearchSource}.
+  </description>
+  <token key="Type">
+    <variant name="Contextual" summary=""/>
+    <variant name="NonContextual" summary=""/>
+  </token>
+  <token key="ContextualSearchSource" variants="ContextualSearchSource"/>
 </action>
 
 <action name="ContextualSuggestions.ContextMenu{ContextMenu_Type}">
@@ -30435,6 +30463,14 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="MobileSettingsCleanupStarted">
+  <owner>cheickcisse@google.com</owner>
+  <owner>gambard@chromium.org</owner>
+  <description>
+    Reported when the settings cleanup started. iOS only.
+  </description>
+</action>
+
 <action name="MobileSettingsClose">
   <owner>edchin@chromium.org</owner>
   <owner>gambard@chromium.org</owner>
@@ -38835,6 +38871,47 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="ProjectsPanel.OpenButtonPressed">
+  <owner>chazzy@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    The user opened the projects panel via the tab strip entrypoint.
+  </description>
+</action>
+
+<action name="ProjectsPanel.TabGroups.CreateNewGroup.{HadExistingGroups}">
+  <owner>chazzy@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    The user created a new tab group from the projects panel.
+  </description>
+  <token key="HadExistingGroups">
+    <variant name="WithExistingGroups"
+        summary="Existing groups were shown in the panel"/>
+    <variant name="WithoutExistingGroups"
+        summary="No existing groups were shown in the panel"/>
+  </token>
+</action>
+
+<action name="ProjectsPanel.TabGroups.OpenGroup">
+  <owner>chazzy@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    The user opened an existing group from the projects panel.
+  </description>
+</action>
+
+<action name="ProjectsPanel.Threads.OpenThread.{ThreadType}">
+  <owner>chazzy@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>The user opened a thread from the projects panel.</description>
+  <token key="ThreadType">
+    <variant name="AiMode" summary="AI Mode chat thread"/>
+    <variant name="Gemini" summary="Gemini chat thread"/>
+    <variant name="Unknown" summary="Unknown chat thread type"/>
+  </token>
+</action>
+
 <action name="PWAInstallIcon">
   <owner>alancutter@chromium.org</owner>
   <description>
@@ -44802,6 +44879,15 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="Signin_Impression_FromSearchAIModeBubble">
+  <owner>anthie@google.com</owner>
+  <owner>chrome-signin-desktop-team@google.com</owner>
+  <description>
+    Recorded when the signin promo is shown from interracting with Search AI
+    Mode results.
+  </description>
+</action>
+
 <action name="Signin_Impression_FromSearchCompanion">
   <obsolete>Deprecated 11/2024. Companion was deprecated and removed.</obsolete>
   <owner>shaktisahu@google.com</owner>
@@ -45375,6 +45461,15 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="Signin_Signin_FromAvatarPillExpandPromo">
+  <owner>rsult@google.com</owner>
+  <owner>chrome-signin-desktop-team@google.com</owner>
+  <description>
+    Recorded on sign in start from access point
+    signin_metrics::AccessPoint::kAvatarPillExpandPromo. Desktop only.
+  </description>
+</action>
+
 <action name="Signin_Signin_FromBookmarkBubble">
   <owner>gogerald@chromium.org</owner>
   <description>
@@ -45819,6 +45914,14 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="Signin_Signin_FromSearchAIModeBubble">
+  <owner>anthie@google.com</owner>
+  <owner>chrome-signin-desktop-team@google.com</owner>
+  <description>
+    Recorded on sign in start from the Search AI Mode signin promo.
+  </description>
+</action>
+
 <action name="Signin_Signin_FromSearchCompanion">
   <obsolete>Deprecated 11/2024. Companion was deprecated and removed.</obsolete>
   <owner>shaktisahu@google.com</owner>
@@ -45915,10 +46018,11 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="Signin_Signin_FromUnknownAccessPoint">
+  <obsolete>kUnknown AccessPoint has been removed.</obsolete>
   <owner>gogerald@chromium.org</owner>
   <description>
     Recorded on sign in start from access point
-    signin_metrics::AccessPoint::kUnknown.
+    signin_metrics::AccessPoint::kUnknown (obsolete).
   </description>
 </action>
 

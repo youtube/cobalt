@@ -41,6 +41,7 @@
 #import "ios/chrome/browser/find_in_page/model/find_tab_helper.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_service.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_service_factory.h"
+#import "ios/chrome/browser/intelligence/bwg/model/bwg_tab_helper.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/intents/model/intents_donation_helper.h"
@@ -714,8 +715,7 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
     self.readerModeAction = [self toggleReaderModeAction];
   }
 
-  if (send_tab_to_self::
-          IsSendTabIOSPushNotificationsEnabledWithTabReminders()) {
+  if (send_tab_to_self::AreIOSTabRemindersEnabled()) {
     self.setTabReminderAction = [self newSetTabReminderAction];
   }
 
@@ -996,8 +996,7 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
 
 // Notifies the FET that the user tapped the "Set a Reminder" action.
 - (void)notifySetTabReminderActionTapped {
-  CHECK(
-      send_tab_to_self::IsSendTabIOSPushNotificationsEnabledWithTabReminders());
+  CHECK(send_tab_to_self::AreIOSTabRemindersEnabled());
 
   if (self.engagementTracker) {
     self.engagementTracker->NotifyEvent(
@@ -1874,15 +1873,16 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
   if (!IsPageActionMenuEnabled()) {
     return NO;
   }
-  if (_webState) {
-    ProfileIOS* profile =
-        ProfileIOS::FromBrowserState(_webState->GetBrowserState());
-    BwgService* BWGService = BwgServiceFactory::GetForProfile(profile);
-    if (BWGService) {
-      return BWGService->IsBwgAvailableForWebState(_webState);
-    }
+  if (!_webState) {
+    return NO;
   }
-  return NO;
+
+  ProfileIOS* profile =
+      ProfileIOS::FromBrowserState(_webState->GetBrowserState());
+  BwgService* geminiService = BwgServiceFactory::GetForProfile(profile);
+  BwgTabHelper* tabHelper = BwgTabHelper::FromWebState(_webState);
+  return tabHelper && tabHelper->IsGeminiAvailableForWebState() &&
+         geminiService && geminiService->IsProfileEligibleForGemini();
 }
 
 #pragma mark - CRWWebStateObserver
@@ -2159,8 +2159,7 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
 - (ActionRanking)basePageActions {
   ActionRanking actions;
 
-  if (send_tab_to_self::
-          IsSendTabIOSPushNotificationsEnabledWithTabReminders()) {
+  if (send_tab_to_self::AreIOSTabRemindersEnabled()) {
     actions.push_back(overflow_menu::ActionType::SetTabReminder);
   }
 
@@ -2245,8 +2244,7 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
     case overflow_menu::ActionType::AIPrototype:
       return self.AIPrototypeAction;
     case overflow_menu::ActionType::SetTabReminder:
-      return send_tab_to_self::
-                     IsSendTabIOSPushNotificationsEnabledWithTabReminders()
+      return send_tab_to_self::AreIOSTabRemindersEnabled()
                  ? self.setTabReminderAction
                  : nil;
     case overflow_menu::ActionType::ReaderMode:
@@ -2615,8 +2613,7 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
 
 // Opens the "Set a reminder" screen for the user's current tab.
 - (void)showSetTabReminderUI {
-  CHECK(
-      send_tab_to_self::IsSendTabIOSPushNotificationsEnabledWithTabReminders());
+  CHECK(send_tab_to_self::AreIOSTabRemindersEnabled());
 
   [self dismissMenu];
   [self.reminderNotificationsHandler

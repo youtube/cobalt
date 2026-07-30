@@ -751,4 +751,80 @@ TEST_F(InputStateModelTest,
   local_model->OnContextChanged();
 }
 
+// Regression test for crbug.com/487756923.
+TEST_F(InputStateModelTest,
+       Regression_Bug487756923_CopyConstructorCopiesPrefService) {
+  TestingPrefServiceSimple prefs;
+  prefs.registry()->RegisterIntegerPref(
+      contextual_search::kSearchContentSharingSettings,
+      static_cast<int>(
+          contextual_search::SearchContentSharingSettingsValue::kDisabled));
+
+  omnibox::SearchboxConfig config;
+  config.mutable_rule_set()->add_allowed_input_types(
+      omnibox::InputType::INPUT_TYPE_LENS_IMAGE);
+
+  auto model_with_image = std::make_unique<InputStateModel>(
+      session_handle_, config, /*is_off_the_record=*/false);
+  model_with_image->SetPrefService(&prefs);
+
+  const auto& state = model_with_image->get_state_for_testing();
+  EXPECT_EQ(std::find(state.allowed_input_types.begin(),
+                      state.allowed_input_types.end(),
+                      omnibox::InputType::INPUT_TYPE_LENS_IMAGE),
+            state.allowed_input_types.end());
+
+  MockContextualSearchSessionHandle new_session;
+  InputStateModel cloned_model(*model_with_image, new_session);
+  const auto& cloned_state = cloned_model.get_state_for_testing();
+  EXPECT_EQ(std::find(cloned_state.allowed_input_types.begin(),
+                      cloned_state.allowed_input_types.end(),
+                      omnibox::InputType::INPUT_TYPE_LENS_IMAGE),
+            cloned_state.allowed_input_types.end());
+}
+
+// crbug.com/488112121: This test covers the temporary behavior of forcing
+// items to be disabled based on external triggers (like URL parameters).
+// Remove this test when the temporary workaround in
+// ContextualTasksComposeboxHandler is removed.
+TEST_F(InputStateModelCompatibilityTest, ForcedDisabledToolsAndInputTypes) {
+  // Enable content sharing to prevent the policy from erasing allowlisted
+  // inputs.
+  pref_service_.SetInteger(
+      contextual_search::kSearchContentSharingSettings,
+      static_cast<int>(
+          contextual_search::SearchContentSharingSettingsValue::kEnabled));
+
+  input_state_model_->SetPermanentlyDisabledTools(
+      {omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH});
+  auto state = input_state_model_->get_state_for_testing();
+
+  EXPECT_THAT(state.disabled_tools,
+              testing::Contains(omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH));
+
+  input_state_model_->SetPermanentlyDisabledInputTypes(
+      {omnibox::InputType::INPUT_TYPE_LENS_FILE,
+       omnibox::InputType::INPUT_TYPE_BROWSER_TAB});
+  state = input_state_model_->get_state_for_testing();
+
+  EXPECT_THAT(state.disabled_input_types,
+              testing::Contains(omnibox::InputType::INPUT_TYPE_LENS_FILE));
+  EXPECT_THAT(state.disabled_input_types,
+              testing::Contains(omnibox::InputType::INPUT_TYPE_BROWSER_TAB));
+
+  input_state_model_->SetPermanentlyDisabledTools({});
+  input_state_model_->SetPermanentlyDisabledInputTypes({});
+  state = input_state_model_->get_state_for_testing();
+
+  EXPECT_THAT(state.disabled_tools,
+              testing::Not(
+                  testing::Contains(omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH)));
+  EXPECT_THAT(state.disabled_input_types,
+              testing::Not(
+                  testing::Contains(omnibox::InputType::INPUT_TYPE_LENS_FILE)));
+  EXPECT_THAT(state.disabled_input_types,
+              testing::Not(testing::Contains(
+                  omnibox::InputType::INPUT_TYPE_BROWSER_TAB)));
+}
+
 }  // namespace contextual_search

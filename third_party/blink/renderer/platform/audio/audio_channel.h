@@ -54,12 +54,15 @@ class PLATFORM_EXPORT AudioChannel final {
 
   // Manage storage for us.
   explicit AudioChannel(uint32_t length)
-      : length_(length), raw_pointer_(nullptr), silent_(true) {
-    mem_buffer_ = std::make_unique<AudioFloatArray>(length);
+      : length_(0), raw_pointer_(nullptr), silent_(true) {
+    CHECK(TryAllocate(length));
   }
 
   // A "blank" audio channel -- must call Set() before it's useful...
   AudioChannel() : length_(0), raw_pointer_(nullptr), silent_(true) {}
+
+  // Methods for internal allocation.
+  bool TryAllocate(uint32_t length);
 
   // Redefine the memory for this channel. |storage| represents external memory
   // not managed by this object.
@@ -108,17 +111,11 @@ class PLATFORM_EXPORT AudioChannel final {
 
   // Zeroes out all sample values in buffer.
   void Zero() {
-    if (silent_) {
-      return;
-    }
-
-    silent_ = true;
-
-    if (mem_buffer_.get()) {
-      mem_buffer_->Zero();
-    } else {
-      UNSAFE_TODO(memset(raw_pointer_, 0,
-                         base::CheckMul(sizeof(float), length_).ValueOrDie()));
+    if (!silent_) {
+      std::ranges::fill(MutableSpan(), 0.f);
+      // Set silent flag after calling `MutableSpan()` so that it is not cleared
+      // again.
+      silent_ = true;
     }
   }
 

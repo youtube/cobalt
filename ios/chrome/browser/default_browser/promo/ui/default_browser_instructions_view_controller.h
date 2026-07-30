@@ -5,9 +5,7 @@
 #ifndef IOS_CHROME_BROWSER_DEFAULT_BROWSER_PROMO_UI_DEFAULT_BROWSER_INSTRUCTIONS_VIEW_CONTROLLER_H_
 #define IOS_CHROME_BROWSER_DEFAULT_BROWSER_PROMO_UI_DEFAULT_BROWSER_INSTRUCTIONS_VIEW_CONTROLLER_H_
 
-#import <UIKit/UIKit.h>
-
-@protocol ConfirmationAlertActionHandler;
+#import "ios/chrome/browser/shared/ui/animated_promo/animated_promo_view_controller.h"
 
 // The accessibility identifier of the default browser instructions view
 // animation id.
@@ -18,8 +16,7 @@ extern NSString* const kDefaultBrowserInstructionsViewAnimationViewId;
 extern NSString* const kDefaultBrowserInstructionsViewDarkAnimationViewId;
 
 // View for the displaying default browser instructions.
-// TODO(crbug.com/433786239): Subclass from AnimatedPromoViewController.
-@interface DefaultBrowserInstructionsViewController : UIViewController
+@interface DefaultBrowserInstructionsViewController : AnimatedPromoViewController
 
 // Creates the view with specified `titleText` based on provided parameters.
 // If `titleText` is nil, default title will be used.
@@ -27,8 +24,6 @@ extern NSString* const kDefaultBrowserInstructionsViewDarkAnimationViewId;
                      hasRemindMeLater:(BOOL)hasRemindMeLater
             useDefaultAppsDestination:(BOOL)useDefaultAppsDestination
                              hasSteps:(BOOL)hasSteps
-                        actionHandler:
-                            (id<ConfirmationAlertActionHandler>)actionHandler
                             titleText:(NSString*)titleText;
 
 @end

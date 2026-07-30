@@ -462,13 +462,7 @@ DesktopZpsUnscopedExtensionSection::DesktopZpsUnscopedExtensionSection(
 DesktopSecondaryNTPZpsSection::DesktopSecondaryNTPZpsSection(
     const omnibox::GroupConfigMap& group_configs)
     : ZpsSection(
-          (omnibox_feature_configs::RealboxContextualAndTrendingSuggestions::
-               Get()
-                   .enabled)
-              ? omnibox_feature_configs::
-                    RealboxContextualAndTrendingSuggestions::Get()
-                        .total_limit
-              : 3,
+          /*limit=*/4,
           {
               Group(
                   3,
@@ -476,40 +470,14 @@ DesktopSecondaryNTPZpsSection::DesktopSecondaryNTPZpsSection(
                       {omnibox::GROUP_PREVIOUS_SEARCH_RELATED_ENTITY_CHIPS, 3},
                   }),
               Group(
-                  (omnibox_feature_configs::
-                       RealboxContextualAndTrendingSuggestions::Get()
-                           .enabled)
-                      ? omnibox_feature_configs::
-                            RealboxContextualAndTrendingSuggestions::Get()
-                                .contextual_suggestions_limit
-                      : 0,
+                  /*limit=*/4,
                   {
-                      {omnibox::GROUP_PREVIOUS_SEARCH_RELATED,
-                       (omnibox_feature_configs::
-                            RealboxContextualAndTrendingSuggestions::Get()
-                                .enabled)
-                           ? omnibox_feature_configs::
-                                 RealboxContextualAndTrendingSuggestions::Get()
-                                     .contextual_suggestions_limit
-                           : 0},
+                      {omnibox::GROUP_PREVIOUS_SEARCH_RELATED, /*limit=*/4},
                   }),
               Group(
-                  (omnibox_feature_configs::
-                       RealboxContextualAndTrendingSuggestions::Get()
-                           .enabled)
-                      ? omnibox_feature_configs::
-                            RealboxContextualAndTrendingSuggestions::Get()
-                                .trending_suggestions_limit
-                      : 0,
+                  /*limit=*/4,
                   {
-                      {omnibox::GROUP_TRENDS,
-                       (omnibox_feature_configs::
-                            RealboxContextualAndTrendingSuggestions::Get()
-                                .enabled)
-                           ? omnibox_feature_configs::
-                                 RealboxContextualAndTrendingSuggestions::Get()
-                                     .trending_suggestions_limit
-                           : 0},
+                      {omnibox::GROUP_TRENDS, /*limit=*/4},
                   }),
           },
           group_configs,
@@ -793,8 +761,8 @@ ZpsSectionWithMVTiles::ZpsSectionWithMVTiles(
     : ZpsSection(limit, std::move(groups), group_configs) {}
 
 void ZpsSectionWithMVTiles::InitFromMatches(ACMatches& matches) {
-  size_t tile_count = std::count_if(
-      matches.begin(), matches.end(), [](const AutocompleteMatch& m) {
+  size_t tile_count =
+      std::ranges::count_if(matches, [](const AutocompleteMatch& m) {
         return m.suggestion_group_id.value_or(omnibox::GROUP_INVALID) ==
                omnibox::GROUP_MOBILE_MOST_VISITED;
       });

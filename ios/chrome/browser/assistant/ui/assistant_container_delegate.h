@@ -7,8 +7,8 @@
 
 #import <Foundation/Foundation.h>
 
+enum class AssistantContainerDetent : NSInteger;
 @class AssistantContainerViewController;
-@class AssistantContainerDetent;
 
 // Describes the presentation context of the Assistant Container.
 enum class AssistantPresentationContext {
@@ -46,11 +46,21 @@ enum class AssistantPresentationContext {
 
 // Called when the container successfully settles on a new detent.
 - (void)assistantContainer:(AssistantContainerViewController*)container
-           didChangeDetent:(AssistantContainerDetent*)newDetent;
+           didChangeDetent:(AssistantContainerDetent)newDetent;
 
-// Called when the container updates its internal height dynamically.
+// Called continuously when the container's height changes during an interactive
+// drag. `percentage` is between 0 (min height) and 1 (max height).
+// Values may exceed this range during rubber-banding.
 - (void)assistantContainer:(AssistantContainerViewController*)container
-           didUpdateHeight:(NSInteger)newHeight;
+    didUpdateExpandPercentage:(CGFloat)percentage;
+
+// Called from within the container's active UIView animation context when
+// transitioning to a new height. Animate embedder view properties directly
+// inside your implementation of this method to natively inherit the container's
+// exact spring animation curve.
+// `percentage` is between 0 (min height) and 1 (max height).
+- (void)assistantContainer:(AssistantContainerViewController*)container
+    animateAlongsideTransitionToPercentage:(CGFloat)percentage;
 
 #pragma mark - Context Changes
 

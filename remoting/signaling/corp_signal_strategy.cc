@@ -21,11 +21,8 @@
 #include "remoting/base/logging.h"
 #include "remoting/base/rsa_key_pair.h"
 #include "remoting/signaling/corp_messaging_client.h"
-#include "remoting/signaling/jingle_message_xml_converter.h"
 #include "remoting/signaling/signaling_address.h"
-#include "remoting/signaling/xmpp_constants.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
-#include "third_party/libjingle_xmpp/xmllite/xmlelement.h"
 
 namespace remoting {
 
@@ -36,7 +33,7 @@ class CorpSignalStrategy::Core {
        const std::string& username,
        scoped_refptr<RsaKeyPair> key_pair);
   // CorpSignalStrategyTest uses a private c'tor w/ a fake messaging client.
-  Core(std::unique_ptr<MessagingClient> messaging_client,
+  Core(std::unique_ptr<CorpMessagingClient> messaging_client,
        const SignalingAddress& local_address);
 
   Core(const Core&) = delete;
@@ -51,22 +48,22 @@ class CorpSignalStrategy::Core {
   const SignalingAddress& GetLocalAddress() const;
   void AddListener(Listener* listener);
   void RemoveListener(Listener* listener);
-  bool SendMessage(const SignalingAddress& destination_address,
-                   SignalingMessage&& message);
+  bool SendMessage(JingleMessage&& message);
+  bool SendReply(JingleMessageReply&& message);
   std::string GetNextId();
   bool IsSignInError() const;
 
  private:
+  template <typename T>
+  bool Send(T&& message, const char* message_type);
   void OnIncomingMessage(const SignalingAddress& sender_address,
-                         const SignalingMessage& message);
+                         const internal::PeerMessageStruct& message);
   void OnChannelReady();
   void OnSignalingAddressChanged(const SignalingAddress& address);
   void OnChannelClosed(const HttpStatus& status);
   void SetState(State state);
-  void OnStanza(const SignalingAddress& sender_address,
-                std::unique_ptr<jingle_xmpp::XmlElement> stanza);
 
-  std::unique_ptr<MessagingClient> messaging_client_;
+  std::unique_ptr<CorpMessagingClient> messaging_client_;
   base::ObserverList<Listener, true> listeners_;
 
   State state_ = DISCONNECTED;
@@ -96,7 +93,7 @@ CorpSignalStrategy::Core::Core(
 }
 
 CorpSignalStrategy::Core::Core(
-    std::unique_ptr<MessagingClient> messaging_client,
+    std::unique_ptr<CorpMessagingClient> messaging_client,
     const SignalingAddress& local_address)
     : messaging_client_(std::move(messaging_client)),
       local_address_(local_address) {}
@@ -155,65 +152,46 @@ void CorpSignalStrategy::Core::RemoveListener(Listener* listener) {
   listeners_.RemoveObserver(listener);
 }
 
-bool CorpSignalStrategy::Core::SendMessage(
-    const SignalingAddress& destination_address,
-    SignalingMessage&& message) {
+bool CorpSignalStrategy::Core::SendMessage(JingleMessage&& message) {
+  return Send(std::move(message), "message");
+}
+
+bool CorpSignalStrategy::Core::SendReply(JingleMessageReply&& message) {
+  return Send(std::move(message), "reply");
+}
+
+template <typename T>
+bool CorpSignalStrategy::Core::Send(T&& message, const char* message_type) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   if (GetState() != CONNECTED) {
-    LOG(WARNING) << "Dropping message because not connected.";
+    LOG(WARNING) << "Dropping " << message_type << " because not connected.";
     return false;
   }
 
-  // TODO: joedow - Use std::visit(absl::Overload(...), message->payload()).
-  std::unique_ptr<jingle_xmpp::XmlElement> stanza;
-  if (auto* jingle_message = std::get_if<JingleMessage>(&message)) {
-    if (destination_address.empty()) {
-      LOG(ERROR) << "Invalid destination address.";
-      return false;
-    }
-
-    jingle_message->from = GetLocalAddress();
-
-    stanza = JingleMessageToXml(*jingle_message);
-  } else if (auto* jingle_reply = std::get_if<JingleMessageReply>(&message)) {
-    if (destination_address.empty()) {
-      LOG(ERROR) << "Invalid destination address.";
-      return false;
-    }
-
-    jingle_reply->from = GetLocalAddress();
-
-    stanza = JingleMessageReplyToXml(*jingle_reply);
-  }
-  if (stanza) {
-    internal::PeerMessageStruct peer_message;
-    internal::IqStanzaStruct iq_stanza;
-    iq_stanza.xml = stanza->Str();
-    peer_message.payload = std::move(iq_stanza);
-
-    return SendMessage(destination_address, std::move(peer_message));
-  }
-
-  auto* peer_message = std::get_if<internal::PeerMessageStruct>(&message);
-  if (!peer_message) {
-    LOG(ERROR) << "Tried to send a non-corp message with CorpSignalStrategy.";
-    return false;
-  }
   if (messaging_authz_token_.empty()) {
     LOG(ERROR) << "Missing authz token.";
     return false;
   }
 
-  auto on_done = base::BindOnce([](const HttpStatus& status) {
-    if (!status.ok()) {
-      LOG(WARNING) << "Failed to send message. Status: "
-                   << static_cast<int>(status.error_code())
-                   << ", message: " << status.error_message();
-    }
-  });
+  auto on_done = base::BindOnce(
+      [](const char* type, const HttpStatus& status) {
+        if (!status.ok()) {
+          LOG(WARNING) << "Failed to send " << type
+                       << ". Status: " << static_cast<int>(status.error_code())
+                       << ", message: " << status.error_message();
+        }
+      },
+      message_type);
+
+  internal::IqStanzaStruct iq_stanza;
+  iq_stanza.xml = message.ToSerializedXml();
+
+  internal::PeerMessageStruct peer_message;
+  peer_message.payload = std::move(iq_stanza);
+
   messaging_client_->SendMessage(SignalingAddress(messaging_authz_token_),
-                                 std::move(message), std::move(on_done));
+                                 std::move(peer_message), std::move(on_done));
   return true;
 }
 
@@ -229,19 +207,13 @@ bool CorpSignalStrategy::Core::IsSignInError() const {
 
 void CorpSignalStrategy::Core::OnIncomingMessage(
     const SignalingAddress& sender_address,
-    const SignalingMessage& message) {
+    const internal::PeerMessageStruct& message) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   HOST_LOG << "Received incoming message from " << sender_address.id();
 
-  const auto* peer_message = std::get_if<internal::PeerMessageStruct>(&message);
-  if (!peer_message) {
-    LOG(WARNING) << "Received message with unsupported payload type.";
-    return;
-  }
-
   const auto* iq_stanza_struct =
-      std::get_if<internal::IqStanzaStruct>(&peer_message->payload);
+      std::get_if<internal::IqStanzaStruct>(&message.payload);
   if (!iq_stanza_struct) {
     LOG(WARNING) << "Received PeerMessageStruct with non-IqStanza payload.";
     return;
@@ -266,9 +238,15 @@ void CorpSignalStrategy::Core::OnIncomingMessage(
   }
 
   for (auto& listener : listeners_) {
-    if (listener.OnSignalStrategyIncomingMessage(sender_address,
-                                                 *parsed_message)) {
-      return;
+    if (const auto* jm = std::get_if<JingleMessage>(&*parsed_message)) {
+      if (listener.OnSignalingMessage(sender_address, *jm)) {
+        return;
+      }
+    } else {
+      if (listener.OnSignalingReply(
+              sender_address, std::get<JingleMessageReply>(*parsed_message))) {
+        return;
+      }
     }
   }
 }
@@ -309,7 +287,7 @@ void CorpSignalStrategy::Core::SetState(State state) {
   }
   state_ = state;
   for (auto& observer : listeners_) {
-    observer.OnSignalStrategyStateChange(state_);
+    observer.OnSignalingStateChanged(state_);
   }
 }
 
@@ -324,7 +302,7 @@ CorpSignalStrategy::CorpSignalStrategy(
 }
 
 CorpSignalStrategy::CorpSignalStrategy(
-    std::unique_ptr<MessagingClient> messaging_client,
+    std::unique_ptr<CorpMessagingClient> messaging_client,
     const SignalingAddress& local_address) {
   core_ = std::make_unique<Core>(std::move(messaging_client), local_address);
 }
@@ -363,10 +341,12 @@ void CorpSignalStrategy::RemoveListener(Listener* listener) {
   core_->RemoveListener(listener);
 }
 
-bool CorpSignalStrategy::SendMessage(
-    const SignalingAddress& destination_address,
-    SignalingMessage&& message) {
-  return core_->SendMessage(destination_address, std::move(message));
+bool CorpSignalStrategy::SendMessage(JingleMessage&& message) {
+  return core_->SendMessage(std::move(message));
+}
+
+bool CorpSignalStrategy::SendReply(JingleMessageReply&& message) {
+  return core_->SendReply(std::move(message));
 }
 
 std::string CorpSignalStrategy::GetNextId() {

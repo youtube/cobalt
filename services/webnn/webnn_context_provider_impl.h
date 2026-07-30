@@ -100,11 +100,6 @@ class COMPONENT_EXPORT(WEBNN_SERVICE) WebNNContextProviderImpl
   void DestroyAllContextsAndKillGpuProcess();
 #endif  // BUILDFLAG(IS_WIN)
 
-  // Retrieves a `WebNNContextImpl` instance created from this provider.
-  // Emits a bad message if a context with the given handle does not exist.
-  base::optional_ref<WebNNContextImpl> GetWebNNContextImplForTesting(
-      const blink::WebNNContextToken& handle);
-
   using WebNNContextImplPtr =
       std::unique_ptr<WebNNContextImpl, OnTaskRunnerDeleter>;
   using WebNNContextImplSet =
@@ -190,7 +185,9 @@ class COMPONENT_EXPORT(WEBNN_SERVICE) WebNNContextProviderImpl
       scoped_refptr<base::SingleThreadTaskRunner> task_runner,
       mojo::PendingReceiver<mojom::WebNNContext> receiver,
       mojo::PendingRemote<mojom::WebNNContext> remote,
-      CreateWebNNContextCallback callback);
+      CreateWebNNContextCallback callback,
+      bool is_incognito,
+      scoped_refptr<gpu::MemoryTracker> memory_tracker);
 #endif  // BUILDFLAG(WEBNN_USE_LITERT)
 
 #if BUILDFLAG(IS_WIN)

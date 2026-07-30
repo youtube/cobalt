@@ -1242,7 +1242,6 @@ IN_PROC_BROWSER_TEST_P(GlicApiTest, testCreateTabByClickingOnLink) {
 }
 
 IN_PROC_BROWSER_TEST_P(GlicApiTest, testPopupOpens) {
-  browser_activator().SetMode(BrowserActivator::Mode::kFirst);
   RunTestSequence(OpenGlic(GlicInstrumentMode::kHostAndContents),
                   CheckPopupCount(0));
   ExecuteJsTest();
@@ -1649,7 +1648,6 @@ IN_PROC_BROWSER_TEST_P(GlicApiTestWithOneTab, testShowProfilePicker) {
 #endif
 
 IN_PROC_BROWSER_TEST_P(GlicApiTestWithOneTab, testPanelActive) {
-  browser_activator().SetMode(BrowserActivator::Mode::kFirst);
   // Explicitly track this glic instance by ID. When a new browser window is
   // created below, it will become the most recently activated browser. Without
   // explicit tracking, GetBrowser() would return the new window (based on
@@ -1703,7 +1701,6 @@ IN_PROC_BROWSER_TEST_P(GlicApiTest, testPanelActiveWithMicrophone) {
 }
 
 IN_PROC_BROWSER_TEST_P(GlicApiTest, testIsBrowserOpen) {
-  browser_activator().SetMode(BrowserActivator::Mode::kFirst);
   RunTestSequence(OpenGlic(GlicInstrumentMode::kHostAndContents));
   TrackGlicInstanceWithId(GetGlicInstance()->id());
   ExecuteJsTest();
@@ -2045,7 +2042,7 @@ IN_PROC_BROWSER_TEST_P(GlicApiTestWithOneTab,
 IN_PROC_BROWSER_TEST_P(GlicApiTest, testGetFocusedTabStateV2BrowserClosed) {
   // TODO(harringtond): This test is flaky in multi-instance.
   SKIP_TEST_FOR_MULTI_INSTANCE();
-  browser_activator().SetMode(BrowserActivator::Mode::kFirst);
+
   // Note: ideally this test would only open Glic after the main browser is
   // closed. This however crashes in `DeprecatedOpenGlicWindow()`.
   TrackOnlyGlicInstance();
@@ -2524,7 +2521,7 @@ IN_PROC_BROWSER_TEST_P(GlicApiTestWithDaisyChain,
 
   // 4. Verify no action yet.
   histogram_tester->ExpectTotalCount(
-      "Glic.Instance.FirstActionInDaisyChainPanel.GlicContents", 0);
+      "Glic.Instance.AutoOpenedPanel.FirstAction.GlicContents", 0);
 
   // 5. Trigger "createTab" (recursive) from the second tab's panel.
   ExecuteJsTest({.params = base::Value("createTab")});
@@ -2536,7 +2533,7 @@ IN_PROC_BROWSER_TEST_P(GlicApiTestWithDaisyChain,
   // 7. Verify recursive metric for the second tab (which was daisy chained).
   ASSERT_TRUE(base::test::RunUntil([&]() {
     return histogram_tester->GetBucketCount(
-               "Glic.Instance.FirstActionInDaisyChainPanel.GlicContents",
+               "Glic.Instance.AutoOpenedPanel.FirstAction.GlicContents",
                DaisyChainFirstAction::kRecursiveDaisyChain) == 1;
   }));
 
@@ -2550,7 +2547,7 @@ IN_PROC_BROWSER_TEST_P(GlicApiTestWithDaisyChain,
   // 10. Verify inputSubmitted metric for the third tab.
   ASSERT_TRUE(base::test::RunUntil([&]() {
     return histogram_tester->GetBucketCount(
-               "Glic.Instance.FirstActionInDaisyChainPanel.GlicContents",
+               "Glic.Instance.AutoOpenedPanel.FirstAction.GlicContents",
                DaisyChainFirstAction::kInputSubmitted) == 1;
   }));
 }
@@ -2578,7 +2575,7 @@ IN_PROC_BROWSER_TEST_P(GlicApiTestWithDaisyChain, testNewTabMetrics) {
   // 5. Verify Metric.
   ASSERT_TRUE(base::test::RunUntil([&]() {
     return histogram_tester->GetBucketCount(
-               "Glic.Instance.FirstActionInDaisyChainPanel.NewTab",
+               "Glic.Instance.AutoOpenedPanel.FirstAction.NewTab",
                DaisyChainFirstAction::kInputSubmitted) == 1;
   }));
 }
@@ -2779,7 +2776,6 @@ IN_PROC_BROWSER_TEST_P(GlicApiTest,
 }
 
 IN_PROC_BROWSER_TEST_P(GlicApiTest, testPinTabsFailsWhenIncognitoWindow) {
-  browser_activator().SetMode(BrowserActivator::Mode::kFirst);
   NavigateTabAndOpenGlicFloating();
 
   // Open a new incognito window.
@@ -3307,7 +3303,6 @@ IN_PROC_BROWSER_TEST_P(GlicApiTest, testCaptureRegionCancelBrowser) {
 }
 
 IN_PROC_BROWSER_TEST_P(GlicApiTest, testCaptureRegionNoFocus) {
-  browser_activator().SetMode(BrowserActivator::Mode::kFirst);
   RunTestSequence(OpenGlic(GlicInstrumentMode::kHostAndContents));
   TrackGlicInstanceWithId(GetGlicInstance()->id());
   ExecuteJsTest();
@@ -3902,7 +3897,8 @@ class GlicApiTestWithDragAndDrop : public GlicApiTest {
   base::test::ScopedFeatureList feature_list_;
 };
 
-IN_PROC_BROWSER_TEST_P(GlicApiTestWithDragAndDrop, testDragAndDrop) {
+// TODO(crbug.com/488607379): Disabled due to flakiness on multiple builders.
+IN_PROC_BROWSER_TEST_P(GlicApiTestWithDragAndDrop, DISABLED_testDragAndDrop) {
   RunTestSequence(OpenGlic(GlicInstrumentMode::kHostAndContents));
 
   ExecuteJsTest();

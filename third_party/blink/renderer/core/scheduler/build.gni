@@ -29,6 +29,8 @@ blink_core_sources_scheduler = [
   "task_attribution_info_impl.h",
   "task_attribution_task_state.cc",
   "task_attribution_task_state.h",
+  "task_attribution_top_level_override_scope.cc",
+  "task_attribution_top_level_override_scope.h",
   "task_attribution_tracker_impl.cc",
   "task_attribution_tracker_impl.h",
   "task_attribution_util.h",
@@ -46,4 +48,5 @@ blink_core_tests_scheduler = [
   "idle_deadline_test.cc",
   "scripted_idle_task_controller_test.cc",
   "task_attribution_task_state_test.cc",
+  "task_attribution_tracker_impl_test.cc",
 ]

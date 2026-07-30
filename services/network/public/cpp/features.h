@@ -354,6 +354,14 @@ BASE_DECLARE_FEATURE_PARAM(size_t, kSharedDictionaryCacheSize);
 COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
 BASE_DECLARE_FEATURE_PARAM(size_t, kSharedDictionaryCacheMaxSizeBytes);
 
+// When enabled, the network service will restrict the early matching and
+// loading of compression dictionaries. By default, it will start an async
+// task to find a matching compression dictionary and start to load it even
+// before checking if the resource is in the cache (in which case a dictionary
+// is not needed and the extra work is wasteful).
+COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
+BASE_DECLARE_FEATURE(kCompressionDictionaryLimitEarlyMatching);
+
 // When enabled, Network Service Task Scheduler is enabled on the Network
 // Service's IO Thread.
 COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
@@ -408,6 +416,23 @@ BASE_DECLARE_FEATURE(kDurableMessages);
 // Global limit for all durable messages
 COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
 BASE_DECLARE_FEATURE_PARAM(int, kDurableMessagesGlobalBufferSize);
+
+// If enabled, the forbidden header checks for requests can be bypassed. This is
+// the network service side of the feature. The renderer side uses this same
+// feature via the cors::IsBypassRequestForbiddenHeadersCheckEnabled() function.
+//
+// This feature allows specific contexts to bypass the standard forbidden header
+// restrictions (currently only for the 'Origin' header) if they have explicit
+// permission to access the target URL. The bypass occurs only if the request's
+// initiator origin is allowed to access the target URL via the security
+// policy's origin access lists.
+//
+// For example, this enables chromium extensions with appropriate host
+// permissions to override this header in fetch requests initiated from
+// background pages or extension service workers. It does not apply to requests
+// initiated from content scripts or user scripts.
+COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
+BASE_DECLARE_FEATURE(kBypassRequestForbiddenHeadersCheck);
 
 }  // namespace network::features
 

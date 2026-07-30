@@ -16,6 +16,7 @@
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/side_panel/side_panel_entry.h"
 #include "chrome/browser/ui/side_panel/side_panel_enums.h"
+#include "chrome/browser/ui/side_panel/side_panel_metrics.h"
 #include "chrome/browser/ui/side_panel/side_panel_ui.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
@@ -295,6 +296,14 @@ class ContentParentView : public views::View, public views::ViewObserver {
     if (views::IsViewClass<views::WebView>(child)) {
       views::AsViewClass<views::WebView>(child)->holder()->SetCornerRadii(
           GetRoundedCorners());
+    }
+    // Try to detect if the child is a views::View wrapper of a WebView. If so,
+    // round its corners.
+    if (child->children().size() == 1 &&
+        views::IsViewClass<views::WebView>(child->children()[0])) {
+      views::AsViewClass<views::WebView>(child->children()[0])
+          ->holder()
+          ->SetCornerRadii(GetRoundedCorners());
     }
     if (child->layer()) {
       child->layer()->SetIsFastRoundedCorner(true);
@@ -677,9 +686,8 @@ double SidePanel::GetAnimationValue() const {
   return GetAnimationValueFor(kSidePanelBoundsAnimation);
 }
 
-void SidePanel::OnAnimationSequenceProgressed(
-    const SidePanelAnimationCoordinator::SidePanelAnimationId& animation_id,
-    double animation_value) {
+void SidePanel::OnAnimationSequenceProgressed(SidePanelAnimationId animation_id,
+                                              double animation_value) {
   if (animation_id == kSidePanelBoundsAnimation) {
     if (last_animation_values_[animation_id] != animation_value) {
       last_animation_values_[animation_id] = animation_value;
@@ -785,7 +793,7 @@ void SidePanel::RecordMetricsIfResized() {
 
     int side_panel_contents_width = width() - GetBorderInsets().width();
     int browser_window_width = browser_view_->width();
-    SidePanelUtil::RecordSidePanelResizeMetrics(
+    SidePanelMetrics::RecordSidePanelResizeMetrics(
         type_, id.value(), side_panel_contents_width, browser_window_width);
     did_resize_ = false;
   }
@@ -901,8 +909,7 @@ void SidePanel::UpdateVisibility(bool should_be_open, bool animate_transition) {
 }
 
 double SidePanel::GetAnimationValueFor(
-    const SidePanelAnimationCoordinator::SidePanelAnimationId& animation_id)
-    const {
+    SidePanelAnimationId animation_id) const {
   if (ShouldShowAnimation()) {
     return animation_coordinator_->GetAnimationValueFor(animation_id);
   } else {

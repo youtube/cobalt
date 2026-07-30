@@ -65,44 +65,6 @@ void RecordAllocOrFree(uintptr_t addr, size_t size) {
 }
 #endif  // PA_BUILDFLAG(RECORD_ALLOC_INFO)
 
-#if PA_BUILDFLAG(ENABLE_BACKUP_REF_PTR_SUPPORT)
-PtrPosWithinAlloc IsPtrWithinSameAlloc(uintptr_t orig_address,
-                                       uintptr_t test_address,
-                                       size_t type_size) {
-  PA_DCHECK(ReservationOffsetTable::Get(orig_address)
-                .IsManagedByNormalBucketsOrDirectMap(orig_address));
-  DCheckIfManagedByPartitionAllocBRPPool(orig_address);
-
-  auto [slot_start, _] =
-      PartitionAllocGetSlotStartAndSizeInBRPPool(orig_address);
-  // Don't use |orig_address| beyond this point at all. It was needed to
-  // pick the right slot, but now we're dealing with very concrete addresses.
-  // Zero it just in case, to catch errors.
-  orig_address = 0;
-
-  const std::ptrdiff_t offset =
-      internal::GetMetadataOffset(pool_handle::kBRPPoolHandle);
-  auto* slot_span = SlotSpanMetadata::FromSlotStart(slot_start, offset);
-  auto* root = PartitionRoot::FromSlotSpanMetadata(slot_span);
-  // Double check that in-slot metadata is indeed present. Currently that's the
-  // case only when BRP is used.
-  PA_DCHECK(root->brp_enabled());
-
-  uintptr_t object_addr = slot_start.value();
-  uintptr_t object_end = object_addr + root->GetSlotUsableSize(slot_span);
-  if (test_address < object_addr || object_end < test_address) {
-    return PtrPosWithinAlloc::kFarOOB;
-#if PA_BUILDFLAG(BACKUP_REF_PTR_POISON_OOB_PTR)
-  } else if (object_end - type_size < test_address) {
-    // Not even a single element of the type referenced by the pointer can fit
-    // between the pointer and the end of the object.
-    return PtrPosWithinAlloc::kAllocEnd;
-#endif
-  } else {
-    return PtrPosWithinAlloc::kInBounds;
-  }
-}
-#endif  // PA_BUILDFLAG(ENABLE_BACKUP_REF_PTR_SUPPORT)
 
 }  // namespace partition_alloc::internal
 
@@ -695,7 +657,8 @@ static void PartitionPurgeBucket(PartitionRoot* root,
 
 static void PartitionDumpSlotSpanStats(PartitionBucketMemoryStats* stats_out,
                                        PartitionRoot* root,
-                                       internal::SlotSpanMetadata* slot_span)
+                                       internal::SlotSpanMetadata* slot_span,
+                                       bool populate_discardable_bytes)
     PA_EXCLUSIVE_LOCKS_REQUIRED(internal::PartitionRootLock(root)) {
   uint16_t bucket_num_slots = slot_span->bucket->get_slots_per_span();
 
@@ -704,7 +667,10 @@ static void PartitionDumpSlotSpanStats(PartitionBucketMemoryStats* stats_out,
     return;
   }
 
-  stats_out->discardable_bytes += PartitionPurgeSlotSpan(root, slot_span, true);
+  if (populate_discardable_bytes) {
+    stats_out->discardable_bytes +=
+        PartitionPurgeSlotSpan(root, slot_span, true);
+  }
 
   if (slot_span->CanStoreRawSize()) {
     stats_out->active_bytes += static_cast<uint32_t>(slot_span->GetRawSize());
@@ -731,7 +697,8 @@ static void PartitionDumpSlotSpanStats(PartitionBucketMemoryStats* stats_out,
 
 static void PartitionDumpBucketStats(PartitionBucketMemoryStats* stats_out,
                                      PartitionRoot* root,
-                                     const internal::PartitionBucket* bucket)
+                                     const internal::PartitionBucket* bucket,
+                                     bool populate_discardable_bytes)
     PA_EXCLUSIVE_LOCKS_REQUIRED(internal::PartitionRootLock(root)) {
   PA_DCHECK(!bucket->is_direct_mapped());
   stats_out->is_valid = false;
@@ -763,13 +730,15 @@ static void PartitionDumpBucketStats(PartitionBucketMemoryStats* stats_out,
   for (internal::SlotSpanMetadata* slot_span = bucket->empty_slot_spans_head;
        slot_span; slot_span = slot_span->next_slot_span) {
     PA_DCHECK(slot_span->is_empty() || slot_span->is_decommitted());
-    PartitionDumpSlotSpanStats(stats_out, root, slot_span);
+    PartitionDumpSlotSpanStats(stats_out, root, slot_span,
+                               populate_discardable_bytes);
   }
   for (internal::SlotSpanMetadata* slot_span =
            bucket->decommitted_slot_spans_head;
        slot_span; slot_span = slot_span->next_slot_span) {
     PA_DCHECK(slot_span->is_decommitted());
-    PartitionDumpSlotSpanStats(stats_out, root, slot_span);
+    PartitionDumpSlotSpanStats(stats_out, root, slot_span,
+                               populate_discardable_bytes);
   }
 
   if (bucket->active_slot_spans_head !=
@@ -778,7 +747,8 @@ static void PartitionDumpBucketStats(PartitionBucketMemoryStats* stats_out,
          slot_span; slot_span = slot_span->next_slot_span) {
       PA_DCHECK(slot_span !=
                 internal::SlotSpanMetadata::get_sentinel_slot_span());
-      PartitionDumpSlotSpanStats(stats_out, root, slot_span);
+      PartitionDumpSlotSpanStats(stats_out, root, slot_span,
+                                 populate_discardable_bytes);
     }
   }
 }
@@ -1524,6 +1494,7 @@ void PartitionRoot::ShrinkEmptySlotSpansRing(size_t limit) {
 
 void PartitionRoot::DumpStats(const char* partition_name,
                               bool is_light_dump,
+                              bool populate_discardable_bytes,
                               PartitionStatsDumper* dumper) {
   static const size_t kMaxReportableDirectMaps = 4096;
   // Allocate on the heap rather than on the stack to avoid stack overflow
@@ -1582,7 +1553,8 @@ void PartitionRoot::DumpStats(const char* partition_name,
         PA_UNSAFE_TODO(bucket_stats[i]).is_valid = false;
       } else {
         internal::PartitionDumpBucketStats(&PA_UNSAFE_TODO(bucket_stats[i]),
-                                           this, bucket);
+                                           this, bucket,
+                                           populate_discardable_bytes);
       }
       if (PA_UNSAFE_TODO(bucket_stats[i]).is_valid) {
         stats.total_resident_bytes +=

@@ -194,12 +194,8 @@ DispatchEventResult EventDispatcher::Dispatch() {
 
   auto& document = node_->GetDocument();
   LocalFrame* frame = document.GetFrame();
-  LocalDOMWindow* window = nullptr;
-  if (frame) {
-    window = frame->DomWindow();
-  }
 
-  EventTiming event_timing(frame, *event_, event_->RawTarget());
+  UIEventTiming event_timing(frame, *event_, event_->RawTarget());
 
   if (event_->type() == event_type_names::kChange && event_->isTrusted() &&
       view_) {
@@ -209,14 +205,6 @@ DispatchEventResult EventDispatcher::Dispatch() {
 
   const bool is_click =
       event_->IsMouseEvent() && event_->type() == event_type_names::kClick;
-
-  std::optional<SoftNavigationHeuristics::EventScope> soft_navigation_scope;
-  if (window) {
-    if (auto* heuristics = window->GetSoftNavigationHeuristics()) {
-      soft_navigation_scope =
-          heuristics->MaybeCreateEventScopeForInputEvent(*event_);
-    }
-  }
 
   if (is_click && event_->isTrusted() && frame) {
     // A genuine mouse click cannot be triggered by script so we don't expect

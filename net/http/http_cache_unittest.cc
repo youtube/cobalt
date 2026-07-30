@@ -15429,4 +15429,149 @@ TEST_F(HttpCacheEarlyInitTestCheckDiskFalse, CheckDiskDisabled) {
   histogram_tester.ExpectBucketCount("HttpCache.CreateBackendEarly", true, 1);
 }
 
+
+// Tests that encoded body size is preserved across cache reads.
+// When a shared dictionary compressed response is fetched from the network,
+// the encoded (on-the-wire) body size is stored in the cached response info.
+// When the same response is later served from cache, the encoded body size
+// should still be available via HttpResponseInfo::encoded_body_size.
+TEST_F(HttpCacheTest, EncodedBodySizePreservedFromCache) {
+  MockHttpCache cache;
+
+  ScopedMockTransaction transaction(kSimpleGET_Transaction);
+  // Simulate a shared dictionary response where the cache stores the
+  // decompressed body but we need to remember the original encoded size.
+  transaction.did_use_shared_dictionary = true;
+
+  // First request: fetch from network and cache.
+  {
+    // Declare request before trans so it outlives the transaction (whose
+    // destructor accesses the request in RecordHistograms).
+    MockHttpRequest request(transaction);
+    std::unique_ptr<HttpTransaction> trans =
+        cache.http_cache()->CreateTransaction(DEFAULT_PRIORITY);
+    ASSERT_TRUE(trans.get());
+
+    TestCompletionCallback callback;
+    int rv = trans->Start(&request, callback.callback(), NetLogWithSource());
+    ASSERT_THAT(callback.GetResult(rv), IsOk());
+
+    // Read the body to completion.
+    ReadAndVerifyTransaction(trans.get(), transaction);
+
+    // The mock network transaction reports kReceivedBodyBytes (500).
+    EXPECT_EQ(MockNetworkTransaction::kReceivedBodyBytes,
+              trans->GetReceivedBodyBytes());
+  }
+
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+  EXPECT_EQ(0, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+
+  // Second request: should be served from cache.
+  {
+    MockHttpRequest request(transaction);
+    std::unique_ptr<HttpTransaction> trans =
+        cache.http_cache()->CreateTransaction(DEFAULT_PRIORITY);
+    ASSERT_TRUE(trans.get());
+
+    TestCompletionCallback callback;
+    int rv = trans->Start(&request, callback.callback(), NetLogWithSource());
+    ASSERT_THAT(callback.GetResult(rv), IsOk());
+
+    // Read the body to completion.
+    ReadAndVerifyTransaction(trans.get(), transaction);
+
+    // Verify the cached response info preserves the original encoded body
+    // size. This is used by url_loader.cc to report the correct
+    // encodedBodySize for Resource Timing.
+    const HttpResponseInfo* response_info = trans->GetResponseInfo();
+    ASSERT_TRUE(response_info);
+    ASSERT_TRUE(response_info->encoded_body_size.has_value());
+    EXPECT_EQ(MockNetworkTransaction::kReceivedBodyBytes,
+              response_info->encoded_body_size.value());
+  }
+
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+  EXPECT_EQ(1, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+}
+
+// Verify that encoded_body_size is NOT stored for non-shared-dictionary
+// responses (where decompression happens after cache).
+TEST_F(HttpCacheTest, EncodedBodySizeNotStoredWithoutSharedDictionary) {
+  MockHttpCache cache;
+
+  ScopedMockTransaction transaction(kSimpleGET_Transaction);
+  // did_use_shared_dictionary defaults to false.
+
+  // First request: fetch from network and cache.
+  {
+    MockHttpRequest request(transaction);
+    std::unique_ptr<HttpTransaction> trans =
+        cache.http_cache()->CreateTransaction(DEFAULT_PRIORITY);
+    ASSERT_TRUE(trans.get());
+
+    TestCompletionCallback callback;
+    int rv = trans->Start(&request, callback.callback(), NetLogWithSource());
+    ASSERT_THAT(callback.GetResult(rv), IsOk());
+
+    ReadAndVerifyTransaction(trans.get(), transaction);
+  }
+
+  // Second request: served from cache.
+  {
+    MockHttpRequest request(transaction);
+    std::unique_ptr<HttpTransaction> trans =
+        cache.http_cache()->CreateTransaction(DEFAULT_PRIORITY);
+    ASSERT_TRUE(trans.get());
+
+    TestCompletionCallback callback;
+    int rv = trans->Start(&request, callback.callback(), NetLogWithSource());
+    ASSERT_THAT(callback.GetResult(rv), IsOk());
+
+    ReadAndVerifyTransaction(trans.get(), transaction);
+
+    // encoded_body_size should NOT be set for non-shared-dictionary responses.
+    const HttpResponseInfo* response_info = trans->GetResponseInfo();
+    ASSERT_TRUE(response_info);
+    EXPECT_FALSE(response_info->encoded_body_size.has_value());
+  }
+}
+
+TEST_F(HttpCacheTest, InvalidationFilter) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(net::features::kLogicalClearHttpCache);
+
+  MockHttpCache cache;
+
+  // 1. Add an entry to the cache.
+  MockTransaction transaction(kSimpleGET_Transaction);
+  RunTransactionTest(cache.http_cache(), transaction);
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+
+  // 2. Verify it's in the cache.
+  RunTransactionTest(cache.http_cache(), transaction);
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+
+  // 3. Add an invalidation filter for this origin.
+  HttpCache::InvalidationFilter filter;
+  filter.begin_time = base::Time();
+  filter.end_time = base::Time::Max();
+  filter.filter_type = UrlFilterType::kTrueIfMatches;
+  filter.origins.insert(url::Origin::Create(GURL(transaction.url)));
+  cache.http_cache()->AddInvalidationFilter(std::move(filter));
+
+  // 4. Try to read the entry -> should be a miss (network access).
+  // Note: transaction_count increases more than once due to internal restarts
+  // when an entry is invalidated during the activation phase.
+  RunTransactionTest(cache.http_cache(), transaction);
+  EXPECT_GT(cache.network_layer()->transaction_count(), 1);
+  int count_after_miss = cache.network_layer()->transaction_count();
+
+  // 5. Try again. It will still be a miss because our filter is for all time.
+  RunTransactionTest(cache.http_cache(), transaction);
+  EXPECT_GT(cache.network_layer()->transaction_count(), count_after_miss);
+}
+
 }  // namespace net

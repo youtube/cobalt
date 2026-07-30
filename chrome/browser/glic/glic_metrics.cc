@@ -338,6 +338,33 @@ GlicMetrics::GlicMetrics(Profile* profile, GlicEnabling* enabling)
 
 GlicMetrics::~GlicMetrics() = default;
 
+void GlicMetrics::RecordGlicProfilePreferences() {
+  PrefService* profile_prefs = profile_->GetPrefs();
+  PrefService* local_state = g_browser_process->local_state();
+
+  base::UmaHistogramBoolean(
+      "Glic.Preferences.PinnedToTabstrip",
+      profile_prefs->GetBoolean(prefs::kGlicPinnedToTabstrip));
+  base::UmaHistogramBoolean(
+      "Glic.Preferences.LauncherEnabled",
+      local_state->GetBoolean(prefs::kGlicLauncherEnabled));
+  base::UmaHistogramBoolean(
+      "Glic.Preferences.KeepSidepanelOpenOnNewTabsEnabled",
+      profile_prefs->GetBoolean(prefs::kGlicKeepSidepanelOpenOnNewTabsEnabled));
+  base::UmaHistogramBoolean(
+      "Glic.Preferences.GeolocationEnabled",
+      profile_prefs->GetBoolean(prefs::kGlicGeolocationEnabled));
+  base::UmaHistogramBoolean(
+      "Glic.Preferences.MicrophoneEnabled",
+      profile_prefs->GetBoolean(prefs::kGlicMicrophoneEnabled));
+  base::UmaHistogramBoolean(
+      "Glic.Preferences.DefaultTabContextEnabled",
+      profile_prefs->GetBoolean(prefs::kGlicDefaultTabContextEnabled));
+  base::UmaHistogramBoolean(
+      "Glic.Preferences.ActuationOnWeb",
+      profile_prefs->GetBoolean(prefs::kGlicUserEnabledActuationOnWeb));
+}
+
 void GlicMetrics::OnTrustFirstOnboardingShown() {
   base::RecordAction(base::UserMetricsAction("Glic.Fre.Shown"));
   base::RecordAction(base::UserMetricsAction("Glic.Fre.Shown.Onboarding"));
@@ -726,14 +753,14 @@ void GlicMetrics::OnGlicWindowClose(Browser* last_active_browser,
   session_start_time_ = base::TimeTicks();
 
   InputModesUsed modes_used = InputModesUsed::kNone;
-  if (!inputs_modes_used_.empty()) {
-    if (inputs_modes_used_.size() == 2) {
-      modes_used = InputModesUsed::kTextAndAudio;
-    } else {
-      modes_used = inputs_modes_used_.contains(mojom::WebClientMode::kAudio)
-                       ? InputModesUsed::kOnlyAudio
-                       : InputModesUsed::kOnlyText;
-    }
+  bool has_audio = inputs_modes_used_.contains(mojom::WebClientMode::kAudio);
+  bool has_text = inputs_modes_used_.contains(mojom::WebClientMode::kText);
+  if (has_audio && has_text) {
+    modes_used = InputModesUsed::kTextAndAudio;
+  } else if (has_audio) {
+    modes_used = InputModesUsed::kOnlyAudio;
+  } else if (has_text) {
+    modes_used = InputModesUsed::kOnlyText;
   }
   inputs_modes_used_.clear();
   base::UmaHistogramEnumeration("Glic.Session.InputModesUsed", modes_used);
@@ -858,8 +885,10 @@ void GlicMetrics::SetDelegateForTesting(std::unique_ptr<Delegate> delegate) {
 }
 
 void GlicMetrics::DidRequestContextFromTab(tabs::TabInterface& tab) {
-  last_tab_context_source_id_ =
-      tab.GetContents()->GetPrimaryMainFrame()->GetPageUkmSourceId();
+  if (content::WebContents* contents = tab.GetContents()) {
+    last_tab_context_source_id_ =
+        contents->GetPrimaryMainFrame()->GetPageUkmSourceId();
+  }
 }
 
 void GlicMetrics::SetWebClientMode(mojom::WebClientMode mode) {

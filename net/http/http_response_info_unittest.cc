@@ -309,12 +309,34 @@ TEST_F(HttpResponseInfoTest, EmptyBrowserRunId) {
   EXPECT_FALSE(restored_response_info.browser_run_id.has_value());
 }
 
+// Test that did_send_available_dictionary is NOT preserved .
+TEST_F(HttpResponseInfoTest, DidSendAvailableDictionary) {
+  response_info_.did_send_available_dictionary = true;
+  HttpResponseInfo restored_response_info;
+  PickleAndRestore(response_info_, &restored_response_info);
+  EXPECT_FALSE(restored_response_info.did_send_available_dictionary);
+}
+
 // Test that did_use_shared_dictionary is NOT preserved .
 TEST_F(HttpResponseInfoTest, DidUseSharedDictionary) {
   response_info_.did_use_shared_dictionary = true;
   HttpResponseInfo restored_response_info;
   PickleAndRestore(response_info_, &restored_response_info);
   EXPECT_FALSE(restored_response_info.did_use_shared_dictionary);
+}
+
+TEST_F(HttpResponseInfoTest, EncodedBodySize) {
+  response_info_.encoded_body_size = 12345;
+  HttpResponseInfo restored_response_info;
+  PickleAndRestore(response_info_, &restored_response_info);
+  ASSERT_TRUE(restored_response_info.encoded_body_size.has_value());
+  EXPECT_EQ(12345, restored_response_info.encoded_body_size.value());
+}
+
+TEST_F(HttpResponseInfoTest, EmptyEncodedBodySize) {
+  HttpResponseInfo restored_response_info;
+  PickleAndRestore(response_info_, &restored_response_info);
+  EXPECT_FALSE(restored_response_info.encoded_body_size.has_value());
 }
 
 }  // namespace

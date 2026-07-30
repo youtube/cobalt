@@ -167,6 +167,7 @@
 <translation id="1621067168122174824">Tekeleza jaribio la Kuchaji</translation>
 <translation id="1622402072367425417">viputo vinavyong'aa</translation>
 <translation id="1626590945318984973">Njia ya mkato haipatikani. Bonyeza njia mpya ya mkato bila kutumia vitufe vya utendaji na vya <ph name="META_KEY" />.</translation>
+<translation id="163774412591892664">Msimamizi wako amezima kifaa chako na anaweza kufikia data ya mahali kilipo.</translation>
 <translation id="1639239467298939599">Inapakia</translation>
 <translation id="1641857168437328880">Mashine ya kuingiza hati (Upande mmoja)</translation>
 <translation id="1642396894598555413">baiskeli</translation>
@@ -727,6 +728,7 @@
 <translation id="4212169537710712814">Upakuaji wa mfumo wa unukuzi wa <ph name="LANGUAGE_NAME" /> umekamilika</translation>
 <translation id="42126664696688958">Hamisha</translation>
 <translation id="4213104098953699324">Kibodi yenye USB</translation>
+<translation id="4217571870635786043">Kuandika kwa kutamka</translation>
 <translation id="4227825898293920515">Muda wa kutumia nenosiri utaisha baada ya <ph name="TIME" /></translation>
 <translation id="4238516577297848345">Hakuna kazi za kuchapisha zinazoendelea</translation>
 <translation id="4239069858505860023">GPRS</translation>
@@ -1685,6 +1687,7 @@ Pakua mfumo wa unukuzi (hadi MB 100) ili upate manukuu haya.</translation>
 <translation id="8420955526972171689">Tekeleza majaribio na utatuzi wa hitilafu za maunzi</translation>
 <translation id="8422748173858722634">IMEI</translation>
 <translation id="8424039430705546751">chini</translation>
+<translation id="8427213022735114808">Utamkaji hutuma sauti yako kwa Google ili kuruhusu huduma ya kuandika kwa kutamka katika sehemu yoyote ya maandishi.</translation>
 <translation id="8428213095426709021">Mipangilio</translation>
 <translation id="8431300646573772016">Mapya katika ChromeOS</translation>
 <translation id="8433186206711564395">Mipangilio ya mtandao</translation>
@@ -1723,6 +1726,7 @@ Pakua mfumo wa unukuzi (hadi MB 100) ili upate manukuu haya.</translation>
 <translation id="8584654835905316966">Unahitaji kuzima kisha uwashe kifaa chako ili kukamilisha mchakato wa kuweka toleo la <ph name="VERSION" /> la programu dhibiti kwenye <ph name="DEVICE_NAME" />. Huenda kompyuta yako ikazima na kuwaka tena mara kadhaa. Hali hiyo inatarajiwa.</translation>
 <translation id="8593058461203131755">sitisha maudhui</translation>
 <translation id="8620617069779373398">Hali ya kutumia mtandao usio wako wa kawaida</translation>
+<translation id="8624524972189162859">Msimamizi wako wa <ph name="DOMAIN_NAME" /> amezima kifaa chako na anaweza kufikia data ya mahali kilipo.</translation>
 <translation id="8626489604350149811">Vitendo zaidi vya <ph name="APN_NAME" /></translation>
 <translation id="86356131183441916">Rangi ya zambarau isiyokolea</translation>
 <translation id="8647595191512746911">Unukuzi wa sauti</translation>

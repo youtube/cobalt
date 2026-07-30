@@ -1050,6 +1050,7 @@
       // Animation properites are never incremental.
       supports_incremental_style: false,
       valid_for_keyframe: false,
+      percentages_depend_on_used_value: false,
     },
     {
       name: "animation-range-end",
@@ -1065,6 +1066,7 @@
       // Animation properites are never incremental.
       supports_incremental_style: false,
       valid_for_keyframe: false,
+      percentages_depend_on_used_value: false,
     },
     {
       name: "animation-timeline",
@@ -1158,6 +1160,7 @@
       valid_for_marker: true,
       runtime_flag: "TimelineTrigger",
       is_animation_affecting: true,
+      percentages_depend_on_used_value: false,
     },
     {
       name: "timeline-trigger-activation-range-end",
@@ -1170,6 +1173,7 @@
       valid_for_marker: true,
       runtime_flag: "TimelineTrigger",
       is_animation_affecting: true,
+      percentages_depend_on_used_value: false,
     },
     {
       name: "timeline-trigger-active-range-start",
@@ -1182,6 +1186,7 @@
       valid_for_marker: true,
       runtime_flag: "TimelineTrigger",
       is_animation_affecting: true,
+      percentages_depend_on_used_value: false,
     },
     {
       name: "timeline-trigger-active-range-end",
@@ -1194,6 +1199,7 @@
       valid_for_marker: true,
       runtime_flag: "TimelineTrigger",
       is_animation_affecting: true,
+      percentages_depend_on_used_value: false,
     },
     {
       name: "timeline-trigger-source",
@@ -1732,7 +1738,6 @@
       valid_for_first_letter: true,
       valid_for_first_line: true,
       valid_for_marker: true,
-      computable: false,
       // See comment on font.
       supports_incremental_style: false,
       valid_for_permission_element: true,
@@ -1754,7 +1759,6 @@
       valid_for_first_line: true,
       valid_for_cue: true,
       valid_for_marker: true,
-      computable: false,
       // See comment on font.
       supports_incremental_style: false,
       stored_on_extra_field: ["font"],
@@ -1831,7 +1835,6 @@
       keywords: ["auto", "none", "preserve-parent-color"],
       typedom_types: ["Keyword"],
       default_value: "auto",
-      computable: false,
       valid_for_permission_element: true,
       highlight_style_comes_from_originating_element: true,
     },
@@ -1881,7 +1884,6 @@
       getter: "GetTextOrientation",
       style_builder_custom_functions: ["initial", "inherit", "value"],
       priority: 1,
-      computable: false,
       invalidate: ["layout", "paint"],
       valid_for_marker: true,
       is_animation_affecting: true,
@@ -2057,7 +2059,6 @@
       type_name: "StyleAspectRatio",
       converter: "ConvertAspectRatio",
       include_paths: ["third_party/blink/renderer/core/style/style_aspect_ratio.h"],
-      computable: false,
       valid_for_permission_element: true,
       invalidate: ["layout"],
     },
@@ -3072,7 +3073,6 @@
       type_name: "Vector<AtomicString>",
       default_value: "Vector<AtomicString, 0>()",
       field_template: "external",
-      computable: false,
       // Affects the computed value of 'color', hence needs to happen before
       // high-priority properties.
       priority: 2,
@@ -3087,7 +3087,6 @@
       default_value: "balance",
       getter: "GetColumnFill",
       typedom_types: ["Keyword"],
-      computable: false,
       invalidate: ["layout", "paint"],
     },
     {
@@ -3102,7 +3101,6 @@
       converter: "ConvertFlags<Containment>",
       keywords: ["none", "strict", "content", "size", "layout", "style", "paint", "inline-size", "block-size"],
       typedom_types: ["Keyword"],
-      computable: false,
       invalidate: ["layout"],
       is_animation_affecting: true,
     },
@@ -3264,7 +3262,6 @@
       },
       keywords: ["none"],
       typedom_types: ["Keyword"],
-      computable: false,
       valid_for_permission_element: true,
       valid_for_page_context: true,
       stored_on_extra_field: ["CounterDirectives"],
@@ -3278,7 +3275,6 @@
       },
       keywords: ["none"],
       typedom_types: ["Keyword"],
-      computable: false,
       valid_for_permission_element: true,
       valid_for_page_context: true,
       stored_on_extra_field: ["CounterDirectives"],
@@ -3292,7 +3288,6 @@
       },
       keywords: ["none"],
       typedom_types: ["Keyword"],
-      computable: false,
       valid_for_permission_element: true,
       valid_for_page_context: true,
       stored_on_extra_field: ["CounterDirectives"],
@@ -3442,6 +3437,7 @@
       typedom_types: ["Number"],
       accepts_numeric_literal: true,
       invalidate: ["paint"],
+      percentages_depend_on_used_value: false,
     },
     {
       name: "fill-rule",
@@ -3587,6 +3583,7 @@
       supports_incremental_style: true,
       accepts_numeric_literal: true,
       invalidate: ["paint"],
+      percentages_depend_on_used_value: false,
     },
     {
       name: "flow-tolerance",
@@ -4515,6 +4512,7 @@
       keywords: ["auto"],
       typedom_types: ["Keyword", "Position"],
       invalidate: ["transform-data", "transform-other"],
+      percentages_depend_on_used_value: true,
     },
     {
       name: "offset-distance",
@@ -4556,6 +4554,7 @@
       keywords: ["auto", "normal"],
       typedom_types: ["Keyword", "Position"],
       invalidate: ["has-transform", "transform-data", "transform-other"],
+      percentages_depend_on_used_value: true,
     },
     {
       name: "offset-rotate",
@@ -4654,10 +4653,9 @@
       interpolable: true,
       field_group: "*",
       field_template: "external",
-      include_paths: ["third_party/blink/renderer/platform/geometry/layout_unit.h"],
-      default_value: "LayoutUnit()",
-      type_name: "LayoutUnit",
-      converter: "ConvertLayoutUnit",
+      default_value: "0",
+      type_name: "int",
+      converter: "ConvertOutlineOffset",
       typedom_types: ["Length"],
       valid_for_cue: true,
       valid_for_permission_element: true,
@@ -4840,7 +4838,6 @@
         name: "overscroll-behavior",
         resolver: "horizontal",
       },
-      computable: false,
       valid_for_permission_element: true,
     },
     {
@@ -4856,7 +4853,6 @@
         name: "overscroll-behavior",
         resolver: "vertical",
       },
-      computable: false,
       valid_for_permission_element: true,
     },
     {
@@ -5011,6 +5007,21 @@
       invalidate: ["paint"],
     },
     {
+      name: "path-length",
+      property_methods: ["ParseSingleValue", "CSSValueFromComputedStyleInternal"],
+      interpolable: true,
+      runtime_flag: "SvgPathLengthCssProperty",
+      field_group: "svg->geometry",
+      field_template: "primitive",
+      type_name: "float",
+      default_value: "-1.0",
+      converter: "ConvertPathLength",
+      keywords: ["none"],
+      typedom_types: ["Keyword", "Number"],
+      supports_incremental_style: true,
+      invalidate: ["paint"],
+    },
+    {
       name: "perspective",
       property_methods: ["ParseSingleValue", "CSSValueFromComputedStyleInternal"],
       interpolable: true,
@@ -5038,6 +5049,7 @@
       // Overlaps with -webkit-perspective-origin-[x,y].
       overlapping: true,
       invalidate: ["transform-other"],
+      percentages_depend_on_used_value: true,
     },
     {
       name: "pointer-events",
@@ -5157,7 +5169,6 @@
       converter: "ConvertQuotes",
       keywords: ["auto", "none"],
       typedom_types: ["Keyword"],
-      computable: false,
       valid_for_page_context: true,
       invalidate: ["layout", "paint"],
     },
@@ -5168,7 +5179,6 @@
       keywords: ["visible", "auto", "hidden"],
       default_value: "visible",
       typedom_types: ["Keyword"],
-      computable: false,
       invalidate: ["layout"],
     },
     {
@@ -5395,7 +5405,6 @@
         name: "scroll-margin",
         resolver: "bottom",
       },
-      computable: false,
       valid_for_permission_element: true,
     },
     {
@@ -5431,7 +5440,6 @@
         name: "scroll-margin",
         resolver: "left",
       },
-      computable: false,
       valid_for_permission_element: true,
     },
     {
@@ -5447,7 +5455,6 @@
         name: "scroll-margin",
         resolver: "right",
       },
-      computable: false,
       valid_for_permission_element: true,
     },
     {
@@ -5463,7 +5470,6 @@
         name: "scroll-margin",
         resolver: "top",
       },
-      computable: false,
       valid_for_permission_element: true,
     },
     {
@@ -5509,7 +5515,6 @@
         name: "scroll-padding",
         resolver: "bottom",
       },
-      computable: false,
       valid_for_permission_element: true,
       percentages_depend_on_used_value: true,
     },
@@ -5556,7 +5561,6 @@
         name: "scroll-padding",
         resolver: "left",
       },
-      computable: false,
       valid_for_permission_element: true,
       percentages_depend_on_used_value: true,
     },
@@ -5573,7 +5577,6 @@
         name: "scroll-padding",
         resolver: "right",
       },
-      computable: false,
       valid_for_permission_element: true,
       percentages_depend_on_used_value: true,
     },
@@ -5590,7 +5593,6 @@
         name: "scroll-padding",
         resolver: "top",
       },
-      computable: false,
       valid_for_permission_element: true,
       percentages_depend_on_used_value: true,
     },
@@ -5606,7 +5608,6 @@
       converter: "ConvertSnapAlign",
       keywords: ["none", "start", "end", "center"],
       typedom_types: ["Keyword"],
-      computable: false,
     },
     {
       name: "scroll-snap-stop",
@@ -5615,7 +5616,6 @@
       keywords: ["normal", "always"],
       default_value: "normal",
       typedom_types: ["Keyword"],
-      computable: false,
     },
     {
       name: "scroll-snap-type",
@@ -5629,7 +5629,6 @@
       converter: "ConvertSnapType",
       keywords: ["none", "x", "y", "block", "inline", "both", "mandatory", "proximity"],
       typedom_types: ["Keyword"],
-      computable: false,
     },
     {
       name: "scroll-timeline-axis",
@@ -5664,6 +5663,7 @@
       computed_style_custom_functions: ["setter"],
       typedom_types: ["Number"],
       accepts_numeric_literal: true,
+      percentages_depend_on_used_value: false,
     },
     {
       name: "shape-margin",
@@ -5757,6 +5757,7 @@
       typedom_types: ["Number"],
       accepts_numeric_literal: true,
       invalidate: ["paint"],
+      percentages_depend_on_used_value: false,
     },
     {
       name: "stroke",
@@ -5869,6 +5870,7 @@
       typedom_types: ["Number"],
       accepts_numeric_literal: true,
       invalidate: ["paint"],
+      percentages_depend_on_used_value: false,
     },
     {
       name: "stroke-width",
@@ -6008,7 +6010,6 @@
       default_value: "none",
       name_for_methods: "TextCombine",
       valid_for_marker: true,
-      computable: false,
       invalidate: ["layout", "paint"],
       is_animation_affecting: true,
     },
@@ -6099,7 +6100,6 @@
       valid_for_first_letter: true,
       valid_for_first_line: true,
       valid_for_highlight: true,
-      computable: false,
       valid_for_page_context: true,
       invalidate: ["text-decoration"],
       percentages_depend_on_used_value: false,
@@ -6250,7 +6250,6 @@
       typedom_types: ["Keyword", "Length", "Percentage"],
       valid_for_first_letter: true,
       valid_for_first_line: true,
-      computable: false,
       valid_for_highlight: true,
       valid_for_page_context: true,
       invalidate: ["text-decoration"],
@@ -6357,7 +6356,6 @@
       keywords: ["content-box", "border-box", "fill-box", "stroke-box", "view-box"],
       default_value: "view-box",
       typedom_types: ["Keyword"],
-      computable: false,
       supports_incremental_style: true,
       invalidate: ["transform-data", "transform-other"],
     },
@@ -6377,6 +6375,7 @@
       // Overlaps with -webkit-transform-origin-[x,y,z].
       overlapping: true,
       invalidate: ["transform-data", "transform-other"],
+      percentages_depend_on_used_value: true,
     },
     {
       name: "transform-style",
@@ -6500,6 +6499,7 @@
       converter: "ConvertViewTimelineInset",
       separator: ",",
       is_animation_affecting: true,
+      percentages_depend_on_used_value: true,
     },
     {
       name: "view-timeline-name",
@@ -6555,7 +6555,7 @@
       property_methods: ["CSSValueFromComputedStyleInternal"],
       inherited: false,
       field_template: "keyword",
-      keywords: ["none", "auto"],
+      keywords: ["none", "all"],
       typedom_types: ["Keyword"],
       default_value: "none",
       runtime_flag: "ScopedViewTransitions",
@@ -6662,6 +6662,7 @@
       affected_by_all: false,
       // Overlaps with border-image.
       legacy_overlapping: true,
+      percentages_depend_on_used_value: true,
     },
     {
       name: "-webkit-border-vertical-spacing",
@@ -6758,6 +6759,7 @@
       converter: "ConvertBoxReflect",
       invalidate: ["filter-data"],
       includes_currentcolor: true,
+      percentages_depend_on_used_value: true,
     },
     {
       name: "column-count",
@@ -7255,6 +7257,7 @@
         modifier_type: "Slice",
       },
       stored_on_extra_field: ["MaskBoxImage"],
+      percentages_depend_on_used_value: true,
     },
     {
       name: "-webkit-mask-box-image-source",
@@ -7273,6 +7276,7 @@
         modifier_type: "Width",
       },
       stored_on_extra_field: ["MaskBoxImage"],
+      percentages_depend_on_used_value: true,
     },
     {
       name: "mask-mode",
@@ -7350,8 +7354,8 @@
       style_builder_template_args: {
         fill_type: "PositionX",
       },
-      computable: false,
       stored_on_extra_field: ["Mask"],
+      percentages_depend_on_used_value: true,
     },
     {
       name: "-webkit-mask-position-y",
@@ -7361,8 +7365,8 @@
       style_builder_template_args: {
         fill_type: "PositionY",
       },
-      computable: false,
       stored_on_extra_field: ["Mask"],
+      percentages_depend_on_used_value: true,
     },
     {
       name: "mask-repeat",
@@ -7386,6 +7390,7 @@
         fill_type: "Size",
       },
       stored_on_extra_field: ["Mask"],
+      percentages_depend_on_used_value: true,
     },
     {
       name: "-webkit-mask-size",
@@ -7401,6 +7406,7 @@
       affected_by_all: false,
       // Overlaps with perspective-origin.
       legacy_overlapping: true,
+      percentages_depend_on_used_value: true,
     },
     {
       name: "-webkit-perspective-origin-y",
@@ -7412,6 +7418,7 @@
       affected_by_all: false,
       // Overlaps with perspective-origin.
       legacy_overlapping: true,
+      percentages_depend_on_used_value: true,
     },
     {
       name: "-webkit-rtl-ordering",
@@ -7454,7 +7461,6 @@
       inherited: true,
       type_name: "RubyPosition",
       converter: "ConvertRubyPosition",
-      computable: false,
       surrogate_for: "ruby-position",
       valid_for_permission_element: true,
       stored_on_extra_field: ["crbug.com/40919412"],
@@ -7538,6 +7544,7 @@
     {
       name: "-webkit-text-fill-color",
       property_methods: ["ParseSingleValue", "CSSValueFromComputedStyleInternal", "ColorIncludingFallback"],
+      interpolable: true,
       inherited: true,
       field_group: "*",
       field_template: "external",
@@ -7560,6 +7567,7 @@
       converter: "ConvertFitText",
       invalidate: ["layout"],
       runtime_flag: "CssFitWidthText",
+      percentages_depend_on_used_value: false,
     },
     {
       name: "-webkit-text-security",

@@ -6,6 +6,7 @@
 
 #include "base/functional/bind.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/desktop_to_mobile_promos/promos_utils.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window.h"
@@ -120,7 +121,15 @@ void IOSPromoController::OnPromoTriggered(PromoType promo_type) {
 // installed on any iOS device
 bool IOSPromoController::IsUserEligibleForPromo(PromoType promo_type) {
   // Don't show the promo if the user has a recent active Android device.
-  if (ios_promos_utils::IsUserActiveOnAndroid(browser_->profile())) {
+  if (ios_promos_utils::HasUserBeenActiveOnOS(
+          browser_->profile(), syncer::DeviceInfo::OsType::kAndroid)) {
+    return false;
+  }
+
+  // Verify that the user has not exceeded impression limits for
+  // desktop-to-mobile promos.
+  if (!promos_utils::IsIOSDesktopPromoAllowedByGlobalImpressions(
+          browser_->profile())) {
     return false;
   }
 
@@ -155,7 +164,7 @@ bool IOSPromoController::IsUserEligibleForPromo(PromoType promo_type) {
   const syncer::DeviceInfo* device = service->GetIOSDeviceToRemind();
 
   // Check if user is eligible for Reminder type promo.
-  if (device && !ios_promos_utils::IsUserActiveOnIOS(browser_->profile()) &&
+  if (device && !ios_promos_utils::IsUserActive16OnIOS(browser_->profile()) &&
       device->desktop_to_ios_promo_receiving_enabled() &&
       MobilePromoOnDesktopTypeEnabled(
           feature_type, desktop_to_mobile_promos::BubbleType::kReminder)) {

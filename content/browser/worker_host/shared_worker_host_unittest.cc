@@ -135,7 +135,7 @@ class SharedWorkerHostTest : public testing::Test {
         helper_->context()
             ->service_worker_client_owner()
             .CreateServiceWorkerClientForWorker(
-                mock_render_process_host_->GetDeprecatedID(),
+                mock_render_process_host_->GetID(),
                 ServiceWorkerClientInfo(host->token())),
         net::IsolationInfo());
     host->SetServiceWorkerHandle(std::move(service_worker_handle));
@@ -143,7 +143,13 @@ class SharedWorkerHostTest : public testing::Test {
     TestContentBrowserClient client;
     host->Start(std::move(factory),
                 blink::mojom::FetchClientSettingsObject::New(
-                    network::mojom::ReferrerPolicy::kDefault,
+                    []() {
+                      auto policies =
+                          blink::mojom::PolicyContainerPolicies::New();
+                      policies->referrer_policy =
+                          network::mojom::ReferrerPolicy::kDefault;
+                      return policies;
+                    }(),
                     /*outgoing_referrer=*/GURL(),
                     blink::mojom::InsecureRequestsPolicy::kDoNotUpgrade),
                 &client,

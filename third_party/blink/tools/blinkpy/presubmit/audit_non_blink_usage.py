@@ -108,6 +108,7 @@ _CONFIG = [
             'base::IdType64',
             'base::IdTypeU32',
             'base::IdTypeU64',
+            'base::InheritThreadType',
             'base::JobDelegate',
             'base::JobHandle',
             'base::KiB',
@@ -118,6 +119,7 @@ _CONFIG = [
             'base::MakeRefCounted',
             'base::MatcherStringPattern',
             'base::MatchPattern',
+            'base::MaxThreadType',
             'base::MemoryPressureListener',
             'base::MemoryPressureListenerTag',
             'base::MessagePump',
@@ -2995,7 +2997,14 @@ _CONFIG = [
             'third_party/blink/renderer/core/page/pointer_lock_controller.h',
         ],
         'allowed': ['cc::ScopedRequestHighFramerate']
-    }
+    },
+    {
+        'paths': [
+            'third_party/blink/common/use_counter/webdx_feature_maps.cc',
+            'third_party/blink/public/common/use_counter/webdx_feature_maps.h',
+        ],
+        'allowed': ['base::NoDestructor', 'base::flat_map']
+    },
 ]
 
 

@@ -991,15 +991,6 @@ Bắt đầu từ <ph name="PRODUCT_NAME" /> 140, nếu bạn không đặt chí
 
 Kể từ <ph name="PRODUCT_NAME" /> 147, chính sách này sẽ không được dùng nữa. Từ nay trở đi, Quản trị viên CNTT có thể dùng <ph name="SEARCH_CONTENT_SHARING_SETTINGS_POLICY_NAME" /> để kiểm soát tính năng này.</translation>
 <translation id="1686952487081322272">Tắt tính năng Thông tin nhanh</translation>
-<translation id="1688920969335897857">Nếu bạn đặt chính sách này, hệ thống sẽ kiểm soát các chế độ cài đặt quản lý tiện ích cho <ph name="PRODUCT_NAME" />, bao gồm cả những chế độ cài đặt chịu sự kiểm soát của các chính sách hiện có liên quan đến tiện ích. Chính sách này sẽ thay thế mọi chính sách cũ mà bạn có thể đã đặt.
-
-Chính sách này chỉ ánh xạ một mã tiện ích hoặc một URL cập nhật với chế độ cài đặt cụ thể tương ứng. Bạn có thể đặt cấu hình mặc định cho mã đặc biệt <ph name="DEFAULT_SCOPE" />. Cấu hình này sẽ áp dụng cho tất cả tiện ích chưa đặt cấu hình tuỳ chỉnh trong chính sách này. Với URL cập nhật, cấu hình sẽ áp dụng cho những tiện ích có URL cập nhật chính xác được nêu trong tệp kê khai của tiện ích đó (http://support.google.com/chrome/a?p=Configure_ExtensionSettings_policy). Nếu bạn đặt cờ "override_update_url" thành true, thì tiện ích đó sẽ được cài đặt và cập nhật bằng URL "cập nhật" được chỉ định trong chính sách <ph name="EXTENSION_INSTALL_FORCELIST_POLICY_NAME" /> hoặc trong trường "update_url" của chính sách này. Cờ "override_update_url" sẽ bị bỏ qua nếu "update_url" là một URL của Cửa hàng Chrome trực tuyến.
-
-Trên các phiên bản <ph name="MS_WIN_NAME" />, bạn chỉ có thể buộc cài đặt các ứng dụng và tiện ích từ bên ngoài Cửa hàng Chrome trực tuyến nếu phiên bản đó đã liên kết với một miền <ph name="MS_AD_NAME" />, <ph name="MS_AAD_NAME" /> hoặc đã đăng ký <ph name="CHROME_ENTERPRISE_CORE_NAME" />.
-
-Trên các phiên bản <ph name="MAC_OS_NAME" />, bạn chỉ có thể buộc cài đặt các ứng dụng và tiện ích từ bên ngoài Cửa hàng Chrome trực tuyến nếu phiên bản đó được quản lý qua MDM (Quản lý thiết bị di động), đã liên kết với một miền qua MCX hoặc đã đăng ký <ph name="CHROME_ENTERPRISE_CORE_NAME" />.
-
-Lưu ý: Chính sách này chỉ áp dụng cho những nền tảng hỗ trợ tiện ích.</translation>
 <translation id="1690383938831887552">Ngăn Signed HTTP Exchanges tải</translation>
 <translation id="1692325295652827195">Nếu bạn đặt chính sách này thành True, thì các báo cáo về sự kiện cài đặt ứng dụng Android chính do chính sách kích hoạt sẽ được gửi tới Google.
 
@@ -1081,6 +1072,7 @@ gặp sự cố do thay đổi này. Phiên bản cuối cùng hỗ trợ chính
       Nếu bạn không đặt chính sách này, các tùy chọn kiểm soát màn hình của người dùng và tính năng tự động điều chỉnh độ sáng sẽ không bị ảnh hưởng.
 
       Lưu ý: Bạn phải chỉ định các giá trị của chính sách này theo phần trăm trong khoảng từ 0 đến 100.</translation>
+<translation id="1732435945666510577">Tắt tính năng ghi nhật ký hoạt động DOM của tiện ích</translation>
 <translation id="1733092875104864334">Không cho phép thu thập nhật ký văn bản WebRTC từ các Dịch vụ của Google</translation>
 <translation id="1733768596873041559">Chuyển hướng tới SAML IdP theo mặc định (cần người dùng xác nhận đối với phiên bản cũ hơn <ph name="PRODUCT_NAME" /> 99)</translation>
 <translation id="1736032188431871940">Chặn hành vi truy cập vào một danh sách các URL ở chế độ ẩn danh.</translation>
@@ -1923,6 +1915,7 @@ Giá trị mặc định là: độ mờ của phần tô là 4, độ mờ củ
 <translation id="2290270645214705008">Nếu bạn Tắt chính sách này, dịch vụ lưu trữ truy cập từ xa sẽ không thể khởi động hoặc được định cấu hình để chấp nhận các kết nối đến.  Chính sách này không ảnh hưởng đến các trường hợp hỗ trợ từ xa.
 
           Chính sách này không có hiệu lực nếu bạn đặt thành Bật, để trống hoặc không đặt.</translation>
+<translation id="2291341836547307786">Bật tính năng ghi nhật ký hoạt động DOM của tiện ích</translation>
 <translation id="2292482441027364457">Việc đặt chính sách này sẽ cố định giá trị nhận dạng của ứng dụng mà <ph name="PRODUCT_OS_NAME" /> hiển thị dưới dạng ứng dụng được ghim trong thanh trình chạy và người dùng không thể thay đổi được các mã nhận dạng đó.
 
 Chỉ định ứng dụng Chrome theo giá trị nhận dạng của ứng dụng, chẳng hạn như pjkljhegncpnkpknbcohdijeoejaedia; ứng dụng Android theo tên gói, chẳng hạn như com.google.android.gm; ứng dụng web theo URL dùng trong <ph name="WEB_APP_INSTALL_FORCE_LIST_POLICY_NAME" />, chẳng hạn như https://google.com/maps; Ứng dụng web của hệ thống theo tên viết kiểu con rắn, chẳng hạn như <ph name="PINNED_LAUNCHER_APPS_POLICY_SYSTEM_WEB_APP_EXAMPLE" />.
@@ -2184,6 +2177,51 @@ Nếu bạn chưa đặt chính sách này, thì <ph name="POLICY_VALUE_VISIBLE"
 <translation id="2489558694350871332">Cho phép thiết bị chạy máy ảo</translation>
 <translation id="2492240920793040106">Bật tính năng báo cáo thông tin hệ thống và nội dung trang để giúp cải thiện tính năng Duyệt web an toàn</translation>
 <translation id="2496180316473517155">Nhật ký duyệt web</translation>
+<translation id="2496898792336137342">Định cấu hình các quy tắc chọn proxy mà trình duyệt sử dụng dựa trên URL đích và các điều kiện mạng cụ thể.
+
+Chính sách này sẽ được ưu tiên hơn chính sách <ph name="PROXY_SETTINGS_POLICY_NAME" />, API tiện ích <ph name="PROXY_SETTINGS_EXTENSION_API" /> và chế độ cài đặt thủ công của người dùng. Nếu không có quy tắc nào trong chính sách này trùng khớp, trình duyệt sẽ chuyển về chế độ cài đặt được xác định trong <ph name="PROXY_SETTINGS_POLICY_NAME" />.
+
+Trình duyệt sẽ đánh giá các mục trong danh sách <ph name="PROXY_OVERRIDE_RULES_POLICY_NAME" /> theo thứ tự. Quy tắc chỉ được áp dụng nếu đáp ứng tất cả các tiêu chí sau đây:
+
+  * Khớp: Ít nhất một mẫu URL trong <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> trùng khớp.
+
+  * Loại trừ: Không có mẫu URL nào trong <ph name="PROXY_OVERRIDE_RULES_EXCLUDE_DESTINATION_MATCHERS" /> trùng khớp.
+
+  * Điều kiện: Nếu bạn chỉ định <ph name="PROXY_OVERRIDE_RULES_CONDITIONS" />, thì phải đáp ứng tất cả các điều kiện được liệt kê. Nếu bạn không đặt, yêu cầu này sẽ bị bỏ qua.
+
+Các mẫu URL cho trình so khớp được ghi lại tại https://chromium.googlesource.com/chromium/src/+/HEAD/net/docs/proxy.md#proxy-config-url-patterns.
+
+Trường <ph name="PROXY_OVERRIDE_RULES_PROXY_LIST" /> xác định một danh sách dự phòng. Hệ thống sẽ sử dụng mục nhập đầu tiên có thể truy cập được và bỏ qua các mục nhập không hợp lệ. Bạn có thể sử dụng chuỗi dạng PAC hoặc thông số dạng URL:
+
+Chuỗi dạng PAC:
+
+  * DIRECT
+
+  * PROXY host:port
+
+  * HTTPS host:port
+
+  * SOCKS4 host:port
+
+  * SOCKS5 host:port
+
+Thông số dạng URL:
+
+  * http://host:port
+
+  * https://host:port
+
+  * socks4://host:port
+
+  * socks5://host:port
+
+Điều kiện <ph name="PROXY_OVERRIDE_RULES_DNS_PROBE" /> kiểm tra xem <ph name="PROXY_OVERRIDE_RULES_HOST" /> có phân giải thành một địa chỉ IP hay không.
+
+* Hỗ trợ tên máy chủ (ví dụ: example.com) hoặc chuỗi dạng URI (ví dụ: https://example.com:123). Việc sử dụng một giao thức bảo mật (https) có thể kích hoạt yêu cầu bản ghi HTTPS (xem RFC 9460).
+
+* Đặt thành "<ph name="PROXY_OVERRIDE_RULES_RESOLVED" />" để đáp ứng điều kiện khi phân giải thành công hoặc "<ph name="PROXY_OVERRIDE_RULES_NOT_FOUND" />" để đáp ứng điều kiện khi phân giải không thành công.
+
+Việc áp dụng chính sách này trên các thiết bị được quản lý chịu ảnh hưởng của chính sách <ph name="ENABLE_PROXY_OVERRIDE_RULES_FOR_ALL_USERS_POLICY_NAME" /> ở cấp máy trên những nền tảng được hỗ trợ. Theo mặc định, chính sách này ngăn việc sử dụng các quy tắc ghi đè do người dùng chưa liên kết định cấu hình.</translation>
 <translation id="2497751676088107779">Tập lệnh người dùng</translation>
 <translation id="249798396824949930"> Kiểm soát khả năng trình duyệt phát hiện phạm vi chính sách bắt buộc trên <ph name="MAC_OS_NAME" />.
 
@@ -4540,7 +4578,7 @@ Nếu bạn không đặt hoặc để trống chính sách này thì sẽ khôn
 <translation id="4090088362777472639">Hàm băm SHA-256 của cẩm nang Ansible.</translation>
 <translation id="4091040199847925434">Tắt tính năng báo cáo thông tin hệ thống và nội dung trang dùng để giúp cải thiện tính năng Duyệt web an toàn</translation>
 <translation id="4093058072421210667">Không cho phép tính năng Inline Image.</translation>
-<translation id="4096503137212127216">Bạn có thể dùng chính sách này để chặn <ph name="CHROME_DEVTOOLS_NAME" /> trên các URL cụ thể. Để biết thông tin về định dạng URL, hãy truy cập vào https://support.google.com/chrome/a?p=url_blocklist_filter_format.
+<translation id="4096503137212127216">Bạn có thể dùng chính sách này để chặn <ph name="CHROME_DEVTOOLS_NAME" /> trên các URL cụ thể. Để biết thông tin về định dạng URL, hãy truy cập vào trang https://support.google.com/chrome/a?p=url_blocklist_filter_format.
 
 Các mẫu URL sẽ được so khớp với URL của mọi khung trên trang đang được kiểm tra. Hành vi kết quả phụ thuộc vào việc chính sách <ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" /> có được đặt hay không.
 
@@ -5841,9 +5879,11 @@ Nếu bạn đặt chính sách này thành <ph name="ALLOW_PASSTHROUGH_OF_SEARC
       Nếu bạn không đặt chính sách này trên các phiên bản M76 trở xuống, thì <ph name="PRODUCT_NAME" /> sẽ không thể thu thập và tải các nhật ký này lên theo mặc định. Kể từ phiên bản M77, theo mặc định, <ph name="PRODUCT_NAME" /> sẽ có thể thu thập và tải các nhật ký này lên từ hầu hết các hồ sơ chịu ảnh hưởng của chính sách doanh nghiệp dựa trên đám mây ở cấp người dùng. Kể từ phiên bản M77 đến M80, theo mặc định, <ph name="PRODUCT_NAME" /> cũng có thể thu thập và tải các nhật ký này lên từ các hồ sơ chịu ảnh hưởng của tính năng quản lý tại chỗ của <ph name="PRODUCT_NAME" />.</translation>
 <translation id="4911334289324462969">cổng 989 (có thể được bỏ chặn cho đến ngày 1/2/2022)</translation>
 <translation id="4917385247580444890">Mạnh</translation>
-<translation id="4917925819533520480">Bạn có thể dùng chính sách này để cho phép <ph name="CHROME_DEVTOOLS_NAME" /> trên các URL cụ thể. Các mẫu URL sẽ được so khớp với URL của mọi khung trên trang đang được kiểm tra. Hành vi kết quả phụ thuộc vào việc chính sách <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" /> có được đặt hay không.
+<translation id="4917925819533520480">Bạn có thể dùng chính sách này để cho phép <ph name="CHROME_DEVTOOLS_NAME" /> trên các URL cụ thể.
 
-Nếu bạn đặt chính sách này nhưng không đặt <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" /> thì URL của mọi khung phải khớp với một mẫu trong danh sách cho phép này thì<ph name="CHROME_DEVTOOLS_NAME" /> mới được cho phép. Nếu URL của bất kỳ khung nào không khớp, thì DevTools sẽ bị chặn đối với toàn bộ trang. Để biết thông tin về định dạng URL, hãy truy cập https://support.google.com/chrome/a?p=url_blocklist_filter_format.
+Các mẫu URL sẽ được so khớp với URL của mọi khung trên trang đang được kiểm tra. Hành vi kết quả phụ thuộc vào việc chính sách <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" /> có được đặt hay không.
+
+Nếu bạn đặt chính sách này nhưng không đặt <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" />, URL của mọi khung phải khớp với một mẫu trong danh sách cho phép này thì <ph name="CHROME_DEVTOOLS_NAME" /> mới được cho phép. Nếu URL của bất kỳ khung nào không khớp, thì DevTools sẽ bị chặn đối với toàn bộ trang. Để biết thông tin về định dạng URL, hãy truy cập vào trang https://support.google.com/chrome/a?p=url_blocklist_filter_format.
 
 Nếu bạn đặt cả chính sách này và chính sách <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" /> thì danh sách cho phép này sẽ được ưu tiên áp dụng. Nếu URL của một khung khớp với một mẫu trong danh sách cho phép này, URL đó sẽ được cho phép, ngay cả khi URL đó cũng khớp với một mẫu trong danh sách chặn. Nếu một URL khớp với một mẫu trong danh sách chặn (nhưng không khớp với mẫu nào trong danh sách cho phép) thì URL đó sẽ bị chặn. Nếu một URL không khớp với cả hai danh sách thì chính sách <ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" /> sẽ được dùng làm chính sách dự phòng.
 
@@ -6567,6 +6607,7 @@ Trên nền tảng máy tính, bạn cũng có thể tắt tính năng tải mô
 <translation id="5309944663104291505">Không cho phép các Ứng dụng web tách biệt và ứng dụng kiosk bị buộc cài đặt sử dụng Device Attributes API</translation>
 <translation id="5311275381462687162">Tùy chọn cài đặt mặc định cho hành vi <ph name="ATTRIBUTE_SAMESITE_NAME" /> cũ của cookie</translation>
 <translation id="5312253627576569499">Tỷ lệ phần trăm mà theo đó độ trễ làm tối màn hình sẽ thay đổi khi phát hiện thấy hoạt động của người dùng trong khi màn hình ở chế độ tối hoặc ngay sau khi màn hình tắt hẳn</translation>
+<translation id="5313663675323027439">Kiểm soát tính năng ghi nhật ký hoạt động DOM của tiện ích</translation>
 <translation id="5316856058059940708">Tắt tính năng con trỏ lớn</translation>
 <translation id="5318185076587284965">Cho phép máy chủ truy cập từ xa sử dụng máy chủ chuyển tiếp</translation>
 <translation id="5321624917465764266">Khi bạn đặt thành Enabled (Bật) hoặc không đặt chính sách này, người dùng có thể xoá nhật ký duyệt web và nhật ký tải xuống trong Chrome, đồng thời không thể thay đổi chế độ cài đặt này.
@@ -8696,34 +8737,6 @@ Các thay đổi đối với chính sách chỉ được áp dụng khi ARC kh�
       Nếu bạn không thiết lập chính sách này, thì chế độ mặc định sẽ là cho phép cả người dùng do doanh nghiệp quản lý và người dùng không được quản lý.</translation>
 <translation id="6640748114867542396">Không cho phép các tiện ích được quản lý sử dụng API Enterprise Hardware Platform</translation>
 <translation id="6641109870010271671">Chứng chỉ TLS mà <ph name="PRODUCT_NAME" /> cần tin cậy khi xác thực máy chủ</translation>
-<translation id="6641851832244467923">Nếu bạn đặt chính sách này, hệ thống sẽ định cấu hình các quy tắc chọn proxy mà trình duyệt sử dụng tuỳ thuộc vào URL của đích đến và các điều kiện khác. Chính sách này sẽ được ưu tiên hơn chế độ cài đặt proxy được thiết lập dựa vào chính sách <ph name="PROXY_SETTINGS_POLICY_NAME" />, API tiện ích <ph name="PROXY_SETTINGS_EXTENSION_API" /> hoặc chế độ cài đặt thủ công của người dùng (nếu có).
-
-Nếu bạn không đặt chính sách này, các chính sách proxy khác hoặc chế độ cài đặt của người dùng sẽ không bị ảnh hưởng.
-
-Khi trình duyệt cần xác định proxy nào sẽ được sử dụng, các mục trong chính sách <ph name="PROXY_OVERRIDE_RULES_POLICY_NAME" /> sẽ được đánh giá theo trình tự cho đến khi một mục đáp ứng tất cả các điểm sau:
-  * Ít nhất một mẫu URL trong <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> trùng khớp.
-  * Không có mẫu URL nào trong <ph name="PROXY_OVERRIDE_RULES_EXCLUDE_DESTINATION_MATCHERS" /> trùng khớp.
-  * Nếu bạn chỉ định <ph name="PROXY_OVERRIDE_RULES_CONDITIONS" /> và đó là một danh sách không trống, thì tất cả các điều kiện được thể hiện bằng các mục trong danh sách đó đều được đáp ứng.
-Giá trị trong <ph name="PROXY_OVERRIDE_RULES_PROXY_LIST" /> sẽ được dùng làm proxy cho trường hợp trùng khớp đó. Nếu không tìm thấy kết quả trùng khớp, chế độ cài đặt proxy sẽ chuyển về chế độ cài đặt trong chính sách <ph name="PROXY_SETTINGS_POLICY_NAME" />.
-
-Các mẫu URL mà <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> và <ph name="PROXY_OVERRIDE_RULES_EXCLUDE_DESTINATION_MATCHERS" /> hỗ trợ được nêu tại https://chromium.googlesource.com/chromium/src/+/HEAD/net/docs/proxy.md#proxy-config-url-patterns.
-
-Các mục trong trường <ph name="PROXY_OVERRIDE_RULES_PROXY_LIST" /> tương ứng với các giá trị dạng chuỗi trong tệp PAC, chẳng hạn như:
-  * DIRECT
-  * PROXY host:port
-  * HTTPS host:port
-  * SOCKS4 host:port
-  * SOCKS5 host:port
-Ngoài ra, bạn có thể sử dụng trực tiếp các thông số proxy dạng URL để chỉ định proxy, chẳng hạn như:
-  * http://host:port
-  * https://host:port
-  * socks4://host:port
-  * socks5://host:port
-Mục đầu tiên có thể truy cập trong danh sách sẽ được dùng làm proxy. Các mục không hợp lệ trong danh sách sẽ bị bỏ qua.
-
-Trường <ph name="PROXY_OVERRIDE_RULES_CONDITIONS" /> chứa một danh sách các điều kiện mà tất cả đều phải được đáp ứng thì quy tắc ghi đè tương ứng mới được dùng để xác định proxy nào sẽ được sử dụng. Nếu bạn không đặt trường này, mục này sẽ được sử dụng miễn là có ít nhất một máy chủ lưu trữ trong <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> trùng khớp.
-
-Điều kiện <ph name="PROXY_OVERRIDE_RULES_DNS_PROBE" /> kiểm tra xem <ph name="PROXY_OVERRIDE_RULES_HOST" /> DNS được cung cấp có thể phân giải thành một địa chỉ IP hay không. URL này phải chứa một máy chủ lưu trữ (ví dụ: example.com) và có thể chứa một giao thức hoặc một cổng (ví dụ: https://example.com, example.com:123, https://example.com:123). Nếu sử dụng một giao thức bảo mật (ví dụ: https), thì việc tra cứu DNS cũng có thể yêu cầu bản ghi HTTPS (xem RFC 9460 để biết thêm chi tiết). Nếu giá trị của <ph name="PROXY_OVERRIDE_RULES_RESULT" /> là "<ph name="PROXY_OVERRIDE_RULES_RESOLVED" />", điều kiện sẽ được coi là đã được đáp ứng. Nếu bạn đặt giá trị thành <ph name="PROXY_OVERRIDE_RULES_NOT_FOUND" />, điều kiện sẽ được coi là đã được đáp ứng nếu quá trình phân giải không thành công.</translation>
 <translation id="6641981670621198190">Tắt hỗ trợ dành cho API đồ họa 3D</translation>
 <translation id="6646912445796087001">Bật hoặc tắt nhiều tính năng trên bàn phím ảo. Chính sách này chỉ có hiệu lực khi bạn bật chính sách "VirtualKeyboardEnabled".
 
@@ -9946,6 +9959,14 @@ Khi bạn đặt chính sách này thành False (Sai), hành vi cũ sẽ đượ
       Nếu bạn đặt chính sách này thành Bật hoặc chưa đặt gì, thì thiết bị đã đăng ký sẽ báo cáo danh sách các giao diện mạng kèm thông tin về loại giao diện và địa chỉ phần cứng.
 
       Nếu bạn đặt chính sách này thành Tắt, thiết bị đã đăng ký sẽ không báo cáo giao diện mạng.</translation>
+<translation id="7387190801932161230">Kiểm soát việc có bật tính năng ghi nhật ký hoạt động DOM của tiện ích cho người dùng doanh nghiệp hay không.
+
+Nếu bạn đặt chính sách này thành Bật, thì tính năng đo từ xa sẽ được bật cho hoạt động DOM của tiện ích. Tính năng này bao gồm việc giám sát hoạt động chèn mã và quyền truy cập dữ liệu nhạy cảm của tiện ích.
+
+Nếu bạn đặt chính sách này thành Bật, <ph name="PRODUCT_NAME" /> sẽ thu thập và truyền tín hiệu về hoạt động tương tác của tiện ích với trang web đến Dịch vụ đo tiện ích từ xa để kiểm tra bảo mật.
+Nếu bạn đặt chính sách này thành Tắt hoặc không đặt, thì các tín hiệu này sẽ không được thu thập hoặc truyền tải đến người dùng doanh nghiệp.
+
+Giá trị thực tế của dữ liệu nhạy cảm (như cookie hoặc giá trị đầu vào) KHÔNG được thu thập, mà chỉ thu thập thông tin về việc truy cập dữ liệu đó.</translation>
 <translation id="7389872682701720082">Nếu bạn bật tùy chọn cài đặt này, các plugin không bị lỗi thời sẽ luôn chạy.
 
       Nếu bạn tắt hoặc không đặt tùy chọn cài đặt này, người dùng sẽ được yêu cầu cho phép chạy các plugin đòi hỏi ủy quyền. Đây là những plugin có thể ảnh hưởng đến tính bảo mật.</translation>
@@ -12400,6 +12421,19 @@ Lưu ý: Hiện tại, hệ thống sẽ chỉ xem xét mục nhập đầu tiê
           Nếu bạn đặt chính sách này, thì người dùng sẽ không thể thay đổi hay ghi đè chính sách.
 
           Nếu bạn không đặt chính sách này, thì ban đầu, tính năng làm nổi bật tiêu điểm bằng bàn phím sẽ tắt nhưng người dùng có thể bật bất cứ lúc nào.</translation>
+<translation id="9037098514292099199">Nếu bạn đặt chính sách này, hệ thống sẽ kiểm soát các chế độ cài đặt quản lý tiện ích cho <ph name="PRODUCT_NAME" />, bao gồm cả những chế độ cài đặt chịu sự kiểm soát của các chính sách hiện có liên quan đến tiện ích.
+
+Chính sách này chỉ ánh xạ một mã tiện ích hoặc một URL cập nhật với chế độ cài đặt cụ thể tương ứng. Bạn có thể đặt cấu hình mặc định cho mã đặc biệt <ph name="DEFAULT_SCOPE" />. Cấu hình này sẽ áp dụng cho tất cả tiện ích chưa đặt cấu hình tuỳ chỉnh trong chính sách này.
+
+Chính sách này có thể ghi đè cấu hình theo từng tiện ích từ các chính sách cũ.
+
+Lưu ý: Mọi chế độ cài đặt tiện ích theo mã nhận dạng từ <ph name="EXTENSION_INSTALL_FORCELIST_POLICY_NAME" />, <ph name="EXTENSION_INSTALL_ALLOWLIST_POLICY_NAME" />, <ph name="EXTENSION_INSTALL_BLOCKLIST_POLICY_NAME" /> hoặc <ph name="EXTENSION_SETTINGS_POLICY_NAME" /> sẽ chỉ kế thừa "installation_mode" và "update_url" từ các giá trị mặc định của <ph name="DEFAULT_SCOPE" />. Chế độ cài đặt sẽ không kế thừa bất kỳ thuộc tính nào khác. Với URL cập nhật, cấu hình sẽ áp dụng cho những tiện ích có URL cập nhật chính xác được nêu trong tệp kê khai của tiện ích đó (http://support.google.com/chrome/a?p=Configure_ExtensionSettings_policy). Nếu bạn đặt cờ "override_update_url" thành true (đúng), thì tiện ích đó sẽ được cài đặt và cập nhật bằng URL "cập nhật" được chỉ định trong chính sách <ph name="EXTENSION_INSTALL_FORCELIST_POLICY_NAME" /> hoặc trong trường "update_url" của chính sách này. Cờ "override_update_url" sẽ bị bỏ qua nếu "update_url" là một URL của Cửa hàng Chrome trực tuyến.
+
+Trên các phiên bản <ph name="MS_WIN_NAME" />, bạn chỉ có thể buộc cài đặt các ứng dụng và tiện ích từ bên ngoài Cửa hàng Chrome trực tuyến nếu phiên bản đó đã liên kết với một miền <ph name="MS_AD_NAME" />, <ph name="MS_AAD_NAME" /> hoặc đã đăng ký <ph name="CHROME_ENTERPRISE_CORE_NAME" />.
+
+Trên các phiên bản <ph name="MAC_OS_NAME" />, bạn chỉ có thể buộc cài đặt các ứng dụng và tiện ích từ bên ngoài Cửa hàng Chrome trực tuyến nếu phiên bản đó được quản lý qua MDM, đã liên kết với một miền qua MCX hoặc đã đăng ký <ph name="CHROME_ENTERPRISE_CORE_NAME" />.
+
+Lưu ý: Chính sách này chỉ áp dụng cho những nền tảng hỗ trợ tiện ích.</translation>
 <translation id="9038839118379817310">Bật Wi-Fi</translation>
 <translation id="9039822628127365650">Khi bạn đặt chính sách này, chính sách sẽ chỉ định thời lượng mà sau đó một người dùng tự động bị đăng xuất, chấm dứt phiên. Người dùng được thông báo về thời gian còn lại bằng đồng hồ đếm ngược hiển thị trong khay hệ thống.
 
@@ -12423,21 +12457,6 @@ Nếu bạn không đặt chính sách này, <ph name="PRODUCT_NAME" /> sẽ m�
 <translation id="9051019223077908578">Định cấu hình danh sách các ứng dụng và tiện ích đã cài đặt trên màn hình đăng nhập</translation>
 <translation id="9053841574218808519">Luôn chạy trình bổ trợ không lỗi thời</translation>
 <translation id="9055866143096316150">Giảm hạng yêu cầu khóa chế độ thức của màn hình thành yêu cầu khóa chế độ thức của hệ thống</translation>
-<translation id="9056262797461453462">Nếu bạn đặt chính sách <ph name="URL_BLOCKLIST_POLICY_NAME" />, hệ thống sẽ ngừng tải các trang web có URL bị cấm. Quản trị viên có thể chỉ định danh sách mẫu URL cần chặn. Nếu bạn không đặt chính sách này, hệ thống sẽ không chặn URL nào trong trình duyệt. Bạn có thể xác định tối đa 1.000 trường hợp ngoại lệ trong <ph name="URL_ALLOWLIST_POLICY_NAME" />. Hãy xem cách định dạng mẫu URL (https://support.google.com/chrome/a?p=url_blocklist_filter_format).
-
-Lưu ý: Chính sách này không áp dụng với URL JavaScript trong trang có dữ liệu được tải tự động. Nếu bạn đã chặn example.com/abc thì example.com vẫn tải được URL đó qua XMLHTTPRequest. Ngoài ra, chính sách này không ngăn các trang web cập nhật URL hiển thị trong thanh địa chỉ thành URL bị chặn bằng API Lịch sử JavaScript.
-
-Kể từ <ph name="PRODUCT_NAME" /> phiên bản 73, bạn có thể chặn các URL javascript://*. Tuy nhiên, chính sách này chỉ ảnh hưởng đến JavaScript đã nhập vào thanh địa chỉ hoặc các bookmarklet chẳng hạn.
-
-Kể từ <ph name="PRODUCT_NAME" /> phiên bản 92, chính sách này cũng được hỗ trợ ở chế độ không có giao diện người dùng.
-
-Lưu ý: Việc chặn các URL nội bộ chrome://* và chrome-untrusted://* có thể dẫn đến lỗi không mong muốn hoặc có thể bị bỏ qua trong một số trường hợp. Thay vì chặn một số URL nội bộ nhất định, hãy xem có chính sách cụ thể hơn không. Ví dụ:
-
-– Thay vì chặn chrome://settings/certificates, hãy sử dụng <ph name="CA_CERTIFICATE_MANAGEMENT_ALLOWED_POLICY_NAME" />.
-
-– Thay vì chặn chrome-untrusted://crosh, hãy sử dụng <ph name="SYSTEM_FEATURES_DISABLE_LIST_POLICY_NAME" />.
-
-– Thay vì chặn devtools://*, hãy sử dụng một trong các chính sách <ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" />, <ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" /> hoặc <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" />.</translation>
 <translation id="9057159618445405645">Sử dụng chế độ mặc định của trình duyệt Chrome</translation>
 <translation id="9061455386353325110">Chỉ định xem người dùng có thể cho phép <ph name="PRODUCT_NAME" /> sử dụng AI tạo sinh để hiểu rõ hơn về các biểu mẫu và điền nhiều trường hơn hay không.
 

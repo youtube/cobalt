@@ -29,6 +29,7 @@ Některé funkce možná nebudou k dispozici a změny nastavení se neuloží.</
 <translation id="126567311906253476">Když se pomocí účtu <ph name="USER_EMAIL" /> přihlásíte do služeb Google, jako je Gmail nebo YouTube, můžete se pomocí něj automaticky přihlásit i do prohlížeče Chromium</translation>
 <translation id="1290883685122687410">Chyba nastavení: <ph name="METAINSTALLER_EXIT_CODE" />. <ph name="WINDOWS_ERROR" /></translation>
 <translation id="1315551408014407711">Nastavení nového profilu Chromium</translation>
+<translation id="132092532143527429">Vyzkoušet s Gemini v Chromiu</translation>
 <translation id="1324107359134968521">K prozkoumání zařízení Bluetooth potřebuje Chromium přístup k rozhraní Bluetooth. <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="1330562121671411446">Rozpoznat jazyk</translation>
 <translation id="1330742950061766891">Používat doporučená nastavení prohlížeče Chromium</translation>
@@ -240,6 +241,7 @@ Některé funkce možná nebudou k dispozici a změny nastavení se neuloží.</
 <translation id="3509308970982693815">Zavřete prosím všechna okna prohlížeče Chromium a zkuste to znovu.</translation>
 <translation id="3522404737534491619">Pokud chcete sdílet okno, v Nastavení systému povolte pro Chromium nahrávání obrazovky</translation>
 <translation id="3530103706039034513">Už je přihlášen uživatel <ph name="EXISTING_USER" />.  Pokud své procházení chcete oddělit, přihlaste se do prohlížeče Chromium ve svém vlastním profilu jako <ph name="USER_EMAIL_ADDRESS" />.</translation>
+<translation id="3531741627422851418">QR kód ke stažení prohlížeče Chromium do mobilních zařízení</translation>
 <translation id="3561853857681580870">Pokud chcete sdílet obrazovku, v Nastavení systému povolte pro Chromium nahrávání obrazovky.</translation>
 <translation id="3588112919289558122">Vylepšená ochrana vypíná optimalizaci JavaScriptu pro weby, které Chromium nezná</translation>
 <translation id="3597003331831379823">Spuštění instalace se zvýšenými oprávněními se nezdařilo. <ph name="METAINSTALLER_ERROR" /></translation>
@@ -375,7 +377,6 @@ Některé funkce možná nebudou k dispozici a změny nastavení se neuloží.</
 <translation id="5174969993834422967">Obvykle oznámení blokujete. Pokud tomuto webu chcete zobrazování oznámení povolit, klikněte na ikonu oznámení v pravém rohu adresního řádku.</translation>
 <translation id="5174983315706567306">Na disku není dost místa.</translation>
 <translation id="5187123684706427865">Účet v prohlížeči Chromium vyžaduje opětovné ověření</translation>
-<translation id="5219681158518957165">Používejte doporučená nastavení prohlížeče</translation>
 <translation id="5224391634244552924">Nemáte žádná uložená hesla. Chromium může hesla zkontrolovat, pouze když si je uložíte.</translation>
 <translation id="5231355151045086930">Odhlášení z prohlížeče Chromium</translation>
 <translation id="5234764350956374838">Zavřít</translation>
@@ -609,6 +610,7 @@ Chromium nemůže vaše nastavení obnovit.</translation>
 <translation id="7622753900276619808">V Chromiu teď máte k dispozici víc funkcí</translation>
 <translation id="7624307931717240213">Informace používáme ke zlepšování této služby. Prostudujte si zásady ochrany soukromí a smluvní podmínky.</translation>
 <translation id="7649070708921625228">Nápověda</translation>
+<translation id="7650134251917003571">Stáhnout aplikaci Chromium</translation>
 <translation id="7656340475565475526">Nechte Chromium procházet internet za vás</translation>
 <translation id="7658239707568436148">Zrušit</translation>
 <translation id="7686590090926151193">Chromium není vaším výchozím prohlížečem</translation>

@@ -174,6 +174,10 @@ AuditsIssue::GenericIssueErrorTypeToProtocol(
         kManualTextPolicyControlledFeatureInfo:
       return protocol::Audits::GenericIssueErrorTypeEnum::
           ManualTextPolicyControlledFeatureInfo;
+    case mojom::blink::GenericIssueErrorType::
+        kFormModelContextParameterMissingTitleAndDescription:
+      return protocol::Audits::GenericIssueErrorTypeEnum::
+          FormModelContextParameterMissingTitleAndDescription;
   }
 }
 
@@ -1053,7 +1057,7 @@ void AuditsIssue::ReportSelectivePermissionsInterventionIssue(
   for (const auto& ad_script : ad_ancestry.ancestry_chain) {
     ancestry_chain->emplace_back(
         protocol::Audits::AdScriptIdentifier::create()
-            .setScriptId(String::Number(ad_script.id))
+            .setScriptId(String::Number(ad_script.id.value()))
             .setDebuggerId(
                 ToCoreString(ad_script.context_id.toString()->string()))
             .setName(ad_script.name)

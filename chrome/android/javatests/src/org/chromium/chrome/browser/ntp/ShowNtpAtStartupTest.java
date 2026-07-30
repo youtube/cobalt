@@ -39,9 +39,11 @@ import androidx.test.filters.MediumTest;
 
 import org.hamcrest.Matchers;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Mockito;
 
 import org.chromium.base.DeviceInfo;
 import org.chromium.base.ThreadUtils;
@@ -58,6 +60,7 @@ import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.base.test.util.Restriction;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
+import org.chromium.chrome.browser.educational_tip.EducationalTipModuleUtils;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.layouts.LayoutTestUtils;
@@ -69,6 +72,7 @@ import org.chromium.chrome.browser.ntp_customization.NtpCustomizationConfigManag
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundType;
 import org.chromium.chrome.browser.ntp_customization.theme.chrome_colors.NtpThemeColorInfo;
+import org.chromium.chrome.browser.setup_list.SetupListManager;
 import org.chromium.chrome.browser.suggestions.tile.TilesLinearLayout;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.TabClosureParams;
@@ -110,6 +114,15 @@ public class ShowNtpAtStartupTest {
 
     private static final String TAB_URL = "https://foo.com/";
     private static final String TAB_URL_1 = "https://bar.com/";
+
+    @Before
+    public void setUp() {
+        SetupListManager setupListManager = Mockito.mock(SetupListManager.class);
+        Mockito.when(setupListManager.isSetupListActive()).thenReturn(false);
+        SetupListManager.setInstanceForTesting(setupListManager);
+
+        EducationalTipModuleUtils.setEducationalTipActiveForTesting(false);
+    }
 
     @Test
     @MediumTest
@@ -460,6 +473,44 @@ public class ShowNtpAtStartupTest {
                 "There is no extra snapshot for the NTP to cache the change "
                         + "of the single tab card.",
                 ntp.getSnapshotSingleTabCardChangedForTesting());
+    }
+
+    @Test
+    @MediumTest
+    @Feature({"StartSurface", "RenderTest"})
+    @Restriction(DeviceFormFactor.PHONE)
+    @EnableFeatures({START_SURFACE_RETURN_TIME_IMMEDIATE})
+    public void testFakeSearchBoxWidth_phones() throws IOException {
+        mActivityTestRule.startFromLauncherAtNtp();
+        ChromeTabbedActivity cta = mActivityTestRule.getActivity();
+        HomeSurfaceTestUtils.waitForTabModel(cta);
+
+        waitForNtpLoaded(mActivityTestRule.getActivityTab());
+
+        NewTabPage ntp = (NewTabPage) mActivityTestRule.getActivityTab().getNativePage();
+        NewTabPageLayout ntpLayout = ntp.getNewTabPageLayout();
+        View searchBoxLayout = ntpLayout.findViewById(R.id.search_box);
+
+        // Orientation changes are not supported on automotive.
+        if (DeviceInfo.isAutomotive()) {
+            mRenderTestRule.render(searchBoxLayout, "ntp_search_box_automotive");
+            return;
+        }
+
+        // Start off in landscape screen orientation.
+        mActivityTestRule
+                .getActivity()
+                .setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
+        waitForScreenOrientation("\"landscape\"");
+        mRenderTestRule.render(searchBoxLayout, "ntp_search_box_landscape");
+
+        // Start off in portrait screen orientation.
+        mActivityTestRule
+                .getActivity()
+                .setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+        waitForScreenOrientation("\"portrait\"");
+        // Verifies there is additional margins added for the fake search box.
+        mRenderTestRule.render(searchBoxLayout, "ntp_search_box_portrait");
     }
 
     @Test

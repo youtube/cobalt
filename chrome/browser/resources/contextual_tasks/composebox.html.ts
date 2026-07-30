@@ -27,7 +27,10 @@ export function getHtml(this: ContextualTasksComposeboxElement) {
           .result="${this.zeroStateSuggestions_}"
           .maxSuggestions="${5}"
           .overrideClampLineNum="${3}"
-          ?hidden="${!this.showSuggestions_}">
+          .selectedMatchIndex="${this.selectedMatchIndex_}"
+          ?hidden="${!this.showSuggestions_}"
+          @match-focusin="${this.onMatchFocusin_}"
+          @keydown="${this.onDropdownKeydown_}">
       </cr-composebox-dropdown>
       ${this.showSuggestionsActivityLink_ && this.showSuggestions_ ? html`
         <div id="suggestionActivity">
@@ -56,12 +59,13 @@ export function getHtml(this: ContextualTasksComposeboxElement) {
           .lensButtonDisabled="${false}"
           .showLensButton="${this.showLensButton_}"
           .suggestionActivityEnabled="${false}"
-          .disableCaretColorAnimation="${true}"
+          .disableCaretColorAnimation="${!this.caretAnimationsEnabled_}"
           .inputPlaceholderOverride="${this.getInputPlaceholder_()}"
           .isInCoBrowsingZeroState="${this.isZeroState}"
           .lensButtonTriggersOverlay="${true}"
           .enableCarouselScrolling="${true}"
           .isFollowupQuery="${!this.isZeroState}"
+          .enableFileHint="${this.enableFileHint_}"
           @result-changed="${this.onSuggestionsResultChanged_}"
           @open-image-upload="${this.onOpenImageUpload_}"
           @open-file-upload="${this.onOpenFileUpload_}"
@@ -76,7 +80,10 @@ export function getHtml(this: ContextualTasksComposeboxElement) {
           .result="${this.zeroStateSuggestions_}"
           .maxSuggestions="${5}"
           .overrideClampLineNum="${3}"
-          ?hidden="${!this.showSuggestions_}">
+          .selectedMatchIndex="${this.selectedMatchIndex_}"
+          ?hidden="${!this.showSuggestions_}"
+          @match-focusin="${this.onMatchFocusin_}"
+          @keydown="${this.onDropdownKeydown_}">
       </cr-composebox-dropdown>
       ${this.showSuggestionsActivityLink_ && this.showSuggestions_ ? html`
         <div id="suggestionActivity">

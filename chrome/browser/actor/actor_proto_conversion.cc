@@ -689,6 +689,9 @@ class ActorJournalFetchPageProgressListener
     }
   }
 
+  void ScreenshotCaptured(const SkBitmap& bitmap) override {}
+  void ScreenshotRedacted(const SkBitmap& bitmap) override {}
+
   void BeginAPC() override {
     apc_entry_ = journal_->CreatePendingAsyncEntry(
         url_, task_id_, journal_->AllocateDynamicTrackUUID(), "GrabAPC", {});
@@ -1172,6 +1175,10 @@ void BuildActionsResultWithObservations(
               .InMilliseconds());
       latency_step->set_latency_stop_ms(
           (action_result.end_time - actions_start_time).InMilliseconds());
+    }
+    if (!actor::IsOk(*action_result.result)) {
+      CHECK_EQ(*index_of_failed_action, i);
+      response->set_error_message(action_result.result->message);
     }
   }
 

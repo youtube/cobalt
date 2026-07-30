@@ -25,7 +25,7 @@
 #include "chrome/browser/ui/tabs/alert/tab_alert_controller.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/collaboration_messaging_tab_data.h"
-#include "chrome/browser/ui/tabs/tab_renderer_data.h"
+#include "chrome/browser/ui/tabs/tab_data.h"
 #include "chrome/browser/ui/tabs/tab_style.h"
 #include "chrome/browser/ui/thumbnails/thumbnail_image.h"
 #include "chrome/browser/ui/ui_features.h"
@@ -206,6 +206,7 @@ class TabHoverCardBubbleView::ThumbnailView
     // with anyway, so bail out.
     const auto* const color_provider = GetColorProvider();
     if (!color_provider) {
+      init_placeholder_image_ = type == ImageType::kPlaceholder;
       return;
     }
 
@@ -277,6 +278,13 @@ class TabHoverCardBubbleView::ThumbnailView
     return bubble_view_->tab_style_->GetPreviewImageSize();
   }
 
+  void AddedToWidget() override {
+    if (init_placeholder_image_) {
+      SetPlaceholderImage();
+      init_placeholder_image_ = false;
+    }
+  }
+
   // views::AnimationDelegateViews:
   void AnimationProgressed(const gfx::Animation* animation) override {
     image_fading_out_->layer()->SetOpacity(1.0 - animation->GetCurrentValue());
@@ -344,6 +352,8 @@ class TabHoverCardBubbleView::ThumbnailView
   const raw_ptr<TabHoverCardBubbleView> bubble_view_;
 
   bool animation_enabled_ = true;
+
+  bool init_placeholder_image_ = false;
 
   // Displays the image that we are trying to display for the target/current
   // tab. Placed under `image_fading_out_` so that it is revealed as the
@@ -470,6 +480,23 @@ TabHoverCardBubbleView::TabHoverCardBubbleView(
 
   SetProperty(views::kElementIdentifierKey, kHoverCardBubbleElementId);
 
+  bool valid_thumbnail = anchor_target && anchor_target->data().thumbnail &&
+                         anchor_target->data().thumbnail->has_data() &&
+                         anchor_target->IsActive();
+
+  if (thumbnail_view_ && !valid_thumbnail) {
+    // Placeholder image should be used when there is no image data for the
+    // given tab. Otherwise don't flash the placeholder while we wait for the
+    // existing thumbnail to be decompressed.
+    //
+    // We tell the ThumbnailView to initialize with a place holder image when
+    // it is added to the widget. Note that the ThumbnailView has to set the
+    // placeholder image after CreateBubble() below, since setting up the
+    // placeholder image and background color require a ColorProvider,
+    // which is only available once this View has been added to its widget.
+    thumbnail_view_->SetPlaceholderImage();
+  }
+
   // Create the widget from the view. Additional setup happens in
   // `AddedToWidget()`.
   views::BubbleDialogDelegateView::CreateBubble(this);
@@ -477,40 +504,9 @@ TabHoverCardBubbleView::TabHoverCardBubbleView(
 
 TabHoverCardBubbleView::~TabHoverCardBubbleView() = default;
 
-void TabHoverCardBubbleView::AddedToWidget() {
-  set_adjust_if_offscreen(true);
-  GetBubbleFrameView()->SetPreferredArrowAdjustment(
-      views::BubbleFrameView::PreferredArrowAdjustment::kOffset);
-  GetBubbleFrameView()->set_hit_test_transparent(true);
-
-  GetBubbleFrameView()->SetRoundedCorners(gfx::RoundedCornersF(corner_radius_));
-
-  // Placeholder image should be used when there is no image data for the
-  // given tab. Otherwise don't flash the placeholder while we wait for the
-  // existing thumbnail to be decompressed.
-  //
-  // Note that this code has to go after CreateBubble() above, since setting up
-  // the placeholder image and background color require a ColorProvider, which
-  // is only available once this View has been added to its widget.
-
-  HoverCardAnchorTarget* anchor_target =
-      HoverCardAnchorTarget::FromAnchorView(GetAnchorView());
-  bool valid_thumbnail = anchor_target && anchor_target->data().thumbnail &&
-                         anchor_target->data().thumbnail->has_data() &&
-                         anchor_target->IsActive();
-  if (thumbnail_view_ && !valid_thumbnail) {
-    thumbnail_view_->SetPlaceholderImage();
-  }
-
-  // Start in the fully "faded-in" position so that whatever text we initially
-  // display is visible. For TBD reasons, this needs to be done after the
-  // CreateBubble() call, or the crossfades have an incorrect background color.
-  SetTextFade(1.0);
-}
-
 CollaborationMessagingRowData
 TabHoverCardBubbleView::GetCollaborationMessagingData(
-    const TabRendererData& tab_data) {
+    const tabs::TabData& tab_data) {
   using collaboration::messaging::CollaborationEvent;
 
   CollaborationMessagingRowData collaboration_messaging_data;
@@ -557,7 +553,7 @@ void TabHoverCardBubbleView::UpdateCardContent(
   }
 
   std::u16string title;
-  const TabRendererData& tab_data = anchor_target->data();
+  const tabs::TabData& tab_data = anchor_target->data();
   GURL domain_url;
   // Use committed URL to determine if no page has yet loaded, since the title
   // can be blank for some web pages.
@@ -570,8 +566,7 @@ void TabHoverCardBubbleView::UpdateCardContent(
   } else {
     domain_url = tab_data.last_committed_url;
     title = tab_data.title;
-    alert_state_ =
-        tabs::TabAlertController::GetAlertStateToShow(tab_data.alert_state);
+    alert_state_ = tab_data.alert_state;
   }
 
   std::u16string domain;
@@ -648,7 +643,8 @@ void TabHoverCardBubbleView::UpdateCardContent(
                            show_memory_usage || show_collaboration_messaging;
 
   footer_view_->SetAlertData(
-      {alert_state_, show_discard_status, tab_data.discarded_memory_savings});
+      {alert_state_, show_discard_status,
+       tab_data.discarded_memory_savings.value_or(base::ByteSize())});
 
   footer_view_->SetPerformanceData(
       {show_memory_usage, is_high_memory_usage, tab_memory_usage});
@@ -711,6 +707,20 @@ std::optional<double> TabHoverCardBubbleView::GetPreviewImageCrossfadeStart() {
              : std::nullopt;
 }
 
+void TabHoverCardBubbleView::AddedToWidget() {
+  set_adjust_if_offscreen(true);
+  GetBubbleFrameView()->SetPreferredArrowAdjustment(
+      views::BubbleFrameView::PreferredArrowAdjustment::kOffset);
+  GetBubbleFrameView()->set_hit_test_transparent(true);
+
+  GetBubbleFrameView()->SetRoundedCorners(gfx::RoundedCornersF(corner_radius_));
+
+  // Start in the fully "faded-in" position so that whatever text we initially
+  // display is visible. For TBD reasons, this needs to be done after the
+  // CreateBubble() call, or the crossfades have an incorrect background color.
+  SetTextFade(1.0);
+}
+
 gfx::Size TabHoverCardBubbleView::CalculatePreferredSize(
     const views::SizeBounds& available_size) const {
   const int width = tab_style_->GetPreviewImageSize().width();
@@ -721,12 +731,17 @@ gfx::Size TabHoverCardBubbleView::CalculatePreferredSize(
   return preferred_size;
 }
 
-// We do not want the hover card to reposition itself according to the anchor
-// view that it is observing. It is usually undergoing slide or fade animations.
-// When in the middle of those animations, reacting to changes to the anchor
-// view can cause visual flickering with the hover card bounds.
+// While the hover card is sliding, we do not want it to reposition itself
+// according to the anchor view that it is observing. It is usually
+// undergoing slide or fade animations. When in the middle of those
+// animations, reacting to changes to the anchor view can cause visual
+// flickering with the hover card bounds.
 // See crbug.com/486948335 for an example.
-void TabHoverCardBubbleView::OnAnchorBoundsChanged() {}
+void TabHoverCardBubbleView::OnAnchorBoundsChanged() {
+  if (!sliding_) {
+    BubbleDialogDelegateView::OnAnchorBoundsChanged();
+  }
+}
 
 BEGIN_METADATA(TabHoverCardBubbleView)
 END_METADATA

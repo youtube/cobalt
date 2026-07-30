@@ -5,16 +5,21 @@
 package org.chromium.chrome.browser.app.tabmodel;
 
 import static org.chromium.chrome.browser.app.tabmodel.TabPersistentStoreFactory.buildAuthoritativeStore;
+import static org.chromium.chrome.browser.app.tabmodel.TabPersistentStoreFactory.buildShadowStore;
 
 import android.app.Activity;
 
 import org.chromium.base.supplier.OneshotSupplier;
+import org.chromium.build.annotations.EnsuresNonNull;
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.app.tabwindow.TabWindowManagerSingleton;
 import org.chromium.chrome.browser.crypto.CipherFactory;
 import org.chromium.chrome.browser.flags.ActivityType;
+import org.chromium.chrome.browser.flags.CustomTabProfileType;
 import org.chromium.chrome.browser.profiles.ProfileProvider;
 import org.chromium.chrome.browser.tab_ui.TabContentManager;
+import org.chromium.chrome.browser.tabmodel.AccumulatingTabCreator;
 import org.chromium.chrome.browser.tabmodel.AsyncTabParamsManager;
 import org.chromium.chrome.browser.tabmodel.NextTabPolicy;
 import org.chromium.chrome.browser.tabmodel.NextTabPolicy.NextTabPolicySupplier;
@@ -37,6 +42,11 @@ public class CustomTabsTabModelOrchestrator extends TabModelOrchestrator {
     private static final String CUSTOM_WINDOW_PREFIX =
             TabPersistentStoreImpl.CLIENT_TAG_CUSTOM + "_";
 
+    private final AccumulatingTabCreator mRegularShadowTabCreator = new AccumulatingTabCreator();
+    private final AccumulatingTabCreator mIncognitoShadowTabCreator = new AccumulatingTabCreator();
+    private @Nullable Activity mActivity;
+    private @Nullable CipherFactory mCipherFactory;
+
     /** Creates the TabModelSelector and the TabPersistentStore. */
     public void createTabModels(
             Activity activity,
@@ -44,8 +54,12 @@ public class CustomTabsTabModelOrchestrator extends TabModelOrchestrator {
             TabCreatorManager tabCreatorManager,
             TabPersistencePolicy persistencePolicy,
             @ActivityType int activityType,
+            @Nullable @CustomTabProfileType Integer customTabProfileType,
             AsyncTabParamsManager asyncTabParamsManager,
             CipherFactory cipherFactory) {
+        mActivity = activity;
+        mCipherFactory = cipherFactory;
+
         // Instantiate TabModelSelectorImpl
         NextTabPolicySupplier nextTabPolicySupplier = () -> NextTabPolicy.LOCATIONAL;
         mTabModelSelector =
@@ -57,10 +71,11 @@ public class CustomTabsTabModelOrchestrator extends TabModelOrchestrator {
                         nextTabPolicySupplier,
                         /* multiInstanceManager= */ null,
                         asyncTabParamsManager,
-                        false,
+                        /* supportUndo= */ false,
                         activityType,
+                        customTabProfileType,
                         TabModelType.STANDARD,
-                        false);
+                        /* startIncognito= */ false);
 
         TabWindowManager tabWindowManager = TabWindowManagerSingleton.getInstance();
         tabWindowManager.registerCustomTabsTabModelSelector(
@@ -94,8 +109,41 @@ public class CustomTabsTabModelOrchestrator extends TabModelOrchestrator {
 
     @Override
     public void onNativeLibraryReady(TabContentManager tabContentManager) {
+        assertInitialized();
         super.onNativeLibraryReady(tabContentManager);
-        markStoresInitialized();
+
+        if (!mTabPersistentStoreDestroyedEarly) {
+            mShadowTabPersistentStore =
+                    buildShadowStore(
+                            /* migrationManager= */ null,
+                            mRegularShadowTabCreator,
+                            mIncognitoShadowTabCreator,
+                            mTabModelSelector,
+                            mTabPersistencePolicy,
+                            mTabPersistentStore,
+                            getCustomTabsWindowTag(mActivity.getTaskId()),
+                            mCipherFactory,
+                            TabPersistentStoreImpl.CLIENT_TAG_CUSTOM);
+            if (mShadowTabPersistentStore != null) {
+                mShadowTabPersistentStore.onNativeLibraryReady();
+            }
+            markStoresInitialized();
+        }
+    }
+
+    @EnsuresNonNull({
+        "mActivity",
+        "mTabModelSelector",
+        "mTabPersistencePolicy",
+        "mCipherFactory",
+        "mTabPersistentStore"
+    })
+    private void assertInitialized() {
+        assert mActivity != null;
+        assert mTabModelSelector != null;
+        assert mTabPersistencePolicy != null;
+        assert mCipherFactory != null;
+        assert mTabPersistentStore != null;
     }
 
     /**

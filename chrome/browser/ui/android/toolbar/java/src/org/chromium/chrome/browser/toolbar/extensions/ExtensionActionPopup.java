@@ -20,22 +20,21 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.toolbar.R;
 import org.chromium.chrome.browser.ui.extensions.ExtensionActionPopupContents;
+import org.chromium.components.embedder_support.contextmenu.ContextMenuPopulatorFactory;
 import org.chromium.components.embedder_support.view.ContentView;
 import org.chromium.components.thinwebview.ThinWebView;
 import org.chromium.components.thinwebview.ThinWebViewConstraints;
 import org.chromium.components.thinwebview.ThinWebViewFactory;
+import org.chromium.components.thinwebview.internal.ThinWebViewContextMenuItemDelegate;
 import org.chromium.content_public.browser.WebContents;
-import org.chromium.ui.base.ActivityKeyboardVisibilityDelegate;
+import org.chromium.content_public.browser.selection.SelectionDropdownMenuDelegate;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.ViewAndroidDelegate;
 import org.chromium.ui.base.ViewUtils;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.modaldialog.ModalDialogManager;
-import org.chromium.ui.permissions.ActivityAndroidPermissionDelegate;
 import org.chromium.ui.widget.AnchoredPopupWindow;
 import org.chromium.ui.widget.ViewRectProvider;
-
-import java.lang.ref.WeakReference;
 
 /**
  * Manages the display of an extension action's popup UI.
@@ -82,13 +81,16 @@ class ExtensionActionPopup implements Destroyable {
      *     WebContents and native communication for this popup. The new {@link ExtensionActionPopup}
      *     instance takes ownership of the provided {@code contents} and will be responsible for
      *     calling its {@code destroy()} method.
+     * @param contextMenuPopulatorFactory The {@link ContextMenuPopulatorFactory} to use.
      */
     public ExtensionActionPopup(
             Activity activity,
             WindowAndroid windowAndroid,
             View anchorView,
             String actionId,
-            ExtensionActionPopupContents contents) {
+            ExtensionActionPopupContents contents,
+            @Nullable ContextMenuPopulatorFactory contextMenuPopulatorFactory,
+            @Nullable SelectionDropdownMenuDelegate selectionDropdownMenuDelegate) {
         mActivity = activity;
         mActionId = actionId;
         mContents = contents;
@@ -108,9 +110,6 @@ class ExtensionActionPopup implements Destroyable {
                 new ActivityWindowAndroid(
                         activity,
                         /* listenToActivityState= */ true,
-                        new ActivityAndroidPermissionDelegate(new WeakReference(mActivity)),
-                        new ActivityKeyboardVisibilityDelegate(new WeakReference(mActivity)),
-                        /* activityTopResumedSupported= */ false,
                         NullUtil.assumeNonNull(windowAndroid.getIntentRequestTracker()),
                         /* insetObserver= */ null,
                         /* trackOcclusion= */ true) {
@@ -123,7 +122,19 @@ class ExtensionActionPopup implements Destroyable {
         mThinWebView =
                 ThinWebViewFactory.create(
                         activity, new ThinWebViewConstraints(), mPopupWindowAndroid);
-        mThinWebView.attachWebContents(webContents, mContentView, null);
+
+        if (contextMenuPopulatorFactory != null) {
+            ThinWebViewContextMenuItemDelegate itemDelegate =
+                    new ThinWebViewContextMenuItemDelegate(webContents);
+            contextMenuPopulatorFactory.setItemDelegate(itemDelegate);
+        }
+
+        mThinWebView.attachWebContents(
+                webContents,
+                mContentView,
+                /* delegate= */ null,
+                contextMenuPopulatorFactory,
+                selectionDropdownMenuDelegate);
 
         mPopupWindow =
                 new AnchoredPopupWindow(

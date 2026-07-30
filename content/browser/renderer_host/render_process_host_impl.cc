@@ -1370,6 +1370,23 @@ void AppendToCommaSeparatedSwitch(base::CommandLine* command_line,
                        : base::StrCat({existing_values, ",", new_value}));
 }
 
+size_t GetOutermostMainFrameCountForFastShutdown(RenderProcessHost* process) {
+  std::set<RenderFrameHost*> outermost_main_frames;
+  process->ForEachRenderFrameHost(
+      [&outermost_main_frames](RenderFrameHost* rfh) {
+        // Only consider active frames. Speculative and pending-commit frames
+        // are handled by `pending_views_` and frames processing unload handlers
+        // are checked by `HasSuddenTerminationDisabler()`.
+        RenderFrameHostImpl* const outermost_rfh =
+            static_cast<RenderFrameHostImpl*>(rfh)->GetOutermostMainFrame();
+        if (outermost_rfh->lifecycle_state() ==
+            RenderFrameHostImpl::LifecycleStateImpl::kActive) {
+          outermost_main_frames.insert(outermost_rfh);
+        }
+      });
+  return outermost_main_frames.size();
+}
+
 }  // namespace
 
 RenderProcessHostImpl::IOThreadHostImpl::IOThreadHostImpl(
@@ -1571,8 +1588,8 @@ RenderProcessHost* RenderProcessHostImpl::CreateRenderProcessHost(
 #if !BUILDFLAG(IS_ANDROID)
   if (site_instance) {
     const GURL& site_url = site_instance->GetSiteURL();
-    if (GetContentClient()->browser()->IsInitialWebUIURL(site_url)) {
-      flags |= RenderProcessFlags::kForInitialWebUI;
+    if (GetContentClient()->browser()->IsTopChromeWebUIURL(site_url)) {
+      flags |= RenderProcessFlags::kForTopChromeWebUI;
     }
   }
 #endif  // !BUILDFLAG(IS_ANDROID)
@@ -3071,9 +3088,11 @@ bool RenderProcessHostImpl::TakeStoredDataForFrameToken(
     const blink::LocalFrameToken& frame_token,
     int32_t& new_routing_id,
     base::UnguessableToken& devtools_frame_token,
-    blink::DocumentToken& document_token) {
+    blink::DocumentToken& document_token,
+    std::unique_ptr<base::UnguessableToken>& sandbox_origin_token) {
   return widget_helper_->TakeStoredDataForFrameToken(
-      frame_token, new_routing_id, devtools_frame_token, document_token);
+      frame_token, new_routing_id, devtools_frame_token, document_token,
+      sandbox_origin_token);
 }
 
 void RenderProcessHostImpl::AddObserver(RenderProcessHostObserver* observer) {
@@ -3474,11 +3493,9 @@ bool RenderProcessHostImpl::IsForGuestsOnly() {
   return !!(flags_ & RenderProcessFlags::kForGuestsOnly);
 }
 
-#if !BUILDFLAG(IS_ANDROID)
-bool RenderProcessHostImpl::IsForInitialWebUI() const {
-  return (flags_ & RenderProcessFlags::kForInitialWebUI) != 0;
+bool RenderProcessHostImpl::IsForTopChromeWebUI() const {
+  return (flags_ & RenderProcessFlags::kForTopChromeWebUI) != 0;
 }
-#endif
 
 bool RenderProcessHostImpl::IsJitDisabled() {
   return !!(flags_ & RenderProcessFlags::kJitDisabled);
@@ -3513,7 +3530,7 @@ bool RenderProcessHostImpl::ShouldPauseChannelUntilProcessLaunched() {
     if (features::kSkipIPCChannelPausingForNonGuestsInternalWebUiOnly.Get()) {
 #if !BUILDFLAG(IS_ANDROID)
       // Skip pausing if we're on initial WebUI, so return false in that case.
-      return !IsForInitialWebUI();
+      return !IsForTopChromeWebUI();
 #else
       // We're definitely not on initial WebUI, so return true to pause.
       return true;
@@ -3692,7 +3709,6 @@ void RenderProcessHostImpl::PropagateBrowserCommandLineToRenderer(
       switches::kDisableThreadedCompositing,
       switches::kDisableV8IdleTasks,
       switches::kDisableVideoCaptureUseGpuMemoryBuffer,
-      switches::kDisableWebGLImageChromium,
       switches::kDomAutomationController,
       switches::kEnableAutomation,
       switches::kEnableExperimentalAccessibilityLanguageDetection,
@@ -3713,7 +3729,6 @@ void RenderProcessHostImpl::PropagateBrowserCommandLineToRenderer(
       switches::kEnableVtune,
       switches::kEnableWebGLDeveloperExtensions,
       switches::kEnableWebGLDraftExtensions,
-      switches::kEnableWebGLImageChromium,
       switches::kEnableWebGPUDeveloperFeatures,
       switches::kFileUrlPathAlias,
       switches::kForceDeviceScaleFactor,
@@ -3772,6 +3787,7 @@ void RenderProcessHostImpl::PropagateBrowserCommandLineToRenderer(
       blink::switches::kEnablePreferCompositingToLCDText,
       blink::switches::kEnableRGBA4444Textures,
       blink::switches::kEnableRasterSideDarkModeForImages,
+      blink::switches::kEnableWebGLImageChromium,
       blink::switches::kForceGpuMemAvailableMb,
       blink::switches::
           kGpuMemoryBufferReadbackFromTextureForceDisabledForDebugging,
@@ -3990,16 +4006,30 @@ bool RenderProcessHostImpl::ShutdownRequested() {
   return shutdown_requested_;
 }
 
-bool RenderProcessHostImpl::FastShutdownIfPossible(size_t page_count,
-                                                   bool skip_unload_handlers,
-                                                   bool ignore_workers,
-                                                   bool ignore_keep_alive,
-                                                   bool ignore_pending_reuse) {
+bool RenderProcessHostImpl::FastShutdownIfPossible(
+    size_t page_count,
+    bool skip_unload_handlers,
+    bool ignore_workers,
+    bool ignore_keep_alive,
+    bool ignore_pending_reuse,
+    bool use_outermost_main_frame_check) {
   base::UmaHistogramBoolean(
       "BrowserRenderProcessHost.FastShutdownIfPossible.Total", true);
+
+  // TODO(crbug.com/463513005): When switching to checking outermost main frame
+  // counts by default consider eliminating `pending_views_` - capturing these
+  // in the count returned by the function instead (`pending_views_` covers
+  // speculative and pending-commit RFHs, and this could be checked by RFH
+  // lifecycle state instead).
+  const size_t view_or_outermost_frame_count =
+      use_outermost_main_frame_check
+          ? GetOutermostMainFrameCountForFastShutdown(this)
+          : GetActiveViewCount();
+
   // Do not shut down the process if there are active or pending views other
   // than the ones we're shutting down.
-  if (page_count && page_count != (GetActiveViewCount() + pending_views_)) {
+  if (page_count &&
+      page_count != (view_or_outermost_frame_count + pending_views_)) {
     LogDelayReasonForFastShutdown(
         DelayShutdownReason::kOtherActiveOrPendingViews);
     return false;
@@ -5943,6 +5973,10 @@ void RenderProcessHostImpl::BindChildHistogramFetcherFactory(
     mojo::PendingReceiver<metrics::mojom::ChildHistogramFetcherFactory>
         factory) {
   BindReceiver(std::move(factory));
+}
+
+bool RenderProcessHostImpl::IsWebiumRenderer() const {
+  return IsForTopChromeWebUI();
 }
 
 // static

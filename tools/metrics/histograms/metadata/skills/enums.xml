@@ -31,6 +31,7 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="Saved New Skill"/>
   <int value="2" label="Clicked Cancel in Dialog"/>
   <int value="3" label="Clicked Refine in Dialog"/>
+  <int value="4" label="Deleted Skill"/>
 </enum>
 
 <!-- LINT.ThenChange(//components/skills/public/skills_metrics.h:SkillsDialogAction) -->
@@ -64,6 +65,7 @@ chromium-metrics-reviews@google.com.
   <int value="0" label="Used 1st Party Skill"/>
   <int value="1" label="Used User-Created Skill"/>
   <int value="2" label="Used Derived from 1st Party (Remixed) Skill"/>
+  <int value="3" label="Unknown"/>
 </enum>
 
 <!-- LINT.ThenChange(//components/skills/public/skills_metrics.h:SkillsInvokeAction) -->
@@ -77,6 +79,19 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(//components/skills/public/skills_metrics.h:SkillsInvokeResult) -->
+
+<!-- LINT.IfChange(SkillsManagementAction) -->
+
+<enum name="SkillsManagementAction">
+  <int value="0" label="Page Opened"/>
+  <int value="1" label="Clicked Add Skill"/>
+  <int value="2" label="Clicked Edit Skill"/>
+  <int value="3" label="Clicked Delete Skill"/>
+  <int value="4" label="Clicked Copy Instructions"/>
+  <int value="5" label="Clicked Browse Skills"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/skills/public/skill_metrics.mojom:SkillsManagementAction) -->
 
 <!-- LINT.IfChange(SkillsManagementError) -->
 

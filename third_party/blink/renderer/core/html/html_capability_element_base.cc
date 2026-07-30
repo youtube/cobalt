@@ -468,7 +468,7 @@ bool HTMLCapabilityElementBase::IsRendered() const {
 uint16_t HTMLCapabilityElementBase::GetTranslatedMessageID(
     uint16_t message_id,
     const AtomicString& language_string) {
-  DCHECK(language_string.IsLowerASCII());
+  DCHECK(language_string.ContainsNoAsciiUpper());
   if (language_string.empty()) {
     return message_id;
   }
@@ -789,7 +789,7 @@ void HTMLCapabilityElementBase::AdjustStyle(ComputedStyleBuilder& builder) {
     return;
   }
 
-  builder.SetOutlineOffset(builder.OutlineOffset().ClampNegativeToZero());
+  builder.SetOutlineOffset(std::max(0, builder.OutlineOffset()));
 
   // Check and modify (if needed) properties related to the font.
   std::optional<FontDescription> new_font_description;

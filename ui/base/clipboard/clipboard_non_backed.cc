@@ -415,9 +415,8 @@ class ClipboardDataBuilder {
   static void WriteData(const ClipboardFormatType& format,
                         base::span<const uint8_t> data) {
     ClipboardData* clipboard_data = GetCurrentData();
-    clipboard_data->SetCustomData(
-        format,
-        std::string(reinterpret_cast<const char*>(data.data()), data.size()));
+    clipboard_data->SetCustomData(format,
+                                  std::string_view(base::as_chars(data)));
   }
 
  private:
@@ -499,10 +498,10 @@ std::unique_ptr<ClipboardData> ClipboardNonBacked::WriteClipboardData(
 
 void ClipboardNonBacked::OnPreShutdown() {}
 
-std::optional<DataTransferEndpoint> ClipboardNonBacked::GetSource(
-    ClipboardBuffer buffer) const {
+void ClipboardNonBacked::GetSource(ClipboardBuffer buffer,
+                                   GetSourceCallback callback) const {
   const ClipboardData* data = GetInternalClipboard(buffer).GetData();
-  return data ? data->source() : std::nullopt;
+  std::move(callback).Run(data ? data->source() : std::nullopt);
 }
 
 const ClipboardSequenceNumberToken& ClipboardNonBacked::GetSequenceNumber(
@@ -584,31 +583,36 @@ void ClipboardNonBacked::Clear(ClipboardBuffer buffer) {
   GetInternalClipboard(buffer).Clear();
 }
 
-std::vector<std::u16string> ClipboardNonBacked::GetStandardFormats(
+void ClipboardNonBacked::GetStandardFormats(
     ClipboardBuffer buffer,
-    const DataTransferEndpoint* data_dst) const {
+    const std::optional<DataTransferEndpoint>& data_dst,
+    GetStandardFormatsCallback callback) const {
   std::vector<std::u16string> types;
   if (IsFormatAvailable(ClipboardFormatType::PlainTextType(), buffer,
-                        data_dst)) {
+                        base::OptionalToPtr(data_dst))) {
     types.push_back(kMimeTypePlainText16);
   }
-  if (IsFormatAvailable(ClipboardFormatType::HtmlType(), buffer, data_dst)) {
+  if (IsFormatAvailable(ClipboardFormatType::HtmlType(), buffer,
+                        base::OptionalToPtr(data_dst))) {
     types.push_back(kMimeTypeHtml16);
   }
-  if (IsFormatAvailable(ClipboardFormatType::SvgType(), buffer, data_dst)) {
+  if (IsFormatAvailable(ClipboardFormatType::SvgType(), buffer,
+                        base::OptionalToPtr(data_dst))) {
     types.push_back(kMimeTypeSvg16);
   }
-  if (IsFormatAvailable(ClipboardFormatType::RtfType(), buffer, data_dst)) {
+  if (IsFormatAvailable(ClipboardFormatType::RtfType(), buffer,
+                        base::OptionalToPtr(data_dst))) {
     types.push_back(kMimeTypeRtf16);
   }
-  if (IsFormatAvailable(ClipboardFormatType::BitmapType(), buffer, data_dst)) {
+  if (IsFormatAvailable(ClipboardFormatType::BitmapType(), buffer,
+                        base::OptionalToPtr(data_dst))) {
     types.push_back(kMimeTypePng16);
   }
   if (IsFormatAvailable(ClipboardFormatType::FilenamesType(), buffer,
-                        data_dst)) {
+                        base::OptionalToPtr(data_dst))) {
     types.push_back(kMimeTypeUriList16);
   }
-  return types;
+  std::move(callback).Run(std::move(types));
 }
 
 void ClipboardNonBacked::ReadAvailableTypes(
@@ -625,17 +629,23 @@ void ClipboardNonBacked::ReadAvailableTypes(
     return;
   }
 
-  std::vector<std::u16string> types =
-      GetStandardFormats(buffer, base::OptionalToPtr(data_dst));
-
-  if (clipboard_internal.IsFormatAvailable(ClipboardInternalFormat::kCustom) &&
-      clipboard_internal.GetData()) {
-    ReadCustomDataTypes(
-        base::as_byte_span(
-            clipboard_internal.GetData()->GetDataTransferCustomData()),
-        &types);
-  }
-  std::move(callback).Run(std::move(types));
+  GetStandardFormats(
+      buffer, data_dst,
+      base::BindOnce(
+          [](const ClipboardInternal* clipboard_internal,
+             ReadAvailableTypesCallback callback,
+             std::vector<std::u16string> types) {
+            if (clipboard_internal->IsFormatAvailable(
+                    ClipboardInternalFormat::kCustom) &&
+                clipboard_internal->GetData()) {
+              ReadCustomDataTypes(
+                  base::as_byte_span(clipboard_internal->GetData()
+                                         ->GetDataTransferCustomData()),
+                  &types);
+            }
+            std::move(callback).Run(std::move(types));
+          },
+          &clipboard_internal, std::move(callback)));
 }
 
 void ClipboardNonBacked::ReadText(

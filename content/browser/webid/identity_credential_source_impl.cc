@@ -12,6 +12,7 @@
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/page.h"
 #include "content/public/browser/render_frame_host.h"
+#include "content/public/browser/webid/federated_embedder_login_request.h"
 #include "third_party/blink/public/mojom/webid/federated_auth_request.mojom.h"
 
 namespace content::webid {
@@ -128,6 +129,11 @@ void IdentityCredentialSourceImpl::GetIdentityCredentialSuggestions(
       /*filter_accounts_callback=*/base::DoNothing());
 }
 
+bool IdentityCredentialSourceImpl::HasPendingRequest() {
+  RequestPageData* page_data = GetPageData(render_frame_host().GetPage());
+  return page_data && page_data->PendingWebIdentityRequest();
+}
+
 bool IdentityCredentialSourceImpl::SelectAccount(
     const url::Origin& idp_origin,
     const std::string& account_id) {
@@ -139,6 +145,7 @@ bool IdentityCredentialSourceImpl::SelectAccount(
   if (!request_service) {
     return false;
   }
+
   const auto& accounts = request_service->GetAccounts();
   for (const auto& account : accounts) {
     const GURL& idp_config_url =
@@ -148,6 +155,13 @@ bool IdentityCredentialSourceImpl::SelectAccount(
       CHECK_EQ(account->idp_claimed_login_state.value_or(
                    account->browser_trusted_login_state),
                IdentityRequestAccount::LoginState::kSignIn);
+
+      auto it = request_service->idp_infos_.find(idp_config_url);
+      CHECK(it != request_service->idp_infos_.end());
+      if (it->second->client_is_third_party_to_top_frame_origin) {
+        return false;
+      }
+
       request_service->OnAccountSelected(idp_config_url, account->id,
                                          /*is_sign_in=*/true);
       return true;
@@ -156,6 +170,15 @@ bool IdentityCredentialSourceImpl::SelectAccount(
 
   // Account not found
   return false;
+}
+
+void IdentityCredentialSourceImpl::SetEmbedderLoginRequest(
+    const url::Origin& idp_origin,
+    const std::string& account_id,
+    base::OnceCallback<void(FederatedLoginResult)> callback) {
+  FederatedEmbedderLoginRequest::Set(
+      WebContents::FromRenderFrameHost(&render_frame_host()), idp_origin,
+      account_id, std::move(callback));
 }
 
 void IdentityCredentialSourceImpl::SetNetworkManagerForTests(
@@ -186,8 +209,7 @@ void IdentityCredentialSourceImpl::OnAccountsFetchCompleted(
 }
 
 // static
-IdentityCredentialSource* IdentityCredentialSource::FromPage(
-    content::Page& page) {
+IdentityCredentialSource* IdentityCredentialSource::FromPage(Page& page) {
   return IdentityCredentialSourceImpl::GetOrCreateForCurrentDocument(
       &page.GetMainDocument());
 }

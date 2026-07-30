@@ -32,7 +32,6 @@
 #include "base/types/expected_macros.h"
 #include "build/build_config.h"
 #include "content/browser/indexed_db/indexed_db_data_format_version.h"
-#include "content/browser/indexed_db/indexed_db_reporting.h"
 #include "content/browser/indexed_db/indexed_db_value.h"
 #include "content/browser/indexed_db/instance/backing_store.h"
 #include "content/browser/indexed_db/instance/blob_reader.h"
@@ -996,11 +995,9 @@ void DatabaseConnection::CloseDatabase(
   }
 
   if (should_attempt_recovery) {
-    // `RecoverIfPossible` will no-op for several reasons including if the error
-    // is thought to be transient.
-    std::ignore = sql::Recovery::RecoverIfPossible(
-        db.get(), db->GetErrorCode(),
-        sql::Recovery::Strategy::kRecoverWithMetaVersionOrRaze);
+    // This falls back to deleting the database on failure.
+    std::ignore = sql::Recovery::RecoverDatabase(
+        db.get(), sql::Recovery::Strategy::kRecoverWithMetaVersionOrRaze);
     return;
   }
 
@@ -1101,19 +1098,20 @@ base::OnceClosure DatabaseConnection::GetCleanupTask(bool force_closing) && {
     // point recovery will be attempted if appropriate.
 #if BUILDFLAG(IS_FUCHSIA)
     // Recovery is not supported with WAL mode DBs in Fuchsia.
-    if (had_sql_error && db_->is_open() &&
-        sql::IsErrorCatastrophic(db_->GetErrorCode())) {
+    if (had_sql_error && sql::IsErrorCatastrophic(db_->GetErrorCode())) {
       should_delete_db = true;
     }
 #else
     // Don't attempt recovery if we're force closing. Note that this should be
     // rare since a database error should lead to only this database being
     // closed, not the whole backing store.
-    should_attempt_recovery = !force_closing && had_sql_error;
+    should_attempt_recovery =
+        !force_closing && had_sql_error &&
+        sql::Recovery::ShouldAttemptRecovery(db_.get(), db_->GetErrorCode());
 #endif
 
     // Determine whether to vacuum.
-    if (!had_sql_error && !should_delete_db && !should_attempt_recovery) {
+    if (!had_sql_error && !should_delete_db) {
       unsigned int freelist_percentage =
           base::ClampDiv(GetFreelistCount(*db_) * 100, GetPageCount(*db_));
       base::UmaHistogramPercentage("IndexedDB.SQLite.FreelistPercentageAtClose",
@@ -1281,6 +1279,13 @@ void DatabaseConnection::PerformIdleMaintenance() {
     db_->TrimMemory();
     return;
   }
+
+  // Open statements would block checkpointing.
+  for (const auto& [_, statement_holder] : cursor_statements_) {
+    const auto& [statement, store_id] = statement_holder;
+    BackingStoreCursorImpl::InvalidateStatement(*statement);
+  }
+
   db_->CheckpointDatabase(/*truncate=*/false);
 }
 
@@ -2344,15 +2349,15 @@ DatabaseConnection::CreateAllExternalObjects(
             base::BindOnce(&DatabaseConnection::OnBlobBecameInactive,
                            base::Unretained(this), object.blob_number(),
                            /*is_legacy_blob=*/false),
-            base::BindRepeating(&LogNetError, "IndexedDB.BackingStore.ReadBlob",
-                                in_memory()));
+            backing_store_->on_blob_read_complete());
       } else {
         endpoint = std::make_unique<BlobReader>(
             object,
             // Unretained is safe because `this` owns `endpoint`.
             base::BindOnce(&DatabaseConnection::OnBlobBecameInactive,
                            base::Unretained(this), object.blob_number(),
-                           /*is_legacy_blob=*/true));
+                           /*is_legacy_blob=*/true),
+            backing_store_->on_blob_read_complete());
       }
       it = active_blobs_.emplace(object.blob_number(), std::move(endpoint))
                .first;

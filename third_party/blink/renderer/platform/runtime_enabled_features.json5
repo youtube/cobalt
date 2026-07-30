@@ -320,6 +320,16 @@
       status: "test",
       base_feature: "none",
     },
+        {
+      name: "AIClassifierAPI",
+      status: {
+        "Win": "experimental",
+        "Mac": "experimental",
+        "Linux": "experimental",
+        "ChromeOS": "experimental",
+        "default": "",
+      },
+    },
     // Whether to automatically build an APC content_extraction tree on load.
     {
       name: "AIPageContentBuildOnLoadForTesting",
@@ -1407,7 +1417,7 @@
     {
       // https://chromestatus.com/feature/5125388091260928
       name: "CSSBorderShape",
-      status: "experimental",
+      status: "stable",
     },
     {
       // Support CSS Values Level 4 calc simplification and serialization
@@ -1461,7 +1471,7 @@
     {
       // https://drafts.csswg.org/css-color-5/#contrast-color
       name: "CSSContrastColor",
-      status: "experimental",
+      status: "stable",
     },
     {
       // https://drafts.csswg.org/css-borders-4/#corner-shaping
@@ -1585,7 +1595,6 @@
     {
       name: "CSSLineClampLineBreakingEllipsis",
       depends_on: ["CSSLineClamp"],
-      status: "experimental",
     },
     {
       // This flag makes `(-webkit-)line-clamp: <integer>` clamp by both lines
@@ -1663,7 +1672,7 @@
     },
     {
       name: "CSSPseudoElementInterface",
-      status: "experimental",
+      status: "stable",
     },
     {
       // Enables the :has-slotted pseudo-selector.
@@ -1892,6 +1901,14 @@
       status: "test",
     },
     {
+      // https://crbug.com/488305665: Support :user-valid/:user-invalid for radio buttons.
+      // This lands in M147, and the flag can be removed in M149.
+      //
+      // https://drafts.csswg.org/selectors-4/#user-valid-pseudo
+      name: "CSSUserValidAndUserInvalidForRadio",
+      status: "stable",
+    },
+    {
       name: "CSSVideoDynamicRangeMediaQueries",
       status: "experimental",
     },
@@ -1929,6 +1946,11 @@
     {
       // https://chromestatus.com/feature/5134293578285056
       name: "Database",
+    },
+    {
+      // crbug.com/40153320
+      name: "DateTimeLocalArabicCommaWorkaround",
+      status: "stable",
     },
     // https://crbug.com/448174611
     {
@@ -2229,6 +2251,11 @@
       name: "DocumentPolicyIncludeJSCallStacksInCrashReports",
       status: "stable",
     },
+    // Enables Document Policy for DedicatedWorkers.
+    {
+      name: "DocumentPolicyInDedicatedWorker",
+      status: "experimental",
+    },
     {
       name: "DocumentPolicyNegotiation",
       origin_trial_feature_name: "DocumentPolicyNegotiation",
@@ -2298,16 +2325,6 @@
       status: "stable",
     },
     {
-      // ElementInternals.type allows web authors to create autonomous
-      // custom elements that inherit specific behaviors from native
-      // HTML elements, while maintaining the ability to use shadow DOM
-      // and custom rendering.
-      // crbug.com/422947646
-      // https://github.com/MicrosoftEdge/MSEdgeExplainers/blob/main/ElementInternalsType/explainer.md
-      name: "ElementInternalsDotType",
-      status: "experimental",
-    },
-    {
       // When enabled, the readonly attribute will prevent constraint validation
       // only in some cases, depending on the element.
       // This was added in M147 and can be removed after M149.
@@ -2348,7 +2365,7 @@
     {
       // `event.pseudoTarget` property to represent pseudo-elements in events. Returns `CSSPseudoElement` or null.
       name: "EventPseudoTargetProperty",
-      status: "experimental",
+      status: "stable",
       depends_on: ["CSSPseudoElementInterface"],
     },
     {
@@ -2817,6 +2834,10 @@
       status: "experimental",
     },
     {
+      name: "FocusRingRespectExplicitOutlineColorInDarkMode",
+      status: "stable",
+    },
+    {
       name: "FontAccess",
       status: {"Android": "", "default": "stable"},
     },
@@ -3032,6 +3053,13 @@
       status: "experimental",
     },
     {
+      // Kill switch for setting `display: none` on the media controls
+      // container when it is not needed.
+      // Lands in M147 and can be removed in M149. https://crbug.com/40591804
+      name: "HideVideoControlsWhenUnneeded",
+      status: "stable",
+    },
+    {
       name: "HighlightPointerEvents",
     },
     {
@@ -3041,6 +3069,14 @@
     {
       // Removed status stable due to https://crbug.com/456164629.
       name: "HitTestBorderRadiusForStackingContext",
+    },
+    {
+      // Use container_transform_state instead of local_transform_state when
+      // computing z-depth for depth ordering in preserve-3d hit testing.
+      // Fixes incorrect hit-test results for layers without CSS transforms.
+      // https://crbug.com/464173566
+      name: "HitTestContainerTransformStateForPreserve3d",
+      status: "stable",
     },
     {
       name: "HrefTranslate",
@@ -3478,8 +3514,9 @@
       status: "test",
     },
     {
-      // Add styleDuration to PerformanceLongAnimationFrameTiming and
-      // forcedStyleDuration to PerformanceScriptTiming
+      // Add styleDuration and layoutDuration to
+      // PerformanceLongAnimationFrameTiming and forcedStyleDuration and
+      // forcedLayoutDuration to PerformanceScriptTiming
       name: "LongAnimationFrameStyleDuration",
       status: "experimental",
     },
@@ -3503,6 +3540,8 @@
     },
     {
       name: "MachineLearningNeuralNetwork",
+      origin_trial_feature_name: "WebMachineLearningNeuralNetwork",
+      origin_trial_os: ["win", "mac", "linux", "chromeos"],
       // Enabled by webnn::mojom::features::kWebMachineLearningNeuralNetwork.
       base_feature: "none",
     },
@@ -3726,13 +3765,6 @@
       status: "stable",
     },
     {
-      // Multicast in Direct Sockets API.
-      // https://github.com/WICG/direct-sockets/blob/main/docs/multicast-explainer.md
-      name: "MulticastInDirectSockets",
-      status: "stable",
-      depends_on: ["DirectSockets"]
-    },
-    {
       name: "MulticolColumnWrapping",
       status: "stable",
     },
@@ -3758,6 +3790,9 @@
     {
       name: "NavigateEventSourceElement",
       status: "stable",
+    },
+    {
+      name: "NavigationEventTiming",
     },
     {
       name: "NavigationId",
@@ -3881,7 +3916,7 @@
       // for encapsulated content within <textarea> and <input> elements.
       // crbug.com/421421332
       name: "OpaqueRange",
-      status: "test",
+      status: "experimental",
     },
     {
       // Restrict popover invoker lookup to the same TreeScope as the element.
@@ -4354,6 +4389,15 @@
       status: "test",
       base_feature: "none",
     },
+    {
+      name: "ProfilerAPI",
+      status: "stable",
+    },
+    {
+      // When enabled, dedicated workers can use profiler API
+      name: "ProfilerAPIForDedicatedWorker",
+      status: "experimental",
+    },
     // Promisify programmatic scroll methods in Element and Window.
     // https://crbug.com/41406914
     {
@@ -4409,7 +4453,7 @@
       // Support hit-testing for ::after, ::before, ::marker
       // (e.g. for CSSPseudoElement).
       name: "PseudoElementsHitTestable",
-      status: "experimental",
+      status: "stable",
     },
     {
       // Support :hover on ::after, ::before, ::marker.
@@ -4587,6 +4631,10 @@
       status: "stable",
     },
     {
+      name: "RequestIsReloadNavigation",
+      status: "experimental",
+    },
+    {
       name: "RequestMainFrameAfterFirstVideoFrame",
       status: "experimental",
     },
@@ -4649,6 +4697,12 @@
     {
       name: "RTCDataChannelPriority",
       status: "experimental",
+    },
+    {
+      name: "RTCDiagnosticLogging",
+      status: "test",
+      base_feature_status: "enabled",
+      copied_from_base_feature_if: "overridden",
     },
     {
       name: "RTCEncodedFrameAudioLevel",
@@ -5247,7 +5301,7 @@
       // Source-specific multicast support in the Direct Sockets API.
       name: "SourceSpecificMulticastInDirectSockets",
       status: "test",
-      depends_on: ["MulticastInDirectSockets"],
+      depends_on: ["DirectSockets"],
     },
     {
       // Whether spatial navigation should use cursor inheritance to exclude
@@ -5284,6 +5338,12 @@
       name: "StableBlinkFeatures",
       status: "stable",
       base_feature: "none",
+    },
+    {
+      // Kill switch for falsifying IsStacked() for non-stacked
+      // stacking contexts. https://crbug.com/40208685
+      name: "StackingContextIsNotStacked",
+      status: "stable",
     },
     {
       // See https://github.com/w3c/csswg-drafts/issues/9398
@@ -5340,15 +5400,15 @@
       status: "experimental",
     },
     {
-      name: "Svg2Cascade",
-      status: "stable",
-    },
-    {
       name: "SvgAnchorElementAttributes",
       status: "stable",
     },
     {
       name: "SvgAnchorElementDownloadAttribute",
+      status: "stable",
+    },
+    {
+      name: "SvgAnimateMotionDiscreteCalcMode",
       status: "stable",
     },
     {
@@ -5386,6 +5446,10 @@
       status: "test",
     },
     {
+      name: "SvgLengthListClearOnParsingFailure",
+      status: "stable",
+    },
+    {
       name: "SvgLengthResolveUnparsedValue",
       status: "stable",
     },
@@ -5394,8 +5458,16 @@
       status: "stable",
     },
     {
+      name: "SvgNumberListClearOnParsingFailure",
+      status: "stable",
+    },
+    {
       name: "SvgPartitionSVGDocumentResourcesInMemoryCache",
       status: "stable",
+    },
+    {
+      name: "SvgPathLengthCssProperty",
+      status: "experimental",
     },
     {
       name: "SvgScriptElementAsyncAttribute",
@@ -5420,6 +5492,10 @@
     {
       name: "SynthesizedKeyboardEventsForAccessibilityActions",
       status: "experimental",
+    },
+    {
+      name: "SyntheticMouseHoverOverInactivePage",
+      status: "stable",
     },
     {
       name: "SystemDefaultAccentColors",
@@ -6199,11 +6275,6 @@
     {
       name: "WebGLDrawingBufferStorage",
       status: "stable",
-    },
-    {
-      name: "WebGLImageChromium",
-      base_feature: "none",
-      public: true,
     },
     {
       // Switch WebGL to use an experimental implementation where WebGL calls

@@ -48,7 +48,8 @@
 
 namespace send_tab_to_self {
 
-SendTabToSelfBubbleController::PendingRequest::PendingRequest() = default;
+SendTabToSelfBubbleController::PendingRequest::PendingRequest()
+    : start_time(base::TimeTicks::Now()) {}
 
 SendTabToSelfBubbleController::PendingRequest::PendingRequest(
     PendingRequest&&) = default;
@@ -161,13 +162,15 @@ void SendTabToSelfBubbleController::OnDeviceSelected(
   }
 
   if (!base::FeatureList::IsEnabled(kSendTabToSelfPropagateScrollPosition)) {
-    SendFinalizedRequest(std::move(request));
+    SendFinalizedRequest(std::move(request), std::nullopt);
     return;
   }
 
   content::RenderFrameHost* main_frame = GetWebContents().GetPrimaryMainFrame();
   if (!main_frame) {
-    SendFinalizedRequest(std::move(request));
+    SendFinalizedRequest(
+        std::move(request),
+        ScrollPositionGenerationOutcome::kMainFrameUnavailable);
     return;
   }
 
@@ -188,16 +191,16 @@ void SendTabToSelfBubbleController::OnDeviceSelected(
 
   text_fragment_receiver_->RequestSelectorForViewportCenter(base::BindOnce(
       &SendTabToSelfBubbleController::SelectorGeneratedForRequest,
-      weak_ptr_factory_.GetWeakPtr(), request_token));
+      weak_ptr_factory_.GetWeakPtr(), request_token,
+      /*is_browser_timeout=*/false));
 
   // Start a timer to fallback if the renderer is too slow.
-  // TODO(crbug.com/482925620): Add histograms for generation time and
-  // timeouts, and consider making this timeout configurable.
   base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
       FROM_HERE,
       base::BindOnce(
           &SendTabToSelfBubbleController::SelectorGeneratedForRequest,
           weak_ptr_factory_.GetWeakPtr(), request_token,
+          /*is_browser_timeout=*/true,
           /*selector=*/std::string(),
           shared_highlighting::LinkGenerationError::kTimeout,
           shared_highlighting::LinkGenerationReadyStatus::kRequestedAfterReady),
@@ -206,8 +209,9 @@ void SendTabToSelfBubbleController::OnDeviceSelected(
 
 void SendTabToSelfBubbleController::SelectorGeneratedForRequest(
     base::Token request_token,
+    bool is_browser_timeout,
     const std::string& selector,
-    shared_highlighting::LinkGenerationError /*error*/,
+    shared_highlighting::LinkGenerationError error,
     shared_highlighting::LinkGenerationReadyStatus /*ready_status*/) {
   auto it = pending_requests_.find(request_token);
   if (it == pending_requests_.end()) {
@@ -220,24 +224,44 @@ void SendTabToSelfBubbleController::SelectorGeneratedForRequest(
   PendingRequest request = std::move(it->second);
   pending_requests_.erase(it);
 
-  // Only add the text fragment if the main frame is the same as the one that
-  // was originally requested.
+  ScrollPositionGenerationOutcome outcome =
+      ScrollPositionGenerationOutcome::kSuccess;
+
   content::RenderFrameHost* main_frame = GetWebContents().GetPrimaryMainFrame();
-  if (main_frame && main_frame->GetGlobalId() == request.main_frame_id &&
-      !selector.empty()) {
+  if (!main_frame || main_frame->GetGlobalId() != request.main_frame_id) {
+    outcome = ScrollPositionGenerationOutcome::kMainFrameChanged;
+  } else if (is_browser_timeout) {
+    outcome = ScrollPositionGenerationOutcome::kBrowserTimeout;
+  } else if (error == shared_highlighting::LinkGenerationError::kTimeout) {
+    outcome = ScrollPositionGenerationOutcome::kRendererTimeout;
+  } else if (error != shared_highlighting::LinkGenerationError::kNone) {
+    outcome = ScrollPositionGenerationOutcome::kLinkGenerationError;
+  } else if (selector.empty()) {
+    outcome = ScrollPositionGenerationOutcome::kEmptySelector;
+  } else {
     std::optional<shared_highlighting::TextFragment> fragment =
         shared_highlighting::TextFragment::FromEscapedString(selector);
     if (fragment) {
+      RecordScrollPositionSelectorLength(selector.length());
       request.page_context.scroll_position.text_fragment =
           TextFragmentData(*fragment);
+    } else {
+      outcome = ScrollPositionGenerationOutcome::kInvalidSelector;
     }
   }
 
-  SendFinalizedRequest(std::move(request));
+  SendFinalizedRequest(std::move(request), outcome);
 }
 
 void SendTabToSelfBubbleController::SendFinalizedRequest(
-    PendingRequest request) {
+    PendingRequest request,
+    std::optional<ScrollPositionGenerationOutcome> outcome) {
+  if (outcome) {
+    RecordScrollPositionGenerationOutcome(*outcome);
+    send_tab_to_self::RecordScrollPositionGenerationTime(
+        base::TimeTicks::Now() - request.start_time);
+  }
+
   SendTabToSelfModel* model =
       SendTabToSelfSyncServiceFactory::GetForProfile(GetProfile())
           ->GetSendTabToSelfModel();

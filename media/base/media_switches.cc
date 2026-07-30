@@ -606,6 +606,12 @@ BASE_FEATURE(kSymphoniaAudioDecoding, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kSymphoniaMp3Decoding, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
+// Forces D3D11VideoDecoder to use one decoder texture per picture buffer.
+// Owner: media-gpu-team@chromium.org
+// Expiry: When no longer needed for decode texture selection experiments.
+BASE_FEATURE(kD3D11VideoDecoderForceSingleTexture,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kD3D11VideoDecoderUseSharedHandle,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -966,20 +972,20 @@ BASE_FEATURE(kResolutionBasedDecoderPriority, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kAutoPictureInPictureForVideoPlayback,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+// Enables Happiness Tracking Surveys for Auto Picture-in-Picture.
+BASE_FEATURE(kAutoPictureInPictureSurveys, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enables showing auto picture-in-picture permission details in page info.
 BASE_FEATURE(kAutoPictureInPicturePageInfoDetails,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Enables sending provisioning requests in the body of the POST request rather
-// than encoding it inside the URL.
-// Owner: vpasupathy@chromium.org
-// Bug: 448700051
-BASE_FEATURE(kUsePostBodyForUrlProvisionFetcher,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Causes the AVC parser to additionally parse and indicate when an SEI
 // recovery point with `recovery_frame_cnt=0` has been found.
 BASE_FEATURE(kParseSEIRecoveryPoints, base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Allows media to autoplay without a user gesture if the site has been
+// granted microphone or camera permissions.
+BASE_FEATURE(kAutoplayBypassForMicCamera, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Whether we should show a setting to disable autoplay policy.
 BASE_FEATURE(kAutoplayDisableSettings, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -1035,6 +1041,10 @@ BASE_FEATURE(kEnableAudioMonitoringOnAndroid,
 // Enables Picture-in-Picture menu item on the video context menu on Android.
 BASE_FEATURE(kContextMenuPictureInPictureAndroid,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables fullscreen video Picture-in-Picture on Android.
+BASE_FEATURE(kFullscreenVideoPictureInPicture,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables the use of a Surface (ANativeWindow) as the input for the
 // NdkVideoEncodeAccelerator on Android.
@@ -1344,6 +1354,10 @@ BASE_FEATURE(kReduceHardwareVideoDecoderBuffers,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
+// Enables the Enterprise Autoplay policies (AutoplayAllowed and
+// AutoplayAllowlist) on Android.
+BASE_FEATURE(kAutoplayPoliciesAndroid, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // The following Media Engagement flags are not enabled on mobile platforms:
 // - MediaEngagementBypassAutoplayPolicies: enables the Media Engagement Index
 //   data to be esude to override autoplay policies. An origin with a high MEI
@@ -1528,6 +1542,9 @@ BASE_FEATURE(kMediaLogToConsole,
 // Controls whether AOM/VPX decoders should use the presentation thread type.
 BASE_FEATURE(kAomVpxUsePresentationThreadType,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables the Rust-based JPEG parser.
+BASE_FEATURE(kUseRustJpegParser, base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_WIN)
 // Controls whether to use D3D12 video decoder instead of D3D11 when supported.

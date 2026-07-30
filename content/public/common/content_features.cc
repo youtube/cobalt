@@ -16,6 +16,10 @@
 #include "content/public/common/buildflags.h"
 #include "media/base/media_switches.h"
 
+#if BUILDFLAG(IS_ANDROID)
+#include "base/android/device_info.h"
+#endif
+
 namespace features {
 
 // All features in alphabetical order.
@@ -50,6 +54,19 @@ BASE_FEATURE(kAndroidFallbackToNextSlot, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables IMEs to insert media content such as images, gifs and stickers.
 BASE_FEATURE(kAndroidMediaInsertion, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables a blur animation of the current page when navigating away from it.
+BASE_FEATURE(kAndroidNavigationBlurTransitionAnimation,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+const base::FeatureParam<int> kAndroidNavigationAnimationBlurHoldDuration{
+    &kAndroidNavigationBlurTransitionAnimation,
+    "nav-animation-fade-hold-duration-ms", 350};
+const base::FeatureParam<int> kAndroidNavigationAnimationFadeOutDuration{
+    &kAndroidNavigationBlurTransitionAnimation,
+    "nav-animation-fade-out-duration-ms", 150};
+const base::FeatureParam<double> kAndroidNavigationAnimationBlurSigma{
+    &kAndroidNavigationBlurTransitionAnimation, "nav-animation-blur-sigma",
+    3.0};
 
 // Enables the physical keyboard autocorrect underline feature.
 BASE_FEATURE(kAndroidPkAutocorrectUnderline, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -768,11 +785,6 @@ BASE_FEATURE(kRenderDocument, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kRestrictThreadPoolInBackground,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Feature that stops broadcasting the history index and length when
-// CreateRenderViewForRenderManager() is invoked, and instead passes the
-// information in the CreateViewParams, saving some IPC calls.
-BASE_FEATURE(kSetHistoryInfoOnViewCreation, base::FEATURE_ENABLED_BY_DEFAULT);
-
 // When enabled, sends the spare renderer information when setting the
 // priority of renderers. Currently only Android handles the spare renderer
 // information in priority.
@@ -1278,8 +1290,10 @@ BASE_FEATURE(kAccessibilityRequestLayoutBasedActions,
 // this event should cause a nodes's children to be rerendered if there've been
 // structural changes.
 BASE_FEATURE(kAccessibilityRequestScopedContentChangedEvents,
-             "AccessibilityRequestScopedContentChangedEvents",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+const base::FeatureParam<int> kMaxContentChangedEventsToFireParam{
+    &kAccessibilityRequestScopedContentChangedEvents, "max_events", 30};
 
 // When enabled, supports atomic announcements, meaning that when
 // aria-atomic=true, the entire live region will be announced not just the node
@@ -1341,6 +1355,7 @@ BASE_FEATURE(kReduceGpuPriorityOnBackground, base::FEATURE_DISABLED_BY_DEFAULT);
 // Screen Capture API support for Android.
 // This should not be enabled unless ENABLE_SCREEN_CAPTURE is on, otherwise
 // it won't work.
+// Enabled by Finch depending on form factor.
 BASE_FEATURE(kUserMediaScreenCapturing, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -1458,5 +1473,18 @@ bool IsPushSubscriptionChangeEventEnabled() {
          base::FeatureList::IsEnabled(
              features::kPushSubscriptionChangeEventOnResubscribe);
 }
+
+#if BUILDFLAG(IS_ANDROID)
+bool IsFluidResizeEnabled() {
+  // On phones, resizes are almost exclusively discrete transitions, such as
+  // orientation swaps. For these events, the standard immediate synchronization
+  // path is more efficient and results in fewer artifacts.
+  // By contrast, the continuous resize logic is optimized for the "live" window
+  // dragging seen on tablets and desktops.
+  return base::FeatureList::IsEnabled(features::kFluidResize) &&
+         (base::android::device_info::is_tablet() ||
+          base::android::device_info::is_desktop());
+}
+#endif
 
 }  // namespace features

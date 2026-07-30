@@ -2125,6 +2125,9 @@ void UpdateAnimationFlagsForEffect(const AnimationEffect& effect,
     builder.SetHasCurrentFilterAnimation(true);
   if (effect.Affects(PropertyHandle(GetCSSPropertyBackdropFilter())))
     builder.SetHasCurrentBackdropFilterAnimation(true);
+  if (effect.Affects(PropertyHandle(GetCSSPropertyClipPath()))) {
+    builder.SetHasCurrentClipPathAnimation(true);
+  }
   if (AffectsBackgroundColor(effect))
     builder.SetHasCurrentBackgroundColorAnimation(true);
 }
@@ -2565,18 +2568,22 @@ void CSSAnimations::CalculateTransitionUpdateForPropertyHandle(
     return;
   }
 
-  const PropertyRegistry* registry =
-      state.animating_element.GetDocument().GetPropertyRegistry();
-  if (property.IsCSSCustomProperty()) {
-    if (!registry || !registry->Registration(property.CustomPropertyName())) {
-      return;
-    }
-  }
-
   const ComputedStyle& before_change_style =
       CalculateBeforeChangeStyle(state, &property);
-
-  if (ComputedValuesEqual(property, before_change_style, after_change_style)) {
+  const PropertyRegistry* registry =
+      state.animating_element.GetDocument().GetPropertyRegistry();
+  // For unregistered custom properties, GetVariableValue() returns nullptr,
+  // which prevents ComputedValuesEqual from detecting changes.
+  // Fall back to comparing raw token data via GetVariableData() instead.
+  if (property.IsCSSCustomProperty() &&
+      (!registry || !registry->Registration(property.CustomPropertyName()))) {
+    const AtomicString& name = property.CustomPropertyName();
+    if (base::ValuesEquivalent(before_change_style.GetVariableData(name),
+                               after_change_style.GetVariableData(name))) {
+      return;
+    }
+  } else if (ComputedValuesEqual(property, before_change_style,
+                                 after_change_style)) {
     return;
   }
 

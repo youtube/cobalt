@@ -51,6 +51,8 @@ source_set("private_ai") {
     "connection_factory.h",
     "connection_factory_impl.cc",
     "connection_factory_impl.h",
+    "connection_manager.cc",
+    "connection_manager.h",
     "connection_metrics.cc",
     "connection_metrics.h",
     "connection_proxy.cc",
@@ -108,6 +110,7 @@ source_set("testing") {
     "testing/fake_token_manager.h",
     "testing/mock_private_ai_client.h",
   ]
+  deps = [ "//components/private_ai/common" ]
   public_deps = [
     ":private_ai",
     ":proto",
@@ -124,11 +127,11 @@ source_set("unit_tests") {
     "client_impl_integration_test.cc",
     "client_impl_unittest.cc",
     "connection_basic_unittest.cc",
+    "connection_manager_unittest.cc",
     "connection_metrics_unittest.cc",
     "connection_proxy_unittest.cc",
     "connection_timeout_unittest.cc",
     "connection_token_attestation_unittest.cc",
-    "private_ai_logger_unittest.cc",
     "secure_channel_impl_unittest.cc",
     "secure_session_async_impl_unittest.cc",
   ]
@@ -141,6 +144,7 @@ source_set("unit_tests") {
     "//components/private_ai/attestation",
     "//components/private_ai/attestation:unit_tests",
     "//components/private_ai/common",
+    "//components/private_ai/common:unit_tests",
     "//components/private_ai/crypto:unit_tests",
     "//components/private_ai/mojom",
     "//components/private_ai/phosphor",

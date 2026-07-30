@@ -1023,15 +1023,6 @@ Mulai <ph name="PRODUCT_NAME" /> 140, jika kebijakan ini tidak disetel, perilaku
 
 Mulai <ph name="PRODUCT_NAME" /> 147, kebijakan ini tidak akan digunakan lagi. Admin IT dapat menggunakan <ph name="SEARCH_CONTENT_SHARING_SETTINGS_POLICY_NAME" /> untuk mengontrol fitur ini ke depannya.</translation>
 <translation id="1686952487081322272">Nonaktifkan Jawaban Instan</translation>
-<translation id="1688920969335897857">Menyetel kebijakan akan mengontrol setelan pengelolaan ekstensi untuk <ph name="PRODUCT_NAME" />, termasuk setelan apa pun yang dikontrol oleh kebijakan terkait ekstensi yang sudah ada. Kebijakan ini akan menggantikan kebijakan lama apa pun yang mungkin disetel.
-
-Kebijakan ini hanya memetakan ID ekstensi atau URL update ke setelan khususnya. Konfigurasi default dapat disetel bagi ID khusus <ph name="DEFAULT_SCOPE" />, yang berlaku untuk semua ekstensi tanpa konfigurasi khusus dalam kebijakan ini. Dengan URL update, konfigurasi akan berlaku untuk ekstensi dengan URL update tepat yang disebutkan dalam manifes ekstensi ( http://support.google.com/chrome/a?p=Configure_ExtensionSettings_policy ). Jika tanda 'override_update_url' disetel ke benar (true), ekstensi akan diinstal dan diupdate menggunakan URL "update" yang ditentukan dalam kebijakan <ph name="EXTENSION_INSTALL_FORCELIST_POLICY_NAME" /> atau kolom 'update_url' dalam kebijakan ini. Tanda 'override_update_url' akan diabaikan jika 'update_url' adalah URL Chrome Web Store.
-
-Di instance <ph name="MS_WIN_NAME" />, aplikasi dan ekstensi yang bukan dari Chrome Web Store hanya dapat diinstal otomatis jika instance dihubungkan ke domain <ph name="MS_AD_NAME" />, dihubungkan ke <ph name="MS_AAD_NAME" />, atau didaftarkan di <ph name="CHROME_ENTERPRISE_CORE_NAME" />.
-
-Di instance <ph name="MAC_OS_NAME" />, aplikasi dan ekstensi yang bukan dari Chrome Web Store hanya dapat diinstal otomatis jika instance dikelola melalui MDM, dihubungkan ke domain melalui MCX, atau didaftarkan di <ph name="CHROME_ENTERPRISE_CORE_NAME" />.
-
-Catatan: Kebijakan ini hanya berlaku untuk platform yang mendukung ekstensi.</translation>
 <translation id="1690383938831887552">Cegah pemuatan Signed HTTP Exchange</translation>
 <translation id="1692325295652827195">Jika kebijakan disetel ke Benar (True), laporan peristiwa tombol saat penginstalan aplikasi Android yang dipicu kebijakan akan dikirimkan ke Google.
 
@@ -4137,6 +4128,23 @@ Transfer data dengan Takeout juga harus diaktifkan agar aplikasi Transfer konten
 <translation id="3712861436661566358">Menerapkan pemisahan profil</translation>
 <translation id="3719826155360621982">Beranda</translation>
 <translation id="3724039569609354541">Gunakan perilaku default saat menentukan apakah situs dapat membuat permintaan ke endpoint jaringan</translation>
+<translation id="3726715125055227414">Kebijakan ini mengonfigurasi <ph name="PRODUCT_OS_NAME" /> untuk mengurutkan algoritma perjanjian kunci pilihannya (grup yang didukung) di TLS 1.3 agar sesuai dengan algoritma yang telah disetujui berdasarkan skema kepatuhan tertentu, saat membuat permintaan jaringan dari layar login.
+
+Menyetel kebijakan ini tidak menjamin bahwa algoritma tertentu akan digunakan.
+
+Kebijakan ini dibuat bagi operator server, yang ingin mendukung klien dengan maupun tanpa persyaratan kepatuhan, agar dapat membedakan kedua klien tersebut. Kebijakan ini hanya menggunakan algoritma non-default tertentu dengan peningkatan kekuatan kriptografi untuk klien yang secara eksplisit dikonfigurasi agar memilih algoritma.
+
+Menyetel kebijakan ke '<ph name="CNSA2_NAME" />' akan mengonfigurasi <ph name="PRODUCT_OS_NAME" /> untuk memilih metode pertukaran kunci yang diperlukan agar sesuai dengan Commercial National Security Algorithm Suite 2.0 (CNSA 2.0).
+
+Jika kebijakan ini tidak disetel, atau disetel ke '<ph name="DEFAULT_NAME" />', <ph name="PRODUCT_OS_NAME" /> akan dikonfigurasi untuk menggunakan metode pertukaran kunci defaultnya.
+
+Setelan kebijakan ini tidak diperlukan untuk keamanan. Kriptografi default yang digunakan oleh <ph name="PRODUCT_OS_NAME" /> sudah cukup kuat untuk menahan serangan brute force bahkan dengan daya sebesar Matahari.
+
+Jika kebijakan ini disetel, <ph name="PRODUCT_OS_NAME" /> akan menjadi lebih lambat saat membuat permintaan jaringan dari layar login.
+
+Kebijakan ini hanya memengaruhi TLS 1.3 dan QUIC; kebijakan ini tidak memengaruhi TLS versi sebelumnya.
+
+Kebijakan perangkat ini setara dengan kebijakan pengguna, <ph name="PREFER_SLOW_KEX_ALGORITHMS_POLICY_NAME" />, tetapi berlaku untuk profil yang login di layar login.</translation>
 <translation id="3727476641336727380">Jika <ph name="ALLOW_SCREEN_WAKE_LOCKS_POLICY_NAME" /> disetel ke Aktif atau tidak disetel, penguncian layar saat aktif akan diizinkan untuk pengelolaan daya, kecuali <ph name="ALLOW_WAKE_LOCKS_POLICY_NAME" /> disetel ke Nonaktif. Ekstensi dapat meminta penguncian layar saat aktif melalui aplikasi ARC dan API ekstensi pengelolaan daya.
 
       Jika kebijakan disetel ke Nonaktif, permintaan penguncian layar saat aktif akan didemosikan ke permintaan penguncian layar saat aktif di sistem.</translation>
@@ -4653,6 +4661,17 @@ Untuk informasi selengkapnya tentang pola <ph name="URL_LABEL" /> yang valid, li
 <translation id="4090088362777472639">Hash SHA-256 gambar playbook Ansible.</translation>
 <translation id="4091040199847925434">Nonaktifkan pelaporan informasi sistem dan konten halaman yang digunakan untuk membantu meningkatkan Safe Browsing</translation>
 <translation id="4093058072421210667">Jangan izinkan Gambar Inline.</translation>
+<translation id="4096503137212127216">Kebijakan ini dapat digunakan untuk memblokir <ph name="CHROME_DEVTOOLS_NAME" /> di URL tertentu. Untuk mengetahui informasi tentang format URL, lihat https://support.google.com/chrome/a?p=url_blocklist_filter_format.
+
+Pola URL dicocokkan dengan URL setiap frame di halaman yang diperiksa. Perilaku yang dihasilkan bergantung pada apakah kebijakan <ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" /> juga disetel.
+
+Jika kebijakan ini disetel dan <ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" /> tidak disetel, URL frame apa pun yang cocok dengan pola di daftar yang tidak diizinkan ini akan memblokir <ph name="CHROME_DEVTOOLS_NAME" /> untuk seluruh halaman. Jika URL frame tidak cocok dengan pola apa pun, ketersediaan akan ditentukan oleh kebijakan <ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" />.
+
+Jika kebijakan ini dan kebijakan <ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" /> disetel, daftar yang diizinkan ini akan diprioritaskan. Jika URL frame cocok dengan pola di daftar yang diizinkan, URL akan diizinkan, meskipun juga cocok dengan pola di daftar yang tidak diizinkan ini. Jika cocok dengan pola di daftar yang tidak diizinkan ini (tetapi tidak cocok dengan pola di daftar yang diizinkan), URL akan diblokir. Jika URL tidak cocok dengan keduanya, kebijakan <ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" /> akan digunakan sebagai gantinya.
+
+Jika kebijakan ini tidak disetel, ketersediaan <ph name="CHROME_DEVTOOLS_NAME" /> akan ditentukan oleh kebijakan <ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" /> dan <ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" />.
+
+Kebijakan ini terbatas untuk 1.000 entri.</translation>
 <translation id="4098920079809952737">Izinkan pencetakan dengan dan tanpa grafis latar belakang</translation>
 <translation id="410061592404122032">Tanyakan setiap kali situs ingin mendapatkan izin Pengelolaan Jendela</translation>
 <translation id="410068710490553233">Mengizinkan Login ke Akun Google Tambahan</translation>
@@ -5966,6 +5985,19 @@ Jika kebijakan ini disetel ke <ph name="ALLOW_PASSTHROUGH_OF_SEARCH_BASED_SHORTC
       Jika kebijakan pada versi hingga dan termasuk M76 tidak disetel, berarti default <ph name="PRODUCT_NAME" /> tidak dapat mengumpulkan atau mengupload log tersebut. Mulai versi M77, default <ph name="PRODUCT_NAME" /> akan dapat mengumpulkan dan mengupload log tersebut dari sebagian besar profil yang terdampak oleh kebijakan perusahaan tingkat pengguna berbasis cloud. Mulai versi M77 hingga dan termasuk M80, <ph name="PRODUCT_NAME" /> juga dapat mengumpulkan dan mengupload log secara default dari profil yang terdampak oleh manajemen lokal <ph name="PRODUCT_NAME" />.</translation>
 <translation id="4911334289324462969">port 989 (blokir dapat dibatalkan hingga 01/02/2022)</translation>
 <translation id="4917385247580444890">Kuat</translation>
+<translation id="4917925819533520480">Kebijakan ini dapat digunakan untuk mengizinkan <ph name="CHROME_DEVTOOLS_NAME" /> di URL tertentu.
+
+Pola URL dicocokkan dengan URL setiap frame di halaman yang diperiksa. Perilaku yang dihasilkan bergantung pada apakah kebijakan <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" /> juga disetel.
+
+Jika kebijakan ini disetel dan <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" /> tidak disetel, URL setiap frame harus cocok dengan pola di daftar yang diizinkan ini agar <ph name="CHROME_DEVTOOLS_NAME" /> diizinkan. Jika URL frame tidak cocok, DevTools akan diblokir untuk seluruh halaman. Untuk mengetahui informasi tentang format URL, lihat https://support.google.com/chrome/a?p=url_blocklist_filter_format.
+
+Jika kebijakan ini dan kebijakan <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" /> disetel, daftar yang diizinkan ini akan diprioritaskan. Jika URL frame cocok dengan pola di daftar yang diizinkan ini, URL akan diizinkan, meskipun juga cocok dengan pola di daftar yang tidak diizinkan. Jika cocok dengan pola di daftar yang tidak diizinkan (tetapi tidak cocok dengan pola di daftar yang diizinkan), URL akan diblokir. Jika URL tidak cocok dengan keduanya, kebijakan <ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" /> akan digunakan sebagai gantinya.
+
+Jika kebijakan ini tidak disetel, ketersediaan <ph name="CHROME_DEVTOOLS_NAME" /> akan ditentukan oleh kebijakan <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" /> dan <ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" />.
+
+Kebijakan ini juga berlaku untuk <ph name="CHROME_DEVTOOLS_NAME" /> yang dibuka untuk ekstensi dan aplikasi web.
+
+Kebijakan ini terbatas untuk 1.000 entri.</translation>
 <translation id="4918150584200819898">Aktifkan mulai autentikasi ulang online otomatis.</translation>
 <translation id="4918261735182294270">Izinkan pengguna memilih apakah akan mengaktifkan <ph name="CHROME_SYNC_NAME" /></translation>
 <translation id="4918485681633125382">Aktifkan dukungan untuk formulir XFA di dokumen PDF</translation>
@@ -8862,34 +8894,6 @@ Perubahan kebijakan hanya berlaku saat ARC tidak berjalan, misalnya saat memulai
       Jika kebijakan ini tidak disetel, baik pengguna yang dikelola maupun tidak dikelola perusahaan akan diizinkan secara default.</translation>
 <translation id="6640748114867542396">Jangan izinkan ekstensi terkelola menggunakan Enterprise Hardware Platform API</translation>
 <translation id="6641109870010271671">Sertifikat TLS yang harus dipercaya oleh <ph name="PRODUCT_NAME" /> untuk autentikasi server</translation>
-<translation id="6641851832244467923">Menyetel kebijakan ini akan mengonfigurasi aturan yang menentukan proxy mana yang digunakan browser, bergantung pada URL tujuan dan kondisi lainnya. Kebijakan ini akan lebih diutamakan daripada setelan proxy yang ditetapkan dari kebijakan <ph name="PROXY_SETTINGS_POLICY_NAME" />, API ekstensi <ph name="PROXY_SETTINGS_EXTENSION_API" />, atau setelan pengguna manual jika ada yang disetel.
-
-Jika kebijakan ini tidak disetel, kebijakan proxy atau setelan pengguna lainnya tidak akan terpengaruh.
-
-Saat browser perlu memutuskan proxy yang akan digunakan, entri dalam kebijakan <ph name="PROXY_OVERRIDE_RULES_POLICY_NAME" /> akan dievaluasi secara berurutan hingga salah satu entri memenuhi semua poin berikut:
-  * Setidaknya satu pola URL di <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> cocok.
-  * Tidak satu pun pola URL di <ph name="PROXY_OVERRIDE_RULES_EXCLUDE_DESTINATION_MATCHERS" /> cocok.
-  * Jika <ph name="PROXY_OVERRIDE_RULES_CONDITIONS" /> ditentukan dan merupakan daftar yang tidak kosong, semua kondisi yang diwakili oleh entrinya akan terpenuhi.
-Nilai dalam <ph name="PROXY_OVERRIDE_RULES_PROXY_LIST" /> akan digunakan sebagai proxy untuk kecocokan tersebut. Jika tidak ditemukan kecocokan, setelan proxy akan kembali ke setelan yang ditetapkan dalam kebijakan <ph name="PROXY_SETTINGS_POLICY_NAME" />.
-
-Pola URL yang didukung oleh <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> dan <ph name="PROXY_OVERRIDE_RULES_EXCLUDE_DESTINATION_MATCHERS" /> didokumentasikan di https://chromium.googlesource.com/chromium/src/+/HEAD/net/docs/proxy.md#proxy-config-url-patterns.
-
-Entri kolom <ph name="PROXY_OVERRIDE_RULES_PROXY_LIST" /> sesuai dengan nilai string file PAC seperti:
-  * DIRECT
-  * PROXY host:port
-  * HTTPS host:port
-  * SOCKS4 host:port
-  * SOCKS5 host:port
-Atau, penentu proxy yang menyerupai URL dapat digunakan langsung untuk menentukan proxy, misalnya:
-  * http://host:port
-  * https://host:port
-  * socks4://host:port
-  * socks5://host:port
-Entri pertama yang dapat dijangkau dalam daftar akan digunakan sebagai proxy. Entri yang tidak valid dalam daftar akan diabaikan.
-
-Kolom <ph name="PROXY_OVERRIDE_RULES_CONDITIONS" /> berisi daftar kondisi yang harus dipenuhi agar aturan penggantiannya dapat digunakan untuk menentukan proxy yang akan digunakan. Jika kolom tersebut tidak berisi kondisi apa pun, entrinya akan digunakan selama setidaknya ada satu host di <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> yang cocok.
-
-Kondisi <ph name="PROXY_OVERRIDE_RULES_DNS_PROBE" /> memeriksa apakah DNS <ph name="PROXY_OVERRIDE_RULES_HOST" /> yang disediakan dapat menghasilkan alamat IP. DNS tersebut harus berisi host (misalnya example.com) dan, secara opsional, skema atau port (misalnya https://example.com, example.com:123, https://example.com:123). Jika skema aman digunakan (misalnya, https), pencarian DNS juga dapat meminta data HTTPS (lihat RFC 9460 untuk detail selengkapnya). Jika <ph name="PROXY_OVERRIDE_RULES_RESULT" /> bernilai "<ph name="PROXY_OVERRIDE_RULES_RESOLVED" />", maka kondisinya dianggap terpenuhi. Jika nilainya adalah <ph name="PROXY_OVERRIDE_RULES_NOT_FOUND" />, maka kondisinya dianggap terpenuhi jika resolusi gagal.</translation>
 <translation id="6641981670621198190">Nonaktifkan dukungan untuk API grafis 3D</translation>
 <translation id="6646912445796087001">Mengaktifkan atau menonaktifkan berbagai fitur di keyboard virtual. Kebijakan ini hanya berlaku jika kebijakan "VirtualKeyboardEnabled" diaktifkan.
 
@@ -11176,6 +11180,21 @@ Ada beberapa kebijakan yang mencantumkan origin yang memengaruhi permintaan ke p
 <translation id="8059352177830050556">Aktifkan pelaporan info lampu latar perangkat</translation>
 <translation id="8062485064082966327">Gunakan layanan Google anonim untuk memberikan deskripsi otomatis untuk gambar tanpa label</translation>
 <translation id="8066428282805800713">Kirim data hardware tambahan di ChromeOS Flex</translation>
+<translation id="8069233292746468045">Kebijakan ini mengonfigurasi <ph name="PRODUCT_NAME" /> untuk mengurutkan algoritma perjanjian kunci pilihannya (grup yang didukung) di TLS 1.3 agar sesuai dengan algoritma yang telah disetujui berdasarkan skema kepatuhan tertentu.
+
+Menyetel kebijakan ini tidak menjamin bahwa algoritma tertentu akan digunakan.
+
+Kebijakan ini dibuat bagi operator server, yang ingin mendukung klien dengan maupun tanpa persyaratan kepatuhan, agar dapat membedakan kedua klien tersebut. Kebijakan ini hanya menggunakan algoritma non-default tertentu dengan peningkatan kekuatan kriptografi untuk klien yang secara eksplisit dikonfigurasi agar memilih algoritma.
+
+Menyetel kebijakan ke '<ph name="CNSA2_NAME" />' akan mengonfigurasi <ph name="PRODUCT_NAME" /> untuk memilih metode pertukaran kunci yang diperlukan agar sesuai dengan Commercial National Security Algorithm Suite 2.0 (CNSA 2.0).
+
+Jika kebijakan ini tidak disetel, atau disetel ke '<ph name="DEFAULT_NAME" />', <ph name="PRODUCT_NAME" /> akan dikonfigurasi untuk menggunakan metode pertukaran kunci defaultnya.
+
+Setelan kebijakan ini tidak diperlukan untuk keamanan. Kriptografi default yang digunakan oleh <ph name="PRODUCT_NAME" /> sudah cukup kuat untuk menahan serangan brute force bahkan dengan daya sebesar Matahari.
+
+Jika kebijakan ini disetel, <ph name="PRODUCT_NAME" /> akan menjadi lebih lambat saat mengakses situs.
+
+Kebijakan ini hanya memengaruhi TLS 1.3 dan QUIC; kebijakan ini tidak memengaruhi TLS versi sebelumnya.</translation>
 <translation id="8071371098891664137">Jika <ph name="PRINTERS_BLOCKLIST" /> dipilih untuk <ph name="PRINTERS_BULK_ACCESS_MODE_POLICY_NAME" />, menyetel <ph name="PRINTERS_BULK_BLOCKLIST_POLICY_NAME" /> akan menentukan printer yang tidak dapat digunakan oleh pengguna. Semua printer diberikan kepada pengguna kecuali ID yang tercantum dalam kebijakan ini. ID harus sesuai dengan kolom <ph name="ID_FIELD" /> atau <ph name="GUID_FIELD" /> dalam file yang ditentukan di <ph name="PRINTERS_BULK_CONFIGURATION_POLICY_NAME" />.</translation>
 <translation id="8076539570602616846">Batasi Akun Google yang memenuhi syarat untuk menyimpan file PDF ke Google Drive dari Penampil PDF <ph name="PRODUCT_NAME" /></translation>
 <translation id="8078297389450285582">Jika kebijakan disetel ke Aktif atau tidak disetel, model redup smart akan diaktifkan dan dapat memperpanjang waktu hingga layar diredupkan. Jika model tersebut menunda waktu peredupan, penundaan penonaktifan layar, penguncian layar, dan tidak ada aktivitas akan disesuaikan untuk mempertahankan jarak waktu yang sama dari penundaan peredupan layar seperti yang disetel sebelumnya.
@@ -12674,6 +12693,19 @@ Catatan: Saat ini hanya entri pertama yang akan dipertimbangkan. Nantinya, ekste
           Jika Anda menetapkan kebijakan ini, pengguna tidak dapat mengubah atau menggantinya.
 
           Jika kebijakan ini tidak ditetapkan, penyorotan fokus keyboard mula-mula akan dinonaktifkan, tetapi dapat diaktifkan oleh pengguna kapan saja.</translation>
+<translation id="9037098514292099199">Menyetel kebijakan akan mengontrol setelan pengelolaan ekstensi untuk <ph name="PRODUCT_NAME" />, termasuk setelan apa pun yang dikontrol oleh kebijakan terkait ekstensi yang sudah ada.
+
+Kebijakan ini hanya memetakan ID ekstensi atau URL update ke setelan khususnya. Konfigurasi default dapat disetel bagi ID khusus <ph name="DEFAULT_SCOPE" />, yang berlaku untuk semua ekstensi tanpa konfigurasi khusus dalam kebijakan ini.
+
+Kebijakan ini dapat mengganti konfigurasi per ekstensi dari kebijakan lama.
+
+Perhatikan bahwa setelan ekstensi per ID dari <ph name="EXTENSION_INSTALL_FORCELIST_POLICY_NAME" />, <ph name="EXTENSION_INSTALL_ALLOWLIST_POLICY_NAME" />, <ph name="EXTENSION_INSTALL_BLOCKLIST_POLICY_NAME" />, atau <ph name="EXTENSION_SETTINGS_POLICY_NAME" /> hanya akan mewarisi 'installation_mode' dan 'update_url' dari setelan default <ph name="DEFAULT_SCOPE" />. Properti ini tidak akan mewarisi properti lainnya. Dengan URL update, konfigurasi akan berlaku untuk ekstensi dengan URL update tepat yang disebutkan dalam manifes ekstensi (http://support.google.com/chrome/a?p=Configure_ExtensionSettings_policy). Jika tanda 'override_update_url' disetel ke benar (true), ekstensi akan diinstal dan diupdate menggunakan URL "update" yang ditentukan dalam kebijakan <ph name="EXTENSION_INSTALL_FORCELIST_POLICY_NAME" /> atau kolom 'update_url' dalam kebijakan ini. Tanda 'override_update_url' akan diabaikan jika 'update_url' adalah URL Chrome Web Store.
+
+Di instance <ph name="MS_WIN_NAME" />, aplikasi dan ekstensi yang bukan dari Chrome Web Store hanya dapat diinstal otomatis jika instance dihubungkan ke domain <ph name="MS_AD_NAME" />, dihubungkan ke <ph name="MS_AAD_NAME" />, atau didaftarkan di <ph name="CHROME_ENTERPRISE_CORE_NAME" />.
+
+Di instance <ph name="MAC_OS_NAME" />, aplikasi dan ekstensi yang bukan dari Chrome Web Store hanya dapat diinstal otomatis jika instance dikelola melalui MDM, dihubungkan ke domain melalui MCX, atau didaftarkan di <ph name="CHROME_ENTERPRISE_CORE_NAME" />.
+
+Catatan: Kebijakan ini hanya berlaku untuk platform yang mendukung ekstensi.</translation>
 <translation id="9038839118379817310">Mengaktifkan Wi-Fi</translation>
 <translation id="9039822628127365650">Jika ditetapkan, kebijakan ini akan menentukan durasi waktu yang setelahnya pengguna akan otomatis dipaksa logout dan sesi akan dihentikan. Waktu yang tersisa diberitahukan kepada pengguna melalui penghitung mundur yang ditampilkan di area notifikasi.
 
@@ -12697,21 +12729,6 @@ Jika kebijakan tidak disetel, <ph name="PRODUCT_NAME" /> akan mengumpulkan dan m
 <translation id="9051019223077908578">Mengonfigurasi daftar aplikasi dan ekstensi terinstal di layar login</translation>
 <translation id="9053841574218808519">Selalu jalankan plugin yang masih berlaku</translation>
 <translation id="9055866143096316150">Demosikan permintaan penguncian layar saat aktif ke permintaan penguncian layar saat aktif di sistem</translation>
-<translation id="9056262797461453462">Menyetel kebijakan <ph name="URL_BLOCKLIST_POLICY_NAME" /> akan menghentikan pemuatan halaman web yang berisi URL terlarang. Administrator dapat menentukan daftar pola URL yang akan diblokir. Jika kebijakan ini tidak disetel, tidak ada URL yang akan diblokir di browser. Hingga 1.000 pengecualian dapat ditentukan di <ph name="URL_ALLOWLIST_POLICY_NAME" />. Lihat cara memformat pola URL (https://support.google.com/chrome/a?p=url_blocklist_filter_format).
-
-Catatan: Kebijakan ini tidak berlaku untuk URL JavaScript dalam halaman dengan data yang dimuat secara dinamis. Jika Anda memblokir example.com/abc, example.com tetap dapat memuatnya menggunakan XMLHTTPRequest. Selain itu, kebijakan ini tidak mencegah halaman web memperbarui URL yang ditampilkan di omnibox menjadi URL yang diblokir menggunakan JavaScript History API.
-
-Mulai <ph name="PRODUCT_NAME" /> versi 73, Anda dapat memblokir URL javascript://*. Namun, ini hanya akan memengaruhi JavaScript yang dimasukkan di kolom URL atau, misalnya, bookmarklet.
-
-Mulai <ph name="PRODUCT_NAME" /> versi 92, kebijakan ini juga didukung dalam mode headless.
-
-Catatan: Jika diblokir, URL chrome://* dan chrome-untrusted://* internal dapat menyebabkan error yang tidak terduga atau dapat dilewati dalam beberapa kasus. Daripada memblokir URL internal tertentu, sebaiknya periksa apakah tersedia kebijakan yang lebih spesifik. Misalnya:
-
-- Daripada memblokir chrome://settings/certificates, sebaiknya gunakan <ph name="CA_CERTIFICATE_MANAGEMENT_ALLOWED_POLICY_NAME" />.
-
-- Daripada memblokir chrome-untrusted://crosh, sebaiknya gunakan <ph name="SYSTEM_FEATURES_DISABLE_LIST_POLICY_NAME" />.
-
-- Daripada memblokir devtools://*, gunakan salah satu kebijakan <ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" />, <ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" />, atau <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" />.</translation>
 <translation id="9057159618445405645">Gunakan perilaku browser Chrome default</translation>
 <translation id="9061455386353325110">Menentukan apakah pengguna dapat mengizinkan <ph name="PRODUCT_NAME" /> menggunakan AI Generatif untuk memahami formulir dengan lebih baik dan membantunya mengisi lebih banyak kolom.
 

@@ -10,6 +10,7 @@
 #import "base/strings/string_util.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/test/ios/wait_util.h"
+#import "base/test/test_future.h"
 #import "base/test/values_test_util.h"
 #import "base/time/time.h"
 #import "base/values.h"
@@ -109,8 +110,10 @@ TEST_F(PageContextExtractorJavaScriptFeatureTest,
   base::RunLoop run_loop;
   feature()->ExtractPageContext(
       web_state()->GetPageWorldWebFramesManager()->GetMainWebFrame(),
-      /*include_anchors=*/false, /*include_cross_origin_frame_content=*/true,
-      /*use_rich_extraction=*/false, "nonce", base::Milliseconds(100),
+      /*include_cross_origin_frame_content=*/true,
+      /*use_rich_extraction=*/false,
+      /*use_rich_extraction_with_actionable=*/false, "nonce",
+      base::Milliseconds(100),
       base::BindOnce(
           [](base::RunLoop* r, base::Value* result_value,
              const base::Value* value) {
@@ -143,8 +146,10 @@ TEST_F(PageContextExtractorJavaScriptFeatureTest, ExtractPageContext) {
   base::RunLoop run_loop;
   feature()->ExtractPageContext(
       web_state()->GetPageWorldWebFramesManager()->GetMainWebFrame(),
-      /*include_anchors=*/false, /*include_cross_origin_frame_content=*/false,
-      /*use_rich_extraction=*/false, "nonce", base::Milliseconds(100),
+      /*include_cross_origin_frame_content=*/false,
+      /*use_rich_extraction=*/false,
+      /*use_rich_extraction_with_actionable=*/false, "nonce",
+      base::Milliseconds(100),
       base::BindOnce(
           [](base::RunLoop* r, base::Value* result_value,
              const base::Value* value) {
@@ -189,8 +194,10 @@ TEST_F(PageContextExtractorJavaScriptFeatureTest,
   base::RunLoop run_loop;
   feature()->ExtractPageContext(
       web_state()->GetPageWorldWebFramesManager()->GetMainWebFrame(),
-      /*include_anchors=*/true, /*include_cross_origin_frame_content=*/false,
-      /*use_rich_extraction=*/false, "nonce", base::Milliseconds(100),
+      /*include_cross_origin_frame_content=*/false,
+      /*use_rich_extraction=*/false,
+      /*use_rich_extraction_with_actionable=*/false, "nonce",
+      base::Milliseconds(100),
       base::BindOnce(
           [](base::RunLoop* r, base::Value* result_value,
              const base::Value* value) {
@@ -232,8 +239,10 @@ TEST_F(PageContextExtractorJavaScriptFeatureTest,
   base::RunLoop run_loop;
   feature()->ExtractPageContext(
       web_state()->GetPageWorldWebFramesManager()->GetMainWebFrame(),
-      /*include_anchors=*/false, /*include_cross_origin_frame_content=*/false,
-      /*use_rich_extraction=*/false, "nonce", base::Milliseconds(100),
+      /*include_cross_origin_frame_content=*/false,
+      /*use_rich_extraction=*/false,
+      /*use_rich_extraction_with_actionable=*/false, "nonce",
+      base::Milliseconds(100),
       base::BindOnce(
           [](base::RunLoop* r, base::Value* result_value,
              const base::Value* value) {
@@ -263,8 +272,9 @@ TEST_F(PageContextExtractorJavaScriptFeatureTest,
   base::RunLoop run_loop;
   feature()->ExtractPageContext(
       web_state()->GetPageWorldWebFramesManager()->GetMainWebFrame(),
-      /*include_anchors=*/false, /*include_cross_origin_frame_content=*/false,
-      /*use_rich_extraction=*/true, "nonce", base::Seconds(1),
+      /*include_cross_origin_frame_content=*/false,
+      /*use_rich_extraction=*/true,
+      /*use_rich_extraction_with_actionable=*/false, "nonce", base::Seconds(1),
       base::BindOnce(
           [](base::RunLoop* r, base::Value* result_value,
              const base::Value* value) {
@@ -313,6 +323,43 @@ TEST_F(PageContextExtractorJavaScriptFeatureTest,
   EXPECT_EQ(*title, "TreeWalker Test");
 }
 
+TEST_F(PageContextExtractorJavaScriptFeatureTest,
+       ExtractPageContext_RichExtractionWithActionable) {
+  const std::string html =
+      "<html><body><button>Click me</button></body></html>";
+  web::test::LoadHtml(base::SysUTF8ToNSString(html),
+                      test_server_.GetURL(kMainPagePath), web_state());
+
+  base::Value result_value;
+  base::RunLoop run_loop;
+  feature()->ExtractPageContext(
+      web_state()->GetPageWorldWebFramesManager()->GetMainWebFrame(),
+      /*include_cross_origin_frame_content=*/false,
+      /*use_rich_extraction=*/true,
+      /*use_rich_extraction_with_actionable=*/true, "nonce", base::Seconds(1),
+      base::BindOnce(
+          [](base::RunLoop* r, base::Value* result_value,
+             const base::Value* value) {
+            *result_value = value->Clone();
+            r->Quit();
+          },
+          &run_loop, &result_value));
+  run_loop.Run();
+
+  const base::DictValue& dict = result_value.GetDict();
+  const base::DictValue* root_node = dict.FindDict("rootNode");
+  ASSERT_TRUE(root_node);
+  const base::ListValue* children = root_node->FindList("childrenNodes");
+  ASSERT_TRUE(children);
+  ASSERT_GE(children->size(), 1u);
+
+  const base::DictValue& button_node = (*children)[0].GetDict();
+  const base::DictValue* interaction_info =
+      button_node.FindDictByDottedPath("contentAttributes.nodeInteractionInfo");
+  ASSERT_TRUE(interaction_info);
+  EXPECT_TRUE(interaction_info->FindList("clickabilityReasons"));
+}
+
 // Test the extraction of the text size.
 TEST_F(PageContextExtractorJavaScriptFeatureTest,
        ExtractPageContext_RichExtraction_Text_Size) {
@@ -331,8 +378,9 @@ TEST_F(PageContextExtractorJavaScriptFeatureTest,
   base::RunLoop run_loop;
   feature()->ExtractPageContext(
       web_state()->GetPageWorldWebFramesManager()->GetMainWebFrame(),
-      /*include_anchors=*/false, /*include_cross_origin_frame_content=*/false,
-      /*use_apc_v2=*/true, "nonce", base::Seconds(1),
+      /*include_cross_origin_frame_content=*/false,
+      /*use_apc_v2=*/true, /*use_rich_extraction_with_actionable=*/false,
+      "nonce", base::Seconds(1),
       base::BindOnce(
           [](base::RunLoop* r, base::Value* result_value,
              const base::Value* value) {
@@ -371,4 +419,57 @@ TEST_F(PageContextExtractorJavaScriptFeatureTest,
         << *text_node.FindStringByDottedPath(
                "contentAttributes.textInfo.textContent");
   }
+}
+
+// Test the extraction of the text color.
+TEST_F(PageContextExtractorJavaScriptFeatureTest,
+       ExtractPageContext_RichExtraction_Text_Color) {
+  const std::string html = "<html><body><p style=\"color: rgb(0, 255, "
+                           "0)\">Green Text</p></body></html>";
+  web::test::LoadHtml(base::SysUTF8ToNSString(html),
+                      test_server_.GetURL(kMainPagePath), web_state());
+
+  base::test::TestFuture<base::Value> future;
+  feature()->ExtractPageContext(
+      web_state()->GetPageWorldWebFramesManager()->GetMainWebFrame(),
+      /*include_cross_origin_frame_content=*/false,
+      /*use_rich_extraction=*/true,
+      /*use_rich_extraction_with_actionable=*/false, "nonce", base::Seconds(1),
+      base::BindOnce(
+          [](base::OnceCallback<void(base::Value)> callback,
+             const base::Value* value) {
+            std::move(callback).Run(value ? value->Clone() : base::Value());
+          },
+          future.GetCallback()));
+
+  base::Value result_value = future.Take();
+  ASSERT_TRUE(result_value.is_dict())
+      << "Result is not a dictionary. Type: " << result_value.type();
+
+  const base::DictValue& dict = result_value.GetDict();
+  const base::DictValue* root_node = dict.FindDict("rootNode");
+  ASSERT_TRUE(root_node);
+
+  const base::ListValue* children = root_node->FindList("childrenNodes");
+  ASSERT_TRUE(children);
+  ASSERT_EQ(children->size(), 1u);
+
+  // Check Paragraph
+  const base::DictValue& p_node = (*children)[0].GetDict();
+  const base::ListValue* p_children = p_node.FindList("childrenNodes");
+  ASSERT_TRUE(p_children);
+  ASSERT_EQ(p_children->size(), 1u);
+  const base::DictValue& p_text_node = (*p_children)[0].GetDict();
+  const std::string* p_text = p_text_node.FindStringByDottedPath(
+      "contentAttributes.textInfo.textContent");
+  ASSERT_TRUE(p_text);
+  EXPECT_EQ(*p_text, "Green Text");
+
+  // Check Color
+  // Green: (0, 255, 0) -> (0 << 24) | (255 << 16) | (0 << 8) | 255
+  // = 0 | 16711680 | 0 | 255 = 16711935
+  std::optional<double> color = p_text_node.FindDoubleByDottedPath(
+      "contentAttributes.textInfo.textStyle.color");
+  ASSERT_TRUE(color.has_value());
+  EXPECT_EQ(static_cast<uint32_t>(*color), 16711935u);
 }

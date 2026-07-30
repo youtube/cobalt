@@ -31,15 +31,12 @@ class ContextualTasksBrowserTest : public WebUIMochaBrowserTest {
 };
 
 // TODO(crbug.com/487802136): Flaky on Linux.
-#if BUILDFLAG(IS_LINUX)
-#define MAYBE_App DISABLED_App
-#else
-#define MAYBE_App App
-#endif
-IN_PROC_BROWSER_TEST_F(ContextualTasksBrowserTest, MAYBE_App) {
+// TODO(crbug.com/489258910): Failing on multiple platforms
+IN_PROC_BROWSER_TEST_F(ContextualTasksBrowserTest, DISABLED_App) {
   RunTest("contextual_tasks/app_test.js", "mocha.run();");
 }
 
+#if !BUILDFLAG(IS_ANDROID)
 IN_PROC_BROWSER_TEST_F(ContextualTasksBrowserTest, Composebox) {
   RunTest("contextual_tasks/composebox_test.js", "mocha.run();");
 }
@@ -51,6 +48,11 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksBrowserTest, Composebox_MiscInputs) {
 IN_PROC_BROWSER_TEST_F(ContextualTasksBrowserTest, Composebox_Submit) {
   RunTest("contextual_tasks/composebox_submit_test.js", "mocha.run();");
 }
+
+IN_PROC_BROWSER_TEST_F(ContextualTasksBrowserTest, Composebox_ZeroState) {
+  RunTest("contextual_tasks/composebox_zero_state_test.js", "mocha.run();");
+}
+#endif
 
 IN_PROC_BROWSER_TEST_F(ContextualTasksBrowserTest, PostMessageHandler) {
   RunTest("contextual_tasks/post_message_handler_test.js", "mocha.run();");

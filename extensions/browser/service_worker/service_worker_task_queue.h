@@ -68,10 +68,9 @@ class Extension;
 //
 // A worker must be started before it can become ready to process the event
 // tasks. When a task arrives, the task queue checks if the worker is ready. If
-// the worker is ready (and `OptimizeServiceWorkerStartRequests` is enabled),
-// the task is dispatched immediately. If the worker is not ready (or the
-// optimization is disabled), the task is queued, and the queue requests the
-// worker to start (if it hasn't already).
+// the worker is ready, the task is dispatched immediately. If the worker is
+// not ready, the task is queued, and the queue requests the worker to start (if
+// it hasn't already).
 //
 // `RendererDidStartServiceWorkerContext()` is called asynchronously from the
 // extension renderer process (potentially before or after
@@ -186,6 +185,7 @@ class ServiceWorkerTaskQueue
   void RendererDidInitializeServiceWorkerContext(
       content::ChildProcessId render_process_id,
       const ExtensionId& extension_id,
+      const base::UnguessableToken& activation_token,
       int64_t service_worker_version_id,
       int thread_id,
       const blink::ServiceWorkerToken& service_worker_token);
@@ -198,7 +198,8 @@ class ServiceWorkerTaskQueue
       const base::UnguessableToken& activation_token,
       const GURL& service_worker_scope,
       int64_t service_worker_version_id,
-      int thread_id);
+      int thread_id,
+      const blink::ServiceWorkerToken& service_worker_token);
   // Called once an extension Service Worker was destroyed.
   void RendererDidStopServiceWorkerContext(
       content::ChildProcessId render_process_id,
@@ -206,7 +207,8 @@ class ServiceWorkerTaskQueue
       const base::UnguessableToken& activation_token,
       const GURL& service_worker_scope,
       int64_t service_worker_version_id,
-      int thread_id);
+      int thread_id,
+      const blink::ServiceWorkerToken& service_worker_token);
   // Called when the extension renderer process that was running an extension
   // Service Worker has exited.
   void RenderProcessForWorkerExited(const WorkerId& worker_id);
@@ -327,6 +329,9 @@ class ServiceWorkerTaskQueue
   };
 
   static void SetObserverForTest(TestObserver* observer);
+
+  void AddPendingTaskForContextForTesting(PendingTask&& pending_task,
+                                          const SequencedContextId& context_id);
 
   size_t GetNumPendingTasksForTest(const LazyContextId& lazy_context_id);
 

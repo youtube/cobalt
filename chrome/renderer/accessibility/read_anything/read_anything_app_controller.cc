@@ -1211,6 +1211,8 @@ gin::ObjectTemplateBuilder ReadAnythingAppController::GetObjectTemplateBuilder(
       .SetProperty("startOffset", &ReadAnythingAppController::StartOffset)
       .SetProperty("endNodeId", &ReadAnythingAppController::EndNodeId)
       .SetProperty("endOffset", &ReadAnythingAppController::EndOffset)
+      .SetProperty("hasValidSelection",
+                   &ReadAnythingAppController::HasValidSelection)
       .SetProperty("fontName", &ReadAnythingAppController::FontName)
       .SetProperty("fontSize", &ReadAnythingAppController::FontSize)
       .SetProperty("linksEnabled", &ReadAnythingAppController::LinksEnabled)
@@ -1485,6 +1487,10 @@ ui::AXNodeID ReadAnythingAppController::EndNodeId() const {
 
 int ReadAnythingAppController::EndOffset() const {
   return model_.end_offset();
+}
+
+bool ReadAnythingAppController::HasValidSelection() const {
+  return model_.has_selection();
 }
 
 std::string ReadAnythingAppController::FontName() const {
@@ -1965,13 +1971,16 @@ std::vector<std::string> ReadAnythingAppController::GetSupportedFonts() {
 
 std::string ReadAnythingAppController::GetValidatedFontName(
     const std::string& font) const {
-  if (!std::ranges::contains(GetAllFonts(), font)) {
-    return GetAllFonts().front();
+  std::string validated_font = font;
+  if (!std::ranges::contains(model_.supported_fonts(), validated_font)) {
+    validated_font = model_.supported_fonts().front();
   }
-  if (font == "Serif" || font == "Sans-serif") {
-    return base::ToLowerASCII(font);
+  if (validated_font == "Serif" || validated_font == "Sans-serif") {
+    return base::ToLowerASCII(validated_font);
   }
-  return font.contains(' ') ? base::StrCat({"\"", font, "\""}) : font;
+  return validated_font.contains(' ')
+             ? base::StrCat({"\"", validated_font, "\""})
+             : validated_font;
 }
 
 std::vector<std::string> ReadAnythingAppController::GetAllFonts() const {

@@ -124,7 +124,10 @@ export class OmniboxPopupAppElement extends I18nMixinLit
       isInKeywordMode_: {type: Boolean},
       result_: {type: Object},
       searchboxLayoutMode_: {reflect: true, type: String},
-      showContextEntrypoint_: {type: Boolean},
+      showContextEntrypoint_: {
+        type: Boolean,
+        reflect: true,
+      },
       showAiModePrefEnabled_: {type: Boolean},
       isContentSharingEnabled_: {type: Boolean},
       isLensSearchEnabled_: {type: Boolean},
@@ -167,6 +170,8 @@ export class OmniboxPopupAppElement extends I18nMixinLit
 
   private callbackRouter_: SearchboxPageCallbackRouter;
   private eventTracker_ = new EventTracker();
+  private isAimPopupEnabled_: boolean =
+      loadTimeData.getBoolean('omniboxAimPopupEnabled');
   private listenerIds_: number[] = [];
   private pageHandler_: SearchboxPageHandlerInterface;
   private popupCallbackRouter_: OmniboxPopupPageCallbackRouter;
@@ -304,7 +309,7 @@ export class OmniboxPopupAppElement extends I18nMixinLit
         showContextualChips && this.searchboxLayoutMode_ === 'Compact';
     return this.isAimEligible_ && this.showAiModePrefEnabled_ &&
         (isTallSearchbox || showContextualChipsInCompactMode) &&
-        !this.isInKeywordMode_;
+        !this.isInKeywordMode_ && this.isAimPopupEnabled_;
   }
 
   private onCanShowSecondarySideChanged_(e: MediaQueryListEvent) {
@@ -471,7 +476,9 @@ export class OmniboxPopupAppElement extends I18nMixinLit
     const available = [];
     for (let matchIndex = 0; matchIndex < result.matches.length; matchIndex++) {
       const match = result.matches[matchIndex]!;
-      if (match.isHidden) {
+      // Preserve selection of the default match, even if hidden, to stay
+      // compatible with OmniboxEditModel's keyword mode handling.
+      if (match.isHidden && !match.allowedToBeDefaultMatch) {
         continue;
       }
       available.push({
@@ -539,7 +546,8 @@ export class OmniboxPopupAppElement extends I18nMixinLit
         SelectionLineState.kFocusedButtonContextEntrypoint) {
       this.popupPageHandler_.showContextMenu({x: 0, y: 0});
     } else if (selectionIsNativelySupported(this.selection_)) {
-      this.pageHandler_.openPopupSelection(this.selection_, disposition);
+      this.pageHandler_.openPopupSelection(
+          this.result_?.sequenceId || 0, this.selection_, disposition);
     } else {
       assertNotReached(
           `openCurrentSelection_ called for unsupported selection: ${

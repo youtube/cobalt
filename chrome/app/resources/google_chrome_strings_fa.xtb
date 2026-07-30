@@ -72,6 +72,7 @@
 <translation id="1698376642261615901">‏‫Google Chrome یک مرورگر وب است که برنامه‌های کاربردی و صفحات وب را در یک چشم به هم زدن اجرا و باز می‌کند. استفاده از آن سریع و آسان است و همیشه در دسترس است. با برنامه‌های حفاظت دربرابر رمزگیری و بدافزار تعبیه‌شده در Google Chrome، وب را با امنیت بیشتر مرور کنید.</translation>
 <translation id="1713301662689114961">{0,plural, =1{‏Chrome یک ساعت دیگر راه‌اندازی مجدد می‌شود}one{‏Chrome # ساعت دیگر راه‌اندازی مجدد می‌شود}other{‏Chrome # ساعت دیگر راه‌اندازی مجدد می‌شود}}</translation>
 <translation id="1722488837206509557">این کار به شما امکان می‌دهد از بین دستگاه‌های دردسترس انتخاب کنید و محتوا را در آن‌ها نمایش دهید.</translation>
+<translation id="177180974022074201">‏با «Gemini در Chrome» امتحان کنید</translation>
 <translation id="1786003790898721085">‏مطمئن شوید در <ph name="TARGET_DEVICE_NAME" /> به سیستم Chrome وارد شده باشید و سپس دوباره ارسال کنید.</translation>
 <translation id="1786044937610313874">‏میان‌برها در Chrome باز می‌شود</translation>
 <translation id="178701303897325119">‏دیگر از این افزونه پشتیبانی نمی‌شود. ‫Chrome توصیه می‌کند آن را حذف کنید.</translation>
@@ -221,6 +222,7 @@
 <translation id="3226612997184048185">‏اگر نشانک‌ها را در «حساب Google» هم ذخیره کنید، می‌توانید قیمت محصولات را در Chrome پیگیری کنید و از کاهش قیمت‌ها مطلع شوید</translation>
 <translation id="3242123554343253302">‏افزودن نمایه Chrome</translation>
 <translation id="3245429137663807393">‏اگر گزارش‌های استفاده از Chrome را نیز هم‌رسانی کنید، این گزارش‌ها نشانی‌های وبی را که بازدید می‌کنید دربرمی‌گیرند.</translation>
+<translation id="3259748324892322072">‏دریافت برنامه Chrome</translation>
 <translation id="3286538390144397061">راه‌اندازی مجدد اکنون</translation>
 <translation id="3292333338048274092">‏سپس باید Chrome را بازراه‌اندازی کنید.</translation>
 <translation id="3324218984287646518">‏پرسیدن از «لنز Google» درباره این ویدیو</translation>
@@ -279,7 +281,6 @@
 <translation id="3892148308691398805">کپی کردن نوشتار</translation>
 <translation id="3893985792899396936">‏نکته Chrome: جستجو کردن با «لنز»</translation>
 <translation id="3906096710440765802">‏برای دریافت گذرواژه‌ها، نشانک‌ها، و موارد دیگر در همه دستگاه‌هایتان، به سیستم Chrome وارد شوید</translation>
-<translation id="3921132130819999051">‏اجازه دهید Chrome برایتان مرور کند</translation>
 <translation id="3941890832296813527">خطای نصب: نام فایل نصب‌کننده نامعتبر است یا از آن پشتیبانی نمی‌شود.</translation>
 <translation id="395904275706073188">صفحه‌های محافظت‌شده خوانده نمی‌شوند. صفحه دیگری را امتحان کنید.</translation>
 <translation id="3968962723676998462">‏برای استفاده از داده‌های Chrome و ذخیره کردن آن‌ها در حسابتان (<ph name="ACCOUNT_EMAIL" />)، گذرعبارت خود را وارد کنید</translation>
@@ -490,7 +491,6 @@
 <translation id="6173637689840186878"><ph name="PAGE_TITLE" /> - Google Chrome Beta</translation>
 <translation id="6180522807229584611">‏این زبانه از منابع اضافی استفاده می‌کند. برای بهبود عملکرد، اجازه دهید Chrome آن را غیرفعال کند.</translation>
 <translation id="6182736845697986886">نصب به‌دلیل وجود خطای داخلی در سرور به‌روزرسانی انجام نشد.</translation>
-<translation id="6183773856988300112">‏‫«Gemini در Chrome» از مرور خودکار برای کار کردن در زبانه‌ها و تکمیل کردن تکلیف‌هایی که به آن می‌دهید استفاده می‌کند. <ph name="LINK_BEGIN" />بیشتر بدانید<ph name="LINK_END" /></translation>
 <translation id="6187085551300363958">‏نکته Chrome: گذرواژه‌ها را ذخیره کنید</translation>
 <translation id="6192058120268468905">‏حساب شما در Chrome</translation>
 <translation id="6220551899604141979">‏‫<ph name="PARTNER_NAME" /> افزونه‌ای اضافه کرده است که ممکن است نحوه کارکرد Chrome را تغییر دهد.
@@ -526,6 +526,7 @@
 <translation id="6481963882741794338">‏برای شخصی‌سازی و اهداف بیشتر، Chrome و دیگر سرویس‌های Google را به‌هم پیوند دهید</translation>
 <translation id="648319183876919572">«مرور ایمن پیشرفته» کارهای بیشتری برای محافظت از شما درمقابل وب‌سایت‌ها و بارگیری‌های خطرناک انجام می‌دهد</translation>
 <translation id="6489302989675808168">‏روشن • Chrome نمی‌تواند منبع این افزونه را تأیید کند</translation>
+<translation id="6491330562720922580">‏رمزینه پاسخ‌سریع برای بارگیری مرورگر Chrome در دستگاه‌های همراه</translation>
 <translation id="6493527311031785448">‏Google Chrome در تلاش است <ph name="AUTHENTICATION_PURPOSE" /></translation>
 <translation id="6497147134301593682">‏Chrome به‌طور خودکار بسته شد</translation>
 <translation id="6506909944137591434">‏Chrome برای ایجاد نقشه سه‌بعدی از محیط اطرافتان به اجازه دوربین نیاز دارد</translation>

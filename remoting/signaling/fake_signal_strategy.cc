@@ -12,11 +12,8 @@
 #include "base/memory/ptr_util.h"
 #include "base/notimplemented.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/task/single_thread_task_runner.h"
 #include "remoting/signaling/jingle_message_xml_converter.h"
 #include "remoting/signaling/signaling_id_util.h"
-#include "remoting/signaling/xmpp_constants.h"
-#include "third_party/libjingle_xmpp/xmllite/xmlelement.h"
 
 namespace remoting {
 
@@ -30,9 +27,7 @@ void FakeSignalStrategy::Connect(FakeSignalStrategy* peer1,
 }
 
 FakeSignalStrategy::FakeSignalStrategy(const SignalingAddress& address)
-    : main_thread_(base::SingleThreadTaskRunner::GetCurrentDefault()),
-      address_(address),
-      last_id_(0) {
+    : address_(address) {
   DETACH_FROM_SEQUENCE(sequence_checker_);
 }
 
@@ -57,7 +52,7 @@ void FakeSignalStrategy::SetState(State state) {
   }
   state_ = state;
   for (auto& observer : listeners_) {
-    observer.OnSignalStrategyStateChange(state_);
+    observer.OnSignalingStateChanged(state_);
   }
 }
 
@@ -94,7 +89,7 @@ void FakeSignalStrategy::SimulateTwoStageConnect() {
   simulate_two_stage_connect_ = true;
 }
 
-void FakeSignalStrategy::OnIncomingMessage(SignalingMessage message) {
+void FakeSignalStrategy::OnIncomingMessage(SignalStrategy::Message message) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   if (!simulate_reorder_) {
@@ -151,28 +146,31 @@ void FakeSignalStrategy::RemoveListener(Listener* listener) {
   listeners_.RemoveObserver(listener);
 }
 
-bool FakeSignalStrategy::SendMessage(
-    const SignalingAddress& destination_address,
-    SignalingMessage&& message) {
+bool FakeSignalStrategy::SendMessage(JingleMessage&& message) {
+  return Send(std::move(message));
+}
+
+bool FakeSignalStrategy::SendReply(JingleMessageReply&& message) {
+  return Send(std::move(message));
+}
+
+template <typename T>
+bool FakeSignalStrategy::Send(T&& message) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  if (auto* jingle_message = std::get_if<JingleMessage>(&message)) {
-    jingle_message->from = address_;
-  }
-
-  if (auto* jingle_reply = std::get_if<JingleMessageReply>(&message)) {
-    jingle_reply->from = address_;
-  }
+  message.from = address_;
 
   if (peer_callback_.is_null()) {
     return false;
   }
 
+  SignalStrategy::Message message_variant(std::move(message));
+
   if (send_delay_.is_zero()) {
-    peer_callback_.Run(std::move(message));
+    peer_callback_.Run(std::move(message_variant));
   } else {
     base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
-        FROM_HERE, base::BindOnce(peer_callback_, std::move(message)),
+        FROM_HERE, base::BindOnce(peer_callback_, std::move(message_variant)),
         send_delay_);
   }
   return true;
@@ -191,39 +189,18 @@ bool FakeSignalStrategy::IsSignInError() const {
 void FakeSignalStrategy::DeliverMessageOnThread(
     scoped_refptr<base::SingleThreadTaskRunner> thread,
     base::WeakPtr<FakeSignalStrategy> target,
-    SignalingMessage message) {
+    SignalStrategy::Message message) {
   thread->PostTask(
       FROM_HERE, base::BindOnce(&FakeSignalStrategy::OnIncomingMessage, target,
                                 std::move(message)));
 }
 
-void FakeSignalStrategy::NotifyListeners(SignalingMessage message) {
+void FakeSignalStrategy::NotifyListeners(SignalStrategy::Message message) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  SignalingMessage message_to_dispatch = std::move(message);
+  SignalStrategy::Message message_to_dispatch = std::move(message);
   SignalingAddress from;
   SignalingAddress to;
-
-  std::optional<std::string> xml;
-  if (const auto* ftl =
-          std::get_if<ftl::ChromotingMessage>(&message_to_dispatch)) {
-    if (ftl->has_xmpp() && ftl->xmpp().has_stanza()) {
-      xml = ftl->xmpp().stanza();
-    }
-  } else if (const auto* corp = std::get_if<internal::PeerMessageStruct>(
-                 &message_to_dispatch)) {
-    if (const auto* iq =
-            std::get_if<internal::IqStanzaStruct>(&corp->payload)) {
-      xml = iq->xml;
-    }
-  }
-
-  if (xml) {
-    auto parsed_message = SignalStrategy::ParseStanzaXml(*xml);
-    if (parsed_message) {
-      message_to_dispatch = std::move(*parsed_message);
-    }
-  }
 
   if (const auto* jm = std::get_if<JingleMessage>(&message_to_dispatch)) {
     from = jm->from;
@@ -243,8 +220,15 @@ void FakeSignalStrategy::NotifyListeners(SignalingMessage message) {
   received_messages_.push_back(message_to_dispatch);
 
   for (auto& listener : listeners_) {
-    if (listener.OnSignalStrategyIncomingMessage(from, message_to_dispatch)) {
-      break;
+    if (const auto* jm = std::get_if<JingleMessage>(&message_to_dispatch)) {
+      if (listener.OnSignalingMessage(from, *jm)) {
+        break;
+      }
+    } else {
+      if (listener.OnSignalingReply(
+              from, std::get<JingleMessageReply>(message_to_dispatch))) {
+        break;
+      }
     }
   }
 }

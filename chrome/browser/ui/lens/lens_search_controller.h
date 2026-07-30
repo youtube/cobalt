@@ -227,6 +227,9 @@ class LensSearchController {
   // Whether the user has selected a region on the overlay.
   bool HasRegionSelection();
 
+  // Returns the profile for the tab.
+  Profile* GetProfile();
+
   // Returns the weak pointer to this class.
   base::WeakPtr<LensSearchController> GetWeakPtr();
 
@@ -267,6 +270,9 @@ class LensSearchController {
 
   // Returns the current invocation source.
   virtual std::optional<lens::LensOverlayInvocationSource> invocation_source();
+
+  // Sets the current invocation source and notifies the UI.
+  void SetInvocationSource(lens::LensOverlayInvocationSource invocation_source);
 
   // Returns whether the contextual search box should be shown on overlay open.
   bool should_show_csb() { return should_show_csb_; }

@@ -157,6 +157,7 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
                         tabModelSupplier,
                         tabGroupModelFilter,
                         tabGroupListBottomSheetCoordinator,
+                        tabGroupCreationCallback,
                         multiInstanceManager,
                         shareDelegateSupplier),
                 tabModelSupplier,
@@ -225,6 +226,7 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
             Supplier<TabModel> tabModelSupplier,
             TabGroupModelFilter tabGroupModelFilter,
             TabGroupListBottomSheetCoordinator tabGroupListBottomSheetCoordinator,
+            TabGroupCreationCallback tabGroupCreationCallback,
             MultiInstanceManager multiInstanceManager,
             MonotonicObservableSupplier<ShareDelegate> shareDelegateSupplier) {
         return (menuId, anchorInfo, collaborationId, listViewTouchTracker) -> {
@@ -237,6 +239,12 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
 
             if (menuId == R.id.add_to_tab_group) {
                 tabGroupListBottomSheetCoordinator.showBottomSheet(tabs);
+            } else if (menuId == R.id.add_to_new_tab_group) {
+                createNewGroupForTabs(
+                        tabs,
+                        tabGroupModelFilter,
+                        /* tabMovedCallback= */ null,
+                        tabGroupCreationCallback);
             } else if (menuId == R.id.remove_from_tab_group) {
                 // Ungrouping in reverse to maintain the order of the tabs.
                 Collections.reverse(tabs);
@@ -585,6 +593,8 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
     private static void recordMenuAction(int menuId, boolean isMultipleTabs) {
         if (menuId == R.id.add_to_tab_group) {
             recordUserAction("AddToTabGroup", isMultipleTabs);
+        } else if (menuId == R.id.add_to_new_tab_group) {
+            recordUserAction("AddToNewTabGroup", isMultipleTabs);
         } else if (menuId == R.id.remove_from_tab_group) {
             recordUserAction("RemoveTabFromTabGroup", isMultipleTabs);
         } else if (menuId == R.id.move_to_other_window_menu_id) {
@@ -697,6 +707,7 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
                             .withClickListener(clickListener)
                             .withIsIncognito(false)
                             .withStartIconDrawable(getCircleDrawable(colorId, false))
+                            .withShouldTintIcon(false)
                             .build());
         }
         return result;
@@ -730,6 +741,7 @@ public class TabContextMenuCoordinator extends TabStripReorderingHelper<AnchorIn
                             .withStartIconDrawable(
                                     getCircleDrawable(
                                             mTabGroupModelFilter.getTabGroupColor(groupId), true))
+                            .withShouldTintIcon(false)
                             .build());
         }
         return result;

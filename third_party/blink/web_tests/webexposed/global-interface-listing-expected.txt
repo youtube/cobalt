@@ -1446,6 +1446,14 @@ interface CharacterData : Node
     method replaceWithHTMLUnsafe
     method substringData
     setter data
+interface Classifier
+    static method availability
+    static method create
+    attribute @@toStringTag
+    getter inputQuota
+    method classify
+    method constructor
+    method destroy
 interface Clipboard : EventTarget
     attribute @@toStringTag
     getter onclipboardchange
@@ -2087,6 +2095,7 @@ interface Document : Node
     getter onmouseover
     getter onmouseup
     getter onmousewheel
+    getter onoverscroll
     getter onpaste
     getter onpause
     getter onplay
@@ -2314,6 +2323,7 @@ interface Document : Node
     setter onmouseover
     setter onmouseup
     setter onmousewheel
+    setter onoverscroll
     setter onpaste
     setter onpause
     setter onplay
@@ -2771,7 +2781,6 @@ interface ElementInternals
     getter role
     getter shadowRoot
     getter states
-    getter type
     getter validationMessage
     getter validity
     getter willValidate
@@ -2834,7 +2843,6 @@ interface ElementInternals
     setter ariaValueText
     setter ariaVirtualContent
     setter role
-    setter type
 interface EmailVerifiedEvent : Event
     attribute @@toStringTag
     getter presentationToken
@@ -3054,7 +3062,6 @@ interface Float16Array : TypedArray
     method constructor
 interface FocusEvent : UIEvent
     attribute @@toStringTag
-    getter pseudoTarget
     getter relatedTarget
     method constructor
 interface FontData
@@ -4002,6 +4009,7 @@ interface HTMLElement : Element
     getter onmouseover
     getter onmouseup
     getter onmousewheel
+    getter onoverscroll
     getter onpaste
     getter onpause
     getter onplay
@@ -4142,6 +4150,7 @@ interface HTMLElement : Element
     setter onmouseover
     setter onmouseup
     setter onmousewheel
+    setter onoverscroll
     setter onpaste
     setter onpause
     setter onplay
@@ -5831,6 +5840,7 @@ interface InteractionContentfulPaint : PerformanceEntry
     attribute @@toStringTag
     getter element
     getter id
+    getter interactionId
     getter loadTime
     getter paintTime
     getter presentationTime
@@ -5888,7 +5898,6 @@ interface KeyboardEvent : UIEvent
     getter keyCode
     getter location
     getter metaKey
-    getter pseudoTarget
     getter repeat
     getter shiftKey
     method constructor
@@ -6146,6 +6155,7 @@ interface MathMLElement : Element
     getter onmouseover
     getter onmouseup
     getter onmousewheel
+    getter onoverscroll
     getter onpaste
     getter onpause
     getter onplay
@@ -6261,6 +6271,7 @@ interface MathMLElement : Element
     setter onmouseover
     setter onmouseup
     setter onmousewheel
+    setter onoverscroll
     setter onpaste
     setter onpause
     setter onplay
@@ -6643,9 +6654,7 @@ interface MimeTypeArray
     method namedItem
 interface ModelContext
     attribute @@toStringTag
-    method clearContext
     method constructor
-    method provideContext
     method registerTool
     method unregisterTool
 interface Mojo
@@ -6719,7 +6728,6 @@ interface MouseEvent : UIEvent
     getter offsetY
     getter pageX
     getter pageY
-    getter pseudoTarget
     getter relatedTarget
     getter screenX
     getter screenY
@@ -6928,6 +6936,7 @@ interface Navigator
     getter product
     getter productSub
     getter protectedAudience
+    getter rtc
     getter scheduling
     getter serial
     getter serviceWorker
@@ -7348,6 +7357,10 @@ interface OverconstrainedError : DOMException
     attribute @@toStringTag
     getter constraint
     method constructor
+interface OverscrollEvent : Event
+    attribute @@toStringTag
+    getter overscrollElement
+    method constructor
 interface PageRevealEvent : Event
     attribute @@toStringTag
     getter viewTransition
@@ -7545,6 +7558,7 @@ interface PerformanceLongAnimationFrameTiming : PerformanceEntry
     attribute @@toStringTag
     getter blockingDuration
     getter firstUIEventTimestamp
+    getter layoutDuration
     getter paintTime
     getter presentationTime
     getter renderStart
@@ -7650,6 +7664,7 @@ interface PerformanceResourceTiming : PerformanceEntry
 interface PerformanceScriptTiming : PerformanceEntry
     attribute @@toStringTag
     getter executionStart
+    getter forcedLayoutDuration
     getter forcedStyleAndLayoutDuration
     getter forcedStyleDuration
     getter invoker
@@ -7874,6 +7889,13 @@ interface ProcessingInstruction : CharacterData
     getter sheet
     getter target
     method constructor
+    method getAttribute
+    method getAttributeNames
+    method hasAttribute
+    method hasAttributes
+    method removeAttribute
+    method setAttribute
+    method toggleAttribute
 interface Profiler : EventTarget
     attribute @@toStringTag
     getter sampleInterval
@@ -7948,6 +7970,12 @@ interface QuotaExceededError : DOMException
     getter quota
     getter requested
     method constructor
+interface RTC : EventTarget
+    attribute @@toStringTag
+    method cancelDiagnosticLogging
+    method constructor
+    method finishDiagnosticLogging
+    method startDiagnosticLogging
 interface RTCCertificate
     attribute @@toStringTag
     getter expires
@@ -8362,6 +8390,7 @@ interface Request
     getter headers
     getter integrity
     getter isHistoryNavigation
+    getter isReloadNavigation
     getter keepalive
     getter method
     getter mode
@@ -8717,6 +8746,7 @@ interface SVGElement : Element
     getter onmouseover
     getter onmouseup
     getter onmousewheel
+    getter onoverscroll
     getter onpaste
     getter onpause
     getter onplay
@@ -8834,6 +8864,7 @@ interface SVGElement : Element
     setter onmouseover
     setter onmouseup
     setter onmousewheel
+    setter onoverscroll
     setter onpaste
     setter onpause
     setter onplay
@@ -9987,6 +10018,7 @@ interface SnapEvent : Event
     method constructor
 interface SoftNavigationEntry : PerformanceEntry
     attribute @@toStringTag
+    getter interactionId
     getter largestInteractionContentfulPaint
     getter navigationType
     getter paintTime
@@ -10540,7 +10572,6 @@ interface TouchEvent : UIEvent
     getter changedTouches
     getter ctrlKey
     getter metaKey
-    getter pseudoTarget
     getter shiftKey
     getter targetTouches
     getter touches
@@ -10661,6 +10692,7 @@ interface TrustedTypePolicyFactory
 interface UIEvent : Event
     attribute @@toStringTag
     getter detail
+    getter pseudoTarget
     getter sourceCapabilities
     getter view
     getter which
@@ -13593,6 +13625,7 @@ namespace console
     getter onmove
     getter onoffline
     getter ononline
+    getter onoverscroll
     getter onpagehide
     getter onpagereveal
     getter onpageshow
@@ -13828,6 +13861,7 @@ namespace console
     setter onmove
     setter onoffline
     setter ononline
+    setter onoverscroll
     setter onpagehide
     setter onpagereveal
     setter onpageshow

@@ -14,23 +14,17 @@
 
 class PrefService;
 
-namespace signin {
-class AccountManagedStatusFinder;
-class IdentityManager;
-}  // namespace signin
-
 namespace history {
 
 class HistoryService;
 
 // DataTypeController for syncer::HISTORY.
 class HistoryDataTypeController : public syncer::DataTypeController,
-                                   public syncer::SyncServiceObserver {
+                                  public syncer::SyncServiceObserver {
  public:
   HistoryDataTypeController(syncer::SyncService* sync_service,
-                             signin::IdentityManager* identity_manager,
-                             HistoryService* history_service,
-                             PrefService* pref_service);
+                            HistoryService* history_service,
+                            PrefService* pref_service);
 
   HistoryDataTypeController(const HistoryDataTypeController&) = delete;
   HistoryDataTypeController& operator=(const HistoryDataTypeController&) =
@@ -39,22 +33,18 @@ class HistoryDataTypeController : public syncer::DataTypeController,
   ~HistoryDataTypeController() override;
 
   // syncer::DataTypeController implementation.
-  PreconditionState GetPreconditionState() const override;
+  PreconditionState GetPreconditionState(
+      const PreconditionContext& context) const override;
 
   // syncer::SyncServiceObserver implementation.
   void OnStateChanged(syncer::SyncService* sync) override;
   void OnSyncShutdown(syncer::SyncService* sync) override;
 
  private:
-  void AccountTypeDetermined();
-
   HistoryDataTypeControllerHelper helper_;
 
   base::ScopedObservation<syncer::SyncService, syncer::SyncServiceObserver>
       sync_observation_{this};
-
-  const raw_ptr<signin::IdentityManager> identity_manager_;
-  std::unique_ptr<signin::AccountManagedStatusFinder> managed_status_finder_;
 
   const raw_ptr<HistoryService> history_service_;
 };

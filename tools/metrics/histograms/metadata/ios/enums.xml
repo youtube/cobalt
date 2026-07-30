@@ -832,6 +832,7 @@ chromium-metrics-reviews@google.com.
   <int value="22"
       label="Nano Banana: Turn This Image Into a Watercolor Painting"/>
   <int value="23" label="Nano Banana: Make This Image Look Like Instant Film"/>
+  <int value="24" label="Edit Menu Prompt"/>
 </enum>
 
 <!-- LINT.ThenChange(
@@ -856,6 +857,7 @@ chromium-metrics-reviews@google.com.
   <int value="11" label="Website Alert"/>
   <int value="12" label="Bottom Banner (e.g. Download Banner)"/>
   <int value="13" label="Keyboard"/>
+  <int value="14" label="Gesture IPH"/>
 </enum>
 
 <!-- LINT.ThenChange(/ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h:FloatyUpdateSource) -->
@@ -1771,6 +1773,15 @@ chromium-metrics-reviews@google.com.
   <int value="5" label="Voice Over Swipe"/>
 </enum>
 
+<!-- LINT.IfChange(IOSTaskOrchestratorTaskSchedulingOutcome) -->
+
+<enum name="IOSTaskOrchestratorTaskSchedulingOutcome">
+  <int value="0" label="Scheduled"/>
+  <int value="1" label="Dropped due to Gaia ID mismatch"/>
+</enum>
+
+<!-- LINT.ThenChange(//ios/chrome/app/task_orchestrator.h:TaskSchedulingOutcome) -->
+
 <!-- LINT.IfChange(IOSThemeSyncInitialState) -->
 
 <enum name="IOSThemeSyncInitialState">
@@ -2072,6 +2083,28 @@ chromium-metrics-reviews@google.com.
   <int value="5"
       label="Bottom Sheet couldn't be presented for various reasons"/>
 </enum>
+
+<!-- LINT.IfChange(PictureInPictureAppRestoration) -->
+
+<enum name="PictureInPictureAppRestoration">
+  <int value="0"
+      label="Manual App Restoration (e.g. app switcher, home screen...)"/>
+  <int value="1" label="Picture in Picture Fullscreen Button"/>
+</enum>
+
+<!-- LINT.ThenChange(/ios/chrome/browser/picture_in_picture/public/picture_in_picture_constants.h:PictureInPictureAppRestoration) -->
+
+<!-- LINT.IfChange(PictureInPictureSessionDismissalReason) -->
+
+<enum name="PictureInPictureDismissalReason">
+  <int value="0" label="Not Supported"/>
+  <int value="1" label="Manual App Restoration"/>
+  <int value="2" label="In-App Close Button"/>
+  <int value="3" label="In-App Swipe to Close"/>
+  <int value="4" label="Picture in Picture Close Button"/>
+</enum>
+
+<!-- LINT.ThenChange(/ios/chrome/browser/picture_in_picture/public/picture_in_picture_constants.h:PictureInPictureDismissalReason) -->
 
 <!-- LINT.IfChange(ProfileNotificationRequestCreationFailureReason) -->
 

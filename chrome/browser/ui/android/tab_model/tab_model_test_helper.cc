@@ -41,7 +41,10 @@
 
 TestTabModel::TestTabModel(Profile* profile,
                            chrome::android::ActivityType activity_type)
-    : TabModel(profile, activity_type, TabModel::TabModelType::kStandard) {}
+    : TabModel(profile,
+               activity_type,
+               std::nullopt,
+               TabModel::TabModelType::kStandard) {}
 
 TestTabModel::~TestTabModel() = default;
 
@@ -149,6 +152,11 @@ int TestTabModel::GetTabCountNavigatedInTimeWindow(
 
 void TestTabModel::CloseTabsNavigatedInTimeWindow(const base::Time& begin_time,
                                                   const base::Time& end_time) {}
+
+tabs::TabCollection* TestTabModel::GetTabStripCollection() const {
+  NOTIMPLEMENTED();
+  return nullptr;
+}
 
 void TestTabModel::ActivateTab(tabs::TabHandle tab) {
   NOTIMPLEMENTED();
@@ -306,7 +314,10 @@ void TestTabModel::AssociateWithBrowserWindow(BrowserWindowInterface* browser) {
 OwningTestTabModel::OwningTestTabModel(
     Profile* profile,
     chrome::android::ActivityType activity_type)
-    : TabModel(profile, activity_type, TabModel::TabModelType::kStandard) {
+    : TabModel(profile,
+               activity_type,
+               std::nullopt,
+               TabModel::TabModelType::kStandard) {
   TabModelList::AddTabModel(this);
 }
 
@@ -469,6 +480,11 @@ void OwningTestTabModel::CloseTabsNavigatedInTimeWindow(
     const base::Time& begin_time,
     const base::Time& end_time) {
   NOTIMPLEMENTED();
+}
+
+tabs::TabCollection* OwningTestTabModel::GetTabStripCollection() const {
+  NOTIMPLEMENTED();
+  return nullptr;
 }
 
 void OwningTestTabModel::ActivateTab(tabs::TabHandle tab) {

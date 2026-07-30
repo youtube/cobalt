@@ -12,8 +12,10 @@
 #include "base/containers/flat_map.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
+#include "base/time/time.h"
 #include "base/token.h"
 #include "components/send_tab_to_self/entry_point_display_reason.h"
+#include "components/send_tab_to_self/metrics_util.h"
 #include "components/send_tab_to_self/page_context.h"
 #include "components/shared_highlighting/core/common/shared_highlighting_metrics.h"
 #include "content/public/browser/global_routing_id.h"
@@ -121,6 +123,7 @@ class SendTabToSelfBubbleController
 
   void SelectorGeneratedForRequest(
       base::Token request_token,
+      bool is_browser_timeout,
       const std::string& selector,
       shared_highlighting::LinkGenerationError error,
       shared_highlighting::LinkGenerationReadyStatus ready_status);
@@ -134,11 +137,14 @@ class SendTabToSelfBubbleController
     std::string target_device_guid;
     GURL url;
     std::string title;
+    base::TimeTicks start_time;
     PageContext page_context;
     content::GlobalRenderFrameHostId main_frame_id;
   };
 
-  void SendFinalizedRequest(PendingRequest request);
+  void SendFinalizedRequest(
+      PendingRequest request,
+      std::optional<ScrollPositionGenerationOutcome> outcome);
 
   base::TimeDelta GetSelectorGenerationTimeout() const;
 

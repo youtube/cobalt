@@ -58,6 +58,7 @@
 <translation id="1204075260022434100">{count,plural, =1{Grāmatzīme ir saglabāta mapē “{title}” jūsu kontā ({email}).}zero{{count} grāmatzīmes ir saglabātas mapē “{title}” jūsu kontā ({email}).}one{{count} grāmatzīme ir saglabāta mapē “{title}” jūsu kontā ({email}).}other{{count} grāmatzīmes ir saglabātas mapē “{title}” jūsu kontā ({email}).}}</translation>
 <translation id="1207493287814084192">17:30</translation>
 <translation id="1217294226280635614">Dalīts skats</translation>
+<translation id="1218730690561976633">Pārslēgt lietotāja verifikāciju uzlabotajai automātiskajai aizpildei</translation>
 <translation id="1219674500290482172">Nevar izveidot savienojumu ar internetu.</translation>
 <translation id="1223498995510244364">Apkopot</translation>
 <translation id="1227113644794103810">Neaktīvas cilnes</translation>
@@ -193,6 +194,7 @@
 <translation id="1657011748321897393">Nevarēja kopīgot, jo nav izveidots savienojums ar tīklu.</translation>
 <translation id="1668001730617725852">Atvērt jaunā ciļņu grupā</translation>
 <translation id="1674504678466460478">No <ph name="SOURCE_LANGUAGE" /> uz <ph name="TARGET_LANGUAGE" /></translation>
+<translation id="1678855624321223424">Pamatojoties uz jūsu organizācijas politikām, šajā failā var būt ietverta sensitīva informācija.</translation>
 <translation id="168389590065701766">Tagad varat atvērt Google Lens no adreses joslas un meklēt ekrānā redzamo saturu.</translation>
 <translation id="1689333818294560261">Apzīmējums</translation>
 <translation id="169048873465870056">Vai noņemt cilni un dzēst grupu?</translation>
@@ -599,6 +601,7 @@
 <translation id="3174662312949010067">Varat arī izmantot saglabātās paroles citās savās ierīcēs.</translation>
 <translation id="3177338796769255211">Pierakstieties, lai piekļūtu grāmatzīmēm un citiem datiem visās savās ierīcēs.</translation>
 <translation id="3181954750937456830">Droša pārlūkošana (aizsargā jūs un ierīci pret bīstamām vietnēm)</translation>
+<translation id="3183362380688692618">Jauna ciļņu grupa…</translation>
 <translation id="3186796054637504691">Clear History and Website Data (Notīrīt vēsturi un vietņu datus)</translation>
 <translation id="3190736958609431397">Atcelt izsekošanu</translation>
 <translation id="3208260410153224535">Jūsu organizācija izslēdza pierakstīšanos. Jaunas grāmatzīmes, paroles un citi dati tiks saglabāti tikai šajā ierīcē.</translation>
@@ -668,6 +671,7 @@
 <translation id="3476450923187944815">Piekļūstiet savām parolēm citās lietotnēs.</translation>
 <translation id="3485558910355485767">Jauns inkognito režīma logs</translation>
 <translation id="3488501490964659223">Cilnes tika aizvērtas, un pārlūkošanas dati tika dzēsti. Jūs tikāt izrakstīts.</translation>
+<translation id="3490396108106323715">Kopīgot pašreizējo cilni</translation>
 <translation id="3493531032208478708"><ph name="BEGIN_LINK" />Uzziniet vairāk<ph name="END_LINK" /> par ieteikto saturu.</translation>
 <translation id="349446645805573740">Izvēlieties, kur saglabāt failu “<ph name="BEGIN_BOLD" /><ph name="FILENAME" /><ph name="END_BOLD" />”</translation>
 <translation id="3504377992102007712">Iestatījumi</translation>
@@ -694,6 +698,7 @@
 <translation id="3565012355885596568">Nevarēja ielādēt attēlus.</translation>
 <translation id="3565930036634619844">Cilne numur <ph name="TAB_INDEX" />, kopējais skaits ir <ph name="NUMBER_OF_TABS" />.</translation>
 <translation id="3567168891086460374">Saglabāt citā veidā</translation>
+<translation id="3572503683475187385">Pašreizējā cilne tiek kopīgota ar Gemini, kad sākat jaunu tērzēšanas sarunu. Kad kopīgojat cilni ar Gemini, tās saturs un URL tiek nosūtīts uz Google serveriem. <ph name="BEGIN_LINK" />Uzziniet vairāk<ph name="END_LINK" />.</translation>
 <translation id="3572607909481582402">Jūsu Google kontā</translation>
 <translation id="3575234738189584619">Meklēt ar Lens</translation>
 <translation id="3575426792457739946">Šajā sarakstā ir iekļauti visi ielādētie profili.</translation>
@@ -737,6 +742,7 @@
 <translation id="3751873026576444885">Pārtraukt meklēšanu ekrānā, izmantojot Google Lens</translation>
 <translation id="3753408171347588045">Cenu izsekošana</translation>
 <translation id="3753618528540214374">Viridiāna motīvs</translation>
+<translation id="3759491607478608474">Lai saņemtu atbilstošākas atbildes, kopīgojiet pašreizējās cilnes saturu ar Gemini.</translation>
 <translation id="3762232513783804601">Izstrādāts jūsu iPad planšetdatoram</translation>
 <translation id="3768725474733206671">Vēlreiz atvērt pēdējo aizvērto cilni</translation>
 <translation id="3779810277399252432">Nav interneta savienojuma.</translation>
@@ -984,6 +990,7 @@
 <translation id="4650125387981512669">Turpināt kā: <ph name="FIRST_RUN_ACCOUNT_NAME" /></translation>
 <translation id="4651927776207937667">{count,plural, =1{Paslēpt pēc vienas minūtes}zero{Paslēpt pēc {count} minūtēm}one{Paslēpt pēc {count} minūtes}other{Paslēpt pēc {count} minūtēm}}</translation>
 <translation id="4652817563047461855">Aizsargājiet savas paroles, uzziniet, vai tās nav uzlauztas, un saņemiet padomus par drošību tiešsaistē. <ph name="BEGIN_LINK" />Uzziniet vairāk<ph name="END_LINK" />.</translation>
+<translation id="4653053602672040238">Ieslēdziet cilnes kopīgošanu</translation>
 <translation id="4658335131052370646">Saglabāt</translation>
 <translation id="466307903888586355">Jūsu organizācija ir bloķējusi failu saglabāšanu.</translation>
 <translation id="4668929960204016307">,</translation>
@@ -1112,6 +1119,7 @@
 <translation id="507187271399539513">{count,plural, =1{Maksājuma veids numur {position}, kopā ir {count}}zero{Maksājuma veids numur {position} no {count}}one{Maksājuma veids numur {position}, kopā ir {count}}other{Maksājuma veids numur {position}, kopā ir {count}}}</translation>
 <translation id="5075939510584558547">Saglabāšana bez šifrēšanas</translation>
 <translation id="5076534614343816664">Cenas izsekošana</translation>
+<translation id="507762438756999615">Failu nevar kopīgot jūsu organizācijas politiku dēļ.</translation>
 <translation id="5078303485429639424"><ph name="FEATURE_NAME" />: paziņojumu ieslēgšana</translation>
 <translation id="5079950360618752063">Izmantojiet ieteikto paroli</translation>
 <translation id="5083464117946352670">Nevar noteikt faila lielumu.</translation>
@@ -1297,6 +1305,7 @@ Funkcija Handoff ir jāiespējo arī iestatījumu sadaļā General (Vispārīgi)
 <translation id="5718049162805123412">Nekavējoties nomainiet šīs paroles</translation>
 <translation id="5721040778297053709">Novietojiet kredītkarti rāmī</translation>
 <translation id="572328651809341494">Nesen atvērtas cilnes</translation>
+<translation id="5724590854763964497">Pēc noklusējuma, sākot jaunu tērzēšanas sarunu, tiek kopīgota pašreizējā cilne. Kad tiek kopīgotas cilnes, to saturs un vietrāži URL tiek nosūtīti uz Google serveriem, taču tie netiks izmantoti ģeneratīvo MI modeļu uzlabošanai. Jebkurā laikā varat mainīt šo iestatījumu.</translation>
 <translation id="5724941645893276623">Lai pārlūkotu tīmekli privāti, pievienojiet jaunu cilni</translation>
 <translation id="5728072125198221967">Saistītie Google pakalpojumi</translation>
 <translation id="5728700505257787410">Diemžēl, pierakstoties kontā, radās problēma.</translation>
@@ -1964,6 +1973,8 @@ Funkcija Handoff ir jāiespējo arī iestatījumu sadaļā General (Vispārīgi)
 <translation id="8059533439631660104">Sakļauj sadaļu.</translation>
 <translation id="8061584726507121204">Vēsture</translation>
 <translation id="8064946459644399612">Tika lietotas jaunas cilnes lapas preferences</translation>
+<translation id="8065136076319366194">Nav ieteicams saglabāt</translation>
+<translation id="8065556469005366939">Saņemiet atbilstošākas atbildes, kopīgojot savas cilnes</translation>
 <translation id="8069394452933076548">Izvēlieties, kad uz neaktīvo ciļņu sadaļu tiek pārvietotas cilnes, kas pēdējā laikā nav izmantotas.</translation>
 <translation id="8073670137947914548">Lejupielāde ir pabeigta</translation>
 <translation id="8076492880354921740">Cilnes</translation>
@@ -1985,6 +1996,7 @@ Funkcija Handoff ir jāiespējo arī iestatījumu sadaļā General (Vispārīgi)
 <translation id="8131740175452115882">Apstiprināt</translation>
 <translation id="8132598642024322408">Pašreizējā cena: <ph name="PRICE" />; iepriekšējā cena: <ph name="PREVIOUS_PRICE" />.</translation>
 <translation id="813370552429173916">Katrā vietnē vai lietotnē izmantojiet unikālu paroli. Ja kāds uzzinās jūsu atkārtoti izmantoto paroli, šī persona var piekļūt citiem jūsu kontiem ar šo paroli. Noklikšķiniet, lai atvērtu vietni un mainītu paroli tūlīt.</translation>
+<translation id="8133810265969517544">Nav ieteicams kopīgot</translation>
 <translation id="8135556271852808840">{count,plural, =1{{count} aizvērta cilne}zero{{count} aizvērtu ciļņu}one{{count} aizvērta cilne}other{{count} aizvērtas cilnes}}</translation>
 <translation id="8135643032449715400">{COUNT,plural, =1{vēl 1 datu veids}zero{vēl # datu veidu}one{vēl # datu veids}other{vēl # datu veidi}}</translation>
 <translation id="8150167929304790980">It means name of a subject, not personal name.</translation>
@@ -2132,6 +2144,7 @@ Funkcija Handoff ir jāiespējo arī iestatījumu sadaļā General (Vispārīgi)
 <translation id="8660600697590740984">Pakalpojumā Lens nokopētais attēls</translation>
 <translation id="866266761389616183">Ak, vai!</translation>
 <translation id="8663764600409216912">Jūs izmantojat paroles, ko varētu būt grūti uzminēt</translation>
+<translation id="8664992138761940052">Pēc noklusējuma, sākot jaunu tērzēšanas sarunu, tiek kopīgota pašreizējā cilne. Kad tiek kopīgotas cilnes, to saturs un vietrāži URL tiek nosūtīti uz Google serveriem. Jebkurā laikā varat mainīt šo iestatījumu.</translation>
 <translation id="8668210798914567634">Šī lapa ir saglabāta jūsu lasīšanas sarakstā.</translation>
 <translation id="8672642291731179042">Lapu tulkošana</translation>
 <translation id="8672733398999596205">Iespējot visus</translation>
@@ -2233,6 +2246,7 @@ Funkcija Handoff ir jāiespējo arī iestatījumu sadaļā General (Vispārīgi)
 <translation id="8976414606286374109">Karšu informācija tiek saglabāta jūsu Google kontā.</translation>
 <translation id="8981454092730389528">Google aktivitātes vadīklas</translation>
 <translation id="8988107725234939347"><ph name="WEBSITE_TITLE" />, piesprausta vietne</translation>
+<translation id="8990960056509724223">Failu nevarēja saglabāt jūsu organizācijas politiku dēļ.</translation>
 <translation id="8998289560386111590">Nav pieejams jūsu ierīcē</translation>
 <translation id="9000532564152265066">Visas cilnes</translation>
 <translation id="9003677638446136377">Pārbaudīt vēlreiz</translation>

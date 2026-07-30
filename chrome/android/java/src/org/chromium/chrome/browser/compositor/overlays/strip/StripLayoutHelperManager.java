@@ -84,9 +84,9 @@ import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
 import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.share.ShareDelegate;
+import org.chromium.chrome.browser.tab.MediaState;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.Tab.LoadUrlResult;
-import org.chromium.chrome.browser.tab.Tab.MediaState;
 import org.chromium.chrome.browser.tab.TabClosingSource;
 import org.chromium.chrome.browser.tab.TabCreationState;
 import org.chromium.chrome.browser.tab.TabLaunchType;
@@ -185,28 +185,34 @@ public class StripLayoutHelperManager
             };
 
     // Shared button constants (Model selector and Glic).
-    private static final float BUTTON_BACKGROUND_WIDTH_DP = 32.f;
-    static final float BUTTON_BACKGROUND_HEIGHT_DP = 32.f;
     private static final float BUTTON_DESIRED_TOUCH_TARGET_SIZE =
-            StripLayoutUtils.shouldApplyMoreDensity() ? BUTTON_BACKGROUND_WIDTH_DP : 48.f;
-    private static final float BUTTON_CLICK_SLOP_DP =
-            (BUTTON_DESIRED_TOUCH_TARGET_SIZE - BUTTON_BACKGROUND_WIDTH_DP) / 2;
-    // y-offset for folio = lowered tab container + (tab container size - bg size)/2 -
-    // folio tab title y-offset = 2 + (38 - 32)/2 - 2 = 3dp
-    private static final float BUTTON_BACKGROUND_Y_OFFSET_DP = 3.f;
-
-    // Glic button constants.
-    static final float GLIC_MSB_BUTTON_PADDING_DP = 12.f;
-    private static final float GLIC_BUTTON_START_PADDING_DP = 6.f;
-    private static final float GLIC_ICON_WIDTH_DP = 24.f;
-    private static final float GLIC_ICON_TEXT_PADDING_DP = 4.f;
-    private static final float GLIC_BUTTON_END_PADDING_DP = 10.f;
-    private static final float GLIC_BUTTON_HOVER_BACKGROUND_PRESSED_OPACITY = 0.24f;
-    private static final float GLIC_BUTTON_HOVER_BACKGROUND_DEFAULT_OPACITY = 0.16f;
+            StripLayoutUtils.shouldApplyMoreDensity() ? 32.f : 48.f;
 
     // Model selector button constants.
+    private static final float MODEL_SELECTOR_BUTTON_BACKGROUND_Y_OFFSET_DP = 3.f;
+    private static final float MODEL_SELECTOR_BUTTON_BACKGROUND_WIDTH_DP = 32.f;
+    private static final float MODEL_SELECTOR_BUTTON_BACKGROUND_HEIGHT_DP = 32.f;
     private static final float MODEL_SELECTOR_BUTTON_HOVER_BACKGROUND_PRESSED_OPACITY = 0.12f;
     private static final float MODEL_SELECTOR_BUTTON_HOVER_BACKGROUND_DEFAULT_OPACITY = 0.08f;
+    private static final float MODEL_SELECTOR_BUTTON_CLICK_SLOP_DP =
+            (BUTTON_DESIRED_TOUCH_TARGET_SIZE - MODEL_SELECTOR_BUTTON_BACKGROUND_WIDTH_DP) / 2;
+
+    // Glic button constants.
+    private static final float GLIC_BUTTON_BACKGROUND_Y_OFFSET_DP = 5.f;
+    private static final float GLIC_BUTTON_BACKGROUND_WIDTH_DP = 28.f;
+    private static final float GLIC_BUTTON_BACKGROUND_HEIGHT_DP = 28.f;
+    private static final float GLIC_BUTTON_HOVER_BACKGROUND_PRESSED_OPACITY = 0.24f;
+    private static final float GLIC_BUTTON_HOVER_BACKGROUND_DEFAULT_OPACITY = 0.16f;
+    private static final float GLIC_BUTTON_CLICK_SLOP_DP =
+            (BUTTON_DESIRED_TOUCH_TARGET_SIZE - GLIC_BUTTON_BACKGROUND_WIDTH_DP) / 2;
+    private static final float GLIC_BUTTON_START_PADDING_DP = 6.f;
+    private static final float GLIC_ICON_WIDTH_DP = 16.f;
+    private static final float GLIC_ICON_TEXT_PADDING_DP = 4.f;
+    private static final float GLIC_BUTTON_END_PADDING_DP = 10.f;
+    private static final float GLIC_BUTTON_CORNER_RADIUS = 12.f;
+    // 2dp accounts for the smaller Glic background and aligns it with the toolbar buttons
+    private static final float GLIC_ALIGNMENT_OFFSET_DP =
+            (MODEL_SELECTOR_BUTTON_BACKGROUND_WIDTH_DP - GLIC_BUTTON_BACKGROUND_WIDTH_DP) / 2;
 
     // Tab strip transition constants.
     @VisibleForTesting
@@ -754,19 +760,22 @@ public class StripLayoutHelperManager
                         context,
                         ButtonType.GLIC,
                         /* parentView= */ null,
-                        BUTTON_BACKGROUND_WIDTH_DP,
-                        BUTTON_BACKGROUND_HEIGHT_DP,
+                        GLIC_BUTTON_BACKGROUND_WIDTH_DP,
+                        GLIC_BUTTON_BACKGROUND_HEIGHT_DP,
                         /* tooltipHandler= */ null,
                         selectorClickHandler,
                         keyboardFocusHandler,
-                        R.drawable.ic_spark_24dp,
-                        BUTTON_CLICK_SLOP_DP);
-        mGlicButton.setBackgroundResourceId(R.drawable.bg_circle_tab_strip_button);
-        mGlicButton.setDrawY(BUTTON_BACKGROUND_Y_OFFSET_DP);
+                        R.drawable.ic_spark_16dp,
+                        GLIC_BUTTON_CLICK_SLOP_DP);
+
+        // y-offset for folio = lowered tab container + (tab container size - bg size)/2 -
+        // folio tab title y-offset = 2 + (38 - 28)/2 - 2 = 5dp
+        mGlicButton.setDrawY(GLIC_BUTTON_BACKGROUND_Y_OFFSET_DP);
         mGlicButton.setVisible(false);
 
-        // TODO(crbug.com/480736011): Add proper colors and styling
-        @ColorInt int backgroundDefaultColor = context.getColor(R.color.modern_white);
+        @ColorInt
+        int backgroundDefaultColor =
+                TabUiThemeUtil.getTabStripSelectedTabColor(context, /* isIncognito= */ false);
 
         @ColorInt
         int apsBackgroundHoveredColor =
@@ -809,15 +818,15 @@ public class StripLayoutHelperManager
                         context,
                         ButtonType.INCOGNITO_SWITCHER,
                         /* parentView= */ null,
-                        BUTTON_BACKGROUND_WIDTH_DP,
-                        BUTTON_BACKGROUND_HEIGHT_DP,
+                        MODEL_SELECTOR_BUTTON_BACKGROUND_WIDTH_DP,
+                        MODEL_SELECTOR_BUTTON_BACKGROUND_HEIGHT_DP,
                         (tooltipText) -> {
                             mToolbarControlContainer.setTooltipText(tooltipText);
                         },
                         selectorClickHandler,
                         keyboardFocusHandler,
                         R.drawable.ic_incognito,
-                        BUTTON_CLICK_SLOP_DP);
+                        MODEL_SELECTOR_BUTTON_CLICK_SLOP_DP);
 
         // Button bg size is 32 * 32.
         mModelSelectorButton.setBackgroundResourceId(R.drawable.bg_circle_tab_strip_button);
@@ -873,7 +882,9 @@ public class StripLayoutHelperManager
                 apsBackgroundHoveredIncognitoColor,
                 apsBackgroundPressedIncognitoColor);
 
-        mModelSelectorButton.setDrawY(BUTTON_BACKGROUND_Y_OFFSET_DP);
+        // y-offset for folio = lowered tab container + (tab container size - bg size)/2 -
+        // folio tab title y-offset = 2 + (38 - 32)/2 - 2 = 3dp
+        mModelSelectorButton.setDrawY(MODEL_SELECTOR_BUTTON_BACKGROUND_Y_OFFSET_DP);
 
         mModelSelectorButton.setIncognito(false);
         mModelSelectorButton.setVisible(false);
@@ -952,7 +963,7 @@ public class StripLayoutHelperManager
 
         updateGlicButtonWidth();
         updateGlicButtonPosition();
-        updateStripButtons();
+        updateButtonMargins();
         mUpdateHost.requestUpdate();
     }
 
@@ -960,7 +971,7 @@ public class StripLayoutHelperManager
         if (mGlicButton == null) return;
         String glicButtonText = mGlicButton.getText();
 
-        float width = BUTTON_BACKGROUND_WIDTH_DP;
+        float width = GLIC_BUTTON_BACKGROUND_WIDTH_DP;
         if (!TextUtils.isEmpty(glicButtonText)) {
             LayerTitleCache titleCache = mLayerTitleCacheSupplier.get();
             if (titleCache != null) {
@@ -980,30 +991,27 @@ public class StripLayoutHelperManager
     private void updateGlicButtonPosition() {
         if (mGlicButton == null) return;
 
-        mGlicButton.setDrawY(BUTTON_BACKGROUND_Y_OFFSET_DP);
+        mGlicButton.setDrawY(GLIC_BUTTON_BACKGROUND_Y_OFFSET_DP);
         mGlicButton.setTouchTargetInsets(null, mTopPadding, null, -mTopPadding);
 
         boolean isMsbVisible = mModelSelectorButton != null && mModelSelectorButton.isVisible();
 
         if (!LocalizationUtils.isLayoutRtl()) {
-            mGlicButton.setDrawX(
-                    mWidth
-                            - mRightPadding
-                            - (isMsbVisible
-                                    ? getModelSelectorButtonWidthWithEndPadding()
-                                            + mGlicButton.getWidth()
-                                            + GLIC_MSB_BUTTON_PADDING_DP
-                                    : getGlicButtonWidthWithEndPadding()));
+            // We anchor the right side so when the Glic button expands, it will grow to the left
+            // while the right edge stays fixed.
+            float rightSideAnchor =
+                    mWidth - mRightPadding - mStripEndPadding - GLIC_ALIGNMENT_OFFSET_DP;
+            if (isMsbVisible) {
+                rightSideAnchor -= BUTTON_DESIRED_TOUCH_TARGET_SIZE;
+            }
+            mGlicButton.setDrawX(rightSideAnchor - mGlicButton.getWidth());
         } else {
-            mGlicButton.setDrawX(
-                    mLeftPadding
-                            + (isMsbVisible
-                                    ? getModelSelectorButtonWidthWithEndPadding()
-                                            - assumeNonNull(mModelSelectorButton).getWidth()
-                                            - GLIC_MSB_BUTTON_PADDING_DP
-                                    : 0)
-                            + getGlicButtonWidthWithEndPadding()
-                            - mGlicButton.getWidth());
+            // Symmetric logic for RTL: anchor the left side.
+            float leftSideAnchor = mLeftPadding + mStripEndPadding + GLIC_ALIGNMENT_OFFSET_DP;
+            if (isMsbVisible) {
+                leftSideAnchor += BUTTON_DESIRED_TOUCH_TARGET_SIZE;
+            }
+            mGlicButton.setDrawX(leftSideAnchor);
         }
     }
 
@@ -1160,16 +1168,13 @@ public class StripLayoutHelperManager
         }
         updateGlicButtonPosition();
         if (mModelSelectorButton != null) {
-            mModelSelectorButton.setDrawY(BUTTON_BACKGROUND_Y_OFFSET_DP);
+            mModelSelectorButton.setDrawY(MODEL_SELECTOR_BUTTON_BACKGROUND_Y_OFFSET_DP);
             mModelSelectorButton.setTouchTargetInsets(null, mTopPadding, null, -mTopPadding);
             if (!LocalizationUtils.isLayoutRtl()) {
                 mModelSelectorButton.setDrawX(
                         mWidth - mRightPadding - getModelSelectorButtonWidthWithEndPadding());
             } else {
-                mModelSelectorButton.setDrawX(
-                        mLeftPadding
-                                + getModelSelectorButtonWidthWithEndPadding()
-                                - mModelSelectorButton.getWidth());
+                mModelSelectorButton.setDrawX(mLeftPadding + mStripEndPadding);
             }
         }
 
@@ -1340,19 +1345,16 @@ public class StripLayoutHelperManager
         boolean hasIncognitoTabs = incognitoTabModel != null && incognitoTabModel.getCount() > 0;
         boolean shouldShowMsb = !IncognitoUtils.shouldOpenIncognitoAsWindow() && hasIncognitoTabs;
 
-        // Tablet: 344 = 2 * minTabWidth(108) - tabOverlap(28) + newTabButton (48) +
-        // [optional] glicButton(48) + [optional] modelSelectorButton(48) + [optional]
-        // GLIC_MSB_BUTTON_PADDING_DP(12).
-        // Desktop: 232 = 2 * minTabWidth(76) - tabOverlap(28) + newTabButton (32) +
-        // [optional] glicButton(32) + [optional] modelSelectorButton(32) + [optional]
-        // GLIC_MSB_BUTTON_PADDING_DP(12).
+        // Tablet: 332 = 2 * minTabWidth(108) - tabOverlap(28) + newTabButton (48) +
+        // [optional] glicButton(48) + [optional] modelSelectorButton(48)
+        // Desktop: 220 = 2 * minTabWidth(76) - tabOverlap(28) + newTabButton (32) +
+        // [optional] glicButton(32) + [optional] modelSelectorButton(32)
         float thresholdDp =
                 (2 * MIN_TAB_WIDTH_DP)
                         - TAB_OVERLAP_WIDTH_DP
                         + BUTTON_TOUCH_TARGET_SIZE_DP
                         + (shouldShowGlic ? BUTTON_TOUCH_TARGET_SIZE_DP : 0f)
-                        + (shouldShowMsb ? BUTTON_TOUCH_TARGET_SIZE_DP : 0f)
-                        + (shouldShowGlic && shouldShowMsb ? GLIC_MSB_BUTTON_PADDING_DP : 0);
+                        + (shouldShowMsb ? BUTTON_TOUCH_TARGET_SIZE_DP : 0f);
         return Math.round(thresholdDp);
     }
 
@@ -1424,7 +1426,7 @@ public class StripLayoutHelperManager
 
     private float getGlicButtonWidthWithEndPadding() {
         if (mGlicButton == null) return 0.f;
-        return mGlicButton.getWidth() + mStripEndPadding;
+        return mGlicButton.getWidth() + mStripEndPadding + GLIC_ALIGNMENT_OFFSET_DP;
     }
 
     /**
@@ -1433,14 +1435,14 @@ public class StripLayoutHelperManager
      */
     private float getGlicButtonStartPaddingForTouchTarget() {
         if (mGlicButton != null && mGlicButton.isVisible()) {
-            return BUTTON_DESIRED_TOUCH_TARGET_SIZE - mGlicButton.getWidth() - mStripEndPadding;
+            return mStripEndPadding + GLIC_ALIGNMENT_OFFSET_DP;
         } else {
             return 0.f;
         }
     }
 
     private float getModelSelectorButtonWidthWithEndPadding() {
-        return BUTTON_BACKGROUND_WIDTH_DP + mStripEndPadding;
+        return MODEL_SELECTOR_BUTTON_BACKGROUND_WIDTH_DP + mStripEndPadding;
     }
 
     /**
@@ -1932,11 +1934,13 @@ public class StripLayoutHelperManager
      * @param defaultTint The default tint to use.
      */
     public @ColorInt int getMediaIndicatorTintColor(
-            @Tab.MediaState int mediaState, @ColorInt int defaultTint) {
-        if (mediaState == Tab.MediaState.RECORDING) {
+            @MediaState int mediaState, @ColorInt int defaultTint) {
+        if (mediaState == MediaState.RECORDING) {
             return mContext.getColor(R.color.tab_recording_media_color);
-        } else if (mediaState == Tab.MediaState.SHARING) {
+        } else if (mediaState == MediaState.SHARING) {
             return mContext.getColor(R.color.tab_sharing_media_color);
+        } else if (mediaState == MediaState.PICTURE_IN_PICTURE) {
+            return mContext.getColor(R.color.tab_pip_media_color);
         }
         return defaultTint;
     }
@@ -2000,15 +2004,27 @@ public class StripLayoutHelperManager
         if (mGlicButton != null) mGlicButton.setVisible(newGlicVisibility);
         if (mModelSelectorButton != null) mModelSelectorButton.setVisible(newMsbVisibility);
 
+        // The Glic button position depends on the MSB's visibility.
+        if (msbChanged) {
+            updateGlicButtonPosition();
+        }
+
+        updateButtonMargins();
+    }
+
+    private void updateButtonMargins() {
+        boolean isGlicVisible = mGlicButton != null && mGlicButton.isVisible();
+        boolean isMsbVisible = mModelSelectorButton != null && mModelSelectorButton.isVisible();
+
         // Calculate layout sizes and update margins. We use (width + end padding + start spacing)
         // to create a larger gap between buttons to meet touch target size requirements.
         float glicTouchTargetSize =
-                newGlicVisibility
+                isGlicVisible
                         ? (getGlicButtonWidthWithEndPadding()
                                 + getGlicButtonStartPaddingForTouchTarget())
                         : 0.0f;
         float msbTouchTargetSize =
-                newMsbVisibility
+                isMsbVisible
                         ? (getModelSelectorButtonWidthWithEndPadding()
                                 + getMsbStartPaddingForTouchTarget())
                         : 0.0f;
@@ -2031,6 +2047,10 @@ public class StripLayoutHelperManager
 
     public float getGlicIconTextPadding() {
         return GLIC_ICON_TEXT_PADDING_DP;
+    }
+
+    public float getGlicButtonCornerRadius() {
+        return GLIC_BUTTON_CORNER_RADIUS;
     }
 
     private boolean shouldMsbBeVisible() {

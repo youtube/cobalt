@@ -16,12 +16,7 @@
 #include "components/on_device_translation/service_controller.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "services/network/public/mojom/url_loader_factory.mojom.h"
-#include "third_party/blink/public/mojom/on_device_translation/translation_manager.mojom.h"
 #include "url/origin.h"
-
-namespace on_device_translation {
-class ServiceControllerManager;
-}  // namespace on_device_translation
 
 namespace captions {
 
@@ -33,11 +28,12 @@ class TranslationDispatcherOnDevice : public TranslationDispatcher {
   TranslationDispatcherOnDevice& operator=(
       const TranslationDispatcherOnDevice&) = delete;
   explicit TranslationDispatcherOnDevice(
-      on_device_translation::ServiceControllerManager* manager);
+      std::unique_ptr<on_device_translation::OnDeviceTranslationController>
+          translation_controller);
 
-  void GetTranslation(absl::string_view result,
-                      absl::string_view source_language,
-                      absl::string_view target_language,
+  void GetTranslation(std::string_view result,
+                      std::string_view source_language,
+                      std::string_view target_language,
                       TranslateEventCallback callback) override;
 
   void SetURLLoaderFactoryForTest(
@@ -53,7 +49,8 @@ class TranslationDispatcherOnDevice : public TranslationDispatcher {
       TranslateEventCallback callback,
       base::expected<
           mojo::PendingRemote<on_device_translation::mojom::Translator>,
-          blink::mojom::CreateTranslatorError> translator);
+          on_device_translation::OnDeviceTranslationController::
+              CreateTranslatorError> translator);
 
   void OnTranslated(TranslateEventCallback callback,
                     const std::optional<std::string>& translation);
@@ -63,15 +60,14 @@ class TranslationDispatcherOnDevice : public TranslationDispatcher {
       const std::string& target_language,
       const std::string& result,
       TranslateEventCallback callback,
-      blink::mojom::CanCreateTranslatorResult can_create_translator_result);
+      on_device_translation::OnDeviceTranslationController::CanTranslateResult
+          can_translate_result);
 
   std::string source_language_;
   std::string target_language_;
 
-  const url::Origin origin_;
-
-  scoped_refptr<on_device_translation::OnDeviceTranslationServiceController>
-      service_controller_;
+  std::unique_ptr<on_device_translation::OnDeviceTranslationController>
+      translation_controller_;
   mojo::Remote<on_device_translation::mojom::Translator> translator_;
   bool creation_in_progress_ = false;
   std::vector<std::pair<std::string, TranslateEventCallback>>

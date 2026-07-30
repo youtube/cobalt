@@ -202,10 +202,7 @@ class AILanguageModel::PromptState
     responder_.reset();
     context_receiver_.reset();
     response_receiver_.reset();
-    if (callback_) {
-      std::move(callback_).Run();
-      // `this` may be deleted.
-    }
+    RunCallback();
   }
 
   void OnContextOverflow() {
@@ -263,8 +260,7 @@ class AILanguageModel::PromptState
     context_receiver_.reset();
     token_count_ = tokens_processed;
     if (mode_ == Mode::kAppendOnly) {
-      std::move(callback_).Run();
-      // `this` may be deleted.
+      RunCallback();
     }
   }
 
@@ -285,13 +281,14 @@ class AILanguageModel::PromptState
             output_tokens_, unchecked_output_tokens_)) {
       return;
     }
+
+    std::string unchecked_response_copy = unchecked_response_;
+    unchecked_output_tokens_ = 0;
+    unchecked_response_ = "";
     safety_checker_->RunRawOutputCheck(
         full_response_, optimization_guide::ResponseCompleteness::kPartial,
         base::BindOnce(&PromptState::OnPartialResponseCheckComplete,
-                       weak_factory_.GetWeakPtr(),
-                       std::move(unchecked_response_)));
-    unchecked_output_tokens_ = 0;
-    unchecked_response_ = "";
+                       weak_factory_.GetWeakPtr(), unchecked_response_copy));
   }
 
   void OnComplete(on_device_model::mojom::ResponseSummaryPtr summary) override {
@@ -370,8 +367,7 @@ class AILanguageModel::PromptState
           << "Model generates raw response with PromptApi:\n"
           << full_response_;
     }
-    std::move(callback_).Run();
-    // `this` may be deleted.
+    RunCallback();
   }
 
   // Returns true if there was a safety error and the response was stopped.
@@ -391,6 +387,16 @@ class AILanguageModel::PromptState
       return true;
     }
     return false;
+  }
+
+  void RunCallback() {
+    if (!callback_) {
+      return;
+    }
+    // `this` may be deleted by the callback, so delay running it to ensure
+    // any synchronous uses of `this` complete.
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, std::move(callback_));
   }
 
   mojo::Remote<blink::mojom::ModelStreamingResponder> responder_;
@@ -515,17 +521,23 @@ uint32_t AILanguageModel::GetTotalModelTokens() const {
 }
 
 // static
-base::flat_set<std::string_view>
-AILanguageModel::GetSupportedLanguageBaseCodes() {
+std::optional<base::flat_set<std::string>>
+AILanguageModel::GetEnabledLanguageBaseCodes() {
   // Comma-separated language codes to enable; or "*" enables all supported.
   const base::FeatureParam<std::string> kAIPromptAPILanguagesEnabled{
       &blink::features::kAIPromptAPI, "langs", /*default=*/"en,es,ja"};
+  return on_device_ai::GetEnabledLanguagesForFeature(
+      GetDefaultSupportedLanguageBaseCodes(), kAIPromptAPILanguagesEnabled);
+}
+
+// static
+base::flat_set<std::string>
+AILanguageModel::GetDefaultSupportedLanguageBaseCodes() {
   // TODO(crbug.com/394841624): Get supported languages from the model config.
   auto kSupportedBaseLanguages =
       base::MakeFixedFlatSet<std::string_view>({"en", "ja", "es"});
-  return on_device_ai::RestrictSupportedLanguagesForFeature(
-      base::MakeFlatSet<std::string_view>(kSupportedBaseLanguages),
-      kAIPromptAPILanguagesEnabled);
+  return base::flat_set<std::string>(kSupportedBaseLanguages.begin(),
+                                     kSupportedBaseLanguages.end());
 }
 
 AILanguageModel::AILanguageModel(
@@ -637,8 +649,8 @@ void AILanguageModel::MeasureInputUsage(
     std::vector<blink::mojom::AILanguageModelPromptPtr> prompts,
     MeasureInputUsageCallback callback) {
   EnsureSessionConnected();
-  auto input = ConvertToInputForExecute(std::move(prompts),
-                                        session_params_->capabilities);
+  auto input =
+      ConvertToInput(std::move(prompts), session_params_->capabilities);
   if (!input) {
     std::move(callback).Run(std::nullopt);
     return;

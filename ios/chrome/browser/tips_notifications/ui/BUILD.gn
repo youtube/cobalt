@@ -10,6 +10,7 @@ source_set("shared") {
   deps = [
     "//base",
     "//ios/chrome/browser/instructions_bottom_sheet/ui",
+    "//ios/chrome/browser/shared/ui/animated_promo:utils",
     "//ios/chrome/browser/shared/ui/bottom_sheet:bottom_sheet_view_controller",
     "//ios/chrome/common/ui/button_stack",
     "//ios/chrome/common/ui/colors",
@@ -82,6 +83,21 @@ source_set("price_tracking_promo") {
   sources = [
     "price_tracking_promo_view_controller.h",
     "price_tracking_promo_view_controller.mm",
+  ]
+  public_deps = [ ":shared" ]
+  deps = [
+    "//ios/chrome/app/strings",
+    "//ios/chrome/browser/shared/ui/util",
+    "//ios/chrome/common/ui/button_stack",
+    "//ui/base",
+  ]
+  frameworks = [ "UIKit.framework" ]
+}
+
+source_set("tab_groups_promo") {
+  sources = [
+    "tab_groups_promo_view_controller.h",
+    "tab_groups_promo_view_controller.mm",
   ]
   public_deps = [ ":shared" ]
   deps = [

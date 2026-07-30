@@ -936,6 +936,7 @@ if (_is_default_toolchain) {
       "//chrome/browser/download/internal/android:java",
       "//chrome/browser/facilitated_payments/ui/android/internal:java",
       "//chrome/browser/feedback/android:internal_java",
+      "//chrome/browser/finds/android:java",
       "//chrome/browser/hub/internal:java",
       "//chrome/browser/mandatory_reauth/android/internal:java",
       "//chrome/browser/partnerbookmarks:java",
@@ -1133,6 +1134,7 @@ if (_is_default_toolchain) {
       "//chrome/browser/facilitated_payments/ui/android/internal:junit",
       "//chrome/browser/feed/android:junit",
       "//chrome/browser/flags:flags_junit_tests",
+      "//chrome/browser/glic/android:junit",
       "//chrome/browser/hub:junit",
       "//chrome/browser/hub/internal:junit",
       "//chrome/browser/incognito:incognito_junit_tests",
@@ -1988,7 +1990,6 @@ if (_is_default_toolchain) {
     sources = [
       "../browser/android/ssl/mock_cert_verifier_rule_android.cc",
       "../browser/android/ssl/mock_cert_verifier_rule_android.h",
-      "../browser/gesturenav/android/screenshot_capture_test_helper.cc",
       "../browser/offline_pages/android/offline_test_util_jni.cc",
       "../browser/sync/android/fake_server_helper_android.cc",
     ]
@@ -1997,6 +1998,7 @@ if (_is_default_toolchain) {
       "//chrome/browser",
       "//chrome/browser:browser_process",
       "//chrome/browser/autofill/test:test_support",
+      "//chrome/browser/gesturenav/android:test_support",
       "//chrome/browser/picture_in_picture/test:test_support",
       "//chrome/browser/renderer_host/android:test_support",
       "//chrome/browser/sync",

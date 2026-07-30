@@ -23,6 +23,7 @@ import androidx.core.graphics.drawable.DrawableCompat;
 
 import org.chromium.base.CallbackController;
 import org.chromium.base.DeviceInfo;
+import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.NullableObservableSupplier;
 import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.build.annotations.Contract;
@@ -99,7 +100,6 @@ import java.lang.annotation.RetentionPolicy;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiFunction;
-import java.util.function.Supplier;
 
 /** An {@link AppMenuPropertiesDelegateImpl} for ChromeTabbedActivity. */
 @NullMarked
@@ -157,7 +157,7 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
             ModalDialogManager modalDialogManager,
             SnackbarManager snackbarManager,
             OneshotSupplier<IncognitoReauthController> incognitoReauthControllerOneshotSupplier,
-            Supplier<ReadAloudController> readAloudControllerSupplier,
+            MonotonicObservableSupplier<ReadAloudController> readAloudControllerSupplier,
             PageZoomManager pageZoomManager,
             @Nullable OpenInAppMenuItemProvider openInAppMenuItemProvider) {
         super(
@@ -978,17 +978,9 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
 
         // The print functionality is enabled if:
         // 1. The device is running Desktop Android, OR
-        // 2. The current tab is a web-based PDF (transient).
-        // Note: Printing local PDFs (chrome-native://) is not yet supported.
+        // 2. The current tab is a PDF page.
         NativePage nativePage = currentTab.getNativePage();
         boolean isPdf = nativePage != null && nativePage.isPdf();
-        boolean isLocalPdf =
-                isPdf && currentTab.getUrl().getScheme().equals(UrlConstants.CHROME_NATIVE_SCHEME);
-
-        if (isLocalPdf) {
-            return false;
-        }
-
         return DeviceInfo.isDesktop() || isPdf;
     }
 

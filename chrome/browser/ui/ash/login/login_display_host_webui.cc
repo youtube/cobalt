@@ -11,6 +11,7 @@
 #include "ash/accessibility/ui/focus_ring_controller.h"
 #include "ash/booting/booting_animation_controller.h"
 #include "ash/constants/ash_features.h"
+#include "ash/constants/ash_pref_names.h"
 #include "ash/constants/ash_switches.h"
 #include "ash/public/cpp/locale_update_controller.h"
 #include "ash/public/cpp/login_accelerators.h"
@@ -80,7 +81,6 @@
 #include "chrome/common/chrome_constants.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/pref_names.h"
-#include "chrome/grit/browser_resources.h"
 #include "chromeos/ash/components/audio/public/cpp/sounds/sounds_manager.h"
 #include "chromeos/ash/components/audio/sounds.h"
 #include "chromeos/ash/components/dbus/session_manager/session_manager_client.h"
@@ -329,7 +329,7 @@ void ShowLoginWizardFinish(
   // Restore system timezone.
   std::string timezone;
   if (system::PerUserTimezoneEnabled()) {
-    timezone = local_state->GetString(::prefs::kSigninScreenTimezone);
+    timezone = local_state->GetString(ash::prefs::kSigninScreenTimezone);
   }
 
   // TODO(crbug.com/1105387): Part of initial screen logic.

@@ -29,6 +29,7 @@
 <translation id="126567311906253476">‏<ph name="USER_EMAIL" /> کے ساتھ Gmail یا YouTube جیسی Google سروسز میں سائن ان کرتے وقت، آپ اسی اکاؤنٹ سے خودکار طور پر Chromium میں سائن ان کر سکتے ہیں</translation>
 <translation id="1290883685122687410">سیٹ اپ میں خرابی: <ph name="METAINSTALLER_EXIT_CODE" />. <ph name="WINDOWS_ERROR" /></translation>
 <translation id="1315551408014407711">‏اپنی نئی Chromium پروفائل سیٹ اپ کریں</translation>
+<translation id="132092532143527429">‏‫Chromium میں Gemini کے ساتھ آزمائیں</translation>
 <translation id="1324107359134968521">‏‫Chromium کو بلوٹوتھ آلات دریافت کرنے کے لیے بلوٹوتھ تک رسائی درکار ہے۔ <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="1330562121671411446">زبان کا پتا لگائیں</translation>
 <translation id="1330742950061766891">‏‫Chromium کی تجویز کردہ براؤزر کی ترتیبات استعمال کریں</translation>
@@ -240,6 +241,7 @@
 <translation id="3509308970982693815">‏براہ کرم سبھی Chromium ونڈوز بند کریں اور دوبارہ کوشش کریں۔</translation>
 <translation id="3522404737534491619">‏اپنی ونڈو کا اشتراک کرنے کیلئے، سسٹم کی ترتیبات میں Chromium کیلئے اسکرین ریکارڈنگ کی اجازت دیں</translation>
 <translation id="3530103706039034513">‏<ph name="EXISTING_USER" /> پہلے سے ہی سائن ان ہے۔  اپنی براؤزنگ کو الگ رکھنے کے لیے، اپنی پروفائل میں Chromium میں بطور <ph name="USER_EMAIL_ADDRESS" /> سائن ان کریں۔</translation>
+<translation id="3531741627422851418">‏موبائل آلات پر Chromium براؤزر ڈاؤن لوڈ کرنے کے لیے QR کوڈ</translation>
 <translation id="3561853857681580870">‏اپنی اسکرین کا اشتراک کرنے کیلئے، سسٹم کی ترتیبات میں Chromium کیلئے اسکرین ریکارڈنگ کی اجازت دیں۔</translation>
 <translation id="3588112919289558122">‏بہتر کردہ حفاظت ان سائٹس کے لیے JavaScript آپٹیمائزیشن کو آف کر دیتی ہے جنہیں Chromium نہیں پہچانتا ہے</translation>
 <translation id="3597003331831379823">زیادہ مراعات کے ساتھ سیٹ اپ کو چلانے میں ناکام۔ <ph name="METAINSTALLER_ERROR" /></translation>
@@ -375,7 +377,6 @@
 <translation id="5174969993834422967">آپ عام طور پر اطلاعات کو مسدود کرتے ہیں۔ اس سائٹ کو آپ کو مطلع کرنے کی اجازت دینے کے لیے، اپنے مقام بار کے دائیں کونے میں نوٹیفکیشن آئیکن پر کلک کریں۔</translation>
 <translation id="5174983315706567306">ڈسک میں کافی اسپیس نہیں ہے۔</translation>
 <translation id="5187123684706427865">‏‫Chromium اکاؤنٹ میں دوبارہ تصدیق درکار ہے</translation>
-<translation id="5219681158518957165">تجویز کردہ براؤزر کی ترتیبات استعمال کریں</translation>
 <translation id="5224391634244552924">‏کوئی محفوظ کردہ پاس ورڈ نہیں۔ جب آپ پاس ورڈز کو محفوظ کرتے ہیں تو Chromium انہیں چیک کر سکتا ہے۔</translation>
 <translation id="5231355151045086930">‏Chromium سے سائن آؤٹ کریں</translation>
 <translation id="5234764350956374838">برخاست کریں</translation>
@@ -609,6 +610,7 @@ Chromium آپ کی ترتیبات کو بازیافت کرنے سے قاصر ہ�
 <translation id="7622753900276619808">‏اب آپ کے پاس Chromium میں مزید خصوصیات دستیاب ہیں</translation>
 <translation id="7624307931717240213">ہم اس سروس کو بہتر بنانے کے لیے معلومات کا استعمال کرتے ہیں۔ رازداری کی پالیسی اور سروس کی شرائط دیکھیں۔</translation>
 <translation id="7649070708921625228">مدد</translation>
+<translation id="7650134251917003571">‏‫Chromium ایپ حاصل کریں</translation>
 <translation id="7656340475565475526">‏‫Chromium کو آپ کے لیے براؤز کرنے دیں</translation>
 <translation id="7658239707568436148">منسوخ کریں</translation>
 <translation id="7686590090926151193">‏Chromium آپ کا ڈیفالٹ براؤزر نہیں ہے</translation>

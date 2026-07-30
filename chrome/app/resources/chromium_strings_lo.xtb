@@ -29,6 +29,7 @@
 <translation id="126567311906253476">ເມື່ອເຂົ້າສູ່ລະບົບບໍລິການຕ່າງໆຂອງ Google ເຊັ່ນ: Gmail ຫຼື YouTube ດ້ວຍ <ph name="USER_EMAIL" />, ທ່ານສາມາດເຂົ້າສູ່ລະບົບ Chromium ດ້ວຍບັນຊີດຽວກັນໄດ້ໂດຍອັດຕະໂນມັດ</translation>
 <translation id="1290883685122687410">ຂໍ້ຜິດພາດໃນການຕັ້ງຄ່າ: <ph name="METAINSTALLER_EXIT_CODE" />. <ph name="WINDOWS_ERROR" /></translation>
 <translation id="1315551408014407711">ຕັ້ງຄ່າໂປຣໄຟລ໌ Chromium ໃໝ່ຂອງທ່ານ</translation>
+<translation id="132092532143527429">ລອງໃຊ້ Gemini ໃນ Chromium</translation>
 <translation id="1324107359134968521">Chromium ຕ້ອງການສິດເຂົ້າເຖິງ Bluetooth ເພື່ອສຳຫຼວດ 
  ອຸປະກອນ Bluetooth. <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="1330562121671411446">ກວດຫາພາສາ</translation>
@@ -241,6 +242,7 @@
 <translation id="3509308970982693815">ກະລຸນາປິດທຸກໜ້າຕ່າງ Chromium ແລະລອງໃໝ່ອີກ.</translation>
 <translation id="3522404737534491619">ເພື່ອແບ່ງປັນໜ້າຈໍຂອງທ່ານ, ໃຫ້ອະນຸຍາດການບັນທຶກໜ້າຈໍສຳລັບ Chromium ໃນການຕັ້ງຄ່າລະບົບ</translation>
 <translation id="3530103706039034513"><ph name="EXISTING_USER" /> ເຂົ້າສູ່ລະບົບຢູ່ແລ້ວ.  ເພື່ອແຍກການທ່ອງເວັບຂອງທ່ານໄວ້ຕ່າງຫາກ, ໃຫ້ເຂົ້າສູ່ລະບົບ Chromium ໃນໂປຣໄຟລ໌ຂອງທ່ານເອງໃນຖານະ <ph name="USER_EMAIL_ADDRESS" />.</translation>
+<translation id="3531741627422851418">ລະຫັດ QR ເພື່ອດາວໂຫຼດໂປຣແກຣມທ່ອງເວັບ Chromium ຢູ່ອຸປະກອນມືຖື</translation>
 <translation id="3561853857681580870">ເພື່ອແບ່ງປັນໜ້າຈໍຂອງທ່ານ, ໃຫ້ອະນຸຍາດການບັນທຶກໜ້າຈໍສຳລັບ Chromium ໃນການຕັ້ງຄ່າລະບົບ.</translation>
 <translation id="3588112919289558122">ການປົກປ້ອງທີ່ປັບປຸງດີຂຶ້ນຈະປິດການເພີ່ມປະສິດທິພາບ JavaScript ສຳລັບເວັບໄຊທີ່ Chromium ບໍ່ຮູ້ຈັກ</translation>
 <translation id="3597003331831379823">ເອີ້ນໃຊ້ການຕັ້ງຄ່າດ້ວຍສິດທິພິເສດລະດັບສູງບໍ່ສຳເລັດ. <ph name="METAINSTALLER_ERROR" /></translation>
@@ -376,7 +378,6 @@
 <translation id="5174969993834422967">ໂດຍປົກກະຕິແລ້ວທ່ານບລັອກການແຈ້ງເຕືອນ. ເພື່ອໃຫ້ເວັບໄຊນີ້ແຈ້ງເຕືອນທ່ານ, ໃຫ້ຄລິກທີ່ໄອຄອນການແຈ້ງເຕືອນຢູ່ມຸມຂວາຂອງແຖບສະຖານທີ່ຂອງທ່ານ.</translation>
 <translation id="5174983315706567306">ພື້ນທີ່ດິສກ໌ບໍ່ພຽງພໍ.</translation>
 <translation id="5187123684706427865">ບັນຊີ Chromium ຕ້ອງມີການພິສູດຢືນຢັນຄືນໃໝ່</translation>
-<translation id="5219681158518957165">ໃຊ້ການຕັ້ງຄ່າໂປຣແກຣມທ່ອງເວັບທີ່ແນະນຳ</translation>
 <translation id="5224391634244552924">ບໍ່ມີລະຫັດຜ່ານທີ່ບັນທຶກໄວ້. Chromium ສາມາດກວດເບິ່ງລະຫັດຜ່ານຂອງທ່ານເມື່ອທ່ານບັນທຶກພວກມັນໄວ້.</translation>
 <translation id="5231355151045086930">ອອກຈາກລະບົບ Chromium</translation>
 <translation id="5234764350956374838">ປ່ອຍໄປ</translation>
@@ -610,6 +611,7 @@ Chromium ບໍ່ສາມາດກູ້ການຕັ້ງຄ່າຂອ�
 <translation id="7622753900276619808">ຕອນນີ້ທ່ານມີຄຸນສົມບັດເພີ່ມເຕີມໃນ Chromium</translation>
 <translation id="7624307931717240213">ພວກເຮົາໃຊ້ຂໍ້ມູນເພື່ອປັບປຸງບໍລິການນີ້. ເບິ່ງນະໂຍບາຍຄວາມເປັນສ່ວນຕົວ ແລະ ຂໍ້ກຳນົດບໍລິການ.</translation>
 <translation id="7649070708921625228">ຊ່ວຍ​ເຫຼືອ</translation>
+<translation id="7650134251917003571">ດາວໂຫຼດແອັບ Chromium</translation>
 <translation id="7656340475565475526">ໃຫ້ Chromium ທ່ອງເວັບແທນທ່ານ</translation>
 <translation id="7658239707568436148">ຍົກ​ເລີກ​</translation>
 <translation id="7686590090926151193">Chromium ບໍ່ແມ່ນໂປຣແກຣມທ່ອງເວັບເລີ່ມຕົ້ນຂອງທ່ານ</translation>

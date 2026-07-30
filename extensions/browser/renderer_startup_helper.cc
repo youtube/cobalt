@@ -215,17 +215,6 @@ base::flat_map<std::string, std::string> ToFlatMap(
   return {map.begin(), map.end()};
 }
 
-bool ShouldDisableExtensionsForInitialWebUI(
-    content::RenderProcessHost* process) {
-#if BUILDFLAG(IS_ANDROID)
-  return false;
-#else
-  return base::FeatureList::IsEnabled(
-             blink::features::kInitialWebUIWithoutExtensions) &&
-         process->IsForInitialWebUI();
-#endif  // BUILDFLAG(IS_ANDROID)
-}
-
 }  // namespace
 
 RendererStartupHelper::RendererStartupHelper(BrowserContext* browser_context)
@@ -240,6 +229,16 @@ RendererStartupHelper::~RendererStartupHelper() {
 
 void RendererStartupHelper::OnRenderProcessHostCreated(
     content::RenderProcessHost* host) {
+#if !BUILDFLAG(IS_ANDROID)
+  if (host->IsForTopChromeWebUI() &&
+      base::FeatureList::IsEnabled(
+          blink::features::kInitialWebUIWithoutExtensions)) {
+    // We initialize extension for topchrome processes on DidStartNavigation or
+    // ReadyToCommitNavigation.
+    return;
+  }
+#endif  // !BUILDFLAG(IS_ANDROID)
+
   if (host->IsForGuestsOnly()) {
     // GuestView initialization is done in OnRenderProcessLaunched()
     // instead, because WebViewRendererState set up is not yet done at this
@@ -251,8 +250,17 @@ void RendererStartupHelper::OnRenderProcessHostCreated(
 
 void RendererStartupHelper::OnRenderProcessLaunched(
     content::RenderProcessHost* host) {
-  if (!host->IsForGuestsOnly() &&
-      !ShouldDisableExtensionsForInitialWebUI(host)) {
+#if !BUILDFLAG(IS_ANDROID)
+  if (host->IsForTopChromeWebUI() &&
+      base::FeatureList::IsEnabled(
+          blink::features::kInitialWebUIWithoutExtensions)) {
+    // We initialize extension for topchrome processes on DidStartNavigation or
+    // ReadyToCommitNavigation.
+    return;
+  }
+#endif  // !BUILDFLAG(IS_ANDROID)
+
+  if (!host->IsForGuestsOnly()) {
     // Any process that *isn't* for guests or an initial WebUI with disabled
     // extensions should have already been initialized in
     // OnRenderProcessHostCreated(), if it corresponds to the same context.
@@ -301,9 +309,8 @@ void RendererStartupHelper::RegisterProcess(
 
 void RendererStartupHelper::InitializeProcess(
     content::RenderProcessHost* process) {
-  // If the process is for an initial WebUI, we don't need to initialize
-  // support for Extensions.
-  if (ShouldDisableExtensionsForInitialWebUI(process)) {
+  // If the process is already initialized, we're done.
+  if (process_mojo_map_.contains(process)) {
     return;
   }
 
@@ -312,6 +319,7 @@ void RendererStartupHelper::InitializeProcess(
     return;
   }
 
+  // Otherwise, initialize the process.
   RegisterProcess(process);
   mojom::Renderer* renderer = GetRenderer(process);
 
@@ -600,9 +608,6 @@ mojom::Renderer* RendererStartupHelper::GetRenderer(
   if (it == process_mojo_map_.end()) {
     return nullptr;
   }
-
-  // The renderer for the initial WebUI process is not created.
-  CHECK(!ShouldDisableExtensionsForInitialWebUI(process));
 
   return it->second.get();
 }

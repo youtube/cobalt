@@ -176,8 +176,7 @@ enum class AccessPoint : int {
   // kContentArea = 14, no longer used.
   kFullscreenSigninPromo = 15,
   kRecentTabs = 16,
-  // This should never have been used to get signin URL.
-  kUnknown = 17,
+  // kUnknown = 17, no longer used.
   kPasswordBubble = 18,
   kAutofillDropdown = 19,
   // kNtpContentSuggestions = 20, no longer used.
@@ -326,10 +325,17 @@ enum class AccessPoint : int {
   kIosChromeWebView = 94,
   kAshUserSessionManager = 95,
   kAshChromeSessionManager = 96,
+  // Avatar pill button expands to show a sign in promo. Access point is
+  // propagated to the Profile Menu sign in button.
+  kAvatarPillExpandPromo = 97,
   // Add values above this line with a corresponding label to the
   // "SigninAccessPoint" enum in
   // tools/metrics/histograms/metadata/signin/enums.xml.
-  kMaxValue = kAshChromeSessionManager,  // This must be last.
+  kSearchAIModeBubble = 98,
+  // Add values above this line with a corresponding label to the
+  // "SigninAccessPoint" enum in
+  // tools/metrics/histograms/metadata/signin/enums.xml.
+  kMaxValue = kSearchAIModeBubble,  // This must be last.
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/signin/enums.xml)
 

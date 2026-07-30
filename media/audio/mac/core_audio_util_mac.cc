@@ -11,6 +11,8 @@
 #include "base/apple/osstatus_logging.h"
 #include "base/containers/heap_array.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/strings/strcat.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/sys_string_conversions.h"
@@ -21,7 +23,6 @@
 #include "media/base/media_switches.h"
 
 namespace media {
-namespace core_audio_mac {
 namespace {
 
 AudioObjectPropertyScope InputOutputScope(bool is_input) {
@@ -34,9 +35,32 @@ void RecordCompositionPropertyIsNull(bool is_null) {
       "Media.Audio.Mac.AggregateDeviceCompositionPropertyIsNull", is_null);
 }
 
+void SendLog(const LogCallback& log_callback,
+             const char* func_name,
+             const std::string& message,
+             AudioObjectPropertySelector property_selector,
+             AudioObjectID audio_object_id,
+             OSStatus result = noErr) {
+  if (log_callback.is_null()) {
+    return;
+  }
+  auto error_string = base::StrCat(
+      {message, base::NumberToString(property_selector), " for device/object ",
+       base::NumberToString(audio_object_id)});
+  if (result != noErr) {
+    log_callback.Run(
+        base::StrCat({func_name, ": ", error_string, "(OSStatus error ",
+                      base::NumberToString(result), ": ",
+                      logging::DescriptionFromOSStatus(result), ")"}));
+  } else {
+    log_callback.Run(base::StrCat({func_name, ": ", error_string}));
+  }
+}
+
 std::optional<std::string> GetDeviceStringProperty(
     AudioObjectID device_id,
-    AudioObjectPropertySelector property_selector) {
+    AudioObjectPropertySelector property_selector,
+    const LogCallback& log_callback) {
   CFStringRef property_value = nullptr;
   UInt32 size = sizeof(property_value);
   AudioObjectPropertyAddress property_address = {
@@ -47,14 +71,19 @@ std::optional<std::string> GetDeviceStringProperty(
       device_id, &property_address, 0 /* inQualifierDataSize */,
       nullptr /* inQualifierData */, &size, &property_value);
   if (result != noErr) {
+    SendLog(log_callback, __func__, "Failed to read string property ",
+            property_selector, device_id, result);
     OSSTATUS_DLOG(WARNING, result)
         << "Failed to read string property " << property_selector
         << " for device " << device_id;
     return std::nullopt;
   }
 
-  if (!property_value)
+  if (!property_value) {
+    SendLog(log_callback, __func__, "Property Data is null for property ",
+            property_selector, device_id);
     return std::nullopt;
+  }
 
   std::string device_property = base::SysCFStringRefToUTF8(property_value);
   CFRelease(property_value);
@@ -65,7 +94,8 @@ std::optional<std::string> GetDeviceStringProperty(
 std::optional<uint32_t> GetDeviceUint32Property(
     AudioObjectID device_id,
     AudioObjectPropertySelector property_selector,
-    AudioObjectPropertyScope property_scope) {
+    AudioObjectPropertyScope property_scope,
+    const LogCallback& log_callback = LogCallback()) {
   AudioObjectPropertyAddress property_address = {
       property_selector, property_scope, kAudioObjectPropertyElementMain};
   UInt32 property_value;
@@ -73,15 +103,19 @@ std::optional<uint32_t> GetDeviceUint32Property(
   OSStatus result = AudioObjectGetPropertyData(
       device_id, &property_address, 0 /* inQualifierDataSize */,
       nullptr /* inQualifierData */, &size, &property_value);
-  if (result != noErr)
+  if (result != noErr) {
+    SendLog(log_callback, __func__, "Failed to read uint32 property ",
+            property_selector, device_id, result);
     return std::nullopt;
+  }
 
   return property_value;
 }
 
 uint32_t GetDevicePropertySize(AudioObjectID device_id,
                                AudioObjectPropertySelector property_selector,
-                               AudioObjectPropertyScope property_scope) {
+                               AudioObjectPropertyScope property_scope,
+                               const LogCallback& log_callback) {
   AudioObjectPropertyAddress property_address = {
       property_selector, property_scope, kAudioObjectPropertyElementMain};
   UInt32 size = 0;
@@ -89,6 +123,8 @@ uint32_t GetDevicePropertySize(AudioObjectID device_id,
       device_id, &property_address, 0 /* inQualifierDataSize */,
       nullptr /* inQualifierData */, &size);
   if (result != noErr) {
+    SendLog(log_callback, __func__, "Failed to read size of property ",
+            property_selector, device_id, result);
     OSSTATUS_DLOG(WARNING, result)
         << "Failed to read size of property " << property_selector
         << " for device " << device_id;
@@ -99,7 +135,8 @@ uint32_t GetDevicePropertySize(AudioObjectID device_id,
 
 std::vector<AudioObjectID> GetAudioObjectIDs(
     AudioObjectID audio_object_id,
-    AudioObjectPropertySelector property_selector) {
+    AudioObjectPropertySelector property_selector,
+    const LogCallback& log_callback = LogCallback()) {
   AudioObjectPropertyAddress property_address = {
       property_selector, kAudioObjectPropertyScopeGlobal,
       kAudioObjectPropertyElementMain};
@@ -108,14 +145,19 @@ std::vector<AudioObjectID> GetAudioObjectIDs(
       audio_object_id, &property_address, 0 /* inQualifierDataSize */,
       nullptr /* inQualifierData */, &size);
   if (result != noErr) {
+    SendLog(log_callback, __func__, "Failed to read size of property ",
+            property_selector, audio_object_id, result);
     OSSTATUS_DLOG(WARNING, result)
         << "Failed to read size of property " << property_selector
         << " for device/object " << audio_object_id;
     return {};
   }
 
-  if (size == 0)
+  if (size == 0) {
+    SendLog(log_callback, __func__, "Size is 0 for property ",
+            property_selector, audio_object_id);
     return {};
+  }
 
   size_t device_count = size / sizeof(AudioObjectID);
   // Get the array of device ids for all the devices, which includes both
@@ -125,21 +167,32 @@ std::vector<AudioObjectID> GetAudioObjectIDs(
       audio_object_id, &property_address, 0 /* inQualifierDataSize */,
       nullptr /* inQualifierData */, &size, device_ids.data());
   if (result != noErr) {
+    SendLog(log_callback, __func__, "Failed to read object IDs from property ",
+            property_selector, audio_object_id, result);
     OSSTATUS_DLOG(WARNING, result)
         << "Failed to read object IDs from property " << property_selector
         << " for device/object " << audio_object_id;
     return {};
   }
 
+  SendLog(
+      log_callback, __func__,
+      base::StrCat({"Returning AudioObjectIDs of size ",
+                    base::NumberToString(device_ids.size()), " for property "}),
+      property_selector, audio_object_id);
   return device_ids;
 }
 
-std::optional<std::string> GetDeviceName(AudioObjectID device_id) {
-  return GetDeviceStringProperty(device_id, kAudioObjectPropertyName);
+std::optional<std::string> GetDeviceName(AudioObjectID device_id,
+                                         const LogCallback& log_callback) {
+  return GetDeviceStringProperty(device_id, kAudioObjectPropertyName,
+                                 log_callback);
 }
 
-std::optional<std::string> GetDeviceModel(AudioObjectID device_id) {
-  return GetDeviceStringProperty(device_id, kAudioDevicePropertyModelUID);
+std::optional<std::string> GetDeviceModel(AudioObjectID device_id,
+                                          const LogCallback& log_callback) {
+  return GetDeviceStringProperty(device_id, kAudioDevicePropertyModelUID,
+                                 log_callback);
 }
 
 bool ModelContainsVidPid(const std::string& model) {
@@ -189,9 +242,11 @@ std::string TransportTypeToString(uint32_t transport_type) {
   }
 }
 
-std::optional<std::string> TranslateDeviceSource(AudioObjectID device_id,
-                                                 UInt32 source_id,
-                                                 bool is_input) {
+std::optional<std::string> TranslateDeviceSource(
+    AudioObjectID device_id,
+    UInt32 source_id,
+    bool is_input,
+    const LogCallback& log_callback = LogCallback()) {
   CFStringRef source_name = nullptr;
   AudioValueTranslation translation;
   translation.mInputData = &source_id;
@@ -207,8 +262,13 @@ std::optional<std::string> TranslateDeviceSource(AudioObjectID device_id,
   OSStatus result = AudioObjectGetPropertyData(
       device_id, &property_address, 0 /* inQualifierDataSize */,
       nullptr /* inQualifierData */, &translation_size, &translation);
-  if (result)
+  if (result) {
+    SendLog(log_callback, __func__,
+            base::StrCat({"Failed to translate source ",
+                          base::NumberToString(source_id), " for property "}),
+            kAudioDevicePropertyDataSource, device_id, result);
     return std::nullopt;
+  }
 
   std::string ret = base::SysCFStringRefToUTF8(source_name);
   CFRelease(source_name);
@@ -237,29 +297,40 @@ bool IsOutputTerminal(uint32_t terminal) {
 
 }  // namespace
 
-std::vector<AudioObjectID> GetAllAudioDeviceIDs() {
+CoreAudioUtilMac::CoreAudioUtilMac(LogCallback log_callback)
+    : log_callback_(std::move(log_callback)) {}
+
+CoreAudioUtilMac::~CoreAudioUtilMac() = default;
+
+std::vector<AudioObjectID> CoreAudioUtilMac::GetAllAudioDeviceIDs() const {
   return GetAudioObjectIDs(kAudioObjectSystemObject,
-                           kAudioHardwarePropertyDevices);
+                           kAudioHardwarePropertyDevices, log_callback_);
 }
 
-std::vector<AudioObjectID> GetRelatedDeviceIDs(AudioObjectID device_id) {
-  return GetAudioObjectIDs(device_id, kAudioDevicePropertyRelatedDevices);
+std::vector<AudioObjectID> CoreAudioUtilMac::GetRelatedDeviceIDs(
+    AudioObjectID device_id) const {
+  return GetAudioObjectIDs(device_id, kAudioDevicePropertyRelatedDevices,
+                           log_callback_);
 }
 
-std::optional<std::string> GetDeviceUniqueID(AudioObjectID device_id) {
-  return GetDeviceStringProperty(device_id, kAudioDevicePropertyDeviceUID);
+std::optional<std::string> CoreAudioUtilMac::GetDeviceUniqueID(
+    AudioObjectID device_id) const {
+  return GetDeviceStringProperty(device_id, kAudioDevicePropertyDeviceUID,
+                                 log_callback_);
 }
 
-std::optional<std::string> GetDeviceLabel(AudioObjectID device_id,
-                                          bool is_input) {
+std::optional<std::string> CoreAudioUtilMac::GetDeviceLabel(
+    AudioObjectID device_id,
+    bool is_input) const {
   std::optional<std::string> device_label;
   std::optional<uint32_t> source = GetDeviceSource(device_id, is_input);
   if (source) {
-    device_label = TranslateDeviceSource(device_id, *source, is_input);
+    device_label =
+        TranslateDeviceSource(device_id, *source, is_input, log_callback_);
   }
 
   if (!device_label) {
-    device_label = GetDeviceName(device_id);
+    device_label = GetDeviceName(device_id, log_callback_);
     if (!device_label)
       return std::nullopt;
   }
@@ -268,7 +339,8 @@ std::optional<std::string> GetDeviceLabel(AudioObjectID device_id,
   std::optional<uint32_t> transport_type = GetDeviceTransportType(device_id);
   if (transport_type) {
     if (*transport_type == kAudioDeviceTransportTypeUSB) {
-      std::optional<std::string> model = GetDeviceModel(device_id);
+      std::optional<std::string> model =
+          GetDeviceModel(device_id, log_callback_);
       if (model) {
         suffix = UsbVidPidFromModel(*model);
       }
@@ -278,29 +350,34 @@ std::optional<std::string> GetDeviceLabel(AudioObjectID device_id,
   }
 
   DCHECK(device_label);
-  if (!suffix.empty())
+  if (!suffix.empty()) {
     *device_label += " (" + suffix + ")";
+  }
 
   return device_label;
 }
 
-uint32_t GetNumStreams(AudioObjectID device_id, bool is_input) {
+uint32_t CoreAudioUtilMac::GetNumStreams(AudioObjectID device_id,
+                                         bool is_input) const {
   return GetDevicePropertySize(device_id, kAudioDevicePropertyStreams,
-                               InputOutputScope(is_input));
+                               InputOutputScope(is_input), log_callback_);
 }
 
-std::optional<uint32_t> GetDeviceSource(AudioObjectID device_id,
-                                        bool is_input) {
+std::optional<uint32_t> CoreAudioUtilMac::GetDeviceSource(
+    AudioObjectID device_id,
+    bool is_input) const {
   return GetDeviceUint32Property(device_id, kAudioDevicePropertyDataSource,
-                                 InputOutputScope(is_input));
+                                 InputOutputScope(is_input), log_callback_);
 }
 
-std::optional<uint32_t> GetDeviceTransportType(AudioObjectID device_id) {
+std::optional<uint32_t> CoreAudioUtilMac::GetDeviceTransportType(
+    AudioObjectID device_id) const {
   return GetDeviceUint32Property(device_id, kAudioDevicePropertyTransportType,
-                                 kAudioObjectPropertyScopeGlobal);
+                                 kAudioObjectPropertyScopeGlobal,
+                                 log_callback_);
 }
 
-bool IsPrivateAggregateDevice(AudioObjectID device_id) {
+bool CoreAudioUtilMac::IsPrivateAggregateDevice(AudioObjectID device_id) const {
   // Don't try to access aggregate device properties unless |device_id| is
   // really an aggregate device.
   if (GetDeviceTransportType(device_id) != kAudioDeviceTransportTypeAggregate)
@@ -358,9 +435,9 @@ bool IsPrivateAggregateDevice(AudioObjectID device_id) {
   return is_private;
 }
 
-bool IsInputDevice(AudioObjectID device_id) {
+bool CoreAudioUtilMac::IsInputDevice(AudioObjectID device_id) const {
   std::vector<AudioObjectID> streams =
-      GetAudioObjectIDs(device_id, kAudioDevicePropertyStreams);
+      GetAudioObjectIDs(device_id, kAudioDevicePropertyStreams, log_callback_);
 
   int num_voice_processing_input_streams = 0;
   int num_undefined_input_streams = 0;
@@ -370,7 +447,7 @@ bool IsInputDevice(AudioObjectID device_id) {
   for (auto stream_id : streams) {
     auto direction =
         GetDeviceUint32Property(stream_id, kAudioStreamPropertyDirection,
-                                kAudioObjectPropertyScopeGlobal);
+                                kAudioObjectPropertyScopeGlobal, log_callback_);
     if (!direction.has_value())
       continue;
     const UInt32 kDirectionOutput = 0;
@@ -391,9 +468,9 @@ bool IsInputDevice(AudioObjectID device_id) {
       // checked for terminal == INPUT_UNDEFINED, which I haven't observed.
       // However, I've kept this check to maintain the original behavior, as it
       // might be necessary for older macOS versions.
-      auto terminal =
-          GetDeviceUint32Property(stream_id, kAudioStreamPropertyTerminalType,
-                                  kAudioObjectPropertyScopeGlobal);
+      auto terminal = GetDeviceUint32Property(
+          stream_id, kAudioStreamPropertyTerminalType,
+          kAudioObjectPropertyScopeGlobal, log_callback_);
       if (terminal.has_value() && terminal == INPUT_UNDEFINED) {
         ++num_undefined_input_streams;
       } else if (terminal.has_value() &&
@@ -442,16 +519,17 @@ bool IsInputDevice(AudioObjectID device_id) {
          (num_undefined_input_streams > 0 && num_output_streams == 0);
 }
 
-bool IsOutputDevice(AudioObjectID device_id) {
+bool CoreAudioUtilMac::IsOutputDevice(AudioObjectID device_id) const {
   return GetNumStreams(device_id, false) > 0;
 }
 
 // static
-base::TimeDelta GetHardwareLatency(AudioUnit audio_unit,
-                                   AudioDeviceID device_id,
-                                   AudioObjectPropertyScope scope,
-                                   int sample_rate,
-                                   bool is_input) {
+base::TimeDelta CoreAudioUtilMac::GetHardwareLatency(
+    AudioUnit audio_unit,
+    AudioDeviceID device_id,
+    AudioObjectPropertyScope scope,
+    int sample_rate,
+    bool is_input) {
   if (!audio_unit || device_id == kAudioObjectUnknown) {
     DLOG(WARNING) << "Audio unit object is NULL or device ID is unknown";
     return base::TimeDelta();
@@ -544,8 +622,8 @@ base::TimeDelta GetHardwareLatency(AudioUnit audio_unit,
 
   return total_latency;
 }
-
-std::optional<AudioDeviceID> GetDefaultDevice(bool input) {
+std::optional<AudioDeviceID> CoreAudioUtilMac::GetDefaultDevice(
+    bool input) const {
   // Obtain the AudioDeviceID of the default input or output AudioDevice.
   AudioObjectPropertyAddress pa;
   pa.mSelector = input ? kAudioHardwarePropertyDefaultInputDevice
@@ -559,11 +637,14 @@ std::optional<AudioDeviceID> GetDefaultDevice(bool input) {
   OSStatus result = AudioObjectGetPropertyData(kAudioObjectSystemObject, &pa, 0,
                                                nullptr, &size, &device);
   if (result != kAudioHardwareNoError || device == kAudioDeviceUnknown) {
+    SendLog(log_callback_, __func__,
+            base::StrCat({"Error getting default ",
+                          (input ? "input" : "output"), " AudioDevice."}),
+            pa.mSelector, kAudioObjectSystemObject, result);
     DLOG(ERROR) << "Error getting default AudioDevice.";
     return std::nullopt;
   }
   return device;
 }
 
-}  // namespace core_audio_mac
 }  // namespace media

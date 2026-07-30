@@ -34,7 +34,8 @@ class ContextImplLiteRt final : public WebNNContextImpl {
       scoped_refptr<base::SingleThreadTaskRunner> owning_task_runner,
       gpu::SharedImageManager* shared_image_manager,
       scoped_refptr<base::SingleThreadTaskRunner> main_task_runner,
-      ScopedTrace scoped_trace);
+      ScopedTrace scoped_trace,
+      bool is_incognito);
 
   ContextImplLiteRt(
       mojo::PendingReceiver<mojom::WebNNContext> receiver,
@@ -46,7 +47,8 @@ class ContextImplLiteRt final : public WebNNContextImpl {
       scoped_refptr<gpu::MemoryTracker> memory_tracker,
       scoped_refptr<base::SingleThreadTaskRunner> owning_task_runner,
       gpu::SharedImageManager* shared_image_manager,
-      scoped_refptr<base::SingleThreadTaskRunner> main_task_runner);
+      scoped_refptr<base::SingleThreadTaskRunner> main_task_runner,
+      bool is_incognito);
 
   ContextImplLiteRt(const WebNNContextImpl&) = delete;
   ContextImplLiteRt& operator=(const ContextImplLiteRt&) = delete;
@@ -63,7 +65,8 @@ class ContextImplLiteRt final : public WebNNContextImpl {
       WebNNGraphImpl::ComputeResourceInfo compute_resource_info,
       base::flat_map<OperandId, std::unique_ptr<WebNNConstantOperand>>
           constant_operands,
-      base::flat_map<OperandId, WebNNTensorImpl*> constant_tensor_operands,
+      base::flat_map<OperandId, scoped_refptr<WebNNTensorImpl>>
+          constant_tensor_operands,
       CreateGraphImplCallback callback) override;
 
   void DidCreateWeightsFile(
@@ -72,7 +75,8 @@ class ContextImplLiteRt final : public WebNNContextImpl {
       WebNNGraphImpl::ComputeResourceInfo compute_resource_info,
       base::flat_map<OperandId, std::unique_ptr<WebNNConstantOperand>>
           constant_operands,
-      base::flat_map<OperandId, WebNNTensorImpl*> constant_tensor_operands,
+      base::flat_map<OperandId, scoped_refptr<WebNNTensorImpl>>
+          constant_tensor_operands,
       CreateGraphImplCallback callback,
       base::File weights_file);
 
@@ -86,6 +90,7 @@ class ContextImplLiteRt final : public WebNNContextImpl {
       mojom::TensorInfoPtr tensor_info,
       WebNNTensorImpl::RepresentationPtr representation) override;
 
+  const bool is_incognito_;
   base::WeakPtrFactory<ContextImplLiteRt> weak_factory_{this};
 };
 

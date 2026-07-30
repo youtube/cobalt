@@ -65,12 +65,13 @@ class TabStripFlatEdgeButtonActionViewInterface
 TabStripFlatEdgeButton::TabStripFlatEdgeButton() {
   ConfigureInkDropForToolbar(
       this, std::make_unique<views::RoundRectHighlightPathGenerator>(
-                GetToolbarInkDropInsets(this), GetButtonCornerRadii()));
+                gfx::Insets(), GetButtonCornerRadii()));
   ConfigureToolbarInkdropForRefresh2023(
       this, kColorTabStripControlButtonInkDrop,
       kColorTabStripControlButtonInkDropRipple);
   SetIconSize(
       GetLayoutConstant(LayoutConstant::kVerticalTabStripBottomButtonIconSize));
+  SetInsets(gfx::Insets());
 }
 
 TabStripFlatEdgeButton::~TabStripFlatEdgeButton() = default;
@@ -142,7 +143,7 @@ void TabStripFlatEdgeButton::SetFlatEdgeFactor(float factor) {
 
   SetProperty(views::kHighlightPathGeneratorKey,
               std::make_unique<views::RoundRectHighlightPathGenerator>(
-                  GetToolbarInkDropInsets(this), GetButtonCornerRadii()));
+                  gfx::Insets(), GetButtonCornerRadii()));
   // The ink drop doesn't automatically pick up on rounded corner changes, so │
   // we need to manually notify it here.
   views::InkDrop::Get(this)->GetInkDrop()->HostSizeChanged(size());
@@ -193,7 +194,7 @@ void TabStripFlatEdgeButton::SetFlatEdge(FlatEdge flat_edge) {
 
   SetProperty(views::kHighlightPathGeneratorKey,
               std::make_unique<views::RoundRectHighlightPathGenerator>(
-                  GetToolbarInkDropInsets(this), GetButtonCornerRadii()));
+                  gfx::Insets(), GetButtonCornerRadii()));
 
   SchedulePaint();
 }
@@ -228,23 +229,27 @@ ui::ColorId TabStripFlatEdgeButton::GetBackgroundColor() const {
 }
 
 gfx::RoundedCornersF TabStripFlatEdgeButton::GetButtonCornerRadii() const {
-  int radius = views::LayoutProvider::Get()->GetCornerRadiusMetric(
-      views::Emphasis::kHigh);
   constexpr float kFlatRadius = 2.0f;
-  float flat_radius =
-      kFlatRadius + ((radius - kFlatRadius) * (1.0f - flat_edge_factor_));
+  constexpr float kRoundedRadius = 10.0f;
+  float flat_radius = kFlatRadius + ((kRoundedRadius - kFlatRadius) *
+                                     (1.0f - flat_edge_factor_));
 
   switch (flat_edge_) {
     case FlatEdge::kNone:
-      return gfx::RoundedCornersF(radius, radius, radius, radius);
+      return gfx::RoundedCornersF(kRoundedRadius, kRoundedRadius,
+                                  kRoundedRadius, kRoundedRadius);
     case FlatEdge::kTop:
-      return gfx::RoundedCornersF(flat_radius, flat_radius, radius, radius);
+      return gfx::RoundedCornersF(flat_radius, flat_radius, kRoundedRadius,
+                                  kRoundedRadius);
     case FlatEdge::kLeft:
-      return gfx::RoundedCornersF(flat_radius, radius, radius, flat_radius);
+      return gfx::RoundedCornersF(flat_radius, kRoundedRadius, kRoundedRadius,
+                                  flat_radius);
     case FlatEdge::kBottom:
-      return gfx::RoundedCornersF(radius, radius, flat_radius, flat_radius);
+      return gfx::RoundedCornersF(kRoundedRadius, kRoundedRadius, flat_radius,
+                                  flat_radius);
     case FlatEdge::kRight:
-      return gfx::RoundedCornersF(radius, flat_radius, flat_radius, radius);
+      return gfx::RoundedCornersF(kRoundedRadius, flat_radius, flat_radius,
+                                  kRoundedRadius);
   }
 }
 

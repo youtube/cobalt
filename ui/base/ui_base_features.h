@@ -260,6 +260,15 @@ BASE_DECLARE_FEATURE(kHandleIMESpanChangesOnUpdateComposition);
 COMPONENT_EXPORT(UI_BASE_FEATURES)
 bool IsHandleIMESpanChangesOnUpdateCompositionEnabled();
 
+// Kill switch for honoring the HTML autocorrect="off" attribute by detecting
+// and reverting touch keyboard autocorrections in TSF.
+// See https://issues.chromium.org/issues/487613498.
+COMPONENT_EXPORT(UI_BASE_FEATURES)
+BASE_DECLARE_FEATURE(kTSFHonorAutocorrectOff);
+
+COMPONENT_EXPORT(UI_BASE_FEATURES)
+bool IsTSFHonorAutocorrectOffEnabled();
+
 // Controls whether the default system accent colors should be used.
 COMPONENT_EXPORT(UI_BASE_FEATURES)
 BASE_DECLARE_FEATURE(kUseSystemDefaultAccentColors);
@@ -278,6 +287,21 @@ BASE_DECLARE_FEATURE(kAsyncVirtualFileExtraction);
 
 COMPONENT_EXPORT(UI_BASE_FEATURES)
 BASE_DECLARE_FEATURE(kVirtualFileChunkedRead);
+
+// When enabled, compensates for latency of handling the first blocking touch
+// move in the renderer by dampening the corresponding gesture scroll updates.
+COMPONENT_EXPORT(UI_BASE_FEATURES)
+BASE_DECLARE_FEATURE(kCompensateGestureScrollUpdateLatency);
+
+// The latency (in milliseconds) for acknowledging blocking touch moves that is
+// considered expected by the `CompensateGestureScrollUpdateLatency` feature.
+COMPONENT_EXPORT(UI_BASE_FEATURES)
+BASE_DECLARE_FEATURE_PARAM(int, kCompensationExpectedLatencyMs);
+
+// The latency (in milliseconds) for acknowledging blocking touch moves that is
+// considered acceptable by the `CompensateGestureScrollUpdateLatency` feature.
+COMPONENT_EXPORT(UI_BASE_FEATURES)
+BASE_DECLARE_FEATURE_PARAM(int, kCompensationAcceptableLatencyMs);
 
 }  // namespace features
 

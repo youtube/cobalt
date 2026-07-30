@@ -27,6 +27,7 @@
 <translation id="126567311906253476">Gmail বা YouTube-এর মতো Google পরিষেবায় <ph name="USER_EMAIL" /> দিয়ে সাইন-ইন করার সময় আপনি একই অ্যাকাউন্ট দিয়ে Chromium-এ অটোমেটিক সাইন-ইন করতে পারবেন</translation>
 <translation id="1290883685122687410">সেট-আপ সংক্রান্ত সমস্যা: <ph name="METAINSTALLER_EXIT_CODE" />। <ph name="WINDOWS_ERROR" /></translation>
 <translation id="1315551408014407711">আপনার নতুন Chromium প্রোফাইল সেট আপ করুন</translation>
+<translation id="132092532143527429">Chromium-এ Gemini ব্যবহার করে দেখুন</translation>
 <translation id="1324107359134968521">ব্লুটুথ ডিভাইসগুলি এক্সপ্লোর করতে 
  Chromium-কে ব্লুটুথের অ্যাক্সেস দিতে হবে। <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="1330562121671411446">ভাষা শনাক্ত করুন</translation>
@@ -239,6 +240,7 @@
 <translation id="3509308970982693815">দয়া করে সব Chromium উইন্ডো বন্ধ করুন ও আবার চেষ্টা করুন৷</translation>
 <translation id="3522404737534491619">আপনার উইন্ডো শেয়ার করতে, সিস্টেম প্রেফারেন্স থেকে Chromium-এর জন্য স্ক্রিন রেকর্ডিংয়ের অনুমতি দিন</translation>
 <translation id="3530103706039034513"><ph name="EXISTING_USER" /> আগেই সাইন-ইন করেছেন।  আপনি আলাদাভাবে ব্রাউজ করতে চাইলে, নিজের Chromium প্রোফাইলে <ph name="USER_EMAIL_ADDRESS" /> হিসেবে সাইন-ইন করুন।</translation>
+<translation id="3531741627422851418">মোবাইল ডিভাইসে Chromium ব্রাউজার ডাউনলোড করার QR কোড</translation>
 <translation id="3561853857681580870">আপনার স্ক্রিন শেয়ার করতে, সিস্টেম সেটিংস থেকে Chromium-এর জন্য স্ক্রিন রেকর্ডিংয়ের অনুমতি দিন।</translation>
 <translation id="3588112919289558122">Chromium শনাক্ত করতে পারে না এমন সব সাইটের জন্য 'উন্নত সুরক্ষা' জাভাস্ক্রিপ্ট অপ্টিমাইজেশন বন্ধ করে দেয়</translation>
 <translation id="3597003331831379823">বিশেষ সুবিধার অ্যাক্সেস সহ সেট-আপ রান করা যায়নি। <ph name="METAINSTALLER_ERROR" /></translation>
@@ -374,7 +376,6 @@
 <translation id="5174969993834422967">আপনি সাধারণত বিজ্ঞপ্তি ব্লক করেন। এই সাইট থেকে বিজ্ঞপ্তি পেতে, আপনার লোকেশন বারের ডানদিকের কোণায় বিজ্ঞপ্তির আইকনে ক্লিক করুন।</translation>
 <translation id="5174983315706567306">ডিস্ক স্টোরেজে যথেষ্ট খালি জায়গা নেই।</translation>
 <translation id="5187123684706427865">Chromium অ্যাকাউন্ট আবার যাচাই করতে হবে</translation>
-<translation id="5219681158518957165">সাজেস্ট করা ব্রাউজার সেটিংস ব্যবহার করুন</translation>
 <translation id="5224391634244552924">কোনও পাসওয়ার্ড সেভ করা নেই। আপনি পাসওয়ার্ড সেভ করলে Chromium সেটি চেক করতে পারবে।</translation>
 <translation id="5231355151045086930">Chromium থেকে সাইন-আউট করুন</translation>
 <translation id="5234764350956374838">খারিজ</translation>
@@ -605,6 +606,7 @@ Chromium আপনার সেটিংস পুনরুদ্ধার ক�
 <translation id="7622753900276619808">Chromium-এ এখন আপনার কাছে আরও ফিচার উপলভ্য আছে</translation>
 <translation id="7624307931717240213">এই পরিষেবা উন্নত করতে আমরা তথ্য ব্যবহার করি। গোপনীয়তা নীতি ও পরিষেবার শর্তাবলী দেখুন।</translation>
 <translation id="7649070708921625228">সহায়তা</translation>
+<translation id="7650134251917003571">Chromium অ্যাপ ডাউনলোড করুন</translation>
 <translation id="7656340475565475526">Chromium-কে আপনার হয়ে ব্রাউজ করতে দিন</translation>
 <translation id="7658239707568436148">বাতিল</translation>
 <translation id="7686590090926151193">Chromium আপনার ডিফল্ট ব্রাউজার নয়</translation>

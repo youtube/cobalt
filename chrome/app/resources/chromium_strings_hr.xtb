@@ -27,6 +27,7 @@
 <translation id="126567311906253476">Kad se na Googleove usluge kao što su Gmail ili YouTube prijavljujete pomoću računa <ph name="USER_EMAIL" />, možete se automatski prijaviti u Chromium istim računom</translation>
 <translation id="1290883685122687410">Pogreška pri postavljanju: <ph name="METAINSTALLER_EXIT_CODE" /> <ph name="WINDOWS_ERROR" /></translation>
 <translation id="1315551408014407711">Postavite novi profil u Chromiumu</translation>
+<translation id="132092532143527429">Isprobajte s Geminijem u Chromiumu</translation>
 <translation id="1324107359134968521">Chromium treba pristup Bluetoothu kako bi pronašao 
  Bluetooth uređaje. <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" />.</translation>
 <translation id="1330562121671411446">Prepoznaj jezik</translation>
@@ -239,6 +240,7 @@
 <translation id="3509308970982693815">Zatvorite sve prozore preglednika Chromium i pokušajte ponovo.</translation>
 <translation id="3522404737534491619">Da biste dijelili prozor, u postavkama sustava dopustite snimanje zaslona za Chromium.</translation>
 <translation id="3530103706039034513"><ph name="EXISTING_USER" /> već je prijavljen/a.  Da bi vaše pregledavanje ostalo odvojeno, prijavite se na Chromium na svojem profilu kao <ph name="USER_EMAIL_ADDRESS" />.</translation>
+<translation id="3531741627422851418">QR kôd za preuzimanje preglednika Chromium na mobilne uređaje</translation>
 <translation id="3561853857681580870">Da biste dijelili zaslon, u postavkama sustava dopustite snimanje zaslona za Chromium.</translation>
 <translation id="3588112919289558122">Poboljšana zaštita isključuje optimizaciju JavaScripta za web-lokacije koje Chromium ne prepoznaje</translation>
 <translation id="3597003331831379823">Pokretanje postavljanja s dodatnim ovlastima nije uspjelo. <ph name="METAINSTALLER_ERROR" />.</translation>
@@ -374,7 +376,6 @@
 <translation id="5174969993834422967">Uglavnom blokirate obavijesti. Da biste dopustili web-lokaciji da vas obavještava, kliknite ikonu obavijesti u desnom kutu trake za lokaciju.</translation>
 <translation id="5174983315706567306">Nema dovoljno prostora na disku.</translation>
 <translation id="5187123684706427865">Chromium račun zahtijeva ponovnu autentifikaciju</translation>
-<translation id="5219681158518957165">Upotrijebite preporučene postavke preglednika</translation>
 <translation id="5224391634244552924">Nema nijedne spremljene zaporke. Chromium može provjeriti vaše zaporke kad ih spremite.</translation>
 <translation id="5231355151045086930">Odjava s Chromiuma</translation>
 <translation id="5234764350956374838">Odbaci</translation>
@@ -608,6 +609,7 @@ Chromium ne može oporaviti vaše postavke.</translation>
 <translation id="7622753900276619808">Sada imate više dostupnih značajki u Chromiumu</translation>
 <translation id="7624307931717240213">Podatke upotrebljavamo za poboljšanje ove usluge. Pročitajte pravila o privatnosti i uvjete pružanja usluge.</translation>
 <translation id="7649070708921625228">Pomoć</translation>
+<translation id="7650134251917003571">Preuzmite aplikaciju Chromium</translation>
 <translation id="7656340475565475526">Dopustite Chromiumu da pregledava umjesto vas</translation>
 <translation id="7658239707568436148">Odustani</translation>
 <translation id="7686590090926151193">Chromium nije vaš zadani preglednik</translation>

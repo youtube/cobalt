@@ -121,6 +121,10 @@ TEST_F(ConnectionAllowlistParserTest, MalformedHeader) {
       EXPECT_TRUE(result.enforced->allowlist.empty());
       ASSERT_EQ(1u, result.enforced->issues.size());
       EXPECT_EQ(test.issue, result.enforced->issues[0]);
+      EXPECT_EQ(result.enforced->redirect_behavior,
+                ConnectionAllowlist::RedirectBehavior::kBlock);
+      EXPECT_EQ(result.enforced->webrtc_behavior,
+                ConnectionAllowlist::WebRtcBehavior::kBlock);
     }
 
     // Report-Only header:
@@ -133,6 +137,10 @@ TEST_F(ConnectionAllowlistParserTest, MalformedHeader) {
       EXPECT_TRUE(result.report_only->allowlist.empty());
       ASSERT_EQ(1u, result.report_only->issues.size());
       EXPECT_EQ(test.issue, result.report_only->issues[0]);
+      EXPECT_EQ(result.report_only->redirect_behavior,
+                ConnectionAllowlist::RedirectBehavior::kBlock);
+      EXPECT_EQ(result.report_only->webrtc_behavior,
+                ConnectionAllowlist::WebRtcBehavior::kBlock);
     }
 
     // Both headers:
@@ -148,6 +156,14 @@ TEST_F(ConnectionAllowlistParserTest, MalformedHeader) {
       ASSERT_EQ(1u, result.report_only->issues.size());
       EXPECT_EQ(test.issue, result.enforced->issues[0]);
       EXPECT_EQ(test.issue, result.report_only->issues[0]);
+      EXPECT_EQ(result.enforced->redirect_behavior,
+                ConnectionAllowlist::RedirectBehavior::kBlock);
+      EXPECT_EQ(result.enforced->webrtc_behavior,
+                ConnectionAllowlist::WebRtcBehavior::kBlock);
+      EXPECT_EQ(result.report_only->redirect_behavior,
+                ConnectionAllowlist::RedirectBehavior::kBlock);
+      EXPECT_EQ(result.report_only->webrtc_behavior,
+                ConnectionAllowlist::WebRtcBehavior::kBlock);
     }
   }
 }
@@ -189,6 +205,10 @@ TEST_F(ConnectionAllowlistParserTest, ValidAllowlists) {
 
       ASSERT_EQ(0u, result.enforced->issues.size());
       EXPECT_EQ(result.enforced->allowlist, test.allowlist);
+      EXPECT_EQ(result.enforced->redirect_behavior,
+                ConnectionAllowlist::RedirectBehavior::kBlock);
+      EXPECT_EQ(result.enforced->webrtc_behavior,
+                ConnectionAllowlist::WebRtcBehavior::kBlock);
     }
 
     // Report-Only header:
@@ -201,6 +221,10 @@ TEST_F(ConnectionAllowlistParserTest, ValidAllowlists) {
 
       ASSERT_EQ(0u, result.report_only->issues.size());
       EXPECT_EQ(result.report_only->allowlist, test.allowlist);
+      EXPECT_EQ(result.report_only->redirect_behavior,
+                ConnectionAllowlist::RedirectBehavior::kBlock);
+      EXPECT_EQ(result.report_only->webrtc_behavior,
+                ConnectionAllowlist::WebRtcBehavior::kBlock);
     }
 
     // Both headers:
@@ -215,6 +239,14 @@ TEST_F(ConnectionAllowlistParserTest, ValidAllowlists) {
       ASSERT_EQ(0u, result.report_only->issues.size());
       EXPECT_EQ(result.enforced->allowlist, test.allowlist);
       EXPECT_EQ(result.report_only->allowlist, test.allowlist);
+      EXPECT_EQ(result.enforced->redirect_behavior,
+                ConnectionAllowlist::RedirectBehavior::kBlock);
+      EXPECT_EQ(result.enforced->webrtc_behavior,
+                ConnectionAllowlist::WebRtcBehavior::kBlock);
+      EXPECT_EQ(result.report_only->redirect_behavior,
+                ConnectionAllowlist::RedirectBehavior::kBlock);
+      EXPECT_EQ(result.report_only->webrtc_behavior,
+                ConnectionAllowlist::WebRtcBehavior::kBlock);
     }
   }
 }
@@ -229,6 +261,102 @@ TEST_F(ConnectionAllowlistParserTest, ValidReportToEndpoint) {
   ASSERT_TRUE(result.enforced->reporting_endpoint.has_value());
   EXPECT_EQ("endpoint", result.enforced->reporting_endpoint.value());
   EXPECT_FALSE(result.report_only);
+}
+
+TEST_F(ConnectionAllowlistParserTest, RedirectsParam) {
+  const char* allow_cases[] = {
+      "();redirects=allow",  // token "allow"
+      "();redirects=potato"  // token other than "allow"
+  };
+
+  for (auto* allow_case : allow_cases) {
+    auto headers = GetHeaders(allow_case, nullptr);
+    ConnectionAllowlists result =
+        ParseConnectionAllowlistsFromHeaders(*headers, url());
+    ASSERT_TRUE(result.enforced);
+    EXPECT_EQ(0u, result.enforced->issues.size());
+    EXPECT_TRUE(result.enforced->allowlist.empty());
+    ASSERT_FALSE(result.enforced->reporting_endpoint.has_value());
+    EXPECT_EQ(result.enforced->webrtc_behavior,
+              ConnectionAllowlist::WebRtcBehavior::kBlock);
+
+    EXPECT_EQ(result.enforced->redirect_behavior,
+              ConnectionAllowlist::RedirectBehavior::kAllow);
+
+    EXPECT_FALSE(result.report_only);
+  }
+
+  const char* block_cases[] = {
+      "();redirects=block",     // token "block"
+      "();redirects",           // null param
+      "()",                     // param absent
+      "();redirects=\"allow\""  // non-token type (string).
+  };
+
+  for (auto* block_case : block_cases) {
+    auto headers = GetHeaders(block_case, nullptr);
+    ConnectionAllowlists result =
+        ParseConnectionAllowlistsFromHeaders(*headers, url());
+    ASSERT_TRUE(result.enforced);
+    EXPECT_EQ(0u, result.enforced->issues.size());
+    EXPECT_TRUE(result.enforced->allowlist.empty());
+    ASSERT_FALSE(result.enforced->reporting_endpoint.has_value());
+    EXPECT_EQ(result.enforced->webrtc_behavior,
+              ConnectionAllowlist::WebRtcBehavior::kBlock);
+
+    EXPECT_EQ(result.enforced->redirect_behavior,
+              ConnectionAllowlist::RedirectBehavior::kBlock);
+
+    EXPECT_FALSE(result.report_only);
+  }
+}
+
+TEST_F(ConnectionAllowlistParserTest, WebRtcParam) {
+  const char* allow_cases[] = {
+      "();webrtc=allow",  // token "allow"
+      "();webrtc=potato"  // token other than "allow"
+  };
+
+  for (auto* allow_case : allow_cases) {
+    auto headers = GetHeaders(allow_case, nullptr);
+    ConnectionAllowlists result =
+        ParseConnectionAllowlistsFromHeaders(*headers, url());
+    ASSERT_TRUE(result.enforced);
+    EXPECT_EQ(0u, result.enforced->issues.size());
+    EXPECT_TRUE(result.enforced->allowlist.empty());
+    ASSERT_FALSE(result.enforced->reporting_endpoint.has_value());
+    EXPECT_EQ(result.enforced->redirect_behavior,
+              ConnectionAllowlist::RedirectBehavior::kBlock);
+
+    EXPECT_EQ(result.enforced->webrtc_behavior,
+              ConnectionAllowlist::WebRtcBehavior::kAllow);
+
+    EXPECT_FALSE(result.report_only);
+  }
+
+  const char* block_cases[] = {
+      "();webrtc=block",     // token "block"
+      "();webrtc",           // null param
+      "()",                  // param absent
+      "();webrtc=\"allow\""  // non-token type (string).
+  };
+
+  for (auto* block_case : block_cases) {
+    auto headers = GetHeaders(block_case, nullptr);
+    ConnectionAllowlists result =
+        ParseConnectionAllowlistsFromHeaders(*headers, url());
+    ASSERT_TRUE(result.enforced);
+    EXPECT_EQ(0u, result.enforced->issues.size());
+    EXPECT_TRUE(result.enforced->allowlist.empty());
+    ASSERT_FALSE(result.enforced->reporting_endpoint.has_value());
+    EXPECT_EQ(result.enforced->redirect_behavior,
+              ConnectionAllowlist::RedirectBehavior::kBlock);
+
+    EXPECT_EQ(result.enforced->webrtc_behavior,
+              ConnectionAllowlist::WebRtcBehavior::kBlock);
+
+    EXPECT_FALSE(result.report_only);
+  }
 }
 
 TEST_F(ConnectionAllowlistParserTest, MultipleLists) {

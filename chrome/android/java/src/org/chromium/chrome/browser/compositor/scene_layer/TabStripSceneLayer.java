@@ -28,7 +28,7 @@ import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutTab;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutUtils;
 import org.chromium.chrome.browser.layouts.scene_layer.SceneLayer;
 import org.chromium.chrome.browser.layouts.scene_layer.SceneOverlayLayer;
-import org.chromium.chrome.browser.tab.Tab.MediaState;
+import org.chromium.chrome.browser.tab.MediaState;
 import org.chromium.chrome.browser.tab.TabId;
 import org.chromium.chrome.browser.tab.TabUtils;
 import org.chromium.chrome.browser.tasks.tab_management.TabUiThemeUtil;
@@ -199,10 +199,10 @@ public class TabStripSceneLayer extends SceneOverlayLayer {
                     .updateGlicButton(
                             mNativePtr,
                             glicButton.getResourceId(),
-                            glicButton.getBackgroundResourceId(),
                             Math.round(glicButton.getDrawX() * mDpToPx),
                             Math.round(glicButton.getDrawY() * mDpToPx),
                             Math.round(glicButton.getWidth() * mDpToPx),
+                            Math.round(glicButton.getHeight() * mDpToPx),
                             glicButtonVisible,
                             glicButton.getShouldApplyHoverBackground(),
                             glicButton.getTint(),
@@ -212,8 +212,9 @@ public class TabStripSceneLayer extends SceneOverlayLayer {
                             TabUiThemeUtil.getCircularButtonKeyboardFocusDrawableRes(),
                             glicButton.getKeyboardFocusRingColor(),
                             glicButton.getTextResourceId(),
-                            layoutHelper.getGlicButtonStartPadding(),
-                            layoutHelper.getGlicIconTextPadding());
+                            Math.round(layoutHelper.getGlicButtonStartPadding() * mDpToPx),
+                            Math.round(layoutHelper.getGlicIconTextPadding() * mDpToPx),
+                            Math.round(layoutHelper.getGlicButtonCornerRadius() * mDpToPx));
         }
 
         CompositorButton modelSelectorButton = layoutHelper.getModelSelectorButton();
@@ -440,10 +441,10 @@ public class TabStripSceneLayer extends SceneOverlayLayer {
         void updateGlicButton(
                 long nativeTabStripSceneLayer,
                 @DrawableRes int resourceId,
-                @DrawableRes int backgroundResourceId,
                 float x,
                 float y,
                 float buttonWidth,
+                float buttonHeight,
                 boolean visible,
                 boolean isHovered,
                 @ColorInt int tint,
@@ -454,7 +455,8 @@ public class TabStripSceneLayer extends SceneOverlayLayer {
                 @ColorInt int keyboardFocusRingColor,
                 int textTextureId,
                 float buttonStartPadding,
-                float buttonTextPadding);
+                float buttonTextPadding,
+                float cornerRadius);
 
         void updateModelSelectorButton(
                 long nativeTabStripSceneLayer,

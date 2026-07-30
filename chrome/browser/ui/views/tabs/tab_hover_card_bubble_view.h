@@ -35,10 +35,12 @@ namespace tabs {
 enum class TabAlert;
 }
 
-class HoverCardAnchorTarget;
 class TabStyle;
 class FadeLabelView;
-struct TabRendererData;
+class HoverCardAnchorTarget;
+namespace tabs {
+struct TabData;
+}
 
 // Dialog that displays an informational hover card containing page information.
 class TabHoverCardBubbleView : public views::BubbleDialogDelegateView {
@@ -68,9 +70,9 @@ class TabHoverCardBubbleView : public views::BubbleDialogDelegateView {
   TabHoverCardBubbleView& operator=(const TabHoverCardBubbleView&) = delete;
   ~TabHoverCardBubbleView() override;
 
-  // Create the CollaborationMessagingRowData from TabRendererData.
+  // Create the CollaborationMessagingRowData from tabs::TabData.
   CollaborationMessagingRowData GetCollaborationMessagingData(
-      const TabRendererData& tab_data);
+      const tabs::TabData& tab_data);
 
   // Updates and formats title, alert state, domain, and preview image.
   void UpdateCardContent(const HoverCardAnchorTarget* anchor_target);
@@ -88,6 +90,8 @@ class TabHoverCardBubbleView : public views::BubbleDialogDelegateView {
   // Specifies that the hover card should display a crashed image
   // specifying that the tab has crashed.
   void SetCrashedImage();
+
+  void SetSliding(bool sliding) { sliding_ = sliding; }
 
   // Accessors used by tests.
   std::u16string_view GetTitleTextForTesting() const;
@@ -115,6 +119,8 @@ class TabHoverCardBubbleView : public views::BubbleDialogDelegateView {
 
   // BubbleDialogDelegate:
   void OnAnchorBoundsChanged() override;
+
+  bool sliding_ = false;
 
   raw_ptr<FadeLabelView> title_label_ = nullptr;
   raw_ptr<FadeLabelView> domain_label_ = nullptr;

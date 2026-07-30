@@ -27,6 +27,7 @@
 #import "ios/chrome/browser/intelligence/bwg/metrics/gemini_metrics.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_service.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_service_factory.h"
+#import "ios/chrome/browser/intelligence/bwg/model/bwg_tab_helper.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/lens/ui_bundled/lens_availability.h"
@@ -563,10 +564,13 @@ NSString* const kAlertAccessibilityIdentifier = @"AlertAccessibilityIdentifier";
 
   // Launch the Gemini experience with an image attached.
   UIMenuElement* geminiElement = nil;
-  raw_ptr<BwgService> BWGService =
+  BwgService* geminiService =
       BwgServiceFactory::GetForProfile(self.browser->GetProfile());
-  BOOL canShowGeminiElement = IsGeminiImageRemixToolEnabled() && BWGService &&
-                              BWGService->IsBwgAvailableForWebState(webState);
+  BwgTabHelper* geminiTabHelper = BwgTabHelper::FromWebState(webState);
+  BOOL canShowGeminiElement =
+      IsGeminiImageRemixToolEnabled() && geminiTabHelper &&
+      geminiTabHelper->IsGeminiAvailableForWebState() && geminiService &&
+      geminiService->IsProfileEligibleForGemini();
   BOOL geminiAboveSearch = IsGeminiImageRemixToolShowAboveSearchImageEnabled();
   BOOL geminiBelowSearch = IsGeminiImageRemixToolShowBelowSearchImageEnabled();
 
@@ -846,36 +850,35 @@ NSString* const kAlertAccessibilityIdentifier = @"AlertAccessibilityIdentifier";
 
   [imageSavingElements addObject:saveImage];
 
+  if (!saveToPhotosAvailable) {
+    return imageSavingElements;
+  }
+
   // Save Image to Photos.
-  if (saveToPhotosAvailable) {
-    base::RecordAction(base::UserMetricsAction(
-        "MobileWebContextMenuImageWithSaveToPhotosImpression"));
-    UIAction* saveImageToPhotosAction = [actionFactory
-        actionToSaveToPhotosWithImageURL:imageURL
-                                referrer:referrer
-                                webState:webState
-                                   block:^{
-                                     base::UmaHistogramEnumeration(
-                                         kSaveToPhotosContextMenuActionsHistogram,
-                                         SaveToPhotosContextMenuActions::
-                                             kAvailableDidSaveImageToGooglePhotos);
-                                   }];
-    [imageSavingElements addObject:saveImageToPhotosAction];
-  }
+  base::RecordAction(base::UserMetricsAction(
+      "MobileWebContextMenuImageWithSaveToPhotosImpression"));
+  UIAction* saveImageToPhotosAction = [actionFactory
+      actionToSaveToPhotosWithImageURL:imageURL
+                              referrer:referrer
+                              webState:webState
+                                 block:^{
+                                   base::UmaHistogramEnumeration(
+                                       kSaveToPhotosContextMenuActionsHistogram,
+                                       SaveToPhotosContextMenuActions::
+                                           kAvailableDidSaveImageToGooglePhotos);
+                                 }];
+  [imageSavingElements addObject:saveImageToPhotosAction];
 
-  if (saveToPhotosAvailable) {
-    UIImage* image = DefaultSymbolWithPointSize(kPhotoBadgeArrowDownSymbol,
-                                                kSymbolActionPointSize);
-    UIMenu* saveImageInMenu = [UIMenu
-        menuWithTitle:l10n_util::GetNSString(IDS_IOS_TOOLS_MENU_SAVE_IMAGE_IN)
-                image:image
-           identifier:nil
-              options:UIMenuOptionsSingleSelection
-             children:imageSavingElements];
-    return @[ saveImageInMenu ];
-  }
-
-  return imageSavingElements;
+  // Save Image Menu.
+  UIImage* image = DefaultSymbolWithPointSize(kPhotoBadgeArrowDownSymbol,
+                                              kSymbolActionPointSize);
+  UIMenu* saveImageInMenu = [UIMenu
+      menuWithTitle:l10n_util::GetNSString(IDS_IOS_TOOLS_MENU_SAVE_IMAGE_IN)
+              image:image
+         identifier:nil
+            options:UIMenuOptionsSingleSelection
+           children:imageSavingElements];
+  return @[ saveImageInMenu ];
 }
 
 // Returns the context menu elements for image searching.

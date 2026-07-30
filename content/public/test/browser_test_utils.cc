@@ -148,9 +148,11 @@
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/compositor/test/draw_waiter_for_test.h"
 #include "ui/events/base_event_utils.h"
+#include "ui/events/event_constants.h"
 #include "ui/events/gesture_detection/gesture_configuration.h"
 #include "ui/events/keycodes/dom/dom_code.h"
 #include "ui/events/keycodes/dom/keycode_converter.h"
+#include "ui/events/keycodes/keyboard_code_conversion.h"
 #include "ui/gfx/geometry/point_f.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/latency/latency_info.h"
@@ -2614,8 +2616,7 @@ RenderProcessHostWatcher::RenderProcessHostWatcher(
     : type_(type),
       did_exit_normally_(true),
       allow_renderer_crashes_(
-          std::make_unique<ScopedAllowRendererCrashes>(render_process_host)),
-      quit_closure_(run_loop_.QuitClosure()) {
+          std::make_unique<ScopedAllowRendererCrashes>(render_process_host)) {
   observation_.Observe(render_process_host);
 }
 
@@ -2626,24 +2627,24 @@ RenderProcessHostWatcher::RenderProcessHostWatcher(WebContents* web_contents,
           type) {}
 RenderProcessHostWatcher::~RenderProcessHostWatcher() = default;
 
-void RenderProcessHostWatcher::Wait() {
-  run_loop_.Run();
+bool RenderProcessHostWatcher::Wait() {
+  bool result = waiter_helper_.Wait();
 
   DCHECK(allow_renderer_crashes_)
       << "RenderProcessHostWatcher::Wait() may only be called once";
   allow_renderer_crashes_.reset();
   // Call this here just in case something else quits the RunLoop.
   observation_.Reset();
+  return result;
 }
-
-void RenderProcessHostWatcher::QuitRunLoop() {
-  std::move(quit_closure_).Run();
+void RenderProcessHostWatcher::OnEvent() {
+  waiter_helper_.OnEvent();
   observation_.Reset();
 }
 
 void RenderProcessHostWatcher::RenderProcessReady(RenderProcessHost* host) {
   if (type_ == WATCH_FOR_PROCESS_READY) {
-    QuitRunLoop();
+    OnEvent();
   }
 }
 
@@ -2653,14 +2654,14 @@ void RenderProcessHostWatcher::RenderProcessExited(
   did_exit_normally_ =
       info.status == base::TERMINATION_STATUS_NORMAL_TERMINATION;
   if (type_ == WATCH_FOR_PROCESS_EXIT) {
-    QuitRunLoop();
+    OnEvent();
   }
 }
 
 void RenderProcessHostWatcher::RenderProcessHostDestroyed(
     RenderProcessHost* host) {
   if (type_ == WATCH_FOR_HOST_DESTRUCTION) {
-    QuitRunLoop();
+    OnEvent();
   }
 }
 
@@ -2962,10 +2963,24 @@ RenderFrameSubmissionObserver::~RenderFrameSubmissionObserver() {
   }
 }
 
+void RenderFrameSubmissionObserver::SetWaitForNextFrame() {
+  wait_for_render_frame_count_ = (render_frame_count_ + 1);
+  LOG(ERROR) << "SetWaitForNextFrame";
+}
+
 void RenderFrameSubmissionObserver::WaitForAnyFrameSubmission() {
-  break_on_any_frame_ = true;
+  CHECK(!wait_for_render_frame_count_.has_value());
+  wait_for_render_frame_count_ = render_frame_count_;
   Wait();
-  break_on_any_frame_ = false;
+  wait_for_render_frame_count_.reset();
+}
+
+void RenderFrameSubmissionObserver::WaitForNextFrameSubmission() {
+  CHECK(wait_for_render_frame_count_.has_value());
+  while (render_frame_count_ < wait_for_render_frame_count_.value()) {
+    Wait();
+  }
+  wait_for_render_frame_count_.reset();
 }
 
 void RenderFrameSubmissionObserver::WaitForMetadataChange() {
@@ -3056,7 +3071,7 @@ void RenderFrameSubmissionObserver::OnRenderFrameMetadataChangedAfterActivation(
 
 void RenderFrameSubmissionObserver::OnRenderFrameSubmission() {
   render_frame_count_++;
-  if (break_on_any_frame_) {
+  if (wait_for_render_frame_count_.has_value()) {
     Quit();
   }
 }
@@ -5158,5 +5173,50 @@ RequestCloseWidgetInterceptor::GetForwardingInterface() {
 }
 
 void RequestCloseWidgetInterceptor::RequestClosePopup() {}
+
+void SimulateCharTyped(WebContents* web_contents, char16_t character) {
+  ui::DomKey dom_key;
+  ui::DomCode dom_code;
+  ui::KeyboardCode key_code;
+
+  if (character == '\t') {
+    dom_key = ui::DomKey::TAB;
+    dom_code = ui::DomCode::TAB;
+    key_code = ui::VKEY_TAB;
+  } else if (character == '\b') {
+    dom_key = ui::DomKey::BACKSPACE;
+    dom_code = ui::DomCode::BACKSPACE;
+    key_code = ui::VKEY_BACK;
+  } else if (character == '\n') {
+    dom_key = ui::DomKey::ENTER;
+    dom_code = ui::DomCode::ENTER;
+    key_code = ui::VKEY_RETURN;
+  } else {
+    dom_key = ui::DomKey::FromCharacter(character);
+    dom_code = ui::UsLayoutDomKeyToDomCode(dom_key);
+    key_code = ui::DomCodeToUsLayoutKeyboardCode(dom_code);
+  }
+
+  CHECK_NE(dom_code, ui::DomCode::NONE)
+      << "Unsupported character: " << static_cast<int>(character);
+
+  bool shift =
+      (character != ui::DomCodeToUsLayoutCharacter(dom_code, ui::EF_NONE));
+
+  SimulateKeyPress(web_contents, dom_key, dom_code, key_code,
+                   /*control=*/false, shift, /*alt=*/false,
+                   /*command=*/false);
+}
+
+[[nodiscard]] bool CrashFrameProcess(const ToRenderFrameHost& adapter) {
+  RenderFrameHost* rfh = adapter.render_frame_host();
+  auto* process = rfh->GetProcess();
+  content::ScopedAllowRendererCrashes allow_renderer_crashes(process);
+
+  RenderProcessHostWatcher watcher(
+      process, RenderProcessHostWatcher::WATCH_FOR_PROCESS_EXIT);
+  process->Shutdown(content::RESULT_CODE_KILLED);
+  return watcher.Wait();
+}
 
 }  // namespace content

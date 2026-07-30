@@ -40,12 +40,13 @@
 #import "ios/chrome/browser/autofill/ui_bundled/address_editor/autofill_edit_profile_coordinator.h"
 #import "ios/chrome/browser/autofill/ui_bundled/bottom_sheet/settings_autofill_edit_profile_bottom_sheet_handler.h"
 #import "ios/chrome/browser/net/model/crurl.h"
+#import "ios/chrome/browser/settings/autofill/autofill_ai/ui/autofill_ai_entity_item.h"
+#import "ios/chrome/browser/settings/autofill/utils/autofill_settings_ui_util.h"
 #import "ios/chrome/browser/settings/ui_bundled/autofill/autofill_profile_edit_coordinator.h"
 #import "ios/chrome/browser/settings/ui_bundled/autofill/autofill_settings_constants.h"
 #import "ios/chrome/browser/settings/ui_bundled/autofill/cells/autofill_address_profile_record_type.h"
 #import "ios/chrome/browser/settings/ui_bundled/autofill/cells/autofill_profile_item.h"
 #import "ios/chrome/browser/settings/ui_bundled/autofill/enhanced_autofill_table_view_controller.h"
-#import "ios/chrome/browser/settings/ui_bundled/autofill/ui/autofill_ai_entity_item.h"
 #import "ios/chrome/browser/settings/ui_bundled/elements/enterprise_info_popover_view_controller.h"
 #import "ios/chrome/browser/settings/ui_bundled/settings_root_table_view_controller+toolbar_add.h"
 #import "ios/chrome/browser/shared/coordinator/alert/action_sheet_coordinator.h"
@@ -153,6 +154,12 @@ NSString* GetFallbackDetailTextForLocalProfile(
     }
   }
   return @"";
+}
+
+// Returns true if the item type is not user deletable.
+bool CanDeleteItemType(NSInteger itemType) {
+  return itemType == ItemTypeAddress || itemType == ItemTypeIdentityDoc ||
+         itemType == ItemTypeTravel;
 }
 
 }  // namespace
@@ -302,17 +309,22 @@ NSString* GetFallbackDetailTextForLocalProfile(
         forSectionWithIdentifier:SectionIdentifierPlusAddress];
   }
 
-  if (base::FeatureList::IsEnabled(
-          autofill::features::kAutofillAiWithDataSchema)) {
+  bool isEnhancedAutofillEnabled = base::FeatureList::IsEnabled(
+      autofill::features::kAutofillAiWithDataSchema);
+  if (isEnhancedAutofillEnabled) {
     [model addSectionWithIdentifier:SectionIdentifierEnhancedAutofill];
     [model addItem:[self enhancedAutofillItem]
         toSectionWithIdentifier:SectionIdentifierEnhancedAutofill];
 
     [self populateVerificationAndWalletSections];
-    [self populateEntitySections];
   }
 
   [self populateProfileSection];
+
+  // Add identity and travel docs sections after profile (addresses) section.
+  if (isEnhancedAutofillEnabled) {
+    [self populateEntitySections];
+  }
 }
 
 - (void)populateEntitySections {
@@ -382,7 +394,7 @@ NSString* GetFallbackDetailTextForLocalProfile(
                       (const autofill::EntityInstance&)instance
                               withLabel:(const autofill::EntityLabel&)label
                                    type:(ItemType)type {
-  AutofillAiEntityItem* item = [[AutofillAiEntityItem alloc] initWithType:type];
+  AutofillAIEntityItem* item = [[AutofillAIEntityItem alloc] initWithType:type];
   item.name = base::SysUTF16ToNSString(
       base::JoinString(label, autofill::kLabelSeparator));
   item.typeDescription =
@@ -789,9 +801,11 @@ NSString* GetFallbackDetailTextForLocalProfile(
 - (UITableViewCellEditingStyle)tableView:(UITableView*)tableView
            editingStyleForRowAtIndexPath:(NSIndexPath*)indexPath {
   TableViewItem* item = [self.tableViewModel itemAtIndexPath:indexPath];
-  if ([item isKindOfClass:[AutofillAiEntityItem class]]) {
-    // TODO(crbug.com/480934103): disable bulk edit for now
-    return UITableViewCellEditingStyleNone;
+  if ([item isKindOfClass:[AutofillAIEntityItem class]]) {
+    AutofillAIEntityItem* aiItem =
+        base::apple::ObjCCastStrict<AutofillAIEntityItem>(item);
+    return aiItem.isServerWalletItem ? UITableViewCellEditingStyleNone
+                                     : UITableViewCellEditingStyleDelete;
   }
   return UITableViewCellEditingStyleDelete;
 }
@@ -799,9 +813,10 @@ NSString* GetFallbackDetailTextForLocalProfile(
 - (BOOL)tableView:(UITableView*)tableView
     shouldIndentWhileEditingRowAtIndexPath:(NSIndexPath*)indexPath {
   TableViewItem* item = [self.tableViewModel itemAtIndexPath:indexPath];
-  if ([item isKindOfClass:[AutofillAiEntityItem class]]) {
-    // TODO(crbug.com/480934103): disable bulk edit for now
-    return NO;
+  if ([item isKindOfClass:[AutofillAIEntityItem class]]) {
+    AutofillAIEntityItem* aiItem =
+        base::apple::ObjCCastStrict<AutofillAIEntityItem>(item);
+    return !aiItem.isServerWalletItem;
   }
   return YES;
 }
@@ -966,17 +981,10 @@ NSString* GetFallbackDetailTextForLocalProfile(
   }
 
   TableViewItem* item = [self.tableViewModel itemAtIndexPath:indexPath];
-  if ([item isKindOfClass:[AutofillAiEntityItem class]]) {
-    if (tableView.isEditing) {
-      // TODO(crbug.com/480934103): disable bulk edit for now
-      return NO;
-    }
-    AutofillAiEntityItem* aiItem =
-        base::apple::ObjCCastStrict<AutofillAiEntityItem>(item);
-    if (aiItem.isServerWalletItem) {
-      return NO;
-    }
-    return YES;
+  if ([item isKindOfClass:[AutofillAIEntityItem class]]) {
+    AutofillAIEntityItem* aiItem =
+        base::apple::ObjCCastStrict<AutofillAIEntityItem>(item);
+    return !aiItem.isServerWalletItem;
   }
 
   return [item isKindOfClass:[AutofillProfileItem class]];
@@ -1249,9 +1257,9 @@ NSString* GetFallbackDetailTextForLocalProfile(
           base::apple::ObjCCastStrict<AutofillProfileItem>(item);
       _personalDataManager->address_data_manager().RemoveProfile(
           [profileItem GUID]);
-    } else if ([item isKindOfClass:[AutofillAiEntityItem class]]) {
-      AutofillAiEntityItem* aiItem =
-          base::apple::ObjCCastStrict<AutofillAiEntityItem>(item);
+    } else if ([item isKindOfClass:[AutofillAIEntityItem class]]) {
+      AutofillAIEntityItem* aiItem =
+          base::apple::ObjCCastStrict<AutofillAIEntityItem>(item);
       if (_entityDataManager) {
         _entityDataManager->RemoveEntityInstance(aiItem.guid);
       }
@@ -1326,9 +1334,11 @@ NSString* GetFallbackDetailTextForLocalProfile(
   BOOL hasWorkProfile = NO;
   BOOL hasNameEmailProfile = NO;
   int profileCount = 0;
+  int aiEntityCount = 0;
 
   for (NSIndexPath* indexPath in indexPaths) {
-    if (![self isItemTypeForIndexPathAddress:indexPath]) {
+    NSInteger itemType = [self.tableViewModel itemTypeForIndexPath:indexPath];
+    if (!CanDeleteItemType(itemType)) {
       continue;
     }
 
@@ -1355,13 +1365,19 @@ NSString* GetFallbackDetailTextForLocalProfile(
           hasNameEmailProfile = YES;
           break;
       }
-    } else if ([item isKindOfClass:[AutofillAiEntityItem class]]) {
-      // TODO(crbug.com/480934103): will be handled once the messages are ready.
+    } else if ([item isKindOfClass:[AutofillAIEntityItem class]]) {
+      AutofillAIEntityItem* aiItem =
+          base::apple::ObjCCastStrict<AutofillAIEntityItem>(item);
+      // Only local entities can be deleted. Server wallet items should not be
+      // selected for deletion.
+      if (!aiItem.isServerWalletItem) {
+        aiEntityCount++;
+      }
     }
   }
 
   // Can happen if user presses delete in quick succession.
-  if (!profileCount) {
+  if (profileCount == 0 && aiEntityCount == 0) {
     return;
   }
 
@@ -1369,6 +1385,7 @@ NSString* GetFallbackDetailTextForLocalProfile(
       (hasHomeProfile || hasWorkProfile || hasNameEmailProfile);
   NSString* deletionConfirmationString = [self
       getDeletionConfirmationStringForProfileCount:profileCount
+                                       hasEntities:aiEntityCount
                                    hasLocalProfile:hasLocalProfile
                                  hasAccountProfile:hasAccountProfile
                        hasHomeWorkNameEmailProfile:hasHomeWorkNameEmailProfile];
@@ -1388,13 +1405,12 @@ NSString* GetFallbackDetailTextForLocalProfile(
   _deletionSheetCoordinator.popoverArrowDirection = UIPopoverArrowDirectionAny;
   __weak AutofillProfileTableViewController* weakSelf = self;
   NSString* confirmationButtonText =
-      base::FeatureList::IsEnabled(
-          autofill::features::kAutofillEnableSupportForHomeAndWork)
-          ? l10n_util::GetNSString(
-                IDS_IOS_SETTINGS_AUTOFILL_DELETE_ADDRESSES_CONFIRMATION_BUTTON)
-          : l10n_util::GetPluralNSStringF(
-                IDS_IOS_SETTINGS_AUTOFILL_DELETE_ADDRESS_CONFIRMATION_BUTTON,
-                profileCount);
+      [self confirmationButtonText:profileCount hasEntities:aiEntityCount > 0];
+
+  // This block shows "Edit in Google Account" button. When the selection is
+  // mixed, meaning AI entities are selected, we are still going to show this
+  // button, and guide the user to edit in Google Account.
+  // In this case, entities selected are ignored.
   if (hasHomeWorkNameEmailProfile && !hasLocalProfile && !hasAccountProfile) {
     confirmationButtonText = l10n_util::GetNSString(
         IDS_IOS_SETTINGS_AUTOFILL_REMOVE_ADDRESS_CONFIRMATION_BUTTON);
@@ -1438,65 +1454,42 @@ NSString* GetFallbackDetailTextForLocalProfile(
   [_deletionSheetCoordinator start];
 }
 
+// Returns the confirmation button text.
+- (NSString*)confirmationButtonText:(int)profileCount
+                        hasEntities:(BOOL)hasEntities {
+  // If there are AI entities selected, use the generic delete action title.
+  // It is "Delete" instead of "Delete addresses" or "Delete address".
+  if (hasEntities) {
+    return l10n_util::GetNSString(IDS_IOS_DELETE_ACTION_TITLE);
+  }
+
+  return base::FeatureList::IsEnabled(
+             autofill::features::kAutofillEnableSupportForHomeAndWork)
+             ? l10n_util::GetNSString(
+                   IDS_IOS_SETTINGS_AUTOFILL_DELETE_ADDRESSES_CONFIRMATION_BUTTON)
+             : l10n_util::GetPluralNSStringF(
+                   IDS_IOS_SETTINGS_AUTOFILL_DELETE_ADDRESS_CONFIRMATION_BUTTON,
+                   profileCount);
+}
+
 // Returns the deletion confirmation message string based on
 // `profileCount` and if it the source has any local, account or home/work
 // profiles.
 - (NSString*)getDeletionConfirmationStringForProfileCount:(int)profileCount
+                                              hasEntities:(BOOL)hasEntities
                                           hasLocalProfile:(BOOL)hasLocalProfile
                                         hasAccountProfile:
                                             (BOOL)hasAccountProfile
                               hasHomeWorkNameEmailProfile:
                                   (BOOL)hasHomeWorkNameEmailProfile {
-  if (!base::FeatureList::IsEnabled(
-          autofill::features::kAutofillEnableSupportForHomeAndWork)) {
-    if (hasAccountProfile) {
-      std::u16string pattern = l10n_util::GetStringUTF16(
-          IDS_IOS_SETTINGS_AUTOFILL_DELETE_ACCOUNT_ADDRESS_CONFIRMATION_TITLE);
-      std::u16string confirmationString =
-          base::i18n::MessageFormatter::FormatWithNamedArgs(
-              pattern, "email", base::SysNSStringToUTF16(_userEmail), "count",
-              profileCount);
-      return base::SysUTF16ToNSString(confirmationString);
-    }
-    return l10n_util::GetPluralNSStringF(
-        IDS_IOS_SETTINGS_AUTOFILL_DELETE_LOCAL_ADDRESS_CONFIRMATION_TITLE,
-        profileCount);
+  std::u16string userEmail = base::SysNSStringToUTF16(_userEmail);
+  if (hasEntities) {
+    return GetDeletionConfirmationStringWithEntities(
+        hasAccountProfile || hasHomeWorkNameEmailProfile, userEmail);
   }
-
-  if (hasLocalProfile && hasAccountProfile && hasHomeWorkNameEmailProfile) {
-    return l10n_util::GetNSString(
-        IDS_IOS_SETTINGS_AUTOFILL_DELETE_LOCAL_ACCOUNT_HOME_WORK_ADDRESS_CONFIRMATION_TITLE);
-  }
-
-  if (hasLocalProfile && hasHomeWorkNameEmailProfile) {
-    return l10n_util::GetNSString(
-        IDS_IOS_SETTINGS_AUTOFILL_DELETE_LOCAL_HOME_WORK_ADDRESS_CONFIRMATION_TITLE);
-  }
-
-  if (hasLocalProfile && hasAccountProfile) {
-    return l10n_util::GetNSStringF(
-        IDS_IOS_SETTINGS_AUTOFILL_DELETE_LOCAL_ACCOUNT_ADDRESS_CONFIRMATION_TITLE,
-        base::SysNSStringToUTF16(_userEmail));
-  }
-
-  if (hasAccountProfile && hasHomeWorkNameEmailProfile) {
-    return l10n_util::GetNSString(
-        IDS_IOS_SETTINGS_AUTOFILL_DELETE_ACCOUNT_HOME_WORK_ADDRESS_CONFIRMATION_TITLE);
-  }
-
-  if (hasAccountProfile) {
-    return l10n_util::GetNSStringF(
-        IDS_IOS_SETTINGS_AUTOFILL_DELETE_ACCOUNT_ADDRESSES_CONFIRMATION_TITLE,
-        base::SysNSStringToUTF16(_userEmail));
-  }
-
-  if (hasHomeWorkNameEmailProfile) {
-    return l10n_util::GetNSString(
-        IDS_IOS_SETTINGS_AUTOFILL_DELETE_HOME_WORK_ADDRESS_CONFIRMATION_TITLE);
-  }
-
-  return l10n_util::GetNSString(
-      IDS_IOS_SETTINGS_AUTOFILL_DELETE_LOCAL_ADDRESSES_CONFIRMATION_TITLE);
+  return GetDeletionConfirmationString(profileCount, hasLocalProfile,
+                                       hasAccountProfile,
+                                       hasHomeWorkNameEmailProfile, userEmail);
 }
 
 // Returns true when the item type for `indexPath` is Address.

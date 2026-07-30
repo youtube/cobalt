@@ -10,7 +10,7 @@ import {getReadAloudModel} from '../read_aloud/read_aloud_model_browser_proxy.js
 import {ReadAloudNode} from '../read_aloud/read_aloud_types.js';
 import {SpeechController} from '../read_aloud/speech_controller.js';
 import {isDistilledByReadability, LOG_EMPTY_DELAY_MS} from '../shared/common.js';
-import {ReadAnythingLogger} from '../shared/read_anything_logger.js';
+import {LinkStatus, ReadAnythingLogger} from '../shared/read_anything_logger.js';
 
 import {NodeStore} from './node_store.js';
 import {ReadabilityImageClassifier} from './readability_image_classifier.js';
@@ -19,8 +19,7 @@ const DATA_PREFIX = 'data-';
 const LINK_DATA_ATTR = 'link';
 const LINKS_OFF_TAG = 'span';
 const LINKS_ON_TAG = 'a';
-const LINKS_OFF_SELECTOR =
-    LINKS_OFF_TAG + '[' + DATA_PREFIX + LINK_DATA_ATTR + ']';
+const LINKS_OFF_SELECTOR = `${LINKS_OFF_TAG}[${DATA_PREFIX}${LINK_DATA_ATTR}]`;
 export const HIGHLIGHTED_LINK_CLASS = 'highlighted-link';
 
 // Reading mode sometimes needs to use a different html tag to display a
@@ -536,7 +535,8 @@ export class ContentController {
     // Copy all attributes from the old element to the new one.
     for (const attrName of elemToReplace.getAttributeNames()) {
       // Skip the attributes we are manually changing.
-      if (attrName === 'href' || attrName === DATA_PREFIX + LINK_DATA_ATTR) {
+      if (attrName === 'href' ||
+          attrName === `${DATA_PREFIX}${LINK_DATA_ATTR}`) {
         continue;
       }
       const attrValue = elemToReplace.getAttribute(attrName)!;
@@ -559,7 +559,7 @@ export class ContentController {
     const newClass =
         showLinks ? HIGHLIGHTED_LINK_CLASS : previousReadHighlightClass;
     const highlightedNodes =
-        Array.from(newElem.querySelectorAll<HTMLElement>('.' + originalClass));
+        Array.from(newElem.querySelectorAll<HTMLElement>(`.${originalClass}`));
     if (newElem.classList.contains(originalClass)) {
       highlightedNodes.push(newElem);
     }
@@ -589,7 +589,7 @@ export class ContentController {
       return;
     }
     const highlightedNodes =
-        shadowRoot.querySelectorAll<HTMLElement>('.' + HIGHLIGHTED_LINK_CLASS);
+        shadowRoot.querySelectorAll<HTMLElement>(`.${HIGHLIGHTED_LINK_CLASS}`);
     highlightedNodes.forEach(
         node => node.classList.remove(HIGHLIGHTED_LINK_CLASS));
   }
@@ -650,15 +650,21 @@ export class ContentController {
     const anchors = Array.from(root.querySelectorAll<HTMLAnchorElement>('a'));
     const originalAnchors: Record<string, AxTreeAnchorMetadata[]> =
         chrome.readingMode.axTreeAnchors;
+    let successCount = 0;
+    let noHrefCount = 0;
+    let noMatchCount = 0;
+    let tooManyMatchesCount = 0;
     for (const anchor of anchors) {
       const url = anchor.href;
       if (!url) {
+        noHrefCount++;
         this.transformLinkContainer_(anchor, false);
         continue;
       }
 
       const options = originalAnchors[url];
       if (!options) {
+        noMatchCount++;
         this.transformLinkContainer_(anchor, false);
         continue;
       }
@@ -674,6 +680,7 @@ export class ContentController {
       }
 
       if (matchIndex === null || matchIndex >= options.length) {
+        tooManyMatchesCount++;
         // Convert the anchor to text if no match is found.
         this.transformLinkContainer_(anchor, false);
         continue;
@@ -696,6 +703,16 @@ export class ContentController {
       const nodeID = match.axId;
       this.nodeStore_.setDomNode(anchor, nodeID);
       this.setLinkAttributes_(anchor, url, nodeID);
+      successCount++;
+    }
+
+    // Only log if there were anchors on the page.
+    if (anchors.length > 0) {
+      this.logger_.logLinkStatusCount(LinkStatus.SUCCESS, successCount);
+      this.logger_.logLinkStatusCount(LinkStatus.NO_HREF, noHrefCount);
+      this.logger_.logLinkStatusCount(LinkStatus.NO_MATCH, noMatchCount);
+      this.logger_.logLinkStatusCount(
+          LinkStatus.TOO_MANY_MATCHES, tooManyMatchesCount);
     }
   }
 

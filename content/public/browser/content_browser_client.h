@@ -685,12 +685,21 @@ class CONTENT_EXPORT ContentBrowserClient {
   // Must be less than or equal to the total number of RenderProcessHosts.
   virtual size_t GetProcessCountToIgnoreForLimit();
 
-  // Returns the cached permissions policy for the given Isolated Web App
-  // origin. Returns nullopt if the policy is not cached.
-  virtual std::optional<
-      std::vector<blink::mojom::IsolatedAppPermissionPolicyEntryPtr>>
-  GetPermissionsPolicyForIsolatedWebApp(BrowserContext* browser_context,
-                                        const url::Origin& iwa_origin);
+  // Allows the embedder to define a baseline permissions policy for an isolated
+  // app origin; if supported, permissions policies derived from the
+  // Permissions-Policy header of any document will be downscaled to respect the
+  // baseline.
+  //
+  // Say, the returned baseline is equal to { cross-origin-isolated: (self) }.
+  // Then a Permissions-Policy: cross-origin-isolated=(*), direct-sockets=(self)
+  // header will be effectively reduced to cross-origin-isolated=(self).
+  //
+  // It's valid to return false to disable this functionality; in this case the
+  // Permissions-Policy header will not be affected.
+  virtual bool SupportsBaselinePermissionsPolicyForIsolatedApp();
+  virtual std::vector<blink::mojom::IsolatedAppPermissionPolicyEntryPtr>
+  GetBaselinePermissionsPolicyForIsolatedApp(BrowserContext* browser_context,
+                                             const url::Origin& app_origin);
 
   // Returns whether a new process should be created or an existing one should
   // be reused based on the URL we want to load. This should return false,
@@ -799,6 +808,15 @@ class CONTENT_EXPORT ContentBrowserClient {
   // by features like the WebUI reload button.
   virtual bool IsInitialWebUIURL(const GURL& url);
 #endif  // !BUILDFLAG(IS_ANDROID)
+
+  // Returns true if the given `url` hosts a Top Chrome WebUI.
+  // This allows the embedder to identify WebUIs that are part of the browser
+  // chrome, e.g., Tab Search, Side Panel, Initial WebUI etc., so that content/
+  // can apply specific process-sharing or metric-gathering logic.
+  //
+  // This function is defined on all platforms, but is expected to always return
+  // false on platforms that do not support Top Chrome WebUIs, e.g., Android.
+  virtual bool IsTopChromeWebUIURL(const GURL& url);
 
   // Allows the embedder to enable access to Isolated Context Web APIs for the
   // given |lock_url| -- the URL to which the renderer process is locked.
@@ -2258,14 +2276,15 @@ class CONTENT_EXPORT ContentBrowserClient {
       mojo::PendingRemote<network::mojom::URLLoaderClient> client)>;
 
   // Allows the embedder to return a callback that is capable of loading a
-  // service worker navigation preload request. Similar to
+  // service worker initiated navigational preload request (e.g., navigation
+  // preload or synthetic response). Similar to
   // |WillCreateURLLoaderRequestInterceptors()|, but only allows for synchronous
   // decisions of whether to handle the preload request with no fallback. As a
   // result of being synchronous, the embedder can decide which, if there are
   // multiple, URLLoader handlers is appropriate. If the embedder returns a null
   // callback, the default behavior will be used to fetch the request.
   virtual URLLoaderRequestHandler
-  CreateURLLoaderHandlerForServiceWorkerNavigationPreload(
+  CreateURLLoaderHandlerForServiceWorkerInitiatedNavigationRequest(
       FrameTreeNodeId frame_tree_node_id,
       const network::ResourceRequest& resource_request);
 
@@ -2631,6 +2650,23 @@ class CONTENT_EXPORT ContentBrowserClient {
   // to native code, and as such whether its log messages should be recorded.
   virtual bool IsBuiltinComponent(BrowserContext* browser_context,
                                   const url::Origin& origin);
+
+  // Tries to start RTC diagnostic logging (best effort).
+  virtual void StartRtcDiagnosticLogging(
+      RenderFrameHost& frame_host,
+      bool should_upload_on_stop,
+      base::flat_map<std::string, std::string> metadata,
+      base::OnceCallback<void(const std::string&)> callback);
+
+  // Finishes RTC diagnostic logging if a session is ongoing.
+  // The results of logging are stored to disk and potentially uploaded.
+  virtual void FinishRtcDiagnosticLogging(RenderFrameHost& frame_host,
+                                          base::OnceClosure callback);
+
+  // Cancels RTC diagnostic logging if a session is ongoing. If a session is
+  // cancelled, the results of logging are not stored in a file or uploaded.
+  virtual void CancelRtcDiagnosticLogging(RenderFrameHost& frame_host,
+                                          base::OnceClosure callback);
 
   // Returns whether given |url| has to be blocked. It's used only for renderer
   // debug URLs, as other requests are handled via NavigationThrottlers and

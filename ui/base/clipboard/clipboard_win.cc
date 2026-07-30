@@ -286,19 +286,21 @@ ClipboardWin::~ClipboardWin() {
 
 void ClipboardWin::OnPreShutdown() {}
 
-std::optional<DataTransferEndpoint> ClipboardWin::GetSource(
-    ClipboardBuffer buffer) const {
+void ClipboardWin::GetSource(ClipboardBuffer buffer,
+                             GetSourceCallback callback) const {
   DCHECK_EQ(buffer, ClipboardBuffer::kCopyPaste);
 
   ScopedClipboard clipboard;
   if (!clipboard.Acquire(GetClipboardWindow())) {
-    return std::nullopt;
+    std::move(callback).Run(std::nullopt);
+    return;
   }
 
   HANDLE data = GetClipboardDataWithLimit(
       ClipboardFormatType::InternalSourceUrlType().ToFormatEtc().cfFormat);
   if (!data) {
-    return std::nullopt;
+    std::move(callback).Run(std::nullopt);
+    return;
   }
 
   std::string source_string;
@@ -309,10 +311,11 @@ std::optional<DataTransferEndpoint> ClipboardWin::GetSource(
 
   GURL source_url(source_string);
   if (!source_url.is_valid()) {
-    return std::nullopt;
+    std::move(callback).Run(std::nullopt);
+    return;
   }
 
-  return DataTransferEndpoint(std::move(source_url));
+  std::move(callback).Run(DataTransferEndpoint(std::move(source_url)));
 }
 
 const ClipboardSequenceNumberToken& ClipboardWin::GetSequenceNumber(
@@ -381,10 +384,18 @@ void ClipboardWin::Clear(ClipboardBuffer buffer) {
   }
 }
 
-std::vector<std::u16string> ClipboardWin::GetStandardFormats(
+void ClipboardWin::GetStandardFormats(
     ClipboardBuffer buffer,
-    const DataTransferEndpoint* data_dst) const {
-  return GetStandardFormatsInternal(buffer, base::OptionalFromPtr(data_dst));
+    const std::optional<DataTransferEndpoint>& data_dst,
+    GetStandardFormatsCallback callback) const {
+  ReadAsync(base::BindOnce(
+                [](ClipboardBuffer buffer,
+                   const std::optional<DataTransferEndpoint>& data_dst,
+                   HWND owner_window) {
+                  return GetStandardFormatsInternal(buffer, data_dst);
+                },
+                buffer, data_dst),
+            std::move(callback));
 }
 
 // static

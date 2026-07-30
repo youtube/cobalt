@@ -1242,6 +1242,7 @@ const LayoutResult* FlexLayoutAlgorithm::LayoutInternal() {
   FlexBreakTokenData::FlexBreakBeforeRow break_before_row =
       FlexBreakTokenData::kNotBreakBeforeRow;
   LayoutUnit total_intrinsic_block_size;
+  LayoutUnit effective_gap_between_lines = gap_between_lines_;
 
   ClearCollectionScope<FlexLineVector> scope(&flex_lines);
 
@@ -1253,6 +1254,7 @@ const LayoutResult* FlexLayoutAlgorithm::LayoutInternal() {
     row_break_between_outputs = flex_data->row_break_between;
     break_before_row = flex_data->break_before_row;
     oof_children = flex_data->oof_children;
+    effective_gap_between_lines = flex_data->effective_gap_between_lines;
   } else {
     PlaceFlexItems(Phase::kLayout, &flex_lines, &oof_children,
                    &total_intrinsic_block_size);
@@ -1275,7 +1277,8 @@ const LayoutResult* FlexLayoutAlgorithm::LayoutInternal() {
   if (!IsBreakInside(GetBreakToken())) {
     ApplyReversals(&flex_lines);
     LayoutResult::EStatus status = GiveItemsFinalPositionAndSize(
-        &flex_lines, &row_break_between_outputs, gap_accumulator);
+        &flex_lines, &row_break_between_outputs, gap_accumulator,
+        effective_gap_between_lines);
     if (status != LayoutResult::kSuccess) {
       return container_builder_.Abort(status);
     }
@@ -1298,10 +1301,17 @@ const LayoutResult* FlexLayoutAlgorithm::LayoutInternal() {
               .ClampNegativeToZero();
     }
 
+    // For continuation fragments, set the effective gap from the break token.
+    // The first fragment computes it in GiveItemsFinalPositionAndSize.
+    if (IsBreakInside(GetBreakToken()) && gap_accumulator) {
+      gap_accumulator->SetEffectiveGapBetweenLines(effective_gap_between_lines);
+    }
+
     LayoutResult::EStatus status =
         GiveItemsFinalPositionAndSizeForFragmentation(
             &flex_lines, &row_break_between_outputs, &break_before_row,
-            &total_intrinsic_block_size, gap_accumulator);
+            &total_intrinsic_block_size, gap_accumulator,
+            effective_gap_between_lines);
     if (status != LayoutResult::kSuccess) {
       return container_builder_.Abort(status);
     }
@@ -1364,7 +1374,8 @@ const LayoutResult* FlexLayoutAlgorithm::LayoutInternal() {
     container_builder_.SetBreakTokenData(
         MakeGarbageCollected<FlexBreakTokenData>(
             flex_lines, row_break_between_outputs, oof_children,
-            total_intrinsic_block_size, break_before_row));
+            total_intrinsic_block_size, break_before_row,
+            effective_gap_between_lines));
   }
 
   // Un-freeze descendant scrollbars before we run the OOF layout part.
@@ -1672,7 +1683,8 @@ LayoutUnitDiffuser ContentDistributionSpace(
 LayoutResult::EStatus FlexLayoutAlgorithm::GiveItemsFinalPositionAndSize(
     FlexLineVector* flex_lines,
     Vector<EBreakBetween>* row_break_between_outputs,
-    std::optional<FlexGapAccumulator>& gap_accumulator) {
+    std::optional<FlexGapAccumulator>& gap_accumulator,
+    LayoutUnit& effective_gap_between_lines) {
   DCHECK(!IsBreakInside(GetBreakToken()));
 
   const bool should_propagate_row_break_values =
@@ -1738,6 +1750,20 @@ LayoutResult::EStatus FlexLayoutAlgorithm::GiveItemsFinalPositionAndSize(
 
   LayoutUnitDiffuser space_between_lines =
       ContentDistributionSpace(align_content, cross_axis_free_space, num_lines);
+
+  // Compute the effective gap between lines, including content distribution
+  // space. This is needed for gap suppression during fragmentation and for
+  // gap decorations.
+  effective_gap_between_lines =
+      gap_between_lines_ + space_between_lines.BaseSize();
+
+  // Update the gap accumulator with the effective gap between lines. Per the
+  // CSS Gap Decorations spec, alignment space inserted into gutters
+  // contributes to the gap size, so effective_gap = gap + distribution space.
+  if (gap_accumulator) {
+    gap_accumulator->SetEffectiveGapBetweenLines(effective_gap_between_lines);
+  }
+
   LayoutUnit line_cross_axis_offset =
       (is_column_ ? BorderScrollbarPadding().inline_start
                   : BorderScrollbarPadding().block_start) +
@@ -2013,7 +2039,8 @@ FlexLayoutAlgorithm::GiveItemsFinalPositionAndSizeForFragmentation(
     Vector<EBreakBetween>* row_break_between_outputs,
     FlexBreakTokenData::FlexBreakBeforeRow* break_before_row,
     LayoutUnit* total_intrinsic_block_size,
-    std::optional<FlexGapAccumulator>& gap_accumulator) {
+    std::optional<FlexGapAccumulator>& gap_accumulator,
+    LayoutUnit effective_gap_between_lines) {
   DCHECK(InvolvedInBlockFragmentation(container_builder_));
   DCHECK(flex_lines);
   DCHECK(row_break_between_outputs);
@@ -2063,6 +2090,18 @@ FlexLayoutAlgorithm::GiveItemsFinalPositionAndSizeForFragmentation(
   LayoutUnit border_scrollbar_padding =
       is_column_ ? container_builder_.BorderScrollbarPadding().block_end
                  : container_builder_.BorderScrollbarPadding().inline_end;
+
+  // The gap accumulator expects flex lines in ascending order, which isn't
+  // guaranteed during column flex fragmentation. Pre-set the minimum flex line
+  // index for this fragment.
+  if (gap_accumulator && is_column_) {
+    for (wtf_size_t i = 0; i < flex_lines->size(); i++) {
+      if (!(*flex_lines)[i].has_seen_all_children) {
+        gap_accumulator->SetFirstFlexLineProcessedIndex(i);
+        break;
+      }
+    }
+  }
 
   for (auto entry = item_iterator.NextItem(broke_before_row);
        FlexItemData* flex_item = entry.flex_item;
@@ -2328,7 +2367,7 @@ FlexLayoutAlgorithm::GiveItemsFinalPositionAndSizeForFragmentation(
                   (*flex_lines)[flex_line_idx - 1].LineCrossEnd() -
                   offset_in_stitched_container;
               UpdateOffsetAdjustmentForSuppressedRowGap(
-                  gap_between_lines_,
+                  effective_gap_between_lines,
                   /*previous_content_block_end=*/prev_flex_line_end,
                   &flex_line);
             }
@@ -2399,11 +2438,12 @@ FlexLayoutAlgorithm::GiveItemsFinalPositionAndSizeForFragmentation(
     }
 
     if (break_status == BreakStatus::kBrokeBefore) {
-      // For column flex containers, suppress the row gap (i.e.
-      // `gap_between_items_`) that may be split across fragmentainer breaks.
+      // For column flex containers, suppress the full effective row gap (i.e.
+      // `flex_line.effective_gap_between_items_`) that may be split across
+      // fragmentainer breaks.
       if (is_column_ && flex_item_idx > 0) {
         UpdateOffsetAdjustmentForSuppressedRowGap(
-            gap_between_items_,
+            flex_line.effective_gap_between_items,
             /*previous_content_block_end=*/intrinsic_block_size_, &flex_line);
       }
       ConsumeRemainingFragmentainerSpace(offset_in_stitched_container,

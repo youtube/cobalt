@@ -43,21 +43,30 @@ class CONTENT_EXPORT IdentityCredentialSource {
 
   virtual ~IdentityCredentialSource() = default;
 
-  using GetIdentityCredentialSuggestionsCallback = base::OnceCallback<void(
-      const std::optional<
-          std::vector<scoped_refptr<content::IdentityRequestAccount>>>&)>;
+  using GetIdentityCredentialSuggestionsCallback =
+      base::OnceCallback<void(const std::optional<std::vector<
+                                  scoped_refptr<IdentityRequestAccount>>>&)>;
   // Generates embedder login suggestions from identity credential requests.
   virtual void GetIdentityCredentialSuggestions(
       const std::vector<GURL>& embedder_requested_idps,
       GetIdentityCredentialSuggestionsCallback callback) = 0;
+
+  // Returns whether there is a pending FedCM request on the page.
+  virtual bool HasPendingRequest() = 0;
 
   // Selects the account with the given `account_id` from `idp_origin`.
   // Returns false if such an account is not found or there is no dialog.
   virtual bool SelectAccount(const url::Origin& idp_origin,
                              const std::string& account_id) = 0;
 
+  // Sets the embedder login request information.
+  virtual void SetEmbedderLoginRequest(
+      const url::Origin& idp_origin,
+      const std::string& account_id,
+      base::OnceCallback<void(FederatedLoginResult)> callback) = 0;
+
   // Returns the a data source for embedder initiated login.
-  static IdentityCredentialSource* FromPage(content::Page& page);
+  static IdentityCredentialSource* FromPage(Page& page);
 };
 
 }  // namespace content::webid

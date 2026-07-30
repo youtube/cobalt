@@ -167,6 +167,7 @@
 <translation id="1621067168122174824">Şarj testini icra edin</translation>
 <translation id="1622402072367425417">parlayan qabarcıqlar</translation>
 <translation id="1626590945318984973">Qısayol əlçatan deyil. Funksiya və <ph name="META_KEY" /> düymələrindən istifadə etmədən yeni qısayola basın.</translation>
+<translation id="163774412591892664">Administrator cihazı deaktiv edib və onun məkanına daxil ola bilər.</translation>
 <translation id="1639239467298939599">Yüklənir</translation>
 <translation id="1641857168437328880">Sənəd Bəsləyici (Bir tərəfli)</translation>
 <translation id="1642396894598555413">velosipedlər</translation>
@@ -727,6 +728,7 @@
 <translation id="4212169537710712814"><ph name="LANGUAGE_NAME" /> transkripsiya modelinin endirilməsi tamamlandı</translation>
 <translation id="42126664696688958">Eksport</translation>
 <translation id="4213104098953699324">USB klaviatura</translation>
+<translation id="4217571870635786043">İmla</translation>
 <translation id="4227825898293920515">Parolun vaxtı <ph name="TIME" /> ərzində başa çatır</translation>
 <translation id="4238516577297848345">Hazırda davam edən çap işləri yoxdur</translation>
 <translation id="4239069858505860023">GPRS</translation>
@@ -1685,6 +1687,7 @@ Bu transkripsiyaları əldə etmək üçün transkripsiya modelini (maksimum 100
 <translation id="8420955526972171689">Aparat problemləri üçün testlər və problem həllini icra edin</translation>
 <translation id="8422748173858722634">IMEI</translation>
 <translation id="8424039430705546751">Aşağı</translation>
+<translation id="8427213022735114808">Diktant istənilən mətn sahəsində səs yazmağa icazə vermək üçün səsinizi Google'a göndərir.</translation>
 <translation id="8428213095426709021">Ayarlar</translation>
 <translation id="8431300646573772016">ChromeOS üzrə yeniliklər</translation>
 <translation id="8433186206711564395">Şəbəkə ayarları</translation>
@@ -1723,6 +1726,7 @@ Bu transkripsiyaları əldə etmək üçün transkripsiya modelini (maksimum 100
 <translation id="8584654835905316966"><ph name="DEVICE_NAME" /> cihazının mikroproqramının <ph name="VERSION" /> versiyasına quraşdırılmasını tamamlamaq məqsədilə yenidən başlatma tələb olunur. Kompüter bir neçə dəfə yenidən yüklənmiş kimi görünə bilər. Bu, gözləniləndir.</translation>
 <translation id="8593058461203131755">medianı durdurun</translation>
 <translation id="8620617069779373398">Rominq statusu</translation>
+<translation id="8624524972189162859"><ph name="DOMAIN_NAME" /> administratorunuz cihazı deaktiv edib və onun məkanına daxil ola bilər.</translation>
 <translation id="8626489604350149811"><ph name="APN_NAME" /> üçün digər əməliyyatlar</translation>
 <translation id="86356131183441916">Açıq-bənövşəyi</translation>
 <translation id="8647595191512746911">Audio transkripsiyası</translation>

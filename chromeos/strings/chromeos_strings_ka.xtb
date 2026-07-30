@@ -167,6 +167,7 @@
 <translation id="1621067168122174824">დატენის ტესტის გაშვება</translation>
 <translation id="1622402072367425417">გაბრწყინებული ბუშტები</translation>
 <translation id="1626590945318984973">მალსახმობი მიუწვდომელია. დააჭირეთ ახალ მალსახმობს ფუნქციური და „<ph name="META_KEY" />“ კლავიშების გამოყენების გარეშე.</translation>
+<translation id="163774412591892664">თქვენმა ადმინისტრატორმა გათიშა თქვენი მოწყობილობა და შეუძლია მის მდებარეობაზე წვდომა.</translation>
 <translation id="1639239467298939599">იტვირთება</translation>
 <translation id="1641857168437328880">დოკუმენტების მიმწოდი (ცალმხრივი)</translation>
 <translation id="1642396894598555413">ველოსიპედები</translation>
@@ -727,6 +728,7 @@
 <translation id="4212169537710712814"><ph name="LANGUAGE_NAME" /> ტრანსკრიფციის მოდელის ჩამოტვირთვა დასრულდა</translation>
 <translation id="42126664696688958">ექსპორტი</translation>
 <translation id="4213104098953699324">USB კლავიატურა</translation>
+<translation id="4217571870635786043">კარნახი</translation>
 <translation id="4227825898293920515">პაროლი ძალაშია <ph name="TIME" /></translation>
 <translation id="4238516577297848345">ბეჭდვის მიმდინარე დავალებები არ არის</translation>
 <translation id="4239069858505860023">GPRS</translation>
@@ -1685,6 +1687,7 @@
 <translation id="8420955526972171689">შეასრულეთ ტესტები და დეფექტების აღმოფხვრა აპარატურის პრობლემების შემთხვევაში</translation>
 <translation id="8422748173858722634">IMEI</translation>
 <translation id="8424039430705546751">ქვემოთ</translation>
+<translation id="8427213022735114808">ნებისმიერი ტექსტური ველის ხმით შესავსებად თქვენი ხმა კარნახის ფუნქციის მიერ გაიგზავნება Google-ში.</translation>
 <translation id="8428213095426709021">პარამეტრები</translation>
 <translation id="8431300646573772016">სიახლეები ChromeOS-ში</translation>
 <translation id="8433186206711564395">ქსელის პარამეტრები</translation>
@@ -1723,6 +1726,7 @@
 <translation id="8584654835905316966"><ph name="DEVICE_NAME" />-ის <ph name="VERSION" /> ვერსიის ჩაშენებული პროგრამული უზრუნველყოფის განახლების დასასრულებლად საჭიროა გადატვირთვა. თქვენი კომპიუტერი შეიძლება რამდენჯერმე გადაიტვირთოს. ასეთი ქცევა მოსალოდნელია.</translation>
 <translation id="8593058461203131755">მედიის დაპაუზება</translation>
 <translation id="8620617069779373398">როუმინგის სტატუსი</translation>
+<translation id="8624524972189162859">თქვენმა <ph name="DOMAIN_NAME" />-ის ადმინისტრატორმა გათიშა თქვენი მოწყობილობა და აქვს წვდომა მის მდებარეობაზე.</translation>
 <translation id="8626489604350149811">სხვა ქმედებები <ph name="APN_NAME" />-ისთვის</translation>
 <translation id="86356131183441916">ღია მეწამული</translation>
 <translation id="8647595191512746911">აუდიოტრანსკრიფცია</translation>

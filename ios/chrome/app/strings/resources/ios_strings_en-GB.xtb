@@ -58,6 +58,7 @@
 <translation id="1204075260022434100">{count,plural, =1{Bookmark saved to ‘{title}’ in your account, {email}}other{{count} bookmarks saved to ‘{title}’ in your account, {email}}}</translation>
 <translation id="1207493287814084192">5.30 p.m.</translation>
 <translation id="1217294226280635614">Split view</translation>
+<translation id="1218730690561976633">Toggle enhanced autofill user verification</translation>
 <translation id="1219674500290482172">Unable to connect to the Internet.</translation>
 <translation id="1223498995510244364">Summarise</translation>
 <translation id="1227113644794103810">Inactive tabs</translation>
@@ -193,6 +194,7 @@
 <translation id="1657011748321897393">Sharing failed because you are not connected to the network.</translation>
 <translation id="1668001730617725852">Open in new tab group</translation>
 <translation id="1674504678466460478"><ph name="SOURCE_LANGUAGE" /> to <ph name="TARGET_LANGUAGE" /></translation>
+<translation id="1678855624321223424">Based on your organisation's policies, this file may contain sensitive information</translation>
 <translation id="168389590065701766">You can now open Google Lens from your address bar and search anything that you see</translation>
 <translation id="1689333818294560261">Nickname</translation>
 <translation id="169048873465870056">Remove tab and delete group?</translation>
@@ -599,6 +601,7 @@
 <translation id="3174662312949010067">You can also use saved passwords on your other devices.</translation>
 <translation id="3177338796769255211">Sign in to get your bookmarks and more on all your devices</translation>
 <translation id="3181954750937456830">Safe Browsing (protects you and your device from dangerous sites)</translation>
+<translation id="3183362380688692618">New tab group…</translation>
 <translation id="3186796054637504691">Clear History and Website Data</translation>
 <translation id="3190736958609431397">Untrack</translation>
 <translation id="3208260410153224535">Your organisation turned off sign-in. New bookmarks, passwords and more will be saved only to this device.</translation>
@@ -668,6 +671,7 @@
 <translation id="3476450923187944815">Access your passwords across other apps.</translation>
 <translation id="3485558910355485767">New incognito window</translation>
 <translation id="3488501490964659223">Tabs were closed and browsing data was deleted. You were signed out</translation>
+<translation id="3490396108106323715">Share current tab</translation>
 <translation id="3493531032208478708"><ph name="BEGIN_LINK" />Find out more<ph name="END_LINK" /> about suggested content</translation>
 <translation id="349446645805573740">Choose where to save '<ph name="BEGIN_BOLD" /><ph name="FILENAME" /><ph name="END_BOLD" />'</translation>
 <translation id="3504377992102007712">Settings</translation>
@@ -694,6 +698,7 @@
 <translation id="3565012355885596568">Couldn't load images</translation>
 <translation id="3565930036634619844">Tab. <ph name="TAB_INDEX" /> of <ph name="NUMBER_OF_TABS" />.</translation>
 <translation id="3567168891086460374">Save another way</translation>
+<translation id="3572503683475187385">The current tab is shared with Gemini when you start a new chat. When you share a tab with Gemini, their contents and URL are sent to Google. <ph name="BEGIN_LINK" />Learn more<ph name="END_LINK" /></translation>
 <translation id="3572607909481582402">In your Google Account</translation>
 <translation id="3575234738189584619">Search with Lens</translation>
 <translation id="3575426792457739946">This list contains all loaded profiles.</translation>
@@ -737,6 +742,7 @@
 <translation id="3751873026576444885">Stop searching your screen with Google Lens</translation>
 <translation id="3753408171347588045">Tracking prices</translation>
 <translation id="3753618528540214374">Viridian theme</translation>
+<translation id="3759491607478608474">Share current tab content with Gemini to get more relevant answers</translation>
 <translation id="3762232513783804601">Built for your iPad</translation>
 <translation id="3768725474733206671">Reopen last closed tab</translation>
 <translation id="3779810277399252432">No Internet connection.</translation>
@@ -984,6 +990,7 @@
 <translation id="4650125387981512669">Continue as <ph name="FIRST_RUN_ACCOUNT_NAME" /></translation>
 <translation id="4651927776207937667">{count,plural, =1{Hide after 1 minute}other{Hide after {count} minutes}}</translation>
 <translation id="4652817563047461855">Make sure that your passwords are safe, find out if they've been compromised and get advice to help protect yourself online. <ph name="BEGIN_LINK" />Learn more<ph name="END_LINK" /></translation>
+<translation id="4653053602672040238">Turn on tab sharing</translation>
 <translation id="4658335131052370646">Save</translation>
 <translation id="466307903888586355">Saving files is blocked by your organisation</translation>
 <translation id="4668929960204016307">,</translation>
@@ -1112,6 +1119,7 @@
 <translation id="507187271399539513">{count,plural, =1{{position} of {count} payment method}other{{position} of {count} payment methods}}</translation>
 <translation id="5075939510584558547">Save without encryption</translation>
 <translation id="5076534614343816664">Price tracking</translation>
+<translation id="507762438756999615">File can't be shared due to your organisation's policies</translation>
 <translation id="5078303485429639424">Turn on notifications for <ph name="FEATURE_NAME" /></translation>
 <translation id="5079950360618752063">Use suggested password</translation>
 <translation id="5083464117946352670">Cannot determine file size.</translation>
@@ -1297,6 +1305,7 @@ Handoff must also be enabled in the General section of Settings, and your device
 <translation id="5718049162805123412">You should change these now</translation>
 <translation id="5721040778297053709">Position credit card in this frame</translation>
 <translation id="572328651809341494">Recent tabs</translation>
+<translation id="5724590854763964497">By default, your current tab is shared when you start a new chat. When tabs are shared, their contents and URLs are sent to Google but won't be used to improve generative AI models. You can change this setting at any time.</translation>
 <translation id="5724941645893276623">To browse the web privately, add a new tab</translation>
 <translation id="5728072125198221967">Linked Google services</translation>
 <translation id="5728700505257787410">Sorry, there was a problem signing in to your account.</translation>
@@ -1964,6 +1973,8 @@ Handoff must also be enabled in the General section of Settings, and your device
 <translation id="8059533439631660104">Collapses the section.</translation>
 <translation id="8061584726507121204">History</translation>
 <translation id="8064946459644399612">Applied your New tab page preferences</translation>
+<translation id="8065136076319366194">Saving not recommended</translation>
+<translation id="8065556469005366939">Get more relevant answers by sharing your tabs</translation>
 <translation id="8069394452933076548">Choose when tabs that haven't been used recently are moved to the inactive tabs section.</translation>
 <translation id="8073670137947914548">Download finished</translation>
 <translation id="8076492880354921740">Tabs</translation>
@@ -1985,6 +1996,7 @@ Handoff must also be enabled in the General section of Settings, and your device
 <translation id="8131740175452115882">Confirm</translation>
 <translation id="8132598642024322408">Now <ph name="PRICE" />, was <ph name="PREVIOUS_PRICE" />.</translation>
 <translation id="813370552429173916">Use a unique password for every site or app. If someone discovers a reused password, it can be used to access your other accounts. Click to open the website and change them now.</translation>
+<translation id="8133810265969517544">Sharing not recommended</translation>
 <translation id="8135556271852808840">{count,plural, =1{{count} closed tab}other{{count} closed tabs}}</translation>
 <translation id="8135643032449715400">{COUNT,plural, =1{1 other}other{# others}}</translation>
 <translation id="8150167929304790980">Full name</translation>
@@ -2132,6 +2144,7 @@ Handoff must also be enabled in the General section of Settings, and your device
 <translation id="8660600697590740984">Lens copied image</translation>
 <translation id="866266761389616183">Aw, snap!</translation>
 <translation id="8663764600409216912">You’re using passwords that look hard to guess</translation>
+<translation id="8664992138761940052">By default, your current tab is shared when you start a new chat. When tabs are shared, their contents and URLs are sent to Google. You can change this setting at any time.</translation>
 <translation id="8668210798914567634">This page has been saved to your Reading List.</translation>
 <translation id="8672642291731179042">Translate pages</translation>
 <translation id="8672733398999596205">Enable all</translation>
@@ -2233,6 +2246,7 @@ Handoff must also be enabled in the General section of Settings, and your device
 <translation id="8976414606286374109">Cards are saved to your Google Account.</translation>
 <translation id="8981454092730389528">Google Activity controls</translation>
 <translation id="8988107725234939347"><ph name="WEBSITE_TITLE" />, pinned site</translation>
+<translation id="8990960056509724223">File couldn't save due to your organisation's policies</translation>
 <translation id="8998289560386111590">Not available on your device</translation>
 <translation id="9000532564152265066">All tabs</translation>
 <translation id="9003677638446136377">Check again</translation>

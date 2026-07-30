@@ -7,6 +7,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <ostream>
 #include <set>
 #include <string>
@@ -17,6 +18,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
+#include "base/timer/timer.h"
 #include "base/types/pass_key.h"
 #include "chrome/browser/ui/toolbar/pinned_toolbar/pinned_toolbar_actions_model.h"
 #include "chrome/browser/ui/views/page_action/chip_selector.h"
@@ -170,6 +172,9 @@ class PageActionController {
       const std::u16string& anchored_message_text) = 0;
   virtual void ShouldShowAnchoredMessageCloseIcon(actions::ActionId action_id,
                                                   bool show) = 0;
+  virtual void SetAnchoredMessageIcon(actions::ActionId action_id,
+                                      const ui::ImageModel& icon) = 0;
+  virtual void ClearAnchoredMessageIcon(actions::ActionId action_id) = 0;
 
   // Adds a scope of activity for the given action. Returns a scoped object
   // that manages the activity counter. The action is considered active as
@@ -276,6 +281,9 @@ class PageActionControllerImpl : public PageActionController,
       const std::u16string& anchored_message_text) override;
   void ShouldShowAnchoredMessageCloseIcon(actions::ActionId action_id,
                                           bool show) override;
+  void SetAnchoredMessageIcon(actions::ActionId action_id,
+                              const ui::ImageModel& icon) override;
+  void ClearAnchoredMessageIcon(actions::ActionId action_id) override;
   ScopedPageActionActivity AddActivity(actions::ActionId action_id) override;
   void AddObserver(
       actions::ActionId action_id,
@@ -390,6 +398,8 @@ class PageActionControllerImpl : public PageActionController,
   base::OnceCallbackList<void(PageActionController&)>
       on_will_destroy_callback_list_;
   std::unique_ptr<ChipSelector> chip_selector_;
+  base::RetainingOneShotTimer anchored_message_timeout_;
+  std::optional<actions::ActionId> active_anchored_message_;
 
   base::WeakPtrFactory<PageActionControllerImpl> weak_factory_{this};
 };

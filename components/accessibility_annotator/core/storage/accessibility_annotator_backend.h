@@ -9,7 +9,9 @@
 
 #include "base/files/file_path.h"
 #include "base/memory/weak_ptr.h"
+#include "base/scoped_observation.h"
 #include "base/threading/sequence_bound.h"
+#include "components/accessibility_annotator/core/storage/accessibility_annotation_sync_bridge.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/sync/model/data_type_store.h"
 
@@ -23,14 +25,16 @@ enum class Channel;
 
 namespace accessibility_annotator {
 
-class AccessibilityAnnotationSyncBridge;
 class AccessibilityAnnotatorDatabase;
 
-class AccessibilityAnnotatorBackend : public KeyedService {
+class AccessibilityAnnotatorBackend
+    : public KeyedService,
+      public AccessibilityAnnotationSyncBridge::Observer {
  public:
   AccessibilityAnnotatorBackend(
       version_info::Channel channel,
-      syncer::RepeatingDataTypeStoreFactory data_type_store_factory);
+      syncer::RepeatingDataTypeStoreFactory data_type_store_factory,
+      const base::FilePath& db_path);
 
   ~AccessibilityAnnotatorBackend() override;
 
@@ -40,17 +44,26 @@ class AccessibilityAnnotatorBackend : public KeyedService {
 
   // Initializes the database at the given path. Must be called before any other
   // methods.
-  void Init(const base::FilePath& db_path);
+  void Init();
 
   // Returns DataTypeControllerDelegate for the accessibility annotation
   // datatype.
   base::WeakPtr<syncer::DataTypeControllerDelegate>
   GetAccessibilityAnnotationControllerDelegate();
 
+  // AccessibilityAnnotationSyncBridge::Observer implementation.
+  void OnAccessibilityAnnotationChanged() override;
+  void OnAccessibilityAnnotationSyncBridgeLoaded() override;
+
  private:
+  const base::FilePath db_path_;
   base::SequenceBound<AccessibilityAnnotatorDatabase> db_;
   std::unique_ptr<AccessibilityAnnotationSyncBridge>
       accessibility_annotation_sync_bridge_;
+
+  base::ScopedObservation<AccessibilityAnnotationSyncBridge,
+                          AccessibilityAnnotationSyncBridge::Observer>
+      sync_bridge_observation_{this};
 };
 
 }  // namespace accessibility_annotator

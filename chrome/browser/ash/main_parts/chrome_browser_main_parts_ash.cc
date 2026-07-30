@@ -167,7 +167,6 @@
 #include "chrome/browser/ash/video_conference/video_conference_manager_ash.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/browser_process_platform_part_ash.h"
-#include "chrome/browser/chromeos/printing/print_preview/print_preview_webcontents_manager.h"
 #include "chrome/browser/chromeos/video_conference/video_conference_manager_client.h"
 #include "chrome/browser/component_updater/cros_component_installer_chromeos.h"
 #include "chrome/browser/defaults.h"
@@ -1183,7 +1182,9 @@ void ChromeBrowserMainPartsAsh::PreProfileInit() {
     // profile starts initialization so browser context keyed services created
     // with the browser context (for example ExtensionService) can use
     // DemoSession::started().
-    DemoSession::StartIfInDemoMode();
+    DemoSession::StartIfInDemoMode(
+        g_browser_process->local_state(),
+        g_browser_process->GetFeatures()->application_locale_storage());
 
     VLOG(1) << "Relaunching browser for user: " << account_id.Serialize()
             << " with hash: " << username_hash;
@@ -1603,10 +1604,6 @@ void ChromeBrowserMainPartsAsh::PostBrowserStart() {
   if (chromeos::features::IsMahiEnabled()) {
     mahi_web_contents_manager_ =
         std::make_unique<mahi::MahiWebContentsManagerImpl>();
-  }
-
-  if (base::FeatureList::IsEnabled(::features::kPrintPreviewCrosPrimary)) {
-    chromeos::PrintPreviewWebcontentsManager::Get()->Initialize();
   }
 
   ChromeBrowserMainPartsLinux::PostBrowserStart();

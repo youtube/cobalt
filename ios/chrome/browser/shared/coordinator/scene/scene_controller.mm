@@ -1489,8 +1489,7 @@ void InjectNTP(Browser* browser) {
   [_sceneState addAgent:[[IncognitoBlockerSceneAgent alloc] init]];
   [_sceneState
       addAgent:[[IncognitoReauthSceneAgent alloc]
-                   initWithReauthModule:[[ReauthenticationModule alloc] init]
-                           sceneHandler:_mainCoordinator]];
+                   initWithReauthModule:[[ReauthenticationModule alloc] init]]];
   [_sceneState addAgent:[[StartSurfaceSceneAgent alloc] init]];
   [_sceneState addAgent:[[SessionSavingSceneAgent alloc] init]];
   [_sceneState addAgent:[[LayoutGuideSceneAgent alloc] init]];
@@ -1968,9 +1967,10 @@ void InjectNTP(Browser* browser) {
 
   // Wrap the post-dismiss-modals action with the incognito auth check.
   if (targetMode == ApplicationModeForTabOpening::INCOGNITO) {
-    IncognitoReauthSceneAgent* reauthAgent =
-        [IncognitoReauthSceneAgent agentFromScene:self.sceneState];
-    if (reauthAgent.authenticationRequired) {
+    SceneState* scene = self.sceneState;
+    if (scene.incognitoState.authenticationRequired) {
+      IncognitoReauthSceneAgent* reauthAgent =
+          [IncognitoReauthSceneAgent agentFromScene:scene];
       void (^wrappedDismissModalCompletion)() = dismissModalsCompletion;
       dismissModalsCompletion = ^{
         [weakSelf

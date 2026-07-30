@@ -27,6 +27,7 @@
 <translation id="126567311906253476"><ph name="USER_EMAIL" /> கணக்கின் மூலம் Gmail, YouTube போன்ற Google சேவைகளில் உள்நுழையும்போது Chromiumமிலும் அதே கணக்கின் மூலம் தானாக நீங்கள் உள்நுழையலாம்.</translation>
 <translation id="1290883685122687410">அமைவுப் பிழை: <ph name="METAINSTALLER_EXIT_CODE" />. <ph name="WINDOWS_ERROR" /></translation>
 <translation id="1315551408014407711">உங்கள் புதிய Chromium சுயவிவரத்தை அமைத்திடுங்கள்</translation>
+<translation id="132092532143527429">Chromiumமில் Gemini மூலம் பயன்படுத்துக</translation>
 <translation id="1324107359134968521">புளூடூத் சாதனங்களைக் கண்டறிய 
  Chromiumமிற்கு புளூடூத் அணுகல் தேவை. <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="1330562121671411446">மொழியைக் கண்டறி</translation>
@@ -239,6 +240,7 @@
 <translation id="3509308970982693815">அனைத்து Chromium சாளரங்களையும் மூடி, பின்னர் முயலவும்.</translation>
 <translation id="3522404737534491619">சாளரத்தைப் பகிர, சிஸ்டம் அமைப்புகளில் Chromiumமிற்கு ஸ்கிரீன் ரெக்கார்டிங்கை அனுமதிக்கவும்</translation>
 <translation id="3530103706039034513"><ph name="EXISTING_USER" /> ஆக ஏற்கெனவே உள்நுழைந்துள்ளீர்கள்.  உங்கள் உலாவலைத் தனிப்பட்டதாக வைத்திருக்க, உங்கள் சுயவிவரத்தில் <ph name="USER_EMAIL_ADDRESS" /> என்ற மின்னஞ்சல் முகவரி மூலம் Chromiumமில் உள்நுழையவும்.</translation>
+<translation id="3531741627422851418">மொபைல் சாதனங்களில் Chromium பிரவுசரைப் பதிவிறக்குவதற்கான QR குறியீடு</translation>
 <translation id="3561853857681580870">ஸ்கிரீனைப் பகிர, சிஸ்டம் அமைப்புகளில் Chromiumமிற்கு ஸ்கிரீன் ரெக்கார்டிங்கை அனுமதிக்கவும்.</translation>
 <translation id="3588112919289558122">Chromium அடையாளம் காணாத தளங்களுக்கு மேம்பட்ட பாதுகாப்பு அம்சம் JavaScript மேம்பாடுகளை முடக்கும்</translation>
 <translation id="3597003331831379823">கூடுதல் அணுகல்களுடன் அமைவை இயக்க முடியவில்லை. <ph name="METAINSTALLER_ERROR" /></translation>
@@ -374,7 +376,6 @@
 <translation id="5174969993834422967">பொதுவாக அறிவிப்புகளைத் தடுத்து விடுவீர்கள். இந்தத் தளம் உங்களுக்கு அறிவிப்புகளை வழங்க அனுமதிக்க, இடப் பட்டியின் வலது மூலையில் உள்ள அறிவிப்பு ஐகானைக் கிளிக் செய்யவும்.</translation>
 <translation id="5174983315706567306">டிஸ்க்கில் போதுமான சேமிப்பிடம் இல்லை.</translation>
 <translation id="5187123684706427865">Chromium கணக்கிற்கு மறு அடையாளச் சரிபார்ப்பு தேவைப்படுகிறது</translation>
-<translation id="5219681158518957165">பரிந்துரைக்கப்படும் பிரவுசர் அமைப்புகளைப் பயன்படுத்துதல்</translation>
 <translation id="5224391634244552924">சேமித்த கடவுச்சொற்கள் எதுவுமில்லை. நீங்கள் அவற்றைச் சேமிக்கும்போது Chromium உலாவியால் உங்கள் கடவுச்சொற்களைச் சரிபார்க்க முடியும்.</translation>
 <translation id="5231355151045086930">Chromium இலிருந்து வெளியேறு</translation>
 <translation id="5234764350956374838">நிராகரி</translation>
@@ -608,6 +609,7 @@
 <translation id="7622753900276619808">Chromiumமில் இப்போது உங்களுக்குக் கூடுதல் அம்சங்கள் கிடைக்கும்</translation>
 <translation id="7624307931717240213">இந்தச் சேவையை மேம்படுத்த தகவல்களைப் பயன்படுத்துகிறோம். தனியுரிமைக் கொள்கை மற்றும் சேவை விதிமுறைகளைப் பாருங்கள்.</translation>
 <translation id="7649070708921625228">உதவி</translation>
+<translation id="7650134251917003571">Chromium ஆப்ஸைப் பெறுங்கள்</translation>
 <translation id="7656340475565475526">உங்களுக்காக Chromium தேடட்டும்</translation>
 <translation id="7658239707568436148">ரத்து செய்</translation>
 <translation id="7686590090926151193">Chromium, உங்கள் இயல்புநிலை உலாவியாக இல்லை</translation>

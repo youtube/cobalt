@@ -187,6 +187,16 @@ textarea::placeholder {
   justify-content: flex-end;
 }
 
+.buttons-group cr-button:first-child {
+  margin-right: auto;
+}
+
+#deleteButton {
+  --cr-button-background-color: transparent;
+  --cr-button-border-color: var(--color-sys-tonal-outline);
+  --cr-button-text-color: var(--color-sys-primary);
+}
+
 .cancel-button {
   --cr-button-background-color: var(--color-sys-tonal-container);
   --cr-button-border-color: transparent;
@@ -261,16 +271,14 @@ textarea::placeholder {
   line-height: 16px;
   color: var(--color-sys-error);
   font-weight: 400;
-}
-
-#refineErrorMessage {
   display: flex;
   align-items: center;
   gap: 4px;
   margin-top: 8px;
+  padding-left: 10px;
 }
 
-#refineErrorMessage a {
+.error-message a {
   color: inherit;
   text-decoration: underline;
   cursor: pointer;
@@ -312,12 +320,5 @@ textarea::placeholder {
   gap: 4px;
   line-height: 18px;
   padding: 15px 20px 20px 20px;
-}
-
-#accountLabel {
   color: var(--color-sys-on-surface);
-}
-
-#accountEmail {
-  color: var(--color-sys-primary);
 }

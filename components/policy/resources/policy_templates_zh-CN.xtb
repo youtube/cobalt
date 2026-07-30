@@ -982,15 +982,6 @@ Chrome 政策的优先级高于此政策，例如：如果某个扩展程序已�
 
 从 <ph name="PRODUCT_NAME" /> 147 开始，此政策将被弃用，IT 管理员可以使用 <ph name="SEARCH_CONTENT_SHARING_SETTINGS_POLICY_NAME" /> 来控制此功能。</translation>
 <translation id="1686952487081322272">停用快速解答功能</translation>
-<translation id="1688920969335897857">通过设置此政策，您可以控制 <ph name="PRODUCT_NAME" /> 的扩展程序管理设置，其中包括由现有的扩展程序相关政策控制的设置。此政策会取代任何可能已设置的旧版政策。
-
-此政策仅会将某个扩展程序 ID 或某个更新网址映射至其对应的特定设置。您可为特殊 ID<ph name="DEFAULT_SCOPE" /> 设定默认配置，该配置会应用于此政策中未设定自定义配置的所有扩展程序。对于更新网址，如果某个扩展程序具有其清单中注明的确切更新网址 (http://support.google.com/chrome/a?p=Configure_ExtensionSettings_policy)，则相应配置会应用于此扩展程序。如果将“override_update_url”标记设为 true，则系统会根据 <ph name="EXTENSION_INSTALL_FORCELIST_POLICY_NAME" /> 政策中或此政策的“update_url”字段中指定的“更新”网址来安装并更新扩展程序。如果“update_url”是 Chrome 应用商店网址，则“override_update_url”标记会被忽略。
-
-仅当 <ph name="MS_WIN_NAME" /> 实例已加入 <ph name="MS_AD_NAME" /> 网域、已加入 <ph name="MS_AAD_NAME" />，或已在 <ph name="CHROME_ENTERPRISE_CORE_NAME" />中注册时，才能在该实例上强制安装 Chrome 应用商店以外的应用和扩展程序。
-
-仅当 <ph name="MAC_OS_NAME" /> 实例通过 MDM 进行管理、已通过 MCX 加入网域，或已在 <ph name="CHROME_ENTERPRISE_CORE_NAME" />中注册时，才能在该实例上强制安装 Chrome 应用商店以外的应用和扩展程序。
-
-注意：此政策仅适用于支持扩展程序的平台。</translation>
 <translation id="1690383938831887552">阻止加载通过 Signed HTTP Exchange (SXG) 提供的内容</translation>
 <translation id="1692325295652827195">如果此政策设为 True，系统便会向 Google 报告由政策触发的主要 Android 应用安装事件。
 
@@ -8474,34 +8465,6 @@ Related Website Set 中的所有网站都必须是采用 HTTPS 协议的可注�
       如果此政策未设置，默认情况下，受企业管理的用户和非受管用户都能选择启用该应用。</translation>
 <translation id="6640748114867542396">不允许受管理的扩展程序使用 Enterprise Hardware Platform API</translation>
 <translation id="6641109870010271671"><ph name="PRODUCT_NAME" /> 在验证服务器身份时应信任的 TLS 证书</translation>
-<translation id="6641851832244467923">通过设置此政策来配置规则，从而根据目标网址和其他条件来选择浏览器使用的代理。如果您通过 <ph name="PROXY_SETTINGS_POLICY_NAME" /> 政策、<ph name="PROXY_SETTINGS_EXTENSION_API" /> 扩展程序 API 或自己手动设置了代理，则此政策将优先于这些代理设置。
-
-如果您未设置此政策，则其他代理政策或用户设置不会受到影响。
-
-当浏览器需要决定使用哪个代理时，系统会按顺序评估 <ph name="PROXY_OVERRIDE_RULES_POLICY_NAME" /> 政策的条目，直到有条目满足以下所有条件为止：
-  * 与 <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> 中的至少 1 个网址格式匹配。
-  * 与 <ph name="PROXY_OVERRIDE_RULES_EXCLUDE_DESTINATION_MATCHERS" /> 中的所有网址格式都不匹配。
-  * 符合由 <ph name="PROXY_OVERRIDE_RULES_CONDITIONS" />（如果已指定为一个非空列表）的条目表示的所有条件。
-如果找到匹配项，<ph name="PROXY_OVERRIDE_RULES_PROXY_LIST" /> 中的值将用作代理。如果未找到匹配项，则代理设置将回退到 <ph name="PROXY_SETTINGS_POLICY_NAME" /> 政策中的设置。
-
-<ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> 和 <ph name="PROXY_OVERRIDE_RULES_EXCLUDE_DESTINATION_MATCHERS" /> 支持的网址格式都记录在这里：https://chromium.googlesource.com/chromium/src/+/HEAD/net/docs/proxy.md#proxy-config-url-patterns。
-
-<ph name="PROXY_OVERRIDE_RULES_PROXY_LIST" /> 字段条目对应于 PAC 文件的字符串值，例如：
-  * DIRECT
-  * PROXY host:port
-  * HTTPS host:port
-  * SOCKS4 host:port
-  * SOCKS5 host:port
-也可以直接使用与网址类似的代理说明符来指定代理，例如：
-  * http://host:port
-  * https://host:port
-  * socks4://host:port
-  * socks5://host:port
-列表中第一个可连接的条目将用作代理。系统会忽略列表中的无效条目。
-
-<ph name="PROXY_OVERRIDE_RULES_CONDITIONS" /> 字段包含一系列条件，只有满足所有这些条件，系统才会使用其替换规则来决定要使用的代理。如果未设置该字段，只要 <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> 中至少有 1 个匹配的主机，系统就会使用相应条目。
-
-<ph name="PROXY_OVERRIDE_RULES_DNS_PROBE" /> 条件会检查提供的 DNS <ph name="PROXY_OVERRIDE_RULES_HOST" /> 是否能够解析为 IP 地址。该 DNS Host 必须包含主机（例如 example.com），并且可以选择性地包含 scheme 或端口（例如 https://example.com、example.com:123、https://example.com:123）。如果使用的是安全 scheme（例如 https），DNS 查找流程也可能会请求 HTTPS 记录。如需了解详情，请参阅 RFC 9460。如果 <ph name="PROXY_OVERRIDE_RULES_RESULT" /> 的值为“<ph name="PROXY_OVERRIDE_RULES_RESOLVED" />”，则视为满足条件。如果该值设为 <ph name="PROXY_OVERRIDE_RULES_NOT_FOUND" />，则当解析失败时，系统会认为已满足条件。</translation>
 <translation id="6641981670621198190">停用对 3D 图形 API 的支持</translation>
 <translation id="6646912445796087001">通过设置此政策，您可以启用或停用各种屏幕键盘功能。仅当“VirtualKeyboardEnabled”政策启用后，此政策才会生效。
 
@@ -12094,6 +12057,19 @@ Gemini 只能在部分国家/地区启用，并且仅支持部分语言。设置
           如果您设置了此政策，用户将无法更改或覆盖它。
 
           如果未设置此政策，则“键盘焦点突出显示”最初会处于停用状态，但用户可以随时启用该功能。</translation>
+<translation id="9037098514292099199">通过设置此政策，您可以控制 <ph name="PRODUCT_NAME" /> 的扩展程序管理设置，其中包括由现有的扩展程序相关政策控制的设置。
+
+此政策仅会将某个扩展程序 ID 或某个更新网址映射至其对应的特定设置。您可为特殊 ID<ph name="DEFAULT_SCOPE" />设定默认配置，该配置会应用于未在此政策中设定自定义配置的所有扩展程序。
+
+此政策可以覆盖旧版政策中针对各扩展程序的配置。
+
+请注意，来自 <ph name="EXTENSION_INSTALL_FORCELIST_POLICY_NAME" />、<ph name="EXTENSION_INSTALL_ALLOWLIST_POLICY_NAME" />、<ph name="EXTENSION_INSTALL_BLOCKLIST_POLICY_NAME" /> 或 <ph name="EXTENSION_SETTINGS_POLICY_NAME" /> 的任何按 ID 配置的扩展程序设置都只会从 <ph name="DEFAULT_SCOPE" /> 默认设置继承“installation_mode”和“update_url”。它不会继承任何其他属性。对于更新网址，相应配置会应用于具有在扩展程序清单 (http://support.google.com/chrome/a?p=Configure_ExtensionSettings_policy) 中注明的确切更新网址的扩展程序。如果“override_update_url” flag 设为 true，系统会根据 <ph name="EXTENSION_INSTALL_FORCELIST_POLICY_NAME" /> 政策中或此政策的“update_url”字段中指定的“更新”网址安装并更新扩展程序。如果“update_url”是 Chrome 应用商店网址，“override_update_url” flag 会被忽略。
+
+只有当 <ph name="MS_WIN_NAME" /> 实例已加入 <ph name="MS_AD_NAME" /> 网域、已加入 <ph name="MS_AAD_NAME" /> 或已注册 <ph name="CHROME_ENTERPRISE_CORE_NAME" />时，才能在该实例上强制安装并非来自 Chrome 应用商店的应用和扩展程序。
+
+只有当 <ph name="MAC_OS_NAME" /> 实例是通过 MDM 进行管理、已通过 MCX 加入网域或已注册 <ph name="CHROME_ENTERPRISE_CORE_NAME" />时，才能在该实例上强制安装并非来自 Chrome 应用商店的应用和扩展程序。
+
+注意：此政策仅适用于支持扩展程序的平台。</translation>
 <translation id="9038839118379817310">启用 Wi-Fi</translation>
 <translation id="9039822628127365650">设置此政策后，它将指定多久之后用户将自动退出，同时终止会话。用户可以通过系统任务栏中显示的倒数定时器来了解剩余的时间。
 
@@ -12116,21 +12092,6 @@ Gemini 只能在部分国家/地区启用，并且仅支持部分语言。设置
 <translation id="9051019223077908578">配置会在登录屏幕上安装的应用和扩展程序的列表</translation>
 <translation id="9053841574218808519">始终运行未过时的插件</translation>
 <translation id="9055866143096316150">将屏幕唤醒锁定请求降级为系统唤醒锁定请求</translation>
-<translation id="9056262797461453462">通过设置 <ph name="URL_BLOCKLIST_POLICY_NAME" /> 政策，您可禁止加载已列入屏蔽名单的网址所对应的网页。管理员可以列出要屏蔽的网址格式。如果未设置此政策，浏览器将不会屏蔽任何网址。<ph name="URL_ALLOWLIST_POLICY_NAME" /> 中最多可定义 1,000 个例外网址。了解如何设置网址格式 (https://support.google.com/chrome/a?p=url_blocklist_filter_format)。
-
-注意：此政策不适用于在页面内通过 JavaScript 动态加载数据的网址。如果您屏蔽了 example.com/abc，example.com 仍可以使用 XMLHTTPRequest 加载该网页。另外，此政策不会阻止网页使用 JavaScript History API 将多功能框中显示的网址更新为已屏蔽的网址。
-
-从 <ph name="PRODUCT_NAME" /> 73 版开始，您可以屏蔽 javascript://* 网址。不过，这仅会影响在地址栏或小书签等处输入的 JavaScript 网址。
-
-从 <ph name="PRODUCT_NAME" /> 92 版开始，此政策在无头模式中也受支持。
-
-注意：屏蔽内部 chrome://* 网址和 chrome-untrusted://* 网址可能会导致意外错误，在某些情况下也可能会被规避。与其屏蔽某些内部网址，不如查看是否有更具体的政策可供使用。例如：
-
-- 使用 <ph name="CA_CERTIFICATE_MANAGEMENT_ALLOWED_POLICY_NAME" />，而非屏蔽 chrome://settings/certificates。
-
-- 使用 <ph name="SYSTEM_FEATURES_DISABLE_LIST_POLICY_NAME" />，而非屏蔽 chrome-trusted://crosh。
-
-- 使用 <ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" />、<ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" /> 或 <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" /> 政策之一，而非屏蔽 devtools://*。</translation>
 <translation id="9057159618445405645">使用默认的 Chrome 浏览器行为</translation>
 <translation id="9061455386353325110">指定用户能否让 <ph name="PRODUCT_NAME" /> 使用生成式 AI 更好地了解表单并帮助他们填写更多字段。
 

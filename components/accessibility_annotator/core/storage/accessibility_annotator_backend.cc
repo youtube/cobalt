@@ -6,7 +6,7 @@
 
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
-#include "base/logging.h"
+#include "base/metrics/histogram_macros_local.h"
 #include "base/task/thread_pool.h"
 #include "components/accessibility_annotator/core/storage/accessibility_annotation_sync_bridge.h"
 #include "components/accessibility_annotator/core/storage/accessibility_annotator_database.h"
@@ -18,26 +18,34 @@ namespace accessibility_annotator {
 
 AccessibilityAnnotatorBackend::AccessibilityAnnotatorBackend(
     version_info::Channel channel,
-    syncer::RepeatingDataTypeStoreFactory data_type_store_factory)
-    : db_(base::ThreadPool::CreateSequencedTaskRunner(
+    syncer::RepeatingDataTypeStoreFactory data_type_store_factory,
+    const base::FilePath& db_path)
+    : db_path_(db_path),
+      db_(base::ThreadPool::CreateSequencedTaskRunnerForResource(
           {base::MayBlock(), base::TaskPriority::USER_VISIBLE,
-           base::TaskShutdownBehavior::BLOCK_SHUTDOWN})) {
+           base::TaskShutdownBehavior::BLOCK_SHUTDOWN},
+          db_path_)) {
   auto processor = std::make_unique<syncer::ClientTagBasedDataTypeProcessor>(
       syncer::ACCESSIBILITY_ANNOTATION,
       base::BindRepeating(&syncer::ReportUnrecoverableError, channel));
   accessibility_annotation_sync_bridge_ =
       std::make_unique<AccessibilityAnnotationSyncBridge>(
           std::move(processor), data_type_store_factory);
+  sync_bridge_observation_.Observe(accessibility_annotation_sync_bridge_.get());
 }
 
 AccessibilityAnnotatorBackend::~AccessibilityAnnotatorBackend() = default;
 
-void AccessibilityAnnotatorBackend::Init(const base::FilePath& db_path) {
+void AccessibilityAnnotatorBackend::Init() {
   db_.AsyncCall(&AccessibilityAnnotatorDatabase::Init)
-      .WithArgs(db_path)
-      .Then(base::BindOnce([](bool success) {
-        DVLOG_IF(1, !success)
-            << "Failed to initialize AccessibilityAnnotatorDatabase.";
+      .WithArgs(db_path_)
+      .Then(base::BindOnce([](bool status) {
+        if (!status) {
+          // TODO(crbug.com/489690454): Replace this with a non-local histogram
+          // once metrics are finalized and setup as needed.
+          LOCAL_HISTOGRAM_BOOLEAN("AccessibilityAnnotator.DatabaseInitFailed",
+                                  true);
+        }
       }));
 }
 
@@ -45,6 +53,15 @@ base::WeakPtr<syncer::DataTypeControllerDelegate>
 AccessibilityAnnotatorBackend::GetAccessibilityAnnotationControllerDelegate() {
   return accessibility_annotation_sync_bridge_->change_processor()
       ->GetControllerDelegate();
+}
+
+void AccessibilityAnnotatorBackend::OnAccessibilityAnnotationChanged() {
+  // TODO(crbug.com/486856790): Implement logic to handle changed annotations.
+}
+
+void AccessibilityAnnotatorBackend::
+    OnAccessibilityAnnotationSyncBridgeLoaded() {
+  // TODO(crbug.com/486856790): Implement logic to handle sync bridge loaded.
 }
 
 }  // namespace accessibility_annotator

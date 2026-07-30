@@ -27,6 +27,7 @@
 <translation id="126567311906253476">Ja pierakstāties Google pakalpojumos, piemēram, Gmail vai YouTube, ar kontu <ph name="USER_EMAIL" />, varat automātiski pierakstīties pārlūkā Chromium ar to pašu kontu.</translation>
 <translation id="1290883685122687410">Iestatīšanas kļūda: <ph name="METAINSTALLER_EXIT_CODE" />. <ph name="WINDOWS_ERROR" /></translation>
 <translation id="1315551408014407711">Jaunā Chromium profila iestatīšana</translation>
+<translation id="132092532143527429">Izmēģināt, izmantojot Gemini pārlūkā Chromium</translation>
 <translation id="1324107359134968521">Pārlūkam Chromium ir nepieciešama Bluetooth piekļuve, lai atrastu Bluetooth ierīces. <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="1330562121671411446">Valodas noteikšana</translation>
 <translation id="1330742950061766891">Izmantojiet Chromium ieteicamos pārlūka iestatījumus</translation>
@@ -238,6 +239,7 @@
 <translation id="3509308970982693815">Aizveriet visus Chromium logus un mēģiniet vēlreiz.</translation>
 <translation id="3522404737534491619">Lai kopīgotu logu, sistēmas iestatījumos atļaujiet ekrāna ierakstīšanu pārlūkā Chromium.</translation>
 <translation id="3530103706039034513">Jau ir pierakstījies lietotājs <ph name="EXISTING_USER" />.  Lai atdalītu pārlūkošanu, pierakstieties pārlūkā Chromium savā profilā, izmantojot e-pasta adresi <ph name="USER_EMAIL_ADDRESS" />.</translation>
+<translation id="3531741627422851418">Kvadrātkods pārlūka Chromium lejupielādei mobilajās ierīcēs</translation>
 <translation id="3561853857681580870">Lai kopīgotu ekrānu, sistēmas iestatījumos atļaujiet ekrāna ierakstīšanu pārlūkā Chromium.</translation>
 <translation id="3588112919289558122">Izmantojot uzlaboto aizsardzību, tiek izslēgta JavaScript optimizācija vietnēm, ko Chromium neatpazīst.</translation>
 <translation id="3597003331831379823">Neizdevās izpildīt iestatīšanu ar augstām privilēģijām. <ph name="METAINSTALLER_ERROR" /></translation>
@@ -373,7 +375,6 @@
 <translation id="5174969993834422967">Parasti jūs bloķējat paziņojumus. Lai ļautu šai vietnei sūtīt jums paziņojumus, noklikšķiniet uz paziņojumu ikonas atrašanās vietas joslas labajā stūrī.</translation>
 <translation id="5174983315706567306">Diskā nepietiek brīvas vietas.</translation>
 <translation id="5187123684706427865">Chromium kontam nepieciešama atkārtota autentifikācija</translation>
-<translation id="5219681158518957165">Ieteicamo pārlūka iestatījumu izmantošana</translation>
 <translation id="5224391634244552924">Nav saglabātu paroļu. Pārlūkprogrammā Chromium var pārbaudīt jūsu paroles, ja jūs tās saglabājat.</translation>
 <translation id="5231355151045086930">Izrakstīšanās no Chromium</translation>
 <translation id="5234764350956374838">Nerādīt</translation>
@@ -605,6 +606,7 @@ Jaunas grāmatzīmes nevar saglabāt jūsu kontā, kamēr neizdzēsīsiet dažas
 <translation id="7622753900276619808">Tagad pārlūkā Chromium ir pieejams vairāk funkciju.</translation>
 <translation id="7624307931717240213">Mēs izmantojam informāciju, lai uzlabotu šo pakalpojumu. Skatiet konfidencialitātes politiku un pakalpojumu sniegšanas noteikumus.</translation>
 <translation id="7649070708921625228">Palīdzība</translation>
+<translation id="7650134251917003571">Iegūt lietotni Chromium</translation>
 <translation id="7656340475565475526">Ļaujiet pārlūkam Chromium veikt pārlūkošanu jūsu vietā</translation>
 <translation id="7658239707568436148">Atcelt</translation>
 <translation id="7686590090926151193">Chromium nav jūsu noklusējuma pārlūks.</translation>

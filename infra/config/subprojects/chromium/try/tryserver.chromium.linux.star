@@ -420,6 +420,7 @@ try_.orchestrator_builder(
     gn_args = gn_args.config(
         configs = [
             "ci/Linux Builder",
+            "enable_rust_clippy",
             "release_try_builder",
             "use_clang_coverage",
             "partial_code_coverage_instrumentation",
@@ -995,6 +996,7 @@ try_.builder(
         ],
     ),
     contact_team_email = "chrome-webium-product-eng@google.com",
+    execution_timeout = 4 * time.hour,
     siso_remote_jobs = siso.remote_jobs.LOW_JOBS_FOR_CQ,
 )
 

@@ -167,6 +167,7 @@
 <translation id="1621067168122174824">執行充電測試</translation>
 <translation id="1622402072367425417">發光的泡泡</translation>
 <translation id="1626590945318984973">這組快速鍵無法使用，請使用其他快速鍵，而且當中不得有功能鍵和<ph name="META_KEY" />鍵。</translation>
+<translation id="163774412591892664">管理員已停用你的裝置，並可存取裝置的位置資訊。</translation>
 <translation id="1639239467298939599">載入中</translation>
 <translation id="1641857168437328880">文件送紙器 (單面)</translation>
 <translation id="1642396894598555413">單車</translation>
@@ -727,6 +728,7 @@
 <translation id="4212169537710712814"><ph name="LANGUAGE_NAME" />語音轉錄模型下載完成</translation>
 <translation id="42126664696688958">匯出</translation>
 <translation id="4213104098953699324">USB 鍵盤</translation>
+<translation id="4217571870635786043">語音輸入</translation>
 <translation id="4227825898293920515">密碼將在 <ph name="TIME" />後到期</translation>
 <translation id="4238516577297848345">沒有任何進行中的列印工作</translation>
 <translation id="4239069858505860023">GPRS</translation>
@@ -1685,6 +1687,7 @@
 <translation id="8420955526972171689">針對硬體問題進行測試及疑難排解</translation>
 <translation id="8422748173858722634">IMEI</translation>
 <translation id="8424039430705546751">向下鍵</translation>
+<translation id="8427213022735114808">語音輸入功能會將你的語音資料傳送給 Google，讓你使用自己的語音在任何文字欄位中輸入內容。</translation>
 <translation id="8428213095426709021">設定</translation>
 <translation id="8431300646573772016">Chrome OS 新功能</translation>
 <translation id="8433186206711564395">網路設定</translation>
@@ -1723,6 +1726,7 @@
 <translation id="8584654835905316966">必須重新啟動系統，才能完成 <ph name="DEVICE_NAME" /> 韌體安裝作業，並更新至版本 <ph name="VERSION" />。電腦可能會多次重新啟動，這是正常現象。</translation>
 <translation id="8593058461203131755">暫停播放媒體</translation>
 <translation id="8620617069779373398">漫遊狀態</translation>
+<translation id="8624524972189162859">你的「<ph name="DOMAIN_NAME" />」管理員已停用你的裝置，並可存取裝置的位置資訊。</translation>
 <translation id="8626489604350149811">可對 <ph name="APN_NAME" /> 執行的其他動作</translation>
 <translation id="86356131183441916">淺紫色</translation>
 <translation id="8647595191512746911">音訊轉錄</translation>

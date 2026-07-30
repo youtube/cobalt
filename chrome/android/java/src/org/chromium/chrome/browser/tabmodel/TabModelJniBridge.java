@@ -20,7 +20,7 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.WarmupManager;
 import org.chromium.chrome.browser.flags.ActivityType;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.flags.CustomTabProfileType;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.NewWindowAppSource;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.PersistedInstanceType;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManagerFactory;
@@ -34,6 +34,7 @@ import org.chromium.components.content_settings.ContentSetting;
 import org.chromium.components.content_settings.ContentSettingsType;
 import org.chromium.components.embedder_support.util.UrlConstants;
 import org.chromium.components.tab_groups.TabGroupColorId;
+import org.chromium.components.tabs.TabStripCollection;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.common.ResourceRequestBody;
@@ -70,14 +71,18 @@ public abstract class TabModelJniBridge implements TabModelInternal {
      * Initializes the native-side counterpart to this class.
      *
      * @param activityType The type of activity this TabModel was created in.
+     * @param customTabProfileType The profile type of the custom tab, or null if not a custom tab.
      * @param tabModelType The type of the TabModel.
      */
     @CallSuper
     protected void initializeNative(
-            @ActivityType int activityType, @TabModelType int tabModelType) {
+            @ActivityType int activityType,
+            @Nullable @CustomTabProfileType Integer customTabProfileType,
+            @TabModelType int tabModelType) {
         assert mNativeTabModelJniBridge == 0;
         mNativeTabModelJniBridge =
-                TabModelJniBridgeJni.get().init(this, mProfile, activityType, tabModelType);
+                TabModelJniBridgeJni.get()
+                        .init(this, mProfile, activityType, customTabProfileType, tabModelType);
     }
 
     /** Returns whether the native-side pointer has been initialized. */
@@ -533,7 +538,6 @@ public abstract class TabModelJniBridge implements TabModelInternal {
     protected void highlightTabs(
             @JniType("TabAndroid*") Tab tabToActivate,
             @JniType("std::vector<TabAndroid*>") List<Tab> tabs) {
-        if (!ChromeFeatureList.sAndroidTabHighlighting.isEnabled()) return;
         assert !tabs.isEmpty() : "The provided tab list cannot be empty.";
         assert tabToActivate != null : "tabToActivate cannot be null";
         Set<Integer> tabIds = new HashSet<>();
@@ -689,6 +693,11 @@ public abstract class TabModelJniBridge implements TabModelInternal {
     }
 
     @CalledByNative
+    @Override
+    public abstract @Nullable @JniType("tabs::TabStripCollection*") TabStripCollection
+            getTabStripCollection();
+
+    @CalledByNative
     private static boolean isTabLaunchedInForeground(
             @TabLaunchType int type,
             boolean isNewTabIncognitoBranded,
@@ -708,6 +717,8 @@ public abstract class TabModelJniBridge implements TabModelInternal {
                 TabModelJniBridge self,
                 @JniType("Profile*") Profile profile,
                 @ActivityType int activityType,
+                @JniType("std::optional<int32_t>") @Nullable @CustomTabProfileType
+                        Integer customTabProfileType,
                 @TabModelType int tabModelType);
 
         void broadcastSessionRestoreComplete(long nativeTabModelJniBridge);

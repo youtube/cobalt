@@ -87,6 +87,20 @@ int GetSubtitleID(bool is_signin_promo,
             break;
         }
       } break;
+      case signin::SignInPromoType::kSearchAIMode: {
+        switch (signed_in_state) {
+          case SignedInState::kSignedOut:
+          case SignedInState::kWebOnlySignedIn:
+          case SignedInState::kSignInPending:
+            // TODO(crbug.com/486858498): Check if a different
+            // string is needed for the pending case.
+            return IDS_AI_SIGNIN_PROMO_SUBTITLE;
+          case SignedInState::kSignedIn:
+          case SignedInState::kSyncing:
+          case SignedInState::kSyncPaused:
+            break;
+        }
+      } break;
       case signin::SignInPromoType::kBookmark: {
         if (!is_signin_promo) {
           return IDS_BOOKMARK_DICE_PROMO_SYNC_MESSAGE;
@@ -220,6 +234,9 @@ void IncrementContextualPromoDismissCountPerSignedOutProfile(
               prefs::
                   kAddressSignInPromoDismissCountPerProfileForLimitsExperiment) +
               1);
+    case signin::SignInPromoType::kSearchAIMode:
+      // TODO(crbug.com/486858498): Implement prefs for rate limiting.
+      return;
     case signin::SignInPromoType::kBookmark:
       CHECK(base::FeatureList::IsEnabled(syncer::kUnoPhase2FollowUp));
       return profile->GetPrefs()->SetInteger(
@@ -259,23 +276,35 @@ void IncrementContextualPromoDismissCountPerAccount(
       SigninPrefs(*profile->GetPrefs())
           .IncrementBookmarkSigninPromoDismissCount(account.gaia);
       break;
+    case signin::SignInPromoType::kSearchAIMode:
+      // TODO(crbug.com/486858498): Implement prefs for rate limiting.
+      break;
     case signin::SignInPromoType::kExtension:
       NOTREACHED();
   }
 }
 
+// Delegate factory method based on the presence of the `data_id`.
+std::unique_ptr<BubbleSignInPromoDelegate> CreateDelegate(
+    content::WebContents* web_contents,
+    signin_metrics::AccessPoint access_point,
+    std::optional<syncer::LocalDataItemModel::DataId> data_id) {
+  if (data_id.has_value()) {
+    return std::make_unique<BubbleSignInPromoForSyncableDataTypeDelegate>(
+        *web_contents, access_point, std::move(data_id.value()));
+  }
+  return std::make_unique<DefaultBubbleSignInPromoDelegate>(*web_contents,
+                                                            access_point);
+}
 }  // namespace
 
 BubbleSignInPromoView::BubbleSignInPromoView(
     content::WebContents* web_contents,
     signin_metrics::AccessPoint access_point,
-    syncer::LocalDataItemModel::DataId data_id,
+    std::optional<syncer::LocalDataItemModel::DataId> data_id,
     ui::ButtonStyle button_style)
     : access_point_(access_point),
-      delegate_(
-          std::make_unique<BubbleSignInPromoDelegate>(*web_contents,
-                                                      access_point,
-                                                      std::move(data_id))) {
+      delegate_(CreateDelegate(web_contents, access_point, data_id)) {
   Profile* profile =
       Profile::FromBrowserContext(web_contents->GetBrowserContext())
           ->GetOriginalProfile();

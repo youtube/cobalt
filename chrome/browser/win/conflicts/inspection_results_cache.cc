@@ -128,7 +128,7 @@ base::Pickle SerializeInspectionResultsCache(
   // Append the md5 digest of the data to detect serializations errors.
   std::array<uint8_t, crypto::obsolete::Md5::kSize> md5_digest =
       Md5ForWinInspectionResultsCache(pickle.payload_bytes());
-  pickle.WriteBytes(&md5_digest, crypto::obsolete::Md5::kSize);
+  pickle.WriteBytes(md5_digest);
   return pickle;
 }
 
@@ -247,6 +247,6 @@ bool WriteInspectionResultsCache(
 
   // TODO(crbug.com/40106434): Investigate if using WriteFileAtomically() in a
   // CONTINUE_ON_SHUTDOWN sequence can cause too many corrupted caches.
-  return base::ImportantFileWriter::WriteFileAtomically(
-      file_path, std::string_view(pickle.data_as_char(), pickle.size()));
+  return base::ImportantFileWriter::WriteFileAtomically(file_path,
+                                                        pickle.AsStringView());
 }

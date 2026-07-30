@@ -540,12 +540,6 @@ enum ActionResultCode {
   // The Chrome Actor UI could not be shown.
   kActorUiError = 1300,
 
-  ///////////////////////////////////////////////////////////////////////
-  // Codes 1400-1499: Errors for LoadAndExtractContentTool.
-
-  // Content extraction failed for a URL.
-  kLoadAndExtractContentExtractionFailed = 1400,
-
   // Please see the comment above about adding new values.
 };
 
@@ -573,10 +567,8 @@ struct ToolInvocation {
   ObservedToolTarget? observed_target;
 };
 
-// TODO: crbug.com/483074087 - `name` is redundant and should be removed.
 struct ScriptToolResponse {
-  // The name and input arguments provided in the script tool action.
-  string name;
+  // The input arguments provided to the script tool action.
   string input_arguments;
 
   // The corresponding tool declaration.

@@ -13,6 +13,7 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/unguessable_token.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks.mojom.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_service_factory.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service.h"
@@ -89,11 +90,20 @@ class MockPage : public mojom::Page {
               (override));
   MOCK_METHOD(void, LockInput, (), (override));
   MOCK_METHOD(void, UnlockInput, (), (override));
+  MOCK_METHOD(void, SetShowReopenTabs, (bool show), (override));
   MOCK_METHOD(void,
               InjectInput,
               (const std::string& title,
                const std::string& thumbnail,
-               const base::UnguessableToken& file_token),
+               const base::UnguessableToken& file_token,
+               bool supports_unimodal),
+              (override));
+  MOCK_METHOD(void,
+              InjectInputWithIcon,
+              (const std::string& title,
+               contextual_tasks::mojom::IconType icon_id,
+               const base::UnguessableToken& file_token,
+               bool supports_unimodal),
               (override));
   MOCK_METHOD(void,
               RemoveInjectedInput,

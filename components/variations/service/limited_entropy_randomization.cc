@@ -139,6 +139,9 @@ bool ConsumesEntropy(const Study& study) {
     return false;
   }
   for (const auto& experiment : study.experiment()) {
+    if (experiment.probability_weight() == 0) {
+      continue;
+    }
     if (experiment.has_google_web_experiment_id() ||
         experiment.has_google_web_trigger_experiment_id() ||
         experiment.has_google_app_experiment_id()) {
@@ -191,7 +194,8 @@ double GetGoogleWebEntropyLimitInBits() {
 MisconfiguredEntropyResult SeedHasMisconfiguredEntropy(
     const ClientFilterableState& client_state,
     const VariationsSeed& seed,
-    double entropy_limit_in_bits) {
+    double entropy_limit_in_bits,
+    base::Time current_time) {
   SCOPED_CRASH_KEY_STRING32(SR_CRASH_KEY, "seed_version", seed.version());
   SCOPED_CRASH_KEY_NUMBER(SR_CRASH_KEY, "entropy_limit", entropy_limit_in_bits);
 
@@ -255,7 +259,8 @@ MisconfiguredEntropyResult SeedHasMisconfiguredEntropy(
     // the active limited layer matches the current layer.
     if (active_limited_layer == nullptr) {
       active_limited_layer = current_layer;
-      entropy_tracker.emplace(*active_limited_layer, entropy_limit_in_bits);
+      entropy_tracker.emplace(*active_limited_layer, entropy_limit_in_bits,
+                              current_time);
       if (!entropy_tracker->IsValid()) {
         // The entropy tracker may have been invalidated by the layer config.
         LogSeedRejectionReason(SeedRejectionReason::kInvalidLayerConfiguration);

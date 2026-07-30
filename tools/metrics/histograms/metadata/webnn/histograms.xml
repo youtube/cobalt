@@ -113,7 +113,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebNN.Operator" enum="MLGraphOperatorUma"
-    expires_after="2026-06-27">
+    expires_after="2026-08-30">
   <owner>reillyg@chromium.org</owner>
   <owner>src/services/webnn/OWNERS</owner>
   <summary>
@@ -121,6 +121,24 @@ chromium-metrics-reviews@google.com.
     operator has been used. The enum value GraphBuilt is always logged once per
     MLGraph, so to see the prevalence of a given operator, you need to divide
     its count by GraphBuilt count.
+  </summary>
+</histogram>
+
+<histogram name="WebNN.ORT.FirstSelectedDevice" enum="WebNNOrtDeviceUma"
+    expires_after="2026-06-27">
+  <owner>reillyg@chromium.org</owner>
+  <owner>src/services/webnn/OWNERS</owner>
+  <summary>
+    Records the first hardware device selected for the ORT backend.
+  </summary>
+</histogram>
+
+<histogram name="WebNN.ORT.FirstSelectedEP" enum="WebNNOrtEPUma"
+    expires_after="2026-06-27">
+  <owner>reillyg@chromium.org</owner>
+  <owner>src/services/webnn/OWNERS</owner>
+  <summary>
+    Records the first execution provider selected for the ORT backend.
   </summary>
 </histogram>
 
@@ -136,7 +154,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebNN.ORT.WinAppRuntimeInstallState"
-    enum="WinAppRuntimeInstallStateUma" expires_after="2026-06-27">
+    enum="WinAppRuntimeInstallStateUma" expires_after="2026-08-30">
   <owner>reillyg@chromium.org</owner>
   <owner>src/services/webnn/OWNERS</owner>
   <summary>

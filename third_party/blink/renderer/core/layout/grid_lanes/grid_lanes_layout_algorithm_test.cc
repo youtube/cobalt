@@ -18,18 +18,17 @@ class GridLanesLayoutAlgorithmTest : public BaseLayoutAlgorithmTest {
   void SetUp() override { BaseLayoutAlgorithmTest::SetUp(); }
 
   void ComputeGeometry(GridLanesLayoutAlgorithm& algorithm) {
-    wtf_size_t start_offset;
     const auto& style = algorithm.Style();
     const GridLineResolver line_resolver(style, /*auto_repetitions=*/0);
-    collapsed_track_indexes_.clear();
 
-    auto grid_lanes_items =
-        algorithm.Node().ConstructGridLanesItems(line_resolver);
+    auto grid_lanes_items = algorithm.Node().ConstructGridItems(
+        line_resolver, /*must_invalidate_placement_cache=*/nullptr,
+        /*opt_oof_children=*/nullptr);
     bool needs_intrinsic_track_size = false;
     grid_axis_tracks_ = algorithm.ComputeGridAxisTracks(
         SizingConstraint::kLayout, /*intrinsic_repeat_track_sizes=*/nullptr,
         /*should_apply_inline_size_containment=*/false, grid_lanes_items,
-        collapsed_track_indexes_, start_offset, needs_intrinsic_track_size);
+        needs_intrinsic_track_size);
 
     // We have a repeat() track definition with an intrinsic sized track(s). The
     // previous track sizing pass was used to find the track size to apply
@@ -39,15 +38,13 @@ class GridLanesLayoutAlgorithmTest : public BaseLayoutAlgorithmTest {
     //
     // https://www.w3.org/TR/css-grid-3/#masonry-intrinsic-repeat
     if (needs_intrinsic_track_size) {
-      CHECK(collapsed_track_indexes_.empty());
-
       HashMap<GridTrackSize, LayoutUnit> intrinsic_repeat_track_sizes =
           algorithm.GetIntrinsicRepeaterTrackSizes(!grid_lanes_items.IsEmpty(),
                                                    grid_axis_tracks_.value());
       grid_axis_tracks_ = algorithm.ComputeGridAxisTracks(
           SizingConstraint::kLayout, &intrinsic_repeat_track_sizes,
           /*should_apply_inline_size_containment=*/false, grid_lanes_items,
-          collapsed_track_indexes_, start_offset, needs_intrinsic_track_size);
+          needs_intrinsic_track_size);
     }
 
     const auto grid_axis_direction = grid_axis_tracks_->Direction();
@@ -56,8 +53,7 @@ class GridLanesLayoutAlgorithmTest : public BaseLayoutAlgorithmTest {
     for (const auto& grid_lanes_item : algorithm.BuildVirtualGridLanesItems(
              line_resolver, grid_lanes_items, needs_intrinsic_track_size,
              SizingConstraint::kLayout,
-             line_resolver.AutoRepetitions(grid_axis_direction),
-             start_offset)) {
+             line_resolver.AutoRepetitions(grid_axis_direction))) {
       GridLanesItemCachedData item_data;
 
       item_data.resolved_span =
@@ -104,8 +100,9 @@ class GridLanesLayoutAlgorithmTest : public BaseLayoutAlgorithmTest {
   GridLanesRunningPositions InitializeGridLanesRunningPositions(
       const Vector<LayoutUnit>& running_positions,
       LayoutUnit tie_threshold) {
+    const Vector<wtf_size_t> empty_collapsed_tracks;
     return GridLanesRunningPositions(running_positions, tie_threshold,
-                                     collapsed_track_indexes_);
+                                     empty_collapsed_tracks);
   }
 
   void SetAutoPlacementCursor(wtf_size_t cursor,
@@ -129,9 +126,6 @@ class GridLanesLayoutAlgorithmTest : public BaseLayoutAlgorithmTest {
   // Virtual items represent the contributions of item groups in track sizing
   // and are not directly related to any children of the container.
   Vector<GridLanesItemCachedData> virtual_items_data_;
-
-  // List of track indexes that have been collapsed.
-  Vector<wtf_size_t> collapsed_track_indexes_;
 };
 
 TEST_F(GridLanesLayoutAlgorithmTest, ConstructGridLanesItems) {
@@ -157,7 +151,9 @@ TEST_F(GridLanesLayoutAlgorithmTest, ConstructGridLanesItems) {
   GridLanesNode node(GetLayoutBoxByElementId("grid-lanes"));
 
   const GridLineResolver line_resolver(node.Style(), /*auto_repetitions=*/0);
-  auto grid_lanes_items = node.ConstructGridLanesItems(line_resolver);
+  auto grid_lanes_items = node.ConstructGridItems(
+      line_resolver, /*must_invalidate_placement_cache=*/nullptr,
+      /*opt_oof_children=*/nullptr);
 
   const Vector<GridSpan> expected_spans = {
       GridSpan::IndefiniteGridSpan(1),
@@ -273,7 +269,9 @@ TEST_F(GridLanesLayoutAlgorithmTest, CollectGridLanesItemGroups) {
 
   wtf_size_t max_end_line, start_offset;
   const GridLineResolver line_resolver(node.Style(), /*auto_repetitions=*/0);
-  const auto grid_lanes_items = node.ConstructGridLanesItems(line_resolver);
+  const auto grid_lanes_items = node.ConstructGridItems(
+      line_resolver, /*must_invalidate_placement_cache=*/nullptr,
+      /*opt_oof_children=*/nullptr);
   wtf_size_t unplaced_item_span_count = 0;
   const auto item_groups =
       node.CollectItemGroups(line_resolver, grid_lanes_items, max_end_line,
@@ -314,7 +312,9 @@ TEST_F(GridLanesLayoutAlgorithmTest, CollectGridLanesItemGroupsWithBaseline) {
 
   wtf_size_t max_end_line, start_offset;
   const GridLineResolver line_resolver(node.Style(), /*auto_repetitions=*/0);
-  const auto grid_lanes_items = node.ConstructGridLanesItems(line_resolver);
+  const auto grid_lanes_items = node.ConstructGridItems(
+      line_resolver, /*must_invalidate_placement_cache=*/nullptr,
+      /*opt_oof_children=*/nullptr);
   wtf_size_t unplaced_item_span_count = 0;
   const auto item_groups =
       node.CollectItemGroups(line_resolver, grid_lanes_items, max_end_line,

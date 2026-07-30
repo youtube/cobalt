@@ -59,9 +59,18 @@ suite('Toolbar Settings Menu', () => {
     menuButton = moreButton;
 
     settingsMenu = toolbar.$.settingsMenu;
-    menuButton.click();
 
+    // cr-action-menu listens for window resizes to auto-close. In headless
+    // test environments, the constrained viewport and deferred layout
+    // calculations when opening a <dialog> often trigger phantom resize events,
+    // causing the menu to close immediately and flake the test.
+    const preventResizeClose = (e: Event) => e.stopImmediatePropagation();
+    window.addEventListener('resize', preventResizeClose, true);
+
+    menuButton.click();
     await microtasksFinished();
+
+    window.removeEventListener('resize', preventResizeClose, true);
   });
 
   teardown(async () => {
@@ -277,4 +286,36 @@ suite('Toolbar Settings Menu', () => {
     const closeButton = getButton('close');
     assertFalse(!!closeButton);
   });
+
+  test(
+      'opened menu is not closed if mouse moves directly into the submenu',
+      () => {
+        const targetItem = getMenuItem(SettingsOption.FONT);
+        assertTrue(!!targetItem);
+        const timer = new MockTimer();
+        timer.install();
+
+        targetItem.dispatchEvent(new PointerEvent(
+            'pointerenter', {bubbles: true, cancelable: true, view: window}));
+        timer.tick(MENU_SHOW_DELAY_MS + 10);
+
+        const fontSubmenu = toolbar.$.fontMenu;
+        assertTrue(fontSubmenu.$.menu.$.lazyMenu.get().open);
+
+        // Simulate that mouse moved out of item, but we specify that the new
+        // element is directly under the cursor.
+        targetItem.dispatchEvent(new PointerEvent('pointerleave', {
+          bubbles: true,
+          cancelable: true,
+          view: window,
+          relatedTarget: fontSubmenu,
+        }));
+
+        timer.tick(MENU_SHOW_DELAY_MS + 10);
+        timer.uninstall();
+
+        const actionMenu = settingsMenu.$.lazyMenu.get();
+        assertTrue(actionMenu.open);
+        assertTrue(fontSubmenu.$.menu.$.lazyMenu.get().open);
+      });
 });

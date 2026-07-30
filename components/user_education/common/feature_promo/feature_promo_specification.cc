@@ -89,6 +89,20 @@ bool IsAllowedCustomUiPromo(const base::Feature& promo_feature) {
   return kAllowedPromoNames.contains(promo_feature.name);
 }
 
+bool IsAllowedToastWithNoTimeout(const base::Feature& promo_feature) {
+  // Test-only features are allowed.
+  if (std::string(promo_feature.name).starts_with("TEST_")) {
+    return true;
+  }
+
+  // This is the allow-list for non-timeout toasts. Please contact Frizzle Team
+  // or a direct OWNERS of this folder if you think you need to add to this
+  // list.
+  static constexpr auto kAllowedPromoNames =
+      base::MakeFixedFlatSet<std::string_view>({"IPH_TabSearchComboButton"});
+  return kAllowedPromoNames.contains(promo_feature.name);
+}
+
 bool IsAllowedLegacyPromo(const base::Feature& promo_feature) {
   // NOTE: LEGACY PROMOS ARE DEPRECATED.
   // NO NEW ITEMS SHOULD BE ADDED TO THIS LIST, EVER.
@@ -102,7 +116,6 @@ bool IsAllowedLegacyPromo(const base::Feature& promo_feature) {
           "IPH_PriceTrackingInSidePanel",
           "IPH_ReadingListDiscovery",
           "IPH_ReadingListInSidePanel",
-          "IPH_ResumptionRail",
           "IPH_TabSearch",
       });
   return kAllowedPromoNames.contains(promo_feature.name);
@@ -502,6 +515,15 @@ FeaturePromoSpecification& FeaturePromoSpecification::OverrideFocusOnShow(
   return *this;
 }
 
+FeaturePromoSpecification&
+FeaturePromoSpecification::OverrideBubbleShouldTimeOut(
+    bool bubble_should_time_out) {
+  CHECK_EQ(promo_type(), PromoType::kToast);
+  CHECK(bubble_should_time_out || IsAllowedToastWithNoTimeout(*feature_));
+  bubble_should_time_out_override_ = bubble_should_time_out;
+  return *this;
+}
+
 FeaturePromoSpecification& FeaturePromoSpecification::SetPromoSubtype(
     PromoSubtype promo_subtype) {
   CHECK_NE(promo_type_, PromoType::kUnspecified);
@@ -563,7 +585,7 @@ FeaturePromoSpecification& FeaturePromoSpecification::SetAdditionalConditions(
 }
 
 FeaturePromoSpecification& FeaturePromoSpecification::AddPreconditionExemption(
-    FeaturePromoPrecondition::Identifier exempt_precondition) {
+    FeaturePromoPrecondition::PreconditionIdentifier exempt_precondition) {
   CHECK(IsAllowedPreconditionExemption(*feature_));
   exempt_preconditions_.insert(exempt_precondition);
   return *this;

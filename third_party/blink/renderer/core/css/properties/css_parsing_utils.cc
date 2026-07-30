@@ -1997,8 +1997,10 @@ bool IsAllowedValueInParserContext(
     const CSSValue* value,
     const ColorParserContext& color_parser_context) {
   if (auto* primitive_value = DynamicTo<CSSPrimitiveValue>(value)) {
-    return color_parser_context.InElementContext() ||
-           !primitive_value->IsElementDependent();
+    return (color_parser_context.InElementContext() ||
+            !primitive_value->IsElementDependent()) &&
+           (color_parser_context.InPropertyContext() ||
+            !primitive_value->HasRandomFunctions());
   }
   return true;
 }
@@ -2277,13 +2279,13 @@ CSSValue* ConsumeAbsoluteColor(CSSParserTokenStream& stream,
                               ColorParserContext::AbsoluteColorContext());
 }
 
-CSSValue* ConsumeColorWithoutElementContext(
+CSSValue* ConsumeColorWithoutElementAndPropertyContext(
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
     CSSParserLocalContext& local_context) {
   return ConsumeColorInternal(stream, context, local_context,
                               false /* accept_quirky_colors */,
-                              ColorParserContext::NoElementContext());
+                              ColorParserContext::NoElementNoPropertyContext());
 }
 
 CSSValue* ConsumeLineWidth(CSSParserTokenStream& stream,
@@ -2633,6 +2635,8 @@ static CSSValue* ConsumeDeprecatedGradientStopColor(
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
     CSSParserLocalContext& local_context) {
+  CSSParserLocalContext::FunctionLocalContext function_context(
+      CSSValueID::kColorStop, local_context);
   if (stream.Peek().Id() == CSSValueID::kCurrentcolor) {
     return nullptr;
   }
@@ -2683,6 +2687,8 @@ static CSSValue* ConsumeDeprecatedGradient(
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
     CSSParserLocalContext& local_context) {
+  CSSParserLocalContext::FunctionLocalContext function_context(
+      CSSValueID::kWebkitGradient, local_context);
   CSSValueID id = stream.Peek().Id();
   if (id != CSSValueID::kRadial && id != CSSValueID::kLinear) {
     return nullptr;
@@ -2857,6 +2863,8 @@ static CSSValue* ConsumeDeprecatedRadialGradient(
     const CSSParserContext& context,
     CSSParserLocalContext& local_context,
     cssvalue::CSSGradientRepeat repeating) {
+  CSSParserLocalContext::FunctionLocalContext function_context(
+      CSSValueID::kWebkitRadialGradient, local_context);
   CSSValue* center_x = nullptr;
   CSSValue* center_y = nullptr;
   ConsumeOneOrTwoValuedPosition(stream, context, local_context,
@@ -3250,6 +3258,8 @@ static CSSValue* ConsumeDeprecatedWebkitCrossFade(
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
     CSSParserLocalContext& local_context) {
+  CSSParserLocalContext::FunctionLocalContext function_context(
+      CSSValueID::kWebkitCrossFade, local_context);
   CSSValue* from_image_value =
       ConsumeImageOrNone(stream, context, local_context);
   if (!from_image_value || !ConsumeCommaIncludingWhitespace(stream)) {
@@ -4369,6 +4379,9 @@ CSSValue* ConsumeViewFunction(CSSParserTokenStream& stream,
   if (stream.Peek().FunctionId() != CSSValueID::kView) {
     return nullptr;
   }
+
+  CSSParserLocalContext::FunctionLocalContext function_context(
+      CSSValueID::kView, local_context);
 
   CSSIdentifierValue* axis = nullptr;
   CSSValue* inset = nullptr;
@@ -6401,7 +6414,7 @@ CSSValue* ParseFontLanguageOverrideString(CSSParserTokenStream& stream) {
   // even though they allow tags shorter than four characters. This apparent
   // inconsistency is documented and justified here
   // https://bugzilla.mozilla.org/show_bug.cgi?id=1814408
-  if (!language_override.ContainsOnlyASCIIOrEmpty()) {
+  if (!language_override.ContainsOnlyAsciiOrEmpty()) {
     return nullptr;
   }
 
@@ -8445,6 +8458,9 @@ CSSValue* ConsumeRay(CSSParserTokenStream& stream,
   if (stream.Peek().FunctionId() != CSSValueID::kRay) {
     return nullptr;
   }
+
+  CSSParserLocalContext::FunctionLocalContext function_context(CSSValueID::kRay,
+                                                               local_context);
 
   CSSValue* value;
   {

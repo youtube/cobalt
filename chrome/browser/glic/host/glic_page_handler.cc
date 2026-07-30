@@ -101,6 +101,7 @@
 #include "components/skills/public/skills_metrics.h"
 #include "components/sync/protocol/skill_specifics.pb.h"
 #include "components/tabs/public/tab_interface.h"
+#include "components/url_formatter/elide_url.h"
 #include "content/public/browser/devtools_agent_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_delegate.h"
@@ -885,7 +886,6 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
             &GlicWebClientHandler::OnOsPermissionSettingChanged,
             base::Unretained(this)));
 
-#if !BUILDFLAG(IS_ANDROID)  // NEEDS_ANDROID_IMPL
     if (base::FeatureList::IsEnabled(features::kGlicActor)) {
       if (auto* actor_service = actor::ActorKeyedService::Get(profile_)) {
         actor_task_state_changed_subscription_ =
@@ -903,6 +903,7 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
                   base::Unretained(this)));
     }
 
+#if !BUILDFLAG(IS_ANDROID)  // NEEDS_ANDROID_IMPL
     // NEEDS_ANDROID_IMPL: (crbug.com/477622144) Remove desktop-only
     // restrictions from Skills backend.
     if (base::FeatureList::IsEnabled(features::kSkillsEnabled)) {
@@ -2284,6 +2285,12 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
           return actor::webui::mojom::CredentialType::kFederated;
       }
     };
+    auto maybe_account_picture =
+        [](const actor_login::Credential& cred) -> SkBitmap {
+      return cred.federation_detail
+                 ? cred.federation_detail->account_picture.AsBitmap()
+                 : SkBitmap();
+    };
 
     // Note: mojom::<Type>Ptr is not copyable, meaning it can't be passed to the
     // argument of base::RepeatingCallbackList::Notify (who makes a copy of the
@@ -2296,7 +2303,8 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
           base::UTF16ToUTF8(credential.source_site_or_app),
           credential.request_origin,
           base::UTF16ToUTF8(credential.display_origin),
-          cred_type_to_mojo(credential.type)));
+          cred_type_to_mojo(credential.type),
+          maybe_account_picture(credential)));
     }
     base::flat_map<std::string, SkBitmap> mojo_icons;
     for (const auto& [site_or_app, image] : icons) {
@@ -2354,6 +2362,10 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
       auto mojo_request = actor::webui::mojom::FormFillingRequest::New();
       mojo_request->requested_data =
           static_cast<int64_t>(request.requested_data);
+      mojo_request->formatted_request_origin =
+          base::UTF16ToUTF8(url_formatter::FormatOriginForSecurityDisplay(
+              request.request_origin,
+              url_formatter::SchemeDisplay::OMIT_HTTP_AND_HTTPS));
       for (const auto& suggestion : request.suggestions) {
         auto mojo_suggestion = actor::webui::mojom::AutofillSuggestion::New();
         mojo_suggestion->id = base::NumberToString(suggestion.id.value());
@@ -2379,8 +2391,13 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
       int32_t task_id,
       actor::webui::mojom::AutofillSuggestionDialogOnFormPresentedParamsPtr
           params) override {
-    if (autofill_selection_event_handler_) {
-      autofill_selection_event_handler_->OnFormPresented(std::move(params));
+    if (!autofill_selection_event_handler_) {
+      return;
+    }
+    if (!autofill_selection_event_handler_->OnFormPresented(
+            std::move(params))) {
+      receiver_.ReportBadMessage(
+          "Tried calling OnFormPresented with incorrect params.");
     }
   }
 
@@ -2398,8 +2415,13 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
       int32_t task_id,
       actor::webui::mojom::AutofillSuggestionDialogOnFormConfirmedParamsPtr
           params) override {
-    if (autofill_selection_event_handler_) {
-      autofill_selection_event_handler_->OnFormConfirmed(std::move(params));
+    if (!autofill_selection_event_handler_) {
+      return;
+    }
+    if (!autofill_selection_event_handler_->OnFormConfirmed(
+            std::move(params))) {
+      receiver_.ReportBadMessage(
+          "Tried calling OnFormConfirmed with incorrect params.");
     }
   }
 

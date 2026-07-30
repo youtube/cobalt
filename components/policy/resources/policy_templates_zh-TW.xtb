@@ -964,15 +964,6 @@ Attribution Reporting API 已淘汰，因此這項政策也已在 <ph name="PROD
       如果設定這項政策，當裝置上的可用磁碟空間小於政策所要求的值時，系統將無法安裝 <ph name="PLUGIN_VM_NAME" />。</translation>
 <translation id="1682893353675650337">有了智慧鏡頭疊加功能，只要拍下目前頁面的螢幕截圖或提出相關問題，就能透過 Google 搜尋相關資訊。使用者須主動啟用這項功能。只要未經本政策停用，這項功能將開放給所有以 Google 做為預設搜尋引擎的使用者。如果不設定政策或設為「0 - 允許」，使用者就能存取這項功能。如果將政策設為「1 - 不允許」，使用者就無法存取這項功能。從 <ph name="PRODUCT_NAME" /> 140 版開始，如果未設定這項政策，系統就會以 <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> 政策決定行為。<ph name="PRODUCT_NAME" /> 147 以上版本將淘汰這項政策。之後 IT 管理員可以透過 <ph name="SEARCH_CONTENT_SHARING_SETTINGS_POLICY_NAME" /> 控制這項功能。</translation>
 <translation id="1686952487081322272">停用快速解答功能</translation>
-<translation id="1688920969335897857">設定這項政策可以控管 <ph name="PRODUCT_NAME" /> 的擴充功能管理設定，包括由現有擴充功能相關政策控管的設定。也就是說，如果先前已有設定的舊版政策，這項政策會直接取代。
-
-此政策僅會將擴充功能 ID 或更新網址，對應到其特定設定。你可以設定特殊 ID <ph name="DEFAULT_SCOPE" /> 的預設設定。未透過這項政策自訂設定的擴充功能，會一律套用預設設定。如果指定了更新網址，系統會根據擴充功能資訊清單中載明的更新網址，將設定套用到擴充功能 (http://support.google.com/chrome/a?p=Configure_ExtensionSettings_policy)。如果「override_update_url」旗標的設定為 True，系統會根據 <ph name="EXTENSION_INSTALL_FORCELIST_POLICY_NAME" /> 政策或這項政策在「update_url」欄位中指定的「更新」網址，安裝及更新擴充功能。如果「update_url」是 Chrome 線上應用程式商店網址，系統會忽略「override_update_url」旗標。
-
-<ph name="MS_WIN_NAME" /> 執行個體必須加入 <ph name="MS_AD_NAME" /> 網域或 <ph name="MS_AAD_NAME" />，或者註冊<ph name="CHROME_ENTERPRISE_CORE_NAME" />，才能強制安裝 Chrome 線上應用程式商店以外的應用程式和擴充功能。
-
-<ph name="MAC_OS_NAME" /> 執行個體必須由行動裝置管理 (MDM) 軟體控管、透過 MCX 加入網域，或者註冊 <ph name="CHROME_ENTERPRISE_CORE_NAME" />，才能強制安裝 Chrome 線上應用程式商店以外的應用程式和擴充功能。
-
-注意：這項政策僅適用支援擴充功能的平台。</translation>
 <translation id="1690383938831887552">禁止載入採用 Signed HTTP Exchange 技術的內容</translation>
 <translation id="1692325295652827195">如果將這項政策設為 True，系統會將政策觸發的主要 Android 應用程式安裝事件報告傳送給 Google。
 
@@ -1036,6 +1027,7 @@ Attribution Reporting API 已淘汰，因此這項政策也已在 <ph name="PROD
       如果不設定這項政策，使用者螢幕控制項和自動調整亮度功能皆不會受到影響。
 
       注意：政策設定值應指定為 0 至 100 之間的百分比值。</translation>
+<translation id="1732435945666510577">停用擴充功能 DOM 活動記錄</translation>
 <translation id="1733092875104864334">不允許從 Google 服務收集 WebRTC 文字記錄</translation>
 <translation id="1733768596873041559">預設會重新導向至 SAML IdP (使用版本低於 <ph name="PRODUCT_NAME" /> 99 的使用者必須確認這項操作)</translation>
 <translation id="1736032188431871940">禁止在無痕模式下存取清單中的網址。</translation>
@@ -1867,6 +1859,7 @@ Attribution Reporting API 已淘汰，因此這項政策也已在 <ph name="PROD
 <translation id="2290270645214705008">如果將這項政策設為「停用」，將無法開啟遠端存取主機服務，也無法將該服務設為接受外來連線。這項政策不適用於遠端支援情境。
 
           如果設為「啟用」、保留空白或不設定，這項政策就不會生效。</translation>
+<translation id="2291341836547307786">啟用擴充功能 DOM 活動記錄功能</translation>
 <translation id="2292482441027364457">如果設定這項政策，就能修正 <ph name="PRODUCT_OS_NAME" /> 會在啟動器列中，將哪些應用程式 ID 顯示為固定應用程式，而且使用者無法變更。
 
 如果要指定的是 Chrome 應用程式，請使用應用程式的 ID，例如 pjkljhegncpnkpknbcohdijeoejaedia；如果要指定的是 Android 應用程式，請使用套件名稱，例如 com.google.android.gm；如果要指定的是網頁應用程式，請使用「<ph name="WEB_APP_INSTALL_FORCE_LIST_POLICY_NAME" />」所用的網址，例如 https://google.com/maps；如果要指定的是系統網頁應用程式，請使用蛇形命名式名稱，例如 <ph name="PINNED_LAUNCHER_APPS_POLICY_SYSTEM_WEB_APP_EXAMPLE" />。
@@ -2127,6 +2120,51 @@ Attribution Reporting API 已淘汰，因此這項政策也已在 <ph name="PROD
 <translation id="2489558694350871332">允許裝置執行虛擬機器</translation>
 <translation id="2492240920793040106">啟用系統資訊及頁面內容回報功能，協助改善安全瀏覽服務</translation>
 <translation id="2496180316473517155">瀏覽記錄</translation>
+<translation id="2496898792336137342">設定規則，根據目的地網址和特定網路條件選取瀏覽器使用的 Proxy。
+
+這項政策的優先順序高於 <ph name="PROXY_SETTINGS_POLICY_NAME" /> 政策、<ph name="PROXY_SETTINGS_EXTENSION_API" /> 擴充功能 API 和使用者手動設定。如果這項政策中沒有任何規則相符，瀏覽器就會改用 <ph name="PROXY_SETTINGS_POLICY_NAME" /> 中定義的設定。
+
+瀏覽器會依序評估「<ph name="PROXY_OVERRIDE_RULES_POLICY_NAME" />」清單中的項目。必須符合下列所有條件，才會套用規則：
+
+  * 相符：<ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> 中至少有一個網址模式相符。
+
+  * 排除：與 <ph name="PROXY_OVERRIDE_RULES_EXCLUDE_DESTINATION_MATCHERS" /> 中的網址模式均不相符。
+
+  * 條件：如果指定了 <ph name="PROXY_OVERRIDE_RULES_CONDITIONS" />，就必須符合所有列出的條件。如未設定，系統會忽略這項規定。
+
+如要瞭解比對工具的網址模式，請參閱 https://chromium.googlesource.com/chromium/src/+/HEAD/net/docs/proxy.md#proxy-config-url-patterns。
+
+<ph name="PROXY_OVERRIDE_RULES_PROXY_LIST" /> 欄位定義了容錯移轉清單。系統會使用第一個可連線的項目，並忽略無效項目。你可以使用 PAC 樣式的字串或類似網址的指定項目：
+
+PAC 樣式的字串：
+
+  * DIRECT
+
+  * PROXY 主機:通訊埠
+
+  * HTTPS 主機:通訊埠
+
+  * SOCKS4 主機:通訊埠
+
+  * SOCKS5 主機:通訊埠
+
+類似網址的指定項目：
+
+  * http://host:port
+
+  * https://host:port
+
+  * socks4://host:port
+
+  * socks5://host:port
+
+<ph name="PROXY_OVERRIDE_RULES_DNS_PROBE" />條件會檢查 <ph name="PROXY_OVERRIDE_RULES_HOST" /> 是否解析為 IP 位址。
+
+* 支援主機名稱 (例如 example.com) 或 URI 樣式的字串 (例如 https://example.com:123)。如果使用安全通訊協定 (https)，系統可能會要求 HTTPS 記錄 (請參閱 RFC 9460)。
+
+* 設為「<ph name="PROXY_OVERRIDE_RULES_RESOLVED" />」時，解析成功即符合條件；設為「<ph name="PROXY_OVERRIDE_RULES_NOT_FOUND" />」時，解析失敗即符合條件。
+
+在支援的平台上，受管理裝置套用這項政策時，會受到 <ph name="ENABLE_PROXY_OVERRIDE_RULES_FOR_ALL_USERS_POLICY_NAME" /> 裝置層級政策的影響。預設會禁止使用無關聯使用者設定的覆寫規則。</translation>
 <translation id="2497751676088107779">使用者指令碼</translation>
 <translation id="249798396824949930"> 這項政策可控管瀏覽器是否可以偵測 <ph name="MAC_OS_NAME" /> 上的強制政策範圍。
 
@@ -6320,6 +6358,7 @@ Protected Audience API 已淘汰，因此這項政策也已在 <ph name="PRODUCT
 <translation id="5309944663104291505">禁止強制安裝的隔離網頁應用程式和資訊站應用程式使用 Device Attributes API</translation>
 <translation id="5311275381462687162">預設的舊版 <ph name="ATTRIBUTE_SAMESITE_NAME" /> Cookie 行為設定</translation>
 <translation id="5312253627576569499">如果系統在螢幕調暗時或畫面關閉後不久便偵測到使用者活動，要將螢幕調暗延遲時間延長的百分比</translation>
+<translation id="5313663675323027439">控管擴充功能 DOM 活動記錄</translation>
 <translation id="5316856058059940708">停用大型游標</translation>
 <translation id="5318185076587284965">啟用遠端存取主機所使用的轉送伺服器</translation>
 <translation id="5321624917465764266">如果將這項政策設為啟用或不設定，系統將可刪除 Chrome 中的瀏覽記錄和下載記錄，且使用者無法變更這項設定。
@@ -8339,34 +8378,6 @@ Origin-Agent-Cluster HTTP 標頭會控制文件要在 origin-keyed 代理程式�
       如果不設定這項政策，預設值是允許受企業管理以及非受管使用者執行這項功能。</translation>
 <translation id="6640748114867542396">不允許受管理的擴充功能使用 Enterprise Hardware Platform API</translation>
 <translation id="6641109870010271671">驗證伺服器時，<ph name="PRODUCT_NAME" /> 應信任的 TLS 憑證</translation>
-<translation id="6641851832244467923">透過這項政策設定規則，根據目的地網址和其他條件選取瀏覽器使用的 Proxy。這項政策的效力高於其他方式的 Proxy 設定，包括透過 <ph name="PROXY_SETTINGS_POLICY_NAME" /> 政策、<ph name="PROXY_SETTINGS_EXTENSION_API" /> 擴充功能 API，以及使用者手動設定。
-
-如果未設定這項政策，其他 Proxy 政策或使用者設定都不會受到影響。
-
-瀏覽器必須決定要使用的 Proxy 時，會依序評估 <ph name="PROXY_OVERRIDE_RULES_POLICY_NAME" /> 政策的項目，直到有一個項目符合下列所有條件為止：
-  * <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> 中的網址模式至少有一個相符。
-  * 與 <ph name="PROXY_OVERRIDE_RULES_EXCLUDE_DESTINATION_MATCHERS" /> 中的網址模式均不相符。
-  * 如果指定了 <ph name="PROXY_OVERRIDE_RULES_CONDITIONS" />，而且不是空白清單，則須符合該清單項目表示的所有條件。
-<ph name="PROXY_OVERRIDE_RULES_PROXY_LIST" /> 的值會做為這類相符項目的 Proxy。如果找不到相符項目，就會回頭使用 <ph name="PROXY_SETTINGS_POLICY_NAME" /> 政策指定的 Proxy 設定。
-
-如要瞭解 <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> 和 <ph name="PROXY_OVERRIDE_RULES_EXCLUDE_DESTINATION_MATCHERS" /> 支援的網址模式，請參閱 https://chromium.googlesource.com/chromium/src/+/HEAD/net/docs/proxy.md#proxy-config-url-patterns。
-
-<ph name="PROXY_OVERRIDE_RULES_PROXY_LIST" /> 欄位項目會對應到 PAC 檔案的字串值，例如：
-  * DIRECT
-  * PROXY host:port
-  * HTTPS host:port
-  * SOCKS4 host:port
-  * SOCKS5 host:port
-或者，也可以直接用類似網址的 Proxy 指定碼來指定 Proxy，例如：
-  * http://host:port
-  * https://host:port
-  * socks4://host:port
-  * socks5://host:port
-清單中第一個可連線的項目會做為 Proxy。系統會忽略清單中的無效項目。
-
-<ph name="PROXY_OVERRIDE_RULES_CONDITIONS" /> 欄位內含條件清單；必須符合所有條件，才能使用覆寫規則決定要使用的 Proxy。如果未設定，只要 <ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> 有一個主機符合條件，系統就會使用該項目。
-
-<ph name="PROXY_OVERRIDE_RULES_DNS_PROBE" /> 條件會檢查提供的 DNS <ph name="PROXY_OVERRIDE_RULES_HOST" /> 能否解析為 IP 位址。必須包含主機 (例如 example.com)，也可以選擇性加入通訊協定或通訊埠 (例如 https://example.com、example.com:123、https://example.com:123)。如果使用安全通訊協定 (例如 https)，DNS 查詢也可能會要求 HTTPS 記錄 (詳情請參閱 RFC 9460)。如果 <ph name="PROXY_OVERRIDE_RULES_RESULT" /> 的值為「<ph name="PROXY_OVERRIDE_RULES_RESOLVED" />」，就會判定符合條件。如果值改設為 <ph name="PROXY_OVERRIDE_RULES_NOT_FOUND" />，則解析失敗時，系統會判定符合條件。</translation>
 <translation id="6641981670621198190">停止支援 3D 圖形 API</translation>
 <translation id="6646912445796087001">啟用或停用螢幕小鍵盤上的多項功能。這項政策只有在「VirtualKeyboardEnabled」政策已啟用時才會生效。
 
@@ -9537,6 +9548,14 @@ Origin-Agent-Cluster HTTP 標頭會控制文件要在 origin-keyed 代理程式�
       如果將這項政策設為啟用或不設定，已註冊的裝置會回報網路介面清單，當中包含網路介面類型和硬體位址資料。
 
       如果將這項政策設為停用，已註冊的裝置不會回報網路介面清單。</translation>
+<translation id="7387190801932161230">控管是否為企業版使用者啟用擴充功能 DOM 活動記錄。
+
+啟用此政策後，系統會開啟擴充功能 DOM 活動的遙測服務，包括監控擴充功能是否插入程式碼及私密資料的存取。
+
+如果將這項政策設為啟用，<ph name="PRODUCT_NAME" /> 會收集及傳輸擴充功能與網頁互動的信號至擴充功能遙測服務，以進行安全性稽核。
+如果將這項政策設為「停用」或未設定，系統就不會為企業版使用者收集或傳輸這些信號。
+
+系統不會收集機密資料 (例如 Cookie 或輸入值) 的實際值，只會記錄存取行為。</translation>
 <translation id="7389872682701720082">如果啟用這項設定，系統會一律執行未過期的外掛程式。
 
       如果停用這項設定或不設定，系統將徵求使用者許可來執行需要授權的外掛程式。這些外掛程式可能會危害系統的安全性。</translation>
@@ -11904,6 +11923,19 @@ Topics API 已淘汰，因此這項政策也已在 <ph name="PRODUCT_NAME" /> 14
           設定這項政策後，使用者即無法變更或覆寫。
 
           如果不設定這項政策，系統預設會停用鍵盤焦點醒目顯示功能，但使用者隨時可以啟用這項功能。</translation>
+<translation id="9037098514292099199">你可以透過這項政策控管 <ph name="PRODUCT_NAME" /> 的擴充功能管理設定，包括由現有擴充功能相關政策控管的任何設定。
+
+這項政策只能將擴充功能 ID 或更新網址對應到其特定的設定。你可以設定特殊 ID <ph name="DEFAULT_SCOPE" /> 的預設設定。如果有未透過這項政策自訂設定的擴充功能，系統將一律套用預設設定。
+
+這項政策可覆寫舊版政策中針對個別擴充功能所做的設定。
+
+請注意，凡是來自 <ph name="EXTENSION_INSTALL_FORCELIST_POLICY_NAME" />、<ph name="EXTENSION_INSTALL_ALLOWLIST_POLICY_NAME" />、<ph name="EXTENSION_INSTALL_BLOCKLIST_POLICY_NAME" /> 或 <ph name="EXTENSION_SETTINGS_POLICY_NAME" /> 的個別 ID 擴充功能設定，都只會從 <ph name="DEFAULT_SCOPE" /> 的預設值繼承「installation_mode」和「update_url」。不會繼承任何其他屬性。如果指定更新網址，系統會將設定套用到擴充功能資訊清單中載明相同更新網址的擴充功能 (http://support.google.com/chrome/a?p=Configure_ExtensionSettings_policy)。如果「override_update_url」旗標設為 true，系統會使用 <ph name="EXTENSION_INSTALL_FORCELIST_POLICY_NAME" /> 政策中指定的「更新」URL，或者這項政策中「update_url」欄位指定的 URL，來安裝及更新擴充功能。如果「update_url」是 Chrome 線上應用程式商店網址，系統會忽略「override_update_url」旗標。
+
+在 <ph name="MS_WIN_NAME" /> 執行個體上，執行個體必須加入 <ph name="MS_AD_NAME" /> 網域或 <ph name="MS_AAD_NAME" />，或者註冊<ph name="CHROME_ENTERPRISE_CORE_NAME" />，系統才能強制安裝來自 Chrome 線上應用程式商店以外的應用程式和擴充功能。
+
+在 <ph name="MAC_OS_NAME" /> 執行個體上，執行個體必須透過行動裝置管理 (MDM) 進行管理、透過 MCX 加入網域或是註冊 <ph name="CHROME_ENTERPRISE_CORE_NAME" />，系統才能強制安裝來自 Chrome 線上應用程式商店以外的應用程式和擴充功能。
+
+注意：這項政策僅適用支援擴充功能的平台。</translation>
 <translation id="9038839118379817310">啟用 Wi-Fi</translation>
 <translation id="9039822628127365650">如果設定這項政策，系統會在裝置閒置達指定時間後，將使用者自動登出並終止工作階段。使用者可以在系統匣所顯示的倒數計時器中，查看剩餘的等待時間。
 
@@ -11927,11 +11959,6 @@ Topics API 已淘汰，因此這項政策也已在 <ph name="PRODUCT_NAME" /> 14
 <translation id="9051019223077908578">設定登入畫面上的已安裝應用程式和擴充功能清單</translation>
 <translation id="9053841574218808519">一律執行未過期的外掛程式</translation>
 <translation id="9055866143096316150">將螢幕 Wake Lock 使用要求降級為系統 Wake Lock 使用要求</translation>
-<translation id="9056262797461453462">如果設定 <ph name="URL_BLOCKLIST_POLICY_NAME" /> 政策，系統就不會載入網址已遭禁止的網頁。管理員可以指定要封鎖的網址模式清單。如果未設定，瀏覽器將不會封鎖任何網址。<ph name="URL_ALLOWLIST_POLICY_NAME" /> 中最多可定義 1,000 個例外網址。如要瞭解網址模式的格式規定，請前往 https://support.google.com/chrome/a?p=url_blocklist_filter_format。
-
-注意：這項政策不會套用至含有動態載入資料的網頁內 JavaScript 網址。如果封鎖 example.com/abc，example.com 仍可使用 XMLHTTPRequest 載入內容。此外，這項政策也無法阻止網頁使用 JavaScript History API 將網址列顯示的網址更新為已封鎖的網址。從 <ph name="PRODUCT_NAME" /> 73 版開始，你可以封鎖 javascript://* 網址，但這麼做只會影響在網址列輸入的 JavaScript，或是像書籤小程式這類項目。自 <ph name="PRODUCT_NAME" /> 92 版起，系統在無頭模式下也支援這項政策。注意：封鎖內部 chrome://* 和 chrome-untrusted://* 網址可能導致非預期的錯誤，使用者也可能會在某些情況下突破封鎖。建議您不要封鎖特定內部網址，而是考慮使用其他更合適的政策。例如：
-
-- 不封鎖 chrome://settings/certificates，改用 <ph name="CA_CERTIFICATE_MANAGEMENT_ALLOWED_POLICY_NAME" />。- 不封鎖 chrome-untrusted://crosh，改用 <ph name="SYSTEM_FEATURES_DISABLE_LIST_POLICY_NAME" />。- 不封鎖 devtools://*，改用 <ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" />、<ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" /> 或 <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" /> 政策。</translation>
 <translation id="9057159618445405645">使用 Chrome 瀏覽器預設行為</translation>
 <translation id="9061455386353325110">指定使用者能否讓 <ph name="PRODUCT_NAME" /> 使用生成式 AI 來進一步辨識表單，協助填寫更多欄位。
 

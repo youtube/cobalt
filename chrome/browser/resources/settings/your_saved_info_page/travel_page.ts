@@ -9,11 +9,13 @@
  * autofill functionality entirely.
  */
 
+import '/shared/settings/controls/extension_controlled_indicator.js';
 import '/shared/settings/prefs/prefs.js';
 import '../autofill_page/autofill_ai_entries_list.js';
 import '../autofill_page/your_saved_info_shared.css.js';
 import '../controls/settings_toggle_button.js';
 import '../settings_page/settings_subpage.js';
+import '../settings_shared.css.js';
 
 import {PrefsMixin} from '/shared/settings/prefs/prefs_mixin.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
@@ -119,6 +121,14 @@ export class SettingsTravelPageElement extends SettingsTravelPageElementBase {
               'AutofillAddOtherDatatypesPrefIsEnabled');
         },
       },
+
+      enableYourSavedInfoPolicyAndExtentionToggleIndicators_: {
+        type: Boolean,
+        value() {
+          return loadTimeData.getBoolean(
+              'enableYourSavedInfoPolicyAndExtentionToggleIndicators');
+        },
+      },
     };
   }
 
@@ -134,6 +144,8 @@ export class SettingsTravelPageElement extends SettingsTravelPageElementBase {
   declare private autofillAddOtherDatatypesPrefIsEnabled_: boolean;
   declare private autofillAiAvailableByDefault_: boolean;
   declare private canEnableOrDisableAutofillAi_: boolean;
+  declare private enableYourSavedInfoPolicyAndExtentionToggleIndicators_:
+      boolean;
 
   private entityDataManager_: EntityDataManagerProxy =
       EntityDataManagerProxyImpl.getInstance();
@@ -177,16 +189,28 @@ export class SettingsTravelPageElement extends SettingsTravelPageElementBase {
   }
 
   private computeTravelOptedIn_(): chrome.settingsPrivate.PrefObject<boolean> {
+    const pref = this.get('prefs.autofill.autofill_ai.travel_entities_enabled');
     const fakePref: chrome.settingsPrivate.PrefObject<boolean> = {
       key: 'fake',
       type: chrome.settingsPrivate.PrefType.BOOLEAN,
-      value:
-          this.getPref<boolean>('autofill.autofill_ai.travel_entities_enabled')
-              .value,
+      value: pref ? pref.value : false,
     };
 
     if (this.optInToggleDisabled_()) {
       fakePref.value = false;
+    }
+
+    if (this.enableYourSavedInfoPolicyAndExtentionToggleIndicators_) {
+      const addressAutofillEnabled =
+          this.getPref<boolean>('autofill.profile_enabled');
+
+      if (addressAutofillEnabled.enforcement ===
+              chrome.settingsPrivate.Enforcement.ENFORCED &&
+          !addressAutofillEnabled.value) {
+        fakePref.enforcement = addressAutofillEnabled.enforcement;
+        fakePref.controlledBy = addressAutofillEnabled.controlledBy;
+        fakePref.value = addressAutofillEnabled.value;
+      }
     }
 
     return fakePref;
@@ -205,6 +229,18 @@ export class SettingsTravelPageElement extends SettingsTravelPageElementBase {
       EntityTypeName.kRedressNumber,
       EntityTypeName.kVehicle,
     ]);
+  }
+
+  private extensionControlledIndicatorIsVisible_(): boolean {
+    if (!this.enableYourSavedInfoPolicyAndExtentionToggleIndicators_) {
+      return false;
+    }
+
+    const addressAutofillEnabled =
+        this.getPref<boolean>('autofill.profile_enabled');
+
+    return !!addressAutofillEnabled.extensionId &&
+        !addressAutofillEnabled.value;
   }
 }
 

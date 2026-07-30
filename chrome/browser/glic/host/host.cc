@@ -236,6 +236,18 @@ void Host::NotifyContextualSkillsChanged(
 }
 
 void Host::Invoke(mojom::InvokeOptionsPtr options, base::OnceClosure callback) {
+  CHECK(!options->auto_submit) << "Use InvokeWithAutoSubmit instead.";
+  InvokeInternal(std::move(options), std::move(callback));
+}
+
+void Host::InvokeWithAutoSubmit(InvokeWithAutoSubmitPasskey auto_submit_passkey,
+                                mojom::InvokeOptionsPtr options,
+                                base::OnceClosure callback) {
+  InvokeInternal(std::move(options), std::move(callback));
+}
+
+void Host::InvokeInternal(mojom::InvokeOptionsPtr options,
+                          base::OnceClosure callback) {
   if (auto* client = GetPrimaryWebClient()) {
     client->Invoke(std::move(options), std::move(callback));
   } else {
@@ -255,6 +267,9 @@ void Host::Reload() {
 
   if (GlicEnabling::IsMultiInstanceEnabled() &&
       base::FeatureList::IsEnabled(kGlicReloadUsesFreshWebContents)) {
+    if (handler_info_ && handler_info_->web_client) {
+      UnsetWebClient(handler_info_->web_client);
+    }
     Shutdown();
     CreateContents(/*initially_hidden=*/false);
     delegate_->OnReload();

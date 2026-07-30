@@ -5,7 +5,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-
 #include "common.h"
 
 #define READ(a, b, c, d) ((*((a)->read))(a, b, c, d))
@@ -267,7 +266,6 @@ typedef struct ExtendedFolderInfo   ExtendedFolderInfo;
 #ifndef _SYS_STAT_H
 #define S_ISUID 0004000     /* set user id on execution */
 #define S_ISGID 0002000     /* set group id on execution */
-#define S_ISTXT 0001000     /* sticky bit */
 
 #define S_IRWXU 0000700     /* RWX mask for owner */
 #define S_IRUSR 0000400     /* R for owner */
@@ -284,6 +282,7 @@ typedef struct ExtendedFolderInfo   ExtendedFolderInfo;
 #define S_IWOTH 0000002     /* W for other */
 #define S_IXOTH 0000001     /* X for other */
 
+#ifndef S_IFMT
 #define S_IFMT   0170000    /* type of file mask */
 #define S_IFIFO  0010000    /* named pipe (fifo) */
 #define S_IFCHR  0020000    /* character special */
@@ -293,10 +292,14 @@ typedef struct ExtendedFolderInfo   ExtendedFolderInfo;
 #define S_IFLNK  0120000    /* symbolic link */
 #define S_IFSOCK 0140000    /* socket */
 #define S_IFWHT  0160000    /* whiteout */
+#define S_ISTXT  0001000    /* sticky bit */
+#endif  /* ifndef S_IFMT */
 #endif  /* ifndef _SYS_STAT_H */
 #endif  /* ifndef _STAT_H_ */
 
+#ifndef UF_COMPRESSED
 #define UF_COMPRESSED 040
+#endif
 
 struct HFSPlusBSDInfo {
 	uint32_t  ownerID;
@@ -575,10 +578,70 @@ extern "C" {
 
 	HFSCatalogNodeID getMetadataDirectoryID(Volume* volume);
 	HFSPlusCatalogRecord* getRecordByCNID(HFSCatalogNodeID CNID, Volume* volume);
+
+	/* If `record` points to a symlink or hardlink record, this returns the target
+	 * of the link, resolved relative to the path specified by `parentID` if
+	 * `record` represents a relative symlink, searching within the specified
+	 * volume. The caller owns the returned record.
+	 *
+	 * If `record` is not a link, this returns `record` and does not assign `key`.
+	 *
+	 * If `record` is a link to a valid target, possibly by traversing a series
+	 * of **symlinks only** (the first step may be a hard link), then `key` is
+	 * the key of that record. If a hardlink is found in a multi-step traversal,
+	 * this returns the target of that link without further recursion (and `key`
+	 * is set to the `key` of the record returned).
+	 *
+	 * If no valid record is found at the end of a chain of links, NULL is
+	 * returned and the value of `key` is undefined.
+	 *
+	 * If `record`'s parent is not `parentID`, or `volume` is not the correct
+	 * volume to resolve `record`'s target on, behavior is undefined.
+	 */
 	HFSPlusCatalogRecord* getLinkTarget(HFSPlusCatalogRecord* record, HFSCatalogNodeID parentID, HFSPlusCatalogKey *key, Volume* volume);
+
 	CatalogRecordList* getFolderContents(HFSCatalogNodeID CNID, Volume* volume);
+
+	/* Identical to `getRecordFromPath2`, since `getRecordFromPath2` ignores the
+	 * `traverse` parameter. See documentation for `getRecordFromPath2` and
+	 * `getRecordFromPath3` for details. */
 	HFSPlusCatalogRecord* getRecordFromPath(const char* path, Volume* volume, char **name, HFSPlusCatalogKey* retKey);
+
+	/* Calls `getRecordFromPath3` with `traverse = TRUE` (ignoring the provided
+	 * value of `traverse`), `returnLink = TRUE`, `parentID = kHFSRootFolderID`,
+	 * and other parameters forwarded unchanged. See `getRecordFromPath3`
+	 * documentation for more details. */
 	HFSPlusCatalogRecord* getRecordFromPath2(const char* path, Volume* volume, char **name, HFSPlusCatalogKey* retKey, char traverse);
+
+	/* Finds the catalog record for the given `path` on the given `volume`,
+	 * calculated relative to the node with catalog ID `parentID` if `path` is
+	 * relative. If `path` is not found, this returns NULL. As a special case,
+	 * the empty string is treated as a path to the root directory, even if
+	 * `parentID` is not the root.
+	 *
+	 * The caller owns the returned record.
+	 *
+	 * If `traverse` is false, links (whether symbolic or hard) are not traversed.
+	 * If a link record is retrieved in the middle of the path, the path will not
+	 * resolve and this will return NULL. If the path ends in a link, the link
+	 * itself is returned, unless `returnLink` is true, in which case the target
+	 * of the link is returned. NOTE: READ THAT LAST SENTENCE VERY CLOSELY.
+	 * `returnLink` BEHAVES EXACTLY BACKWARDS FROM WHAT A REASONABLE PERSON
+	 * WOULD EXPECT.
+	 *
+	 * If `name` is not NULL, it is set to point to the first character of the
+	 * last component of the path that is traversed during the execution of the
+	 * function; if the return value is not NULL, then `name` will point to the
+	 * last component of `path`. This is a pointer into `path`, not an independent
+	 * string.
+	 *
+	 * If `retKey` is not NULL, it is set to the key of the returned record, if a
+	 * record is returned, unless the path searched was either "/" or "", in which
+	 * case it is not changed. If no record is returned, `retKey` is not changed.
+	 *
+	 * If `volume` is the wrong volume, or `parentID` is not a correct parent
+	 * for `path`, behavior is undefined.
+	 */
 	HFSPlusCatalogRecord* getRecordFromPath3(const char* path, Volume* volume, char **name, HFSPlusCatalogKey* retKey, char traverse, char returnLink, HFSCatalogNodeID parentID);
 	void releaseCatalogRecordList(CatalogRecordList* list);
 

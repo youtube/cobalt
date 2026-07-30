@@ -25,8 +25,10 @@
 // The content view where subviews should be added.
 @property(nonatomic, strong, readonly) UIView* contentView;
 
-// Returns the preferred height of the container based on its content.
-- (NSInteger)preferredHeight;
+// Allows the controller to dynamically morph the container radius.
+// Used to animate the container between the minimized and expanded states.
+- (void)updateCornerRadius:(CGFloat)cornerRadius
+             maskedCorners:(CACornerMask)maskedCorners;
 
 @end
 

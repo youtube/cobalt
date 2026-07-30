@@ -17,9 +17,11 @@
 #include "chrome/browser/sessions/session_service_factory.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/browser_actions.h"
+#include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/tabs/features.h"
+#include "chrome/browser/ui/views/interaction/browser_elements_views.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/prefs/pref_notifier_impl.h"
@@ -48,6 +50,9 @@ VerticalTabStripStateController::VerticalTabStripStateController(
       browser_window_(browser_window),
       scoped_unowned_user_data_(browser_window->GetUnownedUserDataHost(),
                                 *this) {
+  is_vertical_tabs_enabled_ =
+      pref_service_->GetBoolean(prefs::kVerticalTabsEnabled);
+
   pref_change_registrar_.Init(pref_service_);
 
   pref_change_registrar_.Add(
@@ -90,6 +95,27 @@ VerticalTabStripStateController::~VerticalTabStripStateController() {
   }
 }
 
+VerticalTabStripStateController::ScopedEnableStateLock::ScopedEnableStateLock(
+    base::WeakPtr<VerticalTabStripStateController> controller)
+    : controller_(controller) {
+  if (controller_) {
+    controller_->OnLockCreated();
+  }
+}
+
+VerticalTabStripStateController::ScopedEnableStateLock::
+    ~ScopedEnableStateLock() {
+  if (controller_) {
+    controller_->OnLockDestroyed();
+  }
+}
+
+std::unique_ptr<VerticalTabStripStateController::ScopedEnableStateLock>
+VerticalTabStripStateController::GetEnableStateLock() {
+  return std::make_unique<ScopedEnableStateLock>(
+      weak_ptr_factory_.GetWeakPtr());
+}
+
 // static
 const VerticalTabStripStateController* VerticalTabStripStateController::From(
     const BrowserWindowInterface* browser_window) {
@@ -105,8 +131,7 @@ VerticalTabStripStateController* VerticalTabStripStateController::From(
 }
 
 bool VerticalTabStripStateController::ShouldDisplayVerticalTabs() const {
-  return IsVerticalTabsFeatureEnabled() &&
-         pref_service_->GetBoolean(prefs::kVerticalTabsEnabled);
+  return IsVerticalTabsFeatureEnabled() && is_vertical_tabs_enabled_;
 }
 
 void VerticalTabStripStateController::SetVerticalTabsEnabled(bool enabled) {
@@ -122,6 +147,13 @@ void VerticalTabStripStateController::SetCollapsed(bool collapsed) {
   if (state_.collapsed != collapsed) {
     state_.collapsed = collapsed;
     NotifyCollapseChanged();
+    if (auto* browser_element_views =
+            BrowserElementsViews::From(browser_window_);
+        collapsed && browser_element_views) {
+      browser_element_views->NotifyEvent(
+          kVerticalTabStripRegionElementId,
+          kVerticalTabStripCollapsedCustomEventId);
+    }
   }
 }
 
@@ -184,7 +216,32 @@ void VerticalTabStripStateController::OnModeChanged() {
         base::UserMetricsAction("VerticalTabs_EnabledFirstTime"));
     pref_service_->SetBoolean(prefs::kVerticalTabsEnabledFirstTime, true);
   }
+
+  if (enable_state_lock_count_ > 0) {
+    return;
+  }
+
+  is_vertical_tabs_enabled_ =
+      pref_service_->GetBoolean(prefs::kVerticalTabsEnabled);
+
   NotifyModeChanged();
+}
+
+void VerticalTabStripStateController::OnLockCreated() {
+  enable_state_lock_count_++;
+}
+
+void VerticalTabStripStateController::OnLockDestroyed() {
+  CHECK_GT(enable_state_lock_count_, 0);
+  enable_state_lock_count_--;
+
+  if (enable_state_lock_count_ == 0) {
+    bool new_state = pref_service_->GetBoolean(prefs::kVerticalTabsEnabled);
+    if (new_state != is_vertical_tabs_enabled_) {
+      is_vertical_tabs_enabled_ = new_state;
+      NotifyModeChanged();
+    }
+  }
 }
 
 void VerticalTabStripStateController::UpdateSessionService() {

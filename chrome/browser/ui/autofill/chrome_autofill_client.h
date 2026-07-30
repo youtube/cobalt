@@ -137,6 +137,8 @@ class ChromeAutofillClient : public ContentAutofillClient {
   AutocompleteHistoryManager* GetAutocompleteHistoryManager() final;
   AutofillComposeDelegate* GetComposeDelegate() final;
   AutofillPlusAddressDelegate* GetPlusAddressDelegate() final;
+  accessibility_annotator::AccessibilityQueryService*
+  GetAccessibilityQueryService() override;
   PasswordManagerDelegate* GetPasswordManagerDelegate(
       const FieldGlobalId& field_id) final;
   void GetAiPageContent(GetAiPageContentCallback callback) final;
@@ -204,7 +206,7 @@ class ChromeAutofillClient : public ContentAutofillClient {
   bool IsAutofillEnabled() const final;
   bool IsAutofillProfileEnabled() const final;
   bool IsAutocompleteEnabled() const final;
-  bool IsWalletStorageEnabled() const final;
+  bool IsWalletPublicPassStorageEnabled() const final;
   bool IsPasswordManagerEnabled() const final;
   bool IsContextSecure() const final;
   LogManager* GetCurrentLogManager() final;

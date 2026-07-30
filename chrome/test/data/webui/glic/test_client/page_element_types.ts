@@ -130,6 +130,12 @@ export interface PageElementTypes {
   selectCredential: HTMLSelectElement;
   credentialOnce: HTMLButtonElement;
   credentialAlways: HTMLButtonElement;
+  selectedCredentialUsername: HTMLSpanElement;
+  selectedCredentialSource: HTMLSpanElement;
+  selectedCredentialRequestOrigin: HTMLSpanElement;
+  selectedCredentialIcon: HTMLImageElement;
+  selectedCredentialType: HTMLSpanElement;
+  selectedCredentialAccountPicture: HTMLImageElement;
   actionProtoEncodedText: HTMLInputElement;
   actionStatus: HTMLSpanElement;
   autofillSuggestionsDialogSection: HTMLElement;

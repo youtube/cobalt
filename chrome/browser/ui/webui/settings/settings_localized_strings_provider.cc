@@ -535,11 +535,7 @@ void AddAppearanceStrings(content::WebUIDataSource* html_source,
       {"uiFeatureAlignLeft", IDS_SETTINGS_UI_FEATURE_ALIGN_LEFT},
       {"uiFeatureAlignRight", IDS_SETTINGS_UI_FEATURE_ALIGN_RIGHT},
       {"uiFeatureAlignSide", IDS_SETTINGS_UI_FEATURE_ALIGN_SIDE},
-      {"uiFeatureAlignSideSearchHint",
-       IDS_SETTINGS_UI_FEATURE_ALIGN_SIDE_SEARCH_HINT},
       {"uiFeatureAlignTop", IDS_SETTINGS_UI_FEATURE_ALIGN_TOP},
-      {"uiFeatureAlignTopSearchHint",
-       IDS_SETTINGS_UI_FEATURE_ALIGN_TOP_SEARCH_HINT},
       {"resetToDefault", IDS_SETTINGS_RESET_TO_DEFAULT},
 #if BUILDFLAG(IS_LINUX)
       {"gtkTheme", IDS_SETTINGS_GTK_THEME},
@@ -862,9 +858,9 @@ void AddGlicStrings(content::WebUIDataSource* html_source, Profile* profile) {
       {"glicDefaultTabAccessToggleSublabelDataProtected",
        IDS_SETTINGS_GLIC_PERMISSIONS_DEFAULT_TAB_ACCESS_TOGGLE_SUBLABEL_DATA_PROTECTED},
       {"glicWebActuationToggle",
-       IDS_SETTINGS_GLIC_PERMISSIONS_WEB_ACTUATION_TOGGLE},
+       IDS_SETTINGS_GLIC_PERMISSIONS_CHROME_WEB_ACTUATION_TOGGLE},
       {"glicWebActuationToggleSublabel",
-       IDS_SETTINGS_GLIC_PERMISSIONS_WEB_ACTUATION_TOGGLE_SUBLABEL},
+       IDS_SETTINGS_GLIC_PERMISSIONS_CHROME_WEB_ACTUATION_TOGGLE_SUBLABEL},
       {"glicActivityButton", IDS_SETTINGS_GLIC_PERMISSIONS_ACTIVITY_BUTTON},
       {"glicActivityButtonSublabel",
        IDS_SETTINGS_GLIC_PERMISSIONS_ACTIVITY_BUTTON_SUBLABEL},
@@ -3864,6 +3860,10 @@ void AddSiteSettingsStrings(content::WebUIDataSource* html_source,
        base::FeatureList::IsEnabled(features::kGenericSensorExtraClasses)
            ? IDS_SETTINGS_SITE_SETTINGS_MOTION_AND_LIGHT_SENSORS_ALLOWED
            : IDS_SETTINGS_SITE_SETTINGS_MOTION_SENSORS_ALLOWED},
+      {"siteSettingsSensorsAsk",
+       base::FeatureList::IsEnabled(features::kGenericSensorExtraClasses)
+           ? IDS_SETTINGS_SITE_SETTINGS_MOTION_AND_LIGHT_SENSORS_ASK
+           : IDS_SETTINGS_SITE_SETTINGS_MOTION_SENSORS_ASK},
       {"siteSettingsSensorsBlocked",
        base::FeatureList::IsEnabled(features::kGenericSensorExtraClasses)
            ? IDS_SETTINGS_SITE_SETTINGS_MOTION_AND_LIGHT_SENSORS_BLOCKED

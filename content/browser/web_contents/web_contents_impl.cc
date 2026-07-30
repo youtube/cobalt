@@ -5776,6 +5776,13 @@ void WebContentsImpl::ShowCreatedWidget(int process_id,
   }
 
   RenderWidgetHostImpl* render_widget_host_impl = widget_host_view->host();
+
+  // A background tab cannot show a popup over the active tab.
+  if (GetVisibility() != Visibility::VISIBLE) {
+    render_widget_host_impl->ShutdownAndDestroyWidget(true);
+    return;
+  }
+
   auto permission_exclusion_area_bounds =
       PermissionControllerImpl::FromBrowserContext(GetBrowserContext())
           ->GetExclusionAreaBoundsInScreen(outermost_web_contents);
@@ -7729,16 +7736,8 @@ void WebContentsImpl::DidNavigateMainFramePreCommit(
   }
 #endif
 
-  // Ensure fullscreen mode is exited before committing the navigation to a
-  // different page.  The next page will not start out assuming it is in
-  // fullscreen mode.
   if (navigation_is_within_page) {
-    // No page change?  Then, the renderer and browser can remain in fullscreen.
     return;
-  }
-
-  if (IsFullscreen()) {
-    ExitFullscreen(false);
   }
 
   auto* rwhvb = static_cast<RenderWidgetHostViewBase*>(
@@ -7747,8 +7746,45 @@ void WebContentsImpl::DidNavigateMainFramePreCommit(
     rwhvb->OnOldViewDidNavigatePreCommit();
   }
 
-  // Clean up keyboard lock state when navigating.
   CancelKeyboardLock(keyboard_lock_widget_);
+}
+
+void WebContentsImpl::DidNavigateAnyFramePreCommit(
+    NavigationHandle* navigation_handle,
+    bool navigation_is_within_page) {
+  // Ensure fullscreen mode is exited before committing the navigation to a
+  // different page.  The next page will not start out assuming it is in
+  // fullscreen mode.
+  if (navigation_is_within_page || !IsFullscreen()) {
+    return;
+  }
+
+  bool should_exit_fullscreen = false;
+  if (navigation_handle->IsInPrimaryMainFrame()) {
+    should_exit_fullscreen = true;
+  } else {
+    // For iframe navigation, exit if the fullscreen was requested by the
+    // iframe or one of its descendants.
+    const FrameTreeNodeId navigating_id =
+        navigation_handle->GetFrameTreeNodeId();
+    should_exit_fullscreen =
+        std::any_of(fullscreen_frames_.begin(), fullscreen_frames_.end(),
+                    [navigating_id](RenderFrameHostImpl* rfh) {
+                      for (RenderFrameHostImpl* current = rfh; current;
+                           current = current->GetParentOrOuterDocument()) {
+                        if (current->frame_tree_node()->frame_tree_node_id() ==
+                            navigating_id) {
+                          return true;
+                        }
+                      }
+                      return false;
+                    });
+  }
+
+  if (should_exit_fullscreen) {
+    ExitFullscreen(false);
+    CancelKeyboardLock(keyboard_lock_widget_);
+  }
 }
 
 void WebContentsImpl::DidNavigateMainFramePostCommit(
@@ -10644,15 +10680,6 @@ bool WebContentsImpl::CreateRenderViewForRenderManager(
     ReattachOuterDelegateIfNeeded();
   }
 
-  // With SetHistoryInfoOnViewCreation enabled, the history and index length are
-  // sent as part of the the CreateView() IPC via the CreateViewParams.
-  if (!base::FeatureList::IsEnabled(features::kSetHistoryInfoOnViewCreation)) {
-    SetHistoryIndexAndLengthForView(
-        render_view_host,
-        rvh_impl->frame_tree()->controller().GetLastCommittedEntryIndex(),
-        rvh_impl->frame_tree()->controller().GetEntryCount());
-  }
-
 #if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_ANDROID)
   // Force a ViewMsg_Resize to be sent, needed to make plugins show up on
   // linux. See crbug.com/83941.
@@ -11566,6 +11593,14 @@ void WebContentsImpl::OnTextCopiedToClipboard(
                         "render_frame_host", render_frame_host);
   observers_.NotifyObservers(&WebContentsObserver::OnTextCopiedToClipboard,
                              render_frame_host, copied_text);
+}
+
+void WebContentsImpl::TextSelectionChanged(
+    RenderFrameHostImpl* render_frame_host,
+    std::u16string_view selected_text) {
+  // Notify observers.
+  observers_.NotifyObservers(&WebContentsObserver::OnTextSelectionChanged,
+                             render_frame_host, selected_text);
 }
 
 void WebContentsImpl::IsClipboardPasteAllowedWrapperCallback(

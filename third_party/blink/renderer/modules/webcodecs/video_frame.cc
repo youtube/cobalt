@@ -68,7 +68,6 @@
 #include "third_party/blink/renderer/platform/wtf/cross_thread_functional.h"
 #include "third_party/blink/renderer/platform/wtf/hash_map.h"
 #include "third_party/libyuv/include/libyuv/planar_functions.h"
-#include "third_party/skia/include/gpu/ganesh/GrDirectContext.h"
 #include "ui/gfx/geometry/skia_conversions.h"
 #include "v8/include/v8.h"
 
@@ -1550,24 +1549,20 @@ scoped_refptr<StaticBitmapImage> VideoFrame::CreateImageFromVideoFrame(
     return nullptr;
   }
 
-  std::optional<CanvasSnapshotProvider::Info> sw_draw_info;
-  CanvasNon2DResourceProviderSharedImage* snapshot_provider_si = nullptr;
-  sk_sp<SkSurface> sw_draw_surface;
-
   if (snapshot_provider->IsExternalBitmapProvider()) {
     auto* snapshot_provider_bitmap =
         static_cast<CanvasNon2DSnapshotProviderBitmap*>(snapshot_provider);
-    sw_draw_info = snapshot_provider_bitmap->Info();
-    if (base::FeatureList::IsEnabled(kWebCodecsDrawCacheSkSurface)) {
-      sw_draw_surface = snapshot_provider_bitmap->GetCachedSurface();
-    }
-  } else {
-    snapshot_provider_si =
-        static_cast<CanvasNon2DResourceProviderSharedImage*>(snapshot_provider);
+    sk_sp<SkSurface> draw_surface =
+        base::FeatureList::IsEnabled(kWebCodecsDrawCacheSkSurface)
+            ? snapshot_provider_bitmap->GetCachedSurface()
+            : nullptr;
+    return CreateUnacceleratedImageFromVideoFrame(
+        frame, snapshot_provider_bitmap->Info(), draw_surface);
   }
 
-  return ::blink::CreateImageFromVideoFrame(
-      frame, snapshot_provider_si, std::move(sw_draw_info), sw_draw_surface);
+  return CreateAcceleratedImageFromVideoFrame(
+      frame,
+      static_cast<CanvasNon2DResourceProviderSharedImage*>(snapshot_provider));
 }
 
 ScriptPromise<ImageBitmap> VideoFrame::CreateImageBitmap(

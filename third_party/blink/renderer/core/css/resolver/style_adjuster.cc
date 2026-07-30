@@ -1082,6 +1082,8 @@ void StyleAdjuster::AdjustComputedStyle(StyleResolverState& state,
 
   bool is_document_element =
       element && element->GetDocument().documentElement() == element;
+  bool is_video_element = element && IsA<HTMLMediaElement>(*element) &&
+                          To<HTMLMediaElement>(*element).IsHTMLVideoElement();
   bool is_in_top_layer = false;
   if (RuntimeEnabledFeatures::OverlayPropertyEnabled()) {
     if (RuntimeEnabledFeatures::OverlayGlobalRuleRemovalEnabled()) {
@@ -1176,7 +1178,7 @@ void StyleAdjuster::AdjustComputedStyle(StyleResolverState& state,
 
     if (is_transition_scope && !is_document_element) {
       builder.SetContain(builder.Contain() | kContainsLayout);
-      builder.SetViewTransitionScope(EViewTransitionScope::kAuto);
+      builder.SetViewTransitionScope(EViewTransitionScope::kAll);
     } else if (builder.InternalOverscrollArea() ==
                EInternalOverscrollArea::kAuto) {
       // TODO(crbug.com/467112943): Layout containment is currently forced to
@@ -1204,7 +1206,12 @@ void StyleAdjuster::AdjustComputedStyle(StyleResolverState& state,
     }
   }
 
-  if (is_document_element ||
+  bool is_replaced_normal_flow_video =
+      RuntimeEnabledFeatures::StackingContextIsNotStackedEnabled() &&
+      is_video_element && builder.GetPosition() == EPosition::kStatic &&
+      element->FastHasAttribute(html_names::kControlsAttr);
+
+  if (is_document_element || is_replaced_normal_flow_video ||
       (element && IsA<SVGForeignObjectElement>(*element)) || is_in_top_layer ||
       builder.StyleType() == kPseudoIdBackdrop ||
       builder.StyleType() == kPseudoIdViewTransition ||

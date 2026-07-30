@@ -167,6 +167,7 @@
 <translation id="1621067168122174824">Кубатталышын сыноо</translation>
 <translation id="1622402072367425417">жаркыраган көбүктөр</translation>
 <translation id="1626590945318984973">Ыкчам баскыч жеткиликсиз. <ph name="META_KEY" /> жана функциялык баскычтары жок жаңы ыкчам баскычты басыңыз.</translation>
+<translation id="163774412591892664">Администраторуңуз түзмөгүңүздү өчүрүп койду жана анын турган жерин көрө алат.</translation>
 <translation id="1639239467298939599">Жүктөлүүдө</translation>
 <translation id="1641857168437328880">Документтерди берүүчү түзмөк (бир тараптуу)</translation>
 <translation id="1642396894598555413">велосипеддер</translation>
@@ -727,6 +728,7 @@
 <translation id="4212169537710712814"><ph name="LANGUAGE_NAME" /> транскрипциянын үлгүсү жүктөп алынды</translation>
 <translation id="42126664696688958">Экспорттоо</translation>
 <translation id="4213104098953699324">USB баскычтобу</translation>
+<translation id="4217571870635786043">Үн менен жазуу</translation>
 <translation id="4227825898293920515">Сырсөздүн мөөнөтү <ph name="TIME" /> кийин бүтөт</translation>
 <translation id="4238516577297848345">Аткарылып жаткан иш жок</translation>
 <translation id="4239069858505860023">GPRS</translation>
@@ -1685,6 +1687,7 @@
 <translation id="8420955526972171689">Аппараттык камсыздоону сынап, бузулууларды аныктап оңдоо</translation>
 <translation id="8422748173858722634">IMEI</translation>
 <translation id="8424039430705546751">төмөн</translation>
+<translation id="8427213022735114808">Текстти каалаган талаага үн менен жазуу үчүн үнүңүздүн үлгүсү Google'га жөнөтүлөт.</translation>
 <translation id="8428213095426709021">Параметрлер</translation>
 <translation id="8431300646573772016">ChromeOS жаңылыктары</translation>
 <translation id="8433186206711564395">Тармак параметрлери</translation>
@@ -1723,6 +1726,7 @@
 <translation id="8584654835905316966"><ph name="DEVICE_NAME" /> түзмөгүнө программанын <ph name="VERSION" /> версиясын аягына чейин орнотуу үчүн түзмөгүңүздү өчүрүп күйгүзүшүңүз керек. Компьютериңиз бир нече жолу өчүп күйгөндөй сезилиши мүмкүн. Ушундай болот.</translation>
 <translation id="8593058461203131755">медианы тындыруу</translation>
 <translation id="8620617069779373398">Роуминг статусу</translation>
+<translation id="8624524972189162859"><ph name="DOMAIN_NAME" /> администраторуңуз түзмөгүңүздү өчүрүп койду жана анын турган жерин көрө алат.</translation>
 <translation id="8626489604350149811"><ph name="APN_NAME" /> боюнча башка аракеттер</translation>
 <translation id="86356131183441916">Ачык кызгылт көгүш</translation>
 <translation id="8647595191512746911">Аудионун транскрипциясы</translation>

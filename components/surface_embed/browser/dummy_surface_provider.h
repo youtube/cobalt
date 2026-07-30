@@ -15,6 +15,10 @@
 
 namespace surface_embed {
 
+// TODO(crbug.com/479743223): Remove this file and its .cc file once the calls
+// to it from SurfaceEmbedHost have been replaced by retrieving the
+// FrameSinkId from SurfaceEmbedConnector.
+//
 // A dummy surface provider that owns a FrameSinkId and draws a solid red
 // rectangle on the surface. This is used in tests by the SurfaceEmbedHost to
 // avoid the need for a real embedder surface.

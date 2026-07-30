@@ -8,7 +8,6 @@
 #include "base/containers/to_vector.h"
 #include "base/functional/bind.h"
 #include "base/strings/string_util.h"
-#include "chrome/browser/webid/federated_actor_login_request.h"
 #include "chrome/common/actor.mojom.h"
 #include "chrome/common/actor/action_result.h"
 #include "chrome/common/chrome_render_frame.mojom.h"
@@ -93,17 +92,21 @@ void ActorLoginSiwgController::StartFederatedLogin(
     const Credential& credential) {
   CHECK(credential.federation_detail);
 
-  FederatedActorLoginRequest::Set(
-      web_contents(), credential.federation_detail->idp_origin,
+  auto* source = content::webid::IdentityCredentialSource::FromPage(
+      web_contents()->GetPrimaryPage());
+
+  source->SetEmbedderLoginRequest(
+      credential.federation_detail->idp_origin,
       credential.federation_detail->account_id,
-      base::BindRepeating(
-          &ActorLoginSiwgController::OnFederatedLoginResultReceived,
-          weak_ptr_factory_.GetWeakPtr()));
+      base::BindOnce(&ActorLoginSiwgController::OnFederatedLoginResultReceived,
+                     weak_ptr_factory_.GetWeakPtr()));
 
   // There may be an existing FedCM dialog; if so, select an account in that
   // dialog instead of clicking the signin button.
-  auto* source = content::webid::IdentityCredentialSource::FromPage(
-      web_contents()->GetPrimaryPage());
+  if (metrics_helper_) {
+    metrics_helper_->RecordFederatedHangingFedCmRequestExists(
+        source->HasPendingRequest());
+  }
   if (!source->SelectAccount(credential.federation_detail->idp_origin,
                              credential.federation_detail->account_id)) {
     ClickSiwgButton();
@@ -119,8 +122,21 @@ void ActorLoginSiwgController::ClickSiwgButton() {
                      weak_ptr_factory_.GetWeakPtr()));
 }
 
+void ActorLoginSiwgController::SetMetricsHelper(
+    ActorLoginMetricsHelper* metrics_helper) {
+  metrics_helper_ = metrics_helper;
+}
+
 void ActorLoginSiwgController::OnFederatedLoginResultReceived(
     content::webid::FederatedLoginResult result) {
+  if (metrics_helper_) {
+    if (result == content::webid::FederatedLoginResult::kContinuation) {
+      metrics_helper_->RecordFederatedContinuationShown();
+    } else {
+      metrics_helper_->RecordFederatedLoginResult(result);
+    }
+  }
+
   if (!on_finished_callback_) {
     return;
   }

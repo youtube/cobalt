@@ -837,12 +837,14 @@ scoped_refptr<StaticBitmapImage> WebGLRenderingContextBase::GetImage() {
   gfx::Size size = GetDrawingBuffer()->Size();
   // We are grabbing a snapshot that is generally not for compositing, so use a
   // custom resource provider to specify only the minimal required set of
-  // usages, resulting in as lightweight a backing of the created SharedImage as
-  // possible. This SharedImage will be the destination of a copy of the drawing
-  // buffer's contents made via the raster interface. In addition, we tag the
-  // SharedImage with display usage since there are uncommon paths which may use
-  // this snapshot for compositing.
-  auto shared_image_usages = gpu::SHARED_IMAGE_USAGE_RASTER_WRITE |
+  // usages, resulting in as lightweight a backing of the created SharedImage
+  // as possible. This SharedImage will be the destination of a copy of the
+  // drawing buffer's contents made via the raster interface. It also may be
+  // read back via the raster interface. In addition, we tag the SharedImage
+  // with display usage since there are uncommon paths which may use this
+  // snapshot for compositing.
+  auto shared_image_usages = gpu::SHARED_IMAGE_USAGE_RASTER_READ |
+                             gpu::SHARED_IMAGE_USAGE_RASTER_WRITE |
                              gpu::SHARED_IMAGE_USAGE_DISPLAY_READ;
 
   std::unique_ptr<CanvasNon2DResourceProviderSharedImage> resource_provider;
@@ -1988,7 +1990,7 @@ WebGLRenderingContextBase::GetSharedImageResourceProvider() {
         gpu::SHARED_IMAGE_USAGE_DISPLAY_READ;
 
     if (SharedGpuContext::MaySupportWebGLImageChromium() &&
-        RuntimeEnabledFeatures::WebGLImageChromiumEnabled()) {
+        SharedGpuContext::WebGLImageChromiumEnabled()) {
       shared_image_usage_flags |= gpu::SHARED_IMAGE_USAGE_SCANOUT;
     }
     resource_provider_ = CanvasNon2DResourceProviderSharedImage::Create(
@@ -4608,13 +4610,15 @@ WebGLUniformLocation* WebGLRenderingContextBase::getUniformLocation(
     return nullptr;
   if (!ValidateString("getUniformLocation", name))
     return nullptr;
-  if (IsPrefixReserved(name))
-    return nullptr;
   if (!program->LinkStatus(this)) {
     SynthesizeGLError(GL_INVALID_OPERATION, "getUniformLocation",
                       "program not linked");
     return nullptr;
   }
+  if (IsPrefixReserved(name)) {
+    return nullptr;
+  }
+
   GLint uniform_location = ContextGL()->GetUniformLocation(
       ObjectOrZero(program), name.Utf8().c_str());
   if (uniform_location == -1)
@@ -5239,7 +5243,7 @@ void WebGLRenderingContextBase::shaderSource(WebGLShader* shader,
     return;
   String ascii_string = ReplaceNonASCII(string).Result();
   shader->SetSource(string);
-  DCHECK(ascii_string.Is8Bit() && ascii_string.ContainsOnlyASCIIOrEmpty());
+  DCHECK(ascii_string.Is8Bit() && ascii_string.ContainsOnlyAsciiOrEmpty());
   const GLchar* shader_data = base::as_chars(ascii_string.Span8()).data();
   const GLint shader_length = ascii_string.length();
   ContextGL()->ShaderSource(ObjectOrZero(shader), 1, &shader_data,
@@ -6458,28 +6462,26 @@ void WebGLRenderingContextBase::TexImageHelperMediaVideoFrame(
     return;
   }
 
-  std::optional<CanvasSnapshotProvider::Info> sw_draw_info;
-  CanvasNon2DResourceProviderSharedImage* snapshot_provider_si = nullptr;
-  sk_sp<SkSurface> sw_draw_surface;
-
-  if (snapshot_provider->IsExternalBitmapProvider()) {
-    sw_draw_info = info;
-    if (base::FeatureList::IsEnabled(kWebGLVideoFrameDrawCacheSkSurface)) {
-      sw_draw_surface =
-          static_cast<CanvasNon2DSnapshotProviderBitmap*>(snapshot_provider)
-              ->GetCachedSurface();
-    }
-  } else {
-    snapshot_provider_si =
-        static_cast<CanvasNon2DResourceProviderSharedImage*>(snapshot_provider);
-  }
-
   // Since TexImageStaticBitmapImage() and TexImageGPU() don't know how to
   // handle tagged orientation, we set |prefer_tagged_orientation| to false.
-  scoped_refptr<StaticBitmapImage> image = CreateImageFromVideoFrame(
-      std::move(media_video_frame), snapshot_provider_si,
-      std::move(sw_draw_info), sw_draw_surface, video_renderer,
-      /*prefer_tagged_orientation=*/false, reinterpret_video_as_srgb);
+  const bool kPreferTaggedOrientation = false;
+  scoped_refptr<StaticBitmapImage> image;
+  if (snapshot_provider->IsExternalBitmapProvider()) {
+    sk_sp<SkSurface> draw_surface =
+        base::FeatureList::IsEnabled(kWebGLVideoFrameDrawCacheSkSurface)
+            ? static_cast<CanvasNon2DSnapshotProviderBitmap*>(snapshot_provider)
+                  ->GetCachedSurface()
+            : nullptr;
+    image = CreateUnacceleratedImageFromVideoFrame(
+        std::move(media_video_frame), info, draw_surface, video_renderer,
+        kPreferTaggedOrientation, reinterpret_video_as_srgb);
+  } else {
+    image = CreateAcceleratedImageFromVideoFrame(
+        std::move(media_video_frame),
+        static_cast<CanvasNon2DResourceProviderSharedImage*>(snapshot_provider),
+        video_renderer, kPreferTaggedOrientation, reinterpret_video_as_srgb);
+  }
+
   if (!image) {
     return;
   }

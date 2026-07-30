@@ -29,6 +29,7 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/read_anything/read_anything_controller.h"
+#include "chrome/browser/ui/read_anything/read_anything_enums.h"
 #include "chrome/browser/ui/read_anything/read_anything_prefs.h"
 #include "chrome/browser/ui/read_anything/read_anything_side_panel_controller.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
@@ -366,6 +367,10 @@ ReadAnythingUntrustedPageHandler::ReadAnythingUntrustedPageHandler(
         weak_factory_.GetWeakPtr());
     tab_ = side_panel_controller_->tab();
   }
+
+  tab_discard_subscription_ = tab_->RegisterWillDiscardContents(
+      base::BindRepeating(&ReadAnythingUntrustedPageHandler::OnTabDiscarded,
+                          weak_factory_.GetWeakPtr()));
 
   PrefService* prefs = profile_->GetPrefs();
   base::DictValue voices = base::DictValue();
@@ -979,7 +984,8 @@ void ReadAnythingUntrustedPageHandler::CloseUI() {
   CHECK(read_anything_controller_);
   DCHECK(read_anything_controller_->GetPresentationState() ==
          ReadAnythingController::PresentationState::kInImmersiveOverlay);
-  read_anything_controller_->CloseImmersiveUI();
+  read_anything_controller_->CloseImmersiveUI(
+      ReadAnythingCloseReason::kClosedByUser);
 }
 
 void ReadAnythingUntrustedPageHandler::TogglePinState() {
@@ -1133,6 +1139,16 @@ void ReadAnythingUntrustedPageHandler::OnReadingModePresenterChanged() {
   OnGetPresentationState();
 }
 
+void ReadAnythingUntrustedPageHandler::OnTabDiscarded(
+    tabs::TabInterface* tab,
+    content::WebContents* old_contents,
+    content::WebContents* new_contents) {
+  main_observer_ = std::make_unique<ReadAnythingWebContentsObserver>(
+      weak_factory_.GetSafeRef(), new_contents, kReadAnythingAXMode);
+  SetUpPdfObserver();
+  OnActiveAXTreeIDChanged();
+}
+
 void ReadAnythingUntrustedPageHandler::OnDestroyed() {
   side_panel_controller_ = nullptr;
   read_anything_controller_ = nullptr;
@@ -1212,6 +1228,8 @@ void ReadAnythingUntrustedPageHandler::CheckIfActiveAXTreeChangedToPdf() {
 
 void ReadAnythingUntrustedPageHandler::OnActiveAXTreeIDChanged() {
   is_pdf_with_frame_ = false;
+  is_waiting_for_pdf_frame_ = false;
+
   // If the side panel is not active, we should not send the active tree id.
   // This check is skipped when immersive read anything is enabled because
   // there are times when the side panel is inactive but the Reading Mode
@@ -1269,19 +1287,36 @@ void ReadAnythingUntrustedPageHandler::OnActiveAXTreeIDChanged() {
   }
 #endif  // BUILDFLAG(ENABLE_PDF)
 
-  // When IsReadAnythingWithReadabilityEnabled is true, we still send AX tree
-  // for text selection. This should be done after we request DomDistiller
-  // distillation to ensure the distillation state is correct prior to
-  // updating the accessibility tree. Otherwise, reading mode can get into
-  // an incorrect distillation state, which can cause crashes and unexpected
-  // behavior.
   content::RenderFrameHost* rfh = contents->GetPrimaryMainFrame();
   VLOG(1) << "Sending non-pdf tree with id " << rfh->GetAXTreeID();
-  RequestDomDistillerDistillation(contents);
+
+  const bool use_readability =
+      features::IsReadAnythingWithReadabilityEnabled() && !is_pdf_with_frame_;
+
+  if (use_readability) {
+    // We must emit `kDistillationInProgress` before sending the new tree ID
+    // to the renderer with page_->OnActiveAXTreeIDChanged. This ensures the
+    // renderer pauses its update processing
+    // (`ReadAnythingAppController::IsUpdateProcessingPaused() == true`) for the
+    // new tree. If we reverse this order, any A11y events arriving in the gap
+    // will be processed on an incomplete tree and cause a crash.
+    page_->OnReadabilityDistillationStateChanged(
+        read_anything::mojom::ReadAnythingDistillationState::
+            kDistillationInProgress);
+  }
+
+  // When IsReadAnythingWithReadabilityEnabled is true, we still send AX tree
+  // for text selection.
   page_->OnActiveAXTreeIDChanged(rfh->GetAXTreeID(), rfh->GetPageUkmSourceId(),
                                  /*is_pdf=*/false);
-}
 
+  if (use_readability) {
+    // Now that the renderer is prepped, request distillation. If this fails
+    // synchronously, the renderer will correctly fall back to Screen2x for the
+    // *new* tree.
+    RequestDomDistillerDistillation(contents);
+  }
+}
 void ReadAnythingUntrustedPageHandler::RequestDomDistillerDistillation(
     content::WebContents* content) {
   if (!features::IsReadAnythingWithReadabilityEnabled() || is_pdf_with_frame_) {

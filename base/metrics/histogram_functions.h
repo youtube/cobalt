@@ -71,11 +71,8 @@ BASE_EXPORT void UmaHistogramExactLinear(std::string_view name,
 //                                 NewTabPageAction::kClickTitle);
 //
 // `kMaxValue` should be 1000 or less.
-// Note that there is code that refers to implementation details of this
-// function. Keep it synchronized.
-// LINT.IfChange(UmaHistogramEnumeration)
-template <typename T>
-void UmaHistogramEnumeration(std::string_view name, T sample) {
+template <typename StringType, typename T>
+void UmaHistogramEnumeration(const StringType& name, T sample) {
   static_assert(std::is_enum_v<T>, "T is not an enum.");
   // kMaxValue is the max value in enum, so bucket count is one more than that.
   // This also ensures that an enumeration that doesn't define kMaxValue fails
@@ -111,17 +108,22 @@ void UmaHistogramEnumeration(std::string_view name, T sample) {
 // Note: The value in |sample| must be strictly less than |enum_size|. This is
 // otherwise functionally equivalent to the above.
 // `enum_size` must be less than or equal to 1001.
-template <typename T>
-void UmaHistogramEnumeration(std::string_view name, T sample, T enum_size) {
+template <typename StringType, typename T>
+void UmaHistogramEnumeration(const StringType& name, T sample, T enum_size) {
   static_assert(std::is_enum_v<T>, "T is not an enum.");
-  DCHECK_LE(static_cast<uintmax_t>(enum_size), static_cast<uintmax_t>(INT_MAX));
+  constexpr auto kBucketCountMax =
+      static_cast<uintmax_t>(LinearHistogram::kBucketCount_MAX);
+  // Note: UmaHistogramExactLinear() adds 1 to the bucket count for the overflow
+  // bucket, so kBucketCount must be less than kBucketCount_MAX.
+  DCHECK_LE(static_cast<uintmax_t>(enum_size), kBucketCountMax)
+      << "Enumeration's enum_size is out of range of "
+         "LinearHistogram::kBucketCount_MAX. Use a sparse histogram instead.";
   DCHECK_LT(static_cast<uintmax_t>(sample), static_cast<uintmax_t>(enum_size));
   // While UmaHistogramExactLinear’s documentation states that the third
   // argument should be 101 or less, a value up to 1001 is actually accepted.
   return UmaHistogramExactLinear(name, static_cast<int>(sample),
                                  static_cast<int>(enum_size));
 }
-// LINT.ThenChange(/base/metrics/histogram_functions_internal_overloads.h:UmaHistogramEnumeration)
 
 // For adding a boolean sample to histogram.
 // Sample usage:

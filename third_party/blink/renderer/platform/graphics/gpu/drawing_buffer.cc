@@ -89,12 +89,7 @@ namespace {
 // feature would prevent flickering in some cases where desynchronized canvas
 // are periodically refreshed on Windows.
 BASE_FEATURE(kUseNonEmptySyncTokenForLowLatencyCanvas,
-#if BUILDFLAG(IS_WIN)
-             base::FEATURE_ENABLED_BY_DEFAULT
-#else
-             base::FEATURE_DISABLED_BY_DEFAULT
-#endif
-);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 const float kResourceAdjustedRatio = 0.5;
 
@@ -2001,7 +1996,16 @@ scoped_refptr<DrawingBuffer::ColorBuffer> DrawingBuffer::CreateColorBuffer(
   } else {
     // First see if creating a SharedImage that can be used as an overlay is
     // feasible.
-    if (ShouldUseChromiumImage()) {
+    bool should_use_chromium_image = false;
+    if (SharedGpuContext::IsGpuCompositingEnabled() &&
+        chromium_image_usage_ == kAllowChromiumImage) {
+      should_use_chromium_image =
+          SharedGpuContext::WebGLImageChromiumEnabled() ||
+          (low_latency_enabled() &&
+           base::FeatureList::IsEnabled(
+               features::kLowLatencyWebGLImageChromium));
+    }
+    if (should_use_chromium_image) {
 #if !BUILDFLAG(IS_ANDROID)
       // Android's SharedImage backing for ChromiumImage does not support BGRX.
 
@@ -2172,17 +2176,6 @@ DrawingBuffer::ScopedStateRestorer::~ScopedStateRestorer() {
   if (pixel_pack_buffer_binding_dirty_)
     client->DrawingBufferClientRestorePixelPackBufferBinding();
   client->DrawingBufferClientRestorePixelLocalStorage();
-}
-
-bool DrawingBuffer::ShouldUseChromiumImage() {
-  if (chromium_image_usage_ != kAllowChromiumImage) {
-    return false;
-  }
-  if (RuntimeEnabledFeatures::WebGLImageChromiumEnabled()) {
-    return true;
-  }
-  return low_latency_enabled() &&
-         base::FeatureList::IsEnabled(features::kLowLatencyWebGLImageChromium);
 }
 
 }  // namespace blink

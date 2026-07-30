@@ -9,7 +9,9 @@
 #include "ui/views/bubble/bubble_border.h"
 
 class HoverCardAnchorTarget;
-struct TabRendererData;
+namespace tabs {
+struct TabData;
+}
 
 namespace views {
 class View;
@@ -30,12 +32,10 @@ class HoverCardAnchorTarget {
   // Determines if |this| is a valid target.
   virtual bool IsValid() const = 0;
 
-  virtual const TabRendererData& data() const = 0;
+  virtual const tabs::TabData& data() const = 0;
 
-  // Helper functions for obtaining a View pointer to |this|.
   virtual views::View* GetAnchorView();
   virtual const views::View* GetAnchorView() const;
-  static HoverCardAnchorTarget* FromAnchorView(views::View* anchor_view);
 
   virtual views::BubbleBorder::Arrow GetAnchorPosition() const = 0;
 

@@ -98,10 +98,9 @@ public class WebContentsImpl
                 WindowEventObserver {
     private static final String TAG = "WebContentsImpl";
 
-    // Using ScopedJavaGlobalRef in the owning C++ object to keep the Java object alive consumes an
-    // entry per instance in the finite global ref table. This scales poorly with a large number of
-    // WebContents. As a workaround, the C++ owner uses a JavaObjectWeakGlobalRef and an entry is
-    // kept in the a static map of the native pointer to Java objects to prevent garbage collection.
+    // Map from native web contents pointer to WebContentsImpl to allow scaling of unlimited web
+    // contents objects.
+    // ScopedGlobalRef tables are finite.
     private static final Map<Long, WebContentsImpl> sWebContentsMap = new HashMap<>();
 
     private static final String PARCEL_VERSION_KEY = "version";
@@ -219,7 +218,8 @@ public class WebContentsImpl
         assert nativeWebContentsAndroid != 0;
         mNativeWebContentsAndroid = nativeWebContentsAndroid;
         mNavigationController = navigationController;
-        sWebContentsMap.put(mNativeWebContentsAndroid, this);
+        var oldValue = sWebContentsMap.put(mNativeWebContentsAndroid, this);
+        assert oldValue == null;
     }
 
     @CalledByNative
@@ -227,6 +227,11 @@ public class WebContentsImpl
     public static WebContentsImpl create(
             long nativeWebContentsAndroid, NavigationController navigationController) {
         return new WebContentsImpl(nativeWebContentsAndroid, navigationController);
+    }
+
+    @CalledByNative
+    public static @Nullable WebContentsImpl getJavaObject(long nativeWebContents) {
+        return sWebContentsMap.get(nativeWebContents);
     }
 
     @Override
@@ -300,10 +305,7 @@ public class WebContentsImpl
         long nativeWebContentsAndroid = mNativeWebContentsAndroid;
         assert nativeWebContentsAndroid != 0;
         mNativeWebContentsAndroid = 0;
-        if (mObserverProxy != null) {
-            mObserverProxy.webContentsDestroyed();
-            mObserverProxy = null;
-        }
+        clearJavaWebContentsObservers();
         UserDataHost userDataHost = getUserDataHost();
         if (userDataHost != null) {
             userDataHost.destroy();
@@ -398,6 +400,13 @@ public class WebContentsImpl
 
         if (mNativeWebContentsAndroid != 0) {
             WebContentsImplJni.get().destroyWebContents(mNativeWebContentsAndroid);
+
+            if (mNativeWebContentsAndroid != 0) {
+                // Normally the native object would have been destroyed by clearNativePtr() being
+                // called from destroyWebContents(). However, if JNI is mocked it will not have been
+                // invoked so invoke it explicitly here.
+                clearNativePtr();
+            }
         }
     }
 
@@ -1311,6 +1320,10 @@ public class WebContentsImpl
     public @Nullable WebContents getDocumentPictureInPictureOpener() {
         return WebContentsImplJni.get()
                 .getDocumentPictureInPictureOpener(mNativeWebContentsAndroid);
+    }
+
+    /*package*/ @Nullable WebContentsObserverProxy getWebContentsObserverProxy() {
+        return mObserverProxy;
     }
 
     @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)

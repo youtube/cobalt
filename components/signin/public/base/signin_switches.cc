@@ -7,6 +7,7 @@
 #include "base/feature_list.h"
 #include "base/time/time.h"
 #include "components/prefs/pref_service.h"
+#include "components/signin/public/base/signin_buildflags.h"
 #include "components/signin/public/base/signin_pref_names.h"
 
 #if BUILDFLAG(IS_WIN)
@@ -217,6 +218,19 @@ BASE_FEATURE_PARAM(base::TimeDelta,
                    base::Milliseconds(3000));
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+BASE_FEATURE(kDisableU18FeedbackDesktop, base::FEATURE_DISABLED_BY_DEFAULT);
+constexpr base::FeatureParam<U18FeedbackDesktopState>::Option
+    kDisableU18FeedbackDesktopStates[] = {
+        {U18FeedbackDesktopState::kEnabled, "enabled"},
+        {U18FeedbackDesktopState::kForced, "forced"},
+};
+constexpr base::FeatureParam<U18FeedbackDesktopState>
+    kDisableU18FeedbackDesktopState{&kDisableU18FeedbackDesktop, "state",
+                                    U18FeedbackDesktopState::kEnabled,
+                                    &kDisableU18FeedbackDesktopStates};
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+
 #if BUILDFLAG(IS_ANDROID)
 // Whether activityless sign-in should be used for all entry points.
 BASE_FEATURE(kEnableActivitylessSigninAllEntryPoint,
@@ -362,6 +376,10 @@ constexpr base::FeatureParam<SeamlessSigninStringType>
         SeamlessSigninStringType::kContinueButton, &kSeamlessSigninStringTypes};
 #endif  // BUILDFLAG(IS_ANDROID)
 
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+BASE_FEATURE(kEnableSearchAIModeSigninPromo, base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
+
 #if BUILDFLAG(IS_IOS)
 BASE_FEATURE(kEnforceCanSignInToChromeCapability,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -383,6 +401,28 @@ const base::FeatureParam<base::TimeDelta>
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 BASE_FEATURE(kFirstRunDesktopRefresh, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kFirstRunDesktopChoiceScreenRefresh,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+bool IsFirstRunDesktopRefreshEnabled(bool is_in_search_engine_choice_region) {
+  if (is_in_search_engine_choice_region &&
+      !base::FeatureList::IsEnabled(kFirstRunDesktopChoiceScreenRefresh)) {
+    return false;
+  }
+  return base::FeatureList::IsEnabled(kFirstRunDesktopRefresh);
+}
+constexpr base::FeatureParam<FirstRunDesktopSignInPromoVariation>::Option
+    kFirstRunDesktopSignInPromoVariations[] = {
+        {FirstRunDesktopSignInPromoVariation::kDefault, "default"},
+        {FirstRunDesktopSignInPromoVariation::kDontSignInInTheTopCorner,
+         "dont-sign-in-in-the-top-corner"},
+        {FirstRunDesktopSignInPromoVariation::kDontSignInOnGaiaPage,
+         "dont-sign-in-on-gaia-page"},
+};
+constexpr base::FeatureParam<FirstRunDesktopSignInPromoVariation>
+    kFirstRunDesktopSignInPromoVariation{
+        &kFirstRunDesktopRefresh, "sign-in-promo-variation",
+        FirstRunDesktopSignInPromoVariation::kDefault,
+        &kFirstRunDesktopSignInPromoVariations};
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
@@ -400,7 +440,7 @@ BASE_FEATURE(kForceStartupSigninPromo, base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kFRESignInAlternativeSecondaryButtonText,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
@@ -474,6 +514,11 @@ constexpr base::FeatureParam<ProfilePickerVariation>
 
 BASE_FEATURE(kProfilesReordering, base::FEATURE_DISABLED_BY_DEFAULT);
 
+#if BUILDFLAG(IS_IOS)
+BASE_FEATURE(kReadContextualAccountCapabilities,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif
+
 #if !BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kRestrictDeviceManagementServiceOAuthScope,
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -503,6 +548,20 @@ const base::FeatureParam<int> kContextualSigninPromoDismissedThreshold(
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 BASE_FEATURE(kSignInPromoMaterialNextUI, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+BASE_FEATURE(kSigninPromoOnAvatarPill, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kSigninPromoOnAvatarPillStartupDelayForPromoShow,
+                   &kSigninPromoOnAvatarPill,
+                   "startup_delay_for_promo_show",
+                   base::Seconds(30));
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kSigninPromoOnAvatarPillDelayForNextPromoAllowed,
+                   &kSigninPromoOnAvatarPill,
+                   "delay_for_next_promo_allowed",
+                   base::Days(7));
+#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
 BASE_FEATURE(kSigninWindows10DepreciationStateForTesting,
              base::FEATURE_DISABLED_BY_DEFAULT);

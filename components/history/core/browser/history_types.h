@@ -19,6 +19,7 @@
 #include "base/containers/flat_map.h"
 #include "base/functional/callback_forward.h"
 #include "base/time/time.h"
+#include "base/types/id_type.h"
 #include "components/history/core/browser/history_context.h"
 #include "components/history/core/browser/url_row.h"
 #include "components/query_parser/query_parser.h"
@@ -73,6 +74,10 @@ using VisitSourceMap = std::map<VisitID, VisitSource>;
 
 // Constant used to represent that no app_id is used for matching.
 inline constexpr std::optional<std::string> kNoAppIdFilter;
+
+// Corresponds to the `cluster_id` column of the `clusters` and
+// `clusters_and_visits` SQL tables.
+using ClusterId = base::IdType64<class ClusterIdTag>;
 
 // VisitRow -------------------------------------------------------------------
 
@@ -190,9 +195,9 @@ class VisitRow {
   // by an app. This is set only on Android if the Custom Tab knows which app
   // launched it; otherwise remains null.
   std::optional<std::string> app_id;
-  // The source of the visit
-  // TODO(crbug.com/464528977): Wrap source with std::optional.
-  history::VisitSource source = history::SOURCE_BROWSED;
+  // The source of the visit. While all visits have a source, this can be null
+  // for visit rows that do not join with the visit_source table.
+  std::optional<history::VisitSource> source;
   // We allow the implicit copy constructor and operator=.
 };
 
@@ -433,8 +438,9 @@ struct QueryOptions {
   // If nullopt, search doesn't take app_id into consideration.
   std::optional<std::string> app_id;
 
-  // If true, visits with a source of SOURCE_ACTOR are included.
-  // Defaults to false, filtering them out.
+  // Includes GLIC actor visits with SOURCE_ACTOR (e.g., overwritten to `true`
+  // for chrome://history auditing). Defaults to false to minimize noise in
+  // other history surfaces.
   bool include_actor_visits = false;
 
   // If true, visits with a source other than SOURCE_ACTOR are included.
@@ -1204,7 +1210,7 @@ struct Cluster {
   };
 
   Cluster();
-  Cluster(int64_t cluster_id,
+  Cluster(ClusterId cluster_id,
           const std::vector<ClusterVisit>& visits,
           const base::flat_map<std::u16string, ClusterKeywordData>&
               keyword_to_data_map = {},
@@ -1224,7 +1230,7 @@ struct Cluster {
 
   std::vector<std::u16string> GetKeywords() const;
 
-  int64_t cluster_id = 0;
+  ClusterId cluster_id = ClusterId(0);
   std::vector<ClusterVisit> visits;
 
   // A map of keywords to additional data.
@@ -1281,7 +1287,7 @@ struct Cluster {
   // Note that even for synced clusters, this may be 0 if from a legacy client
   // that does not support the sending of this field or the local client does
   // not support populating this field.
-  int64_t originator_cluster_id = 0;
+  ClusterId originator_cluster_id = ClusterId(0);
 };
 
 // Navigation -----------------------------------------------------------------

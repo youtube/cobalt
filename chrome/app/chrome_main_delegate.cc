@@ -1148,11 +1148,14 @@ std::optional<int> ChromeMainDelegate::BasicStartupComplete() {
   // Attempt to launch an isolated browser. If this is successful, this browser
   // process becomes the stub, and will terminate after the main browser has
   // terminated, with the exit code from the main browser.
-  if (is_browser && !command_line.HasSwitch(::switches::kIsolated) &&
-      chrome::IsIsolationEnabled(command_line)) {
-    const auto isolated_process = chrome::IsolatedBrowser::Launch(command_line);
+  if (is_browser && chrome::IsIsolationEnabled(&command_line)) {
+    const auto isolated_process = chrome::LaunchIsolatedBrowser(command_line);
     if (isolated_process.has_value()) {
-      return isolated_process.value()->WaitForExit();
+      int exit_code = 0;
+      if (isolated_process->WaitForExit(&exit_code)) {
+        return exit_code;
+      }
+      return CHROME_RESULT_CODE_INVALID_ISOLATED_BROWSER_PROCESS;
     }
   }
 

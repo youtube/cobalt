@@ -49,7 +49,7 @@ import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.Features;
 import org.chromium.base.test.util.MaxAndroidSdkLevel;
 import org.chromium.base.test.util.MinAndroidSdkLevel;
-import org.chromium.components.external_intents.ExternalNavigationHandler.IncognitoDialogDelegate;
+import org.chromium.components.external_intents.ExternalNavigationHandler.IncognitoDialogDelegateWithFallback;
 import org.chromium.components.external_intents.ExternalNavigationHandler.OverrideUrlLoadingResult;
 import org.chromium.components.external_intents.ExternalNavigationHandler.OverrideUrlLoadingResultType;
 import org.chromium.components.external_intents.ExternalNavigationParams.AsyncActionTakenParams;
@@ -177,11 +177,15 @@ public class ExternalNavigationHandlerTest {
 
     private static final String SELF_SCHEME = "selfscheme";
     private static final String DIGITAL_CREDENTIALS_URL = "openid4vp-v1-unsigned://authorize";
+    private static final String HAIP_VP_URL = "haip-vp://authorize";
+    private static final String HAIP_VCI_URL = "haip-vci://authorize";
+    private static final String MDOC_URL = "mdoc://authorize";
+    private static final String OPENID4VCI_URL = "openid-credential-offer://authorize";
     private static final String DIGITAL_CREDENTIALS_PACKAGE_NAME = "pkg.dcc";
 
     @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule().strictness(Strictness.STRICT_STUBS);
 
-    @Mock private IncognitoDialogDelegate mIncognitoDialogDelegateMock;
+    @Mock private IncognitoDialogDelegateWithFallback mIncognitoDialogDelegateMock;
     @Mock private WindowAndroid mWindowAndroidMock;
 
     private Context mContext;
@@ -1574,7 +1578,8 @@ public class ExternalNavigationHandlerTest {
                         Assert.assertNull(mUrlHandler.mStartActivityIntent);
                         Assert.assertNull(mUrlHandler.mNewUrlAfterClobbering);
                     });
-            IncognitoDialogDelegate delegateSpy = mUrlHandler.spyIncognitoDialogDelegate();
+            IncognitoDialogDelegateWithFallback delegateSpy =
+                    mUrlHandler.spyIncognitoDialogDelegate();
             Mockito.doReturn(true).when(delegateSpy).isShowing();
             ThreadUtils.runOnUiThreadBlocking(
                     () -> {
@@ -1679,6 +1684,44 @@ public class ExternalNavigationHandlerTest {
             activity.finish();
             InstrumentationRegistry.getInstrumentation().removeMonitor(monitor);
         }
+    }
+
+    private void checkDigitalCredentialsWarningDialogShow(String scheme, String url) {
+        mDelegate.add(new IntentActivity(scheme, DIGITAL_CREDENTIALS_PACKAGE_NAME));
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    checkUrl(url, redirectHandlerForLinkClick())
+                            .withHasUserGesture(true)
+                            .expecting(
+                                    OverrideUrlLoadingResultType.OVERRIDE_WITH_ASYNC_ACTION,
+                                    IGNORE);
+                    mUrlHandler.mDigitalCredentialsWarningDialogDelegate.onClick(
+                            null, ModalDialogProperties.ButtonType.NEGATIVE);
+                });
+    }
+
+    @Test
+    @MediumTest
+    public void testDigitalCredentialsWarningDialog_HaipVp() {
+        checkDigitalCredentialsWarningDialogShow("haip-vp", HAIP_VP_URL);
+    }
+
+    @Test
+    @MediumTest
+    public void testDigitalCredentialsWarningDialog_HaipVci() {
+        checkDigitalCredentialsWarningDialogShow("haip-vci", HAIP_VCI_URL);
+    }
+
+    @Test
+    @MediumTest
+    public void testDigitalCredentialsWarningDialog_Mdoc() {
+        checkDigitalCredentialsWarningDialogShow("mdoc", MDOC_URL);
+    }
+
+    @Test
+    @MediumTest
+    public void testDigitalCredentialsWarningDialog_OpenId4Vci() {
+        checkDigitalCredentialsWarningDialogShow("openid-credential-offer", OPENID4VCI_URL);
     }
 
     @Test
@@ -2469,7 +2512,7 @@ public class ExternalNavigationHandlerTest {
 
     @Test
     @SmallTest
-    @MinAndroidSdkLevel(33) // TODO(twellington): Replace with version code when available.
+    @MinAndroidSdkLevel(Build.VERSION_CODES.TIRAMISU)
     public void testFileAccessHtml_AndroidT() {
         String fileUrl = "file:///sdcard/Downloads/test.html";
 
@@ -3454,9 +3497,10 @@ public class ExternalNavigationHandlerTest {
             return OverrideUrlLoadingResult.forAsyncAction();
         }
 
-        public IncognitoDialogDelegate spyIncognitoDialogDelegate() {
-            mIncognitoDialogDelegate = Mockito.spy(mIncognitoDialogDelegate);
-            return mIncognitoDialogDelegate;
+        public IncognitoDialogDelegateWithFallback spyIncognitoDialogDelegate() {
+            mIncognitoDialogDelegate =
+                    Mockito.spy((IncognitoDialogDelegateWithFallback) mIncognitoDialogDelegate);
+            return (IncognitoDialogDelegateWithFallback) mIncognitoDialogDelegate;
         }
 
         public ExternalNavigationHandler.DigitalCredentialsWarningDialogDelegate

@@ -66,8 +66,7 @@ class TestPrefetchContainerObserver final : public PrefetchContainer::Observer {
   void OnDeterminedHead(const PrefetchContainer& prefetch_container) override {}
   void OnPrefetchCompletedOrFailed(
       const PrefetchContainer& prefetch_container,
-      const network::URLLoaderCompletionStatus& completion_status,
-      const std::optional<int>& response_code) override {
+      const network::URLLoaderCompletionStatus& completion_status) override {
     on_complete_loop_.Quit();
   }
 
@@ -328,7 +327,7 @@ void MakeServableStreamingURLLoaderWithRedirectForTest(
       network::TestURLLoaderFactory::kResponseDefault);
   auto [redirect_info, redirect_head] = on_receive_redirect.Take();
 
-  prefetch_container->AddRedirectHop(redirect_info.new_url);
+  prefetch_container->SimulatePrefetchRedirectedForTest(redirect_info.new_url);
 
   CHECK(weak_streaming_loader);
   weak_streaming_loader->HandleRedirect(PrefetchRedirectStatus::kFollow,
@@ -336,7 +335,7 @@ void MakeServableStreamingURLLoaderWithRedirectForTest(
                                         /*update_headers_params=*/{});
 
   // GetResponseReaderForCurrentPrefetch() now points to a new ResponseReader
-  // after `AddRedirectHop()` above.
+  // after `SimulatePrefetchRedirectedForTest()` above.
   CHECK(weak_streaming_loader);
   auto weak_second_response_reader =
       prefetch_container->GetResponseReaderForCurrentPrefetch();
@@ -390,31 +389,29 @@ void MakeServableStreamingURLLoadersWithNetworkTransitionRedirectForTest(
       network::TestURLLoaderFactory::kResponseOnlyRedirectsNoDestination);
   auto [redirect_info, redirect_head] = on_receive_redirect.Take();
 
-  prefetch_container->AddRedirectHop(redirect_info.new_url);
+  prefetch_container->SimulatePrefetchRedirectedForTest(redirect_info.new_url);
 
   CHECK(weak_first_streaming_loader);
   weak_first_streaming_loader->HandleRedirect(
       PrefetchRedirectStatus::kSwitchNetworkContext, redirect_info,
       std::move(redirect_head), /*update_headers_params=*/{});
 
-  std::unique_ptr<network::ResourceRequest> redirect_request =
-      std::make_unique<network::ResourceRequest>();
-  redirect_request->url = redirect_url;
-  redirect_request->method = "GET";
-
   base::RunLoop on_response_received_loop;
   TestPrefetchContainerObserver observer(*prefetch_container);
 
   // Starts the followup PrefetchStreamingURLLoader.
   // GetResponseReaderForCurrentPrefetch() now points to a new ResponseReader
-  // after `AddRedirectHop()` above.
+  // after `SimulatePrefetchRedirectedForTest()` above.
+  // Also `prefetch_container->GetResourceRequest()` is updated based on the
+  // redirect.
+  CHECK_EQ(prefetch_container->GetResourceRequest()->url, redirect_url);
   base::WeakPtr<PrefetchResponseReader> weak_second_response_reader =
       prefetch_container->GetResponseReaderForCurrentPrefetch();
   auto weak_second_streaming_loader = CreateStreamingURLLoaderForTests(
       prefetch_container->GetWeakPtr(), weak_second_response_reader,
       base::MakeRefCounted<network::WeakWrapperSharedURLLoaderFactory>(
           &test_url_loader_factory),
-      *redirect_request, &on_response_received_loop,
+      *prefetch_container->GetResourceRequest(), &on_response_received_loop,
       /*on_receive_redirect=*/NotReachedTagForTests());
 
   network::URLLoaderCompletionStatus status(net::OK);
@@ -545,8 +542,7 @@ void TestPrefetchService::PrefetchUrl(
 
 void TestPrefetchService::OnPrefetchCompletedOrFailed(
     const PrefetchContainer& prefetch_container,
-    const network::URLLoaderCompletionStatus& completion_status,
-    const std::optional<int>& response_code) {
+    const network::URLLoaderCompletionStatus& completion_status) {
   // Skip `active_prefetch_` check and related prefetch queue processing in
   // `PrefetchService`, because it's not set/used in `TestPrefetchService`.
 }
@@ -576,6 +572,14 @@ void PrefetchingMetricsTestBase::TearDown() {
   test_ukm_recorder_.reset();
   attempt_entry_builder_.reset();
   RenderViewHostTestHarness::TearDown();
+}
+
+RenderFrameHostImpl* PrefetchingMetricsTestBase::main_rfhi() {
+  return static_cast<RenderFrameHostImpl*>(main_rfh());
+}
+
+blink::DocumentToken PrefetchingMetricsTestBase::MainDocumentToken() {
+  return main_rfhi()->GetDocumentToken();
 }
 
 void PrefetchingMetricsTestBase::ExpectPrefetchNoNetErrorOrResponseReceived(

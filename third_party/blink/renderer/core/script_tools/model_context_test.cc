@@ -67,11 +67,10 @@ class ModelContextTest : public SimTest {
   }
 
   String EvalJsString(const char* script) {
-    return ToCoreString(Window().GetIsolate(),
-                        MainFrame()
-                            .ExecuteScriptAndReturnValue(
-                                WebScriptSource(WebString::FromUTF8(script)))
-                            .As<v8::String>());
+    return ToCoreStringWithUndefinedOrNullCheck(
+        Window().GetIsolate(),
+        MainFrame().ExecuteScriptAndReturnValue(
+            WebScriptSource(WebString::FromUTF8(script))));
   }
 
  private:
@@ -1122,8 +1121,7 @@ TEST_F(ModelContextTest, ListTools) {
       ModelContextSupplement::modelContext(*Window().navigator());
   ASSERT_TRUE(model_context);
 
-  HeapVector<Member<const ModelContext::ToolData>> tools =
-      model_context->ListTools();
+  HeapVector<Member<const ToolData>> tools = model_context->ListTools();
   ASSERT_EQ(3u, tools.size());
 
   EXPECT_EQ("append", tools[0]->Name());
@@ -1154,8 +1152,7 @@ TEST_F(ModelContextTest, SourceLocation) {
       ModelContextSupplement::modelContext(*Window().navigator());
   ASSERT_TRUE(model_context);
 
-  HeapVector<Member<const ModelContext::ToolData>> tools =
-      model_context->ListTools();
+  HeapVector<Member<const ToolData>> tools = model_context->ListTools();
   ASSERT_EQ(2u, tools.size());
 
   EXPECT_EQ("append", tools[0]->Name());
@@ -1188,8 +1185,7 @@ TEST_F(ModelContextTest, BackingFormElement) {
       ModelContextSupplement::modelContext(*Window().navigator());
   ASSERT_TRUE(model_context);
 
-  HeapVector<Member<const ModelContext::ToolData>> tools =
-      model_context->ListTools();
+  HeapVector<Member<const ToolData>> tools = model_context->ListTools();
   ASSERT_EQ(2u, tools.size());
 
   EXPECT_EQ("book-table", tools[0]->Name());

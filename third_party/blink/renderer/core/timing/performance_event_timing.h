@@ -137,6 +137,9 @@ class CORE_EXPORT PerformanceEventTiming final : public PerformanceEntry {
   uint64_t interactionId() const;
 
   std::optional<PerformanceTimelineEntryIdInfo> GetInteractionIdInfo() const {
+    if (reporting_info_.prevent_counting_as_interaction) {
+      return PerformanceTimelineEntryIdInfo::kNone;
+    }
     return interaction_id_;
   }
 
@@ -145,6 +148,10 @@ class CORE_EXPORT PerformanceEventTiming final : public PerformanceEntry {
   }
 
   bool HasKnownInteractionID() const;
+  bool IsKnownToBeAnInteraction() const {
+    return GetInteractionIdInfo().has_value() &&
+           GetInteractionIdInfo() != PerformanceTimelineEntryIdInfo::kNone;
+  }
 
   const AtomicString& targetSelector() const;
 
@@ -157,10 +164,11 @@ class CORE_EXPORT PerformanceEventTiming final : public PerformanceEntry {
   // assigned.
   bool IsReadyForReportingForIssue328902994() const;
 
+  base::TimeTicks GetStartTime() const;
   base::TimeTicks GetEndTime() const;
 
   base::TimeDelta GetExactDuration() const {
-    return GetEndTime() - GetEventTimingReportingInfo()->creation_time;
+    return GetEndTime() - GetStartTime();
   }
 
   void UpdateFallbackTime(base::TimeTicks fallback_time, FallbackReason reason);

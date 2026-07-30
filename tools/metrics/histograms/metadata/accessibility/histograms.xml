@@ -538,6 +538,17 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Accessibility.Android.RunningAccessibilityTools"
+    enum="AccessibilityAndroidAccessibilityTools" expires_after="2026-08-18">
+  <owner>aaronmoss@google.com</owner>
+  <owner>davidsegovia@google.com</owner>
+  <owner>chrome-a11y-core@google.com</owner>
+  <summary>
+    Logged during browser startup and accessibility tool activation when the
+    provided tool is enabled.
+  </summary>
+</histogram>
+
 <histogram
     name="Accessibility.Android.TextFormatting.Performance.DurationForRangeCount.{Bucket}"
     units="microseconds" expires_after="M152">
@@ -715,41 +726,20 @@ chromium-metrics-reviews@google.com.
   </token>
 </histogram>
 
-<!-- LINT.IfChange(AssistiveTechPackage) -->
-
-<histogram name="Accessibility.Android.{AssistiveTechPackage}"
-    enum="BooleanEnabled" expires_after="2026-11-01">
-  <owner>davidsegovia@google.com</owner>
-  <owner>chrome-a11y-core@google.com</owner>
-  <summary>
-    Logged if {AssistiveTechPackage} is enabled. Recorded during browser startup
-    or toggled on during user session.
-  </summary>
-  <token key="AssistiveTechPackage">
-    <variant name="AccessibilitySuite" summary="Android Accessibility Suite"/>
-    <variant name="ActionBlocks" summary="Action Blocks Accessibility"/>
-    <variant name="BrailleBack" summary="BrailleBack"/>
-    <variant name="SoundAmplifier" summary="Sound Amplifier"/>
-    <variant name="VoiceAccess" summary="Voice Accces"/>
-  </token>
-</histogram>
-
-<!-- LINT.ThenChange(//content/browser/accessibility/browser_accessibility_state_impl_android.cc:kAssistiveTechMap) -->
-
-<histogram name="Accessibility.AndroidServiceInfo.{RunningApps}"
+<histogram name="Accessibility.AndroidServiceInfo2.{RunningApps}"
     enum="AccessibilityAndroidServiceInfoEnum" expires_after="2026-08-02">
-  <owner>mschillaci@google.com</owner>
+  <owner>aaronmoss@google.com</owner>
   <owner>aldietz@google.com</owner>
   <owner>dtseng@chromium.org</owner>
   <owner>chrome-a11y-core@google.com</owner>
   <summary>
     Tracks events, flags, feedback and capabilities of enabled accessibility
     services separated into variants based on the types of running accessibility
-    services. This information would be a subset of the (now deprecated)
-    Accessibility.AndroidServiceInfo histogram. It will allow us to look at the
-    same histograms but only for a subset of users (e.g. what are the requested
-    flags etc of enabled accessibility services for clients running only a
-    password manager).
+    services. It allows us to track requested flags, capabilities, and events,
+    segmented by which type of accessibility services the user has active. It
+    replaces the equivalent Accessibility.AndroidServiceInfo.{RunningApps}
+    histogram due to a time-series break where all services with the Android S+
+    isAccessibilityTool flag are classified as ASSISTIVE_TECH.
   </summary>
   <token key="RunningApps">
     <variant name="ALL_VARIANTS"/>
@@ -2302,6 +2292,24 @@ even if they fit the naming pattern. -->
   </token>
 </histogram>
 
+<histogram name="Accessibility.LiveTranslate.GoogleApiTranslation.Result"
+    enum="Boolean" expires_after="2026-08-02">
+  <owner>danft@google.com</owner>
+  <owner>chrome-a11y-core@google.com</owner>
+  <summary>
+    Records the result coming from the GoogleApi (true or false).
+  </summary>
+</histogram>
+
+<histogram name="Accessibility.LiveTranslate.OnDeviceTranslation.Result"
+    enum="Boolean" expires_after="2026-08-02">
+  <owner>danft@google.com</owner>
+  <owner>chrome-a11y-core@google.com</owner>
+  <summary>
+    Records the result coming from on-device-translation (true or false).
+  </summary>
+</histogram>
+
 <histogram name="Accessibility.LiveTranslate.SourceLanguage"
     enum="LocaleCodeBCP47" expires_after="2026-08-02">
   <owner>evliu@google.com</owner>
@@ -3030,7 +3038,7 @@ even if they fit the naming pattern. -->
 </histogram>
 
 <histogram name="Accessibility.ReadAnything.DistillationStatusAfterOmnibox"
-    enum="ReadAnythingDistillationStatus" expires_after="2026-06-01">
+    enum="ReadAnythingDistillationStatus" expires_after="2026-08-30">
   <owner>kristislee@google.com</owner>
   <owner>komo-eng@google.com</owner>
   <summary>
@@ -3086,6 +3094,17 @@ even if they fit the naming pattern. -->
     pruned by one of the heuristics, or value none if it was not puned. This
     metric would be used to find out which heuristics are needed and can be
     passed to Screen2x pre/post processing.
+  </summary>
+</histogram>
+
+<histogram name="Accessibility.ReadAnything.HiddenBeforeShown"
+    enum="BooleanYesNo" expires_after="2027-01-01">
+  <owner>gusmartin@google.com</owner>
+  <owner>chrome-irm-devs@google.com</owner>
+  <summary>
+    Records whether Reading Mode was closed before the UI was fully shown to the
+    user. Recorded when the Reading Mode entry is hidden, except during
+    transitions between presentation modes.
   </summary>
 </histogram>
 
@@ -3220,6 +3239,23 @@ even if they fit the naming pattern. -->
   </summary>
 </histogram>
 
+<histogram name="Accessibility.ReadAnything.Readability.PageLinks{Status}Count"
+    units="count" expires_after="2027-03-01">
+  <owner>martinglopez@google.com</owner>
+  <owner>chrome-irm-devs@google.com</owner>
+  <summary>
+    Records the number of links in the Readability distillation with the given
+    {Status}. This is recorded when the content is successfully updated in the
+    Reading Mode panel.
+  </summary>
+  <token key="Status">
+    <variant name="NoHref" summary="no href attribute"/>
+    <variant name="NoMatch" summary="no matching node in AXTree"/>
+    <variant name="Success" summary="successful match"/>
+    <variant name="TooManyMatches" summary="multiple matching nodes in AXTree"/>
+  </token>
+</histogram>
+
 <histogram name="Accessibility.ReadAnything.ReadAloud.EngineVersion"
     units="yyyymmdd0" expires_after="2026-07-10">
   <owner>lwinston@google.com</owner>
@@ -3328,6 +3364,20 @@ even if they fit the naming pattern. -->
   <summary>
     Records when the user changes a text style setting in the Read Anything
     panel.
+  </summary>
+</histogram>
+
+<histogram name="Accessibility.ReadAnything.ShownDurationMax1Day" units="ms"
+    expires_after="2027-01-01">
+  <owner>gusmartin@google.com</owner>
+  <owner>chrome-irm-devs@google.com</owner>
+  <summary>
+    Records how long Reading Mode overlay was active, regardless of whether it
+    was shown in the side panel or in the immersive view. Recorded when the
+    feature is hidden or closed (capped at 24 hours). Difference with
+    SidePanel.ReadAnything.ShownDuration is that this metric records sessions
+    for immersive view also (Only records if
+    read-anything-immersive-reading-mode is enabled).
   </summary>
 </histogram>
 

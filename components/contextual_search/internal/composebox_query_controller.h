@@ -56,7 +56,7 @@ class SkBitmap;
 // Callback type alias for the file upload request body proto created.
 using RequestBodyProtoCreatedCallback = base::OnceCallback<void(
     lens::LensOverlayServerRequest,
-    std::optional<contextual_search::FileUploadErrorType>)>;
+    std::optional<contextual_search::ContextUploadErrorType>)>;
 
 // Callback type alias for the interaction request body proto created.
 using InteractionRequestBodyProtoCreatedCallback =
@@ -118,6 +118,28 @@ class ComposeboxQueryController
   // Returns the string representation of the mime type, for use in calculating
   // the AddedInputs proto.
   static std::optional<std::string> MimeTypeToString(lens::MimeType mime_type);
+
+  uint16_t get_num_context_uploading() {
+    return static_cast<uint16_t>(pending_context_uploads_.size());
+  }
+
+  const std::set<base::UnguessableToken>&
+  get_pending_context_uploads_for_testing() const {
+    return pending_context_uploads_;
+  }
+
+  bool is_any_context_uploading() { return !pending_context_uploads_.empty(); }
+
+  bool has_stashed_search_url_request() const {
+    return !pending_search_url_request_.is_null();
+  }
+
+  void update_file_upload_status_for_testing(
+      const base::UnguessableToken& file_token,
+      contextual_search::FileUploadStatus status,
+      std::optional<contextual_search::FileUploadErrorType> error_type) {
+    UpdateFileUploadStatus(file_token, status, error_type);
+  }
 
   // Enum for testing to track the state of the query controller.
   enum class QueryControllerState {
@@ -328,6 +350,12 @@ class ComposeboxQueryController
     bool interaction_details_used_in_vsint_ = false;
   };
 
+  // Runs callback with empty GURL if creating search URL is aborted early.
+  void BeforeCreateSearchUrl(
+      std::unique_ptr<CreateSearchUrlRequestInfo> search_url_request_info,
+      base::OnceCallback<void(GURL)> callback,
+      bool failed_creation);
+
   // Returns a mutable pointer to allow internal modifications.
   FileInfo* GetMutableFileInfo(const base::UnguessableToken& file_token);
 
@@ -356,12 +384,20 @@ class ComposeboxQueryController
   // changed callback if it has changed.
   void SetQueryControllerState(QueryControllerState new_state);
 
+  // Returns if file status is considered to be in the terminal state.
+  bool IsTerminalFileStatus(contextual_search::FileUploadStatus status);
+
+  // Marks file upload as in terminal state (success, replaced, failed,
+  // expired, validation failed) for given file token, and if
+  // there are no more files to upload, create search URL.
+  void MarkFileUploadAsInTerminalState(base::UnguessableToken file_token);
+
   // Updates the file upload status and notifies the file upload status
   // observers with an optional error type if the upload failed.
   void UpdateFileUploadStatus(
-      const base::UnguessableToken& file_token,
-      contextual_search::FileUploadStatus status,
-      std::optional<contextual_search::FileUploadErrorType> error_type);
+      base::UnguessableToken file_token,
+      contextual_search::ContextUploadStatus status,
+      std::optional<contextual_search::ContextUploadErrorType> error_type);
 
   // Handler for when the image from an image file upload is decoded. Creates
   // the request body proto and calls the callback with the request.
@@ -378,13 +414,13 @@ class ComposeboxQueryController
       std::unique_ptr<lens::ContextualInputData> contextual_input_data,
       std::optional<lens::ImageEncodingOptions> options);
 
-  // Callback that takes the image request body proto and adds the pdf page
+  // Callback that takes the upload request body proto and adds the pdf page
   // index to it.
-  void AddPageIndexToImageUploadRequestAndContinue(
+  void AddPageIndexToUploadRequestAndContinue(
       std::optional<size_t> pdf_page_index,
       RequestBodyProtoCreatedCallback callback,
       lens::LensOverlayServerRequest request,
-      std::optional<contextual_search::FileUploadErrorType> error_type);
+      std::optional<contextual_search::ContextUploadErrorType> error_type);
 
   // Callback that takes the request body proto and adds the
   // has_lens_usage_intent bool to it.
@@ -392,14 +428,14 @@ class ComposeboxQueryController
       bool has_lens_usage_intent,
       RequestBodyProtoCreatedCallback callback,
       lens::LensOverlayServerRequest request,
-      std::optional<contextual_search::FileUploadErrorType> error_type);
+      std::optional<contextual_search::ContextUploadErrorType> error_type);
 
   // Asynchronous handler for when an upload request body is ready.
   void OnUploadRequestBodyReady(
       const base::UnguessableToken& file_token,
       size_t request_index,
       lens::LensOverlayServerRequest request,
-      std::optional<contextual_search::FileUploadErrorType> error_type);
+      std::optional<contextual_search::ContextUploadErrorType> error_type);
 
   // Asynchronous handler for when the request headers for uploading file and
   // viewport data are ready.
@@ -546,8 +582,15 @@ class ComposeboxQueryController
   int num_files_in_request_ = 0;
 
   // The latest pending search URL request that was not sent due to waiting on
-  // cluster info.
-  base::OnceClosure pending_search_url_request_;
+  // cluster info. If `failed_creation` is true, then `createUrl` is not called.
+  base::OnceCallback<void(bool)> pending_search_url_request_;
+
+  // The set of file tokens for files that are currently in a non-terminal
+  // upload status. This is different from `active_files_` because
+  // that map tracks files that are able to be part of a query based on
+  // `IsValidFileUploadStatusForMultimodalRequest()`, whereas
+  // this tracks which of those active files are still uploading.
+  std::set<base::UnguessableToken> pending_context_uploads_;
 
   base::WeakPtrFactory<ComposeboxQueryController> weak_ptr_factory_{this};
 };

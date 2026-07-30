@@ -38,11 +38,11 @@ ACTION_P(RemoveListener, list) {
   list->erase(arg0);
 }
 
-SignalingMessage CreateMessageWithDirectoryState(
+ftl::ChromotingMessage CreateMessageWithDirectoryState(
     ftl::HostStatusChangeMessage_DirectoryState state) {
   ftl::ChromotingMessage message;
   message.mutable_status()->set_directory_state(state);
-  return SignalingMessage{message};
+  return message;
 }
 
 }  // namespace
@@ -62,10 +62,10 @@ class FtlHostChangeNotificationListenerTest : public testing::Test {
   };
 
   void SetUp() override {
-    EXPECT_CALL(signal_strategy_, AddListener(NotNull()))
-        .WillRepeatedly(AddListener(&signal_strategy_listeners_));
-    EXPECT_CALL(signal_strategy_, RemoveListener(NotNull()))
-        .WillRepeatedly(RemoveListener(&signal_strategy_listeners_));
+    EXPECT_CALL(signal_strategy_, AddFtlListener(NotNull()))
+        .WillRepeatedly(AddListener(&ftl_listeners_));
+    EXPECT_CALL(signal_strategy_, RemoveFtlListener(NotNull()))
+        .WillRepeatedly(RemoveListener(&ftl_listeners_));
 
     ftl_host_change_notification_listener_ =
         std::make_unique<FtlHostChangeNotificationListener>(&mock_listener_,
@@ -74,18 +74,18 @@ class FtlHostChangeNotificationListenerTest : public testing::Test {
 
   void TearDown() override {
     ftl_host_change_notification_listener_.reset();
-    EXPECT_TRUE(signal_strategy_listeners_.empty());
+    EXPECT_TRUE(ftl_listeners_.empty());
   }
 
  protected:
   base::test::TaskEnvironment task_environment_;
 
   MockListener mock_listener_;
-  MockSignalStrategy signal_strategy_;
+  MockFtlSignalStrategy signal_strategy_;
   SignalingAddress system_sender_address_;
   SignalingAddress peer_sender_address_;
-  std::set<raw_ptr<SignalStrategy::Listener, SetExperimental>>
-      signal_strategy_listeners_;
+  std::set<raw_ptr<FtlSignalStrategy::FtlListener, SetExperimental>>
+      ftl_listeners_;
   std::unique_ptr<FtlHostChangeNotificationListener>
       ftl_host_change_notification_listener_;
 };
@@ -96,7 +96,7 @@ TEST_F(FtlHostChangeNotificationListenerTest, ReceiveValidNotification) {
     run_loop.Quit();
   });
   bool is_handled =
-      ftl_host_change_notification_listener_->OnSignalStrategyIncomingMessage(
+      ftl_host_change_notification_listener_->OnIncomingFtlMessage(
           system_sender_address_,
           CreateMessageWithDirectoryState(
               ftl::HostStatusChangeMessage_DirectoryState_DELETED));
@@ -108,7 +108,7 @@ TEST_F(FtlHostChangeNotificationListenerTest,
        ReceiveNotificationThenDeleteObject_CallbackNotCalled) {
   EXPECT_CALL(mock_listener_, OnHostDeleted()).Times(0);
   bool is_handled =
-      ftl_host_change_notification_listener_->OnSignalStrategyIncomingMessage(
+      ftl_host_change_notification_listener_->OnIncomingFtlMessage(
           system_sender_address_,
           CreateMessageWithDirectoryState(
               ftl::HostStatusChangeMessage_DirectoryState_DELETED));
@@ -124,7 +124,7 @@ TEST_F(FtlHostChangeNotificationListenerTest,
        ReceiveNonSystemNotification_Ignored) {
   EXPECT_CALL(mock_listener_, OnHostDeleted()).Times(0);
   bool is_handled =
-      ftl_host_change_notification_listener_->OnSignalStrategyIncomingMessage(
+      ftl_host_change_notification_listener_->OnIncomingFtlMessage(
           peer_sender_address_,
           CreateMessageWithDirectoryState(
               ftl::HostStatusChangeMessage_DirectoryState_DELETED));
@@ -139,8 +139,8 @@ TEST_F(FtlHostChangeNotificationListenerTest,
        ReceiveUnknownChromotingMessage_Ignored) {
   EXPECT_CALL(mock_listener_, OnHostDeleted()).Times(0);
   bool is_handled =
-      ftl_host_change_notification_listener_->OnSignalStrategyIncomingMessage(
-          system_sender_address_, SignalingMessage{ftl::ChromotingMessage()});
+      ftl_host_change_notification_listener_->OnIncomingFtlMessage(
+          system_sender_address_, ftl::ChromotingMessage());
   ASSERT_FALSE(is_handled);
   base::RunLoop run_loop;
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
@@ -152,7 +152,7 @@ TEST_F(FtlHostChangeNotificationListenerTest,
        ReceiveUnknownDirectoryState_Ignored) {
   EXPECT_CALL(mock_listener_, OnHostDeleted()).Times(0);
   bool is_handled =
-      ftl_host_change_notification_listener_->OnSignalStrategyIncomingMessage(
+      ftl_host_change_notification_listener_->OnIncomingFtlMessage(
           system_sender_address_,
           CreateMessageWithDirectoryState(
               ftl::HostStatusChangeMessage_DirectoryState_NOT_SET));

@@ -1995,6 +1995,19 @@ int StyleBuilderConverter::ConvertBorderWidth(const StyleResolverState& state,
   return ClampTo<int>(floor(result), 0, LayoutUnit::Max().ToInt());
 }
 
+int StyleBuilderConverter::ConvertOutlineOffset(const StyleResolverState& state,
+                                                const CSSValue& value) {
+  double result = To<CSSPrimitiveValue>(value).ComputeLength<double>(
+      state.CssToLengthConversionData());
+  double abs_result = std::abs(result);
+  if (abs_result > 0.0 && abs_result < 1.0) {
+    return result > 0.0 ? 1 : -1;
+  }
+  int int_result =
+      ClampTo<int>(std::floor(abs_result), 0, LayoutUnit::Max().ToInt());
+  return result < 0.0 ? -int_result : int_result;
+}
+
 Superellipse StyleBuilderConverter::ConvertCornerShape(
     const StyleResolverState& state,
     const CSSValue& value) {
@@ -2209,6 +2222,16 @@ float StyleBuilderConverter::ConvertNumberOrPercentage(
   const auto& primitive_value = To<CSSPrimitiveValue>(value);
   DCHECK(primitive_value.IsNumber() || primitive_value.IsPercentage());
   return primitive_value.ConvertTo<float>(state.CssToLengthConversionData());
+}
+
+float StyleBuilderConverter::ConvertPathLength(StyleResolverState& state,
+                                               const CSSValue& value) {
+  if (auto* identifier_value = DynamicTo<CSSIdentifierValue>(value)) {
+    DCHECK_EQ(identifier_value->GetValueID(), CSSValueID::kNone);
+    return -1.0;
+  }
+  return To<CSSPrimitiveValue>(value).ConvertTo<float>(
+      state.CssToLengthConversionData());
 }
 
 int StyleBuilderConverter::ConvertInteger(StyleResolverState& state,
@@ -3559,21 +3582,10 @@ static const CSSValue& ComputeRegisteredPropertyValue(
                                           selected_value, context);
   }
 
-  if (auto* color_mix_value = DynamicTo<cssvalue::CSSColorMixValue>(value)) {
-    return ComputeColorValue(css_to_length_conversion_data, *color_mix_value,
-                             document, color_scheme);
-  }
-
-  if (auto* relative_color_value =
-          DynamicTo<cssvalue::CSSRelativeColorValue>(value)) {
-    return ComputeColorValue(css_to_length_conversion_data,
-                             *relative_color_value, document, color_scheme);
-  }
-
-  if (auto* unresolved_color_value =
-          DynamicTo<cssvalue::CSSUnresolvedColorValue>(value)) {
-    return ComputeColorValue(css_to_length_conversion_data,
-                             *unresolved_color_value, document, color_scheme);
+  if (value.IsColorMixValue() || value.IsRelativeColorValue() ||
+      value.IsContrastColorValue() || value.IsUnresolvedColorValue()) {
+    return ComputeColorValue(css_to_length_conversion_data, value, document,
+                             color_scheme);
   }
   if (auto* custom_ident = DynamicTo<CSSCustomIdentValue>(value)) {
     return *custom_ident->Resolve(css_to_length_conversion_data);

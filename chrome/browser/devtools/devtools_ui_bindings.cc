@@ -1944,15 +1944,12 @@ base::DictValue DevToolsUIBindings::GetHostConfigDictionary(Profile* profile) {
                       std::move(ai_code_completion_styles_dict));
   }
 
-  if (base::FeatureList::IsEnabled(
-          ::features::kDevToolsEnableDurableMessages)) {
-    base::DictValue devtools_durable_message_dict;
-    devtools_durable_message_dict.Set(
-        "enabled",
-        base::FeatureList::IsEnabled(features::kDevToolsEnableDurableMessages));
-    response_dict.Set("devToolsEnableDurableMessages",
-                      std::move(devtools_durable_message_dict));
-  }
+  response_dict.Set(
+      "devToolsEnableDurableMessages",
+      base::DictValue().Set(
+          "enabled",
+          GetFeatureStateForDevTools(::features::kDevToolsEnableDurableMessages,
+                                     enabled_by_flags, disabled_by_flags)));
 
   base::DictValue devtools_well_known_dict;
   devtools_well_known_dict.Set(
@@ -2095,6 +2092,11 @@ base::DictValue DevToolsUIBindings::GetHostConfigDictionary(Profile* profile) {
     response_dict.Set("devToolsGdpProfiles", std::move(gdp_profiles_dict));
   }
 
+  response_dict.Set(
+      "devToolsUseGcaApi",
+      base::DictValue().Set("enabled", base::FeatureList::IsEnabled(
+                                           ::features::kDevToolsUseGcaApi)));
+
   base::DictValue gdp_profiles_availability_dict;
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
   gdp_profiles_availability_dict.Set("enabled", true);
@@ -2150,6 +2152,12 @@ base::DictValue DevToolsUIBindings::GetHostConfigDictionary(Profile* profile) {
                     base::DictValue().Set(
                         "enabled", base::FeatureList::IsEnabled(
                                        ::features::kDevToolsGeminiRebranding)));
+
+  response_dict.Set(
+      "devToolsWebMCPSupport",
+      base::DictValue().Set("enabled",
+                            base::FeatureList::IsEnabled(
+                                blink::features::kDevToolsWebMCPSupport)));
 
   return response_dict;
 }
@@ -2680,10 +2688,10 @@ void DevToolsUIBindings::AddDevToolsExtensionsToClient() {
 
   base::ListValue results;
   base::ListValue forbidden_origins;
-  bool have_user_installed_devtools_extensions = false;
   extensions::ExtensionManagement* management =
       extensions::ExtensionManagementFactory::GetForBrowserContext(
           web_contents_->GetBrowserContext());
+
   forbidden_origins.Append(
       url::Origin::Create(search::GetNewTabPageURL(profile_)).Serialize());
   for (const scoped_refptr<const extensions::Extension>& extension :
@@ -2735,18 +2743,6 @@ void DevToolsUIBindings::AddDevToolsExtensionsToClient() {
             .Set("runtimeAllowedHosts", std::move(runtime_allowed_hosts))
             .Set("runtimeBlockedHosts", std::move(runtime_blocked_hosts)));
     results.Append(std::move(extension_info));
-
-    if (!(extensions::Manifest::IsPolicyLocation(extension->location()) ||
-          extensions::Manifest::IsComponentLocation(extension->location()))) {
-      have_user_installed_devtools_extensions = true;
-    }
-  }
-
-  if (have_user_installed_devtools_extensions) {
-    bool is_developer_mode =
-        profile_->GetPrefs()->GetBoolean(prefs::kExtensionsUIDeveloperMode);
-    base::UmaHistogramBoolean("Extensions.DevTools.UserIsInDeveloperMode",
-                              is_developer_mode);
   }
 
   CallClientMethod("DevToolsAPI", "setOriginsForbiddenForExtensions",

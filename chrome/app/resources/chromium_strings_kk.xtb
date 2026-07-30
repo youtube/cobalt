@@ -29,6 +29,7 @@
 <translation id="126567311906253476">Gmail не YouTube сияқты Google қызметтеріне <ph name="USER_EMAIL" /> көмегімен кірген кезде, Chromium-ге сол аккаунтпен автоматты түрде кіруге болады.</translation>
 <translation id="1290883685122687410">Реттеу қатесі: <ph name="METAINSTALLER_EXIT_CODE" />. <ph name="WINDOWS_ERROR" /></translation>
 <translation id="1315551408014407711">Жаңа Chromium профилінің параметрлерін реттеу</translation>
+<translation id="132092532143527429">Chromium-дегі Gemini-мен байқап көру</translation>
 <translation id="1324107359134968521">Bluetooth құрылғыларын табу үшін Chromium-ге Bluetooth пайдалану рұқсаты қажет. <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="1330562121671411446">Тілді анықтау</translation>
 <translation id="1330742950061766891">Chromium ұсынған браузер параметрлерін пайдалану</translation>
@@ -240,6 +241,7 @@
 <translation id="3509308970982693815">Барлық Chromium терезелерін жауып, әрекетті қайталап көріңіз.</translation>
 <translation id="3522404737534491619">Терезені бөлісу үшін жүйе параметрлерінде Chromium-ге экран жазуға рұқсат беріңіз.</translation>
 <translation id="3530103706039034513"><ph name="EXISTING_USER" /> әлдеқашан кірді.  Браузерді пайдалану тарихын бөлек сақтау үшін Chromium-ге <ph name="USER_EMAIL_ADDRESS" /> ретінде жеке профиліңізбен кіріңіз.</translation>
+<translation id="3531741627422851418">Chromium браузерін мобильдік құрылғыларға жүктеп алуға арналған QR коды</translation>
 <translation id="3561853857681580870">Экранды бөлісу үшін жүйе параметрлерінде Chromium-ге экран жазуға рұқсат беріңіз.</translation>
 <translation id="3588112919289558122">Күшейтілген қорғаныс Chromium танымайтын сайттар үшін JavaScript оңтайландыру мүмкіндігін өшіреді.</translation>
 <translation id="3597003331831379823">Реттеуді кеңейтілген құқықтармен бастау мүмкін болмады. <ph name="METAINSTALLER_ERROR" /></translation>
@@ -375,7 +377,6 @@
 <translation id="5174969993834422967">Әдетте хабарландыруларға тыйым саласыз. Бұл сайт сізге хабарландыру жіберсін десеңіз, локация жолағының оң жақ бұрышындағы хабарландыру белгішесін басыңыз.</translation>
 <translation id="5174983315706567306">Диск жады жеткіліксіз.</translation>
 <translation id="5187123684706427865">Chromium аккаунтын қайта аутентификациялау қажет.</translation>
-<translation id="5219681158518957165">Ұсынылған браузер параметрлерін пайдалану</translation>
 <translation id="5224391634244552924">Ешқандай құпия сөз сақталмаған. Құпия сөздер сақталған кезде, Chromium оларды тексере алады.</translation>
 <translation id="5231355151045086930">Chromium жүйесінен шығу</translation>
 <translation id="5234764350956374838">Жабу</translation>
@@ -609,6 +610,7 @@ Chromium параметрлеріңізді қалпына келтіре алм
 <translation id="7622753900276619808">Енді Chromium-дегі функциялар көбейді.</translation>
 <translation id="7624307931717240213">Біз бұл қызметті жақсарту үшін ақпаратты пайдаланамыз. Құпиялық саясаты мен Қызмет көрсету шарттарын қараңыз.</translation>
 <translation id="7649070708921625228">Анықтама</translation>
+<translation id="7650134251917003571">Chromium қолданбасын жүктеп алу</translation>
 <translation id="7656340475565475526">Chromium сіздің орныңызға браузерді шола алады</translation>
 <translation id="7658239707568436148">Бас тарту</translation>
 <translation id="7686590090926151193">Chromium әдепкі браузеріңіз емес</translation>

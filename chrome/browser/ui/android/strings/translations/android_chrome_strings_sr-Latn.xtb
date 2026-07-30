@@ -56,6 +56,7 @@
 <translation id="1197267115302279827">Premesti obeleživače</translation>
 <translation id="1197761954713363183">Tabela za potvrdu pristupnog ključa je zatvorena</translation>
 <translation id="1197933394627598677">Prikaži Režim čitanja</translation>
+<translation id="1197935538609051549">Deaktiviraj</translation>
 <translation id="1201402288615127009">Dalje</translation>
 <translation id="1202892408424955784">Proizvodi koje pratite</translation>
 <translation id="1204037785786432551">Preuzmi link</translation>
@@ -178,7 +179,6 @@ Samo neko ko ima pristupnu frazu može da čita šifrovane podatke. Pristupna fr
 <translation id="1750238553597293878">Nastavite da koristite lozinke na Google nalogu</translation>
 <translation id="17513872634828108">Otvorene kartice</translation>
 <translation id="1753744496844366747">Aa</translation>
-<translation id="1755203724116202818">Da bi se izmerio učinak oglasa, između sajtova se dele ograničeni tipovi podataka, na primer, da li ste obavili kupovinu posle posete sajtu.</translation>
 <translation id="1760873718737761808">{FILE_COUNT,plural, =1{Stranice, 1 stranica na listi}one{Stranice, # stranica na listi}few{Stranice, # stranice na listi}other{Stranice, # stranica na listi}}</translation>
 <translation id="1771929606532798550">Google-u se šalju informacije o vašem korišćenju Chrome-a, ali nisu povezane sa vama\n\nAko Chrome otkaže, detalji o otkazivanju mogu da obuhvataju neke lične podatke\n\nAko sinhronizujete istoriju sa Google nalogom, pokazatelji mogu da sadrže i informacije o URL-ovima koje posećujete</translation>
 <translation id="1778457539567749232">Označi kao nepročitano</translation>
@@ -286,6 +286,7 @@ Samo neko ko ima pristupnu frazu može da čita šifrovane podatke. Pristupna fr
 <translation id="2230777942707397948">Prazan prozor</translation>
 <translation id="223356358902285214">Aktivnosti na vebu i u aplikacijama</translation>
 <translation id="2233735624724508540">Odaberite period, pa dodirnite Izbriši podatke</translation>
+<translation id="2234031676056123135">Prilagodite prečice</translation>
 <translation id="2234827758954819389">Vodič za privatnost</translation>
 <translation id="2238038374973843156">Promeni prozor grupe</translation>
 <translation id="2239812875700136898">Kontrolišite vesti pomoću dugmeta Opcije za Discover</translation>
@@ -319,6 +320,7 @@ Samo neko ko ima pristupnu frazu može da čita šifrovane podatke. Pristupna fr
 <translation id="2385605401818128172">Možete da pregledate sajtove koji šalju mnogo obaveštenja i sprečite ih da ubuduće šalju još obaveštenja</translation>
 <translation id="2386938421315164605">Sakrijte i otkrijte teme</translation>
 <translation id="2390510615457643724">Da li želite ponovo da preuzmete fajl <ph name="FILE_NAME" /> (<ph name="FILE_SIZE" />)?</translation>
+<translation id="2392369802118427583">Aktiviraj</translation>
 <translation id="2397175985681716533"><ph name="TAB_TITLE" />, kartica bez arhiviranja za snimanje</translation>
 <translation id="2410754283952462441">Izaberite nalog</translation>
 <translation id="2411239243988279592"><ph name="TAB_TITLE" />, izabrana kartica sa zvukom</translation>
@@ -478,7 +480,6 @@ Samo neko ko ima pristupnu frazu može da čita šifrovane podatke. Pristupna fr
 <translation id="2992473221983447149">Opisi slika</translation>
 <translation id="2996291259634659425">Napravite pristupnu frazu</translation>
 <translation id="2996809686854298943">URL je obavezan</translation>
-<translation id="3008916997590006706">Dodirnite Sačuvaj da biste lako pristupili ovoj lozinci pri sledećem prijavljivanju</translation>
 <translation id="3024215143424744261">Željena podešavanja režima čitanja su zatvorena</translation>
 <translation id="3026955690410463085">Uvrstite link</translation>
 <translation id="3027644380269727216">Na osnovu vaše aktivnosti na sajtu. Ovo podešavanje je uključeno.</translation>
@@ -491,6 +492,7 @@ Samo neko ko ima pristupnu frazu može da čita šifrovane podatke. Pristupna fr
 <translation id="3037177537145227281">Prati se cena</translation>
 <translation id="3037517125981011456">Prikazuje upite za prijavljivanje u Chrome</translation>
 <translation id="3038272154009688107">Prikaži sve sajtove</translation>
+<translation id="3057938290530993634">Dodirnite i zadržite da biste zakačili najposećenije veb-sajtove radi lakšeg pristupa sledeći put</translation>
 <translation id="3060635849835183725">{BOOKMARKS_COUNT,plural, =1{<ph name="BOOKMARKS_COUNT_ONE" /> obeleživač}one{<ph name="BOOKMARKS_COUNT_MANY" /> obeleživač}few{<ph name="BOOKMARKS_COUNT_MANY" /> obeleživača}other{<ph name="BOOKMARKS_COUNT_MANY" /> obeleživača}}</translation>
 <translation id="3062802207422175757">Članci o vašim interesovanjima u Chrome-u</translation>
 <translation id="3066573403916685335">Pomeri nadole</translation>
@@ -505,6 +507,7 @@ Samo neko ko ima pristupnu frazu može da čita šifrovane podatke. Pristupna fr
 <translation id="3122883569442693641">Još detalja</translation>
 <translation id="3123734510202723619">Saopštenja</translation>
 <translation id="3134385238404760368">Nema nedavnih kartica</translation>
+<translation id="3135655388926735587">Dodirnite Nedavne kartice</translation>
 <translation id="314939179385989105">Chrome početna stranica</translation>
 <translation id="3158667104057012316">Sortira se po ručnom redosledu</translation>
 <translation id="3159335509547415276">Saznajte više o blokiranim nalozima</translation>
@@ -550,6 +553,7 @@ Samo neko ko ima pristupnu frazu može da čita šifrovane podatke. Pristupna fr
 <translation id="333863344734218290">Upozorava vas na nebezbedne javne i privatne sajtove</translation>
 <translation id="3340978935015468852">podešavanja</translation>
 <translation id="3341262203274374114">Opozivanje praćenja nije uspelo. Došlo je do greške.</translation>
+<translation id="3351959803838327376">Dugo pritisnite veb-sajt i otvorite meni</translation>
 <translation id="3359667936385849800">Koristi aktuelnog dobavljača usluge</translation>
 <translation id="3373701465337594448">Kada je ovo podešavanje uključeno, ovde se prikazuje lista sajtova koje posećujete, a koji pogađaju vaša interesovanja</translation>
 <translation id="3384347053049321195">Deli sliku</translation>
@@ -566,7 +570,6 @@ Samo neko ko ima pristupnu frazu može da čita šifrovane podatke. Pristupna fr
 <translation id="3444179773590444986">Želite da delite povratne informacije o tamnoj temi za sajtove?</translation>
 <translation id="3448874648066942074">Rezimiraj stranicu pomoću AI-ja</translation>
 <translation id="3452832259067974318">Radi zaštite privatnosti Chrome neće automatski unositi vašu lozinku u ovo polje.</translation>
-<translation id="3467081767799433066">Pomoću funkcije merenja oglasa ograničeni tipovi podataka se dele između sajtova radi merenja učinka oglasa, na primer, da li ste obavili kupovinu posle posete sajtu.</translation>
 <translation id="3474624961160222204">Nastavi kao <ph name="NAME" /></translation>
 <translation id="3478363558367712427">Možete da odaberete pretraživač</translation>
 <translation id="3482805106082349287">Pretražujte pomoću tastature, glasa, bez arhiviranja ili kamerom</translation>
@@ -592,6 +595,7 @@ Samo neko ko ima pristupnu frazu može da čita šifrovane podatke. Pristupna fr
 <translation id="3549537543136628349">Pošto su predučitane stranice šifrovane, a sajt ili aplikacija koji vodi do stranica je Google sajt ili aplikacija, Google serveri ne dobijaju nove informacije kada privatno predučitavaju te stranice.</translation>
 <translation id="3549657413697417275">Pretražite svoju istoriju</translation>
 <translation id="3557336313807607643">Dodaj u kontakte</translation>
+<translation id="3560831525486613327">Otvorite stranicu nove kartice</translation>
 <translation id="3563767357928833671">Prikazan je sadržaj privremene memorije</translation>
 <translation id="3566639033325271639">Ažuriraj podešavanja</translation>
 <translation id="3568945271227339929">Nema ugroženih lozinki</translation>
@@ -742,6 +746,7 @@ Samo neko ko ima pristupnu frazu može da čita šifrovane podatke. Pristupna fr
 <translation id="4198423547019359126">Nema dostupnih lokacija za preuzimanja</translation>
 <translation id="4209029522667123437"><ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> • Koristili ste na ovom sajtu</translation>
 <translation id="4214315110991671325">Ako dozvolite kolačiće, Chrome može da ih koristi za predučitavanje.</translation>
+<translation id="421517251707893998">Dodirnite Zakači ovu prečicu</translation>
 <translation id="4216511743389425832">Slušajte ovu stranicu</translation>
 <translation id="4225725533026049334">Pratite</translation>
 <translation id="4225895483398857530">Prečica za traku s alatkama</translation>
@@ -848,6 +853,7 @@ Google nalog možda ima druge oblike istorije pregledanja, poput pretraga i akti
 <translation id="4640331037679501949">{NUM_PASSWORDS,plural, =1{1 ugrožena lozinka}one{# ugrožena lozinka}few{# ugrožene lozinke}other{# ugroženih lozinki}}</translation>
 <translation id="4641919525231168205">Idite na sledeću stranicu</translation>
 <translation id="4642472735733036929">Praćenje cena je zaustavljeno</translation>
+<translation id="4649493483932335039">Prikaži nedavne kartice</translation>
 <translation id="465657074423018424">Bezbedno pregledanje vas štiti od obmanjujućih veb-sajtova. Ako ga isključite, budite posebno pažljivi tokom pregledanja, pogotovo pre unosa lozinki.</translation>
 <translation id="4662373422909645029">Nadimak ne sme da sadrži brojeve</translation>
 <translation id="4663756553811254707">Izbrisali ste <ph name="NUMBER_OF_BOOKMARKS" /> obeleživača</translation>
@@ -887,7 +893,6 @@ Google nalog možda ima druge oblike istorije pregledanja, poput pretraga i akti
 <translation id="4763480195061959176">video</translation>
 <translation id="4766313118839197559">Lozinke se čuvaju u Menadžeru lozinki na ovom uređaju</translation>
 <translation id="4766678251456904326">Dodaj nalog na uređaj</translation>
-<translation id="4767947714785277816">Pokrećemo novu funkciju za privatnost oglasa, koja se zove merenje oglasa. Chrome deli samo vrlo ograničene informacije sa sajtovima i aplikacijama, na primer, kada vam je oglas prikazan, da bi pomogao u merenju učinka oglasa.</translation>
 <translation id="4769095993849849966">Naziv novog fajla</translation>
 <translation id="4769632191812288342">Dobijate standardnu zaštitu</translation>
 <translation id="4773122030389014189">Delite grupu kartica <ph name="GROUP_NAME" /></translation>
@@ -923,7 +928,6 @@ Google nalog možda ima druge oblike istorije pregledanja, poput pretraga i akti
 <translation id="4885273946141277891">Nepodržan broj Chrome instanci.</translation>
 <translation id="4890973535105146893">Nema sačuvanih lozinki na Google nalogu</translation>
 <translation id="4905823827770127520">Uvrstite link do stranice</translation>
-<translation id="4908601375231458049">Prilagodite grupu kartica i kliknite na Gotovo</translation>
 <translation id="4908869848243824489">Google Discover</translation>
 <translation id="4910889077668685004">Aplikacije za plaćanje</translation>
 <translation id="4911042367886397055">Dobro nam došli ponovo, <ph name="USER_NAME" />.</translation>
@@ -1109,7 +1113,6 @@ Google nalog možda ima druge oblike istorije pregledanja, poput pretraga i akti
 <translation id="572328651809341494">Nedavno korišćene kartice</translation>
 <translation id="5728072125198221967">Povezane Google usluge</translation>
 <translation id="5734658507307260911"><ph name="TAB_TITLE" />, zakačena kartica bez arhiviranja sa zvukom</translation>
-<translation id="5736345781200955827">Pravite i čuvajte lozinke i upravljajte njima da biste se lako prijavljivali na sajtove i u aplikacije pomoću Chrome-a</translation>
 <translation id="5744751019568455640">Evo glasova koje možete da izaberete za čitanje veb-stranica. Ako vam se sviđa ovaj glas i želite da nastavim da ga koristim, samo dodirnite naziv glasa.</translation>
 <translation id="574845902699630049">Deli kao <ph name="OWNER_FULL_NAME" /></translation>
 <translation id="5749068826913805084">Chrome-u je potreban pristup memorijskom prostoru da bi preuzimao datoteke.</translation>
@@ -1323,6 +1326,7 @@ Na primer, neki veb-sajtovi mogu da odgovore na ovaj zahtev prikazivanjem oglasa
 <translation id="6508722015517270189">Ponovo pokrenite Chrome</translation>
 <translation id="6513924416597632811">Kopirajte link do stranice rezultata pretrage za: <ph name="SEARCH_QUERY" />. Izvor: <ph name="PAGE_URL" /></translation>
 <translation id="6518133107902771759">Verifikuj</translation>
+<translation id="6521218807522232085">Pravite i čuvajte lozinke i upravljajte njima da biste se lako prijavljivali</translation>
 <translation id="6527303717912515753">Deli</translation>
 <translation id="652948702951888897">Istorija Chrome-a</translation>
 <translation id="6532866250404780454">Sajtovi koje posećujete u Chrome-u se neće prikazivati. Biće izbrisani tajmeri za sve sajtove.</translation>
@@ -1336,7 +1340,6 @@ Na primer, neki veb-sajtovi mogu da odgovore na ovaj zahtev prikazivanjem oglasa
 <translation id="6556501700899673703">Lexend</translation>
 <translation id="6560414384669816528">Pretraga pomoću Sogou-a</translation>
 <translation id="656065428026159829">Prikaži još</translation>
-<translation id="6564820424018738527">Android uređaj može da ima slično podešavanje. Ako je merenje oglasa uključeno u Chrome-u i na Android uređaju, kompanija možda može da meri efikasnost oglasa na veb-sajtovima koje posećujete i u aplikacijama koje koristite.</translation>
 <translation id="6565959834589222080">WiFi se koristi kada je dostupan</translation>
 <translation id="6569373978618239158">Sada ćete videti priče sa <ph name="SITE_NAME" /> kada otvorite novu karticu. Sajtovi koje pratite se čuvaju na Google nalogu. Njima možete da upravljate u podešavanjima Discover-a.</translation>
 <translation id="657177046675873214">Da bi vam obeleživači bili dostupni na svim uređajima, uključite Obeleživače u podešavanjima</translation>
@@ -1372,6 +1375,7 @@ Na primer, neki veb-sajtovi mogu da odgovore na ovaj zahtev prikazivanjem oglasa
 <translation id="6684262542644248484">Prijavite se na veb-sajt</translation>
 <translation id="6684809838922667136">Poboljšajte Chrome</translation>
 <translation id="6689436252814043643">Režim čitanja nije dostupan</translation>
+<translation id="669971068476817798">Dodirnite Sačuvaj</translation>
 <translation id="6700279777779583398">Izbori su sačuvani</translation>
 <translation id="670498945988402717">Provereno juče</translation>
 <translation id="6710213216561001401">Nazad</translation>
@@ -1481,6 +1485,7 @@ Na primer, neki veb-sajtovi mogu da odgovore na ovaj zahtev prikazivanjem oglasa
 <translation id="7054588988317389591">Želite da dobijate opise slika?</translation>
 <translation id="7057969023583258980">Otvori kompletnu istoriju Chrome-a</translation>
 <translation id="7063006564040364415">Nije moguće povezivanje sa serverom za sinhronizaciju.</translation>
+<translation id="7063106218165698546">Prilagodite grupu kartica i kliknite na Gotovo</translation>
 <translation id="7071521146534760487">Upravljajte nalogom</translation>
 <translation id="707155805709242880">Odaberite stavke za sinhronizaciju u nastavku</translation>
 <translation id="7077143737582773186">SD kartica</translation>
@@ -1548,7 +1553,6 @@ Da biste promenili ovo podešavanje, <ph name="BEGIN_LINK" />izbrišite Chrome p
 <translation id="7291910923717764901">Dodati su opisi slika za ovu stranicu</translation>
 <translation id="7293429513719260019">Izaberite jezik</translation>
 <translation id="7298319215489933099"><ph name="TAB_TITLE" />, izabrana zakačena kartica za deljenje</translation>
-<translation id="7304072650267745798">Android uređaj može da ima slično podešavanje. Ako je ovo podešavanje uključeno u Chrome-u i na Android uređaju, kompanija možda može da meri efikasnost oglasa na svim veb-sajtovima koje posećujete i u aplikacijama koje koristite.</translation>
 <translation id="7311244614769792472">Nije pronađen nijedan rezultat</translation>
 <translation id="7313188324932846546">Dodirnite da biste podesili sinhronizaciju</translation>
 <translation id="7314734791127433392">Provera lozinki nije uspela</translation>
@@ -1565,6 +1569,7 @@ Da biste promenili ovo podešavanje, <ph name="BEGIN_LINK" />izbrišite Chrome p
 <translation id="7363349185727752629">Vodič za izbore u vezi sa privatnošću</translation>
 <translation id="7364103838544876661">Još opcija za brisanje podataka pregledanja</translation>
 <translation id="7365073365123878797">Da biste počeli da čuvate i koristite lozinke pomoću Google menadžera lozinki, ažurirajte Google Play usluge</translation>
+<translation id="7368009310682364976">Pregledajte nedavno otvorene kartice</translation>
 <translation id="7368927539449986686">Izmenite pretragu sajta</translation>
 <translation id="7375125077091615385">Tip:</translation>
 <translation id="7376560087009844242">Ako uvrstite veći deo teksta stranice, možete da dobijete bolje rezultate kada koristite Dodirnuti za pretragu. Uvek možete da posetite <ph name="BEGIN_LINK" />podešavanja<ph name="END_LINK" /> da to promenite.</translation>
@@ -1682,6 +1687,7 @@ Da biste promenili ovo podešavanje, <ph name="BEGIN_LINK" />izbrišite Chrome p
 <translation id="7824665136384946951">Organizacija je isključila Bezbedno pregledanje</translation>
 <translation id="7826342993930002256">Vaš Chrome, svuda</translation>
 <translation id="7844171778363018843">Nema podataka izabranih za sinhronizaciju</translation>
+<translation id="784453721355882533">Isprobajte Gemini u Chrome-u da biste dobijali odgovore, ključne zaključke i drugo.</translation>
 <translation id="7846161022626028328">Došlo je do greške. Probajte ponovo.</translation>
 <translation id="7846296061357476882">Google usluge</translation>
 <translation id="784652447248278262">Aktuelni prozor</translation>
@@ -1691,6 +1697,7 @@ Da biste promenili ovo podešavanje, <ph name="BEGIN_LINK" />izbrišite Chrome p
 <translation id="7853202427316060426">Aktivnost</translation>
 <translation id="7859988229622350291">Nikad ne prevodi</translation>
 <translation id="7866213166286285359">Prevedite stranice ovde</translation>
+<translation id="7873610418439765081">Isprobajte Gemini u Chrome-u da biste dobijali odgovore, ključne zaključke i drugo pomoću dugmeta Još opcija.</translation>
 <translation id="7875915731392087153">Napišite imejl</translation>
 <translation id="7876243839304621966">Ukloni sve</translation>
 <translation id="7886917304091689118">Pokrenuto je u Chrome-u</translation>
@@ -1741,6 +1748,7 @@ Da biste promenili ovo podešavanje, <ph name="BEGIN_LINK" />izbrišite Chrome p
 <translation id="8062594758852531064">Produženo predučitavanje:</translation>
 <translation id="8063895661287329888">Dodavanje obeleživača nije uspelo.</translation>
 <translation id="8066816452984416180">Brzo obeležite ovu stranicu. Da biste izmenili ovu prečicu, dodirnite i zadržite.</translation>
+<translation id="8072436850275034464">Možete ponovo da otvorite kartice koje ste nedavno zatvorili na bilo kom uređaju na kom koristite Chrome</translation>
 <translation id="8073388330009372546">Otvori sliku na novoj kartici</translation>
 <translation id="8076492880354921740">Kartice</translation>
 <translation id="8078096376109663956">Delite samo tekst</translation>
@@ -1852,6 +1860,7 @@ Da biste promenili ovo podešavanje, <ph name="BEGIN_LINK" />izbrišite Chrome p
 <translation id="8460008946585880786">Prevucite jednu karticu preko druge i otpustite je</translation>
 <translation id="8460448946170646641">Pregledajte ključne kontrole privatnosti i bezbednosti</translation>
 <translation id="8460932807646981183">Upravljajte pretraživačima i pretragom sajta</translation>
+<translation id="8465252176946159372">Nije važeći</translation>
 <translation id="8473863474539038330">Adrese i drugo</translation>
 <translation id="847433688444405067">Pregledajte na više uređaja</translation>
 <translation id="8477178913400731244">Izbriši podatke</translation>

@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.tasks.tab_management;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
 import static org.chromium.chrome.browser.tasks.tab_management.TabListModel.CardProperties.BASE_ANIMATION_DURATION_MS;
 
 import android.animation.Animator;
@@ -17,6 +18,7 @@ import android.graphics.BitmapFactory;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.InsetDrawable;
 import android.util.AttributeSet;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.accessibility.AccessibilityNodeInfo;
@@ -33,8 +35,10 @@ import androidx.vectordrawable.graphics.drawable.AnimatedVectorDrawableCompat;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.quick_delete.QuickDeleteAnimationGradientDrawable;
-import org.chromium.chrome.browser.tab.Tab.MediaState;
+import org.chromium.chrome.browser.tab.MediaState;
 import org.chromium.chrome.browser.tab.TabUtils;
+import org.chromium.chrome.browser.tab_ui.TabThumbnailView;
+import org.chromium.chrome.browser.tab_ui.TabThumbnailView.ThumbnailViewState;
 import org.chromium.chrome.browser.tasks.tab_management.TabActionButtonData.TabActionButtonType;
 import org.chromium.chrome.browser.tasks.tab_management.TabListModel.AnimationStatus;
 import org.chromium.chrome.browser.tasks.tab_management.TabProperties.TabActionState;
@@ -75,6 +79,8 @@ public class TabGridView extends SelectableItemViewBase<TabListEditorItemSelecti
     private @Nullable QuickDeleteAnimationGradientDrawable mQuickDeleteAnimationDrawable;
     private ImageView mActionButton;
     private @Nullable ColorStateList mActionButtonTint;
+    private boolean mActorUiVisible;
+    private boolean mIsAttachedToWindow;
 
     public TabGridView(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -135,6 +141,17 @@ public class TabGridView extends SelectableItemViewBase<TabListEditorItemSelecti
         scaleAnimator.play(scaleX).with(scaleY);
         mIsAnimating = true;
         scaleAnimator.start();
+    }
+
+    void setThumbnailSpinnerVisibility(boolean isVisible) {
+        View spinner = findViewById(R.id.fetch_thumbnail_spinner);
+        if (spinner == null) return;
+
+        spinner.setVisibility(isVisible ? View.VISIBLE : View.GONE);
+        TabThumbnailView thumbnail = findViewById(R.id.tab_thumbnail);
+        if (thumbnail != null && isVisible) {
+            thumbnail.setThumbnailViewState(ThumbnailViewState.LOADING);
+        }
     }
 
     void hideTabGridCardViewForQuickDelete(
@@ -225,6 +242,7 @@ public class TabGridView extends SelectableItemViewBase<TabListEditorItemSelecti
             case MediaState.MUTED:
             case MediaState.RECORDING:
             case MediaState.SHARING:
+            case MediaState.PICTURE_IN_PICTURE:
                 marginResId = R.dimen.tab_grid_card_title_end_margin_media_indicator;
                 mediaIndicatorVisibility = View.VISIBLE;
                 break;
@@ -319,6 +337,55 @@ public class TabGridView extends SelectableItemViewBase<TabListEditorItemSelecti
         }
 
         applyActionButtonTint();
+    }
+
+    private @Nullable View getActorUi(boolean inflateIfMissing) {
+        View actorContainer = fastFindViewById(R.id.actor_ui_container);
+
+        if (actorContainer == null && inflateIfMissing) {
+            LayoutInflater.from(getContext()).inflate(R.layout.actor_gts_tab_indicator, this, true);
+
+            actorContainer = fastFindViewById(R.id.actor_ui_container);
+
+            assumeNonNull(actorContainer)
+                    .setLayoutParams(
+                            new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+            bringChildToFront(actorContainer);
+        }
+        return actorContainer;
+    }
+
+    /**
+     * Sets the visibility of the actor-specific tab UI elements. Injects the view programmatically
+     * if it doesn't exist yet.
+     *
+     * @param visible Whether the actor active UI should be shown.
+     */
+    public void setActorActiveUiVisible(boolean visible) {
+        mActorUiVisible = visible;
+        if (!mIsAttachedToWindow) return;
+
+        View actorContainer = getActorUi(visible);
+        if (actorContainer == null) return;
+
+        if (visible) {
+            actorContainer.setVisibility(View.VISIBLE);
+        } else {
+            actorContainer.setVisibility(View.GONE);
+        }
+    }
+
+    @Override
+    protected void onAttachedToWindow() {
+        super.onAttachedToWindow();
+        mIsAttachedToWindow = true;
+        setActorActiveUiVisible(mActorUiVisible);
+    }
+
+    @Override
+    protected void onDetachedFromWindow() {
+        super.onDetachedFromWindow();
+        mIsAttachedToWindow = false;
     }
 
     // SelectableItemViewBase implementation.

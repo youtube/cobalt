@@ -248,9 +248,7 @@ class CONTENT_EXPORT RenderProcessHostImpl
   int VisibleClientCount() override;
   unsigned int GetFrameDepth() override;
   bool GetIntersectsViewport() override;
-#if !BUILDFLAG(IS_ANDROID)
-  bool IsForInitialWebUI() const override;
-#endif  // !BUILDFLAG(IS_ANDROID)
+  bool IsForTopChromeWebUI() const override;
   bool IsForGuestsOnly() override;
   bool IsJitDisabled() override;
   bool AreV8OptimizationsDisabled() override;
@@ -259,11 +257,13 @@ class CONTENT_EXPORT RenderProcessHostImpl
   StoragePartitionImpl* GetStoragePartition() override;
   bool Shutdown(int exit_code) override;
   bool ShutdownRequested() override;
-  bool FastShutdownIfPossible(size_t page_count = 0,
-                              bool skip_unload_handlers = false,
-                              bool ignore_workers = false,
-                              bool ignore_keep_alive = false,
-                              bool ignore_pending_reuse = false) override;
+  bool FastShutdownIfPossible(
+      size_t page_count = 0,
+      bool skip_unload_handlers = false,
+      bool ignore_workers = false,
+      bool ignore_keep_alive = false,
+      bool ignore_pending_reuse = false,
+      bool use_outermost_main_frame_check = false) override;
   const base::Process& GetProcess() override;
   bool IsReady() override;
   BrowserContext* GetBrowserContext() override;
@@ -415,6 +415,7 @@ class CONTENT_EXPORT RenderProcessHostImpl
   void BindChildHistogramFetcherFactory(
       mojo::PendingReceiver<metrics::mojom::ChildHistogramFetcherFactory>
           factory) override;
+  bool IsWebiumRenderer() const override;
 
   // Call this function when it is evident that the child process is actively
   // performing some operation, for example if we just received an IPC message.
@@ -426,10 +427,12 @@ class CONTENT_EXPORT RenderProcessHostImpl
   // The routing ID and frame tokens were stored on the IO thread via the
   // RenderMessageFilter::GenerateSingleFrameRoutingInfo mojo call. Returns
   // false if `frame_token` was not found in the token table.
-  bool TakeStoredDataForFrameToken(const blink::LocalFrameToken& frame_token,
-                                   int32_t& new_routing_id,
-                                   base::UnguessableToken& devtools_frame_token,
-                                   blink::DocumentToken& document_token);
+  bool TakeStoredDataForFrameToken(
+      const blink::LocalFrameToken& frame_token,
+      int32_t& new_routing_id,
+      base::UnguessableToken& devtools_frame_token,
+      blink::DocumentToken& document_token,
+      std::unique_ptr<base::UnguessableToken>& sandbox_origin_token);
 
   void AddInternalObserver(RenderProcessHostInternalObserver* observer);
   void RemoveInternalObserver(RenderProcessHostInternalObserver* observer);
@@ -976,13 +979,9 @@ class CONTENT_EXPORT RenderProcessHostImpl
     // renderer process.
     kDisallowV8FeatureFlagOverrides = 1 << 4,
 
-#if !BUILDFLAG(IS_ANDROID)
-    // Indicates that this RenderProcessHost is hosting the initial WebUI.
-    // Initial WebUI (WaaP) and WebUI (e.g. Tab Search) are hosted in the same
-    // process. This flag is only set when the initial WebUI exists.
+    // Indicates that this RenderProcessHost is hosting a Top Chrome WebUI.
     // Only used on desktop.
-    kForInitialWebUI = 1 << 5,
-#endif  // !BUILDFLAG(IS_ANDROID)
+    kForTopChromeWebUI = 1 << 5,
   };
 
 #if BUILDFLAG(IS_ANDROID)

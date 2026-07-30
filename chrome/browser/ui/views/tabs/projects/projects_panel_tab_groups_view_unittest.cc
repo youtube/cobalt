@@ -14,6 +14,7 @@
 #include "chrome/browser/ui/views/tabs/projects/projects_panel_controller.h"
 #include "chrome/browser/ui/views/tabs/projects/projects_panel_no_tab_groups_view.h"
 #include "chrome/browser/ui/views/tabs/projects/projects_panel_tab_groups_item_view.h"
+#include "chrome/grit/generated_resources.h"
 #include "chrome/test/views/chrome_views_test_base.h"
 #include "components/saved_tab_groups/public/saved_tab_group.h"
 #include "components/saved_tab_groups/test_support/mock_tab_group_sync_service.h"
@@ -23,6 +24,7 @@
 #include "ui/base/dragdrop/drag_drop_types.h"
 #include "ui/base/dragdrop/mojom/drag_drop_types.mojom.h"
 #include "ui/base/dragdrop/os_exchange_data.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/compositor/layer_tree_owner.h"
 #include "ui/gfx/geometry/point_f.h"
 #include "ui/views/actions/action_view_controller.h"
@@ -76,8 +78,8 @@ class ProjectsPanelTabGroupsViewTest : public ChromeViewsTestBase {
             root_action_item_.get(), action_view_controller_.get(),
             /*tab_group_button_callback=*/base::DoNothing(),
             /*more_button_callback=*/base::DoNothing(),
-            tab_group_moved_callback_.Get(),
-            create_new_tab_group_callback_.Get()));
+            tab_group_moved_callback_.Get(), drag_updated_callback_.Get(),
+            drag_exited_callback_.Get()));
   }
 
   void TearDown() override {
@@ -91,7 +93,10 @@ class ProjectsPanelTabGroupsViewTest : public ChromeViewsTestBase {
  protected:
   testing::NiceMock<tab_groups::MockTabGroupSyncService>
       mock_tab_group_sync_service_;
-  base::MockCallback<base::RepeatingClosure> create_new_tab_group_callback_;
+  base::MockCallback<ProjectsPanelTabGroupsView::DragUpdatedCallback>
+      drag_updated_callback_;
+  base::MockCallback<ProjectsPanelTabGroupsView::DragExitedCallback>
+      drag_exited_callback_;
   std::unique_ptr<actions::ActionItem> root_action_item_;
   std::unique_ptr<views::ActionViewController> action_view_controller_;
   std::unique_ptr<views::Widget> widget_;
@@ -100,16 +105,12 @@ class ProjectsPanelTabGroupsViewTest : public ChromeViewsTestBase {
       tab_group_moved_callback_;
 
   void VerifyNoTabGroupsView() {
-    // Should contain the "Create new tab group" button and the no tab groups
-    // message.
-    EXPECT_EQ(2u, tab_groups_view_->children().size());
-    // Index 0 is the "Create new tab group" button.
+    // Should contain the no tab groups message.
+    EXPECT_EQ(1u, tab_groups_view_->children().size());
     views::Label* no_tabs_label = views::AsViewClass<views::Label>(
         tab_groups_view_->no_tab_groups_view_for_testing()->children()[1]);
-    EXPECT_EQ(
-        u"Organize your tabs by grouping them together and label them with a "
-        u"custom name and color",
-        no_tabs_label->GetText());
+    EXPECT_EQ(l10n_util::GetStringUTF16(IDS_TAB_GROUPS_NO_TAB_GROUPS),
+              no_tabs_label->GetText());
   }
 };
 
@@ -134,23 +135,11 @@ TEST_F(ProjectsPanelTabGroupsViewTest, PopulatesTabGroups) {
 
   tab_groups_view_->SetTabGroups(groups);
 
-  // Groups + "Create new tab group" button.
-  ASSERT_EQ(groups.size() + 1, tab_groups_view_->children().size());
+  ASSERT_EQ(groups.size(), tab_groups_view_->children().size());
 
-  // Index 0 is the "Create new tab group" button.
   for (size_t i = 0; i < groups.size(); ++i) {
-    EXPECT_THAT(tab_groups_view_->children()[i + 1], IsForTabGroup(groups[i]));
+    EXPECT_THAT(tab_groups_view_->children()[i], IsForTabGroup(groups[i]));
   }
-}
-
-TEST_F(ProjectsPanelTabGroupsViewTest, CreateNewTabGroupButtonPressed) {
-  auto* create_match_button =
-      tab_groups_view_->create_new_tab_group_button_for_testing();
-
-  EXPECT_CALL(create_new_tab_group_callback_, Run());
-  ui::MouseEvent event(ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
-                       base::TimeTicks::Now(), 0, 0);
-  views::test::ButtonTestApi(create_match_button).NotifyClick(event);
 }
 
 TEST_F(ProjectsPanelTabGroupsViewTest, CanDrop) {
@@ -200,6 +189,7 @@ TEST_F(ProjectsPanelTabGroupsViewTest, DragExitedResetsState) {
 
   tab_groups_view_->OnDragEntered(event);
   tab_groups_view_->OnDragUpdated(event);
+  EXPECT_CALL(drag_exited_callback_, Run());
   tab_groups_view_->OnDragExited();
 
   // Drop callback should be null after drag exit.
@@ -237,6 +227,7 @@ TEST_F(ProjectsPanelTabGroupsViewTest, DragAndDropReorder) {
                             ui::DragDropTypes::DRAG_MOVE);
 
   tab_groups_view_->OnDragEntered(event);
+  EXPECT_CALL(drag_updated_callback_, Run(gfx::Point(50, 75)));
   tab_groups_view_->OnDragUpdated(event);
 
   // Dropping at 75 should move Group 1 to index 1 (after Group 2).
@@ -256,4 +247,13 @@ TEST_F(ProjectsPanelTabGroupsViewTest, DragAndDropReorder) {
   ui::mojom::DragOperation output_op = ui::mojom::DragOperation::kNone;
   std::move(drop_callback).Run(event, output_op, nullptr);
   EXPECT_EQ(ui::mojom::DragOperation::kMove, output_op);
+}
+
+TEST_F(ProjectsPanelTabGroupsViewTest, NumTabGroups) {
+  std::vector<tab_groups::SavedTabGroup> groups = {CreateGroup(u"Group 1"),
+                                                   CreateGroup(u"Group 2"),
+                                                   CreateGroup(u"Group 3")};
+  tab_groups_view_->SetTabGroups(groups);
+
+  EXPECT_EQ(3, tab_groups_view_->num_tab_groups());
 }

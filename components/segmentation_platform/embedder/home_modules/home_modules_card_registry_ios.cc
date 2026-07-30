@@ -2,13 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
-#pragma allow_unsafe_libc_calls
-#endif
-
 #include "components/segmentation_platform/embedder/home_modules/home_modules_card_registry_ios.h"
 
+#include <algorithm>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -35,19 +31,6 @@ namespace segmentation_platform::home_modules {
 
 namespace {
 
-// Impression counter for the Lens ephemeral module.
-const char kLensEphemeralModuleImpressionCounterPref[] =
-    "ephemeral_pref_counter.lens_ephemeral_module_counter";
-// Impression counter for the Send Tab ephemeral module.
-const char kSendTabPromoImpressionCounterPref[] =
-    "ephemeral_pref_counter.send_tab_promo_counter";
-// Impression counter for the App Bundle promo ephemeral module.
-const char kAppBundlePromoEphemeralModuleImpressionCounterPref[] =
-    "ephemeral_pref_counter.app_bundle_promo_ephemeral_module_counter";
-// Impression counter for the Default Browser promo ephemeral module.
-const char kDefaultBrowserPromoEphemeralModuleImpressionCounterPref[] =
-    "ephemeral_pref_counter.default_browser_promo_ephemeral_module_counter";
-
 // Creates a card corresponding to the given ephemeral `tip` module and adds
 // it to the `cards` list if the module is enabled.
 void AddCardForTip(TipIdentifier tip,
@@ -59,9 +42,7 @@ void AddCardForTip(TipIdentifier tip,
     case TipIdentifier::kLensSearch:
     case TipIdentifier::kLensShop:
     case TipIdentifier::kLensTranslate: {
-      int impression_count =
-          prefs->GetInteger(kLensEphemeralModuleImpressionCounterPref);
-      if (LensEphemeralModule::IsEnabled(impression_count)) {
+      if (LensEphemeralModule::IsEnabled(prefs)) {
         cards.push_back(std::make_unique<LensEphemeralModule>(prefs));
       }
       break;
@@ -113,13 +94,6 @@ HomeModulesCardRegistryIOS::HomeModulesCardRegistryIOS(
         std::make_unique<PriceTrackingNotificationPromo>());
   }
 
-  int send_tab_promo_count =
-      profile_prefs_->GetInteger(kSendTabPromoImpressionCounterPref);
-  int app_bundle_promo_count = local_state_prefs_->GetInteger(
-      kAppBundlePromoEphemeralModuleImpressionCounterPref);
-  int default_browser_promo_count = profile_prefs_->GetInteger(
-      kDefaultBrowserPromoEphemeralModuleImpressionCounterPref);
-
   std::optional<CardSelectionInfo::ShowResult> forced_result =
       GetForcedEphemeralModuleShowResult();
 
@@ -157,18 +131,17 @@ HomeModulesCardRegistryIOS::HomeModulesCardRegistryIOS(
     AddCardForTip(identifier, all_cards_by_priority_, profile_prefs_);
   }
 
-  if (SendTabNotificationPromo::IsEnabled(send_tab_promo_count)) {
+  if (SendTabNotificationPromo::IsEnabled(profile_prefs_)) {
     all_cards_by_priority_.push_back(
-        std::make_unique<SendTabNotificationPromo>(send_tab_promo_count));
+        std::make_unique<SendTabNotificationPromo>());
   }
 
-  if (AppBundlePromoEphemeralModule::IsEnabled(app_bundle_promo_count)) {
+  if (AppBundlePromoEphemeralModule::IsEnabled(local_state_prefs_)) {
     all_cards_by_priority_.push_back(
         std::make_unique<AppBundlePromoEphemeralModule>());
   }
 
-  if (DefaultBrowserPromoEphemeralModule::IsEnabled(
-          default_browser_promo_count)) {
+  if (DefaultBrowserPromoEphemeralModule::IsEnabled(profile_prefs_)) {
     all_cards_by_priority_.push_back(
         std::make_unique<DefaultBrowserPromoEphemeralModule>());
   }
@@ -184,8 +157,7 @@ void HomeModulesCardRegistryIOS::RegisterLocalStatePrefs(
   // Local state prefs are used for the `AppBundleEphemeralModule` because this
   // promo relates to app installations on the device level, meaning impressions
   // should be tracked per-device rather than per profile.
-  registry->RegisterIntegerPref(
-      kAppBundlePromoEphemeralModuleImpressionCounterPref, 0);
+  AppBundlePromoEphemeralModule::RegisterLocalStatePrefs(registry);
 }
 
 // static
@@ -196,17 +168,9 @@ void HomeModulesCardRegistryIOS::RegisterProfilePrefs(
   AutofillPasswordsEphemeralModule::RegisterProfilePrefs(registry);
   EnhancedSafeBrowsingEphemeralModule::RegisterProfilePrefs(registry);
   SavePasswordsEphemeralModule::RegisterProfilePrefs(registry);
-  registry->RegisterIntegerPref(kSendTabPromoImpressionCounterPref, 0);
-  registry->RegisterIntegerPref(kLensEphemeralModuleImpressionCounterPref, 0);
-  registry->RegisterBooleanPref(kLensEphemeralModuleInteractedPref, false);
-  registry->RegisterBooleanPref(
-      kLensEphemeralModuleSearchVariationInteractedPref, false);
-  registry->RegisterBooleanPref(kLensEphemeralModuleShopVariationInteractedPref,
-                                false);
-  registry->RegisterBooleanPref(
-      kLensEphemeralModuleTranslateVariationInteractedPref, false);
-  registry->RegisterIntegerPref(
-      kDefaultBrowserPromoEphemeralModuleImpressionCounterPref, 0);
+  LensEphemeralModule::RegisterProfilePrefs(registry);
+  SendTabNotificationPromo::RegisterProfilePrefs(registry);
+  DefaultBrowserPromoEphemeralModule::RegisterProfilePrefs(registry);
 }
 
 // static
@@ -219,69 +183,26 @@ bool HomeModulesCardRegistryIOS::IsEphemeralTipsModuleLabel(
          LensEphemeralModule::IsModuleLabel(label);
 }
 
-void HomeModulesCardRegistryIOS::NotifyCardShown(const char* card_name) {
-  // For unmigrated cards, `OnShow()` is empty, so this is a no-op.
-  // Execution continues to the legacy blocks below.
+void HomeModulesCardRegistryIOS::NotifyCardShown(std::string_view card_name) {
   for (const auto& card : get_all_cards_by_priority()) {
-    if (strcmp(card->card_name(), card_name) == 0) {
+    const auto& labels = card->OutputLabels();
+    if (card->card_name() == card_name ||
+        (std::find(labels.begin(), labels.end(), card_name) != labels.end())) {
       card->OnShow(profile_prefs_, local_state_prefs_);
       break;
     }
   }
-
-  // TODO(crbug.com/489042527): Remove the legacy if/else block below when
-  // all cards have been migrated to the new `OnShow()` lifecycle hook.
-  if (strcmp(card_name, kLensEphemeralModule) == 0 ||
-      strcmp(card_name, kLensEphemeralModuleSearchVariation) == 0 ||
-      strcmp(card_name, kLensEphemeralModuleShopVariation) == 0 ||
-      strcmp(card_name, kLensEphemeralModuleTranslateVariation) == 0) {
-    int freshness_impression_count =
-        profile_prefs_->GetInteger(kLensEphemeralModuleImpressionCounterPref);
-    profile_prefs_->SetInteger(kLensEphemeralModuleImpressionCounterPref,
-                               freshness_impression_count + 1);
-  } else if (strcmp(card_name, kSendTabNotificationPromo) == 0) {
-    int impression_count =
-        profile_prefs_->GetInteger(kSendTabPromoImpressionCounterPref);
-    profile_prefs_->SetInteger(kSendTabPromoImpressionCounterPref,
-                               impression_count + 1);
-  } else if (strcmp(card_name, kAppBundlePromoEphemeralModule) == 0) {
-    int local_impression_count = local_state_prefs_->GetInteger(
-        kAppBundlePromoEphemeralModuleImpressionCounterPref);
-    local_state_prefs_->SetInteger(
-        kAppBundlePromoEphemeralModuleImpressionCounterPref,
-        local_impression_count + 1);
-  } else if (strcmp(card_name, kDefaultBrowserPromoEphemeralModule) == 0) {
-    int impression_count = profile_prefs_->GetInteger(
-        kDefaultBrowserPromoEphemeralModuleImpressionCounterPref);
-    profile_prefs_->SetInteger(
-        kDefaultBrowserPromoEphemeralModuleImpressionCounterPref,
-        impression_count + 1);
-  }
 }
 
-void HomeModulesCardRegistryIOS::NotifyCardInteracted(const char* card_name) {
-  // For unmigrated cards, `OnInteract()` is empty, so this is a no-op.
-  // Execution continues to the legacy blocks below.
+void HomeModulesCardRegistryIOS::NotifyCardInteracted(
+    std::string_view card_name) {
   for (const auto& card : get_all_cards_by_priority()) {
-    if (strcmp(card->card_name(), card_name) == 0) {
+    const auto& labels = card->OutputLabels();
+    if (card->card_name() == card_name ||
+        (std::find(labels.begin(), labels.end(), card_name) != labels.end())) {
       card->OnInteract(profile_prefs_, local_state_prefs_);
       break;
     }
-  }
-
-  // TODO(crbug.com/489042527): Remove the legacy if/else block below when
-  // all cards have been migrated to the new `OnInteract()` lifecycle hook.
-  if (strcmp(card_name, kLensEphemeralModule) == 0) {
-    profile_prefs_->SetBoolean(kLensEphemeralModuleInteractedPref, true);
-  } else if (strcmp(card_name, kLensEphemeralModuleSearchVariation) == 0) {
-    profile_prefs_->SetBoolean(
-        kLensEphemeralModuleSearchVariationInteractedPref, true);
-  } else if (strcmp(card_name, kLensEphemeralModuleShopVariation) == 0) {
-    profile_prefs_->SetBoolean(kLensEphemeralModuleShopVariationInteractedPref,
-                               true);
-  } else if (strcmp(card_name, kLensEphemeralModuleTranslateVariation) == 0) {
-    profile_prefs_->SetBoolean(
-        kLensEphemeralModuleTranslateVariationInteractedPref, true);
   }
 }
 

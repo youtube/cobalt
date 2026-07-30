@@ -164,6 +164,10 @@ bool PerformanceEventTiming::IsReadyForReportingForIssue328902994() const {
   return !reporting_info_.processing_end_time.is_null() && HasKnownEndTime();
 }
 
+base::TimeTicks PerformanceEventTiming::GetStartTime() const {
+  return reporting_info_.creation_time;
+}
+
 base::TimeTicks PerformanceEventTiming::GetEndTime() const {
   CHECK(HasKnownEndTime());
   if (!reporting_info_.fallback_time.is_null()) {
@@ -316,6 +320,15 @@ perfetto::protos::pbzero::EventTiming::EventType GetEventType(
   if (name == event_type_names::kDrop) {
     return ProtoType::DROP_EVENT;
   }
+  if (name == event_type_names::kNavigate) {
+    return ProtoType::NAVIGATE_EVENT;
+  }
+  if (name == event_type_names::kPopstate) {
+    return ProtoType::POPSTATE_EVENT;
+  }
+  if (name == event_type_names::kHashchange) {
+    return ProtoType::HASHCHANGE_EVENT;
+  }
   return ProtoType::UNDEFINED;
 }
 }  // namespace
@@ -352,9 +365,7 @@ std::unique_ptr<TracedValue> PerformanceEventTiming::ToTracedValue(
   auto traced_value = std::make_unique<TracedValue>();
   traced_value->SetString("type", name());
   // Recalculate this as the stored duration value is rounded.
-  traced_value->SetDouble(
-      "duration",
-      (GetEndTime() - reporting_info_.creation_time).InMillisecondsF());
+  traced_value->SetDouble("duration", GetExactDuration().InMillisecondsF());
   traced_value->SetBoolean("cancelable", cancelable());
   // If int overflows occurs, the static_cast may not work correctly.
   if (interaction_id_) {

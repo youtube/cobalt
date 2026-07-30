@@ -8,6 +8,7 @@
 #import "base/functional/callback_helpers.h"
 #import "base/ios/block_types.h"
 #import "base/memory/weak_ptr.h"
+#import "base/metrics/histogram_functions.h"
 #import "base/strings/string_number_conversions.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/strings/utf_string_conversions.h"
@@ -24,6 +25,7 @@
 #import "components/optimization_guide/proto/features/zero_state_suggestions.pb.h"
 #import "components/prefs/pref_service.h"
 #import "components/prefs/scoped_user_pref_update.h"
+#import "components/search_engines/util.h"
 #import "ios/chrome/browser/feature_engagement/model/tracker_factory.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_service.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_service_factory.h"
@@ -32,6 +34,7 @@
 #import "ios/chrome/browser/intelligence/bwg/ui/gemini_ui_utils.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
+#import "ios/chrome/browser/intelligence/proto_wrappers/page_context_utils.h"
 #import "ios/chrome/browser/intelligence/proto_wrappers/page_context_wrapper.h"
 #import "ios/chrome/browser/intelligence/zero_state_suggestions/model/zero_state_suggestions_service_impl.h"
 #import "ios/chrome/browser/location_bar/badge/model/badge_type.h"
@@ -226,6 +229,12 @@ void BwgTabHelper::SetPageLoadedCallback(base::RepeatingClosure callback) {
 
 GeminiPageContext* BwgTabHelper::GetPartialPageContext() {
   GeminiPageContext* gemini_page_context = [[GeminiPageContext alloc] init];
+  if (!CanExtractPageContextForWebState(web_state_) &&
+      IsGeminiFloatyAllPagesEnabled()) {
+    gemini_page_context.geminiPageContextComputationState =
+        ios::provider::GeminiPageContextComputationState::kBlocked;
+    return gemini_page_context;
+  }
   gemini_page_context.geminiPageContextComputationState =
       ios::provider::GeminiPageContextComputationState::kPending;
   gemini_page_context.favicon = current_favicon_;
@@ -345,6 +354,23 @@ void BwgTabHelper::SetLocationBarBadgeCommandsHandler(
   location_bar_badge_commands_handler_ = handler;
 }
 
+bool BwgTabHelper::IsGeminiAvailableForWebState() {
+  if (!web_state_) {
+    return false;
+  }
+
+  if (IsGeminiCopresenceEnabled() || IsGeminiFloatyAllPagesEnabled()) {
+    const GURL& url = web_state_->GetVisibleURL();
+    if (!url.SchemeIsHTTPOrHTTPS() || google_util::IsGoogleSearchUrl(url) ||
+        google_util::IsGoogleHomePageUrl(url) || IsAimZeroStateURL(url)) {
+      return false;
+    }
+  }
+
+  return CanExtractPageContextForWebState(web_state_) ||
+         IsGeminiFloatyAllPagesEnabled();
+}
+
 #pragma mark - WebStateObserver
 
 void BwgTabHelper::WasShown(web::WebState* web_state) {
@@ -420,9 +446,13 @@ void BwgTabHelper::DidStartNavigation(
 
   ProfileIOS* profile =
       ProfileIOS::FromBrowserState(web_state_->GetBrowserState());
-  raw_ptr<BwgService> bwg_service = BwgServiceFactory::GetForProfile(profile);
-  const bool gemini_available =
-      bwg_service && bwg_service->IsBwgAvailableForWebState(web_state_);
+  BwgService* gemini_service = BwgServiceFactory::GetForProfile(profile);
+  const bool gemini_available = IsGeminiAvailableForWebState() &&
+                                gemini_service &&
+                                gemini_service->IsProfileEligibleForGemini();
+
+  base::UmaHistogramBoolean("IOS.Gemini.PageEligible", gemini_available);
+
   if (gemini_available &&
       profile->GetPrefs()->GetBoolean(prefs::kIOSBWGPageContentSetting)) {
     bool can_request_metadata =

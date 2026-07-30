@@ -30,13 +30,16 @@ import org.chromium.base.Callback;
 import org.chromium.base.ResettersForTesting;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
-import org.chromium.chrome.browser.tab.Tab.MediaState;
+import org.chromium.chrome.browser.actor.ui.ActorUiTabController.UiTabState;
+import org.chromium.chrome.browser.actor.ui.TabIndicatorStatus;
+import org.chromium.chrome.browser.tab.MediaState;
 import org.chromium.chrome.browser.tab.TabUtils;
 import org.chromium.chrome.browser.tab.state.ShoppingPersistedTabData.PriceDrop;
 import org.chromium.chrome.browser.tab_ui.TabCardThemeUtil;
 import org.chromium.chrome.browser.tab_ui.TabListFaviconProvider.TabFavicon;
 import org.chromium.chrome.browser.tab_ui.TabListFaviconProvider.TabFaviconFetcher;
 import org.chromium.chrome.browser.tab_ui.TabThumbnailView;
+import org.chromium.chrome.browser.tab_ui.TabThumbnailView.ThumbnailViewState;
 import org.chromium.chrome.browser.tasks.tab_management.TabActionButtonData.TabActionButtonType;
 import org.chromium.chrome.browser.tasks.tab_management.TabListMediator.ShoppingPersistedTabDataFetcher;
 import org.chromium.chrome.browser.tasks.tab_management.TabListModel.CardProperties;
@@ -233,6 +236,9 @@ class TabGridViewBinder {
             @TabActionButtonType
             int actionButtonType = data != null ? data.type : TabActionButtonType.OVERFLOW;
             ((TabGridView) view).setTabActionButtonDrawable(actionButtonType);
+        } else if (TabProperties.SHOW_THUMBNAIL_SPINNER == propertyKey) {
+            ((TabGridView) view)
+                    .setThumbnailSpinnerVisibility(model.get(TabProperties.SHOW_THUMBNAIL_SPINNER));
         } else if (TabProperties.TAB_CLICK_LISTENER == propertyKey) {
             setNullableClickListener(model.get(TabProperties.TAB_CLICK_LISTENER), view, model);
         } else if (TabProperties.TAB_LONG_CLICK_LISTENER == propertyKey) {
@@ -241,6 +247,13 @@ class TabGridViewBinder {
         } else if (TabProperties.TAB_CONTEXT_CLICK_LISTENER == propertyKey) {
             setNullableContextClickListener(
                     model.get(TabProperties.TAB_CONTEXT_CLICK_LISTENER), view, model);
+        } else if (TabProperties.ACTOR_UI_STATE == propertyKey) {
+            UiTabState state = model.get(TabProperties.ACTOR_UI_STATE);
+            boolean shouldBeVisible =
+                    state != null
+                            && (state.tabIndicator == TabIndicatorStatus.DYNAMIC
+                                    || state.tabIndicator == TabIndicatorStatus.STATIC);
+            ((TabGridView) view).setActorActiveUiVisible(shouldBeVisible);
         }
     }
 
@@ -482,6 +495,8 @@ class TabGridViewBinder {
             ViewLookupCachingFrameLayout view,
             PropertyModel model,
             boolean onlyUpdateIfPlaceholder) {
+        if (model.get(TabProperties.SHOW_THUMBNAIL_SPINNER)) return;
+
         TabThumbnailView thumbnail = view.fastFindViewById(R.id.tab_thumbnail);
 
         // To GC on hide set a background color and remove the thumbnail.
@@ -509,9 +524,13 @@ class TabGridViewBinder {
         // the callback matches the current thumbnail fetcher and grid card size.
         Callback<@Nullable Drawable> callback =
                 result -> {
+                    if (model.get(TabProperties.SHOW_THUMBNAIL_SPINNER)) return;
+
                     if (result != null) {
+                        thumbnail.setThumbnailViewState(ThumbnailViewState.THUMBNAIL_LOADED);
                         TabUtils.setDrawableAndUpdateImageMatrix(thumbnail, result, thumbnailSize);
                     } else {
+                        thumbnail.setThumbnailViewState(ThumbnailViewState.PLACEHOLDER_LOADED);
                         thumbnail.setImageDrawable(null);
                     }
                 };

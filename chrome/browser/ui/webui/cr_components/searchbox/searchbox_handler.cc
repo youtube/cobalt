@@ -6,6 +6,7 @@
 
 #include "base/base64.h"
 #include "base/base64url.h"
+#include "base/feature_list.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/strings/string_util.h"
@@ -27,7 +28,6 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/omnibox/omnibox_controller.h"
 #include "chrome/browser/ui/omnibox/omnibox_edit_model.h"
-#include "chrome/browser/ui/tabs/tab_renderer_data.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/webui/new_tab_page/composebox/variations/composebox_fieldtrial.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
@@ -87,8 +87,6 @@ const char* kAnswerSunriseIconResourceName =
     "//resources/cr_components/searchbox/icons/sunrise.svg";
 const char* kAnswerTranslationIconResourceName =
     "//resources/cr_components/searchbox/icons/translation.svg";
-const char* kAnswerWhenIsIconResourceName =
-    "//resources/cr_components/searchbox/icons/when_is.svg";
 const char* kBookmarkIconResourceName = "//resources/images/icon_bookmark.svg";
 const char* kCalculatorIconResourceName =
     "//resources/cr_components/searchbox/icons/calculator.svg";
@@ -188,8 +186,6 @@ static void DefineChromeRefreshRealboxIcons() {
       "//resources/cr_components/searchbox/icons/sunrise_cr23.svg";
   kAnswerTranslationIconResourceName =
       "//resources/cr_components/searchbox/icons/translation_cr23.svg";
-  kAnswerWhenIsIconResourceName =
-      "//resources/cr_components/searchbox/icons/when_is_cr23.svg";
   kBookmarkIconResourceName =
       "//resources/cr_components/searchbox/icons/bookmark_cr23.svg";
   kCalculatorIconResourceName =
@@ -300,6 +296,8 @@ std::string GetBase64UrlVariations(Profile* profile) {
   return variations_base64url;
 }
 
+BASE_FEATURE(kDropMismatchedSelections, base::FEATURE_ENABLED_BY_DEFAULT);
+
 }  // namespace
 
 // static
@@ -397,6 +395,14 @@ void SearchboxHandler::SetupWebUIDataSource(content::WebUIDataSource* source,
       {"canvas", IDS_NTP_COMPOSE_CANVAS},
       {"geminiModelAuto", IDS_NTP_COMPOSE_AUTO_MODEL},
       {"geminiModelThinking", IDS_NTP_COMPOSE_THINKING_3_PRO},
+      {"composeboxHintTextAskAboutThese",
+       IDS_COMPOSE_HINT_TEXT_ASK_ABOUT_THESE},
+      {"composeboxHintTextAskAboutThisImage",
+       IDS_COMPOSE_HINT_TEXT_ASK_ABOUT_THIS_IMAGE},
+      {"composeboxHintTextAskAboutThisTab",
+       IDS_COMPOSE_HINT_TEXT_ASK_ABOUT_THIS_TAB},
+      {"composeboxHintTextAskAboutThisDoc",
+       IDS_COMPOSE_HINT_TEXT_ASK_ABOUT_THIS_DOC},
   };
   source->AddLocalizedStrings(kStrings);
   source->AddString("searchboxComposePlaceholder",
@@ -636,7 +642,7 @@ SearchboxHandler::CreateAutocompleteResult(
     const PrefService* prefs,
     const TemplateURLService* turl_service) const {
   return searchbox::mojom::AutocompleteResult::New(
-      input,
+      result.sequence_id(), input,
       CreateSuggestionGroupsMap(result, edit_model, prefs,
                                 result.suggestion_groups_map()),
       CreateAutocompleteMatches(result, edit_model, bookmark_model,
@@ -881,8 +887,8 @@ void SearchboxHandler::AddFileContextFromBrowser(
 
 void SearchboxHandler::OnContextualInputStatusChanged(
     base::UnguessableToken token,
-    contextual_search::FileUploadStatus status,
-    std::optional<contextual_search::FileUploadErrorType> error_type) {
+    contextual_search::ContextUploadStatus status,
+    std::optional<contextual_search::ContextUploadErrorType> error_type) {
   if (page_ && IsRemoteBound()) {
     page_->OnContextualInputStatusChanged(token, status, error_type);
   }
@@ -1037,9 +1043,27 @@ void SearchboxHandler::SetPopupSelection(
 }
 
 void SearchboxHandler::OpenPopupSelection(
+    uint32_t result_sequence_id,
     searchbox::mojom::OmniboxPopupSelectionPtr selection,
     WindowOpenDisposition disposition) {
-  edit_model()->OpenSelection(ConvertSelection(std::move(selection)));
+  const OmniboxPopupSelection native_selection =
+      ConvertSelection(std::move(selection));
+  const bool selection_matched =
+      native_selection == edit_model()->GetPopupSelection();
+  const bool sequence_id_matched =
+      result_sequence_id == autocomplete_controller()->result().sequence_id();
+
+  base::UmaHistogramBoolean("Omnibox.WebUI.SelectionMatched",
+                            selection_matched);
+  base::UmaHistogramBoolean("Omnibox.WebUI.AutocompleteResultSequenceIdMatched",
+                            sequence_id_matched);
+
+  if ((!selection_matched || !sequence_id_matched) &&
+      base::FeatureList::IsEnabled(kDropMismatchedSelections)) {
+    return;
+  }
+
+  edit_model()->OpenSelection(native_selection);
 }
 
 void SearchboxHandler::OnNavigationLikely(

@@ -35,6 +35,13 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(
     kAndroidEnableBackgroundMediaLargeFormFactors);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kAndroidFallbackToNextSlot);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kAndroidMediaInsertion);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kAndroidNavigationBlurTransitionAnimation);
+CONTENT_EXPORT extern const base::FeatureParam<int>
+    kAndroidNavigationAnimationBlurHoldDuration;
+CONTENT_EXPORT extern const base::FeatureParam<int>
+    kAndroidNavigationAnimationFadeOutDuration;
+CONTENT_EXPORT extern const base::FeatureParam<double>
+    kAndroidNavigationAnimationBlurSigma;
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kAndroidPkAutocorrectUnderline);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kAndroidSpellingUnderlineInCompositionMode);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kAndroidWarmUpSpareRendererWithTimeout);
@@ -234,7 +241,6 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE_PARAM(size_t,
                                           kRendererProcessLimitOnAndroidCount);
 #endif
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kRestrictThreadPoolInBackground);
-CONTENT_EXPORT BASE_DECLARE_FEATURE(kSetHistoryInfoOnViewCreation);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kSpareRendererProcessPriority);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kRetryGetVideoCaptureDeviceInfos);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kSkipIPCChannelPausingForNonGuests);
@@ -346,6 +352,8 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(kAccessibilityImproveLiveRegionAnnounce);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kAccessibilityRequestLayoutBasedActions);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(
     kAccessibilityRequestScopedContentChangedEvents);
+CONTENT_EXPORT extern const base::FeatureParam<int>
+    kMaxContentChangedEventsToFireParam;
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kAccessibilityAtomicLiveRegions);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kAccessibilityPageZoomV2);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(
@@ -425,6 +433,10 @@ CONTENT_EXPORT extern const base::FeatureParam<int>
 CONTENT_EXPORT bool IsVideoCaptureServiceEnabledForOutOfProcess();
 CONTENT_EXPORT bool IsVideoCaptureServiceEnabledForBrowserProcess();
 CONTENT_EXPORT bool IsPushSubscriptionChangeEventEnabled();
+
+#if BUILDFLAG(IS_ANDROID)
+CONTENT_EXPORT bool IsFluidResizeEnabled();
+#endif
 
 }  // namespace features
 

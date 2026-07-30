@@ -5,18 +5,12 @@
 #ifndef CHROME_BROWSER_UI_WEBUI_DEFAULT_BROWSER_DEFAULT_BROWSER_MODAL_HANDLER_H_
 #define CHROME_BROWSER_UI_WEBUI_DEFAULT_BROWSER_DEFAULT_BROWSER_MODAL_HANDLER_H_
 
-#include <memory>
-
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/webui/default_browser/default_browser_modal.mojom.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 
 namespace content {
 class WebUI;
-}
-
-namespace default_browser {
-class DefaultBrowserController;
 }
 
 // The handler for Javascript messages related to the "default-browser-modal"
@@ -38,10 +32,10 @@ class DefaultBrowserModalHandler final
   // default_browser_modal::mojom::PageHandler:
   void Cancel() override;
   void Confirm() override;
+  void ContentReady(uint32_t content_height) override;
 
  private:
   raw_ptr<content::WebUI> web_ui_;
-  std::unique_ptr<default_browser::DefaultBrowserController> controller_;
   mojo::Receiver<default_browser_modal::mojom::PageHandler> receiver_;
 };
 

@@ -35,6 +35,10 @@ html {
     view-transition-name: root;
 }
 
+:active-view-transition:not(:root) {
+  view-transition-group: contain;
+}
+
 /* generic block-level elements */
 
 body {
@@ -456,10 +460,8 @@ input, textarea, select, button {
    * these styles can apply to textarea, select, and button as well. */
   input {
     margin: -internal-auto-base(0__qem, unset);
-    font: -internal-auto-base(-webkit-small-control, unset);
     /* FIXME: Remove text-rendering:auto when tabs work with optimizeLegibility. */
     text-rendering: -internal-auto-base(auto, unset);
-    color: -internal-auto-base(FieldText, unset);
     letter-spacing: -internal-auto-base(normal, unset);
     word-spacing: -internal-auto-base(normal, unset);
     line-height: -internal-auto-base(normal, unset);
@@ -468,20 +470,36 @@ input, textarea, select, button {
      * initial. Since the auto appearance is also using the initial values, we
      * don't need to use -internal-auto-base() on them. */
   }
+
+  input, textarea {
+    color: -internal-auto-base(FieldText, inherit);
+    font: -internal-auto-base(-webkit-small-control, inherit);
+    box-sizing: -internal-auto-base(content-box, border-box);
+  }
 }
 
 textarea {
-  appearance: auto;
-  border: 1px solid light-dark(#767676, #858585);
-  column-count: initial !important;
-  -webkit-rtl-ordering: logical;
-  resize: -internal-textarea-auto;
-  cursor: text;
-  padding: 2px;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  background-color: Field;
-  font-family: monospace;
+    appearance: auto;
+    column-count: initial !important;
+    -webkit-rtl-ordering: logical;
+    cursor: text;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-family: monospace;
+
+    @supports not blink-feature(AppearanceBase) {
+        border: 1px solid light-dark(#767676, #858585);
+        background-color: Field;
+        resize: -internal-textarea-auto;
+        padding: 2px;
+    }
+
+    @supports blink-feature(AppearanceBase) {
+        border: 1px solid -internal-auto-base(light-dark(#767676, #858585), currentColor);
+        background-color: -internal-auto-base(Field, transparent);
+        resize: -internal-auto-base(-internal-textarea-auto, none);
+        padding: -internal-auto-base(2px, unset);
+    }
 }
 
 input {
@@ -491,7 +509,7 @@ input {
         padding: -internal-auto-base(1px 0, unset);
         border: -internal-auto-base(2px inset light-dark(#767676, #858585), 1px solid);
         -webkit-rtl-ordering: -internal-auto-base(logical, unset);
-        background-color: -internal-auto-base(Field, unset);
+        background-color: -internal-auto-base(Field, transparent);
     }
     @supports not blink-feature(AppearanceBase) {
         padding: 1px 0;
@@ -861,12 +879,24 @@ input[type="range" i]:disabled {
 input[type="button" i]:disabled,
 input[type="submit" i]:disabled,
 input[type="reset" i]:disabled,
-input[type="color" i]:disabled,
 input[type="file" i]:disabled::-webkit-file-upload-button,
 button:disabled {
   background-color: light-dark(rgba(239, 239, 239, 0.3), rgba(19, 1, 1, 0.3));
   border-color: light-dark(rgba(118, 118, 118, 0.3), rgba(195, 195, 195, 0.3));
   color: light-dark(rgba(16, 16, 16, 0.3), rgba(255, 255, 255, 0.3));
+}
+
+input[type="color" i]:disabled {
+    @supports blink-feature(AppearanceBase) {
+        background-color: -internal-auto-base(light-dark(rgba(239, 239, 239, 0.3), rgba(19, 1, 1, 0.3)), transparent);
+        border-color: -internal-auto-base(light-dark(rgba(118, 118, 118, 0.3), rgba(195, 195, 195, 0.3)), currentColor);
+        color: -internal-auto-base(light-dark(rgba(16, 16, 16, 0.3), rgba(255, 255, 255, 0.3)), color-mix(currentColor 50%, transparent));
+    }
+    @supports not blink-feature(AppearanceBase) {
+        background-color: light-dark(rgba(239, 239, 239, 0.3), rgba(19, 1, 1, 0.3));
+        border-color: light-dark(rgba(118, 118, 118, 0.3), rgba(195, 195, 195, 0.3));
+        color: light-dark(rgba(16, 16, 16, 0.3), rgba(255, 255, 255, 0.3));
+    }
 }
 
 input[type="button" i]:active, input[type="submit" i]:active, input[type="reset" i]:active, input[type="file" i]:active::-webkit-file-upload-button, button:active {
@@ -879,8 +909,16 @@ input[type="button" i]:active:disabled, input[type="submit" i]:active:disabled, 
 
 input:disabled, textarea:disabled {
     cursor: default;
-    background-color: light-dark(rgba(239, 239, 239, 0.3), rgba(59, 59, 59, 0.3));
-    color: light-dark(#545454, #aaaaaa);
+
+    @supports not blink-feature(AppearanceBase) {
+        background-color: light-dark(rgba(239, 239, 239, 0.3), rgba(59, 59, 59, 0.3));
+        color: light-dark(#545454, #aaaaaa);
+    }
+
+    @supports blink-feature(AppearanceBase) {
+        background-color: -internal-auto-base(light-dark(rgba(239, 239, 239, 0.3), rgba(59, 59, 59, 0.3)), unset);
+        color: -internal-auto-base(light-dark(#545454, #aaaaaa), color-mix(currentColor 50%, transparent));
+    }
 }
 
 option:-internal-spatial-navigation-focus {
@@ -922,19 +960,56 @@ input[type="radio" i] {
 
 input[type="color" i] {
     appearance: auto;
-    inline-size: 50px;
-      block-size: 27px;
-    /* Same as native_theme_base. */
-    border: 1px solid ButtonBorder;
-    padding: 1px 2px;
-    cursor: default;
     box-sizing: border-box;
-    background-color: ButtonFace;
-    color: ButtonText;
+
+    @supports not blink-feature(AppearanceBase) {
+        inline-size: 50px;
+        block-size: 27px;
+        /* Same as native_theme_base. */
+        border: 1px solid ButtonBorder;
+        padding: 1px 2px;
+        cursor: default;
+        background-color: ButtonFace;
+        color: ButtonText;
+    }
+
+    @supports blink-feature(AppearanceBase) {
+        inline-size: -internal-auto-base(50px, auto);
+        block-size: -internal-auto-base(27px, auto);
+        /* Same as native_theme_base when auto. */
+        border: 1px solid -internal-auto-base(ButtonBorder, currentColor);
+        padding: -internal-auto-base(1px 2px, 0.25em 0.5em);
+        cursor: -internal-auto-base(default, inherit);
+        background-color: -internal-auto-base(ButtonFace, transparent);
+        color: -internal-auto-base(ButtonText, inherit);
+
+        min-inline-size: -internal-auto-base(unset, 24px);
+        min-block-size: -internal-auto-base(unset, max(24px, 1lh));
+        user-select: -internal-auto-base(unset, none);
+        display: -internal-auto-base(inline-block, inline-flex);
+        gap: -internal-auto-base(unset, 0.5em);
+        border-radius: -internal-auto-base(unset, 0.5em);
+    }
+}
+
+@supports blink-feature(AppearanceBase) {
+    input[type="color" i]:enabled:hover {
+        background-color: -internal-auto-base(ButtonFace, color-mix(currentColor 10%, transparent));
+    }
+
+    input[type="color" i]:enabled:active {
+        background-color: -internal-auto-base(ButtonFace, color-mix(currentColor 20%, transparent));
+    }
 }
 
 input[type="color" i]::-webkit-color-swatch-wrapper {
-    display: flex;
+    @supports blink-feature(AppearanceBase) {
+        display: -internal-auto-base(flex, contents);
+    }
+    @supports not blink-feature(AppearanceBase) {
+        display: flex;
+    }
+
     padding: 4px 2px;
     box-sizing: border-box;
     -webkit-user-modify: read-only !important;
@@ -946,10 +1021,19 @@ input[type="color" i]::-webkit-color-swatch {
     /* The swatch should not be affected by color scheme. */
     color-scheme: only light;
     background-color: #000000;
-    border: 1px solid #777777;
     flex: 1;
-    min-width: 0;
     -webkit-user-modify: read-only !important;
+    @supports not blink-feature(AppearanceBase) {
+        border: 1px solid #777777;
+        min-width: 0;
+    }
+
+    @supports blink-feature(AppearanceBase) {
+        border: 1px solid -internal-auto-base(#777777, currentColor);
+        min-width: -internal-auto-base(0, initial);
+        inline-size: -internal-auto-base(unset, 2em);
+        box-sizing: -internal-auto-base(unset, border-box);
+    }
 }
 
 input::-webkit-calendar-picker-indicator {
@@ -1211,7 +1295,12 @@ select:-internal-autofill-selected {
 
 input:disabled,
 textarea:disabled {
-  border-color: rgba(118, 118, 118, 0.3);
+  @supports not blink-feature(AppearanceBase) {
+     border-color: rgba(118, 118, 118, 0.3);
+  }
+  @supports blink-feature(AppearanceBase) {
+    border-color: -internal-auto-base(rgba(118, 118, 118, 0.3), currentColor);
+  }
 }
 select:disabled {
   @supports blink-feature(CustomizableSelectListbox) {
@@ -1330,10 +1419,24 @@ background: light-dark(#d83b01, #e98f6d);
 progress {
     appearance: auto;
     box-sizing: border-box;
-    display: inline-block;
-    block-size: 1em;
-    inline-size: 10em;
-    vertical-align: -0.2em;
+
+    @supports not blink-feature(AppearanceBase) {
+        display: inline-block;
+        block-size: 1em;
+        inline-size: 10em;
+        vertical-align: -0.2em;
+    }
+
+    @supports blink-feature(AppearanceBase) {
+        display: -internal-auto-base(inline-block, unset);
+        block-size: -internal-auto-base(1em, unset);
+        inline-size: -internal-auto-base(10em, 100%);
+        vertical-align: -internal-auto-base(-0.2em, unset);
+
+        color: -internal-auto-base(unset, inherit);
+        font: -internal-auto-base(unset, inherit);
+        background-color: -internal-auto-base(unset, transparent);
+    }
 }
 
 progress::-webkit-progress-inner-element {
@@ -1341,22 +1444,51 @@ progress::-webkit-progress-inner-element {
     -webkit-user-modify: read-only;
     block-size: 100%;
     inline-size: 100%;
+
+    @supports blink-feature(AppearanceBase) {
+        /** This pseudo element doesn't exist in the standard layout. */
+        display: -internal-auto-base(revert-rule, contents) !important;
+    }
 }
 
 progress::-webkit-progress-bar {
-    background-color: gray;
-    block-size: 100%;
-    inline-size: 100%;
     -webkit-user-modify: read-only !important;
-    box-sizing: border-box;
+
+    @supports not blink-feature(AppearanceBase) {
+        background-color: gray;
+        block-size: 100%;
+        inline-size: 100%;
+        box-sizing: border-box;
+    }
+
+    @supports blink-feature(AppearanceBase) {
+        /* TODO(crbug.com/450139531): These styles are for progress::slider-track,
+         * for now use the webkit pseudo elements. */
+        background-color: -internal-auto-base(gray, transparent);
+        block-size: -internal-auto-base(100%, 1em);
+        inline-size: -internal-auto-base(100%, unset);
+        box-sizing: -internal-auto-base(border-box, unset);
+
+        border: -internal-auto-base(unset, 1px solid currentColor);
+    }
 }
 
 progress::-webkit-progress-value {
-    background-color: green;
     block-size: 100%;
     inline-size: 50%; /* should be removed later */
     -webkit-user-modify: read-only !important;
-    box-sizing: border-box;
+
+    @supports not blink-feature(AppearanceBase) {
+        background-color: green;
+        box-sizing: border-box;
+    }
+
+    @supports blink-feature(AppearanceBase) {
+        /* TODO(crbug.com/450139531): These styles are for progress::slider-fill,
+         * for now use the webkit pseudo elements. */
+        background-color: -internal-auto-base(green, currentColor);
+        box-sizing: -internal-auto-base(border-box, unset);
+    }
 }
 
 /* inline elements */
@@ -2468,5 +2600,17 @@ select:-internal-select-has-slotted-button::-internal-select-button-slot {
 
   datalist option:active-option {
     outline: black auto 1px;
+  }
+
+  /* This is redundant with the option:filtered rule in the FilterableSelect
+   * block. It should be removed when either of the flags are removed. */
+  option:filtered {
+    display: none;
+  }
+}
+
+@supports blink-feature(FilterableSelect) {
+  option:filtered {
+    display: none;
   }
 }

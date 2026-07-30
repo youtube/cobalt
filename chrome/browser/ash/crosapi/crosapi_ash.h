@@ -29,10 +29,6 @@ namespace auth {
 class InSessionAuth;
 }  // namespace auth
 
-namespace printing {
-class PrintPreviewWebcontentsAdapterAsh;
-}  // namespace printing
-
 }  // namespace ash
 
 namespace crosapi {
@@ -101,11 +97,6 @@ class CrosapiAsh : public mojom::Crosapi {
 
   LocalPrinterAsh* local_printer_ash() { return local_printer_ash_.get(); }
 
-  ash::printing::PrintPreviewWebcontentsAdapterAsh*
-  print_preview_webcontents_adapter_ash() {
-    return print_preview_webcontents_adapter_ash_.get();
-  }
-
   ash::ProbeServiceAsh* probe_service_ash() { return probe_service_ash_.get(); }
 
  private:
@@ -119,8 +110,6 @@ class CrosapiAsh : public mojom::Crosapi {
   std::unique_ptr<ash::TelemetryManagementServiceAsh>
       telemetry_management_service_ash_;
   std::unique_ptr<ash::ProbeServiceAsh> probe_service_ash_;
-  std::unique_ptr<ash::printing::PrintPreviewWebcontentsAdapterAsh>
-      print_preview_webcontents_adapter_ash_;
 
   mojo::ReceiverSet<mojom::Crosapi, CrosapiId> receiver_set_;
   std::map<mojo::ReceiverId, base::OnceClosure> disconnect_handler_map_;

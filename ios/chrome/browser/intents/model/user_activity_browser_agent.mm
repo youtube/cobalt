@@ -26,6 +26,7 @@
 #import "ios/chrome/app/spotlight/actions_spotlight_manager.h"
 #import "ios/chrome/app/spotlight/spotlight_util.h"
 #import "ios/chrome/app/startup/app_launch_metrics.h"
+#import "ios/chrome/app/unexpected_mode_toast_util.h"
 #import "ios/chrome/browser/credential_exchange/model/credential_import_manager_swift.h"
 #import "ios/chrome/browser/credential_provider/model/features.h"
 #import "ios/chrome/browser/intents/model/intents_constants.h"
@@ -46,10 +47,7 @@
 #import "ios/chrome/browser/shared/model/url/chrome_url_constants.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
-#import "ios/chrome/browser/shared/public/commands/snackbar_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
-#import "ios/chrome/browser/shared/public/snackbar/snackbar_message.h"
-#import "ios/chrome/browser/shared/public/snackbar/snackbar_message_action.h"
 #import "ios/chrome/browser/url_loading/model/image_search_param_generator.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_params.h"
 #import "ios/chrome/common/intents/AddBookmarkToChromeIntent.h"
@@ -454,9 +452,14 @@ BOOL UserActivityBrowserAgent::ContinueUserActivity(
   return ContinueUserActivityURL(webpage_url, application_is_active, NO);
 }
 
+// LINT.IfChange
+// TODO(crbug.com/462018636): This code will be soon migrated to
+// task_request_shortcut_item.mm, so any change should be reflected also there.
+// Contact fedegermi for additional information or support.
 BOOL UserActivityBrowserAgent::Handle3DTouchApplicationShortcuts(
     UIApplicationShortcutItem* shortcut_item) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  CHECK(!IsEnableNewStartupFlowEnabled());
   const BOOL handled_shortcut_item = HandleShortcutItem(shortcut_item);
   const BOOL is_active = [[UIApplication sharedApplication] applicationState] ==
                          UIApplicationStateActive;
@@ -465,6 +468,7 @@ BOOL UserActivityBrowserAgent::Handle3DTouchApplicationShortcuts(
   }
   return handled_shortcut_item;
 }
+// LINT.ThenChange(ios/chrome/app/task_request_shortcut_item.mm)
 
 void UserActivityBrowserAgent::RouteToCorrectTab() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -520,42 +524,12 @@ BOOL UserActivityBrowserAgent::ProceedWithUserActivity(
 
 void UserActivityBrowserAgent::
     ShowToastWhenOpenExternalIntentInUnexpectedMode() {
-  id<SnackbarCommands> handler =
-      HandlerForProtocol(browser_->GetCommandDispatcher(), SnackbarCommands);
-
   PrefService* prefs = profile_->GetPrefs();
   BOOL force_incognito = IsIncognitoModeForced(prefs);
-
-  UrlLoadParams params = UrlLoadParams::InNewTab(GURL(kChromeUIManagementURL));
-  params.web_params.transition_type = ui::PAGE_TRANSITION_TYPED;
-
-  __weak id<TabOpening> weak_tab_opener = tab_opener_;
-  ProceduralBlock moreAction = ^{
-    [weak_tab_opener
-        dismissModalsAndMaybeOpenSelectedTabInMode:
-            force_incognito ? ApplicationModeForTabOpening::INCOGNITO
-                            : ApplicationModeForTabOpening::NORMAL
-                                 withUrlLoadParams:params
-                                    dismissOmnibox:YES
-                                        completion:nil];
-  };
-
-  SnackbarMessageAction* action = [[SnackbarMessageAction alloc] init];
-  action.handler = moreAction;
-  action.title = l10n_util::GetNSString(IDS_IOS_NAVIGATION_BAR_MORE_BUTTON);
-  action.accessibilityHint =
-      l10n_util::GetNSString(IDS_IOS_NAVIGATION_BAR_MORE_BUTTON);
-
-  NSString* text =
-      force_incognito
-          ? l10n_util::GetNSString(IDS_IOS_SNACKBAR_MESSAGE_INCOGNITO_FORCED)
-          : l10n_util::GetNSString(IDS_IOS_SNACKBAR_MESSAGE_INCOGNITO_DISABLED);
-
-  SnackbarMessage* message = [[SnackbarMessage alloc] initWithTitle:text];
-  message.action = action;
-
-  [handler showSnackbarMessage:message
-                withHapticType:UINotificationFeedbackTypeError];
+  ApplicationModeForTabOpening target_mode =
+      force_incognito ? ApplicationModeForTabOpening::INCOGNITO
+                      : ApplicationModeForTabOpening::NORMAL;
+  ShowToastWhenOpenInUnexpectedMode(browser_->GetSceneState(), target_mode);
 }
 
 #pragma mark - Internal methods.
@@ -582,9 +556,14 @@ UserActivityBrowserAgent::StartupParametersForOpeningNewTab(
   return startup_params;
 }
 
+// LINT.IfChange
+// TODO(crbug.com/462018636): This code will be soon migrated to
+// task_request_shortcut_item.mm, so any change should be reflected also there.
+// Contact fedegermi for additional information or support.
 BOOL UserActivityBrowserAgent::HandleShortcutItem(
     UIApplicationShortcutItem* shortcut_item) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  CHECK(!IsEnableNewStartupFlowEnabled());
   if (!IsProfileStateReady(browser_)) {
     return NO;
   }
@@ -656,6 +635,7 @@ BOOL UserActivityBrowserAgent::HandleShortcutItem(
   base::debug::DumpWithoutCrashing();
   return NO;
 }
+// LINT.ThenChange(ios/chrome/app/task_request_shortcut_item.mm)
 
 void UserActivityBrowserAgent::OpenRequestedURLs(
     const std::vector<GURL>& webpage_urls,

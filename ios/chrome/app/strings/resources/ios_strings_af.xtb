@@ -58,6 +58,7 @@
 <translation id="1204075260022434100">{count,plural, =1{Boekmerk is gestoor na “{title}” in jou rekening, {email}}other{{count} boekmerke is gestoor na “{title}” in jou rekening, {email}}}</translation>
 <translation id="1207493287814084192">17:30</translation>
 <translation id="1217294226280635614">Verdeelde aansig</translation>
+<translation id="1218730690561976633">Wissel verbeterde outovulgebruikerverifikasie</translation>
 <translation id="1219674500290482172">Kon nie aan die internet koppel nie.</translation>
 <translation id="1223498995510244364">Som op</translation>
 <translation id="1227113644794103810">Onaktiewe oortjies</translation>
@@ -193,6 +194,7 @@
 <translation id="1657011748321897393">Kon nie deel nie, want jy is nie aan die netwerk gekoppel nie.</translation>
 <translation id="1668001730617725852">Maak in nuwe oortjiegroep oop</translation>
 <translation id="1674504678466460478"><ph name="SOURCE_LANGUAGE" /> na <ph name="TARGET_LANGUAGE" /></translation>
+<translation id="1678855624321223424">Hierdie lêer kan op grond van jou organisasie se beleide sensitiewe inligting bevat</translation>
 <translation id="168389590065701766">Jy kan nou Google Lens vanaf jou adresbalk oopmaak en enige iets soek wat jy sien</translation>
 <translation id="1689333818294560261">Bynaam</translation>
 <translation id="169048873465870056">Verwyder oortjie en vee groep uit?</translation>
@@ -599,6 +601,7 @@
 <translation id="3174662312949010067">Jy kan gestoorde wagwoorde ook op jou ander toestelle gebruik.</translation>
 <translation id="3177338796769255211">Meld aan om jou boekmerke en meer op al jou toestelle te kry</translation>
 <translation id="3181954750937456830">Veiligblaai (beskerm jou en jou toestel teen gevaarlike werwe)</translation>
+<translation id="3183362380688692618">Nuwe oortjiegroep …</translation>
 <translation id="3186796054637504691">Vee geskiedenis en webwerfdata uit</translation>
 <translation id="3190736958609431397">Stop nasporing</translation>
 <translation id="3208260410153224535">Jou organisasie het aanmelding afgeskakel. Nuwe boekmerke, wagwoorde en meer sal slegs op hierdie toestel gestoor word.</translation>
@@ -668,6 +671,7 @@
 <translation id="3476450923187944815">Kry op ander apps toegang tot jou wagwoorde.</translation>
 <translation id="3485558910355485767">Nuwe Incognito-venster</translation>
 <translation id="3488501490964659223">Oortjies is toegemaak en blaaierdata is uitgevee. Jy is afgemeld</translation>
+<translation id="3490396108106323715">Deel huidige oortjie</translation>
 <translation id="3493531032208478708"><ph name="BEGIN_LINK" />Kom meer te wete<ph name="END_LINK" /> oor voorgestelde inhoud</translation>
 <translation id="349446645805573740">Kies waar om te stoor “<ph name="BEGIN_BOLD" /><ph name="FILENAME" /><ph name="END_BOLD" />”</translation>
 <translation id="3504377992102007712">Instellings</translation>
@@ -694,6 +698,7 @@
 <translation id="3565012355885596568">Kon nie prente laai nie</translation>
 <translation id="3565930036634619844">Oortjie. <ph name="TAB_INDEX" /> van <ph name="NUMBER_OF_TABS" />.</translation>
 <translation id="3567168891086460374">Stoor op ’n ander manier</translation>
+<translation id="3572503683475187385">Die huidige oortjie word met Gemini gedeel wanneer jy ’n nuwe klets begin. Wanneer jy ’n oortjie met Gemini deel, word hul inhoud en URL na Google toe gestuur. <ph name="BEGIN_LINK" />Meer inligting<ph name="END_LINK" /></translation>
 <translation id="3572607909481582402">In jou Google-rekening</translation>
 <translation id="3575234738189584619">Soek met Lens</translation>
 <translation id="3575426792457739946">Hierdie lys bevat alle gelaaide profiele.</translation>
@@ -737,6 +742,7 @@
 <translation id="3751873026576444885">Hou op om jou skerm met Google Lens te soek</translation>
 <translation id="3753408171347588045">Spoor tans pryse na</translation>
 <translation id="3753618528540214374">Veroneesgroen tema</translation>
+<translation id="3759491607478608474">Deel huidige oortjie-inhoud met Gemini om meer relevante antwoorde te kry</translation>
 <translation id="3762232513783804601">Gebou vir jou iPad</translation>
 <translation id="3768725474733206671">Heropen oortjie wat laaste toegemaak is</translation>
 <translation id="3779810277399252432">Geen internetverbinding nie.</translation>
@@ -984,6 +990,7 @@
 <translation id="4650125387981512669">Gaan voort as <ph name="FIRST_RUN_ACCOUNT_NAME" /></translation>
 <translation id="4651927776207937667">{count,plural, =1{Versteek ná 1 minuut}other{Versteek ná {count} minute}}</translation>
 <translation id="4652817563047461855">Maak seker dat jou wagwoorde veilig is, vind uit of hulle gekompromitteer is, en kry advies om jouself aanlyn te beskerm. <ph name="BEGIN_LINK" />Kom meer te wete<ph name="END_LINK" /></translation>
+<translation id="4653053602672040238">Skakel oortjiedeling aan</translation>
 <translation id="4658335131052370646">Stoor</translation>
 <translation id="466307903888586355">Die stoor van lêers word deur jou organisasie geblokkeer</translation>
 <translation id="4668929960204016307">,</translation>
@@ -1112,6 +1119,7 @@
 <translation id="507187271399539513">{count,plural, =1{{position} van {count} betaalmetode}other{{position} van {count} betaalmetodes}}</translation>
 <translation id="5075939510584558547">Stoor sonder enkripsie</translation>
 <translation id="5076534614343816664">Prysnasporing</translation>
+<translation id="507762438756999615">Lêer kan weens jou organisasie se beleide nie gedeel word nie</translation>
 <translation id="5078303485429639424">Skakel kennisgewings vir <ph name="FEATURE_NAME" /> aan</translation>
 <translation id="5079950360618752063">Gebruik voorgestelde wagwoord</translation>
 <translation id="5083464117946352670">Kan nie lêergrootte bepaal nie.</translation>
@@ -1297,6 +1305,7 @@ Oorgee moet ook in die Algemene afdeling van Instellings geaktiveer word, en jou
 <translation id="5718049162805123412">Jy moet hulle nou verander</translation>
 <translation id="5721040778297053709">Plaas kredietkaart in hierdie raam</translation>
 <translation id="572328651809341494">Onlangse oortjies</translation>
+<translation id="5724590854763964497">Jou huidige oortjie word by verstek gedeel wanneer jy ’n nuwe klets begin. Wanneer oortjies gedeel word, word hulle inhoud en URL’e na Google toe gestuur, maar dit sal nie gebruik word om generatiewe KI-modelle te verbeter nie. Jy kan hierdie instelling enige tyd verander.</translation>
 <translation id="5724941645893276623">Voeg 'n nuwe oortjie by om privaat deur die web te blaai</translation>
 <translation id="5728072125198221967">Gekoppelde Google-dienste</translation>
 <translation id="5728700505257787410">Jammer, kon nie by jou app aanmeld nie.</translation>
@@ -1964,6 +1973,8 @@ Oorgee moet ook in die Algemene afdeling van Instellings geaktiveer word, en jou
 <translation id="8059533439631660104">Vou die afdeling in.</translation>
 <translation id="8061584726507121204">Geskiedenis</translation>
 <translation id="8064946459644399612">Jou Nuwe Oortjie-bladsy se voorkeure is toegepas</translation>
+<translation id="8065136076319366194">Stoor word nie aanbeveel nie</translation>
+<translation id="8065556469005366939">Kry meer relevante antwoorde deur jou oortjies te deel</translation>
 <translation id="8069394452933076548">Kies wanneer oortjies wat nie onlangs gebruik is nie na die afdeling vir onaktiewe oortjies toe geskuif word.</translation>
 <translation id="8073670137947914548">Aflaai is klaar</translation>
 <translation id="8076492880354921740">Oortjies</translation>
@@ -1985,6 +1996,7 @@ Oorgee moet ook in die Algemene afdeling van Instellings geaktiveer word, en jou
 <translation id="8131740175452115882">Bevestig</translation>
 <translation id="8132598642024322408">Nou <ph name="PRICE" />, was <ph name="PREVIOUS_PRICE" />.</translation>
 <translation id="813370552429173916">Gebruik ’n unieke wagwoord vir elke werf of app. As iemand ’n hergebruikte wagwoord ontdek, kan hulle dit gebruik om toegang tot jou ander rekeninge te kry. Klik om die webwerf oop te maak en hulle nou te verander.</translation>
+<translation id="8133810265969517544">Deling word nie aanbeveel nie</translation>
 <translation id="8135556271852808840">{count,plural, =1{{count} toegemaakte oortjie}other{{count} toegemaakte oortjies}}</translation>
 <translation id="8135643032449715400">{COUNT,plural, =1{1 ander}other{# ander}}</translation>
 <translation id="8150167929304790980">Volle naam</translation>
@@ -2132,6 +2144,7 @@ Oorgee moet ook in die Algemene afdeling van Instellings geaktiveer word, en jou
 <translation id="8660600697590740984">Prent wat deur Lens gekopieer is</translation>
 <translation id="866266761389616183">O, mapstieks!</translation>
 <translation id="8663764600409216912">Jy gebruik wagwoorde wat moeilik lyk om te raai</translation>
+<translation id="8664992138761940052">Jou huidige oortjie word by verstek gedeel wanneer jy ’n nuwe klets begin. Wanneer oortjies gedeel word, word hul inhoud en URL’e na Google toe gestuur. Jy kan hierdie instelling enige tyd verander.</translation>
 <translation id="8668210798914567634">Hierdie bladsy is na jou Leeslys gestoor.</translation>
 <translation id="8672642291731179042">Vertaal bladsye</translation>
 <translation id="8672733398999596205">Aktiveer alles</translation>
@@ -2233,6 +2246,7 @@ Oorgee moet ook in die Algemene afdeling van Instellings geaktiveer word, en jou
 <translation id="8976414606286374109">Kaarte wat in jou Google-rekening gestoor is.</translation>
 <translation id="8981454092730389528">Google-aktiwiteitkontroles</translation>
 <translation id="8988107725234939347"><ph name="WEBSITE_TITLE" />, vasgespelde werf</translation>
+<translation id="8990960056509724223">Lêer kon weens jou organisasie se beleide nie gestoor word nie</translation>
 <translation id="8998289560386111590">Nie op jou toestel beskikbaar nie</translation>
 <translation id="9000532564152265066">Alle oortjies</translation>
 <translation id="9003677638446136377">Kyk weer</translation>

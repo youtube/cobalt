@@ -4,14 +4,18 @@
 
 #include "chrome/browser/search_integrity/search_integrity.h"
 
+#include <map>
 #include <set>
 #include <string>
+#include <string_view>
 #include <vector>
 
+#include "base/containers/fixed_flat_set.h"
 #include "base/functional/bind.h"
 #include "base/i18n/case_conversion.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/no_destructor.h"
 #include "base/path_service.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
@@ -27,21 +31,45 @@ namespace search_integrity {
 
 namespace {
 
+// A list of common words to ignore when comparing search engine names from the
+// prepopulated engines list file.
+static constexpr auto kStopList = base::MakeFixedFlatSet<std::u16string_view>(
+    {u"search", u"engine", u"web", u"internet", u"net", u"plus", u"next",
+     u"the", u"and"});
+
 // Returns true if candidate_name and default_name share at least one common
 // word.
 bool IsNameMatch(std::u16string_view candidate_name,
                  std::u16string_view default_name) {
-  for (const auto& name_one : base::SplitStringPiece(
-           candidate_name, base::kWhitespaceUTF16, base::TRIM_WHITESPACE,
-           base::SPLIT_WANT_NONEMPTY)) {
-    for (const auto& name_two : base::SplitStringPiece(
-             default_name, base::kWhitespaceUTF16, base::TRIM_WHITESPACE,
-             base::SPLIT_WANT_NONEMPTY)) {
-      if (base::i18n::ToLower(name_one) == base::i18n::ToLower(name_two)) {
+  constexpr size_t kMinWordLength = 3;
+
+  auto get_words = [](std::u16string_view text) {
+    std::vector<std::u16string> words;
+    for (auto piece : base::SplitStringPiece(text, base::kWhitespaceUTF16,
+                                             base::TRIM_WHITESPACE,
+                                             base::SPLIT_WANT_NONEMPTY)) {
+      if (piece.length() >= kMinWordLength) {
+        words.push_back(base::i18n::ToLower(piece));
+      }
+    }
+    return words;
+  };
+
+  const auto candidate_words = get_words(candidate_name);
+  const auto default_words = get_words(default_name);
+
+  for (const auto& word : candidate_words) {
+    if (kStopList.contains(word)) {
+      continue;
+    }
+
+    for (const auto& def_word : default_words) {
+      if (word == def_word) {
         return true;
       }
     }
   }
+
   return false;
 }
 
@@ -121,6 +149,10 @@ void SearchIntegrity::OnAllowlistInitialized(
   base::UmaHistogramBoolean(
       "Search.Integrity.IsDefaultCustomWithMatchingPolicyEngine",
       report.is_default_custom_with_matching_policy_engine);
+  if (report.referral_param_found.has_value()) {
+    base::UmaHistogramEnumeration("Search.Integrity.Referral.ParameterFound",
+                                  report.referral_param_found.value());
+  }
 }
 
 SearchIntegrityReport SearchIntegrity::CheckSearchEnginesReport() {
@@ -128,6 +160,20 @@ SearchIntegrityReport SearchIntegrity::CheckSearchEnginesReport() {
 
   // Retrieve the list of all installed search engines.
   auto template_urls = template_url_service_->GetTemplateURLs();
+
+  // A map of referral parameter keys to their corresponding enum values.
+  static const base::NoDestructor<
+      std::map<std::string_view, SearchReferralParam>>
+      kReferralParameterMap({
+          {"PC", SearchReferralParam::kPC},
+          {"clid", SearchReferralParam::kClid},
+          {"client", SearchReferralParam::kClient},
+          {"fr", SearchReferralParam::kFr},
+          {"gp", SearchReferralParam::kGp},
+          {"sourceid", SearchReferralParam::kSourceid},
+          {"t", SearchReferralParam::kT},
+          {"tt", SearchReferralParam::kTt},
+      });
 
   // Iterate through all installed search engines to check if any of them are
   // not in the allowlist.
@@ -142,8 +188,9 @@ SearchIntegrityReport SearchIntegrity::CheckSearchEnginesReport() {
 
       GURL url(template_url->url());
       for (net::QueryIterator it(url); !it.IsAtEnd(); it.Advance()) {
-        if (it.GetKey() == "fr") {
-          report.referral_id = it.GetUnescapedValue();
+        auto iter = kReferralParameterMap->find(it.GetKey());
+        if (iter != kReferralParameterMap->end()) {
+          report.referral_param_found = iter->second;
           break;
         }
       }

@@ -8,10 +8,13 @@
 #include <optional>
 
 #include "base/files/file_path.h"
+#include "third_party/blink/public/mojom/devtools/inspector_issue.mojom-blink.h"
 #include "third_party/blink/public/mojom/forms/form_control_type.mojom-blink-forward.h"
 #include "third_party/blink/public/platform/file_path_conversion.h"
+#include "third_party/blink/renderer/core/dom/dom_node_ids.h"
 #include "third_party/blink/renderer/core/dom/element.h"
 #include "third_party/blink/renderer/core/dom/live_node_list.h"
+#include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/html/custom/custom_element.h"
 #include "third_party/blink/renderer/core/html/custom/element_internals.h"
 #include "third_party/blink/renderer/core/html/forms/html_form_control_element.h"
@@ -24,6 +27,8 @@
 #include "third_party/blink/renderer/core/html/forms/listed_element.h"
 #include "third_party/blink/renderer/core/html/forms/step_range.h"
 #include "third_party/blink/renderer/core/html_names.h"
+#include "third_party/blink/renderer/core/inspector/inspector_audits_issue.h"
+#include "third_party/blink/renderer/platform/file_metadata.h"
 #include "third_party/blink/renderer/platform/json/json_parser.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
@@ -79,11 +84,30 @@ bool ToBoolean(const JSONValue& value, bool& out) {
   return false;
 }
 
+bool IsAccessibleFile(const JSONValue& value, HTMLFormElement& form) {
+  CHECK(RuntimeEnabledFeatures::WebMCPDeclarativeFileInputEnabled());
+  ExecutionContext* execution_context =
+      form.GetDocument().GetExecutionContext();
+  if (!execution_context) {
+    return false;
+  }
+  String path_string;
+  if (ToString(value, path_string)) {
+    base::FilePath path = StringToFilePath(path_string);
+    if (!path.IsAbsolute()) {
+      return false;
+    }
+    FileMetadata metadata;
+    return GetFileMetadata(path_string, *execution_context, metadata);
+  }
+  return false;
+}
+
 }  // namespace
 
 using mojom::blink::FormControlType;
 
-FormMCPSchema::FormMCPSchema(HTMLFormElement& form) {
+FormMCPSchema::FormMCPSchema(HTMLFormElement& form) : form_(&form) {
   ProcessForm(form);
 }
 
@@ -102,17 +126,40 @@ std::unique_ptr<JSONObject> FormMCPSchema::ComputeJSON() {
     // is not supported, for whatever reason.
     if (std::unique_ptr<JSONObject> parameter_schema =
             ComputeParameterSchema(name, is_required)) {
+      ReportParameterIssueIfNeeded(name, *parameter_schema);
       properties->SetObject(name, std::move(parameter_schema));
       if (is_required) {
         required->PushString(name);
       }
     }
+    name_to_controls_.erase(name);  // Emit this parameter once.
   }
 
   out->SetObject("properties", std::move(properties));
   out->SetArray("required", std::move(required));
 
   return out;
+}
+
+void FormMCPSchema::ReportParameterIssueIfNeeded(
+    const String& name,
+    const JSONObject& parameter_schema) {
+  if (parameter_schema.Get("title") || parameter_schema.Get("description")) {
+    return;
+  }
+  // With both "title" and "description" missing, the agent just has
+  // the parameter name to go on, which not be descriptive enough.
+  auto it = name_to_controls_.find(name);
+  CHECK_NE(it, name_to_controls_.end());
+  const ControlVector& controls = *it->value;
+  CHECK(!controls.empty());
+  DOMNodeId violating_node_id =
+      DOMNodeIds::IdForNode(&controls.front()->ToHTMLElement());
+  AuditsIssue::ReportGenericIssue(
+      form_->GetDocument().GetFrame(),
+      mojom::blink::GenericIssueErrorType::
+          kFormModelContextParameterMissingTitleAndDescription,
+      violating_node_id);
 }
 
 std::optional<ScriptToolError> FormMCPSchema::FillData(
@@ -343,27 +390,17 @@ bool FormMCPSchema::ValidateFileData(const ControlVector& controls_for_name,
   }
   auto& input =
       To<HTMLInputElement>(controls_for_name.front()->ToHTMLElement());
-  auto is_absolute_path_string = [](const JSONValue& value) -> bool {
-    String path_string;
-    if (ToString(value, path_string)) {
-      return StringToFilePath(path_string).IsAbsolute();
-    }
-    return false;
-  };
 
   if (input.Multiple()) {
     const JSONArray* array = JSONArray::Cast(&value);
     if (!array) {
       return false;
     }
-    for (const JSONValue& item : *array) {
-      if (!is_absolute_path_string(item)) {
-        return false;
-      }
-    }
-    return true;
+    return std::all_of(
+        array->begin(), array->end(),
+        [&](const JSONValue& item) { return IsAccessibleFile(item, *form_); });
   }
-  return is_absolute_path_string(value);
+  return IsAccessibleFile(value, *form_);
 }
 
 void FormMCPSchema::FillParameterData(const String& name,
@@ -415,8 +452,6 @@ std::unique_ptr<JSONObject> FormMCPSchema::ComputeParameterSchema(
   }
   ControlVector* controls_for_name = it->value;
   CHECK(controls_for_name);
-
-  name_to_controls_.erase(name);  // Emit this parameter once.
 
   if (IsText(*controls_for_name)) {
     return ComputeTextParameterSchema(*controls_for_name, required);
@@ -659,6 +694,7 @@ std::unique_ptr<JSONObject> FormMCPSchema::ComputeSelectParameterSchema(
   auto enum_array = std::make_unique<JSONArray>();
   for (HTMLOptionElement& option : element.GetOptionList()) {
     auto option_object = std::make_unique<JSONObject>();
+    option_object->SetString("type", "string");
     option_object->SetString("const", option.value());
     option_object->SetString("title", option.textContent());
     one_of->PushObject(std::move(option_object));
@@ -780,12 +816,13 @@ std::unique_ptr<JSONArray> FormMCPSchema::ComputeOneOfArray(
   enum_array = std::make_unique<JSONArray>();
   for (ListedElement* control : controls_for_name) {
     HTMLInputElement& input = To<HTMLInputElement>(control->ToHTMLElement());
-    auto checkbox_object = std::make_unique<JSONObject>();
-    checkbox_object->SetString("const", input.Value());
+    auto one_of_schema = std::make_unique<JSONObject>();
+    one_of_schema->SetString("type", "string");
+    one_of_schema->SetString("const", input.Value());
     if (String title = LabelText(input); !title.empty()) {
-      checkbox_object->SetString("title", title);
+      one_of_schema->SetString("title", title);
     }
-    one_of->PushObject(std::move(checkbox_object));
+    one_of->PushObject(std::move(one_of_schema));
     enum_array->PushString(input.Value());
     required |= input.IsRequired();
   }
@@ -975,24 +1012,24 @@ void FormMCPSchema::FillFileData(const ControlVector& controls_for_name,
   Vector<String> paths;
   auto& file_input =
       To<HTMLInputElement>(controls_for_name.front()->ToHTMLElement());
+
+  auto add_if_valid = [&](const JSONValue& value) {
+    if (!IsAccessibleFile(value, *form_)) {
+      return;
+    }
+    String path_string;
+    ToString(value, path_string);
+    paths.push_back(path_string);
+  };
+
   if (file_input.Multiple()) {
     const JSONArray* array = JSONArray::Cast(&value);
     if (!array) {
       return;
     }
-    for (const JSONValue& item : *array) {
-      String path;
-      if (!ToString(item, path)) {
-        return;
-      }
-      paths.push_back(path);
-    }
+    std::for_each(array->begin(), array->end(), add_if_valid);
   } else {
-    String path;
-    if (!ToString(value, path)) {
-      return;
-    }
-    paths.push_back(path);
+    add_if_valid(value);
   }
   file_input.SetFilesFromPaths(paths);
 }

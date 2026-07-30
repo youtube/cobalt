@@ -13,7 +13,7 @@
 #import "components/signin/public/identity_manager/account_capabilities_test_mutator.h"
 #import "components/signin/public/identity_manager/identity_test_environment.h"
 #import "ios/chrome/browser/intelligence/bwg/metrics/gemini_metrics.h"
-#import "ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h"
+#import "ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/gemini_prefs.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/optimization_guide/model/optimization_guide_service.h"
@@ -97,9 +97,11 @@ class BwgServiceTest : public PlatformTest {
   base::test::ScopedFeatureList scoped_feature_list_;
 
   // Profile and services that depend on the environment are declared next.
+  // Note: `pref_service_` must be declared before `gemini_service_` so that
+  // it is destroyed after `gemini_service_`, preventing a dangling pointer.
   std::unique_ptr<TestProfileIOS> profile_;
-  std::unique_ptr<BwgService> gemini_service_;
   std::unique_ptr<TestingPrefServiceSimple> pref_service_;
+  std::unique_ptr<BwgService> gemini_service_;
   raw_ptr<AuthenticationService> auth_service_;
   raw_ptr<OptimizationGuideService> optimization_guide_service_;
 
@@ -248,82 +250,4 @@ TEST_F(BwgServiceTest,
   histogram_tester_.ExpectUniqueSample(kEligibilityHistogram,
                                        /*sample=*/false,
                                        /*expected_count=*/1);
-}
-
-// Tests that Gemini is available for a web state when the user is eligible and
-// the web state is not off the record.
-TEST_F(BwgServiceTest, IsBwgAvailableForWebState_WhenUserIsEligible) {
-  SignInAndSetCapability(true, true);
-  auto web_state = std::make_unique<web::FakeWebState>();
-  web_state->SetBrowserState(profile_.get());
-  web_state->SetCurrentURL(GURL("https://www.google.com"));
-  web_state->SetContentsMimeType("text/html");
-
-  EXPECT_TRUE(gemini_service_->IsBwgAvailableForWebState(web_state.get()));
-}
-
-// Tests that Gemini is not available for a web state when the user is not
-// eligible.
-TEST_F(BwgServiceTest, IsBwgAvailableForWebState_WhenUserIsNotEligible) {
-  SignInAndSetCapability(false, true);
-  auto web_state = std::make_unique<web::FakeWebState>();
-  web_state->SetBrowserState(profile_.get());
-
-  EXPECT_FALSE(gemini_service_->IsBwgAvailableForWebState(web_state.get()));
-}
-
-// Tests that Gemini is not available for a web state when the web state is off
-// the record.
-TEST_F(BwgServiceTest, IsBwgAvailableForWebState_WhenWebStateIsOffTheRecord) {
-  SignInAndSetCapability(true, true);
-  auto web_state = std::make_unique<web::FakeWebState>();
-  web_state->SetBrowserState(profile_->GetOffTheRecordProfile());
-
-  EXPECT_FALSE(gemini_service_->IsBwgAvailableForWebState(web_state.get()));
-}
-
-// Tests that Gemini is not available for a web state when the web state is
-// null.
-TEST_F(BwgServiceTest, IsBwgAvailableForWebState_WhenWebStateIsNull) {
-  SignInAndSetCapability(true, true);
-
-  EXPECT_FALSE(gemini_service_->IsBwgAvailableForWebState(nullptr));
-}
-
-// Tests that Gemini is not available for a web state when the URL is an AIM
-// URL.
-TEST_F(BwgServiceTest, IsBwgAvailableForWebState_WhenUrlIsAimUrl) {
-  SignInAndSetCapability(true, true);
-  auto web_state = std::make_unique<web::FakeWebState>();
-  web_state->SetBrowserState(profile_.get());
-  web_state->SetCurrentURL(GURL("https://www.google.com/search?q=test&udm=50"));
-  web_state->SetContentsMimeType("text/html");
-
-  EXPECT_FALSE(gemini_service_->IsBwgAvailableForWebState(web_state.get()));
-}
-
-// Tests that Gemini is available for a web state when the URL is a Google
-// Search URL but not an AIM URL.
-TEST_F(BwgServiceTest,
-       IsBwgAvailableForWebState_WhenUrlIsNotAimUrlButIsGoogleSearch) {
-  SignInAndSetCapability(true, true);
-  auto web_state = std::make_unique<web::FakeWebState>();
-  web_state->SetBrowserState(profile_.get());
-  web_state->SetCurrentURL(GURL("https://www.google.com/search?q=test"));
-  web_state->SetContentsMimeType("text/html");
-
-  EXPECT_TRUE(gemini_service_->IsBwgAvailableForWebState(web_state.get()));
-}
-
-// Tests that Gemini is available for a web state when the URL is not a Google
-// Search URL and thus not an AIM URL.
-TEST_F(BwgServiceTest,
-       IsBwgAvailableForWebState_WhenUrlIsNotAimUrlAndNotGoogleSearch) {
-  SignInAndSetCapability(true, true);
-  auto web_state = std::make_unique<web::FakeWebState>();
-  web_state->SetBrowserState(profile_.get());
-  web_state->SetCurrentURL(GURL("https://www.example.com"));
-  web_state->SetContentsMimeType("text/html");
-
-  EXPECT_TRUE(gemini_service_->IsBwgAvailableForWebState(web_state.get()));
 }

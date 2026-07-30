@@ -710,6 +710,11 @@ class CORE_EXPORT LayoutObject : public GarbageCollected<LayoutObject>,
             IsEligibleForPaintOrLayoutContainment());
   }
 
+  virtual bool IsReplacedNormalFlowStackingContext(const ComputedStyle&) const {
+    NOT_DESTROYED();
+    return false;
+  }
+
   inline bool IsStacked() const {
     NOT_DESTROYED();
     return IsStacked(StyleRef());
@@ -717,7 +722,9 @@ class CORE_EXPORT LayoutObject : public GarbageCollected<LayoutObject>,
   inline bool IsStacked(const ComputedStyle& style) const {
     NOT_DESTROYED();
     return style.GetPosition() != EPosition::kStatic ||
-           IsStackingContext(style);
+           (IsStackingContext(style) &&
+            (!RuntimeEnabledFeatures::StackingContextIsNotStackedEnabled() ||
+             !IsReplacedNormalFlowStackingContext(style)));
   }
 
   // Returns true if the LayoutObject is rendered in the top layer or the layer
@@ -2716,7 +2723,7 @@ class CORE_EXPORT LayoutObject : public GarbageCollected<LayoutObject>,
 
     // Convenience functions to initialize outline info.
     static OutlineInfo GetFromStyle(const ComputedStyle& style) {
-      return {style.OutlineWidth(), style.OutlineOffset().ToInt()};
+      return {style.OutlineWidth(), style.OutlineOffset()};
     }
 
     static float getUnzoomedWidth(const ComputedStyle& style) {

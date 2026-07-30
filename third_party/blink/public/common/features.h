@@ -384,6 +384,8 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kDevToolsImprovedNetworkError);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kDevToolsAllowPopoverForcing);
 
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kDevToolsWebMCPSupport);
+
 // Enables input IPC to directly target the renderer's compositor thread without
 // hopping through the IO thread first.
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kDirectCompositorThreadIpc);
@@ -1403,12 +1405,11 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kDedicatedWorkerAblationStudyEnabled);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
                                                kDedicatedWorkerStartDelayInMs);
 
-// Enables Document Policy for DedicatedWorkers.
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kDocumentPolicyInDedicatedWorker);
-
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kUpdatedDeviceMemoryLimitsFor2026);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kUseAncestorRenderFrameForWorker);
+
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kUseSandboxTokenForOriginDerivation);
 
 // Whether first-party to third-party different-bucket same-origin post messages
 // are blocked.
@@ -1595,6 +1596,10 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kRemoveCommitRedirectUrlsArray);
 // header.
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kRemovePurposeHeaderForPrefetch);
 
+// Allows same-document available-image reuse for no-store images.
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
+    kReuseNoStoreImageOnSameSrcReassignment);
+
 // Makes preloaded fonts render-blocking up to the limits below.
 // See https://crbug.com/1412861
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kRenderBlockingFonts);
@@ -1619,9 +1624,9 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kResamplingInputEvents);
 // Uses the kPredictorName* values in ui_base_features.h as the 'predictor'
 // feature param.
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kResamplingScrollEvents);
-
-// Enables the refined timeout logic in ScrollPredictor::HasPrediction.
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kScrollPredictorRefinedHasPrediction);
+// Max timeout for synthetic scroll prediction.
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
+                                               kScrollPredictorMaxResampleTime);
 
 // This bypasses restrictions on selection sources and allows the spelling and
 // grammar checks to proceed for testing purposes.
@@ -1669,6 +1674,16 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kShowHudDisplayForPausedPages);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kScriptStreaming);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kScriptStreamingForNonHTTP);
+
+// Bypasses the 1 Euro filter for synthetic (Kalman) frames in ScrollPredictor.
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
+    kScrollPredictorFilteringBypassOnSynthetic);
+
+// Enables the refined timeout logic in ScrollPredictor::HasPrediction.
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kScrollPredictorRefinedHasPrediction);
+
+// Enables the synthetic predictor (Kalman) for scroll gap-filling.
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kScrollPredictorSyntheticKalman);
 
 // If enabled, prefetches from NoStatePrefetchURLLoaderThrottle will be sent
 // with the Sec-Purpose: "prefetch" header.
@@ -1794,8 +1809,6 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
     bool,
     kBoostRenderProcessForLoadingPrioritizeRestore);
-
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kBypassRequestForbiddenHeadersCheck);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kStopInBackground);
 

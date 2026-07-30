@@ -226,6 +226,7 @@
 <translation id="3226612997184048185">যদি আপুনি নিজৰ Google একাউণ্টত নিজৰ বুকমাৰ্কসমূহো ছেভ কৰে, আপুনি Chromeত প্ৰ’ডাক্টৰ দামসমূহ ট্ৰেক কৰিব পাৰে আৰু দাম কৰিলে জাননী পাব পাৰে</translation>
 <translation id="3242123554343253302">Chrome প্ৰ'ফাইল যোগ দিয়ক</translation>
 <translation id="3245429137663807393">যদি আপুনি Chrome ব্যৱহাৰ কৰাৰ ৰিপ’ৰ্টও শ্বেয়াৰ কৰে, সেই ৰিপ’ৰ্টত আপুনি চোৱা URLসমূহ অন্তৰ্ভুক্ত হয়</translation>
+<translation id="3259748324892322072">Chrome এপ্‌টো লাভ কৰক</translation>
 <translation id="3286538390144397061">এতিয়াই ৰিষ্টাৰ্ট কৰক</translation>
 <translation id="3292333338048274092">আপুনি তাৰ পাছত Chrome ৰিষ্টাৰ্ট কৰিব লাগিব।</translation>
 <translation id="3324218984287646518">Google Lensক এই ভিডিঅ’টোৰ বিষয়ে সোধক</translation>
@@ -284,7 +285,6 @@
 <translation id="3892148308691398805">পাঠৰ প্ৰতিলিপি কৰক</translation>
 <translation id="3893985792899396936">Chrome সম্পৰ্কীয় কিটিপ: Lensৰ জৰিয়তে সন্ধান কৰক</translation>
 <translation id="3906096710440765802">আপোনাৰ আটাইবোৰ ডিভাইচত নিজৰ পাছৱৰ্ড, বুকমাৰ্ক আৰু আন বহুতো বস্তু পাবলৈ Chromeত ছাইন ইন কৰক</translation>
-<translation id="3921132130819999051">Chromeক আপোনাৰ বাবে ব্ৰাউজ কৰিবলৈ দিয়ক</translation>
 <translation id="3941890832296813527">ইনষ্টল কৰোঁতে আসোঁৱাহ হৈছে: ইনষ্টলাৰৰ ফাইলৰ নামটো অমান্য অথবা অসমৰ্থিত।</translation>
 <translation id="395904275706073188">সুৰক্ষিত পৃষ্ঠা পঢ়িব নোৱাৰি। এটা বেলেগ পৃষ্ঠা ব্যৱহাৰ কৰি চাওক।</translation>
 <translation id="3968962723676998462">আপোনাৰ একাউণ্টত Chromeৰ ডেটা ব্যৱহাৰ আৰু ছেভ কৰিবলৈ নিজৰ পাছফ্ৰে’জ দিয়ক, <ph name="ACCOUNT_EMAIL" /></translation>
@@ -499,7 +499,6 @@ Google Chromeএ আপোনাৰ ছেটিংসমূহ পুনৰু�
 <translation id="6173637689840186878"><ph name="PAGE_TITLE" /> - Google Chrome বিটা</translation>
 <translation id="6180522807229584611">এই টেবটোৱে অতিৰিক্ত সম্পদ ব্যৱহাৰ কৰি আছে। আপোনাৰ কাৰ্যদক্ষতা উন্নত কৰিবলৈ Chromeক এইটো নিষ্ক্ৰিয় কৰিবলৈ দিয়ক।</translation>
 <translation id="6182736845697986886">আপডে’ট ছাৰ্ভাৰৰ অভ্যন্তৰীণ আসোঁৱাহৰ বাবে ইনষ্টলেশ্বন কৰিব পৰা নগ’ল।</translation>
-<translation id="6183773856988300112">আপোনাৰ টেবসমূহত কাম কৰিবলৈ আৰু আপুনি Geminiক দিয়া কাৰ্যসমূহ সম্পূৰ্ণ কৰিবলৈ Chromeত Geminiএ স্বয়ংক্ৰিয় ব্ৰাউজ ব্যৱহাৰ কৰে। <ph name="LINK_BEGIN" />অধিক জানক<ph name="LINK_END" /></translation>
 <translation id="6187085551300363958">Chromeৰ কিটিপ: পাছৱৰ্ড ছেভ কৰক</translation>
 <translation id="6192058120268468905">Chromeত আপোনাৰ একাউণ্ট</translation>
 <translation id="6220551899604141979"><ph name="PARTNER_NAME" />এ এটা এক্সটেনশ্বন যোগ দিছে, যিটোৱে Chromeৰ কাৰ্যপ্ৰণালী সলনি কৰিব পাৰে।

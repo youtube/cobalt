@@ -27,6 +27,7 @@
 <translation id="126567311906253476">Gmail या YouTube जैसी Google की सेवाओं में <ph name="USER_EMAIL" /> से साइन इन करने पर, Chromium में इसी खाते से अपने-आप साइन इन किया जा सकता है</translation>
 <translation id="1290883685122687410">सेटअप करने में गड़बड़ी हुई: <ph name="METAINSTALLER_EXIT_CODE" />. <ph name="WINDOWS_ERROR" /></translation>
 <translation id="1315551408014407711">क्रोमियम पर अपनी नई प्रोफ़ाइल सेट अप करें</translation>
+<translation id="132092532143527429">Chromium में Gemini को आज़माएं</translation>
 <translation id="1324107359134968521">Chromium को ब्लूटूथ का ऐक्सेस चाहिए, ताकि वह ब्लूटूथ डिवाइस ढूंढ पाए. <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="1330562121671411446">भाषा का पता लगाएं</translation>
 <translation id="1330742950061766891">Chromium की सुझाई गई ब्राउज़र सेटिंग का इस्तेमाल करें</translation>
@@ -238,6 +239,7 @@
 <translation id="3509308970982693815">कृपया सभी क्रोमियम विंडो बंद करें और फिर से प्रयास करें.</translation>
 <translation id="3522404737534491619">विंडो शेयर करने के लिए, 'सिस्टम सेटिंग' में जाकर Chromium के लिए स्क्रीन रिकॉर्ड करने की अनुमति दें</translation>
 <translation id="3530103706039034513"><ph name="EXISTING_USER" /> ने पहले से साइन इन किया हुआ है. अलग ब्राउज़र का इस्तेमाल करने के लिए, Chromium में अपनी प्रोफ़ाइल में <ph name="USER_EMAIL_ADDRESS" /> से साइन इन करें.</translation>
+<translation id="3531741627422851418">फ़ोन या टैबलेट पर Chromium ब्राउज़र डाउनलोड करने के लिए क्यूआर कोड</translation>
 <translation id="3561853857681580870">स्क्रीन शेयर करने के लिए, 'सिस्टम सेटिंग' में जाकर Chromium के लिए स्क्रीन रिकॉर्ड करने की अनुमति दें.</translation>
 <translation id="3588112919289558122">बेहतर सुरक्षा मोड चालू होने पर, उन साइटों के लिए JavaScript ऑप्टिमाइज़ेशन की सुविधा बंद हो जाती है जिनकी पहचान Chromium नहीं कर पाता</translation>
 <translation id="3597003331831379823">खास सुविधाओं का ऐक्सेस होने के बाद भी, सेटअप नहीं किया जा सका. <ph name="METAINSTALLER_ERROR" /></translation>
@@ -373,7 +375,6 @@
 <translation id="5174969993834422967">आपने ज़्यादातर मामलों में, सूचनाओंं को ब्लॉक किया है. इस साइट से सूचनाएं पाने के लिए, आपको अपने लोकेशन बार के दाएं कोने में मौजूद सूचना के आइकॉन पर क्लिक करना होगा.</translation>
 <translation id="5174983315706567306">डिस्क में ज़रूरत के मुताबिक स्टोरेज नहीं बचा है.</translation>
 <translation id="5187123684706427865">Chromium खाते की फिर से पुष्टि करनी होगी</translation>
-<translation id="5219681158518957165">सुझाई गई ब्राउज़र सेटिंग का इस्तेमाल करें</translation>
 <translation id="5224391634244552924">कोई भी पासवर्ड सेव नहीं किया गया है. आप जब अपने पासवर्ड सेव करते हैं, तो क्रोमियम उनकी जांच कर सकता है.</translation>
 <translation id="5231355151045086930">क्रोमियम से प्रस्थान करें</translation>
 <translation id="5234764350956374838">खारिज करें</translation>
@@ -607,6 +608,7 @@
 <translation id="7622753900276619808">अब आपके लिए Chromium में ज़्यादा सुविधाएं उपलब्ध हैं</translation>
 <translation id="7624307931717240213">हम जानकारी का इस्तेमाल, इस सेवा को बेहतर बनाने के लिए करते हैं. निजता नीति और सेवा की शर्तें देखें.</translation>
 <translation id="7649070708921625228">सहायता</translation>
+<translation id="7650134251917003571">Chromium ऐप्लिकेशन को डाउनलोड करें</translation>
 <translation id="7656340475565475526">Chromium को आपके लिए ब्राउज़ करने की अनुमति दें</translation>
 <translation id="7658239707568436148">अभी नहीं</translation>
 <translation id="7686590090926151193">क्रोमियम आपका डिफ़ॉल्ट ब्राउज़र नहीं है</translation>

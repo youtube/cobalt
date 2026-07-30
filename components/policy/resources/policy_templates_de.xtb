@@ -993,15 +993,6 @@ Ab <ph name="PRODUCT_NAME" /> 140 wird das Verhalten der Funktion durch die Ric
 
 Diese Richtlinie wird ab <ph name="PRODUCT_NAME" /> 147 nicht mehr unterstützt. IT-Administratoren können diese Funktion künftig über <ph name="SEARCH_CONTENT_SHARING_SETTINGS_POLICY_NAME" /> steuern.</translation>
 <translation id="1686952487081322272">Schnellinfo deaktivieren</translation>
-<translation id="1688920969335897857">Mit dieser Richtlinie werden Einstellungen zur Erweiterungsverwaltung für <ph name="PRODUCT_NAME" /> festgelegt, darunter Einstellungen, die von anderen auf Erweiterungen bezogenen Richtlinien geregelt werden. Durch diese Richtlinie werden alle älteren Richtlinien überschrieben.
-
-Mit dieser Richtlinie wird eine Erweiterungs-ID oder eine Update-URL nur ihrer bestimmten Einstellung zugeordnet. Eine Standardkonfiguration kann für die Spezial-ID „<ph name="DEFAULT_SCOPE" />“ festgelegt werden, die auf alle Erweiterungen angewendet wird, für die keine benutzerdefinierte Konfiguration in dieser Richtlinie festgelegt ist. Bei einer Update-URL wird die Konfiguration auf alle Erweiterungen mit genau der im Manifest dieser Erweiterung angegebenen Update-URL angewendet (http://support.google.com/chrome/a?p=Configure_ExtensionSettings_policy). Wenn für „override_update_url“ die Option „True“ festgelegt ist, wird die Erweiterung über die in der Richtlinie „<ph name="EXTENSION_INSTALL_FORCELIST_POLICY_NAME" />“ oder im Feld „update_url“ dieser Richtlinie angegebene Update-URL installiert und aktualisiert. Das Flag „override_update_url“ wird ignoriert, wenn „update_url“ eine URL für den Chrome Web Store ist.
-
-Bei <ph name="MS_WIN_NAME" />-Instanzen kann die Installation von Apps und Erweiterungen, die nicht aus dem Chrome Web Store stammen, nur auf solchen Instanzen erzwungen werden, die Teil einer <ph name="MS_AD_NAME" />-Domain oder von <ph name="MS_AAD_NAME" /> sind oder die in <ph name="CHROME_ENTERPRISE_CORE_NAME" /> angemeldet sind.
-
-Bei <ph name="MAC_OS_NAME" />-Instanzen kann die Installation von Apps und Erweiterungen, die nicht aus dem Chrome Web Store stammen, nur auf solchen Instanzen erzwungen werden, die über die Mobilgeräteverwaltung verwaltet werden, die über MCX Teil einer Domain sind oder die in <ph name="CHROME_ENTERPRISE_CORE_NAME" /> angemeldet sind.
-
-Hinweis: Diese Richtlinie gilt nur für Plattformen, die Erweiterungen unterstützen.</translation>
 <translation id="1690383938831887552">Verhindern, dass Signed HTTP Exchanges geladen werden</translation>
 <translation id="1692325295652827195">Wenn diese Richtlinie auf „True“ gesetzt ist, werden Informationen über wichtige richtlinienbasierte Android-App-Installationsereignisse an Google gesendet.
 
@@ -3969,6 +3960,23 @@ Die Datenübertragung mit Datenexport muss ebenfalls aktiviert sein, damit die A
 <translation id="3712861436661566358">Profiltrennung erzwingen</translation>
 <translation id="3719826155360621982">Startseite</translation>
 <translation id="3724039569609354541">Standardverhalten anwenden, wenn festgelegt wird, ob Websites Anfragen an Netzwerkendpunkte senden können</translation>
+<translation id="3726715125055227414">Diese Richtlinie konfiguriert <ph name="PRODUCT_OS_NAME" /> so, dass bei Netzwerkanfragen vom Anmeldebildschirm aus die bevorzugten Algorithmen für Schlüsselvereinbarungen (unterstützte Gruppen) für TLS 1.3 so angeordnet werden, dass Algorithmen Vorrang erhalten, die von einer bestimmten Compliance-Regelung zugelassen sind.
+
+Durch das Festlegen dieser Richtlinie wird nicht garantiert, dass bestimmte Algorithmen ausgehandelt werden.
+
+Diese Richtlinie ermöglicht es Serverbetreibern, die Clients mit und ohne Compliance-Anforderungen unterstützen möchten, zwischen diesen Clients zu unterscheiden. Bestimmte nicht standardmäßige Algorithmen mit erhöhter kryptographischer Stärke werden nur für diejenigen Clients verwendet, die ausdrücklich so konfiguriert wurden, dass sie diese bevorzugen.
+
+Wird die Richtlinie auf „<ph name="CNSA2_NAME" />“ festgelegt, wird <ph name="PRODUCT_OS_NAME" /> so konfiguriert, dass die für die Compliance mit der Commercial National Security Algorithm Suite 2.0 (CNSA 2.0) erforderlichen Methoden zum Schlüsselaustausch bevorzugt werden.
+
+Wenn die Richtlinie nicht konfiguriert oder auf „<ph name="DEFAULT_NAME" />“ gesetzt ist, verwendet <ph name="PRODUCT_OS_NAME" /> die standardmäßigen Methoden für den Schlüsselaustausch.
+
+Das Festlegen dieser Richtlinie ist für die Sicherheit nicht erforderlich. Die Standardkryptografie, die von <ph name="PRODUCT_OS_NAME" /> verwendet wird, ist stark genug, um einem Brute-Force-Angriff mit der gesamten Energie der Sonne standzuhalten.
+
+Wenn du diese Richtlinie festlegst, wird <ph name="PRODUCT_OS_NAME" /> beim Senden von Netzwerkanfragen vom Anmeldebildschirm aus langsamer.
+
+Diese Richtlinie wirkt sich nur auf TLS 1.3 und QUIC aus, nicht auf frühere Versionen von TLS.
+
+Diese Geräterichtlinie entspricht der Nutzerrichtlinie „<ph name="PREFER_SLOW_KEX_ALGORITHMS_POLICY_NAME" />“, gilt aber stattdessen für das Anmeldeprofil auf dem Anmeldebildschirm.</translation>
 <translation id="3727476641336727380">Es sei denn, für „<ph name="ALLOW_WAKE_LOCKS_POLICY_NAME" />“ ist „Deaktiviert“ festgelegt, dann sind durch das Aktivieren oder Nichtkonfigurieren von „<ph name="ALLOW_SCREEN_WAKE_LOCKS_POLICY_NAME" />“ Bildschirm-Wakelocks für die Energieverwaltung zulässig. Bildschirm-Wakelocks können von Erweiterungen über die Power Management Extension API oder ARC-Apps angefordert werden.
 
       Ist diese Richtlinie deaktiviert, werden Bildschirm-Wakelock-Anfragen auf den Status von System-Wakelocks zurückgestuft.</translation>
@@ -4480,6 +4488,17 @@ Weitere Informationen zu gültigen <ph name="URL_LABEL" />-Mustern findest du un
 <translation id="4090088362777472639">SHA-256-Hash des Ansible-Playbooks.</translation>
 <translation id="4091040199847925434">Berichte zu Systeminformationen und Seiteninhalten, mit denen Safe Browsing verbessert wird, deaktivieren</translation>
 <translation id="4093058072421210667">„Inline Image“ nicht zulassen.</translation>
+<translation id="4096503137212127216">Mit dieser Richtlinie kannst du <ph name="CHROME_DEVTOOLS_NAME" /> für bestimmte URLs blockieren. Informationen zum URL-Format findest du unter https://support.google.com/chrome/a?p=url_blocklist_filter_format.
+
+URL-Muster werden mit der URL jedes Frames auf der geprüften Seite abgeglichen. Das daraus resultierende Verhalten hängt davon ab, ob die Richtlinie „<ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" />“ ebenfalls konfiguriert ist.
+
+Wenn diese Richtlinie konfiguriert ist und „<ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" />“ nicht, werden die <ph name="CHROME_DEVTOOLS_NAME" /> für die gesamte Seite blockiert, wenn die URL eines Frames mit einem Muster auf dieser Sperrliste übereinstimmt. Wenn die URL eines Frames mit keinem Muster übereinstimmt, wird die Verfügbarkeit durch die Richtlinie „<ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" />“ bestimmt.
+
+Wenn sowohl diese Richtlinie als auch „<ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" />“ festgelegt sind, hat die Zulassungsliste Vorrang. Wenn die URL eines Frames mit einem Muster auf der Zulassungsliste übereinstimmt, ist sie zulässig, auch wenn sie ebenfalls mit einem Muster auf dieser Sperrliste übereinstimmt. Wenn eine URL mit einem Muster übereinstimmt, das auf dieser Sperrliste (aber nicht auf der Zulassungsliste) steht, wird sie blockiert. Wenn eine URL mit keinem Muster der beiden Listen übereinstimmt, wird die Richtlinie „<ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" />“ als Fallback verwendet.
+
+Wenn diese Richtlinie nicht konfiguriert ist, wird die Verfügbarkeit von <ph name="CHROME_DEVTOOLS_NAME" /> durch die Richtlinien „<ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" />“ und „<ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" />“ bestimmt.
+
+Diese Richtlinie ist auf 1.000 Einträge beschränkt.</translation>
 <translation id="4098920079809952737">Drucken mit und ohne Hintergrundgrafiken zulassen</translation>
 <translation id="410061592404122032">Jedes Mal nachfragen, wenn eine Website um die Berechtigung für die Fensterverwaltung bittet</translation>
 <translation id="410068710490553233">Anmeldung in zusätzlichen Google-Konten zulassen</translation>
@@ -5732,6 +5751,19 @@ Wenn diese Richtlinie auf „<ph name="ALLOW_PASSTHROUGH_OF_SEARCH_BASED_SHORTCU
       Ist diese Richtlinie nicht konfiguriert (bis einschließlich Version M76), kann <ph name="PRODUCT_NAME" /> diese Protokolle standardmäßig weder erfassen noch hochladen. Ab Version M77 kann <ph name="PRODUCT_NAME" /> diese Protokolle standardmäßig von den meisten Profilen erfassen und hochladen, für die cloudbasierte Unternehmensrichtlinien auf Nutzerebene gelten. Ab Version M77 bis einschließlich M80 kann <ph name="PRODUCT_NAME" /> diese Protokolle außerdem standardmäßig von Profilen erfassen und hochladen, die mit <ph name="PRODUCT_NAME" /> lokal verwaltet werden.</translation>
 <translation id="4911334289324462969">Port 989 (Blockierung kann bis 01.02.2022 aufgehoben werden)</translation>
 <translation id="4917385247580444890">Stark</translation>
+<translation id="4917925819533520480">Mit dieser Richtlinie kannst du <ph name="CHROME_DEVTOOLS_NAME" /> für bestimmte URLs zulassen.
+
+URL-Muster werden mit der URL jedes Frames auf der geprüften Seite abgeglichen. Das daraus resultierende Verhalten hängt davon ab, ob die Richtlinie „<ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" />“ ebenfalls konfiguriert ist.
+
+Wenn diese Richtlinie konfiguriert ist und „<ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" />“ nicht, muss die URL jedes Frames mit einem Muster auf dieser Zulassungsliste übereinstimmen, damit <ph name="CHROME_DEVTOOLS_NAME" /> zulässig sind. Wenn die URL eines Frames nicht übereinstimmt, werden die Entwicklertools für die gesamte Seite blockiert. Informationen zum URL-Format findest du unter https://support.google.com/chrome/a?p=url_blocklist_filter_format.
+
+Wenn sowohl diese Richtlinie als auch „<ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" />“ festgelegt sind, hat diese Zulassungsliste Vorrang. Wenn die URL eines Frames mit einem Muster auf dieser Zulassungsliste übereinstimmt, ist sie zulässig, auch wenn sie ebenfalls mit einem Muster auf der Sperrliste übereinstimmt. Wenn eine URL mit einem Muster übereinstimmt, das auf der Sperrliste (aber nicht auf der Zulassungsliste) steht, wird sie blockiert. Wenn eine URL mit keinem Muster der beiden Listen übereinstimmt, wird die Richtlinie „<ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" />“ als Fallback verwendet.
+
+Wenn diese Richtlinie nicht konfiguriert ist, wird die Verfügbarkeit von <ph name="CHROME_DEVTOOLS_NAME" /> durch die Richtlinien „<ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" />“ und „<ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" />“ bestimmt.
+
+Diese Richtlinie gilt auch für <ph name="CHROME_DEVTOOLS_NAME" />, die für Erweiterungen und Webanwendungen geöffnet werden.
+
+Diese Richtlinie ist auf 1.000 Einträge beschränkt.</translation>
 <translation id="4918150584200819898">Automatischen Start für erneute Onlineauthentifizierung aktivieren.</translation>
 <translation id="4918261735182294270">Nutzern die Wahl lassen, ob sie <ph name="CHROME_SYNC_NAME" /> aktivieren</translation>
 <translation id="4918485681633125382">Unterstützung für XFA-Formulare in PDF-Dokumenten aktivieren</translation>
@@ -8487,34 +8519,6 @@ Hinweis: Durch einen Neustart oder eine Abmeldung wird der Cache geleert.</trans
       Wenn diese Richtlinie nicht konfiguriert ist, ist die Einstellung für vom Unternehmen verwaltete Nutzer und für nicht verwaltete Nutzer standardmäßig aktiviert.</translation>
 <translation id="6640748114867542396">Verwaltete Erweiterungen dürfen die Enterprise Hardware Platform API nicht verwenden</translation>
 <translation id="6641109870010271671">TLS-Zertifikate, die von <ph name="PRODUCT_NAME" /> für die Serverauthentifizierung als vertrauenswürdig eingestuft werden sollen</translation>
-<translation id="6641851832244467923">Wenn du diese Richtlinie festlegst, werden Regeln konfiguriert, über die der vom Browser verwendete Proxy je nach der Ziel-URL und anderen Bedingungen ausgewählt wird. Diese Richtlinie hat Vorrang vor den Proxy-Einstellungen, die über die Richtlinie „<ph name="PROXY_SETTINGS_POLICY_NAME" />“, die Erweiterungs-API „<ph name="PROXY_SETTINGS_EXTENSION_API" />“ oder manuelle Nutzereinstellungen festgelegt werden, sofern vorhanden.
-
-Wenn die Richtlinie nicht festgelegt ist, hat dies keine Auswirkungen auf andere Proxy-Richtlinien oder Nutzereinstellungen.
-
-Wenn die Proxy-Auswahl über den Browser getroffen wird, werden die Einträge der Richtlinie „<ph name="PROXY_OVERRIDE_RULES_POLICY_NAME" />“ der Reihe nach ausgewertet, bis ein Eintrag alle der folgenden Anforderungen erfüllt:
-  * Es besteht eine Übereinstimmung mit mindestens einem der URL-Muster in „<ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" />“.
-  * Es besteht keine Übereinstimmung mit den URL-Mustern in „<ph name="PROXY_OVERRIDE_RULES_EXCLUDE_DESTINATION_MATCHERS" />“.
-  * Wenn das Feld „<ph name="PROXY_OVERRIDE_RULES_CONDITIONS" />“ angegeben und eine nicht leere Liste ist, sind alle durch die Einträge dargestellten Bedingungen erfüllt.
-Für eine solche Übereinstimmung wird der Wert in „<ph name="PROXY_OVERRIDE_RULES_PROXY_LIST" />“ als Proxy verwendet. Wenn keine Übereinstimmung gefunden wird, werden die Proxy-Einstellungen auf die in der Richtlinie „<ph name="PROXY_SETTINGS_POLICY_NAME" />“ festgelegten Werte zurückgesetzt.
-
-Die von „<ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" />“ und „<ph name="PROXY_OVERRIDE_RULES_EXCLUDE_DESTINATION_MATCHERS" />“ unterstützten URL-Muster sind unter https://chromium.googlesource.com/chromium/src/+/HEAD/net/docs/proxy.md#proxy-config-url-patterns dokumentiert.
-
-Die Einträge im Feld „<ph name="PROXY_OVERRIDE_RULES_PROXY_LIST" />“ entsprechen Stringwerten von PAC-Dateien wie:
-  * DIRECT
-  * PROXY host:port
-  * HTTPS host:port
-  * SOCKS4 host:port
-  * SOCKS5 host:port
-Alternativ kann der Proxy direkt über URL-ähnliche Proxy-Spezifizierer angegeben werden, z. B.:
-  * http://host:port
-  * https://host:port
-  * socks4://host:port
-  * socks5://host:port
-Der erste erreichbare Eintrag in der Liste wird als Proxy verwendet. Ungültige Einträge in der Liste werden ignoriert.
-
-Das Feld „<ph name="PROXY_OVERRIDE_RULES_CONDITIONS" />“ enthält eine Liste von Bedingungen, die alle erfüllt sein müssen, damit die Überschreibungsregel zur Auswahl des zu verwendenden Proxys genutzt wird. Bei Nichtfestlegung wird der Eintrag verwendet, solange eine Übereinstimmung mit mindestens einem Host in „<ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" />“ besteht.
-
-Mit der Bedingung „<ph name="PROXY_OVERRIDE_RULES_DNS_PROBE" />“ wird geprüft, ob das angegebene DNS „<ph name="PROXY_OVERRIDE_RULES_HOST" />“ in eine IP-Adresse aufgelöst werden kann. Es muss einen Host (z. B. beispiel.de) enthalten und kann optional auch ein Schema oder einen Port angeben (z. B. https://beispiel.de, beispiel.de:123 oder https://beispiel.de:123). Wenn ein sicheres Schema verwendet wird (z. B. HTTPS), kann die DNS-Suche auch den HTTPS-Eintrag anfordern (siehe RFC 9460 für weitere Informationen). Wenn für „<ph name="PROXY_OVERRIDE_RULES_RESULT" />“ der Wert „<ph name="PROXY_OVERRIDE_RULES_RESOLVED" />“ festgelegt ist, gilt die Bedingung als erfüllt. Wenn der Wert stattdessen auf „<ph name="PROXY_OVERRIDE_RULES_NOT_FOUND" />“ festgelegt ist, gilt die Bedingung als erfüllt, wenn die Auflösung fehlgeschlagen ist.</translation>
 <translation id="6641981670621198190">Unterstützung für 3D-Grafik-APIs deaktivieren</translation>
 <translation id="6646912445796087001">Hiermit lassen sich verschiedene Funktionen der Bildschirmtastatur aktivieren oder deaktivieren. Diese Richtlinie wird nur dann angewendet, wenn die Richtlinie "VirtualKeyboardEnabled" aktiviert ist.
 
@@ -10675,6 +10679,21 @@ Es gibt mehrere Richtlinien, die Ursprünge auflisten, die sich auf Anfragen an 
 <translation id="8059352177830050556">Melden der Informationen zur Hintergrundbeleuchtung auf Geräten aktivieren</translation>
 <translation id="8062485064082966327">Einen anonymen Google-Dienst verwenden, um automatische Beschreibungen für unbeschriftete Bilder zu erhalten</translation>
 <translation id="8066428282805800713">Zusätzliche Hardwaredaten unter ChromeOS Flex senden</translation>
+<translation id="8069233292746468045">Diese Richtlinie konfiguriert <ph name="PRODUCT_NAME" /> so, dass die bevorzugten Algorithmen für Schlüsselvereinbarungen (unterstützte Gruppen) für TLS 1.3 so angeordnet werden, dass Algorithmen Vorrang erhalten, die von einer bestimmten Compliance-Regelung zugelassen sind.
+
+Durch das Festlegen dieser Richtlinie wird nicht garantiert, dass bestimmte Algorithmen ausgehandelt werden.
+
+Diese Richtlinie ermöglicht es Serverbetreibern, die Clients mit und ohne Compliance-Anforderungen unterstützen möchten, zwischen diesen Clients zu unterscheiden. Bestimmte nicht standardmäßige Algorithmen mit erhöhter kryptographischer Stärke werden nur für diejenigen Clients verwendet, die ausdrücklich so konfiguriert wurden, dass sie diese bevorzugen.
+
+Wird die Richtlinie auf „<ph name="CNSA2_NAME" />“ festgelegt, wird <ph name="PRODUCT_NAME" /> so konfiguriert, dass die für die Compliance mit der Commercial National Security Algorithm Suite 2.0 (CNSA 2.0) erforderlichen Methoden zum Schlüsselaustausch bevorzugt werden.
+
+Wenn die Richtlinie nicht konfiguriert oder auf „<ph name="DEFAULT_NAME" />“ gesetzt ist, verwendet <ph name="PRODUCT_NAME" /> die standardmäßigen Methoden für den Schlüsselaustausch.
+
+Das Festlegen dieser Richtlinie ist für die Sicherheit nicht erforderlich. Die Standardkryptografie, die von <ph name="PRODUCT_NAME" /> verwendet wird, ist stark genug, um einem Brute-Force-Angriff mit der gesamten Energie der Sonne standzuhalten.
+
+Wenn du diese Richtlinie festlegst, wird <ph name="PRODUCT_NAME" /> beim Zugriff auf Websites langsamer.
+
+Diese Richtlinie wirkt sich nur auf TLS 1.3 und QUIC aus, nicht auf frühere Versionen von TLS.</translation>
 <translation id="8071371098891664137">Wenn <ph name="PRINTERS_BLOCKLIST" /> für <ph name="PRINTERS_BULK_ACCESS_MODE_POLICY_NAME" /> ausgewählt ist, wird durch Festlegen von <ph name="PRINTERS_BULK_BLOCKLIST_POLICY_NAME" /> angegeben, welche Drucker die Nutzer nicht verwenden können. Mit Ausnahme der in dieser Richtlinie aufgeführten IDs können die Nutzer auf alle Drucker zugreifen. Die IDs müssen dem Feld <ph name="ID_FIELD" /> oder dem Feld <ph name="GUID_FIELD" /> in der Datei entsprechen, die in <ph name="PRINTERS_BULK_CONFIGURATION_POLICY_NAME" /> angegeben ist.</translation>
 <translation id="8076539570602616846">Das Speichern von PDF-Dateien in Google Drive über den PDF-Viewer von <ph name="PRODUCT_NAME" /> auf zulässige Google-Konten beschränken</translation>
 <translation id="8078297389450285582">Wenn die Richtlinie aktiviert oder nicht konfiguriert ist, wird das intelligente Dimm-Modell verwendet und der Zeitraum bis zum Dimmen des Bildschirms kann verlängert werden. Wenn das Dimmen des Bildschirms durch das Modell verzögert wird, werden die Verzögerungen für das Ausschalten des Bildschirms, die Bildschirmsperre und die Inaktivität entsprechend angepasst, um die ursprünglich konfigurierten Abstände beizubehalten.
@@ -12119,6 +12138,19 @@ Hinweis: Derzeit wird nur der erste Eintrag berücksichtigt. Erweiterungen werde
           Wenn du diese Richtlinie konfigurierst, kann sie vom Nutzer nicht geändert oder überschrieben werden.
 
           Ist die Richtlinie nicht konfiguriert, ist die Bedienungshilfe "Objekt mit Tastaturfokus hervorheben" anfangs deaktiviert, kann jedoch vom Nutzer jederzeit aktiviert werden.</translation>
+<translation id="9037098514292099199">Mit dieser Richtlinie werden Einstellungen zur Erweiterungsverwaltung für <ph name="PRODUCT_NAME" /> festgelegt, darunter Einstellungen, die von anderen auf Erweiterungen bezogenen Richtlinien geregelt werden.
+
+Mit dieser Richtlinie wird eine Erweiterungs-ID oder eine Update-URL nur ihrer bestimmten Einstellung zugeordnet. Eine Standardkonfiguration kann für die Spezial-ID „<ph name="DEFAULT_SCOPE" />“ festgelegt werden, die auf alle Erweiterungen angewendet wird, für die in dieser Richtlinie keine benutzerdefinierte Konfiguration angegeben ist.
+
+Diese Richtlinie kann die Konfiguration einzelner Erweiterungen aus älteren Richtlinien überschreiben.
+
+Erweiterungsspezifische Einstellungen pro ID aus „<ph name="EXTENSION_INSTALL_FORCELIST_POLICY_NAME" />“, „<ph name="EXTENSION_INSTALL_ALLOWLIST_POLICY_NAME" />“, „<ph name="EXTENSION_INSTALL_BLOCKLIST_POLICY_NAME" />“ oder „<ph name="EXTENSION_SETTINGS_POLICY_NAME" />“ übernehmen nur „installation_mode“ und „update_url“ aus den Standardwerten von <ph name="DEFAULT_SCOPE" />. Es werden keine anderen Attribute übernommen. Bei einer Update-URL wird die Konfiguration auf alle Erweiterungen mit genau der im Manifest dieser Erweiterung angegebenen Update-URL angewendet (http://support.google.com/chrome/a?p=Configure_ExtensionSettings_policy). Wenn „override_update_url“ auf „true“ gesetzt ist, wird die Erweiterung über die in der Richtlinie „<ph name="EXTENSION_INSTALL_FORCELIST_POLICY_NAME" />“ oder im Feld „update_url“ dieser Richtlinie angegebene Update-URL installiert und aktualisiert. Das Flag „override_update_url“ wird ignoriert, wenn „update_url“ eine URL für den Chrome Web Store ist.
+
+Bei <ph name="MS_WIN_NAME" />-Instanzen kann die Installation von Apps und Erweiterungen, die nicht aus dem Chrome Web Store stammen, nur auf solchen Instanzen erzwungen werden, die Teil einer <ph name="MS_AD_NAME" />-Domain oder von <ph name="MS_AAD_NAME" /> sind oder die in <ph name="CHROME_ENTERPRISE_CORE_NAME" /> angemeldet sind.
+
+Bei <ph name="MAC_OS_NAME" />-Instanzen kann die Installation von Apps und Erweiterungen, die nicht aus dem Chrome Web Store stammen, nur auf solchen Instanzen erzwungen werden, die über die Mobilgeräteverwaltung verwaltet werden, die über MCX Teil einer Domain sind oder die in <ph name="CHROME_ENTERPRISE_CORE_NAME" /> angemeldet sind.
+
+Hinweis: Diese Richtlinie gilt nur für Plattformen, die Erweiterungen unterstützen.</translation>
 <translation id="9038839118379817310">WLAN aktivieren</translation>
 <translation id="9039822628127365650">Wenn diese Richtlinie konfiguriert ist, wird damit die Zeitdauer festgelegt, nach der ein Nutzer automatisch abgemeldet und die Sitzung beendet wird. Der Nutzer erfährt über einen Countdown-Timer in der Taskleiste, wie viel Zeit er noch hat.
 
@@ -12142,21 +12174,6 @@ Wenn die Richtlinie nicht konfiguriert ist, kann <ph name="PRODUCT_NAME" /> dies
 <translation id="9051019223077908578">Liste der installierten Apps und Erweiterungen auf dem Anmeldebildschirm konfigurieren</translation>
 <translation id="9053841574218808519">Plug-ins, die nicht veraltet sind, immer ausführen</translation>
 <translation id="9055866143096316150">Bildschirm-Wakelock-Anfragen auf den Status von System-Wakelocks zurückstufen</translation>
-<translation id="9056262797461453462">Wenn die Richtlinie „<ph name="URL_BLOCKLIST_POLICY_NAME" />“ konfiguriert ist, wird verhindert, dass Webseiten mit unzulässigen URLs geladen werden. Administratoren können eine Liste mit URL-Mustern angeben, die blockiert werden sollen. Ist die Richtlinie nicht konfiguriert, werden keine URLs im Browser blockiert. In der Richtlinie „<ph name="URL_ALLOWLIST_POLICY_NAME" />“ können bis zu 1.000 Ausnahmen definiert werden. Wie ein URL-Muster formatiert wird, siehst du unter https://support.google.com/chrome/a?p=url_blocklist_filter_format.
-
-Hinweis: Diese Richtlinie gilt nicht für In-Page-JavaScript-URLs mit dynamisch geladenen Daten. Wenn du etwa „beispiel.de/abc“ blockierst, kann „beispiel.de“ diese URL trotzdem über „XMLHTTPRequest“ laden. Außerdem hindert diese Richtlinie Webseiten nicht daran, die in der Omnibox angezeigte URL über die JavaScript History API in eine blockierte URL zu ändern.
-
-Ab Version 73 von <ph name="PRODUCT_NAME" /> kannst du „javascript://*“-URLs blockieren. Das betrifft jedoch nur JavaScript, das in die Adressleiste eingegeben wird, oder beispielsweise Bookmarklets.
-
-Ab Version 92 von <ph name="PRODUCT_NAME" /> wird diese Richtlinie auch im monitorlosen Modus unterstützt.
-
-Hinweis: Wenn interne URLs von „chrome://*“ und „chrome-untrusted://*“ blockiert werden, kann dies zu unerwarteten Fehlern führen oder in einigen Fällen umgangen werden. Statt bestimmte interne URLs zu blockieren, solltest du nachsehen, ob es spezifischere Richtlinien gibt. Beispiel:
-
-– Anstatt „chrome://settings/certificates“ zu blockieren, verwende „<ph name="CA_CERTIFICATE_MANAGEMENT_ALLOWED_POLICY_NAME" />“.
-
-– Anstatt „chrome-untrusted://crosh“ zu blockieren, verwende „<ph name="SYSTEM_FEATURES_DISABLE_LIST_POLICY_NAME" />“.
-
-– Anstatt „devtools://*“ zu blockieren, verwende die Richtlinie „<ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" />“, „<ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" />“ oder „<ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" />“.</translation>
 <translation id="9057159618445405645">Standardverhalten des Chrome-Browsers verwenden</translation>
 <translation id="9061455386353325110">Gibt an, ob Nutzer generative KI in <ph name="PRODUCT_NAME" /> zulassen dürfen, damit Inhalte von Formularen besser erkannt und leichter ausgefüllt werden können.
 

@@ -80,14 +80,13 @@ constexpr base::TimeDelta kPermissionActionCutoffAge = base::Days(28);
 // the particular permission type.
 constexpr size_t kRequestedPermissionMinimumHistoricalActions = 4;
 
-// The maximum length of a page's content. For now, page content is limited by
-// the passage embedders 64 token limit. We therefore limit the input text as
-// well.
-constexpr size_t kPageContentMaxLength = 500;
-
 // The minimum length of a page's content. It is needed to avoid analyzing pages
 // with too short text.
 constexpr size_t kPageContentMinLength = 10;
+
+// After this amount of time we will give up waiting for the readback. Our
+// global timeout will not allow for further delays here, anyways.
+const base::TimeDelta kSnapshotReadbackTimeout = base::Seconds(1);
 
 std::optional<
     permissions::PermissionPrediction_Likelihood_DiscretizedLikelihood>
@@ -435,9 +434,16 @@ void PermissionsAiUiSelector::OnGetInnerTextForOnDeviceModel(
   if (rendered_text_useful) {
     VLOG(1) << "[PermissionsAI] OnGetInnerTextForOnDeviceModel: "
                "rendered_text_useful true";
-    std::string inner_text = std::move(result->inner_text);
-    if (inner_text.size() > kPageContentMaxLength) {
-      inner_text.resize(kPageContentMaxLength);
+
+    int passage_count = 1;
+    if (PredictionModelHandlerProvider* prediction_model_handler_provider =
+            PredictionModelHandlerProviderFactory::GetForBrowserContext(
+                profile_)) {
+      if (PermissionsAiv4Handler* handler =
+              prediction_model_handler_provider->GetPermissionsAiv4Handler(
+                  model_data.request_metadata.request_type)) {
+        passage_count = handler->GetPassageCount().value_or(1);
+      }
     }
 
     auto fallback_callback =
@@ -451,8 +457,8 @@ void PermissionsAiUiSelector::OnGetInnerTextForOnDeviceModel(
                        weak_ptr_factory_.GetWeakPtr(), std::move(model_data),
                        std::move(model_execution_callback));
 
-    return passage_embedder_delegate_->CreatePassageEmbeddingFromRenderedText(
-        std::move(inner_text),
+    return passage_embedder_delegate_->CreatePassageEmbeddingsFromRenderedText(
+        std::move(result->inner_text), passage_count,
         std::move(on_passage_embeddings_computed_callback),
         std::move(fallback_callback));
   }
@@ -776,7 +782,9 @@ void PermissionsAiUiSelector::TakeSnapshot(
     FinishRequest(Decision::UseNormalUiAndShowNoWarning());
   } else {
     host_view->CopyFromSurface(
-        gfx::Rect(), gfx::Size(), base::TimeDelta(),
+        /*src_rect=*/gfx::Rect(), /*output_size=*/gfx::Size(),
+        /*timeout=*/kSnapshotReadbackTimeout,
+        /*callback=*/
         base::BindOnce([](const content::CopyFromSurfaceResult& result) {
           // TODO(crbug.com/466199824): Update callsite to handle error
           // case.

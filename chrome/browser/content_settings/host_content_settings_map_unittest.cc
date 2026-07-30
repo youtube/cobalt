@@ -45,6 +45,7 @@
 #include "components/content_settings/core/common/content_settings_constraints.h"
 #include "components/content_settings/core/common/content_settings_pattern.h"
 #include "components/content_settings/core/common/content_settings_types.h"
+#include "components/content_settings/core/common/content_settings_types.mojom-shared.h"
 #include "components/content_settings/core/common/content_settings_utils.h"
 #include "components/content_settings/core/common/features.h"
 #include "components/content_settings/core/common/host_indexed_content_settings.h"
@@ -61,6 +62,7 @@
 #include "net/base/schemeful_site.h"
 #include "net/cookies/site_for_cookies.h"
 #include "net/cookies/static_cookie_policy.h"
+#include "services/device/public/cpp/device_features.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/permissions/permission_utils.h"
@@ -135,7 +137,10 @@ class MockUserModifiableProvider
 class HostContentSettingsMapTest : public testing::Test {
  public:
   HostContentSettingsMapTest()
-      : task_environment_(base::test::TaskEnvironment::TimeSource::MOCK_TIME) {}
+      : task_environment_(base::test::TaskEnvironment::TimeSource::MOCK_TIME) {
+    feature_list_.InitAndEnableFeature(
+        ::features::kSensorsAllowAskBlockPermissionModel);
+  }
 
   void FastForwardTime(base::TimeDelta delta) {
     task_environment_.FastForwardBy(delta);
@@ -1450,6 +1455,37 @@ TEST_F(HostContentSettingsMapTest, GetUserModifiableContentSetting) {
                                        url, url, ContentSettingsType::COOKIES));
   EXPECT_EQ(CONTENT_SETTING_BLOCK,
             map->GetContentSetting(url, url, ContentSettingsType::COOKIES));
+}
+
+TEST_F(HostContentSettingsMapTest, GetUserModifiablePermissionSetting) {
+  base::test::ScopedFeatureList enable_approximate_location(
+      content_settings::features::kApproximateGeolocationPermission);
+
+  GURL url("http://user_exception_allow.com");
+
+  TestingProfile profile;
+  // Arbitrarily using cookies as content type to test.
+  profile.GetTestingPrefService()->SetManagedPref(
+      prefs::kManagedDefaultGeolocationSetting,
+      std::make_unique<base::Value>(CONTENT_SETTING_BLOCK));
+
+  HostContentSettingsMap* map =
+      HostContentSettingsMapFactory::GetForProfile(&profile);
+  map->SetPermissionSettingDefaultScope(
+      url, url, ContentSettingsType::GEOLOCATION_WITH_OPTIONS,
+      GeolocationSetting{PermissionOption::kAllowed,
+                         PermissionOption::kAllowed});
+
+  EXPECT_EQ(PermissionSetting(GeolocationSetting{PermissionOption::kAllowed,
+                                                 PermissionOption::kAllowed}),
+            map->GetUserModifiablePermissionSetting(
+                url, url, ContentSettingsType::GEOLOCATION_WITH_OPTIONS));
+  EXPECT_TRUE(
+      content_settings::PermissionSettingsRegistry::GetInstance()
+          ->Get(ContentSettingsType::GEOLOCATION_WITH_OPTIONS)
+          ->delegate()
+          .IsBlocked(map->GetPermissionSetting(
+              url, url, ContentSettingsType::GEOLOCATION_WITH_OPTIONS)));
 }
 
 /**
@@ -2960,8 +2996,8 @@ TEST_F(HostContentSettingsMapTest, RecordDefaultSensorsSetting) {
   HostContentSettingsMap* host_content_settings_map =
       HostContentSettingsMapFactory::GetForProfile(&profile);
 
-  constexpr ContentSetting kDefaultSettingsToTest[] = {CONTENT_SETTING_ALLOW,
-                                                       CONTENT_SETTING_BLOCK};
+  constexpr ContentSetting kDefaultSettingsToTest[] = {
+      CONTENT_SETTING_ALLOW, CONTENT_SETTING_BLOCK, CONTENT_SETTING_ASK};
 
   for (ContentSetting setting : kDefaultSettingsToTest) {
     base::HistogramTester histogram_tester;

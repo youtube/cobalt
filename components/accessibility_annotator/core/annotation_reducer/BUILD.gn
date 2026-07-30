@@ -1,0 +1,29 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+source_set("annotation_reducer") {
+  sources = [
+    "autofill_data_provider.h",
+    "memory_search_result.cc",
+    "memory_search_result.h",
+    "query_classifier.cc",
+    "query_classifier.h",
+    "query_intent_type.h",
+  ]
+
+  public_deps = [ "//base" ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "query_classifier_unittest.cc" ]
+
+  deps = [
+    ":annotation_reducer",
+    "//base",
+    "//base/test:test_support",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}

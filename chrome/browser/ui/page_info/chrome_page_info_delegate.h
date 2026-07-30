@@ -60,6 +60,8 @@ class ChromePageInfoDelegate : public PageInfoDelegate {
   std::unique_ptr<content_settings::CookieControlsController>
   CreateCookieControlsController() override;
   bool IsIsolatedWebApp() override;
+  bool IsSubApp() override;
+  bool HasSubApps() override;
   // In Chrome's case, this may show the site settings page or an app settings
   // page, depending on context.
   void ShowSiteSettings(const GURL& site_url) override;
@@ -99,6 +101,7 @@ class ChromePageInfoDelegate : public PageInfoDelegate {
 
   bool IsHttpsFirstModeEnabled() override;
   bool IsIncognitoProfile() override;
+  bool IsLocalNetworkAccessSplitPermissionsEnabled() override;
 
 #if BUILDFLAG(IS_CHROMEOS)
   bool ShouldSyncCookiesForUrl(const GURL& url) override;

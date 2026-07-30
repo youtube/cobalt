@@ -893,10 +893,6 @@ class PrefetchServiceTestBase : public PrefetchingMetricsTestBase {
     return serving_page_metrics_container->GetWeakPtr();
   }
 
-  blink::DocumentToken MainDocumentToken() {
-    return static_cast<RenderFrameHostImpl*>(main_rfh())->GetDocumentToken();
-  }
-
   void GetPrefetchToServe(
       base::test::TestFuture<PrefetchServingHandle>& future,
       const GURL& url,
@@ -7261,8 +7257,7 @@ class RecordingPrefetchContainerObserver final
   }
   void OnPrefetchCompletedOrFailed(
       const PrefetchContainer& prefetch_container,
-      const network::URLLoaderCompletionStatus& completion_status,
-      const std::optional<int>& response_code) override {
+      const network::URLLoaderCompletionStatus& completion_status) override {
     CHECK(prefetch_container.GetLoadState() ==
               PrefetchContainer::LoadState::kCompleted ||
           prefetch_container.GetLoadState() ==
@@ -7996,9 +7991,8 @@ class PrefetchServiceAddPrefetchContainerTest
     attempt->SetSpeculationEagerness(prefetch_type.GetEagerness());
 
     auto prefetch_request = PrefetchRequest::CreateRendererInitiated(
-        static_cast<content::RenderFrameHostImpl&>(*main_rfh()), document_token,
-        prefetch_url, std::move(prefetch_type), blink::mojom::Referrer(),
-        std::make_optional(SpeculationRulesTags()),
+        *main_rfhi(), document_token, prefetch_url, std::move(prefetch_type),
+        blink::mojom::Referrer(), std::make_optional(SpeculationRulesTags()),
         /*no_vary_search_hint=*/std::nullopt,
         /*priority=*/std::nullopt,
         /*prefetch_document_manager=*/nullptr,

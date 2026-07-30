@@ -16,6 +16,7 @@ class GetGeminiExecutableUnittest(unittest.TestCase):
 
     def setUp(self):
         """Sets up the mocks for the tests."""
+        gemini_helpers.get_gemini_executable.cache_clear()
         which_patcher = unittest.mock.patch('shutil.which')
         self.mock_which = which_patcher.start()
         self.addCleanup(which_patcher.stop)
@@ -24,24 +25,67 @@ class GetGeminiExecutableUnittest(unittest.TestCase):
         self.mock_exists = exists_patcher.start()
         self.addCleanup(exists_patcher.stop)
 
+        run_patcher = unittest.mock.patch('subprocess.run')
+        self.mock_run = run_patcher.start()
+        self.addCleanup(run_patcher.stop)
+
     def test_get_gemini_executable_from_path(self):
         """Tests that the gemini executable is found in the PATH."""
         self.mock_which.return_value = '/usr/bin/gemini'
         self.assertEqual(gemini_helpers.get_gemini_executable(),
-                         '/usr/bin/gemini')
+                         ['/usr/bin/gemini'])
 
     def test_get_gemini_executable_from_fallback(self):
         """Tests finding the gemini executable in the fallback path."""
         self.mock_which.return_value = None
         self.mock_exists.return_value = True
         self.assertEqual(gemini_helpers.get_gemini_executable(),
-                         '/google/bin/releases/gemini-cli/tools/gemini')
+                         ['/google/bin/releases/gemini-cli/tools/gemini'])
 
     def test_get_gemini_executable_not_found(self):
         """Tests the default gemini command is returned when not found."""
         self.mock_which.return_value = None
         self.mock_exists.return_value = False
-        self.assertEqual(gemini_helpers.get_gemini_executable(), 'gemini')
+        self.assertEqual(gemini_helpers.get_gemini_executable(), ['gemini'])
+
+    def test_get_gemini_executable_from_alias(self):
+        """Tests that the gemini executable is found from a shell alias."""
+        self.mock_run.return_value = unittest.mock.MagicMock(
+            stdout='alias gemini=\'/custom/path/gemini\'\n', returncode=0)
+        self.assertEqual(gemini_helpers.get_gemini_executable(use_alias=True),
+                         '/custom/path/gemini')
+
+    def test_get_gemini_executable_from_alias_zsh_style(self):
+        """Tests that the gemini executable is found from a zsh alias."""
+        # zsh style: gemini=/path/to/exe
+        self.mock_run.return_value = unittest.mock.MagicMock(
+            stdout='gemini=/custom/path/gemini\n', returncode=0)
+        self.assertEqual(gemini_helpers.get_gemini_executable(use_alias=True),
+                         '/custom/path/gemini')
+
+    def test_get_gemini_executable_from_alias_zsh_style_quoted(self):
+        """Tests that the gemini executable is found from a quoted zsh alias."""
+        # zsh style quoted: gemini='/path/to/exe'
+        self.mock_run.return_value = unittest.mock.MagicMock(
+            stdout='gemini=\'/custom/path/gemini\'\n', returncode=0)
+        self.assertEqual(gemini_helpers.get_gemini_executable(use_alias=True),
+                         '/custom/path/gemini')
+
+    def test_get_gemini_executable_ignores_alias_if_not_requested(self):
+        """Tests that aliases are ignored if `use_alias` is False."""
+        self.mock_run.return_value = unittest.mock.MagicMock(
+            stdout='alias gemini=\'/custom/path/gemini\'\n', returncode=0)
+        self.mock_which.return_value = '/usr/bin/gemini'
+        self.assertEqual(gemini_helpers.get_gemini_executable(use_alias=False),
+                         '/usr/bin/gemini')
+
+    def test_get_gemini_executable_handles_alias_failure(self):
+        """Tests fallback if alias command fails or is not found."""
+        # Mock alias command failing
+        self.mock_run.return_value = unittest.mock.MagicMock(returncode=1)
+        self.mock_which.return_value = '/usr/bin/gemini'
+        self.assertEqual(gemini_helpers.get_gemini_executable(use_alias=True),
+                         '/usr/bin/gemini')
 
 
 class GetGeminiVersionUnittest(unittest.TestCase):
@@ -49,6 +93,7 @@ class GetGeminiVersionUnittest(unittest.TestCase):
 
     def setUp(self):
         """Sets up the mocks for the tests."""
+        gemini_helpers.get_gemini_version.cache_clear()
         run_patcher = unittest.mock.patch('subprocess.run')
         self.mock_run = run_patcher.start()
         self.addCleanup(run_patcher.stop)

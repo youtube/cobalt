@@ -8,7 +8,8 @@
 #include "ui/base/interaction/framework_specific_implementation.h"
 #include "ui/views/interaction/element_tracker_views.h"
 
-DEFINE_TYPED_IDENTIFIER_VALUE(views::WebView,
+DEFINE_TYPED_IDENTIFIER_VALUE(ui::ElementIdentifier,
+                              views::WebView,
                               kActiveContentsWebViewRetrievalId);
 
 DEFINE_FRAMEWORK_SPECIFIC_METADATA(BrowserElementsViews)

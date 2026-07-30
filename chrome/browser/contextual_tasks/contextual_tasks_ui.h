@@ -155,7 +155,8 @@ class ContextualTasksUI
   void PostMessageToWebview(const lens::ClientToAimMessage& message) override;
   contextual_search::ContextualSearchSessionHandle*
   GetOrCreateContextualSessionHandle() override;
-  std::unique_ptr<contextual_search::InputStateModel> GetInputStateModel();
+  std::unique_ptr<contextual_search::InputStateModel> TakeInputStateModel()
+      override;
   mojo::Remote<contextual_tasks::mojom::Page>& GetPageRemote() override;
   const GURL& GetInnerFrameUrl() const override;
 
@@ -170,6 +171,10 @@ class ContextualTasksUI
   static bool IsZeroState(
       const GURL& url,
       contextual_tasks::ContextualTasksUiService* ui_service);
+
+  // Returns true if two URLs are equal. Unlike GURL::operator==, this method
+  // ignores the order of query parameters.
+  static bool AreUrlsEqual(const GURL& a, const GURL& b);
 
   // Returns whether OnActiveTabContextStatusChanged should proceed with trying
   // to add the current tab as an auto-chip.

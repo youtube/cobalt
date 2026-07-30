@@ -29,6 +29,7 @@
 <translation id="126567311906253476"><ph name="USER_EMAIL" /> मार्फत Google का Gmail वा YouTube लगायतका सेवाहरूमा साइन इन गर्दा तपाईं उही खातामार्फत Chromium मा स्वतः साइन इन गर्न सक्नुहुन्छ</translation>
 <translation id="1290883685122687410">सेटअप गर्ने क्रममा निम्न त्रुटि भयो: <ph name="METAINSTALLER_EXIT_CODE" />। <ph name="WINDOWS_ERROR" /></translation>
 <translation id="1315551408014407711">Chromium मा आफ्नो नयाँ प्रोफाइल सेटअप गर्नुहोस्</translation>
+<translation id="132092532143527429">Chromium मा उपलब्ध Gemini प्रयोग गरी हेर्नुहोस्</translation>
 <translation id="1324107359134968521">Chromium सँग ब्लुटुथ डिभाइसहरू खोज्नका निम्ति 
  ब्लुटुथको एक्सेस हुनु पर्छ। <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="1330562121671411446">भाषा पहिचान गर्नुहोस्</translation>
@@ -375,7 +376,6 @@
 <translation id="5174969993834422967">तपाईं सामान्यतया नोटिफिकेसनहरू ब्लक गर्नुहुन्छ। यो साइटबाट तपाईंलाई नोटिफिकेसन प्राप्त होस् भन्नाका लागि लोकेसन बारको दाँया कुनामा रहेको नोटिफिकेसन जनाउने आइकनमा क्लिक गर्नुहोस्।</translation>
 <translation id="5174983315706567306">डिस्कमा पर्याप्त खाली ठाउँ छैन।</translation>
 <translation id="5187123684706427865">Chromium खाता पुनः प्रमाणीकरण गर्नु पर्ने हुन्छ</translation>
-<translation id="5219681158518957165">ब्राउजरसम्बन्धी सिफारिस गरिएका सेटिङ प्रयोग गर्नुहोस्</translation>
 <translation id="5224391634244552924">कुनै पनि पासवर्ड सुरक्षित गरिएको छैन। तपाईंले आफ्ना पासवर्डहरू सुरक्षित गर्नुभएको छ भने मात्र Chromium ले तिनको जाँच गर्न सक्छ।</translation>
 <translation id="5231355151045086930">Chromium बाट साइन आउट गर्नुहोस्</translation>
 <translation id="5234764350956374838">खारेज गर्नुहोस्</translation>
@@ -608,6 +608,7 @@ Chromium ले तपाइँका सेटिङहरू पुनर्�
 <translation id="7622753900276619808">अब Chromium मा तपाईंका निम्ति थप सुविधाहरू उपलब्ध भएका छन्</translation>
 <translation id="7624307931717240213">हामी यो सेवाको गुणस्तर सुधार गर्ने प्रयोजनका लागि जानकारी प्रयोग गर्छौँ। गोपनीयता नीति र सेवाका सर्तहरू हेर्नुहोस्।</translation>
 <translation id="7649070708921625228">मद्दत</translation>
+<translation id="7650134251917003571">Chromium एप इन्स्टल गर्नुहोस्</translation>
 <translation id="7656340475565475526">Chromium लाई तपाईंको तर्फबाट ब्राउज गर्न दिनुहोस्</translation>
 <translation id="7658239707568436148">रद्द गर्नुहोस्</translation>
 <translation id="7686590090926151193">Chromium तपाईंको डिफल्ट ब्राउजर होइन</translation>

@@ -14,6 +14,7 @@
 #include "base/functional/callback_forward.h"
 #include "base/types/pass_key.h"
 #include "chrome/browser/ui/tabs/contents_observing_tab_feature.h"
+#include "content/public/browser/web_contents_observer.h"
 #include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -81,6 +82,8 @@ class TabUIHelper : public tabs::ContentsObservingTabFeature {
 
   GURL GetVisibleURL();
 
+  GURL GetLastCommittedURL();
+
   // tabs::ContentsObservingTabFeature override:
   void TitleWasSet(content::NavigationEntry* entry) override;
   void DidStopLoading() override;
@@ -88,19 +91,21 @@ class TabUIHelper : public tabs::ContentsObservingTabFeature {
   void WasDiscarded() override;
   void DidFinishNavigation(
       content::NavigationHandle* navigation_handle) override;
+  void PrimaryMainFrameRenderProcessGone(
+      base::TerminationStatus status) override;
 #if !BUILDFLAG(IS_ANDROID)
   void PrimaryPageChanged(content::Page& page) override;
 #endif
 
-  void set_created_by_session_restore(bool created_by_session_restore) {
-    created_by_session_restore_ = created_by_session_restore;
-  }
+  void SetCreatedBySessionRestore(bool created_by_session_restore);
   bool is_created_by_session_restore_for_testing() {
     return created_by_session_restore_;
   }
 
   void SetNeedsAttention(bool needs_attention);
   bool needs_attention() const { return needs_attention_; }
+
+  bool IsDiscarded();
 
   // Returns true if the tab is eligible to show the discard UI.
   bool ShouldShowDiscardStatus();

@@ -22,6 +22,8 @@
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/session_manager/core/session_manager_observer.h"
 
+class PrefService;
+
 namespace user_manager {
 class User;
 }
@@ -44,7 +46,8 @@ class LockScreenReauthManager : public KeyedService,
                                 public session_manager::SessionManagerObserver,
                                 public AuthStatusConsumer {
  public:
-  explicit LockScreenReauthManager(Profile* primary_profile);
+  // `local_state` must be non-null and must outlive `this`.
+  LockScreenReauthManager(PrefService* local_state, Profile* primary_profile);
   ~LockScreenReauthManager() override;
 
   LockScreenReauthManager(const LockScreenReauthManager&) = delete;
@@ -120,6 +123,7 @@ class LockScreenReauthManager : public KeyedService,
   // lock screen to UMA.
   void SendLockscreenReauthReason();
 
+  const raw_ref<PrefService> local_state_;
   const raw_ptr<Profile> primary_profile_;
   const raw_ptr<const user_manager::User, DanglingUntriaged> primary_user_;
   UserContext user_context_;
