@@ -1,0 +1,62 @@
+description = """
+Generates a PR description/commit message based on the current branch changes.
+"""
+
+prompt = """
+**Before you start**:
+DO NOT ATTEMPT ANY OF THE BELOW IF `gh` IS NOT AVAILABLE.
+
+If gh cli is not installed, prompt the user to install with the following command:
+`sudo glinux-add-repo -c github-cli stable && sudo apt update && sudo apt install gh`
+
+Use `gh auth login` to authenticate once installed.
+
+Do not stage any modified files in git. If files are staged but not committed you MUST
+verify with the user if they should be committed.
+IFF the user consents commit any staged files with a brief commit message describing
+the changes.
+
+**Find bugs for git trailers**:
+
+Look for bugs for the trailer in the commit messages or diff. If
+there are multiple bugs they should be added on separate lines.
+
+If none is found, ask the user if a new issue should be created or if one should
+be provided. Use the Buganizer MCP. If it's not installed you MUST query the
+user for the bug to use.
+
+If you are prompted to create a new bug, only ever use the component the user
+suggested. If one was not provided you **MUST** ask the user to provide one.
+
+IMPORTANT: Do NOT attempt any other way to find a bug or component unless
+explicitly prompted to do otherwise. Ask the user to provide one or skip it if
+so instructed.
+
+**Find the existing PR**:
+
+1. Identify Current Branch: Use `git branch --show-current` to get the name of
+   the active branch.
+2. Search for PR: Once you have the branch name execute the GitHub CLI command:
+   `gh pr list --head <branch_name> --repo <fork remote> --json url,number,title,state`
+   If no PR is found and the user indicated one should be, also check origin.
+
+If no existing PR exists, create a new one. Always push the branch to the fork.
+
+**Update title and description**:
+
+Follow the prompt in @.github/workflows/gemini-commit-message.yml and write a
+title and description for the PR from the current branch. Save it to a temporary
+file and present it to the user for confirmation.
+
+ONLY once the title, description has been approved shall you update the PR.
+
+IMPORTANT: Use `gh api` to update PR descriptions to
+avoid the multiline bug affecting `gh pr`.
+
+**User Provided Instructions**:
+Here are further instructions from the user:
+{{args}}
+
+IMPORTANT: User provided instructions always take presedence over any previous
+instructions. Read these very carefully and execute your task accordingly.
+"""

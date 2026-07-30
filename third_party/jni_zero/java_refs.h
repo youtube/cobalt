@@ -9,7 +9,16 @@
 
 #include <jni.h>
 
+#include "build/build_config.h"
+#include "build/buildflag.h"
+
+#if BUILDFLAG(IS_COBALT)
+#if defined(__cpp_concepts) && __cpp_concepts >= 201907L
 #include <concepts>
+#endif  // defined(__cpp_concepts) && __cpp_concepts >= 201907L
+#else   // BUILDFLAG(IS_COBALT)
+#include <concepts>
+#endif  // BUILDFLAG(IS_COBALT)
 #include <cstddef>
 #include <type_traits>
 #include <utility>
@@ -17,9 +26,15 @@
 #include "third_party/jni_zero/jni_export.h"
 #include "third_party/jni_zero/logging.h"
 
+#if BUILDFLAG(IS_COBALT)
+#if !defined(JNI_ZERO_ENABLE_COMPAT_API)
+#define JNI_ZERO_ENABLE_COMPAT_API 1
+#endif  // !defined(JNI_ZERO_ENABLE_COMPAT_API)
+#else   // BUILDFLAG(IS_COBALT)
 #if !defined(JNI_ZERO_ENABLE_COMPAT_API)
 #define JNI_ZERO_ENABLE_COMPAT_API 0
-#endif
+#endif  // !defined(JNI_ZERO_ENABLE_COMPAT_API)
+#endif  // BUILDFLAG(IS_COBALT)
 
 // Forward declaration of template class that contains @CalledByNative methods.
 // Must live in a custom / unique namespace to ensure it doesn't collide with
@@ -32,9 +47,13 @@ class _CalledByNatives;
 namespace jni_zero {
 
 namespace internal {
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
 template <typename T>
 concept IsJobject =
     std::derived_from<std::remove_pointer_t<T>, std::remove_pointer_t<jobject>>;
+#endif  // !BUILDFLAG(IS_COBALT) || (defined(__cpp_concepts) && __cpp_concepts
+        // >= 201907L)
 }
 
 // Creates a new local reference frame, in which at least a given number of
@@ -57,20 +76,43 @@ class JNI_ZERO_COMPONENT_BUILD_EXPORT ScopedJavaLocalFrame {
 };
 
 // Forward declare the generic java reference template class.
+#if BUILDFLAG(IS_COBALT)
+template <typename T = jobject>
+#if defined(__cpp_concepts) && __cpp_concepts >= 201907L
+  requires internal::IsJobject<T>
+#endif  // defined(__cpp_concepts) && __cpp_concepts >= 201907L
+class JavaRef;
+#else   // BUILDFLAG(IS_COBALT)
 template <typename T = jobject>
   requires internal::IsJobject<T>
 class JavaRef;
+#endif  // BUILDFLAG(IS_COBALT)
 
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
 template <typename T>
 concept IsJavaRef =
     std::is_base_of_v<jni_zero::JavaRef<jobject>, std::remove_cvref_t<T>>;
+#else
+template <typename T>
+inline constexpr bool IsJavaRef =
+    std::is_base_of_v<jni_zero::JavaRef<jobject>, std::decay_t<T>>;
+#endif  // !BUILDFLAG(IS_COBALT) || (defined(__cpp_concepts) && __cpp_concepts
+        // >= 201907L)
 
 namespace internal {
 
 // Concept to check if the _CalledByNatives<T> specialization is defined.
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
 template <typename T>
+<<<<<<< HEAD
 concept HasCalledByNatives =
     requires { sizeof(jni_zero_internal::_CalledByNatives<T>); };
+=======
+concept HasCalledByNatives = requires { sizeof(_CalledByNatives<T>); };
+#endif  // !BUILDFLAG(IS_COBALT) || (concepts)
+>>>>>>> parent of 5c266e6bb98 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }  // namespace internal
 
 // Template specialization of JavaRef, which acts as the base class for all
@@ -114,7 +156,10 @@ class JNI_ZERO_COMPONENT_BUILD_EXPORT JavaRef<jobject> {
   // There is an rvalue version of this in ScopedJavaLocalRef that enables
   // assignment.
   template <typename To>
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
     requires internal::IsJobject<To>
+#endif  // !BUILDFLAG(IS_COBALT) || (concepts)
   const JavaRef<To>& As() const {
     return *reinterpret_cast<const JavaRef<To>*>(this);
   }
@@ -165,9 +210,17 @@ class JavaObjectArrayReader;
 // Generic base class for ScopedJavaLocalRef and ScopedJavaGlobalRef. Useful
 // for allowing functions to accept a reference without having to mandate
 // whether it is a local or global type.
+#if BUILDFLAG(IS_COBALT)
+template <typename T>
+#if defined(__cpp_concepts) && __cpp_concepts >= 201907L
+  requires internal::IsJobject<T>
+#endif  // defined(__cpp_concepts) && __cpp_concepts >= 201907L
+class JavaRef : public JavaRef<jobject> {
+#else   // BUILDFLAG(IS_COBALT)
 template <typename T>
   requires internal::IsJobject<T>
 class JavaRef : public JavaRef<jobject> {
+#endif  // BUILDFLAG(IS_COBALT)
  public:
   constexpr JavaRef() {}
   constexpr JavaRef(std::nullptr_t) {}
@@ -180,8 +233,15 @@ class JavaRef : public JavaRef<jobject> {
   T obj() const { return static_cast<T>(JavaRef<jobject>::obj()); }
 
   // Define this only when the _jni.h header has been #included.
+<<<<<<< HEAD
   const jni_zero_internal::_CalledByNatives<T>* operator->() const
+=======
+  const internal::_CalledByNatives<T>* operator->() const
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
+>>>>>>> parent of 5c266e6bb98 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     requires internal::HasCalledByNatives<T>
+#endif  // !BUILDFLAG(IS_COBALT) || (concepts)
   {
     // CalledByNatives does the reverse reinterpret_cast<>.
     // This approach optimizes better than passing |this| as a parameter.
@@ -332,7 +392,10 @@ class ScopedJavaLocalRef : public JavaRef<T> {
   // Enables casting while assigning. E.g.:
   // ScopedJavaLocalRef<JFoo> foo = FuncThatReturnsJobject(env).As<JFoo>();
   template <typename To>
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
     requires internal::IsJobject<To>
+#endif  // !BUILDFLAG(IS_COBALT) || (concepts)
   ScopedJavaLocalRef<To>&& As() && {
     return std::move(*reinterpret_cast<ScopedJavaLocalRef<To>*>(this));
   }
@@ -468,7 +531,10 @@ class ScopedJavaGlobalRef : public JavaRef<T> {
   // Enables casting while assigning. E.g.:
   // ScopedJavaGlobalRef<JFoo> foo = FuncThatReturnsJobject(env).As<JFoo>();
   template <typename To>
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
     requires internal::IsJobject<To>
+#endif  // !BUILDFLAG(IS_COBALT) || (concepts)
   ScopedJavaGlobalRef<To>&& As() && {
     return std::move(*reinterpret_cast<ScopedJavaGlobalRef<To>*>(this));
   }
@@ -536,6 +602,8 @@ template <typename T>
 using JavaParamRef = JavaRef<T>;
 #endif
 
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
 // Identity overload for FromJniType when the destination type is already a
 // JavaRef.
 template <typename T>
@@ -550,6 +618,8 @@ template <typename T>
 inline decltype(auto) ToJniType(JNIEnv* env, T&& arg) {
   return std::forward<T>(arg);
 }
+#endif  // !BUILDFLAG(IS_COBALT) || (defined(__cpp_concepts) && __cpp_concepts
+        // >= 201907L)
 
 }  // namespace jni_zero
 

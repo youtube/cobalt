@@ -5,6 +5,12 @@
 #ifndef BASE_BASE_EXPORT_H_
 #define BASE_BASE_EXPORT_H_
 
+// Note that we don't use buildflags to check this before any #includes.
+#if !defined(SB_IS_DEFAULT_TC) && defined(STARBOARD) || \
+    defined(ENABLE_BUILDFLAG_IS_NATIVE_TOOLCHAIN)
+#error Starboard and native toolchain builds should only include copied_base.
+#endif
+
 #if defined(COMPONENT_BUILD)
 #if defined(WIN32)
 

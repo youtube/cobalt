@@ -434,14 +434,28 @@ gles2::ProgramCache* GpuChannelManager::program_cache() {
     bool disable_disk_cache =
         gpu_preferences_.disable_gpu_shader_disk_cache ||
         workarounds.disable_program_disk_cache;
+    size_t program_cache_size = gpu_preferences_.gpu_program_cache_size;
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+    // kCobaltGpuShaderDiskCache only opens the disk cache for Skia's
+    // GrShaderCache (see GpuHostImpl::SetChannelDiskCacheHandle). Keep the GL
+    // program cache memory-only and at the platform default size, as it is
+    // when the feature is off: kCobaltGpuShaderDiskCacheSizeKb (which also
+    // sets gpu_program_cache_size) is meant to size only the GrShaderCache.
+    if (base::FeatureList::IsEnabled(features::kCobaltGpuShaderDiskCache)) {
+      disable_disk_cache = true;
+      program_cache_size = base::SysInfo::IsLowEndDevice()
+                               ? kLowEndMaxProgramCacheMemoryBytes
+                               : kDefaultMaxProgramCacheMemoryBytes;
+    }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 
     // Use the EGL blob cache extension for the passthrough decoder.
     if (use_passthrough_cmd_decoder()) {
       program_cache_ = std::make_unique<gles2::PassthroughProgramCache>(
-          gpu_preferences_.gpu_program_cache_size, disable_disk_cache);
+          program_cache_size, disable_disk_cache);
     } else {
       program_cache_ = std::make_unique<gles2::MemoryProgramCache>(
-          gpu_preferences_.gpu_program_cache_size, disable_disk_cache,
+          program_cache_size, disable_disk_cache,
           workarounds.disable_program_caching_for_transform_feedback,
           use_shader_cache_shm_count_);
     }
@@ -747,7 +761,9 @@ void GpuChannelManager::DoWakeUpGpu() {
   glFinish();
   DidAccessGpu();
 }
+#endif  // BUILDFLAG(IS_ANDROID)
 
+#if BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
 void GpuChannelManager::OnBackgroundCleanup() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
@@ -776,10 +792,58 @@ void GpuChannelManager::OnBackgroundCleanup() {
 
   SkGraphics::PurgeAllCaches();
 }
+#elif BUILDFLAG(IS_COBALT)
+void GpuChannelManager::OnBackgroundCleanup() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
+#if BUILDFLAG(IS_ANDROID)
+  // Write the shader cache entries whose disk writes were deferred (see
+  // kCobaltGpuShaderDiskCache); the app may be killed while in the background.
+  if (gr_shader_cache_) {
+    gr_shader_cache_->FlushPendingDiskWrites();
+  }
 #endif  // BUILDFLAG(IS_ANDROID)
+
+  // 1. Mark all GPU channel contexts lost and destroy all GPU channels.
+  for (auto& kv : gpu_channels_) {
+    kv.second->MarkAllContextsLost();
+  }
+  DestroyAllChannels();
+
+  // 2. Free unreferenced compiled GL/GLES shader binaries from the GPU cache.
+  if (program_cache_)
+    program_cache_->Trim(0u);
+
+  // 3. Mark SharedContextState context lost (which destroys the shared GL context)
+  // so no active EGLContexts remain before shutting down the EGLDisplay.
+  if (shared_context_state_) {
+    shared_context_state_->ReleaseCurrent(nullptr);
+    shared_context_state_->MarkContextLost();
+    shared_context_state_.reset();
+  }
+
+  // 4. Destroy the default offscreen pbuffer surface so zero EGL surfaces remain
+  // allocated on suspend.
+  if (default_offscreen_surface_) {
+    default_offscreen_surface_->Destroy();
+    default_offscreen_surface_ = nullptr;
+  }
+
+  // 5. Clear CPU-side font and 2D raster caches.
+  SkGraphics::PurgeAllCaches();
+}
+#endif
 
 void GpuChannelManager::OnApplicationBackgrounded() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  // Write the shader cache entries whose disk writes were deferred (see
+  // kCobaltGpuShaderDiskCache); the app may be killed while in the background.
+  if (gr_shader_cache_) {
+    gr_shader_cache_->FlushPendingDiskWrites();
+  }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 
   if (shared_context_state_) {
     shared_context_state_->PurgeMemory(base::MEMORY_PRESSURE_LEVEL_CRITICAL);
@@ -870,6 +934,14 @@ scoped_refptr<SharedContextState> GpuChannelManager::GetSharedContextState(
       base::FeatureList::IsEnabled(features::kDefaultANGLEMetal);
 
   scoped_refptr<gl::GLSurface> surface = default_offscreen_surface();
+#if BUILDFLAG(IS_COBALT)
+  // When Cobalt is suspended/backgrounded, the offscreen surface is destroyed.
+  // Return transient failure so clients retry once foregrounded.
+  if (!surface) {
+    *result = ContextResult::kTransientFailure;
+    return nullptr;
+  }
+#endif
   bool use_virtualized_gl_contexts = false;
 #if BUILDFLAG(IS_MAC)
   // Virtualize GpuPreference::kLowPower contexts by default on OS X to prevent

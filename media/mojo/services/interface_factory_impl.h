@@ -85,6 +85,16 @@ class InterfaceFactoryImpl final
       mojo::PendingReceiver<mojom::MediaFoundationRendererExtension>
           renderer_extension_receiver) final;
 #endif  // BUILDFLAG(IS_WIN)
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  void CreateStarboardRenderer(
+      mojo::PendingRemote<mojom::MediaLog> media_log_remote,
+      const StarboardRendererConfig& config,
+      mojo::PendingReceiver<mojom::Renderer> receiver,
+      mojo::PendingReceiver<mojom::StarboardRendererExtension>
+          renderer_extension_receiver,
+      mojo::PendingRemote<mojom::StarboardRendererClientExtension>
+          client_extension_remote) final;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   void CreateCdm(const CdmConfig& cdm_config, CreateCdmCallback callback) final;
 
