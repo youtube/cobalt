@@ -780,7 +780,7 @@ chromium-metrics-reviews@google.com.
   <int value="100327" label="PinSplitTabButton"/>
   <int value="100328" label="GlicRolloutEligibility"/>
   <int value="100329" label="ShelfNotebookLmAppPinRolls"/>
-  <int value="100330" label="VerticalTabsEnabled"/>
+  <int value="100330" label="(obsolete, no longer synced) VerticalTabsEnabled"/>
   <int value="100331" label="SplitViewDragAndDropEnabled"/>
   <int value="100332" label="iOSEnhancedBrowsingPromoLastImpressionTimestamp"/>
   <int value="100333" label="iOSEnhancedBrowsingPromoImpressionsCounter"/>
@@ -870,6 +870,18 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(/components/sync_bookmarks/synced_bookmark_tracker.h:SyncBookmarkModelMetadataCorruptionReason) -->
+
+<!-- LINT.IfChange(SyncBookmarkParentGuidSource) -->
+
+<enum name="SyncBookmarkParentGuidSource">
+  <int value="0" label="Missing"/>
+  <int value="1" label="Fallback: Unresolvable"/>
+  <int value="2" label="Found in specifics"/>
+  <int value="3" label="Fallback: Found in tracker"/>
+  <int value="4" label="Fallback: Found in updates"/>
+</enum>
+
+<!-- LINT.ThenChange(/components/sync_bookmarks/parent_guid_preprocessing.h:SyncBookmarkParentGuidSource) -->
 
 <!-- LINT.IfChange(SyncClientToServerMessageContents) -->
 
@@ -1040,6 +1052,7 @@ chromium-metrics-reviews@google.com.
   <int value="76" label="Skill"/>
   <int value="77" label="Gemini Thread"/>
   <int value="78" label="Themes (iOS)"/>
+  <int value="79" label="Accessibility Annotation"/>
 </enum>
 
 <!-- LINT.ThenChange(/components/sync/base/data_type.h:SyncDataTypes) -->
@@ -1360,18 +1373,6 @@ chromium-metrics-reviews@google.com.
   <int value="0" label="No keystore key"/>
   <int value="1" label="Unknown reason"/>
 </enum>
-
-<!-- LINT.IfChange(SyncMetadataConsistency) -->
-
-<enum name="SyncMetadataConsistency">
-  <int value="0" label="Metadata consistent"/>
-  <int value="1" label="Cache guid mismatch"/>
-  <int value="2" label="Data type id mismatch"/>
-  <int value="3" label="Empty persisted authenticated gaia id"/>
-  <int value="4" label="Authenticated gaia id mismatch"/>
-</enum>
-
-<!-- LINT.ThenChange(/components/sync/model/client_tag_based_data_type_processor.cc:SyncMetadataConsistency) -->
 
 <!-- LINT.IfChange(SyncModelError) -->
 
@@ -1714,6 +1715,20 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(/components/sync/base/data_type_histogram.h:ReadingListMigrationStep) -->
+
+<!-- LINT.IfChange(SyncToSigninMigrationStatsTableCleanupStep) -->
+
+<enum name="SyncToSigninMigrationStatsTableCleanupStep">
+  <summary>
+    A step in the Stats table cleanup process from the Account Password Store,
+    within the wider Sync-to-Signin migration.
+  </summary>
+  <int value="0" label="Cleanup requested"/>
+  <int value="1" label="Cleanup started"/>
+  <int value="2" label="Cleanup finished and pref cleared"/>
+</enum>
+
+<!-- LINT.ThenChange(/components/sync/base/data_type_histogram.h:SyncToSigninMigrationStatsTableCleanupStep) -->
 
 <!-- LINT.IfChange(SyncToSigninMigrationThemeOutcome) -->
 

@@ -23,6 +23,7 @@
 #include "ash/system/model/enterprise_domain_model.h"
 #include "ash/system/model/system_tray_model.h"
 #include "base/check.h"
+#include "base/check_deref.h"
 #include "base/check_op.h"
 #include "base/command_line.h"
 #include "base/feature_list.h"
@@ -53,6 +54,8 @@
 #include "chrome/browser/ash/login/wizard_context.h"
 #include "chrome/browser/ash/login/wizard_controller.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/browser_process_platform_part.h"
+#include "chrome/browser/global_features.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/ash/login/login_display_host.h"
 #include "chrome/browser/ui/ash/login/login_display_host_common.h"
@@ -189,8 +192,12 @@ LoginDisplayHostMojo::LoginDisplayHostMojo(
     DisplayedScreen displayed_screen,
     bool update_geolocation_usage_allowed)
     : LoginDisplayHostCommon(update_geolocation_usage_allowed),
-      user_selection_screen_(
-          std::make_unique<ChromeUserSelectionScreen>(displayed_screen)),
+      user_selection_screen_(std::make_unique<ChromeUserSelectionScreen>(
+          // TODO(crbug.com/404133029): Avoid using g_browser_process.
+          g_browser_process->local_state(),
+          g_browser_process->GetFeatures()->application_locale_storage(),
+          g_browser_process->platform_part()->browser_policy_connector_ash(),
+          displayed_screen)),
       auth_performer_(UserDataAuthClient::Get()),
       system_info_updater_(std::make_unique<MojoSystemInfoDispatcher>()) {
   CHECK(!g_login_display_host_mojo);
@@ -516,7 +523,10 @@ void LoginDisplayHostMojo::OnStartSignInScreen() {
 
   OnStartSignInScreenCommon();
 
-  login::SecurityTokenSessionController::MaybeDisplayLoginScreenNotification();
+  // TODO(crbug.com/404133029): Avoid using g_browser_process.
+  PrefService& local_state = CHECK_DEREF(g_browser_process->local_state());
+  login::SecurityTokenSessionController::MaybeDisplayLoginScreenNotification(
+      local_state);
 }
 
 void LoginDisplayHostMojo::ScheduleStartAuthHubInLoginMode() {
@@ -991,7 +1001,13 @@ void LoginDisplayHostMojo::StopObservingOobeUI() {
 }
 
 void LoginDisplayHostMojo::CreateExistingUserController() {
-  existing_user_controller_ = std::make_unique<ExistingUserController>();
+  // TODO(crbug.com/404133029): Avoid using g_browser_process.
+  PrefService* local_state = g_browser_process->local_state();
+  const ApplicationLocaleStorage* application_locale_storage =
+      g_browser_process->GetFeatures()->application_locale_storage();
+
+  existing_user_controller_ = std::make_unique<ExistingUserController>(
+      local_state, application_locale_storage);
 
   // We need auth attempt results to notify views-based login screen.
   existing_user_controller_->AddLoginStatusConsumer(this);

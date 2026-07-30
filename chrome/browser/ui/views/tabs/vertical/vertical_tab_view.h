@@ -67,12 +67,13 @@ class VerticalTabView : public views::View,
 
   void StepLoadingAnimation(const base::TimeDelta& elapsed_time);
   void UpdateHovered(bool hovered);
+  bool IsHoverAnimationActive() const;
 
   std::optional<SkColor> GetBackgroundColor();
   SkPath GetPath() const;
 
   const TabCollectionNode* collection_node() const { return collection_node_; }
-  const TabStyle* tab_style() { return tab_style_; }
+  const TabStyle* tab_style() const { return tab_style_; }
   float radial_highlight_opacity() { return radial_highlight_opacity_; }
 
   TabCloseButton* close_button_for_testing() { return close_button_; }
@@ -103,6 +104,21 @@ class VerticalTabView : public views::View,
   void OnBlur() override;
   void OnBoundsChanged(const gfx::Rect& previous_bounds) override;
   void OnThemeChanged() override;
+
+  // Tab Painting Helpers
+  void PaintTabBackgroundWithImages(
+      gfx::Canvas* canvas,
+      std::optional<int> active_tab_fill_id,
+      std::optional<int> inactive_tab_fill_id) const;
+  float GetCurrentActiveOpacity() const;
+  void PaintTabBackgroundFill(gfx::Canvas* canvas,
+                              TabStyle::TabSelectionState selection_state,
+                              bool hovered,
+                              std::optional<int> fill_id) const;
+  bool ShouldPaintTabBackgroundColor(
+      TabStyle::TabSelectionState selection_state,
+      bool has_custom_background,
+      bool hovered) const;
 
   struct TabChildConfig {
     raw_ptr<views::View> view;
@@ -151,6 +167,7 @@ class VerticalTabView : public views::View,
 
   void UpdateTitle();
   void UpdateBorder();
+  void UpdateThemeColors();
   void UpdateColors();
   void UpdateContrastRatioValues();
 
@@ -160,7 +177,6 @@ class VerticalTabView : public views::View,
   void UpdateHoverCard(HoverCardAnchorTarget* target,
                        int hover_card_update_type);
 
-  bool IsHoverAnimationActive() const;
   double GetHoverAnimationValue() const;
   float GetHoverOpacity() const;
 
@@ -204,6 +220,9 @@ class VerticalTabView : public views::View,
   float hover_opacity_min_;
   float hover_opacity_max_;
   float radial_highlight_opacity_;
+
+  std::optional<int> active_tab_fill_id_;
+  std::optional<int> inactive_tab_fill_id_;
 
   base::CallbackListSubscription ax_name_changed_subscription_;
 

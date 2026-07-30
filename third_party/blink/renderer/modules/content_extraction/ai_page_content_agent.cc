@@ -4,6 +4,8 @@
 
 #include "third_party/blink/renderer/modules/content_extraction/ai_page_content_agent.h"
 
+#include <algorithm>
+
 #include "base/check.h"
 #include "base/containers/adapters.h"
 #include "base/time/time.h"
@@ -27,6 +29,7 @@
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/frame/local_frame_view.h"
+#include "third_party/blink/renderer/core/frame/visual_viewport.h"
 #include "third_party/blink/renderer/core/html/forms/html_form_control_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_form_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_input_element.h"
@@ -61,10 +64,12 @@
 #include "third_party/blink/renderer/core/page/page.h"
 #include "third_party/blink/renderer/core/page/page_animator.h"
 #include "third_party/blink/renderer/core/paint/clip_path_clipper.h"
+#include "third_party/blink/renderer/core/paint/paint_layer_scrollable_area.h"
 #include "third_party/blink/renderer/core/script_tools/model_context_supplement.h"
 #include "third_party/blink/renderer/core/style/computed_style.h"
 #include "third_party/blink/renderer/modules/accessibility/ax_object.h"
 #include "third_party/blink/renderer/modules/content_extraction/ai_page_content_debug_utils.h"
+#include "third_party/blink/renderer/modules/content_extraction/ai_page_content_redaction_heuristics.h"
 #include "third_party/blink/renderer/platform/geometry/infinite_int_rect.h"
 #include "third_party/blink/renderer/platform/geometry/layout_unit.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
@@ -80,6 +85,37 @@
 
 namespace blink {
 #if DCHECK_IS_ON()
+bool IsVisualViewportAlignedWithLayoutViewport(Document& document,
+                                               LocalFrameView& view) {
+  VisualViewport& visual_viewport = document.GetPage()->GetVisualViewport();
+  PaintLayerScrollableArea* layout_viewport = view.LayoutViewport();
+
+  // "Layout viewport" vs "visual viewport" terminology:
+  // `docs/website/site/developers/design-documents/blink-coordinate-spaces/`
+  // "visual viewport" APIs:
+  // `third_party/blink/renderer/core/frame/visual_viewport.h`
+
+  // If the scroll offsets differ, the viewports are not aligned.
+  if (visual_viewport.GetScrollOffset() != layout_viewport->GetScrollOffset()) {
+    return false;
+  }
+
+  // A non-zero browser-controls adjustment (e.g. mobile toolbar show/hide)
+  // shifts the visual-viewport coordinate space even if the scroll offsets
+  // match, so treat that as misaligned for these DCHECKs.
+  if (visual_viewport.BrowserControlsAdjustment() != 0.f) {
+    return false;
+  }
+
+  // If pinch-zoom is active (scale != 1), the visual viewport is transformed
+  // relative to the layout viewport.
+  if (visual_viewport.Scale() != 1.f) {
+    return false;
+  }
+
+  return true;
+}
+
 class AutoBuildHelper final : public NativeEventListener {
  public:
   explicit AutoBuildHelper(AIPageContentAgent& agent) : agent_(agent) {}
@@ -185,12 +221,12 @@ gfx::Rect ComputeVisibleBoundingBox(
       << "ComputeVisibleBoundingBox only works when layout is complete";
 
   // Get the object's local bounding box before viewport clipping.
-  gfx::RectF object_rect =
+  gfx::RectF local_object_rect =
       ClipPathClipper::LocalClipPathBoundingBox(object).value_or(
           object.LocalBoundingBoxRectForAccessibility(
               LayoutObject::IncludeDescendants(false)));
   if (local_bounding_box_out) {
-    *local_bounding_box_out = object_rect;
+    *local_bounding_box_out = local_object_rect;
   }
 
   // Transform the local bounding box to viewport coordinates, applying:
@@ -200,12 +236,98 @@ gfx::Rect ComputeVisibleBoundingBox(
   // 4. Viewport clipping (anything outside the viewport is clipped)
   //
   // The nullptr ancestor means "map to the root of the document". When used
-  // with kVisualRectFlags, this gives us viewport-relative coordinates.
+  // with kVisualRectFlags, this gives us visual viewport-relative coordinates,
+  // but clips to the layout viewport -- a potential source of confusion.
   // TODO(khushalsagar): It might be more optimal to derive this from output of
   // paint.
-  object.MapToVisualRectInAncestorSpace(nullptr, object_rect, kVisualRectFlags);
+  gfx::RectF visual_viewport_relative_rect = local_object_rect;
+  object.MapToVisualRectInAncestorSpace(nullptr, visual_viewport_relative_rect,
+                                        kVisualRectFlags);
 
-  gfx::Rect visible_box_in_viewport_coords = ToEnclosingRect(object_rect);
+  // Why do we clamp/intersect after MapToVisualRectInAncestorSpace()?
+  //
+  // Visual vs layout viewport: the visual viewport can be offset relative to
+  // the layout viewport (for example while browser controls animate during
+  // scroll on mobile, or during pinch-zoom).
+  //
+  // In that situation, visual-rect mapping can legitimately return negative
+  // coordinates even after viewport clipping. The visual viewport origin is no
+  // longer at the layout viewport origin.
+  //
+  // APC's `visible_bounding_box` is defined to be viewport-relative with a
+  // (0, 0) origin. Intersect with the local-root viewport to normalize into
+  // that coordinate space and keep geometry DCHECKs from firing on valid
+  // layouts.
+  //
+  // This is intentionally done here because MapToVisualRectInAncestorSpace()
+  // clips in layout-viewport space before applying the visual-viewport
+  // transform, so negative coordinates are a valid outcome for some viewport
+  // configurations.
+  //
+  // For local subframes, the mapped rect is in local-root (main-frame)
+  // coordinates, so clamp against the local-root viewport instead of the
+  // subframe viewport.
+  // TODO(crbug.com/474330989): Consider clamping to the visual viewport size
+  // instead of the layout viewport size if those dimensions can diverge.
+  if (RuntimeEnabledFeatures::AIPageContentVisualViewportClampEnabled()) {
+    if (LocalFrameView* view = object.GetDocument().View()) {
+      LocalFrame* frame = object.GetDocument().GetFrame();
+      LocalFrameView* root_view =
+          frame ? frame->LocalFrameRoot().View() : nullptr;
+      LocalFrameView* viewport_view = root_view ? root_view : view;
+      // LocalFrameView::ViewportWidth/Height are in CSS/layout pixels (only
+      // adjusted for absolute zoom), while `visual_viewport_relative_rect` is
+      // produced by MapToVisualRectInAncestorSpace() in
+      // visual-viewport-relative BlinkSpace/device pixels. Convert the
+      // viewport size into BlinkSpace to ensure we clamp in a consistent
+      // coordinate space.
+      float viewport_width_blink = viewport_view->ViewportWidth();
+      float viewport_height_blink = viewport_view->ViewportHeight();
+      if (frame) {
+        if (FrameWidget* widget = frame->GetWidgetForLocalRoot()) {
+          viewport_width_blink =
+              widget->DIPsToBlinkSpace(viewport_view->ViewportWidth());
+          viewport_height_blink =
+              widget->DIPsToBlinkSpace(viewport_view->ViewportHeight());
+        }
+      }
+      gfx::RectF local_root_viewport_rect_in_blink_space(
+          0, 0, viewport_width_blink, viewport_height_blink);
+
+#if DCHECK_IS_ON()
+      gfx::RectF unclamped_rect = visual_viewport_relative_rect;
+
+      const bool can_clamp_to_viewport =
+          !frame || frame->LocalFrameRoot().IsMainFrame();
+      if (can_clamp_to_viewport && frame && frame->IsMainFrame()) {
+        const bool is_viewport_aligned =
+            IsVisualViewportAlignedWithLayoutViewport(object.GetDocument(),
+                                                      *viewport_view);
+        if (is_viewport_aligned) {
+          // When the visual viewport matches the layout viewport, the mapping
+          // is expected to already be viewport-relative. Clamping should be a
+          // no-op. We DCHECK this to detect any future cases where the mapping
+          // still yields negative coordinates, which would indicate another
+          // layout/visual-viewport discrepancy that APC should account for.
+          DCHECK_GE(unclamped_rect.x(),
+                    local_root_viewport_rect_in_blink_space.x());
+          DCHECK_GE(unclamped_rect.y(),
+                    local_root_viewport_rect_in_blink_space.y());
+        }
+      }
+#endif
+      // Skip clamping for out-of-process iframes because their geometry is
+      // reported in main-frame coordinates, while the local viewport is
+      // iframe-relative and would incorrectly zero out visible rects.
+      if (!frame || frame->LocalFrameRoot().IsMainFrame()) {
+        visual_viewport_relative_rect.Intersect(
+            local_root_viewport_rect_in_blink_space);
+      }
+    }
+  }
+
+  gfx::Rect visible_box_in_viewport_coords =
+      ToEnclosingRect(visual_viewport_relative_rect);
 
 #if DCHECK_IS_ON()
   if (RuntimeEnabledFeatures::AIPageContentCheckGeometryEnabled()) {
@@ -458,18 +580,6 @@ RGBA32 GetColor(const ComputedStyle& style) {
 
 const LayoutIFrame* GetIFrame(const LayoutObject& object) {
   return DynamicTo<LayoutIFrame>(object);
-}
-
-std::optional<DOMNodeId> GetDomNodeId(const LayoutObject& object) {
-  auto* node = object.GetNode();
-  if (object.IsLayoutView()) {
-    node = &object.GetDocument();
-  }
-
-  if (!node) {
-    return std::nullopt;
-  }
-  return DOMNodeIds::IdForNode(node);
 }
 
 bool IsVisible(const LayoutObject& object) {
@@ -1155,6 +1265,47 @@ void OffsetNodeGeometry(mojom::blink::AIPageContentNode& node,
   }
 }
 
+bool MayContainSensitvePayment(
+    mojom::blink::FormControlType form_control_type) {
+  switch (form_control_type) {
+    case mojom::blink::FormControlType::kInputEmail:
+    case mojom::blink::FormControlType::kInputMonth:
+    case mojom::blink::FormControlType::kInputNumber:
+    case mojom::blink::FormControlType::kInputPassword:
+    case mojom::blink::FormControlType::kInputSearch:
+    case mojom::blink::FormControlType::kInputTelephone:
+    case mojom::blink::FormControlType::kInputText:
+    case mojom::blink::FormControlType::kInputUrl:
+    case mojom::blink::FormControlType::kSelectOne:
+    case mojom::blink::FormControlType::kTextArea:
+      return true;
+    case mojom::blink::FormControlType::kInputCheckbox:
+    case mojom::blink::FormControlType::kInputRadio:
+    case mojom::blink::FormControlType::kInputDate:
+    case mojom::blink::FormControlType::kButtonButton:
+    case mojom::blink::FormControlType::kButtonSubmit:
+    case mojom::blink::FormControlType::kButtonReset:
+    case mojom::blink::FormControlType::kButtonPopover:
+    case mojom::blink::FormControlType::kFieldset:
+    case mojom::blink::FormControlType::kInputButton:
+    case mojom::blink::FormControlType::kInputColor:
+    case mojom::blink::FormControlType::kInputDatetimeLocal:
+    case mojom::blink::FormControlType::kInputFile:
+    case mojom::blink::FormControlType::kInputHidden:
+    case mojom::blink::FormControlType::kInputImage:
+    case mojom::blink::FormControlType::kInputRange:
+    case mojom::blink::FormControlType::kInputReset:
+    case mojom::blink::FormControlType::kInputSubmit:
+    case mojom::blink::FormControlType::kInputTime:
+    case mojom::blink::FormControlType::kInputWeek:
+    case mojom::blink::FormControlType::kOutput:
+    case mojom::blink::FormControlType::kSelectMultiple:
+      return false;
+  }
+
+  return false;
+}
+
 }  // namespace
 
 // static
@@ -1386,8 +1537,12 @@ AIPageContentAgent::ContentBuilder::ContentBuilder(
 AIPageContentAgent::ContentBuilder::~ContentBuilder() = default;
 
 std::optional<AIPageContentAgent::CustomPasswordSource>
-AIPageContentAgent::CustomPasswordReason(DOMNodeId dom_node_id) const {
-  DCHECK_NE(dom_node_id, kInvalidDOMNodeId);
+AIPageContentAgent::ExistingCustomPasswordReason(
+    const LayoutObject& object) const {
+  const DOMNodeId dom_node_id = DOMNodeIds::ExistingIdForNode(object.GetNode());
+  if (!dom_node_id) {
+    return std::nullopt;
+  }
   auto it = custom_password_decision_.find(dom_node_id);
   if (it == custom_password_decision_.end()) {
     return std::nullopt;
@@ -1397,111 +1552,23 @@ AIPageContentAgent::CustomPasswordReason(DOMNodeId dom_node_id) const {
 
 namespace {
 
-bool IsCSSSecurityMaskingEnabled(const LayoutObject& object) {
-  // Checks the computed value of the non-standard CSS property
-  // `-webkit-text-security`. Authors sometimes use this on non-password
-  // elements to create custom masked "password-like" fields.
-  const ComputedStyle* style = object.Style();
-  if (!style) {
-    return false;
-  }
-  return style->TextSecurity() != ETextSecurity::kNone;
-}
-
-bool IsSecurityMaskCharacter(UChar c) {
-  switch (c) {
-    // Standard Asterisks & Stars.
-    case '*':     // U+002A
-    case 0x2731:  // Heavy Asterisk (✱)
-    case 0x2732:  // Open Centre Asterisk (✲)
-    case 0x2733:  // Eight Spoked Asterisk (✳)
-    case 0xFF0A:  // Fullwidth Asterisk (＊)
-
-    // Standard Bullets & Circles.
-    case 0x2022:  // Bullet (•)
-    case 0x25CF:  // Black Circle (●)
-    case 0x25CB:  // White Circle (○)
-    case 0x25EF:  // Large Circle (◯)
-    case 0x26AB:  // Medium Black Circle (⚫)
-    case 0x2B24:  // Black Large Circle (⬤)
-    case 0x25E6:  // White Bullet (◦)
-    case 0x25C9:  // Fisheye (◉)
-
-    // Dots & Mathematical Operators.
-    case 0x00B7:  // Middle Dot (·)
-    case 0x2219:  // Bullet Operator (∙)
-    case 0x22C5:  // Dot Operator (⋅)
-    case 0x2802:  // Braille Dot-2 (⠂)
-    case 0x2812:  // Braille Dots-2-5 (⠒)
-    case 0x2836:  // Braille Dots-2-3-5-6 (⠶)
-
-    // Squares, Blocks & Diamonds.
-    case 0x25A0:  // Black Square (■)
-    case 0x25A1:  // White Square (□)
-    case 0x25AA:  // Black Small Square (▪)
-    case 0x25AB:  // White Small Square (▫)
-    case 0x25AE:  // Black Vertical Rectangle (▮)
-    case 0x2588:  // Full Block (█)
-    case 0x2589:  // Left Seven Eighths Block (▉)
-    case 0x25C6:  // Black Diamond (◆)
-    case 0x25C7:  // White Diamond (◇)
-      return true;
-
-    default:
-      return false;
-  }
-}
-
-bool IsLikelyJSCustomPasswordField(const String& value) {
-  // Heuristic for JS-masked values where most characters are replaced by
-  // bullet-like mask characters but one character (often the last typed
-  // character) remains visible.
-  //
-  // Example: "••••a"
-  //
-  // This intentionally errs on the side of privacy: if a field *looks* like a
-  // password field, we redact it to prevent credential leakage.
-  if (value.length() < 2) {
-    return false;
+DOMNodeId GetAccessibilityFocusedDOMNodeId(const LocalFrame& frame) {
+  const Document* document = frame.GetDocument();
+  if (!document) {
+    return kInvalidDOMNodeId;
   }
 
-  wtf_size_t mask_count = 0;
-  bool has_visible_last_character = false;
-  for (wtf_size_t index = 0; index < value.length(); ++index) {
-    const UChar ch = value[index];
-    // Whitespace is a strong signal this is not a password field (e.g. a bullet
-    // used as a list marker: "• item"). Bail out early to reduce false
-    // positives and improve performance on large editor-like fields.
-    if (ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r') {
-      return false;
-    }
-    if (IsSecurityMaskCharacter(ch)) {
-      ++mask_count;
-    } else {
-      // If a non-mask character appears before the final character, this is
-      // unlikely to be a password-style control (typical patterns reveal at
-      // most the last typed character). Bail out early.
-      if (index + 1 < value.length()) {
-        return false;
-      }
-      has_visible_last_character = true;
-    }
+  AXObjectCache* ax_object_cache = document->ExistingAXObjectCache();
+  if (!ax_object_cache) {
+    return kInvalidDOMNodeId;
   }
 
-  // Prefer classifying early once masking begins to prevent leaking typed
-  // characters during initial entry. For example, some JS-masked fields show:
-  // - "•b" when the user has typed 2 characters.
-  // - "••c" when the user has typed 3 characters.
-  if (has_visible_last_character) {
-    if (mask_count >= 1) {
-      return true;
-    }
-    return value.length() == 2;
+  Node* ax_focused_node = ax_object_cache->GetAccessibilityFocus();
+  if (!ax_focused_node) {
+    return kInvalidDOMNodeId;
   }
 
-  // Typical patterns show only one character (often the last). Require that
-  // the value is "mostly masked" to reduce false positives.
-  return mask_count >= value.length() - 1;
+  return DOMNodeIds::IdForNode(ax_focused_node);
 }
 
 }  // namespace
@@ -1558,9 +1625,13 @@ mojom::blink::AIPageContentPtr AIPageContentAgent::ContentBuilder::Build(
   AddFrameData(frame, *frame_data);
   page_content->frame_data = std::move(frame_data);
 
-  auto root_node = MaybeGenerateContentNode(*layout_view, *document_style);
+  RecursionData recursion_data(*document_style);
+  recursion_data.accessibility_focused_node_id =
+      GetAccessibilityFocusedDOMNodeId(frame);
+
+  auto root_node = MaybeGenerateContentNode(*layout_view, recursion_data);
   CHECK(root_node);
-  WalkChildren(*layout_view, *root_node, *document_style);
+  WalkChildren(*layout_view, *root_node, recursion_data);
   page_content->root_node = std::move(root_node);
   page_content->visible_bounding_boxes_for_password_redaction =
       std::move(visible_bounding_box_for_passwords_);
@@ -1698,19 +1769,22 @@ bool AIPageContentAgent::ContentBuilder::IsGenericContainer(
     return true;
   }
 
-  // Use `ExistingIdForNode` since an Id should have already been generated if
-  // this node is interactive.
-  if (interactive_dom_node_ids_.Contains(
-          DOMNodeIds::ExistingIdForNode(object.GetNode()))) {
-    return true;
-  }
-
   return false;
+}
+
+DOMNodeId AIPageContentAgent::ContentBuilder::AddInteractiveNode(Node& node) {
+  // This intentionally creates a DOM node id when missing for metadata-linked
+  // nodes (focus, selection, label-for, popup opener).
+  const DOMNodeId dom_node_id = DOMNodeIds::IdForNode(&node);
+  AddInteractiveNode(dom_node_id);
+  return dom_node_id;
 }
 
 void AIPageContentAgent::ContentBuilder::AddInteractiveNode(
     DOMNodeId dom_node_id) {
   CHECK_NE(dom_node_id, kInvalidDOMNodeId);
+  // Adding the node id to this set forces the node to be emitted with a node id
+  // and a fallback attribute type of kContainer when nothing else applies.
   interactive_dom_node_ids_.insert(dom_node_id);
 }
 
@@ -1833,6 +1907,8 @@ void AIPageContentAgent::ContentBuilder::ProcessIframe(
     // The aria attribute values don't pierce frame boundaries.
     child_recursion_data.is_aria_disabled = false;
     child_recursion_data.stack_depth = recursion_data.stack_depth + 1;
+    child_recursion_data.accessibility_focused_node_id =
+        GetAccessibilityFocusedDOMNodeId(*local_frame);
 
     // Add a node for the iframe's LayoutView for consistency with remote
     // frames.
@@ -1860,15 +1936,13 @@ AIPageContentAgent::ContentBuilder::MaybeGenerateContentNode(
   // Compute state that is used to decide whether this node generates a
   // ContentNode before making the decision below.
   AddAnnotatedRoles(object, attributes.annotated_roles);
-  AddForDomNodeId(object, attributes);
+  PopulateLabelForDomNodeId(object, attributes);
 
   auto* element = DynamicTo<Element>(object.GetNode());
   if (actionable_mode() && element) {
     attributes.aria_role = AXObject::DetermineRawAriaRole(*element);
   }
   AddNodeInteractionInfo(object, attributes, recursion_data.is_aria_disabled);
-
-  const std::optional<DOMNodeId> dom_node_id = GetDomNodeId(object);
 
   // Set the attribute type and add any special attributes if the attribute type
   // requires it.
@@ -1928,10 +2002,7 @@ AIPageContentAgent::ContentBuilder::MaybeGenerateContentNode(
   } else if (const auto* form_control =
                  DynamicTo<HTMLFormControlElement>(object.GetNode())) {
     ProcessFormControlNode(*form_control, attributes);
-    if (dom_node_id) {
-      ApplyCustomPasswordRedactionHeuristicsIfNeeded(object, *dom_node_id,
-                                                     attributes);
-    }
+    ApplyCustomPasswordRedactionHeuristicsIfNeeded(object, attributes);
   } else if (element &&
              ProcessAriaFormControlNode(object, *element, attributes)) {
     // ProcessAriaFormControlNode sets the attribute type and data.
@@ -1959,27 +2030,70 @@ AIPageContentAgent::ContentBuilder::MaybeGenerateContentNode(
     // Keep container at the bottom of the list as it is the least specific.
     attributes.attribute_type =
         mojom::blink::AIPageContentAttributeType::kContainer;
+  } else if (interactive_dom_node_ids_.Contains(
+                 DOMNodeIds::ExistingIdForNode(object.GetNode()))) {
+    // Fall back to a generic container when we need to emit this node for
+    // dom_node_id purposes but no more specific type matched.
+    attributes.attribute_type =
+        mojom::blink::AIPageContentAttributeType::kContainer;
   } else {
     // If no attribute type was set, do not generate a content node.
     return nullptr;
   }
 
-  if (dom_node_id) {
-    attributes.dom_node_id = *dom_node_id;
+  // Resolve and allocate DOM ids only when output policy needs them.
+  if (ShouldEmitNodeIdForOutput(object, attributes)) {
+    if (const DOMNodeId dom_node_id = DOMNodeIds::IdForNode(object.GetNode())) {
+      attributes.dom_node_id = dom_node_id;
+    }
   }
 
-  AddNodeGeometry(object, attributes);
+  AddNodeGeometry(object, attributes,
+                  recursion_data.accessibility_focused_node_id);
   AddLabel(object, attributes);
-
   attributes.is_ad_related = element && element->IsAdRelated();
 
   return content_node;
 }
 
+bool AIPageContentAgent::ContentBuilder::ShouldEmitNodeIdForOutput(
+    const LayoutObject& object,
+    const mojom::blink::AIPageContentAttributes& attributes) const {
+  // Preserve existing behavior when node-id options are not provided.
+  if (!options_->node_id_allowlist) {
+    return true;
+  }
+
+  // Actionable nodes participate in tool execution and need an id.
+  if (actionable_mode() && attributes.node_interaction_info) {
+    return true;
+  }
+
+  // Metadata-linked nodes (focused element, accessibility focus, selection
+  // endpoints, label-for targets, popup openers) need an id.
+  if (interactive_dom_node_ids_.Contains(
+          DOMNodeIds::ExistingIdForNode(object.GetNode()))) {
+    return true;
+  }
+
+  // Otherwise, fall back to per-attribute options policy.
+  return IsNodeIdAttributeTypeAllowlisted(attributes.attribute_type);
+}
+
+bool AIPageContentAgent::ContentBuilder::IsNodeIdAttributeTypeAllowlisted(
+    mojom::blink::AIPageContentAttributeType attribute_type) const {
+  if (!options_->node_id_allowlist) {
+    return false;
+  }
+  // The policy allowlist is expected to be small. Prioritize direct readability
+  // over auxiliary data structures here.
+  return std::ranges::find(*options_->node_id_allowlist, attribute_type) !=
+         options_->node_id_allowlist->end();
+}
+
 void AIPageContentAgent::ContentBuilder::
     ApplyCustomPasswordRedactionHeuristicsIfNeeded(
         const LayoutObject& object,
-        DOMNodeId dom_node_id,
         mojom::blink::AIPageContentAttributes& attributes) const {
   // Only form controls have `form_control_data`. Keep this defensive because
   // callers may evolve and still call this helper.
@@ -2017,7 +2131,7 @@ void AIPageContentAgent::ContentBuilder::
 
   const std::optional<AIPageContentAgent::CustomPasswordSource>
       existing_custom_password_like_reason =
-          agent_.CustomPasswordReason(dom_node_id);
+          agent_.ExistingCustomPasswordReason(object);
   bool is_custom_password = existing_custom_password_like_reason.has_value();
   std::optional<AIPageContentAgent::CustomPasswordSource>
       custom_password_like_reason = existing_custom_password_like_reason;
@@ -2030,8 +2144,9 @@ void AIPageContentAgent::ContentBuilder::
           AIPageContentAgent::CustomPasswordSource::kJavaScript;
     }
     if (custom_password_like_reason) {
-      agent_.custom_password_decision_.Set(dom_node_id,
-                                           *custom_password_like_reason);
+      agent_.custom_password_decision_.Set(
+          DOMNodeIds::IdForNode(object.GetNode()),
+          *custom_password_like_reason);
       is_custom_password = true;
     }
   }
@@ -2111,9 +2226,9 @@ void AIPageContentAgent::ContentBuilder::AddLabel(
   attributes.label = accumulated_text.ToString();
 }
 
-void AIPageContentAgent::ContentBuilder::AddForDomNodeId(
+void AIPageContentAgent::ContentBuilder::PopulateLabelForDomNodeId(
     const LayoutObject& object,
-    mojom::blink::AIPageContentAttributes& attributes) const {
+    mojom::blink::AIPageContentAttributes& attributes) {
   if (!actionable_mode()) {
     return;
   }
@@ -2128,7 +2243,12 @@ void AIPageContentAgent::ContentBuilder::AddForDomNodeId(
     return;
   }
 
-  attributes.label_for_dom_node_id = DOMNodeIds::IdForNode(control);
+  const DOMNodeId control_dom_node_id = AddInteractiveNode(*control);
+
+  // Always emit the label target id regardless of node-id policy so
+  // `label_for_dom_node_id` remains round-trippable and actions on the label
+  // can resolve and trigger the associated control.
+  attributes.label_for_dom_node_id = control_dom_node_id;
 }
 
 void AIPageContentAgent::ContentBuilder::AddAnnotatedRoles(
@@ -2224,13 +2344,43 @@ void AIPageContentAgent::ContentBuilder::TrackPasswordRedactionIfNeeded(
       visible_bounding_box.value_or(ComputeVisibleBoundingBox(object)));
 }
 
-void AIPageContentAgent::ContentBuilder::AddNodeGeometry(
+bool AIPageContentAgent::ContentBuilder::ShouldAddNodeGeometry(
     const LayoutObject& object,
-    mojom::blink::AIPageContentAttributes& attributes) {
+    const mojom::blink::AIPageContentAttributes& attributes,
+    DOMNodeId accessibility_focused_node_id) const {
+  if (actionable_mode()) {
+    return true;
+  }
+
   // When in non-actionable mode, we only want to add geometry for the
   // accessibility focused node.
-  if (!actionable_mode() &&
-      attributes.dom_node_id != accessibility_focused_node_id_) {
+  if (attributes.dom_node_id == accessibility_focused_node_id) {
+    return true;
+  }
+
+  // When sensitive payment redaction is enabled,  the redaction decision is
+  // made in the browser using Autofill data. We must provide the geometry for
+  // form control elements that may contain sensitive payments here so the
+  // browser can record their bounding boxes for client-side screenshot
+  // redaction.
+  if (options_->include_sensitive_payments_for_redaction) {
+    if (const auto* form_control_element =
+            DynamicTo<HTMLFormControlElement>(object.GetNode());
+        form_control_element &&
+        MayContainSensitvePayment(form_control_element->FormControlType())) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+void AIPageContentAgent::ContentBuilder::AddNodeGeometry(
+    const LayoutObject& object,
+    mojom::blink::AIPageContentAttributes& attributes,
+    DOMNodeId accessibility_focused_node_id) {
+  if (!ShouldAddNodeGeometry(object, attributes,
+                             accessibility_focused_node_id)) {
     TrackPasswordRedactionIfNeeded(object, attributes);
     return;
   }
@@ -2364,25 +2514,27 @@ void AIPageContentAgent::ContentBuilder::AddPageInteractionInfo(
       *page_content.page_interaction_info;
 
   // Focused element
+  //
+  // TODO(crbug.com/415778689): Remove when consumers move to the frame data.
   if (Element* element = document.FocusedElement()) {
-    page_interaction_info.focused_dom_node_id = DOMNodeIds::IdForNode(element);
-    AddInteractiveNode(*page_interaction_info.focused_dom_node_id);
+    page_interaction_info.focused_dom_node_id = AddInteractiveNode(*element);
   }
 
+  LocalFrame* frame = document.GetFrame();
+  CHECK(frame);
+
   // Accessibility focus
-  if (AXObjectCache* ax_object_cache = document.ExistingAXObjectCache()) {
-    if (Node* ax_focused_node = ax_object_cache->GetAccessibilityFocus()) {
-      accessibility_focused_node_id_ = DOMNodeIds::IdForNode(ax_focused_node);
-      page_interaction_info.accessibility_focused_dom_node_id =
-          accessibility_focused_node_id_;
-      AddInteractiveNode(
-          *page_interaction_info.accessibility_focused_dom_node_id);
-    }
+  //
+  // TODO(crbug.com/415778689): Remove when consumers move to the frame data.
+  if (DOMNodeId accessibility_focused_node_id =
+          GetAccessibilityFocusedDOMNodeId(*frame);
+      accessibility_focused_node_id != kInvalidDOMNodeId) {
+    page_interaction_info.accessibility_focused_dom_node_id =
+        accessibility_focused_node_id;
+    AddInteractiveNode(accessibility_focused_node_id);
   }
 
   // Mouse location
-  LocalFrame* frame = document.GetFrame();
-  CHECK(frame);
   EventHandler& event_handler = frame->GetEventHandler();
   page_interaction_info.mouse_position =
       gfx::ToRoundedPoint(event_handler.LastKnownMousePositionInRootFrame());
@@ -2434,18 +2586,31 @@ void AIPageContentAgent::ContentBuilder::AddFrameInteractionInfo(
     Node* end_node = end_position.ComputeContainerNode();
 
     if (start_node) {
-      selection.start_dom_node_id = DOMNodeIds::IdForNode(start_node);
-      AddInteractiveNode(selection.start_dom_node_id);
+      selection.start_dom_node_id = AddInteractiveNode(*start_node);
 
       selection.start_offset = start_position.ComputeOffsetInContainerNode();
     }
 
     if (end_node) {
-      selection.end_dom_node_id = DOMNodeIds::IdForNode(end_node);
-      AddInteractiveNode(selection.end_dom_node_id);
+      selection.end_dom_node_id = AddInteractiveNode(*end_node);
 
       selection.end_offset = end_position.ComputeOffsetInContainerNode();
     }
+  }
+
+  // Focused element
+  if (Element* element = frame.GetDocument()->FocusedElement()) {
+    frame_interaction_info.focused_dom_node_id = DOMNodeIds::IdForNode(element);
+    AddInteractiveNode(*frame_interaction_info.focused_dom_node_id);
+  }
+
+  // Accessibility focus
+  if (DOMNodeId accessibility_focused_node_id =
+          GetAccessibilityFocusedDOMNodeId(frame);
+      accessibility_focused_node_id != kInvalidDOMNodeId) {
+    frame_interaction_info.accessibility_focused_dom_node_id =
+        accessibility_focused_node_id;
+    AddInteractiveNode(accessibility_focused_node_id);
   }
 }
 
@@ -2487,7 +2652,9 @@ void AIPageContentAgent::ContentBuilder::MaybeAddPopupData(
   ComputeHitTestableNodesInViewport(*popup_frame);
 
   auto mojom_popup = mojom::blink::AIPageContentPopup::New();
-  // Build the ContentNode tree.
+  // Build the ContentNode tree. We don't set accessibility_focused_node_id for
+  // popups because focus within transient popup windows is not tracked for
+  // frame-level interactions.
   auto web_popup_root_node = MaybeGenerateContentNode(
       *web_popup_layout_view, *web_popup_layout_view->Style());
   CHECK(web_popup_root_node);
@@ -2525,6 +2692,10 @@ void AIPageContentAgent::ContentBuilder::MaybeAddPopupData(
 
   // Add identifier for the node which opened the popup.
   mojom_popup->opener_dom_node_id = opener.GetDomNodeId();
+  DCHECK_NE(mojom_popup->opener_dom_node_id, kInvalidDOMNodeId);
+  // Always keep the popup opener id regardless of node-id policy so popup
+  // metadata can round-trip and browser-side actions can toggle the popup.
+  AddInteractiveNode(mojom_popup->opener_dom_node_id);
 
   frame_data.popup = std::move(mojom_popup);
 }

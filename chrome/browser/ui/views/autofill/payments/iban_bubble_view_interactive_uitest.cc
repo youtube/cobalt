@@ -29,6 +29,8 @@
 #include "components/autofill/core/browser/data_manager/personal_data_manager.h"
 #include "components/autofill/core/browser/form_import/form_data_importer.h"
 #include "components/autofill/core/browser/form_import/form_data_importer_test_api.h"
+#include "components/autofill/core/browser/form_import/payments/payments_form_data_importer.h"
+#include "components/autofill/core/browser/form_import/payments/payments_form_data_importer_test_api.h"
 #include "components/autofill/core/browser/foundations/browser_autofill_manager.h"
 #include "components/autofill/core/browser/foundations/test_autofill_manager_waiter.h"
 #include "components/autofill/core/browser/metrics/payments/iban_metrics.h"
@@ -90,17 +92,13 @@ class IbanBubbleViewFullFormBrowserTest
     std::vector<base::test::FeatureRef> disabled_features = {};
 
     const bool is_page_action_migration_enabled = std::get<0>(GetParam());
-    if (is_page_action_migration_enabled) {
-      enabled_features.push_back({
-          ::features::kPageActionsMigration,
-          {{
-              ::features::kPageActionsMigrationSavePayments.name,
-              "true",
-          }},
-      });
-    } else {
-      disabled_features.emplace_back(::features::kPageActionsMigration);
-    }
+    enabled_features.push_back({
+        ::features::kPageActionsMigration,
+        {{
+            ::features::kPageActionsMigrationSavePayments.name,
+            is_page_action_migration_enabled ? "true" : "false",
+        }},
+    });
 
     const bool is_wallet_branding_enabled = IsWalletBrandingEnabled();
     if (is_wallet_branding_enabled) {
@@ -184,9 +182,11 @@ class IbanBubbleViewFullFormBrowserTest
         ->set_url_loader_factory_for_testing(test_shared_loader_factory_);
 
     // Set up this class as the ObserverForTest implementation.
-    iban_save_manager_ =
-        test_api(*autofill_manager()->client().GetFormDataImporter())
-            .iban_save_manager();
+    iban_save_manager_ = test_api(autofill_manager()
+                                      ->client()
+                                      .GetFormDataImporter()
+                                      ->GetPaymentsFormDataImporter())
+                             .iban_save_manager();
     test_api(*iban_save_manager_).SetEventObserverForTesting(this);
     AddEventObserverToController();
   }

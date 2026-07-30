@@ -294,38 +294,15 @@ void OnClearedCookies(base::OnceClosure callback, uint32_t num_deleted) {
   std::move(callback).Run();
 }
 
-void CheckQuotaManagedDataDeletionStatus(size_t* deletion_task_count,
-                                         base::OnceClosure callback) {
-  DCHECK_CURRENTLY_ON(BrowserThread::IO);
-  if (*deletion_task_count == 0) {
-    delete deletion_task_count;
-    std::move(callback).Run();
-  }
-}
-
 void OnQuotaManagedBucketDeleted(const storage::BucketLocator& bucket,
-                                 size_t* deletion_task_count,
-                                 base::OnceClosure callback,
                                  blink::mojom::QuotaStatusCode status) {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
-  DCHECK_GT(*deletion_task_count, 0u);
   if (status != blink::mojom::QuotaStatusCode::kOk) {
     DLOG(ERROR) << "Couldn't remove data for bucket with storage key "
                 << bucket.storage_key.GetDebugString() << " is_default "
                 << bucket.is_default << " and bucket id " << bucket.id
                 << ". Status: " << static_cast<int>(status);
   }
-
-  (*deletion_task_count)--;
-  CheckQuotaManagedDataDeletionStatus(deletion_task_count, std::move(callback));
-}
-
-void PerformQuotaManagerStorageCleanup(
-    const scoped_refptr<storage::QuotaManager>& quota_manager,
-    storage::QuotaClientTypes quota_client_types,
-    base::OnceClosure callback) {
-  quota_manager->PerformStorageCleanup(std::move(quota_client_types),
-                                       std::move(callback));
 }
 
 void ClearedGpuCache(base::OnceClosure callback) {
@@ -455,7 +432,7 @@ class LoginHandlerDelegate {
       const net::AuthChallengeInfo& auth_info,
       bool is_request_for_primary_main_frame_navigation,
       bool is_request_for_navigation,
-      const network::OriginatingProcess& process_id,
+      const network::OriginatingProcessId& process_id,
       base::StrictNumeric<int32_t> request_id,
       const GURL& url,
       scoped_refptr<net::HttpResponseHeaders> response_headers,
@@ -2133,8 +2110,8 @@ void StoragePartitionImpl::OnAuthRequired(
   if (!is_navigation_request.has_value()) {
     is_navigation_request = context.IsNavigationRequestContext();
   }
-  network::OriginatingProcess process_id =
-      network::OriginatingProcess::browser();
+  network::OriginatingProcessId process_id =
+      network::OriginatingProcessId::browser();
   if (original_context.type() == ContextType::kSharedOrServiceWorkerContext) {
     // If the request was initiated by a service worker, use the service
     // worker's process ID. This ensures the `GlobalRequestID` used to look up
@@ -2148,7 +2125,7 @@ void StoragePartitionImpl::OnAuthRequired(
     // `render_frame_host` is not null. If `render_frame_host` is null,
     // later logic will call OnAuthCredentials() with a nullopt that triggers
     // CancelAuth().
-    process_id = network::OriginatingProcess();
+    process_id = network::OriginatingProcessId();
 
     // `navigation_or_document_` can be null when `context` is created with
     // an invalid RenderFrameHost after a page is destroyed.
@@ -2164,7 +2141,7 @@ void StoragePartitionImpl::OnAuthRequired(
       auto* render_frame_host = context.navigation_or_document()->GetDocument();
       if (render_frame_host) {
         process_id =
-            ToOriginatingProcess(render_frame_host->GetGlobalId().child_id);
+            ToOriginatingProcessId(render_frame_host->GetGlobalId().child_id);
       }
     }
   }
@@ -2424,7 +2401,7 @@ void StoragePartitionImpl::OnLocalNetworkAccessPermissionRequired(
         content::PermissionDescriptorUtil::
             CreatePermissionDescriptorForPermissionType(permission_type),
         content::RenderProcessHost::FromID(
-            ToChildProcessId(context.process_id().renderer_process())),
+            ToChildProcessId(context.process_id().renderer_process_id())),
         context.worker_origin().value());
 
     // If the request was loaded from cache, prefer retrying over the network
@@ -2733,7 +2710,7 @@ StoragePartitionImpl::CreateURLLoaderNetworkObserverForNavigationRequest(
 
 mojo::PendingRemote<network::mojom::URLLoaderNetworkServiceObserver>
 StoragePartitionImpl::CreateURLLoaderNetworkObserverForServiceOrSharedWorker(
-    const network::OriginatingProcess& process_id,
+    const network::OriginatingProcessId& process_id,
     const url::Origin& worker_origin) {
   mojo::PendingRemote<network::mojom::URLLoaderNetworkServiceObserver> remote;
   url_loader_network_observers_.Add(
@@ -2991,18 +2968,9 @@ void StoragePartitionImpl::QuotaManagedDataDeletionHelper::
   storage::QuotaClientTypes quota_client_types =
       StoragePartitionImpl::GenerateQuotaClientTypes(remove_mask_);
 
-  // The logic below (via CheckQuotaManagedDataDeletionStatus) only
-  // invokes the callback when all processing is complete.
-  base::OnceClosure done_callback =
-      perform_storage_cleanup
-          ? base::BindOnce(&PerformQuotaManagerStorageCleanup,
-                           base::WrapRefCounted(quota_manager),
-                           quota_client_types, std::move(callback))
-          : std::move(callback);
-
-  size_t* deletion_task_count = new size_t(0u);
-  (*deletion_task_count)++;
-  for (const auto& bucket : buckets) {
+  // Collect buckets that pass the filters.
+  std::vector<storage::BucketLocator> buckets_to_delete;
+  for (const storage::BucketLocator& bucket : buckets) {
     // TODO(mkwst): Clean this up, it's slow. http://crbug.com/130746
     if (storage_key_.has_value() && bucket.storage_key != *storage_key_) {
       continue;
@@ -3014,19 +2982,24 @@ void StoragePartitionImpl::QuotaManagedDataDeletionHelper::
       continue;
     }
 
-    auto split_callback = base::SplitOnceCallback(std::move(done_callback));
-    done_callback = std::move(split_callback.first);
+    buckets_to_delete.push_back(bucket);
+  }
 
-    (*deletion_task_count)++;
+  base::OnceClosure done_callback =
+      perform_storage_cleanup
+          ? base::BindOnce(&storage::QuotaManager::PerformStorageCleanup,
+                           quota_manager, quota_client_types,
+                           std::move(callback))
+          : std::move(callback);
+
+  base::RepeatingClosure barrier =
+      base::BarrierClosure(buckets_to_delete.size(), std::move(done_callback));
+
+  for (const storage::BucketLocator& bucket : buckets_to_delete) {
     quota_manager->DeleteBucketData(
         bucket, quota_client_types,
-        base::BindOnce(&OnQuotaManagedBucketDeleted, bucket,
-                       deletion_task_count, std::move(split_callback.second)));
+        base::BindOnce(&OnQuotaManagedBucketDeleted, bucket).Then(barrier));
   }
-  (*deletion_task_count)--;
-
-  CheckQuotaManagedDataDeletionStatus(deletion_task_count,
-                                      std::move(done_callback));
 }
 
 base::OnceClosure
@@ -3815,7 +3788,7 @@ StoragePartitionImpl::CreateURLLoaderFactoryParams() {
       network::mojom::URLLoaderFactoryParams::New();
   // This method is used for browser-process initiated requests for which there
   // is no corresponding RenderProcessHost.
-  params->process_id = network::OriginatingProcess::browser();
+  params->process_id = network::OriginatingProcessId::browser();
   params->automatically_assign_isolation_info = true;
   params->is_orb_enabled = false;
   params->is_trusted = true;
@@ -4026,7 +3999,7 @@ StoragePartitionImpl::URLLoaderNetworkContext::URLLoaderNetworkContext(
 }
 
 StoragePartitionImpl::URLLoaderNetworkContext::URLLoaderNetworkContext(
-    const network::OriginatingProcess& process_id,
+    const network::OriginatingProcessId& process_id,
     const url::Origin& worker_origin)
     : type_(Type::kSharedOrServiceWorkerContext),
       process_id_(process_id),

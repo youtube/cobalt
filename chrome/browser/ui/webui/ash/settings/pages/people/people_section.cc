@@ -9,6 +9,8 @@
 
 #include "ash/constants/ash_features.h"
 #include "ash/constants/ash_pref_names.h"
+#include "ash/constants/chrome_url_constants.h"
+#include "ash/constants/url_constants.h"
 #include "ash/edusumer/graduation_utils.h"
 #include "base/check.h"
 #include "base/check_deref.h"
@@ -41,8 +43,6 @@
 #include "chrome/browser/ui/webui/settings/people_handler.h"
 #include "chrome/browser/ui/webui/settings/profile_info_handler.h"
 #include "chrome/browser/ui/webui/settings/shared_settings_localized_strings_provider.h"
-#include "chrome/common/url_constants.h"
-#include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/branded_strings.h"
 #include "chrome/grit/browser_resources.h"
 #include "chrome/grit/generated_resources.h"
@@ -192,13 +192,13 @@ void AddAccountManagerPageStrings(content::WebUIDataSource* html_source,
           base::UTF8ToUTF16(user->GetDisplayEmail())));
 
   html_source->AddString("accountManagerLearnMoreUrl",
-                         chrome::kAccountManagerLearnMoreURL);
+                         ash::external_urls::kAccountManagerLearnMoreURL);
   html_source->AddLocalizedString(
       "accountManagerManagementDescription",
       profile->IsChild() ? IDS_SETTINGS_ACCOUNT_MANAGER_MANAGEMENT_STATUS_CHILD
                          : IDS_SETTINGS_ACCOUNT_MANAGER_MANAGEMENT_STATUS);
   html_source->AddString("accountManagerChromeUIManagementURL",
-                         chrome::kChromeUIManagementURL16);
+                         ash::chrome_urls::kChromeUIManagementURL16);
   html_source->AddString(
       "accountManagerDescription",
       l10n_util::GetStringFUTF16(IDS_SETTINGS_ACCOUNT_MANAGER_DESCRIPTION_V2,
@@ -326,8 +326,11 @@ void AddLockScreenPageStrings(content::WebUIDataSource* html_source,
                              IDS_SETTINGS_PEOPLE_LOCK_SCREEN_FINGERPRINT_NOTICE,
                              ui::GetChromeOSDeviceName()));
   html_source->AddString("fingerprintLearnMoreLink",
-                         chrome::kFingerprintLearnMoreURL);
-  html_source->AddString("recoveryLearnMoreUrl", chrome::kRecoveryLearnMoreURL);
+                         ash::external_urls::kFingerprintLearnMoreURL);
+  html_source->AddString("recoveryLearnMoreUrl",
+                         ash::external_urls::kRecoveryLearnMoreURL);
+  html_source->AddBoolean("managedLocalPinAndPasswordEnabled",
+                          ash::features::IsManagedLocalPinAndPasswordEnabled());
 }
 
 void AddFingerprintListStrings(content::WebUIDataSource* html_source) {

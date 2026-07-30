@@ -276,21 +276,23 @@ void GlicWindowControllerImpl::ShowAfterSignIn(base::WeakPtr<Browser> browser) {
          // Prefer the source that triggered the sign-in, but if that's not
          // available, report it as coming from the sign-in flow.
          opening_source_.value_or(mojom::InvocationSource::kAfterSignIn),
-         prompt_suggestion_, false /* auto_send */);
+         prompt_suggestion_, false /* auto_send */, std::nullopt);
 }
 
 void GlicWindowControllerImpl::Toggle(
     BrowserWindowInterface* bwi,
     bool prevent_close,
     mojom::InvocationSource source,
-    std::optional<std::string> prompt_suggestion,
-    bool auto_send) {
+    std::optional<std::string> deprecated_prompt_suggestion,
+    bool deprecated_auto_send,
+    std::optional<std::string> deprecated_conversation_id) {
   Browser* new_attached_browser =
       bwi ? bwi->GetBrowserForMigrationOnly() : nullptr;
 
   if (!AlwaysDetached()) {
     ToggleWhenNotAlwaysDetached(new_attached_browser, prevent_close, source,
-                                prompt_suggestion, auto_send);
+                                deprecated_prompt_suggestion,
+                                deprecated_auto_send);
     return;
   }
 
@@ -302,7 +304,8 @@ void GlicWindowControllerImpl::Toggle(
 
   // If floaty is closed, open floaty
   if (state_ == State::kClosed) {
-    Show(new_attached_browser, source, prompt_suggestion, /*auto_send=*/false);
+    Show(new_attached_browser, source, deprecated_prompt_suggestion,
+         /*auto_send=*/false);
     return;
   }
 
@@ -713,10 +716,6 @@ void GlicWindowControllerImpl::ClientReadyToShow(
   if (state_ == State::kWaitingForGlicToLoad) {
     GlicLoadedAndReadyToDisplay();
   }
-}
-
-void GlicWindowControllerImpl::OnViewChanged(mojom::CurrentView view) {
-  state_change_callback_list_.Notify(IsShowing(), view);
 }
 
 void GlicWindowControllerImpl::ContextAccessIndicatorChanged(bool enabled) {
@@ -1302,10 +1301,9 @@ GlicWindowControllerImpl::AddWindowActivationChangedCallback(
 base::CallbackListSubscription
 GlicWindowControllerImpl::AddGlobalShowHideCallback(
     base::RepeatingClosure callback) {
-  return RegisterStateChange(
-      base::BindRepeating([](base::RepeatingClosure callback, bool,
-                             mojom::CurrentView) { callback.Run(); },
-                          std::move(callback)));
+  return RegisterStateChange(base::BindRepeating(
+      [](base::RepeatingClosure callback, bool) { callback.Run(); },
+      std::move(callback)));
 }
 
 void GlicWindowControllerImpl::Preload() {
@@ -1410,8 +1408,7 @@ void GlicWindowControllerImpl::SetWindowState(State new_state) {
     }
   }
 
-  state_change_callback_list_.Notify(IsShowing(),
-                                     host_.GetPrimaryCurrentView());
+  state_change_callback_list_.Notify(IsShowing());
 
   if (IsWindowOpenAndReady()) {
     glic_service_->metrics()->OnGlicWindowOpenAndReady();

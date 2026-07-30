@@ -10,6 +10,9 @@ import android.widget.TextView;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.search_engines.R;
+import org.chromium.chrome.browser.search_engines.settings.common.SearchEngineListPreference;
+import org.chromium.ui.listmenu.ListMenuButton;
+import org.chromium.ui.listmenu.ListMenuDelegate;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
 
@@ -27,10 +30,18 @@ public class CustomSearchEngineViewBinder {
                     .setImageBitmap(model.get(CustomSearchEngineProperties.ICON));
         } else if (CustomSearchEngineProperties.CLICK_LISTENER == propertyKey) {
             view.setOnClickListener(model.get(CustomSearchEngineProperties.CLICK_LISTENER));
-        } else if (CustomSearchEngineProperties.MENU_CLICK_LISTENER == propertyKey) {
-            view.findViewById(R.id.overflow_menu_button)
-                    .setOnClickListener(
-                            model.get(CustomSearchEngineProperties.MENU_CLICK_LISTENER));
+        } else if (CustomSearchEngineProperties.MENU_DELEGATE == propertyKey) {
+            ListMenuButton button = (ListMenuButton) view.findViewById(R.id.overflow_menu_button);
+            ListMenuDelegate delegate = model.get(CustomSearchEngineProperties.MENU_DELEGATE);
+            button.setDelegate(delegate);
+            button.setEnabled(delegate != null);
+        }
+    }
+
+    public static void bindPreference(
+            PropertyModel model, SearchEngineListPreference pref, PropertyKey propertyKey) {
+        if (CustomSearchEngineProperties.ADAPTER == propertyKey) {
+            pref.setAdapter(model.get(CustomSearchEngineProperties.ADAPTER));
         }
     }
 }

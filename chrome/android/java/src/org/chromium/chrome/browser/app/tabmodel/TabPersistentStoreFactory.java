@@ -63,7 +63,7 @@ public class TabPersistentStoreFactory {
                 public void onShadowStoreRazed() {}
 
                 @Override
-                public void onAllShadowStoresRazed() {}
+                public void onAllStoresRazed() {}
 
                 @Override
                 public void onWindowCleared() {}
@@ -116,7 +116,11 @@ public class TabPersistentStoreFactory {
                     windowTag,
                     tabCreatorManager,
                     tabPersistencePolicy,
-                    cipherFactory);
+                    migrationManager,
+                    cipherFactory,
+                    new TabCountTracker(windowTag),
+                    ModelTrackingOrchestrator::new,
+                    /* isAuthoritative= */ true);
         }
         throw new IllegalStateException();
     }
@@ -231,7 +235,8 @@ public class TabPersistentStoreFactory {
             AccumulatingTabCreator regularShadowTabCreator,
             String orchestratorTag) {
         if (migrationManager == null) migrationManager = sDefaultManager;
-        if (migrationManager.getShadowStoreType() != StoreType.TAB_STATE_STORE) return null;
+        @StoreType int shadowStoreType = migrationManager.getShadowStoreType();
+        if (shadowStoreType != StoreType.TAB_STATE_STORE) return null;
         assert isTabStorageEnabled();
 
         TabPersistentStore shadowTabPersistentStore =
@@ -240,7 +245,11 @@ public class TabPersistentStoreFactory {
                         windowTag,
                         shadowTabCreatorManager,
                         tabPersistencePolicy,
-                        cipherFactory);
+                        migrationManager,
+                        cipherFactory,
+                        new TabCountTracker(windowTag),
+                        ModelTrackingOrchestrator::new,
+                        /* isAuthoritative= */ false);
 
         new ShadowTabStoreValidator(
                 authoritativeStore,
@@ -249,6 +258,8 @@ public class TabPersistentStoreFactory {
                 regularShadowTabCreator,
                 migrationManager,
                 orchestratorTag);
+
+        migrationManager.onShadowStoreCreated(shadowStoreType);
         return shadowTabPersistentStore;
     }
 }

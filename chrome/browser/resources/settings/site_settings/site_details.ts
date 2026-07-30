@@ -151,6 +151,13 @@ export class SiteDetailsElement extends SiteDetailsElementBase {
               'enableSmartCardReadersContentSetting');
         },
       },
+      enableWebPrintingContentSetting_: {
+        type: Boolean,
+        value() {
+          return loadTimeData.getBoolean(
+              'enableWebPrintingContentSetting');
+        },
+      },
       // </if>
 
       enableHandTrackingContentSetting_: {
@@ -162,12 +169,6 @@ export class SiteDetailsElement extends SiteDetailsElementBase {
       enableCapturedSurfaceControl_: {
         type: Boolean,
         value: () => loadTimeData.getBoolean('enableCapturedSurfaceControl'),
-      },
-
-      enablePermissionSiteSettingsRadioButton_: {
-        type: Boolean,
-        value: () =>
-            loadTimeData.getBoolean('enablePermissionSiteSettingsRadioButton'),
       },
 
       contentSettingsTypesEnum_: {
@@ -225,10 +226,10 @@ export class SiteDetailsElement extends SiteDetailsElementBase {
   declare private enableWebBluetoothNewPermissionsBackend_: boolean;
   // <if expr="is_chromeos">
   declare private enableSmartCardReadersContentSetting_: boolean;
+  declare private enableWebPrintingContentSetting_: boolean;
   // </if>
   declare private enableCapturedSurfaceControl_: boolean;
   declare private enableHandTrackingContentSetting_: boolean;
-  declare private enablePermissionSiteSettingsRadioButton_: boolean;
   declare private enableWebAppInstallation_: boolean;
   private websiteUsageProxy_: WebsiteUsageBrowserProxy =
       WebsiteUsageBrowserProxyImpl.getInstance();

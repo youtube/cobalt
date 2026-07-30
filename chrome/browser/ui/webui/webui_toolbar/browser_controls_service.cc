@@ -111,19 +111,41 @@ MetricsReporter* BrowserControlsService::GetMetricsReporter() {
   return service ? service->metrics_reporter() : nullptr;
 }
 
-void BrowserControlsService::AddObserver(
-    mojo::PendingRemote<browser_controls_api::mojom::BrowserControlsObserver>
-        observer) {
-  if (observer_.is_bound()) {
-    observer_.reset();
+void BrowserControlsService::Bind(BindCallback callback) {
+  auto result = browser_controls_api::mojom::InitialState::New();
+  if (delegate_) {
+    result->state = delegate_->GetNavigationControlsState();
+  } else {
+    // This is only used by one unit-test.  Potentially consider removing.
+    result->state = browser_controls_api::mojom::NavigationControlsState::New(
+        browser_controls_api::mojom::ReloadControlState::New(),
+        browser_controls_api::mojom::SplitTabsControlState::New(),
+        browser_controls_api::mojom::LayoutConstants::New());
   }
-  observer_.Bind(std::move(observer));
+
+  mojo::Remote<browser_controls_api::mojom::BrowserControlsObserver> observer;
+  result->update_stream = observer.BindNewPipeAndPassReceiver();
+
+  observers_.Add(std::move(observer));
+
+  std::move(callback).Run(std::move(result));
 }
 
 void BrowserControlsService::ReloadFromClick(
     bool bypass_cache,
     const std::vector<browser_controls_api::mojom::ClickDispositionFlag>&
         click_flags) {
+  // This is called in order to signal that external protocol dialogs are
+  // allowed to show due to a user action, which are likely to happen on the
+  // next page load after the reload button is clicked.
+  // Ideally, the browser UI's event system would notify ExternalProtocolHandler
+  // that a user action occurred and we are OK to open the dialog, but for some
+  // reason that isn't happening every time the reload button is clicked. See
+  // http://crbug.com/1206456
+  if (delegate_) {
+    delegate_->PermitLaunchUrl();
+  }
+
   command_updater_->ExecuteCommandWithDisposition(
       bypass_cache ? IDC_RELOAD_BYPASSING_CACHE : IDC_RELOAD,
       ui::DispositionFromEventFlags(ToUIEventFlags(click_flags)));
@@ -183,32 +205,17 @@ void BrowserControlsService::OnPageInitialized() {
   }
 }
 
-void BrowserControlsService::OnDevToolsStatusChanged(
-    browser_controls_api::mojom::DevToolsState state) {
-  if (observer_) {
-    observer_->OnDevToolsStatusChanged(state);
-  }
-}
-
-void BrowserControlsService::OnNavigationStatusChanged(
-    browser_controls_api::mojom::NavigationState state) {
+void BrowserControlsService::OnNavigationControlsStateChanged(
+    browser_controls_api::mojom::NavigationControlsStatePtr state) {
   if (auto* metrics_reporter = GetMetricsReporter()) {
-    auto* mark = state == browser_controls_api::mojom::NavigationState::kLoading
+    auto* mark = state->reload_control_state->is_navigation_loading
                      ? kChangeVisibleModeToLoadingStartMark
                      : kChangeVisibleModeToNotLoadingStartMark;
     metrics_reporter->Mark(mark);
   }
 
-  if (observer_) {
-    observer_->OnNavigationStatusChanged(state);
-  }
-}
-
-void BrowserControlsService::OnContextMenuStateChanged(
-    browser_controls_api::mojom::ContextMenuType menu_type,
-    browser_controls_api::mojom::ContextMenuState state) {
-  if (observer_) {
-    observer_->OnContextMenuStateChanged(menu_type, state);
+  for (auto& observer : observers_) {
+    observer->OnNavigationControlsStateChanged(state.Clone());
   }
 }
 
@@ -219,34 +226,9 @@ void BrowserControlsService::SplitActiveTab() {
                       split_tabs::SplitTabCreatedSource::kToolbarButton);
 }
 
-void BrowserControlsService::GetTabSplitState(
-    GetTabSplitStateCallback callback) {
-  webui_toolbar::TabSplitStatus status =
-      webui_toolbar::ComputeTabSplitStatus(browser_);
-  std::move(callback).Run(status.is_split, status.location);
-}
-
-void BrowserControlsService::GetButtonPinState(
-    browser_controls_api::mojom::ToolbarButtonType type,
-    GetButtonPinStateCallback callback) {
-  bool is_pinned = webui_toolbar::IsButtonPinned(browser_, type);
-  std::move(callback).Run(is_pinned);
-}
-
-void BrowserControlsService::OnTabSplitStatusChanged(
-    bool is_split,
-    browser_controls_api::mojom::SplitTabActiveLocation location) {
-  if (observer_) {
-    observer_->OnTabSplitStatusChanged(is_split, location);
-  }
-}
-
-void BrowserControlsService::OnButtonPinStateChanged(
-    browser_controls_api::mojom::ToolbarButtonType type,
-    bool is_pinned) {
-  if (observer_) {
-    observer_->OnButtonPinStateChanged(type, is_pinned);
-  }
+void BrowserControlsService::SetDelegate(
+    BrowserControlsServiceDelegate* delegate) {
+  delegate_ = delegate;
 }
 
 void BrowserControlsService::OnMeasureResultAndClearMark(

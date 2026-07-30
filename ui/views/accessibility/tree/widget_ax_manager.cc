@@ -32,6 +32,7 @@ bool ShouldSerializeEvent(Event event_type) {
   // Events that are serialized and forwarded to BrowserAccessibilityManager.
   switch (event_type) {
     // TODO(crbug.com/40672441): Add events that must be serialized directly.
+    case Event::kControlsChanged:
     case Event::kEndOfTest:
     // TODO(crbug.com/40672441): kFocus is only needed here for tests while
     // are migrating to ViewsAX.
@@ -73,7 +74,6 @@ bool ShouldSerializeEvent(Event event_type) {
   switch (event_type) {
     case Event::kAlert:
     case Event::kCheckedStateChanged:
-    case Event::kControlsChanged:
     case Event::kExpandedChanged:
     case Event::kFocusAfterMenuClose:
     case Event::kFocusContext:
@@ -351,7 +351,15 @@ gfx::NativeWindow WidgetAXManager::GetTopLevelNativeWindow() {
 }
 
 bool WidgetAXManager::CanFireAccessibilityEvents() const {
-  return widget_ ? widget_->IsActive() : false;
+  // Use IsVisible() instead of IsActive() so that popup widgets (e.g. menus,
+  // tooltips) that are shown inactive via ShowInactive() can still fire
+  // accessibility events. Also check IsNativeWidgetInitialized() because this
+  // method can be called during Widget::Init() before the native widget's
+  // window has a layer.
+  // TODO(crbug.com/40672441): This probably allows events from being fired from background
+  // windows. Confirm this is the behavior we want.
+  return widget_ && widget_->IsNativeWidgetInitialized() &&
+         widget_->IsVisible();
 }
 
 bool WidgetAXManager::AccessibilityIsRootFrame() const {

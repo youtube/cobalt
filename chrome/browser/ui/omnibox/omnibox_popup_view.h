@@ -16,9 +16,10 @@
 #include <string_view>
 
 #include "base/memory/raw_ptr.h"
+#include "components/omnibox/browser/omnibox_popup_selection.h"
+#include "ui/base/window_open_disposition.h"
 
 class OmniboxController;
-class OmniboxPopupViewWebUI;
 class OmniboxResultView;
 class OmniboxSuggestionButtonRowView;
 namespace ui {
@@ -57,7 +58,15 @@ class OmniboxPopupView {
   virtual std::u16string_view GetAccessibleButtonTextForResult(
       size_t line) const;
 
-  virtual raw_ptr<OmniboxPopupViewWebUI> GetOmniboxPopupViewWebUI() = 0;
+  // Informs the popup of user intent to change popup selection.
+  virtual void StepSelection(OmniboxPopupSelection::Direction direction,
+                             OmniboxPopupSelection::Step step) {}
+
+  // Informs the popup of user intent to open its current selection.
+  virtual void OpenCurrentSelection(WindowOpenDisposition disposition) {}
+
+  // Returns true if the popup controls its own selection state.
+  virtual bool IsSelectionPopupControlled() const = 0;
 
  protected:
   friend class OmniboxResultView;

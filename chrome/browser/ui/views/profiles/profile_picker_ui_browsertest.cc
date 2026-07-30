@@ -15,7 +15,6 @@
 #include "base/thread_annotations.h"
 #include "chrome/browser/enterprise/browser_management/management_service_factory.h"
 #include "chrome/browser/enterprise/util/managed_browser_utils.h"
-#include "chrome/browser/first_run/first_run_features.h"
 #include "chrome/browser/profiles/profile_attributes_storage.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
@@ -191,6 +190,11 @@ const ProfilePickerTestParam kTestParams[] = {
                           .use_dark_theme = true},
      .use_multiple_profiles = true,
      .use_refreshed_ui = true},
+    {.pixel_test_param =
+         {.test_suffix = "RefreshedUIOpenAllProfilesExperimentButtonShown"},
+     .use_multiple_profiles = true,
+     .use_refreshed_ui = true,
+     .open_all_profiles_experiment_enabled = true},
 };
 
 enum class ProfileStatus {
@@ -292,22 +296,21 @@ class ProfilePickerUIPixelTest
  public:
   ProfilePickerUIPixelTest()
       : ProfilesPixelTestBaseT<UiBrowserTest>(GetParam().pixel_test_param) {
+    std::vector<base::test::FeatureRefAndParams> enabled_features;
     if (!GetParam().text_variation_feature_param.empty()) {
-      scoped_feature_list_.InitWithFeaturesAndParameters(
-          {{switches::kProfilePickerTextVariations,
-            {{"profile-picker-variation",
-              GetParam().text_variation_feature_param}}}},
-          {});
+      enabled_features.push_back({switches::kProfilePickerTextVariations,
+                                  {{"profile-picker-variation",
+                                    GetParam().text_variation_feature_param}}});
     }
     if (GetParam().open_all_profiles_experiment_enabled) {
-      scoped_feature_list_.InitAndEnableFeature(
-          switches::kOpenAllProfilesFromProfilePickerExperiment);
+      enabled_features.push_back(
+          {switches::kOpenAllProfilesFromProfilePickerExperiment, {}});
+    }
+    if (GetParam().use_refreshed_ui) {
+      enabled_features.push_back({switches::kFirstRunDesktopRefresh, {}});
     }
 
-    if (GetParam().use_refreshed_ui) {
-      scoped_feature_list_.InitAndEnableFeature(
-          features::kFirstRunDesktopRefresh);
-    }
+    scoped_feature_list_.InitWithFeaturesAndParameters(enabled_features, {});
   }
 
   ForceSigninUIError GetForceSigninUIError() {
@@ -341,6 +344,8 @@ class ProfilePickerUIPixelTest
         return SigninUIError::UsernameNotAllowedByPatternFromPrefs(kEmail);
       case SigninUIError::Type::kWrongReauthAccount:
         return SigninUIError::WrongReauthAccount(kEmail, kOtherEmail);
+      case SigninUIError::Type::kAccountAlreadyUsedByAnotherProfile:
+        NOTREACHED() << "Not tested yet.";
       case SigninUIError::Type::kProfileWasUsedByAnotherAccount:
         // This error uses a dedicated profile picker view, not the modal error
         // dialog. See `ProfilePickerSignInProvider::ShowSigninError`.

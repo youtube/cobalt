@@ -1934,8 +1934,12 @@ void WebView::ApplyWebPreferences(const web_pref::WebPreferences& prefs,
   RuntimeEnabledFeatures::SetPaymentRequestEnabled(
       prefs.payment_request_enabled);
 
-  if (prefs.ai_prompt_api_enabled) {
+  if (prefs.ai_ot_apis_enabled) {
     RuntimeEnabledFeatures::SetAIPromptAPIEnabled(true);
+    RuntimeEnabledFeatures::SetAIPromptAPIMultimodalInputEnabled(true);
+    RuntimeEnabledFeatures::SetAIProofreadingAPIEnabled(true);
+    RuntimeEnabledFeatures::SetAIRewriterAPIEnabled(true);
+    RuntimeEnabledFeatures::SetAIWriterAPIEnabled(true);
   }
 
 #if BUILDFLAG(IS_MAC) && BUILDFLAG(USE_EXTERNAL_POPUP_MENU)
@@ -2999,10 +3003,10 @@ void WebViewImpl::UpdatePageDefinedViewportConstraints(
 
   Document* document = GetPage()->DeprecatedLocalMainFrame()->GetDocument();
 
-  Length default_min_width =
+  ViewportLength default_min_width =
       document->GetViewportData().ViewportDefaultMinWidth();
   if (default_min_width.IsAuto())
-    default_min_width = Length::ExtendToZoom();
+    default_min_width = ViewportLength::ExtendToZoom();
 
   float old_initial_scale =
       GetPageScaleConstraintsSet().PageDefinedConstraints().initial_scale;
@@ -3012,11 +3016,12 @@ void WebViewImpl::UpdatePageDefinedViewportConstraints(
   if (SettingsImpl()->ClobberUserAgentInitialScaleQuirk() &&
       GetPageScaleConstraintsSet().UserAgentConstraints().initial_scale != -1 &&
       GetPageScaleConstraintsSet().UserAgentConstraints().initial_scale <= 1) {
-    if (description.max_width == Length::DeviceWidth() ||
+    if (description.max_width.IsDeviceWidth() ||
         (description.max_width.IsAuto() &&
          GetPageScaleConstraintsSet().PageDefinedConstraints().initial_scale ==
-             1.0f))
+             1.0f)) {
       SetInitialPageScaleOverride(-1);
+    }
   }
 
   Settings& page_settings = GetPage()->GetSettings();

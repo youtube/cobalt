@@ -1141,7 +1141,6 @@ gl::GLSurface* RasterDecoderImpl::GetGLSurface() {
 Capabilities RasterDecoderImpl::GetCapabilities() {
   // TODO(enne): reconcile this with gles2_cmd_decoder's capability settings.
   Capabilities caps;
-  caps.mappable_formats = feature_info()->feature_flags().mappable_formats;
   caps.texture_format_bgra8888 =
       feature_info()->feature_flags().ext_texture_format_bgra8888;
   caps.disable_mac_swangle_rgbx =
@@ -1154,16 +1153,11 @@ Capabilities RasterDecoderImpl::GetCapabilities() {
   caps.texture_format_etc1_npot =
       feature_info()->feature_flags().oes_compressed_etc1_rgb8_texture &&
       !feature_info()->workarounds().etc1_power_of_two_only;
-  caps.image_ycbcr_420v =
-      feature_info()->feature_flags().chromium_image_ycbcr_420v;
   caps.image_ar30 = feature_info()->feature_flags().chromium_image_ar30;
   caps.image_ab30 = feature_info()->feature_flags().chromium_image_ab30;
-  caps.image_ycbcr_p010 =
-      feature_info()->feature_flags().chromium_image_ycbcr_p010;
   caps.render_buffer_format_bgra8888 =
       feature_info()->feature_flags().ext_render_buffer_format_bgra8888;
 
-  caps.chromium_gpu_fence = feature_info()->feature_flags().chromium_gpu_fence;
   caps.mesa_framebuffer_flip_y =
       feature_info()->feature_flags().mesa_framebuffer_flip_y;
 
@@ -1244,16 +1238,8 @@ Capabilities RasterDecoderImpl::GetCapabilities() {
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_CHROMEOS)
-  base::EraseIf(caps.drm_formats_and_modifiers, [&](const auto& format) {
-    auto drm_format = format.first;
-    return !ui::IsValidDrmFormat(drm_format) ||
-           !caps.mappable_formats.contains(
-               ui::GetSharedImageFormatFromFourCCFormat(drm_format));
-  });
-  if (caps.drm_formats_and_modifiers.empty()) {
-    gles2::PopulateEmptyDRMCaps(caps.mappable_formats,
-                                caps.drm_formats_and_modifiers);
-  }
+  gles2::PopulateMappableDrmFormatsForExo(caps.drm_formats_and_modifiers,
+                                          feature_info());
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
   return caps;

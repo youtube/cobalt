@@ -28,6 +28,7 @@
 #include "chrome/browser/ui/views/tabs/tab_strip_nudge_button.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/grit/generated_resources.h"
+#include "components/feature_engagement/public/feature_constants.h"
 #include "components/tabs/public/tab_interface.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
@@ -50,6 +51,7 @@
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/resources/grit/glic_browser_resources.h"
+#include "chrome/browser/ui/tabs/glic_actor_nudge_controller.h"
 #include "chrome/browser/ui/tabs/glic_actor_task_icon_manager.h"
 #include "chrome/browser/ui/tabs/glic_actor_task_icon_manager_factory.h"
 #include "chrome/browser/ui/tabs/tab_style.h"
@@ -59,11 +61,11 @@
 #include "base/feature_list.h"
 #include "base/types/expected.h"
 #include "chrome/browser/contextual_cueing/contextual_cueing_features.h"
-#include "chrome/browser/legion/private_ai_service.h"
-#include "chrome/browser/legion/private_ai_service_factory.h"
-#include "components/legion/client.h"
-#include "components/legion/features.h"
-#include "components/legion/legion_common.h"
+#include "chrome/browser/private_ai/private_ai_service.h"
+#include "chrome/browser/private_ai/private_ai_service_factory.h"
+#include "components/private_ai/client.h"
+#include "components/private_ai/error_code.h"
+#include "components/private_ai/features.h"
 #endif  // !BUILDFLAG(IS_ANDROID)
 #endif  // BUILDFLAG(ENABLE_GLIC)
 namespace {
@@ -83,26 +85,20 @@ constexpr int kLargeSpaceBetweenSeparatorRight = 8;
 constexpr int kLargeSpaceBetweenSeparatorLeft = 2;
 #endif  // !BUILDFLAG(IS_MAC)
 #if !BUILDFLAG(IS_ANDROID)
-void PrewarmLegionSession(Profile* profile) {
+void EstablishLegionConnection(Profile* profile) {
   if (!profile) {
     return;
   }
-  if (base::FeatureList::IsEnabled(legion::kLegion) &&
+  if (base::FeatureList::IsEnabled(private_ai::kPrivateAi) &&
       base::FeatureList::IsEnabled(
-          contextual_cueing::kZeroStateSuggestionsUseLegion)) {
-    legion::PrivateAiService* private_ai_service =
-        legion::PrivateAiServiceFactory::GetForProfile(profile);
+          contextual_cueing::kZeroStateSuggestionsUsePrivateAi)) {
+    private_ai::PrivateAiService* private_ai_service =
+        private_ai::PrivateAiServiceFactory::GetForProfile(profile);
     if (private_ai_service) {
-      legion::Client* client = private_ai_service->GetClient();
+      private_ai::Client* client = private_ai_service->GetClient();
       if (client) {
-        // Prewarm the session.
-        client->EstablishSession(
-            base::BindOnce([](base::expected<void, legion::ErrorCode> result) {
-              if (!result.has_value()) {
-                LOG(ERROR) << "Failed to prewarm Legion session: "
-                           << static_cast<int>(result.error());
-              }
-            }));
+        // Eagerly establish the connection.
+        client->EstablishConnection();
       }
     }
   }
@@ -289,6 +285,7 @@ TabStripActionContainer::TabStripActionContainer(
           AddChildView(CreateGlicActorButtonContainer());
       glic_actor_task_icon_ =
           glic_actor_button_container_->AddChildView(CreateGlicActorTaskIcon());
+      glic_actor_task_icon_->SetVisible(false);
       glic_actor_button_container_->SetVisible(false);
     }
     glic_button_ = AddChildView(CreateGlicButton());
@@ -475,7 +472,7 @@ void TabStripActionContainer::OnGlicButtonDismissed() {
 void TabStripActionContainer::OnGlicButtonHovered() {
   Profile* const profile = browser_window_interface_->GetProfile();
 #if !BUILDFLAG(IS_ANDROID)
-  PrewarmLegionSession(profile);
+  EstablishLegionConnection(profile);
 #endif  // !BUILDFLAG(IS_ANDROID)
   glic::GlicKeyedService* glic_service =
       glic::GlicKeyedServiceFactory::GetGlicKeyedService(profile);
@@ -856,6 +853,16 @@ void TabStripActionContainer::OnTabStripNudgeButtonTimeout(
   // Hide the button if not pressed. Use locked expansion mode to avoid
   // disrupting the user.
   HideTabStripNudge(button);
+}
+
+void TabStripActionContainer::AddedToWidget() {
+  views::View::AddedToWidget();
+#if BUILDFLAG(ENABLE_GLIC)
+  if (auto* controller =
+          tabs::GlicActorNudgeController::From(browser_window_interface_)) {
+    controller->UpdateCurrentActorNudgeState();
+  }
+#endif
 }
 
 void TabStripActionContainer::MouseMovedOutOfHost() {

@@ -366,13 +366,9 @@ public class AndroidPaymentAppFinder implements ManifestVerifyCallback {
                     String.join(", ", getActivityPackageNames(allInstalledPaymentApps)));
         }
 
-        boolean isReadyToPayQueryRestricted =
-                !mFactoryDelegate.getParams().prefsCanMakePayment()
-                        && PaymentFeatureList.isEnabledOrExperimentalFeaturesEnabled(
-                                PaymentFeatureList.RESTRICT_IS_READY_TO_PAY_QUERY);
         if (mIsOffTheRecord) {
             Log.i(TAG, "Off the record, skipping isReadyToPay service registration.");
-        } else if (isReadyToPayQueryRestricted) {
+        } else if (!mFactoryDelegate.getParams().prefsCanMakePayment()) {
             Log.i(
                     TAG,
                     "Payment app checking disabled, skipping isReadyToPay service registration.");
@@ -826,12 +822,12 @@ public class AndroidPaymentAppFinder implements ManifestVerifyCallback {
                 isReadyToPay);
 
         app.setHasEnrolledInstrument(isReadyToPay);
-        if (isReadyToPay
-                || PaymentFeatureList.isEnabledOrExperimentalFeaturesEnabled(
-                        PaymentFeatureList.ALLOW_SHOW_WITHOUT_READY_TO_PAY)) {
-            onCanMakePaymentCalculated(true);
-            mFactoryDelegate.onPaymentAppCreated(app);
-        }
+
+        // Whether or not the underlying app reports that it has an enrolled instrument, we should
+        // still register the app. It is up to the website to ultimately decide if it wants to
+        // invoke the payment app via show().
+        onCanMakePaymentCalculated(true);
+        mFactoryDelegate.onPaymentAppCreated(app);
 
         if (--mPendingIsReadyToPayQueries == 0) {
             mFactoryDelegate.onDoneCreatingPaymentApps(mFactory);
@@ -912,8 +908,6 @@ public class AndroidPaymentAppFinder implements ManifestVerifyCallback {
                             mIsOffTheRecord,
                             webAppIdCanDeduped,
                             appSupportedDelegations,
-                            PaymentFeatureList.isEnabledOrExperimentalFeaturesEnabled(
-                                    PaymentFeatureList.ALLOW_SHOW_WITHOUT_READY_TO_PAY),
                             PaymentFeatureList.isEnabled(
                                     PaymentFeatureList.SHOW_READY_TO_PAY_DEBUG_INFO),
                             /* removeDeprecatedFields= */ PaymentFeatureList

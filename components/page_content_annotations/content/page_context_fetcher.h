@@ -170,6 +170,7 @@ enum class FetchPageContextError {
   kWebContentsChanged,
   // The context is not eligible for sharing.
   kPageContextNotEligible,
+  kWebContentsWentAway,
 };
 
 std::string ToString(FetchPageContextError error);
@@ -189,6 +190,9 @@ BASE_DECLARE_FEATURE(kGlicTabScreenshotExperiment);
 
 // Controls whether password fields are redacted from screenshots.
 BASE_DECLARE_FEATURE(kGlicScreenshotPasswordRedaction);
+
+// Controls whether sensitive payment fields are redacted from screenshots.
+BASE_DECLARE_FEATURE(kGlicScreenshotSensitivePaymentRedaction);
 
 extern const base::FeatureParam<int> kMaxScreenshotWidthParam;
 
@@ -248,7 +252,7 @@ class PageContextFetcher : public content::WebContentsObserver {
   void ReceivedViewportBitmap(const content::CopyFromSurfaceResult& result);
 
   void RedactAndEncodeScreenshot(
-      std::vector<gfx::Rect> visible_bounding_boxes_for_password_redaction);
+      std::vector<gfx::Rect> visible_bounding_boxes_for_redaction);
 
   void RedactAndEncodeScreenshotIfNeeded();
 
@@ -281,6 +285,7 @@ class PageContextFetcher : public content::WebContentsObserver {
   // screenshot processing dependencies.
   std::optional<SkBitmap> screenshot_bitmap_;
   bool screenshot_needs_password_redaction_ = false;
+  bool screenshot_needs_sensitive_payment_redaction_ = false;
 
   // Intermediate results:
 

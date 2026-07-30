@@ -7,6 +7,7 @@
 
 #include <vector>
 
+#include "components/password_manager/core/browser/password_store/actionable_error.h"
 #include "components/password_manager/core/browser/password_store/password_store_change.h"
 #include "components/password_manager/core/browser/password_store/password_store_consumer.h"
 
@@ -15,21 +16,24 @@ namespace password_manager {
 // Aggregates a vector of PasswordChangesOrError into a single
 // PasswordChangesOrError. Does not check for duplicate values.
 // Will return first occurred error if any.
-PasswordChanges JoinPasswordStoreChanges(
-    const std::vector<PasswordChangesOrError>& changes);
+PasswordChangesOrError JoinPasswordStoreChanges(
+    const std::vector<PasswordChangesOrError>& changes_to_join);
 
 // Returns logins if |result| holds them, or an empty list if |result|
 // holds an error.
 LoginsResult GetLoginsOrEmptyListOnFailure(LoginsResultOrError result);
 
-// Returns password changes if |result| holds them, or std::nullopt if |result|
-// holds an std::nullopt or error.
-PasswordChanges GetPasswordChangesOrNulloptOnFailure(
-    PasswordChangesOrError result);
-
 // Wraps all password forms in the provided vector in a unique pointer.
 std::vector<std::unique_ptr<PasswordForm>> ConvertPasswordToUniquePtr(
     std::vector<PasswordForm> forms);
+
+// Returns whether the backend error is actionable.
+ActionableError BackendErrorToActionableError(
+    PasswordStoreBackendErrorType error);
+
+// Returns true if saving is allowed with the given `error`. This typically
+// means there is no error or the error is retriable.
+bool IsAbleToSavePasswords(ActionableError error);
 
 }  // namespace password_manager
 

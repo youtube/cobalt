@@ -115,7 +115,7 @@
 <translation id="2139300032719313227">‏הפעלה מחדש של ChromeOS</translation>
 <translation id="2151406531797534936">‏יש להפעיל מחדש את Chrome עכשיו</translation>
 <translation id="2163089732491971196">‏כדי להשתמש בנתוני Chrome ולשמור אותם בחשבון Google, עליך להזין את ביטוי הסיסמה שלך</translation>
-<translation id="2170098639895543546">בחירה של משהו מהדף</translation>
+<translation id="2170098639895543546">צריך לבחור משהו מהדף</translation>
 <translation id="2174917724755363426">ההתקנה לא הושלמה. להמשיך בביטול?</translation>
 <translation id="2186206192313702726">Google Lens</translation>
 <translation id="2190166659037789668">השגיאה בבדיקת העדכון: <ph name="UPDATE_CHECK_ERROR" />.</translation>
@@ -251,7 +251,7 @@
 <translation id="3622716124581627104">‏אפשר לנסות לזהות דברים או מקומות ולהעתיק או לתרגם טקסטים. כשמשתמשים ב-Google Lens, צילום מסך של הדף נשלח אל Google. <ph name="LEARN_MORE" /></translation>
 <translation id="3622797965165704966">‏קל יותר כעת להשתמש ב-Chrome באמצעות חשבון Google שלך ובמחשבים משותפים.</translation>
 <translation id="3635073343384702370">‏ל-Chrome יש אפשרות לבדוק את הסיסמאות שלך רק אם שמרת אותן</translation>
-<translation id="3636970668267555808">‏כדי להשתמש בקלות בתכונות המוכרות והאהובות, צריך להגדיר את Chrome בתור דפדפן ברירת המחדל.</translation>
+<translation id="3636970668267555808">‏כדי להשתמש בקלות בתכונות המוכרות והאהובות, כדאי להגדיר את Chrome בתור דפדפן ברירת המחדל.</translation>
 <translation id="3667616615096815454">אין אפשרות להתקין, האפליקציה לא מוכרת לשרת.</translation>
 <translation id="3673813398384385993">‏הפריט "<ph name="EXTENSION_NAME" />" שנמצא ב-Chrome מכיל תכונה זדונית</translation>
 <translation id="3697952514309507634">‏פרופילים אחרים ב-Chrome</translation>
@@ -261,6 +261,7 @@
 <translation id="3723744677043446310">{NUM_EXTENSIONS,plural, =1{‏ההמלצה של Chrome היא להסיר אותו. <ph name="BEGIN_LINK" />מידע נוסף על תוספים נתמכים<ph name="END_LINK" />}one{‏ההמלצה של Chrome היא להסיר אותם. <ph name="BEGIN_LINK" />מידע נוסף על תוספים נתמכים<ph name="END_LINK" />}two{‏ההמלצה של Chrome היא להסיר אותם. <ph name="BEGIN_LINK" />מידע נוסף על תוספים נתמכים<ph name="END_LINK" />}other{‏ההמלצה של Chrome היא להסיר אותם. <ph name="BEGIN_LINK" />מידע נוסף על תוספים נתמכים<ph name="END_LINK" />}}</translation>
 <translation id="3729187154190517324">כדי להעמיק את החיפוש, אפשר להוסיף כמה כרטיסיות, קבצים וכלים באמצעות הכפתור "הוספת כרטיסייה ועוד".</translation>
 <translation id="3756724684201900923">‏מידע נוסף על התקנת Chrome</translation>
+<translation id="3772152698251011058">‏דיווח על האתר הזה ל-Google</translation>
 <translation id="3780814664026482060">‏Chrome - ‏<ph name="PAGE_TITLE" /></translation>
 <translation id="3785324443014631273">‏לא ניתן היה לסנכרן את הנתונים ב-ChromeOS Flex בגלל שגיאה בכניסה.</translation>
 <translation id="3795971588916395511">Google ChromeOS</translation>
@@ -408,6 +409,8 @@
 <translation id="5430073640787465221">‏קובץ ההעדפות שלך פגום או לא חוקי. Google Chrome לא יכול לשחזר את ההגדרות שלך.</translation>
 <translation id="5465210843490471889">‏בחירת פרופיל ב-Chrome לשימוש עם <ph name="START_GLIC_STYLING" />Gemini<ph name="END_GLIC_STYLING" /></translation>
 <translation id="5468572406162360320">‏כדי לשפר את התכונות האלו, Chrome שולח את האינטראקציות שלך איתן ל-Google. בודקים אנושיים יכולים לקרוא את הנתונים האלה, לעבד אותם ולהוסיף להם הערות.</translation>
+<translation id="547202872422499512">‏‫Chrome מופעל עכשיו יחד עם Windows, כך שאפשר להתחיל לגלוש מיד. ניתן להשבית זאת בהגדרות.</translation>
+<translation id="5486346529181556467">‏כדי לשפר את הבטיחות באינטרנט לכולם, אפשר לדווח על אתר שלדעתך עשוי לגרום נזק. מידע נוסף על <ph name="BEGIN_LINK" />המדיניות של Google בנושא אתרים לא בטוחים<ph name="END_LINK" /></translation>
 <translation id="5524890928877629608">‏הפינה השמאלית העליונה של אזור החיפוש: ‎<ph name="LEFT" />%‎ משמאל, ‎<ph name="TOP" />%‎ מלמעלה</translation>
 <translation id="5550137307985173298">‏אפשר ללחוץ על הכפתור "התאמה אישית של Chrome" בדף הכרטיסייה החדשה כדי לשנות את המראה של Chrome</translation>
 <translation id="5566025111015594046">‏Google Chrome‏ (mDNS-In)</translation>
@@ -499,6 +502,7 @@
 <translation id="6251759518630934363">‏מקבלים אזהרות לגבי אתרים מסוכנים, גם כאלה שלא היו ידועים ל-Google לפני כן, בעזרת ניתוח של יותר נתונים מאתרים בהשוואה להגנה הרגילה. אפשר לדלג על האזהרות מ-Chrome.</translation>
 <translation id="6277547788421725101">‏ההורה שלך השבית ב-Chrome את ההגדרה 'הרשאות לאתרים, לאפליקציות ולתוספים'</translation>
 <translation id="627882678981830918">‏אפשר להתאים אישית את Chrome ולנהל אותו. הגדרת Chrome כדפדפן ברירת המחדל.</translation>
+<translation id="6280042952415350607">‏הפעלת ההגנה המשופרת משביתה את האופטימיזציה של JavaScript באתרים ש-Chrome לא מזהה</translation>
 <translation id="6288580400488258237">‏הגדרת Google Chrome כדפדפן ברירת המחדל והצמדה שלו לסרגל המשימות</translation>
 <translation id="6291089322031436445">‏אפליקציות לגרסת הפיתוח של Chrome</translation>
 <translation id="6291549208091401781">‏Google Chrome כבר מותקן במחשב ונגיש לכל המשתמשים.</translation>
@@ -567,6 +571,7 @@
 <translation id="6965382102122355670">אישור</translation>
 <translation id="6967962315388095737">‏כלל נכנס לגרסת הבטא של Google Chrome כדי לאפשר תנועת mDNS.</translation>
 <translation id="6979589607440534284">‏מידע על חסימה של קבצים מסוימים ב-Chrome, נפתח בכרטיסייה חדשה</translation>
+<translation id="6985817499499247940">‏כדי להתחיל לגלוש מיד, אפשר להפעיל את Chrome באופן אוטומטי.</translation>
 <translation id="6991926986715044139">‏תמיד להציג את קיצור הדרך ל-Google Lens</translation>
 <translation id="6999131147875565462">‏דפדפן Chrome פועל מהר יותר ותכונות שמשתמשות ב-JavaScript אמורות לפעול כמו שצריך</translation>
 <translation id="7011190694940573312">ההתקנה נכשלה כי הגרסה הזו של מערכת ההפעלה לא נתמכת.</translation>
@@ -595,6 +600,7 @@
 <translation id="7288567540154601580">כרטיסיות ותוספים</translation>
 <translation id="7296210096911315575">מידע חשוב על בטיחות ועל אופן השימוש</translation>
 <translation id="7302361266603927550">‏חלק מהנתונים ב-Chrome עדיין לא נשמרו בחשבון Google. כדאי לחכות כמה דקות לפני היציאה מהחשבון. אם תתבצע יציאה מהחשבון, הנתונים האלה יימחקו.</translation>
+<translation id="7306401458628386911">‏רוצה לגלוש מיד? עכשיו אפשר להגדיר את Chrome להתחיל לפעול יחד עם Windows.</translation>
 <translation id="7308322188646931570">‏Chrome זקוק לגישה לאחסון כדי להוריד קבצים</translation>
 <translation id="7339898014177206373">חלון חדש</translation>
 <translation id="7352651011704765696">משהו השתבש</translation>
@@ -657,6 +663,7 @@
 <translation id="7827099906024714326">‏‫Chrome צריך לאמת את הזהות שלך לפני שאפשר יהיה לשמור חלק מהנתונים בחשבון Google ולהשתמש בהם בכל המכשירים שלך. אם תתבצע יציאה מהחשבון, הנתונים האלה יימחקו.</translation>
 <translation id="7832314606810669113">‏כדי לקבל גישה לסימניות ולנתונים נוספים בכל המכשירים, צריך להיכנס ל-Chrome. לאחר הכניסה, הסימנייה הזו תישמר בחשבון Google.</translation>
 <translation id="7845233973568007926">תודה שהתקנת. עליך להפעיל מחדש את המחשב לפני השימוש ב-<ph name="BUNDLE_NAME" />.</translation>
+<translation id="7847170235260850604">‏הפעלת Chrome יחד עם Windows</translation>
 <translation id="7849037457735762883">‏רוצה להמשיך מהמקום שבו הפסקת? Chrome יכול לשחזר את הכרטיסיות שלך בכל הפעלה מחדש. כדי להפעיל את האפשרות הזו, צריך לעבור אל</translation>
 <translation id="7869620795354551924">‏כדי להשתמש בסיסמאות השמורות, צריך לסרוק את קוד ה-QR, להוריד את Chrome ל-iOS ולהיכנס לחשבון Google</translation>
 <translation id="7872446069773932638">מתבצעת הורדה… יש עוד <ph name="SECONDS" /> שנ'</translation>

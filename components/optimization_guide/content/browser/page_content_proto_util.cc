@@ -43,7 +43,8 @@ BASE_FEATURE(kAnnotatedPageContentAutofillCreditCardRedactions,
 
 namespace {
 
-constexpr char kHasMediaTranscripts[] = "has_media_transcripts";
+// This is the same as `kInvalidDOMNodeId` defined in blink.
+constexpr int kInvalidDOMNodeId = 0;
 
 std::optional<AutofillFieldMetadata> GetAutofillFieldData(
     std::optional<content::GlobalRenderFrameHostToken> source_frame_token,
@@ -338,6 +339,14 @@ void ConvertFrameInteractionInfo(
   if (mojom_frame_interaction_info.selection) {
     ConvertSelection(*mojom_frame_interaction_info.selection,
                      proto_frame_interaction_info->mutable_selection());
+  }
+  if (mojom_frame_interaction_info.focused_dom_node_id) {
+    proto_frame_interaction_info->set_focused_node_id(
+        *mojom_frame_interaction_info.focused_dom_node_id);
+  }
+  if (mojom_frame_interaction_info.accessibility_focused_dom_node_id) {
+    proto_frame_interaction_info->set_accessibility_focused_node_id(
+        *mojom_frame_interaction_info.accessibility_focused_dom_node_id);
   }
 }
 
@@ -666,6 +675,7 @@ base::expected<void, std::string> ConvertAttributes(
     std::optional<content::GlobalRenderFrameHostToken> source_frame_token,
     ConvertAIPageContentToProtoSession& session,
     const blink::mojom::AIPageContentAttributes& mojom_attributes,
+    bool should_populate_geometry,
     optimization_guide::proto::ContentAttributes* proto_attributes) {
   if (mojom_attributes.dom_node_id.has_value()) {
     proto_attributes->set_common_ancestor_dom_node_id(
@@ -675,7 +685,11 @@ base::expected<void, std::string> ConvertAttributes(
   proto_attributes->set_attribute_type(
       ConvertAttributeType(mojom_attributes.attribute_type));
 
-  if (mojom_attributes.geometry) {
+  // When sensitive payment redaction is enabled, we populate
+  // `mojom_attributes.geometry` for form controls that may contain
+  // sensitive payments to allow for client-side screenshot redaction for
+  // sensitive payment fields, but still omit it from the proto here.
+  if (mojom_attributes.geometry && should_populate_geometry) {
     ConvertGeometry(*mojom_attributes.geometry,
                     proto_attributes->mutable_geometry());
   }
@@ -898,6 +912,16 @@ void ConvertRedactedIframeData(
                          proto_iframe_data->mutable_redacted_frame_metadata());
 }
 
+int GetAccessibilityFocusedNodeId(
+    const blink::mojom::AIPageContentFrameData& frame_data) {
+  if (!frame_data.frame_interaction_info) {
+    return kInvalidDOMNodeId;
+  }
+
+  return frame_data.frame_interaction_info->accessibility_focused_dom_node_id
+      .value_or(kInvalidDOMNodeId);
+}
+
 // Contains the information that remains the same throughout the tree
 // recursion for ConvertAIPageContentToProto.
 class Converter {
@@ -917,11 +941,18 @@ class Converter {
   base::expected<void, std::string> ConvertNode(
       content::GlobalRenderFrameHostToken source_frame_token,
       const blink::mojom::AIPageContentNode& mojom_node,
+      int accessibility_focused_node_id,
       optimization_guide::proto::ContentNode* proto_node) {
     const auto& mojom_attributes = *mojom_node.content_attributes;
-    RETURN_IF_ERROR(
-        ConvertAttributes(source_frame_token, session_, mojom_attributes,
-                          proto_node->mutable_content_attributes()));
+    RETURN_IF_ERROR(ConvertAttributes(
+        source_frame_token, session_, mojom_attributes,
+        ShouldPopulateGeometry(mojom_attributes, accessibility_focused_node_id),
+        proto_node->mutable_content_attributes()));
+    MaybeAddSensitivePaymentData(mojom_attributes,
+                                 proto_node->content_attributes());
+
+    int accessibility_focused_node_id_for_children =
+        accessibility_focused_node_id;
 
     std::optional<RenderFrameInfo> render_frame_info;
     if (mojom_attributes.attribute_type ==
@@ -987,7 +1018,9 @@ class Converter {
 
                   RETURN_IF_ERROR(ConvertNode(
                       render_frame_info->global_frame_token,
-                      *page_content->root_node, proto_child_frame_node));
+                      *page_content->root_node,
+                      GetAccessibilityFocusedNodeId(*page_content->frame_data),
+                      proto_child_frame_node));
 
                   ConvertIframeData(*render_frame_info, iframe_data,
                                     /*mojom_local_frame_data=*/
@@ -1023,6 +1056,9 @@ class Converter {
                               /*mojom_local_frame_data=*/
                               *iframe_data.content->get_local_frame_data(),
                               proto_iframe_data);
+            accessibility_focused_node_id_for_children =
+                GetAccessibilityFocusedNodeId(
+                    *iframe_data.content->get_local_frame_data());
             // Breaking instead of returning so we get to copy the child nodes.
             break;
           case blink::mojom::AIPageContentIframeContent::Tag::
@@ -1057,8 +1093,9 @@ class Converter {
                           : source_frame_token;
     for (const auto& mojom_child : mojom_node.children_nodes) {
       auto* proto_child = proto_node->add_children_nodes();
-      RETURN_IF_ERROR(
-          ConvertNode(source_frame_for_children, *mojom_child, proto_child));
+      RETURN_IF_ERROR(ConvertNode(source_frame_for_children, *mojom_child,
+                                  accessibility_focused_node_id_for_children,
+                                  proto_child));
     }
 
     return base::ok();
@@ -1075,9 +1112,14 @@ class Converter {
       return base::unexpected("iframe is unexpected in popup");
     }
 
-    RETURN_IF_ERROR(
-        ConvertAttributes(std::nullopt, session_, mojom_attributes,
-                          proto_node->mutable_content_attributes()));
+    RETURN_IF_ERROR(ConvertAttributes(
+        std::nullopt, session_, mojom_attributes,
+        ShouldPopulateGeometry(
+            mojom_attributes,
+            /*accessibility_focused_node_id=*/kInvalidDOMNodeId),
+        proto_node->mutable_content_attributes()));
+    MaybeAddSensitivePaymentData(mojom_attributes,
+                                 proto_node->content_attributes());
 
     for (const auto& mojom_child : mojom_node.children_nodes) {
       auto* proto_child = proto_node->add_children_nodes();
@@ -1118,8 +1160,9 @@ class Converter {
     return base::ok();
   }
 
-  const blink::mojom::AIPageContentOptionsPtr& options() const LIFETIME_BOUND {
-    return options_;
+  bool actionable_mode() const LIFETIME_BOUND {
+    return options_->mode ==
+           blink::mojom::AIPageContentMode::kActionableElements;
   }
 
   void AddPasswordRedactionData(
@@ -1148,6 +1191,36 @@ class Converter {
     ConvertFrameData(render_frame_info, mojom_local_frame_data,
                      proto_iframe_data->mutable_frame_data(), page_metadata(),
                      *frame_token_set_);
+  }
+
+  void MaybeAddSensitivePaymentData(
+      const blink::mojom::AIPageContentAttributes& mojom_attributes,
+      const optimization_guide::proto::ContentAttributes& proto_attributes) {
+    if (!options_->include_sensitive_payments_for_redaction) {
+      return;
+    }
+
+    if (proto_attributes.has_form_control_data() &&
+        proto_attributes.form_control_data().redaction_decision() ==
+            proto::REDACTION_DECISION_REDACTED_IS_SENSITIVE_PAYMENT_FIELD) {
+      if (mojom_attributes.geometry) {
+        page_content_result_
+            ->visible_bounding_boxes_for_sensitive_payment_redaction.push_back(
+                mojom_attributes.geometry->visible_bounding_box);
+      } else {
+        LOG(ERROR) << "Missing geometry for the sensitive payment field";
+      }
+    }
+  }
+
+  // See `AIPageContentAgent::ContentBuilder::AddNodeGeometry()`. When in
+  // non-actionable mode, we only want to add geometry for the accessibility
+  // focused node.
+  bool ShouldPopulateGeometry(
+      const blink::mojom::AIPageContentAttributes& mojom_attributes,
+      int accessibility_focused_node_id) const {
+    return actionable_mode() ||
+           mojom_attributes.dom_node_id == accessibility_focused_node_id;
   }
 
   blink::mojom::PageMetadata& page_metadata() {
@@ -1252,6 +1325,7 @@ base::expected<void, std::string> ConvertAIPageContentToProto(
 
   RETURN_IF_ERROR(converter.ConvertNode(
       main_frame_token, *main_frame_page_content->root_node,
+      GetAccessibilityFocusedNodeId(*main_frame_page_content->frame_data),
       page_content_result.proto.mutable_root_node()));
 
   if (main_frame_page_content->page_interaction_info) {
@@ -1262,8 +1336,7 @@ base::expected<void, std::string> ConvertAIPageContentToProto(
 
   auto version = optimization_guide::proto::ANNOTATED_PAGE_CONTENT_VERSION_1_0;
   auto mode = optimization_guide::proto::ANNOTATED_PAGE_CONTENT_MODE_DEFAULT;
-  if (converter.options()->mode ==
-      blink::mojom::AIPageContentMode::kActionableElements) {
+  if (converter.actionable_mode()) {
     version = optimization_guide::proto::
         ANNOTATED_PAGE_CONTENT_VERSION_ONLY_ACTIONABLE_ELEMENTS_1_0;
     mode = optimization_guide::proto::

@@ -48,7 +48,6 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
-import org.robolectric.shadows.ShadowLooper;
 
 import org.chromium.base.ActivityState;
 import org.chromium.base.ApplicationStatus;
@@ -59,6 +58,7 @@ import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.RobolectricUtil;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.R;
@@ -1077,7 +1077,7 @@ public class CompositorViewHolderUnitTest {
     public void testSetBackgroundRunnable_Timeout() {
         // Run delayed tasks (timing out the background runnable), then verify the background has
         // been removed.
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         verifyBackgroundRemoved();
     }
 
@@ -1107,8 +1107,54 @@ public class CompositorViewHolderUnitTest {
         verify(mCompositorView, times(1)).requestRender();
     }
 
+    @Test
+    public void testActiveTouchInterceptors() {
+        TouchEventObserver observer = mock(TouchEventObserver.class);
+        when(observer.mayInterceptTouchSequenceInWebContents()).thenReturn(true);
+
+        mCompositorViewHolder.addTouchEventObserver(observer);
+        verify(mCompositorView).setHasActiveTouchInterceptors(eq(true));
+        reset(mCompositorView);
+
+        mCompositorViewHolder.removeTouchEventObserver(observer);
+        verify(mCompositorView).setHasActiveTouchInterceptors(eq(false));
+    }
+
+    @Test
+    public void testMultipleActiveTouchInterceptors() {
+        TouchEventObserver observer1 = mock(TouchEventObserver.class);
+        when(observer1.mayInterceptTouchSequenceInWebContents()).thenReturn(true);
+        TouchEventObserver observer2 = mock(TouchEventObserver.class);
+        when(observer2.mayInterceptTouchSequenceInWebContents()).thenReturn(true);
+        TouchEventObserver observer3 = mock(TouchEventObserver.class);
+        when(observer3.mayInterceptTouchSequenceInWebContents()).thenReturn(false);
+
+        mCompositorViewHolder.addTouchEventObserver(observer1);
+        verify(mCompositorView).setHasActiveTouchInterceptors(eq(true));
+        reset(mCompositorView);
+
+        mCompositorViewHolder.addTouchEventObserver(observer2);
+        verify(mCompositorView, never()).setHasActiveTouchInterceptors(anyBoolean());
+        reset(mCompositorView);
+
+        mCompositorViewHolder.addTouchEventObserver(observer3);
+        verify(mCompositorView, never()).setHasActiveTouchInterceptors(anyBoolean());
+        reset(mCompositorView);
+
+        mCompositorViewHolder.removeTouchEventObserver(observer3);
+        verify(mCompositorView, never()).setHasActiveTouchInterceptors(anyBoolean());
+        reset(mCompositorView);
+
+        mCompositorViewHolder.removeTouchEventObserver(observer2);
+        verify(mCompositorView, never()).setHasActiveTouchInterceptors(anyBoolean());
+        reset(mCompositorView);
+
+        mCompositorViewHolder.removeTouchEventObserver(observer1);
+        verify(mCompositorView).setHasActiveTouchInterceptors(eq(false));
+    }
+
     private static void runCurrentTasks() {
-        ShadowLooper.runUiThreadTasks();
+        RobolectricUtil.runAllBackgroundAndUi();
     }
 
     private void verifyBackgroundNotRemoved() {

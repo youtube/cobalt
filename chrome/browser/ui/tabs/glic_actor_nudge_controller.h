@@ -33,21 +33,23 @@ class GlicActorNudgeController {
   DECLARE_USER_DATA(GlicActorNudgeController);
   static GlicActorNudgeController* From(BrowserWindowInterface* browser);
 
-  void OnStateUpdate(actor::ui::ActorTaskNudgeState actor_task_nudge_state);
+  // Update the nudge for the given state. Will also conditionally show the
+  // bubble on UI update based on show_bubble.
+  void OnStateUpdate(bool show_bubble,
+                     actor::ui::ActorTaskNudgeState actor_task_nudge_state);
+
+  // Get the current actor nudge state and update the UI. Called when
+  // TabStripActionContainer is added to the native widget.
+  void UpdateCurrentActorNudgeState();
 
  private:
-  void OnStateUpdateImpl(actor::ui::ActorTaskNudgeState actor_task_nudge_state);
-
   // Subscribe to updates from the GlicActorTaskIconManager.
   void RegisterActorNudgeStateCallback();
 
-  // Get the current actor nudge state and update the UI. Called on
-  // window creation to maintain state across multiple windows.
-  void UpdateCurrentActorNudgeState();
-
   // Only update the nudge label if it's already showing, otherwise retrigger
-  // the nudge. Always shows the task list bubble after.
-  void UpdateNudgeLabelOrRetrigger(std::u16string nudge_label_text);
+  // the nudge. Shows the task list bubble after if show_bubble is true.
+  void UpdateNudgeLabelOrRetrigger(std::u16string nudge_label_text,
+                                   bool show_bubble);
 
   // Close the task list bubble if it is visible.
   void CloseBubble();

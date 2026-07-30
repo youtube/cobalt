@@ -56,6 +56,8 @@ java_framework_defaults_module = 'MODIFIED_BY_MAIN_AFTER_PARSING_ARGS_IF_YOU_SEE
 # Location of the project in the Android source tree.
 tree_path = 'MODIFIED_BY_MAIN_AFTER_PARSING_ARGS_IF_YOU_SEE_THIS_SOMETHING_BROKE_'
 
+LIBCRYPTO_STRIPPED = "libcrypto"
+LIBCRYPTO_UNSTRIPPED = "libcrypto_unstripped"
 
 def initialize_globals(import_channel: str):
   global IMPORT_CHANNEL
@@ -366,7 +368,7 @@ def enable_boringssl(module, arch):
     shared_libs = module.target[arch].shared_libs
     static_libs = module.target[arch].static_libs
     whole_static_libs = module.target[arch].whole_static_libs
-  shared_libs.add(f'{MODULE_PREFIX}libcrypto')
+  shared_libs.add(f'{MODULE_PREFIX}{LIBCRYPTO_UNSTRIPPED}')
   if module.type == "cc_library_static":
     static_libs.add(f'{MODULE_PREFIX}ssl_and_pki')
   else:
@@ -2682,9 +2684,38 @@ def _is_cflag_allowed(cflag):
       #   clang++-real: error: unknown argument: '-fsanitize-ignore-for-ubsan-feature=array-bounds'
       # See https://crbug.com/481594099
       '-fsanitize-ignore-for-ubsan-feature=array-bounds',
+      # Causes the build to fail with:
+      #   clang++-real: error: unknown argument: '-fno-lifetime-dse'
+      # See https://crbug.com/484919839
+      '-fno-lifetime-dse',
+      # C++ version is picked via a Soong attribute.
+      '-std=',
+      # Added automatically by specifying `afdo: true`
+      '-fdebug-info-for-profiling',
+      # Any cflag that starts with '-g' is solely for debugging information.
+      # This is best left handled by Soong according to the build configuration.
+      # See https://clang.llvm.org/docs/ClangCommandLineReference.html#debug-information-options
+      '-g',
+      # MLGO optimizations are handled automatically by Soong when AFDO is
+      # applied.
+      '-mllvm -enable-ml-inliner=',
+      '-mllvm -ml-inliner-model-selector=',
   ])
 
+def _merge_key_value_cflags(cflags: List[str]) -> List[str]:
+  cflags_merged = []
+  iterator = iter(cflags)
+  for flag in iterator:
+
+    if flag == '-mllvm':
+      # Merge the two consecutive flags together and skip the next iteration.
+      cflags_merged.append(f'{flag} {next(iterator)}')
+    else:
+      cflags_merged.append(flag)
+  return cflags_merged
+
 def _get_cflags(cflags, defines):
+  cflags = _merge_key_value_cflags(cflags)
   cflags = [flag for flag in cflags if _is_cflag_allowed(flag)]
 
   # Android _may_ set a platform default for _LIBCPP_HARDENING_MODE. If that
@@ -2780,6 +2811,15 @@ def _is_allowed_ldflag(flag):
       # rosegment flag. Disable this flag until XOM has landed, and we have
       # an attribute which we can use to enable --no-rosegment.
       "-Wl,--no-rosegment",
+      # This is already the default in AOSP.
+      "-fuse-ld",
+      # Specified by a Soong attribute instead.
+      "-fwhole-program-vtables",
+      # All MLGO is left best-handled by Soong as we're now employing AFDO
+      # profiles.
+      "-Wl,-mllvm,-enable-ml-inliner",
+      "-Wl,-mllvm,-ml-inliner-model-selector",
+      "-Wl,-mllvm,-ml-inliner-skip-policy",
   ])
 
 
@@ -3592,6 +3632,22 @@ def make_cc_defaults_from_boringssl(boringssl_module: Module) -> Module:
   libcrypto_cc_defaults_flags_module.defaults = [cc_defaults_module]
   return (cc_default_flags_module, libcrypto_cc_defaults_flags_module)
 
+
+def setup_libcrypto_stripping(blueprint):
+  # Two-step build process for libhttpengine.so:
+  # 1. Build against the full libcrypto to identify required symbols and
+  # generate a stripped variant of libcrypto.
+  # 2. Rebuild against that stripped libcrypto to guarantee no undefined symbols.
+  cronet_shared_library_module = blueprint.modules[
+      f"{MODULE_PREFIX}components_cronet_android_cronet"]
+  cronet_shared_library_copy = copy.deepcopy(cronet_shared_library_module)
+  cronet_shared_library_copy.name += "_against_unstripped_libcrypto"
+  cronet_shared_library_module.shared_libs.remove(
+      f"{MODULE_PREFIX}{LIBCRYPTO_UNSTRIPPED}")
+  cronet_shared_library_module.shared_libs.add(
+      f"{MODULE_PREFIX}{LIBCRYPTO_STRIPPED}")
+  blueprint.add_module(cronet_shared_library_copy)
+
 def create_blueprint_for_targets(gn, targets, test_targets):
   """Generate a blueprint for a list of GN targets."""
   blueprint = Blueprint()
@@ -3624,6 +3680,8 @@ def create_blueprint_for_targets(gn, targets, test_targets):
   for module in make_cc_defaults_from_boringssl(blueprint.modules[
       label_to_module_name("//third_party/boringssl:boringssl")]):
     blueprint.add_module(module)
+
+  setup_libcrypto_stripping(blueprint)
   return blueprint
 
 

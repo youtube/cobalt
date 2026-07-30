@@ -116,9 +116,7 @@ void WebUIBrowserBookmarkBarPageHandler::GetBookmarkBar(
     // to the WebUI? For now just pick a random number.
     const int max_bookmarks = 20;
     const int bookmark_model_count =
-        bookmark_model_->loaded()
-            ? bookmark_model_->bookmark_bar_node()->children().size()
-            : 0;
+        bookmark_model_->bookmark_bar_node()->children().size();
     int bookmark_count = std::min(max_bookmarks, bookmark_model_count);
     for (int i = 0; i < bookmark_count; i++) {
       bookmarks.push_back(GetBookmarkData(
@@ -133,7 +131,7 @@ void WebUIBrowserBookmarkBarPageHandler::OpenInNewTab(int64_t node_id) {
   const bookmarks::BookmarkNode* node =
       bookmarks::GetBookmarkNodeByID(bookmark_model_, node_id);
   bookmarks::OpenAllIfAllowed(
-      browser_, {node}, WindowOpenDisposition::CURRENT_TAB,
+      browser_, {node}, WindowOpenDisposition::NEW_FOREGROUND_TAB,
       bookmarks::OpenAllBookmarksContext::kNone,
       page_load_metrics::NavigationHandleUserData::InitiatorLocation::
           kBookmarkBar,
@@ -192,6 +190,10 @@ void WebUIBrowserBookmarkBarPageHandler::BookmarkNodeChildrenReordered(
 
 void WebUIBrowserBookmarkBarPageHandler::BookmarkNodeFaviconChanged(
     const bookmarks::BookmarkNode* node) {
+  if (node->parent() != bookmark_model_->bookmark_bar_node()) {
+    return;
+  }
+
   if (node->is_favicon_loaded()) {
     page_->FavIconChanged(GetBookmarkData(node));
   }

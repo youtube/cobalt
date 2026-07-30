@@ -86,7 +86,7 @@ gpu::ContextResult GLES2CommandBufferStub::Initialize(
   auto feature_info = base::MakeRefCounted<gles2::FeatureInfo>(
       manager->gpu_driver_bug_workarounds(), manager->gpu_feature_info());
   context_group_ = base::MakeRefCounted<gles2::ContextGroup>(
-      manager->gpu_preferences(), CreateMemoryTracker(),
+      manager->gpu_preferences(), memory_tracker_,
       manager->shader_translator_cache(),
       manager->framebuffer_completeness_cache(), feature_info,
       manager->watchdog() /* progress_reporter */, manager->gpu_feature_info(),
@@ -94,11 +94,22 @@ gpu::ContextResult GLES2CommandBufferStub::Initialize(
 
   // If the `fail_if_major_perf_caveat` context creation attribute was true
   // and we are using a software renderer, fail.
-  if (attribs.fail_if_major_perf_caveat &&
-      context_group_->feature_info()->feature_flags().is_software_webgl) {
-    LOG(ERROR) << "ContextResult::kFatalFailure: "
-                  "fail_if_major_perf_caveat + software gl";
-    return gpu::ContextResult::kFatalFailure;
+  if (attribs.fail_if_major_perf_caveat) {
+    auto* command_line = base::CommandLine::ForCurrentProcess();
+    const auto useGL = command_line->GetSwitchValueASCII(switches::kUseGL);
+    const auto useANGLE =
+        command_line->GetSwitchValueASCII(switches::kUseANGLE);
+
+    const bool is_software_webgl =
+        (useGL == gl::kGLImplementationANGLEName) &&
+        (useANGLE == gl::kANGLEImplementationSwiftShaderForWebGLName ||
+         useANGLE == gl::kANGLEImplementationD3D11WarpForWebGLName);
+
+    if (is_software_webgl) {
+      LOG(ERROR) << "ContextResult::kFatalFailure: "
+                    "fail_if_major_perf_caveat + software gl";
+      return gpu::ContextResult::kFatalFailure;
+    }
   }
 
 #if BUILDFLAG(IS_MAC)
@@ -113,8 +124,8 @@ gpu::ContextResult GLES2CommandBufferStub::Initialize(
   use_virtualized_gl_context_ |=
       context_group_->feature_info()->workarounds().use_virtualized_gl_contexts;
 
-  command_buffer_ = std::make_unique<CommandBufferService>(
-      this, context_group_->memory_tracker());
+  command_buffer_ =
+      std::make_unique<CommandBufferService>(this, memory_tracker_);
   auto decoder = gles2::GLES2Decoder::Create(
       this, command_buffer_.get(), manager->outputter(), context_group_.get());
   gles2_decoder_ = decoder.get();
@@ -339,10 +350,6 @@ gpu::ContextResult GLES2CommandBufferStub::Initialize(
   manager->delegate()->DidCreateContextSuccessfully();
   initialized_ = true;
   return gpu::ContextResult::kSuccess;
-}
-
-MemoryTracker* GLES2CommandBufferStub::GetContextGroupMemoryTracker() const {
-  return context_group_->memory_tracker();
 }
 
 base::WeakPtr<CommandBufferStub> GLES2CommandBufferStub::AsWeakPtr() {

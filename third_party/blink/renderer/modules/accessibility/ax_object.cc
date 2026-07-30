@@ -28,7 +28,8 @@
 
 #include "third_party/blink/renderer/modules/accessibility/ax_object.h"
 
-#include <algorithm>
+#include <math.h>
+
 #include <ostream>
 
 #include "base/auto_reset.h"
@@ -42,6 +43,7 @@
 #include "third_party/blink/public/mojom/frame/user_activation_notification_type.mojom-blink.h"
 #include "third_party/blink/public/mojom/input/focus_type.mojom-blink.h"
 #include "third_party/blink/public/mojom/scroll/scroll_into_view_params.mojom-blink.h"
+#include "third_party/blink/renderer/bindings/core/v8/frozen_array.h"
 #include "third_party/blink/renderer/core/accessibility/ax_object_cache.h"
 #include "third_party/blink/renderer/core/accessibility/ax_utilities_generated.h"
 #include "third_party/blink/renderer/core/accessibility/axid.h"
@@ -959,8 +961,8 @@ const AtomicString& AXObject::AriaAttribute(
 bool AXObject::IsAriaAttributeTrue(const Element& element,
                                    const QualifiedName& attribute) {
   const AtomicString& value = AriaAttribute(element, attribute);
-  return !value.empty() && !EqualIgnoringASCIICase(value, "undefined") &&
-         !EqualIgnoringASCIICase(value, "false");
+  return !value.empty() && !EqualIgnoringAsciiCase(value, "undefined") &&
+         !EqualIgnoringAsciiCase(value, "false");
 }
 
 // ARIA attributes are true if they are not empty, "false" or "undefined".
@@ -973,14 +975,14 @@ bool AXObject::AriaBooleanAttribute(const Element& element,
                                     bool* out_value) {
   const AtomicString& value = AriaAttribute(element, attribute);
   if (value == g_null_atom || value.empty() ||
-      EqualIgnoringASCIICase(value, "undefined")) {
+      EqualIgnoringAsciiCase(value, "undefined")) {
     if (out_value) {
       *out_value = false;
     }
     return false;
   }
   if (out_value) {
-    *out_value = !EqualIgnoringASCIICase(value, "false");
+    *out_value = !EqualIgnoringAsciiCase(value, "false");
   }
   return true;
 }
@@ -3276,7 +3278,7 @@ ax::mojom::blink::CheckedState AXObject::CheckedState() const {
                                   : html_names::kAriaCheckedAttr;
   const AtomicString& checked_attribute = AriaTokenAttribute(prop);
   if (checked_attribute) {
-    if (EqualIgnoringASCIICase(checked_attribute, "mixed")) {
+    if (EqualIgnoringAsciiCase(checked_attribute, "mixed")) {
       if (role == ax::mojom::blink::Role::kCheckBox ||
           role == ax::mojom::blink::Role::kMenuItemCheckBox ||
           role == ax::mojom::blink::Role::kListBoxOption ||
@@ -3293,7 +3295,7 @@ ax::mojom::blink::CheckedState AXObject::CheckedState() const {
     }
 
     // Anything other than "false" should be treated as "true".
-    return EqualIgnoringASCIICase(checked_attribute, "false")
+    return EqualIgnoringAsciiCase(checked_attribute, "false")
                ? ax::mojom::blink::CheckedState::kFalse
                : ax::mojom::blink::CheckedState::kTrue;
   }
@@ -5473,10 +5475,12 @@ AXObject::GetAriaSpellingOrGrammarMarker() const {
 
   if (iter == UnignoredAncestorsEnd())
     return std::nullopt;
-  if (EqualIgnoringASCIICase(aria_invalid_value, "spelling"))
+  if (EqualIgnoringAsciiCase(aria_invalid_value, "spelling")) {
     return DocumentMarker::kSpelling;
-  if (EqualIgnoringASCIICase(aria_invalid_value, "grammar"))
+  }
+  if (EqualIgnoringAsciiCase(aria_invalid_value, "grammar")) {
     return DocumentMarker::kGrammar;
+  }
   return std::nullopt;
 }
 
@@ -5639,7 +5643,7 @@ bool AXObject::ElementHasAnyAriaAttribute(
   for (const Attribute& attr : attributes) {
     // Attributes cache their uppercase names.
     auto name = attr.GetName().LocalNameUpper();
-    if (name.StartsWith("ARIA-")) {
+    if (name.starts_with("ARIA-")) {
       if (!does_undo_role_presentation || DoesUndoRolePresentation(name))
         return true;
     }
@@ -5739,7 +5743,7 @@ bool AXObject::IsLiveRegionRoot() const {
 
 bool AXObject::IsActiveLiveRegionRoot() const {
   const AtomicString& live_region = LiveRegionStatus();
-  return !live_region.empty() && !EqualIgnoringASCIICase(live_region, "off");
+  return !live_region.empty() && !EqualIgnoringAsciiCase(live_region, "off");
 }
 
 const AtomicString& AXObject::LiveRegionStatus() const {
@@ -5974,31 +5978,31 @@ std::optional<ax::mojom::blink::HasPopup> AXObject::HasPopupFromAttribute(
     return std::nullopt;
   }
 
-  if (EqualIgnoringASCIICase(has_popup, "false")) {
+  if (EqualIgnoringAsciiCase(has_popup, "false")) {
     return ax::mojom::blink::HasPopup::kFalse;
   }
 
-  if (EqualIgnoringASCIICase(has_popup, "listbox")) {
+  if (EqualIgnoringAsciiCase(has_popup, "listbox")) {
     return ax::mojom::blink::HasPopup::kListbox;
   }
 
-  if (EqualIgnoringASCIICase(has_popup, "tree")) {
+  if (EqualIgnoringAsciiCase(has_popup, "tree")) {
     return ax::mojom::blink::HasPopup::kTree;
   }
 
-  if (EqualIgnoringASCIICase(has_popup, "grid")) {
+  if (EqualIgnoringAsciiCase(has_popup, "grid")) {
     return ax::mojom::blink::HasPopup::kGrid;
   }
 
-  if (EqualIgnoringASCIICase(has_popup, "dialog")) {
+  if (EqualIgnoringAsciiCase(has_popup, "dialog")) {
     return ax::mojom::blink::HasPopup::kDialog;
   }
 
   // To provide backward compatibility with ARIA 1.0 content,
   // user agents MUST treat an aria-haspopup value of true
   // as equivalent to a value of menu.
-  if (EqualIgnoringASCIICase(has_popup, "true") ||
-      EqualIgnoringASCIICase(has_popup, "menu")) {
+  if (EqualIgnoringAsciiCase(has_popup, "true") ||
+      EqualIgnoringAsciiCase(has_popup, "menu")) {
     return ax::mojom::blink::HasPopup::kMenu;
   }
 

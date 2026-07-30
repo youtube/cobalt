@@ -1050,6 +1050,11 @@ public abstract class AppMenuPropertiesDelegateImpl implements AppMenuProperties
         return false;
     }
 
+    @Override
+    public boolean shouldShowIconRow() {
+        return false;
+    }
+
     /**
      * Updates the bookmark item's visibility.
      *
@@ -1348,6 +1353,11 @@ public abstract class AppMenuPropertiesDelegateImpl implements AppMenuProperties
             model.set(
                     AppMenuItemProperties.ICON,
                     ContextCompat.getDrawable(mContext, R.drawable.open_in_new_tab));
+        }
+        if (info.appName != null) {
+            model.set(
+                    AppMenuItemProperties.TITLE_CONDENSED,
+                    mContext.getString(R.string.open_in_app_desc, info.appName));
         }
         return new ListItem(AppMenuItemType.STANDARD, model);
     }

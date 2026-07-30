@@ -39,6 +39,7 @@
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#include "components/autofill/core/browser/autofill_field.h"
 #include "components/autofill/core/browser/crowdsourcing/mock_autofill_crowdsourcing_manager.h"
 #include "components/autofill/core/browser/crowdsourcing/test_votes_uploader.h"
 #include "components/autofill/core/browser/crowdsourcing/votes_uploader_test_api.h"
@@ -61,6 +62,8 @@
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/filling/filling_product.h"
 #include "components/autofill/core/browser/form_import/form_data_importer_test_api.h"
+#include "components/autofill/core/browser/form_import/payments/payments_form_data_importer.h"
+#include "components/autofill/core/browser/form_import/payments/payments_form_data_importer_test_api.h"
 #include "components/autofill/core/browser/form_parsing/determine_regex_types.h"
 #include "components/autofill/core/browser/form_structure.h"
 #include "components/autofill/core/browser/form_structure_test_api.h"
@@ -151,6 +154,7 @@
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/gfx/geometry/rect.h"
 #include "url/gurl.h"
@@ -804,9 +808,9 @@ class MockAutofillClient : public TestAutofillClient {
         std::make_unique<NiceMock<MockPasswordManagerDelegate>>());
     test_api(GetPersonalDataManager().address_data_manager())
         .set_auto_accept_address_imports(true);
-    test_api(*GetFormDataImporter())
+    test_api(GetFormDataImporter()->GetPaymentsFormDataImporter())
         .set_credit_card_save_manager(create_credit_card_save_manager());
-    test_api(*GetFormDataImporter())
+    test_api(GetFormDataImporter()->GetPaymentsFormDataImporter())
         .set_iban_save_manager(std::make_unique<IbanSaveManager>(this));
   }
 
@@ -934,7 +938,7 @@ class MockAutofillDriver : public TestAutofillDriver {
                const FillId& fill_id,
                bool supports_refill,
                const url::Origin& triggered_origin,
-               (const base::flat_map<FieldGlobalId, FieldType>&),
+               (const absl::flat_hash_map<FieldGlobalId, FieldType>&),
                (const Section&)),
               (override));
   MOCK_METHOD(void,
@@ -1286,7 +1290,7 @@ class BrowserAutofillManagerTest
                       base::span<const FormFieldData> data,
                       const FillId& fill_id, bool supports_refill,
                       const url::Origin& triggered_origin,
-                      const base::flat_map<FieldGlobalId, FieldType>&,
+                      const absl::flat_hash_map<FieldGlobalId, FieldType>&,
                       const Section&) {
           filled_fields = std::vector<FormFieldData>(data.begin(), data.end());
           return base::MakeFlatSet<FieldGlobalId>(data, {},
@@ -2142,18 +2146,19 @@ TEST_F(BrowserAutofillManagerTest, GetProfileSuggestions_MatchCharacter) {
        CreateManageAddressesSuggestion()});
 }
 
-// Tests that we return address profile suggestions values when the section
-// is already autofilled, and that we merge identical values.
+// Tests that we return address profile suggestions values even when some fields
+// are already autofilled, and that suggestions ignore the autofilled fields and
+// deduplicate accordingly.
 TEST_F(BrowserAutofillManagerTest,
        GetProfileSuggestions_AlreadyAutofilledMergeValues) {
   personal_data().test_address_data_manager().ClearProfiles();
-  // Set up our form data.
   FormData form = CreateTestAddressFormData();
+  test_api(form).field(0).set_value(u"John");
   FormsSeen({form});
-
-  // First name is already autofilled which will make the section appear as
-  // "already autofilled".
-  test_api(form).field(0).set_is_autofilled(true);
+  test_api(autofill_manager())
+      .FindCachedFormById(form.global_id())
+      ->field(0)
+      ->AddFieldModifier(FieldModifier::kAutofill);
 
   // Two profiles have the same last name, and the third shares the same first
   // letter for last name.
@@ -2204,7 +2209,7 @@ TEST_F(BrowserAutofillManagerTest,
   ASSERT_EQ(firstname_field.name(), u"firstname");
   // First name is already autofilled which will make the section appear as
   // "already autofilled".
-  firstname_field.set_is_autofilled(true);
+  firstname_field.set_is_autofilled_according_to_renderer(true);
   firstname_field.set_value(u"E");
   FormsSeen({form});
 
@@ -3366,7 +3371,7 @@ TEST_F(
 
   // Fill data in CC Number field and set it as autofilled.
   test_api(form).field(1).set_value(u"4444 4444 4444 4444");
-  test_api(form).field(1).set_is_autofilled(true);
+  test_api(form).field(1).set_is_autofilled_according_to_renderer(true);
 
   // Expect that suggestions are returned for the expiry type field.
   const FormFieldData& expiry_type_field = form.fields()[2];
@@ -3385,7 +3390,7 @@ TEST_F(
 
   // Fill data in CC Number field and set it as not autofilled.
   test_api(form).field(1).set_value(u"4444 4444 4444 4444");
-  test_api(form).field(1).set_is_autofilled(false);
+  test_api(form).field(1).set_is_autofilled_according_to_renderer(false);
 
   // Ensure that the single field suggestions are not considered for any
   // field.
@@ -3817,7 +3822,7 @@ TEST_F(BrowserAutofillManagerTest, GetFieldSuggestionsWhenFormIsAutofilled) {
   FormsSeen({form});
 
   // Mark one of the fields as filled.
-  test_api(form).field(2).set_is_autofilled(true);
+  test_api(form).field(2).set_is_autofilled_according_to_renderer(true);
   OnAskForValuesToFill(form, form.fields()[0]);
   // Test that we sent the right values to the external delegate.
   external_delegate()->CheckSuggestions(
@@ -3857,7 +3862,7 @@ TEST_F(BrowserAutofillManagerTest, GetFieldSuggestionsWithDuplicateValues) {
   AutofillField* autofill_field = form_structure->field(0);
   ASSERT_TRUE(autofill_field);
   ASSERT_TRUE(field.global_id() == autofill_field->global_id());
-  field.set_is_autofilled(true);
+  field.set_is_autofilled_according_to_renderer(true);
   autofill_field->set_autofilled_type(autofill_field->Type().GetAddressType());
   field.set_value(u"Elvis");
   OnAskForValuesToFill(form, field);
@@ -3924,15 +3929,15 @@ TEST_F(BrowserAutofillManagerTest,
 // Tests that when focusing on an autofilled field, the user gets field-by-field
 // filling suggestions without prefix matching.
 TEST_F(BrowserAutofillManagerTest, GetProfileSuggestions_FieldSwapping) {
-  FormData form =
-      test::GetFormData({.fields = {{.role = NAME_FULL,
-                                     .value = u"Full Name",
-                                     .autocomplete_attribute = "name",
-                                     .is_autofilled = true},
-                                    {.role = ADDRESS_HOME_COUNTRY,
-                                     .value = u"Country",
-                                     .autocomplete_attribute = "country",
-                                     .is_autofilled = true}}});
+  FormData form = test::GetFormData(
+      {.fields = {{.role = NAME_FULL,
+                   .value = u"Full Name",
+                   .autocomplete_attribute = "name",
+                   .is_autofilled_according_to_renderer = true},
+                  {.role = ADDRESS_HOME_COUNTRY,
+                   .value = u"Country",
+                   .autocomplete_attribute = "country",
+                   .is_autofilled_according_to_renderer = true}}});
   FormsSeen({form});
   test_api(autofill_manager())
       .FindCachedFormById(form.global_id())
@@ -4347,7 +4352,7 @@ TEST_F(BrowserAutofillManagerTest, SuggestionGenerationTimingMetric) {
       std::nullopt);
 
   // Verify the metric was recorded exactly once.
-  histogram_tester.ExpectTotalCount("Autofill.Timing.SuggestionGeneration", 1);
+  histogram_tester.ExpectTotalCount("Autofill.Timing.SuggestionGeneration2", 1);
 }
 
 // Test the field log events at the form submission.
@@ -6109,7 +6114,13 @@ TEST_F(BrowserAutofillManagerTest,
                                      }});
   autofill_manager().AddSeenForm(form, {LOYALTY_MEMBERSHIP_ID});
   // Mark the loyalty card field as autofilled.
-  test_api(form).field(0).set_is_autofilled(true);
+  test_api(autofill_manager())
+      .FindCachedFormById(form.global_id())
+      ->field(0)
+      ->AddFieldModifier(FieldModifier::kAutofill);
+  if (!base::FeatureList::IsEnabled(features::kAutofillFixIsAutofilled)) {
+    test_api(form).field(0).set_is_autofilled_according_to_renderer(true);
+  }
   test_api(form).field(0).set_value(u"LOYALTYCARDNUMBER");
 
   FormSubmitted(form);
@@ -9680,7 +9691,7 @@ TEST_F(BrowserAutofillManagerOtpSuggestionsTest, OtpFilling) {
   OtpFillData otp_fill_data = {{form.fields()[0].global_id(), otp_value}};
 
   // Prepare to intercept the request to the renderer to fill the data.
-  base::flat_map<FieldGlobalId, FieldType> expected_types = {
+  absl::flat_hash_map<FieldGlobalId, FieldType> expected_types = {
       {form.fields()[0].global_id(), ONE_TIME_CODE}};
   std::vector<FormFieldData> filled_fields;
   EXPECT_CALL(autofill_driver(),

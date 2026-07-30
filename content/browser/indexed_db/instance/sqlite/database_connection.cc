@@ -13,6 +13,7 @@
 #include "base/check.h"
 #include "base/containers/heap_array.h"
 #include "base/containers/to_vector.h"
+#include "base/feature_list.h"
 #include "base/files/file_enumerator.h"
 #include "base/files/file_util.h"
 #include "base/functional/callback.h"
@@ -86,6 +87,14 @@
   }
 
 namespace content::indexed_db::sqlite {
+
+#if BUILDFLAG(IS_WIN)
+// This exists as an escape hatch and/or to experiment with its impact on
+// reliability metrics.
+BASE_FEATURE(kIdbSqliteExclusiveDatabaseFileLock,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#endif
+
 namespace {
 
 // Persisted to disk; do not reuse or change values.
@@ -848,7 +857,8 @@ class IndexCursorImpl : public BackingStoreCursorImpl {
 StatusOr<std::unique_ptr<DatabaseConnection>> DatabaseConnection::Open(
     std::optional<std::u16string_view> name,
     base::FilePath path,
-    BackingStoreImpl& backing_store) {
+    BackingStoreImpl& backing_store,
+    bool erase_if_zygotic) {
   auto connection =
       base::WrapUnique(new DatabaseConnection(path, backing_store));
   Status s = connection->Init(name);
@@ -859,16 +869,22 @@ StatusOr<std::unique_ptr<DatabaseConnection>> DatabaseConnection::Open(
       loss.message = s.ToString();
     }
     // If opening fails, recover or destroy the DB and try once more.
-    std::move(*connection).DestroySoon(/*force_closing=*/false).Run();
+    std::move(*connection).GetCleanupTask(/*force_closing=*/false).Run();
     connection = base::WrapUnique(new DatabaseConnection(path, backing_store));
     s = connection->Init(name);
     connection->data_loss_info_ = std::move(loss);
     s.Log("IndexedDB.SQLite.OpenRetryResult");
   }
+  if (s.ok() && erase_if_zygotic && connection->IsZygotic()) {
+    s = Status::Corruption(
+        "Database was zygotic on open, indicating prior unclean shutdown");
+    connection->marked_for_permanent_deletion_ = true;
+  }
   if (!s.ok()) {
-    std::move(*connection).DestroySoon(/*force_closing=*/false).Run();
+    std::move(*connection).GetCleanupTask(/*force_closing=*/false).Run();
     return base::unexpected(s);
   }
+
   return connection;
 }
 
@@ -891,14 +907,12 @@ void DatabaseConnection::Release(base::WeakPtr<DatabaseConnection> db) {
 // static
 void DatabaseConnection::CloseDatabase(
     std::unique_ptr<sql::Database> db,
-    const base::FilePath& db_path,
     const base::FilePath& legacy_blob_directory,
     bool should_delete,
     bool should_attempt_recovery,
     std::optional<std::set<int64_t>> known_legacy_blob_ids) {
   if (should_delete) {
-    db.reset();
-    sql::Database::Delete(db_path);
+    db->CloseAndDelete();
     if (!base::DeletePathRecursively(legacy_blob_directory)) {
       base::UmaHistogramEnumeration(
           "IndexedDB.SQLite.SpecificEvent.OnDisk",
@@ -944,11 +958,11 @@ DatabaseConnection::DatabaseConnection(base::FilePath path,
 DatabaseConnection::~DatabaseConnection() {
   // Closing a `sql::Database` can be an expensive operation since it performs a
   // checkpoint. Hence, ensure that closing happens intentionally (in the task
-  // returned by `DestroySoon()`).
-  CHECK(!db_) << "DestroySoon() must be called before destruction";
+  // returned by `GetCleanupTask()`).
+  CHECK(!db_) << "GetCleanupTask() must be called before destruction";
 }
 
-base::OnceClosure DatabaseConnection::DestroySoon(bool force_closing) && {
+base::OnceClosure DatabaseConnection::GetCleanupTask(bool force_closing) && {
   CHECK(db_);
 
   // Although generally active blobs will keep `this` alive, when the backing
@@ -1005,7 +1019,7 @@ base::OnceClosure DatabaseConnection::DestroySoon(bool force_closing) && {
 
   db_->DetachFromSequence();
   return base::BindOnce(
-      &DatabaseConnection::CloseDatabase, std::move(db_), path_,
+      &DatabaseConnection::CloseDatabase, std::move(db_),
       GetLegacyBlobDirectory(), should_delete_db, should_attempt_recovery,
       should_delete_legacy_blobs ? std::move(legacy_blob_files_)
                                  : std::nullopt);
@@ -1016,12 +1030,16 @@ Status DatabaseConnection::Init(std::optional<std::u16string_view> name) {
 
   constexpr sql::Database::Tag kSqlTag = "IndexedDB";
   constexpr sql::Database::Tag kSqlTagInMemory = "IndexedDBEphemeral";
-  db_ =
-      std::make_unique<sql::Database>(sql::DatabaseOptions()
-                                          .set_exclusive_locking(true)
-                                          .set_wal_mode(true)
-                                          .set_enable_triggers(true),
-                                      in_memory() ? kSqlTagInMemory : kSqlTag);
+  db_ = std::make_unique<sql::Database>(
+      sql::DatabaseOptions()
+#if BUILDFLAG(IS_WIN)
+          // *Enforce* exclusivity on Windows, for the purposes of reliability.
+          .set_exclusive_database_file_lock(
+              base::FeatureList::IsEnabled(kIdbSqliteExclusiveDatabaseFileLock))
+#endif
+          .set_wal_mode(true)
+          .set_enable_triggers(true),
+      in_memory() ? kSqlTagInMemory : kSqlTag);
 
   if (in_memory()) {
     RETURN_STATUS_ON_ERROR(db_->OpenInMemory());
@@ -2227,6 +2245,7 @@ void DatabaseConnection::DeleteIdbDatabase(
   metadata_ = blink::IndexedDBDatabaseMetadata(metadata_.name);
   interface_wrapper_weak_factory_.InvalidateWeakPtrs();
   CHECK(!blob_writers_weak_factory_.HasWeakPtrs());
+  CHECK(!active_rw_transaction_);
 
   if (CanSelfDestruct()) {
     // Fast path: skip explicitly deleting data as the whole database will be
@@ -2240,22 +2259,38 @@ void DatabaseConnection::DeleteIdbDatabase(
   cursor_statements_.clear();
 
   // Since blobs are still active, reset to zygotic state instead of destroying.
-  bool success =
-      db_->Execute(
-          "DELETE FROM blob_references WHERE record_row_id IS NOT NULL") &&
-      db_->Execute("DELETE FROM index_references") &&
-      db_->Execute("DELETE FROM indexes") &&
-      db_->Execute("DELETE FROM records") &&
-      db_->Execute("DELETE FROM object_stores") && [&]() {
-        sql::Statement statement(db_->GetUniqueStatement(
-            "UPDATE indexed_db_metadata SET version = ?"));
-        statement.BindInt64(0, blink::IndexedDBDatabaseMetadata::NO_VERSION);
-        return statement.Run();
-      }();
+  bool reset_success = [this]() {
+    sql::Transaction delete_txn(db_.get());
+    return delete_txn.Begin() &&
+           db_->Execute(
+               "DELETE FROM blob_references WHERE record_row_id IS NOT NULL") &&
+           db_->Execute("DELETE FROM index_references") &&
+           db_->Execute("DELETE FROM indexes") &&
+           db_->Execute("DELETE FROM records") &&
+           db_->Execute("DELETE FROM object_stores") &&
+           [&]() {
+             sql::Statement statement(db_->GetUniqueStatement(
+                 "UPDATE indexed_db_metadata SET version = ?"));
+             statement.BindInt64(0,
+                                 blink::IndexedDBDatabaseMetadata::NO_VERSION);
+             return statement.Run();
+           }() &&
+           delete_txn.Commit();
+  }();
 
-  // If there are any errors in the above, then blobs will probably error out
-  // too, so go ahead and destroy `this`.
-  if (!success) {
+  if (reset_success) {
+    // Checkpoint to make sure that the data is deleted right away. This ensures
+    // the data will be wiped from disk even if the browser later crashes. We
+    // don't checkpoint on every deletion from the database for performance
+    // reasons, but we do strive to ensure entire database deletion will be
+    // "secure".
+    //
+    // In the case where blobs are *not* still present, this is ensured by the
+    // post-close checkpoint + WAL deletion.
+    db_->CheckpointDatabase(/*truncate=*/true);
+  } else {
+    // If there are any errors in the above, then blobs will probably error out
+    // too, so go ahead and destroy `this`.
     backing_store_->DestroyConnection(metadata_.name, std::move(locks));
     // `this` is deleted.
   }

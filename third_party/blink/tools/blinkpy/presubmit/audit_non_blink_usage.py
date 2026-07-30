@@ -853,6 +853,7 @@ _CONFIG = [
             'net::CookiePriority',
             'net::CookieSameSite',
             'net::CookieSourceScheme',
+            'net::cookie_util::GetCookieDomainWithString',
 
             # Net error codes
             'net::OK',
@@ -1899,6 +1900,7 @@ _CONFIG = [
             'third_party/blink/renderer/modules/imagecapture/',
         ],
         'allowed': [
+            'gpu::SHARED_IMAGE_USAGE_DISPLAY_READ',
             'libyuv::.+',
             'media::.+',
             'viz::SkColorTypeToSinglePlaneSharedImageFormat',
@@ -2622,6 +2624,7 @@ _CONFIG = [
         'paths': ['third_party/blink/renderer/modules/clipboard/'],
         'allowed': [
             'net::ParseMimeTypeWithoutParameter',
+            'ui::kWebClipboardFormatPrefix',
         ],
     },
     {

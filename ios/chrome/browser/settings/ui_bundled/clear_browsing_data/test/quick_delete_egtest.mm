@@ -297,7 +297,7 @@ NSString* CapitalizeFirstLetter(NSString* string) {
       [self isRunningTest:@selector
             (DISABLED_testOpenSearchHistoryMyActivityFooterLink)] ||
       [self isRunningTest:@selector
-            (testOpenOtherFormsOfActivityMyActivityFooterLink)] ||
+            (FLAKY_testOpenOtherFormsOfActivityMyActivityFooterLink)] ||
       [self isRunningTest:@selector(testHideShowFooterBasedOnSignInStatus)] ||
       [self isRunningTest:@selector
             (testButtonColorWhenThePasswordRemovalFeatureIsDisabled)] ||
@@ -761,7 +761,8 @@ NSString* CapitalizeFirstLetter(NSString* string) {
 // row when browsing history is selected as a data type to be deleted and when
 // the user syncs history. It also tests that the history entries get deleted
 // when the deletion of browsing data is selected.
-- (void)testBrowsingHistoryForDeletionWithHistorySync {
+// TODO(crbug.com/484951999): Unflake the test.
+- (void)FLAKY_testBrowsingHistoryForDeletionWithHistorySync {
   // Sign in and enable history sync.
   [self signInAndEnableHistorySync];
 
@@ -1655,7 +1656,8 @@ NSString* CapitalizeFirstLetter(NSString* string) {
 
 // Tests the footer other forms of activity link is opened correctly and metrics
 // are recorded in the corrresponding histogram bucket.
-- (void)testOpenOtherFormsOfActivityMyActivityFooterLink {
+// TODO(crbug.com/485590395): Fix flakiness and reenable.
+- (void)FLAKY_testOpenOtherFormsOfActivityMyActivityFooterLink {
   GREYAssertTrue(self.testServer->Start(), @"Test server failed to start.");
   // Sign in is required to show the footer.
   [self signIn];

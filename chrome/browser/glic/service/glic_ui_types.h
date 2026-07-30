@@ -49,6 +49,8 @@ using EmbedderOptions = std::variant<SidePanelShowOptions, FloatingShowOptions>;
 struct ShowOptions {
   explicit ShowOptions(EmbedderOptions panel_options);
   explicit ShowOptions(EmbedderOptions panel_options, bool focus);
+  explicit ShowOptions(EmbedderOptions panel_options,
+                       mojom::InvocationSource source);
   ShowOptions(const ShowOptions&);
   ShowOptions(ShowOptions&&);
   ShowOptions& operator=(const ShowOptions&);
@@ -65,12 +67,17 @@ struct ShowOptions {
   static ShowOptions ForSidePanel(tabs::TabInterface& bound_tab);
   static ShowOptions ForSidePanel(tabs::TabInterface& bound_tab,
                                   GlicPinTrigger pin_trigger);
+  static ShowOptions ForSidePanel(tabs::TabInterface& bound_tab,
+                                  GlicPinTrigger pin_trigger,
+                                  mojom::InvocationSource invocation_source);
 
   // Shared show options
   bool focus_on_show = false;
   bool reinitialize_if_already_active = false;
   std::optional<std::string> prompt_suggestion = std::nullopt;
   bool auto_send = false;
+  mojom::InvocationSource invocation_source =
+      mojom::InvocationSource::kTopChromeButton;
 
   // Container for options that are different between side panel and floaty.
   EmbedderOptions embedder_options;

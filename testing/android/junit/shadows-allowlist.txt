@@ -9,24 +9,6 @@
 # TODO(https://crbug.com/341267427): Reduce this list.
 +org.chromium.base.task.AsyncTask
 +org.chromium.base.task.PostTask
-+org.chromium.chrome.browser.dragdrop.ChromeDragAndDropBrowserDelegate$ClipDataItemBuilder
-+org.chromium.chrome.browser.multiwindow.MultiInstanceManagerApi31
-+org.chromium.chrome.browser.tab.TabBuilder
-+org.chromium.chrome.browser.tab.TabUtils
-+org.chromium.chrome.browser.toolbar.adaptive.OptionalNewTabButtonController$Delegate
-+org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeControllerFactory
-+org.chromium.chrome.browser.ui.hats.MessageSurveyUiDelegate
-+org.chromium.chrome.browser.webapps.WebApkShareTargetUtil
-+org.chromium.components.browser_ui.bottomsheet.BottomSheetControllerProvider
-+org.chromium.components.browser_ui.widget.ContextMenuDialog
-+org.chromium.components.embedder_support.util.UrlUtilities
-+org.chromium.components.media_router.caf.CastMediaSource
-+org.chromium.components.url_formatter.UrlFormatter
-+org.chromium.ui.InsetsRectProvider$BoundingRectHelper
-+org.chromium.ui.display.DisplayAndroid
-+org.chromium.ui.display.DisplayAndroidManager
-+org.chromium.ui.insets.WindowInsetsUtils
-+org.chromium.webapk.shell_apk.LaunchHostBrowserSelector
 
 # Disallow new shadows of chrome-authored code.
 -com.google.android.apps.chrome

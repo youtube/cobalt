@@ -29,7 +29,6 @@
 #include "chrome/browser/ui/views/side_panel/side_panel_registry.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_ui.h"
 #include "chrome/browser/ui/webui_browser/webui_browser.h"
-#include "chrome/common/chrome_features.h"
 #include "components/history_clusters/core/features.h"
 #include "components/history_clusters/core/history_clusters_service.h"
 #include "components/prefs/pref_service.h"
@@ -156,7 +155,7 @@ actions::ActionItem* SidePanelUtil::GetActionItem(
 
 void SidePanelUtil::RecordSidePanelOpen(
     SidePanelEntry::PanelType type,
-    std::optional<SidePanelUtil::SidePanelOpenTrigger> trigger) {
+    std::optional<SidePanelOpenTrigger> trigger) {
   base::RecordAction(base::UserMetricsAction(
       base::StrCat({GetSidePanelNameFor(type), ".Show"}).c_str()));
 
@@ -169,7 +168,7 @@ void SidePanelUtil::RecordSidePanelOpen(
 
 void SidePanelUtil::RecordSidePanelShowOrChangeEntryTrigger(
     SidePanelEntry::PanelType type,
-    std::optional<SidePanelUtil::SidePanelOpenTrigger> trigger) {
+    std::optional<SidePanelOpenTrigger> trigger) {
   if (trigger.has_value()) {
     base::UmaHistogramEnumeration(
         base::StrCat({GetSidePanelNameFor(type), ".OpenOrChangeEntryTrigger"}),
@@ -260,7 +259,7 @@ void SidePanelUtil::RecordEntryShowTriggeredMetrics(
     SidePanelEntry::PanelType type,
     Browser* browser,
     SidePanelEntry::Id id,
-    std::optional<SidePanelUtil::SidePanelOpenTrigger> trigger) {
+    std::optional<SidePanelOpenTrigger> trigger) {
   if (trigger.has_value()) {
     base::UmaHistogramEnumeration(
         base::StrCat({GetSidePanelNameFor(type), ".",

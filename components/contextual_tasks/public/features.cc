@@ -25,7 +25,7 @@ BASE_FEATURE(kContextualTasksScopeChange, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kContextualTasksContext, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables integration with the server side context library.
-BASE_FEATURE(kContextualTasksContextLibrary, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kContextualTasksContextLibrary, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables quality logging for relevant context determination for contextual
 // tasks.
@@ -36,7 +36,7 @@ BASE_FEATURE(kContextualTasksContextMenu, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables suggestions for contextual tasks.
 BASE_FEATURE(kContextualTasksSuggestionsEnabled,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables tab auto-chip for contextual tasks.
 BASE_FEATURE(kContextualTasksTabAutoSuggestionChipEnabled,
@@ -59,7 +59,10 @@ BASE_FEATURE(kContextualTasksRemoveTasksWithoutThreadsOrTabAssociations,
 BASE_FEATURE(kEnableNotifyZeroStateRenderedCapability,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kContextualTasksExpandButton, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kContextualTasksExpandButton, base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kContextualTasksSendFullVersionListEnabled,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 const base::FeatureParam<bool> kContextualTasksLockAndUnlockInputCapability(
     &kContextualTasks,
@@ -141,7 +144,7 @@ const base::FeatureParam<bool> kForceGscInTabMode(
 
 // The user agent suffix to use for requests from the contextual tasks UI.
 const base::FeatureParam<std::string> kContextualTasksUserAgentSuffix{
-    &kContextualTasks, "contextual-tasks-user-agent-suffix", "Cobrowsing/1.0"};
+    &kContextualTasks, "contextual-tasks-user-agent-suffix", "Cobrowsing/1.1"};
 
 const base::FeatureParam<bool> kEnableSteadyComposeboxVoiceSearch(
     &kContextualTasks,
@@ -209,7 +212,7 @@ const base::FeatureParam<bool> kEnableContextualTasksSmartCompose(
 const base::FeatureParam<bool> kContextualTasksEnableNativeZeroStateSuggestions(
     &kContextualTasks,
     "ContextualTasksEnableNativeZeroStateSuggestions",
-    false);
+    true);
 
 const base::FeatureParam<bool>
     kContextualTasksForceBasicModeIfOpeningThreadHistory(

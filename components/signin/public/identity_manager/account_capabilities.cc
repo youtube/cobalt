@@ -11,7 +11,6 @@
 
 #include "base/containers/heap_array.h"
 #include "base/containers/span.h"
-#include "base/feature_list.h"
 #include "base/no_destructor.h"
 #include "base/notreached.h"
 #include "build/build_config.h"
@@ -23,11 +22,6 @@
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "components/signin/public/android/jni_headers/AccountCapabilities_jni.h"
-#endif
-
-#if !defined(NDEBUG)
-BASE_FEATURE(kEnableFakeCapabilityForTesting,
-             base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
 AccountCapabilities::AccountCapabilities() = default;
@@ -128,6 +122,12 @@ signin::Tribool AccountCapabilities::
   return GetCapabilityByName(
       kCanShowHistorySyncOptInsWithoutMinorModeRestrictionsCapabilityName);
 }
+
+#if BUILDFLAG(IS_IOS)
+signin::Tribool AccountCapabilities::can_sign_in_to_chrome() const {
+  return GetCapabilityByName(kCanSignInToChromeCapabilityName);
+}
+#endif
 
 #if BUILDFLAG(IS_CHROMEOS)
 signin::Tribool AccountCapabilities::can_toggle_auto_updates() const {

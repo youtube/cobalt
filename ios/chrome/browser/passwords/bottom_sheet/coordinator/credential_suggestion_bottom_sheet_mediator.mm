@@ -17,7 +17,6 @@
 #import "components/password_manager/core/browser/password_form.h"
 #import "components/password_manager/core/browser/password_manager.h"
 #import "components/password_manager/core/browser/password_store/password_store_interface.h"
-#import "components/password_manager/core/browser/password_ui_utils.h"
 #import "components/password_manager/core/browser/ui/credential_ui_entry.h"
 #import "components/password_manager/ios/features.h"
 #import "components/password_manager/ios/ios_password_manager_driver_factory.h"
@@ -31,14 +30,11 @@
 #import "ios/chrome/browser/passwords/bottom_sheet/coordinator/credential_suggestion_bottom_sheet_mediator_base+Subclassing.h"
 #import "ios/chrome/browser/passwords/bottom_sheet/coordinator/password_suggestion_bottom_sheet_exit_reason.h"
 #import "ios/chrome/browser/passwords/bottom_sheet/ui/credential_suggestion_bottom_sheet_consumer.h"
-#import "ios/chrome/browser/passwords/bottom_sheet/ui/credential_suggestion_bottom_sheet_presenter.h"
 #import "ios/chrome/browser/passwords/model/password_tab_helper.h"
 #import "ios/chrome/browser/passwords/password_suggestion/ui/password_suggestion_utils.h"
 #import "ios/chrome/browser/settings/ui_bundled/password/password_sharing/multi_avatar_image_util.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_names.h"
-#import "ios/chrome/browser/shared/model/web_state_list/active_web_state_observation_forwarder.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
-#import "ios/chrome/browser/shared/model/web_state_list/web_state_list_observer_bridge.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/common/ui/favicon/favicon_constants.h"
 #import "ios/chrome/common/ui/reauthentication/reauthentication_event.h"
@@ -46,7 +42,6 @@
 #import "ios/chrome/grit/ios_strings.h"
 #import "ios/web/public/js_messaging/web_frames_manager.h"
 #import "ios/web/public/web_state.h"
-#import "ios/web/public/web_state_observer_bridge.h"
 #import "services/network/public/cpp/shared_url_loader_factory.h"
 #import "ui/base/l10n/l10n_util_mac.h"
 #import "ui/gfx/image/image.h"
@@ -187,15 +182,10 @@ NSArray<FormSuggestion*>* SetParamsAndProviderInSuggestions(
 
 @end
 
-@interface CredentialSuggestionBottomSheetMediator () <WebStateListObserving,
-                                                       CRWWebStateObserver>
+@interface CredentialSuggestionBottomSheetMediator ()
 
 // Default globe favicon when no favicon is available.
 @property(nonatomic, readonly) FaviconAttributes* defaultGlobeIconAttributes;
-
-// Presenter that controls the presentation of the bottom sheet.
-@property(nonatomic, weak) id<CredentialSuggestionBottomSheetPresenter>
-    presenter;
 
 @end
 
@@ -203,24 +193,6 @@ NSArray<FormSuggestion*>* SetParamsAndProviderInSuggestions(
   // The interfaces for getting and manipulating a user's saved passwords.
   scoped_refptr<password_manager::PasswordStoreInterface> _profilePasswordStore;
   scoped_refptr<password_manager::PasswordStoreInterface> _accountPasswordStore;
-
-  // Origin to fetch passwords for.
-  GURL _URL;
-
-  // The WebStateList observed by this mediator and the observer bridge.
-  raw_ptr<WebStateList> _webStateList;
-
-  // Bridge and forwarder for observing WebState events. The forwarder is a
-  // scoped observation, so the bridge will automatically be removed from the
-  // relevant observer list.
-  std::unique_ptr<web::WebStateObserverBridge> _webStateObserver;
-  std::unique_ptr<ActiveWebStateObservationForwarder> _forwarder;
-
-  // Bridge for observing WebStateList events.
-  std::unique_ptr<WebStateListObserverBridge> _webStateListObserver;
-  std::unique_ptr<
-      base::ScopedObservation<WebStateList, WebStateListObserverBridge>>
-      _webStateListObservation;
 
   // Vector of credentials related to the current page.
   std::vector<password_manager::CredentialUIEntry> _credentials;
@@ -259,7 +231,6 @@ NSArray<FormSuggestion*>* SetParamsAndProviderInSuggestions(
   BottomSheetFormSuggestionProviderWrapper* _suggestionsProviderWrapper;
 }
 
-@synthesize consumer = _consumer;
 @synthesize defaultGlobeIconAttributes = _defaultGlobeIconAttributes;
 
 - (instancetype)
@@ -268,7 +239,6 @@ NSArray<FormSuggestion*>* SetParamsAndProviderInSuggestions(
                prefService:(PrefService*)prefService
                     params:(const autofill::FormActivityParams&)params
               reauthModule:(id<ReauthenticationProtocol>)reauthModule
-                       URL:(const GURL&)URL
       profilePasswordStore:
           (scoped_refptr<password_manager::PasswordStoreInterface>)
               profilePasswordStore
@@ -277,37 +247,21 @@ NSArray<FormSuggestion*>* SetParamsAndProviderInSuggestions(
               accountPasswordStore
     sharedURLLoaderFactory:
         (scoped_refptr<network::SharedURLLoaderFactory>)sharedURLLoaderFactory
-         engagementTracker:(feature_engagement::Tracker*)engagementTracker
-                 presenter:
-                     (id<CredentialSuggestionBottomSheetPresenter>)presenter {
-  if ((self = [super init])) {
+         engagementTracker:(feature_engagement::Tracker*)engagementTracker {
+  self = [super initWithWebStateList:webStateList];
+  if (self) {
     _faviconLoader = faviconLoader;
     _prefService = prefService;
     _reauthenticationModule = reauthModule;
 
     _profilePasswordStore = profilePasswordStore;
     _accountPasswordStore = accountPasswordStore;
-    _URL = URL;
     _imageFetcher = std::make_unique<image_fetcher::ImageFetcherImpl>(
         image_fetcher::CreateIOSImageDecoder(), sharedURLLoaderFactory);
     _senderImages = [NSMutableArray array];
-
-    _webStateList = webStateList;
-    web::WebState* activeWebState = _webStateList->GetActiveWebState();
-
-    // Create and register the observers.
-    _webStateObserver = std::make_unique<web::WebStateObserverBridge>(self);
-    _forwarder = std::make_unique<ActiveWebStateObservationForwarder>(
-        _webStateList, _webStateObserver.get());
-    _webStateListObserver = std::make_unique<WebStateListObserverBridge>(self);
-    _webStateListObservation = std::make_unique<
-        base::ScopedObservation<WebStateList, WebStateListObserverBridge>>(
-        _webStateListObserver.get());
-    _webStateListObservation->Observe(_webStateList);
-
-    _presenter = presenter;
     _params = params;
 
+    web::WebState* activeWebState = webStateList->GetActiveWebState();
     if (activeWebState) {
       PasswordTabHelper* passwordTabHelper =
           PasswordTabHelper::FromWebState(activeWebState);
@@ -365,46 +319,36 @@ NSArray<FormSuggestion*>* SetParamsAndProviderInSuggestions(
   _credentials = credentials;
 }
 
-#pragma mark - Accessors
-
-- (void)setConsumer:(id<CredentialSuggestionBottomSheetConsumer>)consumer {
-  _consumer = consumer;
-  if ([self hasSuggestions]) {
-    NSString* domain = @"";
-    if (!_URL.is_empty()) {
-      url::Origin origin = url::Origin::Create(_URL);
-      domain =
-          base::SysUTF8ToNSString(password_manager::GetShownOrigin(origin));
-    }
-    [consumer setSuggestions:self.suggestions andDomain:domain];
-    if ([self shouldDisplaySharingNotification]) {
-      [consumer setTitle:[self sharingNotificationTitle]
-                subtitle:[self sharingNotificationSubtitle:domain]];
-      [consumer setAvatarImage:CreateMultiAvatarImage(_senderImages,
-                                                      kProfileImageSize)];
-    }
-
-    // Determine the primary action label only from the first suggestion, which
-    // is sufficient as all the suggestions should have the same metadata. There
-    // should be at least one suggestion at this point because the consumer is
-    // set when there is at least one suggestion.
-    [consumer setPrimaryActionString:l10n_util::GetNSString(
-                                         PrimaryActionStringIdFromSuggestion(
-                                             self.suggestions.firstObject))];
-  }
-}
-
 #pragma mark - CredentialSuggestionBottomSheetMediatorBase
 
+- (void)setConsumer:(id<CredentialSuggestionBottomSheetConsumer>)consumer {
+  [super setConsumer:consumer];
+
+  // The bottom sheet isn't presented when there are no suggestions to show, so
+  // there's no need to update the consumer.
+  if (![self hasSuggestions]) {
+    return;
+  }
+
+  if ([self shouldDisplaySharingNotification]) {
+    [self.consumer setTitle:[self sharingNotificationTitle]
+                   subtitle:[self sharingNotificationSubtitle:self.domain]];
+    [self.consumer setAvatarImage:CreateMultiAvatarImage(_senderImages,
+                                                         kProfileImageSize)];
+  }
+
+  // Determine the primary action label only from the first suggestion, which
+  // is sufficient as all the suggestions should have the same metadata.
+  [self.consumer setPrimaryActionString:l10n_util::GetNSString(
+                                            PrimaryActionStringIdFromSuggestion(
+                                                self.suggestions.firstObject))];
+}
+
 - (void)disconnect {
+  [super disconnect];
+
   _prefService = nullptr;
   _faviconLoader = nullptr;
-
-  _webStateListObservation.reset();
-  _webStateListObserver.reset();
-  _forwarder.reset();
-  _webStateObserver.reset();
-  _webStateList = nullptr;
 
   _suggestionsProviderWrapper = nil;
 }
@@ -455,8 +399,8 @@ NSArray<FormSuggestion*>* SetParamsAndProviderInSuggestions(
 #pragma mark - CredentialSuggestionBottomSheetDelegate
 
 - (void)disableBottomSheet {
-  if (_webStateList) {
-    web::WebState* activeWebState = _webStateList->GetActiveWebState();
+  if (self.webStateList) {
+    web::WebState* activeWebState = self.webStateList->GetActiveWebState();
     if (!activeWebState) {
       return;
     }
@@ -478,62 +422,26 @@ NSArray<FormSuggestion*>* SetParamsAndProviderInSuggestions(
     // fetch for the favicon anymore.
     return;
   }
-  if (!_URL.is_empty()) {
+  if (!self.URL.is_empty()) {
     _faviconLoader->FaviconForPageUrl(
-        _URL, kDesiredMediumFaviconSizePt, kMinFaviconSizePt,
+        self.URL, kDesiredMediumFaviconSizePt, kMinFaviconSizePt,
         /*fallback_to_google_server=*/NO, faviconLoadedBlock);
   } else {
     faviconLoadedBlock([self defaultGlobeIconAttributes], /*cached*/ true);
   }
 }
 
-#pragma mark - WebStateListObserving
-
-- (void)didChangeWebStateList:(WebStateList*)webStateList
-                       change:(const WebStateListChange&)change
-                       status:(const WebStateListStatus&)status {
-  DCHECK_EQ(_webStateList, webStateList);
-  if (status.active_web_state_change()) {
-    [self onWebStateChange];
-  }
-}
-
-- (void)webStateListDestroyed:(WebStateList*)webStateList {
-  DCHECK_EQ(webStateList, _webStateList);
-  [self onWebStateChange];
-}
-
-#pragma mark - CRWWebStateObserver
-
-- (void)webStateDestroyed:(web::WebState*)webState {
-  [self onWebStateChange];
-}
-
-- (void)renderProcessGoneForWebState:(web::WebState*)webState {
-  [self onWebStateChange];
-}
-
 #pragma mark - Private
-
-- (void)onWebStateChange {
-  // Disconnect so anything that relies on the webstate behind the mediator can
-  // avoid using the mediator's objects once the webstate is destroyed.
-  [self disconnect];
-
-  // As there is no more context for showing the bottom sheet, end the
-  // presentation.
-  [self.presenter endPresentation];
-}
 
 // Perform suggestion selection
 - (void)selectSuggestion:(FormSuggestion*)suggestion atIndex:(NSInteger)index {
   default_browser::NotifyPasswordAutofillSuggestionUsed(_engagementTracker);
 
-  if (!_webStateList) {
+  if (!self.webStateList) {
     return;
   }
 
-  web::WebState* activeWebState = _webStateList->GetActiveWebState();
+  web::WebState* activeWebState = self.webStateList->GetActiveWebState();
   if (!activeWebState) {
     return;
   }
@@ -694,18 +602,18 @@ NSArray<FormSuggestion*>* SetParamsAndProviderInSuggestions(
 // Stores the fetched `image` and passes it to the consumer.
 - (void)onSenderImageFetched:(UIImage*)image {
   [_senderImages addObject:image];
-  [_consumer
+  [self.consumer
       setAvatarImage:CreateMultiAvatarImage(_senderImages, kProfileImageSize)];
 }
 
 // Returns the AutofillBottomSheetTabHelper for the active webstate or nil if
 // it can't be retrieved.
 - (AutofillBottomSheetTabHelper*)tabHelper {
-  if (!_webStateList) {
+  if (!self.webStateList) {
     return nil;
   }
 
-  web::WebState* activeWebState = _webStateList->GetActiveWebState();
+  web::WebState* activeWebState = self.webStateList->GetActiveWebState();
   if (!activeWebState) {
     return nil;
   }

@@ -8,6 +8,7 @@
 
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
+#include "build/branding_buildflags.h"
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/actor/resources/grit/actor_browser_resources.h"
 #include "chrome/browser/profiles/profile.h"
@@ -365,20 +366,10 @@ void ToastService::RegisterToasts(
   if (base::FeatureList::IsEnabled(
           autofill::features::kAutofillAiWalletPrivatePasses)) {
     toast_registry_->RegisterToast(
-        ToastId::kSavedAutofillAiEntityToWallet,
-        // TODO(crbug.com/477845712): Use the correct icon.
-        ToastSpecification::Builder(kCheckIcon)
-            .AddCloseButton()
-            .AddActionButton(
-                IDS_AUTOFILL_AI_TOAST_BUTTON,
-                base::BindRepeating(chrome::ShowAutofill,
-                                    base::Unretained(browser_window_interface)))
+        ToastId::kAutofillAiWalletErrorMessage,
+        ToastSpecification::Builder(vector_icons::kPersonTextIcon)
             .AddGlobalScoped()
             .Build());
-    toast_registry_->RegisterToast(
-        // TODO(crbug.com/477845712): Use the correct icon.
-        ToastId::kAutofillAiWalletErrorMessage,
-        ToastSpecification::Builder(kCheckIcon).AddGlobalScoped().Build());
   }
 
   if (base::FeatureList::IsEnabled(toast_features::kTranslateToast)) {

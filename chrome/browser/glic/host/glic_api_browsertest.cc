@@ -59,12 +59,15 @@
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/public/glic_side_panel_coordinator.h"
+#include "chrome/browser/glic/service/glic_instance_impl.h"
 #include "chrome/browser/glic/service/metrics/glic_instance_coordinator_metrics.h"
 #include "chrome/browser/glic/service/metrics/glic_instance_helper_metrics.h"
 #include "chrome/browser/glic/test_support/glic_api_test.h"
+#include "chrome/browser/glic/test_support/glic_histogram_tester.h"
 #include "chrome/browser/glic/test_support/glic_test_util.h"
 #include "chrome/browser/glic/test_support/interactive_test_util.h"
 #include "chrome/browser/glic/test_support/non_interactive_glic_test.h"
+#include "chrome/browser/glic/widget/glic_floating_ui.h"
 #include "chrome/browser/glic/widget/glic_window_controller.h"
 #include "chrome/browser/media/audio_ducker.h"
 #include "chrome/browser/permissions/system/mock_platform_handle.h"
@@ -266,7 +269,7 @@ class GlicApiTest : public NonInteractiveGlicApiTest, public WithTestParams {
   void SetUpOnMainThread() override {
     NonInteractiveGlicApiTest::SetUpOnMainThread();
 
-    histogram_tester = std::make_unique<base::HistogramTester>();
+    histogram_tester = std::make_unique<GlicHistogramTester>();
     user_action_tester = std::make_unique<base::UserActionTester>();
   }
 
@@ -311,7 +314,7 @@ class GlicApiTest : public NonInteractiveGlicApiTest, public WithTestParams {
     return instance;
   }
 
-  std::unique_ptr<base::HistogramTester> histogram_tester;
+  std::unique_ptr<GlicHistogramTester> histogram_tester;
   std::unique_ptr<base::UserActionTester> user_action_tester;
 
  protected:
@@ -470,7 +473,7 @@ class GlicApiTestWithOneTabAndPreloading : public GlicApiTestWithOneTab {
     // duplicate everything else it does and call
     // GlicApiTest::SetUpOnMainThread directly.
     GlicApiTest::SetUpOnMainThread();
-    histogram_tester = std::make_unique<base::HistogramTester>();
+    histogram_tester = std::make_unique<GlicHistogramTester>();
     RunTestSequence(InstrumentTab(kFirstTab),
                     NavigateWebContents(kFirstTab, page_url()));
 
@@ -738,6 +741,32 @@ IN_PROC_BROWSER_TEST_P(GlicApiTestWithOneTab, testDoNothing) {
   ExecuteJsTest();
 }
 
+// TODO(crbug.com/486793948): Fix and re-enable or remove the test.
+IN_PROC_BROWSER_TEST_P(GlicApiTestWithOneTab, DISABLED_testInvocationSource) {
+  for (const auto source : {
+           mojom::InvocationSource::kOsHotkey,
+           mojom::InvocationSource::kOsButton,
+           mojom::InvocationSource::kNudge,
+       }) {
+    RunTestSequence(CloseGlic(), WaitForGlicClose(),
+                    ToggleGlicWindowFromSource(GlicWindowMode::kDetached,
+                                               ui::ElementIdentifier(), source),
+                    WaitForGlicOpen());
+    ExecuteJsTest({.params = base::Value(static_cast<int>(source))});
+  }
+}
+
+// TODO(crbug.com/486793948): Fix and re-enable or remove the test.
+IN_PROC_BROWSER_TEST_P(GlicApiTestWithOneTab,
+                       DISABLED_testDefaultInvocationSource) {
+  RunTestSequence(CloseGlic(), WaitForGlicClose(),
+                  ToggleGlicWindowFromSource(
+                      GlicWindowMode::kAttached, kGlicButtonElementId,
+                      mojom::InvocationSource::kTopChromeButton),
+                  WaitForGlicOpen());
+  ExecuteJsTest();
+}
+
 IN_PROC_BROWSER_TEST_P(GlicApiTestWithWebContentsWarming,
                        testWebClientReadyOnFullLoad) {
   // Opening the glic window will trigger the bootstrap, which should transition
@@ -818,7 +847,7 @@ IN_PROC_BROWSER_TEST_P(GlicApiTest, testLoadWhileWindowClosed) {
 }
 
 IN_PROC_BROWSER_TEST_P(GlicApiTest, testInitializeFailsWindowClosed) {
-  base::HistogramTester histogram_tester;
+  GlicHistogramTester histogram_tester;
   // Immediately close the window to check behavior while window is closed.
   // Fail client initialization, should see error page.
   RunTestSequence(OpenGlic(GlicInstrumentMode::kNone),
@@ -1003,7 +1032,7 @@ IN_PROC_BROWSER_TEST_P(GlicApiTestWithFastTimeout, testNoClientCreated) {
 #if defined(SLOW_BINARY)
   GTEST_SKIP() << "skip timeout test for slow binary";
 #else
-  base::HistogramTester histogram_tester;
+  GlicHistogramTester histogram_tester;
   RunTestSequence(OpenGlic(GlicInstrumentMode::kNone));
   WebUIStateListener listener(GetHost());
   ExecuteJsTest();
@@ -1024,7 +1053,7 @@ IN_PROC_BROWSER_TEST_P(GlicApiTestWithFastTimeout, testNoBootstrap) {
 #if defined(SLOW_BINARY)
   GTEST_SKIP() << "skip timeout test for slow binary";
 #else
-  base::HistogramTester histogram_tester;
+  GlicHistogramTester histogram_tester;
   RunTestSequence(OpenGlic(GlicInstrumentMode::kNone));
   WebUIStateListener listener(GetHost());
   ExecuteJsTest();
@@ -1040,7 +1069,7 @@ IN_PROC_BROWSER_TEST_P(GlicApiTestWithFastTimeout, testInitializeTimesOut) {
 #if defined(SLOW_BINARY)
   GTEST_SKIP() << "skip timeout test for slow binary";
 #else
-  base::HistogramTester histogram_tester;
+  GlicHistogramTester histogram_tester;
   RunTestSequence(OpenGlic(GlicInstrumentMode::kNone));
   WebUIStateListener listener(GetHost());
   ExecuteJsTest({
@@ -1702,6 +1731,44 @@ IN_PROC_BROWSER_TEST_P(GlicApiTestWithOneTab, testPanelActive) {
   ContinueJsTest();
 }
 
+IN_PROC_BROWSER_TEST_P(GlicApiTest, testPanelActiveWithMicrophone) {
+  if (!GetParam().multi_instance) {
+    GTEST_SKIP()
+        << "Live Mode Floaty is only tested for focus in multi-instance mode";
+  }
+  TrackFloatingGlicInstance();
+  // Add another tab and open Floaty.
+  ASSERT_TRUE(AddTabAtIndex(1, GURL("about:blank"), ui::PAGE_TRANSITION_TYPED));
+
+  RunTestSequence(InstrumentTab(kFirstTab),
+                  NavigateWebContents(kFirstTab, page_url()),
+                  OpenGlicFloatingWindow(GlicInstrumentMode::kHostAndContents));
+
+  ExecuteJsTest();
+
+  GetHost()->OnMicrophoneStatusChanged(mojom::MicrophoneStatus::kListening);
+
+  // Activating the other tab should take focus away from Floaty. Floaty should
+  // still remain active.
+  browser()->tab_strip_model()->ActivateTabAt(1);
+  browser()->window()->Activate();
+
+  EXPECT_TRUE(GetGlicInstance()->IsActive());
+
+  ContinueJsTest();
+
+  // Pause the microphone and focus on the window. Floaty should not be
+  // considered active.
+  GetHost()->OnMicrophoneStatusChanged(mojom::MicrophoneStatus::kNotListening);
+  browser()->tab_strip_model()->ActivateTabAt(1);
+  browser()->window()->Activate();
+
+  ASSERT_TRUE(
+      base::test::RunUntil([&]() { return !GetGlicInstance()->IsActive(); }));
+
+  ContinueJsTest();
+}
+
 IN_PROC_BROWSER_TEST_P(GlicApiTest, testIsBrowserOpen) {
   browser_activator().SetMode(BrowserActivator::Mode::kFirst);
   RunTestSequence(OpenGlic(GlicInstrumentMode::kHostAndContents));
@@ -1715,6 +1782,10 @@ IN_PROC_BROWSER_TEST_P(GlicApiTest, testIsBrowserOpen) {
   CloseMainBrowserWithIncognitoKeepAlive();
 
   ContinueJsTest();
+}
+
+IN_PROC_BROWSER_TEST_P(GlicApiTestWithOneTab, testGetFormFactor) {
+  ExecuteJsTest();
 }
 
 IN_PROC_BROWSER_TEST_P(GlicApiTest, testEnableDragResize) {
@@ -2249,6 +2320,14 @@ IN_PROC_BROWSER_TEST_P(GlicApiTestWithOneTab, testJournal) {
   histogram_tester->ExpectTotalCount("Glic.Actor.JournalEvent.async_event", 1);
 }
 
+IN_PROC_BROWSER_TEST_P(GlicApiTestWithOneTab, testStopMicrophone) {
+  ExecuteJsTest();
+  base::test::TestFuture<void> microphone_stopped;
+  GetHost()->StopMicrophone(microphone_stopped.GetCallback());
+  EXPECT_TRUE(microphone_stopped.Wait());
+  ContinueJsTest();
+}
+
 // TODO(crbug.com/438812885): This is flaky.
 IN_PROC_BROWSER_TEST_P(GlicApiTestWithOneTab, DISABLED_testMetrics) {
   browser()->profile()->GetPrefs()->SetBoolean(
@@ -2659,7 +2738,7 @@ IN_PROC_BROWSER_TEST_P(GlicApiTestSystemSettingsTest,
 }
 
 IN_PROC_BROWSER_TEST_P(GlicApiTest, testNavigateToDifferentClientPage) {
-  base::HistogramTester histogram_tester;
+  GlicHistogramTester histogram_tester;
   RunTestSequence(OpenGlic(GlicInstrumentMode::kHostAndContents));
   WebUIStateListener listener(GetHost());
   listener.WaitForWebUiState(mojom::WebUiState::kReady);
@@ -2716,7 +2795,7 @@ IN_PROC_BROWSER_TEST_P(GlicApiTest, testCallingApiWhileHiddenRecordsMetrics) {
   ExecuteJsTest();
   RunTestSequence(CloseGlic());
 
-  base::HistogramTester histogram_tester;
+  GlicHistogramTester histogram_tester;
   ContinueJsTest();
   histogram_tester.ExpectBucketCount("Glic.Api.RequestCounts.CreateTab",
                                      GlicRequestEvent::kRequestReceived, 1);
@@ -3802,7 +3881,7 @@ IN_PROC_BROWSER_TEST_P(GlicApiTestHibernateOnMemoryUsage,
                   RegisterConversation("test_id"));
   GlicInstanceImpl* instance = GetGlicInstanceImpl();
 
-  base::HistogramTester histogram_tester;
+  GlicHistogramTester histogram_tester;
   // Close Glic (make it inactive).
   RunTestSequence(CloseGlic());
 

@@ -54,6 +54,7 @@ const SCREEN2X_TAG_TO_RM_TAG: Map<string, string> = new Map([
 const READABILITY_TAG_TO_RM_TAG: Map<string, string> = new Map([
   ['button', 'div'],
   ['details', 'div'],
+  ['mark', 'div'],
 ]);
 
 export interface ContentListener {
@@ -277,6 +278,9 @@ export class ContentController {
       this.updateImages(contentContainer);
       contentFragment.appendChild(contentContainer);
 
+      // Ensure link visibility is updated with user preferences.
+      this.updateLinksForReadability(contentContainer);
+
       // TODO(crbug.com/40910704): Remove ReadabilityImageClassifier once we
       // share code with mobile's Reading Mode.
       ReadabilityImageClassifier.processImagesIn(contentContainer);
@@ -482,6 +486,32 @@ export class ContentController {
     }
   }
 
+  // TODO: crbug.com/458961470- This should be merged with updateLinks. This
+  // is being kept as a separate method temporarily in order to make things
+  // slightly safer for cherrypicking.
+  updateLinksForReadability(root?: ParentNode) {
+    if (!root || !this.hasContent()) {
+      return;
+    }
+
+    const showLinks = this.shouldShowLinks_();
+    const selector = showLinks ? LINKS_OFF_SELECTOR : LINKS_ON_TAG;
+    const elements = root.querySelectorAll<HTMLElement>(selector);
+    for (const elem of elements) {
+      this.transformLinkContainer_(elem, showLinks);
+    }
+
+    // Ensure the link attributes are set initially when reading mode is
+    // first opened.
+    if (isDistilledByReadability()) {
+      const links = root.querySelectorAll('a');
+      for (const link of links) {
+        const nodeId = this.nodeStore_.getAxId(link);
+        this.setLinkAttributes_(link, link.href, nodeId);
+      }
+    }
+  }
+
   private transformLinkContainer_(
       elemToReplace: HTMLElement, showLinks: boolean) {
     const nodeId = this.nodeStore_.getAxId(elemToReplace);
@@ -538,6 +568,13 @@ export class ContentController {
 
   // TODO(crbug.com/40910704): Potentially hide links during distillation.
   private shouldShowLinks_(): boolean {
+    // If Readability is enabled and the ReadabilityWithLinks flag is disabled,
+    // don't show links.
+    if (chrome.readingMode.isReadabilityEnabled &&
+        !chrome.readingMode.isReadabilityWithLinksEnabled) {
+      return false;
+    }
+
     // Links should only show when Read Aloud is paused.
     return chrome.readingMode.linksEnabled &&
         !this.speechController_.isSpeechActive();
@@ -593,6 +630,170 @@ export class ContentController {
     if (imagesUpdated) {
       this.listeners_.forEach(l => l.onContentChange());
     }
+  }
+
+  updateAnchorsForReadability(root: ParentNode) {
+    if (!chrome.readingMode.isReadabilityEnabled ||
+        !chrome.readingMode.isReadabilityWithLinksEnabled ||
+        !isDistilledByReadability()) {
+      return;
+    }
+
+    if (!root || !this.hasContent()) {
+      return;
+    }
+
+    const anchors = Array.from(root.querySelectorAll<HTMLAnchorElement>('a'));
+    const originalAnchors: Record<string, AxTreeAnchorMetadata[]> =
+        chrome.readingMode.axTreeAnchors;
+    for (const anchor of anchors) {
+      const url = anchor.href;
+      if (!url) {
+        this.transformLinkContainer_(anchor, false);
+        continue;
+      }
+
+      const options = originalAnchors[url];
+      if (!options) {
+        this.transformLinkContainer_(anchor, false);
+        continue;
+      }
+
+      let matchIndex = null;
+      if (options.length === 1) {
+        // Use the first item in the list if there is a single anchor for this
+        // URL.
+        matchIndex = 0;
+      } else {
+        // Otherwise, try to find an anchor that matches.
+        matchIndex = this.findStrictMatch_(anchor, options);
+      }
+
+      if (matchIndex === null || matchIndex >= options.length) {
+        // Convert the anchor to text if no match is found.
+        this.transformLinkContainer_(anchor, false);
+        continue;
+      }
+
+      const match = options[matchIndex];
+      if (!match) {
+        continue;
+      }
+
+      const lastIndex = options.length - 1;
+      const lastElement = options[lastIndex];
+      if (lastElement !== undefined) {
+        // If there is a match, remove it from the list of options so it
+        // cannot be reused by another anchor.
+        options[matchIndex] = lastElement;
+        options.pop();
+      }
+
+      const nodeID = match.axId;
+      this.nodeStore_.setDomNode(anchor, nodeID);
+      this.setLinkAttributes_(anchor, url, nodeID);
+    }
+  }
+
+  private findStrictMatch_(
+      domNode: HTMLAnchorElement, candidates: AxTreeAnchorMetadata[]): number
+      |null {
+    let bestCandidateIndex: number|null = null;
+    let highestScore = -1;
+    let tieDetected = false;
+
+    for (let i = 0; i < candidates.length; i++) {
+      const metaCandidate = candidates[i];
+      if (!metaCandidate) {
+        continue;
+      }
+
+      const score = this.calculateMatchScore_(domNode, metaCandidate);
+      if (score > highestScore) {
+        highestScore = score;
+        bestCandidateIndex = i;
+        tieDetected = false;
+      } else if (score === highestScore && score > 0) {
+        tieDetected = true;
+      }
+    }
+
+    if (tieDetected) {
+      return null;
+    }
+
+    return bestCandidateIndex;
+  }
+
+
+  // Calculates a heuristic match score to bind a distilled DOM node to the
+  // correct AXNodeID.
+  // Note: The score values below are heuristics based on the relative
+  // importance of different signals. They can be tuned or changed in the future
+  // if needed.
+  //
+  // High-level scoring hierarchy:
+  // 1. HTML ID: Highest confidence (guaranteed match).
+  // 2. Visible Text: Strongest indicator of user intent.
+  // 3. Surrounding Context: Heavy tie-breaker to disambiguate identical generic
+  //    links (e.g., "Read More").
+  // 4. Attributes (Title/Target): Micro tie-breakers for edge cases.
+  private calculateMatchScore_(
+      domNode: HTMLAnchorElement, axLink: AxTreeAnchorMetadata): number {
+    if (!domNode || !axLink) {
+      return 0;
+    }
+
+    if (axLink.htmlId && domNode.id && axLink.htmlId === domNode.id) {
+      // 10,000: Treated as an exact match.
+      return 10000;
+    }
+
+    let score = 0;
+    const domText = (domNode.textContent || '').trim();
+    const metaText = (axLink.name || '').trim();
+    if (domText && metaText) {
+      if (domText === metaText) {
+        // +60: Exact text match. Weighted high enough so a perfect text match
+        // without context beats a partial match with perfect context
+        // (15 + 50 = 65).
+        score += 60;
+      } else if (domText.includes(metaText) || metaText.includes(domText)) {
+        // +15: Partial text match. Needs strong context to win.
+        score += 15;
+      }
+    }
+
+    // Context readability: Check adjacent text nodes to disambiguate identical
+    // links.
+    const domPrev = (domNode.previousSibling?.textContent || '').trim();
+    const metaPrev = (axLink.textBefore || '').trim();
+    if (metaPrev && domPrev) {
+      if (domPrev.endsWith(metaPrev) || metaPrev.endsWith(domPrev)) {
+        // +25: Previous sibling match. Heavy tie-breaker.
+        score += 25;
+      }
+    }
+    const domNext = (domNode.nextSibling?.textContent || '').trim();
+    const metaNext = (axLink.textAfter || '').trim();
+    if (metaNext && domNext) {
+      if (domNext.startsWith(metaNext) || metaNext.startsWith(domNext)) {
+        // +25: Next sibling match. Heavy tie-breaker.
+        score += 25;
+      }
+    }
+
+    // Micro tie-breakers: Low weight to never override primary text/context
+    // signals.
+    if (axLink.title && domNode.title && axLink.title === domNode.title) {
+      score += 7;
+    }
+    if (axLink.target && domNode.target &&
+        axLink.target.toLowerCase() === domNode.target.toLowerCase()) {
+      score += 3;
+    }
+
+    return score;
   }
 
   private updateImagesForAxTree_(shadowRoot: ParentNode): boolean {

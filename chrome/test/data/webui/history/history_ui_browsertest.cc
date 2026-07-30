@@ -6,7 +6,7 @@
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/test/base/web_ui_mocha_browser_test.h"
 #include "components/history_clusters/core/features.h"
-#include "components/history_embeddings/history_embeddings_features.h"
+#include "components/history_embeddings/core/history_embeddings_features.h"
 #include "components/sync/base/features.h"
 #include "content/public/test/browser_test.h"
 
@@ -69,6 +69,15 @@ IN_PROC_BROWSER_TEST_F(HistoryTest, HistoryEmbeddingsPromo) {
 
 IN_PROC_BROWSER_TEST_F(HistoryTest, HistorySideBarFooter) {
   RunTest("history/history_side_bar_footer_test.js", "mocha.run()");
+}
+
+IN_PROC_BROWSER_TEST_F(HistoryTest, HistoryFilterChipsVisibility) {
+  RunTest("history/history_app_test.js",
+          "runMochaSuite('HistoryFilterChipsVisibility')");
+}
+
+IN_PROC_BROWSER_TEST_F(HistoryTest, HistoryFilterChip) {
+  RunTest("history/history_filter_chips_test.js", "mocha.run()");
 }
 
 class HistoryListTest : public HistoryUIBrowserTest {
@@ -209,12 +218,22 @@ class HistoryWithHistoryEmbeddingsTest : public WebUIMochaBrowserTest {
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
+IN_PROC_BROWSER_TEST_F(HistoryWithHistoryEmbeddingsTest, HistoryAppTest) {
+  RunTest("history/history_app_test.js", "runMochaSuite('HistoryAppTest')");
+}
+
+// HistoryAppUnoPhase2FollowUpTest is only available outside CrOS.
+#if !BUILDFLAG(IS_CHROMEOS)
 // TODO(crbug.com/458161947): Re-enable flaky test
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
-#define MAYBE_App DISABLED_App
+#define MAYBE_HistoryAppUnoPhase2FollowUpTest \
+  DISABLED_HistoryAppUnoPhase2FollowUpTest
 #else
-#define MAYBE_App App
+#define MAYBE_HistoryAppUnoPhase2FollowUpTest HistoryAppUnoPhase2FollowUpTest
 #endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
-IN_PROC_BROWSER_TEST_F(HistoryWithHistoryEmbeddingsTest, MAYBE_App) {
-  RunTest("history/history_app_test.js", "mocha.run()");
+IN_PROC_BROWSER_TEST_F(HistoryWithHistoryEmbeddingsTest,
+                       MAYBE_HistoryAppUnoPhase2FollowUpTest) {
+  RunTest("history/history_app_test.js",
+          "runMochaSuite('HistoryAppUnoPhase2FollowUpTest')");
 }
+#endif  // !BUILDFLAG(IS_CHROMEOS)

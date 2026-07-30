@@ -35,9 +35,11 @@
   --color-composebox-loading-start: rgba(241, 243, 244, 1);
   --color-composebox-pdf-chip-icon-background: rgba(219, 69, 55, 1);
   --color-composebox-pdf-chip-icon-border: rgba(255, 255, 255, 1);
+  --color-composebox-suggestion-activity: rgba(86, 89, 94, 1);
   --color-composebox-type-ahead: rgba(117, 117, 117, 1);
   --color-composebox-type-ahead-chip: rgba(117, 117, 117, 1);
   --color-composebox-voice-lens-button: rgba(10, 10, 10, 1);
+  --color-composebox-lens-active-background: rgba(225, 227, 232, 1);
   --color-composebox-zero-state-suggestions-background-hovered:
       rgba(247, 248, 250, 1);
   --color-file-chip-remove-button-fill: rgba(255, 255, 255, 1);
@@ -47,13 +49,14 @@
    * detector, and get rid of this inner cr-icon-button hover setting,
    * which only hovers if you hover over the button. */
   --color-partial-file-chip-remove-button-hover-background:
-      rgba(2581, 82, 87, 0.95);
+      rgba(0, 0, 0, 0.6);
   --color-search-animated-glow-dragging-opaque-frost:
       rgba(240, 242, 245);
   --color-searchbox-results-background-hovered: rgba(31, 31, 31, 0.06);
   --color-suggestions-background-loading: rgba(241, 243, 244, 1);
   --color-zero-state-greeting: rgba(10, 10, 10, 1);
-
+  --color-zero-state-match-icon: rgba(128, 133, 141, 1);
+  --color-zero-state-match-text: rgba(87, 89, 95, 1);
   --composebox-context-menu-entrypoint-button-color: rgba(31, 31, 31, 1);
   --composebox-max-width: 692px;
   /* 20px on right side. */
@@ -108,6 +111,7 @@
   --file-chip-width: auto;
   --ghost-loader-base: #F3F5F6;
   --ghost-loader-highlight: #DEE1E3;
+  --search-animated-glif-rotation-duration: 3s;
   --google-sans-font:
       'Google Sans', Roboto, Arial, sans-serif;
   --gradient-protection-width: 100%;
@@ -191,14 +195,18 @@
   --color-composebox-input-plate-outline: rgba(45, 47, 56, 1);
   --color-composebox-loading-end: rgba(77, 81, 86, 1);
   --color-composebox-loading-start: rgba(60, 64, 67, 1);
+  --color-composebox-suggestion-activity: rgba(86, 89, 94, 1);
   --color-composebox-type-ahead: rgba(199, 199, 199, 1);
   --color-composebox-type-ahead-chip: rgba(199, 199, 199, 1);
   --color-composebox-voice-lens-button: rgba(191, 191, 191, 1);
+  --color-composebox-lens-active-background: rgba(42, 43, 54, 1);
   --color-searchbox-results-background-hovered: rgba(54, 54, 54, 1);
   --color-composebox-zero-state-suggestions-background-hovered:
       rgba(23, 24, 31, 1);
   --color-suggestions-background-loading: rgba(60, 64, 67, 1);
   --color-zero-state-greeting: rgba(230, 232, 240, 1);
+  --color-zero-state-match-icon: rgba(139, 140, 145, 1);
+  --color-zero-state-match-text: rgba(174, 175, 184, 1);
   --composebox-context-menu-entrypoint-button-color: rgba(63, 64, 74, 1);
   --cr-color-sys-divider: var(--color-composebox-file-chip-divider);
   --cr-composebox-background-color: rgba(29, 30, 38, 1);
@@ -296,6 +304,12 @@ error-page {
   --composebox-max-width: 750px;
 }
 
+:host([is-zero-state_]) #composebox {
+  animation: zero-state-intro 600ms ease
+      forwards;
+  opacity: 0;
+}
+
 :host([is-zero-state_][is-shown-in-tab_]) #composebox {
   /* Since is flexbox centered in this mode,
    * does not need start indent. Just make composebox width
@@ -335,7 +349,7 @@ error-page {
   width: 100%;
 }
 
-:host([is-zero-state_]:not([enable-native-zero-state-suggestions]))
+:host([is-zero-state_]:not([enable-native-zero-state-suggestions_]))
     #flexCenterContainer {
   --flex-center-height: 50%;
   justify-content: flex-end;
@@ -345,7 +359,7 @@ error-page {
   width: 100%;
 }
 
-:host([is-zero-state_][enable-native-zero-state-suggestions])
+:host([is-zero-state_][enable-native-zero-state-suggestions_])
     #flexCenterContainer {
   box-sizing: border-box;
   flex-direction: column;
@@ -376,7 +390,7 @@ error-page {
   width: calc(100% - var(--wrapper-indent_) - 20px);
 }
 
-:host([is-zero-state_][enable-native-zero-state-suggestions]:not([is-shown-in-tab_]))
+:host([is-zero-state_][enable-native-zero-state-suggestions_]:not([is-shown-in-tab_]))
     #flexCenterContainer {
   justify-content: flex-end;
 }
@@ -456,25 +470,25 @@ error-page {
 }
 
 @media (max-height: 800px) {
-  :host([is-zero-state_]:not([enable-native-zero-state-suggestions]))
+  :host([is-zero-state_]:not([enable-native-zero-state-suggestions_]))
       #flexCenterContainer {
     padding-top: 30px;
     height: 30%;
   }
 
-  :host([is-zero-state_]:not([enable-native-zero-state-suggestions])
+  :host([is-zero-state_]:not([enable-native-zero-state-suggestions_])
       [is-shown-in-tab_]) #flexCenterContainer {
     height: calc(30% - 88px);
   }
 
-  :host([is-zero-state_]:not([enable-native-zero-state-suggestions]):not([is-shown-in-tab_]))
+  :host([is-zero-state_]:not([enable-native-zero-state-suggestions_]):not([is-shown-in-tab_]))
       #flexCenterContainer {
     padding-top: 50px;
   }
 }
 
 @media (max-height: 500px) {
-  :host([is-zero-state_]:not([enable-native-zero-state-suggestions]))
+  :host([is-zero-state_]:not([enable-native-zero-state-suggestions_]))
       #flexCenterContainer {
     justify-content: flex-start;
     gap: 18px;
@@ -482,7 +496,7 @@ error-page {
     padding-top: 20px;
   }
 
-  :host([is-zero-state_][enable-native-zero-state-suggestions])
+  :host([is-zero-state_][enable-native-zero-state-suggestions_])
       #flexCenterContainer {
     gap: 15px;
     padding-top: 5vh;
@@ -550,6 +564,8 @@ error-page {
 
 :host([is-zero-state_]) #composeboxHeaderWrapper {
   display: flex;
+  animation: zero-state-intro 600ms ease forwards;
+  opacity: 0;
 }
 
 :host([is-zero-state_]:not([is-shown-in-tab_])) #composeboxHeaderWrapper {
@@ -584,4 +600,58 @@ error-page {
   height: 100%;
   overflow: hidden;
   width: 100%;
+}
+
+@keyframes zero-state-intro {
+  from {
+    opacity: 0;
+    transform: translateY(180px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.name-shimmer {
+  --bg-gradient: linear-gradient(
+    to bottom,
+    rgba(49, 134, 255, 1) 10%,
+    rgba(169, 168, 255, 1) 30%,
+    rgba(169, 168, 255, 1) 40%,
+    var(--color-zero-state-greeting) 100%
+  );
+  will-change: background-position;
+  color: transparent;
+  background-image: var(--bg-gradient);
+  background-clip: text;
+  background-size: auto 700%;
+  position: relative;
+  animation: textShimmerAnimation 1s cubic-bezier(0.3, 0, 1, 1) both;
+}
+
+.name-shimmer-dark {
+  --bg-gradient: linear-gradient(
+    to bottom,
+    rgba(49, 134, 255, 1) 10%,
+    rgba(169, 168, 255, 1) 50%,
+    var(--color-zero-state-greeting) 70%
+  );
+  will-change: background-position;
+  color: transparent;
+  background-image: var(--bg-gradient);
+  background-clip: text;
+  background-size: auto 700%;
+  position: relative;
+  animation: textShimmerAnimation 1s cubic-bezier(0.3, 0, 1, 1) both;
+  background-color: var(--color-zero-state-greeting);
+}
+
+@keyframes textShimmerAnimation {
+  0% {
+    background-position: 50% 0%;
+  }
+  100% {
+    background-position: 50% 100%;
+  }
 }

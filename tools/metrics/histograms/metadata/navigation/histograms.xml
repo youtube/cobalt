@@ -282,7 +282,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="BackForwardCache.CCNS.CookieChangeCause"
-    enum="CookieChangeCause" expires_after="2026-06-21">
+    enum="CookieChangeCause" expires_after="2026-08-23">
   <owner>leimy@chromium.org</owner>
   <owner>bfcache-dev@chromium.org</owner>
   <summary>
@@ -294,7 +294,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="BackForwardCache.CCNS.CookieChangeInfo.{CountType}"
-    units="count" expires_after="2026-06-21">
+    units="count" expires_after="2026-08-23">
   <owner>leimy@chromium.org</owner>
   <owner>bfcache-dev@chromium.org</owner>
   <summary>
@@ -313,7 +313,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="BackForwardCache.CCNS.JSNetworkRequestIncludesCredentials"
-    enum="Boolean" expires_after="2026-06-21">
+    enum="Boolean" expires_after="2026-08-23">
   <owner>leimy@chromium.org</owner>
   <owner>bfcache-dev@chromium.org</owner>
   <summary>
@@ -391,6 +391,30 @@ chromium-metrics-reviews@google.com.
     Recorded when an IPC task is posted to frames that have already been stored
     in the back-forward cache, after a 15 second delay to account for completion
     of all freezing-related operations.
+  </summary>
+</histogram>
+
+<histogram name="BackForwardCache.History.EntryMatch"
+    enum="BackForwardCacheEntryMatchResult" expires_after="2026-08-01">
+  <owner>annasato@chromium.org</owner>
+  <owner>bfcache-dev@chromium.org</owner>
+  <summary>
+    Records the result of matching the committed navigation URL against existing
+    entries in BackForwardCache. Records whether the cache was empty, if no
+    match was found, if a URL match was found (but with a different history
+    index), or if an exact match (URL and history index) was found. Recorded
+    when a navigation commits (excluding BackForwardCache restores).
+  </summary>
+</histogram>
+
+<histogram name="BackForwardCache.History.ForwardEntriesCount" units="entries"
+    expires_after="2026-08-01">
+  <owner>annasato@chromium.org</owner>
+  <owner>bfcache-dev@chromium.org</owner>
+  <summary>
+    Records the number of BackForwardCache entries that are forward of the new
+    committed entry. Recorded when a history back navigation commits (including
+    navigations restored from BackForwardCache).
   </summary>
 </histogram>
 
@@ -686,7 +710,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="BackForwardCache.Restore.NavigationToFirstPaint" units="ms"
-    expires_after="2026-06-21">
+    expires_after="2026-08-23">
   <owner>sreejakshetty@chromium.org</owner>
   <owner>bfcache-dev@chromium.org</owner>
   <summary>
@@ -888,31 +912,6 @@ chromium-metrics-reviews@google.com.
     Records the reason why the navigation blur transition (Android only) was
     terminated. This helps track the success rate and failure modes of the
     transition animation.
-  </summary>
-</histogram>
-
-<histogram
-    name="Navigation.BrowserInitiated.DuplicateNavigationInputStartPresence"
-    enum="InputStartPresence" expires_after="2026-12-01">
-  <owner>annasato@google.com</owner>
-  <owner>chrome-navigation@google.com</owner>
-  <summary>
-    When a new navigation is a duplicate of a currently ongoing navigation,
-    where the destination and params are the same, records whether the
-    input_start timestamp was available on the new navigation, the old (ongoing)
-    navigation, both, or neither.
-  </summary>
-</histogram>
-
-<histogram name="Navigation.BrowserInitiated.DuplicateNavInputTimeDiff"
-    units="ms" expires_after="2026-12-01">
-  <owner>annasato@google.com</owner>
-  <owner>chrome-navigation@google.com</owner>
-  <summary>
-    When a new navigation is a duplicate of a currently ongoing navigation,
-    where the destination and params are the same, records the difference
-    between the new navigation's input start time and the ongoing (old)
-    navigation's input start time.
   </summary>
 </histogram>
 
@@ -1249,7 +1248,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Navigation.GestureTransition.CacheHitOrMissReason"
-    enum="NavigationTransitionCacheHitOrMissReason" expires_after="2026-06-14">
+    enum="NavigationTransitionCacheHitOrMissReason" expires_after="2026-08-16">
   <owner>liuwilliam@google.com</owner>
   <owner>baranerf@google.com</owner>
   <owner>chrome-seamless-core@google.com</owner>
@@ -1307,7 +1306,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Navigation.GestureTransition.ScreenshotCacheSize" units="MB"
-    expires_after="2026-06-14">
+    expires_after="2026-08-16">
   <owner>liuwilliam@google.com</owner>
   <owner>baranerf@google.com</owner>
   <owner>chrome-seamless-core@google.com</owner>
@@ -1799,7 +1798,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Navigation.OnBeforeUnloadOverheadTime.NoBeforeUnloadHandlerRegistered"
-    units="ms" expires_after="2026-06-21">
+    units="ms" expires_after="2026-08-23">
   <owner>hayato@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
@@ -2073,7 +2072,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Navigation.Prerender.NoVarySearchCommitDeferTime.{NVSTriggerType}"
-    units="ms" expires_after="2026-06-21">
+    units="ms" expires_after="2026-08-23">
   <owner>lingqi@chromium.org</owner>
   <owner>chrome-prerendering@chromium.org</owner>
   <summary>
@@ -2172,7 +2171,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Navigation.Renderer.BlockedForFilterURL"
-    enum="RendererBlockedURLReason" expires_after="2026-06-21">
+    enum="RendererBlockedURLReason" expires_after="2026-08-23">
   <owner>creis@chromium.org</owner>
   <owner>site-isolation-dev@chromium.org</owner>
   <summary>
@@ -2212,7 +2211,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Navigation.Renderer.Timeline.{DurationFromTo}.Duration"
-    units="ms" expires_after="2026-06-20">
+    units="ms" expires_after="2026-08-23">
   <owner>alexmos@chromium.org</owner>
   <owner>creis@chromium.org</owner>
   <summary>
@@ -2368,35 +2367,6 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram
-    name="Navigation.RendererInitiated.DuplicateNavigationInputStartPresence2"
-    enum="InputStartPresence" expires_after="2026-12-01">
-  <owner>annasato@google.com</owner>
-  <owner>chrome-navigation@google.com</owner>
-  <summary>
-    When a new navigation is a duplicate of a currently ongoing navigation,
-    where the destination and params are the same, records whether the
-    input_start timestamp was available on the new navigation, the old (ongoing)
-    navigation, both, or neither. Updated to version 2 because this recording
-    was moved from the browser process to the renderer process to prevent the
-    input_start timestamp from being lost.
-  </summary>
-</histogram>
-
-<histogram name="Navigation.RendererInitiated.DuplicateNavInputTimeDiff2"
-    units="ms" expires_after="2026-12-01">
-  <owner>annasato@google.com</owner>
-  <owner>chrome-navigation@google.com</owner>
-  <summary>
-    When a new navigation is a duplicate of a currently ongoing navigation,
-    where the destination and params are the same, records the difference
-    between the new navigation's input start time and the ongoing (old)
-    navigation's input start time. Updated to version 2 because this recording
-    was moved from the browser process to the renderer process to prevent the
-    input_start timestamp from being lost.
-  </summary>
-</histogram>
-
-<histogram
     name="Navigation.RendererRunLoopStartToFirstCommitNavigation2.{FrameType}"
     units="ms" expires_after="2026-06-28">
   <owner>chikamune@chromium.org</owner>
@@ -2504,7 +2474,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Navigation.SameDocumentNavigationWithScreenshot"
-    enum="Boolean" expires_after="2026-06-21">
+    enum="Boolean" expires_after="2026-08-23">
   <owner>khushalsagar@chromium.org</owner>
   <owner>liuwilliam@chromium.org</owner>
   <summary>
@@ -2672,7 +2642,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Navigation.StartToCommit{NavigationProcessType}" units="ms"
-    expires_after="2026-06-21">
+    expires_after="2026-08-23">
   <owner>nasko@chromium.org</owner>
   <owner>csharrison@chromium.org</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -3584,8 +3554,34 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Navigation{Initiator}.DuplicateNavigationInputStartPresence2"
+    enum="InputStartPresence" expires_after="2026-12-01">
+  <owner>annasato@google.com</owner>
+  <owner>chrome-navigation@google.com</owner>
+  <summary>
+    When a new navigation is a duplicate of a currently ongoing navigation,
+    where the destination and params are the same, records whether the
+    input_start timestamp was available on the new navigation, the old (ongoing)
+    navigation, both, or neither.
+  </summary>
+  <token key="Initiator" variants="Initiator"/>
+</histogram>
+
+<histogram name="Navigation{Initiator}.DuplicateNavInputTimeDiff2" units="ms"
+    expires_after="2026-12-01">
+  <owner>annasato@google.com</owner>
+  <owner>chrome-navigation@google.com</owner>
+  <summary>
+    When a new navigation is a duplicate of a currently ongoing navigation,
+    where the destination and params are the same, records the difference
+    between the new navigation's input start time and the ongoing (old)
+    navigation's input start time.
+  </summary>
+  <token key="Initiator" variants="Initiator"/>
+</histogram>
+
 <histogram name="Navigation{Initiator}.DuplicateNavIsUnderThreshold2"
-    enum="Boolean" expires_after="2026-06-21">
+    enum="Boolean" expires_after="2026-08-23">
   <owner>rakina@chromium.org</owner>
   <owner>chrome-navigation@google.com</owner>
   <summary>
@@ -3602,7 +3598,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Navigation{Initiator}.DuplicateNavStartTimeDiff2" units="ms"
-    expires_after="2026-06-14">
+    expires_after="2026-08-16">
   <owner>rakina@chromium.org</owner>
   <owner>bfcache-dev@chromium.org</owner>
   <summary>
@@ -3618,7 +3614,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Navigation{Initiator}.IsDuplicateWithoutThresholdCheck2"
-    enum="Boolean" expires_after="2026-06-21">
+    enum="Boolean" expires_after="2026-08-23">
   <owner>rakina@chromium.org</owner>
   <owner>chrome-navigation@google.com</owner>
   <summary>
@@ -3750,7 +3746,7 @@ chromium-metrics-reviews@google.com.
 <histogram
     name="Prerender.Experimental.CrossOriginRedirectionProtocolChange{PreloadingTriggerType}"
     enum="PrerenderCrossOriginRedirectionProtocolChange"
-    expires_after="2026-06-07">
+    expires_after="2026-08-16">
   <owner>lingqi@chromium.org</owner>
   <owner>nhiroki@chromium.org</owner>
   <owner>src/content/browser/preloading/prerender/OWNERS</owner>
@@ -3792,7 +3788,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Prerender.Experimental.PredictionStatus.DefaultSearchEngine"
-    enum="PrerenderPredictionStatus" expires_after="2026-06-21">
+    enum="PrerenderPredictionStatus" expires_after="2026-08-23">
   <owner>nhiroki@chromium.org</owner>
   <owner>chrome-prerendering@google.com</owner>
   <summary>
@@ -3875,7 +3871,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Prerender.Experimental.PrerenderCrossOriginRedirectionMismatch{PreloadingTriggerType}"
-    enum="PrerenderCrossOriginRedirectionMismatch" expires_after="2026-06-21">
+    enum="PrerenderCrossOriginRedirectionMismatch" expires_after="2026-08-23">
   <owner>lingqi@chromium.org</owner>
   <owner>nhiroki@chromium.org</owner>
   <owner>src/content/browser/preloading/prerender/OWNERS</owner>
@@ -4076,7 +4072,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Prerender.{PrerenderSource}FinalStatus"
-    enum="PrerenderFinalStatus" expires_after="2026-06-21">
+    enum="PrerenderFinalStatus" expires_after="2026-08-23">
   <owner>ryansturm@chromium.org</owner>
   <owner>tbansal@chromium.org</owner>
   <summary>

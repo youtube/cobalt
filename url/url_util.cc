@@ -16,6 +16,7 @@
 #include "base/compiler_specific.h"
 #include "base/no_destructor.h"
 #include "base/strings/string_util.h"
+#include "base/strings/utf_string_conversions.h"
 #include "url/url_canon_internal.h"
 #include "url/url_constants.h"
 #include "url/url_features.h"
@@ -838,8 +839,8 @@ bool ReplaceComponents(std::string_view spec,
                              output, out_parsed);
 }
 
-void DecodeURLEscapeSequences(std::string_view input,
-                              DecodeURLMode mode,
+void DecodeUrlEscapeSequences(std::string_view input,
+                              DecodeUrlMode mode,
                               CanonOutputW* output) {
   if (input.empty()) {
     return;
@@ -880,7 +881,7 @@ void DecodeURLEscapeSequences(std::string_view input,
         // Valid UTF-8 character, convert to UTF-16.
         AppendUtf16Value(code_point, output);
         i = next_character;
-      } else if (mode == DecodeURLMode::kUTF8) {
+      } else if (mode == DecodeUrlMode::kUtf8) {
         DCHECK_EQ(code_point, 0xFFFD);
         AppendUtf16Value(code_point, output);
         i = next_character;
@@ -898,7 +899,21 @@ void DecodeURLEscapeSequences(std::string_view input,
   }
 }
 
+std::string DecodeUrlEscapeSequences(std::string_view input,
+                                     DecodeUrlMode mode) {
+  RawCanonOutputW<1024> output;
+  DecodeUrlEscapeSequences(input, mode, &output);
+  return base::UTF16ToUTF8(output.view());
+}
+
 void EncodeURIComponent(std::string_view input, CanonOutput* output) {
+  if (output->capacity() - output->length() < input.length() * 3) {
+    size_t required_size = 0;
+    for (unsigned char c : input) {
+      required_size += IsComponentChar(c) ? 1 : 3;
+    }
+    output->ReserveSizeIfNeeded(output->length() + required_size);
+  }
   for (unsigned char c : input) {
     if (IsComponentChar(c)) {
       output->push_back(c);
@@ -908,7 +923,11 @@ void EncodeURIComponent(std::string_view input, CanonOutput* output) {
   }
 }
 
-bool IsURIComponentChar(char c) {
+std::string EncodeUriComponent(std::string_view input) {
+  return std::string(UriComponentEncoder(input).view());
+}
+
+bool IsUriComponentChar(char c) {
   return IsComponentChar(c);
 }
 

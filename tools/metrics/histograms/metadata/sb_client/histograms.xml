@@ -22,6 +22,8 @@ chromium-metrics-reviews@google.com.
 
 <histograms>
 
+<!-- LINT.IfChange(ClassifierRequestType) -->
+
 <variants name="ClassifierRequestType">
   <variant name="" summary="all request types"/>
   <variant name=".ClipboardCopyApi" summary="Clipboard copy API"/>
@@ -35,8 +37,11 @@ chromium-metrics-reviews@google.com.
   <variant name=".PasswordProtection" summary="Password protection requested"/>
   <variant name=".PointerLockRequested" summary="Pointer lock requested"/>
   <variant name=".TriggerModel" summary="Trigger model"/>
+  <variant name=".UserReport" summary="User report"/>
   <variant name=".VibrationApi" summary="Vibration API"/>
 </variants>
+
+<!-- LINT.ThenChange(//components/safe_browsing/content/common/safe_browsing.mojom:ClientSideDetectionType) -->
 
 <variants name="ClientSideDetectionIntelligentScanRequestType">
   <variant name="" summary="all request types"/>
@@ -44,6 +49,8 @@ chromium-metrics-reviews@google.com.
   <variant name=".ImageEmbeddingMatch" summary="Image embedding matched"/>
   <variant name=".KeyboardLockRequested" summary="Keyboard lock requested"/>
 </variants>
+
+<!-- LINT.IfChange(ClientSideDetectionRequestType) -->
 
 <variants name="ClientSideDetectionRequestType">
   <variant name="" summary="all request types"/>
@@ -58,8 +65,11 @@ chromium-metrics-reviews@google.com.
   <variant name=".PointerLockRequested" summary="Pointer lock requested"/>
   <variant name=".TriggerModel" summary="Trigger model"/>
   <variant name=".Unknown" summary="Unknown"/>
+  <variant name=".UserReport" summary="User report"/>
   <variant name=".VibrationApi" summary="Vibration API"/>
 </variants>
+
+<!-- LINT.ThenChange(//components/safe_browsing/core/common/proto/csd.proto:ClientSideDetectionType) -->
 
 <variants name="DownloadDangerTypeForBypassMetrics">
   <variant name="DangerousFileType" summary="dangerous file type"/>
@@ -180,7 +190,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 </histogram>
 
 <histogram name="SBClientDownload.DownloadRequestDuration{Analysis}" units="ms"
-    expires_after="2026-06-21">
+    expires_after="2026-08-23">
   <owner>chlily@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -270,7 +280,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 
 <histogram name="SBClientDownload.ServerRequestsDeepScanningPrompt{Encryption}"
     enum="BooleanRequested" expires_after="2026-11-16">
-  <owner>drubery@chromium.org</owner>
+  <owner>liu@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
     Records how often users in a population consented to deep scanning are
@@ -284,8 +294,8 @@ useful for Chirp alerts (go/crca-alerts). -->
 </histogram>
 
 <histogram name="SBClientDownload.ServerRequestsImmediateDeepScan2"
-    enum="BooleanRequested" expires_after="2026-04-26">
-  <owner>drubery@chromium.org</owner>
+    enum="BooleanRequested" expires_after="2026-11-16">
+  <owner>liu@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
     Records how often users in a population consented to immediate deep scans
@@ -295,8 +305,8 @@ useful for Chirp alerts (go/crca-alerts). -->
 </histogram>
 
 <histogram name="SBClientDownload.ServerRequestsLocalDecryptionPrompt"
-    enum="BooleanRequested" expires_after="2026-02-23">
-  <owner>drubery@chromium.org</owner>
+    enum="BooleanRequested" expires_after="2026-11-16">
+  <owner>liu@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
     Records how often users in a population consented to local decryption are
@@ -1155,7 +1165,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 
 <histogram
     name="SBClientPhishing.OnDeviceModelSessionAliveOnNewPreclassification"
-    enum="BooleanExists" expires_after="2026-06-21">
+    enum="BooleanExists" expires_after="2026-08-23">
   <owner>andysjlim@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -1171,7 +1181,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 </histogram>
 
 <histogram name="SBClientPhishing.OnDeviceModelSessionCreationSuccess"
-    enum="BooleanSuccess" expires_after="2026-06-14">
+    enum="BooleanSuccess" expires_after="2026-08-16">
   <owner>andysjlim@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -1244,7 +1254,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 
 <histogram
     name="SBClientPhishing.PhishingClassifierMatchOnStrippedEmptyPath{RequestType}"
-    enum="BooleanMatched" expires_after="2026-06-11">
+    enum="BooleanMatched" expires_after="2026-08-16">
   <owner>andysjlim@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -1341,7 +1351,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 </histogram>
 
 <histogram name="SBClientPhishing.RedirectChainContainsForcedTriggerInfo"
-    enum="BooleanExists" expires_after="2026-06-21">
+    enum="BooleanExists" expires_after="2026-08-23">
   <owner>andysjlim@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -1353,7 +1363,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 </histogram>
 
 <histogram name="SBClientPhishing.RedirectChainContainsForceRequest"
-    enum="BooleanExists" expires_after="2026-06-21">
+    enum="BooleanExists" expires_after="2026-08-23">
   <owner>andysjlim@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>

@@ -78,6 +78,9 @@ function addPrivacyChildRoutes(r: Partial<SettingsRoutes>) {
     r.SITE_SETTINGS_SMART_CARD_READERS =
         r.SITE_SETTINGS.createChild('smartCardReaders');
   }
+  if (loadTimeData.getBoolean('enableWebPrintingContentSetting')) {
+    r.SITE_SETTINGS_WEB_PRINTING = r.SITE_SETTINGS.createChild('webPrinting');
+  }
   // </if>
   r.SITE_SETTINGS_AUTO_VERIFY = r.SITE_SETTINGS.createChild('autoVerify');
   r.SITE_SETTINGS_BACKGROUND_SYNC =
@@ -105,9 +108,6 @@ function addPrivacyChildRoutes(r: Partial<SettingsRoutes>) {
   r.SITE_SETTINGS_USB_DEVICES = r.SITE_SETTINGS.createChild('usbDevices');
   r.SITE_SETTINGS_HID_DEVICES = r.SITE_SETTINGS.createChild('hidDevices');
   r.SITE_SETTINGS_SERIAL_PORTS = r.SITE_SETTINGS.createChild('serialPorts');
-  if (loadTimeData.getBoolean('enableWebPrintingContentSetting')) {
-    r.SITE_SETTINGS_WEB_PRINTING = r.SITE_SETTINGS.createChild('webPrinting');
-  }
   if (loadTimeData.getBoolean('enableWebBluetoothNewPermissionsBackend')) {
     r.SITE_SETTINGS_BLUETOOTH_DEVICES =
         r.SITE_SETTINGS.createChild('bluetoothDevices');
@@ -206,9 +206,6 @@ function createRoutes(): SettingsRoutes {
     }
     if (loadTimeData.getBoolean('showComposeControl')) {
       r.OFFER_WRITING_HELP = r.AI.createChild('/ai/helpMeWrite');
-    }
-    if (loadTimeData.getBoolean('showCompareControl')) {
-      r.COMPARE = r.AI.createChild('/ai/compareProducts');
     }
     // <if expr="enable_glic">
     if (loadTimeData.getBoolean('showGlicSettings')) {

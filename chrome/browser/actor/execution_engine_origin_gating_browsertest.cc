@@ -3,7 +3,9 @@
 // found in the LICENSE file.
 
 #include "base/strings/strcat.h"
+#include "base/task/current_thread.h"
 #include "base/test/bind.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
 #include "base/test/values_test_util.h"
@@ -26,6 +28,7 @@
 #include "content/public/test/content_browser_test_utils.h"
 #include "net/dns/mock_host_resolver.h"
 #include "url/origin.h"
+#include "url/url_util.h"
 
 namespace actor {
 
@@ -77,10 +80,14 @@ constexpr char kHandleNavigationConfirmationTempl[] =
   })();
 )js";
 
-constexpr std::string_view kCrossOriginHistogram =
-    "Actor.NavigationGating.CrossOrigin2";
-constexpr std::string_view kCrossSiteHistogram =
-    "Actor.NavigationGating.CrossSite2";
+constexpr std::string_view kSameOriginSourceHistogram =
+    "Actor.NavigationGating.SameOriginSource";
+constexpr std::string_view kSameSiteSourceHistogram =
+    "Actor.NavigationGating.SameSiteSource";
+constexpr std::string_view kSameOriginInitiatorHistogram =
+    "Actor.NavigationGating.SameOriginInitiator";
+constexpr std::string_view kSameSiteInitiatorHistogram =
+    "Actor.NavigationGating.SameSiteInitiator";
 
 }  // namespace
 
@@ -313,12 +320,20 @@ IN_PROC_BROWSER_TEST_P(ExecutionEngineOriginGatingBrowserTest,
       "Actor.NavigationGating.AppliedGate", false, 1);
   histogram_tester_for_init_.ExpectBucketCount(
       "Actor.NavigationGating.AppliedGate", true, 1);
-  // Should log that there was a cross-origin navigation and a cross-site
-  // navigation.
-  histogram_tester_for_init_.ExpectBucketCount(kCrossOriginHistogram, false, 1);
-  histogram_tester_for_init_.ExpectBucketCount(kCrossOriginHistogram, true, 1);
-  histogram_tester_for_init_.ExpectBucketCount(kCrossSiteHistogram, false, 1);
-  histogram_tester_for_init_.ExpectBucketCount(kCrossSiteHistogram, true, 1);
+
+  EXPECT_THAT(
+      histogram_tester_for_init_.GetAllSamples(kSameOriginSourceHistogram),
+      base::BucketsAre(base::Bucket(false, 1), base::Bucket(true, 1)));
+  EXPECT_THAT(
+      histogram_tester_for_init_.GetAllSamples(kSameSiteSourceHistogram),
+      base::BucketsAre(base::Bucket(false, 1), base::Bucket(true, 1)));
+  EXPECT_THAT(
+      histogram_tester_for_init_.GetAllSamples(kSameOriginInitiatorHistogram),
+      base::BucketsAre(base::Bucket(false, 1), base::Bucket(true, 1)));
+  EXPECT_THAT(
+      histogram_tester_for_init_.GetAllSamples(kSameSiteInitiatorHistogram),
+      base::BucketsAre(base::Bucket(false, 1), base::Bucket(true, 1)));
+
   // Should log that permission was *granted* once.
   histogram_tester_for_init_.ExpectBucketCount(
       "Actor.NavigationGating.PermissionGranted", true, 1);
@@ -387,11 +402,17 @@ IN_PROC_BROWSER_TEST_P(ExecutionEngineOriginGatingBrowserTest,
       "Actor.NavigationGating.AppliedGate", false, 1);
   histogram_tester_for_init_.ExpectBucketCount(
       "Actor.NavigationGating.AppliedGate", true, 1);
-  // Should log that there was a cross-origin navigation and a cross-site
-  // navigation.
-  histogram_tester_for_init_.ExpectBucketCount(kCrossOriginHistogram, false, 1);
-  histogram_tester_for_init_.ExpectBucketCount(kCrossOriginHistogram, true, 1);
-  histogram_tester_for_init_.ExpectBucketCount(kCrossSiteHistogram, false, 2);
+
+  EXPECT_THAT(
+      histogram_tester_for_init_.GetAllSamples(kSameOriginSourceHistogram),
+      base::BucketsAre(base::Bucket(false, 1), base::Bucket(true, 1)));
+  histogram_tester_for_init_.ExpectUniqueSample(kSameSiteSourceHistogram, true,
+                                                2);
+  EXPECT_THAT(
+      histogram_tester_for_init_.GetAllSamples(kSameOriginInitiatorHistogram),
+      base::BucketsAre(base::Bucket(false, 1), base::Bucket(true, 1)));
+  histogram_tester_for_init_.ExpectUniqueSample(kSameSiteInitiatorHistogram,
+                                                true, 2);
   // Should log that permission was *granted* once.
   histogram_tester_for_init_.ExpectBucketCount(
       "Actor.NavigationGating.PermissionGranted", true, 1);
@@ -563,8 +584,9 @@ IN_PROC_BROWSER_TEST_P(ExecutionEngineOriginGatingBrowserTest,
   const GURL cross_origin_url =
       embedded_https_test_server().GetURL("bar.com", "/actor/blank.html");
   const GURL link_page_url = embedded_https_test_server().GetURL(
-      "foo.com", base::StrCat({"/actor/link_full_page.html?href=",
-                               EncodeURI(cross_origin_url.spec())}));
+      "foo.com",
+      base::StrCat({"/actor/link_full_page.html?href=",
+                    url::EncodeUriComponent(cross_origin_url.spec())}));
 
   // Start on foo.com.
   ASSERT_TRUE(content::NavigateToURL(web_contents(), start_url));
@@ -614,8 +636,9 @@ IN_PROC_BROWSER_TEST_P(ExecutionEngineOriginGatingBrowserTest,
   const GURL cross_origin_url =
       embedded_https_test_server().GetURL("bar.com", "/actor/blank.html");
   const GURL link_page_url = embedded_https_test_server().GetURL(
-      "foo.com", base::StrCat({"/actor/link_full_page.html?href=",
-                               EncodeURI(cross_origin_url.spec())}));
+      "foo.com",
+      base::StrCat({"/actor/link_full_page.html?href=",
+                    url::EncodeUriComponent(cross_origin_url.spec())}));
 
   // Start on foo.com.
   ASSERT_TRUE(content::NavigateToURL(web_contents(), link_page_url));
@@ -651,10 +674,11 @@ IN_PROC_BROWSER_TEST_P(ExecutionEngineOriginGatingBrowserTest,
   const GURL blocked_origin_link_url = embedded_https_test_server().GetURL(
       "blocked.example.com",
       base::StrCat({"/actor/link_full_page.html?href=",
-                    EncodeURI(blocked_origin_url.spec())}));
+                    url::EncodeUriComponent(blocked_origin_url.spec())}));
   const GURL link_page_url = embedded_https_test_server().GetURL(
-      "www.example.com", base::StrCat({"/actor/link_full_page.html?href=",
-                                       EncodeURI(blocked_origin_url.spec())}));
+      "www.example.com",
+      base::StrCat({"/actor/link_full_page.html?href=",
+                    url::EncodeUriComponent(blocked_origin_url.spec())}));
 
   // Start on example.com.
   ASSERT_TRUE(content::NavigateToURL(web_contents(), start_url));
@@ -715,8 +739,9 @@ IN_PROC_BROWSER_TEST_P(ExecutionEngineOriginGatingBrowserTest,
   const GURL blocked_page = embedded_https_test_server().GetURL(
       "blocked.example.com", "/actor/blank.html");
   const GURL normal_page_with_link = embedded_https_test_server().GetURL(
-      "www.example.com", base::StrCat({"/actor/link_full_page.html?href=",
-                                       EncodeURI(blocked_page.spec())}));
+      "www.example.com",
+      base::StrCat({"/actor/link_full_page.html?href=",
+                    url::EncodeUriComponent(blocked_page.spec())}));
 
   // Start on sandboxed page.
   ASSERT_TRUE(content::NavigateToURL(web_contents(), sandboxed_blocked_page));
@@ -795,9 +820,15 @@ IN_PROC_BROWSER_TEST_P(ExecutionEngineOriginGatingBrowserTest,
   // list.
   histogram_tester_for_init_.ExpectUniqueSample(
       "Actor.NavigationGating.AppliedGate", false, 1);
-  // Should log that there was one same-site navigation and one cross-site
-  // navigation.
-  histogram_tester_for_init_.ExpectUniqueSample(kCrossSiteHistogram, true, 1);
+
+  histogram_tester_for_init_.ExpectUniqueSample(kSameOriginSourceHistogram,
+                                                false, 1);
+  histogram_tester_for_init_.ExpectUniqueSample(kSameSiteSourceHistogram, false,
+                                                1);
+  histogram_tester_for_init_.ExpectUniqueSample(kSameOriginInitiatorHistogram,
+                                                false, 1);
+  histogram_tester_for_init_.ExpectUniqueSample(kSameSiteInitiatorHistogram,
+                                                false, 1);
   // Should not log permission granted since the static list was used.
   histogram_tester_for_init_.ExpectTotalCount(
       "Actor.NavigationGating.PermissionGranted", 0);
@@ -944,7 +975,14 @@ IN_PROC_BROWSER_TEST_P(ExecutionEngineOriginGatingBrowserTest,
       ExecutionEngine::GatingDecision::kAllowByStaticList, 1);
   histogram_tester_for_init_.ExpectBucketCount(
       "Actor.NavigationGating.AppliedGate", false, 1);
-  histogram_tester_for_init_.ExpectBucketCount(kCrossSiteHistogram, true, 1);
+  histogram_tester_for_init_.ExpectUniqueSample(kSameOriginSourceHistogram,
+                                                false, 1);
+  histogram_tester_for_init_.ExpectUniqueSample(kSameSiteSourceHistogram, false,
+                                                1);
+  histogram_tester_for_init_.ExpectUniqueSample(kSameOriginInitiatorHistogram,
+                                                false, 1);
+  histogram_tester_for_init_.ExpectUniqueSample(kSameSiteInitiatorHistogram,
+                                                false, 1);
 }
 
 IN_PROC_BROWSER_TEST_P(ExecutionEngineOriginGatingBrowserTest,
@@ -1077,7 +1115,11 @@ IN_PROC_BROWSER_TEST_P(ExecutionEngineOriginGatingBrowserTest,
 
   ActResultFuture result;
   actor_task().Act(ToRequestList(click_link), result.GetCallback());
-  ExpectErrorResult(result, mojom::ActionResultCode::kUrlBlocked);
+  const auto expected_result =
+      base::FeatureList::IsEnabled(kGlicGranularBlockingActionResultCodes)
+          ? mojom::ActionResultCode::kActionsBlockedForSiteRisk
+          : mojom::ActionResultCode::kUrlBlocked;
+  ExpectErrorResult(result, expected_result);
 }
 
 INSTANTIATE_TEST_SUITE_P(All,
@@ -1432,8 +1474,9 @@ IN_PROC_BROWSER_TEST_P(ExecutionEngineSiteGatingBrowserTest, PerTaskAllowlist) {
   const GURL other_url_same_site =
       embedded_https_test_server().GetURL("other.foo.com", "/actor/blank.html");
   const GURL cross_site_url_with_link = embedded_https_test_server().GetURL(
-      "bar.com", base::StrCat({"/actor/link_full_page.html?href=",
-                               EncodeURI(other_url_same_site.spec())}));
+      "bar.com",
+      base::StrCat({"/actor/link_full_page.html?href=",
+                    url::EncodeUriComponent(other_url_same_site.spec())}));
 
   // Start on example.com.
   ASSERT_TRUE(content::NavigateToURL(web_contents(), start_url));
@@ -1469,6 +1512,252 @@ INSTANTIATE_TEST_SUITE_P(All,
                          testing::Bool(),
                          [](auto& info) {
                            return info.param ? "GateBySite" : "GateByOrigin";
+                         });
+
+class ExecutionEngineGatingConfirmationMetricBrowserTest
+    : public ExecutionEngineOriginGatingBrowserTestBase,
+      public testing::WithParamInterface<bool> {
+ public:
+  ExecutionEngineGatingConfirmationMetricBrowserTest() {
+    std::vector<base::test::FeatureRefAndParams> enabled_features = {
+        {kGlicCrossOriginNavigationGating,
+         {{"confirm_navigation_to_new_origins", "false"}}}};
+    std::vector<base::test::FeatureRef> disabled_features;
+
+    if (recording_metrics_enabled()) {
+      enabled_features.push_back(
+          {kGlicRecordNavigationConfirmationRequestMetrics, {}});
+    } else {
+      disabled_features.push_back(
+          kGlicRecordNavigationConfirmationRequestMetrics);
+    }
+
+    scoped_feature_list_.InitWithFeaturesAndParameters(enabled_features,
+                                                       disabled_features);
+  }
+  ~ExecutionEngineGatingConfirmationMetricBrowserTest() override = default;
+
+  bool recording_metrics_enabled() { return GetParam(); }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_P(ExecutionEngineGatingConfirmationMetricBrowserTest,
+                       SameOriginNavigation) {
+  base::HistogramTester histogram_tester;
+  const GURL start_url =
+      embedded_https_test_server().GetURL("example.com", "/actor/link.html");
+  ASSERT_TRUE(content::NavigateToURL(web_contents(), start_url));
+  OpenGlicAndCreateTask();
+
+  EXPECT_TRUE(content::ExecJs(web_contents(),
+                              content::JsReplace("setLink($1);", start_url)));
+  ClickTarget("#link", mojom::ActionResultCode::kOk);
+
+  StopAllTasks();
+  if (recording_metrics_enabled()) {
+    base::test::RunUntil([&]() {
+      return histogram_tester
+                 .GetAllSamples(
+                     "Actor.NavigationGating.ActionNavigationsApprovedByServer")
+                 .size() == 1;
+    });
+    histogram_tester.ExpectBucketCount(
+        "Actor.NavigationGating.ActionNavigationsApprovedByServer", true, 1);
+  } else {
+    histogram_tester.ExpectTotalCount(
+        "Actor.NavigationGating.ActionNavigationsApprovedByServer", 0);
+  }
+}
+
+IN_PROC_BROWSER_TEST_P(ExecutionEngineGatingConfirmationMetricBrowserTest,
+                       NovelNavigation) {
+  base::HistogramTester histogram_tester;
+  const GURL start_url =
+      embedded_https_test_server().GetURL("example.com", "/actor/link.html");
+  const GURL novel_url =
+      embedded_https_test_server().GetURL("foo.com", "/actor/blank.html");
+  ASSERT_TRUE(content::NavigateToURL(web_contents(), start_url));
+  OpenGlicAndCreateTask();
+
+  RunTestSequence(CreateMockWebClientRequest(
+      content::JsReplace(kHandleNavigationConfirmationTempl, true)));
+
+  EXPECT_TRUE(content::ExecJs(web_contents(),
+                              content::JsReplace("setLink($1);", novel_url)));
+  ClickTarget("#link", mojom::ActionResultCode::kOk);
+
+  StopAllTasks();
+  if (recording_metrics_enabled()) {
+    base::test::RunUntil([&]() {
+      return histogram_tester
+                 .GetAllSamples(
+                     "Actor.NavigationGating.ActionNavigationsApprovedByServer")
+                 .size() == 1;
+    });
+    histogram_tester.ExpectBucketCount(
+        "Actor.NavigationGating.ActionNavigationsApprovedByServer", true, 1);
+  } else {
+    histogram_tester.ExpectTotalCount(
+        "Actor.NavigationGating.ActionNavigationsApprovedByServer", 0);
+  }
+}
+
+IN_PROC_BROWSER_TEST_P(ExecutionEngineGatingConfirmationMetricBrowserTest,
+                       NovelNavigation_denied) {
+  base::HistogramTester histogram_tester;
+  const GURL start_url =
+      embedded_https_test_server().GetURL("example.com", "/actor/link.html");
+  const GURL novel_url =
+      embedded_https_test_server().GetURL("foo.com", "/actor/blank.html");
+  ASSERT_TRUE(content::NavigateToURL(web_contents(), start_url));
+  OpenGlicAndCreateTask();
+
+  RunTestSequence(CreateMockWebClientRequest(
+      content::JsReplace(kHandleNavigationConfirmationTempl, false)));
+
+  EXPECT_TRUE(content::ExecJs(web_contents(),
+                              content::JsReplace("setLink($1);", novel_url)));
+  ClickTarget("#link", mojom::ActionResultCode::kOk);
+
+  StopAllTasks();
+  if (recording_metrics_enabled()) {
+    base::test::RunUntil([&]() {
+      return histogram_tester
+                 .GetAllSamples(
+                     "Actor.NavigationGating.ActionNavigationsApprovedByServer")
+                 .size() == 1;
+    });
+    histogram_tester.ExpectBucketCount(
+        "Actor.NavigationGating.ActionNavigationsApprovedByServer", false, 1);
+  } else {
+    histogram_tester.ExpectTotalCount(
+        "Actor.NavigationGating.ActionNavigationsApprovedByServer", 0);
+  }
+}
+
+IN_PROC_BROWSER_TEST_P(ExecutionEngineGatingConfirmationMetricBrowserTest,
+                       SensitiveNavigation) {
+  base::HistogramTester histogram_tester;
+  const GURL start_url =
+      embedded_https_test_server().GetURL("example.com", "/actor/link.html");
+  const GURL sensitive_url = embedded_https_test_server().GetURL(
+      "blocked.example.com", "/actor/blank.html");
+  ASSERT_TRUE(content::NavigateToURL(web_contents(), start_url));
+  OpenGlicAndCreateTask();
+
+  // We need to set up both the user AND navigation confirmation responses since
+  // the user confirmation is used for sensitive sites
+  RunTestSequence(CreateMockWebClientRequest(
+      content::JsReplace(kHandleNavigationConfirmationTempl, true)));
+  RunTestSequence(CreateMockWebClientRequest(
+      content::JsReplace(kHandleUserConfirmationDialogTempl, true)));
+
+  EXPECT_TRUE(content::ExecJs(
+      web_contents(), content::JsReplace("setLink($1);", sensitive_url)));
+  ClickTarget("#link", mojom::ActionResultCode::kOk);
+
+  StopAllTasks();
+  if (recording_metrics_enabled()) {
+    base::test::RunUntil([&]() {
+      return histogram_tester
+                 .GetAllSamples(
+                     "Actor.NavigationGating.ActionNavigationsApprovedByServer")
+                 .size() == 1;
+    });
+    histogram_tester.ExpectBucketCount(
+        "Actor.NavigationGating.ActionNavigationsApprovedByServer", true, 1);
+  } else {
+    histogram_tester.ExpectTotalCount(
+        "Actor.NavigationGating.ActionNavigationsApprovedByServer", 0);
+  }
+}
+
+IN_PROC_BROWSER_TEST_P(ExecutionEngineGatingConfirmationMetricBrowserTest,
+                       AllowlistedNavigation) {
+  base::HistogramTester histogram_tester;
+  const GURL start_url =
+      embedded_https_test_server().GetURL("example.com", "/actor/link.html");
+  const GURL allowlisted_url =
+      embedded_https_test_server().GetURL("foo.com", "/actor/blank.html");
+
+  SafetyListManager::GetInstance()->ParseSafetyLists(
+      content::JsReplace(R"json(
+    {
+      "navigation_allowed": [
+        { "from": "*", "to": $1 }
+      ]
+    }
+  )json",
+                         allowlisted_url.host()));
+
+  ASSERT_TRUE(content::NavigateToURL(web_contents(), start_url));
+  OpenGlicAndCreateTask();
+
+  RunTestSequence(CreateMockWebClientRequest(
+      content::JsReplace(kHandleNavigationConfirmationTempl, true)));
+
+  EXPECT_TRUE(content::ExecJs(
+      web_contents(), content::JsReplace("setLink($1);", allowlisted_url)));
+  ClickTarget("#link", mojom::ActionResultCode::kOk);
+
+  StopAllTasks();
+  if (recording_metrics_enabled()) {
+    base::test::RunUntil([&]() {
+      return histogram_tester
+                 .GetAllSamples(
+                     "Actor.NavigationGating.ActionNavigationsApprovedByServer")
+                 .size() == 1;
+    });
+    histogram_tester.ExpectBucketCount(
+        "Actor.NavigationGating.ActionNavigationsApprovedByServer", true, 1);
+  } else {
+    histogram_tester.ExpectTotalCount(
+        "Actor.NavigationGating.ActionNavigationsApprovedByServer", 0);
+  }
+}
+
+IN_PROC_BROWSER_TEST_P(ExecutionEngineGatingConfirmationMetricBrowserTest,
+                       BlocklistedNavigation) {
+  base::HistogramTester histogram_tester;
+  const GURL start_url =
+      embedded_https_test_server().GetURL("example.com", "/actor/link.html");
+  const GURL blocklisted_url =
+      embedded_https_test_server().GetURL("foo.com", "/actor/blank.html");
+
+  SafetyListManager::GetInstance()->ParseSafetyLists(
+      content::JsReplace(R"json(
+    {
+      "navigation_blocked": [
+        { "from": "*", "to": $1 }
+      ]
+    }
+  )json",
+                         blocklisted_url.host()));
+
+  ASSERT_TRUE(content::NavigateToURL(web_contents(), start_url));
+  OpenGlicAndCreateTask();
+
+  RunTestSequence(CreateMockWebClientRequest(
+      content::JsReplace(kHandleNavigationConfirmationTempl, true)));
+
+  EXPECT_TRUE(content::ExecJs(
+      web_contents(), content::JsReplace("setLink($1);", blocklisted_url)));
+  ClickTarget("#link", mojom::ActionResultCode::kTriggeredNavigationBlocked);
+
+  StopAllTasks();
+
+  histogram_tester.ExpectTotalCount(
+      "Actor.NavigationGating.ActionNavigationsApprovedByServer", 0);
+}
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         ExecutionEngineGatingConfirmationMetricBrowserTest,
+                         testing::Bool(),
+                         [](const auto& info) {
+                           return info.param ? "MetricsEnabled"
+                                             : "MetricsDisabled";
                          });
 
 }  // namespace actor

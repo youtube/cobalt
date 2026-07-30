@@ -252,6 +252,8 @@ bool AutofillExternalDelegate::IsAutofillAndFirstLayerSuggestionId(
     case SuggestionType::kWebauthnSignInWithAnotherDevice:
     case SuggestionType::kPendingStateSignin:
     case SuggestionType::kLoadingThrobber:
+    case SuggestionType::kAtMemorySearchResult:
+    case SuggestionType::kBnplFootnote:
       return false;
   }
 }
@@ -436,51 +438,6 @@ AutofillExternalDelegate::CreateUpdateSuggestionsCallback() {
       GetWeakPtr(), *session_id);
 }
 
-base::OnceCallback<void(SuggestionHidingReason)>
-AutofillExternalDelegate::CreateHideSuggestionsCallback() {
-  using SessionId = AutofillClient::SuggestionUiSessionId;
-  const std::optional<SessionId> session_id =
-      manager_->client().GetSessionIdForCurrentAutofillSuggestions();
-  if (!session_id) {
-    return base::DoNothing();
-  }
-  return base::BindOnce(
-      [](base::WeakPtr<AutofillExternalDelegate> self, SessionId session_id,
-         SuggestionHidingReason hiding_reason) {
-        if (!self) {
-          return;
-        }
-        if (self->manager_->client()
-                .GetSessionIdForCurrentAutofillSuggestions()
-                .value_or(SessionId()) != session_id) {
-          return;
-        }
-        self->manager_->client().HideAutofillSuggestions(hiding_reason);
-      },
-      GetWeakPtr(), *session_id);
-}
-
-base::RepeatingCallback<void(const std::u16string&)>
-AutofillExternalDelegate::CreateSingleFieldFillCallback(
-    SuggestionType suggestion_type,
-    std::optional<FieldType> field_type_used) {
-  return base::BindRepeating(
-      [](base::WeakPtr<AutofillExternalDelegate> self, const FormData& form,
-         const FormFieldData& field, SuggestionType suggestion_type,
-         std::optional<FieldType> field_type_used,
-         const std::u16string& value) {
-        if (!self) {
-          return;
-        }
-        self->manager_->FillOrPreviewField(mojom::ActionPersistence::kFill,
-                                           mojom::FieldActionType::kReplaceAll,
-                                           form, field, value, suggestion_type,
-                                           field_type_used);
-      },
-      GetWeakPtr(), query_form_, query_field_, suggestion_type,
-      field_type_used);
-}
-
 bool AutofillExternalDelegate::HasActiveScreenReader() const {
 #if BUILDFLAG(IS_IOS)
   // ui::AXPlatform is not supported on iOS. The rendering engine handles
@@ -626,6 +583,9 @@ void AutofillExternalDelegate::DidSelectSuggestion(
           mojom::FieldActionType::kReplaceAll, query_form_, query_field_,
           suggestion.main_text.value, suggestion.type, LOYALTY_MEMBERSHIP_ID);
       break;
+    case SuggestionType::kAtMemorySearchResult:
+      // TODO(crbug.com/481976778): Preview @memory search result
+      break;
     case SuggestionType::kWebauthnSignInWithAnotherDevice:
       manager_->DelegateSelectToPasswordManager(suggestion, query_field_);
       break;
@@ -673,6 +633,7 @@ void AutofillExternalDelegate::DidSelectSuggestion(
     case SuggestionType::kViewPasswordDetails:
     case SuggestionType::kPendingStateSignin:
     case SuggestionType::kLoadingThrobber:
+    case SuggestionType::kBnplFootnote:
       NOTREACHED();  // Should be handled elsewhere.
   }
 }
@@ -862,6 +823,9 @@ void AutofillExternalDelegate::DidAcceptSuggestion(
                                   GetTriggerSource());
       break;
     }
+    case SuggestionType::kAtMemorySearchResult:
+      // TODO(crbug.com/481976778): Fill @memory search result
+      break;
     case SuggestionType::kWebauthnSignInWithAnotherDevice:
       manager_->DelegateAcceptToPasswordManager(suggestion, metadata,
                                                 query_field_);
@@ -883,6 +847,7 @@ void AutofillExternalDelegate::DidAcceptSuggestion(
     case SuggestionType::kViewPasswordDetails:
     case SuggestionType::kPendingStateSignin:
     case SuggestionType::kLoadingThrobber:
+    case SuggestionType::kBnplFootnote:
       NOTREACHED();  // Should be handled elsewhere.
   }
   // Note that some suggestion types return early.
@@ -992,6 +957,8 @@ bool AutofillExternalDelegate::RemoveSuggestion(const Suggestion& suggestion) {
     case SuggestionType::kLoyaltyCardEntry:
     case SuggestionType::kOneTimePasswordEntry:
     case SuggestionType::kLoadingThrobber:
+    case SuggestionType::kAtMemorySearchResult:
+    case SuggestionType::kBnplFootnote:
       return false;
   }
 }
@@ -1461,11 +1428,13 @@ void AutofillExternalDelegate::FillAutofillAiFormAndHidePopup(
 
   // Authenticate and fill on success.
   std::u16string message;
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS) || \
+    BUILDFLAG(IS_IOS)
   const std::u16string origin =
       base::UTF8ToUTF16(autofill_field->origin().host());
   message = l10n_util::GetStringFUTF16(IDS_AUTOFILL_AI_FILLING_REAUTH, origin);
-#endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
+#endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS) ||
+        // BUILDFLAG(IS_IOS)
   base::OnceCallback<std::optional<EntityInstance>(bool)>
       convert_auth_response = base::BindOnce(
           [](EntityInstance masked_entity, bool auth_succeeded) {

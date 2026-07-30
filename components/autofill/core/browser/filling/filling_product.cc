@@ -49,6 +49,8 @@ std::string FillingProductToString(FillingProduct filling_product) {
       return "DataList";
     case FillingProduct::kOneTimePassword:
       return "OneTimePassword";
+    case FillingProduct::kAtMemory:
+      return "AtMemory";
   }
   NOTREACHED();
 }
@@ -109,6 +111,7 @@ FillingProduct GetFillingProductFromSuggestionType(SuggestionType type) {
     case SuggestionType::kTitle:
     case SuggestionType::kUndoOrClear:
     case SuggestionType::kLoadingThrobber:
+    case SuggestionType::kBnplFootnote:
       return FillingProduct::kNone;
     case SuggestionType::kFillAutofillAi:
     case SuggestionType::kManageAutofillAi:
@@ -123,6 +126,8 @@ FillingProduct GetFillingProductFromSuggestionType(SuggestionType type) {
       return FillingProduct::kIdentityCredential;
     case SuggestionType::kOneTimePasswordEntry:
       return FillingProduct::kOneTimePassword;
+    case SuggestionType::kAtMemorySearchResult:
+      return FillingProduct::kAtMemory;
     case SuggestionType::kWebauthnCredential:
     case SuggestionType::kWebauthnSignInWithAnotherDevice:
       return FillingProduct::kPasskey;

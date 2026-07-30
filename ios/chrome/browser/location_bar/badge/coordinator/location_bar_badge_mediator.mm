@@ -118,7 +118,7 @@ const int kStartCollapseTransitionTimeInSeconds = 5;
 
       if (_activeWebState) {
         _infobarBadgeObservation->Observe(
-            InfobarBadgeTabHelper::GetOrCreateForWebState(_activeWebState));
+            InfobarBadgeTabHelper::FromWebState(_activeWebState));
       }
 
       // Set up active ContextualPanelTabHelper observation.
@@ -220,8 +220,7 @@ const int kStartCollapseTransitionTimeInSeconds = 5;
   if (!active_web_state || active_web_state->IsBeingDestroyed()) {
     return;
   }
-  if (tabHelper !=
-      InfobarBadgeTabHelper::GetOrCreateForWebState(active_web_state)) {
+  if (tabHelper != InfobarBadgeTabHelper::FromWebState(active_web_state)) {
     return;
   }
 
@@ -294,7 +293,8 @@ const int kStartCollapseTransitionTimeInSeconds = 5;
     return;
   }
 
-  if ([self shouldShowChip:config]) {
+  // If there's badge text, attempt to show a chip.
+  if (config.badgeText) {
     [self startPromoTimer:config];
   }
 }
@@ -503,7 +503,7 @@ const int kStartCollapseTransitionTimeInSeconds = 5;
 
   // Register observer bridge for the new WebState's InfobarBadgeTabHelper.
   _infobarBadgeObservation->Observe(
-      InfobarBadgeTabHelper::GetOrCreateForWebState(_activeWebState));
+      InfobarBadgeTabHelper::FromWebState(_activeWebState));
 
   ContextualPanelTabHelper* contextualPanelTabHelper =
       ContextualPanelTabHelper::FromWebState(_activeWebState);
@@ -541,7 +541,7 @@ const int kStartCollapseTransitionTimeInSeconds = 5;
 - (BOOL)shouldShowBadge:(LocationBarBadgeType)badgeType {
   switch (badgeType) {
     case LocationBarBadgeType::kGeminiContextualCueChip:
-      if ([self shouldShowGeminiContextualChip]) {
+      if ([self shouldShowGeminiContextualBadge]) {
         return YES;
       }
       return NO;
@@ -552,7 +552,9 @@ const int kStartCollapseTransitionTimeInSeconds = 5;
   }
 }
 
-// Whether a chip with `badgeType` should show.
+// Whether a chip with `badgeType` should show. Only use before the chip
+// shows as this function can lead to `ShouldTriggerHelpUI` calls which are
+// properly handled. FET dismiss calls are handled as long as the chip is shown.
 - (BOOL)shouldShowChip:(LocationBarBadgeConfiguration*)badgeConfig {
   if (!badgeConfig.badgeText) {
     return NO;
@@ -570,6 +572,8 @@ const int kStartCollapseTransitionTimeInSeconds = 5;
           contextualPanelTabHelper->GetFirstCachedConfig().get();
       return [self canShowLargeEntrypointWithConfig:config];
     }
+    case LocationBarBadgeType::kGeminiContextualCueChip:
+      return [self shouldShowGeminiContextualChip];
     case LocationBarBadgeType::kNone:
       return NO;
     default:
@@ -599,12 +603,6 @@ const int kStartCollapseTransitionTimeInSeconds = 5;
 // Handles additional logic for `badgeType` when badge is shown.
 - (void)badgeShown:(LocationBarBadgeType)badgeType {
   switch (badgeType) {
-    case LocationBarBadgeType::kGeminiContextualCueChip:
-      _tracker->NotifyEvent(
-          feature_engagement::events::kIOSGeminiContextualCueChipTriggered);
-      _prefService->SetTime(prefs::kLastGeminiContextualChipDisplayedTimestamp,
-                            base::Time::Now());
-      break;
     case LocationBarBadgeType::kContextualPanelEntryPointSample:
     case LocationBarBadgeType::kPriceInsights:
     case LocationBarBadgeType::kReaderMode: {
@@ -642,15 +640,19 @@ const int kStartCollapseTransitionTimeInSeconds = 5;
           logLoudDisplayContextualPanelEntrypointMetrics:metricsData];
       break;
     }
+    case LocationBarBadgeType::kGeminiContextualCueChip:
+      _prefService->SetTime(prefs::kLastGeminiContextualChipDisplayedTimestamp,
+                            base::Time::Now());
+      break;
     default:
       break;
   }
 }
 
-// Whether to show Gemini contextual chip. Checks if the page is eligible for
-// Gemini, a user has consented, and checks if two hours has passed since the
-// last chip display.
-- (BOOL)shouldShowGeminiContextualChip {
+// Whether to show Gemini contextual badge before it transforms into a chip.
+// Checks if the page is eligible for Gemini, a user has consented, and checks
+// if two hours has passed since the last chip display.
+- (BOOL)shouldShowGeminiContextualBadge {
   BOOL isPageEligible =
       _geminiService->IsBwgAvailableForWebState(_activeWebState);
   // TODO(crbug.com/465766925): Remove when feature is enabled by default.
@@ -678,8 +680,18 @@ const int kStartCollapseTransitionTimeInSeconds = 5;
   }
 
   return isPageEligible && isConsentEligible && eligibleTimeWindow &&
-         _tracker->ShouldTriggerHelpUI(
+         _tracker->WouldTriggerHelpUI(
              feature_engagement::kIPHiOSGeminiContextualCueChip);
+}
+
+// Whether to show Gemini contextual chip.
+- (BOOL)shouldShowGeminiContextualChip {
+  if (IsAskGeminiChipIgnoreCriteria()) {
+    return YES;
+  }
+
+  return _tracker->ShouldTriggerHelpUI(
+      feature_engagement::kIPHiOSGeminiContextualCueChip);
 }
 
 // Returns whether the promo timers exist which implies a promo is in the

@@ -351,9 +351,7 @@ void PopulateTrustedIconsFromDownloadedBitmapsAndMetadata(
   SizeToBitmap sizes_to_icons = ConstrainBitmapsToSizes(
       square_icons_matching_infos, web_app::SizesToGenerate());
   for (auto& [size, icon] : sizes_to_icons) {
-    if (!output_size_to_bitmaps.contains(size)) {
-      output_size_to_bitmaps[size] = std::move(icon);
-    }
+    output_size_to_bitmaps.try_emplace(size, std::move(icon));
   }
 }
 
@@ -469,15 +467,13 @@ void PopulateProductIcons(WebAppInstallInfo* web_app_info,
 
   // Retain any bitmaps provided as input to the installation.
   for (auto& icon : square_icons_maskable) {
-    if (!web_app_info->icon_bitmaps.maskable.contains(icon.width())) {
-      web_app_info->icon_bitmaps.maskable[icon.width()] = std::move(icon);
-    }
+    web_app_info->icon_bitmaps.maskable.try_emplace(icon.width(),
+                                                    std::move(icon));
   }
 
   for (auto& icon : square_icons_monochrome) {
-    if (!web_app_info->icon_bitmaps.monochrome.contains(icon.width())) {
-      web_app_info->icon_bitmaps.monochrome[icon.width()] = std::move(icon);
-    }
+    web_app_info->icon_bitmaps.monochrome.try_emplace(icon.width(),
+                                                      std::move(icon));
   }
 
   std::u16string icon_letter =
@@ -497,8 +493,8 @@ void PopulateProductIcons(WebAppInstallInfo* web_app_info,
 
   for (auto& item : size_to_icons) {
     // Retain any bitmaps provided as input to the installation.
-    if (web_app_info->icon_bitmaps.any.count(item.first) == 0)
-      web_app_info->icon_bitmaps.any[item.first] = std::move(item.second);
+    web_app_info->icon_bitmaps.any.try_emplace(item.first,
+                                               std::move(item.second));
   }
 }
 
@@ -721,10 +717,9 @@ void CreateWebAppInstallTabHelpers(content::WebContents* web_contents) {
 void SetWebAppManifestFields(const WebAppInstallInfo& web_app_info,
                              WebApp& web_app,
                              bool skip_icons_on_download_failure) {
-  // TODO(crbug.com/344718166): ManifestId should already be set the same,
-  // otherwise setting it here would be changing the app's ID. This should be a
-  // CHECK_EQ instead of a set.
-  web_app.SetManifestId(web_app_info.manifest_id());
+  // Ensuring WebAppInstallInfo's manifest_id matches the one used to create the
+  // WebApp.
+  CHECK_EQ(web_app_info.manifest_id(), web_app.manifest_id());
 
   DCHECK(!web_app_info.title.empty());
   web_app.SetName(base::UTF16ToUTF8(web_app_info.title.value()));

@@ -1060,6 +1060,7 @@
 <translation id="2674524144218093528">گھر کی پینٹنگ اور سجاوٹ</translation>
 <translation id="26774279487328902">‫<ph name="GROUP_COUNT" /> ٹیب گروپس اب مزید دستیاب نہیں ہیں</translation>
 <translation id="2677748264148917807">چھوڑیں</translation>
+<translation id="2679659833697380">آپ کی معلومات آپ کے آلے میں محفوظ ہے</translation>
 <translation id="2683195745483370038">دوسرے نتائج ملے</translation>
 <translation id="2686919536310834199">لکھنے میں میری مدد کریں کے لیے تاثرات بھیجیں۔</translation>
 <translation id="2687555958734450033">بہترین فٹ</translation>
@@ -2220,7 +2221,7 @@
 <translation id="4523580145196408446">لنک ہے</translation>
 <translation id="4523643381056109546">علامتی تختی</translation>
 <translation id="4524138615196389145">‏اب سے WebAuthn کے استعمال سے تیزی سے اپنے کارڈز کی تصدیق کریں</translation>
-<translation id="45243788195988825"><ph name="TOPIC" /> کو مسدود کریں</translation>
+<translation id="45243788195988825"><ph name="TOPIC" /> کو بلاک کریں</translation>
 <translation id="4528888973346221791">دفتری پروفائل کی معلومات (جیسے آپ کا صارف نام)</translation>
 <translation id="4530347922939905757">ٹیکسٹ پیغام</translation>
 <translation id="4531477351494678589">ورچوئل کارڈ نمبر:</translation>
@@ -2575,6 +2576,7 @@
 <translation id="5114987907971894280">ورچوئل رئیلٹی</translation>
 <translation id="5115232566827194440">نظم کردہ ممنوع مہمان کا سیشن اوور رائیڈ کریں</translation>
 <translation id="5115563688576182185">(64 بٹ)</translation>
+<translation id="5116015291385561204">توثیق کریں کہ حساس معلومات کو آٹو فل کرنے والے آپ ہی ہیں</translation>
 <translation id="5120526915373271910">فیملی موویز</translation>
 <translation id="5122786942953798871">لفافہ (کاٹن)</translation>
 <translation id="5123063207673082822">ویک اینڈ</translation>
@@ -3975,6 +3977,7 @@
 <translation id="7372973238305370288">تلاش کا نتیجہ</translation>
 <translation id="7374461526650987610">پروٹوکول ہینڈلرز</translation>
 <translation id="7374733840632556089">‏آپ کے آلہ پر آپ یا کسی اور کے ذریعہ انسٹال کردہ سرٹیفکیٹ کی وجہ سے یہ مسئلہ پیش آتا ہے۔ اس سرٹیفکیٹ کو نیٹ ورکس مانیٹر کرنے اور منقطع کرنے کے استعمال کے لیے جانا جاتا ہے، اور یہ Chrome کی طرف سے قابل اعتماد نہیں ہے۔ جبکہ مانیٹرنگ کے لئے کچھ جائز صورتیں موجود ہیں، جیسے اسکول یا کمپنی کے نیٹ ورک پر، Chrome یقینی بنانا چاہتا ہے کہ آپ ہونے والی چیزوں سے وافق ہیں، چاہے آپ اسے روک نہیں سکتے۔ مانیٹرنگ کسی بھی براؤزر یا ایپلیکیشن میں ہو سکتی ہے جسے ویب تک رسائی حاصل ہے۔</translation>
+<translation id="73750335798090836">اضافی تحفظ کے لیے، آپ کے سفر اور شناختی دستاویزات جیسی حساس معلومات استعمال کرنے پر ہمیشہ اپنے فنگر پرنٹ، چہرے یا دیگر اسکرین لاک کا استعمال کریں</translation>
 <translation id="7375532151824574023">{NUM_COOKIES,plural, =0{کسی سائٹ کی اجازت نہیں ہے}=1{1 سائٹ کی اجازت ہے}other{# سائٹس کی اجازت ہے}}</translation>
 <translation id="7375818412732305729">فائل منسلک کی جاتی ہے</translation>
 <translation id="7376031331622621328">کامرس سے متعلق نیچے کی شیٹ</translation>
@@ -4231,6 +4234,7 @@
 <translation id="7714404809393719981">تصویر (سیمی گلوس)</translation>
 <translation id="7714424966701020172">مکمل نام پُر کریں اختیار منتخب کیا گیا</translation>
 <translation id="7714464543167945231">سرٹیفیکیٹ</translation>
+<translation id="7714943438925794410">‏ان اختیارات کی پیشکش کرنے کیلئے، چیک آؤٹ صفحے سے صفحے کے مواد کا اشتراک Google کے ساتھ کیا جاتا ہے۔ آٹو فل میں بعد میں ادائیگی کے اختیارات کو چھپانے کیلئے، <ph name="IDS_AUTOFILL_CARD_BNPL_SELECT_PROVIDER_FOOTNOTE_HIDE_OPTION_PAYMENT_SETTINGS_LINK_TEXT" /> پر جائیں۔</translation>
 <translation id="7716147886133743102">آپ کے منتظم کی جانب سے مسدود کردہ</translation>
 <translation id="7716375162095500223">ابھی اپلوڈ نہیں ہوا، یا نظرانداز کیا گیا</translation>
 <translation id="7716424297397655342">اس سائٹ کو کیش سے لوڈ نہیں کیا جا سکتا ہے</translation>
@@ -4313,6 +4317,7 @@
 <translation id="7862306158978555061">حساس معلومات دکھائیں</translation>
 <translation id="7865448901209910068">عمدہ رفتار</translation>
 <translation id="7865482168955081228">ابھی خریدیں، ادائیگی بعد میں کریں کی خرابی کی اسکرین بند ہے۔</translation>
+<translation id="7870207318911766769">‏ان اختیارات کی پیشکش کرنے کیلئے، چیک آؤٹ صفحے سے صفحے کے مواد کا اشتراک Google کے ساتھ کیا جاتا ہے۔</translation>
 <translation id="7870281855125116701">رعایت مل گئی</translation>
 <translation id="7871445724586827387">‏اپنے Google اکاؤنٹ کا پاس ورڈ تبدیل کریں</translation>
 <translation id="787226752901403048">‏ٹیب گروپس کا اشتراک کرنے اور ان میں شامل ہونے کے لیے Chrome میں سائن ان کریں اور آئیڈیاز پر مل کر کام کریں</translation>
@@ -4518,7 +4523,7 @@
 <translation id="8213853114485953510">JIS Exec</translation>
 <translation id="8216640997712497593">‏‎14 x 18 انچ</translation>
 <translation id="8218327578424803826">تفویض کردہ مقام</translation>
-<translation id="8220602974062798186"><ph name="TOPIC" /> کو اور کسی بھی متعلقہ موضوع کو مسدود کریں؟</translation>
+<translation id="8220602974062798186"><ph name="TOPIC" /> کو اور کسی بھی متعلقہ موضوع کو بلاک کریں؟</translation>
 <translation id="8223142476690844338">آداب <ph name="USER_NAME" />، آپ کے ذہن میں کیا ہے؟</translation>
 <translation id="8226408512771130794">‫<ph name="KEYWORD_SHORTCUT" />، <ph name="KEYWORD_SUFFIX" /> سے پوچھیں</translation>
 <translation id="8228419419708659934">دو صفحہ کا منظر</translation>

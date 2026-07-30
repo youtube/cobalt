@@ -41,9 +41,9 @@ import {getHtml} from './item.html.js';
 
 export interface DownloadsItemElement {
   $: {
-    'controlled-by': HTMLElement,
-    'file-icon': HTMLImageElement,
-    'file-link': HTMLAnchorElement,
+    controlledBy: HTMLElement,
+    fileIcon: HTMLImageElement,
+    fileLink: HTMLAnchorElement,
   };
 }
 
@@ -167,7 +167,7 @@ export class DownloadsItemElement extends DownloadsItemElementBase {
   }
 
   getFileIcon(): HTMLImageElement {
-    return this.$['file-icon'];
+    return this.$.fileIcon;
   }
 
   getMoreActionsButton(): CrIconButtonElement|null {
@@ -1023,9 +1023,9 @@ export class DownloadsItemElement extends DownloadsItemElementBase {
 
   private updateControlledBy_() {
     const controlledBy = this.computeControlledBy_();
-    this.$['controlled-by'].innerHTML = sanitizeInnerHtml(controlledBy);
+    this.$.controlledBy.innerHTML = sanitizeInnerHtml(controlledBy);
     if (controlledBy) {
-      const link = this.shadowRoot.querySelector('#controlled-by a');
+      const link = this.shadowRoot.querySelector('#controlledBy a');
       link!.setAttribute('focus-row-control', '');
       link!.setAttribute('focus-type', 'controlledBy');
     }
@@ -1041,7 +1041,7 @@ export class DownloadsItemElement extends DownloadsItemElementBase {
 
   private updateUiForStateChange_() {
     const removeFileUrlLinks = () => {
-      this.$['file-link'].removeAttribute('href');
+      this.$.fileLink.removeAttribute('href');
     };
 
     if (!this.data) {
@@ -1070,7 +1070,7 @@ export class DownloadsItemElement extends DownloadsItemElementBase {
 
     const path = this.data.filePath;
     IconLoaderImpl.getInstance()
-        .loadIcon(this.$['file-icon'], path)
+        .loadIcon(this.$.fileIcon, path)
         .then(success => {
           if (!!this.data && path === this.data.filePath &&
               this.data.state !== State.kAsyncScanning) {
@@ -1206,10 +1206,19 @@ export class DownloadsItemElement extends DownloadsItemElementBase {
       return;
     }
     if (copied) {
-      const pieces = loadTimeData.getSubstitutedStringPieces(
-                         loadTimeData.getString('toastCopiedDownloadLink'),
-                         this.data.url) as unknown as
-          Array<{collapsible: boolean, value: string, arg: string}>;
+      let pieces;
+      if (this.data.url.startsWith('data:')) {
+        pieces = [{
+          collapsible: false,
+          value: loadTimeData.getString('toastCopiedLink'),
+          arg: '',
+        }];
+      } else {
+        pieces = loadTimeData.getSubstitutedStringPieces(
+                     loadTimeData.getString('toastCopiedDownloadLink'),
+                     this.data.url) as unknown as
+            Array<{collapsible: boolean, value: string, arg: string}>;
+      }
       pieces.forEach(p => {
         p.collapsible = !!p.arg;
       });
@@ -1260,11 +1269,7 @@ export class DownloadsItemElement extends DownloadsItemElementBase {
   }
 
   private notifySaveDangerousClick_() {
-    this.dispatchEvent(new CustomEvent('save-dangerous-click', {
-      bubbles: true,
-      composed: true,
-      detail: {id: this.dataId_()},
-    }));
+    this.fire('save-dangerous-click', {id: this.dataId_()});
   }
 
   protected onSaveDangerousClick_() {

@@ -274,13 +274,23 @@ bool IsChromeRefreshTokenBindingEnabled(const PrefService* profile_prefs) {
 }
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
+#if !defined(NDEBUG)
+BASE_FEATURE(kEnableFakeCapabilityForTesting,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif
+
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
 // Enables binding the OAuthMultilogin cookies to a device with DBSC prototype.
 //
 // If `kEnableOAuthMultiloginStandardCookiesBinding` is enabled, DBSC standard
 // takes precedence over DBSC prototype.
 BASE_FEATURE(kEnableOAuthMultiloginCookiesBinding,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+#if BUILDFLAG(IS_WIN)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif  // BUILDFLAG(IS_WIN)
+);
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
@@ -291,7 +301,12 @@ BASE_FEATURE(kEnableOAuthMultiloginCookiesBinding,
 // NOTE: This flag is meant to be used in conjunction with the
 // `kEnableOAuthMultiloginCookiesBinding` flag.
 BASE_FEATURE(kEnableOAuthMultiloginCookiesBindingServerExperiment,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+#if BUILDFLAG(IS_WIN)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif  // BUILDFLAG(IS_WIN)
+);
 BASE_FEATURE_PARAM(bool,
                    kOAuthMultiloginCookieBindingEnforced,
                    &kEnableOAuthMultiloginCookiesBindingServerExperiment,
@@ -347,6 +362,11 @@ constexpr base::FeatureParam<SeamlessSigninStringType>
         SeamlessSigninStringType::kContinueButton, &kSeamlessSigninStringTypes};
 #endif  // BUILDFLAG(IS_ANDROID)
 
+#if BUILDFLAG(IS_IOS)
+BASE_FEATURE(kEnforceCanSignInToChromeCapability,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif
+
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
 // Enables the management disclaimer for managed signed profiles. All signed in
 // profiles that never saw the management disclaimer will be shown the
@@ -360,6 +380,14 @@ const base::FeatureParam<base::TimeDelta>
         &kEnforceManagementDisclaimer, "PolicyDisclaimerRegistrationRetryDelay",
         base::Hours(8)};
 #endif
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+BASE_FEATURE(kFirstRunDesktopRefresh, base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+BASE_FEATURE(kFirstRunDesktopRevamp, base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kForceHistoryOptInScreen, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -392,6 +420,8 @@ BASE_FEATURE(kIdentityInAuthErrorFollowUps, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
+BASE_FEATURE(kMakeIdentityManagerSourceOfAccounts,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 // When enabled a new library is used to fetch accounts via
 // AccountManagerAccountManagerDelegate
 BASE_FEATURE(kMigrateAccountManagerDelegate, base::FEATURE_DISABLED_BY_DEFAULT);

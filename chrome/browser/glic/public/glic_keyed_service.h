@@ -27,7 +27,7 @@
 #include "chrome/common/actor.mojom-forward.h"
 #include "chrome/common/actor/task_id.h"
 #include "chrome/common/actor_webui.mojom-forward.h"
-#include "components/autofill/core/browser/integrators/glic/actor_form_filling_types.h"
+#include "components/autofill/core/browser/integrators/actor/actor_form_filling_types.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
@@ -142,6 +142,14 @@ class GlicKeyedService : public KeyedService,
   void ToggleUI(BrowserWindowInterface* bwi,
                 bool prevent_close,
                 mojom::InvocationSource source);
+
+  // Show the panel with the given conversation id. Used only by web continuity.
+  // Deprecated: See go/gic:invoke for full solution, this existing version will
+  // be removed in the future.
+  [[deprecated]] virtual void ShowUiWithConversationID(
+      BrowserWindowInterface* bwi,
+      mojom::InvocationSource source,
+      std::string conversation_id);
 
   virtual void OpenFreDialogInNewTab(BrowserWindowInterface* bwi,
                                      mojom::InvocationSource source);
@@ -402,6 +410,7 @@ class GlicKeyedService : public KeyedService,
   void RequestToShowAutofillSuggestionsDialog(
       actor::TaskId task_id,
       std::vector<autofill::ActorFormFillingRequest> requests,
+      base::WeakPtr<actor::AutofillSelectionDialogEventHandler> event_handler,
       AutofillSuggestionSelectedCallback callback) override;
 #endif
 
@@ -421,6 +430,14 @@ class GlicKeyedService : public KeyedService,
       glic::mojom::WebClientHandler::
           GetZeroStateSuggestionsForFocusedTabCallback callback,
       std::vector<std::string> returned_suggestions);
+
+  // Shared implementation for ToggleUI and ShowUIWithAutoSend.
+  void ToggleUIInternal(BrowserWindowInterface* bwi,
+                        bool prevent_close,
+                        mojom::InvocationSource source,
+                        std::optional<std::string> prompt_suggestion,
+                        bool auto_send,
+                        std::optional<std::string> conversation_id);
 
   void FinishPreload(GlicPrewarmingChecksResult reason);
   void FinishPreloadFre(GlicPrewarmingFreSource source,

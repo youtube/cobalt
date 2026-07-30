@@ -19,28 +19,17 @@ bool StructTraits<gpu::mojom::CapabilitiesDataView, gpu::Capabilities>::Read(
   out->texture_rg = data.texture_rg();
   out->texture_norm16 = data.texture_norm16();
   out->texture_half_float_linear = data.texture_half_float_linear();
-  out->image_ycbcr_420v = data.image_ycbcr_420v();
   out->image_ar30 = data.image_ar30();
   out->image_ab30 = data.image_ab30();
-  out->image_ycbcr_p010 = data.image_ycbcr_p010();
   out->render_buffer_format_bgra8888 = data.render_buffer_format_bgra8888();
   out->msaa_is_slow = data.msaa_is_slow();
   out->avoid_stencil_buffers = data.avoid_stencil_buffers();
-  out->disable_2d_canvas_copy_on_write = data.disable_2d_canvas_copy_on_write();
   out->supports_rgb_to_yuv_conversion = data.supports_rgb_to_yuv_conversion();
   out->supports_yuv_readback = data.supports_yuv_readback();
-  out->chromium_gpu_fence = data.chromium_gpu_fence();
   out->mesa_framebuffer_flip_y = data.mesa_framebuffer_flip_y();
   out->context_supports_distance_field_text =
       data.context_supports_distance_field_text();
   out->using_vulkan_context = data.using_vulkan_context();
-  std::vector<viz::SharedImageFormat> mappable_formats;
-  if (!data.ReadMappableFormats(&mappable_formats)) {
-    return false;
-  }
-  out->mappable_formats =
-      base::MakeFlatSet<viz::SharedImageFormat>(mappable_formats);
-
   if (!data.ReadDrmFormatsAndModifiers(&out->drm_formats_and_modifiers)) {
     return false;
   }

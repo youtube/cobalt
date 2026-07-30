@@ -109,7 +109,16 @@ BASE_DECLARE_FEATURE(kFillChangePasswordFormByTyping);
 // selection, rather than autofilling on page load, with highlighting of fields.
 BASE_DECLARE_FEATURE(kFillOnAccountSelect);
 
+#if BUILDFLAG(IS_ANDROID)
+// When enabled, the user can be prompted to retrieve the trusted vault key
+// during a password saving flow.
+BASE_DECLARE_FEATURE(kInFlowTrustedVaultKeyRetrievalAndroid);
+#endif  // BUILDFLAG(IS_ANDROID)
+
 #if BUILDFLAG(IS_IOS)
+// When enabled, the user can be prompted to retrieve the trusted vault key
+// during a password saving flow.
+BASE_DECLARE_FEATURE(kInFlowTrustedVaultKeyRetrievalIos);
 
 // Enables the clean up of hanging form extraction requests made by the
 // password suggestion helper. This is to fix the cases where the suggestions
@@ -139,6 +148,10 @@ BASE_DECLARE_FEATURE(kOtpPhishGuard);
 // Populate the `date_last_filled` timestamp for passwords.
 BASE_DECLARE_FEATURE(kPasswordDateLastFilled);
 
+// When enabled, the callback in `OnButtonClicked` will be invoked immediately
+// with the result.
+BASE_DECLARE_FEATURE(kPasswordChangeImmediateSubmission);
+
 // Enables running the clientside form classifier to parse password forms.
 BASE_DECLARE_FEATURE(kPasswordFormClientsideClassifier);
 
@@ -150,6 +163,14 @@ BASE_DECLARE_FEATURE(kPasswordFormGroupedAffiliations);
 // to make them more readable.
 BASE_DECLARE_FEATURE(kPasswordGenerationChunking);
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)  // Desktop
+BASE_DECLARE_FEATURE(kPasswordSaveInContextErrorResolutionOnDesktop);
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+
+// When enabled, the password store triggers the `OnErrorStateChanged`
+// notifications.
+BASE_DECLARE_FEATURE(kPasswordStorePropagatesActionableErrors);
 
 // Enables logging the content of chrome://password-manager-internals to the
 // terminal.
@@ -189,10 +210,10 @@ BASE_DECLARE_FEATURE(kTriggerPasswordResyncWhenUndecryptablePasswordsDetected);
 // the button, which opens the password change form.
 BASE_DECLARE_FEATURE(kUseActionablesForImprovedPasswordChange);
 
-// Improves PSL matching capabilities by utilizing PSL-extension list from
-// affiliation service. It fixes problem with incorrect password suggestions on
-// websites like slack.com.
-BASE_DECLARE_FEATURE(kUseExtensionListForPSLMatching);
+// The feature enables the use of detached Widget during password change
+// to which WebContents is attached. This helps to resolve the problem
+// that requestAnimationFrame() is not fired on a detached WebContents.
+BASE_DECLARE_FEATURE(kUseDetachedWidget);
 
 // Handles user intervention in the Password Change flow for all steps except
 // IS_LOGGED_IN_STEP.

@@ -494,6 +494,13 @@ chromium-metrics-reviews@google.com.
   <int value="4" label="Dismiss via No Thanks"/>
 </enum>
 
+<enum name="IOSDockingPromoEligibility">
+  <int value="0" label="Ineligible"/>
+  <int value="1" label="Low Engagement User"/>
+  <int value="2" label="No Recent Icon Launches"/>
+  <int value="3" label="Low Engagement User with No Recent Icon Launches"/>
+</enum>
+
 <enum name="IOSEditMenuActions">
   <int value="0" label="Invalid"/>
   <int value="1" label="NativeCut"/>
@@ -769,6 +776,7 @@ chromium-metrics-reviews@google.com.
   <int value="5" label="App Bar"/>
   <int value="6" label="Image long-press context menu"/>
   <int value="7" label="Image Remix in-product help"/>
+  <int value="8" label="Edit Menu (Explain)"/>
 </enum>
 
 <!-- LINT.ThenChange(/ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h:EntryPoint) -->
@@ -827,12 +835,16 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="View Transition"/>
   <int value="2" label="Web Navigation"/>
   <int value="3" label="Tab Grid"/>
-  <int value="4" label="ContextMenu"/>
+  <int value="4" label="Non-Web Context Menu (e.g. Toolbar long press)"/>
   <int value="5" label="Web Context Menu"/>
-  <int value="6" label="Forced From Fullscreen"/>
-  <int value="7" label="Overlay"/>
-  <int value="8" label="IneligibleSite"/>
+  <int value="6" label="Forced From Scrolling"/>
+  <int value="7" label="Overlay (e.g. Lens Overlay)"/>
+  <int value="8" label="Ineligible Site"/>
   <int value="9" label="Forced From Query Response"/>
+  <int value="10" label="Snackbar"/>
+  <int value="11" label="Website Alert"/>
+  <int value="12" label="Bottom Banner (e.g. Download Banner)"/>
+  <int value="13" label="Keyboard"/>
 </enum>
 
 <!-- LINT.ThenChange(/ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h:FloatyUpdateSource) -->
@@ -1748,6 +1760,49 @@ chromium-metrics-reviews@google.com.
   <int value="5" label="Voice Over Swipe"/>
 </enum>
 
+<!-- LINT.IfChange(IOSThemeSyncInitialState) -->
+
+<enum name="IOSThemeSyncInitialState">
+  <summary>
+    Records the state of the Sync server during the initial setup flow for iOS
+    themes.
+  </summary>
+  <int value="0" label="EmptyServer"/>
+  <int value="1" label="HasRemoteData"/>
+  <int value="2" label="TooManySpecificsError"/>
+</enum>
+
+<!-- LINT.ThenChange(//ios/chrome/browser/home_customization/model/theme_syncable_service_ios_constants.h:IOSThemeSyncInitialState) -->
+
+<!-- LINT.IfChange(IOSThemeSyncRemoteAction) -->
+
+<enum name="IOSThemeSyncRemoteAction">
+  <summary>
+    Records the outcome of evaluating an incoming remote iOS theme from the Sync
+    server.
+  </summary>
+  <int value="0" label="Applied"/>
+  <int value="1" label="Ignored: Managed by policy"/>
+  <int value="2" label="Ignored: Already matches"/>
+  <int value="3" label="Error: Missing specifics"/>
+  <int value="4" label="Error: Too many changes"/>
+  <int value="5" label="Error: Invalid change type"/>
+</enum>
+
+<!-- LINT.ThenChange(//ios/chrome/browser/home_customization/model/theme_syncable_service_ios_constants.h:IOSThemeSyncRemoteAction) -->
+
+<!-- LINT.IfChange(IOSThemeSyncStopAction) -->
+
+<enum name="IOSThemeSyncStopAction">
+  <summary>
+    Records the action taken by the client when the iOS Theme Sync service is
+    stopped, disabled, or cleared.
+  </summary>
+  <int value="0" label="RestoredLocalTheme"/>
+</enum>
+
+<!-- LINT.ThenChange(//ios/chrome/browser/home_customization/model/theme_syncable_service_ios_constants.h:IOSThemeSyncStopAction) -->
+
 <!-- LINT.IfChange(IOSTipsNotificationType) -->
 
 <enum name="IOSTipsNotificationType">
@@ -1764,6 +1819,8 @@ chromium-metrics-reviews@google.com.
   <int value="10" label="CPE"/>
   <int value="11" label="Incognito Lock"/>
   <int value="12" label="Trusted Vault Key Retrieval"/>
+  <int value="13" label="Tab Groups"/>
+  <int value="14" label="Price Tracking"/>
 </enum>
 
 <!-- LINT.ThenChange(/ios/chrome/browser/tips_notifications/model/utils.h:TipsNotificationType) -->
@@ -1951,6 +2008,8 @@ chromium-metrics-reviews@google.com.
   <int value="20" label="Passwords [Cross Platform Promos]"/>
   <int value="21" label="Safe Browsing [Cross Platform Promos]"/>
   <int value="22" label="Lens [Cross Platform Promos]"/>
+  <int value="23" label="Tab Groups [Cross Platform Promos]"/>
+  <int value="24" label="Price Tracking [Cross Platform Promos]"/>
 </enum>
 
 <!-- LINT.ThenChange(/ios/chrome/browser/push_notification/model/constants.h:NotificationType) -->

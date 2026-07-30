@@ -545,7 +545,8 @@ UIImage* GetManualFillSymbol() {
       case FillingProduct::kAutofillAi:
         // TODO(crbug.com/480933607): Reusing the Autocomplete announcement for
         // AutofillAi. Add an AutofillAi specific accessibility announcement.
-        if (!base::FeatureList::IsEnabled(kIOSEnhancedAutofill)) {
+        if (!base::FeatureList::IsEnabled(
+                autofill::features::kAutofillAiWithDataSchema)) {
           // Only allow kAutofillAi if the associated feature is enabled.
           NOTREACHED();
         }
@@ -562,6 +563,7 @@ UIImage* GetManualFillSymbol() {
       case FillingProduct::kDataList:
       case FillingProduct::kOneTimePassword:
       case FillingProduct::kPasskey:
+      case FillingProduct::kAtMemory:
       case FillingProduct::kNone:
         // These FillingProduct types are currently not available
         // on iOS. Also, there shouldn't be suggestions of type `kNone`.

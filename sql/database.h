@@ -568,6 +568,11 @@ class COMPONENT_EXPORT(SQL) Database {
   // an uninitialized or already-closed database.
   void Close();
 
+  // Fast path for closing and deleting an open database. This avoids
+  // checkpointing the WAL file (if any) since the data will be deleted right
+  // away. When not in WAL mode, this is shorthand for `Close()` + `Delete()`.
+  bool CloseAndDelete();
+
   // Release all non-essential memory associated with this database connection.
   void TrimMemory();
 
@@ -620,7 +625,7 @@ class COMPONENT_EXPORT(SQL) Database {
   // used on a database which is not opened by any Database instance. Open
   // Database instances pointing to the database can cause odd results or
   // corruption (for instance if a hot journal is deleted but the associated
-  // database is not).
+  // database is not). See `CloseAndDelete()` for deleting an open database.
   //
   // Returns true if the database file and associated journals no
   // longer exist, false otherwise.  If the database has never
@@ -773,9 +778,15 @@ class COMPONENT_EXPORT(SQL) Database {
   // WAL mode. Returns true if the checkpoint was successful and false in case
   // of an error. It is a no-op if the database is not in WAL mode.
   //
+  // When `truncate` is true, the WAL file will also be truncated to zero bytes
+  // at the end of a successful checkpoint. This is false by default
+  // (corresponding to SQLITE_CHECKPOINT_PASSIVE) because it is faster to reuse
+  // the same WAL file for future operations. When the WAL file is *not*
+  // truncated, it may contain traces of deleted data.
+  //
   // Note: Checkpointing is a very slow operation and will block any writes
   // until it is finished. Please use with care.
-  bool CheckpointDatabase();
+  bool CheckpointDatabase(bool truncate = false);
 
   // Info querying -------------------------------------------------------------
 
@@ -970,9 +981,12 @@ class COMPONENT_EXPORT(SQL) Database {
 
   // Checkpoints `db_name` ("main" in the general case). `is_auto_checkpoint`
   // indicates whether this initiates from the WAL commit hook (true) or a call
-  // to `CheckpointDatabase()` (false). Returns the SQLite result code from
-  // sqlite3_wal_checkpoint_v2.
-  int WalCheckpointImpl(base::cstring_view db_name, bool is_auto_checkpoint)
+  // to `CheckpointDatabase()` (false). If `truncate` is true, the operation
+  // will use SQLITE_CHECKPOINT_TRUNCATE, otherwise SQLITE_CHECKPOINT_PASSIVE.
+  // Returns the SQLite result code from sqlite3_wal_checkpoint_v2.
+  int WalCheckpointImpl(base::cstring_view db_name,
+                        bool is_auto_checkpoint,
+                        bool truncate)
       VALID_CONTEXT_REQUIRED(sequence_checker_);
 
   // Used to implement the interface with sql::test::ScopedErrorExpecter.

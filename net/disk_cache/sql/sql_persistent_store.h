@@ -5,12 +5,15 @@
 #ifndef NET_DISK_CACHE_SQL_SQL_PERSISTENT_STORE_H_
 #define NET_DISK_CACHE_SQL_SQL_PERSISTENT_STORE_H_
 
+#include <atomic>
 #include <optional>
 #include <set>
 #include <variant>
 
 #include "base/containers/flat_set.h"
+#include "base/containers/queue.h"
 #include "base/functional/callback_forward.h"
+#include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/time/time.h"
 #include "base/types/expected.h"
@@ -195,6 +198,35 @@ class NET_EXPORT_PRIVATE SqlPersistentStore {
     std::vector<SqlPersistentStore::ResId> doomed_entry_res_ids;
   };
 
+  struct NET_EXPORT_PRIVATE EvictionTarget {
+    EvictionTarget(SqlPersistentStore::ResId res_id,
+                   int64_t entry_size_with_overhead);
+    ~EvictionTarget();
+    EvictionTarget(EvictionTarget&&);
+    EvictionTarget& operator=(EvictionTarget&&);
+    EvictionTarget(const EvictionTarget&);
+    EvictionTarget& operator=(const EvictionTarget&);
+
+    bool operator==(const EvictionTarget& other) const;
+
+    SqlPersistentStore::ResId res_id;
+    int64_t entry_size_with_overhead;
+  };
+
+  using EvictionTargetQueue = base::queue<EvictionTarget>;
+
+  // The result of an eviction operation.
+  struct EvictionResult {
+    EvictionResult(std::vector<ResId> deleted_res_ids,
+                   EvictionTargetQueue pending_eviction_targets);
+    ~EvictionResult();
+    EvictionResult(EvictionResult&& other);
+    EvictionResult& operator=(EvictionResult&& other);
+
+    std::vector<ResId> deleted_res_ids;
+    EvictionTargetQueue pending_eviction_targets;
+  };
+
   // A helper struct to bundle an operation's result with a flag indicating
   // whether an eviction check is needed. This allows the background sequence,
   // which has direct access to cache size information, to notify the main
@@ -245,8 +277,11 @@ class NET_EXPORT_PRIVATE SqlPersistentStore {
   using ResIdOrErrorCallback = base::OnceCallback<void(ResIdOrError)>;
   using ResIdOrErrorAndStoreStatus = ResultAndStoreStatus<ResIdOrError>;
   using ResIdListOrErrorAndStoreStatus = ResultAndStoreStatus<ResIdListOrError>;
-  using ResIdListOrErrorAndStoreStatusCallback =
-      base::OnceCallback<void(ResIdListOrErrorAndStoreStatus)>;
+  using EvictionResultOrError = base::expected<EvictionResult, Error>;
+  using EvictionResultOrErrorAndStoreStatus =
+      ResultAndStoreStatus<EvictionResultOrError>;
+  using EvictionResultOrErrorAndStoreStatusCallback =
+      base::OnceCallback<void(EvictionResultOrErrorAndStoreStatus)>;
   using InMemoryIndexAndDoomedResIdsOrError =
       base::expected<InMemoryIndexAndDoomedResIds, Error>;
 
@@ -438,13 +473,31 @@ class NET_EXPORT_PRIVATE SqlPersistentStore {
   // the backend after an operation that increases the cache size.
   EvictionUrgency GetEvictionUrgency();
 
-  // Starts the eviction process to reduce the cache size. This method removes
-  // the least recently used entries until the total cache size is below the
-  // low watermark. Entries with ResId in `excluded_res_ids` (typically active
-  // entries) will not be evicted. `callback` is invoked upon completion.
-  void StartEviction(std::vector<ResIdAndShardId> excluded_list,
-                     bool is_idle_time_eviction,
-                     ErrorCallback callback);
+  // Starts or resumes the eviction process to reduce the cache size. This
+  // method removes the least recently used entries until the total cache size
+  // is below the low watermark. Entries with ResId in `excluded_res_ids`
+  // (typically active entries) will not be evicted. `callback` is invoked upon
+  // completion.
+  //
+  // `excluded_list`: A list of ResIds (typically active entries) to exclude
+  //                  from eviction.
+  // `is_idle_time_eviction`: True if this eviction is triggered by idle time.
+  //                          If true, eviction may be aborted if the browser
+  //                          becomes active.
+  // `eviction_abort_flag`: A shared atomic flag that can be set to true to
+  //                        signal an abort request. Note that even if this flag
+  //                        is set, eviction continues until the cache size
+  //                        drops below the high watermark.
+  // `callback`: Invoked with the result of the eviction.
+  void StartEviction(
+      std::vector<ResIdAndShardId> excluded_list,
+      bool is_idle_time_eviction,
+      scoped_refptr<base::RefCountedData<std::atomic_bool>> eviction_abort_flag,
+      ErrorCallback callback);
+
+  // Returns true if there is a pending eviction that was paused and needs to be
+  // resumed.
+  bool HasPendingEviction() const;
 
   // The maximum size of an individual cache entry's data stream.
   int64_t MaxFileSize() const;
@@ -467,10 +520,11 @@ class NET_EXPORT_PRIVATE SqlPersistentStore {
   // database operations.
   int64_t GetSizeOfAllEntries() const;
 
-  // Loads the in-memory index. This is a no-op if the index has already been
-  // loaded or if a load is already in progress. Returns true if a load was
-  // initiated.
-  bool MaybeLoadInMemoryIndex(ErrorCallback callback);
+  // Loads the in-memory index if it hasn't been loaded yet. `callback` is
+  // invoked with the result of the load. If the index is already loaded, the
+  // callback is run immediately with the previous result. Multiple concurrent
+  // calls will all receive the same result when the load completes.
+  void MaybeLoadInMemoryIndex(ErrorCallback callback);
 
   // If there are entries that were doomed in a previous session, this method
   // triggers a task to delete them from the database. The cleanup is performed
@@ -524,6 +578,9 @@ class NET_EXPORT_PRIVATE SqlPersistentStore {
   // useful for testing the behavior after a catastrophic error.
   void RazeAndPoisonForTesting();
 
+  // Sets a hook to be called during eviction, allowing tests to control timing.
+  void SetEvictionHookForTesting(base::RepeatingClosure hook);
+
  private:
   // The result of a successful initialization.
   struct InitResult {
@@ -561,9 +618,40 @@ class NET_EXPORT_PRIVATE SqlPersistentStore {
 
   void OnInitializeFinished(ErrorCallback callback,
                             std::vector<InitResultOrError> results);
+
+  void OnLoadInMemoryIndexFinished(Error result);
+  void StartEvictionInternal(
+      std::vector<ResIdAndShardId> excluded_list,
+      bool is_idle_time_eviction,
+      scoped_refptr<base::RefCountedData<std::atomic_bool>> eviction_abort_flag,
+      ErrorCallback callback,
+      Error index_load_result);
+  void ResumePendingEviction(
+      std::vector<base::flat_set<SqlPersistentStore::ResId>>
+          excluded_res_id_sets,
+      bool is_idle_time_eviction,
+      scoped_refptr<base::RefCountedData<std::atomic_bool>> eviction_abort_flag,
+      ErrorCallback callback);
+  void OnPendingEvictionFinished(
+      std::vector<base::flat_set<SqlPersistentStore::ResId>>
+          excluded_res_id_sets,
+      bool is_idle_time_eviction,
+      scoped_refptr<base::RefCountedData<std::atomic_bool>> eviction_abort_flag,
+      base::TimeTicks start_time,
+      ErrorCallback callback,
+      std::vector<ResIdListOrError> results);
+  void StartNewEviction(
+      std::vector<base::flat_set<SqlPersistentStore::ResId>>
+          excluded_res_id_sets,
+      bool is_idle_time_eviction,
+      scoped_refptr<base::RefCountedData<std::atomic_bool>> eviction_abort_flag,
+      ErrorCallback callback);
   void OnEvictionFinished(bool is_idle_time_eviction,
                           base::TimeTicks start_time,
                           std::vector<ResIdListOrError> results);
+
+  void RunNextCheckpoint(base::OnceCallback<void(bool)> callback,
+                         std::vector<bool> results);
 
   const std::vector<scoped_refptr<base::SequencedTaskRunner>>
       background_task_runners_;
@@ -577,11 +665,17 @@ class NET_EXPORT_PRIVATE SqlPersistentStore {
   int64_t low_watermark_ = 0;
   int64_t max_file_size_ = 0;
 
+  // Whether a cache eviction operation is currently in progress.
+  bool eviction_in_progress_ = false;
   // A callback to be called when the eviction is finished.
   ErrorCallback eviction_result_callback_;
 
   // Whether loading of the in-memory index has been triggered.
   bool in_memory_load_triggered_ = false;
+  // The result of the in-memory index load, if it has finished.
+  std::optional<Error> in_memory_load_result_;
+  // Callbacks waiting for the in-memory index load to complete.
+  std::vector<ErrorCallback> pending_in_memory_load_result_callbacks_;
 
   base::WeakPtrFactory<SqlPersistentStore> weak_factory_{this};
 };

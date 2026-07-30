@@ -1060,6 +1060,7 @@
 <translation id="2674524144218093528">家居油漆及粉飾</translation>
 <translation id="26774279487328902">無法再存取 <ph name="GROUP_COUNT" /> 個分頁群組</translation>
 <translation id="2677748264148917807">離開</translation>
+<translation id="2679659833697380">你的資料會儲存到裝置</translation>
 <translation id="2683195745483370038">找到其他結果</translation>
 <translation id="2686919536310834199">提供你對「幫我寫」功能的意見。</translation>
 <translation id="2687555958734450033">最適合</translation>
@@ -1398,6 +1399,7 @@
 <translation id="323585066388831737">淺紅色</translation>
 <translation id="3235902901585019063">本機檔案將於<ph name="DATE_TIME" />刪除。請務必將任何重要商家或個人資料儲存至外部位置。</translation>
 <translation id="3236212803136366317">付款卡禮遇</translation>
+<translation id="3237427677128462778">無法儲存至「Google 錢包」</translation>
 <translation id="3238395604961564389">在無痕式視窗中開啟連結</translation>
 <translation id="3240683217920639535"><ph name="MANAGE_CHROME_THEMES_FOCUSED_FRIENDLY_MATCH_TEXT" />，㩒一下 Tab 鍵，然後㩒一下 Enter 鍵就可以自訂瀏覽器外觀</translation>
 <translation id="3240791268468473923">開咗冇相符安全付款憑證工作表</translation>
@@ -2534,6 +2536,7 @@
 <translation id="5045550434625856497">密碼不正確</translation>
 <translation id="5048293684454354469">廣告主題只是網站在放送個人化廣告時的其中一項依據。即使你未開啟此設定，網站仍可放送廣告，但可能會放送較不相關的廣告。進一步瞭解如何<ph name="BEGIN_LINK" />管理廣告私隱權<ph name="LINK_END" />。</translation>
 <translation id="5051254010007014901"><ph name="TOOLBELT_PRECEDING_MATCH_TEXT" />，㩒 Tab 掣就可以喺搜尋建議後面睇到更多搜尋捷徑</translation>
+<translation id="5052488928733955073">無法填寫資料，請檢查網絡連線。</translation>
 <translation id="5052517576853118371">有效主題</translation>
 <translation id="5056425809654826431">{NUM_FILES,plural, =1{如要使用「咫尺共享」傳送此檔案，請在裝置上騰出空間 (<ph name="DISK_SPACE_SIZE" />)}other{如要使用「咫尺共享」傳送這些檔案，請在裝置上騰出空間 (<ph name="DISK_SPACE_SIZE" />)}}</translation>
 <translation id="5056587122125565772">製作圖像</translation>
@@ -2573,6 +2576,7 @@
 <translation id="5114987907971894280">虛擬實境﻿</translation>
 <translation id="5115232566827194440">受限制的受管理訪客工作階段的覆寫值</translation>
 <translation id="5115563688576182185">(64 位元)</translation>
+<translation id="5116015291385561204">驗證身分以自動填入敏感資料</translation>
 <translation id="5120526915373271910">家庭電影</translation>
 <translation id="5122786942953798871">信封 (棉紙)</translation>
 <translation id="5123063207673082822">週末</translation>
@@ -2831,6 +2835,7 @@
 <translation id="5521782189689806907">櫥櫃</translation>
 <translation id="5523118979700054094">政策名稱</translation>
 <translation id="5523588073846127669">商家不接受此虛擬卡</translation>
+<translation id="5524476634211040742">進一步瞭解 AI 和私隱權</translation>
 <translation id="5525755241743357906">檔案已複製或移動</translation>
 <translation id="5526617258931667850"><ph name="MANAGE_CHROMEOS_ACCESSIBILITY_FOCUSED_FRIENDLY_MATCH_TEXT" />，㩒一下 Tab 鍵，然後㩒一下 Enter 鍵就可以喺 Chrome OS 設定度個人化您嘅無障礙工具</translation>
 <translation id="55293785478302737">邊緣釘裝</translation>
@@ -3651,6 +3656,7 @@
 <translation id="6850286078059909152">文字顏色</translation>
 <translation id="6852204201400771460">要重新載入應用程式嗎？</translation>
 <translation id="6854691830678097752">在帳戶 <ph name="ACCOUNT_EMAIL" /> 中儲存此 CVC 可加快結帳速度</translation>
+<translation id="6855951327659224749">清除表格以使用「稍後付款」選項</translation>
 <translation id="6857776781123259569">管理密碼…</translation>
 <translation id="6858034839887287663">A2x4</translation>
 <translation id="6860888819347870819">可要求進入畫中畫</translation>
@@ -3973,6 +3979,7 @@
 <translation id="7372973238305370288">搜尋結果</translation>
 <translation id="7374461526650987610">通訊協定處理常式</translation>
 <translation id="7374733840632556089">此問題由您或其他人在裝置上安裝的憑證而導致。由於憑證曾用作監控及網絡攔截，因此不獲 Chrome 信任。雖然有些監控理由合理 (例如學校或公司網絡)，且無法停止有關監控，但 Chrome 仍希望就此通知您。任何使用網絡的瀏覽器和應用程式都可能受到監控。</translation>
+<translation id="73750335798090836">建議在使用旅遊和身分證明文件等敏感資料時，一律使用指紋、面孔或其他螢幕鎖定方式驗證以加強保安</translation>
 <translation id="7375532151824574023">{NUM_COOKIES,plural, =0{未允許任何網站}=1{已允許 1 個網站}other{已允許 # 個網站}}</translation>
 <translation id="7375818412732305729">已附加檔案</translation>
 <translation id="7376031331622621328">商務頁底面板</translation>
@@ -4229,6 +4236,7 @@
 <translation id="7714404809393719981">相紙 (半光面)</translation>
 <translation id="7714424966701020172">揀咗填寫完整姓名選項</translation>
 <translation id="7714464543167945231">憑證</translation>
+<translation id="7714943438925794410">系統會與 Google 分享結帳頁面內容，以提供這些選項。如要隱藏自動填入的「稍後付款」選項，請前往<ph name="IDS_AUTOFILL_CARD_BNPL_SELECT_PROVIDER_FOOTNOTE_HIDE_OPTION_PAYMENT_SETTINGS_LINK_TEXT" />。</translation>
 <translation id="7716147886133743102">根據管理員的設定封鎖</translation>
 <translation id="7716375162095500223">尚未上載或已忽略</translation>
 <translation id="7716424297397655342">無法從快取中載入此網站</translation>
@@ -4311,6 +4319,7 @@
 <translation id="7862306158978555061">顯示敏感資料</translation>
 <translation id="7865448901209910068">最佳速度</translation>
 <translation id="7865482168955081228">「先買後付」嘅錯誤畫面閂咗。</translation>
+<translation id="7870207318911766769">系統會與 Google 分享結帳頁面內容，以提供這些選項。</translation>
 <translation id="7870281855125116701">已找到折扣</translation>
 <translation id="7871445724586827387">變更 Google 帳戶密碼</translation>
 <translation id="787226752901403048">登入 Chrome 即可分享和加入分頁群組，集思廣益</translation>

@@ -2,11 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chrome/browser/renderer_context_menu/render_view_context_menu_test_util.h"
+
 #include <string>
 #include <vector>
 
 #include "chrome/app/chrome_command_ids.h"
-#include "chrome/browser/renderer_context_menu/render_view_context_menu_test_util.h"
+#include "chrome/browser/renderer_context_menu/context_menu_test_util.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/base/models/menu_model.h"
 
@@ -17,8 +19,6 @@
 #if BUILDFLAG(ENABLE_COMPOSE)
 #include "chrome/browser/compose/chrome_compose_client.h"
 #endif
-
-using ui::MenuModel;
 
 TestRenderViewContextMenu::TestRenderViewContextMenu(
     content::RenderFrameHost& render_frame_host,
@@ -82,29 +82,10 @@ bool TestRenderViewContextMenu::IsItemInRangePresent(
   return false;
 }
 
-bool TestRenderViewContextMenu::GetMenuModelAndItemIndex(
-    int command_id,
-    raw_ptr<MenuModel>* found_model,
-    size_t* found_index) {
-  std::vector<MenuModel*> models_to_search;
-  models_to_search.push_back(&menu_model_);
-
-  while (!models_to_search.empty()) {
-    MenuModel* model = models_to_search.back();
-    models_to_search.pop_back();
-    for (size_t i = 0; i < model->GetItemCount(); i++) {
-      if (model->GetCommandIdAt(i) == command_id) {
-        *found_model = model;
-        *found_index = i;
-        return true;
-      }
-      if (model->GetTypeAt(i) == MenuModel::TYPE_SUBMENU) {
-        models_to_search.push_back(model->GetSubmenuModelAt(i));
-      }
-    }
-  }
-
-  return false;
+std::optional<std::pair<ui::MenuModel*, size_t>>
+TestRenderViewContextMenu::GetMenuModelAndItemIndex(int command_id) {
+  return context_menu_test_util::GetMenuModelAndItemIndex(&menu_model_,
+                                                          command_id);
 }
 
 int TestRenderViewContextMenu::GetCommandIDByProfilePath(

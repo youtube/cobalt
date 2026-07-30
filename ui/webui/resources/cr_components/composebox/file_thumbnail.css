@@ -114,6 +114,18 @@
   width: var(--file-chip-thumbnail-full-size, 16px);
 }
 
+.injected-input-thumbnail {
+  padding: 0;
+}
+
+.injected-input-img {
+  border-radius: 4px;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  width: 100%;
+}
+
 .pdf-icon {
   background-color: var(--color-composebox-pdf-chip-icon-background,
       --color-composebox-background);
@@ -177,12 +189,11 @@
   --cr-icon-button-icon-size:
       var(--file-chip-remove-button-icon-size, 16px);
   --cr-icon-button-margin-end:
-      var(--file-chip-remove-button-margin-end,
-          var(--cr-icon-ripple-margin));
+      var(--file-chip-remove-button-margin-end, 0);
   --cr-icon-button-margin-start:
       var(--file-chip-remove-button-margin-start, 0);
   --cr-icon-button-size: var(--file-chip-remove-button-size,
-      32px);
+      24px);
   /* This refers to hover color of the
    * remove button if you just hover over the whole chip.
    */
@@ -200,7 +211,8 @@
    * if you just hover over the remove button itself.
    */
   background-color:
-      var(--color-partial-file-chip-remove-button-hover-background);
+      var(--color-partial-file-chip-remove-button-hover-background,
+          var(--color-composebox-file-carousel-remove-button));
 }
 
 :host-context([dir='rtl']) .gradient-protection {

@@ -43,6 +43,7 @@ class BrowserSyncedWindowDelegate;
 class BrowserUserEducationInterface;
 class BrowserView;
 class BrowserWindowInterface;
+class CallToActionLock;
 class ChromeLabsCoordinator;
 class ColorProviderBrowserHelper;
 class LocationBar;
@@ -91,6 +92,7 @@ class ToastController;
 class ToastService;
 class TranslateBubbleController;
 class UpgradeNotificationController;
+class VerticalTabIphController;
 class WebUIBrowserExclusiveAccessContext;
 class WebUIBrowserSidePanelUI;
 class ZoomBubbleCoordinator;
@@ -254,7 +256,7 @@ class BrowserWindowFeatures {
 
   BrowserActions* browser_actions() { return browser_actions_.get(); }
 
-  chrome::BrowserCommandController* browser_command_controller() {
+  chrome::BrowserCommandController* browser_command_controller() const {
     return browser_command_controller_.get();
   }
 
@@ -265,6 +267,10 @@ class BrowserWindowFeatures {
 
   ChromeLabsCoordinator* chrome_labs_coordinator() {
     return chrome_labs_coordinator_.get();
+  }
+
+  ImmersiveModeController* immersive_mode_controller() {
+    return immersive_mode_controller_.get();
   }
 
   media_router::CastBrowserController* cast_browser_controller() {
@@ -647,6 +653,8 @@ class BrowserWindowFeatures {
 
   std::unique_ptr<ActorBorderViewController> actor_border_view_controller_;
 
+  std::unique_ptr<CallToActionLock> call_to_action_lock_;
+
   std::unique_ptr<BrowserSelectFileDialogController>
       browser_select_file_dialog_controller_;
 
@@ -785,6 +793,8 @@ class BrowserWindowFeatures {
       split_tab_highlight_controller_;
 
   std::unique_ptr<SplitViewIphController> split_view_iph_controller_;
+
+  std::unique_ptr<VerticalTabIphController> vertical_tab_iph_controller_;
 
   std::unique_ptr<RecentActivityBubbleCoordinator>
       recent_activity_bubble_coordinator_;

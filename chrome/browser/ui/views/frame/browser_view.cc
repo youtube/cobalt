@@ -201,9 +201,10 @@
 #include "chrome/browser/ui/views/tabs/browser_tab_strip_controller.h"
 #include "chrome/browser/ui/views/tabs/new_tab_button.h"
 #include "chrome/browser/ui/views/tabs/projects/projects_panel_view.h"
+#include "chrome/browser/ui/views/tabs/shared/tab_strip_combo_button.h"
 #include "chrome/browser/ui/views/tabs/shared/tab_strip_flat_edge_button.h"
 #include "chrome/browser/ui/views/tabs/tab.h"
-#include "chrome/browser/ui/views/tabs/tab_accessibility.h"
+#include "chrome/browser/ui/views/tabs/tab/tab_accessibility.h"
 #include "chrome/browser/ui/views/tabs/tab_search_button.h"
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
 #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_top_container.h"
@@ -1324,7 +1325,7 @@ bool BrowserView::GetTabStripVisible() const {
   // In non-fullscreen the tabstrip should always be visible.
   auto* const immersive_mode_controller =
       ImmersiveModeController::From(browser());
-  if (!immersive_mode_controller->IsEnabled()) {
+  if (!immersive_mode_controller || !immersive_mode_controller->IsEnabled()) {
     return true;
   }
 
@@ -1538,6 +1539,11 @@ void BrowserView::OnProjectsPanelStateChanged(
 // BrowserView, BrowserWindow implementation:
 
 void BrowserView::Show() {
+  // Attempts to show closed windows should no-op.
+  if (browser_widget_->IsClosed()) {
+    return;
+  }
+
   if (auto* manager = InitialWebUIManager::From(browser())) {
     if (manager->RequestDeferShow(
             base::BindOnce(&BrowserView::OnInitialWebUIReady,
@@ -4380,30 +4386,27 @@ void BrowserView::UpdateTabSearchBubbleHost() {
     return;
   }
 
-  auto* toolbar_button_controller =
-      browser_->GetFeatures().tab_search_toolbar_button_controller();
-
-  if (toolbar_button_controller) {
-    toolbar_button_controller->UpdateBubbleHost(nullptr);
-  }
-
   auto* vertical_tab_strip_state_controller =
       tabs::VerticalTabStripStateController::From(browser_);
   if (vertical_tab_strip_state_controller &&
       vertical_tab_strip_state_controller->ShouldDisplayVerticalTabs()) {
+    auto* combo_button =
+        vertical_tab_strip_region_view_->GetTopContainer()->GetComboButton();
     tab_search_bubble_host_ = std::make_unique<TabSearchBubbleHost>(
-        vertical_tab_strip_region_view_->GetTopContainer()
-            ->GetTabSearchButton(),
-        browser_.get());
+        combo_button->end_button(), browser_.get());
+    combo_button->SetTabSearchBubbleHost(tab_search_bubble_host_.get());
   } else if (base::FeatureList::IsEnabled(
                  tabs::kHorizontalTabStripComboButton)) {
+    auto* combo_button = horizontal_tab_strip_region_view_->GetComboButton();
     tab_search_bubble_host_ = std::make_unique<TabSearchBubbleHost>(
-        horizontal_tab_strip_region_view_->GetTabSearchButton(),
-        browser_.get());
+        combo_button->end_button(), browser_.get());
+    combo_button->SetTabSearchBubbleHost(tab_search_bubble_host_.get());
   } else if (tabs::GetTabSearchPosition(browser_->profile()) ==
              tabs::TabSearchPosition::kToolbarButton) {
     tab_search_bubble_host_ = std::make_unique<TabSearchBubbleHost>(
         toolbar_->tab_search_button(), browser_.get());
+    auto* toolbar_button_controller =
+        browser_->GetFeatures().tab_search_toolbar_button_controller();
     CHECK(toolbar_button_controller);
     toolbar_button_controller->UpdateBubbleHost(tab_search_bubble_host_.get());
   } else {
@@ -6121,6 +6124,12 @@ const WebAppFrameToolbarView* BrowserView::web_app_frame_toolbar() const {
 }
 
 void BrowserView::PaintAsActiveChanged() {
+  // Do not propagate Browser active state changes if the Browser has already
+  // been scheduled for destruction.
+  if (browser_->is_delete_scheduled()) {
+    return;
+  }
+
   const bool is_active = browser_widget_->ShouldPaintAsActive();
 
   // TODO: Unify semantics of "active" between the BrowserList and

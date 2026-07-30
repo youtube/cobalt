@@ -8,6 +8,7 @@
 
 #include "ash/constants/ash_features.h"
 #include "ash/constants/ash_switches.h"
+#include "ash/constants/url_constants.h"
 #include "ash/public/ash_interfaces.h"
 #include "ash/public/cpp/night_light_controller.h"
 #include "ash/public/cpp/stylus_utils.h"
@@ -29,7 +30,6 @@
 #include "chrome/browser/ui/webui/ash/settings/pages/printing/printing_section.h"
 #include "chrome/browser/ui/webui/ash/settings/search/search_tag_registry.h"
 #include "chrome/common/chrome_features.h"
-#include "chrome/common/url_constants.h"
 #include "chrome/grit/generated_resources.h"
 #include "chromeos/ash/components/demo_mode/utils/demo_session_utils.h"
 #include "chromeos/constants/chromeos_features.h"
@@ -505,10 +505,6 @@ bool IsTouchscreenRemappingExperienceAvailable() {
          display::HasExternalTouchscreenDevice();
 }
 
-bool IsExcludeDisplayInMirrorModeEnabled() {
-  return display::features::IsExcludeDisplayInMirrorModeEnabled();
-}
-
 bool IsOpsDisplayScaleFactorEnabled() {
   return display::features::IsOpsDisplayScaleFactorEnabled();
 }
@@ -827,7 +823,7 @@ void AddDeviceAudioStrings(content::WebUIDataSource* html_source) {
 
   html_source->AddString(
       "voiceIsolationLearnMoreLink",
-      DeviceSection::GetHelpUrlWithBoard(chrome::kVcLearnMoreURL));
+      DeviceSection::GetHelpUrlWithBoard(ash::external_urls::kVcLearnMoreURL));
 }
 
 // Mirrors enum of the same name in enums.xml.
@@ -1446,13 +1442,15 @@ void DeviceSection::AddDevicePointersStrings(
   };
   html_source->AddLocalizedStrings(kPointersStrings);
 
-  html_source->AddString("naturalScrollLearnMoreLink",
-                         GetHelpUrlWithBoard(chrome::kNaturalScrollHelpURL));
+  html_source->AddString(
+      "naturalScrollLearnMoreLink",
+      GetHelpUrlWithBoard(ash::external_urls::kNaturalScrollHelpURL));
   html_source->AddString(
       "controlledScrollingLearnMoreLink",
-      GetHelpUrlWithBoard(chrome::kControlledScrollingHelpURL));
-  html_source->AddString("hapticFeedbackLearnMoreLink",
-                         GetHelpUrlWithBoard(chrome::kHapticFeedbackHelpURL));
+      GetHelpUrlWithBoard(ash::external_urls::kControlledScrollingHelpURL));
+  html_source->AddString(
+      "hapticFeedbackLearnMoreLink",
+      GetHelpUrlWithBoard(ash::external_urls::kHapticFeedbackHelpURL));
 }
 
 void DeviceSection::AddDeviceGraphicsTabletStrings(
@@ -1678,9 +1676,6 @@ void DeviceSection::AddDeviceDisplayStrings(
 
   html_source->AddBoolean("enableDisplayBrightnessControlInSettings",
                           features::IsBrightnessControlInSettingsEnabled());
-
-  html_source->AddBoolean("excludeDisplayInMirrorModeEnabled",
-                          IsExcludeDisplayInMirrorModeEnabled());
 
   html_source->AddBoolean("opsDisplayScaleFactorEnabled",
                           IsOpsDisplayScaleFactorEnabled());

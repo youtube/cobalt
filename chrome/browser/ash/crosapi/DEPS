@@ -31,7 +31,6 @@ include_rules = [
   "+chrome/browser/printing",
   "+chrome/browser/profiles",
   "+chrome/browser/ui/ash",
-  "+chrome/browser/ui/settings_window_manager_chromeos.h",
   "+chrome/browser/web_applications/web_app_utils.h",
   "+chrome/browser/web_applications/user_uninstalled_preinstalled_web_app_prefs.h",
   "+chrome/common/chrome_features.h",
@@ -59,5 +58,8 @@ specific_include_rules = {
   "select_file_ash\\.cc": [
     # For Chrome OS-specific file manager parameters.
     "+chrome/browser/ui/views/select_file_dialog_extension/select_file_dialog_extension.h",
+  ],
+  "print_preview_ash_browsertest\\.cc": [
+    "+chrome/browser/chromeos/printing/print_preview/print_preview_cros_client.h",
   ],
 }

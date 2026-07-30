@@ -10,6 +10,7 @@
 #include "ash/constants/ash_features.h"
 #include "base/functional/callback.h"
 #include "base/strings/utf_string_conversion_utils.h"
+#include "base/types/expected.h"
 #include "chromeos/ash/components/cryptohome/auth_factor.h"
 #include "chromeos/ash/components/cryptohome/common_types.h"
 #include "chromeos/ash/components/login/auth/public/cryptohome_key_constants.h"
@@ -63,20 +64,16 @@ void ObtainContextImpl(
 
 // The synchronous implementation of `CheckLocalPasswordComplexity`. The
 // provided `password` string must be valid UTF-8.
+// Note: Mojo strings are valid UTF-8.
 mojom::PasswordComplexity CheckLocalPasswordComplexityImpl(
+    const AccountId& account_id,
     const std::string& password) {
-  AccountId account_id = EmptyAccountId();
-  if (const auto* primary_session =
-          session_manager::SessionManager::Get()->GetPrimarySession()) {
-    account_id = primary_session->account_id();
+  std::optional<LocalAuthFactorsComplexity> policy;
+  if (account_id != EmptyAccountId()) {
+    policy = AuthParts::Get()
+                 ->GetAuthPolicyConnector()
+                 ->GetLocalAuthFactorsComplexity(account_id);
   }
-
-  // `account_id` can be empty here if we're early in the login flow, but that
-  // is fine because in that case we use `EarlyLoginAuthPolicyConnector` which
-  // doesn't use the `account_id`.
-  std::optional<LocalAuthFactorsComplexity> policy =
-      AuthParts::Get()->GetAuthPolicyConnector()->GetLocalAuthFactorsComplexity(
-          account_id);
 
   if (policy.has_value()) {
     // LocalAuthFactorsComplexity policy is set, perform the new check.
@@ -100,6 +97,25 @@ mojom::PasswordComplexity CheckLocalPasswordComplexityImpl(
   return complexity;
 }
 
+void CheckLocalPasswordComplexityWithContext(
+    const std::string& auth_token,
+    const std::string& password,
+    PasswordFactorEditor::CheckLocalPasswordComplexityCallback callback,
+    std::unique_ptr<UserContext> context) {
+  if (!context) {
+    LOG(ERROR) << "Invalid auth token";
+    std::move(callback).Run(
+        base::unexpected(mojom::ConfigureResult::kInvalidTokenError));
+    return;
+  }
+
+  AccountId account_id = context->GetAccountId();
+  ash::AuthSessionStorage::Get()->Return(auth_token, std::move(context));
+
+  std::move(callback).Run(
+      CheckLocalPasswordComplexityImpl(account_id, password));
+}
+
 }  // namespace
 
 PasswordFactorEditor::PasswordFactorEditor(AuthFactorConfig* auth_factor_config)
@@ -114,20 +130,36 @@ void PasswordFactorEditor::UpdateOrSetLocalPassword(
     const std::string& auth_token,
     const std::string& new_password,
     base::OnceCallback<void(mojom::ConfigureResult)> callback) {
-  // Mojo strings are valid UTF-8, so the `CheckLocalPasswordComplexityImpl`
-  // call is OK.
-  if (CheckLocalPasswordComplexityImpl(new_password) !=
-      mojom::PasswordComplexity::kOk) {
-    std::move(callback).Run(mojom::ConfigureResult::kFatalError);
+  ObtainContext(
+      auth_token,
+      base::BindOnce(&PasswordFactorEditor::UpdateOrSetLocalPasswordWithContext,
+                     weak_factory_.GetWeakPtr(), auth_token, new_password,
+                     std::move(callback)));
+}
+
+void PasswordFactorEditor::UpdateOrSetLocalPasswordWithContext(
+    const std::string& auth_token,
+    const std::string& new_password,
+    base::OnceCallback<void(mojom::ConfigureResult)> callback,
+    std::unique_ptr<UserContext> context) {
+  if (!context) {
+    LOG(ERROR) << "Invalid auth token";
+    std::move(callback).Run(mojom::ConfigureResult::kInvalidTokenError);
     return;
   }
 
-  ObtainContext(
-      auth_token,
-      base::BindOnce(&PasswordFactorEditor::UpdateOrSetPasswordWithContext,
-                     weak_factory_.GetWeakPtr(), auth_token, new_password,
-                     cryptohome::KeyLabel{kCryptohomeLocalPasswordKeyLabel},
-                     std::move(callback)));
+  // Check complexity for local password (no complexity check for online
+  // passwords as it is checked on the server side by the identity provider).
+  if (CheckLocalPasswordComplexityImpl(context->GetAccountId(), new_password) !=
+      mojom::PasswordComplexity::kOk) {
+    ash::AuthSessionStorage::Get()->Return(auth_token, std::move(context));
+    return std::move(callback).Run(mojom::ConfigureResult::kFatalError);
+  }
+
+  UpdateOrSetPasswordWithContext(
+      auth_token, new_password,
+      cryptohome::KeyLabel{kCryptohomeLocalPasswordKeyLabel},
+      std::move(callback), std::move(context));
 }
 
 void PasswordFactorEditor::UpdateOrSetPasswordWithContext(
@@ -159,9 +191,6 @@ void PasswordFactorEditor::UpdateOrSetOnlinePassword(
     const std::string& auth_token,
     const std::string& new_password,
     base::OnceCallback<void(mojom::ConfigureResult)> callback) {
-  // No complexity check for online passwords, it is controlled
-  // on the server side by identity provider.
-
   ObtainContext(
       auth_token,
       base::BindOnce(&PasswordFactorEditor::UpdateOrSetPasswordWithContext,
@@ -174,19 +203,10 @@ void PasswordFactorEditor::SetLocalPassword(
     const std::string& auth_token,
     const std::string& new_password,
     base::OnceCallback<void(mojom::ConfigureResult)> callback) {
-  // Mojo strings are valid UTF-8, so the `CheckLocalPasswordComplexityImpl`
-  // call is OK.
-  if (CheckLocalPasswordComplexityImpl(new_password) !=
-      mojom::PasswordComplexity::kOk) {
-    std::move(callback).Run(mojom::ConfigureResult::kFatalError);
-    return;
-  }
-
   ObtainContext(
       auth_token,
-      base::BindOnce(&PasswordFactorEditor::SetPasswordWithContext,
+      base::BindOnce(&PasswordFactorEditor::SetLocalPasswordWithContext,
                      weak_factory_.GetWeakPtr(), auth_token, new_password,
-                     cryptohome::KeyLabel{kCryptohomeLocalPasswordKeyLabel},
                      std::move(callback)));
 }
 
@@ -207,21 +227,21 @@ void PasswordFactorEditor::UpdatePasswordWithContext(
     const std::string& new_password,
     const cryptohome::KeyLabel& label,
     base::OnceCallback<void(mojom::ConfigureResult)> callback,
-    std::unique_ptr<UserContext> user_context) {
-  if (!user_context) {
+    std::unique_ptr<UserContext> context) {
+  if (!context) {
     LOG(ERROR) << "Invalid auth token";
     std::move(callback).Run(mojom::ConfigureResult::kInvalidTokenError);
     return;
   }
 
   const cryptohome::AuthFactor* password_factor =
-      user_context->GetAuthFactorsConfiguration().FindFactorByType(
+      context->GetAuthFactorsConfiguration().FindFactorByType(
           cryptohome::AuthFactorType::kPassword);
   if (!password_factor) {
     // The user doesn't have a password yet (neither Gaia nor local).
     LOG(ERROR) << "No existing password, will not update password";
     auth_factor_config_->NotifyFactorObserversAfterFailure(
-        auth_token, std::move(user_context),
+        auth_token, std::move(context),
         base::BindOnce(std::move(callback),
                        mojom::ConfigureResult::kFatalError));
     return;
@@ -238,7 +258,7 @@ void PasswordFactorEditor::UpdatePasswordWithContext(
         !features::IsManagedLocalPinAndPasswordEnabled() ||
         AuthParts::Get()
                 ->GetAuthPolicyConnector()
-                ->AllowedLocalAuthFactors(user_context->GetAccountId())
+                ->AllowedLocalAuthFactors(context->GetAccountId())
                 ->size() > 0;
     // Only allow switching from local password to online password if the policy
     // doesn't allow local auth factors anymore. Note: For unmanaged user there
@@ -246,41 +266,28 @@ void PasswordFactorEditor::UpdatePasswordWithContext(
     if (!is_new_password_local && policy_does_not_force_online_password) {
       LOG(ERROR) << "Switching from local to online password is not supported";
       auth_factor_config_->NotifyFactorObserversAfterFailure(
-          auth_token, std::move(user_context),
+          auth_token, std::move(context),
           base::BindOnce(std::move(callback),
                          mojom::ConfigureResult::kFatalError));
       return;
     }
-    // Atomically replace the Gaia password factor with a local password
-    // factor or a local password with a Gaia password.
-    if (is_new_password_local) {
-      auth_factor_editor_.ReplacePasswordFactor(
-          std::move(user_context),
-          /*old_label=*/
-          password_factor->ref().label(), cryptohome::RawPassword(new_password),
-          /*new_label=*/
-          cryptohome::KeyLabel{kCryptohomeLocalPasswordKeyLabel},
-          base::BindOnce(&PasswordFactorEditor::OnPasswordConfigured,
-                         weak_factory_.GetWeakPtr(), std::move(callback),
-                         auth_token));
-    } else {
-      // Going from local password to Gaia password
-      auth_factor_editor_.ReplacePasswordFactor(
-          std::move(user_context),
-          /*old_label=*/
-          password_factor->ref().label(), cryptohome::RawPassword(new_password),
-          /*new_label=*/
-          cryptohome::KeyLabel{kCryptohomeGaiaKeyLabel},
-          base::BindOnce(&PasswordFactorEditor::OnPasswordConfigured,
-                         weak_factory_.GetWeakPtr(), std::move(callback),
-                         auth_token));
-    }
-
+    // Atomically replace the Gaia password factor with a local password factor
+    // or a local password with a Gaia password.
+    const cryptohome::KeyLabel new_label{is_new_password_local
+                                             ? kCryptohomeLocalPasswordKeyLabel
+                                             : kCryptohomeGaiaKeyLabel};
+    auth_factor_editor_.ReplacePasswordFactor(
+        std::move(context),
+        /*old_label=*/password_factor->ref().label(),
+        cryptohome::RawPassword(new_password), new_label,
+        base::BindOnce(&PasswordFactorEditor::OnPasswordConfigured,
+                       weak_factory_.GetWeakPtr(), std::move(callback),
+                       auth_token));
   } else {
     // Note that old online factors might have label "legacy-0" instead of
     // "gaia", so we use password_factor->ref().label() here.
     auth_factor_editor_.UpdatePasswordFactor(
-        std::move(user_context), cryptohome::RawPassword(new_password),
+        std::move(context), cryptohome::RawPassword(new_password),
         password_factor->ref().label(),
         base::BindOnce(&PasswordFactorEditor::OnPasswordConfigured,
                        weak_factory_.GetWeakPtr(), std::move(callback),
@@ -288,34 +295,58 @@ void PasswordFactorEditor::UpdatePasswordWithContext(
   }
 }
 
+void PasswordFactorEditor::SetLocalPasswordWithContext(
+    const std::string& auth_token,
+    const std::string& new_password,
+    base::OnceCallback<void(mojom::ConfigureResult)> callback,
+    std::unique_ptr<UserContext> context) {
+  if (!context) {
+    LOG(ERROR) << "Invalid auth token";
+    std::move(callback).Run(mojom::ConfigureResult::kInvalidTokenError);
+    return;
+  }
+
+  // Check complexity for local password (no complexity check for online
+  // passwords as it is checked on the server side by the identity provider).
+  if (CheckLocalPasswordComplexityImpl(context->GetAccountId(), new_password) !=
+      mojom::PasswordComplexity::kOk) {
+    ash::AuthSessionStorage::Get()->Return(auth_token, std::move(context));
+    return std::move(callback).Run(mojom::ConfigureResult::kFatalError);
+  }
+
+  SetPasswordWithContext(auth_token, new_password,
+                         cryptohome::KeyLabel{kCryptohomeLocalPasswordKeyLabel},
+                         std::move(callback), std::move(context));
+}
+
 void PasswordFactorEditor::SetPasswordWithContext(
     const std::string& auth_token,
     const std::string& new_password,
     const cryptohome::KeyLabel& label,
     base::OnceCallback<void(mojom::ConfigureResult)> callback,
-    std::unique_ptr<UserContext> user_context) {
-  if (!user_context) {
+    std::unique_ptr<UserContext> context) {
+  if (!context) {
     LOG(ERROR) << "Invalid auth token";
     std::move(callback).Run(mojom::ConfigureResult::kInvalidTokenError);
     return;
   }
 
   const cryptohome::AuthFactor* password_factor =
-      user_context->GetAuthFactorsConfiguration().FindFactorByType(
+      context->GetAuthFactorsConfiguration().FindFactorByType(
           cryptohome::AuthFactorType::kPassword);
   if (password_factor) {
     // The user already has a password factor.
     LOG(ERROR)
         << "Password factor already exists, will not add online password";
     auth_factor_config_->NotifyFactorObserversAfterFailure(
-        auth_token, std::move(user_context),
+        auth_token, std::move(context),
         base::BindOnce(std::move(callback),
                        mojom::ConfigureResult::kFatalError));
     return;
   }
 
   auth_factor_editor_.SetPasswordFactor(
-      std::move(user_context), cryptohome::RawPassword(new_password),
+      std::move(context), cryptohome::RawPassword(new_password),
       std::move(label),
       base::BindOnce(&PasswordFactorEditor::OnPasswordConfigured,
                      weak_factory_.GetWeakPtr(), std::move(callback),
@@ -323,11 +354,18 @@ void PasswordFactorEditor::SetPasswordWithContext(
 }
 
 void PasswordFactorEditor::CheckLocalPasswordComplexity(
+    const std::string& auth_token,
     const std::string& password,
-    base::OnceCallback<void(mojom::PasswordComplexity)> callback) {
-  // Mojo strings are valid UTF-8, so the `CheckLocalPasswordComplexityImpl`
-  // call is OK.
-  std::move(callback).Run(CheckLocalPasswordComplexityImpl(password));
+    CheckLocalPasswordComplexityCallback callback) {
+  if (ash::features::IsLocalFactorsPasswordComplexityEnabled()) {
+    ObtainContext(auth_token,
+                  base::BindOnce(&CheckLocalPasswordComplexityWithContext,
+                                 auth_token, password, std::move(callback)));
+    return;
+  }
+
+  std::move(callback).Run(
+      CheckLocalPasswordComplexityImpl(EmptyAccountId(), password));
 }
 
 void PasswordFactorEditor::BindReceiver(

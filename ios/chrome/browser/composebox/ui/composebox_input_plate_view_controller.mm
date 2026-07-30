@@ -38,6 +38,7 @@
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/elements/extended_touch_target_button.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
+#import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
 #import "ios/chrome/grit/ios_strings.h"
@@ -64,6 +65,8 @@ const CGFloat kCarouselItemSpacing = 6.0f;
 const CGFloat kCarouselHeight = 44.0f;
 /// The height of the AIM mode button.
 const CGFloat kAIMButtonHeight = 36.0f;
+/// The corner radius of the favicon in attach current tab action.
+const CGFloat kAttachCurrentTabIconRadius = 2.0f;
 /// The width of the AIM mode button.
 const CGFloat kAIMButtonBaseWidth = 108.0f;
 const CGFloat kXButtonWidthInButton = 14.0;
@@ -93,13 +96,17 @@ const NSDirectionalEdgeInsets kInputPlatePadding = {.leading = 8.0,
                                                     .trailing = 5.0};
 /// The spacing added after the Lens and Voice buttons in compact mode.
 const CGFloat kShortcutsTrailingPaddingCompact = 3.0f;
-/// The padding of the toolbar and carousel elements.
+/// The padding of the toolbar.
 ///
 /// Note: While padding is offset to visually align the clear button's visual
 /// bounding box, all other UI elements maintain symmetrical centering.
 const UIEdgeInsets kToolbarPadding = {.left = kInputPlatePadding.leading,
                                       .right = kInputPlatePadding.leading};
-const UIEdgeInsets kCarouselPadding = kToolbarPadding;
+/// The padding of the carousel. Same as
+/// `kInputPlateStackViewExpandedWithAttachmentsTopPadding` to keep symmetry.
+const UIEdgeInsets kCarouselPadding = {
+    .left = kInputPlateStackViewExpandedWithAttachmentsTopPadding,
+    .right = kInputPlateStackViewExpandedWithAttachmentsTopPadding};
 
 /// The font size for the AIM mode button title.
 const CGFloat kAIMButtonFontSize = 14.0f;
@@ -209,6 +216,8 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
   UIView* _leadingCarouselFadeView;
   /// The fade view for the carousel's trailing edge.
   UIView* _trailingCarouselFadeView;
+  __weak CAGradientLayer* _carouselLeadingGradientLayer;
+  __weak CAGradientLayer* _carouselTrailingGradientLayer;
   /// The carousel container.
   UIView* _carouselContainer;
   /// Controls that should be visible.
@@ -339,10 +348,8 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
 - (void)viewDidLayoutSubviews {
   [super viewDidLayoutSubviews];
   // Update the gradient layer's frame.
-  _trailingCarouselFadeView.layer.sublayers.firstObject.frame =
-      _trailingCarouselFadeView.bounds;
-  _leadingCarouselFadeView.layer.sublayers.firstObject.frame =
-      _leadingCarouselFadeView.bounds;
+  _carouselTrailingGradientLayer.frame = _trailingCarouselFadeView.bounds;
+  _carouselLeadingGradientLayer.frame = _leadingCarouselFadeView.bounds;
   if (self.compact) {
     _inputPlateContainerView.layer.cornerRadius =
         _inputPlateContainerView.frame.size.height / 2;
@@ -430,6 +437,7 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
                     [weakSelf updateCarouselFade];
                     [weakSelf updateSendButtonStateIfNeeded];
                     [weakSelf scrollToLast];
+                    [weakSelf updatePreferredContentSize];
                   }];
 }
 
@@ -628,7 +636,9 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
 }
 
 - (void)setCurrentTabFavicon:(UIImage*)favicon {
-  _currentTabFavicon = favicon;
+  _currentTabFavicon =
+      favicon ? ImageWithCornerRadius(favicon, kAttachCurrentTabIconRadius)
+              : nil;
   [self updatePlusButtonItems];
 }
 
@@ -782,6 +792,11 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
   [self updateCreateImageTitle];
 }
 
+- (void)updatePreferredContentSizeForNewTextFieldHeight {
+  // Trigger -viewDidLayoutSubviews that will call -updatePreferredContentSize.
+  [_omniboxContainer layoutIfNeeded];
+}
+
 #pragma mark - Actions
 
 - (void)galleryButtonTapped {
@@ -912,20 +927,25 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
   [self updateCarouselFade];
 }
 
-- (CAGradientLayer*)createGradientLayerForLeading:(BOOL)isLeading {
-  CAGradientLayer* gradientLayer = [CAGradientLayer layer];
+/// Updates carousel fading gradients colors.
+- (void)updateCarouselGradientAppearance {
+  // Update the gradient layer's color.
   UIColor* transparentColor =
       [_theme.inputPlateBackgroundColor colorWithAlphaComponent:0.0];
   UIColor* solidColor = _theme.inputPlateBackgroundColor;
 
-  if (isLeading) {
-    gradientLayer.colors =
-        @[ (id)solidColor.CGColor, (id)transparentColor.CGColor ];
-  } else {
-    gradientLayer.colors =
-        @[ (id)transparentColor.CGColor, (id)solidColor.CGColor ];
-  }
+  _carouselLeadingGradientLayer.colors =
+      @[ (id)solidColor.CGColor, (id)transparentColor.CGColor ];
+  _carouselTrailingGradientLayer.colors =
+      @[ (id)transparentColor.CGColor, (id)solidColor.CGColor ];
 
+  [_carouselLeadingGradientLayer setNeedsDisplay];
+  [_carouselTrailingGradientLayer setNeedsDisplay];
+}
+
+/// Returns a gradient layer for the carousel.
+- (CAGradientLayer*)createCarouselGradientLayer {
+  CAGradientLayer* gradientLayer = [CAGradientLayer layer];
   gradientLayer.startPoint = CGPointMake(0.0, 0.5);
   gradientLayer.endPoint = CGPointMake(1.0, 0.5);
   return gradientLayer;
@@ -1068,6 +1088,7 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
 - (void)userInterfaceStyleChanged {
   [self updateAIMButtonAppearance];
   [self updateDepthShadowAppearance];
+  [self updateCarouselGradientAppearance];
 }
 
 /// Adjusts the shadow of the input plate based on UI style and theme.
@@ -1105,9 +1126,10 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
       [_theme aimButtonBackgroundColorWithAIMEnabled:_AIModeEnabled];
   config.baseForegroundColor =
       [_theme aimButtonTextColorWithAIMEnabled:_AIModeEnabled];
-  _aimButton.layer.borderWidth = _AIModeEnabled ? 0 : 1;
-  _aimButton.layer.borderColor =
-      [_theme aimButtonBorderColorWithAIMEnabled:_AIModeEnabled].CGColor;
+  config.background.strokeWidth = _AIModeEnabled ? 0 : 1;
+  config.background.strokeColor =
+      [_theme aimButtonBorderColorWithAIMEnabled:_AIModeEnabled];
+
   _aimButton.accessibilityLabel = l10n_util::GetNSString(
       _AIModeEnabled
           ? IDS_IOS_COMPOSEBOX_AIM_BUTTON_DISABLE_ACTION_ACCESSIBILITY_LABEL
@@ -1203,7 +1225,6 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
   [button addTarget:self
                 action:@selector(aimButtonTapped)
       forControlEvents:UIControlEventTouchUpInside];
-  button.layer.borderWidth = 0;
   button.accessibilityTraits = UIAccessibilityTraitButton;
   button.accessibilityIdentifier = kComposeboxAIMButtonAccessibilityIdentifier;
 
@@ -1720,12 +1741,13 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
   _leadingCarouselFadeView.hidden = YES;
   [_carouselContainer addSubview:_leadingCarouselFadeView];
 
-  [_trailingCarouselFadeView.layer
-      insertSublayer:[self createGradientLayerForLeading:NO]
-             atIndex:0];
-  [_leadingCarouselFadeView.layer
-      insertSublayer:[self createGradientLayerForLeading:YES]
-             atIndex:0];
+  _carouselLeadingGradientLayer = [self createCarouselGradientLayer];
+  _carouselTrailingGradientLayer = [self createCarouselGradientLayer];
+
+  [_trailingCarouselFadeView.layer insertSublayer:_carouselTrailingGradientLayer
+                                          atIndex:0];
+  [_leadingCarouselFadeView.layer insertSublayer:_carouselLeadingGradientLayer
+                                         atIndex:0];
 
   [NSLayoutConstraint activateConstraints:@[
     [_trailingCarouselFadeView.trailingAnchor
@@ -1746,6 +1768,7 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
     [_leadingCarouselFadeView.widthAnchor
         constraintEqualToConstant:kFadeViewWidth],
   ]];
+  [self updateCarouselGradientAppearance];
 }
 
 /// Sets up the main container view for the input plate.
@@ -1963,10 +1986,7 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
 }
 
 - (NSString*)createImageActionTitle {
-  BOOL isPro = _modelOption == ComposeboxModelOption::kThinking;
-  return l10n_util::GetNSString(isPro
-                                    ? IDS_IOS_COMPOSEBOX_CREATE_IMAGE_PRO_ACTION
-                                    : IDS_IOS_COMPOSEBOX_CREATE_IMAGE_ACTION);
+  return l10n_util::GetNSString(IDS_IOS_COMPOSEBOX_CREATE_IMAGE_ACTION);
 }
 
 // Creates a new canvas button to be displayed in the input plate.

@@ -28,6 +28,7 @@
 #include "third_party/blink/renderer/core/paint/filter_effect_builder.h"
 #include "third_party/blink/renderer/core/style/computed_style.h"
 #include "third_party/blink/renderer/core/style/reference_clip_path_operation.h"
+#include "third_party/blink/renderer/core/style/reference_offset_path_operation.h"
 #include "third_party/blink/renderer/core/style/style_svg_resource.h"
 #include "third_party/blink/renderer/core/svg/graphics/filters/svg_filter_builder.h"
 #include "third_party/blink/renderer/core/svg/svg_filter_primitive_standard_attributes.h"
@@ -318,6 +319,14 @@ void SVGElementResourceClient::ResourceContentChanged(SVGResource* resource) {
     layout_object->SetNeedsPaintPropertyUpdate();
   }
 
+  const auto* offset_path_reference =
+      DynamicTo<ReferenceOffsetPathOperation>(style.OffsetPath());
+  if (ContainsResource(offset_path_reference, resource)) {
+    needs_layout = true;
+    layout_object->SetNeedsTransformUpdate();
+    layout_object->SetNeedsPaintPropertyUpdate();
+  }
+
   LayoutSVGResourceContainer::MarkForLayoutAndParentResourceInvalidation(
       *layout_object, needs_layout);
 }
@@ -420,7 +429,8 @@ void SVGElementResourceClient::InvalidateFilterData() {
 
 void SVGElementResourceClient::MarkFilterDataDirty() {
   DCHECK(element_->GetLayoutObject());
-  DCHECK(element_->GetLayoutObject()->NeedsPaintPropertyUpdate());
+  DCHECK(element_->GetLayoutObject()->NeedsPaintPropertyUpdate() ||
+         !element_->GetDocument().IsActive());
   filter_data_dirty_ = true;
 }
 

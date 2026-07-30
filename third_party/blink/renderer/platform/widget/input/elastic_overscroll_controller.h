@@ -116,11 +116,14 @@ class PLATFORM_EXPORT ElasticOverscrollController {
     bool received_overscroll_update = false;
     cc::OverscrollBehavior overscroll_behavior;
 
-    // TODO (arakeri): Need to be cleared when we leave MomentumAnimated.
+    // TODO (gastonr): Need to be cleared when we leave MomentumAnimated.
     // Momentum animation state. This state is valid only while the state is
     // MomentumAnimated, and is initialized in EnterStateMomentumAnimated.
     gfx::Vector2dF momentum_animation_initial_stretch;
     gfx::Vector2dF momentum_animation_initial_velocity;
+
+    // Whether this entry is currently receiving momentum events.
+    bool is_in_momentum_phase = false;
   };
 
   // These methods that are "real" should only be called if the associated event

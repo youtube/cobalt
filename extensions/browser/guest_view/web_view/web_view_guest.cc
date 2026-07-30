@@ -43,6 +43,7 @@
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/render_widget_host_view.h"
+#include "content/public/browser/security_principal.h"
 #include "content/public/browser/site_instance.h"
 #include "content/public/browser/site_isolation_policy.h"
 #include "content/public/browser/storage_partition.h"
@@ -850,7 +851,7 @@ content::GuestPageHolder* WebViewGuest::GuestCreateNewWindow(
       GuestViewManager::FromBrowserContext(browser_context());
   // Set the attach params to use the same partition as the opener.
   const auto storage_partition_config =
-      site_instance->GetStoragePartitionConfig();
+      site_instance->GetSecurityPrincipal().GetStoragePartitionConfig();
   const std::string storage_partition_id =
       GetStoragePartitionIdFromPartitionConfig(storage_partition_config);
   base::DictValue create_params;
@@ -926,8 +927,10 @@ void WebViewGuest::CreateNewGuestWebViewWindow(
   GuestViewManager* guest_manager =
       GuestViewManager::FromBrowserContext(browser_context());
   // Set the attach params to use the same partition as the opener.
-  const auto storage_partition_config =
-      web_contents()->GetSiteInstance()->GetStoragePartitionConfig();
+  const auto storage_partition_config = web_contents()
+                                            ->GetSiteInstance()
+                                            ->GetSecurityPrincipal()
+                                            .GetStoragePartitionConfig();
   const std::string storage_partition_id =
       GetStoragePartitionIdFromPartitionConfig(storage_partition_config);
   base::DictValue create_params;
@@ -1446,12 +1449,13 @@ void WebViewGuest::RenderFrameCreated(
     return;
   }
 
-  CHECK_EQ(render_frame_host->GetProcess()->IsForGuestsOnly(),
-           render_frame_host->GetSiteInstance()->IsGuest());
+  CHECK_EQ(
+      render_frame_host->GetProcess()->IsForGuestsOnly(),
+      render_frame_host->GetSiteInstance()->GetSecurityPrincipal().IsGuest());
 
   // TODO(mcnee): Throughout this file, many of the SiteInstance `IsGuest()`
   // checks appear redundant. Could they be CHECKs instead?
-  if (!render_frame_host->GetSiteInstance()->IsGuest()) {
+  if (!render_frame_host->GetSiteInstance()->GetSecurityPrincipal().IsGuest()) {
     return;
   }
 
@@ -1471,7 +1475,7 @@ void WebViewGuest::RenderFrameDeleted(
     return;
   }
 
-  if (!render_frame_host->GetSiteInstance()->IsGuest()) {
+  if (!render_frame_host->GetSiteInstance()->GetSecurityPrincipal().IsGuest()) {
     return;
   }
 
@@ -1486,12 +1490,13 @@ void WebViewGuest::RenderFrameHostChanged(content::RenderFrameHost* old_host,
     return;
   }
 
-  if (!old_host || !old_host->GetSiteInstance()->IsGuest()) {
+  if (!old_host ||
+      !old_host->GetSiteInstance()->GetSecurityPrincipal().IsGuest()) {
     return;
   }
 
   // A guest RenderFrameHost cannot navigate to a non-guest RenderFrameHost.
-  DCHECK(new_host->GetSiteInstance()->IsGuest());
+  DCHECK(new_host->GetSiteInstance()->GetSecurityPrincipal().IsGuest());
 
   // If we've swapped from a non-live guest RenderFrameHost, we won't hear a
   // RenderFrameDeleted for that RenderFrameHost.  This ensures that it's
@@ -1515,11 +1520,12 @@ void WebViewGuest::ReportFrameNameChange(const std::string& name) {
 
 void WebViewGuest::PushWebViewStateToIOThread(
     content::RenderFrameHost* guest_host) {
-  if (!guest_host->GetSiteInstance()->IsGuest()) {
+  if (!guest_host->GetSiteInstance()->GetSecurityPrincipal().IsGuest()) {
     NOTREACHED();
   }
-  auto storage_partition_config =
-      guest_host->GetSiteInstance()->GetStoragePartitionConfig();
+  auto storage_partition_config = guest_host->GetSiteInstance()
+                                      ->GetSecurityPrincipal()
+                                      .GetStoragePartitionConfig();
 
   WebViewRendererState::WebViewInfo web_view_info;
   web_view_info.embedder_process_id = owner_rfh()->GetProcess()->GetID();
@@ -2041,6 +2047,17 @@ WebContents* WebViewGuest::OpenURLFromTab(
     return web_contents();
   }
 
+  // Allow delegate to determine whether to redirect to owner_web_contents.
+  if (web_view_guest_delegate_ &&
+      web_view_guest_delegate_->ShouldForwardOpenUrlFromTabToOwnerWebContents(
+          owner_web_contents()->GetLastCommittedURL())) {
+    if (!owner_web_contents()->GetDelegate()) {
+      return nullptr;
+    }
+    return owner_web_contents()->GetDelegate()->OpenURLFromTab(
+        owner_web_contents(), params, std::move(navigation_handle_callback));
+  }
+
   // This code path is taken if Ctrl+Click, middle click or any of the
   // keyboard/mouse combinations are used to open a link in a new tab/window.
   // This code path is also taken on client-side redirects from about:blank.
@@ -2202,7 +2219,8 @@ void WebViewGuest::RequestNewWindowPermission(
   // Retrieve the opener partition info if we have it.
   const auto storage_partition_config = new_guest->GetGuestMainFrame()
                                             ->GetSiteInstance()
-                                            ->GetStoragePartitionConfig();
+                                            ->GetSecurityPrincipal()
+                                            .GetStoragePartitionConfig();
   std::string storage_partition_id =
       GetStoragePartitionIdFromPartitionConfig(storage_partition_config);
 

@@ -121,6 +121,7 @@ import org.chromium.chrome.browser.omnibox.OmniboxStub;
 import org.chromium.chrome.browser.omnibox.OverrideUrlLoadingDelegateImpl;
 import org.chromium.chrome.browser.omnibox.UrlFocusChangeListener;
 import org.chromium.chrome.browser.omnibox.suggestions.OmniboxSuggestionsDropdownScrollListener;
+import org.chromium.chrome.browser.omnibox.suggestions.action.OmniboxActionDelegateImpl;
 import org.chromium.chrome.browser.omnibox.voice.VoiceRecognitionHandler;
 import org.chromium.chrome.browser.page_info.ChromePageInfo;
 import org.chromium.chrome.browser.partnercustomizations.PartnerBrowserCustomizations;
@@ -160,7 +161,6 @@ import org.chromium.chrome.browser.toolbar.bottom.ScrollingBottomViewResourceFra
 import org.chromium.chrome.browser.toolbar.extensions.ExtensionToolbarCoordinator;
 import org.chromium.chrome.browser.toolbar.forward_button.ForwardButtonCoordinator;
 import org.chromium.chrome.browser.toolbar.home_button.HomeButtonCoordinator;
-import org.chromium.chrome.browser.toolbar.home_page_button.HomePageButtonsCoordinator;
 import org.chromium.chrome.browser.toolbar.load_progress.LoadProgressCoordinator;
 import org.chromium.chrome.browser.toolbar.menu_button.MenuButton;
 import org.chromium.chrome.browser.toolbar.menu_button.MenuButtonCoordinator;
@@ -169,7 +169,6 @@ import org.chromium.chrome.browser.toolbar.menu_button.MenuButtonState;
 import org.chromium.chrome.browser.toolbar.optional_button.ButtonDataProvider;
 import org.chromium.chrome.browser.toolbar.top.ActionModeController;
 import org.chromium.chrome.browser.toolbar.top.ActionModeController.ActionBarDelegate;
-import org.chromium.chrome.browser.toolbar.top.HomeButtonDisplay;
 import org.chromium.chrome.browser.toolbar.top.NavigationPopup;
 import org.chromium.chrome.browser.toolbar.top.NavigationPopup.HistoryDelegate;
 import org.chromium.chrome.browser.toolbar.top.OptionalBrowsingModeButtonController;
@@ -213,7 +212,6 @@ import org.chromium.components.feature_engagement.EventConstants;
 import org.chromium.components.feature_engagement.Tracker;
 import org.chromium.components.omnibox.AutocompleteInput;
 import org.chromium.components.omnibox.OmniboxFocusReason;
-import org.chromium.components.omnibox.action.OmniboxActionDelegate;
 import org.chromium.components.page_info.PageInfoController.OpenedFromSource;
 import org.chromium.components.search_engines.TemplateUrl;
 import org.chromium.components.search_engines.TemplateUrlService;
@@ -267,8 +265,6 @@ public class ToolbarManager
     private final BrowserControlsStateProvider.Observer mBrowserControlsObserver;
     private final FullscreenManager.Observer mFullscreenObserver;
     private final SettableNonNullObservableSupplier<Boolean> mHomepageEnabledSupplier =
-            ObservableSuppliers.createNonNull(false);
-    private final SettableNonNullObservableSupplier<Boolean> mHomepageNonNtpSupplier =
             ObservableSuppliers.createNonNull(false);
     private final NonNullObservableSupplier<Boolean> mOmniboxFocusStateSupplier;
     private final SettableNonNullObservableSupplier<Boolean> mIsNtpWithFakeboxShowingSupplier =
@@ -348,7 +344,7 @@ public class ToolbarManager
     private final StatusBarColorController mStatusBarColorController;
     private final ActivityLifecycleDispatcher mActivityLifecycleDispatcher;
     private final BottomSheetController mBottomSheetController;
-    private final DataSharingTabManager mDataSharingTabManager;
+    private final @Nullable DataSharingTabManager mDataSharingTabManager;
     private final TabContentManager mTabContentManager;
     private final TabCreatorManager mTabCreatorManager;
     private final TabObscuringHandler mTabObscuringHandler;
@@ -365,7 +361,6 @@ public class ToolbarManager
     private final OneshotSupplier<ChromeAndroidTask> mChromeAndroidTaskSupplier;
 
     private @MonotonicNonNull HomeButtonCoordinator mHomeButtonCoordinator;
-    private @MonotonicNonNull HomePageButtonsCoordinator mHomePageButtonsCoordinator;
     private @MonotonicNonNull ToggleTabStackButtonCoordinator mTabSwitcherButtonCoordinator;
     private @MonotonicNonNull BackButtonCoordinator mBackButtonCoordinator;
     private @MonotonicNonNull ForwardButtonCoordinator mForwardButtonCoordinator;
@@ -427,7 +422,6 @@ public class ToolbarManager
     private final ToolbarProgressBarLayer mToolbarProgressBarLayer;
     private @Nullable Supplier<Integer> mBookmarkBarHeightSupplier;
     private boolean mInTabSwitcherTransition;
-    private final boolean mIsNewTabPageCustomizationToolbarButtonEnabled;
 
     private @Nullable Tab mLastTab;
 
@@ -440,7 +434,6 @@ public class ToolbarManager
     private CustomTabCount mCustomTabCount;
     private int mIncognitoNtpViewIdForA11y = View.NO_ID;
     private @Nullable OverscrollGlowCoordinator mOverscrollGlowCoordinator;
-    private final NewTabPageDelegate mNtpDelegate;
     private final NullableObservableSupplier<Profile> mProfileSupplier;
     private final Callback<Boolean> mOnXrSpaceModeChanged = this::onXrSpaceModeChanged;
     private final NonNullObservableSupplier<Boolean> mXrSpaceModeObservableSupplier;
@@ -808,11 +801,11 @@ public class ToolbarManager
             AppMenuDelegate appMenuDelegate,
             ActivityLifecycleDispatcher activityLifecycleDispatcher,
             BottomSheetController bottomSheetController,
-            DataSharingTabManager dataSharingTabManager,
+            @Nullable DataSharingTabManager dataSharingTabManager,
             TabContentManager tabContentManager,
             TabCreatorManager tabCreatorManager,
             Supplier<MerchantTrustSignalsCoordinator> merchantTrustSignalsCoordinatorSupplier,
-            OmniboxActionDelegate omniboxActionDelegate,
+            OmniboxActionDelegateImpl omniboxActionDelegate,
             Supplier<EphemeralTabCoordinator> ephemeralTabCoordinatorSupplier,
             boolean initializeWithIncognitoColors,
             @Nullable BackPressManager backPressManager,
@@ -867,20 +860,16 @@ public class ToolbarManager
         mIsTablet = DeviceFormFactor.isNonMultiDisplayContextOnTablet(mActivity);
         mCustomTabCount = new CustomTabCount(tabModelSelectorSupplier);
         mProfileSupplier = profileSupplier;
-        mIsNewTabPageCustomizationToolbarButtonEnabled =
-                !mIsTablet
-                        && ChromeFeatureList.sNewTabPageCustomization.isEnabled()
-                        && ChromeFeatureList.sNewTabPageCustomizationToolbarButton.isEnabled();
         mChromeAndroidTaskSupplier = chromeAndroidTaskSupplier;
 
         mToolbarLayout = mActivity.findViewById(R.id.toolbar);
-        mNtpDelegate = createNewTabPageDelegate();
+        NewTabPageDelegate ntpDelegate = createNewTabPageDelegate();
         mIsCustomTab = mToolbarLayout instanceof CustomTabToolbar;
 
         mLocationBarModel =
                 new LocationBarModel(
                         activity,
-                        mNtpDelegate,
+                        ntpDelegate,
                         DomDistillerTabUtils::getFormattedUrlFromOriginalDistillerUrl,
                         new LocationBarModel.OfflineStatus() {
                             @Override
@@ -1060,34 +1049,34 @@ public class ToolbarManager
                     HistoryManagerUtils.showHistoryManager(activityFromTab, tab, tab.getProfile());
                 };
 
-        if (!mIsNewTabPageCustomizationToolbarButtonEnabled) {
-            View homeButton = controlContainer.findViewById(R.id.home_button);
-            if (homeButton != null) {
-                mHomeButtonCoordinator =
-                        new HomeButtonCoordinator(
-                                mActivity,
-                                homeButton,
-                                this::onHomePageButtonClick,
-                                this::onHomeButtonMenuClick,
-                                HomepagePolicyManager::isHomepageLocationManaged,
-                                browsingModeThemeColorProviderWithAdjustableTint,
-                                mIncognitoStateProvider);
-            }
-        } else {
-            View homePageButtonsContainer =
-                    controlContainer.findViewById(R.id.home_page_buttons_layout);
-            if (homePageButtonsContainer != null) {
-                mHomePageButtonsCoordinator =
-                        new HomePageButtonsCoordinator(
-                                mActivity,
-                                profileSupplier,
-                                homePageButtonsContainer,
-                                this::onHomeButtonMenuClick,
-                                HomepagePolicyManager::isHomepageLocationManaged,
-                                mBottomSheetController,
-                                this::onHomePageButtonClick,
-                                mWindowAndroid);
-            }
+        View homeButton = controlContainer.findViewById(R.id.home_button);
+        if (homeButton != null) {
+            mHomeButtonCoordinator =
+                    new HomeButtonCoordinator(
+                            mActivity,
+                            homeButton,
+                            (view) -> {
+                                if (ntpDelegate.isCurrentlyVisible()) {
+                                    // Record the clicking action on the home button.
+                                    BrowserUiUtils.recordModuleClickHistogram(
+                                            ModuleTypeOnStartAndNtp.HOME_BUTTON);
+                                }
+                                setUrlBarFocus(false, OmniboxFocusReason.UNFOCUS);
+                                mToolbarTabController.openHomepage();
+                                Tracker tracker =
+                                        TrackerFactory.getTrackerForProfile(mProfileSupplier);
+                                boolean isPartnerHomepageEnabled =
+                                        PartnerBrowserCustomizations.getInstance()
+                                                .isHomepageProviderAvailableAndEnabled();
+                                if (tracker != null && isPartnerHomepageEnabled) {
+                                    tracker.notifyEvent(
+                                            EventConstants.PARTNER_HOME_PAGE_BUTTON_PRESSED);
+                                }
+                            },
+                            this::onHomeButtonMenuClick,
+                            HomepagePolicyManager::isHomepageLocationManaged,
+                            browsingModeThemeColorProviderWithAdjustableTint,
+                            mIncognitoStateProvider);
         }
 
         ChromeImageButton backButton = mControlContainer.findViewById(R.id.back_button);
@@ -1173,12 +1162,9 @@ public class ToolbarManager
                         ToolbarPositionController.isToolbarPositionCustomizationEnabled(
                                 mActivity, mIsCustomTab));
 
-        HomeButtonDisplay homeButtonDisplay =
-                mIsNewTabPageCustomizationToolbarButtonEnabled
-                        ? mHomePageButtonsCoordinator
-                        : mHomeButtonCoordinator;
-        if (homeButtonDisplay != null) {
-            browsingModeThemeColorProviderWithAdjustableTint.addTintObserver(homeButtonDisplay);
+        if (mHomeButtonCoordinator != null) {
+            browsingModeThemeColorProviderWithAdjustableTint.addTintObserver(
+                    mHomeButtonCoordinator);
         }
         mTabStripTopControlLayer =
                 new TabStripTopControlLayer(
@@ -1200,7 +1186,6 @@ public class ToolbarManager
                         historyDelegate,
                         topControlsStacker,
                         mTabStripTopControlLayer,
-                        homeButtonDisplay,
                         profileSupplier);
         mActionModeController =
                 new ActionModeController(
@@ -1833,21 +1818,6 @@ public class ToolbarManager
         }
     }
 
-    private void onHomePageButtonClick(View v) {
-        if (mNtpDelegate.isCurrentlyVisible()) {
-            // Record the clicking action on the home button.
-            BrowserUiUtils.recordModuleClickHistogram(ModuleTypeOnStartAndNtp.HOME_BUTTON);
-        }
-        setUrlBarFocus(false, OmniboxFocusReason.UNFOCUS);
-        mToolbarTabController.openHomepage();
-        Tracker tracker = TrackerFactory.getTrackerForProfile(mProfileSupplier);
-        boolean isPartnerHomepageEnabled =
-                PartnerBrowserCustomizations.getInstance().isHomepageProviderAvailableAndEnabled();
-        if (tracker != null && isPartnerHomepageEnabled) {
-            tracker.notifyEvent(EventConstants.PARTNER_HOME_PAGE_BUTTON_PRESSED);
-        }
-    }
-
     private void initializeToolbarPositionController() {
         if (!ToolbarPositionController.isToolbarPositionCustomizationEnabled(
                 mActivity, mIsCustomTab)) {
@@ -1966,7 +1936,6 @@ public class ToolbarManager
             HistoryDelegate historyDelegate,
             TopControlsStacker topControlsStacker,
             TabStripTopControlLayer tabStripTopControlLayer,
-            @Nullable HomeButtonDisplay homeButtonDisplay,
             MonotonicObservableSupplier<Profile> profileSupplier) {
         TopToolbarCoordinator toolbar =
                 new TopToolbarCoordinator(
@@ -1984,7 +1953,6 @@ public class ToolbarManager
                         mTabSwitcherButtonCoordinator,
                         mCustomTabCount.getObservable(),
                         mHomepageEnabledSupplier,
-                        mHomepageNonNtpSupplier,
                         mCompositorViewHolder::getResourceManager,
                         historyDelegate,
                         initializeWithIncognitoColors,
@@ -2002,7 +1970,7 @@ public class ToolbarManager
                         mToolbarNavControlsEnabledSupplier,
                         mBackButtonCoordinator,
                         mForwardButtonCoordinator,
-                        homeButtonDisplay,
+                        mHomeButtonCoordinator,
                         topControlsStacker,
                         mBrowserControlsSizer,
                         () -> MultiWindowUtils.getIncognitoInstanceCount(/* activeOnly= */ true),
@@ -2011,7 +1979,6 @@ public class ToolbarManager
         mHomepageStateListener =
                 () -> {
                     mHomepageEnabledSupplier.set(HomepageManager.getInstance().isHomepageEnabled());
-                    mHomepageNonNtpSupplier.set(HomepageManager.getInstance().isHomepageNonNtp());
                 };
 
         HomepageManager.getInstance().addListener(mHomepageStateListener);
@@ -2264,6 +2231,7 @@ public class ToolbarManager
         assert mUndoBarThrottle != null;
         assert mLayoutManager != null;
         assert mTabModelSelector != null;
+        assert mDataSharingTabManager != null;
         ThemeColorProvider bottomUiThemeColorProvider =
                 new BottomUiThemeColorProvider(
                         mTopUiThemeColorProvider,
@@ -2386,7 +2354,8 @@ public class ToolbarManager
                                 assertNonNull(mTabModelSelector.getCurrentModel().getProfile()),
                                 mActivityTabProvider.asObservable(),
                                 mTabCreatorManager.getTabCreator(false),
-                                getBrowsingModeThemeColorProvider());
+                                getBrowsingModeThemeColorProvider(),
+                                (ToolbarTablet) mToolbarLayout);
                 if (mExtensionToolbarCoordinator != null) {
                     mToolbar.setExtensionToolbarCoordinator(mExtensionToolbarCoordinator);
                 }

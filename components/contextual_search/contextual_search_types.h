@@ -73,6 +73,9 @@ struct FileInfo {
   // Gets the context id for this request.
   std::optional<int64_t> GetContextId() const;
 
+  // Gets the injected input id if it exists.
+  std::optional<std::string> GetInjectedInputId() const;
+
   // Client-side unique identifier.
   base::UnguessableToken file_token;
 
@@ -116,6 +119,10 @@ struct FileInfo {
 
   // The input data associated with this file.
   std::unique_ptr<lens::ContextualInputData> input_data;
+
+  // Whether or not this file was superceded by a new file upload with the same
+  // context id.
+  bool is_superceded = false;
 };
 
 // LINT.IfChange(ContextualSearchErrorPage)

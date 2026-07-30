@@ -46,6 +46,10 @@
 /// A string that represents the current value of the accessibility element.
 @property(nonatomic, readonly) NSString* accessibilityValue;
 
+/// Returns a string for testing purposes. It's a composite string that contains
+/// the user text, the autocomplete text and the additional text.
+@property(nonatomic, readonly) NSString* textValueForTesting;
+
 /// Returns the underlying view of the text input.
 - (UIView*)view;
 
@@ -138,6 +142,9 @@
 // If the custom placeholder is `nil` the system will fallback to the default
 // placeholder.
 - (void)setCustomPlaceholderText:(NSString*)customPlaceholderText;
+
+// UIResponder method. Reloads inputView, inputAccessoryView, and textInputMode.
+- (void)reloadInputViews;
 
 @end
 

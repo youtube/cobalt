@@ -47,15 +47,13 @@ import org.mockito.junit.MockitoRule;
 import org.robolectric.Robolectric;
 import org.robolectric.android.controller.ActivityController;
 import org.robolectric.annotation.Config;
-import org.robolectric.annotation.Implementation;
-import org.robolectric.annotation.Implements;
 import org.robolectric.shadows.ShadowActivity;
-import org.robolectric.shadows.ShadowLooper;
 
 import org.chromium.base.Callback;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.RobolectricUtil;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
@@ -99,11 +97,7 @@ import java.util.Map;
 import java.util.Set;
 
 @RunWith(BaseRobolectricTestRunner.class)
-@Config(
-        manifest = Config.NONE,
-        shadows = {
-            SearchActivityUnitTest.ShadowTabBuilder.class,
-        })
+@Config(manifest = Config.NONE)
 @EnableFeatures({
     ChromeFeatureList.PROCESS_RANK_POLICY_ANDROID,
     ChromeFeatureList.UMA_SESSION_CORRECTNESS_FIXES
@@ -118,16 +112,6 @@ public class SearchActivityUnitTest {
     private static final String HISTOGRAM_SUFFIX_CUSTOM_TAB = ".CustomTab";
     private static final String HISTOGRAM_SUFFIX_LAUNCHER = ".Launcher";
     private static final String HISTOGRAM_SUFFIX_HUB = ".Hub";
-
-    @Implements(TabBuilder.class)
-    public static class ShadowTabBuilder {
-        static Tab sMockTab;
-
-        @Implementation
-        public Tab build() {
-            return sMockTab;
-        }
-    }
 
     public @Rule MockitoRule mMockitoRule = MockitoJUnit.rule();
     private @Mock SearchActivityUtils.TestDelegate mUtils;
@@ -193,14 +177,14 @@ public class SearchActivityUnitTest {
 
         SearchActivityUtils.setDelegateForTesting(mUtils);
         WebContentsFactory.setWebContentsForTesting(mWebContents);
-        ShadowTabBuilder.sMockTab = mTab;
+        TabBuilder.setTabForTesting(mTab);
         RevenueStats.setCustomTabSearchClientHookForTesting(mSetCustomTabSearchClient);
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
     }
 
     @After
     public void tearDown() {
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         FirstRunStatus.setFirstRunFlowComplete(false);
         IdentityServicesProvider.setInstanceForTests(null);
         TemplateUrlServiceFactory.setInstanceForTesting(null);
@@ -224,7 +208,7 @@ public class SearchActivityUnitTest {
 
     private void setProfile(Profile profile) {
         ProfileManager.setLastUsedProfileForTesting(profile);
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
     }
 
     @Test
@@ -751,7 +735,7 @@ public class SearchActivityUnitTest {
 
         // Notify Activity that the search engine promo dialog was canceled.
         captor.getValue().onResult(false);
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
 
         verify(mActivity, never()).finishDeferredInitialization();
         assertTrue(mActivity.isFinishing());
@@ -770,7 +754,7 @@ public class SearchActivityUnitTest {
 
         // "should never happen".
         captor.getValue().onResult(null);
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
 
         verify(mActivity, never()).finishDeferredInitialization();
         assertTrue(mActivity.isFinishing());
@@ -789,7 +773,7 @@ public class SearchActivityUnitTest {
 
         // Notify Activity that the search engine promo dialog was completed.
         captor.getValue().onResult(true);
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
 
         verify(mActivity).finishDeferredInitialization();
         assertFalse(mActivity.isFinishing());
@@ -821,7 +805,7 @@ public class SearchActivityUnitTest {
         // Cancel activity, and notify that the search engine promo dialog was completed.
         mActivity.finish(TerminationReason.ACTIVITY_FOCUS_LOST, null);
         captor.getValue().onResult(true);
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
 
         verify(mActivity, never()).finishDeferredInitialization();
     }

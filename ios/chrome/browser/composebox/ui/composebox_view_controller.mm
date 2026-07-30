@@ -23,15 +23,13 @@
 
 namespace {
 /// The padding for the close button.
-const CGFloat kCloseButtonTopMargin = 6.0f;
+const CGFloat kCloseButtonTopMargin = 7.0f;
 const CGFloat kCloseButtonDefaultPadding = 10.0f;
 /// The trailing and top padding for the input plate container.
 const CGFloat kInputPlateTrailingPadding = 8.0f;
 const CGFloat kInputPlateTopPadding = 4.0f;
 /// The size for the close button.
 const CGFloat kCloseButtonSize = 30.0f;
-/// The alpha for the close button.
-const CGFloat kCloseButtonAlpha = 0.6f;
 /// The ammount of padding to add vertically to the incognito view content.
 const CGFloat kIncognitoVerticalPadding = 24.0f;
 /// The bottom margin between the composebox and the container.
@@ -42,14 +40,13 @@ const CGFloat kReducedTransparencyInputPlateBottomMargin = 4.0f;
 
 /// The image for the close button.
 UIImage* CloseButtonImage(UIColor* backgroundColor, BOOL highlighted) {
-  NSArray<UIColor*>* palette = @[
-    [UIColor.tertiaryLabelColor colorWithAlphaComponent:kCloseButtonAlpha],
-    backgroundColor
-  ];
+  NSArray<UIColor*>* palette =
+      @[ [UIColor colorNamed:kTextfieldPlaceholderColor], backgroundColor ];
 
   if (highlighted) {
     palette = @[
-      [UIColor.tertiaryLabelColor colorWithAlphaComponent:0.3],
+      [[UIColor colorNamed:kTextfieldPlaceholderColor]
+          colorWithAlphaComponent:0.3],
       [backgroundColor colorWithAlphaComponent:0.6]
     ];
   }
@@ -99,6 +96,9 @@ UIImage* CloseButtonImage(UIColor* backgroundColor, BOOL highlighted) {
   // Helpers for tracking the incognito scrolling position.
   BOOL _incognitoScrolledAtTop;
   BOOL _scrollIncognitoToTopOnNextLayout;
+
+  // Last known preferred content height of the omnibox view controller.
+  CGFloat _omniboxPreferredContentHeight;
 }
 
 - (instancetype)initWithTheme:(ComposeboxTheme*)theme {
@@ -634,19 +634,18 @@ UIImage* CloseButtonImage(UIColor* backgroundColor, BOOL highlighted) {
   CGFloat contentHeight = 0;
   if ([container isKindOfClass:[ComposeboxInputPlateViewController class]]) {
     // If omnibox has no results suggestions, then the input plate should be the
-    // tallest content. Use _omniboxPopupContainer since no way to access
-    // content size of the omnibox popup table view.
+    // tallest content.
     CGFloat tallestHeight =
         _omniboxPopupContainer.hidden
             ? containerHeight + kBlurBottomMargin
-            : std::max(_omniboxPopupContainer.bounds.size.height,
-                       containerHeight + kBlurBottomMargin);
+            : containerHeight + _omniboxPreferredContentHeight;
     contentHeight = tallestHeight;
   } else {
     // Calculate content height knowing the content size of the omnibox popup
     // table view.
+    _omniboxPreferredContentHeight = containerHeight;
     contentHeight = _inputViewController.inputHeight +
-                    std::max(containerHeight, kBlurBottomMargin);
+                    std::max(_omniboxPreferredContentHeight, kBlurBottomMargin);
   }
   CGFloat totalHeight = contentHeight + kInputPlateMargin;
   if (self.preferredContentSize.height != totalHeight) {
@@ -679,6 +678,10 @@ UIImage* CloseButtonImage(UIColor* backgroundColor, BOOL highlighted) {
 
 #pragma mark - OmniboxPopupPresenterDelegate
 
+- (void)popupDidInitializePresenter:(OmniboxPopupPresenter*)presenter {
+  _presenter = presenter;
+}
+
 - (UIView*)popupParentViewForPresenter:(OmniboxPopupPresenter*)presenter {
   return _omniboxPopupContainer;
 }
@@ -689,7 +692,6 @@ UIImage* CloseButtonImage(UIColor* backgroundColor, BOOL highlighted) {
 }
 
 - (UIColor*)popupBackgroundColorForPresenter:(OmniboxPopupPresenter*)presenter {
-  _presenter = presenter;
   return self.view.backgroundColor;
 }
 

@@ -1504,12 +1504,13 @@ TEST_F(FieldFillingPaymentsUtilTest,
                                      .label = u"First Name on Card"},
                                     {.role = CREDIT_CARD_NUMBER,
                                      .label = u"Card Number",
-                                     .is_autofilled = true,
+                                     .value = u"4111111111111111",
                                      .properties_mask = kUserTyped}}});
 
   FormStructure form_structure(form_data);
   test_api(form_structure)
       .SetFieldTypes({CREDIT_CARD_NAME_FIRST, CREDIT_CARD_NUMBER});
+  form_structure.field(1)->AddFieldModifier(FieldModifier::kAutofill);
 
   EXPECT_FALSE(WillFillCreditCardNumberOrCvc(
       form_data.fields(), form_structure.fields(), *form_structure.fields()[0],

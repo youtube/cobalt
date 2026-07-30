@@ -539,10 +539,6 @@ void SoftNavigationHeuristics::ReportSoftNavigationToMetrics(
         .count = soft_navigation_count_,
         .start_time = loader->GetTiming().MonotonicTimeToPseudoWallTime(
             context->TimeOrigin()),
-        .first_contentful_paint =
-            loader->GetTiming().MonotonicTimeToPseudoWallTime(
-                context->FirstContentfulPaint()),
-        .navigation_id = context->NavigationId(),
         .same_document_metrics_token = context->SameDocumentMetricsToken(),
     };
     // This notifies UKM about this soft navigation.

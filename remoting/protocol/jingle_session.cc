@@ -26,16 +26,16 @@
 #include "remoting/base/constants.h"
 #include "remoting/base/source_location.h"
 #include "remoting/protocol/authenticator.h"
-#include "remoting/protocol/content_description.h"
 #include "remoting/protocol/errors.h"
-#include "remoting/protocol/jingle_message_xml_converter.h"
-#include "remoting/protocol/jingle_messages.h"
 #include "remoting/protocol/jingle_session_manager.h"
-#include "remoting/protocol/session_config.h"
 #include "remoting/protocol/session_observer.h"
 #include "remoting/protocol/session_plugin.h"
 #include "remoting/protocol/transport.h"
+#include "remoting/signaling/content_description.h"
 #include "remoting/signaling/iq_sender.h"
+#include "remoting/signaling/jingle_data_structures.h"
+#include "remoting/signaling/jingle_message_xml_converter.h"
+#include "remoting/signaling/session_config.h"
 #include "remoting/signaling/xmpp_constants.h"
 #include "third_party/libjingle_xmpp/xmllite/xmlelement.h"
 #include "third_party/webrtc/api/candidate.h"
@@ -107,7 +107,7 @@ ErrorCode AuthRejectionReasonToErrorCode(
 int GetSequentialId(const std::string& id) {
   std::vector<std::string> tokens =
       SplitString(id, "_", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
-  // Legacy endpoints does not encode the IQ ordering in the ID attribute
+  // Legacy endpoints do not encode the IQ ordering in the ID attribute.
   if (tokens.size() != 2) {
     return kInvalid;
   }
@@ -144,7 +144,6 @@ class JingleSession::OrderedMessageQueue {
 
   // Returns the list of messages ordered by their sequential IDs.
   std::vector<PendingMessage> OnIncomingMessage(
-      const std::string& id,
       PendingMessage&& pending_message);
 
   // Sets the initial ID of the session initiate mefssage.
@@ -160,10 +159,10 @@ class JingleSession::OrderedMessageQueue {
 
 std::vector<JingleSession::PendingMessage>
 JingleSession::OrderedMessageQueue::OnIncomingMessage(
-    const std::string& id,
     JingleSession::PendingMessage&& message) {
   std::vector<JingleSession::PendingMessage> result;
-  int current = GetSequentialId(id);
+  int current =
+      message.message ? GetSequentialId(message.message->message_id) : kInvalid;
   // If there is no sequencing order encoded in the id, just return the
   // message.
   if (current == kInvalid) {
@@ -266,7 +265,6 @@ void JingleSession::StartConnection(
 }
 
 void JingleSession::InitializeIncomingConnection(
-    const std::string& message_id,
     const JingleMessage& initiate_message,
     std::unique_ptr<Authenticator> authenticator) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
@@ -280,7 +278,7 @@ void JingleSession::InitializeIncomingConnection(
       &JingleSession::OnAuthenticatorStateChangeAfterAccepted,
       base::Unretained(this)));
   session_id_ = initiate_message.sid;
-  message_queue_->SetInitialId(message_id);
+  message_queue_->SetInitialId(initiate_message.message_id);
 
   SetState(ACCEPTING);
 
@@ -386,15 +384,12 @@ void JingleSession::SendTransportInfo(
 
   auto message = std::make_unique<JingleMessage>(
       peer_address_, std::move(*transport_info), session_id_);
+  message->message_id = GetNextOutgoingId();
   AddPluginAttachments(message.get());
 
-  std::unique_ptr<jingle_xmpp::XmlElement> stanza =
-      JingleMessageToXml(*message);
-  stanza->AddAttr(kQNameId, GetNextOutgoingId());
-
   auto request = session_manager_->iq_sender()->SendIq(
-      std::move(stanza), base::BindOnce(&JingleSession::OnTransportInfoResponse,
-                                        base::Unretained(this)));
+      *message, base::BindOnce(&JingleSession::OnTransportInfoResponse,
+                               base::Unretained(this)));
   if (request) {
     request->SetTimeout(base::Seconds(kTransportInfoTimeout));
     transport_info_requests_.push_back(std::move(request));
@@ -489,26 +484,24 @@ void JingleSession::SendMessage(std::unique_ptr<JingleMessage> message) {
     // SESSION_TERMINATE message.
     AddPluginAttachments(message.get());
   }
-  std::unique_ptr<jingle_xmpp::XmlElement> stanza =
-      JingleMessageToXml(*message);
-  stanza->AddAttr(kQNameId, GetNextOutgoingId());
+  message->message_id = GetNextOutgoingId();
 
+  JingleMessage::ActionType action = message->action();
   auto request = session_manager_->iq_sender()->SendIq(
-      std::move(stanza),
-      base::BindOnce(&JingleSession::OnMessageResponse, base::Unretained(this),
-                     message->action()));
+      *message, base::BindOnce(&JingleSession::OnMessageResponse,
+                               base::Unretained(this), action));
 
   int timeout = kDefaultMessageTimeout;
-  if (message->action() == JingleMessage::ActionType::kSessionInitiate ||
-      message->action() == JingleMessage::ActionType::kSessionAccept) {
+  if (action == JingleMessage::ActionType::kSessionInitiate ||
+      action == JingleMessage::ActionType::kSessionAccept) {
     timeout = kSessionInitiateAndAcceptTimeout;
   }
   if (request) {
     request->SetTimeout(base::Seconds(timeout));
     pending_requests_.push_back(std::move(request));
   } else {
-    LOG(ERROR) << "Failed to send a "
-               << JingleMessage::GetActionName(message->action()) << " message";
+    LOG(ERROR) << "Failed to send a " << JingleMessage::GetActionName(action)
+               << " message";
   }
 }
 
@@ -581,12 +574,11 @@ void JingleSession::OnTransportInfoResponse(
   }
 }
 
-void JingleSession::OnIncomingMessage(const std::string& id,
-                                      std::unique_ptr<JingleMessage> message,
+void JingleSession::OnIncomingMessage(std::unique_ptr<JingleMessage> message,
                                       ReplyCallback reply_callback) {
   ProcessIncomingPluginMessage(*message);
   std::vector<PendingMessage> ordered = message_queue_->OnIncomingMessage(
-      id, PendingMessage{std::move(message), std::move(reply_callback)});
+      PendingMessage{std::move(message), std::move(reply_callback)});
   base::WeakPtr<JingleSession> self = weak_factory_.GetWeakPtr();
   for (auto& pending_message : ordered) {
     ProcessIncomingMessage(std::move(pending_message.message),

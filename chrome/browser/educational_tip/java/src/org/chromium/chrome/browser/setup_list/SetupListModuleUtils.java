@@ -4,6 +4,8 @@
 
 package org.chromium.chrome.browser.setup_list;
 
+import android.widget.ImageView;
+
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.magic_stack.ModuleDelegate.ModuleType;
@@ -13,11 +15,16 @@ import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.safe_browsing.SafeBrowsingBridge;
 import org.chromium.chrome.browser.safe_browsing.SafeBrowsingState;
 import org.chromium.chrome.browser.signin.services.IdentityServicesProvider;
+import org.chromium.chrome.browser.sync.SyncServiceFactory;
 import org.chromium.chrome.browser.ui.default_browser_promo.DefaultBrowserStateProvider;
 import org.chromium.components.signin.identitymanager.ConsentLevel;
 import org.chromium.components.signin.identitymanager.IdentityManager;
+import org.chromium.components.sync.SyncService;
+import org.chromium.components.sync.UserSelectableType;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 /** Utilities for setup list modules. */
 @NullMarked
@@ -43,10 +50,10 @@ public class SetupListModuleUtils {
 
     /** Returns the list of module types to be registered with the framework. */
     public static List<Integer> getModuleTypesForRegistration(boolean showTwoCell) {
-        if (showTwoCell) {
-            return getTwoCellContainerModuleTypes();
-        }
-        return SetupListManager.BASE_SETUP_LIST_ORDER;
+        List<Integer> modules = new ArrayList<>(SetupListManager.BASE_SETUP_LIST_ORDER);
+        modules.addAll(getTwoCellContainerModuleTypes());
+        modules.add(ModuleType.SETUP_LIST_CELEBRATORY_PROMO);
+        return modules;
     }
 
     /** Returns whether the setup list is active based on the 14-day window. */
@@ -86,17 +93,19 @@ public class SetupListModuleUtils {
     /**
      * Marks the given module type as completed by setting its individual boolean preference key.
      * The {@link SetupListManager} will observe this change and update the ranking automatically.
+     *
+     * @param moduleType The module to mark as completed.
+     * @param silent Whether to bypass the completion animation. If true, the module is reordered
+     *     immediately.
      */
-    public static void setModuleCompleted(@ModuleType int moduleType) {
-        String individualPrefKey = getCompletionKeyForModule(moduleType);
-        if (individualPrefKey != null) {
-            ChromeSharedPreferences.getInstance().writeBoolean(individualPrefKey, true);
-        }
+    public static void setModuleCompleted(@ModuleType int moduleType, boolean silent) {
+        SetupListManager.getInstance().setModuleCompleted(moduleType, silent);
     }
 
     @Nullable
     public static String getCompletionKeyForModule(@ModuleType int type) {
-        if (SetupListManager.isBaseSetupListModule(type)) {
+        if (SetupListManager.isBaseSetupListModule(type)
+                || type == ModuleType.SETUP_LIST_CELEBRATORY_PROMO) {
             return ChromePreferenceKeys.SETUP_LIST_COMPLETED_KEY_PREFIX.createKey(
                     String.valueOf(type));
         }
@@ -130,6 +139,15 @@ public class SetupListModuleUtils {
             case ModuleType.ENHANCED_SAFE_BROWSING_PROMO:
                 return new SafeBrowsingBridge(profile).getSafeBrowsingState()
                         == SafeBrowsingState.ENHANCED_PROTECTION;
+            case ModuleType.HISTORY_SYNC_PROMO:
+                SyncService syncService = SyncServiceFactory.getForProfile(profile);
+                return syncService != null
+                        && syncService
+                                .getSelectedTypes()
+                                .containsAll(
+                                        Set.of(
+                                                UserSelectableType.HISTORY,
+                                                UserSelectableType.TABS));
             default:
                 return false;
         }
@@ -137,7 +155,9 @@ public class SetupListModuleUtils {
 
     /** Resets the completion status of all Setup List modules to incomplete for testing. */
     public static void resetAllModuleCompletionForTesting() {
-        for (int moduleType : SetupListManager.BASE_SETUP_LIST_ORDER) {
+        List<Integer> modules = new ArrayList<>(SetupListManager.BASE_SETUP_LIST_ORDER);
+        modules.add(ModuleType.SETUP_LIST_CELEBRATORY_PROMO);
+        for (int moduleType : modules) {
             String individualPrefKey = getCompletionKeyForModule(moduleType);
             if (individualPrefKey != null) {
                 ChromeSharedPreferences.getInstance().writeBoolean(individualPrefKey, false);
@@ -147,5 +167,27 @@ public class SetupListModuleUtils {
 
     public static void setRankedModuleTypesForTesting(List<Integer> rankedModuleTypes) {
         sRankedModuleTypesForTesting = rankedModuleTypes;
+    }
+
+    /**
+     * Updates an {@link ImageView}'s resource with a fade-out then fade-in animation.
+     *
+     * @param imageView The ImageView to animate.
+     * @param iconResId The new image resource ID.
+     */
+    public static void updateIconWithAnimation(ImageView imageView, int iconResId) {
+        int duration = SetupListManager.STRIKETHROUGH_DURATION_MS / 2;
+        imageView.animate().cancel();
+        imageView.setAlpha(1f);
+        imageView
+                .animate()
+                .alpha(0.5f)
+                .setDuration(duration)
+                .withEndAction(
+                        () -> {
+                            imageView.setImageResource(iconResId);
+                            imageView.animate().alpha(1f).setDuration(duration).start();
+                        })
+                .start();
     }
 }

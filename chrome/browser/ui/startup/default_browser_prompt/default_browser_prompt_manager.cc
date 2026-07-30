@@ -34,16 +34,29 @@ using default_browser::DefaultBrowserPromptSurface;
 bool ShouldShowPrompts() {
   PrefService* local_state = g_browser_process->local_state();
 
-  const int declined_count =
-      local_state->GetInteger(prefs::kDefaultBrowserDeclinedCount);
-  const base::Time last_declined_time =
-      local_state->GetTime(prefs::kDefaultBrowserLastDeclinedTime);
+  int declined_count =
+      local_state->GetInteger(prefs::kDefaultBrowserInfobarDeclinedCount);
+  base::Time last_declined_time =
+      local_state->GetTime(prefs::kDefaultBrowserInfobarLastDeclinedTime);
 
   constexpr int kMaxPromptCount = 5;
   constexpr int kRepromptDurationDays = 21;
 
   int max_prompt_count = kMaxPromptCount;
   int reprompt_duration_days = kRepromptDurationDays;
+
+  if (default_browser::IsDefaultBrowserPromptSurfacesEnabled()) {
+    declined_count =
+        local_state->GetInteger(prefs::kDefaultBrowserDeclinedCount);
+    last_declined_time =
+        local_state->GetTime(prefs::kDefaultBrowserLastDeclinedTime);
+
+    constexpr int kFrameworkMaxPromptCount = 5;
+    constexpr int kFrameworkRepromptDurationDays = 14;
+
+    max_prompt_count = kFrameworkMaxPromptCount;
+    reprompt_duration_days = kFrameworkRepromptDurationDays;
+  }
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
   if (base::FeatureList::IsEnabled(features::kSeparateDefaultAndPinPrompt)) {
@@ -66,6 +79,19 @@ bool ShouldShowPrompts() {
   // Show if it has been long enough since the last declined time
   return (base::Time::Now() - last_declined_time) >
          base::Days(reprompt_duration_days);
+}
+
+DefaultBrowserPromptSurface GetPromptSurface() {
+  constexpr int kExperimentSurfaceMaxDeclines = 3;
+
+  PrefService* local_state = g_browser_process->local_state();
+  const int decline_count =
+      local_state->GetInteger(prefs::kDefaultBrowserDeclinedCount);
+
+  if (decline_count >= kExperimentSurfaceMaxDeclines) {
+    return DefaultBrowserPromptSurface::kInfobar;
+  }
+  return default_browser::GetDefaultBrowserPromptSurface();
 }
 
 }  // namespace
@@ -116,8 +142,7 @@ void DefaultBrowserPromptManager::OnCanPinToTaskbarResult(
 }
 
 void DefaultBrowserPromptManager::ShowPrompts(bool can_pin_to_taskbar) {
-  DefaultBrowserPromptSurface prompt_surface =
-      default_browser::GetDefaultBrowserPromptSurface();
+  DefaultBrowserPromptSurface prompt_surface = GetPromptSurface();
 
   switch (prompt_surface) {
     case DefaultBrowserPromptSurface::kInfobar:

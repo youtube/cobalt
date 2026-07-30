@@ -30,7 +30,6 @@
 #include "chrome/browser/ui/tabs/tab_strip_scrubbing_metrics.h"
 #include "chrome/browser/ui/tabs/tab_strip_user_gesture_details.h"
 #include "chrome/common/buildflags.h"
-#include "chrome/common/chrome_features.h"
 #include "components/sessions/core/session_id.h"
 #include "components/tab_groups/tab_group_id.h"
 #include "components/tab_groups/tab_group_visual_data.h"
@@ -771,6 +770,7 @@ class TabStripModel {
     CommandCopyURL,
     CommandGoBack,
     CommandCloseAllTabs,
+    CommandToggleVertical,
 #if BUILDFLAG(ENABLE_GLIC)
     CommandGlicShareLimit,
     CommandGlicStartShare,

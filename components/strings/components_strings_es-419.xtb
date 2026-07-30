@@ -1060,6 +1060,7 @@ De lo contrario, la configuración de privacidad bloqueará esta acción. Esto p
 <translation id="2674524144218093528">Pintura y terminaciones para casas</translation>
 <translation id="26774279487328902"><ph name="GROUP_COUNT" /> grupos de pestañas ya no están disponibles</translation>
 <translation id="2677748264148917807">Abandonar</translation>
+<translation id="2679659833697380">Tu información se guarda en tu dispositivo</translation>
 <translation id="2683195745483370038">Se encontraron otros resultados</translation>
 <translation id="2686919536310834199">Envía comentarios sobre Ayúdame a escribir.</translation>
 <translation id="2687555958734450033">Ajustar tamaño</translation>
@@ -2562,7 +2563,7 @@ De lo contrario, la configuración de privacidad bloqueará esta acción. Esto p
 <translation id="5097099694988056070">Estadísticas del dispositivo, como el uso de CPU/RAM</translation>
 <translation id="5097468150760963273">68.58 × 99.06 cm</translation>
 <translation id="5097501891273180634">A2</translation>
-<translation id="5102512728737175215">Presionar Tab y, luego, Intro para preguntar al Modo IA</translation>
+<translation id="5102512728737175215">Presionar Tab y luego Intro para preguntar al Modo IA</translation>
 <translation id="5105442806410269908">Administrar otros datos de Google</translation>
 <translation id="510644072453496781">Cartón (terminación)</translation>
 <translation id="5106648964679263509">Se completó la tarjeta virtual para <ph name="BNPL_ISSUER_NAME" /></translation>
@@ -2575,6 +2576,7 @@ De lo contrario, la configuración de privacidad bloqueará esta acción. Esto p
 <translation id="5114987907971894280">realidad virtual</translation>
 <translation id="5115232566827194440">Anulación de la sesión de invitado administrada y restringida</translation>
 <translation id="5115563688576182185">(64 bits)</translation>
+<translation id="5116015291385561204">Verificar tu identidad para autocompletar información sensible</translation>
 <translation id="5120526915373271910">Películas para la familia</translation>
 <translation id="5122786942953798871">Sobre (algodón)</translation>
 <translation id="5123063207673082822">Fin de semana</translation>
@@ -3975,6 +3977,7 @@ Detalles adicionales:
 <translation id="7372973238305370288">resultado de búsqueda</translation>
 <translation id="7374461526650987610">Controladores de protocolos</translation>
 <translation id="7374733840632556089">Se produjo este problema debido a un certificado que tú o alguien más instaló en el dispositivo. El certificado se usa para interceptar y supervisar redes, y no es de confianza para Chrome. Si bien existen usos legítimos de la supervisión, como en el caso de redes de empresas o instituciones educativas, Chrome quiere asegurarse de que estás al tanto de esta situación, aunque no puedas impedirlo. La supervisión puede ocurrir en cualquier navegador o app que acceda a la Web.</translation>
+<translation id="73750335798090836">Para obtener una protección adicional, usa siempre tu huella dactilar, rostro o algún otro tipo de bloqueo de pantalla cuando uses información sensible, como documentos de viaje y de identidad</translation>
 <translation id="7375532151824574023">{NUM_COOKIES,plural, =0{No se permiten sitios}=1{Se permite 1 sitio}other{Se permiten # sitios}}</translation>
 <translation id="7375818412732305729">Se adjuntó un archivo</translation>
 <translation id="7376031331622621328">Hoja inferior del comercio</translation>
@@ -4231,6 +4234,7 @@ Detalles adicionales:
 <translation id="7714404809393719981">Foto (semibrillante)</translation>
 <translation id="7714424966701020172">Se seleccionó la opción para completar todo el nombre</translation>
 <translation id="7714464543167945231">Certificado</translation>
+<translation id="7714943438925794410">El contenido de la página de confirmación de compra se comparte con Google para ofrecer estas opciones. Para ocultar las opciones de pago más tarde en el autocompletado, ve a <ph name="IDS_AUTOFILL_CARD_BNPL_SELECT_PROVIDER_FOOTNOTE_HIDE_OPTION_PAYMENT_SETTINGS_LINK_TEXT" />.</translation>
 <translation id="7716147886133743102">Bloqueado por tu administrador</translation>
 <translation id="7716375162095500223">Se omitió o aún no se cargó</translation>
 <translation id="7716424297397655342">No se puede cargar este sitio desde la caché</translation>
@@ -4313,6 +4317,7 @@ Detalles adicionales:
 <translation id="7862306158978555061">mostrar información sensible</translation>
 <translation id="7865448901209910068">Mejor velocidad</translation>
 <translation id="7865482168955081228">Se cerró la pantalla de error de Compra ahora y paga después.</translation>
+<translation id="7870207318911766769">El contenido de la página de confirmación de compra se comparte con Google para ofrecer estas opciones.</translation>
 <translation id="7870281855125116701">Se encontró un descuento</translation>
 <translation id="7871445724586827387">Cambiar la contraseña de tu Cuenta de Google</translation>
 <translation id="787226752901403048">Accede a Chrome para compartir y unirte a grupos de pestañas, y trabajar en ideas de forma colaborativa</translation>

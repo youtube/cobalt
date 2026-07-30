@@ -97,8 +97,9 @@ void MaybePopulateBrowserTabInputTypeRule(omnibox::SearchboxConfig* config) {
 
 InputStateModel::InputStateModel(
     contextual_search::ContextualSearchSessionHandle& session_handle,
-    const SearchboxConfig& config)
-    : session_handle_(session_handle) {
+    const SearchboxConfig& config,
+    bool is_off_the_record)
+    : session_handle_(session_handle), is_off_the_record_(is_off_the_record) {
   SearchboxConfig mutable_config = config;
   MaybePopulateBrowserTabInputTypeRule(&mutable_config);
 
@@ -109,6 +110,10 @@ InputStateModel::InputStateModel(
     state_.allowed_tools.reserve(rule_set_.allowed_tools().size());
     for (const auto& tool : rule_set_.allowed_tools()) {
       if (tool == omnibox::ToolMode::TOOL_MODE_IMAGE_GEN_UPLOAD) {
+        continue;
+      }
+      if (is_off_the_record_ &&
+          tool == omnibox::ToolMode::TOOL_MODE_IMAGE_GEN) {
         continue;
       }
       state_.allowed_tools.push_back(static_cast<omnibox::ToolMode>(tool));
@@ -129,6 +134,10 @@ InputStateModel::InputStateModel(
     state_.model_configs.reserve(mutable_config.model_configs_size());
     for (const auto& model_config : mutable_config.model_configs()) {
       state_.model_configs.push_back(model_config);
+    }
+    state_.input_type_configs.reserve(mutable_config.input_type_configs_size());
+    for (const auto& input_type_config : mutable_config.input_type_configs()) {
+      state_.input_type_configs.push_back(input_type_config);
     }
     if (mutable_config.has_tools_section_config()) {
       state_.tools_section_config = mutable_config.tools_section_config();
@@ -176,7 +185,8 @@ InputStateModel::InputStateModel(
 InputStateModel::InputStateModel(
     const InputStateModel& new_input_state_model,
     contextual_search::ContextualSearchSessionHandle& new_session_handle)
-    : session_handle_(new_session_handle) {
+    : session_handle_(new_session_handle),
+      is_off_the_record_(new_input_state_model.is_off_the_record_) {
   state_ = new_input_state_model.state_;
   rule_set_ = new_input_state_model.rule_set_;
 }
@@ -284,7 +294,7 @@ void InputStateModel::OnContextChanged() {
     if (std::find(current_inputs.begin(), current_inputs.end(),
                   omnibox::InputType::INPUT_TYPE_LENS_IMAGE) ==
         current_inputs.end()) {
-      state_.image_gen_upload_active = false;
+      state_.image_gen_upload_active = true;
     }
   }
 
@@ -443,11 +453,13 @@ void InputStateModel::UpdateDisabledInputTypes() {
 
   for (const auto& input_type : state_.allowed_input_types) {
     bool input_limit_reached = false;
-    if (limits.count(input_type)) {
-      int limit = limits.at(input_type);
-      if (limit > 0 && current_input_counts.count(input_type) &&
-          current_input_counts.at(input_type) >= limit) {
-        input_limit_reached = true;
+    if (auto limits_it = limits.find(input_type); limits_it != limits.end()) {
+      int limit = limits_it->second;
+      if (limit > 0) {
+        if (auto it = current_input_counts.find(input_type);
+            it != current_input_counts.end() && it->second >= limit) {
+          input_limit_reached = true;
+        }
       }
     }
 
@@ -477,21 +489,34 @@ void InputStateModel::updateDisabledState() {
 
 std::map<std::string, std::string> InputStateModel::GetAdditionalQueryParams() {
   std::map<std::string, std::string> additional_params;
-  switch (state_.active_tool) {
-    case omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH:
-      additional_params["dr"] = "1";
-      break;
-    case omnibox::ToolMode::TOOL_MODE_CANVAS:
-      additional_params["rc"] = "1";
-      break;
-    case omnibox::ToolMode::TOOL_MODE_IMAGE_GEN:
-    case omnibox::ToolMode::TOOL_MODE_IMAGE_GEN_UPLOAD:
-      additional_params["imgn"] = "1";
-      break;
-    default:
-      break;
+  if (state_.active_tool != omnibox::ToolMode::TOOL_MODE_UNSPECIFIED) {
+    const auto tool_it =
+        std::find_if(state_.tool_configs.begin(), state_.tool_configs.end(),
+                     [&](const omnibox::ToolConfig& config) {
+                       return config.tool() == state_.active_tool;
+                     });
+    if (tool_it != state_.tool_configs.end()) {
+      for (const auto& param : tool_it->aim_url_params()) {
+        additional_params[param.param_key()] = param.param_value();
+      }
+    }
   }
-
+  if (state_.active_model != omnibox::ModelMode::MODEL_MODE_UNSPECIFIED) {
+    const auto model_it =
+        std::find_if(state_.model_configs.begin(), state_.model_configs.end(),
+                     [&](const omnibox::ModelConfig& config) {
+                       return config.model() == state_.active_model;
+                     });
+    if (model_it != state_.model_configs.end()) {
+      for (const auto& param : model_it->aim_url_params()) {
+        additional_params[param.param_key()] = param.param_value();
+      }
+    }
+  } else {
+    // If no model is selected, add a default param to indicate that the query
+    // is an AIM query.
+    additional_params["udm"] = "50";
+  }
   return additional_params;
 }
 

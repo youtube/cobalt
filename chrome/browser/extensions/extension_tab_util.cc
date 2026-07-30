@@ -157,7 +157,7 @@ int GetTabIdForExtensions(WebContents& web_contents) {
 
 bool IsFileUrl(const GURL& url) {
   return url.SchemeIsFile() || (url.SchemeIs(content::kViewSourceScheme) &&
-                                GURL(url.GetContent()).SchemeIsFile());
+                                GURL(url.GetContentPiece()).SchemeIsFile());
 }
 
 ExtensionTabUtil::ScrubTabBehaviorType GetScrubTabBehaviorImpl(
@@ -322,17 +322,17 @@ WindowController* ExtensionTabUtil::GetControllerInProfileWithId(
     int window_id,
     bool also_match_incognito_profile,
     std::string* error_message) {
-  Profile* incognito_profile =
+  const Profile* incognito_profile =
       also_match_incognito_profile
           ? profile->GetPrimaryOTRProfile(/*create_if_needed=*/false)
           : nullptr;
-  for (auto* browser : GetAllBrowserWindowInterfaces()) {
-    if ((browser->GetProfile() == profile ||
-         browser->GetProfile() == incognito_profile)) {
-      WindowController* controller = WindowControllerFromBrowser(browser);
-      if (controller->GetWindowId() == window_id) {
-        return controller;
-      }
+  for (WindowController* window_controller :
+       *WindowControllerList::GetInstance()) {
+    const Profile* controller_profile = window_controller->profile();
+    if ((controller_profile == profile ||
+         controller_profile == incognito_profile) &&
+        window_controller->GetWindowId() == window_id) {
+      return window_controller;
     }
   }
 
@@ -416,7 +416,11 @@ api::tabs::Tab ExtensionTabUtil::CreateTabObject(
 
   tab_object.audible = get_audible();
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(IS_ANDROID)
+  tab_object.discarded = contents->WasDiscarded();
+  // TODO(crbug.com/371432155): Determine auto-discardable and frozen states on
+  // desktop Android where the TabLifecycleUnit is not available.
+#else
   auto* tab_lifecycle_unit_external =
       resource_coordinator::TabLifecycleUnitExternal::FromWebContents(contents);
 
@@ -434,7 +438,7 @@ api::tabs::Tab ExtensionTabUtil::CreateTabObject(
   tab_object.frozen = tab_lifecycle_unit_external &&
                       tab_lifecycle_unit_external->GetTabState() ==
                           ::mojom::LifecycleUnitState::FROZEN;
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
+#endif  // BUILDFLAG(IS_ANDROID)
 
   tab_object.muted_info = CreateMutedInfo(contents);
 
@@ -1373,8 +1377,14 @@ bool ExtensionTabUtil::IsTabStripEditable() {
 
   // See comments in the header for why we need to check all of them.
   for (WindowController* window : *WindowControllerList::GetInstance()) {
+    BrowserWindowInterface* browser_window_interface =
+        window->GetBrowserWindowInterface();
+    // browser_window_interface can be null for non-browser windows on ChromeOS.
+    if (!browser_window_interface) {
+      continue;
+    }
     TabListInterface* tab_list =
-        TabListInterface::From(window->GetBrowserWindowInterface());
+        TabListInterface::From(browser_window_interface);
     if (tab_list && !tab_list->IsThisTabListEditable()) {
       return false;
     }

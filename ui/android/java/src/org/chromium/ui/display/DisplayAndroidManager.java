@@ -103,6 +103,7 @@ public class DisplayAndroidManager {
     }
 
     private static @Nullable DisplayAndroidManager sDisplayAndroidManager;
+    private static @Nullable Display sDefaultDisplayForContextForTesting;
 
     private static boolean sDisableHdrSdkRatioCallback;
     private static @Nullable Boolean sIsDisplayTopologyAvailable;
@@ -144,7 +145,16 @@ public class DisplayAndroidManager {
         sDisableHdrSdkRatioCallback = true;
     }
 
+    /** Sets the default display for the given context for testing purposes. */
+    public static void setDefaultDisplayForContextForTesting(Display display) {
+        sDefaultDisplayForContextForTesting = display;
+        ResettersForTesting.register(() -> sDefaultDisplayForContextForTesting = null);
+    }
+
     public static Display getDefaultDisplayForContext(Context context) {
+        if (sDefaultDisplayForContextForTesting != null) {
+            return sDefaultDisplayForContextForTesting;
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             Display display = null;
             try {
@@ -262,11 +272,17 @@ public class DisplayAndroidManager {
 
     /* package */ DisplayAndroid getDisplayAndroid(Display display) {
         int sdkDisplayId = display.getDisplayId();
-        DisplayAndroid displayAndroid = mIdMap.get(sdkDisplayId);
-        if (displayAndroid == null) {
-            displayAndroid = addDisplay(display, null);
+
+        // 1. Synchronize access to the map
+        synchronized (mIdMap) {
+            DisplayAndroid displayAndroid = mIdMap.get(sdkDisplayId);
+
+            // 2. Only if it is STILL null, proceed to add
+            if (displayAndroid == null) {
+                displayAndroid = addDisplay(display, null);
+            }
+            return displayAndroid;
         }
-        return displayAndroid;
     }
 
     private DisplayAndroid addDisplay(Display display, @Nullable RectF displayAbsoluteCoordinates) {

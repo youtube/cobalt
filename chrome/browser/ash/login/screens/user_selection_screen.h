@@ -11,6 +11,7 @@
 
 #include "ash/public/cpp/token_handle_store.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ref.h"
 #include "base/scoped_observation.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
@@ -26,6 +27,12 @@
 #include "ui/base/ime/ash/input_method_manager.h"
 
 class AccountId;
+class ApplicationLocaleStorage;
+class PrefService;
+
+namespace policy {
+class BrowserPolicyConnectorAsh;
+}  // namespace policy
 
 namespace ash {
 
@@ -42,7 +49,13 @@ class UserSelectionScreen
       public PasswordSyncTokenLoginChecker::Observer,
       public UserOnlineSigninNotifier::Observer {
  public:
-  explicit UserSelectionScreen(DisplayedScreen display_type);
+  // `local_state`, `application_locale_storage`, and
+  // `browser_policy_connector_ash` must be non-null and must outlive `this`.
+  UserSelectionScreen(
+      PrefService* local_state,
+      const ApplicationLocaleStorage* application_locale_storage,
+      const policy::BrowserPolicyConnectorAsh* browser_policy_connector_ash,
+      DisplayedScreen display_type);
 
   UserSelectionScreen(const UserSelectionScreen&) = delete;
   UserSelectionScreen& operator=(const UserSelectionScreen&) = delete;
@@ -99,6 +112,11 @@ class UserSelectionScreen
   void SetUsersLoaded(bool loaded);
 
  protected:
+  const raw_ref<PrefService> local_state_;
+  const raw_ref<const ApplicationLocaleStorage> application_locale_storage_;
+  const raw_ref<const policy::BrowserPolicyConnectorAsh>
+      browser_policy_connector_ash_;
+
   raw_ptr<UserBoardView> view_ = nullptr;
 
   // Map from public session account IDs to recommended locales set by policy.

@@ -710,7 +710,7 @@ serialization and deserialization. 😄
 // In url_gurl_mojom_traits.h:
 template <>
 struct StructTraits<url::mojom::UrlDataView, GURL> {
-  static base::StringPiece url(const GURL& r);
+  static std::string_view url(const GURL& r);
 
   // If Read() returns false, Mojo will discard the message.
   static bool Read(url::mojom::UrlDataView data, GURL* out);
@@ -719,19 +719,19 @@ struct StructTraits<url::mojom::UrlDataView, GURL> {
 // In url_gurl_mojom_traits.cc:
 // Note that methods that aren't simple getters should be defined
 // out-of-line to avoid code bloat.
-base::StringPiece StructTraits<url::mojom::UrlDataView, GURL>::url(
+std::string_view StructTraits<url::mojom::UrlDataView, GURL>::url(
     const GURL& r) {
   if (r.possibly_invalid_spec().length() > url::kMaxURLChars ||
       !r.is_valid()) {
-    return base::StringPiece();
+    return std::string_view();
   }
-  return base::StringPiece(r.possibly_invalid_spec().c_str(),
-                           r.possibly_invalid_spec().length());
+  return std::string_view(r.possibly_invalid_spec().c_str(),
+                          r.possibly_invalid_spec().length());
 }
 
 bool StructTraits<url::mojom::UrlDataView, GURL>::Read(
     url::mojom::UrlDataView data, GURL* out) {
-  base::StringPiece url_string;
+  std::string_view url_string;
   if (!data.ReadUrl(&url_string))
     return false;
   if (url_string.length() > url::kMaxURLChars)
@@ -843,8 +843,51 @@ process sending bad input, et cetera.
     being dispatched on the stack.
 *   `mojo::GetBadMessageCallback()`: use to generate a callback to report bad
     IPC input. The callback must be generated while a message is being
-    dispatched on the stack; however, the returned callback may be invoked be
-    freely invoked in asynchronously posted callbacks.
+    dispatched on the stack; however, the returned callback may be freely
+    invoked in asynchronously posted callbacks.
+
+### ReportBadMessage vs CHECK
+
+Questions often arise about when to use `mojo::ReportBadMessage()` versus
+`CHECK()` (or `DCHECK()`) in Mojo method implementations. The decision primarily
+depends on whether the sender is trusted or untrusted.
+
+#### Untrusted Sender (e.g. Renderer -> Browser)
+
+When the sender is untrusted (e.g. a renderer process for regular pages or
+chrome-untrusted:// WebUIs), **never use `CHECK()` to validate the message
+content or the state prerequisites**. A compromised sender can trigger a
+`CHECK()` to crash the receiving process (e.g. the browser), creating a
+Denial-of-Service abuse.
+
+Instead, use `mojo::Receiver::ReportBadMessage()` (or `mojo::ReportBadMessage`)
+for both:
+
+*   **Message Validation**: The arguments are invalid (e.g. logical
+    inconsistencies not caught by Mojo bindings).
+*   **State Validation**: The message is valid but received at the wrong time
+    (e.g. `DoPostInitWork()` called before `Init()`).
+
+**Important**: `ReportBadMessage()` does *not* stop execution of the current
+function. **You must manually `return` immediately after calling it.** Failure
+to do so can lead to crashes or other bugs if the code continues to run with
+invalid state. A surprisingly common bug is reporting a bad message but
+erroneously continuing onwards: https://crbug.com/1285384
+
+Under the hood, `ReportBadMessage()` executes the `BadMessageCallback`
+associated with the current message dispatch. For renderer-to-browser IPC, this
+terminates the renderer process.
+
+#### Trusted Sender (e.g. Browser -> Renderer, Trusted WebUI -> Browser)
+
+When the sender is trusted, `CHECK()` is acceptable and often preferred. If a
+trusted sender sends a malformed message or violates a state invariant, it
+indicates a bug in the trusted sender. `CHECK()` is appropriate to identify
+such bugs.
+
+For example, Top Chrome WebUIs (chrome://) are generally considered trusted. If
+`PageHandler::DoPostInitWork()` is called before `Init()`, it is a bug in the
+WebUI implementation, and `CHECK()` is appropriate.
 
 
 ## Java Best Practices

@@ -10,7 +10,6 @@
 
 #include "base/android/callback_android.h"
 #include "base/android/jni_array.h"
-#include "base/android/jni_callback.h"
 #include "base/android/jni_string.h"
 #include "base/android/token_android.h"
 #include "base/functional/bind.h"
@@ -98,10 +97,10 @@ void StorageLoadedDataAndroid::Destroy(JNIEnv* env) {
 void StorageLoadedDataAndroid::OnTabRejected(JNIEnv* env, int tab_android_id) {
   RestoreEntityTrackerAndroid* tracker =
       static_cast<RestoreEntityTrackerAndroid*>(data_->GetTracker());
-  std::optional<StorageId> parent_id =
-      tracker->GetParentIdForTab(tab_android_id);
-  if (parent_id.has_value()) {
-    GetData()->NotifyChildRejected(*parent_id);
+  std::optional<StorageId> node_id =
+      tracker->GetStorageIdForTab(tab_android_id);
+  if (node_id.has_value()) {
+    GetData()->NotifyNodeRejected(*node_id);
   }
 }
 

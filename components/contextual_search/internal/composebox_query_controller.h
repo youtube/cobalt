@@ -100,6 +100,8 @@ class ComposeboxQueryController
   const contextual_search::FileInfo* GetFileInfo(
       const base::UnguessableToken& file_token) override;
   std::vector<const contextual_search::FileInfo*> GetFileInfoList() override;
+  std::optional<base::UnguessableToken> FindTokenForInjectedInput(
+      const std::string& id) override;
   base::WeakPtr<ContextualSearchContextController> AsWeakPtr() override;
 
   // Returns a request id to use for the viewport image upload request for the
@@ -280,6 +282,12 @@ class ComposeboxQueryController
     // Returns the sequence ID of the request this data belongs to. Used
     // for cancelling any requests that have been superseded by another.
     int sequence_id() const { return request_id_->sequence_id(); }
+
+    // Returns true if the request is a region interaction request.
+    bool has_image_crop() const {
+      return request_ && request_->has_interaction_request() &&
+             request_->interaction_request().has_image_crop();
+    }
 
     // The request ID for this request.
     const std::unique_ptr<lens::LensOverlayRequestId> request_id_;

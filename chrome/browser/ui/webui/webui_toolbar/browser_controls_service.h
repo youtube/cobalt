@@ -14,7 +14,7 @@
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
-#include "mojo/public/cpp/bindings/remote.h"
+#include "mojo/public/cpp/bindings/remote_set.h"
 #include "ui/base/models/menu_model.h"
 #include "ui/base/mojom/menu_source_type.mojom-shared.h"
 #include "ui/views/controls/menu/menu_runner.h"
@@ -37,6 +37,9 @@ class BrowserControlsService
         gfx::Point viewport_coordinate_css_pixels,
         ui::mojom::MenuSourceType source) = 0;
     virtual void OnPageInitialized() = 0;
+    virtual void PermitLaunchUrl() = 0;
+    virtual browser_controls_api::mojom::NavigationControlsStatePtr
+    GetNavigationControlsState() = 0;
   };
 
   BrowserControlsService(
@@ -52,18 +55,10 @@ class BrowserControlsService
 
   ~BrowserControlsService() override;
 
-  void OnDevToolsStatusChanged(
-      browser_controls_api::mojom::DevToolsState state);
-  void OnNavigationStatusChanged(
-      browser_controls_api::mojom::NavigationState state);
-  void OnContextMenuStateChanged(
-      browser_controls_api::mojom::ContextMenuType menu_type,
-      browser_controls_api::mojom::ContextMenuState state);
+  void SetDelegate(BrowserControlsServiceDelegate* delegate);
 
   // browser_controls_api::mojom::BrowserControlsService:
-  void AddObserver(
-      mojo::PendingRemote<browser_controls_api::mojom::BrowserControlsObserver>
-          observer) override;
+  void Bind(BindCallback callback) override;
   void ReloadFromClick(
       bool bypass_cache,
       const std::vector<browser_controls_api::mojom::ClickDispositionFlag>&
@@ -74,19 +69,9 @@ class BrowserControlsService
                        ui::mojom::MenuSourceType source) override;
   void OnPageInitialized() override;
   void SplitActiveTab() override;
-  void GetTabSplitState(GetTabSplitStateCallback callback) override;
-  void GetButtonPinState(browser_controls_api::mojom::ToolbarButtonType type,
-                         GetButtonPinStateCallback callback) override;
 
-  // Updates the split status of the active tab in the renderer.
-  void OnTabSplitStatusChanged(
-      bool is_split,
-      browser_controls_api::mojom::SplitTabActiveLocation location);
-
-  // Updates the pin state of the specified button in the renderer.
-  void OnButtonPinStateChanged(
-      browser_controls_api::mojom::ToolbarButtonType type,
-      bool is_pinned);
+  void OnNavigationControlsStateChanged(
+      browser_controls_api::mojom::NavigationControlsStatePtr state);
 
  private:
   // Returns the MetricsReporter associated with `web_contents_` or nullptr.
@@ -104,7 +89,8 @@ class BrowserControlsService
                                    base::TimeDelta duration);
 
   mojo::Receiver<browser_controls_api::mojom::BrowserControlsService> service_;
-  mojo::Remote<browser_controls_api::mojom::BrowserControlsObserver> observer_;
+  mojo::RemoteSet<browser_controls_api::mojom::BrowserControlsObserver>
+      observers_;
 
   // Not owned.
   const raw_ptr<content::WebContents> web_contents_;

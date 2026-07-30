@@ -96,14 +96,15 @@
 #include "components/data_sharing/public/features.h"
 #include "components/guest_contents/common/guest_contents.mojom.h"
 #include "components/history_clusters/core/history_clusters_service.h"
-#include "components/legion/features.h"
 #include "components/lens/lens_features.h"
 #include "components/omnibox/browser/searchbox.mojom.h"
 #include "components/omnibox/common/omnibox_features.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
 #include "components/page_image_service/mojom/page_image_service.mojom.h"
 #include "components/privacy_sandbox/privacy_sandbox_features.h"
+#include "components/private_ai/features.h"
 #include "components/search/ntp_features.h"
+#include "components/surface_embed/buildflags/buildflags.h"
 #include "components/sync/base/features.h"
 #include "components/user_education/common/user_education_features.h"
 #include "content/public/browser/render_frame_host.h"
@@ -194,6 +195,12 @@
 #include "chrome/browser/default_browser/default_browser_features.h"
 #include "chrome/browser/ui/webui/default_browser/default_browser_modal.mojom.h"
 #include "chrome/browser/ui/webui/default_browser/default_browser_modal_ui.h"
+#endif
+
+#if BUILDFLAG(ENABLE_SURFACE_EMBED)
+#include "components/surface_embed/browser/surface_embed_host.h"
+#include "components/surface_embed/common/features.h"
+#include "components/surface_embed/common/surface_embed.mojom.h"
 #endif
 
 namespace chrome::internal {
@@ -496,6 +503,22 @@ void PopulateChromeWebUIFrameBindersPartsDesktop(
 
   map->Add<color_change_listener::mojom::PageHandler>(&BindColorChangeListener);
 
+#if BUILDFLAG(ENABLE_SURFACE_EMBED)
+  if (base::FeatureList::IsEnabled(surface_embed::features::kSurfaceEmbed)) {
+    map->Add<surface_embed::mojom::SurfaceEmbedHost>(base::BindRepeating(
+        [](content::RenderFrameHost* render_frame_host,
+           mojo::PendingReceiver<surface_embed::mojom::SurfaceEmbedHost>
+               receiver) {
+          auto* web_ui = render_frame_host->GetWebUI();
+          if (!web_ui || !web_ui->GetController()->GetAs<WebUIBrowserUI>()) {
+            return;
+          }
+          surface_embed::SurfaceEmbedHost::Create(render_frame_host,
+                                                  std::move(receiver));
+        }));
+  }
+#endif  // BUILDFLAG(ENABLE_SURFACE_EMBED)
+
   RegisterWebUIControllerInterfaceBinder<::mojom::WebAppInternalsHandler,
                                          WebAppInternalsUI>(map);
   if (base::FeatureList::IsEnabled(
@@ -564,7 +587,7 @@ void PopulateChromeWebUIFrameBindersPartsDesktop(
                                          webapps::AppHomeUI>(map);
 #endif
 
-  if (base::FeatureList::IsEnabled(legion::kLegion)) {
+  if (base::FeatureList::IsEnabled(private_ai::kPrivateAi)) {
     RegisterWebUIControllerInterfaceBinder<
         legion_internals::mojom::LegionInternalsPageHandler, LegionInternalsUI>(
         map);

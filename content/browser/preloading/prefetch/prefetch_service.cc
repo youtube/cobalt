@@ -26,13 +26,14 @@
 #include "content/browser/preloading/prefetch/prefetch_document_manager.h"
 #include "content/browser/preloading/prefetch/prefetch_features.h"
 #include "content/browser/preloading/prefetch/prefetch_handle_impl.h"
+#include "content/browser/preloading/prefetch/prefetch_isolated_network_context.h"
 #include "content/browser/preloading/prefetch/prefetch_match_resolver.h"
-#include "content/browser/preloading/prefetch/prefetch_network_context.h"
 #include "content/browser/preloading/prefetch/prefetch_network_context_client.h"
 #include "content/browser/preloading/prefetch/prefetch_origin_prober.h"
 #include "content/browser/preloading/prefetch/prefetch_params.h"
 #include "content/browser/preloading/prefetch/prefetch_proxy_configurator.h"
 #include "content/browser/preloading/prefetch/prefetch_request.h"
+#include "content/browser/preloading/prefetch/prefetch_resource_request_utils.h"
 #include "content/browser/preloading/prefetch/prefetch_scheduler.h"
 #include "content/browser/preloading/prefetch/prefetch_servable_state.h"
 #include "content/browser/preloading/prefetch/prefetch_service.h"
@@ -65,7 +66,6 @@
 #include "net/http/http_request_headers.h"
 #include "net/http/http_status_code.h"
 #include "net/http/http_util.h"
-#include "net/traffic_annotation/network_traffic_annotation.h"
 #include "services/cert_verifier/public/mojom/cert_verifier_service_factory.mojom.h"
 #include "services/network/public/cpp/is_potentially_trustworthy.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
@@ -413,7 +413,7 @@ base::WeakPtr<PrefetchContainer> PrefetchService::AddPrefetchRequestInternal(
       return Action::kReplaceOldWithNew;
     }
 
-    switch (prefetch_container_old.GetServableState()) {
+    switch (prefetch_container_old.GetMatchResolverAction().ToServableState()) {
       case PrefetchServableState::kNotServable:
         return Action::kReplaceOldWithNew;
       case PrefetchServableState::kShouldBlockUntilEligibilityGot:
@@ -583,27 +583,9 @@ bool PrefetchService::IsPrefetchStale(
     return true;
   }
 
-  // `PrefetchContainer::LoadState` check.
-  switch (prefetch_container->GetLoadState()) {
-    case PrefetchContainer::LoadState::kFailedIneligible:
-    case PrefetchContainer::LoadState::kFailedHeldback:
-      return true;
-    case PrefetchContainer::LoadState::kNotStarted:
-    case PrefetchContainer::LoadState::kEligible:
-    case PrefetchContainer::LoadState::kStarted:
-    case PrefetchContainer::LoadState::kDeterminedHead:
-    case PrefetchContainer::LoadState::kFailedDeterminedHead:
-    case PrefetchContainer::LoadState::kCompleted:
-    case PrefetchContainer::LoadState::kFailed:
-      break;
-  }
-
-  // `PrefetchServableState` check.
-  PrefetchServableState servable_state = prefetch_container->GetServableState();
-  if (servable_state == PrefetchServableState::kNotServable) {
-    return true;
-  }
-  return false;
+  PrefetchServableState servable_state =
+      prefetch_container->GetMatchResolverAction().ToServableState();
+  return servable_state == PrefetchServableState::kNotServable;
 }
 
 // Parameter class used during eligibility check and `OnGotEligibility*` methods
@@ -629,8 +611,7 @@ struct PrefetchService::CheckEligibilityParams final {
 
   // Returns if proxy is required for the next request.
   bool IsProxyRequired() const {
-    CHECK(IsAlive());
-    return prefetch_container_internal->IsProxyRequiredForURL(url) &&
+    return request().IsProxyRequiredForURL(url) &&
            !ShouldPrefetchBypassProxyForTestHost(url.GetHost());
   }
 
@@ -1516,36 +1497,12 @@ void PrefetchService::SendPrefetchRequest(
   TRACE_EVENT("loading", "PrefetchService::SendPrefetchRequest",
               prefetch_container.request().preload_pipeline_info().GetFlow());
 
-  net::NetworkTrafficAnnotationTag traffic_annotation =
-      net::DefineNetworkTrafficAnnotation("speculation_rules_prefetch",
-                                          R"(
-          semantics {
-            sender: "Speculation Rules Prefetch Loader"
-            description:
-              "Prefetches the mainframe HTML of a page specified via "
-              "speculation rules. This is done out-of-band of normal "
-              "prefetches to allow total isolation of this request from the "
-              "rest of browser traffic and user state like cookies and cache."
-            trigger:
-              "Used only when this feature and speculation rules feature are "
-              "enabled."
-            data: "None."
-            destination: WEBSITE
-          }
-          policy {
-            cookies_allowed: NO
-            setting:
-              "Users can control this via a setting specific to each content "
-              "embedder."
-            policy_exception_justification: "Not implemented."
-        })");
-
   base::WeakPtr<PrefetchContainer> weak_prefetch_container =
       prefetch_container.GetWeakPtr();
   auto streaming_loader = PrefetchStreamingURLLoader::CreateAndStart(
       GetURLLoaderFactoryForCurrentPrefetch(prefetch_container),
-      *prefetch_container.GetResourceRequest(), traffic_annotation,
-      PrefetchTimeoutDuration(),
+      *prefetch_container.GetResourceRequest(),
+      kNavigationalPrefetchTrafficAnnotation, PrefetchTimeoutDuration(),
       base::BindOnce(&PrefetchService::OnPrefetchResponseStarted,
                      base::Unretained(this), weak_prefetch_container),
       base::BindRepeating(&PrefetchService::OnPrefetchRedirect,
@@ -1697,9 +1654,9 @@ PrefetchService::GetURLLoaderFactoryForCurrentPrefetch(
         .GetOrCreateDefaultNetworkContextURLLoaderFactory();
   }
 
-  if (PrefetchNetworkContext* network_context =
+  if (PrefetchIsolatedNetworkContext* isolated_network_context =
           prefetch_container.GetIsolatedNetworkContext()) {
-    return network_context->GetURLLoaderFactory();
+    return isolated_network_context->GetURLLoaderFactory();
   }
 
   const bool is_proxy_required_when_cross_origin =
@@ -1783,7 +1740,7 @@ void PrefetchService::OnPrefetchRedirect(
     return;
   }
 
-  prefetch_container->AddRedirectHop(redirect_info);
+  prefetch_container->AddRedirectHop(redirect_info.new_url);
 
   auto params = CheckEligibilityParams(
       {.prefetch_container_internal = prefetch_container,

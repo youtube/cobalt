@@ -88,6 +88,13 @@ class TabStateStorageDatabase {
                         StorageId id,
                         std::vector<uint8_t> children);
 
+  // Inserts or updates a divergent node.
+  bool SaveDivergentNode(OpenTransaction* transaction,
+                         StorageId id,
+                         std::string_view window_tag,
+                         bool is_off_the_record,
+                         std::vector<uint8_t> children);
+
   // Removes a node from the database.
   // This will silently fail if the node does not already exist.
   bool RemoveNode(OpenTransaction* transaction, StorageId id);
@@ -107,8 +114,18 @@ class TabStateStorageDatabase {
   // Clears all nodes from the database.
   void ClearAllNodes();
 
+  // Clears all divergent nodes from the database.
+  void ClearAllDivergentNodes();
+
   // Clears all nodes for a given window from the database.
   void ClearWindow(std::string_view window_tag);
+
+  // Clears all divergent nodes for a given window from the database.
+  void ClearDivergentNodesForWindow(std::string_view window_tag,
+                                    bool is_off_the_record);
+
+  // Clears a divergence window from the database.
+  void ClearDivergenceWindow(std::string_view window_tag);
 
   // Clears all nodes for a given window from the database except for the
   // provided storage IDs.
@@ -156,6 +173,7 @@ class TabStateStorageDatabase {
   sql::Database db_;
   sql::MetaTable meta_table_;
   std::optional<OpenTransaction> open_transaction_;
+  int open_transaction_count_ = 0;
 
   // A map of window tags to their associated keys for OTR payloads.
   absl::flat_hash_map<std::string, std::vector<uint8_t>> keys_;

@@ -5,6 +5,7 @@
 package org.chromium.chrome.browser.dom_distiller;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -304,6 +305,7 @@ public class ReaderModeManagerTest {
 
     @Test
     @Feature("ReaderMode")
+    @DisableFeatures(DomDistillerFeatures.READER_MODE_DISTILL_IN_APP)
     public void testUi_notTriggered_contextualPageActionUiEnabled_exceptOnIncognitoTabs() {
         when(mTab.isIncognito()).thenReturn(true);
         mDistillabilityObserver.onIsPageDistillableResult(mTab, true, true, false);
@@ -646,6 +648,7 @@ public class ReaderModeManagerTest {
     @Test
     @Feature("ReaderMode")
     @EnableFeatures(ChromeFeatureList.CCT_ADAPTIVE_BUTTON)
+    @DisableFeatures(DomDistillerFeatures.READER_MODE_DISTILL_IN_APP)
     public void testTryShowingPrompt_CctCpaOn_Incognito_ShouldShowPromptIfApplicable() {
         when(mTab.getWebContents()).thenReturn(mWebContents);
         when(mTab.isIncognito()).thenReturn(true);
@@ -763,6 +766,34 @@ public class ReaderModeManagerTest {
         assertEquals(
                 1, userActionTester.getActionCount("DomDistiller.Android.OnStoppedReaderMode"));
         watcher.assertExpected();
+    }
+
+    @Test
+    @Feature("ReaderMode")
+    @DisableFeatures(DomDistillerFeatures.READER_MODE_DISTILL_IN_APP)
+    public void testShouldUseReaderModeMessages() {
+        assertFalse(ReaderModeManager.shouldUseReaderModeMessages(null));
+
+        when(mTab.isCustomTab()).thenReturn(true);
+        assertTrue(ReaderModeManager.shouldUseReaderModeMessages(mTab));
+
+        when(mTab.isCustomTab()).thenReturn(false);
+        when(mTab.isIncognito()).thenReturn(true);
+        assertTrue(ReaderModeManager.shouldUseReaderModeMessages(mTab));
+    }
+
+    @Test
+    @Feature("ReaderMode")
+    @EnableFeatures(DomDistillerFeatures.READER_MODE_DISTILL_IN_APP)
+    public void testShouldUseReaderModeMessages_distillInApp() {
+        assertFalse(ReaderModeManager.shouldUseReaderModeMessages(null));
+
+        when(mTab.isCustomTab()).thenReturn(true);
+        assertTrue(ReaderModeManager.shouldUseReaderModeMessages(mTab));
+
+        when(mTab.isCustomTab()).thenReturn(false);
+        when(mTab.isIncognito()).thenReturn(true);
+        assertFalse(ReaderModeManager.shouldUseReaderModeMessages(mTab));
     }
 
     private NavigationEntry createNavigationEntry(int index, GURL url) {

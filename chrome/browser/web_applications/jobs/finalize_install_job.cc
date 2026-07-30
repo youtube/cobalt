@@ -271,13 +271,15 @@ void ApplyUserDisplayModeSyncMitigations(const FinalizeJobOptions& options,
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 FinalizeInstallJob::FinalizeInstallJob(Profile& profile,
-                                       WebAppProvider& provider,
-                                       base::Clock* clock,
+                                       Lock* lock,
+                                       WithAppResources* lock_resources,
                                        const WebAppInstallInfo& web_app_info,
                                        const FinalizeJobOptions& options)
     : profile_(profile),
-      provider_(provider),
-      clock_(clock),
+      provider_(WebAppProvider::GetForWebApps(&profile_.get())),
+      clock_(&provider_->clock()),
+      lock_(lock),
+      resources_lock_(lock_resources),
       web_app_info_(web_app_info.Clone()),
       options_(options) {}
 
@@ -292,12 +294,6 @@ void FinalizeInstallJob::Start(InstallFinalizedCallback callback) {
   }
   callback_ = std::move(callback);
   webapps::ManifestId manifest_id = web_app_info_.manifest_id();
-
-  // parent_app_manifest_id can only exist if installing as a sub-app.
-  CHECK((options_.install_surface == webapps::WebappInstallSource::SUB_APP &&
-         web_app_info_.parent_app_manifest_id.has_value()) ||
-        (options_.install_surface != webapps::WebappInstallSource::SUB_APP &&
-         !web_app_info_.parent_app_manifest_id.has_value()));
 
   bool needs_scope_validation =
       !web_app_info_.scope_extensions.empty() &&
@@ -318,7 +314,7 @@ void FinalizeInstallJob::Start(InstallFinalizedCallback callback) {
   if (needs_migration_validation) {
     origin_associations.migration_sources = web_app_info_.migration_sources;
   }
-  provider_->origin_association_manager().GetWebAppOriginAssociations(
+  origin_association_manager().GetWebAppOriginAssociations(
       manifest_id, std::move(origin_associations),
       base::BindOnce(&FinalizeInstallJob::OnOriginAssociationValidated,
                      weak_ptr_factory_.GetWeakPtr()));
@@ -326,11 +322,10 @@ void FinalizeInstallJob::Start(InstallFinalizedCallback callback) {
 
 void FinalizeInstallJob::OnOriginAssociationValidated(
     OriginAssociations validated_origin_associations) {
-  webapps::AppId app_id = GenerateAppIdFromManifestId(
-      web_app_info_.manifest_id(), web_app_info_.parent_app_manifest_id);
+  webapps::AppId app_id =
+      GenerateAppIdFromManifestId(web_app_info_.manifest_id());
 
-  const WebApp* existing_web_app =
-      provider_->registrar_unsafe().GetAppById(app_id);
+  const WebApp* existing_web_app = registrar().GetAppById(app_id);
   std::unique_ptr<WebApp> web_app;
   if (existing_web_app) {
     web_app = std::make_unique<WebApp>(*existing_web_app);
@@ -339,8 +334,7 @@ void FinalizeInstallJob::OnOriginAssociationValidated(
     // here.
     web_app = std::make_unique<WebApp>(
         web_app_info_.manifest_id(), web_app_info_.start_url(),
-        web_app_info_.scope, web_app_info_.parent_app_id,
-        web_app_info_.parent_app_manifest_id);
+        web_app_info_.scope, web_app_info_.parent_app_id);
     web_app->SetInstallState(proto::SUGGESTED_FROM_ANOTHER_DEVICE);
   }
 
@@ -410,6 +404,9 @@ void FinalizeInstallJob::OnOriginAssociationValidated(
       !existing_web_app) {
     DCHECK(web_app_info_.user_display_mode.has_value());
     web_app->SetUserDisplayMode(*web_app_info_.user_display_mode);
+  }
+  if (options_.run_on_os_login_mode.has_value()) {
+    web_app->SetRunOnOsLoginMode(options_.run_on_os_login_mode.value());
   }
 #if BUILDFLAG(IS_CHROMEOS)
   ApplyUserDisplayModeSyncMitigations(options_, *web_app);
@@ -556,8 +553,7 @@ void FinalizeInstallJob::SetWebAppManifestFieldsAndWriteData(
     std::unique_ptr<WebApp> web_app,
     CommitCallback commit_callback,
     bool skip_icon_writes_on_download_failure) {
-  const WebApp* existing_app =
-      provider_->registrar_unsafe().GetAppById(web_app->app_id());
+  const WebApp* existing_app = registrar().GetAppById(web_app->app_id());
 
   SetWebAppManifestFields(web_app_info_, *web_app,
                           skip_icon_writes_on_download_failure);
@@ -587,7 +583,7 @@ void FinalizeInstallJob::SetWebAppManifestFieldsAndWriteData(
     IconsMap other_icon_bitmaps = web_app_info_.other_icon_bitmaps;
     IconBitmaps trusted_icon_bitmaps = web_app_info_.trusted_icon_bitmaps;
 
-    provider_->icon_manager().WriteData(
+    icon_manager().WriteData(
         app_id, std::move(icon_bitmaps), std::move(trusted_icon_bitmaps),
         std::move(shortcuts_menu_icon_bitmaps), std::move(other_icon_bitmaps),
         std::move(on_icon_write_complete_callback));
@@ -605,8 +601,8 @@ void FinalizeInstallJob::WriteTranslations(
     std::move(commit_callback).Run(success);
     return;
   }
-  provider_->translation_manager().WriteTranslations(
-      app_id, translations, std::move(commit_callback));
+  translation_manager().WriteTranslations(app_id, translations,
+                                          std::move(commit_callback));
 }
 
 void FinalizeInstallJob::CommitToSyncBridge(std::unique_ptr<WebApp> web_app,
@@ -621,7 +617,7 @@ void FinalizeInstallJob::CommitToSyncBridge(std::unique_ptr<WebApp> web_app,
   webapps::AppId app_id = web_app->app_id();
 
   ScopedRegistryUpdate update =
-      provider_->sync_bridge_unsafe().BeginUpdate(std::move(commit_callback));
+      sync_bridge().BeginUpdate(std::move(commit_callback));
 
   WebApp* app_to_override = update->UpdateApp(app_id);
   if (app_to_override) {
@@ -685,25 +681,29 @@ void FinalizeInstallJob::OnDatabaseCommitCompletedForInstall(
     bool success) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   if (!success) {
+    lock_ = nullptr;
+    resources_lock_ = nullptr;
     std::move(callback).Run(webapps::AppId(),
                             webapps::InstallResultCode::kWriteDataFailed);
     return;
   }
 
-  const WebApp* web_app = provider_->registrar_unsafe().GetAppById(app_id);
+  const WebApp* web_app = registrar().GetAppById(app_id);
   // TODO(dmurph): Verify this check is not needed and remove after
   // isolation work is done. https://crbug.com/1298130
   if (!web_app) {
+    lock_ = nullptr;
+    resources_lock_ = nullptr;
     std::move(callback).Run(
         webapps::AppId(),
         webapps::InstallResultCode::kAppNotInRegistrarAfterCommit);
     return;
   }
   if (old_scope.has_value() && old_scope.value() != web_app->GetScope()) {
-    provider_->registrar_unsafe().NotifyWebAppEffectiveScopeChanged(app_id);
+    registrar().NotifyWebAppEffectiveScopeChanged(app_id);
   }
 
-  provider_->install_manager().NotifyWebAppInstalled(app_id);
+  install_manager().NotifyWebAppInstalled(app_id);
 
   SynchronizeOsOptions synchronize_options;
   synchronize_options.add_shortcut_to_desktop = options_.add_to_desktop;
@@ -731,7 +731,7 @@ void FinalizeInstallJob::OnDatabaseCommitCompletedForInstall(
       break;
   }
 
-  provider_->os_integration_manager().Synchronize(
+  os_integration_manager().Synchronize(
       app_id,
       base::BindOnce(&FinalizeInstallJob::OnInstallHooksFinished,
                      weak_ptr_factory_.GetWeakPtr(), std::move(callback),
@@ -744,12 +744,14 @@ void FinalizeInstallJob::OnInstallHooksFinished(
     webapps::AppId app_id) {
   // Only notify that os hooks were added if the installation was a 'full'
   // installation.
-  if (provider_->registrar_unsafe().GetInstallState(app_id) ==
+  if (registrar().GetInstallState(app_id) ==
       proto::InstallState::INSTALLED_WITH_OS_INTEGRATION) {
     callback = std::move(callback).Then(
         base::BindOnce(&FinalizeInstallJob::NotifyWebAppInstalledWithOsHooks,
-                       &provider_.get(), app_id));
+                       provider_, app_id));
   }
+  lock_ = nullptr;
+  resources_lock_ = nullptr;
   std::move(callback).Run(app_id,
                           webapps::InstallResultCode::kSuccessNewInstall);
 }
@@ -763,6 +765,71 @@ void FinalizeInstallJob::NotifyWebAppInstalledWithOsHooks(
 bool& FinalizeInstallJob::DisableUserDisplayModeSyncMitigationsForTesting() {
   static bool disable = false;
   return disable;
+}
+
+WebAppRegistrar& FinalizeInstallJob::registrar() const {
+  if (resources_lock_) {
+    return resources_lock_->registrar();
+  }
+  return provider_->registrar_unsafe();
+}
+
+WebAppSyncBridge& FinalizeInstallJob::sync_bridge() const {
+  if (resources_lock_) {
+    return resources_lock_->sync_bridge();
+  }
+  return provider_->sync_bridge_unsafe();
+}
+
+// TODO(crbug.com/259703817): This method is temporary, this should be removed
+// once refactoring is complete and the job is solely dependent on the lock for
+// these resources.
+WebAppInstallManager& FinalizeInstallJob::install_manager() const {
+  if (resources_lock_) {
+    return resources_lock_->install_manager();
+  }
+  return provider_->install_manager();
+}
+
+// TODO(crbug.com/259703817): This method is temporary, this should be removed
+// once refactoring is complete and the job is solely dependent on the lock for
+// these resources.
+WebAppIconManager& FinalizeInstallJob::icon_manager() const {
+  if (resources_lock_) {
+    return resources_lock_->icon_manager();
+  }
+  return provider_->icon_manager();
+}
+
+// TODO(crbug.com/259703817): This method is temporary, this should be removed
+// once refactoring is complete and the job is solely dependent on the lock for
+// these resources.
+WebAppTranslationManager& FinalizeInstallJob::translation_manager() const {
+  if (resources_lock_) {
+    return resources_lock_->translation_manager();
+  }
+  return provider_->translation_manager();
+}
+
+// TODO(crbug.com/259703817): This method is temporary, this should be removed
+// once refactoring is complete and the job is solely dependent on the lock for
+// these resources.
+OsIntegrationManager& FinalizeInstallJob::os_integration_manager() const {
+  if (resources_lock_) {
+    return resources_lock_->os_integration_manager();
+  }
+  return provider_->os_integration_manager();
+}
+
+// TODO(crbug.com/259703817): This method is temporary, this should be removed
+// once refactoring is complete and the job is solely dependent on the lock for
+// these resources.
+WebAppOriginAssociationManager& FinalizeInstallJob::origin_association_manager()
+    const {
+  if (lock_) {
+    return lock_->origin_association_manager();
+  }
+  return provider_->origin_association_manager();
 }
 
 }  // namespace web_app

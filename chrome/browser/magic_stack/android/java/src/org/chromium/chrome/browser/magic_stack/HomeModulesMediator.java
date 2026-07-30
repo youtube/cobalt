@@ -78,9 +78,11 @@ public class HomeModulesMediator {
 
     private boolean mIsShown;
     private @Nullable Runnable mOnHomeModulesChangedCallback;
+    private @Nullable ModuleDelegate mModuleDelegate;
     private long @Nullable [] mShowModuleStartTimeMs;
     private @Nullable List<Integer> mModuleListToShow;
     private @Nullable Set<Integer> mEnabledModuleSet;
+    private @Nullable List<String> mLatestOrderedLabels;
 
     /**
      * @param model The instance of {@link ModelList} of the RecyclerView.
@@ -98,19 +100,49 @@ public class HomeModulesMediator {
         mHomeModulesConfigManager = homeModulesConfigManager;
     }
 
-    /** Shows the magic stack with profile ready. */
-    void showModules(Runnable onHomeModulesChangedCallback, ModuleDelegate moduleDelegate) {
+    /**
+     * Shows the magic stack with profile ready.
+     *
+     * @param onHomeModulesChangedCallback The callback to notify when the magic stack's visibility
+     *     changes.
+     * @param moduleDelegate The instance of the magic stack {@link ModuleDelegate}.
+     * @param useCachedSegmentationRanking Whether to use the cached ordered labels from the
+     *     Segmentation Platform. If true, bypasses the async fetch and performs a synchronous,
+     *     surgical rebuild using the latest eligibility and manual rankings combined with the
+     *     cached dynamic ranks.
+     */
+    void showModules(
+            Runnable onHomeModulesChangedCallback,
+            ModuleDelegate moduleDelegate,
+            boolean useCachedSegmentationRanking) {
         long segmentationServiceCallTimeMs = SystemClock.elapsedRealtime();
         Profile profile = mProfileSupplier.get();
         assert profile != null;
 
+        mOnHomeModulesChangedCallback = onHomeModulesChangedCallback;
+        mModuleDelegate = moduleDelegate;
+
         // 0. Get the set of currently enabled (eligible) modules.
+        mEnabledModuleSet = null;
         Set<Integer> enabledModuleSet = getFilteredEnabledModuleSet();
 
         // 1. Get the sorted list of manually ranked modules, filtered by eligibility.
         List<Integer> manuallyRankedModules = getSortedManuallyRankedModules(enabledModuleSet);
 
-        // 2. Create InputContext for segmentation, excluding manually ranked ones
+        if (useCachedSegmentationRanking) {
+            // 2. Perform a synchronous rebuild using cached segmentation results.
+            List<String> orderedLabels =
+                    mLatestOrderedLabels != null ? mLatestOrderedLabels : List.of();
+            List<Integer> modulesToShow =
+                    getCombinedRankedModules(
+                            orderedLabels, manuallyRankedModules, enabledModuleSet);
+            hide();
+            buildModulesAndShow(modulesToShow, moduleDelegate, onHomeModulesChangedCallback);
+            return;
+        }
+
+        // 3. Create InputContext for segmentation, excluding manually ranked ones, to perform an
+        // async fetch.
         InputContext inputContext = createInputContextForSegmentation(enabledModuleSet);
 
         HomeModulesRankingHelper.fetchModulesRank(
@@ -122,6 +154,7 @@ public class HomeModulesMediator {
                     if (mHomeModulesConfigManager == null) {
                         return;
                     }
+                    mLatestOrderedLabels = orderedLabels;
                     long durationMs = SystemClock.elapsedRealtime() - segmentationServiceCallTimeMs;
                     List<Integer> modulesToShow =
                             getCombinedRankedModules(
@@ -134,6 +167,17 @@ public class HomeModulesMediator {
                 });
     }
 
+    /** Re-evaluates eligibility and re-renders the magic stack. */
+    void refreshModules() {
+        if (mOnHomeModulesChangedCallback == null || mModuleDelegate == null) {
+            return;
+        }
+        showModules(
+                mOnHomeModulesChangedCallback,
+                mModuleDelegate,
+                /* useCachedSegmentationRanking= */ true);
+    }
+
     /**
      * Returns a sorted list of module types that have manual ranking.
      *
@@ -142,9 +186,6 @@ public class HomeModulesMediator {
      */
     @VisibleForTesting
     List<Integer> getSortedManuallyRankedModules(Set<Integer> enabledModuleSet) {
-        if (mModuleDelegateHost.getTrackingTab() != null) {
-            return new ArrayList<>(); // No manual ranking when a tab is tracked
-        }
         Map<Integer, Integer> rankMap = new HashMap<>();
         for (@ModuleType int moduleType : enabledModuleSet) {
             ModuleProviderBuilder builder = mModuleRegistry.getModuleProviderBuilder(moduleType);
@@ -607,6 +648,7 @@ public class HomeModulesMediator {
         mModuleTypeToModuleProviderMap.clear();
         mModuleTypeToRankingIndexMap.clear();
         mModuleListToShow = null;
+        mEnabledModuleSet = null;
 
         mModel.clear();
 
@@ -633,7 +675,7 @@ public class HomeModulesMediator {
      *
      * @param moduleType The type of the module to update ranking.
      */
-    void updateModuleRanking(@ModuleType int moduleType) {
+    void maybeMoveModuleToTheEnd(@ModuleType int moduleType) {
         if (mModuleListToShow == null) return;
 
         // 1. Find and remove the item to trigger a vanish animation.
@@ -724,9 +766,17 @@ public class HomeModulesMediator {
             List<Integer> manuallyRankedModules,
             Set<Integer> enabledModuleSet) {
         List<Integer> combinedList = new ArrayList<>(manuallyRankedModules);
+        // Deduplicate to prevent internal errors caused by multiple instances of the same module
+        // type if it's returned by both manual and segmentation ranking.
+        Set<Integer> manuallyRankedModulesSet = new HashSet<>(manuallyRankedModules);
+
         List<Integer> filteredEnabledModules =
                 filterEnabledModuleList(orderedLabels, enabledModuleSet);
-        combinedList.addAll(filteredEnabledModules);
+        for (Integer moduleType : filteredEnabledModules) {
+            if (!manuallyRankedModulesSet.contains(moduleType)) {
+                combinedList.add(moduleType);
+            }
+        }
         return combinedList;
     }
 

@@ -1,6 +1,9 @@
 # Copyright 2014 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
+
+import("//testing/test.gni")
+
 if (is_android) {
   import("//build/config/android/rules.gni")
 }
@@ -38,7 +41,9 @@ source_set("unit_tests") {
   deps = [
     ":common",
     "//base",
+    "//base/test:test_support",
     "//testing/gtest",
+    "//third_party/fuzztest",
     "//third_party/metrics_proto",
     "//url",
   ]

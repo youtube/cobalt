@@ -41,7 +41,7 @@
 #include "base/timer/elapsed_timer.h"
 #include "base/trace_event/memory_dump_manager.h"
 #include "build/build_config.h"
-#include "components/history_embeddings/history_embeddings_features.h"
+#include "components/history_embeddings/core/history_embeddings_features.h"
 #include "components/lens/lens_features.h"
 #include "components/omnibox/browser/actions/contextual_search_action.h"
 #include "components/omnibox/browser/actions/omnibox_action_in_suggest.h"
@@ -341,12 +341,6 @@ std::u16string GetDomain(const AutocompleteMatch& match) {
   std::u16string url_domain;
   url_formatter::SplitHost(url, &url_host, &url_domain, nullptr);
   return url_domain;
-}
-
-std::string EncodeURIComponent(const std::string& component) {
-  url::RawCanonOutputT<char> encoded;
-  url::EncodeURIComponent(component, &encoded);
-  return std::string(encoded.view());
 }
 
 // Returns whether contextual suggestions can be shown to the user.
@@ -1030,7 +1024,7 @@ void AutocompleteController::SetMatchDestinationURL(
   TRACE_EVENT0("omnibox", "AutocompleteController::SetMatchDestinationURL");
 
   // Convert search terms to UTF8 and URI-component encode the string.
-  const std::string encoded_search_terms = EncodeURIComponent(
+  const std::string encoded_search_terms = url::EncodeUriComponent(
       base::UTF16ToUTF8(match->search_terms_args->search_terms));
 
   // Append an extra header to navigations from the @gemini scope.
@@ -1655,9 +1649,9 @@ void AutocompleteController::PostProcessMatches() {
   internal_result_.Validate();
 #endif  // DCHECK_IS_ON()
 
-  AttachActions();
   UpdateKeywordDescriptions(&internal_result_);
   UpdateAssociatedKeywords(&internal_result_);
+  AttachActions();
   UpdateSearchboxStats(&internal_result_);
   UpdateShownInSession(&internal_result_);
   UpdateTailSuggestPrefix(&internal_result_);
@@ -1791,6 +1785,10 @@ void AutocompleteController::AttachActions() {
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
   internal_result_.SplitActionsToSuggestions();
 #endif
+
+#if BUILDFLAG(IS_ANDROID)
+  internal_result_.AttachSiteSearchActionToMatches(template_url_service_);
+#endif  // BUILDFLAG(IS_ANDROID)
 }
 
 void AutocompleteController::UpdateAssociatedKeywords(

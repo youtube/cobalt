@@ -26,6 +26,7 @@
 #include "content/browser/preloading/prefetch/prefetch_servable_state.h"
 #include "content/browser/preloading/prefetch/prefetch_service.h"
 #include "content/browser/preloading/prefetch/prefetch_serving_handle.h"
+#include "content/browser/preloading/prefetch/prefetch_single_redirect_hop.h"
 #include "content/browser/preloading/prefetch/prefetch_test_util_internal.h"
 #include "content/browser/preloading/prefetch/prefetch_type.h"
 #include "content/browser/preloading/preloading.h"
@@ -199,7 +200,7 @@ class PrefetchURLLoaderInterceptorTestBase : public PrefetchingMetricsTestBase {
         GURL("https://test.com"), web_contents());
     navigation_simulator->Start();
 
-    PrefetchServingHandle::SetOnIsolatedCookieCopyStartCallbackForTesting(
+    PrefetchSingleRedirectHop::SetOnIsolatedCookieCopyStartCallbackForTesting(
         base::BindRepeating(&PrefetchURLLoaderInterceptorTestBase::
                                 OnIsolatedCookieCopyStartForTesting,
                             base::Unretained(this)));
@@ -208,7 +209,8 @@ class PrefetchURLLoaderInterceptorTestBase : public PrefetchingMetricsTestBase {
   void TearDown() override {
     interceptor_.release();
 
-    PrefetchServingHandle::SetOnIsolatedCookieCopyStartCallbackForTesting({});
+    PrefetchSingleRedirectHop::SetOnIsolatedCookieCopyStartCallbackForTesting(
+        {});
 
     PrefetchingMetricsTestBase::TearDown();
   }
@@ -863,7 +865,8 @@ TEST_F(PrefetchURLLoaderInterceptorTest,
 
 TEST_F(PrefetchURLLoaderInterceptorTest,
        DISABLE_ASAN(DoNotInterceptNavigationCookiesChanged)) {
-  const GURL kTestUrl("https://example.com");
+  // The prefetch URL should be cross-site to go through cookie-related checks.
+  const GURL kTestUrl("https://cross-site.example.org");
 
   EXPECT_CALL(*test_content_browser_client(), WillCreateURLLoaderFactory)
       .Times(0);
@@ -872,7 +875,7 @@ TEST_F(PrefetchURLLoaderInterceptorTest,
       kTestUrl, PrefetchType(PreloadingTriggerType::kSpeculationRule,
                              /*use_prefetch_proxy=*/true,
                              blink::mojom::SpeculationEagerness::kImmediate));
-  prefetch_container->RegisterCookieListener();
+  prefetch_container->RegisterCookieListenerForTesting();
 
   prefetch_container->SimulatePrefetchEligibleForTest();
   MakeServableStreamingURLLoaderForTest(prefetch_container.get(),
@@ -1335,6 +1338,7 @@ TEST_F(PrefetchURLLoaderInterceptorTest,
   IgnoreWillCreateURLLoaderFactoryForNavigation();
 
   const GURL kTestUrl("https://example.com");
+  // The redirect URL should be cross-site to go through cookie-related checks.
   const GURL kRedirectUrl("https://redirect.com");
 
   auto prefetch_container = CreateSpeculationRulesPrefetchContainer(
@@ -1361,7 +1365,7 @@ TEST_F(PrefetchURLLoaderInterceptorTest,
   EXPECT_FALSE(was_intercepted(kRedirectUrl).has_value());
 
   // Update cookies for redirect URL. This should make the prefech unusable.
-  prefetch_container->RegisterCookieListener();
+  prefetch_container->RegisterCookieListenerForTesting();
   ASSERT_TRUE(SetCookie(kRedirectUrl, "test-cookie"));
 
   MaybeCreateLoaderAndWait(kRedirectUrl);
@@ -1414,9 +1418,8 @@ TEST_F(PrefetchURLLoaderInterceptorTest,
 
   SimulateCookieCopyProcess(*prefetch_container);
 
-  ASSERT_EQ(
-      prefetch_container->GetServableStateForTesting(base::TimeDelta::Max()),
-      PrefetchServableState::kServable);
+  ASSERT_EQ(prefetch_container->GetMatchResolverAction().ToServableState(),
+            PrefetchServableState::kServable);
 
   CreateInterceptor(MainDocumentToken());
   MaybeCreateLoader(kTestUrl);
@@ -1484,9 +1487,8 @@ TEST_F(PrefetchURLLoaderInterceptorTest,
 
   SimulateCookieCopyProcess(*prefetch_container);
 
-  ASSERT_EQ(
-      prefetch_container->GetServableStateForTesting(base::TimeDelta::Max()),
-      PrefetchServableState::kServable);
+  ASSERT_EQ(prefetch_container->GetMatchResolverAction().ToServableState(),
+            PrefetchServableState::kServable);
 
   CreateInterceptor(MainDocumentToken());
   MaybeCreateLoader(kTestUrl);

@@ -242,10 +242,13 @@ class EslintTsTest(unittest.TestCase):
 
     _EXPECTED_INCONSISTENT_METHOD_DEFINITION_ORDER_ERROR = "Inconsistent method definition order in class %(className)s. Expected %(expectedOrder)s, found %(actualOrder)s"
     _EXPECTED_INCORRECT_CLASS_NAME_ERROR = 'CrLitElement subclass %(className)s should end with the \'Element\' suffix'
+    _EXPECTED_INCORRECT_DOLLAR_SIGN_NOTATION_ERROR = 'Use camelCase instead of dash-case for DOM ids, change this.$[\'%(dashCaseName)s\'] to this.$.%(camelCaseName)s'
     _EXPECTED_MISSING_CUSTOM_ELEMENTS_DEFINE_ERROR = "Missing customElements.define(%(className)s.is, %(className)s) call"
     _EXPECTED_MISSING_STATIC_GET_IS_ERROR = "Missing 'static get is() {...}' for web component class %(className)s"
     _EXPECTED_MISSING_SUPER_CALLS_ERROR = "Missing superclass calls for lifecycle method(s) %(lifecycleMethods)s in class %(className)s"
     _EXPECTED_MISSING_TAG_NAME_REGISTRATION_ERROR = "Tag/class name pair registration to HTMLElementTagNameMap interface missing for %(domName)s ↔ %(className)s"
+    _EXPECTED_USE_FIRE_HELPER_ERROR = "Use this.fire(...) instead of this.dispatchEvent(new CustomEvent(...))."
+    _EXPECTED_USE_FIRE_HELPER_WITH_EVENT_NAME_ERROR = "Use this.fire(...) instead of this.dispatchEvent(new CustomEvent(...)), for event \'%(eventName)s\'"
 
     super_call_required_methods = [
         'connectedCallback', 'disconnectedCallback', 'willUpdate', 'updated'
@@ -291,6 +294,17 @@ class EslintTsTest(unittest.TestCase):
             'actualOrder':
                 '[render, styles, is, properties, disconnectedCallback, connectedCallback, constructor, willUpdate, updated, firstUpdated]',
         },
+        _EXPECTED_USE_FIRE_HELPER_WITH_EVENT_NAME_ERROR % {
+            'eventName': 'foo1-updated',
+        },
+        _EXPECTED_USE_FIRE_HELPER_WITH_EVENT_NAME_ERROR % {
+            'eventName': 'foo2-updated',
+        },
+        _EXPECTED_USE_FIRE_HELPER_ERROR,
+        _EXPECTED_INCORRECT_DOLLAR_SIGN_NOTATION_ERROR % {
+            'dashCaseName': 'hello-button',
+            'camelCaseName': 'helloButton',
+        },
         # Case 1.7
         _EXPECTED_INCORRECT_CLASS_NAME_ERROR % {
             'className': 'TestError7ElementFoo',
@@ -302,6 +316,10 @@ class EslintTsTest(unittest.TestCase):
         # Case 1.9
         _EXPECTED_INCORRECT_CLASS_NAME_ERROR % {
             'className': 'TestError9ElementFoo',
+        },
+        # Case 1.10
+        _EXPECTED_INCORRECT_CLASS_NAME_ERROR % {
+            'className': 'TestError10ElementFoo',
         },
     ]
     for e in errors:
@@ -371,6 +389,13 @@ class EslintTsTest(unittest.TestCase):
         },
         _EXPECTED_INCORRECT_CLASS_NAME_ERROR % {
             'className': 'TestNoError3Element',
+        },
+        _EXPECTED_USE_FIRE_HELPER_WITH_EVENT_NAME_ERROR % {
+            'eventName': 'bar-updated',
+        },
+        _EXPECTED_INCORRECT_DOLLAR_SIGN_NOTATION_ERROR % {
+            'dashCaseName': 'hello-other-button',
+            'camelCaseName': 'helloOtherButton',
         },
         # Case 2.4
         _EXPECTED_INCORRECT_CLASS_NAME_ERROR % {

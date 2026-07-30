@@ -498,7 +498,7 @@ Si elle est définie sur "PromptInTab", lorsque l'authentification de l'utilisat
 <translation id="1395988776118675626">Activer la fonctionnalité "Mémoriser le mot de passe" pour Kerberos</translation>
 <translation id="1396119629372155901">Fonctionnalité ThrottleDisplayNoneAndVisibilityHiddenCrossOriginIframes désactivée</translation>
 <translation id="1397855852561539316">URL de suggestions de recherche du moteur de recherche par défaut</translation>
-<translation id="140076409387986842">Autoriser M'aider à écrire sans améliorer les modèles d'IA.</translation>
+<translation id="140076409387986842">Autoriser Aide-moi à écrire sans améliorer les modèles d'IA.</translation>
 <translation id="1401249111997036083">Si cette règle est définie sur "False", les applis Android peuvent capturer les liens compatibles par défaut.
 Si elle est définie sur "True", tous les liens s'ouvrent par défaut dans le navigateur Chrome.
 Si cette règle n'est pas configurée, les liens s'ouvrent par défaut dans les applis Android pour les utilisateurs gérés et dans le navigateur pour les utilisateurs standards.</translation>
@@ -546,11 +546,11 @@ Cette règle ne s'applique pas au mode navigation privée et ne fonctionne pas d
 
 Si cette règle est désactivée, l'appli n'utilisera pas les notifications temporaires.</translation>
 <translation id="142346659686073702">Autoriser les utilisateurs non affiliés à utiliser Crostini</translation>
-<translation id="1423900783955065155">Cette règle détermine si une page avec un en-tête <ph name="CACHE_CONTROL_NO_STORE_NAME" /> peut être stockée dans le cache amélioré. Le paramètre de site Web défini pour cet en-tête ne prévoit peut-être pas que la page soit restaurée à partir du cache amélioré, car certaines informations sensibles peuvent rester affichées après la restauration, même si elles ne sont plus accessibles.
+<translation id="1423900783955065155">Cette règle détermine si une page avec un en-tête <ph name="CACHE_CONTROL_NO_STORE_NAME" /> peut être stockée dans le cache back/forward. Le paramètre de site Web défini pour cet en-tête ne prévoit peut-être pas que la page soit restaurée à partir du cache back/forward, car certaines informations sensibles peuvent rester affichées après la restauration, même si elles ne sont plus accessibles.
 
-Si cette règle est activée ou n'est pas configurée, la page avec un en-tête <ph name="CACHE_CONTROL_NO_STORE_NAME" /> pourrait être restaurée à partir du cache amélioré, sauf si l'éviction du cache est déclenchée (par exemple, en cas de modification du cookie HttpOnly sur le site).
+Si cette règle est activée ou n'est pas configurée, la page avec un en-tête <ph name="CACHE_CONTROL_NO_STORE_NAME" /> pourrait être restaurée à partir du cache back/forward, sauf si l'éviction du cache est déclenchée (par exemple, en cas de modification du cookie HttpOnly sur le site).
 
-Si cette règle est désactivée, la page avec un en-tête <ph name="CACHE_CONTROL_NO_STORE_NAME" /> ne sera pas stockée dans le cache amélioré.</translation>
+Si cette règle est désactivée, la page avec un en-tête <ph name="CACHE_CONTROL_NO_STORE_NAME" /> ne sera pas stockée dans le cache back/forward.</translation>
 <translation id="1425551776320718592">Empêche les utilisateurs de cet appareil de recourir au téléchargement indépendant adb, mais sans imposer la réinitialisation Powerwash. Cela peut remettre en question la sécurité de l'appareil.</translation>
 <translation id="1426170570389588560">Définir un délai en jours pour le stockage des métadonnées liées aux tâches d'impression</translation>
 <translation id="1426410128494586442">Oui</translation>
@@ -3097,7 +3097,7 @@ Le rapport contient l'état du profil ainsi que des informations sur l'utilisati
 Cette règle ne peut être configurée que comme règle relative aux utilisateurs du cloud.</translation>
 <translation id="3062559845875011810">Ne pas autoriser la fonctionnalité</translation>
 <translation id="3063302084011279315">Désactiver l'enregistreur d'écran</translation>
-<translation id="3063307261083019730">Interdire le stockage des pages avec un en-tête <ph name="CACHE_CONTROL_NO_STORE_NAME" /> dans le cache amélioré.</translation>
+<translation id="3063307261083019730">Interdire le stockage des pages avec un en-tête <ph name="CACHE_CONTROL_NO_STORE_NAME" /> dans le cache back/forward.</translation>
 <translation id="3064530882228745118">Utiliser la consultation CNAME lors de l'authentification Kerberos</translation>
 <translation id="3066446511111537292">Permet aux utilisateurs affiliés de cet appareil d'utiliser le téléchargement indépendant adb</translation>
 <translation id="3067462824622454143">Laisser l'utilisateur décider si l'appareil doit se verrouiller quand il est arrêté provisoirement ou que son écran est rabattu</translation>
@@ -3856,7 +3856,7 @@ Pour en savoir plus sur les formats d‘<ph name="URL_LABEL" /> valides, veuille
 <translation id="3625900437628963632">Permet de spécifier si le mot de passe Kerberos défini dans cet élément de règle doit être mémorisé ou non. Si cette règle n'est pas configurée ou si elle est définie sur "true", le mot de passe est mémorisé. Si cette règle est définie sur "false", le mot de passe n'est pas mémorisé. Si le champ de mot de passe (disponible à partir de la version 116 de ChromeOS) n'est pas spécifié pour ce compte, la règle est ignorée.</translation>
 <translation id="3627678165642179114">Activer ou désactiver le service Web de correction orthographique</translation>
 <translation id="3628480121685794414">Activer l'impression recto</translation>
-<translation id="36319015509487508">Ne pas autoriser M'aider à lire.</translation>
+<translation id="36319015509487508">Ne pas autoriser Aide-moi à lire.</translation>
 <translation id="3634125384445314047">Autoriser l'accès aux photos et vidéos récentes prises sur le téléphone via Phone Hub.</translation>
 <translation id="3637063789824963261">Si cette règle est activée, les appareils enregistrés signalent des compteurs d'exécution de l'appareil (Intel vPro de 14e génération et version ultérieures uniquement).
 
@@ -4544,6 +4544,13 @@ Si elle est définie sur False, <ph name="PRODUCT_NAME" /> n'utilisera pas les n
 <translation id="4150201353443180367">Écran</translation>
 <translation id="4154221011709068799">Interdire les appareils de stockage externe</translation>
 <translation id="415445772247959702">Web Store (compatible depuis la version 89)</translation>
+<translation id="415631927748520887">Si cette règle est définie sur "True", les Applications Chrome peuvent continuer à s'exécuter dans une session Kiosque, quel que soit leur état d'activation par défaut.
+
+Si cette règle n'est pas configurée ou qu'elle est définie sur "False", le comportement par défaut défini sur l'appareil est appliqué.
+
+Si l'utilisateur tente de lancer une Application Chrome désactivée, un message lui indique pourquoi elle n'a pas été lancée et lui suggère de contacter son service informatique.
+
+La valeur de cette règle sera respectée jusqu'à l'abandon des Applications Chrome dans les sessions Kiosque, qui devrait avoir lieu dans la version M151.</translation>
 <translation id="4157003184375321727">Indiquer la version du système d'exploitation et du micrologiciel</translation>
 <translation id="4157594634940419685">Autoriser l'accès à des imprimantes CUPS en natif</translation>
 <translation id="4158531549614162499">Activer la synchronisation de Google Drive via des connexions au réseau mobile</translation>
@@ -4596,19 +4603,6 @@ Si la règle n'est pas configurée, son comportement est déterminé par la règ
           Si vous configurez cette règle, les utilisateurs ne peuvent pas la modifier ni l'ignorer.
 
           Si cette règle n'est pas configurée, la mise en surbrillance du curseur de saisie est initialement désactivée sur l'écran de connexion, mais les utilisateurs peuvent l'activer à tout moment.</translation>
-<translation id="4182348537826882258">Si vous définissez la règle <ph name="URL_BLOCKLIST_POLICY_NAME" />, les pages Web dont les URL sont interdites ne peuvent pas se charger. Les administrateurs peuvent spécifier la liste des formats d'URL à bloquer. Si cette règle n'est pas configurée, aucune URL n'est bloquée dans le navigateur. Vous pouvez définir jusqu'à 1 000 exceptions dans <ph name="URL_ALLOWLIST_POLICY_NAME" />. Découvrez les formats d'URL à respecter (https://support.google.com/chrome/a?p=url_blocklist_filter_format).
-
-Remarque : Cette règle ne s'applique pas aux URL JavaScript intégrées dans les pages dont les données sont chargées dynamiquement. Si vous bloquez example.com/abc, example.com pourra toujours la charger à l'aide de XMLHTTPRequest. En outre, cette règle n'empêche pas les pages Web de remplacer l'URL affichée dans l'omnibox par une URL bloquée à l'aide de l'API JavaScript History.
-
-À partir de la version 73 de <ph name="PRODUCT_NAME" />, vous pouvez bloquer les URL javascript://*. Toutefois, cela ne concerne que le code JavaScript saisi dans la barre d'adresse ou, par exemple, les favoris intelligents.
-
-À compter de la version 92 de <ph name="PRODUCT_NAME" />, cette règle est aussi prise en charge en mode headless.
-
-Remarque : Bloquer des URL internes chrome://* et chrome-untrusted://* peut entraîner des erreurs inattendues ou être contourné parfois. Au lieu de bloquer certaines URL internes, vérifiez si des règles plus spécifiques sont disponibles. Par exemple :
-
-- Au lieu de bloquer chrome://settings/certificates, utilisez <ph name="CA_CERTIFICATE_MANAGEMENT_ALLOWED_POLICY_NAME" />.
-
-- Au lieu de bloquer chrome-untrusted://crosh, utilisez <ph name="SYSTEM_FEATURES_DISABLE_LIST_POLICY_NAME" />.</translation>
 <translation id="4183229833636799228">Paramètre par défaut pour le plug-in "<ph name="FLASH_PLUGIN_NAME" />"</translation>
 <translation id="4185868802416355029">Autoriser les extensions gérées à utiliser l'API Enterprise Hardware Platform</translation>
 <translation id="4186244263855283575">Permet de planifier le redémarrage des appareils de manière personnalisée. Une fois la règle définie sur "True", l'appareil redémarrera en fonction du calendrier établi. Pour annuler tout autre redémarrage planifié, cette règle doit être supprimée.
@@ -5106,7 +5100,7 @@ Cette règle est limitée à 1 000 entrées.</translation>
 <translation id="4512407512989846472">Permettre de bloquer la copie dans le presse-papiers sur les URL spécifiées</translation>
 <translation id="4513691822411041977">N'appliquez pas l'utilisation de SafeSearch dans la recherche Google ou du mode restreint sur YouTube</translation>
 <translation id="4515404363392014383">Activer la navigation sécurisée pour les sources fiables</translation>
-<translation id="4517327050150780380">Paramètres de la fonctionnalité M'aider à lire</translation>
+<translation id="4517327050150780380">Paramètres de la fonctionnalité Aide-moi à lire</translation>
 <translation id="4518251772179446575">Demander chaque fois qu'un site veut suivre la position géographique des utilisateurs</translation>
 <translation id="4521193243799782295">Lors de la connexion, l'authentification dans <ph name="PRODUCT_OS_NAME" /> peut être effectuée sur un serveur (en ligne) ou à l'aide d'un mot de passe en cache (hors connexion).
 
@@ -5433,7 +5427,7 @@ Les utilisateurs peuvent activer ou désactiver les services de localisation Goo
 <translation id="4674542060943819878">Activer la fermeture des alertes de mot de passe compromis</translation>
 <translation id="4674871290487541952">Autoriser les algorithmes non sécurisés dans les vérifications de l'intégrité des mises à jour et des installations d'extension</translation>
 <translation id="4680961954980851756">Activer la saisie automatique</translation>
-<translation id="46845898956959634">Autoriser M'aider à écrire et améliorer les modèles d'IA.</translation>
+<translation id="46845898956959634">Autoriser Aide-moi à écrire et améliorer les modèles d'IA.</translation>
 <translation id="4685721728282448265">Algorithme clé-contrat post-quantique CECPQ2 activé pour TLS</translation>
 <translation id="468822697351680932">Utiliser la règle SiteList d'Internet Explorer comme source des règles</translation>
 <translation id="4693190628432874457">Activer la mise à jour de la position de l'appareil</translation>
@@ -5951,7 +5945,7 @@ Si cette règle est désactivée, cette fonctionnalité l'est aussi.</translatio
 <translation id="499654521603185442">Rapports de télémétrie de site Web</translation>
 <translation id="4997074784107449343">Lorsqu'elle est disponible, l'option "Imprimer en tant qu'image" permettant de générer un aperçu avant impression d'un PDF n'est pas proposée par défaut.</translation>
 <translation id="500149597848135831">Activer toutes les variantes</translation>
-<translation id="5006222080181284191">Contrôler l'activation de la fonctionnalité "M'aider à écrire" de ChromeOS</translation>
+<translation id="5006222080181284191">Contrôler l'activation de la fonctionnalité "Aide-moi à écrire" de ChromeOS</translation>
 <translation id="5017157692744444035">Cette règle détermine si les informations exploitables à des fins d'identification des ordinateurs, telles que leur nom ou les adresses réseau, doivent être enregistrées.
 
 Cette règle est ignorée si la règle <ph name="CLOUD_REPORTING_ENABLED_POLICY_NAME" /> n'est pas définie ou si elle est désactivée.
@@ -6062,13 +6056,13 @@ Pour en savoir plus sur la gestion des données pour les fonctionnalités d'IA 
 <translation id="5073609397321802133">Si cette règle est définie sur "False", les utilisateurs ne peuvent pas personnaliser l'arrière-plan sur la page "Nouvel onglet". Tout arrière-plan personnalisé actuel sera définitivement supprimé, même si la règle est définie sur "True" par la suite.
 
       Si celle-ci est définie sur "True" ou si elle n'est pas configurée, les utilisateurs peuvent personnaliser l'arrière-plan sur la page "Nouvel onglet".</translation>
-<translation id="5073788301065423829">Cette règle active ou désactive "M'aider à écrire" pour ChromeOS.
+<translation id="5073788301065423829">Cette règle active ou désactive "Aide-moi à écrire" pour ChromeOS.
 
-Si cette règle est activée, "M'aider à écrire" l'est aussi.
+Si cette règle est activée, "Aide-moi à écrire" l'est aussi.
 
-Si cette règle est désactivée, "M'aider à écrire" l'est aussi.
+Si cette règle est désactivée, "Aide-moi à écrire" l'est aussi.
 
-Si cette règle n'est pas configurée, "M'aider à écrire" sera activé sur les appareils non gérés et désactivé sur les appareils gérés par une entreprise.</translation>
+Si cette règle n'est pas configurée, "Aide-moi à écrire" sera activé sur les appareils non gérés et désactivé sur les appareils gérés par une entreprise.</translation>
 <translation id="5076953589932162038">Paramètres des ensembles propriétaires</translation>
 <translation id="5078623750797048009">Activer les annotations des PDF</translation>
 <translation id="5080300140183363718">Paramètres de migration des données de séparation des profils</translation>
@@ -6766,7 +6760,7 @@ Cette API a été supprimée dans M112.</translation>
 <translation id="55057839818162162">Autoriser la recherche <ph name="GOOGLE_LENS_PRODUCT_NAME" /> assistée par appareil photo</translation>
 <translation id="55057971769693300">Désactiver la mise en surbrillance du curseur de saisie</translation>
 <translation id="5508307164752647432">Activer la fonctionnalité Kerberos</translation>
-<translation id="5511266910976210617">Ne pas autoriser M'aider à écrire.</translation>
+<translation id="5511266910976210617">Ne pas autoriser Aide-moi à écrire.</translation>
 <translation id="5511702823008968136">Activer le barre de favoris</translation>
 <translation id="5512418063782665071">URL de la page d'accueil</translation>
 <translation id="5512785896190859782">Cette règle contrôle la visibilité de la carte des fichiers SharePoint et OneDrive sur la page "Nouvel onglet". La carte ne s'affiche sur la page "Nouvel onglet" que si la règle est activée et si votre organisation a autorisé l'utilisation des données de fichiers SharePoint et OneDrive dans le navigateur.
@@ -7885,7 +7879,7 @@ Le salage doit être une chaîne comprenant entre 8 et 32 caractères.
           Cette règle n'a aucune incidence sur l'activation du clavier virtuel tactile. Par exemple, le clavier virtuel tactile s'affiche toujours sur une tablette, même si cette règle est définie sur "False".</translation>
 <translation id="6254498834449523938">Interdire à l'utilisateur de contourner l'avertissement de navigation sécurisée</translation>
 <translation id="625580680776945310">Le mode Haute efficacité sera activé.</translation>
-<translation id="6258314216623064461">Paramètres de M'aider à écrire</translation>
+<translation id="6258314216623064461">Paramètres de Aide-moi à écrire</translation>
 <translation id="6258502079038650092">Détermine si les utilisateurs peuvent utiliser ou non Chrome for Testing.
 
       Si cette règle est activée ou n'est pas configurée, les utilisateurs peuvent installer et exécuter Chrome for Testing.
@@ -8396,7 +8390,7 @@ Remarque : La validité des mots de passe peut dépasser le délai spécifié e
 
       Si cette règle n'est pas configurée, les utilisateurs reçoivent des notifications lorsqu'un périphérique USB est connecté.</translation>
 <translation id="6536600139108165863">Redémarrer automatiquement à l'arrêt de l'appareil</translation>
-<translation id="6538355612742474835">Autoriser M'aider à lire et améliorer les modèles d'IA.</translation>
+<translation id="6538355612742474835">Autoriser Aide-moi à lire et améliorer les modèles d'IA.</translation>
 <translation id="6538653424603921690">Toujours désactiver l'écran de confidentialité sur l'écran de connexion</translation>
 <translation id="6539246272469751178">Cette règle n'a aucun effet sur les applications Android. Celles-ci se servent toujours du répertoire de téléchargements par défaut. Elles ne peuvent pas accéder aux fichiers téléchargés par <ph name="PRODUCT_OS_NAME" /> dans un autre répertoire de téléchargements.</translation>
 <translation id="6541383786427998658">Activer la journalisation système des extensions d'entreprise</translation>
@@ -10826,7 +10820,7 @@ Cette règle n'a aucune incidence lorsque la règle <ph name="SCREENSAVER_LOCK_S
 
       Si cette règle est activée ou si elle n'est pas configurée, les sites Web sont autorisés à vérifier si l'utilisateur possède des modes de paiement enregistrés.</translation>
 <translation id="8118665053362250806">Définir la taille du cache disque de support</translation>
-<translation id="8123648898339555150">Autoriser le stockage des pages avec un en-tête <ph name="CACHE_CONTROL_NO_STORE_NAME" /> dans le cache amélioré.</translation>
+<translation id="8123648898339555150">Autoriser le stockage des pages avec un en-tête <ph name="CACHE_CONTROL_NO_STORE_NAME" /> dans le cache back/forward.</translation>
 <translation id="812369175049698774">Autoriser les utilisateurs à lancer des mises à jour du micrologiciel</translation>
 <translation id="8124468781472887384">Règle d'accès à la configuration des imprimantes d'appareils.</translation>
 <translation id="8128192446158421884">URL pour lesquelles la règle AutoOpenFileTypes peut s'appliquer</translation>
@@ -11334,7 +11328,7 @@ Sous <ph name="MS_WIN_NAME" />, cette règle n'est disponible que sur les instan
 <translation id="8465065632133292531">Paramètres pour l'URL instantanée utilisant POST</translation>
 <translation id="8466326735698755782">Autoriser le comparateur d'onglets sans améliorer les modèles d'IA.</translation>
 <translation id="8467267413626499807">Activer le service SSO flottant</translation>
-<translation id="8467463980805035993">Autoriser M'aider à lire sans améliorer les modèles d'IA.</translation>
+<translation id="8467463980805035993">Autoriser Aide-moi à lire sans améliorer les modèles d'IA.</translation>
 <translation id="846994437739309080">Si cette règle est activée (ou n'est pas configurée), les certificats TLS ajoutés par l'utilisateur depuis les magasins de confiance de la plate-forme seront utilisés pour la création de chemins pour l'authentification du serveur TLS.
 
 Si elle est désactivée, les certificats TLS ajoutés par l'utilisateur depuis les magasins de confiance de la plate-forme ne seront pas utilisés pour la création de chemins pour l'authentification du serveur TLS.</translation>
@@ -11468,7 +11462,7 @@ Le rollback vers <ph name="PRODUCT_OS_NAME" /> 106 ou version antérieure n'est
 
       Elle remplace <ph name="DEFAULT_WEB_HID_GUARD_SETTING_POLICY_NAME" />, <ph name="WEB_HID_ASK_FOR_URLS_POLICY_NAME" />, <ph name="WEB_HID_BLOCKED_FOR_URLS_POLICY_NAME" /> et les préférences de l'utilisateur.</translation>
 <translation id="8528951285051082869">N'autoriser aucune appli Web à accéder à certains types de fichiers via l'API File Handling</translation>
-<translation id="8529958869261780079">Cette règle contrôle les paramètres de la fonctionnalité M'aider à lire pour <ph name="PRODUCT_OS_NAME" />.
+<translation id="8529958869261780079">Cette règle contrôle les paramètres de la fonctionnalité Aide-moi à lire pour <ph name="PRODUCT_OS_NAME" />.
 
 0 = Permettre d'utiliser la fonctionnalité tout en autorisant Google à utiliser des données pertinentes pour améliorer ses modèles d'IA. Selon la fonctionnalité, les données pertinentes peuvent inclure des prompts, des entrées, des sorties, des documents source et des commentaires écrits. Elles pourront également être examinées par des réviseurs humains dans le seul but d'améliorer les modèles d'IA. 0 est la valeur par défaut, sauf pour les exceptions ci-dessous.
 
@@ -11491,7 +11485,7 @@ Pour en savoir plus sur la gestion des données pour les fonctionnalités d'IA 
 <translation id="8553491595730354263">Permet à l'hôte d'accès à distance d'utiliser des authentifications par code ou association lorsqu'il accepte des connexions client</translation>
 <translation id="8559221882677768248">Désactiver Sélectionner pour écouter sur l'écran de connexion</translation>
 <translation id="8561512522781085002">Les paramètres Page précédente/Page suivante utilisent le raccourci qui contient la touche de modification de recherche</translation>
-<translation id="8562398722263115493">M'aider à écrire est un assistant de rédaction basé sur l'IA pour les contenus courts sur le Web. Le contenu suggéré dépend des prompts saisis par l'utilisateur et du contenu de la page Web.
+<translation id="8562398722263115493">Aide-moi à écrire est un assistant de rédaction basé sur l'IA pour les contenus courts sur le Web. Le contenu suggéré dépend des prompts saisis par l'utilisateur et du contenu de la page Web.
 
 0 = Permettre d'utiliser la fonctionnalité tout en autorisant Google à utiliser des données pertinentes pour améliorer ses modèles d'IA. Selon la fonctionnalité, les données pertinentes peuvent inclure des prompts, des entrées, des sorties, des documents source et des commentaires écrits. Elles pourront également être examinées par des réviseurs humains dans le seul but d'améliorer les modèles d'IA. 0 est la valeur par défaut, sauf pour les exceptions ci-dessous.
 
@@ -12229,6 +12223,21 @@ Si cette règle n'est pas configurée, <ph name="PRODUCT_NAME" /> peut, par déf
 <translation id="9051019223077908578">Configurer la liste des applications et des extensions installées sur l'écran de connexion</translation>
 <translation id="9053841574218808519">Toujours exécuter les plug-ins non obsolètes</translation>
 <translation id="9055866143096316150">Rétrograder les demandes de wakelocks forçant l'activation de l'écran en demandes de wakelocks système</translation>
+<translation id="9056262797461453462">Si vous définissez la règle <ph name="URL_BLOCKLIST_POLICY_NAME" />, les pages Web dont les URL sont interdites ne peuvent pas se charger. Les administrateurs peuvent spécifier la liste des formats d'URL à bloquer. Si cette règle n'est pas configurée, aucune URL n'est bloquée dans le navigateur. Vous pouvez définir jusqu'à 1 000 exceptions dans <ph name="URL_ALLOWLIST_POLICY_NAME" />. Découvrez les formats d'URL à respecter (https://support.google.com/chrome/a?p=url_blocklist_filter_format).
+
+Remarque : Cette règle ne s'applique pas aux URL JavaScript intégrées dans les pages dont les données sont chargées dynamiquement. Si vous bloquez example.com/abc, example.com pourra toujours la charger à l'aide de XMLHTTPRequest. En outre, cette règle n'empêche pas les pages Web de remplacer l'URL affichée dans l'omnibox par une URL bloquée à l'aide de l'API JavaScript History.
+
+À partir de la version 73 de <ph name="PRODUCT_NAME" />, vous pouvez bloquer les URL javascript://*. Toutefois, cela ne concerne que le code JavaScript saisi dans la barre d'adresse ou, par exemple, les favoris intelligents.
+
+À compter de la version 92 de <ph name="PRODUCT_NAME" />, cette règle est aussi prise en charge en mode headless.
+
+Remarque : Bloquer des URL internes chrome://* et chrome-untrusted://* peut entraîner des erreurs inattendues ou être contourné dans certains cas. Au lieu de bloquer certaines URL internes, vérifiez si des règles plus spécifiques sont disponibles. Par exemple :
+
+– Au lieu de bloquer chrome://settings/certificates, utilisez <ph name="CA_CERTIFICATE_MANAGEMENT_ALLOWED_POLICY_NAME" />.
+
+– Au lieu de bloquer chrome-untrusted://crosh, utilisez <ph name="SYSTEM_FEATURES_DISABLE_LIST_POLICY_NAME" />.
+
+– Au lieu de bloquer devtools://*, utilisez l'une des règles <ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" />, <ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" /> ou <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" />.</translation>
 <translation id="9057159618445405645">Utiliser le comportement par défaut du navigateur Chrome</translation>
 <translation id="9061455386353325110">Indique si les utilisateurs peuvent autoriser <ph name="PRODUCT_NAME" /> à utiliser l'IA générative pour mieux comprendre les formulaires et les aider à remplir plus de champs.
 
@@ -12340,11 +12349,6 @@ Pour que cette règle soit effective, la règle <ph name="FULL_RESTORE_ENABLED_N
 <translation id="9135095804754272364">Afficher une notification lorsqu'un périphérique USB est détecté</translation>
 <translation id="9136212796239682721">Désactiver l'interface utilisateur de la bulle de téléchargement</translation>
 <translation id="9136399279941091445">Intervalles pendant lesquels les règles spécifiées pour les appareils sont disponibles (lorsque l'appareil est éteint)</translation>
-<translation id="9138686056337842869">Si cette règle est définie sur "True", les applis Chrome peuvent continuer à s'exécuter dans une session Kiosque, quel que soit leur état d'activation par défaut.
-
-Si cette règle n'est pas configurée ou qu'elle est définie sur "False", le comportement par défaut défini sur l'appareil est appliqué.
-
-Si l'utilisateur tente de lancer une appli Chrome désactivée, un message lui indique pourquoi elle n'a pas été lancée et lui suggère de contacter son service informatique.</translation>
 <translation id="9139775903828905867">Contrôle le raccourci utilisé pour déclencher F11</translation>
 <translation id="9140064482233876338">Cette règle a été abandonnée dans la version M69. Veuillez utiliser la règle OverrideSecurityRestrictionsOnInsecureOrigin à la place.
 

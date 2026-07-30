@@ -24,6 +24,7 @@
 #include "components/enterprise/platform_auth/url_session_url_loader.h"
 #include "components/policy/core/common/policy_logger.h"
 #include "components/prefs/pref_service.h"
+#include "content/public/browser/browser_context.h"
 #include "content/public/browser/network_service_instance.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/storage_partition.h"
@@ -75,8 +76,10 @@ ProxyingURLLoaderFactory::ProxyingURLLoaderFactory(
 void ProxyingURLLoaderFactory::MaybeProxyRequest(
     const url::Origin& request_initiator,
     ChromeContentBrowserClient::URLLoaderFactoryType type,
+    content::BrowserContext* context,
     network::URLLoaderFactoryBuilder& factory_builder) {
-  if (enterprise_auth::PlatformAuthProviderManager::GetInstance().IsEnabled() &&
+  if (!context->IsOffTheRecord() &&
+      enterprise_auth::PlatformAuthProviderManager::GetInstance().IsEnabled() &&
       request_initiator.scheme() == url::kHttpsScheme &&
       type == ChromeContentBrowserClient::URLLoaderFactoryType::
                   kDocumentSubResource &&
@@ -95,13 +98,9 @@ void ProxyingURLLoaderFactory::MaybeProxyRequest(
             prefs::kExtensibleEnterpriseSSOConfiguredHosts);
     base::flat_set<std::string> configured_hosts;
     configured_hosts.reserve(configured_hosts_pref.size());
-    // TODO: b/433226247 - This loop is O(N^2). Consider constructing the
-    // flat_set from a sorted vector if there might ever be more than 10 hosts.
     for (const base::Value& host : configured_hosts_pref) {
       configured_hosts.insert(host.GetString());
     }
-    // TODO: b/433226247 - Refactor ProxyingURLLoaderFactory to use
-    // mojo::MakeSelfOwnedReceiver.
     new ProxyingURLLoaderFactory(
         std::move(loader_receiver), std::move(target_factory),
         std::move(configured_hosts), request_initiator);

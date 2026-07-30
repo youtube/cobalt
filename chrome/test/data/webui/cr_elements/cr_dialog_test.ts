@@ -404,7 +404,9 @@ suite('cr-dialog', function() {
     const borderTopValue = '1px solid rgb(0, 255, 0)';
     dialog.style.setProperty('--cr-dialog-body-border-top', borderTopValue);
     assertTrue(isVisible(scrollableTop), 'border is now visible');
-    assertEquals(borderTopValue, getComputedStyle(scrollableTop).borderTop);
+    const style = getComputedStyle(scrollableTop);
+    assertEquals('solid', style.borderTopStyle);
+    assertEquals('rgb(0, 255, 0)', style.borderTopColor);
   });
 
   test(
@@ -446,7 +448,7 @@ suite('cr-dialog', function() {
     crDialog.noCancel = false;
     await microtasksFinished();
     assertFalse(crDialog.noCancel);
-    assertEquals('any', nativeDialog.getAttribute('closedby'));
+    assertFalse(nativeDialog.hasAttribute('closedby'));
   });
 
   test('dialog close button shown when showCloseButton is true', function() {

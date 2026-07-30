@@ -587,7 +587,8 @@ interface PageLoadMetrics {
                CpuTiming cpu_load_timing,
                array<EventTiming> event_timings,
                SubresourceLoadMetrics? subresource_load_metrics,
-               SoftNavigationMetrics soft_navigation_metrics);
+               SoftNavigationMetrics soft_navigation_metrics,
+               array<CustomUserTimingMark> custom_user_timings);
 
   // Set up a shared memory used to transfer smoothness data from the renderer
   // to the browser. The structures is defined in
@@ -635,10 +636,6 @@ struct SoftNavigationMetrics {
   // The start time of a soft navigation. It is the time the user initializes
   // the soft navigation. It is relative to navigation start.
   mojo_base.mojom.TimeDelta start_time;
-
-  // The renderer side navigation id that increments when a soft navigation
-  // happens.
-  uint32 navigation_id;
 
   // Identifies the same document navigation for the initial URL change.
   // This allows us to map to the UKM Source ID in the browser side,

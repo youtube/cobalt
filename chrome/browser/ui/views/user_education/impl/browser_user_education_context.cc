@@ -76,6 +76,11 @@ void BrowserUserEducationContext::Invalidate(
   browser_view_ = nullptr;
 }
 
+BrowserWindowInterface* BrowserUserEducationContext::GetBrowser() const {
+  CHECK(IsValid());
+  return browser_view_->browser();
+}
+
 BrowserView& BrowserUserEducationContext::GetBrowserView() const {
   CHECK(IsValid());
   return *browser_view_;
@@ -83,10 +88,6 @@ BrowserView& BrowserUserEducationContext::GetBrowserView() const {
 
 void BrowserUserEducationContext::CreateSharedPreconditions(
     const user_education::UserEducationTimeProvider& time_provider) {
-  // Shared preconditions only apply in User Education 2.5.
-  if (!user_education::features::IsUserEducationV25()) {
-    return;
-  }
   CHECK(shared_preconditions_.empty());
 
   // Hold off showing most promos while the omnibox is open.
@@ -123,7 +124,12 @@ void BrowserUserEducationContext::CreateSharedPreconditions(
   CHECK(shared_preconditions_.emplace(ptr->GetIdentifier(), std::move(ptr))
             .second);
 
-  // Do not show promos while the actor is actuating the active tab.
+  // Do not show certain promos when in Enterprise no-promos mode.
+  ptr = std::make_unique<EnterprisePolicyNotBlockingPrecondition>();
+  CHECK(shared_preconditions_.emplace(ptr->GetIdentifier(), std::move(ptr))
+            .second);
+
+  // Do not show certain promos while the actor is actuating the active tab.
   ptr = std::make_unique<ActorNotActuatingActiveTabPrecondition>(
       *browser_view_->browser());
   CHECK(shared_preconditions_.emplace(ptr->GetIdentifier(), std::move(ptr))

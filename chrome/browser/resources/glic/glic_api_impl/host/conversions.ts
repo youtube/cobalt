@@ -18,12 +18,12 @@ import type {Origin} from '//resources/mojo/url/mojom/origin.mojom-webui.js';
 import type {Url} from '//resources/mojo/url/mojom/url.mojom-webui.js';
 
 import type {PageMetadata as PageMetadataMojo} from '../../ai_page_content_metadata.mojom-webui.js';
-import type {AdditionalContext as AdditionalContextMojo, AdditionalContextPart as AdditionalContextPartMojo, AnnotatedPageData as AnnotatedPageDataMojo, CaptureRegionResult as CaptureRegionResultMojo, ContextData as ContextDataMojo, ConversationInfo as ConversationInfoMojo, FocusedTabData as FocusedTabDataMojo, GetPinCandidatesOptions as GetPinCandidatesOptionsMojo, GetTabContextOptions as TabContextOptionsMojo, HostCapability as HostCapabilityMojo, InvokeOptions as InvokeOptionsMojo, PanelOpeningData as PanelOpeningDataMojo, PanelState as PanelStateMojo, PdfDocumentData as PdfDocumentDataMojo, PinTabsOptions as PinTabsOptionsMojo, Platform as PlatformMojo, Screenshot as ScreenshotMojo, TabContext as TabContextMojo, TabData as TabDataMojo, UnpinTabsOptions as UnpinTabsOptionsMojo, WebPageData as WebPageDataMojo} from '../../glic.mojom-webui.js';
-import {PinTrigger as PinTriggerMojo, UnpinTrigger as UnpinTriggerMojo, WebClientMode as WebClientModeMojo} from '../../glic.mojom-webui.js';
-import type {AdditionalContextSource, CaptureRegionResult, ConversationInfo, FeatureMode, GetPinCandidatesOptions, HostCapability, InvocationSource, PageMetadata, PanelOpeningData, PanelState, PinTabsOptions, PinTrigger, Platform, Screenshot, TabContextOptions, TaskOptions, UnpinTabsOptions, UnpinTrigger, WebPageData} from '../../glic_api/glic_api.js';
-import {DEFAULT_INNER_TEXT_BYTES_LIMIT, DEFAULT_PDF_SIZE_LIMIT, WebClientMode} from '../../glic_api/glic_api.js';
+import type {AdditionalContext as AdditionalContextMojo, AdditionalContextPart as AdditionalContextPartMojo, AnnotatedPageData as AnnotatedPageDataMojo, CaptureRegionResult as CaptureRegionResultMojo, ContextData as ContextDataMojo, ConversationInfo as ConversationInfoMojo, FocusedTabData as FocusedTabDataMojo, FormFactor as FormFactorMojo, GetPinCandidatesOptions as GetPinCandidatesOptionsMojo, GetTabContextOptions as TabContextOptionsMojo, HostCapability as HostCapabilityMojo, InvokeOptions as InvokeOptionsMojo, PanelOpeningData as PanelOpeningDataMojo, PanelState as PanelStateMojo, PdfDocumentData as PdfDocumentDataMojo, PinTabsOptions as PinTabsOptionsMojo, Platform as PlatformMojo, Screenshot as ScreenshotMojo, TabContext as TabContextMojo, TabData as TabDataMojo, UnpinTabsOptions as UnpinTabsOptionsMojo, WebPageData as WebPageDataMojo} from '../../glic.mojom-webui.js';
+import {MicrophoneStatus as MicrophoneStatusMojo, PinTrigger as PinTriggerMojo, UnpinTrigger as UnpinTriggerMojo, WebClientMode as WebClientModeMojo} from '../../glic.mojom-webui.js';
+import type {AdditionalContextSource, CaptureRegionResult, ConversationInfo, CredentialType, FeatureMode, FormFactor, GetPinCandidatesOptions, HostCapability, InvocationSource, PageMetadata, PanelOpeningData, PanelState, PinTabsOptions, PinTrigger, Platform, Screenshot, TabContextOptions, TaskOptions, UnpinTabsOptions, UnpinTrigger, WebPageData} from '../../glic_api/glic_api.js';
+import {DEFAULT_INNER_TEXT_BYTES_LIMIT, DEFAULT_PDF_SIZE_LIMIT, MicrophoneStatus, WebClientMode} from '../../glic_api/glic_api.js';
 
-import type {ConfirmationRequestErrorReason as ConfirmationRequestErrorReasonMojo, NavigationConfirmationRequest as NavigationConfirmationRequestMojo, NavigationConfirmationResponse as NavigationConfirmationResponseMojo, SelectAutofillSuggestionsDialogErrorReason as SelectAutofillSuggestionsDialogErrorReasonMojo, SelectAutofillSuggestionsDialogRequest as SelectAutofillSuggestionsDialogRequestMojo, SelectAutofillSuggestionsDialogResponse as SelectAutofillSuggestionsDialogResponseMojo, SelectCredentialDialogErrorReason as SelectCredentialDialogErrorReasonMojo, SelectCredentialDialogRequest as SelectCredentialDialogRequestMojo, SelectCredentialDialogResponse as SelectCredentialDialogResponseMojo, TaskOptions as TaskOptionsMojo, UserConfirmationDialogRequest as UserConfirmationDialogRequestMojo, UserConfirmationDialogResponse as UserConfirmationDialogResponseMojo, UserGrantedPermissionDuration as UserGrantedPermissionDurationMojo} from './../../actor_webui.mojom-webui.js';
+import type {ConfirmationRequestErrorReason as ConfirmationRequestErrorReasonMojo, CredentialType as CredentialTypeMojo, NavigationConfirmationRequest as NavigationConfirmationRequestMojo, NavigationConfirmationResponse as NavigationConfirmationResponseMojo, SelectAutofillSuggestionsDialogErrorReason as SelectAutofillSuggestionsDialogErrorReasonMojo, SelectAutofillSuggestionsDialogRequest as SelectAutofillSuggestionsDialogRequestMojo, SelectAutofillSuggestionsDialogResponse as SelectAutofillSuggestionsDialogResponseMojo, SelectCredentialDialogErrorReason as SelectCredentialDialogErrorReasonMojo, SelectCredentialDialogRequest as SelectCredentialDialogRequestMojo, SelectCredentialDialogResponse as SelectCredentialDialogResponseMojo, TaskOptions as TaskOptionsMojo, UserConfirmationDialogRequest as UserConfirmationDialogRequestMojo, UserConfirmationDialogResponse as UserConfirmationDialogResponseMojo, UserGrantedPermissionDuration as UserGrantedPermissionDurationMojo} from './../../actor_webui.mojom-webui.js';
 import {replaceProperties} from './../conversions.js';
 import type {ResponseExtras} from './../post_message_transport.js';
 import type {AdditionalContextPartPrivate, AdditionalContextPrivate, AnnotatedPageDataPrivate, FocusedTabDataPrivate, InvokeOptionsPrivate, NavigationConfirmationRequestPrivate, NavigationConfirmationResponsePrivate, PdfDocumentDataPrivate, ResumeActorTaskResultPrivate, RgbaImage, SelectAutofillSuggestionsDialogRequestPrivate, SelectAutofillSuggestionsDialogResponsePrivate, SelectCredentialDialogRequestPrivate, SelectCredentialDialogResponsePrivate, TabContextResultPrivate, TabDataPrivate, UserConfirmationDialogRequestPrivate, UserConfirmationDialogResponsePrivate} from './../request_types.js';
@@ -463,6 +463,10 @@ export function platformToClient(platform: PlatformMojo): Platform {
   return platform as number as Platform;
 }
 
+export function formFactorToClient(formFactor: FormFactorMojo): FormFactor {
+  return formFactor as number as FormFactor;
+}
+
 export function selectCredentialDialogResponseToMojo(
     response: SelectCredentialDialogResponsePrivate):
     SelectCredentialDialogResponseMojo {
@@ -484,6 +488,11 @@ export function selectCredentialDialogResponseToMojo(
       };
 }
 
+function credentialTypeToClient(credentialType: CredentialTypeMojo):
+    CredentialType {
+  return credentialType as number as CredentialType;
+}
+
 export function selectCredentialDialogRequestToClient(
     request: SelectCredentialDialogRequestMojo):
     SelectCredentialDialogRequestPrivate {
@@ -502,6 +511,7 @@ export function selectCredentialDialogRequestToClient(
         credential => ({
           ...credential,
           requestOrigin: originToClient(credential.requestOrigin),
+          type: credentialTypeToClient(credential.type),
         })),
     icons,
   };
@@ -619,6 +629,19 @@ export function webClientModeToMojo(mode: WebClientMode|undefined):
       return WebClientModeMojo.kText;
     default:
       return WebClientModeMojo.kUnknown;
+  }
+}
+
+export function microphoneStatusToMojo(status: MicrophoneStatus):
+    MicrophoneStatusMojo {
+  switch (status) {
+    case MicrophoneStatus.LISTENING:
+      return MicrophoneStatusMojo.kListening;
+    case MicrophoneStatus.NOT_LISTENING:
+      return MicrophoneStatusMojo.kNotListening;
+    case MicrophoneStatus.UNKNOWN:
+    default:
+      return MicrophoneStatusMojo.kUnknown;
   }
 }
 

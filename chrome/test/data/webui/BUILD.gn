@@ -33,6 +33,7 @@ source_set("browser_tests") {
   ]
 
   deps = [
+    "//chrome/browser/bookmarks",
     "//chrome/browser/ui/tabs/tab_group_home:constants",
     "//chrome/test:test_support",
     "//components/commerce/core:commerce_constants",
@@ -94,6 +95,7 @@ source_set("browser_tests") {
     deps += [
       "//chrome/browser/actor",
       "//chrome/browser/engagement",
+      "//chrome/browser/preloading",
       "//chrome/browser/signin:signin_promo",
       "//chrome/browser/subscription_eligibility",
     ]
@@ -179,6 +181,7 @@ source_set("browser_tests") {
       sources += [
         "chromeos/boca_receiver_app_ui/boca_receiver_untrusted_ui_browsertest.cc",
         "chromeos/boca_ui/boca_app_browsertest.cc",
+        "chromeos/projector_app/untrusted_projector_browser_proxy_browsertest.cc",
       ]
     }
   } else if (!is_android) {
@@ -254,7 +257,8 @@ source_set("browser_tests") {
       "//components/history/core/common",
       "//components/history_clusters/core",
       "//components/history_clusters/history_clusters_internals/webui:constants",
-      "//components/history_embeddings",
+      "//components/history_embeddings/content",
+      "//components/history_embeddings/core",
       "//components/language/core/browser",
       "//components/lens:enterprise_policy",
       "//components/lens:features",
@@ -279,6 +283,7 @@ source_set("browser_tests") {
     deps += [
       "//ash/webui/boca_receiver_app_ui",
       "//ash/webui/boca_ui:constants",
+      "//ash/webui/projector_app",
       "//ash/webui/sanitize_ui",
       "//ash/webui/shimless_rma",
       "//ash/webui/vc_background_ui",
@@ -475,6 +480,7 @@ webui_ts_library("build_ts") {
     "test_plural_string_proxy.ts",
     "test_util.ts",
     "test_open_window_proxy.ts",
+    "trusted_html.ts",
   ]
 
   if (!is_android) {
@@ -486,7 +492,6 @@ webui_ts_library("build_ts") {
       "polymer_test_util.ts",
       "test_api.ts",
       "test_store.ts",
-      "trusted_html.ts",
     ]
   }
 
@@ -773,6 +778,7 @@ generate_grd("build_grd") {
       "chromeos/print_management:build_grdp",
       "chromeos/print_preview:build_grdp",
       "chromeos/print_preview_cros:build_grdp",
+      "chromeos/projector_app:build_grdp",
       "chromeos/sanitize_ui:build_grdp",
       "chromeos/scanning:build_grdp",
       "chromeos/settings:build_grdp",
@@ -789,6 +795,7 @@ generate_grd("build_grd") {
       "$target_gen_dir/chromeos/ash_common/sea_pen/resources.grdp",
       "$target_gen_dir/chromeos/boca_ui/resources.grdp",
       "$target_gen_dir/chromeos/boca_receiver_app_ui/resources.grdp",
+      "$target_gen_dir/chromeos/projector_app/resources.grdp",
       "$target_gen_dir/chromeos/borealis_installer/resources.grdp",
       "$target_gen_dir/chromeos/cloud_upload/resources.grdp",
       "$target_gen_dir/chromeos/diagnostics/resources.grdp",

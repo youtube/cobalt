@@ -140,7 +140,7 @@ class IOSPromoControllerBrowserTest : public InProcessBrowserTest {
 // Verifies that the promo is shown when the "desktop to iOS promo" feature is
 // enabled on the user's iOS device.
 IN_PROC_BROWSER_TEST_F(IOSPromoControllerBrowserTest,
-                       MAYBE_ShowPromo_ReceivingEnabled) {
+                       ShowPromo_ReceivingEnabled) {
   // Add a device with receiving enabled.
   device_info_tracker()->Add(
       CreateDeviceInfo("guid1", syncer::DeviceInfo::OsType::kIOS,

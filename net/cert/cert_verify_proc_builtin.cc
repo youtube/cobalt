@@ -362,8 +362,8 @@ class CertVerifyProcTrustStore {
 
 #if BUILDFLAG(CHROME_ROOT_STORE_SUPPORTED)
   base::span<const ChromeRootCertConstraints> GetChromeRootConstraints(
-      const bssl::ParsedCertificate* cert) const {
-    return system_trust_store_->GetChromeRootConstraints(cert);
+      const bssl::CertPathBuilderResultPath* path) const {
+    return system_trust_store_->GetChromeRootConstraints(path);
   }
 
   const TrustStoreChrome::MtcAnchorExtraData* GetMTCAnchorData(
@@ -705,6 +705,32 @@ class PathBuilderDelegateImpl : public bssl::SimplePathBuilderDelegate {
     // confusing when there are multiple ChromeRootCertConstraints objects,
     // would need to clearly distinguish which set of constraints had errors.)
 
+    if (constraint.validity_starts_not_after.has_value()) {
+      bssl::der::GeneralizedTime starts_not_after_generalizedtime;
+      if (!EncodeTimeAsGeneralizedTime(
+              constraint.validity_starts_not_after.value(),
+              &starts_not_after_generalizedtime)) {
+        // This should never happen, so just failing is fine.
+        return false;
+      }
+      if (path->certs.front()->tbs().validity_not_before >
+          starts_not_after_generalizedtime) {
+        return false;
+      }
+    }
+    if (constraint.validity_starts_after.has_value()) {
+      bssl::der::GeneralizedTime starts_after_generalizedtime;
+      if (!EncodeTimeAsGeneralizedTime(constraint.validity_starts_after.value(),
+                                       &starts_after_generalizedtime)) {
+        // This should never happen, so just failing is fine.
+        return false;
+      }
+      if (path->certs.front()->tbs().validity_not_before <=
+          starts_after_generalizedtime) {
+        return false;
+      }
+    }
+
     if (ct_policy_enforcer_->IsCtEnabled()) {
       if (constraint.sct_not_after.has_value()) {
         bool found_matching_sct = false;
@@ -767,19 +793,42 @@ class PathBuilderDelegateImpl : public bssl::SimplePathBuilderDelegate {
       return false;
     }
 
+    if (path->trust_anchor.MTCAnchor() &&
+        (constraint.index_not_after.has_value() ||
+         constraint.index_after.has_value())) {
+      const auto& leaf = path->certs.front();
+      uint64_t index;
+      if (!bssl::der::ParseUint64(leaf->tbs().serial_number, &index)) {
+        return false;
+      }
+
+      if (constraint.index_not_after.has_value() &&
+          index > constraint.index_not_after) {
+        return false;
+      }
+
+      if (constraint.index_after.has_value() &&
+          index <= constraint.index_after) {
+        return false;
+      }
+    }
+
     return true;
   }
 
   void CheckChromeRootConstraints(bssl::CertPathBuilderResultPath* path) {
     // If the root is trusted locally, do not enforce CRS constraints, even if
     // some exist.
+    // TODO(crbug.com/452986180): If we ever add support for user-added MTC
+    // anchors, need to check for them here, like
+    // IsNonChromeRootStoreTrustAnchor.
     if (trust_store_->IsNonChromeRootStoreTrustAnchor(
             path->certs.back().get())) {
       return;
     }
 
     if (base::span<const ChromeRootCertConstraints> constraints =
-            trust_store_->GetChromeRootConstraints(path->certs.back().get());
+            trust_store_->GetChromeRootConstraints(path);
         !constraints.empty()) {
       bool found_valid_constraint = false;
       for (const ChromeRootCertConstraints& constraint : constraints) {

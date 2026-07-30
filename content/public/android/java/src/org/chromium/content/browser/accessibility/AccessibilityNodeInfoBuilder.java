@@ -139,8 +139,10 @@ public class AccessibilityNodeInfoBuilder {
             "AccessibilityNodeInfo.requestImageData";
     public static final String EXTRAS_KEY_IMAGE_DATA = "AccessibilityNodeInfo.imageData";
 
+    // Match AccessibilityNodeInfo.EXTRA_DATA_REQUEST_LAYOUT_BASED_ACTIONS_KEY.
+    // TODO(crbug.com/484387130) Pull definition from AndroidX instead, when available.
     public static final String EXTRAS_KEY_REQUEST_LAYOUT_BASED_ACTIONS =
-            "AccessibilityNodeInfo.requestLayoutBasedActions";
+            "android.view.accessibility.extra.DATA_REQUEST_LAYOUT_BASED_ACTIONS_KEY";
 
     public static final String ACCESSIBILITY_SPANNABLE_CREATION_TIME =
             "Accessibility.Android.Performance.SpannableCreationTime2";
@@ -455,7 +457,6 @@ public class AccessibilityNodeInfoBuilder {
             String text,
             String targetUrl,
             boolean annotateAsLink,
-            boolean isEditableText,
             String language,
             int[] suggestionStarts,
             int[] suggestionEnds,
@@ -524,7 +525,6 @@ public class AccessibilityNodeInfoBuilder {
             AccessibilityNodeInfoCompat node,
             String text,
             boolean annotateAsLink,
-            boolean isEditableText,
             String stateDescription,
             String containerTitle,
             String contentDescription,

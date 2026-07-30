@@ -146,12 +146,8 @@ class SqlBackendImplTest : public testing::Test {
   bool LoadInMemoryIndex(SqlBackendImpl& backend) {
     auto* store = backend.GetSqlStoreForTest();
     base::test::TestFuture<SqlPersistentStore::Error> future;
-    auto ret = store->MaybeLoadInMemoryIndex(future.GetCallback());
-    if (ret) {
-      CHECK_EQ(future.Get(), SqlPersistentStore::Error::kOk);
-      return true;
-    }
-    return false;
+    store->MaybeLoadInMemoryIndex(future.GetCallback());
+    return future.Get() == SqlPersistentStore::Error::kOk;
   }
 
   // Gets the total size of all entries.
@@ -165,7 +161,6 @@ class SqlBackendImplTest : public testing::Test {
                                        SqlPersistentStore::ResId res_id) {
     auto db = std::make_unique<sql::Database>(
         sql::DatabaseOptions()
-            .set_exclusive_locking(true)
 #if BUILDFLAG(IS_WIN)
             .set_exclusive_database_file_lock(true)
 #endif  // IS_WIN

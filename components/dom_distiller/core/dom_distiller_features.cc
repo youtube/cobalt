@@ -30,30 +30,30 @@ bool ShouldStartDistillabilityService() {
       switches::kEnableDistillabilityService);
 }
 
-BASE_FEATURE(kReaderModeUseReadability,
-// iOS enabled by default as part of a launch.
-// Desktop enabled by default as part of a dogfood, it will be controlled by a
-// separate feature flag on it's launch.
-#if !BUILDFLAG(IS_ANDROID)
-             base::FEATURE_ENABLED_BY_DEFAULT
-#else
-
-             base::FEATURE_DISABLED_BY_DEFAULT
-#endif
-);
+BASE_FEATURE(kReaderModeUseReadability, base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if !BUILDFLAG(IS_IOS)
 constexpr base::FeatureParam<bool> kReaderModeUseReadabilityUseDistiller{
     &kReaderModeUseReadability, /*name=*/"use_distiller",
-    /*default_value=*/false};
+    /*default_value=*/true};
 #endif
 constexpr base::FeatureParam<int> kReaderModeUseReadabilityHeuristicMinScore{
     &kReaderModeUseReadability, /*name=*/"heuristic_min_score",
-    /*default_value=*/50};
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
+    /*default_value=*/50
+#else
+    /*default_value=*/75
+#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
+};
 constexpr base::FeatureParam<int>
     kReaderModeUseReadabilityHeuristicMinContentLength{
         &kReaderModeUseReadability, /*name=*/"heuristic_min_content_length",
-        /*default_value=*/160};
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
+        /*default_value=*/160
+#else
+        /*default_value=*/200
+#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
+    };
 constexpr base::FeatureParam<int> kReaderModeUseReadabilityMinContentLength{
     &kReaderModeUseReadability, /*name=*/"min_content_length",
 #if !BUILDFLAG(IS_ANDROID)
@@ -98,7 +98,7 @@ BASE_FEATURE(kReaderModeBlurTransitionAnimation,
 BASE_FEATURE(kReaderModeDelayBottomSheetPeek,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kReaderModeDistillInApp, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kReaderModeDistillInApp, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kReaderModeImprovements, base::FEATURE_DISABLED_BY_DEFAULT);
 

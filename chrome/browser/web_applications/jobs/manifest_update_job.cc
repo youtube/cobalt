@@ -274,9 +274,7 @@ void ManifestUpdateJob::OnWebAppInfoCreated(
   // Store the conditions for which a silent update of the app's identity is
   // allowed.
   bool is_trusted_install =
-      (base::FeatureList::IsEnabled(
-           features::kSilentPolicyAndDefaultAppUpdating) &&
-       lock_->registrar().AppMatches(app_id_, WebAppFilter::IsTrusted())) ||
+      lock_->registrar().AppMatches(app_id_, WebAppFilter::IsTrusted()) ||
       options_.use_manifest_icons_as_trusted;
   bool can_fix_generated_icons =
       app->is_generated_icon() &&
@@ -419,7 +417,8 @@ void ManifestUpdateJob::FinalizeUpdateIfSilentChangesExist() {
     lock_->install_finalizer().FinalizeUpdate(
         new_install_info_->Clone(),
         base::BindOnce(&ManifestUpdateJob::UpdateFinalizedWritePendingInfo,
-                       weak_factory_.GetWeakPtr(), std::nullopt));
+                       weak_factory_.GetWeakPtr(), std::nullopt,
+                       /*silent_icon_update_happened=*/false));
     return;
   }
   CHECK(!options_.force_silent_update_identity);
@@ -449,7 +448,8 @@ void ManifestUpdateJob::FinalizeUpdateIfSilentChangesExist() {
         new_install_info_->Clone(),
         base::BindOnce(&ManifestUpdateJob::UpdateFinalizedWritePendingInfo,
                        weak_factory_.GetWeakPtr(),
-                       std::move(pending_update_info)));
+                       std::move(pending_update_info),
+                       /*silent_icon_update_happened=*/false));
     return;
   }
 
@@ -540,7 +540,7 @@ void ManifestUpdateJob::FinalizeUpdateIfSilentChangesExist() {
         new_install_info_->Clone(),
         base::BindOnce(&ManifestUpdateJob::UpdateFinalizedWritePendingInfo,
                        weak_factory_.GetWeakPtr(),
-                       std::move(pending_update_info)));
+                       std::move(pending_update_info), silent_icon_update));
   } else {
     CHECK(pending_update_info);
     Result result_for_icon_changes =
@@ -554,6 +554,7 @@ void ManifestUpdateJob::FinalizeUpdateIfSilentChangesExist() {
 
 void ManifestUpdateJob::UpdateFinalizedWritePendingInfo(
     std::optional<proto::PendingUpdateInfo> pending_update_info,
+    bool silent_icon_update_happened,
     const webapps::AppId& app_id,
     webapps::InstallResultCode code) {
   debug_value_->Set("silent_update_install_code", base::ToString(code));
@@ -568,7 +569,9 @@ void ManifestUpdateJob::UpdateFinalizedWritePendingInfo(
   Result result =
       pending_update_info.has_value()
           ? Result::kPendingUpdateRecorded_AppHasNonSecurityAndSecurityChanges
-          : Result::kSilentlyUpdated;
+          : (silent_icon_update_happened
+                 ? Result::kSilentlyUpdatedDueToSmallIconComparison
+                 : Result::kSilentlyUpdated);
   WritePendingUpdateInfoThenComplete(std::move(pending_update_info), result);
 }
 

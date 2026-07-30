@@ -580,6 +580,11 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
   }
 }
 
+- (void)insertTextToOmnibox:(NSString*)string {
+  CHECK(!IsComposeboxIOSEnabled());
+  [self.omniboxCoordinator insertTextToOmnibox:string];
+}
+
 - (void)focusOmniboxForVoiceOver {
   [self.viewController focusSteadyViewForVoiceOver];
 }
@@ -685,6 +690,7 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
 }
 
 - (void)locationBarDidTapAIHubNewBadge {
+  _tracker->Dismissed(feature_engagement::kIPHiOSAIHubNewBadge);
   _tracker->NotifyUsedEvent(feature_engagement::kIPHiOSAIHubNewBadge);
 }
 
@@ -694,12 +700,6 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
   }
   return _tracker->ShouldTriggerHelpUI(
       feature_engagement::kIPHiOSAIHubNewBadge);
-}
-
-- (void)locationBarViewController:(LocationBarViewController*)controller
-         didChangeEditStateHeight:(CGFloat)height {
-  [self.heightDelegate locationBarCoordinator:self
-                     didChangeEditStateHeight:height];
 }
 
 #pragma mark - LocationBarBadgeCommands

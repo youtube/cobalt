@@ -64,5 +64,11 @@ TEST(TabsApiNodeIdTest, ToTabCollectionHandle) {
   EXPECT_FALSE(empty_id_node.ToTabCollectionHandle().has_value());
 }
 
+TEST(TabsApiNodeIdTest, FromWindowId) {
+  const NodeId node = NodeId::FromWindowId("123");
+  EXPECT_EQ(NodeId::Type::kWindow, node.Type());
+  EXPECT_EQ("123", node.Id());
+}
+
 }  // namespace
 }  // namespace tabs_api

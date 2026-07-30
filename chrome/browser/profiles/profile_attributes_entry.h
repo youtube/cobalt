@@ -203,16 +203,12 @@ class ProfileAttributesEntry {
   // Note: The bucket index is assigned once and remains the same all time. 0 is
   // reserved for the guest profile.
   size_t GetMetricsBucketIndex();
-  // Returns the hosted domain for the current signed-in account. Returns empty
-  // string if there is no signed-in account and returns
-  // |signin::constants::kNoHostedDomainFound| if the signed-in account has no
-  // hosted domain (such as when it is a standard gmail.com account). Unlike
-  // for other string getters, the returned value is UTF8 encoded.
-  //
-  // TODO(crbug.com/458409080): convert the return value to
-  // std::optional<std::string> for parity with
-  // `AccountInfo::GetHostedDomain()`.
-  std::string GetHostedDomain() const;
+  // Returns the hosted domain for the current signed-in account. Returns
+  // std::nullopt if there is no signed-in account and returns an empty string
+  // if the signed-in account has no hosted domain (such as when it is a
+  // standard gmail.com account). Unlike for other string getters, the returned
+  // value is UTF8 encoded.
+  std::optional<std::string> GetHostedDomain() const;
 
   // Returns management status of the current signed-in account.
   signin::Tribool GetIsManaged() const;
@@ -236,11 +232,6 @@ class ProfileAttributesEntry {
   // Returns whether the current profile state is glic eligibile or not based on
   // the signed in account. Signed out profiles are ineligible.
   bool IsGlicEligible() const;
-
-  // Gets/Sets the gaia IDs of the accounts signed into the profile (accounts
-  // known by the `IdentityManager`).
-  base::flat_set<GaiaId> GetGaiaIds() const;
-  void SetGaiaIds(const base::flat_set<GaiaId>& gaia_ids);
 
   // |is_using_default| should be set to false for non default profile names.
   void SetLocalProfileName(const std::u16string& name, bool is_default_name);
@@ -272,7 +263,8 @@ class ProfileAttributesEntry {
 
   // Unlike for other string setters, the argument is expected to be UTF8
   // encoded.
-  void SetHostedDomain(std::string hosted_domain);
+  // Clears the hosted_domain value when std::nullopt is passed.
+  void SetHostedDomain(std::optional<std::string_view> hosted_domain);
   void SetIsManaged(signin::Tribool value);
 
   void SetProfileManagementEnrollmentToken(const std::string& enrollment_token);
@@ -286,19 +278,8 @@ class ProfileAttributesEntry {
 
   void SetIsGlicEligible(bool value);
 
-  // Update info about accounts. These functions are idempotent, only the first
-  // call for a given input matters.
-  void AddAccountName(const std::string& name);
-
-  // Clears info about all accounts that have been added in the past via
-  // AddAccountName().
-  void ClearAccountNames();
-
   // Lock/Unlock the profile, should be called only if force-sign-in is enabled.
   void LockForceSigninProfile(bool is_lock);
-
-  // Records aggregate metrics about all accounts used in this profile.
-  void RecordAccountNamesMetric() const;
 
   static const char kSupervisedUserId[];
   static const char kAvatarIconKey[];
@@ -358,11 +339,6 @@ class ProfileAttributesEntry {
   gfx::Image GetPlaceholderAvatarIcon(
       int size,
       const profiles::PlaceholderAvatarIconParams& icon_params) const;
-
-  // Returns if this profile has accounts (signed-in or signed-out) with
-  // different account names. This is approximate as only a short hash of an
-  // account name is stored so there can be false negatives.
-  bool HasMultipleAccountNames() const;
 
   // Loads and saves the data to the local state.
   const base::DictValue* GetEntryData() const;

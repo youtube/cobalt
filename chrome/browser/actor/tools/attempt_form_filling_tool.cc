@@ -15,13 +15,13 @@
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/tools/attempt_form_filling_tool_request.h"
 #include "chrome/browser/actor/tools/page_target_util.h"
-#include "chrome/browser/autofill/glic/actor_form_filling_service.h"
+#include "chrome/browser/autofill/actor/actor_form_filling_service.h"
 #include "chrome/common/actor.mojom.h"
 #include "chrome/common/actor/action_result.h"
 #include "chrome/common/actor/actor_logging.h"
 #include "chrome/common/actor/journal_details_builder.h"
 #include "chrome/common/actor_webui.mojom.h"
-#include "components/autofill/core/browser/integrators/glic/actor_form_filling_types.h"
+#include "components/autofill/core/browser/integrators/actor/actor_form_filling_types.h"
 #include "components/autofill/core/common/unique_ids.h"
 #include "components/optimization_guide/content/browser/page_content_proto_util.h"
 #include "content/public/browser/render_frame_host.h"
@@ -252,7 +252,7 @@ void AttemptFormFillingTool::OnSuggestionsRetrieved(
   }
 
   tool_delegate().RequestToShowAutofillSuggestions(
-      std::move(*suggestions_result),
+      std::move(*suggestions_result), weak_factory_.GetWeakPtr(),
       base::BindOnce(&AttemptFormFillingTool::OnSuggestionsSelected,
                      weak_factory_.GetWeakPtr(), std::move(invoke_callback)));
 }
@@ -315,7 +315,7 @@ void AttemptFormFillingTool::OnSuggestionsSelected(
     selection.selected_suggestion_id = autofill::ActorSuggestionId(id);
     selection_response.push_back(std::move(selection));
   }
-  auto* tab = GetTargetTab().Get();
+  tabs::TabInterface* tab = GetTargetTab().Get();
   if (!tab) {
     std::move(invoke_callback)
         .Run(MakeResult(mojom::ActionResultCode::kTabWentAway));
@@ -328,6 +328,51 @@ void AttemptFormFillingTool::OnSuggestionsSelected(
         return result.has_value() ? MakeOkResult()
                                   : FromServiceError(result.error());
       }).Then(std::move(invoke_callback)));
+}
+
+void AttemptFormFillingTool::OnFormPresented(
+    webui::mojom::AutofillSuggestionDialogOnFormPresentedParamsPtr params) {
+  tabs::TabInterface* tab = GetTargetTab().Get();
+  if (!tab) {
+    return;
+  }
+  tool_delegate().GetActorFormFillingService().ScrollToForm(
+      *tab, params->form_filling_request_index);
+}
+
+void AttemptFormFillingTool::OnFormPreviewChanged(
+    webui::mojom::AutofillSuggestionDialogOnFormPreviewChangedParamsPtr
+        params) {
+  tabs::TabInterface* tab = GetTargetTab().Get();
+  if (!tab) {
+    return;
+  }
+  if (params->response) {
+    uint32_t id = 0;
+    if (base::StringToUint(params->response->selected_suggestion_id, &id)) {
+      tool_delegate().GetActorFormFillingService().PreviewForm(
+          *tab, params->form_filling_request_index,
+          autofill::ActorSuggestionId(id));
+    }
+  } else {
+    tool_delegate().GetActorFormFillingService().ClearFormPreview(
+        *tab, params->form_filling_request_index);
+  }
+}
+
+void AttemptFormFillingTool::OnFormConfirmed(
+    webui::mojom::AutofillSuggestionDialogOnFormConfirmedParamsPtr params) {
+  tabs::TabInterface* tab = GetTargetTab().Get();
+  if (!tab) {
+    return;
+  }
+  uint32_t id = 0;
+  if (base::StringToUint(params->response->selected_suggestion_id, &id)) {
+    autofill::ActorFormFillingSelection selection;
+    selection.selected_suggestion_id = autofill::ActorSuggestionId(id);
+    tool_delegate().GetActorFormFillingService().FillForm(
+        *tab, params->form_filling_request_index, std::move(selection));
+  }
 }
 
 }  // namespace actor

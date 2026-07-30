@@ -16,13 +16,23 @@
 
 class AccountId;
 
+namespace policy {
+class BrowserPolicyConnectorAsh;
+}  // namespace policy
+
 namespace ash {
 
 class ChromeUserSelectionScreen
     : public UserSelectionScreen,
       public policy::DeviceLocalAccountPolicyService::Observer {
  public:
-  explicit ChromeUserSelectionScreen(DisplayedScreen display_type);
+  // `local_state`, `application_locale_storage` and
+  // `browser_policy_connector_ash` must be non-null and must outlive `this`.
+  ChromeUserSelectionScreen(
+      PrefService* local_state,
+      const ApplicationLocaleStorage* application_locale_storage,
+      const policy::BrowserPolicyConnectorAsh* browser_policy_connector_ash,
+      DisplayedScreen display_type);
 
   ChromeUserSelectionScreen(const ChromeUserSelectionScreen&) = delete;
   ChromeUserSelectionScreen& operator=(const ChromeUserSelectionScreen&) =

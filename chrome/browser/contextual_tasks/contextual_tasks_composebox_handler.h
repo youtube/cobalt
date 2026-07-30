@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/webui/cr_components/composebox/composebox_handler.h"
 #include "components/contextual_search/contextual_search_context_controller.h"
@@ -49,6 +50,9 @@ class ContextualTasksComposeboxHandler : public ComposeboxHandler,
                                          public ui::SelectFileDialog::Listener {
  public:
   friend class ContextualTasksComposeboxHandlerTest;
+  using GetInputStateModelCallback =
+      base::OnceCallback<std::unique_ptr<contextual_search::InputStateModel>()>;
+
   ContextualTasksComposeboxHandler(
       contextual_tasks::ContextualTasksUIInterface* web_ui_interface,
       Profile* profile,
@@ -57,7 +61,8 @@ class ContextualTasksComposeboxHandler : public ComposeboxHandler,
       mojo::PendingRemote<composebox::mojom::Page> pending_page,
       mojo::PendingReceiver<searchbox::mojom::PageHandler>
           pending_searchbox_handler,
-      GetSessionHandleCallback get_session_callback);
+      GetSessionHandleCallback get_session_callback,
+      GetInputStateModelCallback get_input_model_callback);
   ~ContextualTasksComposeboxHandler() override;
 
   // composebox::mojom::PageHandler:
@@ -78,6 +83,10 @@ class ContextualTasksComposeboxHandler : public ComposeboxHandler,
                      AddTabContextCallback callback) override;
 
   void OnTaskChanged();
+
+  // We override this method to inject an existing `InputStateModel` if one is
+  // provided by the ContextualTasksUI via the `get_input_model_callback_`.
+  void InitializeInputStateModel() override;
 
   void AddFileContextFromBrowser(
       searchbox::mojom::SelectedFileInfoPtr file_info,
@@ -101,13 +110,15 @@ class ContextualTasksComposeboxHandler : public ComposeboxHandler,
       searchbox::mojom::TabInfoPtr candidate_tab_info);
 
   // Returns true if there is a suggested tab context chip in the compose box.
-  bool has_suggested_tab_context() const { return has_suggested_tab_context_; }
+  bool has_suggested_tab_context() const {
+    return current_suggestion_.has_value();
+  }
 
   // Called to clear the blocklist of auto-suggested tabs. This is used when
   // switching to a new thread.
   void ResetBlocklistedSuggestions() { blocklisted_suggestions_.clear(); }
 
-  void ClearFiles() override;
+  void ClearFiles(bool should_block_auto_suggested_tabs) override;
   void HandleLensButtonClick() override;
   void OnLensThumbnailCreated(const std::string& thumbnail_data);
   virtual void CloseLensOverlay(
@@ -139,6 +150,8 @@ class ContextualTasksComposeboxHandler : public ComposeboxHandler,
   // Potentially submits query if no other context is uploading.
   void MarkContextUploadFinished(const base::UnguessableToken& token);
 
+  GetInputStateModelCallback get_input_model_callback_;
+
   // Called when a delayed context upload (tab) has finished.
   // Potentially submits query if no other context is uploading.
   void MarkDelayedTabUploadFinished(const int32_t tab_id);
@@ -150,6 +163,7 @@ class ContextualTasksComposeboxHandler : public ComposeboxHandler,
       std::string query,
       tabs::TabHandle active_tab_handle,
       std::optional<base::Uuid> original_task_id,
+      std::optional<base::UnguessableToken> overlay_token,
       std::unique_ptr<contextual_tasks::ContextualTaskContext> context);
 
   // Called when a tab context reupload has started or canceled, to continue
@@ -189,7 +203,10 @@ class ContextualTasksComposeboxHandler : public ComposeboxHandler,
       int32_t tab_id,
       std::unique_ptr<lens::ContextualInputData> page_content_data);
 
-  void OnVisualSelectionAdded(const base::UnguessableToken& token);
+  void OnVisualSelectionAdded(
+      base::UnguessableToken overlay_token,
+      base::expected<base::UnguessableToken,
+                     contextual_search::FileUploadErrorType> token);
 
   LensSearchController* GetLensSearchController() const;
 
@@ -216,6 +233,9 @@ class ContextualTasksComposeboxHandler : public ComposeboxHandler,
   // Helper to send the pending query if all uploads are complete.
   void MaybeSendPendingQuery();
 
+  // Sends an update to AIM that an injected input has been deleted.
+  void SendDeleteInjectedInputUpdate(const std::string& id);
+
   // The context controller for the current profile. The profile will outlive
   // this class.
   raw_ptr<contextual_tasks::ContextualTasksService> contextual_tasks_service_;
@@ -231,8 +251,8 @@ class ContextualTasksComposeboxHandler : public ComposeboxHandler,
   // switches to a new thread in which case the whole list will be cleared.
   std::set<GURL> blocklisted_suggestions_;
 
-  // Whether the composebox is currently showing a suggested chip.
-  bool has_suggested_tab_context_ = false;
+  // The URL of the current suggested tab context.
+  std::optional<GURL> current_suggestion_;
 
   // The message to be sent to the webview once uploads are complete.
   std::optional<lens::ClientToAimMessage> pending_message_;
@@ -250,6 +270,11 @@ class ContextualTasksComposeboxHandler : public ComposeboxHandler,
   std::set<base::UnguessableToken> pending_context_uploads_;
 
   std::optional<base::UnguessableToken> visual_selection_token_;
+  // The overlay token associated with the visual selection. This is stored
+  // alongside the visual selection token because the overlay controller may be
+  // reset or closed, but the visual selection should still be associated with
+  // the overlay token that created it.
+  std::optional<base::UnguessableToken> visual_selection_overlay_token_;
   base::WeakPtrFactory<ContextualTasksComposeboxHandler> weak_factory_{this};
 };
 

@@ -24,6 +24,16 @@ WebAppFilter WebAppFilter::OpensInDedicatedWindow() {
 }
 
 // static
+WebAppFilter WebAppFilter::InstalledByUser() {
+  return IsTrue(SimpleCondition::kWasInstalledByUser);
+}
+
+// static
+WebAppFilter WebAppFilter::InstalledByDefaultManagement() {
+  return HasSource(WebAppManagement::kDefault);
+}
+
+// static
 WebAppFilter WebAppFilter::IsIsolatedApp() {
   return IsTrue(SimpleCondition::kIsolatedApp);
 }
@@ -96,20 +106,12 @@ WebAppFilter WebAppFilter::IsDiyWithOsShortcut() {
 
 // static
 WebAppFilter WebAppFilter::LaunchableFromInstallApi() {
-  return IsTrue(SimpleCondition::kWasInstalledByUser) |
-         OpensInDedicatedWindow();
+  return InstalledByUser() | OpensInDedicatedWindow();
 }
 
 // static
 WebAppFilter WebAppFilter::IsTrusted() {
   return IsTrue(SimpleCondition::kInstalledByTrustedSource);
-}
-
-// static
-WebAppFilter WebAppFilter::IsIsolatedWebAppIncludingUninstalling() {
-  LeafFilter leaf;
-  leaf.is_isolated_apps_including_uninstalling = true;
-  return WebAppFilter(std::move(leaf));
 }
 
 // static
@@ -135,47 +137,35 @@ WebAppFilter WebAppFilter::IsAppEligibleForManifestUpdate() {
 
 // static
 WebAppFilter WebAppFilter::HasSource(WebAppManagement::Type source) {
-  LeafFilter leaf;
-  leaf.predicate =
-      ManagementRequirement{ManagementRequirement::Type::kHasAny, {source}};
-  return WebAppFilter(std::move(leaf));
+  return WebAppFilter(
+      ManagementRequirement{ManagementRequirement::Type::kHasAny, {source}});
 }
 
 // static
 WebAppFilter WebAppFilter::HasAnySource(WebAppManagementTypes sources) {
-  LeafFilter leaf;
-  leaf.predicate =
-      ManagementRequirement{ManagementRequirement::Type::kHasAny, sources};
-  return WebAppFilter(std::move(leaf));
+  return WebAppFilter(
+      ManagementRequirement{ManagementRequirement::Type::kHasAny, sources});
 }
 
 // static
 WebAppFilter WebAppFilter::HasAllSources(WebAppManagementTypes sources) {
-  LeafFilter leaf;
-  leaf.predicate =
-      ManagementRequirement{ManagementRequirement::Type::kHasAll, sources};
-  return WebAppFilter(std::move(leaf));
+  return WebAppFilter(
+      ManagementRequirement{ManagementRequirement::Type::kHasAll, sources});
 }
 
 // static
 WebAppFilter WebAppFilter::InstallStateIs(proto::InstallState state) {
-  LeafFilter leaf;
-  leaf.predicate = InstallStateSet{state};
-  return WebAppFilter(std::move(leaf));
+  return WebAppFilter(InstallStateSet{state});
 }
 
 // static
 WebAppFilter WebAppFilter::InstallStateIsAnyOf(InstallStateSet states) {
-  LeafFilter leaf;
-  leaf.predicate = states;
-  return WebAppFilter(std::move(leaf));
+  return WebAppFilter(states);
 }
 
 // static
 WebAppFilter WebAppFilter::IsTrue(SimpleCondition condition) {
-  LeafFilter leaf;
-  leaf.predicate = condition;
-  return WebAppFilter(std::move(leaf));
+  return WebAppFilter(condition);
 }
 
 // static
@@ -186,13 +176,6 @@ WebAppFilter WebAppFilter::IsInRegistrar() {
        proto::InstallState::SUGGESTED_FROM_ANOTHER_DEVICE,
        proto::InstallState::SUGGESTED_FROM_MIGRATION});
 }
-
-WebAppFilter::LeafFilter::LeafFilter() = default;
-WebAppFilter::LeafFilter::~LeafFilter() = default;
-WebAppFilter::LeafFilter::LeafFilter(const LeafFilter&) = default;
-WebAppFilter::LeafFilter::LeafFilter(LeafFilter&&) noexcept = default;
-WebAppFilter::LeafFilter& WebAppFilter::LeafFilter::operator=(
-    LeafFilter&&) noexcept = default;
 
 WebAppFilter::WebAppFilter(LeafFilter leaf) : data_(std::move(leaf)) {}
 

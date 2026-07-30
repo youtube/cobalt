@@ -15,6 +15,7 @@
 #include "crypto/sha2.h"
 #include "net/base/net_export.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
+#include "third_party/boringssl/src/pki/path_builder.h"
 #include "third_party/boringssl/src/pki/trust_store.h"
 #include "third_party/boringssl/src/pki/trust_store_in_memory.h"
 
@@ -38,6 +39,12 @@ struct StaticChromeRootCertConstraints {
   std::optional<std::string_view> max_version_exclusive;
 
   base::span<const std::string_view> permitted_dns_names;
+
+  std::optional<uint64_t> index_not_after;
+  std::optional<uint64_t> index_after;
+
+  std::optional<base::Time> validity_starts_not_after;
+  std::optional<base::Time> validity_starts_after;
 };
 
 struct ChromeRootCertInfo {
@@ -68,7 +75,11 @@ struct NET_EXPORT ChromeRootCertConstraints {
                             std::optional<base::Time> sct_all_after,
                             std::optional<base::Version> min_version,
                             std::optional<base::Version> max_version_exclusive,
-                            std::vector<std::string> permitted_dns_names);
+                            std::vector<std::string> permitted_dns_names,
+                            std::optional<uint64_t> index_not_after,
+                            std::optional<uint64_t> index_after,
+                            std::optional<base::Time> validity_starts_not_after,
+                            std::optional<base::Time> validity_starts_after);
   explicit ChromeRootCertConstraints(
       const StaticChromeRootCertConstraints& constraints);
   ~ChromeRootCertConstraints();
@@ -84,6 +95,12 @@ struct NET_EXPORT ChromeRootCertConstraints {
   std::optional<base::Version> max_version_exclusive;
 
   std::vector<std::string> permitted_dns_names;
+
+  std::optional<uint64_t> index_not_after;
+  std::optional<uint64_t> index_after;
+
+  std::optional<base::Time> validity_starts_not_after;
+  std::optional<base::Time> validity_starts_after;
 };
 
 // ChromeRootStoreData is a container class that stores the Chrome Root Store
@@ -268,6 +285,9 @@ class NET_EXPORT TrustStoreChrome : public bssl::TrustStore {
   //   `maxversionexclusive=${dotted_version_string}`
   //   `dns=${permitted_dns_name}` (can be specified multiple times)
   //
+  // TODO(crbug.com/452986180): support constraint overrides for MTC index
+  // constraints.
+  //
   // If the same root hash is specified multiple times in separate constraint
   // specifications, each time will create a new constraintset for that root,
   // which can be used to test the handling of multiple constraintsets on one
@@ -322,10 +342,10 @@ class NET_EXPORT TrustStoreChrome : public bssl::TrustStore {
   bool Contains(const bssl::ParsedCertificate* cert) const;
   bool ContainsMTCAnchor(const bssl::MTCAnchor* anchor) const;
 
-  // Returns the root store constraints for `cert`, or an empty span if the
+  // Returns the root store constraints for `path`, or an empty span if the
   // certificate is not constrained.
   base::span<const ChromeRootCertConstraints> GetConstraintsForCert(
-      const bssl::ParsedCertificate* cert) const;
+      const bssl::CertPathBuilderResultPath* path) const;
 
   // Returns additional data about the MTC anchor with log id `log_id`, or null
   // if the anchor isn't known or has no additional data.
@@ -350,6 +370,10 @@ class NET_EXPORT TrustStoreChrome : public bssl::TrustStore {
                    ConstraintOverrideMap override_constraints);
 
   static ConstraintOverrideMap InitializeConstraintsOverrides();
+  base::span<const ChromeRootCertConstraints> GetConstraintsForMTC(
+      const bssl::MTCAnchor* mtc_anchor) const;
+  base::span<const ChromeRootCertConstraints> GetConstraintsForClassicalCert(
+      const bssl::ParsedCertificate* cert) const;
 
   bssl::TrustStoreInMemory trust_store_;
 

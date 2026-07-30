@@ -7,8 +7,9 @@
 <translation id="1070329623210597193">このサイトが表示または編集できるファイル</translation>
 <translation id="1073417869336441572">Chrome の改善に役立てるため、サードパーティ Cookie を許可した理由をお聞かせください。<ph name="BEGIN_LINK" />フィードバックを送信<ph name="END_LINK" /></translation>
 <translation id="1074758928858737435">サイトの PC 版を表示するようリクエストできます</translation>
-<translation id="1085696779717592361">Chrome をデフォルトに設定する</translation>
+<translation id="1126523729897810826">Chrome を最大限に活用するには、下記のおすすめの設定を行ってください</translation>
 <translation id="113098737392899175">キーボードが接続されているときにテキスト カーソルを使ってページ間を移動する</translation>
+<translation id="1148624853678088576">設定完了。</translation>
 <translation id="1149644372535087155">Chrome でパスワードを保存</translation>
 <translation id="1178015372320901893">カスタム ショートカットのボトムシート</translation>
 <translation id="1178581264944972037">一時停止</translation>
@@ -53,6 +54,7 @@
 <translation id="1569054338208717605">Chrome の V8 エンジンでサイトを高速化する（攻撃に対する Chrome の耐性は若干低下します）</translation>
 <translation id="1593426485665524382">画面上部付近で新しい操作が可能になりました</translation>
 <translation id="1594521731409209842">画面をピンチして写真のサイズを変更します</translation>
+<translation id="1599268789440304082">設定シートが開きました</translation>
 <translation id="1601560923496285236">適用</translation>
 <translation id="1615755956145364867">保護されたコンテンツの再生がサイトからリクエストされる場合があります</translation>
 <translation id="1620510694547887537">カメラ</translation>
@@ -191,12 +193,12 @@
 <translation id="2802908157808345702">サイトにポップアップの送信とリダイレクトの使用を許可しない</translation>
 <translation id="2814830417943086299">Chrome で最近使ったタブがデバイスのアプリリストと検索結果に表示されるようになりました。この機能は Chrome の設定でいつでもオフにできます。</translation>
 <translation id="2822354292072154809">「<ph name="CHOSEN_OBJECT_NAME" />」に関するすべてのサイト権限をリセットしてもよろしいですか？</translation>
+<translation id="2848335882304088250">お使いのデバイスで Chrome を最大限に活用できるようになりました。</translation>
 <translation id="2850913818900871965">モバイルビューをリクエストする</translation>
 <translation id="2870560284913253234">ウェブサイト</translation>
 <translation id="2874939134665556319">前のトラック</translation>
 <translation id="2891975107962658722">サイトによるデバイスへのデータ保存をブロックします</translation>
 <translation id="2903493209154104877">住所</translation>
-<translation id="2910701580606108292">保護されたコンテンツの再生をサイトに許可する前に確認する</translation>
 <translation id="2918484639460781603">設定に移動</translation>
 <translation id="2932883381142163287">不正行為を報告</translation>
 <translation id="2939338015096024043">オンにすると、サイトはカメラ位置の追跡と周囲の状況の検出を要求できます。オフにすると、サイトはカメラ位置の追跡や周囲の状況の検出を行えません。</translation>
@@ -298,7 +300,6 @@
 <translation id="3924858949939391676">リーディング モードがオンになったらリンクを表示します</translation>
 <translation id="3933121352599513978">不要なリクエストを閉じる（推奨）</translation>
 <translation id="3934905113567851655">ピンチでサイズを変更</translation>
-<translation id="3955193568934677022">保護されたコンテンツの再生をサイトに許可する（推奨）</translation>
 <translation id="3955321697524543127">サイトに USB デバイスへの接続を許可しない</translation>
 <translation id="3965467402665811906">サイトがあなたに関する保存済みの情報の使用を要求できるようにする</translation>
 <translation id="3967822245660637423">ダウンロード完了</translation>
@@ -352,7 +353,9 @@
 <translation id="4505788138578415521">URL のフルバージョンです</translation>
 <translation id="4522570452068850558">詳細</translation>
 <translation id="4523472416386354622">ログインして開始</translation>
+<translation id="4529207923544043455">設定リストの完了したタスクと未完了のタスクが表示されているボトムシート</translation>
 <translation id="4534723447064627427"><ph name="APP_NAME" /> にマイクへのアクセスを許可するには、<ph name="BEGIN_LINK" />Android の設定<ph name="END_LINK" />でもマイクをオンにしてください。</translation>
+<translation id="4545694195887112015">設定シートを閉じました</translation>
 <translation id="4566417217121906555">マイクをミュート</translation>
 <translation id="4570913071927164677">詳細</translation>
 <translation id="4578289292431526768">始める</translation>
@@ -468,7 +471,7 @@
 <translation id="5804241973901381774">権限</translation>
 <translation id="5817042798620209981">サイト情報、ダイアログ</translation>
 <translation id="5822675474983796325">[新しいタブページをカスタマイズ] のボトムシートが画面全体に表示されています</translation>
-<translation id="5826403277762134844">Chrome でのパスワードの保存方法を説明したボトムシート</translation>
+<translation id="5826403277762134844">Chrome でのパスワードの保存方法を説明するボトムシート</translation>
 <translation id="5833899990800318936">サイトに JavaScript の使用を許可しない</translation>
 <translation id="583673505367439042">サイトがデバイスのファイルやフォルダの編集を要求できるようにする</translation>
 <translation id="5844448279347999754">オンにすると、サイトはクリップボードに保存されたテキストや画像の参照を要求できます。オフにすると、サイトはクリップボードに保存されたテキストや画像を参照できません。</translation>
@@ -509,7 +512,6 @@
 <translation id="6171020522141473435">オンにすると、サイトは Bluetooth デバイスの使用を要求できます。オフにすると、サイトは Bluetooth デバイスを使用できません。</translation>
 <translation id="6177128806592000436">このサイトへの接続は保護されていません</translation>
 <translation id="6181444274883918285">例外のサイトを追加</translation>
-<translation id="6192792657125177640">例外</translation>
 <translation id="6194967801833346599">{DAYS,plural, =1{明日、Chrome で Cookie を再びブロックします}other{# 日後に、Chrome で Cookie を再びブロックします}}</translation>
 <translation id="6196640612572343990">サードパーティの Cookie をブロックする</translation>
 <translation id="6205314730813004066">広告プライバシー</translation>
@@ -632,7 +634,6 @@
 <translation id="7561196759112975576">常に使用</translation>
 <translation id="7573594921350120855">通常、ビデオチャットなどの通信機能を使用するため、サイトがビデオカメラを使用する場合があります</translation>
 <translation id="7574529565935733861">{NUM_MONTHS,plural, =1{<ph name="NUM_MONTHS_ONE" /> か月前}other{<ph name="NUM_MONTHS_MANY" /> か月前}}</translation>
-<translation id="757524316907819857">サイトでの保護されたコンテンツの再生をブロックする</translation>
 <translation id="7586676035079382730">通知は許可されていません</translation>
 <translation id="7594634374516752650">Bluetooth デバイスに接続されています</translation>
 <translation id="7617547684249261169">履歴、Cookie、サイトデータなどの一部またはすべてを削除できます</translation>
@@ -648,7 +649,7 @@
 <translation id="775043444390799886">権限を取り消す</translation>
 <translation id="7758789811447313947">バイオレットのテーマ</translation>
 <translation id="7759147511335618829">MIDI デバイスの操作と再プログラム</translation>
-<translation id="7771089277295008211">パスワードの保存方法を説明したボトムシートが閉じられました</translation>
+<translation id="7771089277295008211">パスワードの保存方法を説明するボトムシートが閉じられました</translation>
 <translation id="7781829728241885113">昨日</translation>
 <translation id="7791543448312431591">追加</translation>
 <translation id="780301667611848630">利用しない</translation>
@@ -666,7 +667,7 @@
 <translation id="7940722705963108451">リマインダーの設定</translation>
 <translation id="7948081750384205628"><ph name="SETTING_TITLE" /> の詳細</translation>
 <translation id="7952708427581814389">サイトがクリップボード内のテキストや画像へのアクセスを要求できるようにする</translation>
-<translation id="7958779728312669715">パスワードの保存方法を説明したボトムシートが完全に開かれています</translation>
+<translation id="7958779728312669715">パスワードの保存方法を説明するボトムシートが完全に開かれています</translation>
 <translation id="798299424881500862">オレンジのテーマ</translation>
 <translation id="7986741934819883144">連絡先の選択</translation>
 <translation id="7990211076305263060">オンにすると、サイトはマイクの使用を要求できます。オフにすると、サイトはマイクを使用できません。</translation>

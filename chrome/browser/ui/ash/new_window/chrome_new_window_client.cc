@@ -10,6 +10,7 @@
 
 #include "apps/launcher.h"
 #include "ash/constants/ash_features.h"
+#include "ash/constants/chrome_url_constants.h"
 #include "ash/constants/web_app_id_constants.h"
 #include "ash/constants/webui_url_constants.h"
 #include "ash/public/cpp/app_list/internal_app_id_constants.h"
@@ -17,6 +18,7 @@
 #include "ash/public/cpp/shelf_types.h"
 #include "ash/public/cpp/window_properties.h"
 #include "ash/webui/settings/public/constants/routes.mojom.h"
+#include "base/check_deref.h"
 #include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "base/memory/raw_ptr.h"
@@ -49,6 +51,7 @@
 #include "chrome/browser/ui/ash/shelf/app_window_shelf_item_controller.h"
 #include "chrome/browser/ui/ash/shelf/chrome_shelf_controller.h"
 #include "chrome/browser/ui/ash/system_web_apps/system_web_app_ui_utils.h"
+#include "chrome/browser/ui/ash/system_web_apps/system_web_app_utils.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_finder.h"
@@ -57,20 +60,21 @@
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/scoped_tabbed_browser_displayer.h"
-#include "chrome/browser/ui/settings_window_manager_chromeos.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/webui/chrome_web_contents_handler.h"
 #include "chrome/browser/ui/webui/tab_strip/tab_strip_ui_util.h"
 #include "chrome/browser/web_applications/web_app_helpers.h"
 #include "chrome/common/extensions/extension_constants.h"
-#include "chrome/common/webui_url_constants.h"
 #include "chromeos/ash/components/browser_context_helper/browser_context_helper.h"
 #include "chromeos/ash/components/file_manager/app_id.h"
 #include "chromeos/ash/experiences/arc/intent_helper/arc_intent_helper_bridge.h"
+#include "chromeos/ash/experiences/settings_ui/settings_app_manager.h"
 #include "components/services/app_service/public/cpp/app_launch_util.h"
 #include "components/services/app_service/public/cpp/app_types.h"
 #include "components/services/app_service/public/cpp/intent_util.h"
 #include "components/services/app_service/public/cpp/types_util.h"
+#include "components/session_manager/core/session.h"
+#include "components/session_manager/core/session_manager.h"
 #include "components/sessions/core/tab_restore_service.h"
 #include "components/sessions/core/tab_restore_service_observer.h"
 #include "components/url_formatter/url_fixer.h"
@@ -78,6 +82,7 @@
 #include "components/user_manager/user_manager.h"
 #include "components/webapps/common/web_app_id.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/common/url_constants.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/common/constants.h"
 #include "extensions/common/extension.h"
@@ -340,16 +345,23 @@ void ChromeNewWindowClient::OpenUrl(const GURL& url,
        url.SchemeIs(content::kChromeUIScheme))) {
     // Show browser settings (e.g. chrome://settings). This may open in a window
     // or a tab depending on feature SplitSettings.
-    if (url.GetHost() == chrome::kChromeUISettingsHost) {
+    if (url.GetHost() == ash::chrome_urls::kChromeUISettingsHost) {
       std::string sub_page = GetPathAndQuery(url);
       chrome::ShowSettingsSubPageForProfile(profile, sub_page);
       return;
     }
     // OS settings are shown in a window.
     if (url.GetHost() == ash::kChromeUIOSSettingsHost) {
-      std::string sub_page = GetPathAndQuery(url);
-      chrome::SettingsWindowManager::GetInstance()->ShowOSSettings(profile,
-                                                                   sub_page);
+      auto* session =
+          session_manager::SessionManager::Get()->GetActiveSession();
+      if (session) {
+        // TODO(crbug.com/447287122): Revisit here to see if there always is an
+        // active user session.
+        ash::SettingsAppManager::Get()->Open(
+            CHECK_DEREF(user_manager::UserManager::Get()->FindUser(
+                session->account_id())),
+            {.sub_page = GetPathAndQuery(url)});
+      }
       return;
     }
   }
@@ -499,7 +511,7 @@ void ChromeNewWindowClient::RestoreTab() {
 }
 
 void ChromeNewWindowClient::ShowShortcutCustomizationApp() {
-  chrome::ShowShortcutCustomizationApp(ProfileManager::GetActiveUserProfile());
+  ash::ShowShortcutCustomizationApp(ProfileManager::GetActiveUserProfile());
 }
 
 void ChromeNewWindowClient::ShowTaskManager() {
@@ -507,7 +519,7 @@ void ChromeNewWindowClient::ShowTaskManager() {
 }
 
 void ChromeNewWindowClient::OpenDiagnostics() {
-  chrome::ShowDiagnosticsApp(ProfileManager::GetActiveUserProfile());
+  ash::ShowDiagnosticsApp(ProfileManager::GetActiveUserProfile());
 }
 
 void ChromeNewWindowClient::OpenFeedbackPage(

@@ -16,6 +16,7 @@
 #include "base/test/mock_callback.h"
 #include "base/test/test_future.h"
 #include "base/time/time.h"
+#include "base/types/expected.h"
 #include "base/unguessable_token.h"
 #include "base/version_info/channel.h"
 #include "chrome/browser/contextual_search/contextual_search_service_factory.h"
@@ -39,6 +40,7 @@
 #include "components/contextual_search/internal/test_composebox_query_controller.h"
 #include "components/contextual_search/pref_names.h"
 #include "components/lens/lens_overlay_invocation_source.h"
+#include "components/lens/proto/server/lens_overlay_response.pb.h"
 #include "components/omnibox/browser/searchbox.mojom.h"
 #include "components/omnibox/composebox/composebox_query.mojom.h"
 #include "components/omnibox/composebox/contextual_search_mojom_traits.h"
@@ -61,6 +63,8 @@ namespace {
 constexpr char kClientUploadDurationQueryParameter[] = "cud";
 constexpr char kQuerySubmissionTimeQueryParameter[] = "qsubts";
 constexpr char kQueryText[] = "query";
+constexpr char kUdmQueryParameter[] = "udm";
+constexpr char kUdmQueryParameterValue[] = "50";
 
 GURL StripTimestampsFromAimUrl(const GURL& url) {
   std::string qsubts_param;
@@ -231,7 +235,7 @@ TEST_F(ContextualSearchboxHandlerTest, SessionStarted) {
   ASSERT_THAT(metrics_recorder_ptr, testing::NotNull());
 
   EXPECT_CALL(query_controller(), InitializeIfNeeded);
-  EXPECT_CALL(*metrics_recorder_ptr, NotifySessionStateChanged)
+  EXPECT_CALL(*metrics_recorder_ptr, NotifySessionStateChanged(testing::_))
       .WillOnce(testing::SaveArg<0>(&state_arg));
   handler().NotifySessionStarted();
   EXPECT_EQ(state_arg, SessionState::kSessionStarted);
@@ -258,10 +262,13 @@ TEST_F(ContextualSearchboxHandlerTest, AddFile_Pdf) {
 
   base::MockCallback<ComposeboxHandler::AddFileContextCallback> callback;
   base::UnguessableToken controller_file_info_token;
-  base::UnguessableToken callback_token;
+  std::optional<base::UnguessableToken> callback_token;
   EXPECT_CALL(query_controller(), StartFileUploadFlow)
       .WillOnce(testing::SaveArg<0>(&controller_file_info_token));
-  EXPECT_CALL(callback, Run).WillOnce(testing::SaveArg<0>(&callback_token));
+  EXPECT_CALL(callback, Run).WillOnce([&](const auto& result) {
+    ASSERT_TRUE(result.has_value());
+    callback_token = result.value();
+  });
   handler().AddFileContext(std::move(file_info), std::move(file_data),
                            callback.Get());
 
@@ -288,8 +295,11 @@ TEST_F(ContextualSearchboxHandlerTest, AddFile_Image) {
         image_options = std::move(options_arg);
       });
   base::MockCallback<ComposeboxHandler::AddFileContextCallback> callback;
-  base::UnguessableToken callback_token;
-  EXPECT_CALL(callback, Run).WillOnce(testing::SaveArg<0>(&callback_token));
+  std::optional<base::UnguessableToken> callback_token;
+  EXPECT_CALL(callback, Run).WillOnce([&](const auto& result) {
+    ASSERT_TRUE(result.has_value());
+    callback_token = result.value();
+  });
 
   handler().AddFileContext(std::move(file_info), std::move(file_data),
                            callback.Get());
@@ -326,8 +336,11 @@ TEST_F(ContextualSearchboxHandlerTest, ClearFiles) {
         image_options = std::move(options_arg);
       });
   base::MockCallback<ComposeboxHandler::AddFileContextCallback> callback;
-  base::UnguessableToken callback_token;
-  EXPECT_CALL(callback, Run).WillOnce(testing::SaveArg<0>(&callback_token));
+  std::optional<base::UnguessableToken> callback_token;
+  EXPECT_CALL(callback, Run).WillOnce([&](const auto& result) {
+    ASSERT_TRUE(result.has_value());
+    callback_token = result.value();
+  });
 
   handler().AddFileContext(std::move(file_info), std::move(file_data),
                            callback.Get());
@@ -335,7 +348,7 @@ TEST_F(ContextualSearchboxHandlerTest, ClearFiles) {
 
   EXPECT_CALL(query_controller(), ClearFiles).Times(0);
   EXPECT_CALL(mock_searchbox_page_, OnInputStateChanged).Times(1);
-  handler().ClearFiles();
+  handler().ClearFiles(/*should_block_auto_suggested_tabs=*/false);
   EXPECT_EQ(handler().GetUploadedContextTokens().size(), 0u);
 }
 
@@ -356,14 +369,19 @@ TEST_F(ContextualSearchboxHandlerTest, AddFile_PolicyDisabled) {
   mojo_base::BigBuffer file_data(test_data_span);
 
   base::MockCallback<ComposeboxHandler::AddFileContextCallback> callback;
-  base::UnguessableToken callback_token;
+  base::expected<base::UnguessableToken,
+                 contextual_search::FileUploadErrorType>
+      callback_result =
+          base::ok(base::UnguessableToken());  // Initialize with dummy
 
   EXPECT_CALL(query_controller(), StartFileUploadFlow).Times(0);
-  EXPECT_CALL(callback, Run).WillOnce(testing::SaveArg<0>(&callback_token));
+  EXPECT_CALL(callback, Run).WillOnce(testing::SaveArg<0>(&callback_result));
   handler().AddFileContext(std::move(file_info), std::move(file_data),
                            callback.Get());
 
-  EXPECT_TRUE(callback_token.is_empty());
+  EXPECT_FALSE(callback_result.has_value());
+  EXPECT_EQ(callback_result.error(),
+            contextual_search::FileUploadErrorType::kBrowserProcessingError);
 }
 
 TEST_F(ContextualSearchboxHandlerTest, AddFile_PolicyToggled) {
@@ -382,14 +400,20 @@ TEST_F(ContextualSearchboxHandlerTest, AddFile_PolicyToggled) {
   mojo_base::BigBuffer file_data_1(test_data_span_1);
 
   base::MockCallback<ComposeboxHandler::AddFileContextCallback> callback_1;
-  base::UnguessableToken callback_token_1;
+  base::expected<base::UnguessableToken,
+                 contextual_search::FileUploadErrorType>
+      callback_result_1 =
+          base::ok(base::UnguessableToken());  // Initialize with dummy
 
   EXPECT_CALL(query_controller(), StartFileUploadFlow).Times(0);
-  EXPECT_CALL(callback_1, Run).WillOnce(testing::SaveArg<0>(&callback_token_1));
+  EXPECT_CALL(callback_1, Run)
+      .WillOnce(testing::SaveArg<0>(&callback_result_1));
   handler().AddFileContext(std::move(file_info_1), std::move(file_data_1),
                            callback_1.Get());
 
-  EXPECT_TRUE(callback_token_1.is_empty());
+  EXPECT_FALSE(callback_result_1.has_value());
+  EXPECT_EQ(callback_result_1.error(),
+            contextual_search::FileUploadErrorType::kBrowserProcessingError);
 
   // Enable policy.
   profile()->GetPrefs()->SetInteger(
@@ -406,14 +430,17 @@ TEST_F(ContextualSearchboxHandlerTest, AddFile_PolicyToggled) {
   mojo_base::BigBuffer file_data_2(test_data_span_2);
 
   base::MockCallback<ComposeboxHandler::AddFileContextCallback> callback_2;
-  base::UnguessableToken callback_token_2;
+  std::optional<base::UnguessableToken> callback_token_2;
 
   EXPECT_CALL(query_controller(), StartFileUploadFlow).Times(1);
-  EXPECT_CALL(callback_2, Run).WillOnce(testing::SaveArg<0>(&callback_token_2));
+  EXPECT_CALL(callback_2, Run).WillOnce([&](const auto& result) {
+    ASSERT_TRUE(result.has_value());
+    callback_token_2 = result.value();
+  });
   handler().AddFileContext(std::move(file_info_2), std::move(file_data_2),
                            callback_2.Get());
 
-  EXPECT_FALSE(callback_token_2.is_empty());
+  EXPECT_TRUE(callback_token_2.has_value());
 }
 
 TEST_F(ContextualSearchboxHandlerTest, AddFileFromBrowser_PolicyDisabled) {
@@ -430,15 +457,20 @@ TEST_F(ContextualSearchboxHandlerTest, AddFileFromBrowser_PolicyDisabled) {
   std::optional<lens::ImageEncodingOptions> image_options;
 
   base::MockCallback<ComposeboxHandler::AddFileContextCallback> callback;
-  base::UnguessableToken callback_token;
+  base::expected<base::UnguessableToken,
+                 contextual_search::FileUploadErrorType>
+      callback_result =
+          base::ok(base::UnguessableToken());  // Initialize with dummy
 
   EXPECT_CALL(query_controller(), StartFileUploadFlow).Times(0);
-  EXPECT_CALL(callback, Run).WillOnce(testing::SaveArg<0>(&callback_token));
+  EXPECT_CALL(callback, Run).WillOnce(testing::SaveArg<0>(&callback_result));
   handler().AddFileContextFromBrowser(file_name, mime_type,
                                       std::move(file_data), image_options,
                                       callback.Get());
 
-  EXPECT_TRUE(callback_token.is_empty());
+  EXPECT_FALSE(callback_result.has_value());
+  EXPECT_EQ(callback_result.error(),
+            contextual_search::FileUploadErrorType::kBrowserProcessingError);
 }
 
 TEST_F(ContextualSearchboxHandlerTest, AddFileFromBrowser_PolicyEnabled) {
@@ -456,17 +488,20 @@ TEST_F(ContextualSearchboxHandlerTest, AddFileFromBrowser_PolicyEnabled) {
 
   base::MockCallback<ComposeboxHandler::AddFileContextCallback> callback;
   base::UnguessableToken controller_file_info_token;
-  base::UnguessableToken callback_token;
+  std::optional<base::UnguessableToken> callback_token;
 
   EXPECT_CALL(query_controller(), StartFileUploadFlow)
       .WillOnce(testing::SaveArg<0>(&controller_file_info_token));
-  EXPECT_CALL(callback, Run).WillOnce(testing::SaveArg<0>(&callback_token));
+  EXPECT_CALL(callback, Run).WillOnce([&](const auto& result) {
+    ASSERT_TRUE(result.has_value());
+    callback_token = result.value();
+  });
   handler().AddFileContextFromBrowser(file_name, mime_type,
                                       std::move(file_data), image_options,
                                       callback.Get());
 
   EXPECT_EQ(callback_token, controller_file_info_token);
-  EXPECT_FALSE(callback_token.is_empty());
+  EXPECT_TRUE(callback_token.has_value());
 }
 
 TEST_F(ContextualSearchboxHandlerTest, SubmitQuery) {
@@ -485,11 +520,17 @@ TEST_F(ContextualSearchboxHandlerTest, SubmitQuery) {
   auto* metrics_recorder_ptr = GetMetricsRecorderPtr();
   ASSERT_THAT(metrics_recorder_ptr, testing::NotNull());
 
-  EXPECT_CALL(*metrics_recorder_ptr, NotifySessionStateChanged)
+  EXPECT_CALL(*metrics_recorder_ptr, NotifySessionStateChanged(testing::_))
       .Times(3)
       .WillRepeatedly([&](SessionState session_state) {
         session_states.push_back(session_state);
       });
+  EXPECT_CALL(*metrics_recorder_ptr,
+              NotifyQuerySubmitted(testing::_, testing::_))
+      .Times(1)
+      .WillOnce(testing::Invoke(
+          metrics_recorder_ptr,
+          &MockContextualSearchMetricsRecorder::NotifyQuerySubmittedBase));
 
   // Start the session.
   EXPECT_CALL(query_controller(), InitializeIfNeeded)
@@ -512,6 +553,8 @@ TEST_F(ContextualSearchboxHandlerTest, SubmitQuery) {
           ComposeboxQueryController::CreateSearchUrlRequestInfo>();
   search_url_request_info->query_text = kQueryText;
   search_url_request_info->query_start_time = base::Time::Now();
+  search_url_request_info->additional_params = {
+      {kUdmQueryParameter, kUdmQueryParameterValue}};
   base::test::TestFuture<GURL> future;
   query_controller().CreateSearchUrl(std::move(search_url_request_info),
                                      future.GetCallback());
@@ -546,11 +589,17 @@ TEST_F(ContextualSearchboxHandlerTest, SubmitQuery_DelayUpload) {
   auto* metrics_recorder_ptr = GetMetricsRecorderPtr();
   ASSERT_THAT(metrics_recorder_ptr, testing::NotNull());
 
-  EXPECT_CALL(*metrics_recorder_ptr, NotifySessionStateChanged)
+  EXPECT_CALL(*metrics_recorder_ptr, NotifySessionStateChanged(testing::_))
       .Times(3)
       .WillRepeatedly([&](SessionState session_state) {
         session_states.push_back(session_state);
       });
+  EXPECT_CALL(*metrics_recorder_ptr,
+              NotifyQuerySubmitted(testing::_, testing::_))
+      .Times(1)
+      .WillOnce(testing::Invoke(
+          metrics_recorder_ptr,
+          &MockContextualSearchMetricsRecorder::NotifyQuerySubmittedBase));
 
   // Start the session.
   EXPECT_CALL(query_controller(), InitializeIfNeeded)
@@ -589,6 +638,8 @@ TEST_F(ContextualSearchboxHandlerTest, SubmitQuery_DelayUpload) {
   search_url_request_info->query_text = kQueryText;
   search_url_request_info->query_start_time = base::Time::Now();
   search_url_request_info->file_tokens.push_back(token);
+  search_url_request_info->additional_params = {
+      {kUdmQueryParameter, kUdmQueryParameterValue}};
   base::test::TestFuture<GURL> future;
   query_controller().CreateSearchUrl(std::move(search_url_request_info),
                                      future.GetCallback());
@@ -646,27 +697,99 @@ TEST_F(ContextualSearchboxHandlerTest, OnInputStateChanged) {
       composebox_query::mojom::ModelMode::kGeminiRegular, 1);
 }
 TEST_F(ContextualSearchboxHandlerTest, SubmitQueryWithAdditionalParams) {
-  // Set deep search tool.
-  handler().SetActiveToolMode(omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH);
-
+  // Ensure udm param is always set as an additional param.
   SubmitQueryAndWaitForNavigation();
   GURL query_url =
       web_contents()->GetController().GetLastCommittedEntry()->GetURL();
-  std::string dr_param;
-  EXPECT_TRUE(net::GetValueForKeyInQuery(query_url, "dr", &dr_param));
-  EXPECT_EQ("1", dr_param);
+  std::string udm_param;
+  EXPECT_TRUE(net::GetValueForKeyInQuery(query_url, "udm", &udm_param));
+  EXPECT_EQ("50", udm_param);
+}
 
-  // Set create images tool.
-  handler().SetActiveToolMode(omnibox::ToolMode::TOOL_MODE_IMAGE_GEN);
+TEST_F(ContextualSearchboxHandlerTest, QueryAutocomplete_SetsLensInputs) {
+  // Set suggest inputs on the client.
+  lens::proto::LensOverlaySuggestInputs suggest_inputs;
+  suggest_inputs.set_encoded_image_signals("xyz");
+  EXPECT_CALL(*static_cast<TestOmniboxClient*>(
+                  handler().omnibox_controller()->client()),
+              GetLensOverlaySuggestInputs())
+      .WillRepeatedly(testing::Return(suggest_inputs));
 
-  SubmitQueryAndWaitForNavigation();
-  GURL query_url_imgn =
-      web_contents()->GetController().GetLastCommittedEntry()->GetURL();
-  std::string imgn_param;
-  EXPECT_TRUE(net::GetValueForKeyInQuery(query_url_imgn, "imgn", &imgn_param));
-  EXPECT_EQ("1", imgn_param);
-  // Ensure dr param is not present.
-  EXPECT_FALSE(net::GetValueForKeyInQuery(query_url_imgn, "dr", &dr_param));
+  // Set input state where `image_gen_upload_active` is false and active_tool is
+  // not CANVAS.
+  omnibox::InputState state;
+  state.image_gen_upload_active = false;
+  state.active_tool = omnibox::ToolMode::TOOL_MODE_UNSPECIFIED;
+  handler().input_state_model()->set_state_for_testing(state);
+  handler().OnInputStateChangedForTesting(state);
+
+  // Set mock AutocompleteController.
+  auto autocomplete_controller =
+      std::make_unique<testing::NiceMock<MockAutocompleteController>>(
+          std::make_unique<MockAutocompleteProviderClient>(), 0);
+  AutocompleteInput input;
+  EXPECT_CALL(*autocomplete_controller, Start(_))
+      .WillOnce(testing::SaveArg<0>(&input));
+  handler().omnibox_controller()->SetAutocompleteControllerForTesting(
+      std::move(autocomplete_controller));
+
+  handler().QueryAutocomplete(u"test", false);
+
+  EXPECT_TRUE(input.lens_overlay_suggest_inputs().has_value());
+  EXPECT_EQ(input.lens_overlay_suggest_inputs()->encoded_image_signals(),
+            "xyz");
+}
+
+TEST_F(ContextualSearchboxHandlerTest,
+       QueryAutocomplete_SkipsLensInputs_InToolModes) {
+  lens::proto::LensOverlaySuggestInputs suggest_inputs;
+  suggest_inputs.set_encoded_image_signals("xyz");
+  EXPECT_CALL(*static_cast<TestOmniboxClient*>(
+                  handler().omnibox_controller()->client()),
+              GetLensOverlaySuggestInputs())
+      .WillRepeatedly(testing::Return(suggest_inputs));
+
+  // 1. Case: `image_gen_upload_active = true`.
+  {
+    omnibox::InputState state;
+    state.image_gen_upload_active = true;
+    state.active_tool = omnibox::ToolMode::TOOL_MODE_UNSPECIFIED;
+    handler().input_state_model()->set_state_for_testing(state);
+    handler().OnInputStateChangedForTesting(state);
+
+    auto autocomplete_controller =
+        std::make_unique<testing::NiceMock<MockAutocompleteController>>(
+            std::make_unique<MockAutocompleteProviderClient>(), 0);
+    AutocompleteInput input;
+    EXPECT_CALL(*autocomplete_controller, Start(_))
+        .WillOnce(testing::SaveArg<0>(&input));
+    handler().omnibox_controller()->SetAutocompleteControllerForTesting(
+        std::move(autocomplete_controller));
+
+    handler().QueryAutocomplete(u"test", false);
+    EXPECT_FALSE(input.lens_overlay_suggest_inputs().has_value());
+  }
+
+  // 2. Case: `active_tool = TOOL_MODE_CANVAS`.
+  {
+    omnibox::InputState state;
+    state.image_gen_upload_active = false;
+    state.active_tool = omnibox::ToolMode::TOOL_MODE_CANVAS;
+    handler().input_state_model()->set_state_for_testing(state);
+    handler().OnInputStateChangedForTesting(state);
+
+    auto autocomplete_controller =
+        std::make_unique<testing::NiceMock<MockAutocompleteController>>(
+            std::make_unique<MockAutocompleteProviderClient>(), 0);
+    AutocompleteInput input;
+    EXPECT_CALL(*autocomplete_controller, Start(_))
+        .WillOnce(testing::SaveArg<0>(&input));
+    handler().omnibox_controller()->SetAutocompleteControllerForTesting(
+        std::move(autocomplete_controller));
+
+    handler().QueryAutocomplete(u"test", false);
+    EXPECT_FALSE(input.lens_overlay_suggest_inputs().has_value());
+  }
 }
 
 class ContextualSearchboxHandlerTestTabsTest
@@ -799,6 +922,25 @@ TEST_F(ContextualSearchboxHandlerTestTabsTest, AddTabContext) {
   mock_searchbox_page_.FlushForTesting();
 }
 
+TEST_F(ContextualSearchboxHandlerTestTabsTest, AddTabContextNotFound) {
+  base::MockCallback<ComposeboxHandler::AddTabContextCallback> callback;
+  base::expected<base::UnguessableToken,
+                 contextual_search::FileUploadErrorType>
+      callback_result =
+          base::ok(base::UnguessableToken());  // Initialize with dummy
+
+  EXPECT_CALL(callback, Run).WillOnce(testing::SaveArg<0>(&callback_result));
+
+  handler().AddTabContext(0, false, callback.Get());
+
+  // Flush the mojo pipe to ensure the callback is run.
+  mock_searchbox_page_.FlushForTesting();
+
+  EXPECT_FALSE(callback_result.has_value());
+  EXPECT_EQ(callback_result.error(),
+            contextual_search::FileUploadErrorType::kBrowserProcessingError);
+}
+
 TEST_F(ContextualSearchboxHandlerTestTabsTest, AddTabContext_PolicyDisabled) {
   profile()->GetPrefs()->SetInteger(
       contextual_search::kSearchContentSharingSettings,
@@ -811,8 +953,12 @@ TEST_F(ContextualSearchboxHandlerTestTabsTest, AddTabContext_PolicyDisabled) {
 
   EXPECT_CALL(query_controller(), StartFileUploadFlow).Times(0);
   base::MockCallback<ComposeboxHandler::AddTabContextCallback> callback;
-  std::optional<base::UnguessableToken> callback_token;
-  EXPECT_CALL(callback, Run).WillOnce(testing::SaveArg<0>(&callback_token));
+  base::expected<base::UnguessableToken,
+                 contextual_search::FileUploadErrorType>
+      callback_result =
+          base::ok(base::UnguessableToken());  // Initialize with dummy
+
+  EXPECT_CALL(callback, Run).WillOnce(testing::SaveArg<0>(&callback_result));
 
   handler().AddTabContext(sample_tab_id, /*delay_upload=*/false,
                           callback.Get());
@@ -820,7 +966,9 @@ TEST_F(ContextualSearchboxHandlerTestTabsTest, AddTabContext_PolicyDisabled) {
   // Flush the mojo pipe to ensure the callback is run.
   mock_searchbox_page_.FlushForTesting();
 
-  EXPECT_FALSE(callback_token.has_value());
+  EXPECT_FALSE(callback_result.has_value());
+  EXPECT_EQ(callback_result.error(),
+            contextual_search::FileUploadErrorType::kBrowserProcessingError);
 }
 
 TEST_F(ContextualSearchboxHandlerTestTabsTest, AddTabContext_DelayUpload) {
@@ -905,7 +1053,9 @@ TEST_F(ContextualSearchboxHandlerTestTabsTest, DeleteContext_DelayUpload) {
               StartFileUploadFlow(testing::_, testing::NotNull(), testing::_))
       .Times(0);
   EXPECT_CALL(mock_searchbox_page_, OnInputStateChanged).Times(2);
-  base::test::TestFuture<const std::optional<base::UnguessableToken>&> future;
+  base::test::TestFuture<base::expected<base::UnguessableToken,
+                                        contextual_search::FileUploadErrorType>>
+      future;
   auto sample_contextual_input_data =
       std::make_unique<lens::ContextualInputData>();
   sample_contextual_input_data->page_url = sample_url;
@@ -914,6 +1064,7 @@ TEST_F(ContextualSearchboxHandlerTestTabsTest, DeleteContext_DelayUpload) {
   // Flush the mojo pipe to ensure the callback is run.
   mock_searchbox_page_.FlushForTesting();
 
+  ASSERT_TRUE(future.Get().has_value());
   auto file_token = future.Get().value();
   ASSERT_TRUE(handler().tab_context_snapshot_.has_value());
   ASSERT_EQ(file_token, handler().tab_context_snapshot_.value().first);
@@ -970,7 +1121,9 @@ TEST_F(ContextualSearchboxHandlerTestTabsTest,
   EXPECT_CALL(query_controller(),
               StartFileUploadFlow(testing::_, testing::NotNull(), testing::_))
       .Times(1);
-  base::test::TestFuture<const std::optional<base::UnguessableToken>&> future;
+  base::test::TestFuture<base::expected<base::UnguessableToken,
+                                        contextual_search::FileUploadErrorType>>
+      future;
   handler().AddTabContext(tab_id2, /*delay_upload=*/false,
                           future.GetCallback());
   mock_searchbox_page_.FlushForTesting();
@@ -985,15 +1138,7 @@ TEST_F(ContextualSearchboxHandlerTestTabsTest,
   ASSERT_TRUE(handler().context_input_data().has_value());
 }
 
-TEST_F(ContextualSearchboxHandlerTestTabsTest, AddTabContextNotFound) {
-  base::MockCallback<ComposeboxHandler::AddTabContextCallback> callback;
-  EXPECT_CALL(callback, Run).Times(1);
 
-  handler().AddTabContext(0, false, callback.Get());
-
-  // Flush the mojo pipe to ensure the callback is run.
-  mock_searchbox_page_.FlushForTesting();
-}
 
 TEST_F(ContextualSearchboxHandlerTestTabsTest, TabContextAddedMetric) {
   // Add a tab.
@@ -1016,20 +1161,18 @@ TEST_F(ContextualSearchboxHandlerTestTabsTest, TabContextAddedMetric) {
 
   auto* metrics_recorder_ptr = GetMetricsRecorderPtr();
   ASSERT_THAT(metrics_recorder_ptr, testing::NotNull());
-  EXPECT_CALL(*metrics_recorder_ptr, NotifySessionStateChanged)
+  EXPECT_CALL(*metrics_recorder_ptr, NotifySessionStateChanged(testing::_))
       .WillRepeatedly(testing::Invoke(
           metrics_recorder_ptr,
           &MockContextualSearchMetricsRecorder::NotifySessionStateChangedBase));
 
-  base::test::TestFuture<std::optional<base::UnguessableToken>> future;
+  base::test::TestFuture<base::expected<base::UnguessableToken,
+                                        contextual_search::FileUploadErrorType>>
+      future;
   handler().NotifySessionStarted();
-  handler().AddTabContext(
-      tab_id, false,
-      base::BindLambdaForTesting(
-          [&](const std::optional<base::UnguessableToken>& token) {
-            future.SetValue(token);
-          }));
+  handler().AddTabContext(tab_id, false, future.GetCallback());
   ASSERT_TRUE(future.Wait());
+  EXPECT_TRUE(future.Get().has_value());
 
   // Check that the histogram was recorded.
   handler().NotifySessionStateChanged(SessionState::kSessionAbandoned);
@@ -1134,31 +1277,27 @@ TEST_F(ContextualSearchboxHandlerTestTabsTest,
 
   auto* metrics_recorder_ptr = GetMetricsRecorderPtr();
   ASSERT_THAT(metrics_recorder_ptr, testing::NotNull());
-  EXPECT_CALL(*metrics_recorder_ptr, NotifySessionStateChanged)
+  EXPECT_CALL(*metrics_recorder_ptr, NotifySessionStateChanged(testing::_))
       .WillRepeatedly(testing::Invoke(
           metrics_recorder_ptr,
           &MockContextualSearchMetricsRecorder::NotifySessionStateChangedBase));
 
   // Click on a tab with a duplicate title.
-  base::test::TestFuture<std::optional<base::UnguessableToken>> future1;
+  base::test::TestFuture<base::expected<base::UnguessableToken,
+                                        contextual_search::FileUploadErrorType>>
+      future1;
   handler().NotifySessionStarted();
-  handler().AddTabContext(
-      tab_a1->GetHandle().raw_value(), false,
-      base::BindLambdaForTesting(
-          [&](const std::optional<base::UnguessableToken>& token) {
-            EXPECT_TRUE(token.has_value());
-            future1.SetValue(token);
-          }));
+  handler().AddTabContext(tab_a1->GetHandle().raw_value(), false,
+                          future1.GetCallback());
   ASSERT_TRUE(future1.Wait());
+  EXPECT_TRUE(future1.Get().has_value());
 
   // Click on a tab with a unique title.
-  base::test::TestFuture<std::optional<base::UnguessableToken>> future2;
-  handler().AddTabContext(
-      tab_b1->GetHandle().raw_value(), false,
-      base::BindLambdaForTesting(
-          [&](const std::optional<base::UnguessableToken>& token) {
-            future2.SetValue(token);
-          }));
+  base::test::TestFuture<base::expected<base::UnguessableToken,
+                                        contextual_search::FileUploadErrorType>>
+      future2;
+  handler().AddTabContext(tab_b1->GetHandle().raw_value(), false,
+                          future2.GetCallback());
   ASSERT_TRUE(future2.Wait());
 
   // End the session to log the metrics.
@@ -1196,22 +1335,20 @@ TEST_F(ContextualSearchboxHandlerTestTabsTest,
 
   auto* metrics_recorder_ptr = GetMetricsRecorderPtr();
   ASSERT_THAT(metrics_recorder_ptr, testing::NotNull());
-  EXPECT_CALL(*metrics_recorder_ptr, NotifySessionStateChanged)
+  EXPECT_CALL(*metrics_recorder_ptr, NotifySessionStateChanged(testing::_))
       .WillRepeatedly(testing::Invoke(
           metrics_recorder_ptr,
           &MockContextualSearchMetricsRecorder::NotifySessionStateChangedBase));
 
   // Click on a tab with a unique title.
-  base::test::TestFuture<std::optional<base::UnguessableToken>> future;
+  base::test::TestFuture<base::expected<base::UnguessableToken,
+                                        contextual_search::FileUploadErrorType>>
+      future;
   handler().NotifySessionStarted();
-  handler().AddTabContext(
-      tab_a1->GetHandle().raw_value(), false,
-      base::BindLambdaForTesting(
-          [&](const std::optional<base::UnguessableToken>& token) {
-            EXPECT_TRUE(token.has_value());
-            future.SetValue(token);
-          }));
+  handler().AddTabContext(tab_a1->GetHandle().raw_value(), false,
+                          future.GetCallback());
   ASSERT_TRUE(future.Wait());
+  EXPECT_TRUE(future.Get().has_value());
 
   // End the session to log the metrics.
   EXPECT_CALL(*GetMetricsRecorderPtr(),
@@ -1251,13 +1388,11 @@ TEST_F(ContextualSearchboxHandlerTestTabsTest, TabContextRecencyRankingMetric) {
   EXPECT_CALL(mock_searchbox_page_, OnInputStateChanged).Times(1);
 
   // Click on the first tab.
-  base::test::TestFuture<std::optional<base::UnguessableToken>> future;
-  handler().AddTabContext(
-      tab_a1->GetHandle().raw_value(), false,
-      base::BindLambdaForTesting(
-          [&](const std::optional<base::UnguessableToken>& token) {
-            future.SetValue(token);
-          }));
+  base::test::TestFuture<base::expected<base::UnguessableToken,
+                                        contextual_search::FileUploadErrorType>>
+      future;
+  handler().AddTabContext(tab_a1->GetHandle().raw_value(), false,
+                          future.GetCallback());
   ASSERT_TRUE(future.Wait());
   histogram_tester().ExpectUniqueSample(
       "ContextualSearch.AddedTabContextRecencyRanking.NewTabPage", 1, 1);

@@ -271,12 +271,11 @@ WebApp::CachedDerivedData& WebApp::CachedDerivedData::operator=(
   return *this;
 }
 
-WebApp::WebApp(const webapps::AppId& app_id,
-               const webapps::ManifestId& manifest_id,
+WebApp::WebApp(const webapps::ManifestId& manifest_id,
                const GURL& start_url,
                const GURL& scope,
                std::optional<webapps::AppId> parent_app_id)
-    : app_id_(app_id),
+    : app_id_(GenerateAppIdFromManifestId(manifest_id)),
       start_url_(start_url),
       scope_(scope),
       chromeos_data_(IsChromeOsDataMandatory()
@@ -297,22 +296,6 @@ WebApp::WebApp(const webapps::AppId& app_id,
   SetStartUrl(start_url_);
   SetManifestId(manifest_id_);
   SetScope(scope_);
-}
-
-WebApp::WebApp(const webapps::ManifestId& manifest_id,
-               const GURL& start_url,
-               const GURL& scope,
-               std::optional<webapps::AppId> parent_app_id,
-               std::optional<webapps::ManifestId> parent_manifest_id)
-    : WebApp(GenerateAppIdFromManifestId(manifest_id, parent_manifest_id),
-             manifest_id,
-             start_url,
-             scope,
-             parent_app_id) {
-  if (parent_app_id_.has_value()) {
-    CHECK(!parent_app_id_->empty());
-  }
-  CHECK(!!parent_app_id == !!parent_manifest_id);
 }
 
 WebApp::WebApp(const sync_pb::WebAppSpecifics& sync_proto)
@@ -724,22 +707,6 @@ void WebApp::SetManifestUrl(const GURL& manifest_url) {
   CHECK(manifest_url.is_valid() || manifest_url.is_empty(),
         base::NotFatalUntil::M138);
   manifest_url_ = manifest_url;
-}
-
-void WebApp::SetManifestId(const webapps::ManifestId& manifest_id) {
-  CHECK(manifest_id.is_valid());
-  CHECK(start_url_.is_empty() || url::IsSameOriginWith(start_url_, manifest_id))
-      << start_url_.spec() << " vs " << manifest_id.spec();
-  CHECK(!manifest_id.has_ref());
-  manifest_id_ = manifest_id;
-
-  // Ensure sync proto is initialized and remains consistent.
-  std::string relative_manifest_id_path = RelativeManifestIdPath(manifest_id_);
-  if (sync_proto_.has_relative_manifest_id()) {
-    CHECK_EQ(sync_proto_.relative_manifest_id(), relative_manifest_id_path);
-  } else {
-    sync_proto_.set_relative_manifest_id(relative_manifest_id_path);
-  }
 }
 
 void WebApp::SetWindowControlsOverlayEnabled(bool enabled) {
@@ -1524,6 +1491,22 @@ base::Value WebApp::AsDebugValue() const {
   }
 
   return value;
+}
+
+void WebApp::SetManifestId(const webapps::ManifestId& manifest_id) {
+  CHECK(manifest_id.is_valid());
+  CHECK(start_url_.is_empty() || url::IsSameOriginWith(start_url_, manifest_id))
+      << start_url_.spec() << " vs " << manifest_id.spec();
+  CHECK(!manifest_id.has_ref());
+  manifest_id_ = manifest_id;
+
+  // Ensure sync proto is initialized and remains consistent.
+  std::string relative_manifest_id_path = RelativeManifestIdPath(manifest_id_);
+  if (sync_proto_.has_relative_manifest_id()) {
+    CHECK_EQ(sync_proto_.relative_manifest_id(), relative_manifest_id_path);
+  } else {
+    sync_proto_.set_relative_manifest_id(relative_manifest_id_path);
+  }
 }
 
 std::ostream& operator<<(std::ostream& out, const WebApp& app) {

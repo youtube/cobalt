@@ -58,6 +58,7 @@ import org.chromium.ui.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -155,7 +156,7 @@ class AppMenuHandlerImpl
             Supplier<Rect> appRect,
             WindowAndroid windowAndroid,
             BrowserControlsStateProvider browserControlsStateProvider,
-            SubmenuHeaderFactory submenuHeaderFactory) {
+            int submenuHeaderMenuId) {
         mContext = context;
         mAppMenuDelegate = appMenuDelegate;
         mDelegate = delegate;
@@ -166,7 +167,22 @@ class AppMenuHandlerImpl
         mAppRect = appRect;
         mWindowAndroid = windowAndroid;
         mBrowserControlsStateProvider = browserControlsStateProvider;
-        mSubmenuHeaderFactory = submenuHeaderFactory;
+        mSubmenuHeaderFactory =
+                (clickedItem, backRunnable) -> {
+                    PropertyModel.Builder builder =
+                            new PropertyModel.Builder(AppMenuSubmenuHeaderItemProperties.ALL_KEYS);
+                    HierarchicalMenuController.populateDefaultHeaderProperties(
+                            builder,
+                            new AppMenuUtil.AppMenuKeyProvider(),
+                            clickedItem.model.get(AppMenuItemProperties.TITLE),
+                            backRunnable);
+                    builder.with(AppMenuItemProperties.MENU_ITEM_ID, submenuHeaderMenuId);
+                    builder.with(
+                            AppMenuSubmenuHeaderItemProperties.SHOULD_SHOW_ICON_ROW,
+                            delegate.shouldShowIconRow());
+                    return new ListItem(
+                            AppMenuHandler.AppMenuItemType.SUBMENU_HEADER, builder.build());
+                };
 
         mActivityLifecycleDispatcher = activityLifecycleDispatcher;
         mActivityLifecycleDispatcher.register(this);
@@ -186,7 +202,7 @@ class AppMenuHandlerImpl
                                 /* withAssertions= */ false);
                         PopupWindow mainPopup = mAppMenu.getPopup();
                         if (mainPopup != null && mainPopup.isShowing()) {
-                            mAppMenu.updateMenuHeight();
+                            mAppMenu.updateMenuHeightWithAnimation();
                         }
                     }
 
@@ -201,7 +217,7 @@ class AppMenuHandlerImpl
                                 /* withAssertions= */ false);
                         PopupWindow mainPopup = mAppMenu.getPopup();
                         if (mainPopup != null && mainPopup.isShowing()) {
-                            mAppMenu.updateMenuHeight();
+                            mAppMenu.updateMenuHeightWithAnimation();
                         }
                     }
                 };
@@ -325,7 +341,8 @@ class AppMenuHandlerImpl
         setupModelForHighlightAndClick(mModelList, mHighlightMenuId, this);
 
         AppMenuAdapter adapter = new AppMenuAdapter(mModelList);
-        SparseArray<Function<Context, Integer>> customSizingProviders = new SparseArray<>();
+        SparseArray<BiFunction<Context, PropertyModel, Integer>> customSizingProviders =
+                new SparseArray<>();
         registerViewBinders(adapter, customSizingProviders, mDelegate.shouldShowIconBeforeItem());
 
         AppMenu.InitialSizingHelper initialSizingHelper =
@@ -336,10 +353,11 @@ class AppMenuHandlerImpl
                             assert false : "ModelList is null";
                             return 0;
                         }
-                        Function<Context, Integer> customSizingProvider =
-                                customSizingProviders.get(mModelList.get(index).type);
+                        ListItem item = mModelList.get(index);
+                        BiFunction<Context, PropertyModel, Integer> customSizingProvider =
+                                customSizingProviders.get(item.type);
                         if (customSizingProvider != null) {
-                            return customSizingProvider.apply(mContext);
+                            return customSizingProvider.apply(mContext, item.model);
                         }
                         return itemRowHeight;
                     }
@@ -587,13 +605,15 @@ class AppMenuHandlerImpl
 
     private void registerViewBinders(
             ModelListAdapter adapter,
-            SparseArray<Function<Context, Integer>> customSizingProviders,
+            SparseArray<BiFunction<Context, PropertyModel, Integer>> customSizingProviders,
             boolean iconBeforeItem) {
         registerDefaultViewBinders(adapter, iconBeforeItem);
         customSizingProviders.append(
                 AppMenuItemType.DIVIDER, DividerLineMenuItemViewBinder::getPixelHeight);
         customSizingProviders.append(
                 AppMenuItemType.BUTTON_ROW, AppMenuItemViewBinder::getIconRowItemPixelHeight);
+        customSizingProviders.append(
+                AppMenuItemType.SUBMENU_HEADER, AppMenuItemViewBinder::getSubmenuHeaderPixelHeight);
 
         mDelegate.registerCustomViewBinders(adapter, customSizingProviders);
     }
@@ -783,7 +803,8 @@ class AppMenuHandlerImpl
     public AppMenuPopup createAndShowFlyoutPopup(
             ListItem item, View view, Runnable dismissRunnable) {
         AppMenuAdapter adapter = new AppMenuAdapter(getModelListSubtree(item));
-        SparseArray<Function<Context, Integer>> customSizingProviders = new SparseArray<>();
+        SparseArray<BiFunction<Context, PropertyModel, Integer>> customSizingProviders =
+                new SparseArray<>();
         registerViewBinders(adapter, customSizingProviders, mDelegate.shouldShowIconBeforeItem());
 
         assert mAppMenu != null;

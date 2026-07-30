@@ -9,6 +9,16 @@ interface Element {
   scrollIntoViewIfNeeded: () => void;
 }
 
+interface AxTreeAnchorMetadata {
+  axId: number;
+  htmlId?: string;
+  target?: string;
+  title?: string;
+  name?: string;
+  textBefore?: string;
+  textAfter?: string;
+}
+
 declare namespace chrome {
   export namespace readingMode {
     /////////////////////////////////////////////////////////////////////
@@ -63,9 +73,8 @@ declare namespace chrome {
     let yellowTheme: number;
     let blueTheme: number;
     let highContrastTheme: number;
-    let lowContrastTheme: number;
-    let sepiaLightTheme: number;
-    let sepiaDarkTheme: number;
+    let lowContrastLightTheme: number;
+    let lowContrastDarkTheme: number;
     let undefinedPresentationState: number;
     let inHiddenPresentationState: number;
     let inSidePanelPresentationState: number;
@@ -113,6 +122,10 @@ declare namespace chrome {
     // Whether the line focus feature flag is enabled.
     let isLineFocusEnabled: boolean;
 
+    // Whether the links can be enabled when the Readability feature flag is
+    // enabled.
+    let isReadabilityWithLinksEnabled: boolean;
+
     // Indicates if this page is a Google doc.
     let isGoogleDocs: boolean;
 
@@ -146,6 +159,8 @@ declare namespace chrome {
 
     // Distiled html content from DOM distiller distillation.
     let htmlContent: string;
+
+    let axTreeAnchors: Record<string, AxTreeAnchorMetadata[]>;
 
     // The active distillation method currently showing in page content.
     // Possible values are distillationTypeScreen2x or
@@ -261,6 +276,8 @@ declare namespace chrome {
     // Called when reading mode is closed.
     function readingModeWillClose(): void;
 
+    function onAnchorsReadyForReadability(): void;
+
     // Called when the speech rate is changed via the webui toolbar.
     function onSpeechRateChange(rate: number): void;
 
@@ -332,6 +349,10 @@ declare namespace chrome {
     //     ],
     //   };
     function setContentForTesting(
+        snapshotLite: Object, contentNodeIds: number[]): void;
+    // Sets the same structure as setContentForTesting but forces
+    // the processing of the AX Tree Anchors.
+    function setAnchorsForTesting(
         snapshotLite: Object, contentNodeIds: number[]): void;
 
     // Set the theme. Used by tests only.

@@ -10,13 +10,10 @@
 #include "chrome/browser/ash/crosapi/crosapi_ash.h"
 #include "chrome/browser/ash/crosapi/crosapi_manager.h"
 #include "chrome/browser/ash/printing/print_preview/print_preview_webcontents_adapter_ash.h"
-#include "chrome/browser/chromeos/printing/print_preview/print_settings_converter.h"
 #include "chrome/browser/chromeos/printing/print_preview/print_view_manager_cros.h"
-#include "chromeos/crosapi/mojom/print_preview_cros.mojom.h"
 #include "components/device_event_log/device_event_log.h"
 #include "components/printing/common/print.mojom.h"
 #include "content/public/browser/web_contents.h"
-#include "mojo/public/cpp/bindings/message.h"
 
 using ::printing::mojom::RequestPrintPreviewParamsPtr;
 
@@ -26,10 +23,9 @@ namespace {
 
 PrintPreviewWebcontentsManager* g_instance_for_testing = nullptr;
 
-crosapi::mojom::PrintPreviewCrosDelegate* g_delegate_instance_for_testing =
-    nullptr;
+chromeos::PrintPreviewCrosDelegate* g_delegate_instance_for_testing = nullptr;
 
-crosapi::mojom::PrintPreviewCrosDelegate& print_preview_cros_delegate() {
+chromeos::PrintPreviewCrosDelegate& print_preview_cros_delegate() {
   if (g_delegate_instance_for_testing) {
     return CHECK_DEREF(g_delegate_instance_for_testing);
   }
@@ -72,30 +68,6 @@ void PrintPreviewWebcontentsManager::Initialize() {
         ->print_preview_webcontents_adapter_ash()
         ->RegisterAshClient(this);
   }
-}
-
-void PrintPreviewWebcontentsManager::GeneratePrintPreview(
-    const base::UnguessableToken& token,
-    crosapi::mojom::PrintSettingsPtr settings,
-    GeneratePrintPreviewCallback callback) {
-  const auto found_content_iter = token_to_webcontents_.find(token);
-  if (found_content_iter == token_to_webcontents_.end()) {
-    mojo::ReportBadMessage(
-        "Bad token, can only be called by a valid print preview instance.");
-    return;
-  }
-
-  PrintViewManagerCros* view_manager =
-      PrintViewManagerCros::FromWebContents(found_content_iter->second);
-  if (!view_manager) {
-    PRINTER_LOG(ERROR) << "Failed to start generating a print preview.";
-    std::move(callback).Run(/*success=*/false);
-    return;
-  }
-
-  view_manager->HandleGeneratePrintPreview(
-      SerializePrintSettings(std::move(settings)));
-  std::move(callback).Run(/*success=*/true);
 }
 
 void PrintPreviewWebcontentsManager::HandleDialogClosed(
@@ -173,7 +145,7 @@ content::WebContents* PrintPreviewWebcontentsManager::RemoveTokenMapping(
 }
 
 void PrintPreviewWebcontentsManager::SetPrintPreviewCrosDelegateForTesting(
-    crosapi::mojom::PrintPreviewCrosDelegate* delegate) {
+    chromeos::PrintPreviewCrosDelegate* delegate) {
   g_delegate_instance_for_testing = delegate;
 }
 

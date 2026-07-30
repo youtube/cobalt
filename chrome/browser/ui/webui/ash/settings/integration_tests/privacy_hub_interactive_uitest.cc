@@ -6,13 +6,17 @@
 
 #include "ash/constants/ash_features.h"
 #include "ash/webui/settings/public/constants/routes.mojom.h"
+#include "ash/webui/settings/public/constants/routes_util.h"
 #include "base/check.h"
+#include "base/check_deref.h"
 #include "base/functional/bind.h"
 #include "base/test/scoped_feature_list.h"
-#include "chrome/browser/ui/chrome_pages.h"
-#include "chrome/browser/ui/settings_window_manager_chromeos.h"
 #include "chrome/test/base/ash/interactive/interactive_ash_test.h"
 #include "chrome/test/interaction/interactive_browser_test.h"
+#include "chromeos/ash/experiences/settings_ui/settings_app_manager.h"
+#include "components/session_manager/core/session.h"
+#include "components/session_manager/core/session_manager.h"
+#include "components/user_manager/user_manager.h"
 #include "ui/base/interaction/element_identifier.h"
 
 namespace ash {
@@ -27,8 +31,13 @@ class PrivacyHubInteractiveUiTest : public InteractiveAshTest {
   // Shows OS Settings and loads a sub-page.
   auto ShowOSSettingsSubPage(const std::string& sub_page) {
     return Do([&]() {
-      chrome::SettingsWindowManager::GetInstance()->ShowOSSettings(
-          GetActiveUserProfile(), sub_page);
+      auto* session =
+          session_manager::SessionManager::Get()->GetActiveSession();
+      CHECK(session);
+      ash::SettingsAppManager::Get()->Open(
+          CHECK_DEREF(user_manager::UserManager::Get()->FindUser(
+              session->account_id())),
+          {.sub_page = sub_page});
     });
   }
 
@@ -121,7 +130,7 @@ IN_PROC_BROWSER_TEST_P(PrivacyHubSettingsPageTest, PrivacyControls) {
       Log("Waiting for OS settings privacy hub page to load"),
       WaitForWebContentsReady(
           kOsSettingsWebContentsId,
-          chrome::GetOSSettingsUrl(
+          chromeos::settings::GetOSSettingsUrl(
               chromeos::settings::mojom::kPrivacyHubSubpagePath)),
 
       Log("Waiting for camera subpage trigger to exist or not"),
@@ -187,7 +196,7 @@ IN_PROC_BROWSER_TEST_F(PrivacyHubAppPermissionsInteractiveUiTest,
       Log("Waiting for OS settings privacy hub camera subpage to load"),
       WaitForWebContentsReady(
           kOsSettingsWebContentsId,
-          chrome::GetOSSettingsUrl(
+          chromeos::settings::GetOSSettingsUrl(
               chromeos::settings::mojom::kPrivacyHubCameraSubpagePath)),
 
       Log("Test complete"));
@@ -207,7 +216,7 @@ IN_PROC_BROWSER_TEST_F(PrivacyHubAppPermissionsInteractiveUiTest,
       Log("Waiting for OS settings privacy hub microphone subpage to load"),
       WaitForWebContentsReady(
           kOsSettingsWebContentsId,
-          chrome::GetOSSettingsUrl(
+          chromeos::settings::GetOSSettingsUrl(
               chromeos::settings::mojom::kPrivacyHubMicrophoneSubpagePath)),
 
       Log("Test complete"));
@@ -227,7 +236,7 @@ IN_PROC_BROWSER_TEST_F(PrivacyHubAppPermissionsInteractiveUiTest,
       Log("Waiting for OS settings privacy hub geolocation subpage to load"),
       WaitForWebContentsReady(
           kOsSettingsWebContentsId,
-          chrome::GetOSSettingsUrl(
+          chromeos::settings::GetOSSettingsUrl(
               chromeos::settings::mojom::kPrivacyHubGeolocationSubpagePath)),
 
       Log("Test complete"));

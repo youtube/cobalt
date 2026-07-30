@@ -472,11 +472,11 @@ enum WebDXFeature {
   kReporting = 410,
   kFontLanguageOverride = 411,
   kWebnn = 412,
-  kTextDetect = 413,
+  kTextDetection = 413,
   kTextJustify = 414,
   kSummarizer = 415,
-  kTranslationApi = 416,
-  kDRAFT_MetaTextScale = 417,
+  kOBSOLETE_TranslationApi = 416,
+  kMetaTextScale = 417,
   kJpegxl = 418,
   kPartitionedCookies = 419,
   kPrompt = 420,
@@ -484,6 +484,11 @@ enum WebDXFeature {
   kRewriter = 422,
   kWriter = 423,
   kDRAFT_InstallElement = 424,
+  kLanguageDetector = 425,
+  kTranslator = 426,
+  kDRAFT_WebMCP = 427,
+  kDRAFT_LoadingLazyMedia = 428,
+  kManifestLocalization = 429,
 
   // Add new features immediately above this line. Don't change assigned
   // numbers of any item, and don't reuse removed slots.

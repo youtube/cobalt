@@ -6243,10 +6243,10 @@ Called by update_use_counter_feature_enum.py.-->
       label="LocalNetworkAccessNonSecureContextAllowedDeprecationTrial"/>
   <int value="5618" label="CSPUrlHashes"/>
   <int value="5619" label="CSPEvalHashes"/>
-  <int value="5620" label="WebAppManifestNameLocalized"/>
-  <int value="5621" label="WebAppManifestShortNameLocalized"/>
-  <int value="5622" label="WebAppManifestDescriptionLocalized"/>
-  <int value="5623" label="WebAppManifestIconsLocalized"/>
+  <int value="5620" label="OBSOLETE_WebAppManifestNameLocalized"/>
+  <int value="5621" label="OBSOLETE_WebAppManifestShortNameLocalized"/>
+  <int value="5622" label="OBSOLETE_WebAppManifestDescriptionLocalized"/>
+  <int value="5623" label="OBSOLETE_WebAppManifestIconsLocalized"/>
   <int value="5624" label="HTMLControlledFrameElement"/>
   <int value="5625" label="SlowDeserialization"/>
   <int value="5626" label="SharedWorkerStartOnAndroid"/>
@@ -6424,6 +6424,13 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5787" label="LinkRelModulePreloadStyle"/>
   <int value="5788" label="AudioContextPlaybackStats"/>
   <int value="5789" label="ParseFromStringXML"/>
+  <int value="5790" label="NonParentOriginInitiatedNavigationOfSubframe"/>
+  <int value="5791" label="ModelContextRegisterTool"/>
+  <int value="5792" label="ModelContextRegisterDeclarativeTool"/>
+  <int value="5793" label="LanguageModel_ContextUsage"/>
+  <int value="5794" label="LanguageModel_ContextWindow"/>
+  <int value="5795" label="LanguageModel_MeasureContextUsage"/>
+  <int value="5796" label="V8WindowClient_Navigate_Method"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom:WebFeature) -->
@@ -8269,6 +8276,12 @@ Called by update_use_counter_css.py.-->
   <int value="931" label="timeline-trigger-activation-range-end"/>
   <int value="932" label="timeline-trigger-activation-range"/>
   <int value="933" label="rule-overlap"/>
+  <int value="934" label="column-rule-inset-start"/>
+  <int value="935" label="column-rule-inset-end"/>
+  <int value="936" label="row-rule-inset-start"/>
+  <int value="937" label="row-rule-inset-end"/>
+  <int value="938" label="rule-inset-start"/>
+  <int value="939" label="rule-inset-end"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/css_property_id.mojom:CSSSampleId) -->
@@ -8816,11 +8829,11 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="410" label="Reporting"/>
   <int value="411" label="FontLanguageOverride"/>
   <int value="412" label="Webnn"/>
-  <int value="413" label="TextDetect"/>
+  <int value="413" label="TextDetection"/>
   <int value="414" label="TextJustify"/>
   <int value="415" label="Summarizer"/>
-  <int value="416" label="TranslationApi"/>
-  <int value="417" label="DRAFT_MetaTextScale"/>
+  <int value="416" label="OBSOLETE_TranslationApi"/>
+  <int value="417" label="MetaTextScale"/>
   <int value="418" label="Jpegxl"/>
   <int value="419" label="PartitionedCookies"/>
   <int value="420" label="Prompt"/>
@@ -8828,6 +8841,11 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="422" label="Rewriter"/>
   <int value="423" label="Writer"/>
   <int value="424" label="DRAFT_InstallElement"/>
+  <int value="425" label="LanguageDetector"/>
+  <int value="426" label="Translator"/>
+  <int value="427" label="DRAFT_WebMCP"/>
+  <int value="428" label="DRAFT_LoadingLazyMedia"/>
+  <int value="429" label="ManifestLocalization"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/webdx_feature.mojom:WebDXFeature) -->

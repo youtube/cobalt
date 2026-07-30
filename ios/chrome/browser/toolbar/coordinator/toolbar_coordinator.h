@@ -43,8 +43,6 @@
 /// Temporary storing the keyboard height here. Used when updating the bottom
 /// omnibox size while editing.
 @property(nonatomic, assign) CGFloat keyboardHeight;
-/// Returns the toolbar type containing the omnibox.
-@property(nonatomic, assign, readonly) ToolbarType omniboxPosition;
 
 /// Initializes this coordinator with its `browser` and a nil base view
 /// controller.
@@ -76,8 +74,6 @@
 /// transition to the expanded location bar state of the view controller.
 - (void)transitionToLocationBarFocusedState:(BOOL)focused
                                  completion:(ProceduralBlock)completion;
-/// Whether the omnibox is currently in edit state.
-- (BOOL)inEditState;
 /// Whether the omnibox is currently the first responder.
 - (BOOL)isOmniboxFirstResponder;
 /// Whether the omnibox popup is currently presented.
@@ -98,8 +94,6 @@
 - (CGFloat)collapsedSecondaryToolbarHeight;
 /// The maximum height of the secondary toolbar.
 - (CGFloat)expandedSecondaryToolbarHeight;
-/// The height necessary to display only the location bar.
-- (CGFloat)locationBarCompactDisplayHeight;
 
 @end
 

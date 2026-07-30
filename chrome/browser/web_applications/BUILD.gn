@@ -196,6 +196,10 @@ source_set("web_applications") {
     "jobs/finalize_install_job.h",
     "jobs/finalize_update_job.cc",
     "jobs/finalize_update_job.h",
+    "jobs/gather_migration_source_info_job.cc",
+    "jobs/gather_migration_source_info_job.h",
+    "jobs/gather_migration_source_info_job_result.cc",
+    "jobs/gather_migration_source_info_job_result.h",
     "jobs/get_progressive_web_app_size_job.cc",
     "jobs/get_progressive_web_app_size_job.h",
     "jobs/install_from_info_job.cc",
@@ -1208,6 +1212,7 @@ source_set("web_applications_browser_tests") {
 
   sources = [
     "alternative_error_page_override_info_browsertest.cc",
+    "commands/apply_manifest_migration_command_browsertest.cc",
     "commands/compute_app_size_command_browsertest.cc",
     "commands/external_app_resolution_command_browsertest.cc",
     "commands/fetch_manifest_and_install_command_browsertest.cc",
@@ -1231,6 +1236,7 @@ source_set("web_applications_browser_tests") {
     "isolated_web_apps/isolated_web_app_error_page_browsertest.cc",
     "isolated_web_apps/isolated_web_app_file_handling_browsertest.cc",
     "isolated_web_apps/isolated_web_app_install_prepare_apply_update_browsertest.cc",
+    "isolated_web_apps/isolated_web_app_link_capturing_browsertest.cc",
     "isolated_web_apps/isolated_web_app_permissions_policy_browsertest.cc",
     "isolated_web_apps/isolated_web_app_throttle_browsertest.cc",
     "isolated_web_apps/isolated_web_app_trust_checker_browsertest.cc",

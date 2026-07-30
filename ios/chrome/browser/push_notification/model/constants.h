@@ -38,7 +38,9 @@ enum class NotificationType {
   kCrossPlatformPromoPasswords = 20,
   kCrossPlatformPromoESB = 21,
   kCrossPlatformPromoLens = 22,
-  kMaxValue = kCrossPlatformPromoLens,
+  kCrossPlatformPromoTabGroups = 23,
+  kCrossPlatformPromoPriceTracking = 24,
+  kMaxValue = kCrossPlatformPromoPriceTracking,
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/ios/enums.xml)
 
@@ -280,7 +282,7 @@ extern const char kNAUHistogramName[];
 extern const char kContentNotificationActionHistogramName[];
 
 // The max amount of NAU sends per session.
-extern const int kDeliveredNAUMaxSendsPerSession;
+inline const int kDeliveredNAUMaxSendsPerSession = 30;
 
 // Key for the desktop_to_mobile_promo::PromoType of the associated notification
 // in the push notification payload. Used for Cross Platform Growth Promo

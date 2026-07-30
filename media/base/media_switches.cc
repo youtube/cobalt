@@ -14,7 +14,6 @@
 #include "base/strings/string_number_conversions.h"
 #include "build/build_config.h"
 #include "build/chromecast_buildflags.h"
-#include "components/system_media_controls/linux/buildflags/buildflags.h"
 #include "gpu/config/gpu_driver_bug_workarounds.h"
 #include "gpu/config/gpu_finch_features.h"
 #include "media/media_buildflags.h"
@@ -23,6 +22,7 @@
 
 #if BUILDFLAG(IS_LINUX)
 #include "base/cpu.h"
+#include "components/system_media_controls/linux/buildflags/buildflags.h"
 #endif
 
 #if BUILDFLAG(IS_MAC)
@@ -330,14 +330,6 @@ const char kHardwareVideoDevicePath[] = "hardware-video-device-path";
 
 namespace media {
 
-// Controls whether the new, AudioDecoder interface backed AudioFileReader is
-// used, instead of the LegacyAudioFileReader that manually uses an
-// FFmpegDecodingLoop.
-// For more information, see crbug.com/440616500.
-#if BUILDFLAG(ENABLE_FFMPEG)
-BASE_FEATURE(kAudioDecoderAudioFileReader, base::FEATURE_ENABLED_BY_DEFAULT);
-#endif
-
 // Only used for disabling overlay fullscreen (aka SurfaceView) in Clank.
 BASE_FEATURE(kOverlayFullscreenVideo,
              "overlay-fullscreen-video",
@@ -571,9 +563,6 @@ BASE_FEATURE(kCrOSDspBasedNsDeactivatedGroups,
 BASE_FEATURE(kCrOSDspBasedAgcDeactivatedGroups,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kCrOSDspBasedNsAllowed, base::FEATURE_ENABLED_BY_DEFAULT);
-BASE_FEATURE(kCrOSDspBasedAgcAllowed, base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kIgnoreUiGains, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kShowForceRespectUiGainsToggle, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -675,15 +664,6 @@ BASE_FEATURE(kFileDialogsTuckPictureInPicture,
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
 #endif  // !BUILDFLAG(IS_ANDROID)
 
-// Show toolbar button that opens dialog for controlling media sessions.
-BASE_FEATURE(kGlobalMediaControls,
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
-             base::FEATURE_ENABLED_BY_DEFAULT
-#else
-             base::FEATURE_DISABLED_BY_DEFAULT
-#endif
-);
-
 // Auto-dismiss global media controls.
 BASE_FEATURE(kGlobalMediaControlsAutoDismiss, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -705,9 +685,6 @@ BASE_FEATURE(kGlobalMediaControlsSeamlessTransfer,
 
 // CanPlayThrough issued according to standard.
 BASE_FEATURE(kSpecCompliantCanPlayThrough, base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Standardize the quantization range for VP9 and AV1 encoders to 0-255.
-BASE_FEATURE(kStandardizeVP9AndAV1Quantizer, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Suspends WebMediaPlayerImpl instances when the containing RenderFrame is
 // frozen. TODO(crbug.com/41161335): Remove in M143 after it goes stable.
@@ -847,22 +824,6 @@ BASE_FEATURE(kLogSodaLoadFailures,
 BASE_FEATURE(kGetDisplayMediaConfersActivation,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Controls whether a "Share this tab instead" button should be shown for
-// getDisplayMedia captures. Note: This flag does not control if the "Share this
-// tab instead" button is shown for chrome.desktopCapture captures.
-BASE_FEATURE(kShareThisTabInsteadButtonGetDisplayMedia,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// If kShareThisTabInsteadButtonGetDisplayMedia is ENABLED, this flag controls
-// whether a "Share this tab instead" button should be enabled for
-// getDisplayMedia captures with audio.
-// If kShareThisTabInsteadButtonGetDisplayMedia is DISABLED, this flag has no
-// effect.
-// Note: This flag does not control if the "Share this tab instead" button is
-// shown for chrome.desktopCapture captures.
-BASE_FEATURE(kShareThisTabInsteadButtonGetDisplayMediaAudio,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Enable the Speaker Change Detection feature, which inserts a line break when
 // the Speech On-Device API (SODA) detects a speaker change.
 BASE_FEATURE(kSpeakerChangeDetection, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -974,12 +935,18 @@ BASE_FEATURE(kHardwareSecureDecryptionRequireServerCert,
 
 // Enables handling of hardware media keys for controlling media.
 BASE_FEATURE(kHardwareMediaKeyHandling,
-#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || \
-    BUILDFLAG(USE_MPRIS)
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#elif BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(USE_MPRIS)
              base::FEATURE_ENABLED_BY_DEFAULT
 #else
              base::FEATURE_DISABLED_BY_DEFAULT
-#endif
+#endif  // BUILDFLAG(USE_MPRIS)
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif  // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) ||
+        // BUILDFLAG(IS_LINUX)
 );
 
 // Enables a platform-specific resolution cutoff for prioritizing platform
@@ -1554,8 +1521,9 @@ BASE_FEATURE(kMediaLogToConsole,
 #endif
 );
 
-BASE_FEATURE(kLibvpxUseChromeThreads, base::FEATURE_ENABLED_BY_DEFAULT);
-BASE_FEATURE(kLibaomUseChromeThreads, base::FEATURE_ENABLED_BY_DEFAULT);
+// Controls whether AOM/VPX decoders should use the presentation thread type.
+BASE_FEATURE(kAomVpxUsePresentationThreadType,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_WIN)
 // Controls whether to use D3D12 video decoder instead of D3D11 when supported.

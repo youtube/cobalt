@@ -7,6 +7,7 @@
 
 #include <vector>
 
+#include "base/containers/queue.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/sequence_checker.h"
@@ -27,25 +28,29 @@ class NET_EXPORT_PRIVATE EvictionCandidateAggregator
   struct NET_EXPORT_PRIVATE EvictionCandidate {
     EvictionCandidate(SqlPersistentStore::ResId res_id,
                       SqlPersistentStore::ShardId shard_id,
-                      int64_t bytes_usage,
-                      base::Time last_used);
+                      int64_t entry_size_with_overhead,
+                      int64_t sort_value);
     ~EvictionCandidate();
     EvictionCandidate(EvictionCandidate&&);
     EvictionCandidate& operator=(EvictionCandidate&&);
+    EvictionCandidate(const EvictionCandidate&);
+    EvictionCandidate& operator=(const EvictionCandidate&);
 
     SqlPersistentStore::ResId res_id;
     SqlPersistentStore::ShardId shard_id;
-    int64_t bytes_usage;
-    base::Time last_used;
+    // The size of the entry in bytes, including the static overhead
+    // (kSqlBackendStaticResourceSize).
+    int64_t entry_size_with_overhead;
+    int64_t sort_value;
   };
-
+  using EvictionTarget = SqlPersistentStore::EvictionTarget;
+  using EvictionTargetQueue = SqlPersistentStore::EvictionTargetQueue;
   using EvictionCandidateList = std::vector<EvictionCandidate>;
   using EvictionCandidateSelectedCallback =
-      base::OnceCallback<void(std::vector<SqlPersistentStore::ResId>,
-                              int64_t bytes_usage,
+      base::OnceCallback<void(EvictionTargetQueue eviction_targets,
                               base::TimeTicks post_task_time)>;
 
-  explicit EvictionCandidateAggregator(
+  EvictionCandidateAggregator(
       int64_t size_to_be_removed,
       std::vector<scoped_refptr<base::SequencedTaskRunner>> task_runners);
 

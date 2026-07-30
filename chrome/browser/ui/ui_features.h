@@ -10,7 +10,6 @@
 
 #include "base/feature_list.h"
 #include "base/metrics/field_trial_params.h"
-#include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "chrome/common/buildflags.h"
 #include "extensions/buildflags/buildflags.h"
@@ -30,6 +29,8 @@ BASE_DECLARE_FEATURE(kCreateNewTabGroupAppMenuTopLevel);
 BASE_DECLARE_FEATURE(kDseIntegrity);
 BASE_DECLARE_FEATURE(kFewerUpdateConfirmations);
 #endif
+
+BASE_DECLARE_FEATURE(kDesktopGlowUp);
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 
@@ -265,6 +266,14 @@ BASE_DECLARE_FEATURE(kThreeButtonPasswordSaveDialog);
 // of the browser.
 BASE_DECLARE_FEATURE(kToolbarHeightSidePanel);
 
+// Feature which uses a flyover animation for animating side panels (and
+// expansion/contraction of the Vertical Tab Strip).
+//
+// Call `UseSidePanelFlyoverAnimation()` instead of checking this feature
+// directly.
+BASE_DECLARE_FEATURE(kSidePanelFlyoverAnimation);
+bool UseSidePanelFlyoverAnimation();
+
 // TODO(crbug.com/460764864): Cleanup all the enterprise badging feature flags.
 BASE_DECLARE_FEATURE(kEnterpriseProfileBadgingForMenu);
 BASE_DECLARE_FEATURE(kEnterpriseBadgingForNtpFooter);
@@ -315,9 +324,6 @@ BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationEnableAll);
 
 // The following feature params indicate whether individual features should
 // have their page actions controlled using the new framework.
-BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationLensOverlay);
-BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationMemorySaver);
-BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationTranslate);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationIntentPicker);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationZoom);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationOfferNotification);

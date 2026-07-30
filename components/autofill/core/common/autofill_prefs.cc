@@ -53,7 +53,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
       kAutofillAiTravelEntitiesEnabled, true,
       user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID) || \
-    BUILDFLAG(IS_CHROMEOS)
+    BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_IOS)
   registry->RegisterBooleanPref(
       kAutofillAiReauthBeforeViewingSensitiveData, true,
       user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
@@ -83,8 +83,11 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
       user_prefs::PrefRegistrySyncable::SYNCABLE_PRIORITY_PREF);
 
   // Non-synced prefs. Used for per-device choices, e.g., signin promo.
+
   registry->RegisterDictionaryPref(kAutofillAiOptInStatus);
   registry->RegisterBooleanPref(kAutofillCreditCardFidoAuthEnabled, false);
+  // Only controlled via policy or extension API.
+  registry->RegisterBooleanPref(kAutofillOtherDatatypesEnabled, true);
 #if BUILDFLAG(IS_ANDROID)
   registry->RegisterBooleanPref(kAutofillCreditCardFidoAuthOfferCheckboxState,
                                 true);
@@ -263,7 +266,7 @@ void SetAutofillAiSyncedOptInStatus(PrefService* prefs, bool enabled) {
 
 bool IsAutofillAiReauthBeforeFillingEnabled(const PrefService* prefs) {
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID) || \
-    BUILDFLAG(IS_CHROMEOS)
+    BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_IOS)
   return prefs->GetBoolean(kAutofillAiReauthBeforeViewingSensitiveData) &&
          base::FeatureList::IsEnabled(features::kAutofillAiReauthRequired);
 #else
@@ -273,7 +276,7 @@ bool IsAutofillAiReauthBeforeFillingEnabled(const PrefService* prefs) {
 
 void SetAutofillAiReauthBeforeFillingEnabled(PrefService* prefs, bool enabled) {
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID) || \
-    BUILDFLAG(IS_CHROMEOS)
+    BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_IOS)
   prefs->SetBoolean(kAutofillAiReauthBeforeViewingSensitiveData, enabled);
 #endif
 }

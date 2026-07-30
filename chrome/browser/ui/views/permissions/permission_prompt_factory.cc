@@ -20,7 +20,6 @@
 #include "chrome/browser/ui/views/permissions/permission_prompt_quiet_icon.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
-#include "chrome/common/chrome_features.h"
 #include "chrome/common/webui_url_constants.h"
 #include "components/permissions/permission_request.h"
 #include "components/permissions/permission_uma_util.h"
@@ -51,15 +50,15 @@ bool IsFullScreenMode(Browser* browser) {
     return false;
   }
 
-  LocationBarView* location_bar = browser_view->GetLocationBarView();
+  LocationBar* location_bar = browser_view->GetLocationBar();
 
   return !location_bar || !location_bar->IsDrawn() ||
-         location_bar->GetWidget()->GetTopLevelWidget()->IsFullscreen();
+         location_bar->IsFullscreen();
 }
 
-LocationBarView* GetLocationBarView(Browser* browser) {
+LocationBar* GetLocationBar(Browser* browser) {
   BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
-  return browser_view ? browser_view->GetLocationBarView() : nullptr;
+  return browser_view ? browser_view->GetLocationBar() : nullptr;
 }
 
 // A permission request should be auto-ignored if:
@@ -89,7 +88,7 @@ bool ShouldIgnorePermissionRequest(
   }
 
   // Suppress permission prompts if the omnibox is being edited or is empty.
-  LocationBarView* location_bar = GetLocationBarView(browser);
+  LocationBar* location_bar = GetLocationBar(browser);
   bool can_display_prompt = !(location_bar && location_bar->IsEditingOrEmpty());
 
   LensOverlayController* lens_overlay_controller =
@@ -127,9 +126,8 @@ bool ShouldUseChip(permissions::PermissionPrompt::Delegate* delegate) {
 }
 
 bool IsLocationBarDisplayed(Browser* browser) {
-  LocationBarView* lbv = GetLocationBarView(browser);
-  return lbv && lbv->IsDrawn() &&
-         !lbv->GetWidget()->GetTopLevelWidget()->IsFullscreen();
+  LocationBar* lb = GetLocationBar(browser);
+  return lb && lb->IsDrawn() && !lb->IsFullscreen();
 }
 
 bool ShouldCurrentRequestUseQuietChip(

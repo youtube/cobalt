@@ -273,8 +273,8 @@ MultiStep GlicActorGeneralUiTest::WaitAction(
     ExpectedErrorResult expected_result) {
   auto wait_provider =
       base::BindLambdaForTesting([&task_id, &observe_tab_handle, duration]() {
-        apc::Actions action = actor::MakeWait(duration, observe_tab_handle);
-        action.set_task_id(task_id.value());
+        apc::Actions action =
+            actor::MakeWait(duration, observe_tab_handle, task_id);
         return EncodeActionProto(action);
       });
   return ExecuteAction(std::move(wait_provider), std::move(expected_result));
@@ -334,8 +334,7 @@ IN_PROC_BROWSER_TEST_F(GlicActorGeneralUiTest, ActionTargetNotFound) {
         tab_handle_.Get()->GetContents()->GetPrimaryMainFrame();
     apc::Actions action =
         actor::MakeClick(*frame, kNonExistentContentNodeId, ClickAction::LEFT,
-                         ClickAction::SINGLE);
-    action.set_task_id(task_id_.value());
+                         ClickAction::SINGLE, task_id_);
     return EncodeActionProto(action);
   });
 
@@ -394,12 +393,30 @@ IN_PROC_BROWSER_TEST_F(GlicActorGeneralUiTest, FirstActionIsntTabScoped) {
   );
 }
 
-class GlicActorWithActorDisabledUiTest : public test::InteractiveGlicTest {
+struct GlicActorEnabling {
+  bool enable_glic_actor = true;
+  bool enable_glic_actor_ui = true;
+};
+
+class GlicActorWithActorDisabledUiTest
+    : public test::InteractiveGlicTest,
+      public testing::WithParamInterface<GlicActorEnabling> {
  public:
   GlicActorWithActorDisabledUiTest() {
-    scoped_feature_list_.InitWithFeatures(
-        /*enabled_features*/ {},
-        /*disabled_features*/ {features::kGlicActor, features::kGlicActorUi});
+    const GlicActorEnabling& params = GetParam();
+    std::vector<base::test::FeatureRef> enabled_features;
+    std::vector<base::test::FeatureRef> disabled_features;
+    if (params.enable_glic_actor) {
+      enabled_features.push_back(features::kGlicActor);
+    } else {
+      disabled_features.push_back(features::kGlicActor);
+    }
+    if (params.enable_glic_actor_ui) {
+      enabled_features.push_back(features::kGlicActorUi);
+    } else {
+      disabled_features.push_back(features::kGlicActorUi);
+    }
+    scoped_feature_list_.InitWithFeatures(enabled_features, disabled_features);
   }
   ~GlicActorWithActorDisabledUiTest() override = default;
 
@@ -407,12 +424,18 @@ class GlicActorWithActorDisabledUiTest : public test::InteractiveGlicTest {
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
-IN_PROC_BROWSER_TEST_F(GlicActorWithActorDisabledUiTest, ActorNotAvailable) {
+IN_PROC_BROWSER_TEST_P(GlicActorWithActorDisabledUiTest, ActorNotAvailable) {
   RunTestSequence(DeprecatedOpenGlicWindow(GlicWindowMode::kAttached),
                   InAnyContext(CheckJsResult(
                       kGlicContentsElementId,
                       "() => { return !(client.browser.actInFocusedTab); }")));
 }
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         GlicActorWithActorDisabledUiTest,
+                         testing::Values(GlicActorEnabling{true, false},
+                                         GlicActorEnabling{false, true},
+                                         GlicActorEnabling{false, false}));
 
 IN_PROC_BROWSER_TEST_F(GlicActorGeneralUiTest,
                        ActuationSucceedsOnBackgroundTab) {
@@ -902,10 +925,9 @@ class GlicActorCallbackOrderGeneralUiTest : public GlicActorGeneralUiTest {
             })),
         ExecuteInGlic(base::BindLambdaForTesting(
             [&](content::WebContents* glic_contents) {
-              apc::Actions action =
-                  actor::MakeClick(acting_tab_, gfx::Point(15, 15),
-                                   ClickAction::LEFT, ClickAction::SINGLE);
-              action.set_task_id(task_id_.value());
+              apc::Actions action = actor::MakeClick(
+                  acting_tab_, gfx::Point(15, 15), ClickAction::LEFT,
+                  ClickAction::SINGLE, task_id_);
               std::string encoded_action = EncodeActionProto(action);
               std::string script = content::JsReplace(
                   R"JS(
@@ -1153,9 +1175,8 @@ IN_PROC_BROWSER_TEST_F(GlicActorGeneralUiTestHighDPI,
     gfx::Point coordinate = button_bounds.CenterPoint();
     apc::Actions action =
         actor::MakeClick(tab_handle_, coordinate, apc::ClickAction::LEFT,
-                         apc::ClickAction::SINGLE);
+                         apc::ClickAction::SINGLE, task_id_);
 
-    action.set_task_id(task_id_.value());
     return EncodeActionProto(action);
   });
 
@@ -1203,9 +1224,8 @@ IN_PROC_BROWSER_TEST_F(GlicActorGeneralUiTestHighDPI,
     const gfx::Point coordinate = button_bounds.origin();
     apc::Actions action =
         actor::MakeClick(tab_handle_, coordinate, apc::ClickAction::LEFT,
-                         apc::ClickAction::SINGLE);
+                         apc::ClickAction::SINGLE, task_id_);
 
-    action.set_task_id(task_id_.value());
     return EncodeActionProto(action);
   });
 

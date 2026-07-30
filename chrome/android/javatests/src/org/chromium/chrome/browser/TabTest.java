@@ -285,42 +285,38 @@ public class TabTest {
     @Test
     @SmallTest
     @Feature({"Tab"})
-    @DisableFeatures({
-        ChromeFeatureList.TAB_FREEZING_USES_DISCARD,
-        ChromeFeatureList.LOAD_ALL_TABS_AT_STARTUP
-    })
-    public void testFreezeAndAppendPendingNavigation_AlreadyFrozen() {
+    @DisableFeatures({ChromeFeatureList.LOAD_ALL_TABS_AT_STARTUP})
+    public void testDiscardAndAppendPendingNavigation_AlreadyFrozen() {
         String firstUrl =
                 mActivityTestRule.getTestServer().getURL("/chrome/test/data/android/about.html");
         String secondUrl =
                 mActivityTestRule.getTestServer().getURL("/chrome/test/data/android/test.html");
-        checkFreezingAndAppendingPendingNavigation(
+        checkDiscardingAndAppendingPendingNavigation(
                 this::createSecondFrozenTab, firstUrl, secondUrl, "MyFrozenTitle");
     }
 
     @Test
     @SmallTest
     @Feature({"Tab"})
-    @DisableFeatures(ChromeFeatureList.TAB_FREEZING_USES_DISCARD)
-    public void testFreezeAndAppendPendingNavigation_LazyBackground() {
+    @DisableFeatures({ChromeFeatureList.LOAD_ALL_TABS_AT_STARTUP})
+    public void testDiscardAndAppendPendingNavigation_LazyBackground() {
         String firstUrl =
                 mActivityTestRule.getTestServer().getURL("/chrome/test/data/android/about.html");
         String secondUrl =
                 mActivityTestRule.getTestServer().getURL("/chrome/test/data/android/test.html");
-        checkFreezingAndAppendingPendingNavigation(
+        checkDiscardingAndAppendingPendingNavigation(
                 this::createLazyTab, firstUrl, secondUrl, "MyLazyTitle");
     }
 
     @Test
     @SmallTest
     @Feature({"Tab"})
-    @DisableFeatures(ChromeFeatureList.TAB_FREEZING_USES_DISCARD)
-    public void testFreezeAndAppendPendingNavigation_LiveBackground() {
+    public void testDiscardAndAppendPendingNavigation_LiveBackground() {
         String firstUrl =
                 mActivityTestRule.getTestServer().getURL("/chrome/test/data/android/about.html");
         String secondUrl =
                 mActivityTestRule.getTestServer().getURL("/chrome/test/data/android/test.html");
-        checkFreezingAndAppendingPendingNavigation(
+        checkDiscardingAndAppendingPendingNavigation(
                 url -> {
                     Tab tab = mActivityTestRule.loadUrlInNewTab(url, /* incognito= */ false);
                     ThreadUtils.runOnUiThreadBlocking(
@@ -339,12 +335,11 @@ public class TabTest {
     @Test
     @SmallTest
     @Feature({"Tab"})
-    @DisableFeatures(ChromeFeatureList.TAB_FREEZING_USES_DISCARD)
-    public void testFreezeAndAppendPendingNavigation_LiveBackground_NativePage() {
+    public void testDiscardAndAppendPendingNavigation_LiveBackground_NativePage() {
         String firstUrl = getOriginalNativeNtpUrl();
         String secondUrl =
                 mActivityTestRule.getTestServer().getURL("/chrome/test/data/android/test.html");
-        checkFreezingAndAppendingPendingNavigation(
+        checkDiscardingAndAppendingPendingNavigation(
                 url -> {
                     Tab tab = mActivityTestRule.loadUrlInNewTab(url, /* incognito= */ false);
                     ThreadUtils.runOnUiThreadBlocking(
@@ -365,44 +360,43 @@ public class TabTest {
     @SmallTest
     @Feature({"Tab"})
     @DisableFeatures(ChromeFeatureList.LOAD_ALL_TABS_AT_STARTUP)
-    public void testFreezeAndAppendPendingNavigation_NullTitle() {
+    public void testDiscardAndAppendPendingNavigation_NullTitle() {
         String firstUrl =
                 mActivityTestRule.getTestServer().getURL("/chrome/test/data/android/about.html");
         String secondUrl =
                 mActivityTestRule.getTestServer().getURL("/chrome/test/data/android/test.html");
-        checkFreezingAndAppendingPendingNavigation(
+        checkDiscardingAndAppendingPendingNavigation(
                 this::createSecondFrozenTab, firstUrl, secondUrl, "");
     }
 
-    private void checkFreezingAndAppendingPendingNavigation(
+    private void checkDiscardingAndAppendingPendingNavigation(
             TestTabCreator tabCreator, String firstUrl, String secondUrl, String secondTitle) {
         TabObserver observer = Mockito.mock(TabObserver.class);
         Tab bgTab = tabCreator.createTab(firstUrl);
         boolean wasFrozen = bgTab.isFrozen();
+        boolean hadPendingLoad = bgTab.getPendingLoadParams() != null;
 
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     bgTab.addObserver(observer);
-                    bgTab.freezeAndAppendPendingNavigation(
+                    bgTab.discardAndAppendPendingNavigation(
                             new LoadUrlParams(secondUrl), secondTitle);
-                    assertTrue(bgTab.isFrozen());
-                    assertFalse(bgTab.isNativePage());
+                    assertEquals(wasFrozen, bgTab.isFrozen());
                 });
         verify(observer).onUrlUpdated(eq(bgTab));
-        if (wasFrozen) {
-            verify(observer, never()).onContentChanged(bgTab);
-        } else {
-            verify(observer).onContentChanged(bgTab);
-        }
+        verify(observer, never()).onContentChanged(bgTab);
         verify(observer).onFaviconUpdated(bgTab, null, null);
         verify(observer).onTitleUpdated(bgTab);
         verify(observer).onNavigationEntriesAppended(bgTab);
         assertEquals(secondTitle, ChromeTabUtils.getTitleOnUiThread(bgTab));
         assertEquals(secondUrl, ChromeTabUtils.getUrlStringOnUiThread(bgTab));
 
-        assertFalse(bgTab.isLoading());
-        assertNull(bgTab.getWebContents());
-        assertNull(bgTab.getPendingLoadParams());
+        if (wasFrozen) {
+            assertFalse(bgTab.isLoading());
+            assertNull(bgTab.getWebContents());
+        } else {
+            assertNotNull(bgTab.getWebContents());
+        }
 
         Runnable loadPage =
                 () -> {
@@ -419,9 +413,16 @@ public class TabTest {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     assertFalse(bgTab.canGoForward());
-                    assertTrue(bgTab.canGoBack());
-                    bgTab.goBack();
+                    // Pending navigations get clobbered on subsequent pending navigations.
+                    if (hadPendingLoad) {
+                        assertFalse(bgTab.canGoBack());
+                    } else {
+                        assertTrue(bgTab.canGoBack());
+                        bgTab.goBack();
+                    }
                 });
+        if (hadPendingLoad) return;
+
         ChromeTabUtils.waitForTabPageLoaded(bgTab, firstUrl);
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {

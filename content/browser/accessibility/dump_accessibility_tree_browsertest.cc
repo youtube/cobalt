@@ -1349,6 +1349,11 @@ IN_PROC_BROWSER_TEST_P(DumpAccessibilityTreeTest, AccessibilityAriaListBox) {
 }
 
 IN_PROC_BROWSER_TEST_P(DumpAccessibilityTreeTest,
+                       AccessibilityAriaListboxGrouped) {
+  RunAriaTest(FILE_PATH_LITERAL("aria-listbox-grouped.html"));
+}
+
+IN_PROC_BROWSER_TEST_P(DumpAccessibilityTreeTest,
                        AccessibilityAriaListBoxDisabled) {
   RunAriaTest(FILE_PATH_LITERAL("aria-listbox-disabled.html"));
 }
@@ -3516,6 +3521,21 @@ IN_PROC_BROWSER_TEST_P(DumpAccessibilityTreeWithProhibitedNamesTest,
   RunHtmlTest(FILE_PATH_LITERAL("prohibited-name.html"));
 }
 
+IN_PROC_BROWSER_TEST_P(DumpAccessibilityTreeTest,
+                       AccessibilityNameFromFieldset) {
+  RunHtmlTest(FILE_PATH_LITERAL("name-from-related-fieldset.html"));
+}
+IN_PROC_BROWSER_TEST_P(DumpAccessibilityTreeTest, AccessibilityNameFromLabel) {
+  RunHtmlTest(FILE_PATH_LITERAL("name-from-related-labelable.html"));
+}
+IN_PROC_BROWSER_TEST_P(DumpAccessibilityTreeTest,
+                       AccessibilityNameFromSvgTitle) {
+  RunHtmlTest(FILE_PATH_LITERAL("name-from-related-svg.html"));
+}
+IN_PROC_BROWSER_TEST_P(DumpAccessibilityTreeTest,
+                       AccessibilityNameFromTableCaption) {
+  RunHtmlTest(FILE_PATH_LITERAL("name-from-related-title.html"));
+}
 IN_PROC_BROWSER_TEST_P(DumpAccessibilityTreeTest,
                        AccessibilityNameFromPopovertargetAndInterestfor) {
   RunPopoverHintTest(

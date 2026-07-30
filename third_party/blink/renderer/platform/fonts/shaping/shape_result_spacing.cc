@@ -36,18 +36,16 @@ ShapeResultSpacing::ExpansionSetup::ExpansionSetup(
     ShapeResultSpacing* spacing,
     bool allows_leading_expansion,
     bool allows_trailing_expansion)
-    : spacing_(spacing),
-      allows_trailing_expansion_(allows_trailing_expansion),
-      justification_context_(JustificationContext::Type::kNormal,
-                             !allows_leading_expansion) {
+    : spacing_(spacing), allows_trailing_expansion_(allows_trailing_expansion) {
   DCHECK_GT(expansion, InlineLayoutUnit());
+  justification_context_.SetAfterOpportunity(!allows_leading_expansion);
   spacing_->expansion_ = expansion;
   spacing_->expansion_opportunity_count_ = 0;
   spacing_->justification_context_ = justification_context_;
 }
 
 ShapeResultSpacing::ExpansionSetup::~ExpansionSetup() {
-  if (justification_context_.is_after_opportunity &&
+  if (justification_context_.IsAfterOpportunity() &&
       !allows_trailing_expansion_ &&
       spacing_->expansion_opportunity_count_ > 0) {
     --spacing_->expansion_opportunity_count_;
@@ -64,21 +62,17 @@ void ShapeResultSpacing::ExpansionSetup::CountOpportunities(
     TextJustify method,
     StringView text,
     TextDirection direction) {
-  if (text.Is8Bit()) {
-    spacing_->expansion_opportunity_count_ +=
-        Character::ExpansionOpportunityCount(method, text.Span8(), direction,
-                                             justification_context_);
-  } else {
-    spacing_->expansion_opportunity_count_ +=
-        Character::ExpansionOpportunityCount(method, text.Span16(), direction,
-                                             justification_context_);
-  }
+  spacing_->expansion_opportunity_count_ +=
+      VisitCharacters(text, [&](auto chars) {
+        return justification_context_.CountOpportunities(method, chars,
+                                                         direction);
+      });
 }
 
 void ShapeResultSpacing::ExpansionSetup::CountOpportunities(TextJustify method,
                                                             UChar ch) {
   spacing_->expansion_opportunity_count_ +=
-      CountJustificationOpportunity16(method, ch, justification_context_);
+      justification_context_.CountOpportunity16(method, ch);
 }
 
 void ShapeResultSpacing::SetExpansion(TextJustify method,
@@ -104,7 +98,7 @@ TextRunLayoutUnit ShapeResultSpacing::NextExpansion() {
     NOTREACHED();
   }
 
-  justification_context_.is_after_opportunity = true;
+  justification_context_.SetAfterOpportunity(true);
 
   if (!--expansion_opportunity_count_) [[unlikely]] {
     const TextRunLayoutUnit remaining = expansion_.To<TextRunLayoutUnit>();
@@ -164,13 +158,12 @@ ShapeResultSpacing::ComputeExpansion(TextJustify method,
   bool opportunity_before = false;
   bool opportunity_after = false;
   if (text_.Is8Bit()) {
-    auto pair = CheckJustificationOpportunity8(method, text_[index],
-                                               justification_context_);
+    auto pair = justification_context_.CheckOpportunity8(method, text_[index]);
     opportunity_before = pair.first;
     opportunity_after = pair.second;
   } else {
-    auto pair = CheckJustificationOpportunity16(
-        method, CodePointAt(text_.Span16(), index), justification_context_);
+    auto pair = justification_context_.CheckOpportunity16(
+        method, CodePointAt(text_.Span16(), index));
     opportunity_before = pair.first;
     opportunity_after = pair.second;
   }
@@ -186,7 +179,7 @@ ShapeResultSpacing::ComputeExpansion(TextJustify method, UChar ch) {
   DCHECK(!normalize_space_);
   DCHECK(!allow_tabs_);
   auto [opportunity_before, opportunity_after] =
-      CheckJustificationOpportunity16(method, ch, justification_context_);
+      justification_context_.CheckOpportunity16(method, ch);
   return FinalizeComputeExpansion(opportunity_before, opportunity_after);
 }
 

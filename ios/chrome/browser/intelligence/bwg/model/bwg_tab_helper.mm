@@ -131,9 +131,7 @@ void BwgTabHelper::SetupPageContextGeneration(
 
   // If the page is still loading, wait for it to finish before extracting the
   // page context.
-  bool should_update_context_after_page_load =
-      IsGeminiImmediateOverlayEnabled() && web_state_->IsLoading();
-  if (should_update_context_after_page_load) {
+  if (web_state_->IsLoading()) {
     // TODO(crbug.com/466107255): Move waiting for page loading responsibility
     // to GeminiBrowserAgent.
     base::RepeatingCallback<void()> pageContextPopulateCallback =
@@ -249,6 +247,31 @@ GeminiPageContext* BwgTabHelper::GetPartialPageContext() {
   return gemini_page_context;
 }
 
+bool BwgTabHelper::ShouldBlockFloatyFromShowing() {
+  return is_external_overlay_presented_ || is_alert_presented_ ||
+         is_banner_presented_ || is_snackbar_presented_;
+}
+
+void BwgTabHelper::UpdatePresentedSource(gemini::FloatyUpdateSource source,
+                                         bool is_presented) {
+  switch (source) {
+    case gemini::FloatyUpdateSource::Alert:
+      is_alert_presented_ = is_presented;
+      break;
+    case gemini::FloatyUpdateSource::Banner:
+      is_banner_presented_ = is_presented;
+      break;
+    case gemini::FloatyUpdateSource::Overlay:
+      is_external_overlay_presented_ = is_presented;
+      break;
+    case gemini::FloatyUpdateSource::Snackbar:
+      is_snackbar_presented_ = is_presented;
+      break;
+    default:
+      break;
+  }
+}
+
 bool BwgTabHelper::GetIsBwgSessionActiveInBackground() {
   return is_bwg_session_active_in_background_;
 }
@@ -288,8 +311,12 @@ void BwgTabHelper::DeleteBwgSessionInStorage() {
 }
 
 void BwgTabHelper::PrepareBwgFreBackgrounding() {
-  cached_snapshot_ =
-      bwg_snapshot_utils::GetCroppedFullscreenSnapshot(web_state_->GetView());
+  if (!IsGeminiCopresenceEnabled()) {
+    // TODO(crbug.com/486134176) Clean up snapshot logic to rely on the default
+    // snapshot mechanism once copresence is launched.
+    cached_snapshot_ =
+        bwg_snapshot_utils::GetCroppedFullscreenSnapshot(web_state_->GetView());
+  }
   is_bwg_session_active_in_background_ = true;
 }
 
@@ -347,8 +374,14 @@ void BwgTabHelper::WasShown(web::WebState* web_state) {
 
 void BwgTabHelper::WasHidden(web::WebState* web_state) {
   if (is_bwg_ui_showing_) {
-    cached_snapshot_ =
-        bwg_snapshot_utils::GetCroppedFullscreenSnapshot(web_state_->GetView());
+    // Only capture the window snapshot if Copresence is disabled. This ensures
+    // Copresence uses the default snapshot mechanism to avoid UI corruption.
+    if (!IsGeminiCopresenceEnabled()) {
+      // TODO(crbug.com/486134176) Clean up snaoshot logic to rely on the
+      // default snapshot mechanism once copresence is launched.
+      cached_snapshot_ = bwg_snapshot_utils::GetCroppedFullscreenSnapshot(
+          web_state_->GetView());
+    }
     is_bwg_session_active_in_background_ = true;
 
     if (!IsGeminiCopresenceEnabled()) {
@@ -614,7 +647,7 @@ void BwgTabHelper::OnCanApplyContextualCueingDecision(
   ProfileIOS* profile =
       ProfileIOS::FromBrowserState(web_state_->GetBrowserState());
 
-  // TODO (crbug.com/461595639): Remove pref checks to fully migrate logic to
+  // TODO(crbug.com/461595639): Remove pref checks to fully migrate logic to
   // FET.
   bool floaty_shown = profile->GetPrefs()->GetBoolean(prefs::kIOSBwgConsent);
   bool bwg_promo_shown =

@@ -1,8 +1,19 @@
 # Copyright 2025 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
-
 import("//chrome/common/features.gni")
+
+if (is_android) {
+  import("//build/config/android/rules.gni")
+}
+
+# Target to generate Java enums from C++ headers
+if (is_android) {
+  java_cpp_enum("enums_java") {
+    sources = [ "actor_task.h" ]
+    visibility = [ "//chrome/browser/actor/*" ]
+  }
+}
 
 source_set("actor") {
   public = [
@@ -57,7 +68,7 @@ source_set("actor") {
     "//chrome/browser/subscription_eligibility",
     "//chrome/common",
     "//chrome/common:actor_webui_mojom",
-    "//components/autofill/core/browser/integrators/glic:actor_form_filling_types",
+    "//components/autofill/core/browser/integrators/actor:actor_form_filling_types",
     "//components/download/content/public",
     "//components/optimization_guide/content/browser",
     "//components/optimization_guide/proto:optimization_guide_proto",
@@ -167,6 +178,7 @@ source_set("impl") {
     "//chrome/browser/actor/ui:event_dispatcher",
     "//chrome/browser/affiliations",
     "//chrome/browser/favicon",
+    "//chrome/browser/lookalikes",
     "//chrome/browser/optimization_guide",
     "//chrome/browser/page_content_annotations:fetcher",
     "//chrome/browser/profiles:profile",
@@ -180,7 +192,7 @@ source_set("impl") {
     "//chrome/browser/ui/tabs:tabs_public",
     "//chrome/common",
     "//components/affiliations/core/browser:affiliations",
-    "//components/autofill/core/browser/integrators/glic:actor_form_filling_types",
+    "//components/autofill/core/browser/integrators/actor:actor_form_filling_types",
     "//components/content_settings/core/common",
     "//components/favicon/core",
     "//components/lookalikes/core",
@@ -207,13 +219,17 @@ source_set("impl") {
 
   if (enable_glic) {
     deps += [
-      "//chrome/browser/autofill/glic",
+      "//chrome/browser/autofill/actor",
       "//chrome/browser/glic",
+      "//components/autofill/core/browser",
     ]
   }
 
   if (is_android) {
-    deps += [ "//chrome/browser/ui/android/tab_model" ]
+    deps += [
+      "//chrome/browser/actor/android",
+      "//chrome/browser/ui/android/tab_model",
+    ]
   }
 
   if (!skip_android_unmigrated_actor_files) {
@@ -253,6 +269,7 @@ source_set("variants") {
 source_set("types") {
   sources = [
     "actor_task_delegate.h",
+    "autofill_selection_dialog_event_handler.h",
     "shared_types.cc",
     "shared_types.h",
   ]
@@ -264,7 +281,7 @@ source_set("types") {
   ]
   deps = [
     "//chrome/common",
-    "//components/autofill/core/browser/integrators/glic:actor_form_filling_types",
+    "//components/autofill/core/browser/integrators/actor:actor_form_filling_types",
     "//components/password_manager/core/browser/actor_login:common",
     "//components/tabs:public",
     "//third_party/abseil-cpp:absl",
@@ -385,11 +402,7 @@ source_set("browser_tests") {
   testonly = true
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
 
-  sources = [
-    "actor_keyed_service_browsertest.cc",
-    "tools/attempt_login_tool_browsertest.cc",
-    "tools/navigate_tool_browsertest.cc",
-  ]
+  sources = [ "actor_keyed_service_browsertest.cc" ]
   deps = [
     ":actor",
     ":impl",
@@ -399,6 +412,7 @@ source_set("browser_tests") {
     "//chrome/browser/affiliations",
     "//chrome/browser/glic",
     "//chrome/browser/glic/test_support",
+    "//chrome/browser/lookalikes:test_support",
     "//chrome/browser/optimization_guide",
     "//chrome/browser/optimization_guide:test_support",
     "//chrome/browser/safe_browsing",
@@ -424,7 +438,10 @@ source_set("browser_tests") {
   ]
 
   if (enable_glic) {
-    deps += [ "//chrome/browser/glic" ]
+    deps += [
+      "//chrome/browser/glic",
+      "//chrome/browser/glic/actor:browser_tests",
+    ]
   }
 
   if (is_android) {
@@ -437,18 +454,19 @@ source_set("browser_tests") {
   # attempt_form_filling_tool tests once flakiness is resolved.
   if (!skip_android_unmigrated_actor_files && enable_glic) {
     sources += [
-      "actor_functional_browsertest.cc",
       "execution_engine_browsertest.cc",
       "execution_engine_origin_gating_browsertest.cc",
       "site_policy_browsertest.cc",
       "tools/action_tracker_for_metrics_browsertest.cc",
       "tools/attempt_form_filling_tool_browsertest.cc",
+      "tools/attempt_login_tool_browsertest.cc",
       "tools/click_tool_browsertest.cc",
       "tools/drag_and_release_tool_browsertest.cc",
       "tools/history_tool_browsertest.cc",
       "tools/load_and_extract_content_tool_browsertest.cc",
       "tools/media_control_tool_browsertest.cc",
       "tools/mouse_move_tool_browsertest.cc",
+      "tools/navigate_tool_browsertest.cc",
       "tools/observation_delay_controller_browsertest.cc",
       "tools/observation_delay_metrics_browsertest.cc",
       "tools/page_stability_browsertest.cc",
@@ -465,8 +483,9 @@ source_set("browser_tests") {
       "tools/window_management_tool_browsertest.cc",
     ]
     deps += [
-      "//chrome/browser/autofill/glic:test_support",
+      "//chrome/browser/autofill/actor:test_support",
       "//chrome/browser/ui/views:file_system_access_test_support",
+      "//components/autofill/core/browser:test_support",
     ]
   }
 }
@@ -499,6 +518,9 @@ if (!skip_android_unmigrated_actor_files) {
         "//chrome/browser/glic/test_support",
         "//chrome/browser/optimization_guide:test_support",
       ]
+      if (is_linux) {
+        deps += [ "//ui/ozone" ]
+      }
     }
   }
 }

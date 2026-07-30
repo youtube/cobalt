@@ -55,7 +55,9 @@ enum class TipsNotificationsFeatureType {
   kGoogleLens = 2,
   kBottomOmnibox = 3,
   kPasswordAutofill = 4,
-  kMaxValue = kPasswordAutofill
+  kSignin = 5,
+  kCreateTabGroups = 6,
+  kMaxValue = kCreateTabGroups
 };
 
 // The type of user feedback from a displayed notification.

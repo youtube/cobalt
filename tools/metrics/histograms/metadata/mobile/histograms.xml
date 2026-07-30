@@ -76,7 +76,7 @@ chromium-metrics-reviews@google.com.
 </variants>
 
 <histogram name="Mobile.AppMenu.TimeToTakeAction.Abandoned" units="ms"
-    expires_after="2026-06-21">
+    expires_after="2026-08-23">
   <owner>gangwu@chromium.org</owner>
   <owner>twellington@chromium.org</owner>
   <summary>
@@ -91,7 +91,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Mobile.AppMenu.TimeToTakeAction.SelectedItem" units="ms"
-    expires_after="2026-06-14">
+    expires_after="2026-08-16">
   <owner>gangwu@chromium.org</owner>
   <owner>twellington@chromium.org</owner>
   <summary>
@@ -366,7 +366,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Mobile.Messages.Banner.Event.{MobileInfobarType}"
-    enum="MobileMessagesBannerEvent" expires_after="2026-06-13">
+    enum="MobileMessagesBannerEvent" expires_after="2026-08-16">
   <owner>thegreenfrog@chromium.org</owner>
   <owner>bling-team@google.com</owner>
   <summary>Records infobar banner events. {MobileInfobarType}</summary>
@@ -386,7 +386,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Mobile.Messages.Confirm.Accept.Time{Mobile_Messages_Confirm_Type}"
-    units="ms" expires_after="2026-04-06">
+    units="ms" expires_after="2027-04-06">
   <owner>thegreenfrog@chromium.org</owner>
   <owner>bling-team@chromium.org</owner>
   <summary>

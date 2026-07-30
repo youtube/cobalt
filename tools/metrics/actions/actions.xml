@@ -109,6 +109,13 @@ should be able to be added at any place in this file.
   <variant name=".UnpinItem" summary="Remove a custom item."/>
 </variants>
 
+<variants name="ContextualSearchContextState">
+  <variant name="WithNonTabContext"
+      summary="with non-tab context (e.g. files)"/>
+  <variant name="WithoutContext" summary="without any context"/>
+  <variant name="WithTabContext" summary="with tab context"/>
+</variants>
+
 <variants name="ContextualSearchSource">
   <variant name="ContextualTasks" summary="Contextual tasks"/>
   <variant name="Lens" summary="Lens"/>
@@ -386,6 +393,7 @@ should be able to be added at any place in this file.
   <variant name="_GenericAlwaysTriggerHelpUiFeature"
       summary="For generic always show help UI feature."/>
   <variant name="_GlicPromo" summary="For Glic feature."/>
+  <variant name="_GlicPromoAndroid" summary="For Glic promotion on Android."/>
   <variant name="_GlicTrustFirstOnboardingShortcutSnoozePromo"
       summary="For Glic shortcut feature with a snooze promo."/>
   <variant name="_GlicTrustFirstOnboardingShortcutToastPromo"
@@ -770,6 +778,9 @@ should be able to be added at any place in this file.
   <variant name="_TranslateMenuButton" summary="For translate menu button."/>
   <variant name="_UpdatedConnectionSecurityIndicators"
       summary="For updated omnibox connection security indicators."/>
+  <variant name="_VerticalTabstripTutorialFeature"
+      summary="For showing the vertical tabs feature when the horizontal
+               tabstrip is crowded."/>
   <variant name="_VideoTutorial_NTP_ChromeIntro"
       summary="For Chrome intro video tutorial."/>
   <variant name="_VideoTutorial_NTP_Download"
@@ -4900,6 +4911,14 @@ should be able to be added at any place in this file.
     User tapped 'Save' on the dialog opened via the tab strip context menu to
     successfully save (with or without changing) the name of a Chrome window and
     dismiss the dialog.
+  </description>
+</action>
+
+<action name="Android.TabStripMenu.UnpinGlic">
+  <owner>mklw@google.com</owner>
+  <description>
+    User tapped 'Unpin Glic' on the tab strip context menu to unpin the Glic
+    button in the tab strip.
   </description>
 </action>
 
@@ -10881,6 +10900,19 @@ should be able to be added at any place in this file.
   <token key="ContextualSearchSource" variants="ContextualSearchSource"/>
 </action>
 
+<action
+    name="ContextualSearch.UserAction.SubmitQuery.{ContextualSearchContextState}.{ContextualSearchSource}">
+  <owner>niharm@google.com</owner>
+  <owner>chrome-contextual-tasks-eng@google.com</owner>
+  <description>
+    Recorded when a query is submitted {ContextualSearchContextState} from
+    {ContextualSearchSource}.
+  </description>
+  <token key="ContextualSearchContextState"
+      variants="ContextualSearchContextState"/>
+  <token key="ContextualSearchSource" variants="ContextualSearchSource"/>
+</action>
+
 <action name="ContextualSearch.ViewLessThanOneSecond">
   <owner>donnd@chromium.org</owner>
   <description>
@@ -10986,6 +11018,16 @@ should be able to be added at any place in this file.
   <description>
     The user navigated from the contextual tasks side panel back to the full tab
     using the back button.
+  </description>
+</action>
+
+<action
+    name="ContextualTasks.Composebox.UserAction.AddedActiveTabAfterDeletingAutoSuggestion">
+  <owner>sophiechang@chromium.org</owner>
+  <owner>chrome-contextual-tasks-eng@google.com</owner>
+  <description>
+    The user readded the active tab after deleting the auto-suggested tab
+    context in the composebox.
   </description>
 </action>
 
@@ -12890,6 +12932,25 @@ should be able to be added at any place in this file.
   </obsolete>
   <owner>Please list the metric's owners. Add more owner tags as needed.</owner>
   <description>Please enter the description of this user action.</description>
+</action>
+
+<action name="EnhancedAutofillSettingsBack">
+  <owner>sugoi@google.com</owner>
+  <owner>leozhao@google.com</owner>
+  <owner>bling-transactions@google.com</owner>
+  <description>
+    Reported when user goes back from Enhanced Autofill Settings UI to root
+    Settings screen. iOS only.
+  </description>
+</action>
+
+<action name="EnhancedAutofillSettingsClose">
+  <owner>sugoi@google.com</owner>
+  <owner>leozhao@google.com</owner>
+  <owner>bling-transactions@google.com</owner>
+  <description>
+    Reported when Enhanced Autofill Settings UI was dismissed. iOS only.
+  </description>
 </action>
 
 <action name="EnhancedBookmarks.AddingFailed">
@@ -16096,6 +16157,30 @@ should be able to be added at any place in this file.
   <description>Please enter the description of this user action.</description>
 </action>
 
+<action name="HistoryPage_ShowActorOnlyEnabled">
+  <owner>hkamila@chromium.org</owner>
+  <owner>chrome-browser-privacy-team@google.com</owner>
+  <description>
+    User enabled the 'Auto browse' (agent-initiated) filter on chrome://history.
+  </description>
+</action>
+
+<action name="HistoryPage_ShowAllEnabled">
+  <owner>hkamila@chromium.org</owner>
+  <owner>chrome-browser-privacy-team@google.com</owner>
+  <description>
+    User changed from a filtered view to showing all the history items.
+  </description>
+</action>
+
+<action name="HistoryPage_ShowUserOnlyEnabled">
+  <owner>hkamila@chromium.org</owner>
+  <owner>chrome-browser-privacy-team@google.com</owner>
+  <description>
+    User enabled the 'You' (user-initiated) filter on chrome://history.
+  </description>
+</action>
+
 <action name="HistoryPage_SideBarFooterGeminiAppsActivityClick">
   <owner>lamzin@google.com</owner>
   <owner>rainhard@chromium.org</owner>
@@ -16286,6 +16371,11 @@ should be able to be added at any place in this file.
 <action name="Indent">
   <owner>Please list the metric's owners. Add more owner tags as needed.</owner>
   <description>Please enter the description of this user action.</description>
+</action>
+
+<action name="InfobarModalCancelButtonTap">
+  <owner>thegreenfrog@chromium.org</owner>
+  <description>Reported when the inforbar modal is cancelled.</description>
 </action>
 
 <action name="InProductHelp.Dismissed">
@@ -18634,6 +18724,26 @@ should be able to be added at any place in this file.
     Recorded when a user drags and drops an item into the Composebox. The item
     type is recorded in the Omnibox.MobileFusebox.DragAndDrop histogram.
   </description>
+</action>
+
+<action name="IOS.Omnibox.MobileFusebox.Action.LensSearch">
+  <owner>stkhapugin@chromium.org</owner>
+  <owner>christianxu@google.com</owner>
+  <description>Recorded when user taps Lens button in Fusebox.</description>
+</action>
+
+<action name="IOS.Omnibox.MobileFusebox.Action.QRScanner">
+  <owner>stkhapugin@chromium.org</owner>
+  <owner>christianxu@google.com</owner>
+  <description>
+    Recorded when user taps QR Scanner button in Fusebox.
+  </description>
+</action>
+
+<action name="IOS.Omnibox.MobileFusebox.Action.VoiceSearch">
+  <owner>stkhapugin@chromium.org</owner>
+  <owner>christianxu@google.com</owner>
+  <description>Recorded when user taps Voice button in Fusebox.</description>
 </action>
 
 <action name="IOS.OpenIn">
@@ -27298,7 +27408,9 @@ should be able to be added at any place in this file.
 <action name="MobileGeminiSettingsOpened">
   <owner>joemerramos@google.com</owner>
   <owner>bling-alchemy@google.com</owner>
-  <description>TODO(crbug.com/483963272): Write the description.</description>
+  <description>
+    Reported when the Gemini Settings UI is opened. iOS only.
+  </description>
 </action>
 
 <action name="MobileGeminiURLOpened">
@@ -28082,6 +28194,11 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="MobileMenuDevTools">
+  <owner>massan@google.com</owner>
+  <description>User pressed 'Developer tools' in the app menu.</description>
+</action>
+
 <action name="MobileMenuDirectShare">
   <owner>aurimas@chromium.org</owner>
   <description>
@@ -28518,6 +28635,11 @@ should be able to be added at any place in this file.
     <variant name=".LongTapMenu"
         summary="Users switched to incognito by long tap menu"/>
   </token>
+</action>
+
+<action name="MobileMenuTaskManager">
+  <owner>massan@google.com</owner>
+  <description>User pressed 'Task manager' in the app menu.</description>
 </action>
 
 <action name="MobileMenuTextZoom">
@@ -28989,6 +29111,16 @@ should be able to be added at any place in this file.
   <description>Please enter the description of this user action.</description>
 </action>
 
+<action name="MobileOmniboxBookmarkHidden" not_user_triggered="true">
+  <owner>clhager@google.com</owner>
+  <description>Mobile Omnibox Bookmark button hidden.</description>
+</action>
+
+<action name="MobileOmniboxBookmarkShown" not_user_triggered="true">
+  <owner>clhager@google.com</owner>
+  <description>Mobile Omnibox Bookmark button shown.</description>
+</action>
+
 <action name="MobileOmniboxClipboardChanged">
   <obsolete>
     Replaced with MobileOmniboxClipboardChanged in April 2017.
@@ -29018,9 +29150,19 @@ should be able to be added at any place in this file.
   <description>Please enter the description of the metric.</description>
 </action>
 
+<action name="MobileOmniboxDeleteHidden" not_user_triggered="true">
+  <owner>clhager@google.com</owner>
+  <description>Mobile Omnibox Delete button hidden.</description>
+</action>
+
 <action name="MobileOmniboxDeleteRequested">
   <owner>Please list the metric's owners. Add more owner tags as needed.</owner>
   <description>Please enter the description of the metric.</description>
+</action>
+
+<action name="MobileOmniboxDeleteShown" not_user_triggered="true">
+  <owner>clhager@google.com</owner>
+  <description>Mobile Omnibox Delete button shown.</description>
 </action>
 
 <action name="MobileOmniboxDeleteUrl">
@@ -29048,6 +29190,16 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="MobileOmniboxInstallHidden" not_user_triggered="true">
+  <owner>clhager@google.com</owner>
+  <description>Mobile Omnibox Install button hidden.</description>
+</action>
+
+<action name="MobileOmniboxInstallShown" not_user_triggered="true">
+  <owner>clhager@google.com</owner>
+  <description>Mobile Omnibox Install button shown.</description>
+</action>
+
 <action name="MobileOmniboxLens">
   <owner>yusuyoutube@google.com</owner>
   <owner>benwgold@google.com</owner>
@@ -29064,6 +29216,16 @@ should be able to be added at any place in this file.
   <owner>wylieb@google.com</owner>
   <owner>lens-chrome@google.com</owner>
   <description>Mobile Omnibox Lens button shown.</description>
+</action>
+
+<action name="MobileOmniboxMicHidden" not_user_triggered="true">
+  <owner>clhager@google.com</owner>
+  <description>Mobile Omnibox Mic button hidden.</description>
+</action>
+
+<action name="MobileOmniboxMicShown" not_user_triggered="true">
+  <owner>clhager@google.com</owner>
+  <description>Mobile Omnibox Mic button shown.</description>
 </action>
 
 <action name="MobileOmniboxRefineSuggestion">
@@ -29196,6 +29358,18 @@ should be able to be added at any place in this file.
 <action name="MobileOmniboxVoiceSearch">
   <owner>Please list the metric's owners. Add more owner tags as needed.</owner>
   <description>Please enter the description of this user action.</description>
+</action>
+
+<action name="MobileOmniboxZoomHidden" not_user_triggered="true">
+  <owner>clhager@google.com</owner>
+  <owner>hitarthkothari@google.com</owner>
+  <description>Mobile Omnibox Zoom button hidden.</description>
+</action>
+
+<action name="MobileOmniboxZoomShown" not_user_triggered="true">
+  <owner>clhager@google.com</owner>
+  <owner>hitarthkothari@google.com</owner>
+  <description>Mobile Omnibox Zoom button shown.</description>
 </action>
 
 <action name="MobileOpenGroupClosed">
@@ -40610,6 +40784,15 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="Settings.EnhancedAutofill">
+  <owner>sugoi@google.com</owner>
+  <owner>leozhao@google.com</owner>
+  <owner>bling-transactions@google.com</owner>
+  <description>
+    Reported when user navigates to Enhanced Autofill Settings. iOS only.
+  </description>
+</action>
+
 <action name="Settings.FingerprintingProtection.Enabled">
   <obsolete>
     Deprecated 05/2025. Replaced with the
@@ -43647,7 +43830,11 @@ should be able to be added at any place in this file.
 
 <action name="Signin_AccountMenu_ErrorButton_BookmarksLimitExceeded">
   <owner>mtatarski@google.com</owner>
-  <description>TODO(crbug.com/483961997): Write the description.</description>
+  <owner>chrome-sync-client-team@google.com</owner>
+  <description>
+    Recorded when the user taps on the error button (bookmark limit exceeded) in
+    the account menu. iOS only.
+  </description>
 </action>
 
 <action name="Signin_AccountMenu_ErrorButton_MDM">
@@ -48767,21 +48954,93 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
-<action name="SwitchToHorizontalTabStrip">
-  <owner>agale@chromium.org</owner>
+<action name="SwitchToHorizontalTabStrip_FromAppMenu">
+  <owner>kunaldaftari@google.com</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
   <description>
-    Recorded when the user switches to horizontal tab strip mode. This user
-    action only applies to Desktop.
+    Recorded when the user switches to horizontal tab strip mode via the app
+    menu. This user action only applies to Desktop.
   </description>
 </action>
 
-<action name="SwitchToVerticalTabStrip">
+<action name="SwitchToHorizontalTabStrip_FromMacMenu">
+  <owner>kunaldaftari@google.com</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    Recorded when the user switches to horizontal tab strip mode via the mac
+    menu. This user action only applies to Desktop MacOS.
+  </description>
+</action>
+
+<action name="SwitchToHorizontalTabStrip_FromSettings">
   <owner>agale@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
   <description>
-    Recorded when the user switches to vertical tab strip mode. This user action
-    only applies to Desktop.
+    Recorded when the user switches to horizontal tab strip mode via the
+    settings page. This user action only applies to Desktop.
+  </description>
+</action>
+
+<action name="SwitchToHorizontalTabStrip_FromSystemContextMenu">
+  <owner>kunaldaftari@google.com</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    Recorded when the user switches to horizontal tab strip mode via the system
+    context menu. This user action only applies to Desktop.
+  </description>
+</action>
+
+<action name="SwitchToHorizontalTabStrip_FromTabContextMenu">
+  <owner>kunaldaftari@google.com</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    Recorded when the user switches to horizontal tab strip mode via the tab
+    context menu. This user action only applies to Desktop.
+  </description>
+</action>
+
+<action name="SwitchToVerticalTabStrip_FromAppMenu">
+  <owner>kunaldaftari@google.com</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    Recorded when the user switches to vertical tab strip mode via the app menu.
+    This user action only applies to Desktop.
+  </description>
+</action>
+
+<action name="SwitchToVerticalTabStrip_FromMacMenu">
+  <owner>kunaldaftari@google.com</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    Recorded when the user switches to vertical tab strip mode via the mac menu.
+    This user action only applies to Desktop MacOS.
+  </description>
+</action>
+
+<action name="SwitchToVerticalTabStrip_FromSettings">
+  <owner>agale@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    Recorded when the user switches to vertical tab strip mode via the settings
+    page. This user action only applies to Desktop.
+  </description>
+</action>
+
+<action name="SwitchToVerticalTabStrip_FromSystemContextMenu">
+  <owner>kunaldaftari@google.com</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    Recorded when the user switches to vertical tab strip mode via the system
+    context menu. This user action only applies to Desktop.
+  </description>
+</action>
+
+<action name="SwitchToVerticalTabStrip_FromTabContextMenu">
+  <owner>kunaldaftari@google.com</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    Recorded when the user switches to vertical tab strip mode via the tab
+    context menu. This user action only applies to Desktop.
   </description>
 </action>
 
@@ -52498,6 +52757,14 @@ should be able to be added at any place in this file.
     Recorded when prefs::kBrowserGuestModeEnabled and
     prefs::kBrowserAddPersonEnabled are cleared because they no longer exist in
     the Material Design settings page.
+  </description>
+</action>
+
+<action name="VerticalTabs_EnabledFirstTime">
+  <owner>charlesmeng@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    Recorded when the user enables vertical tabs for the first time.
   </description>
 </action>
 

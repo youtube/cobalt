@@ -51,11 +51,16 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
 // Avoids copying ResourceRequest::TrustedParams when possible.
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kAvoidTrustedParamsCopies);
 
-// Sends touch moves async once the scroll has already started. This means the
-// generation of GestureScrollUpdate is not blocked on touch moves being handled
-// by RendererMain.
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
-    kAsyncTouchMovesImmediatelyAfterScroll);
+// Whether async touch moves are sent unthrottled to javascript handlers.
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kUnthrottleAsyncTouchMoves);
+
+enum class AsyncTouchMoveThrottlingPolicy {
+  kUnthrottledWhenGsuUnconsumed,
+  kUnthrottledAlways
+};
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    AsyncTouchMoveThrottlingPolicy,
+    kAsyncTouchMoveThrottlingPolicyParam);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kLowerHighResolutionTimerThreshold);
 
@@ -114,9 +119,6 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kAudioWorkletThreadRealtimePeriodMac);
 #endif
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kAudioWorkletThreadPool);
-
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
-    kAutofillEnableSyntheticSelectMetricsLogging);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
     kAutofillFixFieldsAssociatedWithNestedFormsByParser);
@@ -269,6 +271,10 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kConsumeCodeCacheOffThread);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kContentCaptureConstantStreaming);
+
+// If enabled, content:// URLs are considered local, and won't be allowed
+// to be downloaded.
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kContentSchemeIsLocal);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kCreateImageBitmapOrientationNone);
 
@@ -1641,6 +1647,9 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
     bool,
     kRestrictLinkHeaderOnSubresourceResourceLoad);
+
+// Enables the Rust-based BMP image decoder.
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kRustyBmpFeature);
 
 // When enabled, it adds Payto URI Scheme to the safe list for
 // registerProtocolHandler. This feature is disabled by default

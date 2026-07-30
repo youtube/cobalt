@@ -38,7 +38,6 @@
 #include "chrome/browser/policy/profile_policy_connector.h"
 #include "chrome/browser/policy/system_features_disable_list_policy_handler.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/common/chrome_features.h"
 #include "chrome/grit/component_extension_resources.h"
 #include "chrome/grit/generated_resources.h"
 #include "chromeos/ash/experiences/arc/arc_prefs.h"
@@ -252,6 +251,7 @@ std::optional<arc::UserInteractionType> GetUserInterationType(
     case apps::LaunchSource::kFromSparky:
     case apps::LaunchSource::kFromNavigationCapturing:
     case apps::LaunchSource::kFromWebInstallApi:
+    case apps::LaunchSource::kFromMigration:
       // These LaunchSources do not launch ARC apps. When adding a new
       // LaunchSource, if it is expected to launch ARC apps, add a new
       // UserInteractionType above. Otherwise, add it here.

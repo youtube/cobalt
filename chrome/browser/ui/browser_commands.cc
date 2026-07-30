@@ -30,7 +30,6 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/browsing_data/chrome_browsing_data_remover_delegate.h"
 #include "chrome/browser/chained_back_navigation_tracker.h"
-#include "chrome/browser/commerce/browser_utils.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_side_panel_coordinator.h"
 #include "chrome/browser/devtools/devtools_window.h"
 #include "chrome/browser/download/download_prefs.h"
@@ -458,6 +457,16 @@ void MoveTabsToWindowImpl(Browser* source,
   target->window()->Show();
 }
 
+Browser* CreateNewBrowser(Browser* browser, bool user_gesture) {
+  auto params = Browser::CreateParams(browser->profile(), user_gesture);
+  if (auto* controller = tabs::VerticalTabStripStateController::From(browser)) {
+    params.vertical_tab_strip_collapsed = controller->IsCollapsed();
+    params.vertical_tab_strip_uncollapsed_width =
+        controller->GetUncollapsedWidth();
+  }
+  return Browser::Create(params);
+}
+
 }  // namespace
 
 using base::UserMetricsAction;
@@ -741,6 +750,19 @@ Browser* OpenEmptyWindow(Profile* profile,
   Browser::CreateParams params =
       Browser::CreateParams(Browser::TYPE_NORMAL, profile, true);
   params.should_trigger_session_restore = should_trigger_session_restore;
+
+  if (tabs::IsVerticalTabsFeatureEnabled()) {
+    Browser* last_active_browser = chrome::FindLastActiveWithProfile(profile);
+    if (last_active_browser) {
+      if (auto* controller = tabs::VerticalTabStripStateController::From(
+              last_active_browser)) {
+        params.vertical_tab_strip_collapsed = controller->IsCollapsed();
+        params.vertical_tab_strip_uncollapsed_width =
+            controller->GetUncollapsedWidth();
+      }
+    }
+  }
+
   base::TimeTicks now = base::TimeTicks::Now();
   Browser* browser = Browser::Create(params);
   if (auto* manager = InitialWebUIWindowMetricsManager::From(browser)) {
@@ -1318,8 +1340,7 @@ void MoveGroupToNewWindow(Browser* browser, tab_groups::TabGroupId group) {
     web_app::MaybeAddPinnedHomeTab(new_browser,
                                    new_browser->app_controller()->app_id());
   } else {
-    new_browser =
-        Browser::Create(Browser::CreateParams(browser->profile(), true));
+    new_browser = CreateNewBrowser(browser, true);
   }
 
   MoveGroupToWindowImpl(browser, new_browser, group);
@@ -1340,8 +1361,7 @@ void MoveTabsToNewWindow(Browser* browser,
     web_app::MaybeAddPinnedHomeTab(new_browser,
                                    new_browser->app_controller()->app_id());
   } else {
-    new_browser =
-        Browser::Create(Browser::CreateParams(browser->profile(), true));
+    new_browser = CreateNewBrowser(browser, true);
   }
   if (auto* manager = InitialWebUIWindowMetricsManager::From(new_browser)) {
     manager->SetWindowCreationInfo(
@@ -2197,14 +2217,7 @@ void ToggleVerticalTabs(Browser* browser) {
   if (!controller) {
     return;
   }
-
-  bool initial_tab_orientation = controller->ShouldDisplayVerticalTabs();
-
-  controller->SetVerticalTabsEnabled(!initial_tab_orientation);
-
-  base::RecordAction(UserMetricsAction(initial_tab_orientation
-                                           ? "SwitchToHorizontalTabStrip"
-                                           : "SwitchToVerticalTabStrip"));
+  controller->SetVerticalTabsEnabled(!controller->ShouldDisplayVerticalTabs());
 }
 
 void ShowTabDeclutter(Browser* browser) {

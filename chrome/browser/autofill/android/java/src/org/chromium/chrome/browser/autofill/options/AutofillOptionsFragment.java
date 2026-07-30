@@ -45,7 +45,11 @@ public class AutofillOptionsFragment extends ChromeBaseSettingsFragment {
     public static final String PREF_AUTOFILL_THIRD_PARTY_FILLING = "autofill_third_party_filling";
     public static final String PREF_THIRD_PARTY_TOGGLE_HINT = "third_party_toggle_hint";
     public static final String PREF_AUTOFILL_AI_SWITCH = "autofill_ai_switch";
+    public static final String PREF_AUTOFILL_AI_AUTHENTICATION_SWITCH =
+            "autofill_ai_authentication_switch";
     public static final String PREF_AUTOFILL_AI_CATEGORY = "autofill_ai_category";
+    public static final String PREF_AUTOFILL_SERVICE_PROVIDER_CETEGORY =
+            "autofill_service_provider_category";
 
     private @AutofillOptionsReferrer int mReferrer;
 
@@ -98,6 +102,13 @@ public class AutofillOptionsFragment extends ChromeBaseSettingsFragment {
         return autofillAiSwitch;
     }
 
+    ChromeSwitchPreference getAutofillAiAuthenticationSwitch() {
+        ChromeSwitchPreference autofillAiAuthenticationSwitch =
+                findPreference(PREF_AUTOFILL_AI_AUTHENTICATION_SWITCH);
+        assert autofillAiAuthenticationSwitch != null;
+        return autofillAiAuthenticationSwitch;
+    }
+
     TextMessagePreference getHint() {
         TextMessagePreference hint = findPreference(PREF_THIRD_PARTY_TOGGLE_HINT);
         assert hint != null;
@@ -106,6 +117,10 @@ public class AutofillOptionsFragment extends ChromeBaseSettingsFragment {
 
     @Nullable Preference getAutofillAiCategory() {
         return findPreference(PREF_AUTOFILL_AI_CATEGORY);
+    }
+
+    @Nullable Preference getAutofillServiceProviderCategory() {
+        return findPreference(PREF_AUTOFILL_SERVICE_PROVIDER_CETEGORY);
     }
 
     @Override
@@ -195,6 +210,12 @@ public class AutofillOptionsFragment extends ChromeBaseSettingsFragment {
         return "autofill_options";
     }
 
+    static boolean isAutofillAiEnabled() {
+        // LINT.IfChange(AutofillEnabledCheckFragment)
+        return ChromeFeatureList.isEnabled(ChromeFeatureList.AUTOFILL_AI_WITH_DATA_SCHEMA);
+        // LINT.ThenChange(:AddAddAddressButtonMediator)
+    }
+
     public static final ChromeBaseSearchIndexProvider SEARCH_INDEX_DATA_PROVIDER =
             new ChromeBaseSearchIndexProvider(
                     AutofillOptionsFragment.class.getName(), R.xml.autofill_options_preferences) {
@@ -206,9 +227,10 @@ public class AutofillOptionsFragment extends ChromeBaseSettingsFragment {
                 @Override
                 public void updateDynamicPreferences(Context context, SettingsIndexData indexData) {
                     indexData.removeEntry(getUniqueId(PREF_THIRD_PARTY_TOGGLE_HINT));
-                    if (!ChromeFeatureList.isEnabled(
-                            ChromeFeatureList.AUTOFILL_AI_WITH_DATA_SCHEMA)) {
+                    if (!isAutofillAiEnabled()) {
                         indexData.removeEntry(getUniqueId(PREF_AUTOFILL_AI_SWITCH));
+                        indexData.removeEntry(getUniqueId(PREF_AUTOFILL_AI_AUTHENTICATION_SWITCH));
+                        indexData.removeEntry(getUniqueId(PREF_AUTOFILL_SERVICE_PROVIDER_CETEGORY));
                     }
                 }
             };

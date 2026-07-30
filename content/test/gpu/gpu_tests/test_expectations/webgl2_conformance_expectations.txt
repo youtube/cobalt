@@ -509,6 +509,18 @@ crbug.com/891953 [ android renderer-skia-gl ] WebglExtension_OVR_multiview2 [ Fa
 # Conformance expectations
 # ========================
 
+# Shader translator needs to be revised
+crbug.com/486945330 conformance/glsl/misc/shader-with-double-underscore.html [ Failure ]
+
+# Verification of zero-sized SVGs needs to be changed
+crbug.com/487208470 conformance/textures/misc/tex-image-svg-image-no-natural-width-and-height.html [ Failure ]
+
+# getUniformLocation validation was made more stringent
+crbug.com/487128732 conformance/uniforms/gl-get-uniform-location-errors.html [ Failure ]
+
+# Failing new ASTC offset tests on Pixel 4
+crbug.com/487128735 [ android android-pixel-4 passthrough ] conformance/extensions/webgl-compressed-texture-astc.html [ Failure ]
+
 # Test needs to be revised for new mipmap/texture completeness rules.
 crbug.com/angleproject/42267266 [ passthrough ] conformance2/textures/misc/immutable-tex-render-feedback.html [ Failure ]
 

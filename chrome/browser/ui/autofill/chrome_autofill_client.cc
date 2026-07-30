@@ -33,7 +33,6 @@
 #include "chrome/browser/autofill/autofill_ai_model_executor_factory.h"
 #include "chrome/browser/autofill/autofill_entity_data_manager_factory.h"
 #include "chrome/browser/autofill/autofill_optimization_guide_decider_factory.h"
-#include "chrome/browser/autofill/glic/glic_form_parsing_tracker.h"
 #include "chrome/browser/autofill/one_time_token_service_factory.h"
 #include "chrome/browser/autofill/personal_data_manager_factory.h"
 #include "chrome/browser/autofill/ui/ui_util.h"
@@ -95,6 +94,7 @@
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type_names.h"
 #include "components/autofill/core/browser/filling/filling_product.h"
 #include "components/autofill/core/browser/form_import/form_data_importer.h"
+#include "components/autofill/core/browser/form_predictions_tracker.h"
 #include "components/autofill/core/browser/foundations/autofill_client.h"
 #include "components/autofill/core/browser/foundations/browser_autofill_manager.h"
 #include "components/autofill/core/browser/integrators/identity_credential/identity_credential_delegate.h"
@@ -263,6 +263,7 @@ bool CanTriggerAutofillAiFillingSurveyForEntityType(EntityType type) {
     case EntityTypeName::kPassport:
     case EntityTypeName::kNationalIdCard:
     case EntityTypeName::kDriversLicense:
+    case EntityTypeName::kOrder:
       return false;
   }
   NOTREACHED();
@@ -278,6 +279,7 @@ bool CanTriggerAutofillAiSavePromptSurveyForEntityType(EntityType type) {
     case EntityTypeName::kPassport:
     case EntityTypeName::kNationalIdCard:
     case EntityTypeName::kDriversLicense:
+    case EntityTypeName::kOrder:
       return false;
   }
   NOTREACHED();
@@ -1264,7 +1266,7 @@ ChromeAutofillClient::ChromeAutofillClient(content::WebContents* web_contents)
                                 base::Unretained(this)));
   }
 
-  glic_form_parsing_tracker_ = std::make_unique<GlicFormParsingTracker>(this);
+  form_predictions_tracker_ = std::make_unique<FormPredictionsTracker>(this);
 #endif
 }
 
@@ -1350,6 +1352,14 @@ OtpPhishGuardDelegate* ChromeAutofillClient::GetOtpPhishGuardDelegate() {
   }
 #endif  // BUILDFLAG(IS_ANDROID)
   return nullptr;
+}
+
+FormPredictionsTracker* ChromeAutofillClient::GetFormPredictionsTracker() {
+#if !BUILDFLAG(IS_ANDROID)
+  return form_predictions_tracker_.get();
+#else
+  return nullptr;
+#endif  // !BUILDFLAG(IS_ANDROID)
 }
 
 one_time_tokens::OneTimeTokenService*

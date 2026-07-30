@@ -36,6 +36,7 @@
 #include "base/test/test_timeouts.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/values.h"
+#include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "chrome/browser/browser_features.h"
 #include "chrome/browser/browser_process.h"
@@ -127,6 +128,7 @@
 #include "services/network/public/mojom/url_response_head.mojom.h"
 #include "third_party/abseil-cpp/absl/strings/str_format.h"
 #include "third_party/blink/public/common/chrome_debug_urls.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/input/web_input_event.h"
 #include "ui/base/ui_base_switches.h"
 #include "ui/compositor/compositor_switches.h"
@@ -3443,6 +3445,184 @@ IN_PROC_BROWSER_TEST_F(DevToolsPolicyTest, BlockedDevToolsCreationFails) {
         Profile::FromBrowserContext(wc->GetBrowserContext()), wc);
   }));
 }
+
+IN_PROC_BROWSER_TEST_F(DevToolsPolicyTest, IframeBlocked) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  GURL main_url(
+      embedded_test_server()->GetURL("/devtools/page_with_iframe.html"));
+  GURL iframe_url(embedded_test_server()->GetURL("/devtools/iframe.html"));
+
+  // Block the iframe URL.
+  base::ListValue blocklist;
+  blocklist.Append(iframe_url.spec());
+  policy::PolicyMap policies;
+  policies.Set(policy::key::kDeveloperToolsAvailability,
+               policy::POLICY_LEVEL_MANDATORY, policy::POLICY_SCOPE_USER,
+               policy::POLICY_SOURCE_CLOUD, base::Value(0), nullptr);
+
+  policies.Set(policy::key::kDeveloperToolsAvailabilityBlocklist,
+               policy::POLICY_LEVEL_MANDATORY, policy::POLICY_SCOPE_USER,
+               policy::POLICY_SOURCE_CLOUD, base::Value(std::move(blocklist)),
+               nullptr);
+
+  provider_.UpdateChromePolicy(policies);
+  base::RunLoop().RunUntilIdle();
+
+  // Navigate to the main page.
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), main_url));
+
+  WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+
+  // Check that devtools are not allowed.
+  EXPECT_FALSE(
+      DevToolsWindow::AllowDevToolsFor(browser()->profile(), web_contents));
+
+  // Try to open devtools and verify it's not opened.
+  DevToolsWindow::OpenDevToolsWindow(web_contents,
+                                     DevToolsOpenedByAction::kUnknown);
+  auto agent_host = GetOrCreateDevToolsHostForWebContents(web_contents);
+  EXPECT_FALSE(DevToolsWindow::FindDevToolsWindow(agent_host.get()));
+}
+
+IN_PROC_BROWSER_TEST_F(DevToolsPolicyTest, IframeOnAllowlistAndBlocklist) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  GURL main_url(
+      embedded_test_server()->GetURL("/devtools/page_with_iframe.html"));
+  GURL iframe_url(embedded_test_server()->GetURL("/devtools/iframe.html"));
+
+  // Block the iframe URL.
+  base::ListValue blocklist;
+  blocklist.Append(iframe_url.spec());
+
+  // But also allowlist it. Allowlist takes precedence.
+  base::ListValue allowlist;
+  allowlist.Append(main_url.spec());
+  allowlist.Append(iframe_url.spec());
+
+  policy::PolicyMap policies;
+  policies.Set(policy::key::kDeveloperToolsAvailabilityBlocklist,
+               policy::POLICY_LEVEL_MANDATORY, policy::POLICY_SCOPE_USER,
+               policy::POLICY_SOURCE_CLOUD, base::Value(std::move(blocklist)),
+               nullptr);
+  policies.Set(policy::key::kDeveloperToolsAvailabilityAllowlist,
+               policy::POLICY_LEVEL_MANDATORY, policy::POLICY_SCOPE_USER,
+               policy::POLICY_SOURCE_CLOUD, base::Value(std::move(allowlist)),
+               nullptr);
+
+  provider_.UpdateChromePolicy(policies);
+  base::RunLoop().RunUntilIdle();
+
+  // Navigate to the main page.
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), main_url));
+
+  WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+
+  // Check that devtools are allowed.
+  EXPECT_TRUE(
+      DevToolsWindow::AllowDevToolsFor(browser()->profile(), web_contents));
+
+  // Try to open devtools and verify it's opened.
+  DevToolsWindowTesting::OpenDevToolsWindowSync(web_contents, false);
+  auto agent_host = GetOrCreateDevToolsHostForWebContents(web_contents);
+  EXPECT_TRUE(DevToolsWindow::FindDevToolsWindow(agent_host.get()));
+}
+
+IN_PROC_BROWSER_TEST_F(DevToolsPolicyTest,
+                       IframeNavigatedToBlocklistedUrlClosesDevTools) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  GURL main_url(
+      embedded_test_server()->GetURL("/devtools/page_with_iframe.html"));
+  GURL iframe_url(embedded_test_server()->GetURL("/devtools/iframe.html"));
+  GURL blocked_url(embedded_test_server()->GetURL("/title1.html"));
+
+  // Allowlist main page and initial iframe URL. Block the target URL.
+  base::ListValue allowlist;
+  allowlist.Append(main_url.spec());
+  allowlist.Append(iframe_url.spec());
+  base::ListValue blocklist;
+  blocklist.Append(blocked_url.spec());
+
+  policy::PolicyMap policies;
+  policies.Set(policy::key::kDeveloperToolsAvailability,
+               policy::POLICY_LEVEL_MANDATORY, policy::POLICY_SCOPE_USER,
+               policy::POLICY_SOURCE_CLOUD, base::Value(0), nullptr);
+
+  policies.Set(policy::key::kDeveloperToolsAvailabilityBlocklist,
+               policy::POLICY_LEVEL_MANDATORY, policy::POLICY_SCOPE_USER,
+               policy::POLICY_SOURCE_CLOUD, base::Value(std::move(blocklist)),
+               nullptr);
+  policies.Set(policy::key::kDeveloperToolsAvailabilityAllowlist,
+               policy::POLICY_LEVEL_MANDATORY, policy::POLICY_SCOPE_USER,
+               policy::POLICY_SOURCE_CLOUD, base::Value(std::move(allowlist)),
+               nullptr);
+  provider_.UpdateChromePolicy(policies);
+  base::RunLoop().RunUntilIdle();
+
+  // Navigate to the main page.
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), main_url));
+  WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+
+  // Check that devtools are allowed and open them.
+  EXPECT_TRUE(
+      DevToolsWindow::AllowDevToolsFor(browser()->profile(), web_contents));
+  DevToolsWindow::OpenDevToolsWindow(web_contents,
+                                     DevToolsOpenedByAction::kUnknown);
+  auto agent_host = GetOrCreateDevToolsHostForWebContents(web_contents);
+  EXPECT_TRUE(DevToolsWindow::FindDevToolsWindow(agent_host.get()));
+
+  // Navigate iframe to a blocklisted URL.
+  DevToolsWindow* window = DevToolsWindow::FindDevToolsWindow(agent_host.get());
+  ASSERT_TRUE(window);
+  content::WebContentsDestroyedWatcher watcher(
+      DevToolsWindowTesting::Get(window)->main_web_contents());
+  content::RenderFrameHost* iframe_host =
+      content::ChildFrameAt(web_contents->GetPrimaryMainFrame(), 0);
+  ASSERT_TRUE(iframe_host);
+  ASSERT_TRUE(content::ExecJs(iframe_host,
+                              "location.href = '" + blocked_url.spec() + "'"));
+  watcher.Wait();
+  // Check that devtools window is now closed.
+  EXPECT_FALSE(DevToolsWindow::FindDevToolsWindow(agent_host.get()));
+}
+
+IN_PROC_BROWSER_TEST_F(DevToolsPolicyTest, IframeBlockedBecauseNotOnAllowlist) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  GURL main_url(
+      embedded_test_server()->GetURL("/devtools/page_with_iframe.html"));
+  GURL iframe_url(embedded_test_server()->GetURL("/devtools/iframe.html"));
+
+  // Allowlist only the main URL.
+  base::ListValue allowlist;
+  allowlist.Append(main_url.spec());
+
+  policy::PolicyMap policies;
+  policies.Set(policy::key::kDeveloperToolsAvailabilityAllowlist,
+               policy::POLICY_LEVEL_MANDATORY, policy::POLICY_SCOPE_USER,
+               policy::POLICY_SOURCE_CLOUD, base::Value(std::move(allowlist)),
+               nullptr);
+
+  provider_.UpdateChromePolicy(policies);
+  base::RunLoop().RunUntilIdle();
+
+  // Navigate to the main page.
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), main_url));
+
+  WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+
+  // Check that devtools are not allowed because iframe is not on allowlist.
+  EXPECT_FALSE(
+      DevToolsWindow::AllowDevToolsFor(browser()->profile(), web_contents));
+
+  // Try to open devtools and verify it's not opened.
+  DevToolsWindow::OpenDevToolsWindow(web_contents,
+                                     DevToolsOpenedByAction::kUnknown);
+  auto agent_host = GetOrCreateDevToolsHostForWebContents(web_contents);
+  EXPECT_FALSE(DevToolsWindow::FindDevToolsWindow(agent_host.get()));
+}
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
@@ -4499,6 +4679,66 @@ IN_PROC_BROWSER_TEST_F(DevToolsRenderDocumentTest, ReloadWithRFHSwap) {
   EXPECT_EQ(window_, DevToolsWindow::FindDevToolsWindow(agent_host.get()));
   CloseDevToolsWindow();
 }
+
+class DevToolsOriginTrialsApiBrowserTest
+    : public InProcessBrowserTest,
+      public ::testing::WithParamInterface<bool> {
+ public:
+  DevToolsOriginTrialsApiBrowserTest() {
+    if (IsFeatureEnabled()) {
+      feature_list_.InitWithFeatures(
+          /*enabled_features=*/{features::kDevToolsAiOriginTrialsApis},
+          /*disabled_features=*/{});
+    } else {
+      feature_list_.InitWithFeatures(
+          /*enabled_features=*/{},
+          /*disabled_features=*/{features::kDevToolsAiOriginTrialsApis});
+    }
+  }
+
+ protected:
+  bool IsFeatureEnabled() const { return GetParam(); }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_P(DevToolsOriginTrialsApiBrowserTest,
+                       AIOriginTrialAPIInDevTools) {
+  // Open DevTools on a tab
+  DevToolsWindow* devtools_window =
+      DevToolsWindowTesting::OpenDevToolsWindowSync(
+          browser()->tab_strip_model()->GetActiveWebContents(), false);
+  ASSERT_TRUE(devtools_window);
+
+  // Get the WebContents of the DevTools frontend
+  content::WebContents* devtools_contents =
+      DevToolsWindowTesting::Get(devtools_window)->main_web_contents();
+  ASSERT_TRUE(devtools_contents);
+
+  // Execute JavaScript in the DevTools frontend context to check for the APIs.
+  bool expected_defined = IsFeatureEnabled();
+  EXPECT_EQ(
+      expected_defined,
+      content::EvalJs(devtools_contents, "typeof Proofreader !== 'undefined'"));
+  EXPECT_EQ(expected_defined, content::EvalJs(devtools_contents,
+                                              "typeof Writer !== 'undefined'"));
+  EXPECT_EQ(
+      expected_defined,
+      content::EvalJs(devtools_contents, "typeof Rewriter !== 'undefined'"));
+  EXPECT_EQ(expected_defined,
+            content::EvalJs(devtools_contents,
+                            "typeof LanguageModel !== 'undefined'"));
+
+  DevToolsWindowTesting::CloseDevToolsWindowSync(devtools_window);
+}
+
+INSTANTIATE_TEST_SUITE_P(,
+                         DevToolsOriginTrialsApiBrowserTest,
+                         testing::Bool(),
+                         [](const testing::TestParamInfo<bool>& info) {
+                           return info.param ? "Enabled" : "Disabled";
+                         });
 
 #endif  // !BUILDFLAG(IS_ANDROID)
 

@@ -49,6 +49,7 @@ import org.chromium.build.annotations.EnsuresNonNullIf;
 import org.chromium.build.annotations.Initializer;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.build.annotations.RequiresNonNull;
 import org.chromium.chrome.browser.banners.AppMenuVerbiage;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider.ControlsPosition;
@@ -195,7 +196,7 @@ class LocationBarMediator
     private final LocationBarEmbedderUiOverrides mEmbedderUiOverrides;
     private final LocationBarEmbedder mLocationBarEmbedder;
     private StatusCoordinator mStatusCoordinator;
-    private AutocompleteCoordinator mAutocompleteCoordinator;
+    private @Nullable AutocompleteCoordinator mAutocompleteCoordinator;
     private @Nullable OmniboxPrerender mOmniboxPrerender;
     private UrlBarCoordinator mUrlCoordinator;
     private final MonotonicObservableSupplier<Profile> mProfileSupplier;
@@ -229,7 +230,12 @@ class LocationBarMediator
     private boolean mShouldShowButtonsWhenUnfocused;
     private float mUrlFocusChangeFraction;
     private boolean mUrlHasFocus;
+    private @Nullable Boolean mPreviousDeleteButtonVisible;
+    private @Nullable Boolean mPreviousInstallButtonVisible;
+    private @Nullable Boolean mPreviousMicButtonVisible;
     private @Nullable Boolean mPreviousLensButtonVisible;
+    private @Nullable Boolean mPreviousBookmarkButtonVisible;
+    private @Nullable Boolean mPreviousZoomButtonVisible;
     private LensController mLensController;
     private final BooleanSupplier mIsToolbarMicEnabledSupplier;
     // Tracks if the location bar is laid out in a focused state due to an ntp scroll.
@@ -307,7 +313,8 @@ class LocationBarMediator
         mModalDialogManagerSupplier = modalDialogManagerSupplier;
         mPageZoomIndicatorCoordinator = pageZoomIndicatorCoordinator;
         if (mPageZoomIndicatorCoordinator != null) {
-            mPageZoomIndicatorCoordinator.setOnDismissCallbacks(this::updateZoomButtonVisibility);
+            mPageZoomIndicatorCoordinator.setOnDismissCallbacks(
+                    () -> updateZoomButtonVisibility(/* notifyEmbedder= */ true));
         }
         AppBannerManager.addObserver(this);
 
@@ -340,7 +347,7 @@ class LocationBarMediator
                         mContext,
                         mIsTablet,
                         this::shouldShowZoomButton,
-                        (result) -> mLocationBarLayout.setZoomButtonVisibility(result));
+                        this::setZoomButtonVisibility);
 
         mMultiInstanceManager = multiInstanceManager;
 
@@ -647,7 +654,9 @@ class LocationBarMediator
         updateButtonVisibility();
     }
 
-    /* package */ void onSuggestionsChanged(@Nullable AutocompleteMatch defaultMatch) {
+    /* package */ void onSuggestionsChanged(
+            @Nullable AutocompleteMatch defaultMatch, boolean hasSuggestions) {
+        if (mAutocompleteCoordinator == null) return;
         // TODO (https://crbug.com/1152501): Refactor the LBM/LBC relationship such that LBM doesn't
         // need to communicate with other coordinators like this.
         String userText = mUrlCoordinator.getTextWithoutAutocomplete();
@@ -703,6 +712,7 @@ class LocationBarMediator
 
         mUrlCoordinator.onUrlBarSuggestionsChanged(
                 mAutocompleteCoordinator.getSuggestionCount() != 0);
+        mLocationBarLayout.onSuggestionsChanged(hasSuggestions);
     }
 
     /* package */ void loadUrl(OmniboxLoadUrlParams omniboxLoadUrlParams) {
@@ -840,10 +850,10 @@ class LocationBarMediator
     /* package */ void updateButtonVisibility() {
         updateDeleteButtonVisibility();
         updateNavigateButtonVisibility();
-        updateInstallButtonVisibility();
+        updateInstallButtonVisibility(/* notifyEmbedder= */ false);
         if (!mIsComposeplateEnabled || mIsComposeplateV2Enabled) {
-            updateMicButtonVisibility();
-            updateLensButtonVisibility();
+            updateMicButtonVisibility(/* notifyEmbedder= */ false);
+            updateLensButtonVisibility(/* notifyEmbedder= */ false);
         } else {
             boolean shouldShowMicButton = shouldShowMicButton();
             boolean shouldShowLensButton = shouldShowLensButton();
@@ -854,7 +864,14 @@ class LocationBarMediator
             updateComposeplateButtonVisibility(shouldShowComposeButton);
         }
         if (mIsTablet) {
-            updateTabletButtonsVisibility();
+            updateBookmarkButtonVisibility(/* notifyEmbedder= */ false);
+            updateZoomButtonVisibility(/* notifyEmbedder= */ false);
+        }
+
+        mLocationBarEmbedder.onWidthConsumerVisibilityChanged();
+
+        if (mOmniboxChipManager != null) {
+            updateOmniboxChipVisibility();
         }
     }
 
@@ -969,7 +986,7 @@ class LocationBarMediator
     }
 
     /* package */ void setUrlFocusChangeInProgress(boolean inProgress) {
-        if (mUrlCoordinator == null) return;
+        if (mAutocompleteCoordinator == null || mUrlCoordinator == null) return;
         mIsUrlFocusChangeInProgress = inProgress;
         if (!inProgress) {
             updateButtonVisibility();
@@ -1033,6 +1050,7 @@ class LocationBarMediator
     @EnsuresNonNullIf("mCurrentInput")
     @VisibleForTesting
     boolean beginOrResumeInput(boolean activateNewSession) {
+        if (mAutocompleteCoordinator == null) return false;
         // Do not instantiate a new ephemeral session unless we're activating it as well.
         var session = FuseboxSessionState.from(mLocationBarDataProvider);
 
@@ -1059,8 +1077,8 @@ class LocationBarMediator
         // correctly determine the page classification, rendering the AutocompleteInput
         // instance not sufficiently valid to facilitate Autocomplete.
         if (mNativeInitialized) {
-            mAutocompleteCoordinator.beginInput(mCurrentInput);
-            mFuseboxCoordinator.beginInput(mCurrentInput);
+            mAutocompleteCoordinator.beginInput(session);
+            mFuseboxCoordinator.beginInput(session);
         } else {
             mDeferredNativeRunnables.add(
                     () -> {
@@ -1071,8 +1089,10 @@ class LocationBarMediator
                         mCurrentInput.setPageClassification(
                                 mLocationBarDataProvider.getPageClassification(
                                         /* prefetch= */ false));
-                        mAutocompleteCoordinator.beginInput(mCurrentInput);
-                        mFuseboxCoordinator.beginInput(mCurrentInput);
+                        if (mAutocompleteCoordinator != null) {
+                            mAutocompleteCoordinator.beginInput(session);
+                            mFuseboxCoordinator.beginInput(session);
+                        }
                     });
         }
 
@@ -1081,7 +1101,7 @@ class LocationBarMediator
 
     /** Ends the current Omnibox input session. */
     private void endInputInternal() {
-        if (mCurrentInput == null) return;
+        if (mAutocompleteCoordinator == null || mCurrentInput == null) return;
         mAutocompleteCoordinator.endInput();
         mFuseboxCoordinator.endInput();
         mCurrentInput.getRequestTypeSupplier().removeObserver(mAutocompleteRequestTypeObserver);
@@ -1473,20 +1493,46 @@ class LocationBarMediator
                 "Android.OmniboxFocusReason", reason, OmniboxFocusReason.NUM_ENTRIES);
     }
 
-    /** Updates the display of the mic button. */
-    private void updateMicButtonVisibility() {
+    /**
+     * Updates the display of the mic button.
+     *
+     * @param notifyEmbedder Whether the {@link LocationBarEmbedder} should be notified of the
+     *     visibility change. If false, the caller has the responsibility of alerting the embedder,
+     *     if appropriate (e.g. update the embedder once after several visibility changes at once).
+     */
+    private void updateMicButtonVisibility(boolean notifyEmbedder) {
         boolean shouldShowMicButton = shouldShowMicButton();
         setMicButtonVisibility(shouldShowMicButton);
+        if (notifyEmbedder) {
+            mLocationBarEmbedder.onWidthConsumerVisibilityChanged();
+        }
     }
 
     private void setMicButtonVisibility(boolean shouldShowMicButton) {
-        mLocationBarLayout.setMicButtonVisibility(
-                shouldShowMicButton && mMicButtonToolbarWidthConsumer.hasSpaceToShow());
+        boolean showMicButton =
+                shouldShowMicButton && mMicButtonToolbarWidthConsumer.hasSpaceToShow();
+
+        if (mPreviousMicButtonVisible == null || showMicButton != mPreviousMicButtonVisible) {
+            LocationBarMetrics.recordMicButtonShown(showMicButton);
+        }
+        mPreviousMicButtonVisible = showMicButton;
+
+        mLocationBarLayout.setMicButtonVisibility(showMicButton);
     }
 
-    private void updateLensButtonVisibility() {
+    /**
+     * Updates the display of the lens button.
+     *
+     * @param notifyEmbedder Whether the {@link LocationBarEmbedder} should be notified of the
+     *     visibility change. If false, the caller has the responsibility of alerting the embedder,
+     *     if appropriate (e.g. update the embedder once after several visibility changes at once).
+     */
+    private void updateLensButtonVisibility(boolean notifyEmbedder) {
         boolean shouldShowLensButton = shouldShowLensButton();
         setLensButtonVisibility(shouldShowLensButton);
+        if (notifyEmbedder) {
+            mLocationBarEmbedder.onWidthConsumerVisibilityChanged();
+        }
     }
 
     private void setLensButtonVisibility(boolean shouldShowLensButton) {
@@ -1506,8 +1552,18 @@ class LocationBarMediator
         mLocationBarLayout.setComposeplateButtonVisibility(shouldShowComposeplateButton);
     }
 
+    // Note - the delete button is never restricted by the toolbar width availability, so the
+    // embedder does not need to be updated after its visibility changes.
     private void updateDeleteButtonVisibility() {
-        mLocationBarLayout.setDeleteButtonVisibility(isUrlBarFocusedWithUserInput());
+        boolean showDeleteButton = isUrlBarFocusedWithUserInput();
+
+        if (mPreviousDeleteButtonVisible == null
+                || showDeleteButton != mPreviousDeleteButtonVisible) {
+            LocationBarMetrics.recordDeleteButtonShown(showDeleteButton);
+        }
+        mPreviousDeleteButtonVisible = showDeleteButton;
+
+        mLocationBarLayout.setDeleteButtonVisibility(showDeleteButton);
     }
 
     /**
@@ -1536,7 +1592,7 @@ class LocationBarMediator
     }
 
     /* package */ void onZoomLevelChanged() {
-        updateZoomButtonVisibility();
+        updateZoomButtonVisibility(/* notifyEmbedder= */ true);
     }
 
     @VisibleForTesting
@@ -1553,18 +1609,37 @@ class LocationBarMediator
                 || mPageZoomIndicatorCoordinator.isPopupWindowShowing();
     }
 
-    private void updateZoomButtonVisibility() {
+    /**
+     * Updates the display of the zoom button.
+     *
+     * @param notifyEmbedder Whether the {@link LocationBarEmbedder} should be notified of the
+     *     visibility change. If false, the caller has the responsibility of alerting the embedder,
+     *     if appropriate (e.g. update the embedder once after several visibility changes at once).
+     */
+    private void updateZoomButtonVisibility(boolean notifyEmbedder) {
         if (mPageZoomIndicatorCoordinator == null) return;
-        if (!ChromeFeatureList.sToolbarTabletResizeRefactor.isEnabled()) {
-            mLocationBarLayout.setZoomButtonVisibility(shouldShowZoomButton());
-            return;
+
+        setZoomButtonVisibility(shouldShowZoomButton());
+        if (notifyEmbedder) {
+            // Embedder will handle visibility changes.
+            mLocationBarEmbedder.onWidthConsumerVisibilityChanged();
         }
-        // Embedder will handle visibility changes.
-        mLocationBarEmbedder.onWidthConsumerVisibilityChanged();
+    }
+
+    private void setZoomButtonVisibility(boolean shouldShowZoomButton) {
+        boolean showZoomButton =
+                shouldShowZoomButton && mZoomButtonToolbarWidthConsumer.hasSpaceToShow();
+
+        if (mPreviousZoomButtonVisible == null || showZoomButton != mPreviousZoomButtonVisible) {
+            LocationBarMetrics.recordZoomButtonShown(showZoomButton);
+        }
+        mPreviousZoomButtonVisible = showZoomButton;
+
+        mLocationBarLayout.setZoomButtonVisibility(showZoomButton);
     }
 
     public void updateZoomButtonVisibilityForTesting() {
-        updateZoomButtonVisibility();
+        updateZoomButtonVisibility(/* notifyEmbedder= */ true);
     }
 
     public ToolbarWidthConsumer getBookmarkButtonToolbarWidthConsumerForTesting() {
@@ -1584,7 +1659,7 @@ class LocationBarMediator
         WebContents webContents = getWebContentsForCurrentTab();
         if (webContents == null || manager != AppBannerManager.forWebContents(webContents)) return;
 
-        updateInstallButtonVisibility();
+        updateInstallButtonVisibility(/* notifyEmbedder= */ true);
     }
 
     /**
@@ -1603,30 +1678,59 @@ class LocationBarMediator
         return AppBannerManager.isProbablyPromotable(webContents);
     }
 
-    /** Updates the visibility of the install button. */
-    private void updateInstallButtonVisibility() {
+    /**
+     * Updates the visibility of the install button.
+     *
+     * @param notifyEmbedder Whether the {@link LocationBarEmbedder} should be notified of the
+     *     visibility change. If false, the caller has the responsibility of alerting the embedder,
+     *     if appropriate (e.g. update the embedder once after several visibility changes at once).
+     */
+    private void updateInstallButtonVisibility(boolean notifyEmbedder) {
         setInstallButtonVisibility(shouldShowInstallButton());
+        if (notifyEmbedder) {
+            mLocationBarEmbedder.onWidthConsumerVisibilityChanged();
+        }
     }
 
     private void setInstallButtonVisibility(boolean shouldShowInstallButton) {
-        mLocationBarLayout.setInstallButtonVisibility(
-                shouldShowInstallButton && mInstallButtonToolbarWidthConsumer.hasSpaceToShow());
+        boolean showInstallButton =
+                shouldShowInstallButton && mInstallButtonToolbarWidthConsumer.hasSpaceToShow();
+
+        if (mPreviousInstallButtonVisible == null
+                || showInstallButton != mPreviousInstallButtonVisible) {
+            LocationBarMetrics.recordInstallButtonShown(showInstallButton);
+        }
+        mPreviousInstallButtonVisible = showInstallButton;
+
+        mLocationBarLayout.setInstallButtonVisibility(showInstallButton);
     }
 
-    private void updateTabletButtonsVisibility() {
-        assert mIsTablet;
-        updateBookmarkButtonVisibility();
-        updateZoomButtonVisibility();
-    }
-
-    private void updateBookmarkButtonVisibility() {
+    /**
+     * Updates the visibility of the bookmark button.
+     *
+     * @param notifyEmbedder Whether the {@link LocationBarEmbedder} should be notified of the
+     *     visibility change. If false, the caller has the responsibility of alerting the embedder,
+     *     if appropriate (e.g. update the embedder once after several visibility changes at once).
+     */
+    private void updateBookmarkButtonVisibility(boolean notifyEmbedder) {
         setBookmarkButtonVisibility(shouldShowBookmarkButton());
+        if (notifyEmbedder) {
+            mLocationBarEmbedder.onWidthConsumerVisibilityChanged();
+        }
     }
 
     private void setBookmarkButtonVisibility(boolean shouldShowBookmarkButton) {
         LocationBarTablet locationBarTablet = (LocationBarTablet) mLocationBarLayout;
-        locationBarTablet.setBookmarkButtonVisibility(
-                shouldShowBookmarkButton && mBookmarkButtonToolbarWidthConsumer.hasSpaceToShow());
+        boolean showBookmarkButton =
+                shouldShowBookmarkButton && mBookmarkButtonToolbarWidthConsumer.hasSpaceToShow();
+
+        if (mPreviousBookmarkButtonVisible == null
+                || showBookmarkButton != mPreviousBookmarkButtonVisible) {
+            LocationBarMetrics.recordBookmarkButtonShown(showBookmarkButton);
+        }
+        mPreviousBookmarkButtonVisible = showBookmarkButton;
+
+        locationBarTablet.setBookmarkButtonVisibility(showBookmarkButton);
     }
 
     @VisibleForTesting
@@ -1719,6 +1823,12 @@ class LocationBarMediator
         return !mUrlHasFocus && mIsLocationBarFocusedFromNtpScroll;
     }
 
+    @RequiresNonNull("mOmniboxChipManager")
+    private void updateOmniboxChipVisibility() {
+        boolean focused = mUrlHasFocus || mIsUrlFocusChangeInProgress;
+        mOmniboxChipManager.setOmniboxFocused(focused);
+    }
+
     private void onAutocompleteRequestTypeChanged(@AutocompleteRequestType int type) {
         boolean isSpecializedRequestType =
                 mCurrentInput != null && !mCurrentInput.isConventionalRequestType();
@@ -1764,7 +1874,8 @@ class LocationBarMediator
         try (TraceEvent e = TraceEvent.scoped("LocationBarMediator.handleKeyEvent")) {
             if (keyCode == KeyEvent.KEYCODE_ESCAPE) return false;
             boolean isRtl = view.getLayoutDirection() == View.LAYOUT_DIRECTION_RTL;
-            if (mAutocompleteCoordinator.handleKeyEvent(keyCode, event)) {
+            if (mAutocompleteCoordinator != null
+                    && mAutocompleteCoordinator.handleKeyEvent(keyCode, event)) {
                 return true;
             } else if ((!isRtl && KeyNavigationUtil.isGoRight(event))
                     || (isRtl && KeyNavigationUtil.isGoLeft(event))) {
@@ -1781,7 +1892,8 @@ class LocationBarMediator
     @Override
     public Boolean handleEscPress() {
         KeyEvent event = new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ESCAPE);
-        if (!mAutocompleteCoordinator.handleKeyEvent(KeyEvent.KEYCODE_ESCAPE, event)) {
+        if (mAutocompleteCoordinator != null
+                && !mAutocompleteCoordinator.handleKeyEvent(KeyEvent.KEYCODE_ESCAPE, event)) {
             revertChanges();
         }
         return true;
@@ -1883,6 +1995,7 @@ class LocationBarMediator
 
     @Override
     public void hintZeroSuggestRefresh() {
+        if (mAutocompleteCoordinator == null) return;
         mAutocompleteCoordinator.prefetchZeroSuggestResults(mLocationBarDataProvider.getTab());
     }
 
@@ -1901,9 +2014,8 @@ class LocationBarMediator
      */
     @Override
     public void beginInput(AutocompleteInput input) {
-        assert input != null; // Should not be called with null
-
-        if (!mNativeInitialized) {
+        boolean isSearchQuery = input.getFocusReason() == OmniboxFocusReason.SEARCH_QUERY;
+        if (isSearchQuery && !mNativeInitialized) {
             mDeferredNativeRunnables.add(() -> beginInput(input));
             return;
         }
@@ -1932,6 +2044,10 @@ class LocationBarMediator
 
         // Wait for the Url focus change before refreshing autocomplete.
         beginOrResumeInput(/* activateNewSession= */ true);
+
+        if (isSearchQuery) {
+            mUrlCoordinator.setKeyboardVisibility(true, false);
+        }
     }
 
     /**

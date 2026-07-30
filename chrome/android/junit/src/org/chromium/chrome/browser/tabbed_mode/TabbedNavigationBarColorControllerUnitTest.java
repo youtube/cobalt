@@ -32,11 +32,11 @@ import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
-import org.robolectric.shadows.ShadowLooper;
 
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.RobolectricUtil;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.R;
@@ -286,7 +286,6 @@ public class TabbedNavigationBarColorControllerUnitTest {
         ChromeFeatureList.NAV_BAR_COLOR_ANIMATION,
         ChromeFeatureList.EDGE_TO_EDGE_EVERYWHERE
     })
-    @DisableFeatures({ChromeFeatureList.EDGE_TO_EDGE_BOTTOM_CHIN})
     @Config(sdk = 30) // Min version needed for e2e everywhere
     public void testNavBarColorAnimationsEdgeToEdgeEverywhere() {
         when(mTab.getBackgroundColor()).thenReturn(Color.BLUE);
@@ -312,7 +311,6 @@ public class TabbedNavigationBarColorControllerUnitTest {
     @Test
     @EnableFeatures({
         ChromeFeatureList.NAV_BAR_COLOR_ANIMATION,
-        ChromeFeatureList.EDGE_TO_EDGE_BOTTOM_CHIN
     })
     @DisableFeatures({ChromeFeatureList.EDGE_TO_EDGE_EVERYWHERE})
     public void testNavBarColorAnimationsEdgeToEdgeBottomChin() {
@@ -339,7 +337,6 @@ public class TabbedNavigationBarColorControllerUnitTest {
 
     // Disable the dedicated feature flag.
     @Test
-    @EnableFeatures({ChromeFeatureList.EDGE_TO_EDGE_BOTTOM_CHIN})
     @DisableFeatures({ChromeFeatureList.NAV_BAR_COLOR_ANIMATION})
     @Config(sdk = 30) // Min version needed for e2e everywhere
     public void testNavBarColorAnimationsDisabled() {
@@ -393,7 +390,6 @@ public class TabbedNavigationBarColorControllerUnitTest {
     @Test
     @EnableFeatures({
         ChromeFeatureList.NAV_BAR_COLOR_ANIMATION,
-        ChromeFeatureList.EDGE_TO_EDGE_BOTTOM_CHIN
     })
     @DisableFeatures({ChromeFeatureList.EDGE_TO_EDGE_EVERYWHERE})
     public void testHideNavBarDuringOmniboxSwipe() {
@@ -446,7 +442,7 @@ public class TabbedNavigationBarColorControllerUnitTest {
 
     private void runColorUpdateAnimation() {
         // Run the color  transition animation so color is applied to the window.
-        ShadowLooper.idleMainLooper();
+        RobolectricUtil.runAllBackgroundAndUi();
     }
 
     private void verifyColorAnimationSteps(List<Integer> capturedColors) {

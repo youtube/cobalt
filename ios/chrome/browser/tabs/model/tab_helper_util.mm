@@ -46,6 +46,7 @@
 #import "ios/chrome/browser/download/model/safari_download_tab_helper.h"
 #import "ios/chrome/browser/download/model/vcard_tab_helper.h"
 #import "ios/chrome/browser/drive/model/drive_tab_helper.h"
+#import "ios/chrome/browser/enterprise/data_controls/model/data_controls_tab_helper.h"
 #import "ios/chrome/browser/favicon/model/favicon_service_factory.h"
 #import "ios/chrome/browser/find_in_page/model/find_tab_helper.h"
 #import "ios/chrome/browser/history/model/history_service_factory.h"
@@ -62,7 +63,6 @@
 #import "ios/chrome/browser/infobars/model/overlays/translate_overlay_tab_helper.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_tab_helper.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
-#import "ios/public/provider/chrome/browser/intelligence/classification_metrics_tab_helper_api.h"
 #import "ios/chrome/browser/itunes_urls/model/itunes_urls_handler_tab_helper.h"
 #import "ios/chrome/browser/lens/model/lens_tab_helper.h"
 #import "ios/chrome/browser/lens_overlay/coordinator/lens_overlay_availability.h"
@@ -132,6 +132,7 @@
 #import "ios/components/security_interstitials/safe_browsing/safe_browsing_query_manager.h"
 #import "ios/components/security_interstitials/safe_browsing/safe_browsing_tab_helper.h"
 #import "ios/components/security_interstitials/safe_browsing/safe_browsing_unsafe_resource_container.h"
+#import "ios/public/provider/chrome/browser/intelligence/classification_metrics_tab_helper_api.h"
 #import "ios/public/provider/chrome/browser/text_zoom/text_zoom_api.h"
 #import "ios/web/common/annotations_utils.h"
 #import "ios/web/public/web_state.h"
@@ -369,7 +370,11 @@ void AttachTabHelpers(web::WebState* web_state, TabHelperFilter filter_flags) {
   attacher.Create<SafariDownloadTabHelper>();
   attacher.Create<VcardTabHelper>();
   attacher.Create<DocumentDownloadTabHelper>();
+  attacher.Create<ARQuickLookTabHelper>();
+  attacher.Create<PassKitTabHelper>();
+  attacher.Create<DriveTabHelper>();
 
+  attacher.Create<ITunesUrlsHandlerTabHelper>();
   attacher.Create<PageloadForegroundDurationTabHelper>();
 
   attacher.Create<LookalikeUrlTabHelper>();
@@ -393,10 +398,9 @@ void AttachTabHelpers(web::WebState* web_state, TabHelperFilter filter_flags) {
       attacher.IsNotInTabHelperFilter());
   attacher.CreateWhen<AutofillTabHelper>(attacher.IsNotInTabHelperFilter());
 
-  // Special case for use of GetOrCreateForWebState.
-  if (attacher.IsForStandardNavigation()) {
-    InfobarBadgeTabHelper::GetOrCreateForWebState(web_state);
-  }
+  attacher.CreateWhen<InfobarBadgeTabHelper>(
+      attacher.IsForStandardNavigation());
+
   // Needs to be created after `InfobarBadgeTabHelper`.
   attacher.CreateWhen<ChromeIOSTranslateClient>(
       attacher.IsNotInTabHelperFilter(),
@@ -483,4 +487,10 @@ void AttachTabHelpers(web::WebState* web_state, TabHelperFilter filter_flags) {
       IsModelBasedPageClassificationEnabled()) {
     ios::provider::AttachClassificationMetricsTabHelper(web_state);
   }
+
+  attacher.Create<data_controls::DataControlsTabHelper>();
+  attacher.Create<CaptivePortalTabHelper>();
+  attacher.Create<PrintTabHelper>();
+  attacher.Create<BlockedPopupTabHelper>();
+  attacher.Create<NetExportTabHelper>();
 }

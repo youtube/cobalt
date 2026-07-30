@@ -1185,10 +1185,13 @@ ci.builder(
                     shards = 8,
                 ),
             ),
+            "webview_instrumentation_test_apk_bfcache_mutations": targets.mixin(
+                args = [
+                    "--test-launcher-filter-file=../../testing/buildbot/filters/android.webview_instrumentation_test_apk_bfcache_mutations.filter",
+                ],
+            ),
         },
     ),
-    # TODO(https://crbug.com/482433957): Re-enable gardener when green.
-    gardener_rotations = args.ignore_default(None),
     console_view_entry = consoles.console_view_entry(
         category = "bfcache",
         short_name = "bfc",

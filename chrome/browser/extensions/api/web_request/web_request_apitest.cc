@@ -187,7 +187,7 @@ constexpr char kOriginTrialPublicKeyForTesting[] =
     "dRCs+TocuKkocNKa0AtZ4awrt9XKH2SQCI6o4FY6BNA=";
 
 // Observer that listens for messages from chrome.test.sendMessage to allow them
-// to be used to trigger browser initiated naviagations from the javascript for
+// to be used to trigger browser initiated navigations from the javascript for
 // testing purposes.
 class NavigateTabMessageHandler {
  public:
@@ -447,7 +447,7 @@ class ExtensionWebRequestApiTest : public ExtensionApiTest {
   CreateURLLoaderFactory() {
     network::mojom::URLLoaderFactoryParamsPtr params =
         network::mojom::URLLoaderFactoryParams::New();
-    params->process_id = network::OriginatingProcess::browser();
+    params->process_id = network::OriginatingProcessId::browser();
     params->automatically_assign_isolation_info = true;
     params->is_orb_enabled = false;
     mojo::PendingRemote<network::mojom::URLLoaderFactory> loader_factory;
@@ -2498,7 +2498,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionWebRequestApiTest, DISABLED_WebSocketRequest) {
 }
 
 // Test that the webRequest events are dispatched for the WebSocket handshake
-// requests when authenrication is requested by server.
+// requests when authentication is requested by server.
 // TODO(crbug.com/40168662) Re-enable test
 IN_PROC_BROWSER_TEST_F(ExtensionWebRequestApiTest,
                        DISABLED_WebSocketRequestAuthRequired) {
@@ -2860,7 +2860,7 @@ IN_PROC_BROWSER_TEST_F(
       nullptr));
   temp_web_contents.reset();
   auto params = network::mojom::URLLoaderFactoryParams::New();
-  params->process_id = network::OriginatingProcess::browser();
+  params->process_id = network::OriginatingProcessId::browser();
   mojo::Remote<network::mojom::URLLoaderFactory> factory(
       std::move(factory_builder)
           .Finish<mojo::PendingRemote<network::mojom::URLLoaderFactory>>(
@@ -7454,7 +7454,7 @@ IN_PROC_BROWSER_TEST_F(ManifestV3WebRequestApiTest,
                                             "secondListenerCount"));
 }
 
-// Tests listeners in multiple contexts with lazy event disptaching.
+// Tests listeners in multiple contexts with lazy event dispatching.
 IN_PROC_BROWSER_TEST_F(ManifestV3WebRequestApiTest,
                        ListenersInMultipleContextsWithLazyDispatch) {
   ASSERT_TRUE(StartEmbeddedTestServer());

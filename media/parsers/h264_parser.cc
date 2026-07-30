@@ -1487,11 +1487,22 @@ H264Parser::Result H264Parser::ParseSliceHeader(const H264NALU& nalu,
   }
 
   READ_SE_OR_RETURN(&shdr->slice_qp_delta);
+  // SliceQPY = 26 + pic_init_qp_minus26 + slice_qp_delta
+  // -QpBdOffset_Y <= SliceQPY <= 51
+  int qp_bd_offset_y = 6 * sps->bit_depth_luma_minus8;
+  int base_qp = 26 + pps->pic_init_qp_minus26;
+  IN_RANGE_OR_RETURN(shdr->slice_qp_delta, -qp_bd_offset_y - base_qp,
+                     51 - base_qp);
 
   if (shdr->IsSPSlice() || shdr->IsSISlice()) {
-    if (shdr->IsSPSlice())
+    if (shdr->IsSPSlice()) {
       READ_BOOL_OR_RETURN(&shdr->sp_for_switch_flag);
+    }
     READ_SE_OR_RETURN(&shdr->slice_qs_delta);
+    // SliceQSY = 26 + pic_init_qs_minus26 + slice_qs_delta
+    // 0 <= SliceQSY <= 51
+    int base_qs = 26 + pps->pic_init_qs_minus26;
+    IN_RANGE_OR_RETURN(shdr->slice_qs_delta, -base_qs, 51 - base_qs);
   }
 
   if (pps->deblocking_filter_control_present_flag) {
@@ -1531,22 +1542,43 @@ H264Parser::Result H264Parser::ParseSEI(H264SEI* sei) {
   // the parsed SEI messages, so we have to set a limit here.
   constexpr int kMaxParsedSEIMessages = 64;
   do {
-    int type = 0;
+    base::CheckedNumeric<int> type_checked = 0;
     READ_BITS_OR_RETURN(8, &byte);
     while (byte == 0xff) {
-      type += 255;
+      type_checked += 255;
       READ_BITS_OR_RETURN(8, &byte);
     }
-    type += byte;
+    type_checked += byte;
 
-    int payload_size = 0;
+    if (!type_checked.IsValid()) {
+      DVLOG(1) << "SEI type overflow";
+      return kInvalidStream;
+    }
+    int type = type_checked.ValueOrDie();
+
+    base::CheckedNumeric<int> payload_size_checked = 0;
     READ_BITS_OR_RETURN(8, &byte);
     while (byte == 0xff) {
-      payload_size += 255;
+      payload_size_checked += 255;
       READ_BITS_OR_RETURN(8, &byte);
     }
-    payload_size += byte;
-    int num_bits_remain = payload_size * 8;
+    payload_size_checked += byte;
+
+    if (!payload_size_checked.IsValid()) {
+      DVLOG(1) << "SEI payload size overflow";
+      return kInvalidStream;
+    }
+
+    int payload_size = payload_size_checked.ValueOrDie();
+    base::CheckedNumeric<int> num_bits_remain_checked =
+        payload_size_checked * 8;
+
+    if (!num_bits_remain_checked.IsValid()) {
+      DVLOG(1) << "SEI payload bits overflow";
+      return kInvalidStream;
+    }
+
+    int num_bits_remain = num_bits_remain_checked.ValueOrDie();
 
     DVLOG(4) << "Found SEI message type: " << type
              << " payload size: " << payload_size;

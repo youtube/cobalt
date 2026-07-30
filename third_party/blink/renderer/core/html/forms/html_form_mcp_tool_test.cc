@@ -4,13 +4,16 @@
 
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/fileapi/file_list.h"
+#include "third_party/blink/renderer/core/frame/settings.h"
 #include "third_party/blink/renderer/core/html/forms/html_form_control_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_form_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_input_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_option_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_select_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_text_area_element.h"
+#include "third_party/blink/renderer/core/html/html_head_element.h"
 #include "third_party/blink/renderer/core/html_names.h"
+#include "third_party/blink/renderer/core/script/classic_script.h"
 #include "third_party/blink/renderer/core/testing/page_test_base.h"
 #include "third_party/blink/renderer/platform/json/json_parser.h"
 #include "third_party/blink/renderer/platform/json/json_values.h"
@@ -61,6 +64,7 @@ class HTMLFormMcpToolTest : public PageTestBase {
 
  private:
   ScopedWebMCPForTest scoped_feature{true};
+  ScopedWebMCPDeclarativeFileInputForTest scoped_file_feature{true};
 };
 
 // Note that both toolname *and* tooldescription must be present
@@ -2708,6 +2712,211 @@ TEST_F(HTMLFormMcpToolTest, FillFormControls_FillRadio_Invalid) {
   EXPECT_FALSE(s->Checked());
   EXPECT_FALSE(m->Checked());
   EXPECT_FALSE(l->Checked());
+}
+
+TEST_F(HTMLFormMcpToolTest, ParameterSchema_FormAssociatedCustom) {
+  GetDocument().GetSettings()->SetScriptEnabled(true);
+  ClassicScript::CreateUnspecifiedScript(R"JS(
+      class MyInput extends HTMLElement {
+        static formAssociated = true;
+        constructor() {
+          super();
+          this._internals = this.attachInternals();
+          this._internals.setToolParamSchema(`{ "type":"string" }`);
+        }
+      }
+      customElements.define('my-input', MyInput);
+
+      document.body.innerHTML = `
+        <form id="form" toolname="mytool" tooldescription="perform task">
+          <input type=text name=text1>
+          <my-input
+            id=my-input
+            name=custom-input
+            toolparamdescription="Just some custom text"
+          ></my-input>
+        </form>
+      `;
+   )JS")
+      ->RunScript(GetDocument().domWindow());
+
+  UpdateAllLifecyclePhasesForTest();
+
+  HTMLFormElement* form_element = GetFormElement("form");
+  ASSERT_TRUE(form_element);
+
+  auto* my_input = DynamicTo<HTMLElement>(
+      GetDocument().getElementById(AtomicString("my-input")));
+  ASSERT_TRUE(my_input);
+  EXPECT_EQ(CustomElementState::kCustom, my_input->GetCustomElementState());
+  ASSERT_TRUE(my_input->GetCustomElementDefinition());
+  ASSERT_TRUE(my_input->IsFormAssociatedCustomElement());
+
+  ASSERT_TRUE(IsValidWebMCPForm(*form_element));
+  String actual = ComputeInputSchema(*form_element);
+  std::unique_ptr<JSONValue> expected_json = ParseJSON(R"JSON(
+    {
+      "type": "object",
+      "properties": {
+         "text1": {
+            "type": "string"
+         },
+         "custom-input": {
+            "type": "string",
+            "description": "Just some custom text"
+         }
+      },
+      "required": []
+    }
+  )JSON");
+  ASSERT_TRUE(expected_json);
+  EXPECT_EQ(expected_json->ToJSONString(), actual);
+}
+
+TEST_F(HTMLFormMcpToolTest, ParameterSchema_FileInput) {
+  SetBodyInnerHTML(
+      R"HTML(
+    <form id="form" toolname="mytool" tooldescription="perform task">
+      <input name="file1" type="file">
+      <input name="file2" type="file" multiple>
+    </form>
+  )HTML");
+
+  HTMLFormElement* form_element = GetFormElement("form");
+  ASSERT_TRUE(form_element);
+  ASSERT_TRUE(IsValidWebMCPForm(*form_element));
+  String actual = ComputeInputSchema(*form_element);
+  std::unique_ptr<JSONValue> expected_json = ParseJSON(R"JSON(
+    {
+      "type": "object",
+      "properties": {
+         "file1": {
+           "type": "string"
+         },
+         "file2": {
+           "type": "array",
+           "items": {
+             "type": "string"
+           }
+         }
+      },
+      "required": []
+    }
+  )JSON");
+  ASSERT_TRUE(expected_json);
+  EXPECT_EQ(expected_json->ToJSONString(), actual);
+}
+
+TEST_F(HTMLFormMcpToolTest, FillFormControls_FileInput) {
+  SetBodyInnerHTML(
+      R"HTML(
+    <form id=form toolname="mytool" tooldescription="perform task">
+      <input id=file1 name=file1 type=file>
+    </form>
+  )HTML");
+
+  HTMLFormElement* form_element = GetFormElement("form");
+  ASSERT_TRUE(form_element);
+  ASSERT_TRUE(IsValidWebMCPForm(*form_element));
+
+  String json_string =
+#if defined(FILE_PATH_USES_DRIVE_LETTERS)
+      R"JSON(
+        {
+          "file1": "C:\\Users\\johndoe\\avatar.png"
+        }
+      )JSON"
+#else
+      R"JSON(
+        {
+          "file1": "/home/johndoe/avatar.png"
+        }
+      )JSON"
+#endif
+      ;
+
+  EXPECT_TRUE(FillFormControls(*form_element, json_string));
+
+  HTMLInputElement* file1 = GetInputElement("file1");
+  ASSERT_TRUE(file1);
+  FileList* file_list = file1->files();
+  ASSERT_TRUE(file_list);
+  ASSERT_EQ(file_list->length(), 1);
+#if defined(FILE_PATH_USES_DRIVE_LETTERS)
+  EXPECT_EQ(file_list->item(0)->GetPath(), "C:\\Users\\johndoe\\avatar.png");
+#else
+  EXPECT_EQ(file_list->item(0)->GetPath(), "/home/johndoe/avatar.png");
+#endif
+}
+
+TEST_F(HTMLFormMcpToolTest, FillFormControls_FileInput_Multiple) {
+  SetBodyInnerHTML(
+      R"HTML(
+    <form id=form toolname="mytool" tooldescription="perform task">
+      <input id=file1 name=file1 type=file multiple>
+    </form>
+  )HTML");
+
+  HTMLFormElement* form_element = GetFormElement("form");
+  ASSERT_TRUE(form_element);
+  ASSERT_TRUE(IsValidWebMCPForm(*form_element));
+
+  String json_string =
+#if defined(FILE_PATH_USES_DRIVE_LETTERS)
+      R"JSON(
+        {
+          "file1": [ "C:\\Users\\johndoe\\avatar.png",
+                     "C:\\Users\\johndoe\\avatar_old.png" ]
+        }
+      )JSON"
+#else
+      R"JSON(
+        {
+          "file1": [ "/home/johndoe/avatar.png",
+                     "/home/johndoe/avatar_old.png" ]
+        }
+      )JSON"
+#endif
+      ;
+
+  EXPECT_TRUE(FillFormControls(*form_element, json_string));
+
+  HTMLInputElement* file1 = GetInputElement("file1");
+  ASSERT_TRUE(file1);
+  FileList* file_list = file1->files();
+  ASSERT_TRUE(file_list);
+  ASSERT_EQ(file_list->length(), 2);
+#if defined(FILE_PATH_USES_DRIVE_LETTERS)
+  EXPECT_EQ(file_list->item(0)->GetPath(), "C:\\Users\\johndoe\\avatar.png");
+  EXPECT_EQ(file_list->item(1)->GetPath(),
+            "C:\\Users\\johndoe\\avatar_old.png");
+#else
+  EXPECT_EQ(file_list->item(0)->GetPath(), "/home/johndoe/avatar.png");
+  EXPECT_EQ(file_list->item(1)->GetPath(), "/home/johndoe/avatar_old.png");
+#endif
+}
+
+TEST_F(HTMLFormMcpToolTest, FillFormControls_FileInput_Invalid) {
+  SetBodyInnerHTML(
+      R"HTML(
+    <form id=form toolname="mytool" tooldescription="perform task">
+      <input id=file1 name=file1 type=file>
+    </form>
+  )HTML");
+
+  HTMLFormElement* form_element = GetFormElement("form");
+  ASSERT_TRUE(form_element);
+  ASSERT_TRUE(IsValidWebMCPForm(*form_element));
+
+  String json_string =
+      R"JSON(
+        {
+          "file1": "avatar.png"
+        }
+      )JSON";
+
+  // A relative path is not allowed
+  EXPECT_FALSE(FillFormControls(*form_element, json_string));
 }
 
 }  // namespace blink

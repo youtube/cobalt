@@ -9,24 +9,25 @@
 #include <utility>
 
 #include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/time/time.h"
 #include "chrome/browser/ui/webui/legion_internals/legion_internals.mojom.h"
-#include "components/legion/client.h"
-#include "components/legion/common/legion_logger.h"
-#include "components/legion/features.h"
-#include "components/legion/phosphor/token_manager.h"
-#include "components/legion/proto/legion.pb.h"
+#include "components/private_ai/client.h"
+#include "components/private_ai/common/private_ai_logger.h"
+#include "components/private_ai/features.h"
+#include "components/private_ai/phosphor/token_manager.h"
+#include "components/private_ai/proto/private_ai.pb.h"
 #include "content/public/browser/network_service_instance.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/network/public/mojom/network_service.mojom.h"
 
 LegionInternalsPageHandler::LegionInternalsPageHandler(
-    legion::phosphor::TokenManager* token_manager,
+    private_ai::phosphor::TokenManager* token_manager,
     network::mojom::NetworkContext* network_context,
-    legion::Client* private_ai_client,
+    private_ai::Client* private_ai_client,
     mojo::PendingReceiver<legion_internals::mojom::LegionInternalsPageHandler>
         receiver)
     : token_manager_(token_manager),
@@ -46,12 +47,15 @@ void LegionInternalsPageHandler::SetPage(
 
 void LegionInternalsPageHandler::Connect(const std::string& url,
                                          const std::string& api_key,
+                                         const std::string& proxy_url,
+                                         bool use_token_attestation,
                                          ConnectCallback callback) {
-  webui_client_ = legion::Client::Create(
-      url, api_key, legion::kLegionProxyServerUrl.Get(), network_context_,
+  webui_client_ = private_ai::Client::Create(
+      url, api_key, proxy_url, use_token_attestation, network_context_,
       token_manager_, content::GetNetworkService(),
-      std::make_unique<legion::LegionLogger>());
+      std::make_unique<private_ai::PrivateAiLogger>());
   scoped_logger_observations_.AddObservation(webui_client_->GetLogger());
+  webui_client_->EstablishConnection();
   std::move(callback).Run();
 }
 
@@ -73,8 +77,9 @@ void LegionInternalsPageHandler::SendRequest(const std::string& feature_name,
     return;
   }
 
-  legion::proto::FeatureName feature_name_proto;
-  if (!legion::proto::FeatureName_Parse(feature_name, &feature_name_proto)) {
+  private_ai::proto::FeatureName feature_name_proto;
+  if (!private_ai::proto::FeatureName_Parse(feature_name,
+                                            &feature_name_proto)) {
     auto result = legion_internals::mojom::LegionResponse::New();
     result->error = std::string("Error: invalid feature_name: ") + feature_name;
     std::move(callback).Run(std::move(result));
@@ -85,7 +90,7 @@ void LegionInternalsPageHandler::SendRequest(const std::string& feature_name,
       feature_name_proto, request,
       base::BindOnce(
           [](SendRequestCallback callback,
-             base::expected<std::string, legion::ErrorCode> response) {
+             base::expected<std::string, private_ai::ErrorCode> response) {
             auto result = legion_internals::mojom::LegionResponse::New();
             if (response.has_value()) {
               result->response = *response;

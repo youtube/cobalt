@@ -105,8 +105,9 @@ bool InsertTextCommand::PerformTrivialReplace(const String& text) {
   if (!EndingSelection().IsRange())
     return false;
 
-  if (text.Contains('\t') || text.Contains(' ') || text.Contains('\n'))
+  if (text.contains('\t') || text.contains(' ') || text.contains('\n')) {
     return false;
+  }
 
   // Also if the text is surrounded by a hyperlink and all the contents of the
   // link are selected, then we shouldn't be retaining the link with just one
@@ -142,7 +143,7 @@ bool InsertTextCommand::PerformTrivialReplace(const String& text) {
 }
 
 void InsertTextCommand::DoApply(EditingState* editing_state) {
-  DCHECK_EQ(text_.find('\n'), kNotFound);
+  DCHECK(!text_.contains('\n'));
 
   // TODO(editing-dev): We shouldn't construct an InsertTextCommand with none or
   // invalid selection.

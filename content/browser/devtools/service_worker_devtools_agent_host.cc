@@ -81,8 +81,8 @@ class ServiceWorkerAutoAttacher
     if (!IsNewerVersion(host)) {
       return;
     }
-    *should_pause_on_start = wait_for_debugger_on_start();
-    DispatchAutoAttach(host, *should_pause_on_start);
+    *should_pause_on_start =
+        DispatchAutoAttach(host, wait_for_debugger_on_start());
   }
 
   void WorkerDestroyed(ServiceWorkerDevToolsAgentHost* host) override {
@@ -446,7 +446,7 @@ ServiceWorkerDevToolsAgentHost::CreateNetworkFactoryParamsForDevTools() {
       /*dip_reporter=*/mojo::NullRemote(),
       static_cast<StoragePartitionImpl*>(rph->GetStoragePartition())
           ->CreateURLLoaderNetworkObserverForServiceOrSharedWorker(
-              ToOriginatingProcess(rph->GetID()), origin),
+              ToOriginatingProcessId(rph->GetID()), origin),
       NetworkServiceDevToolsObserver::MakeSelfOwned(GetId()),
       /*client_security_state=*/nullptr,
       /*network_restrictions_id=*/std::nullopt,

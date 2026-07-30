@@ -431,15 +431,18 @@ void FormStructure::UpdateFormData(const FormData& form_data) {
           // from it and add it to the list.
           return std::make_unique<AutofillField>(field_data);
         }
-        const bool old_is_autofilled = autofill_field->is_autofilled();
+        const bool old_is_autofilled_according_to_renderer =
+            autofill_field->is_autofilled_deprecated(/*pass_key=*/{});
 
         // The field existed in the cache previously, update the cached members
         // of `FormFieldData` in `autofill_field` provided by `field_data`.
         autofill_field->UpdateFieldData(field_data, /*pass_key=*/{});
 
-        // TODO(crbug.com/393114125): Remove the special handling of
-        // `FormFieldData::is_autofilled_` below after fixing its semantics.
-        autofill_field->set_is_autofilled(old_is_autofilled);
+        if (!base::FeatureList::IsEnabled(features::kAutofillFixIsAutofilled)) {
+          autofill_field->set_is_autofilled_deprecated(
+              old_is_autofilled_according_to_renderer,
+              base::PassKey<FormStructure>());
+        }
         return autofill_field;
       });
 
@@ -537,13 +540,25 @@ void FormStructure::RetrieveFromCache(const FormStructure& cached_form,
     }
     if (reason == RetrieveFromCacheReason::kFormCacheUpdateWithoutParsing ||
         reason == RetrieveFromCacheReason::kFormCacheUpdateAfterParsing) {
-      field->set_is_autofilled(cached_field->is_autofilled());
+      if (!base::FeatureList::IsEnabled(features::kAutofillFixIsAutofilled)) {
+        field->set_is_autofilled_deprecated(
+            cached_field->is_autofilled_deprecated(/*pass_key=*/{}),
+            base::PassKey<FormStructure>());
+      }
     }
     field->set_autofill_source_profile_guid(
         cached_field->autofill_source_profile_guid());
     field->set_autofilled_type(cached_field->autofilled_type());
     field->set_filling_product(cached_field->filling_product());
-    field->set_previously_autofilled(cached_field->previously_autofilled());
+    if (!base::FeatureList::IsEnabled(features::kAutofillFixIsAutofilled)) {
+      field->set_is_user_edited_deprecated(
+          cached_field->is_user_edited_deprecated());
+      field->set_previously_autofilled_deprecated(
+          cached_field->previously_autofilled_deprecated());
+    }
+    field->set_field_modifiers(
+        cached_field->field_modifiers(base::PassKey<FormStructure>()),
+        base::PassKey<FormStructure>());
     field->set_did_trigger_suggestions(cached_field->did_trigger_suggestions());
     field->set_was_focused(cached_field->was_focused());
     if (base::optional_ref<const AutofillFormatString> format_string =

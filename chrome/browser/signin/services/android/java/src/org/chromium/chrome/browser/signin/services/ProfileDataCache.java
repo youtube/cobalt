@@ -44,9 +44,11 @@ import org.chromium.google_apis.gaia.CoreAccountId;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
 
 /**
  * Fetches and caches Google Account profile images and full names for the accounts on the device.
@@ -160,7 +162,7 @@ public class ProfileDataCache implements IdentityManager.Observer, AccountsChang
         mImageSize = imageSize;
         mDefaultBadgeConfig = badgeConfig;
         mPlaceholderImage = getScaledPlaceholderImage(context, imageSize);
-        populateCache();
+        updateCache();
     }
 
     /**
@@ -281,15 +283,50 @@ public class ProfileDataCache implements IdentityManager.Observer, AccountsChang
         DisplayableProfileData profileData =
                 accountEmail != null ? mAccountsCache.getByEmail(accountEmail) : null;
         if (profileData == null) {
-            assumeNonNull(accountEmail);
-            return new DisplayableProfileData(
-                    accountEmail,
-                    mPlaceholderImage,
-                    null,
-                    null,
-                    AccountEmailDisplayHook.canHaveEmailAddressDisplayed(accountEmail));
+            return createDefaultProfileData(assumeNonNull(accountEmail));
         }
         return profileData;
+    }
+
+    /**
+     * Returns cached {@link DisplayableProfileData} for the given account ID.
+     *
+     * <p>Method is synchronous and does not trigger any account info fetches. First it checks if
+     * the {@link DisplayableProfileData} is in the cache, then it falls back to the {@link
+     * AccountManagerFacade} to find an email value and create a limited {@link
+     * DisplayableProfileData} object. Throws an exception if the account is not found.
+     *
+     * @param accountId The account ID for which to get the profile data.
+     * @throws IllegalArgumentException if the account is not found.
+     * @return The {@link DisplayableProfileData} for the given account ID.
+     */
+    public DisplayableProfileData getById(CoreAccountId accountId) {
+        var profileData = mAccountsCache.getByAccountId(accountId);
+        if (profileData != null) {
+            return profileData;
+        }
+
+        // TODO(https://crbug.com/483627535): Remove that fallback to AccountManagerFacade after
+        // full migration to IdentityManager.
+        var accounts = mAccountManagerFacade.getAccounts();
+        if (accounts.isFulfilled()) {
+            for (var account : accounts.getResult()) {
+                if (account.getId().equals(accountId)) {
+                    return createDefaultProfileData(account.getEmail());
+                }
+            }
+        }
+
+        throw new IllegalArgumentException("Account not found");
+    }
+
+    private DisplayableProfileData createDefaultProfileData(String accountEmail) {
+        return new DisplayableProfileData(
+                accountEmail,
+                mPlaceholderImage,
+                null,
+                null,
+                AccountEmailDisplayHook.canHaveEmailAddressDisplayed(accountEmail));
     }
 
     /**
@@ -307,8 +344,7 @@ public class ProfileDataCache implements IdentityManager.Observer, AccountsChang
         }
 
         mDefaultBadgeConfig = badgeConfig;
-        mAccountsCache.clear();
-        populateCache();
+        updateCache();
     }
 
     /**
@@ -358,11 +394,7 @@ public class ProfileDataCache implements IdentityManager.Observer, AccountsChang
 
     @Override
     public void onCoreAccountInfosChanged() {
-        mAccountsCache.clear();
-        populateCache();
-        mAccountsCache
-                .getAll()
-                .then((Callback<List<DisplayableProfileData>>) this::notifyObservers);
+        updateCache();
     }
 
     /** Implements {@link IdentityManager.Observer}. */
@@ -374,8 +406,9 @@ public class ProfileDataCache implements IdentityManager.Observer, AccountsChang
                 && (accountInfo.hasDisplayableInfo()
                         || getBadgeConfigForAccount(accountInfo.getId()) != null)) {
             var displayableProfileData = toDisplayableProfileData(accountInfo);
-            mAccountsCache.putAccount(displayableProfileData);
-            notifyObservers(displayableProfileData);
+            mAccountsCache.putAccount(
+                    new AccountsCache.AccountEntry(accountInfo.getId(), displayableProfileData));
+            fireOnProfileDataUpdated(displayableProfileData);
         }
     }
 
@@ -386,26 +419,35 @@ public class ProfileDataCache implements IdentityManager.Observer, AccountsChang
         return mAccountsCache.getByEmail(accountEmail) != null;
     }
 
-    private void populateCache() {
-        var accountsPromise = mAccountManagerFacade.getAccounts();
-        if (accountsPromise.isFulfilled()) {
-            populateCacheForAllAccounts(accountsPromise.getResult());
-        } else {
-            accountsPromise.then((Callback<List<AccountInfo>>) this::populateCacheForAllAccounts);
+    private void updateCache() {
+        var accounts = mAccountManagerFacade.getAccounts();
+        if (!accounts.isFulfilled()) {
+            // When the list of accounts is ready - onCoreAccountInfosChanged will call
+            // updateCache again.
+            return;
         }
-    }
 
-    private void populateCacheForAllAccounts(List<AccountInfo> accounts) {
-        List<DisplayableProfileData> displayableAccounts = new ArrayList<>();
-        for (CoreAccountInfo account : accounts) {
+        List<AccountsCache.AccountEntry> displayableAccounts = new ArrayList<>();
+        for (CoreAccountInfo account : accounts.getResult()) {
             var accountInfo = mIdentityManager.findExtendedAccountInfoByAccountId(account.getId());
             if (accountInfo != null
                     && (accountInfo.hasDisplayableInfo()
                             || getBadgeConfigForAccount(accountInfo.getId()) != null)) {
-                displayableAccounts.add(toDisplayableProfileData(accountInfo));
+                displayableAccounts.add(
+                        new AccountsCache.AccountEntry(
+                                accountInfo.getId(), toDisplayableProfileData(accountInfo)));
             }
         }
         mAccountsCache.setAccounts(displayableAccounts);
+
+        mAccountsCache
+                .getAll()
+                .then((Callback<List<DisplayableProfileData>>) this::fireOnAccountsUpdated);
+        // TODO(crbug.com/485130949): Remove that callback after implementation of
+        // onAccountsUpdated() in all UIs. (Blocked by crbug.com/480239119)
+        mAccountsCache
+                .getAll()
+                .then((Callback<List<DisplayableProfileData>>) this::fireOnProfileDataUpdated);
     }
 
     private DisplayableProfileData toDisplayableProfileData(AccountInfo accountInfo) {
@@ -426,13 +468,19 @@ public class ProfileDataCache implements IdentityManager.Observer, AccountsChang
                 accountInfo.canHaveEmailAddressDisplayed());
     }
 
-    private void notifyObservers(List<DisplayableProfileData> accounts) {
+    private void fireOnAccountsUpdated(List<DisplayableProfileData> accounts) {
         for (Observer observer : mObservers) {
             observer.onAccountsUpdated(accounts);
         }
     }
 
-    private void notifyObservers(DisplayableProfileData profileData) {
+    private void fireOnProfileDataUpdated(List<DisplayableProfileData> accounts) {
+        for (DisplayableProfileData profileData : accounts) {
+            fireOnProfileDataUpdated(profileData);
+        }
+    }
+
+    private void fireOnProfileDataUpdated(DisplayableProfileData profileData) {
         for (Observer observer : mObservers) {
             observer.onProfileDataUpdated(profileData);
         }
@@ -493,49 +541,49 @@ public class ProfileDataCache implements IdentityManager.Observer, AccountsChang
     }
 
     private static final class AccountsCache {
-        private Promise<List<DisplayableProfileData>> mAccounts = new Promise<>();
+
+        private Promise<Map<CoreAccountId, DisplayableProfileData>> mAccounts = new Promise<>();
 
         private Promise<List<DisplayableProfileData>> getAll() {
-            return mAccounts;
-        }
-
-        private void setAccounts(List<DisplayableProfileData> accounts) {
-            final var accountsPromise = mAccounts;
-            if (accountsPromise.isFulfilled()) {
-                mAccounts = Promise.fulfilled(accounts);
+            if (mAccounts.isFulfilled()) {
+                return Promise.fulfilled(new ArrayList<>(mAccounts.getResult().values()));
             } else {
-                accountsPromise.fulfill(accounts);
+                return mAccounts.then(
+                        (Function<
+                                        Map<CoreAccountId, DisplayableProfileData>,
+                                        List<DisplayableProfileData>>)
+                                accounts -> new ArrayList<>(accounts.values()));
             }
         }
 
-        private void putAccount(DisplayableProfileData account) {
-            final var accountsPromise = mAccounts;
-            if (accountsPromise.isFulfilled()) {
-                var accounts = accountsPromise.getResult();
-                int index = 0;
-                for (var existingAccount : accounts) {
-                    if (existingAccount.getAccountEmail().equals(account.getAccountEmail())) {
-                        break;
-                    }
-                    ++index;
-                }
-                if (index < accounts.size()) {
-                    accounts.set(index, account);
-                } else {
-                    accounts.add(account);
-                }
+        private void setAccounts(List<AccountEntry> accounts) {
+            var accountsMap = new LinkedHashMap<CoreAccountId, DisplayableProfileData>();
+            for (var account : accounts) {
+                accountsMap.put(account.mAccountId, account.mProfileData);
+            }
+
+            if (mAccounts.isFulfilled()) {
+                mAccounts = Promise.fulfilled(accountsMap);
+            } else {
+                mAccounts.fulfill(accountsMap);
+            }
+        }
+
+        private void putAccount(AccountEntry account) {
+            if (mAccounts.isFulfilled()) {
+                final var accounts = mAccounts.getResult();
+                accounts.put(account.mAccountId, account.mProfileData);
                 mAccounts = Promise.fulfilled(accounts);
             } else {
-                var accounts = new ArrayList<DisplayableProfileData>();
-                accounts.add(account);
-                accountsPromise.fulfill(accounts);
+                final var accounts = new LinkedHashMap<CoreAccountId, DisplayableProfileData>();
+                accounts.put(account.mAccountId, account.mProfileData);
+                mAccounts.fulfill(accounts);
             }
         }
 
         private @Nullable DisplayableProfileData getByEmail(String email) {
-            final var accountsPromise = mAccounts;
-            if (accountsPromise.isFulfilled()) {
-                for (var account : accountsPromise.getResult()) {
+            if (mAccounts.isFulfilled()) {
+                for (var account : mAccounts.getResult().values()) {
                     if (account.getAccountEmail().equals(email)) {
                         return account;
                     }
@@ -544,9 +592,20 @@ public class ProfileDataCache implements IdentityManager.Observer, AccountsChang
             return null;
         }
 
-        private void clear() {
+        private @Nullable DisplayableProfileData getByAccountId(CoreAccountId accountId) {
             if (mAccounts.isFulfilled()) {
-                mAccounts = new Promise<>();
+                return mAccounts.getResult().get(accountId);
+            }
+            return null;
+        }
+
+        private static final class AccountEntry {
+            private final CoreAccountId mAccountId;
+            private final DisplayableProfileData mProfileData;
+
+            private AccountEntry(CoreAccountId accountId, DisplayableProfileData profileData) {
+                mAccountId = accountId;
+                mProfileData = profileData;
             }
         }
     }

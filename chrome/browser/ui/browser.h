@@ -174,7 +174,6 @@ class Browser : public TabStripModelObserver,
     kDeskTemplate,
   };
 
-
   // Represents whether a value was known to be explicitly specified.
   enum class ValueSpecified { kUnknown, kSpecified, kUnspecified };
 
@@ -649,9 +648,6 @@ class Browser : public TabStripModelObserver,
   // Saving can be disabled e.g. for the DevTools window.
   bool CanSaveContents(content::WebContents* web_contents) const;
 
-  // Returns whether favicon should be shown.
-  bool ShouldDisplayFavicon(content::WebContents* web_contents) const;
-
   /////////////////////////////////////////////////////////////////////////////
 
   // Called by Navigate() when a navigation has occurred in a tab in
@@ -818,8 +814,6 @@ class Browser : public TabStripModelObserver,
   Browser* GetBrowserForMigrationOnly() override;
   const Browser* GetBrowserForMigrationOnly() const override;
   bool IsTabModalPopupDeprecated() const override;
-  bool CanShowCallToAction() const override;
-  std::unique_ptr<ScopedWindowCallToAction> ShowCallToAction() override;
   ui::BaseWindow* GetWindow() override;
   const ui::BaseWindow* GetWindow() const override;
   DesktopBrowserWindowCapabilities* capabilities() override;
@@ -876,17 +870,6 @@ class Browser : public TabStripModelObserver,
     kEmpty
   };
 
-  // Tracks whether a tabstrip call to action UI is showing.
-  class ScopedWindowCallToActionImpl : public ScopedWindowCallToAction {
-   public:
-    explicit ScopedWindowCallToActionImpl(Browser* browser);
-    ~ScopedWindowCallToActionImpl() override;
-
-   private:
-    // Owns this.
-    base::WeakPtr<Browser> browser_;
-  };
-
   explicit Browser(const CreateParams& params);
 
   // Overridden from content::WebContentsDelegate:
@@ -941,6 +924,8 @@ class Browser : public TabStripModelObserver,
       const GURL& opener_url,
       const std::string& frame_name,
       const GURL& target_url,
+      WindowOpenDisposition disposition,
+      const blink::mojom::WindowFeatures& window_features,
       const content::StoragePartitionConfig& partition_config,
       content::SessionStorageNamespace* session_storage_namespace) override;
   void WebContentsCreated(content::WebContents* source_contents,
@@ -1009,6 +994,8 @@ class Browser : public TabStripModelObserver,
   void LostPointerLock() override;
   bool IsWaitingForPointerLockPrompt(
       content::WebContents* web_contents) override;
+  bool AllowKeyboardLockForInnerContents(
+      content::WebContents* web_contents) override;
   void RequestKeyboardLock(content::WebContents* web_contents,
                            bool esc_key_locked) override;
   void CancelKeyboardLockRequest(content::WebContents* web_contents) override;
@@ -1071,11 +1058,8 @@ class Browser : public TabStripModelObserver,
   void OnTabClosing(content::WebContents* contents);
   void OnTabDetached(content::WebContents* contents, bool was_active);
   void OnTabDeactivated(content::WebContents* contents);
-  void OnActiveTabChanged(content::WebContents* old_contents,
-                          content::WebContents* new_contents,
-                          int index,
-                          bool tab_removed_for_deletion,
-                          int reason);
+  void OnActiveTabChanged(const TabStripModelChange& change,
+                          const TabStripSelectionChange& selection);
   void OnTabMoved(int from_index, int to_index);
   void OnTabReplacedAt(content::WebContents* old_contents,
                        content::WebContents* new_contents,
@@ -1367,7 +1351,6 @@ class Browser : public TabStripModelObserver,
   // determined by the NavigateParams::is_tab_modal_popup_deprecated.
   bool is_tab_modal_popup_deprecated_ = false;
 
-
   using BrowserDidCloseCallbackList =
       base::RepeatingCallbackList<void(BrowserWindowInterface*)>;
   BrowserDidCloseCallbackList browser_did_close_callback_list_;
@@ -1398,8 +1381,6 @@ class Browser : public TabStripModelObserver,
   std::optional<ui::PlatformSessionWindowData> platform_session_data_ =
       std::nullopt;
 #endif
-  // Tracks whether a modal UI is showing.
-  bool showing_call_to_action_ = false;
 
   // Tracks whether the browser object is fully initialized.
   bool is_initialized_ = false;

@@ -130,7 +130,7 @@ pub fn MojoAppendMessageData(
 
     // `MojoAppendMessageData` copies the handles for us, but returns a pointer to
     // its buffer that we need to write to ourselves.
-    if bytes.len() > 0 {
+    if !bytes.is_empty() {
         // Will not panic if usize has at least 32 bits, which is true for Chromium
         // targets
         let buffer_size: usize = buffer_size.try_into().unwrap();
@@ -202,6 +202,7 @@ pub enum GetMessageDataStatus<'a> {
 // FOR_RELEASE: Add a fully-safe equivalent that allocates memory for the
 // handles instead of taking a buffer as an out-parameter, and/or one that takes
 // in an initialized slice to start with.
+// FOR_RELEASE: Add a mutable equivalent (takes &mut, returns &mut)
 pub fn MojoGetMessageData<'a>(
     message: &'a MessageHandle,
     handles: Option<&mut [std::mem::MaybeUninit<UntypedHandle>]>,

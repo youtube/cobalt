@@ -85,9 +85,10 @@ class MockEncoder : public webrtc::VideoEncoder {
       const std::vector<webrtc::VideoFrameType>* frame_types) override {
     webrtc::EncodedImage encoded_frame;
     encoded_frame.SetRtpTimestamp(frame.rtp_timestamp());
-    encoded_frame._frameType = frame_types && !frame_types->empty()
-                                   ? frame_types->at(0)
-                                   : webrtc::VideoFrameType::kVideoFrameDelta;
+    encoded_frame.set_frame_type(
+        frame_types && !frame_types->empty()
+            ? frame_types->at(0)
+            : webrtc::VideoFrameType::kVideoFrameDelta);
 
     base::TimeDelta encode_time = base::Milliseconds(
         frame_counter_++ % 100 < 90 ? kMinEncodingTimeMs
@@ -138,7 +139,10 @@ class FakeEncodedImageCallback : public webrtc::EncodedImageCallback {
     ++frame_counter_;
     return {Result::OK, encoded_image.RtpTimestamp()};
   }
-  void OnDroppedFrame(DropReason reason) override { ; }
+  void OnDroppedFrame(DropReason reason) override {}
+  void OnFrameDropped(uint32_t rtp_timestamp,
+                      int spatial_id,
+                      bool is_end_of_temporal_unit) override {}
   int get_frame_counter() const { return frame_counter_; }
 
  private:

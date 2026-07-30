@@ -18,6 +18,8 @@
 #include "components/url_formatter/elide_url.h"
 #include "ui/android/window_android.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "url/gurl.h"
+#include "url/origin.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "chrome/browser/download/android/jni_headers/DangerousDownloadDialogBridge_jni.h"
@@ -29,8 +31,13 @@ namespace {
 // Gets the "download domain" string shown in the dialog. Currently, this is
 // derived from the download URL.
 std::u16string GetDownloadDomain(download::DownloadItem* item) {
+  const GURL& url = item->GetURL();
+  if (url::Origin::Create(url).opaque()) {
+    // Return empty string for downloads from opaque origins.
+    return std::u16string();
+  }
   return url_formatter::FormatUrlForDisplayOmitSchemePathAndTrivialSubdomains(
-      item->GetURL());
+      url);
 }
 }  // namespace
 
@@ -83,7 +90,7 @@ void DangerousDownloadDialogBridge::OnDownloadDestroyed(
 }
 
 void DangerousDownloadDialogBridge::Accepted(JNIEnv* env,
-                                             std::string& download_guid) {
+                                             const std::string& download_guid) {
   download::DownloadItem* download = DownloadDialogUtils::FindAndRemoveDownload(
       &download_items_, download_guid);
   if (download) {
@@ -92,8 +99,9 @@ void DangerousDownloadDialogBridge::Accepted(JNIEnv* env,
   }
 }
 
-void DangerousDownloadDialogBridge::Cancelled(JNIEnv* env,
-                                              std::string& download_guid) {
+void DangerousDownloadDialogBridge::Cancelled(
+    JNIEnv* env,
+    const std::string& download_guid) {
   download::DownloadItem* download = DownloadDialogUtils::FindAndRemoveDownload(
       &download_items_, download_guid);
   if (download) {

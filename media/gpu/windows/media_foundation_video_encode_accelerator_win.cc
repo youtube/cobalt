@@ -1797,9 +1797,6 @@ HRESULT MediaFoundationVideoEncodeAccelerator::ProcessInput(
     int temporal_id = 0;
     if (input.options.quantizer.has_value()) {
       int q_val = input.options.quantizer.value();
-      if (!base::FeatureList::IsEnabled(kStandardizeVP9AndAV1Quantizer)) {
-        q_val = QuantizerToQIndex(codec_, q_val);
-      }
       quantizer = std::clamp(q_val, 1, max_quantizer);
     } else if (rate_ctrl_ && !input.discard_output) {
       VideoRateControlWrapper::FrameParams frame_params{};
@@ -1956,11 +1953,11 @@ HRESULT MediaFoundationVideoEncodeAccelerator::PopulateInputSampleBuffer(
     }
 
     // ConvertToMemoryMappedFrame() doesn't copy pixel data,
-    // it just maps GPU buffer owned by |frame| and presents it as mapped
+    // it just maps the mappable SI owned by |frame| and presents it as mapped
     // view in CPU memory. |frame| will unmap the buffer when destructed.
     frame = ConvertToMemoryMappedFrame(std::move(frame));
     if (!frame) {
-      LOG(ERROR) << "Failed to map shared memory GMB";
+      LOG(ERROR) << "Failed to map shared memory SI";
       return E_FAIL;
     }
   }
@@ -2110,7 +2107,7 @@ HRESULT MediaFoundationVideoEncodeAccelerator::CopyInputSampleBufferFromGpu(
     hr = device1->OpenSharedResource1(
         buffer_handle.dxgi_handle().buffer_handle(),
         IID_PPV_ARGS(&input_texture));
-    RETURN_ON_HR_FAILURE(hr, "Failed to open shared GMB D3D texture", hr);
+    RETURN_ON_HR_FAILURE(hr, "Failed to open SharedImage's D3D texture", hr);
   } else if (input.generate_sample_on_wait_sync_token) {
     DCHECK(input_sample);
     ComMFMediaBuffer texture_buffer;
@@ -2246,7 +2243,7 @@ HRESULT MediaFoundationVideoEncodeAccelerator::PopulateInputSampleBufferGpu(
     hr = device1->OpenSharedResource1(
         buffer_handle.dxgi_handle().buffer_handle(),
         IID_PPV_ARGS(&input_texture));
-    RETURN_ON_HR_FAILURE(hr, "Failed to open shared GMB D3D texture", hr);
+    RETURN_ON_HR_FAILURE(hr, "Failed to open SharedImage's D3D texture", hr);
   } else if (input.generate_sample_on_wait_sync_token) {
     ComMFMediaBuffer texture_buffer;
     hr = input_sample->GetBufferByIndex(0, &texture_buffer);

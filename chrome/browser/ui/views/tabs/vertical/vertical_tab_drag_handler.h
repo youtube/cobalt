@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "base/callback_list.h"
+#include "chrome/browser/ui/views/frame/browser_root_view.h"
 #include "chrome/browser/ui/views/tabs/dragging/tab_drag_context.h"
 #include "chrome/browser/ui/views/tabs/dragging/tab_drag_controller.h"
 #include "chrome/browser/ui/views/tabs/tab_strip_types.h"
@@ -17,9 +18,11 @@
 #include "content/public/browser/web_contents.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/events/event.h"
+#include "ui/gfx/geometry/vector2d.h"
 
 class TabCollectionNode;
 class TabStripModel;
+class VerticalTabLinkDropHandler;
 
 enum class DragPositionHint {
   kTop,    // The drag is at the top of the drag target.
@@ -72,13 +75,22 @@ class VerticalTabDragHandler {
   // view. This method converts `view` to its actual tab view, or nullptr
   // if this handler doesn't manage it.
   virtual views::View* ViewFromTabSlot(TabSlotView* view) const = 0;
+
+  // Returns the starting position of the view when dragging started.
+  // The position is in screen coordinates.
+  virtual std::optional<gfx::Vector2d> GetOffsetFromSourceAtDragStart(
+      views::View* view) const = 0;
+
+  // Returns the DropIndex for a given node and position hint.
+  // For tab nodes, a nullopt position hint indicates that the drop is over the
+  // middle of the tab and should be interpreted as a "replace" operation.
+  virtual std::optional<BrowserRootView::DropIndex> GetLinkDropIndexForNode(
+      const TabCollectionNode& node,
+      std::optional<DragPositionHint> position_hint) const = 0;
 };
 
 // Implements a minimal drag context to interact with the central
 // `TabDragController`.
-// TODO(crbug.com/439963720): The following is an incremental checklist of
-// support that needs to be added:
-// - Dragging pinned tab (split tabs, tab group, multi-selection).
 class VerticalTabDragHandlerImpl : public VerticalTabDragHandler,
                                    public TabDragContext {
   METADATA_HEADER(VerticalTabDragHandlerImpl, TabDragContext)
@@ -107,6 +119,11 @@ class VerticalTabDragHandlerImpl : public VerticalTabDragHandler,
   bool IsDraggingPinnedTabs() const override;
   bool IsDraggingGroups() const override;
   views::View* ViewFromTabSlot(TabSlotView* view) const override;
+  std::optional<gfx::Vector2d> GetOffsetFromSourceAtDragStart(
+      views::View* view) const override;
+  std::optional<BrowserRootView::DropIndex> GetLinkDropIndexForNode(
+      const TabCollectionNode& node,
+      std::optional<DragPositionHint> position_hint) const override;
 
   // TabDragContext
   bool CanAcceptEvent(const ui::Event& event) override;
@@ -132,6 +149,14 @@ class VerticalTabDragHandlerImpl : public VerticalTabDragHandler,
   void SetDragControllerCallbackForTesting(
       base::OnceCallback<void(TabDragController*)> callback) override;
   TabDragPositioningDelegate* GetPositioningDelegate() override;
+
+  // The following overrides are necessary to support SystemDnD.
+  bool CanDrop(const OSExchangeData& data) override;
+  bool GetDropFormats(int* formats,
+                      std::set<ui::ClipboardFormatType>* format_types) override;
+  void OnDragEntered(const ui::DropTargetEvent& event) override;
+  int OnDragUpdated(const ui::DropTargetEvent& event) override;
+  void OnDragExited() override;
 
  private:
   // Encapsulates data needed to initialize a drag session.
@@ -181,6 +206,8 @@ class VerticalTabDragHandlerImpl : public VerticalTabDragHandler,
 
   const raw_ref<TabStripModel> tab_strip_model_;
   const raw_ref<TabCollectionNode> root_node_;
+
+  std::unique_ptr<VerticalTabLinkDropHandler> link_drop_handler_;
 
   // Null if this handler is not managing a dragging session.
   std::unique_ptr<TabDragController> drag_controller_ = nullptr;

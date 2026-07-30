@@ -161,6 +161,17 @@ void TabStateStorageService::SaveChildren(const TabCollection* collection) {
   });
 }
 
+void TabStateStorageService::SaveDivergentChildren(
+    const TabCollection* collection,
+    base::PassKey<StorageRestoreOrchestrator>) {
+  DCHECK(packager_);
+
+  StorageId storage_id = GetStorageId(collection);
+  ApplyUpdate([&](TabStateStorageUpdaterBuilder& builder) {
+    builder.SaveDivergentChildren(storage_id, collection);
+  });
+}
+
 void TabStateStorageService::Remove(const TabInterface* tab) {
   DCHECK(packager_);
 
@@ -175,6 +186,13 @@ void TabStateStorageService::Remove(const TabCollection* collection) {
   ApplyUpdate([&](TabStateStorageUpdaterBuilder& builder) {
     builder.RemoveNode(GetStorageId(collection));
   });
+}
+
+void TabStateStorageService::Remove(StorageId id) {
+  DCHECK(packager_);
+
+  ApplyUpdate(
+      [&](TabStateStorageUpdaterBuilder& builder) { builder.RemoveNode(id); });
 }
 
 void TabStateStorageService::CommitCurrentBatch() {
@@ -219,18 +237,33 @@ void TabStateStorageService::LoadAllNodes(std::string_view window_tag,
   std::unique_ptr<RestoreEntityTracker> tracker =
       tracker_factory_.Run(on_tab_association, on_collection_association);
   DCHECK(tracker);
-  auto builder =
-      std::make_unique<StorageLoadedData::Builder>(std::move(tracker));
+  auto builder = std::make_unique<StorageLoadedData::Builder>(
+      window_tag, is_off_the_record, std::move(tracker));
   tab_backend_.LoadAllNodes(window_tag, is_off_the_record, std::move(builder),
                             std::move(callback));
 }
 
-void TabStateStorageService::ClearState() {
+void TabStateStorageService::ClearAllWindows() {
   tab_backend_.ClearAllNodes();
+}
+
+void TabStateStorageService::ClearAllDivergenceWindows() {
+  tab_backend_.ClearAllDivergentNodes();
 }
 
 void TabStateStorageService::ClearWindow(std::string_view window_tag) {
   tab_backend_.ClearWindow(window_tag);
+}
+
+void TabStateStorageService::ClearDivergenceWindow(
+    std::string_view window_tag) {
+  tab_backend_.ClearDivergenceWindow(window_tag);
+}
+
+void TabStateStorageService::ClearDivergentNodesForWindow(
+    std::string_view window_tag,
+    bool is_off_the_record) {
+  tab_backend_.ClearDivergentNodesForWindow(window_tag, is_off_the_record);
 }
 
 void TabStateStorageService::ClearNodesForWindowExcept(

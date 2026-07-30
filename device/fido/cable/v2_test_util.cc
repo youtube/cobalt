@@ -57,11 +57,10 @@ class TestNetworkContext : public network::TestNetworkContext {
   void CreateWebSocket(
       const GURL& url,
       const std::vector<std::string>& requested_protocols,
-      const net::SiteForCookies& site_for_cookies,
       net::StorageAccessApiStatus storage_access_api_status,
       const net::IsolationInfo& isolation_info,
       std::vector<network::mojom::HttpHeaderPtr> additional_headers,
-      const network::OriginatingProcess& process_id,
+      const network::OriginatingProcessId& process_id,
       const url::Origin& origin,
       network::mojom::ClientSecurityStatePtr client_security_state,
       uint32_t options,
@@ -668,9 +667,9 @@ class LateLinkingDevice : public authenticator::Transaction {
         kTunnelServer, tunnel_id_);
 
     network_context_factory_.Run()->CreateWebSocket(
-        target, {device::kCableWebSocketProtocol}, net::SiteForCookies(),
+        target, {device::kCableWebSocketProtocol},
         net::StorageAccessApiStatus::kNone, net::IsolationInfo(),
-        /*additional_headers=*/{}, network::OriginatingProcess::browser(),
+        /*additional_headers=*/{}, network::OriginatingProcessId::browser(),
         url::Origin::Create(target), network::mojom::ClientSecurityState::New(),
         network::mojom::kWebSocketOptionBlockAllCookies,
         net::MutableNetworkTrafficAnnotationTag(TRAFFIC_ANNOTATION_FOR_TESTS),
@@ -888,9 +887,9 @@ class HandshakeErrorDevice : public authenticator::Transaction {
         kTunnelServer, tunnel_id_);
 
     network_context_factory_.Run()->CreateWebSocket(
-        target, {device::kCableWebSocketProtocol}, net::SiteForCookies(),
+        target, {device::kCableWebSocketProtocol},
         net::StorageAccessApiStatus::kNone, net::IsolationInfo(),
-        /*additional_headers=*/{}, network::OriginatingProcess::browser(),
+        /*additional_headers=*/{}, network::OriginatingProcessId::browser(),
         url::Origin::Create(target), network::mojom::ClientSecurityState::New(),
         network::mojom::kWebSocketOptionBlockAllCookies,
         net::MutableNetworkTrafficAnnotationTag(TRAFFIC_ANNOTATION_FOR_TESTS),

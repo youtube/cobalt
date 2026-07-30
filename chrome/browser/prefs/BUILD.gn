@@ -65,10 +65,12 @@ source_set("impl") {
     "//chrome/browser/contextual_cueing",
     "//chrome/browser/devtools",
     "//chrome/browser/gcm",
+    "//chrome/browser/gpu",
     "//chrome/browser/media/prefs",
     "//chrome/browser/media/router:media_router_feature",
     "//chrome/browser/media/router/discovery/access_code:access_code_cast_feature",
     "//chrome/browser/media/webrtc",
+    "//chrome/browser/metrics",
     "//chrome/browser/permissions",
     "//chrome/browser/platform_experience:prefs",
     "//chrome/browser/preloading:prefs",
@@ -83,6 +85,7 @@ source_set("impl") {
     "//chrome/browser/subscription_eligibility",
     "//chrome/browser/sync",
     "//chrome/browser/task_manager",
+    "//chrome/browser/tracing",
     "//chrome/browser/ui/hats",
     "//chrome/browser/ui/prefs",
     "//chrome/browser/ui/profiles",
@@ -300,6 +303,7 @@ source_set("impl") {
 
   if (is_android) {
     deps += [
+      "//chrome/browser/auxiliary_search",
       "//chrome/browser/notifications",
       "//chrome/browser/notifications:notifications_java_enum_srcjar",
       "//chrome/browser/partnerbookmarks:android",

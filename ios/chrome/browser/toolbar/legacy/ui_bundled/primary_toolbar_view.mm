@@ -17,7 +17,6 @@
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/buttons/toolbar_configuration.h"
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/buttons/toolbar_tab_grid_button.h"
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/buttons/toolbar_tab_group_state.h"
-#import "ios/chrome/browser/toolbar/legacy/ui_bundled/public/omnibox_position_util.h"
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/public/toolbar_constants.h"
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/public/toolbar_utils.h"
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/toolbar_progress_bar.h"
@@ -31,8 +30,6 @@
 namespace {
 // Extra vertical spacing when the banner promo is active.
 const CGFloat kBannerPromoVerticalSpacing = 8;
-// The padding required for the X shaped cancel icon.
-const CGFloat kPaddingForXCircleCancelIcon = 20;
 }  // namespace
 
 @interface PrimaryToolbarView () <TabGroupIndicatorViewDelegate>
@@ -329,30 +326,6 @@ const CGFloat kPaddingForXCircleCancelIcon = 20;
   return _bannerPromo.intrinsicContentSize.height * progress;
 }
 
-- (void)setLocationBarHeight:(CGFloat)locationBarHeight {
-  /// Location bar height is only handled by this property in multiline omnibox.
-  CHECK(IsMultilineBrowserOmniboxEnabled(), base::NotFatalUntil::M200);
-  if (locationBarHeight == _locationBarHeight) {
-    return;
-  }
-  _locationBarHeight = locationBarHeight;
-  self.locationBarContainerHeight.constant = locationBarHeight;
-  [self invalidateIntrinsicContentSize];
-}
-
-- (void)setCancelButtonStyle:(ToolbarCancelButtonStyle)cancelButtonStyle {
-  if (cancelButtonStyle == _cancelButtonStyle) {
-    return;
-  }
-  _cancelButtonStyle = cancelButtonStyle;
-
-  if ([self initialSetUpExecuted]) {
-    [self setUpCancelButton];
-    [self setupCancelButtonConstraints];
-    [self setNeedsUpdateConstraints];
-  }
-}
-
 - (void)setExpanded:(BOOL)expanded {
   _expanded = expanded;
   [self setNeedsUpdateConstraints];
@@ -420,10 +393,6 @@ const CGFloat kPaddingForXCircleCancelIcon = 20;
   if (isTopOmnibox) {
     if (self.matchNTPHeight) {
       height += content_suggestions::FakeToolbarHeight();
-    } else if (IsMultilineBrowserOmniboxEnabled()) {
-      height += self.locationBarHeight +
-                LocationBarVerticalMargins(
-                    self.traitCollection.preferredContentSizeCategory);
     } else {
       height += ToolbarExpandedHeight(
           self.traitCollection.preferredContentSizeCategory);
@@ -467,19 +436,10 @@ const CGFloat kPaddingForXCircleCancelIcon = 20;
   self.contentView = self;
 }
 
-- (CGFloat)paddingForCancelButton {
-  if (self.cancelButtonStyle == ToolbarCancelButtonStyle::kXCircle) {
-    return kPaddingForXCircleCancelIcon;
-  }
-
-  return 0;
-}
-
 // Sets the cancel button to stop editing the location bar.
 - (void)setUpCancelButton {
   [self.cancelButton removeFromSuperview];
-  self.cancelButton =
-      [self.buttonFactory cancelButtonWithStyle:self.cancelButtonStyle];
+  self.cancelButton = [self.buttonFactory cancelButton];
   self.cancelButton.translatesAutoresizingMaskIntoConstraints = NO;
   [self addSubview:self.cancelButton];
 }
@@ -763,8 +723,7 @@ const CGFloat kPaddingForXCircleCancelIcon = 20;
       constraintEqualToAnchor:self.trailingAnchor];
   NSLayoutConstraint* lateralPaddingConstraint =
       [self.locationBarContainer.trailingAnchor
-          constraintEqualToAnchor:self.cancelButton.leadingAnchor
-                         constant:-[self paddingForCancelButton]];
+          constraintEqualToAnchor:self.cancelButton.leadingAnchor];
   // As the cancel button can dinamically be replaced, all constraints that
   // depend on it should be removed once it's no longer available.
   [_cancelButtonConstraints addObjectsFromArray:@[

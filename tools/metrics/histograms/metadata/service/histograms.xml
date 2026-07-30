@@ -1196,7 +1196,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ServiceWorker.MainFrame.MainResource.FetchResult"
-    enum="ServiceWorkerFetchEventResult" expires_after="2026-06-21">
+    enum="ServiceWorkerFetchEventResult" expires_after="2026-08-23">
   <owner>yyanagisawa@chromium.org</owner>
   <owner>chrome-worker@google.com</owner>
   <summary>
@@ -1478,7 +1478,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ServiceWorker.RouterEvaluator.MatchedFirstSourceType"
-    enum="ServiceWorkerRouterSourceType" expires_after="2026-06-23">
+    enum="ServiceWorkerRouterSourceType" expires_after="2026-08-23">
   <owner>sisidovski@chromium.org</owner>
   <owner>chrome-worker@google.com</owner>
   <summary>
@@ -2071,6 +2071,16 @@ chromium-metrics-reviews@google.com.
 
     This is recorded in navigation, when the browser receives the response from
     the network, while committed the navigation with locally stored headers.
+  </summary>
+</histogram>
+
+<histogram name="ServiceWorker.SyntheticResponse.WriteFallbackBodyResult"
+    enum="MojoResult" expires_after="2026-08-12">
+  <owner>sisidovski@google.com</owner>
+  <owner>chrome-worker@google.com</owner>
+  <summary>
+    Records the MojoResult returned by WriteData() when writing the synthetic
+    response fallback body.
   </summary>
 </histogram>
 

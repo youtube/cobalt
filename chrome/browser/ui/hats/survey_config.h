@@ -11,7 +11,6 @@
 
 #include "base/feature_list.h"
 #include "base/time/time.h"
-#include "build/branding_buildflags.h"
 #include "components/compose/buildflags.h"
 #include "pdf/buildflags.h"
 
@@ -112,7 +111,6 @@ extern const char
     kHatsSurveyTriggerPlusAddressDidChoosePlusAddressOverEmailSurvey[];
 extern const char
     kHatsSurveyTriggerPlusAddressFilledPlusAddressViaManualFallback[];
-extern const char kHatsSurveyTriggerPrivacySandboxSentimentSurvey[];
 extern const char kHatsSurveyTriggerPrivacySandboxActSurvey[];
 extern const char kHatsSurveyTriggerOnFocusZpsSuggestionsHappiness[];
 extern const char kHatsSurveyTriggerOnFocusZpsSuggestionsUtility[];

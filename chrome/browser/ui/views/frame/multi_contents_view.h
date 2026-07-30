@@ -18,11 +18,13 @@
 #include "ui/base/interaction/element_identifier.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/controls/resize_area_delegate.h"
+#include "ui/views/layout/proposed_layout.h"
 #include "ui/views/view.h"
 
 class BrowserView;
 class ContentsWebView;
 class CustomFloatingCorner;
+class MultiContentsBackgroundView;
 class MultiContentsDropTargetView;
 class MultiContentsResizeArea;
 class MultiContentsViewDelegate;
@@ -40,8 +42,6 @@ class RoundedCornersF;
 namespace views {
 class WebView;
 }  // namespace views
-
-class MultiContentsBackgroundView;
 
 // MultiContentsView shows up to two contents web views side by side, and
 // manages their layout relative to each other.
@@ -118,6 +118,30 @@ class MultiContentsView : public views::View,
   // If in a split view, swaps the order of the two contents views.
   void OnSwap();
 
+  // If non-null, specifies an increase in target size so that web contents
+  // maintain their maximum extents during browser animations to prevent
+  // issues with reflow on some platforms.
+  //
+  // This is the "actual" total area the MultiContentsView should occupy (in
+  // local bounds); the size assigned to the contents views will depend on
+  // layout.
+  struct TargetContentBounds {
+    TargetContentBounds() = default;
+    TargetContentBounds(const TargetContentBounds&) = default;
+    TargetContentBounds(const gfx::Size& actual_size_,
+                        const gfx::Insets& clipped_area_)
+        : actual_size(actual_size_), clipped_area(clipped_area_) {}
+    TargetContentBounds& operator=(const TargetContentBounds&) = default;
+    ~TargetContentBounds() = default;
+
+    gfx::Size actual_size;
+    gfx::Insets clipped_area;
+
+    bool operator==(const TargetContentBounds&) const = default;
+  };
+  void SetTargetContentBounds(
+      std::optional<TargetContentBounds> target_content_bounds);
+
   // If the split view is being resized.
   bool IsSplitResizing() const {
     return initial_start_width_on_resize_.has_value();
@@ -133,7 +157,7 @@ class MultiContentsView : public views::View,
   // views::View:
   void OnThemeChanged() override;
 
-  std::vector<ContentsContainerView*> contents_container_views() const {
+  const std::vector<ContentsContainerView*>& contents_container_views() const {
     return contents_container_views_;
   }
 
@@ -170,6 +194,8 @@ class MultiContentsView : public views::View,
     return background_view_;
   }
 
+  MultiContentsViewDelegate* delegate_for_testing() { return delegate_.get(); }
+
   const FocusableViewMap* GetFocusableViewsMapFor(
       const ContentsContainerView* container) const;
 
@@ -201,6 +227,7 @@ class MultiContentsView : public views::View,
   // LayoutDelegate:
   views::ProposedLayout CalculateProposedLayout(
       const views::SizeBounds& size_bounds) const override;
+  void BeforeApplyLayout(const views::ProposedLayout& layout) override;
 
   // Adds the drop target layout to the given list and return the remaining
   // available space after the layout.
@@ -219,10 +246,6 @@ class MultiContentsView : public views::View,
   void OnWebContentsFocused(views::WebView*);
   void OnNtpFooterFocused(views::WebView*);
   void OnActorOverlayFocused(views::WebView*);
-
-  // Callback for when Read Anything Immersive Mode Overlay is focused. If the
-  // focus comes from an inactive pane in a split view, this method activates
-  // the corresponding tab.
   void OnReadAnythingOverlayFocused(ContentsContainerView* container,
                                     views::WebView* web_view);
 
@@ -253,24 +276,9 @@ class MultiContentsView : public views::View,
   // ContentsContainerView is not visible.
   std::vector<ContentsContainerView*> contents_container_views_;
 
-  // Holds subscriptions for when the attached web contents to ContentsView
-  // is focused.
-  std::vector<base::CallbackListSubscription>
-      web_contents_focused_subscriptions_;
-
-  // Holds subscriptions for when the attached web contents to NtpFooterView
-  // is focused.
-  std::vector<base::CallbackListSubscription> ntp_footer_focused_subscriptions_;
-
-  // Holds subscriptions for when the attached web contents to
-  // ActorOverlayWebView is focused.
-  std::vector<base::CallbackListSubscription>
-      actor_overlay_focused_subscriptions_;
-
-  // Holds subscriptions for when the attached web contents to
-  // ReadAnythingImmersiveOverlayView is focused.
-  std::vector<base::CallbackListSubscription>
-      read_anything_overlay_focused_subscriptions_;
+  // Holds subscriptions for when the attached contents to ContentsContainerView
+  // are focused.
+  std::vector<base::CallbackListSubscription> contents_focused_subscriptions_;
 
   // The handle responsible for resizing the two contents views as relative to
   // each other.
@@ -291,6 +299,9 @@ class MultiContentsView : public views::View,
   // Current ratio of |contents_views_|'s first ContentsContainerView's width /
   // overall contents view width.
   double start_ratio_ = 0.5;
+
+  // See `SetTargetContentBounds()`.
+  std::optional<TargetContentBounds> target_content_bounds_;
 
   // Width of `start_contents_.contents_view_` when a resize action began.
   // Nullopt if not currently resizing.

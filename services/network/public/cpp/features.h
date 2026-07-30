@@ -395,6 +395,20 @@ BASE_DECLARE_FEATURE_PARAM(
 COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
 BASE_DECLARE_FEATURE(kUseUnexportableKeyServiceInBrowserProcess);
 
+// When enabled, allows redirects to unsafe schemes (like data:) for fetch()
+// requests with redirect mode "manual". The redirect URL is censored to
+// "data:," for security.
+COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
+BASE_DECLARE_FEATURE(kAllowUnsafeRedirectSchemesForManualMode);
+
+// A base feature to hold parameters for Durable Messages infrastructure.
+COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
+BASE_DECLARE_FEATURE(kDurableMessages);
+
+// Global limit for all durable messages
+COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
+BASE_DECLARE_FEATURE_PARAM(int, kDurableMessagesGlobalBufferSize);
+
 }  // namespace network::features
 
 #endif  // SERVICES_NETWORK_PUBLIC_CPP_FEATURES_H_

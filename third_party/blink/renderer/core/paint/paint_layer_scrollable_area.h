@@ -50,6 +50,7 @@
 #include "third_party/blink/public/mojom/scroll/scroll_into_view_params.mojom-blink-forward.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/css/container_state.h"
+#include "third_party/blink/renderer/core/layout/geometry/axis.h"
 #include "third_party/blink/renderer/core/layout/scroll_anchor.h"
 #include "third_party/blink/renderer/core/scroll/scrollable_area.h"
 #include "third_party/blink/renderer/platform/graphics/overlay_scrollbar_clip_behavior.h"
@@ -276,6 +277,9 @@ class CORE_EXPORT PaintLayerScrollableArea final
   bool HasHorizontalScrollbar() const { return HorizontalScrollbar(); }
   bool HasVerticalScrollbar() const { return VerticalScrollbar(); }
 
+  // Returns the physical axes this area is capable of scrolling.
+  PhysicalAxes ScrollableAxes() const;
+
   Scrollbar* HorizontalScrollbar() const override {
     return scrollbar_manager_.HorizontalScrollbar();
   }
@@ -359,15 +363,12 @@ class CORE_EXPORT PaintLayerScrollableArea final
   gfx::Point ScrollOrigin() const { return scroll_origin_; }
   bool ScrollOriginChanged() const { return scroll_origin_changed_; }
 
-  bool ScrollToAbsolutePosition(
-      const gfx::PointF& position,
-      mojom::blink::ScrollBehavior scroll_behavior =
-          mojom::blink::ScrollBehavior::kInstant,
-      mojom::blink::ScrollType scroll_type =
-          mojom::blink::ScrollType::kProgrammatic,
-      cc::ScrollSourceType source_type = cc::ScrollSourceType::kNone) {
+  // This is used only in tests.
+  bool ScrollToAbsolutePositionForTest(const gfx::PointF& position) {
     return SetScrollOffset(ScrollOffset(position - gfx::PointF(ScrollOrigin())),
-                           scroll_type, source_type, scroll_behavior);
+                           mojom::blink::ScrollType::kProgrammatic,
+                           cc::ScrollSourceType::kNone,
+                           mojom::blink::ScrollBehavior::kInstant);
   }
 
   // Scrolls by one page in the given direction, using PageScrollSnapStrategy

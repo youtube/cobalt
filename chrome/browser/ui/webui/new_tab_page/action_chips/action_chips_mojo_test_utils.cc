@@ -31,14 +31,14 @@ void PrintTo(const ActionChip& chip, std::ostream* os) {
       << "  title: \"" << chip.title << "\",\n"
       << "  subtitle: \"" << chip.subtitle << "\",\n"
       << "  suggestion: \"" << chip.suggestion << "\",\n"
-      << "  type: " << chip.type << ",\n"
       << "  tab_info: ";
   if (chip.tab.is_null()) {
     *os << "nullptr";
   } else {
     PrintTo(*chip.tab, os);
   }
-  *os << "\n}";
+  *os << ",\n"
+      << "  icon_type: " << chip.suggest_template_info->type_icon << "\n}";
 }
 
 void PrintTo(const ActionChipPtr& chip, std::ostream* os) {

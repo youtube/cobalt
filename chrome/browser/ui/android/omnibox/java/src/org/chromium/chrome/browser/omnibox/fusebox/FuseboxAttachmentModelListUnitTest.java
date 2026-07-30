@@ -4,6 +4,8 @@
 
 package org.chromium.chrome.browser.omnibox.fusebox;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -19,6 +21,7 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import android.content.res.Resources;
+import android.os.SystemClock;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -31,7 +34,9 @@ import org.mockito.junit.MockitoRule;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxAttachmentRecyclerViewAdapter.FuseboxAttachmentType;
+import org.chromium.chrome.browser.omnibox.fusebox.FuseboxMetrics.FuseboxAttachmentButtonType;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.components.contextual_search.FileUploadStatus;
@@ -39,6 +44,7 @@ import org.chromium.components.omnibox.OmniboxFeatures;
 import org.chromium.content_public.browser.RenderWidgetHostView;
 import org.chromium.content_public.browser.WebContents;
 
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @RunWith(BaseRobolectricTestRunner.class)
@@ -54,7 +60,12 @@ public class FuseboxAttachmentModelListUnitTest {
 
     private FuseboxAttachment createTestAttachment(String title) {
         return FuseboxAttachment.forFile(
-                /* thumbnail= */ null, title + ".txt", "mime/" + title, title.getBytes());
+                /* thumbnail= */ null,
+                title + ".txt",
+                "mime/" + title,
+                title.getBytes(),
+                SystemClock.elapsedRealtime(),
+                FuseboxAttachmentButtonType.FILES);
     }
 
     @Before
@@ -70,10 +81,14 @@ public class FuseboxAttachmentModelListUnitTest {
         mFuseboxAttachmentModelList.addAttachmentChangeListener(mListener);
     }
 
+    private FuseboxAttachment createTabAttachment(Tab tab) {
+        return FuseboxAttachment.forTab(tab, mResources, FuseboxAttachmentButtonType.TAB_PICKER);
+    }
+
     private FuseboxAttachment createTabAttachment(int tabId, String token) {
         Tab tab = mock(Tab.class);
         when(tab.getId()).thenReturn(tabId);
-        var attachment = FuseboxAttachment.forTab(tab, mResources);
+        var attachment = createTabAttachment(tab);
         when(mComposeboxQueryControllerBridge.addTabContextFromCache(tabId)).thenReturn(token);
         return attachment;
     }
@@ -156,7 +171,7 @@ public class FuseboxAttachmentModelListUnitTest {
         FuseboxAttachment attachment = createTestAttachment("test");
         mFuseboxAttachmentModelList.add(attachment);
 
-        mFuseboxAttachmentModelList.remove(attachment);
+        mFuseboxAttachmentModelList.remove(attachment, /* isFailure= */ false);
         verify(mComposeboxQueryControllerBridge).notifySessionStarted();
         verify(mComposeboxQueryControllerBridge)
                 .addFile(eq("test.txt"), eq("mime/test"), eq("test".getBytes()));
@@ -176,11 +191,11 @@ public class FuseboxAttachmentModelListUnitTest {
         mFuseboxAttachmentModelList.add(firstAttachment);
         mFuseboxAttachmentModelList.add(secondAttachment);
 
-        mFuseboxAttachmentModelList.remove(firstAttachment);
+        mFuseboxAttachmentModelList.remove(firstAttachment, /* isFailure= */ false);
         verify(mComposeboxQueryControllerBridge, never()).notifySessionAbandoned();
         assertTrue(mFuseboxAttachmentModelList.isSessionStarted());
 
-        mFuseboxAttachmentModelList.remove(secondAttachment);
+        mFuseboxAttachmentModelList.remove(secondAttachment, /* isFailure= */ false);
         verify(mComposeboxQueryControllerBridge).notifySessionStarted();
         verify(mComposeboxQueryControllerBridge)
                 .addFile(eq("first.txt"), eq("mime/first"), eq("first".getBytes()));
@@ -394,7 +409,7 @@ public class FuseboxAttachmentModelListUnitTest {
     public void testMaxAttachments() {
         when(mComposeboxQueryControllerBridge.addFile(anyString(), anyString(), any()))
                 .thenReturn("pretokenized-token", "uploaded-token");
-        for (int i = 0; i < FuseboxAttachmentModelList.MAX_ATTACHMENTS; i++) {
+        for (int i = 0; i < FuseboxAttachmentModelList.getMaxAttachments(); i++) {
             FuseboxAttachment attachment = createTestAttachment("pretokenized");
             assertTrue(mFuseboxAttachmentModelList.add(attachment));
         }
@@ -415,7 +430,7 @@ public class FuseboxAttachmentModelListUnitTest {
     public void testRemove_tabAttachment_untracksTabId() {
         FuseboxAttachment attachment = createTabAttachment(1, "tab-token-1");
         mFuseboxAttachmentModelList.add(attachment);
-        mFuseboxAttachmentModelList.remove(attachment);
+        mFuseboxAttachmentModelList.remove(attachment, /* isFailure= */ false);
         assertFalse(mFuseboxAttachmentModelList.getAttachedTabIds().contains(1));
     }
 
@@ -447,7 +462,7 @@ public class FuseboxAttachmentModelListUnitTest {
         when(mComposeboxQueryControllerBridge.addTabContext(tab)).thenReturn("token");
         doReturn(tab).when(mTabModelSelector).getCurrentTab();
 
-        FuseboxAttachment tabAttachment = FuseboxAttachment.forTab(tab, mResources);
+        FuseboxAttachment tabAttachment = createTabAttachment(tab);
         mFuseboxAttachmentModelList.add(tabAttachment);
 
         assertEquals("token", tabAttachment.getToken());
@@ -467,7 +482,7 @@ public class FuseboxAttachmentModelListUnitTest {
         when(mComposeboxQueryControllerBridge.addTabContext(tab)).thenReturn("token");
         doReturn(null).when(mTabModelSelector).getCurrentTab();
 
-        FuseboxAttachment tabAttachment = FuseboxAttachment.forTab(tab, mResources);
+        FuseboxAttachment tabAttachment = createTabAttachment(tab);
         mFuseboxAttachmentModelList.add(tabAttachment);
 
         assertEquals("token", tabAttachment.getToken());
@@ -487,7 +502,7 @@ public class FuseboxAttachmentModelListUnitTest {
         when(mComposeboxQueryControllerBridge.addTabContextFromCache(1)).thenReturn("");
         doReturn(null).when(mTabModelSelector).getCurrentTab();
 
-        FuseboxAttachment tabAttachment = FuseboxAttachment.forTab(tab, mResources);
+        FuseboxAttachment tabAttachment = createTabAttachment(tab);
         mFuseboxAttachmentModelList.add(tabAttachment);
         assertEquals("token2", tabAttachment.getToken());
     }
@@ -505,7 +520,7 @@ public class FuseboxAttachmentModelListUnitTest {
         when(mComposeboxQueryControllerBridge.addTabContextFromCache(1)).thenReturn("token");
         doReturn(null).when(mTabModelSelector).getCurrentTab();
 
-        FuseboxAttachment tabAttachment = FuseboxAttachment.forTab(tab, mResources);
+        FuseboxAttachment tabAttachment = createTabAttachment(tab);
         mFuseboxAttachmentModelList.add(tabAttachment);
         assertEquals("token", tabAttachment.getToken());
 
@@ -589,12 +604,72 @@ public class FuseboxAttachmentModelListUnitTest {
 
         try (var token = mFuseboxAttachmentModelList.beginBatchEdit()) {
             mFuseboxAttachmentModelList.add(attachment2);
-            mFuseboxAttachmentModelList.remove(attachment1);
+            mFuseboxAttachmentModelList.remove(attachment1, /* isFailure= */ false);
             verify(mListener, never()).onAttachmentListChanged();
         }
 
         verify(mListener).onAttachmentListChanged();
         assertEquals(1, mFuseboxAttachmentModelList.size());
         assertEquals(attachment2, mFuseboxAttachmentModelList.get(0));
+    }
+
+    @Test
+    public void testNotifyAttachmentSucceeded() {
+        try (var ignored =
+                HistogramWatcher.newBuilder()
+                        .expectAnyRecord("Omnibox.MobileFusebox.AttachmentSucceeded")
+                        .expectAnyRecord("Omnibox.MobileFusebox.AttachmentSucceeded.Files")
+                        .build()) {
+            when(mComposeboxQueryControllerBridge.addFile(anyString(), anyString(), any()))
+                    .thenReturn("token1");
+            FuseboxAttachment attachment = createTestAttachment("test");
+            mFuseboxAttachmentModelList.add(attachment);
+            mFuseboxAttachmentModelList.onFileUploadStatusChanged(
+                    "token1", FileUploadStatus.UPLOAD_SUCCESSFUL);
+        }
+    }
+
+    @Test
+    public void testNotifyAttachmentFailed() {
+        try (var ignored =
+                HistogramWatcher.newBuilder()
+                        .expectAnyRecord("Omnibox.MobileFusebox.AttachmentFailed")
+                        .expectAnyRecord("Omnibox.MobileFusebox.AttachmentFailed.Files")
+                        .build()) {
+            when(mComposeboxQueryControllerBridge.addFile(anyString(), anyString(), any()))
+                    .thenReturn("token1");
+            FuseboxAttachment attachment = createTestAttachment("test");
+            mFuseboxAttachmentModelList.add(attachment);
+            mFuseboxAttachmentModelList.remove(attachment, /* isFailure= */ true);
+        }
+    }
+
+    @Test
+    public void testNotifyAttachmentAbandoned() {
+        try (var ignored =
+                HistogramWatcher.newBuilder()
+                        .expectAnyRecord("Omnibox.MobileFusebox.AttachmentAbandoned")
+                        .expectAnyRecord("Omnibox.MobileFusebox.AttachmentAbandoned.Files")
+                        .build()) {
+            when(mComposeboxQueryControllerBridge.addFile(anyString(), anyString(), any()))
+                    .thenReturn("token1");
+            FuseboxAttachment attachment = createTestAttachment("test");
+            mFuseboxAttachmentModelList.add(attachment);
+            mFuseboxAttachmentModelList.remove(attachment, /* isFailure= */ false);
+        }
+    }
+
+    @Test
+    public void testRemoveTabsNotInSet() {
+        mFuseboxAttachmentModelList.add(createTabAttachment(/* tabId= */ 1, "tab-token-1"));
+        mFuseboxAttachmentModelList.add(createTabAttachment(/* tabId= */ 2, "tab-token-1"));
+        mFuseboxAttachmentModelList.add(createTabAttachment(/* tabId= */ 3, "tab-token-1"));
+        assertThat(mFuseboxAttachmentModelList.getAttachedTabIds()).containsExactly(1, 2, 3);
+
+        mFuseboxAttachmentModelList.removeTabsNotInSet(Set.of(1, 3, 5));
+        assertThat(mFuseboxAttachmentModelList.getAttachedTabIds()).containsExactly(1, 3);
+
+        mFuseboxAttachmentModelList.removeTabsNotInSet(Set.of());
+        assertThat(mFuseboxAttachmentModelList.getAttachedTabIds()).isEmpty();
     }
 }

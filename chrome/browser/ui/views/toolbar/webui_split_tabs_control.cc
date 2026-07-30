@@ -42,17 +42,14 @@ WebUISplitTabsControl::~WebUISplitTabsControl() {
 void WebUISplitTabsControl::Init() {
   BrowserWindowInterface* browser = toolbar_view_->browser_;
   pin_state_.Init(prefs::kPinSplitTabButton, browser->GetProfile()->GetPrefs(),
-                  base::BindRepeating(&WebUISplitTabsControl::UpdatePinState,
+                  base::BindRepeating(&WebUISplitTabsControl::UpdateState,
                                       base::Unretained(this)));
 
   if (auto* tab_strip_model = browser->GetTabStripModel()) {
     tab_strip_model->AddObserver(this);
   }
 
-  SplitTabsButtonState state = GetCurrentState();
-  UpdateVisibility(state);
-  last_sent_tab_split_status_ = state.split_status;
-  last_sent_pin_state_ = state.is_pinned;
+  UpdateState();
 }
 
 bool WebUISplitTabsControl::IsVisible() const {
@@ -62,15 +59,9 @@ bool WebUISplitTabsControl::IsVisible() const {
 void WebUISplitTabsControl::HandleContextMenu(
     browser_controls_api::mojom::ContextMenuType menu_type,
     const gfx::Point& screen_location,
-    ui::mojom::MenuSourceType source) {
+    ui::mojom::MenuSourceType source_type) {
   BrowserWindowInterface* browser = toolbar_view_->browser_;
   current_menu_type_ = menu_type;
-  if (auto* webui_toolbar_ui = toolbar_view_->GetWebUIToolbarUI()) {
-    webui_toolbar_ui->OnContextMenuStateChanged(
-        current_menu_type_,
-        browser_controls_api::mojom::ContextMenuState::kVisible);
-  }
-
   if (menu_type ==
       browser_controls_api::mojom::ContextMenuType::kSplitTabsAction) {
     // Only show "Separate Views" menu if actually in split.
@@ -79,42 +70,40 @@ void WebUISplitTabsControl::HandleContextMenu(
         !tab_strip_model->GetActiveTab()->IsSplit()) {
       return;
     }
+    // Destroy the old menu runner first to avoid a dangling pointer since it
+    // holds a raw_ptr to the old menu model.
+    menu_runner_.reset();
     split_tab_menu_ = std::make_unique<SplitTabMenuModel>(
         tab_strip_model, SplitTabMenuModel::MenuSource::kToolbarButton);
-    RunMenuAt(screen_location.x(), screen_location.y());
+    RunMenuAt(screen_location.x(), screen_location.y(), source_type);
   } else if (menu_type ==
              browser_controls_api::mojom::ContextMenuType::kSplitTabsContext) {
     Browser* actual_browser =
         chrome::FindBrowserWithWindow(browser->GetWindow()->GetNativeWindow());
     if (actual_browser) {
+      // Destroy the old menu runner first to avoid a dangling pointer since it
+      // holds a raw_ptr to the old menu model.
+      menu_runner_.reset();
       split_tab_menu_ = std::make_unique<PinnedActionToolbarButtonMenuModel>(
           actual_browser, kActionSplitTab);
-      RunMenuAt(screen_location.x(), screen_location.y());
+      RunMenuAt(screen_location.x(), screen_location.y(), source_type);
     }
   }
 }
 
-void WebUISplitTabsControl::RunMenuAt(int x, int y) {
+void WebUISplitTabsControl::RunMenuAt(int x,
+                                      int y,
+                                      ui::mojom::MenuSourceType source_type) {
+  last_source_type_for_testing_ = source_type;
   menu_runner_ = std::make_unique<views::MenuRunner>(
-      split_tab_menu_.get(),
-      views::MenuRunner::HAS_MNEMONICS | views::MenuRunner::CONTEXT_MENU,
-      base::BindRepeating(&WebUISplitTabsControl::OnMenuClosed,
+      split_tab_menu_.get(), views::MenuRunner::HAS_MNEMONICS,
+      base::BindRepeating(&WebUISplitTabsControl::UpdateState,
                           base::Unretained(this)));
 
   menu_runner_->RunMenuAt(toolbar_view_->GetWidget(), nullptr,
                           gfx::Rect(gfx::Point(x, y), gfx::Size()),
-                          views::MenuAnchorPosition::kTopLeft,
-                          ui::mojom::MenuSourceType::kMouse);
-}
-
-void WebUISplitTabsControl::OnMenuClosed() {
-  if (auto* webui_toolbar_ui = toolbar_view_->GetWebUIToolbarUI()) {
-    webui_toolbar_ui->OnContextMenuStateChanged(
-        current_menu_type_,
-        browser_controls_api::mojom::ContextMenuState::kHidden);
-  }
-  current_menu_type_ =
-      browser_controls_api::mojom::ContextMenuType::kUnspecified;
+                          views::MenuAnchorPosition::kTopLeft, source_type);
+  UpdateState();
 }
 
 void WebUISplitTabsControl::OnTabStripModelChanged(
@@ -122,7 +111,7 @@ void WebUISplitTabsControl::OnTabStripModelChanged(
     const TabStripModelChange& change,
     const TabStripSelectionChange& selection) {
   if (selection.active_tab_changed()) {
-    UpdateTabSplitStatus();
+    UpdateState();
   }
 }
 
@@ -130,22 +119,13 @@ void WebUISplitTabsControl::OnSplitTabChanged(const SplitTabChange& change) {
   if (change.type == SplitTabChange::Type::kAdded ||
       change.type == SplitTabChange::Type::kRemoved ||
       change.type == SplitTabChange::Type::kContentsChanged) {
-    UpdateTabSplitStatus();
+    UpdateState();
   }
 }
 
-WebUISplitTabsControl::SplitTabsButtonState
-WebUISplitTabsControl::GetCurrentState() const {
-  BrowserWindowInterface* browser = toolbar_view_->browser_;
-  return {
-      webui_toolbar::ComputeTabSplitStatus(browser),
-      webui_toolbar::IsButtonPinned(
-          browser, browser_controls_api::mojom::ToolbarButtonType::kSplitTabs)};
-}
-
 void WebUISplitTabsControl::UpdateVisibility(
-    const SplitTabsButtonState& state) {
-  bool should_be_visible = state.is_pinned || state.split_status.is_split;
+    const browser_controls_api::mojom::SplitTabsControlState* state) {
+  bool should_be_visible = state->is_pinned || state->is_current_tab_split;
 
   if (should_be_visible != is_visible_) {
     is_visible_ = should_be_visible;
@@ -153,33 +133,15 @@ void WebUISplitTabsControl::UpdateVisibility(
   }
 }
 
-void WebUISplitTabsControl::UpdateTabSplitStatus() {
-  SplitTabsButtonState state = GetCurrentState();
-  UpdateVisibility(state);
-
-  if (state.split_status == last_sent_tab_split_status_) {
-    return;
-  }
-  last_sent_tab_split_status_ = state.split_status;
-
-  if (auto* webui_toolbar_ui = toolbar_view_->GetWebUIToolbarUI()) {
-    webui_toolbar_ui->OnTabSplitStatusChanged(state.split_status.is_split,
-                                              state.split_status.location);
-  }
-}
-
-void WebUISplitTabsControl::UpdatePinState() {
-  SplitTabsButtonState state = GetCurrentState();
-  UpdateVisibility(state);
-
-  if (state.is_pinned == last_sent_pin_state_) {
-    return;
-  }
-  last_sent_pin_state_ = state.is_pinned;
-
-  if (auto* webui_toolbar_ui = toolbar_view_->GetWebUIToolbarUI()) {
-    webui_toolbar_ui->OnButtonPinStateChanged(
-        browser_controls_api::mojom::ToolbarButtonType::kSplitTabs,
-        state.is_pinned);
-  }
+void WebUISplitTabsControl::UpdateState() {
+  auto state = browser_controls_api::mojom::SplitTabsControlState::New();
+  auto s = webui_toolbar::ComputeTabSplitStatus(toolbar_view_->browser_);
+  state->is_current_tab_split = s.is_split;
+  state->location = s.location;
+  state->is_pinned = webui_toolbar::IsButtonPinned(
+      toolbar_view_->browser_,
+      browser_controls_api::mojom::ToolbarButtonType::kSplitTabs);
+  state->is_context_menu_visible = menu_runner_ && menu_runner_->IsRunning();
+  UpdateVisibility(state.get());
+  toolbar_view_->OnSplitTabsControlStateChanged(std::move(state));
 }

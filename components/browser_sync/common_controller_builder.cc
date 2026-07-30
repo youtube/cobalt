@@ -36,7 +36,6 @@
 #include "components/collaboration/public/data_type_controller/shared_tab_group_account_data_type_controller.h"
 #include "components/collaboration/public/data_type_controller/shared_tab_group_data_type_controller.h"
 #include "components/commerce/core/commerce_feature_list.h"
-#include "components/commerce/core/product_specifications/product_specifications_service.h"
 #include "components/consent_auditor/consent_auditor.h"
 #include "components/contextual_tasks/public/contextual_tasks_service.h"
 #include "components/data_sharing/public/data_sharing_service.h"
@@ -353,11 +352,6 @@ void CommonControllerBuilder::SetPrefService(PrefService* pref_service) {
 void CommonControllerBuilder::SetPrefServiceSyncable(
     sync_preferences::PrefServiceSyncable* pref_service_syncable) {
   pref_service_syncable_.Set(pref_service_syncable);
-}
-
-void CommonControllerBuilder::SetProductSpecificationsService(
-    commerce::ProductSpecificationsService* product_specifications_service) {
-  product_specifications_service_.Set(product_specifications_service);
 }
 
 void CommonControllerBuilder::SetDualReadingListModel(
@@ -838,7 +832,8 @@ CommonControllerBuilder::Build(syncer::DataTypeSet disabled_types,
   }
 
   if (!disabled_types.Has(syncer::AUTOFILL_VALUABLE_METADATA) &&
-      base::FeatureList::IsEnabled(syncer::kSyncAutofillValuableMetadata)) {
+      base::FeatureList::IsEnabled(syncer::kSyncAutofillValuableMetadata) &&
+      profile_autofill_web_data_service_.value()) {
     // Both `AUTOFILL_VALUABLE` and `AUTOFILL_VALUABLE_METADATA` use the same
     // controller as they share the same behaviour.
     controllers.push_back(
@@ -953,6 +948,22 @@ CommonControllerBuilder::Build(syncer::DataTypeSet disabled_types,
           std::make_unique<syncer::ForwardingDataTypeControllerDelegate>(
               delegate)));
     }
+  }
+
+  if (!disabled_types.Has(syncer::ACCESSIBILITY_ANNOTATION) &&
+      base::FeatureList::IsEnabled(syncer::kSyncAccessibilityAnnotation)) {
+    // TODO(crbug.com/486879778): In CL #4, register the type, i.e. instantiate
+    // the DataTypeController. There is more than one way to go about it,
+    // but one option is:
+    // - Create a trivial implementation of DataTypeSyncBridge which lives in
+    //   your feature's directory. It should have synchronous access to your
+    //   data model (e.g. DualReadingListModel) and be (indirectly) owned by a
+    //   CoolKeyedService (often the model itself).
+    // - Expose CoolKeyedService::GetControllerDelegate() which calls
+    //   bridge->change_processor()->GetControllerDelegate().
+    // - Inject CoolKeyedService in this class and call GetControllerDelegate()
+    //   on it to create the DataTypeController.
+    // In CLs #5, #6, ..., implement the bridge and keep adding unit tests.
   }
 
   if (!disabled_types.Has(syncer::CONTEXTUAL_TASK) &&

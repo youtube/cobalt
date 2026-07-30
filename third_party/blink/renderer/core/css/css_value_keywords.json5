@@ -839,6 +839,7 @@
     //
     // auto
     // none
+    // all
 
     //
     // text-decoration-thickness
@@ -1338,11 +1339,6 @@
     // vector-effect
     // none
     "non-scaling-stroke",
-
-    //
-    // CSS3 viewport-length keywords
-    //
-    "-internal-extend-to-zoom",
 
     // isolation
     // auto

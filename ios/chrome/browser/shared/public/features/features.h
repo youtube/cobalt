@@ -150,9 +150,6 @@ BASE_DECLARE_FEATURE(kLensLoadAIMInLensResultPage);
 // Feature to allow landscape support of lens overlay.
 BASE_DECLARE_FEATURE(kLensOverlayEnableLandscapeCompatibility);
 
-// Feature to enable force showing the lens overlay onboarding screen.
-BASE_DECLARE_FEATURE(kLensOverlayForceShowOnboardingScreen);
-
 // Feature flag to add lens overlay navigation to history.
 BASE_DECLARE_FEATURE(kLensOverlayNavigationHistory);
 
@@ -175,9 +172,6 @@ extern const char kNTPMIAEntrypointParamAIMInQuickActions[];
 BASE_DECLARE_FEATURE(kNTPMIAEntrypoint);
 // Like above, but applies regardless of client's locale.
 BASE_DECLARE_FEATURE(kNTPMIAEntrypointAllLocales);
-
-// Autoattach current tab in Composebox.
-BASE_DECLARE_FEATURE(kComposeboxAutoattachTab);
 
 // Used to gate the immersive SRP in the Composebox.
 BASE_DECLARE_FEATURE(kComposeboxImmersiveSRP);
@@ -254,12 +248,8 @@ extern const base::FeatureParam<int>
 // Feature flag the "Hide Toolbar" button in the overflow menu.
 BASE_DECLARE_FEATURE(kHideToolbarsInOverflowMenu);
 
-extern const char kBottomOmniboxEvolutionParam[];
-extern const char kBottomOmniboxEvolutionParamEditStateFollowSteadyState[];
-extern const char kBottomOmniboxEvolutionParamForceBottomOmniboxEditState[];
-
-// Feature flag to enable improvdements in the bottom omnibox.
-BASE_DECLARE_FEATURE(kBottomOmniboxEvolution);
+// Flag to hide voice and lens actions in fusebox.
+BASE_DECLARE_FEATURE(kHideFuseboxVoiceLensActions);
 
 // Whether the Safety Check Manager can automatically trigger Safety Checks.
 bool IsSafetyCheckAutorunByManagerEnabled();
@@ -274,6 +264,13 @@ bool IsOmahaServiceRefactorEnabled();
 // TODO(crbug.com/473788390): Clean-up feature once file upload menu is ready.
 BASE_DECLARE_FEATURE(kIOSChooseFromDrive);
 
+// Feature flag enabling Choose from Drive for signed out users.
+BASE_DECLARE_FEATURE(kIOSChooseFromDriveSignedOut);
+
+// Feature flag enabling dates long press to enter the Create Calendar event
+// ExperienceKit for signed out users.
+BASE_DECLARE_FEATURE(kIOSDateToCalendarSignedOut);
+
 // Feature flag enabling a fix for the Download manager mediator.
 BASE_DECLARE_FEATURE(kIOSDownloadNoUIUpdateInBackground);
 
@@ -282,6 +279,9 @@ BASE_DECLARE_FEATURE(kIOSSaveToDriveClientFolder);
 
 // Feature flag enabling the save to drive feature for signed out users.
 BASE_DECLARE_FEATURE(kIOSSaveToDriveSignedOut);
+
+// Feature flag enabling the save to photos feature for signed out users.
+BASE_DECLARE_FEATURE(kIOSSaveToPhotosSignedOut);
 
 // Feature flag to enable feed background refresh.
 // Use IsFeedBackgroundRefreshEnabled() instead of this constant directly.
@@ -444,9 +444,6 @@ bool IsContentPushNotificationsSetUpListRegistrationOnly();
 // to be deprecated, so we're not adding liquid glass support to it). Returns
 // false otherwise.
 bool IsLiquidGlassEffectEnabled();
-
-// Feature flag to enable Enhanced Autofill.
-BASE_DECLARE_FEATURE(kIOSEnhancedAutofill);
 
 // Feature flag to enable the default input accessory view.
 BASE_DECLARE_FEATURE(kIOSKeyboardAccessoryDefaultView);
@@ -811,12 +808,6 @@ extern const char kSyncedSetUpImpressionLimit[];
 // promo, as specified by the `kSyncedSetUpImpressionLimit` Finch parameter.
 int GetSyncedSetUpImpressionLimit();
 
-// Enables the MultilineBrowserOmnibox feature.
-BASE_DECLARE_FEATURE(kMultilineBrowserOmnibox);
-
-// Returns true if the MultilineBrowserOmnibox feature is enabled.
-bool IsMultilineBrowserOmniboxEnabled();
-
 // Enables the DisableKeyboardAccessory feature.
 BASE_DECLARE_FEATURE(kDisableKeyboardAccessory);
 
@@ -825,6 +816,13 @@ extern const char kDisableKeyboardAccessoryParam[];
 extern const char kDisableKeyboardAccessoryOnlySymbols[];
 extern const char kDisableKeyboardAccessoryOnlyFeatures[];
 extern const char kDisableKeyboardAccessoryCompletely[];
+
+// Enables the keyboard accessory in the Fusebox.
+BASE_DECLARE_FEATURE(kEnableFuseboxKeyboardAccessory);
+extern const char kEnableFuseboxKeyboardAccessoryParam[];
+extern const char kEnableFuseboxKeyboardAccessoryOnlySymbols[];
+extern const char kEnableFuseboxKeyboardAccessoryOnlyFeatures[];
+extern const char kEnableFuseboxKeyboardAccessoryBoth[];
 
 // Returns true if keyboard accessory is enabled.
 bool ShouldShowKeyboardAccessory();
@@ -941,5 +939,29 @@ BASE_DECLARE_FEATURE(kDisableComposeboxFromAIMNTP);
 
 // Returns true if the DisableComposeboxFromAIMNTP feature is enabled.
 bool IsDisableComposeboxFromAIMNTPEnabled();
+
+// Enables the AIMCobrowseDebugEntrypoint feature.
+BASE_DECLARE_FEATURE(kAIMCobrowseDebugEntrypoint);
+
+// Returns true if the AIMCobrowseDebugEntrypoint feature is enabled.
+bool IsAIMCobrowseDebugEntrypointEnabled();
+
+// Enables recording the number of recent days with active sessions.
+BASE_DECLARE_FEATURE(kRecordRecentActiveDays);
+
+// Returns true if kRecordRecentActiveDays is enabled.
+bool IsRecordRecentActiveDaysEnabled();
+
+// Enables the AimCobrowse feature.
+BASE_DECLARE_FEATURE(kAimCobrowse);
+
+// Returns true if the AimCobrowse feature is enabled.
+bool IsAimCobrowseEnabled();
+
+// Enables the DisableU18FeedbackIos feature.
+BASE_DECLARE_FEATURE(kDisableU18FeedbackIos);
+
+// Returns true if the DisableU18FeedbackIos feature is enabled.
+bool IsDisableU18FeedbackIosEnabled();
 
 #endif  // IOS_CHROME_BROWSER_SHARED_PUBLIC_FEATURES_FEATURES_H_

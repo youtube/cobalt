@@ -59,6 +59,7 @@
 #include "third_party/blink/renderer/core/dom/focus_params.h"
 #include "third_party/blink/renderer/core/dom/layout_tree_builder_traversal.h"
 #include "third_party/blink/renderer/core/dom/node.h"
+#include "third_party/blink/renderer/core/dom/processing_instruction.h"
 #include "third_party/blink/renderer/core/dom/pseudo_element.h"
 #include "third_party/blink/renderer/core/dom/shadow_root.h"
 #include "third_party/blink/renderer/core/dom/static_node_list.h"
@@ -1092,8 +1093,9 @@ protocol::Response InspectorDOMAgent::setAttributesAsText(
     std::optional<String> name) {
   Element* element = nullptr;
   protocol::Response response = AssertEditableElement(element_id, element);
-  if (!response.IsSuccess())
+  if (!response.IsSuccess()) {
     return response;
+  }
 
   bool is_html_document = IsA<HTMLDocument>(element->GetDocument());
 
@@ -1199,39 +1201,64 @@ protocol::Response InspectorDOMAgent::setNodeName(int node_id,
                                                   int* new_id) {
   *new_id = 0;
 
-  Element* old_element = nullptr;
-  protocol::Response response = AssertElement(node_id, old_element);
+  Node* old_node = nullptr;
+  protocol::Response response = AssertNode(node_id, old_node);
   if (!response.IsSuccess())
     return response;
 
   DummyExceptionStateForTesting exception_state;
-  Element* new_elem = old_element->GetDocument().CreateElementForBinding(
-      AtomicString(tag_name), exception_state);
-  if (exception_state.HadException())
-    return ToResponse(exception_state);
+  Node* new_node;
+  switch (old_node->getNodeType()) {
+    case Node::kElementNode: {
+      Element* old_element = To<Element>(old_node);
+      if (!old_element) {
+        return protocol::Response::ServerError("Not an element");
+      }
+      Element* new_elem = old_element->GetDocument().CreateElementForBinding(
+          AtomicString(tag_name), exception_state);
+      if (exception_state.HadException()) {
+        return ToResponse(exception_state);
+      }
 
-  // Copy over the original node's attributes.
-  new_elem->CloneAttributesFrom(*old_element);
+      // Copy over the original node's attributes.
+      new_elem->CloneAttributesFrom(*old_element);
 
-  // Copy over the original node's children.
-  for (Node* child = old_element->firstChild(); child;
-       child = old_element->firstChild()) {
-    response = dom_editor_->InsertBefore(new_elem, child, nullptr);
-    if (!response.IsSuccess())
-      return response;
+      // Copy over the original node's children.
+      for (Node* child = old_element->firstChild(); child;
+           child = old_element->firstChild()) {
+        response = dom_editor_->InsertBefore(new_elem, child, nullptr);
+        if (!response.IsSuccess()) {
+          return response;
+        }
+      }
+      new_node = new_elem;
+      break;
+    }
+    case Node::kProcessingInstructionNode: {
+      ProcessingInstruction* pi =
+          old_node->ownerDocument()->createProcessingInstruction(
+              AtomicString(tag_name), old_node->nodeValue(), exception_state);
+      if (exception_state.HadException()) {
+        return ToResponse(exception_state);
+      }
+      new_node = pi;
+      break;
+    }
+    default:
+      return protocol::Response::ServerError("Not an element");
   }
 
   // Replace the old node with the new node
-  ContainerNode* parent = old_element->parentNode();
+  ContainerNode* parent = old_node->parentNode();
   response =
-      dom_editor_->InsertBefore(parent, new_elem, old_element->nextSibling());
+      dom_editor_->InsertBefore(parent, new_node, old_node->nextSibling());
   if (!response.IsSuccess())
     return response;
-  response = dom_editor_->RemoveChild(parent, old_element);
+  response = dom_editor_->RemoveChild(parent, old_node);
   if (!response.IsSuccess())
     return response;
 
-  *new_id = PushNodePathToFrontend(new_elem);
+  *new_id = PushNodePathToFrontend(new_node);
   if (children_requested_.Contains(node_id))
     PushChildNodesToFrontend(*new_id);
   return protocol::Response::Success();
@@ -1305,8 +1332,11 @@ protocol::Response InspectorDOMAgent::setNodeValue(int node_id,
   if (!response.IsSuccess())
     return response;
 
-  if (node->getNodeType() != Node::kTextNode)
-    return protocol::Response::ServerError("Can only set value of text nodes");
+  if (node->getNodeType() != Node::kTextNode &&
+      node->getNodeType() != Node::kProcessingInstructionNode) {
+    return protocol::Response::ServerError(
+        "Can only set value of text nodes or processing instructions");
+  }
 
   return dom_editor_->SetNodeValue(node, value);
 }
@@ -1359,28 +1389,67 @@ protocol::Response InspectorDOMAgent::performSearch(
   bool include_user_agent_shadow_dom =
       optional_include_user_agent_shadow_dom.value_or(false);
 
-  unsigned query_length = whitespace_trimmed_query.length();
-  bool start_tag_found = !whitespace_trimmed_query.find('<');
-  bool start_closing_tag_found = !whitespace_trimmed_query.find("</");
-  bool end_tag_found =
-      whitespace_trimmed_query.ReverseFind('>') + 1 == query_length;
-  bool start_quote_found = !whitespace_trimmed_query.find('"');
-  bool end_quote_found =
-      whitespace_trimmed_query.ReverseFind('"') + 1 == query_length;
-  bool exact_attribute_match = start_quote_found && end_quote_found;
+  StringView tag_name_query = whitespace_trimmed_query;
+  bool start_tag_found = false;
+  if (whitespace_trimmed_query.StartsWith("</")) {
+    tag_name_query.remove_prefix(2);
+    start_tag_found = true;
+  } else if (whitespace_trimmed_query.StartsWith('<')) {
+    tag_name_query.remove_prefix(1);
+    start_tag_found = true;
+  }
+  bool end_tag_found = false;
+  if (whitespace_trimmed_query.EndsWith('>')) {
+    tag_name_query.remove_suffix(1);
+    end_tag_found = true;
+  }
 
-  String tag_name_query = whitespace_trimmed_query;
-  String attribute_query = whitespace_trimmed_query;
-  if (start_closing_tag_found)
-    tag_name_query = tag_name_query.Right(tag_name_query.length() - 2);
-  else if (start_tag_found)
-    tag_name_query = tag_name_query.Right(tag_name_query.length() - 1);
-  if (end_tag_found)
-    tag_name_query = tag_name_query.Left(tag_name_query.length() - 1);
-  if (start_quote_found)
-    attribute_query = attribute_query.Right(attribute_query.length() - 1);
-  if (end_quote_found)
-    attribute_query = attribute_query.Left(attribute_query.length() - 1);
+  // Classify what type of match should be done on element names.
+  enum { kSubstring, kExact, kPrefix, kSuffix } type;
+  if (!start_tag_found && !end_tag_found) {
+    type = kSubstring;
+  } else if (start_tag_found && end_tag_found) {
+    type = kExact;
+  } else if (start_tag_found && !end_tag_found) {
+    type = kPrefix;
+  } else {
+    type = kSuffix;
+  }
+  auto element_name_matcher = [type,
+                               tag_name_query](const String& element_name) {
+    switch (type) {
+      case kSubstring:
+        return element_name.DeprecatedFindIgnoringCase(tag_name_query) !=
+               kNotFound;
+      case kExact:
+        return DeprecatedEqualIgnoringCase(element_name, tag_name_query);
+      case kPrefix:
+        return element_name.DeprecatedStartsWithIgnoringCase(tag_name_query);
+      case kSuffix:
+        return element_name.DeprecatedEndsWithIgnoringCase(tag_name_query);
+    }
+  };
+
+  StringView attribute_query = whitespace_trimmed_query;
+  bool start_quote_found = false;
+  if (whitespace_trimmed_query.StartsWith('"')) {
+    attribute_query.remove_prefix(1);
+    start_quote_found = true;
+  }
+  bool end_quote_found = false;
+  if (whitespace_trimmed_query.EndsWith('"')) {
+    attribute_query.remove_suffix(1);
+    end_quote_found = true;
+  }
+  const bool exact_attribute_match = start_quote_found && end_quote_found;
+  auto attribute_value_matcher =
+      [exact_attribute_match, attribute_query](const String& attribute_value) {
+        if (exact_attribute_match) {
+          return DeprecatedEqualIgnoringCase(attribute_value, attribute_query);
+        }
+        return attribute_value.DeprecatedFindIgnoringCase(attribute_query) !=
+               kNotFound;
+      };
 
   HeapVector<Member<Document>> docs = Documents();
   HeapLinkedHashSet<Member<Node>> result_collector;
@@ -1440,17 +1509,7 @@ protocol::Response InspectorDOMAgent::performSearch(
           break;
         }
         case Node::kElementNode: {
-          if ((!start_tag_found && !end_tag_found &&
-               (node->nodeName().DeprecatedFindIgnoringCase(tag_name_query) !=
-                kNotFound)) ||
-              (start_tag_found && end_tag_found &&
-               DeprecatedEqualIgnoringCase(node->nodeName(), tag_name_query)) ||
-              (start_tag_found && !end_tag_found &&
-               node->nodeName().DeprecatedStartsWithIgnoringCase(
-                   tag_name_query)) ||
-              (!start_tag_found && end_tag_found &&
-               node->nodeName().DeprecatedEndsWithIgnoringCase(
-                   tag_name_query))) {
+          if (element_name_matcher(node->nodeName())) {
             result_collector.insert(node);
             break;
           }
@@ -1464,15 +1523,9 @@ protocol::Response InspectorDOMAgent::performSearch(
               result_collector.insert(node);
               break;
             }
-            size_t found_position =
-                attribute.Value().DeprecatedFindIgnoringCase(attribute_query);
-            if (found_position != kNotFound) {
-              if (!exact_attribute_match ||
-                  (!found_position &&
-                   attribute.Value().length() == attribute_query.length())) {
-                result_collector.insert(node);
-                break;
-              }
+            if (attribute_value_matcher(attribute.Value())) {
+              result_collector.insert(node);
+              break;
             }
           }
           break;
@@ -2189,6 +2242,7 @@ std::unique_ptr<protocol::DOM::Node> InspectorDOMAgent::BuildObjectForNode(
     case Node::kTextNode:
     case Node::kCommentNode:
     case Node::kCdataSectionNode:
+    case Node::kProcessingInstructionNode:
       node_value = node->nodeValue();
       if (node_value.length() > kMaxTextSize) {
         node_value =
@@ -2261,6 +2315,10 @@ std::unique_ptr<protocol::DOM::Node> InspectorDOMAgent::BuildObjectForNode(
 
     if (IsA<HTMLLinkElement>(*element)) {
       force_push_children = true;
+    }
+
+    if (element->IsAdRelated()) {
+      value->setIsAdRelated(true);
     }
 
     if (auto* template_element = DynamicTo<HTMLTemplateElement>(*element)) {
@@ -2805,9 +2863,10 @@ void InspectorDOMAgent::WillPopShadowRoot(Element* host, ShadowRoot* root) {
 void InspectorDOMAgent::DidPerformSlotDistribution(
     HTMLSlotElement* slot_element) {
   int insertion_point_id = BoundNodeId(slot_element);
-  if (insertion_point_id)
+  if (insertion_point_id) {
     GetFrontend()->distributedNodesUpdated(
         insertion_point_id, BuildDistributedNodesForSlot(slot_element));
+  }
 }
 
 void InspectorDOMAgent::FrameDocumentUpdated(LocalFrame* frame) {
@@ -2903,6 +2962,16 @@ void InspectorDOMAgent::UpdateScrollableFlag(
   GetFrontend()->scrollableFlagUpdated(nodeId, override_flag.has_value()
                                                    ? override_flag.value()
                                                    : isNodeScrollable(node));
+}
+
+void InspectorDOMAgent::UpdateAdRelatedState(Node& node, bool is_ad_related) {
+  int nodeId = BoundNodeId(&node);
+  // If node is not mapped yet -> ignore the event.
+  if (!nodeId) {
+    return;
+  }
+
+  GetFrontend()->adRelatedStateUpdated(nodeId, is_ad_related);
 }
 
 void InspectorDOMAgent::UpdateAffectedByStartingStylesFlag(

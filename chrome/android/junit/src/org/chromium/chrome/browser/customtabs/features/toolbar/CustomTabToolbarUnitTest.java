@@ -35,7 +35,6 @@ import android.app.Activity;
 import android.content.res.Resources;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
-import android.os.Handler;
 import android.os.Looper;
 import android.view.ActionMode;
 import android.view.LayoutInflater;
@@ -65,8 +64,6 @@ import org.mockito.junit.MockitoRule;
 import org.robolectric.Robolectric;
 import org.robolectric.Shadows;
 import org.robolectric.annotation.Config;
-import org.robolectric.annotation.LooperMode;
-import org.robolectric.annotation.LooperMode.Mode;
 import org.robolectric.shadows.ShadowLooper;
 
 import org.chromium.base.Callback;
@@ -74,9 +71,8 @@ import org.chromium.base.FeatureOverrides;
 import org.chromium.base.UserDataHost;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
-import org.chromium.base.task.TaskTraits;
-import org.chromium.base.task.test.ShadowPostTask;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.RobolectricUtil;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
@@ -131,8 +127,7 @@ import java.util.function.BooleanSupplier;
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(
         manifest = Config.NONE,
-        shadows = {ShadowLooper.class, ShadowPostTask.class})
-@LooperMode(Mode.PAUSED)
+        shadows = {ShadowLooper.class})
 @DisableFeatures(ChromeFeatureList.CCT_TOOLBAR_REFACTOR)
 public class CustomTabToolbarUnitTest {
     private static final GURL TEST_URL = JUnitTestGURLs.INITIAL_URL;
@@ -177,10 +172,6 @@ public class CustomTabToolbarUnitTest {
 
     @Before
     public void setup() {
-        ShadowPostTask.setTestImpl(
-                (@TaskTraits int taskTraits, Runnable task, long delay) -> {
-                    new Handler(Looper.getMainLooper()).postDelayed(task, delay);
-                });
         Mockito.doReturn(R.string.accessibility_security_btn_secure)
                 .when(mLocationBarModel)
                 .getSecurityIconContentDescriptionResourceId();
@@ -234,7 +225,7 @@ public class CustomTabToolbarUnitTest {
                 null,
                 null,
                 null,
-                /* homeButtonDisplay= */ null,
+                /* homeButtonCoordinator= */ null,
                 mThemeColorProvider,
                 mIncognitoStateProvider,
                 /* incognitoWindowCountSupplier= */ null);
@@ -387,7 +378,7 @@ public class CustomTabToolbarUnitTest {
     @Test
     public void testAboutBlankUrlIsShown() {
         setUpForAboutBlank();
-        ShadowLooper.idleMainLooper();
+        RobolectricUtil.runAllBackgroundAndUi();
         mLocationBar.onUrlChanged(false);
         assertEquals("The url bar should be visible.", View.VISIBLE, mUrlBar.getVisibility());
         assertEquals(
@@ -400,7 +391,7 @@ public class CustomTabToolbarUnitTest {
     public void testTitleIsHiddenForAboutBlank() {
         setUpForAboutBlank();
         mLocationBar.setShowTitle(true);
-        ShadowLooper.idleMainLooper();
+        RobolectricUtil.runAllBackgroundAndUi();
         mLocationBar.onUrlChanged(false);
         assertEquals("The title should be gone.", View.GONE, mTitleBar.getVisibility());
     }
@@ -409,7 +400,7 @@ public class CustomTabToolbarUnitTest {
     public void testCannotHideUrlForAboutBlank() {
         setUpForAboutBlank();
         mLocationBar.setUrlBarHidden(true);
-        ShadowLooper.idleMainLooper();
+        RobolectricUtil.runAllBackgroundAndUi();
         mLocationBar.onUrlChanged(false);
         assertEquals("The url bar should be visible.", View.VISIBLE, mUrlBar.getVisibility());
         assertEquals(

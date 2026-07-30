@@ -23,7 +23,9 @@
 #import "base/strings/utf_string_conversions.h"
 #import "base/task/sequenced_task_runner.h"
 #import "base/task/single_thread_task_runner.h"
+#import "base/test/gtest_util.h"
 #import "base/test/ios/wait_util.h"
+#import "base/test/metrics/histogram_tester.h"
 #import "base/test/scoped_feature_list.h"
 #import "base/test/values_test_util.h"
 #import "base/time/time.h"
@@ -288,6 +290,9 @@ class PageContextWrapperTest : public PlatformTest,
   std::unique_ptr<web::FakeWebState> fake_web_state_;
   std::unique_ptr<PageContext> page_helper_;
 };
+
+// TODO(crbug.com/485298671): Remove PopulatePageContext prefixes from test
+// names.
 
 // Tests that the page context is correctly populated with the page URL, title,
 // inner text, and annotated page content (including iframes).
@@ -615,8 +620,10 @@ TEST_P(PageContextWrapperTest, PopulatePageContextWithAnchors) {
             "foo");
 }
 
-// Tests that the wrapper correctly handles a failure in one of the async tasks.
+// Tests that the wrapper records a screenshot failures.
 TEST_P(PageContextWrapperTest, PopulatePageContext_SnapshotFailure) {
+  base::HistogramTester histogram_tester;
+
   auto page_structure = HtmlPage("", Paragraph("Hello"));
   std::string main_html = page_helper_->Build(page_structure);
   web::test::LoadHtml(base::SysUTF8ToNSString(main_html),
@@ -630,10 +637,52 @@ TEST_P(PageContextWrapperTest, PopulatePageContext_SnapshotFailure) {
         wrapper.shouldGetSnapshot = YES;
       });
 
-  // Verify that the callback was called with a screenshot error.
+  // Verify that the callback was called successfully even without screenshot.
+  ASSERT_TRUE(captured_response.has_value());
+  EXPECT_FALSE(captured_response.value()->has_tab_screenshot());
+
+  // Verify that the screenshot failure metric was logged.
+  histogram_tester.ExpectTotalCount(
+      "IOS.PageContext.Screenshot.Failure.Latency", 1);
+}
+
+// Tests that the wrapper correctly handles a failure in one of the async tasks.
+TEST_P(PageContextWrapperTest, PopulatePageContext_InnerTextFailure) {
+  auto page_structure = HtmlPage("", Paragraph("Hello"));
+  std::string main_html = page_helper_->Build(page_structure);
+  web::test::LoadHtml(base::SysUTF8ToNSString(main_html),
+                      test_server_.GetURL(kMainPagePath), web_state());
+
+  // Use a fake web state to cause inner text extraction to fail.
+  PageContextWrapperCallbackResponse captured_response =
+      RunPageContextWrapper(fake_web_state(), ^(PageContextWrapper* wrapper) {
+        wrapper.shouldGetInnerText = YES;
+      });
+
+  // Verify that the callback was called with an inner text error.
   ASSERT_FALSE(captured_response.has_value());
   EXPECT_EQ(captured_response.error(),
-            PageContextWrapperError::kScreenshotError);
+            PageContextWrapperError::kInnerTextError);
+}
+
+// Tests that the wrapper correctly handles a snapshot failure as non-blocking.
+TEST_P(PageContextWrapperTest, PopulatePageContext_SnapshotFailureNonBlocking) {
+  auto page_structure = HtmlPage("", Paragraph("Hello"));
+  std::string main_html = page_helper_->Build(page_structure);
+  web::test::LoadHtml(base::SysUTF8ToNSString(main_html),
+                      test_server_.GetURL(kMainPagePath), web_state());
+
+  // Set the snapshot delegate to cause a failure.
+  snapshot_delegate_.canTakeSnapshot = NO;
+
+  PageContextWrapperCallbackResponse captured_response =
+      RunPageContextWrapper(web_state(), ^(PageContextWrapper* wrapper) {
+        wrapper.shouldGetSnapshot = YES;
+      });
+
+  // Verify that the callback was called successfully even without screenshot.
+  ASSERT_TRUE(captured_response.has_value());
+  EXPECT_FALSE(captured_response.value()->has_tab_screenshot());
 }
 
 // Tests that the wrapper correctly handles a force detach signal from the
@@ -1832,10 +1881,14 @@ TEST_P(PageContextWrapperTest, PopulatePageContext_RichExtraction) {
   EXPECT_EQ(origin.value(), test_server_.GetOrigin().Serialize());
   EXPECT_EQ(main_frame.title(), "Test Title");
   EXPECT_EQ(main_frame.url(), test_server_.GetURL(kMainPagePath).spec());
+  EXPECT_TRUE(main_frame.has_document_identifier());
+  EXPECT_FALSE(main_frame.document_identifier().serialized_token().empty());
 
   const auto& root = actual_apc.root_node();
   EXPECT_EQ(root.content_attributes().attribute_type(),
             optimization_guide::proto::CONTENT_ATTRIBUTE_ROOT);
+  EXPECT_TRUE(root.content_attributes().has_common_ancestor_dom_node_id());
+  EXPECT_EQ(root.content_attributes().common_ancestor_dom_node_id(), 1);
 
   ASSERT_EQ(root.children_nodes_size(), 3);
 
@@ -1853,6 +1906,8 @@ TEST_P(PageContextWrapperTest, PopulatePageContext_RichExtraction) {
   const auto& div = root.children_nodes(0);
   EXPECT_EQ(div.content_attributes().attribute_type(),
             optimization_guide::proto::CONTENT_ATTRIBUTE_CONTAINER);
+  EXPECT_TRUE(div.content_attributes().has_common_ancestor_dom_node_id());
+  EXPECT_EQ(div.content_attributes().common_ancestor_dom_node_id(), 2);
 
   ASSERT_EQ(div.children_nodes_size(), 3);
 
@@ -1861,11 +1916,15 @@ TEST_P(PageContextWrapperTest, PopulatePageContext_RichExtraction) {
     const auto& p = div.children_nodes(0);
     EXPECT_EQ(p.content_attributes().attribute_type(),
               optimization_guide::proto::CONTENT_ATTRIBUTE_PARAGRAPH);
+    EXPECT_TRUE(p.content_attributes().has_common_ancestor_dom_node_id());
+    EXPECT_EQ(p.content_attributes().common_ancestor_dom_node_id(), 3);
 
     ASSERT_EQ(p.children_nodes_size(), 1);
     const auto& p_text = p.children_nodes(0);
     EXPECT_EQ(p_text.content_attributes().attribute_type(),
               optimization_guide::proto::CONTENT_ATTRIBUTE_TEXT);
+    EXPECT_TRUE(p_text.content_attributes().has_common_ancestor_dom_node_id());
+    EXPECT_EQ(p_text.content_attributes().common_ancestor_dom_node_id(), 4);
     EXPECT_EQ(p_text.content_attributes().text_data().text_content(),
               "Bold Text");
     EXPECT_TRUE(
@@ -1878,6 +1937,8 @@ TEST_P(PageContextWrapperTest, PopulatePageContext_RichExtraction) {
   const auto& img = div.children_nodes(1);
   EXPECT_EQ(img.content_attributes().attribute_type(),
             optimization_guide::proto::CONTENT_ATTRIBUTE_IMAGE);
+  EXPECT_TRUE(img.content_attributes().has_common_ancestor_dom_node_id());
+  EXPECT_EQ(img.content_attributes().common_ancestor_dom_node_id(), 5);
   EXPECT_EQ(img.content_attributes().image_data().image_caption(),
             "Test Image");
 
@@ -1885,6 +1946,8 @@ TEST_P(PageContextWrapperTest, PopulatePageContext_RichExtraction) {
   const auto& a = div.children_nodes(2);
   EXPECT_EQ(a.content_attributes().attribute_type(),
             optimization_guide::proto::CONTENT_ATTRIBUTE_ANCHOR);
+  EXPECT_TRUE(a.content_attributes().has_common_ancestor_dom_node_id());
+  EXPECT_EQ(a.content_attributes().common_ancestor_dom_node_id(), 6);
   EXPECT_EQ(a.content_attributes().anchor_data().url(), "https://example.com/");
   const auto& anchor_rel = a.content_attributes().anchor_data().rel();
   ASSERT_EQ(anchor_rel.size(), 2);
@@ -1905,6 +1968,8 @@ TEST_P(PageContextWrapperTest, PopulatePageContext_RichExtraction) {
   const auto& a_text = a.children_nodes(0);
   EXPECT_EQ(a_text.content_attributes().attribute_type(),
             optimization_guide::proto::CONTENT_ATTRIBUTE_TEXT);
+  EXPECT_TRUE(a_text.content_attributes().has_common_ancestor_dom_node_id());
+  EXPECT_EQ(a_text.content_attributes().common_ancestor_dom_node_id(), 7);
   EXPECT_EQ(a_text.content_attributes().text_data().text_content(), "Link");
   EXPECT_FALSE(
       a_text.content_attributes().text_data().text_style().has_emphasis());
@@ -1921,10 +1986,22 @@ TEST_P(PageContextWrapperTest, PopulatePageContext_RichExtraction) {
   const auto& iframe = root.children_nodes(1);
   EXPECT_EQ(iframe.content_attributes().attribute_type(),
             optimization_guide::proto::CONTENT_ATTRIBUTE_IFRAME);
+  EXPECT_TRUE(iframe.content_attributes().has_common_ancestor_dom_node_id());
+  EXPECT_EQ(iframe.content_attributes().common_ancestor_dom_node_id(), 8);
   EXPECT_EQ(iframe.content_attributes().iframe_data().frame_data().url(),
             page_helper_->GetUrlForId("iframe_cross").spec());
   EXPECT_EQ(iframe.content_attributes().iframe_data().frame_data().title(),
             "Child Cross Origin");
+  EXPECT_TRUE(iframe.content_attributes()
+                  .iframe_data()
+                  .frame_data()
+                  .has_document_identifier());
+  EXPECT_FALSE(iframe.content_attributes()
+                   .iframe_data()
+                   .frame_data()
+                   .document_identifier()
+                   .serialized_token()
+                   .empty());
 
   ASSERT_EQ(iframe.children_nodes_size(), 1);
 
@@ -1932,6 +2009,9 @@ TEST_P(PageContextWrapperTest, PopulatePageContext_RichExtraction) {
   const auto& iframe_root = iframe.children_nodes(0);
   EXPECT_EQ(iframe_root.content_attributes().attribute_type(),
             optimization_guide::proto::CONTENT_ATTRIBUTE_ROOT);
+  EXPECT_TRUE(
+      iframe_root.content_attributes().has_common_ancestor_dom_node_id());
+  EXPECT_EQ(iframe_root.content_attributes().common_ancestor_dom_node_id(), 1);
 
   ASSERT_EQ(iframe_root.children_nodes_size(), 1);
 
@@ -1940,11 +2020,15 @@ TEST_P(PageContextWrapperTest, PopulatePageContext_RichExtraction) {
     const auto& p = iframe_root.children_nodes(0);
     EXPECT_EQ(p.content_attributes().attribute_type(),
               optimization_guide::proto::CONTENT_ATTRIBUTE_PARAGRAPH);
+    EXPECT_TRUE(p.content_attributes().has_common_ancestor_dom_node_id());
+    EXPECT_EQ(p.content_attributes().common_ancestor_dom_node_id(), 2);
 
     ASSERT_EQ(p.children_nodes_size(), 1);
     const auto& text = p.children_nodes(0);
     EXPECT_EQ(text.content_attributes().attribute_type(),
               optimization_guide::proto::CONTENT_ATTRIBUTE_TEXT);
+    EXPECT_TRUE(text.content_attributes().has_common_ancestor_dom_node_id());
+    EXPECT_EQ(text.content_attributes().common_ancestor_dom_node_id(), 3);
     EXPECT_EQ(text.content_attributes().text_data().text_content(),
               "Child frame cross-origin text");
     EXPECT_FALSE(
@@ -1961,11 +2045,25 @@ TEST_P(PageContextWrapperTest, PopulatePageContext_RichExtraction) {
   const auto& same_origin_iframe = root.children_nodes(2);
   EXPECT_EQ(same_origin_iframe.content_attributes().attribute_type(),
             optimization_guide::proto::CONTENT_ATTRIBUTE_IFRAME);
+  EXPECT_TRUE(same_origin_iframe.content_attributes()
+                  .has_common_ancestor_dom_node_id());
+  EXPECT_EQ(
+      same_origin_iframe.content_attributes().common_ancestor_dom_node_id(), 9);
   EXPECT_EQ(same_origin_iframe.content_attributes()
                 .iframe_data()
                 .frame_data()
                 .title(),
             "Child 3");
+  EXPECT_TRUE(same_origin_iframe.content_attributes()
+                  .iframe_data()
+                  .frame_data()
+                  .has_document_identifier());
+  EXPECT_FALSE(same_origin_iframe.content_attributes()
+                   .iframe_data()
+                   .frame_data()
+                   .document_identifier()
+                   .serialized_token()
+                   .empty());
   EXPECT_EQ(
       same_origin_iframe.content_attributes().iframe_data().frame_data().url(),
       page_helper_->GetUrlForId("iframe_same").spec());
@@ -1984,6 +2082,11 @@ TEST_P(PageContextWrapperTest, PopulatePageContext_RichExtraction) {
   const auto& same_origin_iframe_root = same_origin_iframe.children_nodes(0);
   EXPECT_EQ(same_origin_iframe_root.content_attributes().attribute_type(),
             optimization_guide::proto::CONTENT_ATTRIBUTE_ROOT);
+  EXPECT_TRUE(same_origin_iframe_root.content_attributes()
+                  .has_common_ancestor_dom_node_id());
+  EXPECT_EQ(same_origin_iframe_root.content_attributes()
+                .common_ancestor_dom_node_id(),
+            1);
   ASSERT_EQ(same_origin_iframe_root.children_nodes_size(), 1);
 
   // 3.1 Paragraph
@@ -1991,11 +2094,21 @@ TEST_P(PageContextWrapperTest, PopulatePageContext_RichExtraction) {
   const auto& same_origin_iframe_p = same_origin_iframe_root.children_nodes(0);
   EXPECT_EQ(same_origin_iframe_p.content_attributes().attribute_type(),
             optimization_guide::proto::CONTENT_ATTRIBUTE_PARAGRAPH);
+  EXPECT_TRUE(same_origin_iframe_p.content_attributes()
+                  .has_common_ancestor_dom_node_id());
+  EXPECT_EQ(
+      same_origin_iframe_p.content_attributes().common_ancestor_dom_node_id(),
+      2);
 
   ASSERT_EQ(same_origin_iframe_p.children_nodes_size(), 1);
   const auto& same_origin_iframe_text = same_origin_iframe_p.children_nodes(0);
   EXPECT_EQ(same_origin_iframe_text.content_attributes().attribute_type(),
             optimization_guide::proto::CONTENT_ATTRIBUTE_TEXT);
+  EXPECT_TRUE(same_origin_iframe_text.content_attributes()
+                  .has_common_ancestor_dom_node_id());
+  EXPECT_EQ(same_origin_iframe_text.content_attributes()
+                .common_ancestor_dom_node_id(),
+            3);
   EXPECT_EQ(
       same_origin_iframe_text.content_attributes().text_data().text_content(),
       "Child frame 3 text");
@@ -2065,12 +2178,18 @@ TEST_P(PageContextWrapperTest,
   const auto& root = annotated_page_content.root_node();
   ASSERT_EQ(root.children_nodes_size(), 2);
 
+  ASSERT_TRUE(root.content_attributes().has_common_ancestor_dom_node_id());
+  EXPECT_EQ(root.content_attributes().common_ancestor_dom_node_id(), 1);
+
   // ---------------------------------------------------------
   // Section 1: Paragraph (Main Frame)
   // ---------------------------------------------------------
   //   |   - P ("Main frame text")        |
   {
     const auto& p = root.children_nodes(0);
+    ASSERT_TRUE(p.content_attributes().has_common_ancestor_dom_node_id());
+    EXPECT_EQ(p.content_attributes().common_ancestor_dom_node_id(), 2);
+
     EXPECT_EQ(p.content_attributes().attribute_type(),
               optimization_guide::proto::CONTENT_ATTRIBUTE_PARAGRAPH);
     ASSERT_EQ(p.children_nodes_size(), 1);
@@ -2093,6 +2212,11 @@ TEST_P(PageContextWrapperTest,
   //   |   |   +------------------+   |   |
   //   |   +--------------------------+   |
   const auto& middle_frame_node = root.children_nodes(1);
+  ASSERT_TRUE(
+      middle_frame_node.content_attributes().has_common_ancestor_dom_node_id());
+  EXPECT_EQ(
+      middle_frame_node.content_attributes().common_ancestor_dom_node_id(), 4);
+
   EXPECT_EQ(middle_frame_node.content_attributes().attribute_type(),
             optimization_guide::proto::CONTENT_ATTRIBUTE_IFRAME);
   EXPECT_EQ(
@@ -2101,11 +2225,18 @@ TEST_P(PageContextWrapperTest,
 
   // Verify Middle Frame Layout:
   // - Root (Grafted Root)
-  //   - Paragraph ("Middle frame text")
-  //   - Inner Frame (Grafted)
+  // - Paragraph ("Middle frame text")
+  // - Inner Frame (Grafted)
 
   ASSERT_GE(middle_frame_node.children_nodes_size(), 1);
   const auto& middle_frame_root = middle_frame_node.children_nodes(0);
+  ASSERT_TRUE(
+      middle_frame_root.content_attributes().has_common_ancestor_dom_node_id());
+
+  // Cross-Origin Root -> Resets to 1.
+  EXPECT_EQ(
+      middle_frame_root.content_attributes().common_ancestor_dom_node_id(), 1);
+
   EXPECT_EQ(middle_frame_root.content_attributes().attribute_type(),
             optimization_guide::proto::CONTENT_ATTRIBUTE_ROOT);
 
@@ -2114,6 +2245,10 @@ TEST_P(PageContextWrapperTest,
   // 2.1 Paragraph (Middle Frame)
   {
     const auto& middle_p = middle_frame_root.children_nodes(0);
+    ASSERT_TRUE(
+        middle_p.content_attributes().has_common_ancestor_dom_node_id());
+    EXPECT_EQ(middle_p.content_attributes().common_ancestor_dom_node_id(), 2);
+
     EXPECT_EQ(middle_p.content_attributes().attribute_type(),
               optimization_guide::proto::CONTENT_ATTRIBUTE_PARAGRAPH);
 
@@ -2129,6 +2264,13 @@ TEST_P(PageContextWrapperTest,
   // Section 3: Inner Frame (Grafted inside Middle)
   // ---------------------------------------------------------
   const auto& inner_frame_node = middle_frame_root.children_nodes(1);
+  ASSERT_TRUE(
+      inner_frame_node.content_attributes().has_common_ancestor_dom_node_id());
+  // Iframe structure in Middle Frame follows P (ID 2) + P Text (ID 3).
+  // So Iframe should be ID 4.
+  EXPECT_EQ(inner_frame_node.content_attributes().common_ancestor_dom_node_id(),
+            4);
+
   EXPECT_EQ(inner_frame_node.content_attributes().attribute_type(),
             optimization_guide::proto::CONTENT_ATTRIBUTE_IFRAME);
   EXPECT_EQ(
@@ -2136,14 +2278,28 @@ TEST_P(PageContextWrapperTest,
       "Child 3");
 
   // Verify Inner Frame.
+  // Origin M again, BUT nested inside Origin A.
+  // The synchronous `window.parent` walk from Inner M stops at A (security).
+  // So Inner M CANNOT see Outer M's ID map.
+  // Inner M should start a NEW ID sequence (reset).
 
   ASSERT_GE(inner_frame_node.children_nodes_size(), 1);
   const auto& inner_frame_root = inner_frame_node.children_nodes(0);
+  ASSERT_TRUE(
+      inner_frame_root.content_attributes().has_common_ancestor_dom_node_id());
+
+  // Isolated M -> Resets to 1.
+  EXPECT_EQ(inner_frame_root.content_attributes().common_ancestor_dom_node_id(),
+            1);
+
   EXPECT_EQ(inner_frame_root.content_attributes().attribute_type(),
             optimization_guide::proto::CONTENT_ATTRIBUTE_ROOT);
 
   ASSERT_GE(inner_frame_root.children_nodes_size(), 1);
   const auto& inner_p = inner_frame_root.children_nodes(0);
+  ASSERT_TRUE(inner_p.content_attributes().has_common_ancestor_dom_node_id());
+  EXPECT_EQ(inner_p.content_attributes().common_ancestor_dom_node_id(), 2);
+
   EXPECT_EQ(inner_p.content_attributes().attribute_type(),
             optimization_guide::proto::CONTENT_ATTRIBUTE_PARAGRAPH);
   ASSERT_GE(inner_p.children_nodes_size(), 1);
@@ -2699,6 +2855,485 @@ TEST_P(PageContextWrapperTest,
   const auto& pre_line_node = root_node.children_nodes(1);
   EXPECT_EQ("\n",
             pre_line_node.content_attributes().text_data().text_content());
+}
+
+// Tests the assignment of dom node ids in a complex nested cross-origin frame
+// tree. Layout: Main (M) -> Frame 1 (A) -> Frame 2 (A) -> Frame 3 (B) -> Frame
+// 4 (C) -> Frame 5 (M). This verifies that each frame has its own map of dom
+// node ids, even when they are on the same origin.
+TEST_P(PageContextWrapperTest,
+       PopulatePageContext_ApcV2_DomeNodeId_ComplexFrameNesting) {
+  if (!IsRefactored()) {
+    return;
+  }
+
+  // Layout: Main (M) -> Frame 1 (A) -> Frame 2 (A) -> Frame 3 (B) -> Frame 4
+  // (C) -> Frame 5 (M)
+  auto page_structure = HtmlPage(
+      "Main M", Paragraph("Main M"),
+      Iframe(
+          TestOrigin::kCrossA,
+          HtmlPage(
+              "Frame 1 A", Paragraph("Frame 1 A"),
+              Iframe(
+                  TestOrigin::kCrossA,
+                  HtmlPage(
+                      "Frame 2 A", Paragraph("Frame 2 A"),
+                      Iframe(TestOrigin::kCrossB,
+                             HtmlPage(
+                                 "Frame 3 B", Paragraph("Frame 3 B"),
+                                 Iframe(TestOrigin::kCrossC,
+                                        HtmlPage(
+                                            "Frame 4 C", Paragraph("Frame 4 C"),
+                                            Iframe(TestOrigin::kMain,
+                                                   HtmlPage("Frame 5 M",
+                                                            Paragraph("Frame "
+                                                                      "5 M")),
+                                                   "frame5_m")),
+                                        "frame4_c")),
+                             "frame3_b")),
+                  "frame2_a")),
+          "frame1_a"));
+
+  std::string main_html = page_helper_->Build(page_structure);
+  web::test::LoadHtml(base::SysUTF8ToNSString(main_html),
+                      test_server_.GetURL(kMainPagePath), web_state());
+
+  // Wait for 6 frames (Main + 5 iframes).
+  auto* frames_manager = web_state()->GetWebFramesManager(
+      extractor_feature()->GetSupportedContentWorld());
+  ASSERT_TRUE(base::test::ios::WaitUntilConditionOrTimeout(base::Seconds(20), ^{
+    return frames_manager->GetAllWebFrames().size() == 6;
+  }));
+
+  std::unique_ptr<optimization_guide::proto::PageContext> page_context;
+  PageContextWrapperConfig config =
+      PageContextWrapperConfigBuilder().SetUseRichExtraction(true).Build();
+
+  PageContextWrapperCallbackResponse response = RunPageContextWrapperWithConfig(
+      web_state(), config,
+      ^(PageContextWrapper* wrapper) {
+        wrapper.shouldGetAnnotatedPageContent = YES;
+      },
+      base::Seconds(10));
+
+  ASSERT_TRUE(response.has_value());
+  page_context = std::move(response.value());
+  ASSERT_TRUE(page_context);
+
+  const auto& annotated_page_content = page_context->annotated_page_content();
+  const auto& root = annotated_page_content.root_node();
+
+  // Verification
+
+  // 1. Main M
+  // Expected IDs: Root(1), P(2), PText(3), Iframe(4).
+  ASSERT_TRUE(root.content_attributes().has_common_ancestor_dom_node_id());
+  EXPECT_EQ(root.content_attributes().common_ancestor_dom_node_id(), 1);
+
+  ASSERT_GE(root.children_nodes_size(), 2);
+  const auto& main_p = root.children_nodes(0);
+  EXPECT_EQ(main_p.content_attributes().common_ancestor_dom_node_id(), 2);
+
+  ASSERT_EQ(main_p.children_nodes_size(), 1);
+  const auto& main_p_text = main_p.children_nodes(0);
+  EXPECT_EQ(main_p_text.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_TEXT);
+  EXPECT_EQ(main_p_text.content_attributes().common_ancestor_dom_node_id(), 3);
+
+  const auto& frame1_node = root.children_nodes(1);  // Iframe structure
+  EXPECT_EQ(frame1_node.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_IFRAME);
+  EXPECT_EQ(frame1_node.content_attributes().common_ancestor_dom_node_id(), 4);
+
+  // 2. Frame 1 A (Resets - Isolated)
+  // Expected IDs: Root(1), P(2), PText(3), Iframe(4).
+  ASSERT_GE(frame1_node.children_nodes_size(), 1);
+  const auto& frame1_root = frame1_node.children_nodes(0);
+  EXPECT_EQ(frame1_root.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_ROOT);
+  EXPECT_EQ(frame1_root.content_attributes().common_ancestor_dom_node_id(), 1);
+  ASSERT_GE(frame1_root.children_nodes_size(), 2);
+
+  const auto& frame1_p = frame1_root.children_nodes(0);
+  EXPECT_EQ(frame1_p.content_attributes().common_ancestor_dom_node_id(), 2);
+  const auto& frame1_p_text = frame1_p.children_nodes(0);
+  EXPECT_EQ(frame1_p_text.content_attributes().common_ancestor_dom_node_id(),
+            3);
+
+  const auto& frame2_node = frame1_root.children_nodes(1);
+  EXPECT_EQ(frame2_node.content_attributes().common_ancestor_dom_node_id(), 4);
+
+  // 3. Frame 2 A (Resets - Isolated from Frame 1 A)
+  // Expected IDs: Root(1), P(2), PText(3), Iframe(4).
+  ASSERT_GE(frame2_node.children_nodes_size(), 1);
+  const auto& frame2_root = frame2_node.children_nodes(0);
+  EXPECT_EQ(frame2_root.content_attributes().common_ancestor_dom_node_id(), 1);
+  ASSERT_GE(frame2_root.children_nodes_size(), 2);
+  const auto& frame2_p = frame2_root.children_nodes(0);
+  EXPECT_EQ(frame2_p.content_attributes().common_ancestor_dom_node_id(), 2);
+  const auto& frame2_p_text = frame2_p.children_nodes(0);
+  EXPECT_EQ(frame2_p_text.content_attributes().common_ancestor_dom_node_id(),
+            3);
+
+  const auto& frame3_node = frame2_root.children_nodes(1);
+  EXPECT_EQ(frame3_node.content_attributes().common_ancestor_dom_node_id(), 4);
+
+  // 4. Frame 3 B (Resets - Isolated)
+  // Expected IDs: Root(1), P(2), PText(3), Iframe(4).
+  ASSERT_GE(frame3_node.children_nodes_size(), 1);
+  const auto& frame3_root = frame3_node.children_nodes(0);
+  EXPECT_EQ(frame3_root.content_attributes().common_ancestor_dom_node_id(), 1);
+  ASSERT_GE(frame3_root.children_nodes_size(), 2);
+
+  const auto& frame3_p = frame3_root.children_nodes(0);
+  EXPECT_EQ(frame3_p.content_attributes().common_ancestor_dom_node_id(), 2);
+  const auto& frame3_p_text = frame3_p.children_nodes(0);
+  EXPECT_EQ(frame3_p_text.content_attributes().common_ancestor_dom_node_id(),
+            3);
+
+  const auto& frame4_node = frame3_root.children_nodes(1);
+  EXPECT_EQ(frame4_node.content_attributes().common_ancestor_dom_node_id(), 4);
+
+  // 5. Frame 4 C (Resets - Isolated)
+  // Expected IDs: Root(1), P(2), PText(3), Iframe(4).
+  ASSERT_GE(frame4_node.children_nodes_size(), 1);
+  const auto& frame4_root = frame4_node.children_nodes(0);
+  EXPECT_EQ(frame4_root.content_attributes().common_ancestor_dom_node_id(), 1);
+  ASSERT_GE(frame4_root.children_nodes_size(), 2);
+
+  const auto& frame4_p = frame4_root.children_nodes(0);
+  EXPECT_EQ(frame4_p.content_attributes().common_ancestor_dom_node_id(), 2);
+  const auto& frame4_p_text = frame4_p.children_nodes(0);
+  EXPECT_EQ(frame4_p_text.content_attributes().common_ancestor_dom_node_id(),
+            3);
+
+  const auto& frame5_node = frame4_root.children_nodes(1);
+  EXPECT_EQ(frame5_node.content_attributes().common_ancestor_dom_node_id(), 4);
+
+  // 6. Frame 5 M (Resets - Isolated from Main M)
+  // Expected IDs: Root(1), P(2), PText(3).
+  ASSERT_GE(frame5_node.children_nodes_size(), 1);
+  const auto& frame5_root = frame5_node.children_nodes(0);
+  EXPECT_EQ(frame5_root.content_attributes().common_ancestor_dom_node_id(), 1);
+  ASSERT_GE(frame5_root.children_nodes_size(), 1);
+
+  const auto& frame5_p = frame5_root.children_nodes(0);
+  EXPECT_EQ(frame5_p.content_attributes().common_ancestor_dom_node_id(), 2);
+  const auto& frame5_p_text = frame5_p.children_nodes(0);
+  EXPECT_EQ(frame5_p_text.content_attributes().common_ancestor_dom_node_id(),
+            3);
+}
+
+// Tests that frame selections are correctly extracted from multiple frames
+// simultaneously (Main frame, Same-origin iframe, Cross-origin iframe).
+//
+// The page layout is as follows:
+//      +-----------------------------------------+
+//      | Main page (Origin M)                    |
+//      | - Selection: "Main frame text"          |
+//      |                                         |
+//      |   +--------------------------+          |
+//      |   | Iframe 1 (Origin M)      |          |
+//      |   | - Selection:             |          |
+//      |   |   "Same origin text"     |          |
+//      |   +--------------------------+          |
+//      |                                         |
+//      |   +--------------------------+          |
+//      |   | Iframe 2 (Origin A)      |          |
+//      |   | - Selection:             |          |
+//      |   |   "Cross origin text"    |          |
+//      |   +--------------------------+          |
+//      +-----------------------------------------+
+TEST_P(PageContextWrapperTest, PopulatePageContext_ApcV2_FrameInteractionInfo) {
+  if (!IsRefactored()) {
+    GTEST_SKIP() << "ApcV2 not supported for the non-refactored APC wrapper";
+  }
+
+  auto page_structure = HtmlPage(
+      "Main", Paragraph("Main frame text"),
+      Iframe(TestOrigin::kMain,
+             HtmlPage("Child Same Origin", Paragraph("Same origin text")),
+             "iframe_same"),
+      Iframe(TestOrigin::kCrossA,
+             HtmlPage("Child Cross Origin", Paragraph("Cross origin text")),
+             "iframe_cross"));
+
+  std::string main_html = page_helper_->Build(page_structure);
+  web::test::LoadHtml(base::SysUTF8ToNSString(main_html),
+                      test_server_.GetURL(kMainPagePath), web_state());
+
+  // Wait for all 3 frames to load (Main, Same, Cross)
+  ASSERT_TRUE(base::test::ios::WaitUntilConditionOrTimeout(base::Seconds(10), ^{
+    return web_state()
+               ->GetWebFramesManager(web::ContentWorld::kIsolatedWorld)
+               ->GetAllWebFrames()
+               .size() == 3;
+  }));
+
+  // Helper to select text in a frame
+  auto select_text = [](web::WebFrame* frame, const std::string& text) {
+    NSString* script =
+        [NSString stringWithFormat:
+                      @"(() => {"
+                      @"  const p = Array.from(document.querySelectorAll('p'))"
+                      @"    .find(p => p.innerText.includes('%s'));"
+                      @"  if (!p) return;"
+                      @"  const range = document.createRange();"
+                      @"  const node = p.firstChild;"
+                      @"  range.selectNode(node);"
+                      @"  const selection = window.getSelection();"
+                      @"  selection.removeAllRanges();"
+                      @"  selection.addRange(range);"
+                      @"})()",
+                      text.c_str()];
+    frame->ExecuteJavaScript(base::SysNSStringToUTF16(script));
+  };
+
+  web::WebFramesManager* frames_manager =
+      web_state()->GetWebFramesManager(web::ContentWorld::kIsolatedWorld);
+
+  GURL iframe_same_url = page_helper_->GetUrlForId("iframe_same");
+  GURL iframe_cross_url = page_helper_->GetUrlForId("iframe_cross");
+
+  // Do selection in each frame by URL
+  for (web::WebFrame* frame : frames_manager->GetAllWebFrames()) {
+    if (frame->IsMainFrame()) {
+      select_text(frame, "Main frame text");
+    } else if (frame->GetUrl() == iframe_same_url) {
+      select_text(frame, "Same origin text");
+    } else if (frame->GetUrl() == iframe_cross_url) {
+      select_text(frame, "Cross origin text");
+    }
+  }
+
+  PageContextWrapperConfig config =
+      PageContextWrapperConfigBuilder().SetUseRichExtraction(true).Build();
+
+  PageContextWrapperCallbackResponse response = RunPageContextWrapperWithConfig(
+      web_state(), config, ^(PageContextWrapper* wrapper) {
+        wrapper.shouldGetAnnotatedPageContent = YES;
+      });
+
+  ASSERT_TRUE(response.has_value());
+  std::unique_ptr<optimization_guide::proto::PageContext> page_context =
+      std::move(response.value());
+
+  const auto& annotated_page_content = page_context->annotated_page_content();
+  const auto& root_node = annotated_page_content.root_node();
+
+  // 1. Verify Main Frame Selection
+  const auto& main_frame_data = annotated_page_content.main_frame_data();
+  EXPECT_TRUE(main_frame_data.frame_interaction_info().has_selection());
+  EXPECT_EQ(
+      main_frame_data.frame_interaction_info().selection().selected_text(),
+      "Main frame text");
+
+  const optimization_guide::proto::ContentNode* same_origin_iframe_node =
+      &root_node.children_nodes(1);
+  const optimization_guide::proto::ContentNode* cross_iframe_node =
+      &root_node.children_nodes(2);
+
+  ASSERT_TRUE(cross_iframe_node);
+  EXPECT_TRUE(cross_iframe_node->content_attributes()
+                  .iframe_data()
+                  .frame_data()
+                  .frame_interaction_info()
+                  .has_selection());
+  EXPECT_EQ(cross_iframe_node->content_attributes()
+                .iframe_data()
+                .frame_data()
+                .frame_interaction_info()
+                .selection()
+                .selected_text(),
+            "Cross origin text");
+
+  ASSERT_TRUE(same_origin_iframe_node);
+  EXPECT_TRUE(same_origin_iframe_node->content_attributes()
+                  .iframe_data()
+                  .frame_data()
+                  .frame_interaction_info()
+                  .has_selection());
+  EXPECT_EQ(same_origin_iframe_node->content_attributes()
+                .iframe_data()
+                .frame_data()
+                .frame_interaction_info()
+                .selection()
+                .selected_text(),
+            "Same origin text");
+}
+
+// Tests that the page interaction info is correctly populated for the main
+// frame.
+TEST_P(PageContextWrapperTest,
+       PopulatePageContext_RichExtraction_PageInteractionInfo) {
+  if (!IsRefactored()) {
+    GTEST_SKIP() << "ApcV2 not supported for the non-refactored APC wrapper";
+  }
+
+  auto page_structure =
+      HtmlPage("Main", RawHtml("<input id='myInput' type='text'>"));
+  std::string main_html = page_helper_->Build(page_structure);
+  web::test::LoadHtml(base::SysUTF8ToNSString(main_html),
+                      test_server_.GetURL(kMainPagePath), web_state());
+
+  // Focus the input.
+  CallJavascript("document.getElementById('myInput').focus();");
+
+  PageContextWrapperConfig config =
+      PageContextWrapperConfigBuilder().SetUseRichExtraction(true).Build();
+
+  PageContextWrapperCallbackResponse response = RunPageContextWrapperWithConfig(
+      web_state(), config, ^(PageContextWrapper* wrapper) {
+        wrapper.shouldGetAnnotatedPageContent = YES;
+      });
+
+  ASSERT_TRUE(response.has_value());
+  std::unique_ptr<optimization_guide::proto::PageContext> page_context =
+      std::move(response.value());
+
+  const auto& annotated_page_content = page_context->annotated_page_content();
+  const auto& page_interaction_info =
+      annotated_page_content.page_interaction_info();
+
+  EXPECT_TRUE(page_interaction_info.has_focused_node_id());
+  // Verify that there is a valid node ID assigned to the focused node.
+  EXPECT_GT(page_interaction_info.focused_node_id(), 0);
+}
+
+// Tests that interactive nodes (focused) are forced into the APC tree even if
+// they are generic containers that would normally be flattened.
+TEST_P(
+    PageContextWrapperTest,
+    PopulatePageContext_RichExtraction_GenericContainer_IncludeInteractiveNodes) {
+  if (!IsRefactored()) {
+    GTEST_SKIP() << "ApcV2 not supported for the non-refactored APC wrapper";
+  }
+
+  // A generic div is usually skipped (flattened) by the extraction logic.
+  // Giving it tabindex='-1' makes it focusable.
+  // We focus it, so it SHOULD be included in the tree as a CONTAINER with the
+  // new logic.
+  auto page_structure =
+      HtmlPage("Main", RawHtml("<div id='target' tabindex='-1'>Target</div>"));
+  std::string main_html = page_helper_->Build(page_structure);
+  web::test::LoadHtml(base::SysUTF8ToNSString(main_html),
+                      test_server_.GetURL(kMainPagePath), web_state());
+
+  CallJavascript("document.getElementById('target').focus();");
+
+  PageContextWrapperConfig config =
+      PageContextWrapperConfigBuilder().SetUseRichExtraction(true).Build();
+
+  PageContextWrapperCallbackResponse response = RunPageContextWrapperWithConfig(
+      web_state(), config, ^(PageContextWrapper* wrapper) {
+        wrapper.shouldGetAnnotatedPageContent = YES;
+      });
+
+  ASSERT_TRUE(response.has_value());
+  const auto& apc = response.value()->annotated_page_content();
+  const auto& interaction = apc.page_interaction_info();
+
+  ASSERT_TRUE(interaction.has_focused_node_id());
+  int focused_id = interaction.focused_node_id();
+  EXPECT_GT(focused_id, 0);
+
+  // Traverse tree to find the focused node.
+  const auto& root_node = apc.root_node();
+  const optimization_guide::proto::ContentNode* target_node = nullptr;
+  for (const auto& child : root_node.children_nodes()) {
+    if (child.content_attributes().common_ancestor_dom_node_id() ==
+        focused_id) {
+      target_node = &child;
+      break;
+    }
+  }
+
+  ASSERT_TRUE(target_node) << "Focused node with ID " << focused_id
+                           << " not found in APC tree";
+  EXPECT_EQ(target_node->content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_CONTAINER);
+
+  ASSERT_EQ(target_node->children_nodes_size(), 1);
+  const auto& text_node = target_node->children_nodes(0);
+  EXPECT_EQ(text_node.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_TEXT);
+  EXPECT_EQ(text_node.content_attributes().text_data().text_content(),
+            "Target");
+}
+
+TEST_P(PageContextWrapperTest, PopulatePageContext_RichExtraction_Text_Size) {
+  if (!IsRefactored()) {
+    return;
+  }
+
+  auto page_structure =
+      HtmlPage("RichExtraction_Text_Size",
+               RawHtml("<div style=\"font-size: 16px\">"
+                       "<p style=\"font-size: 32px\">Extra Large</p>"
+                       "<p style=\"font-size: 19px\">Large</p>"
+                       "<p style=\"font-size: 16px\">Medium</p>"
+                       "<p style=\"font-size: 11px\">Small</p>"
+                       "<p style=\"font-size: 10px\">Extra Small</p>"
+                       "</div>"));
+
+  std::string main_html = page_helper_->Build(page_structure);
+  web::test::LoadHtml(base::SysUTF8ToNSString(main_html),
+                      test_server_.GetURL(kMainPagePath), web_state());
+
+  PageContextWrapperConfig config =
+      PageContextWrapperConfigBuilder().SetUseRichExtraction(true).Build();
+
+  PageContextWrapperCallbackResponse response = RunPageContextWrapperWithConfig(
+      web_state(), config, ^(PageContextWrapper* wrapper) {
+        wrapper.shouldGetAnnotatedPageContent = YES;
+      });
+
+  ASSERT_TRUE(response.has_value());
+  std::unique_ptr<optimization_guide::proto::PageContext> page_context =
+      std::move(response.value());
+
+  ASSERT_TRUE(page_context);
+  ASSERT_TRUE(page_context->has_annotated_page_content());
+
+  const auto& annotated_page_content = page_context->annotated_page_content();
+  const auto& root_node = annotated_page_content.root_node();
+
+  ASSERT_EQ(5, root_node.children_nodes_size());
+
+  const std::vector<optimization_guide::proto::TextSize> expected_sizes = {
+      optimization_guide::proto::TEXT_SIZE_XL,         // "Extra Large"
+      optimization_guide::proto::TEXT_SIZE_L,          // "Large"
+      optimization_guide::proto::TEXT_SIZE_M_DEFAULT,  // "Medium"
+      optimization_guide::proto::TEXT_SIZE_S,          // "Small"
+      optimization_guide::proto::TEXT_SIZE_XS,         // "Extra Small"
+  };
+
+  for (size_t i = 0; i < expected_sizes.size(); ++i) {
+    const auto& p_node = root_node.children_nodes(i);
+    ASSERT_EQ(p_node.children_nodes_size(), 1);
+    const auto& text_node = p_node.children_nodes(0);
+    EXPECT_TRUE(text_node.content_attributes()
+                    .text_data()
+                    .text_style()
+                    .has_text_size());
+    EXPECT_EQ(static_cast<int>(expected_sizes[i]),
+              static_cast<int>(text_node.content_attributes()
+                                   .text_data()
+                                   .text_style()
+                                   .text_size()));
+  }
+}
+
+// Tests that attempting to trigger two extractions on one wrapper fails.
+TEST_P(PageContextWrapperTest, EnforcesOneTimeUse_Populate) {
+  PageContextWrapper* wrapper =
+      [[PageContextWrapper alloc] initWithWebState:web_state()
+                                completionCallback:base::DoNothing()];
+
+  [wrapper populatePageContextFieldsAsync];
+
+  EXPECT_CHECK_DEATH([wrapper populatePageContextFieldsAsync]);
 }
 
 INSTANTIATE_TEST_SUITE_P(,

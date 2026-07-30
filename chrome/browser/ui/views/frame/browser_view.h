@@ -19,7 +19,6 @@
 #include "base/task/cancelable_task_tracker.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
-#include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window.h"
@@ -284,6 +283,10 @@ class BrowserView : public BrowserWindow,
   VerticalTabStripRegionView* vertical_tab_strip_region_view_for_testing()
       const {
     return vertical_tab_strip_region_view_.get();
+  }
+
+  ProjectsPanelView* projects_panel_container_for_testing() const {
+    return projects_panel_container_;
   }
 
   // Accessor for the TabStrip.

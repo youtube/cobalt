@@ -63,6 +63,10 @@ String PerformanceEventTiming::FallbackReasonToString(FallbackReason reason) {
       return "MacOSArtificialEvent";
     case FallbackReason::kDoesNotNeedNextPaint:
       return "DoesNotNeedNextPaint";
+    case FallbackReason::kInteractionInterruptedByContextMenu:
+      return "InteractionInterruptedByContextMenu";
+    case FallbackReason::kWindowDestroyed:
+      return "WindowDestroyed";
     default:
       return "None";
   }

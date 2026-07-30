@@ -27,11 +27,34 @@ using UpsertPrivatePassCallback = base::test::TestFuture<
 // Tests that GetRequestUrlPath returns the correct URL path.
 TEST_F(UpsertPrivatePassRequestTest, GetRequestUrlPath) {
   UpsertPrivatePassCallback callback;
-  UpsertPrivatePassRequest request(PrivatePass(), callback.GetCallback());
+  PrivatePass pass;
+  pass.mutable_passport();
+  UpsertPrivatePassRequest request(pass, callback.GetCallback());
 
   EXPECT_EQ(request.GetRequestUrlPath(), "v1/e/privatePasses:upsert");
 }
 
+// Tests that GetRequestHeaders returns the correct headers.
+TEST_F(UpsertPrivatePassRequestTest, GetRequestHeaders) {
+  UpsertPrivatePassCallback callback;
+  {
+    PrivatePass pass;
+    pass.mutable_driver_license();
+    UpsertPrivatePassRequest request(pass, callback.GetCallback());
+    net::HttpRequestHeaders headers = request.GetRequestHeaders();
+    EXPECT_EQ(headers.GetHeader("EES-S7E-Mode"), "proto");
+    EXPECT_EQ(headers.GetHeader("EES-Proto-Tokenization"), "1.2.2;574");
+  }
+
+  {
+    PrivatePass pass;
+    pass.mutable_passport();
+    UpsertPrivatePassRequest request(pass, callback.GetCallback());
+    net::HttpRequestHeaders headers = request.GetRequestHeaders();
+    EXPECT_EQ(headers.GetHeader("EES-S7E-Mode"), "proto");
+    EXPECT_EQ(headers.GetHeader("EES-Proto-Tokenization"), "1.3.2;574");
+  }
+}
 // Tests that GetRequestContent generates the correct proto request body.
 TEST_F(UpsertPrivatePassRequestTest, GetRequestContent) {
   PrivatePass pass;
@@ -40,8 +63,6 @@ TEST_F(UpsertPrivatePassRequestTest, GetRequestContent) {
   passport->set_owner_name("owner");
   passport->set_passport_number("number");
   passport->set_country_code("US");
-  passport->set_issue_date_unix_epoch_micros(123456789);
-  passport->set_expiration_date_unix_epoch_micros(987654321);
 
   UpsertPrivatePassCallback callback;
   UpsertPrivatePassRequest request(pass, callback.GetCallback());
@@ -55,13 +76,6 @@ TEST_F(UpsertPrivatePassRequestTest, GetRequestContent) {
   EXPECT_EQ(request_proto.private_pass().passport().passport_number(),
             "number");
   EXPECT_EQ(request_proto.private_pass().passport().country_code(), "US");
-  EXPECT_EQ(
-      request_proto.private_pass().passport().issue_date_unix_epoch_micros(),
-      123456789);
-  EXPECT_EQ(request_proto.private_pass()
-                .passport()
-                .expiration_date_unix_epoch_micros(),
-            987654321);
   EXPECT_EQ(request_proto.client_info().chrome_client_info().version(),
             version_info::GetVersionNumber());
 }
@@ -69,7 +83,9 @@ TEST_F(UpsertPrivatePassRequestTest, GetRequestContent) {
 // Tests that OnResponse handles a successful HTTP response.
 TEST_F(UpsertPrivatePassRequestTest, OnResponse_Success) {
   UpsertPrivatePassCallback callback;
-  UpsertPrivatePassRequest request(PrivatePass(), callback.GetCallback());
+  PrivatePass pass;
+  pass.mutable_passport();
+  UpsertPrivatePassRequest request(pass, callback.GetCallback());
 
   api::UpsertPrivatePassResponse response_proto;
   response_proto.mutable_private_pass()->set_pass_id("returned-id");
@@ -84,7 +100,9 @@ TEST_F(UpsertPrivatePassRequestTest, OnResponse_Success) {
 // Tests that OnResponse handles an error HTTP response.
 TEST_F(UpsertPrivatePassRequestTest, OnResponse_Error) {
   UpsertPrivatePassCallback callback;
-  UpsertPrivatePassRequest request(PrivatePass(), callback.GetCallback());
+  PrivatePass pass;
+  pass.mutable_passport();
+  UpsertPrivatePassRequest request(pass, callback.GetCallback());
 
   std::move(request).OnResponse(base::unexpected(
       WalletHttpClient::WalletRequestError::kAccessTokenFetchFailed));
@@ -98,7 +116,9 @@ TEST_F(UpsertPrivatePassRequestTest, OnResponse_Error) {
 // Tests that OnResponse handles a parse error.
 TEST_F(UpsertPrivatePassRequestTest, OnResponse_ParseError) {
   UpsertPrivatePassCallback callback;
-  UpsertPrivatePassRequest request(PrivatePass(), callback.GetCallback());
+  PrivatePass pass;
+  pass.mutable_passport();
+  UpsertPrivatePassRequest request(pass, callback.GetCallback());
 
   std::move(request).OnResponse("invalid-proto");
 

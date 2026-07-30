@@ -204,7 +204,7 @@ bool IsAppBundlePromoEphemeralCardEnabled() {
 
 BASE_FEATURE(kDefaultBrowserMagicStackIos,
 #if BUILDFLAG(IS_IOS)
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 #else
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
@@ -213,11 +213,6 @@ constexpr base::FeatureParam<int> kMaxDefaultBrowserMagicStackIosImpressions{
     &kDefaultBrowserMagicStackIos,
     "max_default_browser_magic_stack_ios_impressions",
     /*default_value=*/6};
-
-bool IsDefaultBrowserMagicStackEnabled() {
-  return base::FeatureList::IsEnabled(
-      segmentation_platform::features::kDefaultBrowserMagicStackIos);
-}
 
 BASE_FEATURE(kAndroidTipsNotifications, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -240,6 +235,22 @@ constexpr base::FeatureParam<int> kStartTimeMinutes{&kAndroidTipsNotifications,
 constexpr base::FeatureParam<int> kWindowTimeMinutes{&kAndroidTipsNotifications,
                                                      "window_time_minutes",
                                                      /*default_value=*/120};
+
+constexpr base::FeatureParam<bool> kEnableEnhancedSafeBrowsingTip{
+    &kAndroidTipsNotifications, "enable_enhanced_safe_browsing_tip",
+    /*default_value=*/true};
+
+constexpr base::FeatureParam<bool> kEnableQuickDeleteTip{
+    &kAndroidTipsNotifications, "enable_quick_delete_tip",
+    /*default_value=*/true};
+
+constexpr base::FeatureParam<bool> kEnableGoogleLensTip{
+    &kAndroidTipsNotifications, "enable_google_lens_tip",
+    /*default_value=*/true};
+
+constexpr base::FeatureParam<bool> kEnableBottomOmniboxTip{
+    &kAndroidTipsNotifications, "enable_bottom_omnibox_tip",
+    /*default_value=*/true};
 
 BASE_FEATURE(kAndroidTipsNotificationsV2, base::FEATURE_DISABLED_BY_DEFAULT);
 

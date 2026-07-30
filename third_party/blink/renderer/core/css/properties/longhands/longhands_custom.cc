@@ -1581,7 +1581,8 @@ const CSSValue* BorderImageSlice::CSSValueFromComputedStyleInternal(
     const LayoutObject*,
     bool allow_visited_style,
     CSSValuePhase value_phase) const {
-  return ComputedStyleUtils::ValueForNinePieceImageSlice(style.BorderImage());
+  return ComputedStyleUtils::ValueForNinePieceImageSlice(style.BorderImage(),
+                                                         style.EffectiveZoom());
 }
 
 const CSSValue* BorderImageSlice::InitialValue() const {
@@ -5205,7 +5206,14 @@ void InternalVisitedColor::ApplyInherit(StyleResolverState& state) const {
     builder.SetInternalVisitedColor(StyleColor(
         state.ParentStyle()->VisitedDependentColor(GetCSSPropertyColor())));
   } else {
-    builder.SetInternalVisitedColor(state.ParentStyle()->Color());
+    // In principle, we should always inherit the InternalVisitedColor()
+    // of the parent, but (as an optimization) we don't store anything in
+    // that field for elements outside of visited links.
+    const StyleColor& inherited_color =
+        (state.ParentStyle()->InsideLink() == EInsideLink::kInsideVisitedLink)
+            ? state.ParentStyle()->InternalVisitedColor()
+            : state.ParentStyle()->Color();
+    builder.SetInternalVisitedColor(inherited_color);
   }
   builder.SetInternalVisitedColorIsCurrentColor(
       state.ParentStyle()->InternalVisitedColorIsCurrentColor());
@@ -11792,7 +11800,8 @@ const CSSValue* WebkitMaskBoxImageSlice::CSSValueFromComputedStyleInternal(
     const LayoutObject*,
     bool allow_visited_style,
     CSSValuePhase value_phase) const {
-  return ComputedStyleUtils::ValueForNinePieceImageSlice(style.MaskBoxImage());
+  return ComputedStyleUtils::ValueForNinePieceImageSlice(style.MaskBoxImage(),
+                                                         style.EffectiveZoom());
 }
 
 const CSSValue* WebkitMaskBoxImageSource::ParseSingleValue(
@@ -12662,10 +12671,20 @@ void WebkitTransformOriginX::ApplyInherit(StyleResolverState& state) const {
 
 const CSSValue* Overlay::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
-    const LayoutObject*,
+    const LayoutObject* object,
     bool allow_visited_style,
     CSSValuePhase value_phase) const {
-  return CSSIdentifierValue::Create(style.Overlay());
+  if (!RuntimeEnabledFeatures::OverlayGlobalRuleRemovalEnabled()) {
+    return CSSIdentifierValue::Create(style.Overlay());
+  }
+  if (object) {
+    if (auto* element = DynamicTo<Element>(object->GetNode())) {
+      if (element->IsInTopLayer()) {
+        return CSSIdentifierValue::Create(style.Overlay());
+      }
+    }
+  }
+  return CSSIdentifierValue::Create(EOverlay::kNone);
 }
 
 const CSSValue* WebkitTransformOriginY::ParseSingleValue(

@@ -172,6 +172,7 @@ std::vector<const char*> GetEnabledToggles(
 
   enabled_toggles.push_back("disable_robustness");
   enabled_toggles.push_back("disable_lazy_clear_for_mapped_at_creation_buffer");
+  enabled_toggles.push_back("dump_shaders_on_failure");
 
 #if BUILDFLAG(IS_WIN)
   if (backend_type == wgpu::BackendType::D3D11) {
@@ -281,6 +282,9 @@ std::vector<wgpu::FeatureName> GetRequiredFeatures(
       wgpu::FeatureName::SharedBufferMemoryD3D12Resource,
 
       wgpu::FeatureName::TransientAttachments,
+
+      wgpu::FeatureName::DawnLoadResolveTexture,
+      wgpu::FeatureName::DawnPartialLoadResolveTexture,
       wgpu::FeatureName::DawnTexelCopyBufferRowAlignment,
       wgpu::FeatureName::FlexibleTextureViews,
   };
@@ -290,17 +294,12 @@ std::vector<wgpu::FeatureName> GetRequiredFeatures(
       continue;
     }
     features.push_back(feature);
-  }
 
-  // Both MSAARenderToSingleSampled and DawnLoadResolveTexture are used to
-  // unresolve a single-sampled texture for multi-sampled rendering.
-  // We prefer the former if it's available,
-  if (adapter.HasFeature(wgpu::FeatureName::MSAARenderToSingleSampled)) {
-    features.push_back(wgpu::FeatureName::MSAARenderToSingleSampled);
-  } else if (adapter.HasFeature(wgpu::FeatureName::DawnLoadResolveTexture)) {
-    features.push_back(wgpu::FeatureName::DawnLoadResolveTexture);
-    if (adapter.HasFeature(wgpu::FeatureName::DawnPartialLoadResolveTexture)) {
-      features.push_back(wgpu::FeatureName::DawnPartialLoadResolveTexture);
+    // Enabling MSAARenderToSingleSampled causes performance regression without
+    // TransientAttachments support.
+    if (feature == wgpu::FeatureName::TransientAttachments &&
+        adapter.HasFeature(wgpu::FeatureName::MSAARenderToSingleSampled)) {
+      features.push_back(wgpu::FeatureName::MSAARenderToSingleSampled);
     }
   }
 
@@ -397,17 +396,17 @@ const char* BackendTypeToString(wgpu::BackendType backend_type) {
 wgpu::BackendType DawnContextProvider::GetDefaultBackendType() {
   const auto switch_value =
       base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
-          switches::kSkiaGraphiteBackend);
-  if (switch_value == switches::kSkiaGraphiteBackendDawnD3D11) {
+          switches::kSkiaGraphiteDawnBackend);
+  if (switch_value == switches::kSkiaGraphiteDawnBackendD3D11) {
     return wgpu::BackendType::D3D11;
-  } else if (switch_value == switches::kSkiaGraphiteBackendDawnD3D12) {
+  } else if (switch_value == switches::kSkiaGraphiteDawnBackendD3D12) {
     return wgpu::BackendType::D3D12;
-  } else if (switch_value == switches::kSkiaGraphiteBackendDawnMetal) {
+  } else if (switch_value == switches::kSkiaGraphiteDawnBackendMetal) {
     return wgpu::BackendType::Metal;
-  } else if (switch_value == switches::kSkiaGraphiteBackendDawnOpenGLES) {
+  } else if (switch_value == switches::kSkiaGraphiteDawnBackendOpenGLES) {
     return wgpu::BackendType::OpenGLES;
-  } else if (switch_value == switches::kSkiaGraphiteBackendDawnSwiftshader ||
-             switch_value == switches::kSkiaGraphiteBackendDawnVulkan) {
+  } else if (switch_value == switches::kSkiaGraphiteDawnBackendSwiftshader ||
+             switch_value == switches::kSkiaGraphiteDawnBackendVulkan) {
     return wgpu::BackendType::Vulkan;
   }
 
@@ -430,8 +429,8 @@ wgpu::BackendType DawnContextProvider::GetDefaultBackendType() {
 // static
 bool DawnContextProvider::DefaultForceFallbackAdapter() {
   return base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
-             switches::kSkiaGraphiteBackend) ==
-             switches::kSkiaGraphiteBackendDawnSwiftshader ||
+             switches::kSkiaGraphiteDawnBackend) ==
+             switches::kSkiaGraphiteDawnBackendSwiftshader ||
          gl::GetANGLEImplementation() == gl::ANGLEImplementation::kSwiftShader;
 }
 

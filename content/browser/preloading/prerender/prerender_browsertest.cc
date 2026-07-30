@@ -349,11 +349,13 @@ class PrerenderBrowserTest : public ContentBrowserTest,
     kCrossSite,
   };
 
-  PrerenderBrowserTest() {
+  explicit PrerenderBrowserTest()
+      : PrerenderBrowserTest(/*force_disable_prerender2_fallback=*/true) {}
+  explicit PrerenderBrowserTest(bool force_disable_prerender2_fallback) {
     prerender_helper_ = std::make_unique<test::PrerenderTestHelper>(
         base::BindRepeating(&PrerenderBrowserTest::web_contents,
                             base::Unretained(this)),
-        /*force_disable_prerender2_fallback=*/true);
+        force_disable_prerender2_fallback);
 
     // Input suppression during paintholding interferes with the input event
     // dispatches to top frames.  Disabling kDropInputEventsWhilePaintHolding
@@ -1069,6 +1071,55 @@ class PrerenderBrowserTest : public ContentBrowserTest,
       pagehide_event_receiver_;
   base::test::ScopedFeatureList feature_list_;
 };
+
+// Test with Prerender2FallbackPrefetchSpecRules enabled/disabled.
+class PrerenderBrowserTestFallbackEnabledDisabled
+    : public PrerenderBrowserTest,
+      public ::testing::WithParamInterface<bool> {
+ public:
+  PrerenderBrowserTestFallbackEnabledDisabled()
+      : PrerenderBrowserTest(/*force_disable_prerender2_fallback=*/false) {
+    if (IsPrerender2FallbackPrefetchSpecRulesEnabled()) {
+      scoped_feature_list_prerender2_fallback_.InitWithFeaturesAndParameters(
+          {
+              {
+                  features::kPrerender2FallbackPrefetchSpecRules,
+                  {
+                      {
+                          features::
+                              kPrerender2FallbackPrefetchUseBlockUntilHeadTimetout
+                                  .name,
+                          "false",
+                      },
+                      {
+                          features::kPrerender2FallbackPrefetchSchedulerPolicy
+                              .name,
+                          "NotUse",
+                      },
+                  },
+              },
+          },
+          {});
+    } else {
+      scoped_feature_list_prerender2_fallback_.InitWithFeaturesAndParameters(
+          {}, {
+                  features::kPrerender2FallbackPrefetchSpecRules,
+              });
+    }
+  }
+
+  bool IsPrerender2FallbackPrefetchSpecRulesEnabled() const {
+    return GetParam();
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_prerender2_fallback_;
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    /* no prefix */,
+    PrerenderBrowserTestFallbackEnabledDisabled,
+    ::testing::Bool());
 
 class NoVarySearchPrerenderBrowserTest : public PrerenderBrowserTest {
  public:
@@ -5897,7 +5948,8 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, MainFrameFragmentNavigation) {
 }
 
 // Makes sure that activation on navigation for a pop-up window doesn't happen.
-IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, Activation_PopUpWindow) {
+IN_PROC_BROWSER_TEST_P(PrerenderBrowserTestFallbackEnabledDisabled,
+                       Activation_PopUpWindow) {
   // Navigate to an initial page.
   const GURL kInitialUrl = GetUrl("/empty.html");
   ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
@@ -5908,11 +5960,19 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, Activation_PopUpWindow) {
   PrerenderHostId host_id = AddPrerender(kPrerenderingUrl);
 
   // Attempt to activate the prerendered page for a pop-up window. This should
-  // fail and fallback to network request.
+  // fail.
   ASSERT_EQ(GetRequestCount(kPrerenderingUrl), 1);
   EXPECT_EQ("LOADED", EvalJs(web_contents(),
                              JsReplace("open_window($1)", kPrerenderingUrl)));
-  EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 2);
+
+  if (IsPrerender2FallbackPrefetchSpecRulesEnabled()) {
+    // It uses prefetch ahead of prerender and doesn't fallback to a network
+    // request.
+    EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 1);
+  } else {
+    // Otherwise, it falls back to a network request.
+    EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 2);
+  }
 
   // Activation shouldn't happen, so the prerender host should not be consumed.
   EXPECT_EQ(GetHostForUrl(kPrerenderingUrl), host_id);
@@ -5920,7 +5980,8 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, Activation_PopUpWindow) {
 
 // Makes sure that activation on navigation for a page that has a pop-up window
 // doesn't happen.
-IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, Activation_PageWithPopUpWindow) {
+IN_PROC_BROWSER_TEST_P(PrerenderBrowserTestFallbackEnabledDisabled,
+                       Activation_PageWithPopUpWindow) {
   // Navigate to an initial page.
   const GURL kInitialUrl = GetUrl("/empty.html");
   ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
@@ -5937,12 +5998,19 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, Activation_PageWithPopUpWindow) {
             EvalJs(web_contents(), JsReplace("open_window($1)", kWindowUrl)));
 
   // Attempt to activate the prerendered page for the top-level frame. This
-  // should fail and fallback to network request because the pop-up window
-  // exists.
+  // should fail because the pop-up window exists.
   ASSERT_EQ(GetRequestCount(kPrerenderingUrl), 1);
   NavigatePrimaryPage(kPrerenderingUrl);
   EXPECT_EQ(web_contents()->GetLastCommittedURL(), kPrerenderingUrl);
-  EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 2);
+
+  if (IsPrerender2FallbackPrefetchSpecRulesEnabled()) {
+    // It uses prefetch ahead of prerender and doesn't fallback to a network
+    // request.
+    EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 1);
+  } else {
+    // Otherwise, it falls back to a network request.
+    EXPECT_EQ(GetRequestCount(kPrerenderingUrl), 2);
+  }
 
   // The prerender host should be canceled.
   ExpectFinalStatusForSpeculationRule(
@@ -5953,7 +6021,7 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, Activation_PageWithPopUpWindow) {
 // will be nullified after it is open. The window loses the communication with
 // the opener but it is still treated as an auxiliary context in the browser
 // internal, so the activation should fail.
-IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
+IN_PROC_BROWSER_TEST_P(PrerenderBrowserTestFallbackEnabledDisabled,
                        Activation_PageWithPopUpWindow_OpenerIsNullified) {
   // Navigate to an initial page.
   const GURL initial_url = GetUrl("/empty.html");
@@ -5979,12 +6047,19 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
   nav_observer.WaitForNavigationFinished();
 
   // Attempt to activate the prerendered page for the top-level frame. This
-  // should fail and fallback to network request because the pop-up window
-  // exists.
+  // should fail because the pop-up window exists.
   ASSERT_EQ(GetRequestCount(prerendering_url), 1);
   NavigatePrimaryPage(prerendering_url);
   EXPECT_EQ(web_contents()->GetLastCommittedURL(), prerendering_url);
-  EXPECT_EQ(GetRequestCount(prerendering_url), 2);
+
+  if (IsPrerender2FallbackPrefetchSpecRulesEnabled()) {
+    // It uses prefetch ahead of prerender and doesn't fallback to a network
+    // request.
+    EXPECT_EQ(GetRequestCount(prerendering_url), 1);
+  } else {
+    // Otherwise, it falls back to a network request.
+    EXPECT_EQ(GetRequestCount(prerendering_url), 2);
+  }
 
   // The prerender host should be canceled.
   ExpectFinalStatusForSpeculationRule(
@@ -8230,7 +8305,8 @@ IN_PROC_BROWSER_TEST_F(
 // Tests that if PrerenderHostRegistry is attempting to activate a pending
 // prerender host, it will be successfully canceled with the final status of
 // `kActivatedBeforeStarted`.
-IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, ActivateBeforePrerenderStarts) {
+IN_PROC_BROWSER_TEST_P(PrerenderBrowserTestFallbackEnabledDisabled,
+                       ActivateBeforePrerenderStarts) {
   net::test_server::ControllableHttpResponse response(embedded_test_server(),
                                                       "/empty.html?prerender1");
   ASSERT_TRUE(embedded_test_server()->Start());
@@ -8270,24 +8346,56 @@ IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest, ActivateBeforePrerenderStarts) {
       PrerenderFinalStatus::kActivatedBeforeStarted, 1);
 
   ukm::SourceId ukm_source_id = PrimaryPageSourceId();
-  ExpectPreloadingAttemptUkm({
-      attempt_ukm_entry_builder().BuildEntry(
-          ukm_source_id, PreloadingType::kPrerender,
-          PreloadingEligibility::kEligible, PreloadingHoldbackStatus::kAllowed,
-          PreloadingTriggeringOutcome::kRunning,
-          PreloadingFailureReason::kUnspecified,
-          /*accurate=*/false,
-          /*ready_time=*/std::nullopt,
-          blink::mojom::SpeculationEagerness::kImmediate),
-      attempt_ukm_entry_builder().BuildEntry(
-          ukm_source_id, PreloadingType::kPrerender,
-          PreloadingEligibility::kEligible, PreloadingHoldbackStatus::kAllowed,
-          PreloadingTriggeringOutcome::kTriggeredButPending,
-          PreloadingFailureReason::kUnspecified,
-          /*accurate=*/true,
-          /*ready_time=*/std::nullopt,
-          blink::mojom::SpeculationEagerness::kImmediate),
-  });
+  if (IsPrerender2FallbackPrefetchSpecRulesEnabled()) {
+    // We don't have a nice way to wait prefetch in this case. Check only UKMs for prerender.
+    auto attempt_entries = test_ukm_recorder()->GetEntries(
+      Preloading_Attempt::kEntryName, test::kPreloadingAttemptUkmMetrics);
+    EXPECT_EQ(attempt_entries.size(), 4);
+    std::vector<ukm::TestUkmRecorder::HumanReadableUkmEntry> prerender_entries = {};
+    prerender_entries.push_back(attempt_entries[1]);
+    prerender_entries.push_back(attempt_entries[3]);
+    EXPECT_THAT(prerender_entries,
+                testing::UnorderedElementsAreArray({
+         attempt_ukm_entry_builder().BuildEntry(
+             ukm_source_id, PreloadingType::kPrerender,
+             PreloadingEligibility::kEligible,
+             PreloadingHoldbackStatus::kAllowed,
+             PreloadingTriggeringOutcome::kRunning,
+             PreloadingFailureReason::kUnspecified,
+             /*accurate=*/false,
+             /*ready_time=*/std::nullopt,
+             blink::mojom::SpeculationEagerness::kImmediate),
+         attempt_ukm_entry_builder().BuildEntry(
+             ukm_source_id, PreloadingType::kPrerender,
+             PreloadingEligibility::kEligible,
+             PreloadingHoldbackStatus::kAllowed,
+             PreloadingTriggeringOutcome::kTriggeredButPending,
+             PreloadingFailureReason::kUnspecified,
+             /*accurate=*/true,
+             /*ready_time=*/std::nullopt,
+             blink::mojom::SpeculationEagerness::kImmediate)}));
+  } else {
+    ExpectPreloadingAttemptUkm({
+        attempt_ukm_entry_builder().BuildEntry(
+            ukm_source_id, PreloadingType::kPrerender,
+            PreloadingEligibility::kEligible,
+            PreloadingHoldbackStatus::kAllowed,
+            PreloadingTriggeringOutcome::kRunning,
+            PreloadingFailureReason::kUnspecified,
+            /*accurate=*/false,
+            /*ready_time=*/std::nullopt,
+            blink::mojom::SpeculationEagerness::kImmediate),
+        attempt_ukm_entry_builder().BuildEntry(
+            ukm_source_id, PreloadingType::kPrerender,
+            PreloadingEligibility::kEligible,
+            PreloadingHoldbackStatus::kAllowed,
+            PreloadingTriggeringOutcome::kTriggeredButPending,
+            PreloadingFailureReason::kUnspecified,
+            /*accurate=*/true,
+            /*ready_time=*/std::nullopt,
+            blink::mojom::SpeculationEagerness::kImmediate),
+    });
+  }
 }
 
 // Test that if 1 more than the limit number of URLs are specified in the
@@ -10530,7 +10638,8 @@ IN_PROC_BROWSER_TEST_F(PrerenderTargetHintBrowserTest,
           ->frame_tree()
           .controller()
           .GetSessionStorageNamespace(prerender_web_contents->GetSiteInstance()
-                                          ->GetStoragePartitionConfig())
+                                          ->GetSecurityPrincipal()
+                                          .GetStoragePartitionConfig())
           ->id();
   EXPECT_EQ(
       "prerendering",
@@ -10571,14 +10680,16 @@ IN_PROC_BROWSER_TEST_F(PrerenderTargetHintBrowserTest,
       prerender_web_contents->GetPrimaryFrameTree()
           .controller()
           .GetSessionStorageNamespace(prerender_web_contents->GetSiteInstance()
-                                          ->GetStoragePartitionConfig())
+                                          ->GetSecurityPrincipal()
+                                          .GetStoragePartitionConfig())
           ->id());
   EXPECT_NE(
       prerender_session_storage_id_before_activation,
       initiator_web_contents->GetPrimaryFrameTree()
           .controller()
           .GetSessionStorageNamespace(prerender_web_contents->GetSiteInstance()
-                                          ->GetStoragePartitionConfig())
+                                          ->GetSecurityPrincipal()
+                                          .GetStoragePartitionConfig())
           ->id());
 
   // The navigation occurred in a new WebContents, so the original WebContents

@@ -2385,6 +2385,10 @@ are declared in tools/grit/grit_args.gni.
                desc="On the chrome://downloads page, the text for the toast shown when the user tried to copy a download's url but the operation failed.">
         Failed to copy link
       </message>
+      <message name="IDS_DOWNLOADS_TOAST_COPIED_LINK"
+               desc="On the chrome://downloads page, the text for the toast shown when the user copies a download's url.">
+        Link copied to clipboard
+      </message>
 
       <message name="IDS_EMAIL_VERIFIED" desc="Toast message to notify the user when their email is automatically verified by the browser.">
         Email automaticaly verified
@@ -4206,6 +4210,14 @@ are declared in tools/grit/grit_args.gni.
         Allow for This Site
       </message>
     </if>
+
+      <!-- JS optimizations reload infobar -->
+      <message name="IDS_JS_OPTIMIZATION_SITE_RELOAD_TEXT" desc="Label displayed in an infobar when user has chosen to re-enable JS Optimizations. Tells user that in order to apply the new setting, they need to reload the page.">
+        Reload this page to apply your updated settings on this site
+      </message>
+      <message name="IDS_JS_OPTIMIZATION_SITE_RELOAD_BUTTON" desc="The text of the button to proceed with the page reload for enabling JS Optimizations">
+        Reload
+      </message>
 
       <!-- Win certificate selector dialog strings.  -->
       <if expr="toolkit_views">
@@ -8702,8 +8714,17 @@ Keep your key file in a safe place. You will need it to create new versions of y
       <message name="IDS_NTP_COMPOSE_MAX_FILES_REACHED_ERROR" desc="Error text for the maximum number of files that can be uploaded. [ICU Syntax]">
         {FILE_LIMIT, plural, =1 {Upload 1 file to use with your question} other {Upload up to # files to use with your question}}
       </message>
+      <message name="IDS_NTP_COMPOSE_MAX_IMAGES_REACHED_ERROR" desc="Error text for the maximum number of files that can be uploaded. [ICU Syntax]">
+        {FILE_LIMIT, plural, =1 {Upload 1 image to use with your question} other {Upload up to # images to use with your question}}
+      </message>
+      <message name="IDS_NTP_COMPOSE_MAX_PDFS_REACHED_ERROR" desc="Error text for the maximum number of files that can be uploaded. [ICU Syntax]">
+        {FILE_LIMIT, plural, =1 {Upload 1 .pdf file to use with your question} other {Upload up to # .pdf files to use with your question}}
+      </message>
       <message name="IDS_NTP_COMPOSE_FILE_TYPE_NOT_ALLOWED_ERROR" desc="Error text displayed when user attempts to upload file in non-supported format.">
         Can't upload.  Try a different file format.
+      </message>
+      <message name="IDS_NTP_COMPOSE_FILE_UPLOAD_NOT_ALLOWED" desc="Error text displayed when a user attempts to upload file when attachments are not allowed in the current context.">
+        Can’t upload. Attachments are not allowed.
       </message>
       <message name="IDS_NTP_COMPOSE_FILE_UPLOAD_FAILED">
         Unexpected error, file upload failed.
@@ -9763,14 +9784,11 @@ Keep your key file in a safe place. You will need it to create new versions of y
       <message name="IDS_READING_MODE_HIGH_CONTRAST_COLOR_LABEL" desc="Combobox option for setting the color theme for the reading mode feature.">
         High contrast
       </message>
-      <message name="IDS_READING_MODE_LOW_CONTRAST_COLOR_LABEL" desc="Combobox option for setting the color theme for the reading mode feature.">
-        Low contrast
+      <message name="IDS_READING_MODE_LOW_CONTRAST_LIGHT_COLOR_LABEL" desc="Combobox option for setting the color theme for the reading mode feature.">
+        Low contrast light
       </message>
-      <message name="IDS_READING_MODE_SEPIA_LIGHT_COLOR_LABEL" desc="Combobox option for setting the color theme for the reading mode feature.">
-        Sepia light
-      </message>
-      <message name="IDS_READING_MODE_SEPIA_DARK_COLOR_LABEL" desc="Combobox option for setting the color theme for the reading mode feature.">
-        Sepia dark
+      <message name="IDS_READING_MODE_LOW_CONTRAST_DARK_COLOR_LABEL" desc="Combobox option for setting the color theme for the reading mode feature.">
+        Low contrast dark
       </message>
       <message name="IDS_READING_MODE_BLUE_COLOR_LABEL" desc="Combobox option for setting the color theme for the reading mode feature.">
         Blue
@@ -10054,21 +10072,23 @@ Keep your key file in a safe place. You will need it to create new versions of y
       <message name="IDS_TOOLTIP_OVERFLOW_BUTTON" desc="The tooltip for the overflow button">
         Hidden toolbar buttons
       </message>
-      <message name="IDS_TOOLTIP_EXTENSIONS_BUTTON_ALL_EXTENSIONS_BLOCKED" desc="The tooltip for the extensions button when all the extensions are blocked on the current site.">
+      <if expr="enable_extensions_core">
+      <message name="IDS_TOOLTIP_EXTENSIONS_BUTTON_ALL_EXTENSIONS_BLOCKED" desc="The tooltip for the extensions button when all the extensions are blocked on the current site." formatter_data="android_java">
         Extensions not allowed on this site
       </message>
-      <message name="IDS_TOOLTIP_EXTENSIONS_BUTTON_ANY_EXTENSION_HAS_ACCESS" desc="The tooltip for the extensions button when any extension has access to the current site.">
+      <message name="IDS_TOOLTIP_EXTENSIONS_BUTTON_ANY_EXTENSION_HAS_ACCESS" desc="The tooltip for the extensions button when any extension has access to the current site." formatter_data="android_java">
         Extensions allowed on this site
       </message>
       <message name="IDS_ACC_NAME_EXTENSIONS_BUTTON" desc="The accessible text for the extensions button.">
         Extensions menu
       </message>
-      <message name="IDS_ACC_NAME_EXTENSIONS_BUTTON_ALL_EXTENSIONS_BLOCKED" desc="The accessible text for the extensions button when all the extensions are blocked on the current site.">
+          <message name="IDS_ACC_NAME_EXTENSIONS_BUTTON_ALL_EXTENSIONS_BLOCKED" desc="The accessible text for the extensions button when all the extensions are blocked on the current site." formatter_data="android_java">
         Extensions not allowed on this site. Select to open menu
       </message>
-      <message name="IDS_ACC_NAME_EXTENSIONS_BUTTON_ANY_EXTENSION_HAS_ACCESS" desc="The accessible text for the extensions button when all the extensions are blocked on the current site.">
+      <message name="IDS_ACC_NAME_EXTENSIONS_BUTTON_ANY_EXTENSION_HAS_ACCESS" desc="The accessible text for the extensions button when all the extensions are blocked on the current site." formatter_data="android_java">
         Extensions allowed on this site. Select to open menu
       </message>
+      </if>
       <message name="IDS_TOOLTIP_EXTENSIONS_SITE_ACCESS_BUTTON" desc="The tooltip for the extensions site access button">
         Extension permissions
       </message>
@@ -10473,6 +10493,24 @@ Keep your key file in a safe place. You will need it to create new versions of y
       <message name="IDS_TAB_GROUPS_NO_TAB_GROUPS" desc="Text indicating the user has no Tab groups.">
         Organize your tabs by grouping them together and label them with a custom name and color
       </message>
+      <message name="IDS_TAB_SEARCH_BUTTON_CXMENU_UNPIN" desc="Name of the tab search button context menu item for unpinning tab search.">
+        Unpin
+      </message>
+      <message name="IDS_TAB_SEARCH_BUTTON_CXMENU_PIN" desc="Name of the tab search button context menu item for pinning tab search.">
+        Pin
+      </message>
+      <message name="IDS_PROJECTS_PANEL_BUTTON_CXMENU_UNPIN" desc="Name of the projects panel button context menu item for unpinning the projects panel.">
+        Unpin
+      </message>
+      <message name="IDS_PROJECTS_PANEL_BUTTON_CXMENU_PIN" desc="Name of the projects panel button context menu item for pinning the projects panel.">
+        Pin
+      </message>
+      <message name="IDS_EVERYTHING_MENU_BUTTON_CXMENU_UNPIN" desc="Name of the everything menu button context menu item for unpinning the everything menu.">
+        Unpin
+      </message>
+      <message name="IDS_EVERYTHING_MENU_BUTTON_CXMENU_PIN" desc="Name of the everything menu button context menu item for pinning the everything menu.">
+        Pin
+      </message>
       <!-- /Projects Panel Strings -->
 
       <!-- Strings for intent picker -->
@@ -10591,7 +10629,7 @@ Keep your key file in a safe place. You will need it to create new versions of y
           No thanks
         </message>
         <message name="IDS_IOS_DESKTOP_PASSWORD_PROMO_BUBBLE_SUBTITLE" desc="The subtitle for the iOS desktop password promo bubble which lets the user know they can access their saved password on the Google Password Manager.">
-          You can access it on Google Password Manager.
+          You can access it on Google Password Manager
         </message>
         <message name="IDS_IOS_DESKTOP_PASSWORD_PROMO_NOTIFICATION_BODY" desc="The body for the iOS desktop Password promo notification.">
           Save and autofill your passwords to easily sign in to sites and apps
@@ -12606,11 +12644,11 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google 
         </message>
 
         <message name="IDS_RESUMPTION_RAIL_IPH_TITLE" desc="The title text of an IPH that shows up to educate users about the Resumption Rail feature entrypoint.">
-          Continue your tasks
+          Tab groups have moved
         </message>
 
-        <message name="IDS_RESUMPTION_RAIL_IPH_BODY" desc="The text of an IPH that shows up to educate users about the Resumption Rail feature entrypoint.">
-          Quickly switch between your tab groups and your recent AI conversations without losing your place.
+        <message name="IDS_RESUMPTION_RAIL_IPH_BODY" desc="The body text of an IPH that shows up to educate users about the Resumption Rail feature entrypoint.">
+          We’re moving tab groups to give your bookmarks more breathing room.
         </message>
 
       <!-- Saved Tab Group Error -->
@@ -13650,6 +13688,9 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google 
       </message>
       <message name="IDS_DEFAULT_BROWSER_BUBBLE_DIALOG_SET_DEFAULT_LABEL" desc="Text corresponding to the button in Windows System Settings. Used inside the instructions.">
         Set default
+      </message>
+      <message name="IDS_DEFAULT_BROWSER_BUBBLE_DIALOG_YES_LABEL" desc="Text corresponding to the Yes button in Windows notification. Used inside the instructions.">
+        Yes
       </message>
       <message name="IDS_DEFAULT_BROWSER_BUBBLE_DIALOG_SET_LATER_LABEL" desc="Label for the 'Set later' (decline) button.">
         Set later
@@ -19417,10 +19458,6 @@ Please help our engineers fix this problem. Tell us what happened right before y
       <message name="IDS_COPIED_TO_CLIPBOARD_TOAST_BODY" desc="Text on a toast notification that is shown when an item has been copied to clipboard.">
         Copied to clipboard
       </message>
-      <!-- TODO(crbug.com/477845712): Add translation when the string is finalized. -->
-      <message name="IDS_AUTOFILL_AI_TOAST_BUTTON" desc="Button text on a toast notification that allows a user to open the 'Your saved info' page in settings." translateable="false">
-        Manage
-      </message>
     </if>
 
     <if expr="is_android">
@@ -19541,11 +19578,8 @@ Please help our engineers fix this problem. Tell us what happened right before y
     <message name="IDS_IWA_INSTALLER_CONFIRM_TITLE" desc="Title of the confirmation popup that appears immediately before Isolated Web App installation">
       Do you want to continue and allow this software to make changes to your device?
     </message>
-    <message name="IDS_IWA_INSTALLER_CONFIRM_SUBTITLE" desc="Subtitle of the confirmation popup that appears immediately before Isolated Web App installation. $1 = IDS_IWA_INSTALLER_CONFIRM_LEARN_MORE">
-      To keep your device secure, you should only run and install software from trusted sources and developers. <ph name="LEARN_MORE">$1<ex>Learn more</ex></ph>
-    </message>
-    <message name="IDS_IWA_INSTALLER_CONFIRM_LEARN_MORE" desc="Link to a learn more page shown in the confirmation popup that appears immediately before Isolated Web App installation">
-      Learn more
+    <message name="IDS_IWA_INSTALLER_CONFIRM_SUBTITLE" desc="Subtitle of the confirmation popup that appears immediately before Isolated Web App installation.">
+      To keep your device secure, you should only run and install software from trusted sources and developers.
     </message>
     <message name="IDS_IWA_INSTALLER_CONFIRM_CONTINUE" desc="Text of the continue button in the confirmation popup that appears immediately before Isolated Web App installation">
       Continue
@@ -19807,8 +19841,11 @@ Please help our engineers fix this problem. Tell us what happened right before y
 
     <!-- Chrome-specific PDF strings -->
     <if expr="enable_glic and enable_pdf">
-      <message name="IDS_PDF_GLIC_SUMMARIZE" desc="Button label for the button to summarize PDFs.">
+      <message name="IDS_PDF_GLIC_SUMMARIZE" translateable="false" desc="Button label for the button to summarize PDFs.">
         Summarize
+      </message>
+      <message name="IDS_PDF_GLIC_SUMMARIZE_TOOLTIP" translateable="false" desc="Tooltip for the button to summarize PDFs with Gemini.">
+        Summarize with Gemini
       </message>
     </if>
 
@@ -19906,6 +19943,18 @@ Please help our engineers fix this problem. Tell us what happened right before y
     </message>
     <message name="IDS_TIPS_NOTIFICATIONS_PASSWORD_AUTOFILL_SUBTITLE" desc="Subtitle for the password autofill tip notification.">
       Create, save, and manage your passwords so you can easily sign in to sites and apps using Chrome
+    </message>
+    <message name="IDS_TIPS_NOTIFICATIONS_SIGNIN_TITLE" desc="Title for the sign-in tip notification. [CHAR_LIMIT=32]">
+      Make Chrome your own
+    </message>
+    <message name="IDS_TIPS_NOTIFICATIONS_SIGNIN_SUBTITLE" desc="Subtitle for the sign-in tip notification.">
+      Sign in to easily continue on all your devices
+    </message>
+    <message name="IDS_TIPS_NOTIFICATIONS_CREATE_TAB_GROUPS_TITLE" desc="Title for the create tab groups tip notification. [CHAR_LIMIT=32]">
+      Tidy up with tab groups
+    </message>
+    <message name="IDS_TIPS_NOTIFICATIONS_CREATE_TAB_GROUPS_SUBTITLE" desc="Subtitle for the create tab groups tip notification.">
+      Create tab groups that automatically save and update across all your devices
     </message>
 
     <!-- chrome://updater -->
@@ -20223,6 +20272,16 @@ Please help our engineers fix this problem. Tell us what happened right before y
         Source
       </message>
     </if>
+    <!-- chrome://feedback/report-unsafe-site -->
+    <message name="IDS_REPORT_UNSAFE_SITE_DIALOG_INCLUDE_SCREENSHOT_CHECKBOX_LABEL" desc="Label for checkbox to include screenshot in report unsafe-site-report sent to Google">
+      Include screenshot
+    </message>
+    <message name="IDS_REPORT_UNSAFE_SITE_DIALOG_SEND_BUTTON_LABEL" desc="Dialog button label to send unsafe-site-report to Google">
+      Send
+    </message>
+    <message name="IDS_REPORT_UNSAFE_SITE_DIALOG_URL_LABEL" desc="Label which denotes URL of the unsafe-site in report-unsafe-site dialog">
+      URL
+    </message>
   </messages>
 </release>
 </grit>

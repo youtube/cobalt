@@ -88,6 +88,42 @@ suite('PostMessageHandlerTest', () => {
         0, browserProxy.handler.getCallCount('onWebviewMessage'),
         'onWebviewMessage should not be called for wrong origin');
   });
+
+  test('handles input-plate-bounds-update message', async function() {
+    simulateLoadStart();
+    simulateLoadCommit();
+
+    let callbackCalled = false;
+    let receivedRect: any = null;
+    let receivedOccluders: any = null;
+    postMessageHandler.setInputPlateBoundsUpdateCallback((rect, occluders) => {
+      callbackCalled = true;
+      receivedRect = rect;
+      receivedOccluders = occluders;
+    });
+
+    const rect = {
+      top: 10,
+      left: 20,
+      width: 100,
+      height: 200,
+      right: 120,
+      bottom: 210,
+    };
+    const occluders = [rect];
+    const message = {
+      'type': 'input-plate-bounds-update',
+      'bounds-rect': rect,
+      'occluders': occluders,
+    };
+
+    simulateMessage(message, TARGET_ORIGIN);
+    await flushTasks();
+
+    assertTrue(callbackCalled, 'Callback should be called');
+    assertDeepEquals(rect, receivedRect, 'Rect should match');
+    assertDeepEquals(occluders, receivedOccluders, 'Occluders should match');
+  });
 });
 
 suite('PostMessageHandlerTestWithMockTimer', () => {

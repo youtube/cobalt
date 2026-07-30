@@ -665,36 +665,44 @@ const SavedTabGroup* SavedTabGroupModel::MergeRemoteGroupMetadata(
   // For unpinned groups, `pinned_index` should be std::nullopt since its
   // position doesn't matter.
   const int index = GetIndexOf(guid).value();
-  const std::optional<size_t> pinned_index =
+  const std::optional<size_t> old_pinned_index =
       saved_tab_groups_[index].is_pinned() ? std::optional<size_t>(index)
                                            : std::nullopt;
 
-  // Merge group and get `preferred_pinned_index`.
   saved_tab_groups_[index].MergeRemoteGroupMetadata(
       title, color, position, creator_cache_guid, last_updater_cache_guid,
       update_time);
   if (saved_tab_groups_[index].is_shared_tab_group()) {
     saved_tab_groups_[index].SetUpdatedByAttribution(updated_by);
   }
-  std::optional<size_t> preferred_pinned_index =
-      saved_tab_groups_[index].position();
 
-  if (pinned_index != preferred_pinned_index) {
-    int new_index = 0;
-    if (preferred_pinned_index.has_value()) {
-      // If the group is pinned, find the pinned position to insert.
-      new_index = preferred_pinned_index.value();
-    } else {
-      // If the group is unpinned, find the first unpinned group index to
-      // insert.
-      for (const SavedTabGroup& group : saved_tab_groups_) {
-        if (group.is_pinned()) {
-          ++new_index;
+  if (tab_groups::IsProjectsPanelFeatureEnabled()) {
+    if (position.has_value()) {
+      int new_index = position.value();
+      ReorderGroupFromSync(guid, std::clamp(new_index, 0, Count() - 1));
+    }
+  } else {
+    // Get `preferred_pinned_index` after merging the group.
+    std::optional<size_t> preferred_pinned_index =
+        saved_tab_groups_[index].position();
+
+    if (old_pinned_index != preferred_pinned_index) {
+      int new_index = 0;
+      if (preferred_pinned_index.has_value()) {
+        // If the group is pinned, find the pinned position to insert.
+        new_index = preferred_pinned_index.value();
+      } else {
+        // If the group is unpinned, find the first unpinned group index to
+        // insert.
+        for (const SavedTabGroup& group : saved_tab_groups_) {
+          if (group.is_pinned()) {
+            ++new_index;
+          }
         }
       }
-    }
 
-    ReorderGroupFromSync(guid, std::min(std::max(new_index, 0), Count() - 1));
+      ReorderGroupFromSync(guid, std::clamp(new_index, 0, Count() - 1));
+    }
   }
 
   for (SavedTabGroupModelObserver& observer : observers_) {
@@ -732,6 +740,15 @@ const SavedTabGroupTab* SavedTabGroupModel::MergeRemoteTab(
   }
 
   return group->GetTab(tab_guid);
+}
+
+void SavedTabGroupModel::UpdateGroupPinnedPositionForMigration(
+    const base::Uuid& guid,
+    std::optional<size_t> pinned_position) {
+  CHECK(Contains(guid));
+
+  auto* group = GetMutableGroup(guid);
+  group->SetPinnedPositionForMigration(pinned_position);
 }
 
 void SavedTabGroupModel::ReorderGroupLocally(const base::Uuid& id,
@@ -912,11 +929,28 @@ void SavedTabGroupModel::RemoveObserver(SavedTabGroupModelObserver* observer) {
   observers_.RemoveObserver(observer);
 }
 
-void SavedTabGroupModel::MigrateTabGroupSavesUIUpdate() {
-  constexpr size_t kMaxNumberOfGroupToPin = 4;
-  // Pin the first 4 saved tab groups from V1.
-  for (size_t i = 0;
-       i < std::min(saved_tab_groups_.size(), kMaxNumberOfGroupToPin); ++i) {
+void SavedTabGroupModel::MigratePinnedPositionToProjectsPosition() {
+  CHECK(tab_groups::IsProjectsPanelFeatureEnabled());
+
+  // Keep the ordering of pinned groups. For any unpinned groups, order them by
+  // most to least recent creation time after the pinned groups.
+  std::stable_sort(
+      saved_tab_groups_.begin(), saved_tab_groups_.end(),
+      [](const tab_groups::SavedTabGroup& left,
+         const tab_groups::SavedTabGroup& right) {
+        bool left_pinned = left.pinned_position_for_migration().has_value();
+        bool right_pinned = right.pinned_position_for_migration().has_value();
+        if (left_pinned != right_pinned) {
+          return left_pinned;
+        }
+        if (left_pinned) {
+          return left.pinned_position_for_migration().value() <
+                 right.pinned_position_for_migration().value();
+        }
+        return left.creation_time() > right.creation_time();
+      });
+
+  for (size_t i = 0; i < saved_tab_groups_.size(); ++i) {
     saved_tab_groups_[i].SetPosition(i);
     for (auto& observer : observers_) {
       observer.SavedTabGroupUpdatedLocally(saved_tab_groups_[i].saved_guid(),

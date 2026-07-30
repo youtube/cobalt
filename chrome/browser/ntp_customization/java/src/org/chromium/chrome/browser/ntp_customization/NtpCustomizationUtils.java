@@ -4,8 +4,6 @@
 
 package org.chromium.chrome.browser.ntp_customization;
 
-import static androidx.annotation.VisibleForTesting.PACKAGE_PRIVATE;
-
 import static org.chromium.build.NullUtil.assumeNonNull;
 import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinator.BottomSheetType.CHROME_COLORS;
 import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinator.BottomSheetType.FEED;
@@ -50,7 +48,6 @@ import android.net.Uri;
 import android.os.Build;
 import android.provider.Browser;
 import android.text.TextUtils;
-import android.util.DisplayMetrics;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.FrameLayout;
@@ -724,7 +721,6 @@ public class NtpCustomizationUtils {
      *
      * @param themeColorId The new color theme id.
      */
-    @VisibleForTesting(otherwise = PACKAGE_PRIVATE)
     public static void setNtpThemeColorIdToSharedPreference(@NtpThemeColorId int themeColorId) {
         SharedPreferencesManager prefsManager = ChromeSharedPreferences.getInstance();
         prefsManager.writeInt(ChromePreferenceKeys.NTP_CUSTOMIZATION_THEME_COLOR_ID, themeColorId);
@@ -1226,24 +1222,17 @@ public class NtpCustomizationUtils {
     }
 
     /**
-     * Calculates the initial center-crop matrices for both portrait and landscape orientations.
+     * Generates the default background image information, including center-crop matrices and screen
+     * dimensions for both device orientations. The dimensions for the alternate orientation are
+     * estimated by swapping the current width and height.
      *
      * @param context The application context to access resources like display metrics.
      * @param bitmap The source bitmap for which the matrices are to be calculated.
      */
-    public static BackgroundImageInfo calculateInitialThemeCollectionImageMatrices(
+    public static BackgroundImageInfo getDefaultBackgroundImageInfo(
             Context context, Bitmap bitmap) {
-        Activity activity = ContextUtils.activityFromContext(context);
         Resources resources = context.getResources();
-
-        Point windowSize;
-        if (activity != null) {
-            windowSize = CropImageUtils.getCurrentWindowDimensions(activity);
-        } else {
-            // Fallback to display metrics if the activity context is unavailable.
-            DisplayMetrics displayMetrics = resources.getDisplayMetrics();
-            windowSize = new Point(displayMetrics.widthPixels, displayMetrics.heightPixels);
-        }
+        Point windowSize = CropImageUtils.getCurrentWindowDimensions(context);
 
         // If the device is portrait, use the current width/height; otherwise, swap them.
         boolean isPortrait =

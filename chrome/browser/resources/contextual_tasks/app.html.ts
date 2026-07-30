@@ -21,8 +21,11 @@ export function getHtml(this: ContextualTasksAppElement) {
       </top-toolbar>
     </div>
   `}
-  <webview id="threadFrame" allowtransparency="on" partition="persist:contextual-tasks"
-      aria-hidden="${this.isZeroState_ && !this.isShownInTab_}"></webview>
+  <webview id="threadFrame" allowtransparency="on"
+      partition="persist:contextual-tasks"
+      aria-hidden="${this.isZeroState_ && !this.isShownInTab_}"
+      style="${this.getThreadFrameStyles()}">
+  </webview>
   <ghost-loader id="ghostLoader"></ghost-loader>
   ${this.isErrorDialogVisible_ ?
     html`<contextual-tasks-error-dialog></contextual-tasks-error-dialog>` : ''}
@@ -30,20 +33,28 @@ export function getHtml(this: ContextualTasksAppElement) {
     <div id="composeboxHeaderWrapper"
         ?hidden="${this.isInBasicMode_ && !this.enableBasicModeZOrder_}">
       <h1 class="thread-header" id="composeboxHeader">
-          ${this.friendlyZeroStateTitle}
+          ${this.friendlyZeroStateGaiaName_
+            ? html`<span>${this.friendlyZeroStateTitleBeforeName_}</span><span class="name-shimmer">
+              ${this.friendlyZeroStateGaiaName_}</span><span>${this.friendlyZeroStateTitleAfterName_}</span>`
+            : html`<span>${this.friendlyZeroStateTitle}</span>`
+          }
           ${this.friendlyZeroStateSubtitle.length > 0 ?
               html`<br>
               ${this.friendlyZeroStateSubtitle}` : ''}
       </h1>
     </div>
+<if expr="not is_android">
     <contextual-tasks-composebox id="composebox"
+          style="${this.getComposeboxBoundsStyles()}"
           ?hidden="${this.isInBasicMode_ && !this.enableBasicModeZOrder_}"
           .isZeroState="${this.isZeroState_}"
           .isSidePanel="${!this.isShownInTab_}"
+          .isLensOverlayShowing="${this.isLensOverlayShowing_}"
           .enableNativeZeroStateSuggestions=
               "${this.enableNativeZeroStateSuggestions_}"
           .inputEnabled="${!this.isInputLocked_}">
     </contextual-tasks-composebox>
+</if>
   </div>
   <error-page id="errorPage"></error-page>
   <!--_html_template_end_-->`;

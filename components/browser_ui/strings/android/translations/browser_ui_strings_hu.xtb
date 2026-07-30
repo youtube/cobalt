@@ -7,8 +7,9 @@
 <translation id="1070329623210597193">A webhely által megtekinthető vagy szerkeszthető fájlok</translation>
 <translation id="1073417869336441572">Segítsen a Chrome fejlesztésében. Mondja el, miért engedélyezte a harmadik féltől származó cookie-kat. <ph name="BEGIN_LINK" />Visszajelzés küldése<ph name="END_LINK" /></translation>
 <translation id="1074758928858737435">Kérheti a webhelyek asztali verziójának megjelenítését.</translation>
-<translation id="1085696779717592361">A Chrome használata alapértelmezettként</translation>
+<translation id="1126523729897810826">Hajtsa végre az alábbi javasolt műveleteket, hogy a lehető legtöbbet ki tudja hozni a Chrome-ból.</translation>
 <translation id="113098737392899175">Navigálás az oldalakon szövegkurzorral, ha csatlakoztatva van billentyűzet</translation>
+<translation id="1148624853678088576">Máris elkészült!</translation>
 <translation id="1149644372535087155">Jelszavak mentése a Chrome-ban</translation>
 <translation id="1178015372320901893">Saját parancsikonok alsó lapja</translation>
 <translation id="1178581264944972037">Szünet</translation>
@@ -53,6 +54,7 @@
 <translation id="1569054338208717605">A Chrome V8 motorjával felgyorsítja a webhelyeket, de kissé kevésbé ellenállóvá teszi a Chrome-ot a támadásokkal szemben</translation>
 <translation id="1593426485665524382">Új műveletek állnak rendelkezésre a képernyő tetejéhez közel</translation>
 <translation id="1594521731409209842">Ujjai összehúzásával átméretezheti a fotót</translation>
+<translation id="1599268789440304082">Beállítási lap megnyitva</translation>
 <translation id="1601560923496285236">Alkalmaz</translation>
 <translation id="1615755956145364867">A webhelyek rákérdezhetnek arra, hogy lejátszhatnak-e védett tartalmakat</translation>
 <translation id="1620510694547887537">Kamera</translation>
@@ -191,12 +193,12 @@ A Speciális védelem a következő Chrome-beállításokat vezérli:
 <translation id="2802908157808345702">A webhelyek nem jeleníthetnek meg előugró ablakokat és nem használhatnak átirányításokat</translation>
 <translation id="2814830417943086299">A Chrome mostantól megjeleníti a legutóbbi lapokat az eszköz alkalmazáslistáján és a keresési találatok között is. Ezt bármikor kikapcsolhatja a Chrome beállításai között.</translation>
 <translation id="2822354292072154809">Biztosan visszaállítja a(z) <ph name="CHOSEN_OBJECT_NAME" /> minden webhelyengedélyét?</translation>
+<translation id="2848335882304088250">Mostantól a legtöbbet hozhatja ki a Chrome-ból az eszközén.</translation>
 <translation id="2850913818900871965">Mobilnézet kérelmezése</translation>
 <translation id="2870560284913253234">Webhely</translation>
 <translation id="2874939134665556319">Előző szám</translation>
 <translation id="2891975107962658722">Annak letiltása egy webhely számára, hogy adatokat mentsen az eszközére</translation>
 <translation id="2903493209154104877">Címek</translation>
-<translation id="2910701580606108292">Kérdezzen rá, mielőtt engedélyezné a webhelyek számára védett tartalmak lejátszását</translation>
 <translation id="2918484639460781603">Ugrás a beállításokhoz</translation>
 <translation id="2932883381142163287">Visszaélés bejelentése</translation>
 <translation id="2939338015096024043">Ha be van kapcsolva, a webhelyek kérhetik a kamera pozíciójának nyomon követését, és információhoz juthatnak az Ön környezetéről. Ha ki van kapcsolva, a webhelyek nem tudják követni a kamera pozícióját, és nem tudnak információhoz jutni az Ön környezetéről.</translation>
@@ -298,7 +300,6 @@ A Speciális védelem a következő Chrome-beállításokat vezérli:
 <translation id="3924858949939391676">Linkek megjelenítése az Olvasási mód bekapcsolása után</translation>
 <translation id="3933121352599513978">Nem kívánt kérelmek összecsukása (ajánlott)</translation>
 <translation id="3934905113567851655">Húzza össze ujjait az átméretezéshez</translation>
-<translation id="3955193568934677022">Engedélyezi a webhelyek számára a védett tartalmak lejátszását (ajánlott)</translation>
 <translation id="3955321697524543127">A webhelyek nem csatlakozhatnak USB-eszközökhöz</translation>
 <translation id="3965467402665811906">A webhelyek engedélyt kérhetnek arra, hogy felhasználják az Önről mentett adatokat</translation>
 <translation id="3967822245660637423">A letöltés sikeres</translation>
@@ -352,7 +353,9 @@ A Speciális védelem a következő Chrome-beállításokat vezérli:
 <translation id="4505788138578415521">URL kibontva</translation>
 <translation id="4522570452068850558">Részletek</translation>
 <translation id="4523472416386354622">Jelentkezzen be a kezdéshez</translation>
+<translation id="4529207923544043455">A beállítási lista befejezett és befejezetlen feladatait megjelenítő alsó lap</translation>
 <translation id="4534723447064627427">Ahhoz, hogy a(z) <ph name="APP_NAME" /> hozzáférhessen a mikrofonhoz, a mikrofont az <ph name="BEGIN_LINK" />Android-beállítások<ph name="END_LINK" /> között is be kell kapcsolni.</translation>
+<translation id="4545694195887112015">Beállítási lap bezárva</translation>
 <translation id="4566417217121906555">Mikrofon némítása</translation>
 <translation id="4570913071927164677">Részletek</translation>
 <translation id="4578289292431526768">Indítás</translation>
@@ -509,7 +512,6 @@ A Speciális védelem a következő Chrome-beállításokat vezérli:
 <translation id="6171020522141473435">Ha be van kapcsolva, a webhelyek engedélyt kérhetnek Bluetooth-eszközök használatára. Ha ki van kapcsolva, a webhelyek nem használhatnak Bluetooth-eszközöket.</translation>
 <translation id="6177128806592000436">Kapcsolata a webhellyel nem biztonságos</translation>
 <translation id="6181444274883918285">Webhelykivétel hozzáadása</translation>
-<translation id="6192792657125177640">Kivételek</translation>
 <translation id="6194967801833346599">{DAYS,plural, =1{A Chrome holnap ismét letiltja a cookie-kat}other{# nap múlva ismét le lesznek tiltva a cookie-k}}</translation>
 <translation id="6196640612572343990">Harmadik féltől származó cookie-k letiltása</translation>
 <translation id="6205314730813004066">Hirdetésekhez kapcsolódó adatvédelem</translation>
@@ -632,7 +634,6 @@ A Speciális védelem a következő Chrome-beállításokat vezérli:
 <translation id="7561196759112975576">Mindig</translation>
 <translation id="7573594921350120855">A webhelyek általában bizonyos kommunikációs funkciók (például a videocsevegés) használata céljából férnek hozzá az Ön videokamerájához</translation>
 <translation id="7574529565935733861">{NUM_MONTHS,plural, =1{<ph name="NUM_MONTHS_ONE" /> hónapja}other{<ph name="NUM_MONTHS_MANY" /> hónapja}}</translation>
-<translation id="757524316907819857">Védett tartalom lejátszásának letiltása a webhelyeken</translation>
 <translation id="7586676035079382730">Értesítések nem engedélyezettek</translation>
 <translation id="7594634374516752650">Bluetooth-eszközhöz csatlakoztatva</translation>
 <translation id="7617547684249261169">Törölheti az előzmények, a cookie-k, a webhelyadatok és egyebek egy részét vagy egészét</translation>

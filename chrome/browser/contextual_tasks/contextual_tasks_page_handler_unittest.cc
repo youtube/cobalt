@@ -4,13 +4,14 @@
 
 #include "chrome/browser/contextual_tasks/contextual_tasks_page_handler.h"
 
+#include <cstdint>
 #include <memory>
 #include <vector>
-#include <cstdint>
 
 #include "base/memory/raw_ptr.h"
 #include "base/test/bind.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/unguessable_token.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_service_factory.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui.h"
@@ -84,6 +85,16 @@ class MockPage : public mojom::Page {
               (override));
   MOCK_METHOD(void, LockInput, (), (override));
   MOCK_METHOD(void, UnlockInput, (), (override));
+  MOCK_METHOD(void,
+              InjectInput,
+              (const std::string& title,
+               const std::string& thumbnail,
+               const base::UnguessableToken& file_token),
+              (override));
+  MOCK_METHOD(void,
+              RemoveInjectedInput,
+              (const base::UnguessableToken& file_token),
+              (override));
 
   mojo::Receiver<mojom::Page> receiver_{this};
 };
@@ -727,11 +738,13 @@ TEST_F(ContextualTasksPageHandlerTest, OnTaskUpdated) {
                                ContextualTasksService::TriggerSource::kLocal);
 }
 
-TEST_F(ContextualTasksPageHandlerTest, OnContextUpdated_TabsImagesAndFiles) {
+TEST_F(ContextualTasksPageHandlerTest,
+       OnContextUpdated_TabsImagesAndFiles_WithFiltering) {
   base::Uuid task_id = base::Uuid::GenerateRandomV4();
   contextual_tasks_ui_->SetTaskId(task_id);
 
   ContextualTask task(task_id);
+  // Valid items
   UrlResource tab_resource(GURL(kQueryUrl), ResourceType::kWebpage);
   tab_resource.title = "Example Tab";
   tab_resource.tab_id = SessionID::NewUnique();
@@ -745,6 +758,19 @@ TEST_F(ContextualTasksPageHandlerTest, OnContextUpdated_TabsImagesAndFiles) {
   pdf_resource.title = "Example PDF";
   task.AddUrlResource(pdf_resource);
 
+  // Invalid items to be filtered.
+  UrlResource empty_pdf_url_resource(GURL(), ResourceType::kPdf);
+  empty_pdf_url_resource.title = "Valid PDF with empty URL";
+  task.AddUrlResource(empty_pdf_url_resource);
+
+  UrlResource empty_url_resource(GURL(""), ResourceType::kWebpage);
+  empty_url_resource.title = "Tab with empty URL";
+  task.AddUrlResource(empty_url_resource);
+
+  UrlResource empty_title_resource(GURL(kExampleUrl), ResourceType::kWebpage);
+  empty_title_resource.title = "";
+  task.AddUrlResource(empty_title_resource);
+
   EXPECT_CALL(*mock_contextual_tasks_service_,
               GetContextForTask(task_id, _, _, _))
       .WillOnce(
@@ -753,13 +779,16 @@ TEST_F(ContextualTasksPageHandlerTest, OnContextUpdated_TabsImagesAndFiles) {
               base::OnceCallback<void(std::unique_ptr<ContextualTaskContext>)>
                   callback) {
             std::move(callback).Run(
+
                 std::make_unique<ContextualTaskContext>(task));
           });
 
   base::RunLoop run_loop;
   EXPECT_CALL(page_, OnContextUpdated(_))
       .WillOnce([&](std::vector<mojom::ContextInfoPtr> context) {
-        EXPECT_EQ(context.size(), 3u);
+        // Only the first 3 valid items should be present.
+        ASSERT_EQ(context.size(), 4u);
+
         EXPECT_TRUE(context[0]->is_tab());
         EXPECT_EQ(context[0]->get_tab()->title, tab_resource.title);
         EXPECT_EQ(context[0]->get_tab()->url, GURL(kQueryUrl));
@@ -772,6 +801,10 @@ TEST_F(ContextualTasksPageHandlerTest, OnContextUpdated_TabsImagesAndFiles) {
         EXPECT_TRUE(context[2]->is_file());
         EXPECT_EQ(context[2]->get_file()->title, pdf_resource.title);
         EXPECT_EQ(context[2]->get_file()->url, GURL(kExamplePdfUrl));
+
+        EXPECT_TRUE(context[3]->is_file());
+        EXPECT_EQ(context[3]->get_file()->title, empty_pdf_url_resource.title);
+        EXPECT_EQ(context[3]->get_file()->url, GURL());
 
         run_loop.Quit();
       });

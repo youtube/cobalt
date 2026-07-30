@@ -15,6 +15,7 @@
 #include "components/history/core/browser/history_service.h"
 #include "components/history/core/test/history_service_test_util.h"
 #include "components/page_content_annotations/core/test_page_content_annotations_service.h"
+#include "components/prefs/testing_pref_service.h"
 #include "components/visited_url_ranking/public/fetch_options.h"
 #include "components/visited_url_ranking/public/testing/mock_visited_url_ranking_service.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -63,6 +64,9 @@ class AuxiliarySearchDonationServiceTest : public testing::Test {
             /*optimization_guide_model_provider=*/nullptr,
             history_service_.get());
     CHECK(page_content_annotations_service_);
+
+    AuxiliarySearchDonationService::RegisterProfilePrefs(
+        test_pref_service_.registry());
   }
 
   base::test::TaskEnvironment& task_environment() { return task_environment_; }
@@ -73,6 +77,7 @@ class AuxiliarySearchDonationServiceTest : public testing::Test {
   visited_url_ranking::MockVisitedURLRankingService* mock_ranking_service() {
     return &mock_ranking_service_;
   }
+  TestingPrefServiceSimple* test_pref_service() { return &test_pref_service_; }
 
  private:
   base::test::TaskEnvironment task_environment_{
@@ -82,11 +87,13 @@ class AuxiliarySearchDonationServiceTest : public testing::Test {
   std::unique_ptr<page_content_annotations::TestPageContentAnnotationsService>
       page_content_annotations_service_;
   visited_url_ranking::MockVisitedURLRankingService mock_ranking_service_;
+  TestingPrefServiceSimple test_pref_service_;
 };
 
 TEST_F(AuxiliarySearchDonationServiceTest, IgnoresRemoteVisits) {
   AuxiliarySearchDonationService service(page_content_annotations_service(),
-                                         mock_ranking_service());
+                                         mock_ranking_service(),
+                                         test_pref_service());
 
   EXPECT_CALL(*mock_ranking_service(), FetchURLVisitAggregates(_, _)).Times(0);
 
@@ -97,18 +104,25 @@ TEST_F(AuxiliarySearchDonationServiceTest, IgnoresRemoteVisits) {
 
 TEST_F(AuxiliarySearchDonationServiceTest, FetchesLocalVisitAfterDelay) {
   AuxiliarySearchDonationService service(page_content_annotations_service(),
-                                         mock_ranking_service());
-
-  EXPECT_CALL(*mock_ranking_service(), FetchURLVisitAggregates(_, _)).Times(1);
+                                         mock_ranking_service(),
+                                         test_pref_service());
+  base::test::TestFuture<void> future;
+  EXPECT_CALL(*mock_ranking_service(), FetchURLVisitAggregates(_, _))
+      .WillOnce(base::test::InvokeFuture(future));
 
   service.OnPageContentAnnotated(CreateLocalVisit(), CreateAnnotationsResult());
-  task_environment().FastForwardBy(service.GetDonationDelay());
+  base::TimeTicks before = task_environment().NowTicks();
+  ASSERT_TRUE(future.Wait()) << "Failed to wait for fetch";
+  base::TimeTicks after = task_environment().NowTicks();
+
+  EXPECT_EQ(after - before, service.GetDonationDelay());
 }
 
 TEST_F(AuxiliarySearchDonationServiceTest,
        MultipleAnnotationsFetchesOnlyOnceAfterDelay) {
   AuxiliarySearchDonationService service(page_content_annotations_service(),
-                                         mock_ranking_service());
+                                         mock_ranking_service(),
+                                         test_pref_service());
   service.OnPageContentAnnotated(CreateLocalVisit(), CreateAnnotationsResult());
 
   EXPECT_CALL(*mock_ranking_service(), FetchURLVisitAggregates(_, _)).Times(1);
@@ -121,7 +135,8 @@ TEST_F(AuxiliarySearchDonationServiceTest,
 TEST_F(AuxiliarySearchDonationServiceTest,
        MultipleAnnotationsFetchesAgainAfterDelay) {
   AuxiliarySearchDonationService service(page_content_annotations_service(),
-                                         mock_ranking_service());
+                                         mock_ranking_service(),
+                                         test_pref_service());
 
   EXPECT_CALL(*mock_ranking_service(), FetchURLVisitAggregates(_, _)).Times(2);
 
@@ -134,7 +149,8 @@ TEST_F(AuxiliarySearchDonationServiceTest,
 
 TEST_F(AuxiliarySearchDonationServiceTest, FirstFetchUsesDefaultBeginTime) {
   AuxiliarySearchDonationService service(page_content_annotations_service(),
-                                         mock_ranking_service());
+                                         mock_ranking_service(),
+                                         test_pref_service());
 
   base::Time begin_time;
   EXPECT_CALL(*mock_ranking_service(), FetchURLVisitAggregates(_, _))
@@ -152,39 +168,36 @@ TEST_F(AuxiliarySearchDonationServiceTest, FirstFetchUsesDefaultBeginTime) {
 
 TEST_F(AuxiliarySearchDonationServiceTest, FetchUsesLastTime) {
   AuxiliarySearchDonationService service(page_content_annotations_service(),
-                                         mock_ranking_service());
+                                         mock_ranking_service(),
+                                         test_pref_service());
   EXPECT_CALL(*mock_ranking_service(), RankURLVisitAggregates(_, _, _))
       .WillRepeatedly(
           RunOnceCallback<2>(ResultStatus::kSuccess, CreateVisitAggregates()));
 
   // First fetch returns the fake visit time as metadata. The second fetch
-  // should use the provided fake visit time.
+  // should use the provided fake visit time (plus 1us to ensure that the same
+  // entry isn't fetched twice).
   const base::Time fake_visit_time = base::Time::Now() - base::Hours(1);
   base::Time begin_time;
-  {
-    testing::InSequence seq;
-    EXPECT_CALL(*mock_ranking_service(), FetchURLVisitAggregates(_, _))
-        .Times(1)
-        .WillOnce(RunOnceCallback<1>(
-            ResultStatus::kSuccess,
-            URLVisitsMetadata{.most_recent_timestamp = fake_visit_time},
-            CreateVisitAggregates()));
-    EXPECT_CALL(*mock_ranking_service(), FetchURLVisitAggregates(_, _))
-        .Times(1)
-        .WillOnce(WithArg<0>(SaveBeginTime(&begin_time)));
-  }
+  EXPECT_CALL(*mock_ranking_service(), FetchURLVisitAggregates(_, _))
+      .WillOnce(RunOnceCallback<1>(
+          ResultStatus::kSuccess,
+          URLVisitsMetadata{.most_recent_timestamp = fake_visit_time},
+          CreateVisitAggregates()))
+      .WillOnce(WithArg<0>(SaveBeginTime(&begin_time)));
 
   service.OnPageContentAnnotated(CreateLocalVisit(), CreateAnnotationsResult());
   task_environment().FastForwardBy(service.GetDonationDelay());
   service.OnPageContentAnnotated(CreateLocalVisit(), CreateAnnotationsResult());
   task_environment().FastForwardBy(service.GetDonationDelay());
 
-  EXPECT_EQ(begin_time, fake_visit_time);
+  EXPECT_EQ(begin_time, fake_visit_time + base::Microseconds(1));
 }
 
 TEST_F(AuxiliarySearchDonationServiceTest, FetchDoesNotFetchTooFarBack) {
   AuxiliarySearchDonationService service(page_content_annotations_service(),
-                                         mock_ranking_service());
+                                         mock_ranking_service(),
+                                         test_pref_service());
   EXPECT_CALL(*mock_ranking_service(), RankURLVisitAggregates(_, _, _))
       .WillRepeatedly(
           RunOnceCallback<2>(ResultStatus::kSuccess, CreateVisitAggregates()));
@@ -192,18 +205,12 @@ TEST_F(AuxiliarySearchDonationServiceTest, FetchDoesNotFetchTooFarBack) {
   // should not use the provided fake visit time because it is too far back.
   const base::Time fake_visit_time = base::Time::Now() - base::Hours(1);
   base::Time begin_time;
-  {
-    testing::InSequence seq;
-    EXPECT_CALL(*mock_ranking_service(), FetchURLVisitAggregates(_, _))
-        .Times(1)
-        .WillOnce(RunOnceCallback<1>(
-            ResultStatus::kSuccess,
-            URLVisitsMetadata{.most_recent_timestamp = fake_visit_time},
-            CreateVisitAggregates()));
-    EXPECT_CALL(*mock_ranking_service(), FetchURLVisitAggregates(_, _))
-        .Times(1)
-        .WillOnce(WithArg<0>(SaveBeginTime(&begin_time)));
-  }
+  EXPECT_CALL(*mock_ranking_service(), FetchURLVisitAggregates(_, _))
+      .WillOnce(RunOnceCallback<1>(
+          ResultStatus::kSuccess,
+          URLVisitsMetadata{.most_recent_timestamp = fake_visit_time},
+          CreateVisitAggregates()))
+      .WillOnce(WithArg<0>(SaveBeginTime(&begin_time)));
 
   service.OnPageContentAnnotated(CreateLocalVisit(), CreateAnnotationsResult());
   task_environment().FastForwardBy(service.GetDonationDelay());
@@ -217,41 +224,70 @@ TEST_F(AuxiliarySearchDonationServiceTest, FetchDoesNotFetchTooFarBack) {
 
 TEST_F(AuxiliarySearchDonationServiceTest, FetchDoesNotUpdateBeginTimeOnError) {
   AuxiliarySearchDonationService service(page_content_annotations_service(),
-                                         mock_ranking_service());
+                                         mock_ranking_service(),
+                                         test_pref_service());
   EXPECT_CALL(*mock_ranking_service(), RankURLVisitAggregates(_, _, _))
       .WillRepeatedly(
           RunOnceCallback<2>(ResultStatus::kSuccess, CreateVisitAggregates()));
 
   // First fetch returns the fake visit time as metadata. The second fetch
   // returns an error. The third fetch should still use the fake visit time
-  // from the first fetch.
+  // from the first fetch (plus 1us).
   const base::Time fake_visit_time = base::Time::Now() - base::Hours(1);
   base::Time begin_time;
+  EXPECT_CALL(*mock_ranking_service(), FetchURLVisitAggregates(_, _))
+      .WillOnce(RunOnceCallback<1>(
+          ResultStatus::kSuccess,
+          URLVisitsMetadata{.most_recent_timestamp = fake_visit_time},
+          CreateVisitAggregates()))
+      .WillOnce(RunOnceCallback<1>(ResultStatus::kError, URLVisitsMetadata{},
+                                   CreateVisitAggregates()))
+      .WillOnce(WithArg<0>(SaveBeginTime(&begin_time)));
+
+  service.OnPageContentAnnotated(CreateLocalVisit(), CreateAnnotationsResult());
+  task_environment().FastForwardBy(service.GetDonationDelay());
+  service.OnPageContentAnnotated(CreateLocalVisit(), CreateAnnotationsResult());
+  task_environment().FastForwardBy(service.GetDonationDelay());
+  service.OnPageContentAnnotated(CreateLocalVisit(), CreateAnnotationsResult());
+  task_environment().FastForwardBy(service.GetDonationDelay());
+
+  EXPECT_EQ(begin_time, fake_visit_time + base::Microseconds(1));
+}
+
+TEST_F(AuxiliarySearchDonationServiceTest, LastFetchTimePersistsInPrefs) {
+  EXPECT_CALL(*mock_ranking_service(), RankURLVisitAggregates(_, _, _))
+      .WillRepeatedly(
+          RunOnceCallback<2>(ResultStatus::kSuccess, CreateVisitAggregates()));
+
+  // First fetch returns the fake visit time as metadata. The second fetch
+  // should use the provided fake visit time (plus 1us).
+  const base::Time fake_visit_time = base::Time::Now() - base::Hours(1);
+  base::Time begin_time;
+  EXPECT_CALL(*mock_ranking_service(), FetchURLVisitAggregates(_, _))
+      .WillOnce(RunOnceCallback<1>(
+          ResultStatus::kSuccess,
+          URLVisitsMetadata{.most_recent_timestamp = fake_visit_time},
+          CreateVisitAggregates()))
+      .WillOnce(WithArg<0>(SaveBeginTime(&begin_time)));
+
   {
-    testing::InSequence seq;
-    EXPECT_CALL(*mock_ranking_service(), FetchURLVisitAggregates(_, _))
-        .Times(1)
-        .WillOnce(RunOnceCallback<1>(
-            ResultStatus::kSuccess,
-            URLVisitsMetadata{.most_recent_timestamp = fake_visit_time},
-            CreateVisitAggregates()));
-    EXPECT_CALL(*mock_ranking_service(), FetchURLVisitAggregates(_, _))
-        .Times(1)
-        .WillOnce(RunOnceCallback<1>(ResultStatus::kError, URLVisitsMetadata{},
-                                     CreateVisitAggregates()));
-    EXPECT_CALL(*mock_ranking_service(), FetchURLVisitAggregates(_, _))
-        .Times(1)
-        .WillOnce(WithArg<0>(SaveBeginTime(&begin_time)));
+    AuxiliarySearchDonationService service(page_content_annotations_service(),
+                                           mock_ranking_service(),
+                                           test_pref_service());
+    service.OnPageContentAnnotated(CreateLocalVisit(),
+                                   CreateAnnotationsResult());
+    task_environment().FastForwardBy(service.GetDonationDelay());
+  }
+  {
+    AuxiliarySearchDonationService service(page_content_annotations_service(),
+                                           mock_ranking_service(),
+                                           test_pref_service());
+    service.OnPageContentAnnotated(CreateLocalVisit(),
+                                   CreateAnnotationsResult());
+    task_environment().FastForwardBy(service.GetDonationDelay());
   }
 
-  service.OnPageContentAnnotated(CreateLocalVisit(), CreateAnnotationsResult());
-  task_environment().FastForwardBy(service.GetDonationDelay());
-  service.OnPageContentAnnotated(CreateLocalVisit(), CreateAnnotationsResult());
-  task_environment().FastForwardBy(service.GetDonationDelay());
-  service.OnPageContentAnnotated(CreateLocalVisit(), CreateAnnotationsResult());
-  task_environment().FastForwardBy(service.GetDonationDelay());
-
-  EXPECT_EQ(begin_time, fake_visit_time);
+  EXPECT_EQ(begin_time, fake_visit_time + base::Microseconds(1));
 }
 
 TEST_F(AuxiliarySearchDonationServiceTest,
@@ -260,7 +296,8 @@ TEST_F(AuxiliarySearchDonationServiceTest,
   auto listener = base::android::ApplicationStatusListener::New(
       future.GetRepeatingCallback());
   AuxiliarySearchDonationService service(page_content_annotations_service(),
-                                         mock_ranking_service());
+                                         mock_ranking_service(),
+                                         test_pref_service());
   service.OnPageContentAnnotated(CreateLocalVisit(), CreateAnnotationsResult());
 
   EXPECT_CALL(*mock_ranking_service(), FetchURLVisitAggregates(_, _)).Times(1);
@@ -276,7 +313,8 @@ TEST_F(AuxiliarySearchDonationServiceTest,
   auto listener = base::android::ApplicationStatusListener::New(
       future.GetRepeatingCallback());
   AuxiliarySearchDonationService service(page_content_annotations_service(),
-                                         mock_ranking_service());
+                                         mock_ranking_service(),
+                                         test_pref_service());
 
   EXPECT_CALL(*mock_ranking_service(), FetchURLVisitAggregates(_, _)).Times(0);
 

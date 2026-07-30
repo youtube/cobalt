@@ -18,6 +18,7 @@ import android.graphics.BitmapFactory;
 import android.graphics.drawable.BitmapDrawable;
 import android.net.Uri;
 import android.os.Build;
+import android.os.SystemClock;
 import android.provider.MediaStore;
 
 import androidx.annotation.VisibleForTesting;
@@ -30,6 +31,7 @@ import org.chromium.build.annotations.EnsuresNonNullIf;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.omnibox.R;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxAttachmentRecyclerViewAdapter.FuseboxAttachmentType;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxCoordinator.FuseboxState;
@@ -140,6 +142,9 @@ public class FuseboxMediator {
         mModel.set(
                 FuseboxProperties.POPUP_TOOL_CREATE_IMAGE_CLICKED, this::activateImageGeneration);
         mModel.set(FuseboxProperties.POPUP_ATTACH_TAB_PICKER_CLICKED, this::onTabPickerClicked);
+        mModel.set(
+                FuseboxProperties.POPUP_ATTACH_TAB_PICKER_VISIBLE,
+                ChromeFeatureList.sChromeItemPickerUi.isEnabled());
         mModel.set(
                 FuseboxProperties.POPUP_ATTACH_FILE_VISIBLE,
                 mComposeboxQueryControllerBridge.isPdfUploadEligible());
@@ -364,7 +369,9 @@ public class FuseboxMediator {
 
         Set<Integer> currentAttachedIds = mModelList.getAttachedTabIds();
         if (currentAttachedIds.contains(tab.getId())) return;
-        var attachment = FuseboxAttachment.forTab(tab, mContext.getResources());
+        var attachment =
+                FuseboxAttachment.forTab(
+                        tab, mContext.getResources(), FuseboxAttachmentButtonType.CURRENT_TAB);
 
         // Use FuseboxModelList's add method which handles upload automatically
         mModelList.add(attachment);
@@ -496,23 +503,19 @@ public class FuseboxMediator {
         if (tabModelSelector == null) return;
 
         Set<Integer> currentAttachedIds = mModelList.getAttachedTabIds();
-        try (var batchToken = mModelList.beginBatchEdit()) {
-            mModelList.removeIf(
-                    item -> {
-                        if (item.type != FuseboxAttachmentType.ATTACHMENT_TAB) return false;
-                        FuseboxAttachment attachment =
-                                item.model.get(FuseboxAttachmentProperties.ATTACHMENT);
-                        Integer tabId = assumeNonNull(attachment).tabId;
-                        return !newlySelectedTabIds.contains(tabId);
-                    });
+        try (var ignored = mModelList.beginBatchEdit()) {
+            mModelList.removeTabsNotInSet(newlySelectedTabIds);
 
             for (int id : newlySelectedTabIds) {
                 if (!currentAttachedIds.contains(id)) {
                     Tab tab = tabModelSelector.getTabById(id);
+                    if (tab == null) continue;
                     boolean addFailed =
                             !mModelList.add(
                                     FuseboxAttachment.forTab(
-                                            assumeNonNull(tab), mContext.getResources()));
+                                            tab,
+                                            mContext.getResources(),
+                                            FuseboxAttachmentButtonType.TAB_PICKER));
                     if (addFailed) {
                         break;
                     }
@@ -586,15 +589,18 @@ public class FuseboxMediator {
                     var bitmap = (Bitmap) data.getExtras().get("data");
                     if (bitmap == null) return;
 
+                    long startTime = SystemClock.elapsedRealtime();
                     ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
                     bitmap.compress(CompressFormat.PNG, 100, byteArrayOutputStream);
                     byte[] dataBytes = byteArrayOutputStream.toByteArray();
                     var attachment =
-                            FuseboxAttachment.forCameraImage(
+                            FuseboxAttachment.forImage(
                                     new BitmapDrawable(mContext.getResources(), bitmap),
-                                    "",
+                                    /* title= */ "",
                                     "image/png",
-                                    dataBytes);
+                                    dataBytes,
+                                    startTime,
+                                    FuseboxAttachmentButtonType.CAMERA);
                     uploadAndAddAttachment(attachment);
                 },
                 R.string.low_memory_error);
@@ -638,7 +644,8 @@ public class FuseboxMediator {
                             fetchAttachmentDetails(
                                     uri,
                                     FuseboxAttachmentType.ATTACHMENT_IMAGE,
-                                    this::uploadAndAddAttachment);
+                                    this::uploadAndAddAttachment,
+                                    FuseboxAttachmentButtonType.GALLERY);
                         }
                     }
                 },
@@ -671,7 +678,8 @@ public class FuseboxMediator {
                             fetchAttachmentDetails(
                                     uri,
                                     FuseboxAttachmentType.ATTACHMENT_FILE,
-                                    this::uploadAndAddAttachment);
+                                    this::uploadAndAddAttachment,
+                                    FuseboxAttachmentButtonType.FILES);
                         }
                     }
                 },
@@ -684,6 +692,7 @@ public class FuseboxMediator {
         FuseboxMetrics.notifyAttachmentButtonUsed(FuseboxAttachmentButtonType.CLIPBOARD);
         if (isMaxAttachmentCountReached(FuseboxAttachmentType.ATTACHMENT_IMAGE)) return;
 
+        long startTime = SystemClock.elapsedRealtime();
         new AsyncTask<byte[]>() {
             @Override
             protected byte[] doInBackground() {
@@ -699,11 +708,13 @@ public class FuseboxMediator {
                 if (bitmap == null) return;
 
                 var attachment =
-                        FuseboxAttachment.forCameraImage(
+                        FuseboxAttachment.forImage(
                                 new BitmapDrawable(mContext.getResources(), bitmap),
-                                "",
+                                /* title= */ "",
                                 "image/png",
-                                pngBytes);
+                                pngBytes,
+                                startTime,
+                                FuseboxAttachmentButtonType.CLIPBOARD);
                 uploadAndAddAttachment(attachment);
             }
         }.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
@@ -711,9 +722,12 @@ public class FuseboxMediator {
 
     @VisibleForTesting
     void fetchAttachmentDetails(
-            Uri uri, @FuseboxAttachmentType int type, Callback<FuseboxAttachment> callback) {
+            Uri uri,
+            @FuseboxAttachmentType int type,
+            Callback<FuseboxAttachment> callback,
+            @FuseboxAttachmentButtonType int buttonType) {
         new FuseboxAttachmentDetailsFetcher(
-                        mContext, mContext.getContentResolver(), uri, type, callback)
+                        mContext, mContext.getContentResolver(), uri, type, callback, buttonType)
                 .executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
     }
 

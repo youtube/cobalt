@@ -23,6 +23,7 @@
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
 #include "build/build_config.h"
+#include "components/services/storage/dom_storage/db_status.h"
 #include "components/services/storage/dom_storage/features.h"
 #include "components/services/storage/dom_storage/test_support/dom_storage_database_testing.h"
 #include "components/services/storage/dom_storage/test_support/storage_area_test_util.h"
@@ -31,7 +32,6 @@
 #include "components/services/storage/public/mojom/storage_usage_info.mojom.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "net/base/features.h"
-#include "storage/common/database/db_status.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
 #include "third_party/leveldatabase/env_chromium.h"
@@ -1086,9 +1086,9 @@ TEST_P(LocalStorageImplTest, OnDisk) {
   InitializeStorage(storage_path());
   EXPECT_TRUE(DoTestGet(key, &result));
   EXPECT_EQ(value, result);
-  histograms.ExpectUniqueSample(
-      "LocalStorage.DatabaseOpen",
-      leveldb_env::LevelDBStatusValue::LEVELDB_STATUS_OK, 2);
+  // Sample value of 0 denotes DbStatus::Type::kOk.
+  histograms.ExpectUniqueSample("Storage.LocalStorage.OpenDatabase.OnDisk",
+                                /*sample=*/0, 2);
 }
 
 TEST_P(LocalStorageImplTest, InvalidVersionOnDisk) {
@@ -1175,12 +1175,11 @@ TEST_P(LocalStorageImplTest, CorruptionOnDisk) {
   EXPECT_TRUE(DoTestGet(key, &result));
   EXPECT_EQ(value, result);
 
-  if (!IsSqliteEnabled()) {
-    // TODO(crbug.com/377242771): Add histograms to SQLite implementation.
-    histograms.ExpectBucketCount(
-        "LocalStorage.DatabaseOpen",
-        leveldb_env::LevelDBStatusValue::LEVELDB_STATUS_IO_ERROR, 1);
-  }
+  // LevelDB reports corruption as an IO error. The SQLiteResultCode maps to a
+  // DbStatus::Type::kCorruption error.
+  uint8_t sample = IsSqliteEnabled() ? /*kCorruption=*/2 : /*kIoError=*/5;
+  histograms.ExpectBucketCount("Storage.LocalStorage.OpenDatabase.OnDisk",
+                               sample, 1);
 }
 
 TEST_P(LocalStorageImplTest, RecreateOnCommitFailure) {

@@ -56,6 +56,7 @@
 #import "ios/chrome/browser/data_sharing/model/data_sharing_service_factory.h"
 #import "ios/chrome/browser/default_browser/model/default_browser_interest_signals.h"
 #import "ios/chrome/browser/default_browser/model/promo_source.h"
+#import "ios/chrome/browser/default_browser/promo/public/features.h"
 #import "ios/chrome/browser/docking_promo/model/docking_promo_scene_agent.h"
 #import "ios/chrome/browser/enterprise/model/idle/idle_service.h"
 #import "ios/chrome/browser/enterprise/model/idle/idle_service_factory.h"
@@ -75,6 +76,7 @@
 #import "ios/chrome/browser/main/ui_bundled/wrangled_browser.h"
 #import "ios/chrome/browser/metrics/model/tab_usage_recorder_browser_agent.h"
 #import "ios/chrome/browser/ntp/model/new_tab_page_util.h"
+#import "ios/chrome/browser/picture_in_picture/model/picture_in_picture_scene_agent.h"
 #import "ios/chrome/browser/policy/model/policy_util.h"
 #import "ios/chrome/browser/policy/model/policy_watcher_browser_agent.h"
 #import "ios/chrome/browser/policy/ui_bundled/idle/idle_timeout_policy_scene_agent.h"
@@ -87,8 +89,6 @@
 #import "ios/chrome/browser/scene/coordinator/scene_coordinator.h"
 #import "ios/chrome/browser/scoped_ui_blocker/ui_bundled/scoped_ui_blocker.h"
 #import "ios/chrome/browser/screenshot/model/screenshot_delegate.h"
-#import "ios/chrome/browser/sessions/model/session_restoration_service.h"
-#import "ios/chrome/browser/sessions/model/session_restoration_service_factory.h"
 #import "ios/chrome/browser/sessions/model/session_saving_scene_agent.h"
 #import "ios/chrome/browser/share_extension/model/share_extension_scene_agent.h"
 #import "ios/chrome/browser/shared/coordinator/default_browser_promo/non_modal_default_browser_promo_scheduler_scene_agent.h"
@@ -155,8 +155,6 @@
 #import "ios/chrome/grit/ios_strings.h"
 #import "ios/web/public/js_image_transcoder/java_script_image_transcoder.h"
 #import "ios/web/public/navigation/navigation_manager.h"
-#import "ios/web/public/navigation/navigation_util.h"
-#import "ios/web/public/session/proto/storage.pb.h"
 #import "ios/web/public/web_state.h"
 #import "net/base/apple/url_conversions.h"
 #import "net/base/url_util.h"
@@ -169,13 +167,6 @@ namespace {
 // Shortcuts menu) forcibly open a new tab, rather than reusing an
 // existing NTP. See http://crbug.com/1363375 for details.
 BASE_FEATURE(kForceNewTabForIntentSearch, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// A rough estimate of the expected duration of a view controller transition
-// animation. It's used to temporarily disable mutally exclusive chrome
-// commands that trigger a view controller presentation.
-// TODO(crbug.com/429351167): Find a better way to do this without the time
-// constant.
-const int64_t kExpectedTransitionDurationInNanoSeconds = 0.2 * NSEC_PER_SEC;
 
 // Used to update the current BVC mode if a new tab is added while the tab
 // switcher view is being dismissed.  This is different than ApplicationMode in
@@ -209,48 +200,6 @@ bool IsSigninForcedByPolicy() {
   return policy_mode == BrowserSigninMode::kForced;
 }
 
-#if !BUILDFLAG(GOOGLE_CHROME_BRANDING)
-
-NSString* const kAddLotsOfTabs = @"AddLotsOfTabs";
-
-// TODO(crbug.com/429350820): Move InjectUnrealizedWebStates and related code to
-// a testing utils file.
-void InjectUnrealizedWebStates(Browser* browser, int count) {
-  WebStateList* web_state_list = browser->GetWebStateList();
-
-  SessionRestorationService* service =
-      SessionRestorationServiceFactory::GetForProfile(browser->GetProfile());
-
-  auto scoped_lock = web_state_list->StartBatchOperation();
-  for (int i = 0; i < count; ++i) {
-    std::string string_url = base::StringPrintf("http://google.com/%d", i);
-
-    // Create the serialized representation of a WebState
-    // with one navigation to `string_url` (defaulting the
-    // title to the URL).
-    web::proto::WebStateStorage storage = web::CreateWebStateStorage(
-        web::NavigationManager::WebLoadParams(GURL(string_url)),
-        base::UTF8ToUTF16(string_url.c_str()),
-        /*created_with_opener=*/false, web::UserAgentType::MOBILE,
-        base::Time::Now());
-
-    // Ask the SessionService to create an unrealized WebState
-    // and to prepare itself for it to be added to `browser`.
-    std::unique_ptr<web::WebState> web_state =
-        service->CreateUnrealizedWebState(browser, std::move(storage));
-
-    // Insert the new unrealized WebState in `browser`.
-    // Need to activate one WebState otherwise the session
-    // will not be saved with the legacy session storage.
-    int index = browser->GetWebStateList()->count();
-    web_state_list->InsertWebState(
-        std::move(web_state),
-        WebStateList::InsertionParams::Automatic().Activate(
-            index == 0 && !web_state_list->GetActiveWebState()));
-  }
-}
-#endif  // !BUILDFLAG(GOOGLE_CHROME_BRANDING)
-
 }  // namespace
 
 // TODO(crbug.com/429355979): Order and group methods by interface.
@@ -258,6 +207,7 @@ void InjectUnrealizedWebStates(Browser* browser, int count) {
 
 @interface SceneController () <AuthenticationServiceObserving,
                                ProfileStateObserver,
+                               SceneUIHandler,
                                SceneUIProvider,
                                SceneURLLoadingServiceDelegate,
                                TabGridCoordinatorDelegate> {
@@ -292,18 +242,6 @@ void InjectUnrealizedWebStates(Browser* browser, int count) {
 
 // Coordinates the creation of PDF screenshots with the window's content.
 @property(nonatomic, strong) ScreenshotDelegate* screenshotDelegate;
-
-// The tab switcher command and the voice search commands can be sent by views
-// that reside in a different UIWindow leading to the fact that the exclusive
-// touch property will be ineffective and a command for processing both
-// commands may be sent in the same run of the runloop leading to
-// inconsistencies. Those two boolean indicate if one of those commands have
-// been processed in the last 200ms in order to only allow processing one at
-// a time.
-// TODO(crbug.com/40445992):  Provide a general solution for handling mutually
-// exclusive chrome commands sent at nearly the same time.
-@property(nonatomic, assign) BOOL isProcessingTabSwitcherCommand;
-@property(nonatomic, assign) BOOL isProcessingVoiceSearchCommand;
 
 // If not NONE, the current BVC should be switched to this BVC on completion
 // of tab switcher dismissal.
@@ -578,7 +516,8 @@ void InjectUnrealizedWebStates(Browser* browser, int count) {
 
     // Show a toast if the browser is opened in an unexpected mode.
     if (self.startupParameters.isUnexpectedMode) {
-      [self showToastWhenOpenExternalIntentInUnexpectedMode];
+      userActivityBrowserAgent
+          ->ShowToastWhenOpenExternalIntentInUnexpectedMode();
     }
   }
   return NO;
@@ -681,7 +620,7 @@ void InjectUnrealizedWebStates(Browser* browser, int count) {
       !userActivityBrowserAgent->ProceedWithUserActivity(userActivity)) {
     // If users request opening url in a unavailable mode, don't open the url
     // but show a toast.
-    [self showToastWhenOpenExternalIntentInUnexpectedMode];
+    userActivityBrowserAgent->ShowToastWhenOpenExternalIntentInUnexpectedMode();
   } else {
     userActivityBrowserAgent->ContinueUserActivity(userActivity, sceneIsActive);
   }
@@ -835,8 +774,8 @@ void InjectUnrealizedWebStates(Browser* browser, int count) {
   int accountChanges = 0;
   for (UIOpenURLContext* context : URLContexts) {
     std::string newGaia;
-    if (net::GetValueForKeyInQuery(net::GURLWithNSURL(context.URL), "gaia_id",
-                                   &newGaia)) {
+    if (net::GetValueForKeyInQuery(net::GURLWithNSURL(context.URL),
+                                   app_group::kGaiaIDQueryItemName, &newGaia)) {
       accountChanges++;
     }
   }
@@ -870,7 +809,8 @@ void InjectUnrealizedWebStates(Browser* browser, int count) {
     std::string newGaia;
 
     // Continue if the URL does not contain a gaia.
-    if (!net::GetValueForKeyInQuery(net::GURLWithNSURL(context.URL), "gaia_id",
+    if (!net::GetValueForKeyInQuery(net::GURLWithNSURL(context.URL),
+                                    app_group::kGaiaIDQueryItemName,
                                     &newGaia)) {
       continue;
     }
@@ -1017,7 +957,8 @@ void InjectUnrealizedWebStates(Browser* browser, int count) {
   _mainCoordinator =
       [[SceneCoordinator alloc] initWithSceneCommandsEndpoint:self
                                                     tabOpener:self];
-  _mainCoordinator.delegate = self;
+  _mainCoordinator.UIHandler = self;
+  _mainCoordinator.tabGridDelegate = self;
   _mainCoordinator.sceneURLLoadingService = _sceneURLLoadingService.get();
 
   self.browserLifecycleManager =
@@ -1132,23 +1073,7 @@ void InjectUnrealizedWebStates(Browser* browser, int count) {
     InjectNTP(browser);
   }
 
-//  TODO(crbug.com/429350820): Move InjectUnrealizedWebStates and related code
-//  to a testing utils file.
-#if !BUILDFLAG(GOOGLE_CHROME_BRANDING)
-  int tabCountToAdd =
-      [[NSUserDefaults standardUserDefaults] integerForKey:kAddLotsOfTabs];
-  // Also check an environment variable for some other test environments which
-  // expect a minimum number of tabs.
-  if (tabCountToAdd == 0) {
-    tabCountToAdd = [[NSProcessInfo.processInfo.environment
-        objectForKey:@"MINIMUM_TAB_COUNT"] intValue];
-    tabCountToAdd -= browser->GetWebStateList()->count();
-  }
-  if (tabCountToAdd > 0) {
-    [[NSUserDefaults standardUserDefaults] setInteger:0 forKey:kAddLotsOfTabs];
-    InjectUnrealizedWebStates(browser, tabCountToAdd);
-  }
-#endif
+  tests_hook::InjectFakeTabsInBrowser(browser);
 
   if (launchMode == ApplicationMode::INCOGNITO) {
     [self setCurrentInterfaceForMode:ApplicationMode::INCOGNITO];
@@ -1241,43 +1166,6 @@ void InjectUnrealizedWebStates(Browser* browser, int count) {
       base::i18n::MessageFormatter::FormatWithNamedArgs(
           pattern, "domain", urlText, "count", numberOfTabs - 1);
   return base::SysUTF16ToNSString(formattedTitle);
-}
-
-// If users request to open tab or search and Chrome is not opened in the mode
-// they expected, show a toast to clarify that the expected mode is not
-// available.
-- (void)showToastWhenOpenExternalIntentInUnexpectedMode {
-  id<SnackbarCommands> handler = HandlerForProtocol(
-      self.mainInterface.browser->GetCommandDispatcher(), SnackbarCommands);
-  BOOL inIncognitoMode = [self isIncognitoForced];
-
-  UrlLoadParams params = UrlLoadParams::InNewTab(GURL(kChromeUIManagementURL));
-  params.web_params.transition_type = ui::PAGE_TRANSITION_TYPED;
-  ProceduralBlock moreAction = ^{
-    [self dismissModalsAndMaybeOpenSelectedTabInMode:
-              inIncognitoMode ? ApplicationModeForTabOpening::INCOGNITO
-                              : ApplicationModeForTabOpening::NORMAL
-                                   withUrlLoadParams:params
-                                      dismissOmnibox:YES
-                                          completion:nil];
-  };
-
-  SnackbarMessageAction* action = [[SnackbarMessageAction alloc] init];
-  action.handler = moreAction;
-  action.title = l10n_util::GetNSString(IDS_IOS_NAVIGATION_BAR_MORE_BUTTON);
-  action.accessibilityHint =
-      l10n_util::GetNSString(IDS_IOS_NAVIGATION_BAR_MORE_BUTTON);
-
-  NSString* text =
-      inIncognitoMode
-          ? l10n_util::GetNSString(IDS_IOS_SNACKBAR_MESSAGE_INCOGNITO_FORCED)
-          : l10n_util::GetNSString(IDS_IOS_SNACKBAR_MESSAGE_INCOGNITO_DISABLED);
-
-  SnackbarMessage* message = [[SnackbarMessage alloc] initWithTitle:text];
-  message.action = action;
-
-  [handler showSnackbarMessage:message
-                withHapticType:UINotificationFeedbackTypeError];
 }
 
 - (BOOL)isIncognitoDisabled {
@@ -1538,6 +1426,10 @@ void InjectUnrealizedWebStates(Browser* browser, int count) {
                              initWithPromosManager:promosManager]];
   }
 
+  if (IsDefaultBrowserPictureInPictureEnabled()) {
+    [sceneState addAgent:[[PictureInPictureSceneAgent alloc] init]];
+  }
+
   // Do not gate by feature flag so it can run for enabled -> disabled
   // scenarios.
   [sceneState addAgent:[[CredentialProviderPromoSceneAgent alloc]
@@ -1632,37 +1524,11 @@ void InjectUnrealizedWebStates(Browser* browser, int count) {
 }
 
 - (void)prepareTabSwitcher {
-  web::WebState* currentWebState =
-      self.currentInterface.browser->GetWebStateList()->GetActiveWebState();
-  if (currentWebState) {
-    SnapshotTabHelper::FromWebState(currentWebState)
-        ->UpdateSnapshotWithCallback(nil);
-  }
+  [self.mainCoordinator prepareTabSwitcher];
 }
 
 - (void)displayTabGridInMode:(TabGridOpeningMode)mode {
-  if (self.mainCoordinator.isTabGridActive) {
-    return;
-  }
-
-  if (!self.isProcessingVoiceSearchCommand) {
-    BOOL incognito = self.currentInterface.incognito;
-    if (mode == TabGridOpeningMode::kRegular && incognito) {
-      [self setCurrentInterfaceForMode:ApplicationMode::NORMAL];
-    } else if (mode == TabGridOpeningMode::kIncognito && !incognito) {
-      [self setCurrentInterfaceForMode:ApplicationMode::INCOGNITO];
-    }
-
-    [self showTabSwitcher];
-    self.isProcessingTabSwitcherCommand = YES;
-    // TODO(crbug.com/429351167): Find a better way to do this without the time
-    // constant.
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW,
-                                 kExpectedTransitionDurationInNanoSeconds),
-                   dispatch_get_main_queue(), ^{
-                     self.isProcessingTabSwitcherCommand = NO;
-                   });
-  }
+  [self.mainCoordinator displayTabGridInMode:mode];
 }
 
 - (void)showPrivacySettingsFromViewController:
@@ -1719,22 +1585,11 @@ void InjectUnrealizedWebStates(Browser* browser, int count) {
 }
 
 - (void)setIncognitoContentVisible:(BOOL)incognitoContentVisible {
-  self.sceneState.incognitoState.incognitoContentVisible =
-      incognitoContentVisible;
+  [self.mainCoordinator setIncognitoContentVisible:incognitoContentVisible];
 }
 
-- (void)startVoiceSearch {
-  if (!self.isProcessingTabSwitcherCommand) {
-    [self startVoiceSearchInCurrentBVC];
-    self.isProcessingVoiceSearchCommand = YES;
-    // TODO(crbug.com/429351167): Find a better way to do this without the time
-    // constant.
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW,
-                                 kExpectedTransitionDurationInNanoSeconds),
-                   dispatch_get_main_queue(), ^{
-                     self.isProcessingVoiceSearchCommand = NO;
-                   });
-  }
+- (void)stopAllVoiceSearch {
+  [self.mainCoordinator stopAllVoiceSearch];
 }
 
 - (void)maybeShowSettingsFromViewController {
@@ -1766,22 +1621,9 @@ void InjectUnrealizedWebStates(Browser* browser, int count) {
 
 - (void)prepareToPresentModalWithSnackbarDismissal:(BOOL)dismissSnackbars
                                         completion:(ProceduralBlock)completion {
-  __weak __typeof(self) weakSelf = self;
-  ProceduralBlock ensureNTP = ^{
-    [weakSelf ensureNTP];
-    completion();
-  };
-  if (self.mainCoordinator.isTabGridActive ||
-      (self.currentInterface.incognito && ![self isIncognitoForced])) {
-    [self closePresentedViews:YES
-                   completion:^{
-                     [weakSelf openNonIncognitoTab:ensureNTP];
-                   }];
-    return;
-  }
-  [self dismissModalDialogsWithCompletion:ensureNTP
-                           dismissOmnibox:YES
-                         dismissSnackbars:dismissSnackbars];
+  [self.mainCoordinator
+      prepareToPresentModalWithSnackbarDismissal:dismissSnackbars
+                                      completion:completion];
 }
 
 // Returns YES if the current Tab is available to present a view controller.
@@ -1890,10 +1732,14 @@ void InjectUnrealizedWebStates(Browser* browser, int count) {
     (TabOpeningPostOpeningAction)action {
   __weak __typeof(self) weakSelf = self;
   switch (action) {
-    case START_VOICE_SEARCH:
+    case START_VOICE_SEARCH: {
+      __weak id<BrowserCoordinatorCommands> weakHandler = HandlerForProtocol(
+          self.currentInterface.browser->GetCommandDispatcher(),
+          BrowserCoordinatorCommands);
       return ^{
-        [weakSelf startVoiceSearchInCurrentBVC];
+        [weakHandler startVoiceSearch];
       };
+    }
     case START_QR_CODE_SCANNER:
       return ^{
         [weakSelf startQRCodeScanner];
@@ -2053,20 +1899,6 @@ void InjectUnrealizedWebStates(Browser* browser, int count) {
   [lensHandler searchImageWithLens:command];
 }
 
-// Starts a voice search on the current BVC.
-- (void)startVoiceSearchInCurrentBVC {
-  // If the background (non-current) BVC is playing TTS audio, call
-  // -startVoiceSearch on it to stop the TTS.
-  WrangledBrowser* interface = self.mainInterface == self.currentInterface
-                                   ? self.incognitoInterface
-                                   : self.mainInterface;
-  if (interface.playingTTS) {
-    [interface.bvc startVoiceSearch];
-  } else {
-    [self.currentInterface.bvc startVoiceSearch];
-  }
-}
-
 - (void)startQRCodeScanner {
   if (!self.currentInterface.browser) {
     return;
@@ -2182,7 +2014,7 @@ void InjectUnrealizedWebStates(Browser* browser, int count) {
   };
 
   if (self.currentInterface.incognito) {
-    [self openNonIncognitoTab:openQuickDeleteBlock];
+    [self.mainCoordinator openNonIncognitoTab:openQuickDeleteBlock];
   } else {
     openQuickDeleteBlock();
   }
@@ -2349,12 +2181,6 @@ void InjectUnrealizedWebStates(Browser* browser, int count) {
                        prefService:self.currentInterface.profile->GetPrefs()
                          initStage:self.sceneState.profileState.initStage];
   }
-}
-
-- (BOOL)URLIsOpenedInRegularMode:(const GURL&)URL {
-  WebStateList* webStateList = self.mainInterface.browser->GetWebStateList();
-  return webStateList && webStateList->GetIndexOfWebStateWithURL(URL) !=
-                             WebStateList::kInvalidIndex;
 }
 
 - (BOOL)shouldOpenNTPTabOnActivationOfBrowser:(Browser*)browser {
@@ -2643,11 +2469,34 @@ void InjectUnrealizedWebStates(Browser* browser, int count) {
   }
 }
 
-// Checks the target BVC's current tab's URL. If `urlLoadParams` has an empty
-// URL, no new tab will be opened and `tabOpenedCompletion` will be run. If this
-// URL is chrome://newtab, loads `urlLoadParams` in this tab. Otherwise, open
-// `urlLoadParams` in a new tab in the target BVC. `tabOpenedCompletion` will be
-// called on the new tab (if not nil).
+// Displays current (incognito/normal) BVC and optionally focuses the omnibox.
+- (void)displayCurrentBVCAndFocusOmnibox:(BOOL)focusOmnibox {
+  ProceduralBlock completion = nil;
+  if (focusOmnibox) {
+    id<BrowserCoordinatorCommands> browserCoordinatorHandler =
+        HandlerForProtocol(
+            self.currentInterface.browser->GetCommandDispatcher(),
+            BrowserCoordinatorCommands);
+    completion = ^{
+      [browserCoordinatorHandler showComposebox];
+    };
+  }
+  [self displayCurrentBVC:completion];
+}
+
+#pragma mark - SceneUIHandler
+
+- (void)displayCurrentBVC:(ProceduralBlock)completion {
+  [self.mainCoordinator
+      showBrowserLayoutViewController:self.currentInterface
+                                          .browserLayoutViewController
+                            incognito:self.currentInterface.incognito
+                           completion:completion];
+  [HandlerForProtocol(self.currentInterface.browser->GetCommandDispatcher(),
+                      SceneCommands)
+      setIncognitoContentVisible:self.currentInterface.incognito];
+}
+
 - (void)openOrReuseTabInMode:(ApplicationMode)targetMode
            withUrlLoadParams:(const UrlLoadParams&)urlLoadParams
          tabOpenedCompletion:(ProceduralBlock)tabOpenedCompletion {
@@ -2756,28 +2605,6 @@ void InjectUnrealizedWebStates(Browser* browser, int count) {
   }
 }
 
-// Displays current (incognito/normal) BVC and optionally focuses the omnibox.
-- (void)displayCurrentBVCAndFocusOmnibox:(BOOL)focusOmnibox {
-  ProceduralBlock completion = nil;
-  if (focusOmnibox) {
-    id<BrowserCoordinatorCommands> browserCoordinatorHandler =
-        HandlerForProtocol(
-            self.currentInterface.browser->GetCommandDispatcher(),
-            BrowserCoordinatorCommands);
-    completion = ^{
-      [browserCoordinatorHandler showComposebox];
-    };
-  }
-  [self.mainCoordinator
-      showBrowserLayoutViewController:self.currentInterface
-                                          .browserLayoutViewController
-                            incognito:self.currentInterface.incognito
-                           completion:completion];
-  [HandlerForProtocol(self.currentInterface.browser->GetCommandDispatcher(),
-                      SceneCommands)
-      setIncognitoContentVisible:self.currentInterface.incognito];
-}
-
 #pragma mark - Sign In UI presentation
 
 // Close Settings, or Signin or the 3rd-party intents Incognito interstitial.
@@ -2859,53 +2686,6 @@ void InjectUnrealizedWebStates(Browser* browser, int count) {
   } else if (webStateList == self.mainInterface.browser->GetWebStateList()) {
     [self lastRegularTabClosed];
   }
-}
-
-// Open a non-incognito tab, if one exists. If one doesn't exist, open a new
-// one. If incognito is forced, an incognito tab will be opened.
-- (void)openNonIncognitoTab:(ProceduralBlock)completion {
-  if (self.mainInterface.browser->GetWebStateList()->GetActiveWebState()) {
-    // Reuse an existing tab, if one exists.
-    ApplicationMode mode = [self isIncognitoForced] ? ApplicationMode::INCOGNITO
-                                                    : ApplicationMode::NORMAL;
-    [self setCurrentInterfaceForMode:mode];
-    if (self.mainCoordinator.isTabGridActive) {
-      [self.mainCoordinator
-          showBrowserLayoutViewController:self.currentInterface
-                                              .browserLayoutViewController
-                                incognito:self.currentInterface.incognito
-                               completion:completion];
-      [self setIncognitoContentVisible:self.currentInterface.incognito];
-    } else {
-      if (completion) {
-        completion();
-      }
-    }
-  } else {
-    // Open a new NTP.
-    UrlLoadParams params = UrlLoadParams::InNewTab(GURL(kChromeUINewTabURL));
-    params.web_params.transition_type = ui::PAGE_TRANSITION_TYPED;
-    ApplicationModeForTabOpening mode =
-        [self isIncognitoForced] ? ApplicationModeForTabOpening::INCOGNITO
-                                 : ApplicationModeForTabOpening::NORMAL;
-    [self dismissModalsAndMaybeOpenSelectedTabInMode:mode
-                                   withUrlLoadParams:params
-                                      dismissOmnibox:YES
-                                          completion:completion];
-  }
-}
-
-// Ensures that a non-incognito NTP tab is open. If incognito is forced, then
-// it will ensure an incognito NTP tab is open.
-- (void)ensureNTP {
-  // If the tab does not exist, open a new tab.
-  UrlLoadParams params = UrlLoadParams::InCurrentTab(GURL(kChromeUINewTabURL));
-  ApplicationMode mode = self.currentInterface.incognito
-                             ? ApplicationMode::INCOGNITO
-                             : ApplicationMode::NORMAL;
-  [self openOrReuseTabInMode:mode
-           withUrlLoadParams:params
-         tabOpenedCompletion:nil];
 }
 
 // Returns the condition to check in order to show the `IncognitoIntertitial`

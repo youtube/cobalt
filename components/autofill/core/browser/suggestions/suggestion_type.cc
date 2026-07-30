@@ -113,6 +113,8 @@ std::string_view SuggestionTypeToStringView(SuggestionType type) {
       return "kFillAutofillAi";
     case SuggestionType::kPendingStateSignin:
       return "kPendingStateSignin";
+    case SuggestionType::kAtMemorySearchResult:
+      return "kAtMemorySearchResult";
     case SuggestionType::kLoyaltyCardEntry:
       return "kLoyaltyCardEntry";
     case SuggestionType::kAllLoyaltyCardsEntry:
@@ -121,6 +123,8 @@ std::string_view SuggestionTypeToStringView(SuggestionType type) {
       return "OneTimePasswordEntry";
     case SuggestionType::kLoadingThrobber:
       return "kLoadingThrobber";
+    case SuggestionType::kBnplFootnote:
+      return "kBnplFootnote";
   }
   NOTREACHED();
 }

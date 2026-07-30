@@ -85,7 +85,8 @@ class CONTENT_EXPORT PrefetchResponseReader final
   //
   // `CreateRequestHandler()` is responsible for the final check for servability
   // and can return a null PrefetchRequestHandler if the final check fails (even
-  // if `GetServableState()` previously returned `kServable`).
+  // if `GetMatchResolverAction().kind()` was previously `kMaybeServe` with
+  // `is_expired` false).
   //
   // The caller is responsible for:
   // - Cookie-related checks and processing.
@@ -93,15 +94,22 @@ class CONTENT_EXPORT PrefetchResponseReader final
   //   copying isolated cookies if needed.
   //   `PrefetchResponseReader::CreateRequestHandler()`,
   //   `PrefetchResponseReader::Servable()` nor
-  //   `PrefetchContainer::GetServableState()` don't perform cookie-related
-  //   checks.
-  // - Checking `Servable()`/`GetServableState()`.
+  //   `PrefetchContainer::GetMatchResolverAction()` don't perform
+  //   cookie-related checks.
+  // - Checking `Servable()` (via `PrefetchContainer::GetMatchResolverAction()`)
   //   `cacheable_duration` is checked only there.
   std::pair<PrefetchRequestHandler, base::WeakPtr<ServiceWorkerClient>>
   CreateRequestHandler();
 
   bool Servable(base::TimeDelta cacheable_duration) const;
   bool IsWaitingForResponse() const;
+
+  // Returns non-null on:
+  // - `LoadState::kResponseReceived` (always)
+  // - `LoadState::kCompleted` (always)
+  // - `LoadState::kFailedResponseReceived` (always)
+  // - `LoadState::kFailed` (only when transitioning from
+  //   `LoadState::kResponseReceived` or `LoadState::kFailedResponseReceived`).
   const network::mojom::URLResponseHeadPtr& GetHead() const { return head_; }
 
   // True if this response had Vary: Cookie (or Vary: *), and a Cookie-Indices

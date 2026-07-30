@@ -17,13 +17,13 @@ source_set("legion_internals") {
   deps = [
     ":mojo_bindings",
     "//chrome:extra_resources",
-    "//chrome/browser/legion",
+    "//chrome/browser/private_ai",
     "//chrome/browser/profiles",
     "//chrome/common",
-    "//components/legion",
-    "//components/legion:proto",
-    "//components/legion/common",
-    "//components/legion/phosphor",
+    "//components/private_ai",
+    "//components/private_ai:proto",
+    "//components/private_ai/common",
+    "//components/private_ai/phosphor",
     "//content/public/browser",
     "//ui/webui",
   ]

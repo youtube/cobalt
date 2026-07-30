@@ -178,41 +178,17 @@ void TileDisplayLayerImpl::PushPropertiesTo(LayerImpl* layer) {
   NOTREACHED();
 }
 
-int TileDisplayLayerImpl::AppendQuadsSpecialization(
-    const AppendQuadsContext& context,
-    viz::CompositorRenderPass* render_pass,
-    AppendQuadsData* append_quads_data,
-    viz::SharedQuadState* shared_quad_state,
-    const Occlusion& scaled_occlusion,
-    const gfx::Vector2d& quad_offset,
-    float max_contents_scale) {
+void TileDisplayLayerImpl::ComputeCheckerboardedNeedsRecord(
+    AppendQuadsData* append_quads_data) {
   // NOTE: Currently it is not necessary to compute
   // append_quads_data->checkerboarded_needs_recorded on the Viz side, as it is
   // consumed only on the client side. However, it will become necessary when we
   // introduce frames driven entirely by Viz. At that point, we should dedupe
   // the relevant code into TileBasedLayerImpl.
   // See crbug.com/482862751.
-
-  const float ideal_scale_key = GetIdealContentsScaleKey();
-
-  // Append quads for the tiles in this layer.
-  for (auto iter = Cover(shared_quad_state->visible_quad_layer_rect,
-                         max_contents_scale, ideal_scale_key);
-       iter; ++iter) {
-    AppendQuadForTile(iter, context, render_pass, append_quads_data,
-                      shared_quad_state, scaled_occlusion, quad_offset,
-                      max_contents_scale);
-  }
-
-  // TileDisplayLayerImpl does not currently track the number of missing tiles,
-  // as that info is used only to pass to `checkerboarded_needs_raster` on the
-  // client side.
-  // TODO(crbug.com/401566175): Track `checkerboarded_needs_raster` on the Viz
-  // side.
-  return 0;
 }
 
-void TileDisplayLayerImpl::AppendQuadForTile(
+bool TileDisplayLayerImpl::AppendQuadForTile(
     TilingSetCoverageIterator<TileDisplayLayerTiling> iter,
     const AppendQuadsContext& context,
     viz::CompositorRenderPass* render_pass,
@@ -220,14 +196,16 @@ void TileDisplayLayerImpl::AppendQuadForTile(
     viz::SharedQuadState* shared_quad_state,
     const Occlusion& scaled_occlusion,
     const gfx::Vector2d& quad_offset,
-    float max_contents_scale) {
+    const std::optional<gfx::Rect>& scaled_cull_rect,
+    float max_contents_scale,
+    AppendQuadsCustomSharedData* custom_data) {
   const gfx::Rect scaled_recorded_bounds =
       gfx::ScaleToEnclosingRect(recorded_bounds_, max_contents_scale);
   const gfx::Rect geometry_rect = iter.geometry_rect();
   gfx::Rect visible_geometry_rect;
   if (ShouldSkipTile(geometry_rect, scaled_recorded_bounds, scaled_occlusion,
                      visible_geometry_rect)) {
-    return;
+    return true;
   }
 
   gfx::Rect offset_geometry_rect = geometry_rect;
@@ -271,10 +249,16 @@ void TileDisplayLayerImpl::AppendQuadForTile(
         render_pass->CreateAndAppendDrawQuad<viz::SolidColorDrawQuad>();
     quad->SetNew(shared_quad_state, offset_geometry_rect,
                  offset_visible_geometry_rect, color, false);
-    return;
+
+    // NOTE: TileDisplayLayerImpl does not currently track missing tiles, as
+    // that info is used only to pass to `checkerboarded_needs_raster` on the
+    // client side.  TODO(crbug.com/401566175): Determine if we need to track
+    // `checkerboarded_needs_raster` on the Viz side in the longer term.
+    return true;
   }
 
   AddScaleToLastAppendQuadsScales(iter.CurrentTiling()->contents_scale_key());
+  return true;
 }
 
 float TileDisplayLayerImpl::GetMaximumContentsScaleForUseInAppendQuads() const {

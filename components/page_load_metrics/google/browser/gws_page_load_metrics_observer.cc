@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "base/containers/fixed_flat_set.h"
+#include "base/containers/flat_map.h"
 #include "base/debug/crash_logging.h"
 #include "base/debug/dump_without_crashing.h"
 #include "base/feature_list.h"
@@ -204,6 +205,27 @@ const char kHistogramNoServiceWorkerDomContentLoadedSearch[] =
 const char kHistogramNoServiceWorkerLoadSearch[] =
     "PageLoad.Clients.NoServiceWorker2.DocumentTiming."
     "NavigationToLoadEventFired.search";
+
+// AIO related histograms.
+const char kHistogramAIOAsyncStart[] =
+    HISTOGRAM_PREFIX "PaintTiming.AIOAsyncStart";
+const char kHistogramAIOInitialContentTime[] =
+    HISTOGRAM_PREFIX "PaintTiming.AIOInitialContentTime";
+const char kHistogramAIOViewportEndTime[] =
+    HISTOGRAM_PREFIX "PaintTiming.AIOViewportEndTime";
+
+const char kHistogramAIOAsyncStartToInitialContentTime[] =
+    HISTOGRAM_PREFIX "AIO.AsyncStartToInitialContentTime";
+const char kHistogramAIOAsyncStartToViewportEndTime[] =
+    HISTOGRAM_PREFIX "AIO.AsyncStartToViewportEndTime";
+const char kHistogramAIOHasInitialContentTime[] =
+    HISTOGRAM_PREFIX "AIO.HasInitialContentTime";
+const char kHistogramAIOHasViewportEndTime[] =
+    HISTOGRAM_PREFIX "AIO.HasViewportEndTime";
+
+const char kHistogramAIOCompleteSuffix[] = ".Complete";
+const char kHistogramAIOInCompleteSuffix[] = ".Incomplete";
+
 }  // namespace internal
 
 namespace {
@@ -309,7 +331,9 @@ void ReportMetricForTraverseNavigation(bool is_restore_navigation,
   PAGE_LOAD_HISTOGRAM(restore_histogram_name, latency);
 }
 
-void RecordHttpStatusCode(int http_status_code, const GURL& url) {
+void RecordHttpStatusCode(int http_status_code,
+                          const GURL& url,
+                          bool is_incognito) {
   std::string suffix;
   if (page_load_metrics::IsGoogleSearchPrewarmUrl(url)) {
     suffix = internal::kHistogramGWSHttpStatusCodePrewarm;
@@ -322,6 +346,13 @@ void RecordHttpStatusCode(int http_status_code, const GURL& url) {
   base::UmaHistogramSparse(
       base::StrCat({internal::kHistogramGWSHttpStatusCode, suffix}),
       http_status_code);
+
+  if (is_incognito) {
+    base::UmaHistogramBoolean(
+        base::StrCat({internal::kHistogramGWSHttpStatusCode, suffix,
+                      internal::kHistogramIncognitoSuffix}),
+        http_status_code);
+  }
 }
 
 }  // namespace
@@ -376,7 +407,7 @@ GWSPageLoadMetricsObserver::OnRedirect(
     content::NavigationHandle* navigation_handle) {
   if (auto* response_headers = navigation_handle->GetResponseHeaders()) {
     RecordHttpStatusCode(response_headers->response_code(),
-                         navigation_handle->GetURL());
+                         navigation_handle->GetURL(), IsIncognitoProfile());
   }
 
   return CONTINUE_OBSERVING;
@@ -404,7 +435,7 @@ GWSPageLoadMetricsObserver::OnCommit(
   }
   if (auto* response_headers = navigation_handle->GetResponseHeaders()) {
     RecordHttpStatusCode(response_headers->response_code(),
-                         navigation_handle->GetURL());
+                         navigation_handle->GetURL(), IsIncognitoProfile());
   }
   if (!is_gws_url) {
     return STOP_OBSERVING;
@@ -668,41 +699,79 @@ void GWSPageLoadMetricsObserver::OnCustomUserTimingMarkObserved(
     PAGE_LOAD_HISTOGRAM(histogram_name, timing);
     PAGE_LOAD_HISTOGRAM(histogram_with_suffix, timing);
   };
+
   for (const auto& mark : timings) {
     // TODO(crbug.com/436345871): Update the logic to align with the server
     // behavior.
-    auto timing =
-        is_prerendered_
-            ? page_load_metrics::CorrectEventAsNavigationOrActivationOrigined(
-                  GetDelegate(), mark->start_time)
-            : mark->start_time;
-    if (mark->mark_name == internal::kGwsAFTStartMarkName) {
-      record_histogram(internal::kHistogramGWSAFTStart, timing);
-      aft_start_time_ = mark->start_time;
-    } else if (mark->mark_name == internal::kGwsAFTEndMarkName) {
-      record_histogram(internal::kHistogramGWSAFTEnd, timing);
-      aft_end_time_ = mark->start_time;
-    } else if (mark->mark_name == internal::kGwsHeadChunkStartMarkName) {
-      record_histogram(internal::kHistogramGWSHeadChunkStart, timing);
-      head_chunk_start_time_ = mark->start_time;
-    } else if (mark->mark_name == internal::kGwsHeadChunkEndMarkName) {
-      record_histogram(internal::kHistogramGWSHeadChunkEnd, timing);
-      head_chunk_end_time_ = mark->start_time;
-    } else if (mark->mark_name == internal::kGwsBodyChunkStartMarkName) {
-      record_histogram(internal::kHistogramGWSBodyChunkStart, timing);
-      body_chunk_start_time_ = mark->start_time;
-    } else if (mark->mark_name == internal::kGwsBodyChunkEndMarkName) {
-      record_histogram(internal::kHistogramGWSBodyChunkEnd, timing);
-    } else if (mark->mark_name == internal::kGwsSGLMarkName) {
-      // Because this is a performance mark for previous navigation, we should
-      // not correct the timing for prerender activation, or else we would get
-      // inconsistent timing.
-      // So, we use `mark->start_time` directly here rather than using the
-      // pre-adjusted `timing`.
-      record_histogram(internal::kHistogramGWSSGL, mark->start_time);
-      sgl_time_ = mark->start_time;
+    const auto mark_timing_info = GetMarkNameToTimingInfo(mark->mark_name);
+    if (mark_timing_info.has_value()) {
+      record_histogram(mark_timing_info->histogram_name,
+                       AdjustPerformanceMarkTiming(mark));
+      if (mark_timing_info->timing_member) {
+        this->*(*mark_timing_info->timing_member) = mark->start_time;
+      }
     }
   }
+}
+
+std::optional<GWSPageLoadMetricsObserver::PerformanceMarkTimingHistogramInfo>
+GWSPageLoadMetricsObserver::GetMarkNameToTimingInfo(
+    std::string_view mark_name) const {
+  static const base::NoDestructor<
+      base::flat_map<std::string_view, PerformanceMarkTimingHistogramInfo>>
+      mark_timing_info({
+          {internal::kGwsAFTStartMarkName,
+           {internal::kHistogramGWSAFTStart,
+            &GWSPageLoadMetricsObserver::aft_start_time_}},
+          {internal::kGwsAFTEndMarkName,
+           {internal::kHistogramGWSAFTEnd,
+            &GWSPageLoadMetricsObserver::aft_end_time_}},
+          {internal::kGwsHeadChunkStartMarkName,
+           {internal::kHistogramGWSHeadChunkStart,
+            &GWSPageLoadMetricsObserver::head_chunk_start_time_}},
+          {internal::kGwsHeadChunkEndMarkName,
+           {internal::kHistogramGWSHeadChunkEnd,
+            &GWSPageLoadMetricsObserver::head_chunk_end_time_}},
+          {internal::kGwsBodyChunkStartMarkName,
+           {internal::kHistogramGWSBodyChunkStart,
+            &GWSPageLoadMetricsObserver::body_chunk_start_time_}},
+          {internal::kGwsBodyChunkEndMarkName,
+           {internal::kHistogramGWSBodyChunkEnd, std::nullopt}},
+          {internal::kGwsSGLMarkName,
+           {internal::kHistogramGWSSGL,
+            &GWSPageLoadMetricsObserver::sgl_time_}},
+          {internal::kGwsAIOAsyncStartMarkName,
+           {internal::kHistogramAIOAsyncStart,
+            &GWSPageLoadMetricsObserver::aio_async_start_time_}},
+          {internal::kGwsAIOInitialContentTimeMarkName,
+           {internal::kHistogramAIOInitialContentTime,
+            &GWSPageLoadMetricsObserver::aio_initial_content_time_}},
+          {internal::kGwsAIOViewportEndTimeMarkName,
+           {internal::kHistogramAIOViewportEndTime,
+            &GWSPageLoadMetricsObserver::aio_viewport_end_time_}},
+      });
+  auto it = mark_timing_info->find(mark_name);
+  if (it != mark_timing_info->end()) {
+    return it->second;
+  }
+  return std::nullopt;
+}
+
+base::TimeDelta GWSPageLoadMetricsObserver::AdjustPerformanceMarkTiming(
+    const page_load_metrics::mojom::CustomUserTimingMarkPtr& mark) {
+  if (mark->mark_name == internal::kGwsSGLMarkName) {
+    // Because this is a performance mark for previous navigation, we should
+    // not correct the timing for prerender activation, or else we would get
+    // inconsistent timing.
+    // So, we use `mark->start_time` directly here.
+    return mark->start_time;
+  }
+  // TODO(crbug.com/436345871): Update the logic to align with the server
+  // behavior.
+  return is_prerendered_
+             ? page_load_metrics::CorrectEventAsNavigationOrActivationOrigined(
+                   GetDelegate(), mark->start_time)
+             : mark->start_time;
 }
 
 page_load_metrics::PageLoadMetricsObserver::ObservePolicy
@@ -714,6 +783,7 @@ GWSPageLoadMetricsObserver::FlushMetricsOnAppEnterBackground(
 
 void GWSPageLoadMetricsObserver::LogMetricsOnComplete() {
   RecordGWSSessionStateHistograms();
+  RecordAIOHistograms();
 
   const page_load_metrics::ContentfulPaintTimingInfo&
       all_frames_largest_contentful_paint =
@@ -1158,4 +1228,39 @@ void GWSPageLoadMetricsObserver::RecordGWSSessionStateHistograms() {
   if (!gws_session_state->IsSignedIn() && aft_end_time_.has_value()) {
     gws_session_state->SetPrewarmed();
   }
+}
+
+void GWSPageLoadMetricsObserver::RecordAIOHistograms() {
+  if (!aio_async_start_time_.has_value()) {
+    return;
+  }
+
+  auto navigation_start_to_now =
+      base::TimeTicks::Now() - GetDelegate().GetNavigationStart();
+
+  auto record_latency_histogram =
+      [&navigation_start_to_now,
+       async_start_time = aio_async_start_time_.value()](
+          const char* histogram_name, std::optional<base::TimeDelta> timing) {
+        base::TimeDelta end_time =
+            timing.has_value() ? *timing : navigation_start_to_now;
+
+        PAGE_LOAD_HISTOGRAM(
+            base::StrCat({histogram_name,
+                          timing.has_value()
+                              ? internal::kHistogramAIOCompleteSuffix
+                              : internal::kHistogramAIOInCompleteSuffix}),
+            end_time - async_start_time);
+      };
+
+  base::UmaHistogramBoolean(internal::kHistogramAIOHasInitialContentTime,
+                            aio_initial_content_time_.has_value());
+  record_latency_histogram(
+      internal::kHistogramAIOAsyncStartToInitialContentTime,
+      aio_initial_content_time_);
+
+  base::UmaHistogramBoolean(internal::kHistogramAIOHasViewportEndTime,
+                            aio_viewport_end_time_.has_value());
+  record_latency_histogram(internal::kHistogramAIOAsyncStartToViewportEndTime,
+                           aio_viewport_end_time_);
 }

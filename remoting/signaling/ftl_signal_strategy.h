@@ -53,7 +53,6 @@ class FtlSignalStrategy : public SignalStrategy {
   const SignalingAddress& GetLocalAddress() const override;
   void AddListener(Listener* listener) override;
   void RemoveListener(Listener* listener) override;
-  bool SendStanza(std::unique_ptr<jingle_xmpp::XmlElement> stanza) override;
   bool SendMessage(const SignalingAddress& destination_address,
                    SignalingMessage&& message) override;
   std::string GetNextId() override;
@@ -71,7 +70,7 @@ class FtlSignalStrategy : public SignalStrategy {
                   std::unique_ptr<MessagingClient> messaging_client);
 
   // This ensures that even if a Listener deletes the current instance during
-  // OnSignalStrategyIncomingStanza(), we can delete |core_| asynchronously.
+  // OnSignalStrategyIncomingMessage(), we can delete |core_| asynchronously.
   class Core;
 
   std::unique_ptr<Core> core_;

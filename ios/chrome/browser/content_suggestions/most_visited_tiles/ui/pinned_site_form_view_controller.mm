@@ -15,7 +15,6 @@
 #import "ios/chrome/browser/content_suggestions/most_visited_tiles/ui/most_visited_item.h"
 #import "ios/chrome/browser/content_suggestions/most_visited_tiles/ui/most_visited_tiles_pinned_site_mutator.h"
 #import "ios/chrome/browser/keyboard/ui_bundled/UIKeyCommand+Chrome.h"
-#import "ios/chrome/browser/shared/ui/table_view/cells/table_view_attributed_string_header_footer_item.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_text_edit_item.h"
 #import "ios/chrome/browser/shared/ui/table_view/table_view_utils.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
@@ -41,22 +40,27 @@ BOOL IsInputValid(NSString* input) {
              length] > 0;
 }
 
-/// Helper method to generate the disclaimer on the modify site form.
-NSAttributedString* GetDisclaimerForModificationForm() {
-  NSDictionary* attributes = @{
-    NSFontAttributeName :
-        [UIFont preferredFontForTextStyle:UIFontTextStyleFootnote],
-    NSForegroundColorAttributeName : [UIColor colorNamed:kTextSecondaryColor]
-  };
-  return [[NSMutableAttributedString alloc]
-      initWithString:l10n_util::GetNSString(
-                         IDS_IOS_CONTENT_SUGGESTIONS_PIN_SITE_FORM_FOOTER)
-          attributes:attributes];
+/// Error message that should be displayed for each possible results when the
+/// user applies the changes.
+NSString* GetErrorMessage(PinnedSiteMutationResult result) {
+  int message_id;
+  switch (result) {
+    case PinnedSiteMutationResult::kSuccess:
+      return nil;
+    case PinnedSiteMutationResult::kURLExisted:
+      message_id = IDS_IOS_CONTENT_SUGGESTIONS_PIN_SITE_FORM_URL_EXISTS;
+      break;
+    case PinnedSiteMutationResult::kURLInvalid:
+      message_id =
+          IDS_IOS_CONTENT_SUGGESTIONS_PIN_SITE_FORM_URL_VALIDATION_FAILED;
+      break;
+  }
+  return l10n_util::GetNSString(message_id);
 }
 
 }  // namespace
 
-@interface PinnedSiteFormViewController () <UITableViewDelegate>
+@interface PinnedSiteFormViewController ()
 
 @end
 
@@ -71,11 +75,9 @@ NSAttributedString* GetDisclaimerForModificationForm() {
   /// Current input values.
   NSString* _name;
   NSString* _URL;
-  /// Disclaimer for the form.
-  NSAttributedString* _disclaimer;
-  /// Whether the error message should be displayed. Usually caused by an
-  /// invalid URL input.
-  BOOL _shouldShowErrorMessage;
+  /// Currently displaying error message. Should be updated using
+  /// `-setErrorMessage:` method.
+  NSString* _errorMessage;
   /// Whether any error has been encountered before form dismissal.
   BOOL _hasFailedOnce;
   /// If `YES`, the form is ready to be edited.
@@ -91,7 +93,6 @@ NSAttributedString* GetDisclaimerForModificationForm() {
       CHECK(item);
       _originalName = item.title;
       _originalURL = base::SysUTF8ToNSString(item.URL.spec());
-      _disclaimer = GetDisclaimerForModificationForm();
     }
     _name = _originalName;
     _URL = _originalURL;
@@ -123,9 +124,6 @@ NSAttributedString* GetDisclaimerForModificationForm() {
               style:UIBarButtonItemStyleDone
              target:self
              action:@selector(onApplyButtonTap)];
-  self.tableView.delegate = self;
-  RegisterTableViewHeaderFooter<TableViewAttributedStringHeaderFooterView>(
-      self.tableView);
   [self loadModel];
   [self updateApplyButtonState];
 }
@@ -138,21 +136,6 @@ NSAttributedString* GetDisclaimerForModificationForm() {
       _action, _hasFailedOnce
                    ? MostVisitedPinSiteFormUserAction::kDismissAfterFailure
                    : MostVisitedPinSiteFormUserAction::kDismissImmediately);
-}
-
-#pragma mark - UITableViewDelegate
-
-- (UIView*)tableView:(UITableView*)tableView
-    viewForFooterInSection:(NSInteger)section {
-  NSAttributedString* footerString = [self footerAttributedString];
-  if (!footerString) {
-    return nil;
-  }
-  TableViewAttributedStringHeaderFooterView* footer =
-      DequeueTableViewHeaderFooter<TableViewAttributedStringHeaderFooterView>(
-          tableView);
-  [footer setAttributedString:footerString];
-  return footer;
 }
 
 #pragma mark - UIResponder
@@ -208,6 +191,7 @@ NSAttributedString* GetDisclaimerForModificationForm() {
               forControlEvents:UIControlEventEditingChanged];
   cell.selectionStyle = UITableViewCellSelectionStyleNone;
   cell.identifyingIconButton.hidden = YES;
+  cell.isAccessibilityElement = NO;
   BOOL maybeFocusOnCell;
   switch (static_cast<ItemIdentifier>(identifier.integerValue)) {
     case ItemTypeName:
@@ -216,6 +200,7 @@ NSAttributedString* GetDisclaimerForModificationForm() {
       cell.textField.text = _name;
       cell.textField.placeholder = l10n_util::GetNSString(
           IDS_IOS_CONTENT_SUGGESTIONS_PIN_SITE_FORM_NAME);
+      cell.textField.autocapitalizationType = UITextAutocapitalizationTypeWords;
       [cell.textField addTarget:self
                          action:@selector(nameDidChange:)
                forControlEvents:UIControlEventEditingChanged];
@@ -227,6 +212,7 @@ NSAttributedString* GetDisclaimerForModificationForm() {
       cell.textField.text = _URL;
       cell.textField.placeholder = @"https://example.com";
       cell.textField.keyboardType = UIKeyboardTypeURL;
+      cell.textField.autocapitalizationType = UITextAutocapitalizationTypeNone;
       [cell.textField addTarget:self
                          action:@selector(URLDidChange:)
                forControlEvents:UIControlEventEditingChanged];
@@ -251,32 +237,8 @@ NSAttributedString* GetDisclaimerForModificationForm() {
 /// Handler for changes in the `URL` field.
 - (void)URLDidChange:(UITextField*)textField {
   _URL = textField.text;
-  [self setErrorMessageVisibility:NO];
+  [self setErrorMessage:nil];
   [self updateApplyButtonState];
-}
-
-/// The footer string based on the current form and error state.
-- (NSAttributedString*)footerAttributedString {
-  NSMutableAttributedString* errorString = nil;
-  if (_shouldShowErrorMessage) {
-    NSDictionary* attributes = @{
-      NSFontAttributeName :
-          [UIFont preferredFontForTextStyle:UIFontTextStyleFootnote],
-      NSForegroundColorAttributeName : [UIColor colorNamed:kRedColor]
-    };
-    errorString = [[NSMutableAttributedString alloc]
-        initWithString:
-            l10n_util::GetNSString(
-                IDS_IOS_CONTENT_SUGGESTIONS_PIN_SITE_FORM_URL_VALIDATION_FAILED)
-            attributes:attributes];
-  }
-  if (errorString && _disclaimer) {
-    [errorString appendAttributedString:[[NSAttributedString alloc]
-                                            initWithString:@"\n"]];
-    [errorString appendAttributedString:_disclaimer];
-    return errorString;
-  }
-  return errorString ? errorString : _disclaimer;
 }
 
 /// Handles the tap on the "Add" or "Save" button.
@@ -285,26 +247,26 @@ NSAttributedString* GetDisclaimerForModificationForm() {
   if (!IsInputValid(name)) {
     name = _URL;
   }
-  BOOL success;
+  PinnedSiteMutationResult result;
   switch (_action) {
     case PinnedSiteAction::kCreate:
-      success = [self.mutator addPinnedSiteWithTitle:name URL:_URL];
+      result = [self.mutator addPinnedSiteWithTitle:name URL:_URL];
       break;
     case PinnedSiteAction::kModify:
-      success = [self.mutator editPinnedSiteForURL:_originalURL
-                                         withTitle:name
-                                               URL:_URL];
+      result = [self.mutator editPinnedSiteForURL:_originalURL
+                                        withTitle:name
+                                              URL:_URL];
       break;
   }
-  if (success) {
+  if (result == PinnedSiteMutationResult::kSuccess) {
     RecordPinnedSiteFormUserAction(
         _action, _hasFailedOnce
                      ? MostVisitedPinSiteFormUserAction::kApplyAfterFailure
                      : MostVisitedPinSiteFormUserAction::kApplyImmediately);
     [self dismissModal];
-  } else {
-    [self setErrorMessageVisibility:YES];
+    return;
   }
+  [self setErrorMessage:GetErrorMessage(result)];
 }
 
 /// Handles the tap on the "Cancel" button or swiping down.
@@ -321,25 +283,46 @@ NSAttributedString* GetDisclaimerForModificationForm() {
 /// fields.
 - (void)updateApplyButtonState {
   self.navigationItem.rightBarButtonItem.enabled =
-      IsInputValid(_URL) && !_shouldShowErrorMessage;
+      IsInputValid(_URL) && !_errorMessage;
 }
 
-/// Sets the visibility state of the error message.
-- (void)setErrorMessageVisibility:(BOOL)visible {
-  _hasFailedOnce = _hasFailedOnce || visible;
-  if (_shouldShowErrorMessage == visible) {
+/// Updates the footer of the table.
+- (void)updateFooter {
+  if (!_errorMessage) {
+    self.tableView.tableFooterView = nil;
     return;
   }
-  _shouldShowErrorMessage = visible;
-  [self updateApplyButtonState];
-  /// Update footer.
-  TableViewAttributedStringHeaderFooterView* footer =
-      base::apple::ObjCCastStrict<TableViewAttributedStringHeaderFooterView>(
-          [self.tableView footerViewForSection:kSection]);
-  if (footer) {
-    [footer setAttributedString:[self footerAttributedString]];
+  /// Sets up the label.
+  UILabel* errorMessage = [[UILabel alloc] initWithFrame:CGRectZero];
+  errorMessage.text = _errorMessage;
+  errorMessage.textColor = [UIColor colorNamed:kRedColor];
+  errorMessage.font =
+      [UIFont preferredFontForTextStyle:UIFontTextStyleFootnote];
+  errorMessage.numberOfLines = 0;
+  /// Sizes it correctly.
+  CGRect readableContentFrame = self.tableView.readableContentGuide.layoutFrame;
+  CGSize size = [errorMessage
+      sizeThatFits:CGSizeMake(readableContentFrame.size.width, CGFLOAT_MAX)];
+  errorMessage.frame =
+      CGRectMake(readableContentFrame.origin.x, 0, size.width, size.height);
+  UIView* footer = [[UIView alloc]
+      initWithFrame:CGRectMake(0, 0, self.tableView.bounds.size.width,
+                               size.height)];
+  [footer addSubview:errorMessage];
+  self.tableView.tableFooterView = footer;
+  UIAccessibilityPostNotification(UIAccessibilityLayoutChangedNotification,
+                                  footer);
+}
+
+/// Sets the error message.
+- (void)setErrorMessage:(NSString*)message {
+  _hasFailedOnce = _hasFailedOnce || message;
+  if ((!_errorMessage && !message) || [_errorMessage isEqualToString:message]) {
+    return;
   }
-  [self.tableView performBatchUpdates:nil completion:nil];
+  _errorMessage = message;
+  [self updateApplyButtonState];
+  [self updateFooter];
 }
 
 /// Dismiss the modal.

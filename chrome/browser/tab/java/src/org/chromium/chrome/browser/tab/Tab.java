@@ -50,6 +50,7 @@ public interface Tab extends TabLifecycle {
     }
 
     /** Tracks the media indicator state of the tab. */
+    // LINT.IfChange(AndroidTabMediaState)
     @IntDef({
         MediaState.NONE,
         MediaState.MUTED,
@@ -57,6 +58,7 @@ public interface Tab extends TabLifecycle {
         MediaState.RECORDING,
         MediaState.SHARING,
         MediaState.MAX_VALUE,
+        MediaState.COUNT,
     })
     @Target(ElementType.TYPE_USE)
     @Retention(RetentionPolicy.SOURCE)
@@ -67,7 +69,10 @@ public interface Tab extends TabLifecycle {
         int RECORDING = 3;
         int SHARING = 4;
         int MAX_VALUE = SHARING;
+        int COUNT = MAX_VALUE + 1;
     }
+
+    // LINT.ThenChange(//tools/metrics/histograms/metadata/tab/enums.xml:AndroidTabMediaState)
 
     /** The result of the loadUrl. */
     class LoadUrlResult {
@@ -175,7 +180,10 @@ public interface Tab extends TabLifecycle {
     @TabId
     int getId();
 
-    /** Returns parameters that should be used for a lazily loaded Tab. May be null. */
+    /**
+     * Returns parameters that should be used for a lazily initialized or navigated Tab. May be
+     * null.
+     */
     @Nullable LoadUrlParams getPendingLoadParams();
 
     /**
@@ -300,37 +308,27 @@ public interface Tab extends TabLifecycle {
     LoadUrlResult loadUrl(LoadUrlParams params);
 
     /**
-     * Freezes the tab by saving its {@link WebContents} to an {@link WebContentsState} and
-     * destroying the {@link WebContents}. If the tab is already frozen this is a no-op. The tab
-     * must be closing or inactive to be frozen.
-     *
-     * <p>An experiment is in progress to change the implementation of this method to invoke {@link
-     * WebContents#discard()} instead. See https://crbug.com/448420873. If the experiment is
-     * launched this method will be renamed to {@code discard()}.
+     * Discards the tab by saving its {@link WebContents} to an {@link WebContentsState} and
+     * destroying the {@link WebContents}. If the tab is already frozen/discarded this is a no-op.
+     * The tab must be closing or inactive to be discarded.
      */
-    void freeze();
+    void discard();
 
     /**
-     * Freezes the tabs and stores the URL in the tab's WebContentsState. If the tab is already
-     * frozen this method still appends the navigation entry, but skips the process of freezing the
-     * tab.
-     *
-     * <p>An experiment is in progress to change the implementation of this method to invoke {@link
-     * WebContents#discard()} and use a pending {@link LoadUrlParams} instead of freezing the tab.
-     * See https://crbug.com/448420873. If the experiment is launched this method will be renamed to
-     * {@code discardAndAppendPendingNavigation()}.
+     * Discards the tabs and stores the URL in the tab's WebContentsState. If the tab is already
+     * frozen/discarded this method still appends the navigation entry, but skips the process of
+     * discarding the tab. If there is already a pending navigation, it will be replaced by this
+     * one.
      *
      * @param params Parameters describing the url load. Note that it is important to set correct
      *     page transition as it is used for ranking URLs in the history so the omnibox can report
      *     suggestions correctly.
      * @param title The title of the tab to use on UI surfaces before it is navigated to.
      */
-    void freezeAndAppendPendingNavigation(LoadUrlParams params, @Nullable String title);
+    void discardAndAppendPendingNavigation(LoadUrlParams params, @Nullable String title);
 
     /**
-     * Loads the tab if it's not loaded (e.g. because it was killed in background). This will
-     * trigger a regular load for tabs with pending lazy first load (tabs opened in background on
-     * low-memory devices).
+     * Loads the tab if it's not loaded (e.g. frozen, lazily loaded, it was background, etc.).
      *
      * @param caller The caller of this method.
      * @return true iff the Tab handled the request.
@@ -342,7 +340,8 @@ public interface Tab extends TabLifecycle {
 
     /**
      * Reloads the current page content.
-     * This version ignores the cache and reloads from the network.
+     *
+     * <p>This version ignores the cache and reloads from the network.
      */
     void reloadIgnoringCache();
 

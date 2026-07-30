@@ -194,13 +194,6 @@ public interface ChromeAndroidTask {
     @Nullable ActivityWindowAndroid getTopActivityWindowAndroid();
 
     /**
-     * Called when native initialization has finished.
-     *
-     * <p>This signals when this {@link ChromeAndroidTask} is fully initialized.
-     */
-    void onNativeInitializationFinished();
-
-    /**
      * Adds a {@link ChromeAndroidTaskFeature} to this {@link ChromeAndroidTask}.
      *
      * <p>If an instance of the given {@code featureKey} hasn't been added to this Task, this method
@@ -300,7 +293,8 @@ public interface ChromeAndroidTask {
      * when its state changed from nonexistent or inactive (minimized/unfocused), to the active
      * state (in the foreground and focused).
      *
-     * <p>The timestamp is in milliseconds since boot.
+     * <p>The timestamp is in milliseconds since boot. Returns 0 if this task has never been
+     * activated.
      */
     long getLastActivatedTimeMillis();
 

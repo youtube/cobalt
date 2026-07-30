@@ -1551,7 +1551,7 @@ void UserSessionManager::InitProfilePreferences(
         set_account_result =
             identity_manager->GetPrimaryAccountMutator()->SetPrimaryAccount(
                 account_id, ConsentLevel::kSync,
-                signin_metrics::AccessPoint::kUnknown);
+                signin_metrics::AccessPoint::kAshUserSessionManager);
     VLOG(1) << "SetPrimaryAccount result="
             << static_cast<int>(set_account_result);
 
@@ -2434,7 +2434,7 @@ void UserSessionManager::DoBrowserLaunchInternal(Profile* profile,
       // instead override `ServiceIsCreatedWithBrowserContext` in the
       // factory to conditionally construct the service after profile creation.
       FloatingWorkspaceServiceFactory::GetForProfile(profile);
-    } else if (!floating_workspace_handles_restore) {
+    } else {
       if (!IsFullRestoreEnabled(profile)) {
         LaunchBrowser(profile);
         PerformPostBrowserLaunchOOBEActions(profile);

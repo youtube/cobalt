@@ -19,6 +19,7 @@ source_set("sync_integration_tests_impl") {
   deps = [
     ":sync_integration_test_support",
     "//chrome/browser/autofill",
+    "//chrome/browser/bookmarks",
     "//chrome/browser/history",
     "//chrome/browser/metrics:test_support",
     "//chrome/browser/password_manager/factories",
@@ -88,7 +89,10 @@ source_set("sync_integration_tests_impl") {
     # (CL #N), add integration tests. Careful, sync_integration_tests runs in CQ
     # but android_sync_integration_tests do not.
   ]
-  data = [ "//chrome/test/data/sync/" ]
+  data = [
+    "//chrome/test/data/autofill/",
+    "//chrome/test/data/sync/",
+  ]
 
   # Extensions are enabled on Win/Mac/Linux/CrOS and desktop Android.
   if (enable_extensions_core) {
@@ -475,11 +479,13 @@ source_set("sync_integration_test_support") {
     "//base",
     "//chrome/browser:main_extra_parts",
     "//chrome/browser/autofill",
+    "//chrome/browser/bookmarks",
     "//chrome/browser/gcm",
     "//chrome/browser/history",
     "//chrome/browser/password_manager/factories",
     "//chrome/browser/profiles",
     "//chrome/browser/search_engines",
+    "//chrome/browser/send_tab_to_self",
     "//chrome/browser/sync",
     "//chrome/browser/ui/browser_window",
     "//chrome/browser/webdata_services",
@@ -524,6 +530,7 @@ source_set("sync_integration_test_support") {
     ]
 
     deps += [
+      "//chrome/browser/android:tabs_public",
       "//chrome/browser/android/webapk:webapk_sources",
       "//chrome/browser/password_manager/android:utils",
       "//chrome/browser/ui/android/tab_model",

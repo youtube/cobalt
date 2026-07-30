@@ -1417,17 +1417,27 @@ inline constexpr char kPluginsAlwaysOpenPdfExternally[] =
 
 // Int64 containing the internal value of the time at which the default browser
 // infobar was last dismissed by the user.
-inline constexpr char kDefaultBrowserLastDeclined[] =
+inline constexpr char kDefaultBrowserInfobarLastDeclined[] =
     "browser.default_browser_infobar_last_declined";
 
 // base::Time containing time at which the default browser infobar was last
 // dismissed by the user.
-inline constexpr char kDefaultBrowserLastDeclinedTime[] =
+inline constexpr char kDefaultBrowserInfobarLastDeclinedTime[] =
     "browser.default_browser_infobar_last_declined_time";
 
 // Int representing the number of times the user has dismissed the infobar.
-inline constexpr char kDefaultBrowserDeclinedCount[] =
+inline constexpr char kDefaultBrowserInfobarDeclinedCount[] =
     "browser.default_browser_infobar_declined_count";
+
+// base::Time containing the time at which the user last dismissed the default
+// browser experiment surface.
+inline constexpr char kDefaultBrowserLastDeclinedTime[] =
+    "browser.default_browser_last_declined_time";
+
+// Int representing the number of times the user has dismissed the default
+// browser experiment surface.
+inline constexpr char kDefaultBrowserDeclinedCount[] =
+    "browser.default_browser_declined_count";
 
 // base::Time containing first time the default browser app menu chip was shown.
 inline constexpr char kDefaultBrowserFirstShownTime[] =
@@ -1961,8 +1971,32 @@ inline constexpr char kGoogleSearchSidePanelEnabled[] =
 // RTL.
 inline constexpr char kTabSearchRightAligned[] = "tab_search.is_right_aligned";
 
+// Boolean determining whether the tab search button is pinned to the tab strip.
+inline constexpr char kTabSearchPinnedToTabstrip[] =
+    "tab_search.pinned_to_tabstrip";
+
+// Boolean indicating whether the tab search pinning migration to the tab strip
+// is complete.
+inline constexpr char kTabSearchPinnedToTabstripMigrationComplete[] =
+    "tab_search.pinned_to_tabstrip_migration_complete";
+
+// Boolean determining whether the projects panel button is pinned to the tab
+// strip.
+inline constexpr char kProjectsPanelPinnedToTabstrip[] =
+    "projects_panel.pinned_to_tabstrip";
+
+// Boolean determining whether the everything menu button is pinned to the tab
+// strip.
+inline constexpr char kEverythingMenuPinnedToTabstrip[] =
+    "everything_menu.pinned_to_tabstrip";
+
 // Boolean determining whether vertical tabs are enabled.
 inline constexpr char kVerticalTabsEnabled[] = "vertical_tabs.enabled";
+
+// Records whether the user has enabled vertical tabs for the first time. Only
+// used for metrics reporting purposes.
+inline constexpr char kVerticalTabsEnabledFirstTime[] =
+    "vertical_tabs.enabled_first_time";
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(ENABLE_COMPOSE)
@@ -2904,14 +2938,6 @@ inline constexpr char kH2ClientCertCoalescingHosts[] =
 inline constexpr char kHSTSPolicyBypassList[] =
     "hsts.policy.upgrade_bypass_list";
 
-// If false, disable post-quantum key agreement in TLS connections.
-inline constexpr char kPostQuantumKeyAgreementEnabled[] =
-    "ssl.post_quantum_enabled";
-#if BUILDFLAG(IS_CHROMEOS)
-inline constexpr char kDevicePostQuantumKeyAgreementEnabled[] =
-    "ssl.device_post_quantum_enabled";
-#endif
-
 // String identifying the compliance regime, if any, that must be adhered to for
 // key exchange in TLS.
 inline constexpr char kPreferSlowKexAlgorithms[] =
@@ -3353,9 +3379,6 @@ inline constexpr char kChromeForTestingAllowed[] = "chrome_for_testing.allowed";
 #endif
 
 #if BUILDFLAG(IS_WIN)
-inline constexpr char kUiAutomationProviderEnabled[] =
-    "accessibility.ui_automation_provider_enabled";
-
 inline constexpr char kForegroundLaunchOnLogin[] =
     "launch_on_login.foreground.enabled";
 
@@ -4360,6 +4383,13 @@ inline constexpr char kAndroidTipNotificationShownCreateTabGroup[] =
 inline constexpr char kAndroidTipNotificationShownCustomizeMVT[] =
     "android.tips.notifications.customize_mvt_shown";
 // LINT.ThenChange(//chrome/android/java/src/org/chromium/chrome/browser/notifications/tips/TipsUtils.java:TipsShownPrefs)
+#endif  // BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_ANDROID)
+// Time pref indicating the timestamp of the most recently visited browsing
+// history entry that is donated to AppSearch.
+inline constexpr char kAuxiliarySearchLastDonatedHistoryEntryVisitTime[] =
+    "auxiliary_search.last_donated_history_entry_visit_time";
 #endif  // BUILDFLAG(IS_ANDROID)
 
 }  // namespace prefs

@@ -2,10 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "components/history_embeddings/history_embeddings_service.h"
+#include "components/history_embeddings/content/history_embeddings_service.h"
 
 #include <algorithm>
 
+#include "base/callback_list.h"
+#include "base/functional/bind.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
@@ -24,9 +26,10 @@
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
-#include "components/history_embeddings/history_embeddings_features.h"
-#include "components/history_embeddings/mock_answerer.h"
-#include "components/history_embeddings/mock_intent_classifier.h"
+#include "components/history_embeddings/core/history_embeddings_features.h"
+#include "components/history_embeddings/core/mock_answerer.h"
+#include "components/history_embeddings/core/mock_intent_classifier.h"
+#include "components/keyed_service/content/browser_context_dependency_manager.h"
 #include "components/optimization_guide/core/delivery/test_model_info_builder.h"
 #include "components/optimization_guide/core/model_execution/model_execution_features.h"
 #include "components/page_content_annotations/core/page_content_annotations_features.h"
@@ -44,21 +47,22 @@ namespace history_embeddings {
 
 class HistoryEmbeddingsBrowserTest : public InProcessBrowserTest {
  public:
+  HistoryEmbeddingsBrowserTest() {
+    dependency_manager_subscription_ =
+        BrowserContextDependencyManager::GetInstance()
+            ->RegisterCreateServicesCallbackForTesting(base::BindRepeating(
+                &HistoryEmbeddingsBrowserTest::RegisterTestingServiceFactory,
+                base::Unretained(this)));
+  }
+
   void SetUp() override {
     InitializeFeatureList();
     InProcessBrowserTest::SetUp();
   }
 
-  void SetUpOnMainThread() override {
-    InitSignin();
-    browser()->profile()->GetPrefs()->SetInteger(
-        optimization_guide::prefs::GetSettingEnabledPrefName(
-            optimization_guide::UserVisibleFeatureKey::kHistorySearch),
-        static_cast<int>(
-            optimization_guide::prefs::FeatureOptInState::kEnabled));
-
+  void RegisterTestingServiceFactory(content::BrowserContext* context) {
     HistoryEmbeddingsServiceFactory::GetInstance()->SetTestingFactory(
-        browser()->profile(),
+        context,
         base::BindLambdaForTesting([this](content::BrowserContext* context) {
           return HistoryEmbeddingsServiceFactory::
               BuildServiceInstanceForBrowserContextForTesting(
@@ -68,8 +72,15 @@ class HistoryEmbeddingsBrowserTest : public InProcessBrowserTest {
                   std::make_unique<MockAnswerer>(),
                   std::make_unique<MockIntentClassifier>());
         }));
+  }
 
-    HistoryEmbeddingsTabHelper::CreateForWebContents(GetActiveWebContents());
+  void SetUpOnMainThread() override {
+    InitSignin();
+    browser()->profile()->GetPrefs()->SetInteger(
+        optimization_guide::prefs::GetSettingEnabledPrefName(
+            optimization_guide::UserVisibleFeatureKey::kHistorySearch),
+        static_cast<int>(
+            optimization_guide::prefs::FeatureOptInState::kEnabled));
 
     InProcessBrowserTest::SetUpOnMainThread();
   }
@@ -138,6 +149,7 @@ class HistoryEmbeddingsBrowserTest : public InProcessBrowserTest {
   base::test::ScopedFeatureList feature_list_;
 
  private:
+  base::CallbackListSubscription dependency_manager_subscription_;
   page_content_annotations::TestPageContentAnnotator page_content_annotator_;
   passage_embeddings::TestEnvironment passage_embeddings_test_env_;
 };

@@ -30,6 +30,7 @@
 #include "services/network/test/test_url_loader_factory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/manifest/manifest.h"
+#include "third_party/blink/public/mojom/manifest/manifest_migration_behavior.mojom.h"
 
 namespace web_app {
 
@@ -69,7 +70,8 @@ class MigrationTargetInstallJobTest : public WebAppTest {
     auto data_retriever = web_contents_manager().CreateDataRetriever();
     auto job = MigrationTargetInstallJob::CreateAndStart(
         std::move(manifest), web_contents()->GetWeakPtr(), profile(),
-        data_retriever.get(), &debug_value, lock.get(), future.GetCallback());
+        data_retriever.get(), &debug_value, lock.get(), lock.get(),
+        future.GetCallback());
     return future.Get();
   }
 };

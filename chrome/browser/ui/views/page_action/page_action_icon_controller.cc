@@ -33,7 +33,6 @@
 #include "chrome/browser/ui/views/location_bar/find_bar_icon.h"
 #include "chrome/browser/ui/views/location_bar/intent_picker_view.h"
 #include "chrome/browser/ui/views/location_bar/lens_overlay_homework_page_action_icon_view.h"
-#include "chrome/browser/ui/views/location_bar/lens_overlay_page_action_icon_view.h"
 #include "chrome/browser/ui/views/location_bar/star_view.h"
 #include "chrome/browser/ui/views/location_bar/zoom_bubble_view.h"
 #include "chrome/browser/ui/views/optimization_guide/optimization_guide_icon_view.h"
@@ -43,12 +42,10 @@
 #include "chrome/browser/ui/views/page_action/pwa_install_view.h"
 #include "chrome/browser/ui/views/page_action/zoom_view.h"
 #include "chrome/browser/ui/views/passwords/manage_passwords_icon_views.h"
-#include "chrome/browser/ui/views/performance_controls/memory_saver_chip_view.h"
 #include "chrome/browser/ui/views/sharing/sharing_dialog_view.h"
 #include "chrome/browser/ui/views/sharing/sharing_icon_view.h"
 #include "chrome/browser/ui/views/sharing_hub/sharing_hub_icon_view.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_icon_container_view.h"
-#include "chrome/browser/ui/views/translate/translate_icon_view.h"
 #include "chrome/common/chrome_features.h"
 #include "components/content_settings/core/common/features.h"
 #include "components/omnibox/browser/omnibox_prefs.h"
@@ -150,12 +147,6 @@ void PageActionIconController::Init(const PageActionIconParams& params,
                       params.browser, params.icon_label_bubble_delegate,
                       params.page_action_icon_delegate));
         break;
-      case PageActionIconType::kMemorySaver:
-        add_page_action_icon(type, std::make_unique<MemorySaverChipView>(
-                                       params.command_updater, params.browser,
-                                       params.icon_label_bubble_delegate,
-                                       params.page_action_icon_delegate));
-        break;
       case PageActionIconType::kIntentPicker:
         add_page_action_icon(
             type, std::make_unique<IntentPickerView>(
@@ -225,13 +216,6 @@ void PageActionIconController::Init(const PageActionIconParams& params,
                       params.command_updater, params.icon_label_bubble_delegate,
                       params.page_action_icon_delegate));
         break;
-      case PageActionIconType::kTranslate:
-        DCHECK(params.command_updater);
-        add_page_action_icon(
-            type, std::make_unique<TranslateIconView>(
-                      params.command_updater, params.icon_label_bubble_delegate,
-                      params.page_action_icon_delegate, params.browser));
-        break;
       case PageActionIconType::kVirtualCardEnroll:
         add_page_action_icon(
             type, std::make_unique<autofill::VirtualCardEnrollIconView>(
@@ -248,12 +232,6 @@ void PageActionIconController::Init(const PageActionIconParams& params,
         zoom_icon_ = add_page_action_icon(
             type, std::make_unique<ZoomView>(params.icon_label_bubble_delegate,
                                              params.page_action_icon_delegate));
-        break;
-      case PageActionIconType::kLensOverlay:
-        add_page_action_icon(
-            type, std::make_unique<LensOverlayPageActionIconView>(
-                      params.browser, params.icon_label_bubble_delegate,
-                      params.page_action_icon_delegate));
         break;
       case PageActionIconType::kAiMode:
         add_page_action_icon(
@@ -279,11 +257,16 @@ void PageActionIconController::Init(const PageActionIconParams& params,
                       params.browser, params.icon_label_bubble_delegate,
                       params.page_action_icon_delegate));
         break;
+      case PageActionIconType::kLensOverlay:
+      case PageActionIconType::kTranslate:
       case PageActionIconType::kReadingMode:
+      case PageActionIconType::kMemorySaver:
       case PageActionIconType::kContextualSidePanel:
       case PageActionIconType::kJsOptimizations:
       case PageActionIconType::kRecordReplay:
-        // Do nothing as these actions were added after the migration.
+      case PageActionIconType::kIndigo:
+        // Do nothing as these actions were added after the migration, or
+        // have launched the migration.
         break;
     }
   }

@@ -11,6 +11,8 @@
 #include "base/containers/extend.h"
 #include "base/containers/to_vector.h"
 #include "base/functional/callback.h"
+#include "base/i18n/time_formatting.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "base/types/optional_ref.h"
@@ -23,6 +25,7 @@
 #include "chrome/browser/record_replay/recording.pb.h"
 #include "chrome/browser/record_replay/recording_data_manager.h"
 #include "chrome/browser/record_replay/replayer.h"
+#include "chrome/common/record_replay/aliases.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
 #include "components/autofill/core/browser/data_model/payments/credit_card.h"
 #include "third_party/abseil-cpp/absl/functional/overload.h"
@@ -49,66 +52,69 @@ RecordReplayManager::State RecordReplayManager::state() const {
 }
 
 void RecordReplayManager::StartRecording() {
-  if (recorder_) {
-    ReportToUser("Finished recording");
-    if (RecordingDataManager* rdm = client_->GetRecordingDataManager()) {
-      rdm->AddRecording(recorder_->recording());
-    }
-  }
-
   ReportToUser("Starting recording");
-  recorder_.emplace(client_->GetPrimaryMainFrameUrl(), base::Time::Now());
+  base::Time now = base::Time::Now();
+  GURL url = client_->GetPrimaryMainFrameUrl();
+  recorder_.emplace(url, now);
+  recorder_->SetName(std::string(url.host()) + " - " +
+                     base::UTF16ToUTF8(base::LocalizedTimeFormatWithPattern(
+                         now, "yyyy-MM-dd")));
+
+  // TODO(crbug.com/485828286): Capture a screenshot of the `WebContents` and
+  // encode it as a JPEG before passing it to the recorder.
+  recorder_->SetScreenshot({});
+
   client_->GetDriverFactory().SetRecordForFutureDrivers(true);
   client_->GetDriverFactory().ForEachDriver(
       [](RecordReplayDriver& driver) { driver.StartRecording(); });
 }
 
-void RecordReplayManager::StopRecording() {
+std::optional<Recording> RecordReplayManager::StopRecording() {
+  std::optional<Recording> recording;
   if (recorder_) {
-    ReportToUser("Finished recording");
-    if (RecordingDataManager* rdm = client_->GetRecordingDataManager()) {
-      rdm->AddRecording(recorder_->recording());
-    }
+    recording = std::move(recorder_->recording());
   }
 
   recorder_.reset();
   client_->GetDriverFactory().SetRecordForFutureDrivers(false);
   client_->GetDriverFactory().ForEachDriver(
       [](RecordReplayDriver& driver) { driver.StopRecording(); });
+
+  return recording;
 }
 
 void RecordReplayManager::OnClick(RecordReplayDriver& driver,
                                   const ElementId& element_id,
-                                  const std::string& element_selector,
+                                  Selector element_selector,
                                   base::PassKey<RecordReplayDriver> pass_key) {
   if (!recorder_) {
     return;
   }
-  recorder_->AddClick(element_selector);
+  recorder_->AddClick(std::move(element_selector));
 }
 
 void RecordReplayManager::OnSelectChanged(
     RecordReplayDriver& driver,
     const ElementId& element_id,
-    const std::string& element_selector,
-    const std::string& value,
+    Selector element_selector,
+    FieldValue value,
     base::PassKey<RecordReplayDriver> pass_key) {
   if (!recorder_) {
     return;
   }
-  recorder_->AddSelectChange(element_selector, value);
+  recorder_->AddSelectChange(std::move(element_selector), std::move(value));
 }
 
 void RecordReplayManager::OnTextChange(
     RecordReplayDriver& driver,
     const ElementId& element_id,
-    const std::string& element_selector,
-    const std::string& text,
+    Selector element_selector,
+    FieldValue text,
     base::PassKey<RecordReplayDriver> pass_key) {
   if (!recorder_) {
     return;
   }
-  recorder_->AddTextChange(element_selector, text);
+  recorder_->AddTextChange(std::move(element_selector), std::move(text));
 }
 
 void RecordReplayManager::OnFillOrPreviewForm(
@@ -161,14 +167,14 @@ void RecordReplayManager::OnFillOrPreviewForm(
   }
   autofill::FieldGlobalId field_id = *filled_field_ids.begin();
   blink::LocalFrameToken token = blink::LocalFrameToken(*field_id.frame_token);
-  int64_t dom_node_id = *field_id.renderer_id;
+  DomNodeId dom_node_id = DomNodeId(*field_id.renderer_id);
   if (auto* driver = client_->GetDriverFactory().GetDriver(token)) {
     driver->GetElementSelector(
         dom_node_id,
         base::BindOnce(
             [](base::WeakPtr<RecordReplayManager> self, Specifics specifics,
-               const std::string& element_selector) {
-              if (!self || !self->recorder_ || element_selector.empty()) {
+               Selector element_selector) {
+              if (!self || !self->recorder_ || element_selector->empty()) {
                 return;
               }
               self->recorder_->AddAutofill(std::move(element_selector),
@@ -195,9 +201,8 @@ void RecordReplayManager::GetMatchingRecording(
     return;
   }
 
-  const std::string element_selector = recording->actions(0).element_selector();
   GetMatchingElements(
-      element_selector,
+      Selector(recording->actions(0).element_selector()),
       base::BindOnce(
           [](Recording recording, std::vector<ElementId> matches) {
             return matches.size() == 1 ? std::optional(std::move(recording))
@@ -231,7 +236,7 @@ void RecordReplayManager::StopReplay() {
 }
 
 void RecordReplayManager::GetMatchingElements(
-    const std::string& element_selector,
+    Selector element_selector,
     base::OnceCallback<void(std::vector<ElementId>)> cb) {
   std::vector<RecordReplayDriver*> drivers =
       client_->GetDriverFactory().GetActiveDrivers();
@@ -252,8 +257,8 @@ void RecordReplayManager::GetMatchingElements(
         element_selector,
         base::BindOnce(
             [](blink::LocalFrameToken frame_token,
-               const std::vector<int64_t>& dom_node_ids) {
-              return base::ToVector(dom_node_ids, [&](int64_t dom_node_id) {
+               const std::vector<DomNodeId>& dom_node_ids) {
+              return base::ToVector(dom_node_ids, [&](DomNodeId dom_node_id) {
                 return ElementId{frame_token, dom_node_id};
               });
             },

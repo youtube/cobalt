@@ -378,6 +378,8 @@ component("base") {
     "memory/aligned_memory.cc",
     "memory/aligned_memory.h",
     "memory/asan_interface.h",
+    "memory/available_physical_memory_monitor.cc",
+    "memory/available_physical_memory_monitor.h",
     "memory/free_deleter.h",
     "memory/memory_pressure_level.h",
     "memory/memory_pressure_listener.cc",
@@ -1403,8 +1405,6 @@ component("base") {
       "android/jni_array.h",
       "android/jni_bytebuffer.cc",
       "android/jni_bytebuffer.h",
-      "android/jni_callback.cc",
-      "android/jni_callback.h",
       "android/jni_registrar.cc",
       "android/jni_registrar.h",
       "android/jni_string.cc",
@@ -1994,7 +1994,6 @@ component("base") {
       "win/winrt_foundation_helpers.h",
       "win/winrt_storage_util.cc",
       "win/winrt_storage_util.h",
-      "win/wintrust_shim.h",
       "win/wmi.cc",
       "win/wmi.h",
       "win/wrapped_window_proc.cc",
@@ -2881,12 +2880,14 @@ buildflag_header("fuzzing_buildflags") {
   flags = [ "USE_FUZZING_ENGINE=$use_fuzzing_engine" ]
 }
 
-buildflag_header("plist_size_buildflags") {
-  header = "app_plist_size_buildflags.h"
-  header_dir = "base/apple"
+if (is_mac) {
+  buildflag_header("plist_size_buildflags") {
+    header = "app_plist_size_buildflags.h"
+    header_dir = "base/apple"
 
-  plist_file = read_file("//chrome/app/app-Info.plist", "string")
-  flags = [ "APP_INFO_PLIST_FILE_SIZE=" + len(plist_file) ]
+    plist_file = read_file("//chrome/app/app-Info.plist", "string")
+    flags = [ "APP_INFO_PLIST_FILE_SIZE=" + len(plist_file) ]
+  }
 }
 
 # This is the subset of files from base that should not be used with a dynamic
@@ -3562,6 +3563,7 @@ test("base_unittests") {
     "logging_unittest.cc",
     "macros/is_empty_unittest.cc",
     "memory/aligned_memory_unittest.cc",
+    "memory/available_physical_memory_monitor_unittest.cc",
     "memory/discardable_memory_backing_field_trial_unittest.cc",
     "memory/discardable_shared_memory_unittest.cc",
     "memory/memory_pressure_listener_unittest.cc",
@@ -4587,11 +4589,22 @@ if (enable_nocompile_tests) {
 }
 
 if (is_android || is_robolectric) {
+  generate_jni("base_junit_tests_jni") {
+    testonly = true
+    sources = [ "android/junit/src/org/chromium/base/JniCallbacksTest.java" ]
+  }
+
   shared_library_with_jni("libbase_junit_tests") {
     testonly = true
     enable_target = is_robolectric
-    sources = [ "android/robolectric_jni_onload.cc" ]
-    deps = [ ":base($robolectric_toolchain)" ]
+    sources = [
+      "android/jni_callbacks_test_support.cc",
+      "android/robolectric_jni_onload.cc",
+    ]
+    deps = [
+      ":base($robolectric_toolchain)",
+      ":base_junit_tests_jni($robolectric_toolchain)",
+    ]
     java_targets = [ ":base_junit_tests" ]
     visibility = [ ":*" ]
 
@@ -4803,8 +4816,10 @@ if (is_android) {
       "android/java/src/org/chromium/base/JavaHandlerThread.java",
       "android/java/src/org/chromium/base/JniCallbackImpl.java",
       "android/java/src/org/chromium/base/JniOnceCallback.java",
+      "android/java/src/org/chromium/base/JniOnceCallback2.java",
       "android/java/src/org/chromium/base/JniOnceRunnable.java",
       "android/java/src/org/chromium/base/JniRepeatingCallback.java",
+      "android/java/src/org/chromium/base/JniRepeatingCallback2.java",
       "android/java/src/org/chromium/base/JniRepeatingRunnable.java",
       "android/java/src/org/chromium/base/LocaleUtils.java",
       "android/java/src/org/chromium/base/MathUtils.java",
@@ -5131,12 +5146,16 @@ if (is_android) {
   }
 
   generate_jni("callback_jni") {
-    sources = [ "android/java/src/org/chromium/base/Callback.java" ]
+    sources = [
+      "android/java/src/org/chromium/base/Callback.java",
+      "android/java/src/org/chromium/base/Callback2.java",
+    ]
   }
 
   android_library("callback_java") {
     sources = [
       "android/java/src/org/chromium/base/Callback.java",
+      "android/java/src/org/chromium/base/Callback2.java",
       "android/java/src/org/chromium/base/CallbackUtils.java",
     ]
     deps = [
@@ -5815,6 +5834,7 @@ if (is_android) {
       "test/android/junit/src/org/chromium/base/test/BaseRobolectricTestRule.java",
       "test/android/junit/src/org/chromium/base/test/BaseRobolectricTestRunner.java",
       "test/android/junit/src/org/chromium/base/test/BaseTimeLimitedStatement.java",
+      "test/android/junit/src/org/chromium/base/test/RobolectricUtil.java",
       "test/android/junit/src/org/chromium/base/test/util/BaseFlagTestRule.java",
       "test/android/junit/src/org/chromium/base/test/util/TestRunnerTestRule.java",
     ]
@@ -5830,6 +5850,18 @@ if (is_android) {
       "//third_party/androidx:androidx_test_core_java",
       "//third_party/androidx:androidx_test_monitor_java",
       "//third_party/hamcrest:hamcrest_java",
+      "//third_party/jni_zero:jni_zero_java",
+      "//third_party/junit",
+    ]
+  }
+
+  robolectric_library("jni_callbacks_junit_tests_java") {
+    testonly = true
+    sources = [ "android/junit/src/org/chromium/base/JniCallbacksTest.java" ]
+    srcjar_deps = [ ":base_junit_tests_jni" ]
+    deps = [
+      ":base_java",
+      ":base_junit_test_support",
       "//third_party/jni_zero:jni_zero_java",
       "//third_party/junit",
     ]
@@ -5916,6 +5948,7 @@ if (is_android) {
       ":base_shared_preferences_java",
       ":features_java",
       ":flagged_apis_java",
+      ":jni_callbacks_junit_tests_java",
       ":location_junit_tests",
       ":task_executor_java",
       "//base/test:public_transit_robolectric_tests_java",

@@ -53,7 +53,7 @@
 #include "components/history_clusters/core/config.h"
 #include "components/history_clusters/core/features.h"
 #include "components/history_clusters/core/history_clusters_prefs.h"
-#include "components/history_embeddings/history_embeddings_features.h"
+#include "components/history_embeddings/core/history_embeddings_features.h"
 #include "components/page_image_service/image_service.h"
 #include "components/page_image_service/image_service_handler.h"
 #include "components/prefs/pref_service.h"
@@ -70,6 +70,7 @@
 #include "ui/webui/webui_util.h"
 
 #if BUILDFLAG(ENABLE_GLIC)
+#include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #endif
 
@@ -141,11 +142,18 @@ content::WebUIDataSource* CreateAndAddHistoryUIHTMLSource(Profile* profile) {
 #if BUILDFLAG(ENABLE_GLIC)
   const bool is_glic_enabled =
       glic::GlicEnabling::ShouldShowSettingsPage(profile);
+  const bool is_glic_web_actuation_available =
+      glic::GlicEnabling::IsEnabledAndConsentForProfile(profile) &&
+      profile->GetPrefs()->GetBoolean(
+          glic::prefs::kGlicUserEnabledActuationOnWeb);
 #else
   const bool is_glic_enabled = false;
+  const bool is_glic_web_actuation_available = false;
 #endif  // BUILDFLAG(ENABLE_GLIC)
 
   source->AddBoolean("isGlicEnabled", is_glic_enabled);
+  source->AddBoolean("isGlicWebActuationAvailable",
+                     is_glic_web_actuation_available);
 
 #if BUILDFLAG(IS_CHROMEOS)
   source->AddLocalizedString("turnOnSyncButton",

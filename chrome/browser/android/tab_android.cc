@@ -38,6 +38,7 @@
 #include "chrome/browser/resource_coordinator/tab_helper.h"
 #include "chrome/browser/resource_coordinator/tab_load_tracker.h"
 #include "chrome/browser/sync/glue/synced_tab_delegate_android.h"
+#include "chrome/browser/tab/web_contents_state.h"
 #include "chrome/browser/tab_contents/tab_util.h"
 #include "chrome/browser/ui/android/context_menu_helper.h"
 #include "chrome/browser/ui/android/tab_model/tab_model.h"
@@ -47,7 +48,6 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/startup/bad_flags_prompt.h"
 #include "chrome/browser/ui/tab_helpers.h"
-#include "chrome/common/chrome_features.h"
 #include "components/android_autofill/browser/android_autofill_client.h"
 #include "components/android_autofill/browser/android_autofill_manager.h"
 #include "components/android_autofill/browser/android_autofill_provider.h"
@@ -195,7 +195,7 @@ int TabAndroid::GetAndroidId() const {
 }
 
 std::unique_ptr<WebContentsStateByteBuffer>
-TabAndroid::GetWebContentsByteBuffer() {
+TabAndroid::GetWebContentsByteBuffer() const {
   JNIEnv* env = base::android::AttachCurrentThread();
   ScopedJavaLocalRef<jobject> state =
       Java_TabImpl_getWebContentsStateByteBuffer(env, weak_java_tab_.get(env));
@@ -538,8 +538,9 @@ void TabAndroid::OnPhysicalBackingSizeChanged(
   web_contents->GetNativeView()->OnPhysicalBackingSizeChanged(size);
 }
 
-void TabAndroid::SetActiveNavigationEntryTitleForUrl(std::string& url,
-                                                     std::u16string& title) {
+void TabAndroid::SetActiveNavigationEntryTitleForUrl(
+    const std::string& url,
+    const std::u16string& title) {
   DCHECK(web_contents());
 
   content::NavigationEntry* entry =

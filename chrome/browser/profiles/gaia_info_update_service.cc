@@ -135,13 +135,7 @@ void GAIAInfoUpdateService::UpdatePrimaryAccount(const AccountInfo& info) {
   gaia_id_of_profile_attribute_entry_ = info.GetGaiaId();
   entry->SetGAIAGivenName(base::UTF8ToUTF16(info.GetGivenName().value_or("")));
   entry->SetGAIAName(base::UTF8ToUTF16(info.GetFullName().value_or("")));
-  std::string hosted_domain_to_set;
-  if (std::optional<std::string_view> hosted_domain = info.GetHostedDomain()) {
-    hosted_domain_to_set = hosted_domain->empty()
-                               ? signin::constants::kNoHostedDomainFound
-                               : std::string(*hosted_domain);
-  }
-  entry->SetHostedDomain(hosted_domain_to_set);
+  entry->SetHostedDomain(info.GetHostedDomain());
   entry->SetIsManaged(info.IsManaged());
 
   if (info.GetAvatarUrl().has_value() && info.GetAvatarUrl()->empty()) {
@@ -155,22 +149,6 @@ void GAIAInfoUpdateService::UpdatePrimaryAccount(const AccountInfo& info) {
   }
 }
 
-void GAIAInfoUpdateService::UpdateAnyAccount(const AccountInfo& info) {
-  if (!info.IsValid()) {
-    return;
-  }
-
-  ProfileAttributesEntry* entry =
-      profile_attributes_storage_->GetProfileAttributesWithPath(profile_path_);
-  if (!entry) {
-    return;
-  }
-
-  // This is idempotent, i.e. the second and any further call for the same
-  // account info has no further impact.
-  entry->AddAccountName(std::string(info.GetFullName().value_or("")));
-}
-
 void GAIAInfoUpdateService::ClearProfileEntry() {
   ProfileAttributesEntry* entry =
       profile_attributes_storage_->GetProfileAttributesWithPath(profile_path_);
@@ -181,7 +159,7 @@ void GAIAInfoUpdateService::ClearProfileEntry() {
   entry->SetGAIAName(std::u16string());
   entry->SetGAIAGivenName(std::u16string());
   entry->SetGAIAPicture(std::string(), gfx::Image());
-  entry->SetHostedDomain(std::string());
+  entry->SetHostedDomain(std::nullopt);
   entry->SetIsManaged(signin::Tribool::kFalse);
   entry->SetIsGlicEligible(false);
 }
@@ -211,8 +189,6 @@ void GAIAInfoUpdateService::OnPrimaryAccountChanged(
 
 void GAIAInfoUpdateService::OnExtendedAccountInfoUpdated(
     const AccountInfo& info) {
-  UpdateAnyAccount(info);
-
   if (!ShouldUpdatePrimaryAccount())
     return;
 
@@ -228,28 +204,6 @@ void GAIAInfoUpdateService::OnExtendedAccountInfoUpdated(
 void GAIAInfoUpdateService::OnAccountsInCookieUpdated(
     const signin::AccountsInCookieJarInfo& accounts_in_cookie_jar_info,
     const GoogleServiceAuthError& error) {
-  ProfileAttributesEntry* entry =
-      profile_attributes_storage_->GetProfileAttributesWithPath(profile_path_);
-  if (!entry) {
-    return;
-  }
-
-  // We can fully regenerate the info about all accounts only when there are no
-  // signed-out accounts. This means that for instance clearing cookies will
-  // reset the info.
-  if (accounts_in_cookie_jar_info.GetSignedOutAccounts().empty()) {
-    entry->ClearAccountNames();
-
-    // Regenerate based on the info from signed-in accounts (if not available
-    // now, it will be regenerated soon via OnExtendedAccountInfoUpdated() once
-    // downloaded).
-    for (const gaia::ListedAccount& account :
-         accounts_in_cookie_jar_info.GetPotentiallyInvalidSignedInAccounts()) {
-      UpdateAnyAccount(
-          identity_manager_->FindExtendedAccountInfoByAccountId(account.id));
-    }
-  }
-
   UpdateAccountsPrefs(pref_service_.get(), *identity_manager_,
                       accounts_in_cookie_jar_info);
 }

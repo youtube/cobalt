@@ -247,8 +247,9 @@ std::optional<FeatureConfig> GetStandardPromoConfig(
                     feature_engagement::kMaxStoragePeriod);
 
     //  L7 days active.
-    config.event_configs.insert(EventConfig(
-        feature_engagement::events::kChromeOpened, Comparator(ANY, 0), 7, 365));
+    config.event_configs.insert(
+        EventConfig(feature_engagement::events::kChromeActiveSessionDay,
+                    Comparator(ANY, 0), 7, 365));
 
     // L7 app icon launches.
     config.event_configs.insert(
@@ -591,6 +592,33 @@ std::optional<FeatureConfig> GetCustomConfig(const base::Feature* feature) {
         "default_browser_promos_group_trigger", Comparator(EQUAL, 0), 14, 360));
     config.event_configs.insert(
         EventConfig("default_browser_fre_shown", Comparator(EQUAL, 0), 7, 365));
+    return config;
+  } else if (kIPHiOSActiveDaysTrackingFeature.name == feature->name) {
+    FeatureConfig config;
+    config.valid = true;
+    config.availability = Comparator(ANY, 0);
+    config.session_rate = Comparator(ANY, 0);
+    config.storage_type = StorageType::DEVICE;
+    config.tracking_only = true;
+
+    config.used = EventConfig("active_days_tracking_used", Comparator(ANY, 0),
+                              feature_engagement::kMaxStoragePeriod,
+                              feature_engagement::kMaxStoragePeriod);
+
+    config.trigger =
+        EventConfig("active_days_tracking_trigger", Comparator(ANY, 0),
+                    feature_engagement::kMaxStoragePeriod,
+                    feature_engagement::kMaxStoragePeriod);
+
+    config.event_configs.insert(
+        EventConfig(feature_engagement::events::kChromeActiveSessionDay,
+                    Comparator(ANY, 0), 7, kMaxStoragePeriod));
+    config.event_configs.insert(
+        EventConfig(feature_engagement::events::kChromeActiveSessionDay,
+                    Comparator(ANY, 0), 14, kMaxStoragePeriod));
+    config.event_configs.insert(
+        EventConfig(feature_engagement::events::kChromeActiveSessionDay,
+                    Comparator(ANY, 0), 28, kMaxStoragePeriod));
     return config;
   } else {
     return std::nullopt;

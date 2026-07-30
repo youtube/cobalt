@@ -6,9 +6,11 @@
 
 #include "base/debug/crash_logging.h"
 #include "base/debug/dump_without_crashing.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/no_destructor.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
+#include "mojo/public/cpp/system/result_for_metrics.h"
 #include "net/http/http_response_headers.h"
 #include "services/network/public/cpp/features.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
@@ -141,7 +143,7 @@ bool CheckHeaderConsistencyForSyntheticResponseForTesting(  // IN-TEST
       actual_headers, expected_headers, ignored_headers);
 }
 
-size_t WriteSyntheticResponseFallbackBody(
+WriteSyntheticResponseFallbackResult WriteSyntheticResponseFallbackBody(
     mojo::ScopedDataPipeProducerHandle& response_body_stream) {
   CHECK(response_body_stream.is_valid());
   static constexpr std::string_view kFallbackBody =
@@ -150,9 +152,11 @@ size_t WriteSyntheticResponseFallbackBody(
   MojoResult result = response_body_stream->WriteData(
       base::as_byte_span(kFallbackBody), MOJO_WRITE_DATA_FLAG_ALL_OR_NONE,
       num_bytes);
-  CHECK_EQ(result, MOJO_RESULT_OK);
+  base::UmaHistogramEnumeration(
+      "ServiceWorker.SyntheticResponse.WriteFallbackBodyResult",
+      mojo::MojoResultToMetricsEnum(result));
 
-  return num_bytes;
+  return {result, num_bytes};
 }
 
 }  // namespace network

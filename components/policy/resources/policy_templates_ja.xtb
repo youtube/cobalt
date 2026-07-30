@@ -472,7 +472,7 @@ URL パターンは、<ph name="CONTROLLED_FRAME_ALLOWED_FOR_URLS_POLICY_NAME" /
 <translation id="1379689277107868399">DoNotPrompt に設定するか未設定のままにした場合、<ph name="PRODUCT_NAME" /> はブラウザに対する再認証をユーザーに自動的に求めません。
 
 PromptInTab に設定した場合は、ユーザーの認証が期限切れになるとすぐに新しいタブで Google ログインページが開かれます。これは、<ph name="CHROME_SYNC_NAME" />を使用している場合にのみ発生します。</translation>
-<translation id="1384040387986918863">透かしテキストの塗りつぶしの透明度、0（透明）～100（不透明）。</translation>
+<translation id="1384040387986918863">透かしテキストの塗りつぶしの不透明度、0（透明）～100（不透明）。</translation>
 <translation id="1384459581748403878">参考: <ph name="REFERENCE_URL" /></translation>
 <translation id="1384594066274112751">このポリシーでは、ブラウザで破棄しないようにする URL のパターンを <ph name="URL_BLOCKLIST_POLICY_NAME" /> フィルタ形式で指定できます。
       この例外は、メモリ負荷の発生時や高効率モード時のページ破棄に適用されます。
@@ -4430,6 +4430,13 @@ Manifest V2 を使用した拡張機能はサポートの終了が予定され�
 <translation id="4150201353443180367">表示</translation>
 <translation id="4154221011709068799">外部ストレージ デバイスを許可しない</translation>
 <translation id="415445772247959702">ウェブストア（バージョン 89 以降でサポート）</translation>
+<translation id="415631927748520887">このポリシーを True に設定した場合、Chrome アプリのデフォルトの有効化設定に関係なく、キオスク セッションで Chrome アプリが引き続き実行することを許可します。
+
+このポリシーを未設定のままにするか False に設定した場合、デバイスで定義されているデフォルトの動作が使用されます。
+
+ユーザーが無効になっている Chrome アプリを起動しようとすると、アプリが起動されなかった理由を説明するメッセージが表示され、IT 部門に連絡するよう促されます。
+
+このポリシーの値は、キオスク セッションでの Chrome アプリのサポートが終了するまで（M151 で終了予定）有効です。</translation>
 <translation id="4157003184375321727">OS とファームウェアのバージョンを報告する</translation>
 <translation id="4157594634940419685">ネイティブの CUPS プリンタへのアクセスを許可する</translation>
 <translation id="4158531549614162499">モバイル接続を介した Google ドライブの同期を有効にする</translation>
@@ -4486,15 +4493,6 @@ Manifest V2 を使用した拡張機能はサポートの終了が予定され�
           このポリシーを設定した場合、ユーザーによる変更やオーバーライドはできません。
 
           このポリシーを設定しない場合、テキストカーソルによるハイライト表示は初期設定ではログイン画面で無効ですが、ユーザーはいつでも有効にできます。</translation>
-<translation id="4182348537826882258"><ph name="URL_BLOCKLIST_POLICY_NAME" /> ポリシーを設定すると、特定の URL をウェブページで読み込まないようブロックできます。管理者は、ブロックする URL パターンのリストを指定できます。このポリシーを未設定のままにした場合、ブラウザで URL はブロックされません。<ph name="URL_ALLOWLIST_POLICY_NAME" /> で最大 1,000 件の例外を定義できます。URL パターンの指定方法（https://support.google.com/chrome/a?p=url_blocklist_filter_format）をご確認ください。
-
-注: このポリシーは、動的に読み込まれるデータを含むページ内の JavaScript URL には適用されません。たとえば、example.com/abc をブロックした場合でも、XMLHTTPRequest を使用して example.com を読み込むことができます。また、このポリシーを設定した場合も、ウェブページで JavaScript History API を使用して、アドレスバーに表示される URL をブロック対象の URL に更新することは可能です。<ph name="PRODUCT_NAME" /> バージョン 73 以降では、「javascript://*」の URL をブロックできますが、ブロックされるのはアドレスバーに入力された JavaScript やブックマークレットなどの JavaScript に限られます。<ph name="PRODUCT_NAME" /> バージョン 92 以降、このポリシーはヘッドレス モードでもサポートされます。
-
-      注: 「chrome://*」と「chrome-untrusted://*」の内部 URL をブロックすると、予期しないエラーが発生したり、一部のケースでは回避されたりする可能性があります。内部 URL をブロックする代わりに、使用できる具体的なポリシーがないか確認してください。例を示します。
-
-- chrome://settings/certificates をブロックする代わりに <ph name="CA_CERTIFICATE_MANAGEMENT_ALLOWED_POLICY_NAME" /> を使用します。
-
-- chrome-untrusted://crosh をブロックする代わりに <ph name="SYSTEM_FEATURES_DISABLE_LIST_POLICY_NAME" /> を使用します。</translation>
 <translation id="4183229833636799228">デフォルトの <ph name="FLASH_PLUGIN_NAME" /> 設定</translation>
 <translation id="4185868802416355029">管理対象の拡張機能に Enterprise Hardware Platform API の使用を許可する</translation>
 <translation id="4186244263855283575">デバイス再起動のカスタム スケジュールの設定を許可します。このポリシーを True に設定した場合、デバイスはスケジュールに基づいて再起動されます。スケジュールに基づく再起動を停止するには、このポリシーを削除する必要があります。
@@ -11810,6 +11808,21 @@ M119 よりデフォルトで無効になります）。
 <translation id="9051019223077908578">ログイン画面でインストールするアプリと拡張機能のリストを設定する</translation>
 <translation id="9053841574218808519">期限切れでないプラグインを常に実行する</translation>
 <translation id="9055866143096316150">画面の wake lock のリクエストをシステムの wake lock のリクエストに引き下げる</translation>
+<translation id="9056262797461453462"><ph name="URL_BLOCKLIST_POLICY_NAME" /> ポリシーを設定すると、特定の URL をウェブページで読み込まないようブロックできます。管理者は、ブロックする URL パターンのリストを指定できます。このポリシーを未設定のままにした場合、ブラウザで URL はブロックされません。<ph name="URL_ALLOWLIST_POLICY_NAME" /> で最大 1,000 件の例外を定義できます。URL パターンの指定方法（https://support.google.com/chrome/a?p=url_blocklist_filter_format）をご確認ください。
+
+注: このポリシーは、動的に読み込まれるデータを含むページ内の JavaScript URL には適用されません。たとえば、example.com/abc をブロックした場合でも、XMLHTTPRequest を使用して example.com を読み込むことができます。また、このポリシーを設定した場合も、ウェブページで JavaScript History API を使用して、アドレスバーに表示される URL をブロック対象の URL に更新することは可能です。
+
+<ph name="PRODUCT_NAME" /> バージョン 73 以降では、「javascript://*」の URL をブロックできますが、ブロックされるのはアドレスバーに入力された JavaScript やブックマークレットなどの JavaScript に限られます。
+
+<ph name="PRODUCT_NAME" /> バージョン 92 以降、このポリシーはヘッドレス モードでもサポートされるようになりました。
+
+注: 「chrome://*」と「chrome-untrusted://*」の内部 URL をブロックすると、予期しないエラーが発生したり、一部のケースでは回避されたりする可能性があります。内部 URL をブロックする代わりに、使用できる具体的なポリシーがないか確認してください。例を示します。
+
+- chrome://settings/certificates をブロックする代わりに <ph name="CA_CERTIFICATE_MANAGEMENT_ALLOWED_POLICY_NAME" /> を使用します。
+
+- chrome-untrusted://crosh をブロックする代わりに <ph name="SYSTEM_FEATURES_DISABLE_LIST_POLICY_NAME" /> を使用します。
+
+- devtools://* をブロックする代わりに、<ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" />、<ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" />、<ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" /> のいずれかのポリシーを使用します。</translation>
 <translation id="9057159618445405645">Chrome ブラウザのデフォルトの動作を使用する</translation>
 <translation id="9061455386353325110"><ph name="PRODUCT_NAME" /> で、生成 AI を使用してフォームの内容を正確に把握し、より多くの項目に入力できるようにするかどうかを指定します。
 
@@ -11921,11 +11934,6 @@ M119 よりデフォルトで無効になります）。
 <translation id="9135095804754272364">USB デバイスが検出されたときに通知を表示する</translation>
 <translation id="9136212796239682721">ダウンロードのバブル UI を無効にする</translation>
 <translation id="9136399279941091445">指定されたデバイスポリシーが解除されたときの管理外時間の間隔</translation>
-<translation id="9138686056337842869">このポリシーを True に設定した場合、Chrome アプリのデフォルトの有効化設定に関係なく、キオスク セッションで Chrome アプリが引き続き実行することを許可します。
-
-このポリシーを未設定のままにするか False に設定した場合、デバイスで定義されているデフォルトの動作が使用されます。
-
-ユーザーが無効になっている Chrome アプリを起動しようとすると、アプリが起動されなかった理由を説明するメッセージが表示され、IT 部門に連絡するよう促されます。</translation>
 <translation id="9139775903828905867">F11 のトリガーに使用するショートカットを制御する</translation>
 <translation id="9140064482233876338">このポリシーは M69 でサポート終了となりました。代わりに OverrideSecurityRestrictionsOnInsecureOrigin を使用してください。
 

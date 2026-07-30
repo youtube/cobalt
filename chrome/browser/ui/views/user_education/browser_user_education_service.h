@@ -8,7 +8,7 @@
 #include <memory>
 
 namespace user_education {
-class FeaturePromoControllerCommon;
+class FeaturePromoControllerImpl;
 class FeaturePromoRegistry;
 class HelpBubbleDelegate;
 class HelpBubbleFactoryRegistry;
@@ -34,7 +34,7 @@ void MaybeRegisterChromeTutorials(user_education::TutorialRegistry& registry);
 // headless, kiosk, guest, incognito, and other off-the-record browsers do
 // _not_ show IPH. Initializes all other User Education data associated with the
 // browser as well.
-std::unique_ptr<user_education::FeaturePromoControllerCommon>
+std::unique_ptr<user_education::FeaturePromoControllerImpl>
 CreateUserEducationResources(UserEducationService& user_education_service);
 
 // Adds (or doesn't add) high priority notices (usually legal and privacy
@@ -44,5 +44,9 @@ CreateUserEducationResources(UserEducationService& user_education_service);
 // this method. Notices are queued in this frame and the queue begins processing
 // in the next frame.
 void QueueLegalAndPrivacyNotices(Profile* profile);
+
+// Returns true if Enterprise policy blocks promotions. What counts as a
+// "promotion" vs. an important alert is up to each system to determine.
+bool DoesEnterprisePolicyBlockPromotions();
 
 #endif  // CHROME_BROWSER_UI_VIEWS_USER_EDUCATION_BROWSER_USER_EDUCATION_SERVICE_H_

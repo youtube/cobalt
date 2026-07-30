@@ -1110,11 +1110,13 @@ class GLES2DecoderImpl : public GLES2Decoder,
 
   // Wrappers for ANGLE_shader_pixel_local_storage.
   void DoFramebufferMemorylessPixelLocalStorageANGLE(GLint plane,
-                                                     GLenum internalformat);
+                                                     GLenum internalformat,
+                                                     GLbitfield usage);
   void DoFramebufferTexturePixelLocalStorageANGLE(GLint plane,
                                                   GLuint backingtexture,
                                                   GLint level,
-                                                  GLint layer);
+                                                  GLint layer,
+                                                  GLbitfield usage);
   void DoFramebufferPixelLocalClearValuefvANGLE(GLint plane,
                                                 const volatile GLfloat* value);
   void DoFramebufferPixelLocalClearValueivANGLE(GLint plane,
@@ -3317,15 +3319,10 @@ Capabilities GLES2DecoderImpl::GetCapabilities() {
   caps.texture_norm16 = feature_info_->feature_flags().ext_texture_norm16;
   caps.texture_half_float_linear =
       feature_info_->oes_texture_half_float_linear_available();
-  caps.image_ycbcr_420v =
-      feature_info_->feature_flags().chromium_image_ycbcr_420v;
   caps.image_ar30 = feature_info_->feature_flags().chromium_image_ar30;
   caps.image_ab30 = feature_info_->feature_flags().chromium_image_ab30;
-  caps.image_ycbcr_p010 =
-      feature_info_->feature_flags().chromium_image_ycbcr_p010;
   caps.render_buffer_format_bgra8888 =
       feature_info_->feature_flags().ext_render_buffer_format_bgra8888;
-  caps.chromium_gpu_fence = feature_info_->feature_flags().chromium_gpu_fence;
   caps.mesa_framebuffer_flip_y =
       feature_info_->feature_flags().mesa_framebuffer_flip_y;
 
@@ -3656,6 +3653,9 @@ bool GLES2DecoderImpl::InitializeShaderTranslator() {
     driver_bug_workarounds.dontUseLoopsToInitializeVariables = true;
   if (workarounds().remove_dynamic_indexing_of_swizzled_vector)
     driver_bug_workarounds.removeDynamicIndexingOfSwizzledVector = true;
+  if (workarounds().validate_max_per_stage_uniform_blocks_at_compile_time) {
+    driver_bug_workarounds.validatePerStageMaxUniformBlocks = true;
+  }
 
   // Initialize uninitialized locals by default
   driver_bug_workarounds.initializeUninitializedLocals = true;
@@ -16791,7 +16791,8 @@ void GLES2DecoderImpl::DoFlushMappedBufferRange(
 
 void GLES2DecoderImpl::DoFramebufferMemorylessPixelLocalStorageANGLE(
     GLint plane,
-    GLenum internalformat) {
+    GLenum internalformat,
+    GLbitfield usage) {
   NOTIMPLEMENTED();
 }
 
@@ -16799,7 +16800,8 @@ void GLES2DecoderImpl::DoFramebufferTexturePixelLocalStorageANGLE(
     GLint plane,
     GLuint client_texture_id,
     GLint level,
-    GLint layer) {
+    GLint layer,
+    GLbitfield usage) {
   NOTIMPLEMENTED();
 }
 

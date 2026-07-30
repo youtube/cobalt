@@ -205,6 +205,7 @@ Called by update_autofill_enums.py.-->
   <int value="4" label="Known Traveler Number"/>
   <int value="5" label="Redress Number"/>
   <int value="6" label="Flight Reservation"/>
+  <int value="7" label="Order"/>
 </enum>
 
 <enum name="AutofillAiModelExecutionStatus">
@@ -1033,6 +1034,27 @@ Called by update_autofill_enums.py.-->
              edited"/>
   <int value="13249"
       label="ADDRESS_HOME_ZIP_AND_CITY: Autofilled value accepted"/>
+  <int value="13312"
+      label="ORDER_ID: Not autofilled or autofilled value edited"/>
+  <int value="13313" label="ORDER_ID: Autofilled value accepted"/>
+  <int value="13376"
+      label="ORDER_DATE: Not autofilled or autofilled value edited"/>
+  <int value="13377" label="ORDER_DATE: Autofilled value accepted"/>
+  <int value="13440"
+      label="ORDER_MERCHANT_NAME: Not autofilled or autofilled value edited"/>
+  <int value="13441" label="ORDER_MERCHANT_NAME: Autofilled value accepted"/>
+  <int value="13504"
+      label="ORDER_MERCHANT_DOMAIN: Not autofilled or autofilled value edited"/>
+  <int value="13505" label="ORDER_MERCHANT_DOMAIN: Autofilled value accepted"/>
+  <int value="13568"
+      label="ORDER_PRODUCT_NAMES: Not autofilled or autofilled value edited"/>
+  <int value="13569" label="ORDER_PRODUCT_NAMES: Autofilled value accepted"/>
+  <int value="13632"
+      label="ORDER_ACCOUNT: Not autofilled or autofilled value edited"/>
+  <int value="13633" label="ORDER_ACCOUNT: Autofilled value accepted"/>
+  <int value="13696"
+      label="ORDER_GRAND_TOTAL: Not autofilled or autofilled value edited"/>
+  <int value="13697" label="ORDER_GRAND_TOTAL: Autofilled value accepted"/>
 </enum>
 
 <enum name="AutofilledFieldUserEditingStatus">
@@ -1330,6 +1352,20 @@ Called by update_autofill_enums.py.-->
   <int value="3297" label="FLIGHT_RESERVATION_DEPARTURE_DATE: accepted"/>
   <int value="3312" label="ADDRESS_HOME_ZIP_AND_CITY: edited"/>
   <int value="3313" label="ADDRESS_HOME_ZIP_AND_CITY: accepted"/>
+  <int value="3328" label="ORDER_ID: edited"/>
+  <int value="3329" label="ORDER_ID: accepted"/>
+  <int value="3344" label="ORDER_DATE: edited"/>
+  <int value="3345" label="ORDER_DATE: accepted"/>
+  <int value="3360" label="ORDER_MERCHANT_NAME: edited"/>
+  <int value="3361" label="ORDER_MERCHANT_NAME: accepted"/>
+  <int value="3376" label="ORDER_MERCHANT_DOMAIN: edited"/>
+  <int value="3377" label="ORDER_MERCHANT_DOMAIN: accepted"/>
+  <int value="3392" label="ORDER_PRODUCT_NAMES: edited"/>
+  <int value="3393" label="ORDER_PRODUCT_NAMES: accepted"/>
+  <int value="3408" label="ORDER_ACCOUNT: edited"/>
+  <int value="3409" label="ORDER_ACCOUNT: accepted"/>
+  <int value="3424" label="ORDER_GRAND_TOTAL: edited"/>
+  <int value="3425" label="ORDER_GRAND_TOTAL: accepted"/>
 </enum>
 
 <enum name="AutofillEmailOrLoyaltyCardAcceptanceMetricValue">
@@ -2222,6 +2258,13 @@ Called by update_autofill_enums.py.-->
   <int value="205" label="FLIGHT_RESERVATION_ARRIVAL_AIRPORT"/>
   <int value="206" label="FLIGHT_RESERVATION_DEPARTURE_DATE"/>
   <int value="207" label="ADDRESS_HOME_ZIP_AND_CITY"/>
+  <int value="208" label="ORDER_ID"/>
+  <int value="209" label="ORDER_DATE"/>
+  <int value="210" label="ORDER_MERCHANT_NAME"/>
+  <int value="211" label="ORDER_MERCHANT_DOMAIN"/>
+  <int value="212" label="ORDER_PRODUCT_NAMES"/>
+  <int value="213" label="ORDER_ACCOUNT"/>
+  <int value="214" label="ORDER_GRAND_TOTAL"/>
 </enum>
 
 <enum name="AutofillFilledCardInformationBubbleFieldClicked">
@@ -2653,6 +2696,18 @@ Called by update_autofill_enums.py.-->
   <int value="3" label="PREDICTION_SOURCE_OVERALL"/>
 </enum>
 
+<!-- LINT.IfChange(AutofillPredictionSource2) -->
+
+<enum name="AutofillPredictionSource2">
+  <int value="0" label="Server Crowdsourcing"/>
+  <int value="1" label="Server Override"/>
+  <int value="2" label="Heuristics"/>
+  <int value="3" label="Autocomplete"/>
+  <int value="4" label="Rationalization"/>
+</enum>
+
+<!-- LINT.ThenChange(/components/autofill/core/browser/autofill_field.h:AutofillPredictionSource) -->
+
 <enum name="AutofillPreferenceSetter">
   <int value="0" label="Unknown"/>
   <int value="1" label="User Setting"/>
@@ -2674,6 +2729,24 @@ Called by update_autofill_enums.py.-->
   <int value="8" label="MessageTimeout"/>
   <int value="9" label="MessageDeclined"/>
   <int value="10" label="AutoDeclined"/>
+</enum>
+
+<enum name="AutofillProfileImportDecisionPerSubmissionSource">
+  <int value="0" label="Same Document Navigation: Accepted"/>
+  <int value="1" label="Same Document Navigation: Declined"/>
+  <int value="2" label="Same Document Navigation: Ignored"/>
+  <int value="3" label="XHR Succeeded: Accepted"/>
+  <int value="4" label="XHR Succeeded: Declined"/>
+  <int value="5" label="XHR Succeeded: Ignored"/>
+  <int value="6" label="Frame Detached: Accepted"/>
+  <int value="7" label="Frame Detached: Declined"/>
+  <int value="8" label="Frame Detached: Ignored"/>
+  <int value="9" label="Probably Form Submitted: Accepted"/>
+  <int value="10" label="Probably Form Submitted: Declined"/>
+  <int value="11" label="Probably Form Submitted: Ignored"/>
+  <int value="12" label="Form Submission: Accepted"/>
+  <int value="13" label="Form Submission: Declined"/>
+  <int value="14" label="Form Submission: Ignored"/>
 </enum>
 
 <enum name="AutofillProfileImportType">
@@ -3904,6 +3977,20 @@ Called by update_autofill_enums.py.-->
   <int value="825" label="FLIGHT_RESERVATION_DEPARTURE_DATE: Accepted"/>
   <int value="828" label="ADDRESS_HOME_ZIP_AND_CITY: Ignored"/>
   <int value="829" label="ADDRESS_HOME_ZIP_AND_CITY: Accepted"/>
+  <int value="832" label="ORDER_ID: Ignored"/>
+  <int value="833" label="ORDER_ID: Accepted"/>
+  <int value="836" label="ORDER_DATE: Ignored"/>
+  <int value="837" label="ORDER_DATE: Accepted"/>
+  <int value="840" label="ORDER_MERCHANT_NAME: Ignored"/>
+  <int value="841" label="ORDER_MERCHANT_NAME: Accepted"/>
+  <int value="844" label="ORDER_MERCHANT_DOMAIN: Ignored"/>
+  <int value="845" label="ORDER_MERCHANT_DOMAIN: Accepted"/>
+  <int value="848" label="ORDER_PRODUCT_NAMES: Ignored"/>
+  <int value="849" label="ORDER_PRODUCT_NAMES: Accepted"/>
+  <int value="852" label="ORDER_ACCOUNT: Ignored"/>
+  <int value="853" label="ORDER_ACCOUNT: Accepted"/>
+  <int value="856" label="ORDER_GRAND_TOTAL: Ignored"/>
+  <int value="857" label="ORDER_GRAND_TOTAL: Accepted"/>
 </enum>
 
 <!-- LINT.IfChange(FormSubmissionOutcomeIOS) -->
@@ -4263,6 +4350,16 @@ Called by update_autofill_enums.py.-->
 
 <!-- LINT.ThenChange(/components/autofill/core/browser/metrics/payments/save_and_fill_metrics.h:SaveAndFillFormEvent) -->
 
+<!-- LINT.IfChange(SaveAndFillPaymentsRequestResult) -->
+
+<enum name="SaveAndFillPaymentsRequestResult">
+  <int value="0" label="Success"/>
+  <int value="1" label="Failure"/>
+  <int value="2" label="Timeout"/>
+</enum>
+
+<!-- LINT.ThenChange(/components/autofill/core/browser/metrics/payments/save_and_fill_metrics.h:SaveAndFillPaymentsRequestResult) -->
+
 <!-- LINT.IfChange(SaveAndFillSuggestionNotShownReason) -->
 
 <enum name="SaveAndFillSuggestionNotShownReason">
@@ -4386,7 +4483,7 @@ Called by update_autofill_enums.py.-->
   <int value="58" label="(Obsolete) Autofill AI details"/>
   <int value="59" label="(Obsolete) Autofill AI error"/>
   <int value="60" label="(Obsolete) Edit Autofill AI information"/>
-  <int value="61" label="Bnpl entry"/>
+  <int value="61" label="BNPL entry"/>
   <int value="62" label="Save and fill credit card entry"/>
   <int value="63" label="Address suggestion displayed when typing"/>
   <int value="64" label="Manage AutofillAi information"/>
@@ -4404,6 +4501,8 @@ Called by update_autofill_enums.py.-->
   <int value="75" label="Manage identity docs information"/>
   <int value="76" label="Manage travel information"/>
   <int value="77" label="Loading throbber"/>
+  <int value="78" label="@memory search result"/>
+  <int value="79" label="BNPL footnote"/>
 </enum>
 
 <!-- LINT.ThenChange(/components/autofill/core/browser/suggestions/suggestion_type.h:SuggestionType) -->
@@ -4516,18 +4615,6 @@ Called by update_autofill_enums.py.-->
   <int value="5" label="User opted in from settings"/>
   <int value="6" label="User already opted into FIDO auth, no need to offer"/>
 </enum>
-
-<!-- LINT.IfChange(AutofillAccountStorageResult) -->
-
-<enum name="WebDatabaseAutofillAccountStorageResult">
-  <int value="0" label="In memory (flag disabled)"/>
-  <int value="1" label="In memory (signed in implicitly)"/>
-  <int value="2" label="On disk (signed out)"/>
-  <int value="3" label="On disk (signed in explicitly)"/>
-  <int value="4" label="On disk (full sync on)"/>
-</enum>
-
-<!-- LINT.ThenChange(/chrome/browser/webdata_services/web_data_service_factory.cc:AutofillAccountStorageResult) -->
 
 <!-- LINT.IfChange(YourSavedInfoDataCategory) -->
 

@@ -21,6 +21,10 @@ NodeId NodeId::FromTabCollectionHandle(
   return NodeId(Type::kCollection, base::NumberToString(handle.raw_value()));
 }
 
+NodeId NodeId::FromWindowId(std::string_view window_id) {
+  return NodeId(Type::kWindow, window_id);
+}
+
 std::optional<tabs::TabHandle> NodeId::ToTabHandle() const {
   if (type_ != Type::kContent) {
     return std::nullopt;

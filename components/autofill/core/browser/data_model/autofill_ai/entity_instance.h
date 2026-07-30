@@ -169,6 +169,7 @@ class AttributeInstance final {
     MarkAsMaskedPasskey() = default;
     friend class EntityTable;
     friend class WalletPassAccessManagerImpl;
+    friend class FakeWalletPassAccessManager;
     friend std::optional<EntityInstance> CreateEntityInstanceFromSpecifics(
         const sync_pb::AutofillValuableSpecifics&);
   };
@@ -405,6 +406,8 @@ class EntityInstance final {
 
   // Returns true if all attributes of `this` are present in `other` with the
   // same values or if `this` is a proper subset of `other`.
+  // When a masked attribute is compared to an unmasked one, only their suffixes
+  // are compared.
   bool IsSubsetOf(const EntityInstance& other) const;
 
   // Returns whether any of the attributes are masked. This can only happen
@@ -432,6 +435,8 @@ class EntityInstance final {
   // replaced by `attribute`.
   EntityInstance CopyWithUpdatedAttribute(AttributeInstance attribute) const;
 
+  // Note that since operator== is defaulted, contrary to `IsSubsetOf()`,
+  // masked and unmasked attributes are considered distinct.
   friend bool operator==(const EntityInstance&,
                          const EntityInstance&) = default;
 

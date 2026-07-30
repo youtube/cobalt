@@ -162,7 +162,9 @@ std::vector<Suggestion> GetFooterSuggestions(
   suggestions.reserve(3);
 
   suggestions.emplace_back(SuggestionType::kSeparator);
-  if (trigger_field.is_autofilled()) {
+  // TODO(crbug.com/393114125): Change to use `AutofillField::field_modifiers_`
+  // after launching `kAutofillFixIsAutofilled`.
+  if (trigger_field.is_autofilled_according_to_renderer()) {
     suggestions.emplace_back(CreateUndoSuggestion());
   }
   if (base::FeatureList::IsEnabled(
@@ -362,6 +364,8 @@ Suggestion::Icon GetSuggestionIcon(EntityType trigger_entity_type) {
       return Suggestion::Icon::kFlight;
     case EntityTypeName::kNationalIdCard:
       return Suggestion::Icon::kIdCard;
+    case EntityTypeName::kOrder:
+      return Suggestion::Icon::kNoIcon;
     case EntityTypeName::kPassport:
       return Suggestion::Icon::kIdCard;
     case EntityTypeName::kKnownTravelerNumber:
@@ -383,6 +387,7 @@ bool IsTravelType(EntityType trigger_entity_type) {
       return true;
     case EntityTypeName::kDriversLicense:
     case EntityTypeName::kNationalIdCard:
+    case EntityTypeName::kOrder:
     case EntityTypeName::kPassport:
       return false;
   }
@@ -397,6 +402,7 @@ bool IsIdentityDocsType(EntityType trigger_entity_type) {
       return true;
     case EntityTypeName::kFlightReservation:
     case EntityTypeName::kKnownTravelerNumber:
+    case EntityTypeName::kOrder:
     case EntityTypeName::kRedressNumber:
     case EntityTypeName::kVehicle:
       return false;

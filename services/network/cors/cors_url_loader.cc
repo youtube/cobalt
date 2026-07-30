@@ -278,7 +278,7 @@ constexpr const char kTimingAllowOrigin[] = "Timing-Allow-Origin";
 
 CorsURLLoader::CorsURLLoader(
     mojo::PendingReceiver<mojom::URLLoader> loader_receiver,
-    OriginatingProcess process_id,
+    OriginatingProcessId process_id,
     int32_t request_id,
     uint32_t options,
     DeleteCallback delete_callback,
@@ -548,7 +548,7 @@ void CorsURLLoader::OnReceiveResponse(
       request_.is_revalidating && response_head->headers &&
       response_head->headers->response_code() == 304;
   if (fetch_cors_flag_ && !is_304_for_revalidation) {
-    const auto result = CheckAccessAndReportMetrics(
+    const auto result = CheckAccess(
         request_.url,
         GetHeaderString(*response_head,
                         header_names::kAccessControlAllowOrigin),
@@ -662,7 +662,7 @@ void CorsURLLoader::OnReceiveRedirect(const net::RedirectInfo& redirect_info,
   // If `CORS flag` is set and a CORS check for `request` and `response` returns
   // failure, then return a network error.
   if (fetch_cors_flag_ && IsCorsEnabledRequestMode(request_.mode)) {
-    const auto result = CheckAccessAndReportMetrics(
+    const auto result = CheckAccess(
         request_.url,
         GetHeaderString(*response_head,
                         header_names::kAccessControlAllowOrigin),
@@ -681,8 +681,27 @@ void CorsURLLoader::OnReceiveRedirect(const net::RedirectInfo& redirect_info,
 
   if (request_.redirect_mode == mojom::RedirectMode::kManual) {
     CheckTainted(redirect_info);
-    deferred_redirect_url_ = std::make_unique<GURL>(redirect_info.new_url);
-    forwarding_client_->OnReceiveRedirect(redirect_info,
+    // For security, censor non-HTTP(S) redirect URLs to just "data:," when
+    // in manual redirect mode. This limits risk if filtering is forgotten
+    // somewhere downstream. All non-HTTP(S) URLs are censored to "data:,"
+    // including data: URLs themselves (to prevent malicious data URL content).
+    // Browser-initiated navigations are exempt since the browser process
+    // handles these redirects safely. Service worker pass-through navigations
+    // (renderer process with kNavigate mode) ARE censored because the
+    // redirect URL is sent to the renderer via IPC.
+    net::RedirectInfo censored_redirect_info = redirect_info;
+    const bool is_browser_navigation =
+        request_.mode == mojom::RequestMode::kNavigate &&
+        process_id_ == OriginatingProcessId::browser();
+    if (!is_browser_navigation &&
+        !redirect_info.new_url.SchemeIsHTTPOrHTTPS()) {
+      censored_redirect_info.new_url = GURL("data:,");
+    }
+    deferred_redirect_url_ =
+        std::make_unique<GURL>(censored_redirect_info.new_url);
+    response_head->response_type = mojom::FetchResponseType::kOpaqueRedirect;
+    response_head->timing_allow_passed = !timing_allow_failed_flag_;
+    forwarding_client_->OnReceiveRedirect(censored_redirect_info,
                                           std::move(response_head));
     return;
   }

@@ -6,7 +6,6 @@
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/actor/actor_test_util.h"
 #include "chrome/browser/glic/host/glic_actor_interactive_uitest_common.h"
-#include "chrome/common/chrome_features.h"
 #include "components/optimization_guide/proto/features/actions_data.pb.h"
 #include "content/public/test/browser_test.h"
 #include "third_party/abseil-cpp/absl/strings/str_format.h"
@@ -33,8 +32,8 @@ IN_PROC_BROWSER_TEST_F(GlicActorUiTest, DragAndReleaseTool_Range) {
 
     gfx::Point end = range_rect.CenterPoint();
 
-    Actions action = actor::MakeDragAndRelease(tab_handle_, start, end);
-    action.set_task_id(task_id_.value());
+    Actions action =
+        actor::MakeDragAndRelease(tab_handle_, start, end, task_id_);
     return EncodeActionProto(action);
   });
 
@@ -75,8 +74,8 @@ IN_PROC_BROWSER_TEST_P(GlicActorDragDSFTest, Events) {
   const gfx::Point end = start + delta;
 
   auto drag_provider = base::BindLambdaForTesting([this, start, end]() {
-    Actions action = actor::MakeDragAndRelease(tab_handle_, start, end);
-    action.set_task_id(task_id_.value());
+    Actions action =
+        actor::MakeDragAndRelease(tab_handle_, start, end, task_id_);
     return EncodeActionProto(action);
   });
 
@@ -123,8 +122,8 @@ IN_PROC_BROWSER_TEST_F(GlicActorUiTest, DragAndReleaseTool_Offscreen) {
 
     gfx::Point end = range_rect.CenterPoint();
 
-    Actions action = actor::MakeDragAndRelease(tab_handle_, start, end);
-    action.set_task_id(task_id_.value());
+    Actions action =
+        actor::MakeDragAndRelease(tab_handle_, start, end, task_id_);
     return EncodeActionProto(action);
   });
 
@@ -161,8 +160,7 @@ IN_PROC_BROWSER_TEST_F(GlicActorUiTest, DragAndReleaseTool_DOMNodeId) {
     content::RenderFrameHost* frame =
         tab_handle_.Get()->GetContents()->GetPrimaryMainFrame();
     Actions action =
-        actor::MakeDragAndRelease(*frame, from_node_id, to_node_id);
-    action.set_task_id(task_id_.value());
+        actor::MakeDragAndRelease(*frame, from_node_id, to_node_id, task_id_);
     return EncodeActionProto(action);
   });
 

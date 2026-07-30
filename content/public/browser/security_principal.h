@@ -7,6 +7,8 @@
 
 namespace content {
 
+class StoragePartitionConfig;
+
 // SecurityPrincipal is an abstraction used by Chromium's process model to
 // divide documents, workers, and other web content into processes.
 //
@@ -35,6 +37,14 @@ class CONTENT_EXPORT SecurityPrincipal {
   // Returns true if this SecurityPrincipal is for process-isolated sandboxed
   // documents only.
   virtual bool IsSandboxed() const = 0;
+
+  // Returns true if this SecurityPrincipal is used for a <webview> guest.
+  virtual bool IsGuest() const = 0;
+
+  // Get the StoragePartitionConfig, which describes the StoragePartition this
+  // SecurityPrincipal is associated with.  For example, this will correspond to
+  // a non-default StoragePartition for <webview> guests.
+  virtual const StoragePartitionConfig& GetStoragePartitionConfig() const = 0;
 };
 
 }  // namespace content

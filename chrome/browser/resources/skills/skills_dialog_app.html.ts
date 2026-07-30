@@ -36,11 +36,15 @@ ${this.shouldShowErrorPage_ ? html`<error-page></error-page>` : html`
         <cr-input class="stroked" id="nameText" type="text"
             placeholder="$i18n{namePlaceholder}" .value="${this.skill_.name}"
             @value-changed="${this.onNameChanged_}" aria-labelledby="nameLabel">
-          <input id="emojiTrigger" class="emoji-trigger" type="text"
+          <div class="emoji-prefix-container" slot="inline-prefix">
+            <cr-icon id="emojiZeroStateIcon" icon="skills:add-reaction"
+                ?hidden="${this.skill_.icon}" aria-hidden="true">
+            </cr-icon>
+            <input id="emojiTrigger" class="emoji-trigger" type="text"
               .value="${this.skill_.icon}" @click="${this.onEmojiBtnClick_}"
               @input="${this.onEmojiChanged_}" @keydown="${this.onEmojiKeyDown_}"
-              title="$i18n{chooseIcon}" aria-label="$i18n{chooseIcon}"
-              slot="inline-prefix">
+              title="$i18n{chooseIcon}" aria-label="$i18n{chooseIcon}">
+          </div>
         </cr-input>
         `}
     </div>
@@ -68,28 +72,33 @@ ${this.shouldShowErrorPage_ ? html`<error-page></error-page>` : html`
         </textarea>
       `}
       <div class="textarea-actions">
-        <cr-icon-button id="iconUndo" title="$i18n{undo}"
-            aria-label="$i18n{undo}"
-            ?disabled="${this.isUndoDisabled_()}"
-            @click="${this.onUndoClick_}">
+        <cr-icon-button id="iconUndo" iron-icon="skills:undo"
+            class="refine-icon" title="$i18n{undo}" aria-label="$i18n{undo}"
+            ?disabled="${this.isUndoDisabled_()}" @click="${this.onUndoClick_}">
         </cr-icon-button>
-        <cr-icon-button id="iconRedo" title="$i18n{redo}"
-            aria-label="$i18n{redo}"
-            ?disabled="${this.isRedoDisabled_()}"
-            @click="${this.onRedoClick_}">
+        <cr-icon-button id="iconRedo" iron-icon="skills:redo"
+            class="refine-icon" title="$i18n{redo}" aria-label="$i18n{redo}"
+            ?disabled="${this.isRedoDisabled_()}" @click="${this.onRedoClick_}">
         </cr-icon-button>
-        <cr-icon-button id="iconRefine" title="$i18n{refine}"
-            aria-label="$i18n{refine}" ?disabled="${this.isRefineDisabled_()}"
+        <cr-icon-button id="iconRefine" iron-icon="skills:refine"
+            class="refine-icon" title="$i18n{refine}" aria-label="$i18n{refine}"
+            ?disabled="${this.isRefineDisabled_()}"
             @click="${this.onRefineClick_}">
         </cr-icon-button>
       </div>
     </div>
-    <div id="errorMessage" ?hidden="${!this.hasRefineError_}">$i18n{refineError}
+    <div id="refineErrorMessage" class="error-message"
+        ?hidden="${!this.hasRefineError_}">
+          $i18n{refineError}
     </div>
   </div>
   <div id="accountInfo">
     <div id="accountLabel">$i18n{accountInfo}</div>
     <div id="accountEmail">${this.signedInEmail_}</div>
+  </div>
+  <div id="saveErrorContainer" ?hidden="${!this.hasSaveError_}">
+    <cr-icon icon="cr:error-outline" class="icon-error"></cr-icon>
+    <div id="saveErrorMessage" class="error-message">$i18n{saveError}</div>
   </div>
   <div class="buttons-group">
     <cr-button id="cancelButton" class="cancel-button" @click="${this.cancel_}">

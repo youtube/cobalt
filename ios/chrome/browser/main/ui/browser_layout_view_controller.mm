@@ -8,6 +8,7 @@
 
 #import "base/apple/foundation_util.h"
 #import "base/check_op.h"
+#import "ios/chrome/browser/browser_view/ui_bundled/safe_area_provider.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_animator.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_controller.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_ui_element.h"
@@ -118,14 +119,8 @@
 - (void)updateCurrentBVCLayoutInsets {
   CGFloat topInset = 0;
   if (CanShowTabStrip(self)) {
-    topInset = self.view.safeAreaInsets.top;
-
-    // `safeAreaInsets` propagation can be delayed by UIKit when a view is newly
-    // added to the view hierarchy (e.g., during transitions). Wait to propagate
-    // the top toolbar inset until `safeAreaInsets` are correctly populated.
-    if (topInset == 0) {
-      return;
-    }
+    CHECK(self.safeAreaProvider);
+    topInset = self.safeAreaProvider.safeArea.top;
 
     if (self.tabStripViewController) {
       topInset += TabStripCollectionViewConstants.height;
@@ -168,7 +163,8 @@
   // Update frame directly for synchronous layout.
   // We don't rely on constraints here to avoid fighting with the layout system
   // during safe area transitions.
-  CGFloat topInset = self.view.safeAreaInsets.top;
+  CHECK(self.safeAreaProvider);
+  CGFloat topInset = self.safeAreaProvider.safeArea.top;
   CGRect frame = _tabStripViewController.view.frame;
   frame.origin.y = topInset - offset;
   _tabStripViewController.view.frame = frame;
@@ -240,6 +236,39 @@
         constraintEqualToAnchor:self.view.trailingAnchor],
   ]];
   AddSameConstraints(self.staticStatusBarView, self.fadingStatusBarView);
+  [self updateOverlayContainerOrder];
+}
+
+// Updates the ordering of the overlay containers so that they are layered
+// directly on top of the tab strip UI. Banner overlays appear behind modal
+// overlays.
+- (void)updateOverlayContainerOrder {
+  // Both infobar overlay container views should exist in front of the entire
+  // browser UI, and the banner container should appear behind the modal
+  // container.
+  [self bringOverlayContainerToFront:
+            self.infobarBannerOverlayContainerViewController];
+  [self bringOverlayContainerToFront:
+            self.infobarModalOverlayContainerViewController];
+}
+
+// Helper method to bring the given `containerViewController` to the front.
+- (void)bringOverlayContainerToFront:
+    (UIViewController*)containerViewController {
+  if (!containerViewController) {
+    return;
+  }
+  [self.view bringSubviewToFront:containerViewController.view];
+  // If `containerViewController` is presenting a view over its current context,
+  // its presentation container view is added as a sibling to
+  // `containerViewController`'s view. This presented view should be brought in
+  // front of the container view.
+  UIView* presentedContainerView =
+      containerViewController.presentedViewController.presentationController
+          .containerView;
+  if (presentedContainerView.superview == self.view) {
+    [self.view bringSubviewToFront:presentedContainerView];
+  }
 }
 
 // Removes the tab strip view controller from the hierarchy.
@@ -271,7 +300,8 @@
   [_tabStripViewController didMoveToParentViewController:self];
 
   // Set default frame to ensure valid initial position.
-  CGFloat topInset = self.view.safeAreaInsets.top;
+  CHECK(self.safeAreaProvider);
+  CGFloat topInset = self.safeAreaProvider.safeArea.top;
   CGRect frame = self.view.bounds;
   frame.origin.y = topInset;
   frame.size.height = TabStripCollectionViewConstants.height;
@@ -315,6 +345,28 @@
   }
 
   [self updateForFullscreenProgress:_fullscreenProgress];
+}
+
+- (void)setInfobarBannerOverlayContainerViewController:
+    (UIViewController*)infobarBannerOverlayContainerViewController {
+  if (_infobarBannerOverlayContainerViewController ==
+      infobarBannerOverlayContainerViewController) {
+    return;
+  }
+  _infobarBannerOverlayContainerViewController =
+      infobarBannerOverlayContainerViewController;
+  [self updateOverlayContainerOrder];
+}
+
+- (void)setInfobarModalOverlayContainerViewController:
+    (UIViewController*)infobarModalOverlayContainerViewController {
+  if (_infobarModalOverlayContainerViewController ==
+      infobarModalOverlayContainerViewController) {
+    return;
+  }
+  _infobarModalOverlayContainerViewController =
+      infobarModalOverlayContainerViewController;
+  [self updateOverlayContainerOrder];
 }
 
 - (UIView*)fadingStatusBarView {

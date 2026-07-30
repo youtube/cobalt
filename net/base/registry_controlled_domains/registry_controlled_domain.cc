@@ -46,6 +46,7 @@
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
 
 #include <cstdint>
+#include <optional>
 #include <ostream>
 #include <string_view>
 
@@ -61,6 +62,7 @@
 #include "base/synchronization/lock.h"
 #include "net/base/lookup_string_in_fixed_set.h"
 #include "net/base/net_module.h"
+#include "net/base/registry_controlled_domain_constants.h"
 #include "net/base/registry_controlled_domains/effective_tld_names-reversed-inc.cc"
 #include "net/base/url_util.h"
 #include "url/gurl.h"
@@ -180,13 +182,13 @@ RegistryLengthOutput GetRegistryLengthInTrimmedHost(
     UnknownRegistryFilter unknown_filter,
     PrivateRegistryFilter private_filter) {
   size_t length;
-  int type = LookupSuffixInReversedSet(
+  std::optional<int> type = LookupSuffixInReversedSet(
       g_graph, private_filter == INCLUDE_PRIVATE_REGISTRIES, host, &length);
 
   CHECK_LE(length, host.size());
 
   // No rule found in the registry.
-  if (type == kDafsaNotFound) {
+  if (!type.has_value()) {
     // If we allow unknown registries, return the length of last subcomponent.
     if (unknown_filter == INCLUDE_UNKNOWN_REGISTRIES) {
       const size_t last_dot = host.find_last_of('.');
@@ -200,7 +202,7 @@ RegistryLengthOutput GetRegistryLengthInTrimmedHost(
 
   // Exception rules override wildcard rules when the domain is an exact
   // match, but wildcards take precedence when there's a subdomain.
-  if (type & kDafsaWildcardRule) {
+  if (type.value() & kDafsaWildcardRule) {
     // If the complete host matches, then the host is the wildcard suffix, so
     // return 0.
     if (length == host.size()) {
@@ -223,7 +225,7 @@ RegistryLengthOutput GetRegistryLengthInTrimmedHost(
     return {host.size() - preceding_dot - 1, false};
   }
 
-  if (type & kDafsaExceptionRule) {
+  if (type.value() & kDafsaExceptionRule) {
     size_t first_dot = host.find_first_of('.', host.size() - length);
     if (first_dot == std::string_view::npos) {
       // If we get here, we had an exception rule with no dots (e.g.
@@ -238,8 +240,6 @@ RegistryLengthOutput GetRegistryLengthInTrimmedHost(
     }
     return {host.length() - first_dot - 1, false};
   }
-
-  CHECK_NE(type, kDafsaNotFound);
 
   // If a complete match, then the host is the registry itself, so return 0.
   if (length == host.size()) {

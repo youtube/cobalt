@@ -4,7 +4,6 @@
 
 #include "chrome/browser/ui/startup/default_browser_prompt/default_browser_bubble_dialog_manager.h"
 
-#include "base/check.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "chrome/browser/default_browser/default_browser_controller.h"
@@ -67,13 +66,15 @@ void DefaultBrowserBubbleDialogManager::OnBrowserCreated(
   }
 
   auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
-  CHECK(browser_view);
+  if (!browser_view) {
+    return;
+  }
 
   auto* anchor_view =
       browser_view->toolbar_button_provider()->GetAppMenuButton();
 
   dialog_widgets_[browser] = default_browser::ShowDefaultBrowserBubbleDialog(
-      anchor_view,
+      anchor_view, can_pin_to_taskbar_,
       base::BindOnce(&DefaultBrowserBubbleDialogManager::OnAccept,
                      base::Unretained(this)),
       base::BindOnce(&DefaultBrowserBubbleDialogManager::OnDismiss,

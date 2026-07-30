@@ -8,6 +8,7 @@ import static org.chromium.build.NullUtil.assumeNonNull;
 
 import org.chromium.base.Log;
 import org.chromium.base.ObserverList;
+import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.build.annotations.EnsuresNonNull;
 import org.chromium.build.annotations.Initializer;
 import org.chromium.build.annotations.MonotonicNonNull;
@@ -15,7 +16,6 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.app.tabmodel.CombinedTabRestorer.CombinedTabRestorerDelegate;
 import org.chromium.chrome.browser.crypto.CipherFactory;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.StorageLoadedData;
 import org.chromium.chrome.browser.tab.StorageLoadingStatus;
@@ -24,12 +24,10 @@ import org.chromium.chrome.browser.tab.TabId;
 import org.chromium.chrome.browser.tab.TabStateAttributes;
 import org.chromium.chrome.browser.tab.TabStateAttributes.DirtinessState;
 import org.chromium.chrome.browser.tab.TabStateStorageService;
-import org.chromium.chrome.browser.tab.TabStateStorageService.SharedStoreData;
 import org.chromium.chrome.browser.tab.TabStateStorageServiceFactory;
 import org.chromium.chrome.browser.tab.WebContentsState;
 import org.chromium.chrome.browser.tabmodel.PersistentStoreMigrationManager;
 import org.chromium.chrome.browser.tabmodel.TabCreatorManager;
-import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelObserver;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tabmodel.TabModelSelectorTabRegistrationObserver;
@@ -37,20 +35,26 @@ import org.chromium.chrome.browser.tabmodel.TabPersistencePolicy;
 import org.chromium.chrome.browser.tabmodel.TabPersistentStore;
 import org.chromium.chrome.browser.tabwindow.TabWindowManager;
 
+import java.util.List;
 import java.util.Locale;
 
 /** Orchestrates saving of tabs to the {@link TabStateStorageService}. */
 @NullMarked
 public class TabStateStore implements TabPersistentStore {
     private static final String TAG = "TabStateStore";
+    private static final String RESTORED_TAB_COUNT_DELTA =
+            "Tabs.TabStateStore.InternalTabCountDelta.";
 
     private @MonotonicNonNull TabStateStorageService mTabStateStorageService;
     private final PersistentStoreMigrationManager mMigrationManager;
     private final TabCreatorManager mTabCreatorManager;
     private final TabModelSelector mTabModelSelector;
     private final String mWindowTag;
+    private final TabCountTracker mTabCountTracker;
+    private final ModelTrackingOrchestrator.Factory mOrchestratorFactory;
     private final TabPersistencePolicy mTabPersistencePolicy;
     private final @Nullable CipherFactory mCipherFactory;
+    private final boolean mIsAuthoritative;
     private final TabStateAttributes.Observer mAttributesObserver =
             this::onTabStateDirtinessChanged;
     private final ObserverList<TabPersistentStoreObserver> mObservers = new ObserverList<>();
@@ -62,6 +66,25 @@ public class TabStateStore implements TabPersistentStore {
     private @Nullable CombinedTabRestorer mMergeCombinedTabRestorer;
     private int mRestoredTabCount;
     private boolean mIsDestroyed;
+
+    private final TabModelObserver mTabModelObserver =
+            new TabModelObserver() {
+                @Override
+                public void onTabCloseUndone(List<Tab> tabs, boolean isAllTabs) {
+                    if (tabs.isEmpty()) return;
+                    updateTabCountForModel(tabs.get(0).isOffTheRecord());
+                }
+
+                @Override
+                public void tabClosureUndone(Tab tab) {
+                    updateTabCountForModel(tab.isOffTheRecord());
+                }
+
+                @Override
+                public void willCloseAllTabs(boolean incognito) {
+                    cancelLoadingTabs(incognito);
+                }
+            };
 
     private class InnerRegistrationObserver
             implements TabModelSelectorTabRegistrationObserver.Observer {
@@ -76,14 +99,6 @@ public class TabStateStore implements TabPersistentStore {
         }
     }
 
-    private final TabModelObserver mTabModelObserver =
-            new TabModelObserver() {
-                @Override
-                public void willCloseAllTabs(boolean incognito) {
-                    cancelLoadingTabs(incognito);
-                }
-            };
-
     private final CombinedTabRestorerDelegate mCombinedTabRestorerDelegate =
             new CombinedTabRestorerDelegate() {
                 @Override
@@ -94,6 +109,13 @@ public class TabStateStore implements TabPersistentStore {
                 @Override
                 public void onCancelled() {
                     deleteDbIfNonAuthoritative();
+                }
+
+                @Override
+                public void onActiveTabRestored(boolean incognito) {
+                    for (TabPersistentStoreObserver observer : mObservers) {
+                        observer.onActiveTabLoaded(incognito);
+                    }
                 }
 
                 @Override
@@ -131,22 +153,32 @@ public class TabStateStore implements TabPersistentStore {
      * @param tabCreatorManager Used to create new tabs on initial load. This may return real
      *     creators, or faked out creators if in non-authoritative mode.
      * @param tabPersistencePolicy The {@link TabPersistencePolicy} to use for the window.
+     * @param migrationManager The migration manager for the window.
      * @param cipherFactory The {@link CipherFactory} to use for encryption. If null, it will not be
      *     possible to load/save off the record nodes.
+     * @param isAuthoritative Whether this store is the authoritative store for the window.
+     * @param orchestratorFactory The factory to create {@link ModelTrackingOrchestrator} instances.
+     * @param isAuthoritative Whether the store is authoritative for the window.
      */
     public TabStateStore(
             TabModelSelector tabModelSelector,
             String windowTag,
             TabCreatorManager tabCreatorManager,
             TabPersistencePolicy tabPersistencePolicy,
-            @Nullable CipherFactory cipherFactory) {
+            PersistentStoreMigrationManager migrationManager,
+            @Nullable CipherFactory cipherFactory,
+            TabCountTracker tabCountTracker,
+            ModelTrackingOrchestrator.Factory orchestratorFactory,
+            boolean isAuthoritative) {
         mTabModelSelector = tabModelSelector;
         mWindowTag = windowTag;
         mTabCreatorManager = tabCreatorManager;
         mTabPersistencePolicy = tabPersistencePolicy;
+        mMigrationManager = migrationManager;
         mCipherFactory = cipherFactory;
-
-        mMigrationManager = new PersistentStoreMigrationManagerImpl(mWindowTag);
+        mIsAuthoritative = isAuthoritative;
+        mOrchestratorFactory = orchestratorFactory;
+        mTabCountTracker = tabCountTracker;
     }
 
     @Initializer
@@ -174,11 +206,11 @@ public class TabStateStore implements TabPersistentStore {
             mHasCipherFactory = false;
         }
         mModelTrackingManager =
-                new ModelTrackingOrchestrator(mWindowTag, mTabModelSelector, mHasCipherFactory);
+                mOrchestratorFactory.build(
+                        mWindowTag, mMigrationManager, mTabModelSelector, mHasCipherFactory);
 
         mTabModelSelector.getModel(false).addObserver(mTabModelObserver);
-        TabModel incognitoModel = mTabModelSelector.getModel(true);
-        incognitoModel.addObserver(mTabModelObserver);
+        mTabModelSelector.getModel(true).addObserver(mTabModelObserver);
     }
 
     @Override
@@ -215,6 +247,11 @@ public class TabStateStore implements TabPersistentStore {
         ignoreIncognitoFiles |= !mHasCipherFactory;
         mModelTrackingManager.setLoadIncognitoTabsOnStart(!ignoreIncognitoFiles);
 
+        mRestoredTabCount = mTabCountTracker.getRestoredTabCount(/* incognito= */ false);
+        if (!ignoreIncognitoFiles) {
+            mRestoredTabCount += mTabCountTracker.getRestoredTabCount(/* incognito= */ true);
+        }
+
         assert mCombinedTabRestorer == null;
         mCombinedTabRestorer =
                 new CombinedTabRestorer(
@@ -231,6 +268,12 @@ public class TabStateStore implements TabPersistentStore {
             if (incognito && ignoreIncognitoFiles) continue;
             mTabStateStorageService.loadAllData(
                     mWindowTag, incognito, data -> onDataLoaded(data, incognito));
+        }
+
+        if (ignoreIncognitoFiles) {
+            mTabCountTracker.clearTabCount(/* incognito= */ true);
+            mTabStateStorageService.clearUnusedNodesForWindow(
+                    mWindowTag, /* isOffTheRecord= */ true, /* tabStripCollection= */ null);
         }
     }
 
@@ -321,15 +364,17 @@ public class TabStateStore implements TabPersistentStore {
     @Override
     public void clearState() {
         assertInitialized();
+
         // Clearing the state globally is intentional.
         mTabStateStorageService.clearState();
-        mMigrationManager.onAllShadowStoresRazed();
+        TabCountTracker.clearGlobalState();
     }
 
     private void cancelLoadingTabs(boolean incognito) {
-        if (mCombinedTabRestorer == null) return;
-
-        mCombinedTabRestorer.cancelLoadingTabs(incognito);
+        assertInitialized();
+        if (mCombinedTabRestorer != null) {
+            mCombinedTabRestorer.cancelLoadingTabs(incognito);
+        }
     }
 
     @Override
@@ -354,8 +399,7 @@ public class TabStateStore implements TabPersistentStore {
         }
 
         mTabModelSelector.getModel(false).removeObserver(mTabModelObserver);
-        TabModel incognitoTabModel = mTabModelSelector.getModel(true);
-        incognitoTabModel.removeObserver(mTabModelObserver);
+        mTabModelSelector.getModel(true).removeObserver(mTabModelObserver);
 
         if (mModelTrackingManager != null) {
             mModelTrackingManager.destroy();
@@ -379,14 +423,13 @@ public class TabStateStore implements TabPersistentStore {
     @Override
     public void cleanupStateFile(int windowId) {
         assertInitialized();
+
         // The archived tab state file does not support this operation.
         assert windowId != TabWindowManager.INVALID_WINDOW_ID;
         String windowTag = Integer.toString(windowId);
-        mTabStateStorageService.clearWindow(windowTag);
 
-        PersistentStoreMigrationManager migrationManager =
-                new PersistentStoreMigrationManagerImpl(windowTag);
-        migrationManager.onWindowCleared();
+        mTabStateStorageService.clearWindow(windowTag);
+        TabCountTracker.cleanupWindow(windowTag);
     }
 
     @Override
@@ -394,7 +437,7 @@ public class TabStateStore implements TabPersistentStore {
         assertInitialized();
 
         mTabStateStorageService.clearWindow(mWindowTag);
-        mMigrationManager.onShadowStoreRazed();
+        mTabCountTracker.clearCurrentWindow();
     }
 
     @Override
@@ -438,16 +481,17 @@ public class TabStateStore implements TabPersistentStore {
     }
 
     private void onTabRegistered(Tab tab) {
-        assertOtrOperationSafe(tab.isOffTheRecord());
+        boolean isTabOtr = tab.isOffTheRecord();
+        assertOtrOperationSafe(isTabOtr);
 
         TabStateAttributes attributes = TabStateAttributes.from(tab);
         assumeNonNull(attributes);
         // Save every clean tab on registration if we are not authoritative, we are catching up.
         if (attributes.addObserver(mAttributesObserver) == DirtinessState.DIRTY
-                || !ChromeFeatureList.sTabStorageSqlitePrototypeAuthoritativeReadSource
-                        .getValue()) {
+                || mIsAuthoritative) {
             saveTab(tab);
         }
+        updateTabCountForModel(isTabOtr);
     }
 
     private void onTabUnregistered(Tab tab) {
@@ -455,6 +499,7 @@ public class TabStateStore implements TabPersistentStore {
             assumeNonNull(TabStateAttributes.from(tab)).removeObserver(mAttributesObserver);
         }
         // TODO(https://crbug.com/430996004): If closing, delete the tab record.
+        updateTabCountForModel(tab.isOffTheRecord());
     }
 
     /** Called when the data for one of the models has been loaded. */
@@ -465,6 +510,7 @@ public class TabStateStore implements TabPersistentStore {
         if (data.getLoadingStatus() != StorageLoadingStatus.SUCCESS) {
             mTabStateStorageService.clearUnusedNodesForWindow(
                     mWindowTag, incognito, /* tabStripCollection= */ null);
+            mTabCountTracker.clearTabCount(incognito);
             String formattedErrorMessage =
                     String.format(
                             Locale.ROOT,
@@ -494,12 +540,25 @@ public class TabStateStore implements TabPersistentStore {
 
     /** Called after both the regular and incognito data has been loaded. */
     private void onAllDataLoaded(int loadedTabCount) {
+        assertInitialized();
+
+        if (mMigrationManager.isShadowStoreCaughtUp() || mIsAuthoritative) {
+            int tabCountDelta = loadedTabCount - mRestoredTabCount;
+            if (tabCountDelta > 0) {
+                RecordHistogram.recordCount1000Histogram(
+                        RESTORED_TAB_COUNT_DELTA + "DatabaseHigher", tabCountDelta);
+            } else if (tabCountDelta < 0) {
+                RecordHistogram.recordCount1000Histogram(
+                        RESTORED_TAB_COUNT_DELTA + "CounterHigher", -tabCountDelta);
+            }
+        }
+
         mRestoredTabCount = loadedTabCount;
         for (TabPersistentStoreObserver observer : mObservers) {
             observer.onInitialized(mRestoredTabCount);
         }
 
-        if (ChromeFeatureList.sTabStorageSqlitePrototypeAuthoritativeReadSource.getValue()) {
+        if (mIsAuthoritative) {
             assert mTabRegistrationObserver == null;
             mTabRegistrationObserver =
                     new TabModelSelectorTabRegistrationObserver(mTabModelSelector);
@@ -520,7 +579,7 @@ public class TabStateStore implements TabPersistentStore {
             observer.onStateLoaded();
         }
 
-        if (!ChromeFeatureList.sTabStorageSqlitePrototypeAuthoritativeReadSource.getValue()) {
+        if (!mIsAuthoritative) {
             assert mTabRegistrationObserver == null;
             mTabRegistrationObserver =
                     new TabModelSelectorTabRegistrationObserver(mTabModelSelector);
@@ -534,18 +593,12 @@ public class TabStateStore implements TabPersistentStore {
     private void deleteDbIfNonAuthoritative() {
         assertInitialized();
 
-        SharedStoreData sharedStoreData = mTabStateStorageService.getSharedStoreData();
-        if (!ChromeFeatureList.sTabStorageSqlitePrototypeAuthoritativeReadSource.getValue()) {
+        if (!mIsAuthoritative) {
             // When we aren't the authoritative source we don't trust ourselves to be correct.
             // Raze the db and rebuild from the loaded tab state to ensure we are in a known good
             // state. This is a no-op if we are the authoritative source as there shouldn't be a
             // delta and if there is we need a less blunt mechanism to reconcile the difference.
-            if (!sharedStoreData.wasStoreRazed()) {
-                clearState();
-                sharedStoreData.onStoreRazed();
-            } else {
-                mTabStateStorageService.clearWindow(mWindowTag);
-            }
+            clearCurrentWindow();
         }
     }
 
@@ -563,5 +616,13 @@ public class TabStateStore implements TabPersistentStore {
             contentsState.destroy();
         }
         data.destroy();
+    }
+
+    private void updateTabCountForModel(boolean incognito) {
+        assertInitialized();
+
+        if (!mModelTrackingManager.isSynchronizerPresent(incognito)) return;
+        int tabCountForModel = mTabModelSelector.getModel(incognito).getCount();
+        mTabCountTracker.updateTabCount(incognito, tabCountForModel);
     }
 }

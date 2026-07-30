@@ -212,7 +212,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="AppPreloadService.FirstLoginFlowTime.{Status}" units="ms"
-    expires_after="2026-03-02">
+    expires_after="2027-03-02">
   <owner>ovn@google.com</owner>
   <owner>lt-web-apps-team@google.com</owner>
   <summary>
@@ -291,7 +291,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Apps.AppInstallService.AppInstallResult{AppInstallSurface}"
-    enum="AppInstallResult" expires_after="2026-06-21">
+    enum="AppInstallResult" expires_after="2026-08-23">
   <owner>alancutter@chromium.org</owner>
   <owner>crosdev-commerce-eng@google.com</owner>
   <summary>
@@ -2221,7 +2221,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Apps.ContextMenuExecuteCommand.{ContextMenuFromApp}{Mode}"
-    enum="ChromeOSUICommands" expires_after="2026-04-26">
+    enum="ChromeOSUICommands" expires_after="2026-08-23">
   <owner>tbarzic@chromium.org</owner>
   <owner>newcomer@chromium.org</owner>
   <owner>mmourgos@chromium.org</owner>
@@ -2360,6 +2360,7 @@ chromium-metrics-reviews@google.com.
     <variant name=".FromLockScreen" summary="From lock screen app launcher."/>
     <variant name=".FromManagementApi" summary="From management API."/>
     <variant name=".FromMenu" summary="From menu."/>
+    <variant name=".FromMigration" summary="From Web App Migration."/>
     <variant name=".FromNewTabPage" summary="From new tab page."/>
     <variant name=".FromOmnibox" summary="From Omnibox."/>
     <variant name=".FromOsLogin" summary="Run on OS login."/>
@@ -2657,7 +2658,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Apps.PromiseApp.LifecycleEvent"
-    enum="PromiseAppLifecycleEvent" expires_after="2026-02-23">
+    enum="PromiseAppLifecycleEvent" expires_after="2027-02-23">
   <owner>ovn@google.com</owner>
   <owner>lt-web-apps-team@google.com</owner>
   <summary>
@@ -2669,7 +2670,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Apps.PromiseApp.PromiseAppIconType" enum="PromiseAppIconType"
-    expires_after="2026-02-23">
+    expires_after="2027-02-23">
   <owner>ovn@google.com</owner>
   <owner>lt-web-apps-team@google.com</owner>
   <summary>
@@ -2682,7 +2683,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Apps.PromiseApp.PromiseAppType" enum="PromiseAppType"
-    expires_after="2026-02-23">
+    expires_after="2027-02-23">
   <owner>ovn@google.com</owner>
   <owner>lt-web-apps-team@google.com</owner>
   <summary>

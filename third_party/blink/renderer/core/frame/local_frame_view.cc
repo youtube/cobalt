@@ -73,6 +73,7 @@
 #include "third_party/blink/renderer/core/editing/drag_caret.h"
 #include "third_party/blink/renderer/core/editing/frame_selection.h"
 #include "third_party/blink/renderer/core/editing/markers/document_marker_controller.h"
+#include "third_party/blink/renderer/core/event_type_names.h"
 #include "third_party/blink/renderer/core/events/error_event.h"
 #include "third_party/blink/renderer/core/exported/web_plugin_container_impl.h"
 #include "third_party/blink/renderer/core/fragment_directive/fragment_directive_utils.h"
@@ -98,6 +99,7 @@
 #include "third_party/blink/renderer/core/fullscreen/fullscreen.h"
 #include "third_party/blink/renderer/core/highlight/highlight_registry.h"
 #include "third_party/blink/renderer/core/html/anchor_element_viewport_position_tracker.h"
+#include "third_party/blink/renderer/core/html/canvas/html_canvas_element.h"
 #include "third_party/blink/renderer/core/html/fenced_frame/document_fenced_frames.h"
 #include "third_party/blink/renderer/core/html/fenced_frame/html_fenced_frame_element.h"
 #include "third_party/blink/renderer/core/html/forms/text_control_element.h"
@@ -341,6 +343,7 @@ void LocalFrameView::Trace(Visitor* visitor) const {
   visitor->Trace(mobile_friendliness_checker_);
   visitor->Trace(tap_friendliness_checker_);
   visitor->Trace(lifecycle_observers_);
+  visitor->Trace(painted_canvas_child_elements_);
   visitor->Trace(fullscreen_video_elements_);
   visitor->Trace(pending_transform_updates_);
   visitor->Trace(pending_opacity_updates_);
@@ -984,23 +987,65 @@ bool LocalFrameView::InvalidationDisallowed() const {
   return GetFrame().LocalFrameRoot().View()->invalidation_disallowed_;
 }
 
+void LocalFrameView::WillBeginImplCommit() {
+  if (needs_post_lifecycle_steps_before_impl_commit_) {
+    RunPostLifecycleSteps();
+    did_run_post_lifecycle_steps_before_impl_commit_ = true;
+  }
+}
+
+void LocalFrameView::DidBeginMainFrame() {
+  if (!did_run_post_lifecycle_steps_before_impl_commit_) {
+    RunPostLifecycleSteps();
+  }
+  needs_post_lifecycle_steps_before_impl_commit_ = false;
+  did_run_post_lifecycle_steps_before_impl_commit_ = false;
+}
+
 void LocalFrameView::RunPostLifecycleSteps() {
-  InvalidationDisallowedScope invalidation_disallowed(*this);
-  AllowThrottlingScope allow_throttling(*this);
-  RunAccessibilitySteps();
-  RunIntersectionObserverSteps();
-  if (mobile_friendliness_checker_)
-    mobile_friendliness_checker_->MaybeRecompute();
+  {
+    InvalidationDisallowedScope invalidation_disallowed(*this);
+    AllowThrottlingScope allow_throttling(*this);
+    RunAccessibilitySteps();
+    RunIntersectionObserverSteps();
+    if (mobile_friendliness_checker_) {
+      mobile_friendliness_checker_->MaybeRecompute();
+    }
 
-  ForAllRemoteFrameViews([](RemoteFrameView& frame_view) {
-    frame_view.UpdateCompositingScaleFactor();
-  });
+    ForAllRemoteFrameViews([](RemoteFrameView& frame_view) {
+      frame_view.UpdateCompositingScaleFactor();
+    });
 
-  ForAllNonThrottledLocalFrameViews([](LocalFrameView& frame_view) {
-    auto lifecycle_observers = frame_view.lifecycle_observers_;
-    for (auto& observer : lifecycle_observers)
-      observer->DidFinishPostLifecycleSteps(frame_view);
-  });
+    ForAllNonThrottledLocalFrameViews([](LocalFrameView& frame_view) {
+      auto lifecycle_observers = frame_view.lifecycle_observers_;
+      for (auto& observer : lifecycle_observers) {
+        observer->DidFinishPostLifecycleSteps(frame_view);
+      }
+    });
+  }
+
+  if (RuntimeEnabledFeatures::CanvasDrawElementEnabled()) {
+    ForAllNonThrottledLocalFrameViews([](LocalFrameView& frame_view) {
+      if (frame_view.painted_canvas_child_elements_.empty()) {
+        return;
+      }
+      HeapHashSet<Member<HTMLCanvasElement>> painted_canvases;
+      for (const auto& canvas_child :
+           frame_view.painted_canvas_child_elements_) {
+        if (auto* canvas =
+                DynamicTo<HTMLCanvasElement>(canvas_child->parentElement())) {
+          painted_canvases.insert(canvas);
+        }
+      }
+      frame_view.painted_canvas_child_elements_.clear();
+
+      // Script is allowed during onpaint.
+      ScriptForbiddenScope::AllowUserAgentScript allow_script;
+      for (const auto& canvas : painted_canvases) {
+        canvas->DispatchEvent(*Event::Create(event_type_names::kPaint));
+      }
+    });
+  }
 }
 
 void LocalFrameView::RunIntersectionObserverSteps() {
@@ -1313,7 +1358,7 @@ void LocalFrameView::InvalidateLayoutForViewportConstrainedObjects() {
   auto* layout_view = GetLayoutView();
   if (layout_view && !layout_view->NeedsLayout()) {
     for (const auto& fragment : layout_view->PhysicalFragments()) {
-      if (fragment.StickyDescendants()) {
+      if (!fragment.StickyDescendants().empty()) {
         layout_view->SetNeedsSimplifiedLayout();
         return;
       }
@@ -4979,6 +5024,14 @@ void LocalFrameView::NotifyVideoIsDominantVisibleStatus(
 
 bool LocalFrameView::HasDominantVideoElement() const {
   return !fullscreen_video_elements_.empty();
+}
+
+void LocalFrameView::DidPaintCanvasChild(const Element& child) {
+  if (IsUpdatingLifecycle()) {
+    painted_canvas_child_elements_.insert(&child);
+    LocalFrameView* root_view = GetFrame().LocalFrameRoot().View();
+    root_view->needs_post_lifecycle_steps_before_impl_commit_ = true;
+  }
 }
 
 #if DCHECK_IS_ON()

@@ -81,6 +81,10 @@ NSArray<NSNumber*>* BrowsingDataItemIdentifiers() {
     TableViewLinkHeaderFooterItemDelegate> {
   UITableViewDiffableDataSource<NSNumber*, NSNumber*>* _dataSource;
 
+  // The title for the "Manage other data" cell.
+  NSString* _manageOtherDataTitle;
+  // The subtitle for the "Manage other data" cell.
+  NSString* _manageOtherDataSubtitle;
   NSString* _historySummary;
   NSString* _tabsSummary;
   NSString* _cacheSummary;
@@ -242,6 +246,22 @@ NSArray<NSNumber*>* BrowsingDataItemIdentifiers() {
 
 - (void)setBrowsingDataSummary:(NSString*)summary {
   // No-op: This ViewController doesn't show the overall browsing data summary.
+}
+
+- (void)setManageOtherDataTitle:(NSString*)manageOtherDataTitle {
+  CHECK(IsPasswordRemovalFromDeleteBrowsingDataEnabled());
+  _manageOtherDataTitle = manageOtherDataTitle;
+
+  // Reloads the "Manage other data" cell.
+  [self updateSnapshotForItemIdentifier:ItemIdentifierManageOtherData];
+}
+
+- (void)setManageOtherDataSubtitle:(NSString*)manageOtherDataSubtitle {
+  CHECK(IsPasswordRemovalFromDeleteBrowsingDataEnabled());
+  _manageOtherDataSubtitle = manageOtherDataSubtitle;
+
+  // Reloads the "Manage other data" cell.
+  [self updateSnapshotForItemIdentifier:ItemIdentifierManageOtherData];
 }
 
 - (void)setShouldShowFooter:(BOOL)shouldShowFooter {
@@ -414,11 +434,9 @@ NSArray<NSNumber*>* BrowsingDataItemIdentifiers() {
 - (UITableViewCell*)createManageOtherDataCell {
   TableViewCellContentConfiguration* configuration =
       [[TableViewCellContentConfiguration alloc] init];
-  // TODO(crbug.com/478215117): Change the below strings for the variable
-  // strings given by the QuickDeleteConsumer.
-  configuration.title = @"Manage other Google data";
-  configuration.subtitle = @"Search history and passwords can be deleted in "
-                           @"their management settings";
+
+  configuration.title = _manageOtherDataTitle;
+  configuration.subtitle = _manageOtherDataSubtitle;
 
   UITableViewCell* cell =
       [TableViewCellContentConfiguration dequeueTableViewCell:self.tableView];
@@ -504,7 +522,21 @@ NSArray<NSNumber*>* BrowsingDataItemIdentifiers() {
   [snapshot reloadItemsWithIdentifiers:@[ @(itemIdentifier) ]];
   [_dataSource applySnapshot:snapshot animatingDifferences:YES];
 
-  [self updateConfirmButtonEnabledStatus];
+  switch (itemIdentifier) {
+    case ItemIdentifierHistory:
+    case ItemIdentifierTabs:
+    case ItemIdentifierSiteData:
+    case ItemIdentifierCache:
+    case ItemIdentifierPasswords:
+    case ItemIdentifierAutofill:
+      [self updateConfirmButtonEnabledStatus];
+      break;
+    case ItemIdentifierManageOtherData:
+      // Unlike the data type selection cells above, this cell is for
+      // navigation. Tapping it doesn't change the enabled state of the confirm
+      // button.
+      break;
+  }
 }
 
 // Toggles the selection for the given `itemIdentifier`.

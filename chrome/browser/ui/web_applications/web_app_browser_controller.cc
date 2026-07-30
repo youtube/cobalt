@@ -149,6 +149,21 @@ WebAppBrowserController::WebAppBrowserController(
     per_window_wco_enabled_ =
         registrar().GetWindowControlsOverlayEnabled(this->app_id());
   }
+
+  if (const WebApp* app = registrar().GetAppById(this->app_id())) {
+    if (auto pending_migration_info = app->pending_migration_info()) {
+      if (pending_migration_info->behavior() ==
+          proto::WEB_APP_MIGRATION_BEHAVIOR_FORCE) {
+        base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+            FROM_HERE,
+            base::BindOnce(&WebAppBrowserController::
+                               CreateMetadataAndTriggerAppMigrationDialog,
+                           weak_ptr_factory_.GetWeakPtr(),
+                           /*is_forced_migration_on_startup=*/true,
+                           base::TimeTicks::Now()));
+      }
+    }
+  }
 }
 
 WebAppBrowserController::~WebAppBrowserController() = default;
@@ -278,6 +293,10 @@ bool WebAppBrowserController::HasPendingMigration() const {
   if (!base::FeatureList::IsEnabled(blink::features::kWebAppMigrationApi)) {
     return false;
   }
+  if (!registrar().AppMatches(app_id(),
+                              WebAppFilter::IsAppValidMigrationSource())) {
+    return false;
+  }
   const WebApp* app = registrar().GetAppById(app_id());
   return app && app->pending_migration_info().has_value();
 }
@@ -294,6 +313,16 @@ bool WebAppBrowserController::HasPendingUpdateNotIgnoredByUser() const {
   return !app->pending_update_info()->was_ignored();
 }
 
+void WebAppBrowserController::TriggerAppUpdateOrMigrationDialog(
+    base::TimeTicks start_time) const {
+  if (registrar().GetAppById(app_id())->pending_migration_info()) {
+    CreateMetadataAndTriggerAppMigrationDialog(
+        /*is_forced_migration_on_startup=*/false, start_time);
+  } else {
+    CreateMetadataAndTriggerAppUpdateDialog(start_time);
+  }
+}
+
 void WebAppBrowserController::CreateMetadataAndTriggerAppUpdateDialog(
     base::TimeTicks start_time) const {
   provider_->scheduler().ReadAppUpdateDataFromDisk(
@@ -304,6 +333,7 @@ void WebAppBrowserController::CreateMetadataAndTriggerAppUpdateDialog(
 }
 
 void WebAppBrowserController::CreateMetadataAndTriggerAppMigrationDialog(
+    bool is_forced_migration_on_startup,
     base::TimeTicks start_time) const {
   CHECK(base::FeatureList::IsEnabled(blink::features::kWebAppMigrationApi));
   auto pending_migration_info =
@@ -312,7 +342,7 @@ void WebAppBrowserController::CreateMetadataAndTriggerAppMigrationDialog(
   webapps::AppId destination_app_id = GenerateAppIdFromManifestId(
       webapps::ManifestId(pending_migration_info->manifest_id()));
   provider_->scheduler().ReadAppMigrationDataFromDisk(
-      app_id(), destination_app_id,
+      app_id(), destination_app_id, is_forced_migration_on_startup,
       base::BindOnce(
           &WebAppBrowserController::OnMetadataObtainedTriggerMigrationDialog,
           weak_ptr_factory_.GetWeakPtr(), start_time));
@@ -840,7 +870,8 @@ void WebAppBrowserController::OnMetadataObtainedTriggerMigrationDialog(
   web_app::ShowWebAppReviewUpdateDialog(
       app_id(), *identity_update, browser(), start_time,
       base::BindOnce(&WebAppBrowserController::OnMigrationDialogResult,
-                     weak_ptr_factory_.GetWeakPtr()));
+                     weak_ptr_factory_.GetWeakPtr(),
+                     identity_update->is_forced_migration));
 }
 
 void WebAppBrowserController::OnUpdateDialogResult(
@@ -876,6 +907,9 @@ void WebAppBrowserController::OnUpdateDialogResult(
           app_id(), webapps::WebappUninstallSource::kAppMenu,
           browser()->window(), base::DoNothing());
       return;
+    case WebAppIdentityUpdateResult::kCloseApp:
+      // kCloseApp is only used for migration dialogs.
+      NOTREACHED();
     case WebAppIdentityUpdateResult::kAppUninstalledDuringDialog:
     case WebAppIdentityUpdateResult::kUnexpectedError:
       return;
@@ -884,6 +918,7 @@ void WebAppBrowserController::OnUpdateDialogResult(
 }
 
 void WebAppBrowserController::OnMigrationDialogResult(
+    bool is_forced_migration,
     WebAppIdentityUpdateResult result) const {
   CHECK(!browser()->profile()->IsOffTheRecord());
   auto* web_app_provider = WebAppProvider::GetForWebApps(browser()->profile());
@@ -906,7 +941,10 @@ void WebAppBrowserController::OnMigrationDialogResult(
         webapps::AppId destination_app_id = GenerateAppIdFromManifestId(
             webapps::ManifestId(pending_migration_info->manifest_id()));
         const proto::WebAppMigrationBehavior migration_behavior =
-            proto::WebAppMigrationBehavior::WEB_APP_MIGRATION_BEHAVIOR_SUGGEST;
+            is_forced_migration ? proto::WebAppMigrationBehavior::
+                                      WEB_APP_MIGRATION_BEHAVIOR_FORCE
+                                : proto::WebAppMigrationBehavior::
+                                      WEB_APP_MIGRATION_BEHAVIOR_SUGGEST;
         web_app_provider->scheduler().ApplyManifestMigration(
             app_id(), destination_app_id, migration_behavior,
             std::move(keep_alive), std::move(profile_keep_alive),
@@ -914,10 +952,26 @@ void WebAppBrowserController::OnMigrationDialogResult(
       }
       return;
     }
-    case WebAppIdentityUpdateResult::kUninstallApp:
+    case WebAppIdentityUpdateResult::kUninstallApp: {
+      UninstallCompleteCallback complete_callback =
+          is_forced_migration
+              ? base::BindOnce(
+                    [](base::WeakPtr<BrowserWindowInterface> browser,
+                       webapps::UninstallResultCode code) {
+                      if (browser &&
+                          code == webapps::UninstallResultCode::kCancelled) {
+                        chrome::CloseWindow(browser.get());
+                      }
+                    },
+                    browser()->GetWeakPtr())
+              : base::DoNothing();
       web_app_provider->ui_manager().PresentUserUninstallDialog(
           app_id(), webapps::WebappUninstallSource::kAppMenu,
-          browser()->window(), base::DoNothing());
+          browser()->window(), std::move(complete_callback));
+      return;
+    }
+    case WebAppIdentityUpdateResult::kCloseApp:
+      chrome::CloseWindow(browser());
       return;
     case WebAppIdentityUpdateResult::kIgnore:
     case WebAppIdentityUpdateResult::kAppUninstalledDuringDialog:

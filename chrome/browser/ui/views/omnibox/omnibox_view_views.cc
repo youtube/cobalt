@@ -1648,8 +1648,25 @@ bool OmniboxViewViews::HandleAccessibleAction(
   return Textfield::HandleAccessibleAction(action_data);
 }
 
+void OmniboxViewViews::UpdateTextForContextualTasksPage() {
+  if (!controller()->client()->IsContextualTasksPage()) {
+    return;
+  }
+
+  if (HasFocus()) {
+    std::u16string text = controller()->client()->GetURLForDisplay();
+    controller()->edit_model()->SetUserText(text);
+    SetWindowTextAndCaretPos(text, /*caret_pos=*/0, /*update_popup=*/true,
+                             /*notify_text_changed=*/true);
+  } else {
+    RevertAll();
+  }
+}
+
 void OmniboxViewViews::OnFocus() {
   views::Textfield::OnFocus();
+
+  UpdateTextForContextualTasksPage();
 
   // TODO(oshima): Get control key state.
   controller()->edit_model()->OnSetFocus(false);
@@ -1679,6 +1696,8 @@ void OmniboxViewViews::OnFocus() {
 
 void OmniboxViewViews::OnBlur() {
   views::Textfield::OnBlur();
+
+  UpdateTextForContextualTasksPage();
 
   // Save the user's existing selection to restore it later.
   saved_selection_for_focus_change_ = GetSelectedRange();
@@ -2031,10 +2050,9 @@ bool OmniboxViewViews::HandleKeyEvent(views::Textfield* textfield,
                                     metric_value);
       if (controller()->IsPopupOpen() && !control) {
         // Normal case of pressing <return> when the popup is open.
-        controller()->edit_model()->OpenSelection(
-            controller()->edit_model()->GetPopupSelection(), event.time_stamp(),
-            disposition,
-            /*via_keyboard=*/true);
+        controller()->edit_model()->OpenCurrentSelection(event.time_stamp(),
+                                                         disposition,
+                                                         /*via_keyboard=*/true);
       } else {
         // There are two cases handled here.
         // 1. The popup is closed and the AIM page action icon has "fake" focus
@@ -2536,7 +2554,8 @@ void OmniboxViewViews::UpdatePlaceholderTextColor() {
       !ShouldInstallAimPlaceholderText() &&
       !ShouldInstallContextualTasksPlaceholderText();
   set_placeholder_text_color(GetColorProvider()->GetColor(
-      dse_placeholder_installed ? kColorOmniboxText : kColorOmniboxTextDimmed));
+      dse_placeholder_installed ? kColorOmniboxText
+                                : kColorOmniboxForegroundDisabled));
 }
 
 bool OmniboxViewViews::AreAimHintImpressionLimitsReached() const {

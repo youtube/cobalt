@@ -4,52 +4,79 @@
 
 package org.chromium.chrome.browser.search_engines.settings.custom_search_engine;
 
+import android.content.Context;
 import android.view.LayoutInflater;
-import android.view.View;
-
-import androidx.recyclerview.widget.DividerItemDecoration;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
 
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.search_engines.R;
+import org.chromium.chrome.browser.search_engines.TemplateUrlServiceFactory;
+import org.chromium.chrome.browser.search_engines.settings.common.SearchEngineListPreference;
+import org.chromium.chrome.browser.search_engines.settings.custom_search_engine.CustomSearchEngineProperties.CustomSearchEngineRecyclerViewItems;
+import org.chromium.components.search_engines.TemplateUrl;
+import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
+import org.chromium.ui.modelutil.PropertyModel;
+import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
 import org.chromium.ui.modelutil.SimpleRecyclerViewAdapter;
 
 @NullMarked
 public class CustomSearchEngineListCoordinator {
     private final ModelList mModelList = new ModelList();
     private final SimpleRecyclerViewAdapter mAdapter;
+    private final CustomSearchEngineListMediator mMediator;
 
-    public CustomSearchEngineListCoordinator() {
+    private final PropertyModel mModel;
+    private final PropertyModelChangeProcessor mPropertyModelChangeProcessor;
+
+    private final Context mContext;
+    private final ModalDialogManager mModalDialogManager;
+    private final EditSearchEngineDialogCoordinator mEditSearchEngineDialogCoordinator;
+
+    public CustomSearchEngineListCoordinator(
+            Context context,
+            Profile profile,
+            SearchEngineListPreference pref,
+            ModalDialogManager modalDialogManager) {
+        mContext = context;
+        mModalDialogManager = modalDialogManager;
+        mEditSearchEngineDialogCoordinator =
+                new EditSearchEngineDialogCoordinator(
+                        mContext,
+                        mModalDialogManager,
+                        TemplateUrlServiceFactory.getForProfile(profile));
+
         mAdapter = new SimpleRecyclerViewAdapter(mModelList);
         mAdapter.registerType(
-                0,
+                CustomSearchEngineRecyclerViewItems.DEFAULT,
                 parent ->
                         LayoutInflater.from(parent.getContext())
                                 .inflate(R.layout.custom_search_engine_item, parent, false),
                 CustomSearchEngineViewBinder::bind);
 
-        // Todo: Replace with Template URL data.
+        mMediator =
+                new CustomSearchEngineListMediator(
+                        context, mModelList, profile, this::openEditDialog);
+
+        mModel =
+                new PropertyModel.Builder(CustomSearchEngineProperties.ALL_KEYS)
+                        .with(CustomSearchEngineProperties.ADAPTER, mAdapter)
+                        .build();
+
+        mPropertyModelChangeProcessor =
+                PropertyModelChangeProcessor.create(
+                        mModel, pref, CustomSearchEngineViewBinder::bindPreference);
     }
 
-    public void onViewBound(View rootView) {
-        RecyclerView recyclerView;
-        if (rootView instanceof RecyclerView) {
-            recyclerView = (RecyclerView) rootView;
-        } else {
-            // rootView should be bound to recycler view in
-            // CustomSearchEngineListPreference::onBindViewHolder.
-            return;
-        }
-        if (recyclerView.getAdapter() == mAdapter) return;
+    public void destroy() {
+        mEditSearchEngineDialogCoordinator.dismiss();
+        mModel.set(CustomSearchEngineProperties.ADAPTER, null);
+        mPropertyModelChangeProcessor.destroy();
+        mMediator.destroy();
+        mAdapter.destroy();
+    }
 
-        LinearLayoutManager layoutManager = new LinearLayoutManager(recyclerView.getContext());
-        recyclerView.setLayoutManager(layoutManager);
-        DividerItemDecoration divider =
-                new DividerItemDecoration(
-                        recyclerView.getContext(), layoutManager.getOrientation());
-        recyclerView.addItemDecoration(divider);
-        recyclerView.setAdapter(mAdapter);
+    private void openEditDialog(TemplateUrl templateUrl) {
+        mEditSearchEngineDialogCoordinator.show(templateUrl);
     }
 }

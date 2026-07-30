@@ -295,6 +295,8 @@ bool IsPasswordSuggestion(FormSuggestion* suggestion) {
     case SuggestionType::kAllLoyaltyCardsEntry:
     case SuggestionType::kOneTimePasswordEntry:
     case SuggestionType::kLoadingThrobber:
+    case SuggestionType::kAtMemorySearchResult:
+    case SuggestionType::kBnplFootnote:
       return false;
   }
   NOTREACHED();

@@ -44,8 +44,8 @@ source_set("standalone_module_view") {
   sources = [
     "standalone_module_view.h",
     "standalone_module_view.mm",
-    "standalone_module_view_configuration.h",
-    "standalone_module_view_configuration.mm",
+    "standalone_module_view_config.h",
+    "standalone_module_view_config.mm",
   ]
   public_deps = [
     "//ios/chrome/browser/content_suggestions/magic_stack/public:constants",
@@ -70,8 +70,8 @@ source_set("icon_detail_view") {
   sources = [
     "icon_detail_view.h",
     "icon_detail_view.mm",
-    "icon_detail_view_configuration.h",
-    "icon_detail_view_configuration.mm",
+    "icon_detail_view_config.h",
+    "icon_detail_view_config.mm",
     "icon_view.h",
     "icon_view.mm",
     "icon_view_configuration.h",

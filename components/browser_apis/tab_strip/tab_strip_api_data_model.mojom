@@ -61,8 +61,13 @@ struct Tab {
   bool is_blocked;
 };
 
-// Tabstrip is a TabCollection that represents the top-level collection of
-// a browser.
+// Window represents a browser window.
+struct Window {
+  NodeId id;
+};
+
+// Tabstrip represents the primary collection of tabs for an individual browser
+// window.
 struct TabStrip {
   NodeId id;
 };
@@ -121,6 +126,7 @@ union Data {
   UnpinnedTabs unpinned_tabs;
   TabGroup tab_group;
   SplitTab split_tab;
+  Window window;
 };
 
 // Container represents a node in the tree hierarchy.

@@ -171,9 +171,8 @@ CGFloat TrashIconSize() {
   _tableViewHeightConstraint = [_tableView.heightAnchor
       constraintEqualToConstant:_tableView.contentSize.height];
   _tableViewHeightConstraint.active = YES;
-  NSArray<UITrait>* traits = TraitCollectionSetForTraits(
-      @[ UITraitPreferredContentSizeCategory.class ]);
-  [self registerForTraitChanges:traits
+
+  [self registerForTraitChanges:@[ UITraitPreferredContentSizeCategory.class ]
                      withAction:@selector(updateBottomSheetHeight)];
 }
 
@@ -311,6 +310,14 @@ CGFloat TrashIconSize() {
                     // row can change height depending on the length of summary.
                     [weakSelf updateBottomSheetHeight];
                   }];
+}
+
+- (void)setManageOtherDataTitle:(NSString*)manageOtherDataTitle {
+  // No-op: This ViewController doesn't show the "Manage other data" cell.
+}
+
+- (void)setManageOtherDataSubtitle:(NSString*)manageOtherDataSubtitle {
+  // No-op: This ViewController doesn't show the "Manage other data" cell.
 }
 
 - (void)setShouldShowFooter:(BOOL)shouldShowFooter {

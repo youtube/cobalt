@@ -661,6 +661,12 @@ public class WebContentsAccessibilityTreeTest {
 
     @Test
     @SmallTest
+    public void test_ariaListboxGrouped() {
+        performAriaTest("aria-listbox-grouped.html");
+    }
+
+    @Test
+    @SmallTest
     public void test_ariaList() {
         performAriaTest("aria-list.html");
     }
@@ -2482,6 +2488,30 @@ public class WebContentsAccessibilityTreeTest {
     @SmallTest
     public void test_picture() {
         performHtmlTest("picture.html");
+    }
+
+    @Test
+    @SmallTest
+    public void testNameFromRelatedFieldset() {
+        performHtmlTest("name-from-related-fieldset.html");
+    }
+
+    @Test
+    @SmallTest
+    public void testNameFromRelatedLabelable() {
+        performHtmlTest("name-from-related-labelable.html");
+    }
+
+    @Test
+    @SmallTest
+    public void testNameFromRelatedSvg() {
+        performHtmlTest("name-from-related-svg.html");
+    }
+
+    @Test
+    @SmallTest
+    public void testNameFromRelatedTitle() {
+        performHtmlTest("name-from-related-title.html");
     }
 
     @Test

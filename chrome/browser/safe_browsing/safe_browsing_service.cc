@@ -22,7 +22,6 @@
 #include "base/threading/thread_restrictions.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
-#include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "chrome/browser/browser_features.h"
 #include "chrome/browser/browser_process.h"
@@ -613,11 +612,15 @@ void SafeBrowsingServiceImpl::OnProfileAdded(Profile* profile) {
   UMA_HISTOGRAM_BOOLEAN("SafeBrowsing.Pref.Enhanced",
                         pref_service->GetBoolean(prefs::kSafeBrowsingEnhanced));
 
-  // Record the current enhanced protection pref state for regular profiles only
+  // Record the current enhanced protection pref state and JS Optimizer setting
+  // for regular profiles only
   if (profiles::IsRegularUserProfile(profile)) {
     UMA_HISTOGRAM_BOOLEAN(
         "SafeBrowsing.Pref.Enhanced.RegularProfile",
         pref_service->GetBoolean(prefs::kSafeBrowsingEnhanced));
+    UMA_HISTOGRAM_ENUMERATION(
+        "SafeBrowsing.Pref.JsOptimizerSetting",
+        site_protection::ComputeDefaultJavascriptOptimizerSetting(profile));
   }
 
   // Extended Reporting metrics are handled together elsewhere.

@@ -195,9 +195,10 @@ void LogAppVerificationPromptToPrefs(download::DownloadItem* item) {
 
 }  // namespace
 
-static void JNI_DownloadController_CancelDownload(JNIEnv* env,
-                                                  Profile* profile,
-                                                  std::string& download_guid) {
+static void JNI_DownloadController_CancelDownload(
+    JNIEnv* env,
+    Profile* profile,
+    const std::string& download_guid) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
   DownloadManager* download_manager = profile->GetDownloadManager();
@@ -211,7 +212,7 @@ static void JNI_DownloadController_CancelDownload(JNIEnv* env,
 
 static void JNI_DownloadController_DownloadUrl(
     JNIEnv* env,
-    std::string& url,
+    const std::string& url,
     const base::android::JavaRef<jobject>& jweb_contents) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
@@ -420,7 +421,7 @@ void DownloadController::OnDownloadUpdated(DownloadItem* item) {
           .StartEnableVerifyApps(base::BindOnce(
               &DownloadController::EnableVerifyAppsDone,
               // base::Unretained is safe because `this` is a singleton.
-              base::Unretained(this), item));
+              base::Unretained(this)));
     } else if (app_verification_prompt_download_ != item) {
       OnDownloadComplete(item);
     }
@@ -496,9 +497,9 @@ void DownloadController::OnSensitiveDownload(download::DownloadItem* item) {
 }
 
 void DownloadController::EnableVerifyAppsDone(
-    download::DownloadItem* item,
     safe_browsing::VerifyAppsEnabledResult result) {
   if (app_verification_prompt_download_ != nullptr) {
+    DownloadItem* item = app_verification_prompt_download_;
     app_verification_prompt_download_ = nullptr;
     OnDownloadComplete(item);
   }

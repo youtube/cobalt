@@ -272,31 +272,84 @@ bool ReplaceComponents(std::string_view spec,
 
 // String helper functions -----------------------------------------------------
 
-enum class DecodeURLMode {
+enum class DecodeUrlMode {
   // UTF-8 decode only. Invalid byte sequences are replaced with U+FFFD.
-  kUTF8,
+  kUtf8,
   // Try UTF-8 decoding. If the input contains byte sequences invalid
   // for UTF-8, apply byte to Unicode mapping.
-  kUTF8OrIsomorphic,
+  kUtf8OrIsomorphic,
 };
 
 // Unescapes the given string using URL escaping rules.
 COMPONENT_EXPORT(URL)
-void DecodeURLEscapeSequences(std::string_view input,
-                              DecodeURLMode mode,
+void DecodeUrlEscapeSequences(std::string_view input,
+                              DecodeUrlMode mode,
                               CanonOutputW* output);
+
+// Unescapes the given string using URL escaping rules.  The resultant string
+// is encoded in UTF-8.
+COMPONENT_EXPORT(URL)
+std::string DecodeUrlEscapeSequences(std::string_view input,
+                                     DecodeUrlMode mode);
 
 // Escapes the given string as defined by the JS method encodeURIComponent. See
 // https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/encodeURIComponent
+//
+// This is used when we need a std::string_view result.
+//
+//   url::RawCanonOutputT<char> output;
+//   url::EncodeURIComponent(input, &output);
+//   // Use output.view() here.
 COMPONENT_EXPORT(URL)
 void EncodeURIComponent(std::string_view input, CanonOutput* output);
+
+// A helper class to perform URI component encoding, potentially without heap
+// allocation. This is an alternative to `url::EncodeUriComponent()` which
+// always allocates a `std::string`. This class uses a stack-allocated buffer
+// up to `fixed_capacity` and avoids heap allocation if the encoded result fits
+// in it.
+//
+// Examples:
+//
+//   url::UriComponentEncoder encoder(input);
+//   FunctionAcceptsStringView(encoder.view());
+//
+//   FunctionAcceptsStringView(url::UriComponentEncoder(input).view());
+//
+// The following code doesn't work because the view() result can't outlive the
+// UriComponentEncoder instance.
+//   std::string_view view = url::UriComponentEncoder(input).view();
+template <size_t fixed_capacity = 1024>
+class UriComponentEncoder {
+ public:
+  // Constructs an encoder and encodes the given `input` string.
+  explicit UriComponentEncoder(std::string_view input) {
+    EncodeURIComponent(input, &output_);
+  }
+
+  // Returns a view of the encoded string. The returned `std::string_view` is
+  // valid only for the lifetime of this `UriComponentEncoder` instance.
+  std::string_view view() const LIFETIME_BOUND { return output_.view(); }
+
+ private:
+  RawCanonOutputT<char, fixed_capacity> output_;
+};
+
+// Escapes the given string as defined by the JS method encodeURIComponent. See
+// https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/encodeURIComponent
+//
+// This function is less efficient than EncodeURIComponent(input, output) and
+// UriComponentEncoder because this allocates a std::string instance and
+// copies the content to it.
+COMPONENT_EXPORT(URL)
+std::string EncodeUriComponent(std::string_view input);
 
 // Returns true if `c` is a character that does not require escaping in
 // encodeURIComponent.
 // TODO(crbug.com/40281561): Remove this when event-level reportEvent is removed
 // (if it is still this function's only consumer).
 COMPONENT_EXPORT(URL)
-bool IsURIComponentChar(char c);
+bool IsUriComponentChar(char c);
 
 // Checks an arbitrary string for invalid escape sequences.
 //

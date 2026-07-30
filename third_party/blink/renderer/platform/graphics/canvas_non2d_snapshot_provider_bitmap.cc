@@ -10,6 +10,19 @@
 
 namespace blink {
 
+// static
+sk_sp<SkSurface> CanvasNon2DSnapshotProviderBitmap::CreateSurface(
+    const CanvasSnapshotProvider::Info& info) {
+  const bool can_use_lcd_text = info.alpha_type == kOpaque_SkAlphaType;
+  const auto props =
+      skia::LegacyDisplayGlobals::ComputeSurfaceProps(can_use_lcd_text);
+  return SkSurfaces::Raster(
+      SkImageInfo::Make(info.size.width(), info.size.height(),
+                        viz::ToClosestSkColorType(info.format),
+                        kPremul_SkAlphaType, info.color_space.ToSkColorSpace()),
+      &props);
+}
+
 CanvasNon2DSnapshotProviderBitmap::ImageProviderImpl::ImageProviderImpl(
     bool is_f16,
     const gfx::ColorSpace& color_space)
@@ -68,20 +81,26 @@ bool CanvasNon2DSnapshotProviderBitmap::IsValid() const {
   return true;
 }
 
+sk_sp<SkSurface> CanvasNon2DSnapshotProviderBitmap::GetCachedSurface() {
+  if (!surface_) {
+    surface_ = CreateSurface(info_);
+  }
+  return surface_;
+}
+
 // static
 scoped_refptr<StaticBitmapImage>
 CanvasNon2DSnapshotProviderBitmap::DoExternalDrawAndSnapshot(
     const CanvasSnapshotProvider::Info& info,
     base::FunctionRef<void(cc::PaintCanvas&)> draw_callback,
-    ImageOrientation orientation) {
-  const bool can_use_lcd_text = info.alpha_type == kOpaque_SkAlphaType;
-  const auto props =
-      skia::LegacyDisplayGlobals::ComputeSurfaceProps(can_use_lcd_text);
-  sk_sp<SkSurface> surface = SkSurfaces::Raster(
-      SkImageInfo::Make(info.size.width(), info.size.height(),
-                        viz::ToClosestSkColorType(info.format),
-                        kPremul_SkAlphaType, info.color_space.ToSkColorSpace()),
-      &props);
+    ImageOrientation orientation,
+    sk_sp<SkSurface> client_provided_surface /*=nullptr*/) {
+  auto surface = client_provided_surface;
+
+  if (!surface) {
+    surface = CreateSurface(info);
+  }
+
   if (!surface) {
     return nullptr;
   }

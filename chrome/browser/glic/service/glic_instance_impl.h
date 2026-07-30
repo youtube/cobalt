@@ -32,7 +32,7 @@
 #include "chrome/browser/glic/service/glic_ui_types.h"
 #include "chrome/browser/glic/service/metrics/glic_instance_metrics.h"
 #include "chrome/browser/ui/browser_window/public/browser_collection_observer.h"
-#include "components/autofill/core/browser/integrators/glic/actor_form_filling_types.h"
+#include "components/autofill/core/browser/integrators/actor/actor_form_filling_types.h"
 #include "components/tabs/public/tab_interface.h"
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -285,6 +285,7 @@ class GlicInstanceImpl : public GlicInstance,
   void RequestToShowAutofillSuggestionsDialog(
       actor::TaskId task_id,
       std::vector<autofill::ActorFormFillingRequest> requests,
+      base::WeakPtr<actor::AutofillSelectionDialogEventHandler> event_handler,
       AutofillSuggestionSelectedCallback callback) override;
 
  private:
@@ -317,6 +318,7 @@ class GlicInstanceImpl : public GlicInstance,
       std::optional<EmbedderKey> new_key);
   void ClearActiveEmbedderAndNotifyStateChange();
   void MaybeShowHostUi(GlicUiEmbedder* embedder,
+                       mojom::InvocationSource source,
                        std::optional<std::string> prompt_suggestion,
                        bool auto_send);
   void OnBoundTabDestroyed(tabs::TabInterface* tab);
@@ -352,8 +354,7 @@ class GlicInstanceImpl : public GlicInstance,
   // Updates the floating panel can attach state.
   void UpdateFloatingPanelCanAttach();
 
-  using StateChangeCallbackList =
-      base::RepeatingCallbackList<void(bool, mojom::CurrentView view)>;
+  using StateChangeCallbackList = base::RepeatingCallbackList<void(bool)>;
   StateChangeCallbackList state_change_callback_list_;
 
   base::ObserverList<PanelStateObserver> state_observers_;

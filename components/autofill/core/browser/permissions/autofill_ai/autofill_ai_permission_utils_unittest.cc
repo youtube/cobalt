@@ -679,10 +679,12 @@ TEST_F(AutofillAiPermissionUtilsTest,
                                           std::nullopt));
 }
 
-TEST_F(AutofillAiPermissionUtilsTest,
-       UsersCanOptInIfAutofillForAddressesIsDisabledWhenFeatureIsEnabled) {
+// TODO(crbug.com/482301350): Remove this test
+TEST_F(
+    AutofillAiPermissionUtilsTest,
+    UsersCanOptInIfAutofillForAddressesIsDisabledWhenOtherDatatypesPrefEnabled) {
   base::test::ScopedFeatureList feature_list{
-      features::kAutofillAiIgnoresWhetherAddressPrefIsEnabled};
+      features::kAutofillAddOtherDatatypesPref};
   ASSERT_TRUE(MayPerformAutofillAiAction(client(), AutofillAiAction::kOptIn,
                                          std::nullopt));
   client().GetPrefs()->SetBoolean(prefs::kAutofillProfileEnabled, false);
@@ -792,28 +794,6 @@ TEST_F(AutofillAiMayPerformImportToWalletTest,
     EXPECT_TRUE(MayPerformAutofillAiAction(
         client(), AutofillAiAction::kImportToWallet, entity_type))
         << entity_type;
-  }
-}
-
-// Tests that the Wallet import is not allowed for private passes if the country
-// is explicitly excluded (currently Germany, France and Italy).
-TEST_F(AutofillAiMayPerformImportToWalletTest,
-       ImportToWallet_FalseForPrivatePassIfCountryIsExcluded) {
-  base::test::ScopedFeatureList feature_list{
-      features::kAutofillAiWalletPrivatePasses};
-  client().SetWalletStorageEnabled(true);
-
-  for (const auto& country : {GeoIpCountryCode("DE"), GeoIpCountryCode("FR"),
-                              GeoIpCountryCode("IT")}) {
-    SCOPED_TRACE(testing::Message() << "country: " << country.value());
-    client().SetVariationConfigCountryCode(country);
-    for (const EntityType entity_type : GetPrivatePasses()) {
-      SCOPED_TRACE(testing::Message() << "entity_type: " << entity_type);
-      EXPECT_FALSE(MayPerformAutofillAiAction(
-          client(), AutofillAiAction::kImportToWallet, entity_type));
-    }
-    EXPECT_TRUE(MayPerformAutofillAiAction(
-        client(), AutofillAiAction::kImportToWallet, EntityType(kVehicle)));
   }
 }
 

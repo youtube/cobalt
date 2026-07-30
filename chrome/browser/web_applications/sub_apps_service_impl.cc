@@ -163,9 +163,9 @@ bool IsInstalledNonChildApp(content::RenderFrameHost& render_frame_host) {
     return false;
   }
 
-  auto* provider = GetWebAppProvider(render_frame_host);
-  auto* web_app = provider->registrar_unsafe().GetAppById(*app_id);
-  return (web_app && !web_app->IsSubAppInstalledApp());
+  return GetWebAppProvider(render_frame_host)
+      ->registrar_unsafe()
+      .AppMatches(*app_id, !WebAppFilter::IsIsolatedSubApp());
 }
 
 // Verify that the calling app has the SubApps permissions policy set and that
@@ -319,8 +319,9 @@ void SubAppsServiceImpl::CollectInstallData(
     }
 
     // Check if app is already installed as a sub app
-    if (provider->registrar_unsafe().WasInstalledBySubApp(
-            GenerateAppIdFromManifestId(manifest_id, parent_manifest_id))) {
+    if (provider->registrar_unsafe().AppMatches(
+            GenerateAppIdFromManifestId(manifest_id),
+            WebAppFilter::IsIsolatedSubApp())) {
       CHECK_DEREF(base::FindOrNull(add_call_info_, add_call_id))
           .results.emplace_back(SubAppsServiceAddResult::New(
               ConvertUrlToPath(manifest_id),
@@ -566,8 +567,7 @@ void SubAppsServiceImpl::RemoveSubApp(
     return ReportBadMessageAndDeleteThis("Parent manifest is null");
   }
 
-  webapps::AppId sub_app_id =
-      GenerateAppIdFromManifestId(manifest_id, parent_manifest_id);
+  webapps::AppId sub_app_id = GenerateAppIdFromManifestId(manifest_id);
   const WebApp* app = provider->registrar_unsafe().GetAppById(sub_app_id);
 
   // Verify that the app we're trying to remove exists, is installed and that
@@ -580,6 +580,13 @@ void SubAppsServiceImpl::RemoveSubApp(
         manifest_id_path, SubAppsServiceResultCode::kFailure));
   }
 
+  // Note: While not possible today, if the sub app was installed via any other
+  // management source (e.g. force install, user install, etc, preinstall),
+  // then this doesn't uninstall the app.
+  // - This could instead use the RemoveUserUninstallableManagements call,
+  // which would make this effectively the same as the user trying to uninstall
+  // the app using chrome://apps. This would NOT remove, say, the kPolicy
+  // management source, as we must respect the policy force-installs.
   provider->scheduler().RemoveInstallManagementMaybeUninstall(
       sub_app_id, WebAppManagement::Type::kSubApp,
       webapps::WebappUninstallSource::kSubApp,

@@ -4,6 +4,8 @@
 
 package org.chromium.chrome.browser.ui.extensions;
 
+import android.graphics.Bitmap;
+
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.JniType;
@@ -23,6 +25,7 @@ import java.util.List;
 @JNINamespace("extensions")
 public class ExtensionsMenuBridge implements Destroyable {
     private final @Nullable LifetimeAssert mLifetimeAssert = LifetimeAssert.create(this);
+
     private long mNativeExtensionsMenuDelegateAndroid;
     private final Observer mObserver;
 
@@ -41,14 +44,45 @@ public class ExtensionsMenuBridge implements Destroyable {
         LifetimeAssert.destroy(mLifetimeAssert);
     }
 
+    /** Returns the icon for the given extension index from native. */
+    public @Nullable Bitmap getActionIcon(int actionIndex) {
+        return ExtensionsMenuBridgeJni.get()
+                .getActionIcon(mNativeExtensionsMenuDelegateAndroid, actionIndex);
+    }
+
     /** Returns the list of menu entries with their states from native. */
     public List<ExtensionsMenuTypes.MenuEntryState> getMenuEntries() {
         return ExtensionsMenuBridgeJni.get().getMenuEntries(mNativeExtensionsMenuDelegateAndroid);
     }
 
+    /** Returns the site settings state from native. */
+    public ExtensionsMenuTypes.SiteSettingsState getSiteSettingsState() {
+        return ExtensionsMenuBridgeJni.get().getSiteSettings(mNativeExtensionsMenuDelegateAndroid);
+    }
+
+    /**
+     * Called when the site settings toggle is changed in the UI.
+     *
+     * @param isChecked Whether the toggle is checked.
+     */
+    public void onSiteSettingsToggleChanged(boolean isChecked) {
+        ExtensionsMenuBridgeJni.get()
+                .onSiteSettingsToggleChanged(mNativeExtensionsMenuDelegateAndroid, isChecked);
+    }
+
     /** Returns whether the native menu model is ready. */
     public boolean isReady() {
         return ExtensionsMenuBridgeJni.get().isReady(mNativeExtensionsMenuDelegateAndroid);
+    }
+
+    /**
+     * Callback from native indicating that an extension icon has been updated.
+     *
+     * @param actionIndex The index of the updated extension in the menu.
+     */
+    @CalledByNative
+    public void onActionIconUpdated(int actionIndex) {
+        mObserver.onActionIconUpdated(actionIndex);
     }
 
     /**
@@ -60,9 +94,26 @@ public class ExtensionsMenuBridge implements Destroyable {
         mObserver.onReady();
     }
 
+    @CalledByNative
+    private void onModelChanged() {
+        if (mObserver != null) {
+            mObserver.onModelChanged();
+        }
+    }
+
     public interface Observer {
+        /** Called when an extension icon has been updated on actionIndex. */
+        void onActionIconUpdated(int actionIndex);
+
         /** Called when the menu data is ready to be consumed. */
         void onReady();
+
+        /**
+         * Called when a major event in the native model has occurred, potentially affecting
+         * multiple UI properties. The Mediator should pull the necessary data to refresh the
+         * current view.
+         */
+        void onModelChanged();
     }
 
     @NativeMethods
@@ -78,6 +129,9 @@ public class ExtensionsMenuBridge implements Destroyable {
         /** Destroys the native ExtensionsMenuDelegateAndroid. */
         void destroy(long nativeExtensionsMenuDelegateAndroid);
 
+        // Returns the icon for an extension's action at actionIndex.
+        @Nullable Bitmap getActionIcon(long nativeExtensionsMenuDelegateAndroid, int actionIndex);
+
         /** Returns the list of menu entries with their states from native. */
         @JniType("std::vector<base::android::ScopedJavaLocalRef<jobject>>")
         List<ExtensionsMenuTypes.MenuEntryState> getMenuEntries(
@@ -85,5 +139,13 @@ public class ExtensionsMenuBridge implements Destroyable {
 
         /** Returns whether the native menu model is ready. */
         boolean isReady(long nativeExtensionsMenuDelegateAndroid);
+
+        /** Returns the site settings state from native. */
+        ExtensionsMenuTypes.SiteSettingsState getSiteSettings(
+                long nativeExtensionsMenuDelegateAndroid);
+
+        /** Called when the site settings toggle is changed in the UI. */
+        void onSiteSettingsToggleChanged(
+                long nativeExtensionsMenuDelegateAndroid, boolean isChecked);
     }
 }

@@ -4,7 +4,6 @@
 
 import '/strings.m.js';
 
-import {assert} from 'chrome://resources/js/assert.js';
 import {skColorToRgba} from 'chrome://resources/js/color_utils.js';
 import {EventTracker} from 'chrome://resources/js/event_tracker.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
@@ -19,26 +18,6 @@ import {ActorOverlayBrowserProxy} from './browser_proxy.js';
 export interface ActorOverlayAppElement {
   $: {magicCursor: HTMLDivElement};
 }
-
-/**
- * Magic Cursor Kinematics Tuning Parameters for CSS Transitions.
- *
- * These constants define the cursor's movement (speed, duration, and
- * responsiveness). Adjusting these values controls the perceived pace and
- * smoothness of the cursor.
- */
-
-// Constant speed the cursor maintains during animation, measured in pixels per
-// millisecond.
-const DESIRED_SPEED_PX_PER_MS = 0.667;
-// The minimum allowed duration (in ms) for any single cursor movement.
-// Increasing this value makes short movements appear slower and smoother;
-// decreasing it makes them pop into position more instantly.
-const MIN_DURATION_MS = 50;
-// The maximum allowed duration (in ms) for any single cursor movement.
-// Increasing this value allows long movements to take more time; decreasing it
-// makes all long movements finish faster.
-const MAX_DURATION_MS = 675;
 
 export class ActorOverlayAppElement extends CrLitElement {
   static get is() {
@@ -62,11 +41,7 @@ export class ActorOverlayAppElement extends CrLitElement {
   protected accessor borderGlowVisible_: boolean = false;
 
   private eventTracker_: EventTracker = new EventTracker();
-  private setScrimBackgroundListenerId_: number | null = null;
-  private setBorderGlowVisibilityListenerId_: number | null = null;
-  private setThemeListenerId_: number|null = null;
-  private moveCursorToListenerId_: number|null = null;
-  private triggerClickAnimationListenerId_: number|null = null;
+  private listenerIds_: number[] = [];
   private shouldShowCursor_: boolean =
       loadTimeData.getBoolean('isMagicCursorEnabled');
   private isCursorInitialized_: boolean = false;
@@ -75,10 +50,26 @@ export class ActorOverlayAppElement extends CrLitElement {
   // Timer to start the loading state animation after cursor clicks and
   // movements.
   private loadingTimerId_: number|null = null;
+  // Timer for window resize events.
+  private resizeTimerId_: number|null = null;
 
   // Position State for Magic Cursor (Logical Pixels)
   private currentX_: number = 0;
   private currentY_: number = 0;
+  // Speed the cursor maintains during animation, measured in pixels per
+  // millisecond.
+  private desiredSpeedPxPerMs_: number =
+      Number(loadTimeData.getValue('magicCursorSpeed'));
+  // The minimum allowed duration (in ms) for any single cursor movement.
+  // Increasing this value makes short movements appear slower and smoother;
+  // decreasing it makes them pop into position more instantly.
+  private minDurationMs_: number =
+      loadTimeData.getInteger('magicCursorMinDurationMs');
+  // The maximum allowed duration (in ms) for any single cursor movement.
+  // Increasing this value allows long movements to take more time; decreasing
+  // it makes all long movements finish faster.
+  private maxDurationMs_: number =
+      loadTimeData.getInteger('magicCursorMaxDurationMs');
 
   override connectedCallback() {
     super.connectedCallback();
@@ -90,31 +81,25 @@ export class ActorOverlayAppElement extends CrLitElement {
       proxy.handler.onHoverStatusChanged(false);
     });
     this.addEventListener('wheel', this.onWheelEvent_);
-
-    // Background scrim
-    this.setScrimBackgroundListenerId_ =
+    this.eventTracker_.add(
+        window, 'resize', this.handleWindowResize_.bind(this));
+    this.listenerIds_ = [
+      // Background scrim
       proxy.callbackRouter.setScrimBackground.addListener(
-        this.setScrimBackground.bind(this));
-
-    // Border Glow
-    this.setBorderGlowVisibilityListenerId_ =
+          this.setScrimBackground.bind(this)),
+      // Border Glow
       proxy.callbackRouter.setBorderGlowVisibility.addListener(
-        this.setBorderGlowVisibility.bind(this));
+          this.setBorderGlowVisibility.bind(this)),
+      // Magic Cursor
+      proxy.callbackRouter.moveCursorTo.addListener(
+          this.moveCursorTo.bind(this)),
+      proxy.callbackRouter.triggerClickAnimation.addListener(
+          this.triggerClickAnimation.bind(this)),
+      // Theme
+      proxy.callbackRouter.setTheme.addListener(this.setTheme.bind(this)),
+    ];
     proxy.handler.getCurrentBorderGlowVisibility().then(
         ({isVisible}) => this.setBorderGlowVisibility(isVisible));
-
-    // Magic Cursor
-    this.moveCursorToListenerId_ =
-        proxy.callbackRouter.moveCursorTo.addListener(
-            this.moveCursorTo.bind(this));
-
-    this.triggerClickAnimationListenerId_ =
-        proxy.callbackRouter.triggerClickAnimation.addListener(
-            this.triggerClickAnimation.bind(this));
-
-    // Theme
-    this.setThemeListenerId_ =
-        proxy.callbackRouter.setTheme.addListener(this.setTheme.bind(this));
   }
 
   override disconnectedCallback() {
@@ -122,24 +107,16 @@ export class ActorOverlayAppElement extends CrLitElement {
     this.eventTracker_.removeAll();
     this.removeEventListener('wheel', this.onWheelEvent_);
 
-    assert(this.setScrimBackgroundListenerId_);
-    ActorOverlayBrowserProxy.getInstance().callbackRouter.removeListener(
-      this.setScrimBackgroundListenerId_);
-    assert(this.setBorderGlowVisibilityListenerId_);
-    ActorOverlayBrowserProxy.getInstance().callbackRouter.removeListener(
-      this.setBorderGlowVisibilityListenerId_);
-    assert(this.moveCursorToListenerId_);
-    ActorOverlayBrowserProxy.getInstance().callbackRouter.removeListener(
-        this.moveCursorToListenerId_);
-    assert(this.triggerClickAnimationListenerId_);
-    ActorOverlayBrowserProxy.getInstance().callbackRouter.removeListener(
-        this.triggerClickAnimationListenerId_);
-    assert(this.setThemeListenerId_);
-    ActorOverlayBrowserProxy.getInstance().callbackRouter.removeListener(
-        this.setThemeListenerId_);
+    const proxy = ActorOverlayBrowserProxy.getInstance();
+    this.listenerIds_.forEach(id => proxy.callbackRouter.removeListener(id));
+    this.listenerIds_ = [];
     if (this.loadingTimerId_) {
       clearTimeout(this.loadingTimerId_);
       this.loadingTimerId_ = null;
+    }
+    if (this.resizeTimerId_) {
+      clearTimeout(this.resizeTimerId_);
+      this.resizeTimerId_ = null;
     }
   }
 
@@ -148,6 +125,20 @@ export class ActorOverlayAppElement extends CrLitElement {
   private onWheelEvent_(e: WheelEvent) {
     e.preventDefault();
     e.stopPropagation();
+  }
+
+  private handleWindowResize_() {
+    if (!this.isCursorInitialized_) {
+      return;
+    }
+    this.classList.add('is-resizing');
+    if (this.resizeTimerId_) {
+      clearTimeout(this.resizeTimerId_);
+    }
+    this.resizeTimerId_ = setTimeout(() => {
+      this.classList.remove('is-resizing');
+      this.resizeTimerId_ = null;
+    }, 250);
   }
 
   private setScrimBackground(isVisible: boolean) {
@@ -266,9 +257,9 @@ export class ActorOverlayAppElement extends CrLitElement {
     const dx = targetX - this.currentX_;
     const dy = targetY - this.currentY_;
     const distance = Math.hypot(dx, dy);
-    let durationMs = Math.round(distance / DESIRED_SPEED_PX_PER_MS);
-    durationMs =
-        Math.max(MIN_DURATION_MS, Math.min(MAX_DURATION_MS, durationMs));
+    let durationMs = Math.round(distance / this.desiredSpeedPxPerMs_);
+    durationMs = Math.max(
+        this.minDurationMs_, Math.min(this.maxDurationMs_, durationMs));
 
     const transitionFinished = new Promise<void>(resolve => {
       // TODO(crbug.com/454339982): If the transitionend event is never

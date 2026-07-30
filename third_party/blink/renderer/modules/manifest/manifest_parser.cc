@@ -30,6 +30,7 @@
 #include "third_party/blink/public/mojom/manifest/display_mode.mojom-blink.h"
 #include "third_party/blink/public/mojom/manifest/manifest.mojom-blink.h"
 #include "third_party/blink/public/mojom/manifest/manifest_launch_handler.mojom-blink.h"
+#include "third_party/blink/public/mojom/manifest/manifest_migration_behavior.mojom-blink.h"
 #include "third_party/blink/public/platform/url_conversion.h"
 #include "third_party/blink/public/platform/web_icon_sizes_parser.h"
 #include "third_party/blink/public/platform/web_string.h"
@@ -135,10 +136,10 @@ static bool IsCrLfOrTabChar(UChar c) {
 
 std::optional<mojom::blink::ManifestFileHandler::LaunchType>
 FileHandlerLaunchTypeFromString(const std::string& launch_type) {
-  if (EqualIgnoringASCIICase(String(launch_type), "single-client")) {
+  if (EqualIgnoringAsciiCase(String(launch_type), "single-client")) {
     return mojom::blink::ManifestFileHandler::LaunchType::kSingleClient;
   }
-  if (EqualIgnoringASCIICase(String(launch_type), "multiple-clients")) {
+  if (EqualIgnoringAsciiCase(String(launch_type), "multiple-clients")) {
     return mojom::blink::ManifestFileHandler::LaunchType::kMultipleClients;
   }
   return std::nullopt;
@@ -283,10 +284,10 @@ String ResolveRelativePathnamePattern(const KURL& base_url, String pathname) {
 
 std::optional<mojom::blink::ManifestMigrationBehavior>
 MigrationBehaviorFromString(const std::string& behavior) {
-  if (EqualIgnoringASCIICase(String(behavior), "suggest")) {
+  if (EqualIgnoringAsciiCase(String(behavior), "suggest")) {
     return mojom::blink::ManifestMigrationBehavior::kSuggest;
   }
-  if (EqualIgnoringASCIICase(String(behavior), "force")) {
+  if (EqualIgnoringAsciiCase(String(behavior), "force")) {
     return mojom::blink::ManifestMigrationBehavior::kForce;
   }
   return std::nullopt;
@@ -431,8 +432,6 @@ bool ManifestParser::Parse() {
     auto icons_localized = ParseIconsLocalized(root_object.get());
     if (!icons_localized.empty()) {
       manifest_->icons_localized = std::move(icons_localized);
-      UseCounter::Count(execution_context_,
-                        WebFeature::kWebAppManifestIconsLocalized);
     }
   }
   manifest_->screenshots = ParseScreenshots(root_object.get());
@@ -552,22 +551,16 @@ bool ManifestParser::Parse() {
     auto name_localized = ParseNameLocalized(root_object.get());
     if (!name_localized.empty()) {
       manifest_->name_localized = std::move(name_localized);
-      UseCounter::Count(execution_context_,
-                        WebFeature::kWebAppManifestNameLocalized);
     }
 
     auto short_name_localized = ParseShortNameLocalized(root_object.get());
     if (!short_name_localized.empty()) {
       manifest_->short_name_localized = std::move(short_name_localized);
-      UseCounter::Count(execution_context_,
-                        WebFeature::kWebAppManifestShortNameLocalized);
     }
 
     auto description_localized = ParseDescriptionLocalized(root_object.get());
     if (!description_localized.empty()) {
       manifest_->description_localized = std::move(description_localized);
-      UseCounter::Count(execution_context_,
-                        WebFeature::kWebAppManifestDescriptionLocalized);
     }
   }
 
@@ -1100,12 +1093,12 @@ ManifestParser::ParseIconPurpose(const JSONObject* icon) {
       continue;
     }
 
-    if (EqualIgnoringASCIICase(keyword, "any")) {
+    if (EqualIgnoringAsciiCase(keyword, "any")) {
       purposes.push_back(mojom::blink::ManifestImageResource::Purpose::ANY);
-    } else if (EqualIgnoringASCIICase(keyword, "monochrome")) {
+    } else if (EqualIgnoringAsciiCase(keyword, "monochrome")) {
       purposes.push_back(
           mojom::blink::ManifestImageResource::Purpose::MONOCHROME);
-    } else if (EqualIgnoringASCIICase(keyword, "maskable")) {
+    } else if (EqualIgnoringAsciiCase(keyword, "maskable")) {
       purposes.push_back(
           mojom::blink::ManifestImageResource::Purpose::MASKABLE);
     } else {
@@ -1141,9 +1134,9 @@ ManifestParser::ParseScreenshotFormFactor(const JSONObject* screenshot) {
 
   String form_factor = form_factor_str.value();
 
-  if (EqualIgnoringASCIICase(form_factor, "wide")) {
+  if (EqualIgnoringAsciiCase(form_factor, "wide")) {
     return mojom::blink::ManifestScreenshot::FormFactor::kWide;
-  } else if (EqualIgnoringASCIICase(form_factor, "narrow")) {
+  } else if (EqualIgnoringAsciiCase(form_factor, "narrow")) {
     return mojom::blink::ManifestScreenshot::FormFactor::kNarrow;
   }
 
@@ -1198,6 +1191,10 @@ ManifestParser::ParseIconsLocalized(const JSONObject* object) {
     }
   }
 
+  if (!localized_icons.empty()) {
+    UseCounter::CountWebDXFeature(execution_context_,
+                                  WebDXFeature::kManifestLocalization);
+  }
   return localized_icons;
 }
 
@@ -2385,8 +2382,8 @@ ManifestParser::ParseIsolatedAppPermissions(const JSONObject* object) {
       // the equivalent to some manifest containing an origin wrapped in single
       // quotes, which is invalid).
       String wrapped_origin = origin;
-      if (EqualIgnoringASCIICase(origin, "self") ||
-          EqualIgnoringASCIICase(origin, "none")) {
+      if (EqualIgnoringAsciiCase(origin, "self") ||
+          EqualIgnoringAsciiCase(origin, "none")) {
         wrapped_origin = StrCat({"'", origin, "'"});
         ;
       }
@@ -2555,7 +2552,7 @@ mojom::blink::ManifestTabStripPtr ManifestParser::ParseTabStrip(
     JSONValue* home_tab_icons = home_tab_object->Get("icons");
     String string_value;
     if (home_tab_icons && !(home_tab_icons->AsString(&string_value) &&
-                            EqualIgnoringASCIICase(string_value, "auto"))) {
+                            EqualIgnoringAsciiCase(string_value, "auto"))) {
       home_tab_params->icons = ParseIcons(home_tab_object);
     }
 
@@ -2578,7 +2575,7 @@ mojom::blink::ManifestTabStripPtr ManifestParser::ParseTabStrip(
 
     String string_value;
     if (new_tab_button_url && !(new_tab_button_url->AsString(&string_value) &&
-                                EqualIgnoringASCIICase(string_value, "auto"))) {
+                                EqualIgnoringAsciiCase(string_value, "auto"))) {
       KURL url = ParseURL(new_tab_button_object, "url", manifest_url_,
                           ParseURLRestrictions::kWithinScope);
       if (!url.IsNull()) {
@@ -2599,7 +2596,7 @@ ManifestParser::ParseTabStripMemberVisibility(const JSONValue* json_value) {
 
   String string_value;
   if (json_value->AsString(&string_value) &&
-      EqualIgnoringASCIICase(string_value, "absent")) {
+      EqualIgnoringAsciiCase(string_value, "absent")) {
     return mojom::blink::TabStripMemberVisibility::kAbsent;
   }
 
@@ -2937,6 +2934,10 @@ ManifestParser::ParseLocalizedField(const JSONObject* object,
     localized_text->lang = std::move(lang);
     localized_text->dir = dir;
     result.Set(*locale, std::move(localized_text));
+  }
+  if (!result.empty()) {
+    UseCounter::CountWebDXFeature(execution_context_,
+                                  WebDXFeature::kManifestLocalization);
   }
   return result;
 }

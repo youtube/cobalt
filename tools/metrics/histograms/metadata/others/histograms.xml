@@ -240,7 +240,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="AccessCodeCast.Session.FreezeCount" units="instances"
-    expires_after="2026-06-12">
+    expires_after="2026-08-23">
   <owner>bzielinski@google.com</owner>
   <owner>cros-edu-eng@google.com</owner>
   <summary>
@@ -376,7 +376,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="AccessCodeCast.Ui.TabSwitcherUsageType"
-    enum="AccessCodeCastUiTabSwitcherUsage" expires_after="2026-06-12">
+    enum="AccessCodeCastUiTabSwitcherUsage" expires_after="2026-08-23">
   <owner>ahmedmoussa@google.com</owner>
   <owner>muyaoxu@google.com</owner>
   <owner>openscreen-eng@google.com</owner>
@@ -391,7 +391,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="AccessCodeCast.Ui.TabSwitchingCount" units="count"
-    expires_after="2026-06-12">
+    expires_after="2026-08-23">
   <owner>ahmedmoussa@google.com</owner>
   <owner>muyaoxu@google.com</owner>
   <owner>openscreen-eng@google.com</owner>
@@ -3042,7 +3042,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ClientHints.AcceptCHFrame" enum="AcceptCHFrameRestart"
-    expires_after="2026-06-14">
+    expires_after="2026-08-16">
   <owner>victortan@chromium.org</owner>
   <owner>miketaylr@chromium.org</owner>
   <owner>katabolism-finch@google.com</owner>
@@ -3055,7 +3055,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ClientHints.CriticalCHRestart" enum="CriticalCHRestart"
-    expires_after="2026-06-21">
+    expires_after="2026-08-23">
   <owner>victortan@chromium.org</owner>
   <owner>miketaylr@chromium.org</owner>
   <owner>katabolism-finch@google.com</owner>
@@ -3065,7 +3065,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ClientHints.FetchLatency{OperationType}" units="microseconds"
-    expires_after="2026-06-21">
+    expires_after="2026-08-23">
   <owner>victortan@chromium.org</owner>
   <owner>miketaylr@chromium.org</owner>
   <owner>katabolism-finch@google.com</owner>
@@ -3160,6 +3160,46 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="ComponentUpdater.TranslateKit.LanguagePack.UpdateError"
+    enum="UpdateClientErrors" expires_after="2026-12-31">
+  <owner>paugomez@chromium.org</owner>
+  <owner>danft@chromium.org</owner>
+  <owner>mardelpi@chromium.org</owner>
+  <summary>
+    The error code for a failed on-demand update of a Translate Kit language
+    pack component. Recorded when a user action requires an on-device
+    translation for a language pair for which the language pack is not yet
+    installed.
+  </summary>
+</histogram>
+
+<histogram name="ComponentUpdater.TranslateKit.MountError"
+    enum="UpdateClientErrors" expires_after="2026-12-31">
+  <owner>paugomez@chromium.org</owner>
+  <owner>danft@chromium.org</owner>
+  <owner>mardelpi@chromium.org</owner>
+  <summary>
+    Chrome OS only. The error code for a failed mount of the Translate Kit
+    component. This is recorded when the component is installed but mounting it
+    via the ImageLoaderClient fails. Can occur as part of the component
+    installation process the first time a user needs on device translation and
+    the component is not yet installed.
+  </summary>
+</histogram>
+
+<histogram name="ComponentUpdater.TranslateKit.UpdateError"
+    enum="UpdateClientErrors" expires_after="2026-12-31">
+  <owner>paugomez@chromium.org</owner>
+  <owner>danft@chromium.org</owner>
+  <owner>mardelpi@chromium.org</owner>
+  <summary>
+    The error code for a failed on-demand update of the Translate Kit component.
+    Recorded when an on-demand update of the main TranslateKit component fails.
+    This is a one time event indirectly triggered by a user action. (not
+    periodic or on startup)
+  </summary>
+</histogram>
+
 <histogram name="ComponentUpdater.UpdateCompleteError"
     enum="UpdateClientErrors" expires_after="2026-05-31">
   <owner>sorin@chromium.org</owner>
@@ -3175,7 +3215,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ComponentUpdater.UpdateCompleteTime" units="ms"
-    expires_after="2026-05-31">
+    expires_after="2026-08-16">
   <owner>sorin@chromium.org</owner>
   <owner>src/components/component_updater/OWNERS</owner>
   <summary>
@@ -4200,7 +4240,6 @@ chromium-metrics-reviews@google.com.
   <token key="SurveyName">
     <variant name="BeforeFirstRunDesktopRefreshSurvey"/>
     <variant name="PerformanceControlsPPMSurvey"/>
-    <variant name="PrivacySandboxSentimentSurvey"/>
   </token>
 </histogram>
 
@@ -5391,7 +5430,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Mojo.EndToEndLatencyUs.{ThreadName}" units="microseconds"
-    expires_after="2026-06-14">
+    expires_after="2026-08-16">
   <owner>lizeb@chromium.org</owner>
   <owner>rockot@google.com</owner>
   <owner>mthiesse@chromium.org</owner>
@@ -6027,7 +6066,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PageImageService.Backend.OptimizationGuide.Result{ClientId}"
-    enum="PageImageServiceResult" expires_after="2026-06-21">
+    enum="PageImageServiceResult" expires_after="2026-08-23">
   <owner>sophiechang@chromium.org</owner>
   <owner>chrome-journeys@google.com</owner>
   <component>1456757</component>
@@ -6270,7 +6309,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Process.Sandbox.DllBlocked" enum="WinTroublesomeDllName"
-    expires_after="2026-06-21">
+    expires_after="2026-08-23">
   <owner>ajgo@chromium.org</owner>
   <owner>wfh@chromium.org</owner>
   <summary>
@@ -6395,7 +6434,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PushMessaging.PushSubscriptionChangeForNotificationPermissionChangeFired"
-    units="count" expires_after="2026-06-21">
+    units="count" expires_after="2026-08-23">
   <owner>peter@chromium.org</owner>
   <owner>antoniosartori@chromium.org</owner>
   <summary>
@@ -6534,7 +6573,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ReadingList.Unread.Number" units="count"
-    expires_after="2026-06-21">
+    expires_after="2026-08-23">
   <owner>gambard@chromium.org</owner>
   <owner>bling-team@google.com</owner>
   <summary>Number of unread entries in reading list.</summary>
@@ -8110,7 +8149,7 @@ should be kept until we use this API.  -->
 </histogram>
 
 <histogram name="Tracing.Background.ReadTraceDuration" units="ms"
-    expires_after="2026-06-21">
+    expires_after="2026-08-23">
   <owner>etiennep@chromium.org</owner>
   <owner>chrometto-team@google.com</owner>
   <summary>
@@ -8120,7 +8159,7 @@ should be kept until we use this API.  -->
 </histogram>
 
 <histogram name="Tracing.Background.Scenario.Trigger.{Type}"
-    enum="BackgroundTracingTriggerNameHash" expires_after="2026-06-21">
+    enum="BackgroundTracingTriggerNameHash" expires_after="2026-08-23">
   <owner>etiennep@chromium.org</owner>
   <owner>chrometto-team@google.com</owner>
   <summary>
@@ -8137,7 +8176,7 @@ should be kept until we use this API.  -->
 </histogram>
 
 <histogram name="Tracing.Background.Scenario.{Event}"
-    enum="BackgroundTracingScenarioNameHash" expires_after="2026-06-21">
+    enum="BackgroundTracingScenarioNameHash" expires_after="2026-08-23">
   <owner>etiennep@chromium.org</owner>
   <owner>chrometto-team@google.com</owner>
   <summary>
@@ -8767,7 +8806,7 @@ regressions. -->
 </histogram>
 
 <histogram name="WebUsb.DetachKernelDriverOutcome"
-    enum="DetachKernelDriverOutcome" expires_after="2026-06-15">
+    enum="DetachKernelDriverOutcome" expires_after="2026-08-16">
   <owner>ovn@google.com</owner>
   <owner>lt-web-apps-team@google.com</owner>
   <summary>

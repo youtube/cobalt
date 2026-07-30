@@ -357,12 +357,10 @@ class CredentialSuggestionBottomSheetMediatorTest : public PlatformTest {
                    prefService:prefs_ptr_
                         params:params_
                   reauthModule:nil
-                           URL:URL()
           profilePasswordStore:store_
           accountPasswordStore:nullptr
         sharedURLLoaderFactory:nullptr
-             engagementTracker:nil
-                     presenter:nil];
+             engagementTracker:nil];
 
     // Run the queued JS feature callback.
     base::RunLoop().RunUntilIdle();
@@ -403,8 +401,6 @@ class CredentialSuggestionBottomSheetMediatorTest : public PlatformTest {
                         isMainFrame:YES
                   forSecurityOrigin:main_frame_ptr_->GetSecurityOrigin()];
   }
-
-  GURL URL() { return GURL("http://foo.com"); }
 
   web::WebTaskEnvironment task_environment_;
   std::unique_ptr<TestProfileIOS> profile_;

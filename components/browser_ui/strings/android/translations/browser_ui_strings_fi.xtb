@@ -7,8 +7,9 @@
 <translation id="1070329623210597193">Tiedostot, jotka sivusto voi katsella tai muokata</translation>
 <translation id="1073417869336441572">Auta meitä parantamaan Chromea kertomalla, miksi sallit kolmannen osapuolen evästeet. <ph name="BEGIN_LINK" />Lähetä palautetta<ph name="END_LINK" /></translation>
 <translation id="1074758928858737435">Voit pyytää sivustojen tietokoneversiota</translation>
-<translation id="1085696779717592361">Chromen käyttö oletuksena</translation>
+<translation id="1126523729897810826">Näillä ehdotuksilla saat Chromesta mahdollisimman paljon irti</translation>
 <translation id="113098737392899175">Siirry sivuilla tekstikohdistimen avulla, kun näppäimistö on yhdistetty</translation>
+<translation id="1148624853678088576">Kaikki on valmista!</translation>
 <translation id="1149644372535087155">Tallenna salasanat Chromeen</translation>
 <translation id="1178015372320901893">Omat pikakuvakkeet ‑alapaneeli</translation>
 <translation id="1178581264944972037">Tauko</translation>
@@ -53,6 +54,7 @@
 <translation id="1569054338208717605">Nopeuta sivustoja Chromen V8-moottorilla, mutta heikennä Chromen suojaa hyökkäyksiä vastaan</translation>
 <translation id="1593426485665524382">Uusia toimintoja saatavilla näytön yläosassa</translation>
 <translation id="1594521731409209842">Muuta kuvan kokoa nipistämällä näyttöä</translation>
+<translation id="1599268789440304082">Asennustaulukko avattu</translation>
 <translation id="1601560923496285236">Käytä</translation>
 <translation id="1615755956145364867">Sivustot saavat pyytää lupaa toistaa suojattua sisältöä</translation>
 <translation id="1620510694547887537">Kamera</translation>
@@ -191,12 +193,12 @@ Lisäsuojaus ohjaa näitä Chromen asetuksia:
 <translation id="2802908157808345702">Älä salli sivustojen lähettää ponnahdusikkunoita ja käyttää uudelleenohjauksia</translation>
 <translation id="2814830417943086299">Chrome näyttää nyt äskettäiset välilehdet laitteen sovelluslistalla ja hakutuloksissa. Voit laittaa tämän pois päältä milloin tahansa Chromen asetuksista.</translation>
 <translation id="2822354292072154809">Haluatko varmasti nollata kaikki sivuston käyttöoikeudet (<ph name="CHOSEN_OBJECT_NAME" />)?</translation>
+<translation id="2848335882304088250">Saat nyt enemmän irti Chromesta laitteella.</translation>
 <translation id="2850913818900871965">Pyydä mobiilinäkymää</translation>
 <translation id="2870560284913253234">Sivusto</translation>
 <translation id="2874939134665556319">Edellinen kappale</translation>
 <translation id="2891975107962658722">Estä sivustoa tallentamasta dataa laitteellesi</translation>
 <translation id="2903493209154104877">Osoitteet</translation>
-<translation id="2910701580606108292">Kysy, saavatko sivustot toistaa suojattua sisältöä</translation>
 <translation id="2918484639460781603">Avaa asetukset</translation>
 <translation id="2932883381142163287">Ilmoita väärinkäytöstä</translation>
 <translation id="2939338015096024043">Kun tämä on päällä, sivustot voivat pyytää lupaa seurata kameran sijaintia ja saada tietoa ympäristöstäsi. Kun tämä on pois päältä, sivustot eivät voi seurata kameran sijaintia tai saada tietoa ympäristöstäsi.</translation>
@@ -298,7 +300,6 @@ Lisäsuojaus ohjaa näitä Chromen asetuksia:
 <translation id="3924858949939391676">Näytä linkit, kun lukutila on päällä</translation>
 <translation id="3933121352599513978">Tiivistä ei-toivotut pyynnöt (suositus)</translation>
 <translation id="3934905113567851655">Muuta kokoa nipistämällä</translation>
-<translation id="3955193568934677022">Salli sivustojen toistaa suojattua sisältöä (suositus)</translation>
 <translation id="3955321697524543127">Älä salli sivustojen yhdistää USB-laitteisiin</translation>
 <translation id="3965467402665811906">Sivustot voivat pyytää lupaa sinusta tallennettujen tietojen käytölle</translation>
 <translation id="3967822245660637423">Lataus on valmis</translation>
@@ -352,7 +353,9 @@ Lisäsuojaus ohjaa näitä Chromen asetuksia:
 <translation id="4505788138578415521">URL näkyy laajennettuna</translation>
 <translation id="4522570452068850558">Tiedot</translation>
 <translation id="4523472416386354622">Aloita kirjautumalla sisään</translation>
+<translation id="4529207923544043455">Alareunassa näkyvässä taulukossa on valmiit ja keskeneräiset käyttöönottotehtävät</translation>
 <translation id="4534723447064627427">Laita mikrofoni päälle myös <ph name="BEGIN_LINK" />Androidin asetuksista<ph name="END_LINK" />, jotta <ph name="APP_NAME" /> saa pääsyn mikrofoniisi.</translation>
+<translation id="4545694195887112015">Asennussivu suljettu</translation>
 <translation id="4566417217121906555">Mykistä mikrofoni</translation>
 <translation id="4570913071927164677">Tiedot</translation>
 <translation id="4578289292431526768">Aloitetaan</translation>
@@ -509,7 +512,6 @@ Lisäsuojaus ohjaa näitä Chromen asetuksia:
 <translation id="6171020522141473435">Kun tämä on päällä, sivustot voivat pyytää lupaa käyttää Bluetooth-laitteita. Kun tämä on pois päältä, sivustot eivät voi käyttää Bluetooth-laitteita.</translation>
 <translation id="6177128806592000436">Sivustoon ei ole muodostettu turvallista yhteyttä.</translation>
 <translation id="6181444274883918285">Lisää sivustopoikkeus</translation>
-<translation id="6192792657125177640">Poikkeukset</translation>
 <translation id="6194967801833346599">{DAYS,plural, =1{Chrome estää evästeet uudelleen huomenna}other{Chrome estää evästeet uudelleen # päivän päästä}}</translation>
 <translation id="6196640612572343990">Estä kolmannen osapuolen evästeet</translation>
 <translation id="6205314730813004066">Mainosyksityisyys</translation>
@@ -632,7 +634,6 @@ Lisäsuojaus ohjaa näitä Chromen asetuksia:
 <translation id="7561196759112975576">Aina</translation>
 <translation id="7573594921350120855">Sivustot käyttävät videokameraa yleensä kommunikaatio-ominaisuuksiin, kuten videopuheluihin</translation>
 <translation id="7574529565935733861">{NUM_MONTHS,plural, =1{<ph name="NUM_MONTHS_ONE" /> kuukausi sitten}other{<ph name="NUM_MONTHS_MANY" /> kuukautta sitten}}</translation>
-<translation id="757524316907819857">Estä sivustoja toistamasta suojattua sisältöä</translation>
 <translation id="7586676035079382730">Ilmoituksia ei sallittu</translation>
 <translation id="7594634374516752650">Yhdistetty Bluetooth-laitteeseen</translation>
 <translation id="7617547684249261169">Voit poistaa osan tai kaiken historian, evästeet, sivustodatan ja muuta</translation>

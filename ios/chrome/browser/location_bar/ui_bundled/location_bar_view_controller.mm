@@ -86,8 +86,7 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
 
 }  // namespace
 
-@interface LocationBarViewController () <TextFieldViewContainingHeightDelegate,
-                                         UIContextMenuInteractionDelegate,
+@interface LocationBarViewController () <UIContextMenuInteractionDelegate,
                                          UIIndirectScribbleInteractionDelegate>
 // The injected edit view.
 @property(nonatomic, strong) UIView<TextFieldViewContaining>* editView;
@@ -175,7 +174,6 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
 - (void)setEditView:(UIView<TextFieldViewContaining>*)editView {
   DCHECK(!self.editView);
   _editView = editView;
-  _editView.heightDelegate = self;
   _textField = editView.textFieldView;
 }
 
@@ -350,9 +348,8 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
   [self updateTrailingButtonState];
   [self switchToEditing:NO];
 
-  NSArray<UITrait>* traits = TraitCollectionSetForTraits(
-      @[ UITraitHorizontalSizeClass.class, UITraitVerticalSizeClass.class ]);
-  [self registerForTraitChanges:traits
+  [self registerForTraitChanges:
+            @[ UITraitHorizontalSizeClass.class, UITraitVerticalSizeClass.class ]
                      withAction:@selector(updateTrailingButtonState)];
 
   [self registerForTraitChanges:@[ UITraitHorizontalSizeClass.class ]
@@ -426,9 +423,7 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
 #pragma mark - LocationBarSteadyViewConsumer
 
 - (void)updateLocationText:(NSString*)string clipTail:(BOOL)clipTail {
-  [self.locationBarSteadyView setLocationLabelText:string];
-  self.locationBarSteadyView.locationLabel.lineBreakMode =
-      clipTail ? NSLineBreakByTruncatingTail : NSLineBreakByTruncatingHead;
+  [self.locationBarSteadyView setLocationLabelText:string clipTail:clipTail];
 }
 
 - (void)updateLocationIcon:(UIImage*)icon
@@ -825,7 +820,8 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
   NSMutableArray<UIMenuElement*>* menuElements = [[NSMutableArray alloc] init];
   __weak __typeof__(self) weakSelf = self;
 
-  if (base::FeatureList::IsEnabled(kShareInOmniboxLongPress)) {
+  if (base::FeatureList::IsEnabled(kShareInOmniboxLongPress) &&
+      self.shareButtonEnabled) {
     base::UmaHistogramEnumeration("Mobile.ShareThisPage.Shown",
                                   ShareThisPageLocation::kOmniboxLongPress);
     UIImage* image =
@@ -1207,14 +1203,6 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
       lens::ContainerPresentationType::kFullscreenCover;
   [_lensOverlayPlaceholderView
       setLensOverlayActive:shouldIndicateLensInUse && _lensOverlayVisible];
-}
-
-#pragma mark - TextFieldViewContainingHeightDelegate
-
-- (void)textFieldViewContaining:(UIView<TextFieldViewContaining>*)sender
-                didChangeHeight:(CGFloat)height {
-  [self.delegate locationBarViewController:self
-                  didChangeEditStateHeight:height];
 }
 
 - (UIView*)locationBarSteadyViewVisualCopy {

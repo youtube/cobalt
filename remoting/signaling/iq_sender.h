@@ -26,6 +26,7 @@ class XmlElement;
 namespace remoting {
 
 class IqRequest;
+class JingleMessage;
 class SignalStrategy;
 
 // IqSender handles sending iq requests and routing of responses to
@@ -45,37 +46,29 @@ class IqSender : public SignalStrategy::Listener {
 
   ~IqSender() override;
 
-  // Send an iq stanza. Returns an IqRequest object that represends
-  // the request. |callback| is called when response to |stanza| is
-  // received. Destroy the returned IqRequest to cancel the callback.
-  // Caller must take ownership of the result. Result must be
-  // destroyed before sender is destroyed.
-  std::unique_ptr<IqRequest> SendIq(
-      std::unique_ptr<jingle_xmpp::XmlElement> stanza,
-      ReplyCallback callback);
-
-  // Same as above, but also formats the message.
-  std::unique_ptr<IqRequest> SendIq(
-      const std::string& type,
-      const std::string& addressee,
-      std::unique_ptr<jingle_xmpp::XmlElement> iq_body,
-      ReplyCallback callback);
+  // Send a Jingle IQ. Returns an IqRequest object that represents the request.
+  // |callback| is called when response to |stanza| is received. Destroy the
+  // returned IqRequest to cancel the callback. Caller must take ownership of
+  // the result. Result must be destroyed before sender is destroyed.
+  std::unique_ptr<IqRequest> SendIq(const JingleMessage& message,
+                                    ReplyCallback callback);
 
   // SignalStrategy::Listener implementation.
   void OnSignalStrategyStateChange(SignalStrategy::State state) override;
-  bool OnSignalStrategyIncomingStanza(
-      const jingle_xmpp::XmlElement* stanza) override;
+  bool OnSignalStrategyIncomingMessage(
+      const SignalingAddress& sender_address,
+      const SignalingMessage& message) override;
 
  private:
   typedef std::map<std::string, raw_ptr<IqRequest, CtnExperimental>>
       IqRequestMap;
   friend class IqRequest;
 
-  // Helper function used to create iq stanzas.
-  static std::unique_ptr<jingle_xmpp::XmlElement> MakeIqStanza(
-      const std::string& type,
-      const std::string& addressee,
-      std::unique_ptr<jingle_xmpp::XmlElement> iq_body);
+  // Sends an IQ stanza. Returns an IqRequest object that represents the
+  // request. |callback| is called when response to |stanza| is received.
+  std::unique_ptr<IqRequest> SendIq(
+      std::unique_ptr<jingle_xmpp::XmlElement> stanza,
+      ReplyCallback callback);
 
   // Removes |request| from the list of pending requests. Called by IqRequest.
   void RemoveRequest(IqRequest* request);

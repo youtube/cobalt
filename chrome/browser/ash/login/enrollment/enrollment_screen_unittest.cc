@@ -19,6 +19,7 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
+#include "build/branding_buildflags.h"
 #include "chrome/browser/ash/login/configuration_keys.h"
 #include "chrome/browser/ash/login/enrollment/enrollment_launcher.h"
 #include "chrome/browser/ash/login/enrollment/mock_enrollment_launcher.h"
@@ -33,6 +34,7 @@
 #include "chrome/browser/ash/policy/enrollment/enrollment_requisition_manager.h"
 #include "chrome/browser/ash/policy/enrollment/enrollment_status.h"
 #include "chrome/browser/ash/policy/enrollment/enrollment_test_helper.h"
+#include "chrome/browser/browser_process_platform_part.h"
 #include "chrome/browser/prefs/browser_prefs.h"
 #include "chrome/browser/ui/ash/login/fake_login_display_host.h"
 #include "chrome/browser/ui/webui/ash/login/online_login_utils.h"
@@ -45,6 +47,8 @@
 #include "components/prefs/pref_service.h"
 #include "components/prefs/testing_pref_service.h"
 #include "google_apis/gaia/gaia_id.h"
+#include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
+#include "services/network/test/test_url_loader_factory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace ash {
@@ -89,15 +93,22 @@ class EnrollmentScreenBaseTest : public testing::Test {
   EnrollmentScreenBaseTest()
       : mock_error_screen_(mock_error_view_.AsWeakPtr()) {
     policy::EnrollmentRequisitionManager::Initialize();
+    TestingBrowserProcess::GetGlobal()->SetSharedURLLoaderFactory(
+        test_url_loader_factory_.GetSafeWeakWrapper());
   }
 
   ~EnrollmentScreenBaseTest() override {
+    TestingBrowserProcess::GetGlobal()->SetSharedURLLoaderFactory(nullptr);
     TestingBrowserProcess::GetGlobal()->SetShuttingDown(true);
   }
 
   // Creates the EnrollmentScreen and sets required parameters.
   void SetUpEnrollmentScreen(const policy::EnrollmentConfig& config) {
     enrollment_screen_ = std::make_unique<EnrollmentScreen>(
+        TestingBrowserProcess::GetGlobal()->shared_url_loader_factory(),
+        TestingBrowserProcess::GetGlobal()
+            ->platform_part()
+            ->browser_policy_connector_ash(),
         mock_view_.AsWeakPtr(), &mock_error_screen_,
         base::BindRepeating(&EnrollmentScreenBaseTest::HandleScreenExit,
                             base::Unretained(this)));
@@ -350,6 +361,8 @@ class EnrollmentScreenBaseTest : public testing::Test {
 
   base::test::TaskEnvironment task_environment_{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
+
+  network::TestURLLoaderFactory test_url_loader_factory_;
 
   // Must outlive `mock_error_screen_`.
   ScopedNetworkInitializer scoped_network_;

@@ -15,6 +15,7 @@
 #include "base/observer_list.h"
 #include "base/types/pass_key.h"
 #include "chrome/browser/tab/payload.h"
+#include "chrome/browser/tab/protocol/children.pb.h"
 #include "chrome/browser/tab/protocol/tab_state.pb.h"
 #include "chrome/browser/tab/storage_id.h"
 #include "chrome/browser/tab/tab_group_collection_data.h"
@@ -57,9 +58,9 @@ class StorageLoadedData {
 
   class Observer : public base::CheckedObserver {
    public:
-    // Called when the child of a node is rejected. This occurs when the child
-    // is declared invalid or unneeded after loading it.
-    virtual void OnChildRejected(StorageId parent) = 0;
+    // Called when a node is rejected. This occurs when the node is declared
+    // invalid or unneeded after loading it.
+    virtual void OnNodeRejected(StorageId node) = 0;
 
     // Called when the StorageLoadedData is destroyed.
     virtual void OnDestroyed() = 0;
@@ -75,7 +76,9 @@ class StorageLoadedData {
 
   class Builder {
    public:
-    explicit Builder(std::unique_ptr<RestoreEntityTracker> tracker);
+    explicit Builder(std::string_view window_tag,
+                     bool is_off_the_record,
+                     std::unique_ptr<RestoreEntityTracker> tracker);
     ~Builder();
 
     Builder(const Builder&) = delete;
@@ -84,22 +87,48 @@ class StorageLoadedData {
     Builder(Builder&&);
     Builder& operator=(Builder&&);
 
-    // Called on the DB task runner to process a payload.
+    // Called on the DB task runner to process a node.
     void AddNode(StorageId id,
                  TabStorageType type,
                  base::span<const uint8_t> payload,
+                 std::optional<base::span<const uint8_t>> children,
                  base::PassKey<TabStateStorageDatabase>);
-    // Called on the DB task runner to process children.
-    void AddChildren(StorageId id,
-                     TabStorageType type,
-                     base::span<const uint8_t> children,
-                     base::PassKey<TabStateStorageDatabase>);
-    std::unique_ptr<StorageLoadedData> Build();
+
+    // Called on the DB task runner to process a divergent node.
+    void AddDivergentNode(StorageId id,
+                          TabStorageType type,
+                          std::optional<base::span<const uint8_t>> children,
+                          base::PassKey<TabStateStorageDatabase>);
+
+    std::unique_ptr<StorageLoadedData> Build(
+        base::PassKey<TabStateStorageDatabase>,
+        TabStateStorageDatabase* database);
 
    private:
+    // Returns the set of nodes that are referenced as children but were not
+    // loaded.
+    absl::flat_hash_set<StorageId> BuildDeletedNodesSet();
+
+    // Reconciles the differences between the divergent nodes and canonical
+    // nodes in the database.
+    void ReconcileDivergentNodes(base::PassKey<Builder>,
+                                 TabStateStorageDatabase* database);
+
+    // Parses a children proto from a byte span and returns the parsed proto.
+    // Returns nullopt on parsing failure. Populates `children_map` with
+    // the parsed storage IDs.
+    std::optional<tabs_pb::Children> ParseChildren(
+        StorageId id,
+        base::span<const uint8_t> children_payload,
+        absl::flat_hash_map<StorageId, std::vector<StorageId>>& children_map);
+
+    std::string window_tag_;
+    bool is_off_the_record_;
     std::unique_ptr<RestoreEntityTracker> tracker_;
     absl::flat_hash_map<StorageId, tabs_pb::TabState> loaded_tabs_map_;
     absl::flat_hash_map<StorageId, std::vector<StorageId>> children_map_;
+    absl::flat_hash_map<StorageId, std::vector<StorageId>>
+        divergent_children_map_;
     std::vector<std::unique_ptr<TabGroupCollectionData>> loaded_groups_;
     std::optional<StorageId> root_storage_id_;
     std::optional<StorageId> active_tab_storage_id_;
@@ -113,9 +142,9 @@ class StorageLoadedData {
 
   const StorageLoadingContext& GetLoadingContext() const;
 
-  // Alerts observers that a child node has been rejected during the restoration
+  // Alerts observers that a node has been rejected during the restoration
   // process.
-  void NotifyChildRejected(StorageId parent);
+  void NotifyNodeRejected(StorageId node);
 
   void RegisterObserver(Observer* observer);
   void UnregisterObserver(Observer* observer);
