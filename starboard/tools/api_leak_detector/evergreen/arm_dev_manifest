@@ -8,3 +8,6 @@ __clock_gettime64
 __cxa_thread_atexit_impl
 dlopen
 dlsym
+dlerror
+dlclose
+dladdr
