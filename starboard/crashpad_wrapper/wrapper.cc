@@ -50,8 +50,6 @@ const char kCrashpadVersionKey[] = "ver";
 const char kCrashpadProductKey[] = "prod";
 const char kCrashpadUserAgentStringKey[] = "user_agent_string";
 const char kCrashpadCertScopeKey[] = "cert_scope";
-const char kNativeStabilityCrashUuidKey[] = "native_stability_crash_uuid";
-const char kNativeStabilityHangUuidKey[] = "native_stability_hang_uuid";
 
 namespace {
 
