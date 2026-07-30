@@ -591,7 +591,6 @@ Response StorageHandler::GetStorageKeyForFrame(
 #endif
 }
 
-#if CHROMIUM_MILESTONE_LE_138
 Response StorageHandler::GetStorageKey(std::optional<std::string> frame_id,
                                        std::string* serialized_storage_key) {
 #if BUILDFLAG(IS_COBALT)
@@ -610,7 +609,6 @@ Response StorageHandler::GetStorageKey(std::optional<std::string> frame_id,
   return Response::ServerError("Not implemented");
 #endif
 }
-#endif
 
 namespace {
 uint32_t GetRemoveDataMask(const std::string& storage_types) {
