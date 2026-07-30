@@ -9,6 +9,92 @@ development with Lit. These guidelines are intended to ensure code quality,
 consistency, and performance across the codebase. They supplement the
 [Chromium Web Development Style Guide](../../styleguide/web/web.md).
 
+## CrLitElement Subclass Guidelines (.ts)
+
+A Lit element class definition should have the following structure.
+
+```ts
+// my_button.ts example contents
+
+import {getCss} from './my_button.css.js';
+import {getHtml} from './my_button.html.js';
+
+class MyButtonElement extends CrLitElement {
+ static get is() {
+    return 'my-button';
+  }
+
+  static override get styles() {
+    return getCss();
+  }
+
+  override render() {
+    return getHtml.bind(this)();
+  }
+
+  static override get properties() {
+    return {
+      ...
+    };
+  }
+}
+
+declare global {
+  interface HTMLElementTagNameMap {
+    'cr-button': MyButtonElement;
+  }
+}
+
+customElements.define(MyButtonElement.is, MyButtonElement);
+```
+
+Specifically the following pieces are required:
+
+ 1. The class name should end with the `Element` suffix, which matches the
+    naming of native HTML elements (for example `HTMLButtonElement`), and
+    clearly conveys that a class is a UI component.
+ 2. `static get is() {...}` holds the DOM name of the custom element.
+ 3. `interface HTMLElementTagNameMap {...}` informs the TypeScript compiler
+     about the association between the DOM name and the class name, allowing it
+     to infer the type in `document.createElement` or `querySelector`,
+     `querySelectorAll` calls. Must be placed after the class definition in the
+     same file.
+ 4. `customElements.define(...)` registers the custom element at runtime, so
+     that the browser knows which class to instantiate when encountering the
+     corresponding DOM name. Must be placed after the class definition in the
+     same file.
+
+### Method definition order
+
+Methods (if applicable) must be defined in the following order for consistency:
+`is`, `styles`, `render`, `properties`, `constructor`, `connectedCallback`,
+`disconnectedCallback`, `willUpdate`, `firstUpdated`, `updated`.
+
+### Class fields definition order
+
+Class fields should be defined after the `properties` getter and before the
+`constructor` or, if no constructor exists, before any subsequent methods in the
+method definition order.
+
+Moreover, separate class fields that have a corresponding Lit reactive property
+from class fields that don't correspond to any property with a blank
+line. For example:
+
+```ts
+  static override get properties() {
+    return {
+      isActive: {type: Boolean},
+      isDefault: {type: Boolean},
+    };
+  }
+
+  accessor isActive: boolean = false;
+  accessor isDefault: boolean = false;
+
+  private browserProxy: BrowserProxy = BrowserProxyImpl.getInstance();
+```
+
+
 ## Template Guidelines (.html.ts)
 
 ### Logic-free Templates
@@ -55,6 +141,141 @@ export function getHtml(this: MyElement) {
     <div ?hidden="${!this.isVisible_}">...</div>
   `;
 }
+```
+
+#### Reusing chunks of HTML
+In most cases, a chunk of HTML that is needed across multiple locations in
+the DOM should be refactored into a custom element that can be used as needed.
+Custom elements are the canonical way of creating reusable chunks of template,
+just as shared styles are the way to share CSS between elements and mixins or
+helper methods/classes can be used to share TypeScript logic/behavior.
+
+However, there are some cases where a different solution may be preferred.
+
+1. Trivial chunks of HTML can be duplicated. Refactoring to a custom element is
+   overkill for very small bits of template.
+
+**Example:**
+```ts
+// my_element.html.ts
+export function getHtml(this: MyElement) {
+  // Small amount of repeated HTML for the cr-button is okay.
+  return html`
+    ${this.submitButtonFirst_ ? html`
+      <cr-button id="submit" @click="${this.onSubmitClick_}">
+        $i18n{submit}
+      </cr-button>
+    ` : ''}
+    <cr-button id="cancel" @click="${this.onCancelClick_}">
+      $i18n{cancel}
+    </cr-button>
+    ${!this.submitButtonFirst_ ? html`
+      <cr-button id="submit" @click="${this.onSubmitClick_}">
+        $i18n{submit}
+      </cr-button>
+    ` : ''}
+  `;
+}
+```
+
+2. Prefer conditional styling to conditional DOM changes for cases of
+   modifying appearance. In some cases, it may look like a chunk of HTML
+   needs to go in 2 different places in the DOM, but the only reason for
+   this is to change its appearance (or the appearance of some DOM around
+   it). In this case, conditional CSS styling is a better approach.
+
+**Do not:**
+```css
+/* my_element.css */
+.fancy-css {
+  border: 4px solid blue;
+}
+```
+
+```ts
+// my_element.html.ts
+export function getHtml(this: MyElement) {
+  const button = html`
+      <cr-button id="submit" @click="${this.onSubmitClick_}">
+        $i18n{submit}
+      </cr-button>`;
+  return html`
+    ${this.fancyStyleEnabled ? html`
+      <div class="fancy-css">${button}</div>
+    ` : button}
+  `;
+}
+```
+
+**Do:**
+```css
+/* my_element.css */
+:host([fancy-style-enabled]) .wrapper {
+  border: 4px solid blue;
+}
+```
+
+```ts
+// my_element.html.ts
+export function getHtml(this: MyElement) {
+  return html`
+    <div class="wrapper">
+      <cr-button id="submit" @click="${this.onSubmitClick_}">
+        $i18n{submit}
+      </cr-button>
+    </div>
+  `;
+}
+```
+
+3. Long chunks of reused HTML that contain very few elements but a lot of
+   bindings can be placed in their own helper .html.ts file, and imported.
+   Cases like this would not benefit from refactoring into a custom element,
+   because the repeated HTML being refactored is a long list of data bindings
+   and event handlers that would simply be re-created for a new custom element.
+
+**Example:**
+```ts
+// my_element_fancy_button.html.ts
+export function getHtml(this: MyElement) {
+  return html`
+<fancy-button .prop1="${this.prop1}"
+    .prop2="${this.prop2}"
+    .prop3="${this.prop3}"
+    .prop4="${this.prop4}"
+    .prop5="${this.prop5}"
+    .prop6="${this.prop6}"
+    .prop7="${this.prop7}"
+    .prop8="${this.prop8}"
+    .prop9="${this.prop9}"
+    @one="${this.onButtonOne_}"
+    @two="${this.onButtonTwo_}"
+    @three="${this.onButtonThree_}"
+    @four="${this.onButtonFour_}">
+</fancy-button>
+`;
+}
+```
+
+```ts
+// my_element.html.ts
+import {getHtml as getFancyButtonHtml} from './my_element_fancy_button.html.js';
+
+export function getHtml(this: MyElement) {
+  return html`
+${this.compact_ ? html`
+  <div class="compact">
+    ${getFancyButtonHtml.bind(this)()}
+    <cr-input id="input></cr-input>
+  </div>
+` : html`
+  <div class="tall">
+    <cr-textarea id="input></cr-textarea>
+    <fancy-menu>
+      ${getFancyButtonHtml.bind(this)()}
+    </fancy-menu>
+  </div>
+`}
 ```
 
 ### Inline Lambdas

@@ -78,6 +78,7 @@ InteractionTestUtilBrowserTest.CompareScreenshot_*
 InteractionTestUtilBrowserUiTest.CompareScreenshot_*
 *IOSPromoBubbleBrowserTest.*
 IsolatedWebAppInstallerViewUiPixelTest.*
+JavascriptOptimizerUiTest.*
 *ContextualTasks*PixelTest*
 *LensSidePanel*PixelTest*
 LHSIndicatorsUiBrowserTest.*
@@ -147,6 +148,7 @@ SettingsOverriddenExplicitChoiceDialogInteractiveUiTest.*
 *SharedPasswordsNotificationBubbleInteractiveUiTest.*
 SharedTabGroupInteractiveUiTest.SharedTabGroupIn*
 SingleBookmarkUploadDialogPixelTest.InvokeUi
+*SkillsPageInteractiveUITest*
 SplitTabButtonInteractiveTest.ButtonUpdatesOnSplit
 SyncConfirmationUIDialogPixelTest.*
 SyncConfirmationUIWindowPixelTest.*

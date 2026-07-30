@@ -902,7 +902,7 @@ public class ToolbarManager
         mToolbarHairline = mControlContainer.findViewById(R.id.toolbar_hairline);
 
         mBookmarkModelSupplier = bookmarkModelSupplier;
-        mBookmarkModelSupplier.addObserver(mBookmarkModelSupplierObserver);
+        mBookmarkModelSupplier.addSyncObserverAndPostIfNonNull(mBookmarkModelSupplierObserver);
 
         mIphController = new ToolbarIphController(activity, mUserEducationHelper);
 
@@ -1754,9 +1754,9 @@ public class ToolbarManager
                         mProfileSupplier.removeObserver(this);
                     }
                 };
-        profileSupplier.addObserver(profileObserver);
+        profileSupplier.addSyncObserverAndPostIfNonNull(profileObserver);
         mReadAloudControllerSupplier = readAloudControllerSupplier;
-        mReadAloudControllerSupplier.addObserver(
+        mReadAloudControllerSupplier.addSyncObserverAndPostIfNonNull(
                 readAloudController -> {
                     if (readAloudController != null) {
                         readAloudController.addReadabilityUpdateListener(
@@ -1807,7 +1807,8 @@ public class ToolbarManager
     private boolean shouldSuppressToolbarLongPress() {
         return mOmniboxFocusStateSupplier.get()
                 || (mToolbarPositionController != null
-                        && mToolbarPositionController.doesPrefMismatchPosition());
+                        && mToolbarPositionController.doesPrefMismatchPosition())
+                || (getNewTabPageForCurrentTab() != null);
     }
 
     private void back(int metaState) {
@@ -2480,10 +2481,13 @@ public class ToolbarManager
                         mLayoutManager,
                         mTabModelSelector,
                         IncognitoNtpUtils::getIncognitoNtpView,
+                        IncognitoNtpUtils::getIncognitoNtpScrollView,
                         IncognitoNtpUtils::getIncognitoNtpContentMetrics);
 
         mInitializedWithNative = true;
-        mTabModelSelector.getCurrentTabModelSupplier().addObserver(mCurrentTabModelObserver);
+        mTabModelSelector
+                .getCurrentTabModelSupplier()
+                .addSyncObserverAndPostIfNonNull(mCurrentTabModelObserver);
         refreshSelectedTab(mActivityTabProvider.get());
         maybeShowUrlBarCursorIfHardwareKeyboardAvailable();
         mIncognitoStateProvider.setTabModelSelector(mTabModelSelector);
@@ -3042,16 +3046,16 @@ public class ToolbarManager
     public void setUrlBarFocusAndText(
             boolean focused, @OmniboxFocusReason int reason, @Nullable String text) {
         if (!mInitializedWithNative) return;
-        if (mLocationBar.getOmniboxStub() == null) return;
-        boolean wasFocused = mLocationBar.getOmniboxStub().isUrlBarFocused();
-        mLocationBar
-                .getOmniboxStub()
-                .setUrlBarFocus(
-                        focused
-                                ? new AutocompleteInput().setUserText(text).setFocusReason(reason)
-                                : null);
-        if (wasFocused && focused) {
-            mLocationBar.selectAll();
+        OmniboxStub omniboxStub = mLocationBar.getOmniboxStub();
+        if (omniboxStub == null) return;
+        if (focused) {
+            omniboxStub.beginInput(
+                    new AutocompleteInput()
+                            .setUserText(text)
+                            .setSelection(0, Integer.MAX_VALUE)
+                            .setFocusReason(reason));
+        } else {
+            omniboxStub.endInput();
         }
     }
 

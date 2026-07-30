@@ -12,9 +12,11 @@ import android.content.Context;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.transition.ChangeBounds;
+import android.transition.Fade;
 import android.transition.Transition;
 import android.transition.TransitionListenerAdapter;
 import android.transition.TransitionManager;
+import android.transition.TransitionSet;
 import android.view.ActionMode;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -75,6 +77,7 @@ import org.chromium.components.browser_ui.accessibility.PageZoomIndicatorCoordin
 import org.chromium.components.browser_ui.accessibility.PageZoomManager;
 import org.chromium.components.browser_ui.accessibility.PageZoomUtils;
 import org.chromium.components.browser_ui.widget.gesture.BackPressHandler;
+import org.chromium.components.omnibox.AutocompleteInput;
 import org.chromium.components.omnibox.AutocompleteMatch;
 import org.chromium.components.omnibox.OmniboxFeatures;
 import org.chromium.components.omnibox.action.OmniboxActionDelegate;
@@ -82,6 +85,7 @@ import org.chromium.components.search_engines.TemplateUrlService;
 import org.chromium.ui.KeyboardVisibilityDelegate;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.base.WindowAndroid;
+import org.chromium.ui.interpolators.Interpolators;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.widget.ViewRectProvider;
 
@@ -105,7 +109,8 @@ import java.util.function.Supplier;
 public class LocationBarCoordinator
         implements LocationBar, NativeInitObserver, AutocompleteDelegate {
 
-    private static final long COMPACT_MODE_ANIMATION_DURATION_MS = 200;
+    private static final int COMPACT_MODE_FADE_START_DELAY_MS = 100;
+    private static final int COMPACT_MODE_ANIMATION_DURATION_MS = 150;
     private final DeferredIMEWindowInsetApplicationCallback
             mDeferredIMEWindowInsetApplicationCallback;
 
@@ -289,8 +294,9 @@ public class LocationBarCoordinator
                                         : mBrowserControlsStateProvider.getControlsPosition(),
                         mDeferredIMEWindowInsetApplicationCallback::getCurrentKeyboardHeight,
                         bottomWindowPaddingSupplier,
+                        fuseboxStateSupplier,
                         locationBarDataProvider,
-                        fuseboxStateSupplier);
+                        topInsetProvider);
 
         mPageZoomIndicatorCoordinator =
                 pageZoomManager != null
@@ -357,7 +363,6 @@ public class LocationBarCoordinator
                         shareDelegateSupplier,
                         locationBarDataProvider,
                         profileObservableSupplier,
-                        topInsetProvider,
                         bringTabGroupToFrontCallback,
                         bookmarkState,
                         omniboxActionDelegate,
@@ -416,8 +421,6 @@ public class LocationBarCoordinator
 
         mUrlCoordinator.setTextChangeListener(mAutocompleteCoordinator::onTextChanged);
         mUrlCoordinator.setKeyDownListener(mLocationBarMediator);
-        mUrlCoordinator.setTypingStartedListener(
-                mLocationBarMediator::completeUrlFocusAnimationAndEnableSuggestions);
 
         // The LocationBar's direction is tied to the UrlBar's text direction. Icons inside the
         // location bar, e.g. lock, refresh, X, should be reversed if UrlBar's text is RTL.
@@ -445,7 +448,7 @@ public class LocationBarCoordinator
                         profileObservableSupplier.removeObserver(this);
                     }
                 };
-        profileObservableSupplier.addObserver(profileObserver);
+        profileObservableSupplier.addSyncObserverAndPostIfNonNull(profileObserver);
 
         if (isPhoneLayout()) {
             mSubCoordinator =
@@ -623,11 +626,6 @@ public class LocationBarCoordinator
     }
 
     @Override
-    public void selectAll() {
-        mUrlCoordinator.selectAll();
-    }
-
-    @Override
     public void revertChanges() {
         mLocationBarMediator.revertChanges();
     }
@@ -743,7 +741,7 @@ public class LocationBarCoordinator
 
     @Override
     public void clearOmniboxFocus() {
-        mLocationBarMediator.clearOmniboxFocus();
+        mLocationBarMediator.endInput();
     }
 
     @Override
@@ -873,9 +871,13 @@ public class LocationBarCoordinator
         ChangeBounds changeBounds = new ChangeBounds();
         changeBounds
                 .setDuration(COMPACT_MODE_ANIMATION_DURATION_MS)
+                .setInterpolator(Interpolators.STANDARD_INTERPOLATOR)
                 .addTarget(mLocationBarLayout)
                 .addTarget(addButton);
+        Transition transition;
         if (state == FuseboxState.COMPACT) {
+            // Only fade when entering expanded mode.
+            transition = changeBounds;
             mLocationBarEmbedder.setRequestFixedHeight(true);
             changeBounds.addListener(
                     new TransitionListenerAdapter() {
@@ -889,14 +891,23 @@ public class LocationBarCoordinator
                             mLocationBarEmbedder.setRequestFixedHeight(false);
                         }
                     });
+        } else {
+            Fade fade = new Fade();
+            fade.addTarget(mLocationBarLayout.findViewById(R.id.fusebox_request_type));
+            fade.setStartDelay(COMPACT_MODE_FADE_START_DELAY_MS);
+            // Delaying the fade prevents the chip from becoming visible before the fusebox expands
+            // to include it.
+            fade.setDuration(COMPACT_MODE_ANIMATION_DURATION_MS);
+            fade.setInterpolator(Interpolators.LINEAR_INTERPOLATOR);
+            transition = new TransitionSet().addTransition(changeBounds).addTransition(fade);
         }
         // If the refactored animations are enabled, the ChangeBounds transition will instead be
         // kicked off with the other transitions in ToolbarPhone.
         if (ChromeFeatureList.sToolbarPhoneAnimationRefactor.isEnabled()) {
             changeBounds.setResizeClip(/* resizeClip= */ true);
-            mLocationBarEmbedder.beginEmbeddedDelayedTransition(mLocationBarLayout, changeBounds);
+            mLocationBarEmbedder.beginEmbeddedDelayedTransition(mLocationBarLayout, transition);
         } else {
-            TransitionManager.beginDelayedTransition(mLocationBarLayout, changeBounds);
+            TransitionManager.beginDelayedTransition(mLocationBarLayout, transition);
         }
     }
 
@@ -940,6 +951,15 @@ public class LocationBarCoordinator
     public void setShouldShowMicButtonWhenUnfocused(boolean shouldShowMicButtonWhenUnfocused) {
         mLocationBarMediator.setShouldShowMicButtonWhenUnfocusedForPhone(
                 shouldShowMicButtonWhenUnfocused);
+    }
+
+    /**
+     * Toggles the lens button being shown when the location bar is not focused. By default the lens
+     * button is not shown.
+     */
+    public void setShouldShowLensButtonWhenUnfocused(boolean shouldShowLensButtonWhenUnfocused) {
+        mLocationBarMediator.setShouldShowLensButtonWhenUnfocusedForPhone(
+                shouldShowLensButtonWhenUnfocused);
     }
 
     /** Updates the visibility of the buttons inside the location bar. */
@@ -1147,6 +1167,22 @@ public class LocationBarCoordinator
     }
 
     /**
+     * Returns a {@link ToolbarWidthConsumer} that handles width on the toolbar allocated to showing
+     * the chip on the omnibox in its collapsed (icon only) state.
+     */
+    public @Nullable ToolbarWidthConsumer getOmniboxChipCollapsedToolbarWidthConsumer() {
+        return mLocationBarMediator.getOmniboxChipCollapsedToolbarWidthConsumer();
+    }
+
+    /**
+     * Returns a {@link ToolbarWidthConsumer} that handles width on the toolbar allocated to showing
+     * the chip on the omnibox in its expanded (icon + text) state.
+     */
+    public @Nullable ToolbarWidthConsumer getOmniboxChipExpandedToolbarWidthConsumer() {
+        return mLocationBarMediator.getOmniboxChipExpandedToolbarWidthConsumer();
+    }
+
+    /**
      * Apply the X translation to the LocationBar buttons to match the NTP fakebox -> omnibox
      * transition.
      *
@@ -1165,5 +1201,23 @@ public class LocationBarCoordinator
      */
     public void setUrlActionContainerVisibility(boolean shouldShow) {
         mLocationBarMediator.setUrlActionContainerVisibility(shouldShow);
+    }
+
+    /**
+     * Set the omnibox to have focus or not.
+     *
+     * <p>Updates passed AutocompleteInput instance so it correctly reflects the current page URL,
+     * title, classification, and focus time, bringing the Fusebox to focus with the supplied data.
+     * When null instance is passed the focus is cleared.
+     *
+     * @param input The AutocompleteInput object with all the details for the focus operation. If
+     *     null, the focus will be cleared.
+     */
+    public void setUrlBarFocus(@Nullable AutocompleteInput input) {
+        if (input != null) {
+            mLocationBarMediator.beginInput(input);
+        } else {
+            mLocationBarMediator.endInput();
+        }
     }
 }

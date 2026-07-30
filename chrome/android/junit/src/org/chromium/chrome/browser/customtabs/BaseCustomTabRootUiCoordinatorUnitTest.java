@@ -88,6 +88,7 @@ import org.chromium.components.commerce.core.CommerceFeatureUtils;
 import org.chromium.components.commerce.core.CommerceFeatureUtilsJni;
 import org.chromium.components.commerce.core.ShoppingService;
 import org.chromium.components.signin.identitymanager.IdentityManager;
+import org.chromium.ui.base.ActivityResultTracker;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.IntentRequestTracker;
 import org.chromium.ui.base.TestActivity;
@@ -113,18 +114,9 @@ public final class BaseCustomTabRootUiCoordinatorUnitTest {
     @Rule public FakeTimeTestRule mFakeTimeTestRule = new FakeTimeTestRule();
 
     @Mock private CustomTabActivityTabProvider mCustomTabProvider;
-
-    @Mock
-    private SettableMonotonicObservableSupplier<EphemeralTabCoordinator>
-            mEphemeralTabCoordinatorSupplier;
-
     @Mock private BrowserControlsManager mBrowserControlsManager;
-
-    @Mock
-    private BrowserStateBrowserControlsVisibilityDelegate
-            mBrowserStateBrowserControlsVisibilityDelegate;
-
     @Mock private ActivityWindowAndroid mWindowAndroid;
+    @Mock private ActivityResultTracker mActivityResultTracker;
     @Mock private OneshotSupplier<ChromeAndroidTask> mChromeAndroidTask;
     @Mock private ActivityLifecycleDispatcher mActivityLifecycleDispatcher;
     @Mock private MenuOrKeyboardActionController mMenuOrKeyboardActionController;
@@ -157,6 +149,10 @@ public final class BaseCustomTabRootUiCoordinatorUnitTest {
     @Mock private IdentityManager mIdentityManager;
     @Mock private Supplier<BrowserServicesThemeColorProvider> mBrowserServicesColorProviderSupplier;
 
+    private final SettableMonotonicObservableSupplier<EphemeralTabCoordinator>
+            mEphemeralTabCoordinatorSupplier = ObservableSuppliers.createMonotonic();
+    private BrowserStateBrowserControlsVisibilityDelegate
+            mBrowserStateBrowserControlsVisibilityDelegate;
     private final MonotonicObservableSupplier<ShareDelegate> mShareDelegateSupplier =
             ObservableSuppliers.alwaysNull();
     private final MonotonicObservableSupplier<BookmarkModel> mBookmarkModelSupplier =
@@ -193,6 +189,9 @@ public final class BaseCustomTabRootUiCoordinatorUnitTest {
         when(mWindowAndroid.getUnownedUserDataHost()).thenReturn(new UnownedUserDataHost());
         when(mWindowAndroid.getContext()).thenReturn(new WeakReference<>(mActivity));
         when(mIntentDataProvider.get()).thenReturn(mBrowserServicesIntentDataProvider);
+        mBrowserStateBrowserControlsVisibilityDelegate =
+                new BrowserStateBrowserControlsVisibilityDelegate(
+                        ObservableSuppliers.alwaysFalse());
         when(mBrowserControlsManager.getBrowserVisibilityDelegate())
                 .thenReturn(mBrowserStateBrowserControlsVisibilityDelegate);
         when(mProfile.getOriginalProfile()).thenReturn(mProfile);
@@ -215,6 +214,7 @@ public final class BaseCustomTabRootUiCoordinatorUnitTest {
                         mTabModelSelectorSupplier,
                         mBrowserControlsManager,
                         mWindowAndroid,
+                        mActivityResultTracker,
                         mChromeAndroidTask,
                         mActivityLifecycleDispatcher,
                         mLayoutManagerSupplier,

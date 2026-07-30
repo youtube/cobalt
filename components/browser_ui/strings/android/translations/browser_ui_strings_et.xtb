@@ -8,6 +8,7 @@
 <translation id="1073417869336441572">Aidake meil Chrome’i täiustada, andes teada, miks lubasite kolmanda osapoole küpsisefailid. <ph name="BEGIN_LINK" />Tagasiside saatmine<ph name="END_LINK" /></translation>
 <translation id="1074758928858737435">Saate paluda saitide lauaarvuti versiooni nägemist</translation>
 <translation id="1085696779717592361">Vaikimisi Chrome'i kasutamine</translation>
+<translation id="1126523729897810826">Viige lõpule allolevad soovitatavad toimingud, et Chrome'i parimal moel kasutada.</translation>
 <translation id="113098737392899175">Lehtedel navigeerimine tekstikursoriga, kui klaviatuur on ühendatud</translation>
 <translation id="1149644372535087155">Paroolide salvestamine Chrome'is</translation>
 <translation id="1178015372320901893">Minu otseteede alumine leht</translation>
@@ -39,6 +40,7 @@
 <translation id="1415855080660575082">Lubage Chrome’il jagada teie hiljutisi vahelehti teie seadmega, et näha neid seadme rakenduste loendis ja otsingutulemustes. Saate selle Chrome’i seadetes sisse või välja lülitada.</translation>
 <translation id="1420688843103859429">Puuteplaadil kahe sõrmega pühkides edasi ja tagasi navigeerimine.</translation>
 <translation id="1432650420699700107">Saidid saavad küsida luba teie kohalikus võrgus mis tahes seadmega ühenduse loomiseks</translation>
+<translation id="1442081309487427303">Lugemisrežiimi linkide sisselülitamine</translation>
 <translation id="1448064542941920355">Suumi vähendamine</translation>
 <translation id="1464044141348608623">Ära luba saitidel teada, millal seadet aktiivselt kasutan</translation>
 <translation id="146867109637325312">{COUNT,plural, =1{<ph name="SITE_COUNT" /> sait}other{<ph name="SITE_COUNT" /> saiti}}</translation>
@@ -52,6 +54,7 @@
 <translation id="1569054338208717605">Kiirenda saite Chrome’i V8 mootoriga, aga vähenda pisut Chrome’i vastupanuvõimet rünnetele</translation>
 <translation id="1593426485665524382">Uued toimingud on saadaval ekraanikuva ülaosas</translation>
 <translation id="1594521731409209842">Foto suuruse muutmiseks liigutage ekraanil sõrmi kokku-lahku</translation>
+<translation id="1599268789440304082">Seadistusleht on avatud</translation>
 <translation id="1601560923496285236">Rakenda</translation>
 <translation id="1615755956145364867">Saidid saavad paluda esitada kaitstud sisu</translation>
 <translation id="1620510694547887537">Kaamera</translation>
@@ -73,6 +76,7 @@
 <translation id="1766455884659449403">Hankige Chrome'i nõuandemärguanded</translation>
 <translation id="1777815584158991902">Avastamisvoo alumine leht</translation>
 <translation id="1779089405699405702">Pildi dekooder</translation>
+<translation id="1781533683087883868">Lugemisrežiimi linkide väljalülitamine</translation>
 <translation id="1785415724048343560">Soovitatav parima kasutuskogemuse saamiseks</translation>
 <translation id="1796588414813960292">Heli vajavad funktsioonid ei tööta</translation>
 <translation id="1799920918471566157">Chrome’i nõuanded</translation>
@@ -293,6 +297,7 @@ Täiustatud kaitse reguleerib neid Chrome’i seadeid:
 <translation id="3903738175795615004">Täisekraanilt väljumiseks lohistage ülaservast või vajutage paoklahvi.</translation>
 <translation id="3905475044299942653">Paljude märguannete peatamine</translation>
 <translation id="3922092564198021702">Avage telefonis menüü Seaded</translation>
+<translation id="3924858949939391676">Kui lugemisrežiim on sisse lülitatud, kuvatakse lingid</translation>
 <translation id="3933121352599513978">Ahenda soovimatud taotlused (soovitatud)</translation>
 <translation id="3934905113567851655">Suuruse muutmiseks liigutage sõrmi kokku.</translation>
 <translation id="3955193568934677022">Luba saitidel esitada kaitstud sisu (soovitatav)</translation>
@@ -311,6 +316,7 @@ Täiustatud kaitse reguleerib neid Chrome’i seadeid:
 <translation id="4046123991198612571">Järgmine lugu</translation>
 <translation id="4077310749977440510">Tavaliselt loevad saidid teie lõikelaual olevat sisu näiteks teie kopeeritud teksti vormingu säilitamiseks</translation>
 <translation id="4082080074595021446">Kindlate veebisaitide erandid on keelatud, kuna Androidi seadmes pole piisavalt RAM-i.</translation>
+<translation id="4089304748532599471">Mõningaid Chrome'i seadeid on muudetud</translation>
 <translation id="4149890623864272035">Kas olete kindel, et soovite kustutada kõik kohalikud andmed, sh küpsised, ja lähtestada kõik selle veebisaidi õigused?</translation>
 <translation id="4149994727733219643">Veebilehtede lihtsustatud vaade</translation>
 <translation id="4151930093518524179">Vaikesuum</translation>
@@ -346,8 +352,11 @@ Täiustatud kaitse reguleerib neid Chrome’i seadeid:
 <translation id="4478158430052450698">Muutke erinevate saitide jaoks suumi kohandamine lihtsamaks</translation>
 <translation id="4479647676395637221">Küsi enne saitidele minu kaamera kasutamiseks juurdepääsu lubamist (soovitatav)</translation>
 <translation id="4505788138578415521">Laiendatud URL</translation>
+<translation id="4522570452068850558">Üksikasjad</translation>
 <translation id="4523472416386354622">Alustamiseks logige sisse</translation>
+<translation id="4529207923544043455">Alumine leht, mis kuvab lõpetatud ja lõpetamata seadistusloendi ülesandeid</translation>
 <translation id="4534723447064627427">Selleks et anda rakendusele <ph name="APP_NAME" /> juurdepääs teie mikrofonile, lülitage mikrofon sisse ka <ph name="BEGIN_LINK" />Androidi seadetes<ph name="END_LINK" />.</translation>
+<translation id="4545694195887112015">Seadistusleht on suletud</translation>
 <translation id="4566417217121906555">Vaigista mikrofon</translation>
 <translation id="4570913071927164677">Üksikasjad</translation>
 <translation id="4578289292431526768">Alustage</translation>
@@ -356,6 +365,7 @@ Täiustatud kaitse reguleerib neid Chrome’i seadeid:
 <translation id="4644713492825682049">Kustuta ja lähtesta</translation>
 <translation id="4645575059429386691">Vanema hallatud</translation>
 <translation id="4652266463001779298">Pole lubatud</translation>
+<translation id="4655846733459137112">Puudutage valikut Jah, et järgmisel sisselogimisel seda parooli hõlpsasti kasutada.</translation>
 <translation id="4663373278480897665">Kaamera on lubatud</translation>
 <translation id="4670064810192446073">Virtuaalreaalsus</translation>
 <translation id="4672315773691449562">Puudutage valikut Brauseri rakendus ja seejärel valikut Chrome</translation>
@@ -462,6 +472,7 @@ Täiustatud kaitse reguleerib neid Chrome’i seadeid:
 <translation id="5804241973901381774">Load</translation>
 <translation id="5817042798620209981">Saiditeave, dialoog</translation>
 <translation id="5822675474983796325">Uue vahelehe kohandamise alumine leht on avatud täispikkuses</translation>
+<translation id="5826403277762134844">Alumine leht Chrome’is paroolide salvestamise juhistega</translation>
 <translation id="5833899990800318936">Ärge lubage saitidel kasutada JavaScripti</translation>
 <translation id="583673505367439042">Saidid saavad küsida luba teie seadmes olevate failide ja kaustade muutmiseks</translation>
 <translation id="5844448279347999754">Kui see on sisse lülitatud, võivad saidid küsida luba teie lõikelauale salvestatud teksti ja piltide nägemiseks. Kui see on välja lülitatud, ei näe saidid teie lõikelauale salvestatud teksti ega pilte.</translation>
@@ -641,6 +652,7 @@ Täiustatud kaitse reguleerib neid Chrome’i seadeid:
 <translation id="775043444390799886">Tühista luba</translation>
 <translation id="7758789811447313947">Kannikeselilla teema</translation>
 <translation id="7759147511335618829">MIDI-seadme juhtimine ja ümberprogrammeerimine</translation>
+<translation id="7771089277295008211">Alumine leht paroolide salvestamise juhistega on suletud.</translation>
 <translation id="7781829728241885113">Eile</translation>
 <translation id="7791543448312431591">Lisa</translation>
 <translation id="780301667611848630">Tänan, ei</translation>
@@ -658,6 +670,7 @@ Täiustatud kaitse reguleerib neid Chrome’i seadeid:
 <translation id="7940722705963108451">Tuleta mulle meelde</translation>
 <translation id="7948081750384205628">Lisateave: <ph name="SETTING_TITLE" /></translation>
 <translation id="7952708427581814389">Saidid saavad küsida luba lõikelaual oleva teksti ja piltide nägemiseks</translation>
+<translation id="7958779728312669715">Alumine leht paroolide salvestamise juhistega on täielikult avatud.</translation>
 <translation id="798299424881500862">Oranž teema</translation>
 <translation id="7986741934819883144">Kontakti valimine</translation>
 <translation id="7990211076305263060">Kui see on sisse lülitatud, võivad saidid küsida luba teie mikrofoni kasutamiseks. Kui see on välja lülitatud, ei saa saidid teie mikrofoni kasutada.</translation>
@@ -678,6 +691,7 @@ Täiustatud kaitse reguleerib neid Chrome’i seadeid:
 <translation id="8117244575099414087">Kui see on sisse lülitatud, saavad saidid kasutada teie seadme andureid. Kui see on välja lülitatud, ei saa saidid andureid kasutada.</translation>
 <translation id="813082847718468539">Kuvab saidi teabe</translation>
 <translation id="8131740175452115882">Kinnita</translation>
+<translation id="8148160259207090265">See seade jääb sisselülitatuks seniks, kuni teie Androidi seadetes on täiustatud kaitse sisse lülitatud.</translation>
 <translation id="8163152278172770963">Ära luba saitidel automaatselt pilt pildis režiimi siseneda</translation>
 <translation id="8168435359814927499">Sisu</translation>
 <translation id="818487310457576362">Täisekraanilt väljumiseks lohistage ekraani küljelt.</translation>
@@ -707,6 +721,7 @@ Täiustatud kaitse reguleerib neid Chrome’i seadeid:
 <translation id="8441146129660941386">Keri tagasi</translation>
 <translation id="8444433999583714703">Selleks et anda rakendusele <ph name="APP_NAME" /> juurdepääs teie asukohale, lülitage funktsioon Asukoht sisse ka <ph name="BEGIN_LINK" />Androidi seadetes<ph name="END_LINK" />.</translation>
 <translation id="8447861592752582886">Seadme loa tühistamine</translation>
+<translation id="8463843545738141778">See seade on keelatud, kuna lülitasite Androidi seadetes täiustatud kaitse sisse.</translation>
 <translation id="8467359479529706065">Uue vahelehe välimuse alumine leht on avatud poolel kõrgusel</translation>
 <translation id="8471525937465764768">Saidid loovad USB-seadmetega ühenduse tavaliselt teatud funktsioonide jaoks, näiteks dokumentide printimiseks või salvestusseadmele talletamiseks</translation>
 <translation id="8473055640493819707"><ph name="APP_NAME" /> on aegunud. Installige rakendus uuesti.</translation>
@@ -738,6 +753,7 @@ Täiustatud kaitse reguleerib neid Chrome’i seadeid:
 <translation id="8719283222052720129">Lülitage <ph name="BEGIN_LINK" />Androidi seadetes<ph name="END_LINK" /> sisse luba rakendusele <ph name="APP_NAME" />.</translation>
 <translation id="8721719390026067591">Kui see on sisse lülitatud, võivad saidid küsida luba Bluetooth-seadmete otsimiseks. Kui see on välja lülitatud, ei saa saidid Bluetooth-seadmeid otsida.</translation>
 <translation id="8725066075913043281">Proovi uuesti</translation>
+<translation id="8727043961453758442">Kasutage Chrome'i parimal moel</translation>
 <translation id="8730621377337864115">Valmis</translation>
 <translation id="8737426583868847403">Siin kuvatakse saidid, mille jaoks salvestate kohandatud suumitaseme</translation>
 <translation id="8748714929822124637">Ära luba saitidel teie kohaliku võrgu teistele seadmetele juurde pääseda.</translation>
@@ -754,6 +770,7 @@ Täiustatud kaitse reguleerib neid Chrome’i seadeid:
 <translation id="8889294078294184559">Kui jätkate sirvimist, saavad saidid Chrome’iga kontrollida ja teie eelmisel külastatud saidil kinnitada, et olete tõenäoliselt päris inimene</translation>
 <translation id="8899807382908246773">Sekkuvad reklaamid</translation>
 <translation id="8903921497873541725">Suurendab</translation>
+<translation id="8919911527569629802">Logige sisse mis tahes veebisaidile.</translation>
 <translation id="8921772741368021346"><ph name="POSITION" />/<ph name="DURATION" /></translation>
 <translation id="8926389886865778422">Ära enam küsi</translation>
 <translation id="8926666909099850184">NFC on selle seadme puhul välja lülitatud. Lülitage see <ph name="BEGIN_LINK" />Androidi seadetes<ph name="END_LINK" /> sisse.</translation>
@@ -781,6 +798,7 @@ Täiustatud kaitse reguleerib neid Chrome’i seadeid:
 <translation id="9182556968660520230">Ära luba saitidel kaitstud sisu esitada</translation>
 <translation id="947156494302904893">Külastatavad saidid saavad kinnitada, et olete päris inimene, mitte robot</translation>
 <translation id="959682366969460160">Lööge kord majja</translation>
+<translation id="960590623979248167">Kuva hüperlingid</translation>
 <translation id="961930410699694996">Asukoht seekord lubatud</translation>
 <translation id="967624055006145463">Salvestatud andmete maht</translation>
 <translation id="969975166333045662">Ärge lubage saidil V8 optimeerijat kasutada.</translation>

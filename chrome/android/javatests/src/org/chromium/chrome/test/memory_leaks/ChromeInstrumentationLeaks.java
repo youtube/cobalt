@@ -25,15 +25,6 @@ public class ChromeInstrumentationLeaks implements LeakCanaryConfigProvider {
     @IdentifierNameString
     private static String sField462704925 = "org.chromium.ui.KeyboardVisibilityDelegate#sInstance";
 
-    // crbug.com/462709210
-    @IdentifierNameString
-    private static String sClass462709210 =
-            "org.chromium.chrome.browser.magic_stack.HomeModulesConfigManager$LazyHolder";
-
-    @IdentifierNameString
-    private static String sField462709210 =
-            "org.chromium.chrome.browser.magic_stack.HomeModulesConfigManager$LazyHolder#sInstance";
-
     // In the rare case that the cleanup task hasn't finished yet, ignore the "leak" - it gets
     // cleaned up once the cleanup task happens.
     @IdentifierNameString
@@ -49,23 +40,8 @@ public class ChromeInstrumentationLeaks implements LeakCanaryConfigProvider {
         return Map.of(
                 sClass462704925,
                 sField462704925,
-                sClass462709210,
-                sField462709210,
                 sClassPersistencePolicyCleanup,
                 sFieldPersistencePolicyCleanup);
-    }
-
-    // crbug.com/478251814
-    @IdentifierNameString
-    private static String sClass478251814 = "org.chromium.chrome.browser.logo.LogoMediator";
-
-    @IdentifierNameString
-    private static String sField478251814 =
-            "org.chromium.chrome.browser.logo.LogoMediator#mContext";
-
-    @Override
-    public Map<String, String> getInstanceFieldLeaks() {
-        return Map.of(sClass478251814, sField478251814);
     }
 
     @Override

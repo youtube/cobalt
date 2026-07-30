@@ -4,6 +4,7 @@
 
 #include "chrome/browser/skills/skills_ui_window_controller.h"
 
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/test_future.h"
 #include "chrome/browser/skills/skills_ui_tab_controller.h"
 #include "chrome/browser/ui/browser.h"
@@ -12,16 +13,20 @@
 #include "chrome/browser/ui/toasts/api/toast_id.h"
 #include "chrome/browser/ui/toasts/toast_controller.h"
 #include "chrome/browser/ui/toasts/toast_view.h"
+#include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/webui/constrained_web_dialog_ui.h"
+#include "chrome/browser/ui/webui/skills/skills_dialog_view.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "components/skills/features.h"
 #include "components/skills/public/skill.h"
+#include "components/skills/public/skills_metrics.h"
 #include "components/skills/public/skills_service.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/events/base_event_utils.h"
 #include "ui/views/controls/button/label_button.h"
+#include "ui/views/interaction/element_tracker_views.h"
 #include "ui/views/test/button_test_api.h"
 
 #if BUILDFLAG(ENABLE_GLIC)
@@ -57,6 +62,22 @@ class SkillsUiWindowControllerBrowserTest : public InProcessBrowserTest {
         SkillsUiTabControllerInterface::From(tab));
   }
 
+  content::WebContents* GetDialogWebContents() {
+    BrowserView* browser_view =
+        BrowserView::GetBrowserViewForBrowser(browser());
+    ui::ElementContext context =
+        views::ElementTrackerViews::GetContextForWidget(
+            browser_view->GetWidget());
+
+    auto* view = views::ElementTrackerViews::GetInstance()->GetUniqueView(
+        SkillsDialogView::kSkillsDialogElementId, context);
+
+    if (!view) {
+      return nullptr;
+    }
+    return static_cast<views::WebView*>(view)->GetWebContents();
+  }
+
   void ClickToastActionButton() {
     auto* toast_controller = browser()->GetFeatures().toast_controller();
     ASSERT_TRUE(toast_controller->IsShowingToast());
@@ -69,6 +90,9 @@ class SkillsUiWindowControllerBrowserTest : public InProcessBrowserTest {
         ui::MouseEvent(::ui::EventType::kMouseReleased, gfx::Point(),
                        gfx::Point(), ui::EventTimeForNow(), 0, 0));
   }
+
+ protected:
+  base::HistogramTester histogram_tester_;
 
  private:
   base::test::ScopedFeatureList feature_list_;
@@ -113,9 +137,12 @@ IN_PROC_BROWSER_TEST_F(SkillsUiWindowControllerBrowserTest,
   // creation.
   glic::GlicEnabling::SetBypassEnablementChecksForTesting(true);
 
+  histogram_tester_.ExpectBucketCount(
+      "Skills.Actions", skills::SkillsActions::kClickedTryItNow, 0);
   // Click toast "Try It".
   ClickToastActionButton();
-
+  histogram_tester_.ExpectBucketCount(
+      "Skills.Actions", skills::SkillsActions::kClickedTryItNow, 1);
   // Verify Result
   EXPECT_EQ(tab_controller()->GetPendingSkillIdForTesting(), kSkillId);
   glic::GlicEnabling::SetBypassEnablementChecksForTesting(false);
@@ -138,10 +165,12 @@ IN_PROC_BROWSER_TEST_F(SkillsUiWindowControllerBrowserTest,
   // Enable Glic late to avoid a crash in GlicTabIndicatorHelper during tab
   // creation.
   glic::GlicEnabling::SetBypassEnablementChecksForTesting(true);
-
+  histogram_tester_.ExpectBucketCount(
+      "Skills.Actions", skills::SkillsActions::kClickedTryItNow, 0);
   // Click toast "Try It".
   ClickToastActionButton();
-
+  histogram_tester_.ExpectBucketCount(
+      "Skills.Actions", skills::SkillsActions::kClickedTryItNow, 1);
   // Verify the new tab got the command.
   EXPECT_EQ(tab_controller()->GetPendingSkillIdForTesting(), kSkillId);
   glic::GlicEnabling::SetBypassEnablementChecksForTesting(false);
@@ -155,6 +184,10 @@ IN_PROC_BROWSER_TEST_F(SkillsUiWindowControllerBrowserTest,
   // creation.
   glic::GlicEnabling::SetBypassEnablementChecksForTesting(true);
 
+  histogram_tester_.ExpectBucketCount("Skills.Actions",
+                                      skills::SkillsActions::kSavedSkill, 0);
+  histogram_tester_.ExpectBucketCount(
+      "Skills.Actions", skills::SkillsActions::kClickedTryItNow, 0);
   // Open Dialog.
   skills::Skill initial_skill(/*id=*/"",
                               /*name=*/"",
@@ -162,9 +195,8 @@ IN_PROC_BROWSER_TEST_F(SkillsUiWindowControllerBrowserTest,
   tab_controller()->ShowDialog(std::move(initial_skill));
 
   // Get WebContents to inject JS.
-  auto* delegate = tab_controller()->GetDialogDelegateForTesting();
-  ASSERT_TRUE(delegate);
-  content::WebContents* web_contents = delegate->GetWebContents();
+  content::WebContents* web_contents = GetDialogWebContents();
+  ASSERT_TRUE(web_contents);
   ASSERT_TRUE(content::WaitForLoadStop(web_contents));
 
   // Setup Listener for "Dialog Closed".
@@ -178,7 +210,10 @@ IN_PROC_BROWSER_TEST_F(SkillsUiWindowControllerBrowserTest,
 
     for (let i = 0; i < 50; i++) {
       const btn = root.querySelector('#saveButton');
-      if (btn && !btn.disabled) { btn.click(); return 'CLICKED'; }
+      if (btn && !btn.disabled) {
+          setTimeout(() => btn.click(), 0);
+          return 'CLICKED';
+      }
 
       // Fill inputs if found & empty
       let el = root.querySelector('#nameText');
@@ -203,15 +238,20 @@ IN_PROC_BROWSER_TEST_F(SkillsUiWindowControllerBrowserTest,
     return 'TIMEOUT';
   })();
 )";
+
   EXPECT_EQ("CLICKED", content::EvalJs(web_contents, kSaveScript));
 
   // Wait for the C++ backend to process the save and close the dialog.
   ASSERT_TRUE(close_future.Wait());
-  EXPECT_EQ(nullptr, tab_controller()->GetDialogDelegateForTesting());
+  EXPECT_EQ(nullptr, GetDialogWebContents());
 
+  histogram_tester_.ExpectBucketCount("Skills.Actions",
+                                      skills::SkillsActions::kSavedSkill, 1);
   // Click the Toast "Try It" button.
   ClickToastActionButton();
 
+  histogram_tester_.ExpectBucketCount(
+      "Skills.Actions", skills::SkillsActions::kClickedTryItNow, 1);
   // Verify the Invoke happened by checking that some ID is pending (since the
   // ID was auto-generated by the service)
   EXPECT_FALSE(tab_controller()->GetPendingSkillIdForTesting().empty());

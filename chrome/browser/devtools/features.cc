@@ -135,6 +135,20 @@ const base::FeatureParam<DevToolsFreestylerUserTier>
         /*default_value=*/DevToolsFreestylerUserTier::kPublic,
         &devtools_freestyler_user_tier_options};
 
+// Whether the DevTools AI Code Completion for Styles pane is enabled.
+BASE_FEATURE(kDevToolsAiCodeCompletionStyles, base::FEATURE_DISABLED_BY_DEFAULT);
+const base::FeatureParam<std::string> kDevToolsAiCodeCompletionStylesModelId{
+    &kDevToolsAiCodeCompletionStyles, "aida_model_id",
+    /*default_value=*/""};
+const base::FeatureParam<double> kDevToolsAiCodeCompletionStylesTemperature{
+    &kDevToolsAiCodeCompletionStyles, "aida_temperature",
+    /*default_value=*/-1};
+const base::FeatureParam<DevToolsFreestylerUserTier>
+    kDevToolsAiCodeCompletionStylesUserTier{
+        &kDevToolsAiCodeCompletionStyles, "user_tier",
+        /*default_value=*/DevToolsFreestylerUserTier::kPublic,
+        &devtools_freestyler_user_tier_options};
+
 // Whether an infobar is shown when the process is shared.
 BASE_FEATURE(kDevToolsSharedProcessInfobar, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -180,9 +194,6 @@ const base::FeatureParam<bool> kDevToolsGdpProfilesBadgesEnabled{
 const base::FeatureParam<bool> kDevToolsGdpProfilesStarterBadgeEnabled{
     &kDevToolsGdpProfiles, "starter_badge_enabled",
     /*default_value=*/true};
-
-BASE_FEATURE(kDevToolsIndividualRequestThrottling,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Whether the AI Prompt API (https://developer.chrome.com/docs/ai/prompt-api)
 // is available in DevTools.

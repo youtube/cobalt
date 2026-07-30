@@ -9,12 +9,14 @@
 #include "base/test/test_future.h"
 #include "base/time/time.h"
 #include "chrome/browser/actor/actor_features.h"
+#include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/actor_test_util.h"
 #include "chrome/browser/actor/execution_engine.h"
 #include "chrome/browser/actor/tools/tool_request.h"
 #include "chrome/browser/actor/tools/tools_test_util.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/common/actor.mojom.h"
+#include "chrome/common/actor/task_id.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "content/public/browser/render_frame_host.h"
@@ -561,6 +563,89 @@ IN_PROC_BROWSER_TEST_F(ActorEarlyAddTaskTabsBrowserTest,
   // resolve. This is needed as the site policy checks may query task tabs (e.g.
   // a "Switch To Tab" button while confirming a non-allowlisted URL).
   EXPECT_TRUE(actor_task().GetTabs().contains(tab));
+}
+
+IN_PROC_BROWSER_TEST_F(ActorEarlyAddTaskTabsBrowserTest,
+                       NewlyAddedTabsVisibleFromStateChangeCallback) {
+  const GURL url =
+      embedded_test_server()->GetURL("/actor/page_with_clickable_element.html");
+  ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
+
+  std::optional<int> button_id =
+      GetDOMNodeId(*main_frame(), "button#clickable");
+  ASSERT_TRUE(button_id);
+
+  std::unique_ptr<ToolRequest> action =
+      MakeClickRequest(*main_frame(), button_id.value());
+  tabs::TabHandle tab = action->GetTabHandle();
+
+  ASSERT_TRUE(actor_task().GetTabs().empty());
+
+  std::optional<ActorTask::TabHandleSet> tabs_at_acting_start;
+  auto subscription = actor_keyed_service().AddTaskStateChangedCallback(
+      base::BindLambdaForTesting([&](TaskId id, ActorTask::State state) {
+        CHECK(id == actor_task().id());
+        if (state == ActorTask::State::kActing) {
+          tabs_at_acting_start.emplace(actor_task().GetTabs());
+        }
+      }));
+
+  // Tab-scoped actions require async site_policy checks.
+  ActResultFuture result;
+  actor_task().Act(ToRequestList(action), result.GetCallback());
+  ExpectOkResult(result);
+
+  ASSERT_TRUE(tabs_at_acting_start.has_value());
+  EXPECT_TRUE(tabs_at_acting_start->contains(tab));
+}
+
+// Ensure ActorKeyedService removes a task from its tracked task set when the
+// task is stopped.
+IN_PROC_BROWSER_TEST_F(ActorToolAgnosticBrowserTest, ActorTaskRemovedOnStop) {
+  const GURL url =
+      embedded_test_server()->GetURL("/actor/page_with_clickable_element.html");
+  ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
+
+  TaskId task_id = actor_task().id();
+
+  ASSERT_EQ(actor_task().GetState(), ActorTask::State::kCreated);
+  ASSERT_EQ(actor_keyed_service().GetTask(task_id), &actor_task());
+
+  actor_task().Stop(ActorTask::StoppedReason::kTaskComplete);
+
+  EXPECT_EQ(actor_keyed_service().GetTask(task_id), nullptr);
+}
+
+IN_PROC_BROWSER_TEST_F(ActorToolAgnosticBrowserTest,
+                       ActorTaskAvailableInStopStateCallback) {
+  const GURL url =
+      embedded_test_server()->GetURL("/actor/page_with_clickable_element.html");
+  ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
+
+  ASSERT_EQ(actor_task().GetState(), ActorTask::State::kCreated);
+
+  TaskId task_at_created_state = actor_task().id();
+
+  std::optional<TaskId> task_at_finished_state;
+  auto subscription = actor_keyed_service().AddTaskStateChangedCallback(
+      base::BindLambdaForTesting([&](TaskId id, ActorTask::State state) {
+        if (id != actor_task().id()) {
+          return;
+        }
+        if (state == ActorTask::State::kFinished) {
+          // Get the ID from the ActorTask to ensure it's still live.
+          ActorTask* task = actor_keyed_service().GetTask(task_id_);
+          if (task) {
+            task_at_finished_state = task->id();
+          }
+        }
+      }));
+
+  actor_keyed_service().StopTask(task_id_,
+                                 ActorTask::StoppedReason::kTaskComplete);
+
+  ASSERT_TRUE(task_at_finished_state.has_value());
+  EXPECT_EQ(task_at_created_state, *task_at_finished_state);
 }
 
 // This test is for behavior guarded by a killswitch.

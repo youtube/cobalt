@@ -76,6 +76,7 @@ NSString* const kPlusCircleFillSymbol = @"plus_circle_fill";
 NSString* const kPDFFillSymbol = @"pdf_fill";
 NSString* const kLineThreeSparkSymbol = @"line_three_spark";
 NSString* const kDocumentBadgeSpark = @"document_badge_spark";
+NSString* const kDeepSearchSymbol = @"deep_search";
 
 // Use custom symbol for camera because the default video icon in iOS should
 // always represent “Apple Facetime”.
@@ -137,6 +138,9 @@ NSString* const kSaveImageActionSymbol = @"square.and.arrow.down";
 NSString* const kOpenImageActionSymbol = @"arrow.up.right.square";
 NSString* const kQRCodeSymbol = @"qrcode";
 NSString* const kPrinterSymbol = @"printer";
+NSString* const kAirplaneSymbol = @"airplane";
+NSString* const kAirplaneUpRightSymbol = @"airplane.up.right";
+NSString* const kCarSymbol = @"car";
 NSString* const kCreditCardSymbol = @"creditcard";
 NSString* const kMicrophoneFillSymbol = @"mic.fill";
 NSString* const kMicrophoneSymbol = @"mic";
@@ -184,6 +188,8 @@ NSString* const kExpandSymbol = @"arrow.up.left.and.arrow.down.right";
 NSString* const kBackSymbol = @"arrow.backward";
 NSString* const kForwardSymbol = @"arrow.forward";
 NSString* const kPersonFillSymbol = @"person.fill";
+NSString* const kPersonFillCheckmarkSymbol = @"person.fill.checkmark";
+NSString* const kPersonTextRectangleSymbol = @"person.text.rectangle";
 NSString* const kPersonBadgeKeyFillSymbol = @"person.badge.key.fill";
 NSString* const kPersonClockFillSymbol = @"person.badge.clock.fill";
 NSString* const kPersonFillBadgePlusSymbol = @"person.fill.badge.plus";
@@ -298,6 +304,8 @@ NSString* const kSystemCameraSymbol = @"camera";
 NSString* const kRightArrowCircleFillSymbol = @"arrow.right.circle.fill";
 NSString* const kArrowDownToLineSymbol = @"arrow.down.to.line";
 NSString* const kPhotoOnRectangleAngled = @"photo.on.rectangle.angled";
+NSString* const kSparklesSymbol = @"sparkles";
+NSString* const kSparkles2Symbol = @"sparkles.2";
 
 // Names of the default symbol being non-monochrome by default. When using them,
 // you probably want to set their color to monochrome.

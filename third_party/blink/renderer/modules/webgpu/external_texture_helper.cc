@@ -50,11 +50,10 @@ bool DrawVideoFrameIntoResourceProvider(
 
   media::PaintCanvasVideoRenderer::PaintParams params;
   params.dest_rect = gfx::RectF(resource_provider->Size());
-  resource_provider->ExternalCanvasDrawHelper(
-      [&](MemoryManagedPaintCanvas& canvas) {
-        video_renderer->Paint(frame.get(), &canvas, media_flags, params,
-                              raster_context_provider);
-      });
+  resource_provider->ExternalCanvasDrawHelper([&](cc::PaintCanvas& canvas) {
+    video_renderer->Paint(frame.get(), &canvas, media_flags, params,
+                          raster_context_provider);
+  });
   return true;
 }
 
@@ -453,9 +452,7 @@ ExternalTexture CreateExternalTexture(
 
   if (use_copy_to_shared_image) {
     gpu::SyncToken sync_token;
-    auto client_si =
-        resource_provider->GetBackingClientSharedImageForExternalWrite(
-            gpu::SharedImageUsageSet(), sync_token);
+    auto client_si = resource_provider->BeginExternalWrite(sync_token);
 
     // The returned sync token is from the SharedGpuContext.
     sync_token = video_renderer->CopyVideoFrameToSharedImage(

@@ -28,6 +28,10 @@
 #include "components/autofill/core/common/dense_set.h"
 #include "components/autofill/core/common/is_required.h"
 
+namespace sync_pb {
+class AutofillValuableSpecifics;
+}
+
 namespace autofill {
 
 // Entity and attribute types are blueprints for entity and attribute instances.
@@ -45,6 +49,7 @@ struct AutofillFormatString;
 class EntityInstance;
 class EntityInstanceTestApi;
 class EntityTable;
+class WalletPassAccessManagerImpl;
 
 // An attribute instance is a typed string value with additional metadata.
 // It is associated with an EntityInstance. Attributes are used in order to fill
@@ -163,6 +168,9 @@ class AttributeInstance final {
    private:
     MarkAsMaskedPasskey() = default;
     friend class EntityTable;
+    friend class WalletPassAccessManagerImpl;
+    friend std::optional<EntityInstance> CreateEntityInstanceFromSpecifics(
+        const sync_pb::AutofillValuableSpecifics&);
   };
   void mark_as_masked(MarkAsMaskedPasskey) { masked_ = true; }
 
@@ -414,8 +422,15 @@ class EntityInstance final {
   // server; it is strictly transient and must never be persisted to disk.
   bool IsUnmaskedServerEntity() const;
 
+  // Returns a copy of `this` with a new `id`.
+  EntityInstance CopyWithNewEntityId(EntityId id) const;
+
   // Returns a copy of `this` with the given `record_type`.
   EntityInstance CopyWithNewRecordType(RecordType record_type) const;
+
+  // Returns a copy of `this` where the attribute for `attribute.type()` is
+  // replaced by `attribute`.
+  EntityInstance CopyWithUpdatedAttribute(AttributeInstance attribute) const;
 
   friend bool operator==(const EntityInstance&,
                          const EntityInstance&) = default;

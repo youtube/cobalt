@@ -128,12 +128,6 @@ bool HasPriceDropOnTab(TabResumptionItem* item) {
   }
 }
 
-#pragma mark - TabResumptionConsumer
-- (void)shopCardDataCompleted:(TabResumptionItem*)item {
-  _item = item;
-  [self createSubviews];
-}
-
 #pragma mark - Private methods
 
 // Creates all the subviews.
@@ -173,9 +167,7 @@ bool HasPriceDropOnTab(TabResumptionItem* item) {
         previousPrice:_item.shopCardData.priceDrop->previous_price];
     [_labelStackView addArrangedSubview:_priceNotificationsChip];
     self.accessibilityLabel = _item.shopCardData.accessibilityString;
-    NSArray<UITrait>* traits = TraitCollectionSetForTraits(
-        @[ UITraitPreferredContentSizeCategory.self ]);
-    [self registerForTraitChanges:traits
+    [self registerForTraitChanges:@[ UITraitPreferredContentSizeCategory.self ]
                        withAction:@selector(hidePriceDropOnTraitChange)];
 
   } else {

@@ -125,6 +125,7 @@
 <translation id="1436671784520050284">Реттеуді жалғастыру</translation>
 <translation id="143681031165817424">Мекенжай тек осы құрылғыға сақталды.</translation>
 <translation id="1445276840641906250">Барлық қойынды бір браузерде</translation>
+<translation id="1447564161241938558">Құпия сөздер мен кіру кілттерін импорттау функциясын әкімші өшіріп қойған.</translation>
 <translation id="1450170672351507823">Стандартты қорғаныс қосулы. Қауіпсіздікті жақсарту үшін күшейтілген қорғанысты пайдаланыңыз.</translation>
 <translation id="1455660774629812862">Жасырмау</translation>
 <translation id="1456545332132818232"><ph name="PRODUCT_NAME" /> туралы пікірлер, <ph name="STARS" /> / <ph name="MAX_STARS" /> (<ph name="DOMAIN" />)</translation>
@@ -295,7 +296,6 @@
 <translation id="2015722694326466240">Құпия сөздерді көру үшін алдымен құрылғыға тексеру кодын орнатуыңыз керек.</translation>
 <translation id="201759455285471444">Қойындылар тобын жаю.</translation>
 <translation id="202070562065520783">Түсіндірмесі</translation>
-<translation id="2023713324775943812">Қолжетімді болған кезде, оқу режимін мекенжай жолағынан пайдалану</translation>
 <translation id="2044394949148788042">Қойынды торын ашу</translation>
 <translation id="2044681667265133332"><ph name="USER_EMAIL" /> аккаунтыңызды <ph name="HOSTED_DOMAIN" /> басқарады. Ол кейбір ақпаратты көреді. <ph name="BEGIN_LINK" />Толық ақпарат<ph name="END_LINK" /></translation>
 <translation id="20485545164632846">жаңа элемент</translation>
@@ -585,6 +585,7 @@
 <translation id="3140825265190223781">Сақталған құпия сөздер және кіру кілттері</translation>
 <translation id="3143515551205905069">Синхрондаудан бас тарту</translation>
 <translation id="3144126448740580210">ДАЙЫН</translation>
+<translation id="3147521114983561406">Кіру кілттері Password Manager-ге сақталады. Олар инкогнито және әдеттеі қойындыларда қолжетімді.</translation>
 <translation id="3148052723910099040">Кәдімгі қойынды торы</translation>
 <translation id="3148237711805373460">Бетке өту</translation>
 <translation id="3157387275655328056">Оқу тізіміне қосу</translation>
@@ -1860,6 +1861,7 @@ Handoff функциясы параметрлердің жалпы бөлімі�
 <translation id="7772032839648071052">Құпия фразаны растау</translation>
 <translation id="7772948288262733182">Қайта оралуыңызбен!</translation>
 <translation id="777637629667389858">Аккаунтқа кірген кезде, сізді Google қызметтерінде қорғайды.</translation>
+<translation id="7776604279034196531">Қолжетімді болса, оқу режимін мекенжай жолағынан ашыңыз.</translation>
 <translation id="7781829728241885113">Кеше</translation>
 <translation id="7788868432173225918">Жайылған көріністі жабу</translation>
 <translation id="7791543448312431591">Қосу</translation>
@@ -2097,6 +2099,7 @@ Handoff функциясы параметрлердің жалпы бөлімі�
 <translation id="8587001564479545614">Қалпына келтірудің PIN кодын жасаңыз</translation>
 <translation id="8588404856427128947">Өшірулі</translation>
 <translation id="8590286732816598906">Қойындылар тобы, <ph name="GROUP_TITLE" />, мәзір.</translation>
+<translation id="8593317261815647019">Кіру кілтін инкогнито режимінен тыс жасау керек пе?</translation>
 <translation id="8600272508328041907">Толық беттік аудармаға ауысу</translation>
 <translation id="860043288473659153">Карта иесінің аты-жөні</translation>
 <translation id="8601611099293226919">Экраныңыздан Google Lens арқылы іздеу</translation>
@@ -2234,6 +2237,7 @@ Handoff функциясы параметрлердің жалпы бөлімі�
 <translation id="9055291197094969722">Ашық қойындыларды ретке келтіру және өнімді жұмыс істеу үшін қойындылар топтарын жасаңыз.</translation>
 <translation id="9055580485132823283">{password_count} құпия сөзді, {passkey_count} кіру кілтін және аккаунтқа кіру ақпаратын ешқашан сақтағыңыз келмейтін сайттар мен қолданбалар тізімін жойғалы жатырсыз. Сайттар немесе қолданбалар үшін жасаған аккаунттар жойылмайды.</translation>
 <translation id="9057030985451135243">Ортақ қойындылар топтары туралы ақпарат</translation>
+<translation id="9064106978262828592">Деректерді экспорттап жатқанда, қиындық туындайды</translation>
 <translation id="9065203028668620118">Өзгерту</translation>
 <translation id="9066097352053395362">"Бетбелгіні өзгерту" опциясын жасыру</translation>
 <translation id="9070824521421603770">Аккаунттан шығарыласыз және қойындылар жабылады</translation>

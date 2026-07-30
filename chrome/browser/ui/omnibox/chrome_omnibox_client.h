@@ -48,6 +48,9 @@ class ChromeOmniboxClient final : public OmniboxClient {
   bool IsPasteAndGoEnabled() const override;
   bool IsDefaultSearchProviderEnabled() const override;
   SessionID GetSessionID() const override;
+  bool ShowConfirmationDialogIfDefaultSearchExtensionControlled(
+      const GURL& url,
+      base::OnceCallback<void(bool)> callback) override;
   PrefService* GetPrefs() override;
   const PrefService* GetPrefs() const override;
   bookmarks::BookmarkModel* GetBookmarkModel() override;
@@ -135,6 +138,7 @@ class ChromeOmniboxClient final : public OmniboxClient {
   GetLensOverlaySuggestInputs() const override;
   void MaybePrewarmForDefaultSearchEngine(PrewarmTrigger trigger) override;
   base::WeakPtr<OmniboxClient> AsWeakPtr() override;
+  Profile* profile() { return profile_; }
 
   // Update shortcuts when a navigation succeeds.
   static void OnSuccessfulNavigation(Profile* profile,

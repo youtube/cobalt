@@ -52,6 +52,11 @@ OmniboxController* TestBrowserWindow::TestLocationBar::GetOmniboxController() {
   return nullptr;
 }
 
+bool TestBrowserWindow::TestLocationBar::ShouldCloseOmniboxPopup(
+    ui::MouseEvent* event) {
+  return false;
+}
+
 ChipController* TestBrowserWindow::TestLocationBar::GetChipController() {
   return nullptr;
 }
@@ -301,7 +306,7 @@ bool TestBrowserWindow::IsLocationBarVisible() const {
   return false;
 }
 
-bool TestBrowserWindow::IsBorderlessModeEnabled() const {
+bool TestBrowserWindow::IsUnframedModeEnabled() const {
   return false;
 }
 

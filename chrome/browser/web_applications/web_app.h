@@ -18,6 +18,7 @@
 #include "base/containers/flat_map.h"
 #include "base/containers/flat_set.h"
 #include "base/time/time.h"
+#include "base/types/pass_key.h"
 #include "base/values.h"
 #include "build/build_config.h"
 #include "chrome/browser/web_applications/generated_icon_fix_util.h"
@@ -57,6 +58,7 @@ enum class WebappInstallSource;
 namespace web_app {
 class UrlPatternWithRegexMatcher;
 class WebAppScope;
+class WebAppSyncBridge;
 
 class InstalledByPassKey {
   friend std::unique_ptr<WebApp> ParseWebAppProto(
@@ -79,6 +81,11 @@ class WebApp {
          const GURL& scope,
          std::optional<webapps::AppId> parent_app_id = std::nullopt,
          std::optional<webapps::ManifestId> parent_manifest_id = std::nullopt);
+
+  // Create a web app object from just the incoming sync data.
+  // Callers are responsible for sanitizing the inputs in the sync_proto,
+  // otherwise construction might CHECK-fail.
+  explicit WebApp(const sync_pb::WebAppSpecifics& sync_proto);
   ~WebApp();
 
   // Copyable and move-assignable to support Copy-on-Write with Commit.
@@ -509,7 +516,6 @@ class WebApp {
   void SetFirstInstallTime(const base::Time& time);
   void SetManifestUpdateTime(const base::Time& time);
   void SetRunOnOsLoginMode(RunOnOsLoginMode mode);
-  void SetSyncProto(sync_pb::WebAppSpecifics sync_proto);
   void SetManifestUrl(const GURL& manifest_url);
   void SetManifestId(const webapps::ManifestId& manifest_id);
   void SetWindowControlsOverlayEnabled(bool enabled);
@@ -599,8 +605,31 @@ class WebApp {
   // CHECK-fails if GURL in |AppInstalledBy| is invalid.
   void AddInstalledByInfo(AppInstalledBy installed_by_data);
 
+  // Functions that set fields directly on the `sync_proto_`.
+  // CHECK-fails if `migrated_from_manifest_id` is invalid.
+  void SetMigratedFromManifestIdInSyncProto(
+      const webapps::ManifestId& migrated_from_manifest_id);
+  void UpdateDefaultUserDisplayModeInSyncProto(
+      sync_pb::WebAppSpecifics::UserDisplayMode display_mode);
+  void UpdateCrOsUserDisplayModeInSyncProto(
+      sync_pb::WebAppSpecifics::UserDisplayMode display_mode);
+  void SetUserPageOrdinal(syncer::StringOrdinal page_ordinal);
+  void SetUserLaunchOrdinal(syncer::StringOrdinal launch_ordinal);
+
+  // Makes sure that the app being constructed from sync has valid data.
+  // This will not CHECK-fail if the resolved manifest id doesn't match this
+  // app, and instead output the WebApp.ApplySyncDataToApp.ManifestIdMatch
+  // metric.
+  // It will CHECK-fail if the incoming sync proto doesn't have the
+  // relative_manifest_id field set, as that is a true failure case, because the
+  // WebAppSyncBridge takes care of adding that to the sync proto.
+  void MergeDataFromSyncSystem(
+      const sync_pb::WebAppSpecifics& incoming_sync,
+      base::PassKey<WebAppSyncBridge> sync_bridge_pass_key);
+
   // For logging and debug purposes.
   bool operator==(const WebApp&) const;
+
   // Used by the WebAppTest suite to cover only platform agnostic fields to
   // avoid needing multiple platform specific expectation files per test.
   // Otherwise, the same as AsDebugValue().

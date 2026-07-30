@@ -184,7 +184,6 @@
 <translation id="1289129165308566697">查看其他裝置上的歷史記錄</translation>
 <translation id="1292571435393770077">紙匣 16</translation>
 <translation id="1292701964462482250">「你的電腦上有軟體阻止 Chrome 建立安全的網路連線」(僅限 Windows 電腦)</translation>
-<translation id="1293154089865862473">系統會將結帳頁面的內容提供給 Google，以便提供這些選項。如要隱藏自動填入功能中的先買後付選項，請前往<ph name="IDS_AUTOFILL_CARD_BNPL_SELECT_PROVIDER_FOOTNOTE_HIDE_OPTION_PAYMENT_SETTINGS_LINK_TEXT" />。</translation>
 <translation id="1293556467332435079">檔案</translation>
 <translation id="1293797321964802402">Envelope 9 x 11 in</translation>
 <translation id="129553762522093515">最近關閉的分頁</translation>
@@ -655,6 +654,7 @@
 <translation id="2071156619270205202">這張卡片不能建立虛擬卡號。</translation>
 <translation id="2071852865256799872">你的瀏覽器是由貴機構管理，設定檔則是由 <ph name="PROFILE_DOMAIN" /> 管理</translation>
 <translation id="2072011841331007013">Google Jamboard</translation>
+<translation id="2073286362006276165">資訊只會儲存到裝置</translation>
 <translation id="2074733626795553847">解除封鎖「<ph name="TOPIC" />」</translation>
 <translation id="2074771604462073334">造訪時間：</translation>
 <translation id="2078956195623975415">音樂與舞蹈遊戲</translation>
@@ -703,6 +703,7 @@
 <translation id="2137891579555018930">正在等待許可...</translation>
 <translation id="213826338245044447">行動版書籤</translation>
 <translation id="2141000681034340397">編輯輸入內容</translation>
+<translation id="2141475438898772664">分 4 期或月付</translation>
 <translation id="2144171668675205303">沒有有效主題</translation>
 <translation id="2145193671493396738">經濟新聞</translation>
 <translation id="214556005048008348">取消付款</translation>
@@ -1116,13 +1117,13 @@
 <translation id="277133753123645258">運送方式</translation>
 <translation id="277499241957683684">沒有裝置記錄</translation>
 <translation id="2775884851269838147">首刷頁面</translation>
+<translation id="277828055419948999">一般自動填入功能容易漏掉的難填欄位，Chromium 能自動填好</translation>
 <translation id="2781185443919227679">海灘與島嶼</translation>
 <translation id="2781692009645368755">Google Pay</translation>
 <translation id="2781799097551205934">正在準備結帳</translation>
 <translation id="2782088940970074970">租車</translation>
 <translation id="278436560439594386">家電</translation>
 <translation id="2784474685437057136">B5 Extra</translation>
-<translation id="2784540996156451674">系統會將結帳頁面的內容提供給 Google，以便提供這些選項。</translation>
 <translation id="2784949926578158345">連線已重設。</translation>
 <translation id="2786008859124691917">腳踏車與配件</translation>
 <translation id="2792012897584536778">這個裝置的系統管理員已設定安全憑證，這些憑證將允許系統管理員檢視你所造訪的網站內容。</translation>
@@ -2472,6 +2473,7 @@
 <translation id="4950898438188848926">分頁切換鈕，按下 Enter 鍵即可切換至開啟的分頁：<ph name="TAB_SWITCH_FOCUSED_FRIENDLY_MATCH_TEXT" /></translation>
 <translation id="495170559598752135">動作</translation>
 <translation id="4953689047182316270">回應無障礙活動</translation>
+<translation id="4954505713046251871">為提供建議及改善這項功能，系統會將網頁網址和內容提供給 Google</translation>
 <translation id="4954891067389874142">儲存卡片可加快付款速度。卡片資料會以加密方式存在 Google 錢包。</translation>
 <translation id="4957080528849277028">「查看 Chrome 歷史記錄」按鈕，啟動後即可在 Chrome 設定中查看及管理瀏覽記錄</translation>
 <translation id="4957781475307065660">{DOMAIN_COUNT,plural, =1{和另外 1 個網站}other{和另外 # 個網站}}</translation>
@@ -2789,6 +2791,7 @@
 <translation id="5466018172325111652">沒有收到動態密碼嗎？<ph name="BEGIN_LINK" />取得新的動態密碼<ph name="END_LINK" /></translation>
 <translation id="5466818462212249084">付款應用程式</translation>
 <translation id="5470861586879999274">重做編輯(&amp;R)</translation>
+<translation id="5471158297908124590">驗證身分即可編輯付款方式</translation>
 <translation id="5472588168895083535">已封鎖手勢追蹤</translation>
 <translation id="5477756102936130143">允許重新導向到支援的付款應用程式</translation>
 <translation id="5479505548832623900">擴充功能可能已忽略政策。</translation>
@@ -2845,6 +2848,7 @@
 <translation id="5543564889050342791">動物園、水族館與保護區</translation>
 <translation id="5543722831081909240">180 度</translation>
 <translation id="5544836308113951378">遊艇與租船</translation>
+<translation id="5545314360139398232">連結「<ph name="ISSUER_NAME" />」即可分期付款</translation>
 <translation id="5547939254150808298">印刷與出版</translation>
 <translation id="554815783948612276">論壇與即時通訊服務供應商</translation>
 <translation id="5548606607480005320">安全檢查</translation>
@@ -2866,6 +2870,7 @@
 <translation id="5570825185877910964">保護帳戶</translation>
 <translation id="5571083550517324815">無法在這個地址取件，請改用其他地址。</translation>
 <translation id="5572434905385510939">22 x 28 吋</translation>
+<translation id="5573090972398558474">你的機構已在無痕模式中封鎖此頁面。</translation>
 <translation id="5573641252776268565">編輯護照</translation>
 <translation id="5578606540385219379">服務供應商</translation>
 <translation id="5580958916614886209">請檢查信用卡到期月份，然後再試一次</translation>
@@ -3172,6 +3177,7 @@
 <translation id="6093795393556121384">已成功驗證您的信用卡</translation>
 <translation id="6094253940069566294">編輯車輛</translation>
 <translation id="6094290315941448991">當畫面上出現機密內容，系統管理員政策就會停用螢幕畫面錄製功能</translation>
+<translation id="6097297436119286254">驗證身分即可填寫付款資訊</translation>
 <translation id="6099269767116481177">22 x 29.5 吋</translation>
 <translation id="6101583188322746099">生鮮雜貨配送服務</translation>
 <translation id="6104072995492677441">JIS B6</translation>
@@ -3690,6 +3696,7 @@
 <translation id="6926216138694948720">人體藝術</translation>
 <translation id="692638818576287323">商用車</translation>
 <translation id="6927878187051807444">相機檔案和螢幕截圖</translation>
+<translation id="6929949393612835405">關閉並返回「<ph name="OPENER_TITLE" />」</translation>
 <translation id="6930607614725241390">在側邊面板中搜尋</translation>
 <translation id="6934236486840930310"><ph name="BEGIN_BOLD" />預設搜尋引擎可提供網路搜尋服務並支援 Chrome 的各項功能<ph name="END_BOLD" />，例如透過網址列和運用網頁上的圖片進行搜尋。請注意，如果搜尋引擎不支援某項功能，你可能就無法使用該功能。</translation>
 <translation id="6934672428414710184">這是你在 Google 帳戶中設定的名稱</translation>
@@ -3972,6 +3979,7 @@
 <translation id="7377314930809374926">餐旅業</translation>
 <translation id="7378594059915113390">媒體控制項</translation>
 <translation id="7378810950367401542">/</translation>
+<translation id="7379321689415048316">一般自動填入功能容易漏掉的難填欄位，Chrome 能自動填好</translation>
 <translation id="7380398842872229465">10 x 15 吋</translation>
 <translation id="7381551826960739226">這個表單未使用安全連線，因此付款方式自動填入功能已停用。</translation>
 <translation id="7388380253839603603">油價與交通工具燃油</translation>
@@ -4293,6 +4301,7 @@
 <translation id="7844689747373518809">{COUNT,plural, =0{無}=1{1 個應用程式：<ph name="EXAMPLE_APP_1" />}=2{2 個應用程式：<ph name="EXAMPLE_APP_1" />、<ph name="EXAMPLE_APP_2" />}other{# 個應用程式：<ph name="EXAMPLE_APP_1" />、<ph name="EXAMPLE_APP_2" />、<ph name="AND_MORE" />}}</translation>
 <translation id="7846161022626028328">發生錯誤，請再試一次。</translation>
 <translation id="784623644169604270">最近沒有活動</translation>
+<translation id="7848926355794727168">自動瀏覽</translation>
 <translation id="7853222852810008596">這個幣別不支援「先買後付」</translation>
 <translation id="785476343534277563">大專院校運動</translation>
 <translation id="7855695075675558090"><ph name="TOTAL_LABEL" /> <ph name="CURRENCY_CODE" /> <ph name="FORMATTED_TOTAL_AMOUNT" /></translation>
@@ -4895,6 +4904,7 @@
 <translation id="8858065207712248076">如果你在其他網站上重複使用過你的 <ph name="BEGIN_BOLD" /><ph name="ORG_NAME" /><ph name="END_BOLD" /> 密碼，Chrome 會建議你重設密碼。</translation>
 <translation id="885906927438988819">如果拼字正確，<ph name="BEGIN_LINK" />請嘗試執行 Windows 網路診斷<ph name="END_LINK" />。</translation>
 <translation id="8861126751581835107">攝影與數位藝術</translation>
+<translation id="8861482055962701239">這項資訊無法儲存到 Google 錢包，因此改存到這部裝置的 Chrome。下次使用時，Chrome 會詢問你是否要儲存至錢包。</translation>
 <translation id="8863218129525348270">將卡片資訊儲存在裝置上，下次就能更快完成付款程序</translation>
 <translation id="8864939224504814334">套裝與上班服飾</translation>
 <translation id="8866132857352163524">原聲帶</translation>
@@ -4920,6 +4930,7 @@
 <translation id="8897428486789851669">游泳</translation>
 <translation id="8899807382908246773">侵入式廣告</translation>
 <translation id="8903921497873541725">放大</translation>
+<translation id="8903998444169664879">驗證身分以變更付款設定</translation>
 <translation id="890493561996401738">移除建議按鈕，按一下 Enter 鍵即可移除「<ph name="REMOVE_BUTTON_FOCUSED_FRIENDLY_MATCH_TEXT" />」</translation>
 <translation id="8910898109640902752">8 x 10 英寸</translation>
 <translation id="8914504000324227558">重新啟動 Chrome</translation>

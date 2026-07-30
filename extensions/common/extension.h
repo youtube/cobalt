@@ -292,8 +292,8 @@ class Extension final : public base::RefCountedThreadSafe<Extension> {
   const extensions::Manifest* manifest() const { return manifest_.get(); }
   bool wants_file_access() const { return wants_file_access_; }
   // TODO(rdevlin.cronin): This is needed for ContentScriptsHandler, and should
-  // be moved out as part of crbug.com/159265. This should not be used anywhere
-  // else.
+  // be moved out as part of crbug.com/40293205. This should not be used
+  // anywhere else.
   void set_wants_file_access(bool wants_file_access) {
     wants_file_access_ = wants_file_access;
   }
@@ -354,9 +354,11 @@ class Extension final : public base::RefCountedThreadSafe<Extension> {
   // The following are helpers for InitFromValue to load various features of the
   // extension from the manifest.
 
-  bool LoadRequiredFeatures(std::u16string* error);
+  bool LoadRequiredFeatures(std::vector<InstallWarning>* install_warnings,
+                            std::u16string* error);
   bool LoadName(std::u16string* error);
-  bool LoadVersion(std::u16string* error);
+  bool LoadVersion(std::vector<InstallWarning>* install_warnings,
+                   std::u16string* error);
 
   bool LoadAppFeatures(std::u16string* error);
   bool LoadExtent(const char* key,

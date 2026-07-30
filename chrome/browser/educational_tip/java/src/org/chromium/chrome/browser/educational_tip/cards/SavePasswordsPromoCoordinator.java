@@ -79,9 +79,6 @@ public class SavePasswordsPromoCoordinator
     @Override
     public void onCardClicked() {
         showInstructionalBottomSheet();
-
-        // Considered complete if the user clicks on the promo
-        SetupListModuleUtils.setModuleCompleted(ModuleType.SAVE_PASSWORDS_PROMO);
         mOnModuleClickedCallback.run();
     }
 
@@ -173,6 +170,7 @@ public class SavePasswordsPromoCoordinator
                 (v) -> {
                     bottomSheetController.hideContent(
                             content, /* animate= */ true, StateChangeReason.INTERACTION_COMPLETE);
+                    // TODO(crbug.com/469425754): Trigger completion animation here.
                 });
     }
 }

@@ -629,6 +629,9 @@ VISIT_PROTO_FIELDS(const sync_pb::DeletionOrigin& proto) {
   VISIT(file_line_number);
   VISIT(file_name_possibly_truncated);
   VISIT(unique_source_tag_no_pii_possibly_truncated);
+  VISIT(google_play_services_deletion_origin_type);
+  VISIT(google_play_services_sdk_version);
+  VISIT_ENUM(google_play_services_device_form_factor);
 }
 
 VISIT_PROTO_FIELDS(const sync_pb::DeviceInfoSpecifics& proto) {
@@ -736,7 +739,7 @@ VISIT_PROTO_FIELDS(
 }
 
 VISIT_PROTO_FIELDS(const sync_pb::EntitySpecifics& proto) {
-  static_assert(61 == GetNumDataTypes(),
+  static_assert(62 == GetNumDataTypes(),
                 "When adding a new protocol type, you will likely need to add "
                 "it here as well.");
   VISIT(encrypted);
@@ -788,6 +791,7 @@ VISIT_PROTO_FIELDS(const sync_pb::EntitySpecifics& proto) {
   VISIT(shared_tab_group_data);
   VISIT(sharing_message);
   VISIT(theme);
+  VISIT(theme_ios);
   VISIT(typed_url);
   VISIT(user_consent);
   VISIT(user_event);
@@ -2089,6 +2093,7 @@ VISIT_PROTO_FIELDS(const sync_pb::VehicleRegistration& proto) {
   VISIT(license_plate_region);
   VISIT(license_plate_country);
   VISIT(owner_name);
+  VISIT(issuer_name);
 }
 
 VISIT_PROTO_FIELDS(const sync_pb::FlightReservation& proto) {
@@ -2246,6 +2251,7 @@ VISIT_PROTO_FIELDS(const sync_pb::SimpleSkill& proto) {
 VISIT_PROTO_FIELDS(const sync_pb::GeminiThreadSpecifics& proto) {
   VISIT(conversation_id);
   VISIT(title);
+  VISIT(last_turn_time_unix_epoch_millis);
 }
 
 VISIT_PROTO_FIELDS(const sync_pb::AiThreadSpecifics& proto) {

@@ -17,10 +17,6 @@
 #include "remoting/protocol/jingle_message_xml_converter.h"
 #include "remoting/protocol/session_plugin.h"
 #include "third_party/abseil-cpp/absl/functional/overload.h"
-#include "third_party/libjingle_xmpp/xmllite/xmlelement.h"
-
-using jingle_xmpp::QName;
-using jingle_xmpp::XmlElement;
 
 namespace remoting::protocol {
 
@@ -35,11 +31,6 @@ const NameMapElement<JingleMessage::ActionType> kActionTypes[] = {
 };
 
 }  // namespace
-
-// static
-bool JingleMessage::IsJingleMessage(const jingle_xmpp::XmlElement* stanza) {
-  return remoting::protocol::IsJingleMessage(stanza);
-}
 
 // static
 std::string JingleMessage::GetActionName(ActionType action) {
@@ -87,24 +78,6 @@ void JingleMessage::SetPayload(Payload payload) {
   action_ = ActionFromPayload(payload_);
 }
 
-bool JingleMessage::ParseXml(const jingle_xmpp::XmlElement* stanza,
-                             std::string* error) {
-  return JingleMessageFromXml(stanza, this, error);
-}
-
-std::unique_ptr<jingle_xmpp::XmlElement> JingleMessage::ToXml() const {
-  return JingleMessageToXml(*this);
-}
-
-void JingleMessage::AddAttachment(std::unique_ptr<XmlElement> attachment) {
-  DCHECK(attachment);
-  if (!attachments_legacy) {
-    attachments_legacy = std::make_unique<XmlElement>(
-        QName(kChromotingXmlNamespace, "attachments"));
-  }
-  attachments_legacy->AddElement(attachment.release());
-}
-
 JingleMessageReply::JingleMessageReply()
     : type(REPLY_RESULT), error_type(NONE) {}
 
@@ -117,21 +90,8 @@ JingleMessageReply::JingleMessageReply(ErrorType error,
 
 JingleMessageReply::~JingleMessageReply() = default;
 
-std::unique_ptr<jingle_xmpp::XmlElement> JingleMessageReply::ToXml(
-    const jingle_xmpp::XmlElement* request_stanza) const {
-  return JingleMessageReplyToXml(*this, request_stanza);
-}
-
 IceTransportInfo::IceTransportInfo() = default;
 IceTransportInfo::~IceTransportInfo() = default;
-
-bool IceTransportInfo::ParseXml(const jingle_xmpp::XmlElement* element) {
-  return IceTransportInfoFromXml(element, this);
-}
-
-std::unique_ptr<jingle_xmpp::XmlElement> IceTransportInfo::ToXml() const {
-  return IceTransportInfoToXml(*this);
-}
 
 JabberId::JabberId() = default;
 JabberId::JabberId(const JabberId&) = default;
@@ -153,11 +113,22 @@ JingleAuthentication::JingleAuthentication() = default;
 JingleAuthentication::JingleAuthentication(const JingleAuthentication&) =
     default;
 JingleAuthentication::JingleAuthentication(JingleAuthentication&&) = default;
+
 JingleAuthentication& JingleAuthentication::operator=(
     const JingleAuthentication&) = default;
+
 JingleAuthentication& JingleAuthentication::operator=(JingleAuthentication&&) =
     default;
+
 JingleAuthentication::~JingleAuthentication() = default;
+
+bool JingleAuthentication::is_empty() const {
+  return supported_methods.empty() && !method && spake_message.empty() &&
+         verification_hash.empty() && certificate.empty() && !pairing_info &&
+         session_authz_host_token.empty() &&
+         session_authz_session_token.empty() && pairing_error.empty() &&
+         id.empty() && test_id.empty() && test_key.empty();
+}
 
 IceTransportInfo::NamedCandidate::NamedCandidate() = default;
 
@@ -234,6 +205,15 @@ SessionInfo::SessionInfo(SessionInfo&&) = default;
 SessionInfo& SessionInfo::operator=(const SessionInfo&) = default;
 SessionInfo& SessionInfo::operator=(SessionInfo&&) = default;
 SessionInfo::~SessionInfo() = default;
+
+SessionInfo::GenericInfo::GenericInfo() = default;
+SessionInfo::GenericInfo::GenericInfo(const GenericInfo&) = default;
+SessionInfo::GenericInfo::GenericInfo(GenericInfo&&) = default;
+SessionInfo::GenericInfo& SessionInfo::GenericInfo::operator=(
+    const GenericInfo&) = default;
+SessionInfo::GenericInfo& SessionInfo::GenericInfo::operator=(GenericInfo&&) =
+    default;
+SessionInfo::GenericInfo::~GenericInfo() = default;
 
 JingleTransportInfo::JingleTransportInfo() = default;
 JingleTransportInfo::JingleTransportInfo(const JingleTransportInfo&) = default;

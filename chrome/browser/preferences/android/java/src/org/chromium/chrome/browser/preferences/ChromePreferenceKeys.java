@@ -526,6 +526,8 @@ public final class ChromePreferenceKeys {
             new KeyPrefix("Chrome.MultiInstance.ProfileType.*");
     public static final String MULTI_INSTANCE_RESTORATION_MESSAGE_SHOWN =
             "Chrome.MultiWindow.RestorationMessageShown";
+    public static final KeyPrefix MULTI_INSTANCE_LATEST_PERSISTENT_STATE_ID =
+            new KeyPrefix("Chrome.MultiInstance.LatestPersistentStateId.*");
 
     public static final String MULTI_INSTANCE_START_TIME = "Chrome.MultiInstance.StartTime";
 
@@ -570,16 +572,16 @@ public final class ChromePreferenceKeys {
     // Start timestamp of 1-day period for measuring the duration of disjoint time spent in various
     // windowing modes.
     public static final String MULTI_WINDOW_MODE_CYCLE_START_TIME =
-            "Chrome.MultiWindowMode.CycleStartTime";
+            "Chrome.MultiWindowMode.CycleStartTime3";
     // Start timestamp of the current windowing mode.
-    public static final KeyPrefix MULTI_WINDOW_MODE_START_TIME2 =
-            new KeyPrefix("Chrome.MultiWindowMode.StartTime2.*");
+    public static final KeyPrefix MULTI_WINDOW_MODE_START_TIME =
+            new KeyPrefix("Chrome.MultiWindowMode.StartTime3.*");
     // Tracks window IDs of activities in a given windowing mode.
     public static final KeyPrefix MULTI_WINDOW_MODE_ACTIVITIES =
-            new KeyPrefix("Chrome.MultiWindowMode.Activities.*");
+            new KeyPrefix("Chrome.MultiWindowMode.Activities3.*");
     // Aggregated duration of time spent in a given windowing mode.
     public static final KeyPrefix MULTI_WINDOW_MODE_DURATION_MS =
-            new KeyPrefix("Chrome.MultiWindowMode.DurationMs.*");
+            new KeyPrefix("Chrome.MultiWindowMode.DurationMs3.*");
 
     public static final String NOTIFICATIONS_CHANNELS_VERSION = "channels_version_key";
     public static final String NOTIFICATIONS_LAST_SHOWN_NOTIFICATION_TYPE =
@@ -589,6 +591,13 @@ public final class ChromePreferenceKeys {
 
     public static final String NOTIFICATION_PERMISSION_RATIONALE_TIMESTAMP_KEY =
             "Chrome.NotificationPermission.RationaleTimestamp";
+
+    /**
+     * Stores the system time in milliseconds when the notification permission was requested for the
+     * first time.
+     */
+    public static final String NOTIFICATION_PERMISSION_FIRST_REQUEST_TIMESTAMP =
+            "Chrome.NotificationPermission.FirstRequestTimestamp";
 
     // Number of times we've showed any prompt (either Android UI or Chrome rationale) related to
     // the notification permission.
@@ -799,13 +808,6 @@ public final class ChromePreferenceKeys {
     /** Is this client in the crash reporting group. */
     public static final String PRIVACY_IN_SAMPLE_FOR_CRASHES =
             "Chrome.Privacy.InSampleForCrashReporting";
-
-    /**
-     * This is deprecated and is going to be removed in the future (See https://crbug.com/1320040).
-     * Use PrivacyPreferencesManagerImpl#isUsageAndCrashReportingPermitted to know if metrics
-     * reporting is allowed.
-     */
-    @Deprecated public static final String PRIVACY_METRICS_REPORTING = "metrics_reporting";
 
     public static final String PRIVACY_METRICS_REPORTING_PERMITTED_BY_USER =
             "Chrome.Privacy.UsageAndCrashReportingPermittedByUser";
@@ -1281,6 +1283,7 @@ public final class ChromePreferenceKeys {
                 MULTI_INSTANCE_MAX_INSTANCE_LIMIT,
                 MULTI_INSTANCE_INSTANCE_LIMIT_DOWNGRADE_TRIGGERED,
                 MULTI_INSTANCE_PROFILE_TYPE.pattern(),
+                MULTI_INSTANCE_LATEST_PERSISTENT_STATE_ID.pattern(),
                 MULTI_INSTANCE_RESTORATION_MESSAGE_SHOWN,
                 MULTI_INSTANCE_IS_INCOGNITO_SELECTED.pattern(),
                 MULTI_INSTANCE_INCOGNITO_TAB_COUNT.pattern(),
@@ -1301,8 +1304,9 @@ public final class ChromePreferenceKeys {
                 MULTI_WINDOW_MODE_ACTIVITIES.pattern(),
                 MULTI_WINDOW_MODE_CYCLE_START_TIME,
                 MULTI_WINDOW_MODE_DURATION_MS.pattern(),
-                MULTI_WINDOW_MODE_START_TIME2.pattern(),
+                MULTI_WINDOW_MODE_START_TIME.pattern(),
                 NOTIFICATION_PERMISSION_RATIONALE_TIMESTAMP_KEY,
+                NOTIFICATION_PERMISSION_FIRST_REQUEST_TIMESTAMP,
                 NOTIFICATION_PERMISSION_REQUEST_COUNT,
                 NTP_LOCATION_POLICY_ENABLED,
                 OFFLINE_INDICATOR_V2_WALL_TIME_SHOWN_MS,

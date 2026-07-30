@@ -48,6 +48,7 @@ import org.chromium.ui.widget.RectProvider;
     ChromeFeatureList.ROBUST_WINDOW_MANAGEMENT,
     ChromeFeatureList.TAB_STRIP_EMPTY_SPACE_CONTEXT_MENU_ANDROID
 })
+@DisableFeatures(ChromeFeatureList.GLIC)
 public class TabStripContextMenuCoordinatorUnitTest {
     @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
 
@@ -68,6 +69,7 @@ public class TabStripContextMenuCoordinatorUnitTest {
         when(mRectProvider.getRect())
                 .thenReturn(new Rect(10, 10, mActivity.getWindow().getDecorView().getWidth(), 50));
         when(mDelegate.getRecentlyClosedEntryType()).thenReturn(RecentlyClosedEntryType.TAB);
+        when(mDelegate.getTabCount()).thenReturn(2);
     }
 
     @Test
@@ -95,7 +97,27 @@ public class TabStripContextMenuCoordinatorUnitTest {
         mCoordinator.showMenu(mRectProvider, false, mActivity);
 
         // Verify.
-        verifyMenuState(/* expectedNumItems= */ 3);
+        verifyMenuState(/* expectedNumItems= */ 4);
+    }
+
+    @Test
+    public void showMenu_verifyMenuState_Incognito() {
+        // Arrange.
+        MultiWindowUtils.setMultiInstanceApi31EnabledForTesting(true);
+        // In Incognito, there are no recently closed entries.
+        when(mDelegate.getRecentlyClosedEntryType()).thenReturn(RecentlyClosedEntryType.NONE);
+
+        // Act.
+        mCoordinator.showMenu(mRectProvider, true, mActivity);
+
+        // Verify: Expected items: New tab, Name window.
+        verifyMenuState(/* expectedNumItems= */ 2);
+        assertEquals(
+                R.string.menu_new_tab,
+                getItemModelAtPosition(0).get(ListMenuItemProperties.TITLE_ID));
+        assertEquals(
+                R.string.menu_name_window,
+                getItemModelAtPosition(1).get(ListMenuItemProperties.TITLE_ID));
     }
 
     @Test
@@ -107,7 +129,7 @@ public class TabStripContextMenuCoordinatorUnitTest {
         mCoordinator.showMenu(mRectProvider, false, mActivity);
 
         // Verify.
-        verifyMenuState(/* expectedNumItems= */ 2);
+        verifyMenuState(/* expectedNumItems= */ 3);
     }
 
     @Test
@@ -115,7 +137,7 @@ public class TabStripContextMenuCoordinatorUnitTest {
         // Arrange.
         MultiWindowUtils.setMultiInstanceApi31EnabledForTesting(true);
         mCoordinator.showMenu(mRectProvider, false, mActivity);
-        verifyMenuState(/* expectedNumItems= */ 3);
+        verifyMenuState(/* expectedNumItems= */ 4);
         assertEquals(
                 R.string.menu_new_tab,
                 getItemModelAtPosition(0).get(ListMenuItemProperties.TITLE_ID));
@@ -135,7 +157,7 @@ public class TabStripContextMenuCoordinatorUnitTest {
         // Arrange.
         MultiWindowUtils.setMultiInstanceApi31EnabledForTesting(true);
         mCoordinator.showMenu(mRectProvider, false, mActivity);
-        verifyMenuState(/* expectedNumItems= */ 3);
+        verifyMenuState(/* expectedNumItems= */ 4);
         assertEquals(
                 R.string.menu_reopen_closed_tab,
                 getItemModelAtPosition(1).get(ListMenuItemProperties.TITLE_ID));
@@ -151,22 +173,64 @@ public class TabStripContextMenuCoordinatorUnitTest {
     }
 
     @Test
-    public void showMenu_verifyNameWindowOption() {
+    public void showMenu_verifyBookmarkAllTabs() {
         // Arrange.
         MultiWindowUtils.setMultiInstanceApi31EnabledForTesting(true);
         mCoordinator.showMenu(mRectProvider, false, mActivity);
-        verifyMenuState(/* expectedNumItems= */ 3);
+        verifyMenuState(/* expectedNumItems= */ 4);
         assertEquals(
-                R.string.menu_name_window,
+                R.string.menu_bookmark_all_tabs,
                 getItemModelAtPosition(2).get(ListMenuItemProperties.TITLE_ID));
 
-        // Act: Select "Name window" option.
+        // Act: Select "Bookmark all tabs" option.
         mCoordinator
                 .getListMenuDelegate(mContentView)
                 .onItemSelected(getItemModelAtPosition(2), mListView);
 
         // Verify.
+        verify(mDelegate).onBookmarkAllTabs();
+        assertFalse(mMenuWindow.isShowing());
+    }
+
+    @Test
+    public void showMenu_verifyNameWindowOption() {
+        // Arrange.
+        MultiWindowUtils.setMultiInstanceApi31EnabledForTesting(true);
+        mCoordinator.showMenu(mRectProvider, false, mActivity);
+        verifyMenuState(/* expectedNumItems= */ 4);
+        assertEquals(
+                R.string.menu_name_window,
+                getItemModelAtPosition(3).get(ListMenuItemProperties.TITLE_ID));
+
+        // Act: Select "Name window" option.
+        mCoordinator
+                .getListMenuDelegate(mContentView)
+                .onItemSelected(getItemModelAtPosition(3), mListView);
+
+        // Verify.
         verify(mDelegate).onNameWindow();
+        assertFalse(mMenuWindow.isShowing());
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.GLIC)
+    // TODO(crbug.com/483509451): Split test to ensure pin only shows when Glic not visible
+    public void showMenu_verifyPinGlicOption() {
+        // Arrange.
+        MultiWindowUtils.setMultiInstanceApi31EnabledForTesting(true);
+        mCoordinator.showMenu(mRectProvider, false, mActivity);
+        verifyMenuState(/* expectedNumItems= */ 6);
+        assertEquals(
+                R.string.menu_pin_glic,
+                getItemModelAtPosition(5).get(ListMenuItemProperties.TITLE_ID));
+
+        // Act: Select "Pin Gemini" option.
+        mCoordinator
+                .getListMenuDelegate(mContentView)
+                .onItemSelected(getItemModelAtPosition(5), mListView);
+
+        // Verify.
+        verify(mDelegate).onPinGlic();
         assertFalse(mMenuWindow.isShowing());
     }
 

@@ -77,6 +77,10 @@ constexpr base::FeatureParam<int> kCsdClipboardCopyApiMinLength{
 const base::FeatureParam<bool> kCSDClipboardCopyApiProcessPayload{
     &kClientSideDetectionClipboardCopyApi, "ProcessPayload",
     /*default_value=*/false};
+
+const base::FeatureParam<bool> kCSDClipboardCopyApiIncludeFullPayload{
+    &kClientSideDetectionClipboardCopyApi, "IncludeFullPayload",
+    /*default_value=*/false};
 const base::FeatureParam<std::string> kCsdClipboardCopyApiLoaders{
     &kClientSideDetectionClipboardCopyApi, "Loaders",
     /*default_value=*/"curl,wget,invoke-webrequest,iwr"};
@@ -388,7 +392,7 @@ constexpr base::FeatureParam<int>
     kShowWarningsForSuspiciousNotificationsScoreThreshold{
         &kShowWarningsForSuspiciousNotifications,
         "ShowWarningsForSuspiciousNotificationsScoreThreshold",
-        /*default_value=*/70};
+        /*default_value=*/90};
 constexpr base::FeatureParam<bool>
     kShowWarningsForSuspiciousNotificationsShouldSwapButtons{
         &kShowWarningsForSuspiciousNotifications,

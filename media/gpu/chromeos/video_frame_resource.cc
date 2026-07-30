@@ -44,8 +44,8 @@ VideoFrameResource* VideoFrameResource::AsVideoFrameResource() {
   return this;
 }
 
-bool VideoFrameResource::IsMappable() const {
-  return VideoFrame::IsStorageTypeMappable(storage_type());
+bool VideoFrameResource::HasDirectCpuAccess() const {
+  return frame_->HasDirectCpuAccess();
 }
 
 const uint8_t* VideoFrameResource::data(size_t plane) const {

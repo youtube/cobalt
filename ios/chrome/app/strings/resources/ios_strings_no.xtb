@@ -125,6 +125,7 @@
 <translation id="1436671784520050284">Fortsett konfigureringen</translation>
 <translation id="143681031165817424">Adressen er kun lagret på denne enheten</translation>
 <translation id="1445276840641906250">Alle fanene dine i én nettleser</translation>
+<translation id="1447564161241938558">Administratoren din har slått av import av passord og passnøkler</translation>
 <translation id="1450170672351507823">Standardbeskyttelse er på. Bruk økt beskyttelse om du vil ha enda mer sikkerhet.</translation>
 <translation id="1455660774629812862">Ikke skjul</translation>
 <translation id="1456545332132818232">Produktanmeldelser av <ph name="PRODUCT_NAME" />, <ph name="STARS" /> av <ph name="MAX_STARS" />, <ph name="DOMAIN" /></translation>
@@ -295,7 +296,6 @@
 <translation id="2015722694326466240">For å se passordene må du først angi en adgangskode på enheten din.</translation>
 <translation id="201759455285471444">Vis fanegruppen.</translation>
 <translation id="202070562065520783">Forklar dette for meg</translation>
-<translation id="2023713324775943812">Bruk Lesemodus fra adressefeltet når det er tilgjengelig</translation>
 <translation id="2044394949148788042">Åpne fanerutenettet</translation>
 <translation id="2044681667265133332">Kontoen <ph name="USER_EMAIL" /> administreres av <ph name="HOSTED_DOMAIN" />, som kan se visse typer informasjon. <ph name="BEGIN_LINK" />Finn ut mer<ph name="END_LINK" /></translation>
 <translation id="20485545164632846">nytt element</translation>
@@ -585,6 +585,7 @@
 <translation id="3140825265190223781">Lagrede passord og passnøkler</translation>
 <translation id="3143515551205905069">Avbryt synkronisering</translation>
 <translation id="3144126448740580210">FERDIG</translation>
+<translation id="3147521114983561406">Passnøkler lagres i passordlagringen. De er tilgjengelige i inkognito- og vanlige faner.</translation>
 <translation id="3148052723910099040">Rutenett for vanlig fane</translation>
 <translation id="3148237711805373460">Fortsett dit</translation>
 <translation id="3157387275655328056">Legg til i leselisten</translation>
@@ -1860,6 +1861,7 @@ Handoff må også være aktivert i Generelt-delen av Innstillinger, og enhetene 
 <translation id="7772032839648071052">Bekreft passord</translation>
 <translation id="7772948288262733182">Velkommen tilbake</translation>
 <translation id="777637629667389858">Når du er logget på, blir du beskyttet på alle Google-tjenester.</translation>
+<translation id="7776604279034196531">Bruk lesemodus fra adressefeltet når den er tilgjengelig</translation>
 <translation id="7781829728241885113">I går</translation>
 <translation id="7788868432173225918">Lukk den utvidede visningen</translation>
 <translation id="7791543448312431591">Legg til</translation>
@@ -2097,6 +2099,7 @@ Handoff må også være aktivert i Generelt-delen av Innstillinger, og enhetene 
 <translation id="8587001564479545614">Opprett en PIN-kode for gjenoppretting</translation>
 <translation id="8588404856427128947">Av</translation>
 <translation id="8590286732816598906">Fanegruppe, <ph name="GROUP_TITLE" />, meny.</translation>
+<translation id="8593317261815647019">Vil du opprette en passnøkkel utenfor Inkognito?</translation>
 <translation id="8600272508328041907">Bytt til oversettelse av hele siden</translation>
 <translation id="860043288473659153">Kortinnehavers navn</translation>
 <translation id="8601611099293226919">Søk på skjermen med Google Lens</translation>
@@ -2234,6 +2237,7 @@ Handoff må også være aktivert i Generelt-delen av Innstillinger, og enhetene 
 <translation id="9055291197094969722">Opprett fanegrupper for å organisere de åpne fanene dine og holde deg produktiv</translation>
 <translation id="9055580485132823283">Du er i ferd med å slette {password_count} passord, {passkey_count} passnøkler samt listen over nettsteder og apper du har valgt å aldri lagre påloggingsinformasjon for. Eventuelle kontoer du har opprettet for nettsteder og apper, blir ikke slettet.</translation>
 <translation id="9057030985451135243">Finn ut mer om delte fanegrupper</translation>
+<translation id="9064106978262828592">Problemer med å eksportere dataene dine</translation>
 <translation id="9065203028668620118">Endre</translation>
 <translation id="9066097352053395362">Skjul Rediger bokmerke</translation>
 <translation id="9070824521421603770">Du blir logget av, og faner blir lukket</translation>

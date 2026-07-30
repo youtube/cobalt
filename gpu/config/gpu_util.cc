@@ -218,6 +218,10 @@ GpuFeatureStatus GetWebGPUOnVulkanViaGLInterop(
   if (features::IsForceEnableWebGpuInterop()) {
     return kGpuFeatureStatusEnabled;
   }
+
+  if (gpu_preferences.use_webgpu_adapter == WebGPUAdapterName::kOpenGLES) {
+    return kGpuFeatureStatusDisabled;
+  }
 #endif
 
   if (blocklisted_features.count(
@@ -293,11 +297,6 @@ GpuFeatureStatus GetSkiaGraphiteFeatureStatus(
     return kGpuFeatureStatusEnabled;
   }
 #endif  // BUILDFLAG(SKIA_USE_DAWN)
-#if BUILDFLAG(SKIA_USE_METAL)
-  if (gpu_preferences.gr_context_type == GrContextType::kGraphiteMetal) {
-    return kGpuFeatureStatusEnabled;
-  }
-#endif  // BUILDFLAG(SKIA_USE_METAL)
   return kGpuFeatureStatusDisabled;
 }
 

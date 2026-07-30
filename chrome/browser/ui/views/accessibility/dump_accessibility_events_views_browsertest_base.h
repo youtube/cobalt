@@ -18,7 +18,6 @@
 #include "ui/accessibility/platform/inspect/ax_api_type.h"
 #include "ui/accessibility/platform/inspect/ax_event_recorder.h"
 #include "ui/accessibility/platform/inspect/ax_inspect.h"
-#include "ui/accessibility/platform/inspect/ax_inspect_scenario.h"
 #include "ui/accessibility/platform/inspect/ax_inspect_test_helper.h"
 #include "ui/views/widget/widget.h"
 
@@ -61,10 +60,9 @@ class DumpAccessibilityEventsViewsTestBase
       std::vector<base::test::FeatureRef>* enabled_features,
       std::vector<base::test::FeatureRef>* disabled_features);
 
-  void BeginRecordingEvents();
-
-  // Stops recording and compares events against the expectation file.
-  bool EndTestAndCompareEvents(const std::string& test_name);
+  // Stops recording, compares events against the expectation file, and
+  // reports any differences as test failures.
+  void EndTestAndCompareEvents(const std::string& test_name);
 
   // Runs action, then compares recorded events against expectation file.
   void RunEventTest(const std::string& test_name, base::OnceClosure action);
@@ -94,14 +92,22 @@ class DumpAccessibilityEventsViewsTestBase
 
   void AddPropertyFilter(const std::string& filter_str,
                          ui::AXPropertyFilter::Type type);
+  void AddAllowFilter(const std::string& filter_str);
+  void AddDenyFilter(const std::string& filter_str);
 
-  void LoadFiltersFromFile(const base::FilePath& filter_file);
+  // Parses a multi-line string of filter directives using the same format
+  // as accessibility test expectation files (parsed via AXInspectScenario).
+  // Only directives matching the current platform are applied. Example:
+  //   @MAC-ALLOW:AXRole
+  //   @WIN-DENY:EVENT_OBJECT_LOCATIONCHANGE*
+  void SetFilters(const std::string& directives);
 
   void SetSortEvents(bool sort_events) { sort_events_ = sort_events; }
 
   virtual void OnDiffFailed();
 
  private:
+  void BeginRecordingEvents();
   void SetUpTestWidget();
   base::FilePath GetExpectationFilePath(const std::string& test_name) const;
   std::vector<std::string> CollectEventLogs();
@@ -113,7 +119,6 @@ class DumpAccessibilityEventsViewsTestBase
   std::unique_ptr<Widget> widget_;
   std::unique_ptr<ui::AXEventRecorder> event_recorder_;
   mutable ui::AXInspectTestHelper test_helper_;
-  ui::AXInspectScenario scenario_;
   std::vector<ui::AXPropertyFilter> additional_filters_;
   base::test::ScopedFeatureList scoped_feature_list_;
   std::unique_ptr<content::ScopedAccessibilityMode> scoped_ax_mode_;

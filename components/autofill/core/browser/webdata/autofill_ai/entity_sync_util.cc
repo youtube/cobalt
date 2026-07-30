@@ -10,13 +10,16 @@
 #include "base/notimplemented.h"
 #include "base/notreached.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
+#include "components/autofill/core/browser/autofill_field.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_structured_address_component.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type_names.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/proto/autofill_ai_chrome_metadata.pb.h"
+#include "components/autofill/core/browser/proto/server.pb.h"
 #include "components/autofill/core/browser/webdata/valuables/valuables_sync_util.h"
 #include "components/sync/protocol/entity_data.h"
 #include "third_party/icu/source/i18n/unicode/timezone.h"
@@ -27,6 +30,65 @@ namespace {
 
 using sync_pb::AutofillValuableMetadataSpecifics;
 using sync_pb::AutofillValuableSpecifics;
+
+// Populates or clears a field in the `specifics` proto based on whether the
+// corresponding attribute exists in the `entity`.
+//
+// `proto_field_name` must correspond to the suffix of the set_ and clear_
+// methods in the proto (e.g., passing `flight_number` calls `set_flight_number`
+// and `clear_flight_number`).
+#define SET_OR_CLEAR_STRING_FIELD(entity, attribute_type, proto_field_name, \
+                                  specifics)                                \
+  if (base::optional_ref<const AttributeInstance> attr =                    \
+          entity.attribute(AttributeType(attribute_type))) {                \
+    (specifics).set_##proto_field_name(                                     \
+        base::UTF16ToUTF8(attr->GetCompleteRawInfo()));                     \
+  } else {                                                                  \
+    (specifics).clear_##proto_field_name();                                 \
+  }
+
+// Sets a date field in a protocol buffer message based on a date attribute
+// from an EntityInstance by determining the microseconds since the unix epoch.
+template <typename Proto, typename Setter>
+void SetDateInSpecifics(const EntityInstance& entity,
+                        AttributeTypeName attribute_name,
+                        Proto& message,
+                        Setter setter) {
+  base::optional_ref<const AttributeInstance> attribute =
+      entity.attribute(AttributeType(attribute_name));
+  if (!attribute.has_value()) {
+    return;
+  }
+
+  auto get_component = [&](std::u16string_view fmt) -> std::optional<int> {
+    std::u16string val = attribute->GetInfo(
+        attribute->type().field_type(),
+        /*app_locale=*/"",
+        AutofillFormatString(std::u16string(fmt), FormatString_Type_DATE));
+
+    int component;
+    if (base::StringToInt(val, &component)) {
+      return component;
+    }
+    return std::nullopt;
+  };
+
+  std::optional<int> day = get_component(u"D");
+  std::optional<int> month = get_component(u"M");
+  std::optional<int> year = get_component(u"YYYY");
+
+  if (!day || !month || !year) {
+    return;
+  }
+
+  base::Time::Exploded exploded = {
+      .year = *year, .month = *month, .day_of_month = *day};
+  base::Time date;
+
+  if (base::Time::FromUTCExploded(exploded, &date)) {
+    (message.*setter)((date - base::Time::UnixEpoch()).InMicroseconds());
+  }
+}
 
 // Wraps a message `m` into an `Any`-typed message, essentially dropping the
 // actual type for serialization purposes.
@@ -57,10 +119,6 @@ sync_pb::Any SerializeChromeValuablesMetadata(const EntityInstance& entity) {
       }
       case AttributeType::DataType::kCountry:
       case AttributeType::DataType::kDate:
-        // TODO(crbug.com/436174974): Implement serialization of those
-        // DataType's.
-        NOTIMPLEMENTED();
-        break;
       case AttributeType::DataType::kState:
       case AttributeType::DataType::kString:
         // Nothing to serialize here as the structure is trivial.
@@ -120,6 +178,65 @@ void ReadChromeValuablesMetadata(
   }
 }
 
+// Adds a string-based attribute to the set making it as masked if a passkey is
+// provided.
+void AddAttribute(
+    AttributeTypeName type,
+    const std::string& value,
+    std::optional<AttributeInstance::MarkAsMaskedPasskey> passkey,
+    base::flat_set<AttributeInstance, AttributeInstance::CompareByType>&
+        attributes) {
+  AttributeInstance attribute{AttributeType(type)};
+  // The VerificationStatus is set to `kNoStatus` because it is irrelevant for
+  // string types or will be overwritten by metadata deserialization.
+  attribute.SetRawInfo(attribute.type().field_type(), base::UTF8ToUTF16(value),
+                       VerificationStatus::kNoStatus);
+  if (passkey) {
+    attribute.mark_as_masked(*passkey);
+  }
+  attributes.insert(std::move(attribute));
+}
+
+// Adds a string-based attribute to the set.
+void AddAttribute(
+    AttributeTypeName type,
+    const std::string& value,
+    base::flat_set<AttributeInstance, AttributeInstance::CompareByType>&
+        attributes) {
+  AddAttribute(type, value, std::nullopt, attributes);
+}
+
+// Helper to add a date attribute from microseconds since the unix epoch.
+void AddDateAttribute(
+    AttributeTypeName type,
+    int64_t micros_since_epoch,
+    base::flat_set<AttributeInstance, AttributeInstance::CompareByType>&
+        attributes) {
+  // TODO(crbug.com/481650251): Verify with server-side that the timestamp is
+  // indeed UTC.
+  base::Time date =
+      base::Time::FromMillisecondsSinceUnixEpoch(micros_since_epoch / 1000);
+  AddAttribute(type,
+               base::UnlocalizedTimeFormatWithPattern(date, "yyyy-MM-dd",
+                                                      icu::TimeZone::getGMT()),
+               attributes);
+}
+
+// Finalizes the attribute set by reading metadata and calling FinalizeInfo.
+void FinalizeEntityAttributes(
+    EntityType entity_type,
+    const sync_pb::Any& serialized_metadata,
+    base::flat_set<AttributeInstance, AttributeInstance::CompareByType>&
+        attributes) {
+  // Metadata is deserialized last to ensure it enriches existing attributes
+  // and overwrites any default statuses set during creation.
+  ReadChromeValuablesMetadata(attributes, entity_type, serialized_metadata);
+  for (AttributeInstance& attribute : attributes) {
+    // Build the attribute's substructures if they don't exist.
+    attribute.FinalizeInfo();
+  }
+}
+
 // Reads the `specifics` message and extract attribute-information from its
 // different fields. In particular, it also deserializes the metadata stored in
 // the sync message.
@@ -133,30 +250,20 @@ GetFlightReservationAttributesFromSpecifics(
       specifics.flight_reservation();
   base::flat_set<AttributeInstance, AttributeInstance::CompareByType>
       attributes;
-  auto add_attribute = [&](AttributeTypeName attribute_type_name,
-                           std::string value) {
-    AttributeInstance attribute((AttributeType(attribute_type_name)));
-    // Setting the VerificationStatus to `kNoStatus` is fine because it is only
-    // relevant for name types, and for those the status will later be set
-    // correctly in `ReadChromeValuablesMetadata`.
-    attribute.SetRawInfo(attribute.type().field_type(),
-                         base::UTF8ToUTF16(value),
-                         VerificationStatus::kNoStatus);
-    attributes.insert(std::move(attribute));
-  };
 
-  add_attribute(kFlightReservationFlightNumber,
-                flight_reservation.flight_number());
-  add_attribute(kFlightReservationTicketNumber,
-                flight_reservation.flight_ticket_number());
-  add_attribute(kFlightReservationConfirmationCode,
-                flight_reservation.flight_confirmation_code());
-  add_attribute(kFlightReservationPassengerName,
-                flight_reservation.passenger_name());
-  add_attribute(kFlightReservationDepartureAirport,
-                flight_reservation.departure_airport());
-  add_attribute(kFlightReservationArrivalAirport,
-                flight_reservation.arrival_airport());
+  AddAttribute(kFlightReservationFlightNumber,
+               flight_reservation.flight_number(), attributes);
+  AddAttribute(kFlightReservationTicketNumber,
+               flight_reservation.flight_ticket_number(), attributes);
+  AddAttribute(kFlightReservationConfirmationCode,
+               flight_reservation.flight_confirmation_code(), attributes);
+  AddAttribute(kFlightReservationPassengerName,
+               flight_reservation.passenger_name(), attributes);
+  AddAttribute(kFlightReservationDepartureAirport,
+               flight_reservation.departure_airport(), attributes);
+  AddAttribute(kFlightReservationArrivalAirport,
+               flight_reservation.arrival_airport(), attributes);
+
   if (flight_reservation.has_departure_date_unix_epoch_micros()) {
     // We need to offset the departure time by the departure airport's time zone
     // offset to get the local time of the departure.
@@ -169,20 +276,16 @@ GetFlightReservationAttributesFromSpecifics(
 
     // Departure date is stored in this format to be consistent with how
     // other dates are stored.
-    add_attribute(
+    AddAttribute(
         kFlightReservationDepartureDate,
         base::UnlocalizedTimeFormatWithPattern(
-            offsetted_departure_time, "yyyy-MM-dd", icu::TimeZone::getGMT()));
+            offsetted_departure_time, "yyyy-MM-dd", icu::TimeZone::getGMT()),
+        attributes);
   }
-  // Always call `ReadChromeValuablesMetadata` after all other attributes have
-  // been set.
-  ReadChromeValuablesMetadata(attributes,
-                              EntityType(EntityTypeName::kFlightReservation),
-                              specifics.serialized_chrome_valuables_metadata());
-  for (AttributeInstance& attribute : attributes) {
-    // Build the attribute's substructures if they don't exist.
-    attribute.FinalizeInfo();
-  }
+
+  FinalizeEntityAttributes(EntityType(EntityTypeName::kFlightReservation),
+                           specifics.serialized_chrome_valuables_metadata(),
+                           attributes);
   return attributes;
 }
 
@@ -193,65 +296,26 @@ sync_pb::AutofillValuableSpecifics GetFlightReservationSpecifics(
     const sync_pb::AutofillValuableSpecifics& base_specifics) {
   using enum AttributeTypeName;
   CHECK_EQ(entity.type().name(), EntityTypeName::kFlightReservation);
-  auto get_value = [&](AttributeTypeName attribute_type_name) {
-    return base::UTF16ToUTF8(
-        entity.attribute(AttributeType(attribute_type_name))
-            ->GetCompleteRawInfo());
-  };
+
   sync_pb::AutofillValuableSpecifics specifics = base_specifics;
   specifics.set_id(*entity.guid());
   specifics.set_is_editable(!entity.are_attributes_read_only());
 
   sync_pb::FlightReservation& flight_reservation =
       *specifics.mutable_flight_reservation();
-  flight_reservation.set_flight_number(
-      get_value(kFlightReservationFlightNumber));
-  flight_reservation.set_flight_ticket_number(
-      get_value(kFlightReservationTicketNumber));
-  flight_reservation.set_flight_confirmation_code(
-      get_value(kFlightReservationConfirmationCode));
-  flight_reservation.set_passenger_name(
-      get_value(kFlightReservationPassengerName));
-  flight_reservation.set_departure_airport(
-      get_value(kFlightReservationDepartureAirport));
-  flight_reservation.set_arrival_airport(
-      get_value(kFlightReservationArrivalAirport));
 
-  *specifics.mutable_serialized_chrome_valuables_metadata() =
-      SerializeChromeValuablesMetadata(entity);
-  return specifics;
-}
-
-// Takes an `entity` and returns a proto message with the information needed in
-// order to send this entity to the sync server.
-sync_pb::AutofillValuableSpecifics GetVehicleInformationSpecifics(
-    const EntityInstance& entity,
-    const sync_pb::AutofillValuableSpecifics& base_specifics) {
-  using enum AttributeTypeName;
-  CHECK_EQ(entity.type().name(), EntityTypeName::kVehicle);
-  sync_pb::AutofillValuableSpecifics specifics = base_specifics;
-  specifics.set_id(*entity.guid());
-  specifics.set_is_editable(!entity.are_attributes_read_only());
-
-  sync_pb::VehicleRegistration& vehicle =
-      *specifics.mutable_vehicle_registration();
-#define SET_OR_CLEAR(attribute_type, field_suffix)            \
-  if (base::optional_ref<const AttributeInstance> attribute = \
-          entity.attribute(AttributeType(attribute_type))) {  \
-    vehicle.set_##field_suffix(                               \
-        base::UTF16ToUTF8(attribute->GetCompleteRawInfo()));  \
-  } else {                                                    \
-    vehicle.clear_##field_suffix();                           \
-  }
-
-  SET_OR_CLEAR(kVehicleMake, vehicle_make);
-  SET_OR_CLEAR(kVehicleModel, vehicle_model);
-  SET_OR_CLEAR(kVehicleYear, vehicle_year);
-  SET_OR_CLEAR(kVehicleVin, vehicle_identification_number);
-  SET_OR_CLEAR(kVehiclePlateNumber, vehicle_license_plate);
-  SET_OR_CLEAR(kVehiclePlateState, license_plate_region);
-  SET_OR_CLEAR(kVehicleOwner, owner_name);
-#undef SET_OR_CLEAR
+  SET_OR_CLEAR_STRING_FIELD(entity, kFlightReservationFlightNumber,
+                            flight_number, flight_reservation);
+  SET_OR_CLEAR_STRING_FIELD(entity, kFlightReservationTicketNumber,
+                            flight_ticket_number, flight_reservation);
+  SET_OR_CLEAR_STRING_FIELD(entity, kFlightReservationConfirmationCode,
+                            flight_confirmation_code, flight_reservation);
+  SET_OR_CLEAR_STRING_FIELD(entity, kFlightReservationPassengerName,
+                            passenger_name, flight_reservation);
+  SET_OR_CLEAR_STRING_FIELD(entity, kFlightReservationDepartureAirport,
+                            departure_airport, flight_reservation);
+  SET_OR_CLEAR_STRING_FIELD(entity, kFlightReservationArrivalAirport,
+                            arrival_airport, flight_reservation);
 
   *specifics.mutable_serialized_chrome_valuables_metadata() =
       SerializeChromeValuablesMetadata(entity);
@@ -271,36 +335,109 @@ GetVehicleAttributesFromSpecifics(
       specifics.vehicle_registration();
   base::flat_set<AttributeInstance, AttributeInstance::CompareByType>
       attributes;
-  auto add_attribute = [&](AttributeTypeName attribute_type_name,
-                           std::string value) {
-    AttributeInstance attribute((AttributeType(attribute_type_name)));
-    // Setting the VerificationStatus to `kNoStatus` is fine because it is only
-    // relevant for name types, and for those the status will later be set
-    // correctly in `ReadChromeValuablesMetadata`.
-    attribute.SetRawInfo(attribute.type().field_type(),
-                         base::UTF8ToUTF16(value),
-                         VerificationStatus::kNoStatus);
-    attributes.insert(std::move(attribute));
-  };
 
-  add_attribute(kVehicleMake, vehicle.vehicle_make());
-  add_attribute(kVehicleModel, vehicle.vehicle_model());
-  add_attribute(kVehicleYear, vehicle.vehicle_year());
-  add_attribute(kVehicleVin, vehicle.vehicle_identification_number());
-  add_attribute(kVehiclePlateNumber, vehicle.vehicle_license_plate());
-  add_attribute(kVehiclePlateState, vehicle.license_plate_region());
-  add_attribute(kVehicleOwner, vehicle.owner_name());
+  AddAttribute(kVehicleMake, vehicle.vehicle_make(), attributes);
+  AddAttribute(kVehicleModel, vehicle.vehicle_model(), attributes);
+  AddAttribute(kVehicleYear, vehicle.vehicle_year(), attributes);
+  AddAttribute(kVehicleVin, vehicle.vehicle_identification_number(),
+               attributes);
+  AddAttribute(kVehiclePlateNumber, vehicle.vehicle_license_plate(),
+               attributes);
+  AddAttribute(kVehiclePlateState, vehicle.license_plate_region(), attributes);
+  AddAttribute(kVehicleOwner, vehicle.owner_name(), attributes);
 
-  // Always call `ReadChromeValuablesMetadata` after all other attributes have
-  // been set.
-  ReadChromeValuablesMetadata(attributes, EntityType(EntityTypeName::kVehicle),
-                              specifics.serialized_chrome_valuables_metadata());
-  for (AttributeInstance& attribute : attributes) {
-    // Build the attribute's substructures if they don't exist.
-    attribute.FinalizeInfo();
-  }
+  FinalizeEntityAttributes(EntityType(EntityTypeName::kVehicle),
+                           specifics.serialized_chrome_valuables_metadata(),
+                           attributes);
   return attributes;
 }
+
+// Takes an `entity` and returns a proto message with the information needed in
+// order to send this entity to the sync server.
+sync_pb::AutofillValuableSpecifics GetVehicleInformationSpecifics(
+    const EntityInstance& entity,
+    const sync_pb::AutofillValuableSpecifics& base_specifics) {
+  using enum AttributeTypeName;
+  CHECK_EQ(entity.type().name(), EntityTypeName::kVehicle);
+  sync_pb::AutofillValuableSpecifics specifics = base_specifics;
+  specifics.set_id(*entity.guid());
+  specifics.set_is_editable(!entity.are_attributes_read_only());
+
+  sync_pb::VehicleRegistration& vehicle =
+      *specifics.mutable_vehicle_registration();
+
+  SET_OR_CLEAR_STRING_FIELD(entity, kVehicleMake, vehicle_make, vehicle);
+  SET_OR_CLEAR_STRING_FIELD(entity, kVehicleModel, vehicle_model, vehicle);
+  SET_OR_CLEAR_STRING_FIELD(entity, kVehicleYear, vehicle_year, vehicle);
+  SET_OR_CLEAR_STRING_FIELD(entity, kVehicleVin, vehicle_identification_number,
+                            vehicle);
+  SET_OR_CLEAR_STRING_FIELD(entity, kVehiclePlateNumber, vehicle_license_plate,
+                            vehicle);
+  SET_OR_CLEAR_STRING_FIELD(entity, kVehiclePlateState, license_plate_region,
+                            vehicle);
+  SET_OR_CLEAR_STRING_FIELD(entity, kVehicleOwner, owner_name, vehicle);
+
+  *specifics.mutable_serialized_chrome_valuables_metadata() =
+      SerializeChromeValuablesMetadata(entity);
+  return specifics;
+}
+
+// Reads the passport specifics message and extracts attribute-information from
+// its fields. In particular, it also deserializes the metadata stored in the
+// sync message.
+base::flat_set<AttributeInstance, AttributeInstance::CompareByType>
+GetPassportAttributesFromSpecifics(
+    const sync_pb::AutofillValuableSpecifics& specifics,
+    AttributeInstance::MarkAsMaskedPasskey passkey) {
+  using enum AttributeTypeName;
+  CHECK_EQ(specifics.valuable_data_case(),
+           sync_pb::AutofillValuableSpecifics::kPassport);
+  const sync_pb::Passport& passport = specifics.passport();
+  base::flat_set<AttributeInstance, AttributeInstance::CompareByType>
+      attributes;
+
+  AddAttribute(kPassportName, passport.owner_name(), attributes);
+  AddAttribute(kPassportNumber, passport.masked_number(), passkey, attributes);
+  AddAttribute(kPassportCountry, passport.country_code(), attributes);
+  AddDateAttribute(kPassportIssueDate, passport.issue_date_unix_epoch_micros(),
+                   attributes);
+  AddDateAttribute(kPassportExpirationDate,
+                   passport.expiration_date_unix_epoch_micros(), attributes);
+
+  FinalizeEntityAttributes(EntityType(EntityTypeName::kPassport),
+                           specifics.serialized_chrome_valuables_metadata(),
+                           attributes);
+  return attributes;
+}
+
+// Takes an `entity` and returns a proto message with the information.
+// Note: Passports are read-only and not synced to the server. This
+// serialization is primarily for debugging (e.g., sync-internals).
+sync_pb::AutofillValuableSpecifics GetPassportSpecifics(
+    const EntityInstance& entity,
+    const sync_pb::AutofillValuableSpecifics& base_specifics) {
+  using enum AttributeTypeName;
+  CHECK_EQ(entity.type().name(), EntityTypeName::kPassport);
+
+  sync_pb::AutofillValuableSpecifics specifics = base_specifics;
+  specifics.set_id(*entity.guid());
+  specifics.set_is_editable(!entity.are_attributes_read_only());
+
+  sync_pb::Passport& passport = *specifics.mutable_passport();
+  SET_OR_CLEAR_STRING_FIELD(entity, kPassportNumber, masked_number, passport);
+  SET_OR_CLEAR_STRING_FIELD(entity, kPassportName, owner_name, passport);
+  SET_OR_CLEAR_STRING_FIELD(entity, kPassportCountry, country_code, passport);
+  SetDateInSpecifics(entity, kPassportIssueDate, passport,
+                     &sync_pb::Passport::set_issue_date_unix_epoch_micros);
+  SetDateInSpecifics(entity, kPassportExpirationDate, passport,
+                     &sync_pb::Passport::set_expiration_date_unix_epoch_micros);
+
+  *specifics.mutable_serialized_chrome_valuables_metadata() =
+      SerializeChromeValuablesMetadata(entity);
+  return specifics;
+}
+
+#undef SET_OR_CLEAR_STRING_FIELD
 
 }  // namespace
 
@@ -335,6 +472,7 @@ sync_pb::AutofillValuableSpecifics CreateSpecificsFromEntityInstance(
     case EntityTypeName::kVehicle:
       return GetVehicleInformationSpecifics(entity, base_specifics);
     case EntityTypeName::kPassport:
+      return GetPassportSpecifics(entity, base_specifics);
     case EntityTypeName::kDriversLicense:
     case EntityTypeName::kNationalIdCard:
     case EntityTypeName::kKnownTravelerNumber:
@@ -375,7 +513,17 @@ std::optional<EntityInstance> CreateEntityInstanceFromSpecifics(
           EntityInstance::AreAttributesReadOnly(!specifics.is_editable()),
           frecency_override);
     }
-    case sync_pb::AutofillValuableSpecifics::kPassport:
+    case sync_pb::AutofillValuableSpecifics::kPassport: {
+      return EntityInstance(
+          EntityType(EntityTypeName::kPassport),
+          GetPassportAttributesFromSpecifics(
+              specifics, AttributeInstance::MarkAsMaskedPasskey()),
+          guid,
+          /*nickname=*/"", /*date_modified=*/{}, /*use_count=*/{},
+          /*use_date=*/{}, EntityInstance::RecordType::kServerWallet,
+          EntityInstance::AreAttributesReadOnly(!specifics.is_editable()),
+          /*frecency_override=*/"");
+    }
     case sync_pb::AutofillValuableSpecifics::kDriverLicense:
     case sync_pb::AutofillValuableSpecifics::kNationalIdCard:
     case sync_pb::AutofillValuableSpecifics::kRedressNumber:

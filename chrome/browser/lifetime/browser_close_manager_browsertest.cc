@@ -17,6 +17,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
 #include "base/test/mock_callback.h"
+#include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
@@ -57,6 +58,7 @@
 #include "components/download/public/common/download_target_info.h"
 #include "components/javascript_dialogs/app_modal_dialog_controller.h"
 #include "components/javascript_dialogs/app_modal_dialog_view.h"
+#include "components/keep_alive_registry/keep_alive_registry.h"
 #include "components/keep_alive_registry/keep_alive_types.h"
 #include "components/keep_alive_registry/scoped_keep_alive.h"
 #include "components/prefs/pref_service.h"
@@ -90,13 +92,13 @@ javascript_dialogs::AppModalDialogView* GetNextDialog() {
 }
 
 // Note: call |PrepareForDialog| on the relevant WebContents or Browser before
-// trying to close it, to avoid flakiness. https://crbug.com/519646
+// trying to close it, to avoid flakiness. https://crbug.com/40430916
 void AcceptClose() {
   GetNextDialog()->AcceptAppModalDialog();
 }
 
 // Note: call |PrepareForDialog| on the relevant WebContents or Browser before
-// trying to close it, to avoid flakiness. https://crbug.com/519646
+// trying to close it, to avoid flakiness. https://crbug.com/40430916
 void CancelClose() {
   GetNextDialog()->CancelAppModalDialog();
 }
@@ -323,13 +325,12 @@ class BrowserCloseManagerBrowserTest : public InProcessBrowserTest {
   }
 
   void WaitForAllBrowsersToClose() {
-    GlobalBrowserCollection::GetInstance()->ForEach(
-        [](BrowserWindowInterface* browser) {
-          ui_test_utils::BrowserDestroyedObserver(browser).Wait();
-          return true;
-        },
-        /*order=*/BrowserCollection::Order::kCreation,
-        /*enumerate_new_browsers=*/true);
+    // Wait until all browser KeepAlive instances have been reset, indicating
+    // all browsers have been closed and destroyed.
+    EXPECT_TRUE(base::test::RunUntil([&]() {
+      return KeepAliveRegistry::GetInstance()->IsOriginRegistered(
+                 KeepAliveOrigin::BROWSER) == 0;
+    }));
   }
 
   std::vector<raw_ptr<Browser, VectorExperimental>> browsers_;
@@ -546,7 +547,7 @@ IN_PROC_BROWSER_TEST_F(BrowserCloseManagerBrowserTest,
 }
 
 // Test that tabs that are slow to respond are not closed prematurely.
-// Regression for crbug.com/365052 caused some of tabs to be closed even if
+// Regression for crbug.com/40361681 caused some of tabs to be closed even if
 // user chose to cancel browser close.
 IN_PROC_BROWSER_TEST_F(BrowserCloseManagerBrowserTest,
                        TestUnloadMultipleSlowTabs) {
@@ -592,8 +593,8 @@ IN_PROC_BROWSER_TEST_F(BrowserCloseManagerBrowserTest,
 // Test that tabs in different windows with a slow beforeunload event response
 // are treated the same as the user accepting the close, but do not close the
 // tab early.
-// Regression for crbug.com/365052 caused CHECK in tabstrip.
-// Flaky: https://crbug.com/819541
+// Regression for crbug.com/40361681 caused CHECK in tabstrip.
+// Flaky: https://crbug.com/41375143
 IN_PROC_BROWSER_TEST_F(BrowserCloseManagerBrowserTest,
                        DISABLED_TestBeforeUnloadMultipleSlowWindows) {
   const int kBrowserCount = 5;
@@ -1085,10 +1086,9 @@ IN_PROC_BROWSER_TEST_F(BrowserCloseManagerBrowserTest,
                                                      ->GetActiveWebContents()
                                                      ->GetLastCommittedURL());
 
-  ui_test_utils::BrowserDestroyedObserver observer(otr_browser);
   TestBrowserCloseManager::AttemptClose(
       TestBrowserCloseManager::USER_CHOICE_USER_ALLOWS_CLOSE);
-  observer.Wait();
+  WaitForAllBrowsersToClose();
   EXPECT_TRUE(browser_shutdown::IsTryingToQuit());
   EXPECT_TRUE(GlobalBrowserCollection::GetInstance()->IsEmpty());
   EXPECT_EQ(0, DownloadCoreService::BlockingShutdownCountAllProfiles());
@@ -1192,12 +1192,9 @@ IN_PROC_BROWSER_TEST_F(BrowserCloseManagerBrowserTest,
                                      ->GetActiveWebContents()
                                      ->GetVisibleURL());
 
-  ui_test_utils::BrowserDestroyedObserver observer1(other_profile_browser);
-  ui_test_utils::BrowserDestroyedObserver observer2(opened_browser);
   TestBrowserCloseManager::AttemptClose(
       TestBrowserCloseManager::USER_CHOICE_USER_ALLOWS_CLOSE);
-  observer1.Wait();
-  observer2.Wait();
+  WaitForAllBrowsersToClose();
   EXPECT_TRUE(browser_shutdown::IsTryingToQuit());
   EXPECT_TRUE(GlobalBrowserCollection::GetInstance()->IsEmpty());
   if (browser_defaults::kBrowserAliveWithNoWindows) {
@@ -1207,7 +1204,7 @@ IN_PROC_BROWSER_TEST_F(BrowserCloseManagerBrowserTest,
   }
 }
 
-// Fails on ChromeOS and Linux, times out on Win. crbug.com/749098
+// Fails on ChromeOS and Linux, times out on Win. crbug.com/41335918
 // Test shutdown with downloads in progress and beforeunload handlers.
 IN_PROC_BROWSER_TEST_F(BrowserCloseManagerBrowserTest,
                        DISABLED_TestBeforeUnloadAndDownloads) {

@@ -34,6 +34,7 @@
 #include "content/browser/preloading/prefetch/prefetch_status.h"
 #include "content/browser/preloading/prefetch/prefetch_streaming_url_loader.h"
 #include "content/browser/preloading/prefetch/prefetch_type.h"
+#include "content/browser/preloading/prefetch/prefetch_url_loader_factory_utils.h"
 #include "content/browser/preloading/preloading_attempt_impl.h"
 #include "content/browser/preloading/preloading_trigger_type_impl.h"
 #include "content/browser/preloading/prerender/prerender_features.h"
@@ -581,42 +582,44 @@ PrefetchStatus PrefetchContainer::GetPrefetchStatus() const {
   return prefetch_status_.value();
 }
 
-PrefetchNetworkContext* PrefetchContainer::CreateNetworkContext(
-    bool is_isolated_network_context_required,
+PrefetchNetworkContext* PrefetchContainer::CreateIsolatedNetworkContext(
     mojo::Remote<network::mojom::NetworkContext> isolated_network_context) {
-  auto owned_network_context = std::make_unique<PrefetchNetworkContext>(
-      is_isolated_network_context_required, std::move(isolated_network_context),
-      request());
-  PrefetchNetworkContext* network_context = owned_network_context.get();
-  network_contexts_.emplace(is_isolated_network_context_required,
-                            std::move(owned_network_context));
-
-  return network_context;
+  CHECK(!isolated_network_context_);
+  isolated_network_context_ = std::make_unique<PrefetchNetworkContext>(
+      std::move(isolated_network_context), request());
+  return isolated_network_context_.get();
 }
 
-PrefetchNetworkContext* PrefetchContainer::GetNetworkContext(
-    bool is_isolated_network_context_required) const {
-  const auto network_context_itr =
-      network_contexts_.find(is_isolated_network_context_required);
-  if (network_context_itr == network_contexts_.end()) {
-    return nullptr;
+PrefetchNetworkContext* PrefetchContainer::GetIsolatedNetworkContext() const {
+  return isolated_network_context_.get();
+}
+
+scoped_refptr<network::SharedURLLoaderFactory>
+PrefetchContainer::GetOrCreateDefaultNetworkContextURLLoaderFactory() {
+  if (!default_network_context_url_loader_factory_) {
+    // The corresponding `CreatePrefetchURLLoaderFactory()` call is inside
+    // `PrefetchNetworkContext`.
+    default_network_context_url_loader_factory_ =
+        CreatePrefetchURLLoaderFactory(request()
+                                           .browser_context()
+                                           ->GetDefaultStoragePartition()
+                                           ->GetNetworkContext(),
+                                       request());
   }
-  return network_context_itr->second.get();
+  CHECK(default_network_context_url_loader_factory_);
+  return default_network_context_url_loader_factory_;
 }
 
 void PrefetchContainer::CloseIdleConnections() {
-  for (const auto& network_context_itr : network_contexts_) {
-    CHECK(network_context_itr.second);
-    network_context_itr.second->CloseIdleConnections();
+  if (isolated_network_context_) {
+    isolated_network_context_->CloseIdleConnections();
   }
 }
 
 void PrefetchContainer::SetLoadState(LoadState new_load_state) {
   TRACE_EVENT_END("loading", request_->preload_pipeline_info().GetTrack());
 
-  if (base::FeatureList::IsEnabled(features::kPrefetchGracefulNotification)) {
-    CHECK(!is_in_dtor_);
-  }
+  CHECK(!is_in_dtor_);
 
   // `LoadState` transitions are disallowed during observer notification.
   DUMP_WILL_BE_CHECK(!during_observer_notification_);
@@ -815,6 +818,28 @@ PrefetchContainer::PrepareUpdateHeaders(const GURL& url) const {
     updates_for_follow_redirect.removed_headers.push_back(
         blink::kSecSpeculationTagsHeaderName);
     AddSpeculationTagsHeader(url, updates_for_follow_redirect.modified_headers);
+  }
+
+  // ------------------------------------------------------------------------
+  // Embedder headers:
+  {
+    std::vector<std::string> removed_headers;
+    net::HttpRequestHeaders modified_headers;
+    net::HttpRequestHeaders modified_cors_exempt_headers;
+    GetContentClient()->browser()->ModifyRequestHeadersForPrefetch(
+        url, removed_headers, modified_headers, modified_cors_exempt_headers);
+    auto add_embedder_headers = [&](PrefetchUpdateHeadersParams& params) {
+      params.removed_headers.reserve(params.removed_headers.size() +
+                                     removed_headers.size());
+      params.removed_headers.insert(params.removed_headers.end(),
+                                    removed_headers.begin(),
+                                    removed_headers.end());
+      params.modified_headers.MergeFrom(modified_headers);
+      params.modified_cors_exempt_headers.MergeFrom(
+          modified_cors_exempt_headers);
+    };
+    add_embedder_headers(updates_for_resource_request);
+    add_embedder_headers(updates_for_follow_redirect);
   }
 
   // ------------------------------------------------------------------------
@@ -1044,8 +1069,7 @@ void PrefetchContainer::OnDeterminedHead(bool is_successful_determined_head) {
   TRACE_EVENT("loading", "PrefetchContainer::OnDeterminedHead",
               request_->preload_pipeline_info().GetFlow());
 
-  if (base::FeatureList::IsEnabled(features::kPrefetchGracefulNotification) &&
-      is_in_dtor_) {
+  if (is_in_dtor_) {
     // This can be called due to the loader cancellation during the
     // `PrefetchContainer` destruction. No state changes should be made and
     // observers shouldn't be notified during destruction.
@@ -1489,15 +1513,10 @@ void PrefetchContainer::OnDetectedCookiesChange(
   SetPrefetchStatus(PrefetchStatus::kPrefetchNotUsedCookiesChanged);
   UpdateServingPageMetrics();
 
-  if (base::FeatureList::IsEnabled(
-          features::kPrefetchAsyncCancelOnCookiesChange)) {
-    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE,
-        base::BindOnce(&PrefetchContainer::CancelStreamingURLLoaderIfNotServing,
-                       GetWeakPtr()));
-  } else {
-    CancelStreamingURLLoaderIfNotServing();
-  }
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE,
+      base::BindOnce(&PrefetchContainer::CancelStreamingURLLoaderIfNotServing,
+                     GetWeakPtr()));
 }
 
 void PrefetchContainer::OnPrefetchStarted() {
@@ -1543,10 +1562,7 @@ bool PrefetchContainer::IsProxyRequiredForURL(const GURL& url) const {
          request().prefetch_type().IsProxyRequiredWhenCrossOrigin();
 }
 
-void PrefetchContainer::MakeResourceRequest() {
-  // `UpdateResourceRequest()` updates this request later on. Anything here that
-  // should be changed on redirect should happen there.
-
+void PrefetchContainer::MakeInitialResourceRequest() {
   const GURL& url = GetURL();
   url::Origin origin = url::Origin::Create(url);
   net::IsolationInfo isolation_info = net::IsolationInfo::Create(
@@ -1601,11 +1617,8 @@ void PrefetchContainer::MakeResourceRequest() {
   }();
 
   mojo::PendingRemote<network::mojom::DevToolsObserver>
-      devtools_observer_remote;
-  if (std::optional<mojo::PendingRemote<network::mojom::DevToolsObserver>>
-          devtools_observer = MakeSelfOwnedNetworkServiceDevToolsObserver()) {
-    devtools_observer_remote = std::move(devtools_observer.value());
-  }
+      devtools_observer_remote =
+          MaybeMakeSelfOwnedNetworkServiceDevToolsObserver();
 
   // If we ever implement prefetching for subframes, this value should be
   // reconsidered, as this causes us to reset the site for cookies on cross-site
@@ -1671,6 +1684,20 @@ void PrefetchContainer::MakeResourceRequest() {
   // [2] `X-Client-Data`:
   if (request().should_append_variations_header()) {
     AddXClientDataHeader(*resource_request.get());
+  }
+
+  // ------------------------------------------------------------------------
+  // [2] Embedder headers:
+  {
+    std::vector<std::string> removed_headers;
+    net::HttpRequestHeaders modified_headers;
+    net::HttpRequestHeaders modified_cors_exempt_headers;
+    GetContentClient()->browser()->ModifyRequestHeadersForPrefetch(
+        resource_request->url, removed_headers, modified_headers,
+        modified_cors_exempt_headers);
+    resource_request->headers.MergeFrom(modified_headers);
+    resource_request->cors_exempt_headers.MergeFrom(
+        modified_cors_exempt_headers);
   }
 
   // TODO(crbug.com/444065296): The following headers are an initial guess.
@@ -2164,23 +2191,23 @@ void PrefetchContainer::NotifyPrefetchRequestComplete(
                                                       completion_status);
 }
 
-std::optional<mojo::PendingRemote<network::mojom::DevToolsObserver>>
-PrefetchContainer::MakeSelfOwnedNetworkServiceDevToolsObserver() {
+mojo::PendingRemote<network::mojom::DevToolsObserver>
+PrefetchContainer::MaybeMakeSelfOwnedNetworkServiceDevToolsObserver() {
   if (IsDecoy()) {
-    return std::nullopt;
+    return mojo::NullRemote();
   }
 
   auto* renderer_initiator_info = request().GetRendererInitiatorInfo();
   if (!renderer_initiator_info) {
     // Don't emit CDP events if the trigger is not speculation rules.
-    return std::nullopt;
+    return mojo::NullRemote();
   }
 
   auto* ftn =
       FrameTreeNode::From(renderer_initiator_info->GetRenderFrameHost());
   if (!ftn) {
     // Don't emit CDP events if the initiator document isn't alive.
-    return std::nullopt;
+    return mojo::NullRemote();
   }
 
   return NetworkServiceDevToolsObserver::MakeSelfOwned(ftn);

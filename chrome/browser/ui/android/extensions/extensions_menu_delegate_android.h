@@ -29,9 +29,8 @@ class ExtensionsMenuDelegateAndroid : public ExtensionsMenuViewModel::Delegate,
 
   // JNI implementations:
   void Destroy(JNIEnv* env);
-  // Returns a flattened list of action IDs and names from the menu model.
-  std::vector<std::string> GetActions(JNIEnv* env);
-  // Returns whether the menu model has been populated.
+  std::vector<base::android::ScopedJavaLocalRef<jobject>> GetMenuEntries(
+      JNIEnv* env);
   bool IsReady(JNIEnv* env);
 
   // ExtensionsMenuViewModel::Delegate:
@@ -50,6 +49,8 @@ class ExtensionsMenuDelegateAndroid : public ExtensionsMenuViewModel::Delegate,
                                 int index) override;
   void OnHostAccessRequestUpdated(const extensions::ExtensionId& extension_id,
                                   int index) override;
+  void OnActionIconUpdated(
+      const ToolbarActionsModel::ActionId& action_id) override;
   void OnHostAccessRequestsCleared() override;
   void OnHostAccessRequestRemoved(const extensions::ExtensionId& extension_id,
                                   int index) override;
@@ -61,6 +62,8 @@ class ExtensionsMenuDelegateAndroid : public ExtensionsMenuViewModel::Delegate,
 
   // ExtensionsMenuHandler:
   void CloseBubble() override;
+  void OnActionButtonClicked(
+      const extensions::ExtensionId& extension_id) override;
   void OnAllowExtensionClicked(
       const extensions::ExtensionId& extension_id) override;
   void OnDismissExtensionClicked(

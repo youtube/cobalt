@@ -115,6 +115,7 @@
 <translation id="2139300032719313227">Reinicie o ChromeOS</translation>
 <translation id="2151406531797534936">Reinicie o Chrome agora</translation>
 <translation id="2163089732491971196">Para usar e guardar dados do Chrome na sua Conta Google, introduza a frase de acesso</translation>
+<translation id="2170098639895543546">Selecione qualquer conteúdo na página</translation>
 <translation id="2174917724755363426">Instalação não concluída. Quer mesmo cancelar?</translation>
 <translation id="2186206192313702726">Google Lens</translation>
 <translation id="2190166659037789668">Erro na verificação de atualizações: <ph name="UPDATE_CHECK_ERROR" />.</translation>
@@ -250,6 +251,7 @@
 <translation id="3622716124581627104">Identifique itens ou locais e copie ou traduza texto. Quando usa o Google Lens, é enviada uma captura de ecrã da página para a Google. <ph name="LEARN_MORE" /></translation>
 <translation id="3622797965165704966">Agora é mais fácil utilizar o Chrome com a sua Conta Google e em computadores partilhados.</translation>
 <translation id="3635073343384702370">O Chrome consegue verificar as suas palavras-passe quando as guarda</translation>
+<translation id="3636970668267555808">Defina o Chrome como o seu navegador predefinido para ter acesso fácil às funcionalidades que conhece, adora e em que confia.</translation>
 <translation id="3667616615096815454">Não é possível instalar. O servidor não reconhece a aplicação.</translation>
 <translation id="3673813398384385993">O Chrome encontrou software malicioso na extensão "<ph name="EXTENSION_NAME" />"</translation>
 <translation id="3697952514309507634">Outros perfis do Chrome</translation>
@@ -259,6 +261,7 @@
 <translation id="3723744677043446310">{NUM_EXTENSIONS,plural, =1{O Chrome recomenda que a remova. <ph name="BEGIN_LINK" />Saiba mais sobre as extensões suportadas<ph name="END_LINK" />}other{O Chrome recomenda que as remova. <ph name="BEGIN_LINK" />Saiba mais sobre as extensões suportadas<ph name="END_LINK" />}}</translation>
 <translation id="3729187154190517324">Aprofunde a sua pesquisa adicionando vários separadores, ficheiros e ferramentas com o botão "Adicionar separador e muito mais".</translation>
 <translation id="3756724684201900923">Saiba como instalar o Chrome</translation>
+<translation id="3772152698251011058">Denuncie este site à Google</translation>
 <translation id="3780814664026482060">Chrome – <ph name="PAGE_TITLE" /></translation>
 <translation id="3785324443014631273">O ChromeOS Flex não conseguiu sincronizar os dados devido a um erro de início de sessão.</translation>
 <translation id="3795971588916395511">Google ChromeOS</translation>
@@ -303,7 +306,6 @@
 <translation id="4205939740494406371">O Chrome não consegue verificar as suas palavras-passe. Tente novamente após 24 horas ou <ph name="BEGIN_LINK" />verifique as palavras-passe na sua Conta Google<ph name="END_LINK" />.</translation>
 <translation id="4222932583846282852">A cancelar…</translation>
 <translation id="4224210481850767180">A instalação foi cancelada.</translation>
-<translation id="4230631012078055975">Usufrua de mais vantagens quando tem sessão iniciada no Chrome</translation>
 <translation id="4242034826641750751">O Chrome necessita das autorizações da câmara e do microfone para este site</translation>
 <translation id="424864128008805179">Quer terminar sessão no Chrome?</translation>
 <translation id="4251615635259297716">Associar os seus dados do Chrome a esta conta?</translation>
@@ -407,6 +409,8 @@
 <translation id="5430073640787465221">O ficheiro de preferências está danificado ou não é válido. O Google Chrome não consegue recuperar as suas definições.</translation>
 <translation id="5465210843490471889">Escolha um perfil do Chrome para usar com o <ph name="START_GLIC_STYLING" />Gemini<ph name="END_GLIC_STYLING" /></translation>
 <translation id="5468572406162360320">Para ajudar a melhorar estas funcionalidades, o Chrome envia as suas interações com as funcionalidades para a Google. Estes dados podem ser lidos, processados e anotados por revisores humanos.</translation>
+<translation id="547202872422499512">O Chrome agora é iniciado quando o Windows arranca para poder começar a navegar instantaneamente. Pode desativar esta opção nas definições.</translation>
+<translation id="5486346529181556467">Melhore a segurança online para todos quando denuncia um site que considera prejudicial. Saiba mais sobre a <ph name="BEGIN_LINK" />Política de Sites Não Seguros da Google<ph name="END_LINK" />.</translation>
 <translation id="5524890928877629608">canto superior esquerdo da área de pesquisa: esquerda <ph name="LEFT" />%, parte superior <ph name="TOP" />%</translation>
 <translation id="5550137307985173298">Clique no botão Personalizar o Chrome na página Novo separador para dar um novo aspeto ao Chrome</translation>
 <translation id="5566025111015594046">Google Chrome (mDNS-In)</translation>
@@ -439,6 +443,7 @@
 <translation id="5756509061973259733">Já existe um perfil do Chrome com esta conta neste dispositivo.</translation>
 <translation id="5759947850379142561">Selecione qualquer texto ou imagem para pesquisar com o Google Lens ou prima a tecla Escape para sair do Google Lens</translation>
 <translation id="5762867845020858790">Adicione um novo perfil do Chrome para manter os marcadores, as palavras-passe e as definições separados.</translation>
+<translation id="5779427581965287859">Defina o Chrome como navegador predefinido e afixe-o à barra de tarefas</translation>
 <translation id="5795887333006832406"><ph name="PAGE_TITLE" /> – Google Chrome Canary</translation>
 <translation id="5804318322022881572">Não foi possível iniciar o Chrome. Tente novamente.</translation>
 <translation id="5809516625706423866">Não é possível ligar à Internet. HTTP 401 não autorizado. Verifique a sua configuração de proxy.</translation>
@@ -565,6 +570,7 @@
 <translation id="6965382102122355670">OK</translation>
 <translation id="6967962315388095737">Regra de importação para o Google Chrome Beta permitir o tráfego mDNS.</translation>
 <translation id="6979589607440534284">Saiba por que motivo o Chrome bloqueia alguns ficheiros, abre num novo separador</translation>
+<translation id="6985817499499247940">Inicie o Chrome automaticamente para começar a navegar instantaneamente.</translation>
 <translation id="6991926986715044139">Mostrar sempre o atalho do Google Lens</translation>
 <translation id="6999131147875565462">O Chrome é executado mais rapidamente e as funcionalidades que usam o JavaScript devem funcionar conforme previsto</translation>
 <translation id="7011190694940573312">A instalação falhou porque esta versão do sistema operativo não é suportada.</translation>
@@ -593,10 +599,10 @@
 <translation id="7288567540154601580">Separadores e extensões</translation>
 <translation id="7296210096911315575">Informações de utilização e segurança importantes</translation>
 <translation id="7302361266603927550">Alguns dos seus dados do Chrome ainda não foram guardados na sua Conta Google. Experimente aguardar alguns minutos antes de terminar sessão. Se terminar sessão agora, estes dados vão ser eliminados.</translation>
+<translation id="7306401458628386911">Comece a navegar instantaneamente: agora pode iniciar o Chrome quando o Windows arranca.</translation>
 <translation id="7308322188646931570">O Chrome necessita de acesso ao armazenamento para transferir ficheiros.</translation>
 <translation id="7339898014177206373">Nova janela</translation>
 <translation id="7352651011704765696">Algo correu mal</translation>
-<translation id="7379321689415048316">O Chrome pode preencher automaticamente campos difíceis que o preenchimento automático padrão pode não preencher</translation>
 <translation id="7386878009611068389">Para teres mais segurança online com as escolhas dos teus pais, muda para o teu perfil do Chrome onde já tens sessão iniciada como <ph name="USER_EMAIL_ADDRESS" /></translation>
 <translation id="7398801000654795464">Iniciou sessão no Chrome com a conta <ph name="USER_EMAIL_ADDRESS" />. Use a mesma conta para iniciar sessão novamente.</translation>
 <translation id="7412494426921990001">Clique no menu do Chrome</translation>
@@ -656,6 +662,7 @@
 <translation id="7827099906024714326">O Chrome precisa de validar a sua identidade antes de ser possível guardar alguns dados na sua Conta Google e usá-los em todos os seus dispositivos. Se terminar sessão agora, estes dados vão ser eliminados.</translation>
 <translation id="7832314606810669113">Para ter os seus marcadores e muito mais em todos os seus dispositivos, inicie sessão no Chrome. Este marcador é guardado na sua Conta Google depois de iniciar sessão.</translation>
 <translation id="7845233973568007926">Agradecemos a instalação. Tem de reiniciar o computador antes de usar o <ph name="BUNDLE_NAME" />.</translation>
+<translation id="7847170235260850604">Iniciar o Chrome quando o Windows arrancar</translation>
 <translation id="7849037457735762883">Continue a partir de onde ficou: o Chrome pode restaurar os seus separadores sempre que reiniciar. Para ativar esta opção, aceda às</translation>
 <translation id="7869620795354551924">Para usar as palavras-passe guardadas, siga o código QR, transfira o Chrome para iOS e inicie sessão na sua Conta Google</translation>
 <translation id="7872446069773932638">A transferir… Falta(m) <ph name="SECONDS" /> segundo(s)</translation>
@@ -689,6 +696,7 @@
 <translation id="8162006532256575008">Usar o Chrome sem uma conta</translation>
 <translation id="8177472873527554730">Não é possível encontrar conteúdo na página</translation>
 <translation id="8221491193165283816">Normalmente, bloqueia as notificações. Para permitir que este site lhe apresente notificações, clique aqui.</translation>
+<translation id="8253851811470049684">Abra links no Chrome a partir de qualquer app e mantenha o navegador acessível na barra de tarefas</translation>
 <translation id="8255190535488645436">O Google Chrome está a utilizar a câmara e o microfone.</translation>
 <translation id="8267953129876836456">O Chrome encontrou algumas recomendações de segurança para sua revisão</translation>
 <translation id="8286862437124483331">O Google Chrome está a tentar mostrar palavras-passe. Escreva a sua palavra-passe do Windows para permitir esta ação.</translation>
@@ -697,7 +705,6 @@
 <translation id="8321888067342493336">Guardar como imagem</translation>
 <translation id="8336463659890584292">Quando um site pede para pré-carregar links de forma privada na respetiva página, o Chrome usa os servidores da Google. Isto oculta a sua identidade no site pré-carregado, mas a Google aprende que sites são pré-carregados.</translation>
 <translation id="8342675569599923794">Este ficheiro é perigoso. Como tal, o Chrome bloqueou-o.</translation>
-<translation id="8349094670477064572">Vai guardar e usar palavras-passe e muito mais na sua Conta Google sempre que tiver sessão iniciada no Chrome. <ph name="LEARN_MORE" /></translation>
 <translation id="835927394551949760">Perguntar ao Google</translation>
 <translation id="8362914115861174987">Traduzir para</translation>
 <translation id="8366770919198174997">Reduz o desempenho, mas torna o Chrome mais resistente a ataques</translation>

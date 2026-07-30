@@ -27,9 +27,9 @@ import type {UnguessableToken} from '//resources/mojo/mojo/public/mojom/base/ung
 import type {Url} from '//resources/mojo/url/mojom/url.mojom-webui.js';
 
 import type {ComposeboxFile, ContextualUpload} from './common.js';
-import {recordBoolean, recordContextAdditionMethod, recordEnumerationValue, recordUserAction, TabUploadOrigin} from './common.js';
+import {GlifAnimationState, recordBoolean, recordContextAdditionMethod, recordEnumerationValue, recordUserAction, TabUploadOrigin} from './common.js';
 import {FileUploadErrorType, FileUploadStatus, InputType, ToolMode as ComposeboxToolMode} from './composebox_query.mojom-webui.js';
-import {type ContextMenuEntrypointElement, GlifAnimationState} from './context_menu_entrypoint.js';
+import type {ContextMenuEntrypointElement} from './context_menu_entrypoint.js';
 import {getCss} from './contextual_entrypoint_and_carousel.css.js';
 import {getHtml} from './contextual_entrypoint_and_carousel.html.js';
 import type {ContextualEntrypointButtonElement} from './contextual_entrypoint_button.js';
@@ -83,6 +83,8 @@ enum ProcessFilesError {
   FILE_TOO_LARGE = 2,
   FILE_EMPTY = 3,
   MAX_FILES_EXCEEDED = 4,
+  MAX_IMAGES_EXCEEDED = 5,
+  MAX_PDFS_EXCEEDED = 6,
 }
 
 
@@ -222,6 +224,10 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
         !this.fileUploadsComplete;
   }
 
+  getActiveToolMode() {
+    return this.activeTool_;
+  }
+
   hasAutomaticActiveTabChipToken(): boolean {
     return this.automaticActiveTabChipToken_ !== null;
   }
@@ -321,6 +327,26 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
         !this.shouldShowLensSearchChip_;
   }
 
+  protected getToolChipLabel_(tool: ComposeboxToolMode): string {
+    if (this.inputState && this.inputState.toolConfigs) {
+      const config = this.inputState.toolConfigs.find(c => c.tool === tool);
+      if (config && config.chipLabel) {
+        return config.chipLabel;
+      }
+    }
+    // Fallback to i18n strings
+    switch (tool) {
+      case ComposeboxToolMode.kDeepSearch:
+        return this.i18n('deepSearch');
+      case ComposeboxToolMode.kImageGen:
+        return this.i18n('createImages');
+      case ComposeboxToolMode.kCanvas:
+        return this.i18n('canvas');
+      default:
+        return '';
+    }
+  }
+
   // TODO(b/481755889): Move property declarations above methods and remove
   // getters.
   private eventTracker_: EventTracker = new EventTracker();
@@ -339,7 +365,8 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
     this.eventTracker_.add(
         window.matchMedia('(width <= 264px)'), 'change',
         (e: MediaQueryListEvent) => {
-          this.showContextMenuDescription_ = !e.matches;
+          this.showContextMenuDescription_ =
+              !e.matches && this.contextMenuDescriptionEnabled_;
         });
   }
 
@@ -381,6 +408,10 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
     }
   }
 
+  onToolClickForTesting(toolMode: ComposeboxToolMode) {
+    this.handleToolClick_(toolMode);
+  }
+
   addDroppedFiles(files: FileList|null) {
     this.processFiles_(files);
     recordContextAdditionMethod(
@@ -404,6 +435,7 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
   }
 
   setContextFiles(files: ContextualUpload[]) {
+    const dataTransfer = new DataTransfer();
     for (const file of files) {
       if ('tabId' in file) {
         // If the composebox is being initialized with tab context from the
@@ -424,9 +456,10 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
           },
         }));
       } else {
-        this.addFileContext_([file.file]);
+        dataTransfer.items.add(file.file);
       }
     }
+    this.processFiles_(dataTransfer.files);
   }
 
   setInitialMode(mode: ComposeboxToolMode) {
@@ -546,6 +579,7 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
   }
 
   updateAutoActiveTabContext(tab: TabInfo|null) {
+    const chipPresentBeforeUpdate = this.automaticActiveTabChipToken_;
     // If there is already a suggested tab context, remove it.
     if (this.automaticActiveTabChipToken_) {
       this.onDeleteFile_(new CustomEvent('deleteTabContext', {
@@ -556,23 +590,49 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
       this.automaticActiveTabChipToken_ = null;
     }
 
+    // Only query autocomplete if we're replacing the current chip or if we're
+    // adding a new chip. Autocomplete should not be re-queried if there was no
+    // autochip to start, and the current tab cannot be added as an autochip.
     if (!tab) {
-      return;  // No new tab to add, so we're done.
-    }
+      if (chipPresentBeforeUpdate) {
+        this.fire('query-autocomplete', {clearMatches: true});
+      }
+    } else {
+      this.addTabContext_(new CustomEvent('addTabContext', {
+        detail: {
+          id: tab.tabId,
+          title: tab.title,
+          url: tab.url,
+          delayUpload: /*delay_upload=*/ true,
+          replaceAutoActiveTabToken: true,
+          origin: TabUploadOrigin.OTHER,
+        },
+      }));
 
-    this.addTabContext_(new CustomEvent('addTabContext', {
-      detail: {
-        id: tab.tabId,
-        title: tab.title,
-        url: tab.url,
-        delayUpload: /*delay_upload=*/ true,
-        replaceAutoActiveTabToken: true,
-        origin: TabUploadOrigin.OTHER,
-      },
-    }));
+      // TODO(crbug.com/482150500): Correctly query for url based suggestions
+      // when delayed tab is present. Right now, while url-based suggestions are
+      // not set-up, clear the autocomplete matches.
+      this.fire('clear-autocomplete-matches');
+    }
+  }
+
+  private isMimeTypeAllowed_(
+      mimeType: string, allowedTypes: string[]): boolean {
+    const lowerMimeType = mimeType.toLowerCase();
+    return allowedTypes.some(type => {
+      if (type.endsWith('/*')) {
+        const prefix = type.slice(0, -1);
+        return lowerMimeType.startsWith(prefix);
+      }
+      return lowerMimeType === type;
+    });
   }
 
   private addFileFromAttachment_(fileAttachment: FileAttachment) {
+    if (!this.isFileAllowed_(fileAttachment.mimeType)) {
+      this.handleProcessFilesError_(ProcessFilesError.INVALID_TYPE);
+      return;
+    }
     const pendingStatus = this.pendingFiles_.get(fileAttachment.uuid);
     const composeboxFile: ComposeboxFile = {
       uuid: fileAttachment.uuid,
@@ -613,7 +673,7 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
       }
     }
 
-    if (context.attachments) {
+    if (context.attachments.length > 0) {
       recordContextAdditionMethod(
           ComposeboxContextAddedMethod.CONTEXT_MENU, this.composeboxSource_);
     }
@@ -696,6 +756,14 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
         metric = ComposeboxFileValidationError.TOO_MANY_FILES;
         errorMessage = 'maxFilesReachedError';
         break;
+      case ProcessFilesError.MAX_IMAGES_EXCEEDED:
+        metric = ComposeboxFileValidationError.TOO_MANY_FILES;
+        errorMessage = 'maxImagesReachedError';
+        break;
+      case ProcessFilesError.MAX_PDFS_EXCEEDED:
+        metric = ComposeboxFileValidationError.TOO_MANY_FILES;
+        errorMessage = 'maxPdfsReachedError';
+        break;
       case ProcessFilesError.FILE_EMPTY:
         metric = ComposeboxFileValidationError.FILE_EMPTY;
         errorMessage = 'composeboxFileUploadInvalidEmptySize';
@@ -720,15 +788,33 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
     });
   }
 
-  private isFileAllowed_(file: File, allowedTypes: string[]): boolean {
-    const fileType = file.type.toLowerCase();
-    return allowedTypes.some(type => {
-      if (type.endsWith('/*')) {
-        const prefix = type.slice(0, -1);
-        return fileType.startsWith(prefix);
-      }
-      return fileType === type;
-    });
+  private isFileAllowed_(fileType: string): boolean {
+    return this.isMimeTypeAllowed_(fileType, this.imageFileTypes_) ||
+        this.isMimeTypeAllowed_(fileType, this.attachmentFileTypes_);
+  }
+
+  private getInputType_(type: string): InputType {
+    if (type === 'tab') {
+      return InputType.kBrowserTab;
+    }
+    if (type === 'image') {
+      return InputType.kLensImage;
+    }
+    if (type === 'pdf') {
+      return InputType.kLensFile;
+    }
+
+    if (this.imageFileTypes_.some(t => {
+          if (t.endsWith('/*')) {
+            const prefix = t.slice(0, -1);
+            return type.startsWith(prefix);
+          }
+          return type === t;
+        })) {
+      return InputType.kLensImage;
+    }
+
+    return InputType.kLensFile;
   }
 
   protected processFiles_(files: FileList|null) {
@@ -736,11 +822,33 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
       return;
     }
 
+    if (this.entrypointName === 'Realbox') {
+      this.addFileContext_(Array.from(files));
+      return;
+    }
+
     const filesToUpload: File[] = [];
     let errorToDisplay = ProcessFilesError.NONE;
 
-    if (this.files_.size + files.length > this.maxFileCount_) {
-      errorToDisplay = ProcessFilesError.MAX_FILES_EXCEEDED;
+    const counts = new Map<InputType, number>();
+    counts.set(InputType.kLensImage, 0);
+    counts.set(InputType.kLensFile, 0);
+    counts.set(InputType.kBrowserTab, 0);
+
+    for (const file of this.files_.values()) {
+      const type = this.getInputType_(file.type);
+      counts.set(type, (counts.get(type) || 0) + 1);
+    }
+
+    let totalCount = this.files_.size;
+
+    let maxTotal = this.maxFileCount_;
+    if (this.inputState && this.inputState.maxTotalInputs > 0) {
+      maxTotal = this.inputState.maxTotalInputs;
+    }
+
+    if (totalCount + files.length > maxTotal) {
+      errorToDisplay = Math.max(errorToDisplay, ProcessFilesError.MAX_FILES_EXCEEDED);
     }
 
     for (const file of files) {
@@ -751,15 +859,40 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
         continue;
       }
 
-      if (!this.isFileAllowed_(file, this.imageFileTypes_) &&
-          !this.isFileAllowed_(file, this.attachmentFileTypes_)) {
+      if (!this.isFileAllowed_(file.type)) {
         errorToDisplay =
             Math.max(errorToDisplay, ProcessFilesError.INVALID_TYPE);
         continue;
       }
 
-      if ((this.files_.size + filesToUpload.length) < this.maxFileCount_) {
+      const inputType = this.getInputType_(file.type);
+      let maxType = maxTotal;
+      if (this.inputState &&
+          this.inputState.maxInstances[inputType] !== undefined) {
+        maxType = this.inputState.maxInstances[inputType];
+      }
+
+      const currentTypeCount = counts.get(inputType) || 0;
+
+      if (totalCount < maxTotal && currentTypeCount < maxType) {
         filesToUpload.push(file);
+        totalCount++;
+        counts.set(inputType, currentTypeCount + 1);
+      } else {
+        if (currentTypeCount >= maxType) {
+          switch (inputType) {
+            case InputType.kLensImage:
+              errorToDisplay = Math.max(errorToDisplay, ProcessFilesError.MAX_IMAGES_EXCEEDED);
+              break;
+            case InputType.kLensFile:
+              errorToDisplay = Math.max(errorToDisplay, ProcessFilesError.MAX_PDFS_EXCEEDED);
+              break;
+            default:
+              errorToDisplay = Math.max(errorToDisplay, ProcessFilesError.MAX_FILES_EXCEEDED);
+          }
+        } else {
+          errorToDisplay = Math.max(errorToDisplay, ProcessFilesError.MAX_FILES_EXCEEDED);
+        }
       }
     }
 

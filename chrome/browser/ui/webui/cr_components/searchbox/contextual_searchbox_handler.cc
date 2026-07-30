@@ -273,14 +273,21 @@ void ContextualSearchboxHandler::OnTabStripModelChanged(
     TabStripModel* tab_strip_model,
     const TabStripModelChange& change,
     const TabStripSelectionChange& selection) {
+  if (!IsRemoteBound()) {
+    return;
+  }
+  if (change.type() != TabStripModelChange::Type::kInserted &&
+      change.type() != TabStripModelChange::Type::kRemoved &&
+      !selection.active_tab_changed()) {
+    return;
+  }
+
   // TODO(crbug.com/449196853): We should be using the `tab_strip_api` on the
   // typescript side, but it's not visible to `cr_components`, so we're using
   // `TabStripModelObserver` for now until `tab_strip_api` gets moved out of
   // //chrome. The current implementation is likely brittle, as it's not a
   // supported API for external users.
-  if (IsRemoteBound()) {
-    page_->OnTabStripChanged();
-  }
+  page_->OnTabStripChanged();
 }
 
 std::optional<lens::ImageEncodingOptions>
@@ -396,6 +403,13 @@ void ContextualSearchboxHandler::AddFileContext(
     searchbox::mojom::SelectedFileInfoPtr file_info_mojom,
     mojo_base::BigBuffer file_bytes,
     AddFileContextCallback callback) {
+  // TODO(crbug.com/483526904): Return synchronous error in the callback.
+  if (!contextual_search::ContextualSearchService::IsContextSharingEnabled(
+          profile_->GetPrefs())) {
+    std::move(callback).Run(base::UnguessableToken());
+    return;
+  }
+
   auto* contextual_session_handle = GetContextualSessionHandle();
   if (contextual_session_handle) {
     context_input_data_ = std::nullopt;
@@ -417,6 +431,13 @@ void ContextualSearchboxHandler::AddFileContextFromBrowser(
     mojo_base::BigBuffer file_bytes,
     std::optional<lens::ImageEncodingOptions> image_encoding_options,
     AddFileContextCallback callback) {
+  // TODO(crbug.com/483526904): Return synchronous error in the callback.
+  if (!contextual_search::ContextualSearchService::IsContextSharingEnabled(
+          profile_->GetPrefs())) {
+    std::move(callback).Run(base::UnguessableToken());
+    return;
+  }
+
   auto* contextual_session_handle = GetContextualSessionHandle();
   if (contextual_session_handle) {
     auto context_token = contextual_session_handle->CreateContextToken();
@@ -431,11 +452,14 @@ void ContextualSearchboxHandler::AddFileContextFromBrowser(
   }
 }
 
-void ContextualSearchboxHandler::AddTabContext(int32_t tab_id,
-                                               bool delay_upload,
-                                               AddTabContextCallback callback) {
-  auto* contextual_session_handle = GetContextualSessionHandle();
-  if (!contextual_session_handle) {
+void ContextualSearchboxHandler::ContinueAddTabContext(
+    int32_t tab_id,
+    bool delay_upload,
+    base::UnguessableToken context_token,
+    AddTabContextCallback callback) {
+  // TODO(crbug.com/483526904): Return synchronous error in the callback.
+  if (!contextual_search::ContextualSearchService::IsContextSharingEnabled(
+          profile_->GetPrefs())) {
     std::move(callback).Run(std::nullopt);
     return;
   }
@@ -451,14 +475,28 @@ void ContextualSearchboxHandler::AddTabContext(int32_t tab_id,
 
   RecordTabAddedMetric(tab, /*is_tab_suggestion_chip=*/delay_upload);
 
-  auto context_token = contextual_session_handle->CreateContextToken();
   lens::TabContextualizationController* tab_contextualization_controller =
       tab->GetTabFeatures()->tab_contextualization_controller();
   tab_contextualization_controller->GetPageContext(base::BindOnce(
       &ContextualSearchboxHandler::OnGetTabPageContext,
       weak_ptr_factory_.GetWeakPtr(), delay_upload, context_token));
-  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE, base::BindOnce(std::move(callback), context_token));
+  // base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+  //     FROM_HERE, base::BindOnce(std::move(callback), context_token));
+
+  std::move(callback).Run(context_token);
+}
+
+void ContextualSearchboxHandler::AddTabContext(int32_t tab_id,
+                                               bool delay_upload,
+                                               AddTabContextCallback callback) {
+  auto* contextual_session_handle = GetContextualSessionHandle();
+  if (!contextual_session_handle) {
+    std::move(callback).Run(std::nullopt);
+    return;
+  }
+  auto context_token = contextual_session_handle->CreateContextToken();
+  ContinueAddTabContext(tab_id, delay_upload, context_token,
+                        std::move(callback));
 }
 
 std::vector<base::UnguessableToken>

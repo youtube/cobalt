@@ -19,6 +19,7 @@
 #include "chrome/browser/web_applications/scheduler/apply_pending_manifest_update_result.h"
 #include "chrome/browser/web_applications/scheduler/fetch_install_info_from_install_url_result.h"
 #include "chrome/browser/web_applications/scheduler/fetch_installability_for_chrome_management_result.h"
+#include "chrome/browser/web_applications/scheduler/install_migrate_to_app_result.h"
 #include "chrome/browser/web_applications/scheduler/manifest_silent_update_result.h"
 #include "chrome/browser/web_applications/scheduler/web_app_install_from_migrate_from_field_result.h"
 #include "chrome/browser/web_applications/ui_manager/update_dialog_types.h"
@@ -713,6 +714,15 @@ class WebAppCommandScheduler {
       base::OnceCallback<void(std::optional<WebAppIdentityUpdate>)> callback,
       const base::Location& location = FROM_HERE);
 
+  // Reads pending app migration information like icons to show on the dialog
+  // from disk, and uses that with web app metadata to construct a
+  // WebAppIdentityUpdate instance.
+  void ReadAppMigrationDataFromDisk(
+      const webapps::AppId& old_app_id,
+      const webapps::AppId& new_app_id,
+      base::OnceCallback<void(std::optional<WebAppIdentityUpdate>)> callback,
+      const base::Location& location = FROM_HERE);
+
   // Marks whether the pending update available for the app is ignored by the
   // user, and notifies changes to the WebAppRegistrar.
   void MarkAppPendingUpdateAsIgnored(
@@ -732,6 +742,15 @@ class WebAppCommandScheduler {
       base::WeakPtr<content::WebContents> web_contents,
       blink::mojom::ManifestPtr manifest,
       WebAppInstallFromMigrateFromFieldCallback callback,
+      const base::Location& location = FROM_HERE);
+
+  // Schedules a command to install an app from a "migrate_to" field in a
+  // manifest.
+  void ScheduleInstallMigrateToApp(
+      const webapps::ManifestId& source_manifest_id,
+      const webapps::ManifestId& target_manifest_id,
+      const GURL& target_install_url,
+      InstallMigrateToAppResultCallback callback,
       const base::Location& location = FROM_HERE);
 
   // Schedules the command to finish an app migration by removing the source app

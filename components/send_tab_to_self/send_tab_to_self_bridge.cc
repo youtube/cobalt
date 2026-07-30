@@ -9,9 +9,11 @@
 #include <vector>
 
 #include "base/containers/flat_map.h"
+#include "base/containers/flat_set.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/ptr_util.h"
+#include "base/memory/raw_ptr.h"
 #include "base/observer_list.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
@@ -34,8 +36,6 @@
 #include "components/sync_device_info/local_device_info_util.h"
 #include "components/sync_sessions/open_tabs_ui_delegate.h"
 #include "components/sync_sessions/session_sync_service.h"
-#include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
-#include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 namespace send_tab_to_self {
 
 namespace {
@@ -102,6 +102,31 @@ base::flat_map<std::string, base::Time> GetSessionTimestamps(
                   : base::flat_map<std::string, base::Time>();
 }
 
+struct DeviceWithTimestamp {
+  raw_ptr<const syncer::DeviceInfo> device;
+  base::Time last_active;
+};
+
+// Returns a list of devices with the last active timestamp for each device.
+// The last active timestamp is the maximum of the device's last updated
+// timestamp and the last modified time of any session on the device.
+std::vector<DeviceWithTimestamp> GetDevicesWithLastActiveTime(
+    const std::vector<const syncer::DeviceInfo*>& all_devices,
+    const base::flat_map<std::string, base::Time>& session_timestamps) {
+  std::vector<DeviceWithTimestamp> devices_with_timestamps;
+  devices_with_timestamps.reserve(all_devices.size());
+
+  for (const syncer::DeviceInfo* device : all_devices) {
+    base::Time last_active = device->last_updated_timestamp();
+    auto it = session_timestamps.find(device->guid());
+    if (it != session_timestamps.end()) {
+      last_active = std::max(last_active, it->second);
+    }
+    devices_with_timestamps.emplace_back(device, last_active);
+  }
+  return devices_with_timestamps;
+}
+
 }  // namespace
 
 SendTabToSelfBridge::SendTabToSelfBridge(
@@ -124,9 +149,6 @@ SendTabToSelfBridge::SendTabToSelfBridge(
   if (history_service) {
     history_service_observation_.Observe(history_service);
   }
-  device_info_tracker_observation_.Observe(device_info_tracker);
-
-  ComputeTargetDeviceInfoSortedList();
 
   std::move(create_store_callback)
       .Run(syncer::SEND_TAB_TO_SELF,
@@ -454,11 +476,6 @@ void SendTabToSelfBridge::OnHistoryDeletions(
   DeleteAllEntries();
 }
 
-void SendTabToSelfBridge::OnDeviceInfoChange() {
-  TRACE_EVENT0("ui", "SendTabToSelfBridge::OnDeviceInfoChange");
-  ComputeTargetDeviceInfoSortedList();
-}
-
 bool SendTabToSelfBridge::IsReady() {
   return change_processor()->IsTrackingMetadata();
 }
@@ -469,19 +486,66 @@ bool SendTabToSelfBridge::HasValidTargetDevice() {
 
 std::vector<TargetDeviceInfo>
 SendTabToSelfBridge::GetTargetDeviceInfoSortedList() {
-  // Filter expired devices (some timestamps in the cached list may now be too
-  // old). |target_device_info_sorted_list_| is copied here to avoid mutations
-  // inside a getter.
-  // TODO(crbug.com/40200734): Consider having a timer that fires on the next
-  // expiry and removes the corresponding device(s) then.
-  std::vector<TargetDeviceInfo> non_expired_devices =
-      target_device_info_sorted_list_;
-  const base::Time now = clock_->Now();
-  std::erase_if(non_expired_devices, [now](const TargetDeviceInfo& device) {
-    return now - device.last_updated_timestamp > kDeviceExpiration;
-  });
+  TRACE_EVENT0("ui", "SendTabToSelfBridge::GetTargetDeviceInfoSortedList");
+  if (!device_info_tracker_->IsSyncing()) {
+    return {};
+  }
 
-  return non_expired_devices;
+  // Pre-calculate last active timestamps for sorting and filtering.
+  std::vector<DeviceWithTimestamp> devices_with_timestamps =
+      GetDevicesWithLastActiveTime(device_info_tracker_->GetAllDeviceInfo(),
+                                   GetSessionTimestamps(session_sync_service_));
+
+  // Sort the devices so the most recently active devices are first.
+  std::stable_sort(
+      devices_with_timestamps.begin(), devices_with_timestamps.end(),
+      [](const DeviceWithTimestamp& a, const DeviceWithTimestamp& b) {
+        return a.last_active > b.last_active;
+      });
+
+  std::vector<TargetDeviceInfo> target_device_info_sorted_list;
+  base::flat_set<std::string> seen_full_names;
+  base::flat_map<std::string, int> short_names_counter;
+
+  for (const auto& entry : devices_with_timestamps) {
+    const syncer::DeviceInfo* device = entry.device;
+    base::Time last_active = entry.last_active;
+
+    // If the current device is expired, stop here because subsequent devices
+    // in the sorted list are also expired.
+    if (clock_->Now() - last_active > kDeviceExpiration) {
+      break;
+    }
+
+    if (!ShouldIncludeDevice(*device)) {
+      continue;
+    }
+
+    SharingDeviceNames device_names = GetSharingDeviceNames(device);
+
+    // Don't include this device if it has the same name as the local device.
+    if (device_names.full_name == local_device_name_) {
+      continue;
+    }
+
+    // De-duplicate by full name. Only keep the most recent occurrence.
+    if (seen_full_names.insert(device_names.full_name).second) {
+      target_device_info_sorted_list.emplace_back(
+          device_names.full_name, device_names.short_name, device->guid(),
+          device->form_factor(), last_active);
+      ++short_names_counter[device_names.short_name];
+    }
+  }
+
+  // Finalize the display name. Use the short name if it's unique among the
+  // target list, otherwise fall back to the full name.
+  for (auto& device_info : target_device_info_sorted_list) {
+    device_info.device_name = (short_names_counter[device_info.short_name] == 1)
+                                  ? device_info.short_name
+                                  : device_info.full_name;
+  }
+
+  return target_device_info_sorted_list;
 }
 
 // static
@@ -637,6 +701,24 @@ SendTabToSelfEntry* SendTabToSelfBridge::GetMutableEntryByGUID(
   return it->second.get();
 }
 
+bool SendTabToSelfBridge::ShouldIncludeDevice(
+    const syncer::DeviceInfo& device) const {
+  // Don't include this device if it is the local device.
+  if (device_info_tracker_->IsRecentLocalCacheGuid(device.guid())) {
+    return false;
+  }
+
+  DCHECK_NE(device.guid(), change_processor()->TrackedCacheGuid());
+
+  // Don't include devices that have disabled the send tab to self receiving
+  // feature.
+  if (!device.send_tab_to_self_receiving_enabled()) {
+    return false;
+  }
+
+  return true;
+}
+
 void SendTabToSelfBridge::DoGarbageCollection() {
   std::vector<std::string> removed;
 
@@ -653,86 +735,6 @@ void SendTabToSelfBridge::DoGarbageCollection() {
     }
   }
   NotifyRemoteSendTabToSelfEntryDeleted(removed);
-}
-
-void SendTabToSelfBridge::ComputeTargetDeviceInfoSortedList() {
-  TRACE_EVENT0("ui", "SendTabToSelfBridge::ComputeTargetDeviceInfoSortedList");
-  if (!device_info_tracker_->IsSyncing()) {
-    return;
-  }
-
-  std::vector<const syncer::DeviceInfo*> all_devices =
-      device_info_tracker_->GetAllDeviceInfo();
-
-  base::flat_map<std::string, base::Time> session_timestamps =
-      GetSessionTimestamps(session_sync_service_);
-
-  auto get_last_active =
-      [&session_timestamps](const syncer::DeviceInfo* device) {
-        base::Time last_active = device->last_updated_timestamp();
-        auto it = session_timestamps.find(device->guid());
-        if (it != session_timestamps.end()) {
-          last_active = std::max(last_active, it->second);
-        }
-        return last_active;
-      };
-
-  // Sort the DeviceInfo vector so the most recently modified devices are first.
-  std::stable_sort(all_devices.begin(), all_devices.end(),
-                   [&get_last_active](const syncer::DeviceInfo* device1,
-                                      const syncer::DeviceInfo* device2) {
-                     return get_last_active(device1) > get_last_active(device2);
-                   });
-
-  target_device_info_sorted_list_.clear();
-  absl::flat_hash_set<std::string> unique_device_names;
-  absl::flat_hash_map<std::string, int> short_names_counter;
-  for (const syncer::DeviceInfo* device : all_devices) {
-    base::Time last_active = get_last_active(device);
-
-    // If the current device is considered expired for our purposes, stop here
-    // since the next devices in the vector are at least as expired than this
-    // one.
-    if (clock_->Now() - last_active > kDeviceExpiration) {
-      break;
-    }
-
-    // Don't include this device if it is the local device.
-    if (device_info_tracker_->IsRecentLocalCacheGuid(device->guid())) {
-      continue;
-    }
-
-    DCHECK_NE(device->guid(), change_processor()->TrackedCacheGuid());
-
-    // Don't include devices that have disabled the send tab to self receiving
-    // feature.
-    if (!device->send_tab_to_self_receiving_enabled()) {
-      continue;
-    }
-
-    SharingDeviceNames device_names = GetSharingDeviceNames(device);
-
-    // Don't include this device if it has the same name as the local device.
-    if (device_names.full_name == local_device_name_) {
-      continue;
-    }
-
-    // Only keep one device per device name. We only keep the first occurrence
-    // which is the most recent.
-    if (unique_device_names.insert(device_names.full_name).second) {
-      TargetDeviceInfo target_device_info(
-          device_names.full_name, device_names.short_name, device->guid(),
-          device->form_factor(), last_active);
-      target_device_info_sorted_list_.push_back(target_device_info);
-
-      ++short_names_counter[device_names.short_name];
-    }
-  }
-  for (auto& device_info : target_device_info_sorted_list_) {
-    bool unique_short_name = short_names_counter[device_info.short_name] == 1;
-    device_info.device_name =
-        (unique_short_name ? device_info.short_name : device_info.full_name);
-  }
 }
 
 void SendTabToSelfBridge::DeleteEntryWithBatch(

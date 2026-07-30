@@ -13,7 +13,10 @@
 #include "base/command_line.h"
 #include "base/files/file_util.h"
 #include "base/no_destructor.h"
+#include "base/run_loop.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/values.h"
+#include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/enterprise_policy_url_checker.h"
 #include "chrome/browser/actor/execution_engine.h"
 #include "chrome/browser/actor/shared_types.h"
@@ -654,10 +657,6 @@ void ExpectErrorResult(PerformActionsFuture& future,
   EXPECT_EQ(actual_code, expected_code);
 }
 
-void PrintTo(const mojom::ActionResultCode& code, std::ostream* os) {
-  *os << std::to_underlying(code);
-}
-
 bool SetUpOptimizationGuideComponentBlocklist(const base::FilePath& path,
                                               const std::string& blocked_host) {
   base::ScopedAllowBlockingForTesting allow_blocking;
@@ -676,6 +675,15 @@ std::string EncodeURI(const std::string& component) {
   url::RawCanonOutputT<char> encoded;
   url::EncodeURIComponent(component, &encoded);
   return std::string(encoded.view());
+}
+
+void WaitForPostedTask() {
+  {
+    base::RunLoop run_loop;
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, run_loop.QuitClosure());
+    run_loop.Run();
+  }
 }
 
 ExecutionEngineStateWaiter::ExecutionEngineStateWaiter(
@@ -702,6 +710,30 @@ void ExecutionEngineStateWaiter::OnStateChanged(
   }
 }
 
+ActorTaskStateWaiter::ActorTaskStateWaiter(base::OnceClosure callback,
+                                           ActorKeyedService& service,
+                                           ActorTask& task,
+                                           ActorTask::State target_state)
+    : callback_(std::move(callback)),
+      task_id_(task.id()),
+      target_state_(target_state),
+      subscription_(service.AddTaskStateChangedCallback(
+          base::BindRepeating(&ActorTaskStateWaiter::StateChanged,
+                              base::Unretained(this)))) {}
+
+ActorTaskStateWaiter::~ActorTaskStateWaiter() = default;
+
+void ActorTaskStateWaiter::StateChanged(TaskId task_id,
+                                        ActorTask::State state) {
+  if (!callback_) {
+    return;
+  }
+
+  if (task_id_ == task_id && target_state_ == state) {
+    std::move(callback_).Run();
+  }
+}
+
 ScopedExecutionEngineFactory::ScopedExecutionEngineFactory(
     ExecutionEngine::FactoryFunction factory) {
   CHECK(ExecutionEngine::GetFactoryFunctionForTesting().is_null());
@@ -724,6 +756,25 @@ const EnterprisePolicyUrlChecker* NoEnterprisePolicyChecker() {
   static base::NoDestructor<MockPolicyChecker> checker(
       EnterprisePolicyBlockReason::kNotBlocked);
   return checker.get();
+}
+
+TestTabState::TestTabState(content::WebContents* web_contents) {
+  if (web_contents) {
+    ON_CALL(tab, GetContents).WillByDefault(::testing::Return(web_contents));
+  }
+  ON_CALL(tab, RegisterWillDetach)
+      .WillByDefault([this](tabs::TabInterface::WillDetach callback) {
+        return will_detach_callback_list_.Add(std::move(callback));
+      });
+  ON_CALL(tab, GetUnownedUserDataHost())
+      .WillByDefault(::testing::ReturnRef(user_data_host));
+
+  tab_data = std::make_unique<ActorTabData>(&tab);
+}
+
+TestTabState::~TestTabState() {
+  will_detach_callback_list_.Notify(&tab,
+                                    tabs::TabInterface::DetachReason::kDelete);
 }
 
 }  // namespace actor

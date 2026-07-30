@@ -1361,7 +1361,7 @@ protocol::Response InspectorDOMAgent::performSearch(
 
   unsigned query_length = whitespace_trimmed_query.length();
   bool start_tag_found = !whitespace_trimmed_query.find('<');
-  bool start_closing_tag_found = !whitespace_trimmed_query.Find("</");
+  bool start_closing_tag_found = !whitespace_trimmed_query.find("</");
   bool end_tag_found =
       whitespace_trimmed_query.ReverseFind('>') + 1 == query_length;
   bool start_quote_found = !whitespace_trimmed_query.find('"');
@@ -2923,7 +2923,7 @@ void InspectorDOMAgent::UpdateAffectedByStartingStylesFlag(
 
 namespace {
 
-ShadowRoot* ShadowRootForNode(Node* node, const String& type) {
+ShadowRoot* ShadowRootForNode(Node* node, const StringView& type) {
   auto* element = DynamicTo<Element>(node);
   if (!element)
     return nullptr;
@@ -2953,19 +2953,18 @@ Node* InspectorDOMAgent::NodeForPath(const String& path) {
     return nullptr;
 
   Node* node = document_.Get();
-  Vector<String> path_tokens;
-  path.Split(',', path_tokens);
+  Vector<StringView> path_tokens = StringView(path).SplitSkippingEmpty(',');
   if (!path_tokens.size())
     return nullptr;
 
   InspectorDOMAgent::IncludeWhitespaceEnum include_whitespace =
       IncludeWhitespace();
   for (wtf_size_t i = 0; i < path_tokens.size() - 1; i += 2) {
-    String& index_value = path_tokens[i];
-    auto result = StringToUint(index_value);
+    const StringView& index_value = path_tokens[i];
+    auto result = StringToUintLoose(index_value);
     wtf_size_t child_number = result.value_or(0);
     Node* child;
-    String child_name = path_tokens[i + 1];
+    const StringView& child_name = path_tokens[i + 1];
     if (!result) {
       if (index_value == "d") {
         child = DocumentForFrameOwner(node);

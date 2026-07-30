@@ -23,6 +23,7 @@ import android.graphics.Rect;
 import android.os.Build;
 import android.os.Build.VERSION_CODES;
 import android.os.Build.VERSION_CODES_FULL;
+import android.os.PersistableBundle;
 import android.provider.Browser;
 import android.text.TextUtils;
 import android.util.Pair;
@@ -98,6 +99,9 @@ import java.util.function.Supplier;
 public class MultiWindowUtils implements ActivityStateListener {
     public static final int INVALID_TASK_ID = MultiInstanceManager.INVALID_TASK_ID;
 
+    private static final int HIGH_INSTANCE_LIMIT_MEMORY_THRESHOLD_MB = 6500;
+    public static final String PERSISTENT_STATE_ID = "persistent_state_id";
+
     static final String HISTOGRAM_NUM_ACTIVITIES_DESKTOP_WINDOW =
             "Android.MultiInstance.NumActivities.DesktopWindow";
     static final String HISTOGRAM_NUM_INSTANCES_DESKTOP_WINDOW =
@@ -106,12 +110,15 @@ public class MultiWindowUtils implements ActivityStateListener {
             "Android.MultiInstance.NumActivities.DesktopWindow.Incognito";
     static final String HISTOGRAM_NUM_INSTANCES_DESKTOP_WINDOW_INCOGNITO =
             "Android.MultiInstance.NumInstances.DesktopWindow.Incognito";
+    static final String HISTOGRAM_PERSISTENT_STATE_ID_VERIFICATION =
+            "Android.MultiInstance.PersistAcrossReboots.IdVerification";
     static final String OPEN_ADJACENTLY_PARAM = "open_adjacently";
+
+    static @Nullable Integer sMaxInstancesForTesting;
 
     private static MultiWindowUtils sInstance = new MultiWindowUtils();
     protected static @Nullable Supplier<Activity> sActivitySupplierForTesting;
 
-    private static @Nullable Integer sMaxInstancesForTesting;
     private static @Nullable Integer sIncognitoInstanceCountForTesting;
     private static @Nullable Integer sInstanceCountForTesting;
     private static @Nullable Boolean sMultiInstanceApi31EnabledForTesting;
@@ -140,6 +147,28 @@ public class MultiWindowUtils implements ActivityStateListener {
         int SINGLE_WINDOW = 0;
         int MULTI_WINDOW = 1;
     }
+
+    // LINT.IfChange(persistent_state_id_verification)
+    @IntDef({
+        PersistentStateIdVerification.NO_PERSISTENT_STATE_NOR_ID,
+        PersistentStateIdVerification.MISSING_PERSISTENT_STATE,
+        PersistentStateIdVerification.MISSING_PERSISTENT_STATE_ID,
+        PersistentStateIdVerification.PERSISTENT_STATE_MATCH,
+        PersistentStateIdVerification.PERSISTENT_STATE_MISMATCH,
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface PersistentStateIdVerification {
+        // These values are used for UMA. Don't reuse or reorder values.
+        // If you add something, update NUM_ENTRIES.
+        int NO_PERSISTENT_STATE_NOR_ID = 0;
+        int MISSING_PERSISTENT_STATE = 1;
+        int MISSING_PERSISTENT_STATE_ID = 2;
+        int PERSISTENT_STATE_MATCH = 3;
+        int PERSISTENT_STATE_MISMATCH = 4;
+        int NUM_ENTRIES = 5;
+    }
+
+    // LINT.ThenChange(//tools/metrics/histograms/metadata/android/enums.xml:persistent_state_id_verification)
 
     protected MultiWindowUtils() {
         mMultiInstanceApi31Enabled = isMultiInstanceApi31Enabled();
@@ -197,20 +226,16 @@ public class MultiWindowUtils implements ActivityStateListener {
             return TabWindowManager.MAX_SELECTORS_LEGACY;
         }
 
-        if (!ChromeFeatureList.sDisableInstanceLimit.isEnabled()) {
-            return TabWindowManager.MAX_SELECTORS_S;
-        }
-
         if (DeviceInfo.isDesktop()) {
-            return TabWindowManager.MAX_SELECTORS;
+            return TabWindowManager.MAX_SELECTORS_1000;
         }
 
-        int memoryThresholdMb = ChromeFeatureList.sDisableInstanceLimitMemoryThresholdMb.getValue();
         boolean isAboveMemoryThreshold =
                 SysUtils.amountOfPhysicalMemoryKB()
-                        >= memoryThresholdMb * ConversionUtils.KILOBYTES_PER_MEGABYTE;
+                        >= HIGH_INSTANCE_LIMIT_MEMORY_THRESHOLD_MB
+                                * ConversionUtils.KILOBYTES_PER_MEGABYTE;
         if (isAboveMemoryThreshold) {
-            return ChromeFeatureList.sDisableInstanceLimitMaxCount.getValue();
+            return TabWindowManager.MAX_SELECTORS_20;
         }
         return TabWindowManager.MAX_SELECTORS_S;
     }
@@ -680,6 +705,56 @@ public class MultiWindowUtils implements ActivityStateListener {
     }
 
     /**
+     * Verifies that the persistent state passed in Activity creation matches the persistent state
+     * associated with the current instance. This is to verify that the OS supplied the correct
+     * state, and not an outdated bundle.
+     *
+     * @param instanceId The id of the instance.
+     * @param persistentState The {@link PersistableBundle} passed to the instance in #onCreate().
+     */
+    public static void verifyLatestPersistentStateId(
+            int instanceId, @Nullable PersistableBundle persistentState) {
+        boolean containsPersistentStateId =
+                MultiInstancePersistentStore.containsLatestPersistentStateId(instanceId);
+        int latestPersistentStateId =
+                MultiInstancePersistentStore.readLatestPersistentStateId(instanceId);
+        if (persistentState == null || instanceId == INVALID_WINDOW_ID) {
+            RecordHistogram.recordEnumeratedHistogram(
+                    HISTOGRAM_PERSISTENT_STATE_ID_VERIFICATION,
+                    containsPersistentStateId
+                            ? PersistentStateIdVerification.MISSING_PERSISTENT_STATE
+                            : PersistentStateIdVerification.NO_PERSISTENT_STATE_NOR_ID,
+                    PersistentStateIdVerification.NUM_ENTRIES);
+            return;
+        }
+
+        if (!containsPersistentStateId) {
+            RecordHistogram.recordEnumeratedHistogram(
+                    HISTOGRAM_PERSISTENT_STATE_ID_VERIFICATION,
+                    PersistentStateIdVerification.MISSING_PERSISTENT_STATE_ID,
+                    PersistentStateIdVerification.NUM_ENTRIES);
+            return;
+        }
+
+        RecordHistogram.recordEnumeratedHistogram(
+                HISTOGRAM_PERSISTENT_STATE_ID_VERIFICATION,
+                latestPersistentStateId == persistentState.getInt(PERSISTENT_STATE_ID)
+                        ? PersistentStateIdVerification.PERSISTENT_STATE_MATCH
+                        : PersistentStateIdVerification.PERSISTENT_STATE_MISMATCH,
+                PersistentStateIdVerification.NUM_ENTRIES);
+    }
+
+    /**
+     * @param instanceId The id of the instance.
+     * @param latestPersistentStateId The id of the latest {@link PersistableBundle} associated with
+     *     this instance.
+     */
+    public static void writeLatestPersistentStateId(int instanceId, int latestPersistentStateId) {
+        MultiInstancePersistentStore.writeLatestPersistentStateId(
+                instanceId, latestPersistentStateId);
+    }
+
+    /**
      * Determines if multiple instances of Chrome are running.
      *
      * @param context The current Context, used to retrieve the ActivityManager system service.
@@ -1014,10 +1089,13 @@ public class MultiWindowUtils implements ActivityStateListener {
      * Determines whether a new window should be opened adjacently or in full screen. This relies on
      * an experimental param set on the server-side, with behavior defaulting to adjacent launch.
      *
+     * @param activity The current activity.
      * @return {@code false} when a new window should be opened in full screen, {@code true}
      *     otherwise.
      */
-    public static boolean shouldOpenInAdjacentWindow() {
+    public static boolean shouldOpenInAdjacentWindow(Activity activity) {
+        // Always open adjacently if the current activity is in multi-windowing mode.
+        if (activity.isInMultiWindowMode()) return true;
         return ChromeFeatureList.getFieldTrialParamByFeatureAsBoolean(
                 ChromeFeatureList.ROBUST_WINDOW_MANAGEMENT_EXPERIMENTAL,
                 OPEN_ADJACENTLY_PARAM,
@@ -1089,20 +1167,20 @@ public class MultiWindowUtils implements ActivityStateListener {
         RecordHistogram.recordExactLinearHistogram(
                 HISTOGRAM_NUM_ACTIVITIES_DESKTOP_WINDOW,
                 MultiInstanceManagerApi31.getRunningTabbedActivityCount(),
-                TabWindowManager.MAX_SELECTORS + 1);
+                TabWindowManager.MAX_SELECTORS_1000 + 1);
 
         // Emit histograms for total instance count.
         RecordHistogram.recordExactLinearHistogram(
                 HISTOGRAM_NUM_INSTANCES_DESKTOP_WINDOW,
                 getInstanceCountWithFallback(PersistedInstanceType.ANY),
-                TabWindowManager.MAX_SELECTORS + 1);
+                TabWindowManager.MAX_SELECTORS_1000 + 1);
 
         // Emit histograms for running Incognito activity count.
         if (IncognitoUtils.shouldOpenIncognitoAsWindow()) {
             RecordHistogram.recordExactLinearHistogram(
                     HISTOGRAM_NUM_ACTIVITIES_DESKTOP_WINDOW_INCOGNITO,
                     getIncognitoInstanceCount(/* activeOnly= */ true),
-                    TabWindowManager.MAX_SELECTORS + 1);
+                    TabWindowManager.MAX_SELECTORS_1000 + 1);
         }
 
         // Emit histograms for total Incognito instance count.
@@ -1110,7 +1188,7 @@ public class MultiWindowUtils implements ActivityStateListener {
             RecordHistogram.recordExactLinearHistogram(
                     HISTOGRAM_NUM_INSTANCES_DESKTOP_WINDOW_INCOGNITO,
                     getIncognitoInstanceCount(/* activeOnly= */ false),
-                    TabWindowManager.MAX_SELECTORS + 1);
+                    TabWindowManager.MAX_SELECTORS_1000 + 1);
         }
     }
 

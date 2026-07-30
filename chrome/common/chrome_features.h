@@ -18,7 +18,7 @@
 #include "chrome/common/buildflags.h"
 #include "device/vr/buildflags/buildflags.h"
 #include "extensions/buildflags/buildflags.h"
-#include "printing/buildflags/buildflags.h"
+#include "pdf/buildflags.h"
 #include "ui/base/buildflags.h"
 
 namespace features {
@@ -421,6 +421,8 @@ COMPONENT_EXPORT(CHROME_FEATURES)
 // This is the maximum deviation. The jitter to the delay is a uniformly random
 // sample from the chosen deviation. The value should be less than 1.
 extern const base::FeatureParam<double> kGlicUserStatusRequestDelayJitter;
+COMPONENT_EXPORT(CHROME_FEATURES)
+BASE_DECLARE_FEATURE(kGlicUserStatusHandlesRefreshTokenLoss);
 
 enum class GlicEnterpriseCheckStrategy {
   // Use ManagementService to check if the account is managed.
@@ -489,6 +491,9 @@ extern const base::FeatureParam<int> kGlicClientUnresponsiveUiMaxTimeMs;
 COMPONENT_EXPORT(CHROME_FEATURES)
 extern const base::FeatureParam<bool>
     kGlicClientResponsivenessCheckIgnoreWhenDebuggerAttached;
+
+COMPONENT_EXPORT(CHROME_FEATURES)
+BASE_DECLARE_FEATURE(kGlicEnableCachedGetUserProfileInfo);
 
 COMPONENT_EXPORT(CHROME_FEATURES)
 BASE_DECLARE_FEATURE(kGlicKeyboardShortcutNewBadge);
@@ -709,8 +714,6 @@ COMPONENT_EXPORT(CHROME_FEATURES)
 extern const base::FeatureParam<std::string> kGlicHeaderRequestTypes;
 
 COMPONENT_EXPORT(CHROME_FEATURES) BASE_DECLARE_FEATURE(kGlicShareImage);
-COMPONENT_EXPORT(CHROME_FEATURES)
-BASE_DECLARE_FEATURE(kGlicShareImageEnterprise);
 
 COMPONENT_EXPORT(CHROME_FEATURES) BASE_DECLARE_FEATURE(kGlicActorAutofill);
 COMPONENT_EXPORT(CHROME_FEATURES)
@@ -758,6 +761,10 @@ COMPONENT_EXPORT(CHROME_FEATURES)
 BASE_DECLARE_FEATURE(kGlicGuestUrlPresets);
 COMPONENT_EXPORT(CHROME_FEATURES)
 extern const base::FeatureParam<int> kGlicGuestUrlPresetType;
+
+#if BUILDFLAG(ENABLE_GLIC) && BUILDFLAG(ENABLE_PDF)
+COMPONENT_EXPORT(CHROME_FEATURES) BASE_DECLARE_FEATURE(kPdfGlicSummarize);
+#endif
 
 #if !BUILDFLAG(IS_ANDROID)
 COMPONENT_EXPORT(CHROME_FEATURES)
@@ -955,13 +962,6 @@ COMPONENT_EXPORT(CHROME_FEATURES)
 BASE_DECLARE_FEATURE(kHttpsFirstModeIncognito);
 COMPONENT_EXPORT(CHROME_FEATURES)
 BASE_DECLARE_FEATURE(kHttpsFirstModeIncognitoNewSettings);
-
-#if BUILDFLAG(IS_MAC)
-COMPONENT_EXPORT(CHROME_FEATURES) BASE_DECLARE_FEATURE(kImmersiveFullscreen);
-COMPONENT_EXPORT(CHROME_FEATURES)
-BASE_DECLARE_FEATURE(kImmersiveFullscreenPWAs);
-COMPONENT_EXPORT(CHROME_FEATURES) BASE_DECLARE_FEATURE(kFullscreenAnimateTabs);
-#endif
 
 #if !BUILDFLAG(IS_ANDROID)
 COMPONENT_EXPORT(CHROME_FEATURES)
@@ -1386,6 +1386,8 @@ COMPONENT_EXPORT(CHROME_FEATURES)
 extern const base::FeatureParam<bool> kWebUIReloadButtonDeferBrowserViewShow;
 COMPONENT_EXPORT(CHROME_FEATURES)
 BASE_DECLARE_FEATURE(kWebUIHomeButton);
+COMPONENT_EXPORT(CHROME_FEATURES)
+BASE_DECLARE_FEATURE(kWebUIBackForwardButton);
 COMPONENT_EXPORT(CHROME_FEATURES)
 BASE_DECLARE_FEATURE(kWebUISplitTabsButton);
 COMPONENT_EXPORT(CHROME_FEATURES)

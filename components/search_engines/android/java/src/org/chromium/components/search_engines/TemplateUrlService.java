@@ -378,6 +378,18 @@ public class TemplateUrlService {
     }
 
     /**
+     * Returns a list of template URLs filtered by the specified category.
+     *
+     * @param category The category of template URLs to retrieve.
+     */
+    public List<TemplateUrl> getTemplateUrlsByCategory(
+            @JniType("TemplateUrlServiceAndroid::TemplateUrlCategory") int category) {
+        ThreadUtils.assertOnUiThread();
+        return TemplateUrlServiceJni.get()
+                .getTemplateUrlsByCategory(mNativeTemplateUrlServiceAndroid, category);
+    }
+
+    /**
      * Adds a search engine, set by Play API.
      *
      * @param name The name of the search engine to be added.
@@ -441,6 +453,41 @@ public class TemplateUrlService {
                 .getImageUrlAndPostContent(mNativeTemplateUrlServiceAndroid);
     }
 
+    /**
+     * Removes the search engine by keyword.
+     *
+     * @param keyword The keyword of the search engine to be removed.
+     * @return True if search engine was successfully removed, false if remove failed (e.g. search
+     *     engine not found or it is the default search engine)
+     */
+    public boolean removeSearchEngine(String keyword) {
+        ThreadUtils.assertOnUiThread();
+        return TemplateUrlServiceJni.get()
+                .removeSearchEngine(mNativeTemplateUrlServiceAndroid, keyword);
+    }
+
+    /**
+     * Edits the search engine by keyword.
+     *
+     * @param keyword The keyword of the search engine to be edited.
+     * @param shortName The short name of the search engine to be edited.
+     * @param newKeyword The new keyword of the search engine to be edited.
+     * @param searchUrl The search url of the search engine to be edited.
+     * @return True if search engine was successfully edited, false if edit failed (e.g. search
+     *     engine not found or try to edit the url of the prepopulated search engine).
+     */
+    public boolean editSearchEngine(
+            String keyword, String shortName, String newKeyword, String searchUrl) {
+        ThreadUtils.assertOnUiThread();
+        return TemplateUrlServiceJni.get()
+                .editSearchEngine(
+                        mNativeTemplateUrlServiceAndroid,
+                        keyword,
+                        shortName,
+                        newKeyword,
+                        searchUrl);
+    }
+
     @NativeMethods
     public interface Natives {
         void load(long nativeTemplateUrlServiceAndroid);
@@ -449,6 +496,16 @@ public class TemplateUrlService {
 
         void setUserSelectedDefaultSearchProvider(
                 long nativeTemplateUrlServiceAndroid, String selectedKeyword, int choiceLocation);
+
+        boolean removeSearchEngine(
+                long nativeTemplateUrlServiceAndroid, @JniType("std::u16string") String keyword);
+
+        boolean editSearchEngine(
+                long nativeTemplateUrlServiceAndroid,
+                @JniType("std::u16string") String keyword,
+                @JniType("std::u16string") String shortName,
+                @JniType("std::u16string") String newKeyword,
+                @JniType("std::string") String searchUrl);
 
         boolean isDefaultSearchManaged(long nativeTemplateUrlServiceAndroid);
 
@@ -507,6 +564,11 @@ public class TemplateUrlService {
                 @Nullable String imageTranslateTargetLanguageParamKey);
 
         void getTemplateUrls(long nativeTemplateUrlServiceAndroid, List<TemplateUrl> templateUrls);
+
+        @JniType("std::vector<const TemplateURL*>")
+        List<TemplateUrl> getTemplateUrlsByCategory(
+                long nativeTemplateUrlServiceAndroid,
+                @JniType("TemplateUrlServiceAndroid::TemplateUrlCategory") int category);
 
         TemplateUrl getDefaultSearchEngine(long nativeTemplateUrlServiceAndroid);
 

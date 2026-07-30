@@ -2371,30 +2371,30 @@
       "Linux"
     ],
     "bases": [
-      "external/wpt/css/css-overflow/column-scroll-marker-001.html",
-      "external/wpt/css/css-overflow/column-scroll-marker-003.html",
-      "external/wpt/css/css-overflow/column-scroll-marker-004.html",
-      "external/wpt/css/css-overflow/column-scroll-marker-005.html",
-      "external/wpt/css/css-overflow/column-scroll-marker-006.html",
-      "external/wpt/css/css-overflow/column-scroll-marker-007.html",
-      "external/wpt/css/css-overflow/column-scroll-marker-008.html",
-      "external/wpt/css/css-overflow/column-scroll-marker-010.html",
-      "external/wpt/css/css-overflow/column-scroll-marker-011.html",
-      "external/wpt/css/css-overflow/column-scroll-marker-012.html",
-      "external/wpt/css/css-overflow/column-scroll-marker-013.html",
-      "external/wpt/css/css-overflow/column-scroll-marker-014.html",
-      "external/wpt/css/css-overflow/column-scroll-marker-counters.html",
-      "external/wpt/css/css-overflow/column-scroll-marker-dynamic-style-update.html",
-      "external/wpt/css/css-overflow/column-scroll-marker-reattach-target-current.html",
-      "external/wpt/css/css-overflow/nested-scroll-markers-under-content-visibility-auto.html",
-      "external/wpt/css/css-overflow/root-scroll-marker-activation-in-iframe.html",
-      "external/wpt/css/css-overflow/scroll-marker-group-015.html",
-      "external/wpt/css/css-overflow/scroll-target-group-003.html",
-      "external/wpt/css/css-overflow/scroll-marker-group-size-container-query-root.html",
-      "external/wpt/css/css-overflow/targeted-column-scroll-marker-selection-001.html",
-      "external/wpt/css/css-overflow/targeted-column-scroll-marker-selection-002.html",
-      "external/wpt/css/css-overflow/targeted-column-scroll-marker-selection-003.html",
-      "external/wpt/css/css-overflow/targeted-column-scroll-marker-selection-004.html",
+      "external/wpt/css/css-overflow/scroll-markers/column-scroll-marker-001.html",
+      "external/wpt/css/css-overflow/scroll-markers/column-scroll-marker-003.html",
+      "external/wpt/css/css-overflow/scroll-markers/column-scroll-marker-004.html",
+      "external/wpt/css/css-overflow/scroll-markers/column-scroll-marker-005.html",
+      "external/wpt/css/css-overflow/scroll-markers/column-scroll-marker-006.html",
+      "external/wpt/css/css-overflow/scroll-markers/column-scroll-marker-007.html",
+      "external/wpt/css/css-overflow/scroll-markers/column-scroll-marker-008.html",
+      "external/wpt/css/css-overflow/scroll-markers/column-scroll-marker-010.html",
+      "external/wpt/css/css-overflow/scroll-markers/column-scroll-marker-011.html",
+      "external/wpt/css/css-overflow/scroll-markers/column-scroll-marker-012.html",
+      "external/wpt/css/css-overflow/scroll-markers/column-scroll-marker-013.html",
+      "external/wpt/css/css-overflow/scroll-markers/column-scroll-marker-014.html",
+      "external/wpt/css/css-overflow/scroll-markers/column-scroll-marker-counters.html",
+      "external/wpt/css/css-overflow/scroll-markers/column-scroll-marker-dynamic-style-update.html",
+      "external/wpt/css/css-overflow/scroll-markers/column-scroll-marker-reattach-target-current.html",
+      "external/wpt/css/css-overflow/scroll-markers/nested-scroll-markers-under-content-visibility-auto.html",
+      "external/wpt/css/css-overflow/scroll-markers/root-scroll-marker-activation-in-iframe.html",
+      "external/wpt/css/css-overflow/scroll-markers/scroll-marker-group-015.html",
+      "external/wpt/css/css-overflow/scroll-markers/scroll-target-group-003.html",
+      "external/wpt/css/css-overflow/scroll-markers/scroll-marker-group-size-container-query-root.html",
+      "external/wpt/css/css-overflow/scroll-markers/targeted-column-scroll-marker-selection-001.html",
+      "external/wpt/css/css-overflow/scroll-markers/targeted-column-scroll-marker-selection-002.html",
+      "external/wpt/css/css-overflow/scroll-markers/targeted-column-scroll-marker-selection-003.html",
+      "external/wpt/css/css-overflow/scroll-markers/targeted-column-scroll-marker-selection-004.html",
       "external/wpt/css/css-pseudo/events-on-pseudo-element.tentative.html",
       "external/wpt/fullscreen/api/element-request-fullscreen-namespaces.html",
       "external/wpt/fullscreen/rendering/exit-fullscreen-scroll-to-unscrollable-area-overflow-hidden.html",
@@ -2481,6 +2481,35 @@
     ],
     "expires": "Jul 1, 2023"
   },
+  "Running existing tests that assert that processing instructions are parsed as bogus comments",
+  "while actual processing-instruction HTML parser support is being worked on",
+  {
+    "prefix": "parse-processing-instructions-as-bogus-comments",
+    "owners": [
+      "nrosenthal@chromium.org",
+      "foolip@chromium.org"
+    ],
+    "platforms": [
+      "Linux",
+      "Mac",
+      "Win"
+    ],
+    "bases": [
+      "html5lib/generated/run-html5test-com-data.html",
+      "html5lib/generated/run-html5test-com-write.html",
+      "html5lib/generated/run-tests1-data.html",
+      "html5lib/generated/run-tests1-write.html",
+      "external/wpt/html/syntax/parsing/html5lib_html5test-com.html",
+      "external/wpt/html/syntax/parsing/html5lib_tests1.html",
+      "external/wpt/html/syntax/xmldecl/xmldecl-1.html",
+      "external/wpt/html/syntax/xmldecl/xmldecl-2.html"
+    ],
+    "exclusive_tests": "ALL",
+    "args": [
+      "--disable-blink-features=HTMLProcessingInstruction"
+    ],
+    "expires": "Sep 1, 2026"
+  },
   {
     "prefix": "permission-element",
     "platforms": [
@@ -2492,7 +2521,7 @@
       "external/wpt/html/semantics/permission-element"
     ],
     "args": [
-      "--enable-blink-features=PermissionElement"
+      "--enable-blink-features=UserMediaElement"
     ],
     "owners": [
       "permissions-core@google.com"
@@ -2506,7 +2535,7 @@
     ],
     "bases": [],
     "args": [
-      "--disable-blink-features=PermissionElement,GeolocationElement,InstallElement"
+      "--disable-blink-features=UserMediaElement,GeolocationElement,InstallElement"
     ],
     "owners": [
       "permissions-core@google.com"
@@ -2891,7 +2920,7 @@
     "bases": [
       "css3/filters",
       "external/wpt/css/css-backgrounds/hidpi",
-      "external/wpt/css/css-overflow/scroll-buttons-scroll-distance.html",
+      "external/wpt/css/css-overflow/scroll-markers/scroll-buttons-scroll-distance.html",
       "external/wpt/css/css-paint-api/hidpi",
       "external/wpt/css/cssom-view/Element-currentCSSZoom.html",
       "external/wpt/element-timing",
@@ -4645,7 +4674,7 @@
       "external/wpt/css/css-anchor-position/transform-015.html",
       "external/wpt/css/css-backgrounds",
       "external/wpt/css/css-view-transitions",
-      "external/wpt/css/css-overflow/scroll-markers-updated-by-programmatic-scroll.html",
+      "external/wpt/css/css-overflow/scroll-markers/scroll-markers-updated-by-programmatic-scroll.html",
       "external/wpt/css/cssom-view/overflow-hidden-smooth-scroll-crash.html",
       "external/wpt/css/cssom-view/scroll-behavior-smooth-after-hiding-iframe.html",
       "external/wpt/feature-policy/experimental-features",
@@ -6095,5 +6124,37 @@
       "drott@chromium.org"
     ],
     "expires": "Nov 1, 2026"
+  },
+  {
+    "prefix": "cssom-getcomputedstyle-pseudo-no-colon-disabled",
+    "platforms": ["Linux"],
+    "bases": [
+      "external/wpt/css/cssom/getComputedStyle-pseudo.html",
+      "fast/css/getComputedStyle/getComputedStyle-with-pseudo-element.html"
+    ],
+    "args": ["--disable-blink-features=CSSOMGetComputedStylePseudoElementRequiresColon"],
+    "owners": [
+      "helmut@januschka.com"
+    ],
+    "expires": "Feb 1, 2027"
+  },
+  {
+    "prefix": "dom_storage_sqlite",
+    "owners": [
+      "evanstade@microsoft.com",
+      "stevebe@microsoft.com",
+      "rahsin@microsoft.com",
+      "chrome-storage-team@google.com"
+    ],
+    "platforms": [
+      "Linux",
+      "Win"
+    ],
+    "bases": [
+      "external/wpt/webstorage",
+      "storage/domstorage"
+    ],
+    "args": ["--enable-features=DomStorageSqlite"],
+    "expires": "Aug 13, 2026"
   }
 ]

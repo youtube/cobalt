@@ -13,12 +13,12 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
-import org.chromium.chrome.browser.magic_stack.ModuleConfigChecker;
 import org.chromium.chrome.browser.magic_stack.ModuleDelegate;
 import org.chromium.chrome.browser.magic_stack.ModuleDelegate.ModuleType;
 import org.chromium.chrome.browser.magic_stack.ModuleProvider;
 import org.chromium.chrome.browser.magic_stack.ModuleProviderBuilder;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.setup_list.SetupListManager;
 import org.chromium.chrome.browser.setup_list.SetupListModuleUtils;
 import org.chromium.components.feature_engagement.Tracker;
 import org.chromium.components.segmentation_platform.InputContext;
@@ -26,7 +26,7 @@ import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
 
 @NullMarked
-public class EducationalTipModuleBuilder implements ModuleProviderBuilder, ModuleConfigChecker {
+public class EducationalTipModuleBuilder implements ModuleProviderBuilder {
     private final EducationTipModuleActionDelegate mActionDelegate;
     private final @ModuleType int mModuleType;
     private @Nullable Profile mProfile;
@@ -90,10 +90,12 @@ public class EducationalTipModuleBuilder implements ModuleProviderBuilder, Modul
         return SetupListModuleUtils.getManualRank(mModuleType);
     }
 
-    // ModuleEligibilityChecker implementation:
-
     @Override
     public boolean isEligible() {
+        if (SetupListManager.isBaseSetupListModule(mModuleType)) {
+            return SetupListModuleUtils.isModuleEligible(mModuleType);
+        }
+
         return true;
     }
 

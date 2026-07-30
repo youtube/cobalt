@@ -62,6 +62,8 @@ enum ModelMode {
   kGeminiPro = 2,
   // Uses Gemini Pro Model with automatic routing capabilities.
   kGeminiProAutoroute = 3,
+  // Uses Gemini Pro Model without generative UI.
+  kGeminiProNoGenUi = 4,
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/contextual_search/enums.xml:ContextualSearchAimModel)
 
@@ -103,6 +105,12 @@ enum InputType {
   kLensFile = 2,
   // Input is a browser tab.
   kBrowserTab = 3,
+};
+
+// Configuration for an input type.
+struct InputTypeConfig {
+  InputType input_type;
+  string menu_label;
 };
 
 // Configuration for a tool.
@@ -152,11 +160,17 @@ struct InputState {
   array<ToolConfig> tool_configs;
   // Configuration for available models.
   array<ModelConfig> model_configs;
+  // Configuration for available input types.
+  array<InputTypeConfig> input_type_configs;
   // Configuration for the tools section.
   SectionConfig? tools_section_config;
   // Configuration for the model section.
   SectionConfig? model_section_config;
   // Hint text to display in the input.
   string hint_text;
+  // The max number of inputs of a given type.
+  map<InputType, int32> max_instances;
+  // The max total number of inputs.
+  int32 max_total_inputs;
 };
 // LINT.ThenChange(//components/omnibox/common/input_state.h:InputState)

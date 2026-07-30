@@ -7,12 +7,11 @@
 
 #include <map>
 
+#include "base/callback_list.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_panel_controller.h"
-#include "chrome/browser/ui/tabs/tab_list_interface_observer.h"
-#include "chrome/browser/ui/tabs/tab_strip_model.h"
-#include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
+#include "chrome/browser/tab_list/tab_list_interface_observer.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_entry.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_entry_observer.h"
 #include "components/sessions/core/session_id.h"
@@ -52,10 +51,10 @@ class ContextualTasksService;
 class ContextualTasksUiService;
 class ContextualTasksWebView;
 class ActiveTaskContextProvider;
+class EntryPointEligibilityManager;
 
 class ContextualTasksSidePanelCoordinator
     : public ContextualTasksPanelController,
-      public TabStripModelObserver,
       public TabListInterfaceObserver,
       public SidePanelEntryObserver,
       content::WebContentsObserver {
@@ -77,16 +76,20 @@ class ContextualTasksSidePanelCoordinator
     // The time when the WebContents becomes inactive.
     base::TimeTicks last_active_time_ticks;
   };
+
   DECLARE_USER_DATA(ContextualTasksSidePanelCoordinator);
 
   explicit ContextualTasksSidePanelCoordinator(
-      BrowserWindowInterface* browser_window);
+      BrowserWindowInterface* browser_window,
+      ActiveTaskContextProvider* active_task_context_provider,
+      EntryPointEligibilityManager* eligibility_manager);
 
   // For testing only.
   ContextualTasksSidePanelCoordinator(
       BrowserWindowInterface* browser_window,
       SidePanelUI* side_panel_ui,
-      ActiveTaskContextProvider* active_task_context_provider);
+      ActiveTaskContextProvider* active_task_context_provider,
+      EntryPointEligibilityManager* eligibility_manager);
   ContextualTasksSidePanelCoordinator(
       const ContextualTasksSidePanelCoordinator&) = delete;
   ContextualTasksSidePanelCoordinator& operator=(
@@ -103,6 +106,7 @@ class ContextualTasksSidePanelCoordinator
   std::optional<tabs::TabHandle> GetAutoSuggestedTabHandle() override;
   void OnTaskChanged(content::WebContents* web_contents,
                      base::Uuid task_id) override;
+  void OnAiInteraction() override;
   content::WebContents* GetActiveWebContents() override;
   std::vector<content::WebContents*> GetPanelWebContentsList() const override;
   std::unique_ptr<content::WebContents> DetachWebContentsForTask(
@@ -113,12 +117,17 @@ class ContextualTasksSidePanelCoordinator
       const base::Uuid& task_id,
       std::unique_ptr<content::WebContents> web_contents) override;
   std::optional<ContextualTask> GetCurrentTask() override;
+  std::pair<std::optional<base::Uuid>,
+            contextual_search::ContextualSearchSessionHandle*>
+  GetSessionHandleForActiveTabOrSidePanel() override;
   size_t GetNumberOfActiveTasks() const override;
 
   // Check if the side panel is currently showing
   bool IsSidePanelOpen();
 
   // content::WebContentsObserver:
+  void DidStartNavigation(
+      content::NavigationHandle* navigation_handle) override;
   void DidFinishNavigation(
       content::NavigationHandle* navigation_handle) override;
   void PrimaryPageChanged(content::Page& page) override;
@@ -142,6 +151,7 @@ class ContextualTasksSidePanelCoordinator
 
  private:
   friend class ContextualTasksSidePanelCoordinatorInteractiveUiTest;
+  friend class ContextualTasksSidePanelCoordinatorTest;
 
   // Hide or show side panel base on open state of the current task.
   void UpdateSidePanelVisibility();
@@ -154,12 +164,6 @@ class ContextualTasksSidePanelCoordinator
   // Update the associated WebContents for active tab. Returns whether the web
   // contents was changed.
   bool UpdateWebContentsForActiveTab();
-
-  // TabStripModelObserver:
-  void OnTabStripModelChanged(
-      TabStripModel* tab_strip_model,
-      const TabStripModelChange& change,
-      const TabStripSelectionChange& selection) override;
 
   // Create the side panel view.
   std::unique_ptr<views::View> CreateSidePanelView(SidePanelEntryScope& scope);
@@ -211,9 +215,9 @@ class ContextualTasksSidePanelCoordinator
   // handle.
   void NotifyActiveTaskContextProvider();
 
-  std::pair<std::optional<base::Uuid>,
-            contextual_search::ContextualSearchSessionHandle*>
-  GetSessionHandleForActiveTabOrSidePanel();
+  void RecordSessionEndMetrics();
+
+  void OnEligibilityChange(bool is_eligible);
 
   // Browser window of the current side panel.
   const raw_ptr<BrowserWindowInterface> browser_window_ = nullptr;
@@ -252,8 +256,15 @@ class ContextualTasksSidePanelCoordinator
   // the contextual tasks side panel when active tab is changed.
   SidePanelEntry::Id side_panel_id_not_to_override_ = SidePanelEntry::Id::kGlic;
 
+  base::CallbackListSubscription eligibility_change_subscription_;
+
   ui::ScopedUnownedUserData<ContextualTasksSidePanelCoordinator>
       scoped_unowned_user_data_;
+
+  bool in_cobrowsing_session_ = false;
+
+  base::WeakPtrFactory<ContextualTasksSidePanelCoordinator> weak_ptr_factory_{
+      this};
 };
 
 }  // namespace contextual_tasks

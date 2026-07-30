@@ -553,8 +553,9 @@ IN_PROC_BROWSER_TEST_F(
   FetchPageContextOptions options;
   options.annotated_page_content_options =
       optimization_guide::DefaultAIPageContentOptions(true);
-  options.screenshot_options =
-      ScreenshotOptions::ViewportOnly(/*paint_preview_options=*/std::nullopt);
+  options.screenshot_options = ScreenshotOptions::ViewportOnly(
+      /*paint_preview_options=*/std::nullopt);
+  options.screenshot_options->set_redaction_color_for_testing(SkColors::kRed);
   FetchPageContext(*web_contents(), options, nullptr, future.GetCallback());
 
   ASSERT_OK_AND_ASSIGN(std::unique_ptr<FetchPageContextResult> result,
@@ -573,7 +574,61 @@ IN_PROC_BROWSER_TEST_F(
   EXPECT_FALSE(bitmap.isNull());
   EXPECT_FALSE(bitmap.empty());
   EXPECT_THAT(bitmap.getColor(10, 10),
-              IsColorWithinTolerance(SK_ColorBLACK, 0x20));
+              IsColorWithinTolerance(SK_ColorRED, 0x20));
+}
+
+IN_PROC_BROWSER_TEST_F(
+    PasswordRedactionMultiSourcePageContextFetcherBrowserTest,
+    BasicRedactionInIframe) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(),
+      GetURL(kHostA, "/password_in_iframe.html?domain=/cross-site/b.test/")));
+
+  // Wait for main frame layout/render.
+  {
+    base::test::TestFuture<bool> future;
+    web_contents()
+        ->GetPrimaryMainFrame()
+        ->GetRenderWidgetHost()
+        ->InsertVisualStateCallback(future.GetCallback());
+    ASSERT_TRUE(future.Wait()) << "Timeout waiting for syncing with renderer";
+  }
+
+  // Wait for cross-site subframe layout/render.
+  {
+    base::test::TestFuture<bool> sub_future;
+    GetSubframe()->GetRenderWidgetHost()->InsertVisualStateCallback(
+        sub_future.GetCallback());
+    ASSERT_TRUE(sub_future.Wait());
+  }
+
+  base::test::TestFuture<FetchPageContextResultCallbackArg> future;
+
+  FetchPageContextOptions options;
+  options.annotated_page_content_options =
+      optimization_guide::DefaultAIPageContentOptions(true);
+  options.screenshot_options = ScreenshotOptions::ViewportOnly(
+      /*paint_preview_options=*/std::nullopt);
+  options.screenshot_options->set_redaction_color_for_testing(SkColors::kRed);
+  FetchPageContext(*web_contents(), options, nullptr, future.GetCallback());
+
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<FetchPageContextResult> result,
+                       future.Take());
+
+  ASSERT_TRUE(result);
+  ASSERT_TRUE(result->screenshot_result.has_value());
+
+  ScreenshotResult& screenshot = result->screenshot_result.value();
+  EXPECT_FALSE(screenshot.dimensions.IsZero());
+  ASSERT_GT(screenshot.screenshot_data.size(), 0);
+  ASSERT_EQ(screenshot.mime_type, "image/jpeg");
+
+  SkBitmap bitmap = gfx::JPEGCodec::Decode(screenshot.screenshot_data);
+
+  EXPECT_FALSE(bitmap.isNull());
+  EXPECT_FALSE(bitmap.empty());
+  EXPECT_THAT(bitmap.getColor(120, 120),
+              IsColorWithinTolerance(SK_ColorRED, 0x20));
 }
 
 IN_PROC_BROWSER_TEST_F(
@@ -591,8 +646,9 @@ IN_PROC_BROWSER_TEST_F(
   FetchPageContextOptions options;
   options.annotated_page_content_options =
       optimization_guide::DefaultAIPageContentOptions(true);
-  options.screenshot_options =
-      ScreenshotOptions::ViewportOnly(/*paint_preview_options=*/std::nullopt);
+  options.screenshot_options = ScreenshotOptions::ViewportOnly(
+      /*paint_preview_options=*/std::nullopt);
+  options.screenshot_options->set_redaction_color_for_testing(SkColors::kRed);
   FetchPageContext(*web_contents(), options, nullptr, future.GetCallback());
 
   // Wait until the screenshot is received.
@@ -620,7 +676,7 @@ IN_PROC_BROWSER_TEST_F(
   EXPECT_FALSE(bitmap.isNull());
   EXPECT_FALSE(bitmap.empty());
   EXPECT_THAT(bitmap.getColor(10, 10),
-              IsColorWithinTolerance(SK_ColorBLACK, 0x20));
+              IsColorWithinTolerance(SK_ColorRED, 0x20));
 }
 
 }  // namespace page_content_annotations

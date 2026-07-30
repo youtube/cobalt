@@ -10,7 +10,6 @@ import android.content.res.Resources;
 import android.os.Build;
 import android.os.Looper;
 import android.os.SystemClock;
-import android.util.Log;
 import android.webkit.CookieManager;
 import android.webkit.WebSettings;
 import android.webkit.WebViewDatabase;
@@ -52,6 +51,7 @@ import org.chromium.base.AconfigFlaggedApiDelegate;
 import org.chromium.base.ApkInfo;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.EarlyTraceEvent;
+import org.chromium.base.Log;
 import org.chromium.base.PathService;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.TraceEvent;
@@ -727,9 +727,7 @@ public class WebViewChromiumAwInit {
                         AwDarkMode.enableSimplifiedDarkMode();
                     }
 
-                    if (WebViewCachedFlags.get()
-                            .isCachedFeatureEnabled(
-                                    AwFeatures.WEBVIEW_OPT_IN_TO_GMS_BIND_SERVICE_OPTIMIZATION)) {
+                    if (AwBrowserProcess.shouldDeferGmsCalls()) {
                         AwBrowserProcess.maybeEnableSafeBrowsingFromGms();
                         AwBrowserProcess.setupSupervisedUser();
                         AwBrowserProcess.handleMinidumpsAndSetMetricsConsent(
@@ -819,9 +817,7 @@ public class WebViewChromiumAwInit {
     private void runImmediateTaskAfterBrowserProcessInit() {
         // TODO(crbug.com/332706093): See if this can be moved before loading native.
         AwClassPreloader.preloadClasses();
-        if (!WebViewCachedFlags.get()
-                .isCachedFeatureEnabled(
-                        AwFeatures.WEBVIEW_OPT_IN_TO_GMS_BIND_SERVICE_OPTIMIZATION)) {
+        if (!AwBrowserProcess.shouldDeferGmsCalls()) {
             AwBrowserProcess.handleMinidumpsAndSetMetricsConsent(/* updateMetricsConsent= */ true);
         }
         AwBrowserProcess.doNetworkInitializations(ContextUtils.getApplicationContext());

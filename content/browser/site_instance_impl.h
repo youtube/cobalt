@@ -172,13 +172,13 @@ class CONTENT_EXPORT SiteInstanceImpl final : public SiteInstance {
   RenderProcessHost* GetOrCreateProcessForTesting() override;
   SiteInstanceGroupId GetSiteInstanceGroupId() override;
   BrowserContext* GetBrowserContext() override;
+  const SecurityPrincipal& GetSecurityPrincipal() const override;
   const GURL& GetSiteURL() const override;
   const StoragePartitionConfig& GetStoragePartitionConfig() override;
   scoped_refptr<SiteInstance> GetRelatedSiteInstance(const GURL& url) override;
   bool IsRelatedSiteInstance(const SiteInstance* instance) override;
   size_t GetRelatedActiveContentsCount() override;
   bool RequiresDedicatedProcess() override;
-  bool IsSandboxed() override;
   bool IsSameSiteWithURL(const GURL& url) override;
   bool IsGuest() override;
   SiteInstanceProcessAssignment GetLastProcessAssignmentOutcome() override;

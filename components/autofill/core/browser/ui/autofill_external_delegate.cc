@@ -59,6 +59,7 @@
 #include "components/autofill/core/browser/metrics/loyalty_cards_metrics.h"
 #include "components/autofill/core/browser/metrics/payments/save_and_fill_metrics.h"
 #include "components/autofill/core/browser/metrics/suggestions_list_metrics.h"
+#include "components/autofill/core/browser/network/autofill_ai/wallet_pass_access_manager.h"
 #include "components/autofill/core/browser/payments/bnpl_manager.h"
 #include "components/autofill/core/browser/payments/credit_card_access_manager.h"
 #include "components/autofill/core/browser/payments/iban_access_manager.h"
@@ -250,6 +251,7 @@ bool AutofillExternalDelegate::IsAutofillAndFirstLayerSuggestionId(
     case SuggestionType::kWebauthnCredential:
     case SuggestionType::kWebauthnSignInWithAnotherDevice:
     case SuggestionType::kPendingStateSignin:
+    case SuggestionType::kLoadingThrobber:
       return false;
   }
 }
@@ -670,6 +672,7 @@ void AutofillExternalDelegate::DidSelectSuggestion(
     case SuggestionType::kFillPassword:
     case SuggestionType::kViewPasswordDetails:
     case SuggestionType::kPendingStateSignin:
+    case SuggestionType::kLoadingThrobber:
       NOTREACHED();  // Should be handled elsewhere.
   }
 }
@@ -879,6 +882,7 @@ void AutofillExternalDelegate::DidAcceptSuggestion(
     case SuggestionType::kFillPassword:
     case SuggestionType::kViewPasswordDetails:
     case SuggestionType::kPendingStateSignin:
+    case SuggestionType::kLoadingThrobber:
       NOTREACHED();  // Should be handled elsewhere.
   }
   // Note that some suggestion types return early.
@@ -987,6 +991,7 @@ bool AutofillExternalDelegate::RemoveSuggestion(const Suggestion& suggestion) {
     case SuggestionType::kPendingStateSignin:
     case SuggestionType::kLoyaltyCardEntry:
     case SuggestionType::kOneTimePasswordEntry:
+    case SuggestionType::kLoadingThrobber:
       return false;
   }
 }
@@ -1396,9 +1401,16 @@ void AutofillExternalDelegate::FillAutofillAiFormAndHidePopup(
              const FormData& form, const FieldGlobalId& field_id,
              AutofillTriggerSource trigger_source,
              std::optional<EntityInstance> entity) {
-            if (manager && entity) {
+            if (!manager) {
+              return;
+            }
+            if (entity) {
               manager->FillOrPreviewForm(mojom::ActionPersistence::kFill, form,
                                          field_id, &*entity, trigger_source);
+            } else {
+              manager->client().ShowAutofillAiFailureNotification(
+                  l10n_util::GetStringUTF16(
+                      IDS_AUTOFILL_AI_WALLET_FETCH_FAILURE_NOTIFICATION));
             }
           },
           manager_->GetBrowserAutofillManagerWeakPtr(), query_form_,
@@ -1415,22 +1427,18 @@ void AutofillExternalDelegate::FillAutofillAiFormAndHidePopup(
       base::FeatureList::IsEnabled(features::kAutofillAiWalletPrivatePasses);
   if (should_fetch_from_server) {
     fill_and_hide = base::BindOnce(
-        [](base::OnceCallback<void(std::optional<EntityInstance>)> callback,
+        [](WalletPassAccessManager* wallet_pass_access_manager,
+           base::OnceCallback<void(std::optional<EntityInstance>)> callback,
            std::optional<EntityInstance> masked_entity) {
-          if (!masked_entity) {
-            // Reauth failed - call with std::nullopt to close the popup.
+          if (!masked_entity || !wallet_pass_access_manager) {
+            // Close the popup.
             std::move(callback).Run(std::nullopt);
             return;
           }
-          // TODO(crbug.com/477845712): Replace this placeholder by a call to an
-          // actual function that does the fetching. Once that is done, also add
-          // tests that the fetching functions are actually called.
-          base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
-              FROM_HERE,
-              base::BindOnce(std::move(callback), std::move(masked_entity)),
-              base::Seconds(3));
+          wallet_pass_access_manager->GetUnmaskedWalletEntityInstance(
+              masked_entity->guid(), std::move(callback));
         },
-        std::move(fill_and_hide));
+        client.GetWalletPassAccessManager(), std::move(fill_and_hide));
   }
 
   const bool should_reauth =

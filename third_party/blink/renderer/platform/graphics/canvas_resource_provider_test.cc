@@ -102,12 +102,8 @@ class CanvasResourceProviderTest : public Test {
     test_context_provider_ = viz::TestContextProvider::CreateRaster();
     auto* test_raster = test_context_provider_->UnboundTestRasterInterface();
     test_raster->set_max_texture_size(kMaxTextureSize);
-    test_raster->set_supports_mappable_format(
-        viz::SinglePlaneFormat::kRGBA_8888, true);
-    test_raster->set_supports_mappable_format(
-        viz::SinglePlaneFormat::kBGRA_8888, true);
-    test_raster->set_supports_mappable_format(viz::SinglePlaneFormat::kRGBA_F16,
-                                              true);
+    test_raster->set_texture_format_bgra8888(true);
+    test_raster->set_texture_half_float_linear(true);
 
     gpu::SharedImageCapabilities shared_image_caps;
     shared_image_caps.supports_scanout_shared_images = true;
@@ -146,8 +142,7 @@ class CanvasResourceProviderTest : public Test {
   ScopedTestingPlatformSupport<GpuCompositingTestPlatform> platform_;
 };
 
-TEST_F(CanvasResourceProviderTest,
-       GetBackingClientSharedImageForExternalWrite) {
+TEST_F(CanvasResourceProviderTest, BeginExternalWrite) {
   const gpu::SharedImageUsageSet shared_image_usage_flags =
       gpu::SHARED_IMAGE_USAGE_DISPLAY_READ | gpu::SHARED_IMAGE_USAGE_SCANOUT |
       gpu::SHARED_IMAGE_USAGE_CONCURRENT_READ_WRITE;
@@ -158,37 +153,64 @@ TEST_F(CanvasResourceProviderTest,
   auto provider = CanvasNon2DResourceProviderSharedImage::Create(
       gfx::Size(10, 10), color_params,
       CanvasResourceProvider::ShouldInitialize::kCallClear,
-      context_provider_wrapper_, RasterMode::kGPU, shared_image_usage_flags);
+      context_provider_wrapper_, shared_image_usage_flags);
 
   gpu::SyncToken sync_token;
-  auto client_si = provider->GetBackingClientSharedImageForExternalWrite(
-      gpu::SharedImageUsageSet(), sync_token);
 
-  // When supplied required usages that the backing SI already supports, that
-  // backing SI should be returned.
+  // The same ClientSharedImage should be returned from sequential calls to
+  // BeginExternalWrite().
+  auto client_si = provider->BeginExternalWrite(sync_token);
+  provider->EndExternalWrite(sync_token);
+  auto client_si_from_second_call = provider->BeginExternalWrite(sync_token);
+  EXPECT_EQ(client_si_from_second_call, client_si);
+}
+
+TEST_F(CanvasResourceProviderTest,
+       GetBackingClientSharedImageForTransferToWebGPU) {
+  const gpu::SharedImageUsageSet shared_image_usage_flags =
+      gpu::SHARED_IMAGE_USAGE_DISPLAY_READ | gpu::SHARED_IMAGE_USAGE_SCANOUT |
+      gpu::SHARED_IMAGE_USAGE_CONCURRENT_READ_WRITE;
+
+  Canvas2DColorParams color_params(PredefinedColorSpace::kSRGB,
+                                   CanvasPixelFormat::kUint8,
+                                   /*has_alpha=*/true);
+  auto provider = Canvas2DResourceProviderSharedImage::Create(
+      gfx::Size(10, 10), color_params,
+      CanvasResourceProvider::ShouldInitialize::kCallClear,
+      context_provider_wrapper_, RasterMode::kGPU, shared_image_usage_flags);
+
+  // When the backing SI does not support WebGPU, a new backing SI should be
+  // created that does so.
+  gpu::SyncToken sync_token;
+  bool was_copy_performed = false;
+  auto client_si = provider->GetBackingClientSharedImageForTransferToWebGPU(
+      sync_token, was_copy_performed);
+  EXPECT_TRUE(was_copy_performed);
+  EXPECT_TRUE(client_si->usage().HasAll(shared_image_usage_flags));
+  EXPECT_TRUE(client_si->usage().HasAll(gpu::SHARED_IMAGE_USAGE_WEBGPU_READ |
+                                        gpu::SHARED_IMAGE_USAGE_WEBGPU_WRITE));
+
+  // That new backing SI should then be returned on subsequent calls.
   auto client_si_with_no_new_usage_required =
-      provider->GetBackingClientSharedImageForExternalWrite(
-          gpu::SHARED_IMAGE_USAGE_SCANOUT, sync_token);
+      provider->GetBackingClientSharedImageForTransferToWebGPU(
+          sync_token, was_copy_performed);
   EXPECT_EQ(client_si_with_no_new_usage_required, client_si);
+  EXPECT_FALSE(was_copy_performed);
 
-  // When supplied required usages that the backing SI does not support, a new
-  // backing SI should be created that supports the required usages.
-  auto client_si_with_webgpu_usage_required =
-      provider->GetBackingClientSharedImageForExternalWrite(
-          gpu::SHARED_IMAGE_USAGE_WEBGPU_WRITE, sync_token);
-  EXPECT_NE(client_si_with_webgpu_usage_required, client_si);
-  EXPECT_TRUE(client_si_with_webgpu_usage_required->usage().HasAll(
-      shared_image_usage_flags));
-  EXPECT_TRUE(client_si_with_webgpu_usage_required->usage().Has(
-      gpu::SHARED_IMAGE_USAGE_WEBGPU_WRITE));
-
-  // That new backing SI should then be returned on subsequent calls with
-  // already-supported usages.
-  client_si_with_no_new_usage_required =
-      provider->GetBackingClientSharedImageForExternalWrite(
-          gpu::SHARED_IMAGE_USAGE_SCANOUT, sync_token);
-  EXPECT_EQ(client_si_with_no_new_usage_required,
-            client_si_with_webgpu_usage_required);
+  // When the CRP is created with WebGPU usages, no initial copy should be
+  // necessary.
+  auto shared_image_usages_with_webgpu = shared_image_usage_flags |
+                                         gpu::SHARED_IMAGE_USAGE_WEBGPU_READ |
+                                         gpu::SHARED_IMAGE_USAGE_WEBGPU_WRITE;
+  provider = Canvas2DResourceProviderSharedImage::Create(
+      gfx::Size(10, 10), color_params,
+      CanvasResourceProvider::ShouldInitialize::kCallClear,
+      context_provider_wrapper_, RasterMode::kGPU,
+      shared_image_usages_with_webgpu);
+  client_si = provider->GetBackingClientSharedImageForTransferToWebGPU(
+      sync_token, was_copy_performed);
+  EXPECT_FALSE(was_copy_performed);
+  EXPECT_TRUE(client_si->usage().HasAll(shared_image_usages_with_webgpu));
 }
 
 TEST_F(CanvasResourceProviderTest, CanvasResourceProviderAcceleratedOverlay) {
@@ -205,7 +227,7 @@ TEST_F(CanvasResourceProviderTest, CanvasResourceProviderAcceleratedOverlay) {
                                    /*has_alpha=*/true);
   auto provider = CanvasNon2DResourceProviderSharedImage::Create(
       kSize, color_params, CanvasResourceProvider::ShouldInitialize::kCallClear,
-      context_provider_wrapper_, RasterMode::kGPU, shared_image_usage_flags);
+      context_provider_wrapper_, shared_image_usage_flags);
 
   EXPECT_EQ(provider->Size(), kSize);
   EXPECT_TRUE(provider->IsValid());
@@ -235,7 +257,7 @@ TEST_F(CanvasResourceProviderTest, CanvasResourceProviderTexture) {
                                    /*has_alpha=*/true);
   auto provider = CanvasNon2DResourceProviderSharedImage::Create(
       kSize, color_params, CanvasResourceProvider::ShouldInitialize::kCallClear,
-      context_provider_wrapper_, RasterMode::kGPU, gpu::SharedImageUsageSet());
+      context_provider_wrapper_, gpu::SharedImageUsageSet());
 
   EXPECT_EQ(provider->Size(), kSize);
   EXPECT_TRUE(provider->IsValid());
@@ -260,7 +282,7 @@ TEST_F(CanvasResourceProviderTest, CanvasResourceProviderUnacceleratedOverlay) {
   Canvas2DColorParams color_params(PredefinedColorSpace::kSRGB,
                                    CanvasPixelFormat::kUint8,
                                    /*has_alpha=*/true);
-  auto provider = CanvasNon2DResourceProviderSharedImage::Create(
+  auto provider = Canvas2DResourceProviderSharedImage::Create(
       kSize, color_params, CanvasResourceProvider::ShouldInitialize::kCallClear,
       context_provider_wrapper_, RasterMode::kCPU, shared_image_usage_flags);
 
@@ -277,7 +299,6 @@ TEST_F(CanvasResourceProviderTest, CanvasResourceProviderUnacceleratedOverlay) {
 }
 
 std::unique_ptr<CanvasResourceProviderSharedImage> MakeCanvasResourceProvider(
-    RasterMode raster_mode,
     base::WeakPtr<WebGraphicsContext3DProviderWrapper>
         context_provider_wrapper) {
   const gpu::SharedImageUsageSet shared_image_usage_flags =
@@ -289,7 +310,7 @@ std::unique_ptr<CanvasResourceProviderSharedImage> MakeCanvasResourceProvider(
   return CanvasNon2DResourceProviderSharedImage::Create(
       gfx::Size(10, 10), color_params,
       CanvasResourceProvider::ShouldInitialize::kCallClear,
-      context_provider_wrapper, raster_mode, shared_image_usage_flags);
+      context_provider_wrapper, shared_image_usage_flags);
 }
 
 scoped_refptr<CanvasResource> UpdateResource(
@@ -318,8 +339,7 @@ TEST_F(CanvasResourceProviderTest,
   auto provider = CanvasNon2DResourceProviderSharedImage::Create(
       gfx::Size(10, 10), color_params,
       CanvasResourceProvider::ShouldInitialize::kCallClear,
-      SharedGpuContext::ContextProviderWrapper(), RasterMode::kGPU,
-      shared_image_usage_flags);
+      SharedGpuContext::ContextProviderWrapper(), shared_image_usage_flags);
 
   auto resource = provider->ProduceCanvasResource(FlushReason::kOther);
   auto old_compositor_read_sync_token = GetSyncToken(resource.get());
@@ -358,7 +378,7 @@ TEST_F(CanvasResourceProviderTest,
                                    /*has_alpha=*/true);
   auto provider = CanvasNon2DResourceProviderSharedImage::Create(
       kSize, color_params, CanvasResourceProvider::ShouldInitialize::kCallClear,
-      context_provider_wrapper_, RasterMode::kGPU, shared_image_usage_flags);
+      context_provider_wrapper_, shared_image_usage_flags);
 
   EXPECT_EQ(provider->Size(), kSize);
   EXPECT_TRUE(provider->IsValid());
@@ -397,8 +417,7 @@ TEST_F(CanvasResourceProviderTest,
 TEST_F(CanvasResourceProviderTest, CanvasResourceProviderUnusedResources) {
   base::test::ScopedFeatureList feature_list{kCanvas2DReclaimUnusedResources};
 
-  auto provider =
-      MakeCanvasResourceProvider(RasterMode::kGPU, context_provider_wrapper_);
+  auto provider = MakeCanvasResourceProvider(context_provider_wrapper_);
 
   auto resource = provider->ProduceCanvasResource(FlushReason::kOther);
   auto new_resource = UpdateResource(provider.get());
@@ -428,8 +447,7 @@ TEST_F(CanvasResourceProviderTest,
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndDisableFeature(kCanvas2DReclaimUnusedResources);
 
-  auto provider =
-      MakeCanvasResourceProvider(RasterMode::kGPU, context_provider_wrapper_);
+  auto provider = MakeCanvasResourceProvider(context_provider_wrapper_);
 
   auto resource = provider->ProduceCanvasResource(FlushReason::kOther);
   auto new_resource = UpdateResource(provider.get());
@@ -449,8 +467,7 @@ TEST_F(CanvasResourceProviderTest,
        CanvasResourceProviderUnusedResourcesAreNotCollectedWhenYoung) {
   base::test::ScopedFeatureList feature_list{kCanvas2DReclaimUnusedResources};
 
-  auto provider =
-      MakeCanvasResourceProvider(RasterMode::kGPU, context_provider_wrapper_);
+  auto provider = MakeCanvasResourceProvider(context_provider_wrapper_);
 
   auto resource = provider->ProduceCanvasResource(FlushReason::kOther);
   auto new_resource = UpdateResource(provider.get());
@@ -507,7 +524,7 @@ TEST_F(CanvasResourceProviderTest,
   auto provider = CanvasNon2DResourceProviderSharedImage::Create(
       gfx::Size(10, 10), color_params,
       CanvasResourceProvider::ShouldInitialize::kCallClear,
-      context_provider_wrapper_, RasterMode::kGPU, shared_image_usage_flags);
+      context_provider_wrapper_, shared_image_usage_flags);
 
   ASSERT_TRUE(provider->IsValid());
 
@@ -610,7 +627,7 @@ TEST_F(CanvasResourceProviderTest,
                                    /*has_alpha=*/true);
   auto provider = CanvasNon2DResourceProviderSharedImage::Create(
       kSize, color_params, CanvasResourceProvider::ShouldInitialize::kCallClear,
-      context_provider_wrapper_, RasterMode::kGPU, shared_image_usage_flags);
+      context_provider_wrapper_, shared_image_usage_flags);
 
   EXPECT_EQ(provider->Size(), kSize);
   EXPECT_TRUE(provider->IsValid());
@@ -655,17 +672,17 @@ TEST_F(CanvasResourceProviderTest, DimensionsExceedMaxTextureSize_SharedImage) {
   auto provider = CanvasNon2DResourceProviderSharedImage::Create(
       gfx::Size(kMaxTextureSize - 1, kMaxTextureSize), color_params,
       CanvasResourceProvider::ShouldInitialize::kCallClear,
-      context_provider_wrapper_, RasterMode::kGPU, gpu::SharedImageUsageSet());
+      context_provider_wrapper_, gpu::SharedImageUsageSet());
   EXPECT_TRUE(provider && provider->IsValid());
   provider = CanvasNon2DResourceProviderSharedImage::Create(
       gfx::Size(kMaxTextureSize, kMaxTextureSize), color_params,
       CanvasResourceProvider::ShouldInitialize::kCallClear,
-      context_provider_wrapper_, RasterMode::kGPU, gpu::SharedImageUsageSet());
+      context_provider_wrapper_, gpu::SharedImageUsageSet());
   EXPECT_TRUE(provider && provider->IsValid());
   provider = CanvasNon2DResourceProviderSharedImage::Create(
       gfx::Size(kMaxTextureSize + 1, kMaxTextureSize), color_params,
       CanvasResourceProvider::ShouldInitialize::kCallClear,
-      context_provider_wrapper_, RasterMode::kGPU, gpu::SharedImageUsageSet());
+      context_provider_wrapper_, gpu::SharedImageUsageSet());
   // The CanvasResourceProvider for SharedImage should not be created
   // if the texture size is greater than the maximum value.
   EXPECT_FALSE(provider);
@@ -678,12 +695,12 @@ TEST_F(CanvasResourceProviderTest, FlushForImage) {
   auto src_provider = CanvasNon2DResourceProviderSharedImage::Create(
       gfx::Size(10, 10), color_params,
       CanvasResourceProvider::ShouldInitialize::kCallClear,
-      context_provider_wrapper_, RasterMode::kGPU, gpu::SharedImageUsageSet());
+      context_provider_wrapper_, gpu::SharedImageUsageSet());
 
   auto dst_provider = CanvasNon2DResourceProviderSharedImage::Create(
       gfx::Size(10, 10), color_params,
       CanvasResourceProvider::ShouldInitialize::kCallClear,
-      context_provider_wrapper_, RasterMode::kGPU, gpu::SharedImageUsageSet());
+      context_provider_wrapper_, gpu::SharedImageUsageSet());
 
   MemoryManagedPaintCanvas& dst_canvas = dst_provider->Canvas();
 
@@ -718,8 +735,7 @@ TEST_F(CanvasResourceProviderTest, FlushForImage) {
 }
 
 TEST_F(CanvasResourceProviderTest, ImageCacheOnContextLost) {
-  auto provider =
-      MakeCanvasResourceProvider(RasterMode::kGPU, context_provider_wrapper_);
+  auto provider = MakeCanvasResourceProvider(context_provider_wrapper_);
 
   Vector<cc::DrawImage> images = {
       cc::DrawImage(cc::CreateDiscardablePaintImage(gfx::Size(10, 10)), false,
@@ -743,7 +759,7 @@ TEST_F(CanvasResourceProviderTest, ImageCacheOnContextLost) {
 
 TEST_F(CanvasResourceProviderTest, FlushCanvasReleasesAllReleasableOps) {
   std::unique_ptr<CanvasResourceProvider> provider =
-      MakeCanvasResourceProvider(RasterMode::kGPU, context_provider_wrapper_);
+      MakeCanvasResourceProvider(context_provider_wrapper_);
 
   EXPECT_FALSE(provider->Recorder().HasRecordedDrawOps());
   EXPECT_FALSE(provider->Recorder().HasReleasableDrawOps());
@@ -760,7 +776,7 @@ TEST_F(CanvasResourceProviderTest, FlushCanvasReleasesAllReleasableOps) {
 
 TEST_F(CanvasResourceProviderTest, FlushCanvasReleasesAllOpsOutsideLayers) {
   std::unique_ptr<CanvasResourceProvider> provider =
-      MakeCanvasResourceProvider(RasterMode::kGPU, context_provider_wrapper_);
+      MakeCanvasResourceProvider(context_provider_wrapper_);
 
   EXPECT_FALSE(provider->Recorder().HasRecordedDrawOps());
   EXPECT_FALSE(provider->Recorder().HasReleasableDrawOps());

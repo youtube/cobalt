@@ -49,7 +49,7 @@ class CodePointIterator;
 
 #define DISPATCH_CASE_OP(case_sensitivity, op, args)  \
   ((case_sensitivity == kTextCaseSensitive) ? op args \
-                                            : op##IgnoringASCIICase args)
+                                            : op##IgnoringAsciiCase args)
 
 // You can find documentation about this class in README.md in this directory.
 //
@@ -248,7 +248,7 @@ class WTF_EXPORT String {
                   wtf_size_t index = 0) const;
 
   // Find substrings.
-  wtf_size_t Find(const StringView& value, wtf_size_t start = 0) const {
+  size_type find(const StringView& value, size_type start = 0) const {
     return impl_ ? impl_->Find(value, start) : kNotFound;
   }
   wtf_size_t Find(const StringView& value,
@@ -268,12 +268,13 @@ class WTF_EXPORT String {
   }
 
   // ASCII case insensitive string matching.
-  wtf_size_t FindIgnoringASCIICase(const StringView& value,
+  wtf_size_t FindIgnoringAsciiCase(const StringView& value,
                                    unsigned start = 0) const {
-    return impl_ ? impl_->FindIgnoringASCIICase(value, start) : kNotFound;
+    return impl_ ? impl_->FindIgnoringAsciiCase(value, start) : kNotFound;
   }
 
   bool Contains(char c) const { return find(c) != kNotFound; }
+  bool contains(const StringView& value) const { return find(value) != npos; }
   bool Contains(
       const StringView& value,
       TextCaseSensitivity case_sensitivity = kTextCaseSensitive) const {
@@ -314,8 +315,8 @@ class WTF_EXPORT String {
     return impl_ ? impl_->StartsWithIgnoringCaseAndAccents(prefix)
                  : prefix.empty();
   }
-  bool StartsWithIgnoringASCIICase(const StringView& prefix) const {
-    return impl_ ? impl_->StartsWithIgnoringASCIICase(prefix) : prefix.empty();
+  bool StartsWithIgnoringAsciiCase(const StringView& prefix) const {
+    return impl_ ? impl_->StartsWithIgnoringAsciiCase(prefix) : prefix.empty();
   }
   bool StartsWith(UChar character) const {
     return impl_ ? impl_->StartsWith(character) : false;
@@ -336,8 +337,8 @@ class WTF_EXPORT String {
     return impl_ ? impl_->DeprecatedEndsWithIgnoringCase(prefix)
                  : prefix.empty();
   }
-  bool EndsWithIgnoringASCIICase(const StringView& prefix) const {
-    return impl_ ? impl_->EndsWithIgnoringASCIICase(prefix) : prefix.empty();
+  bool EndsWithIgnoringAsciiCase(const StringView& prefix) const {
+    return impl_ ? impl_->EndsWithIgnoringAsciiCase(prefix) : prefix.empty();
   }
   bool EndsWith(UChar character) const {
     return impl_ ? impl_->EndsWith(character) : false;
@@ -439,15 +440,28 @@ class WTF_EXPORT String {
     return StringImpl::CreateUninitialized(length, data);
   }
 
-  void Split(const StringView& separator,
-             bool allow_empty_entries,
-             Vector<String>& result) const;
-  void Split(UChar separator,
-             bool allow_empty_entries,
-             Vector<String>& result) const;
-  void Split(UChar separator, Vector<String>& result) const {
-    Split(separator, false, result);
-  }
+  // Returns a list of substrings of `this`, separated by `separator`.
+  // This function copies the content of the string. Please consider if
+  // StringView::Split() is applicable.
+  //
+  // `StringView("a, , b").Split(", ")` produces ["a", "", "b"], and
+  // `StringView("").Split(",")` produces [""].
+  Vector<String> Split(const StringView& separator) const;
+  // Returns a list of substrings of `this`, separated by `separator`.
+  // This function copies the content of the string. Please consider if
+  // StringView::Split() is applicable.
+  //
+  // `StringView("a,,b").Split(',')` produces ["a", "", "b"], and
+  // `StringView("").Split(',')` produces [""].
+  Vector<String> Split(UChar separator) const;
+  // Returns a list of substrings of `this`, separated by `separator`.
+  // This doesn't produce empty substrings.
+  // This function copies the content of the string. Please consider if
+  // StringView::SplitSkippingEmpty() is applicable.
+  //
+  // `String(" a  b").SplitSkippingEmpty(' ')` produces ["a", "b"], and
+  // `String("").SplitSkippingEmpty(',')` produces an empty list.
+  Vector<String> SplitSkippingEmpty(UChar separator) const;
 
   // Copy characters out of the string. See StringImpl.h for detailed docs.
   size_t CopyTo(base::span<UChar> buffer, wtf_size_t start) const {
@@ -457,28 +471,6 @@ class WTF_EXPORT String {
   void AppendTo(BufferType&,
                 unsigned start = 0,
                 unsigned length = UINT_MAX) const;
-
-  // Convert the string into a number.
-
-  // The following ToFooStrict functions accept:
-  //  - leading '+'
-  //  - leading Unicode whitespace
-  //  - trailing Unicode whitespace
-  //  - no "-0" (ToUInt64Strict)
-  //  - no out-of-range numbers which the resultant type can't represent
-  //
-  // If the input string is not acceptable, 0 is returned and |*ok| becomes
-  // |false|.
-  //
-  // We can use these functions to implement a Web Platform feature only if the
-  // input string is already valid according to the specification of the
-  // feature.
-  unsigned HexToUIntStrict(bool* ok) const;
-  uint64_t HexToUInt64Strict(bool* ok) const;
-  int64_t ToInt64Strict(bool* ok = nullptr) const;
-  uint64_t ToUInt64Strict(bool* ok = nullptr) const;
-
-  // See string_to_number.h for float/double parsing.
 
 #ifdef __OBJC__
   String(NSString*);

@@ -85,6 +85,8 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="Search prefetch"/>
   <int value="2" label="AI Mode"/>
   <int value="3" label="Image Generation"/>
+  <int value="4" label="Canvas"/>
+  <int value="5" label="Deep Search"/>
 </enum>
 
 <!-- LINT.ThenChange(//components/omnibox/browser/android/java/src/org/chromium/components/omnibox/AutocompleteRequestType.java,//ios/chrome/browser/composebox/ui/composebox_metrics_recorder.h:AutocompleteRequestType)-->
@@ -133,9 +135,10 @@ chromium-metrics-reviews@google.com.
   <int value="6" label="AutoModel"/>
   <int value="7" label="ThinkingModel"/>
   <int value="8" label="RegularModel"/>
+  <int value="9" label="ProNoGenUiModel"/>
 </enum>
 
-<!-- LINT.ThenChange(chrome/browser/ui/omnibox/omnibox_context_menu_controller.h:ContextType) -->
+<!-- LINT.ThenChange(//chrome/browser/ui/omnibox/omnibox_context_menu_controller.h:ContextType) -->
 
 <enum name="DocumentProviderAllowedReason">
   <int value="0" label="Allowed"/>
@@ -342,6 +345,7 @@ chromium-metrics-reviews@google.com.
     global nor regional buckets returned a match. The data provided will be set
     without mixing in any prepopulated engine's data
   </int>
+  <int value="9" label="By prepopulate_id (migration)"/>
 </enum>
 
 <!-- LINT.ThenChange(//components/search_engines/reconciling_template_url_data_holder.h:ReconciliationType) -->

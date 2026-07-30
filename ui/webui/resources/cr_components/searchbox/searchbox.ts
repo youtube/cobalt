@@ -7,14 +7,12 @@ import './searchbox_dropdown.js';
 import './searchbox_icon.js';
 import './searchbox_thumbnail.js';
 import '//resources/cr_components/composebox/contextual_entrypoint_and_carousel.js';
-import '//resources/cr_components/composebox/error_scrim.js';
 import '//resources/cr_components/composebox/recent_tab_chip.js';
 import '//resources/cr_components/search/animated_glow.js';
 
 import type {ComposeboxFile, ContextualUpload, FileUpload, TabUpload, TabUploadOrigin} from '//resources/cr_components/composebox/common.js';
-import {GlifAnimationState} from '//resources/cr_components/composebox/context_menu_entrypoint.js';
+import {GlifAnimationState} from '//resources/cr_components/composebox/common.js';
 import type {ContextualEntrypointAndCarouselElement} from '//resources/cr_components/composebox/contextual_entrypoint_and_carousel.js';
-import type {ErrorScrimElement} from '//resources/cr_components/composebox/error_scrim.js';
 import type {RecentTabChipElement} from '//resources/cr_components/composebox/recent_tab_chip.js';
 import {GlowAnimationState} from '//resources/cr_components/search/constants.js';
 import {DragAndDropHandler} from '//resources/cr_components/search/drag_drop_handler.js';
@@ -32,7 +30,7 @@ import {NavigationPredictor} from '//resources/mojo/components/omnibox/browser/o
 import type {AutocompleteMatch, AutocompleteResult, PageCallbackRouter, PageHandlerInterface, TabInfo} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import {SideType} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import type {InputState} from '//resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
-import {ModelMode, ToolMode, InputType} from '//resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
+import {InputType, ModelMode, ToolMode} from '//resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
 import type {UnguessableToken} from '//resources/mojo/mojo/public/mojom/base/unguessable_token.mojom-webui.js';
 import type {Url} from '//resources/mojo/url/mojom/url.mojom-webui.js';
 
@@ -189,7 +187,6 @@ export interface SearchboxElement {
     inputWrapper: HTMLElement,
     matches: SearchboxDropdownElement,
     context: ContextualEntrypointAndCarouselElement,
-    errorScrim: ErrorScrimElement,
   };
 }
 
@@ -411,7 +408,6 @@ export class SearchboxElement extends SearchboxElementBase implements
         reflect: true,
         type: String,
       },
-      errorMessage_: {type: String},
       showModelPicker_: {
         type: Boolean,
       },
@@ -443,7 +439,6 @@ export class SearchboxElement extends SearchboxElementBase implements
   accessor placeholderText: string = '';
   accessor isDraggingFile: boolean = false;
   accessor animationState: GlowAnimationState = GlowAnimationState.NONE;
-  protected accessor errorMessage_: string = '';
   protected accessor inputAriaLive_: string = '';
   protected accessor inputFocused_: boolean = false;
   private accessor isLensSearchbox_: boolean =
@@ -510,6 +505,9 @@ export class SearchboxElement extends SearchboxElementBase implements
         this.callbackRouter_.onTabStripChanged.addListener(
             this.refreshTabSuggestions_.bind(this));
     this.inputState_ = (await this.pageHandler_.getInputState()).state;
+    if (this.inputState_) {
+      this.inputState_.activeModel = ModelMode.kUnspecified;
+    }
 
     if (this.cyclingPlaceholders) {
       const {config} = await this.pageHandler_.getPlaceholderConfig();
@@ -543,10 +541,6 @@ export class SearchboxElement extends SearchboxElementBase implements
     this.callbackRouter_.removeListener(this.onTabStripChangedListenerId_);
 
     this.placeholderCycler_?.stop();
-  }
-
-  override firstUpdated() {
-    performance.measure('realbox-creation', 'realbox-creation-start');
   }
 
   override willUpdate(changedProperties: PropertyValues<this>) {
@@ -583,6 +577,10 @@ export class SearchboxElement extends SearchboxElementBase implements
             this.tabSuggestions_.find(tab => tab.showInPreviousTabChip) || null;
       }
     }
+  }
+
+  override firstUpdated() {
+    performance.measure('realbox-creation', 'realbox-creation-start');
   }
 
   private computeInputAriaLive_(): string {
@@ -1179,11 +1177,6 @@ export class SearchboxElement extends SearchboxElementBase implements
     this.tabSuggestions_ = [...tabs];
   }
 
-  protected onFileValidationError_(e: CustomEvent<{errorMessage: string}>) {
-    this.errorMessage_ = e.detail.errorMessage;
-    this.dropdownIsVisible = false;
-  }
-
   protected async getTabPreview_(e: CustomEvent<{
     tabId: number,
     onPreviewFetched: (previewDataUrl: string) => void,
@@ -1191,10 +1184,6 @@ export class SearchboxElement extends SearchboxElementBase implements
     const {previewDataUrl} =
         await this.pageHandler_.getTabPreview(e.detail.tabId);
     e.detail.onPreviewFetched(previewDataUrl || '');
-  }
-
-  protected onErrorScrimDismissed_() {
-    this.errorMessage_ = '';
   }
 
   protected onContextMenuContainerClick_() {
@@ -1208,7 +1197,7 @@ export class SearchboxElement extends SearchboxElementBase implements
 
   protected onContextMenuClosed_() {
     this.contextMenuOpened_ = false;
-    this.focusInput();
+    this.blur();
   }
 
   protected onContextMenuOpened_() {
@@ -1447,6 +1436,10 @@ export class SearchboxElement extends SearchboxElementBase implements
 
   protected onHasSecondarySideChanged_(e: CustomEvent<{value: boolean}>) {
     this.hasSecondarySide = e.detail.value;
+  }
+
+  protected useCompactLayout_(): boolean {
+    return this.searchboxLayoutMode === 'Compact';
   }
 }
 

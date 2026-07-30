@@ -16,6 +16,7 @@
 #import "components/signin/public/identity_manager/account_info.h"
 #import "components/signin/public/identity_manager/identity_manager.h"
 #import "components/webauthn/ios/features.h"
+#import "components/webauthn/ios/ios_passkey_client_commands.h"
 #import "components/webauthn/ios/passkey_java_script_feature.h"
 #import "components/webauthn/ios/passkey_tab_helper.h"
 #import "components/webauthn/ios/passkey_types.h"
@@ -33,22 +34,6 @@
 #if BUILDFLAG(IOS_CREDENTIAL_PROVIDER_ENABLED)
 #import "ios/chrome/browser/credential_provider/model/credential_provider_browser_agent.h"
 #endif
-
-namespace {
-
-// Returns a list of shared keys from the trusted vault keys.
-// TODO(crbug.com/460485614): Clean up FetchTrustedVaultKeysCompletionBlock.
-webauthn::SharedKeyList SharedKeyListFromTrustedVaultKeys(
-    NSArray<NSData*>* trusted_vault_keys) {
-  webauthn::SharedKeyList key_list;
-  for (NSData* data in trusted_vault_keys) {
-    base::span<const uint8_t> data_span = base::apple::NSDataToSpan(data);
-    key_list.emplace_back(data_span.begin(), data_span.end());
-  }
-  return key_list;
-}
-
-}  // namespace
 
 // Helper class to act as a delegate for the PasskeyKeychainProviderBridge.
 @interface IOSChromePasskeyClientBridgeDelegate
@@ -147,9 +132,8 @@ void IOSChromePasskeyClient::FetchKeys(webauthn::ReauthenticatePurpose purpose,
   auto completion_block = base::CallbackToBlock(base::BindOnce(
       [](id<IOSPasskeyClientCommands> handler,
          webauthn::KeysFetchedCallback inner_callback,
-         NSArray<NSData*>* trusted_vault_keys, NSError* error) {
-        std::move(inner_callback)
-            .Run(SharedKeyListFromTrustedVaultKeys(trusted_vault_keys), error);
+         webauthn::SharedKeyList trusted_vault_keys, NSError* error) {
+        std::move(inner_callback).Run(std::move(trusted_vault_keys), error);
         [handler dismissPasskeyWelcomeScreen];
       },
       command_handler_, std::move(callback)));
@@ -162,7 +146,7 @@ void IOSChromePasskeyClient::FetchKeys(webauthn::ReauthenticatePurpose purpose,
 
 void IOSChromePasskeyClient::ShowSuggestionBottomSheet(
     RequestInfo request_info) {
-  [command_handler_ showPasskeySuggestionBottomSheet:request_info.request_id];
+  [command_handler_ showPasskeySuggestionBottomSheet:request_info];
 
   // TODO(crbug.com/460485496): remove the code below and related dependencies
   // once the bottom sheet is implemented.
