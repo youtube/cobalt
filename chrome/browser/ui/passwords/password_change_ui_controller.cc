@@ -25,13 +25,13 @@
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/theme_resources.h"
 #include "components/constrained_window/constrained_window_views.h"
-#include "components/password_manager/core/browser/features/password_features.h"
 #include "components/password_manager/core/browser/password_manager_metrics_util.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/tabs/public/tab_interface.h"
 #include "components/vector_icons/vector_icons.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/models/dialog_model.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/gfx/geometry/insets.h"
 #include "ui/gfx/vector_icon_types.h"
 #include "ui/views/bubble/bubble_border.h"
@@ -224,21 +224,11 @@ std::unique_ptr<views::FrameView> CreateToastFrameView(views::Widget* widget) {
 std::unique_ptr<ui::DialogModel> CreateOtpDetectedDialog(
     base::OnceClosure accept_callback,
     base::OnceClosure cancel_callback) {
-  const int title_id =
-      base::FeatureList::IsEnabled(
-          password_manager::features::kUserInterventionForPasswordChange)
-          ? IDS_PASSWORD_MANAGER_UI_USER_INTERVENTION_NEEDED_TITLE
-          : IDS_PASSWORD_MANAGER_UI_OTP_DIALOG_TITLE;
+  const int title_id = IDS_PASSWORD_MANAGER_UI_USER_INTERVENTION_NEEDED_TITLE;
   const int description_id =
-      base::FeatureList::IsEnabled(
-          password_manager::features::kUserInterventionForPasswordChange)
-          ? IDS_PASSWORD_MANAGER_UI_USER_INTERVENTION_NEEDED_DIALOG_DETAILS
-          : IDS_PASSWORD_MANAGER_UI_OTP_DIALOG_DETAILS;
+      IDS_PASSWORD_MANAGER_UI_USER_INTERVENTION_NEEDED_DIALOG_DETAILS;
   const int ok_button_id =
-      base::FeatureList::IsEnabled(
-          password_manager::features::kUserInterventionForPasswordChange)
-          ? IDS_PASSWORD_MANAGER_UI_PASSWORD_CHANGE_TAKE_OVER_TASK_BUTTON
-          : IDS_CONTINUE;
+      IDS_PASSWORD_MANAGER_UI_PASSWORD_CHANGE_TAKE_OVER_TASK_BUTTON;
 
   return ui::DialogModel::Builder()
       .SetBannerImage(
@@ -374,7 +364,9 @@ PasswordChangeUIController::GetDialogOrToastConfiguration(
       return ToastOptions(
           l10n_util::GetStringUTF16(
               IDS_PASSWORD_MANAGER_UI_PASSWORD_CHANGED_TITLE),
-          views::kMenuCheckOldIcon, std::move(cancel_toast_callback),
+          features::IsRoundedIconsEnabled() ? views::kCheckIcon
+                                            : views::kMenuCheckOldIcon,
+          std::move(cancel_toast_callback),
           l10n_util::GetStringUTF16(
               IDS_PASSWORD_MANAGER_UI_VIEW_DETAILS_BUTTON),
           base::BindOnce(&PasswordChangeUIController::ShowPasswordDetails,
@@ -382,7 +374,7 @@ PasswordChangeUIController::GetDialogOrToastConfiguration(
     case PasswordChangeDelegate::State::kCanceled:
       return ToastOptions(
           l10n_util::GetStringUTF16(IDS_PASSWORD_MANAGER_UI_PASSWORD_UNCHANGED),
-          vector_icons::kPasswordManagerOffIcon,
+          vector_icons::kPasswordManagerOffOldIcon,
           std::move(cancel_toast_callback),
           l10n_util::GetStringUTF16(
               IDS_PASSWORD_MANAGER_UI_PASSWORD_CHANGE_FAILED_ACCEPT_BUTTON),
@@ -391,7 +383,9 @@ PasswordChangeUIController::GetDialogOrToastConfiguration(
       return ToastOptions(
           l10n_util::GetStringUTF16(
               IDS_PASSWORD_MANAGER_UI_PASSWORD_CHANGE_TOAST_SIGN_IN_TO_CONTINUE),
-          views::kInfoChromeRefreshOldIcon, std::move(cancel_toast_callback),
+          features::IsRoundedIconsEnabled() ? views::kInfoIcon
+                                            : views::kInfoChromeRefreshOldIcon,
+          std::move(cancel_toast_callback),
           l10n_util::GetStringUTF16(
               IDS_PASSWORD_MANAGER_UI_PASSWORD_CHANGE_TOAST_RETRY_BUTTON),
           base::BindOnce(&PasswordChangeUIController::RetryLoginCheck,

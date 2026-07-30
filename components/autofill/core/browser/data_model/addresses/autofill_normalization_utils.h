@@ -5,12 +5,13 @@
 #ifndef COMPONENTS_AUTOFILL_CORE_BROWSER_DATA_MODEL_ADDRESSES_AUTOFILL_NORMALIZATION_UTILS_H_
 #define COMPONENTS_AUTOFILL_CORE_BROWSER_DATA_MODEL_ADDRESSES_AUTOFILL_NORMALIZATION_UTILS_H_
 
-#include <optional>
+#include <stdint.h>
+
+#include <string>
 #include <string_view>
 
 #include "base/i18n/char_iterator.h"
 #include "components/autofill/core/browser/country_type.h"
-#include "components/autofill/core/browser/field_types.h"
 
 namespace autofill::normalization {
 

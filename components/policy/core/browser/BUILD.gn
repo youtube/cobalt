@@ -51,6 +51,7 @@ source_set("internal") {
     "url_list/url_blocklist_manager.h",
     "url_list/url_blocklist_policy_handler.cc",
     "url_list/url_blocklist_policy_handler.h",
+    "url_list/url_list_policy_pref_names.h",
     "url_list/url_scheme_list_policy_handler.cc",
     "url_list/url_scheme_list_policy_handler.h",
     "webui/json_generation.cc",
@@ -76,8 +77,8 @@ source_set("internal") {
 
   if (!is_fuchsia) {
     sources += [
-      "incognito/incognito_mode_policy_handler.cc",
-      "incognito/incognito_mode_policy_handler.h",
+      "url_list/incognito_mode_policy_handler.cc",
+      "url_list/incognito_mode_policy_handler.h",
     ]
   }
 
@@ -89,6 +90,7 @@ source_set("internal") {
     "//build:branding_buildflags",
     "//components/google/core/common",
     "//components/keyed_service/core",
+    "//components/policy/resources/webui/mojom:mojo_bindings",
     "//components/pref_registry",
     "//components/prefs",
     "//components/reporting/proto:record_proto",
@@ -177,8 +179,8 @@ static_library("incognito_mode_policy_test_support") {
   sources = []
   if (!is_fuchsia) {
     sources += [
-      "incognito/incognito_mode_policy_handler_test.cc",
-      "incognito/incognito_mode_policy_handler_test.h",
+      "url_list/incognito_mode_policy_handler_test.cc",
+      "url_list/incognito_mode_policy_handler_test.h",
     ]
   }
   deps = [
@@ -231,6 +233,6 @@ source_set("unit_tests") {
   }
 
   if (!is_fuchsia) {
-    sources += [ "incognito/incognito_mode_policy_handler_unittest.cc" ]
+    sources += [ "url_list/incognito_mode_policy_handler_unittest.cc" ]
   }
 }

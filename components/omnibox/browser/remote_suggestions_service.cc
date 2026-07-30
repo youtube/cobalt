@@ -305,6 +305,17 @@ GURL AddAimInputStateParamsToEndpointUrl(
   return modified_url;
 }
 
+GURL AddSmartComposePreviousQueryToEndpointUrl(
+    TemplateURLRef::SearchTermsArgs search_terms_args,
+    const GURL& url_to_modify) {
+  GURL modified_url = GURL(url_to_modify);
+  if (!search_terms_args.previous_query.empty()) {
+    modified_url = net::AppendOrReplaceQueryParameter(
+        modified_url, "pq", search_terms_args.previous_query);
+  }
+  return modified_url;
+}
+
 }  // namespace
 
 RemoteSuggestionsService::Delegate::Delegate() = default;
@@ -372,7 +383,8 @@ GURL RemoteSuggestionsService::EndpointUrl(
     case metrics::OmniboxEventProto::NTP_OMNIBOX_COMPOSEBOX:
     case metrics::OmniboxEventProto::SRP_OMNIBOX_COMPOSEBOX:
     case metrics::OmniboxEventProto::OTHER_OMNIBOX_COMPOSEBOX:
-      if (search_terms_args.lens_overlay_suggest_inputs.has_value()) {
+      if (search_terms_args.lens_overlay_suggest_inputs.has_value() &&
+          !search_terms_args.input_state.image_gen_upload_active) {
         url = net::AppendOrReplaceQueryParameter(url, "client",
                                                  "chrome-contextual");
       }
@@ -395,6 +407,7 @@ GURL RemoteSuggestionsService::EndpointUrl(
   }
   url = AddLensOverlaySuggestInputsDataToEndpointUrl(search_terms_args, url);
   url = AddAimInputStateParamsToEndpointUrl(search_terms_args, url);
+  url = AddSmartComposePreviousQueryToEndpointUrl(search_terms_args, url);
 
   return url;
 }

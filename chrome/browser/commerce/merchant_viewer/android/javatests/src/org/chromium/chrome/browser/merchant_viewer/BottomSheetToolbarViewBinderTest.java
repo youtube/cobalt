@@ -48,8 +48,6 @@ public class BottomSheetToolbarViewBinderTest {
     public static BaseActivityTestRule<BlankUiTestActivity> sActivityTestRule =
             new BaseActivityTestRule<>(BlankUiTestActivity.class);
 
-    private static Activity sActivity;
-
     private final AtomicBoolean mIconClicked = new AtomicBoolean();
 
     private BottomSheetToolbarView mItemView;
@@ -58,18 +56,19 @@ public class BottomSheetToolbarViewBinderTest {
 
     @BeforeClass
     public static void setupSuite() {
-        sActivity = sActivityTestRule.launchActivity(null);
+        sActivityTestRule.launchActivity(null);
     }
 
     @Before
     public void setUp() {
-        ViewGroup view = new FrameLayout(sActivity);
+        Activity activity = sActivityTestRule.getActivity();
+        ViewGroup view = new FrameLayout(activity);
 
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    sActivity.setContentView(view);
+                    activity.setContentView(view);
 
-                    mItemView = new BottomSheetToolbarView(sActivity);
+                    mItemView = new BottomSheetToolbarView(activity);
                     view.addView(mItemView.getView());
 
                     mItemViewModel =
@@ -179,7 +178,9 @@ public class BottomSheetToolbarViewBinderTest {
         ImageView faviconIcon = mItemView.getView().findViewById(R.id.favicon);
         assertEquals(null, faviconIcon.getDrawable());
 
-        Drawable iconDrawable = AppCompatResources.getDrawable(sActivity, R.drawable.ic_globe_24dp);
+        Drawable iconDrawable =
+                AppCompatResources.getDrawable(
+                        sActivityTestRule.getActivity(), R.drawable.ic_globe_24dp);
         mItemViewModel.set(BottomSheetToolbarProperties.FAVICON_ICON_DRAWABLE, iconDrawable);
         assertEquals(iconDrawable, faviconIcon.getDrawable());
     }

@@ -8,27 +8,37 @@
 
 #include "base/metrics/statistics_recorder.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/test/metrics/histogram_tester.h"
+#include "base/test/run_until.h"
 #include "build/build_config.h"
 #include "chrome/browser/autocomplete/chrome_autocomplete_scheme_classifier.h"
+#include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/extensions/chrome_test_extension_loader.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/themes/test/theme_service_changed_waiter.h"
 #include "chrome/browser/themes/theme_service.h"
 #include "chrome/browser/themes/theme_service_factory.h"
+#include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/omnibox/omnibox_next_features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_header_view.h"
+#include "chrome/browser/ui/views/omnibox/omnibox_popup_presenter.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_popup_view_views_test.h"
+#include "chrome/browser/ui/views/omnibox/omnibox_popup_view_webui.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_result_view.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_view_views.h"
 #include "chrome/browser/ui/views/omnibox/rounded_omnibox_results_frame.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
+#include "chrome/common/pref_names.h"
 #include "chrome/test/base/chrome_test_utils.h"
 #include "chrome/test/base/search_test_utils.h"
+#include "chrome/test/base/ui_test_utils.h"
+#include "components/content_settings/core/browser/host_content_settings_map.h"
+#include "components/content_settings/core/common/content_settings_pattern.h"
 #include "components/omnibox/browser/actions/tab_switch_action.h"
 #include "components/omnibox/browser/autocomplete_enums.h"
 #include "components/omnibox/browser/autocomplete_result.h"
@@ -39,9 +49,11 @@
 #include "components/omnibox/browser/omnibox_triggered_feature_service.h"
 #include "components/omnibox/browser/suggestion_group_util.h"
 #include "components/omnibox/common/omnibox_features.h"
+#include "components/unified_consent/pref_names.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/test_utils.h"
+#include "net/dns/mock_host_resolver.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "ui/accessibility/ax_enums.mojom.h"
 #include "ui/base/metadata/metadata_header_macros.h"
@@ -1231,4 +1243,146 @@ IN_PROC_BROWSER_TEST_F(OmniboxPopupViewViewsTest,
   // Check consolidated metric.
   histogram_tester.ExpectTotalCount(
       "TopChromeUI.OmniboxPopup.RequestToFirstContentfulPaint", 1);
+}
+
+class WidgetBoundsWaiter : public views::WidgetObserver {
+ public:
+  explicit WidgetBoundsWaiter(views::Widget* widget) {
+    observation_.Observe(widget);
+  }
+  WidgetBoundsWaiter(const WidgetBoundsWaiter&) = delete;
+  WidgetBoundsWaiter& operator=(const WidgetBoundsWaiter&) = delete;
+  ~WidgetBoundsWaiter() override = default;
+
+  void Wait() { run_loop_.Run(); }
+
+  // views::WidgetObserver:
+  void OnWidgetBoundsChanged(views::Widget* widget,
+                             const gfx::Rect& new_bounds) override {
+    run_loop_.Quit();
+  }
+
+ private:
+  base::RunLoop run_loop_;
+  base::ScopedObservation<views::Widget, views::WidgetObserver> observation_{
+      this};
+};
+
+class OmniboxPopupPermissionBrowserTest : public InProcessBrowserTest {
+ public:
+  OmniboxPopupPermissionBrowserTest() {
+    feature_list_.InitAndEnableFeature(omnibox::internal::kWebUIOmniboxPopup);
+  }
+
+  views::Widget* GetPopupWidget() {
+    auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
+    auto* location_bar_view = browser_view->toolbar()->location_bar_view();
+    auto* popup_view = static_cast<OmniboxPopupViewWebUI*>(
+        location_bar_view->GetOmniboxPopupView());
+    if (!popup_view || !popup_view->presenter()) {
+      return nullptr;
+    }
+    popup_view->presenter()->Show();
+    location_bar_view->GetOmniboxController()
+        ->popup_state_manager()
+        ->SetPopupState(OmniboxPopupState::kClassic);
+    return popup_view->presenter()->get_widget_for_testing();
+  }
+
+  void SetBrowserBounds(views::Widget* popup_widget, const gfx::Rect& bounds) {
+    views::Widget* browser_widget = views::Widget::GetWidgetForNativeWindow(
+        browser()->window()->GetNativeWindow());
+    WidgetBoundsWaiter browser_waiter(browser_widget);
+    WidgetBoundsWaiter popup_waiter(popup_widget);
+    browser()->window()->SetBounds(bounds);
+    browser_waiter.Wait();
+    popup_waiter.Wait();
+  }
+
+  void SimulateFrontendMojoMessage(bool is_showing,
+                                   const gfx::Size& prompt_size) {
+    auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
+    auto* location_bar_view = browser_view->toolbar()->location_bar_view();
+    auto* popup_view = static_cast<OmniboxPopupViewWebUI*>(
+        location_bar_view->GetOmniboxPopupView());
+    if (popup_view && popup_view->presenter()) {
+      views::Widget* popup_widget =
+          popup_view->presenter()->get_widget_for_testing();
+      std::optional<WidgetBoundsWaiter> waiter;
+      if (popup_widget) {
+        waiter.emplace(popup_widget);
+      }
+      popup_view->presenter()->OnEmbeddedPermissionDialogChanged(is_showing,
+                                                                 prompt_size);
+      if (waiter) {
+        waiter->Wait();
+      }
+    }
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+// Open Large -> Shrink, Open Small -> Grow
+IN_PROC_BROWSER_TEST_F(OmniboxPopupPermissionBrowserTest,
+                       DynamicWindowResizing) {
+  browser()->window()->GetLocationBar()->GetOmniboxView()->SetUserText(u"test");
+  views::Widget* popup_widget = GetPopupWidget();
+  ASSERT_TRUE(popup_widget);
+
+  // Force browser window to be small.
+  SetBrowserBounds(popup_widget, gfx::Rect(0, 0, 400, 600));
+
+  // Open PEPC prompt requesting 500px.
+  SimulateFrontendMojoMessage(true, gfx::Size(500, 400));
+
+  // PEPC prompt forced omnibox popup to grow to 500px.
+  EXPECT_GE(popup_widget->GetRestoredBounds().width(), 500);
+
+  // User manually drags browser window to be big.
+  SetBrowserBounds(popup_widget, gfx::Rect(0, 0, 1000, 600));
+
+  // Popup should adjust to the window size.
+  EXPECT_GE(popup_widget->GetRestoredBounds().width(), 800);
+
+  // User manually drags browser window back to small.
+  SetBrowserBounds(popup_widget, gfx::Rect(0, 0, 300, 600));
+
+  // Width of popup should adjust.
+  const int expected_width =
+      500 + RoundedOmniboxResultsFrame::GetShadowInsets().width();
+  EXPECT_EQ(popup_widget->GetRestoredBounds().width(), expected_width);
+}
+
+IN_PROC_BROWSER_TEST_F(OmniboxPopupPermissionBrowserTest,
+                       ResetsOnAllFrontendClosureActions) {
+  browser()->window()->GetLocationBar()->GetOmniboxView()->SetUserText(u"test");
+  views::Widget* popup_widget = GetPopupWidget();
+
+  // Small browser width.
+  SetBrowserBounds(popup_widget, gfx::Rect(0, 0, 400, 600));
+
+  auto test_frontend_closure = [&](const std::string& action_name) {
+    // Open the PEPC prompt.
+    SimulateFrontendMojoMessage(true, gfx::Size(500, 400));
+    EXPECT_GE(popup_widget->GetRestoredBounds().width(), 500)
+        << "Failed to expand for " << action_name;
+
+    // Simulate the user triggering the specific UI action that closes the
+    // prompt. In the frontend, clicking 'Allow', 'Deny', 'Allow Always', or
+    // blurring out all result in the UI sending [false, 0, 0] to the C++
+    // backend.
+    SimulateFrontendMojoMessage(false, gfx::Size());
+
+    // Assert the physical OS window actually shrunk back down to standard
+    // size.
+    EXPECT_LT(popup_widget->GetRestoredBounds().width(), 500)
+        << "Physical window failed to shrink after action: " << action_name;
+  };
+
+  test_frontend_closure("Allow");
+  test_frontend_closure("Deny/Close");
+  test_frontend_closure("Out of Focus (Blur)");
+  test_frontend_closure("Allow Always");
 }

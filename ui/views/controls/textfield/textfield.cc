@@ -5,6 +5,7 @@
 #include "ui/views/controls/textfield/textfield.h"
 
 #include <algorithm>
+#include <optional>
 #include <set>
 #include <string>
 #include <string_view>
@@ -427,26 +428,40 @@ bool Textfield::HasSelection(bool primary_only) const {
 }
 
 SkColor Textfield::GetTextColor() const {
-  return text_color_.value_or(
-      GetColorProvider()->GetColor(TypographyProvider::Get().GetColorId(
-          style::CONTEXT_TEXTFIELD, GetTextStyle())));
+  if (text_color_id_.has_value()) {
+    return GetColorProvider()->GetColor(text_color_id_.value());
+  }
+
+  return GetColorProvider()->GetColor(TypographyProvider::Get().GetColorId(
+      style::CONTEXT_TEXTFIELD, GetTextStyle()));
 }
 
-void Textfield::SetTextColor(SkColor color) {
-  text_color_ = color;
-  if (GetWidget()) {
-    SetColor(color);
+void Textfield::SetTextColorId(std::optional<ui::ColorId> color_id) {
+  text_color_id_ = color_id;
+  if (GetWidget() && color_id.has_value()) {
+    SetColor(GetColorProvider()->GetColor(color_id.value()));
+  } else if (GetWidget() && !color_id.has_value()) {
+    SetColor(GetColorProvider()->GetColor(TypographyProvider::Get().GetColorId(
+        style::CONTEXT_TEXTFIELD, GetTextStyle())));
   }
 }
 
 SkColor Textfield::GetBackgroundColor() const {
-  return background_color_.value_or(
-      GetColorProvider()->GetColor(GetReadOnly() || !GetEnabledInViewsSubtree()
-                                       ? ui::kColorTextfieldBackgroundDisabled
-                                       : ui::kColorTextfieldBackground));
+  if (background_color_.has_value()) {
+    return background_color_->ResolveToSkColor(GetColorProvider());
+  }
+
+  return GetColorProvider()->GetColor(
+      GetReadOnly() || !GetEnabledInViewsSubtree()
+          ? ui::kColorTextfieldBackgroundDisabled
+          : ui::kColorTextfieldBackground);
 }
 
-void Textfield::SetBackgroundColor(SkColor color) {
+void Textfield::SetBackgroundColor(std::optional<ui::ColorVariant> color) {
+  if (background_color_ == color) {
+    return;
+  }
+
   background_color_ = color;
   if (GetWidget()) {
     UpdateBackgroundColor();
@@ -462,22 +477,23 @@ void Textfield::SetBackgroundEnabled(bool enabled) {
 }
 
 SkColor Textfield::GetSelectionTextColor() const {
-  return selection_text_color_.value_or(
-      GetColorProvider()->GetColor(ui::kColorTextfieldSelectionForeground));
+  return GetColorProvider()->GetColor(selection_text_color_id_.value_or(
+      ui::kColorTextfieldSelectionForeground));
 }
 
-void Textfield::SetSelectionTextColor(SkColor color) {
-  selection_text_color_ = color;
+void Textfield::SetSelectionTextColorId(std::optional<ui::ColorId> color_id) {
+  selection_text_color_id_ = color_id;
   UpdateSelectionTextColor();
 }
 
 SkColor Textfield::GetSelectionBackgroundColor() const {
-  return selection_background_color_.value_or(
-      GetColorProvider()->GetColor(ui::kColorTextfieldSelectionBackground));
+  return GetColorProvider()->GetColor(selection_background_color_id_.value_or(
+      ui::kColorTextfieldSelectionBackground));
 }
 
-void Textfield::SetSelectionBackgroundColor(SkColor color) {
-  selection_background_color_ = color;
+void Textfield::SetSelectionBackgroundColorId(
+    std::optional<ui::ColorId> color_id) {
+  selection_background_color_id_ = color_id;
   UpdateSelectionBackgroundColor();
 }
 
@@ -529,6 +545,20 @@ void Textfield::SetPlaceholderText(std::u16string_view text) {
   placeholder_text_ = std::u16string(text);
   GetViewAccessibility().SetPlaceholder(base::UTF16ToUTF8(text));
   OnPropertyChanged(&placeholder_text_, PropertyEffects::kPaint);
+}
+
+SkColor Textfield::GetPlaceholderTextColor() const {
+  if (placeholder_text_color_id_.has_value()) {
+    return GetColorProvider()->GetColor(placeholder_text_color_id_.value());
+  }
+  return GetColorProvider()->GetColor(TypographyProvider::Get().GetColorId(
+      style::CONTEXT_TEXTFIELD_PLACEHOLDER,
+      GetInvalid() ? style::STYLE_INVALID : style::STYLE_PRIMARY));
+}
+
+void Textfield::SetPlaceholderTextColorId(std::optional<ui::ColorId> color_id) {
+  placeholder_text_color_id_ = color_id;
+  OnPropertyChanged(&placeholder_text_color_id_, PropertyEffects::kPaint);
 }
 
 gfx::HorizontalAlignment Textfield::GetHorizontalAlignment() const {
@@ -1577,6 +1607,14 @@ void Textfield::OpenContextMenu(const gfx::Point& anchor) {
 
 void Textfield::DestroyTouchSelection() {
   touch_selection_controller_.reset();
+}
+
+bool Textfield::IsCommandIdEnabled(int command_id, bool can_paste) const {
+  if (command_id ==
+      std::to_underlying(ui::TouchEditable::MenuCommands::kPaste)) {
+    return !GetReadOnly() && can_paste;
+  }
+  return IsCommandIdEnabled(command_id);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -2655,6 +2693,20 @@ ui::TextEditCommand Textfield::GetCommandForKeyEvent(
   }
 }
 
+bool Textfield::SupportsEmoji() const {
+  return true;
+}
+
+#if BUILDFLAG(IS_MAC)
+bool Textfield::SupportsEditableContextMenuItems() const {
+  return true;
+}
+
+bool Textfield::SupportsLookUp() const {
+  return true;
+}
+#endif  // BUILDFLAG(IS_MAC)
+
 ////////////////////////////////////////////////////////////////////////////////
 // Textfield, private:
 
@@ -2936,11 +2988,8 @@ void Textfield::PaintTextAndCursor(gfx::Canvas* canvas) {
 
     canvas->DrawStringRectWithFlags(
         GetPlaceholderText(), placeholder_font_list_.value_or(GetFontList()),
-        placeholder_text_color_.value_or(
-            GetColorProvider()->GetColor(TypographyProvider::Get().GetColorId(
-                style::CONTEXT_TEXTFIELD_PLACEHOLDER,
-                GetInvalid() ? style::STYLE_INVALID : style::STYLE_PRIMARY))),
-        render_text->display_rect(), placeholder_text_draw_flags);
+        GetPlaceholderTextColor(), render_text->display_rect(),
+        placeholder_text_draw_flags);
   }
 
   // If drop cursor is active, draw |render_text| with its text selected.
@@ -3482,17 +3531,22 @@ ADD_PROPERTY_METADATA(bool, ReadOnly)
 ADD_PROPERTY_METADATA(std::u16string_view, Text)
 ADD_PROPERTY_METADATA(ui::TextInputType, TextInputType)
 ADD_PROPERTY_METADATA(int, TextInputFlags)
-ADD_PROPERTY_METADATA(SkColor, TextColor, ui::metadata::SkColorConverter)
-ADD_PROPERTY_METADATA(SkColor,
-                      SelectionTextColor,
-                      ui::metadata::SkColorConverter)
+ADD_READONLY_PROPERTY_METADATA(SkColor,
+                               TextColor,
+                               ui::metadata::SkColorConverter)
+ADD_READONLY_PROPERTY_METADATA(SkColor,
+                               SelectionTextColor,
+                               ui::metadata::SkColorConverter)
 ADD_PROPERTY_METADATA(SkColor, BackgroundColor, ui::metadata::SkColorConverter)
 ADD_PROPERTY_METADATA(bool, BackgroundEnabled)
-ADD_PROPERTY_METADATA(SkColor,
-                      SelectionBackgroundColor,
-                      ui::metadata::SkColorConverter)
+ADD_READONLY_PROPERTY_METADATA(SkColor,
+                               SelectionBackgroundColor,
+                               ui::metadata::SkColorConverter)
 ADD_PROPERTY_METADATA(bool, CursorEnabled)
 ADD_PROPERTY_METADATA(std::u16string_view, PlaceholderText)
+ADD_READONLY_PROPERTY_METADATA(SkColor,
+                               PlaceholderTextColor,
+                               ui::metadata::SkColorConverter)
 ADD_PROPERTY_METADATA(bool, Invalid)
 ADD_PROPERTY_METADATA(gfx::HorizontalAlignment, HorizontalAlignment)
 ADD_PROPERTY_METADATA(gfx::Range, SelectedRange)

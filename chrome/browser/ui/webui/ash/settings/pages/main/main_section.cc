@@ -8,7 +8,6 @@
 
 #include "ash/constants/ash_features.h"
 #include "ash/constants/chrome_webui_url_constants.h"
-#include "ash/constants/personalization_entry_point.h"
 #include "ash/public/cpp/resources/grit/ash_public_unscaled_resources.h"
 #include "ash/webui/personalization_app/personalization_app_url_constants.h"
 #include "base/check_deref.h"
@@ -19,7 +18,6 @@
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/ash/policy/core/browser_policy_connector_ash.h"
 #include "chrome/browser/ash/policy/handlers/minimum_version_policy_handler.h"
-#include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/browser_process_platform_part.h"
 #include "chrome/browser/profiles/profile.h"
@@ -195,15 +193,6 @@ void MainSection::AddLoadTimeData(content::WebUIDataSource* html_source) {
   // Add the System Web App resources for Settings.
   html_source->AddResourcePath("icon-192.png", IDR_SETTINGS_LOGO_192);
 
-  // Add Entry Point resources used for recording entry point metric
-  // to Personalization Hub though Settings search.
-  html_source->AddInteger(
-      "settingsSearchEntryPoint",
-      static_cast<int>(PersonalizationEntryPoint::kSettingsSearch));
-  html_source->AddInteger(
-      "entryPointEnumSize",
-      static_cast<int>(PersonalizationEntryPoint::kMaxValue) + 1);
-
   AddSearchInSettingsStrings(html_source);
   AddChromeOSUserStrings(html_source);
   AddUpdateRequiredEolStrings(html_source);
@@ -259,7 +248,7 @@ void MainSection::RegisterHierarchy(HierarchyGenerator* generator) const {
 void MainSection::AddChromeOSUserStrings(
     content::WebUIDataSource* html_source) {
   const user_manager::User* user =
-      ProfileHelper::Get()->GetUserByProfile(profile());
+      BrowserContextHelper::Get()->GetUserByBrowserContext(profile());
   const user_manager::User* primary_user =
       user_manager::UserManager::Get()->GetPrimaryUser();
   std::string primary_user_email = primary_user->GetDisplayEmail();

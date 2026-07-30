@@ -59,13 +59,17 @@ void BrowserControlsAdapterImpl::BackButtonHovered() {
 }
 
 void BrowserControlsAdapterImpl::CreateNewSplitTab() {
-  chrome::NewSplitTab(&browser_.get(), split_tabs::SplitTabLayout::kVertical,
+  chrome::NewSplitTab(&browser_.get(), split_tabs::SplitTabLayout::kSideBySide,
                       split_tabs::SplitTabCreatedSource::kToolbarButton);
 }
 
 void BrowserControlsAdapterImpl::NavigateHome(
     WindowOpenDisposition disposition) {
   command_updater_->ExecuteCommandWithDisposition(IDC_HOME, disposition);
+}
+
+void BrowserControlsAdapterImpl::Navigate(const GURL& url) {
+  browser_.get().OpenGURL(url, WindowOpenDisposition::CURRENT_TAB);
 }
 
 webui_toolbar::TabSplitStatus

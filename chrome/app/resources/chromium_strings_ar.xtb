@@ -584,7 +584,6 @@
 <translation id="7318036098707714271">‏ملف الإعدادات المفضّلة تالف أو غير صالح.
 
 يتعذر على Chromium استعادة إعداداتك.</translation>
-<translation id="7339898014177206373">نافذة جديدة</translation>
 <translation id="734373864078049451">‏الويب والإشارات المرجعية وغيرها من عناصر Chromium توجد هنا.</translation>
 <translation id="7347827960336370838">‏لا يمكن لأحد الوصول إلى بياناتك المشفّرة بدون استخدام عبارة المرور. ولا تحصل Google على عبارة المرور هذه أو تخزّنها. وفي حال نسيتها أو أردت تغيير هذه الإعدادات، يجب <ph name="BEGIN_LINK" />حذف بيانات Chromium في حسابك<ph name="END_LINK" />.</translation>
 <translation id="7349591376906416160">‏ضَبَط مشرف النظام Chromium لفتح <ph name="ALTERNATIVE_BROWSER_NAME" /> للوصول إلى <ph name="TARGET_URL_HOSTNAME" />.</translation>
@@ -593,6 +592,7 @@
 <translation id="7376384068949534168">‏لم تتم زيارة هذا الموقع الإلكتروني مؤخرًا، لذلك أزال Chromium إذنَي <ph name="PERMISSION_1" /> و<ph name="PERMISSION_2" />.</translation>
 <translation id="73786666777299047">‏فتح سوق Chrome الإلكتروني</translation>
 <translation id="7384121030444253939">‏لم تعُد هذه الإضافة متاحة. ينصح متصفّح Chromium بإزالتها.</translation>
+<translation id="7407655596887111931">‏تم ضبط Chromium كمتصفّحك التلقائي</translation>
 <translation id="7413153308467572558">‏المتابعة من حيث توقفت: يمكن لمتصفّح Chromium استعادة علامات التبويب كلما أعدت تشغيله. لإيقاف هذه الميزة، يُرجى الانتقال إلى</translation>
 <translation id="7427879960656355200">‏استيراد كلمات المرور إلى Chromium</translation>
 <translation id="744815265653811511">‏‫1. انقر على <ph name="BUTTON_LABEL" /> أدناه
@@ -680,7 +680,7 @@
 <translation id="8359544530202147897">‏يُرجى تحديث متصفّح Chromium لمواصلة استخدام بياناته في حسابك على Google (<ph name="ACCOUNT_EMAIL" />)</translation>
 <translation id="8360718212975266891">‏للحصول على تحديثات Chromium في المستقبل، يجب استخدام كمبيوتر يعمل بنظام التشغيل Windows 10 أو إصدار أحدث. يعمل هذا الكمبيوتر بنظام التشغيل Windows 8.</translation>
 <translation id="8362914115861174987">الترجمة إلى</translation>
-<translation id="8367705492654390392">البحث عن أي شيء</translation>
+<translation id="8367705492654390392">يمكنك طرح أي سؤال</translation>
 <translation id="8370517070665726704">‏حقوق الطبع والنشر لعام <ph name="YEAR" /> لشركة Google LLC. جميع الحقوق محفوظة.</translation>
 <translation id="8372327902843331129">‏سجِّل الدخول إلى Chromium للوصول إلى كلمات المرور وغيرها على جميع أجهزتك. سيتم حفظ كلمة المرور هذه في حسابك على Google بعد تسجيل الدخول.</translation>
 <translation id="837460953767177950">‏بعد ذلك، عليك إعادة تشغيل Chromium.</translation>
@@ -734,6 +734,7 @@
 <translation id="8981150672034878610">‏يتعذّر بدء تشغيل Chromium بسبب حدوث خطأ أثناء فتح ملفك الشخصي. يُرجى تجربة إعادة تشغيله.</translation>
 <translation id="8988036198400390003">‏إدارة الملفات الشخصية على Chromium</translation>
 <translation id="9019929317751753759">‏لجعل Chromium أكثر أمنًا، أوقفنا الإضافة التالية التي لم تُدرج في <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> وربما تكون قد أضيفت بدون علمك.</translation>
+<translation id="9022552996538154597">‏تسجيل الدخول إلى Chromium</translation>
 <translation id="904366664621834601">‏حَظَر Chromium عملية التنزيل هذه لأنّ ملف الأرشيف يتضمّن ملفات أخرى قد تخفي برامج ضارة</translation>
 <translation id="9053882453960391422">‏يمكنك الحفاظ على مزامنة كلمات المرور والإشارات المرجعية والسجلّ بشكل مثالي على جميع الأجهزة، وكذلك الوصول بسهولة إلى الميزات المألوفة والمفضَّلة لديك من خلال ضبط Chromium كمتصفِّحك التلقائي، وتثبيته في شريط المهام للوصول إليه بسرعة.</translation>
 <translation id="9062666675513499497">‏تسجيل الدخول إلى Chromium عند تسجيل الدخول إلى خدمات Google الأخرى</translation>

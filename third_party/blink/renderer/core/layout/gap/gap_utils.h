@@ -79,7 +79,6 @@ class CORE_EXPORT GapSegmentState {
   inline bool HasGapStatus(GapSegmentStateId status) const {
     return (status_ & status) != 0;
   }
-  inline void SetGapStatus(GapSegmentStateId status) { status_ |= status; }
   // Returns true if one or more sides is empty.
   inline bool HasEmptyStatus() const {
     return HasGapStatus(kEmptyBefore) || HasGapStatus(kEmptyAfter);
@@ -97,10 +96,6 @@ class CORE_EXPORT GapSegmentState {
   inline bool operator==(const GapSegmentState& other) const {
     return status_ == other.status_;
   }
-  inline bool operator!=(const GapSegmentState& other) const {
-    return !(*this == other);
-  }
-
   String ToString() const;
 
   wtf_size_t status_;
@@ -119,6 +114,41 @@ struct GapSegmentStateRange {
 };
 
 using GapSegmentStateRanges = Vector<GapSegmentStateRange>;
+
+// Forward-only cursor that walks sorted, non-overlapping
+// `GapSegmentStateRanges` to return the state for each intersection index.
+// When `ranges` is nullptr (e.g. flex), always returns `kNone`.
+class GapSegmentStateCursor {
+  STACK_ALLOCATED();
+
+ public:
+  explicit GapSegmentStateCursor(const GapSegmentStateRanges* ranges)
+      : ranges_(ranges) {}
+
+  GapSegmentState GetNextGapSegmentState() {
+    if (!ranges_) {
+      return GapSegmentState(GapSegmentState::kNone);
+    }
+    while (range_index_ < ranges_->size() &&
+           (*ranges_)[range_index_].end <= current_gap_index_) {
+      ++range_index_;
+    }
+    if (range_index_ < ranges_->size()) {
+      const auto& range = (*ranges_)[range_index_];
+      if (range.start <= current_gap_index_ && current_gap_index_ < range.end) {
+        ++current_gap_index_;
+        return range.state;
+      }
+    }
+    ++current_gap_index_;
+    return GapSegmentState(GapSegmentState::kNone);
+  }
+
+ private:
+  const GapSegmentStateRanges* ranges_;
+  wtf_size_t range_index_ = 0;
+  wtf_size_t current_gap_index_ = 0;
+};
 
 // Aggregates cell states along the primary axis to compute
 // `GapSegmentStateRanges` for each gap along that axis. This is only applicable

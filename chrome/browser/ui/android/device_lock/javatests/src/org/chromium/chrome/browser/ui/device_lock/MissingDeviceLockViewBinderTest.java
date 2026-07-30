@@ -43,8 +43,6 @@ public class MissingDeviceLockViewBinderTest {
     public static BaseActivityTestRule<BlankUiTestActivity> sActivityTestRule =
             new BaseActivityTestRule<>(BlankUiTestActivity.class);
 
-    private static Activity sActivity;
-
     private final AtomicBoolean mCreateDeviceLockButtonClicked = new AtomicBoolean();
     private final AtomicBoolean mContinueClicked = new AtomicBoolean();
     private final AtomicBoolean mCheckboxToggled = new AtomicBoolean();
@@ -55,18 +53,19 @@ public class MissingDeviceLockViewBinderTest {
 
     @BeforeClass
     public static void setupSuite() {
-        sActivity = sActivityTestRule.launchActivity(null);
+        sActivityTestRule.launchActivity(null);
     }
 
     @Before
     public void setUp() {
-        ViewGroup view = new LinearLayout(sActivity);
+        Activity activity = sActivityTestRule.getActivity();
+        ViewGroup view = new LinearLayout(activity);
 
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    sActivity.setContentView(view);
+                    activity.setContentView(view);
 
-                    mView = MissingDeviceLockView.create(sActivity.getLayoutInflater());
+                    mView = MissingDeviceLockView.create(activity.getLayoutInflater());
                     view.addView(mView);
 
                     mViewModel =

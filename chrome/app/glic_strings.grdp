@@ -105,8 +105,18 @@
   <message name="IDS_GLIC_DISABLED_BY_ADMIN_NOTICE_CLOSE_BUTTON" desc="This is the button label text for a button that closes the glic disabled by admin notice.">
     Got it
   </message>
-  <message name="IDS_GLIC_DISABLED_BY_ADMIN_NOTICE_HEADER" desc="This is the headline on the glic disabled by admin notice.">
+  <message name="IDS_GLIC_DISABLED_BY_ADMIN_NOTICE_HEADER" desc="This is the headline on the glic disabled by admin notice." formatter_data="android_java">
     Your organization has turned off this feature
+  </message>
+  <message name="IDS_GLIC_INELIGIBLE_ACCOUNT_NOTICE_HEADER" desc="This is the headline on the Gemini ineligible account notice.">
+    You don't have access to Gemini in Chrome
+  </message>
+  <message name="IDS_GLIC_INELIGIBLE_ACCOUNT_NOTICE" desc="This is the text of the Gemini ineligible account notice.">
+    Check that you're eligible and meet the requirements
+  </message>
+
+  <message name="IDS_GLIC_MANAGED_BY_ORGANIZATION" desc="Text shown when the feature is managed by the organization but not disabled." formatter_data="android_java">
+    Managed by your organization
   </message>
 
   <!-- Glic settings page strings -->
@@ -121,6 +131,9 @@
   </message>
   <message name="IDS_SETTINGS_GLIC_PERMISSIONS_SECTION" desc="Heading on settings page for permissions-related preferences." formatter_data="android_java">
     Permissions
+  </message>
+  <message name="IDS_SETTINGS_GLIC_AUTO_BROWSE_SECTION" desc="Heading on settings page for auto browse preferences.">
+    Auto Browse
   </message>
   <message name="IDS_SETTINGS_GLIC_BUTTON_TOGGLE" desc="Name of the toggle that controls whether the Gemini icon is shown in the tabstrip.">
     Show Gemini at the top of the browser
@@ -321,23 +334,36 @@
   <message name="IDS_SETTINGS_GLIC_LOGIN_PERMISSIONS_PAGE_TITLE" desc="Title for the sites and accounts section on the Gemini web login permissions page." formatter_data="android_java">
     Sites and accounts
   </message>
-  <message name="IDS_SETTINGS_GLIC_LOGIN_PERMISSIONS_OFFLINE_WARNING" desc="Warning message shown at the top of the Gemini web login permissions page when the user is offline.">
+  <message name="IDS_SETTINGS_GLIC_LOGIN_PERMISSIONS_OFFLINE_WARNING" desc="Warning message shown at the top of the Gemini web login permissions page when the user is offline." formatter_data="android_java">
     You’re offline. Check your internet connection to manage sites Gemini can sign you in to.
   </message>
   <message name="IDS_SETTINGS_GLIC_LOGIN_PERMISSIONS_PAGE_DESCRIPTION" desc="Description for the sites and accounts section on the Gemini web login permissions page." formatter_data="android_java">
     You've allowed Gemini to automatically sign you in to these sites and apps using your accounts
   </message>
-  <message name="IDS_SETTINGS_GLIC_LOGIN_PERMISSIONS_NO_SITES" desc="Message shown when there are no sites in the Gemini web login permissions page.">
+  <message name="IDS_SETTINGS_GLIC_LOGIN_PERMISSIONS_NO_SITES" desc="Message shown when there are no sites in the Gemini web login permissions page." formatter_data="android_java">
     Sites where Gemini can sign you in will appear here
   </message>
-  <message name="IDS_SETTINGS_GLIC_REVOKE_ACTOR_LOGIN_PERMISSION_ARIA_LABEL" desc="Aria label for the button to remove a login permission.">
-    Remove permission for <ph name="URL">$1<ex>google.com</ex></ph>
-  </message>
+  <if expr="not is_android">
+    <message name="IDS_SETTINGS_GLIC_REVOKE_ACTOR_LOGIN_PERMISSION_ARIA_LABEL" desc="Aria label for the button to remove a login permission.">
+      Remove permission for <ph name="URL">$1<ex>google.com</ex></ph>
+    </message>
+  </if>
+  <if expr="is_android">
+    <message name="IDS_SETTINGS_GLIC_REVOKE_ACTOR_LOGIN_PERMISSION_ARIA_LABEL" desc="Aria label for the button to remove a login permission." formatter_data="android_java">
+      Remove permission for <ph name="URL">%1$s<ex>google.com</ex></ph>
+    </message>
+  </if>
   <message name="IDS_SETTINGS_GLIC_REMOVE_ACTOR_LOGIN_DIALOG_TITLE" desc="Title for the dialog to remove a login permission.">
     Remove permission
   </message>
   <message name="IDS_SETTINGS_GLIC_REMOVE_ACTOR_LOGIN_DIALOG_DESCRIPTION" desc="Description for the dialog to remove a login permission.">
     Gemini will no longer be able to sign you in to <ph name="URL">$1<ex>google.com</ex></ph>
+  </message>
+  <message name="IDS_SETTINGS_GLIC_REVOKE_ACTOR_LOGIN_DIALOG_TITLE" desc="Title for the dialog to confirm revoking a login permission for a site." formatter_data="android_java">
+    Remove site?
+  </message>
+  <message name="IDS_SETTINGS_GLIC_REVOKE_ACTOR_LOGIN_DIALOG_DESCRIPTION" desc="Description for the dialog to confirm revoking a login permission for a site." formatter_data="android_java">
+    Next time Gemini needs access to this account it will ask you again.
   </message>
   <message name="IDS_SETTINGS_GLIC_LOGIN_PERMISSIONS_REMOVE_ERROR" desc="Toast message to show when a login permission was unable to be removed.">
     Couldn't remove permission. Try again later.
@@ -514,5 +540,14 @@
   <!-- Tab bottom sheet -->
   <message name="IDS_TAB_BOTTOM_SHEET_RESIZING_VIEW_TEXT" desc="Text shown while the web view is resizing." formatter_data="android_java">
     Resizing Gemini...
+  </message>
+  <message name="IDS_GLIC_LOCATION_MISMATCH_NOTICE_HEADER" desc="Headline on the notice when Gemini is unavailable in the current dynamic location.">
+    Gemini in Chrome isn't available
+  </message>
+  <message name="IDS_GLIC_LOCATION_MISMATCH_NOTICE" desc="Text of the notice explaining location mismatch for travelers or VPN users.">
+    Gemini in Chrome is expanding to different locations but isn't available everywhere.
+  </message>
+  <message name="IDS_GLIC_GET_HELP" desc="Link or button label text to open help documentation.">
+    Get help
   </message>
 </grit-part>

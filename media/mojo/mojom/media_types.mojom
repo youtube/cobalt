@@ -215,7 +215,7 @@ struct AudioDecoderConfig {
   mojo_base.mojom.TimeDelta seek_preroll;
   int32 codec_delay;
   AudioCodecProfile profile;
-  ChannelLayout target_output_channel_layout;
+  ChannelLayoutConfig target_output_channel_layout;
   SampleFormat target_output_sample_format;
   bool should_discard_decoder_delay;
 };
@@ -441,6 +441,9 @@ struct VideoFrameMetadata {
   uint64? source_id;
 
   EffectState background_blur;
+
+  [EnableIf=is_android]
+  gpu.mojom.VulkanYCbCrInfo? ycbcr_info;
 };
 
 // This defines a mojo transport format for media::VideoFrame.
@@ -500,10 +503,6 @@ struct SharedImageVideoFrameData {
   gpu.mojom.ExportedSharedImage shared_image;
   gpu.mojom.SyncToken sync_token;
   bool is_mappable;
-  // |ycbcr_data| is present on Android when the
-  // video is hardware decoded and the display compositor uses Vulkan.
-  [EnableIf=is_android]
-  gpu.mojom.VulkanYCbCrInfo? ycbcr_data;
 };
 
 // An empty structure used for STORAGE_OPAQUE VideoFrame.

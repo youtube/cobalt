@@ -257,26 +257,6 @@ class DnsOverHttpsProbeRunner : public DnsProbeRunner {
       return;
     }
 
-    // Also cancel the probe sequence if the DoH config corresponds to DoH
-    // fallback upgrade mode but the functionality is disabled. Note that this
-    // means that if the value of `context_->doh_fallback_upgrade_allowed()`
-    // changes the user will have to wait for a network change event or restart
-    // to have DoH auto-upgrade enabled, but this is acceptable since this
-    // approach to disabling is only intended to be used for a brief duration
-    // experiment. It's important to check the feature flag last because of how
-    // we plan to conduct an experiment enabling the functionality.
-    // TODO(crbug.com/490045356): Remove the `doh_fallback_upgrade_allowed()`
-    // check and the kForceSecureDnsDohFallback feature flag check once the
-    // experiment has concluded and kBundledSecuritySettingsSecureDnsV2 has been
-    // enabled by default.
-    if (context_->IsDohConfigFromFallbackDohNameservers() &&
-        (!context_->doh_fallback_upgrade_allowed() ||
-         !base::FeatureList::IsEnabled(
-             net::features::kForceSecureDnsDohFallback))) {
-      probe_stats_list_[doh_server_index] = nullptr;
-      return;
-    }
-
     // Schedule a new probe assuming this one will fail. The newly scheduled
     // probe will not run if an earlier probe has already succeeded. Probes may
     // take awhile to fail, which is why we schedule the next one here rather
@@ -432,6 +412,7 @@ class DnsTransactionImpl final : public DnsTransaction {
     if (!callback_.is_null()) {
       net_log_.EndEventWithNetErrorCode(NetLogEventType::DNS_TRANSACTION,
                                         ERR_ABORTED);
+      RecordHttpsLookupResult(ERR_ABORTED);
     }  // otherwise logged in DoCallback or Start
   }
 
@@ -575,12 +556,45 @@ class DnsTransactionImpl final : public DnsTransaction {
     net_log_.EndEventWithNetErrorCode(NetLogEventType::DNS_TRANSACTION,
                                       result.rv);
 
+    RecordHttpsLookupResult(result.rv);
+
     std::move(callback_).Run(result.rv, response);
   }
 
   void RecordAttemptUma(DnsAttemptType attempt_type) {
     UMA_HISTOGRAM_ENUMERATION("Net.DNS.DnsTransaction.AttemptType",
                               attempt_type);
+  }
+
+  void RecordHttpsLookupResult(int net_error) {
+    CHECK_NE(ERR_IO_PENDING, net_error);
+    if (qtype_ != dns_protocol::kTypeHttps) {
+      return;
+    }
+
+    constexpr std::string_view kHistogramBase =
+        "Net.DNS.DnsTransaction.HttpsLookupResult";
+    net_error = -net_error;
+    base::UmaHistogramSparse(kHistogramBase, net_error);
+    switch (attempt_mode_) {
+      case DnsTransactionFactory::AttemptMode::kClassic:
+        base::UmaHistogramSparse(base::StrCat({kHistogramBase, ".Classic"}),
+                                 net_error);
+        if (had_tcp_retry_) {
+          base::UmaHistogramSparse(
+              base::StrCat({kHistogramBase, ".ClassicTruncatedAndTcpRetried"}),
+              net_error);
+        }
+        break;
+      case DnsTransactionFactory::AttemptMode::kHttp:
+        base::UmaHistogramSparse(base::StrCat({kHistogramBase, ".DoH"}),
+                                 net_error);
+        break;
+      case DnsTransactionFactory::AttemptMode::kPlatform:
+        base::UmaHistogramSparse(base::StrCat({kHistogramBase, ".Platform"}),
+                                 net_error);
+        break;
+    }
   }
 
   AttemptResult MakeAttempt() {

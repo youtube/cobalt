@@ -2,15 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'chrome://new-tab-page/strings.m.js';
+import 'chrome://contextual-tasks/strings.m.js';
 import 'chrome://resources/cr_components/composebox/contextual_action_menu.js';
+import 'chrome://resources/cr_components/composebox/composebox_favicon_group.js';
 
+import type {ComposeboxFaviconGroupElement} from 'chrome://resources/cr_components/composebox/composebox_favicon_group.js';
 import type {ContextualActionMenuElement} from 'chrome://resources/cr_components/composebox/contextual_action_menu.js';
 import type {CrToggleElement} from 'chrome://resources/cr_elements/cr_toggle/cr_toggle.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
+import {PluralStringProxyImpl} from 'chrome://resources/js/plural_string_proxy.js';
+import type {TabInfo} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import {InputType, ModelMode, ToolMode} from 'chrome://resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
-import {$$, microtasksFinished} from 'chrome://webui-test/test_util.js';
+import {TestPluralStringProxy} from 'chrome://webui-test/test_plural_string_proxy.js';
+import {$$, isVisible, microtasksFinished} from 'chrome://webui-test/test_util.js';
 
 import {MockInputState} from './composebox_test_utils.js';
 
@@ -23,10 +28,13 @@ suite('ContextualActionMenu', () => {
       composeboxContextMenuEnableMultiTabSelection: true,
       composeboxFileMaxCount: 10,
       composeboxShowContextMenuTabPreviews: true,
-      composeboxShowPdfUpload: true,
       ShowContextMenuHeaders: true,
       composeboxSmartTabSharingVisible: false,
+      contextManagementInComposeboxEnabled: false,
     });
+
+    const pluralStringProxy = new TestPluralStringProxy();
+    PluralStringProxyImpl.setInstance(pluralStringProxy);
 
     actionMenu = document.createElement('cr-composebox-contextual-action-menu');
     Object.assign(
@@ -677,5 +685,499 @@ suite('ContextualActionMenu', () => {
 
     // Ensure flyout has max height even with many tab suggestions.
     assertEquals(144, flyout.offsetHeight);
+  });
+
+  test('Share tabs flyout keyboard navigation', async () => {
+    loadTimeData.overrideValues({
+      contextManagementInComposeboxEnabled: true,
+    });
+
+    actionMenu.remove();
+    actionMenu = document.createElement('cr-composebox-contextual-action-menu');
+    actionMenu.tabSuggestions = [
+      {
+        tabId: 1,
+        title: 'Tab 1',
+        url: {url: 'https://example.com'},
+        lastActiveTime: {internalValue: 0n},
+        showInCurrentTabChip: false,
+        showInPreviousTabChip: false,
+        lastActive: {internalValue: 0n},
+      } as any,
+    ];
+    actionMenu.inputState = new MockInputState({
+                              allowedInputTypes: [InputType.kBrowserTab],
+                            }) as any;
+    document.body.appendChild(actionMenu);
+    await microtasksFinished();
+
+    // Open the main contextual action menu.
+    actionMenu.showAt(actionMenu);
+    await microtasksFinished();
+
+    // Get the trigger button and the flyout container.
+    const trigger = $$(actionMenu, '#shareTabsTrigger') as HTMLElement;
+    const flyout = $$(actionMenu, '.share-tabs-flyout') as HTMLElement;
+    assertTrue(!!trigger);
+    assertTrue(!!flyout);
+
+    // Verify that the flyout is hidden initially.
+    assertTrue(flyout.hidden);
+
+    // Simulate an ArrowRight keydown event on the trigger to expand the flyout.
+    trigger.dispatchEvent(
+        new KeyboardEvent('keydown', {key: 'ArrowRight', bubbles: true}));
+    await actionMenu.updateComplete;
+    await new Promise(resolve => requestAnimationFrame(resolve));
+    await microtasksFinished();
+
+    // Assert that the flyout is now visible.
+    assertFalse(flyout.hidden);
+
+    // Assert that the keyboard focus has successfully moved to the first button
+    // inside the flyout.
+    const firstTabItem =
+        flyout.querySelector<HTMLElement>('button.dropdown-item');
+
+    assertTrue(!!firstTabItem);
+    assertEquals(firstTabItem, actionMenu.shadowRoot.activeElement);
+
+    // Simulate an ArrowLeft keydown event on the inner item to collapse the
+    // flyout.
+    firstTabItem.dispatchEvent(
+        new KeyboardEvent('keydown', {key: 'ArrowLeft', bubbles: true}));
+    await actionMenu.updateComplete;
+    await new Promise(resolve => requestAnimationFrame(resolve));
+    await microtasksFinished();
+
+    assertTrue(flyout.hidden);
+
+    // Assert that the focus is correctly returned to the parent trigger button.
+    assertEquals(trigger, actionMenu.shadowRoot.activeElement);
+  });
+
+  test('Tabs counter visibility', async () => {
+    actionMenu.showAt(actionMenu);
+    await microtasksFinished();
+    assertFalse(!!$$(actionMenu, '#shareTabsTrigger'));
+
+    // There is no tab counter if no tabs exist.
+    loadTimeData.overrideValues({contextManagementInComposeboxEnabled: true});
+    actionMenu.remove();
+    actionMenu = document.createElement('cr-composebox-contextual-action-menu');
+    actionMenu.tabSuggestions = [
+      {
+        tabId: 1,
+        title: 'Tab 1',
+        url: {url: 'https://example.com'},
+        lastActiveTime: {internalValue: 0n},
+        showInCurrentTabChip: false,
+        showInPreviousTabChip: false,
+        lastActive: {internalValue: 0n},
+      } as any,
+    ];
+    actionMenu.inputState = new MockInputState({
+      allowedInputTypes: [InputType.kBrowserTab],
+      toolsSectionConfig: {header: ''},
+      modelSectionConfig: {header: ''},
+    });
+    actionMenu.disabledTabIds = new Map();
+    document.body.appendChild(actionMenu);
+    actionMenu.showAt(actionMenu);
+    await microtasksFinished();
+    const shareTabsTrigger = $$(actionMenu, '#shareTabsTrigger');
+    assertTrue(!!shareTabsTrigger);
+    // The counter text should not be visible when no tabs are selected.
+    assertFalse(shareTabsTrigger.textContent.includes('1'));
+
+    // Show tab counter when one tab is chosen.
+    actionMenu.disabledTabIds = new Map([[1, '1']]);
+    await microtasksFinished();
+    assertTrue(!!shareTabsTrigger.querySelector('.share-tabs-arrow'));
+
+    // No tab counter when no tab is selected.
+    actionMenu.disabledTabIds = new Map();
+    await microtasksFinished();
+    assertFalse(shareTabsTrigger.textContent.includes('1'));
+  });
+
+  test('focuses Share Tabs when opening the + menu via keydown', async () => {
+    loadTimeData.overrideValues({
+      contextManagementInComposeboxEnabled: true,
+    });
+
+    actionMenu.remove();
+    actionMenu = document.createElement('cr-composebox-contextual-action-menu');
+
+    // Initially, there is no tab data.
+    actionMenu.tabSuggestions = [];
+    actionMenu.inputState =
+        new MockInputState({
+          allowedInputTypes: [InputType.kBrowserTab, InputType.kLensImage],
+        }) as any;
+    document.body.appendChild(actionMenu);
+    await microtasksFinished();
+
+    // Open the menu and wait for it to fully render.
+    actionMenu.showAt(actionMenu);
+    await actionMenu.updateComplete;
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    // Manually focus imageUpload to simulate the initial fallback state
+    // where Share Tabs was missing.
+    const imageUpload = $$(actionMenu, '#imageUpload') as HTMLElement;
+    imageUpload.focus();
+    assertEquals(imageUpload, actionMenu.shadowRoot.activeElement);
+
+    // Simulate the asynchronous return of tab data from the backend.
+    actionMenu.tabSuggestions = [
+      {
+        tabId: 1,
+        title: 'Tab 1',
+        url: {url: 'https://example.com'},
+        lastActiveTime: {internalValue: 0n},
+        showInCurrentTabChip: false,
+        showInPreviousTabChip: false,
+        lastActive: {internalValue: 0n},
+      } as any,
+    ];
+
+    await actionMenu.updateComplete;
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    // Assert that our updated logic successfully corrected the focus back to
+    // Share Tabs.
+    const trigger = $$(actionMenu, '#shareTabsTrigger') as HTMLElement;
+    assertTrue(!!trigger);
+    assertEquals(trigger, actionMenu.shadowRoot.activeElement);
+  });
+
+  test(
+      'navigates up and down between Share Tabs and other menu items',
+      async () => {
+        loadTimeData.overrideValues({
+          contextManagementInComposeboxEnabled: true,
+        });
+
+        actionMenu.remove();
+        actionMenu =
+            document.createElement('cr-composebox-contextual-action-menu');
+
+        // Populate data to ensure both Share Tabs and Image Upload exist.
+        actionMenu.tabSuggestions = [
+          {
+            tabId: 1,
+            title: 'Tab 1',
+            url: {url: 'https://example.com'},
+            lastActiveTime: {internalValue: 0n},
+            showInCurrentTabChip: false,
+            showInPreviousTabChip: false,
+            lastActive: {internalValue: 0n},
+          } as any,
+        ];
+        actionMenu.inputState =
+            new MockInputState({
+              allowedInputTypes: [InputType.kBrowserTab, InputType.kLensImage],
+            }) as any;
+        document.body.appendChild(actionMenu);
+        await microtasksFinished();
+
+        actionMenu.showAt(actionMenu);
+        await actionMenu.updateComplete;
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        const trigger = $$(actionMenu, '#shareTabsTrigger') as HTMLElement;
+        const imageUpload = $$(actionMenu, '#imageUpload') as HTMLElement;
+
+        // Manually move focus to the Share Tabs button.
+        trigger.focus();
+        assertEquals(trigger, actionMenu.shadowRoot.activeElement);
+
+        // Simulate an ArrowDown key press with full properties expected by
+        // <cr-action-menu>.
+        trigger.dispatchEvent(new KeyboardEvent('keydown', {
+          key: 'ArrowDown',
+          code: 'ArrowDown',
+          keyCode: 40,  // Chromium action menu strictly requires keyCode 40 for
+                        // ArrowDown.
+          bubbles: true,
+          composed: true,
+          cancelable: true,
+        } as any));
+
+        // Wait for the menu's internal focus manager to react.
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        // Assert focus successfully skipped the hidden flyout and landed
+        // directly on Image Upload.
+        assertEquals(imageUpload, actionMenu.shadowRoot.activeElement);
+      });
+
+  test('Share tabs flyout dynamic repositioning', async () => {
+    loadTimeData.overrideValues({
+      contextManagementInComposeboxEnabled: true,
+    });
+
+    actionMenu.remove();
+    actionMenu = document.createElement('cr-composebox-contextual-action-menu');
+    actionMenu.tabSuggestions = [
+      {
+        tabId: 1,
+        title: 'Tab 1',
+        url: {url: 'https://example.com'},
+        lastActiveTime: {internalValue: 0n},
+        showInCurrentTabChip: false,
+        showInPreviousTabChip: false,
+        lastActive: {internalValue: 0n},
+      } as any,
+    ];
+    actionMenu.inputState = new MockInputState({
+      allowedInputTypes: [InputType.kBrowserTab],
+    }) as any;
+    document.body.appendChild(actionMenu);
+    await microtasksFinished();
+
+    actionMenu.showAt(actionMenu);
+    await microtasksFinished();
+
+    const trigger = $$(actionMenu, '#shareTabsTrigger') as HTMLElement;
+    const flyout = $$(actionMenu, '.share-tabs-flyout') as HTMLElement;
+    assertTrue(!!trigger);
+    assertTrue(!!flyout);
+
+    Object.defineProperty(flyout, 'offsetWidth', {value: 320, configurable: true});
+
+    // Enough space to the right positions the flyout to the right.
+    trigger.getBoundingClientRect = () => ({
+      left: 10, right: 330, top: 100, bottom: 132, width: 320, height: 32,
+    } as DOMRect);
+    Object.defineProperty(window, 'innerWidth', {value: 1000, configurable: true});
+
+    trigger.dispatchEvent(new PointerEvent('pointerenter'));
+    await actionMenu.updateComplete;
+    await microtasksFinished();
+
+    assertEquals('right', flyout.getAttribute('data-position'));
+    assertEquals('', flyout.style.left);
+
+    // When blocked on the right, enough space to the left positions the flyout to the left.
+    trigger.getBoundingClientRect = () => ({
+      left: 400, right: 720, top: 100, bottom: 132, width: 320, height: 32,
+    } as DOMRect);
+    Object.defineProperty(window, 'innerWidth', {value: 800, configurable: true});
+
+    trigger.dispatchEvent(new PointerEvent('pointerenter'));
+    await actionMenu.updateComplete;
+    await microtasksFinished();
+
+    assertEquals('left', flyout.getAttribute('data-position'));
+    assertEquals('', flyout.style.left);
+
+    // When blocked on both sides in a narrow panel, the flyout positions at the bottom with a bounded indent.
+    trigger.getBoundingClientRect = () => ({
+      left: 16, right: 336, top: 100, bottom: 132, width: 320, height: 32,
+    } as DOMRect);
+    Object.defineProperty(window, 'innerWidth', {value: 380, configurable: true});
+
+    trigger.dispatchEvent(new PointerEvent('pointerenter'));
+    await actionMenu.updateComplete;
+    await microtasksFinished();
+
+    assertEquals('bottom', flyout.getAttribute('data-position'));
+    // The expected maxLeft.
+    assertEquals('32px', flyout.style.left);
+  });
+
+  test('Favicon group rendered in action menu', async () => {
+    loadTimeData.overrideValues({ contextManagementInComposeboxEnabled: true });
+    actionMenu.remove();
+    actionMenu = document.createElement('cr-composebox-contextual-action-menu');
+    const tabInfo: TabInfo = {
+      tabId: 1,
+      title: 'Tab 1',
+      url: 'https://google.com',
+      showInCurrentTabChip: false,
+      showInPreviousTabChip: false,
+      lastActive: { internalValue: 0n },
+    };
+    actionMenu.tabSuggestions = [tabInfo];
+    actionMenu.inputState = new MockInputState({
+      allowedInputTypes: [InputType.kBrowserTab],
+    });
+    actionMenu.disabledTabIds = new Map([[1, '1']]);
+    document.body.appendChild(actionMenu);
+    actionMenu.showAt(actionMenu);
+    await microtasksFinished();
+
+    const faviconGroup =
+        $$(actionMenu, 'composebox-favicon-group') as ComposeboxFaviconGroupElement;
+    assertTrue(!!faviconGroup);
+    assertEquals(1, faviconGroup.tabs.length);
+  });
+
+  test(
+      'Disables uploads and tabs immediately when maxFileCount is reached',
+      async () => {
+        // Recreate actionMenu with maxFileCount = 1.
+        actionMenu.remove();
+        loadTimeData.overrideValues({
+          composeboxFileMaxCount: 1,
+        });
+        actionMenu =
+            document.createElement('cr-composebox-contextual-action-menu');
+        actionMenu.fileNum = 1;  // Set fileNum to 1 (limit reached)
+
+        // Provide tab suggestion.
+        const tabInfo = {
+          tabId: 1,
+          title: 'Google',
+          url: 'https://google.com',
+          lastActiveTime: {internalValue: 0n},
+          showInCurrentTabChip: false,
+          showInPreviousTabChip: false,
+          lastActive: {internalValue: 0n},
+        };
+        actionMenu.tabSuggestions = [tabInfo];
+
+        // inputState allows everything and disables nothing.
+        actionMenu.inputState = new MockInputState({
+          allowedInputTypes: [
+            InputType.kLensImage,
+            InputType.kLensFile,
+            InputType.kDrive,
+            InputType.kBrowserTab,
+          ],
+          disabledInputTypes: [],  // Nothing disabled by C++ yet
+          toolsSectionConfig: {header: ''},
+          modelSectionConfig: {header: ''},
+        });
+
+        document.body.appendChild(actionMenu);
+        await microtasksFinished();
+
+        actionMenu.showAt(actionMenu);
+        await microtasksFinished();
+
+        // Verify uploads are disabled.
+        const imageUpload = $$(actionMenu, '#imageUpload') as HTMLButtonElement;
+        const fileUpload = $$(actionMenu, '#fileUpload') as HTMLButtonElement;
+        const driveUpload = $$(actionMenu, '#driveUpload') as HTMLButtonElement;
+
+        assertTrue(imageUpload.disabled);
+        assertTrue(fileUpload.disabled);
+        assertTrue(driveUpload.disabled);
+
+        // Verify tabs are disabled.
+        const tabButton = actionMenu.$.menu.querySelector<HTMLButtonElement>(
+            '.suggestion-container button')!;
+        assertTrue(isVisible(tabButton));
+        assertTrue(tabButton.disabled);
+      });
+
+  test('Disables all items when uploadButtonDisabled is true', async () => {
+    actionMenu.uploadButtonDisabled = true;
+
+    // Provide tab suggestion.
+    const tabInfo = {
+      tabId: 1,
+      title: 'Google',
+      url: 'https://google.com',
+      lastActiveTime: {internalValue: 0n},
+      showInCurrentTabChip: false,
+      showInPreviousTabChip: false,
+      lastActive: {internalValue: 0n},
+    };
+    actionMenu.tabSuggestions = [tabInfo];
+
+    // inputState allows everything and disables nothing.
+    actionMenu.inputState = new MockInputState({
+      allowedInputTypes: [
+        InputType.kLensImage,
+        InputType.kLensFile,
+        InputType.kDrive,
+        InputType.kBrowserTab,
+      ],
+      allowedTools: [ToolMode.kDeepSearch],
+      toolConfigs: [{
+        tool: ToolMode.kDeepSearch,
+        menuLabel: 'Deep Search',
+        disableActiveModelSelection: false,
+        chipLabel: '',
+        hintText: '',
+        aimUrlParams: [],
+      }],
+      toolsSectionConfig: {header: ''},
+      allowedModels: [ModelMode.kGeminiRegular],
+      modelConfigs: [{
+        model: ModelMode.kGeminiRegular,
+        menuLabel: 'Gemini Regular',
+        hintText: '',
+        aimUrlParams: [],
+      }],
+      modelSectionConfig: {header: ''},
+    });
+
+    actionMenu.showAt(actionMenu);
+    await microtasksFinished();
+
+    // Verify uploads are disabled.
+    const imageUpload = $$(actionMenu, '#imageUpload') as HTMLButtonElement;
+    const fileUpload = $$(actionMenu, '#fileUpload') as HTMLButtonElement;
+    const driveUpload = $$(actionMenu, '#driveUpload') as HTMLButtonElement;
+    assertTrue(imageUpload.disabled);
+    assertTrue(fileUpload.disabled);
+    assertTrue(driveUpload.disabled);
+
+    // Verify tabs are disabled.
+    const tabButton = actionMenu.$.menu.querySelector<HTMLButtonElement>(
+        '.suggestion-container button')!;
+    assertTrue(isVisible(tabButton));
+    assertTrue(tabButton.disabled);
+
+    // Verify tools are disabled.
+    const deepSearch =
+        $$(actionMenu, `[data-mode="${ToolMode.kDeepSearch}"]`) as
+        HTMLButtonElement;
+    assertTrue(deepSearch.disabled);
+
+    // Verify models are disabled.
+    const regularModel =
+        $$(actionMenu, `[data-model="${ModelMode.kGeminiRegular}"]`) as
+        HTMLButtonElement;
+    assertTrue(regularModel.disabled);
+  });
+
+  test('Recent tab suffix disabled state', async () => {
+    loadTimeData.overrideValues({
+      contextManagementInComposeboxEnabled: true,
+    });
+    actionMenu.remove();
+    actionMenu = document.createElement('cr-composebox-contextual-action-menu');
+    const tabInfo: TabInfo = {
+      tabId: 1,
+      title: 'Recent Tab',
+      url: 'https://example.com',
+      showInCurrentTabChip: false,
+      showInPreviousTabChip: false,
+      lastActive: {internalValue: 0n},
+    };
+    actionMenu.tabSuggestions = [tabInfo];
+    actionMenu.inputState = new MockInputState({
+      allowedInputTypes: [InputType.kBrowserTab],
+      disabledInputTypes: [InputType.kBrowserTab],
+    });
+    document.body.appendChild(actionMenu);
+    await microtasksFinished();
+
+    actionMenu.showAt(actionMenu);
+    await microtasksFinished();
+
+    const trigger = $$(actionMenu, '#shareTabsTrigger') as HTMLElement;
+    trigger.dispatchEvent(new PointerEvent('pointerenter'));
+    await microtasksFinished();
+
+    const suffix = $$(actionMenu, '.recent-tabs-suffix');
+    assertTrue(isVisible(suffix));
+    assertTrue(suffix!.hasAttribute('disabled'));
   });
 });

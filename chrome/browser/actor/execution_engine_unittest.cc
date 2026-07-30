@@ -202,55 +202,6 @@ class FakeChromeRenderFrame : public chrome::mojom::ChromeRenderFrame {
   mojo::AssociatedReceiverSet<chrome::mojom::ChromeRenderFrame> receivers_;
 };
 
-class MockActorTaskDelegate : public ActorTaskDelegate {
- public:
-  MockActorTaskDelegate() = default;
-  ~MockActorTaskDelegate() override = default;
-
-  MOCK_METHOD(void,
-              OnTabAddedToTask,
-              (TaskId task_id, const tabs::TabInterface::Handle& tab_handle),
-              (override));
-
-  MOCK_METHOD(void,
-              RequestToShowCredentialSelectionDialog,
-              (TaskId task_id,
-               (const base::flat_map<std::string, gfx::Image>&)icons,
-               const std::vector<actor_login::Credential>& credentials,
-               CredentialSelectedCallback callback),
-              (override));
-
-  MOCK_METHOD(void,
-              RequestToShowUserConfirmationDialog,
-              (TaskId task_id,
-               const url::Origin& destination,
-               bool for_blocklisted_origin,
-               UserConfirmationDialogCallback callback),
-              (override));
-
-  MOCK_METHOD(void,
-              RequestToConfirmNavigation,
-              (TaskId task_id,
-               const url::Origin& destination,
-               NavigationConfirmationCallback callback),
-              (override));
-
-  MOCK_METHOD(void,
-              RequestToShowAutofillSuggestionsDialog,
-              (actor::TaskId task_id,
-               std::vector<autofill::ActorFormFillingRequest> requests,
-               base::WeakPtr<AutofillSelectionDialogEventHandler> handler,
-               AutofillSuggestionSelectedCallback callback),
-              (override));
-
-  base::WeakPtr<MockActorTaskDelegate> GetWeakPtr() {
-    return weak_factory_.GetWeakPtr();
-  }
-
- private:
-  base::WeakPtrFactory<MockActorTaskDelegate> weak_factory_{this};
-};
-
 class ExecutionEngineTest : public ChromeRenderViewHostTestHarness {
  public:
   ExecutionEngineTest()
@@ -1131,6 +1082,30 @@ TEST_F(ExecutionEngineNavigationGatingTest,
                                  /*sample=*/false, /*expected_bucket_count=*/1);
   histograms_.ExpectUniqueSample("Actor.NavigationGating.SameSiteInitiator",
                                  /*sample=*/false, /*expected_bucket_count=*/1);
+}
+
+TEST_F(ExecutionEngineNavigationGatingTest,
+       ShouldDeferNavigation_OpaqueSourceWithPrecursor) {
+  const GURL kPrecursorUrl("https://example.com/");
+  const GURL kDestinationUrl("https://example.com/other");
+
+  content::NavigationSimulator::NavigateAndCommitFromBrowser(web_contents(),
+                                                             kPrecursorUrl);
+
+  // Navigate to a data URL to get an opaque origin with the precursor.
+  content::NavigationSimulator::NavigateAndCommitFromDocument(
+      GURL("data:text/html,foo"), main_rfh());
+
+  content::MockNavigationHandle navigation_handle(kDestinationUrl, main_rfh());
+
+  EXPECT_EQ(task_->GetExecutionEngine().ShouldDeferNavigation(
+                navigation_handle, base::NullCallback()),
+            content::NavigationThrottle::PROCEED);
+
+  // Verify that SameOriginSource is true, indicating it used the precursor
+  // origin.
+  histograms_.ExpectUniqueSample("Actor.NavigationGating.SameOriginSource",
+                                 /*sample=*/true, /*expected_bucket_count=*/1);
 }
 
 }  // namespace

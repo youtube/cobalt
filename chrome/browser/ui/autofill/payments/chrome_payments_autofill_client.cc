@@ -107,6 +107,7 @@
 #include "chrome/browser/ui/autofill/payments/desktop_payments_window_manager.h"
 #include "chrome/browser/ui/autofill/payments/filled_card_information_bubble_controller_impl.h"
 #include "chrome/browser/ui/autofill/payments/offer_notification_bubble_controller_impl.h"
+#include "chrome/browser/ui/autofill/payments/omnibox_autofill_page_action_controller.h"
 #include "chrome/browser/ui/autofill/payments/save_card_bubble_controller_impl.h"
 #include "chrome/browser/ui/autofill/payments/webauthn_dialog_controller_impl.h"
 #include "chrome/browser/ui/autofill/payments/webauthn_dialog_state.h"
@@ -482,7 +483,8 @@ void ChromePaymentsAutofillClient::VirtualCardEnrollCompleted(
 }
 
 void ChromePaymentsAutofillClient::OnCardDataAvailable(
-    const FilledCardInformationBubbleOptions& options) {
+    const FilledCardInformationBubbleOptions& options,
+    const url::Origin& origin) {
 #if BUILDFLAG(IS_ANDROID)
   // Note that currently the snackbar is displayed only for virtual cards or
   // cards enrolled in card info retrieval. In the case for BNPL, it is a
@@ -1246,6 +1248,29 @@ OmniboxAutofillDelegate*
 ChromePaymentsAutofillClient::GetOmniboxAutofillDelegate() {
   return omnibox_autofill_delegate_.get();
 }
+
+void ChromePaymentsAutofillClient::ShowOmniboxAutofillChip() {
+  if (tabs::TabInterface* tab_interface =
+          tabs::TabInterface::MaybeGetFromContents(web_contents())) {
+    if (autofill::OmniboxAutofillPageActionController* controller =
+            autofill::OmniboxAutofillPageActionController::From(
+                *tab_interface)) {
+      controller->Show();
+    }
+  }
+}
+
+void ChromePaymentsAutofillClient::HideOmniboxAutofillChip() {
+  if (tabs::TabInterface* tab_interface =
+          tabs::TabInterface::MaybeGetFromContents(web_contents())) {
+    if (autofill::OmniboxAutofillPageActionController* controller =
+            autofill::OmniboxAutofillPageActionController::From(
+                *tab_interface)) {
+      controller->Hide();
+    }
+  }
+}
+
 #endif
 
 #if BUILDFLAG(IS_ANDROID)

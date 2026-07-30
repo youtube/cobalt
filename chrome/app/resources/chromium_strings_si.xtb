@@ -585,7 +585,6 @@
 <translation id="7318036098707714271">ඔබගේ මනාප ගොනුව හානිවී හෝ අවලංගුයි.
 
 Chromium හට ඔබගේ සැකසුම් ප්‍රතිසාධනය කිරීමට නොහැක.</translation>
-<translation id="7339898014177206373">නව කවුළුව</translation>
 <translation id="734373864078049451">ඔබේ වෙබ් අඩවි, පිටු සලකුණු සහ වෙනත්Chromium උපකරණ මෙහි ඇත.</translation>
 <translation id="7347827960336370838">ඔබේ සංකේතිත දත්ත කියවිය හැක්කේ ඔබේ මුර වැකිකඩ සහිත කෙනෙකුට පමණි. මුර වැකිකඩ Google වෙත යවන්නේ හෝ ගබඩා කරන්නේ නැත. ඔබට ඔබේ මුරපදය අමතක වුවහොත් හෝ මෙම සැකසුම වෙනස් කිරීමට අවශ්‍ය නම්, ඔබට <ph name="BEGIN_LINK" />ඔබේ ගිණුමේ ඇති Chromium දත්ත මැකීමට<ph name="END_LINK" /> අවශ්‍ය වනු ඇත.</translation>
 <translation id="7349591376906416160">ඔබේ පද්ධති පරිපාලකයා <ph name="TARGET_URL_HOSTNAME" /> වෙත ප්‍රවේශ වීමට <ph name="ALTERNATIVE_BROWSER_NAME" /> විවෘත කිරීමට Chromium වින්‍යාස කර ඇත.</translation>
@@ -594,6 +593,7 @@ Chromium හට ඔබගේ සැකසුම් ප්‍රතිසාධ�
 <translation id="7376384068949534168">ඔබ මෑත පැමිණ නැත. Chromium <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> ඉවත් කළා.</translation>
 <translation id="73786666777299047">Chrome Web Store විවෘත කරන්න</translation>
 <translation id="7384121030444253939">මෙම දිගුව තවදුරටත් සහාය නොදක්වයි. ඒ වෙනුවට එය ඉවත් කරන ලෙස Chromium නිර්දේශ කරයි.</translation>
+<translation id="7407655596887111931">Chromium දැන් ඔබේ පෙරනිමි බ්‍රව්සරයයි</translation>
 <translation id="7413153308467572558">ඔබ නතර කළ තැනින් ඉදිරියට යන්න: ඔබ යළි අරඹන සෑම අවස්ථාවකම Chromium ඔබේ පටිති ප්‍රතිසාධනය කරයි. මෙය ක්‍රියාවිරහිත කිරීම සඳහා, වෙත යන්න</translation>
 <translation id="7427879960656355200">Chromium වෙත මුරපද ආයාත කරන්න</translation>
 <translation id="744815265653811511">1. පහත <ph name="BUTTON_LABEL" /> ක්ලික් කරන්න ඔබේ Windows සැකසීම් තුළ <ph name="BUTTON_2" /> ක්ලික් කරන්න
@@ -734,6 +734,7 @@ Chromium හට ඔබගේ සැකසුම් ප්‍රතිසාධ�
 <translation id="8981150672034878610">ඔබේ පැතිකඩ විවෘත කරන විට යමක් වැරදී ඇති නිසා Chromium ආරම්භ කළ නොහැක. Chromium යළි ඇරඹීමට උත්සාහ කරන්න.</translation>
 <translation id="8988036198400390003">Chromium පැතිකඩවල් කළමනා කරන්න</translation>
 <translation id="9019929317751753759">Chromium වඩාත් ආරක්ෂිත කිරීම සඳහා, අප විසින් <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> ලැයිස්තුගත කර නොමැති හා ඔබේ දැනුමෙන් තොරව එක් කර ඇති ඇතැම් දිගු අබල කර ඇත.</translation>
+<translation id="9022552996538154597">Chromium වෙත පිවිසෙන්න</translation>
 <translation id="904366664621834601">ලේඛනාරක්ෂිත ගොනුවේ අනිෂ්ට මෘදුකාංග සැඟවිය හැකි වෙනත් ගොනු ඇතුළත් නිසා Chromium මෙම බාගැනීම අවහිර කර ඇත</translation>
 <translation id="9053882453960391422">ඔබේ මුරපද, පිටුසන් සහ ඉතිහාසය උපාංග හරහා පරිපූර්ණව සමමුහුර්තව තබා ගන්න. ඔබේ පෙරනිමි බ්‍රව්සරය Chromium වෙත යාවත්කාලීන කිරීමෙන් ඔබ දන්නා සහ ආදරය කරන විශේෂාංග වෙත පහසුවෙන් ප්‍රවේශ වන්න. ඉක්මන් ප්‍රවේශය සඳහා Chromium ඔබේ කාර්ය තීරුවට අමුණනු ලැබේ.</translation>
 <translation id="9062666675513499497">ඔබ වෙනත් Google සේවාවලට පුරන විට Chromium වෙත පුරන්න</translation>

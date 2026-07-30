@@ -381,4 +381,78 @@ TEST_F(OmniboxAutofillDelegateTest,
       1);
 }
 
+TEST_F(OmniboxAutofillDelegateTest,
+       OnAutofillManagerStateChanged_WasActive_HideChip) {
+  payments_autofill_client().ShowOmniboxAutofillChip();
+
+  EXPECT_TRUE(payments_autofill_client().omnibox_autofill_chip_shown());
+  EXPECT_FALSE(payments_autofill_client().omnibox_autofill_chip_hidden());
+
+  OmniboxAutofillDelegate* delegate =
+      payments_autofill_client().GetOmniboxAutofillDelegate();
+  ASSERT_TRUE(delegate);
+
+  delegate->OnAutofillManagerStateChanged(
+      autofill_manager(), /*previous=*/AutofillManager::LifecycleState::kActive,
+      /*current=*/AutofillManager::LifecycleState::kInactive);
+
+  EXPECT_TRUE(payments_autofill_client().omnibox_autofill_chip_hidden());
+  EXPECT_FALSE(payments_autofill_client().omnibox_autofill_chip_shown());
+}
+
+TEST_F(OmniboxAutofillDelegateTest,
+       OnAutofillManagerStateChanged_WasNotActive_DoesNotHideChip) {
+  payments_autofill_client().ShowOmniboxAutofillChip();
+
+  EXPECT_TRUE(payments_autofill_client().omnibox_autofill_chip_shown());
+  EXPECT_FALSE(payments_autofill_client().omnibox_autofill_chip_hidden());
+
+  OmniboxAutofillDelegate* delegate =
+      payments_autofill_client().GetOmniboxAutofillDelegate();
+  ASSERT_TRUE(delegate);
+
+  delegate->OnAutofillManagerStateChanged(
+      autofill_manager(),
+      /*previous=*/AutofillManager::LifecycleState::kInactive,
+      /*current=*/AutofillManager::LifecycleState::kActive);
+
+  EXPECT_FALSE(payments_autofill_client().omnibox_autofill_chip_hidden());
+  EXPECT_TRUE(payments_autofill_client().omnibox_autofill_chip_shown());
+}
+
+TEST_F(OmniboxAutofillDelegateTest, OnAfterFormsSeen_FormRemoved_HidesChip) {
+  FormData form = CreateTestCreditCardFormData();
+  FormsSeen({form});
+
+  payments_autofill_client().ShowOmniboxAutofillChip();
+
+  EXPECT_TRUE(payments_autofill_client().omnibox_autofill_chip_shown());
+  EXPECT_FALSE(payments_autofill_client().omnibox_autofill_chip_hidden());
+
+  autofill_manager().OnFormsSeen(/*updated_forms=*/{},
+                                 /*removed_forms=*/{form.global_id()});
+
+  EXPECT_TRUE(payments_autofill_client().omnibox_autofill_chip_hidden());
+  EXPECT_FALSE(payments_autofill_client().omnibox_autofill_chip_shown());
+}
+
+TEST_F(OmniboxAutofillDelegateTest,
+       OnAfterFormsSeen_FormNotRemoved_DoesNotHideChip) {
+  FormData form = CreateTestCreditCardFormData();
+  FormsSeen({form});
+
+  payments_autofill_client().ShowOmniboxAutofillChip();
+
+  EXPECT_TRUE(payments_autofill_client().omnibox_autofill_chip_shown());
+  EXPECT_FALSE(payments_autofill_client().omnibox_autofill_chip_hidden());
+
+  FormGlobalId different_form_id = test::MakeFormGlobalId();
+  ASSERT_NE(different_form_id, form.global_id());
+  autofill_manager().OnFormsSeen(/*updated_forms=*/{},
+                                 /*removed_forms=*/{different_form_id});
+
+  EXPECT_FALSE(payments_autofill_client().omnibox_autofill_chip_hidden());
+  EXPECT_TRUE(payments_autofill_client().omnibox_autofill_chip_shown());
+}
+
 }  // namespace autofill

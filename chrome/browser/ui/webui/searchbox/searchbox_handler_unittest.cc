@@ -54,6 +54,7 @@
 #include "third_party/omnibox_proto/searchbox_config.pb.h"
 #include "third_party/omnibox_proto/tool_config.pb.h"
 #include "third_party/omnibox_proto/tool_mode.pb.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/base/unowned_user_data/unowned_user_data_host.h"
 #include "ui/base/webui/web_ui_util.h"
 
@@ -209,7 +210,7 @@ TEST_F(RealboxHandlerTest, AutocompleteController_Start) {
         .Times(1)
         .WillOnce(SaveArg<0>(&input));
 
-    handler_->QueryAutocomplete(u"", /*prevent_inline_autocomplete=*/false);
+    handler_->QueryAutocomplete(u"", /*prevent_inline_autocomplete=*/false, 0);
 
     EXPECT_EQ(input_text, u"");
     EXPECT_EQ(input.text(), u"");
@@ -235,7 +236,7 @@ TEST_F(RealboxHandlerTest, AutocompleteController_Start) {
         .Times(1)
         .WillOnce(SaveArg<0>(&input));
 
-    handler_->QueryAutocomplete(u"a", /*prevent_inline_autocomplete=*/false);
+    handler_->QueryAutocomplete(u"a", /*prevent_inline_autocomplete=*/false, 0);
 
     EXPECT_EQ(input_text, u"a");
     EXPECT_EQ(input.text(), u"a");
@@ -466,7 +467,7 @@ TEST_F(LensSearchboxHandlerTest, Lens_AutocompleteController_Start) {
     EXPECT_CALL(*lens_searchbox_client_, GetLensSuggestInputs())
         .WillRepeatedly(Return(suggest_inputs));
 
-    handler_->QueryAutocomplete(u"", /*prevent_inline_autocomplete=*/false);
+    handler_->QueryAutocomplete(u"", /*prevent_inline_autocomplete=*/false, 0);
 
     EXPECT_EQ(input_text, u"");
     EXPECT_EQ(input.text(), u"");
@@ -518,7 +519,7 @@ TEST_F(LensSearchboxHandlerTest, Lens_AutocompleteController_Start) {
     EXPECT_CALL(*lens_searchbox_client_, GetLensSuggestInputs())
         .WillRepeatedly(Return(suggest_inputs));
 
-    handler_->QueryAutocomplete(u"a", /*prevent_inline_autocomplete=*/false);
+    handler_->QueryAutocomplete(u"a", /*prevent_inline_autocomplete=*/false, 0);
 
     EXPECT_EQ(input_text, u"a");
     EXPECT_EQ(input.text(), u"a");
@@ -547,7 +548,9 @@ TEST_F(LensSearchboxHandlerTest, Lens_AutocompleteController_Start) {
     const char search_icon[] =
         "//resources/cr_components/searchbox/icons/search_spark.svg";
     const std::string& svg_name = handler_->AutocompleteIconToResourceName(
-        omnibox::kSubdirectoryArrowRightIcon);
+        features::IsRoundedIconsEnabled()
+            ? omnibox::kSubdirectoryArrowRightIcon
+            : omnibox::kSubdirectoryArrowRightOldIcon);
 
     EXPECT_EQ(svg_name, search_icon);
   }

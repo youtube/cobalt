@@ -12,14 +12,17 @@
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/rand_util.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "chrome/browser/glic/common/future_browser_features.h"
 #include "chrome/browser/glic/common/glic_tab_observer.h"
+#include "chrome/browser/glic/common/instance_independent_hotkey_manager.h"
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/host/glic_web_contents_warming_pool.h"
+#include "chrome/browser/glic/host/guest_util.h"
 #include "chrome/browser/glic/host/host.h"
 #include "chrome/browser/glic/host/webui_contents_container.h"
 #include "chrome/browser/glic/public/features.h"
@@ -54,9 +57,6 @@ constexpr base::FeatureParam<base::TimeDelta> kGlicMaxRecencyValue{
     &kGlicMaxRecency, "duration", base::Minutes(30)};
 
 GlicTabRestoreData* GetTabRestoreData(const TabCreationEvent& creation_event) {
-  if (!base::FeatureList::IsEnabled(features::kGlicTabRestoration)) {
-    return nullptr;
-  }
   if (!creation_event.new_tab) {
     return nullptr;
   }
@@ -95,13 +95,11 @@ GlicInstanceCoordinatorImpl::GlicInstanceCoordinatorImpl(
   if (identity_manager) {
     identity_manager_observation_.Observe(identity_manager);
   }
-  if (base::FeatureList::IsEnabled(features::kGlicDaisyChainNewTabs) ||
-      base::FeatureList::IsEnabled(features::kGlicTabRestoration) ||
-      base::FeatureList::IsEnabled(features::kGlicDaisyChainViaCoordinator)) {
-    tab_observer_ = GlicTabObserver::Create(
-        profile_, base::BindRepeating(&GlicInstanceCoordinatorImpl::OnTabEvent,
-                                      weak_ptr_factory_.GetWeakPtr()));
-  }
+  tab_observer_ = GlicTabObserver::Create(
+      profile_, base::BindRepeating(&GlicInstanceCoordinatorImpl::OnTabEvent,
+                                    weak_ptr_factory_.GetWeakPtr()));
+  hotkey_manager_ = std::make_unique<InstanceIndependentHotkeyManager>(this);
+  metrics_.StartPeriodicMemoryMetricsRecording();
 }
 
 GlicInstanceCoordinatorImpl::~GlicInstanceCoordinatorImpl() {
@@ -217,14 +215,24 @@ int GlicInstanceCoordinatorImpl::GetVisibleInstanceCount() const {
   return count;
 }
 
-std::vector<Host*> GlicInstanceCoordinatorImpl::GetAllUnhibernatedHosts() {
-  std::vector<Host*> hosts;
+std::vector<GlicInstanceCoordinatorMetrics::DataProvider::InstanceWebContents>
+GlicInstanceCoordinatorImpl::GetAllUnhibernatedWebContents() {
+  std::vector<GlicInstanceCoordinatorMetrics::DataProvider::InstanceWebContents>
+      result;
   for (const auto& entry : instances_) {
     if (entry.second && !entry.second->IsHibernated()) {
-      hosts.push_back(&entry.second->host());
+      result.push_back({entry.second->host().webui_contents(),
+                        entry.second->host().web_client_contents()});
     }
   }
-  return hosts;
+  if (web_contents_warming_pool_) {
+    if (auto* webui_contents =
+            web_contents_warming_pool_->GetWarmedWebContents()) {
+      result.push_back(
+          {webui_contents, GetGlicGuestWebContents(webui_contents)});
+    }
+  }
+  return result;
 }
 
 bool GlicInstanceCoordinatorImpl::IsAnyPanelShowing() const {
@@ -234,6 +242,11 @@ bool GlicInstanceCoordinatorImpl::IsAnyPanelShowing() const {
     }
   }
   return false;
+}
+
+bool GlicInstanceCoordinatorImpl::IsConversationPresent(
+    const std::string& conversation_id) const {
+  return !!GetInstanceImplForConversationId(conversation_id);
 }
 
 GlicInstance* GlicInstanceCoordinatorImpl::GetInstanceForTab(
@@ -452,9 +465,12 @@ bool GlicInstanceCoordinatorImpl::IsDetached() const {
 
 bool GlicInstanceCoordinatorImpl::IsPanelShowingForBrowser(
     const BrowserWindowInterface& bwi) const {
-  if (const auto* instance = GetInstanceForTab(
-          TabListInterface::From(const_cast<BrowserWindowInterface*>(&bwi))
-              ->GetActiveTab())) {
+  auto* tab_list =
+      TabListInterface::From(const_cast<BrowserWindowInterface*>(&bwi));
+  if (!tab_list) {
+    return false;
+  }
+  if (const auto* instance = GetInstanceForTab(tab_list->GetActiveTab())) {
     return instance->IsShowing();
   }
   return false;
@@ -496,7 +512,7 @@ GlicInstance* GlicInstanceCoordinatorImpl::GetActiveInstance() {
 }
 
 GlicInstanceImpl* GlicInstanceCoordinatorImpl::GetInstanceImplForConversationId(
-    const std::string& conversation_id) {
+    const std::string& conversation_id) const {
   for (const auto& [id, instance] : instances_) {
     if (instance->conversation_id() == conversation_id) {
       return instance.get();
@@ -535,6 +551,13 @@ GlicInstanceCoordinatorImpl::GetOrCreateGlicInstanceImplForTab(
     tabs::TabInterface* tab) {
   if (GlicInstanceImpl* instance = GetInstanceImplForTab(tab)) {
     return instance;
+  }
+
+  if (last_active_instance_) {
+    base::UmaHistogramCustomTimes(
+        "Glic.Instance.TimeSinceLastInstanceActiveOnOpen",
+        last_active_instance_->GetTimeSinceLastActive(), base::Seconds(1),
+        base::Hours(24), 50);
   }
 
   if (base::FeatureList::IsEnabled(
@@ -607,10 +630,9 @@ GlicInstanceImpl* GlicInstanceCoordinatorImpl::CreateGlicInstance(
   ApplyMaxAwakeInstancesLimit();
 
   auto instance = CreateInstanceImpl(instance_id);
+  instance->instance_metrics().OnInstanceCreatedWithoutWarming();
   auto* instance_ptr = instance.get();
   instances_[instance->id()] = std::move(instance);
-  // TODO(harringtond): Figure out what to do about this metric.
-  instance_ptr->instance_metrics().OnInstanceCreatedWithoutWarming();
   return instance_ptr;
 }
 
@@ -645,6 +667,13 @@ void GlicInstanceCoordinatorImpl::ShowInstanceForTabs(
 GlicInstanceImpl*
 GlicInstanceCoordinatorImpl::GetOrCreateInstanceImplForFloaty() {
   auto* floaty_instance = GetInstanceWithFloaty();
+  if (!floaty_instance && last_active_instance_) {
+    base::UmaHistogramCustomTimes(
+        "Glic.Instance.TimeSinceLastInstanceActiveOnOpen",
+        last_active_instance_->GetTimeSinceLastActive(), base::Seconds(1),
+        base::Hours(24), 50);
+  }
+
   if (!floaty_instance && last_active_instance_ &&
       last_active_instance_->GetTimeSinceLastActive() < kFloatyMaxRecency) {
     floaty_instance = last_active_instance_;
@@ -702,10 +731,16 @@ void GlicInstanceCoordinatorImpl::ToggleSidePanel(
 }
 
 void GlicInstanceCoordinatorImpl::RemoveInstance(GlicInstanceImpl* instance) {
-  if (!instances_.contains(instance->id())) {
+  auto it = instances_.find(instance->id());
+  if (it == instances_.end()) {
     // This instance has already been removed, so there's no work to do.
     return;
   }
+  // If an entry exists for this ID, it must be the specific instance we are
+  // removing. We prohibit overwriting instances in the map, so a mismatch
+  // would indicate a logic bug or state corruption (e.g., during restoration).
+  CHECK_EQ(it->second.get(), instance);
+
   OnInstanceActivationChanged(instance, false);
 
   // Remove the instance first, and then delete. This way,
@@ -892,10 +927,6 @@ void GlicInstanceCoordinatorImpl::OnTabEvent(const GlicTabEvent& event) {
 
 void GlicInstanceCoordinatorImpl::MaybeDaisyChainFromLinkClick(
     const TabCreationEvent& event) {
-  if (!base::FeatureList::IsEnabled(features::kGlicDaisyChainViaCoordinator)) {
-    return;
-  }
-
   if (event.creation_type != TabCreationType::kFromLink || !event.opener ||
       !event.new_tab) {
     return;
@@ -912,10 +943,6 @@ void GlicInstanceCoordinatorImpl::MaybeDaisyChainFromLinkClick(
 
 void GlicInstanceCoordinatorImpl::MaybeDaisyChainFromBookmark(
     const TabCreationEvent& event) {
-  if (!base::FeatureList::IsEnabled(features::kGlicDaisyChainViaCoordinator)) {
-    return;
-  }
-
   if (event.creation_type != TabCreationType::kFromBookmark || !event.old_tab ||
       !event.new_tab) {
     return;
@@ -991,12 +1018,30 @@ GlicInstanceImpl* GlicInstanceCoordinatorImpl::GetOrRestoreInstanceImpl(
     return nullptr;
   }
 
-  // Prioritize finding an existing instance by conversation ID, then by
-  // instance ID.
-  if (auto* instance =
-          !instance_info.conversation_id.empty()
-              ? GetInstanceImplForConversationId(instance_info.conversation_id)
-              : GetInstanceImplFor(instance_id)) {
+  GlicInstanceImpl* instance = nullptr;
+  if (!instance_info.conversation_id.empty()) {
+    instance = GetInstanceImplForConversationId(instance_info.conversation_id);
+    if (!instance) {
+      // If lookup by conversation ID failed, but an instance with this ID
+      // already exists, it implies an attempt to associate an existing instance
+      // with a different conversation ID. Once an instance is associated with a
+      // conversation ID, it cannot change. This indicates corrupt persisted
+      // data or a logic bug. Return nullptr to avoid dangerously overwriting
+      // the instance.
+      if (GetInstanceImplFor(instance_id)) {
+        LOG(ERROR) << "Instance restoration failed for conversation "
+                   << instance_info.conversation_id
+                   << ": The requested InstanceId " << instance_info.instance_id
+                   << " already exists but is associated with a different "
+                      "conversation.";
+        return nullptr;
+      }
+    }
+  } else {
+    instance = GetInstanceImplFor(instance_id);
+  }
+
+  if (instance) {
     return instance;
   }
 

@@ -111,8 +111,8 @@ void PostTaskForActCallback(
 
 // When operating on an opaque site, we choose to use the precursor's origin
 // when judging whether a user confirmation should be triggered or not. We are
-// effictively, using `rfh.GetLastCommittedUrl()` vs
-// `rfh.GetLastCommittedOrigin()` for this "security" purpose contrary to the
+// effectively using `url::Origin::Create(rfh.GetLastCommittedUrl())` in lieu of
+// `rfh.GetLastCommittedOrigin()` for this "security" purpose, contrary to the
 // guidance here (docs/security/origin-vs-url.md).
 //
 // This is an intentional decision since it relates to user confirmations and it
@@ -298,17 +298,15 @@ ExecutionEngine::ShouldDeferNavigation(
   base::ScopedUmaHistogramTimer timer(
       "Actor.NavigationGating.TimeElapsedForGating2");
 
-  // Note: `DetermineGatingDecision` operates on GURLs, but `origin_checker_`
-  // operates on Origins only.
-  const GURL& source_url =
-      GetPrimaryMainFrame(navigation_handle)->GetLastCommittedURL();
-  const url::Origin source_origin = url::Origin::Create(source_url);
-
-  const GatingDecision decision =
-      DetermineGatingDecision(source_url,
-                              /*destination_url=*/navigation_handle.GetURL());
+  // Note: `DetermineGatingDecision` and `CheckNavigationSensitiveUrlList`
+  // operate on GURLs, but metrics and `origin_checker_` operate on Origins.
+  const GatingDecision decision = DetermineGatingDecision(
+      GetPrimaryMainFrame(navigation_handle)->GetLastCommittedURL(),
+      /*destination_url=*/navigation_handle.GetURL());
   RecordNavigationGatingDecision(decision);
 
+  const url::Origin source_origin = OriginOrPrecursorIfOpaque(
+      GetPrimaryMainFrame(navigation_handle)->GetLastCommittedOrigin());
   switch (decision) {
     case GatingDecision::kAllowSameOrigin:
     case GatingDecision::kAllowByContainerConfig:
@@ -338,14 +336,15 @@ ExecutionEngine::ShouldDeferNavigation(
       base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE,
           base::BindOnce(
-              &ExecutionEngine::CheckNavigationSensitiveUrlList, GetWeakPtr(),
-              source_origin, navigation_handle.GetInitiatorOrigin(),
+              &ExecutionEngine::CheckNavigationSensitiveUrlList,
+              GetActionSequenceWeakPtr(), source_origin,
+              navigation_handle.GetInitiatorOrigin(),
               navigation_handle.GetURL(),
               GetPrimaryMainFrame(navigation_handle)->GetPageUkmSourceId(),
               skip_prompt, std::move(timer),
               std::move(callback).Then(base::BindOnce(
                   &ExecutionEngine::MaybeRecordNavigationConfirmationMetrics,
-                  GetWeakPtr(), state(),
+                  GetActionSequenceWeakPtr(), state(),
                   url::Origin::Create(navigation_handle.GetURL()),
                   /*is_pre_approved=*/false))));
       return content::NavigationThrottle::DEFER;
@@ -431,9 +430,9 @@ void ExecutionEngine::CheckNavigationSensitiveUrlList(
       MaybeCheckOptimizationGuideForSensitiveUrl(
           destination_url, task_->GetProfile(),
           base::BindOnce(&ExecutionEngine::OnNavigationSensitiveUrlListChecked,
-                         GetWeakPtr(), source, initiator, destination_origin,
-                         ukm_source_id, skip_prompt, std::move(timer),
-                         std::move(callback)));
+                         GetActionSequenceWeakPtr(), source, initiator,
+                         destination_origin, ukm_source_id, skip_prompt,
+                         std::move(timer), std::move(callback)));
   if (!sensitive_check_result.has_value()) {
     std::move(sensitive_check_result).error().Run(/*not_sensitive=*/true);
   }
@@ -528,8 +527,8 @@ void ExecutionEngine::HandleNavigationToNewOrigin(
   SendNavigationConfirmationRequest(
       destination,
       base::BindOnce(&ExecutionEngine::OnNavigationConfirmationDecision,
-                     GetWeakPtr(), destination, ukm_source_id, std::move(timer),
-                     state_, std::move(callback)));
+                     GetActionSequenceWeakPtr(), destination, ukm_source_id,
+                     std::move(timer), state_, std::move(callback)));
 }
 
 void ExecutionEngine::SendNavigationConfirmationRequest(
@@ -642,7 +641,8 @@ void ExecutionEngine::SendUserConfirmationDialogRequest(
   task_->delegate()->RequestToShowUserConfirmationDialog(
       task_->id(), destination, for_sensitive_origin,
       base::BindOnce(&ExecutionEngine::OnPromptUserToConfirmNavigationDecision,
-                     GetWeakPtr(), destination, std::move(callback)));
+                     GetActionSequenceWeakPtr(), destination,
+                     std::move(callback)));
 }
 
 void ExecutionEngine::OnPromptUserToConfirmNavigationDecision(
@@ -713,6 +713,10 @@ void ExecutionEngine::DidUninterruptTask() {
 bool ExecutionEngine::TabsCanOpenNewWebContents() const {
   return state() == State::kToolInvoke &&
          GetInProgressAction().RequiresOpeningWebContents();
+}
+
+base::WeakPtr<ExecutionEngine> ExecutionEngine::GetWeakPtr() {
+  return weak_ptr_factory_.GetWeakPtr();
 }
 
 void ExecutionEngine::CancelOngoingActions(mojom::ActionResultCode reason) {
@@ -889,7 +893,7 @@ void ExecutionEngine::SafetyChecksForNextAction() {
   MayActOnTab(
       *tab, *journal_, task_->id(), origin_checker_, task_->policy_checker(),
       base::BindOnce(
-          &ExecutionEngine::OnMayActOnTabDecision, GetWeakPtr(),
+          &ExecutionEngine::OnMayActOnTabDecision, GetActionSequenceWeakPtr(),
           tab->GetContents()->GetPrimaryMainFrame()->GetLastCommittedOrigin()));
 }
 
@@ -913,7 +917,8 @@ void ExecutionEngine::OnMayActOnTabDecision(
         /*timer=*/std::nullopt,
         std::move(response_to_result_code)
             .Then(base::BindOnce(&ExecutionEngine::DidFinishAsyncSafetyChecks,
-                                 GetWeakPtr(), evaluated_origin)));
+                                 GetActionSequenceWeakPtr(),
+                                 evaluated_origin)));
     return;
   }
 
@@ -997,8 +1002,8 @@ void ExecutionEngine::ExecuteNextAction() {
 
   SetState(State::kToolCreateAndVerify);
   tool_controller_->CreateToolAndValidate(
-      GetInProgressAction(),
-      base::BindOnce(&ExecutionEngine::PostToolCreate, GetWeakPtr()));
+      GetInProgressAction(), base::BindOnce(&ExecutionEngine::PostToolCreate,
+                                            GetActionSequenceWeakPtr()));
 }
 
 void ExecutionEngine::PostToolCreate(mojom::ActionResultPtr result) {
@@ -1010,7 +1015,8 @@ void ExecutionEngine::PostToolCreate(mojom::ActionResultPtr result) {
   SetState(State::kUiPreInvoke);
   ui_event_dispatcher_->OnPreTool(
       GetInProgressAction(),
-      base::BindOnce(&ExecutionEngine::FinishedUiPreInvoke, GetWeakPtr()));
+      base::BindOnce(&ExecutionEngine::FinishedUiPreInvoke,
+                     GetActionSequenceWeakPtr()));
 }
 
 void ExecutionEngine::FinishedUiPreInvoke(mojom::ActionResultPtr result) {
@@ -1022,8 +1028,8 @@ void ExecutionEngine::FinishedUiPreInvoke(mojom::ActionResultPtr result) {
   }
 
   SetState(State::kToolInvoke);
-  tool_controller_->Invoke(
-      base::BindOnce(&ExecutionEngine::FinishedToolInvoke, GetWeakPtr()));
+  tool_controller_->Invoke(base::BindOnce(&ExecutionEngine::FinishedToolInvoke,
+                                          GetActionSequenceWeakPtr()));
 }
 
 void ExecutionEngine::FinishedToolInvoke(mojom::ActionResultPtr result) {
@@ -1085,7 +1091,8 @@ void ExecutionEngine::FinishedToolInvoke(mojom::ActionResultPtr result) {
   SetState(State::kUiPostInvoke);
   ui_event_dispatcher_->OnPostTool(
       GetInProgressAction(),
-      base::BindOnce(&ExecutionEngine::FinishedUiPostInvoke, GetWeakPtr()));
+      base::BindOnce(&ExecutionEngine::FinishedUiPostInvoke,
+                     GetActionSequenceWeakPtr()));
 }
 
 void ExecutionEngine::FinishedUiPostInvoke(mojom::ActionResultPtr result) {
@@ -1160,7 +1167,7 @@ void ExecutionEngine::CompleteActions(mojom::ActionResultPtr result,
   actions_weak_ptr_factory_.InvalidateWeakPtrs();
 }
 
-base::WeakPtr<ExecutionEngine> ExecutionEngine::GetWeakPtr() {
+base::WeakPtr<ExecutionEngine> ExecutionEngine::GetActionSequenceWeakPtr() {
   return actions_weak_ptr_factory_.GetWeakPtr();
 }
 
@@ -1214,14 +1221,6 @@ void ExecutionEngine::PromptToSelectCredential(
   TRACE_EVENT0("actor", "ExecutionEngine::PromptToSelectCredential");
   CHECK(!credentials.empty());
 
-  if (credential_selection_override_callback_ &&
-      base::FeatureList::IsEnabled(
-          password_manager::features::kPasswordCheckupPrototype)) {
-    std::move(credential_selection_override_callback_)
-        .Run(credentials, std::move(callback));
-    return;
-  }
-
   if (!task_->delegate()) {
     // TODO(crbug.com/427817882): Explicit error reason (kNewLonginAttempt).
     std::move(callback).Run(/*selected_credential=*/webui::mojom::
@@ -1247,8 +1246,9 @@ void ExecutionEngine::SetUserSelectedCredential(
     affiliation_service->GetAffiliationsAndBranding(
         affiliations::FacetURI::FromPotentiallyInvalidSpec(
             origin.GetURL().GetWithEmptyPath().spec()),
-        base::BindOnce(&ExecutionEngine::OnAffiliationsReceived, GetWeakPtr(),
-                       origin, std::move(affiliations_fetched)));
+        base::BindOnce(&ExecutionEngine::OnAffiliationsReceived,
+                       GetActionSequenceWeakPtr(), origin,
+                       std::move(affiliations_fetched)));
   } else {
     std::move(affiliations_fetched).Run();
   }
@@ -1323,7 +1323,11 @@ void ExecutionEngine::RequestToShowAutofillSuggestions(
 }
 
 void ExecutionEngine::InterruptFromTool() {
-  task_->Interrupt();
+  InterruptFromTool(/*retain_user_control=*/false);
+}
+
+void ExecutionEngine::InterruptFromTool(bool retain_user_control) {
+  task_->Interrupt(retain_user_control);
 }
 
 void ExecutionEngine::UninterruptFromTool() {
@@ -1354,7 +1358,7 @@ void ExecutionEngine::RemoveTab(tabs::TabHandle tab_handle) {
 
 base::WeakPtr<actor_login::ActionSequenceDelegate>
 ExecutionEngine::GetActionSequenceDelegate() {
-  return actions_weak_ptr_factory_.GetWeakPtr();
+  return GetActionSequenceWeakPtr();
 }
 
 base::CallbackListSubscription ExecutionEngine::RegisterActionSequenceEnded(
@@ -1380,9 +1384,9 @@ void ExecutionEngine::AddWritableMainframeOrigins(
   origin_checker_.AllowNavigationTo(added_writable_mainframe_origins);
 }
 
-void ExecutionEngine::PreHandleCredentialSelectionDialog(
-    CredentialSelectionOverrideCallback callback) {
-  credential_selection_override_callback_ = std::move(callback);
+void ExecutionEngine::SetActorLoginService(
+    std::unique_ptr<actor_login::ActorLoginService> actor_login_service) {
+  actor_login_service_ = std::move(actor_login_service);
 }
 
 const ToolRequest& ExecutionEngine::GetNextAction() const {

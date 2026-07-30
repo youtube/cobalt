@@ -166,12 +166,12 @@ void FedCmAccountSelectionView::OnPageActionClicked() {
 
     // After clicking on the chip or the icon, we sign the user in and show the
     // "Signing in ..." text.
+    state_ = State::VERIFYING;
     controller->OverrideText(
         kActionFederation,
         l10n_util::GetStringUTF16(IDS_FEDERATION_SIGNING_IN_TITLE));
     controller->ShowSuggestionChip(kActionFederation);
     controller->Show(kActionFederation);
-    state_ = State::VERIFYING;
     NotifyDelegateOfAccountSelection(*accounts_[0],
                                      *accounts_[0]->identity_provider);
   } else {
@@ -1439,6 +1439,9 @@ void FedCmAccountSelectionView::UpdateDialogVisibilityAndPosition() {
 void FedCmAccountSelectionView::ResetDialogWidgetStateOnAnyShow() {
   accounts_widget_shown_callback_.Reset();
   hide_dialog_widget_after_idp_login_popup_ = false;
+  chip_impression_recorded_ = false;
+  icon_impression_recorded_ = false;
+  chip_requested_for_flow_ = false;
 }
 
 gfx::Rect FedCmAccountSelectionView::GetDialogBounds() {
@@ -1550,6 +1553,7 @@ bool FedCmAccountSelectionView::ShowPageAction(
   // Registers this class as an observer of the page action, so that we can
   // determine the state of the page action when the user clicks on it.
   RegisterAsPageActionObserver(*controller);
+  chip_requested_for_flow_ = true;
   controller->Show(kActionFederation);
   controller->ShowSuggestionChip(kActionFederation);
   return true;
@@ -1569,14 +1573,52 @@ void FedCmAccountSelectionView::RecordPageActionImpression(
 
 void FedCmAccountSelectionView::OnPageActionIconShown(
     const page_actions::PageActionState& next) {
+  // When the user clicks on the UI, the state transitions to `VERIFYING` and
+  // the page action is updated to show a "Signing in..." chip. This is part of
+  // the authentication process and should not be recorded as a new impression.
+  if (state_ == State::VERIFYING || icon_impression_recorded_) {
+    return;
+  }
+  // If we requested the page action to be shown as a chip, we ignore this
+  // initial icon shown notification because the UI is supposed to show a
+  // suggestion chip. We will log the icon impression later if and when the chip
+  // collapses.
+  if (chip_requested_for_flow_) {
+    return;
+  }
+  icon_impression_recorded_ = true;
   RecordPageActionImpression(next, AmbientImpression::kSignInIcon,
                              AmbientImpression::kSignUpIcon);
 }
 
 void FedCmAccountSelectionView::OnPageActionChipShown(
     const page_actions::PageActionState& next) {
+  // When the user clicks on the UI, the state transitions to `VERIFYING` and
+  // the page action is updated to show a "Signing in..." chip. This is part of
+  // the authentication process and should not be recorded as a new impression.
+  if (state_ == State::VERIFYING || chip_impression_recorded_) {
+    return;
+  }
+  chip_impression_recorded_ = true;
   RecordPageActionImpression(next, AmbientImpression::kSignInChip,
                              AmbientImpression::kSignUpChip);
+}
+
+void FedCmAccountSelectionView::OnPageActionChipHidden(
+    const page_actions::PageActionState& next) {
+  // When the user clicks on the UI, the state transitions to `VERIFYING` and
+  // the page action is updated to show a "Signing in..." chip. This is part of
+  // the authentication process and should not be recorded as a new impression.
+  if (state_ == State::VERIFYING) {
+    return;
+  }
+  // If the chip is hidden, but the icon is still showing, then it has collapsed
+  // to a static icon. This is when the user actually sees it as an icon.
+  if (next.showing && !icon_impression_recorded_) {
+    icon_impression_recorded_ = true;
+    RecordPageActionImpression(next, AmbientImpression::kSignInIcon,
+                               AmbientImpression::kSignUpIcon);
+  }
 }
 
 void FedCmAccountSelectionView::OnPageActionAnchoredMessageShown(

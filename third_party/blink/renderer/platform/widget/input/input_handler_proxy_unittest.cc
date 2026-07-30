@@ -645,8 +645,11 @@ TEST_P(InputHandlerProxyTest, MouseWheelEventMayBeginPhaseNoListener) {
               GetEventListenerProperties(cc::EventListenerClass::kMouseWheel))
       .WillRepeatedly(testing::Return(cc::EventListenerProperties::kNone));
 
-  bool fade_in_scrollbar_enabled = base::FeatureList::IsEnabled(
+  const bool fade_in_scrollbar_enabled = base::FeatureList::IsEnabled(
       blink::features::kFadeInScrollbarWhenMouseWheelMayBegin);
+  const bool defer_fade_out_enabled =
+      fade_in_scrollbar_enabled &&
+      blink::features::kDeferFadeOutScrollbarUntilMouseWheelEnded.Get();
 
   {
     WebMouseWheelEvent wheel(WebInputEvent::Type::kMouseWheel,
@@ -666,7 +669,7 @@ TEST_P(InputHandlerProxyTest, MouseWheelEventMayBeginPhaseNoListener) {
                              WebInputEvent::GetStaticTimeStampForTests());
     wheel.phase = WebMouseWheelEvent::kPhaseBegan;
     wheel.dispatch_type = WebInputEvent::DispatchType::kBlocking;
-    EXPECT_EQ(fade_in_scrollbar_enabled
+    EXPECT_EQ(defer_fade_out_enabled
                   ? InputHandlerProxy::DID_NOT_HANDLE_NON_BLOCKING
                   : InputHandlerProxy::DROP_EVENT,
               HandleInputEventWithLatencyInfo(input_handler_.get(), wheel));
@@ -700,7 +703,7 @@ TEST_P(InputHandlerProxyTest, MouseWheelEventMayBeginPhaseNoListener) {
                              WebInputEvent::GetStaticTimeStampForTests());
     wheel.phase = WebMouseWheelEvent::kPhaseCancelled;
     wheel.dispatch_type = WebInputEvent::DispatchType::kEventNonBlocking;
-    EXPECT_EQ(fade_in_scrollbar_enabled
+    EXPECT_EQ(defer_fade_out_enabled
                   ? InputHandlerProxy::DID_NOT_HANDLE_NON_BLOCKING
                   : InputHandlerProxy::DROP_EVENT,
               HandleInputEventWithLatencyInfo(input_handler_.get(), wheel));
@@ -1012,6 +1015,37 @@ TEST_P(InputHandlerProxyTest, SnapFlingIgnoresFollowingGSUAndGSE) {
   EXPECT_EQ(expected_disposition_,
             HandleInputEventAndFlushEventQueue(mock_input_handler_,
                                                input_handler_.get(), gesture_));
+  VERIFY_AND_RESET_MOCKS();
+}
+
+TEST_P(InputHandlerProxyTest, FlingHitsConstraintCompletesEarly) {
+  EXPECT_CALL(mock_input_handler_, ScrollBegin(_, _))
+      .WillOnce(testing::Return(kImplThreadScrollState));
+  EXPECT_CALL(mock_input_handler_, RecordScrollBegin(_, _)).Times(1);
+
+  gesture_.SetType(WebInputEvent::Type::kGestureScrollBegin);
+  EXPECT_EQ(InputHandlerProxy::DID_HANDLE,
+            HandleInputEventWithLatencyInfo(input_handler_.get(), gesture_));
+
+  gesture_.SetType(WebInputEvent::Type::kGestureScrollUpdate);
+  gesture_.data.scroll_update.delta_y = -40;
+  gesture_.data.scroll_update.inertial_phase =
+      WebGestureEvent::InertialPhaseState::kMomentum;
+
+  EXPECT_CALL(mock_input_handler_,
+              GetSnapFlingInfoAndSetAnimatingSnapTarget(_, _, _, _))
+      .WillOnce(testing::Return(false));
+
+  cc::InputHandlerScrollResult scroll_result;
+  scroll_result.did_scroll = false;
+  scroll_result.hit_snap_constraint = true;
+  EXPECT_CALL(mock_input_handler_, ScrollUpdate(_, _))
+      .WillOnce(testing::Return(scroll_result));
+
+  EXPECT_CALL(mock_input_handler_, ScrollEnd(true, _)).Times(1);
+
+  EXPECT_EQ(InputHandlerProxy::DROP_EVENT,
+            HandleInputEventWithLatencyInfo(input_handler_.get(), gesture_));
   VERIFY_AND_RESET_MOCKS();
 }
 

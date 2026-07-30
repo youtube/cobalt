@@ -1541,6 +1541,15 @@ _CONFIG = [
     },
     {
         'paths': [
+            'third_party/blink/public/common/loader/',
+            'third_party/blink/common/loader/',
+        ],
+        'allowed': [
+            'network::HttpRequestHeadersUpdateParams',
+        ],
+    },
+    {
+        'paths': [
             'third_party/blink/public/platform/platform.h',
         ],
         'allowed': [
@@ -2567,6 +2576,26 @@ _CONFIG = [
         ],
     },
     {
+        'paths': [
+            'third_party/blink/renderer/core/frame/local_frame.h',
+        ],
+        'allowed': [
+            'base::OnceClosureList',
+        ],
+    },
+    {
+        'paths': [
+            'third_party/blink/public/web/web_local_frame.h',
+            'third_party/blink/renderer/core/frame/local_frame.cc',
+            'third_party/blink/renderer/core/frame/local_frame.h',
+            'third_party/blink/renderer/core/frame/web_local_frame_impl.cc',
+            'third_party/blink/renderer/core/frame/web_local_frame_impl.h',
+        ],
+        'allowed': [
+            'base::CallbackListSubscription',
+        ],
+    },
+    {
         'paths': ['third_party/blink/renderer/core/frame/local_frame_view.cc'],
         'allowed': [
             'base::LapTimer',
@@ -3105,6 +3134,17 @@ _CONFIG = [
             'third_party/blink/public/platform/web_surface_layer_bridge.h',
         ],
         'allowed': ['viz::FrameSinkId'],
+    },
+    {
+        'paths': [
+            'third_party/blink/public/web/web_widget.h',
+        ],
+        'allowed': [
+            'cc::LayerTreeSettings',
+            'display::ScreenInfos',
+            'viz::mojom::CompositorFrameSink.*',
+            'viz::mojom::CompositorFrameSinkClient.*',
+        ],
     },
 ]
 

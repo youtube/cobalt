@@ -203,6 +203,14 @@ class GlicBrowserTestMixin : public T {
     return WaitForGlicOpen(T::GetTabListInterface()->GetActiveTab());
   }
 
+  void RegisterConversation(GlicInstanceImpl* instance,
+                            const std::string& conversation_id) {
+    CHECK(instance);
+    auto info = mojom::ConversationInfo::New();
+    info->conversation_id = conversation_id;
+    instance->RegisterConversation(std::move(info), base::DoNothing());
+  }
+
   // Registers a conversation and submits input to prevent the instance from
   // being deleted when closed.
   void PreventDeletionOnClose(
@@ -213,9 +221,7 @@ class GlicBrowserTestMixin : public T {
     }
     CHECK(instance);
     if (!instance->conversation_id().has_value()) {
-      auto info = mojom::ConversationInfo::New();
-      info->conversation_id = conversation_id;
-      instance->RegisterConversation(std::move(info), base::DoNothing());
+      RegisterConversation(instance, conversation_id);
     }
     instance->OnUserInputSubmitted(mojom::WebClientMode::kText);
   }
@@ -411,11 +417,9 @@ class GlicBrowserTestMixin : public T {
   }
 
   [[nodiscard]] TestResult<void> WaitForGlicClient(GlicInstance* instance) {
-    if (!instance) {
-      instance = GetOnlyGlicInstance();
-    }
+    auto* instance_impl = GetInstanceImpl(instance);
     return RunUntilEqual(
-        [&]() { return instance->host().IsWebClientConnected(); }, true,
+        [&]() { return instance_impl->host().IsWebClientConnected(); }, true,
         "WaitForGlicClient: client client did not connect");
   }
 

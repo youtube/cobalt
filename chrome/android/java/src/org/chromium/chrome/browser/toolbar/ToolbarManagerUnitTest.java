@@ -4,13 +4,16 @@
 
 package org.chromium.chrome.browser.toolbar;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.when;
 
+import android.view.View;
 import android.view.ViewStub;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -94,9 +97,8 @@ import org.chromium.chrome.browser.tabmodel.IncognitoStateProvider;
 import org.chromium.chrome.browser.tabmodel.TabCreatorManager;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
-import org.chromium.chrome.browser.theme.AdjustedTopUiThemeColorProvider;
 import org.chromium.chrome.browser.theme.BottomUiThemeColorProvider;
-import org.chromium.chrome.browser.theme.TopUiThemeColorProvider;
+import org.chromium.chrome.browser.theme.ToolbarThemeColorProvider;
 import org.chromium.chrome.browser.toolbar.menu_button.MenuButtonCoordinator.VisibilityDelegate;
 import org.chromium.chrome.browser.toolbar.top.ToolbarActionModeCallback;
 import org.chromium.chrome.browser.toolbar.top.ToolbarControlContainer;
@@ -178,8 +180,8 @@ public class ToolbarManagerUnitTest {
     @Mock private FullscreenManager mFullscreenManager;
     @Mock private CompositorViewHolder mCompositorViewHolder;
     @Mock private Callback<Boolean> mUrlFocusChangedCallback;
-    @Mock private TopUiThemeColorProvider mTopUiThemeColorProvider;
-    @Mock private AdjustedTopUiThemeColorProvider mAdjustedTopUiThemeColorProvider;
+    @Mock private ToolbarThemeColorProvider mToolbarThemeColorProvider;
+    @Mock private ToolbarThemeColorProvider mAdjustedToolbarThemeColorProvider;
     @Mock private TabObscuringHandler mTabObscuringHandler;
     @Mock private ScrimManager mScrimManager;
     @Mock private ToolbarActionModeCallback mToolbarActionModeCallback;
@@ -378,8 +380,8 @@ public class ToolbarManagerUnitTest {
                         controlContainer,
                         mCompositorViewHolder,
                         mUrlFocusChangedCallback,
-                        mTopUiThemeColorProvider,
-                        mAdjustedTopUiThemeColorProvider,
+                        mToolbarThemeColorProvider,
+                        mAdjustedToolbarThemeColorProvider,
                         mBottomUiThemeColorProvider,
                         mIncognitoStateProvider,
                         mTabObscuringHandler,
@@ -464,5 +466,18 @@ public class ToolbarManagerUnitTest {
 
         mToolbarManager.setUrlBarFocus(true, OmniboxFocusReason.OMNIBOX_TAP);
         assertFalse(mToolbarManager.isUrlBarFocused());
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.HOME_BUTTON_REMOVAL + ":remove_home_button_everywhere/true")
+    public void testHomeButtonRemovedWhenFlagOn() {
+        AppCompatActivity activity = mActivityController.get();
+        View homeButton = activity.findViewById(R.id.home_button);
+        assertNotNull("Home button should be inflated", homeButton);
+        assertEquals(
+                "Home button should be GONE when flag is on",
+                View.GONE,
+                homeButton.getVisibility());
+        mToolbarManager.destroy();
     }
 }

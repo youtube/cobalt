@@ -7,16 +7,7 @@
 
 #include <stddef.h>
 
-#include "base/functional/callback_forward.h"
-#include "base/functional/callback_helpers.h"
-#include "ui/display/types/display_constants.h"
-
-namespace base {
-class FilePath;
-}
-
 class Browser;
-class BrowserWindowInterface;
 class Profile;
 
 namespace content {
@@ -37,8 +28,8 @@ class WebContents;
 // There are a few functions that have valid use cases. For example, we can
 // imagine a hypothetical feature of the task manager (which is not conceptually
 // associated with any given browser window) which wants to display the number
-// of browser windows to the user. This would be a valid use case for
-// GetTotalBrowserCount().
+// of browser windows for a given profile to the user. This would be a valid
+// use case for GetBrowserCount().
 //
 // More colloquial explanation:
 // There are two problems with FindBrowser(*) methods.
@@ -73,33 +64,6 @@ class WebContents;
 
 namespace chrome {
 
-using ProfileBrowsersCloseCallback =
-    base::RepeatingCallback<void(const base::FilePath&)>;
-
-// If you want to find the last active tabbed browser and create a new browser
-// if there are no tabbed browsers, use ScopedTabbedBrowserDisplayer.
-
-// Returns the last active tabbed browser with a profile matching `profile`.
-//
-// If `match_original_profiles` is true, matching is done based on the original
-// profile (e.g. profile->GetOriginalProfile() ==
-// browser->profile()->GetOriginalProfile()). This has the effect of matching
-// against both non-incognito and incognito profiles. If
-// `match_original_profiles` is false, only an exact match may be returned. If
-// `display_id` is not equal to `display::kInvalidDisplayId`, only the browsers
-// in the corresponding display may be returned. Browsers that have closed and
-// are pending deletion are not returned.
-// WARNING: Do not use this method. See comment at top of file.
-Browser* FindTabbedBrowser(const Profile* profile,
-                           bool match_original_profiles,
-                           int64_t display_id = display::kInvalidDisplayId);
-
-// Returns an existing browser window with the provided profile. Searches in the
-// order of last activation. Only browsers that have been active can be
-// returned. Returns nullptr if no such browser currently exists.
-// WARNING: Do not use this method. See comment at top of file.
-Browser* FindBrowserWithProfile(const Profile* profile);
-
 // Returns the browser containing the specified `web_contents` as a tab in that
 // browser. Returns nullptr if no such browser currently exists. `web_contents`
 // must not be nullptr.
@@ -116,32 +80,6 @@ Browser* FindBrowserWithProfile(const Profile* profile);
 // WARNING: Do not use this method. See comment at top of file.
 Browser* FindBrowserWithTab(const content::WebContents* web_contents);
 
-// Returns the browser owned by `profile` whose window was most recently active.
-// Returns nullptr if no such browser currently exists.
-//
-// WARNING: This returns nullptr until a browser becomes active. If during
-// startup a browser does not become active (perhaps the user launches Chrome,
-// then clicks on another app before the first browser window appears) then this
-// returns nullptr.
-//
-// WARNING #2: This will always return nullptr in unit tests run on the bots.
-BrowserWindowInterface* FindLastActiveWithProfile(Profile* profile);
-
-// Returns the browser whose window was most recently active. Returns nullptr if
-// no such browser currently exists.
-//
-// WARNING: This returns nullptr until a browser becomes active. If during
-// startup a browser does not become active (perhaps the user launches Chrome,
-// then clicks on another app before the first browser window appears) then this
-// returns nullptr.
-//
-// WARNING #2: This will always return nullptr in unit tests run on the bots.
-BrowserWindowInterface* FindLastActive();
-
-// Returns the number of browsers across all profiles. This does not include
-// pending delete browsers.
-size_t GetTotalBrowserCount();
-
 // Returns the number of browsers with the Profile `profile`.
 // Note that:
 // 1. A profile may have non-browser windows. These are not counted.
@@ -155,40 +93,6 @@ size_t GetTotalBrowserCount();
 // WARNING: this function includes browsers scheduled for deletion whereas
 // the majority of other functions do not.
 size_t GetBrowserCount(Profile* profile);
-
-// Returns the number of incognito browsers excluding devtools windows.
-size_t GetIncognitoBrowserCount();
-
-// Closes all browsers whose original profile matches `profile`. Uses
-// BrowserCollection::Order::kCreation to mirror the prior BrowserList
-// behavior.
-void CloseAllBrowsersWithProfile(Profile* profile);
-
-// Returns the number of off-the-record browser windows associated with
-// `profile`, excluding DevTools windows.
-size_t GetOffTheRecordBrowsersActiveForProfile(Profile* profile);
-
-// Returns true if any off-the-record browser is using `profile` or one of its
-// related profiles.
-bool IsOffTheRecordBrowserInUse(Profile* profile);
-
-// Returns the number of Guest browsers excluding DevTools windows.
-size_t GetGuestBrowserCount();
-
-// Closes all browsers for `profile` across all desktops. Uses
-// ProfileBrowserCollection and triggers any OnBeforeUnload events unless
-// `skip_beforeunload` is true. See the BrowserList variant for more details.
-void CloseAllBrowsersWithProfile(
-    Profile* profile,
-    bool skip_beforeunload,
-    const ProfileBrowsersCloseCallback& on_close_success = base::NullCallback(),
-    const ProfileBrowsersCloseCallback& on_close_aborted =
-        base::NullCallback());
-
-// Closes all browsers for the off-the-record `profile` without touching
-// browsers that use the original profile.
-void CloseAllBrowsersWithIncognitoProfile(Profile* profile,
-                                          bool skip_beforeunload = true);
 
 }  // namespace chrome
 

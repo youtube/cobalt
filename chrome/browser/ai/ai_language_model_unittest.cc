@@ -27,11 +27,17 @@
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
 #include "base/types/expected.h"
+#include "base/version_info/channel.h"
+#include "base/version_info/version_info.h"
 #include "build/build_config.h"
 #include "chrome/browser/ai/ai_test_utils.h"
 #include "chrome/browser/ai/features.h"
 #include "chrome/browser/component_updater/optimization_guide_on_device_model_installer.h"
+#include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
+#include "chrome/common/channel_info.h"
 #include "components/on_device_ai/ai_utils.h"
+#include "components/optimization_guide/core/model_execution/manifest_broker/test/fake_manifest_broker.h"
+#include "components/optimization_guide/core/model_execution/manifest_broker/test/scenario_builder.h"
 #include "components/optimization_guide/core/model_execution/multimodal_message.h"
 #include "components/optimization_guide/core/model_execution/on_device_capability.h"
 #include "components/optimization_guide/core/model_execution/test/feature_config_builder.h"
@@ -42,6 +48,7 @@
 #include "components/optimization_guide/core/optimization_guide_proto_util.h"
 #include "components/optimization_guide/proto/common_types.pb.h"
 #include "components/optimization_guide/proto/descriptors.pb.h"
+#include "components/optimization_guide/proto/feature_configs.pb.h"
 #include "components/optimization_guide/proto/features/prompt_api.pb.h"
 #include "components/optimization_guide/proto/on_device_model_execution_config.pb.h"
 #include "components/optimization_guide/proto/string_value.pb.h"
@@ -380,8 +387,18 @@ TEST_F(AILanguageModelTest, Prompt) {
 
 TEST_F(AILanguageModelTest, PromptTelemetry) {
   base::HistogramTester histogram_tester;
+  EXPECT_CALL(*mock_optimization_guide_keyed_service_,
+              GetOnDeviceModelEligibility(
+                  optimization_guide::mojom::OnDeviceFeature::kPromptApi))
+      .WillOnce(testing::Return(
+          optimization_guide::OnDeviceModelEligibilityReason::kSuccess));
   auto session = CreateSession();
   Prompt(*session, MakeInput("foo"));
+
+  histogram_tester.ExpectUniqueSample(
+      "OptimizationGuide.ModelExecution."
+      "OnDeviceModelEligibilityReason.PromptApi",
+      optimization_guide::OnDeviceModelEligibilityReason::kSuccess, 1);
 
   histogram_tester.ExpectTotalCount(
       "OptimizationGuide.ModelExecution."
@@ -1810,6 +1827,12 @@ TEST_F(AILanguageModelTest,
 
 // Test class for `Tool Use` functionality.
 class AILanguageModelOpenLoopToolTest : public AILanguageModelTest {
+ public:
+  AILanguageModelOpenLoopToolTest() {
+    scoped_feature_list_.InitAndEnableFeature(
+        blink::features::kAIPromptAPIToolUse);
+  }
+
  protected:
   // Override CreateConfig to use higher max tokens for `Tool Use` testing.
   optimization_guide::proto::OnDeviceModelExecutionFeatureConfig CreateConfig()
@@ -1886,6 +1909,8 @@ class AILanguageModelOpenLoopToolTest : public AILanguageModelTest {
   void DisableToolCallSimulation() {
     fake_broker_->settings().simulated_tool_calls.clear();
   }
+
+  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 // Test that tools are embedded in the session's initial context.
@@ -2257,6 +2282,58 @@ TEST_F(AILanguageModelOpenLoopToolTest, ClonedSessionPreservesTools) {
   EXPECT_THAT(final_response, testing::HasSubstr("\"condition\":\"Cloudy\""));
 }
 
+// Verify that CanCreate and Create correctly handle the disabled tool use flag.
+TEST_F(AILanguageModelOpenLoopToolTest, RejectCreateWithFlagDisabled) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(
+      blink::features::kAIPromptAPIToolUse);
+
+  std::vector<blink::mojom::AILanguageModelToolDeclarationPtr> tools;
+  tools.push_back(CreateWeatherTool());
+  auto options = blink::mojom::AILanguageModelCreateOptions::New();
+  options->tools = std::move(tools);
+
+  base::test::TestFuture<blink::mojom::ModelAvailabilityCheckResult> future;
+  GetAIManagerInterface()->CanCreateLanguageModel(options.Clone(),
+                                                  future.GetCallback());
+  EXPECT_EQ(future.Get(), blink::mojom::ModelAvailabilityCheckResult::
+                              kUnavailableModelAdaptationNotAvailable);
+
+  TestCreateLanguageModelClient client;
+  GetAIManagerRemote()->CreateLanguageModel(client.BindNewPipeAndPassRemote(),
+                                            std::move(options));
+  auto result = client.result().Take();
+  ASSERT_FALSE(result.has_value());
+  EXPECT_EQ(result.error().error,
+            blink::mojom::AIManagerCreateClientError::kUnableToCreateSession);
+}
+
+// Ensure Prompt rejects tool responses on sessions without the tool capability.
+TEST_F(AILanguageModelOpenLoopToolTest, RejectToolResponseWithoutCapability) {
+  auto session = CreateSession();
+  base::DictValue tool_response_dict;
+  tool_response_dict.Set("callID", "c0");
+  tool_response_dict.Set("name", "no_such_tool");
+  base::DictValue result;
+  result.Set("arbitrary_field", "arbitrary_value");
+  tool_response_dict.Set("result", std::move(result));
+
+  std::vector<blink::mojom::AILanguageModelPromptPtr> prompts;
+  auto prompt = blink::mojom::AILanguageModelPrompt::New();
+  prompt->role = Role::kUser;
+  prompt->content.push_back(
+      blink::mojom::AILanguageModelPromptContent::NewToolResponse(
+          std::move(tool_response_dict)));
+  prompts.push_back(std::move(prompt));
+
+  AITestUtils::TestStreamingResponder responder;
+  session->Prompt(std::move(prompts), /*constraint=*/nullptr,
+                  responder.BindRemote());
+  ASSERT_FALSE(responder.WaitForCompletion());
+  EXPECT_EQ(responder.error_status(),
+            blink::mojom::ModelStreamingResponseStatus::kErrorInvalidRequest);
+}
+
 TEST_F(AILanguageModelTest, CanCreatePermissionsPolicyDisabled) {
   DisablePolicy(network::mojom::PermissionsPolicyFeature::kLanguageModel);
   mojo::test::BadMessageObserver observer;
@@ -2351,6 +2428,133 @@ TEST_F(AILanguageModelConfiguredMaxOutputTokensTest,
   EXPECT_EQ(responder.error_status(),
             blink::mojom::ModelStreamingResponseStatus::
                 kErrorResponseExceedsMaxTokens);
+}
+
+class AILanguageModelManifestTest : public AITestUtils::AITestManifestBase {
+ public:
+  AILanguageModelManifestTest() {
+    scoped_feature_list_.InitWithFeatures(
+        {optimization_guide::kOptimizationGuideManifestBroker,
+         on_device_model::features::kOnDeviceModelLitertLmBackend},
+        {});
+  }
+
+ protected:
+  void SetupManifest() override {
+    optimization_guide::proto::PromptApiFeatureConfig prompt_api_cfg;
+    prompt_api_cfg.set_default_use_case("prompt_api");
+    (*prompt_api_cfg.mutable_experimental_use_cases())["v4"] =
+        "prompt_api_gemma4";
+
+    optimization_guide::proto::Any any_cfg;
+    any_cfg.set_type_url(
+        "type.googleapis.com/"
+        "chrome_intelligence_proto_features.PromptApiFeatureConfig");
+    any_cfg.set_value(prompt_api_cfg.SerializeAsString());
+
+    optimization_guide::proto::SolutionConfig solution_config;
+    *solution_config.mutable_feature() = CreateConfig();
+
+    optimization_guide::ScenarioBuilder(
+        fake_manifest_broker_->component_state())
+        .AddBaseModel(
+            "prompt_api_base_model",
+            optimization_guide::BaseModelRecipeArgs(
+                optimization_guide::proto::BaseModelRecipe::BACKEND_TYPE_GPU,
+                optimization_guide::proto::BaseModelRecipe::
+                    PERFORMANCE_HINT_HIGHEST_QUALITY,
+                {}, kTestMaxTokens))
+        .AddBaseModel(
+            "prompt_api_gemma4_base_model",
+            optimization_guide::BaseModelRecipeArgs(
+                optimization_guide::proto::BaseModelRecipe::BACKEND_TYPE_GPU,
+                optimization_guide::proto::BaseModelRecipe::
+                    PERFORMANCE_HINT_HIGHEST_QUALITY,
+                {}, kTestMaxTokens))
+        .AddSafetyModel("safety_model")
+        .AddSafeSolution("prompt_api", "prompt_api_base_model", "safety_model",
+                         solution_config)
+        .AddSafeSolution("prompt_api_gemma4", "prompt_api_gemma4_base_model",
+                         "safety_model", solution_config)
+        .SetFeatureConfig(optimization_guide::DeviceCategory::kGpuHighTier,
+                          "prompt_api", any_cfg)
+        .Finish();
+
+    fake_manifest_broker_->settings().performance_class =
+        on_device_model::mojom::PerformanceClass::kHigh;
+  }
+
+  optimization_guide::proto::OnDeviceModelExecutionFeatureConfig CreateConfig()
+      override {
+    optimization_guide::proto::OnDeviceModelExecutionFeatureConfig config;
+    config.set_feature(optimization_guide::proto::ModelExecutionFeature::
+                           MODEL_EXECUTION_FEATURE_PROMPT_API);
+    return config;
+  }
+
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+TEST_F(AILanguageModelManifestTest, CanCreateAndCreateWithManifestGemma4) {
+  version_info::Channel channel = chrome::GetChannel();
+  if (channel != version_info::Channel::CANARY &&
+      channel != version_info::Channel::DEV &&
+      channel != version_info::Channel::UNKNOWN &&
+      version_info::IsOfficialBuild()) {
+    GTEST_SKIP() << "Experimental use case support is limited to "
+                    "Canary/Dev/Unknown channels and unofficial builds.";
+  }
+
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeatureWithParameters(
+      kAIApiFoundationalModel, {{"model_version", "v4"}});
+
+  fake_manifest_broker_->client().RequestAssetsFor("prompt_api_gemma4");
+
+  // Verify CanCreateLanguageModel check passes successfully.
+  base::test::TestFuture<blink::mojom::ModelAvailabilityCheckResult> future;
+  ai_manager_->CanCreateLanguageModel(
+      blink::mojom::AILanguageModelCreateOptions::New(), future.GetCallback());
+  EXPECT_EQ(future.Get(),
+            blink::mojom::ModelAvailabilityCheckResult::kAvailable);
+
+  // Verify CreateLanguageModel can retrieve the model successfully.
+  TestCreateLanguageModelClient language_model_client;
+  GetAIManagerRemote()->CreateLanguageModel(
+      language_model_client.BindNewPipeAndPassRemote(),
+      blink::mojom::AILanguageModelCreateOptions::New());
+
+  auto result = language_model_client.result().Take();
+  EXPECT_TRUE(result.has_value());
+}
+
+TEST_F(AILanguageModelManifestTest, CanCreateBeforeDownloadGemma4) {
+  version_info::Channel channel = chrome::GetChannel();
+  if (channel != version_info::Channel::CANARY &&
+      channel != version_info::Channel::DEV &&
+      channel != version_info::Channel::UNKNOWN &&
+      version_info::IsOfficialBuild()) {
+    GTEST_SKIP() << "Experimental use case support is limited to "
+                    "Canary/Dev/Unknown channels and unofficial builds.";
+  }
+
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeatureWithParameters(
+      kAIApiFoundationalModel, {{"model_version", "v4"}});
+
+  ASSERT_TRUE(fake_manifest_broker_);
+
+  // Assets are requested for prompt_api, but since gemma4 is the configured
+  // model_version, we should get kDownloadable for gemma4.
+  fake_manifest_broker_->client().RequestAssetsFor("prompt_api");
+
+  // Verify CanCreateLanguageModel check returns kDownloadable before assets are
+  // requested.
+  base::test::TestFuture<blink::mojom::ModelAvailabilityCheckResult> future;
+  ai_manager_->CanCreateLanguageModel(
+      blink::mojom::AILanguageModelCreateOptions::New(), future.GetCallback());
+  EXPECT_EQ(future.Get(),
+            blink::mojom::ModelAvailabilityCheckResult::kDownloadable);
 }
 
 }  // namespace

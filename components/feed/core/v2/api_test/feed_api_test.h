@@ -202,10 +202,6 @@ class TestForYouSurface : public TestSurfaceBase {
  public:
   explicit TestForYouSurface(FeedStream* stream = nullptr);
 };
-class TestWebFeedSurface : public TestSurfaceBase {
- public:
-  explicit TestWebFeedSurface(FeedStream* stream = nullptr);
-};
 
 class TestImageFetcher : public ImageFetcher {
  public:
@@ -424,15 +420,15 @@ class FakeRefreshTaskScheduler : public RefreshTaskScheduler {
   FakeRefreshTaskScheduler();
   ~FakeRefreshTaskScheduler() override;
   // RefreshTaskScheduler implementation.
-  void EnsureScheduled(RefreshTaskId id, base::TimeDelta run_time) override;
-  void Cancel(RefreshTaskId id) override;
-  void RefreshTaskComplete(RefreshTaskId id) override;
+  void EnsureScheduled(base::TimeDelta run_time) override;
+  void Cancel() override;
+  void RefreshTaskComplete() override;
 
   void Clear();
 
-  std::map<RefreshTaskId, base::TimeDelta> scheduled_run_times;
-  std::set<RefreshTaskId> canceled_tasks;
-  std::set<RefreshTaskId> completed_tasks;
+  std::optional<base::TimeDelta> scheduled_run_time;
+  bool canceled = false;
+  bool completed = false;
 
  private:
   std::stringstream activity_log_;
@@ -479,7 +475,6 @@ class TestMetricsReporter : public MetricsReporter {
   std::optional<LoadStreamStatus> background_refresh_status;
   std::optional<UploadActionsStatus> upload_action_status;
 
-  StreamMetrics web_feed;
   StreamMetrics for_you;
 };
 
@@ -584,7 +579,6 @@ class FeedStreamTestForAllStreamTypes
                           stream) {}
   };
   void SetUp() override;
-  RefreshTaskId GetRefreshTaskId() const;
 };
 
 class FeedNetworkEndpointTest

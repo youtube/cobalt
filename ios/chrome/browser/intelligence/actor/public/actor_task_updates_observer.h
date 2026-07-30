@@ -39,7 +39,7 @@ class WebStateID;
 
 // Called just before a tool is about to be executed.
 - (void)actorTaskWithID:(actor::ActorTaskId)taskID
-        willExecuteTool:(NSString*)toolString
+        willExecuteTool:(actor::ToolType)toolType
              taskUpdate:(NSString*)taskUpdate
              onWebState:(web::WebStateID)webStateID;
 

@@ -9,10 +9,14 @@
 #include "base/functional/callback_helpers.h"
 #include "base/json/json_reader.h"
 #include "base/test/gmock_callback_support.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/mock_callback.h"
 #include "base/test/scoped_command_line.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/values.h"
+#include "content/browser/digital_credentials/digital_credential_environment.h"
+#include "content/browser/digital_credentials/virtual_wallet.h"
+#include "content/browser/renderer_host/frame_tree_node.h"
 #include "content/browser/webid/test/mock_digital_identity_provider.h"
 #include "content/browser/webid/test/stub_digital_identity_provider.h"
 #include "content/public/browser/content_browser_client.h"
@@ -360,6 +364,133 @@ base::Value GenerateDpcExample1WithOtherData() {
   return ParseJsonAndCheck(kJson);
 }
 
+base::Value GenerateSdJwtAgeOnly() {
+  constexpr char kJson[] = R"({
+    "dcql_query": {
+      "credentials": [
+        {
+          "id": "cred1",
+          "format": "dc+sd-jwt",
+          "meta": {
+            "vct_values": [
+              "eu.europa.ec.eudiw.pid.1"
+            ]
+          },
+          "claims": [
+            {
+              "path": [
+                "age_over_18"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  })";
+  return ParseJsonAndCheck(kJson);
+}
+
+base::Value GenerateSdJwtAgeAndSensitive() {
+  constexpr char kJson[] = R"({
+    "dcql_query": {
+      "credentials": [
+        {
+          "id": "cred1",
+          "format": "dc+sd-jwt",
+          "meta": {
+            "vct_values": [
+              "eu.europa.ec.eudiw.pid.1"
+            ]
+          },
+          "claims": [
+            {
+              "path": [
+                "age_over_18"
+              ]
+            },
+            {
+              "path": [
+                "given_name"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  })";
+  return ParseJsonAndCheck(kJson);
+}
+
+base::Value GenerateSdJwtAgeBundledWithDpc() {
+  constexpr char kJson[] = R"({
+    "dcql_query": {
+      "credentials": [
+        {
+          "id": "dpc_token",
+          "format": "dc+sd-jwt",
+          "meta": {
+            "vct_values": [
+              "com.emvco.dpc"
+            ]
+          }
+        },
+        {
+          "id": "eudi_pid",
+          "format": "dc+sd-jwt",
+          "meta": {
+            "vct_values": [
+              "eu.europa.ec.eudiw.pid.1"
+            ]
+          },
+          "claims": [
+            {
+              "path": [
+                "age_over_18"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  })";
+  return ParseJsonAndCheck(kJson);
+}
+
+base::Value GenerateSdJwtSensitiveBundledWithDpc() {
+  constexpr char kJson[] = R"({
+    "dcql_query": {
+      "credentials": [
+        {
+          "id": "dpc_token",
+          "format": "dc+sd-jwt",
+          "meta": {
+            "vct_values": [
+              "com.emvco.dpc"
+            ]
+          }
+        },
+        {
+          "id": "eudi_pid",
+          "format": "dc+sd-jwt",
+          "meta": {
+            "vct_values": [
+              "eu.europa.ec.eudiw.pid.1"
+            ]
+          },
+          "claims": [
+            {
+              "path": [
+                "given_name"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  })";
+  return ParseJsonAndCheck(kJson);
+}
+
 // Does depth-first traversal of nested dicts rooted at `root`. Returns first
 // matching base::Value with key `find_key`.
 base::Value* FindValueWithKey(base::Value& root, const std::string& find_key) {
@@ -661,6 +792,34 @@ TEST_F(
             InterstitialType::kLowRisk);
 }
 
+TEST_F(DigitalIdentityRequestImplInterstitialTest,
+       Openid4VpProtocolDCQL_ComputeInterstitialType_SdJwtAgeOnly) {
+  EXPECT_EQ(ComputeInterstitialType(kOpenid4vpProtocol, GenerateSdJwtAgeOnly()),
+            std::nullopt);
+}
+
+TEST_F(DigitalIdentityRequestImplInterstitialTest,
+       Openid4VpProtocolDCQL_ComputeInterstitialType_SdJwtAgeAndSensitive) {
+  EXPECT_EQ(ComputeInterstitialType(kOpenid4vpProtocol,
+                                    GenerateSdJwtAgeAndSensitive()),
+            InterstitialType::kLowRisk);
+}
+
+TEST_F(DigitalIdentityRequestImplInterstitialTest,
+       Openid4VpProtocolDCQL_ComputeInterstitialType_SdJwtAgeBundledWithDpc) {
+  EXPECT_EQ(ComputeInterstitialType(kOpenid4vpProtocol,
+                                    GenerateSdJwtAgeBundledWithDpc()),
+            std::nullopt);
+}
+
+TEST_F(
+    DigitalIdentityRequestImplInterstitialTest,
+    Openid4VpProtocolDCQL_ComputeInterstitialType_SdJwtSensitiveBundledWithDpc) {
+  EXPECT_EQ(ComputeInterstitialType(kOpenid4vpProtocol,
+                                    GenerateSdJwtSensitiveBundledWithDpc()),
+            InterstitialType::kLowRisk);
+}
+
 class DigitalIdentityRequestImplWithCreationEnabledTest
     : public RenderViewHostTestHarness {
  public:
@@ -810,7 +969,7 @@ class DigitalIdentityRequestImplTest : public RenderViewHostTestHarness {
         *web_contents()->GetPrimaryMainFrame(),
         request_remote_.BindNewPipeAndPassReceiver());
 
-    // Tests in this fixture don't test the dialog behaviour.
+    // Tests in this fixture don't test the dialog behavior.
     scoped_feature_list_.InitAndEnableFeatureWithParameters(
         features::kWebIdentityDigitalCredentials, {{"dialog", "no_dialog"}});
   }
@@ -1051,7 +1210,7 @@ TEST_F(DigitalIdentityRequestImplTest,
 }
 
 // A DigitalIdentityProvider whose destructor runs an arbitrary closure. This
-// models the production behaviour where ~DigitalIdentityProviderDesktop tears
+// models the production behavior where ~DigitalIdentityProviderDesktop tears
 // down a views::Widget, which can synchronously fire activation/visibility
 // observers. If one of those observers destroys the hosting WebContents (e.g. a
 // transient bubble that closes on focus loss), DigitalIdentityRequestImpl is
@@ -1301,6 +1460,277 @@ TEST_F(DigitalIdentityRequestImplPermissionsPolicyTest,
   request_remote()->Create(MakeCreateRequests(), base::DoNothing());
   EXPECT_EQ("digital-credentials-create permissions policy is not enabled.",
             bad_message_observer.WaitForBadMessage());
+}
+
+class DigitalIdentityRequestImplVirtualWalletTest
+    : public RenderViewHostTestHarness {
+ public:
+  void SetUp() override {
+    RenderViewHostTestHarness::SetUp();
+    scoped_feature_list_.InitWithFeatures(
+        {features::kWebIdentityDigitalCredentials,
+         features::kWebIdentityDigitalCredentialsCreation},
+        {});
+    digital_identity_request_impl_ = DigitalIdentityRequestImpl::CreateInstance(
+        *web_contents()->GetPrimaryMainFrame(),
+        request_remote_.BindNewPipeAndPassReceiver());
+  }
+
+  void TearDown() override {
+    digital_identity_request_impl_ = nullptr;
+    DigitalCredentialEnvironment::GetInstance()->Reset();
+    RenderViewHostTestHarness::TearDown();
+  }
+
+  DigitalIdentityRequestImpl* digital_identity_request_impl() {
+    return digital_identity_request_impl_.get();
+  }
+
+  VirtualWallet* GetOrCreateVirtualWallet() {
+    FrameTreeNode* node =
+        FrameTreeNode::From(web_contents()->GetPrimaryMainFrame());
+    return DigitalCredentialEnvironment::GetInstance()
+        ->GetOrCreateVirtualWallet(node);
+  }
+
+  std::vector<DigitalCredentialGetRequestPtr> MakeGetRequests() {
+    DigitalCredentialGetRequestPtr request = DigitalCredentialGetRequest::New();
+    request->protocol = "protocol_in_request";
+    request->data = GenerateOnlyAgeOpenid4VpRequestWithDCQL();
+    std::vector<DigitalCredentialGetRequestPtr> requests;
+    requests.push_back(std::move(request));
+    return requests;
+  }
+
+  std::vector<DigitalCredentialCreateRequestPtr> MakeCreateRequests() {
+    DigitalCredentialCreateRequestPtr request =
+        DigitalCredentialCreateRequest::New();
+    request->protocol = "protocol_in_request";
+    base::DictValue request_data;
+    request_data.Set("data", "create request data");
+    request->data = base::Value(std::move(request_data));
+    std::vector<DigitalCredentialCreateRequestPtr> requests;
+    requests.push_back(std::move(request));
+    return requests;
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+  mojo::Remote<blink::mojom::DigitalIdentityRequest> request_remote_;
+  base::WeakPtr<DigitalIdentityRequestImpl> digital_identity_request_impl_;
+};
+
+TEST_F(DigitalIdentityRequestImplVirtualWalletTest, GetRespond) {
+  const std::string kProtocolInWallet = "protocol_in_wallet";
+  const base::Value kResponseData(
+      base::DictValue().Set("token", "virtual-wallet-data"));
+
+  VirtualWallet* wallet = GetOrCreateVirtualWallet();
+  wallet->set_behavior(VirtualWallet::Behavior::kRespond);
+  wallet->SetCredential(
+      DigitalCredential(kProtocolInWallet, kResponseData.Clone()));
+
+  base::RunLoop run_loop;
+  base::MockCallback<GetCallback> mock_callback;
+  EXPECT_CALL(mock_callback, Run(RequestDigitalIdentityStatus::kSuccess,
+                                 Optional(kProtocolInWallet), _))
+      .WillOnce(base::test::RunOnceClosure(run_loop.QuitClosure()));
+  digital_identity_request_impl()->Get(MakeGetRequests(), mock_callback.Get());
+  run_loop.Run();
+}
+
+TEST_F(DigitalIdentityRequestImplVirtualWalletTest, GetDecline) {
+  VirtualWallet* wallet = GetOrCreateVirtualWallet();
+  wallet->set_behavior(VirtualWallet::Behavior::kDecline);
+
+  base::RunLoop run_loop;
+  base::MockCallback<GetCallback> mock_callback;
+  EXPECT_CALL(mock_callback,
+              Run(RequestDigitalIdentityStatus::kErrorUserDeclined,
+                  Eq(std::nullopt), _))
+      .WillOnce(base::test::RunOnceClosure(run_loop.QuitClosure()));
+  digital_identity_request_impl()->Get(MakeGetRequests(), mock_callback.Get());
+  run_loop.Run();
+}
+
+TEST_F(DigitalIdentityRequestImplVirtualWalletTest, GetWaitIsAbortable) {
+  VirtualWallet* wallet = GetOrCreateVirtualWallet();
+  wallet->set_behavior(VirtualWallet::Behavior::kWait);
+
+  base::RunLoop run_loop;
+  base::MockCallback<GetCallback> mock_callback;
+  EXPECT_CALL(mock_callback, Run(RequestDigitalIdentityStatus::kErrorCanceled,
+                                 Eq(std::nullopt), _))
+      .WillOnce(base::test::RunOnceClosure(run_loop.QuitClosure()));
+  digital_identity_request_impl()->Get(MakeGetRequests(), mock_callback.Get());
+  digital_identity_request_impl()->Abort();
+  run_loop.Run();
+}
+
+TEST_F(DigitalIdentityRequestImplVirtualWalletTest, CreateRespond) {
+  const std::string kProtocolInWallet = "protocol_in_wallet";
+  const base::Value kResponseData(
+      base::DictValue().Set("token", "virtual-wallet-data"));
+
+  VirtualWallet* wallet = GetOrCreateVirtualWallet();
+  wallet->set_behavior(VirtualWallet::Behavior::kRespond);
+  wallet->SetCredential(
+      DigitalCredential(kProtocolInWallet, kResponseData.Clone()));
+
+  base::RunLoop run_loop;
+  base::MockCallback<DigitalIdentityRequestImpl::CreateCallback> mock_callback;
+  EXPECT_CALL(mock_callback, Run(RequestDigitalIdentityStatus::kSuccess,
+                                 Optional(kProtocolInWallet), _))
+      .WillOnce(base::test::RunOnceClosure(run_loop.QuitClosure()));
+  digital_identity_request_impl()->Create(MakeCreateRequests(),
+                                          mock_callback.Get());
+  run_loop.Run();
+}
+
+TEST_F(DigitalIdentityRequestImplVirtualWalletTest, CreateDecline) {
+  VirtualWallet* wallet = GetOrCreateVirtualWallet();
+  wallet->set_behavior(VirtualWallet::Behavior::kDecline);
+
+  base::RunLoop run_loop;
+  base::MockCallback<DigitalIdentityRequestImpl::CreateCallback> mock_callback;
+  EXPECT_CALL(mock_callback,
+              Run(RequestDigitalIdentityStatus::kErrorUserDeclined,
+                  Eq(std::nullopt), _))
+      .WillOnce(base::test::RunOnceClosure(run_loop.QuitClosure()));
+  digital_identity_request_impl()->Create(MakeCreateRequests(),
+                                          mock_callback.Get());
+  run_loop.Run();
+}
+
+TEST_F(DigitalIdentityRequestImplVirtualWalletTest, CreateWaitIsAbortable) {
+  VirtualWallet* wallet = GetOrCreateVirtualWallet();
+  wallet->set_behavior(VirtualWallet::Behavior::kWait);
+
+  base::RunLoop run_loop;
+  base::MockCallback<DigitalIdentityRequestImpl::CreateCallback> mock_callback;
+  EXPECT_CALL(mock_callback, Run(RequestDigitalIdentityStatus::kErrorCanceled,
+                                 Eq(std::nullopt), _))
+      .WillOnce(base::test::RunOnceClosure(run_loop.QuitClosure()));
+  digital_identity_request_impl()->Create(MakeCreateRequests(),
+                                          mock_callback.Get());
+  digital_identity_request_impl()->Abort();
+  run_loop.Run();
+}
+
+TEST_F(DigitalIdentityRequestImplVirtualWalletTest, GetNoBehaviorFallsThrough) {
+  GetOrCreateVirtualWallet();
+
+  base::MockCallback<GetCallback> mock_callback;
+  EXPECT_CALL(mock_callback,
+              Run(RequestDigitalIdentityStatus::kError, Eq(std::nullopt), _));
+  digital_identity_request_impl()->Get(MakeGetRequests(), mock_callback.Get());
+}
+
+TEST_F(DigitalIdentityRequestImplVirtualWalletTest,
+       CreateNoBehaviorFallsThrough) {
+  GetOrCreateVirtualWallet();
+
+  base::MockCallback<DigitalIdentityRequestImpl::CreateCallback> mock_callback;
+  EXPECT_CALL(mock_callback,
+              Run(RequestDigitalIdentityStatus::kError, Eq(std::nullopt), _));
+  digital_identity_request_impl()->Create(MakeCreateRequests(),
+                                          mock_callback.Get());
+}
+
+TEST_F(DigitalIdentityRequestImplTest, RecordOpenId4VpResponseMode) {
+  struct TestCase {
+    std::string response_mode;
+    int expected_bucket;
+  } test_cases[] = {
+      {"dc_api", 0},
+      {"dc_api.jwt", 1},
+      {"other_mode", 2},
+  };
+
+  for (const auto& test_case : test_cases) {
+    RecreateService();
+    base::HistogramTester histogram_tester;
+    DigitalCredentialGetRequestPtr digital_credential_request =
+        DigitalCredentialGetRequest::New();
+    digital_credential_request->protocol = kOpenid4vpUnsignedProtocol;
+
+    base::DictValue request_data;
+    request_data.Set("response_mode", test_case.response_mode);
+    digital_credential_request->data = base::Value(std::move(request_data));
+
+    std::vector<DigitalCredentialGetRequestPtr> requests;
+    requests.push_back(std::move(digital_credential_request));
+
+    EXPECT_CALL(*mock_digital_identity_provider(), Get)
+        .Times(testing::AnyNumber());
+
+    digital_identity_request_impl()->Get(std::move(requests),
+                                         base::DoNothing());
+
+    histogram_tester.ExpectUniqueSample(
+        "Blink.DigitalIdentityRequest.OpenId4VpResponseMode",
+        test_case.expected_bucket, 1);
+  }
+}
+
+TEST_F(DigitalIdentityRequestImplTest, RecordOpenId4VpResponseModeMissing) {
+  base::HistogramTester histogram_tester;
+  DigitalCredentialGetRequestPtr digital_credential_request =
+      DigitalCredentialGetRequest::New();
+  digital_credential_request->protocol = kOpenid4vpUnsignedProtocol;
+  digital_credential_request->data = base::Value(base::DictValue());
+
+  std::vector<DigitalCredentialGetRequestPtr> requests;
+  requests.push_back(std::move(digital_credential_request));
+
+  EXPECT_CALL(*mock_digital_identity_provider(), Get)
+      .Times(testing::AnyNumber());
+
+  digital_identity_request_impl()->Get(std::move(requests), base::DoNothing());
+
+  histogram_tester.ExpectTotalCount(
+      "Blink.DigitalIdentityRequest.OpenId4VpResponseMode", 0);
+}
+
+TEST_F(DigitalIdentityRequestImplTest, RecordOpenId4VpResponseModeFromJwt) {
+  base::HistogramTester histogram_tester;
+  DigitalCredentialGetRequestPtr digital_credential_request =
+      DigitalCredentialGetRequest::New();
+  digital_credential_request->protocol = kOpenid4vpUnsignedProtocol;
+
+  base::Value request_data = GenerateSignedOnlyAgeOpenid4VpRequestWithDCQL();
+  digital_credential_request->data = std::move(request_data);
+
+  std::vector<DigitalCredentialGetRequestPtr> requests;
+  requests.push_back(std::move(digital_credential_request));
+
+  EXPECT_CALL(*mock_digital_identity_provider(), Get)
+      .Times(testing::AnyNumber());
+
+  digital_identity_request_impl()->Get(std::move(requests), base::DoNothing());
+
+  histogram_tester.ExpectUniqueSample(
+      "Blink.DigitalIdentityRequest.OpenId4VpResponseMode", 0, 1);
+}
+
+TEST_F(DigitalIdentityRequestImplTest,
+       RecordOpenId4VpResponseModeInvalidRequest) {
+  base::HistogramTester histogram_tester;
+  DigitalCredentialGetRequestPtr digital_credential_request =
+      DigitalCredentialGetRequest::New();
+  digital_credential_request->protocol = kOpenid4vpUnsignedProtocol;
+  digital_credential_request->data = base::Value("not a dict");
+
+  std::vector<DigitalCredentialGetRequestPtr> requests;
+  requests.push_back(std::move(digital_credential_request));
+
+  EXPECT_CALL(*mock_digital_identity_provider(), Get)
+      .Times(testing::AnyNumber());
+
+  digital_identity_request_impl()->Get(std::move(requests), base::DoNothing());
+
+  histogram_tester.ExpectTotalCount(
+      "Blink.DigitalIdentityRequest.OpenId4VpResponseMode", 0);
 }
 
 }  // namespace content

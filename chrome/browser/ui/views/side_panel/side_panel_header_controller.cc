@@ -34,6 +34,7 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/models/image_model.h"
 #include "ui/base/mojom/menu_source_type.mojom.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/color/color_id.h"
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/controls/button/image_button.h"
@@ -140,14 +141,16 @@ SidePanelHeaderController::CreatePinButton() {
 
   int dip_size = ChromeLayoutProvider::Get()->GetDistanceMetric(
       ChromeDistanceMetric::DISTANCE_SIDE_PANEL_HEADER_VECTOR_ICON_SIZE);
-  const gfx::VectorIcon& pin_icon = kKeepIcon;
+  const gfx::VectorIcon& pin_icon =
+      features::IsRoundedIconsEnabled() ? kKeepIcon : kKeepOldIcon;
   views::SetImageFromVectorIconWithColor(
       button.get(), pin_icon,
       {kColorSidePanelHeaderButtonIcon,
        kColorSidePanelHeaderButtonIconDisabled},
       dip_size);
 
-  const gfx::VectorIcon& unpin_icon = kKeepOffIcon;
+  const gfx::VectorIcon& unpin_icon =
+      features::IsRoundedIconsEnabled() ? kKeepOffIcon : kKeepOffOldIcon;
   views::SetToggledImageFromVectorIconWithColor(
       button.get(), unpin_icon, dip_size,
       {kColorSidePanelHeaderButtonIcon,
@@ -175,7 +178,7 @@ SidePanelHeaderController::CreateOpenNewTabButton() {
   auto button = CreateImageButton(
       base::BindRepeating(&SidePanelHeaderController::OpenInNewTab,
                           base::Unretained(this)),
-      kOpenInNewIcon);
+      features::IsRoundedIconsEnabled() ? kOpenInNewIcon : kOpenInNewOldIcon);
 
   button->SetTooltipText(
       l10n_util::GetStringUTF16(IDS_ACCNAME_OPEN_IN_NEW_TAB));
@@ -195,7 +198,9 @@ SidePanelHeaderController::CreateMoreInfoButton() {
   CHECK(side_panel_entry_);
 
   // Callback will not be used since a button controller is being set.
-  auto button = CreateImageButton(base::RepeatingClosure(), kHelpMenuIcon);
+  auto button = CreateImageButton(
+      base::RepeatingClosure(),
+      features::IsRoundedIconsEnabled() ? kHelpCustomIcon : kHelpMenuOldIcon);
   button->SetVisible(side_panel_entry_->SupportsMoreInfoButton());
   button->SetTooltipText(l10n_util::GetStringUTF16(
       IDS_SIDE_PANEL_HEADER_MORE_INFO_BUTTON_TOOLTIP));
@@ -221,10 +226,11 @@ SidePanelHeaderController::CreateCloseButton() {
   CHECK(!close_button_);
   CHECK(side_panel_entry_);
 
-  auto button =
-      CreateImageButton(base::BindRepeating(&SidePanelHeaderController::Close,
-                                            base::Unretained(this)),
-                        views::kIcCloseOldIcon);
+  auto button = CreateImageButton(
+      base::BindRepeating(&SidePanelHeaderController::Close,
+                          base::Unretained(this)),
+      features::IsRoundedIconsEnabled() ? views::kCloseIcon
+                                        : views::kIcCloseOldIcon);
   button->SetTooltipText(
       l10n_util::GetStringUTF16(IDS_ACCNAME_SIDE_PANEL_CLOSE));
   button->SetProperty(views::kElementIdentifierKey,

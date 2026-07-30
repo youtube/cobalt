@@ -9,6 +9,7 @@
 #include <string>
 #include <string_view>
 
+#include "ash/constants/ash_login_pref_names.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/json/values_util.h"
@@ -114,6 +115,7 @@
 #include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/content_settings/core/common/pref_names.h"
 #include "components/contextual_search/contextual_search_service.h"
+#include "components/contextual_tasks/public/prefs.h"
 #include "components/custom_handlers/protocol_handler_registry.h"
 #include "components/dom_distiller/core/distilled_page_prefs.h"
 #include "components/domain_reliability/domain_reliability_prefs.h"
@@ -124,6 +126,7 @@
 #include "components/enterprise/buildflags/buildflags.h"
 #include "components/enterprise/connectors/core/connectors_prefs.h"
 #include "components/enterprise/isolated_mode/prefs.h"
+#include "components/enterprise/network_header_injection/core/network_header_injection_prefs.h"
 #include "components/feature_engagement/public/pref_names.h"
 #include "components/history_clusters/core/history_clusters_prefs.h"
 #include "components/image_fetcher/core/cache/image_cache.h"
@@ -160,6 +163,7 @@
 #include "components/personal_context/core/personal_context_prefs.h"
 #include "components/policy/core/browser/browser_policy_connector.h"
 #include "components/policy/core/browser/url_list/url_blocklist_manager.h"
+#include "components/policy/core/browser/url_list/url_list_policy_pref_names.h"
 #include "components/policy/core/common/local_test_policy_provider.h"
 #include "components/policy/core/common/management/management_service.h"
 #include "components/policy/core/common/policy_pref_names.h"
@@ -188,6 +192,7 @@
 #include "components/signin/public/base/signin_prefs.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/site_engagement/content/site_engagement_service.h"
+#include "components/skills/public/skills_prefs.h"
 #include "components/subresource_filter/content/browser/ruleset_service.h"
 #include "components/subresource_filter/core/common/constants.h"
 #include "components/subscription_eligibility/subscription_eligibility_prefs.h"
@@ -1759,6 +1764,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   collaboration::prefs::RegisterProfilePrefs(registry);
   commerce::RegisterProfilePrefs(registry);
   contextual_search::ContextualSearchService::RegisterProfilePrefs(registry);
+  contextual_tasks::RegisterProfilePrefs(registry);
   registry->RegisterIntegerPref(prefs::kContextualTasksNextPanelOpenCount, 0);
   cross_device::RegisterProfilePrefs(registry);
   enterprise::RegisterIdentifiersProfilePrefs(registry);
@@ -1850,6 +1856,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
   SigninPrefs::RegisterProfilePrefs(registry);
   site_engagement::SiteEngagementService::RegisterProfilePrefs(registry);
+  skills::prefs::RegisterProfilePrefs(registry);
   subscription_eligibility::prefs::RegisterProfilePrefs(registry);
   supervised_user::RegisterProfilePrefs(registry);
   sync_sessions::SessionSyncPrefs::RegisterProfilePrefs(registry);
@@ -2007,7 +2014,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   registry->RegisterBooleanPref(ash::prefs::kEssentialSearchEnabled, false);
   registry->RegisterBooleanPref(ash::prefs::kLastEssentialSearchValue, false);
   // By default showing Sync Consent is set to true. It can changed by policy.
-  registry->RegisterBooleanPref(prefs::kEnableSyncConsent, true);
+  registry->RegisterBooleanPref(ash::prefs::kEnableSyncConsent, true);
   registry->RegisterListPref(
       chromeos::prefs::kKeepFullscreenWithoutNotificationUrlAllowList,
       PrefRegistry::PUBLIC);
@@ -2015,10 +2022,11 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
                                 false);
   ::reporting::RegisterProfilePrefs(registry);
   registry->RegisterBooleanPref(chromeos::prefs::kFloatingSsoEnabled, false);
-  registry->RegisterListPref(prefs::kFloatingSsoDomainBlocklist);
-  registry->RegisterListPref(prefs::kFloatingSsoDomainBlocklistExceptions);
-  registry->RegisterBooleanPref(prefs::kFloatingSsoSessionCookiesIncluded,
-                                false);
+  registry->RegisterListPref(chromeos::prefs::kFloatingSsoDomainBlocklist);
+  registry->RegisterListPref(
+      chromeos::prefs::kFloatingSsoDomainBlocklistExceptions);
+  registry->RegisterBooleanPref(
+      chromeos::prefs::kFloatingSsoSessionCookiesIncluded, false);
 #if BUILDFLAG(USE_CUPS)
   extensions::PrintingAPIHandler::RegisterProfilePrefs(registry);
 #endif  // BUILDFLAG(USE_CUPS)
@@ -2143,12 +2151,16 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   registry->RegisterBooleanPref(
       prefs::kLensRegionSearchEnabled, true,
       user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
+#endif
+#if BUILDFLAG(ENABLE_LENS_DESKTOP) || BUILDFLAG(ENABLE_WEBUI_NTP)
   registry->RegisterBooleanPref(prefs::kLensDesktopNTPSearchEnabled, true);
 #endif
 
   registry->RegisterBooleanPref(prefs::kDisableScreenshots, false);
   registry->RegisterListPref(
       webauthn::pref_names::kRemoteDesktopAllowedOrigins);
+
+  enterprise_custom_headers::RegisterProfilePrefs(registry);
 
 #if !BUILDFLAG(IS_ANDROID)
   registry->RegisterBooleanPref(

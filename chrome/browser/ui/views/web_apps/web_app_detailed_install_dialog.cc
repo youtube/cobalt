@@ -46,6 +46,7 @@
 #include "ui/base/models/image_model.h"
 #include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/base/mojom/ui_base_types.mojom-shared.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/color/color_id.h"
 #include "ui/display/screen.h"
 #include "ui/gfx/geometry/insets.h"
@@ -136,8 +137,13 @@ class ScrollButton : public views::ImageButton {
     SetImageModel(
         views::Button::ButtonState::STATE_NORMAL,
         button_type == ButtonType::kLeading
-            ? ui::ImageModel::FromVectorIcon(kLeadingScrollIcon, ui::kColorIcon)
-            : ui::ImageModel::FromVectorIcon(kTrailingScrollIcon,
+            ? ui::ImageModel::FromVectorIcon(features::IsRoundedIconsEnabled()
+                                                 ? kKeyboardArrowLeftIcon
+                                                 : kLeadingScrollOldIcon,
+                                             ui::kColorIcon)
+            : ui::ImageModel::FromVectorIcon(features::IsRoundedIconsEnabled()
+                                                 ? kKeyboardArrowRightIcon
+                                                 : kTrailingScrollOldIcon,
                                              ui::kColorIcon));
 
     views::InkDrop::Get(this)->SetBaseColor(

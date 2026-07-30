@@ -4,27 +4,49 @@
 
 #include "components/autofill/core/browser/data_manager/payments/payments_data_manager.h"
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <algorithm>
 #include <memory>
+#include <optional>
+#include <string>
+#include <string_view>
+#include <utility>
 #include <variant>
+#include <vector>
 
 #include "base/android/device_info.h"
+#include "base/check.h"
+#include "base/check_op.h"
 #include "base/containers/extend.h"
 #include "base/containers/span.h"
 #include "base/containers/to_vector.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/i18n/timezone.h"
+#include "base/logging.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/scoped_refptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/notreached.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/uuid.h"
+#include "build/buildflag.h"
+#include "components/autofill/core/browser/country_type.h"
 #include "components/autofill/core/browser/data_manager/personal_data_manager.h"
+#include "components/autofill/core/browser/data_model/payments/autofill_offer_data.h"
+#include "components/autofill/core/browser/data_model/payments/autofill_wallet_usage_data.h"
 #include "components/autofill/core/browser/data_model/payments/bank_account.h"
 #include "components/autofill/core/browser/data_model/payments/bnpl_issuer.h"
+#include "components/autofill/core/browser/data_model/payments/credit_card_benefit.h"
+#include "components/autofill/core/browser/data_model/payments/credit_card_cloud_token_data.h"
 #include "components/autofill/core/browser/data_model/payments/ewallet.h"
 #include "components/autofill/core/browser/data_model/payments/payment_instrument.h"
 #include "components/autofill/core/browser/geo/autofill_country.h"
 #include "components/autofill/core/browser/integrators/optimization_guide/autofill_optimization_guide_decider.h"
+#include "components/autofill/core/browser/metrics/autofill_metrics.h"
 #include "components/autofill/core/browser/metrics/autofill_settings_metrics.h"
 #include "components/autofill/core/browser/metrics/payments/bnpl_metrics.h"
 #include "components/autofill/core/browser/metrics/payments/card_metadata_metrics.h"
@@ -34,11 +56,11 @@
 #include "components/autofill/core/browser/metrics/payments/wallet_usage_data_metrics.h"
 #include "components/autofill/core/browser/payments/bnpl_manager.h"
 #include "components/autofill/core/browser/payments/constants.h"
+#include "components/autofill/core/browser/payments/payments_customer_data.h"
 #include "components/autofill/core/browser/payments/payments_data_cleaner.h"
 #include "components/autofill/core/browser/studies/autofill_experiments.h"
 #include "components/autofill/core/browser/ui/autofill_image_fetcher_base.h"
 #include "components/autofill/core/browser/webdata/autofill_webdata_service.h"
-#include "components/autofill/core/browser/webdata/autofill_webdata_service_observer.h"
 #include "components/autofill/core/common/autofill_clock.h"
 #include "components/autofill/core/common/autofill_constants.h"
 #include "components/autofill/core/common/autofill_payments_features.h"
@@ -46,10 +68,16 @@
 #include "components/autofill/core/common/credit_card_number_validation.h"
 #include "components/autofill/core/common/dense_set.h"
 #include "components/prefs/pref_service.h"
+#include "components/signin/public/base/consent_level.h"
+#include "components/signin/public/identity_manager/account_info.h"
+#include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/sync/base/data_type.h"
+#include "components/sync/base/user_selectable_type.h"
 #include "components/sync/protocol/autofill_specifics.pb.h"
 #include "components/sync/service/sync_user_settings.h"
-#include "components/webdata/common/web_data_service_consumer.h"
+#include "components/webdata/common/web_data_results.h"
+#include "components/webdata/common/web_data_service_base.h"
+#include "url/origin.h"
 
 namespace autofill {
 
@@ -1604,69 +1632,21 @@ void PaymentsDataManager::ClearAllServerDataForTesting() {
   unlinked_bnpl_issuers_.clear();
 }
 
-void PaymentsDataManager::SetCreditCards(
-    std::vector<CreditCard>* credit_cards) {
-  // Remove empty credit cards from input.
-  std::erase_if(*credit_cards, [this](const CreditCard& credit_card) {
-    return credit_card.IsEmpty(app_locale_);
-  });
-
-  if (!GetLocalDatabase()) {
-    return;
-  }
-
-  // Any credit cards that are not in the new credit card list should be
-  // removed.
-  for (const auto& card : local_credit_cards_) {
-    if (!FindByGUID(*credit_cards, card->guid())) {
-      GetLocalDatabase()->RemoveCreditCard(card->guid());
-    }
-  }
-
-  // Update the web database with the existing credit cards.
-  for (const CreditCard& card : *credit_cards) {
-    if (FindByGUID(local_credit_cards_, card.guid())) {
-      GetLocalDatabase()->UpdateCreditCard(card);
-    }
-  }
-
-  // Add the new credit cards to the web database.  Don't add a duplicate.
-  for (const CreditCard& card : *credit_cards) {
-    if (!FindByGUID(local_credit_cards_, card.guid()) &&
-        !FindByContents(local_credit_cards_, card)) {
-      GetLocalDatabase()->AddCreditCard(card);
-    }
-  }
-
-  // Copy in the new credit cards.
-  local_credit_cards_.clear();
-  for (const CreditCard& card : *credit_cards) {
-    local_credit_cards_.push_back(std::make_unique<CreditCard>(card));
-  }
-
-  // Refresh our local cache and send notifications to observers.
-  Refresh();
-}
-
 bool PaymentsDataManager::SaveCardLocallyIfNew(
     const CreditCard& imported_card) {
   CHECK(!imported_card.number().empty());
 
-  std::vector<CreditCard> credit_cards;
   for (auto& card : local_credit_cards_) {
     if (card->MatchingCardDetails(imported_card)) {
       return false;
     }
-    credit_cards.push_back(*card);
   }
 
-  auto imported_card_copy = imported_card;
+  CreditCard imported_card_copy = imported_card;
   if (!IsPaymentCvcStorageEnabled()) {
     imported_card_copy.clear_cvc();
   }
-  credit_cards.push_back(imported_card_copy);
-
-  SetCreditCards(&credit_cards);
+  AddCreditCard(imported_card_copy);
   return true;
 }
 
@@ -2162,28 +2142,18 @@ size_t PaymentsDataManager::GetServerCardWithArtImageCount() const {
 
 std::string PaymentsDataManager::SaveImportedCreditCard(
     const CreditCard& imported_card) {
-  // Set to true if |imported_card| is merged into the credit card list.
-  bool merged = false;
-  std::string guid = imported_card.guid();
-  std::vector<CreditCard> credit_cards;
-  for (auto& card : local_credit_cards_) {
-    // If |imported_card| has not yet been merged, check whether it should be
-    // with the current |card|.
-    if (!merged && card->UpdateFromImportedCard(imported_card, app_locale_)) {
-      guid = card->guid();
-      merged = true;
+  // Potentially merge the card with an existing card.
+  for (std::unique_ptr<CreditCard>& card : local_credit_cards_) {
+    if (card->UpdateFromImportedCard(imported_card, app_locale_)) {
+      GetLocalDatabase()->UpdateCreditCard(*card);
+      Refresh();
+      return card->guid();
     }
-
-    credit_cards.push_back(*card);
   }
 
-  if (!merged) {
-    credit_cards.push_back(imported_card);
-  }
-
-  SetCreditCards(&credit_cards);
-
-  return guid;
+  // If the card was not merged, insert it as a new card.
+  AddCreditCard(imported_card);
+  return imported_card.guid();
 }
 
 void PaymentsDataManager::OnMaskedBankAccountsRefreshed() {

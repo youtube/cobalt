@@ -158,6 +158,9 @@ ActorTask::ActorTask(base::PassKey<ActorKeyedService, ActorTask>,
                             actor::webui::mojom::TaskDuration::kTransient
                     ? TaskDuration::kTransient
                     : TaskDuration::kDefault),
+      feature_mode_(options && options->feature_mode.has_value()
+                        ? options->feature_mode.value()
+                        : glic::mojom::FeatureMode::kUnspecified),
       policy_checker_(*policy_checker),
       delegate_(std::move(delegate)),
       ui_weak_ptr_factory_(ui_event_dispatcher_.get()) {
@@ -462,7 +465,8 @@ void ActorTask::Stop(StoppedReason stop_reason) {
       .final_state = final_state,
       .title = title_,
       .last_acted_on_tab_handle = last_tab_handle,
-      .duration = duration_});
+      .duration = duration_,
+      .feature_mode = feature_mode_});
 }
 
 void ActorTask::Pause(bool from_actor, bool cancel_existing_action) {

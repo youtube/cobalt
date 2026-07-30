@@ -8863,7 +8863,7 @@ IN_PROC_BROWSER_TEST_F(LensOverlayControllerSideBySideBrowserTest,
 #endif
 IN_PROC_BROWSER_TEST_F(LensOverlayControllerSideBySideBrowserTest,
                        MAYBE_BackgroundBlurLiveInitiallyInSplitTab) {
-  chrome::NewSplitTab(browser(), split_tabs::SplitTabLayout::kVertical,
+  chrome::NewSplitTab(browser(), split_tabs::SplitTabLayout::kSideBySide,
                       split_tabs::SplitTabCreatedSource::kToolbarButton);
 
   WaitForPaint();
@@ -8930,7 +8930,7 @@ IN_PROC_BROWSER_TEST_F(LensOverlayControllerSideBySideBrowserTest,
 IN_PROC_BROWSER_TEST_F(LensOverlayControllerSideBySideBrowserTest,
                        MAYBE_SidePanelRoundedCornerSplitTab) {
   // Create a new split, after which the second tab should be activated.
-  chrome::NewSplitTab(browser(), split_tabs::SplitTabLayout::kVertical,
+  chrome::NewSplitTab(browser(), split_tabs::SplitTabLayout::kSideBySide,
                       split_tabs::SplitTabCreatedSource::kToolbarButton);
 
   WaitForPaint();
@@ -9005,7 +9005,7 @@ IN_PROC_BROWSER_TEST_F(LensOverlayControllerSideBySideBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(LensOverlayControllerSideBySideBrowserTest,
                        SidePanelAlignmentChanged) {
-  chrome::NewSplitTab(browser(), split_tabs::SplitTabLayout::kVertical,
+  chrome::NewSplitTab(browser(), split_tabs::SplitTabLayout::kSideBySide,
                       split_tabs::SplitTabCreatedSource::kToolbarButton);
 
   WaitForPaint();
@@ -9765,4 +9765,52 @@ IN_PROC_BROWSER_TEST_F(LensOverlayControllerContextualTasksBrowserTest,
   policy_provider()->UpdateChromePolicy(policies);
   EXPECT_TRUE(
       lens::LensOverlayEntryPointController::From(browser())->IsEnabled());
+}
+
+class LensOverlayControllerNonBlockingPrivacyNoticeForImageSearchBrowserTest
+    : public LensOverlayControllerBrowserTest {
+ public:
+  void SetupFeatureList() override {
+    feature_list_.InitWithFeatures(
+        /*enabled_features=*/
+        {lens::features::kLensOverlayNonBlockingPrivacyNotice,
+         lens::features::kLensOverlayNonBlockingPrivacyNoticeForImageSearch},
+        /*disabled_features=*/{contextual_tasks::kContextualTasks});
+  }
+
+  void SetUpOnMainThread() override {
+    LensOverlayControllerBrowserTest::SetUpOnMainThread();
+    browser()->profile()->GetPrefs()->SetBoolean(
+        lens::prefs::kLensSharingPageScreenshotEnabled, false);
+    browser()->profile()->GetPrefs()->SetBoolean(
+        lens::prefs::kLensSharingPageContentEnabled, false);
+  }
+};
+
+IN_PROC_BROWSER_TEST_F(
+    LensOverlayControllerNonBlockingPrivacyNoticeForImageSearchBrowserTest,
+    ShowUIWithPendingRegion_GrantsSessionPermissionAndOverridesRegion) {
+  WaitForPaint();
+
+  auto* controller = GetLensOverlayController();
+  ASSERT_EQ(controller->state(), State::kOff);
+
+  OpenLensOverlayWithPendingRegion(
+      LensOverlayInvocationSource::kContentAreaContextMenuImage,
+      kTestRegion->Clone(), CreateNonEmptyBitmap(100, 100));
+  ASSERT_EQ(controller->state(), State::kScreenshot);
+  ASSERT_TRUE(
+      base::test::RunUntil([&]() { return IsLensResultsSidePanelShowing(); }));
+
+  auto* fake_query_controller =
+      static_cast<lens::TestLensOverlayQueryController*>(
+          GetLensOverlayQueryController());
+  EXPECT_TRUE(fake_query_controller->HasPermissionForSession());
+
+  ASSERT_TRUE(fake_query_controller->last_queried_region());
+  const auto& box = fake_query_controller->last_queried_region()->box;
+  EXPECT_EQ(box.x(), 0.5f);
+  EXPECT_EQ(box.y(), 0.5f);
+  EXPECT_EQ(box.width(), 1.0f);
+  EXPECT_EQ(box.height(), 1.0f);
 }

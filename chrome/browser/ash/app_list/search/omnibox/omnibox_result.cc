@@ -29,6 +29,7 @@
 #include "extensions/common/image_util.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/base/window_open_disposition_utils.h"
 #include "ui/gfx/paint_vector_icon.h"
 #include "url/gurl.h"
@@ -219,7 +220,9 @@ void OmniboxResult::SetGenericIcon() {
   if (search_result_->omnibox_type == OmniboxResultType::kBookmark) {
     SetIcon(IconInfo(
         ui::ImageModel::FromVectorIcon(
-            omnibox::kBookmarkIcon, kGenericIconColorId, kSystemIconDimension),
+            features::IsRoundedIconsEnabled() ? omnibox::kStarsFilledIcon
+                                              : omnibox::kBookmarkOldIcon,
+            kGenericIconColorId, kSystemIconDimension),
 
         kSystemIconDimension));
   } else {

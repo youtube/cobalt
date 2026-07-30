@@ -99,6 +99,7 @@
 #include "third_party/blink/renderer/core/html/track/video_track_list.h"
 #include "third_party/blink/renderer/core/html_names.h"
 #include "third_party/blink/renderer/core/inspector/console_message.h"
+#include "third_party/blink/renderer/core/keywords.h"
 #include "third_party/blink/renderer/core/intersection_observer/intersection_observer.h"
 #include "third_party/blink/renderer/core/layout/layout_media.h"
 #include "third_party/blink/renderer/core/loader/lazy_media_helper.h"
@@ -309,11 +310,11 @@ bool CanLoadURL(const KURL& url, const String& content_type_str) {
 String PreloadTypeToString(WebMediaPlayer::Preload preload_type) {
   switch (preload_type) {
     case WebMediaPlayer::kPreloadNone:
-      return "none";
+      return keywords::kNone;
     case WebMediaPlayer::kPreloadMetaData:
       return "metadata";
     case WebMediaPlayer::kPreloadAuto:
-      return "auto";
+      return keywords::kAuto;
   }
 
   NOTREACHED();
@@ -812,7 +813,8 @@ void HTMLMediaElement::ParseAttribute(
     if (web_media_player_)
       web_media_player_->SetLatencyHint(latencyHint());
   } else if (name == html_names::kMutedAttr) {
-    if (params.reason == AttributeModificationReason::kByParser) {
+    if (!RuntimeEnabledFeatures::MediaElementMutedDefaultStateEnabled() &&
+        params.reason == AttributeModificationReason::kByParser) {
       muted_ = true;
     }
   } else if (name == html_names::kLoadingAttr &&
@@ -838,8 +840,10 @@ void HTMLMediaElement::CloneNonAttributePropertiesFrom(const Element& other,
                                                        NodeCloningData& data) {
   HTMLElement::CloneNonAttributePropertiesFrom(other, data);
 
-  if (FastHasAttribute(html_names::kMutedAttr))
+  if (!RuntimeEnabledFeatures::MediaElementMutedDefaultStateEnabled() &&
+      FastHasAttribute(html_names::kMutedAttr)) {
     muted_ = true;
+  }
 }
 
 void HTMLMediaElement::FinishParsingChildren() {
@@ -1612,7 +1616,7 @@ bool HTMLMediaElement::HandleCommandInternal(HTMLElement& invoker,
   } else if (command == CommandEventType::kToggleMuted) {
     // No user activation check as `setMuted` already handles the autoplay
     // policy check.
-    setMuted(!muted_);
+    setMuted(!muted());
     return true;
   }
 
@@ -3004,7 +3008,7 @@ bool HTMLMediaElement::HasMediaSources() const {
 
 WebMediaPlayer::Preload HTMLMediaElement::PreloadType() const {
   const AtomicString& preload = FastGetAttribute(html_names::kPreloadAttr);
-  if (EqualIgnoringAsciiCase(preload, "none")) {
+  if (EqualIgnoringAsciiCase(preload, keywords::kNone)) {
     UseCounter::Count(GetDocument(), WebFeature::kHTMLMediaElementPreloadNone);
     return WebMediaPlayer::kPreloadNone;
   }
@@ -3024,7 +3028,7 @@ WebMediaPlayer::Preload HTMLMediaElement::PreloadType() const {
 
   // Per HTML spec, "The empty string ... maps to the Automatic state."
   // https://html.spec.whatwg.org/C/#attr-media-preload
-  if (EqualIgnoringAsciiCase(preload, "auto") ||
+  if (EqualIgnoringAsciiCase(preload, keywords::kAuto) ||
       EqualIgnoringAsciiCase(preload, "")) {
     UseCounter::Count(GetDocument(), WebFeature::kHTMLMediaElementPreloadAuto);
     return WebMediaPlayer::kPreloadAuto;
@@ -3353,16 +3357,34 @@ void HTMLMediaElement::setVolume(double vol, ExceptionState& exception_state) {
 }
 
 bool HTMLMediaElement::muted() const {
+  // https://html.spec.whatwg.org/multipage/media.html#concept-media-muted
+
+  // Note: the spec requirements about playbackRate aren't implemented because
+  // negative playback rate isn't supported. Changes here would be needed if we
+  // ever do support it.
+  static_assert(kMinPlaybackRate >= 0);
+
+  if (RuntimeEnabledFeatures::MediaElementMutedDefaultStateEnabled() &&
+      muted_is_default_) {
+    return FastHasAttribute(html_names::kMutedAttr);
+  }
+
   return muted_;
 }
 
 void HTMLMediaElement::setMuted(bool muted) {
   DVLOG(2) << "setMuted(" << *this << ", " << base::ToString(muted) << ")";
 
-  if (muted_ == muted)
-    return;
+  bool was_muted = this->muted();
 
+  if (RuntimeEnabledFeatures::MediaElementMutedDefaultStateEnabled()) {
+    muted_is_default_ = false;
+  }
   muted_ = muted;
+
+  if (was_muted == this->muted()) {
+    return;
+  }
 
   PseudoStateChanged(CSSSelector::kPseudoMuted);
 
@@ -3396,8 +3418,9 @@ bool HTMLMediaElement::UserWantsControlsVisible() const {
 }
 
 double HTMLMediaElement::EffectiveMediaVolume() const {
-  if (muted_)
+  if (muted()) {
     return 0;
+  }
 
   return volume_;
 }
@@ -4159,8 +4182,9 @@ void HTMLMediaElement::UpdatePlayState(
            << ") - shouldBePlaying = " << base::ToString(should_be_playing)
            << ", isPlaying = " << base::ToString(is_playing);
 
-  if (should_be_playing && !muted_)
+  if (should_be_playing && !muted()) {
     was_always_muted_ = false;
+  }
 
   if (should_be_playing) {
     if (!is_playing) {
@@ -4553,10 +4577,21 @@ void HTMLMediaElement::SetShouldDelayLoadEvent(bool should_delay) {
            << base::ToString(should_delay) << ")";
 
   should_delay_load_event_ = should_delay;
-  if (should_delay)
+  if (should_delay) {
     GetDocument().IncrementLoadEventDelayCount();
-  else
+  } else if (async_event_queue_->HasPendingEvents()) {
+    // When releasing the delay, if media element events (e.g. loadstart) are
+    // already queued but not yet dispatched, defer the document-level
+    // decrement until after they fire. The kDOMManipulation timer used by
+    // Document::CheckLoadEventSoon() would otherwise race ahead of
+    // kMediaElementEvent tasks, causing window.onload to fire before loadstart.
+    GetDocument()
+        .GetTaskRunner(TaskType::kMediaElementEvent)
+        ->PostTask(FROM_HERE, BindOnce(&Document::DecrementLoadEventDelayCount,
+                                       WrapWeakPersistent(&GetDocument())));
+  } else {
     GetDocument().DecrementLoadEventDelayCount();
+  }
 }
 
 MediaControls* HTMLMediaElement::GetMediaControls() const {

@@ -40,14 +40,6 @@ AuthenticatorSelectionDialogViewAndroid::
 
 void AuthenticatorSelectionDialogViewAndroid::Dismiss(bool user_closed_dialog,
                                                       bool server_success) {
-  if (controller_) {
-    controller_->OnDialogClosed(user_closed_dialog, server_success);
-    // AuthenticatorSelectionDialogViewAndroid::Dismiss is called by the C++
-    // controller which destroys the native view immediately afterwards. Reset
-    // the `controller_` to guarantee that no further calls to `controller_`
-    // happen.
-    controller_ = nullptr;
-  }
   if (java_object_) {
     // Multiple calls to `AuthenticatorSelectionDialogViewAndroid::Dismiss`
     // should result in only 1 call to
@@ -55,6 +47,11 @@ void AuthenticatorSelectionDialogViewAndroid::Dismiss(bool user_closed_dialog,
     Java_AuthenticatorSelectionDialogBridge_dismiss(
         base::android::AttachCurrentThread(), java_object_);
     java_object_.Reset();
+  }
+  if (controller_) {
+    // `OnDialogClosed` destroys this view, no member access or method calls
+    // should happen afterwards.
+    controller_->OnDialogClosed(user_closed_dialog, server_success);
   }
 }
 
@@ -74,12 +71,10 @@ void AuthenticatorSelectionDialogViewAndroid::OnOptionSelected(
 
 void AuthenticatorSelectionDialogViewAndroid::OnDismissed(JNIEnv* env) {
   if (controller_) {
+    // `OnDialogClosed` destroys this view, no member access or method calls
+    // should happen afterwards.
     controller_->OnDialogClosed(/*user_closed_dialog=*/true,
                                 /*server_success=*/false);
-    // The dismissal can happen either from C++ or from Java. `OnDismissed` is
-    // called from the Java side. `OnDialogClosed` must be called exactly once,
-    // the controller is reset immediately to guarantee that.
-    controller_ = nullptr;
   }
 }
 

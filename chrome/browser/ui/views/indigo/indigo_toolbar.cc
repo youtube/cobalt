@@ -19,6 +19,7 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/color/color_id.h"
 #include "ui/compositor/layer.h"
 #include "ui/gfx/paint_vector_icon.h"
@@ -185,7 +186,7 @@ std::unique_ptr<views::View> IndigoToolbar::CreateToolbarView() {
                   .AddChildren(
                       views::Builder<views::ImageView>().SetImage(
                           ui::ImageModel::FromVectorIcon(
-                              vector_icons::kChatSparkIcon,
+                              vector_icons::kChatSparkOldIcon,
                               ui::kColorSysOnSurfaceVariant, kFeatureIconSize)),
                       views::Builder<views::Label>()
                           .SetText(l10n_util::GetStringUTF16(
@@ -208,13 +209,13 @@ std::unique_ptr<views::View> IndigoToolbar::CreateToolbarView() {
                                        kExpandButtonElementId)
                           .SetImageModel(views::Button::STATE_NORMAL,
                                          ui::ImageModel::FromVectorIcon(
-                                             vector_icons::kCaretDownIcon,
+                                             vector_icons::kCaretDownOldIcon,
                                              ui::kColorSysOnSurfaceSubtle,
                                              kControlIconSize))
                           .SetToggledImageModel(
                               views::Button::STATE_NORMAL,
                               ui::ImageModel::FromVectorIcon(
-                                  vector_icons::kCaretUpIcon,
+                                  vector_icons::kCaretUpOldIcon,
                                   ui::kColorSysOnSurfaceSubtle,
                                   kControlIconSize))
                           .SetTooltipText(l10n_util::GetStringUTF16(
@@ -244,7 +245,7 @@ std::unique_ptr<views::View> IndigoToolbar::CreateToolbarView() {
                                        kCloseButtonElementId)
                           .SetImageModel(views::Button::STATE_NORMAL,
                                          ui::ImageModel::FromVectorIcon(
-                                             vector_icons::kCloseIcon,
+                                             vector_icons::kCloseOldIcon,
                                              ui::kColorSysOnSurfaceSubtle,
                                              kControlIconSize))
                           .SetTooltipText(l10n_util::GetStringUTF16(IDS_CLOSE))
@@ -273,7 +274,7 @@ std::unique_ptr<views::View> IndigoToolbar::CreateToolbarView() {
                           CreateExpandedButton(
                               l10n_util::GetStringUTF16(
                                   IDS_INDIGO_TOOLBAR_REGENERATE),
-                              vector_icons::kReloadIcon,
+                              vector_icons::kReloadOldIcon,
                               base::BindRepeating(
                                   &IndigoToolbar::OnRegenerateButtonClicked,
                                   base::Unretained(this))))
@@ -289,7 +290,7 @@ std::unique_ptr<views::View> IndigoToolbar::CreateToolbarView() {
                           CreateExpandedButton(
                               l10n_util::GetStringUTF16(
                                   IDS_INDIGO_TOOLBAR_REPLACE_ORIGINAL_PHOTO),
-                              vector_icons::kPhotoIcon,
+                              vector_icons::kPhotoOldIcon,
                               base::BindRepeating(
                                   &IndigoToolbar::OnReplacePhotoClicked,
                                   base::Unretained(this))))
@@ -299,7 +300,9 @@ std::unique_ptr<views::View> IndigoToolbar::CreateToolbarView() {
                           CreateExpandedButton(
                               l10n_util::GetStringUTF16(
                                   IDS_INDIGO_TOOLBAR_DELETE_ORIGINAL_PHOTO),
-                              kDeleteIcon,
+                              features::IsRoundedIconsEnabled()
+                                  ? kDeleteIcon
+                                  : kDeleteOldIcon,
                               base::BindRepeating(
                                   &IndigoToolbar::OnDeletePhotoClicked,
                                   base::Unretained(this))))

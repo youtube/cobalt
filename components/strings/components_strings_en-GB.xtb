@@ -14,6 +14,7 @@
 <translation id="1021753677514347426">This problem happens because of a certificate that you or someone else installed on your device. The certificate is known to be used to monitor and intercept networks, and is not trusted by Chromium. While some legitimate cases for monitoring do exist, like on a school or company network, Chromium wants to make sure that you're aware it's happening, even if you can't stop it. Monitoring may happen in any browser or application that accesses the web.</translation>
 <translation id="1024111578869940408">Attackers sometimes mimic sites by making hard-to-see changes to the web address.</translation>
 <translation id="1024913885641459127">Product Reviews and Price Comparisons</translation>
+<translation id="1025174656774447058">Automatically share open tabs for this thread?</translation>
 <translation id="102916930470544692">Passkey</translation>
 <translation id="1030706264415084469"><ph name="URL" /> wants to permanently store large data on your device</translation>
 <translation id="1030949145805074938">{COUNT,plural, =0{None}=1{From 1 site. Signs you out of most sites. }other{From # sites. Signs you out of most sites. }}</translation>
@@ -254,6 +255,7 @@ This will otherwise be blocked by your privacy settings. This will allow the con
 <translation id="1380591466760231819">Letter fold</translation>
 <translation id="138218114945450791">Light blue</translation>
 <translation id="1382194467192730611">USB device allowed by your administrator</translation>
+<translation id="1383876407941801731">Search</translation>
 <translation id="1384725838384960382">Secure payment credential authentication sheet</translation>
 <translation id="1386623374109090026">Annotations</translation>
 <translation id="138810468159004008">Allow while visiting the site</translation>
@@ -316,7 +318,6 @@ This will otherwise be blocked by your privacy settings. This will allow the con
 <translation id="1463793142714244641">Timeshares and holiday properties</translation>
 <translation id="1465457928007067810">IBAN saved to your Google Account</translation>
 <translation id="1467432559032391204">Left</translation>
-<translation id="1468653229182955856"><ph name="ONE_TIME_CODE" /> is your code for <ph name="EMBEDDED_ORIGIN" /> to continue on <ph name="TOP_ORIGIN" /></translation>
 <translation id="1472675084647422956">Show more</translation>
 <translation id="1473183651233018052">JIS B10</translation>
 <translation id="1473495410389165587">Enter three or more words to get writing help</translation>
@@ -549,6 +550,7 @@ This will otherwise be blocked by your privacy settings. This will allow the con
 <translation id="1832474362231610822">Photo saved to OneDrive</translation>
 <translation id="1832730227369924598">Desk sync</translation>
 <translation id="1834452765064623979">Construction and maintenance</translation>
+<translation id="1837606605602726453">The risk score and categories are ignored because the extension is explicitly allowed or blocked by the administrator.</translation>
 <translation id="1838374766361614909">Clear search</translation>
 <translation id="1839331950812095887">a few words that sum up your thoughts</translation>
 <translation id="1839551713262164453">Validation of policy values has failed with errors</translation>
@@ -1024,6 +1026,7 @@ This will otherwise be blocked by your privacy settings. This will allow the con
 <translation id="2552246211866555379">Hagaki</translation>
 <translation id="2552295903035773204">Use screen lock to confirm cards from now on</translation>
 <translation id="2552532158894206888">right key</translation>
+<translation id="2552601157105591479">Chrome will share relevant open tabs in each new thread to get better responses. Learn more about</translation>
 <translation id="2553352788023127673">Search history and passwords can be deleted in their management settings</translation>
 <translation id="2553853292994445426">Check your secure DNS settings. You may have configured a secure DNS server to which connections are failing.</translation>
 <translation id="255497580849974774">Please keep your device connected to a charger during the update.</translation>
@@ -1240,6 +1243,7 @@ This will otherwise be blocked by your privacy settings. This will allow the con
 <translation id="2930531075747147366">Tab from your other device</translation>
 <translation id="2930577230479659665">Trim after each copy</translation>
 <translation id="2933624813161016821">Embossing foil</translation>
+<translation id="2935726091208500473">sharing your tabs</translation>
 <translation id="293796669683825859">Comments</translation>
 <translation id="2938225289965773019">Open <ph name="PROTOCOL" /> links</translation>
 <translation id="2938370569652058706"><ph name="ORIGIN" /> – to show your cursor, switch apps, reload the page or go back</translation>
@@ -1267,6 +1271,7 @@ This will otherwise be blocked by your privacy settings. This will allow the con
 <translation id="297173220375858963">Desktop publishing</translation>
 <translation id="2972581237482394796">&amp;Redo</translation>
 <translation id="2974468223369775963">This IBAN couldn't be saved in your Google Account. It's been saved to Chrome on this device instead. Chrome will ask you again the next time that you use this IBAN.</translation>
+<translation id="2976162850019490782">When on, Chrome will share all tabs in this window to help you to get more relevant responses. You can turn this on for all threads in Settings.</translation>
 <translation id="297667759942911166">Collaborate in tab groups</translation>
 <translation id="2977665033722899841"><ph name="ROW_NAME" />, currently selected. <ph name="ROW_CONTENT" /></translation>
 <translation id="2978824962390592855">Opera</translation>
@@ -1673,7 +1678,6 @@ To hide pay later options, go to <ph name="BEGIN_LINK" />payment settings<ph nam
 <translation id="3600246354004376029"><ph name="TITLE" />, <ph name="DOMAIN" />, <ph name="TIME" /></translation>
 <translation id="3600492954573979888">Manage Google privacy settings button, activate to visit your Google Account privacy settings</translation>
 <translation id="3603507503523709">Application blocked by your administrator</translation>
-<translation id="3605082766859363473">AI Mode selected</translation>
 <translation id="3605899229568538311">5 in x 5 in</translation>
 <translation id="3606917451836803637">TV shows and programmes</translation>
 <translation id="3608932978122581043">Feed orientation</translation>
@@ -1821,6 +1825,7 @@ To hide pay later options, go to <ph name="BEGIN_LINK" />payment settings<ph nam
 <translation id="380865868633614173">Saving card info</translation>
 <translation id="3810770279996899697">Password Manager needs access to MacOS Keychain</translation>
 <translation id="3810973564298564668">Manage</translation>
+<translation id="3811328723651698330"><ph name="STRING_1" />, <ph name="STRING_2" /></translation>
 <translation id="3812398568375898177">This is a critical update that improves performance of Android apps on ChromeOS.</translation>
 <translation id="3814865536373139791">Streamline how your organisation manages policies</translation>
 <translation id="3815434930383843058">8 in x 12 in</translation>
@@ -1860,6 +1865,7 @@ To hide pay later options, go to <ph name="BEGIN_LINK" />payment settings<ph nam
 <translation id="3875783148670536197">Show me how</translation>
 <translation id="3877603629930976930">Don't share</translation>
 <translation id="3878445208930547646">Copying from this site is not allowed</translation>
+<translation id="3879674895057686427">Choose language to translate to</translation>
 <translation id="3879748587602334249">Download manager</translation>
 <translation id="3880456882942693779">Arts and entertainment</translation>
 <translation id="3880589673277376494">Internet and telecom</translation>
@@ -2019,7 +2025,6 @@ To hide pay later options, go to <ph name="BEGIN_LINK" />payment settings<ph nam
 <translation id="411918202192379658">Autofill just got better</translation>
 <translation id="4121428309786185360">Expires On</translation>
 <translation id="4123572138124678573">Triple punch bottom</translation>
-<translation id="4125597496726375563">Create image selected</translation>
 <translation id="412601465078863288">Uploading timed out</translation>
 <translation id="4127317221386336246">Clothing Accessories</translation>
 <translation id="4129401438321186435">{COUNT,plural, =1{1 other}other{# others}}</translation>
@@ -2235,6 +2240,7 @@ To hide pay later options, go to <ph name="BEGIN_LINK" />payment settings<ph nam
 <translation id="443673843213245140">Use of a proxy is disabled but an explicit proxy configuration is specified.</translation>
 <translation id="4438821706955556403">Typical price</translation>
 <translation id="4441832193888514600">Ignored because the policy can only be set as a cloud user policy.</translation>
+<translation id="4444062564459679679">Already sent to Chrome on your <ph name="DEVICE_NAME" /></translation>
 <translation id="4445133368066241428">Popular topics</translation>
 <translation id="4445694043187340808"><ph name="STARTER_PACK_TABS_FOCUSED_FRIENDLY_MATCH_TEXT" />, press Enter to search tabs</translation>
 <translation id="4445964943162061557">This is an experimental feature and won't always get it right.</translation>
@@ -2399,6 +2405,7 @@ To hide pay later options, go to <ph name="BEGIN_LINK" />payment settings<ph nam
 <translation id="4736934858538408121">Virtual card</translation>
 <translation id="473775607612524610">Update</translation>
 <translation id="4738601419177586157"><ph name="TEXT" /> search suggestion</translation>
+<translation id="473866660302034629"><ph name="TAB_TITLE" />, selected tab, <ph name="INDEX" /> of <ph name="TOTAL" />, use left or right arrow to switch between tabs</translation>
 <translation id="4742407542027196863">Manage passwords…</translation>
 <translation id="474270528725216349">From at least 1 site on synced devices</translation>
 <translation id="4743275772928623722">Your system was updated but some of your apps and files could not be recovered. Your apps will be downloaded again automatically.</translation>
@@ -2466,6 +2473,7 @@ To hide pay later options, go to <ph name="BEGIN_LINK" />payment settings<ph nam
 <translation id="4832961164064927107">BBQ and grilling</translation>
 <translation id="4835568975547260025">Chrome will share relevant open tabs by default to help you get more tailored answers to your questions.</translation>
 <translation id="4840250757394056958">View your Chrome history</translation>
+<translation id="4842365697443353018">Clear form to use pay later</translation>
 <translation id="484462545196658690">Auto</translation>
 <translation id="4844937814014739139">Scrolling and zooming shared tabs</translation>
 <translation id="484671803914931257">Get discount on <ph name="MERCHANT_NAME" /> and more</translation>
@@ -3088,6 +3096,7 @@ To hide pay later options, go to <ph name="BEGIN_LINK" />payment settings<ph nam
 <translation id="5784606427469807560">There was a problem confirming your card. Check your Internet connection and try again.</translation>
 <translation id="5785756445106461925">Further, this page includes other resources which are not secure. These resources can be viewed by others while in transit, and can be modified by an attacker to change the look of the page.</translation>
 <translation id="5787146423283493983">Key Agreement</translation>
+<translation id="5789643057113097023">.</translation>
 <translation id="5793317771769868848">This payment method will be deleted from this device</translation>
 <translation id="5794065675298686371">Turn on price tracking notifications</translation>
 <translation id="5797984091151707075">Blocked by admin policy</translation>
@@ -3316,6 +3325,7 @@ To hide pay later options, go to <ph name="BEGIN_LINK" />payment settings<ph nam
 <translation id="6133984428121856852">File extension is empty or malformed.</translation>
 <translation id="6138680304137685902">X9.62 ECDSA Signature with SHA-384</translation>
 <translation id="6139975341602920272">17 in x 22 in</translation>
+<translation id="614163496107844520"><ph name="BUTTON_TEXT" />, selected</translation>
 <translation id="6143097244789397208">Augmented and virtual reality</translation>
 <translation id="614327212146763975">Motion and light sensors allowed</translation>
 <translation id="6146055958333702838">Check any cables and reboot any routers, modems or other network
@@ -3505,7 +3515,6 @@ To hide pay later options, go to <ph name="BEGIN_LINK" />payment settings<ph nam
 <translation id="6424600253695044005">Cloud Storage</translation>
 <translation id="6425092077175753609">Material</translation>
 <translation id="6427730057873428458">Gate fold</translation>
-<translation id="6428450836711225518">Verifying your phone number</translation>
 <translation id="6429267199680088961">A4 Tab</translation>
 <translation id="643051589346665201">Change Google password</translation>
 <translation id="6431556523611594411">Share open tabs</translation>
@@ -3613,7 +3622,6 @@ To hide pay later options, go to <ph name="BEGIN_LINK" />payment settings<ph nam
 <translation id="6587923378399804057">Link that you copied</translation>
 <translation id="6591833882275308647">Your <ph name="DEVICE_TYPE" /> is not managed</translation>
 <translation id="6595495738567740002">To delete Google cookies from this device, <ph name="BEGIN_LINK" />sign out of Chrome<ph name="END_LINK" />.</translation>
-<translation id="6596325263575161958">Encryption options</translation>
 <translation id="6596573334527383067">Show results from yesterday</translation>
 <translation id="6597665340361269064">90 degrees</translation>
 <translation id="6598976221101665070">Drama films</translation>
@@ -3754,7 +3762,6 @@ To hide pay later options, go to <ph name="BEGIN_LINK" />payment settings<ph nam
 <translation id="6820143000046097424">serial ports</translation>
 <translation id="6820686453637990663">CVC</translation>
 <translation id="6820949753458790123">Pay in easy instalments</translation>
-<translation id="6822745163454377107">Get faster, more tailored responses by sharing your open tabs with this thread.</translation>
 <translation id="6825578344716086703">You attempted to reach <ph name="DOMAIN" />, but the server presented a certificate signed using a weak signature algorithm (such as SHA-1). This means that the security credentials that the server presented could have been forged, and the server may not be the server that you expected (you may be communicating with an attacker).</translation>
 <translation id="6826993739343257035">Allow AR?</translation>
 <translation id="6828150717884939426">Call</translation>
@@ -3889,7 +3896,6 @@ To hide pay later options, go to <ph name="BEGIN_LINK" />payment settings<ph nam
 <translation id="702275896380648118">This site determines things that you like and then suggests ads to other sites. This site also gets your ad topics from Chrome to show you more relevant ads.</translation>
 <translation id="7023162328967545559">Admin warning</translation>
 <translation id="7023765275461720661">Link account and pay with <ph name="BNPL_ISSUER_NAME" />?</translation>
-<translation id="7029809446516969842">Passwords</translation>
 <translation id="7030164307377592766">modify settings for filling payment methods</translation>
 <translation id="7031110846419387930">Information about your browser, OS, device, installed software, files and IP addresses</translation>
 <translation id="7031646650991750659">Which Google Play apps you have installed</translation>
@@ -4197,6 +4203,7 @@ Additional details:
 <translation id="7489255442002627311"><ph name="BNPL_ISSUER_NAME" /> will check your eligibility (this won't affect your credit score). If approved, <ph name="BNPL_ISSUER_NAME" /> will provide payment plans for you to choose from and complete your purchase.</translation>
 <translation id="7489392576326061356">Shampoos and Conditioners</translation>
 <translation id="7489919936111034362">Your Google Drive storage is full</translation>
+<translation id="7490026840522163531">Automatically share open tabs in every thread?</translation>
 <translation id="7495528107193238112">This content is blocked. Contact the site owner to fix the issue.</translation>
 <translation id="749865518782565832">Plumbing</translation>
 <translation id="7499188644237027195">When you make purchases in Chrome, see eWallet and Pix as options</translation>
@@ -4456,7 +4463,6 @@ Additional details:
 <translation id="7874796722855317864">'<ph name="PROXY_UNKNOWN_CONDITION" />' is not a known condition type.</translation>
 <translation id="7877007680666472091">protected content IDs</translation>
 <translation id="7878562273885520351">Your password may be compromised</translation>
-<translation id="7881044256965445977">Look for and connect to any device on your local network</translation>
 <translation id="7885670691503039914">You'll get email alerts if the price drops on any site. This page will be saved to the bookmark folder <ph name="LAST_BOOKMARKS_FOLDER" />.</translation>
 <translation id="7886897188117641322">Choose which broad categories of topics can be used to help personalise ads</translation>
 <translation id="7887683347370398519">Check your CVC and try again</translation>
@@ -4850,6 +4856,7 @@ Additional details:
 <translation id="8511402995811232419">Manage cookies</translation>
 <translation id="851353418319061866">Accuracy check</translation>
 <translation id="8513580896341796021">Download started. To see it, press |<ph name="ACCELERATOR" />|.</translation>
+<translation id="8515544520486085367">Autofill payment</translation>
 <translation id="8519753333133776369">HID device allowed by your administrator</translation>
 <translation id="8521013008769249764">Sofas and Armchairs</translation>
 <translation id="8521812709849134608">Worktops</translation>
@@ -4982,7 +4989,6 @@ Additional details:
 <translation id="8737685506611670901">Open <ph name="PROTOCOL" /> links instead of <ph name="REPLACED_HANDLER_TITLE" /></translation>
 <translation id="8738058698779197622">To establish a secure connection, your clock needs to be set correctly. This is because the certificates that websites use to identify themselves are only valid for specific periods of time. Since your device's clock is incorrect, Chromium cannot verify these certificates.</translation>
 <translation id="8740359287975076522"><ph name="HOST_NAME" />’s &lt;abbr id="dnsDefinition"&gt;DNS address&lt;/abbr&gt; could not be found. Diagnosing the problem.</translation>
-<translation id="8742371904523228557"><ph name="ONE_TIME_CODE" /> is your code for <ph name="ORIGIN" /></translation>
 <translation id="874918643257405732">Bookmark this tab</translation>
 <translation id="8751426954251315517">Please try again next time</translation>
 <translation id="8753913772043329557">Policy logs</translation>
@@ -5160,7 +5166,6 @@ Additional details:
 <translation id="9042827002460091668">Please check your Internet connection and try again</translation>
 <translation id="9043161870923715789">AI Mode</translation>
 <translation id="9045525010788763347"><ph name="RESULT_MODIFIED_DATE" /> – <ph name="RESULT_PRODUCT_SOURCE" /></translation>
-<translation id="9046578823518542618"><ph name="URL" /> wants to look for and connect to any device on your local network</translation>
 <translation id="9046864189129893978">Microphones (<ph name="MICS_COUNT" />)</translation>
 <translation id="9046865906192819796">Buy now, pay later Terms of Service screen opened at half height.</translation>
 <translation id="9047528041803621289">Your default lets you search the web. You can change it in settings.</translation>
@@ -5274,7 +5279,6 @@ Additional details:
 <translation id="9204089334327209740">Once the upload is complete, you can modify your files in <ph name="CLOUD_PROVIDER" />. Local storage, including any files in Trash, will be automatically removed.</translation>
 <translation id="9205078245616868884">Your data is encrypted with your sync passphrase. Enter it to start sync.</translation>
 <translation id="920643408853370361">Travel insurance</translation>
-<translation id="9206639970165643781">Share relevant open tabs for better responses in this thread?</translation>
 <translation id="9207861905230894330">Failed to add article.</translation>
 <translation id="9209339767782560829">There was a problem using your login certificate.</translation>
 <translation id="9210152531668884481">I'm in</translation>
@@ -5320,6 +5324,7 @@ Additional details:
 <translation id="964050462028070434">Manage passwords and passkeys…</translation>
 <translation id="964681140808832181">Yes, I want to cancel</translation>
 <translation id="969892804517981540">Official Build</translation>
+<translation id="970182982363142444">When on, Chrome will share all tabs in this window to help you to get more relevant responses. You can turn this on for all chats in</translation>
 <translation id="97054401902912338">Learn more about content filters</translation>
 <translation id="973788791897303708">This tab group is full</translation>
 <translation id="975560348586398090">{COUNT,plural, =0{None}=1{1 item}other{# items}}</translation>

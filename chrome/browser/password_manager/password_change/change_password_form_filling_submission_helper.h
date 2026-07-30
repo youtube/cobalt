@@ -26,14 +26,12 @@ class WebContents;
 }
 namespace password_manager {
 class PasswordFormManager;
-class PasswordManagerDriver;
 class PasswordManagerClient;
 }  // namespace password_manager
 
 class ModelQualityLogsUploader;
-class ChangePasswordFormWaiter;
-class FormFillingHelper;
 class AnnotatedPageContentCapturer;
+class ChangePasswordFormFiller;
 
 // Helper class which fills a form, submits it and verifies submission result.
 // Upon completion invokes `result_callback` to notify the result of submission.
@@ -93,7 +91,7 @@ class ChangePasswordFormFillingSubmissionHelper {
   GURL GetURL() const;
 
 #if defined(UNIT_TEST)
-  ChangePasswordFormWaiter* form_waiter() { return form_waiter_.get(); }
+  ChangePasswordFormFiller* form_filler() { return filler_.get(); }
 
   ButtonClickHelper* click_helper() { return click_helper_.get(); }
 
@@ -101,20 +99,15 @@ class ChangePasswordFormFillingSubmissionHelper {
     return form_manager_.get();
   }
 
-  FormFillingHelper* form_filler() { return form_filler_.get(); }
-
   AnnotatedPageContentCapturer* capturer() { return capturer_.get(); }
 #endif
   // Whether helper has submitted change password form or not.
   bool IsPasswordFormSubmitted() const { return click_helper_ != nullptr; }
 
  private:
-  void TriggerFilling(
-      const password_manager::PasswordForm& form,
-      base::WeakPtr<password_manager::PasswordManagerDriver> driver);
-
-  void ChangePasswordFormFilled(
-      const std::optional<autofill::FormData>& submitted_form);
+  void OnFormFilled(
+      base::expected<std::unique_ptr<password_manager::PasswordFormManager>,
+                     SubmissionError> result);
 
   void OnPageContentReceived(
       optimization_guide::AIPageContentResultOrError content);
@@ -132,11 +125,6 @@ class ChangePasswordFormFillingSubmissionHelper {
 
   void OnTimeout();
 
-  void OnFormFillingFailed();
-
-  void OnChangePasswordFormFound(
-      password_manager::PasswordFormManager* form_manager);
-
   base::Time creation_time_;
 
   const raw_ptr<content::WebContents> web_contents_ = nullptr;
@@ -149,13 +137,8 @@ class ChangePasswordFormFillingSubmissionHelper {
   // PasswordFormManager associated with current change password form.
   std::unique_ptr<password_manager::PasswordFormManager> form_manager_;
 
-  std::u16string username_;
-  // `login_password_` and `stored_password_` can be different if the password
-  // used for logging in is different from the one we store. This can happen if
-  // the user manually entered a password to log in. Otherwise, they are equal.
-  std::u16string login_password_;
-  std::u16string stored_password_;
-  std::u16string generated_password_;
+  // Helper to fill the form.
+  std::unique_ptr<ChangePasswordFormFiller> filler_;
 
   // Helper to capture annotated page content.
   std::unique_ptr<AnnotatedPageContentCapturer> capturer_;
@@ -163,17 +146,7 @@ class ChangePasswordFormFillingSubmissionHelper {
   // Timeout for verifying submission detection.
   base::OneShotTimer timeout_timer_;
 
-  std::unique_ptr<FormFillingHelper> form_filler_;
-
   std::unique_ptr<ButtonClickHelper> click_helper_;
-
-  // FieldGlobalIds for the forms which `this` tried to fill.
-  // Used to avoid attempting to fill the same form over and over again.
-  std::vector<autofill::FieldGlobalId> observed_fields_;
-
-  // Helper object which finds for a new PasswordFormManager when filling of an
-  // old form failed.
-  std::unique_ptr<ChangePasswordFormWaiter> form_waiter_;
 
   base::WeakPtrFactory<ChangePasswordFormFillingSubmissionHelper>
       weak_ptr_factory_{this};

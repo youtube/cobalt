@@ -60,10 +60,17 @@ namespace disk_cache {
 inline constexpr int64_t kDefaultMaxBytes = 10 * 1024 * 1024;
 
 // Test fixture for SqlPersistentStore tests.
-class SqlPersistentStoreTest : public testing::Test {
+class SqlPersistentStoreTestBase : public testing::Test {
  public:
   // Sets up a temporary directory and a background task runner for each test.
   void SetUp() override {
+    feature_list_.InitWithFeaturesAndParameters(
+        {{net::features::kDiskCacheBackendExperiment,
+          {{net::features::kDiskCacheBackendParam.name, "sql"},
+           {net::features::kSqlDiskCacheWalMode.name,
+            IsWalModeEnabled() ? "true" : "false"}}}},
+        {});
+
     ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
     background_task_runners_.emplace_back(
         base::ThreadPool::CreateSequencedTaskRunner({base::MayBlock()}));
@@ -162,7 +169,7 @@ class SqlPersistentStoreTest : public testing::Test {
     }
     // Use raw_ptr to avoid ownership cycles and for safety.
     // This is null if the store doesn't need to be re-initialized.
-    raw_ptr<SqlPersistentStoreTest> test_fixture_to_reinit = nullptr;
+    raw_ptr<SqlPersistentStoreTestBase> test_fixture_to_reinit = nullptr;
   };
 
   using DatabaseHandle = std::unique_ptr<sql::Database, DatabaseReopener>;
@@ -182,7 +189,7 @@ class SqlPersistentStoreTest : public testing::Test {
             .set_exclusive_database_file_lock(true)
 #endif  // IS_WIN
             .set_preload(true)
-            .set_wal_mode(true),
+            .set_wal_mode(IsWalModeEnabled()),
         sql::Database::Tag("HttpCacheDiskCache"));
     CHECK(db->Open(GetDatabaseFilePath()));
     return DatabaseHandle(db.release(), {should_reopen ? this : nullptr});
@@ -718,8 +725,12 @@ class SqlPersistentStoreTest : public testing::Test {
 
   void RunStartEvictionEvictsOlderEntriesFirstTest();
 
+ protected:
+  virtual bool IsWalModeEnabled() const = 0;
+
   base::test::TaskEnvironment task_environment_{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
+  base::test::ScopedFeatureList feature_list_;
   base::ScopedTempDir temp_dir_;
   std::vector<scoped_refptr<base::SequencedTaskRunner>>
       background_task_runners_;
@@ -728,8 +739,19 @@ class SqlPersistentStoreTest : public testing::Test {
   std::unique_ptr<base::FilePermissionRestorer> file_permissions_restorer_;
 };
 
+class SqlPersistentStoreTest : public SqlPersistentStoreTestBase,
+                               public testing::WithParamInterface<bool> {
+ public:
+  static std::string ParamToString(const testing::TestParamInfo<bool>& info) {
+    return info.param ? "Wal" : "NonWal";
+  }
+
+ protected:
+  bool IsWalModeEnabled() const override { return GetParam(); }
+};
+
 // Tests that a new database is created and initialized successfully.
-TEST_F(SqlPersistentStoreTest, InitNew) {
+TEST_P(SqlPersistentStoreTest, InitNew) {
   const int64_t kMaxBytes = 10 * 1024 * 1024;
   CreateStore(kMaxBytes);
   EXPECT_EQ(Init(), SqlPersistentStore::Error::kOk);
@@ -739,7 +761,7 @@ TEST_F(SqlPersistentStoreTest, InitNew) {
 
 // Tests initialization when max_bytes is zero. This should trigger automatic
 // sizing based on available disk space.
-TEST_F(SqlPersistentStoreTest, InitWithZeroMaxBytes) {
+TEST_P(SqlPersistentStoreTest, InitWithZeroMaxBytes) {
   CreateStore(0);
   EXPECT_EQ(Init(), SqlPersistentStore::Error::kOk);
   // When `max_bytes` is zero, the following values are calculated using the
@@ -749,7 +771,7 @@ TEST_F(SqlPersistentStoreTest, InitWithZeroMaxBytes) {
 }
 
 // Tests that an existing, valid database can be opened and initialized.
-TEST_F(SqlPersistentStoreTest, InitExisting) {
+TEST_P(SqlPersistentStoreTest, InitExisting) {
   CreateAndCloseInitializedStore();
 
   // Create a new store with the same path, which should open the existing DB.
@@ -757,9 +779,46 @@ TEST_F(SqlPersistentStoreTest, InitExisting) {
   EXPECT_EQ(Init(), SqlPersistentStore::Error::kOk);
 }
 
+TEST_P(SqlPersistentStoreTest, SerialInitialize) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeatureWithParameters(
+      net::features::kDiskCacheBackendExperiment,
+      {{"SqlDiskCacheSerialInitialize", "true"}});
+
+  // Use multiple shards to test serial initialization of shards.
+  background_task_runners_.clear();
+  for (int i = 0; i < 3; ++i) {
+    background_task_runners_.emplace_back(
+        base::ThreadPool::CreateSequencedTaskRunner({base::MayBlock()}));
+  }
+
+  CreateStore();
+  EXPECT_EQ(Init(), SqlPersistentStore::Error::kOk);
+}
+
+TEST_P(SqlPersistentStoreTest, SerialInitializeShardFailure) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeatureWithParameters(
+      net::features::kDiskCacheBackendExperiment,
+      {{"SqlDiskCacheSerialInitialize", "true"}});
+
+  // Use multiple shards to test serial initialization of shards.
+  background_task_runners_.clear();
+  for (int i = 0; i < 3; ++i) {
+    background_task_runners_.emplace_back(
+        base::ThreadPool::CreateSequencedTaskRunner({base::MayBlock()}));
+  }
+
+  CreateStore();
+  // Fail the second shard.
+  store_->SetSimulateDbShardFailureForTesting(1, true);
+
+  EXPECT_EQ(Init(), SqlPersistentStore::Error::kFailedForTesting);
+}
+
 // Tests that a database with a future (incompatible) version is razed
 // (deleted and recreated).
-TEST_F(SqlPersistentStoreTest, InitRazedTooNew) {
+TEST_P(SqlPersistentStoreTest, InitRazedTooNew) {
   CreateAndCloseInitializedStore();
 
   {
@@ -789,7 +848,7 @@ TEST_F(SqlPersistentStoreTest, InitRazedTooNew) {
 
 // Tests that initialization fails if the target directory path is obstructed
 // by a file.
-TEST_F(SqlPersistentStoreTest, InitFailsWithCreationDirectoryFailure) {
+TEST_P(SqlPersistentStoreTest, InitFailsWithCreationDirectoryFailure) {
   // Create a file where the database directory is supposed to be.
   base::FilePath db_dir_path = GetTempPath().Append(FILE_PATH_LITERAL("db"));
   ASSERT_TRUE(base::WriteFile(db_dir_path, ""));
@@ -803,7 +862,7 @@ TEST_F(SqlPersistentStoreTest, InitFailsWithCreationDirectoryFailure) {
 }
 
 // Tests that initialization fails if the database file is not writable.
-TEST_F(SqlPersistentStoreTest, InitFailsWithUnwritableFile) {
+TEST_P(SqlPersistentStoreTest, InitFailsWithUnwritableFile) {
   CreateAndCloseInitializedStore();
 
   // Make the database file read-only.
@@ -814,7 +873,7 @@ TEST_F(SqlPersistentStoreTest, InitFailsWithUnwritableFile) {
 }
 
 // Tests the recovery mechanism when the database file is corrupted.
-TEST_F(SqlPersistentStoreTest, InitWithCorruptDatabase) {
+TEST_P(SqlPersistentStoreTest, InitWithCorruptDatabase) {
   CreateAndCloseInitializedStore();
 
   // Corrupt the database file by overwriting its header.
@@ -828,7 +887,7 @@ TEST_F(SqlPersistentStoreTest, InitWithCorruptDatabase) {
 
 // Verifies the logic for calculating the maximum size of individual cache files
 // based on the total cache size (`max_bytes`).
-TEST_F(SqlPersistentStoreTest, MaxFileSizeCalculation) {
+TEST_P(SqlPersistentStoreTest, MaxFileSizeCalculation) {
   // With a large `max_bytes`, the max file size is a fraction of the total
   // size.
   const int64_t large_max_bytes = 100 * 1024 * 1024;
@@ -855,7 +914,7 @@ TEST_F(SqlPersistentStoreTest, MaxFileSizeCalculation) {
 
 // Tests that GetEntryCount() and GetSizeOfAllEntries() return correct values
 // based on the metadata stored in the database.
-TEST_F(SqlPersistentStoreTest, GetEntryAndSize) {
+TEST_P(SqlPersistentStoreTest, GetEntryAndSize) {
   CreateStore();
   ASSERT_EQ(Init(), SqlPersistentStore::Error::kOk);
 
@@ -882,7 +941,7 @@ TEST_F(SqlPersistentStoreTest, GetEntryAndSize) {
 
 // Tests that GetEntryCount() and GetSizeOfAllEntries() handle invalid
 // (e.g., negative) metadata by treating it as zero.
-TEST_F(SqlPersistentStoreTest, GetEntryAndSizeWithInvalidMetadata) {
+TEST_P(SqlPersistentStoreTest, GetEntryAndSizeWithInvalidMetadata) {
   CreateStore();
   ASSERT_EQ(Init(), SqlPersistentStore::Error::kOk);
   // Write initial data to create a blob.
@@ -975,7 +1034,7 @@ TEST_F(SqlPersistentStoreTest, GetEntryAndSizeWithInvalidMetadata) {
   EXPECT_EQ(GetSizeOfAllEntries(), std::numeric_limits<int64_t>::max());
 }
 
-TEST_F(SqlPersistentStoreTest, CreateEntry) {
+TEST_P(SqlPersistentStoreTest, CreateEntry) {
   CreateAndInitStore();
   ASSERT_EQ(GetEntryCount(), 0);
   ASSERT_EQ(GetSizeOfAllEntries(), 0);
@@ -995,7 +1054,7 @@ TEST_F(SqlPersistentStoreTest, CreateEntry) {
   EXPECT_EQ(CountResourcesTable(), 1);
 }
 
-TEST_F(SqlPersistentStoreTest, CreateEntryAlreadyExists) {
+TEST_P(SqlPersistentStoreTest, CreateEntryAlreadyExists) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
 
@@ -1019,7 +1078,7 @@ TEST_F(SqlPersistentStoreTest, CreateEntryAlreadyExists) {
   EXPECT_EQ(CountResourcesTable(), 1);
 }
 
-TEST_F(SqlPersistentStoreTest, OpenEntrySuccess) {
+TEST_P(SqlPersistentStoreTest, OpenEntrySuccess) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
 
@@ -1040,7 +1099,7 @@ TEST_F(SqlPersistentStoreTest, OpenEntrySuccess) {
             kSqlBackendStaticResourceSize + kKey.string().size());
 }
 
-TEST_F(SqlPersistentStoreTest, OpenEntryNotFound) {
+TEST_P(SqlPersistentStoreTest, OpenEntryNotFound) {
   CreateAndInitStore();
   const CacheEntryKey kKey("non-existent-key");
 
@@ -1049,7 +1108,7 @@ TEST_F(SqlPersistentStoreTest, OpenEntryNotFound) {
   EXPECT_FALSE(result->has_value());
 }
 
-TEST_F(SqlPersistentStoreTest, OpenOrCreateEntryCreatesNew) {
+TEST_P(SqlPersistentStoreTest, OpenOrCreateEntryCreatesNew) {
   CreateAndInitStore();
   const CacheEntryKey kKey("new-key");
 
@@ -1061,7 +1120,7 @@ TEST_F(SqlPersistentStoreTest, OpenOrCreateEntryCreatesNew) {
             kSqlBackendStaticResourceSize + kKey.string().size());
 }
 
-TEST_F(SqlPersistentStoreTest, OpenOrCreateEntryOpensExisting) {
+TEST_P(SqlPersistentStoreTest, OpenOrCreateEntryOpensExisting) {
   CreateAndInitStore();
   const CacheEntryKey kKey("existing-key");
 
@@ -1080,7 +1139,7 @@ TEST_F(SqlPersistentStoreTest, OpenOrCreateEntryOpensExisting) {
             kSqlBackendStaticResourceSize + kKey.string().size());
 }
 
-TEST_F(SqlPersistentStoreTest, DoomEntrySuccess) {
+TEST_P(SqlPersistentStoreTest, DoomEntrySuccess) {
   CreateAndInitStore();
   const CacheEntryKey kKeyToDoom("key-to-doom");
   const CacheEntryKey kKeyToKeep("key-to-keep");
@@ -1122,7 +1181,7 @@ TEST_F(SqlPersistentStoreTest, DoomEntrySuccess) {
   EXPECT_EQ(CountDoomedResourcesTable(kKeyToKeep), 0);
 }
 
-TEST_F(SqlPersistentStoreTest, DoomEntryFailsNotFound) {
+TEST_P(SqlPersistentStoreTest, DoomEntryFailsNotFound) {
   CreateAndInitStore();
   const CacheEntryKey kKey("non-existent-key");
   ASSERT_EQ(GetEntryCount(), 0);
@@ -1136,7 +1195,7 @@ TEST_F(SqlPersistentStoreTest, DoomEntryFailsNotFound) {
   EXPECT_EQ(GetSizeOfAllEntries(), 0);
 }
 
-TEST_F(SqlPersistentStoreTest, DoomEntryFailsWrongResId) {
+TEST_P(SqlPersistentStoreTest, DoomEntryFailsWrongResId) {
   CreateAndInitStore();
   const CacheEntryKey kKey1("key1");
   const CacheEntryKey kKey2("key2");
@@ -1168,7 +1227,7 @@ TEST_F(SqlPersistentStoreTest, DoomEntryFailsWrongResId) {
   EXPECT_EQ((*open_result2)->res_id, res_id2);
 }
 
-TEST_F(SqlPersistentStoreTest, DoomEntryWithCorruptSizeRecovers) {
+TEST_P(SqlPersistentStoreTest, DoomEntryWithCorruptSizeRecovers) {
   CreateAndInitStore();
   const CacheEntryKey kKeyToCorrupt("key-to-corrupt");
   const CacheEntryKey kKeyToKeep("key-to-keep");
@@ -1214,7 +1273,7 @@ TEST_F(SqlPersistentStoreTest, DoomEntryWithCorruptSizeRecovers) {
   EXPECT_EQ(CountDoomedResourcesTable(kKeyToKeep), 0);
 }
 
-TEST_F(SqlPersistentStoreTest, DeleteDoomedEntrySuccess) {
+TEST_P(SqlPersistentStoreTest, DeleteDoomedEntrySuccess) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
 
@@ -1231,7 +1290,7 @@ TEST_F(SqlPersistentStoreTest, DeleteDoomedEntrySuccess) {
   EXPECT_EQ(CountResourcesTable(), 0);
 }
 
-TEST_F(SqlPersistentStoreTest, DeleteDoomedEntryDeletesBlobs) {
+TEST_P(SqlPersistentStoreTest, DeleteDoomedEntryDeletesBlobs) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
   const auto res_id = CreateEntryAndGetResId(kKey);
@@ -1250,7 +1309,7 @@ TEST_F(SqlPersistentStoreTest, DeleteDoomedEntryDeletesBlobs) {
   CheckBlobData(res_id, {});
 }
 
-TEST_F(SqlPersistentStoreTest, DeleteDoomedEntryFailsOnLiveEntry) {
+TEST_P(SqlPersistentStoreTest, DeleteDoomedEntryFailsOnLiveEntry) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
 
@@ -1268,7 +1327,7 @@ TEST_F(SqlPersistentStoreTest, DeleteDoomedEntryFailsOnLiveEntry) {
   EXPECT_EQ(CountResourcesTable(), 1);
 }
 
-TEST_F(SqlPersistentStoreTest, DeleteLiveEntrySuccess) {
+TEST_P(SqlPersistentStoreTest, DeleteLiveEntrySuccess) {
   CreateAndInitStore();
   const CacheEntryKey kKeyToDelete("key-to-delete");
   const CacheEntryKey kKeyToKeep("key-to-keep");
@@ -1305,7 +1364,7 @@ TEST_F(SqlPersistentStoreTest, DeleteLiveEntrySuccess) {
   EXPECT_EQ(CountResourcesTable(), 1);
 }
 
-TEST_F(SqlPersistentStoreTest, DeleteLiveEntryDeletesBlobs) {
+TEST_P(SqlPersistentStoreTest, DeleteLiveEntryDeletesBlobs) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
   const auto res_id = CreateEntryAndGetResId(kKey);
@@ -1317,7 +1376,7 @@ TEST_F(SqlPersistentStoreTest, DeleteLiveEntryDeletesBlobs) {
   CheckBlobData(res_id, {});
 }
 
-TEST_F(SqlPersistentStoreTest, DeleteLiveEntryFailsNotFound) {
+TEST_P(SqlPersistentStoreTest, DeleteLiveEntryFailsNotFound) {
   CreateAndInitStore();
   const CacheEntryKey kKey("non-existent-key");
   ASSERT_EQ(GetEntryCount(), 0);
@@ -1327,7 +1386,7 @@ TEST_F(SqlPersistentStoreTest, DeleteLiveEntryFailsNotFound) {
   ASSERT_EQ(result, SqlPersistentStore::Error::kNotFound);
 }
 
-TEST_F(SqlPersistentStoreTest, DeleteLiveEntryFailsOnDoomedEntry) {
+TEST_P(SqlPersistentStoreTest, DeleteLiveEntryFailsOnDoomedEntry) {
   CreateAndInitStore();
   const CacheEntryKey kDoomedKey("doomed-key");
   const CacheEntryKey kLiveKey("live-key");
@@ -1363,7 +1422,7 @@ TEST_F(SqlPersistentStoreTest, DeleteLiveEntryFailsOnDoomedEntry) {
   EXPECT_EQ(CountDoomedResourcesTable(kLiveKey), 0);
 }
 
-TEST_F(SqlPersistentStoreTest, DeleteLiveEntryNonExistentWithIndex) {
+TEST_P(SqlPersistentStoreTest, DeleteLiveEntryNonExistentWithIndex) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
   CreateEntryAndGetResId(kKey);
@@ -1383,7 +1442,7 @@ TEST_F(SqlPersistentStoreTest, DeleteLiveEntryNonExistentWithIndex) {
   EXPECT_EQ(*error, SqlPersistentStore::Error::kNotFound);
 }
 
-TEST_F(SqlPersistentStoreTest, DeleteLiveEntryWithCorruptSizeRecovers) {
+TEST_P(SqlPersistentStoreTest, DeleteLiveEntryWithCorruptSizeRecovers) {
   CreateAndInitStore();
   const CacheEntryKey kKeyToCorrupt("key-to-corrupt-size");
   const CacheEntryKey kKeyToKeep("key-to-keep");
@@ -1421,7 +1480,7 @@ TEST_F(SqlPersistentStoreTest, DeleteLiveEntryWithCorruptSizeRecovers) {
   EXPECT_EQ(CountResourcesTable(), 1);
 }
 
-TEST_F(SqlPersistentStoreTest, DeleteAllEntriesNonEmpty) {
+TEST_P(SqlPersistentStoreTest, DeleteAllEntriesNonEmpty) {
   CreateAndInitStore();
   const CacheEntryKey kKey1("key1");
   const CacheEntryKey kKey2("key2");
@@ -1451,7 +1510,7 @@ TEST_F(SqlPersistentStoreTest, DeleteAllEntriesNonEmpty) {
   EXPECT_FALSE(open_result->has_value());
 }
 
-TEST_F(SqlPersistentStoreTest, DeleteAllEntriesDeletesBlobs) {
+TEST_P(SqlPersistentStoreTest, DeleteAllEntriesDeletesBlobs) {
   CreateAndInitStore();
   const CacheEntryKey kKey1("key1");
   const auto res_id1 = CreateEntryAndGetResId(kKey1);
@@ -1468,7 +1527,7 @@ TEST_F(SqlPersistentStoreTest, DeleteAllEntriesDeletesBlobs) {
   CheckBlobData(res_id2, {});
 }
 
-TEST_F(SqlPersistentStoreTest, DeleteAllEntriesEmpty) {
+TEST_P(SqlPersistentStoreTest, DeleteAllEntriesEmpty) {
   CreateAndInitStore();
   ASSERT_EQ(GetEntryCount(), 0);
   ASSERT_EQ(GetSizeOfAllEntries(), 0);
@@ -1481,7 +1540,7 @@ TEST_F(SqlPersistentStoreTest, DeleteAllEntriesEmpty) {
   EXPECT_EQ(GetSizeOfAllEntries(), 0);
 }
 
-void SqlPersistentStoreTest::RunCleanupDoomedEntriesTest(
+void SqlPersistentStoreTestBase::RunCleanupDoomedEntriesTest(
     base::OnceClosure trigger_cleanup) {
   CreateAndInitStore();
   const CacheEntryKey kKeyToDoom1("key-to-doom1");
@@ -1555,7 +1614,7 @@ void SqlPersistentStoreTest::RunCleanupDoomedEntriesTest(
   EXPECT_EQ(open_result1.value()->res_id, res_id_to_keep);
 }
 
-TEST_F(SqlPersistentStoreTest,
+TEST_P(SqlPersistentStoreTest,
        MaybeRunCleanupDoomedEntriesAfterLoadInMemoryIndex) {
   RunCleanupDoomedEntriesTest(base::BindLambdaForTesting([&]() {
     // Load the in-memory index to get the list of doomed entry.
@@ -1568,7 +1627,7 @@ TEST_F(SqlPersistentStoreTest,
   }));
 }
 
-TEST_F(SqlPersistentStoreTest,
+TEST_P(SqlPersistentStoreTest,
        MaybeRunCleanupDoomedEntriesWithLoadIndexOnInitFeature) {
   base::test::ScopedFeatureList feature_list;
   feature_list.InitWithFeaturesAndParameters(
@@ -1585,7 +1644,7 @@ TEST_F(SqlPersistentStoreTest,
   }));
 }
 
-TEST_F(SqlPersistentStoreTest, MaybeRunCleanupDoomedEntriesMultipleShards) {
+TEST_P(SqlPersistentStoreTest, MaybeRunCleanupDoomedEntriesMultipleShards) {
   // Add more task runners to have more shards.
   background_task_runners_.emplace_back(
       base::ThreadPool::CreateSequencedTaskRunner({base::MayBlock()}));
@@ -1634,7 +1693,7 @@ TEST_F(SqlPersistentStoreTest, MaybeRunCleanupDoomedEntriesMultipleShards) {
   EXPECT_EQ(future.Get(), SqlPersistentStore::Error::kOk);
 }
 
-TEST_F(SqlPersistentStoreTest, MaybeRunCleanupDoomedEntriesNoDeletion) {
+TEST_P(SqlPersistentStoreTest, MaybeRunCleanupDoomedEntriesNoDeletion) {
   CreateAndInitStore();
 
   // Scenario 1: No entries exist.
@@ -1661,7 +1720,7 @@ TEST_F(SqlPersistentStoreTest, MaybeRunCleanupDoomedEntriesNoDeletion) {
   EXPECT_EQ(CountResourcesTable(), 2);
 }
 
-TEST_F(SqlPersistentStoreTest, ChangeEntryCountOverflowRecovers) {
+TEST_P(SqlPersistentStoreTest, ChangeEntryCountOverflowRecovers) {
   // Create and initialize a store to have a valid DB file.
   CreateAndInitStore();
 
@@ -1695,7 +1754,7 @@ TEST_F(SqlPersistentStoreTest, ChangeEntryCountOverflowRecovers) {
             kSqlBackendStaticResourceSize + kKey.string().size());
 }
 
-TEST_F(SqlPersistentStoreTest, ChangeTotalSizeOverflowRecovers) {
+TEST_P(SqlPersistentStoreTest, ChangeTotalSizeOverflowRecovers) {
   // Create and initialize a store.
   CreateAndInitStore();
 
@@ -1733,7 +1792,7 @@ TEST_F(SqlPersistentStoreTest, ChangeTotalSizeOverflowRecovers) {
 // provides a reasonable estimate for the per-entry overhead in the database. It
 // creates a number of entries and compares the calculated size from the store
 // with the actual size of the database file on disk.
-TEST_F(SqlPersistentStoreTest, StaticResourceSizeEstimation) {
+TEST_P(SqlPersistentStoreTest, StaticResourceSizeEstimation) {
   CreateAndInitStore();
 
   const int kNumEntries = 1000;
@@ -1796,7 +1855,7 @@ TEST_F(SqlPersistentStoreTest, StaticResourceSizeEstimation) {
 }
 
 // Regression test for crbug.com/447751287.
-TEST_F(SqlPersistentStoreTest, DeleteLiveEntriesBetweenOneEntry) {
+TEST_P(SqlPersistentStoreTest, DeleteLiveEntriesBetweenOneEntry) {
   CreateAndInitStore();
   store_->EnableStrictCorruptionCheckForTesting();
   const base::Time kBaseTime = base::Time::Now();
@@ -1808,7 +1867,7 @@ TEST_F(SqlPersistentStoreTest, DeleteLiveEntriesBetweenOneEntry) {
             SqlPersistentStore::Error::kOk);
 }
 
-TEST_F(SqlPersistentStoreTest, DeleteLiveEntriesBetween) {
+TEST_P(SqlPersistentStoreTest, DeleteLiveEntriesBetween) {
   CreateAndInitStore();
   const CacheEntryKey kKey1("key1");
   const CacheEntryKey kKey2("key2-excluded");
@@ -1907,7 +1966,7 @@ TEST_F(SqlPersistentStoreTest, DeleteLiveEntriesBetween) {
   EXPECT_EQ(CountResourcesTable(), 4);
 }
 
-TEST_F(SqlPersistentStoreTest, DeleteLiveEntriesBetweenDeletesBlobs) {
+TEST_P(SqlPersistentStoreTest, DeleteLiveEntriesBetweenDeletesBlobs) {
   CreateAndInitStore();
   const CacheEntryKey kKey1("key1");
   const auto res_id1 = CreateEntryAndGetResId(kKey1);
@@ -1927,7 +1986,7 @@ TEST_F(SqlPersistentStoreTest, DeleteLiveEntriesBetweenDeletesBlobs) {
   CheckBlobData(res_id2, {});             // Should be deleted
 }
 
-TEST_F(SqlPersistentStoreTest, DeleteLiveEntriesBetweenEmptyCache) {
+TEST_P(SqlPersistentStoreTest, DeleteLiveEntriesBetweenEmptyCache) {
   CreateAndInitStore();
   ASSERT_EQ(GetEntryCount(), 0);
   ASSERT_EQ(GetSizeOfAllEntries(), 0);
@@ -1939,7 +1998,7 @@ TEST_F(SqlPersistentStoreTest, DeleteLiveEntriesBetweenEmptyCache) {
   EXPECT_EQ(GetSizeOfAllEntries(), 0);
 }
 
-TEST_F(SqlPersistentStoreTest, DeleteLiveEntriesBetweenNoMatchingEntries) {
+TEST_P(SqlPersistentStoreTest, DeleteLiveEntriesBetweenNoMatchingEntries) {
   CreateAndInitStore();
   const CacheEntryKey kKey1("key1");
 
@@ -1960,7 +2019,7 @@ TEST_F(SqlPersistentStoreTest, DeleteLiveEntriesBetweenNoMatchingEntries) {
   EXPECT_TRUE(OpenEntry(kKey1).value().has_value());
 }
 
-TEST_F(SqlPersistentStoreTest, DeleteLiveEntriesBetweenWithCorruptSize) {
+TEST_P(SqlPersistentStoreTest, DeleteLiveEntriesBetweenWithCorruptSize) {
   CreateAndInitStore();
   const CacheEntryKey kKeyToCorrupt("key-to-corrupt-size");
   const CacheEntryKey kKeyToKeep("key-to-keep");
@@ -2014,7 +2073,7 @@ TEST_F(SqlPersistentStoreTest, DeleteLiveEntriesBetweenWithCorruptSize) {
   EXPECT_TRUE(OpenEntry(kKeyToKeep).value().has_value());
 }
 
-TEST_F(SqlPersistentStoreTest, UpdateEntryLastUsedByKeySuccess) {
+TEST_P(SqlPersistentStoreTest, UpdateEntryLastUsedByKeySuccess) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
 
@@ -2045,7 +2104,7 @@ TEST_F(SqlPersistentStoreTest, UpdateEntryLastUsedByKeySuccess) {
   EXPECT_EQ((*open_result2)->last_used, kNewTime);
 }
 
-TEST_F(SqlPersistentStoreTest, UpdateEntryLastUsedByKeyOnNonExistentEntry) {
+TEST_P(SqlPersistentStoreTest, UpdateEntryLastUsedByKeyOnNonExistentEntry) {
   CreateAndInitStore();
   const CacheEntryKey kKey("non-existent-key");
   ASSERT_EQ(UpdateEntryLastUsedByKey(kKey, base::Time::Now()),
@@ -2053,7 +2112,7 @@ TEST_F(SqlPersistentStoreTest, UpdateEntryLastUsedByKeyOnNonExistentEntry) {
   EXPECT_EQ(GetEntryCount(), 0);
 }
 
-TEST_F(SqlPersistentStoreTest, UpdateEntryLastUsedByKeyOnDoomedEntry) {
+TEST_P(SqlPersistentStoreTest, UpdateEntryLastUsedByKeyOnDoomedEntry) {
   CreateAndInitStore();
   const CacheEntryKey kKey("doomed-key");
 
@@ -2066,7 +2125,7 @@ TEST_F(SqlPersistentStoreTest, UpdateEntryLastUsedByKeyOnDoomedEntry) {
             SqlPersistentStore::Error::kNotFound);
 }
 
-TEST_F(SqlPersistentStoreTest, UpdateEntryLastUsedByKeyNonExistentWithIndex) {
+TEST_P(SqlPersistentStoreTest, UpdateEntryLastUsedByKeyNonExistentWithIndex) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
   CreateEntryAndGetResId(kKey);
@@ -2087,18 +2146,21 @@ TEST_F(SqlPersistentStoreTest, UpdateEntryLastUsedByKeyNonExistentWithIndex) {
 }
 
 class SqlPersistentStoreWriteEntryTest
-    : public SqlPersistentStoreTest,
-      public testing::WithParamInterface<std::tuple<bool, bool, bool>> {
+    : public SqlPersistentStoreTestBase,
+      public testing::WithParamInterface<std::tuple<bool, bool, bool, bool>> {
  public:
   static std::string ParamToString(
-      const testing::TestParamInfo<std::tuple<bool, bool, bool>>& info) {
-    auto [has_hints, has_body, has_head] = info.param;
-    return base::StringPrintf("%s_%s_%s", has_hints ? "HasHints" : "NoHints",
+      const testing::TestParamInfo<std::tuple<bool, bool, bool, bool>>& info) {
+    auto [has_hints, has_body, has_head, wal_mode] = info.param;
+    return base::StringPrintf("%s_%s_%s_%s", has_hints ? "HasHints" : "NoHints",
                               has_body ? "HasBody" : "NoBody",
-                              has_head ? "HasHead" : "NoHead");
+                              has_head ? "HasHead" : "NoHead",
+                              wal_mode ? "Wal" : "NonWal");
   }
 
  protected:
+  bool IsWalModeEnabled() const override { return std::get<3>(GetParam()); }
+
   bool has_hints() const { return std::get<0>(GetParam()); }
   bool has_body() const { return std::get<1>(GetParam()); }
   bool has_head() const { return std::get<2>(GetParam()); }
@@ -2142,6 +2204,7 @@ class SqlPersistentStoreWriteEntryTest
 INSTANTIATE_TEST_SUITE_P(All,
                          SqlPersistentStoreWriteEntryTest,
                          testing::Combine(testing::Bool(),
+                                          testing::Bool(),
                                           testing::Bool(),
                                           testing::Bool()),
                          SqlPersistentStoreWriteEntryTest::ParamToString);
@@ -2630,7 +2693,7 @@ TEST_P(SqlPersistentStoreWriteEntryTest, MultipleBuffers) {
               hints.value_or(MemoryEntryDataHints(0)).value());
 }
 
-TEST_F(SqlPersistentStoreTest, OpenEntryCheckSumError) {
+TEST_P(SqlPersistentStoreTest, OpenEntryCheckSumError) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
   const auto res_id = CreateEntryAndGetResId(kKey);
@@ -2666,7 +2729,7 @@ TEST_F(SqlPersistentStoreTest, OpenEntryCheckSumError) {
   EXPECT_EQ(result.error(), SqlPersistentStore::Error::kCheckSumError);
 }
 
-TEST_F(SqlPersistentStoreTest, WriteAndReadData) {
+TEST_P(SqlPersistentStoreTest, WriteAndReadData) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
   const auto res_id = CreateEntryAndGetResId(kKey);
@@ -2685,7 +2748,7 @@ TEST_F(SqlPersistentStoreTest, WriteAndReadData) {
                              kKey.string().size() + kData.size());
 }
 
-TEST_F(SqlPersistentStoreTest, BlobCheckSum) {
+TEST_P(SqlPersistentStoreTest, BlobCheckSum) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
   const auto res_id = CreateEntryAndGetResId(kKey);
@@ -2703,7 +2766,7 @@ TEST_F(SqlPersistentStoreTest, BlobCheckSum) {
   }
 }
 
-TEST_F(SqlPersistentStoreTest, ReadEntryDataInvalidDataSizeMismatch) {
+TEST_P(SqlPersistentStoreTest, ReadEntryDataInvalidDataSizeMismatch) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
   const auto res_id = CreateEntryAndGetResId(kKey);
@@ -2730,7 +2793,7 @@ TEST_F(SqlPersistentStoreTest, ReadEntryDataInvalidDataSizeMismatch) {
   EXPECT_EQ(read_result.error(), SqlPersistentStore::Error::kInvalidData);
 }
 
-TEST_F(SqlPersistentStoreTest, ReadEntryDataCheckSumError) {
+TEST_P(SqlPersistentStoreTest, ReadEntryDataCheckSumError) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
   const auto res_id = CreateEntryAndGetResId(kKey);
@@ -2756,7 +2819,7 @@ TEST_F(SqlPersistentStoreTest, ReadEntryDataCheckSumError) {
   EXPECT_EQ(read_result.error(), SqlPersistentStore::Error::kCheckSumError);
 }
 
-TEST_F(SqlPersistentStoreTest, ReadEntryDataInvalidDataRangeOverflow) {
+TEST_P(SqlPersistentStoreTest, ReadEntryDataInvalidDataRangeOverflow) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
   const auto res_id = CreateEntryAndGetResId(kKey);
@@ -2779,7 +2842,7 @@ TEST_F(SqlPersistentStoreTest, ReadEntryDataInvalidDataRangeOverflow) {
   EXPECT_EQ(read_result.error(), SqlPersistentStore::Error::kInvalidData);
 }
 
-TEST_F(SqlPersistentStoreTest, TrimOverlappingBlobsInvalidDataSizeMismatch) {
+TEST_P(SqlPersistentStoreTest, TrimOverlappingBlobsInvalidDataSizeMismatch) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
   const auto res_id = CreateEntryAndGetResId(kKey);
@@ -2808,7 +2871,7 @@ TEST_F(SqlPersistentStoreTest, TrimOverlappingBlobsInvalidDataSizeMismatch) {
             SqlPersistentStore::Error::kInvalidData);
 }
 
-TEST_F(SqlPersistentStoreTest, TrimOverlappingBlobsCheckSumError) {
+TEST_P(SqlPersistentStoreTest, TrimOverlappingBlobsCheckSumError) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
   const auto res_id = CreateEntryAndGetResId(kKey);
@@ -2836,7 +2899,7 @@ TEST_F(SqlPersistentStoreTest, TrimOverlappingBlobsCheckSumError) {
             SqlPersistentStore::Error::kCheckSumError);
 }
 
-TEST_F(SqlPersistentStoreTest, TrimOverlappingBlobsInvalidDataRangeOverflow) {
+TEST_P(SqlPersistentStoreTest, TrimOverlappingBlobsInvalidDataRangeOverflow) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
   const auto res_id = CreateEntryAndGetResId(kKey);
@@ -2861,7 +2924,7 @@ TEST_F(SqlPersistentStoreTest, TrimOverlappingBlobsInvalidDataRangeOverflow) {
             SqlPersistentStore::Error::kInvalidData);
 }
 
-TEST_F(SqlPersistentStoreTest, TruncateExistingBlobsInvalidDataSizeMismatch) {
+TEST_P(SqlPersistentStoreTest, TruncateExistingBlobsInvalidDataSizeMismatch) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
   const auto res_id = CreateEntryAndGetResId(kKey);
@@ -2886,7 +2949,7 @@ TEST_F(SqlPersistentStoreTest, TruncateExistingBlobsInvalidDataSizeMismatch) {
             SqlPersistentStore::Error::kInvalidData);
 }
 
-TEST_F(SqlPersistentStoreTest, TruncateExistingBlobsInvalidDataRangeOverflow) {
+TEST_P(SqlPersistentStoreTest, TruncateExistingBlobsInvalidDataRangeOverflow) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
   const auto res_id = CreateEntryAndGetResId(kKey);
@@ -2907,7 +2970,7 @@ TEST_F(SqlPersistentStoreTest, TruncateExistingBlobsInvalidDataRangeOverflow) {
             SqlPersistentStore::Error::kInvalidData);
 }
 
-TEST_F(SqlPersistentStoreTest, WriteEntryDataInvalidArgument) {
+TEST_P(SqlPersistentStoreTest, WriteEntryDataInvalidArgument) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
   const auto res_id = CreateEntryAndGetResId(kKey);
@@ -2953,7 +3016,7 @@ TEST_F(SqlPersistentStoreTest, WriteEntryDataInvalidArgument) {
             SqlPersistentStore::Error::kInvalidArgument);
 }
 
-TEST_F(SqlPersistentStoreTest, WriteEntryDataInvalidDataBodyEndMismatch) {
+TEST_P(SqlPersistentStoreTest, WriteEntryDataInvalidDataBodyEndMismatch) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
   const auto res_id = CreateEntryAndGetResId(kKey);
@@ -2978,7 +3041,7 @@ TEST_F(SqlPersistentStoreTest, WriteEntryDataInvalidDataBodyEndMismatch) {
             SqlPersistentStore::Error::kBodyEndMismatch);
 }
 
-TEST_F(SqlPersistentStoreTest, ReadEntryDataInvalidArgument) {
+TEST_P(SqlPersistentStoreTest, ReadEntryDataInvalidArgument) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
   const auto res_id = CreateEntryAndGetResId(kKey);
@@ -3011,7 +3074,7 @@ TEST_F(SqlPersistentStoreTest, ReadEntryDataInvalidArgument) {
   EXPECT_EQ(result.error(), SqlPersistentStore::Error::kInvalidArgument);
 }
 
-TEST_F(SqlPersistentStoreTest, OverwriteEntryData) {
+TEST_P(SqlPersistentStoreTest, OverwriteEntryData) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
   const auto res_id = CreateEntryAndGetResId(kKey);
@@ -3034,7 +3097,7 @@ TEST_F(SqlPersistentStoreTest, OverwriteEntryData) {
   CheckBlobData(res_id, {{0, "12"}, {2, "abc"}, {5, "67890"}});
 }
 
-TEST_F(SqlPersistentStoreTest, AppendEntryData) {
+TEST_P(SqlPersistentStoreTest, AppendEntryData) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
   const auto res_id = CreateEntryAndGetResId(kKey);
@@ -3057,7 +3120,7 @@ TEST_F(SqlPersistentStoreTest, AppendEntryData) {
                              kKey.string().size() + new_body_end);
 }
 
-TEST_F(SqlPersistentStoreTest, TruncateEntryData) {
+TEST_P(SqlPersistentStoreTest, TruncateEntryData) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
   const auto res_id = CreateEntryAndGetResId(kKey);
@@ -3078,7 +3141,7 @@ TEST_F(SqlPersistentStoreTest, TruncateEntryData) {
                              kKey.string().size() + new_body_end);
 }
 
-TEST_F(SqlPersistentStoreTest, TruncateWithNullBuffer) {
+TEST_P(SqlPersistentStoreTest, TruncateWithNullBuffer) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
   const auto res_id = CreateEntryAndGetResId(kKey);
@@ -3109,7 +3172,7 @@ TEST_F(SqlPersistentStoreTest, TruncateWithNullBuffer) {
                              kKey.string().size() + kTruncateOffset);
 }
 
-TEST_F(SqlPersistentStoreTest, TruncateOverlappingMultipleBlobs) {
+TEST_P(SqlPersistentStoreTest, TruncateOverlappingMultipleBlobs) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
   const auto res_id = CreateEntryAndGetResId(kKey);
@@ -3136,7 +3199,7 @@ TEST_F(SqlPersistentStoreTest, TruncateOverlappingMultipleBlobs) {
                              kKey.string().size() + new_body_end);
 }
 
-TEST_F(SqlPersistentStoreTest, TruncateMultipleBlobsWithZeroLengthWrite) {
+TEST_P(SqlPersistentStoreTest, TruncateMultipleBlobsWithZeroLengthWrite) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
   const auto res_id = CreateEntryAndGetResId(kKey);
@@ -3164,7 +3227,7 @@ TEST_F(SqlPersistentStoreTest, TruncateMultipleBlobsWithZeroLengthWrite) {
                              kKey.string().size() + new_body_end);
 }
 
-TEST_F(SqlPersistentStoreTest, OverwriteMultipleBlobsWithoutTruncate) {
+TEST_P(SqlPersistentStoreTest, OverwriteMultipleBlobsWithoutTruncate) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
   const auto res_id = CreateEntryAndGetResId(kKey);
@@ -3188,7 +3251,7 @@ TEST_F(SqlPersistentStoreTest, OverwriteMultipleBlobsWithoutTruncate) {
                              kKey.string().size() + new_body_end);
 }
 
-TEST_F(SqlPersistentStoreTest, WriteToDoomedEntry) {
+TEST_P(SqlPersistentStoreTest, WriteToDoomedEntry) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
   const auto res_id = CreateEntryAndGetResId(kKey);
@@ -3204,7 +3267,7 @@ TEST_F(SqlPersistentStoreTest, WriteToDoomedEntry) {
                              kKey.string().size() + kData.size());
 }
 
-TEST_F(SqlPersistentStoreTest, WriteEntryDataNotFound) {
+TEST_P(SqlPersistentStoreTest, WriteEntryDataNotFound) {
   CreateAndInitStore();
   const CacheEntryKey kKey("non-existent-key");
   auto write_buffer = base::MakeRefCounted<net::StringIOBuffer>("data");
@@ -3216,7 +3279,7 @@ TEST_F(SqlPersistentStoreTest, WriteEntryDataNotFound) {
       SqlPersistentStore::Error::kNotFound);
 }
 
-TEST_F(SqlPersistentStoreTest, WriteEntryDataNullBufferNoTruncate) {
+TEST_P(SqlPersistentStoreTest, WriteEntryDataNullBufferNoTruncate) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
   const auto res_id = CreateEntryAndGetResId(kKey);
@@ -3248,7 +3311,7 @@ TEST_F(SqlPersistentStoreTest, WriteEntryDataNullBufferNoTruncate) {
                              kKey.string().size() + kInitialData.size());
 }
 
-TEST_F(SqlPersistentStoreTest, WriteEntryDataZeroLengthBufferNoTruncate) {
+TEST_P(SqlPersistentStoreTest, WriteEntryDataZeroLengthBufferNoTruncate) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
   const auto res_id = CreateEntryAndGetResId(kKey);
@@ -3281,7 +3344,7 @@ TEST_F(SqlPersistentStoreTest, WriteEntryDataZeroLengthBufferNoTruncate) {
                              kKey.string().size() + kInitialData.size());
 }
 
-TEST_F(SqlPersistentStoreTest, TruncateWithNullBufferExtendingBody) {
+TEST_P(SqlPersistentStoreTest, TruncateWithNullBufferExtendingBody) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
   const auto res_id = CreateEntryAndGetResId(kKey);
@@ -3312,7 +3375,7 @@ TEST_F(SqlPersistentStoreTest, TruncateWithNullBufferExtendingBody) {
                              kKey.string().size() + kInitialData.size());
 }
 
-TEST_F(SqlPersistentStoreTest, ExtendWithNullBufferNoTruncate) {
+TEST_P(SqlPersistentStoreTest, ExtendWithNullBufferNoTruncate) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
   const auto res_id = CreateEntryAndGetResId(kKey);
@@ -3344,7 +3407,7 @@ TEST_F(SqlPersistentStoreTest, ExtendWithNullBufferNoTruncate) {
                              kKey.string().size() + kInitialData.size());
 }
 
-TEST_F(SqlPersistentStoreTest, WriteEntryDataComplexOverlap) {
+TEST_P(SqlPersistentStoreTest, WriteEntryDataComplexOverlap) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
   const auto res_id = CreateEntryAndGetResId(kKey);
@@ -3428,7 +3491,7 @@ TEST_F(SqlPersistentStoreTest, WriteEntryDataComplexOverlap) {
   VerifyBodyEndAndBytesUsage(kKey, 16, kKey.string().size() + 11);
 }
 
-TEST_F(SqlPersistentStoreTest, WriteEntryDataWithMultipleBuffers) {
+TEST_P(SqlPersistentStoreTest, WriteEntryDataWithMultipleBuffers) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
   const auto res_id = CreateEntryAndGetResId(kKey);
@@ -3461,7 +3524,7 @@ TEST_F(SqlPersistentStoreTest, WriteEntryDataWithMultipleBuffers) {
   CheckBlobData(res_id, {{0, kCombinedData}});
 }
 
-TEST_F(SqlPersistentStoreTest, WriteEntryDataCreatesNew) {
+TEST_P(SqlPersistentStoreTest, WriteEntryDataCreatesNew) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
   const std::string kData = "more data";
@@ -3487,7 +3550,7 @@ TEST_F(SqlPersistentStoreTest, WriteEntryDataCreatesNew) {
   CheckBlobData(res_id, {{0, kData}});
 }
 
-TEST_F(SqlPersistentStoreTest, WriteEntryDataCreatesNewDoomed) {
+TEST_P(SqlPersistentStoreTest, WriteEntryDataCreatesNewDoomed) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
   const std::string kData = "more data";
@@ -3525,7 +3588,7 @@ TEST_F(SqlPersistentStoreTest, WriteEntryDataCreatesNewDoomed) {
   EXPECT_FALSE(open_result->has_value());
 }
 
-TEST_F(SqlPersistentStoreTest, SparseRead) {
+TEST_P(SqlPersistentStoreTest, SparseRead) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
   const auto res_id = CreateEntryAndGetResId(kKey);
@@ -3572,7 +3635,7 @@ TEST_F(SqlPersistentStoreTest, SparseRead) {
   CheckBlobData(res_id, {{0, kData1}, {offset2, kData2}});
 }
 
-TEST_F(SqlPersistentStoreTest, GetEntryAvailableRangeNoData) {
+TEST_P(SqlPersistentStoreTest, GetEntryAvailableRangeNoData) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
   const auto res_id = CreateEntryAndGetResId(kKey);
@@ -3583,7 +3646,7 @@ TEST_F(SqlPersistentStoreTest, GetEntryAvailableRangeNoData) {
   EXPECT_EQ(result.available_len, 0);
 }
 
-TEST_F(SqlPersistentStoreTest, GetEntryAvailableRangeNoOverlap) {
+TEST_P(SqlPersistentStoreTest, GetEntryAvailableRangeNoOverlap) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
   const auto res_id = CreateEntryAndGetResId(kKey);
@@ -3605,7 +3668,7 @@ TEST_F(SqlPersistentStoreTest, GetEntryAvailableRangeNoOverlap) {
   EXPECT_EQ(result2.available_len, 0);
 }
 
-TEST_F(SqlPersistentStoreTest, GetEntryAvailableRangeFullOverlap) {
+TEST_P(SqlPersistentStoreTest, GetEntryAvailableRangeFullOverlap) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
   const auto res_id = CreateEntryAndGetResId(kKey);
@@ -3620,7 +3683,7 @@ TEST_F(SqlPersistentStoreTest, GetEntryAvailableRangeFullOverlap) {
 
 // Tests a query range that ends within the existing data.
 // Query: [50, 150), Data: [100, 200) -> Overlap: [100, 150)
-TEST_F(SqlPersistentStoreTest, GetEntryAvailableRangeQueryEndsInData) {
+TEST_P(SqlPersistentStoreTest, GetEntryAvailableRangeQueryEndsInData) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
   const auto res_id = CreateEntryAndGetResId(kKey);
@@ -3635,7 +3698,7 @@ TEST_F(SqlPersistentStoreTest, GetEntryAvailableRangeQueryEndsInData) {
 
 // Tests a query range that starts within the existing data.
 // Query: [150, 250), Data: [100, 200) -> Overlap: [150, 200)
-TEST_F(SqlPersistentStoreTest, GetEntryAvailableRangeQueryStartsInData) {
+TEST_P(SqlPersistentStoreTest, GetEntryAvailableRangeQueryStartsInData) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
   const auto res_id = CreateEntryAndGetResId(kKey);
@@ -3650,7 +3713,7 @@ TEST_F(SqlPersistentStoreTest, GetEntryAvailableRangeQueryStartsInData) {
 
 // Tests a query range that fully contains the existing data.
 // Query: [50, 250), Data: [100, 200) -> Overlap: [100, 200)
-TEST_F(SqlPersistentStoreTest, GetEntryAvailableRangeQueryContainsData) {
+TEST_P(SqlPersistentStoreTest, GetEntryAvailableRangeQueryContainsData) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
   const auto res_id = CreateEntryAndGetResId(kKey);
@@ -3663,7 +3726,7 @@ TEST_F(SqlPersistentStoreTest, GetEntryAvailableRangeQueryContainsData) {
   EXPECT_EQ(result.available_len, 100);
 }
 
-TEST_F(SqlPersistentStoreTest, GetEntryAvailableRangeContained) {
+TEST_P(SqlPersistentStoreTest, GetEntryAvailableRangeContained) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
   const auto res_id = CreateEntryAndGetResId(kKey);
@@ -3676,7 +3739,7 @@ TEST_F(SqlPersistentStoreTest, GetEntryAvailableRangeContained) {
   EXPECT_EQ(result.available_len, 100);
 }
 
-TEST_F(SqlPersistentStoreTest, GetEntryAvailableRangeContiguousBlobs) {
+TEST_P(SqlPersistentStoreTest, GetEntryAvailableRangeContiguousBlobs) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
   const auto res_id = CreateEntryAndGetResId(kKey);
@@ -3690,7 +3753,7 @@ TEST_F(SqlPersistentStoreTest, GetEntryAvailableRangeContiguousBlobs) {
   EXPECT_EQ(result.available_len, 200);
 }
 
-TEST_F(SqlPersistentStoreTest, GetEntryAvailableRangeNonContiguousBlobs) {
+TEST_P(SqlPersistentStoreTest, GetEntryAvailableRangeNonContiguousBlobs) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
   const auto res_id = CreateEntryAndGetResId(kKey);
@@ -3704,7 +3767,7 @@ TEST_F(SqlPersistentStoreTest, GetEntryAvailableRangeNonContiguousBlobs) {
   EXPECT_EQ(result.available_len, 100);
 }
 
-TEST_F(SqlPersistentStoreTest, GetEntryAvailableRangeMultipleBlobsStopsAtGap) {
+TEST_P(SqlPersistentStoreTest, GetEntryAvailableRangeMultipleBlobsStopsAtGap) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
   const auto res_id = CreateEntryAndGetResId(kKey);
@@ -3721,13 +3784,13 @@ TEST_F(SqlPersistentStoreTest, GetEntryAvailableRangeMultipleBlobsStopsAtGap) {
   EXPECT_EQ(result.available_len, 150);
 }
 
-TEST_F(SqlPersistentStoreTest, OpenNextEntryEmptyCache) {
+TEST_P(SqlPersistentStoreTest, OpenNextEntryEmptyCache) {
   CreateAndInitStore();
   auto result = OpenNextEntry(SqlPersistentStore::EntryIterator());
   EXPECT_FALSE(result.has_value());
 }
 
-TEST_F(SqlPersistentStoreTest, OpenNextEntrySingleEntry) {
+TEST_P(SqlPersistentStoreTest, OpenNextEntrySingleEntry) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
 
@@ -3748,7 +3811,7 @@ TEST_F(SqlPersistentStoreTest, OpenNextEntrySingleEntry) {
   EXPECT_FALSE(next_result2.has_value());
 }
 
-TEST_F(SqlPersistentStoreTest, OpenNextEntryMultipleEntries) {
+TEST_P(SqlPersistentStoreTest, OpenNextEntryMultipleEntries) {
   CreateAndInitStore();
   const CacheEntryKey kKey1("key1");
   const CacheEntryKey kKey2("key2");
@@ -3779,7 +3842,7 @@ TEST_F(SqlPersistentStoreTest, OpenNextEntryMultipleEntries) {
   EXPECT_FALSE(next_result.has_value());
 }
 
-TEST_F(SqlPersistentStoreTest, OpenNextEntrySkipsDoomed) {
+TEST_P(SqlPersistentStoreTest, OpenNextEntrySkipsDoomed) {
   CreateAndInitStore();
   const CacheEntryKey kKey1("key1");
   const CacheEntryKey kKeyToDoom("key-to-doom");
@@ -3806,7 +3869,7 @@ TEST_F(SqlPersistentStoreTest, OpenNextEntrySkipsDoomed) {
   EXPECT_FALSE(next_result.has_value());
 }
 
-TEST_F(SqlPersistentStoreTest, InitializeCallbackNotRunOnStoreDestruction) {
+TEST_P(SqlPersistentStoreTest, InitializeCallbackNotRunOnStoreDestruction) {
   CreateStore();
   bool callback_run = false;
   store_->Initialize(base::BindLambdaForTesting(
@@ -3819,7 +3882,7 @@ TEST_F(SqlPersistentStoreTest, InitializeCallbackNotRunOnStoreDestruction) {
   EXPECT_FALSE(callback_run);
 }
 
-TEST_F(SqlPersistentStoreTest, CreateEntryCallbackNotRunOnStoreDestruction) {
+TEST_P(SqlPersistentStoreTest, CreateEntryCallbackNotRunOnStoreDestruction) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
   bool callback_run = false;
@@ -3834,7 +3897,7 @@ TEST_F(SqlPersistentStoreTest, CreateEntryCallbackNotRunOnStoreDestruction) {
   EXPECT_FALSE(callback_run);
 }
 
-TEST_F(SqlPersistentStoreTest, OpenEntryCallbackNotRunOnStoreDestruction) {
+TEST_P(SqlPersistentStoreTest, OpenEntryCallbackNotRunOnStoreDestruction) {
   const CacheEntryKey kKey("my-key");
   CreateAndInitStore();
   ASSERT_TRUE(CreateEntry(kKey).has_value());
@@ -3853,7 +3916,7 @@ TEST_F(SqlPersistentStoreTest, OpenEntryCallbackNotRunOnStoreDestruction) {
   EXPECT_FALSE(callback_run);
 }
 
-TEST_F(SqlPersistentStoreTest,
+TEST_P(SqlPersistentStoreTest,
        OpenOrCreateEntryCallbackNotRunOnStoreDestruction) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
@@ -3869,7 +3932,7 @@ TEST_F(SqlPersistentStoreTest,
   EXPECT_FALSE(callback_run);
 }
 
-TEST_F(SqlPersistentStoreTest, DoomEntryCallbackNotRunOnStoreDestruction) {
+TEST_P(SqlPersistentStoreTest, DoomEntryCallbackNotRunOnStoreDestruction) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
   const auto res_id = CreateEntryAndGetResId(kKey);
@@ -3884,7 +3947,7 @@ TEST_F(SqlPersistentStoreTest, DoomEntryCallbackNotRunOnStoreDestruction) {
   EXPECT_FALSE(callback_run);
 }
 
-TEST_F(SqlPersistentStoreTest,
+TEST_P(SqlPersistentStoreTest,
        DeleteDoomedEntryCallbackNotRunOnStoreDestruction) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
@@ -3902,7 +3965,7 @@ TEST_F(SqlPersistentStoreTest,
   EXPECT_FALSE(callback_run);
 }
 
-TEST_F(SqlPersistentStoreTest,
+TEST_P(SqlPersistentStoreTest,
        DeleteLiveEntryCallbackNotRunOnStoreDestruction) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
@@ -3918,7 +3981,7 @@ TEST_F(SqlPersistentStoreTest,
   EXPECT_FALSE(callback_run);
 }
 
-TEST_F(SqlPersistentStoreTest,
+TEST_P(SqlPersistentStoreTest,
        DeleteAllEntriesCallbackNotRunOnStoreDestruction) {
   CreateAndInitStore();
   bool callback_run = false;
@@ -3931,7 +3994,7 @@ TEST_F(SqlPersistentStoreTest,
   EXPECT_FALSE(callback_run);
 }
 
-TEST_F(SqlPersistentStoreTest, OpenNextEntryCallbackNotRunOnStoreDestruction) {
+TEST_P(SqlPersistentStoreTest, OpenNextEntryCallbackNotRunOnStoreDestruction) {
   CreateAndInitStore();
   bool callback_run = false;
 
@@ -3947,7 +4010,7 @@ TEST_F(SqlPersistentStoreTest, OpenNextEntryCallbackNotRunOnStoreDestruction) {
   EXPECT_FALSE(callback_run);
 }
 
-TEST_F(SqlPersistentStoreTest,
+TEST_P(SqlPersistentStoreTest,
        DeleteLiveEntriesBetweenCallbackNotRunOnStoreDestruction) {
   CreateAndInitStore();
   bool callback_run = false;
@@ -3962,7 +4025,7 @@ TEST_F(SqlPersistentStoreTest,
   EXPECT_FALSE(callback_run);
 }
 
-TEST_F(SqlPersistentStoreTest,
+TEST_P(SqlPersistentStoreTest,
        UpdateEntryLastUsedByKeyCallbackNotRunOnStoreDestruction) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
@@ -3979,7 +4042,7 @@ TEST_F(SqlPersistentStoreTest,
   EXPECT_FALSE(callback_run);
 }
 
-TEST_F(SqlPersistentStoreTest,
+TEST_P(SqlPersistentStoreTest,
        UpdateLastUsedByResIdCallbackNotRunOnStoreDestruction) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
@@ -3999,7 +4062,7 @@ TEST_F(SqlPersistentStoreTest,
   EXPECT_FALSE(callback_run);
 }
 
-TEST_F(SqlPersistentStoreTest,
+TEST_P(SqlPersistentStoreTest,
        UpdateEntryHeaderAndLastUsedCallbackNotRunOnStoreDestruction) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
@@ -4020,7 +4083,7 @@ TEST_F(SqlPersistentStoreTest,
   EXPECT_FALSE(callback_run);
 }
 
-TEST_F(SqlPersistentStoreTest, WriteDataCallbackNotRunOnStoreDestruction) {
+TEST_P(SqlPersistentStoreTest, WriteDataCallbackNotRunOnStoreDestruction) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
   const auto res_id = CreateEntryAndGetResId(kKey);
@@ -4038,7 +4101,7 @@ TEST_F(SqlPersistentStoreTest, WriteDataCallbackNotRunOnStoreDestruction) {
   EXPECT_FALSE(callback_run);
 }
 
-TEST_F(SqlPersistentStoreTest, ReadDataCallbackNotRunOnStoreDestruction) {
+TEST_P(SqlPersistentStoreTest, ReadDataCallbackNotRunOnStoreDestruction) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
   const auto res_id = CreateEntryAndGetResId(kKey);
@@ -4054,7 +4117,7 @@ TEST_F(SqlPersistentStoreTest, ReadDataCallbackNotRunOnStoreDestruction) {
   EXPECT_FALSE(callback_run);
 }
 
-TEST_F(SqlPersistentStoreTest, CalculateSizeOfEntriesBetween) {
+TEST_P(SqlPersistentStoreTest, CalculateSizeOfEntriesBetween) {
   CreateAndInitStore();
 
   // Empty cache.
@@ -4131,7 +4194,7 @@ TEST_F(SqlPersistentStoreTest, CalculateSizeOfEntriesBetween) {
   EXPECT_EQ(result.value(), 0);
 }
 
-TEST_F(SqlPersistentStoreTest, CalculateSizeOfEntriesBetweenOverflow) {
+TEST_P(SqlPersistentStoreTest, CalculateSizeOfEntriesBetweenOverflow) {
   CreateAndInitStore();
 
   const CacheEntryKey kKey1("key1");
@@ -4168,7 +4231,7 @@ TEST_F(SqlPersistentStoreTest, CalculateSizeOfEntriesBetweenOverflow) {
   EXPECT_EQ(result.value(), std::numeric_limits<int64_t>::max());
 }
 
-TEST_F(SqlPersistentStoreTest, CalculateSizeOfEntriesBetweenExcludesDoomed) {
+TEST_P(SqlPersistentStoreTest, CalculateSizeOfEntriesBetweenExcludesDoomed) {
   CreateAndInitStore();
 
   const CacheEntryKey kKey1("key1");
@@ -4206,7 +4269,7 @@ TEST_F(SqlPersistentStoreTest, CalculateSizeOfEntriesBetweenExcludesDoomed) {
   EXPECT_EQ(result.value(), size2);
 }
 
-TEST_F(SqlPersistentStoreTest,
+TEST_P(SqlPersistentStoreTest,
        GetEntryAvailableRangeCallbackNotRunOnStoreDestruction) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
@@ -4223,7 +4286,7 @@ TEST_F(SqlPersistentStoreTest,
   EXPECT_FALSE(callback_run);
 }
 
-TEST_F(SqlPersistentStoreTest,
+TEST_P(SqlPersistentStoreTest,
        CalculateSizeOfEntriesBetweenCallbackNotRunOnStoreDestruction) {
   CreateAndInitStore();
   bool callback_run = false;
@@ -4238,7 +4301,7 @@ TEST_F(SqlPersistentStoreTest,
   EXPECT_FALSE(callback_run);
 }
 
-TEST_F(SqlPersistentStoreTest,
+TEST_P(SqlPersistentStoreTest,
        ShouldStartEvictionReturnsTrueWhenSizeExceedsHighWatermark) {
   // Use a small max_bytes to make it easy to cross the high watermark.
   const int64_t kMaxBytes = 10000;
@@ -4269,7 +4332,7 @@ TEST_F(SqlPersistentStoreTest,
             SqlPersistentStore::EvictionUrgency::kNeeded);
 }
 
-TEST_F(SqlPersistentStoreTest, StartEvictionReducesSizeToLowWatermark) {
+TEST_P(SqlPersistentStoreTest, StartEvictionReducesSizeToLowWatermark) {
   const int64_t kMaxBytes = 10000;
   const int64_t kHighWatermark =
       kMaxBytes * kSqlBackendEvictionHighWaterMarkPermille / 1000;  // 9500
@@ -4332,7 +4395,7 @@ TEST_F(SqlPersistentStoreTest, StartEvictionReducesSizeToLowWatermark) {
             SqlPersistentStore::EvictionUrgency::kNeeded);
 }
 
-TEST_F(SqlPersistentStoreTest, StartEvictionExcludesGivenKeys) {
+TEST_P(SqlPersistentStoreTest, StartEvictionExcludesGivenKeys) {
   const int64_t kMaxBytes = 10000;
   const int64_t kHighWatermark =
       kMaxBytes * kSqlBackendEvictionHighWaterMarkPermille / 1000;  // 9500
@@ -4401,7 +4464,7 @@ TEST_F(SqlPersistentStoreTest, StartEvictionExcludesGivenKeys) {
             SqlPersistentStore::EvictionUrgency::kNeeded);
 }
 
-TEST_F(SqlPersistentStoreTest, ShouldStartEvictionReturnsFalseWhileInProgress) {
+TEST_P(SqlPersistentStoreTest, ShouldStartEvictionReturnsFalseWhileInProgress) {
   const int64_t kMaxBytes = 10000;
   const int64_t kHighWatermark =
       kMaxBytes * kSqlBackendEvictionHighWaterMarkPermille / 1000;  // 9500
@@ -4439,10 +4502,10 @@ TEST_F(SqlPersistentStoreTest, ShouldStartEvictionReturnsFalseWhileInProgress) {
 }
 
 int64_t CheckedGetFileSize(const base::FilePath& file_path) {
-  return base::GetFileSize(file_path).value();
+  return base::GetFileSize(file_path).value_or(0);
 }
 
-int SqlPersistentStoreTest::GetNumberForWritesRequiredForCheckpoint(
+int SqlPersistentStoreTestBase::GetNumberForWritesRequiredForCheckpoint(
     const CacheEntryKey& entry_key,
     std::string_view data) {
   base::ScopedTempDir temp_dir;
@@ -4489,8 +4552,8 @@ int SqlPersistentStoreTest::GetNumberForWritesRequiredForCheckpoint(
   return number_of_writes;
 }
 
-void SqlPersistentStoreTest::RunWalCheckpointTest(bool serial_checkpoint,
-                                                  bool multiple_shards) {
+void SqlPersistentStoreTestBase::RunWalCheckpointTest(bool serial_checkpoint,
+                                                      bool multiple_shards) {
   // Set small thresholds to shorten the test execution time.
   base::test::ScopedFeatureList feature_list;
   feature_list.InitWithFeaturesAndParameters(
@@ -4499,7 +4562,8 @@ void SqlPersistentStoreTest::RunWalCheckpointTest(bool serial_checkpoint,
          {net::features::kSqlDiskCacheForceCheckpointThreshold.name, "200"},
          {net::features::kSqlDiskCacheIdleCheckpointThreshold.name, "100"},
          {net::features::kSqlDiskCacheSerialCheckpoint.name,
-          serial_checkpoint ? "true" : "false"}}}},
+          serial_checkpoint ? "true" : "false"},
+         {net::features::kSqlDiskCacheWalMode.name, "true"}}}},
       {});
 
   if (multiple_shards) {
@@ -4606,23 +4670,28 @@ void SqlPersistentStoreTest::RunWalCheckpointTest(bool serial_checkpoint,
   ASSERT_NE(CheckedGetFileSize(db_path), previous_db_size);
 }
 
-TEST_F(SqlPersistentStoreTest, WalCheckpoint) {
+class SqlPersistentStoreWalModeTest : public SqlPersistentStoreTestBase {
+ protected:
+  bool IsWalModeEnabled() const override { return true; }
+};
+
+TEST_F(SqlPersistentStoreWalModeTest, WalCheckpoint) {
   RunWalCheckpointTest(/*serial_checkpoint=*/false, /*multiple_shards=*/false);
 }
 
-TEST_F(SqlPersistentStoreTest, WalCheckpointSerial) {
+TEST_F(SqlPersistentStoreWalModeTest, WalCheckpointSerial) {
   RunWalCheckpointTest(/*serial_checkpoint=*/true, /*multiple_shards=*/false);
 }
 
-TEST_F(SqlPersistentStoreTest, WalCheckpointMultipleShards) {
+TEST_F(SqlPersistentStoreWalModeTest, WalCheckpointMultipleShards) {
   RunWalCheckpointTest(/*serial_checkpoint=*/false, /*multiple_shards=*/true);
 }
 
-TEST_F(SqlPersistentStoreTest, WalCheckpointSerialMultipleShards) {
+TEST_F(SqlPersistentStoreWalModeTest, WalCheckpointSerialMultipleShards) {
   RunWalCheckpointTest(/*serial_checkpoint=*/true, /*multiple_shards=*/true);
 }
 
-TEST_F(SqlPersistentStoreTest, IndexState) {
+TEST_P(SqlPersistentStoreTest, IndexState) {
   const CacheEntryKey kKey1("key1");
   const CacheEntryKey kKey2("key2");
 
@@ -4706,7 +4775,7 @@ TEST_F(SqlPersistentStoreTest, IndexState) {
 }
 
 // Test index reloading from a non-empty database.
-TEST_F(SqlPersistentStoreTest, IndexReloads) {
+TEST_P(SqlPersistentStoreTest, IndexReloads) {
   const CacheEntryKey kKey1("key1");
   const CacheEntryKey kKey2("key2");
 
@@ -4739,7 +4808,7 @@ TEST_F(SqlPersistentStoreTest, IndexReloads) {
             SqlPersistentStore::IndexState::kHashNotFound);
 }
 
-TEST_F(SqlPersistentStoreTest, LoadIndexOnInitFeature) {
+TEST_P(SqlPersistentStoreTest, LoadIndexOnInitFeature) {
   base::test::ScopedFeatureList feature_list;
   feature_list.InitWithFeaturesAndParameters(
       {{net::features::kDiskCacheBackendExperiment,
@@ -4772,18 +4841,18 @@ TEST_F(SqlPersistentStoreTest, LoadIndexOnInitFeature) {
   EXPECT_TRUE(LoadInMemoryIndex());
 }
 
-TEST_F(SqlPersistentStoreTest, IndexLoadNotInitializedFailure) {
+TEST_P(SqlPersistentStoreTest, IndexLoadNotInitializedFailure) {
   CreateStore();
   EXPECT_TRUE(LoadInMemoryIndex(SqlPersistentStore::Error::kNotInitialized));
 }
 
-TEST_F(SqlPersistentStoreTest, SimulateDbFailureInitializationFailure) {
+TEST_P(SqlPersistentStoreTest, SimulateDbFailureInitializationFailure) {
   CreateStore();
   store_->SetSimulateDbFailureForTesting(true);
   ASSERT_EQ(Init(), SqlPersistentStore::Error::kFailedForTesting);
 }
 
-TEST_F(SqlPersistentStoreTest, SimulateDbFailure) {
+TEST_P(SqlPersistentStoreTest, SimulateDbFailure) {
   CreateAndInitStore();
 
   store_->SetSimulateDbFailureForTesting(true);
@@ -4869,7 +4938,7 @@ TEST_F(SqlPersistentStoreTest, SimulateDbFailure) {
   ASSERT_TRUE(open_result->has_value());
 }
 
-TEST_F(SqlPersistentStoreTest, AfterRazeAndPoisoned) {
+TEST_P(SqlPersistentStoreTest, AfterRazeAndPoisoned) {
   CreateAndInitStore();
 
   store_->RazeAndPoisonForTesting();
@@ -4945,7 +5014,7 @@ TEST_F(SqlPersistentStoreTest, AfterRazeAndPoisoned) {
   EXPECT_TRUE(LoadInMemoryIndex(SqlPersistentStore::Error::kDatabaseClosed));
 }
 
-TEST_F(SqlPersistentStoreTest,
+TEST_P(SqlPersistentStoreTest,
        ShouldStartEvictionReturnsFalseAfterRazeAndPoisoned) {
   // Use a small max_bytes to make it easy to cross the high watermark.
   const int64_t kMaxBytes = 10000;
@@ -4976,7 +5045,7 @@ TEST_F(SqlPersistentStoreTest,
             SqlPersistentStore::EvictionUrgency::kNeeded);
 }
 
-TEST_F(SqlPersistentStoreTest, GetEvictionUrgency) {
+TEST_P(SqlPersistentStoreTest, GetEvictionUrgency) {
   const int64_t kMaxBytes = 10000;
   const int64_t kHighWatermark =
       kMaxBytes * kSqlBackendEvictionHighWaterMarkPermille / 1000;  // 9500
@@ -5012,7 +5081,7 @@ TEST_F(SqlPersistentStoreTest, GetEvictionUrgency) {
             SqlPersistentStore::EvictionUrgency::kNeeded);
 }
 
-TEST_F(SqlPersistentStoreTest, IdleTimeEviction) {
+TEST_P(SqlPersistentStoreTest, IdleTimeEviction) {
   const int64_t kMaxBytes = 10000;
   const int64_t kIdleTimeHighWatermark =
       kMaxBytes * kSqlBackendIdleTimeEvictionHighWaterMarkPermille /
@@ -5063,7 +5132,7 @@ TEST_F(SqlPersistentStoreTest, IdleTimeEviction) {
   EXPECT_LE(GetSizeOfAllEntries(), kLowWatermark);
 }
 
-TEST_F(SqlPersistentStoreTest, IdleTimeEvictionAbortsDuringEviction) {
+TEST_P(SqlPersistentStoreTest, IdleTimeEvictionAbortsDuringEviction) {
   const int64_t kMaxBytes = 100000;
   const int64_t kIdleTimeHighWatermark =
       kMaxBytes * kSqlBackendIdleTimeEvictionHighWaterMarkPermille /
@@ -5109,7 +5178,7 @@ TEST_F(SqlPersistentStoreTest, IdleTimeEvictionAbortsDuringEviction) {
             kMaxBytes * kSqlBackendEvictionLowWaterMarkPermille / 1000);
 }
 
-TEST_F(SqlPersistentStoreTest, EvictionPausesOnAbortFlagSet) {
+TEST_P(SqlPersistentStoreTest, EvictionPausesOnAbortFlagSet) {
   const int64_t kMaxBytes = 100 * 1024;
   CreateStore(kMaxBytes);
   ASSERT_EQ(Init(), SqlPersistentStore::Error::kOk);
@@ -5143,7 +5212,7 @@ TEST_F(SqlPersistentStoreTest, EvictionPausesOnAbortFlagSet) {
             kMaxBytes * kSqlBackendEvictionLowWaterMarkPermille / 1000);
 }
 
-TEST_F(SqlPersistentStoreTest, ResumeEvictionCanBePaused) {
+TEST_P(SqlPersistentStoreTest, ResumeEvictionCanBePaused) {
   const int64_t kMaxBytes = 100 * 1024;
   CreateStore(kMaxBytes);
   ASSERT_EQ(Init(), SqlPersistentStore::Error::kOk);
@@ -5166,7 +5235,7 @@ TEST_F(SqlPersistentStoreTest, ResumeEvictionCanBePaused) {
   EXPECT_FALSE(store_->HasPendingEviction());
 }
 
-TEST_F(SqlPersistentStoreTest, ResumeEvictionRespectsExcludedResIds) {
+TEST_P(SqlPersistentStoreTest, ResumeEvictionRespectsExcludedResIds) {
   const int64_t kMaxBytes = 100 * 1024;
   CreateStore(kMaxBytes);
   ASSERT_EQ(Init(), SqlPersistentStore::Error::kOk);
@@ -5204,7 +5273,7 @@ TEST_F(SqlPersistentStoreTest, ResumeEvictionRespectsExcludedResIds) {
   EXPECT_FALSE(open_result_evicted->has_value());
 }
 
-TEST_F(SqlPersistentStoreTest, ResumeEvictionHandlesModifiedEntrySize) {
+TEST_P(SqlPersistentStoreTest, ResumeEvictionHandlesModifiedEntrySize) {
   const int64_t kMaxBytes = 100 * 1024;
   CreateStore(kMaxBytes);
   ASSERT_EQ(Init(), SqlPersistentStore::Error::kOk);
@@ -5247,7 +5316,7 @@ TEST_F(SqlPersistentStoreTest, ResumeEvictionHandlesModifiedEntrySize) {
             kMaxBytes * kSqlBackendEvictionLowWaterMarkPermille / 1000);
 }
 
-TEST_F(SqlPersistentStoreTest, ResumeEvictionDatabaseError) {
+TEST_P(SqlPersistentStoreTest, ResumeEvictionDatabaseError) {
   const int64_t kMaxBytes = 100 * 1024;
   CreateStore(kMaxBytes);
   ASSERT_EQ(Init(), SqlPersistentStore::Error::kOk);
@@ -5268,7 +5337,7 @@ TEST_F(SqlPersistentStoreTest, ResumeEvictionDatabaseError) {
             SqlPersistentStore::Error::kFailedForTesting);
 }
 
-TEST_F(SqlPersistentStoreTest, ResumePendingEvictionInternalNotFound) {
+TEST_P(SqlPersistentStoreTest, ResumePendingEvictionInternalNotFound) {
   const int64_t kMaxBytes = 100 * 1024;
   CreateStore(kMaxBytes);
   ASSERT_EQ(Init(), SqlPersistentStore::Error::kOk);
@@ -5293,7 +5362,7 @@ TEST_F(SqlPersistentStoreTest, ResumePendingEvictionInternalNotFound) {
 }
 
 // Regression test for crbug.com/488877236.
-TEST_F(SqlPersistentStoreTest, ResumePendingEvictionDoomedEntry) {
+TEST_P(SqlPersistentStoreTest, ResumePendingEvictionDoomedEntry) {
   const int64_t kMaxBytes = 100 * 1024;
   CreateStore(kMaxBytes);
   ASSERT_EQ(Init(), SqlPersistentStore::Error::kOk);
@@ -5319,7 +5388,7 @@ TEST_F(SqlPersistentStoreTest, ResumePendingEvictionDoomedEntry) {
   EXPECT_FALSE(store_->HasPendingEviction());
 }
 
-TEST_F(SqlPersistentStoreTest,
+TEST_P(SqlPersistentStoreTest,
        ResumeEvictionWithMultipleShardsBiasedToShardZero) {
   // Add another task runner to enable multiple shards.
   background_task_runners_.emplace_back(
@@ -5355,7 +5424,7 @@ TEST_F(SqlPersistentStoreTest,
   EXPECT_FALSE(store_->HasPendingEviction());
 }
 
-TEST_F(SqlPersistentStoreTest, ResumeEvictionWithMultipleShards) {
+TEST_P(SqlPersistentStoreTest, ResumeEvictionWithMultipleShards) {
   // Add another task runner to enable multiple shards.
   background_task_runners_.emplace_back(
       base::ThreadPool::CreateSequencedTaskRunner({base::MayBlock()}));
@@ -5377,7 +5446,7 @@ TEST_F(SqlPersistentStoreTest, ResumeEvictionWithMultipleShards) {
   EXPECT_FALSE(store_->HasPendingEviction());
 }
 
-TEST_F(SqlPersistentStoreTest, IdleTimeResumeEvictionAbortsDuringEviction) {
+TEST_P(SqlPersistentStoreTest, IdleTimeResumeEvictionAbortsDuringEviction) {
   const int64_t kMaxBytes = 100 * 1024;
   CreateStore(kMaxBytes);
   ASSERT_EQ(Init(), SqlPersistentStore::Error::kOk);
@@ -5420,7 +5489,7 @@ TEST_F(SqlPersistentStoreTest, IdleTimeResumeEvictionAbortsDuringEviction) {
             kMaxBytes * kSqlBackendEvictionLowWaterMarkPermille / 1000);
 }
 
-TEST_F(SqlPersistentStoreTest, ResumeEvictionSyncFinishOnAbortFlagSet) {
+TEST_P(SqlPersistentStoreTest, ResumeEvictionSyncFinishOnAbortFlagSet) {
   const int64_t kMaxBytes = 100000;
   const int64_t kHighWatermark =
       kMaxBytes * kSqlBackendEvictionHighWaterMarkPermille / 1000;  // 95000
@@ -5456,7 +5525,7 @@ TEST_F(SqlPersistentStoreTest, ResumeEvictionSyncFinishOnAbortFlagSet) {
   ASSERT_EQ(eviction_future.Get(), SqlPersistentStore::Error::kOk);
 }
 
-TEST_F(SqlPersistentStoreTest, DoomEntryWhileIndexLoading) {
+TEST_P(SqlPersistentStoreTest, DoomEntryWhileIndexLoading) {
   CreateAndInitStore();
   const CacheEntryKey kKey1("my-key1");
   const CacheEntryKey kKey2("my-key2");
@@ -5526,7 +5595,7 @@ TEST_F(SqlPersistentStoreTest, DoomEntryWhileIndexLoading) {
   EXPECT_FALSE(open_result3->has_value());
 }
 
-TEST_F(SqlPersistentStoreTest, DoomEntryRecoversIndexOnDbFailure) {
+TEST_P(SqlPersistentStoreTest, DoomEntryRecoversIndexOnDbFailure) {
   CreateAndInitStore();
 
   // Load the in-memory index, which is necessary for the index recovery
@@ -5574,7 +5643,7 @@ TEST_F(SqlPersistentStoreTest, DoomEntryRecoversIndexOnDbFailure) {
   EXPECT_FALSE(open_result->has_value());
 }
 
-TEST_F(SqlPersistentStoreTest, SetAndGetEntryInMemoryData) {
+TEST_P(SqlPersistentStoreTest, SetAndGetEntryInMemoryData) {
   CreateAndInitStore();
   const CacheEntryKey kKey("my-key");
 
@@ -5617,7 +5686,7 @@ TEST_F(SqlPersistentStoreTest, SetAndGetEntryInMemoryData) {
   EXPECT_EQ(reloaded_hints->value(), hints_value);
 }
 
-TEST_F(SqlPersistentStoreTest, StartEvictionEvictsLargerEntriesFirst) {
+TEST_P(SqlPersistentStoreTest, StartEvictionEvictsLargerEntriesFirst) {
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndEnableFeatureWithParameters(
       net::features::kDiskCacheBackendExperiment,
@@ -5689,7 +5758,7 @@ TEST_F(SqlPersistentStoreTest, StartEvictionEvictsLargerEntriesFirst) {
   }
 }
 
-void SqlPersistentStoreTest::RunStartEvictionEvictsOlderEntriesFirstTest() {
+void SqlPersistentStoreTestBase::RunStartEvictionEvictsOlderEntriesFirstTest() {
   const int64_t kMaxBytes = 10000;
   const int64_t kHighWatermark =
       kMaxBytes * kSqlBackendEvictionHighWaterMarkPermille / 1000;  // 9500
@@ -5741,7 +5810,7 @@ void SqlPersistentStoreTest::RunStartEvictionEvictsOlderEntriesFirstTest() {
   }
 }
 
-TEST_F(SqlPersistentStoreTest,
+TEST_P(SqlPersistentStoreTest,
        StartEvictionEvictsOlderEntriesFirstSizeAndPriorityAwareEviction) {
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndEnableFeatureWithParameters(
@@ -5751,7 +5820,7 @@ TEST_F(SqlPersistentStoreTest,
   RunStartEvictionEvictsOlderEntriesFirstTest();
 }
 
-TEST_F(SqlPersistentStoreTest,
+TEST_P(SqlPersistentStoreTest,
        StartEvictionEvictsOlderEntriesFirstLeastRecentlyUsedEviction) {
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndEnableFeatureWithParameters(
@@ -5761,7 +5830,7 @@ TEST_F(SqlPersistentStoreTest,
   RunStartEvictionEvictsOlderEntriesFirstTest();
 }
 
-TEST_F(SqlPersistentStoreTest, StartEvictionPrioritizesHighPriorityEntries) {
+TEST_P(SqlPersistentStoreTest, StartEvictionPrioritizesHighPriorityEntries) {
   base::test::ScopedFeatureList feature_list;
   feature_list.InitWithFeaturesAndParameters(
       {{net::features::kDiskCacheBackendExperiment,
@@ -5840,7 +5909,7 @@ TEST_F(SqlPersistentStoreTest, StartEvictionPrioritizesHighPriorityEntries) {
 }
 
 #if DCHECK_IS_ON()
-TEST_F(SqlPersistentStoreTest, DetectAndFixEntryCountMetadataInconsistency) {
+TEST_P(SqlPersistentStoreTest, DetectAndFixEntryCountMetadataInconsistency) {
   CreateAndCloseInitializedStore();
 
   // Manually set the entry count to 1 to cause an inconsistency
@@ -5878,7 +5947,7 @@ TEST_F(SqlPersistentStoreTest, DetectAndFixEntryCountMetadataInconsistency) {
   base::debug::ResetDumpWithoutCrashingThrottlingForTesting();
 }
 
-TEST_F(SqlPersistentStoreTest, DetectAndFixTotalSizeMetadataInconsistency) {
+TEST_P(SqlPersistentStoreTest, DetectAndFixTotalSizeMetadataInconsistency) {
   CreateAndCloseInitializedStore();
 
   // Manually set the total size to 1000 to cause an inconsistency
@@ -5918,5 +5987,10 @@ TEST_F(SqlPersistentStoreTest, DetectAndFixTotalSizeMetadataInconsistency) {
   base::debug::ResetDumpWithoutCrashingThrottlingForTesting();
 }
 #endif  // DCHECK_IS_ON()
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         SqlPersistentStoreTest,
+                         testing::Bool(),
+                         SqlPersistentStoreTest::ParamToString);
 
 }  // namespace disk_cache

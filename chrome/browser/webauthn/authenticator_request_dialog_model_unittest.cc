@@ -65,6 +65,7 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/ui_base_features.h"
 #include "url/gurl.h"
 
 #if BUILDFLAG(IS_WIN)
@@ -2610,7 +2611,7 @@ TEST_F(AuthenticatorRequestDialogControllerTest, MechanismsFromUserAccounts) {
   EXPECT_EQ(mech1.name, base::UTF8ToUTF16(*kUser1.name));
   EXPECT_EQ(mech1.description,
             l10n_util::GetStringUTF16(IDS_WEBAUTHN_SOURCE_USB_SECURITY_KEY));
-  EXPECT_EQ(mech1.icon, vector_icons::kPasskeyIcon);
+  EXPECT_EQ(mech1.icon, vector_icons::kPasskeyOldIcon);
   mech1.callback.Run();
   device::DiscoverableCredentialMetadata result =
       account_preselected_callback.WaitForResult();
@@ -2630,7 +2631,7 @@ TEST_F(AuthenticatorRequestDialogControllerTest, MechanismsFromUserAccounts) {
   EXPECT_EQ(mech2.name, base::UTF8ToUTF16(*kUser2.name));
   EXPECT_EQ(mech2.description,
             l10n_util::GetStringUTF16(IDS_WEBAUTHN_SOURCE_USB_SECURITY_KEY));
-  EXPECT_EQ(mech2.icon, vector_icons::kPasskeyIcon);
+  EXPECT_EQ(mech2.icon, vector_icons::kPasskeyOldIcon);
   mech2.callback.Run();
   result = account_preselected_callback.WaitForResult();
   EXPECT_EQ(result.cred_id, kCred2.cred_id);
@@ -2774,14 +2775,20 @@ TEST_F(AuthenticatorRequestDialogControllerTest,
       switch (test_case.expected_button) {
         case kHelloOrSk:
         case kHello:
-          EXPECT_EQ(win_button_it->icon, kLaptopIcon);
+          EXPECT_EQ(win_button_it->icon, features::IsRoundedIconsEnabled()
+                                             ? kLaptopWindowsIcon
+                                             : kLaptopOldIcon);
           break;
         case kSk:
-          EXPECT_EQ(win_button_it->icon, kUsbSecurityKeyIcon);
+          EXPECT_EQ(win_button_it->icon, features::IsRoundedIconsEnabled()
+                                             ? kSecurityKeyIcon
+                                             : kUsbSecurityKeyOldIcon);
           break;
         case kPhoneOrSk:
         case kPhone:
-          EXPECT_EQ(win_button_it->icon, kSmartphoneIcon);
+          EXPECT_EQ(win_button_it->icon, features::IsRoundedIconsEnabled()
+                                             ? kMobileIcon
+                                             : kSmartphoneOldIcon);
           break;
         default:
           NOTREACHED();
@@ -2837,10 +2844,14 @@ TEST_F(AuthenticatorRequestDialogControllerTest,
     switch (test_case.expected_button) {
       case kHelloOrSk:
       case kHello:
-        EXPECT_EQ(win_button_it->icon, kLaptopIcon);
+        EXPECT_EQ(win_button_it->icon, features::IsRoundedIconsEnabled()
+                                           ? kLaptopWindowsIcon
+                                           : kLaptopOldIcon);
         break;
       case kSk:
-        EXPECT_EQ(win_button_it->icon, kUsbSecurityKeyIcon);
+        EXPECT_EQ(win_button_it->icon, features::IsRoundedIconsEnabled()
+                                           ? kSecurityKeyIcon
+                                           : kUsbSecurityKeyOldIcon);
         break;
       default:
         NOTREACHED();

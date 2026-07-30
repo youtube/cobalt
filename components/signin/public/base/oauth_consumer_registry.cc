@@ -14,6 +14,7 @@ namespace {
 
 // Keep the list of OAuth2 scopes sorted alphabetically.
 // keep-sorted start case=no
+
 // OAuth2 scope for access to the Reauth flow.
 constexpr char kAccountsReauthOAuth2Scope[] =
     "https://www.googleapis.com/auth/accounts.reauth";
@@ -61,8 +62,6 @@ constexpr char kClassroomReadOnlyRostersOAuth2Scope[] =
     "https://www.googleapis.com/auth/classroom.rosters.readonly";
 constexpr char kClassroomReadOnlyStudentSubmissionsSelfOAuth2Scope[] =
     "https://www.googleapis.com/auth/classroom.student-submissions.me.readonly";
-// OAuth2 scope for access to clear cut logs.
-constexpr char kClearCutOAuth2Scope[] = "https://www.googleapis.com/auth/cclog";
 // OAuth2 scope for access for DriveFS to use client-side notifications.
 constexpr char kClientChannelOAuth2Scope[] =
     "https://www.googleapis.com/auth/client_channel";
@@ -72,6 +71,9 @@ constexpr char kCloudSearchQueryOAuth2Scope[] =
 // OAuth2 scope for read-write access to contacts.
 constexpr char kContactsOAuth2Scope[] =
     "https://www.googleapis.com/auth/contacts";
+// OAuth2 scope for access to Context Memory Service API.
+constexpr char kContextMemoryServiceOAuth2Scope[] =
+    "https://www.googleapis.com/auth/chrome-context-memory";
 constexpr char kCryptAuthOAuth2Scope[] =
     "https://www.googleapis.com/auth/cryptauth";
 // OAuth2 scope for Discovery Engine suggestion API.
@@ -120,8 +122,6 @@ constexpr char kKidManagementPrivilegedOAuth2Scope[] =
 // OAuth2 scope for access to Google Family Link Supervision Setup.
 constexpr char kKidsSupervisionSetupChildOAuth2Scope[] =
     "https://www.googleapis.com/auth/kids.supervision.setup.child";
-// OAuth2 scope for Lens.
-constexpr char kLensOAuth2Scope[] = "https://www.googleapis.com/auth/lens";
 // OAuth2 scope for app license check.
 constexpr char kLicenseCheckOAuth2Scope[] =
     "https://www.googleapis.com/auth/applicense.bytebot";
@@ -185,8 +185,6 @@ constexpr char kPushNotificationOAuth2Scope[] =
     "https://www.googleapis.com/auth/notifications";
 constexpr char kSchoolToolsAuthScope[] =
     "https://www.googleapis.com/auth/chromeosschooltools";
-constexpr char kSearchResultsOAuth2Scope[] =
-    "https://www.googleapis.com/auth/searchresults";
 // OAuth2 scope for Site Automation Index.
 constexpr char kSiteAutomationIndexOAuth2Scope[] =
     "https://www.googleapis.com/auth/siteautomationindex";
@@ -311,7 +309,7 @@ constexpr char kAuthServiceGlanceablesClassroomName[] =
     "auth_service_glanceables_classroom";
 constexpr char kAuthServiceTasksClientName[] = "auth_service_tasks_client";
 constexpr char kYouTubeMusicName[] = "youtube_music";
-constexpr char kContextualTasksName[] = "contextual_tasks";
+
 constexpr char kDevtoolsGdpName[] = "devtools_gdp_client";
 constexpr char kAshDriveIntegrationName[] = "ash_drive_integration";
 constexpr char kAshClassroomPageHandlerName[] = "ash_classroom_page_handler";
@@ -329,6 +327,7 @@ constexpr char kGapisServiceName[] = "gapis_service";
 constexpr char kOneTimeTokenServiceName[] = "one_time_token_service";
 constexpr char kDrivePickerHostName[] = "drive_picker_host";
 constexpr char kMultistepFilterName[] = "multistep_filter";
+constexpr char kContextMemoryServiceName[] = "context_memory_service";
 }  // namespace
 
 namespace signin {
@@ -390,7 +389,8 @@ OAuthConsumer OAuthConsumerRegistry::GetOAuthConsumerFromId(
           /*name=*/kAddSupervisionName,
           /*scopes=*/{kKidsSupervisionSetupChildOAuth2Scope,
                       kPeopleApiReadOnlyOAuth2Scope, kAccountsReauthOAuth2Scope,
-                      kAuditRecordingOAuth2Scope, kClearCutOAuth2Scope});
+                      kAuditRecordingOAuth2Scope,
+                      GaiaConstants::kClearCutOAuth2Scope});
     case OAuthConsumerId::kParentAccess:
       return OAuthConsumer(
           /*name=*/kParentAccessName,
@@ -400,7 +400,8 @@ OAuthConsumer OAuthConsumerRegistry::GetOAuthConsumerFromId(
       return OAuthConsumer(
           /*name=*/kDataSharingName,
           /*scopes=*/{kPeopleApiReadWriteOAuth2Scope,
-                      kPeopleApiReadOnlyOAuth2Scope, kClearCutOAuth2Scope});
+                      kPeopleApiReadOnlyOAuth2Scope,
+                      GaiaConstants::kClearCutOAuth2Scope});
     case OAuthConsumerId::kLauncherItemSuggest:
       return OAuthConsumer(
           /*name=*/kLauncherItemSuggestName,
@@ -497,7 +498,8 @@ OAuthConsumer OAuthConsumerRegistry::GetOAuthConsumerFromId(
     case OAuthConsumerId::kComposeboxQueryController:
       return OAuthConsumer(
           /*name=*/kComposeboxQueryControllerName,
-          /*scopes=*/{kLensOAuth2Scope});
+          /*scopes=*/{GaiaConstants::kLensOAuth2Scope,
+                      kDriveReadOnlyOAuth2Scope});
     case OAuthConsumerId::kDocumentSuggestionsService:
       return OAuthConsumer(
           /*name=*/kDocumentSuggestionsServiceName,
@@ -530,7 +532,7 @@ OAuthConsumer OAuthConsumerRegistry::GetOAuthConsumerFromId(
     case OAuthConsumerId::kLensOverlayQueryController:
       return OAuthConsumer(
           /*name=*/kLensOverlayQueryControllerName,
-          /*scopes=*/{kLensOAuth2Scope});
+          /*scopes=*/{GaiaConstants::kLensOAuth2Scope});
     case OAuthConsumerId::kTrustedVaultFrontend:
       return OAuthConsumer(
           /*name=*/kTrustedVaultFrontendName,
@@ -560,7 +562,7 @@ OAuthConsumer OAuthConsumerRegistry::GetOAuthConsumerFromId(
           /*name=*/kEduCoexistenceLoginHandlerName,
           /*scopes=*/{kKidsSupervisionSetupChildOAuth2Scope,
                       kAccountsReauthOAuth2Scope, kAuditRecordingOAuth2Scope,
-                      kClearCutOAuth2Scope,
+                      GaiaConstants::kClearCutOAuth2Scope,
                       kKidManagementPrivilegedOAuth2Scope});
     case OAuthConsumerId::kEduAccountLoginHandler:
       return OAuthConsumer(
@@ -686,12 +688,7 @@ OAuthConsumer OAuthConsumerRegistry::GetOAuthConsumerFromId(
           /*name=*/kYouTubeMusicName,
           /*scopes=*/{kYouTubeMusicOAuth2Scope});
     case OAuthConsumerId::kContextualTasks:
-      return OAuthConsumer(
-          /*name=*/kContextualTasksName,
-          /*scopes=*/{contextual_tasks::ShouldUseSearchResultsScope()
-                          ? kSearchResultsOAuth2Scope
-                          : GaiaConstants::kChromeSyncOAuth2Scope,
-                      kClearCutOAuth2Scope, kLensOAuth2Scope});
+      return GetOAuthConsumerForContextualTasks();
     case OAuthConsumerId::kEnterprisePlusAddress:
       return GetOAuthConsumerForEnterprisePlusAddress();
     case OAuthConsumerId::kGlicUserStatus:
@@ -741,7 +738,7 @@ OAuthConsumer OAuthConsumerRegistry::GetOAuthConsumerFromId(
     case OAuthConsumerId::kAimEligibilityService:
       return OAuthConsumer(
           /*name=*/kAimEligibilityServiceName,
-          /*scopes=*/{kSearchResultsOAuth2Scope});
+          /*scopes=*/{GaiaConstants::kSearchResultsOAuth2Scope});
     case OAuthConsumerId::kDevtoolsAiCode:
       return OAuthConsumer(
           /*name=*/kDevtoolsAiCodeName,
@@ -773,6 +770,8 @@ OAuthConsumer OAuthConsumerRegistry::GetOAuthConsumerFromId(
           /*scopes=*/{kSiteAutomationIndexOAuth2Scope});
     case OAuthConsumerId::kGlicInvokeApi:
       return GetOAuthConsumerForGlicInvokeApi();
+    case OAuthConsumerId::kSkillsService:
+      return GetOAuthConsumerForSkillsService();
     case OAuthConsumerId::kSecureGatewayService:
       return OAuthConsumer(
           /*name=*/kSecureGatewayServiceName,
@@ -781,6 +780,10 @@ OAuthConsumer OAuthConsumerRegistry::GetOAuthConsumerFromId(
       return OAuthConsumer(
           /*name=*/kDrivePickerHostName,
           /*scopes=*/{kDriveReadOnlyOAuth2Scope});
+    case OAuthConsumerId::kContextMemoryService:
+      return OAuthConsumer(
+          /*name=*/kContextMemoryServiceName,
+          /*scopes=*/{kContextMemoryServiceOAuth2Scope});
   }
 }
 

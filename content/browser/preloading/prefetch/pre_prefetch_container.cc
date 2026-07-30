@@ -28,7 +28,8 @@ std::unique_ptr<PrePrefetchContainer> PrePrefetchContainer::CreateAndStart(
     base::PassKey<PrePrefetchServiceImpl>,
     std::unique_ptr<const PrefetchRequest> prefetch_request,
     mojo::PendingRemote<network::mojom::URLLoaderFactory> url_loader_factory,
-    const PrefetchUpdateHeadersParams& ui_thread_pre_calculated_headers,
+    const network::HttpRequestHeadersUpdateParams&
+        ui_thread_pre_calculated_headers,
     const std::vector<PrePrefetchUpdateHeadersCallback>&
         non_ui_thread_update_headers_callbacks) {
   // This should only be called from `PrePrefetchServiceCore` sequence through
@@ -43,7 +44,8 @@ std::unique_ptr<PrePrefetchContainer>
 PrePrefetchContainer::CreateAndStartForTesting(  // IN-TEST
     std::unique_ptr<const PrefetchRequest> prefetch_request,
     mojo::PendingRemote<network::mojom::URLLoaderFactory> url_loader_factory,
-    const PrefetchUpdateHeadersParams& ui_thread_pre_calculated_headers,
+    const network::HttpRequestHeadersUpdateParams&
+        ui_thread_pre_calculated_headers,
     const std::vector<PrePrefetchUpdateHeadersCallback>&
         non_ui_thread_update_headers_callbacks) {
   return CreateAndStartInternal(
@@ -56,7 +58,8 @@ std::unique_ptr<PrePrefetchContainer>
 PrePrefetchContainer::CreateAndStartInternal(
     std::unique_ptr<const PrefetchRequest> prefetch_request,
     mojo::PendingRemote<network::mojom::URLLoaderFactory> url_loader_factory,
-    const PrefetchUpdateHeadersParams& ui_thread_pre_calculated_headers,
+    const network::HttpRequestHeadersUpdateParams&
+        ui_thread_pre_calculated_headers,
     const std::vector<PrePrefetchUpdateHeadersCallback>&
         non_ui_thread_update_headers_callbacks) {
   auto container = std::make_unique<PrePrefetchContainer>(
@@ -79,7 +82,8 @@ PrePrefetchContainer::PrePrefetchContainer(
 
 void PrePrefetchContainer::Start(
     mojo::PendingRemote<network::mojom::URLLoaderFactory> url_loader_factory,
-    const PrefetchUpdateHeadersParams& ui_thread_pre_calculated_headers,
+    const network::HttpRequestHeadersUpdateParams&
+        ui_thread_pre_calculated_headers,
     const std::vector<PrePrefetchUpdateHeadersCallback>&
         non_ui_thread_update_headers_callbacks) {
   TRACE_EVENT("loading", "PrePrefetchContainer::Start", "url",
@@ -103,15 +107,10 @@ void PrePrefetchContainer::Start(
   // Apply any custom headers provided by the service via the thread-safe
   // callbacks after the initial `ResourceRequest` construction.
   for (const auto& callback : non_ui_thread_update_headers_callbacks) {
-    PrefetchUpdateHeadersParams params = callback.Run(*resource_request_);
-
-    for (const auto& removed_header : params.removed_headers) {
-      resource_request_->headers.RemoveHeader(removed_header);
-      resource_request_->cors_exempt_headers.RemoveHeader(removed_header);
-    }
-    resource_request_->headers.MergeFrom(params.modified_headers);
-    resource_request_->cors_exempt_headers.MergeFrom(
-        params.modified_cors_exempt_headers);
+    network::HttpRequestHeadersUpdateParams headers_update_params =
+        callback.Run(*resource_request_);
+    headers_update_params.Apply(resource_request_->headers,
+                                resource_request_->cors_exempt_headers);
   }
 
   auto receiver = url_loader_.InitWithNewPipeAndPassReceiver();
@@ -124,11 +123,6 @@ void PrePrefetchContainer::Start(
   // TODO(crbug.com/452389538): Double-check this process is needed/reasonable
   // to maintain here.
   network::ResourceRequest new_resource_request(*resource_request_);
-  if (!new_resource_request.trusted_params) {
-    new_resource_request.trusted_params.emplace();
-  }
-  new_resource_request.trusted_params->include_request_cookies_with_response =
-      true;
 
   mojo::Remote<network::mojom::URLLoaderFactory> factory(
       std::move(url_loader_factory));

@@ -1153,7 +1153,9 @@ InputHandlerProxy::EventDisposition InputHandlerProxy::HandleMouseWheel(
     }
   }
 
-  if (is_scrollbar_fade_in_at_may_begin_phase_enabled && result == DROP_EVENT) {
+  if (is_scrollbar_fade_in_at_may_begin_phase_enabled &&
+      blink::features::kDeferFadeOutScrollbarUntilMouseWheelEnded.Get() &&
+      result == DROP_EVENT) {
     // Do not drop began and cancelled events to ensure that the events are
     // forwarded to the main thread to start fading out scrollbars after a
     // MayBegin event.
@@ -1300,6 +1302,11 @@ InputHandlerProxy::HandleGestureScrollUpdate(
 
   cc::InputHandlerScrollResult scroll_result =
       input_handler_->ScrollUpdate(cc::ScrollState(scroll_state_data), delay);
+
+  if (scroll_result.hit_snap_constraint) {
+    snap_fling_controller_->Finish();
+    input_handler_->ScrollEnd(/*should_snap=*/true, std::nullopt);
+  }
 
   if (is_only_empty_gsu_in_queue_) {
     UMA_HISTOGRAM_BOOLEAN("Event.ScrollJank.EmptyGestureScrollUpdateFrame",
@@ -1934,6 +1941,10 @@ gfx::PointF InputHandlerProxy::ScrollByForSnapFling(
     const gfx::Vector2dF& delta) {
   cc::InputHandlerScrollResult scroll_result = input_handler_->ScrollUpdate(
       CreateScrollStateForInertialUpdate(delta), base::TimeDelta());
+  if (scroll_result.hit_snap_constraint) {
+    snap_fling_controller_->Finish();
+    input_handler_->ScrollEnd(/*should_snap=*/true, std::nullopt);
+  }
   return scroll_result.current_visual_offset;
 }
 

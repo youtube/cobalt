@@ -23,10 +23,12 @@
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/web_contents_tester.h"
+#include "device/fido/public/features.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/actions/action_id.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/menus/simple_menu_model.h"
 
 namespace ambient_signin {
@@ -76,7 +78,7 @@ TEST_F(AmbientSigninControllerTest, ShowSinglePasskey) {
   model->mechanisms.emplace_back(
       AuthenticatorRequestDialogModel::Mechanism::Credential(
           {device::AuthenticatorType::kEnclave, {4, 5, 6}, std::nullopt}),
-      u"username", vector_icons::kPasskeyIcon, base::DoNothing());
+      u"username", vector_icons::kPasskeyOldIcon, base::DoNothing());
 
   EXPECT_CALL(*page_action_controller(), Show(kActionWebAuthnAmbientSignin));
   EXPECT_CALL(*page_action_controller(),
@@ -90,6 +92,31 @@ TEST_F(AmbientSigninControllerTest, ShowSinglePasskey) {
   controller()->Show(model.get());
 }
 
+TEST_F(AmbientSigninControllerTest, ShowSinglePasskey_AnchoredMessage) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeatureWithParameters(
+      device::kWebAuthnAmbientSignin, {{"display", "anchored_message"}});
+
+  auto model =
+      base::MakeRefCounted<AuthenticatorRequestDialogModel>(main_rfh());
+  model->relying_party_id = "example.com";
+  model->mechanisms.emplace_back(
+      AuthenticatorRequestDialogModel::Mechanism::Credential(
+          {device::AuthenticatorType::kEnclave, {4, 5, 6}, std::nullopt}),
+      u"username", vector_icons::kPasskeyOldIcon, base::DoNothing());
+
+  EXPECT_CALL(*page_action_controller(), Show(kActionWebAuthnAmbientSignin));
+  EXPECT_CALL(*page_action_controller(),
+              SetAnchoredMessageText(kActionWebAuthnAmbientSignin, _));
+  EXPECT_CALL(*page_action_controller(),
+              SetAnchoredMessageIcon(kActionWebAuthnAmbientSignin, _));
+  EXPECT_CALL(*page_action_controller(),
+              ShowAnchoredMessage(kActionWebAuthnAmbientSignin,
+                                  page_actions::AnchoredMessageConfig()));
+
+  controller()->Show(model.get());
+}
+
 TEST_F(AmbientSigninControllerTest, ShowSinglePassword) {
   auto model =
       base::MakeRefCounted<AuthenticatorRequestDialogModel>(main_rfh());
@@ -98,7 +125,9 @@ TEST_F(AmbientSigninControllerTest, ShowSinglePassword) {
       AuthenticatorRequestDialogModel::Mechanism::Password(
           AuthenticatorRequestDialogModel::Mechanism::PasswordInfo(
               std::nullopt)),
-      u"username", kPasswordFieldIcon, base::DoNothing());
+      u"username",
+      features::IsRoundedIconsEnabled() ? kPasswordIcon : kPasswordFieldOldIcon,
+      base::DoNothing());
 
   EXPECT_CALL(*page_action_controller(), Show(kActionWebAuthnAmbientSignin));
   EXPECT_CALL(*page_action_controller(),
@@ -120,7 +149,7 @@ TEST_F(AmbientSigninControllerTest, TriggerPageActionSignInPasskey) {
   model->mechanisms.emplace_back(
       AuthenticatorRequestDialogModel::Mechanism::Credential(
           {device::AuthenticatorType::kEnclave, {4, 5, 6}, std::nullopt}),
-      u"username", vector_icons::kPasskeyIcon, passkey_callback.Get());
+      u"username", vector_icons::kPasskeyOldIcon, passkey_callback.Get());
 
   EXPECT_CALL(passkey_callback, Run());
 
@@ -141,7 +170,9 @@ TEST_F(AmbientSigninControllerTest, TriggerPageActionSignInPassword) {
       AuthenticatorRequestDialogModel::Mechanism::Password(
           AuthenticatorRequestDialogModel::Mechanism::PasswordInfo(
               std::nullopt)),
-      u"username", kPasswordFieldIcon, password_callback.Get());
+      u"username",
+      features::IsRoundedIconsEnabled() ? kPasswordIcon : kPasswordFieldOldIcon,
+      password_callback.Get());
 
   EXPECT_CALL(password_callback, Run());
 
@@ -160,7 +191,7 @@ TEST_F(AmbientSigninControllerTest, OnRequestCompleteClosesUI) {
   model->mechanisms.emplace_back(
       AuthenticatorRequestDialogModel::Mechanism::Credential(
           {device::AuthenticatorType::kEnclave, {4, 5, 6}, std::nullopt}),
-      u"username", vector_icons::kPasskeyIcon, base::DoNothing());
+      u"username", vector_icons::kPasskeyOldIcon, base::DoNothing());
 
   controller()->Show(model.get());
 
@@ -178,7 +209,7 @@ TEST_F(AmbientSigninControllerTest, GetSignInCallbackPasskey) {
   model->mechanisms.emplace_back(
       AuthenticatorRequestDialogModel::Mechanism::Credential(
           {device::AuthenticatorType::kEnclave, {4, 5, 6}, std::nullopt}),
-      u"username", vector_icons::kPasskeyIcon, passkey_callback.Get());
+      u"username", vector_icons::kPasskeyOldIcon, passkey_callback.Get());
 
   EXPECT_CALL(passkey_callback, Run());
 
@@ -200,7 +231,9 @@ TEST_F(AmbientSigninControllerTest, GetSignInCallbackPassword) {
       AuthenticatorRequestDialogModel::Mechanism::Password(
           AuthenticatorRequestDialogModel::Mechanism::PasswordInfo(
               std::nullopt)),
-      u"username", kPasswordFieldIcon, password_callback.Get());
+      u"username",
+      features::IsRoundedIconsEnabled() ? kPasswordIcon : kPasswordFieldOldIcon,
+      password_callback.Get());
 
   EXPECT_CALL(password_callback, Run());
 

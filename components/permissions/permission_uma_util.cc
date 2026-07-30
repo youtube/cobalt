@@ -31,6 +31,7 @@
 #include "components/permissions/permission_actions_history.h"
 #include "components/permissions/permission_decision_auto_blocker.h"
 #include "components/permissions/permission_request.h"
+#include "components/permissions/permission_request_data.h"
 #include "components/permissions/permission_util.h"
 #include "components/permissions/permissions_client.h"
 #include "components/permissions/prediction_service/prediction_common.h"
@@ -117,6 +118,7 @@ struct PermissionActionUkmParams {
   std::optional<bool> prediction_decision_held_back;
   std::optional<UkmPromptOptions> prompt_options;
   std::optional<GeolocationAccuracy> initial_geolocation_accuracy_selection;
+  std::optional<GeolocationPromptType> geolocation_prompt_type;
 };
 
 // LINT.IfChange(GetPermissionRequestString)
@@ -190,6 +192,12 @@ std::string GetPermissionRequestString(RequestTypeForUma type) {
       return "LoopbackNetwork";
     case RequestTypeForUma::PERMISSION_SENSORS:
       return "Sensors";
+    case RequestTypeForUma::PERMISSION_GEOLOCATION_APPROXIMATE_OR_PRECISE:
+      return "GeolocationApproximateOrPrecise";
+    case RequestTypeForUma::PERMISSION_GEOLOCATION_APPROXIMATE:
+      return "GeolocationApproximate";
+    case RequestTypeForUma::PERMISSION_GEOLOCATION_UPGRADE:
+      return "GeolocationUpgrade";
 
     case RequestTypeForUma::UNKNOWN:
     case RequestTypeForUma::NUM:
@@ -390,6 +398,11 @@ void RecordPermissionActionUkm(
   if (params->initial_geolocation_accuracy_selection) {
     builder.SetInitialGeolocationAccuracySelection(static_cast<int64_t>(
         params->initial_geolocation_accuracy_selection.value()));
+  }
+
+  if (params->geolocation_prompt_type) {
+    builder.SetGeolocationPromptType(
+        static_cast<int64_t>(params->geolocation_prompt_type.value()));
   }
 
   builder
@@ -872,20 +885,10 @@ void PermissionUmaUtil::RecordActivityIndicator(
 }
 
 void PermissionUmaUtil::RecordDismissalType(
-    const std::vector<ContentSettingsType>& content_settings_types,
+    const std::vector<base::WeakPtr<permissions::PermissionRequest>>& requests,
     PermissionPromptDisposition ui_disposition,
     DismissalType dismissalType) {
-  std::optional<RequestType> request_type =
-      ContentSettingsTypeToRequestTypeIfExists(content_settings_types[0]);
-  if (!request_type.has_value()) {
-    return;
-  }
-  RequestTypeForUma type =
-      PermissionUtil::GetUmaValueForRequestType(request_type.value());
-
-  if (content_settings_types.size() > 1) {
-    type = RequestTypeForUma::MULTIPLE_AUDIO_AND_VIDEO_CAPTURE;
-  }
+  RequestTypeForUma type = PermissionUtil::GetUmaValueForRequests(requests);
 
   std::string permission_type = GetPermissionRequestString(type);
   std::string permission_disposition =
@@ -943,6 +946,7 @@ void PermissionUmaUtil::PermissionRevoked(
       /*permission_ai_relevance_model=*/std::nullopt,
       /*prediction_decision_held_back=*/std::nullopt, std::monostate(),
       /*initial_geolocation_accuracy_selection=*/std::nullopt,
+      /*geolocation_prompt_type=*/std::nullopt,
       /*source_id=*/std::nullopt);
 }
 
@@ -1128,7 +1132,7 @@ void PermissionUmaUtil::PermissionPromptResolved(
         predicted_grant_likelihood, permission_request_relevance,
         permission_ai_relevance_model, prediction_decision_held_back,
         prompt_options, initial_geolocation_accuracy_selection,
-        request->get_ukm_source_id());
+        request->GetGeolocationPromptType(), request->get_ukm_source_id());
 
     std::string priorDismissPrefix = base::StrCat(
         {"Permissions.Prompt.", action_string, ".PriorDismissCount2."});
@@ -1468,6 +1472,7 @@ void PermissionUmaUtil::RecordPermissionAction(
     std::optional<bool> prediction_decision_held_back,
     const PromptOptions& prompt_options,
     std::optional<GeolocationAccuracy> initial_geolocation_accuracy_selection,
+    std::optional<GeolocationPromptType> geolocation_prompt_type,
     std::optional<ukm::SourceId> source_id) {
   DCHECK(PermissionUtil::IsPermission(permission));
   PermissionDecisionAutoBlocker* autoblocker =
@@ -1559,6 +1564,7 @@ void PermissionUmaUtil::RecordPermissionAction(
           .prompt_options = ukm_prompt_options,
           .initial_geolocation_accuracy_selection =
               initial_geolocation_accuracy_selection,
+          .geolocation_prompt_type = geolocation_prompt_type,
       });
 
   if (source_id.has_value() && source_id.value() != ukm::kInvalidSourceId) {
@@ -1721,9 +1727,9 @@ void PermissionUmaUtil::RecordPermissionPredictionConcurrentRequests(
 // static
 void PermissionUmaUtil::RecordPermissionPredictionSource(
     PermissionPredictionSource prediction_source,
-    RequestType request_type) {
+    const PermissionRequest& request) {
   std::string permission_string = GetPermissionRequestString(
-      PermissionUtil::GetUmaValueForRequestType(request_type));
+      PermissionUtil::GetUmaValueForRequest(request));
   base::UmaHistogramEnumeration(
       "Permissions.PredictionServiceSource." + permission_string,
       prediction_source);
@@ -1970,8 +1976,8 @@ std::string PermissionUmaUtil::GetPromptDispositionString(
       return "MacOsPrompt";
     case PermissionPromptDisposition::MESSAGE_UI_LOUD:
       return "MessageUILoud";
-    case PermissionPromptDisposition::LOCATION_BAR_LEFT_CLAPPER_QUIET_ICON:
-      return "LocationBarLeftClapperQuietIcon";
+    case PermissionPromptDisposition::LOCATION_BAR_LEFT_QUIET_ICON:
+      return "LocationBarLeftQuietIcon";
   }
 
   NOTREACHED();
@@ -2014,7 +2020,7 @@ bool PermissionUmaUtil::IsPromptDispositionQuiet(
     case PermissionPromptDisposition::LOCATION_BAR_LEFT_QUIET_ABUSIVE_CHIP:
     case PermissionPromptDisposition::MINI_INFOBAR:
     case PermissionPromptDisposition::MESSAGE_UI:
-    case PermissionPromptDisposition::LOCATION_BAR_LEFT_CLAPPER_QUIET_ICON:
+    case PermissionPromptDisposition::LOCATION_BAR_LEFT_QUIET_ICON:
       return true;
     case PermissionPromptDisposition::ANCHORED_BUBBLE:
     case PermissionPromptDisposition::ELEMENT_ANCHORED_BUBBLE:
@@ -2049,7 +2055,7 @@ bool PermissionUmaUtil::IsPromptDispositionLoud(
     case PermissionPromptDisposition::MESSAGE_UI:
     case PermissionPromptDisposition::NONE_VISIBLE:
     case PermissionPromptDisposition::NOT_APPLICABLE:
-    case PermissionPromptDisposition::LOCATION_BAR_LEFT_CLAPPER_QUIET_ICON:
+    case PermissionPromptDisposition::LOCATION_BAR_LEFT_QUIET_ICON:
       return false;
   }
 }

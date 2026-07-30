@@ -10,14 +10,15 @@
 #include <utility>
 
 #include "base/android/scoped_java_ref.h"
+#include "base/functional/callback.h"
 #include "base/notimplemented.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
-#include "base/types/optional_ref.h"
 #include "base/types/optional_util.h"
 #include "chrome/browser/autofill/android/autofill_ai_save_update_entity_prompt_view.h"
 #include "chrome/browser/autofill/android/autofill_fallback_surface_launcher.h"
+#include "chrome/browser/autofill/android/entity_instance_android.h"
 #include "chrome/browser/autofill/android/personal_data_manager_android.h"
 #include "chrome/browser/autofill/ui/ui_util.h"
 #include "chrome/browser/browser_process.h"
@@ -138,17 +139,32 @@ AutofillAiSaveUpdateEntityPromptController::GetJavaObject() const {
 
 void AutofillAiSaveUpdateEntityPromptController::OnWalletLinkClicked(
     JNIEnv* env) {
-  if (IsMaskedStorageSupported(entity_instance_.type(),
-                               EntityInstance::RecordType::kServerWallet)) {
-    ShowGoogleWallePrivatePassesHelpCenterPageInCct(*web_contents_);
-  } else {
-    ShowGoogleWalletPassesPage(*web_contents_);
+  switch (GetWalletPassType(entity_instance_.type(),
+                            entity_instance_.record_type())) {
+    case EntityInstance::WalletPassType::kUnsupported:
+      NOTREACHED();
+    case EntityInstance::WalletPassType::kPrivate:
+      ShowGoogleWallePrivatePassesHelpCenterPageInCct(*web_contents_);
+      break;
+    case EntityInstance::WalletPassType::kPublic:
+      ShowGoogleWalletPassesPage(*web_contents_);
+      break;
   }
 }
 
 void AutofillAiSaveUpdateEntityPromptController::OnUserAccepted(JNIEnv* env) {
   had_user_interaction_ = true;
   RunPromptClosedCallback(AutofillClient::AutofillAiBubbleResult::kAccepted);
+}
+
+void AutofillAiSaveUpdateEntityPromptController::OnUserEdited(
+    JNIEnv* env,
+    const EntityInstanceAndroid& edited_entity_android) {
+  had_user_interaction_ = true;
+  EntityInstance edited_entity =
+      edited_entity_android.ToEntityInstance(entity_instance_);
+  RunPromptClosedCallback(AutofillClient::AutofillAiBubbleResult::kEditAccepted,
+                          std::move(edited_entity));
 }
 
 void AutofillAiSaveUpdateEntityPromptController::OnUserDeclined(JNIEnv* env) {
@@ -163,10 +179,11 @@ void AutofillAiSaveUpdateEntityPromptController::OnPromptDismissed(
 }
 
 void AutofillAiSaveUpdateEntityPromptController::RunPromptClosedCallback(
-    AutofillClient::AutofillAiBubbleResult result) {
+    AutofillClient::AutofillAiBubbleResult result,
+    std::optional<EntityInstance> edited_entity_instance) {
   if (prompt_result_callback_) {
     std::move(prompt_result_callback_)
-        .Run(result, std::nullopt,
+        .Run(result, std::move(edited_entity_instance),
              result == AutofillClient::AutofillAiBubbleResult::kAccepted
                  ? ui_context_
                  : AutofillClient::EntityImportUIContext{});

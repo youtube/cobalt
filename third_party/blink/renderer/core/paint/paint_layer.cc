@@ -1046,7 +1046,7 @@ bool PaintLayer::HitTest(const HitTestLocation& hit_test_location,
 
   HitTestRecursionData recursion_data(hit_test_area, hit_test_location,
                                       hit_test_location);
-  PaintLayer* inside_layer = HitTestLayer(*this, /*container_fragment*/ nullptr,
+  PaintLayer* inside_layer = HitTestLayer(*this, /*container_fragment=*/nullptr,
                                           result, recursion_data);
   if (!inside_layer && IsRootLayer()) {
     bool fallback = false;
@@ -1086,6 +1086,28 @@ bool PaintLayer::HitTest(const HitTestLocation& hit_test_location,
   // Now return whether we were inside this layer (this will always be true for
   // the root layer).
   return inside_layer;
+}
+
+bool PaintLayer::HitTestReplacedNormalFlowInline(
+    HitTestResult& result,
+    const HitTestLocation& hit_test_location) {
+  DCHECK(ShouldPaintReplacedNormalFlowInline());
+
+  PaintLayer* transform_container = Parent();
+  while (transform_container && (!transform_container->GetLayoutObject()
+                                      .CanContainFixedPositionObjects() ||
+                                 !transform_container->GetLayoutObject()
+                                      .CanContainAbsolutePositionObjects())) {
+    transform_container = transform_container->Parent();
+  }
+  if (!transform_container) {
+    return false;
+  }
+
+  HitTestRecursionData recursion_data(hit_test_location.BoundingBox(),
+                                      hit_test_location, hit_test_location);
+  return HitTestLayer(*transform_container, /*container_fragment=*/nullptr,
+                      result, recursion_data) != nullptr;
 }
 
 Node* PaintLayer::EnclosingNode() const {
@@ -1221,11 +1243,9 @@ static bool IsHitCandidateForDepthOrder(
           child_z_offset = pt3.z();
         }
       }
-      if (child_z_offset >= 0) {
-        *z_offset = child_z_offset;
-        return true;
+      if (child_z_offset < 0) {
+        return false;
       }
-      return false;
     } else {
       // This is actually computing our z, but that's OK because the hitLayer is
       // coplanar with us.
@@ -1509,10 +1529,12 @@ PaintLayer* PaintLayer::HitTestLayer(
             recursion_data.location) &&
         GetLayoutBox()->HitTestOverflowControl(
             result, recursion_data.location, layer_fragments[0].layer_offset)) {
-      if (z_offset && local_transform_state) {
-        *z_offset = ComputeZOffset(*local_transform_state);
+      if (!z_offset || !local_transform_state ||
+          IsHitCandidateForDepthOrder(
+              this, false, z_offset, local_transform_state,
+              result.GetHitTestRequest().IsHitTestVisualOverflow())) {
+        return this;
       }
-      return this;
     }
   }
 
@@ -1682,7 +1704,9 @@ bool PaintLayer::HitTestFragmentsWithPhase(
         bounds.HasRadius() &&
         HitTestClippedOutByBorderRadius(transform_container, container_fragment,
                                         hit_test_location, bounds)) {
-      continue;
+      if (!result.GetHitTestRequest().IsHitTestVisualOverflow()) {
+        continue;
+      }
     }
 
     inside_clip_rect = true;
@@ -1741,7 +1765,9 @@ PaintLayer* PaintLayer::HitTestTransformedLayerInFragments(
         HitTestClippedOutByBorderRadius(transform_container, container_fragment,
                                         recursion_data.location,
                                         fragment.background_rect)) {
-      continue;
+      if (!result.GetHitTestRequest().IsHitTestVisualOverflow()) {
+        continue;
+      }
     }
 
     PaintLayer* hit_layer = HitTestLayerByApplyingTransform(
@@ -1861,6 +1887,16 @@ bool PaintLayer::IsReplacedNormalFlowStackingContext() const {
       GetLayoutObject().StyleRef());
 }
 
+bool PaintLayer::ShouldPaintReplacedNormalFlowInline() const {
+  if (!GetLayoutObject().IsSVGForeignObject() &&
+      !RuntimeEnabledFeatures::ReplacedNormalFlowStackingInlinePaintEnabled()) {
+    return false;
+  }
+
+  return IsReplacedNormalFlowStackingContext() &&
+         !GetLayoutObject().IsFloating() && !GetLayoutObject().IsFragmented();
+}
+
 PaintLayer* PaintLayer::HitTestChildren(
     PaintLayerIteration children_to_visit,
     const PaintLayer& transform_container,
@@ -1901,10 +1937,9 @@ PaintLayer* PaintLayer::HitTestChildren(
   auto hit_test_child =
       [&](PaintLayer* child_layer, bool overflow_controls_only,
           const HitTestRecursionData& recursion_data) -> bool {
-    // Hit-testing of the whole subtree of an SVG foreignObject, including
-    // stacked children, is handled by LayoutSVGForeignObject, so don't hit
-    // test stacked children here.
-    if (child_layer->GetLayoutObject().IsSVGForeignObject()) {
+    // Replaced normal flow stacking contexts are hit-tested inline by their
+    // respective layout painters to keep hit testing in sync with paint order.
+    if (child_layer->ShouldPaintReplacedNormalFlowInline()) {
       return false;
     }
 
@@ -2099,12 +2134,11 @@ bool PaintLayer::HitTestClippedOutByBorderRadius(
           ? *container_fragment->fragment_data
           : transform_container.GetLayoutObject().FirstFragment();
   // `hit_test_location` is relative to `transform_container`.
-  const auto& current_transform =
+  const auto& container_transform =
       container_fragment_data.LocalBorderBoxProperties().Transform();
-
-  for (const LayoutObject* current = GetLayoutObject().Container();
-       current &&
-       current->IsDescendantOf(&transform_container.GetLayoutObject());
+  const LayoutObject* container_layout_object =
+      &transform_container.GetLayoutObject();
+  for (const LayoutObject* current = GetLayoutObject().Container(); current;
        current = current->Container()) {
     const auto* properties = current->FirstFragment().PaintProperties();
     if (!properties) {
@@ -2116,11 +2150,17 @@ bool PaintLayer::HitTestClippedOutByBorderRadius(
       continue;
     }
 
-    gfx::RectF mapped_location(hit_test_location.BoundingBox());
-    GeometryMapper::SourceToDestinationRect(
-        current_transform, clip->LocalTransformSpace(), mapped_location);
-    if (!clip->PaintClipRect().IntersectsQuad(gfx::QuadF(mapped_location))) {
+    gfx::RectF hit_rect(hit_test_location.BoundingBox());
+    hit_rect.Offset(gfx::Vector2dF(container_fragment_data.PaintOffset()));
+    const gfx::Transform projection =
+        GeometryMapper::SourceToDestinationProjection(
+            container_transform, clip->LocalTransformSpace());
+    gfx::QuadF mapped_quad = projection.MapQuad(gfx::QuadF(hit_rect));
+    if (!clip->PaintClipRect().IntersectsQuad(mapped_quad)) {
       return true;
+    }
+    if (current == container_layout_object) {
+      break;
     }
   }
   return false;

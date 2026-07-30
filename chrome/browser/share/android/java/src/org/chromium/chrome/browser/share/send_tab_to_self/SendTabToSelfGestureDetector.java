@@ -10,12 +10,7 @@ import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 
-import androidx.lifecycle.DefaultLifecycleObserver;
-import androidx.lifecycle.LifecycleOwner;
-
 import org.chromium.base.Log;
-import androidx.annotation.VisibleForTesting;
-
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
@@ -30,7 +25,7 @@ import java.util.function.Supplier;
  * acceleration sensor to detect sharp spikes in acceleration.
  */
 @NullMarked
-public class SendTabToSelfGestureDetector implements SensorEventListener, DefaultLifecycleObserver {
+public class SendTabToSelfGestureDetector implements SensorEventListener {
     private static final String TAG = "STTSGestureDetector";
 
     // Time window for a double tap (in milliseconds).
@@ -39,9 +34,10 @@ public class SendTabToSelfGestureDetector implements SensorEventListener, Defaul
 
     // Acceleration threshold values (m/s^2) for different sensitivity levels.
     // Higher sensitivity requires less force (lower threshold) to trigger.
-    private static final float THRESHOLD_LOW_SENSITIVITY = 20.0f;
-    private static final float THRESHOLD_MEDIUM_SENSITIVITY = 15.0f;
-    private static final float THRESHOLD_HIGH_SENSITIVITY = 10.0f;
+    private static final float THRESHOLD_LOW_SENSITIVITY = 15.0f;
+    private static final float THRESHOLD_MEDIUM_SENSITIVITY = 10.0f;
+    private static final float THRESHOLD_HIGH_SENSITIVITY = 5.0f;
+    private static final float THRESHOLD_VERY_HIGH_SENSITIVITY = 2.0f;
 
     private final SensorManager mSensorManager;
     private final @Nullable Sensor mAccelerometer;
@@ -55,30 +51,15 @@ public class SendTabToSelfGestureDetector implements SensorEventListener, Defaul
     private boolean mListening;
 
     public SendTabToSelfGestureDetector(
-            Context context,
-            LifecycleOwner lifecycleOwner,
-            Supplier<Tab> tabSupplier,
-            Supplier<Profile> profileSupplier) {
+            Context context, Supplier<Tab> tabSupplier, Supplier<Profile> profileSupplier) {
         mSensorManager = (SensorManager) context.getSystemService(Context.SENSOR_SERVICE);
         mAccelerometer = mSensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);
         mTabSupplier = tabSupplier;
         mProfileSupplier = profileSupplier;
         mAccelerationThreshold = getAccelerationThreshold();
-        lifecycleOwner.getLifecycle().addObserver(this);
     }
 
-    @VisibleForTesting
-    public boolean isListening() {
-        return mListening;
-    }
-
-    @Override
-    public void onDestroy(LifecycleOwner owner) {
-        owner.getLifecycle().removeObserver(this);
-    }
-
-    @Override
-    public void onStart(LifecycleOwner owner) {
+    public void start() {
         if (mAccelerometer != null && !mListening) {
             mSensorManager.registerListener(
                     this, mAccelerometer, SensorManager.SENSOR_DELAY_NORMAL);
@@ -89,8 +70,7 @@ public class SendTabToSelfGestureDetector implements SensorEventListener, Defaul
         }
     }
 
-    @Override
-    public void onStop(LifecycleOwner owner) {
+    public void stop() {
         if (mListening) {
             mSensorManager.unregisterListener(this);
             mListening = false;
@@ -186,9 +166,10 @@ public class SendTabToSelfGestureDetector implements SensorEventListener, Defaul
 
     private static float getAccelerationThreshold() {
         // Map gesture sensitivity parameters to acceleration thresholds (m/s^2).
-        // - "low": harder to trigger, requires sharp tap (20 m/s^2)
-        // - "medium" (or default): standard trigger threshold (15 m/s^2)
-        // - "high": easier to trigger, requires light tap (10 m/s^2)
+        // - "low": harder to trigger, requires sharp tap (15 m/s^2)
+        // - "medium" (or default): standard trigger threshold (10 m/s^2)
+        // - "high": easier to trigger, requires light tap (5 m/s^2)
+        // - "very_high": extremely sensitive, triggers on very light tap (2 m/s^2)
         String sensitivity =
                 ChromeFeatureList.getFieldTrialParamByFeature(
                         ChromeFeatureList.SEND_TAB_TO_SELF_GESTURE, "sensitivity");
@@ -196,6 +177,8 @@ public class SendTabToSelfGestureDetector implements SensorEventListener, Defaul
             return THRESHOLD_LOW_SENSITIVITY;
         } else if ("high".equals(sensitivity)) {
             return THRESHOLD_HIGH_SENSITIVITY;
+        } else if ("very_high".equals(sensitivity)) {
+            return THRESHOLD_VERY_HIGH_SENSITIVITY;
         }
         return THRESHOLD_MEDIUM_SENSITIVITY;
     }

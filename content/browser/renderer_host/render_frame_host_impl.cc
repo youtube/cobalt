@@ -2030,7 +2030,7 @@ class RenderFrameHostImpl::SubresourceLoaderFactoriesConfig {
             : frame.GetPageUkmSourceId());
 
     result.network_restrictions_id_ =
-        frame.document_associated_data_->network_restrictions_id();
+        frame.document_associated_data_->NetworkRestrictionsId();
 
     result.cookie_setting_overrides_ =
         frame.document_associated_data_->cookie_setting_overrides();
@@ -2809,6 +2809,7 @@ RenderFrameHostImpl::RenderFrameHostImpl(
 }
 
 RenderFrameHostImpl::~RenderFrameHostImpl() {
+  DismissUnboundedSurfaceIfActive();
   base::trace_event::TraceSessionObserverList::RemoveObserver(this);
   TRACE_EVENT("navigation", "RenderFrameHostImpl::~RenderFrameHostImpl",
               perfetto::TerminatingFlow::FromPointer(this));
@@ -4344,9 +4345,14 @@ void RenderFrameHostImpl::InitializePolicyContainerHost(
   // requests from the iframe also get subjected to the CA of the creator.
   // Their fetch requests already get subjected because they use the creator's
   // URLloader factory.
+  // The id is shared via ref-counting: the initial empty document holds a
+  // reference to the creator's id. If the child navigates, the navigation
+  // throttle assigns a new id, replacing the shared reference. The creator's
+  // id is only cleared from the network service when the last document
+  // holding a reference is destroyed.
   if (creator_rfh) {
-    document_associated_data_->set_network_restrictions_id(
-        creator_rfh->GetNetworkRestrictionsID());
+    document_associated_data_->ShareNetworkRestrictionsId(
+        creator_rfh->document_associated_data_->NetworkRestrictionsIdHandle());
   }
 
   // The initial empty documents sandbox flags is the union from:
@@ -8737,7 +8743,7 @@ void RenderFrameHostImpl::DidBlockNavigation(
   // reach here while prerendering.
   CHECK_NE(lifecycle_state(), LifecycleStateImpl::kPrerendering);
   delegate_->OnDidBlockNavigation(validated_blocked_url, GetLastCommittedURL(),
-                                  reason);
+                                  GetLastCommittedOrigin(), reason);
 }
 
 void RenderFrameHostImpl::DidChangeLoadProgress(double load_progress) {
@@ -10213,7 +10219,8 @@ RenderFrameHostImpl::CreateCrossOriginPrefetchLoaderFactoryBundle() {
   network::mojom::URLLoaderFactoryParamsPtr factory_params =
       URLLoaderFactoryParamsHelper::CreateForPrefetch(
           this, subresource_loader_factories_config.GetClientSecurityState(),
-          subresource_loader_factories_config.cookie_setting_overrides());
+          subresource_loader_factories_config.cookie_setting_overrides(),
+          subresource_loader_factories_config.network_restrictions_id());
 
   mojo::PendingRemote<network::mojom::URLLoaderFactory> pending_default_factory;
   bool bypass_redirect_checks = false;
@@ -11189,6 +11196,67 @@ void RenderFrameHostImpl::InitializeCrashReportContext(
   std::move(callback).Run(std::move(region));
 }
 
+void RenderFrameHostImpl::RequestUnboundedSurface(
+    mojo::PendingAssociatedReceiver<blink::mojom::UnboundedSurfaceHost> host,
+    mojo::PendingAssociatedRemote<blink::mojom::UnboundedSurfaceClient>
+        client) {
+  // TODO(crbug.com/508672616) Store and use the mojo endpoints.
+  if (!base::FeatureList::IsEnabled(blink::features::kUnboundedElement)) {
+    local_frame_host_receiver_.ReportBadMessage(
+        "RequestUnboundedSurface should not be called without the "
+        "UnboundedElement feature enabled.");
+    return;
+  }
+  if (!HasTransientUserActivation()) {
+    local_frame_host_receiver_.ReportBadMessage(
+        "RequestUnboundedSurface should not be called without user "
+        "activation.");
+    return;
+  }
+  // Only allow unbounded elements to be used by WebUI and other chrome://
+  // scheme callers.
+  bool is_privileged = GetWebUI() != nullptr ||
+                       GetLastCommittedOrigin().scheme() == kChromeUIScheme;
+  if (!is_privileged && !base::FeatureList::IsEnabled(
+                            blink::features::kUnboundedElementOnTheOpenWeb)) {
+    local_frame_host_receiver_.ReportBadMessage(
+        "RequestUnboundedSurface is only supported from privileged contexts.");
+    return;
+  }
+  RenderFrameHostImpl* outermost = GetOutermostMainFrame();
+  if (!outermost) {
+    return;
+  }
+
+  DismissActiveUnboundedSurface();
+
+  unbounded_surface_client_.Bind(std::move(client));
+  unbounded_surface_client_.set_disconnect_handler(
+      base::BindOnce(&RenderFrameHostImpl::DismissUnboundedSurfaceIfActive,
+                     base::Unretained(this)));
+  outermost->active_unbounded_frame_ = GetWeakPtr();
+}
+
+void RenderFrameHostImpl::DismissActiveUnboundedSurface() {
+  RenderFrameHostImpl* outermost = GetOutermostMainFrame();
+  if (outermost && outermost->active_unbounded_frame_) {
+    DCHECK_EQ(outermost->active_unbounded_frame_->GetOutermostMainFrame(),
+              outermost);
+    outermost->active_unbounded_frame_->DismissUnboundedSurfaceIfActive();
+  }
+}
+
+void RenderFrameHostImpl::DismissUnboundedSurfaceIfActive() {
+  if (unbounded_surface_client_.is_bound()) {
+    unbounded_surface_client_->OnDismissed();
+    unbounded_surface_client_.reset();
+  }
+  RenderFrameHostImpl* outermost = GetOutermostMainFrame();
+  if (outermost && outermost->active_unbounded_frame_.get() == this) {
+    outermost->active_unbounded_frame_.reset();
+  }
+}
+
 void RenderFrameHostImpl::CreateNewPopupWidget(
     mojo::PendingAssociatedReceiver<blink::mojom::PopupWidgetHost>
         blink_popup_widget_host,
@@ -11766,6 +11834,15 @@ CanCommitStatus RenderFrameHostImpl::CanCommitOriginAndUrl(
   // (e.g. "http://localhost"). In such cases, don't verify the URL, but require
   // the URL to commit in the process of the main frame.
   if (IsMhtmlSubframe()) {
+    // Documents derived from an MHTML archive are behind sandbox flags, so
+    // their origin is opaque. The early-return below validates neither URL
+    // nor origin, so a compromised renderer could otherwise launder an
+    // arbitrary non-opaque origin past this point via
+    // DidCommitSameDocumentNavigation.
+    if (!origin.opaque()) {
+      LogCanCommitOriginAndUrlFailureReason("mhtml_subframe_non_opaque_origin");
+      return CanCommitStatus::CANNOT_COMMIT_ORIGIN;
+    }
     RenderFrameHostImpl* main_frame = GetMainFrame();
     if (IsSameSiteInstance(main_frame)) {
       return CanCommitStatus::CAN_COMMIT_ORIGIN_AND_URL;
@@ -13131,11 +13208,12 @@ void RenderFrameHostImpl::AddResourceTimingEntryForFailedSubframeNavigation(
     FrameTreeNode* child_frame,
     base::TimeTicks start_time,
     base::TimeTicks redirect_time,
+    base::TimeTicks completion_time,
     const GURL& initial_url,
     const GURL& final_url,
     network::mojom::URLResponseHeadPtr response_head,
     bool allow_response_details,
-    const network::URLLoaderCompletionStatus& completion_status) {
+    blink::mojom::SubframeResourceLengthsPtr resource_lengths) {
   uint32_t status_code = 0;
   std::string mime_type;
   std::string normalized_server_timing =
@@ -13160,12 +13238,13 @@ void RenderFrameHostImpl::AddResourceTimingEntryForFailedSubframeNavigation(
 
   GetAssociatedLocalFrame()->AddResourceTimingEntryForFailedSubframeNavigation(
       child_token_in_parent.value(), initial_url, start_time, redirect_time,
-      response_head->request_start, response_head->response_start, status_code,
-      mime_type, response_head->load_timing, response_head->connection_info,
-      response_head->alpn_negotiated_protocol,
+      response_head->request_start, response_head->response_start,
+      completion_time, status_code, mime_type, response_head->load_timing,
+      response_head->connection_info, response_head->alpn_negotiated_protocol,
       std::ranges::contains(url::GetSecureSchemes(),
                             url::Origin::Create(final_url).scheme()),
-      response_head->is_validated, normalized_server_timing, completion_status);
+      response_head->is_validated, normalized_server_timing,
+      std::move(resource_lengths));
 }
 
 void RenderFrameHostImpl::HandleRendererDebugURL(const GURL& url) {
@@ -13473,12 +13552,23 @@ bool RenderFrameHostImpl::IsSameSiteInstance(
 }
 
 void RenderFrameHostImpl::UpdateAccessibilityMode() {
+  ui::AXMode ax_mode = delegate_->GetAccessibilityMode();
+
+  if (!ax_mode.has_mode(ui::kAXModeBasic.flags()) &&
+      browser_accessibility_manager_) {
+    // Missing kWebContents and/or kNativeAPIs, so BrowserAccessibilityManager
+    // is no longer necessary.
+    browser_accessibility_manager_->DetachFromParentManager();
+    browser_accessibility_manager_.reset();
+    // Retain ax_unique_ids_ so that if browser accessibility is re-enabled, the
+    // platform nodes corresponding to the blink nodes will have the same IDs.
+  }
+
   // Don't update accessibility mode for a frame that hasn't been created yet.
   if (!IsRenderFrameLive()) {
     return;
   }
 
-  ui::AXMode ax_mode = delegate_->GetAccessibilityMode();
   last_ax_mode_ = ax_mode;
 
   if (ax_mode.has_mode(ui::AXMode::kWebContents)) {
@@ -13495,16 +13585,6 @@ void RenderFrameHostImpl::UpdateAccessibilityMode() {
     // Resetting the Remote signals the renderer to shutdown accessibility
     // in the renderer.
     render_accessibility_.reset();
-  }
-
-  if (!ax_mode.has_mode(ui::kAXModeBasic.flags()) &&
-      browser_accessibility_manager_) {
-    // Missing either kWebContents and kNativeAPIs, so
-    // BrowserAccessibilityManager is no longer necessary.
-    browser_accessibility_manager_->DetachFromParentManager();
-    browser_accessibility_manager_.reset();
-    // Retain ax_unique_ids_ so that if browser accessibility is re-enabled, the
-    // platform nodes corresponding to the blink nodes will have the same IDs.
   }
 }
 
@@ -13588,9 +13668,7 @@ RenderFrameHostImpl::GetOrCreateBrowserAccessibilityManager() {
   // At least basic mode is required; it contains kWebContents and KNativeAPIs.
   ui::AXMode accessibility_mode = delegate_->GetAccessibilityMode();
   if (!accessibility_mode.has_mode(ui::AXMode::kNativeAPIs)) {
-    // TODO(https://crbug.com/497761255): CHECK-exclusion: Convert to CHECK once
-    // we are sure this isn't hit.
-    DCHECK(!browser_accessibility_manager_);
+    CHECK(!browser_accessibility_manager_);
     return nullptr;
   }
 
@@ -16085,7 +16163,7 @@ bool RenderFrameHostImpl::DidCommitNavigationInternal(
         navigation_request->navigation_confidence());
     document_associated_data_->set_devtools_navigation_token(
         navigation_request->devtools_navigation_token());
-    document_associated_data_->set_network_restrictions_id(
+    document_associated_data_->SetNetworkRestrictionsId(
         navigation_request->network_restrictions_id());
     // Stores fetch keepalive FactoryContext created before committing into
     // document-associated data, such that it can be referenced later when

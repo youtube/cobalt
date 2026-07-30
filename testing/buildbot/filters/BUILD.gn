@@ -111,8 +111,6 @@ source_set("chrome_public_test_apk_filters") {
   testonly = true
 
   data = [
-    "//testing/buildbot/filters/android.desktop.chrome_public_test_apk_desktop.filter",
-    "//testing/buildbot/filters/android.desktop.emulator_15.chrome_public_test_apk.filter",
     "//testing/buildbot/filters/android.device_14.chrome_public_test_apk.filter",
     "//testing/buildbot/filters/android.device_14_tablet.chrome_public_test_apk.filter",
     "//testing/buildbot/filters/android.emulator_10.chrome_public_test_apk.filter",
@@ -209,6 +207,13 @@ bundle_data("gpu_unittests_filters_bundle_data") {
 bundle_data("media_unittests_filters_bundle_data") {
   testonly = true
   sources = [ "//testing/buildbot/filters/ios.media_unittests.filter" ]
+  outputs = [ "{{bundle_resources_dir}}/" +
+              "{{source_root_relative_dir}}/{{source_file_part}}" ]
+}
+
+bundle_data("midi_unittests_use_blink_filters_bundle_data") {
+  testonly = true
+  sources = [ "//testing/buildbot/filters/ios.use_blink.midi_unittests.filter" ]
   outputs = [ "{{bundle_resources_dir}}/" +
               "{{source_root_relative_dir}}/{{source_file_part}}" ]
 }

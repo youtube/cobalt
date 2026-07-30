@@ -146,7 +146,6 @@
 #include "components/web_cache/browser/web_cache_manager.h"
 #include "components/webrtc_logging/browser/log_cleanup.h"
 #include "components/webrtc_logging/browser/text_log_list.h"
-#include "content/public/browser/background_tracing_manager.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/browsing_data_filter_builder.h"
@@ -166,6 +165,7 @@
 #include "net/http/http_transaction_factory.h"
 #include "net/net_buildflags.h"
 #include "services/network/public/mojom/clear_data_filter.mojom.h"
+#include "services/tracing/public/cpp/background_tracing/background_tracing_manager.h"
 #include "third_party/perfetto/include/perfetto/tracing/track.h"
 
 #if BUILDFLAG(IS_ANDROID)
@@ -560,7 +560,7 @@ void ChromeBrowsingDataRemoverDelegate::RemoveEmbedderData(
 
     CreateCrashUploadList()->Clear(delete_begin_, delete_end_);
 
-    content::BackgroundTracingManager::GetInstance().DeleteTracesInDateRange(
+    tracing::BackgroundTracingManager::GetInstance().DeleteTracesInDateRange(
         delete_begin_, delete_end_);
 
     FindBarStateFactory::GetForBrowserContext(profile_)->SetLastSearchText(
@@ -702,9 +702,7 @@ void ChromeBrowsingDataRemoverDelegate::RemoveEmbedderData(
     }
 
 #if BUILDFLAG(IS_CHROMEOS)
-    if (base::FeatureList::IsEnabled(
-            browsing_data::features::kDbdRevampDesktop) &&
-        ash::SystemProxyManager::Get()) {
+    if (ash::SystemProxyManager::Get()) {
       // Sends a request to the System-proxy daemon to clear the proxy user
       // credentials. System-proxy retrieves proxy username and password from
       // the NetworkService, but not the creation time of the credentials. The
@@ -1053,9 +1051,7 @@ void ChromeBrowsingDataRemoverDelegate::RemoveEmbedderData(
 
   if ((remove_mask & constants::DATA_TYPE_PASSWORDS)
 #if !BUILDFLAG(IS_ANDROID)
-      ||
-      ((remove_mask & constants::DATA_TYPE_FORM_DATA) &&
-       base::FeatureList::IsEnabled(browsing_data::features::kDbdRevampDesktop))
+      || (remove_mask & constants::DATA_TYPE_FORM_DATA)
 #endif  // !BUILDFLAG(IS_ANDROID)
   ) {
     scoped_refptr<payments::WebPaymentsWebDataService>

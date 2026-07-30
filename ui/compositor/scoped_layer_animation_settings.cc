@@ -7,12 +7,13 @@
 #include <stddef.h>
 
 #include "base/memory/raw_ptr.h"
-#include "base/observer_list.h"
+#include "base/scoped_observation.h"
 #include "ui/compositor/layer.h"
 #include "ui/compositor/layer_animation_observer.h"
 #include "ui/compositor/layer_animation_sequence.h"
 #include "ui/compositor/layer_animator.h"
 #include "ui/compositor/layer_observer.h"
+#include "ui/compositor/scoped_layer_request.h"
 
 namespace ui {
 
@@ -20,32 +21,30 @@ namespace {
 
 const int kScopedLayerAnimationDefaultTransitionDurationMs = 200;
 
-template <typename Trait>
+template <typename LockType>
 class ScopedLayerAnimationObserver : public ui::ImplicitAnimationObserver,
                                      public ui::LayerObserver {
  public:
-  ScopedLayerAnimationObserver(ui::Layer* layer) : layer_(layer) {
-    layer_->AddObserver(this);
-    Trait::AddRequest(layer_);
+  explicit ScopedLayerAnimationObserver(ui::Layer* layer) {
+    layer_observation_.Observe(layer);
+    lock_.emplace(layer);
   }
 
   ScopedLayerAnimationObserver(const ScopedLayerAnimationObserver&) = delete;
   ScopedLayerAnimationObserver& operator=(const ScopedLayerAnimationObserver&) =
       delete;
 
-  ~ScopedLayerAnimationObserver() override {
-    if (layer_)
-      layer_->RemoveObserver(this);
-  }
+  ~ScopedLayerAnimationObserver() override = default;
 
   // ui::ImplicitAnimationObserver overrides:
   void OnImplicitAnimationsCompleted() override {
-    // If animation finishes before |layer_| is destoyed, we will remove the
-    // request applied on the layer and remove |this| from the |layer_|
-    // observer list when deleting |this|.
-    if (layer_) {
-      Trait::RemoveRequest(layer_);
-      layer_->GetAnimator()->RemoveAndDestroyOwnedObserver(this);
+    // If the animation finishes before the layer is destroyed, we will release
+    // the lock and destroy `this`.
+    lock_.reset();
+    if (layer_observation_.IsObserving()) {
+      layer_observation_.GetSource()
+          ->GetAnimator()
+          ->RemoveAndDestroyOwnedObserver(this);
     }
   }
 
@@ -53,45 +52,23 @@ class ScopedLayerAnimationObserver : public ui::ImplicitAnimationObserver,
   void LayerDestroyed(ui::Layer* layer) override {
     // If the animation is still going past layer destruction then we want the
     // layer to keep the request until the animation has finished. We will defer
-    // deleting |this| until the animation finishes.
-    layer_->RemoveObserver(this);
-    layer_ = nullptr;
+    // deleting `this` until the animation finishes.
+    layer_observation_.Reset();
   }
 
  private:
-  raw_ptr<ui::Layer> layer_;
+  std::optional<LockType> lock_;
+  base::ScopedObservation<ui::Layer, ui::LayerObserver> layer_observation_{
+      this};
 };
 
-struct RenderSurfaceCachingTrait {
-  static void AddRequest(ui::Layer* layer) {
-    layer->AddCacheRenderSurfaceRequest();
-  }
-  static void RemoveRequest(ui::Layer* layer) {
-    layer->RemoveCacheRenderSurfaceRequest();
-  }
-};
 using ScopedRenderSurfaceCaching =
-    ScopedLayerAnimationObserver<RenderSurfaceCachingTrait>;
+    ScopedLayerAnimationObserver<ScopedCacheRenderSurfaceLock>;
 
-struct DeferredPaintingTrait {
-  static void AddRequest(ui::Layer* layer) { layer->AddDeferredPaintRequest(); }
-  static void RemoveRequest(ui::Layer* layer) {
-    layer->RemoveDeferredPaintRequest();
-  }
-};
-using ScopedDeferredPainting =
-    ScopedLayerAnimationObserver<DeferredPaintingTrait>;
+using ScopedDeferredPainting = ScopedLayerAnimationObserver<ScopedPaintLock>;
 
-struct TrilinearFilteringTrait {
-  static void AddRequest(ui::Layer* layer) {
-    layer->AddTrilinearFilteringRequest();
-  }
-  static void RemoveRequest(ui::Layer* layer) {
-    layer->RemoveTrilinearFilteringRequest();
-  }
-};
 using ScopedTrilinearFiltering =
-    ScopedLayerAnimationObserver<TrilinearFilteringTrait>;
+    ScopedLayerAnimationObserver<ScopedTrilinearFilteringLock>;
 
 void AddObserverToSettings(
     ui::ScopedLayerAnimationSettings* settings,

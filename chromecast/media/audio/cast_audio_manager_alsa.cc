@@ -14,7 +14,7 @@
 #include "base/task/single_thread_task_runner.h"
 #include "chromecast/media/api/cma_backend_factory.h"
 #include "chromecast/media/audio/audio_buildflags.h"
-#include "chromecast/media/audio/cast_audio_input_stream.h"
+
 #include "media/audio/alsa/alsa_input.h"
 #include "media/audio/alsa/alsa_wrapper.h"
 
@@ -29,10 +29,7 @@ const int kDefaultSampleRate = BUILDFLAG(AUDIO_INPUT_SAMPLE_RATE);
 // TODO(jyw): Query the preferred value from media backend.
 const int kDefaultInputBufferSize = 1024;
 
-#if BUILDFLAG(ENABLE_AUDIO_CAPTURE_SERVICE)
-const int kCommunicationsSampleRate = 16000;
-const int kCommunicationsInputBufferSize = 160;  // 10 ms.
-#endif
+
 
 // Since "default" and "dmix" devices are virtual devices mapped to real
 // devices, we remove them from the list to avoiding duplicate counting.
@@ -89,15 +86,13 @@ CastAudioManagerAlsa::CastAudioManagerAlsa(
     CastAudioManagerHelper::Delegate* delegate,
     base::RepeatingCallback<CmaBackendFactory*()> backend_factory_getter,
     scoped_refptr<base::SingleThreadTaskRunner> browser_task_runner,
-    scoped_refptr<base::SingleThreadTaskRunner> media_task_runner,
-    bool use_mixer)
+    scoped_refptr<base::SingleThreadTaskRunner> media_task_runner)
     : CastAudioManager(std::move(audio_thread),
                        audio_log_factory,
                        delegate,
                        std::move(backend_factory_getter),
                        browser_task_runner,
-                       media_task_runner,
-                       use_mixer),
+                       media_task_runner),
       wrapper_(new ::media::AlsaWrapper()) {}
 
 CastAudioManagerAlsa::~CastAudioManagerAlsa() {}
@@ -106,7 +101,7 @@ bool CastAudioManagerAlsa::HasAudioInputDevices() {
   return true;
 }
 
-void CastAudioManagerAlsa::GetAudioInputDeviceNames(
+bool CastAudioManagerAlsa::GetAudioInputDeviceNames(
     ::media::AudioDeviceNames* device_names) {
   DCHECK(device_names->empty());
 
@@ -114,26 +109,16 @@ void CastAudioManagerAlsa::GetAudioInputDeviceNames(
   // list for all platforms. Note, pulse has exclusively opened the default
   // device, so we must open the device via the "default" moniker.
   device_names->push_front(::media::AudioDeviceName::CreateDefault());
-#if BUILDFLAG(ENABLE_AUDIO_CAPTURE_SERVICE)
-  device_names->push_back(::media::AudioDeviceName::CreateCommunications());
-#endif  // BUILDFLAG(ENABLE_AUDIO_CAPTURE_SERVICE)
 
-  GetAlsaAudioDevices(kStreamCapture, device_names);
+  return GetAlsaAudioDevices(kStreamCapture, device_names);
 }
 
 ::media::AudioParameters CastAudioManagerAlsa::GetInputStreamParameters(
     const std::string& device_id) {
   if (device_id == ::media::AudioDeviceDescription::kCommunicationsDeviceId) {
-#if !BUILDFLAG(ENABLE_AUDIO_CAPTURE_SERVICE)
     NOTIMPLEMENTED()
         << "Capture Service is not enabled, return a fake AudioParameters.";
     return ::media::AudioParameters();
-#else
-    return ::media::AudioParameters(::media::AudioParameters::AUDIO_PCM_LINEAR,
-                                    ::media::CHANNEL_LAYOUT_MONO,
-                                    kCommunicationsSampleRate,
-                                    kCommunicationsInputBufferSize);
-#endif  // BUILDFLAG(ENABLE_AUDIO_CAPTURE_SERVICE)
   }
   // TODO(jyw): Be smarter about sample rate instead of hardcoding it.
   // Need to send a valid AudioParameters object even when it will be unused.
@@ -167,36 +152,43 @@ void CastAudioManagerAlsa::GetAudioInputDeviceNames(
           ? ::media::AlsaPcmInputStream::kAutoSelectDevice
           : device_id;
   if (device_name == ::media::AudioDeviceDescription::kCommunicationsDeviceId) {
-#if !BUILDFLAG(ENABLE_AUDIO_CAPTURE_SERVICE)
     NOTIMPLEMENTED() << "Capture Service is not enabled, return nullptr.";
     return nullptr;
-#else
-    return new CastAudioInputStream(this, params, device_name);
-#endif  // BUILDFLAG(ENABLE_AUDIO_CAPTURE_SERVICE)
   }
   return new ::media::AlsaPcmInputStream(this, device_name, params,
                                          wrapper_.get());
 }
 
-void CastAudioManagerAlsa::GetAlsaAudioDevices(
+bool CastAudioManagerAlsa::GetAlsaAudioDevices(
     StreamType type,
     ::media::AudioDeviceNames* device_names) {
   int card = -1;
 
   // Loop through the sound cards to get ALSA device hints.
-  while (!wrapper_->CardNext(&card) && card >= 0) {
+  bool had_error = false;
+  int card_next_result = 0;
+  while ((card_next_result = wrapper_->CardNext(&card)) == 0 && card >= 0) {
     void** hints = NULL;
-    int error = wrapper_->DeviceNameHint(card, kPcmInterfaceName, &hints);
-    if (!error) {
+    int hint_result = wrapper_->DeviceNameHint(card, kPcmInterfaceName, &hints);
+    if (!hint_result) {
       GetAlsaDevicesInfo(type, hints, device_names);
 
       // Destroy the hints now that we're done with it.
       wrapper_->DeviceNameFreeHint(hints);
     } else {
+      had_error = true;
       DLOG(WARNING) << "GetAlsaAudioDevices: unable to get device hints: "
-                    << wrapper_->StrError(error);
+                    << wrapper_->StrError(hint_result);
     }
   }
+
+  if (card_next_result != 0) {
+    had_error = true;
+    DLOG(WARNING) << "GetAlsaAudioDevices: unable to get next card: "
+                  << wrapper_->StrError(card_next_result);
+  }
+
+  return !had_error;
 }
 
 void CastAudioManagerAlsa::GetAlsaDevicesInfo(

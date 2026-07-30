@@ -154,9 +154,8 @@ bool IsAudible(const AudioBus* rendered_data) {
 
   uint32_t data_size = rendered_data->length();
   for (uint32_t k = 0; k < rendered_data->NumberOfChannels(); ++k) {
-    const float* data = rendered_data->Channel(k)->Data();
-    float channel_energy;
-    vector_math::Vsvesq(data, 1, &channel_energy, data_size);
+    base::span<const float> data = rendered_data->Channel(k)->Span();
+    float channel_energy = vector_math::Vsvesq(data, data_size);
     energy += channel_energy;
   }
 
@@ -659,13 +658,20 @@ AudioContext::AudioContext(LocalDOMWindow& window,
   // once the context is constructed.  We need the destination to be initialized
   // so we have to compute it here.
   //
-  // TODO(hongchan): Due to the incompatible constructor between
+  // Per specification, baseLatency is the processing latency of the
+  // AudioContext caused by the rendering quantum size or the hardware buffer
+  // size, whichever is greater.
+  //
+  // TODO(crbug.com/512526279): Due to the incompatible constructor between
   // AudioDestinationNode and RealtimeAudioDestinationNode, casting directly
   // from `destination()` is impossible. This is a temporary workaround until
   // the refactoring is completed.
-  base_latency_ =
-      GetRealtimeAudioDestinationNode()->GetOwnHandler().GetFramesPerBuffer() /
-      static_cast<double>(sampleRate());
+  size_t base_latency_frames =
+      std::max(static_cast<size_t>(GetRealtimeAudioDestinationNode()
+                                       ->GetOwnHandler()
+                                       .GetFramesPerBuffer()),
+               static_cast<size_t>(renderQuantumSize()));
+  base_latency_ = base_latency_frames / static_cast<double>(sampleRate());
   SendLogMessage(__func__, String::Format("=> (base latency=%.3f seconds))",
                                           base_latency_));
 
@@ -781,7 +787,7 @@ ScriptPromise<IDLUndefined> AudioContext::suspendContext(
     auto promise = resolver->Promise();
 
     {
-      DeferredTaskHandler::GraphAutoLocker locker(this);
+      DeferredTaskHandler::GraphAutoLocker locker(GetDeferredTaskHandler());
       pending_suspend_resolvers_.push_back(resolver);
     }
 
@@ -873,7 +879,7 @@ ScriptPromise<IDLUndefined> AudioContext::resumeContext(
   // Save the resolver which will get resolved when the destination node starts
   // pulling on the graph again.
   {
-    DeferredTaskHandler::GraphAutoLocker locker(this);
+    DeferredTaskHandler::GraphAutoLocker locker(GetDeferredTaskHandler());
     pending_promises_resolvers_.push_back(resolver);
   }
 
@@ -906,7 +912,7 @@ AudioTimestamp* AudioContext::getOutputTimestamp(
   WindowPerformance* performance = DOMWindowPerformance::performance(*window);
   DCHECK(performance);
 
-  DeferredTaskHandler::GraphAutoLocker locker(this);
+  DeferredTaskHandler::GraphAutoLocker locker(GetDeferredTaskHandler());
   double performance_time = performance->MonotonicTimeToDOMHighResTimeStamp(
       base::TimeTicks() + base::Seconds(output_position_.timestamp));
   result->setContextTime(output_position_.position);
@@ -974,7 +980,7 @@ void AudioContext::DidClose() {
 
   // Reject all pending suspend promises.
   {
-    DeferredTaskHandler::GraphAutoLocker locker(this);
+    DeferredTaskHandler::GraphAutoLocker locker(GetDeferredTaskHandler());
     for (auto& resolver : pending_suspend_resolvers_) {
       resolver->Reject(MakeGarbageCollected<DOMException>(
           DOMExceptionCode::kInvalidStateError,
@@ -1024,7 +1030,7 @@ void AudioContext::PerformInitialTransitionToRunning() {
   // Resolve pending resume() promises now that we are in the "running" state.
   HeapVector<Member<ScriptPromiseResolver<IDLUndefined>>> resolvers;
   {
-    DeferredTaskHandler::GraphAutoLocker locker(this);
+    DeferredTaskHandler::GraphAutoLocker locker(GetDeferredTaskHandler());
     resolvers.swap(pending_promises_resolvers_);
     is_resolving_resume_promises_ = false;
   }
@@ -1048,7 +1054,7 @@ void AudioContext::PerformTransitionToSuspended() {
 
   HeapVector<Member<ScriptPromiseResolver<IDLUndefined>>> resolvers;
   {
-    DeferredTaskHandler::GraphAutoLocker locker(this);
+    DeferredTaskHandler::GraphAutoLocker locker(GetDeferredTaskHandler());
     resolvers.swap(pending_suspend_resolvers_);
   }
 
@@ -1151,7 +1157,7 @@ double AudioContext::outputLatency() const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(main_thread_sequence_checker_);
   DCHECK(destination());
 
-  DeferredTaskHandler::GraphAutoLocker locker(this);
+  DeferredTaskHandler::GraphAutoLocker locker(GetDeferredTaskHandler());
 
   double factor = GetOutputLatencyQuantizingFactor();
   return std::round(output_position_.hardware_output_latency / factor) * factor;
@@ -1421,9 +1427,10 @@ bool AudioContext::HandlePreRenderTasks(
   }
 
   // At the beginning of every render quantum, try to update the internal
-  // rendering graph state (from main thread changes).  It's OK if the tryLock()
-  // fails, we'll just take slightly longer to pick up the changes.
-  if (TryLock()) {
+  // rendering graph state (from main thread changes).  It's OK if the lock is
+  // not acquired, we'll just take slightly longer to pick up the changes.
+  DeferredTaskHandler::GraphAutoTryLocker try_locker(GetDeferredTaskHandler());
+  if (try_locker.IsAcquired()) {
     GetDeferredTaskHandler().HandleDeferredTasks();
 
     ResolvePromisesForUnpause();
@@ -1449,8 +1456,6 @@ bool AudioContext::HandlePreRenderTasks(
         stats_update_restrictor_->CheckAndConsumeRateLimit()) {
       audio_frame_stats_.Absorb(pending_audio_frame_stats_);
     }
-
-    unlock();
   }
 
   // Realtime context ignores the return result, but return true, just in case.
@@ -1478,19 +1483,18 @@ void AudioContext::NotifyAudibleAudioStarted() {
 void AudioContext::HandlePostRenderTasks() {
   DCHECK(IsAudioThread());
 
-  // Must use a tryLock() here too.  Don't worry, the lock will very rarely be
-  // contended and this method is called frequently.  The worst that can happen
-  // is that there will be some nodes which will take slightly longer than usual
-  // to be deleted or removed from the render graph (in which case they'll
-  // render silence).
-  if (TryLock()) {
-    // Take care of AudioNode tasks where the tryLock() failed previously.
+  // The lock will very rarely be contended and this method is called
+  // frequently.  If the lock is not acquired there will be some nodes which
+  // will take slightly longer than usual to be deleted or removed from the
+  // render graph (in which case they'll render silence).
+  DeferredTaskHandler::GraphAutoTryLocker try_locker(GetDeferredTaskHandler());
+  if (try_locker.IsAcquired()) {
+    // Take care of AudioNode tasks if the lock failed to be acquired
+    // previously.
     GetDeferredTaskHandler().BreakConnections();
 
     GetDeferredTaskHandler().HandleDeferredTasks();
     GetDeferredTaskHandler().RequestToDeleteHandlersOnMainThread();
-
-    unlock();
   }
 }
 
@@ -1584,7 +1588,7 @@ AudioCallbackMetric AudioContext::GetCallbackMetric() const {
   // allow seeing the audio thread changing the struct values. This method
   // gets called once per second and the size of the struct is small, so
   // creating a copy is acceptable here.
-  DeferredTaskHandler::GraphAutoLocker locker(this);
+  DeferredTaskHandler::GraphAutoLocker locker(GetDeferredTaskHandler());
   return callback_metric_;
 }
 
@@ -1779,7 +1783,7 @@ void AudioContext::OnDevicesChanged(mojom::blink::MediaDeviceType device_type,
 
   if (device_type == mojom::blink::MediaDeviceType::kMediaAudioOutput) {
     output_device_ids_.clear();
-    for (auto device : devices) {
+    for (const auto& device : devices) {
       if (device.device_id == media::AudioDeviceDescription::kDefaultDeviceId) {
         // Use the empty string to represent the default audio sink.
         output_device_ids_.insert(g_empty_string);
@@ -1934,7 +1938,7 @@ void AudioContext::ResumeOnPrerenderActivation() {
 
 void AudioContext::TransferAudioFrameStatsTo(
     AudioFrameStatsAccumulator& receiver) {
-  DeferredTaskHandler::GraphAutoLocker locker(this);
+  DeferredTaskHandler::GraphAutoLocker locker(GetDeferredTaskHandler());
   receiver.Absorb(audio_frame_stats_);
 }
 

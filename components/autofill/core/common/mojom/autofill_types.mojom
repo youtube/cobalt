@@ -31,6 +31,7 @@ enum FormControlType {
   // deprecated: kSelectList = 13
   kTextArea = 14,
   kInputDate = 15,
+  kInputHiddenEmailVerification = 16,
 };
 
 // The list of all HTML autocomplete field mode hints supported by Chrome.
@@ -237,13 +238,16 @@ struct SelectOption {
 
 // autofill::AutocompleteParsingResult
 // (components/autofill/core/common/autocomplete_parsing_util.h)
+// LINT.IfChange(AutocompleteParsingResult)
 struct AutocompleteParsingResult {
   string section;
   HtmlFieldMode mode;
   HtmlFieldType field_type;
   bool webauthn;
   bool webidentity;
+  bool email_verification_token;
 };
+// LINT.ThenChange(//components/autofill/core/common/autocomplete_parsing_util.h)
 
 // autofill::FormFieldData (components/autofill/core/common/form_field_data.h)
 struct FormFieldData {
@@ -300,7 +304,11 @@ struct FormFieldData {
   mojo_base.mojom.String16 css_classes;
   mojo_base.mojom.String16 aria_label;
   mojo_base.mojom.String16 aria_description;
-  mojo_base.mojom.String16 nonce;
+  // A challenge (a cryptographic random nonce, unique per verification)
+  // provided by the website to the browser to be included in the key binding of
+  // EVTs.
+  // https://dickhardt.github.io/email-verification/draft-hardt-email-verification.html#section-2.1
+  mojo_base.mojom.String16 challenge;
   FieldRendererId renderer_id;
   FormRendererId host_form_id;
   uint32 properties_mask;

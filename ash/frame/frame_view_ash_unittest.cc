@@ -38,6 +38,7 @@
 #include "ui/aura/window_targeter.h"
 #include "ui/base/accelerators/accelerator.h"
 #include "ui/base/accelerators/test_accelerator_target.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/chromeos/styles/cros_tokens_color_mappings.h"
 #include "ui/compositor/layer.h"
 #include "ui/compositor/test/draw_waiter_for_test.h"
@@ -294,7 +295,9 @@ TEST_F(FrameViewAshTest, ToggleTabletModeOnMinimizedWindow) {
   // Restore icon for size button in maximized window state. Compare by name
   // because the address may not be the same for different build targets in the
   // component build.
-  EXPECT_STREQ(views::kWindowControlRestoreOldIcon.name,
+  EXPECT_STREQ(::features::IsRoundedIconsEnabled()
+                   ? views::kChromeRestoreFilledIcon.name
+                   : views::kWindowControlRestoreOldIcon.name,
                test.size_button()->icon_definition_for_test()->name);
   widget->Minimize();
 
@@ -306,7 +309,9 @@ TEST_F(FrameViewAshTest, ToggleTabletModeOnMinimizedWindow) {
   // maximized window state, which is restore icon.
   ::wm::Unminimize(widget->GetNativeWindow());
   EXPECT_TRUE(widget->IsMaximized());
-  EXPECT_STREQ(views::kWindowControlRestoreOldIcon.name,
+  EXPECT_STREQ(::features::IsRoundedIconsEnabled()
+                   ? views::kChromeRestoreFilledIcon.name
+                   : views::kWindowControlRestoreOldIcon.name,
                test.size_button()->icon_definition_for_test()->name);
 }
 
@@ -734,7 +739,9 @@ TEST_F(FrameViewAshTest, CustomButtonModel) {
   EXPECT_TRUE(test_api.menu_button()->GetEnabled());
 
   // zoom button
-  EXPECT_STREQ(views::kWindowControlMaximizeOldIcon.name,
+  EXPECT_STREQ(::features::IsRoundedIconsEnabled()
+                   ? views::kChromeMaximizeIcon.name
+                   : views::kWindowControlMaximizeOldIcon.name,
                test_api.size_button()->icon_definition_for_test()->name);
   model_ptr->set_zoom_mode(true);
   frame_view->SizeConstraintsChanged();
@@ -782,7 +789,11 @@ TEST_F(FrameViewAshTest, WideFrame) {
   ImmersiveFullscreenController::EnableForWidget(widget.get(), true);
   EXPECT_TRUE(header_view->in_immersive_mode());
   EXPECT_TRUE(wide_header_view->in_immersive_mode());
-  EXPECT_TRUE(header_view->GetVisible());
+
+  // The animation is disabled, therefore the frame is unrevealed immediately.
+  EXPECT_FALSE(header_view->GetVisible());
+  EXPECT_FALSE(controller.IsRevealed());
+
   // The height should be ~(33 *.5)
   wide_header_view->SetVisibleFraction(0.5);
   EXPECT_NEAR(16, wide_header_view->GetPreferredOnScreenHeight(), 1);
@@ -838,25 +849,33 @@ TEST_F(FrameViewAshTest, WideFrameButton) {
   FrameCaptionButtonContainerView::TestApi test_api(
       header_view->caption_button_container());
 
-  EXPECT_STREQ(views::kWindowControlRestoreOldIcon.name,
+  EXPECT_STREQ(::features::IsRoundedIconsEnabled()
+                   ? views::kChromeRestoreFilledIcon.name
+                   : views::kWindowControlRestoreOldIcon.name,
                test_api.size_button()->icon_definition_for_test()->name);
 
   widget->SetFullscreen(true);
   views::test::RunScheduledLayout(header_view);
-  EXPECT_STREQ(views::kWindowControlRestoreOldIcon.name,
+  EXPECT_STREQ(::features::IsRoundedIconsEnabled()
+                   ? views::kChromeRestoreFilledIcon.name
+                   : views::kWindowControlRestoreOldIcon.name,
                test_api.size_button()->icon_definition_for_test()->name);
   {
     WMEvent event(WM_EVENT_PIN);
     WindowState::Get(widget->GetNativeWindow())->OnWMEvent(&event);
     views::test::RunScheduledLayout(header_view);
-    EXPECT_STREQ(views::kWindowControlRestoreOldIcon.name,
+    EXPECT_STREQ(::features::IsRoundedIconsEnabled()
+                     ? views::kChromeRestoreFilledIcon.name
+                     : views::kWindowControlRestoreOldIcon.name,
                  test_api.size_button()->icon_definition_for_test()->name);
   }
   {
     WMEvent event(WM_EVENT_LOCKED_FULLSCREEN);
     WindowState::Get(widget->GetNativeWindow())->OnWMEvent(&event);
     views::test::RunScheduledLayout(header_view);
-    EXPECT_STREQ(views::kWindowControlRestoreOldIcon.name,
+    EXPECT_STREQ(::features::IsRoundedIconsEnabled()
+                     ? views::kChromeRestoreFilledIcon.name
+                     : views::kWindowControlRestoreOldIcon.name,
                  test_api.size_button()->icon_definition_for_test()->name);
   }
 }

@@ -4,10 +4,13 @@
 
 #include "components/autofill/core/browser/filling/filling_product.h"
 
+#include <string>
+
 #include "base/notreached.h"
+#include "build/buildflag.h"
 #include "components/autofill/core/browser/field_types.h"
+#include "components/autofill/core/browser/suggestions/suggestion_generator.h"
 #include "components/autofill/core/browser/suggestions/suggestion_type.h"
-#include "components/autofill/core/common/mojom/autofill_types.mojom-shared.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/scoped_java_ref.h"
@@ -110,6 +113,8 @@ FillingProduct GetFillingProductFromSuggestionType(SuggestionType type) {
     case SuggestionType::kAtMemoryInactivityNudge:
     case SuggestionType::kAutocompleteAtMemoryButton:
     case SuggestionType::kOpenGemini:
+    case SuggestionType::kAtMemoryNoConnection:
+    case SuggestionType::kAtMemorySearchAffordance:
       return FillingProduct::kNone;
     case SuggestionType::kFillAutofillAi:
     case SuggestionType::kManageAutofillAi:

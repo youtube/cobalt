@@ -105,13 +105,11 @@
         <structure type="chrome_scaled_image" name="IDR_FORWARD_H" file="common/browser_forward_hover.png" />
         <structure type="chrome_scaled_image" name="IDR_FORWARD_P" file="common/browser_forward_pressed.png" />
       </if>
-      <if expr="not is_android">
-        <if expr="_google_chrome">
-            <structure type="chrome_scaled_image" name="IDR_GOOGLE_G_GRADIENT_16" file="google_chrome/google_g_gradient_16.png" />
-            <structure type="chrome_scaled_image" name="IDR_GOOGLE_G_GRADIENT_16_ALT" file="google_chrome/google_g_gradient_16_alt.png" />
-            <structure type="chrome_scaled_image" name="IDR_GOOGLE_G_GRADIENT_20" file="google_chrome/google_g_gradient_20.png" />
-            <structure type="chrome_scaled_image" name="IDR_GOOGLE_G" file="google_chrome/google_icon.png" />
-        </if>
+      <if expr="_google_chrome">
+          <structure type="chrome_scaled_image" name="IDR_GOOGLE_G_GRADIENT_16" file="google_chrome/google_g_gradient_16.png" />
+          <structure type="chrome_scaled_image" name="IDR_GOOGLE_G_GRADIENT_16_ALT" file="google_chrome/google_g_gradient_16_alt.png" />
+          <structure type="chrome_scaled_image" name="IDR_GOOGLE_G_GRADIENT_20" file="google_chrome/google_g_gradient_20.png" />
+          <structure type="chrome_scaled_image" name="IDR_GOOGLE_G" file="google_chrome/google_icon.png" />
       </if>
       <if expr="not is_android">
         <structure type="chrome_scaled_image" name="IDR_HELP_MENU" file="common/help_16.png" />
@@ -134,6 +132,9 @@
         <structure type="chrome_scaled_image" name="IDR_ARC_PLAY_STORE_OPTIN_IN_PROGRESS_NOTIFICATION" file="cros/notification_play_store_optin_in_progress.png" />
         <structure type="chrome_scaled_image" name="IDR_NOTIFICATION_EASYUNLOCK_ENABLED" file="cros/notification_easyunlock_enabled.png" />
       </if>
+      <if expr="enable_webui_ntp">
+        <structure type="chrome_scaled_image" name="IDR_NTP_FAVICON" file="common/favicon_ntp.png" />
+      </if>
       <if expr="not is_android">
         <if expr="_google_chrome">
             <structure type="chrome_scaled_image" name="IDR_LENS_PERMISSION_MODAL_IMAGE" file="google_chrome/lens_permission_modal_image.png" />
@@ -142,7 +143,6 @@
         </if>
         <structure type="chrome_scaled_image" name="IDR_NTP_CART_DISCOUNT_CONSENT_DARK" file="common/ntp_cart_discount_consent_dark.png" />
         <structure type="chrome_scaled_image" name="IDR_NTP_CART_DISCOUNT_CONSENT_LIGHT" file="common/ntp_cart_discount_consent_light.png" />
-        <structure type="chrome_scaled_image" name="IDR_NTP_FAVICON" file="common/favicon_ntp.png" />
         <structure type="chrome_scaled_image" name="IDR_PASSWORD_CHECK" file="common/password_check.png" />
         <structure type="chrome_scaled_image" name="IDR_PASSWORD_CHECK_DARK" file="common/password_check_dark.png" />
         <if expr="_google_chrome">

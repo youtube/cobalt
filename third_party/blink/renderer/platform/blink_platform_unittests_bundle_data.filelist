@@ -752,6 +752,10 @@
 ../../web_tests/images/resources/zoltan.jxl
 ../../web_tests/third_party/AdobeVF/AdobeVFPrototype.otf
 ../../web_tests/third_party/Amstelvar/Amstelvar.ttf
+../../web_tests/third_party/CbdtAlpha/cbdt_fmt1.ttf
+../../web_tests/third_party/CbdtAlpha/cbdt_fmt2.ttf
+../../web_tests/third_party/CbdtAlpha/cbdt_fmt6.ttf
+../../web_tests/third_party/CbdtAlpha/cbdt_fmt7.ttf
 ../../web_tests/third_party/DroidSans/DroidSans.ttf.subset-U002E-U0041-42.ttf
 ../../web_tests/third_party/FruityGirl/FruityGirl.ttf
 ../../web_tests/third_party/Homecomputer/Sixtyfour.ttf
@@ -844,6 +848,7 @@ testing/data/green.jpg
 testing/data/green.png
 testing/data/happy_dog.avif
 testing/data/icc-v2-gbr.jpg
+testing/data/open_type_math_support_fuzzer_timeout.ttf
 testing/data/original-cat-420-629x473.jpg
 testing/data/palatted-color-png-gamma-one-color-profile.png
 testing/data/png-zero-gamma-color-profile-ref.png

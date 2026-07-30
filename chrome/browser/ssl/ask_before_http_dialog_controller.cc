@@ -172,9 +172,15 @@ AskBeforeHttpDialogController::~AskBeforeHttpDialogController() {
 void AskBeforeHttpDialogController::ShowDialog(
     content::WebContents* web_contents,
     const GURL& request_url,
-    ukm::SourceId navigation_source_id) {
+    ukm::SourceId navigation_source_id,
+    security_interstitials::https_only_mode::FallbackReason fallback_reason) {
+  if (!web_contents) {
+    return;
+  }
+  Observe(web_contents);
   // Track the source ID for the navigation that triggered the dialog.
   navigation_source_id_ = navigation_source_id;
+  fallback_reason_ = fallback_reason;
   request_url_ = request_url;
 
   if (!is_suspended_) {
@@ -262,7 +268,7 @@ void AskBeforeHttpDialogController::CloseDialog() {
   }
 
   if (navigation_source_id_ != ukm::kInvalidSourceId) {
-    RecordHttpsFirstModeUKM(navigation_source_id_,
+    RecordHttpsFirstModeUKM(navigation_source_id_, fallback_reason_,
                             security_interstitials::https_only_mode::
                                 BlockingResult::kInterstitialDontProceed);
     metrics_helper_->RecordUserDecision(
@@ -281,7 +287,7 @@ void AskBeforeHttpDialogController::CloseDialogWidget(
   // of dialog closing that aren't handled elsewhere.
   if (reason == views::Widget::ClosedReason::kCancelButtonClicked) {
     // User pressed the "Continue to site" button.
-    RecordHttpsFirstModeUKM(navigation_source_id_,
+    RecordHttpsFirstModeUKM(navigation_source_id_, fallback_reason_,
                             security_interstitials::https_only_mode::
                                 BlockingResult::kInterstitialProceed);
     metrics_helper_->RecordUserDecision(
@@ -290,7 +296,7 @@ void AskBeforeHttpDialogController::CloseDialogWidget(
     // All other cases are the user not proceeding (either actively clicking "Go
     // back", or dismissing the warning for some other reason like closing the
     // tab).
-    RecordHttpsFirstModeUKM(navigation_source_id_,
+    RecordHttpsFirstModeUKM(navigation_source_id_, fallback_reason_,
                             security_interstitials::https_only_mode::
                                 BlockingResult::kInterstitialDontProceed);
     metrics_helper_->RecordUserDecision(
@@ -300,6 +306,25 @@ void AskBeforeHttpDialogController::CloseDialogWidget(
   dialog_widget_.reset();
 }
 #endif
+
+void AskBeforeHttpDialogController::ProceedForTesting() {
+  OnContinueButtonClicked(request_url_);
+}
+
+void AskBeforeHttpDialogController::CancelForTesting() {
+  OnGoBackButtonClicked();
+}
+
+security_interstitials::https_only_mode::InterstitialReason
+AskBeforeHttpDialogController::GetInterstitialReasonForTesting() const {
+  return warning_reason_;
+}
+
+void AskBeforeHttpDialogController::ClickLearnMoreForTesting() {
+  ui::MouseEvent dummy_event(ui::EventType::kMousePressed, gfx::Point(),
+                             gfx::Point(), base::TimeTicks(), 0, 0);
+  OnHelpCenterLinkClicked(dummy_event);
+}
 
 void AskBeforeHttpDialogController::OnDialogDestroying() {
 #if BUILDFLAG(IS_ANDROID)
@@ -352,7 +377,8 @@ void AskBeforeHttpDialogController::OnVisibilityChanged(
                       content::Visibility::VISIBLE) {
                 controller->ShowDialog(controller->web_contents(),
                                        controller->request_url_,
-                                       controller->navigation_source_id_);
+                                       controller->navigation_source_id_,
+                                       controller->fallback_reason_);
               }
             },
             weak_ptr_factory_.GetWeakPtr()));
@@ -426,11 +452,11 @@ AskBeforeHttpDialogController::CreateDialogModel(const GURL& request_url) {
       interstitial_state =
           ComputeInterstitialState(web_contents(), request_url);
 
-  AddAskBeforeHttpDialogText(
-      builder,
+  warning_reason_ =
       security_interstitials::https_only_mode::GetInterstitialReason(
-          interstitial_state),
-      link);
+          interstitial_state);
+
+  AddAskBeforeHttpDialogText(builder, warning_reason_, link);
   return builder.Build();
 }
 
@@ -439,17 +465,22 @@ void AskBeforeHttpDialogController::OnHelpCenterLinkClicked(
   metrics_helper_->RecordUserInteraction(
       security_interstitials::MetricsHelper::SHOW_LEARN_MORE);
 
+  content::WebContents* contents = web_contents();
+  if (!contents) {
+    return;
+  }
+
   content::OpenURLParams params(
       GURL(kLearnMoreLink), content::Referrer(),
       ui::DispositionFromEventFlags(event.flags(),
                                     WindowOpenDisposition::NEW_FOREGROUND_TAB),
       ui::PAGE_TRANSITION_LINK, false);
-  web_contents()->OpenURL(params, /*navigation_handle_callback=*/{});
+  contents->OpenURL(params, /*navigation_handle_callback=*/{});
 }
 
 void AskBeforeHttpDialogController::OnGoBackButtonClicked() {
   if (HasOpenDialog()) {
-    RecordHttpsFirstModeUKM(navigation_source_id_,
+    RecordHttpsFirstModeUKM(navigation_source_id_, fallback_reason_,
                             security_interstitials::https_only_mode::
                                 BlockingResult::kInterstitialDontProceed);
     metrics_helper_->RecordUserDecision(
@@ -463,7 +494,11 @@ void AskBeforeHttpDialogController::OnGoBackButtonClicked() {
   }
 
   // LINT.IfChange(HttpsFirstModeGoBackLogic)
-  auto& controller = web_contents()->GetController();
+  content::WebContents* contents = web_contents();
+  if (!contents) {
+    return;
+  }
+  auto& controller = contents->GetController();
   if (controller.CanGoBack()) {
     controller.GoBack();
   } else {
@@ -476,7 +511,7 @@ void AskBeforeHttpDialogController::OnGoBackButtonClicked() {
 void AskBeforeHttpDialogController::OnContinueButtonClicked(
     const GURL& request_url) {
   if (HasOpenDialog()) {
-    RecordHttpsFirstModeUKM(navigation_source_id_,
+    RecordHttpsFirstModeUKM(navigation_source_id_, fallback_reason_,
                             security_interstitials::https_only_mode::
                                 BlockingResult::kInterstitialProceed);
     metrics_helper_->RecordUserDecision(
@@ -492,6 +527,9 @@ void AskBeforeHttpDialogController::OnContinueButtonClicked(
 
   // LINT.IfChange(HttpsFirstModeProceedLogic)
   content::WebContents* web_contents_ptr = web_contents();
+  if (!web_contents_ptr) {
+    return;
+  }
   Profile* profile =
       Profile::FromBrowserContext(web_contents_ptr->GetBrowserContext());
   StatefulSSLHostStateDelegate* state =

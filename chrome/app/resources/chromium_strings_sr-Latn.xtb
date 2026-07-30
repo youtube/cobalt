@@ -586,7 +586,6 @@ Ne možete da sačuvate nove obeleživače na nalogu dok ne izbrišete neke. Ako
 <translation id="7318036098707714271">Datoteka podešavanja je oštećena ili nevažeća.
 
 Chromium ne može da vrati podešavanja.</translation>
-<translation id="7339898014177206373">Novi prozor</translation>
 <translation id="734373864078049451">Veb, obeleživači i drugi Chromium sadržaj se ovde uživo prikazuju.</translation>
 <translation id="7347827960336370838">Samo neko ko ima pristupnu frazu može da čita šifrovane podatke. Pristupna fraza se ne šalje Google-u niti se čuva na Google-u. Ako zaboravite pristupnu frazu ili želite da promenite ovo podešavanje, moraćete da <ph name="BEGIN_LINK" />izbrišete Chromium podatke na nalogu<ph name="END_LINK" />.</translation>
 <translation id="7349591376906416160">Administrator sistema je konfigurisao Chromium da otvara pregledač <ph name="ALTERNATIVE_BROWSER_NAME" /> da bi pristupao <ph name="TARGET_URL_HOSTNAME" />.</translation>
@@ -595,6 +594,7 @@ Chromium ne može da vrati podešavanja.</translation>
 <translation id="7376384068949534168">Niste skoro posećivali sajt. Chromium je uklonio dozvole <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />.</translation>
 <translation id="73786666777299047">Otvorite Chrome veb-prodavnicu</translation>
 <translation id="7384121030444253939">Ovaj dodatak više nije podržan. Chromium preporučuje da ga uklonite.</translation>
+<translation id="7407655596887111931">Chromium je sada podrazumevani pregledač</translation>
 <translation id="7413153308467572558">Nastavite tamo gde ste stali: Chromium vraća kartice svaki put kada ga restartujete. Da biste to isključili, idite u</translation>
 <translation id="7427879960656355200">Uvezite lozinke u Chromium</translation>
 <translation id="744815265653811511">1. Kliknite na <ph name="BUTTON_LABEL" /> u nastavku
@@ -736,6 +736,7 @@ Chromium ne može da vrati podešavanja.</translation>
 <translation id="8981150672034878610">Ne možete da pokrenete Chromium jer je došlo do greške pri otvaranju profila. Probajte da restartujete Chromium.</translation>
 <translation id="8988036198400390003">Upravljaj Chromium profilima</translation>
 <translation id="9019929317751753759">Da bismo učinili Chromium bezbednijim, onemogućili smo sledeći dodatak koji <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> ne navodi i koji je možda dodat bez vašeg znanja.</translation>
+<translation id="9022552996538154597">Prijavljivanje na Chromium</translation>
 <translation id="904366664621834601">Chromium je blokirao ovo preuzimanje jer fajl arhive sadrži druge fajlove koji mogu da kriju malver</translation>
 <translation id="9053882453960391422">Sinhronizujte lozinke, obeleživače i istoriju na svim uređajima. Ažurirajte podrazumevani pregledač na Chromium da biste lako pristupali funkcijama koje znate i volite. Chromium će biti zakačen na traku zadataka radi brzog pristupa.</translation>
 <translation id="9062666675513499497">Prijavite se u Chromium kada se prijavite u druge Google usluge</translation>

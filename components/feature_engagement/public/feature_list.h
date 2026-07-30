@@ -84,7 +84,6 @@ DEFINE_VARIATION_PARAM(kIPHAutoDarkUserEducationMessageOptInFeature,
                        "IPH_AutoDarkUserEducationMessageOptIn");
 DEFINE_VARIATION_PARAM(kIPHAppRatingPromptFeature, "IPH_AppRatingPrompt");
 DEFINE_VARIATION_PARAM(kIPHAppSpecificHistory, "IPH_AppSpecificHistory");
-DEFINE_VARIATION_PARAM(kIPHBookmarksBarFeature, "IPH_BookmarksBar");
 DEFINE_VARIATION_PARAM(kIPHCCTHistory, "IPH_CCTHistory");
 DEFINE_VARIATION_PARAM(kIPHCCTMinimized, "IPH_CCTMinimized");
 DEFINE_VARIATION_PARAM(kIPHContextualPageActionsQuietVariantFeature,
@@ -367,6 +366,10 @@ DEFINE_VARIATION_PARAM(kIPHiOSHomepageLensNewBadge,
 DEFINE_VARIATION_PARAM(kIPHiOSHomepageCustomizationNewBadge,
                        "IPH_iOSHomepageCustomizationNewBadge");
 DEFINE_VARIATION_PARAM(kIPHiOSAIHubNewBadge, "IPH_iOSAIHubNewBadge");
+DEFINE_VARIATION_PARAM(kIPHiOSGeminiLiveNewBadgeFeature,
+                       "IPHiOSGeminiLiveNewBadgeFeature");
+DEFINE_VARIATION_PARAM(kIPHiOSGeminiLiveIPHFeature,
+                       "IPHiOSGeminiLiveIPHFeature");
 DEFINE_VARIATION_PARAM(kIPHiOSGeminiContextualCueChip,
                        "IPH_iOSGeminiContextualCueChip");
 DEFINE_VARIATION_PARAM(kIPHiOSGeminiExternalAppStoreEvent,
@@ -479,6 +482,13 @@ DEFINE_VARIATION_PARAM(kIPHSideSearchAutoTriggeringFeature,
 DEFINE_VARIATION_PARAM(kIPHSideSearchPageActionLabelFeature,
                        "IPH_SideSearchPageActionLabel");
 
+DEFINE_VARIATION_PARAM(kIPHSmartTabSharingDefaultOnFeature,
+                       "IPH_SmartTabSharingDefaultOnFeature");
+DEFINE_VARIATION_PARAM(kIPHSmartTabSharingFeature,
+                       "IPH_SmartTabSharingFeature");
+DEFINE_VARIATION_PARAM(kIPHSmartTabSharingTryItFeature,
+                       "IPH_SmartTabSharingTryItFeature");
+
 DEFINE_VARIATION_PARAM(kIPHVerticalTabsExpandOnHoverFeature,
                        "IPH_VerticalTabsExpandOnHoverFeature");
 DEFINE_VARIATION_PARAM(kIPHVerticalTabstripTutorialFeature,
@@ -513,6 +523,8 @@ DEFINE_VARIATION_PARAM(kIPHTabGroupsSharedTabFeedbackFeature,
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_LINUX) || \
     BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_FUCHSIA)
+DEFINE_VARIATION_PARAM(kIPHAutofillAccountNameEmailSuggestionFeature,
+                       "IPH_AutofillAccountNameEmailSuggestion");
 DEFINE_VARIATION_PARAM(kIPHAutofillAiOptInFeature, "IPH_AutofillAiOptIn");
 DEFINE_VARIATION_PARAM(kIPHAutofillAiValuablesFeature,
                        "IPH_AutofillAiValuables");
@@ -535,8 +547,8 @@ DEFINE_VARIATION_PARAM(kIPHAutofillExternalAccountProfileSuggestionFeature,
                        "IPH_AutofillExternalAccountProfileSuggestion");
 DEFINE_VARIATION_PARAM(kIPHAutofillHomeWorkProfileSuggestionFeature,
                        "IPH_AutofillHomeWorkProfileSuggestion");
-DEFINE_VARIATION_PARAM(kIPHAutofillAccountNameEmailSuggestionFeature,
-                       "IPH_AutofillAccountNameEmailSuggestion");
+DEFINE_VARIATION_PARAM(kIPHAutofillOmniboxPaymentChipFeature,
+                       "IPH_AutofillOmniboxPaymentChip");
 DEFINE_VARIATION_PARAM(kIPHAutofillVirtualCardCVCSuggestionFeature,
                        "IPH_AutofillVirtualCardCVCSuggestion");
 DEFINE_VARIATION_PARAM(kIPHAutofillVirtualCardSuggestionFeature,
@@ -615,7 +627,6 @@ inline constexpr flags_ui::FeatureEntry::FeatureVariation
         VARIATION_ENTRY(kIPHAutoDarkOptOutFeature),
         VARIATION_ENTRY(kIPHAutoDarkUserEducationMessageFeature),
         VARIATION_ENTRY(kIPHAutoDarkUserEducationMessageOptInFeature),
-        VARIATION_ENTRY(kIPHBookmarksBarFeature),
         VARIATION_ENTRY(kIPHCCTHistory),
         VARIATION_ENTRY(kIPHCCTMinimized),
         VARIATION_ENTRY(kIPHChromeHomeExpandFeature),
@@ -742,6 +753,8 @@ inline constexpr flags_ui::FeatureEntry::FeatureVariation
         VARIATION_ENTRY(kIPHiOSGeminiExternalAppStoreEvent),
         VARIATION_ENTRY(kIPHiOSGeminiFullscreenPromoFeature),
         VARIATION_ENTRY(kIPHiOSGeminiImageRemixFeature),
+        VARIATION_ENTRY(kIPHiOSGeminiLiveIPHFeature),
+        VARIATION_ENTRY(kIPHiOSGeminiLiveNewBadgeFeature),
         VARIATION_ENTRY(kIPHiOSHistoryOnOverflowMenuFeature),
         VARIATION_ENTRY(kIPHiOSLensKeyboardFeature),
         VARIATION_ENTRY(kIPHiOSLensOverlayEntrypointTipFeature),
@@ -841,6 +854,9 @@ inline constexpr flags_ui::FeatureEntry::FeatureVariation
         VARIATION_ENTRY(kIPHSidePanelGenericPinnableFeature),
         VARIATION_ENTRY(kIPHSideSearchAutoTriggeringFeature),
         VARIATION_ENTRY(kIPHSideSearchPageActionLabelFeature),
+        VARIATION_ENTRY(kIPHSmartTabSharingDefaultOnFeature),
+        VARIATION_ENTRY(kIPHSmartTabSharingFeature),
+        VARIATION_ENTRY(kIPHSmartTabSharingTryItFeature),
         VARIATION_ENTRY(kIPHTabAudioMutingFeature),
         VARIATION_ENTRY(kIPHTabGroupsSharedTabChangedFeature),
         VARIATION_ENTRY(kIPHTabGroupsSharedTabFeedbackFeature),
@@ -865,6 +881,7 @@ inline constexpr flags_ui::FeatureEntry::FeatureVariation
         VARIATION_ENTRY(kIPHAutofillEnableLoyaltyCardsFeature),
         VARIATION_ENTRY(kIPHAutofillExternalAccountProfileSuggestionFeature),
         VARIATION_ENTRY(kIPHAutofillHomeWorkProfileSuggestionFeature),
+        VARIATION_ENTRY(kIPHAutofillOmniboxPaymentChipFeature),
         VARIATION_ENTRY(kIPHAutofillVirtualCardCVCSuggestionFeature),
         VARIATION_ENTRY(kIPHAutofillVirtualCardSuggestionFeature),
         VARIATION_ENTRY(kIPHCookieControlsFeature),

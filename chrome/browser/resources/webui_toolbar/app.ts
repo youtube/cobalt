@@ -9,6 +9,8 @@ import './split_tabs_button.js';
 import './home_button.js';
 import './pinned_toolbar_actions.js';
 import './avatar_button.js';
+import './icon_table.js';
+import './icon_from_table.js';
 
 import {loadTimeData} from '//resources/js/load_time_data.js';
 import {TrackedElementManager} from '//resources/js/tracked_element/tracked_element_manager.js';
@@ -20,42 +22,58 @@ import {HelpBubbleMixinLit} from 'chrome://resources/cr_components/help_bubble/h
 import {getCss} from './app.css.js';
 import {getHtml} from './app.html.js';
 import {BrowserProxyImpl, INVALID_NAVIGATION_CONTROLS_STATE_LISTENER_HANDLE} from './browser_proxy.js';
-import type {BrowserProxy, NavigationControlsState, NavigationControlsStateListenerHandle} from './browser_proxy.js';
+import type {BrowserProxy, IconUpdate, NavigationControlsState, NavigationControlsStateListenerHandle} from './browser_proxy.js';
+import {IconTable} from './icon_table.js';
 import {MetricsRecorder} from './metrics_recorder.js';
-import {SplitTabActiveLocation} from './toolbar_ui_api_data_model.mojom-webui.js';
 // clang-format off
 // Helper so tests can find what they needed when optimization is on.
 // This should probably be a separate file, but rollup support only
 // handles 2 at most now.
 import {
   ContentSettingImageType,
+  IconType,
   LhsChipIdentifier,
   OmniboxTextColor,
-  SecurityChipIcon,
+  PermissionAction,
+  PermissionChipTheme,
+  PermissionPromptStyle,
+  SplitTabActiveLocation,
 } from './toolbar_ui_api_data_model.mojom-webui.js';
-import type {OmniboxAction, LocationBarState} from './toolbar_ui_api_data_model.mojom-webui.js';
-import {ReadonlyOmniboxElement} from './readonly_omnibox.js';
-import {LocationBarElement} from './location_bar.js';
-import {LocationIconElement} from './location_icon.js';
+import type {OmniboxAction, LocationBarState, PermissionChipState} from './toolbar_ui_api_data_model.mojom-webui.js';
 import {ContentSettingIconElement} from './content_setting_icon.js';
 import {ContentSettingsIconsElement} from './content_settings_icons.js';
+import type {IconFromTableElement} from './icon_from_table.js';
+import {LocationBarElement} from './location_bar.js';
+import {LocationIconElement} from './location_icon.js';
+import {PermissionChipElement} from './permission_chip.js';
+import {ReadonlyOmniboxElement} from './readonly_omnibox.js';
+import {getClickSourceType, getContextMenuSourceType} from './toolbar_button.js';
 
 export {
   BrowserProxyImpl,
   ContentSettingIconElement,
   ContentSettingImageType,
   ContentSettingsIconsElement,
+  getClickSourceType,
+  getContextMenuSourceType,
+  IconTable,
+  IconType,
   LhsChipIdentifier,
   LocationBarElement,
   LocationIconElement,
   OmniboxTextColor,
+  PermissionAction,
+  PermissionChipElement,
+  PermissionChipTheme,
+  PermissionPromptStyle,
   ReadonlyOmniboxElement,
-  SecurityChipIcon,
   TrackedElementManager,
 };
 export type {
+  IconFromTableElement,
   LocationBarState,
   OmniboxAction,
+  PermissionChipState,
 };
 // clang-format on
 
@@ -153,7 +171,7 @@ export class ToolbarAppElement extends AppElementBase {
       contentSettingImageStates: [],
       lhsChipsState: {
         securityChip: {
-          icon: 0,
+          icon: {handleId: 0n},
           securityLevel: 0,
           text: '',
           isClickable: false,
@@ -163,6 +181,13 @@ export class ToolbarAppElement extends AppElementBase {
         activityIndicators: [],
         permissionDashboard: null,
       },
+    },
+    avatarControlState: {
+      iconUrl: '',
+      text: '',
+      tooltip: '',
+      accessibilityName: '',
+      accessibilityDescription: '',
     },
     layoutConstantsVersion: 0,
     pinnedToolbarActionsState: [],
@@ -174,6 +199,7 @@ export class ToolbarAppElement extends AppElementBase {
   private navigationStateListenerHandle_:
       NavigationControlsStateListenerHandle =
           INVALID_NAVIGATION_CONTROLS_STATE_LISTENER_HANDLE;
+  private iconTable_: IconTable;
 
   constructor() {
     super();
@@ -186,6 +212,7 @@ export class ToolbarAppElement extends AppElementBase {
     this.browserProxy_ = BrowserProxyImpl.getInstance();
     this.metricsRecorder_ = new MetricsRecorder(this.browserProxy_);
     this.trackedElementManager_ = TrackedElementManager.getInstance();
+    this.iconTable_ = IconTable.getInstance();
     ColorChangeUpdater.forDocument().start();
   }
 
@@ -195,6 +222,9 @@ export class ToolbarAppElement extends AppElementBase {
    */
   override connectedCallback() {
     super.connectedCallback();
+
+    this.addEventListener('dragover', this.onDragOver_.bind(this));
+    this.addEventListener('drop', this.onDrop_.bind(this));
 
     // Initial setup of CSS variables
     this.style.setProperty(
@@ -209,7 +239,10 @@ export class ToolbarAppElement extends AppElementBase {
 
     this.navigationStateListenerHandle_ =
         this.browserProxy_.addNavigationStateListener(
-            (state: NavigationControlsState) => {
+            (iconUpdates: IconUpdate[], state: NavigationControlsState) => {
+              // This must be called before updating navigationControlsState_
+              // so the new icons are available for rendering of child widgets.
+              this.iconTable_.applyUpdates(iconUpdates);
               this.navigationControlsState_ = state;
             });
 
@@ -268,6 +301,35 @@ export class ToolbarAppElement extends AppElementBase {
     Promise.all(promises).then(() => {
       this.browserProxy_.toolbarUIHandler.onPageInitialized();
     });
+  }
+
+  protected onDragOver_(e: DragEvent) {
+    if (e.dataTransfer &&
+        (e.dataTransfer.types.includes('text/uri-list') ||
+         e.dataTransfer.types.includes('Files'))) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+    }
+  }
+
+  protected onDrop_(e: DragEvent) {
+    if (e.defaultPrevented) {
+      return;
+    }
+
+    e.preventDefault();
+    if (!e.dataTransfer) {
+      return;
+    }
+
+    const url = e.dataTransfer.getData('text/uri-list');
+    if (url) {
+      this.browserProxy_.browserControlsHandler.navigate(
+          url.split('\n')[0]!);
+    } else if (e.dataTransfer.types.includes('Files')) {
+      this.browserProxy_.toolbarUIHandler.onToolbarDropFile(
+          {x: e.clientX, y: e.clientY});
+    }
   }
 }
 

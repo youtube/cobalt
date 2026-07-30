@@ -366,6 +366,12 @@ class AudioStreamBrokerFactory final
       mojo::PendingRemote<media::mojom::AudioOutputStreamProviderClient> client)
       final {
     DCHECK_CURRENTLY_ON(content::BrowserThread::IO);
+
+    if (params.effects() & media::AudioParameters::FUCHSIA_RENDER_USAGE_MASK) {
+      DLOG(ERROR) << "Renderer requested forbidden Fuchsia effect flags.";
+      return nullptr;
+    }
+
     media::AudioParameters params_with_effects = params;
     if (output_usage_) {
       params_with_effects.set_effects(
@@ -1237,8 +1243,10 @@ void FrameImpl::SetMediaSettings(
               perfetto::Flow::FromPointer(this));
 
   media_settings_ = std::move(media_settings);
-  if (media_settings.has_renderer_usage() && set_audio_output_usage_callback_)
-    set_audio_output_usage_callback_.Run(media_settings.renderer_usage());
+  if (media_settings_.has_renderer_usage() &&
+      set_audio_output_usage_callback_) {
+    set_audio_output_usage_callback_.Run(media_settings_.renderer_usage());
+  }
 }
 
 void FrameImpl::ForceContentDimensions(

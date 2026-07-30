@@ -21,16 +21,27 @@ struct FitTextScale : public GarbageCollected<FitTextScale> {
 };
 
 // Information to help TextMetrics computation.
-// * If the method is `scale`, paint_scale == total_scale.
-//   scaled_font is nullptr.
-// * If the method is `font-size`, <scale factor of scaled_font> *
-//   paint_scale == total_scale.
+// * If the method is `scale`, we scale the original font by `paint_scale`.
+//   `scaled_font` is nullptr.
+// * If the method is `font-size`, we scale `scaled_font` by `paint_scale`.
 struct FitTextBlockScale {
   float paint_scale = 1.0f;
-  float total_scale = 1.0f;
   const Font* scaled_font = nullptr;
 
   constexpr static FitTextBlockScale* kFixed = nullptr;
+
+  float TotalScale(const Font& original_font) const {
+    if (!scaled_font) {
+      return paint_scale;
+    }
+    float original_font_size =
+        original_font.GetFontDescription().ComputedSize();
+    if (original_font_size > 0) {
+      return scaled_font->GetFontDescription().ComputedSize() /
+             original_font_size * paint_scale;
+    }
+    return paint_scale;
+  }
 
   STACK_ALLOCATED();
 };

@@ -20,8 +20,7 @@
 #include "components/tracing/common/background_tracing_state_manager.h"
 #include "components/tracing/common/tracing_scenarios_config.h"
 #include "components/tracing/common/tracing_switches.h"
-#include "content/public/browser/background_tracing_manager.h"
-#include "content/public/browser/browser_thread.h"
+#include "services/tracing/public/cpp/background_tracing/background_tracing_manager.h"
 
 namespace tracing {
 namespace {
@@ -42,9 +41,8 @@ void WriteTraceToFile(
     const base::FilePath& output_path,
     const std::string& file_name,
     std::string file_contents,
-    content::BackgroundTracingManager::FinishedProcessingCallback
+    tracing::BackgroundTracingManager::FinishedProcessingCallback
         done_callback) {
-  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   base::FilePath output_file = output_path.AppendASCII(file_name);
   base::ThreadPool::PostTaskAndReplyWithResult(
       FROM_HERE, {base::MayBlock()},
@@ -85,11 +83,11 @@ bool SetupBackgroundTracingFromProtoConfigFile(
   // instead of being uploaded to a metrics server, so there are no PII
   // concerns.
   auto scenarios =
-      content::BackgroundTracingManager::GetInstance().AddPresetScenarios(
+      tracing::BackgroundTracingManager::GetInstance().AddPresetScenarios(
           std::move(*config),
-          content::BackgroundTracingManager::NO_DATA_FILTERING);
+          tracing::BackgroundTracingManager::NO_DATA_FILTERING);
 
-  return content::BackgroundTracingManager::GetInstance().SetEnabledScenarios(
+  return tracing::BackgroundTracingManager::GetInstance().SetEnabledScenarios(
       scenarios);
 }
 
@@ -124,13 +122,13 @@ bool SetupPresetTracingFromFieldTrial() {
   if (enabled_scenarios.empty()) {
     return false;
   }
-  auto& manager = content::BackgroundTracingManager::GetInstance();
+  auto& manager = tracing::BackgroundTracingManager::GetInstance();
   auto tracing_scenarios_config = GetPresetTracingScenariosConfig();
   if (tracing_scenarios_config) {
-    content::BackgroundTracingManager::DataFiltering data_filtering =
+    tracing::BackgroundTracingManager::DataFiltering data_filtering =
         config.privacy_filter_enabled()
-            ? content::BackgroundTracingManager::ANONYMIZE_DATA
-            : content::BackgroundTracingManager::NO_DATA_FILTERING;
+            ? tracing::BackgroundTracingManager::ANONYMIZE_DATA
+            : tracing::BackgroundTracingManager::NO_DATA_FILTERING;
     manager.AddPresetScenarios(std::move(*tracing_scenarios_config),
                                data_filtering);
     return manager.SetEnabledScenarios(enabled_scenarios);
@@ -143,7 +141,7 @@ bool SetupSystemTracingFromFieldTrial() {
     return false;
   }
 
-  auto& manager = content::BackgroundTracingManager::GetInstance();
+  auto& manager = tracing::BackgroundTracingManager::GetInstance();
   auto trigger_config = tracing::GetTracingTriggerRulesConfig();
   if (!trigger_config) {
     return false;
@@ -166,7 +164,7 @@ bool SetupFieldTracingFromFieldTrial() {
     local_scenarios = true;
   }
 
-  auto& manager = content::BackgroundTracingManager::GetInstance();
+  auto& manager = tracing::BackgroundTracingManager::GetInstance();
   auto tracing_scenarios_config = tracing::GetFieldTracingScenariosConfig();
   if (!tracing_scenarios_config) {
     return false;
@@ -174,10 +172,10 @@ bool SetupFieldTracingFromFieldTrial() {
 
   if (local_scenarios) {
     auto& config = BackgroundTracingStateManager::GetInstance();
-    content::BackgroundTracingManager::DataFiltering data_filtering =
+    tracing::BackgroundTracingManager::DataFiltering data_filtering =
         config.privacy_filter_enabled()
-            ? content::BackgroundTracingManager::ANONYMIZE_DATA
-            : content::BackgroundTracingManager::NO_DATA_FILTERING;
+            ? tracing::BackgroundTracingManager::ANONYMIZE_DATA
+            : tracing::BackgroundTracingManager::NO_DATA_FILTERING;
     auto scenarios = manager.AddPresetScenarios(
         std::move(*tracing_scenarios_config), data_filtering);
     if (config.enabled_scenarios().empty()) {
@@ -187,7 +185,7 @@ bool SetupFieldTracingFromFieldTrial() {
   }
   return manager.InitializeFieldScenarios(
       std::move(*tracing_scenarios_config),
-      content::BackgroundTracingManager::ANONYMIZE_DATA,
+      tracing::BackgroundTracingManager::ANONYMIZE_DATA,
       kFieldTracingForceUploads.Get(), kFieldTracingUploadLimitKb.Get());
 }
 
@@ -202,7 +200,7 @@ bool SetBackgroundTracingOutputPath() {
       command_line->GetSwitchValuePath(switches::kBackgroundTracingOutputPath);
 
   auto receive_callback = base::BindRepeating(&WriteTraceToFile, output_path);
-  content::BackgroundTracingManager::GetInstance().SetReceiveCallback(
+  tracing::BackgroundTracingManager::GetInstance().SetReceiveCallback(
       std::move(receive_callback));
   return true;
 }

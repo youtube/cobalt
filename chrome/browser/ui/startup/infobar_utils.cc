@@ -20,6 +20,7 @@
 #include "chrome/browser/ui/startup/bidding_and_auction_consented_debugging_infobar_delegate.h"
 #include "chrome/browser/ui/startup/google_api_keys_infobar_delegate.h"
 #include "chrome/browser/ui/startup/obsolete_system_infobar_delegate.h"
+#include "chrome/browser/ui/startup/oscryptasync_availability_infobar_delegate.h"
 #include "chrome/browser/ui/startup/startup_browser_creator.h"
 #include "chrome/browser/ui/startup/startup_types.h"
 #include "chrome/browser/ui/ui_features.h"
@@ -110,16 +111,16 @@ void AddInfoBarsIfNecessary(BrowserWindowInterface* browser,
                             bool is_web_app,
                             bool is_post_crash_launch,
                             bool was_restarted) {
-  if (!browser || !profile || browser->GetTabStripModel()->empty()) {
+  if (!browser || !profile) {
+    return;
+  }
+  auto* web_contents = browser->GetTabStripModel()->GetActiveWebContents();
+  if (!web_contents) {
     return;
   }
 
   // Show the Automation info bar unless it has been disabled by policy.
   bool show_bad_flags_security_warnings = ShouldShowBadFlagsSecurityWarnings();
-
-  content::WebContents* web_contents =
-      browser->GetTabStripModel()->GetActiveWebContents();
-  DCHECK(web_contents);
 
   if (show_bad_flags_security_warnings) {
 #if BUILDFLAG(CHROME_FOR_TESTING)
@@ -195,6 +196,8 @@ void AddInfoBarsIfNecessary(BrowserWindowInterface* browser,
       ObsoleteSystemInfoBarDelegate::Create(infobar_manager);
     }
   }
+
+  OSCryptAsyncAvailabilityInfoBarDelegate::MaybeCreate(browser);
 
 #if BUILDFLAG(IS_WIN)
   if (auto* startup_launch_manager =

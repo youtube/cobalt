@@ -9,6 +9,7 @@ import("//build/config/features.gni")
 import("//components/optimization_guide/features.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
 import("//third_party/protobuf/proto_library.gni")
+import("//third_party/pyjson5/pyjson5.gni")
 import("//tools/grit/grit_rule.gni")
 
 source_set("country_data") {
@@ -78,6 +79,8 @@ action("regex_patterns_inl_h") {
   } else {
     sources += [ "form_parsing/resources/legacy_regex_patterns.json" ]
   }
+
+  inputs = pyjson5_inputs
 
   script = "form_parsing/transpile_regex_patterns.py"
   outputs = [ "$target_gen_dir/form_parsing/regex_patterns_inl.h" ]
@@ -282,6 +285,8 @@ static_library("browser") {
     "field_types.h",
     "filling/addresses/field_filling_address_util.cc",
     "filling/addresses/field_filling_address_util.h",
+    "filling/autofill_ai/autofill_ai_access_manager.cc",
+    "filling/autofill_ai/autofill_ai_access_manager.h",
     "filling/autofill_ai/field_filling_entity_util.cc",
     "filling/autofill_ai/field_filling_entity_util.h",
     "filling/autofill_ai/select_date_matching.cc",
@@ -1221,6 +1226,7 @@ static_library("test_support") {
     "data_quality/addresses/profile_token_quality_test_api.h",
     "data_quality/addresses/test_address_normalizer.cc",
     "data_quality/addresses/test_address_normalizer.h",
+    "filling/autofill_ai/autofill_ai_access_manager_test_api.h",
     "filling/form_filler_test_api.h",
     "filling/test_form_filler.cc",
     "filling/test_form_filler.h",
@@ -1418,6 +1424,7 @@ static_library("test_support") {
     "//components/autofill/core/common",
     "//components/autofill/core/common:credit_card_number_validation",
     "//components/consent_auditor:test_support",
+    "//components/device_reauth",
     "//components/device_reauth:test_support",
     "//components/feature_engagement",
     "//components/leveldb_proto",
@@ -1849,6 +1856,7 @@ source_set("unit_tests") {
 
   if (!is_fuchsia) {
     sources += [
+      "filling/autofill_ai/autofill_ai_access_manager_unittest.cc",
       "filling/autofill_ai/field_filling_entity_util_unittest.cc",
       "permissions/autofill_ai/autofill_ai_permission_utils_unittest.cc",
     ]
@@ -2002,6 +2010,9 @@ if (use_fuzzing_engine_with_lpm) {
       "//components/autofill/core/common",
       "//third_party/libprotobuf-mutator",
     ]
+
+    # TODO(crbug.com/505034799): Migrate to FUZZ_TEST.
+    is_fuzztest_compatible = false
 
     if (use_blink) {
       deps += [ "//content/test:test_support" ]

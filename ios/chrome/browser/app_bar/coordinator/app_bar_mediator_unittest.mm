@@ -46,7 +46,6 @@
 #import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/fullscreen_commands.h"
-#import "ios/chrome/browser/shared/public/commands/lens_commands.h"
 #import "ios/chrome/browser/shared/public/commands/open_lens_input_selection_command.h"
 #import "ios/chrome/browser/shared/public/commands/qr_scanner_commands.h"
 #import "ios/chrome/browser/shared/public/commands/scene_commands.h"
@@ -175,14 +174,6 @@ class AppBarMediatorTest : public PlatformTest {
         startDispatchingToTarget:mock_qr_scanner_handler_
                      forProtocol:@protocol(QRScannerCommands)];
 
-    mock_lens_handler_ = OCMProtocolMock(@protocol(LensCommands));
-    [regular_browser_->GetCommandDispatcher()
-        startDispatchingToTarget:mock_lens_handler_
-                     forProtocol:@protocol(LensCommands)];
-    [incognito_browser_->GetCommandDispatcher()
-        startDispatchingToTarget:mock_lens_handler_
-                     forProtocol:@protocol(LensCommands)];
-
     UrlLoadingNotifierBrowserAgent::CreateForBrowser(regular_browser_.get());
     FakeUrlLoadingBrowserAgent::InjectForBrowser(regular_browser_.get());
 
@@ -239,7 +230,6 @@ class AppBarMediatorTest : public PlatformTest {
     mediator_.sceneHandler = mock_scene_handler_;
     mock_settings_handler_ = OCMProtocolMock(@protocol(SettingsCommands));
     mediator_.settingsHandler = mock_settings_handler_;
-    mediator_.lensHandler = mock_lens_handler_;
     mock_gemini_handler_ = OCMProtocolMock(@protocol(BWGCommands));
     mediator_.geminiHandler = mock_gemini_handler_;
     mock_tab_groups_handler_ = OCMProtocolMock(@protocol(TabGroupsCommands));
@@ -319,7 +309,6 @@ class AppBarMediatorTest : public PlatformTest {
   id mock_fullscreen_handler_;
   id mock_scene_handler_;
   id mock_browser_coordinator_handler_;
-  id mock_lens_handler_;
   id mock_qr_scanner_handler_;
   id mock_settings_handler_;
   id mock_gemini_handler_;
@@ -770,58 +759,6 @@ TEST_F(AppBarMediatorTest, TestAssistantButtonHighlighted_GeminiAvailable) {
   EXPECT_OCMOCK_VERIFY(consumer_);
 }
 
-// Tests that the assistant button state is correctly updated when the Gemini
-// floaty invocation state changes and Gemini is NOT available.
-TEST_F(AppBarMediatorTest, TestAssistantButtonHighlighted_GeminiNotAvailable) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitWithFeatures({kPageActionMenu, kGeminiCopresence},
-                                       {});
-
-  GeminiBrowserAgent* agent =
-      GeminiBrowserAgent::FromBrowser(regular_browser_.get());
-
-  // Add active WebState with GeminiTabHelper, but an ineligible URL.
-  auto web_state = std::make_unique<web::FakeWebState>();
-  web_state->SetBrowserState(regular_profile_.get());
-  GeminiTabHelper::CreateForWebState(web_state.get());
-  web_state->SetVisibleURL(GURL("chrome://settings"));
-
-  regular_web_state_list_->InsertWebState(std::move(web_state));
-  regular_web_state_list_->ActivateWebStateAt(0);
-
-  // Expect highlighted to remain NO and enabled to remain NO when floaty is
-  // invoked.
-  OCMExpect([consumer_ setAssistantButtonState:AppBarAssistantButtonState::kAsk
-                                   highlighted:NO
-                                       enabled:NO]);
-
-  InvokeFloaty(agent, [[GeminiConfiguration alloc] init]);
-
-  EXPECT_OCMOCK_VERIFY(consumer_);
-
-  // Expect highlighted to remain NO and enabled to remain NO when floaty is
-  // dismissed.
-  OCMExpect([consumer_ setAssistantButtonState:AppBarAssistantButtonState::kAsk
-                                   highlighted:NO
-                                       enabled:NO]);
-
-  agent->DismissFloaty();
-
-  EXPECT_OCMOCK_VERIFY(consumer_);
-}
-
-// Tests that the assistant button is in the signed out state when not signed
-// in and not location eligible.
-TEST_F(AppBarMediatorTest, TestAssistantButtonStateLensFallback) {
-  SetLocationEligible(false);
-
-  OCMExpect([consumer_ setAssistantButtonState:AppBarAssistantButtonState::kLens
-                                   highlighted:NO
-                                       enabled:YES]);
-  [mediator_ updateAssistantButton];
-  EXPECT_OCMOCK_VERIFY(consumer_);
-}
-
 // Tests that the assistant button is in the ask state when location is
 // eligible, even if not signed in.
 TEST_F(AppBarMediatorTest, TestAssistantButtonStateAskLocationEligible) {
@@ -830,19 +767,6 @@ TEST_F(AppBarMediatorTest, TestAssistantButtonStateAskLocationEligible) {
   OCMExpect([consumer_ setAssistantButtonState:AppBarAssistantButtonState::kAsk
                                    highlighted:NO
                                        enabled:NO]);
-  [mediator_ updateAssistantButton];
-  EXPECT_OCMOCK_VERIFY(consumer_);
-}
-
-// Tests that the assistant button remains in the Lens state when signed in but
-// not location eligible (fallback state).
-TEST_F(AppBarMediatorTest, TestAssistantButtonStateLensFallbackSignedIn) {
-  SetLocationEligible(false);
-  SignInAndSetCapability(false);
-
-  OCMExpect([consumer_ setAssistantButtonState:AppBarAssistantButtonState::kLens
-                                   highlighted:NO
-                                       enabled:YES]);
   [mediator_ updateAssistantButton];
   EXPECT_OCMOCK_VERIFY(consumer_);
 }
@@ -882,52 +806,23 @@ TEST_F(AppBarMediatorTest, TestAssistantButtonStateAsk_GeminiAvailable) {
   EXPECT_OCMOCK_VERIFY(consumer_);
 }
 
-// Tests that the assistant button is disabled when Gemini is not available.
-TEST_F(AppBarMediatorTest, TestAssistantButtonStateAsk_GeminiNotAvailable) {
-  SetLocationEligible(true);
-  SignInAndSetCapability(true);
-
-  // Add active WebState with GeminiTabHelper.
-  auto web_state = std::make_unique<web::FakeWebState>();
-  web_state->SetBrowserState(regular_profile_.get());
-  GeminiTabHelper::CreateForWebState(web_state.get());
-  web_state->SetVisibleURL(GURL("chrome://settings"));
-
-  regular_web_state_list_->InsertWebState(std::move(web_state));
-  regular_web_state_list_->ActivateWebStateAt(0);
-
-  OCMExpect([consumer_ setAssistantButtonState:AppBarAssistantButtonState::kAsk
-                                   highlighted:NO
-                                       enabled:NO]);
-  [mediator_ updateAssistantButton];
-  EXPECT_OCMOCK_VERIFY(consumer_);
-}
-
-// Tests that tapping the assistant button in the Lens state dispatches
-// the Lens command.
-TEST_F(AppBarMediatorTest, TestAssistantButtonTappedLens) {
-  OCMExpect([mock_lens_handler_
-      openLensInputSelection:[OCMArg
-                                 checkWithBlock:^BOOL(
-                                     OpenLensInputSelectionCommand* command) {
-                                   return command.entryPoint ==
-                                          LensEntrypoint::AppBar;
-                                 }]]);
-  [mediator_ assistantButtonTappedWithState:AppBarAssistantButtonState::kLens];
-  EXPECT_OCMOCK_VERIFY(mock_lens_handler_);
-}
-
 // Tests that tapping the assistant button in the ask state dispatches the
-// Gemini command.
+// Gemini entry flow command when ChromeNextIa is enabled.
 TEST_F(AppBarMediatorTest, TestAssistantButtonTappedEligible) {
   SignInAndSetCapability(true);
   [mediator_ updateAssistantButton];
 
   OCMExpect([mock_gemini_handler_
-      startGeminiFlowWithStartupState:[OCMArg checkWithBlock:^BOOL(
-                                                  GeminiStartupState* state) {
+      startGeminiEntryFlowWithStartupState:[OCMArg checkWithBlock:^BOOL(
+                                                       GeminiStartupState*
+                                                           state) {
         return state.entryPoint == gemini::EntryPoint::AppBar;
-      }]]);
+      }]
+                        baseViewController:[OCMArg any]
+                               accessPoint:signin_metrics::AccessPoint::
+                                               kIosAppBar
+                  showSnackbarOnCompletion:YES
+                                completion:[OCMArg any]]);
   [mediator_ assistantButtonTappedWithState:AppBarAssistantButtonState::kAsk];
   EXPECT_OCMOCK_VERIFY(mock_gemini_handler_);
 }

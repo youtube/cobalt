@@ -64,7 +64,9 @@ void SavedTabGroupOverflowButton::OnThemeChanged() {
   views::MenuButton::OnThemeChanged();
 
   ui::ColorProvider* color_provider = GetColorProvider();
-  const gfx::VectorIcon& icon = kSavedTabGroupBarEverythingIcon;
+  const gfx::VectorIcon& icon = features::IsRoundedIconsEnabled()
+                                    ? kGridViewIcon
+                                    : kSavedTabGroupBarEverythingOldIcon;
   const int icon_size = kUIUpdateIconSize;
   SetImageModel(
       views::Button::STATE_NORMAL,

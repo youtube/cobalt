@@ -6,6 +6,9 @@ import("//build/config/features.gni")
 
 source_set("browser") {
   sources = [
+    "cmtg_device_key_provider.h",
+    "cryptauth_cmtg_device_key_provider.cc",
+    "cryptauth_cmtg_device_key_provider.h",
     "passkey_data_type_controller.cc",
     "passkey_data_type_controller.h",
   ]
@@ -13,6 +16,7 @@ source_set("browser") {
     "//base",
     "//components/sync",
     "//components/webauthn:features",
+    "//crypto",
     "//net",
     "//services/network/public/cpp",
     "//url",
@@ -108,9 +112,17 @@ source_set("common_utils") {
 
 source_set("unit_tests") {
   testonly = true
-  sources = [ "webauthn_security_utils_unittest.cc" ]
+  sources = [
+    "cryptauth_cmtg_device_key_provider_unittest.cc",
+    "remote_validation_unittest.cc",
+    "webauthn_security_utils_unittest.cc",
+  ]
   deps = [
+    ":browser",
     ":common_utils",
+    "//base/test:test_support",
+    "//services/network:test_support",
+    "//services/network/public/cpp",
     "//testing/gtest",
     "//url",
   ]

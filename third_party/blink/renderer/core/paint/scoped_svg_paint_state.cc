@@ -87,8 +87,10 @@ ScopedSVGPaintState::~ScopedSVGPaintState() {
   // the node hierarchy), to ensure the clip-path mask will be applied to the
   // mask to create an intersection of the masks, then the intersection will be
   // applied to the masked content.
-  if (should_paint_mask_)
-    SVGMaskPainter::Paint(paint_info_.context, object_, display_item_client_);
+  if (should_paint_mask_) {
+    SVGMaskPainter::Paint(paint_info_.context, object_, display_item_client_,
+                          paint_info_.GetPaintFlags());
+  }
 
   if (should_paint_clip_path_as_mask_image_) {
     ClipPathClipper::PaintClipPathAsMaskImage(paint_info_.context, object_,
@@ -139,12 +141,25 @@ void ScopedSVGPaintState::ApplyPaintPropertyState(
     const ObjectPaintProperties& properties) {
   auto& paint_controller = paint_info_.context.GetPaintController();
   auto state = paint_controller.CurrentPaintChunkProperties();
-  if (const auto* filter = properties.Filter()) {
+
+  const auto* filter = properties.Filter();
+  if (filter && filter->Filter() && filter->Filter()->OriginTainted() &&
+      (paint_info_.GetPaintFlags() & PaintFlag::kPrivacyPreserving)) {
+    filter = nullptr;
+  }
+
+  if (filter) {
     state.SetEffect(*filter);
   } else if (const auto* effect = properties.Effect()) {
     state.SetEffect(*effect);
   }
-  if (const auto* filter_clip = properties.PixelMovingFilterClipExpander()) {
+
+  const auto* filter_clip = properties.PixelMovingFilterClipExpander();
+  if (!filter) {
+    filter_clip = nullptr;
+  }
+
+  if (filter_clip) {
     state.SetClip(*filter_clip);
   } else if (const auto* mask_clip = properties.MaskClip()) {
     state.SetClip(*mask_clip);

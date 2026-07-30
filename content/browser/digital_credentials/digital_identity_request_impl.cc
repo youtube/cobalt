@@ -20,6 +20,9 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/trace_event/trace_event.h"
 #include "base/values.h"
+#include "content/browser/digital_credentials/digital_credential_environment.h"
+#include "content/browser/digital_credentials/virtual_wallet.h"
+#include "content/browser/renderer_host/frame_tree_node.h"
 #include "content/browser/webid/delegation/sd_jwt.h"
 #include "content/browser/webid/flags.h"
 #include "content/public/browser/browser_thread.h"
@@ -112,23 +115,6 @@ bool CanVctValueBypassInterstitial(const std::string& vct_value) {
 }
 
 
-// Returns whether the request is a Digital Payment Credential (DPC) request
-// that can bypass the interstitial.
-bool IsDpcRequest(const base::flat_set<std::string>& all_claims,
-                  const base::flat_set<std::string>& all_vct_values,
-                  const base::flat_set<std::string>& all_doctype_values) {
-  // A DPC request is identified by either a DPC vct_value or a DPC
-  // doctype_value.
-  bool has_dpc_indicator =
-      std::ranges::any_of(all_vct_values, IsDpcVctValue) ||
-      std::ranges::any_of(all_doctype_values, IsDpcDocTypeValue);
-  if (!has_dpc_indicator) {
-    return false;
-  }
-  // Even for DPC, the interstitial is only bypassed if no sensitive claims are
-  // requested.
-  return std::ranges::all_of(all_claims, CanClaimBypassInterstitial);
-}
 
 bool CanRequestCredentialBypassInterstitialForOpenid4vpProtocolWithDCQL(
     const base::DictValue& request) {
@@ -150,6 +136,8 @@ bool CanRequestCredentialBypassInterstitialForOpenid4vpProtocolWithDCQL(
 
     bool is_mdl = format && *format == kMdocFormat && doctype &&
                   *doctype == kMdlDocumentType;
+    bool is_sdjwt = format && (*format == "dc+sd-jwt" ||
+                               *format == "dc-authorization+sd-jwt");
 
     std::vector<std::string> claims;
     for (const base::Value& claim : *claims_list) {
@@ -166,8 +154,13 @@ bool CanRequestCredentialBypassInterstitialForOpenid4vpProtocolWithDCQL(
         return {};
       }
 
-      bool path_ok = paths->size() == 2u && paths->front().is_string() &&
-                     paths->front().GetString() == kMdlNamespace;
+      bool path_ok = false;
+      if (is_mdl) {
+        path_ok = paths->size() == 2u && paths->front().is_string() &&
+                  paths->front().GetString() == kMdlNamespace;
+      } else if (is_sdjwt) {
+        path_ok = paths->size() == 1u;
+      }
 
       bool is_mdl_claim =
           re2::RE2::FullMatch(*claim_name,
@@ -177,7 +170,7 @@ bool CanRequestCredentialBypassInterstitialForOpenid4vpProtocolWithDCQL(
           *claim_name == kMdocBirthDateDataElement;
 
       if (is_mdl_claim) {
-        if (is_mdl && path_ok) {
+        if ((is_mdl || is_sdjwt) && path_ok) {
           claims.push_back(*claim_name);
         } else {
           claims.push_back("__invalid_context__");
@@ -214,64 +207,97 @@ bool CanRequestCredentialBypassInterstitialForOpenid4vpProtocolWithDCQL(
     return false;
   }
 
-  base::flat_set<std::string> all_claims;
-  base::flat_set<std::string> all_vct_values;
-  base::flat_set<std::string> all_doctype_values;
   for (const base::Value& credential : *credentials) {
     const base::DictValue* credential_dict = credential.GetIfDict();
     if (!credential_dict) {
       return false;
     }
-    std::vector<std::string> credential_claims =
-        credential_to_claims(*credential_dict);
-    all_claims.insert(credential_claims.begin(), credential_claims.end());
 
+    std::vector<std::string> claims = credential_to_claims(*credential_dict);
+    if (!std::ranges::all_of(claims, CanClaimBypassInterstitial)) {
+      return false;
+    }
+
+    const std::string* format = credential_dict->FindString("format");
     const base::DictValue* meta_dict = credential_dict->FindDict(kMeta);
-    if (!meta_dict) {
+    std::vector<std::string> vct_values;
+    std::string doctype_value;
+    if (meta_dict) {
+      vct_values = meta_to_vct_values(*meta_dict);
+      doctype_value = meta_to_doctype_value(*meta_dict);
+    }
+
+    bool is_dpc = std::ranges::any_of(vct_values, IsDpcVctValue) ||
+                  IsDpcDocTypeValue(doctype_value);
+    if (is_dpc) {
       continue;
     }
-    std::vector<std::string> meta_vct_values = meta_to_vct_values(*meta_dict);
-    all_vct_values.insert(meta_vct_values.begin(), meta_vct_values.end());
 
-    std::string doctype_value = meta_to_doctype_value(*meta_dict);
-    if (!doctype_value.empty()) {
-      all_doctype_values.insert(doctype_value);
+    bool is_mdl =
+        format && *format == kMdocFormat && doctype_value == kMdlDocumentType;
+    if (is_mdl) {
+      continue;
+    }
+
+    bool is_sdjwt = format && (*format == "dc+sd-jwt" ||
+                               *format == "dc-authorization+sd-jwt");
+    if (is_sdjwt) {
+      continue;
+    }
+
+    bool is_phone =
+        std::ranges::all_of(vct_values, CanVctValueBypassInterstitial);
+    if (is_phone && !vct_values.empty()) {
+      continue;
+    }
+
+    // If it doesn't qualify as a DPC, MDL, SD-JWT, or phone-carrier bypass,
+    // it requires an interstitial.
+    return false;
+  }
+
+  return true;
+}
+
+const base::DictValue* GetOpenId4VpRequestPayload(
+    const base::Value& request,
+    std::optional<base::Value>& out_payload) {
+  const base::DictValue* request_dict = request.GetIfDict();
+  if (!request_dict) {
+    return nullptr;
+  }
+
+  if (const std::string* jwt_str = request_dict->FindString("request")) {
+    std::optional<base::ListValue> parsed_jwt = sdjwt::Jwt::Parse(*jwt_str);
+    if (!parsed_jwt) {
+      return nullptr;
+    }
+    std::optional<sdjwt::Jwt> jwt = sdjwt::Jwt::From(*parsed_jwt);
+    if (!jwt) {
+      return nullptr;
+    }
+
+    out_payload = base::JSONReader::Read(jwt->payload.value(),
+                                         base::JSON_PARSE_CHROMIUM_EXTENSIONS);
+    if (!out_payload) {
+      return nullptr;
+    }
+    request_dict = out_payload->GetIfDict();
+    if (!request_dict) {
+      return nullptr;
     }
   }
 
-  // The interstitial is bypassed if either:
-  // 1. The request only asks for claims and vct_values that are known to be
-  //    bypassable (e.g. phone number verification).
-  // 2. The request is a DPC request and only asks for bypassable claims.
-  return (std::ranges::all_of(all_claims, CanClaimBypassInterstitial) &&
-          std::ranges::all_of(all_vct_values, CanVctValueBypassInterstitial)) ||
-         IsDpcRequest(all_claims, all_vct_values, all_doctype_values);
+  return request_dict;
 }
 
 bool CanRequestCredentialBypassInterstitialForOpenid4vpProtocol(
     const base::Value& request) {
-  CHECK(request.is_dict());
-  const base::DictValue* request_dict = &request.GetDict();
-
-  // The request may be a JWT. In that case, we need to parse the JWT to get to
-  // the actual request payload.
   std::optional<base::Value> payload;
-  if (const std::string* jwt_str = request_dict->FindString("request")) {
-    std::optional<base::ListValue> parsed_jwt = sdjwt::Jwt::Parse(*jwt_str);
-    if (!parsed_jwt) {
-      return false;
-    }
-    std::optional<sdjwt::Jwt> jwt = sdjwt::Jwt::From(*parsed_jwt);
-    if (!jwt) {
-      return false;
-    }
-
-    payload = base::JSONReader::Read(jwt->payload.value(),
-                                     base::JSON_PARSE_CHROMIUM_EXTENSIONS);
-    if (!payload || !payload->is_dict()) {
-      return false;
-    }
-    request_dict = &payload->GetDict();
+  const base::DictValue* request_dict =
+      GetOpenId4VpRequestPayload(request, payload);
+  if (!request_dict) {
+    return false;
   }
 
   if (request_dict->contains(kDcqlQuery)) {
@@ -315,6 +341,40 @@ blink::mojom::RequestDigitalIdentityStatus ToRequestDigitalIdentityStatus(
     case RequestStatusForMetrics::kErrorInvalidJson:
       return blink::mojom::RequestDigitalIdentityStatus::kErrorInvalidJson;
   }
+}
+
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+// LINT.IfChange(OpenId4VpResponseMode)
+enum class OpenId4VpResponseMode {
+  kDcApi = 0,
+  kDcApiJwt = 1,
+  kOther = 2,
+  kMaxValue = kOther,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/blink/enums.xml:OpenId4VpResponseMode)
+
+void RecordOpenId4VpResponseMode(const base::Value& request) {
+  std::optional<base::Value> payload;
+  const base::DictValue* request_dict =
+      GetOpenId4VpRequestPayload(request, payload);
+  if (!request_dict) {
+    return;
+  }
+
+  const std::string* response_mode = request_dict->FindString("response_mode");
+  if (!response_mode) {
+    return;
+  }
+
+  OpenId4VpResponseMode mode = OpenId4VpResponseMode::kOther;
+  if (*response_mode == "dc_api") {
+    mode = OpenId4VpResponseMode::kDcApi;
+  } else if (*response_mode == "dc_api.jwt") {
+    mode = OpenId4VpResponseMode::kDcApiJwt;
+  }
+  base::UmaHistogramEnumeration(
+      "Blink.DigitalIdentityRequest.OpenId4VpResponseMode", mode);
 }
 
 }  // anonymous namespace
@@ -373,13 +433,67 @@ DigitalIdentityRequestImpl::DigitalIdentityRequestImpl(
 
 DigitalIdentityRequestImpl::~DigitalIdentityRequestImpl() = default;
 
+std::optional<VirtualWallet::Behavior>
+DigitalIdentityRequestImpl::GetVirtualWalletBehavior() {
+  VirtualWallet* wallet =
+      DigitalCredentialEnvironment::GetInstance()->MaybeGetVirtualWallet(
+          FrameTreeNode::From(&render_frame_host()));
+  if (!wallet) {
+    return std::nullopt;
+  }
+  return wallet->behavior();
+}
+
+bool DigitalIdentityRequestImpl::HandleVirtualWalletBehavior() {
+  std::optional<VirtualWallet::Behavior> behavior = GetVirtualWalletBehavior();
+  if (!behavior) {
+    return false;
+  }
+
+  VirtualWallet* wallet =
+      DigitalCredentialEnvironment::GetInstance()->MaybeGetVirtualWallet(
+          FrameTreeNode::From(&render_frame_host()));
+
+  RequestDigitalIdentityStatus status;
+  std::optional<DigitalIdentityProvider::DigitalCredential> credential;
+
+  switch (*behavior) {
+    case VirtualWallet::Behavior::kRespond:
+      credential = wallet->GetCredential();
+      status = credential ? RequestDigitalIdentityStatus::kSuccess
+                          : RequestDigitalIdentityStatus::kError;
+      break;
+    case VirtualWallet::Behavior::kDecline:
+      status = RequestDigitalIdentityStatus::kErrorUserDeclined;
+      break;
+    case VirtualWallet::Behavior::kWait:
+      // Leave the request's promise pending.
+      return true;
+  }
+
+  GetUIThreadTaskRunner()->PostTask(
+      FROM_HERE,
+      base::BindOnce(&DigitalIdentityRequestImpl::CompleteRequestWithStatus,
+                     weak_ptr_factory_.GetWeakPtr(), status,
+                     std::move(credential)));
+  return true;
+}
+
 void DigitalIdentityRequestImpl::CompleteRequest(
     base::expected<DigitalIdentityProvider::DigitalCredential,
                    RequestStatusForMetrics> response) {
-  RequestDigitalIdentityStatus status =
-      response.has_value() ? RequestDigitalIdentityStatus::kSuccess
-                           : ToRequestDigitalIdentityStatus(response.error());
-  CompleteRequestWithStatus(status, std::move(response));
+  base::UmaHistogramEnumeration("Blink.DigitalIdentityRequest.Status",
+                                response.has_value()
+                                    ? RequestStatusForMetrics::kSuccess
+                                    : response.error());
+
+  if (response.has_value()) {
+    CompleteRequestWithStatus(RequestDigitalIdentityStatus::kSuccess,
+                              std::move(response.value()));
+  } else {
+    CompleteRequestWithStatus(ToRequestDigitalIdentityStatus(response.error()),
+                              std::nullopt);
+  }
 }
 
 void DigitalIdentityRequestImpl::CompleteRequestWithError(
@@ -389,8 +503,7 @@ void DigitalIdentityRequestImpl::CompleteRequestWithError(
 
 void DigitalIdentityRequestImpl::CompleteRequestWithStatus(
     RequestDigitalIdentityStatus status,
-    base::expected<DigitalIdentityProvider::DigitalCredential,
-                   RequestStatusForMetrics> response) {
+    std::optional<DigitalIdentityProvider::DigitalCredential> response) {
   // `provider_.reset()` can synchronously close UI which (via activation
   // observers) may destroy the hosting WebContents and therefore `this`.
   // Guard with a WeakPtr and bail out if that happens. Weak pointers must be
@@ -404,12 +517,7 @@ void DigitalIdentityRequestImpl::CompleteRequestWithStatus(
   weak_ptr_factory_.InvalidateWeakPtrs();
   update_interstitial_on_abort_callback_.Reset();
 
-  base::UmaHistogramEnumeration("Blink.DigitalIdentityRequest.Status",
-                                response.has_value()
-                                    ? RequestStatusForMetrics::kSuccess
-                                    : response.error());
-
-  if (response.has_value()) {
+  if (response) {
     std::move(callback_).Run(status, response->protocol,
                              std::move(response->data));
   } else {
@@ -485,10 +593,20 @@ void DigitalIdentityRequestImpl::Get(
     return;
   }
 
+  for (const auto& request : digital_credential_requests) {
+    if (request->protocol.starts_with(kOpenid4vpProtocolPrefix)) {
+      RecordOpenId4VpResponseMode(request->data);
+    }
+  }
+
   WebContents* web_contents =
       WebContents::FromRenderFrameHost(&render_frame_host());
   if (!web_contents) {
     CompleteRequestWithError(RequestStatusForMetrics::kErrorOther);
+    return;
+  }
+
+  if (HandleVirtualWalletBehavior()) {
     return;
   }
 
@@ -589,6 +707,10 @@ void DigitalIdentityRequestImpl::Create(
     return;
   }
 
+  if (HandleVirtualWalletBehavior()) {
+    return;
+  }
+
   // Store the protocol to return it in tests when no digital wallet is
   // available. Pick the first one arbitrarily since it covers most of the tests
   // that send only one request.
@@ -640,9 +762,7 @@ void DigitalIdentityRequestImpl::Abort() {
     std::move(update_interstitial_on_abort_callback_).Run();
   }
 
-  CompleteRequestWithStatus(
-      RequestDigitalIdentityStatus::kErrorCanceled,
-      base::unexpected(RequestStatusForMetrics::kErrorAborted));
+  CompleteRequestWithError(RequestStatusForMetrics::kErrorAborted);
 }
 
 void DigitalIdentityRequestImpl::OnInterstitialDone(

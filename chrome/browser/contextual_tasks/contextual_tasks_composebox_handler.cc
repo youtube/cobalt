@@ -24,6 +24,7 @@
 #include "chrome/browser/contextual_tasks/contextual_tasks_service_factory.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_utils.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_web_contents_user_data.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
@@ -44,6 +45,7 @@
 #include "components/lens/contextual_input.h"
 #include "components/lens/lens_features.h"
 #include "components/lens/lens_overlay_invocation_source.h"
+#include "components/omnibox/common/composebox_features.h"
 #include "components/sessions/content/session_tab_helper.h"
 #include "components/tabs/public/tab_interface.h"
 #include "components/url_deduplication/url_deduplication_helper.h"
@@ -58,21 +60,45 @@
 #if !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/ui/lens/lens_overlay_controller.h"
 #include "chrome/browser/ui/lens/lens_search_controller.h"
+#else
+#include "base/android/content_uri_utils.h"
 #endif
 
 namespace {
 
+std::string ExtractMimeType(const base::FilePath& path) {
+#if BUILDFLAG(IS_ANDROID)
+  if (path.IsContentUri()) {
+    return base::GetContentUriMimeType(path);
+  }
+#endif
 
-std::unique_ptr<FileData> ReadFileAndProcess(const base::FilePath& local_path) {
+  std::string mime_type;
+  const base::FilePath::StringType extension = path.Extension();
+  if (!extension.empty()) {
+    // substr(1) strips the leading dot from the extension
+    net::GetMimeTypeFromExtension(extension.substr(1), &mime_type);
+  }
+  return mime_type;
+}
+
+std::unique_ptr<FileData> ReadFileAndProcess(
+    const base::FilePath& local_path,
+    const base::FilePath::StringType& display_name) {
   auto file_data = std::make_unique<FileData>();
 
   if (!base::ReadFileToString(local_path, &file_data->bytes)) {
     LOG(ERROR) << "Failed to read file from path: "
                << local_path.AsUTF8Unsafe();
   }
-  net::GetMimeTypeFromExtension(local_path.Extension().substr(1),
-                                &file_data->mime_type);
-  file_data->name = local_path.BaseName().AsUTF8Unsafe();
+
+  file_data->mime_type = ExtractMimeType(local_path);
+
+  const base::FilePath name_path = display_name.empty()
+                                       ? local_path.BaseName()
+                                       : base::FilePath(display_name);
+  file_data->name = name_path.AsUTF8Unsafe();
+
   return file_data;
 }
 
@@ -409,6 +435,16 @@ void ContextualTasksComposeboxHandler::OnTaskChanged() {
   InitializeInputStateModel();
 }
 
+std::vector<int32_t> ContextualTasksComposeboxHandler::GetSelectedTabIds()
+    const {
+  std::vector<int32_t> tab_ids =
+      ContextualSearchboxHandler::GetSelectedTabIds();
+  for (const auto& [token, tab_id] : delayed_tabs_) {
+    tab_ids.push_back(tab_id);
+  }
+  return tab_ids;
+}
+
 void ContextualTasksComposeboxHandler::InitializeInputStateModel() {
   if (take_input_model_callback_) {
     std::unique_ptr<contextual_search::InputStateModel> current_input_state =
@@ -416,7 +452,20 @@ void ContextualTasksComposeboxHandler::InitializeInputStateModel() {
 
     if (current_input_state) {
       ResetInputStateModel();
-      input_state_model_ = std::move(current_input_state);
+
+      content::WebContents* web_contents =
+          web_ui_interface_->GetWebUIWebContents();
+      auto* user_data =
+          contextual_tasks::ContextualTasksWebContentsUserData::FromWebContents(
+              web_contents);
+      if (!user_data) {
+        contextual_tasks::ContextualTasksWebContentsUserData::
+            CreateForWebContents(web_contents);
+        user_data = contextual_tasks::ContextualTasksWebContentsUserData::
+            FromWebContents(web_contents);
+      }
+      user_data->set_input_state_model(std::move(current_input_state));
+      input_state_model_ = user_data->input_state_model();
 
       input_state_subscription_ =
           input_state_model_->subscribe(base::BindRepeating(
@@ -431,6 +480,12 @@ void ContextualTasksComposeboxHandler::InitializeInputStateModel() {
   } else {
     ResetInputStateModel();
     ContextualSearchboxHandler::InitializeInputStateModel();
+  }
+
+  if (base::FeatureList::IsEnabled(omnibox::kContextManagementInComposebox)) {
+    std::vector<int32_t> restored_tab_ids =
+        web_ui_interface_->GetRestoredTabIds();
+    SearchboxHandler::page_->SetRestoredTabIds(restored_tab_ids);
   }
 
   if (input_state_model_) {
@@ -479,6 +534,7 @@ void ContextualTasksComposeboxHandler::ContinueCreateAndSendQueryMessage(
   }
   // Create a client to aim message and send it to the page.
   if (auto* session_handle = GetContextualSessionHandle()) {
+    session_handle->set_previous_query(query);
     // If there is an auto-added tab, the user sending the query means the
     // system should upload it.
     UploadSnapshotTabContextIfPresent();
@@ -542,7 +598,8 @@ void ContextualTasksComposeboxHandler::FileSelected(
       base::ThreadPool::CreateSequencedTaskRunner(
           {base::MayBlock(), base::TaskPriority::USER_VISIBLE});
   task_runner->PostTaskAndReplyWithResult(
-      FROM_HERE, base::BindOnce(&ReadFileAndProcess, file.path()),
+      FROM_HERE,
+      base::BindOnce(&ReadFileAndProcess, file.path(), file.display_name),
       base::BindOnce(&ContextualTasksComposeboxHandler::OnFileRead,
                      weak_factory_.GetWeakPtr()));
   file_dialog_.reset();

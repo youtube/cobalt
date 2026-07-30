@@ -9,14 +9,10 @@
         "signal_strategy_listener": true
     },
     "iteration": 1,
-    "stall_count": 0,
+    "oscillation_detected": false,
+    "conflict_report": [],
     "active_constraints": [],
     "resolved_constraints": [],
-    "personas": [
-        "remoting/tools/magi-mode/personas/core/security.json",
-        "remoting/tools/magi-mode/personas/domain/signaling.json"
-    ],
-    "next_phase": "CRITIQUE",
-    "review_mode": "CONSENSUS",
+    "next_stage": "CRITIQUE",
     "state_transport": "FILE_IO"
 }

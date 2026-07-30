@@ -8,41 +8,57 @@ import("//chrome/common/features.gni")
 
 source_set("browser_ui") {
   sources = [
+    "glic_actor_nudge_delegate.h",
     "glic_nudge_controller.h",
     "glic_nudge_delegate.h",
   ]
+
+  public_deps = [
+    "//chrome/browser/glic",
+    "//chrome/browser/glic:mojo_bindings",
+    "//chrome/browser/tab_list",
+    "//components/keyed_service/core",
+  ]
+  deps = [
+    "//base",
+    "//chrome/browser/contextual_tasks",
+    "//components/tabs:public",
+  ]
+
   if (!is_android) {
     sources += [
       "anchored_nudge_controller.h",
+      "glic_actor_nudge_controller.h",
+      "glic_actor_task_icon_manager.h",
+      "glic_actor_task_icon_manager_factory.h",
       "glic_button_controller.h",
       "glic_iph_controller.h",
       "glic_selection_widget.h",
       "glic_tab_indicator_helper.h",
       "glic_vector_icon_manager.h",
     ]
-  }
 
-  public_deps = [
-    "//chrome/browser/glic",
-    "//chrome/browser/glic:mojo_bindings",
-    "//chrome/browser/tab_list",
-  ]
-  deps = [
-    "//base",
-    "//chrome/browser/contextual_tasks",
-    "//components/keyed_service/core",
-    "//components/tabs:public",
-  ]
+    public_deps += [
+      "//chrome/browser/actor",
+      "//chrome/browser/actor:types",
+      "//chrome/browser/actor/ui",
+      "//ui/base/unowned_user_data",
+    ]
+  }
 }
 
 source_set("impl") {
   sources = [
+    "glic_actor_nudge_delegate.cc",
     "glic_nudge_controller.cc",
     "glic_nudge_delegate.cc",
   ]
   if (!is_android) {
     sources += [
       "anchored_nudge_controller.cc",
+      "glic_actor_nudge_controller.cc",
+      "glic_actor_task_icon_manager.cc",
+      "glic_actor_task_icon_manager_factory.cc",
       "glic_button_controller.cc",
       "glic_iph_controller.cc",
       "glic_selection_widget.cc",
@@ -63,15 +79,24 @@ source_set("impl") {
   if (!is_android) {
     deps += [
       "//chrome/browser:primitives",
+      "//chrome/browser/actor",
       "//chrome/browser/actor/ui",
+      "//chrome/browser/actor/ui/task_list_bubble:controller",
+      "//chrome/browser/glic",
       "//chrome/browser/glic/fre",
+      "//chrome/browser/profiles:profile",
       "//chrome/browser/themes",
+      "//chrome/browser/ui/browser_window",
       "//chrome/browser/ui/tabs:tab_strip",
       "//chrome/browser/ui/user_education",
       "//chrome/browser/ui/views/tabs/glic",
       "//chrome/browser/ui/views/toolbar",
+      "//chrome/common:buildflags",
+      "//chrome/common:chrome_features",
       "//components/omnibox/browser:vector_icons",
       "//components/pdf/common:constants",
+      "//components/prefs",
+      "//content/public/browser",
       "//ui/strings:ui_strings__strings_grit",
     ]
   }
@@ -160,6 +185,7 @@ if (!is_android) {
   source_set("unit_tests") {
     testonly = true
     sources = [
+      "glic_actor_task_icon_manager_unittest.cc",
       "glic_button_controller_unittest.cc",
       "glic_selection_widget_unittest.cc",
     ]
@@ -198,7 +224,6 @@ if (!is_android) {
       "glic_iph_controller_interactive_uitest.cc",
       "glic_nudge_controller_interactive_uitest.cc",
       "glic_tab_indicator_helper_interactive_uitest.cc",
-      "tab_underline_view_interactive_uitest.cc",
     ]
     deps = [
       ":browser_ui",
@@ -229,6 +254,32 @@ if (!is_android) {
       "//ui/gfx:gfx_switches",
       "//ui/views",
       "//ui/views:test_support",
+      "//url",
+    ]
+  }
+
+  source_set("browser_tests") {
+    testonly = true
+    defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+    sources = [ "tab_underline_view_browsertest.cc" ]
+    deps = [
+      ":browser_ui",
+      ":glow",
+      "//base",
+      "//chrome/browser/glic/test_support",
+      "//chrome/browser/tab_list",
+      "//chrome/browser/ui",
+      "//chrome/browser/ui:browser_element_identifiers",
+      "//chrome/browser/ui/tabs/alert:tab_alert",
+      "//chrome/browser/ui/views/frame",
+      "//chrome/common:chrome_features",
+      "//chrome/common:non_code_constants",
+      "//chrome/test:test_support",
+      "//components/tabs:public",
+      "//content/test:test_support",
+      "//testing/gmock",
+      "//testing/gtest",
+      "//ui/views",
       "//url",
     ]
   }

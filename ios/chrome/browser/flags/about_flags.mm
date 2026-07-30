@@ -173,6 +173,18 @@ const FeatureEntry::FeatureVariation kActorToolsPageStabilityVariations[] = {
     {"PageStabilityEnabled", kActorToolsPageStabilityEnabled, nullptr},
 };
 
+const FeatureEntry::FeatureParam kPageStabilityMetricsDefault[] = {
+    {"PageStabilityIntervalDuration", "4000ms"},
+};
+const FeatureEntry::FeatureParam kPageStabilityMetricsShorterInterval[] = {
+    {"PageStabilityIntervalDuration", "1000ms"},
+};
+
+const FeatureEntry::FeatureVariation kPageStabilityMetricsVariations[] = {
+    {"Default (4s)", kPageStabilityMetricsDefault, nullptr},
+    {"Shorter Interval (1s)", kPageStabilityMetricsShorterInterval, nullptr},
+};
+
 const FeatureEntry::FeatureParam kAIMCobrowseHeaderOptionA[] = {
     {kAIMCobrowseHeaderParam, kAIMCobrowseHeaderParamOptionA}};
 const FeatureEntry::FeatureParam kAIMCobrowseHeaderOptionB[] = {
@@ -574,32 +586,6 @@ const FeatureEntry::FeatureParam kPriceTrackingPromoForceHideArm[] = {
      segmentation_platform::kPriceTrackingNotificationPromo},
 };
 
-// ShopCard variants
-const FeatureEntry::FeatureParam kPriceDropOnTabArm[] = {
-    {"ShopCardVariant", "arm_3"},
-};
-
-const FeatureEntry::FeatureParam kTabResumptionWithImpressionLimitsArm[] = {
-    {"ShopCardVariant", "arm_5"},
-};
-const FeatureEntry::FeatureParam kPriceDropOnTabFront[] = {
-    {"ShopCardVariant", "arm_3"},
-    {"ShopCardPosition", "shop_card_front"},
-};
-
-const FeatureEntry::FeatureParam kTabResumptionWithImpressionLimitsFront[] = {
-    {"ShopCardVariant", "arm_5"},
-    {"ShopCardPosition", "shop_card_front"},
-};
-const FeatureEntry::FeatureParam kPriceDropOnTabDelayedDataAcquisition[] = {
-    {"ShopCardVariant", "arm_6"},
-};
-const FeatureEntry::FeatureParam kPriceDropOnTabDelayedDataAcquisitionFront[] =
-    {
-        {"ShopCardVariant", "arm_6"},
-        {"ShopCardPosition", "shop_card_front"},
-};
-
 // Address Bar Position
 const FeatureEntry::FeatureParam kTipsAddressBarPositionForceShowArm[] = {
     {segmentation_platform::features::kEphemeralCardRankerForceShowCardParam,
@@ -698,24 +684,6 @@ const FeatureEntry::FeatureParam kDefaultBrowserPromoForceShowArm[] = {
 const FeatureEntry::FeatureParam kDefaultBrowserPromoForceHideArm[] = {
     {segmentation_platform::features::kEphemeralCardRankerForceHideCardParam,
      segmentation_platform::kDefaultBrowserPromoEphemeralModule},
-};
-
-// ShopCard experiment arms
-const FeatureEntry::FeatureVariation kShopCardOverrideOptions[] = {
-    {"Card 3 Price Drop on Tab Resumption", kPriceDropOnTabArm, nullptr},
-
-    {"Card 5 Tab Resumption with Impression Limits",
-     kTabResumptionWithImpressionLimitsArm, nullptr},
-    {"Card 3 Price Drop on Tab Resumption at front of magic stack",
-     kPriceDropOnTabFront, nullptr},
-
-    {"Card 5 Tab Resumption with Impression Limits at front of magic stack",
-     kTabResumptionWithImpressionLimitsFront, nullptr},
-    {"Card 6 Price Drop on Tab Resumption with delayed data acquisition",
-     kPriceDropOnTabDelayedDataAcquisition, nullptr},
-    {"Card 6 Price Drop on Tab Resumption with delayed data acquisition at "
-     "front of magic stack",
-     kPriceDropOnTabDelayedDataAcquisitionFront, nullptr},
 };
 
 const FeatureEntry::FeatureVariation kEphemeralCardRankerCardOverrideOptions[] =
@@ -1254,8 +1222,6 @@ const FeatureEntry::FeatureParam
         {kGeminiCopresenceWithFullscreenDisabler, "true"}};
 const FeatureEntry::FeatureParam kGeminiCopresenceTrackSourcesParam[] = {
     {kGeminiCopresenceTrackSources, "true"}};
-const FeatureEntry::FeatureParam kGeminiCopresenceIgnoreSRPCheckEnabled[] = {
-    {kGeminiCopresenceSRPCheck, "false"}};
 
 const FeatureEntry::FeatureVariation kGeminiCopresenceVariations[] = {
     {"Response Ready Interval", kGeminiCopresenceResponseReadyIntervalParam,
@@ -1263,7 +1229,6 @@ const FeatureEntry::FeatureVariation kGeminiCopresenceVariations[] = {
     {"With Fullscreen Disabler", kGeminiCopresenceWithFullscreenDisablerParam,
      nullptr},
     {"Track Sources", kGeminiCopresenceTrackSourcesParam, nullptr},
-    {"Ignore SRP Check", kGeminiCopresenceIgnoreSRPCheckEnabled, nullptr},
 };
 
 const char kFRESignInHeaderTextUpdateParamName[] =
@@ -1891,12 +1856,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kEnableTraitCollectionRegistrationName,
      flag_descriptions::kEnableTraitCollectionRegistrationDescription,
      flags_ui::kOsIos, FEATURE_VALUE_TYPE(kEnableTraitCollectionRegistration)},
-    {"ios-shop-card", flag_descriptions::kShopCardName,
-     flag_descriptions::kShopCardDescription, flags_ui::kOsIos,
-     FEATURE_WITH_PARAMS_VALUE_TYPE(commerce::kTabResumptionShopCard,
-                                    kShopCardOverrideOptions,
-                                    "TabResumptionShopCard")},
-
     {"ios-segmentation-ephemeral-card-ranker",
      flag_descriptions::kSegmentationPlatformEphemeralCardRankerName,
      flag_descriptions::kSegmentationPlatformEphemeralCardRankerDescription,
@@ -2055,11 +2014,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
     {"data-sharing-debug-logs", flag_descriptions::kDataSharingDebugLogsName,
      flag_descriptions::kDataSharingDebugLogsDescription, flags_ui::kOsIos,
      SINGLE_VALUE_TYPE(data_sharing::kDataSharingDebugLoggingEnabled)},
-    {"supervised-user-block-interstitial-v3",
-     flag_descriptions::kSupervisedUserBlockInterstitialV3Name,
-     flag_descriptions::kSupervisedUserBlockInterstitialV3Description,
-     flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(supervised_user::kSupervisedUserBlockInterstitialV3)},
     {"supervised-user-emit-log-record-separately",
      flag_descriptions::kSupervisedUserEmitLogRecordSeparatelyName,
      flag_descriptions::kSupervisedUserEmitLogRecordSeparatelyDescription,
@@ -2439,6 +2393,10 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      FEATURE_WITH_PARAMS_VALUE_TYPE(kZeroStateSuggestions,
                                     kZeroStateSuggestionsVariations,
                                     "ZeroStateSuggestions")},
+    {"zero-state-suggestions-centralization",
+     flag_descriptions::kZeroStateSuggestionsCentralizationName,
+     flag_descriptions::kZeroStateSuggestionsCentralizationDescription,
+     flags_ui::kOsIos, FEATURE_VALUE_TYPE(kZeroStateSuggestionsCentralization)},
     {"ios-synced-set-up", flag_descriptions::kIOSSyncedSetUpName,
      flag_descriptions::kIOSSyncedSetUpDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kIOSSyncedSetUp)},
@@ -2623,10 +2581,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(
          autofill::features::kAutofillEnableBottomSheetScanCardAndFill)},
-    {"gemini-response-view-dynamic-resizing",
-     flag_descriptions::kGeminiResponseViewDynamicResizingName,
-     flag_descriptions::kGeminiResponseViewDynamicResizingDescription,
-     flags_ui::kOsIos, FEATURE_VALUE_TYPE(kGeminiResponseViewDynamicResizing)},
     {"fs-no-broadcast-experiment",
      flag_descriptions::kSmoothScrollingUseDelegateName,
      flag_descriptions::kSmoothScrollingUseDelegateDescription,
@@ -2717,9 +2671,18 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kSyncWalletVehicleRegistrationsDescription,
      flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(syncer::kSyncWalletVehicleRegistrations)},
-    {"disable-u18-feedback-ios", flag_descriptions::kDisableU18FeedbackIosName,
-     flag_descriptions::kDisableU18FeedbackIosDescription, flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(kDisableU18FeedbackIos)},
+    {"feedback-entry-points-require-can-submit-feedback-capability",
+     flag_descriptions::
+         kFeedbackEntryPointsRequireCanSubmitFeedbackCapabilityName,
+     flag_descriptions::
+         kFeedbackEntryPointsRequireCanSubmitFeedbackCapabilityDescription,
+     flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(
+         kFeedbackEntryPointsRequireCanSubmitFeedbackCapability)},
+    {"disable-feedback-for-ineligible-users",
+     flag_descriptions::kDisableFeedbackForIneligibleUsersName,
+     flag_descriptions::kDisableFeedbackForIneligibleUsersDescription,
+     flags_ui::kOsIos, FEATURE_VALUE_TYPE(kDisableFeedbackForIneligibleUsers)},
     {"fullscreen-refactoring", flag_descriptions::kFullscreenRefactoringName,
      flag_descriptions::kFullscreenRefactoringDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kFullscreenRefactoring)},
@@ -2927,6 +2890,14 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kDataControlsSearchWithName,
      flag_descriptions::kDataControlsSearchWithDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(data_controls::kDataControlsSearchWith)},
+    {"page-stability-metrics", flag_descriptions::kPageStabilityMetricsName,
+     flag_descriptions::kPageStabilityMetricsDescription, flags_ui::kOsIos,
+     FEATURE_WITH_PARAMS_VALUE_TYPE(kPageStabilityMetrics,
+                                    kPageStabilityMetricsVariations,
+                                    "PageStabilityMetrics")},
+    {"actor-service-logging", flag_descriptions::kActorServiceLoggingName,
+     flag_descriptions::kActorServiceLoggingDescription, flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(kActorServiceLogging)},
 });
 
 bool SkipConditionalFeatureEntry(const flags_ui::FeatureEntry& entry) {

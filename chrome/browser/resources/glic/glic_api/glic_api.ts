@@ -1933,6 +1933,10 @@ export declare interface TaskOptions {
    * The expected duration of the the task.
    */
   duration?: TaskDuration;
+  /**
+   * The feature mode for the task.
+   */
+  featureMode?: FeatureMode;
 }
 
 /** Maps the ErrorWithReason.reasonType to the type of reason. */
@@ -2998,19 +3002,8 @@ export enum InvocationSource {
   PASSWORD_CHANGE = 29,
   // From an Autofill action.
   AUTOFILL = 30,
-}
-
-///////////////////////////////////////////////
-// WARNING - GENERATED FROM MOJOM, DO NOT EDIT.
-// Mode for specific feature behaviors.
-export enum FeatureMode {
-  UNSPECIFIED = 0,
-  IMAGE_GENERATION = 1,
-  ACTUATION = 2,
-  // Client feature mode to initiate actuation for Experimental Triggering.
-  EXPERIMENTAL_TRIGGERING = 3,
-  // Client feature mode to initiate actuation for Universal Cart.
-  UNIVERSAL_CART = 4,
+  // Button in the toolbar.
+  TOOLBAR_BUTTON = 31,
 }
 
 ///////////////////////////////////////////////
@@ -3106,6 +3099,8 @@ export enum ExperimentalTriggeringUpdateType {
   TERMINAL_STOPPED = 4,
   // The interaction failed.
   TERMINAL_FAILED = 5,
+  // The interaction yielded to the user.
+  YIELD_TO_USER = 6,
 }
 
 ///////////////////////////////////////////////
@@ -3219,6 +3214,19 @@ export enum CredentialType {
   PASSWORD = 0,
   // Used with an identity provider (e.g. Sign in with Google).
   FEDERATED = 1,
+}
+
+///////////////////////////////////////////////
+// WARNING - GENERATED FROM MOJOM, DO NOT EDIT.
+// Mode for specific feature behaviors.
+export enum FeatureMode {
+  UNSPECIFIED = 0,
+  IMAGE_GENERATION = 1,
+  ACTUATION = 2,
+  // Client feature mode to initiate actuation for Experimental Triggering.
+  EXPERIMENTAL_TRIGGERING = 3,
+  // Client feature mode to initiate actuation for Universal Cart.
+  UNIVERSAL_CART = 4,
 }
 
 

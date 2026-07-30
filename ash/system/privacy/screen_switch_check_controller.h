@@ -5,13 +5,15 @@
 #ifndef ASH_SYSTEM_PRIVACY_SCREEN_SWITCH_CHECK_CONTROLLER_H_
 #define ASH_SYSTEM_PRIVACY_SCREEN_SWITCH_CHECK_CONTROLLER_H_
 
+#include "ash/public/cpp/session/session_observer.h"
 #include "ash/system/privacy/screen_security_observer.h"
 
 namespace ash {
 
 // Controller of a dialog that confirms the user wants to stop screen share/cast
 // on user profile switching.
-class ScreenSwitchCheckController : public ScreenSecurityObserver {
+class ScreenSwitchCheckController : public ScreenSecurityObserver,
+                                    public SessionObserver {
  public:
   ScreenSwitchCheckController();
 
@@ -21,12 +23,19 @@ class ScreenSwitchCheckController : public ScreenSecurityObserver {
 
   ~ScreenSwitchCheckController() override;
 
+  void set_skip_cancel_dialog_for_testing(bool skip) {
+    skip_cancel_dialog_for_testing_ = skip;
+  }
+
   // Determines if it's ok to switch away from the currently active user. Screen
   // casting may block this (or at least throw up a confirmation dialog). Calls
   // |callback| with the result.
   void CanSwitchAwayFromActiveUser(base::OnceCallback<void(bool)> callback);
 
  private:
+  // SessionObserver:
+  void OnActiveUserSessionChanged(const AccountId& account_id) override;
+
   // ScreenSecurityObserver:
   void OnScreenAccessStart(base::OnceClosure stop_callback,
                            const base::RepeatingClosure& source_callback,
@@ -37,6 +46,7 @@ class ScreenSwitchCheckController : public ScreenSecurityObserver {
 
   bool is_screen_accessed_ = false;
   bool is_remoting_share_ = false;
+  bool skip_cancel_dialog_for_testing_ = false;
 };
 
 }  // namespace ash

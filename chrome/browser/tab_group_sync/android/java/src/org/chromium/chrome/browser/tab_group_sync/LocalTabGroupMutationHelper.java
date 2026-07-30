@@ -16,7 +16,7 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab_group_sync.TabGroupSyncControllerImpl.TabCreationDelegate;
 import org.chromium.chrome.browser.tabmodel.TabClosureParams;
-import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter.MergeNotificationType;
+import org.chromium.chrome.browser.tabmodel.TabGroupMergeNotificationType;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelUtils;
 import org.chromium.components.tab_group_sync.ClosingSource;
@@ -75,9 +75,14 @@ public class LocalTabGroupMutationHelper {
         List<Tab> tabs = new ArrayList<>();
         for (SavedTabGroupTab savedTab : tabGroup.savedTabs) {
             String title = savedTab.title == null ? UNSET_TAB_GROUP_TITLE : savedTab.title;
+            GURL url = assertNonNull(savedTab.url);
+            if (!TabGroupSyncUtils.isSavableUrl(url)) {
+                title = TabGroupSyncUtils.UNSAVEABLE_TAB_TITLE;
+                url = TabGroupSyncUtils.UNSAVEABLE_URL_OVERRIDE;
+            }
             Tab newTab =
                     mTabCreationDelegate.createBackgroundTab(
-                            assertNonNull(savedTab.url), title, /* parent= */ null, position++);
+                            url, title, /* parent= */ null, position++);
             assert newTab != null;
             tabs.add(newTab);
             tabIdMappings.put(assertNonNull(savedTab.syncId), newTab.getId());
@@ -91,7 +96,7 @@ public class LocalTabGroupMutationHelper {
             mTabModel.createSingleTabGroup(rootTab);
         } else {
             mTabModel.mergeListOfTabsToGroup(
-                    tabs, rootTab, /* notify= */ MergeNotificationType.DONT_NOTIFY);
+                    tabs, rootTab, /* notify= */ TabGroupMergeNotificationType.DONT_NOTIFY);
         }
         Token tabGroupId = rootTab.getTabGroupId();
         assert tabGroupId != null;
@@ -220,6 +225,10 @@ public class LocalTabGroupMutationHelper {
     /** Helper method to create a tab with a given URL and add it to the tab group. */
     private Tab createTabAndAddToGroup(
             GURL url, String title, int desiredTabModelIndex, Tab parentTab, Token tabGroupId) {
+        if (!TabGroupSyncUtils.isSavableUrl(url)) {
+            title = TabGroupSyncUtils.UNSAVEABLE_TAB_TITLE;
+            url = TabGroupSyncUtils.UNSAVEABLE_URL_OVERRIDE;
+        }
         Tab newTab =
                 mTabCreationDelegate.createBackgroundTab(
                         url, title, parentTab, desiredTabModelIndex);
@@ -233,7 +242,7 @@ public class LocalTabGroupMutationHelper {
         mTabModel.mergeListOfTabsToGroup(
                 tabsToMerge,
                 mTabModel.getTabByIdChecked(lastTabId),
-                /* notify= */ MergeNotificationType.DONT_NOTIFY);
+                /* notify= */ TabGroupMergeNotificationType.DONT_NOTIFY);
         return newTab;
     }
 

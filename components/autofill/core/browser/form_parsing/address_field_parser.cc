@@ -13,14 +13,18 @@
 #include <utility>
 
 #include "base/check.h"
-#include "components/autofill/core/browser/autofill_field.h"
+#include "base/feature_list.h"
+#include "base/memory/ptr_util.h"
+#include "base/notreached.h"
 #include "components/autofill/core/browser/country_type.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_i18n_api.h"
 #include "components/autofill/core/browser/field_types.h"
+#include "components/autofill/core/browser/form_parsing/autofill_parsing_utils.h"
 #include "components/autofill/core/browser/form_parsing/autofill_scanner.h"
-#include "components/autofill/core/browser/form_parsing/regex_patterns.h"
+#include "components/autofill/core/browser/form_parsing/field_candidates.h"
+#include "components/autofill/core/browser/form_parsing/form_field_parser.h"
 #include "components/autofill/core/common/autofill_features.h"
-#include "components/autofill/core/common/autofill_regex_constants.h"
+#include "components/autofill/core/common/form_field_data.h"
 
 namespace autofill {
 
@@ -717,10 +721,7 @@ AddressFieldParser::ParseNameAndLabelSeparately(
       context, scanner, regex_name, &cur_match, [](const MatchParams& p) {
         return WithoutAttribute(p, MatchAttribute::kName);
       });
-  // Only consider high quality label matches to avoid false positives.
-  parsed_label =
-      parsed_label && cur_match->match_info.matched_attribute ==
-                          MatchInfo::MatchAttribute::kHighQualityLabel;
+
   if (parsed_name && parsed_label) {
     if (match) {
       *match = std::move(cur_match);
@@ -731,8 +732,14 @@ AddressFieldParser::ParseNameAndLabelSeparately(
   scanner.Restore(saved_cursor);
   if (parsed_name)
     return RESULT_MATCH_NAME;
-  if (parsed_label)
-    return RESULT_MATCH_LABEL;
+  if (parsed_label && cur_match->match_info.matched_attribute ==
+                          MatchInfo::MatchAttribute::kHighQualityLabel) {
+    return RESULT_MATCH_HIGH_QUALITY_LABEL;
+  }
+  if (parsed_label && cur_match->match_info.matched_attribute ==
+                          MatchInfo::MatchAttribute::kLowQualityLabel) {
+    return RESULT_MATCH_LOW_QUALITY_LABEL;
+  }
   return RESULT_MATCH_NONE;
 }
 
@@ -897,7 +904,8 @@ bool AddressFieldParser::ParseAddressField(ParsingContext& context,
 
   // By default give the name priority over the label.
   ParseNameLabelResult results_to_match[] = {RESULT_MATCH_NAME,
-                                             RESULT_MATCH_LABEL};
+                                             RESULT_MATCH_HIGH_QUALITY_LABEL,
+                                             RESULT_MATCH_LOW_QUALITY_LABEL};
   // Give the label priority over the name to avoid misclassifications when the
   // name has a misleading value (e.g. in MX the input field for
   // "Municipio/Delegación" is sometimes named "city" even though that should be
@@ -1124,7 +1132,7 @@ AddressFieldParser::ParseNameAndLabelForOverflowAndLandmark(
     ParsingContext& context,
     AutofillScanner& scanner) {
   AddressCountryCode country_code(context.client_country.value());
-  //  TODO(crbug.com/40266693) Remove feature check when launched.
+  // TODO(crbug.com/40266693) Remove feature check when launched.
   if (overflow_and_landmark_ || overflow_ ||
       !i18n_model_definition::IsTypeEnabledForCountry(
           ADDRESS_HOME_OVERFLOW_AND_LANDMARK, country_code)) {
@@ -1237,13 +1245,16 @@ bool AddressFieldParser::SetFieldAndAdvanceCursor(
     switch (parse_result) {
       case RESULT_MATCH_NONE:
         NOTREACHED();
-      case RESULT_MATCH_LABEL:
+      case RESULT_MATCH_HIGH_QUALITY_LABEL:
       // Since the parser matches against the label first, interpret
-      // RESULT_MATCH_NAME_LABEL as a label match.
-      // `ParseNameAndLabelSeparately()` only allows for high quality label
-      // matches.
+      // `RESULT_MATCH_NAME_LABEL` as a label match.
+      // `RESULT_MATCH_NAME_LABEL` might originate from Name and High or Low
+      // quality label match. This distinction is not exposed to the parser for
+      // simplicity, both options are treated equally.
       case RESULT_MATCH_NAME_LABEL:
         return MatchInfo::MatchAttribute::kHighQualityLabel;
+      case RESULT_MATCH_LOW_QUALITY_LABEL:
+        return MatchInfo::MatchAttribute::kLowQualityLabel;
       case RESULT_MATCH_NAME:
         return MatchInfo::MatchAttribute::kName;
     }

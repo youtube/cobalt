@@ -49,6 +49,10 @@ inline constexpr char kAIOmniboxAskPlaceholderDescription[] =
     "Enables the placeholder text to be 'Ask...' instead of 'Search...' when "
     "AI Omnibox is available.";
 
+inline constexpr char kActorServiceLoggingName[] = "ActorServiceLogging";
+inline constexpr char kActorServiceLoggingDescription[] =
+    "Enables Actor logging, which is for debugging only.";
+
 inline constexpr char kAimCobrowseHeaderName[] = "AimCobrowseHeader";
 inline constexpr char kAimCobrowseHeaderDescription[] =
     "Changes the design of the AIM cobrowse header.";
@@ -563,6 +567,12 @@ inline constexpr char kDisableComposeboxFromAIMNTPDescription[] =
     "When enabled, the NTP entrypoint will always lead to the AIM webpage even "
     "when composebox is enabled.";
 
+inline constexpr char kDisableFeedbackForIneligibleUsersName[] =
+    "Disable Feedback For Ineligible Users";
+inline constexpr char kDisableFeedbackForIneligibleUsersDescription[] =
+    "When enabled, feedback is disabled for ineligible users based on "
+    "can_submit_feedback capability.";
+
 inline constexpr char kDisableKeyboardAccessoryName[] =
     "Disable Omnibox Keyboard Accessory";
 inline constexpr char kDisableKeyboardAccessoryDescription[] =
@@ -579,13 +589,6 @@ inline constexpr char kDisableShareButtonName[] =
     "Disable Share Button in Toolbar";
 inline constexpr char kDisableShareButtonDescription[] =
     "Hides the share button in toolbar.";
-
-inline constexpr char kDisableU18FeedbackIosName[] = "DisableU18FeedbackIos";
-inline constexpr char kDisableU18FeedbackIosDescription[] =
-    "When enabled, the primary identity is set to the feedback UI when opened. "
-    "The user is free add it to the feedback or not. Also the feedback cannot "
-    "be sent if the primary user is under 18. When disabled, the feedback is "
-    "anoymous";
 
 inline constexpr char kDownloadAutoDeletionClearFilesOnEveryStartupName[] =
     "Enable Download Auto-Deletion Testing Mode";
@@ -741,6 +744,14 @@ inline constexpr char kFeedSwipeInProductHelpName[] = "Enable Feed Swipe IPH";
 inline constexpr char kFeedSwipeInProductHelpDescription[] =
     "Presents an in-product help on the NTP to promote swiping on the Feed";
 
+inline constexpr char
+    kFeedbackEntryPointsRequireCanSubmitFeedbackCapabilityName[] =
+        "Feedback Entry Points Require Can Submit Feedback Capability";
+inline constexpr char
+    kFeedbackEntryPointsRequireCanSubmitFeedbackCapabilityDescription[] =
+        "When enabled, feedback entry points require the can_submit_feedback "
+        "capability. The entry points are either removed or ignored.";
+
 inline constexpr char kForceStartupSigninPromoName[] =
     "Display the startup sign-in promo";
 inline constexpr char kForceStartupSigninPromoDescription[] =
@@ -825,11 +836,6 @@ inline constexpr char kGeminiNavigationPromoDescription[] =
 inline constexpr char kGeminiPreciseLocationName[] = "BWG Precise Location";
 inline constexpr char kGeminiPreciseLocationDescription[] =
     "When enabled, the precise location row is shown in BWG settings.";
-
-inline constexpr char kGeminiResponseViewDynamicResizingName[] =
-    "Gemini Response View Dynamic Resizing";
-inline constexpr char kGeminiResponseViewDynamicResizingDescription[] =
-    "Enables dynamic resizing for the Gemini response view.";
 
 inline constexpr char kGeminiRichAPCExtractionName[] =
     "Gemini Rich APC Extraction";
@@ -1530,6 +1536,10 @@ inline constexpr char kPageContextIPCOptimizationName[] =
 inline constexpr char kPageContextIPCOptimizationDescription[] =
     "Enables the PageContextIPCOptimization feature.";
 
+inline constexpr char kPageStabilityMetricsName[] = "Page Stability Metrics";
+inline constexpr char kPageStabilityMetricsDescription[] =
+    "Enables metrics to track DOM mutation frequency after user interactions.";
+
 inline constexpr char kPageToolsFeatureUnavailabilityName[] =
     "PageToolsFeatureUnavailability";
 inline constexpr char kPageToolsFeatureUnavailabilityDescription[] =
@@ -1732,10 +1742,6 @@ inline constexpr char kSharedHighlightingIOSDescription[] =
     "Adds a Link to Text option in the Edit Menu which generates URLs with a "
     "text fragment.";
 
-inline constexpr char kShopCardName[] = "Enables Tab Resumption ShopCard";
-inline constexpr char kShopCardDescription[] =
-    "Enables being able to show Tab Resumption ShopCard in the Magic Stack";
-
 inline constexpr char kShowAutofillTypePredictionsName[] =
     "Show Autofill predictions";
 inline constexpr char kShowAutofillTypePredictionsDescription[] =
@@ -1780,11 +1786,6 @@ inline constexpr char kSnapshotDownsampleImageDescription[] =
 inline constexpr char kStrokesAPIEnabledName[] = "Enable Strokes API for Lens";
 inline constexpr char kStrokesAPIEnabledDescription[] =
     "When enabled, Lens will use the Strokes API.";
-
-inline constexpr char kSupervisedUserBlockInterstitialV3Name[] =
-    "Enable URL filter interstitial V3";
-inline constexpr char kSupervisedUserBlockInterstitialV3Description[] =
-    "Enables URL filter interstitial V3 for Family Link users.";
 
 inline constexpr char kSupervisedUserEmitLogRecordSeparatelyName[] =
     "Emit supervised user log record separately";
@@ -1972,6 +1973,12 @@ inline constexpr char kYourSavedInfoSettingsPageIosName[] =
     "Enable Autofill and passwords settings redesign on iOS";
 inline constexpr char kYourSavedInfoSettingsPageIosDescription[] =
     "Enables the Autofill and passwords settings page redesign on iOS.";
+
+inline constexpr char kZeroStateSuggestionsCentralizationName[] =
+    "Zero-State Suggestions Centralization";
+inline constexpr char kZeroStateSuggestionsCentralizationDescription[] =
+    "Enables the creation of both static and model-led zero-state suggestions "
+    "on the Chrome side.";
 
 inline constexpr char kZeroStateSuggestionsName[] =
     "Enable Zero-State Suggestions";

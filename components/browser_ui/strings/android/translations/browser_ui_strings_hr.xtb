@@ -5,7 +5,6 @@
 <translation id="1036348656032585052">Isključi</translation>
 <translation id="1046742265332833834">Plava tema</translation>
 <translation id="1070329623210597193">Datoteke koje ova web-lokacija može pregledavati ili uređivati</translation>
-<translation id="1073417869336441572">Recite nam zašto ste dopustili kolačiće trećih strana i pomognite nam da poboljšamo Chrome. <ph name="BEGIN_LINK" />Pošaljite svoje dojmove<ph name="END_LINK" /></translation>
 <translation id="1074758928858737435">Možete zatražiti prikaz verzije web-lokacija za računala</translation>
 <translation id="1109482864356262001">Značajke kojima su potrebni senzori kretanja ili svjetlosni senzori neće raditi</translation>
 <translation id="1126523729897810826">Dovršite predložene radnje u nastavku da biste iskoristili sve prednosti Chromea</translation>
@@ -21,6 +20,7 @@
 <translation id="1240190568154816272">Savjeti za Chrome</translation>
 <translation id="1242008676835033345">Ugrađeno na <ph name="WEBSITE_URL" /></translation>
 <translation id="1263609676484797429">Dodirnite Aplikacije &gt; Zadane aplikacije</translation>
+<translation id="1264694639515903274">Sada možete prilagoditi početnu stranicu</translation>
 <translation id="1272079795634619415">Zaustavi</translation>
 <translation id="1275718070701477396">Odabrano</translation>
 <translation id="1289742167380433257">Google je optimizirao slike na ovoj stranici radi uštede vaših podataka.</translation>
@@ -90,6 +90,7 @@
 <translation id="1915307458270490472">Prekini vezu</translation>
 <translation id="1919950603503897840">Odaberite kontakte</translation>
 <translation id="1923695749281512248"><ph name="BYTES_DOWNLOADED_WITH_UNITS" />/<ph name="FILE_SIZE_WITH_UNITS" /></translation>
+<translation id="192926679114491605">Prilagodite svoju početnu stranicu</translation>
 <translation id="1939059826036755332">Automatska slika u slici</translation>
 <translation id="1954597385941141174">Web-lokacije mogu tražiti dopuštenje za povezivanje s USB uređajima</translation>
 <translation id="1979673356880165407">Povećajte ili smanjite tekst i slike za sve web-lokacije koje posjetite</translation>
@@ -286,6 +287,7 @@
 <translation id="3843916486309149084">Chrome će danas ponovno blokirati kolačiće</translation>
 <translation id="385051799172605136">Natrag</translation>
 <translation id="3859306556332390985">Traži unaprijed</translation>
+<translation id="3870711497942672548">Prilagodite Chrome pomoću personaliziranih boja i slika za početnu stranicu</translation>
 <translation id="389521680295183045">Web-lokacije mogu pitati kad aktivno koristite uređaj</translation>
 <translation id="3895926599014793903">Prisilno omogućavanje zumiranja</translation>
 <translation id="3903738175795615004">Povucite od vrha ili pritisnite tipku Esc za izlaz iz prikaza na cijelom zaslonu.</translation>
@@ -328,7 +330,9 @@
 <translation id="4290791284969893584">Nakon zatvaranja stranice zadaci koje ste započeli možda se neće dovršiti</translation>
 <translation id="429312253194641664">Web-lokacija reproducira medije</translation>
 <translation id="42981349822642051">Proširi</translation>
+<translation id="4310738531374808763">Prilagodite svoju početnu stranicu</translation>
 <translation id="4336219115486912529">{COUNT,plural, =1{Istječe sutra}one{Istječe za # dan}few{Istječe za # dana}other{Istječe za # dana}}</translation>
+<translation id="4336371609622603229">Prilagodite Chrome tako da odaberete prilagođenu temu</translation>
 <translation id="4338831206024587507">Sve web-lokacije na domeni <ph name="DOMAIN" /></translation>
 <translation id="4340799661701629185">Ne dopuštaj web-lokacijama slanje obavijesti</translation>
 <translation id="4341577178275615435">Da biste uključili ili isključili pregledavanje kursorom, upotrijebite prečac F7</translation>
@@ -440,7 +444,6 @@
 <translation id="5555115555607204100">Nemoj ubrzavati web-lokacije pomoću Chromeovog programa V8, ali učini Chrome malo otpornijim na napade</translation>
 <translation id="5556459405103347317">Ponovno učitaj</translation>
 <translation id="5591840828808741583"><ph name="SITE_NAME" /> je blokiran</translation>
-<translation id="560980142378233747">To znači da značajke web-lokacije trebaju funkcionirati prema očekivanjima, no možda ćete imati manje zaštite pri pregledavanju. <ph name="BEGIN_LINK" />Pošaljite povratne informacije<ph name="END_LINK" /></translation>
 <translation id="5617702678271228680">Donja tablica kartica na stranici nove kartice</translation>
 <translation id="5621413808884657932">Kad je ta postavka uključena, web-lokacije mogu tražiti dopuštenje za pristup drugim aplikacijama i uslugama na ovom uređaju. Kad je ta postavka isključena, web-lokacije ne mogu pristupati drugim aplikacijama i uslugama na ovom uređaju.</translation>
 <translation id="5632485077360054581">Pokaži mi kako</translation>
@@ -519,6 +522,7 @@
 <translation id="6262279340360821358">Blokirana su dopuštenja <ph name="PERMISSION_1" /> i <ph name="PERMISSION_2" /></translation>
 <translation id="6270391203985052864">Web-lokacije mogu postavljati pitanja o slanju obavijesti</translation>
 <translation id="6295158916970320988">Sve web-lokacije</translation>
+<translation id="6305257382500066042">Isprobajte odmah</translation>
 <translation id="6320088164292336938">Omogući vibraciju</translation>
 <translation id="6367753977865761591">Blokiraj prijavu treće strane za određenu web-lokaciju.</translation>
 <translation id="6398765197997659313">Izađi iz cijelog zaslona</translation>
@@ -529,7 +533,6 @@
 <translation id="6447842834002726250">Kolačići</translation>
 <translation id="6452138246455930388">Sniženje cijene na otvorenoj kartici, s <ph name="OLD_PRICE" /> na <ph name="NEW_PRICE" />, <ph name="PRODUCT_NAME" />, <ph name="DOMAIN_NAME" /></translation>
 <translation id="6500423977866688905">Ako je prozor uzak, zatražite prikaz na mobilnom uređaju</translation>
-<translation id="6514791408445720076">Prilagodite stranicu</translation>
 <translation id="6527303717912515753">Podijeli</translation>
 <translation id="6530703012083415527">Kad je ta postavka uključena, web-lokacije mogu upotrebljavati skočne prozore i preusmjeravanja. Kad je ta postavka isključena, web-lokacije ne mogu upotrebljavati skočne prozore i preusmjeravanja.</translation>
 <translation id="6540488083026747005">Dopustili ste kolačiće trećih strana na ovoj web-lokaciji</translation>
@@ -593,7 +596,6 @@
 <translation id="7141896414559753902">Web-lokacijama nije dopušteno prikazivanje skočnih prozora i preusmjeravanja (preporučeno)</translation>
 <translation id="7176368934862295254"><ph name="KILOBYTES" /> KB</translation>
 <translation id="7180611975245234373">Osvježi</translation>
-<translation id="7180865173735832675">Prilagodi</translation>
 <translation id="7188508872042490670">Podaci web-lokacije na uređaju</translation>
 <translation id="7201549776650881587">Tom ćete radnjom izbrisati sve podatke i kolačiće koje su spremile sve web-lokacije podređene web-lokaciji <ph name="ORIGIN" /> ili koje je spremila povezana aplikacija na vašem početnom zaslonu</translation>
 <translation id="7219254577985949841">Želite li izbrisati podatke web-lokacije?</translation>
@@ -707,7 +709,6 @@ Napredna zaštita kontrolira sljedeće postavke Chromea:</translation>
 <translation id="83792324527827022">Web-lokacija upotrebljava vašu kameru i mikrofon</translation>
 <translation id="8380167699614421159">Ova web-lokacija prikazuje ometajuće ili obmanjujuće oglase</translation>
 <translation id="8394832520002899662">Dodirnite da biste se vratili na web-lokaciju</translation>
-<translation id="8404500559369898929">Prilagodite Chrome tako da odaberete prilagođenu pozadinsku temu</translation>
 <translation id="8409345997656833551">Primajte obavijesti kad se članak može prikazati u pojednostavljenom prikazu</translation>
 <translation id="8416874502399604126">Mikrofon je dopušten ovaj put</translation>
 <translation id="8423565414844018592">Skaliranje teksta postavljeno je na <ph name="TEXT_SCALING" /></translation>
@@ -753,7 +754,6 @@ Napredna zaštita kontrolira sljedeće postavke Chromea:</translation>
 <translation id="8737426583868847403">Ovdje će se prikazivati web-lokacije za koje spremite prilagođenu razinu zumiranja</translation>
 <translation id="8748714929822124637">Nemoj dopustiti web-lokacijama da pristupaju drugim uređajima na vašoj lokalnoj mreži</translation>
 <translation id="8751914237388039244">Odaberite sliku</translation>
-<translation id="8775741625735357092">Traku oznaka možete uključiti u odjeljku Postavke &gt; Izgled</translation>
 <translation id="8800034312320686233">Web-lokacija ne funkcionira?</translation>
 <translation id="8801436777607969138">Blokiranje JavaScripta za određenu web-lokaciju.</translation>
 <translation id="8801657293260363985">V8 je Chromeov alat za JavaScript i WebAssembly koji se upotrebljava za poboljšanje izvedbe web-lokacija</translation>

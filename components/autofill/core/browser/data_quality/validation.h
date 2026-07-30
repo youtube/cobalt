@@ -5,6 +5,8 @@
 #ifndef COMPONENTS_AUTOFILL_CORE_BROWSER_DATA_QUALITY_VALIDATION_H_
 #define COMPONENTS_AUTOFILL_CORE_BROWSER_DATA_QUALITY_VALIDATION_H_
 
+#include <stddef.h>
+
 #include <string>
 #include <string_view>
 

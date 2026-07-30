@@ -145,6 +145,7 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(kFedCmMetricsEndpoint);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kFedCmEmbedderInitiatedLogin);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kFedCmNonceInParams);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kFedCmWellKnownEndpointValidation);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kFedCmWebIdentitySubdomain);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kFedCmWithoutWellKnownEnforcement);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kFencedFramesEnforceFocus);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kFedCmNavigationInterception);
@@ -166,6 +167,9 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE_PARAM(bool,
 CONTENT_EXPORT BASE_DECLARE_FEATURE_PARAM(bool,
                                           kInitialWebUIHighStreamPriority);
 CONTENT_EXPORT BASE_DECLARE_FEATURE_PARAM(bool, kInitialWebUIWithoutSpellCheck);
+CONTENT_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    bool,
+    kInitialWebUIWithoutLanguageDetection);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kInitialWebUISyncNavStartToCommit);
 CONTENT_EXPORT BASE_DECLARE_FEATURE_PARAM(std::string,
                                           kIgnoreDuplicateNavsOrigins);
@@ -391,7 +395,6 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(
     kGinJavaBridgeMojoSkipClearObjectsOnMainDocumentReady);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kReduceGpuPriorityOnBackground);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kSmartZoom);
-CONTENT_EXPORT BASE_DECLARE_FEATURE(kSubframeImportance);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kUserMediaScreenCapturing);
 #endif  // BUILDFLAG(IS_ANDROID)
 

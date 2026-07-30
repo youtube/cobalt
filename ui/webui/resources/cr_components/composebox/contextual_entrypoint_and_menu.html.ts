@@ -14,6 +14,8 @@ export function getHtml(this: ContextualEntrypointAndMenuElement) {
       <cr-composebox-contextual-entrypoint-button id="entrypointButton"
           exportparts="context-menu-entrypoint-icon, entrypoint-button"
           .inputState="${this.inputState}"
+          .sharedTabs="${this.sharedTabs}"
+          .restoredTabs="${this.restoredTabs_}"
           @context-menu-entrypoint-click="${this.onContextMenuEntrypointClick_}"
           ?upload-button-disabled="${this.uploadButtonDisabled}"
           ?show-context-menu-description="${this.showContextMenuDescription}"
@@ -23,10 +25,12 @@ export function getHtml(this: ContextualEntrypointAndMenuElement) {
     <cr-composebox-contextual-action-menu id="menu"
         .fileNum="${this.fileNum}"
         .disabledTabIds="${this.disabledTabIds}"
+        .restoredTabIds="${this.restoredTabIds}"
         .tabSuggestions="${this.tabSuggestions}"
         .inputState="${this.inputState}"
         .smartTabSharingActive="${this.smartTabSharingActive}"
         .disableAutoReposition="${this.disableAutoReposition}"
+        .uploadButtonDisabled="${this.uploadButtonDisabled}"
         @close="${this.onMenuClose_}">
     </cr-composebox-contextual-action-menu>
   <!--_html_template_end_-->`;

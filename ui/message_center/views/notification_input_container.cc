@@ -9,6 +9,7 @@
 #include "base/functional/bind.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/color/color_id.h"
 #include "ui/color/color_provider.h"
 #include "ui/compositor/layer.h"
@@ -69,6 +70,13 @@ void NotificationInputContainer::Init() {
 
   textfield_->set_controller(this);
   textfield_->SetBorder(views::CreateEmptyBorder(GetTextfieldPadding()));
+  textfield_->SetTextColorId(ui::kColorNotificationInputForeground);
+  textfield_->SetPlaceholderTextColorId(
+      ui::kColorNotificationInputPlaceholderForeground);
+  if (ink_drop_container_) {
+    textfield_->SetBackgroundColor(SK_ColorTRANSPARENT);
+  }
+
   StyleTextfield();
   AddChildViewRaw(textfield_.get());
   box_layout->SetFlexForView(textfield_, 1);
@@ -139,20 +147,6 @@ void NotificationInputContainer::RemoveLayerFromRegions(ui::Layer* layer) {
   ink_drop_container_->RemoveLayerFromRegions(layer);
   textfield_->DestroyLayer();
   button_->DestroyLayer();
-}
-
-void NotificationInputContainer::OnThemeChanged() {
-  View::OnThemeChanged();
-
-  const auto* color_provider = GetColorProvider();
-  textfield_->SetTextColor(
-      color_provider->GetColor(ui::kColorNotificationInputForeground));
-  StyleTextfield();
-  if (ink_drop_container_)
-    textfield_->SetBackgroundColor(SK_ColorTRANSPARENT);
-  textfield_->set_placeholder_text_color(color_provider->GetColor(
-      ui::kColorNotificationInputPlaceholderForeground));
-  UpdateButtonImage();
 }
 
 views::ProposedLayout NotificationInputContainer::CalculateProposedLayout(
@@ -235,17 +229,15 @@ void NotificationInputContainer::StyleTextfield() {
 }
 
 void NotificationInputContainer::UpdateButtonImage() {
-  if (!GetWidget())
-    return;
-
   auto icon_color_id = textfield_->GetText().empty()
                            ? ui::kColorNotificationInputPlaceholderForeground
                            : ui::kColorNotificationInputForeground;
   button_->SetImageModel(
       views::Button::STATE_NORMAL,
-      ui::ImageModel::FromVectorIcon(
-          kNotificationInlineReplyOldIcon,
-          GetColorProvider()->GetColor(icon_color_id), kInputReplyButtonSize));
+      ui::ImageModel::FromVectorIcon(features::IsRoundedIconsEnabled()
+                                         ? kSendFilledIcon
+                                         : kNotificationInlineReplyOldIcon,
+                                     icon_color_id, kInputReplyButtonSize));
 }
 
 BEGIN_METADATA(NotificationInputContainer)

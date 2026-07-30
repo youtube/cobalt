@@ -585,7 +585,6 @@ Nové záložky nebude možné do účtu uložit, dokud některé nesmažete. Po
 <translation id="7318036098707714271">Soubor nastavení je poškozený nebo neplatný.
 
 Chromium nemůže vaše nastavení obnovit.</translation>
-<translation id="7339898014177206373">Nové okno</translation>
 <translation id="734373864078049451">Zde jsou k dispozici vaše weby, záložky a další obsah prohlížeče Chromium.</translation>
 <translation id="7347827960336370838">Vaše šifrovaná data mohou číst pouze uživatelé, kteří mají vaši heslovou frázi. Heslová fráze se neodesílá do Googlu a není na Googlu uložena. Pokud heslovou frázi zapomenete nebo toto nastavení budete chtít změnit, budete muset <ph name="BEGIN_LINK" />vymazat data prohlížeče Chromium ve svém účtu<ph name="END_LINK" />.</translation>
 <translation id="7349591376906416160">Administrátor systému nakonfiguroval prohlížeč Chromium tak, aby pro přístup k adrese <ph name="TARGET_URL_HOSTNAME" /> otevřel prohlížeč <ph name="ALTERNATIVE_BROWSER_NAME" />.</translation>
@@ -594,6 +593,7 @@ Chromium nemůže vaše nastavení obnovit.</translation>
 <translation id="7376384068949534168">V poslední době jste nenavštívili. Prohlížeč Chromium odebral tato oprávnění: <ph name="PERMISSION_1" /> a <ph name="PERMISSION_2" />.</translation>
 <translation id="73786666777299047">Otevřít Internetový obchod Chrome</translation>
 <translation id="7384121030444253939">Toto rozšíření už není podporováno. Chromium vám doporučuje odstranit ho.</translation>
+<translation id="7407655596887111931">Chromium je teď váš výchozí prohlížeč</translation>
 <translation id="7413153308467572558">Pokračujte od stavu, ve kterém jste skončili: Chromium při restartech obnovuje karty. Tuto funkci můžete vypnout v</translation>
 <translation id="7427879960656355200">Import hesel do prohlížeče Chromium</translation>
 <translation id="744815265653811511">1. Níže klikněte na <ph name="BUTTON_LABEL" />.
@@ -735,6 +735,7 @@ Chromium nemůže vaše nastavení obnovit.</translation>
 <translation id="8981150672034878610">Chromium nelze spustit, protože při otevírání vašeho profilu došlo k chybě. Zkuste Chromium restartovat.</translation>
 <translation id="8988036198400390003">Spravovat profily Chromium</translation>
 <translation id="9019929317751753759">Aby byl prohlížeč Chromium bezpečnější, deaktivovali jsme následující rozšíření, které není uvedeno na webu <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> a pravděpodobně bylo přidáno bez vašeho vědomí.</translation>
+<translation id="9022552996538154597">Přihlásit se do prohlížeče Chromium</translation>
 <translation id="904366664621834601">Prohlížeč Chromium toto stahování zablokoval, protože tento soubor archivu obsahuje další soubory, které mohou skrývat malware</translation>
 <translation id="9053882453960391422">Mějte hesla, záložky a historii dokonale synchronizované mezi zařízeními. Aktualizujte svůj výchozí prohlížeč na Chromium. Budete tak mít snadno přístup k funkcím, které znáte a máte rádi. Prohlížeč Chromium bude připnutý na hlavní panel, kde bude kdykoli snadno rychle k dispozici.</translation>
 <translation id="9062666675513499497">Přihlášení do prohlížeče Chromium při přihlášení do jiných služeb Google</translation>

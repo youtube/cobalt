@@ -137,6 +137,13 @@ class CookiePolicyBrowserTest : public InProcessBrowserTest {
     return EvalJs(frame, "document.cookie;").ExtractString();
   }
 
+  void ReloadFrame(content::RenderFrameHost* frame) {
+    content::TestNavigationObserver reload_observer(
+        browser()->tab_strip_model()->GetActiveWebContents());
+    ASSERT_TRUE(content::ExecJs(frame, "location.reload();"));
+    reload_observer.Wait();
+  }
+
   void NavigateNestedFrameTo(const std::string& host, const std::string& path) {
     GURL url(https_server_.GetURL(host, path));
     content::WebContents* web_contents =
@@ -601,14 +608,20 @@ class CookiePolicyStorageBrowserTest
   ContextType ContextType() const { return GetParam(); }
 };
 
-// TODO(crbug.com/372780565): Test failing on Windows-asan
-#if BUILDFLAG(IS_WIN) && defined(ADDRESS_SANITIZER)
-#define MAYBE_ThirdPartyIFrameStorage DISABLED_ThirdPartyIFrameStorage
-#else
-#define MAYBE_ThirdPartyIFrameStorage ThirdPartyIFrameStorage
-#endif
 IN_PROC_BROWSER_TEST_P(CookiePolicyStorageBrowserTest,
-                       MAYBE_ThirdPartyIFrameStorage) {
+                       ThirdPartyIFrameStorage) {
+  NavigateToPageWithFrame(kHostA);
+  NavigateFrameTo(kHostB, "/browsing_data/site_data.html");
+
+  ExpectStorage(GetFrame(), /*expected_storage=*/false,
+                /*expected_cookie=*/false);
+  SetStorage(GetFrame());
+  ExpectStorage(GetFrame(), /*expected_storage=*/true,
+                /*expected_cookie=*/true);
+}
+
+IN_PROC_BROWSER_TEST_P(CookiePolicyStorageBrowserTest,
+                       ThirdPartyIFrameStorage_ThirdPartyCookiesBlocked) {
   NavigateToPageWithFrame(kHostA);
   NavigateFrameTo(kHostB, "/browsing_data/site_data.html");
 
@@ -620,44 +633,56 @@ IN_PROC_BROWSER_TEST_P(CookiePolicyStorageBrowserTest,
 
   SetBlockThirdPartyCookies();
 
-  NavigateToPageWithFrame(kHostA);
-  NavigateFrameTo(kHostB, "/browsing_data/site_data.html");
-
+  ReloadFrame(GetFrame());
   ExpectStorage(GetFrame(), ThirdPartyPartitionedStorageAllowedByDefault(),
                 /*expected_cookie=*/false);
+}
 
-  // Allow all requests to b.test to access storage.
-  GURL a_url = https_server_.GetURL(kHostA, "/");
-  GURL b_url = https_server_.GetURL(kHostB, "/");
-  cookie_settings()->SetCookieSetting(b_url,
-                                      ContentSetting::CONTENT_SETTING_ALLOW);
-
+IN_PROC_BROWSER_TEST_P(CookiePolicyStorageBrowserTest,
+                       ThirdPartyIFrameStorage_ExplicitSetting) {
   NavigateToPageWithFrame(kHostA);
   NavigateFrameTo(kHostB, "/browsing_data/site_data.html");
+
+  SetStorage(GetFrame());
   ExpectStorage(GetFrame(), /*expected_storage=*/true,
                 /*expected_cookie=*/true);
 
-  // Remove ALLOW setting.
-  cookie_settings()->ResetCookieSetting(b_url);
+  SetBlockThirdPartyCookies();
 
-  NavigateToPageWithFrame(kHostA);
-  NavigateFrameTo(kHostB, "/browsing_data/site_data.html");
-  ExpectStorage(GetFrame(), ThirdPartyPartitionedStorageAllowedByDefault(),
-                /*expected_cookie=*/false);
+  // Allow all requests to b.test to access storage.
+  cookie_settings()->SetCookieSetting(https_server_.GetURL(kHostB, "/"),
+                                      ContentSetting::CONTENT_SETTING_ALLOW);
 
-  // Allow all third-parties on a.test to access storage.
-  cookie_settings()->SetThirdPartyCookieSetting(
-      a_url, ContentSetting::CONTENT_SETTING_ALLOW);
-
-  NavigateToPageWithFrame(kHostA);
-  NavigateFrameTo(kHostB, "/browsing_data/site_data.html");
+  ReloadFrame(GetFrame());
   ExpectStorage(GetFrame(), /*expected_storage=*/true,
                 /*expected_cookie=*/true);
 }
 
 IN_PROC_BROWSER_TEST_P(CookiePolicyStorageBrowserTest,
-                       // TODO(crbug.com/390648566): Re-enable this test
-                       DISABLED_NestedThirdPartyIFrameStorage) {
+                       ThirdPartyIFrameStorage_ThirdPartySetting) {
+  NavigateToPageWithFrame(kHostA);
+  NavigateFrameTo(kHostB, "/browsing_data/site_data.html");
+
+  SetStorage(GetFrame());
+  ExpectStorage(GetFrame(), /*expected_storage=*/true,
+                /*expected_cookie=*/true);
+
+  SetBlockThirdPartyCookies();
+
+  ExpectStorage(GetFrame(), ThirdPartyPartitionedStorageAllowedByDefault(),
+                /*expected_cookie=*/false);
+
+  // Allow all third-parties on a.test to access storage.
+  cookie_settings()->SetThirdPartyCookieSetting(
+      https_server_.GetURL(kHostA, "/"), ContentSetting::CONTENT_SETTING_ALLOW);
+
+  ReloadFrame(GetFrame());
+  ExpectStorage(GetFrame(), /*expected_storage=*/true,
+                /*expected_cookie=*/true);
+}
+
+IN_PROC_BROWSER_TEST_P(CookiePolicyStorageBrowserTest,
+                       NestedThirdPartyIFrameStorage) {
   NavigateToPageWithFrame(kHostA);
   NavigateFrameTo(kHostB, "/iframe.html");
   NavigateNestedFrameTo(kHostC, "/browsing_data/site_data.html");
@@ -667,46 +692,55 @@ IN_PROC_BROWSER_TEST_P(CookiePolicyStorageBrowserTest,
   SetStorage(GetNestedFrame());
   ExpectStorage(GetNestedFrame(), /*expected_storage=*/true,
                 /*expected_cookie=*/true);
+}
 
+IN_PROC_BROWSER_TEST_P(CookiePolicyStorageBrowserTest,
+                       NestedThirdPartyIFrameStorage_ThirdPartyCookiesBlocked) {
+  NavigateToPageWithFrame(kHostA);
+  NavigateFrameTo(kHostB, "/iframe.html");
+  NavigateNestedFrameTo(kHostC, "/browsing_data/site_data.html");
+
+  SetStorage(GetNestedFrame());
   SetBlockThirdPartyCookies();
 
+  ReloadFrame(GetNestedFrame());
+  ExpectStorage(GetNestedFrame(),
+                ThirdPartyPartitionedStorageAllowedByDefault(),
+                /*expected_cookie=*/false);
+}
+
+IN_PROC_BROWSER_TEST_P(CookiePolicyStorageBrowserTest,
+                       NestedThirdPartyIFrameStorage_ExplicitSetting) {
   NavigateToPageWithFrame(kHostA);
   NavigateFrameTo(kHostB, "/iframe.html");
   NavigateNestedFrameTo(kHostC, "/browsing_data/site_data.html");
 
-  ExpectStorage(GetNestedFrame(),
-                ThirdPartyPartitionedStorageAllowedByDefault(),
-                /*expected_cookie=*/false);
+  SetStorage(GetNestedFrame());
+  SetBlockThirdPartyCookies();
 
-  // Allow all requests to b.test to access storage.
-  GURL a_url = https_server_.GetURL(kHostA, "/");
-  GURL c_url = https_server_.GetURL(kHostC, "/");
-  cookie_settings()->SetCookieSetting(c_url,
+  // Allow all requests to c.test to access storage.
+  cookie_settings()->SetCookieSetting(https_server_.GetURL(kHostC, "/"),
                                       ContentSetting::CONTENT_SETTING_ALLOW);
 
-  NavigateToPageWithFrame(kHostA);
-  NavigateFrameTo(kHostB, "/iframe.html");
-  NavigateNestedFrameTo(kHostC, "/browsing_data/site_data.html");
+  ReloadFrame(GetNestedFrame());
   ExpectStorage(GetNestedFrame(), /*expected_storage=*/true,
                 /*expected_cookie=*/true);
+}
 
-  // Remove ALLOW setting.
-  cookie_settings()->ResetCookieSetting(c_url);
-
+IN_PROC_BROWSER_TEST_P(CookiePolicyStorageBrowserTest,
+                       NestedThirdPartyIFrameStorage_ThirdPartySetting) {
   NavigateToPageWithFrame(kHostA);
   NavigateFrameTo(kHostB, "/iframe.html");
   NavigateNestedFrameTo(kHostC, "/browsing_data/site_data.html");
-  ExpectStorage(GetNestedFrame(),
-                ThirdPartyPartitionedStorageAllowedByDefault(),
-                /*expected_cookie=*/false);
+
+  SetStorage(GetNestedFrame());
+  SetBlockThirdPartyCookies();
 
   // Allow all third-parties on a.test to access storage.
   cookie_settings()->SetThirdPartyCookieSetting(
-      a_url, ContentSetting::CONTENT_SETTING_ALLOW);
+      https_server_.GetURL(kHostA, "/"), ContentSetting::CONTENT_SETTING_ALLOW);
 
-  NavigateToPageWithFrame(kHostA);
-  NavigateFrameTo(kHostB, "/iframe.html");
-  NavigateNestedFrameTo(kHostC, "/browsing_data/site_data.html");
+  ReloadFrame(GetNestedFrame());
   ExpectStorage(GetNestedFrame(), /*expected_storage=*/true,
                 /*expected_cookie=*/true);
 }
@@ -898,47 +932,59 @@ IN_PROC_BROWSER_TEST_P(CookiePolicyStorageBrowserTest,
   SetStorage(GetNestedFrame());
   ExpectStorage(GetNestedFrame(), /*expected_storage=*/true,
                 /*expected_cookie=*/true);
+}
 
-  SetBlockThirdPartyCookies();
-
+IN_PROC_BROWSER_TEST_P(CookiePolicyStorageBrowserTest,
+                       NestedFirstPartyIFrameStorage_ThirdPartyCookiesBlocked) {
   NavigateToPageWithFrame(kHostA);
   NavigateFrameTo(kHostB, "/iframe.html");
   NavigateNestedFrameTo(kHostA, "/browsing_data/site_data.html");
-  bool expected_storage =
+
+  ExpectStorage(GetNestedFrame(), /*expected_storage=*/false,
+                /*expected_cookie=*/false);
+  SetStorage(GetNestedFrame());
+
+  SetBlockThirdPartyCookies();
+
+  ReloadFrame(GetNestedFrame());
+
+  const bool expected_storage =
       ThirdPartyPartitionedStorageAllowedByDefault() ||
       ThirdPartyPartitionedStorageAllowedByStorageAccessAPI();
 
   ExpectStorage(GetNestedFrame(), expected_storage,
                 /*expected_cookie=*/false);
+}
 
+IN_PROC_BROWSER_TEST_P(CookiePolicyStorageBrowserTest,
+                       NestedFirstPartyIFrameStorage_ExplicitSetting) {
+  SetBlockThirdPartyCookies();
   // Allow all requests to b.test to access storage.
   GURL a_url = https_server_.GetURL(kHostA, "/");
   cookie_settings()->SetCookieSetting(a_url,
                                       ContentSetting::CONTENT_SETTING_ALLOW);
-
   NavigateToPageWithFrame(kHostA);
   NavigateFrameTo(kHostB, "/iframe.html");
   NavigateNestedFrameTo(kHostA, "/browsing_data/site_data.html");
+
+  SetStorage(GetNestedFrame());
   ExpectStorage(GetNestedFrame(), /*expected_storage=*/true,
                 /*expected_cookie=*/true);
+}
 
-  // Remove ALLOW setting.
-  cookie_settings()->ResetCookieSetting(a_url);
-
-  NavigateToPageWithFrame(kHostA);
-  NavigateFrameTo(kHostB, "/iframe.html");
-  NavigateNestedFrameTo(kHostA, "/browsing_data/site_data.html");
-
-  ExpectStorage(GetNestedFrame(), expected_storage,
-                /*expected_cookie=*/false);
-
+IN_PROC_BROWSER_TEST_P(
+    CookiePolicyStorageBrowserTest,
+    NestedFirstPartyIFrameStorage_ExplicitThirdPartySetting) {
+  SetBlockThirdPartyCookies();
   // Allow all third-parties on a.test to access storage.
+  GURL a_url = https_server_.GetURL(kHostA, "/");
   cookie_settings()->SetThirdPartyCookieSetting(
       a_url, ContentSetting::CONTENT_SETTING_ALLOW);
-
   NavigateToPageWithFrame(kHostA);
   NavigateFrameTo(kHostB, "/iframe.html");
   NavigateNestedFrameTo(kHostA, "/browsing_data/site_data.html");
+
+  SetStorage(GetNestedFrame());
   ExpectStorage(GetNestedFrame(), /*expected_storage=*/true,
                 /*expected_cookie=*/true);
 }

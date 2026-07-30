@@ -9,6 +9,7 @@
 #import "components/autofill/core/common/autofill_features.h"
 #import "ios/chrome/browser/autofill/model/ios_autofill_entity_data_manager_factory.h"
 #import "ios/chrome/browser/settings/autofill/autofill_ai/ui/autofill_ai_entity_item.h"
+#import "ios/chrome/browser/settings/autofill/autofill_and_passwords/coordinator/autofill_ai_base_mediator_protected.h"
 #import "ios/chrome/browser/settings/autofill/autofill_and_passwords/ui/identity_docs_consumer.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_ios.h"
 #import "ios/chrome/browser/webdata_services/model/web_data_service_factory.h"
@@ -68,6 +69,10 @@ TEST_F(IdentityDocsMediatorTest, SetsConsumerValuesSafe) {
     didRequestToOpenEntityWithID:(autofill::EntityInstance::EntityId)entityID {
   _lastOpenedEntityID = entityID;
 }
+
+- (void)autofillAIBaseMediator:(AutofillAIBaseMediator*)mediator
+    didRequestToCreateEntityWithType:(autofill::EntityType)entityType {
+}
 @end
 
 // Tests that selecting an item triggers the mutator delegate.
@@ -76,11 +81,37 @@ TEST_F(IdentityDocsMediatorTest, SelectsItemForwardsToDelegate) {
       [[FakeIdentityDocsMediatorDelegate alloc] init];
   mediator_.delegate = delegate;
 
-  AutofillAIEntityItem* item = [[AutofillAIEntityItem alloc] initWithType:0];
+  AutofillAIEntityItem* item =
+      [[AutofillAIEntityItem alloc] initWithType:kAutofillAIBaseItemTypeEntity];
   item.guid = autofill::EntityInstance::EntityId("test-id-123");
 
   [mediator_ didSelectEntityItem:item];
 
   ASSERT_TRUE(delegate.lastOpenedEntityID.has_value());
   EXPECT_EQ(delegate.lastOpenedEntityID.value(), item.guid);
+}
+
+// Tests that pushing items correctly splits them by entity type and calls
+// the corresponding consumer setters.
+TEST_F(IdentityDocsMediatorTest, SplitsItemsByType) {
+  AutofillAIEntityItem* license =
+      [[AutofillAIEntityItem alloc] initWithType:kAutofillAIBaseItemTypeEntity];
+  license.entityTypeName = autofill::EntityTypeName::kDriversLicense;
+
+  AutofillAIEntityItem* idCard =
+      [[AutofillAIEntityItem alloc] initWithType:kAutofillAIBaseItemTypeEntity];
+  idCard.entityTypeName = autofill::EntityTypeName::kNationalIdCard;
+
+  AutofillAIEntityItem* passport =
+      [[AutofillAIEntityItem alloc] initWithType:kAutofillAIBaseItemTypeEntity];
+  passport.entityTypeName = autofill::EntityTypeName::kPassport;
+
+  OCMExpect([consumer_ setIdentityDocsWithDriversLicenses:@[ license ]
+                                          nationalIdCards:@[ idCard ]
+                                                passports:@[ passport ]]);
+
+  mediator_.consumer = consumer_;
+  [mediator_ pushItemsToConsumer:@[ license, idCard, passport ]];
+
+  [consumer_ verify];
 }

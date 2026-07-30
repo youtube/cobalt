@@ -66,10 +66,10 @@ void ZeroSuggestVerbatimMatchProvider::Start(const AutocompleteInput& input,
   const auto& page_url = input.current_url();
   if (input.type() != metrics::OmniboxInputType::EMPTY &&
       !(page_url.is_valid() &&
-        ((page_url.GetScheme() == url::kHttpScheme) ||
-         (page_url.GetScheme() == url::kHttpsScheme) ||
-         (page_url.GetScheme() == url::kAboutScheme) ||
-         (page_url.GetScheme() ==
+        ((page_url.scheme() == url::kHttpScheme) ||
+         (page_url.scheme() == url::kHttpsScheme) ||
+         (page_url.scheme() == url::kAboutScheme) ||
+         (page_url.scheme() ==
           client_->GetEmbedderRepresentationOfAboutScheme())))) {
     return;
   }
@@ -181,6 +181,7 @@ void ZeroSuggestVerbatimMatchProvider::CreateVerbatimMatch(
         dse->ExtractSearchTermsFromURL(match.destination_url,
                                        url_service->search_terms_data(),
                                        &match.contents);
+        match.contents = AutocompleteInput::SanitizeString(match.contents);
         // Upgrade Verbatim Match to a SEARCH_WHAT_YOU_TYPED.
         match.type = AutocompleteMatchType::SEARCH_WHAT_YOU_TYPED;
         match.keyword = dse->keyword();

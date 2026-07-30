@@ -43,6 +43,7 @@ import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
 import org.chromium.components.omnibox.AutocompleteInput;
 import org.chromium.components.omnibox.AutocompleteMatch;
+import org.chromium.components.omnibox.AutocompleteStopReason;
 import org.chromium.components.omnibox.OmniboxFeatures;
 import org.chromium.ui.AsyncViewProvider;
 import org.chromium.ui.AsyncViewStub;
@@ -73,6 +74,7 @@ public class AutocompleteCoordinator implements OmniboxSuggestionsVisualState {
     private @Nullable OmniboxSuggestionsDropdown mDropdown;
     private final ObserverList<OmniboxSuggestionsDropdownScrollListener> mScrollListenerList =
             new ObserverList<>();
+    private final SuggestionListViewHolderProvider mViewProvider;
 
     /** An observer watching for changes to the visual state of the omnibox suggestions. */
     public interface OmniboxSuggestionsVisualStateObserver {
@@ -157,8 +159,8 @@ public class AutocompleteCoordinator implements OmniboxSuggestionsVisualState {
                 SuggestionListProperties.DROPDOWN_SCROLL_OFFSET_LISTENER,
                 this::dropdownScrollOffsetChanged);
 
-        ViewProvider<SuggestionListViewHolder> viewProvider = createViewProvider();
-        viewProvider.whenLoaded(
+        mViewProvider = new SuggestionListViewHolderProvider();
+        mViewProvider.whenLoaded(
                 (holder) -> {
                     mContainer = holder.container;
                     mDropdown = holder.dropdown;
@@ -166,7 +168,7 @@ public class AutocompleteCoordinator implements OmniboxSuggestionsVisualState {
         LazyConstructionPropertyMcp.create(
                 listModel,
                 SuggestionListProperties.OMNIBOX_SESSION_ACTIVE,
-                viewProvider,
+                mViewProvider,
                 SuggestionListViewBinder::bind);
 
         BaseSuggestionViewBinder.resetCachedResources();
@@ -211,50 +213,63 @@ public class AutocompleteCoordinator implements OmniboxSuggestionsVisualState {
         mMediator.setOmniboxSuggestionsVisualStateObserver(omniboxSuggestionsVisualStateObserver);
     }
 
-    private ViewProvider<SuggestionListViewHolder> createViewProvider() {
-        return new ViewProvider<>() {
-            private AsyncViewProvider<ViewGroup> mAsyncProvider;
-            private final List<Callback<SuggestionListViewHolder>> mCallbacks = new ArrayList<>();
-            private @Nullable SuggestionListViewHolder mHolder;
+    public @Nullable OmniboxSuggestionsContainer getSuggestionsContainer() {
+        if (mContainer == null) {
+            mViewProvider.setForceSyncInflate(true);
+            mViewProvider.inflate();
+        }
+        return mContainer;
+    }
 
-            @Override
-            @Initializer
-            public void inflate() {
-                AsyncViewStub stub =
-                        mParent.getRootView().findViewById(R.id.omnibox_results_container_stub);
-                stub.setShouldInflateOnBackgroundThread(
-                        OmniboxFeatures.sAsyncViewInflation.isEnabled());
-                mAsyncProvider = AsyncViewProvider.of(stub, R.id.omnibox_results_container);
-                mAsyncProvider.whenLoaded(this::onAsyncInflationComplete);
-                mAsyncProvider.inflate();
+    class SuggestionListViewHolderProvider implements ViewProvider<SuggestionListViewHolder> {
+
+        private final List<Callback<SuggestionListViewHolder>> mCallbacks = new ArrayList<>();
+        private @Nullable SuggestionListViewHolder mHolder;
+        private boolean mForceSyncInflate;
+
+        @Override
+        @Initializer
+        public void inflate() {
+            AsyncViewStub stub =
+                    mParent.getRootView().findViewById(R.id.omnibox_results_container_stub);
+            if (stub == null) return;
+            stub.setShouldInflateOnBackgroundThread(
+                    !mForceSyncInflate && OmniboxFeatures.sAsyncViewInflation.isEnabled());
+            AsyncViewProvider<ViewGroup> asyncProvider =
+                    AsyncViewProvider.of(stub, R.id.omnibox_results_container);
+            asyncProvider.whenLoaded(this::onAsyncInflationComplete);
+            asyncProvider.inflate();
+        }
+
+        void setForceSyncInflate(boolean forceSyncInflate) {
+            mForceSyncInflate = forceSyncInflate;
+        }
+
+        private void onAsyncInflationComplete(ViewGroup container) {
+            OmniboxSuggestionsContainer suggestionsContainer =
+                    (OmniboxSuggestionsContainer) container;
+            OmniboxSuggestionsDropdown dropdown =
+                    container.findViewById(R.id.omnibox_suggestions_dropdown);
+
+            dropdown.setAdapter(mAdapter);
+            if (mRecycledViewPool != null) {
+                dropdown.setRecycledViewPool(mRecycledViewPool);
             }
-
-            private void onAsyncInflationComplete(ViewGroup container) {
-                OmniboxSuggestionsContainer suggestionsContainer =
-                        (OmniboxSuggestionsContainer) container;
-                OmniboxSuggestionsDropdown dropdown =
-                        container.findViewById(R.id.omnibox_suggestions_dropdown);
-
-                dropdown.setAdapter(mAdapter);
-                if (mRecycledViewPool != null) {
-                    dropdown.setRecycledViewPool(mRecycledViewPool);
-                }
-                mHolder = new SuggestionListViewHolder(suggestionsContainer, dropdown);
-                for (int i = 0; i < mCallbacks.size(); i++) {
-                    mCallbacks.get(i).onResult(mHolder);
-                }
-                mCallbacks.clear();
+            mHolder = new SuggestionListViewHolder(suggestionsContainer, dropdown);
+            for (int i = 0; i < mCallbacks.size(); i++) {
+                mCallbacks.get(i).onResult(mHolder);
             }
+            mCallbacks.clear();
+        }
 
-            @Override
-            public void whenLoaded(Callback<SuggestionListViewHolder> callback) {
-                if (mHolder != null) {
-                    callback.onResult(mHolder);
-                    return;
-                }
-                mCallbacks.add(callback);
+        @Override
+        public void whenLoaded(Callback<SuggestionListViewHolder> callback) {
+            if (mHolder != null) {
+                callback.onResult(mHolder);
+                return;
             }
-        };
+            mCallbacks.add(callback);
+        }
     }
 
     /**
@@ -477,7 +492,7 @@ public class AutocompleteCoordinator implements OmniboxSuggestionsVisualState {
 
     /** Stop current suggestions requests and clear the suggestions list. */
     public void stopAutocomplete() {
-        mMediator.stopAutocomplete(/* clear= */ true);
+        mMediator.stopAutocomplete(AutocompleteStopReason.CLOBBERED);
     }
 
     /** Returns whether Autocomplete is serving suggestions. */
@@ -526,8 +541,8 @@ public class AutocompleteCoordinator implements OmniboxSuggestionsVisualState {
         return mModalDialogManagerSupplier.get();
     }
 
-    public void stopAutocompleteForTest(boolean clearResults) {
-        mMediator.stopAutocomplete(clearResults);
+    public void stopAutocompleteForTest(@AutocompleteStopReason int stopReason) {
+        mMediator.stopAutocomplete(stopReason);
     }
 
     /**

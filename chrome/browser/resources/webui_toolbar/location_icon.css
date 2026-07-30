@@ -17,9 +17,9 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: var(--location-bar-chip-icon-size);
-  width: var(--location-bar-chip-icon-size);
-  border-radius: calc((var(--location-bar-chip-icon-size) +
+  height: var(--location-bar-leading-icon-size);
+  width: var(--location-bar-leading-icon-size);
+  border-radius: calc((var(--location-bar-leading-icon-size) +
                        var(--location-bar-page-info-icon-padding-top) +
                        var(--location-bar-page-info-icon-padding-bottom)) / 2);
   padding-block-start: var(--location-bar-page-info-icon-padding-top);
@@ -89,7 +89,7 @@
   /* Overrides the fixed width of the icon-only state, allowing the chip to
      stretch naturally and become a pill shape that fits the text inside. */
   width: auto;
-  min-width: var(--location-bar-chip-icon-size);
+  min-width: var(--location-bar-leading-icon-size);
   /* Extra right padding added to the base padding */
   padding-inline-end: calc(
       var(--location-bar-page-info-icon-padding-right) +
@@ -132,17 +132,8 @@
       var(--color-omnibox-security-chip-ink-drop-ripple, transparent);
 }
 
-/* Renders the SVG icon using a webkit mask. This allows the icon to
-   automatically inherit the text color (currentColor) of the chip, bypassing
-   the need to manually manipulate the SVG's internal properties like fill or
-   stroke. */
-#iconContainer {
-  height: var(--location-bar-chip-icon-size);
-  width: var(--location-bar-chip-icon-size);
-  background-color: currentColor;
-  mask-position: center;
-  mask-repeat: no-repeat;
-  mask-size: contain;
+icon-from-table {
+  --icon-size: var(--location-bar-leading-icon-size);
 }
 
 :host([is-dangerous]) #container {

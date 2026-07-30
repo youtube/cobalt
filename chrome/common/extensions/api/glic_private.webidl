@@ -13,7 +13,11 @@ enum ProfileReadyState {
   "disabled-by-admin",
   // Not eligible to use Gemini in Chrome based on account capability
   // values.
-  "ineligible"
+  "ineligible",
+  // Not eligible due to country location mismatch.
+  "location-mismatch",
+  // Not eligible due to account capabilities.
+  "ineligible-account"
 };
 
 dictionary ProfileState {
@@ -80,6 +84,11 @@ interface GlicPrivate {
   // Invokes glic with details.
   // |Returns|: Promise that resolves when invocation is successful.
   static Promise<undefined> invoke(InvokeDetails details);
+
+  // Checks whether a particular conversation ID is present.
+  // |Returns|: Promise that resolves to true if the conversation is present.
+  // |PromiseValue|: isPresent: True if conversation is present, false otherwise.
+  static Promise<boolean> hasConversation(DOMString conversationId);
 };
 
 partial interface Browser {

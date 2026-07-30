@@ -129,11 +129,6 @@ bool IsImageDescriptionsAlternateRoutingEnabled() {
       ::features::kImageDescriptionsAlternateRouting);
 }
 
-BASE_FEATURE(kAutoDisableAccessibility, base::FEATURE_DISABLED_BY_DEFAULT);
-bool IsAutoDisableAccessibilityEnabled() {
-  return base::FeatureList::IsEnabled(::features::kAutoDisableAccessibility);
-}
-
 BASE_FEATURE(kEnableAccessibilityAriaVirtualContent,
              "AccessibilityAriaVirtualContent",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -310,7 +305,7 @@ bool IsAccessibilityManifestV3EnabledForGoogleTts() {
 }
 
 BASE_FEATURE(kAccessibilityChromeVoxJapaneseBraille,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 bool IsAccessibilityChromeVoxJapaneseBrailleEnabled() {
   return base::FeatureList::IsEnabled(
       ::features::kAccessibilityChromeVoxJapaneseBraille);

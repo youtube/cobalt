@@ -150,4 +150,28 @@ public class TestTabModel extends EmptyTabModel {
         // considered selected.
         return mMultiSelectedTabs.isEmpty() ? 1 : mMultiSelectedTabs.size();
     }
+
+    @Override
+    public List<Integer> getOrderedMultiSelectedTabIds() {
+        return new ArrayList<>(mMultiSelectedTabs);
+    }
+
+    @Override
+    public List<Tab> getOrderedMultiSelectedTabs() {
+        List<Tab> orderedTabs = new ArrayList<>();
+        if (mMultiSelectedTabs.isEmpty()) {
+            Tab currentTab = TabModelUtils.getCurrentTab(this);
+            if (currentTab != null) {
+                orderedTabs.add(currentTab);
+            }
+        } else {
+            for (Integer id : mMultiSelectedTabs) {
+                Tab tab = getTabById(id);
+                if (tab != null) {
+                    orderedTabs.add(tab);
+                }
+            }
+        }
+        return orderedTabs;
+    }
 }

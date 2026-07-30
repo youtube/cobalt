@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "ash/constants/ash_features.h"
+#include "ash/constants/ash_login_pref_names.h"
 #include "base/check_op.h"
 #include "base/functional/bind.h"
 #include "base/notreached.h"
@@ -15,7 +16,6 @@
 #include "base/values.h"
 #include "chrome/browser/ash/login/lock/online_reauth/lock_screen_reauth_manager.h"
 #include "chrome/browser/ash/login/lock/online_reauth/lock_screen_reauth_manager_factory.h"
-#include "chrome/browser/ash/login/login_pref_names.h"
 #include "chrome/browser/ash/login/signin_partition_manager.h"
 #include "chrome/browser/ash/login/signin_partition_manager_factory.h"
 #include "chrome/browser/ash/policy/core/browser_policy_connector_ash.h"
@@ -27,7 +27,6 @@
 #include "chrome/browser/ui/ash/login/login_display_host_webui.h"
 #include "chrome/browser/ui/webui/ash/lock_screen_reauth/lock_screen_reauth_dialogs.h"
 #include "chrome/browser/ui/webui/ash/login/online_login_utils.h"
-#include "chrome/common/pref_names.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/installer/util/google_update_settings.h"
 #include "chromeos/ash/components/login/auth/challenge_response/cert_utils.h"
@@ -59,7 +58,7 @@ bool ShouldDoSamlRedirect(const std::string& email) {
   const PrefService* prefs =
       user_manager::UserManager::Get()->GetPrimaryUser()->GetProfilePrefs();
   bool auto_start_reauth =
-      prefs && prefs->GetBoolean(::prefs::kLockScreenAutoStartOnlineReauth);
+      prefs && prefs->GetBoolean(ash::prefs::kLockScreenAutoStartOnlineReauth);
   if (!auto_start_reauth) {
     return false;
   }
@@ -275,10 +274,10 @@ void LockScreenReauthHandler::OnSetCookieForLoadGaiaWithPartition(
   params.Set("readOnlyEmail", true);
   PrefService* local_state = g_browser_process->local_state();
   if (local_state->IsManagedPreference(
-          prefs::kUrlParameterToAutofillSAMLUsername)) {
-    params.Set(
-        "urlParameterToAutofillSAMLUsername",
-        local_state->GetString(prefs::kUrlParameterToAutofillSAMLUsername));
+          ash::prefs::kUrlParameterToAutofillSAMLUsername)) {
+    params.Set("urlParameterToAutofillSAMLUsername",
+               local_state->GetString(
+                   ash::prefs::kUrlParameterToAutofillSAMLUsername));
   }
 
   // TODO(crbug.com/377862442) Add autoreload url param.

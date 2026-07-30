@@ -128,6 +128,8 @@ Called by update_bad_message_reasons.py.-->
   <int value="8" label="PVMB_SCRIPTED_PRINT_FENCED_FRAME"/>
   <int value="9" label="SSI_CREATE_FENCED_FRAME"/>
   <int value="10" label="CCU_SUPERFLUOUS_BIND"/>
+  <int value="11" label="RFH_INVALID_WEB_FRAME_URL"/>
+  <int value="12" label="PVM_PRINT_FENCED_FRAME"/>
 </enum>
 
 <enum name="BadMessageReasonContent">
@@ -564,6 +566,7 @@ Called by update_bad_message_reasons.py.-->
   <int value="35" label="ER_INVALID_EXTENSION_ID_FOR_PROCESS"/>
   <int value="36" label="CEFH_INVALID_EXTENSION_ID_FOR_SCRIPT_INJECT_REQUEST"/>
   <int value="37" label="SWH_INVALID_SERVICE_WORKER_SCOPE"/>
+  <int value="38" label="EMF_INVALID_MESSAGE_FROM_SANDBOXED_PROCESS"/>
 </enum>
 
 <enum name="BadMessageReasonGuestView">

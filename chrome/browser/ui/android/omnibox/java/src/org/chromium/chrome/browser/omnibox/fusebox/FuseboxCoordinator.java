@@ -11,7 +11,6 @@ import android.content.ComponentCallbacks;
 import android.content.Context;
 import android.content.res.Configuration;
 import android.content.res.Resources;
-import android.util.DisplayMetrics;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.accessibility.AccessibilityEvent;
@@ -20,6 +19,7 @@ import androidx.annotation.IntDef;
 import androidx.annotation.VisibleForTesting;
 import androidx.asynclayoutinflater.view.AsyncLayoutInflater;
 import androidx.constraintlayout.widget.ConstraintLayout;
+import androidx.window.layout.WindowMetricsCalculator;
 
 import org.chromium.base.Callback;
 import org.chromium.base.ContextUtils;
@@ -33,6 +33,7 @@ import org.chromium.build.annotations.EnsuresNonNull;
 import org.chromium.build.annotations.Initializer;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.back_press.BackPressManager;
 import org.chromium.chrome.browser.omnibox.FuseboxSessionState;
 import org.chromium.chrome.browser.omnibox.R;
 import org.chromium.chrome.browser.omnibox.styles.OmniboxResourceProvider;
@@ -44,6 +45,7 @@ import org.chromium.components.browser_ui.widget.scrim.ScrimManager.ScrimClient;
 import org.chromium.components.metrics.OmniboxEventProtos.OmniboxEventProto.PageClassification;
 import org.chromium.components.omnibox.AutocompleteInput;
 import org.chromium.components.omnibox.AutocompleteRequestType;
+import org.chromium.components.omnibox.OmniboxCapabilities;
 import org.chromium.components.omnibox.OmniboxFeatures;
 import org.chromium.components.search_engines.TemplateUrlService;
 import org.chromium.components.search_engines.TemplateUrlService.TemplateUrlServiceObserver;
@@ -74,19 +76,28 @@ public class FuseboxCoordinator implements TemplateUrlServiceObserver {
         int EXPANDED = 2;
     }
 
-    @IntDef({FuseboxLayoutMode.SEPARATED, FuseboxLayoutMode.POPOVER})
+    @IntDef({FuseboxLayoutMode.TOOLBAR, FuseboxLayoutMode.SUGGESTIONS_POPOVER})
     @Retention(RetentionPolicy.SOURCE)
     @Target(ElementType.TYPE_USE)
     public @interface FuseboxLayoutMode {
-        // The Fusebox UI is separated from associated suggestions.
-        int SEPARATED = 1;
+        // The Fusebox UI is embedded in the toolbar, separate from associated suggestions.
+        int TOOLBAR = 1;
         // The Fusebox UI is intermingled with associated suggestions in a single popover window.
-        int POPOVER = 2;
+        int SUGGESTIONS_POPOVER = 2;
+    }
+
+    @IntDef({PopupState.HIDDEN, PopupState.FLOATING, PopupState.BOTTOM})
+    @Retention(RetentionPolicy.SOURCE)
+    @Target({ElementType.TYPE_USE})
+    public @interface PopupState {
+        int HIDDEN = 0;
+        int FLOATING = 1;
+        int BOTTOM = 2;
     }
 
     private @Nullable FuseboxViewHolder mViewHolder;
     private @Nullable PropertyModel mModel;
-    private final Context mContext;
+    private final Activity mActivity;
     private final WindowAndroid mWindowAndroid;
     private final ConstraintLayout mParent;
     private final MonotonicObservableSupplier<TabModelSelector> mTabModelSelectorSupplier;
@@ -99,13 +110,16 @@ public class FuseboxCoordinator implements TemplateUrlServiceObserver {
             ObservableSuppliers.createNonNull(FuseboxState.DISABLED);
     private final SettableNonNullObservableSupplier<@FuseboxLayoutMode Integer>
             mFuseboxLayoutModeSupplier =
-                    ObservableSuppliers.createNonNull(FuseboxLayoutMode.SEPARATED);
+                    ObservableSuppliers.createNonNull(FuseboxLayoutMode.TOOLBAR);
+    private final SettableNonNullObservableSupplier<@PopupState Integer> mPopupStateSupplier =
+            ObservableSuppliers.createNonNull(PopupState.HIDDEN);
     private final SnackbarManager mSnackbarManager;
     private @Nullable ViewportRectProvider mViewportRectProvider;
     private @Nullable FuseboxMetrics mMetrics;
     private @Nullable BottomSheetRectProvider mBottomSheetRectProvider;
     private final Supplier<@Nullable View> mScrimAnchorViewSupplier;
     private final ScrimManager mScrimManager;
+    private final @Nullable BackPressManager mBackPressManager;
     private boolean mHasContextualTasksFocus;
 
     // Mediator is scoped to a particular profile. Can reuse as long as the profile does not change.
@@ -124,6 +138,7 @@ public class FuseboxCoordinator implements TemplateUrlServiceObserver {
      * @param templateUrlServiceSupplier The supplier of the template URL service.
      * @param snackbarManager The snackbar manager to show messages.
      * @param scrimAnchorViewSupplier Supplier for the view to anchor the scrim to.
+     * @param backPressManager The back press manager to register the back press handler.
      */
     public FuseboxCoordinator(
             Context context,
@@ -132,17 +147,19 @@ public class FuseboxCoordinator implements TemplateUrlServiceObserver {
             MonotonicObservableSupplier<TabModelSelector> tabModelSelectorSupplier,
             OneshotSupplier<TemplateUrlService> templateUrlServiceSupplier,
             SnackbarManager snackbarManager,
-            Supplier<@Nullable View> scrimAnchorViewSupplier) {
-        mContext = context;
+            Supplier<@Nullable View> scrimAnchorViewSupplier,
+            @Nullable BackPressManager backPressManager) {
+        mActivity = assumeNonNull(ContextUtils.activityFromContext(context));
         mWindowAndroid = windowAndroid;
         mParent = parent;
-        Activity activity = assumeNonNull(ContextUtils.activityFromContext(context));
-        ViewGroup contentView = activity.findViewById(android.R.id.content);
+        ViewGroup contentView = mActivity.findViewById(android.R.id.content);
         // TODO(crbug.com/509962912): Consider using RootUiCoordinator's ScrimManager.
         mScrimManager = new ScrimManager(context, contentView, ScrimClient.FUSEBOX_POPUP);
         mTabModelSelectorSupplier = tabModelSelectorSupplier;
         mSnackbarManager = snackbarManager;
         mScrimAnchorViewSupplier = scrimAnchorViewSupplier;
+        mFuseboxLayoutModeSupplier.set(getFuseboxLayoutMode());
+        mBackPressManager = backPressManager;
 
         if (!OmniboxFeatures.isMultimodalInputEnabled(context)
                 || parent.findViewById(R.id.fusebox_request_type) == null) {
@@ -159,6 +176,7 @@ public class FuseboxCoordinator implements TemplateUrlServiceObserver {
 
         mModel =
                 new PropertyModel.Builder(FuseboxProperties.ALL_KEYS)
+                        .with(FuseboxProperties.FUSEBOX_LAYOUT_MODE, getFuseboxLayoutMode())
                         .with(FuseboxProperties.FUSEBOX_STATE, FuseboxState.DISABLED)
                         .with(
                                 FuseboxProperties.AUTOCOMPLETE_REQUEST_TYPE,
@@ -167,10 +185,10 @@ public class FuseboxCoordinator implements TemplateUrlServiceObserver {
                         // Init with a default, and it will be corrected by the mediator before it
                         // matters.
                         .with(FuseboxProperties.COLOR_SCHEME, BrandedColorScheme.APP_DEFAULT)
-                        .with(FuseboxProperties.POPUP_STATE, FuseboxProperties.PopupState.HIDDEN)
+                        .with(FuseboxProperties.POPUP_STATE, PopupState.HIDDEN)
                         .build();
 
-        new AsyncLayoutInflater(mContext)
+        new AsyncLayoutInflater(mActivity)
                 .inflate(
                         R.layout.fusebox_context_popup,
                         mParent,
@@ -181,7 +199,7 @@ public class FuseboxCoordinator implements TemplateUrlServiceObserver {
             View popupView, int resid, @Nullable ViewGroup parent) {
         if (mDestroyed) return;
 
-        Resources res = mContext.getResources();
+        Resources res = mActivity.getResources();
 
         // Prepare rect provider for the floating popup window.
         var viewRectProvider = new ViewRectProvider(mParent);
@@ -189,35 +207,32 @@ public class FuseboxCoordinator implements TemplateUrlServiceObserver {
                 0, res.getDimensionPixelSize(R.dimen.fusebox_vertical_space_above_popup), 0, 0);
 
         // Prepare rect provider for the bottom-sheet like popup window.
-        Activity activity = assumeNonNull(ContextUtils.activityFromContext(mContext));
-        mBottomSheetRectProvider = new BottomSheetRectProvider(activity, mParent);
+        mBottomSheetRectProvider = new BottomSheetRectProvider(mActivity, mParent);
         var dynamicRectProvider =
                 new DynamicRectProvider(viewRectProvider, mBottomSheetRectProvider);
-
-        mViewportRectProvider = new ViewportRectProvider(mContext);
+        mViewportRectProvider = new ViewportRectProvider(mActivity);
         var contextButton = mParent.findViewById(R.id.location_bar_attachments_add);
 
         var popupWindowBuilder =
                 new AnchoredPopupWindow.Builder(
-                                mContext,
+                                mActivity,
                                 contextButton.getRootView(),
                                 OmniboxResourceProvider.getPopupBackgroundDrawable(
-                                        mContext, BrandedColorScheme.APP_DEFAULT),
+                                        mActivity, BrandedColorScheme.APP_DEFAULT),
                                 () -> popupView,
                                 dynamicRectProvider)
-                        // Allows the soft keyboard to show underneath the popup.
-                        .setFocusable(false)
                         .addOnDismissListener(this::onContextPopupDismissed)
                         .setOutsideTouchable(true)
                         .setAnimateFromAnchor(true)
                         .setPreferredHorizontalOrientation(HorizontalOrientation.LAYOUT_DIRECTION)
                         .setViewportRectProvider(mViewportRectProvider)
                         .setHorizontalOverlapAnchor(true)
-                        .setVerticalOverlapAnchor(true);
+                        .setVerticalOverlapAnchor(true)
+                        .setAllowNonTouchableSize(true);
 
         var popup =
                 new FuseboxPopup(
-                        mContext,
+                        mActivity,
                         mWindowAndroid,
                         popupWindowBuilder.build(),
                         popupView,
@@ -246,17 +261,18 @@ public class FuseboxCoordinator implements TemplateUrlServiceObserver {
 
         mMediator =
                 new FuseboxMediator(
-                        mContext,
+                        mActivity,
                         mWindowAndroid,
                         assumeNonNull(mModel),
                         assumeNonNull(mViewHolder),
                         mTabModelSelectorSupplier,
                         mFuseboxStateSupplier,
-                        mFuseboxLayoutModeSupplier,
+                        mPopupStateSupplier,
                         mSnackbarManager,
                         Clipboard.getInstance(),
                         mScrimManager,
-                        mScrimAnchorViewSupplier);
+                        mScrimAnchorViewSupplier,
+                        mBackPressManager);
         mMediator.onContextualTaskFocusChanged(mHasContextualTasksFocus);
         if (mLastBrandedColorScheme != null) {
             mMediator.updateVisualsForState(mLastBrandedColorScheme);
@@ -322,7 +338,7 @@ public class FuseboxCoordinator implements TemplateUrlServiceObserver {
         // We can't do inclusive check due to missing `isPhone()` case in `DeviceInfo`.
         // Additionally these values may change at runtime, e.g. if the user starts Chrome on phone
         // and moves to Android Auto.
-        boolean isSupportedDeviceType = OmniboxFeatures.isFuseboxSupportedDeviceType();
+        boolean isSupportedDeviceType = OmniboxCapabilities.isFuseboxSupportedDeviceType();
         boolean isSupportedPageClass =
                 switch (session.getAutocompleteInput().getRawPageClassification()) {
                     // LINT.IfChange(FuseboxSupportedPageClassifications)
@@ -469,9 +485,21 @@ public class FuseboxCoordinator implements TemplateUrlServiceObserver {
         return mFuseboxLayoutModeSupplier;
     }
 
+    /** Registers a callback notified when the popup state of the fusebox changes. */
+    public NonNullObservableSupplier<@PopupState Integer> getPopupStateSupplier() {
+        return mPopupStateSupplier;
+    }
+
     /** Set callback to be invoked when the popup is dismissed. */
     public void setOnInteractionCompletedCallback(Callback<Boolean> callback) {
         mOnInteractionCompletedCallback = callback;
+    }
+
+    private @FuseboxLayoutMode int getFuseboxLayoutMode() {
+        return OmniboxCapabilities.isDesktopPlatform()
+                        && OmniboxFeatures.isMultimodalInputEnabled(mActivity)
+                ? FuseboxLayoutMode.SUGGESTIONS_POPOVER
+                : FuseboxLayoutMode.TOOLBAR;
     }
 
     /**
@@ -480,29 +508,32 @@ public class FuseboxCoordinator implements TemplateUrlServiceObserver {
      * small quantity using PopupWindow's default viewport rect.
      */
     static class ViewportRectProvider extends RectProvider implements ComponentCallbacks {
-        private final Context mContext;
+        private final Activity mActivity;
 
-        public ViewportRectProvider(Context context) {
-            mContext = context;
-            mContext.registerComponentCallbacks(this);
+        public ViewportRectProvider(Activity activity) {
+            mActivity = activity;
+            mActivity.registerComponentCallbacks(this);
             updateRect();
         }
 
         @Override
         public void onConfigurationChanged(Configuration configuration) {
             updateRect();
+            notifyRectChanged();
         }
 
         private void updateRect() {
-            DisplayMetrics displayMetrics = mContext.getResources().getDisplayMetrics();
-            mRect.set(0, 0, displayMetrics.widthPixels, displayMetrics.heightPixels);
+            var windowMetrics =
+                    WindowMetricsCalculator.getOrCreate().computeCurrentWindowMetrics(mActivity);
+            var bounds = windowMetrics.getBounds();
+            mRect.set(0, 0, bounds.width(), bounds.height());
         }
 
         @Override
         public void onLowMemory() {}
 
         public void destroy() {
-            mContext.unregisterComponentCallbacks(this);
+            mActivity.unregisterComponentCallbacks(this);
         }
     }
 }

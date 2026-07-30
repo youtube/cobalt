@@ -198,8 +198,8 @@ auto& WithNewVersion(const std::optional<FormData>& browser_form) {
   return browser_form;
 }
 
-auto& WithNewVersion(const std::vector<FormData>& browser_forms) {
-  for (const FormData& form : browser_forms) {
+std::vector<FormData> WithNewVersion(std::vector<FormData> browser_forms) {
+  for (FormData& form : browser_forms) {
     WithNewVersion(form);
   }
   return browser_forms;
@@ -570,12 +570,16 @@ void ContentAutofillDriver::RendererShouldSetSuggestionAvailability(
                suggestion_availability);
 }
 
-void ContentAutofillDriver::DispatchEmailVerifiedEvent(
+void ContentAutofillDriver::SendEmailVerificationToken(
     FieldGlobalId field_id,
-    const std::string& presentation_token) {
-  RouteToAgent(router(), &AutofillDriverRouter::DispatchEmailVerifiedEvent,
-               &mojom::AutofillAgent::DispatchEmailVerifiedEvent, field_id,
-               presentation_token);
+    const std::string& token) {
+  RouteToAgent(router(), &AutofillDriverRouter::SendEmailVerificationToken,
+               &mojom::AutofillAgent::SendEmailVerificationToken, field_id,
+               token);
+}
+
+void ContentAutofillDriver::OnEmailVerificationTokenShared() {
+  GetAutofillClient().ShowEmailVerifiedToast();
 }
 
 void ContentAutofillDriver::FormsSeen(

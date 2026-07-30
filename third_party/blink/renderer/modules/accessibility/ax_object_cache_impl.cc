@@ -88,6 +88,7 @@
 #include "third_party/blink/renderer/core/html/shadow/shadow_element_names.h"
 #include "third_party/blink/renderer/core/html_names.h"
 #include "third_party/blink/renderer/core/input_type_names.h"
+#include "third_party/blink/renderer/core/keywords.h"
 #include "third_party/blink/renderer/core/layout/hit_test_location.h"
 #include "third_party/blink/renderer/core/layout/hit_test_result.h"
 #include "third_party/blink/renderer/core/layout/inline/abstract_inline_text_box.h"
@@ -471,7 +472,8 @@ bool IsShadowContentRelevantForAccessibility(const Node* node) {
     // Make an exception for file input, which needs to gather its name from
     // aria-hidden contents.
     if (const Element* element = DynamicTo<Element>(node)) {
-      if (element->FastGetAttribute(html_names::kAriaHiddenAttr) == "true") {
+      if (element->FastGetAttribute(html_names::kAriaHiddenAttr) ==
+          keywords::kTrue) {
         return false;
       }
 
@@ -3205,8 +3207,10 @@ void AXObjectCacheImpl::FinalizeTree() {
         continue;
       }
       obj->UpdateChildrenIfNecessary();
-      if (obj->HasDirtyDescendants()) {
-        obj->SetHasDirtyDescendants(false);
+      if (obj->HasDirtyDescendants() || obj->IsIgnored()) {
+        if (obj->HasDirtyDescendants()) {
+          obj->SetHasDirtyDescendants(false);
+        }
         for (auto& child : obj->ChildrenIncludingIgnored()) {
           objects_to_process.push_back(child);
         }
@@ -4769,7 +4773,8 @@ void AXObjectCacheImpl::SectionOrRegionRoleMaybeChangedWithCleanLayout(
 
   // Require <section> or role="region" markup.
   if (!element->HasTagName(html_names::kSectionTag) &&
-      ax_object->DetermineRawAriaRole() != ax::mojom::blink::Role::kRegion) {
+      ax_object->DetermineRawAriaRoleWithContext() !=
+          ax::mojom::blink::Role::kRegion) {
     return;
   }
 
@@ -5922,6 +5927,13 @@ void AXObjectCacheImpl::HandleFocusedUIElementChanged(
   if (!new_focused_element) {
     // When focus is cleared, implicitly focus the document by sending a blur.
     if (GetDocument().documentElement()) {
+      // If focus is cleared while an aria-modal dialog is active, re-evaluate
+      // the active aria-modal dialog so we don't keep pruning the accessibility
+      // tree indefinitely.
+      if (active_aria_modal_dialog_) {
+        UpdateActiveAriaModalDialog(GetDocument().documentElement());
+      }
+
       DeferTreeUpdate(TreeUpdateReason::kNodeLostFocus,
                       GetDocument().documentElement());
     }

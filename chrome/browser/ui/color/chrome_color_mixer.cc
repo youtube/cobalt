@@ -187,8 +187,7 @@ void AddChromeColorMixer(ui::ColorProvider* provider,
       key.color_mode == ui::ColorProviderKey::ColorMode::kDark;
   ui::ColorMixer& mixer = provider->AddMixer();
 
-  const bool use_alternate_palette =
-      base::FeatureList::IsEnabled(features::kTabGroupColorRefresh);
+  const bool use_alternate_palette = features::IsTabGroupColorRefreshEnabled();
 
   std::vector<TabGroupColorParams> tab_group_color_params_all = {
       CreateColorParams(
@@ -695,12 +694,6 @@ void AddChromeColorMixer(ui::ColorProvider* provider,
   mixer[kColorTabStrokeFrameActive] = {kColorToolbarTopSeparatorFrameActive};
   mixer[kColorTabStrokeFrameInactive] = {
       kColorToolbarTopSeparatorFrameInactive};
-  mixer[kColorTabstripLoadingProgressBackground] = ui::AlphaBlend(
-      kColorTabstripLoadingProgressForeground, kColorToolbar, 0x32);
-  // 4.5 and 6.0 approximate the default light and dark theme contrasts of
-  // accent-against-toolbar.
-  mixer[kColorTabstripLoadingProgressForeground] =
-      PickGoogleColor(ui::kColorAccent, kColorToolbar, 4.5f, 6.0f);
   mixer[kColorTabstripScrollContainerShadow] =
       ui::SetAlpha(ui::kColorShadowBase, 0x4D);
   mixer[kColorTabThrobber] = {ui::kColorThrobber};

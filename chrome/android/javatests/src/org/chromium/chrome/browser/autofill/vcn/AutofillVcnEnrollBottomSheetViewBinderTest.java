@@ -13,7 +13,6 @@ import static org.hamcrest.Matchers.isEmptyString;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.assertEquals;
 
-import android.app.Activity;
 import android.graphics.Bitmap;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
@@ -76,8 +75,6 @@ public final class AutofillVcnEnrollBottomSheetViewBinderTest implements LinkOpe
     public static BaseActivityTestRule<BlankUiTestActivity> sActivityTestRule =
             new BaseActivityTestRule<>(BlankUiTestActivity.class);
 
-    private static Activity sActivity;
-
     private PropertyModel.Builder mModelBuilder;
     private PropertyModel mModel;
     private AutofillVcnEnrollBottomSheetView mView;
@@ -109,14 +106,15 @@ public final class AutofillVcnEnrollBottomSheetViewBinderTest implements LinkOpe
 
     @BeforeClass
     public static void setupSuite() {
-        sActivity = sActivityTestRule.launchActivity(null);
+        sActivityTestRule.launchActivity(null);
     }
 
     @Before
     public void setUp() throws Exception {
         mModelBuilder = new PropertyModel.Builder(AutofillVcnEnrollBottomSheetProperties.ALL_KEYS);
-        mView = new AutofillVcnEnrollBottomSheetView(sActivity);
-        ThreadUtils.runOnUiThreadBlocking(() -> sActivity.setContentView(mView.mContentView));
+        BlankUiTestActivity activity = sActivityTestRule.getActivity();
+        mView = new AutofillVcnEnrollBottomSheetView(activity);
+        ThreadUtils.runOnUiThreadBlocking(() -> activity.setContentView(mView.mContentView));
         bind(mModelBuilder);
     }
 
@@ -343,7 +341,7 @@ public final class AutofillVcnEnrollBottomSheetViewBinderTest implements LinkOpe
     public void testCardDescription() {
         assertThat(
                 String.valueOf(mView.mCardDescription.getText()),
-                equalTo(sActivity.getString(DESCRIPTION_STRING_RESOURCE)));
+                equalTo(sActivityTestRule.getActivity().getString(DESCRIPTION_STRING_RESOURCE)));
     }
 
     private void runTextViewTest(TextView view, ReadableObjectPropertyKey<String> property) {
@@ -492,6 +490,9 @@ public final class AutofillVcnEnrollBottomSheetViewBinderTest implements LinkOpe
     public void testLoadingAccessibilityDescription() {
         assertThat(
                 String.valueOf(mView.mLoadingViewContainer.getContentDescription()),
-                equalTo(sActivity.getString(LOADING_ACCESSIBILITY_STRING_RESOURCE)));
+                equalTo(
+                        sActivityTestRule
+                                .getActivity()
+                                .getString(LOADING_ACCESSIBILITY_STRING_RESOURCE)));
     }
 }

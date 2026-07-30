@@ -8,6 +8,7 @@ import '/strings.m.js';
 
 import {ColorChangeUpdater} from '//resources/cr_components/color_change_listener/colors_css_updater.js';
 import type {ComposeboxElement} from '//resources/cr_components/composebox/composebox.js';
+import type {VoicePermissionPromptState} from '//resources/cr_components/composebox/composebox_voice_search.js';
 import {assert} from '//resources/js/assert.js';
 import {EventTracker} from '//resources/js/event_tracker.js';
 import {loadTimeData} from '//resources/js/load_time_data.js';
@@ -57,6 +58,8 @@ export class OmniboxAimAppElement extends CrLitElement {
       },
       disableVoiceSearchAnimation_: {type: Boolean},
       usePecApi_: {type: Boolean},
+      isOblongShape_: {type: Boolean},
+      webuiOmniboxSimplificationEnabled_: {type: Boolean},
     };
   }
 
@@ -82,6 +85,10 @@ export class OmniboxAimAppElement extends CrLitElement {
       loadTimeData.getBoolean('energyEffectEnabled');
   protected accessor usePecApi_: boolean =
       loadTimeData.getBoolean('contextualMenuUsePecApi');
+  protected accessor isOblongShape_: boolean =
+      loadTimeData.getBoolean('contextButtonShapeIsOblong');
+  protected accessor webuiOmniboxSimplificationEnabled_: boolean =
+      loadTimeData.getBoolean('webuiOmniboxSimplificationEnabled');
 
   private eventTracker_ = new EventTracker();
   private pageHandler_: PageHandlerInterface;
@@ -149,6 +156,26 @@ export class OmniboxAimAppElement extends CrLitElement {
     this.pageHandler_.showContextMenu(point);
   }
 
+  // Fired from voice search component in cr-composebox.
+  protected onEmbeddedVoicePermissionPromptChanged(
+      e: CustomEvent<VoicePermissionPromptState>) {
+    if (e.detail.isOpened) {  // Permission prompt opened.
+      if (this.$.composebox) {
+        this.$.composebox.classList.add('has-embedded-permission-prompt');
+        this.$.composebox.style.setProperty(
+            '--cr_composebox_minimum_height', `${e.detail.height}px`);
+        this.$.composebox.style.setProperty(
+            '--cr_composebox_minimum_width', `${e.detail.width}px`);
+      }
+    } else {  // Permission prompt closed.
+      if (this.$.composebox) {
+        this.$.composebox.classList.remove('has-embedded-permission-prompt');
+        this.$.composebox.style.removeProperty(
+            '--cr_composebox_minimum_height');
+        this.$.composebox.style.removeProperty('--cr_composebox_minimum_width');
+      }
+    }
+  }
   protected onCloseComposebox_() {
     this.pageHandler_.requestClose();
   }

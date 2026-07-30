@@ -210,7 +210,8 @@ class CONTENT_EXPORT BackForwardCacheImpl
     std::unique_ptr<StoredPage> stored_page_;
   };
 
-  explicit BackForwardCacheImpl(BrowserContext* browser_context);
+  explicit BackForwardCacheImpl(
+      NavigationControllerImpl& navigation_controller);
 
   BackForwardCacheImpl(const BackForwardCacheImpl&) = delete;
   BackForwardCacheImpl& operator=(const BackForwardCacheImpl&) = delete;
@@ -403,7 +404,6 @@ class CONTENT_EXPORT BackForwardCacheImpl
   // Returns true if the |entry| is forward of the |current_nav_entry_index| in
   // the session history.
   bool IsForwardEntry(const std::unique_ptr<Entry>& entry,
-                      NavigationControllerImpl& controller,
                       int current_nav_entry_index);
 
   // Called when a history back navigation commits. Records the number of
@@ -556,16 +556,12 @@ class CONTENT_EXPORT BackForwardCacheImpl
 
   void RenderViewHostNoLongerStoredInternal(RenderViewHostImpl* rvh);
 
-  // If non-zero, the cache may contain at most this many entries with involving
-  // foregrounded processes and the remaining space can only be used by entries
-  // with no foregrounded processes. We can be less strict on memory usage of
-  // background processes because Android will kill the process if memory
-  // becomes scarce.
-  size_t GetForegroundedEntriesCacheSize();
-
-  // Returns the associated NavigationControllerImpl. We can just retrieve it
-  // from the first entry since they all share the same NavigationController.
-  NavigationControllerImpl& GetNavigationController();
+  // If it contains a value, the cache may contain at most this many entries
+  // involving foregrounded processes, and the remaining space can only be
+  // used by entries with no foregrounded processes. We can be less strict on
+  // memory usage of background processes because Android will kill the process
+  // if memory becomes scarce.
+  std::optional<size_t> GetForegroundedEntriesCacheSize();
 
   // Enforces a limit on the number of entries. Which entries are counted
   // towards the limit depends on the values of `reason`.
@@ -593,6 +589,10 @@ class CONTENT_EXPORT BackForwardCacheImpl
   static BlockListedFeatures GetDisallowedFeatures(
       RequestedFeatures requested_features,
       CacheControlNoStoreContext ccns_context);
+
+  // The navigation controller owns this object and is guaranteed to
+  // outlive it.
+  const raw_ref<NavigationControllerImpl> controller_;
 
   // Contains the set of stored Entries.
   // Invariant:
@@ -732,7 +732,19 @@ class CONTENT_EXPORT BackForwardCacheImpl
     std::optional<EvictionInfo> eviction_info_;
   };
 
-  std::optional<size_t> embedder_supplied_cache_size_;
+  // The maximum number of entries the BackForwardCache can hold per tab.
+  size_t max_cache_size_;
+
+  // If this contains a value, it represents the maximum number of entries
+  // involving foregrounded processes that the BackForwardCache can hold. The
+  // limit is lower than `max_cache_size_` because foreground processes are not
+  // automatically killed by Android under memory pressure. Background
+  // processes, on the other hand, can be terminated by Android if memory
+  // becomes scarce, which is why it's ok if they occupy more space up to the
+  // total `max_cache_size_`. If nullopt, there is no foreground-specific limit,
+  // and `max_cache_size_` prevails.
+  std::optional<size_t> max_foreground_cache_size_;
+
   std::optional<base::TimeDelta> embedder_supplied_time_to_live_;
   std::optional<bool> embedder_supplied_cache_forward_entries_allowed_;
 

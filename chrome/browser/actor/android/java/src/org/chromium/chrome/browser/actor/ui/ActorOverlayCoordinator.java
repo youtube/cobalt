@@ -13,6 +13,7 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.actor.ActorKeyedService;
 import org.chromium.chrome.browser.actor.ActorKeyedServiceFactory;
+import org.chromium.chrome.browser.actor.ActorTask;
 import org.chromium.chrome.browser.actor.ActorTaskId;
 import org.chromium.chrome.browser.actor.ActorTaskState;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsVisibilityManager;
@@ -22,6 +23,7 @@ import org.chromium.chrome.browser.tab.TabObscuringHandler;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.ui.messages.snackbar.Snackbar;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
+import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.widget.gesture.BackPressHandler;
 import org.chromium.components.browser_ui.widget.gesture.BackPressHandlerRegistry;
 import org.chromium.ui.modelutil.PropertyModel;
@@ -53,6 +55,7 @@ public class ActorOverlayCoordinator {
      * @param backPressHandlerRegistry The BackPressHandlerRegistry to handle back press.
      * @param layoutManagerSupplier The LayoutManager supplier to observe layout changes.
      * @param profileSupplier The Profile supplier to observe profile changes.
+     * @param bottomSheetController The BottomSheetController to observe bottom sheet states.
      */
     public ActorOverlayCoordinator(
             ViewStub viewStub,
@@ -62,7 +65,8 @@ public class ActorOverlayCoordinator {
             SnackbarManager snackbarManager,
             BackPressHandlerRegistry backPressHandlerRegistry,
             MonotonicObservableSupplier<LayoutManager> layoutManagerSupplier,
-            MonotonicObservableSupplier<Profile> profileSupplier) {
+            MonotonicObservableSupplier<Profile> profileSupplier,
+            BottomSheetController bottomSheetController) {
         mView = (ActorOverlayView) viewStub.inflate();
         mSnackbarManager = snackbarManager;
         mBackPressHandlerRegistry = backPressHandlerRegistry;
@@ -74,6 +78,10 @@ public class ActorOverlayCoordinator {
                         .with(ActorOverlayProperties.TOP_MARGIN, 0)
                         .with(ActorOverlayProperties.BOTTOM_MARGIN, 0)
                         .with(ActorOverlayProperties.ON_CLICK_LISTENER, v -> handleOnClick())
+                        .with(
+                                ActorOverlayProperties.ON_TAKE_OVER_CLICK_LISTENER,
+                                v -> handleTakeOverTask())
+                        .with(ActorOverlayProperties.TAKE_OVER_TASK_BUTTON_VISIBLE, false)
                         .build();
         mChangeProcessor =
                 PropertyModelChangeProcessor.create(mModel, mView, ActorOverlayViewBinder::bind);
@@ -88,6 +96,7 @@ public class ActorOverlayCoordinator {
                         browserControlsVisibilityManager,
                         tabObscuringHandler,
                         layoutManagerSupplier,
+                        bottomSheetController,
                         this::showInteractionLimitedSnackbar,
                         this::dismissInteractionLimitedSnackbar);
         mBackPressHandlerRegistry.addHandler(mMediator, BackPressHandler.Type.ACTOR_OVERLAY);
@@ -121,6 +130,14 @@ public class ActorOverlayCoordinator {
 
     private void handleOnClick() {
         showInteractionLimitedSnackbar();
+    }
+
+    private void handleTakeOverTask() {
+        assert mActorKeyedService != null;
+        ActorTask activeTask = mActorKeyedService.getCurrentActiveTask();
+        if (activeTask != null) {
+            activeTask.takeOverTask();
+        }
     }
 
     private void showInteractionLimitedSnackbar() {

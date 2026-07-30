@@ -246,6 +246,29 @@
 <translation id="1160479894929412407">允许使用 QUIC 协议</translation>
 <translation id="1160939557934457296">禁止从安全浏览警告页面继续访问</translation>
 <translation id="1161685818042751282">不从平台受信任证书存储区导入用户添加的 TLS 服务器证书。</translation>
+<translation id="1162404282416180562">配置一系列数据控制规则，防止数据泄露。
+
+      每个规则均包含以下内容：
+      - 触发该规则的条件字段。只有当某项用户操作与其 <ph name="DATA_CONTROLS_SOURCES" />、<ph name="DATA_CONTROLS_DESTINATIONS" />、<ph name="DATA_CONTROLS_AND" />、<ph name="DATA_CONTROLS_OR" /> 和 <ph name="DATA_CONTROLS_NOT" /> 字段中填充的所有字段均匹配时，才会触发规则。对于列表子字段，只需匹配 1 个条目，例如只需匹配 1 个网址格式即可触发规则。
+      - 要应用的限制条件列表。可能只有<ph name="DATA_CONTROLS_SOURCES" />或<ph name="DATA_CONTROLS_DESTINATIONS" />条件可用，具体取决于限制。
+
+      您可通过添加规则来实现以下目的：
+      - 控制在来源和目的地之间共享的剪贴板数据。
+      - 根据来源标签页控制屏蔽屏幕截图。
+
+      如果“<ph name="ON_SECURITY_EVENT_ENTERPRISE_CONNECTOR" />”政策设为 True，系统会将触发的规则报告给管理员。
+      限制级别可设为 BLOCK、WARN 或 REPORT。
+      - 如果限制级别设为 BLOCK，系统将不允许执行该操作。
+      - 如果限制级别设为 WARN，系统会向用户发出警告，用户可以选择继续执行或取消该操作。
+      - 如果限制级别设为 REPORT，用户操作将不会中断，但如果启用了“<ph name="ON_SECURITY_EVENT_ENTERPRISE_CONNECTOR" />”政策，系统会发送报告。
+
+      注意：
+      - 所列网址必须采用 https://support.google.com/chrome/a?p=url_blocklist_filter_format 规定的格式。
+      - 对于专门针对 <ph name="PRODUCT_OS_NAME" /> 的数据泄露防护规则，另请参阅“<ph name="DATA_LEAK_PREVENTION_RULES_LIST" />”政策。
+
+      如果未设置此政策，系统将不会应用任何限制。
+
+      只有分配了“<ph name="CHROME_ENTERPRISE_PREMIUM_NAME" />”许可的用户才能使用此政策。</translation>
 <translation id="1163080558183062209">禁用拒绝列表中的打印机类型</translation>
 <translation id="1163389598183927209">与 <ph name="PRIVACY_SANDBOX_NAME" /> 相关的一组政策。如需详细了解 <ph name="PRODUCT_NAME" /> 为弃用第三方 Cookie 而采取的措施，请参阅 <ph name="PRIVACY_SANDBOX_URL" />。</translation>
 <translation id="1165923723751466821">允许浏览器访客模式登录和个人资料登录</translation>
@@ -692,6 +715,15 @@ Chrome 政策的优先级高于此政策，例如：如果某个扩展程序已�
 <translation id="1509692106376861764">此政策从 <ph name="PRODUCT_NAME" /> 版本 29 起开始弃用。</translation>
 <translation id="1509839615768187049">一律使用内置 DNS 客户端</translation>
 <translation id="1514888685242892912">启用 <ph name="PRODUCT_NAME" /></translation>
+<translation id="1514959848081381646">此政策用于控制地址栏和新标签页搜索框的 Google AI 模式集成。
+
+如需使用此功能，必须将 Google 设为用户的默认搜索引擎。
+
+0 = 用户可以使用此功能。
+
+1 = 用户将无法使用此功能。
+
+如果此政策未设置，其行为将由“<ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" />”政策决定。</translation>
 <translation id="1515230621229117540">启用悬浮无障碍菜单</translation>
 <translation id="1515824657887788963">允许页面在关闭过程中执行同步 XHR 请求。</translation>
 <translation id="1516486219683984217">不允许使用系统通知</translation>
@@ -923,6 +955,7 @@ Chrome 政策的优先级高于此政策，例如：如果某个扩展程序已�
 
 如果未设置此政策，<ph name="PRODUCT_OS_NAME" /> 会根据内部逻辑选择默认处理程序。</translation>
 <translation id="1651810147727432656">拒绝向这些网站授予窗口管理权限</translation>
+<translation id="1652357791185933887">已停用隔离模式</translation>
 <translation id="1654087023995670109">强制采用浏览器访客模式</translation>
 <translation id="1655229863189977773">设置磁盘缓存大小（字节）</translation>
 <translation id="1655518801232583832">在网络服务外启用系统 DNS 解析</translation>
@@ -1950,6 +1983,18 @@ IPv4 地址的前缀为 0010；IPv6 地址的前缀为 0020。对于双栈网络
 
       如果此政策设为 False 或未设置，系统任务栏中不会显示任何按钮。</translation>
 <translation id="2294382669900758280">即使此政策设为 <ph name="TRUE" />，系统也不会考虑在 Android 应用中播放视频。</translation>
+<translation id="2296529215567227994">指定是否将无痕模式替换为隔离模式。
+
+隔离模式是一种仅供企业使用的临时浏览模式，用于替换无痕模式。
+与无痕模式不同，隔离模式支持与数据泄露防护相关的企业政策和强制安装的扩展程序。
+
+请注意，与无痕模式相关的政策不适用于隔离模式。
+
+如果设为“1 - 已启用”，系统会启用隔离模式并替换无痕模式。
+
+如果此政策设为“0 - 已停用”或未设置，则会停用隔离模式，并使用标准的无痕模式行为。
+
+此政策需要“<ph name="CHROME_ENTERPRISE_PREMIUM_NAME" />”许可才能生效。</translation>
 <translation id="2299220924812062390">指定已启用插件的列表</translation>
 <translation id="2299815818824242485">禁止以更高保护级别通过代理进行查询</translation>
 <translation id="2303795211377219696">允许使用“自动填充”功能填写信用卡信息</translation>
@@ -2723,13 +2768,13 @@ PAC 样式的字符串：
 如果此政策已启用或未设置，用户将可以通过 Kerberos 设置页中的“Kerberos 账号”设置来添加 Kerberos 账号。用户对自己添加的账号拥有完全控制权，可以修改或移除这些账号。
 
 如果此政策已停用，用户将无法添加 Kerberos 账号。此时，只能通过“配置 Kerberos 账号”政策添加 Kerberos 账号。这一方式可以有效地锁定账号。</translation>
-<translation id="2771222727845689796">此政策允许您指定一个网址格式列表。系统会强制以前台优先级运行与这些格式匹配的后台 Web 内容。
+<translation id="2771222727845689796">此政策允许您指定一个网址格式列表。匹配这些格式的后台 Web 内容将强制以前台优先级运行。
 
 如果启用了 <ph name="FORCE_FOREGROUND_PRIORITY_FOR_ALL_TABS_POLICY_NAME" /> 政策，系统会忽略此列表，因为所有标签页都将强制以前台优先级运行。
 
-如果 <ph name="FORCE_FOREGROUND_PRIORITY_FOR_ALL_TABS_POLICY_NAME" /> 已停用或未设置，系统将仅强制执行与此列表中的格式匹配的内容。
+如果已停用或未设置 <ph name="FORCE_FOREGROUND_PRIORITY_FOR_ALL_TABS_POLICY_NAME" />，仅当内容与此列表中的格式匹配时，才会强制以前台优先级运行。
 
-如需详细了解有效<ph name="URL_LABEL" />格式，请访问 https://support.google.com/chrome/a?p=url_blocklist_filter_format。
+如需详细了解有效的<ph name="URL_LABEL" />格式，请访问 https://support.google.com/chrome/a?p=url_blocklist_filter_format。
 
 如果此列表为空或未设置，系统不会强制任何后台内容以前台优先级运行。</translation>
 <translation id="2772231477628401250">使用 HTTP 下载更新</translation>
@@ -3394,6 +3439,7 @@ ClearCrossSiteCrossBrowsingContextGroupWindowName 变体可控制是否为顶层
 <translation id="322359555555487980">确定变体在 <ph name="PRODUCT_OS_NAME" />中的可用情况</translation>
 <translation id="3229163415739929305">如果此政策已启用或未设置，系统会启用页面加载元数据提取功能和用以提升浏览体验的机器学习模型。如果此政策已停用，可能会导致某些功能无法正常运行。</translation>
 <translation id="3231311173895401135">让浏览器决定是否支持</translation>
+<translation id="3231684792162319504">禁止采用 Gemini 实验性触发机制。</translation>
 <translation id="3231837273069128027">通过设置此政策，您可以配置 <ph name="TPM_FIRMWARE_UPDATE_TPM" /> 固件更新的可用性和行为。
 
       请在 JSON 属性中指定各项设置：
@@ -4312,6 +4358,15 @@ ServiceWorkerAutoPreload 功能会在 ServiceWorker 引导过程开始的同时�
       每个列表条目都包含一个字典，其“extension-id”字段必须包含扩展程序 ID，而其“update-url”字段必须包含更新网址。</translation>
 <translation id="3869180930654347954">对所有受影响客户停用 First-Party Sets 功能</translation>
 <translation id="3869566220234507038">始终加载 <ph name="LACROS_ROOTFS_NAME" /> <ph name="LACROS_NAME" /> 浏览器</translation>
+<translation id="3869959969423392506">此政策用于控制独立式 Web 应用 (IWA) 是否默认能够添加子应用。
+
+如果此政策设为 1，系统会允许 IWA 源添加子应用，并绕过用户手势或用户确认要求。
+
+如果此政策设为 2，系统会禁止 IWA 源添加子应用。
+
+如果此政策设为 3 或未设置，系统会允许 IWA 源在用户确认后添加子应用。
+
+您可通过在 <ph name="SUB_APPS__WITHOUT_PROMPTS_ALLOWED_FOR_ORIGINS_POLICY_NAME" /> 和 <ph name="SUB_APPS_WITHOUT_PROMPTS_BLOCKED_FOR_POLICY_NAME" /> 政策中设置特定 IWA 源来覆盖此政策。</translation>
 <translation id="3870035799352372700">禁止 Google 助理在互动过程中访问屏幕中的内容</translation>
 <translation id="3870059789954671543">在登录屏幕上启用“键盘焦点突出显示”无障碍功能。
 
@@ -4425,6 +4480,13 @@ ServiceWorkerAutoPreload 功能会在 ServiceWorker 引导过程开始的同时�
 <translation id="3928726028264020458">启用设备 VPD 信息报告功能</translation>
 <translation id="3935592079035695061">自午夜起的毫秒数。</translation>
 <translation id="3937800910397007337">强制将所有标签页设为前台优先级</translation>
+<translation id="3938885528378923718">配置 <ph name="PRODUCT_NAME" /> 如何下载基础生成式 AI 模型并在本地用于推理。
+
+如果此政策设为“允许”（即值为 0）或未设置，系统会自动下载模型，并将其用于推理。
+
+如果此政策设为“停用”（即值为 1），系统将不会下载模型，并且会删除现有模型（如果已下载）。
+
+在桌面平台上，也可以通过将 <ph name="COMPONENT_UPDATES_ENABLED_POLICY_NAME" /> 设置为 false 来禁止下载模型。</translation>
 <translation id="3941289958028934630">为登录屏幕停用语音反馈</translation>
 <translation id="3943930334592166130">此政策旨在控制是否让系统在有多个证书与 <ph name="AUTO_SELECT_CERTIFICATE_FOR_URLS_POLICY_NAME" /> 匹配时提示用户选择客户端证书。
       如果此政策已启用，每当自动选择政策与多个证书匹配时，系统都会提示用户选择客户端证书。
@@ -4586,6 +4648,7 @@ ServiceWorkerAutoPreload 功能会在 ServiceWorker 引导过程开始的同时�
       如需详细了解有效的 <ph name="URL_LABEL" /> 格式，请访问 https://chromeenterprise.google/policies/url-patterns/。但请注意，此政策不支持可与任意网址匹配的“*”格式。</translation>
 <translation id="4070039109671307724">其他</translation>
 <translation id="4071922398488395340">流动单点登录功能会同步会话 Cookie</translation>
+<translation id="4072065629757524">禁止独立式 Web 应用 (IWA) 源添加子应用</translation>
 <translation id="4072225853834793549">为登录屏幕停用无障碍快捷方式</translation>
 <translation id="4074922053013383215">适中节省内存。</translation>
 <translation id="4075675819066819571">将文件架放置到屏幕左侧</translation>
@@ -4659,6 +4722,11 @@ ServiceWorkerAutoPreload 功能会在 ServiceWorker 引导过程开始的同时�
 <translation id="4120401094617902941">对运行时计数器进行数据采样和收集的时间间隔。所允许的最短时间间隔为 1 天。
 
 如果此政策未设置，系统会应用默认时间间隔（1 天）。</translation>
+<translation id="4121173511469084157">默认情况下，只要用户以交互方式确认提示，独立式 Web 应用 (IWA) 就可以添加子应用。
+
+此政策用于控制哪些 IWA 源无需提示用户即可添加子应用。
+
+此政策会覆盖 <ph name="DEFAULT_SUB_APPS_WITHOUT_PROMPTS_SETTING_POLICY_NAME" /> 的行为，并会被 <ph name="SUB_APPS_WITHOUT_PROMPTS_BLOCKED_FOR_ORIGINS_POLICY_NAME" /> 覆盖。</translation>
 <translation id="4121350739760194865">阻止在新标签页上显示应用宣传信息</translation>
 <translation id="4122432898152851612">用户看不到与 <ph name="PRODUCT_OS_NAME" /> 的文件同步功能相关的任何界面。</translation>
 <translation id="4122473079291425973">“新标签页”页面会显示卡片（若有可用内容），但用户可以更改此设置</translation>
@@ -5088,6 +5156,7 @@ ServiceWorkerAutoPreload 功能会在 ServiceWorker 引导过程开始的同时�
 <translation id="4435032708588431506">允许使用 QUIC</translation>
 <translation id="443665821428652897">在浏览器关闭时清除网站数据（已弃用）</translation>
 <translation id="4436941175475497595">停用打印预览</translation>
+<translation id="4436992815485865052">允许采用 Gemini 实验性触发机制。</translation>
 <translation id="4439336120285389675">指定要临时重新启用的已弃用网络平台功能的列表。
 
       通过此政策，管理员可以使已弃用的网络平台功能在限定的时间内重新发挥功效。这些功能用字符串标记进行标识，与通过此政策指定的列表中包含的标记对应的功能将被重新启用。
@@ -5345,6 +5414,7 @@ ServiceWorkerAutoPreload 功能会在 ServiceWorker 引导过程开始的同时�
           请注意，此政策是按渲染程序进程来应用的，当有渲染程序进程启动时，此政策设置中的最新值会生效。必须完全重启设备，才能确保加载的所有标签页都会应用一致的政策设置。不同的进程可以使用此政策的不同值运行。
           </translation>
 <translation id="4578265298946081589">不要在用户退出后重新启动。</translation>
+<translation id="4579171808398039136">禁止独立式 Web 应用 (IWA) 在不提示用户的情况下使用 Sub Apps Add API</translation>
 <translation id="4581507927311097234">系统应在设备闲置多久（以毫秒为单位）后关闭屏幕</translation>
 <translation id="4582027661281685066">指定一系列网址格式。从匹配源所提供的网站中发起的请求不会受到<ph name="PRIVATE_NETWORK_ACCESS" />检查机制的约束。
 
@@ -5800,6 +5870,7 @@ JavaScript 优化政策的例外情况仅在网站级别 (eTLD+1) 上强制执�
 网址格式不得与 <ph name="DIRECT_SOCKETS_BLOCKED_FOR_URLS_POLICY_NAME" /> 冲突。如果某个网址同时符合这两项政策，系统将不会优先应用任何一项政策。
 
 如需详细了解有效的网址格式，请访问 https://chromeenterprise.google/policies/url-patterns。<ph name="WILDCARD_VALUE" /> 不是此政策可接受的值。</translation>
+<translation id="4883562563790831457">将无痕模式替换为隔离模式</translation>
 <translation id="4885338965457068455">此政策包含一个正则表达式，用于确定哪些 Google 账号符合条件，可通过 <ph name="PRODUCT_NAME" /> PDF 查看器将 PDF 文件保存到 Google 云端硬盘。
 
       如果用户尝试使用不符合条件的账号将 PDF 文件上传到 Google 云端硬盘，则系统会显示错误。
@@ -6470,6 +6541,7 @@ JavaScript 优化政策的例外情况仅在网站级别 (eTLD+1) 上强制执�
 <translation id="5255790642269910630">如果此政策已设置，那么每当重新启动时或在此政策的值更改后首次连接时，每个显示屏都会旋转到指定方向。用户可在登录后通过“设置”页面更改显示屏旋转角度，但下次重新启动时显示屏仍会恢复为更改前的设置。此政策适用于主要显示屏和次要显示屏。
 
 如果此政策未设置，默认值便是 0 度，但用户可以随意更改此值。如果用户更改了默认值，显示屏在重启时将不会重新应用此值。</translation>
+<translation id="5256792633540454282">控制 Gemini 实验性触发机制</translation>
 <translation id="5257395339965216304">托管的应用数据</translation>
 <translation id="5258445772095084618">允许独立用户使用所需的虚拟机来支持 Linux 应用</translation>
 <translation id="5258651513421638932">允许独立式应用连接智能卡</translation>
@@ -6531,13 +6603,6 @@ JavaScript 优化政策的例外情况仅在网站级别 (eTLD+1) 上强制执�
 <translation id="5303080953475303561">通过设置此政策，您可以控制锁定屏幕将会按照什么样的频率要求用户输入密码以实现快速解锁。每当系统显示锁定屏幕时，如果与上次输入密码相距的时间超出了所选值指定的时长，便无法快速解锁。如果用户在锁定屏幕上的停留时长超过了此时长，那么当用户下次输错代码或重新进入锁定屏幕时（以先发生者为准），系统就会要求输入密码。
 
       如果您未设置此政策，使用快速解锁功能的用户需要每天在锁定屏幕上输入其密码一次。</translation>
-<translation id="530488290401810961">配置 <ph name="PRODUCT_NAME" /> 如何下载基础生成式 AI 模型并在本地用于推理。
-
-如果此政策设为“允许”（即值为 0）或未经设置，系统会自动下载模型，并将其用于推理。
-
-如果此政策设为“停用”（即值为 1），系统将不会下载模型，并且会删除现有模型（如果已下载）。
-
-在桌面平台上，也可以通过 <ph name="COMPONENT_UPDATES_ENABLED_POLICY_NAME" /> 禁止下载模型。</translation>
 <translation id="5306186200045823863">信任 Symantec Corporation 的旧版 PKI 基础架构</translation>
 <translation id="5307432759655324440">无痕模式的可用性</translation>
 <translation id="5308551343115571396"><ph name="LACROS_NAME" /> 停用后，系统会尝试保留尽可能多的用户数据，但会移除所有浏览器数据。</translation>
@@ -7464,6 +7529,7 @@ Microsoft SharePoint 和 OneDrive 卡片需要由管理员进行额外配置。�
 
       此政策已被弃用，请改用 <ph name="PRINTERS_BULK_BLOCKLIST" />。</translation>
 <translation id="591088232153082363">基于电池使用模式自动调节电池充电速率。</translation>
+<translation id="5911656389795271430">这是一项实验性政策。</translation>
 <translation id="5913506885872855604">设置此政策即可将某些内部地址范围视为“公开”，使之无需接受<ph name="LOCAL_NETWORK_ACCES" />检查。反之，如果某些公开地址范围可能用于内部，则可以将其视为“本地”，以便通过<ph name="LOCAL_NETWORK_ACCESS" />检查予以保护。
 
 IP 地址空间覆盖有两种形式：
@@ -8163,14 +8229,24 @@ Origin-Agent-Cluster HTTP 标头可控制是将某个文档隔离在以源为键
 
       如果您设置了此政策，用户便无法更改它。如果您不设置此政策，用户可从书签栏上下文菜单中选择显示/隐藏应用快捷方式。</translation>
 <translation id="638003144128412430">停用设备时区信息报告功能</translation>
+<translation id="638217866669468708">此政策用于控制是否可以通过 <ph name="PRODUCT_NAME" /> 侧边栏或标签页与 <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />和<ph name="GOOGLE_LENS_PRODUCT_NAME" />分享网页和文件内容。
+
+请注意，此政策不影响在网页上使用 <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />，仅控制用户在使用 <ph name="PRODUCT_NAME" /> 时可如何与该 AI 模式分享信息。
+
+0 = 用户可以与 <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />分享网页或文件内容。
+
+1 = 用户无法与 <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />分享网页或文件内容。用于分享上下文的入口点和侧边栏将被停用或隐藏。
+
+如果 <ph name="GOOGLE_SEARCH_PRODUCT_NAME" />未设为用户的默认搜索引擎，系统会忽略此政策，因为相应功能已停用。
+
+此政策独立于“<ph name="AI_MODE_SETTINGS_POLICY_NAME" />”政策。“<ph name="AI_MODE_SETTINGS_POLICY_NAME" />”政策仅控制多功能框或 NTP 搜索框中的入口点，而此政策旨在控制是否可以通过侧边栏或标签页分享上下文信息。
+
+此政策也不会控制 <ph name="GOOGLE_GEMINI_PRODUCT_NAME" /> 集成功能，该功能可通过“<ph name="GEMINI_SETTINGS_POLICY_NAME" />”政策停用。
+
+如果未设置此政策，相关行为将由“<ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" />”政策决定。
+
+如需详细了解生成式 AI 功能的数据处理机制，请访问 https://support.google.com/chrome/a?p=generative_ai_settings。</translation>
 <translation id="6382209369210116232">停用处于未发布状态的扩展程序</translation>
-<translation id="6382287177674997281">此政策允许用户启动任何类型的固件更新。
-
-      如果此政策已启用，设备所有者等用户便能启动固件更新。
-
-      如果此政策已停用或未设置，所有用户都将无法应用固件更新。
-
-      此政策适用于 <ph name="PRODUCT_OS_FLEX_NAME" /> 设备的外围设备固件更新和内部组件固件更新的固件。<ph name="PRODUCT_OS_NAME" /> 设备的内部组件固件更新不受此政策的影响。</translation>
 <translation id="6383774771168138899">为 <ph name="MICROSOFT_ONE_DRIVE_NAME" /> 和 <ph name="MICROSOFT_365_NAME" /> 配置<ph name="CLOUD_UPLOAD_NAME" />流程</translation>
 <translation id="6384542789059421431">允许在浏览器侧边栏中显示默认搜索引擎的搜索结果页面。</translation>
 <translation id="6389240462871677239">允许独立式 Web 应用 (IWA) 源使用 Controlled Frame</translation>
@@ -9757,6 +9833,7 @@ JavaScript 优化政策的例外情况仅在网站级别 (eTLD+1) 上强制执�
 <translation id="7372831798009983116">启用“自动点击”无障碍功能</translation>
 <translation id="7373200034079131670">在用户退出后重新启动（如果 Android 或虚拟机已启动）。</translation>
 <translation id="7374784840090523241">默认在其他存储区（例如 <ph name="PRODUCT_NAME" /> 个人资料）中创建通行密钥。</translation>
+<translation id="73755679940750599">允许独立式 Web 应用 (IWA) 源无需提示用户即可添加子应用</translation>
 <translation id="7375785904116479354">如果此政策已启用，当首次运行浏览器时，系统将会从先前的默认浏览器导入默认搜索引擎。如果此政策已停用或未设置，当首次运行浏览器时，系统不会导入默认搜索引擎。
 
       用户可以触发导入对话框，系统将会根据此政策的值选中或不选中“默认搜索引擎”复选框。</translation>
@@ -10607,6 +10684,7 @@ Gemini 只能在部分国家/地区启用，并且仅支持部分语言。设置
       如果此政策未设置，系统会允许网站请求获取访问权限，但用户可以更改此设置。
 
       您可通过在 <ph name="WEB_HID_ASK_FOR_URLS_POLICY_NAME" /> 和 <ph name="WEB_HID_BLOCKED_FOR_URLS_POLICY_NAME" /> 政策中设置特定<ph name="URL_LABEL" />格式来覆盖此政策。</translation>
+<translation id="794786228154185413">允许独立式 Web 应用 (IWA) 无需提示用户即可使用 Sub Apps Add API</translation>
 <translation id="7950451717181391167">您可以通过设置此政策，指定用户是否可以使用“<ph name="CLASS_TOOLS_NAME" />”以学生或教师的身份发送/接收内容或字幕，或者是否对用户停用课程管理工具。</translation>
 <translation id="7952007677054834789">在 <ph name="PRODUCT_NAME" /> 中配置启动时加载的页面、默认主页和默认新标签页，并禁止用户更改它们。
 
@@ -10662,6 +10740,11 @@ Gemini 只能在部分国家/地区启用，并且仅支持部分语言。设置
           此政策已从 Chrome 110 中移除。
                                         </translation>
 <translation id="7976157349247117979"><ph name="PRODUCT_NAME" /> 目标名称</translation>
+<translation id="7981824720804106055">默认情况下，只要用户以交互方式确认提示，独立式 Web 应用 (IWA) 就可以添加子应用。
+
+此政策用于控制哪些 IWA 源将被禁止在未经交互式用户提示的情况下添加子应用。
+
+此政策会覆盖 <ph name="DEFAULT_SUB_APPS_WITHOUT_PROMPTS_SETTING_POLICY_NAME" /> 和 <ph name="SUB_APPS_WITHOUT_PROMPTS_ALLOWED_FOR_ORIGINS_POLICY_NAME" /> 的行为。</translation>
 <translation id="7985242821674907985"><ph name="PRODUCT_NAME" /></translation>
 <translation id="7985781946183471651"><ph name="PRODUCT_OS_NAME" /> 上的 Glanceables</translation>
 <translation id="7986473886676689183">启用 Android 报告</translation>
@@ -10939,6 +11022,15 @@ Gemini 只能在部分国家/地区启用，并且仅支持部分语言。设置
 
 如需详细了解有效网址格式，请访问 https://support.google.com/chrome/a?p=url_blocklist_filter_format。</translation>
 <translation id="8186911565834244165">允许用户提供反馈</translation>
+<translation id="8190271041226151932">此设置会控制 Gemini 应用集成。
+
+0 = 用户可以使用 Gemini 集成功能。
+
+1 = 用户将无法使用 Gemini 集成功能。
+
+如果未设置此政策，其行为将由“<ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" />”政策决定。
+
+如需了解详情，请参阅帮助中心文章 https://support.google.com/chrome/a?p=gemini_in_chrome。</translation>
 <translation id="8195133650230097559">忽略唤醒锁定请求以便进行电源管理</translation>
 <translation id="8196558469954193908">此政策允许在使用客户端证书时聚合 HTTP/2 连接。为实现聚合，潜在新连接的主机名和现有连接的主机名都必须与此政策所述的一个或多个模式匹配。此政策包含一系列采用 <ph name="URL_BLOCKLIST_POLICY_NAME" /> 过滤条件格式的主机名：“example.com”会与“example.com”及所有子网域（如“sub.example.com”）匹配，而“.example.net”仅会与“example.net”匹配。
 
@@ -11193,6 +11285,7 @@ Gemini 只能在部分国家/地区启用，并且仅支持部分语言。设置
 如果此政策未设置，行为将默认为 <ph name="RUNTIME_ENABLED_VALUE_NAME" />。
 
 注意：此政策只是一种临时解决方案，可帮助弃用带有 webkit 前缀的全屏 API。M131 是最后一个具有此政策的版本。</translation>
+<translation id="8355021858374793722">控制对 Sub Apps Add API 的使用</translation>
 <translation id="8356953698979920095">将此政策设为具体值后，系统便会在用户登录期间默认使用对应的设备键盘背光颜色。</translation>
 <translation id="8357681633047935212">限制用户会话的长度</translation>
 <translation id="8357989008292691856">登录用户许可名单</translation>
@@ -12413,10 +12506,12 @@ Gemini 只能在部分国家/地区启用，并且仅支持部分语言。设置
 <translation id="9206364386317031168">允许网站向本地设备发送网络请求。</translation>
 <translation id="9206472508136116830">不允许 NetBIOS 共享操作发现</translation>
 <translation id="9207596996305971030">不报告登录/退出事件</translation>
+<translation id="9208328979373108724">允许独立式 Web 应用 (IWA) 源添加子应用，但需要提示用户</translation>
 <translation id="9210647066889383361">允许用户通过 Smart Lock 登录自己的设备</translation>
 <translation id="9212598607138782107">Okta® 云身份提供方</translation>
 <translation id="9213751049772256263">停用所有变体</translation>
 <translation id="9217154963008402249">发送监控网络数据包的频率</translation>
+<translation id="921762538903956073">隔离模式可用</translation>
 <translation id="9220314833408124365">使用默认引荐来源网址政策值 no-referrer-when-downgrade</translation>
 <translation id="922160134042190462">禁止第三方使用 <ph name="DESK_API_NAME" /> 控制 <ph name="PRODUCT_OS_NAME" /></translation>
 <translation id="9221827710437832530">允许在登录屏幕上访问地理定位。</translation>

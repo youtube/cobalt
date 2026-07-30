@@ -24,6 +24,7 @@
 
 @protocol BrowserCoordinatorCommands;
 @class ComposeboxAttachmentSelection;
+@class ComposeboxFocusParams;
 @class CobrowseContext;
 class CobrowseBrowserAgent;
 @protocol ComposeboxDebuggerLogger;
@@ -115,10 +116,16 @@ class ContextualSearchSessionHandle;
 // Records that the plus menu opened with the given visible attachment buttons,
 // and maps dynamically injected Tools and Models to metrics.
 - (void)recordPlusMenuOpenedWithVisibleInternalButtons:
-    (const std::vector<FuseboxAttachmentButtonType>&)visibleInternalButtons;
+            (const std::vector<FuseboxAttachmentButtonType>&)
+                visibleInternalButtons
+                                          uiInputState:
+                                              (ComposeboxUIInputState*)state;
 
 // Unpacks and attaches all items within the selection wrapper.
 - (void)updateAttachments:(ComposeboxAttachmentSelection*)attachments;
+
+// Applies the focus parameters to initialize the session state.
+- (void)applyFocusParams:(ComposeboxFocusParams*)params;
 
 @end
 

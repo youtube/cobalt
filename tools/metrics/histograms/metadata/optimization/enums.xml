@@ -26,6 +26,16 @@ chromium-metrics-reviews@google.com.
 
 <enums>
 
+<!-- LINT.IfChange(AIPageContentExtractionConcurrency) -->
+
+<enum name="AIPageContentExtractionConcurrency">
+  <int value="0" label="No active extraction"/>
+  <int value="1" label="Active extraction with matching options"/>
+  <int value="2" label="Active extraction with different options only"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/optimization_guide/content/browser/page_content_proto_provider.cc:AIPageContentExtractionConcurrency) -->
+
 <enum name="AIPageContentMode">
   <int value="0" label="Default"/>
   <int value="1" label="ActionableElements"/>
@@ -102,9 +112,15 @@ chromium-metrics-reviews@google.com.
   <int value="4" label="v3Nano"/>
   <int value="5" label="v3NanoCpu"/>
   <int value="6" label="v3NanoGpu"/>
+  <int value="7" label="Gemma4"/>
+  <int value="8" label="Classifier"/>
+  <int value="9" label="LanguageDetection"/>
+  <int value="10" label="ProofreaderSmallExpert"/>
+  <int value="11" label="SpeechRecognitionSmallExpert"/>
+  <int value="12" label="SummarizerSmallExpert"/>
 </enum>
 
-<!-- LINT.ThenChange(//components/optimization_guide/core/model_execution/manifest_broker/manifest_asset_manager.cc:OnDeviceBaseModelEnum) -->
+<!-- LINT.ThenChange(//components/optimization_guide/core/model_execution/on_device_model_names.h:OnDeviceBaseModelEnum) -->
 
 <!-- Use following code to get the hash from the model version.
 import struct
@@ -899,6 +915,16 @@ struct.unpack('>L', hashlib.md5(version.encode('utf-8')).digest()[4:8])[0]
 </enum>
 
 <!-- LINT.ThenChange(//components/page_content_annotations/content/page_content_extraction_service.cc:EnablementSource) -->
+
+<!-- LINT.IfChange(PageContentExtractionRequestType) -->
+
+<enum name="PageContentExtractionRequestType">
+  <int value="0" label="AnnotatedPageContent"/>
+  <int value="1" label="PdfText"/>
+  <int value="2" label="PdfPageCount"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/page_content_annotations/content/annotate_page_content_request_metrics.h:ExtractionRequestType) -->
 
 </enums>
 

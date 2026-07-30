@@ -43,6 +43,7 @@ import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.chrome.test.util.ChromeRenderTestRule;
+import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.widget.gesture.BackPressHandlerRegistry;
 import org.chromium.ui.test.util.BlankUiTestActivity;
 
@@ -69,6 +70,7 @@ public class ActorOverlayViewRenderTest {
     @Mock private LayoutManager mLayoutManager;
     @Mock private Profile mProfile;
     @Mock private ActorKeyedService mActorKeyedService;
+    @Mock private BottomSheetController mBottomSheetController;
     private TestBrowserControlsVisibilityManager mBrowserControlsVisibilityManager;
 
     private TabObscuringHandler mTabObscuringHandler;
@@ -101,6 +103,8 @@ public class ActorOverlayViewRenderTest {
                     mProfileSupplier = ObservableSuppliers.createMonotonic();
                     mProfileSupplier.set(mProfile);
                     ActorKeyedServiceFactory.setForTesting(mActorKeyedService);
+                    when(mBottomSheetController.getSheetState())
+                            .thenReturn(BottomSheetController.SheetState.HIDDEN);
 
                     mParentView = new FrameLayout(mActivity);
                     mActivity.setContentView(mParentView);
@@ -118,7 +122,8 @@ public class ActorOverlayViewRenderTest {
                                     mSnackbarManager,
                                     mBackPressHandlerRegistry,
                                     mLayoutManagerSupplier,
-                                    mProfileSupplier);
+                                    mProfileSupplier,
+                                    mBottomSheetController);
                 });
     }
 
@@ -159,6 +164,28 @@ public class ActorOverlayViewRenderTest {
                 "View did not get layout dimensions");
 
         mRenderTestRule.render(mParentView, "actor_overlay_hovered");
+    }
+
+    @Test
+    @MediumTest
+    @Feature({"RenderTest"})
+    public void testActorOverlayWithTakeOverButton() throws Exception {
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mCoordinator.getMediator().setOverlayVisible(true);
+                    mCoordinator
+                            .getModelForTesting()
+                            .set(ActorOverlayProperties.TAKE_OVER_TASK_BUTTON_VISIBLE, true);
+                });
+
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    return mParentView.getChildAt(0) != null
+                            && mParentView.getChildAt(0).getWidth() > 0;
+                },
+                "View did not get layout dimensions");
+
+        mRenderTestRule.render(mParentView, "actor_overlay_with_take_over_button");
     }
 
     // Test implementation that used to bypass mockito limitations on mocking extended interfaces.

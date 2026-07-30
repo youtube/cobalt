@@ -64,8 +64,6 @@ public class PriceHistoryBottomSheetContentRenderTest {
     public static BaseActivityTestRule<BlankUiTestActivity> sActivityTestRule =
             new BaseActivityTestRule<>(BlankUiTestActivity.class);
 
-    private static Activity sActivity;
-
     @Rule
     public RenderTestRule mRenderTestRule =
             RenderTestRule.Builder.withPublicCorpus()
@@ -118,7 +116,7 @@ public class PriceHistoryBottomSheetContentRenderTest {
 
     @BeforeClass
     public static void setupSuite() {
-        sActivity = sActivityTestRule.launchActivity(null);
+        sActivityTestRule.launchActivity(null);
     }
 
     @Before
@@ -130,18 +128,19 @@ public class PriceHistoryBottomSheetContentRenderTest {
 
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    mFakePriceHistoryChart = new TextView(sActivityTestRule.getActivity());
+                    Activity activity = sActivityTestRule.getActivity();
+                    mFakePriceHistoryChart = new TextView(activity);
                     mFakePriceHistoryChart.setText("Price history chart holder");
                     mFakePriceHistoryChart.setLayoutParams(
                             new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
                     mCoordinator =
                             new PriceHistoryBottomSheetContentCoordinator(
-                                    sActivity,
+                                    activity,
                                     () -> mMockTab,
                                     () -> mMockTabModelSelector,
                                     mMockPriceInsightsDelegate);
                     mContentView = mCoordinator.getContentViewForTesting();
-                    sActivity.setContentView(mContentView);
+                    activity.setContentView(mContentView);
                 });
     }
 

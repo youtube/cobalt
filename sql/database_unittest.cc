@@ -52,6 +52,7 @@
 #include "sql/meta_table.h"
 #include "sql/recovery.h"
 #include "sql/sqlite_result_code.h"
+#include "sql/sqlite_result_code_values.h"
 #include "sql/statement.h"
 #include "sql/statement_id.h"
 #include "sql/test/drive_error_test_vfs.h"
@@ -2750,6 +2751,66 @@ TEST_P(SQLDatabaseTest, StatementErrorHistogram) {
   EXPECT_TRUE(expecter.SawExpectedErrors());
 }
 
+TEST_P(SQLDatabaseTest, CommitTransactionDeprecated) {
+  ASSERT_TRUE(db_->Execute("CREATE TABLE foo (id INTEGER UNIQUE)"));
+
+  ASSERT_TRUE(db_->Execute("INSERT INTO foo (id) VALUES (1)"));
+  ASSERT_TRUE(db_->BeginTransactionDeprecated());
+  ASSERT_TRUE(db_->Execute("INSERT INTO foo (id) VALUES (2)"));
+  EXPECT_TRUE(db_->CommitTransactionDeprecated());
+
+  Statement row_count(db_->GetReadonlyStatement("SELECT COUNT(*) FROM foo"));
+  ASSERT_TRUE(row_count.Step());
+  EXPECT_EQ(row_count.ColumnInt(0), 2);
+}
+
+TEST_P(SQLDatabaseTest, RollbackTransactionDeprecated) {
+  ASSERT_TRUE(db_->Execute("CREATE TABLE foo (id INTEGER UNIQUE)"));
+
+  ASSERT_TRUE(db_->Execute("INSERT INTO foo (id) VALUES (1)"));
+  ASSERT_TRUE(db_->BeginTransactionDeprecated());
+  ASSERT_TRUE(db_->Execute("INSERT INTO foo (id) VALUES (2)"));
+  db_->RollbackTransactionDeprecated();
+
+  Statement row_count(db_->GetReadonlyStatement("SELECT COUNT(*) FROM foo"));
+  ASSERT_TRUE(row_count.Step());
+  EXPECT_EQ(row_count.ColumnInt(0), 1);
+}
+
+TEST_P(SQLDatabaseTest, CloseThenBeginTransactionDeprecated) {
+  db_->Close();
+  EXPECT_FALSE(db_->BeginTransactionDeprecated());
+}
+
+TEST_P(SQLDatabaseTest, CloseThenCommitTransactionDeprecated) {
+  ASSERT_TRUE(db_->BeginTransactionDeprecated());
+  db_->Close();
+  EXPECT_FALSE(db_->CommitTransactionDeprecated());
+}
+
+TEST_P(SQLDatabaseTest, CloseThenRollbackTransactionDeprecated) {
+  ASSERT_TRUE(db_->BeginTransactionDeprecated());
+  db_->Close();
+  db_->RollbackTransactionDeprecated();
+}
+
+TEST_P(SQLDatabaseTest, PoisonThenBeginTransactionDeprecated) {
+  db_->Poison();
+  EXPECT_FALSE(db_->BeginTransactionDeprecated());
+}
+
+TEST_P(SQLDatabaseTest, PoisonThenCommitTransactionDeprecated) {
+  ASSERT_TRUE(db_->BeginTransactionDeprecated());
+  db_->Poison();
+  EXPECT_FALSE(db_->CommitTransactionDeprecated());
+}
+
+TEST_P(SQLDatabaseTest, PoisonThenRollbackTransactionDeprecated) {
+  ASSERT_TRUE(db_->BeginTransactionDeprecated());
+  db_->Poison();
+  db_->RollbackTransactionDeprecated();
+}
+
 TEST(SQLEmptyPathDatabaseTest, EmptyPathTest) {
   Database db(test::kTestTag);
   EXPECT_TRUE(db.OpenInMemory());
@@ -2921,6 +2982,7 @@ TEST_F(DatabaseDiskFullTest, RazeFailsWhenDiskIsFull) {
   vfs_.set_drive_full(true);
 
   EXPECT_FALSE(db.Raze());
+  EXPECT_THAT(vfs_.errors_produced(), Contains(SqliteErrorCode::kFullDisk));
   EXPECT_THAT(ReadInts(db, "SELECT i FROM foo"), Optional(ElementsAre(42)));
 }
 

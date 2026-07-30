@@ -584,7 +584,6 @@ Bạn phải xoá bớt một số dấu trang thì mới có thể lưu dấu t
 <translation id="7318036098707714271">Tệp tùy chọn của bạn bị hỏng hoặc không hợp lệ. 
 
 Chromium không thể khôi phục cài đặt của bạn.</translation>
-<translation id="7339898014177206373">Cửa sổ mới</translation>
 <translation id="734373864078049451">Web, dấu trang và các nội dung khác của bạn trên Chromium đều có ở đây.</translation>
 <translation id="7347827960336370838">Chỉ những người có cụm mật khẩu mới đọc được dữ liệu đã mã hoá của bạn. Cụm mật khẩu không được gửi tới Google hay được Google lưu trữ. Nếu quên cụm mật khẩu hoặc muốn thay đổi chế độ cài đặt này, bạn sẽ cần <ph name="BEGIN_LINK" />xoá dữ liệu Chromium khỏi tài khoản của bạn<ph name="END_LINK" />.</translation>
 <translation id="7349591376906416160">Quản trị viên hệ thống đã định cấu hình Chromium để mở <ph name="ALTERNATIVE_BROWSER_NAME" /> khi truy cập vào <ph name="TARGET_URL_HOSTNAME" />.</translation>
@@ -593,6 +592,7 @@ Chromium không thể khôi phục cài đặt của bạn.</translation>
 <translation id="7376384068949534168">Gần đây bạn không truy cập trang web này. Chromium đã xoá <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />.</translation>
 <translation id="73786666777299047">Mở cửa hàng Chrome trực tuyến</translation>
 <translation id="7384121030444253939">Tiện ích này không còn được hỗ trợ nữa. Chromium khuyên bạn nên xoá tiện ích.</translation>
+<translation id="7407655596887111931">Chromium đang là trình duyệt mặc định của bạn</translation>
 <translation id="7413153308467572558">Tiếp tục từ nơi bạn đã dừng lại: Chromium khôi phục các thẻ của bạn mỗi khi bạn khởi động lại. Để tắt tính năng này, hãy chuyển đến</translation>
 <translation id="7427879960656355200">Nhập mật khẩu vào Chromium</translation>
 <translation id="744815265653811511">1. Nhấp vào <ph name="BUTTON_LABEL" /> bên dưới
@@ -734,6 +734,7 @@ Chromium không thể khôi phục cài đặt của bạn.</translation>
 <translation id="8981150672034878610">Không thể khởi động Chromium vì đã xảy ra lỗi khi mở hồ sơ của bạn. Hãy thử khởi động lại Chromium.</translation>
 <translation id="8988036198400390003">Quản lý hồ sơ trên Chromium</translation>
 <translation id="9019929317751753759">Để làm cho Chromium an toàn hơn, chúng tôi đã vô hiệu hóa tiện ích không được liệt kê trong <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> và có thể đã được thêm mà bạn không biết.</translation>
+<translation id="9022552996538154597">Đăng nhập vào Chromium</translation>
 <translation id="904366664621834601">Chromium đã chặn tệp tải xuống này vì tệp lưu trữ gồm các tệp khác có thể ẩn chứa phần mềm độc hại</translation>
 <translation id="9053882453960391422">Mật khẩu, dấu trang và nhật ký của bạn sẽ được đồng bộ hoá liền mạch trên mọi thiết bị. Hãy cập nhật trình duyệt mặc định thành Chromium để dễ dàng sử dụng các tính năng bạn quen thuộc và yêu thích. Chromium sẽ được ghim vào thanh tác vụ để bạn có thể truy cập nhanh chóng.</translation>
 <translation id="9062666675513499497">Đăng nhập vào Chromium khi bạn đăng nhập vào các dịch vụ khác của Google</translation>

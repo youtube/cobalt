@@ -15,6 +15,10 @@
 #include "base/android/android_info.h"
 #endif
 
+#if BUILDFLAG(IS_MAC)
+#include "base/mac/mac_util.h"
+#endif
+
 #if BUILDFLAG(IS_CHROMEOS)
 #include "ui/base/shortcut_mapping_pref_delegate.h"
 #endif
@@ -77,6 +81,10 @@ BASE_FEATURE(kOnlyUseWindowResizeHelperOnResize,
 
 // Controls replacement of CATransactionCoordinator with a new implementation.
 BASE_FEATURE(kCATransactionV2, base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Make live-resize of an NSWindow be asynchronous (so it doesn't block the
+// UI thread).
+BASE_FEATURE(kAsyncLiveResize, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_MAC)
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -490,14 +498,22 @@ BASE_FEATURE_PARAM(int,
 
 BASE_FEATURE(kSplitViewLinkOpen, base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kDesktopGlowUp, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kGlassFrame, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kRoundedIcons, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsGlassFrameEnabled() {
 #if BUILDFLAG(IS_MAC)
-  return base::FeatureList::IsEnabled(kGlassFrame);
+  return base::mac::MacOSMajorVersion() >= 26 &&
+         base::FeatureList::IsEnabled(kGlassFrame);
 #else
   return false;
 #endif
+}
+
+bool IsRoundedIconsEnabled() {
+  return base::FeatureList::IsEnabled(kDesktopGlowUp) ||
+         base::FeatureList::IsEnabled(kRoundedIcons);
 }
 
 }  // namespace features

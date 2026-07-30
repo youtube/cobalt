@@ -91,6 +91,16 @@ display::Display GetDisplayForWindow(NSWindow* window) {
       gfx::NativeWindow(window));
 }
 
+bool IsBackgroundEffectView(NSView* view) {
+  if ([view isKindOfClass:[NSVisualEffectView class]]) {
+    return true;
+  }
+
+  Class glass_effect_view_class = NSClassFromString(@"NSGlassEffectView");
+  return glass_effect_view_class &&
+         [view isKindOfClass:glass_effect_view_class];
+}
+
 }  // namespace
 
 @class NSWindowRestorationOptions;
@@ -254,14 +264,13 @@ NSComparisonResult SubviewSorter(__kindof NSView* lhs,
                                  void* rank_as_void) {
   DCHECK_NE(lhs, rhs);
 
-  // Put `NSVisualEffectView` before `ViewsCompositorSuperview` otherwise when
-  // using `NSVisualEffectView` for `vibrancy` it will hide content displayed by
-  // the compositor.
-  if ([lhs isKindOfClass:[NSVisualEffectView class]]) {
+  // Put background effect views before `ViewsCompositorSuperview`, otherwise
+  // they can cover content displayed by the compositor.
+  if (IsBackgroundEffectView(lhs)) {
     return NSOrderedAscending;
   }
   if ([lhs isKindOfClass:[ViewsCompositorSuperview class]]) {
-    if ([rhs isKindOfClass:[NSVisualEffectView class]]) {
+    if (IsBackgroundEffectView(rhs)) {
       return NSOrderedDescending;
     }
     return NSOrderedAscending;
@@ -2144,7 +2153,7 @@ void NativeWidgetNSWindowBridge::UpdateWindowGeometry() {
   CheckAndNotifyAllWorkspacesStateChanged();
 
   if (content_resized && !ca_transaction_sync_suppressed_ &&
-      !base::FeatureList::IsEnabled(features::kCATransactionV2)) {
+      !base::FeatureList::IsEnabled(features::kAsyncLiveResize)) {
     ui::CATransactionCoordinator::Get().Synchronize();
   }
 
@@ -2175,6 +2184,13 @@ bool NativeWidgetNSWindowBridge::IsWindowModalSheet() const {
 }
 
 void NativeWidgetNSWindowBridge::ShowAsModalSheet() {
+  // -[NSWindow beginSheet:completionHandler:] will block the UI thread while
+  // the animation runs. So that it doesn't animate a fully transparent window,
+  // first wait for a frame. The first step is to pretend that the window is
+  // already visible.
+  window_visible_ = true;
+  host_->OnVisibilityChanged(window_visible_);
+
   NSWindow* parent_window = parent_->ns_window();
   if (NativeWidgetMacNSWindow* parent_widget_window =
           base::apple::ObjCCast<NativeWidgetMacNSWindow>(parent_window)) {

@@ -22,6 +22,7 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/browser/ui/views/web_apps/web_app_dialog_test_support.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/ui/web_applications/test/web_app_browsertest_util.h"
 #include "chrome/browser/ui/web_applications/web_app_browsertest_base.h"
@@ -55,6 +56,7 @@
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/test_renderer_host.h"
 #include "net/base/url_util.h"
+#include "net/test/embedded_test_server/controllable_http_response.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
 #include "skia/ext/image_operations.h"
@@ -263,8 +265,7 @@ IN_PROC_BROWSER_TEST_F(WebInstallFromUrlCommandBrowserTest,
           .GetURL("/banners/manifest_with_id_test_page.html")
           .spec();
 
-  auto auto_accept_pwa_install_confirmation =
-      SetAutoAcceptPWAInstallConfirmationForTesting();
+  web_app::test::ScopedAutoAcceptWebAppDialogs auto_accept_pwa;
   SetPermissionResponse(/*permission_granted=*/true);
   base::HistogramTester histograms;
   ASSERT_TRUE(TryInstallApp(install_url));
@@ -339,8 +340,7 @@ IN_PROC_BROWSER_TEST_F(WebInstallFromUrlCommandBrowserTest,
   std::string manifest_id =
       install_url.GetWithoutFilename().spec() + "index.html";
 
-  auto auto_accept_pwa_install_confirmation =
-      SetAutoAcceptPWAInstallConfirmationForTesting();
+  web_app::test::ScopedAutoAcceptWebAppDialogs auto_accept_pwa;
   SetPermissionResponse(/*permission_granted=*/true);
   base::HistogramTester histograms;
   ASSERT_TRUE(TryInstallApp(install_url.spec(), manifest_id));
@@ -410,8 +410,7 @@ IN_PROC_BROWSER_TEST_F(WebInstallFromUrlCommandBrowserTest,
 IN_PROC_BROWSER_TEST_F(WebInstallFromUrlCommandBrowserTest,
                        InstallApp_FromPWAWindow) {
   // Install setup
-  auto auto_accept_pwa_install_confirmation =
-      SetAutoAcceptPWAInstallConfirmationForTesting();
+  web_app::test::ScopedAutoAcceptWebAppDialogs auto_accept_pwa;
   base::HistogramTester histograms;
 
   // Install the pwa to use to call `navigator.install()` from within.
@@ -429,8 +428,6 @@ IN_PROC_BROWSER_TEST_F(WebInstallFromUrlCommandBrowserTest,
       "/banners/manifest_with_id_test_page.html");
   const GURL manifest_id = embedded_https_test_server().GetURL("/some_id");
 
-  base::AutoReset<bool> auto_accept =
-      SetAutoAcceptPWAInstallConfirmationForTesting();
   SetPermissionResponse(/*permission_granted=*/true, app_web_contents);
   // !Important! Because the 2 apps share a scope, we need to pass manifest_id
   // here to ensure an accurate app lookup. If we don't, we'll end up matching
@@ -495,8 +492,7 @@ IN_PROC_BROWSER_TEST_F(WebInstallFromUrlCommandBrowserTest,
       install_url.GetWithoutFilename().spec() + "index.html";
   base::HistogramTester histograms;
 
-  auto auto_accept_pwa_install_confirmation =
-      SetAutoAcceptPWAInstallConfirmationForTesting();
+  web_app::test::ScopedAutoAcceptWebAppDialogs auto_accept_pwa;
   SetPermissionResponse(/*permission_granted=*/true);
   ASSERT_TRUE(TryInstallApp(install_url.spec(), manifest_id));
 
@@ -615,8 +611,7 @@ IN_PROC_BROWSER_TEST_F(WebInstallFromUrlCommandBrowserTest,
       install_url.GetWithoutFilename().spec() + "index.html";
   base::HistogramTester histograms;
 
-  auto auto_accept_pwa_install_confirmation =
-      SetAutoAcceptPWAInstallConfirmationForTesting();
+  web_app::test::ScopedAutoAcceptWebAppDialogs auto_accept_pwa;
   SetPermissionResponse(/*permission_granted=*/true);
   ASSERT_TRUE(TryInstallApp(install_url.spec(), manifest_id));
 
@@ -737,8 +732,7 @@ IN_PROC_BROWSER_TEST_F(WebInstallFromUrlCommandBrowserTest,
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), current_doc_url));
 
   base::HistogramTester histograms;
-  auto auto_accept_pwa_install_confirmation =
-      SetAutoAcceptPWAInstallConfirmationForTesting();
+  web_app::test::ScopedAutoAcceptWebAppDialogs auto_accept_pwa;
   // No permission should be required.
   SetPermissionResponse(/*permission_granted=*/false);
 
@@ -1114,8 +1108,7 @@ IN_PROC_BROWSER_TEST_F(WebInstallBackgroundAppAlreadyInstalledBrowserTest,
       "/banners/manifest_with_id_test_page.html");
   const std::string manifest_id =
       GenerateManifestId("some_id", install_url).spec();
-  auto auto_accept_pwa_install_confirmation =
-      SetAutoAcceptPWAInstallConfirmationForTesting();
+  web_app::test::ScopedAutoAcceptWebAppDialogs auto_accept_pwa;
 
   Browser* app_browser =
       web_app::InstallWebAppFromPageGetBrowser(browser(), install_url);
@@ -1194,8 +1187,7 @@ IN_PROC_BROWSER_TEST_F(WebInstallBackgroundAppAlreadyInstalledBrowserTest,
 
   // Initialize first install.
   SetPermissionResponse(/*permission_granted=*/true);
-  auto auto_accept_pwa_install_confirmation =
-      SetAutoAcceptPWAInstallConfirmationForTesting();
+  web_app::test::ScopedAutoAcceptWebAppDialogs auto_accept_pwa;
 
   ASSERT_TRUE(TryInstallApp(install_url.spec(), manifest_id.spec()));
   EXPECT_TRUE(ResultExists());
@@ -1285,8 +1277,7 @@ IN_PROC_BROWSER_TEST_F(WebInstallBackgroundAppAlreadyInstalledBrowserTest,
   ASSERT_TRUE(info_result.has_value());
   std::unique_ptr<WebAppInstallInfo> info =
       std::make_unique<WebAppInstallInfo>(std::move(info_result.value()));
-  auto auto_accept_pwa_install_confirmation =
-      SetAutoAcceptPWAInstallConfirmationForTesting();
+  web_app::test::ScopedAutoAcceptWebAppDialogs auto_accept_pwa;
 
   // Install the app.
   webapps::AppId app_id =
@@ -1405,8 +1396,7 @@ IN_PROC_BROWSER_TEST_P(WebInstallFromUrlCommandBrowserTest, LaunchApp) {
   // Prepare to invoke navigator.install for the already installed app, which
   // should initiate the *install* dialog.
   base::HistogramTester histograms;
-  auto auto_accept_pwa_install_confirmation =
-      SetAutoAcceptPWAInstallConfirmationForTesting();
+  web_app::test::ScopedAutoAcceptWebAppDialogs auto_accept_pwa;
   SetPermissionResponse(/*permission_granted=*/true);
 
   NavigateToValidUrl();
@@ -1482,8 +1472,7 @@ IN_PROC_BROWSER_TEST_F(WebInstallFromUrlCommandBrowserTest,
   base::HistogramTester histograms;
   SetPermissionResponse(/*permission_granted=*/true);
   // Simulate the user declining the install dialog.
-  auto auto_decline_pwa_install_confirmation =
-      SetAutoDeclinePWAInstallConfirmationForTesting();
+  web_app::test::ScopedAutoDeclineInstallDialogs auto_decline;
 
   ASSERT_TRUE(TryInstallApp(install_url.spec()));
 
@@ -2099,4 +2088,79 @@ IN_PROC_BROWSER_TEST_F(WebInstallFromUrlCommandDialogTest,
       url_formatter::FormatUrlForDisplayOmitSchemePathAndTrivialSubdomains(
           install_url));
 }
+
+IN_PROC_BROWSER_TEST_F(WebInstallFromUrlCommandBrowserTest,
+                       InstallApp_CrossOrigin_NavigatedDuringInstall) {
+  net::EmbeddedTestServer third_server{net::EmbeddedTestServer::TYPE_HTTPS};
+  third_server.AddDefaultHandlers(GetChromeTestDataDir());
+  net::test_server::ControllableHttpResponse manifest_response(
+      &third_server, "/web_apps/install_url/manifest.json");
+  ASSERT_TRUE(third_server.Start());
+
+  // Navigate to attacker.com (primary server)
+  NavigateToValidUrl();
+
+  GURL install_url =
+      third_server.GetURL("/web_apps/install_url/install_url.html");
+
+  SetPermissionResponse(/*permission_granted=*/true);
+
+  // Call navigator.install asynchronously.
+  ExecuteScriptAsync(web_contents(),
+                     "navigator.install('" + install_url.spec() + "');");
+
+  // Wait for manifest request.
+  manifest_response.WaitForRequest();
+
+  // Navigate the initiating tab to trusted.com (third_server)
+  GURL trusted_url = third_server.GetURL("/simple.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), trusted_url));
+
+  // Send the manifest.
+  std::string manifest_content = R"({
+    "name": "Simple web app",
+    "id": "some_id",
+    "icons": [
+      {
+        "src": "basic-48.png",
+        "sizes": "48x48",
+        "type": "image/png"
+      },
+      {
+        "src": "basic-192.png",
+        "sizes": "192x192",
+        "type": "image/png"
+      }
+    ],
+    "start_url": "index.html",
+    "display": "standalone",
+    "scope": "."
+  })";
+  manifest_response.Send(net::HTTP_OK, "application/manifest+json",
+                         manifest_content);
+  manifest_response.Done();
+
+  // Wait for the install dialog to show.
+  views::NamedWidgetShownWaiter widget_waiter(
+      views::test::AnyWidgetTestPasskey{}, "WebAppSimpleInstallDialog");
+  views::Widget* widget = widget_waiter.WaitIfNeededAndGet();
+  ASSERT_NE(widget, nullptr);
+
+  // Verify the initiating origin subtitle label is attacker.com (primary
+  // server), NOT trusted.com (third_server) even though we navigated there.
+  std::u16string expected_initiating_origin = base::ReplaceStringPlaceholders(
+      u"from: 127.0.0.1:$1",
+      base::span<const std::u16string>(
+          {base::NumberToString16(embedded_https_test_server().port())}),
+      nullptr);
+  views::BubbleDialogDelegate* const bubble_delegate =
+      widget->widget_delegate()->AsBubbleDialogDelegate();
+  EXPECT_EQ(bubble_delegate->GetSubtitle(), expected_initiating_origin);
+
+  // Clean up.
+  views::test::WidgetDestroyedWaiter destroyed(widget);
+  views::test::CancelDialog(widget);
+  destroyed.Wait();
+}
+
 }  // namespace web_app

@@ -8,7 +8,13 @@
 
 #include "components/autofill/core/browser/webdata/autocomplete/autocomplete_table_label_sensitive.h"
 
-#include <memory>
+#include <stddef.h>
+#include <stdint.h>
+
+#include <ctime>
+#include <limits>
+#include <optional>
+#include <set>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -17,22 +23,25 @@
 #include "base/check_deref.h"
 #include "base/i18n/case_conversion.h"
 #include "base/i18n/unicodestring.h"
-#include "base/notreached.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/time/time.h"
 #include "components/autofill/core/browser/webdata/autocomplete/autocomplete_entry_label_sensitive.h"
+#include "components/autofill/core/browser/webdata/autofill_table_utils.h"
 #include "components/autofill/core/common/autofill_clock.h"
 #include "components/autofill/core/common/autofill_constants.h"
 #include "components/autofill/core/common/form_field_data.h"
 #include "components/webdata/common/web_database.h"
+#include "components/webdata/common/web_database_table.h"
 #include "sql/statement.h"
+#include "sql/statement_id.h"
 #include "sql/table_management_helpers.h"
 #include "sql/transaction.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 #include "third_party/icu/source/common/unicode/normalizer2.h"
 #include "third_party/icu/source/common/unicode/uchar.h"
 #include "third_party/icu/source/common/unicode/unistr.h"
+#include "third_party/icu/source/common/unicode/urename.h"
 #include "third_party/icu/source/common/unicode/utypes.h"
-#include "ui/base/l10n/l10n_util.h"
 
 namespace autofill {
 
@@ -214,7 +223,7 @@ bool AutocompleteTableLabelSensitive::GetFormValuesForElementNameAndLabel(
       "  MAX(count) AS max_count "
       "FROM autocomplete, inputs "
       "WHERE (name = inputs._name OR (label != '' AND label_normalized = "
-      "inputs._label)) AND value_lower LIKE inputs._prefix "
+      "inputs._label)) AND value_lower LIKE inputs._prefix ESCAPE '\\' "
       "GROUP BY value, matching_type "
       "ORDER BY "
       "  CASE "
@@ -225,7 +234,8 @@ bool AutocompleteTableLabelSensitive::GetFormValuesForElementNameAndLabel(
       "LIMIT ?"));
   s.BindString16(0, name);
   s.BindString16(1, NormalizeLabel(label));
-  s.BindString16(2, base::i18n::ToLower(prefix) + u"%");
+  s.BindString16(2,
+                 EscapeLikePattern(base::i18n::ToLower(prefix), u'\\') + u"%");
 
   // Later in this function we remove duplicates. Potentially every matching
   // type can return entries with identical values. So to make sure we will
@@ -329,11 +339,11 @@ bool AutocompleteTableLabelSensitive::RemoveFormElementsAddedBetween(
   if (!s_delete.Run()) {
     return false;
   }
+  sql::Statement s_update;
+  sql::UpdateBuilder(*db(), s_update, kAutocompleteTableLabelSensitive,
+                     {kDateCreated, kDateLastUsed, kCount},
+                     /*where_clause=*/"name = ? AND label = ? AND value = ?");
   for (const auto& update : updates) {
-    sql::Statement s_update;
-    sql::UpdateBuilder(*db(), s_update, kAutocompleteTableLabelSensitive,
-                       {kDateCreated, kDateLastUsed, kCount},
-                       /*where_clause=*/"name = ? AND label = ? AND value = ?");
     s_update.BindInt64(0, update.date_created);
     s_update.BindInt64(1, update.date_last_used);
     s_update.BindInt(2, update.count);
@@ -343,6 +353,7 @@ bool AutocompleteTableLabelSensitive::RemoveFormElementsAddedBetween(
     if (!s_update.Run()) {
       return false;
     }
+    s_update.Reset(/*clear_bound_vars=*/true);
   }
   if (!transaction.Commit()) {
     return false;
@@ -405,8 +416,9 @@ int AutocompleteTableLabelSensitive::GetCountOfValuesContainedBetween(
 bool AutocompleteTableLabelSensitive::GetAllAutocompleteEntries(
     std::vector<AutocompleteEntryLabelSensitive>* entries) {
   sql::Statement s;
-  sql::SelectBuilder(*db(), s, kAutocompleteTableLabelSensitive,
-                     {kName, kLabel, kValue, kDateCreated, kDateLastUsed});
+  sql::CachedSelectBuilder(
+      SQL_FROM_HERE, *db(), s, kAutocompleteTableLabelSensitive,
+      {kName, kLabel, kValue, kDateCreated, kDateLastUsed});
 
   while (s.Step()) {
     std::u16string name = s.ColumnString16(0);
@@ -427,10 +439,11 @@ AutocompleteTableLabelSensitive::GetAutocompleteEntryLabelSensitive(
     std::u16string_view label,
     std::u16string_view value) {
   sql::Statement s;
-  sql::SelectBuilder(*db(), s, kAutocompleteTableLabelSensitive,
-                     {kDateCreated, kDateLastUsed},
-                     /*modifiers=*/
-                     "WHERE name = ? AND label = ? AND value = ?");
+  sql::CachedSelectBuilder(SQL_FROM_HERE, *db(), s,
+                           kAutocompleteTableLabelSensitive,
+                           {kDateCreated, kDateLastUsed},
+                           /*modifiers=*/
+                           "WHERE name = ? AND label = ? AND value = ?");
   s.BindString16(0, name);
   s.BindString16(1, label);
   s.BindString16(2, value);
@@ -457,7 +470,8 @@ bool AutocompleteTableLabelSensitive::AddFormFieldValueTime(
 
   // Always try to update counts of all entries that would contribute to correct
   // suggestion.
-  sql::Statement update_statement(db()->GetUniqueStatement(
+  sql::Statement update_statement(db()->GetCachedStatement(
+      SQL_FROM_HERE,
       "UPDATE autocomplete SET date_last_used = ?, count = count + 1 "
       "WHERE (name = ? OR (label_normalized = ? AND label_normalized != '')) "
       "AND value = ?"));
@@ -474,10 +488,11 @@ bool AutocompleteTableLabelSensitive::AddFormFieldValueTime(
                                           element.value())
            .has_value()) {
     sql::Statement create_statement;
-    sql::InsertBuilder(*db(), create_statement,
-                       kAutocompleteTableLabelSensitive,
-                       {kName, kLabel, kLabelNormalized, kValue, kValueLower,
-                        kDateCreated, kDateLastUsed, kCount});
+    sql::CachedInsertBuilder(
+        SQL_FROM_HERE, *db(), create_statement,
+        kAutocompleteTableLabelSensitive,
+        {kName, kLabel, kLabelNormalized, kValue, kValueLower, kDateCreated,
+         kDateLastUsed, kCount});
     create_statement.BindString16(0, element.name());
     create_statement.BindString16(1, element.label());
     create_statement.BindString16(2, NormalizeLabel(element.label()));

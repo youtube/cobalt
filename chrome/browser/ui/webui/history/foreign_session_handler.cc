@@ -294,6 +294,28 @@ void ForeignSessionHandler::OpenForeignSessionTab(
       modifiers->middle_button, modifiers->alt_key, modifiers->ctrl_key,
       modifiers->meta_key, modifiers->shift_key);
 
+  if (side_panel_ui_ && disposition == WindowOpenDisposition::CURRENT_TAB) {
+    // In the side panel, never replace the current tab but open a new tab
+    // instead.
+    disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+  }
+
+  if (side_panel_ui_ && side_panel_ui_->metrics_recorder()) {
+    size_t device_index = 0;
+    std::vector<raw_ptr<const sync_sessions::SyncedSession, VectorExperimental>>
+        sessions;
+    if (open_tabs->GetAllForeignSessions(&sessions)) {
+      auto it = std::ranges::find(sessions, session_tag,
+                                  &sync_sessions::SyncedSession::GetSessionTag);
+      // Note: In practice, the session should always be found, since
+      // GetForeignTab() returned non-null above.
+      if (it != sessions.end()) {
+        device_index = std::distance(sessions.begin(), it);
+      }
+    }
+    side_panel_ui_->metrics_recorder()->RecordTabOpened(device_index);
+  }
+
   // If this is in the side panel, `web_contents_` refers to the content of the
   // side panel, *not* the main tab where the foreign tab should be restored.
   content::WebContents* web_contents =
@@ -302,10 +324,8 @@ void ForeignSessionHandler::OpenForeignSessionTab(
                            ->GetActiveWebContents()
                      : web_contents_.get();
   restore_tab_callback_.Run(web_contents, *tab, disposition);
-
-  if (side_panel_ui_ && side_panel_ui_->metrics_recorder()) {
-    side_panel_ui_->metrics_recorder()->RecordTabOpened();
-  }
+  // Note: As a consequence of running the callback, `this` may have been
+  // destroyed!
 }
 
 void ForeignSessionHandler::DeleteForeignSession(
@@ -386,6 +406,9 @@ ForeignSessionHandler::GetForeignSessionsInternal() {
       }
     }
 
+    size_t total_tab_count = 0;
+    size_t active_device_tab_count = 0;
+
     // Note: we don't own the SyncedSessions themselves.
     for (size_t i = 0; i < sessions.size() && i < kMaxSessionsToShow; ++i) {
       const sync_sessions::SyncedSession* session = sessions[i];
@@ -415,6 +438,8 @@ ForeignSessionHandler::GetForeignSessionsInternal() {
 
       std::vector<history::mojom::ForeignSessionWindowPtr> windows;
 
+      size_t session_tab_count = 0;
+
       // Order tabs by visual order within window.
       for (const auto& window_pair : session->windows) {
         history::mojom::ForeignSessionWindowPtr window_mojom =
@@ -422,10 +447,23 @@ ForeignSessionHandler::GetForeignSessionsInternal() {
         if (window_mojom) {
           windows.push_back(std::move(window_mojom));
         }
+
+        session_tab_count += window_pair.second->wrapped_window.tabs.size();
       }
+
+      if (i == 0) {
+        active_device_tab_count = session_tab_count;
+      }
+      total_tab_count += session_tab_count;
 
       session_mojom->windows = std::move(windows);
       session_list.push_back(std::move(session_mojom));
+    }
+
+    if (side_panel_ui_ && side_panel_ui_->metrics_recorder() &&
+        !side_panel_ui_->metrics_recorder()->HasRecordedTabCount()) {
+      side_panel_ui_->metrics_recorder()->RecordTabCountOnOpen(
+          session_list.size(), total_tab_count, active_device_tab_count);
     }
   }
   return session_list;

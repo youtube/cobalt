@@ -22,6 +22,7 @@
 #include "chrome/browser/ui/views/toolbar/webui_split_tabs_control.h"
 #include "chrome/browser/ui/webui/webui_toolbar/adapters/navigation_controls_state_fetcher.h"
 #include "chrome/browser/ui/webui/webui_toolbar/browser_controls_service.h"
+#include "chrome/browser/ui/webui/webui_toolbar/icon_table.h"
 #include "chrome/browser/ui/webui/webui_toolbar/toolbar_ui_service.h"
 #include "chrome/browser/ui/webui/webui_toolbar/webui_toolbar_ui.h"
 #include "chrome/common/webui_url_constants.h"
@@ -55,6 +56,8 @@ class WebUIToolbarControlDelegate {
   // Announces an alert to accessibility screen readers.
   virtual void AnnounceAlert(const std::u16string& announcement) = 0;
 
+  virtual webui_toolbar::IconTable& GetIconTable() = 0;
+
   // Indicate preferred size of a toolbar control has changed. This results in
   // synchronously fully recalculating layout to see if anything needs to be
   // changed, so should only be called when something actually changed.
@@ -80,6 +83,8 @@ class WebUIToolbarControlDelegate {
   virtual void OnContentSettingChanged(
       std::vector<toolbar_ui_api::mojom::ContentSettingImageStatePtr>
           state) = 0;
+  virtual void OnAvatarControlStateChanged(
+      toolbar_ui_api::mojom::AvatarControlStatePtr state) = 0;
 
   // Read the latest pinned toolbar actions state.
   virtual const std::vector<toolbar_ui_api::mojom::PinnedToolbarActionStatePtr>&
@@ -98,7 +103,8 @@ class WebUIToolbarWebView
       public browser_controls_api::BrowserControlsService::
           BrowserControlsServiceDelegate,
       public WebUIToolbarUI::DependencyProvider,
-      public WebUIToolbarControlDelegate {
+      public WebUIToolbarControlDelegate,
+      public webui_toolbar::IconTable::Delegate {
   METADATA_HEADER(WebUIToolbarWebView, views::View)
 
  public:
@@ -130,6 +136,8 @@ class WebUIToolbarWebView
   GetToolbarUIServiceDelegate() override;
   std::unique_ptr<toolbar_ui_api::NavigationControlsStateFetcher>
   GetNavigationControlsStateFetcher() override;
+  std::unique_ptr<toolbar_ui_api::IconTableFetcher> GetIconTableFetcher()
+      override;
   CommandUpdater* GetCommandUpdater() override;
 
   // ToolbarUIService::ToolbarUIServiceDelegate:
@@ -157,7 +165,9 @@ class WebUIToolbarWebView
       toolbar_ui_api::mojom::LhsChipIdentifier identifier) override;
   void OnHomeButtonDropUrl(const GURL& url) override;
   void OnHomeButtonDropFile(const gfx::PointF& drop_position) override;
+  void OnToolbarDropFile(const gfx::PointF& drop_position) override;
   void OnOmniboxAction(toolbar_ui_api::mojom::OmniboxActionPtr action) override;
+  void ShowAvatarMenu() override;
 
   // BrowserControlsService::BrowserControlsServiceDelegate:
   void PermitLaunchUrl() override;
@@ -176,6 +186,10 @@ class WebUIToolbarWebView
   void DidFirstVisuallyNonEmptyPaint() override;
   void PrimaryMainFrameRenderProcessGone(
       base::TerminationStatus status) override;
+
+  // webui_toolbar::IconTable::Delegate:
+  const ui::ColorProvider* GetColorProvider() const override;
+  float GetScaleFactor() const override;
 
   void SetDidFirstNonEmptyPaintCallbackForTesting(base::OnceClosure callback);
   void SetTickClockForTesting(const base::TickClock* clock);
@@ -212,12 +226,15 @@ class WebUIToolbarWebView
                            DropFileOnHomeButtonAndUndo);
   FRIEND_TEST_ALL_PREFIXES(WebUIToolbarWebViewPixelBrowserTest,
                            BackForwardButtonsModifierClick);
+  FRIEND_TEST_ALL_PREFIXES(WebUIToolbarSurfaceSyncBrowserTest,
+                           SetsDeadlineOnInit);
 
   // WebUIToolbarControlDelegate:
   BrowserWindowInterface* GetBrowser() override;
   chrome::BrowserCommandController* GetCommandController() override;
   views::View* GetView() override;
   void AnnounceAlert(const std::u16string& announcement) override;
+  webui_toolbar::IconTable& GetIconTable() override;
   void OnPreferredSizeChanged() override;
   void OnReloadControlStateChanged(
       toolbar_ui_api::mojom::ReloadControlStatePtr state) override;
@@ -240,6 +257,8 @@ class WebUIToolbarWebView
       override;
   const std::vector<toolbar_ui_api::mojom::PinnedToolbarActionStatePtr>&
   GetPinnedToolbarActionsState() const override;
+  void OnAvatarControlStateChanged(
+      toolbar_ui_api::mojom::AvatarControlStatePtr state) override;
 
   toolbar_ui_api::mojom::NavigationControlsStatePtr
   GetNavigationControlsState();
@@ -260,6 +279,10 @@ class WebUIToolbarWebView
   };
 
   void SetInitializationState(InitializationState new_state);
+
+  // Applies the specified surface synchronization deadline in frames to both
+  // the toolbar and the active main content's RenderWidgetHostView.
+  void SetSurfaceSyncDeadline(std::optional<uint32_t> deadline_in_frames);
 
   WebUIToolbarUI* GetWebUIToolbarUI();
 
@@ -283,6 +306,8 @@ class WebUIToolbarWebView
 
   const raw_ptr<BrowserWindowInterface> browser_;
   const raw_ptr<chrome::BrowserCommandController> controller_;
+
+  webui_toolbar::IconTable icon_table_;
 
   // Classes that manage individual controls. They are responsible for informing
   // `this` when the state of the control changes. Though most are statically

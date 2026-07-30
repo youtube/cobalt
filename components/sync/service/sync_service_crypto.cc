@@ -14,8 +14,9 @@
 #include "base/strings/to_string.h"
 #include "base/task/sequenced_task_runner.h"
 #include "components/os_crypt/async/common/encryptor.h"
+#include "components/sync/base/custom_passphrase_bootstrap_token.h"
 #include "components/sync/base/passphrase_enums.h"
-#include "components/sync/engine/nigori/nigori.h"
+#include "components/sync/engine/required_passphrase_verifier.h"
 #include "components/sync/engine/sync_string_conversions.h"
 #include "components/sync/protocol/nigori_specifics.pb.h"
 #include "components/sync/service/sync_service.h"
@@ -35,19 +36,23 @@ class SyncEncryptionObserverProxy : public SyncEncryptionHandler::Observer {
       : observer_(observer), task_runner_(std::move(task_runner)) {}
 
   void OnPassphraseRequired(
-      const KeyDerivationParams& key_derivation_params,
-      const sync_pb::EncryptedData& pending_keys) override {
+      std::unique_ptr<RequiredPassphraseVerifier> verifier) override {
     task_runner_->PostTask(
         FROM_HERE,
         base::BindOnce(&SyncEncryptionHandler::Observer::OnPassphraseRequired,
-                       observer_, key_derivation_params, pending_keys));
+                       observer_, std::move(verifier)));
   }
 
-  void OnPassphraseAccepted() override {
+  void OnPassphraseAccepted(
+      const CustomPassphraseBootstrapToken& bootstrap_token) override {
+    // `base::BindOnce` stores `bootstrap_token` by value, which invokes its
+    // copy constructor. The token's underlying protobuf message performs a deep
+    // copy of all internal heap-allocated string/bytes fields, ensuring
+    // thread-safe cross-thread posting.
     task_runner_->PostTask(
         FROM_HERE,
         base::BindOnce(&SyncEncryptionHandler::Observer::OnPassphraseAccepted,
-                       observer_));
+                       observer_, bootstrap_token));
   }
 
   void OnTrustedVaultKeyRequired() override {
@@ -99,18 +104,7 @@ class SyncEncryptionObserverProxy : public SyncEncryptionHandler::Observer {
   scoped_refptr<base::SequencedTaskRunner> task_runner_;
 };
 
-// Checks if `nigori` can be used to decrypt the given pending keys. Returns
-// true if decryption was successful. Returns false otherwise. Must be called
-// with non-empty pending keys cache.
-bool CheckNigoriAgainstPendingKeys(const Nigori& nigori,
-                                   const sync_pb::EncryptedData& pending_keys) {
-  DCHECK(pending_keys.has_blob());
 
-  std::string plaintext;
-  bool decrypt_result = nigori.Decrypt(pending_keys.blob(), &plaintext);
-  DVLOG_IF(1, !decrypt_result) << "Passphrase failed to decrypt pending keys.";
-  return decrypt_result;
-}
 
 }  // namespace
 
@@ -135,6 +129,11 @@ void SyncServiceCrypto::SetEncryptor(
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   encryptor_ = std::move(encryptor);
   CHECK(encryptor_);
+}
+
+const os_crypt_async::Encryptor* SyncServiceCrypto::GetEncryptor() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return encryptor_.get();
 }
 
 void SyncServiceCrypto::Reset() {
@@ -221,76 +220,25 @@ void SyncServiceCrypto::SetEncryptionPassphrase(const std::string& passphrase) {
   DCHECK(!IsExplicitPassphrase(
       GetPassphraseType().value_or(PassphraseType::kKeystorePassphrase)));
 
-  const auto key_derivation_params =
-      KeyDerivationParams::CreateForScrypt(Nigori::GenerateScryptSalt());
-  state_.engine->SetEncryptionPassphrase(passphrase, key_derivation_params);
-
-  // Immediately store new bootstrap token.
-  std::unique_ptr<Nigori> nigori =
-      Nigori::CreateByDerivation(key_derivation_params, passphrase);
-  DCHECK(nigori);
-  delegate_->SetEncryptionBootstrapToken(
-      SerializeNigoriAsBootstrapToken(*nigori));
+  state_.engine->SetEncryptionPassphrase(passphrase);
 }
 
 bool SyncServiceCrypto::SetDecryptionPassphrase(const std::string& passphrase) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   // This should only be called when the engine has been initialized.
   DCHECK(state_.engine);
-
   // We should never be called with an empty passphrase.
   DCHECK(!passphrase.empty());
 
-  // This should only be called when we have cached pending keys.
-  DCHECK(state_.cached_pending_keys.has_blob());
-
-  // For types other than CUSTOM_PASSPHRASE, we should be using the old PBKDF2
-  // key derivation method.
-  if (GetPassphraseType() != PassphraseType::kCustomPassphrase) {
-    DCHECK_EQ(state_.passphrase_key_derivation_params.method(),
-              KeyDerivationMethod::PBKDF2_HMAC_SHA1_1003);
+  if (!state_.required_passphrase_verifier ||
+      !state_.required_passphrase_verifier->IsValidDecryptionPassphrase(
+          passphrase)) {
+    return false;
   }
 
-  std::unique_ptr<Nigori> nigori = Nigori::CreateByDerivation(
-      state_.passphrase_key_derivation_params, passphrase);
-  DCHECK(nigori);
-
-  // Update the bootstrap token immediately, this is harmless as bootstrap token
-  // is ignored if it doesn't contain the right key.
-  delegate_->SetEncryptionBootstrapToken(
-      SerializeNigoriAsBootstrapToken(*nigori));
-
-  return SetDecryptionKeyWithoutUpdatingBootstrapToken(std::move(nigori));
-}
-
-void SyncServiceCrypto::SetExplicitPassphraseDecryptionNigoriKey(
-    std::unique_ptr<Nigori> nigori) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-
-  DCHECK(nigori);
-  if (state_.required_user_action != RequiredUserAction::kPassphraseRequired) {
-    // Passphrase not required, ignore the call.
-    return;
-  }
-
-  // Update the bootstrap token immediately, this is harmless as bootstrap token
-  // is ignored if it doesn't contain the right key.
-  delegate_->SetEncryptionBootstrapToken(
-      SerializeNigoriAsBootstrapToken(*nigori));
-
-  if (state_.engine) {
-    // Engine being initialized isn't a precondition of this method. In case
-    // it's not initialized, decryption passphrase will be set later, upon
-    // initialization.
-    SetDecryptionKeyWithoutUpdatingBootstrapToken(std::move(nigori));
-  }
-}
-
-std::unique_ptr<Nigori>
-SyncServiceCrypto::GetExplicitPassphraseDecryptionNigoriKey() const {
-  CHECK(state_.engine);
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  return ReadNigoriFromBootstrapToken(delegate_->GetEncryptionBootstrapToken());
+  state_.engine->SetDecryptionPassphrase(passphrase);
+  ResolvePendingKeysRequiredState();
+  return true;
 }
 
 bool SyncServiceCrypto::IsTrustedVaultKeyRequiredStateKnown() const {
@@ -393,15 +341,10 @@ bool SyncServiceCrypto::HasCryptoError() const {
 }
 
 void SyncServiceCrypto::OnPassphraseRequired(
-    const KeyDerivationParams& key_derivation_params,
-    const sync_pb::EncryptedData& pending_keys) {
+    std::unique_ptr<RequiredPassphraseVerifier> verifier) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  // Update our cache of the cryptographer's pending keys.
-  state_.cached_pending_keys = pending_keys;
-
-  // Update the key derivation params to be used.
-  state_.passphrase_key_derivation_params = key_derivation_params;
+  state_.required_passphrase_verifier = std::move(verifier);
 
   DVLOG(1) << "Passphrase required.";
 
@@ -416,11 +359,21 @@ void SyncServiceCrypto::OnPassphraseRequired(
   MaybeSetDecryptionKeyFromBootstrapToken();
 }
 
-void SyncServiceCrypto::OnPassphraseAccepted() {
+void SyncServiceCrypto::OnPassphraseAccepted(
+    const CustomPassphraseBootstrapToken& bootstrap_token) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!bootstrap_token.IsEmpty()) {
+    CHECK(encryptor_);
+    delegate_->SetEncryptionBootstrapToken(bootstrap_token, *encryptor_);
+  }
+  ResolvePendingKeysRequiredState();
+}
+
+void SyncServiceCrypto::ResolvePendingKeysRequiredState() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  // Clear our cache of the cryptographer's pending keys.
-  state_.cached_pending_keys.clear_blob();
+  // Clear our cached passphrase verifier.
+  state_.required_passphrase_verifier.reset();
 
   // Reset `required_user_action` since we know we no longer require the
   // passphrase.
@@ -772,104 +725,23 @@ void SyncServiceCrypto::GetIsRecoverabilityDegradedCompleted(
   }
 }
 
-bool SyncServiceCrypto::SetDecryptionKeyWithoutUpdatingBootstrapToken(
-    std::unique_ptr<Nigori> nigori) {
-  DCHECK(nigori);
-  // This should only be called when we have cached pending keys.
-  DCHECK(state_.cached_pending_keys.has_blob());
-
-  // Check the passphrase that was provided against our local cache of the
-  // cryptographer's pending keys (which we cached during a previous
-  // OnPassphraseRequired() event). If this was unsuccessful, the UI layer can
-  // immediately call OnPassphraseRequired() again without showing the user a
-  // spinner.
-  if (!CheckNigoriAgainstPendingKeys(*nigori, state_.cached_pending_keys)) {
-    return false;
-  }
-
-  state_.engine->SetExplicitPassphraseDecryptionKey(std::move(nigori));
-
-  // Since we were able to decrypt the cached pending keys with the passphrase
-  // provided, we immediately alert the UI layer that the passphrase was
-  // accepted. This will avoid the situation where a user enters a passphrase,
-  // clicks OK, immediately reopens the advanced settings dialog, and gets an
-  // unnecessary prompt for a passphrase.
-  // Note: It is not guaranteed that the passphrase will be accepted by the
-  // syncer thread, since we could receive a new nigori node while the task is
-  // pending. This scenario is a valid race, and
-  // SetExplicitPassphraseDecryptionKey() can trigger a new
-  // OnPassphraseRequired() if it needs to.
-  OnPassphraseAccepted();
-  return true;
-}
-
 void SyncServiceCrypto::MaybeSetDecryptionKeyFromBootstrapToken() {
   if (!state_.engine) {
     // Engine initialization isn't complete yet, attempt decryption upon
     // initialization.
     return;
   }
-  std::unique_ptr<Nigori> nigori =
-      ReadNigoriFromBootstrapToken(delegate_->GetEncryptionBootstrapToken());
-  if (!nigori) {
+  CHECK(encryptor_);
+  CustomPassphraseBootstrapToken token =
+      delegate_->GetEncryptionBootstrapToken(*encryptor_);
+  if (!state_.required_passphrase_verifier ||
+      !state_.required_passphrase_verifier->IsValidDecryptionBootstrapToken(
+          token)) {
     return;
   }
 
-  SetDecryptionKeyWithoutUpdatingBootstrapToken(std::move(nigori));
-}
-
-std::unique_ptr<Nigori> SyncServiceCrypto::ReadNigoriFromBootstrapToken(
-    const std::string& bootstrap_token) const {
-  if (bootstrap_token.empty()) {
-    return nullptr;
-  }
-
-  std::string decoded_key;
-  if (!base::Base64Decode(bootstrap_token, &decoded_key)) {
-    return nullptr;
-  }
-
-  std::string decrypted_key;
-  CHECK(encryptor_);
-  bool decryption_result =
-      encryptor_->DecryptString(decoded_key, &decrypted_key);
-  base::UmaHistogramBoolean("Sync.BootstrapTokenDecryptionResult",
-                            decryption_result);
-  if (!decryption_result) {
-    return nullptr;
-  }
-
-  sync_pb::NigoriKey key;
-  if (!key.ParseFromString(decrypted_key)) {
-    return nullptr;
-  }
-
-  return Nigori::CreateByImport(key.deprecated_user_key(), key.encryption_key(),
-                                key.mac_key());
-}
-
-std::string SyncServiceCrypto::SerializeNigoriAsBootstrapToken(
-    const Nigori& nigori) {
-  sync_pb::NigoriKey proto;
-  nigori.ExportKeys(proto.mutable_deprecated_user_key(),
-                    proto.mutable_encryption_key(), proto.mutable_mac_key());
-
-  const std::string serialized_key = proto.SerializeAsString();
-  if (serialized_key.empty()) {
-    return std::string();
-  }
-
-  std::string encrypted_key;
-  CHECK(encryptor_);
-  bool encryption_result =
-      encryptor_->EncryptString(serialized_key, &encrypted_key);
-  base::UmaHistogramBoolean("Sync.BootstrapTokenEncryptionResult",
-                            encryption_result);
-  if (!encryption_result) {
-    return std::string();
-  }
-
-  return base::Base64Encode(encrypted_key);
+  state_.engine->SetDecryptionBootstrapToken(token);
+  ResolvePendingKeysRequiredState();
 }
 
 }  // namespace syncer

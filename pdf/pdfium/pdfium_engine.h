@@ -34,7 +34,6 @@
 #include "pdf/pdf_annotation_agent.h"
 #include "pdf/pdf_caret.h"
 #include "pdf/pdf_caret_client.h"
-#include "pdf/pdf_ink_text.h"
 #include "pdf/pdf_rect.h"
 #include "pdf/pdfium/pdfium_engine_client.h"
 #include "pdf/pdfium/pdfium_form_filler.h"
@@ -411,11 +410,19 @@ class PDFiumEngine : public DocumentLoader::Client,
 
   // See method of the same name in PdfInkModuleClient. Virtual to support
   // testing.
+  virtual void DiscardText(InkTextId id);
+
+  // See method of the same name in PdfInkModuleClient. Virtual to support
+  // testing.
   virtual void DrawText(int page_index,
                         InkTextId id,
                         base::span<const InkTextInfo> text_info,
                         double pdf_zoom,
                         const InkTextBoxAttributes& attributes);
+
+  // See method of the same name in PdfInkModuleClient. Virtual to support
+  // testing.
+  virtual void UpdateTextActiveAndInvalidate(InkTextId id, bool active);
 
   // Virtual to support testing.
   virtual gfx::Size GetThumbnailSize(int page_index, float device_pixel_ratio);
@@ -931,7 +938,8 @@ class PDFiumEngine : public DocumentLoader::Client,
   void FinishPaint(size_t progressive_index, SkBitmap& image_data);
 
   // Stops any paints that are in progress.
-  void CancelPaints();
+  // Returns the rectangles, in screen coordinates, that had painting canceled.
+  std::vector<gfx::Rect> CancelPaints();
 
   // Invalidates all pages. Use this when some global parameter, such as page
   // orientation, has changed.
@@ -1399,10 +1407,11 @@ class PDFiumEngine : public DocumentLoader::Client,
   std::vector<PDFiumRange> text_fragment_highlights_;
 
 #if BUILDFLAG(ENABLE_PDF_INK2)
-  // Map of zero-based page indices with Ink strokes to page unload preventers.
-  // Pages with Ink strokes have page references in `ink_stroke_data_`, so these
-  // unload preventers ensure those page handles stay valid by keeping the page
-  // in memory.  Use one unload preventer per page for simplicity.
+  // Map of zero-based page indices with Ink edits to page unload preventers.
+  // Pages with edits have page references in `ink_stroke_data_` and/or
+  // `ink_text_data_`, so these unload preventers ensure those page handles stay
+  // valid by keeping the page in memory. Use one unload preventer per page for
+  // simplicity.
   std::map<int, PDFiumPage::ScopedPageUnloadPreventer>
       edited_pages_unload_preventers_;
 
@@ -1424,8 +1433,8 @@ class PDFiumEngine : public DocumentLoader::Client,
   std::map<InkStrokeId, InkStrokeData> ink_stroke_data_;
 
   // Tracks the pages which need to be regenerated before saving due to Ink
-  // stroke changes.
-  std::set<int> ink_stroked_pages_needing_regeneration_;
+  // changes.
+  std::set<int> ink_edited_pages_needing_regeneration_;
 
   // Stores the 0-based page indices for pages that have loaded shapes.
   // Unlike `ink_stroke_data_`, which is dynamic, the loaded shapes data is
@@ -1457,6 +1466,23 @@ class PDFiumEngine : public DocumentLoader::Client,
   // Generating globally unique IDs is a simple and safe way to prevent
   // collisions on all pages.
   std::set<int> existing_textbox_ids_;
+
+  struct InkTextData {
+    InkTextData(int page_index, std::vector<FPDF_PAGEOBJECT> page_objects);
+    InkTextData(InkTextData&&) noexcept;
+    InkTextData& operator=(InkTextData&&) noexcept;
+    ~InkTextData();
+
+    int page_index;
+
+    // The handles for text page objects within the PDF document.
+    // `edited_pages_unload_preventers_` protects these handles from going
+    // stale.
+    std::vector<FPDF_PAGEOBJECT> page_objects;
+  };
+
+  // Data associated with text annotations, keyed by text IDs.
+  std::map<InkTextId, InkTextData> ink_text_data_;
 #endif  // BUILDFLAG(ENABLE_PDF_INK2)
 
   base::WeakPtrFactory<PDFiumEngine> weak_factory_{this};

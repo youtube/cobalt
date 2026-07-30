@@ -298,7 +298,7 @@ std::optional<Color> HighlightStyleUtils::MaybeResolveColor(
                                  search_text_is_active_match);
   }
   if (pseudo_style) {
-    bool is_current_color;
+    bool is_current_color = false;
     Color result = pseudo_style->VisitedDependentColor(To<Longhand>(property),
                                                        &is_current_color);
     if (!is_current_color) {
@@ -345,14 +345,16 @@ Color HighlightStyleUtils::HighlightBackgroundColor(
     std::optional<Color> current_layer_color,
     PseudoId pseudo,
     bool preserve_privacy,
-    SearchTextIsActiveMatch search_text_is_active_match) {
+    SearchTextIsActiveMatch search_text_is_active_match,
+    const AtomicString& pseudo_argument) {
   if (pseudo == kPseudoIdSelection) {
     if (node && !style.IsSelectable()) {
       return Color::kTransparent;
     }
   }
 
-  const ComputedStyle* pseudo_style = HighlightPseudoStyle(style, pseudo);
+  const ComputedStyle* pseudo_style =
+      HighlightPseudoStyle(style, pseudo, pseudo_argument);
   Color result = ResolveColor(
       document, style, pseudo_style, pseudo, GetCSSPropertyBackgroundColor(),
       current_layer_color, preserve_privacy, search_text_is_active_match);

@@ -10,16 +10,6 @@ declare_args() {
   if (enable_starboard_media) {
     cast_static_media_lib_target =
         "//chromecast/starboard/media/media:starboard"
-  } else if (is_cast_desktop_build) {
-    # Non-starboard desktop builds should set cast_static_media_lib_target
-    # explicitly if desired.
-    cast_static_media_lib_target = ""
-  } else if (is_cast_audio_only) {
-    cast_static_media_lib_target =
-        "//chromecast/media/cma/backend/alsa:libcast_media_1.0_audio"
-  } else if (enable_video_with_mixed_audio) {
-    cast_static_media_lib_target =
-        "//chromecast/media/cma/backend/video:libcast_media_1.0_avsync"
   } else {
     cast_static_media_lib_target = ""
   }
@@ -51,16 +41,11 @@ group("libcast_media") {
   if (enable_chromium_runtime_cast_renderer) {
     deps += [ "//chromecast/media/cma/backend/proxy" ]
   }
-
-  if (cast_volume_control_in_avsettings) {
-    deps += [ "//chromecast/media/avsettings:libcast_avsettings_1.0" ]
-  }
 }
 
 test("cast_media_unittests") {
   sources = [
     "audio/cast_audio_manager_unittest.cc",
-    "audio/cast_audio_mixer_unittest.cc",
     "audio/cast_audio_output_stream_unittest.cc",
     "base/slew_volume_unittest.cc",
     "base/supported_codec_profile_levels_memo_unittest.cc",
@@ -87,8 +72,7 @@ test("cast_media_unittests") {
     "//chromecast/media/api:test_support",
     "//chromecast/media/audio:test_support",
     "//chromecast/media/audio:unittests",
-    "//chromecast/media/audio/capture_service:unittests",
-    "//chromecast/media/audio/mixer_service:unittests",
+
     "//chromecast/media/base:monotonic_clock",
     "//chromecast/media/base:slew_volume",
     "//chromecast/media/cma:test_support",

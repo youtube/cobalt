@@ -31,6 +31,7 @@ export function getHtml(this: OmniboxComposeboxElement) {
           <!-- TODO(crbug.com/486706573): Add back shouldDisableFileInputs_ when added to mixin-->
           <cr-composebox-file-inputs id="fileInputs"
               @file-change="${this.onFileChange}">
+            <!-- TODO(crbug.com/508287630): Add carousel. -->
                           ${this.shouldShowDivider() ? html`
             <div class="carousel-divider" part="carousel-divider"></div>
             ` : ''}
@@ -61,11 +62,21 @@ export function getHtml(this: OmniboxComposeboxElement) {
                       exportparts="context-menu-entrypoint-icon, entrypoint-button"
                       class="upload-button no-overlap"
                       .inputState="${this.inputState}"
+                      .applyContextButtonBackground="${this.applyContextButtonBackground}"
+                      .isOblongShape="${this.isOblongShape}"
                       ?upload-button-disabled="${this.uploadButtonDisabled}"
                       ?show-context-menu-description="${this.showContextMenuDescription}">
                   </cr-composebox-contextual-entrypoint-button>
                 ` : ''}
-                <!-- TODO(crbug.com/508287630): Add tool chips and carousel. -->
+                ${this.searchboxLayoutMode !== 'Compact' &&
+                  this.inToolMode ? html`
+                  <cr-composebox-tool-chip
+                    exportparts="tool-chip-label"
+                    .inputState="${this.inputState}"
+                    .isCanvasQuerySubmitted="${this.isCanvasQuerySubmitted}"
+                    @tool-click="${this.onToolClick}">
+                  </cr-composebox-tool-chip>
+                ` : ''}
               </div>
             ` : ''}
           </cr-composebox-file-inputs>

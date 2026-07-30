@@ -134,9 +134,6 @@ class PLATFORM_EXPORT CanvasResourceProvider
     return nullptr;
   }
 
-  // Used to determine if the provider is going to be initialized or not.
-  enum class ShouldInitialize { kNo, kCallClear };
-
   // The ImageOrientationEnum conveys the desired orientation of the image, and
   // should be derived from the source of the bitmap data.
   virtual scoped_refptr<StaticBitmapImage> SnapshotForCanvas2D(
@@ -209,9 +206,9 @@ class PLATFORM_EXPORT CanvasResourceProvider
     return last_recording_for_canvas2d_;
   }
 
- protected:
   class CanvasImageProvider;
 
+ protected:
   SkSurface* GetSkSurface() const;
   bool UnacceleratedWritePixelsForCanvas2D(const SkImageInfo& orig_info,
                                            const void* pixels,
@@ -245,27 +242,6 @@ class PLATFORM_EXPORT CanvasResourceProvider
 
   void OnMemoryDump(base::trace_event::ProcessMemoryDump*) override;
 
-  static std::unique_ptr<Canvas2DResourceProviderSharedImage>
-  CreateSharedImageProviderBase(
-      gfx::Size size,
-      viz::SharedImageFormat format,
-      SkAlphaType alpha_type,
-      const gfx::ColorSpace& color_space,
-      ShouldInitialize initialize_provider,
-      base::WeakPtr<WebGraphicsContext3DProviderWrapper>,
-      RasterMode raster_mode,
-      gpu::SharedImageUsageSet shared_image_usage_flags,
-      Delegate* delegate = nullptr);
-
-  static std::unique_ptr<Canvas2DResourceProviderSharedImage>
-  CreateSharedImageProviderForSoftwareCompositorBase(
-      gfx::Size size,
-      viz::SharedImageFormat format,
-      SkAlphaType alpha_type,
-      const gfx::ColorSpace& color_space,
-      ShouldInitialize initialize_provider,
-      WebGraphicsSharedImageInterfaceProvider* shared_image_interface_provider,
-      Delegate* delegate = nullptr);
 
  private:
   friend class FlushForImageListener;
@@ -368,7 +344,7 @@ class PLATFORM_EXPORT Canvas2DResourceProviderBitmap
       viz::SharedImageFormat format,
       SkAlphaType alpha_type,
       const gfx::ColorSpace& color_space,
-      Delegate* delegate = nullptr);
+      CanvasResourceProvider::Delegate* delegate = nullptr);
 
   Canvas2DResourceProviderBitmap(gfx::Size size,
                                  viz::SharedImageFormat format,
@@ -398,7 +374,7 @@ class PLATFORM_EXPORT Canvas2DResourceProviderSharedImage
       base::WeakPtr<WebGraphicsContext3DProviderWrapper>,
       RasterMode raster_mode,
       gpu::SharedImageUsageSet shared_image_usage_flags,
-      Delegate* delegate = nullptr);
+      CanvasResourceProvider::Delegate* delegate = nullptr);
   static std::unique_ptr<Canvas2DResourceProviderSharedImage> CreateWithClear(
       gfx::Size size,
       const Canvas2DColorParams& color_params,
@@ -414,7 +390,7 @@ class PLATFORM_EXPORT Canvas2DResourceProviderSharedImage
       SkAlphaType alpha_type,
       const gfx::ColorSpace& color_space,
       WebGraphicsSharedImageInterfaceProvider* shared_image_interface_provider,
-      Delegate* delegate = nullptr);
+      CanvasResourceProvider::Delegate* delegate = nullptr);
 
   Canvas2DResourceProviderSharedImage(
       gfx::Size,
@@ -568,12 +544,15 @@ class PLATFORM_EXPORT Canvas2DResourceProviderSharedImage
 // * Subclass of CanvasResourceProvider that is specialized for usage
 // * by non-Canvas2D clients.
 class PLATFORM_EXPORT CanvasNon2DResourceProviderSharedImage
-    : public CanvasResourceProvider,
+    : public CanvasMemoryDumpClient,
+      public CanvasSnapshotProvider,
+      public MemoryManagedPaintRecorder::Client,
       public CanvasResourceSharedImage::Client,
       public FlushForImageObserver,
       public WebGraphicsContext3DProviderWrapper::DestructionObserver,
       public viz::ContextLostObserver,
-      public BitmapGpuChannelLostObserver {
+      public BitmapGpuChannelLostObserver,
+      public ScopedRasterTimer::Host {
  public:
   static std::unique_ptr<CanvasNon2DResourceProviderSharedImage> Create(
       gfx::Size size,
@@ -582,7 +561,7 @@ class PLATFORM_EXPORT CanvasNon2DResourceProviderSharedImage
       const gfx::ColorSpace& color_space,
       base::WeakPtr<WebGraphicsContext3DProviderWrapper>,
       gpu::SharedImageUsageSet shared_image_usage_flags,
-      Delegate* delegate = nullptr);
+      CanvasResourceProvider::Delegate* delegate = nullptr);
 
   static std::unique_ptr<CanvasNon2DResourceProviderSharedImage> Create(
       gfx::Size size,
@@ -596,7 +575,7 @@ class PLATFORM_EXPORT CanvasNon2DResourceProviderSharedImage
                   SkAlphaType alpha_type,
                   const gfx::ColorSpace& color_space,
                   gpu::SharedImageUsageSet shared_image_usage_flags = {},
-                  Delegate* delegate = nullptr);
+                  CanvasResourceProvider::Delegate* delegate = nullptr);
 
   static std::unique_ptr<CanvasNon2DResourceProviderSharedImage>
   CreateForSoftwareCompositor(
@@ -605,7 +584,7 @@ class PLATFORM_EXPORT CanvasNon2DResourceProviderSharedImage
       SkAlphaType alpha_type,
       const gfx::ColorSpace& color_space,
       WebGraphicsSharedImageInterfaceProvider* shared_image_interface_provider,
-      Delegate* delegate = nullptr);
+      CanvasResourceProvider::Delegate* delegate = nullptr);
 
   static std::unique_ptr<CanvasNon2DResourceProviderSharedImage>
   CreateForSoftwareCompositor(
@@ -621,23 +600,37 @@ class PLATFORM_EXPORT CanvasNon2DResourceProviderSharedImage
       base::WeakPtr<WebGraphicsContext3DProviderWrapper>,
       bool is_accelerated,
       gpu::SharedImageUsageSet shared_image_usage_flags,
-      Delegate*);
+      CanvasResourceProvider::Delegate*);
   CanvasNon2DResourceProviderSharedImage(
       gfx::Size,
       viz::SharedImageFormat,
       SkAlphaType,
       const gfx::ColorSpace&,
       WebGraphicsSharedImageInterfaceProvider*,
-      Delegate*);
+      CanvasResourceProvider::Delegate*);
   ~CanvasNon2DResourceProviderSharedImage() override;
 
   void ClearUnusedResources();
   gpu::SharedImageUsageSet GetSharedImageUsageFlags() const;
   bool IsSingleBuffered() const;
 
-  bool IsAccelerated() const override { return is_accelerated_; }
+  bool IsAccelerated() const { return is_accelerated_; }
   bool IsSoftware() const { return is_software_; }
   bool IsGpuContextLost() const override;
+
+  CanvasResourceProvider::ResourceProviderType GetType() const {
+    return CanvasResourceProvider::kSharedImage;
+  }
+
+  SkSurface* GetSkSurface() const;
+
+  // CanvasSnapshotProvider implementation:
+  gfx::Size Size() const override { return size_; }
+  viz::SharedImageFormat GetSharedImageFormat() const override {
+    return format_;
+  }
+  gfx::ColorSpace GetColorSpace() const override { return color_space_; }
+  SkAlphaType GetAlphaType() const override { return alpha_type_; }
 
   // WebGraphicsContext3DProviderWrapper::DestructionObserver implementation.
   void OnContextDestroyed() override;
@@ -645,8 +638,15 @@ class PLATFORM_EXPORT CanvasNon2DResourceProviderSharedImage
   void OnResourceRefReturned(
       scoped_refptr<CanvasResourceSharedImage>&& resource) override;
   void OnDestroyResource() override { --num_inflight_resources_; }
-  base::ByteSize EstimatedSizeInBytes() const override;
+  base::ByteSize EstimatedSizeInBytes() const;
   void OnMemoryDump(base::trace_event::ProcessMemoryDump* pmd) override;
+  size_t GetSize() const override;
+
+  // MemoryManagedPaintRecorder::Client implementation.
+  void RecordingCleared() override;
+  void InitializeForRecording(cc::PaintCanvas* canvas) const override;
+
+  SkSurfaceProps GetSkSurfaceProps() const;
 
   void EnsureWriteAccess();
   void EndWriteAccess();
@@ -655,24 +655,12 @@ class PLATFORM_EXPORT CanvasNon2DResourceProviderSharedImage
 
   scoped_refptr<CanvasResource> ProduceCanvasResource();
 
-  // CanvasResourceProvider:
+  // FlushForImageObserver implementation:
   void OnFlushForImage(cc::PaintImage::ContentId content_id) override;
+
   bool IsValid() const override;
   scoped_refptr<StaticBitmapImage> Snapshot(
       ImageOrientation = ImageOrientationEnum::kDefault);
-  scoped_refptr<StaticBitmapImage> SnapshotForCanvas2D(
-      ImageOrientation = ImageOrientationEnum::kDefault) override;
-  void RasterRecordForCanvas2D(cc::PaintRecord last_recording) override {
-    NOTREACHED();
-  }
-  bool IsCanvas2D() const override { return false; }
-  bool WritePixelsForCanvas2D(const SkImageInfo& orig_info,
-                              const void* pixels,
-                              size_t row_bytes,
-                              int x,
-                              int y) override {
-    NOTREACHED();
-  }
 
   // NOTE: Can only be used if this instance is accelerated.
   bool UploadToBackingSharedImage(const SkPixmap& pixmap,
@@ -720,7 +708,7 @@ class PLATFORM_EXPORT CanvasNon2DResourceProviderSharedImage
   // via raster or the compositor) waits on this token.
   void EndExternalWrite(const gpu::SyncToken& external_write_sync_token);
 
-  sk_sp<SkSurface> CreateSkSurface() const override;
+  sk_sp<SkSurface> CreateSkSurface() const;
   gpu::raster::RasterInterface* RasterInterface() const;
 
   base::WeakPtr<CanvasNon2DResourceProviderSharedImage> CreateWeakPtr();
@@ -757,7 +745,22 @@ class PLATFORM_EXPORT CanvasNon2DResourceProviderSharedImage
 
   std::unique_ptr<gpu::RasterScopedAccess> WillDrawInternal();
 
-  std::unique_ptr<CanvasImageProvider> canvas_image_provider_;
+  const gfx::Size size_;
+  const viz::SharedImageFormat format_;
+  const SkAlphaType alpha_type_;
+  const gfx::ColorSpace color_space_;
+  const raw_ptr<CanvasResourceProvider::Delegate> delegate_;
+  const bool is_accelerated_;
+  const bool is_software_;
+
+  mutable sk_sp<SkSurface> surface_;
+  uint32_t snapshot_sk_image_id_ = 0u;
+  const cc::PaintImage::Id snapshot_paint_image_id_;
+  cc::PaintImage::ContentId snapshot_paint_image_content_id_ =
+      cc::PaintImage::kInvalidContentId;
+
+  std::unique_ptr<CanvasResourceProvider::CanvasImageProvider>
+      canvas_image_provider_;
   std::unique_ptr<cc::SkiaPaintCanvas> skia_canvas_;
   std::unique_ptr<MemoryManagedPaintRecorder> recorder_for_external_draws_;
 
@@ -773,8 +776,6 @@ class PLATFORM_EXPORT CanvasNon2DResourceProviderSharedImage
       cc::PaintImage::kInvalidContentId;
   scoped_refptr<StaticBitmapImage> cached_snapshot_;
 
-  const bool is_accelerated_;
-  const bool is_software_;
   bool is_cleared_ = false;
   bool notified_context_lost_ = false;
 

@@ -53,6 +53,7 @@ component("gpu") {
     "//media/gpu/test/*",
     "//media/gpu/vaapi/*",
     "//media/mojo/*",
+    "//media/parsers:unit_tests",
     "//remoting/codec:encoder",
     "//third_party/blink/renderer/modules:unit_tests",
     "//third_party/blink/renderer/modules/mediarecorder",
@@ -443,13 +444,16 @@ source_set("common") {
       "av1_picture.cc",
       "av1_picture.h",
     ]
-    public_deps += [ "//third_party/libgav1:libgav1_parser" ]
+    public_deps += [
+      "//third_party/libgav1:libgav1_parser",
+      "//third_party/libgav1:libgav1_utils_constants",
+    ]
   }
 }
 
 if (is_linux || is_chromeos) {
-  # The buffer validation functionality is in its own component so that it can be
-  # depended on without pulling the entire //media/gpu target.
+  # The buffer validation functionality is in its own component so that it can
+  # be depended on without pulling the entire //media/gpu target.
   component("buffer_validation") {
     defines = [ "IS_MEDIA_GPU_BUFFER_VALIDATION_IMPL" ]
     sources = [

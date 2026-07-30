@@ -7,6 +7,7 @@
 #include <cstdio>
 
 #include "base/command_line.h"
+#include "base/functional/callback_helpers.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
@@ -58,7 +59,7 @@ mojom::ProfileEnablementPtr BuildProfileEnablement(
   result->disallowed_by_chrome_policy = enablement.disallowed_by_chrome_policy;
   result->disallowed_by_remote_admin = enablement.disallowed_by_remote_admin;
   result->disallowed_by_remote_other = enablement.disallowed_by_remote_other;
-  result->not_consented = enablement.not_consented;
+  result->not_consented = !enablement.consented;
   result->disallowed_by_country_filter =
       enablement.disallowed_by_country_filter;
   result->disallowed_by_locale_filter = enablement.disallowed_by_locale_filter;
@@ -305,7 +306,7 @@ void GlicInternalsPageHandler::ShowExperimentalOptIn() {
     return;
   }
 
-  service->opt_in_controller().ShowDialog(webui_contents_);
+  service->opt_in_controller().ShowDialog(webui_contents_, base::DoNothing());
 #endif
 }
 

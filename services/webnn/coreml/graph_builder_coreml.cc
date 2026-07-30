@@ -3263,14 +3263,17 @@ GraphBuilderCoreml::AddOperationForGather(
                                            indices_operand_id, block));
   }
 
+  ASSIGN_OR_RETURN(OperandId sanitized_indices_operand_id,
+                   SanitizeIndices(operation.input_operand_id,
+                                   indices_operand_id, operation.axis, block));
+
   CoreML::Specification::MILSpec::Operation* op = block.add_operations();
   op->set_type(kOpGatherTypeName);
   RETURN_IF_ERROR(SetInputFromOperand(*op->mutable_inputs(), kOpParamX,
                                       operation.input_operand_id));
 
-  // TODO(crbug.com/339087333): Handle negative and out-of-bounds indices.
   RETURN_IF_ERROR(SetInputFromOperand(*op->mutable_inputs(), kOpParamIndices,
-                                      indices_operand_id));
+                                      sanitized_indices_operand_id));
 
   SetInputsWithValues(
       *op->mutable_inputs(),
@@ -3305,14 +3308,18 @@ GraphBuilderCoreml::AddOperationForGatherElements(
   CHECK(Supports(context_properties_.data_type_limits.gather_elements_indices,
                  GetOperandInfo(operation.indices_operand_id)));
 
+  ASSIGN_OR_RETURN(
+      OperandId sanitized_indices_operand_id,
+      SanitizeIndices(operation.input_operand_id, operation.indices_operand_id,
+                      operation.axis, block));
+
   CoreML::Specification::MILSpec::Operation* op = block.add_operations();
   op->set_type(kOpGatherElementsTypeName);
   RETURN_IF_ERROR(SetInputFromOperand(*op->mutable_inputs(), kOpParamX,
                                       operation.input_operand_id));
 
-  // TODO(crbug.com/339087333): Handle negative and out-of-bounds indices.
   RETURN_IF_ERROR(SetInputFromOperand(*op->mutable_inputs(), kOpParamIndices,
-                                      operation.indices_operand_id));
+                                      sanitized_indices_operand_id));
 
   SetInputsWithValues(
       *op->mutable_inputs(),
@@ -3333,14 +3340,22 @@ GraphBuilderCoreml::AddOperationForGatherND(
   CHECK(Supports(context_properties_.data_type_limits.gather_nd_indices,
                  GetOperandInfo(operation.indices_operand_id)));
 
+  const OperandInfo& indices_operand_info =
+      GetOperandInfo(operation.indices_operand_id);
+  size_t indices_rank = indices_operand_info.dimensions.size();
+  CHECK_GE(indices_rank, 1u);
+  ASSIGN_OR_RETURN(
+      OperandId sanitized_indices_operand_id,
+      SanitizeIndices(operation.input_operand_id, operation.indices_operand_id,
+                      std::nullopt, block));
+
   CoreML::Specification::MILSpec::Operation* op = block.add_operations();
   op->set_type(kOpGatherNdTypeName);
   RETURN_IF_ERROR(SetInputFromOperand(*op->mutable_inputs(), kOpParamX,
                                       operation.input_operand_id));
 
-  // TODO(crbug.com/339087333): Handle negative and out-of-bounds indices.
   RETURN_IF_ERROR(SetInputFromOperand(*op->mutable_inputs(), kOpParamIndices,
-                                      operation.indices_operand_id));
+                                      sanitized_indices_operand_id));
 
   SetInputWithValue(*op->mutable_inputs(), kOpParamValidateIndices,
                     CreateScalarImmediateValue(false));
@@ -4722,13 +4737,14 @@ base::expected<void, mojom::ErrorPtr> GraphBuilderCoreml::AddOperationForPool2d(
 
   CHECK_EQ(input_operand_info.dimensions.size(), 4u);
 
-  int64_t height = static_cast<int64_t>(input_operand_info.dimensions[2]) -
-                   operation.window_dimensions->height +
+  int64_t input_height = input_operand_info.dimensions[2];
+  int64_t input_width = input_operand_info.dimensions[3];
+
+  int64_t height = input_height - operation.window_dimensions->height +
                    operation.padding->beginning->height +
                    operation.padding->ending->height;
 
-  int64_t width = static_cast<int64_t>(input_operand_info.dimensions[3]) -
-                  operation.window_dimensions->width +
+  int64_t width = input_width - operation.window_dimensions->width +
                   operation.padding->beginning->width +
                   operation.padding->ending->width;
   bool is_ceil = false;
@@ -4739,13 +4755,41 @@ base::expected<void, mojom::ErrorPtr> GraphBuilderCoreml::AddOperationForPool2d(
     const OperandInfo& output_operand =
         GetOperandInfo(operation.output_operand_id);
     CHECK_EQ(output_operand.dimensions.size(), 4u);
-    if (output_operand.dimensions[2] ==
+
+    int64_t output_height = output_operand.dimensions[2];
+    int64_t output_width = output_operand.dimensions[3];
+
+    if (output_height ==
             base::ClampCeil<uint32_t>(
                 static_cast<double>(height) / operation.strides->height + 1) &&
-        output_operand.dimensions[3] ==
+        output_width ==
             base::ClampCeil<uint32_t>(
                 static_cast<double>(width) / operation.strides->width + 1)) {
       is_ceil = true;
+
+      // https://apple.github.io/coremltools/source/coremltools.converters.mil.mil.ops.defs.html#coremltools.converters.mil.mil.ops.defs.iOS15.pool.avg_pool
+      // CoreML makes D_out[i] = D_out[i] - 1 when below conditions are met.
+      bool height_mismatch =
+          (output_height - 1) * operation.strides->height >=
+              input_height + operation.padding->beginning->height &&
+          (operation.padding->beginning->height +
+               operation.padding->ending->height >
+           0);
+
+      bool width_mismatch =
+          (output_width - 1) * operation.strides->width >=
+              input_width + operation.padding->beginning->width &&
+          (operation.padding->beginning->width +
+               operation.padding->ending->width >
+           0);
+      // TODO: crbug.com/501476566: Support ceil roundingType when output shape
+      // mismatches.
+      if (height_mismatch || width_mismatch) {
+        return NewNotSupportedError(
+            "Unsupported ceil roundingType for pooling, CoreML would drop the "
+            "last window resulting in a shape mismatch.");
+      }
+
       // TODO: crbug.com/334914466: Core ML requires padding to be symmetric if
       // `ceil_mode` is true.
       if (operation.padding->beginning->height !=
@@ -5636,6 +5680,17 @@ base::expected<void, mojom::ErrorPtr> GraphBuilderCoreml::AddOperationForWhere(
   RETURN_IF_ERROR(AddOperationForCast(operation.condition_operand_id,
                                       bool_condition_operand_id, block));
 
+  return AddOperationForWhere(
+      bool_condition_operand_id, operation.true_value_operand_id,
+      operation.false_value_operand_id, operation.output_operand_id, block);
+}
+
+base::expected<void, mojom::ErrorPtr> GraphBuilderCoreml::AddOperationForWhere(
+    OperandId condition_operand_id,
+    OperandId true_value_operand_id,
+    OperandId false_value_operand_id,
+    OperandId output_operand_id,
+    CoreML::Specification::MILSpec::Block& block) {
   CoreML::Specification::MILSpec::Operation* op = block.add_operations();
   op->set_type(kOpWhereTypeName);
 
@@ -5643,14 +5698,148 @@ base::expected<void, mojom::ErrorPtr> GraphBuilderCoreml::AddOperationForWhere(
   constexpr char kParamB[] = "b";
   constexpr char kParamCond[] = "cond";
   RETURN_IF_ERROR(SetInputFromOperand(*op->mutable_inputs(), kParamA,
-                                      operation.true_value_operand_id));
+                                      true_value_operand_id));
   RETURN_IF_ERROR(SetInputFromOperand(*op->mutable_inputs(), kParamB,
-                                      operation.false_value_operand_id));
+                                      false_value_operand_id));
   RETURN_IF_ERROR(SetInputFromOperand(*op->mutable_inputs(), kParamCond,
-                                      bool_condition_operand_id));
+                                      condition_operand_id));
 
-  PopulateNamedValueType(operation.output_operand_id, *op->add_outputs());
+  PopulateNamedValueType(output_operand_id, *op->add_outputs());
   return base::ok();
+}
+
+base::expected<OperandId, mojom::ErrorPtr> GraphBuilderCoreml::SanitizeIndices(
+    OperandId input_operand_id,
+    OperandId indices_operand_id,
+    std::optional<uint32_t> axis,
+    CoreML::Specification::MILSpec::Block& block) {
+  const OperandInfo& input_operand_info = GetOperandInfo(input_operand_id);
+  const OperandInfo& indices_operand_info = GetOperandInfo(indices_operand_id);
+
+  if (indices_operand_info.mil_data_type !=
+      CoreML::Specification::MILSpec::DataType::INT32) {
+    ASSIGN_OR_RETURN(indices_operand_id,
+                     GenerateInternalOperandInfo(
+                         CoreML::Specification::MILSpec::DataType::INT32,
+                         indices_operand_info.dimensions));
+    RETURN_IF_ERROR(
+        AddOperationForCast(indices_operand_id, indices_operand_id, block));
+  }
+
+  if (axis) {
+    // Gather or GatherElements case.
+    uint32_t axis_dim = input_operand_info.dimensions[*axis];
+    return SanitizeIndicesForDim(indices_operand_id, axis_dim,
+                                 indices_operand_info.dimensions, block);
+  } else {
+    // GatherND case.
+    uint32_t indices_nd = indices_operand_info.dimensions.back();
+    if (indices_nd == 1) {
+      uint32_t axis_dim = input_operand_info.dimensions[0];
+      return SanitizeIndicesForDim(indices_operand_id, axis_dim,
+                                   indices_operand_info.dimensions, block);
+    } else {
+      // indices_nd > 1 case.
+      size_t indices_rank = indices_operand_info.dimensions.size();
+      std::vector<uint32_t> split_dims = indices_operand_info.dimensions;
+      split_dims.back() = 1;
+
+      std::vector<OperandId> split_output_ids(indices_nd);
+      for (uint32_t k = 0; k < indices_nd; ++k) {
+        ASSIGN_OR_RETURN(
+            split_output_ids[k],
+            GenerateInternalOperandInfo(
+                CoreML::Specification::MILSpec::DataType::INT32, split_dims));
+      }
+
+      RETURN_IF_ERROR(AddOperationForSplit(
+          indices_operand_id, split_output_ids,
+          base::checked_cast<uint32_t>(indices_rank - 1), block));
+
+      std::vector<OperandId> sanitized_split_ids(indices_nd);
+      for (uint32_t k = 0; k < indices_nd; ++k) {
+        uint32_t axis_dim = input_operand_info.dimensions[k];
+        ASSIGN_OR_RETURN(sanitized_split_ids[k],
+                         SanitizeIndicesForDim(split_output_ids[k], axis_dim,
+                                               split_dims, block));
+      }
+
+      ASSIGN_OR_RETURN(OperandId sanitized_indices_operand_id,
+                       GenerateInternalOperandInfo(
+                           CoreML::Specification::MILSpec::DataType::INT32,
+                           indices_operand_info.dimensions));
+      RETURN_IF_ERROR(AddOperationForConcat(
+          sanitized_split_ids, sanitized_indices_operand_id,
+          base::checked_cast<uint32_t>(indices_rank - 1), block));
+
+      return sanitized_indices_operand_id;
+    }
+  }
+}
+
+base::expected<OperandId, mojom::ErrorPtr>
+GraphBuilderCoreml::SanitizeIndicesForDim(
+    OperandId indices_operand_id,
+    uint32_t axis_dim,
+    base::span<const uint32_t> dimensions,
+    CoreML::Specification::MILSpec::Block& block) {
+  // Shift negative indices to positive:
+  // indices = where(indices < 0, indices + dim, indices)
+  // after clamping to [-dim, dim - 1] to avoid overflow.
+  CoreML::Specification::MILSpec::Value zero_value =
+      CreateScalarImmediateValue<int32_t>(0);
+  CoreML::Specification::MILSpec::Value max_value =
+      CreateScalarImmediateValue<int32_t>(
+          base::checked_cast<int32_t>(axis_dim - 1));
+  CoreML::Specification::MILSpec::Value min_value =
+      CreateScalarImmediateValue<int32_t>(
+          -base::checked_cast<int32_t>(axis_dim));
+  CoreML::Specification::MILSpec::Value dim_value =
+      CreateScalarImmediateValue<int32_t>(
+          base::checked_cast<int32_t>(axis_dim));
+
+  ASSIGN_OR_RETURN(
+      OperandId clamped_neg_indices_id,
+      GenerateInternalOperandInfo(
+          CoreML::Specification::MILSpec::DataType::INT32, dimensions));
+  RETURN_IF_ERROR(AddOperationForElementwiseBinary(
+      indices_operand_id, min_value, clamped_neg_indices_id,
+      mojom::ElementWiseBinary::Kind::kMax, block));
+
+  ASSIGN_OR_RETURN(
+      OperandId clamped_pos_indices_id,
+      GenerateInternalOperandInfo(
+          CoreML::Specification::MILSpec::DataType::INT32, dimensions));
+  RETURN_IF_ERROR(AddOperationForElementwiseBinary(
+      clamped_neg_indices_id, max_value, clamped_pos_indices_id,
+      mojom::ElementWiseBinary::Kind::kMin, block));
+
+  ASSIGN_OR_RETURN(
+      OperandId is_negative_id,
+      GenerateInternalOperandInfo(
+          CoreML::Specification::MILSpec::DataType::BOOL, dimensions));
+  RETURN_IF_ERROR(AddOperationForElementwiseBinary(
+      clamped_pos_indices_id, zero_value, is_negative_id,
+      mojom::ElementWiseBinary::Kind::kLesser, block));
+
+  ASSIGN_OR_RETURN(
+      OperandId indices_plus_dim_id,
+      GenerateInternalOperandInfo(
+          CoreML::Specification::MILSpec::DataType::INT32, dimensions));
+  RETURN_IF_ERROR(AddOperationForElementwiseBinary(
+      clamped_pos_indices_id, dim_value, indices_plus_dim_id,
+      mojom::ElementWiseBinary::Kind::kAdd, block));
+
+  ASSIGN_OR_RETURN(
+      OperandId sanitized_indices_operand_id,
+      GenerateInternalOperandInfo(
+          CoreML::Specification::MILSpec::DataType::INT32, dimensions));
+
+  RETURN_IF_ERROR(AddOperationForWhere(is_negative_id, indices_plus_dim_id,
+                                       clamped_pos_indices_id,
+                                       sanitized_indices_operand_id, block));
+
+  return sanitized_indices_operand_id;
 }
 
 base::expected<void, mojom::ErrorPtr>

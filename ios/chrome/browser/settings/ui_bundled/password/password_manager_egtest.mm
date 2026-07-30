@@ -1885,13 +1885,9 @@ void OpenPasswordManagerWidgetPromoInstructions() {
 
 // Test export flow
 - (void)testExportFlow {
-#if BUILDFLAG(IOS_CREDENTIAL_EXCHANGE_ENABLED)
   if (@available(iOS 26, *)) {
-    // TODO(crbug.com/463313017): Move this test to credential_export_egtest.mm.
-    EARL_GREY_TEST_SKIPPED(
-        @"This feature is moved elsewhere with credential exchange enabled");
+    EARL_GREY_TEST_SKIPPED(@"This is a part of credential exchange on iOS 26.");
   }
-#endif
 
   // Saving a form is needed for exporting passwords.
   SavePasswordFormToProfileStore();
@@ -1920,7 +1916,9 @@ void OpenPasswordManagerWidgetPromoInstructions() {
           exportButtonAccessibilityId)) performAction:grey_tap()];
 
   // Wait until the alerts are dismissed.
-  [ChromeEarlGreyUI waitForAppToIdle];
+  [ChromeEarlGrey waitForUIElementToDisappearWithMatcher:
+                      chrome_test_util::AlertItemWithAccessibilityLabelId(
+                          exportButtonAccessibilityId)];
 
   id<GREYMatcher> exportButtonStatusMatcher =
       grey_accessibilityTrait(UIAccessibilityTraitNotEnabled);
@@ -1933,7 +1931,7 @@ void OpenPasswordManagerWidgetPromoInstructions() {
   [ChromeEarlGrey closeActivitySheet];
 
   // Wait until the activity view is dismissed.
-  [ChromeEarlGreyUI waitForAppToIdle];
+  [ChromeEarlGrey verifyActivitySheetNotVisible];
 
   // Check that export button is re-enabled.
   [[EarlGrey selectElementWithMatcher:
@@ -2694,8 +2692,7 @@ void OpenPasswordManagerWidgetPromoInstructions() {
 // Tests that when a new credential is saved or an existing one is updated via
 // the add credential flow, the VC auto scrolls to the newly created or the
 // updated entry.
-// TODO(crbug.com/460743577): Test is flaky.
-- (void)FLAKY_testAutoScroll {
+- (void)testAutoScroll {
   for (int i = 0; i < 20; i++) {
     NSString* username = [NSString stringWithFormat:@"username %d", i];
     NSString* password = [NSString stringWithFormat:@"password %d", i];
@@ -2706,7 +2703,7 @@ void OpenPasswordManagerWidgetPromoInstructions() {
   OpenPasswordManager();
 
   // Press "Add".
-  [[EarlGrey selectElementWithMatcher:AddPasswordButton()]
+  [GetInteractionForListItem(AddPasswordButton(), kGREYDirectionDown)
       performAction:grey_tap()];
 
   NSString* const kAddedDomain = @"zexample.com";
@@ -2733,9 +2730,9 @@ void OpenPasswordManagerWidgetPromoInstructions() {
                     error:&error];
     return error == nil;
   };
-  GREYAssert(
-      base::test::ios::WaitUntilConditionOrTimeout(base::Seconds(2), condition),
-      @"Didn't scroll to the added credential item");
+  GREYAssert(base::test::ios::WaitUntilConditionOrTimeout(
+                 base::test::ios::kWaitForUIElementTimeout, condition),
+             @"Didn't scroll to the added credential item");
 }
 
 // Tests that adding new password credential where the username and website
@@ -3644,9 +3641,7 @@ void OpenPasswordManagerWidgetPromoInstructions() {
 
 // Checks opening the password manager with a failed reauthentication does not
 // show passwords and closes the Password Manager.
-//
-// TODO(crbug.com/468305089): This test is flaky.
-- (void)FLAKY_testOpenPasswordManagerWithFailedAuth {
+- (void)testOpenPasswordManagerWithFailedAuth {
   [ReauthenticationAppInterface mockReauthenticationModuleExpectedResult:
                                     ReauthenticationResult::kFailure];
   // Delay the auth result to be able to validate that the passwords are not
@@ -3662,8 +3657,8 @@ void OpenPasswordManagerWidgetPromoInstructions() {
   // Failed auth should dismiss the Password Manager, the Settings menu is
   // displayed.
   [ReauthenticationAppInterface mockReauthenticationModuleReturnMockedResult];
-  CheckVisibilityOfElement(/*matcher=*/SettingsCollectionView(),
-                           /*is_visible=*/true);
+  [ChromeEarlGrey
+      waitForSufficientlyVisibleElementWithMatcher:SettingsCollectionView()];
 
   // Check password manager visit metric.
   CheckPasswordManagerVisitMetricCount(0);

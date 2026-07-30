@@ -6,6 +6,8 @@ package org.chromium.chrome.browser.actor.ui;
 
 import static org.chromium.build.NullUtil.assumeNonNull;
 
+import android.content.Context;
+
 import androidx.annotation.VisibleForTesting;
 
 import org.jni_zero.CalledByNative;
@@ -21,6 +23,8 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabId;
+import org.chromium.content_public.browser.ImeAdapter;
+import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.url.GURL;
 
 /** Java-side representation of the C++ ActorUiTabControllerAndroid. */
@@ -183,10 +187,22 @@ public class ActorUiTabController implements UserData {
         return true;
     }
 
-    /** Instance method to update state and notify observers. */
+    /**
+     * Updates the tab's cached visual state, manages dynamic features like soft keyboard
+     * suppression based on actor ownership, and notifies all registered observers.
+     *
+     * @param state The new visual and control ownership state of the tab.
+     */
     @VisibleForTesting
     void onUiTabStateChange(UiTabState state) {
         mCurrentState = state;
+        if (mTab.getWebContents() != null) {
+            ImeAdapter imeAdapter = ImeAdapter.fromWebContents(mTab.getWebContents());
+            if (imeAdapter != null) {
+                boolean isSuppressed = state.handoffButton.controller == ControlOwnership.ACTOR;
+                imeAdapter.setKeyboardSuppressed(isSuppressed);
+            }
+        }
         for (Observer observer : mObservers) {
             observer.onUiTabStateChanged(state);
         }
@@ -199,11 +215,17 @@ public class ActorUiTabController implements UserData {
 
     @CalledByNative
     @SuppressWarnings("unused")
-    private boolean maybeDeferNavigation(
+    boolean maybeDeferNavigation(
             @JniType("GURL") GURL url, Callback<Boolean> navigationConfirmedCallback) {
-        // TODO(crbug.com/500826418): Placeholder for C++ unit tests.
-        // By default, do not defer and let it proceed.
-        return false;
+        if (mTab.getWindowAndroid() == null) return false;
+        ModalDialogManager modalDialogManager = mTab.getWindowAndroid().getModalDialogManager();
+        if (modalDialogManager == null) return false;
+        Context context = mTab.getContext();
+        if (context == null) return false;
+
+        ActorNavigationConfirmationDialog.show(
+                context, modalDialogManager, navigationConfirmedCallback);
+        return true;
     }
 
     @NativeMethods

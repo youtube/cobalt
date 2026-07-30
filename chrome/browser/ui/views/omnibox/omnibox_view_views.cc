@@ -119,6 +119,7 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/image_model.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/compositor/layer.h"
 #include "ui/events/event.h"
 #include "ui/gfx/canvas.h"
@@ -156,6 +157,10 @@ using ::ui::mojom::DragOperation;
 bool IsClipboardDataMarkedAsConfidential() {
   return ui::Clipboard::GetForCurrentThread()
       ->IsMarkedByOriginatorAsConfidential();
+}
+
+bool IsMenuSimplificationEnabled() {
+  return base::FeatureList::IsEnabled(features::kMenuSimplification);
 }
 
 // This function provides a logging implementation that aligns with the original
@@ -288,6 +293,9 @@ OmniboxViewViews::OmniboxViewViews(bool popup_window_mode,
 #else
   GetViewAccessibility().SetKeyShortcuts("Ctrl+L");
 #endif
+
+  SetSelectionBackgroundColorId(kColorOmniboxSelectionBackground);
+  SetSelectionTextColorId(kColorOmniboxSelectionForeground);
 }
 
 OmniboxViewViews::~OmniboxViewViews() {
@@ -856,12 +864,6 @@ void OmniboxViewViews::UpdateSchemeStyle(const gfx::Range& range) {
 
 void OmniboxViewViews::OnThemeChanged() {
   views::Textfield::OnThemeChanged();
-
-  UpdatePlaceholderTextColor();
-  SetSelectionBackgroundColor(
-      GetColorProvider()->GetColor(kColorOmniboxSelectionBackground));
-  SetSelectionTextColor(
-      GetColorProvider()->GetColor(kColorOmniboxSelectionForeground));
 
   EmphasizeURLComponents();
 }
@@ -1879,6 +1881,24 @@ bool OmniboxViewViews::IsCommandIdEnabled(int command_id) const {
           location_bar_view_->command_updater()->IsCommandEnabled(command_id));
 }
 
+bool OmniboxViewViews::SupportsEmoji() const {
+  return !IsMenuSimplificationEnabled();
+}
+
+#if BUILDFLAG(IS_MAC)
+bool OmniboxViewViews::SupportsEditableContextMenuItems() const {
+  return !IsMenuSimplificationEnabled();
+}
+
+bool OmniboxViewViews::SupportsLookUp() const {
+  return !IsMenuSimplificationEnabled();
+}
+
+bool OmniboxViewViews::SupportsAutoFill() const {
+  return !IsMenuSimplificationEnabled();
+}
+#endif  // BUILDFLAG(IS_MAC)
+
 void OmniboxViewViews::PasteSelectionClipboard(
     base::OnceCallback<void(bool)> callback) {
   ui::Clipboard::GetForCurrentThread()->ReadText(
@@ -2398,21 +2418,6 @@ views::View::DropCallback OmniboxViewViews::CreateDropCallback(
 }
 
 void OmniboxViewViews::UpdateContextMenu(ui::SimpleMenuModel* menu_contents) {
-  if (base::FeatureList::IsEnabled(features::kMenuSimplification)) {
-    // Remove the emoji item from the omnibox context menu.
-    const std::optional<size_t> emoji_position =
-        menu_contents->GetIndexOfCommandId(IDS_CONTENT_CONTEXT_EMOJI);
-    if (emoji_position.has_value()) {
-      menu_contents->RemoveItemAt(emoji_position.value());
-      // If the next item is a separator, remove it too.
-      if (emoji_position.value() < menu_contents->GetItemCount() &&
-          menu_contents->GetTypeAt(emoji_position.value()) ==
-              ui::MenuModel::ItemType::TYPE_SEPARATOR) {
-        menu_contents->RemoveItemAt(emoji_position.value());
-      }
-    }
-  }
-
   MaybeAddSendTabToSelfItem(menu_contents);
 
   const std::optional<size_t> paste_position =
@@ -2430,7 +2435,7 @@ void OmniboxViewViews::UpdateContextMenu(ui::SimpleMenuModel* menu_contents) {
           ? IDS_MANAGE_SEARCH_ENGINES_AND_SHORTCUTS
           : IDS_MANAGE_SEARCH_ENGINES_AND_SITE_SEARCH);
 
-  if (base::FeatureList::IsEnabled(features::kMenuSimplification)) {
+  if (features::IsMenuSimplificationEnabled()) {
     menu_contents->AddSeparator(ui::NORMAL_SEPARATOR);
   }
 
@@ -2650,7 +2655,7 @@ void OmniboxViewViews::MaybeAddSendTabToSelfItem(
     return;
   }
 
-  if (base::FeatureList::IsEnabled(features::kMenuSimplification)) {
+  if (features::IsMenuSimplificationEnabled()) {
     return;
   }
 
@@ -2664,7 +2669,10 @@ void OmniboxViewViews::MaybeAddSendTabToSelfItem(
       index, IDC_SEND_TAB_TO_SELF,
       l10n_util::GetStringUTF16(IDS_MENU_SEND_TAB_TO_SELF));
 #if !BUILDFLAG(IS_MAC)
-  menu_contents->SetIcon(index, ui::ImageModel::FromVectorIcon(kDevicesIcon));
+  menu_contents->SetIcon(
+      index, ui::ImageModel::FromVectorIcon(features::IsRoundedIconsEnabled()
+                                                ? kDevicesIcon
+                                                : kDevicesOldIcon));
 #endif
   menu_contents->InsertSeparatorAt(++index, ui::NORMAL_SEPARATOR);
 }
@@ -2674,17 +2682,13 @@ void OmniboxViewViews::UpdatePlaceholderTextColor() {
   // placeholders are dim to differentiate from user input. DSE placeholders are
   // not dim to draw attention to the omnibox and because the omnibox is
   // unfocused so there's less risk of confusion with user input.
-  // Null in tests.
-  if (!GetColorProvider()) {
-    return;
-  }
   bool dse_placeholder_installed =
       controller()->edit_model()->keyword_placeholder().empty() &&
       !ShouldInstallAimPlaceholderText() &&
       !ShouldInstallContextualTasksPlaceholderText();
-  set_placeholder_text_color(GetColorProvider()->GetColor(
-      dse_placeholder_installed ? kColorOmniboxText
-                                : kColorOmniboxForegroundDisabled));
+  SetPlaceholderTextColorId(dse_placeholder_installed
+                                ? kColorOmniboxText
+                                : kColorOmniboxForegroundDisabled);
 }
 
 bool OmniboxViewViews::AreAimHintImpressionLimitsReached() const {

@@ -12,6 +12,7 @@
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/browser/ui/views/chrome_widget_sublevel.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/permissions/embedded_permission_prompt_observer.h"
 #include "chrome/browser/ui/views/sub_apps_permission_explanation.h"
 #include "components/permissions/features.h"
 #include "components/permissions/permission_util.h"
@@ -223,11 +224,72 @@ void EmbeddedPermissionPromptBaseView::AddedToWidget() {
   title_container->AddChildView(std::move(label));
 
   GetBubbleFrameView()->SetTitleView(std::move(title_container));
+
+  // Observe size changes of embedded permission prompt widget.
+  if (GetWidget()) {
+    GetWidget()->AddObserver(this);
+  }
 }
 
+void EmbeddedPermissionPromptBaseView::OnWidgetBoundsChanged(
+    views::Widget* widget,
+    const gfx::Rect& new_bounds) {
+  if (!delegate_) {
+    return;
+  }
+
+  content::WebContents* current_web_contents =
+      delegate_->GetPermissionPromptDelegate()->GetAssociatedWebContents();
+  if (!current_web_contents) {
+    return;
+  }
+
+  web_contents_ = current_web_contents->GetWeakPtr();
+  auto* observer =
+      EmbeddedPermissionPromptObserver::FromWebContents(current_web_contents);
+  if (observer) {
+    observer->NotifyEmbeddedPermissionPromptChanged(
+        /*is_showing=*/true, new_bounds.size());
+  }
+}
+
+void EmbeddedPermissionPromptBaseView::OnWidgetDestroying(
+    views::Widget* widget) {
+  // Remove observer of widget.
+  widget->RemoveObserver(this);
+}
+
+// For going out of focus of the PEPC permission prompt:
+void EmbeddedPermissionPromptBaseView::OnWidgetVisibilityChanged(
+    views::Widget* widget,
+    bool visible) {
+  // `web_contents_` is a WeakPtr and could be null if the tab/WebContents was
+  // destroyed. Additionally, we check it defensively in case visibility changes
+  // before the first layout bounds change occurs.
+  if (!visible && web_contents_) {
+    auto* observer =
+        EmbeddedPermissionPromptObserver::FromWebContents(web_contents_.get());
+    if (observer) {
+      observer->NotifyEmbeddedPermissionPromptChanged(
+          /*is_showing=*/false, gfx::Size());
+    }
+  }
+}
+
+// For clicking a button in the PEPC permission prompt:
 void EmbeddedPermissionPromptBaseView::ClosingPermission() {
   if (delegate()) {
     delegate()->Dismiss();
+  }
+  // `web_contents_` is a WeakPtr and could be null if the tab/WebContents was
+  // destroyed.
+  if (web_contents_) {
+    auto* observer =
+        EmbeddedPermissionPromptObserver::FromWebContents(web_contents_.get());
+    if (observer) {
+      observer->NotifyEmbeddedPermissionPromptChanged(
+          /*is_showing=*/false, gfx::Size());
+    }
   }
 }
 

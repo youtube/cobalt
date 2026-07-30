@@ -9,6 +9,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -34,6 +35,7 @@
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "chrome/browser/ui/unload_controller.h"
+#include "chrome/browser/ui/window_feature_controller/window_feature_controller.h"
 #include "components/paint_preview/buildflags/buildflags.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "components/sessions/core/session_id.h"
@@ -50,6 +52,7 @@
 #include "ui/base/unowned_user_data/unowned_user_data_host.h"
 #include "ui/base/window_open_disposition.h"
 #include "ui/gfx/geometry/rect.h"
+#include "url/origin.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #error This file should only be included on desktop.
@@ -122,18 +125,7 @@ class Browser : public TabStripModelObserver,
                 public BrowserWindowInterface {
  public:
   // Possible elements of the Browser window.
-  enum class WindowFeature {
-    kFeatureNone,
-    kFeatureTitleBar,
-    kFeatureTabStrip,
-    kFeatureToolbar,
-    kFeatureLocationBar,
-    kFeatureBookmarkBar,
-    // TODO(crbug.com/40639933): Add kFeaturePageControls to describe the
-    // presence of per-page controls such as Content Settings Icons, which
-    // should be decoupled from kFeatureLocationBar as they have independent
-    // presence in Web App browsers.
-  };
+  using WindowFeature = WindowFeatureController::WindowFeature;
 
   // The context for a download blocked notification from
   // OkToCloseWithInProgressDownloads.
@@ -612,15 +604,10 @@ class Browser : public TabStripModelObserver,
   // FullscreenController::ToggleFullscreenModeWithExtension.
   void ToggleFullscreenModeWithExtension(const GURL& extension_url);
 
-  // Returns true if the Browser supports the specified feature. The value of
-  // this varies during the lifetime of the browser. For example, if the window
-  // is fullscreen this may return a different value. If you only care about
-  // whether or not it's possible for the browser to support a particular
-  // feature use |CanSupportWindowFeature|.
+  // Deprecated: Use capabilities()->SupportsWindowFeature instead.
   bool SupportsWindowFeature(WindowFeature feature) const;
 
-  // Returns true if the Browser can support the specified feature. See comment
-  // in |SupportsWindowFeature| for details on this.
+  // Deprecated: Use capabilities()->CanSupportWindowFeature instead.
   bool CanSupportWindowFeature(WindowFeature feature) const;
 
   // Show various bits of UI
@@ -693,6 +680,8 @@ class Browser : public TabStripModelObserver,
   void OnDidBlockNavigation(
       content::WebContents* web_contents,
       const GURL& blocked_url,
+      const GURL& initiator_url,
+      const url::Origin& initiator_origin,
       blink::mojom::NavigationBlockedReason reason) override;
   content::PictureInPictureResult EnterPictureInPicture(
       content::WebContents* web_contents) override;
@@ -723,9 +712,6 @@ class Browser : public TabStripModelObserver,
   bool is_type_picture_in_picture() const {
     return type_ == TYPE_PICTURE_IN_PICTURE;
   }
-
-  // True when the mouse cursor is locked.
-  bool IsPointerLocked() const;
 
   // Called each time the browser window is shown.
   void OnWindowDidShow();
@@ -1011,8 +997,11 @@ class Browser : public TabStripModelObserver,
 
   // Handle changes to tab strip model.
   void OnTabInsertedAt(content::WebContents* contents, int index);
-  void OnTabClosing(content::WebContents* contents);
-  void OnTabDetached(content::WebContents* contents, bool was_active);
+  void OnTabClosing(tabs::TabInterface* tab, bool* had_active_modal_dialog);
+  void OnTabDetached(tabs::TabInterface* tab,
+                     bool was_active,
+                     bool had_active_modal_dialog);
+  void RestoreFocusAfterTabModalPopupClose(tabs::TabHandle active_tab_handle);
   void OnTabDeactivated(content::WebContents* contents);
   void OnActiveTabChanged(const TabStripModelChange& change,
                           const TabStripSelectionChange& selection);
@@ -1112,36 +1101,6 @@ class Browser : public TabStripModelObserver,
 
   // Shared code between Reload() and ReloadBypassingCache().
   void ReloadInternal(WindowOpenDisposition disposition, bool bypass_cache);
-
-  // See comment on SupportsWindowFeatureImpl for info on `check_can_support`.
-  bool NormalBrowserSupportsWindowFeature(WindowFeature feature,
-                                          bool check_can_support) const;
-
-  // See comment on SupportsWindowFeatureImpl for info on `check_can_support`.
-  bool PopupBrowserSupportsWindowFeature(WindowFeature feature,
-                                         bool check_can_support) const;
-
-  // See comment on SupportsWindowFeatureImpl for info on `check_can_support`.
-  bool AppPopupBrowserSupportsWindowFeature(WindowFeature feature,
-                                            bool check_can_support) const;
-
-  // See comment on SupportsWindowFeatureImpl for info on `check_can_support`.
-  bool AppBrowserSupportsWindowFeature(WindowFeature feature,
-                                       bool check_can_support) const;
-
-  // See comment on SupportsWindowFeatureImpl for info on `check_can_support`.
-  bool PictureInPictureBrowserSupportsWindowFeature(
-      WindowFeature feature,
-      bool check_can_support) const;
-
-  // Implementation of SupportsWindowFeature and CanSupportWindowFeature. If
-  // `check_can_support` is true, this method returns true if this type of
-  // browser can ever support `feature`, under any conditions; if
-  // `check_can_support` is false, it returns true if the browser *in its
-  // current state* (e.g. whether or not it is currently fullscreen) supports
-  // `feature`.
-  bool SupportsWindowFeatureImpl(WindowFeature feature,
-                                 bool check_can_support) const;
 
   // Returns true if a BackgroundContents should be created in response to a
   // WebContents::CreateNewWindow() call.

@@ -55,7 +55,8 @@ class GlicSelectionObserver
  protected:
   // Updates the Glic UI (nudge or panel) with the selected text.
   // Virtual for testing.
-  virtual void UpdateSelectionState(const std::u16string& text);
+  virtual void UpdateSelectionState(const std::u16string& text,
+                                    bool is_pending_selection);
 
   // Dismisses the selection UI (widget and/or nudge).
   // Virtual for testing.
@@ -63,6 +64,22 @@ class GlicSelectionObserver
 
   // Returns true if the selection prompt is enabled for the current profile.
   virtual bool IsSelectionPromptEnabled() const;
+
+  // Returns true if Glic panel is showing for the current browser.
+  // Virtual for testing.
+  virtual bool IsPanelShowing(tabs::TabInterface* tab_interface,
+                              BrowserWindowInterface* bwi);
+
+  // Sends the selection context to the Glic panel.
+  // Virtual for testing.
+  virtual void SendAdditionalContextToPanel(
+      tabs::TabInterface* tab_interface,
+      const std::u16string& selected_text);
+
+  // Shows the selection affordance UI (widget or nudge).
+  // Virtual for testing.
+  virtual void ShowSelectionAffordance(const std::u16string& selected_text,
+                                       BrowserWindowInterface* bwi);
 
   // content::WebContentsObserver:
   void RenderFrameCreated(content::RenderFrameHost* render_frame_host) override;
@@ -91,8 +108,6 @@ class GlicSelectionObserver
       base::WeakPtr<content::WebContents> web_contents,
       GlicNudgeActivity activity);
 
-  void ShowSelectionAffordance(const std::u16string& selected_text,
-                               BrowserWindowInterface* bwi);
 
   bool ShouldShowSelectionWidget();
   void OnWidgetDismissed();
@@ -123,11 +138,18 @@ class GlicSelectionObserver
 
   base::flat_set<content::GlobalRenderFrameHostToken> observed_frames_;
 
+  // True if selection was initiated via keyboard shortcuts. Ensures KeyUp
+  // events only trigger processing for relevant selection actions.
   bool is_key_selection_ = false;
   int bounds_retry_count_ = 0;
 
+  // True if the selection context was sent to the Glic panel, so we know to
+  // clear it if the selection becomes empty while the panel remains open.
   bool has_sent_selection_context_ = false;
+  // Preserves the widget's pinned state across subsequent selection updates.
   bool is_widget_pinned_ = false;
+  // True during active user selection (mouse drag or key hold) to defer UI
+  // updates until the input event completes.
   bool is_selecting_ = false;
 
   base::WeakPtr<views::Widget> selection_widget_;

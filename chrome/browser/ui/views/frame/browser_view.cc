@@ -98,6 +98,7 @@
 #include "chrome/browser/ui/fullscreen/browser_window_fullscreen_controller.h"
 #include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/navigator/browser_navigator.h"
+#include "chrome/browser/ui/omnibox/omnibox_next_features.h"
 #include "chrome/browser/ui/omnibox/omnibox_popup_view.h"
 #include "chrome/browser/ui/omnibox/omnibox_view.h"
 #include "chrome/browser/ui/page_action/page_action_icon_type.h"
@@ -164,7 +165,6 @@
 #include "chrome/browser/ui/views/frame/shadow_overlay_view.h"
 #include "chrome/browser/ui/views/frame/tab_modal_dialog_host.h"
 #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
-#include "chrome/browser/ui/views/frame/top_container_loading_bar.h"
 #include "chrome/browser/ui/views/frame/top_container_view.h"
 #include "chrome/browser/ui/views/frame/top_controls_slide_controller.h"
 #include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
@@ -182,6 +182,7 @@
 #include "chrome/browser/ui/views/location_bar/star_view.h"
 #include "chrome/browser/ui/views/new_tab_footer/footer_web_view.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_popup_closer.h"
+#include "chrome/browser/ui/views/omnibox/omnibox_popup_view_browser_view.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_view_views.h"
 #include "chrome/browser/ui/views/page_action/page_action_icon_controller.h"
 #include "chrome/browser/ui/views/page_action/page_action_icon_view.h"
@@ -230,6 +231,7 @@
 #include "chrome/browser/ui/waap/initial_webui_window_metrics_manager.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/ui/webui/top_chrome/webui_contents_preload_manager.h"
+#include "chrome/browser/ui/window_feature_controller/window_feature_controller.h"
 #include "chrome/browser/ui/window_sizer/window_sizer.h"
 #include "chrome/browser/ui/zoom/browser_window_zoom_observer.h"
 #include "chrome/browser/user_education/user_education_service.h"
@@ -344,6 +346,7 @@
 #include "ui/views/layout/fill_layout.h"
 #include "ui/views/view.h"
 #include "ui/views/view_class_properties.h"
+#include "ui/views/view_utils.h"
 #include "ui/views/views_features.h"
 #include "ui/views/widget/native_widget.h"
 #include "ui/views/widget/root_view.h"
@@ -1099,7 +1102,6 @@ BrowserView::~BrowserView() {
 
   toolbar_ = nullptr;
   top_container_separator_ = nullptr;
-  loading_bar_ = nullptr;
   find_bar_host_view_ = nullptr;
   infobar_container_ = nullptr;
   multi_contents_view_ = nullptr;
@@ -1246,20 +1248,6 @@ std::vector<ContentsContainerView*> BrowserView::GetContentsContainerViews() {
   return multi_contents_view_->contents_container_views();
 }
 
-#if BUILDFLAG(IS_MAC)
-bool BrowserView::UsesImmersiveFullscreenMode() const {
-  const bool is_pwa = GetIsWebAppType();
-  const bool is_tabbed_window = GetSupportsTabStrip();
-  return is_pwa || is_tabbed_window;
-}
-
-bool BrowserView::UsesImmersiveFullscreenTabbedMode() const {
-  const bool is_pwa = GetIsWebAppType();
-  const bool is_tabbed_window = GetSupportsTabStrip();
-  return is_tabbed_window && !is_pwa;
-}
-#endif
-
 TabStripRegionView* BrowserView::tab_strip_view() const {
   auto* controller = tabs::VerticalTabStripStateController::From(browser_);
   if (vertical_tab_strip_region_view_ && controller &&
@@ -1404,6 +1392,14 @@ bool BrowserView::GetRegularOrGuestSession() const {
 
 bool BrowserView::GetAccelerator(int cmd_id,
                                  ui::Accelerator* accelerator) const {
+  // Different command IDs are used for the task manager for telemetry
+  // purpose. Map thees commands to the Task Manager shortcut ID.
+  if (cmd_id == IDC_TASK_MANAGER || cmd_id == IDC_TASK_MANAGER_APP_MENU ||
+      cmd_id == IDC_TASK_MANAGER_CONTEXT_MENU ||
+      cmd_id == IDC_TASK_MANAGER_MAIN_MENU) {
+    cmd_id = IDC_TASK_MANAGER_SHORTCUT;
+  }
+
 #if BUILDFLAG(IS_MAC)
   // On macOS, most accelerators are defined in MainMenu.xib and are user
   // configurable. Furthermore, their values and enabled state depends on the
@@ -1476,7 +1472,7 @@ float BrowserView::GetTopControlsSlideBehaviorShownRatio() const {
 
 views::Widget* BrowserView::GetWidgetForAnchoring() {
 #if BUILDFLAG(IS_MAC)
-  if (UsesImmersiveFullscreenMode()) {
+  if (WindowFeatureController::From(browser())->UsesImmersiveFullscreenMode()) {
     return IsFullscreen() ? overlay_widget_.get() : GetWidget();
   }
 #endif
@@ -1508,12 +1504,6 @@ void BrowserView::OnVerticalTabStripModeChanged(
   }
 
   GetFrameView()->OnTabStripStateChanged();
-
-  auto* const immersive_mode_controller =
-      ImmersiveModeController::From(browser());
-  if (immersive_mode_controller) {
-    immersive_mode_controller->OnTabStripLayoutChanged();
-  }
 
   UpdateTabSearchBubbleHost();
   InvalidateLayout();
@@ -1930,9 +1920,6 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
       // read out to screen readers, even if focus doesn't actually change.
       GetWidget()->GetFocusManager()->ClearFocus();
     }
-    if (loading_bar_) {
-      loading_bar_->SetWebContents(nullptr);
-    }
 
     multi_contents_view_->GetInactiveContentsView()->SetWebContents(nullptr);
     active_contents_view->SetWebContents(nullptr);
@@ -1985,10 +1972,6 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
         base::BindRepeating([](ContentsWebView* contents_view) {
           contents_view->GetWebContentsCloseHandler()->ActiveTabChanged();
         }));
-
-    if (loading_bar_) {
-      loading_bar_->SetWebContents(new_contents);
-    }
 
     const tabs::TabInterface* active_tab =
         tabs::TabInterface::GetFromContents(new_contents);
@@ -2062,9 +2045,6 @@ void BrowserView::OnTabDetached(content::WebContents* contents,
         contents_view->GetWebContentsCloseHandler()->ActiveTabChanged();
       }));
 
-  if (loading_bar_) {
-    loading_bar_->SetWebContents(nullptr);
-  }
   GetActiveContentsWebView()->SetWebContents(nullptr);
   infobar_container_->ChangeInfoBarManager(nullptr);
   app_banner_manager_observation_.Reset();
@@ -2182,7 +2162,7 @@ void BrowserView::FullscreenStateChanging() {
 void BrowserView::FullscreenStateChanged() {
 #if BUILDFLAG(IS_CHROMEOS)
   const auto* frame_view =
-      static_cast<BrowserFrameViewChromeOS*>(GetFrameView());
+      views::AsViewClass<BrowserFrameViewChromeOS>(GetFrameView());
   ImmersiveModeController::From(browser())->SetEnabled(
       frame_view->ShouldEnableImmersiveModeController());
 #endif
@@ -2196,8 +2176,11 @@ void BrowserView::FullscreenStateChanged() {
   // a higher z-order level. This overlay widget should be used for anchoring
   // secondary UIs, otherwise they will be covered by the toolbar.
   views::Widget* widget_for_anchoring =
-      UsesImmersiveFullscreenMode() && IsFullscreen() ? overlay_widget_.get()
-                                                      : nullptr;
+      WindowFeatureController::From(browser())->UsesImmersiveFullscreenMode() &&
+              IsFullscreen()
+          ? overlay_widget_.get()
+          : nullptr;
+
   contents_container()->SetProperty(views::kWidgetForAnchoringKey,
                                     widget_for_anchoring);
   GetFrameView()->OnFullscreenStateChanged();
@@ -2429,7 +2412,7 @@ void BrowserView::OnLockedForOnTaskUpdated(bool locked_for_on_task) {
 
 bool BrowserView::IsLockedFullscreen() const {
   const auto* frame_view =
-      static_cast<const BrowserFrameViewChromeOS*>(GetFrameView());
+      views::AsViewClass<BrowserFrameViewChromeOS>(GetFrameView());
   return frame_view->IsLockedFullscreen();
 }
 
@@ -2592,7 +2575,7 @@ void BrowserView::UpdateUnframedModeEnabled() {
     }
 
     if (unframed_mode_enabled && browser()->app_controller() &&
-        !browser()->app_controller()->UrlMatchesBorderlessPattern(
+        !browser()->app_controller()->UrlMatchesUnframedPattern(
             web_contents->GetVisibleURL())) {
       unframed_mode_enabled = false;
     }
@@ -2609,7 +2592,7 @@ void BrowserView::UpdateUnframedModeEnabled() {
   unframed_mode_enabled_ = unframed_mode_enabled;
 
   if (web_app_frame_toolbar()) {
-    web_app_frame_toolbar()->UpdateBorderlessModeEnabled();
+    web_app_frame_toolbar()->UpdateUnframedModeEnabled();
   }
 }
 
@@ -2697,7 +2680,7 @@ BrowserView* BrowserView::AsBrowserView() {
 
 bool BrowserView::AppUsesUnframedMode() const {
   return browser()->app_controller() &&
-         browser()->app_controller()->AppUsesBorderlessMode();
+         browser()->app_controller()->AppUsesUnframedMode();
 }
 
 bool BrowserView::AreDraggableRegionsEnabled() const {
@@ -2929,7 +2912,8 @@ bool BrowserView::IsToolbarVisible() const {
 #if BUILDFLAG(IS_MAC)
   // Immersive full screen makes it possible to display the toolbar when
   // kShowFullscreenToolbar is not set.
-  if (!UsesImmersiveFullscreenMode()) {
+  if (!WindowFeatureController::From(browser())
+           ->UsesImmersiveFullscreenMode()) {
     if (IsFullscreen() &&
         !fullscreen_utils::IsAlwaysShowToolbarEnabled(browser())) {
       return false;
@@ -2979,7 +2963,8 @@ void BrowserView::ShowBookmarkBubble(const GURL& url, bool already_bookmarked) {
 
 #if BUILDFLAG(IS_CHROMEOS)
 void BrowserView::ToggleMultitaskMenu() {
-  auto* frame_view = static_cast<BrowserFrameViewChromeOS*>(GetFrameView());
+  auto* frame_view =
+      views::AsViewClass<BrowserFrameViewChromeOS>(GetFrameView());
   if (!frame_view) {
     return;
   }
@@ -3361,10 +3346,10 @@ void BrowserView::OnSplitTabChanged(const SplitTabChange& change) {
           browser_->tab_strip_model()->GetActiveTab();
 
       if (active_tab->GetSplit() == change.split_id) {
-        if (change.GetVisualsChange()->new_visual_data().split_ratio() !=
-            change.GetVisualsChange()->old_visual_data().split_ratio()) {
-          multi_contents_view_->UpdateSplitRatio(
-              change.GetVisualsChange()->new_visual_data().split_ratio());
+        if (change.GetVisualsChange()->new_visual_data() !=
+            change.GetVisualsChange()->old_visual_data()) {
+          multi_contents_view_->UpdateSplitVisualData(
+              change.GetVisualsChange()->new_visual_data());
         }
       }
       break;
@@ -3423,10 +3408,10 @@ void BrowserView::OnTabStripModelChanged(
     TabStripModel* tab_strip_model,
     const TabStripModelChange& change,
     const TabStripSelectionChange& selection) {
-  // When the selected tab changes, elements in the omnibox can change, which
+  // When the active tab changes, elements in the omnibox can change, which
   // can change its preferred size. Re-lay-out the toolbar to reflect the
   // possible change.
-  if (selection.selection_changed()) {
+  if (selection.active_tab_changed()) {
     toolbar_->InvalidateLayout();
 
     // Update the accessible URL when the selected tab changes. This ensures
@@ -3436,10 +3421,6 @@ void BrowserView::OnTabStripModelChanged(
     if (active_contents) {
       UpdateAccessibleURLForRootView(active_contents->GetURL());
     }
-  }
-
-  if (loading_bar_) {
-    loading_bar_->SetWebContents(GetActiveWebContents());
   }
 
   if (change.type() != TabStripModelChange::kInserted) {
@@ -3703,7 +3684,8 @@ void BrowserView::ReparentTabStripAndWebAppViewsToTopContainer(
   }
 
 #if BUILDFLAG(IS_MAC)
-  if (!UsesImmersiveFullscreenTabbedMode()) {
+  if (!WindowFeatureController::From(browser())
+           ->UsesImmersiveFullscreenTabbedMode()) {
     top_container()->AddChildViewAt(horizontal_tab_strip_region_view_.get(), 0);
   }
 #endif  // BUILDFLAG(IS_MAC)
@@ -3975,7 +3957,8 @@ views::View* BrowserView::CreateOverlayView() {
 
 #if BUILDFLAG(IS_MAC)
 views::View* BrowserView::CreateMacOverlayView() {
-  DCHECK(UsesImmersiveFullscreenMode());
+  DCHECK(
+      WindowFeatureController::From(browser())->UsesImmersiveFullscreenMode());
 
   // Create the toolbar overlay widget.
   overlay_widget_ = OverlayWidgetMac::Create(this, GetWidget());
@@ -3997,7 +3980,8 @@ views::View* BrowserView::CreateMacOverlayView() {
   // empty bounds during layout, which might hide its children.
   overlay_widget_->SetContentsView(std::move(overlay_view));
 
-  if (UsesImmersiveFullscreenTabbedMode()) {
+  if (WindowFeatureController::From(browser())
+          ->UsesImmersiveFullscreenTabbedMode()) {
     // Create the tab overlay widget as a child of overlay_widget_.
     tab_overlay_widget_ = OverlayWidgetMac::Create(this, overlay_widget_);
     auto tab_overlay_view = std::make_unique<TabContainerOverlayViewMac>(
@@ -4198,8 +4182,7 @@ void BrowserView::ShowSplitView(bool focus_active_view) {
   const int relative_active_position = active_index - first_split_tab_index;
   multi_contents_view_->SetActiveIndex(relative_active_position);
 
-  multi_contents_view_->UpdateSplitRatio(
-      split_data->visual_data()->split_ratio());
+  multi_contents_view_->UpdateSplitVisualData(*split_data->visual_data());
 
   // Set focus to the active contents avoid reentrency when setting the web
   // contents within MultiContentsView. See crbug.com/458189541 and
@@ -4746,6 +4729,19 @@ void BrowserView::Layout(PassKey) {
   toolbar_->location_bar()->UpdateFocusBehavior(IsToolbarVisible());
   GetFrameView()->UpdateMinimumSize();
 
+  if (omnibox::IsWebUIOmniboxInBrowserViewEnabled()) {
+    // When the WebUI Omnibox is embedded directly in the `BrowserView` (instead
+    // of being a separate popup widget), its layout depends on the position of
+    // the `LocationBarView`. We must update its layout after the
+    // `BrowserView` layout to ensure it aligns correctly with the location bar.
+    auto* popup_view = toolbar_->location_bar_view()->GetOmniboxPopupView();
+    if (popup_view) {
+      if (auto* embedded_view = popup_view->AsOmniboxPopupViewBrowserView()) {
+        embedded_view->UpdateLayout();
+      }
+    }
+  }
+
   // Some of the situations when the BrowserView is laid out are:
   // - Enter/exit immersive fullscreen mode.
   // - Enter/exit tablet mode.
@@ -4835,6 +4831,19 @@ void BrowserView::AddedToWidget() {
 #endif
 
   toolbar_->Init();
+
+  if (omnibox::IsWebUIOmniboxInBrowserViewEnabled()) {
+    // When the WebUI Omnibox is embedded directly in the `BrowserView` (instead
+    // of being a separate popup widget), the popup view needs a reference to
+    // `BrowserView` to add the popup frame as a child view. We inject it here
+    // after the toolbar (and location bar) have been initialized.
+    auto* popup_view = toolbar_->location_bar_view()->GetOmniboxPopupView();
+    if (popup_view) {
+      if (auto* embedded_view = popup_view->AsOmniboxPopupViewBrowserView()) {
+        embedded_view->SetBrowserView(this);
+      }
+    }
+  }
 
   UpdateTabSearchBubbleHost();
 
@@ -5047,6 +5056,12 @@ const views::View* BrowserView::GetViewByElementId(
 // BrowserView, ui::AcceleratorTarget overrides:
 
 bool BrowserView::AcceleratorPressed(const ui::Accelerator& accelerator) {
+  NativeWebKeyboardEvent native_event(accelerator.ToKeyEvent());
+  if (browser_->GetFeatures().exclusive_access_manager()->HandleUserKeyEvent(
+          native_event)) {
+    return true;
+  }
+
   int command_id;
   // Though AcceleratorManager should not send unknown |accelerator| to us, it's
   // still possible the command cannot be executed now.
@@ -5204,8 +5219,7 @@ bool BrowserView::MaybeUpdateSplitView(content::WebContents* contents) {
   if (updated_state) {
     split_tabs::SplitTabData* split_data =
         browser_->tab_strip_model()->GetSplitData(new_tab->GetSplit().value());
-    multi_contents_view_->ShowSplitView(
-        split_data->visual_data()->split_ratio());
+    multi_contents_view_->ShowSplitView(*split_data->visual_data());
   } else if (current_state != updated_state) {
     multi_contents_view_->CloseSplitView();
   } else {
@@ -5457,6 +5471,22 @@ void BrowserView::LoadAccelerators() {
     // Also register with the focus manager.
     focus_manager->RegisterAccelerator(
         accelerator, ui::AcceleratorManager::kNormalPriority, this);
+  }
+
+  // Register the Esc accelerators (both press and release) to ensure they are
+  // sent to the ExclusiveAccessManager for press-and-hold fullscreen exit.
+  ui::Accelerator escape_pressed(ui::VKEY_ESCAPE, ui::EF_NONE,
+                                 ui::Accelerator::KeyState::PRESSED);
+  if (accelerator_table_.find(escape_pressed) == accelerator_table_.end()) {
+    focus_manager->RegisterAccelerator(
+        escape_pressed, ui::AcceleratorManager::kNormalPriority, this);
+  }
+
+  ui::Accelerator escape_released(ui::VKEY_ESCAPE, ui::EF_NONE,
+                                  ui::Accelerator::KeyState::RELEASED);
+  if (accelerator_table_.find(escape_released) == accelerator_table_.end()) {
+    focus_manager->RegisterAccelerator(
+        escape_released, ui::AcceleratorManager::kNormalPriority, this);
   }
 }
 

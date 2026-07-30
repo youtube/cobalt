@@ -5,6 +5,8 @@
 #ifndef COMPONENTS_AUTOFILL_CORE_BROWSER_UI_COUNTRY_COMBOBOX_MODEL_H_
 #define COMPONENTS_AUTOFILL_CORE_BROWSER_UI_COUNTRY_COMBOBOX_MODEL_H_
 
+#include <stddef.h>
+
 #include <memory>
 #include <string>
 #include <vector>

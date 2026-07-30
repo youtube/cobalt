@@ -7,6 +7,7 @@
 data/http_server_files/OWNERS
 data/http_server_files/actor/OWNERS
 data/http_server_files/actor/click_tool_test.html
+data/http_server_files/actor/page_stability.html
 data/http_server_files/actor/scroll_tool_test.html
 data/http_server_files/actor/select_tool_test.html
 data/http_server_files/actor/type_tool_test.html
@@ -37,6 +38,7 @@ data/http_server_files/history_go.js
 data/http_server_files/iframe_form.html
 data/http_server_files/iframe_host.html
 data/http_server_files/insecure_form.html
+data/http_server_files/link.html
 data/http_server_files/links.html
 data/http_server_files/memory_usage.html
 data/http_server_files/multi_field_form.html
@@ -80,6 +82,7 @@ data/http_server_files/uff_login_forms.html
 data/http_server_files/user_agent_test_page.html
 data/http_server_files/username_password_field_form.html
 data/http_server_files/vcard.vcf
+data/http_server_files/vehicle_form.html
 data/http_server_files/video_sample.mov
 data/http_server_files/window_close.html
 data/http_server_files/window_location.html

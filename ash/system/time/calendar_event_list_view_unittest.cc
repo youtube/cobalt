@@ -88,6 +88,9 @@ const char* kCalendarColorId1 = "12";
 bool kCalendarSelected1 = true;
 bool kCalendarPrimary1 = true;
 
+constexpr base::TimeDelta kCalendarClientResponseDelay =
+    calendar_test_utils::kAnimationSettleDownDuration + base::Seconds(2);
+
 }  // namespace
 
 class CalendarViewEventListViewTest
@@ -519,11 +522,6 @@ class CalendarViewEventListViewFetchTest
 
   bool IsMultiCalendarEnabled() { return GetParam(); }
 
-  void WaitUntilFetched() {
-    task_environment()->FastForwardBy(base::Minutes(1));
-    base::RunLoop().RunUntilIdle();
-  }
-
   void CreateEventListView(base::Time date) {
     event_list_view_.reset();
     controller_->UpdateMonth(date);
@@ -551,13 +549,23 @@ class CalendarViewEventListViewFetchTest
   }
 
   void FetchCalendars() {
+    calendar_test_utils::CalendarListFetchWaiter waiter(
+        Shell::Get()->system_tray_model()->calendar_list_model());
     Shell::Get()->system_tray_model()->calendar_list_model()->FetchCalendars();
-    WaitUntilFetched();
+    // Advance to the response callback using CalendarClientTestImpl's
+    // default fetch delay.
+    task_environment()->FastForwardBy(kCalendarClientResponseDelay);
+    waiter.Wait();
   }
 
   void RefetchEvents(base::Time start_of_month) {
+    calendar_test_utils::CalendarEventsFetchWaiter waiter(calendar_model_,
+                                                          start_of_month);
     calendar_model_->FetchEvents(start_of_month);
-    WaitUntilFetched();
+    // Advance to the response callback using CalendarClientTestImpl's
+    // default fetch delay.
+    task_environment()->FastForwardBy(kCalendarClientResponseDelay);
+    waiter.Wait();
   }
 
   void SetTodayFromTime(base::Time date) {

@@ -4,6 +4,10 @@
 
 #include "chrome/browser/ui/webui/webui_toolbar/webui_toolbar_test_utils.h"
 
+#include <utility>
+
+#include "mojo/public/cpp/bindings/clone_traits.h"
+
 MockToolbarUIObserver::MockToolbarUIObserver() = default;
 MockToolbarUIObserver::~MockToolbarUIObserver() = default;
 
@@ -42,13 +46,14 @@ CreateValidNavigationControlsState() {
       toolbar_ui_api::mojom::SplitTabsControlState::New(),
       std::move(back_forward_state),
       toolbar_ui_api::mojom::HomeControlState::New(),
+      toolbar_ui_api::mojom::AvatarControlState::New(),
       toolbar_ui_api::mojom::LocationBarState::New(
           toolbar_ui_api::mojom::OmniboxViewState::New(),
           toolbar_ui_api::mojom::LocationBarFlags::New(),
           std::vector<toolbar_ui_api::mojom::ContentSettingImageStatePtr>(),
           toolbar_ui_api::mojom::LhsChipsState::New(
               toolbar_ui_api::mojom::SecurityChipState::New(
-                  toolbar_ui_api::mojom::SecurityChipIcon::kHttp,
+                  toolbar_ui_api::IconHandle(),
                   toolbar_ui_api::mojom::SecurityLevel::kNone, std::u16string(),
                   /*is_clickable=*/false, /*is_text_dangerous=*/false,
                   /*is_visible=*/true),
@@ -60,3 +65,34 @@ CreateValidNavigationControlsState() {
 
 MockCommandUpdater::MockCommandUpdater() = default;
 MockCommandUpdater::~MockCommandUpdater() = default;
+
+namespace mojo {
+std::ostream& operator<<(
+    std::ostream& out,
+    const toolbar_ui_api::mojom::IconUpdatePtr& icon_update) {
+  return out << "{handle_id: " << icon_update->handle_id
+             << ", icon_url_or_name: "
+             << icon_update->icon_url_or_name.value_or(std::string("(nullopt)"))
+             << ", icon_type: " << icon_update->icon_type << "}";
+}
+
+}  // namespace mojo
+
+FakeIconTableFetcher::FakeIconTableFetcher() = default;
+FakeIconTableFetcher::~FakeIconTableFetcher() = default;
+
+void FakeIconTableFetcher::AddUpdate(
+    toolbar_ui_api::mojom::IconUpdatePtr update) {
+  all_updates_.push_back(update.Clone());
+  pending_updates_.push_back(std::move(update));
+}
+
+std::vector<toolbar_ui_api::mojom::IconUpdatePtr>
+FakeIconTableFetcher::GetFullState() {
+  return mojo::Clone(all_updates_);
+}
+
+std::vector<toolbar_ui_api::mojom::IconUpdatePtr>
+FakeIconTableFetcher::TakePendingUpdates() {
+  return std::move(pending_updates_);
+}

@@ -19,6 +19,20 @@ if (is_android) {
   import("//build/config/android/rules.gni")
 }
 
+if (is_posix && !is_mac) {
+  # Header-only target so non-:browser targets can include this header
+  # without depending on //chrome/browser:browser. The .cc file remains
+  # in //chrome/browser:browser.
+  source_set("chrome_crash_reporter_client") {
+    public = [ "chrome_crash_reporter_client.h" ]
+    public_deps = [
+      "//base",
+      "//build:buildflag_header_h",
+      "//components/crash/core/app",
+    ]
+  }
+}
+
 # This target is for dependency tracking for the command ID header.
 source_set("command_ids") {
   sources = [ "chrome_command_ids.h" ]
@@ -137,6 +151,7 @@ static_library("test_support") {
     "//chrome/browser:buildflags",
     "//chrome/browser:chrome_content_browser_client",
     "//chrome/browser:defaults",
+    "//chrome/browser:process_singleton",
     "//chrome/browser:shell_integration",
     "//chrome/browser:startup_data",
     "//chrome/browser/diagnostics",
@@ -181,6 +196,7 @@ static_library("test_support") {
 
     deps += [
       "//chrome:chrome_framework",
+      "//chrome/browser:chrome_browser_application_mac",
       "//chrome/browser/mac",
     ]
   }
@@ -205,6 +221,14 @@ static_library("test_support") {
       "//chromeos/ash/experiences/arc:arc_base_utils",
       "//chromeos/dbus/constants",
     ]
+  }
+
+  if (is_posix && !is_mac) {
+    deps += [ ":chrome_crash_reporter_client" ]
+  }
+
+  if (!is_android) {
+    deps += [ "//chrome/browser:chrome_process_singleton" ]
   }
 
   if (use_ozone) {

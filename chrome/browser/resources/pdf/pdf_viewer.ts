@@ -65,10 +65,11 @@ import type {Ink2ThumbnailData} from './elements/viewer_thumbnail_bar.js';
 import type {ViewerToolbarElement} from './elements/viewer_toolbar.js';
 // <if expr="enable_pdf_ink2">
 import {Ink2Manager} from './ink2_manager.js';
+import type {UndoRedoStateChangedDetail} from './undo_redo_stack.js';
 //</if>
 import {LocalStorageProxyImpl} from './local_storage_proxy.js';
 import {convertDocumentDimensionsMessage, convertFormFocusChangeMessage, convertLoadProgressMessage, convertSendKeyEventMessage} from './message_converter.js';
-import {record, recordEnumeration, UserAction} from './metrics.js';
+import {record, recordEnumeration, UserAction, PostMessageDataType} from './metrics.js';
 import {NavigatorDelegateImpl, PdfNavigatorImpl, WindowOpenDisposition} from './navigator.js';
 import type {PdfNavigator} from './navigator.js';
 import {LoadState} from './pdf_scripting_api.js';
@@ -94,18 +95,6 @@ type SaveToDriveStatus = chrome.pdfViewerPrivate.SaveToDriveStatus;
 // </if> enable_pdf_save_to_drive
 const SaveRequestType = chrome.pdfViewerPrivate.SaveRequestType;
 type SaveRequestType = chrome.pdfViewerPrivate.SaveRequestType;
-
-/**
- * Keep in sync with the values for enum PDFPostMessageDataType in
- * tools/metrics/histograms/metadata/pdf/enums.xml.
- * These values are persisted to logs. Entries should not be renumbered, removed
- * or reused.
- */
-enum PostMessageDataType {
-  GET_SELECTED_TEXT = 0,
-  PRINT = 1,
-  SELECT_ALL = 2,
-}
 
 interface EmailMessageData {
   type: string;
@@ -352,9 +341,6 @@ export class PdfViewerElement extends PdfViewerBaseElement {
   protected accessor hasEdits_: boolean = false;
   // <if expr="enable_pdf_ink2">
   protected accessor hasCommittedInk2Edits_: boolean = false;
-  // `hasSavedEdits_` is true if the PDF has been saved with edits. Additional
-  // changes or saves of the document will not update this property.
-  private hasSavedEdits_: boolean = false;
   // </if>
   // <if expr="enable_pdf_ink2 or enable_pdf_save_to_drive">
   // `hasUnsavedEdits_` is set whenever the user makes edits to the PDF that
@@ -467,6 +453,9 @@ export class PdfViewerElement extends PdfViewerBaseElement {
                                        UserAction.OPEN_INK2_BOTTOM_TOOLBAR);
       }
     });
+    this.tracker.add(
+        Ink2Manager.getInstance(), 'undo-redo-state-changed',
+        this.handleUndoRedoStateChanged_.bind(this));
     // </if> enable_pdf_ink2
   }
 
@@ -970,8 +959,7 @@ export class PdfViewerElement extends PdfViewerBaseElement {
     }
 
     recordEnumeration(
-        'PDF.PostMessageDataType', messageType,
-        Object.keys(PostMessageDataType).length);
+        'PDF.PostMessageDataType', messageType, PostMessageDataType.COUNT);
     return true;
   }
 
@@ -1386,6 +1374,9 @@ export class PdfViewerElement extends PdfViewerBaseElement {
       let pdfInk2Enabled = false;
       // <if expr="enable_pdf_ink2">
       pdfInk2Enabled = this.pdfInk2Enabled_;
+      if (this.pdfInk2Enabled_ && e.detail === SaveRequestType.ANNOTATION) {
+        Ink2Manager.getInstance().initiateSave();
+      }
       // </if>
       recordSaveToDriveMetrics(
           e.detail, this.hasCommittedEdits_(), pdfInk2Enabled);
@@ -1533,15 +1524,11 @@ export class PdfViewerElement extends PdfViewerBaseElement {
   }
 
   // <if expr="enable_pdf_ink2">
-  protected onStrokesUpdated_(e: CustomEvent<number>) {
-    this.hasCommittedInk2Edits_ = e.detail > 0;
-    this.hasUnsavedEdits_ = this.hasCommittedInk2Edits_;
-
-    // If the user already saved, always show the beforeunload dialog if the
-    // strokes have updated. If the user hasn't saved, only show the
-    // beforeunload dialog if there's edits.
-    this.setShowBeforeUnloadDialog_(
-        this.hasSavedEdits_ || this.shouldShowBeforeUnloadDialog_());
+  private handleUndoRedoStateChanged_(
+      e: CustomEvent<UndoRedoStateChangedDetail>) {
+    this.hasCommittedInk2Edits_ = e.detail.canUndo;
+    this.hasUnsavedEdits_ = e.detail.hasUnsavedEdits;
+    this.setShowBeforeUnloadDialog_(this.shouldShowBeforeUnloadDialog_());
   }
   // </if>
 
@@ -1649,6 +1636,11 @@ export class PdfViewerElement extends PdfViewerBaseElement {
     // SaveRequestType.ANNOTATION or SaveRequestType.EDITED.
     if (isEditedSaveRequestType(requestType)) {
       this.hasUnsavedEdits_ = false;
+      // <if expr="enable_pdf_ink2">
+      if (this.pdfInk2Enabled_ && requestType === SaveRequestType.ANNOTATION) {
+        Ink2Manager.getInstance().initiateSave();
+      }
+      // </if>
     }
     // </if>
 
@@ -1662,6 +1654,7 @@ export class PdfViewerElement extends PdfViewerBaseElement {
     const result = await this.currentController.save(requestType);
     if (result === null) {
       // The content controller handled the save internally.
+      this.fire('save-completed-for-testing');
       return;
     }
 
@@ -1822,9 +1815,11 @@ export class PdfViewerElement extends PdfViewerBaseElement {
   private onSaveSuccessful_(requestType: SaveRequestType) {
     this.setShowBeforeUnloadDialog_(this.shouldShowBeforeUnloadDialog_());
     // <if expr="enable_pdf_ink2">
-    this.hasSavedEdits_ =
-        this.hasSavedEdits_ || requestType === SaveRequestType.EDITED;
+    if (this.pdfInk2Enabled_ && requestType === SaveRequestType.ANNOTATION) {
+      Ink2Manager.getInstance().saved();
+    }
     // </if> enable_pdf_ink2
+    this.fire('save-completed-for-testing');
   }
 
   /**
@@ -1938,7 +1933,13 @@ export class PdfViewerElement extends PdfViewerBaseElement {
     if (isEditedSaveRequestType(requestType)) {
       this.hasUnsavedEdits_ = true;
     }
+    // <if expr="enable_pdf_ink2">
+    if (this.pdfInk2Enabled_ && requestType === SaveRequestType.ANNOTATION) {
+      Ink2Manager.getInstance().cancelSave();
+    }
+    // </if>
     this.setShowBeforeUnloadDialog_(this.shouldShowBeforeUnloadDialog_());
+    this.fire('save-completed-for-testing');
   }
 
   protected onTextBoxStateChanged_(e: CustomEvent<TextBoxState>) {

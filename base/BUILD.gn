@@ -139,6 +139,7 @@ if (is_win) {
       "/DELAYLOAD:powrprof.dll",
       "/DELAYLOAD:setupapi.dll",
       "/DELAYLOAD:shcore.dll",
+      "/DELAYLOAD:tbs.dll",
     ]
   }
 }
@@ -182,8 +183,8 @@ config("asan_raw_ptr_service_v2_config") {
   cflags = [ "-fsanitize-recover=address" ]
 }
 
-# `asan_raw_ptr_service` is built as a part of `base` without `-fsanitize=address`
-# to avoid performance regressions.
+# `asan_raw_ptr_service` is built as a part of `base` without
+# `-fsanitize=address` to avoid performance regressions.
 source_set("asan_raw_ptr_service") {
   # Used by raw_ptr_service.cc to override {malloc,free,ignore_free} hooks.
   sources = []
@@ -2051,6 +2052,7 @@ component("base") {
       "propsys.lib",
       "setupapi.lib",
       "shcore.lib",
+      "tbs.lib",
       "userenv.lib",
       "wbemuuid.lib",
       "winmm.lib",
@@ -3441,7 +3443,8 @@ if (is_fuchsia) {
     sources = [ "fuchsia/test.test-fidl" ]
   }
 
-  # TODO(crbug.com/40256912): remove this once all users are migrated to natural bindings.
+  # TODO(crbug.com/40256912): remove this once all users are migrated to natural
+  # bindings.
   source_set("test_interface_impl") {
     testonly = true
     sources = [
@@ -3519,15 +3522,18 @@ if (is_win) {
 }
 
 if (is_android) {
-  # On Android, Death Tests must be ran on raw executables, but the default base_unittests target will run from an APK.
-  # So any test that contains at least one case that uses the Death Test mechanism must be moved here to be ran properly on Android.
+  # On Android, Death Tests must be ran on raw executables, but the default
+  # base_unittests target will run from an APK. So any test that contains at
+  # least one case that uses the Death Test mechanism must be moved here to be
+  # ran properly on Android.
   test("base_unittests_android_death_tests") {
     use_raw_android_executable = true
 
     deps = [
       ":base",
 
-      # TODO(crbug.com/40158212): Move partition_alloc tests into its repository.
+      # TODO(crbug.com/40158212): Move partition_alloc tests into its
+      # repository.
       "allocator/partition_allocator/src/partition_alloc:test_support",
       "//base/test:test_support",
       "//testing/gmock",
@@ -3649,6 +3655,7 @@ test("base_unittests") {
     "i18n/file_util_icu_unittest.cc",
     "i18n/icu_string_conversions_unittest.cc",
     "i18n/icu_util_unittest.cc",
+    "i18n/language_code_unittest.cc",
     "i18n/message_formatter_unittest.cc",
     "i18n/number_formatting_unittest.cc",
     "i18n/rtl_unittest.cc",
@@ -3959,8 +3966,8 @@ test("base_unittests") {
 
   if (!(current_cpu == "riscv64" || current_cpu == "loong64" ||
         current_cpu == "ppc64")) {
-    # On unofficial CPU architectures, there are no defined TRAP_SEQUENCE to test
-    # and building immediate_crash_unittest would fail.
+    # On unofficial CPU architectures, there are no defined TRAP_SEQUENCE to
+    # test and building immediate_crash_unittest would fail.
     sources += [ "immediate_crash_unittest.cc" ]
   }
 
@@ -3969,7 +3976,11 @@ test("base_unittests") {
     "strings/string_piece_rust_unittest.cc",
   ]
 
-  fuzztests = [ "JSONReaderTest.CanParseAnythingWithoutCrashing" ]
+  fuzztests = [
+    "Base64UrlTest.FuzzBase64UrlDecode",
+    "Base64UrlTest.FuzzBase64UrlEncode",
+    "JSONReaderTest.CanParseAnythingWithoutCrashing",
+  ]
 
   defines = []
   frameworks = []
@@ -4001,6 +4012,7 @@ test("base_unittests") {
     "//testing/gtest",
     "//third_party/abseil-cpp:absl",
     "//third_party/abseil-cpp:test_support",
+    "//third_party/fuzztest",
     "//third_party/icu",
     "//third_party/modp_b64",
 
@@ -4080,7 +4092,8 @@ test("base_unittests") {
     sources += [
       "metrics/histogram_shared_memory_unittest.cc",
 
-      # TODO(crbug.com/40158212): Move partition_alloc tests into its repository.
+      # TODO(crbug.com/40158212): Move partition_alloc tests into its
+      # repository.
       "allocator/partition_allocator/src/partition_alloc/tagging_unittest.cc",
     ]
 
@@ -4516,7 +4529,8 @@ test("base_unittests") {
       "sampling_heap_profiler/poisson_allocation_sampler_unittest.cc",
       "sampling_heap_profiler/sampling_heap_profiler_unittest.cc",
 
-      # TODO(crbug.com/40158212): Move partition_alloc tests into its repository.
+      # TODO(crbug.com/40158212): Move partition_alloc tests into its
+      # repository.
       "allocator/partition_alloc_support_unittest.cc",
       "allocator/partition_allocator/src/partition_alloc/shim/allocator_shim_unittest.cc",
       "allocator/scheduler_loop_quarantine_config_unittest.cc",
@@ -4983,11 +4997,10 @@ if (is_android) {
 
     proguard_configs = [ "android/proguard/shared_with_cronet.flags" ]
 
-    # DO NOT ADD TO THIS LIST.
-    # base_java is a blob of targets that are being consumed by almost every product and
-    # library in Chromium, adding new java modules here means that all consumers will be
-    # impacted (eg: This could have severe consequences as Cronet can't depend on Guava /
-    # AndroidX).
+    # DO NOT ADD TO THIS LIST. base_java is a blob of targets that are being
+    # consumed by almost every product and library in Chromium, adding new java
+    # modules here means that all consumers will be impacted (eg: This could
+    # have severe consequences as Cronet can't depend on Guava / AndroidX).
     #
     # The current list were grandfathered during the refactoring of base_java.
     public_deps = [
@@ -5880,10 +5893,12 @@ if (is_android) {
       "test/android/javatests/src/org/chromium/base/test/util/DestroyableHolder.java",
       "test/android/javatests/src/org/chromium/base/test/util/DisableIf.java",
       "test/android/javatests/src/org/chromium/base/test/util/DisableIfSkipCheck.java",
+      "test/android/javatests/src/org/chromium/base/test/util/DisableLeakChecks.java",
       "test/android/javatests/src/org/chromium/base/test/util/DisabledTest.java",
       "test/android/javatests/src/org/chromium/base/test/util/DoNotBatch.java",
       "test/android/javatests/src/org/chromium/base/test/util/DoNotRevive.java",
       "test/android/javatests/src/org/chromium/base/test/util/DumpThreadsOnFailureRule.java",
+      "test/android/javatests/src/org/chromium/base/test/util/EnableLeakChecks.java",
       "test/android/javatests/src/org/chromium/base/test/util/EnormousTest.java",
       "test/android/javatests/src/org/chromium/base/test/util/Feature.java",
       "test/android/javatests/src/org/chromium/base/test/util/Features.java",
@@ -6083,6 +6098,7 @@ if (is_android) {
       "test/android/junit/src/org/chromium/base/test/util/DisableIfTest.java",
       "test/android/junit/src/org/chromium/base/test/util/DisabledTestForClassRobolectricTest.java",
       "test/android/junit/src/org/chromium/base/test/util/DisabledTestRobolectricTest.java",
+      "test/android/junit/src/org/chromium/base/test/util/LeakCanaryCheckerTest.java",
       "test/android/junit/src/org/chromium/base/test/util/RestrictionSkipCheckTest.java",
       "test/android/junit/src/org/chromium/base/test/util/SkipCheckTest.java",
     ]
@@ -6099,6 +6115,7 @@ if (is_android) {
       ":jni_callbacks_junit_tests_java",
       ":location_junit_tests",
       ":task_executor_java",
+      "//base/test:leak_canary_java",
       "//base/test:public_transit_robolectric_tests_java",
       "//base/test:test_support_java",
       "//testing/android/instrumentation:test_runner_java",
@@ -6194,11 +6211,6 @@ fuzzer_test("base64_encode_fuzzer") {
     "//base/test:test_support",
     "//testing/libfuzzer:libfuzzer_base_wrappers",
   ]
-}
-
-fuzzer_test("base64url_fuzzer") {
-  sources = [ "base64url_fuzzer.cc" ]
-  deps = [ "//base" ]
 }
 
 fuzzer_test("base_json_correctness_fuzzer") {

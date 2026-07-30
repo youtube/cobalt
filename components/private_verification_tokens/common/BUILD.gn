@@ -73,7 +73,10 @@ source_set("private_verification_tokens_database") {
     "private_verification_tokens_database.cc",
     "private_verification_tokens_database.h",
   ]
-  public_deps = [ ":private_verification_tokens_public_key" ]
+  public_deps = [
+    ":private_verification_tokens_public_key",
+    ":private_verification_tokens_token",
+  ]
   deps = [
     "//base",
     "//sql",
@@ -89,6 +92,77 @@ source_set("private_verification_tokens_database_unittest") {
     "//base/test:test_support",
     "//sql",
     "//sql:test_support",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}
+
+source_set("private_verification_tokens_store") {
+  sources = [
+    "private_verification_tokens_store.cc",
+    "private_verification_tokens_store.h",
+  ]
+  public_deps = [
+    ":private_verification_tokens_database",
+    ":private_verification_tokens_public_key",
+    ":private_verification_tokens_token",
+  ]
+  deps = [ "//base" ]
+}
+
+source_set("private_verification_tokens_store_unittest") {
+  testonly = true
+  sources = [ "private_verification_tokens_store_unittest.cc" ]
+  deps = [
+    ":private_verification_tokens_public_key",
+    ":private_verification_tokens_store",
+    ":private_verification_tokens_token",
+    "//base",
+    "//base/test:test_support",
+    "//sql",
+    "//sql:test_support",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}
+
+source_set("private_verification_tokens_parameters") {
+  sources = [
+    "private_verification_tokens_parameters.cc",
+    "private_verification_tokens_parameters.h",
+  ]
+}
+
+source_set("private_verification_tokens_parameters_unittest") {
+  testonly = true
+  sources = [ "private_verification_tokens_parameters_unittest.cc" ]
+  deps = [
+    ":private_verification_tokens_parameters",
+    "//testing/gtest",
+  ]
+}
+
+source_set("private_verification_tokens_issuer_config") {
+  sources = [
+    "private_verification_tokens_issuer_config.cc",
+    "private_verification_tokens_issuer_config.h",
+    "private_verification_tokens_issuer_config_internal.h",
+  ]
+  public_deps = [ "//base" ]
+  deps = [
+    ":private_verification_tokens_parameters",
+    ":private_verification_tokens_public_key",
+    "//net",
+  ]
+}
+
+source_set("private_verification_tokens_issuer_config_unittest") {
+  testonly = true
+  sources = [ "private_verification_tokens_issuer_config_unittest.cc" ]
+  deps = [
+    ":private_verification_tokens_issuer_config",
+    ":private_verification_tokens_parameters",
+    "//base",
     "//testing/gmock",
     "//testing/gtest",
   ]

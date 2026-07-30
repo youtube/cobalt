@@ -16,6 +16,7 @@
 #include "components/vector_icons/vector_icons.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/gfx/color_utils.h"
 #include "ui/gfx/geometry/insets.h"
 #include "ui/gfx/paint_vector_icon.h"
@@ -101,8 +102,8 @@ void PaymentRequestItemList::Item::Init() {
     edit_button->SetBorder(nullptr);
     edit_button->SetImageModel(
         views::Button::STATE_NORMAL,
-        ui::ImageModel::FromVectorIcon(vector_icons::kEditIcon, ui::kColorIcon,
-                                       kEditIconSize));
+        ui::ImageModel::FromVectorIcon(vector_icons::kEditOldIcon,
+                                       ui::kColorIcon, kEditIconSize));
     views::InkDrop::Get(edit_button.get())->SetBaseColor(ui::kColorIcon);
     edit_button->SetFocusBehavior(views::View::FocusBehavior::ALWAYS);
     edit_button->SetID(static_cast<int>(DialogViewID::EDIT_ITEM_BUTTON));
@@ -137,8 +138,10 @@ std::unique_ptr<views::ImageView> PaymentRequestItemList::Item::CreateCheckmark(
       std::make_unique<views::ImageView>();
   checkmark->SetID(static_cast<int>(DialogViewID::CHECKMARK_VIEW));
   checkmark->SetCanProcessEventsWithinSubtree(false);
-  checkmark->SetImage(ui::ImageModel::FromVectorIcon(views::kMenuCheckOldIcon,
-                                                     kCheckmarkColor));
+  checkmark->SetImage(ui::ImageModel::FromVectorIcon(
+      features::IsRoundedIconsEnabled() ? views::kCheckIcon
+                                        : views::kMenuCheckOldIcon,
+      kCheckmarkColor));
   checkmark->SetVisible(selected);
   checkmark->SetFocusBehavior(views::View::FocusBehavior::NEVER);
   return checkmark;

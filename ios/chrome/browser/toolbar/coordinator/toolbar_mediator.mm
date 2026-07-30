@@ -14,6 +14,8 @@
 #import "ios/chrome/browser/shared/model/prefs/pref_backed_boolean.h"
 #import "ios/chrome/browser/shared/model/url/url_util.h"
 #import "ios/chrome/browser/shared/model/web_state_list/active_web_state_observation_forwarder.h"
+#import "ios/chrome/browser/shared/model/web_state_list/tab_group.h"
+#import "ios/chrome/browser/shared/model/web_state_list/tab_group_utils.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list_observer_bridge.h"
 #import "ios/chrome/browser/shared/public/commands/fullscreen_commands.h"
@@ -141,8 +143,9 @@
       forButtonType:ToolbarButtonTypeForward];
   [self.consumer setMenu:[_buttonMenuFactory menuForAssistantButton]
            forButtonType:ToolbarButtonTypeAssistant];
-  /// TODO(crbug.com/493948951): Support context menu for tab grid button in the
-  /// Toolbar (iPad).
+  [self.consumer setMenu:[_buttonMenuFactory menuForTabGridButton]
+           forButtonType:ToolbarButtonTypeTabGrid];
+  [self updateConsumerTabCountAndGroupState];
 }
 
 - (void)disconnect {
@@ -305,6 +308,8 @@
                        status:(const WebStateListStatus&)status {
   if (status.active_web_state_change() && status.new_active_web_state) {
     [self updateConsumerWithWebState:status.new_active_web_state];
+  } else {
+    [self updateConsumerTabCountAndGroupState];
   }
 }
 
@@ -371,45 +376,46 @@
   if (_topPosition || !_bottomOmniboxEnabled.value) {
     return;
   }
-  // Whether to cleanup the location indication previously shown for web
-  // content.
-  BOOL hideLocationIndicator =
-      !shouldConstraintToKeyboard && _locationBarIndicatorActive;
 
-  // Whether to show the secondary toolbar as a location indicator when keyboard
-  // is active for web content. Bottom omnibox exclusive.
-  BOOL keyboardActiveForWebContent = [self keyboardIsActiveForWebContent];
-  BOOL showLocationIndicator = shouldConstraintToKeyboard &&
-                               keyboardActiveForWebContent &&
-                               !_locationBarIndicatorActive;
+  // Determine if the toolbar should currently be pinned above the keyboard.
+  BOOL targetIndicatorActive =
+      shouldConstraintToKeyboard && [self keyboardIsActiveForWebContent];
 
-  BOOL shouldAnimateOmniboxMovement =
-      showLocationIndicator || hideLocationIndicator;
-  if (!shouldAnimateOmniboxMovement) {
+  // Early return if the indicator is inactive and should remain inactive.
+  // If active, we continue so the UI consumer can process frame updates.
+  if (!targetIndicatorActive && !_locationBarIndicatorActive) {
     return;
   }
 
-  _locationBarIndicatorActive = showLocationIndicator;
+  BOOL stateChanged = (targetIndicatorActive != _locationBarIndicatorActive);
+  _locationBarIndicatorActive = targetIndicatorActive;
 
-  FullscreenModeTransitionTrigger trigger =
-      FullscreenModeTransitionTrigger::kForcedByCode;
+  // Only transition fullscreen modes if the indicator state is actually
+  // changing. This prevents continuous frame updates from looping the
+  // animation.
+  if (stateChanged) {
+    FullscreenModeTransitionTrigger trigger =
+        FullscreenModeTransitionTrigger::kForcedByCode;
 
-  if (IsFullscreenRefactoringEnabled()) {
-    if (showLocationIndicator) {
-      [self.fullscreenCommands enterFullscreenWithTrigger:trigger animated:YES];
-    } else {
-      [self.fullscreenCommands exitFullscreenWithTrigger:trigger animated:YES];
-    }
-  } else if (_fullscreenController) {
-    if (showLocationIndicator) {
-      _fullscreenController->EnterForceFullscreenMode(
-          /* insets_update_enabled */ false, trigger);
-    } else {
-      _fullscreenController->ExitForceFullscreenMode(trigger);
+    if (IsFullscreenRefactoringEnabled()) {
+      if (targetIndicatorActive) {
+        [self.fullscreenCommands enterFullscreenWithTrigger:trigger
+                                                   animated:YES];
+      } else {
+        [self.fullscreenCommands exitFullscreenWithTrigger:trigger
+                                                  animated:YES];
+      }
+    } else if (_fullscreenController) {
+      if (targetIndicatorActive) {
+        _fullscreenController->EnterForceFullscreenMode(
+            /* insets_update_enabled= */ false, trigger);
+      } else {
+        _fullscreenController->ExitForceFullscreenMode(trigger);
+      }
     }
   }
 
-  [self.consumer setLocationIndicatorVisible:showLocationIndicator
+  [self.consumer setLocationIndicatorVisible:targetIndicatorActive
                              forNotification:notification];
 }
 
@@ -422,6 +428,23 @@
         .keyboardVisible;
   }
   return NO;
+}
+
+// Updates the consumer tab state.
+- (void)updateConsumerTabCountAndGroupState {
+  if (_webStateList) {
+    const TabGroup* group = GetGroupForActiveWebState(_webStateList);
+    if (group) {
+      [self.consumer updateTabCount:group->range().count()];
+      [self.consumer setInTabGroup:YES];
+    } else {
+      [self.consumer updateTabCount:_webStateList->count()];
+      [self.consumer setInTabGroup:NO];
+    }
+  } else {
+    [self.consumer updateTabCount:0];
+    [self.consumer setInTabGroup:NO];
+  }
 }
 
 @end

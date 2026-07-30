@@ -109,41 +109,13 @@ cast_source_set("channel_mixer") {
   ]
 }
 
-cast_source_set("audio_renderer") {
-  sources = [
-    "cast_audio_renderer.cc",
-    "cast_audio_renderer.h",
-  ]
-
-  public_deps = [ "//chromecast/media/audio/audio_output_service:proto" ]
-
-  deps = [
-    ":audio_io_thread",
-    "//base",
-    "//chromecast/common/mojom",
-    "//chromecast/media/audio/audio_output_service:output_connection",
-    "//chromecast/media/audio/net:common",
-    "//chromecast/media/cma/base",
-    "//chromecast/public/media",
-    "//media",
-    "//media/mojo/mojom",
-    "//mojo/public/cpp/bindings",
-    "//net",
-    "//third_party/blink/public:blink_headers",
-  ]
-}
-
 cast_source_set("audio") {
   sources = [
     "audio_clock_simulator_impl.cc",
-    "cast_audio_input_stream.cc",
-    "cast_audio_input_stream.h",
     "cast_audio_manager.cc",
     "cast_audio_manager.h",
     "cast_audio_manager_helper.cc",
     "cast_audio_manager_helper.h",
-    "cast_audio_mixer.cc",
-    "cast_audio_mixer.h",
     "cast_audio_output_stream.cc",
     "cast_audio_output_stream.h",
     "cast_audio_output_utils.cc",
@@ -158,12 +130,7 @@ cast_source_set("audio") {
     "//base",
     "//chromecast/base",
     "//chromecast/media/api",
-    "//chromecast/media/audio/capture_service:common",
-    "//chromecast/media/audio/capture_service:receiver",
-    "//chromecast/media/audio/capture_service:utils",
-    "//chromecast/media/audio/mixer_service:common",
-    "//chromecast/media/audio/mixer_service:output_stream_connection",
-    "//chromecast/media/audio/mixer_service:proto",
+
     "//chromecast/media/audio/net:proto",
     "//chromecast/media/base",
     "//chromecast/media/base:monotonic_clock",
@@ -257,7 +224,7 @@ source_set("fake_external_audio_pipeline") {
 buildflag_header("audio_buildflags") {
   header = "audio_buildflags.h"
 
-  flags = [ "ENABLE_AUDIO_CAPTURE_SERVICE=$enable_audio_capture_service" ]
+  flags = []
 
   if (use_alsa) {
     # Currently, this flag will only be used in cast_audio_manager_alsa.cc

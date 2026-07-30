@@ -76,12 +76,14 @@
 #include "services/network/public/cpp/content_security_policy/csp_context.h"
 #include "services/network/public/mojom/blocked_by_response_reason.mojom-shared.h"
 #include "services/network/public/mojom/content_security_policy.mojom.h"
+#include "services/network/public/mojom/declarative_performance_observer.mojom-forward.h"
 #include "services/network/public/mojom/shared_dictionary_access_observer.mojom.h"
 #include "services/network/public/mojom/trust_token_access_observer.mojom-shared.h"
 #include "services/network/public/mojom/web_sandbox_flags.mojom-shared.h"
 #include "third_party/blink/public/common/runtime_feature_state/runtime_feature_state_context.h"
 #include "third_party/blink/public/common/tokens/tokens.h"
 #include "third_party/blink/public/mojom/confidence_level.mojom.h"
+#include "third_party/blink/public/mojom/frame/frame.mojom-forward.h"
 #include "third_party/blink/public/mojom/lcp_critical_path_predictor/lcp_critical_path_predictor.mojom.h"
 #include "third_party/blink/public/mojom/loader/mixed_content.mojom-forward.h"
 #include "third_party/blink/public/mojom/navigation/navigation_params.mojom-forward.h"
@@ -438,6 +440,8 @@ class CONTENT_EXPORT NavigationRequest
   const blink::mojom::LCPCriticalPathPredictorNavigationTimeHintPtr&
   GetLCPPNavigationHint() override;
   const net::HttpResponseHeaders* GetResponseHeaders() override;
+  const network::mojom::DeclarativePerformanceObserverPolicy*
+  GetDeclarativePerformanceObserverPolicy() override;
   net::HttpConnectionInfo GetConnectionInfo() override;
   const std::optional<net::SSLInfo>& GetSSLInfo() override;
   const std::optional<net::AuthChallengeInfo>& GetAuthChallengeInfo() override;
@@ -2303,14 +2307,6 @@ class CONTENT_EXPORT NavigationRequest
   void StopCommitTimeout();
   void RestartCommitTimeout();
 
-  std::vector<std::string> TakeRemovedRequestHeaders() {
-    return std::move(removed_request_headers_);
-  }
-
-  net::HttpRequestHeaders TakeModifiedRequestHeaders() {
-    return std::move(modified_request_headers_);
-  }
-
   // Returns true if the contents of |common_params_| requires
   // |source_site_instance_| to be set. This is used to ensure that data: and
   // about:blank URLs with valid initiator origins always have
@@ -2621,6 +2617,16 @@ class CONTENT_EXPORT NavigationRequest
   // resources were generated from a different origin with the given origin.
   // This is because we disallow cross origin view transitions.
   void UpdateViewTransitionStateForDestinationOrigin(const url::Origin& origin);
+
+  // Shared implementation of
+  // AddResourceTimingEntryForFailedSubframeNavigation() and
+  // MaybeAddResourceTimingEntryForCancelledNavigation(). `completion_time` is
+  // the timestamp when the navigation finished or was cancelled, and
+  // `resource_lengths` is the amount of data received, or nullptr if the
+  // navigation was cancelled before starting to read data.
+  void AddResourceTimingEntryForFailedSubframeNavigation(
+      base::TimeTicks completion_time,
+      blink::mojom::SubframeResourceLengthsPtr resource_lengths);
 
   // Used for short-lived NavigationRequest created at DidCommit time for the
   // purpose of committing navigation that were not driven by the browser
@@ -3014,11 +3020,7 @@ class CONTENT_EXPORT NavigationRequest
   // start, the headers will be applied to the initial network request. When
   // modified during a redirect, the headers will be applied to the redirected
   // request.
-  net::HttpRequestHeaders modified_request_headers_;
-
-  // Set of headers to remove during the redirect phase. This can only be
-  // modified during the redirect phase.
-  std::vector<std::string> removed_request_headers_;
+  network::HttpRequestHeadersUpdateParams headers_update_params_;
 
   // The RenderFrameHost that is being restored from the back/forward cache.
   // This can be null if this navigation is not restoring a page from the
@@ -3671,6 +3673,11 @@ class CONTENT_EXPORT NavigationRequest
   // ContentSubresourceFilterThrottleManager currently relies on the throttle to
   // be alive during the callback to work.
   bool is_destructing_ = false;
+
+  // Set to true if this navigation is trying to navigate away from an initial
+  // WebUI page (and is not itself a valid initial WebUI navigation). Such
+  // navigations are invalid and should be cancelled in BeginNavigation().
+  bool should_cancel_on_leaving_initial_webui_ = false;
 
   base::WeakPtrFactory<NavigationRequest> weak_factory_{this};
 };

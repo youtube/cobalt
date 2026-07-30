@@ -118,6 +118,7 @@
 <translation id="1448440926884431741">Bookmarksમાં તમારી ટ્રૅક કરેલી પ્રોડક્ટની ગોઠવણ કરો</translation>
 <translation id="1455845192930279203">શું તેમ છતાં તમે <ph name="DOWNLOAD_DOMAIN" />માંથી "<ph name="FILE_NAME" />" (<ph name="FILE_SIZE" />) ડાઉનલોડ કરવા માગો છો?</translation>
 <translation id="1460751212339734034">સમય બચાવો, ઓછું ટાઇપ કરો</translation>
+<translation id="146522654774760805">પાસવર્ડ અને ઑટોમૅટિક ભરવાની સુવિધા</translation>
 <translation id="1466383950273130737">Chromeની ભાષા પસંદ કરો</translation>
 <translation id="1477626028522505441">સર્વર સમસ્યાઓને કારણે <ph name="FILE_NAME" /> ડાઉનલોડ નિષ્ફળ થયું.</translation>
 <translation id="147982357559798527">બદલવામાં આવ્યું</translation>
@@ -227,6 +228,7 @@
 <translation id="200114059308480249">શું Google Searchમાં શોધવા માટે આજુબાજુની ટેક્સ્ટ શામેલ કરીએ?</translation>
 <translation id="2004096469149679223"><ph name="TAB_TITLE" />, પિન કરેલું મ્યૂટ કરેલું છૂપું ટૅબ</translation>
 <translation id="2021896219286479412">પૂર્ણ સ્ક્રીન સાઇટ નિયંત્રણો</translation>
+<translation id="2022953316617983419">QR કોડ</translation>
 <translation id="2024195579772565064">શોધ એન્જિન ડિલીટ કરો</translation>
 <translation id="2029669011553795746">ટિપ સંબંધિત નોટિફિકેશન પસંદ કરવાનો વિકલ્પ અડધી ઊંચાઈએ ખોલ્યો</translation>
 <translation id="2038563949887743358">વિનંતી ડેસ્કટૉપ સાઇટ ચાલુ કરો</translation>
@@ -263,6 +265,7 @@
 <translation id="2184272387334793084">તમારા બધા ડિવાઇસ પર પાસવર્ડ અને બીજું ઘણું મેળવવા સાઇન ઇન કરો</translation>
 <translation id="218608176142494674">શેરિંગ</translation>
 <translation id="2186779861549045980">તમારા Google એકાઉન્ટમાં સાચવવા માટેના ડેટાની પસંદગી તમે કરી શકો છો.\nતમે આ આઇટમને તમારા બુકમાર્ક, વાંચન સૂચિ કે પાસવર્ડ મેનેજરમાં પણ જોઈ અને સાચવી શકો છો.</translation>
+<translation id="2190355936436201913">(ખાલી)</translation>
 <translation id="219283042927675668">ગ્રૂપમાંના ટૅબ</translation>
 <translation id="2194856509914051091">ધ્યાનમાં લેવા જેવી બાબતો</translation>
 <translation id="2205701497928406883"><ph name="TAB_TITLE" />, પિન કરેલું શેર કરતું ટૅબ</translation>
@@ -300,6 +303,7 @@
 <translation id="233375395665273385">ડિલીટ કરો અને સાઇન આઉટ કરો</translation>
 <translation id="2341410551640223969"><ph name="WEBAPK_NAME" /> ઇન્સ્ટૉલ કરી શકાઈ નથી.</translation>
 <translation id="2349710944427398404">Chrome દ્વારા ઉપયોગમાં લેવાયેલી કુલ સ્ટોરેજ, એકાઉન્ટ, બુકમાર્ક અને સાચવેલા સેટિંગ સહિત</translation>
+<translation id="2354001756790975382">અન્ય બુકમાર્ક</translation>
 <translation id="235789365079050412">Google પ્રાઇવસી પૉલિસી</translation>
 <translation id="2359808026110333948">આગળ વધો</translation>
 <translation id="2362083820973145409"><ph name="USER_NAME" /> તરીકે સાઇન ઇન થયા. <ph name="USER_EMAIL" />. સેટિંગ ખોલે છે.</translation>
@@ -544,6 +548,7 @@
 <translation id="3359667936385849800">તમારા વર્તમાન સેવા પ્રદાતાનો ઉપયોગ કરો</translation>
 <translation id="3373701465337594448">જ્યારે ચાલુ હોય, ત્યારે તમારી રુચિઓનું અનુમાન લગાવતી હોય તેવી તમે મુલાકાત લો છો તે સાઇટની સૂચિ અહીં દેખાય છે</translation>
 <translation id="3384347053049321195">છબી શેર કરો</translation>
+<translation id="3385749568468586663">Gemini છૂપા મોડમાં ઉપલબ્ધ નથી</translation>
 <translation id="3387650086002190359">ફાઇલ સિસ્ટમ ભૂલોના કારણે <ph name="FILE_NAME" /> ડાઉનલોડ નિષ્ફળ થયું.</translation>
 <translation id="3417835166382867856">ટૅબ શોધો</translation>
 <translation id="3430670036890315772">તમારું પ્રોફાઇલ લૉક બંધ કરવાથી તમારી સાચવેલી માહિતી કાઢી નાખવામાં આવશે</translation>
@@ -702,6 +707,7 @@
 <translation id="4084712963632273211"><ph name="PUBLISHER_ORIGIN" /> તરફથી - <ph name="BEGIN_DEEMPHASIZED" />Google દ્વારા વિતરિત <ph name="END_DEEMPHASIZED" /></translation>
 <translation id="4092709865241032354">Google Password Managerને તમારી સાઇન-ઇનની માહિતી સાચવવામાં સહાય કરવા માટે, આ સાઇટ માટેનું તમારું વપરાશકર્તાનું નામ ઉમેરો</translation>
 <translation id="4095146165863963773">ઍપનો ડેટા ડિલીટ કરીએ?</translation>
+<translation id="4095483462103784441">નવું ટૅબનું ગ્રૂપ બનાવો</translation>
 <translation id="4096227151372679484">બુકમાર્ક સાચવવાનો ફ્લો અડધી ઊંચાઈએ ખુલ્લો છે</translation>
 <translation id="4105527135143631701">Google Password Manager અપડેટ ખોલી</translation>
 <translation id="4113030288477039509">તમારા વ્યવસ્થાપક દ્વારા મેનેજ થયેલ</translation>
@@ -785,6 +791,7 @@
 <translation id="4409014848144759297"><ph name="WEBSITE_TITLE" /> અને અન્ય <ph name="TAB_COUNT" /> ટૅબ</translation>
 <translation id="441100617989818073">ન વાપરેલા કે ડુપ્લિકેટ ટૅબ+ગ્રૂપ</translation>
 <translation id="4412123112245770507">વિભાગ નાનો કરો</translation>
+<translation id="4412698727486357573">સહાયતા કેન્દ્ર</translation>
 <translation id="4414179633735763985"><ph name="TAB_GROUPS_AND_TABS_PART" /> ડિલીટ કર્યું</translation>
 <translation id="4415276339145661267">તમારું Google એકાઉન્ટ મેનેજ કરો</translation>
 <translation id="4425140285732600465">કિંમત ટ્રૅક કરી રહ્યાં છીએ. જો કોઈપણ સાઇટ પર કિંમતમાં ઘટાડો થાય, તો અલર્ટ મેળવો.</translation>
@@ -896,6 +903,7 @@
 <translation id="4864369630010738180">સાઇન ઇન થઈ રહ્યું છે...</translation>
 <translation id="4866368707455379617">Chrome માટે <ph name="MODULE" /> ઇન્સ્ટૉલ કરવામાં અસમર્થ</translation>
 <translation id="4875775213178255010">કન્ટેન્ટ માટે સૂચનો</translation>
+<translation id="4876880121961092787">બુકમાર્ક બાર છુપાવો</translation>
 <translation id="4877678010818027629">છૂપો મોડમાં દાખલ થાઓ</translation>
 <translation id="4878404682131129617">પ્રૉક્સી સર્વર મારફતે એક ટનલને સ્થાપિત કરવું નિષ્ફળ થયું</translation>
 <translation id="4880127995492972015">અનુવાદ કરો…</translation>
@@ -1268,6 +1276,7 @@
 <translation id="6437162790453527153">તમારા બધા ડિવાઇસ પર બુકમાર્ક જેવું બીજું ઘણું મેળવવા માટે, સાઇન ઇન કરો</translation>
 <translation id="6437478888915024427">પેજ વિશે માહિતી</translation>
 <translation id="6440291723980579689">તમે પેજને ખોલશો, પછી જ તે લોડ થાય છે</translation>
+<translation id="6441377161852435370">વાંચન સૂચિમાં ટૅબ ઉમેરો</translation>
 <translation id="6441734959916820584">નામ ખૂબ લાંબું છે</translation>
 <translation id="6444291413624515012"><ph name="TAB_GROUP_TITLE" /> ટૅબનું ગ્રૂપ બંધ છે</translation>
 <translation id="6452534462676960500">નવી ઍક્ટિવિટી</translation>
@@ -1357,6 +1366,7 @@
 <translation id="6787600234697426339"><ph name="MAX_INSTANCE_COUNT" /> વિન્ડોની મર્યાદાએ પહોંચી ગયા</translation>
 <translation id="6795633245022906657">ઝડપથી નવું ટૅબ ખોલો. આ શૉર્ટકટમાં ફેરફાર કરવા માટે, સેટિંગ પર જાઓ.</translation>
 <translation id="679588508577699489">Chromeને તમારું ડિફૉલ્ટ બ્રાઉઝર બનાવો</translation>
+<translation id="679845623837196966">વાંચન સૂચિ બતાવો</translation>
 <translation id="679956319013005046">તમારી પસંદગીની સેવાને ઑટોમૅટિક રીતે ભરવાની સુવિધા તરીકે સેટ કરવા માટે, સૌથી પહેલા <ph name="BEGIN_LINK" />Android સેટિંગમાં<ph name="END_LINK" /> જઈને તે સેવા ઉમેરો.</translation>
 <translation id="6802555630140434547">વિન્ડો બંધ કરવામાં આવશે</translation>
 <translation id="6803791793483522764">નોટિફિકેશન રિવ્યૂ કરો</translation>
@@ -1428,7 +1438,6 @@
 <translation id="6980258170429555165"><ph name="MENU_NAME" /> મેનૂ હાઇલાઇટ કરેલું છે.</translation>
 <translation id="6983306615164277634">તમે આ સ્થિતિને બદલવા માટે ઍડ્રેસ બારને ટચ કરીને થોડીવાર દબાવી રાખી શકો છો.</translation>
 <translation id="6987047470128880212">છૂપી ટૅબ આ ડિવાઇસ પર ઉપલબ્ધ નથી</translation>
-<translation id="6989358895283601928">સાચવો અને પ્રિન્ટ કરો</translation>
 <translation id="6996145122199359148">આ પેજ ડાઉનલોડ કરો</translation>
 <translation id="7013762323294215682">આ પાસકી તમારા Password Managerમાં સાચવવામાં આવશે. આ પાસકીની ઍક્સેસ ધરાવનારી કોઈપણ વ્યક્તિ તેનો ઉપયોગ કરી શકશે.</translation>
 <translation id="7020741890149022655">વાંચન સૂચિમાં ઉમેરો <ph name="BEGIN_NEW" />નવું<ph name="END_NEW" /></translation>
@@ -1446,6 +1455,7 @@
 <translation id="7080145768121641840"><ph name="TAB_TITLE" />, પસંદ કરેલું પિન કરેલું મ્યૂટ કરેલું ટૅબ</translation>
 <translation id="7084115944294706056">ઍડ્રેસ બારની સ્થિતિ પસંદ કરો</translation>
 <translation id="7085332316435785646">Googleની સેવાઓમાં વધુ મનગમતા બનાવેલા અનુભવો આપવા માટે, Chrome ઇતિહાસ શામેલ કરવો કે નહીં, તે પસંદ કરો</translation>
+<translation id="7087066066828635014">ટિપ સંબંધિત નોટિફિકેશન ચાલુ કર્યા</translation>
 <translation id="7088681679121566888">Chrome અપ ટૂ ડેટ છે</translation>
 <translation id="7098100324909062850"><ph name="TAB_TITLE" />, એકથી વધુ પસંદ કરેલું, મ્યૂટ કરેલું છૂપું ટૅબ</translation>
 <translation id="7106762743910369165">તમારી સંસ્થા દ્વારા તમારું બ્રાઉઝર મેનેજ કરવામાં આવે છે</translation>
@@ -1633,6 +1643,7 @@
 <translation id="7821130663268546430">ટૅબ સ્વિચરમાં તમે બધા ખુલ્લા ટૅબ મેળવી શકશો</translation>
 <translation id="7822705602465980873">તમે સાઇન ઇન હો ત્યારે, આ ડેટા તમારા Google એકાઉન્ટ સાથે લિંક કરવામાં આવે છે, જેથી સમગ્ર Googleની સેવાઓમાં તમારી સુરક્ષા કરી શકાય, ઉદાહરણ તરીકે સુરક્ષા સંબંધી કોઈ બનાવ બાદ Gmailમાં સુરક્ષા વધારવી.</translation>
 <translation id="7824665136384946951">તમારી સંસ્થા દ્વારા Safe Browsingની સુવિધા બંધ કરવામાં આવી છે</translation>
+<translation id="7825973332242257878">ટૅબના ગ્રૂપ</translation>
 <translation id="7826342993930002256">તમારું Chrome, સર્વત્ર</translation>
 <translation id="7846161022626028328">કોઈ ભૂલ આવી હતી. ફરી પ્રયાસ કરો.</translation>
 <translation id="7846296061357476882">Googleની સેવાઓ</translation>
@@ -1657,6 +1668,7 @@
 <translation id="7934668619883965330">ફાઇલ ડાઉનલોડ કરી શકતા નથી. ફાઇલનું ફૉર્મેટ સપોર્ટેડ નથી.</translation>
 <translation id="7951102827450076904">હંમેશાં ડાઉનલોડ કરેલી PDFs ખોલો</translation>
 <translation id="7952479614398473176">નવી વિન્ડો ખોલવા માટે, સક્રિય વિન્ડોની કુલ સંખ્યા ઘટાડીને <ph name="MAX_WINDOW_COUNT_MINUS_ONE" /> કે તેના કરતાં ઓછી રાખો.</translation>
+<translation id="7956713633345437162">મોબાઇલ બુકમાર્ક</translation>
 <translation id="7957413488482743710">વર્ચ્યુઅલ કાર્ડ સંભવિત કપટથી તમારું સંરક્ષણ કરવા માટે, તમારા વાસ્તવિક કાર્ડની ઓળખ છુપાવે છે. <ph name="BEGIN_LINK1" />વર્ચ્યુઅલ કાર્ડ વિશે વધુ જાણો<ph name="END_LINK1" /></translation>
 <translation id="7959485987650214982">આ ડિવાઇસ પરના ટૅબ</translation>
 <translation id="7961926449547174351">તમે સ્ટોરેજ ઍક્સેસની સુવિધા બંધ કરી છે, તેને ચાલુ કરવા માટે કૃપા કરીને સેટિંગમાં જાઓ.</translation>
@@ -1845,6 +1857,7 @@
 <translation id="867914734596684889">બુકમાર્ક બાર બતાવો અથવા છુપાવો</translation>
 <translation id="8683039184091909753">છબી</translation>
 <translation id="8688183792442786085"><ph name="TAB_TITLE" />, પસંદ કરેલું ટૅબ</translation>
+<translation id="8696297579102085705">તમારા ડિવાઇસ પર મોકલો</translation>
 <translation id="8697753151306746444">તેના બદલે વિન્ડો અથવા સ્ક્રીન શેર કરો</translation>
 <translation id="8699120352855309748">આ ભાષાઓનો અનુવાદ કરવાનું ઑફર કરશો નહીં</translation>
 <translation id="8712637175834984815">સમજાઈ ગયું</translation>
@@ -1992,6 +2005,7 @@
 <translation id="970715775301869095"><ph name="MINUTES" /> મિનિટ બાકી</translation>
 <translation id="981121421437150478">ઑફલાઇન</translation>
 <translation id="983192555821071799">બધા ટેબ્સ બંધ કરો</translation>
+<translation id="984275831282074731">ચુકવણી પદ્ધતિઓ</translation>
 <translation id="984756705737569814">તમારા Google એકાઉન્ટમાં પાસવર્ડ ચેક કરી શકાતા નથી</translation>
 <translation id="987264212798334818">સામાન્ય</translation>
 <translation id="988091779042748639">તમારા ડિવાઇસમાંથી છૂપા મોડનો બ્રાઉઝિંગ ઇતિહાસ ડિલીટ કરવા માટે, તમામ છૂપા ટૅબ બંધ કરો.</translation>

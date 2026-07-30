@@ -84,6 +84,7 @@ import org.chromium.chrome.browser.data_sharing.DataSharingServiceFactory;
 import org.chromium.chrome.browser.data_sharing.DataSharingTabManager;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.glic.GlicEnabling;
 import org.chromium.chrome.browser.layouts.SceneOverlay;
 import org.chromium.chrome.browser.layouts.animation.CompositorAnimationHandler;
 import org.chromium.chrome.browser.layouts.animation.CompositorAnimator;
@@ -102,8 +103,7 @@ import org.chromium.chrome.browser.tabmodel.TabClosureParamsUtils;
 import org.chromium.chrome.browser.tabmodel.TabCreator;
 import org.chromium.chrome.browser.tabmodel.TabCreatorUtil;
 import org.chromium.chrome.browser.tabmodel.TabGroupColorUtils;
-import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
-import org.chromium.chrome.browser.tabmodel.TabGroupModelFilterObserver;
+import org.chromium.chrome.browser.tabmodel.TabGroupObserver;
 import org.chromium.chrome.browser.tabmodel.TabGroupTitleUtils;
 import org.chromium.chrome.browser.tabmodel.TabGroupUtils.TabGroupCreationCallback;
 import org.chromium.chrome.browser.tabmodel.TabModel;
@@ -137,6 +137,7 @@ import org.chromium.ui.base.LocalizationUtils;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.util.ColorUtils;
 import org.chromium.ui.util.MotionEventUtils;
+import org.chromium.ui.util.StyleUtils;
 import org.chromium.ui.widget.RectProvider;
 
 import java.util.ArrayList;
@@ -193,11 +194,10 @@ public class StripLayoutHelper
     static final float FADE_FULL_OPACITY_THRESHOLD_DP = 24.f;
 
     // Values adapt based on whether the device is desktop or tablet.
-    private static final boolean IS_DESKTOP_DENSITY = StripLayoutUtils.shouldApplyMoreDensity();
     private static final float NEW_TAB_BUTTON_CLICK_SLOP_DP =
             (BUTTON_TOUCH_TARGET_SIZE_DP - BUTTON_BACKGROUND_SIZE_DP) / 2;
     private static final float NEW_TAB_BUTTON_WITH_STRIP_BUTTON_PADDING =
-            IS_DESKTOP_DENSITY ? 24.f : 8.f;
+            StyleUtils.shouldApplyDesktopDensity() ? 24.f : 8.f;
 
     private static final int MESSAGE_UPDATE_SPINNER = 1;
     private static final int MESSAGE_HOVER_CARD = 2;
@@ -229,9 +229,9 @@ public class StripLayoutHelper
     @VisibleForTesting static final int MIN_HOVER_CARD_DELAY_MS = 300;
     private static final int SHOW_HOVER_CARD_WITHOUT_DELAY_TIME_BUFFER = 300;
 
-    // An observer that is notified of changes to a {@link TabGroupModelFilter} object.
-    private final TabGroupModelFilterObserver mTabGroupModelFilterObserver =
-            new TabGroupModelFilterObserver() {
+    // An observer that is notified of changes to a {@link TabModel} object.
+    private final TabGroupObserver mTabGroupObserver =
+            new TabGroupObserver() {
                 @Nullable Token mSourceTabGroupId;
 
                 @Override
@@ -311,7 +311,7 @@ public class StripLayoutHelper
                 }
 
                 @Override
-                public void didCreateNewGroup(Tab destinationTab, TabGroupModelFilter filter) {
+                public void didCreateNewGroup(Tab destinationTab, TabModel tabModel) {
                     rebuildStripViews();
                 }
 
@@ -873,7 +873,7 @@ public class StripLayoutHelper
                 });
 
         if (!mIncognito
-                && (ChromeFeatureList.sGlic.isEnabled()
+                && (GlicEnabling.isEnabledByFlags()
                         || ChromeFeatureList.sContextualTasks.isEnabled())) {
             mStripTabUnderlineManager = new StripTabUnderlineManager(this, windowAndroid);
         }
@@ -897,7 +897,7 @@ public class StripLayoutHelper
             mDataSharingService = null;
         }
         if (mModel != null) {
-            mModel.removeTabGroupObserver(mTabGroupModelFilterObserver);
+            mModel.removeTabGroupObserver(mTabGroupObserver);
             mModel.removeObserver(mTabModelObserver);
             mModel = null;
         }
@@ -1298,7 +1298,7 @@ public class StripLayoutHelper
     public void setTabModel(TabModel model, TabCreator tabCreator, boolean tabStateInitialized) {
         if (mModel == model) return;
         if (mModel != null) {
-            mModel.removeTabGroupObserver(mTabGroupModelFilterObserver);
+            mModel.removeTabGroupObserver(mTabGroupObserver);
         }
         mModel = model;
         mTabCreator = tabCreator;
@@ -1323,7 +1323,7 @@ public class StripLayoutHelper
             tabSelected(LayoutManagerImpl.time(), getSelectedTabId(), Tab.INVALID_TAB_ID);
         }
         mModel.addObserver(mTabModelObserver);
-        mModel.addTabGroupObserver(mTabGroupModelFilterObserver);
+        mModel.addTabGroupObserver(mTabGroupObserver);
 
         Profile profile = mModel.getProfile();
         mReorderDelegate.initialize(
@@ -1492,8 +1492,8 @@ public class StripLayoutHelper
         return collaborationService.getServiceStatus().isAllowedToJoin();
     }
 
-    TabGroupModelFilterObserver getTabGroupModelFilterObserverForTesting() {
-        return mTabGroupModelFilterObserver;
+    TabGroupObserver getTabGroupObserverForTesting() {
+        return mTabGroupObserver;
     }
 
     /**
@@ -1881,7 +1881,7 @@ public class StripLayoutHelper
             mQueuedIphList.add(
                     () ->
                             attemptToShowTabStripIph(
-                                    /* groupTitle */ null,
+                                    /* groupTitle= */ null,
                                     stripTab,
                                     IphType.TAB_TEARING_XR,
                                     /* enableSnoozeMode= */ true));
@@ -3187,17 +3187,12 @@ public class StripLayoutHelper
 
     private List<Integer> getMultiSelectedTabIds() {
         StripLayoutUtils.recordTabMultiSelectionTabCount(mModel);
-        List<Integer> multiSelectedTabs = new ArrayList<>();
-        if (mModel == null) return multiSelectedTabs;
-        for (StripLayoutTab stripTab : mStripTabs) {
-            if (mModel.isTabMultiSelected(stripTab.getTabId())) {
-                multiSelectedTabs.add(stripTab.getTabId());
-            }
-        }
-        assert multiSelectedTabs.size() == mModel.getMultiSelectedTabsCount()
+        if (mModel == null) return new ArrayList<>();
+        List<Integer> multiSelectedTabIds = mModel.getOrderedMultiSelectedTabIds();
+        assert multiSelectedTabIds.size() == mModel.getMultiSelectedTabsCount()
                 : "Count of multi selected tabs don't match.";
-        assert multiSelectedTabs.size() >= 2 : "Too few tabs in multi selection";
-        return multiSelectedTabs;
+        assert multiSelectedTabIds.size() >= 2 : "Too few tabs in multi selection";
+        return multiSelectedTabIds;
     }
 
     /**
@@ -4198,8 +4193,8 @@ public class StripLayoutHelper
 
     /**
      * Returns the tab group count. Should only be called when rebuilding the tab strip, as we've
-     * previously seen {@link TabGroupModelFilter#getTabGroupCount()} be incorrect on startup. That
-     * said, other call-sites should use the aforementioned TabGroupModelFilter method if possible.
+     * previously seen {@link TabModel#getTabGroupCount()} be incorrect on startup. That said, other
+     * call-sites should use the aforementioned TabModel method if possible.
      * TODO(crbug.com/454960178): Investigate if this is still needed.
      */
     private int getTabGroupCount() {

@@ -13,21 +13,29 @@ import android.widget.ScrollView;
 
 import androidx.annotation.IntDef;
 import androidx.annotation.StringRes;
+import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.metrics.RecordHistogram;
+import org.chromium.base.shared_preferences.SharedPreferencesManager;
 import org.chromium.base.supplier.NonNullObservableSupplier;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
+import org.chromium.chrome.browser.notifications.channels.ChromeChannelDefinitions;
+import org.chromium.chrome.browser.notifications.channels.ChromeChannelDefinitions.ChannelId;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
-import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
+import org.chromium.chrome.browser.ui.messages.snackbar.Snackbar;
+import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
+import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager.SnackbarController;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetContent;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController.StateChangeReason;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetObserver;
 import org.chromium.components.browser_ui.bottomsheet.EmptyBottomSheetObserver;
+import org.chromium.components.browser_ui.notifications.BaseNotificationManagerProxyFactory;
+import org.chromium.components.browser_ui.notifications.channels.ChannelsInitializer;
 import org.chromium.ui.widget.ButtonCompat;
 
 import java.lang.annotation.Retention;
@@ -57,6 +65,18 @@ public class TipsOptInCoordinator {
 
     // LINT.ThenChange(//tools/metrics/histograms/metadata/notifications/enums.xml:TipsNotificationsOptInPromoEventType)
 
+    @IntDef({
+        TipsOptInUserInteraction.DISMISSED,
+        TipsOptInUserInteraction.ACCEPTED,
+        TipsOptInUserInteraction.DECLINED
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    @interface TipsOptInUserInteraction {
+        int DISMISSED = 0;
+        int ACCEPTED = 1;
+        int DECLINED = 2;
+    }
+
     private final ComponentCallbacks mComponentCallbacks =
             new ComponentCallbacks() {
                 @Override
@@ -71,18 +91,30 @@ public class TipsOptInCoordinator {
 
     private final Context mContext;
     private final BottomSheetController mBottomSheetController;
+    private final SnackbarManager mSnackbarManager;
+    private final SharedPreferencesManager mSharedPreferences;
     private final TipsOptInSheetContent mSheetContent;
     private final View mContentView;
+    private @TipsOptInUserInteraction int mUserInteractionType;
 
     /**
      * Constructor.
      *
      * @param context The Android {@link Context}.
      * @param bottomSheetController The system {@link BottomSheetController}.
+     * @param snackbarManager The system {@link SnackbarManager}.
+     * @param sharedPreferences The {@link SharedPreferencesManager} to use.
      */
-    public TipsOptInCoordinator(Context context, BottomSheetController bottomSheetController) {
+    public TipsOptInCoordinator(
+            Context context,
+            BottomSheetController bottomSheetController,
+            SnackbarManager snackbarManager,
+            SharedPreferencesManager sharedPreferences) {
         mContext = context;
         mBottomSheetController = bottomSheetController;
+        mSnackbarManager = snackbarManager;
+        mSharedPreferences = sharedPreferences;
+        mUserInteractionType = TipsOptInUserInteraction.DISMISSED;
 
         mContentView =
                 LayoutInflater.from(mContext)
@@ -90,19 +122,10 @@ public class TipsOptInCoordinator {
         mSheetContent = new TipsOptInSheetContent(mContentView, bottomSheetController);
 
         ButtonCompat positiveButtonView = mContentView.findViewById(R.id.opt_in_positive_button);
-        positiveButtonView.setOnClickListener(
-                (view) -> {
-                    TipsUtils.launchTipsNotificationsSettings(mContext);
-                    mBottomSheetController.hideContent(mSheetContent, /* animate= */ true);
-                    recordOptInPromoEventType(OptInPromoEventType.ACCEPTED);
-                });
+        positiveButtonView.setOnClickListener((view) -> onOptInAccepted());
 
         ButtonCompat negativeButtonView = mContentView.findViewById(R.id.opt_in_negative_button);
-        negativeButtonView.setOnClickListener(
-                (view) -> {
-                    mBottomSheetController.hideContent(mSheetContent, /* animate= */ true);
-                    recordOptInPromoEventType(OptInPromoEventType.IGNORED);
-                });
+        negativeButtonView.setOnClickListener((view) -> onOptInDeclined());
 
         // Fire an event for the original setup.
         mComponentCallbacks.onConfigurationChanged(mContext.getResources().getConfiguration());
@@ -118,15 +141,90 @@ public class TipsOptInCoordinator {
     public void showBottomSheet() {
         mBottomSheetController.requestShowContent(mSheetContent, /* animate= */ true);
 
-        // Mark that the promo has been shown.
-        ChromeSharedPreferences.getInstance()
-                .writeBoolean(ChromePreferenceKeys.TIPS_NOTIFICATIONS_OPT_IN_PROMO_SHOWN, true);
+        // Increment the show count.
+        int currentCount =
+                mSharedPreferences.readInt(
+                        ChromePreferenceKeys.TIPS_NOTIFICATIONS_OPT_IN_PROMO_SHOW_COUNT, 0);
+        mSharedPreferences.writeInt(
+                ChromePreferenceKeys.TIPS_NOTIFICATIONS_OPT_IN_PROMO_SHOW_COUNT, currentCount + 1);
+
+        // Record the current timestamp.
+        mSharedPreferences.writeLong(
+                ChromePreferenceKeys.TIPS_NOTIFICATIONS_OPT_IN_PROMO_LAST_SHOWN_TIMESTAMP,
+                System.currentTimeMillis());
+
         recordOptInPromoEventType(OptInPromoEventType.SHOWN);
     }
 
     private void recordOptInPromoEventType(@OptInPromoEventType int type) {
         RecordHistogram.recordEnumeratedHistogram(
                 "Notifications.Tips.OptInPromo.EventType", type, OptInPromoEventType.NUM_ENTRIES);
+    }
+
+    private void showOptInSnackbar() {
+        mSnackbarManager.showSnackbar(
+                Snackbar.make(
+                                mContext.getString(R.string.tips_opt_in_snackbar_message),
+                                new SnackbarController() {
+                                    @Override
+                                    public void onAction(@Nullable Object actionData) {
+                                        TipsUtils.launchTipsNotificationsSettings(mContext);
+                                    }
+                                },
+                                Snackbar.TYPE_NOTIFICATION,
+                                Snackbar.UMA_TIPS_OPT_IN)
+                        .setAction(
+                                mContext.getString(R.string.tips_opt_in_snackbar_action_text),
+                                /* actionData= */ null));
+    }
+
+    @VisibleForTesting
+    void onOptInAccepted() {
+        mUserInteractionType = TipsOptInUserInteraction.ACCEPTED;
+        mSharedPreferences.writeBoolean(
+                ChromePreferenceKeys.TIPS_NOTIFICATIONS_OPT_IN_PROMO_ACCEPTED, true);
+        TipsUtils.isTipsChannelCreated(
+                (channelExists) -> {
+                    if (!channelExists) {
+                        // For first time opt-in, initialize the notification channel as enabled.
+                        new ChannelsInitializer(
+                                        BaseNotificationManagerProxyFactory.create(),
+                                        ChromeChannelDefinitions.getInstance(),
+                                        mContext.getResources())
+                                .ensureInitialized(ChannelId.TIPS_V2);
+                    }
+
+                    // Verify if notifications are fully enabled (both app-level and channel).
+                    // If not, redirect to settings so the user can finalize their opt-in.
+                    // This handles first-time users with app-level disabled and testing
+                    // configuration flow where app-level/channel notifications aren't enabled.
+                    TipsUtils.areTipsNotificationsEnabled(
+                            (enabled) -> {
+                                if (!enabled) {
+                                    TipsUtils.launchTipsNotificationsSettings(mContext);
+                                }
+                                recordOptInPromoEventType(OptInPromoEventType.ACCEPTED);
+                                dismiss();
+                            });
+                });
+    }
+
+    @VisibleForTesting
+    void onOptInDeclined() {
+        mUserInteractionType = TipsOptInUserInteraction.DECLINED;
+        // Initialize the Chrome Finds notification channel as disabled.
+        new ChannelsInitializer(
+                        BaseNotificationManagerProxyFactory.create(),
+                        ChromeChannelDefinitions.getInstance(),
+                        mContext.getResources())
+                .ensureInitializedAndDisabled(ChannelId.TIPS_V2);
+
+        recordOptInPromoEventType(OptInPromoEventType.IGNORED);
+        dismiss();
+    }
+
+    private void dismiss() {
+        mBottomSheetController.hideContent(mSheetContent, /* animate= */ true);
     }
 
     @NullMarked
@@ -160,6 +258,16 @@ public class TipsOptInCoordinator {
                                     || reason == StateChangeReason.TAP_SCRIM) {
                                 recordOptInPromoEventType(OptInPromoEventType.IGNORED);
                             }
+
+                            if (mUserInteractionType == TipsOptInUserInteraction.ACCEPTED) {
+                                TipsUtils.areTipsNotificationsEnabled(
+                                        isEnabled -> {
+                                            if (isEnabled) showOptInSnackbar();
+                                        });
+                            }
+
+                            // Reset mUserInteractionType.
+                            mUserInteractionType = TipsOptInUserInteraction.DISMISSED;
                         }
                     };
             mBottomSheetController.addObserver(mBottomSheetOpenedObserver);

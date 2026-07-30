@@ -540,6 +540,9 @@ class WrappedOverlayCompoundImageRepresentation
   gfx::ScopedIOSurface GetIOSurface() const final {
     return wrapped_->GetIOSurface();
   }
+  std::vector<gfx::MTLSharedEventFence> GetBackpressureFences() const final {
+    return wrapped_->GetBackpressureFences();
+  }
   bool IsInUseByWindowServer() const final {
     return wrapped_->IsInUseByWindowServer();
   }
@@ -1438,6 +1441,22 @@ scoped_refptr<gfx::NativePixmap> CompoundImageBacking::GetNativePixmap() {
   }
   return nullptr;
 }
+
+#if BUILDFLAG(IS_ANDROID)
+std::optional<VulkanYCbCrInfo> CompoundImageBacking::GetVkCbCrInfo(
+    SharedContextState* context_state) {
+  AutoLock auto_lock(this);
+  for (const auto& element : elements_) {
+    if (element.backing) {
+      auto info = element.backing->GetVkCbCrInfo(context_state);
+      if (info) {
+        return info;
+      }
+    }
+  }
+  return std::nullopt;
+}
+#endif
 
 std::unique_ptr<DawnImageRepresentation> CompoundImageBacking::ProduceDawn(
     SharedImageManager* manager,

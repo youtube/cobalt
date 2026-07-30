@@ -230,8 +230,9 @@ CC_BASE_EXPORT BASE_DECLARE_FEATURE(kSlimDirectReceiverIpc);
 // When enabled, the overscroll effect will display on non-root scrollers.
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kOverscrollEffectOnNonRootScrollers);
 
-// A kill switch in case skipping finish causes unexpected issues.
-CC_BASE_EXPORT BASE_DECLARE_FEATURE(kSkipFinishDuringReleaseLayerTreeFrameSink);
+// When enabled, scrolling to the end of a snap scroller has the same fling
+// curve as a regular scroller.
+CC_BASE_EXPORT BASE_DECLARE_FEATURE(kSnapFlingNearExtremes);
 
 // When enabled, the V4 scroll jank metric will be emitted.
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kScrollJankV4Metric);
@@ -288,6 +289,13 @@ CC_BASE_EXPORT BASE_DECLARE_FEATURE(kSelectionEdgeVisibilityUsesFullEdge);
 // When enabled, ResourcePool will prioritize exact size matches when reusing
 // resources.
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kResourcePoolPreferExactSizeReuse);
+
+// When enabled, instructs the scheduler to act as though a new BeginMainFrame
+// signal has just occurred. This optimization is specific to the last frame of
+// the document renderer during a cross-document view transition and should
+// not occur otherwise.
+CC_BASE_EXPORT BASE_DECLARE_FEATURE(kSendEarlyFinalBeginMainFrame);
+CC_BASE_EXPORT bool SendEarlyFinalBeginMainFrameIsEnabled();
 
 }  // namespace features
 

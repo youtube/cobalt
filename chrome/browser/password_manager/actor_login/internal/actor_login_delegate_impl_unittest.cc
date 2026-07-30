@@ -18,14 +18,16 @@
 #include "chrome/browser/actor/actor_keyed_service_fake.h"
 #include "chrome/browser/password_manager/actor_login/actor_login_permission_cleaning_service_factory.h"
 #include "chrome/browser/password_manager/actor_login/actor_login_permission_service_factory.h"
-#include "chrome/browser/password_manager/actor_login/internal/actor_login_metrics_helper.h"
+#include "chrome/browser/password_manager/actor_login/internal/actor_login_siwg_controller.h"
 #include "chrome/browser/ui/browser_window/test/mock_browser_window_interface.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "chrome/test/base/testing_profile.h"
+#include "components/autofill/core/common/autofill_prefs.h"
 #include "components/autofill/core/common/autofill_test_utils.h"
 #include "components/device_reauth/device_authenticator.h"
 #include "components/password_manager/core/browser/actor_login/actor_login_types.h"
+#include "components/password_manager/core/browser/actor_login/internal/actor_login_metrics_helper.h"
 #include "components/password_manager/core/browser/actor_login/internal/actor_login_permission_cleaning_service.h"
 #include "components/password_manager/core/browser/actor_login/test/actor_login_test_util.h"
 #include "components/password_manager/core/browser/actor_login/test/mock_actor_login_permission_service.h"
@@ -40,11 +42,13 @@
 #include "components/password_manager/core/browser/password_store/test_password_store.h"
 #include "components/password_manager/core/browser/stub_password_manager_client.h"
 #include "components/password_manager/core/browser/stub_password_manager_driver.h"
+#include "components/prefs/pref_service.h"
 #include "components/tabs/public/mock_tab_interface.h"
 #include "components/tabs/public/tab_interface.h"
 #include "components/ukm/test_ukm_recorder.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/webid/federated_embedder_login_request.h"
+#include "content/public/browser/webid/identity_credential_source.h"
 #include "content/public/common/content_features.h"
 #include "content/public/test/browser_task_environment.h"
 #include "content/public/test/navigation_simulator.h"
@@ -237,8 +241,8 @@ class ActorLoginDelegateImplTest : public ChromeRenderViewHostTestHarness {
                     -> PasswordManagerDriver* { return driver; },
                 base::Unretained(&mock_driver_))));
 
-    client_.profile_store()->Init(/*affiliated_match_helper=*/nullptr);
-    client_.account_store()->Init(/*affiliated_match_helper=*/nullptr);
+    client_.profile_store()->Init();
+    client_.account_store()->Init();
 
     ON_CALL(mock_browser_window_interface_, GetUnownedUserDataHost)
         .WillByDefault(::testing::ReturnRef(user_data_host_));
@@ -351,6 +355,84 @@ TEST_F(ActorLoginDelegateImplTest, GetCredentialsSuccess_FeatureOn) {
   ASSERT_TRUE(future.Get().has_value());
   EXPECT_TRUE(future.Get().value().empty());
 }
+
+#if BUILDFLAG(IS_ANDROID)
+TEST_F(ActorLoginDelegateImplTest, GetCredentials_NullClient) {
+  base::test::ScopedFeatureList scoped_feature_list(
+      password_manager::features::kActorLogin);
+  SetUpGetCredentialsDeps();
+  EXPECT_CALL(mock_form_cache_, GetFormManagers()).Times(0);
+  delegate_ = nullptr;
+  web_contents_->RemoveUserData(ActorLoginDelegateImpl::UserDataKey());
+
+  // Create a delegate with nullptr client and nullptr driver.
+  auto* delegate = ActorLoginDelegateImpl::GetOrCreateForTesting(
+      web_contents_.get(), nullptr,
+      base::BindRepeating([](content::WebContents*) -> PasswordManagerDriver* {
+        return nullptr;
+      }));
+
+  base::test::TestFuture<CredentialsOrError> future;
+  delegate->GetCredentials(/*has_sign_in_with_google_button=*/false,
+                           mqls_logger(), future.GetCallback());
+
+  ASSERT_TRUE(future.Get().has_value());
+  EXPECT_TRUE(future.Get().value().empty());
+}
+
+TEST_F(ActorLoginDelegateImplTest, GetCredentials_NullClient_HasPasswords) {
+  base::test::ScopedFeatureList scoped_feature_list(
+      password_manager::features::kActorLogin);
+  GURL url = GURL(kTestUrl);
+  std::vector<password_manager::PasswordForm> saved_forms;
+  saved_forms.push_back(CreateSavedPasswordForm(url, kTestUsername));
+  form_fetcher_.SetBestMatches(saved_forms);
+  SetUpGetCredentialsDeps();
+  EXPECT_CALL(mock_form_cache_, GetFormManagers()).Times(0);
+  delegate_ = nullptr;
+  web_contents_->RemoveUserData(ActorLoginDelegateImpl::UserDataKey());
+
+  // Create a delegate with nullptr client and nullptr driver.
+  auto* delegate = static_cast<ActorLoginDelegateImpl*>(
+      ActorLoginDelegateImpl::GetOrCreateForTesting(
+          web_contents_.get(), nullptr,
+          base::BindRepeating(
+              [](content::WebContents*) -> PasswordManagerDriver* {
+                return nullptr;
+              })));
+
+  base::test::TestFuture<CredentialsOrError> future;
+  delegate->GetCredentials(/*has_sign_in_with_google_button=*/false,
+                           mqls_logger(), future.GetCallback());
+
+  ASSERT_TRUE(future.Get().has_value());
+  EXPECT_TRUE(future.Get().value().empty());
+}
+
+TEST_F(ActorLoginDelegateImplTest,
+       GetCredentials_UsingThirdPartyPasswordManager) {
+  base::test::ScopedFeatureList scoped_feature_list(
+      password_manager::features::kActorLogin);
+
+  profile()->GetPrefs()->SetBoolean(
+      autofill::prefs::kAutofillUsingPlatformAutofill, true);
+
+  GURL url = GURL(kTestUrl);
+  std::vector<password_manager::PasswordForm> saved_forms;
+  saved_forms.push_back(CreateSavedPasswordForm(url, kTestUsername));
+  form_fetcher_.SetBestMatches(saved_forms);
+
+  SetUpGetCredentialsDeps();
+  EXPECT_CALL(mock_form_cache_, GetFormManagers()).Times(0);
+
+  base::test::TestFuture<CredentialsOrError> future;
+  delegate_->GetCredentials(/*has_sign_in_with_google_button=*/false,
+                            mqls_logger(), future.GetCallback());
+
+  ASSERT_TRUE(future.Get().has_value());
+  EXPECT_TRUE(future.Get().value().empty());
+}
+#endif
 
 TEST_F(ActorLoginDelegateImplTest, GetCredentialsLogsDomainAndLanguage) {
   base::test::ScopedFeatureList scoped_feature_list(
@@ -1513,7 +1595,8 @@ TEST_F(ActorLoginDelegateImplTest,
   EXPECT_CALL(*mock_cleaning_service,
               ClearConflictingPermissions(Eq(credential), _, _));
 
-  static_cast<content::WebContentsObserver*>(delegate_->siwg_controller())
+  static_cast<content::WebContentsObserver*>(
+      static_cast<ActorLoginSiwgController*>(delegate_->siwg_controller()))
       ->OnFedCmFederatedLogin(true);
 }
 

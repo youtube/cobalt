@@ -34,6 +34,7 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/menu_source_utils.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/vector_icon_types.h"
 #include "ui/menus/simple_menu_model.h"
@@ -153,7 +154,7 @@ void SplitTabsToolbarButton::ButtonPressed(const ui::Event& event) {
         GetAnchorBoundsInScreen(), views::MenuAnchorPosition::kTopLeft,
         ui::GetMenuSourceTypeForEvent(event));
   } else {
-    chrome::NewSplitTab(browser_, split_tabs::SplitTabLayout::kVertical,
+    chrome::NewSplitTab(browser_, split_tabs::SplitTabLayout::kSideBySide,
                         split_tabs::SplitTabCreatedSource::kToolbarButton);
   }
 }
@@ -179,7 +180,14 @@ void SplitTabsToolbarButton::UpdateButtonIcon() {
     const split_tabs::SplitTabActiveLocation location =
         split_tabs::GetLastActiveTabLocation(tab_strip_model,
                                              active_tab->GetSplit().value());
-    constexpr auto icons =
+    constexpr auto kOldIcons = base::MakeFixedFlatMap<
+        split_tabs::SplitTabActiveLocation, const gfx::VectorIcon*>({
+        {split_tabs::SplitTabActiveLocation::kStart, &kSplitSceneLeftOldIcon},
+        {split_tabs::SplitTabActiveLocation::kEnd, &kSplitSceneRightOldIcon},
+        {split_tabs::SplitTabActiveLocation::kTop, &kSplitSceneUpOldIcon},
+        {split_tabs::SplitTabActiveLocation::kBottom, &kSplitSceneDownOldIcon},
+    });
+    constexpr auto kRoundedIcons =
         base::MakeFixedFlatMap<split_tabs::SplitTabActiveLocation,
                                const gfx::VectorIcon*>({
             {split_tabs::SplitTabActiveLocation::kStart, &kSplitSceneLeftIcon},
@@ -187,9 +195,14 @@ void SplitTabsToolbarButton::UpdateButtonIcon() {
             {split_tabs::SplitTabActiveLocation::kTop, &kSplitSceneUpIcon},
             {split_tabs::SplitTabActiveLocation::kBottom, &kSplitSceneDownIcon},
         });
-    SetVectorIcon(*icons.at(location));
+    if (features::IsRoundedIconsEnabled()) {
+      SetVectorIcon(*kRoundedIcons.at(location));
+    } else {
+      SetVectorIcon(*kOldIcons.at(location));
+    }
   } else {
-    SetVectorIcon(kSplitSceneIcon);
+    SetVectorIcon(features::IsRoundedIconsEnabled() ? kSplitSceneIcon
+                                                    : kSplitSceneOldIcon);
   }
 }
 

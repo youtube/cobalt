@@ -60,19 +60,6 @@ bool FilterAnnotationTable::Init(sql::Database* db) {
     return db_->Execute(kCreateFilterAnnotationsTableSql);
   };
 
-  // Creates an index to optimize the retrieval of annotations for a specific
-  // task, sorted by creation timestamp. This corresponds to the usage in
-  // `GetAnnotationsForTask`.
-  auto create_filter_annotations_index = [&]() -> bool {
-    const std::string kCreateFilterAnnotationsIndexSql = base::StrCat(
-        {"CREATE INDEX IF NOT EXISTS "
-         "filter_annotations_task_type_timestamp_idx "
-         "ON ",
-         filter_annotations::kTableName, "(", filter_annotations::kTaskType,
-         ", ", filter_annotations::kCreationTimestamp, ")"});
-    return db_->Execute(kCreateFilterAnnotationsIndexSql);
-  };
-
   auto create_filter_annotation_attributes_table = [&]() -> bool {
     if (db_->DoesTableExist(filter_annotation_attributes::kTableName)) {
       return true;
@@ -85,15 +72,62 @@ bool FilterAnnotationTable::Init(sql::Database* db) {
     return db_->Execute(kCreateFilterAnnotationAttributesTableSql);
   };
 
+  // Creates indexes to optimize retrieval and deletion performance.
+  auto create_indexes = [&]() -> bool {
+    const std::string kCreateFilterAnnotationsIndexSql = base::StrCat(
+        {"CREATE INDEX IF NOT EXISTS "
+         "filter_annotations_task_type_timestamp_idx "
+         "ON ",
+         filter_annotations::kTableName, "(", filter_annotations::kTaskType,
+         ", ", filter_annotations::kCreationTimestamp, ")"});
+    const std::string kCreateAttributesIndexSql = base::StrCat(
+        {"CREATE INDEX IF NOT EXISTS filter_annotation_attributes_id_idx ON ",
+         filter_annotation_attributes::kTableName, "(",
+         filter_annotation_attributes::kAnnotationId, ")"});
+    const std::string kCreateAnnotationsCompositeIndexSql = base::StrCat(
+        {"CREATE INDEX IF NOT EXISTS filter_annotations_task_domain_idx ON ",
+         filter_annotations::kTableName, "(", filter_annotations::kTaskType,
+         ", ", filter_annotations::kSourceDomain, ")"});
+    return db_->Execute(kCreateFilterAnnotationsIndexSql) &&
+           db_->Execute(kCreateAttributesIndexSql) &&
+           db_->Execute(kCreateAnnotationsCompositeIndexSql);
+  };
+
   return create_filter_annotations_table() &&
-         create_filter_annotation_attributes_table() &&
-         create_filter_annotations_index();
+         create_filter_annotation_attributes_table() && create_indexes();
 }
 
 bool FilterAnnotationTable::StoreAnnotation(
     const FilterAnnotation& annotation) {
   sql::Transaction transaction(db_);
   if (!transaction.Begin()) {
+    return false;
+  }
+
+  // Delete all existing annotations for the same task type and source domain to
+  // ensure we only store the latest one.
+  sql::Statement delete_attributes(db_->GetCachedStatement(
+      SQL_FROM_HERE,
+      base::StrCat({"DELETE FROM ", filter_annotation_attributes::kTableName,
+                    " WHERE ", filter_annotation_attributes::kAnnotationId,
+                    " IN (SELECT ", filter_annotations::kId, " FROM ",
+                    filter_annotations::kTableName, " WHERE ",
+                    filter_annotations::kTaskType, " = ? AND ",
+                    filter_annotations::kSourceDomain, " = ?)"})));
+  delete_attributes.BindString(0, annotation.task_type);
+  delete_attributes.BindString(1, annotation.source_domain);
+  if (!delete_attributes.Run()) {
+    return false;
+  }
+
+  sql::Statement delete_annotations(db_->GetCachedStatement(
+      SQL_FROM_HERE,
+      base::StrCat({"DELETE FROM ", filter_annotations::kTableName, " WHERE ",
+                    filter_annotations::kTaskType, " = ? AND ",
+                    filter_annotations::kSourceDomain, " = ?"})));
+  delete_annotations.BindString(0, annotation.task_type);
+  delete_annotations.BindString(1, annotation.source_domain);
+  if (!delete_annotations.Run()) {
     return false;
   }
 
@@ -135,7 +169,8 @@ bool FilterAnnotationTable::StoreAnnotation(
 std::vector<FilterAnnotation>
 FilterAnnotationTable::GetAnnotationsForTaskSortedByCreationTimestamp(
     std::string_view task_type,
-    size_t max_count) {
+    size_t max_count,
+    base::Time min_creation_time) {
   std::vector<FilterAnnotation> annotations;
 
   sql::Statement select_annotations(db_->GetCachedStatement(
@@ -145,10 +180,12 @@ FilterAnnotationTable::GetAnnotationsForTaskSortedByCreationTimestamp(
                     filter_annotations::kSourceDomain, ", ",
                     filter_annotations::kCreationTimestamp, " FROM ",
                     filter_annotations::kTableName, " WHERE ",
-                    filter_annotations::kTaskType, " = ? ORDER BY ",
+                    filter_annotations::kTaskType, " = ? AND ",
+                    filter_annotations::kCreationTimestamp, " >= ? ORDER BY ",
                     filter_annotations::kCreationTimestamp, " DESC LIMIT ?"})));
   select_annotations.BindString(0, task_type);
-  select_annotations.BindInt64(1, max_count);
+  select_annotations.BindTime(1, min_creation_time);
+  select_annotations.BindInt64(2, max_count);
 
   while (select_annotations.Step()) {
     std::string id_str = select_annotations.ColumnString(0);

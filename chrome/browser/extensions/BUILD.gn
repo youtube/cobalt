@@ -184,8 +184,6 @@ source_set("extensions") {
     "api/tabs/windows_util.h",
     "api/top_sites/top_sites_api.cc",
     "api/top_sites/top_sites_api.h",
-    "api/webstore_private/extension_install_status.cc",
-    "api/webstore_private/extension_install_status.h",
     "api/webstore_private/webstore_private_api.cc",
     "api/webstore_private/webstore_private_api.h",
     "blocklist_factory.cc",
@@ -498,6 +496,7 @@ source_set("extensions") {
     "//chrome/browser:file_select_helper",
     "//chrome/browser:file_util_service",
     "//chrome/browser:icon_loader",
+    "//chrome/browser:icon_manager",
     "//chrome/browser:shell_integration",
     "//chrome/browser/app_mode",
     "//chrome/browser/apps:user_type_filter",
@@ -704,6 +703,13 @@ source_set("extensions") {
 
   if (!is_chromeos) {
     sources += [ "chrome_kiosk_delegate_non_chromeos.cc" ]
+    if (!is_android) {
+      deps += [ "//chrome/browser/download/bubble" ]
+    }
+  }
+
+  if (!is_chromeos && !is_android) {
+    deps += [ "//chrome/browser/download/bubble" ]
   }
 
   if (enable_guest_view) {
@@ -1372,6 +1378,7 @@ source_set("extensions") {
         "//chromeos/ash/components/settings",
         "//chromeos/ash/components/system",
         "//chromeos/ash/components/tether",
+        "//chromeos/ash/components/timezone:util",
         "//chromeos/ash/components/tpm",
         "//chromeos/ash/experiences/arc",
         "//chromeos/ash/experiences/arc:arc_app_constants",
@@ -1967,6 +1974,7 @@ source_set("unit_tests") {
     "//components/sync_bookmarks",
     "//components/sync_preferences:test_support",
     "//components/themes:prefs",
+    "//components/ukm:test_support",
     "//components/user_manager",
     "//components/value_store:test_support",
     "//content/test:test_support",

@@ -38,16 +38,23 @@ chromium-metrics-reviews@google.com.
 <!-- LINT.IfChange(OnDeviceBaseModelName) -->
 
 <variants name="BaseModel">
-  <variant name="TinyModelSummarizer"
-      summary="Tinymodel component for Summarizer"/>
+  <variant name="Classifier" summary="Classifier base model"/>
+  <variant name="Gemma4" summary="Gemma4 base model"/>
+  <variant name="LanguageDetection" summary="Language Detection base model"/>
+  <variant name="ProofreaderSmallExpert"
+      summary="Proofreader Small Expert base model"/>
+  <variant name="SpeechRecognitionSmallExpert"
+      summary="Speech Recognition Small Expert base model"/>
+  <variant name="SummarizerSmallExpert"
+      summary="Summarizer Small Expert base model"/>
   <variant name="Unknown" summary="Unknown base model"/>
   <variant name="V3Nano"
       summary="General nano V3 served by the single model component"/>
-  <variant name="V3NanoCpu" summary="Nano V3 with GPU backend"/>
-  <variant name="V3NanoGpu" summary="Nano V3 with CPU backend"/>
+  <variant name="V3NanoCpu" summary="Nano V3 with CPU backend"/>
+  <variant name="V3NanoGpu" summary="Nano V3 with GPU backend"/>
 </variants>
 
-<!-- LINT.ThenChange(//components/optimization_guide/core/model_execution/manifest_broker/manifest_asset_manager.cc:OnDeviceBaseModelName) -->
+<!-- LINT.ThenChange(//components/optimization_guide/core/model_execution/on_device_model_names.cc:OnDeviceBaseModelName) -->
 
 <variants name="FrameType">
   <variant name="MainFrame" summary="Outermost primary main frame"/>
@@ -113,6 +120,7 @@ chromium-metrics-reviews@google.com.
   <variant name="Test" summary="Test"/>
   <variant name="TextSafety" summary="Text Safety"/>
   <variant name="Unknown" summary="Unknown"/>
+  <variant name="UpdaterChat" summary="Updater Chat"/>
   <variant name="WallpaperSearch" summary="Wallpaper search"/>
   <variant name="WebRTCNeuralResidualEchoEstimator"
       summary="WebRTC Neural Residual Echo Estimator"/>
@@ -647,6 +655,51 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="OptimizationGuide.AIPageContent.ActiveRequestCount"
+    units="requests" expires_after="2026-10-25">
+  <owner>alexmt@chromium.org</owner>
+  <owner>khushalsagar@chromium.org</owner>
+  <summary>
+    Records the number of active concurrent page content extractions on a given
+    Page, excluding the current request. Recorded at the start of each page
+    content extraction request.
+  </summary>
+</histogram>
+
+<histogram name="OptimizationGuide.AIPageContent.ExtractionConcurrency"
+    enum="AIPageContentExtractionConcurrency" expires_after="2026-10-25">
+  <owner>alexmt@chromium.org</owner>
+  <owner>khushalsagar@chromium.org</owner>
+  <summary>
+    Records the concurrency status when a page content extraction request is
+    started on a Page. If other extractions are already in progress, the metric
+    categorizes whether any of the active extractions had matching options, or
+    whether they all had options different from the new request.
+  </summary>
+</histogram>
+
+<histogram name="OptimizationGuide.AIPageContent.ExtractionsBetweenNavigations"
+    units="extractions" expires_after="2026-10-25">
+  <owner>alexmt@chromium.org</owner>
+  <owner>khushalsagar@chromium.org</owner>
+  <summary>
+    Records the count of page content extractions that occurred on a Page in the
+    segment between navigations. Recorded upon same-document navigations and
+    when the Page is destroyed.
+  </summary>
+</histogram>
+
+<histogram name="OptimizationGuide.AIPageContent.ExtractionsPerPage"
+    units="extractions" expires_after="2026-10-25">
+  <owner>alexmt@chromium.org</owner>
+  <owner>khushalsagar@chromium.org</owner>
+  <summary>
+    Records the total cumulative count of page content extractions performed on
+    a Page over its entire lifetime. Recorded when the Page is destroyed (e.g.,
+    upon cross-document navigation).
+  </summary>
+</histogram>
+
 <histogram name="OptimizationGuide.AIPageContent.RendererLatency.{FrameType}"
     units="ms" expires_after="2026-10-25">
   <owner>khushalsagar@chromium.org</owner>
@@ -688,6 +741,17 @@ chromium-metrics-reviews@google.com.
     non-critical.
   </summary>
   <token key="FrameType" variants="FrameType"/>
+</histogram>
+
+<histogram name="OptimizationGuide.AIPageContent.TimeSinceLastExtraction"
+    units="ms" expires_after="2026-10-25">
+  <owner>alexmt@chromium.org</owner>
+  <owner>khushalsagar@chromium.org</owner>
+  <summary>
+    Records the duration since the last successful page content extraction
+    completed successfully on the current Page. Recorded when a new page content
+    extraction request is started.
+  </summary>
 </histogram>
 
 <histogram name="OptimizationGuide.AIPageContent.TotalLatency" units="ms"
@@ -1909,7 +1973,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="OptimizationGuide.PageContentAnnotations.CategoryClassifier.EducationScore"
-    units="%" expires_after="2026-09-10">
+    units="%" expires_after="2026-11-15">
   <owner>zekunjiang@google.com</owner>
   <owner>chrome-intelligence-core@google.com</owner>
   <summary>
@@ -1920,7 +1984,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="OptimizationGuide.PageContentAnnotations.CategoryClassifier.ShoppingScore"
-    units="%" expires_after="2026-09-10">
+    units="%" expires_after="2026-11-15">
   <owner>zekunjiang@google.com</owner>
   <owner>chrome-intelligence-core@google.com</owner>
   <summary>
@@ -2040,7 +2104,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OptimizationGuide.PageContentCache.AddPageContentResult"
-    enum="BooleanSuccess" expires_after="2026-09-13">
+    enum="BooleanSuccess" expires_after="2026-11-15">
   <owner>ssid@chromium.org</owner>
   <owner>chrome-intelligence-core@google.com</owner>
   <summary>
@@ -2050,7 +2114,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OptimizationGuide.PageContentCache.AvgPageSize" units="KB"
-    expires_after="2026-09-13">
+    expires_after="2026-11-15">
   <owner>ssid@chromium.org</owner>
   <owner>chrome-intelligence-core@google.com</owner>
   <summary>
@@ -2060,7 +2124,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OptimizationGuide.PageContentCache.CachedTabsCount"
-    units="tabs" expires_after="2026-09-13">
+    units="tabs" expires_after="2026-11-15">
   <owner>ssid@chromium.org</owner>
   <owner>chrome-intelligence-core@google.com</owner>
   <summary>
@@ -2071,7 +2135,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="OptimizationGuide.PageContentCache.EligibleTabsCachedPercentage"
-    units="%" expires_after="2026-09-13">
+    units="%" expires_after="2026-11-15">
   <owner>ssid@chromium.org</owner>
   <owner>chrome-intelligence-core@google.com</owner>
   <summary>
@@ -2082,7 +2146,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OptimizationGuide.PageContentCache.ExtractionAndCachingStatus"
-    enum="PageContentExtractionAndCachingStatus" expires_after="2026-09-13">
+    enum="PageContentExtractionAndCachingStatus" expires_after="2026-11-15">
   <owner>ssid@chromium.org</owner>
   <owner>chrome-intelligence-core@google.com</owner>
   <summary>
@@ -2092,7 +2156,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OptimizationGuide.PageContentCache.NotCachedTabsCount"
-    units="tabs" expires_after="2026-09-13">
+    units="tabs" expires_after="2026-11-15">
   <owner>ssid@chromium.org</owner>
   <owner>chrome-intelligence-core@google.com</owner>
   <summary>
@@ -2103,7 +2167,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="OptimizationGuide.PageContentCache.RemovePageContentForTabResult"
-    enum="BooleanSuccess" expires_after="2026-09-13">
+    enum="BooleanSuccess" expires_after="2026-11-15">
   <owner>ssid@chromium.org</owner>
   <owner>chrome-intelligence-core@google.com</owner>
   <summary>
@@ -2113,7 +2177,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OptimizationGuide.PageContentCache.StaleCacheEntriesCount"
-    units="entries" expires_after="2026-09-13">
+    units="entries" expires_after="2026-11-15">
   <owner>ssid@chromium.org</owner>
   <owner>chrome-intelligence-core@google.com</owner>
   <summary>
@@ -2123,7 +2187,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OptimizationGuide.PageContentCache.TotalCacheSize" units="KB"
-    expires_after="2026-09-13">
+    expires_after="2026-11-15">
   <owner>ssid@chromium.org</owner>
   <owner>chrome-intelligence-core@google.com</owner>
   <summary>
@@ -2160,7 +2224,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="OptimizationGuide.PageContentExtraction.AutomaticOnLoad.ExtractionLatency"
-    units="ms" expires_after="2026-09-16">
+    units="ms" expires_after="2026-11-15">
   <owner>alexmt@chromium.org</owner>
   <owner>chrome-intelligence-core@google.com</owner>
   <summary>
@@ -2231,23 +2295,19 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram
-    name="OptimizationGuide.PageContentExtraction.NavigationToReadyLatency.{NavigationType}.{StabilizationMethod}"
+    name="OptimizationGuide.PageContentExtraction.NavigationToReadyLatency.{NavigationType}"
     units="ms" expires_after="2026-11-07">
   <owner>linnan@chromium.org</owner>
   <owner>chrome-intelligence-core@google.com</owner>
   <summary>
     Records the duration from when a main frame {NavigationType} navigation
-    commits until the page is considered stable and ready for extraction using
-    the {StabilizationMethod} stabilization method. Recorded once per committed
-    primary main frame navigation when the page first becomes stable.
+    commits until the page is considered stable and ready for extraction.
+    Recorded once per committed primary main frame navigation when the page
+    first becomes stable.
   </summary>
   <token key="NavigationType">
     <variant name="CrossDocument" summary="cross-document navigation"/>
     <variant name="SameDocument" summary="same-document navigation"/>
-  </token>
-  <token key="StabilizationMethod">
-    <variant name="Legacy" summary="the legacy load completion and FCP"/>
-    <variant name="PageSettledMonitor" summary="the PageSettledMonitor"/>
   </token>
 </histogram>
 
@@ -2317,6 +2377,17 @@ chromium-metrics-reviews@google.com.
     Records whether an on-demand page content extraction request successfully
     returned a valid ExtractedPageContentResult. Recorded once per on-demand
     request, excluding PDFs.
+  </summary>
+</histogram>
+
+<histogram name="OptimizationGuide.PageContentExtraction.RequestType"
+    enum="PageContentExtractionRequestType" expires_after="2027-05-05">
+  <owner>xiaochenzh@chromium.org</owner>
+  <owner>sophiechang@chromium.org</owner>
+  <owner>chrome-intelligence-core@google.com</owner>
+  <summary>
+    Records whether page content extraction requests the AnnotatedPageContent,
+    the PDF text, or the PDF page count. Recorded once per extraction request.
   </summary>
 </histogram>
 
@@ -2721,7 +2792,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="OptimizationGuide.TextSafetyChecker.InferenceResult"
     enum="OptimizationGuideTextSafetyInferenceResult"
-    expires_after="2026-09-06">
+    expires_after="2026-11-15">
   <owner>holte@google.com</owner>
   <owner>wittman@chromium.org</owner>
   <summary>
@@ -2731,7 +2802,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OptimizationGuide.TextSafetyChecker.InitTime" units="ms"
-    expires_after="2026-09-06">
+    expires_after="2026-11-15">
   <owner>holte@google.com</owner>
   <owner>wittman@chromium.org</owner>
   <summary>
@@ -2741,7 +2812,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OptimizationGuide.TextSafetyChecker.ModelCreationTime"
-    units="ms" expires_after="2026-09-06">
+    units="ms" expires_after="2026-11-15">
   <owner>holte@google.com</owner>
   <owner>wittman@chromium.org</owner>
   <summary>
@@ -2761,7 +2832,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OptimizationGuide.TextSafetyChecker.TokensPerSecond"
-    units="counts" expires_after="2026-09-06">
+    units="counts" expires_after="2026-11-15">
   <owner>holte@google.com</owner>
   <owner>wittman@chromium.org</owner>
   <summary>

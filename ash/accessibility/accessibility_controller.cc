@@ -191,7 +191,7 @@ const FeatureData kFeatures[] = {
     {FeatureType::kLargeCursor, prefs::kAccessibilityLargeCursorEnabled,
      nullptr, IDS_ASH_STATUS_TRAY_ACCESSIBILITY_LARGE_CURSOR},
     {FeatureType::kLiveCaption, ::prefs::kLiveCaptionEnabled,
-     &vector_icons::kLiveCaptionOnIcon, IDS_ASH_STATUS_TRAY_LIVE_CAPTION},
+     &vector_icons::kLiveCaptionOnOldIcon, IDS_ASH_STATUS_TRAY_LIVE_CAPTION},
     {FeatureType::kMonoAudio, prefs::kAccessibilityMonoAudioEnabled, nullptr,
      IDS_ASH_STATUS_TRAY_ACCESSIBILITY_MONO_AUDIO},
     {FeatureType::kMouseKeys, prefs::kAccessibilityMouseKeysEnabled, nullptr, 0,
@@ -2367,6 +2367,18 @@ void AccessibilityController::SilenceSpokenFeedback() {
   }
 }
 
+void AccessibilityController::OnTwoFingerTouchStart() {
+  if (client_) {
+    client_->OnTwoFingerTouchStart();
+  }
+}
+
+void AccessibilityController::OnTwoFingerTouchStop() {
+  if (client_) {
+    client_->OnTwoFingerTouchStop();
+  }
+}
+
 bool AccessibilityController::ShouldToggleSpokenFeedbackViaTouch() const {
   return client_ && client_->ShouldToggleSpokenFeedbackViaTouch();
 }
@@ -2490,8 +2502,8 @@ void AccessibilityController::OnFirstSessionReady() {
   // By the time the user desktop is fully loaded, any syncable or conflicting
   // preferences have already been processed by the associator.
   // If needed, launch the merge resolution dialog.
-  if (auto controller =
-          AccessibilityPrefsMergeConflictController::MaybeCreate()) {
+  auto controller = AccessibilityPrefsMergeConflictController::MaybeCreate();
+  if (controller && controller->needs_conflict_resolution_dialog()) {
     prefs_conflict_resolution_dialog_ =
         AccessibilityPrefsMergeConflictDialog::CreateAndShow(
             std::move(controller),

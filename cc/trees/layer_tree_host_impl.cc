@@ -727,11 +727,6 @@ void LayerTreeHostImpl::AnimateInternal() {
   DCHECK(task_runner_provider_->IsImplThread());
   base::TimeTicks monotonic_time = CurrentBeginFrameArgs().frame_time;
 
-  // mithro(TODO): Enable these checks.
-  // DCHECK(!current_begin_frame_tracker_.HasFinished());
-  // DCHECK(monotonic_time == current_begin_frame_tracker_.Current().frame_time)
-  //  << "Called animate with unknown frame time!?";
-
   bool did_animate = false;
 
   // TODO(bokan): This should return did_animate, see TODO in
@@ -906,10 +901,16 @@ static void AppendQuadsToFillScreen(
 }
 
 static viz::CompositorRenderPass* FindRenderPassById(
-    const viz::CompositorRenderPassList& list,
+    const FrameData* frame,
     viz::CompositorRenderPassId id) {
-  auto it = std::ranges::find(list, id, &viz::CompositorRenderPass::id);
-  return it == list.end() ? nullptr : it->get();
+  auto it = std::ranges::find(frame->render_passes, id,
+                              &viz::CompositorRenderPass::id);
+  if (it != frame->render_passes.end()) {
+    return it->get();
+  }
+  it = std::ranges::find(frame->unbounded_render_passes, id,
+                         &viz::CompositorRenderPass::id);
+  return it == frame->unbounded_render_passes.end() ? nullptr : it->get();
 }
 
 bool LayerTreeHostImpl::HasDamage() const {
@@ -1037,7 +1038,7 @@ DrawResult LayerTreeHostImpl::CalculateRenderPasses(FrameData* frame,
         SCOPED_CRASH_KEY_STRING64("cc", "device_viewport",
                                   active_tree_->GetDeviceViewport().ToString());
 
-        if (metrics_subsampler_.ShouldSample(0.1)) {
+        if (base::ShouldRecordSubsampledMetric(.1)) {
           DUMP_WILL_BE_CHECK(viz_damage_rect.Contains(root_layer_damage_rect_))
               << "crbug.com/454680865: Viz damage does not contain client "
                  "damage!";
@@ -1095,15 +1096,19 @@ DrawResult LayerTreeHostImpl::CalculateRenderPasses(FrameData* frame,
     const auto& view_transition_element_resource_id =
         render_surface->ViewTransitionElementResourceId();
     if (should_draw_into_render_pass) {
+      auto& target_list = render_surface->IsUnbounded()
+                              ? frame->unbounded_render_passes
+                              : frame->render_passes;
+
       // Create a capture render pass if we're in the capture phase for this
       // render surface.
       if (render_surface->has_view_transition_capture_contributions()) {
-        frame->render_passes.push_back(
+        target_list.push_back(
             render_surface->CreateViewTransitionCaptureRenderPass(
                 capture_view_transition_tokens));
       }
 
-      frame->render_passes.push_back(
+      target_list.push_back(
           render_surface->CreateRenderPass(capture_view_transition_tokens));
     }
     if (view_transition_element_resource_id.IsValid()) {
@@ -1170,16 +1175,16 @@ DrawResult LayerTreeHostImpl::CalculateRenderPasses(FrameData* frame,
        it.state() != EffectTreeLayerListIterator::State::kEnd; ++it) {
     RenderSurfaceImpl* target_render_surface = it.target_render_surface();
 
-    viz::CompositorRenderPass* target_render_pass = FindRenderPassById(
-        frame->render_passes, target_render_surface->render_pass_id());
+    viz::CompositorRenderPass* target_render_pass =
+        FindRenderPassById(frame, target_render_surface->render_pass_id());
 
-    viz::CompositorRenderPass* view_transition_capture_render_pass =
-        (output_frame_data &&
-         target_render_surface->has_view_transition_capture_contributions())
-            ? FindRenderPassById(frame->render_passes,
-                                 it.target_render_surface()
-                                     ->view_transition_capture_render_pass_id())
-            : nullptr;
+    viz::CompositorRenderPass* view_transition_capture_render_pass = nullptr;
+    if (output_frame_data &&
+        target_render_surface->has_view_transition_capture_contributions()) {
+      view_transition_capture_render_pass = FindRenderPassById(
+          frame,
+          it.target_render_surface()->view_transition_capture_render_pass_id());
+    }
 
     AppendQuadsData append_quads_data;
 
@@ -1195,7 +1200,8 @@ DrawResult LayerTreeHostImpl::CalculateRenderPasses(FrameData* frame,
       }
       // The only place where enable_compositing_based_throttling is set
       // to true is AshWindowTreeHost::Create().
-      // TODO(zmo): Audit if this is necessary for UI in TreesInViz mode.
+      // TODO(b/512804780) - Audit if this is necessary for UI in TreesInViz
+      // mode.
       if (settings_.enable_compositing_based_throttling && target_render_pass) {
         throttle_decider_.ProcessRenderPass(*target_render_pass);
       }
@@ -1204,13 +1210,18 @@ DrawResult LayerTreeHostImpl::CalculateRenderPasses(FrameData* frame,
       if (output_frame_data) {
         RenderSurfaceImpl* render_surface = it.current_render_surface();
         if (render_surface->contributes_to_drawn_surface()) {
-          render_surface->AppendQuads(context, target_render_pass,
-                                      &append_quads_data);
-          if (view_transition_capture_render_pass) {
-            AppendQuadsData data;
-            render_surface->AppendQuads(view_transition_capture_context,
-                                        view_transition_capture_render_pass,
-                                        &data);
+          // An unbounded surface is submitted in a separate
+          // CompositorFrame, so we do not append its RenderPassDrawQuad
+          // to the parent render pass.
+          if (!render_surface->IsUnbounded()) {
+            render_surface->AppendQuads(context, target_render_pass,
+                                        &append_quads_data);
+            if (view_transition_capture_render_pass) {
+              AppendQuadsData data;
+              render_surface->AppendQuads(view_transition_capture_context,
+                                          view_transition_capture_render_pass,
+                                          &data);
+            }
           }
         }
       }
@@ -1246,11 +1257,15 @@ DrawResult LayerTreeHostImpl::CalculateRenderPasses(FrameData* frame,
             layer->AppendQuads(view_transition_capture_context,
                                view_transition_capture_render_pass, &data);
           }
+        } else if (layer->HasMissingTiles()) {
+          have_missing_animated_tiles |=
+              layer->screen_space_transform_is_animating();
         }
       } else {
         // The only place where enable_compositing_based_throttling is set
         // to true is AshWindowTreeHost::Create().
-        // TODO(zmo): Audit if this is necessary for UI in TreesInViz mode.
+        // TODO(b/512804780): Audit if this is necessary for UI in TreesInViz
+        // mode.
         if (settings_.enable_compositing_based_throttling) {
           throttle_decider_.ProcessLayerNotToDraw(layer);
         }
@@ -1275,7 +1290,8 @@ DrawResult LayerTreeHostImpl::CalculateRenderPasses(FrameData* frame,
         frame->checkerboarded_needs_record = true;
       }
 
-      // TODO(zmo): Audit if this is necessary when UI is moved to TreesInViz.
+      // TODO(b/512804780): Audit if this is necessary when UI is moved to
+      // TreesInViz.
       if (settings_.is_layer_tree_for_ui) {
         AccumulateInvalidatedArea(layer, total_invalidated_area_.value());
       }
@@ -1356,6 +1372,11 @@ DrawResult LayerTreeHostImpl::CalculateRenderPasses(FrameData* frame,
       DCHECK(quad->shared_quad_state);
     }
   }
+  for (const auto& render_pass : frame->unbounded_render_passes) {
+    for (auto* quad : render_pass->quad_list) {
+      DCHECK(quad->shared_quad_state);
+    }
+  }
   DCHECK_EQ(frame->render_passes.back()->output_rect.origin(),
             active_tree_->GetDeviceViewport().origin());
 #endif
@@ -1401,8 +1422,6 @@ DrawResult LayerTreeHostImpl::CalculateRenderPasses(FrameData* frame,
   // would be animating checkerboards, because failing under those conditions
   // triggers a new main frame, which may cause the copy request layer to be
   // destroyed.
-  // TODO(weiliangc): Test copy request w/ LayerTreeFrameSink recreation. Would
-  // trigger this DCHECK.
   DCHECK((!frame->has_copy_requests &&
           !frame->has_view_transition_save_directive) ||
          draw_result == DrawResult::kSuccess);
@@ -1455,6 +1474,7 @@ DrawResult LayerTreeHostImpl::PrepareToDraw(FrameData* frame,
 
   frame->render_surface_list = &active_tree_->GetRenderSurfaceList();
   frame->render_passes.clear();
+  frame->unbounded_render_passes.clear();
   frame->will_draw_layers.clear();
   frame->has_no_damage = false;
 
@@ -1624,6 +1644,8 @@ void LayerTreeHostImpl::ResetTreesForTesting() {
   }
   recycle_tree_ = nullptr;
 }
+
+void LayerTreeHostImpl::DidSendEarlyFinalBeginMainFrame() {}
 
 size_t LayerTreeHostImpl::SourceAnimationFrameNumberForTesting() const {
   return next_frame_token();
@@ -1935,9 +1957,9 @@ void LayerTreeHostImpl::SetMemoryPolicy(const ManagedMemoryPolicy& policy) {
 
   SetMemoryPolicyImpl(policy);
 
-  // This is short term solution to synchronously drop tile resources when
-  // using synchronous compositing to avoid memory usage regression.
-  // TODO(boliu): crbug.com/499004 to track removing this.
+  // Synchronously drop tile resources when using synchronous compositing to
+  // avoid memory usage regression.  Otherwise, they may never be cleaned up
+  // because there may be no further begin frames after setting policy to 0.
   if (!policy.bytes_limit_when_visible && resource_pool_ &&
       settings_.using_synchronous_renderer_compositor) {
     ReleaseTileResources();
@@ -2405,7 +2427,6 @@ viz::CompositorFrameMetadata LayerTreeHostImpl::MakeCompositorFrameMetadata() {
 #endif
 
   if (InnerViewportScrollNode()) {
-    // TODO(miletus) : Change the metadata to hold ScrollOffset.
     metadata.root_scroll_offset = active_tree_->TotalScrollOffset();
   }
 
@@ -2802,8 +2823,6 @@ std::optional<SubmitInfo> LayerTreeHostImpl::DrawLayers(FrameData* frame) {
 
   // The next frame should start by assuming nothing has changed, and changes
   // are noted as they occur.
-  // TODO(boliu): If we did a temporary software renderer frame, propagate the
-  // damage forward to the next frame.
   for (size_t i = 0; i < frame->render_surface_list->size(); i++) {
     auto* surface = (*frame->render_surface_list)[i];
     surface->damage_tracker()->DidDrawDamagedArea();
@@ -3133,14 +3152,45 @@ viz::CompositorFrame LayerTreeHostImpl::GenerateCompositorFrame(
     }
   }
 
-  // Collect all resource ids in the render passes into a single array.
-  std::vector<viz::ResourceId> resources;
-  for (const auto& render_pass : frame->render_passes) {
-    for (auto* quad : render_pass->quad_list) {
-      if (quad->resource_id != viz::kInvalidResourceId) {
-        resources.push_back(quad->resource_id);
-      }
-    }
+  auto populate_resources =
+      [&](viz::CompositorFrame& comp_frame,
+          const viz::CompositorRenderPassList& render_passes) {
+        std::vector<viz::ResourceId> resources;
+        for (const auto& render_pass : render_passes) {
+          for (auto* quad : render_pass->quad_list) {
+            if (quad->resource_id != viz::kInvalidResourceId) {
+              resources.push_back(quad->resource_id);
+            }
+          }
+        }
+        resource_provider_->PrepareSendToParent(
+            resources, &comp_frame.resource_list,
+            layer_tree_frame_sink_->shared_image_interface().get());
+      };
+
+  // Build and submit the dedicated CompositorFrame for the unbounded passes.
+  if (!frame->unbounded_render_passes.empty() && delegate_) {
+    // Unbounded element is not implemented for TreesInViz yet.
+    CHECK(!settings_.TreesInVizInClientProcess());
+
+    viz::CompositorFrame unbounded_frame;
+    // TODO(508672616): What other uses of `metadata` are relevant to unbounded
+    // element render passes?
+    unbounded_frame.metadata = MakeCompositorFrameMetadata();
+    unbounded_frame.metadata.begin_frame_ack = frame->begin_frame_ack;
+    unbounded_frame.render_pass_list =
+        std::move(frame->unbounded_render_passes);
+
+    populate_resources(unbounded_frame, unbounded_frame.render_pass_list);
+
+    // TODO(508672616): Consider moving this Submit call to
+    // LayerTreeHostImpl::DrawLayers where the bounded compositor frame is
+    // submitted via LayerTreeFrameSink::SubmitCompositorFrame. Doing so
+    // requires structural changes to GenerateCompositorFrame's return type
+    // to pass back multiple frames, as well as updating DrawLayers'
+    // submission and metrics tracking pipelines to accommodate dual frame
+    // submissions.
+    delegate_->SubmitUnboundedCompositorFrame(std::move(unbounded_frame));
   }
 
   DCHECK(frame->begin_frame_ack.frame_id.IsSequenceValid());
@@ -3149,9 +3199,7 @@ viz::CompositorFrame LayerTreeHostImpl::GenerateCompositorFrame(
   viz::CompositorFrame compositor_frame;
   compositor_frame.metadata = std::move(metadata);
 
-  resource_provider_->PrepareSendToParent(
-      resources, &compositor_frame.resource_list,
-      layer_tree_frame_sink_->shared_image_interface().get());
+  populate_resources(compositor_frame, frame->render_passes);
 
   compositor_frame.render_pass_list = std::move(frame->render_passes);
 
@@ -3717,12 +3765,6 @@ base::TimeDelta LayerTreeHostImpl::CurrentFrameInterval() const {
   return CurrentBeginFrameInterval();
 }
 
-float LayerTreeHostImpl::RenderedDeviceScaleFactor() const {
-  return settings().use_painted_device_scale_factor
-             ? active_tree_->painted_device_scale_factor()
-             : active_tree_->device_scale_factor();
-}
-
 ScrollNode* LayerTreeHostImpl::InnerViewportScrollNode() const {
   return active_tree_->InnerViewportScrollNode();
 }
@@ -3792,7 +3834,7 @@ void LayerTreeHostImpl::PushScrollbarOpacitiesFromActiveToPending() {
                 pending_tree()
                     ->property_trees()
                     ->effect_tree_mutable()
-                    .FindNodeFromElementId(scrollbar->element_id())) {
+                    .MutableFindNodeFromElementId(scrollbar->element_id())) {
           DCHECK(target_effect_node);
           float source_opacity = source_effect_node->opacity;
           float target_opacity = target_effect_node->opacity;
@@ -4348,22 +4390,6 @@ void LayerTreeHostImpl::ReleaseLayerTreeFrameSink() {
     ClearUIResources();
   }
 
-  bool should_finish = !base::FeatureList::IsEnabled(
-      features::kSkipFinishDuringReleaseLayerTreeFrameSink);
-#if BUILDFLAG(IS_WIN)
-  // Windows does not have stability issues that require calling Finish.
-  // To minimize risk, only avoid waiting for the UI layer tree.
-  should_finish &= !settings_.is_layer_tree_for_ui;
-#endif
-
-  if (should_finish && layer_tree_frame_sink_->context_provider()) {
-    // TODO(kylechar): Exactly where this finish call is still required is not
-    // obvious. Attempts have been made to remove it which caused problems, eg.
-    // https://crbug.com/846709. We should test removing it via finch to find
-    // out if this is still needed on any platforms.
-    layer_tree_frame_sink_->context_provider()->RasterInterface()->Finish();
-  }
-
   // Release any context visibility before we destroy the LayerTreeFrameSink.
   SetContextVisibility(false);
 
@@ -4734,8 +4760,9 @@ void LayerTreeHostImpl::DidScrollContent(ElementId element_id,
 }
 
 float LayerTreeHostImpl::DeviceScaleFactor() const {
-  // TODO(crbug.com/505784117): Unify with RenderedDeviceScaleFactor()
-  return active_tree_->device_scale_factor();
+  return settings().use_painted_device_scale_factor
+             ? active_tree_->painted_device_scale_factor()
+             : active_tree_->device_scale_factor();
 }
 
 float LayerTreeHostImpl::PageScaleFactor() const {
@@ -4960,10 +4987,6 @@ LayerTreeHostImpl::ProcessCompositorDeltas(
   commit_data->is_scroll_active =
       input_delegate_ && GetInputHandler().IsCurrentlyScrolling();
   // We should never process non-unit page_scale_delta for an OOPIF subframe.
-  // TODO(wjmaclean): Remove this DCHECK as a pre-condition to closing the bug.
-  // https://crbug.com/845097
-  DCHECK(settings().is_for_scalable_page ||
-         commit_data->page_scale_delta == 1.f);
   commit_data->top_controls_delta =
       active_tree()->top_controls_shown_ratio()->PullDeltaForMainThread(
           main_thread_mutator_host);
@@ -5081,9 +5104,6 @@ bool LayerTreeHostImpl::AnimateLayers(base::TimeTicks monotonic_time,
   const bool animated = mutator_host_->TickAnimations(
       monotonic_time, scroll_tree, is_active_tree, mutator_events_.get());
 
-  // TODO(crbug.com/40443202): Only do this if the animations are on the active
-  // tree, or if they are on the pending tree waiting for some future time to
-  // start.
   if (animated) {
     // TODO(crbug.com/40667010): If only scroll animations present, schedule a
     // frame only if scroll changes.
@@ -5243,15 +5263,11 @@ void LayerTreeHostImpl::PostDelayedScrollbarAnimationTask(
   delegate_->PostDelayedAnimationTaskOnImplThread(std::move(task), delay);
 }
 
-// TODO(danakj): Make this a return value from the Animate() call instead of an
-// interface on LTHI. (Also, crbug.com/551138.)
 void LayerTreeHostImpl::SetNeedsAnimateForScrollbarAnimation() {
   TRACE_EVENT0("cc", "LayerTreeHostImpl::SetNeedsAnimateForScrollbarAnimation");
   SetNeedsOneBeginImplFrame();
 }
 
-// TODO(danakj): Make this a return value from the Animate() call instead of an
-// interface on LTHI. (Also, crbug.com/551138.)
 void LayerTreeHostImpl::SetNeedsRedrawForScrollbarAnimation() {
   SetNeedsRedraw(/*animation_only=*/true, /*skip_if_inside_draw=*/false);
 }
@@ -5776,13 +5792,8 @@ void LayerTreeHostImpl::SetTreeLayerScrollOffsetMutated(
   }
 
   PropertyTrees* property_trees = tree->property_trees();
-  DCHECK_EQ(1u, property_trees->scroll_tree().element_id_to_node_index().count(
-                    element_id));
   const ScrollNode* scroll_node =
       property_trees->scroll_tree().FindNodeFromElementId(element_id);
-  // TODO(crbug.com/40828469): We should aim to prevent this condition from
-  // happening and either remove this check or make it fatal.
-  DCHECK(scroll_node);
   if (!scroll_node) {
     return;
   }
@@ -5886,8 +5897,6 @@ void LayerTreeHostImpl::ElementIsAnimatingChanged(
     const PropertyAnimationState& state) {
   LayerTreeImpl* tree =
       list_type == ElementListType::ACTIVE ? active_tree() : pending_tree();
-  // TODO(wkorman): Explore enabling DCHECK in ElementIsAnimatingChanged()
-  // below. Currently enabling causes batch of unit test failures.
   if (tree && tree->property_trees()->ElementIsAnimatingChanged(
                   element_id_map, mask, state, false)) {
     tree->set_needs_update_draw_properties();

@@ -4,6 +4,7 @@
 
 #include "chrome/browser/contextual_tasks/contextual_tasks_context_service.h"
 
+#include "base/command_line.h"
 #include "base/files/file_util.h"
 #include "base/path_service.h"
 #include "base/test/metrics/histogram_tester.h"
@@ -192,11 +193,17 @@ class ContextualTasksContextServiceTest : public InProcessBrowserTest {
     InProcessBrowserTest::TearDown();
   }
 
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    InProcessBrowserTest::SetUpCommandLine(command_line);
+    command_line->AppendSwitch("ignore-google-port-numbers");
+  }
+
   virtual void InitializeFeatureList() {
     scoped_feature_list_.InitWithFeaturesAndParameters(
         {
             {kContextualTasksContext,
              {{{"ContextualTasksContextOnlyUseTitles", "false"},
+               {"ContextualTasksContextDeduplicateByUrl", "false"},
                {"ContextualTasksContextTabSelectionScoreThreshold", "0.8"},
                {"ContextualTasksContextContentVisibilityThreshold", "0.8"}}}},
             {kContextualTasksContextLogging, {}},
@@ -365,6 +372,23 @@ class ContextualTasksContextServiceTest : public InProcessBrowserTest {
   page_content_annotations::TestPageContentAnnotator page_content_annotator_;
 };
 
+IN_PROC_BROWSER_TEST_F(ContextualTasksContextServiceTest, EmptyQuery) {
+  base::HistogramTester histogram_tester;
+
+  base::test::TestFuture<std::vector<base::WeakPtr<content::WebContents>>>
+      future;
+  service()->GetRelevantTabsForQuery(
+      /*options=*/{}, "", /*explicit_urls=*/{}, future.GetCallback());
+  EXPECT_TRUE(future.Get().empty());
+
+  histogram_tester.ExpectTotalCount("ContextualTasks.Context.RelevantTabsCount",
+                                    0);
+  histogram_tester.ExpectTotalCount(
+      "ContextualTasks.Context.ContextCalculationLatency", 0);
+  histogram_tester.ExpectTotalCount(
+      "ContextualTasks.Context.ContextDeterminationStatus", 0);
+}
+
 IN_PROC_BROWSER_TEST_F(ContextualTasksContextServiceTest, NoEmbedder) {
   base::HistogramTester histogram_tester;
 
@@ -482,6 +506,50 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksContextServiceTest, Success) {
       "ContextualTasks.Context.TabOverlapPercentage", 100, 1);
   histogram_tester.ExpectUniqueSample("ContextualTasks.Context.TabExcessCount",
                                       0, 1);
+}
+
+IN_PROC_BROWSER_TEST_F(ContextualTasksContextServiceTest,
+                       FiltersGoogleSearchAndHome) {
+  // 1. Navigate to a valid URL (a.test).
+  NavigateToValidURL();
+
+  // 2. Open a new tab and navigate to Google Search.
+  GURL search_url =
+      embedded_test_server()->GetURL("www.google.com", "/search?q=test");
+  ui_test_utils::NavigateToURLWithDisposition(
+      browser(), search_url, WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
+
+  // 3. Open another new tab and navigate to Google Home Page.
+  GURL home_url = embedded_test_server()->GetURL("www.google.com", "/");
+  ui_test_utils::NavigateToURLWithDisposition(
+      browser(), home_url, WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
+
+  NotifyEmbedderMetadata();
+
+  // Set up embeddings for the valid tab.
+  std::vector<page_content_annotations::PassageEmbedding> fake_page_embeddings =
+      {{std::make_pair(
+            "passage 1",
+            page_content_annotations::EmbeddingPassageType::kPageContent),
+        passage_embeddings::Embedding({1.0f, 0.0f, 0.0f})}};
+  EXPECT_CALL(*page_embeddings_service(), GetEmbeddings(_))
+      .WillRepeatedly(Return(fake_page_embeddings));
+
+  base::test::TestFuture<std::vector<base::WeakPtr<content::WebContents>>>
+      future;
+  TabSelectionOptions options;
+  options.tab_selection_mode = mojom::TabSelectionMode::kEmbeddingsMatch;
+  service()->GetRelevantTabsForQuery(options, "some text",
+                                     /*explicit_urls=*/{},
+                                     future.GetCallback());
+
+  std::vector<base::WeakPtr<content::WebContents>> result = future.Get();
+  EXPECT_EQ(1u, result.size());
+  if (!result.empty()) {
+    EXPECT_EQ(result[0]->GetLastCommittedURL(), valid_url());
+  }
 }
 
 IN_PROC_BROWSER_TEST_F(ContextualTasksContextServiceTest,
@@ -1576,11 +1644,30 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksContextServiceTest, SuccessWithMlModel) {
                                      /*explicit_urls=*/{},
                                      future.GetCallback());
 
-  // Expect 1 tab because both tabs have the same URL and are deduped.
-  EXPECT_EQ(1u, future.Get().size());
+  // Expect 2 tabs because both tabs have the same URL and deduplication is
+  // disabled.
+  EXPECT_EQ(2u, future.Get().size());
 }
 
-IN_PROC_BROWSER_TEST_F(ContextualTasksContextServiceTest, DeduplicateTabs) {
+class ContextualTasksContextServiceDeduplicateTest
+    : public ContextualTasksContextServiceTest {
+ protected:
+  void InitializeFeatureList() override {
+    scoped_feature_list_.InitWithFeaturesAndParameters(
+        {
+            {kContextualTasksContext,
+             {{"ContextualTasksContextDeduplicateByUrl", "true"},
+              {"ContextualTasksContextOnlyUseTitles", "false"},
+              {"ContextualTasksContextTabSelectionScoreThreshold", "0.8"},
+              {"ContextualTasksContextContentVisibilityThreshold", "0.8"}}},
+            {kContextualTasksContextLogging, {}},
+        },
+        /*disabled_features=*/{});
+  }
+};
+
+IN_PROC_BROWSER_TEST_F(ContextualTasksContextServiceDeduplicateTest,
+                       DeduplicateTabs) {
   base::HistogramTester histogram_tester;
 
   NavigateToValidURL();
@@ -1630,6 +1717,43 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksContextServiceTest,
                        ModelHandlerInitialization) {
   // Verifies that the model handler is properly instantiated.
   EXPECT_TRUE(GetModelHandler() != nullptr);
+}
+
+class ContextualTasksContextServiceSmartTabSharingTest
+    : public ContextualTasksContextServiceTest {
+ protected:
+  void InitializeFeatureList() override {
+    scoped_feature_list_.InitWithFeaturesAndParameters(
+        {
+            {kContextualTasksContext,
+             {{"ContextualTasksContextSmartTabSharing", "true"},
+              {"ContextualTasksContextOnlyUseTitles", "false"},
+              {"ContextualTasksContextTabSelectionScoreThreshold", "0.8"},
+              {"ContextualTasksContextContentVisibilityThreshold", "0.8"}}},
+            {kContextualTasksContextLogging, {}},
+        },
+        /*disabled_features=*/{});
+  }
+};
+
+IN_PROC_BROWSER_TEST_F(ContextualTasksContextServiceSmartTabSharingTest,
+                       GetIsSmartTabSharingEnabled) {
+  Profile* profile = browser()->profile();
+
+  EXPECT_TRUE(
+      ContextualTasksContextService::GetIsSmartTabSharingEnabled(profile));
+
+  profile->GetPrefs()->SetInteger(
+      kContextualTasksSmartTabSharingSettings,
+      static_cast<int>(SmartTabSharingSettingsValue::kDisabled));
+  EXPECT_FALSE(
+      ContextualTasksContextService::GetIsSmartTabSharingEnabled(profile));
+
+  profile->GetPrefs()->SetInteger(
+      kContextualTasksSmartTabSharingSettings,
+      static_cast<int>(SmartTabSharingSettingsValue::kEnabled));
+  EXPECT_TRUE(
+      ContextualTasksContextService::GetIsSmartTabSharingEnabled(profile));
 }
 
 }  // namespace contextual_tasks

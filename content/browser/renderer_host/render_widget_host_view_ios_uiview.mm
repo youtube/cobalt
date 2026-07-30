@@ -133,7 +133,12 @@ NSString* const kDoneAccessoryImageName = @"checkmark";
     self.multipleTouchEnabled = YES;
     self.autoresizingMask =
         UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-    [self initializeInputAccessoryToolbar];
+    [self initializeInputAccessory];
+    [[NSNotificationCenter defaultCenter]
+        addObserver:self
+           selector:@selector(keyboardWillChangeFrame:)
+               name:UIKeyboardWillChangeFrameNotification
+             object:nil];
   }
   return self;
 }
@@ -152,19 +157,7 @@ NSString* const kDoneAccessoryImageName = @"checkmark";
   return _inputAccessoryContainerView;
 }
 
-- (void)initializeInputAccessoryToolbar {
-  UIToolbar* toolbar = [[UIToolbar alloc] init];
-  [toolbar sizeToFit];
-
-  CGSize toolbarSize = toolbar.frame.size;
-
-  _inputAccessoryContainerView = [[UIView alloc]
-      initWithFrame:CGRectMake(0, 0, toolbarSize.width,
-                               toolbarSize.height +
-                                   kInputAccessoryToolbarBottomMargin)];
-  toolbar.autoresizingMask = UIViewAutoresizingFlexibleWidth;
-  [_inputAccessoryContainerView addSubview:toolbar];
-
+- (void)initializeInputAccessory {
   _previousAccessoryButton = [[UIBarButtonItem alloc]
       initWithImage:[UIImage systemImageNamed:kPreviousAccessoryImageName]
               style:UIBarButtonItemStylePlain
@@ -179,6 +172,29 @@ NSString* const kDoneAccessoryImageName = @"checkmark";
              action:@selector(handleNextAccessoryAction)];
   _nextAccessoryButton.accessibilityLabel =
       l10n_util::GetNSString(IDS_ACCNAME_NEXT);
+
+  if (UIDevice.currentDevice.userInterfaceIdiom == UIUserInterfaceIdiomPad) {
+    UIBarButtonItemGroup* navigationGroup =
+        [[UIBarButtonItemGroup alloc] initWithBarButtonItems:@[
+          _previousAccessoryButton, _nextAccessoryButton
+        ]
+                                          representativeItem:nil];
+    self.inputAssistantItem.trailingBarButtonGroups = @[ navigationGroup ];
+    return;
+  }
+
+  UIToolbar* toolbar = [[UIToolbar alloc] init];
+  [toolbar sizeToFit];
+
+  CGSize toolbarSize = toolbar.frame.size;
+
+  _inputAccessoryContainerView = [[UIView alloc]
+      initWithFrame:CGRectMake(0, 0, toolbarSize.width,
+                               toolbarSize.height +
+                                   kInputAccessoryToolbarBottomMargin)];
+  toolbar.autoresizingMask = UIViewAutoresizingFlexibleWidth;
+  [_inputAccessoryContainerView addSubview:toolbar];
+
   UIBarButtonItem* flexSpace = [[UIBarButtonItem alloc]
       initWithBarButtonSystemItem:UIBarButtonSystemItemFlexibleSpace
                            target:nil
@@ -282,10 +298,43 @@ NSString* const kDoneAccessoryImageName = @"checkmark";
 }
 
 - (void)removeView {
+  [[NSNotificationCenter defaultCenter]
+      removeObserver:self
+                name:UIKeyboardWillChangeFrameNotification
+              object:nil];
   UIScrollView* view = (UIScrollView*)[self superview];
   [view removeObserver:self
             forKeyPath:NSStringFromSelector(@selector(contentInset))];
   [self removeFromSuperview];
+}
+
+- (CGFloat)keyboardHeight {
+  return _keyboardHeight;
+}
+
+- (void)keyboardWillChangeFrame:(NSNotification*)notification {
+  CHECK(_view);
+  UIWindow* window = self.window;
+  if (!window) {
+    _keyboardHeight = 0;
+    _view->OnKeyboardVisibilityChanged();
+    return;
+  }
+  NSDictionary* userInfo = notification.userInfo;
+  CGRect keyboardFrame = [userInfo[UIKeyboardFrameEndUserInfoKey] CGRectValue];
+
+  id<UICoordinateSpace> fromCoordinateSpace =
+      ((UIScreen*)notification.object).coordinateSpace;
+
+  CGRect keyboardFrameInWindow =
+      [fromCoordinateSpace convertRect:keyboardFrame
+                     toCoordinateSpace:window.coordinateSpace];
+
+  CGFloat visibleHeight =
+      CGRectIntersection(keyboardFrameInWindow, window.bounds).size.height;
+  CGFloat accessoryHeight = _inputAccessoryContainerView.frame.size.height;
+  _keyboardHeight = std::max(visibleHeight - accessoryHeight, 0.0);
+  _view->OnKeyboardVisibilityChanged();
 }
 
 - (BETextInteraction*)textInteraction {
@@ -1271,6 +1320,10 @@ NSString* const kDoneAccessoryImageName = @"checkmark";
   _nextAccessoryButton.enabled =
       (state.flags & ui::TEXT_INPUT_FLAG_HAVE_NEXT_FOCUSABLE_ELEMENT) != 0;
 
+  bool editable = state.type != ui::TextInputType::TEXT_INPUT_TYPE_NONE &&
+                  state.mode != ui::TextInputMode::TEXT_INPUT_MODE_NONE;
+  [self setIsEditable:editable];
+
   // Check for the visibility request and policy if VK APIs are enabled.
   if (state.vk_policy == ui::mojom::VirtualKeyboardPolicy::MANUAL) {
     // policy is manual.
@@ -1282,16 +1335,11 @@ NSString* const kDoneAccessoryImageName = @"checkmark";
                ui::mojom::VirtualKeyboardVisibilityRequest::HIDE) {
       [self hideKeyboard];
     }
-  } else {
-    bool hide = state.always_hide_ime ||
-                state.mode == ui::TextInputMode::TEXT_INPUT_MODE_NONE ||
-                state.type == ui::TextInputType::TEXT_INPUT_TYPE_NONE;
-    if (hide) {
-      [self hideKeyboard];
-    } else if (state.show_ime_if_needed) {
-      [self showKeyboard:(state.value && !state.value->empty())
-              withBounds:bounds];
-    }
+  } else if (state.always_hide_ime || !editable) {
+    [self hideKeyboard];
+  } else if (state.show_ime_if_needed) {
+    [self showKeyboard:(state.value && !state.value->empty())
+            withBounds:bounds];
   }
 }
 
@@ -1307,15 +1355,13 @@ NSString* const kDoneAccessoryImageName = @"checkmark";
 
 - (void)showKeyboard:(bool)has_text withBounds:(CGRect)bounds {
   self.frame = bounds;
-  BOOL result = [self becomeFirstResponder];
+  [self becomeFirstResponder];
   [self reloadInputViews];
-  [self setIsEditable:result];
 }
 
 - (void)hideKeyboard {
   [self resignFirstResponder];
   [self reloadInputViews];
-  [self setIsEditable:NO];
 }
 
 @end

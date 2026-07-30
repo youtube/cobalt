@@ -6,11 +6,14 @@ package org.chromium.chrome.browser.ntp.search;
 
 import android.content.Context;
 import android.content.res.Resources;
+import android.graphics.Rect;
 import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.RippleDrawable;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
+import android.view.TouchDelegate;
+import android.view.View;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -33,6 +36,9 @@ public class SearchBoxContainerView extends LinearLayout {
     ImageView mLensButton;
     ImageView mPlusButton;
 
+    private @Nullable TouchDelegate mTouchDelegate;
+    private @Nullable Rect mLastTouchDelegateRect;
+
     /** Constructor for inflating from XML. */
     public SearchBoxContainerView(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -47,6 +53,10 @@ public class SearchBoxContainerView extends LinearLayout {
         mVoiceSearchButton = findViewById(R.id.voice_search_button);
         mLensButton = findViewById(R.id.lens_camera_button);
         mPlusButton = findViewById(R.id.search_box_plus_button);
+        mPlusButton.addOnLayoutChangeListener(
+                (v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
+                    updateTouchDelegate();
+                });
 
         Typeface typeface = Typeface.create("google-sans-medium", Typeface.NORMAL);
         mHintTextView.setTypeface(typeface);
@@ -77,11 +87,49 @@ public class SearchBoxContainerView extends LinearLayout {
     }
 
     /**
+     * Updates the visibility of the plus button and DSE icon, synchronizing the touch delegate.
+     *
+     * @param visible Whether the plus button should be visible.
+     */
+    void updateStartIconVisibility(boolean visible) {
+        mPlusButton.setVisibility(visible ? View.VISIBLE : View.GONE);
+        mDseIconView.setVisibility(visible ? View.GONE : View.VISIBLE);
+        updateTouchDelegate();
+    }
+
+    /**
      * Applies or cleans up the white background for the search box.
      *
      * @param apply Whether to apply a white background color to the fake search box.
      */
     void applyWhiteBackground(boolean apply) {
         ComposeplateUtils.applyWhiteBackground(getContext(), this, apply);
+    }
+
+    private void updateTouchDelegate() {
+        if (mPlusButton.getVisibility() != View.VISIBLE) {
+            if (mTouchDelegate != null) {
+                setTouchDelegate(null);
+                mTouchDelegate = null;
+                mLastTouchDelegateRect = null;
+            }
+            return;
+        }
+
+        Rect bounds = new Rect();
+        mPlusButton.getHitRect(bounds);
+        if (bounds.isEmpty()) return;
+
+        int minTargetSize = getResources().getDimensionPixelSize(R.dimen.min_touch_target_size);
+        int widthDelta = Math.max(0, minTargetSize - bounds.width()) / 2;
+        int heightDelta = Math.max(0, minTargetSize - bounds.height()) / 2;
+        bounds.inset(-widthDelta, -heightDelta);
+
+        if (bounds.equals(mLastTouchDelegateRect)) return;
+        mLastTouchDelegateRect = bounds;
+
+        mLastTouchDelegateRect = bounds;
+        mTouchDelegate = new TouchDelegate(bounds, mPlusButton);
+        setTouchDelegate(mTouchDelegate);
     }
 }

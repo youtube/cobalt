@@ -406,8 +406,12 @@ BASE_FEATURE(kFedCmAmbientUI, base::FEATURE_DISABLED_BY_DEFAULT);
 // Enables usage of the FedCM Delegation API.
 BASE_FEATURE(kFedCmDelegation, base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Enables the FedCM email verification protocol.
-BASE_FEATURE(kEmailVerificationProtocol, base::FEATURE_DISABLED_BY_DEFAULT);
+// Enables the Email Verification Protocol (EVP).
+// Note that actual exposure of the EVP API to web content is controlled by the
+// flag in RuntimeEnabledFeatures on the blink side. See also the use of
+// kSetOnlyIfOverridden in content/child/runtime_features.cc. We enable it here
+// by default to support use in origin trials.
+BASE_FEATURE(kEmailVerificationProtocol, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enforce same-origin check for dedicated worker script URLs.
 // See https://crbug.com/496253755.
@@ -443,6 +447,12 @@ BASE_FEATURE(kFedCmNonceInParams, base::FEATURE_DISABLED_BY_DEFAULT);
 // login_url must be present in .well-known/web-identity for privacy validation.
 BASE_FEATURE(kFedCmWellKnownEndpointValidation,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables subdomain-first discovery for the FedCM well-known file. Fetches
+// https://web-identity.<eTLD+1>/.well-known/web-identity first and falls back
+// to the apex URL on failure (network error, malformed JSON, or provider_urls
+// length > 1).
+BASE_FEATURE(kFedCmWebIdentitySubdomain, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables bypassing the well-known file enforcement.
 BASE_FEATURE(kFedCmWithoutWellKnownEnforcement,
@@ -535,7 +545,7 @@ BASE_FEATURE_PARAM(bool,
                    kInitialWebUIUseSeparateProcess,
                    &features::kInitialWebUI,
                    "use_separate_process",
-                   false);
+                   true);
 
 // If enabled, the initial WebUI GPU stream is set to UI priority.
 BASE_FEATURE_PARAM(bool,
@@ -549,6 +559,13 @@ BASE_FEATURE_PARAM(bool,
                    kInitialWebUIWithoutSpellCheck,
                    &features::kInitialWebUI,
                    "without_spellcheck",
+                   true);
+
+// If enabled, the initial WebUI language detection initialization is skipped.
+BASE_FEATURE_PARAM(bool,
+                   kInitialWebUIWithoutLanguageDetection,
+                   &features::kInitialWebUI,
+                   "without_language_detection",
                    false);
 
 // Whether initial WebUI navigations should synchronously go from navigation
@@ -621,7 +638,7 @@ BASE_FEATURE(kKeepAliveReportBlockedByClient, base::FEATURE_ENABLED_BY_DEFAULT);
 // becomes lazy. i.e. the BrowserInterfaceBroker is constructed only when it is
 // needed, typically when a renderer process becomes associated with the frame.
 // See https://crbug.com/450912216 for more details.
-BASE_FEATURE(kLazyBrowserInterfaceBroker, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kLazyBrowserInterfaceBroker, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If this is enabled, LoadingPredictor restricts the number of preconnects for
 // the same destination to one.
@@ -1394,16 +1411,11 @@ const base::FeatureParam<int> kAndroidMonitorZoomScalingFactor{
 
 // Implementation of the DisplayCursor API in RenderWidgetHostViewInput on
 // Android.
-BASE_FEATURE(kAndroidDisplayCursor,
-             "AndroidDisplayCursor",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kAndroidDisplayCursor, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Allows the use of "Smart Zoom", an alternative form of page zoom, and
 // enables the associated UI.
 BASE_FEATURE(kSmartZoom, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Enables setting the importance for subframes in WebContents.
-BASE_FEATURE(kSubframeImportance, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Skips clearing objects on main document ready. Only has an impact
 // when gin java bridge is enabled.

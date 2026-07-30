@@ -35,6 +35,7 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/models/image_model.h"
 #include "ui/base/models/menu_separator_types.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/menus/simple_menu_model.h"
 
 namespace {
@@ -113,17 +114,21 @@ SplitTabMenuModel::SplitTabMenuModel(TabStripModel* tab_strip_model,
       split_tab_index_(split_tab_index) {
   AddItemWithStringIdAndIcon(
       GetCommandIdInt(CommandId::kExitSplit), IDS_SPLIT_TAB_SEPARATE_VIEWS,
-      ui::ImageModel::FromVectorIcon(kOpenInFullIcon, ui::kColorMenuIcon,
-                                     ui::SimpleMenuModel::kDefaultIconSize));
+      ui::ImageModel::FromVectorIcon(
+          features::IsRoundedIconsEnabled() ? kOpenInFullIcon
+                                            : kOpenInFullOldIcon,
+          ui::kColorMenuIcon, ui::SimpleMenuModel::kDefaultIconSize));
   AddSeparator(ui::MenuSeparatorType::NORMAL_SEPARATOR);
 
   if (menu_source == MenuSource::kMiniToolbar) {
     CHECK(split_tab_index.has_value());
     AddItemWithStringIdAndIcon(
         GetCommandIdInt(CommandId::kCloseSpecifiedTab), IDS_SPLIT_TAB_CLOSE,
-        ui::ImageModel::FromVectorIcon(vector_icons::kCloseChromeRefreshIcon,
-                                       ui::kColorMenuIcon,
-                                       ui::SimpleMenuModel::kDefaultIconSize));
+        ui::ImageModel::FromVectorIcon(
+            features::IsRoundedIconsEnabled()
+                ? kCloseSmallIcon
+                : vector_icons::kCloseChromeRefreshOldIcon,
+            ui::kColorMenuIcon, ui::SimpleMenuModel::kDefaultIconSize));
     SetElementIdentifierAt(
         GetIndexOfCommandId(GetCommandIdInt(CommandId::kCloseSpecifiedTab))
             .value(),
@@ -157,9 +162,11 @@ SplitTabMenuModel::SplitTabMenuModel(TabStripModel* tab_strip_model,
   if (menu_source == MenuSource::kToolbarButton &&
       chrome::CanShowFeedback(tab_strip_model->profile())) {
     AddSeparator(ui::MenuSeparatorType::NORMAL_SEPARATOR);
-    AddItemWithStringIdAndIcon(GetCommandIdInt(CommandId::kSendFeedback),
-                               IDS_SPLIT_TAB_SEND_FEEDBACK,
-                               ui::ImageModel::FromVectorIcon(kReportIcon));
+    AddItemWithStringIdAndIcon(
+        GetCommandIdInt(CommandId::kSendFeedback), IDS_SPLIT_TAB_SEND_FEEDBACK,
+        ui::ImageModel::FromVectorIcon(features::IsRoundedIconsEnabled()
+                                           ? kFeedbackIcon
+                                           : kReportOldIcon));
   }
 }
 
@@ -178,12 +185,12 @@ std::u16string SplitTabMenuModel::GetLabelForCommandId(int command_id) const {
     return l10n_util::GetStringUTF16(IDS_SPLIT_TAB_REVERSE_VIEWS);
   } else if (id == CommandId::kCloseStartTab) {
     return l10n_util::GetStringUTF16(
-        GetSplitLayout() == split_tabs::SplitTabLayout::kVertical
+        GetSplitLayout() == split_tabs::SplitTabLayout::kSideBySide
             ? IDS_SPLIT_TAB_CLOSE_LEFT_VIEW
             : IDS_SPLIT_TAB_CLOSE_TOP_VIEW);
   } else if (id == CommandId::kCloseEndTab) {
     return l10n_util::GetStringUTF16(
-        GetSplitLayout() == split_tabs::SplitTabLayout::kVertical
+        GetSplitLayout() == split_tabs::SplitTabLayout::kSideBySide
             ? IDS_SPLIT_TAB_CLOSE_RIGHT_VIEW
             : IDS_SPLIT_TAB_CLOSE_BOTTOM_VIEW);
   } else {
@@ -201,13 +208,18 @@ ui::ImageModel SplitTabMenuModel::GetIconForCommandId(int command_id) const {
   if (id == CommandId::kReversePosition) {
     icon = &GetReversePositionIcon(active_split_tab_location);
   } else if (id == CommandId::kCloseStartTab) {
-    icon = GetSplitLayout() == split_tabs::SplitTabLayout::kVertical
-               ? &kLeftPanelCloseIcon
-               : &kTopPanelCloseIcon;
+    icon = GetSplitLayout() == split_tabs::SplitTabLayout::kSideBySide
+               ? &(features::IsRoundedIconsEnabled() ? kLeftPanelCloseIcon
+                                                     : kLeftPanelCloseOldIcon)
+               : &(features::IsRoundedIconsEnabled() ? kTopPanelCloseIcon
+                                                     : kTopPanelCloseOldIcon);
   } else if (id == CommandId::kCloseEndTab) {
-    icon = GetSplitLayout() == split_tabs::SplitTabLayout::kVertical
-               ? &kRightPanelCloseIcon
-               : &kBottomPanelCloseIcon;
+    icon =
+        GetSplitLayout() == split_tabs::SplitTabLayout::kSideBySide
+            ? &(features::IsRoundedIconsEnabled() ? kRightPanelCloseIcon
+                                                  : kRightPanelCloseOldIcon)
+            : &(features::IsRoundedIconsEnabled() ? kBottomPanelCloseIcon
+                                                  : kBottomPanelCloseOldIcon);
   }
   CHECK(icon);
   return ui::ImageModel::FromVectorIcon(*icon, ui::kColorMenuIcon,
@@ -271,13 +283,17 @@ const gfx::VectorIcon& SplitTabMenuModel::GetReversePositionIcon(
     split_tabs::SplitTabActiveLocation active_split_tab_location) const {
   switch (active_split_tab_location) {
     case split_tabs::SplitTabActiveLocation::kStart:
-      return kSplitSceneRightIcon;
+      return features::IsRoundedIconsEnabled() ? kSplitSceneRightIcon
+                                               : kSplitSceneRightOldIcon;
     case split_tabs::SplitTabActiveLocation::kEnd:
-      return kSplitSceneLeftIcon;
+      return features::IsRoundedIconsEnabled() ? kSplitSceneLeftIcon
+                                               : kSplitSceneLeftOldIcon;
     case split_tabs::SplitTabActiveLocation::kTop:
-      return kSplitSceneDownIcon;
+      return features::IsRoundedIconsEnabled() ? kSplitSceneDownIcon
+                                               : kSplitSceneDownOldIcon;
     case split_tabs::SplitTabActiveLocation::kBottom:
-      return kSplitSceneUpIcon;
+      return features::IsRoundedIconsEnabled() ? kSplitSceneUpIcon
+                                               : kSplitSceneUpOldIcon;
   }
 }
 

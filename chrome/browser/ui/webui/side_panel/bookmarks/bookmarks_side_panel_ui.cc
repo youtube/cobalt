@@ -89,6 +89,7 @@ BookmarksSidePanelUI::BookmarksSidePanelUI(content::WebUI* web_ui)
       {"bookmarkFolderCreated", IDS_BOOKMARK_SCREEN_READER_FOLDER_CREATED},
       {"bookmarkReordered", IDS_BOOKMARK_SCREEN_READER_REORDERED},
       {"bookmarkMoved", IDS_BOOKMARK_SCREEN_READER_MOVED},
+      {"ok", IDS_OK},
       {"tooltipClose", IDS_CLOSE},
       {"tooltipDelete", IDS_DELETE},
       {"tooltipMore", IDS_BOOKMARKS_EDIT_MORE},
@@ -209,8 +210,8 @@ BookmarksSidePanelUI::BookmarksSidePanelUI(content::WebUI* web_ui)
       "isBookmarksMigrationUiChanges",
       base::FeatureList::IsEnabled(switches::kBookmarksMigrateUiChanges));
 
-  source->AddBoolean("menuSimplification", base::FeatureList::IsEnabled(
-                                               features::kMenuSimplification));
+  source->AddBoolean("menuSimplification",
+                     features::IsMenuSimplificationEnabled());
 
   source->AddInteger(
       "sortOrder",

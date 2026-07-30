@@ -6,6 +6,8 @@ package org.chromium.chrome.browser.tabbed_mode;
 
 import static org.chromium.build.NullUtil.assumeNonNull;
 
+import android.content.Context;
+
 import androidx.annotation.ColorInt;
 import androidx.core.view.WindowInsetsCompat;
 
@@ -30,6 +32,7 @@ import org.chromium.chrome.browser.omnibox.suggestions.AutocompleteCoordinator;
 import org.chromium.chrome.browser.omnibox.suggestions.OmniboxSuggestionsVisualState;
 import org.chromium.chrome.browser.overlay_panel.PanelState;
 import org.chromium.chrome.browser.ui.BottomSheetUtils;
+import org.chromium.chrome.browser.ui.bottombar.BottomBarConfigUtils;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetContent;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController.SheetState;
@@ -76,6 +79,7 @@ public class BottomAttachedUiObserver
     }
 
     private boolean mBottomNavbarPresent;
+    private final Context mContext;
     private final ObserverList<Observer> mObservers;
     private @Nullable @ColorInt Integer mBottomAttachedColor;
     private boolean mShouldShowDivider;
@@ -83,6 +87,7 @@ public class BottomAttachedUiObserver
     private final BottomSheetController mBottomSheetController;
     private boolean mBottomSheetVisible;
     private @Nullable @ColorInt Integer mBottomSheetColor;
+    private @SheetState int mBottomSheetState;
 
     private final BrowserControlsStateProvider mBrowserControlsStateProvider;
     private int mBottomControlsHeight;
@@ -124,6 +129,7 @@ public class BottomAttachedUiObserver
     /**
      * Build the observer that listens to changes in the UI bordering the bottom.
      *
+     * @param context The {@link Context} for the app.
      * @param bottomControlsStacker The {@link BottomControlsStacker} for interacting with and
      *     checking the state of the bottom browser controls.
      * @param browserControlsStateProvider Supplies a {@link BrowserControlsStateProvider} for the
@@ -139,6 +145,7 @@ public class BottomAttachedUiObserver
      * @param insetObserver An {@link InsetObserver} to listen for changes to the window insets.
      */
     public BottomAttachedUiObserver(
+            Context context,
             BottomControlsStacker bottomControlsStacker,
             BrowserControlsStateProvider browserControlsStateProvider,
             NullableObservableSupplier<ContextualSearchManager> contextualSearchManagerSupplier,
@@ -146,6 +153,7 @@ public class BottomAttachedUiObserver
             @Nullable OmniboxSuggestionsVisualState omniboxSuggestionsVisualState,
             @Nullable ManualFillingComponent manualFillingComponent,
             InsetObserver insetObserver) {
+        mContext = context;
         mObservers = new ObserverList<>();
 
         mBrowserControlsStateProvider = browserControlsStateProvider;
@@ -289,22 +297,14 @@ public class BottomAttachedUiObserver
             return mOmniboxSuggestionsColor;
         }
 
-        // A visible bottom toolbar should dictate the color even if there is a bottom sheet or
-        // unexpanded overlay panel.
-        boolean isBottomToolbarVisible =
-                mBrowserControlsStateProvider.getControlsPosition() == ControlsPosition.BOTTOM
-                        && !BrowserControlsUtils.areBrowserControlsOffScreen(
-                                mBrowserControlsStateProvider);
-        boolean isOverlayPanelUnexpanded =
-                mOverlayPanelState != PanelState.EXPANDED
-                        && mOverlayPanelState != PanelState.MAXIMIZED;
-        if (isBottomToolbarVisible && mUseBottomControlsColor && isOverlayPanelUnexpanded) {
-            return mBottomControlsColor;
-        }
         if (shouldMatchBottomSheetColor()) {
             // This can cause a null return intentionally to indicate that a bottom sheet is showing
             // a page preview / web content.
             return mBottomSheetColor;
+        }
+        // If this check returns false, the overlay panel logic below could be applicable.
+        if (shouldMatchBottomControlsColor()) {
+            return mBottomControlsColor;
         }
         if (mOverlayPanelVisible
                 && assumeNonNull(mOverlayPanelStateProvider).isFullWidthSizePanel()) {
@@ -342,10 +342,7 @@ public class BottomAttachedUiObserver
         if (ChromeFeatureList.sNavBarColorAnimation.isEnabled()) {
             // Checks for bottom controls such as bottom tab group tool bar and read aloud mini
             // player.
-            boolean nonBottomChinBottomControlsVisible =
-                    mBottomControlsHeight > 1
-                            && mBottomControlsStacker.hasVisibleLayersOtherThan(
-                                    BottomControlsStacker.LayerType.BOTTOM_CHIN);
+            boolean nonBottomChinBottomControlsVisible = areNonBottomChinBottomControlsVisible();
 
             // Disable animations on tab group toolbar appearance (toolbar visible false -> true).
             // Enable animations on tab group toolbar disappearance (toolbar visible true -> false).
@@ -359,12 +356,14 @@ public class BottomAttachedUiObserver
                 return true;
             }
 
-            boolean isBottomToolbarVisible =
-                    mBrowserControlsStateProvider.getControlsPosition() == ControlsPosition.BOTTOM
+            boolean isBottomBarVisible =
+                    (BottomBarConfigUtils.isBottomBarEnabled(mContext)
+                                    || mBrowserControlsStateProvider.getControlsPosition()
+                                            == ControlsPosition.BOTTOM)
                             && !BrowserControlsUtils.areBrowserControlsOffScreen(
                                     mBrowserControlsStateProvider);
 
-            if (isBottomToolbarVisible) {
+            if (isBottomBarVisible) {
                 return true;
             }
 
@@ -391,6 +390,12 @@ public class BottomAttachedUiObserver
             return false;
         }
 
+        if (isFullWidthBottomSheetExpanded()) {
+            // When the bottom sheet is expanded (HALF or FULL), it covers the bottom controls
+            // and bottom chin, so the bottom sheet color should always be matched.
+            return true;
+        }
+
         if (mIsSheetAnchoredToBottomControls) {
             // As long as the bottom sheet is anchored to the browser controls, match the sheet's
             // color when there's no other browser controls layer other than the bottom chin.
@@ -405,6 +410,29 @@ public class BottomAttachedUiObserver
             // sheet color should be used.
             return !mBottomControlsStacker.isLayerVisible(LayerType.BOTTOM_CHIN);
         }
+    }
+
+    private boolean shouldMatchBottomControlsColor() {
+        boolean isBottomControlsVisible = areNonBottomChinBottomControlsVisible();
+        if (!isBottomControlsVisible) return false;
+
+        boolean isPeekedSheetAnchoredToBottomControls =
+                mBottomSheetVisible
+                        && mBottomSheetController.getSheetState() == SheetState.PEEK
+                        && mBottomSheetController.isAnchoredToBottomControls();
+        boolean isOverlayPanelUnexpanded =
+                mOverlayPanelState != PanelState.EXPANDED
+                        && mOverlayPanelState != PanelState.MAXIMIZED;
+
+        return isPeekedSheetAnchoredToBottomControls
+                || (mUseBottomControlsColor && isOverlayPanelUnexpanded);
+    }
+
+    private boolean isFullWidthBottomSheetExpanded() {
+        @SheetState int sheetState = mBottomSheetController.getSheetState();
+        return mBottomSheetVisible
+                && (sheetState == SheetState.HALF || sheetState == SheetState.FULL)
+                && mBottomSheetController.isFullWidth();
     }
 
     private boolean isSheetAnchoredToBottomControls() {
@@ -424,13 +452,7 @@ public class BottomAttachedUiObserver
             boolean bottomControlsMinHeightChanged,
             boolean requestNewFrame,
             boolean isVisibilityForced) {
-        boolean hasOtherVisibleBottomControls =
-                // MiniPlayerMediator#shrinkBottomControls() sets the height to 1 and minHeight to 0
-                // when hiding, instead of setting the height to 0.
-                // TODO(b/320750931): Clean up once the MiniPlayerMediator has been improved.
-                mBottomControlsHeight > 1
-                        && mBottomControlsStacker.hasVisibleLayersOtherThan(
-                                BottomControlsStacker.LayerType.BOTTOM_CHIN);
+        boolean hasOtherVisibleBottomControls = areNonBottomChinBottomControlsVisible();
 
         if (!hasOtherVisibleBottomControls) {
             updateUseBottomControlsColor(false);
@@ -439,10 +461,8 @@ public class BottomAttachedUiObserver
 
         boolean hasScrollablePortion =
                 bottomOffset < mBottomControlsHeight - mBottomControlsMinHeight;
-        boolean chinNotScrollable =
-                mBottomControlsStacker.isLayerNonScrollable(LayerType.BOTTOM_CHIN);
-        boolean hasOtherNonScrollableLayer = mBottomControlsStacker.hasMultipleNonScrollableLayer();
-        boolean hasFixedBrowserControlsAttached = chinNotScrollable && hasOtherNonScrollableLayer;
+        boolean hasFixedBrowserControlsAttached =
+                mBottomControlsStacker.hasNonScrollableLayersOtherThan(LayerType.BOTTOM_CHIN);
         boolean useBrowserControlsColor = hasScrollablePortion || hasFixedBrowserControlsAttached;
 
         updateUseBottomControlsColor(useBrowserControlsColor);
@@ -454,13 +474,7 @@ public class BottomAttachedUiObserver
         mBottomControlsHeight = bottomControlsHeight;
         mBottomControlsMinHeight = bottomControlsMinHeight;
 
-        // MiniPlayerMediator#shrinkBottomControls() sets the height to 1 and minHeight to 0 when
-        // hiding, instead of setting the height to 0.
-        // TODO(b/320750931): Clean up once the MiniPlayerMediator has been improved.
-        updateUseBottomControlsColor(
-                mBottomControlsHeight > 1
-                        && mBottomControlsStacker.hasVisibleLayersOtherThan(
-                                BottomControlsStacker.LayerType.BOTTOM_CHIN));
+        updateUseBottomControlsColor(areNonBottomChinBottomControlsVisible());
 
         // BottomChin constraint does not impact this method, since when control's height changes,
         // #hasVisibleLayersOtherThan(BOTTOM_CHIN) already covers whether bottom chin will have
@@ -535,13 +549,15 @@ public class BottomAttachedUiObserver
 
         if (Objects.equals(newColor, mBottomSheetColor)
                 && isSheetVisible == mBottomSheetVisible
-                && mIsSheetAnchoredToBottomControls == isSheetBottomAnchored) {
+                && mIsSheetAnchoredToBottomControls == isSheetBottomAnchored
+                && currentState == mBottomSheetState) {
             return;
         }
 
         mBottomSheetVisible = isSheetVisible;
         mIsSheetAnchoredToBottomControls = isSheetBottomAnchored;
         mBottomSheetColor = newColor;
+        mBottomSheetState = currentState;
         updateBottomAttachedColor();
     }
 
@@ -599,5 +615,10 @@ public class BottomAttachedUiObserver
         mAccessorySheetVisible = visible;
         mAccessorySheetColor = color;
         updateBottomAttachedColor();
+    }
+
+    private boolean areNonBottomChinBottomControlsVisible() {
+        return mBottomControlsStacker.hasVisibleLayersOtherThan(
+                BottomControlsStacker.LayerType.BOTTOM_CHIN);
     }
 }

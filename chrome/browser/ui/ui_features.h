@@ -32,13 +32,21 @@ BASE_DECLARE_FEATURE(kEnableExtensionsMenuTeardownFix);
 
 BASE_DECLARE_FEATURE(kImportExportFlags);
 
-// All feature flags associated with Glow Up
+BASE_DECLARE_FEATURE(kInfoBarInlineLinks);
+
+// All feature flags associated with Glow Up, apart from those in
+// ui_base_features.h
 BASE_DECLARE_FEATURE(kTabStripDeclutter);
 BASE_DECLARE_FEATURE(kToolbarGlowUp);
-BASE_DECLARE_FEATURE(kRoundedIcons);
 BASE_DECLARE_FEATURE(kMenuSimplification);
 BASE_DECLARE_FEATURE(kTabGroupColorRefresh);
 BASE_DECLARE_FEATURE(kWebuiRefresh2026);
+
+bool IsTabStripDeclutterEnabled();
+bool IsToolbarGlowUpEnabled();
+bool IsMenuSimplificationEnabled();
+bool IsTabGroupColorRefreshEnabled();
+bool IsWebuiRefresh2026Enabled();
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 
@@ -255,10 +263,6 @@ BASE_DECLARE_FEATURE(kPageSpecificDataDialogRelatedInstalledAppsSection);
 // Feature for the promotion banner on the top of chrome://management page
 BASE_DECLARE_FEATURE(kEnableManagementPromotionBanner);
 
-// Controls whether a performance improvement in browser feature support
-// checking is enabled.
-BASE_DECLARE_FEATURE(kInlineFullscreenPerfExperiment);
-
 // Controls whether the new page actions framework should be displaying page
 // actions.
 BASE_DECLARE_FEATURE(kPageActionsMigration);
@@ -270,7 +274,6 @@ BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationEnableAll);
 // have their page actions controlled using the new framework.
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationIntentPicker);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationZoom);
-BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationFileSystemAccess);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationCookieControls);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationAutofillMandatoryReauth);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationSharingHub);
@@ -291,6 +294,7 @@ BASE_DECLARE_FEATURE(kSavePasswordsContextualUi);
 #if BUILDFLAG(IS_MAC)
 // Add tab group colours when viewing tab groups using the top mac OS menu bar.
 BASE_DECLARE_FEATURE(kShowTabGroupsMacSystemMenu);
+bool IsShowTabGroupsMacSystemMenuEnabled();
 #endif  // BUILDFLAG(IS_MAC)
 
 // If enabled, the by date history will show in the side panel.
@@ -317,6 +321,8 @@ bool IsNewTabAddsToActiveGroupEnabled();
 bool IsWebUIReloadButtonEnabled();
 
 bool IsWebUIHomeButtonEnabled();
+
+bool IsWebUIBatterySaverButtonEnabled();
 
 bool IsWebUIBackForwardButtonEnabled();
 
@@ -362,6 +368,17 @@ BASE_DECLARE_FEATURE_PARAM(bool, kTabGroupsFocusingDefaultToFocused);
 
 BASE_DECLARE_FEATURE(kVerticalTabsGrabHandleRemoval);
 BASE_DECLARE_FEATURE_PARAM(bool, kVerticalTabsGrabHandleRemovalAlways);
+
+BASE_DECLARE_FEATURE(kOmniboxResizingPrioritization);
+
+BASE_DECLARE_FEATURE(kToolbarAppMenuLabelResizing);
+
+BASE_DECLARE_FEATURE(kToolbarProfileChipResizing);
+
+BASE_DECLARE_FEATURE(kToolbarGlicButtonResizing);
+
+// Whether or not OSCryptAsyncAvailabilityInfoBarDelegate is enabled.
+BASE_DECLARE_FEATURE(kOSCryptAsyncAvailabilityInfoBar);
 
 }  // namespace features
 

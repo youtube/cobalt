@@ -4,14 +4,19 @@
 
 #include "chrome/browser/ui/views/toolbar/webui_avatar_toolbar_button.h"
 
+#include "base/check_is_test.h"
+#include "base/functional/bind.h"
+#include "base/task/single_thread_task_runner.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/views/profiles/avatar_toolbar_button_state_manager.h"
 #include "chrome/browser/ui/views/profiles/profile_menu_coordinator.h"
 #include "chrome/browser/ui/views/toolbar/webui_toolbar_web_view.h"
+#include "components/browser_apis/ui_controllers/toolbar/toolbar_ui_api_data_model.mojom.h"
 #include "components/signin/public/base/signin_buildflags.h"
 #include "ui/base/models/image_model.h"
+#include "ui/views/accessibility/view_accessibility.h"
 
 WebUIAvatarToolbarButton::WebUIAvatarToolbarButton(
     WebUIToolbarControlDelegate* delegate,
@@ -43,6 +48,21 @@ void WebUIAvatarToolbarButton::UpdateIcon() {
 void WebUIAvatarToolbarButton::UpdateText() {
   if (delegate_->GetView()->GetWidget()) {
     UpdateState();
+  }
+}
+
+void WebUIAvatarToolbarButton::SetAnnounceCallbackForTesting(
+    base::OnceCallback<void(std::u16string)> callback) {
+  CHECK_IS_TEST();
+  announce_callback_for_testing_ = std::move(callback);
+}
+
+void WebUIAvatarToolbarButton::AnnounceInternal(std::u16string text) {
+  if (announce_callback_for_testing_) {
+    std::move(announce_callback_for_testing_).Run(text);
+  }
+  if (delegate_->GetView()->GetWidget()) {
+    delegate_->GetView()->GetViewAccessibility().AnnounceAlert(std::move(text));
   }
 }
 
@@ -86,8 +106,20 @@ base::ScopedClosureRunner WebUIAvatarToolbarButton::SetExplicitButtonState(
     const std::u16string& text,
     std::optional<std::u16string> accessibility_label,
     std::optional<base::RepeatingCallback<void(bool is_source_accelerator)>>
-        explicit_action) {
+        explicit_action,
+    bool should_announce) {
   if (state_manager_ && delegate_->GetView()->GetWidget()) {
+    if (should_announce) {
+      // Announce with a delay: if passwords are being uploaded, the OS may be
+      // showing a keychain dialog. The keychain dialog is closing and focus is
+      // moving back to Chrome. Announcing during this process may result in the
+      // announcement to be dropped.
+      base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
+          FROM_HERE,
+          base::BindOnce(&WebUIAvatarToolbarButton::AnnounceInternal,
+                         weak_ptr_factory_.GetWeakPtr(), text),
+          AvatarToolbarButtonInterface::kAccessibilityAnnouncementDelay);
+    }
     return state_manager_->SetExplicitState(
         text, std::move(accessibility_label), std::move(explicit_action));
   }
@@ -150,19 +182,32 @@ void WebUIAvatarToolbarButton::UpdateState() {
       !delegate_->GetView()->GetWidget()) {
     return;
   }
-  // TODO(crbug.com/470045174): Implement Mojo state push once API is added.
-  UpdateAccessibilityLabel();
+
+  const StateProvider* state_provider =
+      std::as_const(*state_manager_).GetActiveStateProvider();
+  if (!state_provider) {
+    return;
+  }
+
+  auto state = toolbar_ui_api::mojom::AvatarControlState::New();
+
+  // TODO(crbug.com/470045174): Resolve icon URL properly.
+  // For now, use a generic profile icon.
+  state->icon_url = "chrome://theme/IDR_PROFILE_AVATAR_0";
+
+  state->text = state_provider->GetText();
+  state->tooltip = state_provider->GetAvatarTooltipText();
+
+  auto [name, description] =
+      state_manager_->GetAccessibilityLabels(state_provider->GetText());
+  state->accessibility_name = name;
+  state->accessibility_description = description;
+
+  if (delegate_) {
+    delegate_->OnAvatarControlStateChanged(std::move(state));
+  }
 }
 
 void WebUIAvatarToolbarButton::UpdateAccessibilityLabel() {
-  CHECK(state_manager_);
-  StateProvider* active_state_provider =
-      state_manager_->GetActiveStateProvider();
-  if (!active_state_provider) {
-    return;
-  }
-  auto [name, description] =
-      state_manager_->GetAccessibilityLabels(active_state_provider->GetText());
-  accessibility_name_ = std::move(name);
-  accessibility_description_ = std::move(description);
+  UpdateState();
 }
