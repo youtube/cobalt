@@ -48,10 +48,11 @@ KeepAliveURLLoaderService::FactoryContext::FactoryContext(
     : factory(other->factory),
       weak_document_ptr(other->weak_document_ptr),
       ukm_source_id(other->ukm_source_id),
-      policy_container_host(other->policy_container_host),
+      policy_container_host(other->policy_container_host)
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
-      attribution_context(other->attribution_context) {}
+    , attribution_context(other->attribution_context)
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+{}
 
 KeepAliveURLLoaderService::FactoryContext::~FactoryContext() = default;
 
