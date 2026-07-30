@@ -15,6 +15,7 @@
 #include "base/threading/platform_thread.h"
 #include "base/threading/thread_checker.h"
 #include "base/trace_event/memory_dump_provider.h"
+#include "build/build_config.h"
 #include "gpu/raster_export.h"
 #include "third_party/skia/include/gpu/ganesh/GrContextOptions.h"
 
@@ -72,6 +73,12 @@ class RASTER_EXPORT GrShaderCache
 
   void StoreVkPipelineCacheIfNeeded(GrDirectContext* gr_context);
 
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  // Writes the entries whose disk writes were deferred. No-op unless
+  // kCobaltGpuShaderDiskCache was enabled when the cache was created.
+  void FlushPendingDiskWrites();
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+
  private:
   static constexpr int32_t kInvalidClientId = 0;
 
@@ -127,6 +134,9 @@ class RASTER_EXPORT GrShaderCache
 
   void WriteToDisk(const CacheKey& key, CacheData* data)
       EXCLUSIVE_LOCKS_REQUIRED(lock_);
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  void FlushPendingDiskWritesLocked();
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 
   int32_t current_client_id() const EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
@@ -151,6 +161,13 @@ class RASTER_EXPORT GrShaderCache
   // not thread-safe.
   base::MemoryPressureLevel memory_pressure_level_ GUARDED_BY(lock_) =
       base::MemoryPressureLevel::MEMORY_PRESSURE_LEVEL_NONE;
+
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  // Whether WriteToDisk() leaves new entries pending for
+  // FlushPendingDiskWrites() instead of writing them immediately. Set from
+  // kCobaltGpuShaderDiskCache when the cache is created.
+  const bool defer_disk_writes_;
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 
   // Bound to the thread on which GrShaderCache is created. Some methods can
   // only be called on this thread. GrShaderCache is created on gpu main thread.

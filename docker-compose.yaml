@@ -1,0 +1,23 @@
+services:
+  linux:
+    build:
+      context: cobalt/docker/linux
+    image: "${DOCKER_COMPOSE_IMAGE:-linux}"
+    platform: linux/amd64
+  rdk:
+    build:
+      context: cobalt/docker/rdk
+    image: "${DOCKER_COMPOSE_IMAGE:-rdk}"
+    platform: linux/amd64
+  unittest:
+    build:
+      context: cobalt/docker/unittest
+    image: "${DOCKER_COMPOSE_IMAGE:-unittest}"
+  webtest:
+    build:
+      context: cobalt/docker/webtest
+    image: "${DOCKER_COMPOSE_IMAGE:-webtest}"
+  pre-commit:
+    build:
+      context: cobalt/docker/pre-commit
+    image: "${DOCKER_COMPOSE_IMAGE:-pre-commit}"

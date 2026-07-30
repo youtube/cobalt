@@ -9714,6 +9714,7 @@ crbug.com/496047707 external/wpt/html/semantics/embedded-content/the-img-element
 crbug.com/431038526 external/wpt/css/css-ruby/ruby-text-combine-upright-001a.html [ Failure Pass ]
 crbug.com/431038526 external/wpt/css/css-ruby/ruby-text-combine-upright-001b.html [ Failure Pass ]
 
+<<<<<<< HEAD
 crbug.com/502119020 [ Mac ] external/wpt/css/css-ui/caret-eol-001.html [ Failure Pass ]
 crbug.com/502119020 [ Mac ] external/wpt/css/css-ui/caret-eol-002.html [ Failure Pass ]
 crbug.com/42228011 external/wpt/webrtc/RTCPeerConnection-createDataChannel.html [ Failure Pass ]
@@ -9738,3 +9739,17 @@ crbug.com/503254576 [ Win11-arm64 ] virtual/text-antialias/emphasis-complex.html
 # Gardener 2026-04-17
 crbug.com/501845333 [ Linux ] external/wpt/css/filter-effects/crashtests/fecomponenttransfer-tablevalues-crash.html [ Failure Pass ]
 crbug.com/501845333 [ Linux ] virtual/scalefactor200/external/wpt/css/filter-effects/crashtests/fecomponenttransfer-tablevalues-crash.html [ Failure Pass ]
+=======
+# Cobalt bug: b/461834934.
+wpt_internal/cobalt/HTMLVideoElementExtension/getAndSetMaxVideoCapabilities.html [ Timeout ]
+
+# Cobalt bug: b/405993906.
+wpt_internal/cobalt/h5vcc-runtime/* [ Failure ]
+
+# Cobalt bug: b/405997906.
+wpt_internal/cobalt/h5vcc-system/h5vcc-system-advertisingId.https.any.html [ Failure Timeout ]
+wpt_internal/cobalt/h5vcc-system/h5vcc-system-exit.https.any.html [ Failure Timeout ]
+wpt_internal/cobalt/h5vcc-system/h5vcc-system-limitAdTracking.https.any.html [ Failure Timeout ]
+wpt_internal/cobalt/h5vcc-system/h5vcc-system-trackingAuthorizationStatus.https.any.html [ Failure Timeout ]
+wpt_internal/cobalt/h5vcc-system/h5vcc-system-userOnExitStrategy.https.any.html [ Failure Timeout ]
+>>>>>>> parent of b5ca9a36372 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)

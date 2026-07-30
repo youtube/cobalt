@@ -10,6 +10,7 @@ load("@builtin//runtime.star", "runtime")
 load("@builtin//struct.star", "module")
 load("./backend_config/backend.star", "backend")
 load("./blink_all.star", "blink_all")
+load("./cobalt.star", "cobalt")
 load("./config.star", "config")
 load("./gn_logs.star", "gn_logs")
 load("./grit.star", "grit")
@@ -72,7 +73,11 @@ def init(ctx):
     step_config = mojo.step_config(ctx, step_config)
     step_config = rust.step_config(ctx, step_config)
     step_config = simple.step_config(ctx, step_config)
+<<<<<<< HEAD
     step_config = typescript_all.step_config(ctx, step_config)
+=======
+    step_config = cobalt.step_config(ctx, step_config)
+>>>>>>> parent of b5ca9a36372 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     if reproxy.enabled(ctx):
         step_config = reproxy.step_config(ctx, step_config)
 
@@ -84,7 +89,11 @@ def init(ctx):
     filegroups.update(host.filegroups(ctx))
     filegroups.update(rust.filegroups(ctx))
     filegroups.update(simple.filegroups(ctx))
+<<<<<<< HEAD
     filegroups.update(typescript_all.filegroups(ctx))
+=======
+    filegroups.update(cobalt.filegroups(ctx))
+>>>>>>> parent of b5ca9a36372 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
     handlers = {}
     handlers.update(blink_all.handlers)
