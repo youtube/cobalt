@@ -9,5 +9,3 @@ __cxa_thread_atexit_impl
 dlopen
 dlsym
 dlerror
-dlclose
-dladdr

@@ -49,8 +49,10 @@
 #include "components/custom_handlers/simple_protocol_handler_registry_factory.h"
 #include "components/subresource_filter/core/common/test_ruleset_creator.h"
 #include "components/subresource_filter/core/common/test_ruleset_utils.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "content/browser/aggregation_service/aggregation_service.h"
 #include "content/browser/attribution_reporting/attribution_manager.h"
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "content/browser/in_memory_federated_permission_context.h"
 #include "content/browser/renderer_host/frame_tree.h"
 #include "content/browser/renderer_host/frame_tree_node.h"
@@ -796,7 +798,7 @@ void WebTestControlHost::ResetBrowserAfterWebTest() {
     storage_partition->GetCookieManagerForBrowserProcess()->DeleteCookies(
         network::mojom::CookieDeletionFilter::New(), base::DoNothing());
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
     if (auto* attribution_manager =
             AttributionManager::FromBrowserContext(browser_context)) {
       attribution_manager->ClearData(
@@ -814,7 +816,7 @@ void WebTestControlHost::ResetBrowserAfterWebTest() {
           /*filter=*/StoragePartition::StorageKeyMatcherFunction(),
           /*done=*/base::DoNothing());
     }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   }
 
   ui::SelectFileDialog::SetFactory(nullptr);

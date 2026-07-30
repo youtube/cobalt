@@ -7,5 +7,3 @@ __clock_gettime64
 dlopen
 dlsym
 dlerror
-dlclose
-dladdr
