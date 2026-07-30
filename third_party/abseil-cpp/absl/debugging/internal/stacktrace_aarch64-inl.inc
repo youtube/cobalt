@@ -212,7 +212,7 @@ static int UnwindImpl(void **result, uintptr_t *frames, int *sizes,
   stack_info.sig_stack_low = stack_info.stack_low;
   stack_info.sig_stack_high = kUnknownStackEnd;
 
-#if defined(__linux__)
+#if defined(__linux__) && !defined(STARBOARD)
   // Similarly for the signal stack, retrieve the information into sig_stack and
   // then pass it down per call. Calling sigaltstack with nullptr as the first
   // argument doesn't change the signal stack.

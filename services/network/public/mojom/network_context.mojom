@@ -651,9 +651,19 @@ struct NetworkContextParams {
   // Initial variations headers to use.
   variations.mojom.VariationsHeaders? initial_variations_headers;
 
+<<<<<<< HEAD
   // If true, EchMode should be queried via the platform API. This enables
   // embedders like Android WebView to respect the system's ECH policy.
   bool use_platform_ech_policy = false;
+=======
+  // Extra request headers (e.g. Cobalt's Sec-CH-UA-Co-* client hints) that the
+  // network service adds to every request made through a URLLoader of this
+  // context, including each redirect hop. This avoids the per-request round
+  // trips to the browser that a TrustedHeaderClient would need. The headers
+  // are fixed for the lifetime of the context.
+  [EnableIf=is_cobalt]
+  map<string, string> cobalt_extra_request_headers;
+>>>>>>> parent of 306a37951f1 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 };
 
 struct NetworkConditions {

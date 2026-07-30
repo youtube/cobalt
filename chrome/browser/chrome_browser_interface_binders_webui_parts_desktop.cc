@@ -65,7 +65,9 @@
 #include "chrome/browser/ui/webui/omnibox/logging/logs.mojom.h"
 #include "chrome/browser/ui/webui/omnibox/omnibox_ui.h"
 #include "chrome/browser/ui/webui/omnibox_popup/omnibox_popup_ui.h"
+#if !BUILDFLAG(IS_COBALT)
 #include "chrome/browser/ui/webui/on_device_internals/on_device_internals_ui.h"
+#endif
 #include "chrome/browser/ui/webui/password_manager/password_manager_ui.h"
 #include "chrome/browser/ui/webui/personal_context/personal_context_notice.mojom.h"
 #include "chrome/browser/ui/webui/personal_context/personal_context_notice_ui.h"
@@ -533,12 +535,14 @@ void PopulateChromeWebUIFrameBindersPartsDesktop(
         multistep_filter_internals::mojom::PageHandlerFactory,
         multistep_filter_internals::MultistepFilterInternalsUI>(map);
   }
+#if !BUILDFLAG(IS_COBALT)
   if (base::FeatureList::IsEnabled(
           optimization_guide::features::kOptimizationGuideOnDeviceModel)) {
     RegisterWebUIControllerInterfaceBinder<
         on_device_internals::mojom::PageHandlerFactory,
         on_device_internals::OnDeviceInternalsUI>(map);
   }
+#endif  // !BUILDFLAG(IS_COBALT)
   RegisterWebUIControllerInterfaceBinder<
       guest_contents::mojom::GuestContentsHost, WebUIBrowserUI>(map);
 

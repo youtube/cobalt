@@ -6,6 +6,7 @@
 
 #include <algorithm>
 
+#include "build/build_config.h"
 #include "third_party/blink/public/mojom/frame/lifecycle.mojom-shared.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_core.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_performance_observer_callback.h"
@@ -93,6 +94,11 @@ PerformanceEntryType PerformanceObserver::supportedEntryTypeMask(
           execution_context)) {
     mask |= PerformanceEntry::kScroll;
   }
+#if BUILDFLAG(IS_COBALT)
+  if (RuntimeEnabledFeatures::CobaltFrameTimingEnabled(execution_context)) {
+    mask |= PerformanceEntry::kCobaltFrame;
+  }
+#endif
   return mask;
 }
 
@@ -110,6 +116,11 @@ Vector<AtomicString> PerformanceObserver::supportedEntryTypes(
     supportedEntryTypes.push_back(
         performance_entry_names::kBackForwardCacheRestoration);
   }
+#if BUILDFLAG(IS_COBALT)
+  if (mask & PerformanceEntry::kCobaltFrame) {
+    supportedEntryTypes.push_back(performance_entry_names::kCobaltFrame);
+  }
+#endif
   if (mask & PerformanceEntry::kContainer) {
     supportedEntryTypes.push_back(performance_entry_names::kContainer);
   }
