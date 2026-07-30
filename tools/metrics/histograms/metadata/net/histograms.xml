@@ -1944,7 +1944,7 @@ chromium-metrics-reviews@google.com.
 <histogram name="Net.CertVerifier.Qwac.1Qwac" enum="NetCertVerifier1QwacResult"
     expires_after="2026-11-16">
   <owner>mattm@chromium.org</owner>
-  <owner>nharper@chromium.org</owner>
+  <owner>src/net/cert/OWNERS</owner>
   <summary>
     Result of attempting to verify if a certificate is a valid 1-QWAC (EU
     qualified website authentication certificate).
@@ -1958,7 +1958,7 @@ chromium-metrics-reviews@google.com.
 <histogram name="Net.CertVerifier.Qwac.2QwacBinding"
     enum="NetCertVerifier2QwacBindingResult" expires_after="2026-11-16">
   <owner>mattm@chromium.org</owner>
-  <owner>nharper@chromium.org</owner>
+  <owner>src/net/cert/OWNERS</owner>
   <summary>
     Result of attempting to verify if a 2-QWAC (EU qualified website
     authentication certificate) binding is valid and binds the specified TLS
@@ -1974,7 +1974,6 @@ chromium-metrics-reviews@google.com.
 <histogram name="Net.CertVerifier.Qwac.2QwacLinkProcessing"
     enum="NetCertVerifier2QwacLinkProcessingResult" expires_after="2026-11-16">
   <owner>mattm@chromium.org</owner>
-  <owner>nharper@chromium.org</owner>
   <owner>src/net/cert/OWNERS</owner>
   <summary>
     Result of processing 2-QWAC link headers.
@@ -2447,16 +2446,6 @@ chromium-metrics-reviews@google.com.
     <variant name="RelyingPartyWellKnown" summary="relying party .well-known"/>
     <variant name="SubdomainWellKnown" summary="subdomain .well-known"/>
   </token>
-</histogram>
-
-<histogram name="Net.DNS.CanaryDomainService.SecureDns.Result"
-    enum="CanaryDomainResult" expires_after="2027-01-31">
-  <owner>bcb@chromium.org</owner>
-  <owner>src/net/OWNERS</owner>
-  <summary>
-    Records the result of a canary domain probe used to determine whether Secure
-    DNS is allowed.
-  </summary>
 </histogram>
 
 <histogram name="Net.DNS.DnsConfig.AdditionalDnsQueryTypesEnabled"
@@ -4230,6 +4219,18 @@ chromium-metrics-reviews@google.com.
   </token>
 </histogram>
 
+<histogram name="Net.HttpTimeToFirstByte.ServerPadding" units="ms"
+    expires_after="2026-11-15">
+  <owner>davidben@chromium.org</owner>
+  <owner>hchao@chromium.org</owner>
+  <owner>chrome-secure-web-and-net@chromium.org</owner>
+  <summary>
+    Time from when an HTTP request is issued to when the first byte is
+    processed, if the response was not cached and the connection used the Server
+    Padding extension.
+  </summary>
+</histogram>
+
 <histogram name="Net.HttpTimeToFirstByte.TLS13.Google" units="ms"
     expires_after="2026-11-15">
   <owner>davidben@chromium.org</owner>
@@ -5277,7 +5278,6 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="Net.QuicSession.CertVerificationResult.{Condition}"
     enum="NetErrorCodes" expires_after="2026-10-25">
-  <owner>nharper@chromium.org</owner>
   <owner>mattm@chromium.org</owner>
   <owner>src/net/quic/OWNERS</owner>
   <summary>
@@ -5826,7 +5826,6 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="Net.QuicSession.HandshakeConfirmedTime.MTC{IsResumption}"
     units="Milliseconds" expires_after="2026-10-25">
-  <owner>nharper@chromium.org</owner>
   <owner>mattm@chromium.org</owner>
   <owner>src/net/quic/OWNERS</owner>
   <summary>
@@ -5915,7 +5914,6 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="Net.QuicSession.HasMTCMetadata2" enum="Boolean"
     expires_after="2026-08-23">
-  <owner>nharper@chromium.org</owner>
   <owner>mattm@chromium.org</owner>
   <owner>src/net/quic/OWNERS</owner>
   <summary>
@@ -6141,7 +6139,6 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="Net.QuicSession.MTCLandmarkDelta2.CurrentClient"
     units="MTC landmarks" expires_after="2026-10-25">
-  <owner>nharper@chromium.org</owner>
   <owner>mattm@chromium.org</owner>
   <owner>src/net/quic/OWNERS</owner>
   <summary>
@@ -6155,7 +6152,6 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="Net.QuicSession.MTCLandmarkDelta2.OldClient"
     units="MTC landmarks" expires_after="2026-10-25">
-  <owner>nharper@chromium.org</owner>
   <owner>mattm@chromium.org</owner>
   <owner>src/net/quic/OWNERS</owner>
   <summary>
@@ -6169,7 +6165,6 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="Net.QuicSession.MTCMetadataAge2" units="Milliseconds"
     expires_after="2026-08-23">
-  <owner>nharper@chromium.org</owner>
   <owner>mattm@chromium.org</owner>
   <owner>src/net/quic/OWNERS</owner>
   <summary>
@@ -6182,7 +6177,6 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="Net.QuicSession.MTCResult2" enum="MTCResult"
     expires_after="2026-10-25">
-  <owner>nharper@chromium.org</owner>
   <owner>mattm@chromium.org</owner>
   <owner>src/net/quic/OWNERS</owner>
   <summary>
@@ -6750,6 +6744,16 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Net.QuicSession.RequestBlockedByPreFreeze"
+    enum="BooleanBlocked" expires_after="2027-05-19">
+  <owner>yfriedman@chromium.org</owner>
+  <owner>src/net/quic/OWNERS</owner>
+  <summary>
+    Records whether a request to RequestSession was blocked because the app was
+    pre-frozen. Logged for every RequestSession call on Android.
+  </summary>
+</histogram>
+
 <histogram name="Net.QuicSession.RetryAfterWriteErrorCount2" units="retries"
     expires_after="2024-06-02">
   <owner>dschinazi@chromium.org</owner>
@@ -7084,7 +7088,6 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="Net.QuicSession.TLSHandshakeBytes.MTC2{IsResumption}"
     units="bytes" expires_after="2026-08-23">
-  <owner>nharper@chromium.org</owner>
   <owner>mattm@chromium.org</owner>
   <owner>src/net/quic/OWNERS</owner>
   <summary>
@@ -8402,6 +8405,54 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Net.SqlDiskCache.Backend.IdleEventIncrementalVacuum.Result"
+    enum="SqlDiskCacheStoreError" expires_after="2026-09-30">
+  <owner>horo@chromium.org</owner>
+  <owner>src/net/OWNERS</owner>
+  <summary>
+    Records the result of the incremental vacuum attempt of the SQL-based disk
+    cache backend. This helps track the frequency of different failures and
+    aborts.
+  </summary>
+</histogram>
+
+<histogram
+    name="Net.SqlDiskCache.Backend.IdleEventIncrementalVacuum.{ResultType}Pages"
+    units="pages" expires_after="2026-09-30">
+  <owner>horo@chromium.org</owner>
+  <owner>src/net/OWNERS</owner>
+  <summary>
+    Measures the number of pages vacuumed during an incremental vacuum attempt
+    of the SQL-based disk cache backend. This metric is recorded immediately
+    after the incremental vacuum attempt {ResultType}. It helps diagnose
+    performance regressions.
+  </summary>
+  <token key="ResultType">
+    <variant name="Abort" summary="aborted"/>
+    <variant name="Failure" summary="failed"/>
+    <variant name="Success" summary="succeeded"/>
+  </token>
+</histogram>
+
+<histogram
+    name="Net.SqlDiskCache.Backend.IdleEventIncrementalVacuum.{ResultType}Time"
+    units="microseconds" expires_after="2026-09-30">
+  <owner>horo@chromium.org</owner>
+  <owner>src/net/OWNERS</owner>
+  <summary>
+    Measures the time taken to run the incremental vacuum of the SQL-based disk
+    cache backend. This metric is recorded immediately after the incremental
+    vacuum attempt {ResultType}. It helps diagnose performance regressions. The
+    histogram is not reported on Windows machines without high resolution
+    clocks.
+  </summary>
+  <token key="ResultType">
+    <variant name="Abort" summary="aborted"/>
+    <variant name="Failure" summary="failed"/>
+    <variant name="Success" summary="succeeded"/>
+  </token>
+</histogram>
+
 <histogram name="Net.SqlDiskCache.Backend.IndexMismatch"
     enum="SqlDiskCacheIndexMismatchLocation" expires_after="2026-09-27">
   <owner>horo@chromium.org</owner>
@@ -8506,19 +8557,24 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram
-    name="Net.SqlDiskCache.Backend.{EvictionType}.ScannedEntriesCount.{TimeType}"
+    name="Net.SqlDiskCache.Backend.{EvictionType}.ScannedEntriesCount.{LookupType}.{ResultType}"
     units="entries" expires_after="2026-09-06">
   <owner>horo@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>
-    Records the number of entries scanned in the database during a single
-    eviction candidate selection run in the SQL-based disk cache.
+    Records the number of entries scanned in the database or in-memory index
+    during a single eviction candidate selection run in the SQL-based disk
+    cache.
   </summary>
   <token key="EvictionType">
     <variant name="RunEviction"/>
     <variant name="RunEvictionOnIdleTime"/>
   </token>
-  <token key="TimeType">
+  <token key="LookupType">
+    <variant name="Database"/>
+    <variant name="InMemory"/>
+  </token>
+  <token key="ResultType">
     <variant name="Abort"/>
     <variant name="Failure"/>
     <variant name="Success"/>
@@ -8540,7 +8596,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram
-    name="Net.SqlDiskCache.Backend.{EvictionType}.TimeToSelectEntries.{TimeType}"
+    name="Net.SqlDiskCache.Backend.{EvictionType}.TimeToSelectEntries.{LookupType}.{ResultType}"
     units="microseconds" expires_after="2026-09-06">
   <owner>horo@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
@@ -8554,7 +8610,11 @@ chromium-metrics-reviews@google.com.
     <variant name="RunEviction"/>
     <variant name="RunEvictionOnIdleTime"/>
   </token>
-  <token key="TimeType">
+  <token key="LookupType">
+    <variant name="Database"/>
+    <variant name="InMemory"/>
+  </token>
+  <token key="ResultType">
     <variant name="Abort"/>
     <variant name="Failure"/>
     <variant name="Success"/>
@@ -8685,6 +8745,17 @@ chromium-metrics-reviews@google.com.
   </token>
 </histogram>
 
+<histogram name="Net.SqlDiskCache.MemoryEntryDataHintsValid" enum="Boolean"
+    expires_after="2026-11-15">
+  <owner>horo@chromium.org</owner>
+  <owner>src/net/OWNERS</owner>
+  <summary>
+    Records whether all memory entry data hints loaded from the SQL-based disk
+    cache database are valid (fit within the expected 2-bit range). This is
+    recorded once when the in-memory index is loaded from the database.
+  </summary>
+</histogram>
+
 <histogram name="Net.SqlDiskCache.NormalOperationDelay" units="microseconds"
     expires_after="2026-11-15">
   <owner>horo@chromium.org</owner>
@@ -8810,6 +8881,17 @@ chromium-metrics-reviews@google.com.
 
   <owner>agl@chromium.org</owner>
   <summary>Time from when the Connect() starts until it completes.</summary>
+</histogram>
+
+<histogram name="Net.SSL_Connection_Latency_ServerPadding" units="ms"
+    expires_after="2026-11-15">
+  <owner>davidben@chromium.org</owner>
+  <owner>hchao@chromium.org</owner>
+  <owner>chrome-secure-web-and-net@chromium.org</owner>
+  <summary>
+    Time from when the Connect() starts until it completes. Recorded for
+    successful connections to servers that used the Server Padding extension.
+  </summary>
 </histogram>
 
 <histogram name="Net.SSL_Connection_Latency_TrustAnchorIDs" units="ms"

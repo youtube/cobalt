@@ -20,6 +20,7 @@
 #include "base/check.h"
 #include "base/containers/fixed_flat_map.h"
 #include "base/feature_list.h"
+#include "base/functional/bind.h"
 #include "base/notreached.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/time/time.h"
@@ -36,6 +37,7 @@
 #include "pdf/pdf_ink_brush.h"
 #include "pdf/pdf_ink_conversions.h"
 #include "pdf/pdf_ink_cursor.h"
+#include "pdf/pdf_ink_ids.h"
 #include "pdf/pdf_ink_metrics_handler.h"
 #include "pdf/pdf_ink_module_client.h"
 #include "pdf/pdf_ink_text.h"
@@ -1436,13 +1438,24 @@ void PdfInkModule::HandleAnnotationUndoMessage(const base::DictValue& message) {
 
 void PdfInkModule::HandleGetAllTextAnnotationsMessage(
     const base::DictValue& message) {
+  CHECK(text_id_map_.empty());
+
   base::ListValue annotations;
 
+  // It is safe to use base::Unretained(&id_generator_) because the callback is
+  // executed synchronously.
   DocumentInkTextBoxesMap document_text_boxes =
-      client_->LoadTextAnnotationsFromPdf();
+      client_->LoadTextAnnotationsFromPdf(
+          base::BindRepeating(&PdfInkModule::IdGenerator::GetTextIdAndAdvance,
+                              base::Unretained(&id_generator_)));
+
+  // The backend sets the frontend ID for loaded text annotations.
+  int frontend_id = 0;
 
   for (auto& [page_index, text_boxes] : document_text_boxes) {
     for (const auto& item : text_boxes) {
+      text_id_map_[frontend_id] = item.ink_text_id;
+
       auto text_attributes =
           base::DictValue()
               .Set("typeface", TextTypefaceToString(item.attributes.typeface))
@@ -1463,7 +1476,7 @@ void PdfInkModule::HandleGetAllTextAnnotationsMessage(
 
       annotations.Append(
           base::DictValue()
-              .Set("id", item.id)
+              .Set("id", frontend_id)
               .Set("pageIndex", page_index)
               // The backend always operates at 100% zoom. The frontend ignores
               // this value.
@@ -1472,6 +1485,8 @@ void PdfInkModule::HandleGetAllTextAnnotationsMessage(
               .Set("textAttributes", std::move(text_attributes))
               .Set("textBoxRect", std::move(textbox_rect))
               .Set("textOrientation", item.attributes.orientation));
+
+      ++frontend_id;
     }
   }
 

@@ -407,9 +407,14 @@ source_set("browser_tests") {
     "actor_util_browsertest.cc",
     "tools/attempt_login_tool_browsertest.cc",
   ]
+
+  if (is_win || is_mac || is_linux || is_chromeos) {
+    sources += [ "page_tool_toctou_popup_browsertest.cc" ]
+  }
   deps = [
     ":actor",
     ":impl",
+    ":impl_test_support",
     ":test_support",
     ":tools_test_support",
     "ui:event_dispatcher",

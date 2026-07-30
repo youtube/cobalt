@@ -64,7 +64,6 @@ using chrome_test_util::SettingsDoneButton;
         "<dict><key>SyncTypesListDisabled</key><array><string>bookmarks</"
         "string></array></dict>");
   }
-
   return config;
 }
 

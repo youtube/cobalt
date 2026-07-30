@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/chromeos/ui_mode.gni")
+import("//build/config/chromeos/args.gni")
 import("//pdf/features.gni")
 
 assert(is_chromeos)
@@ -163,6 +163,7 @@ static_library("file_manager") {
     "//chrome/browser/profiles",
     "//chrome/browser/sync:factories",
     "//chrome/browser/ui/webui/ash/cloud_upload:mojo_bindings_shared",
+    "//chrome/browser/ui/webui/extensions:headers",
     "//chrome/browser/web_applications",
     "//chrome/common",
     "//chrome/common:chrome_features",

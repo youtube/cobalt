@@ -33,8 +33,12 @@ import org.chromium.base.UserDataHost;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.chrome.browser.lens.LensController;
 import org.chromium.chrome.browser.lens.LensIntentParams;
+import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.signin.services.IdentityServicesProvider;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.components.browser_ui.share.ShareImageFileUtils;
+import org.chromium.components.signin.identitymanager.IdentityManager;
+import org.chromium.components.signin.test.util.TestAccounts;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.url.GURL;
@@ -52,6 +56,9 @@ public class LensOverlayCoordinatorUnitTest {
     @Mock private WebContents mWebContents;
     @Mock private WindowAndroid mWindowAndroid;
     @Mock private LensController mLensControllerMock;
+    @Mock private Profile mProfile;
+    @Mock private IdentityServicesProvider mIdentityServicesProviderMock;
+    @Mock private IdentityManager mIdentityManagerMock;
 
     @Captor private ArgumentCaptor<LensIntentParams> mLensIntentParamsCaptor;
 
@@ -67,14 +74,20 @@ public class LensOverlayCoordinatorUnitTest {
 
         when(mTab.getWebContents()).thenReturn(mWebContents);
         when(mTab.getUserDataHost()).thenReturn(mUserDataHost);
+        when(mTab.getProfile()).thenReturn(mProfile);
         when(mWebContents.getTopLevelNativeWindow()).thenReturn(mWindowAndroid);
         when(mWindowAndroid.getActivity()).thenReturn(new WeakReference<>(mActivity));
+
+        IdentityServicesProvider.setInstanceForTests(mIdentityServicesProviderMock);
+        when(mIdentityServicesProviderMock.getIdentityManager(mProfile))
+                .thenReturn(mIdentityManagerMock);
 
         LensController.setInstanceForTesting(mLensControllerMock);
     }
 
     @After
     public void tearDown() {
+        IdentityServicesProvider.setInstanceForTests(null);
         LensController.setInstanceForTesting(null);
         ShareImageFileUtils.setGenerateTemporaryUriFromBitmapHookForTesting(null);
     }
@@ -137,6 +150,58 @@ public class LensOverlayCoordinatorUnitTest {
     }
 
     @Test
+    public void saveCompositedImageAndLaunch_WithAccount() {
+        // Setup mock URL and account state.
+        GURL testUrl = new GURL("https://example.com");
+        when(mTab.getUrl()).thenReturn(testUrl);
+        when(mTab.isIncognito()).thenReturn(false);
+        when(mIdentityManagerMock.getPrimaryAccountInfo()).thenReturn(TestAccounts.ACCOUNT1);
+
+        // Bypass the actual file saving.
+        Uri mockUri = Uri.parse("content://mock/screenshot.jpg");
+        Function<Bitmap, Uri> mockShareHook = (bitmap) -> mockUri;
+        ShareImageFileUtils.setGenerateTemporaryUriFromBitmapHookForTesting(mockShareHook);
+
+        LensOverlayCoordinator coordinator = LensOverlayCoordinator.getOrCreateForTab(mTab);
+        Bitmap mockBitmap = Bitmap.createBitmap(10, 10, Bitmap.Config.ARGB_8888);
+        coordinator.saveCompositedImageAndLaunch(mWindowAndroid, mockBitmap);
+
+        // Verify that startLens was called with the correct account email.
+        verify(mLensControllerMock)
+                .startLens(eq(mWindowAndroid), mLensIntentParamsCaptor.capture());
+        assertEquals(
+                TestAccounts.ACCOUNT1.getEmail(),
+                mLensIntentParamsCaptor.getValue().getAccountName());
+    }
+
+    @Test
+    public void saveCompositedImageAndLaunch_IncognitoNoAccount() {
+        // Setup mock URL and incognito state.
+        GURL testUrl = new GURL("https://example.com");
+        when(mTab.getUrl()).thenReturn(testUrl);
+        when(mTab.isIncognito()).thenReturn(true);
+        when(mProfile.isOffTheRecord()).thenReturn(true);
+
+        // Even if signed in, incognito should prevent passing the account.
+        when(mIdentityManagerMock.getPrimaryAccountInfo()).thenReturn(TestAccounts.ACCOUNT1);
+
+        // Bypass the actual file saving.
+        Uri mockUri = Uri.parse("content://mock/screenshot.jpg");
+        Function<Bitmap, Uri> mockShareHook = (bitmap) -> mockUri;
+        ShareImageFileUtils.setGenerateTemporaryUriFromBitmapHookForTesting(mockShareHook);
+
+        LensOverlayCoordinator coordinator = LensOverlayCoordinator.getOrCreateForTab(mTab);
+        Bitmap mockBitmap = Bitmap.createBitmap(10, 10, Bitmap.Config.ARGB_8888);
+        coordinator.saveCompositedImageAndLaunch(mWindowAndroid, mockBitmap);
+
+        // Verify that startLens was called with NO account email even if signed in (though here not
+        // signed in).
+        verify(mLensControllerMock)
+                .startLens(eq(mWindowAndroid), mLensIntentParamsCaptor.capture());
+        assertEquals(null, mLensIntentParamsCaptor.getValue().getAccountName());
+    }
+
+    @Test
     public void saveCompositedImageAndLaunch_Success() {
         // Setup mock URL and Incognito state for the tab.
         GURL testUrl = new GURL("https://example.com");
@@ -184,7 +249,7 @@ public class LensOverlayCoordinatorUnitTest {
         coordinator.saveCompositedImageAndLaunch(mWindowAndroid, mockBitmap);
 
         // Verify that the LensController was NEVER called.
-        verify(mLensControllerMock, never()).startLens(any(), any());
+        verify(mLensControllerMock, never()).startLens(any(WindowAndroid.class), any());
 
         // Verify that the showing state was reset to false.
         assertFalse(LensOverlayTabHelper.isOverlayShowing(mTab));

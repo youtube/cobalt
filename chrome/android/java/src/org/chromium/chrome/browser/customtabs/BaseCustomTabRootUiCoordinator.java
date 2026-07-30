@@ -465,6 +465,9 @@ public class BaseCustomTabRootUiCoordinator extends RootUiCoordinator {
                 toolbar,
                 mIntentDataProvider.get().getPartialTabToolbarCornerRadius(),
                 mToolbarButtonsCoordinator);
+        if (mBrandingController != null) {
+            mBrandingController.onToolbarInitialized(toolbar.getBrandingDelegate());
+        }
         if (mIntentDataProvider.get().isPartialCustomTab()) {
             Callback<Runnable> softInputCallback =
                     ((PartialCustomTabDisplayManager) mCustomTabHeightStrategy)::onShowSoftInput;
@@ -521,19 +524,19 @@ public class BaseCustomTabRootUiCoordinator extends RootUiCoordinator {
                                                 mActivity, tracker, ReengagementActivity.class);
                                 controller.tryToReengageTheUser();
                             }
-                            if (mAppMenuCoordinator != null) {
-                                View menuButtonView = getToolbarManager().getMenuButtonView();
-                                assert menuButtonView != null;
-                                mReadAloudIphController =
-                                        new ReadAloudIphController(
-                                                mActivity,
-                                                profile,
-                                                menuButtonView,
-                                                mAppMenuCoordinator.getAppMenuHandler(),
-                                                mActivityTabProvider.asObservable(),
-                                                mReadAloudControllerSupplier,
-                                                /* showAppMenuTextBubble= */ false);
-                            }
+                            if (mAppMenuCoordinator == null) return;
+                            if (mToolbarManager == null) return;
+                            View menuButtonView = mToolbarManager.getMenuButtonView();
+                            assert menuButtonView != null;
+                            mReadAloudIphController =
+                                    new ReadAloudIphController(
+                                            mActivity,
+                                            profile,
+                                            menuButtonView,
+                                            mAppMenuCoordinator.getAppMenuHandler(),
+                                            mActivityTabProvider.asObservable(),
+                                            mReadAloudControllerSupplier,
+                                            /* showAppMenuTextBubble= */ false);
                         }));
     }
 
@@ -985,8 +988,10 @@ public class BaseCustomTabRootUiCoordinator extends RootUiCoordinator {
                                     RequestDesktopUtils.maybeShowDefaultEnableGlobalSettingMessage(
                                             regularProfile, mMessageDispatcher, mActivity);
 
-                            if (!didShowPrompt && mAppMenuCoordinator != null) {
-                                var menuButtonView = getToolbarManager().getMenuButtonView();
+                            if (!didShowPrompt
+                                    && mAppMenuCoordinator != null
+                                    && mToolbarManager != null) {
+                                var menuButtonView = mToolbarManager.getMenuButtonView();
                                 assert menuButtonView != null;
                                 mDesktopSiteSettingsIphController =
                                         DesktopSiteSettingsIphController.create(

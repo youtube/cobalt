@@ -15,6 +15,9 @@ constexpr base::FeatureParam<int> kModelExecutionCooldownDurationInDays{
     &kChromeFinds, "model_execution_cooldown_duration_in_days",
     /*default_value=*/7};
 
+constexpr base::FeatureParam<int> kHistoryTimeWindowInDays{
+    &kChromeFinds, "history_time_window_in_days", /*default_value=*/7};
+
 constexpr base::FeatureParam<int> kThemeCooldownDurationInDays{
     &kChromeFinds, "theme_cooldown_duration_in_days", /*default_value=*/28};
 
@@ -43,7 +46,7 @@ constexpr base::FeatureParam<int> kMaxHistoryEntries{
     &kChromeFinds, "max_history_entries", /*default_value=*/0};
 
 constexpr base::FeatureParam<int> kSRPReturnCountThreshold{
-    &kChromeFinds, "srp_return_count_threshold", /*default_value=*/3};
+    &kChromeFinds, "srp_return_count_threshold", /*default_value=*/2};
 
 constexpr base::FeatureParam<bool> kEnableSrpReturnCountOptIn{
     &kChromeFinds, "enable_srp_return_count_opt_in", /*default_value=*/true};
@@ -54,5 +57,13 @@ constexpr base::FeatureParam<bool> kEnableThemeUrlVisitCountOptIn{
 
 constexpr base::FeatureParam<bool> kBlockModelExecution{
     &kChromeFinds, "block_model_execution", /*default_value=*/false};
+
+constexpr base::FeatureParam<bool> kEnableOmniboxRecentSearchSuggestionOptIn{
+    &kChromeFinds, "enable_omnibox_recent_search_suggestion_opt_in",
+    /*default_value=*/true};
+
+constexpr base::FeatureParam<int> kOmniboxRecentSearchSuggestionCountThreshold{
+    &kChromeFinds, "omnibox_recent_search_suggestion_count_threshold",
+    /*default_value=*/2};
 
 }  // namespace finds::features

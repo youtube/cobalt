@@ -17,6 +17,7 @@
               "execution_mode": "COMPILE_AND_TEST",
               "legacy_chromium_config": {
                 "apply_configs": [
+                  "clobber",
                   "mb"
                 ],
                 "build_config": "Release",
@@ -53,9 +54,7 @@
     ],
     "enable_cloud_monitoring": true,
     "enable_cloud_trace": true,
-    "experiments": [
-      "no-fallback"
-    ],
+    "experiments": [],
     "keep_going": 0,
     "profile_mode": "cloud",
     "project": "rbe-chromium-trusted",

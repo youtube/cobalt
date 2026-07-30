@@ -3,7 +3,7 @@
 # found in the LICENSE file.
 
 import("//build/chromeos/crosier_tests.gni")
-import("//build/config/chromeos/ui_mode.gni")
+import("//build/config/chromeos/args.gni")
 
 assert(is_chromeos)
 
@@ -225,6 +225,7 @@ source_set("browser_tests") {
     ":apps",
     "//ash",
     "//ash/constants",
+    "//ash/strings",
     "//ash/webui/boca_ui",
     "//ash/webui/boca_ui:constants",
     "//ash/webui/demo_mode_app_ui",
@@ -243,7 +244,6 @@ source_set("browser_tests") {
     "//base",
     "//base/test:test_support",
     "//chrome/app:command_ids",
-    "//chrome/app:generated_resources_grit",
     "//chrome/browser",
     "//chrome/browser/apps/app_service",
     "//chrome/browser/apps/app_service/publishers",

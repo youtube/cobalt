@@ -288,14 +288,6 @@ GlicSkillsManager& GlicInstanceImpl::skills_manager() {
   return *skills_manager_;
 }
 
-void GlicInstanceImpl::OnSelectionAreasChanged(int count) {
-  instance_metrics_.OnSelectionAreasChanged(count);
-}
-
-void GlicInstanceImpl::OnPolylinePointsChanged(const std::vector<int>& counts) {
-  instance_metrics_.OnPolylinePointsChanged(counts);
-}
-
 std::unique_ptr<WebUIContentsContainer>
 GlicInstanceImpl::CreateWebUIContentsContainer() {
   return coordinator_delegate_->CreateWebUIContentsContainer();
@@ -371,10 +363,6 @@ void GlicInstanceImpl::Show(const ShowOptions& options) {
   }
 
   EmbedderKey new_key = GetEmbedderKey(options);
-  // Look up the current embedder for that tab/key.
-  EmbedderEntry* entry = GetEmbedderEntry(new_key);
-  const bool new_embedder_will_show =
-      !entry || !entry->embedder || !entry->embedder->IsShowing();
 
   GlicUiEmbedder* embedder_to_show = nullptr;
 
@@ -400,13 +388,8 @@ void GlicInstanceImpl::Show(const ShowOptions& options) {
   MaybeShowHostUi(embedder_to_show, options.invocation_source,
                   options.prompt_suggestion, options.fre_override);
 
-  // Order matters: MarkShownAndCheckIfFirstTime has side effects and
-  // must be called even if new_embedder_will_show is true.
-  if (instance_metrics().MarkShownAndCheckIfFirstTime(new_key) ||
-      new_embedder_will_show) {
-    instance_metrics().OnOpen(
-        options.invocation_source, options,
-        /* should_log_old_metric=*/new_embedder_will_show);
+  if (instance_metrics().MarkShownAndCheckIfFirstTime(new_key)) {
+    instance_metrics().OnOpen(options.invocation_source, options);
     service_->metrics()->OnGlicWindowStartedOpening(/*attached=*/false,
                                                     options.invocation_source);
   }
@@ -517,8 +500,7 @@ bool GlicInstanceImpl::ShouldUnbindOnClose(EmbedderKey key,
 
 bool GlicInstanceImpl::Toggle(ShowOptions&& options,
                               bool prevent_close,
-                              glic::mojom::InvocationSource source,
-                              std::optional<std::string> prompt_suggestion) {
+                              glic::mojom::InvocationSource source) {
   VLOG(1) << "Glic [InstanceImpl] Toggle, id=" << id_.value();
   instance_metrics_.OnToggle(source, options, IsShowing());
   EmbedderKey key = GetEmbedderKey(options);
@@ -532,7 +514,6 @@ bool GlicInstanceImpl::Toggle(ShowOptions&& options,
 
   // We assume that a toggle is user initiated so focus on show.
   options.focus_on_show = true;
-  options.prompt_suggestion = prompt_suggestion;
   options.invocation_source = source;
   Show(options);
   return true;
@@ -695,6 +676,7 @@ void GlicInstanceImpl::OnUserInputSubmitted(mojom::WebClientMode mode) {
   for (auto& [key, entry] : embedders_) {
     entry.user_input_submitted_while_bound = true;
   }
+  last_prompt_submission_time_ = base::TimeTicks::Now();
   // TODO(harringtond): The only subscriber to this event is the tab underline
   // controller and I think it makes more sense for it to get that signal from
   // sharing manager instead of going through the keyed service.
@@ -736,7 +718,11 @@ void GlicInstanceImpl::UnbindEmbedder(EmbedderKey key) {
   }
 
   if (auto* entry = GetEmbedderEntry(key)) {
+    base::WeakPtr<GlicInstanceImpl> weak_this = weak_ptr_factory_.GetWeakPtr();
     CloseInternal(key, *entry, {.suppress_animations = true});
+    if (!weak_this) {
+      return;
+    }
   }
 
   // Deactivate if this was the active embedder. This ensures predictable state
@@ -1426,6 +1412,13 @@ base::TimeDelta GlicInstanceImpl::GetTimeSinceLastActive() const {
   return base::TimeTicks::Now() - last_deactivation_timestamp_;
 }
 
+base::TimeDelta GlicInstanceImpl::GetTimeSinceLastPromptSubmission() const {
+  if (last_prompt_submission_time_.is_null()) {
+    return base::TimeDelta::Max();
+  }
+  return base::TimeTicks::Now() - last_prompt_submission_time_;
+}
+
 bool GlicInstanceImpl::IsHibernated() const {
   return !host_.webui_contents();
 }
@@ -1516,8 +1509,12 @@ void GlicInstanceImpl::CloseAllEmbedders() {
   for (auto& [key, entry] : embedders_) {
     keys.push_back(key);
   }
+  base::WeakPtr<GlicInstanceImpl> weak_this = weak_ptr_factory_.GetWeakPtr();
   for (const auto& key : keys) {
     Close(key);
+    if (!weak_this) {
+      return;
+    }
   }
 }
 

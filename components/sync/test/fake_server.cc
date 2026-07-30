@@ -529,9 +529,10 @@ void FakeServer::TriggerKeystoreKeyRotation() {
       loopback_server_->GetPermanentSyncEntitiesByDataType(syncer::NIGORI);
 
   DCHECK_EQ(nigori_entities.size(), 1U);
-  bool success =
-      ModifyEntitySpecifics(LoopbackServerEntity::GetTopLevelId(syncer::NIGORI),
-                            nigori_entities[0].specifics());
+  const int version = loopback_server_->GetMigrationVersion(syncer::NIGORI);
+  bool success = ModifyEntitySpecifics(
+      LoopbackServerEntity::GetTopLevelId(syncer::NIGORI, version),
+      nigori_entities[0].specifics());
   DCHECK(success);
 }
 
@@ -843,6 +844,18 @@ void FakeServer::SetBagOfChips(const sync_pb::ChipBag& bag_of_chips) {
 void FakeServer::TriggerMigrationDoneError(syncer::DataTypeSet types) {
   DCHECK(thread_checker_.CalledOnValidThread());
   loopback_server_->TriggerMigrationForTesting(types);
+}
+
+int FakeServer::GetMigrationVersion(syncer::DataType type) const {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  return loopback_server_->GetMigrationVersion(type);
+}
+
+// static
+int FakeServer::GetProgressMarkerMigrationVersion(
+    const sync_pb::DataTypeProgressMarker& progress_marker) {
+  return syncer::LoopbackServer::GetMigrationVersionFromProgressTokenForTesting(
+      progress_marker.token());
 }
 
 void FakeServer::AddCollaboration(syncer::CollaborationId collaboration_id) {

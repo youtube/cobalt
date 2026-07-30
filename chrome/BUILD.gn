@@ -4,7 +4,6 @@
 
 import("//build/config/chrome_build.gni")
 import("//build/config/chromeos/args.gni")
-import("//build/config/chromeos/ui_mode.gni")
 import("//build/config/compiler/compiler.gni")
 import("//build/config/compiler/pgo/pgo.gni")
 import("//build/config/locales.gni")
@@ -1644,6 +1643,7 @@ if (is_android) {
       "//chrome/browser:defaults",
       "//chrome/browser:process_singleton",
       "//chrome/browser:startup_data",
+      "//chrome/browser/android",
       "//chrome/browser/flags:flags_android",
       "//chrome/browser/lifetime",
       "//chrome/browser/payments:impl",

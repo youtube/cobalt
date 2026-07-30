@@ -490,6 +490,194 @@ BuildFederatedAuthUserInfoRequestIssue(
   return issue;
 }
 
+protocol::Audits::EmailVerificationRequestIssueReason
+EmailVerificationRequestResultToProtocol(
+    blink::mojom::EmailVerificationRequestResult result) {
+  using blink::mojom::EmailVerificationRequestResult;
+  namespace EmailVerificationRequestIssueReasonEnum =
+      protocol::Audits::EmailVerificationRequestIssueReasonEnum;
+  switch (result) {
+    case EmailVerificationRequestResult::kInvalidEmail:
+      return EmailVerificationRequestIssueReasonEnum::InvalidEmail;
+    case EmailVerificationRequestResult::kDnsFetchFailed:
+      return EmailVerificationRequestIssueReasonEnum::DnsFetchFailed;
+    case EmailVerificationRequestResult::kDnsInvalidRecord:
+      return EmailVerificationRequestIssueReasonEnum::DnsInvalidRecord;
+    case EmailVerificationRequestResult::kWellKnownHttpNotFound:
+      return EmailVerificationRequestIssueReasonEnum::WellKnownHttpNotFound;
+    case EmailVerificationRequestResult::kWellKnownNoResponse:
+      return EmailVerificationRequestIssueReasonEnum::WellKnownNoResponse;
+    case EmailVerificationRequestResult::kWellKnownInvalidResponse:
+      return EmailVerificationRequestIssueReasonEnum::WellKnownInvalidResponse;
+    case EmailVerificationRequestResult::kWellKnownListEmpty:
+      return EmailVerificationRequestIssueReasonEnum::WellKnownListEmpty;
+    case EmailVerificationRequestResult::kWellKnownInvalidContentType:
+      return EmailVerificationRequestIssueReasonEnum::
+          WellKnownInvalidContentType;
+    case EmailVerificationRequestResult::kWellKnownMissingIssuanceEndpoint:
+      return EmailVerificationRequestIssueReasonEnum::
+          WellKnownMissingIssuanceEndpoint;
+    case EmailVerificationRequestResult::kWellKnownIssuanceEndpointCrossOrigin:
+      return EmailVerificationRequestIssueReasonEnum::
+          WellKnownIssuanceEndpointCrossOrigin;
+    case EmailVerificationRequestResult::kWellKnownUnsupportedSigningAlgorithm:
+      return EmailVerificationRequestIssueReasonEnum::
+          WellKnownUnsupportedSigningAlgorithm;
+    case EmailVerificationRequestResult::kTokenHttpNotFound:
+      return EmailVerificationRequestIssueReasonEnum::TokenHttpNotFound;
+    case EmailVerificationRequestResult::kTokenNoResponse:
+      return EmailVerificationRequestIssueReasonEnum::TokenNoResponse;
+    case EmailVerificationRequestResult::kTokenInvalidResponse:
+      return EmailVerificationRequestIssueReasonEnum::TokenInvalidResponse;
+    case EmailVerificationRequestResult::kTokenInvalidContentType:
+      return EmailVerificationRequestIssueReasonEnum::TokenInvalidContentType;
+    case EmailVerificationRequestResult::kTokenMalformedSdJwt:
+      return EmailVerificationRequestIssueReasonEnum::TokenMalformedSdJwt;
+    case EmailVerificationRequestResult::kTokenInvalidSdJwt:
+      return EmailVerificationRequestIssueReasonEnum::TokenInvalidSdJwt;
+    case EmailVerificationRequestResult::kKeyBindingSigningFailed:
+      return EmailVerificationRequestIssueReasonEnum::KeyBindingSigningFailed;
+    case EmailVerificationRequestResult::kRpOriginIsOpaque:
+      return EmailVerificationRequestIssueReasonEnum::RpOriginIsOpaque;
+    case EmailVerificationRequestResult::kWellKnownMissingAccountsEndpoint:
+      return EmailVerificationRequestIssueReasonEnum::
+          WellKnownMissingAccountsEndpoint;
+    case EmailVerificationRequestResult::kUserLoggedOut:
+      return EmailVerificationRequestIssueReasonEnum::UserLoggedOut;
+    case EmailVerificationRequestResult::kWellKnownAccountsEndpointCrossOrigin:
+      return EmailVerificationRequestIssueReasonEnum::
+          WellKnownAccountsEndpointCrossOrigin;
+    case EmailVerificationRequestResult::kAccountsHttpNotFound:
+      return EmailVerificationRequestIssueReasonEnum::AccountsHttpNotFound;
+    case EmailVerificationRequestResult::kAccountsNoResponse:
+      return EmailVerificationRequestIssueReasonEnum::AccountsNoResponse;
+    case EmailVerificationRequestResult::kAccountsInvalidResponse:
+      return EmailVerificationRequestIssueReasonEnum::AccountsInvalidResponse;
+    case EmailVerificationRequestResult::kAccountsInvalidContentType:
+      return EmailVerificationRequestIssueReasonEnum::
+          AccountsInvalidContentType;
+    case EmailVerificationRequestResult::kAccountsEmptyList:
+      return EmailVerificationRequestIssueReasonEnum::AccountsEmptyList;
+    case EmailVerificationRequestResult::
+        kEmailVerificationWellKnownHttpNotFound:
+      return EmailVerificationRequestIssueReasonEnum::
+          EmailVerificationWellKnownHttpNotFound;
+    case EmailVerificationRequestResult::kEmailVerificationWellKnownNoResponse:
+      return EmailVerificationRequestIssueReasonEnum::
+          EmailVerificationWellKnownNoResponse;
+    case EmailVerificationRequestResult::
+        kEmailVerificationWellKnownInvalidResponse:
+      return EmailVerificationRequestIssueReasonEnum::
+          EmailVerificationWellKnownInvalidResponse;
+    case EmailVerificationRequestResult::
+        kEmailVerificationWellKnownInvalidContentType:
+      return EmailVerificationRequestIssueReasonEnum::
+          EmailVerificationWellKnownInvalidContentType;
+    case EmailVerificationRequestResult::kJwksHttpNotFound:
+      return EmailVerificationRequestIssueReasonEnum::JwksHttpNotFound;
+    case EmailVerificationRequestResult::kJwksInvalidResponse:
+      return EmailVerificationRequestIssueReasonEnum::JwksInvalidResponse;
+    case EmailVerificationRequestResult::
+        kTokenVerificationSdJwtUnsupportedHeaderAlg:
+      return EmailVerificationRequestIssueReasonEnum::
+          TokenVerificationSdJwtUnsupportedHeaderAlg;
+    case EmailVerificationRequestResult::kTokenVerificationSdJwtMissingIss:
+      return EmailVerificationRequestIssueReasonEnum::
+          TokenVerificationSdJwtMissingIss;
+    case EmailVerificationRequestResult::kTokenVerificationSdJwtMissingIat:
+      return EmailVerificationRequestIssueReasonEnum::
+          TokenVerificationSdJwtMissingIat;
+    case EmailVerificationRequestResult::kTokenVerificationSdJwtMissingCnf:
+      return EmailVerificationRequestIssueReasonEnum::
+          TokenVerificationSdJwtMissingCnf;
+    case EmailVerificationRequestResult::kTokenVerificationSdJwtMissingEmail:
+      return EmailVerificationRequestIssueReasonEnum::
+          TokenVerificationSdJwtMissingEmail;
+    case EmailVerificationRequestResult::kTokenVerificationSdJwtInvalidIssuedAt:
+      return EmailVerificationRequestIssueReasonEnum::
+          TokenVerificationSdJwtInvalidIssuedAt;
+    case EmailVerificationRequestResult::kTokenVerificationSdJwtInvalidIssuer:
+      return EmailVerificationRequestIssueReasonEnum::
+          TokenVerificationSdJwtInvalidIssuer;
+    case EmailVerificationRequestResult::kTokenVerificationSdJwtJwksMissingKeys:
+      return EmailVerificationRequestIssueReasonEnum::
+          TokenVerificationSdJwtJwksMissingKeys;
+    case EmailVerificationRequestResult::kTokenVerificationSdJwtSignatureFailed:
+      return EmailVerificationRequestIssueReasonEnum::
+          TokenVerificationSdJwtSignatureFailed;
+    case EmailVerificationRequestResult::
+        kTokenVerificationSdJwtInvalidEmailVerified:
+      return EmailVerificationRequestIssueReasonEnum::
+          TokenVerificationSdJwtInvalidEmailVerified;
+    case EmailVerificationRequestResult::kTokenVerificationSdJwtInvalidEmail:
+      return EmailVerificationRequestIssueReasonEnum::
+          TokenVerificationSdJwtInvalidEmail;
+    case EmailVerificationRequestResult::
+        kTokenVerificationSdJwtInvalidHolderKey:
+      return EmailVerificationRequestIssueReasonEnum::
+          TokenVerificationSdJwtInvalidHolderKey;
+    case EmailVerificationRequestResult::kTokenVerificationKbInvalidTyp:
+      return EmailVerificationRequestIssueReasonEnum::
+          TokenVerificationKbInvalidTyp;
+    case EmailVerificationRequestResult::kTokenVerificationKbMissingAud:
+      return EmailVerificationRequestIssueReasonEnum::
+          TokenVerificationKbMissingAud;
+    case EmailVerificationRequestResult::kTokenVerificationKbMissingNonce:
+      return EmailVerificationRequestIssueReasonEnum::
+          TokenVerificationKbMissingNonce;
+    case EmailVerificationRequestResult::kTokenVerificationKbMissingIat:
+      return EmailVerificationRequestIssueReasonEnum::
+          TokenVerificationKbMissingIat;
+    case EmailVerificationRequestResult::kTokenVerificationKbMissingSdHash:
+      return EmailVerificationRequestIssueReasonEnum::
+          TokenVerificationKbMissingSdHash;
+    case EmailVerificationRequestResult::kTokenVerificationKbInvalidIssuedAt:
+      return EmailVerificationRequestIssueReasonEnum::
+          TokenVerificationKbInvalidIssuedAt;
+    case EmailVerificationRequestResult::kTokenVerificationKbInvalidAudience:
+      return EmailVerificationRequestIssueReasonEnum::
+          TokenVerificationKbInvalidAudience;
+    case EmailVerificationRequestResult::kTokenVerificationKbInvalidNonce:
+      return EmailVerificationRequestIssueReasonEnum::
+          TokenVerificationKbInvalidNonce;
+    case EmailVerificationRequestResult::kTokenVerificationKbInvalidSdHash:
+      return EmailVerificationRequestIssueReasonEnum::
+          TokenVerificationKbInvalidSdHash;
+    case EmailVerificationRequestResult::kTokenVerificationKbMissingCnf:
+      return EmailVerificationRequestIssueReasonEnum::
+          TokenVerificationKbMissingCnf;
+    case EmailVerificationRequestResult::kTokenVerificationKbSignatureFailed:
+      return EmailVerificationRequestIssueReasonEnum::
+          TokenVerificationKbSignatureFailed;
+    case EmailVerificationRequestResult::kSuccess:
+      NOTREACHED();
+  }
+}
+
+std::unique_ptr<protocol::Audits::InspectorIssue>
+BuildEmailVerificationRequestIssue(
+    const blink::mojom::EmailVerificationRequestIssueDetailsPtr&
+        issue_details) {
+  auto email_verification_request_details =
+      protocol::Audits::EmailVerificationRequestIssueDetails::Create()
+          .SetEmailVerificationRequestIssueReason(
+              EmailVerificationRequestResultToProtocol(issue_details->status))
+          .Build();
+
+  auto protocol_issue_details =
+      protocol::Audits::InspectorIssueDetails::Create()
+          .SetEmailVerificationRequestIssueDetails(
+              std::move(email_verification_request_details))
+          .Build();
+
+  auto issue = protocol::Audits::InspectorIssue::Create()
+                   .SetCode(protocol::Audits::InspectorIssueCodeEnum::
+                                EmailVerificationRequestIssue)
+                   .SetDetails(std::move(protocol_issue_details))
+                   .Build();
+  return issue;
+}
+
 const char* DeprecationIssueTypeToProtocol(
     blink::mojom::DeprecationIssueType error_type) {
   switch (error_type) {
@@ -2312,6 +2500,10 @@ void BuildAndReportBrowserInitiatedIssue(
              blink::mojom::InspectorIssueCode::kUserReidentificationIssue) {
     issue = BuildUserReidentificationIssue(
         info->details->user_reidentification_issue_details);
+  } else if (info->code ==
+             blink::mojom::InspectorIssueCode::kEmailVerificationRequestIssue) {
+    issue = BuildEmailVerificationRequestIssue(
+        info->details->email_verification_request_details);
   } else {
     NOTREACHED() << "Unsupported type of browser-initiated issue";
   }

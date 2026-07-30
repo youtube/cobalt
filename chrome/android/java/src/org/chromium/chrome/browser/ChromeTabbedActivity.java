@@ -147,7 +147,7 @@ import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.fullscreen.FullscreenOptions;
 import org.chromium.chrome.browser.gesturenav.NavigationSheet;
-import org.chromium.chrome.browser.glic.GlicKeyedService.GlicInvocationSource;
+import org.chromium.chrome.browser.glic.GlicButtonDelegate;
 import org.chromium.chrome.browser.glic.GlicKeyedServiceFactory;
 import org.chromium.chrome.browser.history.HistoryManager;
 import org.chromium.chrome.browser.history.HistoryManagerUtils;
@@ -1149,11 +1149,10 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
                             this,
                             getModalDialogManagerSupplier().get());
 
-            Callback<Boolean> glicClickHandler =
-                    (preventClose) ->
+            GlicButtonDelegate glicClickHandler =
+                    (preventClose, invocationSource) ->
                             ((TabbedRootUiCoordinator) mRootUiCoordinator)
-                                    .toggleGlic(
-                                            preventClose, GlicInvocationSource.TOP_CHROME_BUTTON);
+                                    .toggleGlic(preventClose, invocationSource);
 
             mLayoutManager =
                     new LayoutManagerChromeTablet(
@@ -1178,9 +1177,11 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
                             mRootUiCoordinator.getDataSharingTabManager(),
                             assertNonNull(mRootUiCoordinator.getBottomSheetController()),
                             mRootUiCoordinator.getShareDelegateSupplier(),
+                            mTabBookmarkerSupplier,
                             mXrSceneCoreSessionManagerSupplier.get(),
                             mBackPressManager,
                             getSnackbarManager(),
+                            getActivityResultTracker(),
                             glicClickHandler,
                             GlicKeyedServiceFactory.getForProfile(mTabModelProfileSupplier.get()));
             mLayoutStateProviderSupplier.set(mLayoutManager);
@@ -3465,7 +3466,8 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
                                         mTabModelProfileSupplier,
                                         NtpCustomizationCoordinator.BottomSheetType.THEME,
                                         getWindowAndroid(),
-                                        mModuleRegistrySupplier.get());
+                                        mModuleRegistrySupplier.get(),
+                                        getSnackbarManager());
                 coordinator.showBottomSheet();
             }
 
@@ -4406,7 +4408,8 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
                             profileSupplier,
                             NtpCustomizationCoordinator.BottomSheetType.MAIN,
                             getWindowAndroid(),
-                            mModuleRegistrySupplier.get())
+                            mModuleRegistrySupplier.get(),
+                            getSnackbarManager())
                     .showBottomSheet();
             NtpCustomizationMetricsUtils.recordOpenBottomSheetEntry(
                     NtpCustomizationCoordinator.EntryPointType.MAIN_MENU);
@@ -5067,8 +5070,10 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
 
         if (Boolean.TRUE.equals(result)) return result;
 
+        @Nullable ToolbarManager toolbarManager =
+                mRootUiCoordinator.getToolbarManagerSupplier().get();
         ExtensionsToolbarCoordinator extensionsToolbarCoordinator =
-                mRootUiCoordinator.getToolbarManager().getExtensionsToolbarCoordinator();
+                toolbarManager == null ? null : toolbarManager.getExtensionsToolbarCoordinator();
         if (extensionsToolbarCoordinator != null) {
             // Handle extension shortcuts.
             if (extensionsToolbarCoordinator.dispatchKeyEvent(event)) {

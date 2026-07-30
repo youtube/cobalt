@@ -11,6 +11,8 @@
 #include "third_party/blink/renderer/core/frame/local_frame_view.h"
 #include "third_party/blink/renderer/core/frame/settings.h"
 #include "third_party/blink/renderer/core/html/canvas/html_canvas_element.h"
+#include "third_party/blink/renderer/core/html/html_element.h"
+#include "third_party/blink/renderer/core/html_names.h"
 #include "third_party/blink/renderer/core/inspector/inspector_trace_events.h"
 #include "third_party/blink/renderer/core/layout/fragmentation_utils.h"
 #include "third_party/blink/renderer/core/layout/layout_video.h"
@@ -318,7 +320,7 @@ PaintResult PaintLayerPainter::Paint(GraphicsContext& context,
   // A paint layer should always have LocalBorderBoxProperties when it's ready
   // for paint.
   if (!object.FirstFragment().HasLocalBorderBoxProperties()) {
-    // TODO(crbug.com/848056): This can happen e.g. when we paint a filter
+    // TODO(crbug.com/40578621): This can happen e.g. when we paint a filter
     // referencing a SVG foreign object through feImage, especially when there
     // is circular references. Should find a better solution.
     return kMayBeClippedByCullRect;
@@ -365,13 +367,14 @@ PaintResult PaintLayerPainter::Paint(GraphicsContext& context,
       !paint_layer_.IsUnderSVGHiddenContainer() && is_self_painting_layer;
 
   PaintResult result = kFullyPainted;
+  bool is_unbounded_active = object.IsInclusiveDescendantOfUnboundedElement();
   if (object.IsFragmented() ||
       // When printing, the LayoutView's background should extend infinitely
       // regardless of LayoutView's visual rect, so don't check intersection
       // between the visual rect and the cull rect (custom for each page).
       (IsA<LayoutView>(object) && object.GetDocument().Printing()) ||
       // Canvas children must paint, regardless of intersection.
-      force_chunk_for_canvas_draw_element) {
+      force_chunk_for_canvas_draw_element || is_unbounded_active) {
     result = kMayBeClippedByCullRect;
   } else {
     gfx::Rect visual_rect = FirstFragmentVisualRect(object);
@@ -527,8 +530,10 @@ PaintResult PaintLayerPainter::Paint(GraphicsContext& context,
           PaintWithPhase(PaintPhase::kMask, context, paint_flags);
         }
       }
-      if (properties->ClipPathMask())
-        ClipPathClipper::PaintClipPathAsMaskImage(context, object, object);
+      if (properties->ClipPathMask()) {
+        ClipPathClipper::PaintClipPathAsMaskImage(context, object, object,
+                                                  paint_flags);
+      }
     }
     if (PaintTransitionPseudos(context, object, paint_flags) ==
         kMayBeClippedByCullRect) {
@@ -703,6 +708,13 @@ void PaintLayerPainter::PaintFragmentWithPhase(
          phase == PaintPhase::kOverlayOverflowControls);
 
   CullRect cull_rect = fragment_data.GetCullRect();
+  if (paint_layer_.GetLayoutObject()
+          .IsInclusiveDescendantOfUnboundedElement()) {
+    // For unbounded elements, we use an infinite cull rect, so these elements
+    // escape ancestor cull rects and are not clipped during paint.
+    DCHECK(RuntimeEnabledFeatures::UnboundedElementEnabled());
+    cull_rect = CullRect::Infinite();
+  }
   if (cull_rect.Rect().IsEmpty())
     return;
 

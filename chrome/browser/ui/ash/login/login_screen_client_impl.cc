@@ -58,8 +58,9 @@ LoginScreenClientImpl::Delegate::~Delegate() = default;
 
 LoginScreenClientImpl::ParentAccessDelegate::~ParentAccessDelegate() = default;
 
-LoginScreenClientImpl::LoginScreenClientImpl()
-    : auth_recorder_(std::make_unique<ash::LoginAuthRecorder>()) {
+LoginScreenClientImpl::LoginScreenClientImpl(PrefService* local_state)
+    : local_state_(CHECK_DEREF(local_state)),
+      auth_recorder_(std::make_unique<ash::LoginAuthRecorder>()) {
   // Register this object as the client interface implementation.
   ash::LoginScreen::Get()->SetClient(this);
 
@@ -374,7 +375,8 @@ void LoginScreenClientImpl::ShowGuestTosScreen() {
 
 void LoginScreenClientImpl::OnMaxIncorrectPasswordAttempted(
     const AccountId& account_id) {
-  RecordReauthReason(account_id, ash::ReauthReason::kIncorrectPasswordEntered);
+  RecordReauthReason(local_state_.get(), account_id,
+                     ash::ReauthReason::kIncorrectPasswordEntered);
 }
 
 void LoginScreenClientImpl::SetPublicSessionKeyboardLayout(

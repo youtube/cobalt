@@ -45,6 +45,7 @@ import org.chromium.chrome.browser.sync.SyncServiceFactory;
 import org.chromium.chrome.browser.ui.signin.ForcedSigninController;
 import org.chromium.chrome.browser.ui.signin.ForcedSigninStatusProvider;
 import org.chromium.chrome.browser.ui.signin.R;
+import org.chromium.chrome.browser.ui.signin.SigninAndHistorySyncCoordinator.SigninFlow;
 import org.chromium.chrome.browser.ui.signin.SigninSurveyController;
 import org.chromium.chrome.browser.ui.signin.account_picker.AccountPickerCoordinator;
 import org.chromium.chrome.browser.ui.signin.account_picker.AccountPickerDialogCoordinator;
@@ -134,7 +135,7 @@ public class FullscreenSigninMediator
     private @Nullable CoreAccountInfo mAddedAccount;
     // This field is used to save the added account email while the account info becomes available
     // in AccountManagerFacade for sign-in.
-    private @Nullable String mPendingAddedAccountEmail;
+    private @Nullable String mPendingSelectedAccountEmail;
     private boolean mAllowMetricsAndCrashUploading;
     private boolean mIsSigninSupported;
     private boolean mIsSigninForcedByPolicy;
@@ -155,6 +156,7 @@ public class FullscreenSigninMediator
         mPrivacyPreferencesManager = privacyPreferencesManager;
         mAccessPoint = accessPoint;
         mConfig = config;
+        mPendingSelectedAccountEmail = mConfig.selectedAccountEmail;
 
         mInitialLoadCompleted =
                 mDelegate.getNativeInitializationPromise().isFulfilled()
@@ -340,6 +342,10 @@ public class FullscreenSigninMediator
                 mAccountManagerFacade,
                 AccountUtils.getAccountsIfFulfilledOrEmpty(mAccountManagerFacade.getAccounts()),
                 this::onChildAccountStatusReady);
+
+        // Directly start the flow to add a selected account if it is specified in the config for
+        // signin and does not already exist on the device.
+        maybeStartAddingSelectedAccount();
     }
 
     private void initializeProfileDataCache(Profile profile) {
@@ -410,17 +416,45 @@ public class FullscreenSigninMediator
                 mIsChild || mIsSigninForcedByPolicy || !mIsSigninSupported);
     }
 
+    private void maybeStartAddingSelectedAccount() {
+        if (mConfig.selectedAccountEmail == null) {
+            return;
+        }
+
+        if (!assumeNonNull(mContinueButtonProfileDataCache).getAccounts().isFulfilled()) {
+            throw new IllegalStateException(
+                    "The ProfileDataCache accounts promise should be fulfilled before calling"
+                            + " onInitialLoadCompleted.");
+        }
+        List<DisplayableProfileData> accounts =
+                mContinueButtonProfileDataCache.getAccounts().getResult();
+
+        for (DisplayableProfileData account : accounts) {
+            if (TextUtils.equals(account.getAccountEmail(), mConfig.selectedAccountEmail)) {
+                return;
+            }
+        }
+        mDelegate.addAccount(mConfig.selectedAccountEmail);
+    }
+
     void onAccountAdded(String accountEmail) {
         var accounts =
                 AccountUtils.getAccountsIfFulfilledOrEmpty(mAccountManagerFacade.getAccounts());
         mAddedAccount = AccountUtils.findAccountByEmail(accounts, accountEmail);
         if (mAddedAccount == null) {
-            mPendingAddedAccountEmail = accountEmail;
+            mPendingSelectedAccountEmail = accountEmail;
             return;
         }
 
         setSelectedAccount(mAddedAccount);
         if (mDialogCoordinator != null) mDialogCoordinator.dismissDialog();
+    }
+
+    void onAddAccountCanceled() {
+        if (mConfig.selectedAccountEmail == null) {
+            return;
+        }
+        mDelegate.abortFlow();
     }
 
     /** Implements {@link ProfileDataCache.Observer}. */
@@ -449,11 +483,11 @@ public class FullscreenSigninMediator
 
     @Override
     public void onAccountSelected(CoreAccountInfo account) {
-        if (mPendingAddedAccountEmail != null) {
-            // If another account is selected before the added account is available in account
-            // manager facade then clear the pending added account email so that it doesn't get
-            // selected automatically in #updateAccounts().
-            mPendingAddedAccountEmail = null;
+        if (mPendingSelectedAccountEmail != null) {
+            // If the user manually selects an account before the pending selection is available in
+            // the account list, clear the pending email to prevent it from overriding the user's
+            // manual choice in #updateAccounts().
+            mPendingSelectedAccountEmail = null;
         }
         setSelectedAccount(account);
         if (mDialogCoordinator != null) mDialogCoordinator.dismissDialog();
@@ -461,7 +495,7 @@ public class FullscreenSigninMediator
 
     @Override
     public void addAccount() {
-        mDelegate.addAccount();
+        mDelegate.addAccount(mConfig.selectedAccountEmail);
     }
 
     /** Implements {@link UMADialogCoordinator.Listener} */
@@ -504,7 +538,7 @@ public class FullscreenSigninMediator
             return;
         }
         if (mSelectedAccount == null) {
-            mDelegate.addAccount();
+            mDelegate.addAccount(mConfig.selectedAccountEmail);
             return;
         }
 
@@ -730,8 +764,11 @@ public class FullscreenSigninMediator
         mDelegate.acceptTermsOfService(mAllowMetricsAndCrashUploading);
         SigninPreferencesManager.getInstance().temporarilySuppressNewTabPagePromos();
         Profile profile = assumeNonNull(mDelegate.getProfileSupplier().get()).getOriginalProfile();
-        if (assumeNonNull(IdentityServicesProvider.get().getIdentityManager(profile))
-                .hasPrimaryAccount()) {
+        // If switching account, dismissing the page should not sign the user out of the already
+        // signed in account.
+        if (mConfig.signinFlow != SigninFlow.SWITCH_ACCOUNT
+                && assumeNonNull(IdentityServicesProvider.get().getIdentityManager(profile))
+                        .hasPrimaryAccount()) {
             mModel.set(FullscreenSigninProperties.SHOW_SIGNIN_PROGRESS_SPINNER, true);
             Runnable signOutCallback =
                     () -> {
@@ -795,14 +832,17 @@ public class FullscreenSigninMediator
     }
 
     private void updateAccounts(List<AccountInfo> accounts) {
-        @Nullable AccountInfo pendingAddedAccount =
-                mPendingAddedAccountEmail == null
+        @Nullable AccountInfo pendingSelectedAccount =
+                mPendingSelectedAccountEmail == null
                         ? null
-                        : AccountUtils.findAccountByEmail(accounts, mPendingAddedAccountEmail);
-        if (pendingAddedAccount != null) {
-            mPendingAddedAccountEmail = null;
-            mAddedAccount = pendingAddedAccount;
-            onAccountSelected(mAddedAccount);
+                        : AccountUtils.findAccountByEmail(accounts, mPendingSelectedAccountEmail);
+        if (pendingSelectedAccount != null) {
+            if (mAddedAccount != null
+                    && TextUtils.equals(mAddedAccount.getEmail(), mPendingSelectedAccountEmail)) {
+                mAddedAccount = pendingSelectedAccount;
+            }
+            mPendingSelectedAccountEmail = null;
+            onAccountSelected(pendingSelectedAccount);
             return;
         }
 

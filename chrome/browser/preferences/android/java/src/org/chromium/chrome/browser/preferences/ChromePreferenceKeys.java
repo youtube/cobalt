@@ -240,6 +240,10 @@ public final class ChromePreferenceKeys {
     public static final String NTP_CUSTOMIZATION_THEME_TIP_BOTTOM_SHEET_SHOWN_TIMESTAMP_MS =
             "Chrome.NtpCustomization.ThemeTipBottomSheetShownTimestampMs";
 
+    /** Whether the customized NTP theme snackbar has been shown. */
+    public static final String NTP_CUSTOMIZATION_THEME_IS_SNACKBAR_SHOWN =
+            "Chrome.NtpCustomization.ThemeIsSnackbarShown";
+
     /** The timestamp of when a customized theme is last applied. */
     public static final String NTP_CUSTOMIZATION_LAST_APPLY_THEME_TIMESTAMP_MS =
             "Chrome.NtpCustomization.LastApplyThemeTimestampMs";
@@ -727,6 +731,8 @@ public final class ChromePreferenceKeys {
     public static final KeyPrefix HOME_MODULES_IMPRESSION_COUNT_BEFORE_INTERACTION =
             new KeyPrefix("Chrome.HomeModules.ImpressionCountBeforeInteraction.*");
 
+    public static final String POLICY_USER_FEEDBACK_ALLOWED = "Chrome.Policy.UserFeedbackAllowed";
+
     /**
      * Save the timestamp of the last time that we record metrics on whether user enables the price
      * tracking annotations.
@@ -770,11 +776,28 @@ public final class ChromePreferenceKeys {
     public static final String PRIVACY_IN_SAMPLE_FOR_CRASHES =
             "Chrome.Privacy.InSampleForCrashReporting";
 
+    // TODO(b/483043192): Remove this preference once metrics reporting migration is complete.
     public static final String PRIVACY_METRICS_REPORTING_PERMITTED_BY_USER =
             "Chrome.Privacy.UsageAndCrashReportingPermittedByUser";
 
+    // TODO(b/483043192): Remove this preference once metrics reporting migration is complete.
     public static final String PRIVACY_METRICS_REPORTING_PERMITTED_BY_POLICY =
             "Chrome.Privacy.UsageAndCrashReportingPermittedByPolicy";
+
+    /**
+     * The metrics reporting level as set by the user. Value is from {@link
+     * org.chromium.components.metrics.MetricsReportingLevel}.
+     */
+    public static final String PRIVACY_METRICS_REPORTING_LEVEL =
+            "Chrome.Privacy.MetricsReportingLevel";
+
+    /** Whether metrics reporting is disabled by policy. */
+    public static final String PRIVACY_METRICS_REPORTING_DISABLED_BY_POLICY =
+            "Chrome.Privacy.MetricsReportingDisabledByPolicy";
+
+    /** Whether to use metrics consent restructure. */
+    public static final String PRIVACY_SHOULD_USE_METRICS_CHOICE_RESTRUCTURE =
+            "Chrome.Privacy.ShouldUseMetricsChoiceRestructure";
 
     public static final String PROFILES_BOOT_TIMESTAMP =
             "com.google.android.apps.chrome.ChromeMobileApplication.BOOT_TIMESTAMP";
@@ -862,17 +885,17 @@ public final class ChromePreferenceKeys {
             "Chrome.SearchEngineChoice.PendingOsChoiceDialogShownAttempts";
 
     public static final String SEARCH_WIDGET_IS_VOICE_SEARCH_AVAILABLE =
-            "org.chromium.chrome.browser.searchwidget.IS_VOICE_SEARCH_AVAILABLE";
+            "Chrome.Widget.IsVoiceSearchAvailable";
     public static final String SEARCH_WIDGET_NUM_CONSECUTIVE_CRASHES =
-            "org.chromium.chrome.browser.searchwidget.NUM_CONSECUTIVE_CRASHES";
+            "Chrome.Widget.NumConsecutiveCrashes";
     public static final String SEARCH_WIDGET_SEARCH_ENGINE_SHORTNAME =
-            "org.chromium.chrome.browser.searchwidget.SEARCH_ENGINE_SHORTNAME";
-    public static final String SEARCH_WIDGET_SEARCH_ENGINE_URL =
-            "org.chromium.chrome.browser.searchwidget.SEARCH_ENGINE_URL";
+            "Chrome.Widget.SearchEngineShortName";
+    public static final String SEARCH_WIDGET_SEARCH_ENGINE_URL = "Chrome.Widget.SearchEngineUrl";
+    public static final String SEARCH_WIDGET_ACCOUNT_EMAIL = "Chrome.Widget.AccountEmail";
     public static final String SEARCH_WIDGET_IS_GOOGLE_LENS_AVAILABLE =
-            "org.chromium.chrome.browser.searchwidget.IS_GOOGLE_LENS_AVAILABLE";
+            "Chrome.Widget.IsGoogleLensAvailable";
     public static final String SEARCH_WIDGET_IS_INCOGNITO_AVAILABLE =
-            "org.chromium.chrome.browser.searchwidget.IS_INCOGNITO_AVAILABLE";
+            "Chrome.Widget.IsIncognitoAvailable";
 
     // Segmentation platform related prefs.
     public static final String SEGMENTATION_FEED_ACTIVE_USER = "Chrome.Segmentation.FeedActiveUser";
@@ -1175,6 +1198,7 @@ public final class ChromePreferenceKeys {
                 NTP_CUSTOMIZATION_BACKGROUND_INFO,
                 NTP_CUSTOMIZATION_CHROME_COLOR_DAILY_REFRESH_ENABLED,
                 NTP_CUSTOMIZATION_THEME_TIP_BOTTOM_SHEET_SHOWN_TIMESTAMP_MS,
+                NTP_CUSTOMIZATION_THEME_IS_SNACKBAR_SHOWN,
                 NTP_CUSTOMIZATION_LAST_APPLY_THEME_TIMESTAMP_MS,
                 NTP_CUSTOMIZATION_LAST_DAILY_REFRESH_TIMESTAMP,
                 NTP_CUSTOMIZATION_PRIMARY_COLOR_FOR_DAILY_REFRESH,
@@ -1260,6 +1284,7 @@ public final class ChromePreferenceKeys {
                 PIH_PRIVACY_NOTICE_CLOSED,
                 PIH_PRIVACY_NOTICE_LAST_SHOWN_TIMESTAMP,
                 PIH_PRIVACY_NOTICE_SHOWN_TOTAL_COUNT,
+                POLICY_USER_FEEDBACK_ALLOWED,
                 PRICE_TRACKING_ANNOTATIONS_ENABLED_METRICS_TIMESTAMP,
                 PRICE_TRACKING_CHROME_MANAGED_NOTIFICATIONS_TIMESTAMPS,
                 PRICE_TRACKING_IDS_FOR_TABS_WITH_PRICE_DROP,
@@ -1270,6 +1295,9 @@ public final class ChromePreferenceKeys {
                 PRIVACY_IN_SAMPLE_FOR_CRASHES,
                 PRIVACY_METRICS_REPORTING_PERMITTED_BY_USER,
                 PRIVACY_METRICS_REPORTING_PERMITTED_BY_POLICY,
+                PRIVACY_METRICS_REPORTING_LEVEL,
+                PRIVACY_METRICS_REPORTING_DISABLED_BY_POLICY,
+                PRIVACY_SHOULD_USE_METRICS_CHOICE_RESTRUCTURE,
                 PROMO_IS_DISMISSED.pattern(),
                 PROMO_TIMES_SEEN.pattern(),
                 PWA_RESTORE_APPS_AVAILABLE,
@@ -1280,6 +1308,13 @@ public final class ChromePreferenceKeys {
                 READER_MODE_ACTION_SUPPRESSION_END_TIMESTAMP,
                 SEARCH_ENGINE_CHOICE_OS_CHOICE_APPLIED_TIMESTAMP,
                 SEARCH_ENGINE_CHOICE_PENDING_OS_CHOICE_DIALOG_SHOWN_ATTEMPTS,
+                SEARCH_WIDGET_ACCOUNT_EMAIL,
+                SEARCH_WIDGET_IS_GOOGLE_LENS_AVAILABLE,
+                SEARCH_WIDGET_IS_INCOGNITO_AVAILABLE,
+                SEARCH_WIDGET_IS_VOICE_SEARCH_AVAILABLE,
+                SEARCH_WIDGET_NUM_CONSECUTIVE_CRASHES,
+                SEARCH_WIDGET_SEARCH_ENGINE_SHORTNAME,
+                SEARCH_WIDGET_SEARCH_ENGINE_URL,
                 SEGMENTATION_FEED_ACTIVE_USER,
                 SERIAL_NOTIFICATION_IDS,
                 SETUP_LIST_COMPLETED_KEY_PREFIX.pattern(),

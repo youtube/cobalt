@@ -60,6 +60,7 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.actor.ui.TabIndicatorStatus;
+import org.chromium.chrome.browser.bookmarks.TabBookmarker;
 import org.chromium.chrome.browser.collaboration.CollaborationServiceFactory;
 import org.chromium.chrome.browser.compositor.LayerTitleCache;
 import org.chromium.chrome.browser.compositor.layouts.LayoutManagerHost;
@@ -133,6 +134,7 @@ import org.chromium.components.tab_group_sync.TabGroupSyncService;
 import org.chromium.components.tab_group_sync.TriggerSource;
 import org.chromium.components.tab_groups.TabGroupColorId;
 import org.chromium.ui.accessibility.AccessibilityState;
+import org.chromium.ui.base.ActivityResultTracker;
 import org.chromium.ui.base.LocalizationUtils;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.util.ColorUtils;
@@ -501,6 +503,7 @@ public class StripLayoutHelper
 
     private final BottomSheetController mBottomSheetController;
     private final MonotonicObservableSupplier<ShareDelegate> mShareDelegateSupplier;
+    private final Supplier<TabBookmarker> mTabBookmarkerSupplier;
 
     private final TabGroupListBottomSheetCoordinatorFactory
             mTabGroupListBottomSheetCoordinatorFactory;
@@ -668,6 +671,7 @@ public class StripLayoutHelper
     // time.
     private @MonotonicNonNull TabStripContextMenuCoordinator mTabStripContextMenuCoordinator;
     private final SnackbarManager mSnackbarManager;
+    private final @Nullable ActivityResultTracker mActivityResultTracker;
 
     // Tab group share.
     // These are set if shouldEnableGroupSharing() is true.
@@ -728,9 +732,11 @@ public class StripLayoutHelper
      * @param multiInstanceManager The {@link MultiInstanceManager} used to move tabs to other
      *     windows.
      * @param shareDelegateSupplier Supplies {@link ShareDelegate} to share tab URLs.
+     * @param tabBookmarkerSupplier Supplies {@link TabBookmarker} to add/edit bookmarks.
      * @param tabGroupListBottomSheetCoordinatorFactory The factory used to create the {@link
      *     TabGroupListBottomSheetCoordinator}.
      * @param snackbarManager The {@link SnackbarManager} used to show snackbar UI.
+     * @param activityResultTracker The {@link ActivityResultTracker}.
      */
     public StripLayoutHelper(
             Context context,
@@ -750,8 +756,10 @@ public class StripLayoutHelper
             BottomSheetController bottomSheetController,
             MultiInstanceManager multiInstanceManager,
             MonotonicObservableSupplier<ShareDelegate> shareDelegateSupplier,
+            Supplier<TabBookmarker> tabBookmarkerSupplier,
             TabGroupListBottomSheetCoordinatorFactory tabGroupListBottomSheetCoordinatorFactory,
-            SnackbarManager snackbarManager) {
+            SnackbarManager snackbarManager,
+            @Nullable ActivityResultTracker activityResultTracker) {
         mGroupTitleDrawXOffset = TAB_OVERLAP_WIDTH_DP - FOLIO_FOOT_LENGTH_DP;
         mGroupTitleOverlapWidth = FOLIO_FOOT_LENGTH_DP - mGroupTitleDrawXOffset;
         mNewTabButtonWidth = BUTTON_BACKGROUND_SIZE_DP;
@@ -765,8 +773,10 @@ public class StripLayoutHelper
         mBottomSheetController = bottomSheetController;
         mMultiInstanceManager = multiInstanceManager;
         mShareDelegateSupplier = shareDelegateSupplier;
+        mTabBookmarkerSupplier = tabBookmarkerSupplier;
         mTabGroupListBottomSheetCoordinatorFactory = tabGroupListBottomSheetCoordinatorFactory;
         mSnackbarManager = snackbarManager;
+        mActivityResultTracker = activityResultTracker;
         mScrollDelegate = new ScrollDelegate(context);
 
         // Use toolbar menu button padding to align NTB with menu button.
@@ -1316,6 +1326,7 @@ public class StripLayoutHelper
                     PLACEHOLDER_VISIBLE_DURATION_HISTOGRAM_NAME, 0L);
 
             rebuildStripTabs(/* deferAnimations= */ false);
+            registerTabsWithUnderlineManager();
             finishAnimationsAndCloseDyingTabs();
             computeAndUpdateTabWidth(/* animate= */ false, /* deferAnimations= */ false);
         }
@@ -1466,17 +1477,19 @@ public class StripLayoutHelper
         // Recreate the StripLayoutTabs from the TabModel, now that all of the real Tabs have been
         // restored. This will reuse valid tabs, discard invalid tabs, and correct tab orders.
         rebuildStripTabs(/* deferAnimations= */ false);
-        // Backfill existing tabs to StripTabUnderlineManager
-        if (mStripTabUnderlineManager != null) {
-            for (int i = 0; i < mModel.getCount(); i++) {
-                Tab tab = mModel.getTabAt(i);
-                if (tab != null) {
-                    mStripTabUnderlineManager.registerTab(tab);
-                }
-            }
-        }
+        registerTabsWithUnderlineManager();
         if (getSelectedTabId() != Tab.INVALID_TAB_ID) {
             tabSelected(LayoutManagerImpl.time(), getSelectedTabId(), Tab.INVALID_TAB_ID);
+        }
+    }
+
+    private void registerTabsWithUnderlineManager() {
+        if (mStripTabUnderlineManager == null || mModel == null) return;
+        for (int i = 0; i < mModel.getCount(); i++) {
+            Tab tab = mModel.getTabAt(i);
+            if (tab != null) {
+                mStripTabUnderlineManager.registerTab(tab);
+            }
         }
     }
 
@@ -2478,6 +2491,7 @@ public class StripLayoutHelper
                             mShareDelegateSupplier,
                             mWindowAndroid,
                             assertNonNull(mWindowAndroid.getActivity().get()),
+                            mTabBookmarkerSupplier,
                             (ids, toLeft) -> {
                                 // Don't use anchorTab here, since that will be the anchor of the
                                 // first-opened tab context menu (it won't change when a new context
@@ -2489,7 +2503,10 @@ public class StripLayoutHelper
                                         mStripTabs,
                                         assumeNonNull(findTabById(ids.getAnchorTabId())),
                                         toLeft);
-                            });
+                            },
+                            mSnackbarManager,
+                            mActivityResultTracker,
+                            mWindowAndroid.getModalDialogManager());
         }
         RectProvider anchorRectProvider = new RectProvider();
         anchorTab.getAnchorRect(anchorRectProvider.getRect());

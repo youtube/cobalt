@@ -467,6 +467,7 @@ component("platform") {
     "bindings/callback_interface_base.h",
     "bindings/callback_method_retriever.cc",
     "bindings/callback_method_retriever.h",
+    "bindings/cpp_heap_external_tag.h",
     "bindings/cross_thread_copier.h",
     "bindings/cross_thread_source_location.cc",
     "bindings/cross_thread_source_location.h",
@@ -894,15 +895,13 @@ component("platform") {
     "graphics/canvas_deferred_paint_record.h",
     "graphics/canvas_hibernation_handler.cc",
     "graphics/canvas_hibernation_handler.h",
-    "graphics/canvas_non2d_snapshot_provider_bitmap.cc",
-    "graphics/canvas_non2d_snapshot_provider_bitmap.h",
     "graphics/canvas_resource.cc",
     "graphics/canvas_resource.h",
     "graphics/canvas_resource_dispatcher.cc",
     "graphics/canvas_resource_dispatcher.h",
     "graphics/canvas_resource_provider.cc",
     "graphics/canvas_resource_provider.h",
-    "graphics/canvas_snapshot_provider.h",
+    "graphics/canvas_snapshot_info.h",
     "graphics/color.cc",
     "graphics/color.h",
     "graphics/color_behavior.h",
@@ -2198,6 +2197,7 @@ source_set("blink_platform_unittests_sources") {
     "audio/denormal_disabler_test.cc",
     "audio/direct_convolver_test.cc",
     "audio/down_sampler_test.cc",
+    "audio/fft_frame_test.cc",
     "audio/push_pull_fifo_multithread_test.cc",
     "audio/push_pull_fifo_test.cc",
     "audio/up_sampler_test.cc",
@@ -3062,9 +3062,6 @@ fuzzer_test("blink_storage_key_fuzzer") {
     ":blink_fuzzer_test_support",
     "//third_party/blink/public/common",
   ]
-  if (is_android) {
-    deps += [ "//third_party/icu:icu_assets" ]
-  }
   seed_corpus = "//third_party/blink/common/storage_key/storage_key_corpus"
   additional_configs = [ "//third_party/blink/renderer:inside_blink" ]
 }

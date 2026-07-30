@@ -246,6 +246,10 @@ CtapGetAssertionRequest SpecializeRequestForAuthenticator(
         CredentialType::kPublicKey, preselected_credential->cred_id,
         std::move(transports))};
   }
+  if (authenticator.AuthenticatorTransport() !=
+      FidoTransportProtocol::kHybrid) {
+    specialized_request.cross_device_fallback_url = std::nullopt;
+  }
   return specialized_request;
 }
 
@@ -350,15 +354,6 @@ void GetAssertionRequestHandler::OnBluetoothAdapterEnumerated(
     BleStatus ble_status,
     bool can_power_on,
     bool is_peripheral_role_supported) {
-  if (!is_peripheral_role_supported && request_.cable_extension) {
-    // caBLEv1 relies on the client being able to broadcast Bluetooth
-    // advertisements. |is_peripheral_role_supported| supposedly indicates
-    // whether the adapter supports advertising, but there appear to be false
-    // negatives (crbug/1074692). So we can't really do anything about it
-    // besides log it to aid diagnostics.
-    FIDO_LOG(ERROR)
-        << "caBLEv1 request, but BLE adapter does not support peripheral role";
-  }
   FidoRequestHandlerBase::OnBluetoothAdapterEnumerated(
       is_present, ble_status, can_power_on, is_peripheral_role_supported);
 }

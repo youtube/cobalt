@@ -45,6 +45,7 @@
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/to_string.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
@@ -92,6 +93,7 @@
 #include "content/browser/media/audio_stream_monitor.h"
 #include "content/browser/media/media_web_contents_observer.h"
 #include "content/browser/memory/scheduler_loop_quarantine_web_contents_observer.h"
+#include "content/browser/network/declarative_performance_observer.h"
 #include "content/browser/permissions/permission_controller_impl.h"
 #include "content/browser/permissions/permission_util.h"
 #include "content/browser/preloading/prefetch/prefetch_request.h"
@@ -130,6 +132,8 @@
 #include "content/browser/site_instance_impl.h"
 #include "content/browser/surface_embed/surface_embed_connector_impl.h"
 #include "content/browser/wake_lock/wake_lock_context_host.h"
+#include "content/browser/web_contents/drag_source_document_tracker.h"
+#include "content/browser/web_contents/drag_source_map.h"
 #include "content/browser/web_contents/file_chooser_impl.h"
 #include "content/browser/web_contents/java_script_dialog_commit_deferring_condition.h"
 #include "content/browser/web_contents/slow_web_preference_cache.h"
@@ -149,6 +153,7 @@
 #include "content/public/browser/device_service.h"
 #include "content/public/browser/disallow_activation_reason.h"
 #include "content/public/browser/document_picture_in_picture_window_controller.h"
+#include "content/public/browser/document_user_data.h"
 #include "content/public/browser/download_manager.h"
 #include "content/public/browser/file_select_listener.h"
 #include "content/public/browser/focused_node_details.h"
@@ -851,6 +856,28 @@ WebContents* WebContents::FromFrameTreeNodeId(
     return nullptr;
   }
   return WebContentsImpl::FromFrameTreeNode(frame_tree_node);
+}
+
+// static
+WebContents* WebContents::FromDragId(BrowserContext* browser_context,
+                                     const DragId& drag_id) {
+  auto* map = DragSourceMap::GetOrCreate(browser_context);
+  GlobalRenderFrameHostToken source_rfh_token = map->GetDragSource(drag_id);
+  if (source_rfh_token == GlobalRenderFrameHostToken()) {
+    return nullptr;
+  }
+
+  RenderFrameHost* rfh = RenderFrameHost::FromFrameToken(source_rfh_token);
+  if (!rfh) {
+    return nullptr;
+  }
+
+  auto* tracker = DragSourceDocumentTracker::GetForCurrentDocument(rfh);
+  if (!tracker || !tracker->has_drag_id(drag_id)) {
+    return nullptr;
+  }
+
+  return WebContents::FromRenderFrameHost(rfh);
 }
 
 WebContentsImpl* WebContentsImpl::FromRenderWidgetHostImpl(
@@ -3142,12 +3169,12 @@ void WebContentsImpl::SetPrimaryPageImportance(
       "content", "WebContentsImpl::SetPrimaryPageImportance",
       "main_frame_importance", static_cast<int>(main_frame_importance),
       "subframe_importance", static_cast<int>(subframe_importance));
-  CHECK(IsPerceptibleImportanceSupported() ||
-        (main_frame_importance != ChildProcessImportance::PERCEPTIBLE &&
-         subframe_importance != ChildProcessImportance::PERCEPTIBLE))
-      << "Setter of ChildProcessImportance::PERCEPTIBLE should be aware of the "
-         "support and avoid using PERCEPTIBLE if "
-         "IsPerceptibleImportanceSupported() is false";
+  CHECK(IsNotPerceptibleImportanceSupported() ||
+        (main_frame_importance != ChildProcessImportance::NOT_PERCEPTIBLE &&
+         subframe_importance != ChildProcessImportance::NOT_PERCEPTIBLE))
+      << "Setter of ChildProcessImportance::NOT_PERCEPTIBLE should be aware of "
+         "the support and avoid using NOT_PERCEPTIBLE if "
+         "IsNotPerceptibleImportanceSupported() is false";
   CHECK(main_frame_importance >= subframe_importance);
 
   // Batch service binding updates for the renderer processes of the main frame
@@ -4339,6 +4366,7 @@ void WebContentsImpl::Init(const WebContents::CreateParams& params,
   SchedulerLoopQuarantineWebContentsObserver::MaybeCreateForWebContents(this);
   RedirectChainDetector::CreateForWebContents(this);
   BtmWebContentsObserver::MaybeCreateForWebContents(this);
+  DeclarativePerformanceObserver::CreateForWebContents(this);
 
   // BrowserPluginGuest::Init needs to be called after this WebContents has
   // a RenderWidgetHostViewChildFrame. That is, |view_->CreateView| above.
@@ -5199,10 +5227,10 @@ void WebContentsImpl::SetPrimaryMainFrameViewVisibility(Visibility visibility) {
   // removes the |GetRenderViewHost()|; then when we actually destroy the
   // window, OnWindowPosChanged() notices and calls WasHidden() (which
   // calls us).
-  if (auto* view = GetRenderWidgetHostView()) {
+  if (auto* view =
+          static_cast<RenderWidgetHostViewBase*>(GetRenderWidgetHostView())) {
     if (view_is_visible) {
-      static_cast<RenderWidgetHostViewBase*>(view)->ShowWithVisibility(
-          page_visibility);
+      view->ShowWithVisibility(page_visibility);
     } else if (visibility == Visibility::HIDDEN) {
       view->Hide();
     } else {
@@ -5620,13 +5648,13 @@ FrameTree* WebContentsImpl::CreateNewWindow(
 
       // TODO(brettw): It seems bogus that we have to call this function on the
       // newly created object and give it one of its own member variables.
-      RenderWidgetHostView* widget_view = new_view->CreateViewForWidget(
+      RenderWidgetHostViewBase* widget_view = new_view->CreateViewForWidget(
           new_contents_impl->GetRenderViewHost()->GetWidget());
       view_->SetOverscrollControllerEnabled(CanOverscrollContent());
       if (!renderer_started_hidden) {
         // RenderWidgets for frames always initialize as hidden. If the renderer
         // created this window as visible, then we show it here.
-        widget_view->Show();
+        widget_view->ShowWithVisibility(PageVisibilityState::kVisible);
       }
     }
     // Save the created window associated with the route so we can show it
@@ -5747,7 +5775,8 @@ RenderWidgetHostImpl* WebContentsImpl::CreateNewPopupWidget(
     mojo::PendingAssociatedReceiver<blink::mojom::PopupWidgetHost>
         blink_popup_widget_host,
     mojo::PendingAssociatedReceiver<blink::mojom::WidgetHost> blink_widget_host,
-    mojo::PendingAssociatedRemote<blink::mojom::Widget> blink_widget) {
+    mojo::PendingAssociatedRemote<blink::mojom::Widget> blink_widget,
+    GlobalRenderFrameHostId creator_frame_id) {
   OPTIONAL_TRACE_EVENT1("content", "WebContentsImpl::CreateNewPopupWidget",
                         "route_id", route_id);
 
@@ -5757,7 +5786,8 @@ RenderWidgetHostImpl* WebContentsImpl::CreateNewPopupWidget(
   }
 
   RenderWidgetHostImpl* widget_host = RenderWidgetHostFactory::CreateSelfOwned(
-      &primary_frame_tree_, this, site_instance_group, route_id, IsHidden());
+      &primary_frame_tree_, this, site_instance_group, route_id, IsHidden(),
+      creator_frame_id);
 
   widget_host->BindWidgetInterfaces(std::move(blink_widget_host),
                                     std::move(blink_widget));
@@ -6863,6 +6893,13 @@ void WebContentsImpl::ExecuteCustomContextMenuCommand(
   }
 }
 
+void WebContentsImpl::SetDragSource(
+    const DragId& drag_id,
+    const GlobalRenderFrameHostToken& source_rfh_token) {
+  DragSourceMap::GetOrCreate(GetBrowserContext())
+      ->SetDragSource(drag_id, source_rfh_token);
+}
+
 gfx::NativeView WebContentsImpl::GetNativeView() {
   return view_->GetNativeView();
 }
@@ -7728,6 +7765,52 @@ void WebContentsImpl::ReadyToCommitNavigation(
         url::SchemeHostPort(url),
         ssl_info.has_value() ? net::IsCertStatusError(ssl_info->cert_status)
                              : false);
+  }
+}
+
+void WebContentsImpl::OnStartDragging(
+    DropData* drop_data,
+    const GlobalRenderFrameHostToken& source_rfh_token) {
+  CHECK(drop_data);
+  auto* source_frame = RenderFrameHost::FromFrameToken(source_rfh_token);
+  if (!source_frame) {
+    return;
+  }
+
+  DragId drag_id(base::UnguessableToken::Create());
+
+  DragSourceDocumentTracker::GetOrCreateForCurrentDocument(source_frame)
+      ->AddDragId(drag_id);
+
+  active_drag_id_ = drag_id;
+  SetDragSource(drag_id, source_rfh_token);
+  drop_data->custom_data[u"chromium/x-drag-id"] =
+      base::ASCIIToUTF16(drag_id.value().ToString());
+}
+
+void WebContentsImpl::OnDragSourceEnded() {
+  if (active_drag_id_) {
+    // We intentionally do not remove the drag source from DragSourceMap here.
+    // On macOS, the drag can end synchronously from the OS perspective before
+    // the async drop handling finishes, causing a race condition if we clear
+    // the mapping. The mapping will be cleaned up by the
+    // DragSourceDocumentTracker when the source document is destroyed.
+    // However, to prevent memory leaks on long-lived pages if a drag is
+    // cancelled or unconsumed, we post a deferred task to clean it up after 10
+    // seconds.
+    base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+        FROM_HERE,
+        base::BindOnce(
+            [](base::WeakPtr<WebContentsImpl> web_contents, DragId drag_id) {
+              if (!web_contents) {
+                return;
+              }
+              DragSourceMap::Get(web_contents->GetBrowserContext())
+                  ->RemoveDragSource(drag_id);
+            },
+            weak_factory_.GetWeakPtr(), *active_drag_id_),
+        base::Seconds(10));
+    active_drag_id_.reset();
   }
 }
 
@@ -10901,7 +10984,7 @@ void WebContentsImpl::NotifySwappedFromRenderManager(
   NotifyFrameSwapped(old_frame, new_frame);
 }
 
-void WebContentsImpl::PrimaryMainFrameSwapComplete(
+void WebContentsImpl::PrimaryMainFrameCommitted(
     RenderFrameHostImpl* new_frame) {
   CHECK(new_frame->GetView() == GetRenderWidgetHostView());
   SetPrimaryMainFrameViewVisibility(GetVisibility());

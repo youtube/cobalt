@@ -207,6 +207,7 @@
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/ash/secure_channel/secure_channel_client_provider.h"
 #include "chrome/browser/ash/settings/device_settings_service.h"
+#include "chrome/browser/browser_process_platform_part.h"  // nogncheck crbug.com/40147906
 #include "chrome/browser/global_features.h"
 #include "chrome/browser/signin/chrome_device_id_helper.h"
 #include "chromeos/ash/components/account_manager/account_manager_factory.h"
@@ -225,6 +226,7 @@
 #else
 #include "chrome/browser/accessibility/ax_main_node_annotator_controller_factory.h"
 #include "chrome/browser/first_run/first_run.h"
+#include "chrome/browser/ui/startup/features.h"
 #include "content/public/common/page_zoom.h"
 #include "ui/accessibility/accessibility_features.h"
 #endif
@@ -339,6 +341,14 @@ bool LocaleNotChanged(const std::string& pref_locale,
 }
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
+#if !BUILDFLAG(IS_CHROMEOS)
+ProfileImpl::CloudPolicyManagerTestFactory&
+GetTestingCloudPolicyManagerFactory() {
+  static base::NoDestructor<ProfileImpl::CloudPolicyManagerTestFactory> factory;
+  return *factory;
+}
+#endif
+
 }  // namespace
 
 // static
@@ -443,6 +453,14 @@ void ProfileImpl::RegisterProfilePrefs(
 #endif
   registry->RegisterIntegerPref(prefs::kEnterpriseBadgingTemporarySetting, 0);
 }
+
+#if !BUILDFLAG(IS_CHROMEOS)
+// static
+void ProfileImpl::SetCloudPolicyManagerFactoryForTesting(
+    CloudPolicyManagerTestFactory factory) {
+  GetTestingCloudPolicyManagerFactory() = std::move(factory);
+}
+#endif
 
 ProfileImpl::ProfileImpl(
     const base::FilePath& path,
@@ -594,8 +612,8 @@ void ProfileImpl::LoadPrefsForNormalStartup(bool async_prefs) {
   // policy data immediately.
   bool force_immediate_policy_load = !async_prefs;
 
-  policy::CloudPolicyManager* cloud_policy_manager;
-  policy::ConfigurationPolicyProvider* policy_provider;
+  policy::CloudPolicyManager* cloud_policy_manager = nullptr;
+  policy::ConfigurationPolicyProvider* policy_provider = nullptr;
 #if BUILDFLAG(IS_CHROMEOS)
   if (force_immediate_policy_load)
     ash::DeviceSettingsService::Get()->LoadImmediately();
@@ -610,28 +628,51 @@ void ProfileImpl::LoadPrefsForNormalStartup(bool async_prefs) {
 #else  // !BUILDFLAG(IS_CHROMEOS)
   {
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
-    ProfileManager* profile_manager = g_browser_process->profile_manager();
-    ProfileAttributesEntry* entry =
-        profile_manager->GetProfileAttributesStorage()
-            .GetProfileAttributesWithPath(GetPath());
-
-    if (entry && (!entry->GetProfileManagementEnrollmentToken().empty() ||
-                  entry->IsDasherlessManagement())) {
-      profile_cloud_policy_manager_ = policy::ProfileCloudPolicyManager::Create(
-          GetPath(), GetPolicySchemaRegistryService()->registry(),
-          force_immediate_policy_load, io_task_runner_,
-          base::BindRepeating(&content::GetNetworkConnectionTracker),
-          entry->IsDasherlessManagement());
-      cloud_policy_manager = profile_cloud_policy_manager_.get();
-    } else {
-#else
-    {
+    if (GetTestingCloudPolicyManagerFactory()) {
+      auto result = GetTestingCloudPolicyManagerFactory().Run(this);
+      if (std::holds_alternative<
+              std::unique_ptr<policy::ProfileCloudPolicyManager>>(result)) {
+        profile_cloud_policy_manager_ = std::move(
+            std::get<std::unique_ptr<policy::ProfileCloudPolicyManager>>(
+                result));
+        cloud_policy_manager = profile_cloud_policy_manager_.get();
+      } else if (std::holds_alternative<
+                     std::unique_ptr<policy::UserCloudPolicyManager>>(result)) {
+        user_cloud_policy_manager_ = std::move(
+            std::get<std::unique_ptr<policy::UserCloudPolicyManager>>(result));
+        cloud_policy_manager = user_cloud_policy_manager_.get();
+      }
+    }
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
-      user_cloud_policy_manager_ = policy::UserCloudPolicyManager::Create(
-          GetPath(), GetPolicySchemaRegistryService()->registry(),
-          force_immediate_policy_load, io_task_runner_,
-          base::BindRepeating(&content::GetNetworkConnectionTracker));
-      cloud_policy_manager = user_cloud_policy_manager_.get();
+
+    if (!cloud_policy_manager) {
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+      ProfileAttributesEntry* entry = nullptr;
+      if (g_browser_process->profile_manager()) {
+        entry = g_browser_process->profile_manager()
+                    ->GetProfileAttributesStorage()
+                    .GetProfileAttributesWithPath(GetPath());
+      }
+
+      if (entry && (!entry->GetProfileManagementEnrollmentToken().empty() ||
+                    entry->IsDasherlessManagement())) {
+        profile_cloud_policy_manager_ =
+            policy::ProfileCloudPolicyManager::Create(
+                GetPath(), GetPolicySchemaRegistryService()->registry(),
+                force_immediate_policy_load, io_task_runner_,
+                base::BindRepeating(&content::GetNetworkConnectionTracker),
+                entry->IsDasherlessManagement());
+        cloud_policy_manager = profile_cloud_policy_manager_.get();
+      } else {
+#else
+      {
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+        user_cloud_policy_manager_ = policy::UserCloudPolicyManager::Create(
+            GetPath(), GetPolicySchemaRegistryService()->registry(),
+            force_immediate_policy_load, io_task_runner_,
+            base::BindRepeating(&content::GetNetworkConnectionTracker));
+        cloud_policy_manager = user_cloud_policy_manager_.get();
+      }
     }
     policy_provider = cloud_policy_manager;
   }
@@ -1226,6 +1267,27 @@ bool ProfileImpl::ShouldPersistSessionCookies() const {
   return true;
 }
 
+bool ProfileImpl::ShouldClearSessionStorageOnStartup() {
+#if BUILDFLAG(IS_ANDROID)
+  // On Android, Session Storage doesn't support restore. So, we always clear
+  // session storage on open. As such, we don't need to signal it from the
+  // browser process.
+  return false;
+#else
+  if (!base::FeatureList::IsEnabled(
+          features::kClearSessionStorageDiskStateOnStartup)) {
+    return false;
+  }
+  SessionStartupPref startup_pref =
+      StartupBrowserCreator::GetSessionStartupPref(
+          *base::CommandLine::ForCurrentProcess(), this);
+  // Clear the session storage database when no crash recovery and no session
+  // restore is needed.
+  return ExitTypeService::GetLastSessionExitType(this) != ExitType::kCrashed &&
+         !startup_pref.ShouldRestoreLastSession();
+#endif
+}
+
 PrefService* ProfileImpl::GetPrefs() {
   return const_cast<PrefService*>(
       static_cast<const ProfileImpl*>(this)->GetPrefs());
@@ -1568,7 +1630,8 @@ void ProfileImpl::OnLogin() {
 void ProfileImpl::InitChromeOSPreferences() {
   chromeos_preferences_ = std::make_unique<ash::Preferences>(
       g_browser_process->local_state(),
-      g_browser_process->GetFeatures()->application_locale_storage());
+      g_browser_process->GetFeatures()->application_locale_storage(),
+      g_browser_process->platform_part()->GetTimezoneResolverManager());
   chromeos_preferences_->Init(
       this, ash::ProfileHelper::Get()->GetUserByProfile(this));
 }

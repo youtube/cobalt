@@ -106,10 +106,12 @@ std::atomic<int> g_root_session_count{0};
 DevToolsSession::PendingMessage::PendingMessage(PendingMessage&&) = default;
 DevToolsSession::PendingMessage::PendingMessage(int call_id,
                                                 crdtp::span<uint8_t> method,
-                                                crdtp::span<uint8_t> payload)
+                                                crdtp::span<uint8_t> payload,
+                                                std::string fallthrough_data)
     : call_id(call_id),
       method(method.begin(), method.end()),
-      payload(payload.begin(), payload.end()) {}
+      payload(payload.begin(), payload.end()),
+      fallthrough_data(std::move(fallthrough_data)) {}
 
 DevToolsSession::PendingMessage::~PendingMessage() = default;
 
@@ -124,6 +126,8 @@ DevToolsSession::DevToolsSession(DevToolsAgentHostClient* client, Mode mode)
   session_state_cookie_ = blink::mojom::DevToolsSessionState::New();
   session_state_cookie_->browser_originating_session_state =
       blink::mojom::BrowserOriginatingSessionState::New();
+  handle_command_callback_ = base::BindRepeating(
+      &DevToolsSession::HandleCommand, weak_factory_.GetWeakPtr());
 }
 
 DevToolsSession::DevToolsSession(DevToolsAgentHostClient* client,
@@ -139,6 +143,8 @@ DevToolsSession::DevToolsSession(DevToolsAgentHostClient* client,
   session_state_cookie_ = blink::mojom::DevToolsSessionState::New();
   session_state_cookie_->browser_originating_session_state =
       blink::mojom::BrowserOriginatingSessionState::New();
+  handle_command_callback_ = base::BindRepeating(
+      &DevToolsSession::HandleCommand, weak_factory_.GetWeakPtr());
 }
 
 DevToolsSession::~DevToolsSession() {
@@ -328,7 +334,14 @@ void DevToolsSession::DispatchProtocolMessage(
     message = converted_cbor_message;
   }
   // At this point |message| is CBOR.
-  crdtp::Dispatchable dispatchable(crdtp::SpanFrom(message));
+  crdtp::Dispatchable dispatchable(
+      crdtp::SpanFrom(message), std::string_view(),
+      [cb = base::BindRepeating(&DevToolsSession::FallThrough,
+                                weak_factory_.GetWeakPtr())](
+          int call_id, crdtp::span<uint8_t> method,
+          crdtp::span<uint8_t> message, std::string_view fallthrough_data) {
+        cb.Run(call_id, method, message, fallthrough_data);
+      });
   if (!dispatchable.ok()) {
     DispatchProtocolMessageToClient(
         (dispatchable.HasCallId()
@@ -381,41 +394,44 @@ void DevToolsSession::DispatchProtocolMessageInternal(
   DevToolsManagerDelegate* delegate =
       DevToolsManager::GetInstance()->delegate();
   if (delegate && !dispatchable.Method().empty()) {
-    delegate->HandleCommand(this, message,
-                            base::BindOnce(&DevToolsSession::HandleCommand,
-                                           weak_factory_.GetWeakPtr()));
+    delegate->HandleCommand(this, message, handle_command_callback_);
   } else {
     HandleCommandInternal(std::move(dispatchable), message);
   }
 }
 
 void DevToolsSession::HandleCommand(base::span<const uint8_t> message) {
-  HandleCommandInternal(crdtp::Dispatchable(crdtp::SpanFrom(message)), message);
+  HandleCommandInternal(
+      crdtp::Dispatchable(
+          crdtp::SpanFrom(message), std::string_view(),
+          [cb = base::BindRepeating(&DevToolsSession::FallThrough,
+                                    weak_factory_.GetWeakPtr())](
+              int call_id, crdtp::span<uint8_t> method,
+              crdtp::span<uint8_t> message, std::string_view fallthrough_data) {
+            cb.Run(call_id, method, message, fallthrough_data);
+          }),
+      message);
 }
 
 void DevToolsSession::HandleCommandInternal(crdtp::Dispatchable dispatchable,
                                             base::span<const uint8_t> message) {
   DCHECK(dispatchable.ok());
-  crdtp::UberDispatcher::DispatchResult dispatched =
-      dispatcher_->Dispatch(dispatchable);
-  if (browser_only_ || dispatched.MethodFound()) {
-    TRACE_EVENT(
-        "devtools", "DevToolsSession::HandleCommand in Browser",
-        perfetto::Flow::ProcessScoped(dispatchable.CallId()), "method",
-        std::string(dispatchable.Method().begin(), dispatchable.Method().end()),
-        "call_id", dispatchable.CallId());
-    dispatched.Run();
-  } else {
-    FallThrough(dispatchable.CallId(), dispatchable.Method(),
-                crdtp::SpanFrom(message));
-  }
+  TRACE_EVENT(
+      "devtools", "DevToolsSession::HandleCommand in Browser",
+      perfetto::Flow::ProcessScoped(dispatchable.CallId()), "method",
+      std::string(dispatchable.Method().begin(), dispatchable.Method().end()),
+      "call_id", dispatchable.CallId());
+  dispatcher_->Dispatch(dispatchable);
 }
 
 void DevToolsSession::FallThrough(int call_id,
                                   crdtp::span<uint8_t> method,
-                                  crdtp::span<uint8_t> message) {
-  // In browser-only mode, we should've handled everything in dispatcher.
-  DCHECK(!browser_only_);
+                                  crdtp::span<uint8_t> message,
+                                  std::string_view fallthrough_data) {
+  if (browser_only_) {
+    dispatcher_->SendMethodNotFound(call_id, method);
+    return;
+  }
 
   if (waiting_for_response_.contains(call_id)) {
     DispatchProtocolMessageToClient(
@@ -426,7 +442,7 @@ void DevToolsSession::FallThrough(int call_id,
   }
 
   auto it = pending_messages_.emplace(pending_messages_.end(), call_id, method,
-                                      message);
+                                      message, std::string(fallthrough_data));
   if (suspended_sending_messages_to_agent_ &&
       ShouldSuspendDuringNavigation(method))
     return;
@@ -474,7 +490,8 @@ void DevToolsSession::DispatchToAgent(const PendingMessage& message) {
                   perfetto::Flow::ProcessScoped(message.call_id), "method",
                   message.method, "call_id", message.call_id);
       io_session_->DispatchProtocolCommand(message.call_id, message.method,
-                                           message.payload);
+                                           message.payload,
+                                           message.fallthrough_data);
     }
   } else {
     if (session_) {
@@ -482,7 +499,8 @@ void DevToolsSession::DispatchToAgent(const PendingMessage& message) {
                   perfetto::Flow::ProcessScoped(message.call_id), "method",
                   message.method, "call_id", message.call_id);
       session_->DispatchProtocolCommand(message.call_id, message.method,
-                                        message.payload);
+                                        message.payload,
+                                        message.fallthrough_data);
     }
   }
 }

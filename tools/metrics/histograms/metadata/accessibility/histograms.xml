@@ -1065,6 +1065,17 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Accessibility.CrosCursorColor.Value"
+    enum="AccessibilityCursorColorValue" expires_after="2027-06-01">
+  <owner>katie@chromium.org</owner>
+  <owner>chrome-a11y-core@google.com</owner>
+  <summary>
+    The color of the Chrome OS accessibility cursor.
+
+    Note: This metric is logged once after startup.
+  </summary>
+</histogram>
+
 <histogram name="Accessibility.CrosDictation.Language" enum="LocaleCodeBCP47"
     expires_after="2026-10-04">
   <owner>katie@chromium.org</owner>
@@ -3030,6 +3041,18 @@ even if they fit the naming pattern. -->
 </histogram>
 
 <histogram
+    name="Accessibility.ReadAnything.DistilledPageStructure.TopTwoHeadersHaveMinimumTwoItems"
+    enum="Boolean" expires_after="2027-05-01">
+  <owner>lwinston@google.com</owner>
+  <owner>chrome-irm-devs@google.com</owner>
+  <summary>
+    Records whether the page has at least 2 headers each of its top two headers,
+    excluding h1 if there is exactly 1 h1. Recorded when the content is
+    successfully distilled and updated in the Reading Mode panel.
+  </summary>
+</histogram>
+
+<histogram
     name="Accessibility.ReadAnything.DistilledPageStructure.{CountMetric}"
     units="count" expires_after="2027-05-01">
   <owner>lwinston@google.com</owner>
@@ -3041,6 +3064,9 @@ even if they fit the naming pattern. -->
   <token key="CountMetric">
     <variant name="NumberParagraphs"
         summary="the number of paragraphs distilled on the page"/>
+    <variant name="TopTwoHeadersCount"
+        summary="the sum of the number of the top two headers present on the
+                 page, excluding h1 if there is exactly 1 h1"/>
     <variant name="TotalHeaderCount"
         summary="the sum of all headers on the distilled page"/>
     <variant name="UniqueHeaderTags"
@@ -3186,6 +3212,17 @@ even if they fit the naming pattern. -->
   </summary>
 </histogram>
 
+<histogram name="Accessibility.ReadAnything.MainPanelSelectionOnOpen"
+    enum="Boolean" expires_after="2027-01-01">
+  <owner>gusmartin@google.com</owner>
+  <owner>chrome-irm-devs@google.com</owner>
+  <summary>
+    Records whether a text selection was present in the main browser tab at the
+    moment Reading Mode was opened. Recorded once per Reading Mode session (Open
+    to Close), excluding tab switches or view-mode transitions.
+  </summary>
+</histogram>
+
 <histogram name="Accessibility.ReadAnything.MergedDistillationTime.{Result}"
     units="ms" expires_after="2026-10-04">
   <owner>abigailbklein@google.com</owner>
@@ -3238,6 +3275,19 @@ even if they fit the naming pattern. -->
   </summary>
 </histogram>
 
+<histogram name="Accessibility.ReadAnything.Readability.EarlySelection"
+    enum="ReadAnythingEarlySelection" expires_after="2027-03-01">
+  <owner>gusmartin@google.com</owner>
+  <owner>chrome-irm-devs@google.com</owner>
+  <summary>
+    Records selection attempts that occur before the Readability distillation
+    has successfully mapped its content to the original page's AXTree. This is
+    recorded at most once per navigation, for either a selection from the Side
+    Panel or the Main Panel. This metric helps measure if the text alignment
+    algorithm is fast enough for user interactions.
+  </summary>
+</histogram>
+
 <histogram name="Accessibility.ReadAnything.Readability.PageLinks{Status}Count"
     units="count" expires_after="2027-03-01">
   <owner>martinglopez@google.com</owner>
@@ -3252,6 +3302,37 @@ even if they fit the naming pattern. -->
     <variant name="NoMatch" summary="no matching node in AXTree"/>
     <variant name="Success" summary="successful match"/>
     <variant name="TooManyMatches" summary="multiple matching nodes in AXTree"/>
+  </token>
+</histogram>
+
+<histogram name="Accessibility.ReadAnything.ReadabilityMapping.SuccessRate"
+    units="%" expires_after="2027-01-01">
+  <owner>gusmartin@google.com</owner>
+  <owner>chrome-irm-devs@google.com</owner>
+  <summary>
+    The percentage of characters in the distilled Readability output that were
+    successfully mapped back to an AXNode in the original page. Recorded once
+    per successful mapping attempt.
+  </summary>
+</histogram>
+
+<histogram
+    name="Accessibility.ReadAnything.ReadabilityMapping.{Step}.ExecutionTime"
+    units="ms" expires_after="2027-01-01">
+  <owner>gusmartin@google.com</owner>
+  <owner>chrome-irm-devs@google.com</owner>
+  <summary>
+    Records the time taken for the {Step} phase of the Readability text
+    alignment algorithm. Recorded once per successful mapping attempt.
+  </summary>
+  <token key="Step">
+    <variant name="0_Total" summary="entire algorithm"/>
+    <variant name="1_Flattening" summary="AXTree flattening and state reset"/>
+    <variant name="2_SuffixArray" summary="building the suffix array index"/>
+    <variant name="3_InitialAnchors"
+        summary="finding and filtering unique blocks (first pass)"/>
+    <variant name="4_GapAlignment"
+        summary="recursive locally-unique substring alignment (second pass)"/>
   </token>
 </histogram>
 
@@ -3474,6 +3555,19 @@ even if they fit the naming pattern. -->
     Records the installation state of the WASM TTS extension engine whenever a
     system voice is used. This is intended to help understand when system voices
     are being used over natural voices.
+  </summary>
+</histogram>
+
+<histogram
+    name="Accessibility.ReadAnything.TimeFromActiveAXTreeIDChangedToRenderedTextBlocks"
+    units="ms" expires_after="2027-06-01">
+  <owner>martinglopez@google.com</owner>
+  <owner>chrome-irm-devs@google.com</owner>
+  <summary>
+    Records the time elapsed from when the browser triggers
+    OnActiveAXTreeIDChanged (due to tab switch, page navigation, or sidebar
+    opening) to when the WebUI finishes layout and renders the distilled text
+    content in the viewport.
   </summary>
 </histogram>
 

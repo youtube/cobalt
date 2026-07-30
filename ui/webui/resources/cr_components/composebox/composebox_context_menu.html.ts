@@ -8,6 +8,8 @@ import {hasAllowedInputs} from './common.js';
 import type {ComposeboxElement} from './composebox.js';
 
 export function getHtml(this: ComposeboxElement) {
+  // Show `contextual-entrypoint-and-menu` if should show menu; otherwise
+  // just show button.
   // clang-format off
   return html`
 <div class="context-menu-container" id="contextMenuContainer"
@@ -40,12 +42,15 @@ export function getHtml(this: ComposeboxElement) {
         .recentTabId="${this.recentTabId}"
         .hasImageFiles="${this.hasImageFiles()}"
         .disabledTabIds="${this.addedTabsIds}"
-        .restoredTabIds="${this.restoredTabIds}"
+        .aimThreadRestoredTabs="${this.aimThreadRestoredTabs}"
         .fileNum="${this.files.size}"
         .sharedTabs="${this.getSharedTabs()}"
+        .isSidePanel="${this.isSidePanel}"
         ?upload-button-disabled="${this.uploadButtonDisabled}"
         ?show-context-menu-description="${this.showContextMenuDescription}"
-        .energyEffectAnimationEnabled="${this.energyEffectAnimationEnabled}">
+        .glifAnimationState="${this.glifAnimationState}"
+        .energyEffectAnimationEnabled="${this.energyEffectAnimationEnabled}"
+        .disableFallbackGlifAnimation="${this.disableFallbackGlifAnimation}">
     </cr-composebox-contextual-entrypoint-and-menu>
   ` : (hasAllowedInputs(this.inputState, this.usePecApi) ? html`
     <cr-composebox-contextual-entrypoint-button
@@ -57,10 +62,12 @@ export function getHtml(this: ComposeboxElement) {
         .isOblongShape="${this.isOblongShape}"
         .applyContextButtonBackground="${this.applyContextButtonBackground}"
         .sharedTabs="${this.getSharedTabs()}"
-        .restoredTabs="${this.getRestoredTabs()}"
+        .restoredTabs="${this.aimThreadRestoredTabs}"
         ?upload-button-disabled="${this.uploadButtonDisabled}"
         ?show-context-menu-description="${this.showContextMenuDescription}"
-        .energyEffectAnimationEnabled="${this.energyEffectAnimationEnabled}">
+        .glifAnimationState="${this.glifAnimationState}"
+        .energyEffectAnimationEnabled="${this.energyEffectAnimationEnabled}"
+        .disableFallbackGlifAnimation="${this.disableFallbackGlifAnimation}">
     </cr-composebox-contextual-entrypoint-button>
   ` : '')}
   ${this.searchboxLayoutMode === 'Compact' && this.shouldShowVoiceSearch() ? html`

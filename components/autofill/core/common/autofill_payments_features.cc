@@ -6,6 +6,11 @@
 
 namespace autofill::features {
 
+// Enables the fix to allow reentry in PaymentsNetworkInterface::IssueRequest()
+// from PaymentsRequest::RespondToDelegate().
+BASE_FEATURE(kAllowReentryFromRespondToDelegate,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 // When enabled, the BNPL flow acts as if the user has not yet seen the AI
 // terms. This allows the AI terms to be shown as bold font repeatedly for
 // testing purposes, regardless of the actual stored user preference.
@@ -185,6 +190,10 @@ BASE_FEATURE(kAutofillEnableFpanRiskBasedAuthentication,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
+// When enabled, gradient-style GPay and Wallet branding logos will be used.
+BASE_FEATURE(kAutofillEnableGradientGoogleLogos,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // When enabled, updates the American Express network art in Autofill.
 BASE_FEATURE(kAutofillEnableNewAmexNetworkArt,
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -213,14 +222,6 @@ BASE_FEATURE(kAutofillEnableOmniboxAutofill, base::FEATURE_DISABLED_BY_DEFAULT);
 // webpage.
 BASE_FEATURE(kAutofillEnablePayNowPayLaterTabs,
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-#if BUILDFLAG(IS_CHROMEOS)
-// When enabled, in use-cases where we would not have triggered any interactive
-// authentication to autofill payment methods, we will trigger a device
-// authentication on ChromeOS.
-BASE_FEATURE(kAutofillEnablePaymentsMandatoryReauthChromeOs,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-#endif  // BUILDFLAG(IS_CHROMEOS)
 
 // When enabled, risk data is prefetched during payments autofill flows to
 // reduce user-perceived latency.

@@ -9,11 +9,14 @@
 #include <vector>
 
 #include "base/functional/callback.h"
+#include "base/run_loop.h"
 #include "base/test/task_environment.h"
+#include "base/test/test_future.h"
 #include "components/record_replay/core/browser/recording.pb.h"
-#include "components/record_replay/core/browser/recording_data_manager.h"
 #include "components/record_replay/core/browser/task_definition.pb.h"
 #include "components/record_replay/core/browser/task_observer.h"
+#include "components/record_replay/core/browser/task_parameters_extractor.h"
+#include "components/record_replay/core/common/test_support/mock_task_store.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
@@ -22,92 +25,40 @@ namespace record_replay {
 
 using ::testing::NiceMock;
 
-class MockRecordingDataManager : public RecordingDataManager {
- public:
-  MockRecordingDataManager() = default;
-  ~MockRecordingDataManager() override = default;
-
-  MOCK_METHOD(void,
-              AddRecording,
-              (Recording recording, base::OnceCallback<void(int64_t)> callback),
-              (override));
-  MOCK_METHOD(void,
-              GetRecordingsByUrl,
-              (std::string url,
-               base::OnceCallback<void(std::vector<Recording>)> callback),
-              (override));
-  MOCK_METHOD(void,
-              SaveTaskDefinition,
-              (std::optional<int64_t> task_definition_id,
-               TaskDefinition task_definition,
-               std::string target_url,
-               std::optional<int64_t> recording_id,
-               base::OnceClosure callback),
-              (override));
-  MOCK_METHOD(
-      void,
-      GetTaskDefinition,
-      (int64_t task_definition_id,
-       base::OnceCallback<void(std::optional<TaskDefinition>)> callback),
-      (override));
-  MOCK_METHOD(
-      void,
-      GetTaskDefinitionsByUrl,
-      (std::string url,
-       base::OnceCallback<void(std::vector<std::pair<int64_t, TaskDefinition>>)>
-           callback),
-      (override));
-  MOCK_METHOD(void,
-              SaveTaskData,
-              (int64_t task_definition_id,
-               TaskData data,
-               base::OnceCallback<void(bool)> callback),
-              (override));
-  MOCK_METHOD(void,
-              GetTaskData,
-              (int64_t task_definition_id,
-               base::OnceCallback<void(std::optional<TaskData>)> callback),
-              (override));
-  MOCK_METHOD(void,
-              DeleteTaskData,
-              (int64_t task_definition_id,
-               base::OnceCallback<void(bool)> callback),
-              (override));
-};
-
 class TaskServiceTest : public testing::Test {
  protected:
-  TaskServiceTest() : task_service_(&mock_data_manager_) {}
+  TaskServiceTest()
+      : task_service_(&mock_task_store_, nullptr, base::DoNothing()) {}
   ~TaskServiceTest() override = default;
 
-  NiceMock<MockRecordingDataManager> mock_data_manager_;
+  NiceMock<MockTaskStore> mock_task_store_;
   TaskService task_service_;
   base::test::TaskEnvironment task_environment_;
 };
 
 TEST_F(TaskServiceTest, CanInstantiate) {
-  TaskService task_service(nullptr);
+  TaskService task_service(nullptr, nullptr, base::DoNothing());
   // Check that we can instantiate it successfully.
   EXPECT_TRUE(true);
 }
 
 TEST_F(TaskServiceTest, OnURLVisitedRetrievesTaskDefinitions) {
-  NiceMock<MockRecordingDataManager> mock_data_manager;
-  TaskService task_service(&mock_data_manager);
+  NiceMock<MockTaskStore> mock_task_store;
+  TaskService task_service(&mock_task_store, nullptr, base::DoNothing());
 
   GURL url("https://example.com");
-  EXPECT_CALL(mock_data_manager,
+  EXPECT_CALL(mock_task_store,
               GetTaskDefinitionsByUrl(url.spec(), ::testing::_))
       .WillOnce(
           [](std::string url,
-             base::OnceCallback<void(
-                 std::vector<std::pair<int64_t, TaskDefinition>>)> callback) {
-            std::vector<std::pair<int64_t, TaskDefinition>> task_definitions;
+             base::OnceCallback<void(std::vector<TaskDefinition>)> callback) {
+            std::vector<TaskDefinition> task_definitions;
             TaskDefinition task_definition;
+            task_definition.set_id(42);
             task_definition.set_url(url);
             task_definition.set_title("Test Task");
             task_definition.set_description("Test Description");
-            task_definitions.emplace_back(42, task_definition);
+            task_definitions.push_back(std::move(task_definition));
             std::move(callback).Run(std::move(task_definitions));
           });
 
@@ -122,27 +73,28 @@ TEST_F(TaskServiceTest, RegisterAndObserveTaskFlow) {
   TaskDefinition definition;
   definition.set_title("Test Journey");
   definition.set_url("https://example.com/start");
+  TaskStep* step = definition.add_task_steps();
+  step->set_url("https://example.com/end");
 
   EXPECT_CALL(
-      mock_data_manager_,
+      mock_task_store_,
       GetTaskDefinitionsByUrl("https://example.com/unrelated", ::testing::_))
       .WillRepeatedly(
           [](std::string url,
-             base::OnceCallback<void(
-                 std::vector<std::pair<int64_t, TaskDefinition>>)> callback) {
+             base::OnceCallback<void(std::vector<TaskDefinition>)> callback) {
             std::move(callback).Run({});
           });
 
-  EXPECT_CALL(
-      mock_data_manager_,
-      GetTaskDefinitionsByUrl("https://example.com/start", ::testing::_))
+  EXPECT_CALL(mock_task_store_, GetTaskDefinitionsByUrl(
+                                    "https://example.com/start", ::testing::_))
       .WillRepeatedly(
           [definition](
               std::string url,
-              base::OnceCallback<void(
-                  std::vector<std::pair<int64_t, TaskDefinition>>)> callback) {
-            std::vector<std::pair<int64_t, TaskDefinition>> task_definitions;
-            task_definitions.emplace_back(42, definition);
+              base::OnceCallback<void(std::vector<TaskDefinition>)> callback) {
+            std::vector<TaskDefinition> task_definitions;
+            TaskDefinition def = definition;
+            def.set_id(42);
+            task_definitions.push_back(std::move(def));
             std::move(callback).Run(std::move(task_definitions));
           });
 
@@ -166,30 +118,95 @@ TEST_F(TaskServiceTest, RegisterAndObserveTaskFlow) {
 
   // 5. Complete the task and check that task completed details are propagated
   // correctly.
-  TaskDefinition completed_def;
-  completed_def.set_title("Test Journey");
-  completed_def.set_url("https://example.com/start");
-  completed_def.set_description("Completed successfully");
-
-  EXPECT_CALL(mock_data_manager_,
-              SaveTaskDefinition(::testing::Eq(std::nullopt), ::testing::_,
-                                 "https://example.com/start",
-                                 ::testing::Eq(std::nullopt), ::testing::_))
-      .WillOnce([completed_def](std::optional<int64_t> task_definition_id,
-                                TaskDefinition task_definition,
-                                std::string target_url,
-                                std::optional<int64_t> recording_id,
-                                base::OnceClosure callback) {
-        EXPECT_EQ(task_definition.description(), "Completed successfully");
-        EXPECT_EQ(task_definition.title(), "Test Journey");
-        EXPECT_EQ(task_definition.url(), "https://example.com/start");
-      });
-
   TaskObservation completed_obs;
-  *completed_obs.mutable_definition() = completed_def;
+  completed_obs.set_id(42);
+  TaskDefinition* completed_def = completed_obs.mutable_definition();
+  completed_def->set_title("Test Journey");
+  completed_def->set_url("https://example.com/start");
+  completed_def->set_description("Completed successfully");
+
+  EXPECT_CALL(mock_task_store_, SaveObservation(::testing::_, ::testing::_))
+      .WillOnce([completed_obs](TaskObservation observation,
+                                base::OnceCallback<void(int64_t)> callback) {
+        EXPECT_EQ(observation.definition().title(), "Test Journey");
+        EXPECT_EQ(observation.definition().url(), "https://example.com/start");
+        EXPECT_EQ(observation.definition().description(),
+                  "Completed successfully");
+        std::move(callback).Run(completed_obs.id());
+      });
 
   task_service_.OnTaskCompleted(completed_obs);
   EXPECT_EQ(task_service_.getObserverForTesting(), nullptr);
+}
+
+TEST_F(TaskServiceTest, TaskFlowWithParametersExtractor) {
+  TaskParametersExtractor extractor;
+  TaskService task_service(&mock_task_store_, &extractor, base::DoNothing());
+
+  // Set up a task definition with steps and parameters.
+  TaskDefinition definition;
+  definition.set_id(101);
+  definition.set_title("Journey with Parameters");
+  definition.set_url("https://example.com/start");
+
+  TaskStep* step = definition.add_task_steps();
+  step->set_step_index(0);
+  step->set_url("https://example.com/final");
+  TaskParameter* param = step->add_parameters();
+  param->set_key("key1");
+  param->set_name("param1");
+
+  // Register mock expectation to retrieve the task when start URL is visited.
+  EXPECT_CALL(mock_task_store_, GetTaskDefinitionsByUrl(
+                                    "https://example.com/start", ::testing::_))
+      .WillOnce(
+          [definition](
+              std::string url,
+              base::OnceCallback<void(std::vector<TaskDefinition>)> callback) {
+            std::vector<TaskDefinition> task_definitions;
+            task_definitions.push_back(definition);
+            std::move(callback).Run(std::move(task_definitions));
+          });
+
+  // 1. Visit start URL. TaskObserver should be created.
+  GURL start_url("https://example.com/start");
+  task_service.OnURLVisited(start_url);
+
+  ASSERT_NE(task_service.getObserverForTesting(), nullptr);
+
+  // 2. Simulate parameters being extracted by the page.
+  extractor.StoreExtractedValue("key1", "value_from_dom");
+
+  // 3. Visit final URL which triggers asynchronous parameters filling, then
+  // completion. Expect that mock_task_store_.SaveObservation will be
+  // called.
+  base::RunLoop run_loop;
+  EXPECT_CALL(mock_task_store_, SaveObservation(::testing::_, ::testing::_))
+      .WillOnce([&run_loop](TaskObservation observation,
+                            base::OnceCallback<void(int64_t)> callback) {
+        // Verify the value was correctly extracted and filled into the step
+        // parameter!
+        ASSERT_EQ(observation.definition().task_steps_size(), 1);
+        EXPECT_EQ(observation.definition().task_steps(0).parameters(0).value(),
+                  "value_from_dom");
+        std::move(callback).Run(101);
+        run_loop.Quit();
+      });
+
+  GURL final_url("https://example.com/final");
+  task_service.OnURLVisited(final_url);
+
+  run_loop.Run();
+
+  // 4. Verify observer is reset and extractor has completed (FinishExtraction
+  // is called).
+  EXPECT_EQ(task_service.getObserverForTesting(), nullptr);
+  // Let's try to fill parameters to a new observation to verify the session has
+  // finished.
+  TaskObservation observation;
+  base::test::TestFuture<bool> future;
+  extractor.FillExtractedParametersTo(&observation, future.GetCallback());
+  EXPECT_FALSE(future.Get());
 }
 
 }  // namespace record_replay

@@ -18,10 +18,10 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/types/expected.h"
 #include "base/types/pass_key.h"
-#include "gpu/config/gpu_feature_info.h"
 #include "services/webnn/ort/scoped_ort_types.h"
 #include "services/webnn/public/cpp/execution_providers_info.h"
 #include "services/webnn/public/mojom/ep_package_info.mojom.h"
+#include "services/webnn/public/mojom/webnn_service_introspection.mojom.h"
 #include "third_party/windows_app_sdk_headers/src/inc/abi/winml/winml/onnxruntime_c_api.h"
 
 namespace webnn::ort {
@@ -32,8 +32,17 @@ class Environment : public base::subtle::RefCountedThreadSafeBase {
  public:
   REQUIRE_ADOPTION_FOR_REFCOUNTED_TYPE();
 
-  static base::expected<scoped_refptr<Environment>, std::string> GetInstance(
-      const gpu::GpuFeatureInfo& gpu_feature_info,
+  // Returns the singleton instance of `Environment` if it has been created, or
+  // null if it has not been created yet. This is used by WebNN Internals
+  // to check if the ORT environment has been initialized without triggering its
+  // initialization.
+  static std::optional<scoped_refptr<Environment>> GetInstance();
+
+  // Creates an `Environment` instance if it is not created yet and returns a
+  // reference-counted pointer to it. The returned `Environment` instance will
+  // be shared by all sessions in WebNN.
+  static base::expected<scoped_refptr<Environment>, std::string>
+  GetOrCreateInstance(
       const base::flat_map<std::string, mojom::EpPackageInfoPtr>&
           ep_package_info_map);
 
@@ -72,6 +81,18 @@ class Environment : public base::subtle::RefCountedThreadSafeBase {
   // for multiple threads to hold and use the returned span concurrently.
   base::span<const OrtEpDevice* const> GetRegisteredEpDevices() const;
 
+  // Returns a vector of execution provider details for all registered EPs in
+  // this environment. This is used for introspection purposes in WebNN
+  // Internals.
+  std::vector<mojom::WebNNExecutionProviderDetailsPtr> GetAvailableEpDetails()
+      const;
+
+  // Returns a vector of execution provider details for all selected EPs for a
+  // given device type. This is used for introspection purposes in WebNN
+  // Internals.
+  std::vector<mojom::WebNNExecutionProviderDetailsPtr> GetSelectedEpDetails(
+      OrtHardwareDeviceType device_type) const;
+
   // Get combined EP workarounds for the EPs that will be selected according to
   // the given device type.
   EpWorkarounds GetEpWorkarounds(OrtHardwareDeviceType device_type) const;
@@ -88,11 +109,8 @@ class Environment : public base::subtle::RefCountedThreadSafeBase {
   std::vector<SessionConfigEntry> GetEpConfigEntries(
       OrtHardwareDeviceType device_type) const;
 
-  static bool is_npu_blocklisted() { return is_npu_blocklisted_; }
-
  private:
   static base::expected<scoped_refptr<Environment>, std::string> Create(
-      const gpu::GpuFeatureInfo& gpu_feature_info,
       const base::flat_map<std::string, mojom::EpPackageInfoPtr>&
           ep_package_info_map);
 
@@ -112,8 +130,6 @@ class Environment : public base::subtle::RefCountedThreadSafeBase {
   // `Environment::Create()` that is already protected by `GetLock()`.
   static base::flat_set<std::wstring>& GetDependentEpPackages()
       EXCLUSIVE_LOCKS_REQUIRED(GetLock());
-
-  static bool is_npu_blocklisted_;
 };
 
 }  // namespace webnn::ort

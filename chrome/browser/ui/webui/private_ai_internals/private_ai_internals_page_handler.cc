@@ -18,11 +18,14 @@
 #include "chrome/browser/ui/webui/private_ai_internals/private_ai_internals.mojom.h"
 #include "components/optimization_guide/core/optimization_guide_proto_util.h"
 #include "components/optimization_guide/core/optimization_guide_util.h"
+#include "components/optimization_guide/proto/features/contextual_cueing.pb.h"
 #include "components/optimization_guide/proto/features/forms_classifications.pb.h"
 #include "components/optimization_guide/proto/features/zero_state_suggestions.pb.h"
 #include "components/optimization_guide/proto/model_execution.pb.h"
 #include "components/private_ai/client.h"
 #include "components/private_ai/common/private_ai_logger.h"
+#include "components/private_ai/content/private_ai_network_driver_content.h"
+#include "components/private_ai/content/private_ai_oak_session_driver_content.h"
 #include "components/private_ai/features.h"
 #include "components/private_ai/phosphor/token_manager.h"
 #include "components/private_ai/proto/private_ai.pb.h"
@@ -69,8 +72,8 @@ void PrivateAiInternalsPageHandler::Connect(const std::string& url,
 
   webui_client_ =
       Client::Create(url, effective_api_key, proxy_url, use_token_attestation,
-                     network_context_, token_manager_, &webui_logger_);
-  webui_client_->EstablishConnection();
+                     network_context_, token_manager_, &webui_logger_,
+                     &oak_session_driver_content_, &network_driver_content_);
   std::move(callback).Run();
 }
 
@@ -97,8 +100,45 @@ void PrivateAiInternalsPageHandler::SendRequest(const std::string& feature_name,
     return;
   }
 
+  if (request.empty()) {
+    webui_client_->EstablishConnection(feature_name_proto);
+    auto result = private_ai_internals::mojom::PrivateAiResponse::New();
+    result->response = "Prewarming connection";
+    std::move(callback).Run(std::move(result));
+    return;
+  }
+
+  if (feature_name_proto == proto::FEATURE_NAME_CHROME_ZERO_STATE_SUGGESTION) {
+    SendZssRequest(request, std::move(callback));
+    return;
+  }
+
+  if (feature_name_proto == proto::FEATURE_NAME_CHROME_FORMS_AI) {
+    SendFormsAiRequest(request, std::move(callback));
+    return;
+  }
+
+  if (feature_name_proto == proto::FEATURE_NAME_CHROME_CONTEXTUAL_CUEING) {
+    SendContextualCueRequest(request, std::move(callback));
+    return;
+  }
+
+  SendTextRequest(feature_name_proto, request, std::move(callback));
+}
+
+void PrivateAiInternalsPageHandler::SendTextRequest(
+    proto::FeatureName feature_name,
+    const std::string& request,
+    SendRequestCallback callback) {
+  if (!webui_client_) {
+    auto result = private_ai_internals::mojom::PrivateAiResponse::New();
+    result->error = std::string("Error: not connected");
+    std::move(callback).Run(std::move(result));
+    return;
+  }
+
   webui_client_->SendTextRequest(
-      feature_name_proto, request,
+      feature_name, request,
       base::BindOnce(
           [](SendRequestCallback callback,
              base::expected<std::string, StatusCode> response) {
@@ -118,7 +158,7 @@ void PrivateAiInternalsPageHandler::SendRequest(const std::string& feature_name,
 
 void PrivateAiInternalsPageHandler::SendZssRequest(
     const std::string& inner_text,
-    SendZssRequestCallback callback) {
+    SendRequestCallback callback) {
   if (!webui_client_) {
     auto result = private_ai_internals::mojom::PrivateAiResponse::New();
     result->error = std::string("Error: not connected");
@@ -145,7 +185,7 @@ void PrivateAiInternalsPageHandler::SendZssRequest(
       private_ai::proto::FEATURE_NAME_CHROME_ZERO_STATE_SUGGESTION,
       paic_message,
       base::BindOnce(
-          [](SendZssRequestCallback callback,
+          [](SendRequestCallback callback,
              base::expected<private_ai::proto::PaicMessage,
                             private_ai::StatusCode> response) {
             auto result = private_ai_internals::mojom::PrivateAiResponse::New();
@@ -187,7 +227,7 @@ void PrivateAiInternalsPageHandler::SendZssRequest(
 
 void PrivateAiInternalsPageHandler::SendFormsAiRequest(
     const std::string& url,
-    SendFormsAiRequestCallback callback) {
+    SendRequestCallback callback) {
   if (!webui_client_) {
     auto result = private_ai_internals::mojom::PrivateAiResponse::New();
     result->error = std::string("Error: not connected");
@@ -235,7 +275,7 @@ void PrivateAiInternalsPageHandler::SendFormsAiRequest(
   webui_client_->SendPaicRequest(
       private_ai::proto::FEATURE_NAME_CHROME_FORMS_AI, paic_message,
       base::BindOnce(
-          [](SendFormsAiRequestCallback callback,
+          [](SendRequestCallback callback,
              base::expected<private_ai::proto::PaicMessage,
                             private_ai::StatusCode> response) {
             auto result = private_ai_internals::mojom::PrivateAiResponse::New();
@@ -271,6 +311,106 @@ void PrivateAiInternalsPageHandler::SendFormsAiRequest(
             }
 
             result->response = base::JoinString(types, ", ");
+            std::move(callback).Run(std::move(result));
+          },
+          std::move(callback)),
+      /*options=*/{});
+}
+
+void PrivateAiInternalsPageHandler::SendContextualCueRequest(
+    const std::string& request,
+    SendRequestCallback callback) {
+  if (!webui_client_) {
+    auto result = private_ai_internals::mojom::PrivateAiResponse::New();
+    result->error = std::string("Error: not connected");
+    std::move(callback).Run(std::move(result));
+    return;
+  }
+
+  std::string url;
+  std::string title;
+  size_t first_newline = request.find('\n');
+  if (first_newline == std::string::npos) {
+    url = request;
+  } else {
+    url = request.substr(0, first_newline);
+    title = request.substr(first_newline + 1);
+  }
+  base::TrimWhitespaceASCII(url, base::TRIM_ALL, &url);
+  base::TrimWhitespaceASCII(title, base::TRIM_ALL, &title);
+
+  optimization_guide::proto::ContextualCueingRequest contextual_cue_request;
+  contextual_cue_request.mutable_active_tab_page_context()->set_url(url);
+  contextual_cue_request.mutable_active_tab_page_context()->set_title(title);
+  contextual_cue_request.add_supported_surfaces(
+      optimization_guide::proto::CONTEXTUAL_CUEING_SURFACE_GEMINI_IN_CHROME);
+
+  optimization_guide::proto::ExecuteRequest execute_request;
+  execute_request.set_feature(optimization_guide::proto::ModelExecutionFeature::
+                                  MODEL_EXECUTION_FEATURE_CONTEXTUAL_CUEING);
+  *execute_request.mutable_request_metadata() =
+      optimization_guide::AnyWrapProto(contextual_cue_request);
+
+  private_ai::proto::PaicMessage paic_message;
+  paic_message.set_feature_name(
+      private_ai::proto::FEATURE_NAME_CHROME_CONTEXTUAL_CUEING);
+  *paic_message.mutable_execute_request_ext() = execute_request;
+
+  webui_client_->SendPaicRequest(
+      private_ai::proto::FEATURE_NAME_CHROME_CONTEXTUAL_CUEING, paic_message,
+      base::BindOnce(
+          [](SendRequestCallback callback,
+             base::expected<private_ai::proto::PaicMessage,
+                            private_ai::StatusCode> response) {
+            auto result = private_ai_internals::mojom::PrivateAiResponse::New();
+            if (!response.has_value()) {
+              result->error =
+                  std::string("Error: ") +
+                  base::NumberToString(static_cast<int>(response.error()));
+              std::move(callback).Run(std::move(result));
+              return;
+            }
+
+            if (!response->has_execute_response_ext()) {
+              result->error = "Error: no execute_response_ext";
+              std::move(callback).Run(std::move(result));
+              return;
+            }
+
+            auto contextual_cue_response =
+                optimization_guide::ParsedAnyMetadata<
+                    optimization_guide::proto::ContextualCueingResponse>(
+                    response->execute_response_ext().response_metadata());
+
+            if (!contextual_cue_response) {
+              result->error = "Error: failed to parse contextual cue response";
+              std::move(callback).Run(std::move(result));
+              return;
+            }
+
+            std::vector<std::string> cues;
+            if (contextual_cue_response->has_anchored_message_cue()) {
+              cues.push_back("Deprecated CUJ: " +
+                             contextual_cue_response->suggested_cuj() +
+                             ", Msg: " +
+                             contextual_cue_response->anchored_message_cue()
+                                 .anchored_message_text() +
+                             ", Action: " +
+                             contextual_cue_response->anchored_message_cue()
+                                 .action_text());
+            }
+            for (const auto& cue : contextual_cue_response->contextual_cues()) {
+              std::string cue_info = "CUJ: " + cue.suggested_cuj();
+              if (cue.has_anchored_message_cue()) {
+                cue_info +=
+                    ", Msg: " +
+                    cue.anchored_message_cue().anchored_message_text() +
+                    ", Action: " + cue.anchored_message_cue().action_text();
+              }
+              cues.push_back(cue_info);
+            }
+
+            result->response = base::JoinString(cues, "; ");
             std::move(callback).Run(std::move(result));
           },
           std::move(callback)),

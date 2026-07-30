@@ -34,6 +34,7 @@ struct RemoteEligibility {
 enum class LocalEligibility {
   kEligible,
   kNotSignedIn,
+  kRefreshTokenInPersistentErrorState,
   kMissingCapabilities,
   kDisabledByPolicy,
   kMissingScript,
@@ -90,7 +91,9 @@ class IndigoService : public KeyedService,
     return last_known_local_eligibility_;
   }
   bool IsLocallyEligible() const {
-    return GetLocalEligibility() == LocalEligibility::kEligible;
+    LocalEligibility eligibility = GetLocalEligibility();
+    return eligibility == LocalEligibility::kEligible ||
+           eligibility == LocalEligibility::kRefreshTokenInPersistentErrorState;
   }
   base::CallbackListSubscription RegisterLocalEligibilityChangedCallback(
       LocalEligibilityChangedCallback callback);
@@ -113,6 +116,11 @@ class IndigoService : public KeyedService,
   // Returns the prompt for the given key if available.
   std::optional<std::string> GetPrompt(const std::string& key) const;
 
+  // Returns the map of all loaded prompts.
+  const base::flat_map<std::string, std::string>& GetLoadedPrompts() const {
+    return prompts_;
+  }
+
   // KeyedService:
   void Shutdown() override;
 
@@ -120,6 +128,11 @@ class IndigoService : public KeyedService,
   void OnPrimaryAccountChanged(
       const signin::PrimaryAccountChangeEvent& event_details) override;
   void OnExtendedAccountInfoUpdated(const AccountInfo& info) override;
+  void OnErrorStateOfRefreshTokenUpdatedForAccount(
+      const CoreAccountInfo& account_info,
+      const GoogleServiceAuthError& error,
+      signin_metrics::SourceForRefreshTokenOperation token_operation_source)
+      override;
 
   void SetRemoteEligibilityFetcherForTesting(RemoteEligibilityFetcher fetcher);
   void SetPromptsLoadedCallbackForTesting(base::OnceClosure callback);

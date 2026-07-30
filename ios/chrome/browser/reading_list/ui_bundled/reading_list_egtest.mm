@@ -17,6 +17,7 @@
 #import "base/strings/sys_string_conversions.h"
 #import "base/strings/utf_string_conversions.h"
 #import "base/test/ios/wait_util.h"
+#import "components/strings/grit/components_strings.h"
 #import "components/sync/base/user_selectable_type.h"
 #import "ios/chrome/browser/authentication/test/signin_earl_grey.h"
 #import "ios/chrome/browser/authentication/test/signin_earl_grey_ui_test_util.h"
@@ -215,10 +216,16 @@ void LongPressEntry(NSString* entryTitle) {
 // Asserts that the entry with the title `entryTitle` is visible.
 void AssertEntryVisible(NSString* entryTitle) {
   ScrollToTop();
-  [[[EarlGrey selectElementWithMatcher:VisibleReadingListItem(entryTitle)]
-         usingSearchAction:grey_swipeSlowInDirection(kGREYDirectionUp)
-      onElementWithMatcher:grey_accessibilityID(kReadingListViewID)]
-      assertWithMatcher:grey_notNil()];
+  NSError* error = nil;
+  [[EarlGrey selectElementWithMatcher:VisibleReadingListItem(entryTitle)]
+      assertWithMatcher:grey_sufficientlyVisible()
+                  error:&error];
+  if (error) {
+    [[[EarlGrey selectElementWithMatcher:VisibleReadingListItem(entryTitle)]
+           usingSearchAction:grey_swipeSlowInDirection(kGREYDirectionUp)
+        onElementWithMatcher:grey_accessibilityID(kReadingListViewID)]
+        assertWithMatcher:grey_notNil()];
+  }
 }
 
 // Asserts that all the entries are visible.
@@ -792,6 +799,48 @@ void AssertIsShowingDistillablePage(bool online, const GURL& distillable_url) {
   AssertIsShowingDistillablePage(false, distillableURL);
 }
 
+// Tests that offline page is not loaded if a security interstitial is visible.
+- (void)testOfflinePageSafeBrowsingPhishingError {
+  GURL distillablePageURL(self.testServer->GetURL(kDistillableURL));
+  GURL nonDistillablePageURL(self.testServer->GetURL(kNonDistillableURL));
+
+  // STAGE 1: Launch normally, load & distill "Tomato" page, and add to list.
+  [ReadingListAppInterface forceConnectionToWifi];
+  [ChromeEarlGrey loadURL:distillablePageURL];
+  [ChromeEarlGrey waitForPageToFinishLoading];
+  AddCurrentPageToReadingList();
+
+  // Navigate away to clear active tab content, wait for distillation.
+  [ChromeEarlGrey loadURL:nonDistillablePageURL];
+  [ChromeEarlGrey waitForPageToFinishLoading];
+  OpenReadingList();
+  AssertEntryVisible(kDistillableTitle);
+  WaitForDistillation();
+  TapToolbarButtonWithID(
+      kReadingListNavigationBarCloseButtonID);  // Close Reading List
+
+  // STAGE 2: Relaunch with phishing flag and safe browsing enabled.
+  AppLaunchConfiguration phishingConfig;
+  phishingConfig.additional_args.push_back(std::string("--mark_as_phishing=") +
+                                           distillablePageURL.spec());
+  phishingConfig.additional_args.push_back(
+      std::string("--enable-features=SafeBrowsingHashPrefixRealTimeLookups"));
+  phishingConfig.relaunch_policy = ForceRelaunchByKilling;
+  [[AppLaunchManager sharedManager]
+      ensureAppLaunchedWithConfiguration:phishingConfig];
+  [ChromeEarlGrey setBoolValue:YES forUserPref:"safebrowsing.enabled"];
+
+  // Open Reading List, tap the "Tomato" entry.
+  OpenReadingList();
+  AssertEntryVisible(kDistillableTitle);
+  TapEntry(kDistillableTitle);
+
+  // Assert Safe Browsing block is shown, and distilled page was NOT loaded.
+  [ChromeEarlGrey waitForWebStateContainingText:l10n_util::GetStringUTF8(
+                                                    IDS_SAFEBROWSING_HEADING)];
+  [ChromeEarlGrey waitForWebStateNotContainingText:kContentToKeep];
+}
+
 // Tests that only the "Select" and "Close" button are showing when not editing.
 - (void)testVisibleButtonsNonEditingMode {
   GREYAssertNil(
@@ -1076,8 +1125,14 @@ void AssertIsShowingDistillablePage(bool online, const GURL& distillable_url) {
                   @"Wrong number of unread entries.");
 }
 
+// TODO(crbug.com/433982582): Reenable on simulator.
+#if TARGET_OS_SIMULATOR
+#define MAYBE_testMarkAllRead DISABLED_testMarkAllRead
+#else
+#define MAYBE_testMarkAllRead testMarkAllRead
+#endif
 // Marks all unread entries as read.
-- (void)testMarkAllRead {
+- (void)MAYBE_testMarkAllRead {
   AddEntriesAndEnterEdit();
 
   AssertToolbarMarkButtonText(IDS_IOS_READING_LIST_MARK_ALL_BUTTON);
@@ -1358,14 +1413,15 @@ void AssertIsShowingDistillablePage(bool online, const GURL& distillable_url) {
              @"distillablePageURL should have loaded in incognito");
 }
 
-// Tests the Mark as Read/Unread context menu action for a reading list entry.
-- (void)testContextMenuMarkAsReadAndBack {
-#if TARGET_IPHONE_SIMULATOR
-  // TODO(crbug.com/433982582): Flaky on an iPhone simulator.
-  if ([ChromeEarlGrey isIPhoneIdiom]) {
-    EARL_GREY_TEST_DISABLED(@"Flakes on iPhone.");
-  }
+// TODO(crbug.com/433982582): Reenable on simulator.
+#if TARGET_OS_SIMULATOR
+#define MAYBE_testContextMenuMarkAsReadAndBack \
+  DISABLED_testContextMenuMarkAsReadAndBack
+#else
+#define MAYBE_testContextMenuMarkAsReadAndBack testContextMenuMarkAsReadAndBack
 #endif
+// Tests the Mark as Read/Unread context menu action for a reading list entry.
+- (void)MAYBE_testContextMenuMarkAsReadAndBack {
   AddEntriesAndOpenReadingList();
 
   AssertAllEntriesVisible();

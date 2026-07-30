@@ -130,6 +130,7 @@ Called by update_bad_message_reasons.py.-->
   <int value="10" label="CCU_SUPERFLUOUS_BIND"/>
   <int value="11" label="RFH_INVALID_WEB_FRAME_URL"/>
   <int value="12" label="PVM_PRINT_FENCED_FRAME"/>
+  <int value="13" label="SAGPC_INVALID_PERMISSION_REQUEST_CONTEXT"/>
 </enum>
 
 <enum name="BadMessageReasonContent">
@@ -520,6 +521,10 @@ Called by update_bad_message_reasons.py.-->
   <int value="349" label="RFHI_SYNCHONOUS_COMMIT_ORIGIN_MISMATCH"/>
   <int value="350" label="RFHI_WEBMCP_INVALID_TOOL_OWNER"/>
   <int value="351" label="NR_BAD_ORIGIN_HEADER"/>
+  <int value="352"
+      label="BIBI_BIND_GAMEPAD_MONITOR_BLOCKED_BY_PERMISSIONS_POLICY"/>
+  <int value="353"
+      label="BIBI_BIND_GAMEPAD_HAPTICS_MANAGER_BLOCKED_BY_PERMISSIONS_POLICY"/>
 </enum>
 
 <enum name="BadMessageReasonExtensions">
@@ -567,6 +572,7 @@ Called by update_bad_message_reasons.py.-->
   <int value="36" label="CEFH_INVALID_EXTENSION_ID_FOR_SCRIPT_INJECT_REQUEST"/>
   <int value="37" label="SWH_INVALID_SERVICE_WORKER_SCOPE"/>
   <int value="38" label="EMF_INVALID_MESSAGE_FROM_SANDBOXED_PROCESS"/>
+  <int value="39" label="WRA_INVALID_EXTENSION_ID_FOR_PROCESS"/>
 </enum>
 
 <enum name="BadMessageReasonGuestView">

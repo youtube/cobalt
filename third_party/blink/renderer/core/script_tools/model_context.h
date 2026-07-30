@@ -33,6 +33,7 @@ class Element;
 class ExecuteToolOptions;
 class SourceLocation;
 class ModelContextOptions;
+class ModelContextGetToolOptions;
 class ModelContextRegisterToolOptions;
 class ModelContextTool;
 class RegisteredTool;
@@ -52,6 +53,8 @@ class DeclarativeWebMCPTool : public GarbageCollectedMixin {
   virtual String ToolName() const = 0;
 
   virtual String ToolDescription() const = 0;
+
+  virtual String ToolTitle() const = 0;
 
   // Returns the input json-schema associated with the tool.
   virtual String ComputeInputSchema() = 0;
@@ -120,7 +123,7 @@ class CORE_EXPORT ModelContext : public EventTarget,
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  ModelContext(Document& document, scoped_refptr<base::SingleThreadTaskRunner>);
+  ModelContext(Document& document);
 
   DEFINE_ATTRIBUTE_EVENT_LISTENER(toolchange, kToolchange)
 
@@ -134,7 +137,8 @@ class CORE_EXPORT ModelContext : public EventTarget,
                     ModelContextRegisterToolOptions* options,
                     ExceptionState& exception_state);
   ScriptPromise<IDLSequence<RegisteredTool>> getTools(
-      ScriptState* script_state);
+      ScriptState* script_state,
+      const ModelContextGetToolOptions* options = nullptr);
   ScriptPromise<IDLNullable<IDLString>> executeTool(
       ScriptState* script_state,
       RegisteredTool* tool,

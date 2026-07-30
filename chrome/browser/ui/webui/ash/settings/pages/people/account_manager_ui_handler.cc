@@ -9,6 +9,7 @@
 #include "ash/constants/notifier_catalogs.h"
 #include "ash/public/cpp/system/toast_data.h"
 #include "ash/public/cpp/system/toast_manager.h"
+#include "ash/strings/grit/ash_strings.h"
 #include "base/check.h"
 #include "base/check_op.h"
 #include "base/functional/bind.h"
@@ -22,12 +23,9 @@
 #include "chrome/browser/policy/profile_policy_connector.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/webui/ash/account_manager/account_migration_welcome_dialog.h"
-#include "chrome/grit/generated_resources.h"
 #include "chromeos/ash/components/account_manager/account_manager_factory.h"
 #include "components/account_manager_core/account_manager_facade.h"
 #include "components/account_manager_core/account_manager_metrics.h"
-#include "components/account_manager_core/account_manager_util.h"
-#include "components/account_manager_core/account_upsertion_result.h"
 #include "components/account_manager_core/chromeos/account_manager_mojo_service.h"
 #include "components/signin/public/base/consent_level.h"
 #include "components/signin/public/identity_manager/tribool.h"
@@ -92,16 +90,6 @@ void ShowToast(const std::string& id,
   ToastManager::Get()->Show(ToastData(id, catalog_name, message));
 }
 
-void RecordMojoAccountUpsertionResultStatus(
-    crosapi::mojom::AccountUpsertionResultPtr mojo_result) {
-  const auto result =
-      account_manager::FromMojoAccountUpsertionResult(mojo_result);
-  account_manager::RecordAccountUpsertionResultStatus(
-      result.has_value() ? result->status()
-                         : account_manager::AccountUpsertionResult::Status::
-                               kUnexpectedResponse);
-}
-
 crosapi::AccountManagerMojoService& GetAccountManagerMojoServiceForSettings(
     content::BrowserContext* browser_context) {
   CHECK(browser_context);
@@ -117,9 +105,6 @@ void ShowSettingsAddAccountDialog(content::BrowserContext* browser_context) {
   crosapi::AccountManagerMojoService& account_manager_mojo_service =
       GetAccountManagerMojoServiceForSettings(browser_context);
 
-  account_manager::RecordAccountAdditionSource(
-      account_manager::AccountAdditionSource::kSettingsAddAccountButton);
-
   crosapi::mojom::AccountAdditionOptionsPtr options =
       crosapi::mojom::AccountAdditionOptions::New();
   options->is_available_in_arc = true;
@@ -128,8 +113,8 @@ void ShowSettingsAddAccountDialog(content::BrowserContext* browser_context) {
   // TODO(b/365741912, b/365902693): Route Settings add-account through the
   // replacement Account Manager dialog path once it exists.
   account_manager_mojo_service.ShowAddAccountDialog(
-      std::move(options),
-      base::BindOnce(&RecordMojoAccountUpsertionResultStatus));
+      account_manager::AccountAdditionSource::kSettingsAddAccountButton,
+      std::move(options), base::DoNothing());
 }
 
 void ShowSettingsAccountReauthDialog(content::BrowserContext* browser_context,
@@ -137,13 +122,11 @@ void ShowSettingsAccountReauthDialog(content::BrowserContext* browser_context,
   crosapi::AccountManagerMojoService& account_manager_mojo_service =
       GetAccountManagerMojoServiceForSettings(browser_context);
 
-  account_manager::RecordAccountAdditionSource(
-      account_manager::AccountAdditionSource::kSettingsReauthAccountButton);
-
   // TODO(b/365741912, b/365902693): Route Settings reauth through the
   // replacement Account Manager dialog path once it exists.
   account_manager_mojo_service.ShowReauthAccountDialog(
-      email, base::BindOnce(&RecordMojoAccountUpsertionResultStatus));
+      account_manager::AccountAdditionSource::kSettingsReauthAccountButton,
+      email, base::DoNothing());
 }
 
 class AccountBuilder {

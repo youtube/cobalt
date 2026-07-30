@@ -605,9 +605,6 @@ class Browser : public TabStripModelObserver,
   // Deprecated: Use capabilities()->CanSupportWindowFeature instead.
   bool CanSupportWindowFeature(WindowFeature feature) const;
 
-  // Show various bits of UI
-  void OpenFile();
-
   /////////////////////////////////////////////////////////////////////////////
 
   // Called by Navigate() when a navigation has occurred in a tab in
@@ -746,7 +743,6 @@ class Browser : public TabStripModelObserver,
       DidBecomeActiveCallback callback) override;
   base::CallbackListSubscription RegisterDidBecomeInactive(
       DidBecomeInactiveCallback callback) override;
-  ExclusiveAccessManager* GetExclusiveAccessManager() override;
   BrowserActions* GetActions() override;
   Type GetType() const override;
   std::vector<tabs::TabInterface*> GetAllTabInterfaces() override;
@@ -1023,8 +1019,6 @@ class Browser : public TabStripModelObserver,
 
   // Removes all entries from scheduled_updates_ whose source is contents.
   void RemoveScheduledUpdatesFor(content::WebContents* contents);
-
-  void OnFileSelectedFromDialog(const GURL& url);
 
   // Getters for UI ///////////////////////////////////////////////////////////
 

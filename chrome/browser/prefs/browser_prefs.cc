@@ -55,6 +55,7 @@
 #include "chrome/browser/notifications/notification_display_service_impl.h"
 #include "chrome/browser/notifications/notifier_state_tracker.h"
 #include "chrome/browser/notifications/platform_notification_service_impl.h"
+#include "chrome/browser/notifications/scheduler/public/tips_prefs.h"
 #include "chrome/browser/permissions/quiet_notification_permission_ui_state.h"
 #include "chrome/browser/platform_experience/prefs.h"
 #include "chrome/browser/prefs/chrome_pref_service_factory.h"
@@ -432,6 +433,7 @@
 #include "chrome/browser/ash/release_notes/release_notes_storage.h"
 #include "chrome/browser/ash/scanning/chrome_scanning_app_delegate.h"
 #include "chrome/browser/ash/settings/hardware_data_usage_controller.h"
+#include "chrome/browser/ash/settings/metrics_reporting_level_controller.h"
 #include "chrome/browser/ash/settings/stats_reporting_controller.h"
 #include "chrome/browser/ash/system/automatic_reboot_manager.h"
 #include "chrome/browser/ash/system/input_device_settings.h"
@@ -578,72 +580,6 @@ namespace {
 
 // Please keep the list of deprecated prefs in chronological order. i.e. Add to
 // the bottom of the list, not here at the top.
-
-// Deprecated 04/2025.
-inline constexpr char kDefaultSearchProviderChoiceScreenShuffleMilestone[] =
-    "default_search_provider.choice_screen_shuffle_milestone";
-#if !BUILDFLAG(IS_ANDROID)
-inline char kPerformanceInterventionNotificationAcceptHistoryDeprecated[] =
-    "performance_tuning.intervention_notification.accept_history";
-#endif  // !BUILDFLAG(IS_ANDROID)
-
-// Deprecated 04/2025.
-inline constexpr char kAddedBookmarkSincePowerBookmarksLaunch[] =
-    "bookmarks.added_since_power_bookmarks_launch";
-inline constexpr char kGlicRolloutEligibility[] = "glic.rollout_eligibility";
-
-// Deprecated 04/2025.
-inline constexpr char kManagedAccessToGetAllScreensMediaAllowedForUrls[] =
-    "profile.managed_access_to_get_all_screens_media_allowed_for_urls";
-
-#if BUILDFLAG(IS_ANDROID)
-// Deprecated 04/2025.
-constexpr char kObsoleteUserAcknowledgedLocalPasswordsMigrationWarning[] =
-    "user_acknowledged_local_passwords_migration_warning";
-
-// Deprecated 04/2025.
-constexpr char kObsoleteLocalPasswordMigrationWarningPrefsVersion[] =
-    "local_passwords_migration_warning_reset_count";
-#endif
-
-// Deprecated 04/2025.
-inline constexpr char kSuggestionGroupVisibility[] =
-    "omnibox.suggestionGroupVisibility";
-
-#if BUILDFLAG(IS_ANDROID)
-// Deprecated 05/2025.
-inline constexpr char kWipedWebAPkDataForMigration[] =
-    "sync.wiped_web_apk_data_for_migration";
-#endif  // BUILDFLAG(IS_ANDROID)
-
-// Deprecated 05/2025.
-inline constexpr char kSyncCacheGuid[] = "sync.cache_guid";
-inline constexpr char kSyncBirthday[] = "sync.birthday";
-inline constexpr char kSyncBagOfChips[] = "sync.bag_of_chips";
-inline constexpr char kSyncLastSyncedTime[] = "sync.last_synced_time";
-inline constexpr char kSyncLastPollTime[] = "sync.last_poll_time";
-inline constexpr char kSyncPollInterval[] = "sync.short_poll_interval";
-inline constexpr char kHasSeenWelcomePage[] = "browser.has_seen_welcome_page";
-inline constexpr char kSharingVapidKey[] = "sharing.vapid_key";
-
-#if BUILDFLAG(IS_WIN)
-// Deprecated 05/2025.
-inline constexpr char kIncompatibleApplications[] = "incompatible_applications";
-
-// Deprecated 05/2025.
-inline constexpr char kModuleBlocklistCacheMD5Digest[] =
-    "module_blocklist_cache_md5_digest";
-#endif  // BUILDFLAG(IS_WIN)
-
-// Deprecated 05/2025.
-inline constexpr char kPrivacySandboxFakeNoticePromptShownTimeSync[] =
-    "privacy_sandbox.fake_notice.prompt_shown_time_sync";
-inline constexpr char kPrivacySandboxFakeNoticePromptShownTime[] =
-    "privacy_sandbox.fake_notice.prompt_shown_time";
-inline constexpr char kPrivacySandboxFakeNoticeFirstSignInTime[] =
-    "privacy_sandbox.fake_notice.first_sign_in_time";
-inline constexpr char kPrivacySandboxFakeNoticeFirstSignOutTime[] =
-    "privacy_sandbox.fake_notice.first_sign_out_time";
 
 // Deprecated 06/2025.
 inline constexpr char kStorageGarbageCollect[] =
@@ -1034,20 +970,6 @@ constexpr char kContextualCueingEnterprisePolicyAllowedDeprecated[] =
 // Register local state used only for migration (clearing or moving to a new
 // key).
 void RegisterLocalStatePrefsForMigration(PrefRegistrySimple* registry) {
-#if !BUILDFLAG(IS_ANDROID)
-  // Deprecated 04/2025.
-  registry->RegisterListPref(
-      kPerformanceInterventionNotificationAcceptHistoryDeprecated);
-#endif
-
-#if BUILDFLAG(IS_WIN)
-  // Deprecated 05/2025.
-  registry->RegisterDictionaryPref(kIncompatibleApplications);
-
-  // Deprecated 05/2025.
-  registry->RegisterStringPref(kModuleBlocklistCacheMD5Digest, "");
-#endif
-
   // Deprecated 06/2025.
   registry->RegisterUint64Pref(kVariationsLimitedEntropySyntheticTrialSeed, 0);
   registry->RegisterUint64Pref(kVariationsLimitedEntropySyntheticTrialSeedV2,
@@ -1153,57 +1075,6 @@ void RegisterLocalStatePrefsForMigration(PrefRegistrySimple* registry) {
 // Register prefs used only for migration (clearing or moving to a new key).
 void RegisterProfilePrefsForMigration(
     user_prefs::PrefRegistrySyncable* registry) {
-  // Deprecated 04/2025.
-  registry->RegisterIntegerPref(
-      kDefaultSearchProviderChoiceScreenShuffleMilestone, 0);
-
-  // Deprecated 04/2025.
-  registry->RegisterBooleanPref(kAddedBookmarkSincePowerBookmarksLaunch, false);
-
-  // Deprecated 04/2025.
-  registry->RegisterIntegerPref(kGlicRolloutEligibility, 0);
-
-  // Deprecated 04/2025.
-  registry->RegisterListPref(kManagedAccessToGetAllScreensMediaAllowedForUrls);
-
-#if BUILDFLAG(IS_ANDROID)
-  // Deprecated 04/2025.
-  registry->RegisterBooleanPref(
-      kObsoleteUserAcknowledgedLocalPasswordsMigrationWarning, false);
-
-  // Deprecated 04/2025.
-  registry->RegisterIntegerPref(
-      kObsoleteLocalPasswordMigrationWarningPrefsVersion, 0);
-#endif
-
-  // Deprecated 04/2025.
-  registry->RegisterDictionaryPref(kSuggestionGroupVisibility);
-
-  // Deprecated 05/2025.
-  registry->RegisterTimePref(kPrivacySandboxFakeNoticePromptShownTimeSync,
-                             base::Time());
-  registry->RegisterTimePref(kPrivacySandboxFakeNoticePromptShownTime,
-                             base::Time());
-  registry->RegisterTimePref(kPrivacySandboxFakeNoticeFirstSignInTime,
-                             base::Time());
-  registry->RegisterTimePref(kPrivacySandboxFakeNoticeFirstSignOutTime,
-                             base::Time());
-
-  // Deprecated 05/2025.
-#if BUILDFLAG(IS_ANDROID)
-  registry->RegisterBooleanPref(kWipedWebAPkDataForMigration, false);
-#endif  // BUILDFLAG(IS_ANDROID)
-
-  // Deprecated 05/2025.
-  registry->RegisterStringPref(kSyncCacheGuid, std::string());
-  registry->RegisterStringPref(kSyncBirthday, std::string());
-  registry->RegisterStringPref(kSyncBagOfChips, std::string());
-  registry->RegisterTimePref(kSyncLastSyncedTime, base::Time());
-  registry->RegisterTimePref(kSyncLastPollTime, base::Time());
-  registry->RegisterTimeDeltaPref(kSyncPollInterval, base::TimeDelta());
-  registry->RegisterDictionaryPref(kSharingVapidKey);
-  registry->RegisterBooleanPref(kHasSeenWelcomePage, false);
-
   // Deprecated 06/2025.
   registry->RegisterBooleanPref(kStorageGarbageCollect, false);
   registry->RegisterDoublePref(kGaiaCookiePeriodicReportTimeDeprecated, 0);
@@ -1619,6 +1490,7 @@ void RegisterLocalState(PrefRegistrySimple* registry) {
   ash::ServicesCustomizationDocument::RegisterPrefs(registry);
   ash::StartupUtils::RegisterPrefs(registry);
   ash::StatsReportingController::RegisterLocalStatePrefs(registry);
+  ash::MetricsReportingLevelController::RegisterLocalStatePrefs(registry);
   ash::system::AutomaticRebootManager::RegisterPrefs(registry);
   ash::TimeZoneResolver::RegisterPrefs(registry);
   ash::UserImageManagerImpl::RegisterPrefs(registry);
@@ -1846,6 +1718,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   QuietNotificationPermissionUiState::RegisterProfilePrefs(registry);
   regional_capabilities::prefs::RegisterProfilePrefs(registry);
   RegisterBrowserUserPrefs(registry);
+  registry->RegisterBooleanPref(prefs::kRestrictYouTubeCookiesDeletion, false);
   RegisterGeminiSettingsPrefs(registry);
   RegisterPrefersDefaultScrollbarStylesPrefs(registry);
   RegisterSafetyHubProfilePrefs(registry);
@@ -2259,22 +2132,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   registry->RegisterBooleanPref(ntp_tiles::prefs::kTipsHomeModuleEnabled, true);
 
 #if BUILDFLAG(IS_ANDROID)
-  registry->RegisterBooleanPref(prefs::kAndroidTipNotificationShownESB, false);
-  registry->RegisterBooleanPref(prefs::kAndroidTipNotificationShownQuickDelete,
-                                false);
-  registry->RegisterBooleanPref(prefs::kAndroidTipNotificationShownLens, false);
-  registry->RegisterBooleanPref(
-      prefs::kAndroidTipNotificationShownBottomOmnibox, false);
-  registry->RegisterBooleanPref(
-      prefs::kAndroidTipNotificationShownPasswordAutofill, false);
-  registry->RegisterBooleanPref(prefs::kAndroidTipNotificationShownSignin,
-                                false);
-  registry->RegisterBooleanPref(
-      prefs::kAndroidTipNotificationShownCreateTabGroups, false);
-  registry->RegisterBooleanPref(prefs::kAndroidTipNotificationShownCustomizeMVT,
-                                false);
-  registry->RegisterBooleanPref(prefs::kAndroidTipNotificationShownRecentTabs,
-                                false);
+  notifications::tips::prefs::RegisterProfilePrefs(registry);
 #endif  // BUILDFLAG(IS_ANDROID)
 
   registry->RegisterBooleanPref(prefs::kStaticStorageQuotaEnabled, false);
@@ -2327,24 +2185,6 @@ void MigrateObsoleteLocalStatePrefs(PrefService* local_state) {
 
   // BEGIN_MIGRATE_OBSOLETE_LOCAL_STATE_PREFS
   // Please don't delete the preceding line. It is used by PRESUBMIT.py.
-
-  // Added 02/2025
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS)
-  local_state->ClearPref(prefs::kDefaultBrowserPromptRefreshStudyGroup);
-#endif
-
-#if !BUILDFLAG(IS_ANDROID)
-  local_state->ClearPref(
-      kPerformanceInterventionNotificationAcceptHistoryDeprecated);
-#endif  // !BUILDFLAG(IS_ANDROID)
-
-#if BUILDFLAG(IS_WIN)
-  // Deprecated 05/2025.
-  local_state->ClearPref(kIncompatibleApplications);
-
-  // Deprecated 05/2025.
-  local_state->ClearPref(kModuleBlocklistCacheMD5Digest);
-#endif
 
   // Added 06/2025.
   local_state->ClearPref(kVariationsLimitedEntropySyntheticTrialSeed);
@@ -2501,12 +2341,6 @@ void MigrateObsoleteProfilePrefs(PrefService* profile_prefs,
   profile_prefs->ClearPref(kSessionRestoreTurnOffFromSessionInfoBarTimesShown);
   profile_prefs->ClearPref(kSessionRestorePrefChanged);
 
-  // Added 05/2025.
-  profile_prefs->ClearPref(kPrivacySandboxFakeNoticePromptShownTimeSync);
-  profile_prefs->ClearPref(kPrivacySandboxFakeNoticePromptShownTime);
-  profile_prefs->ClearPref(kPrivacySandboxFakeNoticeFirstSignInTime);
-  profile_prefs->ClearPref(kPrivacySandboxFakeNoticeFirstSignOutTime);
-
   privacy_sandbox::PrivacySandboxNoticeStorage::UpdateNoticeSchemaV2(
       profile_prefs);
 
@@ -2518,45 +2352,6 @@ void MigrateObsoleteProfilePrefs(PrefService* profile_prefs,
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS)
   MigrateDefaultBrowserLastDeclinedPref(profile_prefs);
 #endif
-
-  // Added 04/2025.
-  profile_prefs->ClearPref(kDefaultSearchProviderChoiceScreenShuffleMilestone);
-
-  // Added 04/2025.
-  profile_prefs->ClearPref(kAddedBookmarkSincePowerBookmarksLaunch);
-
-  // Added 04/2025.
-  profile_prefs->ClearPref(kGlicRolloutEligibility);
-
-  // Added 04/2025
-  profile_prefs->ClearPref(kManagedAccessToGetAllScreensMediaAllowedForUrls);
-
-#if BUILDFLAG(IS_ANDROID)
-  // Added 04/2025
-  profile_prefs->ClearPref(
-      kObsoleteUserAcknowledgedLocalPasswordsMigrationWarning);
-
-  // Added 04/2025.
-  profile_prefs->ClearPref(kObsoleteLocalPasswordMigrationWarningPrefsVersion);
-#endif
-
-  // Added 04/2025.
-  profile_prefs->ClearPref(kSuggestionGroupVisibility);
-
-#if BUILDFLAG(IS_ANDROID)
-  // Added 05/2025.
-  profile_prefs->ClearPref(kWipedWebAPkDataForMigration);
-#endif  // BUILDFLAG(IS_ANDROID)
-
-  // Added 05/2025.
-  profile_prefs->ClearPref(kSyncCacheGuid);
-  profile_prefs->ClearPref(kSyncBirthday);
-  profile_prefs->ClearPref(kSyncBagOfChips);
-  profile_prefs->ClearPref(kSyncLastSyncedTime);
-  profile_prefs->ClearPref(kSyncLastPollTime);
-  profile_prefs->ClearPref(kSyncPollInterval);
-  profile_prefs->ClearPref(kSharingVapidKey);
-  profile_prefs->ClearPref(kHasSeenWelcomePage);
 
   // Added 06/2025.
   profile_prefs->ClearPref(kStorageGarbageCollect);

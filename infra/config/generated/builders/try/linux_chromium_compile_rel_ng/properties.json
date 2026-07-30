@@ -67,7 +67,7 @@
           {
             "builder_id": {
               "bucket": "ci",
-              "builder": "linux-oi-rel",
+              "builder": "linux-no-initial-webui-rel",
               "project": "chromium"
             },
             "builder_spec": {
@@ -83,9 +83,6 @@
                 "target_platform": "linux"
               },
               "legacy_gclient_config": {
-                "apply_configs": [
-                  "use_clang_coverage"
-                ],
                 "config": "chromium"
               },
               "parent": {
@@ -98,7 +95,7 @@
           {
             "builder_id": {
               "bucket": "ci",
-              "builder": "linux-webium-product-rel",
+              "builder": "linux-oi-rel",
               "project": "chromium"
             },
             "builder_spec": {
@@ -143,12 +140,12 @@
         },
         {
           "bucket": "ci",
-          "builder": "linux-oi-rel",
+          "builder": "linux-no-initial-webui-rel",
           "project": "chromium"
         },
         {
           "bucket": "ci",
-          "builder": "linux-webium-product-rel",
+          "builder": "linux-oi-rel",
           "project": "chromium"
         }
       ],
@@ -158,14 +155,12 @@
   },
   "$build/siso": {
     "configs": [
-      "builder",
-      "remote-link"
+      "builder"
     ],
     "enable_cloud_monitoring": true,
     "enable_cloud_trace": true,
     "experiments": [],
     "keep_going": 3,
-    "output_local_strategy": "minimum",
     "profile_mode": "cloud",
     "project": "rbe-chromium-untrusted",
     "remote_jobs": 150

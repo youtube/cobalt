@@ -154,6 +154,7 @@ pa_buildflag_header("buildflags") {
     "ENABLE_BACKUP_REF_PTR_INSTANCE_TRACER=$enable_backup_ref_ptr_instance_tracer",
     "ENABLE_BACKUP_REF_PTR_SLOW_CHECKS=$enable_backup_ref_ptr_slow_checks",
     "ENABLE_BACKUP_REF_PTR_SUPPORT=$enable_backup_ref_ptr_support",
+    "ENABLE_BRP_FOR_UNPROTECTED_IN_RELEASE_RAW_PTR=$enable_brp_for_unprotected_in_release_raw_ptr",
     "ENABLE_DANGLING_RAW_PTR_CHECKS=$enable_dangling_raw_ptr_checks",
     "ENABLE_DANGLING_RAW_PTR_FEATURE_FLAG=$enable_dangling_raw_ptr_feature_flag",
     "ENABLE_GWP_ASAN_SUPPORT=$enable_gwp_asan_support",
@@ -179,6 +180,7 @@ pa_buildflag_header("buildflags") {
     "IS_COMPONENT_BUILD=$is_component_build",
     "IS_DEBUG=$partition_alloc_is_debug",
     "IS_HWASAN=$is_hwasan",
+    "OFFICIAL=$partition_alloc_is_official_build",
     "RAW_PTR_ZERO_ON_CONSTRUCT=$raw_ptr_zero_on_construct",
     "RAW_PTR_ZERO_ON_DESTRUCT=$raw_ptr_zero_on_destruct",
     "RAW_PTR_ZERO_ON_MOVE=$raw_ptr_zero_on_move",
@@ -226,8 +228,12 @@ component("raw_ptr") {
     "pointers/raw_ptr_exclusion.h",
     "pointers/raw_ptr_noop_impl.h",
     "pointers/raw_ref.h",
+    "pointers/realloc_protected_iterator.h",
   ]
-  sources = [ "pointers/instance_tracer.cc" ]
+  sources = [
+    "pointers/instance_tracer.cc",
+    "pointers/realloc_protected_iterator.cc",
+  ]
   public_configs = [ ":public_includes" ]
   configs += [ ":wexit_time_destructors" ]
   deps = []
@@ -443,6 +449,7 @@ if (is_clang_or_gcc) {
       "dangling_raw_ptr_checks.h",
       "extent_in_bounds.h",
       "flags.h",
+      "free_hint.h",
       "gwp_asan_support.cc",
       "gwp_asan_support.h",
       "in_slot_metadata.cc",
@@ -1083,6 +1090,7 @@ if (build_with_chromium) {
         "partition_alloc_base/strings/stringprintf_pa_unittest.cc",
         "partition_alloc_base/thread_annotations_pa_unittest.cc",
         "partition_lock_unittest.cc",
+        "pointers/realloc_protected_iterator_unittest.cc",
         "reverse_bytes_unittest.cc",
         "scheduler_loop_quarantine_unittest.cc",
         "thread_cache_unittest.cc",

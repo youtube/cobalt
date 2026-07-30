@@ -69,11 +69,7 @@ class SettingsBrowserTest : public WebUIMochaBrowserTest {
  protected:
   SettingsBrowserTest() {
     scoped_feature_list_.InitWithFeatures(
-        {
-#if BUILDFLAG(IS_CHROMEOS)
-            autofill::features::kAutofillEnablePaymentsMandatoryReauthChromeOs,
-#endif
-        },
+        {},
         /*disabled_features=*/
         {features::kGlicDefaultTabContextSetting});
     set_test_loader_host(chrome::kChromeUISettingsHost);
@@ -263,6 +259,10 @@ IN_PROC_BROWSER_TEST_F(SettingsTest, LoggingInfoBullet) {
 
 IN_PROC_BROWSER_TEST_F(SettingsTest, PolicyIndicator) {
   RunTest("settings/ai_policy_indicator_test.js", "mocha.run()");
+}
+
+IN_PROC_BROWSER_TEST_F(SettingsTest, SkillsPage) {
+  RunTest("settings/skills_page_test.js", "mocha.run()");
 }
 
 IN_PROC_BROWSER_TEST_F(SettingsTest, ExtensionControlledIndicator) {
@@ -1212,11 +1212,9 @@ IN_PROC_BROWSER_TEST_F(SettingsTest, DISABLED_Subpage) {
   RunTest("settings/settings_subpage_test.js", "mocha.run()");
 }
 
-#if !BUILDFLAG(IS_CHROMEOS)
 IN_PROC_BROWSER_TEST_F(SettingsTest, SyncAccountControl) {
   RunTest("settings/sync_account_control_test.js", "mocha.run()");
 }
-#endif
 
 IN_PROC_BROWSER_TEST_F(SettingsTest, SyncEncryptionOptions) {
   RunTest("settings/sync_encryption_options_test.js", "mocha.run()");
@@ -2019,6 +2017,11 @@ IN_PROC_BROWSER_TEST_F(SettingsSiteSettingsPageTest,
                        ContentSettingsVisibility) {
   RunTest("settings/site_settings_page_test.js",
           "runMochaSuite('ContentSettingsVisibility')");
+}
+
+IN_PROC_BROWSER_TEST_F(SettingsSiteSettingsPageTest, SiteSettingsList) {
+  RunTest("settings/site_settings_page_test.js",
+          "runMochaSuite('SiteSettingsList')");
 }
 
 // Tests that the content settings page for Web Printing is not shown by

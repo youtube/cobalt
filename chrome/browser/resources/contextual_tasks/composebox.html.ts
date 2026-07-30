@@ -49,6 +49,7 @@ export function getHtml(this: ContextualTasksComposeboxElement) {
         >
       <cr-composebox
           id="composebox"
+          .isSidePanel="${this.isSidePanel}"
           .autofocus="${false}"
           carousel-on-top_
           entrypoint-name="ContextualTasks"
@@ -69,6 +70,8 @@ export function getHtml(this: ContextualTasksComposeboxElement) {
           .usePecApi="${this.usePecApi_}"
           .energyEffectAnimationEnabled="${this.energyEffectAnimationEnabled_}"
           .energyEffectEnabled="${this.energyEffectAnimationEnabled_}"
+          .glifAnimationState="${this.glifAnimationState_}"
+          .disableFallbackGlifAnimation="${true}"
           .isZeroState="${this.isZeroState}"
           @result-changed="${this.onSuggestionsResultChanged_}"
           @open-image-upload="${this.onOpenImageUpload_}"

@@ -30,6 +30,7 @@
 #include "chrome/browser/glic/browser_ui/glic_nudge_controller.h"
 #include "chrome/browser/glic/public/features.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
+#include "chrome/browser/glic/public/glic_invoke_options.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/media/router/media_router_feature.h"
@@ -420,6 +421,9 @@ void ToolbarView::Init() {
     toolbar_webview_ = AddChildView(std::make_unique<WebUIToolbarWebView>(
         browser_, browser_->command_controller(),
         std::move(webui_location_bar)));
+
+    toolbar_webview_->SetProperty(views::kFlexBehaviorKey,
+                                  toolbar_webview_->GetFlexSpecification());
   }
 
   if (!features::IsWebUIReloadButtonEnabled() ||
@@ -576,8 +580,14 @@ void ToolbarView::Init() {
     InitGlicContainer();
 
     glic_button_ = AddChildView(CreateGlicButton());
+    // The left margin is needed to ensure proper spacing before the
+    // separator. The right margin is needed for spacing between the glic and
+    // actor icons. The space between glic and profile should also be 5 but that
+    // is handled by the profile margins.
     glic_button_->SetProperty(views::kMarginsKey,
-                              gfx::Insets::VH(0, kGlicButtonMargin));
+                              gfx::Insets()
+                                  .set_left(kGlicButtonMargin)
+                                  .set_right(kInsideBorderAroundGlicButtons));
     UpdateGlicButtonVisibility();
   }
 
@@ -726,6 +736,14 @@ ToolbarView::CreateGlicActorTaskIcon() {
   glic_actor_task_icon->SetProperty(views::kCrossAxisAlignmentKey,
                                     views::LayoutAlignment::kCenter);
 
+  if (base::FeatureList::IsEnabled(features::kToolbarGlicButtonResizing)) {
+    glic_actor_task_icon->SetProperty(
+        views::kFlexBehaviorKey,
+        views::FlexSpecification(
+            views::MinimumFlexSizeRule::kPreferredSnapToMinimum,
+            views::MaximumFlexSizeRule::kPreferred));
+  }
+
   return glic_actor_task_icon;
 }
 
@@ -795,10 +813,21 @@ void ToolbarView::OnGlicButtonClicked() {
                  : glic::mojom::InvocationSource::kToolbarButton;
   }
 
-  glic::GlicKeyedServiceFactory::GetGlicKeyedService(
-      browser_view_->GetProfile())
-      ->ToggleUI(browser_view_->browser(),
-                 /*prevent_close=*/false, source, prompt_suggestion);
+  auto* glic_service = glic::GlicKeyedServiceFactory::GetGlicKeyedService(
+      browser_view_->GetProfile());
+  const bool is_panel_showing =
+      glic_service->IsPanelShowingForBrowser(*browser_view_->browser());
+  if (!is_panel_showing && prompt_suggestion.has_value() &&
+      !prompt_suggestion->empty()) {
+    tabs::TabInterface* active_tab =
+        browser_view_->browser()->tab_strip_model()->GetActiveTab();
+    glic::GlicInvokeOptions options(glic::Target(active_tab), source);
+    options.prompts.push_back(std::move(*prompt_suggestion));
+    glic_service->Invoke(std::move(options));
+  } else {
+    glic_service->ToggleUI(browser_view_->browser(),
+                           /*prevent_close=*/false, source);
+  }
 
   if (glic_button_->GetIsShowingNudge()) {
     glic_nudge_controller->OnNudgeActivity(
@@ -1582,7 +1611,7 @@ void ToolbarView::InitLayout() {
   toolbar_controller_ = std::make_unique<ToolbarController>(
       ToolbarController::GetDefaultResponsiveElements(browser_),
       ToolbarController::GetDefaultOverflowOrder(), kToolbarFlexOrderStart,
-      this, overflow_button_, pinned_toolbar_actions_,
+      this, toolbar_webview_.get(), overflow_button_, pinned_toolbar_actions_,
       PinnedToolbarActionsModel::Get(browser_view_->GetProfile()));
   overflow_button_->set_toolbar_controller(toolbar_controller_.get());
 

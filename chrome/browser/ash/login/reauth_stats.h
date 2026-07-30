@@ -8,11 +8,17 @@
 #include "ash/public/cpp/reauth_reason.h"
 
 class AccountId;
+class PrefService;
 
 namespace ash {
 
-void RecordReauthReason(const AccountId& account_id, ReauthReason reason);
-void SendReauthReason(const AccountId& account_id, bool password_changed);
+void RecordReauthReason(PrefService& local_state,
+                        const AccountId& account_id,
+                        ReauthReason reason);
+
+void SendReauthReason(PrefService& local_state,
+                      const AccountId& account_id,
+                      bool password_changed);
 
 }  // namespace ash
 

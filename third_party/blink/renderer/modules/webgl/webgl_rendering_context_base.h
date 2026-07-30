@@ -78,7 +78,7 @@ namespace blink {
 
 class AcceleratedStaticBitmapImage;
 class CanvasNon2DResourceProviderSharedImage;
-class CanvasSnapshotProvider;
+struct CanvasSnapshotInfo;
 class EXTDisjointTimerQuery;
 class EXTDisjointTimerQueryWebGL2;
 class V8UnionElementOrElementImage;
@@ -101,6 +101,7 @@ class WebGLCompressedTextureETC1;
 class WebGLCompressedTexturePVRTC;
 class WebGLCompressedTextureS3TC;
 class WebGLCompressedTextureS3TCsRGB;
+class WebGLCopyElementImageConfig;
 class WebGLDebugShaders;
 class WebGLDrawBuffers;
 class WebGLExtension;
@@ -425,47 +426,9 @@ class MODULES_EXPORT WebGLRenderingContextBase
                   ExceptionState&);
 
   void texElementImage2D(GLenum target,
-                         GLint level,
-                         GLint internalformat,
-                         GLenum format,
-                         GLenum type,
+                         GLenum internalformat,
                          const V8UnionElementOrElementImage* element,
-                         ExceptionState& exception_state);
-
-  void texElementImage2D(GLenum target,
-                         GLint level,
-                         GLint internalformat,
-                         GLsizei width,
-                         GLsizei height,
-                         GLenum format,
-                         GLenum type,
-                         const V8UnionElementOrElementImage* element,
-                         ExceptionState& exception_state);
-
-  void texElementImage2D(GLenum target,
-                         GLint level,
-                         GLint internalformat,
-                         GLfloat sx,
-                         GLfloat sy,
-                         GLfloat swidth,
-                         GLfloat sheight,
-                         GLenum format,
-                         GLenum type,
-                         const V8UnionElementOrElementImage* element,
-                         ExceptionState& exception_state);
-
-  void texElementImage2D(GLenum target,
-                         GLint level,
-                         GLint internalformat,
-                         GLfloat sx,
-                         GLfloat sy,
-                         GLfloat swidth,
-                         GLfloat sheight,
-                         GLsizei width,
-                         GLsizei height,
-                         GLenum format,
-                         GLenum type,
-                         const V8UnionElementOrElementImage* element,
+                         const WebGLCopyElementImageConfig* config,
                          ExceptionState& exception_state);
 
   void texParameterf(GLenum target, GLenum pname, GLfloat param);
@@ -667,9 +630,7 @@ class MODULES_EXPORT WebGLRenderingContextBase
     void Trace(Visitor*) const;
   };
 
-  SkAlphaType GetAlphaType() const override;
-  viz::SharedImageFormat GetSharedImageFormat() const override;
-  gfx::ColorSpace GetColorSpace() const override;
+  bool IsOpaque() const override;
   scoped_refptr<StaticBitmapImage> GetImage() override;
   void SetHdrMetadata(const gfx::HDRMetadata& hdr_metadata) override;
 
@@ -779,6 +740,7 @@ class MODULES_EXPORT WebGLRenderingContextBase
   void DrawingBufferClientInterruptPixelLocalStorage() override;
   void DrawingBufferClientRestorePixelLocalStorage() override;
   void DrawingBufferClientRestoreScissorTest() override;
+  void DrawingBufferClientRestoreRasterizerDiscard() override;
   void DrawingBufferClientRestoreMaskAndClearValues() override;
   void DrawingBufferClientRestorePixelPackParameters() override;
   void DrawingBufferClientRestoreTexture2DBinding() override;
@@ -931,25 +893,19 @@ class MODULES_EXPORT WebGLRenderingContextBase
 
   // Fixed-size cache of reusable snapshot providers for image and video
   // texImage2D calls.
-  class LRUCanvasSnapshotProviderCache {
+  class LRUCanvasResourceProviderCache {
    public:
-    enum class CacheType { kImage, kVideo };
-    LRUCanvasSnapshotProviderCache(wtf_size_t capacity, CacheType type);
+    LRUCanvasResourceProviderCache(wtf_size_t capacity);
     // The pointer returned is owned by the image buffer map.
-    CanvasSnapshotProvider* GetCanvasSnapshotProvider(
-        const CanvasSnapshotProvider::Info& info,
-        bool& tried_to_create_provider);
+    CanvasNon2DResourceProviderSharedImage* GetCanvasResourceProvider(
+        const CanvasSnapshotInfo& info);
 
    private:
     void BubbleToFront(wtf_size_t idx);
     const wtf_size_t capacity_;
-    const CacheType type_;
-    Vector<std::unique_ptr<CanvasSnapshotProvider>> snapshot_providers_;
+    Vector<std::unique_ptr<CanvasNon2DResourceProviderSharedImage>> providers_;
   };
-  LRUCanvasSnapshotProviderCache generated_image_cache_{
-      4, LRUCanvasSnapshotProviderCache::CacheType::kImage};
-  LRUCanvasSnapshotProviderCache generated_video_cache_{
-      4, LRUCanvasSnapshotProviderCache::CacheType::kVideo};
+  LRUCanvasResourceProviderCache generated_video_cache_{4};
 
   GLint max_texture_size_;
   GLint max_cube_map_texture_size_;
@@ -1980,6 +1936,10 @@ class MODULES_EXPORT WebGLRenderingContextBase
 
   void RecordANGLEImplementation();
 
+  viz::SharedImageFormat GetSharedImageFormat() const;
+  gfx::ColorSpace GetColorSpace() const;
+  SkAlphaType GetAlphaType() const;
+
  private:
   WebGLRenderingContextBase(CanvasRenderingContextHost*,
                             scoped_refptr<base::SingleThreadTaskRunner>,
@@ -2032,16 +1992,13 @@ class MODULES_EXPORT WebGLRenderingContextBase
   void Dispose() override;
 
   void TexElementImage2DInternal(GLenum target,
-                                 GLint level,
-                                 GLint internalformat,
+                                 GLenum internalformat,
                                  std::optional<GLfloat> sx,
                                  std::optional<GLfloat> sy,
                                  std::optional<GLfloat> swidth,
                                  std::optional<GLfloat> sheight,
                                  std::optional<GLsizei> width,
                                  std::optional<GLsizei> height,
-                                 GLenum format,
-                                 GLenum type,
                                  const V8UnionElementOrElementImage* element,
                                  ExceptionState& exception_state);
 

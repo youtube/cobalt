@@ -3042,6 +3042,8 @@ class BannedTypeCheckTest(unittest.TestCase):
             MockFile('some/path/ok.gn', ['# A comment with no flag']),
             MockFile('some/path/BUILD_lower.gn',
                      ['if (is_desktop_android) {']),
+            MockFile('ui/webui/resources/BUILD.gn',
+                     ['if (is_desktop_android) {']),
         ]
 
         results = PRESUBMIT.CheckNoBannedPatterns(input_api, MockOutputApi())
@@ -3052,6 +3054,8 @@ class BannedTypeCheckTest(unittest.TestCase):
         self.assertIn('some/path/BUILD_lower.gn', results[2].message)
         self.assertTrue(
             all('some/path/ok.gn' not in r.message for r in results))
+        self.assertTrue(
+            all('ui/webui/resources/' not in r.message for r in results))
 
     def testBannedCppFunctions(self):
         input_api = MockInputApi()
@@ -3172,6 +3176,23 @@ class BannedTypeCheckTest(unittest.TestCase):
         self.assertTrue(
             all('base/memory/memory_pressure_listener.cc' not in r.message
                 for r in results))
+
+    def testBannedWebContentsDestroyedDoesNotMatchWatcher(self):
+        input_api = MockInputApi()
+        input_api.files = [
+            MockFile('some/cpp/problematic/web_contents_observer.cc',
+                     ['void WebContentsDestroyed() override;']),
+            MockFile('some/cpp/ok/web_contents_destroyed_watcher.cc',
+                     ['content::WebContentsDestroyedWatcher watcher;']),
+        ]
+
+        results = PRESUBMIT.CheckNoBannedPatterns(input_api, MockOutputApi())
+
+        self.assertEqual(1, len(results))
+        self.assertIn('some/cpp/problematic/web_contents_observer.cc',
+                      results[0].message)
+        self.assertNotIn('some/cpp/ok/web_contents_destroyed_watcher.cc',
+                         results[0].message)
 
     def testBannedCppRandomFunctions(self):
         banned_rngs = [
@@ -5089,7 +5110,7 @@ class AssertAshOnlyCodeTest(unittest.TestCase):
         other_files = [
             MockFile('chrome/browser/BUILD.gn', []),
             MockFile('chrome/browser/foo/BUILD.gn',
-                     ['assert(is_chromeos_ash)']),
+                     ['assert(is_chromeos)']),
         ]
         input_api = MockInputApi()
         input_api.files = files_in_ash
@@ -5103,9 +5124,9 @@ class AssertAshOnlyCodeTest(unittest.TestCase):
     def testDoesNotErrorOnNonGNFiles(self):
         input_api = MockInputApi()
         input_api.files = [
-            MockFile('ash/test.h', ['assert(is_chromeos_ash)']),
+            MockFile('ash/test.h', ['assert(is_chromeos)']),
             MockFile('chrome/browser/ash/test.cc',
-                     ['assert(is_chromeos_ash)']),
+                     ['assert(is_chromeos)']),
         ]
         errors = PRESUBMIT.CheckAssertAshOnlyCode(input_api, MockOutputApi())
         self.assertEqual(0, len(errors))
@@ -5122,16 +5143,11 @@ class AssertAshOnlyCodeTest(unittest.TestCase):
     def testDoesNotErrorWithAssertion(self):
         input_api = MockInputApi()
         input_api.files = [
-            MockFile('ash/BUILD.gn', ['assert(is_chromeos_ash)']),
+            MockFile('ash/BUILD.gn', ['assert(is_chromeos)']),
             MockFile('chrome/browser/ash/BUILD.gn',
-                     ['assert(is_chromeos_ash)']),
-            MockFile('chrome/browser/ash/1/BUILD.gn', ['assert(is_chromeos)']),
-            MockFile('chrome/browser/ash/2/BUILD.gn',
-                     ['assert(is_chromeos_ash)']),
+                     ['assert(is_chromeos)']),
             MockFile('chrome/browser/ash/3/BUILD.gn',
                      ['assert(is_chromeos, "test")']),
-            MockFile('chrome/browser/ash/4/BUILD.gn',
-                     ['assert(is_chromeos_ash, "test")']),
         ]
         errors = PRESUBMIT.CheckAssertAshOnlyCode(input_api, MockOutputApi())
         self.assertEqual(0, len(errors))
@@ -6105,6 +6121,137 @@ class CheckBaseFeatureMacroTest(unittest.TestCase):
             'with "k" followed by an uppercase letter.',
             '    warning_lowercase_after_k.cc:1: Feature identifier "kmyToggle"'
             ' should start with "k" followed by an uppercase letter.',
+        ]
+
+        self.assertEqual(len(expected_warnings), len(warnings))
+        self.assertCountEqual(expected_warnings, warnings)
+
+
+class CheckBaseFeatureParamMacroTest(unittest.TestCase):
+
+    def testBaseFeatureParamMacro(self):
+        mock_input_api = MockInputApi()
+        mock_input_api.files = [
+            # #################################################################
+            # Valid cases (no warnings)
+            # #################################################################
+
+            # 4-arg BASE_FEATURE_PARAM (short form, preferred).
+            MockAffectedFile(
+                'valid_4arg.cc',
+                ['BASE_FEATURE_PARAM(int, kMyParam, &kMyFeature, 42);']),
+
+            # 4-arg BASE_FEATURE_PARAM multiline.
+            MockAffectedFile('valid_4arg_multiline.cc', [
+                'BASE_FEATURE_PARAM(int,',
+                '                   kMyParam,',
+                '                   &kMyFeature,',
+                '                   42);',
+            ]),
+
+            # 4-arg BASE_FEATURE_PARAM with std::string default (string
+            # literal is the default value, not a name).
+            MockAffectedFile(
+                'valid_string_default.cc',
+                ['BASE_FEATURE_PARAM(std::string, kMyStringParam, '
+                 '&kMyFeature, "default_value");']),
+
+            # 4-arg BASE_FEATURE_PARAM with a template type containing a
+            # comma inside angle brackets. The regex should treat the whole
+            # template as one argument.
+            MockAffectedFile(
+                'valid_template_type.cc',
+                ['BASE_FEATURE_PARAM(std::map<int, std::string>, '
+                 'kMyMapParam, &kMyFeature, {});']),
+
+            # 4-arg BASE_FEATURE_PARAM with a default value that is a
+            # function call containing commas. The regex should treat the
+            # whole call as one argument.
+            MockAffectedFile(
+                'valid_nested_call.cc',
+                ['BASE_FEATURE_PARAM(base::TimeDelta, kMyTimeParam, '
+                 '&kMyFeature, base::Seconds(30, 0));']),
+
+            # 5-arg BASE_FEATURE_ENUM_PARAM (short form, preferred).
+            MockAffectedFile('valid_enum_5arg.cc', [
+                'BASE_FEATURE_ENUM_PARAM(MyEnum, kMyEnumParam, &kMyFeature,',
+                '    MyEnum::kFirst, &kOptions);',
+            ]),
+
+            # Commented out macro (should be ignored).
+            MockAffectedFile('valid_comment.cc', [
+                '// BASE_FEATURE_PARAM(int, kMyParam, &kMyFeature, '
+                '"MyParam", 42);',
+            ]),
+
+            # #################################################################
+            # Cases that should produce warnings.
+            # #################################################################
+
+            # 5-arg BASE_FEATURE_PARAM (has explicit string name).
+            MockAffectedFile('warning_5arg_param.cc', [
+                'BASE_FEATURE_PARAM(int, kMyParam, &kMyFeature, '
+                '"MyParam", 42);',
+            ]),
+
+            # 5-arg BASE_FEATURE_PARAM multiline.
+            MockAffectedFile('warning_5arg_multiline.cc', [
+                'BASE_FEATURE_PARAM(int,',
+                '                   kMyParam,',
+                '                   &kMyFeature,',
+                '                   "MyParam",',
+                '                   42);',
+            ]),
+
+            # 6-arg BASE_FEATURE_ENUM_PARAM (has explicit string name).
+            MockAffectedFile('warning_6arg_enum.cc', [
+                'BASE_FEATURE_ENUM_PARAM(MyEnum, kMyEnumParam, &kMyFeature,',
+                '    "my_enum_param", MyEnum::kFirst, &kOptions);',
+            ]),
+
+            # Identifier without 'k' prefix.
+            MockAffectedFile(
+                'warning_no_k.cc',
+                ['BASE_FEATURE_PARAM(int, MyParam, &kMyFeature, 42);']),
+
+            # Identifier with lowercase after 'k'.
+            MockAffectedFile(
+                'warning_lowercase.cc',
+                ['BASE_FEATURE_PARAM(int, kmyParam, &kMyFeature, 42);']),
+
+            # Enum param identifier without 'k' prefix.
+            MockAffectedFile('warning_enum_no_k.cc', [
+                'BASE_FEATURE_ENUM_PARAM(MyEnum, MyEnumParam, &kMyFeature,',
+                '    MyEnum::kFirst, &kOptions);',
+            ]),
+        ]
+        results = PRESUBMIT.CheckBaseFeatureParamMacro(mock_input_api,
+                                                       MockOutputApi())
+
+        self.assertEqual(1, len(results))
+        self.assertEqual('warning', results[0].type)
+        self.assertEqual(
+            'BASE_FEATURE_PARAM()/BASE_FEATURE_ENUM_PARAM() macro naming:',
+            results[0].message)
+        warnings = results[0].items
+
+        expected_warnings = [
+            '    warning_5arg_param.cc:1: The 5-argument BASE_FEATURE_PARAM '
+            'macro with a string literal name is discouraged. Use the '
+            '4-argument version instead.',
+            '    warning_5arg_multiline.cc:1: The 5-argument '
+            'BASE_FEATURE_PARAM macro with a string literal name is '
+            'discouraged. Use the 4-argument version instead.',
+            '    warning_6arg_enum.cc:1: The 6-argument '
+            'BASE_FEATURE_ENUM_PARAM macro with a string literal name is '
+            'discouraged. Use the 5-argument version instead.',
+            '    warning_no_k.cc:1: Feature param identifier "MyParam" should '
+            'start with "k" followed by an uppercase letter.',
+            '    warning_lowercase.cc:1: Feature param identifier "kmyParam" '
+            'should start with "k" followed by an uppercase letter.',
+            '    warning_enum_no_k.cc:1: Feature param identifier '
+            '"MyEnumParam" should start with "k" followed by an uppercase '
+            'letter.',
         ]
 
         self.assertEqual(len(expected_warnings), len(warnings))

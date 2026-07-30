@@ -26,6 +26,7 @@
 #include "chrome/browser/glic/test_support/glic_browser_test.h"
 #include "chrome/browser/glic/test_support/glic_histogram_tester.h"
 #include "chrome/browser/glic/test_support/new_glic_api_test.h"
+#include "chrome/browser/interstitials/security_interstitial_page_test_utils.h"
 #include "chrome/browser/policy/chrome_browser_policy_connector.h"
 #include "chrome/browser/policy/profile_policy_connector.h"
 #include "chrome/browser/profiles/profile_manager.h"
@@ -136,6 +137,7 @@ namespace {
 std::vector<std::string> GetTestSuiteNames() {
   std::vector<std::string> names = {
       "NewGlicApiTest",
+      "NewGlicApiTestForNoWebUiLoader",
       "NewGlicApiTestWithFastTimeout",
       "NewGlicApiTestWithWebContentsWarming",
       "NewGlicApiTestWithPixelOutput",
@@ -146,6 +148,7 @@ std::vector<std::string> GetTestSuiteNames() {
       "NewGlicApiTestWithDefaultTabContextEnabled",
       "NewGlicApiTestWithWebActuationSettingDisabled",
       "NewGlicApiTestWithWebActuationSettingEnabled",
+      "NewGlicApiTestWithProcessCounterAbuseVerdictDisabled",
 #if !BUILDFLAG(IS_ANDROID)
       "NewGlicApiTestWithSkills",
 #endif
@@ -167,6 +170,7 @@ struct TestParams {
   bool trust_first_onboarding_arm1 = false;
   bool trust_first_onboarding_arm2 = false;
   bool auto_open_pdf = false;
+  bool enable_no_web_ui_loader = false;
 };
 
 class WithTestParams : public testing::WithParamInterface<TestParams> {
@@ -187,6 +191,9 @@ class WithTestParams : public testing::WithParamInterface<TestParams> {
     }
     if (info.param.auto_open_pdf) {
       result.push_back("AutoOpenPdf");
+    }
+    if (info.param.enable_no_web_ui_loader) {
+      result.push_back("EnableNoWebUiLoader");
     }
     if (result.empty()) {
       return "Default";
@@ -229,6 +236,7 @@ class NewGlicApiTest : public GlicApiBrowserTest,
     features_.InitWithFeaturesAndParameters(
         /*enabled_features=*/
         {{features::kGlic, {}},
+         {features::kGlicProcessCounterAbuseVerdict, {}},
          {features::kGlicWebContentsWarming,
           {// Effectively disable warming in this test, as it can make
            // understanding logs difficult. Note that disabling this feature
@@ -335,7 +343,7 @@ class NewGlicApiTestWithWebContentsWarming : public NewGlicApiTest {
 
   void SetUpOnMainThread() override {
     NewGlicApiTest::SetUpOnMainThread();
-    coordinator().GetWebContentsWarmingPoolForTesting().Clear();
+    coordinator().GetWebContentsWarmingPoolForTesting().Clear(std::nullopt);
   }
 
  private:
@@ -365,6 +373,42 @@ class NewGlicApiTestWithDefaultTabContextDisabled : public NewGlicApiTest {
 IN_PROC_BROWSER_TEST_P(NewGlicApiTestWithDefaultTabContextDisabled,
                        testDefaultTabContextApiIsUndefinedWhenFeatureDisabled) {
   ASSERT_OK(OpenGlicForActiveTab());
+  ExecuteJsTest();
+}
+
+class NewGlicApiTestForNoWebUiLoader : public NewGlicApiTest {
+ public:
+  NewGlicApiTestForNoWebUiLoader() {
+    if (GetParam().enable_no_web_ui_loader) {
+      feature_list_.InitWithFeatures({features::kGlicNoWebUiLoader}, {});
+    } else {
+      feature_list_.InitWithFeatures({}, {features::kGlicNoWebUiLoader});
+    }
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_P(NewGlicApiTestForNoWebUiLoader, testNoWebUiLoader) {
+  ToggleGlicForActiveTab(/*prevent_close=*/true);
+  auto* instance = GetOnlyGlicInstance();
+  ASSERT_TRUE(instance);
+
+  WebUIStateListener listener(&instance->host());
+
+  ASSERT_OK(WaitForGlicOpen());
+
+  auto* web_contents = instance->host().webui_contents();
+  ASSERT_TRUE(web_contents);
+  ASSERT_TRUE(content::WaitForLoadStop(web_contents));
+
+  // Wait for kReady state to ensure loading is complete.
+  ASSERT_TRUE(WaitForWebUiState(mojom::WebUiState::kReady).has_value());
+
+  bool expect_loading = !GetParam().enable_no_web_ui_loader;
+  EXPECT_EQ(expect_loading, listener.SawState(mojom::WebUiState::kShowLoading));
+
   ExecuteJsTest();
 }
 
@@ -435,6 +479,25 @@ class NewGlicApiTestWithWebActuationSettingDisabled : public NewGlicApiTest {
 
 IN_PROC_BROWSER_TEST_P(NewGlicApiTestWithWebActuationSettingDisabled,
                        testWebActuationSettingIsUndefinedWhenFeatureDisabled) {
+  ASSERT_OK(OpenGlicForActiveTab());
+  ExecuteJsTest();
+}
+
+class NewGlicApiTestWithProcessCounterAbuseVerdictDisabled
+    : public NewGlicApiTest {
+ public:
+  NewGlicApiTestWithProcessCounterAbuseVerdictDisabled() {
+    feature_list_.InitAndDisableFeature(
+        features::kGlicProcessCounterAbuseVerdict);
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_P(
+    NewGlicApiTestWithProcessCounterAbuseVerdictDisabled,
+    testProcessCounterAbuseVerdictIsUndefinedWhenFeatureDisabled) {
   ASSERT_OK(OpenGlicForActiveTab());
   ExecuteJsTest();
 }
@@ -865,6 +928,19 @@ IN_PROC_BROWSER_TEST_P(NewGlicApiTest, testDoNothing) {
   ExecuteJsTest();
 }
 
+IN_PROC_BROWSER_TEST_P(NewGlicApiTest, testProcessCounterAbuseVerdict) {
+  ASSERT_OK(OpenGlicForActiveTab());
+  ExecuteJsTest();
+
+  content::WebContents* active_contents =
+      GetTabListInterface()->GetActiveTab()->GetContents();
+
+  // Wait for the Safe Browsing interstitial to appear.
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return chrome_browser_interstitials::IsShowingInterstitial(active_contents);
+  }));
+}
+
 // TODO(harringtond): Flaky on windows.
 // TODO(b/508340871): Re-enable on Android. Failing because something pops up
 // and suppresses the bottom sheet.
@@ -888,8 +964,7 @@ IN_PROC_BROWSER_TEST_P(NewGlicApiTest, MAYBE_testInvocationSource) {
 
     // Toggle Glic from source.
     coordinator().Toggle(GetBrowser(), /*prevent_close=*/false,
-                         /*source=*/source,
-                         /*deprecated_prompt_suggestion=*/std::nullopt);
+                         /*source=*/source);
 
     ASSERT_OK(WaitForGlicOpen());
 
@@ -1198,7 +1273,7 @@ IN_PROC_BROWSER_TEST_P(NewGlicApiTest, testAdditionalContext) {
   std::vector<uint8_t> data = {'t', 'e', 's', 't'};
   additional_context->parts.push_back(
       glic::mojom::AdditionalContextPart::NewData(glic::mojom::ContextData::New(
-          "text/plain", mojo_base::BigBuffer(data))));
+          "text/plain", mojo_base::BigBuffer(data), std::nullopt)));
 
   // Add a part with a screenshot.
   std::vector<uint8_t> screenshot_data = {1, 2, 3, 4};
@@ -1265,7 +1340,7 @@ IN_PROC_BROWSER_TEST_P(NewGlicApiTest, testAdditionalContextQueued) {
   std::vector<uint8_t> data = {'q', 'u', 'e', 'u', 'e', 'd'};
   additional_context->parts.push_back(
       glic::mojom::AdditionalContextPart::NewData(glic::mojom::ContextData::New(
-          "text/plain", mojo_base::BigBuffer(data))));
+          "text/plain", mojo_base::BigBuffer(data), std::nullopt)));
 
   instance->SendAdditionalContext(std::move(additional_context));
 
@@ -1599,6 +1674,13 @@ INSTANTIATE_TEST_SUITE_P(,
                          DefaultTestParamSet(),
                          &WithTestParams::PrintTestVariant);
 
+INSTANTIATE_TEST_SUITE_P(
+    ,
+    NewGlicApiTestForNoWebUiLoader,
+    testing::Values(TestParams{.enable_no_web_ui_loader = false},
+                    TestParams{.enable_no_web_ui_loader = true}),
+    &WithTestParams::PrintTestVariant);
+
 INSTANTIATE_TEST_SUITE_P(,
                          NewGlicApiTestWithWebActuationSettingDisabled,
                          DefaultTestParamSet(),
@@ -1606,6 +1688,11 @@ INSTANTIATE_TEST_SUITE_P(,
 
 INSTANTIATE_TEST_SUITE_P(,
                          NewGlicApiTestWithWebActuationSettingEnabled,
+                         DefaultTestParamSet(),
+                         &WithTestParams::PrintTestVariant);
+
+INSTANTIATE_TEST_SUITE_P(,
+                         NewGlicApiTestWithProcessCounterAbuseVerdictDisabled,
                          DefaultTestParamSet(),
                          &WithTestParams::PrintTestVariant);
 
@@ -1635,6 +1722,9 @@ GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(
     NewGlicApiTestWithWebActuationSettingDisabled);
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(
     NewGlicApiTestWithWebActuationSettingEnabled);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(
+    NewGlicApiTestWithProcessCounterAbuseVerdictDisabled);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(NewGlicApiTestForNoWebUiLoader);
 #if !BUILDFLAG(IS_ANDROID)
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(NewGlicApiTestWithSkills);
 #endif

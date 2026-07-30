@@ -2,11 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <array>
 #include <cstddef>
 #include <memory>
 #include <optional>
 #include <string>
 
+#include "base/strings/stringprintf.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/browser_actions.h"
@@ -31,9 +34,13 @@
 #include "content/public/test/browser_test.h"
 #include "content/public/test/test_navigation_observer.h"
 #include "content/public/test/test_utils.h"
+#include "third_party/skia/include/core/SkBitmap.h"
+#include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/interaction/element_identifier.h"
 #include "ui/base/ui_base_features.h"
+#include "ui/gfx/image/image_skia.h"
 #include "ui/menus/simple_menu_model.h"
+#include "ui/native_theme/mock_os_settings_provider.h"
 #include "ui/views/test/ax_event_counter.h"
 #include "ui/views/test/views_test_utils.h"
 #include "url/gurl.h"
@@ -254,6 +261,17 @@ class PageActionUiTestBase {
     ShowPageAction(kActionShowTranslate);
     ShowAnchoredMessage(kActionShowTranslate, text, icon_type,
                         anchored_message_icon, std::move(menu));
+  }
+
+  void ShowTestAnchoredMessageWithExpandableContent(
+      std::u16string text,
+      const AnchoredMessageExpandableContent& expandable_content) const {
+    ShowPageAction(kActionShowTranslate);
+    page_action_controller()->SetAnchoredMessageExpandableContent(
+        kActionShowTranslate, expandable_content);
+    ShowAnchoredMessage(kActionShowTranslate, text,
+                        AnchoredMessageActionIconType::kNone, std::nullopt,
+                        nullptr);
   }
 
   void ShowTranslatePageActionIcon() const {
@@ -1045,12 +1063,19 @@ IN_PROC_BROWSER_TEST_F(PageActionPixelReorderTest, InvokeUi_Default) {
 class PageActionPixelShowAnchoredMessageTest : public InteractiveBrowserTest,
                                                public PageActionUiTestBase {
  public:
-  PageActionPixelShowAnchoredMessageTest() = default;
+  PageActionPixelShowAnchoredMessageTest() {
+    os_settings_provider_.SetPreferredColorScheme(
+        ui::NativeTheme::PreferredColorScheme::kLight);
+  }
   ~PageActionPixelShowAnchoredMessageTest() override = default;
 
   // PageActionUiTestBase:
   Browser* GetBrowser() const override { return browser(); }
+
+ private:
+  ui::MockOsSettingsProvider os_settings_provider_;
 };
+
 
 IN_PROC_BROWSER_TEST_F(PageActionPixelShowAnchoredMessageTest,
                        InvokeUi_Default) {
@@ -1141,6 +1166,132 @@ IN_PROC_BROWSER_TEST_F(PageActionPixelShowAnchoredMessageTest, InvokeUi_Text) {
                  "20260324"),
       Do([this]() -> void { HideAnchoredMessage(kActionShowTranslate); }),
       WaitForHide(AnchoredMessageBubbleView::kAnchoredMessageBubbleId));
+}
+
+struct PageActionPixelTestParams {
+  static constexpr int kDefaultExpandableContentItems = 4;
+
+  ui::NativeTheme::PreferredColorScheme color_scheme =
+      ui::NativeTheme::PreferredColorScheme::kLight;
+  bool rtl = false;
+  int expandable_content_items = kDefaultExpandableContentItems;
+
+  std::string ToString() const {
+    std::string name;
+    if (expandable_content_items > 0 &&
+        expandable_content_items != kDefaultExpandableContentItems) {
+      name += base::StringPrintf("%dItems", expandable_content_items);
+    }
+    if (color_scheme == ui::NativeTheme::PreferredColorScheme::kDark) {
+      name += "Dark";
+    }
+    if (rtl) {
+      name += "Rtl";
+    }
+    if (name.empty()) {
+      name = "Default";
+    }
+    return name;
+  }
+};
+
+class PageActionExpandedAnchoredMessageTest
+    : public InteractiveBrowserTest,
+      public PageActionUiTestBase,
+      public testing::WithParamInterface<PageActionPixelTestParams> {
+ public:
+  PageActionExpandedAnchoredMessageTest() {
+    os_settings_provider_.SetPreferredColorScheme(GetParam().color_scheme);
+  }
+  ~PageActionExpandedAnchoredMessageTest() override = default;
+
+  void SetUpOnMainThread() override {
+    InteractiveBrowserTest::SetUpOnMainThread();
+    if (GetParam().rtl) {
+      base::i18n::SetRTLForTesting(true);
+    }
+  }
+
+  // PageActionUiTestBase:
+  Browser* GetBrowser() const override { return browser(); }
+
+ private:
+  ui::MockOsSettingsProvider os_settings_provider_;
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    ,
+    PageActionExpandedAnchoredMessageTest,
+    testing::ValuesIn(std::vector<PageActionPixelTestParams>{
+        {},
+        {
+            .color_scheme = ui::NativeTheme::PreferredColorScheme::kDark,
+        },
+        {
+            .rtl = true,
+        },
+        // Single item.
+        {
+            .expandable_content_items = 1,
+        },
+        // Multiple items, but not overflowing the expand button.
+        {
+            .expandable_content_items = 3,
+        },
+    }),
+    [](const testing::TestParamInfo<PageActionPixelTestParams>& info) {
+      return info.param.ToString();
+    });
+
+IN_PROC_BROWSER_TEST_P(PageActionExpandedAnchoredMessageTest,
+                       ExpandableContent) {
+  RunTestSequence(
+      SetOnIncompatibleAction(OnIncompatibleAction::kIgnoreAndContinue,
+                              "Screenshot can only run in pixel_tests."),
+      Do([this]() {
+        AnchoredMessageExpandableContent content;
+        const int num_items = GetParam().expandable_content_items;
+        content.heading = base::ASCIIToUTF16(
+            base::StringPrintf("Will share %d items", num_items));
+        // Use a set of sample items to have varied text. Test cases
+        // will use any number of these, depending on what the test wants. The
+        // content here is arbitrary.
+        const std::array<std::u16string, 4> kItems = {{
+            u"Site with sample items",
+            u"Another site with more sample items",
+            u"Sample items galore",
+            u"Another sample site with a notably longer description",
+        }};
+        // Create a solid color icon so that borders and clipping are evident.
+        SkBitmap bitmap;
+        bitmap.allocN32Pixels(16, 16);
+        bitmap.eraseColor(SK_ColorRED);
+        for (int i = 0; i < num_items; ++i) {
+          const auto& text = kItems[static_cast<size_t>(i) % kItems.size()];
+          // Use a solid color bitmap to test stacked icon clipping.
+          content.items.push_back(
+              {ui::ImageModel::FromImageSkia(
+                   gfx::ImageSkia::CreateFrom1xBitmap(bitmap)),
+               text});
+        }
+
+        ShowTestAnchoredMessageWithExpandableContent(u"Anchored with expand",
+                                                     content);
+      }),
+      WaitForShow(AnchoredMessageBubbleView::kAnchoredMessageBubbleId),
+      EnsureNotPresent(
+          AnchoredMessageBubbleView::kAnchoredMessageExpandedContentId),
+      PressButton(AnchoredMessageBubbleView::kAnchoredMessageExpandButtonId),
+      WaitForShow(AnchoredMessageBubbleView::kAnchoredMessageExpandedContentId),
+      // In interactive mode, this allows the user to see the expanded state.
+      Screenshot(AnchoredMessageBubbleView::kAnchoredMessageBubbleId,
+                 "expandable_content_shown", "20260324"),
+      Do([this]() {
+        page_action_controller()->SetAnchoredMessageExpandableContent(
+            kActionShowTranslate, std::nullopt);
+      }),
+      WaitForHide(AnchoredMessageBubbleView::kAnchoredMessageExpandedContentId),
+      WaitForHide(AnchoredMessageBubbleView::kAnchoredMessageExpandButtonId));
 }
 
 }  // namespace

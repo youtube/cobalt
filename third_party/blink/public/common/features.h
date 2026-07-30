@@ -426,6 +426,9 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kDevToolsAllowPopoverForcing);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kDevToolsWebMCPSupport);
 
+// Enables the DevTools 'Application > Application > Ads' panel.
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kDevToolsAdsPanel);
+
 // Enables input IPC to directly target the renderer's compositor thread without
 // hopping through the IO thread first.
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kDirectCompositorThreadIpc);
@@ -514,11 +517,6 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kFileHandlingIcons);
 // Switch to temporary turn back on file system url navigation.
 // TODO(https://crbug.com/1332598): Remove this feature.
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kFileSystemUrlNavigation);
-// TODO(https://crbug.com/1360512): this feature creates a carveout for
-// enabling filesystem: URL navigation within Chrome Apps regardless of whether
-// kFileSystemUrlNavigation is enabled or not.
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
-    kFileSystemUrlNavigationForChromeAppsOnly);
 
 // Enables filtering of predicted scroll events on compositor thread.
 // Uses the kFilterName* values in ui_base_features.h as the 'filter' feature
@@ -1689,10 +1687,6 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kRemoveCommitRedirectUrlsArray);
 
-// If enabled, prefetches and prerenders will not include a Purpose: prefetch
-// header.
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kRemovePurposeHeaderForPrefetch);
-
 // Allows same-document available-image reuse for no-store images.
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
     kReuseNoStoreImageOnSameSrcReassignment);
@@ -1996,9 +1990,6 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kWebBluetoothCancelConnect);
 // WebRTC track source.
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kWebRtcUseCaptureBeginTimestamp);
 
-// Feature to make WebRtcAudioSink use TimestampAligner to align absolute
-// capture timestamps. This is disabled by default.
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kWebRtcAudioSinkUseTimestampAligner);
 
 // Enables the use of specific thread types (kPresentation for video,
 // kInteractive for audio processing) for media tasks.

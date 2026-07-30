@@ -15,13 +15,9 @@
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/browser/ui/views/toolbar/app_menu.h"
-#include "chrome/browser/ui/views/toolbar/lottie_icon_source.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_button.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_ink_drop_util.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
-#include "chrome/browser/user_education/tutorial_identifiers.h"
-#include "chrome/browser/user_education/user_education_service.h"
-#include "chrome/browser/user_education/user_education_service_factory.h"
 #include "chrome/grit/browser_resources.h"
 #include "components/feature_engagement/public/feature_constants.h"
 #include "components/user_education/common/feature_promo/feature_promo_controller.h"
@@ -55,7 +51,6 @@
 namespace {
 constexpr int kChromeRefreshImageLabelPadding = 2;
 constexpr int kGlowUpImageLabelPadding = 4;
-constexpr base::TimeDelta kAnimationDuration = base::Milliseconds(300);
 constexpr int kHideTextForFlexPadding = 4;
 }  // namespace
 
@@ -74,12 +69,6 @@ BrowserAppMenuButton::BrowserAppMenuButton(ToolbarView* toolbar_view)
   label()->SetSkipSubpixelRenderingOpacityCheck(true);
   label()->layer()->SetFillsBoundsOpaquely(false);
   label()->SetSubpixelRenderingEnabled(false);
-  if (features::IsToolbarGlowUpEnabled()) {
-    SetAnimateOnStateChange(true);
-    SetAnimationDuration(kAnimationDuration);
-    click_animation_ = std::make_unique<gfx::ThrobAnimation>(this);
-    click_animation_->SetSlideDuration(kAnimationDuration);
-  }
 }
 
 BrowserAppMenuButton::~BrowserAppMenuButton() = default;
@@ -108,7 +97,8 @@ void BrowserAppMenuButton::ShowMenu(int run_types) {
 
   // Allow highlighting menu items when the menu was opened while
   // certain tutorials are running.
-  AlertMenuItem alert_item = GetAlertItemForRunningTutorial();
+  AlertMenuItem alert_item =
+      AppMenuModel::GetAlertItemForRunningTutorial(browser);
 
   RunMenu(std::make_unique<AppMenuModel>(
               toolbar_view_, browser, toolbar_view_->app_menu_icon_controller(),
@@ -116,28 +106,18 @@ void BrowserAppMenuButton::ShowMenu(int run_types) {
           browser, run_types);
 }
 
-AlertMenuItem BrowserAppMenuButton::GetAlertItemForRunningTutorial() {
-  Browser* browser = toolbar_view_->browser();
-  BrowserWindow* browser_window = browser->window();
-
-  if (browser_window == nullptr) {
-    return AlertMenuItem::kNone;
-  }
-
-  auto* const service =
-      UserEducationServiceFactory::GetForBrowserContext(browser->profile());
-  if (service && service->tutorial_service().IsRunningTutorial(
-                     kPasswordManagerTutorialId)) {
-    return AlertMenuItem::kPasswordManager;
-  }
-
-  return AlertMenuItem::kNone;
-}
-
 void BrowserAppMenuButton::OnMenuClosed() {
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
   if (features::IsToolbarGlowUpEnabled()) {
-    click_animation_->Hide();
+    views::SingleAnimatedImageContainer::AnimationConfig config{
+        .direction =
+            views::SingleAnimatedImageContainer::AnimationDirection::kForward,
+        .end_behavior =
+            views::SingleAnimatedImageContainer::AnimationEndBehavior::kReset};
+    animated_image_container().PlayAnimation(
+        {IDR_CHROME_TO_DOTS_LOTTIE, GetForegroundColor(GetState())}, config);
   }
+#endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
   AppMenuButton::OnMenuClosed();
 }
 
@@ -166,35 +146,12 @@ void BrowserAppMenuButton::UpdateIcon() {
                                               : kBrowserToolsTouchOldIcon
       : features::IsRoundedIconsEnabled() ? kMoreVertIcon
                                           : kBrowserToolsChromeRefreshOldIcon;
-
-  const double click_animation_value = features::IsToolbarGlowUpEnabled()
-                                           ? click_animation_->GetCurrentValue()
-                                           : 0;
   const int icon_size = GetIconSize();
 
   for (auto state : kButtonStates) {
     SkColor icon_color = GetForegroundColor(state);
     ui::ImageModel model =
         ui::ImageModel::FromVectorIcon(icon, icon_color, icon_size);
-
-    if (features::IsToolbarGlowUpEnabled() && click_animation_value > 0 &&
-        GetColorProvider()) {
-      if (!lottie_animation_) {
-        std::optional<std::vector<uint8_t>> lottie_bytes =
-            ui::ResourceBundle::GetSharedInstance().GetLottieData(
-                IDR_APP_MENU_BUTTON_HOVER_LOTTIE);
-        CHECK(lottie_bytes);
-        scoped_refptr<cc::SkottieWrapper> skottie =
-            cc::SkottieWrapper::UnsafeCreateSerializable(
-                std::move(*lottie_bytes));
-        lottie_animation_ = std::make_unique<lottie::Animation>(skottie);
-      }
-
-      model = ui::ImageModel::FromImageSkia(
-          gfx::CanvasImageSource::MakeImageSkia<LottieIconSource>(
-              lottie_animation_.get(), click_animation_value, icon_size,
-              icon_color));
-    }
     SetImageModel(state, model);
   }
 }
@@ -202,15 +159,6 @@ void BrowserAppMenuButton::UpdateIcon() {
 void BrowserAppMenuButton::OnBoundsChanged(const gfx::Rect& previous_bounds) {
   ToolbarButton::OnBoundsChanged(previous_bounds);
   UpdateLayoutInsets();
-}
-
-void BrowserAppMenuButton::AnimationProgressed(
-    const gfx::Animation* animation) {
-  if (features::IsToolbarGlowUpEnabled() &&
-      animation == click_animation_.get()) {
-    UpdateIcon();
-  }
-  AppMenuButton::AnimationProgressed(animation);
 }
 
 void BrowserAppMenuButton::UpdateInkdrop() {
@@ -311,9 +259,17 @@ void BrowserAppMenuButton::ButtonPressed(const ui::Event& event) {
   }
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
-  if (features::IsToolbarGlowUpEnabled()) {
-    click_animation_->Show();
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
+  if (features::IsToolbarGlowUpEnabled() && !IsMenuShowing()) {
+    views::SingleAnimatedImageContainer::AnimationConfig config{
+        .direction =
+            views::SingleAnimatedImageContainer::AnimationDirection::kForward,
+        .end_behavior =
+            views::SingleAnimatedImageContainer::AnimationEndBehavior::kPause};
+    animated_image_container().PlayAnimation(
+        {IDR_DOTS_TO_CHROME_LOTTIE, GetForegroundColor(GetState())}, config);
   }
+#endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
 
   ShowMenu(event.IsKeyEvent() ? (views::MenuRunner::SHOULD_SHOW_MNEMONICS |
                                  views::MenuRunner::INVOKED_FROM_KEYBOARD)

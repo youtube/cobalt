@@ -351,7 +351,7 @@ void ContextualTasksComposeboxHandler::CreateAndSendQueryMessage(
   CloseLensOverlay(
       lens::LensOverlayDismissalSource::kContextualTasksQuerySubmitted);
 #else
-  std::optional<base::UnguessableToken> overlay_token = std::nullopt;
+  std::optional<base::UnguessableToken> overlay_token;
   bool has_visual_selection = false;
 #endif
   std::optional<base::Uuid> task_id = web_ui_interface_->GetTaskId();
@@ -518,6 +518,12 @@ void ContextualTasksComposeboxHandler::InitializeInputStateModel() {
     }
   }
 }
+void ContextualTasksComposeboxHandler::SetAimThreadRestoredTabs(
+    std::vector<searchbox::mojom::TabInfoPtr> tabs) {
+  if (SearchboxHandler::page_) {
+    SearchboxHandler::page_->SetAimThreadRestoredTabs(std::move(tabs));
+  }
+}
 
 void ContextualTasksComposeboxHandler::AddFileContextFromBrowser(
     searchbox::mojom::SelectedFileInfoPtr file_info,
@@ -549,6 +555,13 @@ void ContextualTasksComposeboxHandler::ContinueCreateAndSendQueryMessage(
   }
   // Create a client to aim message and send it to the page.
   if (auto* session_handle = GetContextualSessionHandle()) {
+    if (auto* metrics_recorder = session_handle->GetMetricsRecorder()) {
+      if (metrics_recorder->source() !=
+          contextual_search::ContextualSearchSource::kContextualTasks) {
+        metrics_recorder->UpdateContextualSearchSource(
+            contextual_search::ContextualSearchSource::kContextualTasks);
+      }
+    }
     session_handle->set_previous_query(query);
     // If there is an auto-added tab, the user sending the query means the
     // system should upload it.

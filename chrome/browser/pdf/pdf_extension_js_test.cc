@@ -545,24 +545,32 @@ class PDFExtensionJSInk2Test : public PDFExtensionJSTest {
 };
 
 IN_PROC_BROWSER_TEST_P(PDFExtensionJSInk2Test, Ink2) {
+  // TODO(crbug.com/40268279): Test hangs with GuestView PDF. Remove once
+  // GuestView PDF is fully deprecated.
+  if (!UseOopif()) {
+    GTEST_SKIP();
+  }
+
   // One of the tests checks if the side panel is visible, so make the window
   // wide enough.
   GetActiveWebContents()->Resize({0, 0, 960, 100});
   RunTestsInJsModule("ink2_test.js", "test.pdf");
 }
 
-// Params: kPdfOopif, kPdfGetSaveDataInBlocks
-class PDFExtensionJSInk2SaveTest
-    : public PDFExtensionJSTestBase,
-      public testing::WithParamInterface<std::tuple<bool, bool>> {
+// Params: kPdfGetSaveDataInBlocks
+class PDFExtensionJSInk2SaveTest : public PDFExtensionJSTestBase,
+                                   public testing::WithParamInterface<bool> {
  protected:
-  bool UseOopif() const override { return get<0>(GetParam()); }
-  bool IsPdfGetSaveDataInBlocksEnabled() const { return get<1>(GetParam()); }
+  bool UseOopif() const override { return true; }
+  bool IsPdfGetSaveDataInBlocksEnabled() const { return GetParam(); }
 
   std::vector<base::test::FeatureRefAndParams> GetEnabledFeatures()
       const override {
     auto enabled = PDFExtensionJSTestBase::GetEnabledFeatures();
     enabled.push_back({chrome_pdf::features::kPdfInk2, {}});
+#if BUILDFLAG(ENABLE_PDF_SAVE_TO_DRIVE)
+    enabled.push_back({chrome_pdf::features::kPdfSaveToDrive, {}});
+#endif
     if (IsPdfGetSaveDataInBlocksEnabled()) {
       enabled.push_back({chrome_pdf::features::kPdfGetSaveDataInBlocks, {}});
     }
@@ -582,9 +590,7 @@ IN_PROC_BROWSER_TEST_P(PDFExtensionJSInk2SaveTest, Ink2Save) {
   RunTestsInJsModule("ink2_save_test.js", "test.pdf");
 }
 
-INSTANTIATE_TEST_SUITE_P(All,
-                         PDFExtensionJSInk2SaveTest,
-                         testing::Combine(testing::Bool(), testing::Bool()));
+INSTANTIATE_TEST_SUITE_P(All, PDFExtensionJSInk2SaveTest, testing::Bool());
 
 IN_PROC_BROWSER_TEST_P(PDFExtensionJSInk2Test, Ink2Manager) {
   RunTestsInJsModule("ink2_manager_test.js", "test.pdf");
@@ -676,9 +682,7 @@ IN_PROC_BROWSER_TEST_P(PDFExtensionJSInk2TextTest, Ink2TextBoxKeyboard) {
   RunTestsInJsModule("ink2_text_box_keyboard_test.js", "test.pdf");
 }
 
-// TODO(crbug.com/440552067): Deflake and re-enable.
-IN_PROC_BROWSER_TEST_P(PDFExtensionJSInk2TextTest,
-                       DISABLED_Ink2TextBoxViewport) {
+IN_PROC_BROWSER_TEST_P(PDFExtensionJSInk2TextTest, Ink2TextBoxViewport) {
   RunTestsInJsModule("ink2_text_box_viewport_test.js", "test.pdf");
 }
 

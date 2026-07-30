@@ -77,6 +77,18 @@ class ReadAnythingAppModel {
     kMaxValue = kSelection,
   };
 
+  // Enum for logging selection attempts before Readability mapping is complete.
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused.
+  //
+  // LINT.IfChange(ReadAnythingEarlySelection)
+  enum class EarlySelection {
+    kSidePanelSelection = 0,
+    kMainPanelSelection = 1,
+    kMaxValue = kMainPanelSelection,
+  };
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/accessibility/enums.xml:ReadAnythingEarlySelection)
+
   struct AXTreeInfo {
     explicit AXTreeInfo(std::unique_ptr<ui::AXTreeManager> manager);
     AXTreeInfo(const AXTreeInfo&) = delete;
@@ -157,6 +169,9 @@ class ReadAnythingAppModel {
     // block's* text content that correspond to this AXNode.
     int start;
     int end;
+    // The 0-based character offset within the *AXNode's* own text content where
+    // this segment begins.
+    int ax_node_offset;
   };
 
   // Represents a segment of the flattened |global_ax_tree_text_| and the AXNode
@@ -185,6 +200,9 @@ class ReadAnythingAppModel {
 
   static constexpr char kEmptyStateHistogramName[] =
       "Accessibility.ReadAnything.EmptyState";
+
+  static constexpr char kEarlySelectionHistogramName[] =
+      "Accessibility.ReadAnything.Readability.EarlySelection";
 
   ReadAnythingAppModel();
   ReadAnythingAppModel(const ReadAnythingAppModel&) = delete;
@@ -450,6 +468,20 @@ class ReadAnythingAppModel {
   }
   const std::vector<AXNodeSegment>& flattened_ax_tree_nodes() const {
     return flattened_ax_tree_nodes_;
+  }
+
+  bool is_readability_mapping_in_progress() const {
+    return is_readability_mapping_in_progress_;
+  }
+  void set_is_readability_mapping_in_progress(bool ready) {
+    is_readability_mapping_in_progress_ = ready;
+  }
+
+  bool has_logged_early_selection() const {
+    return has_logged_early_selection_;
+  }
+  void set_has_logged_early_selection(bool logged) {
+    has_logged_early_selection_ = logged;
   }
 
   bool page_finished_loading() const { return page_finished_loading_; }
@@ -824,6 +856,15 @@ class ReadAnythingAppModel {
   // selection mapping algorithm.
   void FlattenAXTree(ui::AXSerializableTree* tree);
 
+  // Logs the execution time for each step of the Readability mapping algorithm.
+  void RecordReadabilityMappingMetrics(
+      const std::vector<std::u16string>& blocks,
+      base::TimeDelta total_duration,
+      base::TimeDelta flattening_duration,
+      base::TimeDelta suffix_array_duration,
+      base::TimeDelta initial_anchors_duration,
+      base::TimeDelta gap_alignment_duration);
+
   // Checks if a candidate AXTree range overlaps with text that has already
   // been mapped to a distilled block. This prevents multiple mappings to the
   // same page's text.
@@ -1024,6 +1065,13 @@ class ReadAnythingAppModel {
   // If reading mode should attempt to use child trees to distill content. This
   // should only be true if the root tree has no distillable content.
   bool may_use_child_for_active_tree_ = false;
+
+  // Whether the Readability-to-AXTree mapping algorithm is running or has
+  // finished / not started.
+  bool is_readability_mapping_in_progress_ = false;
+
+  // Whether an early selection attempt has been logged for the current page.
+  bool has_logged_early_selection_ = false;
 
   read_anything::mojom::ReadAnythingPresentationState
       active_presentation_state_ =

@@ -4,7 +4,11 @@
 
 #import "ios/chrome/browser/passwords/bottom_sheet/coordinator/credential_suggestion_bottom_sheet_mediator.h"
 
+#import "base/base64.h"
 #import "base/feature_list.h"
+#import "base/functional/bind.h"
+#import "base/functional/callback.h"
+#import "base/functional/callback_helpers.h"
 #import "base/memory/raw_ptr.h"
 #import "base/memory/weak_ptr.h"
 #import "base/metrics/histogram_functions.h"
@@ -17,6 +21,7 @@
 #import "components/image_fetcher/ios/ios_image_decoder_impl.h"
 #import "components/password_manager/core/browser/password_form.h"
 #import "components/password_manager/core/browser/password_manager.h"
+#import "components/password_manager/core/browser/password_manager_client.h"
 #import "components/password_manager/core/browser/password_store/password_form_converters.h"
 #import "components/password_manager/core/browser/password_store/password_store_interface.h"
 #import "components/password_manager/core/browser/password_store/stored_credential.h"
@@ -24,7 +29,11 @@
 #import "components/password_manager/ios/features.h"
 #import "components/password_manager/ios/ios_password_manager_driver_factory.h"
 #import "components/prefs/pref_service.h"
+#import "components/ukm/ios/ukm_url_recorder.h"
 #import "components/webauthn/ios/features.h"
+#import "components/webauthn/ios/ios_webauthn_credentials_delegate.h"
+#import "components/webauthn/ios/ios_webauthn_credentials_delegate_factory.h"
+#import "components/webauthn/ios/passkey_suggestion_utils.h"
 #import "ios/chrome/browser/autofill/model/bottom_sheet/autofill_bottom_sheet_java_script_feature.h"
 #import "ios/chrome/browser/autofill/model/bottom_sheet/autofill_bottom_sheet_tab_helper.h"
 #import "ios/chrome/browser/autofill/model/form_input_suggestions_provider.h"
@@ -34,6 +43,7 @@
 #import "ios/chrome/browser/passwords/bottom_sheet/coordinator/credential_suggestion_bottom_sheet_mediator_base+Subclassing.h"
 #import "ios/chrome/browser/passwords/bottom_sheet/coordinator/password_suggestion_bottom_sheet_exit_reason.h"
 #import "ios/chrome/browser/passwords/bottom_sheet/ui/credential_suggestion_bottom_sheet_consumer.h"
+#import "ios/chrome/browser/passwords/model/password_native_keystroke_autologin.h"
 #import "ios/chrome/browser/passwords/model/password_tab_helper.h"
 #import "ios/chrome/browser/passwords/password_suggestion/ui/password_suggestion_utils.h"
 #import "ios/chrome/browser/settings/ui_bundled/password/password_sharing/multi_avatar_image_util.h"
@@ -96,6 +106,124 @@ NSArray<FormSuggestion*>* SetParamsAndProviderInSuggestions(
   return suggestions_copy;
 }
 
+// Retrieves the PasswordManager from the given WebState. Returns nullptr if
+// the WebState or PasswordTabHelper is unavailable.
+password_manager::PasswordManager* GetPasswordManager(
+    web::WebState* web_state) {
+  if (!web_state) {
+    return nullptr;
+  }
+  PasswordTabHelper* tab_helper = PasswordTabHelper::FromWebState(web_state);
+  return tab_helper ? tab_helper->GetPasswordManager() : nullptr;
+}
+
+// Returns YES if `suggestions` contains both password and passkey suggestions.
+BOOL ContainsPasswordsAndPasskeys(NSArray<FormSuggestion*>* suggestions) {
+  BOOL hasPasskeys = NO;
+  BOOL hasPasswords = NO;
+  for (FormSuggestion* suggestion in suggestions) {
+    switch (suggestion.type) {
+      case autofill::SuggestionType::kWebauthnCredential:
+        hasPasskeys = YES;
+        break;
+      case autofill::SuggestionType::kPasswordEntry:
+      case autofill::SuggestionType::kBackupPasswordEntry:
+        hasPasswords = YES;
+        break;
+      default:
+        break;
+    }
+    if (hasPasskeys && hasPasswords) {
+      return YES;
+    }
+  }
+  return NO;
+}
+
+// Returns a set of lowercase usernames that have registered passkeys in the
+// given vector matching the passkey suggestions.
+NSMutableSet<NSString*>* GetPasskeyUsernames(
+    const std::vector<password_manager::PasskeyCredential>& passkeys,
+    NSArray<FormSuggestion*>* suggestions) {
+  NSMutableSet<NSString*>* passkeyUsernames = [NSMutableSet set];
+  for (FormSuggestion* suggestion in suggestions) {
+    if (suggestion.type == autofill::SuggestionType::kWebauthnCredential) {
+      std::string encodedId =
+          webauthn::GetPasskeySuggestionEncodedCredentialId(suggestion);
+      std::string decodedIdString;
+      if (base::Base64Decode(encodedId, &decodedIdString)) {
+        std::vector<uint8_t> decodedId(decodedIdString.begin(),
+                                       decodedIdString.end());
+        auto it = std::ranges::find_if(
+            passkeys,
+            [&decodedId](const password_manager::PasskeyCredential& passkey) {
+              return passkey.credential_id() == decodedId;
+            });
+        if (it != passkeys.end()) {
+          NSString* username = base::SysUTF8ToNSString(it->username());
+          if (username.length) {
+            [passkeyUsernames addObject:[username lowercaseString]];
+          }
+        }
+      }
+    }
+  }
+  return passkeyUsernames;
+}
+
+// Returns suggestions filtered to only contain passkeys when there is a
+// password suggestion and a passkey suggestion for the same username.
+NSArray<FormSuggestion*>* FilterDuplicateSuggestions(
+    NSArray<FormSuggestion*>* suggestions,
+    web::WebState* webState,
+    const std::string& frameId) {
+  if (!webState) {
+    return suggestions;
+  }
+
+  if (!ContainsPasswordsAndPasskeys(suggestions)) {
+    return suggestions;
+  }
+
+  webauthn::IOSWebAuthnCredentialsDelegate* delegate =
+      webauthn::IOSWebAuthnCredentialsDelegateFactory::GetFactory(webState)
+          ->GetDelegateForFrameId(frameId);
+  if (!delegate) {
+    return suggestions;
+  }
+
+  auto passkeys_result = delegate->GetPasskeys();
+  if (!passkeys_result.has_value() || !(*passkeys_result) ||
+      (*passkeys_result)->empty()) {
+    return suggestions;
+  }
+
+  const std::vector<password_manager::PasskeyCredential>& passkeys =
+      **passkeys_result;
+
+  NSMutableSet<NSString*>* passkeyUsernames =
+      GetPasskeyUsernames(passkeys, suggestions);
+  if (!passkeyUsernames.count) {
+    return suggestions;
+  }
+
+  NSMutableArray<FormSuggestion*>* filteredSuggestions =
+      [NSMutableArray arrayWithCapacity:suggestions.count];
+  for (FormSuggestion* suggestion in suggestions) {
+    if (suggestion.type == autofill::SuggestionType::kPasswordEntry ||
+        suggestion.type == autofill::SuggestionType::kBackupPasswordEntry) {
+      NSString* username = suggestion.value;
+      if (username.length &&
+          [passkeyUsernames containsObject:[username lowercaseString]]) {
+        continue;
+      }
+    }
+    [filteredSuggestions addObject:suggestion];
+  }
+
+  return filteredSuggestions;
+}
+
 }  // namespace
 
 // TODO(crbug.com/372426818): Move this is to its own specific file/module.
@@ -113,7 +241,8 @@ NSArray<FormSuggestion*>* SetParamsAndProviderInSuggestions(
 
 - (void)didSelectSuggestion:(FormSuggestion*)suggestion
                     atIndex:(NSInteger)index
-                   webState:(web::WebState*)webState;
+                   webState:(web::WebState*)webState
+          completionHandler:(ProceduralBlock)completionHandler;
 
 @end
 
@@ -158,8 +287,51 @@ NSArray<FormSuggestion*>* SetParamsAndProviderInSuggestions(
 
 - (void)didSelectSuggestion:(FormSuggestion*)suggestion
                     atIndex:(NSInteger)index
-                   webState:(web::WebState*)webState {
+                   webState:(web::WebState*)webState
+          completionHandler:(ProceduralBlock)completionHandler {
+  FormSuggestionMetadata metadata = suggestion.metadata;
+  // Specify that auto submit is possible from this endpoint. This is needed if
+  // script submission is used.
+  metadata.accepts_auto_submit = true;
+  suggestion = [FormSuggestion copy:suggestion withMetadata:metadata];
+
+  std::string frameId = _params.frame_id;
+  autofill::FieldRendererId fieldId = _params.field_renderer_id;
+  base::WeakPtr<web::WebState> weakWebState = webState->GetWeakPtr();
+
+  // Trigger a keystroke submission directly from native if script submit
+  // (within the renderer itself) isn't used.
+  bool shouldTriggerKeystrokeSubmission =
+      suggestion.metadata.should_trigger_submission &&
+      password_manager::features::kAutoSubmissionTypeParam.Get() !=
+          password_manager::features::AutoSubmissionType::kScriptSubmit;
+
+  if (password_manager::PasswordManager* passwordManager =
+          GetPasswordManager(webState)) {
+    passwordManager->GetClient()->StartSubmissionTrackingAfterTouchToFill(
+        base::SysNSStringToUTF16(suggestion.value));
+  }
+
+  // The coordinator is expected to always provide a completion handler that
+  // cleans up its state (and potentially dismisses the sheet). If it is nil,
+  // `base::BindOnce` will crash.
+  CHECK(completionHandler);
+
   __weak UIView* weakView = webState->GetView();
+  ProceduralBlock wrappedCompletionHandler =
+      shouldTriggerKeystrokeSubmission
+          ? base::CallbackToBlock(
+                base::BindOnce(&TriggerAutoSubmission, weakWebState, frameId,
+                               fieldId, base::BindOnce(completionHandler)))
+          : ^{
+              // Close the keyboard after filling the suggestion to avoid
+              // re-popping the keyboard.
+              [weakView endEditing:YES];
+              // Run the -didSelectSuggestion completion block which ownership
+              // was transferred here.
+              completionHandler();
+            };
+
   [_providerWrapper
       didSelectSuggestion:suggestion
                   atIndex:index
@@ -168,13 +340,7 @@ NSArray<FormSuggestion*>* SetParamsAndProviderInSuggestions(
           fieldIdentifier:base::SysUTF8ToNSString(_params.field_identifier)
           fieldRendererID:_params.field_renderer_id
                   frameID:base::SysUTF8ToNSString(_params.frame_id)
-        completionHandler:^{
-          // Close the keyboard after filling the suggestion. This is the same
-          // approach as used when filling with the FormInputSuggestionProvider
-          // in V1. Not doing this will result he re-popping the keyboard after
-          // filling is done which is a bad UX.
-          [weakView endEditing:YES];
-        }];
+        completionHandler:wrappedCompletionHandler];
 }
 
 - (SuggestionProviderType)type {
@@ -187,6 +353,9 @@ NSArray<FormSuggestion*>* SetParamsAndProviderInSuggestions(
 
 // Default globe favicon when no favicon is available.
 @property(nonatomic, readonly) FaviconAttributes* defaultGlobeIconAttributes;
+
+// Logs the SubmissionReadiness metric when suggestions are successfully loaded.
+- (void)logSubmissionReadinessMetrics:(NSArray<FormSuggestion*>*)suggestions;
 
 @end
 
@@ -277,14 +446,25 @@ NSArray<FormSuggestion*>* SetParamsAndProviderInSuggestions(
       // is called, so we need to store variables used in the completion block
       // locally.
       autofill::FormRendererId formId = params.form_renderer_id;
+      std::string frameId = params.frame_id;
       __weak __typeof(self) weakSelf = self;
+      base::WeakPtr<web::WebState> weakWebState = activeWebState->GetWeakPtr();
       [_suggestionsProviderWrapper
           retrieveSuggestionsForForm:params
                             webState:activeWebState
                           completion:^(NSArray<FormSuggestion*>* suggestions) {
-                            weakSelf.suggestions = suggestions;
+                            web::WebState* webState = weakWebState.get();
+                            if (!webState) {
+                              return;
+                            }
+                            NSArray<FormSuggestion*>* filteredSuggestions =
+                                FilterDuplicateSuggestions(suggestions,
+                                                           webState, frameId);
+                            weakSelf.suggestions = filteredSuggestions;
+                            [weakSelf logSubmissionReadinessMetrics:
+                                          filteredSuggestions];
                             [weakSelf fetchCredentialsForForm:formId
-                                                     webState:activeWebState];
+                                                     webState:webState];
                           }];
     }
 
@@ -346,6 +526,29 @@ NSArray<FormSuggestion*>* SetParamsAndProviderInSuggestions(
                                  IDS_IOS_CREDENTIAL_BOTTOM_SHEET_USE_KEYBOARD)
         secondaryActionImage:DefaultSymbolWithPointSize(
                                  kKeyboardSymbol, kSymbolActionPointSize)];
+}
+
+- (void)logSubmissionReadinessMetrics:(NSArray<FormSuggestion*>*)suggestions {
+  if (suggestions.count > 0) {
+    // Log submission readiness only when the bottom sheet is actually shown to
+    // the user (which is confirmed by suggestions being successfully loaded and
+    // passed to the consumer). Logging this earlier (e.g., during form
+    // analysis) would skew metrics with forms where the bottom sheet was never
+    // presented.
+    password_manager::SubmissionReadinessState readiness =
+        suggestions.firstObject.metadata.submission_readiness;
+    base::UmaHistogramEnumeration(
+        "PasswordManager.TouchToFill.SubmissionReadiness", readiness);
+
+    web::WebState* activeWebState = [self activeWebState];
+    if (activeWebState) {
+      ukm::SourceId source_id =
+          ukm::GetSourceIdForWebStateDocument(activeWebState);
+      ukm::builders::TouchToFill_SubmissionReadiness(source_id)
+          .SetSubmissionReadiness(static_cast<int64_t>(readiness))
+          .Record(ukm::UkmRecorder::Get());
+    }
+  }
 }
 
 - (void)disconnect {
@@ -415,22 +618,20 @@ NSArray<FormSuggestion*>* SetParamsAndProviderInSuggestions(
               completion:(ProceduralBlock)completion {
   default_browser::NotifyPasswordAutofillSuggestionUsed(_engagementTracker);
 
-  web::WebState* activeWebState = [self activeWebState];
-  if (!activeWebState) {
-    if (completion) {
-      completion();
+  if (web::WebState* activeWebState = [self activeWebState]) {
+    if ([_suggestionsProviderWrapper type] == SuggestionProviderTypePassword) {
+      [_suggestionsProviderWrapper didSelectSuggestion:suggestion
+                                               atIndex:index
+                                              webState:activeWebState
+                                     completionHandler:completion];
+      // Do not run completion here as its ownership was transferred to
+      // -didSelectSuggestion.
+      completion = nil;
+    } else {
+      [self logExitReason:kBadProvider];
     }
-    return;
+    [self disconnect];
   }
-
-  if ([_suggestionsProviderWrapper type] == SuggestionProviderTypePassword) {
-    [_suggestionsProviderWrapper didSelectSuggestion:suggestion
-                                             atIndex:index
-                                            webState:activeWebState];
-  } else {
-    [self logExitReason:kBadProvider];
-  }
-  [self disconnect];
 
   if (completion) {
     completion();
@@ -475,14 +676,11 @@ NSArray<FormSuggestion*>* SetParamsAndProviderInSuggestions(
     return;
   }
 
-  PasswordTabHelper* tabHelper = PasswordTabHelper::FromWebState(webState);
-  if (!tabHelper) {
+  password_manager::PasswordManager* passwordManager =
+      GetPasswordManager(webState);
+  if (!passwordManager) {
     return;
   }
-
-  password_manager::PasswordManager* passwordManager =
-      tabHelper->GetPasswordManager();
-  CHECK(passwordManager);
 
   web::WebFramesManager* webFramesManager =
       AutofillBottomSheetJavaScriptFeature::GetInstance()->GetWebFramesManager(

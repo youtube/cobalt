@@ -77,12 +77,6 @@ inline constexpr char kAppBackgroundRefreshDescription[] =
     "Schedules app background refresh after some minimum period of time has "
     "passed after the last refresh.";
 
-inline constexpr char kAppStoreInAppEventsName[] = "App Store In-App Events";
-inline constexpr char kAppStoreInAppEventsDescription[] =
-    "Enables a user to tap the promo within the iOS App Store and invoke the "
-    "Gemini FRE after navigating to a Gemini related web page through an "
-    "external action.";
-
 inline constexpr char kAppleCalendarExperienceKitName[] =
     "Experience Kit Apple Calendar";
 inline constexpr char kAppleCalendarExperienceKitDescription[] =
@@ -160,6 +154,12 @@ inline constexpr char kAutofillAiWalletFlightReservationDescription[] =
     "Enables Autofill AI support for flight reservation entities from Google "
     "Wallet.";
 
+inline constexpr char kAutofillAiWalletPassBranding2026Name[] =
+    "Autofill AI Google Wallet Pass Branding Updates";
+inline constexpr char kAutofillAiWalletPassBranding2026Description[] =
+    "When enabled, brings Autofill AI strings and images referencing passes "
+    "in Google Wallet into consistency with 2026 branding requirements.";
+
 inline constexpr char kAutofillAiWalletPrivatePassesDeepLinkName[] =
     "Autofill AI Google Wallet private passes deep link";
 inline constexpr char kAutofillAiWalletPrivatePassesDeepLinkDescription[] =
@@ -223,6 +223,11 @@ inline constexpr char kAutofillEnableCardInfoRuntimeRetrievalName[] =
 inline constexpr char kAutofillEnableCardInfoRuntimeRetrievalDescription[] =
     "When enabled, runtime retrieval of CVC along with card number and expiry "
     "from issuer for enrolled cards will be enabled during form fill.";
+
+inline constexpr char kAutofillEnableGradientGoogleLogosName[] =
+    "Enable gradient-style GPay and Wallet logos";
+inline constexpr char kAutofillEnableGradientGoogleLogosDescription[] =
+    "When enabled, gradient-style GPay and Wallet branding logos will be used.";
 
 inline constexpr char kAutofillEnablePrefetchingRiskDataForRetrievalName[] =
     "Enable prefetching of risk data during payments autofill retrieval";
@@ -896,6 +901,11 @@ inline constexpr char kIOSBackendPromoServiceIntegrationName[] =
 inline constexpr char kIOSBackendPromoServiceIntegrationDescription[] =
     "Enables Backend Promo Service integration.";
 
+inline constexpr char kIOSBottomSheetMigrationName[] =
+    "iOS Bottom Sheet Migration";
+inline constexpr char kIOSBottomSheetMigrationDescription[] =
+    "Enables the iOS bottom sheet migration.";
+
 inline constexpr char kIOSBrowserEditMenuMetricsName[] =
     "Browser edit menu metrics";
 inline constexpr char kIOSBrowserEditMenuMetricsDescription[] =
@@ -977,6 +987,12 @@ inline constexpr char kIOSKeyboardAccessoryTwoBubbleDescription[] =
 inline constexpr char kIOSLevelUpName[] = "Level Up";
 inline constexpr char kIOSLevelUpDescription[] =
     "Enables the 'Level Up' feature on iOS.";
+
+inline constexpr char kIOSMiniMapLinkifiedAddressName[] =
+    "Enables Maps Native Preview for linkified addresses";
+inline constexpr char kIOSMiniMapLinkifiedAddressDescription[] =
+    "When enabled, linkified addresses open Maps Native Preview instead of "
+    "mini map";
 
 inline constexpr char kIOSMiniMapUniversalLinkCounterfactualName[] =
     "Counterfactual for opening Maps Universal links in native view";
@@ -1074,6 +1090,10 @@ inline constexpr char kIOSWebContextMenuNewTitleName[] =
 inline constexpr char kIOSWebContextMenuNewTitleDescription[] =
     "Enables actions in context menu title instead of customized action for "
     "web context menu.";
+
+inline constexpr char kIdentityAwarenessName[] = "Identity Awareness";
+inline constexpr char kIdentityAwarenessDescription[] =
+    "Enables the sign-in/account menu button in the overflow menu.";
 
 inline constexpr char kIdentityConfirmationSnackbarName[] =
     "Identity Confirmation Snackbar";

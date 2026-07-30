@@ -845,6 +845,8 @@ PDFiumEngine::PDFiumEngine(PDFiumEngineClient* client,
 }
 
 PDFiumEngine::~PDFiumEngine() {
+  in_dtor_ = true;
+
   if (!client_->IsPrintPreview()) {
     base::UmaHistogramLongTimes("PDF.EngineLifetime",
                                 base::TimeTicks::Now() - engine_creation_time_);
@@ -5506,27 +5508,42 @@ PDFiumEngine::LoadV2InkPathsForPage(int page_index) {
   return page_shape_map;
 }
 
-DocumentInkTextBoxesMap PDFiumEngine::LoadTextAnnotationsFromPdf() {
+DocumentInkTextBoxesMap PDFiumEngine::LoadTextAnnotationsFromPdf(
+    GenerateTextIdCallback generate_text_id_callback) {
   DocumentInkTextBoxesMap document_textboxes;
   for (size_t i = 0; i < pages_.size(); ++i) {
     PDFiumPage* page = pages_[i].get();
-    std::vector<InkTextBox> page_textboxes =
+    std::vector<ReadInkTextResult> page_results =
         ReadInkTextAnnotationsFromPage(page->GetPage());
-    if (page_textboxes.empty()) {
+    if (page_results.empty()) {
       continue;
     }
 
-    // Note that the textbox IDs in the PDF are ONLY used for grouping multiple
-    // text objects belonging to the same textbox in the PDF on a per-page
-    // basis (and not for global tracking). Generating globally unique IDs
-    // prevents collisions across all pages.
-    for (const auto& textbox : page_textboxes) {
-      existing_textbox_ids_.insert(textbox.id);
+    std::vector<InkTextBox> page_textboxes;
+    page_textboxes.reserve(page_results.size());
+
+    for (auto& result : page_results) {
+      InkTextId ink_text_id = generate_text_id_callback.Run();
+      result.textbox.ink_text_id = ink_text_id;
+      ink_text_data_.insert(
+          {ink_text_id, InkTextData(i, std::move(result.text_objects))});
+      page_textboxes.push_back(std::move(result.textbox));
+
+      // Note that the textbox IDs in the PDF are ONLY used for grouping
+      // multiple text objects belonging to the same textbox in the PDF on a
+      // per-page basis (and not for global tracking). Generating globally
+      // unique IDs prevents collisions across all pages.
+      existing_textbox_ids_.insert(result.textbox.id);
     }
+
+    if (!edited_pages_unload_preventers_.contains(i)) {
+      edited_pages_unload_preventers_.insert(
+          {i, PDFiumPage::ScopedPageUnloadPreventer(page)});
+    }
+
     document_textboxes[i] = std::move(page_textboxes);
   }
 
-  // TODO(crbug.com/504697272): Track the textboxes.
   return document_textboxes;
 }
 

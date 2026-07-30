@@ -56,6 +56,8 @@
 #include "chrome/browser/ui/browser_actions.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
+#include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/browser_select_file_dialog_controller.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
@@ -148,8 +150,12 @@
 #endif
 
 #if BUILDFLAG(IS_WIN)
+#include <windows.h>
+
 #include "base/win/windows_version.h"
 #include "content/public/browser/gpu_data_manager.h"
+#include "ui/aura/window.h"
+#include "ui/aura/window_tree_host.h"
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -804,15 +810,21 @@ bool BrowserCommandController::ExecuteCommandWithDisposition(
 
 #if BUILDFLAG(IS_WIN)
     case IDC_MOVE_WINDOW: {
-      // TODO(crbug.com/509985102): Implement this with the Windows frame
-      // context menu changes.
-      NOTIMPLEMENTED();
+      HWND hwnd = BrowserView::GetBrowserViewForBrowser(browser_)
+                      ->GetWidget()
+                      ->GetNativeWindow()
+                      ->GetHost()
+                      ->GetAcceleratedWidget();
+      PostMessage(hwnd, WM_SYSCOMMAND, SC_MOVE, 0);
       break;
     }
     case IDC_SIZE_WINDOW: {
-      // TODO(crbug.com/509985102): Implement this with the Windows frame
-      // context menu changes.
-      NOTIMPLEMENTED();
+      HWND hwnd = BrowserView::GetBrowserViewForBrowser(browser_)
+                      ->GetWidget()
+                      ->GetNativeWindow()
+                      ->GetHost()
+                      ->GetAcceleratedWidget();
+      PostMessage(hwnd, WM_SYSCOMMAND, SC_SIZE, 0);
       break;
     }
 #endif  // BUILDFLAG(IS_WIN)
@@ -1035,7 +1047,9 @@ bool BrowserCommandController::ExecuteCommandWithDisposition(
 
     // Show various bits of UI
     case IDC_OPEN_FILE:
-      browser_->OpenFile();
+      browser_->GetFeatures()
+          .browser_select_file_dialog_controller()
+          ->OpenFile();
       break;
     case IDC_CREATE_SHORTCUT:
       base::RecordAction(base::UserMetricsAction("CreateShortcut"));
@@ -2352,6 +2366,10 @@ void BrowserCommandController::UpdateGlicState() {
       command_updater_.UpdateCommandEnabled(
           IDC_OPEN_GLIC,
           glic::GlicEnabling::IsEnabledForProfile(profile()) && !glic_active);
+
+      if (auto* const action = FindAction(kActionSidePanelShowGlic)) {
+        action->SetVisible(glic::GlicEnabling::ShouldShowGlicButton(profile()));
+      }
     }
   }
 }
@@ -2524,6 +2542,12 @@ void BrowserCommandController::UpdateCommandAndActionEnabled(
 void BrowserCommandController::UpdateCommandsForEnableGlicChanged() {
   command_updater_.UpdateCommandEnabled(
       IDC_OPEN_GLIC, glic::GlicEnabling::IsEnabledForProfile(profile()));
+
+  if (glic::GlicEnabling::IsEnabledByGlobalCriteria()) {
+    if (auto* const action = FindAction(kActionSidePanelShowGlic)) {
+      action->SetVisible(glic::GlicEnabling::ShouldShowGlicButton(profile()));
+    }
+  }
 }
 
 BrowserWindow* BrowserCommandController::window() {

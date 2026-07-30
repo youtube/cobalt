@@ -484,6 +484,7 @@ by a child template that "extends" this file.
             android:theme="@style/Theme.BrowserUI.NoDisplay"
             android:taskAffinity=""
             android:excludeFromRecents="true"
+            android:launchMode="singleInstance"
             android:exported="false">
             <property android:name="android.window.PROPERTY_SUPPORTS_MULTI_INSTANCE_SYSTEM_UI"
                 android:value="true" />
@@ -1172,6 +1173,14 @@ by a child template that "extends" this file.
             android:exported="false"
             android:theme="@style/Theme.Chromium.Activity"
             android:launchMode="singleInstance">
+        </activity>
+
+        <activity
+            android:name="org.chromium.chrome.browser.devtools.DevToolsActivity"
+            android:theme="@style/Theme.Chromium.Activity"
+            android:exported="false"
+            {{ self.chrome_activity_common() }}>
+            {{ self.extra_web_rendering_activity_definitions() }}
         </activity>
 
         <receiver android:name="org.chromium.chrome.browser.notifications.scheduler.DisplayAgent$Receiver"

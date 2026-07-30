@@ -57,6 +57,12 @@ std::vector<blink::mojom::AILanguageCodePtr> MakeLanguageCodeVector(
 }
 
 class AIManagerTest : public AITestUtils::AITestBase {
+ public:
+  AIManagerTest() {
+    scoped_feature_list_.InitAndEnableFeature(
+        blink::features::kAIClassifierAPI);
+  }
+
  protected:
   optimization_guide::proto::OnDeviceModelExecutionFeatureConfig CreateConfig()
       override {
@@ -66,6 +72,9 @@ class AIManagerTest : public AITestUtils::AITestBase {
                            MODEL_EXECUTION_FEATURE_PROMPT_API);
     return config;
   }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 // Tests that involve invalid on-device model file paths should not crash when
@@ -91,6 +100,15 @@ TEST_F(AIManagerTest, NoUAFWithInvalidOnDeviceModelPath) {
 TEST_F(AIManagerTest, CanCreate) {
   // Model is not downloaded until first session is created, so `CanCreate`
   // returns `kDownloadable`.
+  // Android hasn't implement other APIs beside CanCreateSummarizer, so only
+  // test CanCreateSummarizer.
+  {
+    base::test::TestFuture<blink::mojom::ModelAvailabilityCheckResult> future;
+    ai_manager_->CanCreateSummarizer(/*options=*/{}, future.GetCallback());
+    EXPECT_EQ(future.Get(),
+              blink::mojom::ModelAvailabilityCheckResult::kDownloadable);
+  }
+#if !BUILDFLAG(IS_ANDROID)
   {
     base::test::TestFuture<blink::mojom::ModelAvailabilityCheckResult> future;
     ai_manager_->CanCreateLanguageModel(/*options=*/{}, future.GetCallback());
@@ -100,12 +118,6 @@ TEST_F(AIManagerTest, CanCreate) {
   {
     base::test::TestFuture<blink::mojom::ModelAvailabilityCheckResult> future;
     ai_manager_->CanCreateWriter(/*options=*/{}, future.GetCallback());
-    EXPECT_EQ(future.Get(),
-              blink::mojom::ModelAvailabilityCheckResult::kDownloadable);
-  }
-  {
-    base::test::TestFuture<blink::mojom::ModelAvailabilityCheckResult> future;
-    ai_manager_->CanCreateSummarizer(/*options=*/{}, future.GetCallback());
     EXPECT_EQ(future.Get(),
               blink::mojom::ModelAvailabilityCheckResult::kDownloadable);
   }
@@ -121,6 +133,7 @@ TEST_F(AIManagerTest, CanCreate) {
     EXPECT_EQ(future.Get(),
               blink::mojom::ModelAvailabilityCheckResult::kDownloadable);
   }
+#endif  // !BUILDFLAG(IS_ANDROID)
 }
 
 TEST_F(AIManagerTest, CanCreateNotEnabled) {

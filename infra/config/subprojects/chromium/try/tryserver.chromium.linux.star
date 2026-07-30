@@ -32,7 +32,7 @@ try_.defaults.set(
     service_account = try_constants.DEFAULT_SERVICE_ACCOUNT,
     siso_keep_going = siso.KEEP_GOING,
     siso_project = siso.project.DEFAULT_UNTRUSTED,
-    siso_remote_linking = True,
+    siso_remote_linking = False,
 )
 
 targets.builder_defaults.set(
@@ -292,6 +292,18 @@ try_.builder(
         ],
     ),
     contact_team_email = "chrome-browser-infra-team@google.com",
+    properties = {
+        # The format of these properties is defined at archive/properties.proto
+        "$build/archive": {
+            "source_side_spec_path": [
+                "src",
+                "infra",
+                "archive_config",
+                "linux-archive-rel.json",
+            ],
+            "verify_paths_only": True,
+        },
+    },
     siso_remote_jobs = siso.remote_jobs.LOW_JOBS_FOR_CQ,
 )
 
@@ -482,6 +494,7 @@ try_.orchestrator_builder(
         experiment_percentage = 10,
         on_default_cq = True,
     ),
+    siso_remote_linking = True,
     use_clang_coverage = True,
 )
 
@@ -1014,19 +1027,20 @@ try_.builder(
 )
 
 try_.builder(
-    name = "linux-webium-product-rel",
+    name = "linux-no-initial-webui-rel",
+    description_html = "Mirror of Linux No Initial WebUI CI builder",
     mirrors = [
-        "ci/linux-webium-product-rel",
+        "ci/Linux Builder",
+        "ci/linux-no-initial-webui-rel",
     ],
     gn_args = gn_args.config(
         configs = [
             "ci/Linux Builder",
             "release_try_builder",
+            "remoteexec",
         ],
     ),
     contact_team_email = "chrome-webium-product-eng@google.com",
-    execution_timeout = 4 * time.hour,
-    siso_remote_jobs = siso.remote_jobs.LOW_JOBS_FOR_CQ,
 )
 
 try_.builder(
@@ -1224,4 +1238,13 @@ try_.builder(
             cq.location_filter(path_regexp = r".*/README\.(chromium|angle|pdfium|crashpad|skia|swarming|v8|webrtc|google|libaom)"),
         ],
     ),
+)
+
+try_.builder(
+    name = "linux-tsgo-rel",
+    mirrors = [
+        "ci/linux-tsgo-rel",
+    ],
+    gn_args = "ci/linux-tsgo-rel",
+    contact_team_email = "chrome-webui@google.com",
 )

@@ -8,9 +8,12 @@
 #include <utility>
 
 #include "base/command_line.h"
+#include "base/strings/stringprintf.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/metrics/user_action_tester.h"
+#include "base/test/mock_log.h"
+#include "base/test/scoped_command_line.h"
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/enterprise/browser_management/management_service_factory.h"
@@ -26,9 +29,11 @@
 #include "chrome/browser/glic/test_support/glic_test_util.h"
 #include "chrome/browser/global_features.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
+#include "chrome/browser/signin/identity_test_environment_profile_adaptor.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_switches.h"
+#include "chrome/common/pref_names.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chrome/test/base/testing_profile_manager.h"
@@ -38,18 +43,24 @@
 #include "components/prefs/pref_service.h"
 #include "components/prefs/testing_pref_service.h"
 #include "components/signin/public/identity_manager/account_capabilities_test_mutator.h"
+#include "components/signin/public/identity_manager/identity_test_environment.h"
 #include "components/signin/public/identity_manager/identity_test_utils.h"
 #include "components/sync_preferences/testing_pref_service_syncable.h"
 #include "components/variations/service/test_variations_service.h"
 #include "components/variations/service/variations_service.h"
 #include "components/variations/variations_switches.h"
 #include "content/public/test/browser_task_environment.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/ash/test/glic_user_session_test_helper.h"
 #include "chromeos/constants/chromeos_features.h"
 #endif  // BUILDFLAG(IS_CHROMEOS)
+
+#if BUILDFLAG(IS_ANDROID)
+#include "base/android/android_info.h"
+#endif
 
 using base::test::FeatureRef;
 
@@ -84,6 +95,12 @@ class TestDelegate : public GlicGlobalEnabling::Delegate {
 class GlicEnablingTest : public testing::Test {
  public:
   void SetUp() override {
+#if BUILDFLAG(IS_ANDROID)
+    if (base::android::android_info::sdk_int() <
+        base::android::android_info::SDK_VERSION_S) {
+      GTEST_SKIP() << "Glic requires Android S+";
+    }
+#endif
     // Note: We're not creating GlobalFeatures in this unit test because
     // GlicBackgroundModeManager fails to be constructed without additional
     // setup.
@@ -445,6 +462,12 @@ class GlicEnablingProfileEligibilityTest : public testing::Test {
   ~GlicEnablingProfileEligibilityTest() override = default;
 
   void SetUp() override {
+#if BUILDFLAG(IS_ANDROID)
+    if (base::android::android_info::sdk_int() <
+        base::android::android_info::SDK_VERSION_S) {
+      GTEST_SKIP() << "Glic requires Android S+";
+    }
+#endif
     raw_ptr<TestingProfileManager> testing_profile_manager =
         TestingBrowserProcess::GetGlobal()->SetUpGlobalFeaturesForTesting(
             /*profile_manager=*/true);
@@ -455,10 +478,16 @@ class GlicEnablingProfileEligibilityTest : public testing::Test {
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
     profile_ = testing_profile_manager->CreateTestingProfile(
-        TestingProfile::kDefaultProfileUserName);
+        TestingProfile::kDefaultProfileUserName,
+        IdentityTestEnvironmentProfileAdaptor::
+            GetIdentityTestEnvironmentFactories());
+
+    identity_test_env_adaptor_ =
+        std::make_unique<IdentityTestEnvironmentProfileAdaptor>(profile_);
   }
 
   void TearDown() override {
+    identity_test_env_adaptor_.reset();
     profile_ = nullptr;
 
     TestingBrowserProcess::GetGlobal()->TearDownGlobalFeaturesForTesting();
@@ -470,6 +499,8 @@ class GlicEnablingProfileEligibilityTest : public testing::Test {
 
  protected:
   Profile* profile() { return profile_.get(); }
+  std::unique_ptr<IdentityTestEnvironmentProfileAdaptor>
+      identity_test_env_adaptor_;
 
  private:
   content::BrowserTaskEnvironment task_environment_;
@@ -510,15 +541,18 @@ class GlicEnablingProfileReadyStateTestBase
 
   void SetUp() override {
     GlicEnablingProfileEligibilityTest::SetUp();
+    if (IsSkipped()) {
+      return;
+    }
 
     // Make sure we have a primary account so we don't fail the "capable" check.
-    signin::IdentityManager* identity_manager =
-        IdentityManagerFactory::GetForProfile(profile());
-    AccountInfo account_info = signin::MakePrimaryAccountAvailable(
-        identity_manager, "test@example.com", signin::ConsentLevel::kSignin);
+    auto* identity_test_env = identity_test_env_adaptor_->identity_test_env();
+    AccountInfo account_info = identity_test_env->MakePrimaryAccountAvailable(
+        "test@example.com", signin::ConsentLevel::kSignin);
     AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
     mutator.set_can_use_model_execution_features(true);
-    signin::UpdateAccountInfoForAccount(identity_manager, account_info);
+    signin::UpdateAccountInfoForAccount(identity_test_env->identity_manager(),
+                                        account_info);
   }
 
  private:
@@ -563,6 +597,12 @@ class GlicEnablingAnchorEntryPointTestBase : public testing::Test {
   }
 
   void SetUp() override {
+#if BUILDFLAG(IS_ANDROID)
+    if (base::android::android_info::sdk_int() <
+        base::android::android_info::SDK_VERSION_S) {
+      GTEST_SKIP() << "Glic requires Android S+";
+    }
+#endif
     raw_ptr<TestingProfileManager> testing_profile_manager =
         TestingBrowserProcess::GetGlobal()->SetUpGlobalFeaturesForTesting(
             /*profile_manager=*/true);
@@ -573,7 +613,12 @@ class GlicEnablingAnchorEntryPointTestBase : public testing::Test {
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
     profile_ = testing_profile_manager->CreateTestingProfile(
-        TestingProfile::kDefaultProfileUserName);
+        TestingProfile::kDefaultProfileUserName,
+        IdentityTestEnvironmentProfileAdaptor::
+            GetIdentityTestEnvironmentFactories());
+
+    identity_test_env_adaptor_ =
+        std::make_unique<IdentityTestEnvironmentProfileAdaptor>(profile_);
 
     // Make sure we have a primary account so we don't fail the "capable" check.
     signin::IdentityManager* identity_manager =
@@ -586,6 +631,7 @@ class GlicEnablingAnchorEntryPointTestBase : public testing::Test {
   }
 
   void TearDown() override {
+    identity_test_env_adaptor_.reset();
     profile_ = nullptr;
     TestingBrowserProcess::GetGlobal()->TearDownGlobalFeaturesForTesting();
 #if BUILDFLAG(IS_CHROMEOS)
@@ -594,6 +640,10 @@ class GlicEnablingAnchorEntryPointTestBase : public testing::Test {
   }
 
   Profile* profile() { return profile_.get(); }
+
+ protected:
+  std::unique_ptr<IdentityTestEnvironmentProfileAdaptor>
+      identity_test_env_adaptor_;
 
  private:
   content::BrowserTaskEnvironment task_environment_;
@@ -697,7 +747,28 @@ TEST_F(GlicEnablingAnchorEntryPointTestBase,
 }
 
 #if !BUILDFLAG(IS_CHROMEOS)
-TEST_F(GlicEnablingTrustFirstOnboardingTest, NotSignedIn_ReturnsIneligible) {
+TEST_F(GlicEnablingTrustFirstOnboardingTest,
+       NotSignedIn_ReturnsSignInRequired) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(features::kGlicShowForSignedOut);
+
+  glic::GlicKeyedService::Get(profile())->enabling().SetCompletedFre(
+      prefs::FreStatus::kIncomplete);
+
+  // Simulate "Not signed in" by removing the primary account.
+  signin::IdentityManager* identity_manager =
+      IdentityManagerFactory::GetForProfile(profile());
+  signin::ClearPrimaryAccount(identity_manager);
+
+  EXPECT_EQ(GlicEnabling::GetProfileReadyState(profile()),
+            mojom::ProfileReadyState::kSignInRequired);
+}
+
+TEST_F(GlicEnablingTrustFirstOnboardingTest,
+       NotSignedIn_FeatureDisabled_ReturnsIneligible) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(features::kGlicShowForSignedOut);
+
   glic::GlicKeyedService::Get(profile())->enabling().SetCompletedFre(
       prefs::FreStatus::kIncomplete);
 
@@ -727,6 +798,23 @@ TEST_F(GlicEnablingTrustFirstOnboardingTest,
   EXPECT_TRUE(GlicEnabling::IsEnabledAndConsentForProfile(profile()));
 }
 
+#if !BUILDFLAG(IS_CHROMEOS)
+TEST_F(GlicEnablingTrustFirstOnboardingTest, ResetFreOnSignOut) {
+  auto& enabling = glic::GlicKeyedService::Get(profile())->enabling();
+  enabling.SetCompletedFre(prefs::FreStatus::kCompleted);
+
+  signin::IdentityManager* identity_manager =
+      IdentityManagerFactory::GetForProfile(profile());
+  signin::ClearPrimaryAccount(identity_manager);
+
+#if BUILDFLAG(IS_ANDROID)
+  EXPECT_EQ(enabling.GetCompletedFre(), prefs::FreStatus::kNotStarted);
+#else
+  EXPECT_EQ(enabling.GetCompletedFre(), prefs::FreStatus::kCompleted);
+#endif
+}
+#endif  // !BUILDFLAG(IS_CHROMEOS)
+
 struct GatedFeatureParams {
   std::string name;
   bool is_feature_enabled = false;
@@ -745,6 +833,9 @@ class GlicEnablingGatedFeatureTest
   void SetUpFeature(const base::Feature& feature,
                     const base::FeatureParam<bool>& onboarding_param) {
     GlicEnablingProfileReadyStateTestBase::SetUp();
+    if (IsSkipped()) {
+      return;
+    }
 
     std::vector<base::test::FeatureRefAndParams> enabled_features;
     std::vector<base::test::FeatureRef> disabled_features;
@@ -834,6 +925,9 @@ class GlicEnablingContextMenuTest
  public:
   void SetUp() override {
     GlicEnablingProfileReadyStateTestBase::SetUp();
+    if (IsSkipped()) {
+      return;
+    }
 
     std::vector<base::test::FeatureRefAndParams> enabled_features;
     std::vector<base::test::FeatureRef> disabled_features;
@@ -929,6 +1023,37 @@ TEST_F(GlicEnablingProfileEligibilityTest,
       ->enabling()
       .SetExperimentalTriggeringEnabled(false);
   EXPECT_TRUE(callback_called);
+}
+
+TEST_F(GlicEnablingProfileEligibilityTest,
+       IsExperimentalTriggeringEnabledDefault) {
+  auto& enabling = glic::GlicKeyedService::Get(profile())->enabling();
+
+  // By default, the preference should be at its default value.
+  EXPECT_TRUE(enabling.IsExperimentalTriggeringEnabledDefault());
+
+  // Set it to true explicitly.
+  enabling.SetExperimentalTriggeringEnabled(true);
+  EXPECT_FALSE(enabling.IsExperimentalTriggeringEnabledDefault());
+
+  // Set it to false explicitly
+  enabling.SetExperimentalTriggeringEnabled(false);
+  EXPECT_FALSE(enabling.IsExperimentalTriggeringEnabledDefault());
+}
+
+TEST_F(GlicEnablingProfileEligibilityTest,
+       IsExperimentalTriggeringUserControlled) {
+  auto& enabling = glic::GlicKeyedService::Get(profile())->enabling();
+
+  // By default, the preference is user-controlled.
+  EXPECT_TRUE(enabling.IsExperimentalTriggeringUserControlled());
+
+  // Make the preference managed (enforced by policy)
+  static_cast<TestingProfile*>(profile())
+      ->GetTestingPrefService()
+      ->SetManagedPref(prefs::kGlicExperimentalTriggeringEnabled,
+                       std::make_unique<base::Value>(false));
+  EXPECT_FALSE(enabling.IsExperimentalTriggeringUserControlled());
 }
 
 TEST_F(GlicEnablingProfileEligibilityTest, ConsentChangedCallback) {
@@ -1284,6 +1409,187 @@ TEST_F(GlicEnablingCombinedObserverTest,
   enabling.SetCompletedFre(prefs::FreStatus::kCompleted);
   EXPECT_TRUE(callback_called);
 }
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
+    BUILDFLAG(IS_CHROMEOS)
+
+constexpr char kPrefProjectId[] = "pref-project";
+constexpr char kPrefAppId[] = "pref-engine";
+constexpr char kPrefLocation[] = "pref-location";
+
+constexpr char kCmdProjectId[] = "cmd-project";
+constexpr char kCmdAppId[] = "cmd-engine";
+constexpr char kCmdLocation[] = "cmd-location";
+
+glic::mojom::GeminiEnterpriseSettings GetPrefSettings() {
+  return glic::mojom::GeminiEnterpriseSettings(kPrefProjectId, kPrefAppId,
+                                               kPrefLocation);
+}
+
+glic::mojom::GeminiEnterpriseSettings GetCmdSettings() {
+  return glic::mojom::GeminiEnterpriseSettings(kCmdProjectId, kCmdAppId,
+                                               kCmdLocation);
+}
+
+std::string ToJsonString(
+    const glic::mojom::GeminiEnterpriseSettings& settings) {
+  return base::StringPrintf(
+      R"({"project_id": "%s", "app_id": "%s", "location": "%s"})",
+      settings.project_id.c_str(), settings.app_id.c_str(),
+      settings.location.c_str());
+}
+
+base::DictValue ToDictValue(
+    const glic::mojom::GeminiEnterpriseSettings& settings) {
+  base::DictValue dict;
+  dict.Set("project_id", settings.project_id);
+  dict.Set("app_id", settings.app_id);
+  dict.Set("location", settings.location);
+  return dict;
+}
+
+struct GeminiEnterpriseSettingsParams {
+  bool feature_enabled = false;
+  std::optional<glic::mojom::GeminiEnterpriseSettings> pref_settings;
+  std::optional<glic::mojom::GeminiEnterpriseSettings> cmd_settings;
+  std::optional<glic::mojom::GeminiEnterpriseSettings> expected_settings;
+};
+
+class GlicEnablingGeminiEnterpriseSettingsTest
+    : public GlicEnablingProfileEligibilityTest,
+      public testing::WithParamInterface<GeminiEnterpriseSettingsParams> {
+ public:
+  GlicEnablingGeminiEnterpriseSettingsTest() {
+    const auto& params = GetParam();
+    if (params.feature_enabled) {
+      scoped_feature_list_.InitAndEnableFeature(
+          features::kGlicGeminiEnterpriseSettingsEnabled);
+    } else {
+      scoped_feature_list_.InitAndDisableFeature(
+          features::kGlicGeminiEnterpriseSettingsEnabled);
+    }
+  }
+
+  void SetUp() override {
+    GlicEnablingProfileEligibilityTest::SetUp();
+
+    const auto& params = GetParam();
+
+    if (params.pref_settings.has_value()) {
+      profile()->GetPrefs()->SetDict(glic::prefs::kGlicGeminiEnterpriseSettings,
+                                     ToDictValue(params.pref_settings.value()));
+    }
+
+    if (params.cmd_settings.has_value()) {
+      scoped_command_line_.GetProcessCommandLine()->AppendSwitchASCII(
+          switches::kGlicGeminiEnterpriseSettingsOverride,
+          ToJsonString(params.cmd_settings.value()));
+    }
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+  base::test::ScopedCommandLine scoped_command_line_;
+};
+
+TEST_P(GlicEnablingGeminiEnterpriseSettingsTest, ExpectedBehavior) {
+  std::optional<glic::mojom::GeminiEnterpriseSettings> settings =
+      GlicEnabling::GetGeminiEnterpriseSettings(profile());
+
+  const auto& expected = GetParam().expected_settings;
+
+  if (expected.has_value()) {
+    EXPECT_THAT(
+        settings,
+        testing::Optional(testing::AllOf(
+            testing::Field("project_id",
+                           &glic::mojom::GeminiEnterpriseSettings::project_id,
+                           expected->project_id),
+            testing::Field("app_id",
+                           &glic::mojom::GeminiEnterpriseSettings::app_id,
+                           expected->app_id),
+            testing::Field("location",
+                           &glic::mojom::GeminiEnterpriseSettings::location,
+                           expected->location))));
+  } else {
+    EXPECT_EQ(settings, std::nullopt);
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    GlicEnablingGeminiEnterpriseSettingsTest,
+    testing::Values(
+        GeminiEnterpriseSettingsParams{.feature_enabled = true,
+                                       .expected_settings = std::nullopt},
+        GeminiEnterpriseSettingsParams{.feature_enabled = true,
+                                       .pref_settings = GetPrefSettings(),
+                                       .expected_settings = GetPrefSettings()},
+        GeminiEnterpriseSettingsParams{.feature_enabled = false,
+                                       .pref_settings = GetPrefSettings(),
+                                       .expected_settings = std::nullopt},
+        GeminiEnterpriseSettingsParams{.feature_enabled = true,
+                                       .pref_settings = GetPrefSettings(),
+                                       .cmd_settings = GetCmdSettings(),
+                                       .expected_settings = GetCmdSettings()},
+        GeminiEnterpriseSettingsParams{.feature_enabled = false,
+                                       .cmd_settings = GetCmdSettings(),
+                                       .expected_settings = std::nullopt},
+        GeminiEnterpriseSettingsParams{.feature_enabled = true,
+                                       .cmd_settings = GetCmdSettings(),
+                                       .expected_settings = GetCmdSettings()}));
+
+class GlicEnablingGeminiEnterpriseSettingsErrorTest
+    : public GlicEnablingProfileEligibilityTest {
+ public:
+  GlicEnablingGeminiEnterpriseSettingsErrorTest() {
+    scoped_feature_list_.InitAndEnableFeature(
+        features::kGlicGeminiEnterpriseSettingsEnabled);
+  }
+
+ protected:
+  base::test::ScopedFeatureList scoped_feature_list_;
+  base::test::ScopedCommandLine scoped_command_line_;
+};
+
+TEST_F(GlicEnablingGeminiEnterpriseSettingsErrorTest, InvalidJsonLogsError) {
+  scoped_command_line_.GetProcessCommandLine()->AppendSwitchASCII(
+      switches::kGlicGeminiEnterpriseSettingsOverride, "invalid json");
+
+  base::test::MockLog mock_log;
+  EXPECT_CALL(
+      mock_log,
+      Log(logging::LOGGING_ERROR, testing::_, testing::_, testing::_,
+          testing::HasSubstr("Gemini Enterprise settings override is not a "
+                             "valid JSON dictionary.")))
+      .Times(1);
+  mock_log.StartCapturingLogs();
+
+  EXPECT_EQ(GlicEnabling::GetGeminiEnterpriseSettings(profile()), std::nullopt);
+
+  mock_log.StopCapturingLogs();
+}
+
+TEST_F(GlicEnablingGeminiEnterpriseSettingsErrorTest, MissingFieldsLogsError) {
+  scoped_command_line_.GetProcessCommandLine()->AppendSwitchASCII(
+      switches::kGlicGeminiEnterpriseSettingsOverride,
+      "{\"project_id\": \"p\"}");
+
+  base::test::MockLog mock_log;
+  EXPECT_CALL(
+      mock_log,
+      Log(logging::LOGGING_ERROR, testing::_, testing::_, testing::_,
+          testing::HasSubstr("Gemini Enterprise settings override is missing "
+                             "required fields.")))
+      .Times(1);
+  mock_log.StartCapturingLogs();
+
+  EXPECT_EQ(GlicEnabling::GetGeminiEnterpriseSettings(profile()), std::nullopt);
+
+  mock_log.StopCapturingLogs();
+}
+
+#endif
 
 }  // namespace
 }  // namespace glic

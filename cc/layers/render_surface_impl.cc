@@ -177,7 +177,8 @@ bool RenderSurfaceImpl::IsViewTransitionElement() const {
 
 // Returns true if this render surface is for an unbounded element.
 bool RenderSurfaceImpl::IsUnbounded() const {
-  return !layer_tree_impl_->settings().TreesInVizInClientProcess() &&
+  return layer_tree_impl_->settings().enable_unbounded_element &&
+         !layer_tree_impl_->settings().TreesInVizInClientProcess() &&
          OwningEffectNode() &&
          OwningEffectNode()->render_surface_reason ==
              RenderSurfaceReason::kUnboundedElement;
@@ -661,7 +662,7 @@ void RenderSurfaceImpl::AppendQuads(const AppendQuadsContext& context,
 
 bool RenderSurfaceImpl::ShouldClip() const {
   return !HasCopyRequest() && !ShouldCacheRenderSurface() &&
-         !IsViewTransitionElement();
+         !IsViewTransitionElement() && !IsUnbounded();
 }
 
 }  // namespace cc

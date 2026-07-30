@@ -134,6 +134,7 @@
 #include "third_party/blink/renderer/core/trustedtypes/trusted_script.h"
 #include "third_party/blink/renderer/core/xml_names.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
+#include "third_party/blink/renderer/platform/graphics/subtree_paint_property_update_reason.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/thread_state.h"
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
@@ -795,8 +796,6 @@ const AttributeTriggers* HTMLElement::TriggersForAttributeName(
        kNoEvent, nullptr},
       {html_names::kAriaValuetextAttr, WebFeature::kARIAValueTextAttribute,
        kNoEvent, nullptr},
-      {html_names::kAriaVirtualcontentAttr,
-       WebFeature::kARIAVirtualcontentAttribute, kNoEvent, nullptr},
       // End ARIA attributes.
 
       {html_names::kAutocapitalizeAttr, WebFeature::kAutocapitalizeAttribute,
@@ -909,6 +908,12 @@ void HTMLElement::AttributeChanged(const AttributeModificationParams& params) {
         this, DocumentUpdateReason::kFocus);
     if (!IsFocusable()) {
       blur();
+    }
+  } else if (params.name == html_names::kUnboundedAttr &&
+             RuntimeEnabledFeatures::UnboundedElementEnabled()) {
+    if (params.new_value.IsNull() &&
+        HasElementFlag(ElementFlags::kIsUnboundedElementActive)) {
+      SetUnboundedElementActive(false);
     }
   }
 }
@@ -1554,9 +1559,17 @@ void MarkPopoverInvokersDirty(const HTMLElement& popover) {
 
 ScriptPromise<IDLUndefined> HTMLElement::showUnboundedElement(
     ScriptState* script_state) {
+  DCHECK(RuntimeEnabledFeatures::UnboundedElementEnabled());
   auto* resolver =
       MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(script_state);
   auto promise = resolver->Promise();
+
+  if (!FastHasAttribute(html_names::kUnboundedAttr)) {
+    resolver->Reject(MakeGarbageCollected<DOMException>(
+        DOMExceptionCode::kInvalidStateError,
+        "The element is missing the 'unbounded' attribute."));
+    return promise;
+  }
 
   auto* frame = GetDocument().GetFrame();
   if (!frame) {
@@ -1573,8 +1586,23 @@ ScriptPromise<IDLUndefined> HTMLElement::showUnboundedElement(
     return promise;
   }
 
-  // TODO(crbug.com/508672616) This should invalidate compositing, via
-  // SetNeedsPaintPropertyUpdate().
+  GetDocument().UpdateStyleAndLayoutForNode(this,
+                                            DocumentUpdateReason::kJavaScript);
+  gfx::Rect bounds;
+  if (auto* layout_object = GetLayoutObject()) {
+    bounds = layout_object->AbsoluteBoundingBoxRect();
+  }
+
+  if (bounds.IsEmpty()) {
+    // TODO(crbug.com/508672616): This is likely weird for now as an element
+    // without layout or with display: none has empty bounds. We should think of
+    // a cleaner way to handle or report this.
+    resolver->Reject(MakeGarbageCollected<DOMException>(
+        DOMExceptionCode::kNotSupportedError,
+        "Unbounded elements must have non-empty bounds."));
+    return promise;
+  }
+
   SetUnboundedElementActive(true);
 
   // TODO(crbug.com/508672616) Store and use the local mojo endpoints.
@@ -1586,10 +1614,31 @@ ScriptPromise<IDLUndefined> HTMLElement::showUnboundedElement(
   auto client_remote = client_receiver.InitWithNewEndpointAndPassRemote();
 
   frame->GetLocalFrameHostRemote().RequestUnboundedSurface(
-      std::move(host_receiver), std::move(client_remote));
+      std::move(host_receiver), std::move(client_remote), bounds);
   resolver->Resolve();
 
   return promise;
+}
+
+bool HTMLElement::IsUnboundedElementActive() const {
+  DCHECK(RuntimeEnabledFeatures::UnboundedElementEnabled() ||
+         !HasElementFlag(ElementFlags::kIsUnboundedElementActive));
+  return HasElementFlag(ElementFlags::kIsUnboundedElementActive);
+}
+void HTMLElement::SetUnboundedElementActive(bool active) {
+  DCHECK(RuntimeEnabledFeatures::UnboundedElementEnabled());
+  DCHECK(!active || FastHasAttribute(html_names::kUnboundedAttr));
+  if (HasElementFlag(ElementFlags::kIsUnboundedElementActive) == active) {
+    return;
+  }
+  SetElementFlag(ElementFlags::kIsUnboundedElementActive, active);
+  SetNeedsStyleRecalc(
+      kSubtreeStyleChange,
+      StyleChangeReasonForTracing::Create(style_change_reason::kPseudoClass));
+  if (auto* layout_object = GetLayoutObject()) {
+    layout_object->AddSubtreePaintPropertyUpdateReason(
+        SubtreePaintPropertyUpdateReason::kContainerChainMayChange);
+  }
 }
 
 bool HTMLElement::togglePopover(ExceptionState& exception_state) {
@@ -2906,9 +2955,7 @@ bool HTMLElement::IsValidBuiltinPopoverCommand(CommandEventType command) {
   return command == CommandEventType::kTogglePopover ||
          command == CommandEventType::kHidePopover ||
          command == CommandEventType::kShowPopover ||
-         command == CommandEventType::kToggleMenu ||
-         command == CommandEventType::kHideMenu ||
-         command == CommandEventType::kShowMenu;
+         command == CommandEventType::kToggleMenu;
 }
 
 bool HTMLElement::IsValidBuiltinCommand(HTMLElement& invoker,
@@ -3237,12 +3284,6 @@ CommandEventType HTMLElement::GetCommandEventType(
   if (RuntimeEnabledFeatures::MenuElementsEnabled()) {
     if (EqualIgnoringAsciiCase(action, keywords::kToggleMenu)) {
       return CommandEventType::kToggleMenu;
-    }
-    if (EqualIgnoringAsciiCase(action, keywords::kShowMenu)) {
-      return CommandEventType::kShowMenu;
-    }
-    if (EqualIgnoringAsciiCase(action, keywords::kHideMenu)) {
-      return CommandEventType::kHideMenu;
     }
   }
 

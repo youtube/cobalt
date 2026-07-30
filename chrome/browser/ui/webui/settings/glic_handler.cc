@@ -468,8 +468,7 @@ bool GlicHandler::ShouldShowWebActuationToggle(Profile* profile) {
   if (base::FeatureList::IsEnabled(features::kGlicWebActuationSettingsToggle)) {
     // Always show the toggle for internal dogfooders, mirroring the bypass in
     // GlicActorPolicyChecker.
-    auto* variations_service = g_browser_process->variations_service();
-    if (variations_service && variations_service->IsLikelyDogfoodClient()) {
+    if (glic::GlicEnabling::IsLikelyDogfoodClient()) {
       return true;
     }
     // Strict subscription check for external users.
@@ -485,6 +484,24 @@ bool GlicHandler::ShouldShowWebActuationToggle(Profile* profile) {
     return true;
   }
   return false;
+}
+
+bool GlicHandler::ShouldShowExperimentalTriggeringToggle(Profile* profile) {
+  if (!base::FeatureList::IsEnabled(features::kGlicExperimentalTriggering)) {
+    return false;
+  }
+  if (!ShouldShowWebActuationToggle(profile)) {
+    return false;
+  }
+  auto* glic_service =
+      glic::GlicKeyedServiceFactory::GetGlicKeyedService(profile);
+  if (!glic_service) {
+    return false;
+  }
+  if (!glic_service->enabling().IsExperimentalTriggeringUserControlled()) {
+    return false;
+  }
+  return !glic_service->enabling().IsExperimentalTriggeringEnabledDefault();
 }
 
 void GlicHandler::HandleGetActorLoginPermissions(const base::ListValue& args) {

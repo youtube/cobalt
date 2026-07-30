@@ -4,33 +4,27 @@
 
 #include "chrome/browser/web_applications/jobs/finalize_update_job.h"
 
-#include <initializer_list>
 #include <memory>
 #include <optional>
+#include <string_view>
 #include <tuple>
 #include <utility>
+#include <vector>
 
-#include "base/feature_list.h"
 #include "base/scoped_observation.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/test/bind.h"
 #include "base/test/gmock_callback_support.h"
-#include "base/test/simple_test_clock.h"
 #include "base/test/test_future.h"
-#include "base/traits_bag.h"
-#include "build/build_config.h"
-#include "build/buildflag.h"
-#include "chrome/browser/content_settings/host_content_settings_map_factory.h"
-#include "chrome/browser/ui/web_applications/test/isolated_web_app_test_utils.h"
 #include "chrome/browser/web_applications/commands/web_app_command.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_integrity_block_data.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_url_info.h"
-#include "chrome/browser/web_applications/isolated_web_apps/test/isolated_web_app_builder.h"
+#include "chrome/browser/web_applications/isolated_web_apps/isolation_data.h"
+#include "chrome/browser/web_applications/jobs/finalize_install_job.h"
 #include "chrome/browser/web_applications/locks/app_lock.h"
 #include "chrome/browser/web_applications/model/migration_behavior.h"
 #include "chrome/browser/web_applications/model/migration_source.h"
 #include "chrome/browser/web_applications/proto/web_app_install_state.pb.h"
 #include "chrome/browser/web_applications/scope_extension_info.h"
-#include "chrome/browser/web_applications/test/fake_os_integration_manager.h"
 #include "chrome/browser/web_applications/test/fake_web_app_origin_association_manager.h"
 #include "chrome/browser/web_applications/test/fake_web_app_provider.h"
 #include "chrome/browser/web_applications/test/web_app_install_test_utils.h"
@@ -44,18 +38,13 @@
 #include "chrome/browser/web_applications/web_app_install_manager.h"
 #include "chrome/browser/web_applications/web_app_install_manager_observer.h"
 #include "chrome/browser/web_applications/web_app_install_utils.h"
-#include "chrome/browser/web_applications/web_app_management_type.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
-#include "chrome/common/chrome_features.h"
-#include "chrome/test/base/testing_profile.h"
-#include "components/content_settings/core/browser/host_content_settings_map.h"
-#include "components/services/app_service/public/cpp/file_handler.h"
-#include "components/sync/base/time.h"
 #include "components/webapps/browser/install_result_code.h"
 #include "components/webapps/isolated_web_apps/test_support/signing_keys.h"
+#include "components/webapps/isolated_web_apps/types/iwa_origin.h"
+#include "components/webapps/isolated_web_apps/types/iwa_version.h"
 #include "components/webapps/isolated_web_apps/types/storage_location.h"
-#include "mojo/public/cpp/bindings/struct_ptr.h"
 #include "services/data_decoder/public/cpp/test_support/in_process_data_decoder.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -69,6 +58,9 @@ namespace web_app {
 namespace {
 
 using testing::_;
+
+constexpr char kDefaultAppUrl[] = "https://foo.example";
+constexpr char16_t kDefaultAppTitle[] = u"Foo Title";
 
 class FinalizeUpdateJobWrapperCommand
     : public WebAppCommand<AppLock,
@@ -192,6 +184,24 @@ class FinalizeUpdateJobTest : public WebAppTest {
                 (override));
   };
 
+  std::unique_ptr<WebAppInstallInfo> CreateAppInfo(std::string_view start_url,
+                                                   std::u16string title) {
+    auto info =
+        WebAppInstallInfo::CreateWithStartUrlForTesting(GURL(start_url));
+    info->title = std::move(title);
+    return info;
+  }
+
+  webapps::InstallResultCode RunFinalizeUpdateJob(
+      const WebAppInstallInfo& info) {
+    base::test::TestFuture<webapps::AppId, webapps::InstallResultCode> future;
+    provider().command_manager().ScheduleCommand(
+        std::make_unique<FinalizeUpdateJobWrapperCommand>(
+            provider(), info, future.GetCallback()));
+
+    return future.Get<webapps::InstallResultCode>();
+  }
+
   void AddFileHandler(
       std::vector<blink::mojom::ManifestFileHandlerPtr>* file_handlers) {
     auto file_handler = blink::mojom::ManifestFileHandler::New();
@@ -217,42 +227,134 @@ class FinalizeUpdateJobTest : public WebAppTest {
 };
 
 TEST_F(FinalizeUpdateJobTest, OnWebAppManifestUpdatedTriggered) {
-  auto info = WebAppInstallInfo::CreateWithStartUrlForTesting(
-      GURL("https://foo.example"));
-  info->title = u"Foo Title";
+  auto info = CreateAppInfo(kDefaultAppUrl, kDefaultAppTitle);
 
   webapps::AppId app_id = test::InstallWebApp(
       profile(), std::make_unique<WebAppInstallInfo>(info->Clone()),
-      /*overwrite_existing_fields=*/true,
+      /*overwrite_existing_manifest_fields=*/true,
       webapps::WebappInstallSource::EXTERNAL_POLICY);
 
-  base::test::TestFuture<webapps::AppId, webapps::InstallResultCode>
-      update_future;
-  provider().command_manager().ScheduleCommand(
-      std::make_unique<FinalizeUpdateJobWrapperCommand>(
-          provider(), *info, update_future.GetCallback()));
-  ASSERT_TRUE(update_future.Wait());
+  EXPECT_EQ(webapps::InstallResultCode::kSuccessAlreadyInstalled,
+            RunFinalizeUpdateJob(*info));
   EXPECT_TRUE(install_manager_observer_->web_app_manifest_updated_called());
 }
 
+class FinalizeUpdateJobTestIwa
+    : public FinalizeUpdateJobTest,
+      public testing::WithParamInterface<IsolatedWebAppStorageLocation> {
+ protected:
+  webapps::AppId InstallBaseIwa(const WebAppInstallInfo& info,
+                                const IsolatedWebAppStorageLocation& location,
+                                std::optional<IsolatedWebAppIntegrityBlockData>
+                                    integrity_block_data = std::nullopt) {
+    webapps::WebappInstallSource install_source =
+        location.dev_mode() ? webapps::WebappInstallSource::IWA_DEV_UI
+                            : webapps::WebappInstallSource::IWA_EXTERNAL_POLICY;
+
+    FinalizeJobOptions options(install_source);
+    options.iwa_options = FinalizeJobOptions::IwaOptions(
+        location,
+        integrity_block_data.value_or(
+            IsolatedWebAppIntegrityBlockData(test::CreateSignatures())));
+
+    base::test::TestFuture<webapps::AppId, webapps::InstallResultCode> future;
+    FakeWebAppProvider::Get(profile())->install_finalizer().FinalizeInstall(
+        info, options,
+        base::BindOnce(
+            [](base::OnceCallback<void(webapps::AppId,
+                                       webapps::InstallResultCode)> callback,
+               const webapps::AppId& app_id, webapps::InstallResultCode code) {
+              std::move(callback).Run(app_id, code);
+            },
+            future.GetCallback()));
+
+    EXPECT_EQ(webapps::InstallResultCode::kSuccessNewInstall,
+              future.Get<webapps::InstallResultCode>());
+    return future.Get<webapps::AppId>();
+  }
+
+  void SetPendingUpdateState(const webapps::AppId& app_id,
+                             const IsolatedWebAppStorageLocation& location,
+                             const IwaVersion& update_version,
+                             std::optional<IsolatedWebAppIntegrityBlockData>
+                                 integrity_block = std::nullopt) {
+    WebApp* app = FakeWebAppProvider::Get(profile())
+                      ->GetRegistrarMutable()
+                      .GetAppByIdMutable(app_id);
+    ASSERT_TRUE(app);
+    ASSERT_TRUE(app->isolation_data().has_value());
+    app->SetIsolationData(
+        IsolationData::Builder(*app->isolation_data())
+            .SetPendingUpdateInfo(IsolationData::PendingUpdateInfo(
+                location, update_version, integrity_block))
+            .Build());
+  }
+};
+
+TEST_P(FinalizeUpdateJobTestIwa, IwaUpdateManifestUrlIgnoredInDevMode) {
+  const IsolatedWebAppStorageLocation& location = GetParam();
+  const GURL update_manifest_url =
+      GURL("https://example.com/update_manifest.json");
+  const GURL start_url =
+      IwaOrigin(test::GetDefaultEcdsaP256WebBundleId()).origin().GetURL();
+  const IwaVersion installed_version = *IwaVersion::Create("1.0.0");
+  const IwaVersion update_version = *IwaVersion::Create("2.0.0");
+
+  auto info = WebAppInstallInfo::CreateWithStartUrlForTesting(start_url);
+  info->title = kDefaultAppTitle;
+  info->set_isolated_web_app_version(installed_version);
+  info->iwa_update_manifest_url = update_manifest_url;
+
+  webapps::AppId app_id = InstallBaseIwa(*info, location);
+  auto integrity_block_data =
+      IsolatedWebAppIntegrityBlockData(test::CreateSignatures());
+  SetPendingUpdateState(app_id, location, update_version, integrity_block_data);
+
+  auto update_info = WebAppInstallInfo::CreateWithStartUrlForTesting(start_url);
+  update_info->title = u"Foo Title Update";
+  update_info->set_isolated_web_app_version(update_version);
+  update_info->iwa_update_manifest_url = update_manifest_url;
+
+  EXPECT_EQ(webapps::InstallResultCode::kSuccessAlreadyInstalled,
+            RunFinalizeUpdateJob(*update_info));
+
+  const WebApp* updated_app = registrar().GetAppById(app_id);
+  EXPECT_EQ(updated_app->isolation_data()->version(), update_version);
+
+  std::optional<GURL> expected_url =
+      location.dev_mode() ? std::nullopt
+                          : std::optional<GURL>(update_manifest_url);
+  EXPECT_EQ(updated_app->isolation_data()->update_manifest_url(), expected_url);
+  EXPECT_FALSE(
+      updated_app->isolation_data()->pending_update_info().has_value());
+  EXPECT_EQ(updated_app->isolation_data()->integrity_block_data(),
+            integrity_block_data);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    FinalizeUpdateJobTestIwa,
+    testing::Values(IsolatedWebAppStorageLocation(IwaStorageOwnedBundle{
+                        "dir", /*dev_mode=*/false}),
+                    IsolatedWebAppStorageLocation(IwaStorageOwnedBundle{
+                        "dir", /*dev_mode=*/true}),
+                    IsolatedWebAppStorageLocation(IwaStorageUnownedBundle{
+                        base::FilePath(FILE_PATH_LITERAL("p"))}),
+                    IsolatedWebAppStorageLocation(IwaStorageProxy{
+                        url::Origin::Create(GURL("http://localhost:1234"))})));
+
 TEST_F(FinalizeUpdateJobTest, ManifestUpdateOsIntegrationDefaultApps) {
-  auto info = WebAppInstallInfo::CreateWithStartUrlForTesting(
-      GURL("https://foo.example"));
-  info->title = u"Foo Title";
+  auto info = CreateAppInfo(kDefaultAppUrl, kDefaultAppTitle);
 
   webapps::AppId app_id = test::InstallWebAppWithoutOsIntegration(
       profile(), std::make_unique<WebAppInstallInfo>(info->Clone()),
-      /*overwrite_existing_fields=*/true,
+      /*overwrite_existing_manifest_fields=*/true,
       webapps::WebappInstallSource::EXTERNAL_DEFAULT);
   EXPECT_EQ(proto::InstallState::INSTALLED_WITHOUT_OS_INTEGRATION,
             registrar().GetInstallState(app_id));
 
-  base::test::TestFuture<webapps::AppId, webapps::InstallResultCode>
-      update_future;
-  provider().command_manager().ScheduleCommand(
-      std::make_unique<FinalizeUpdateJobWrapperCommand>(
-          provider(), *info, update_future.GetCallback()));
-  ASSERT_TRUE(update_future.Wait());
+  EXPECT_EQ(webapps::InstallResultCode::kSuccessAlreadyInstalled,
+            RunFinalizeUpdateJob(*info));
   EXPECT_TRUE(install_manager_observer_->web_app_manifest_updated_called());
 
   // Post manifest update, OS integration is not triggered for default apps.
@@ -261,13 +363,11 @@ TEST_F(FinalizeUpdateJobTest, ManifestUpdateOsIntegrationDefaultApps) {
 }
 
 TEST_F(FinalizeUpdateJobTest, InstallOsHooksDisabledForDefaultApps) {
-  auto info = WebAppInstallInfo::CreateWithStartUrlForTesting(
-      GURL("https://foo.example"));
-  info->title = u"Foo Title";
+  auto info = CreateAppInfo(kDefaultAppUrl, kDefaultAppTitle);
 
   webapps::AppId app_id = test::InstallWebAppWithoutOsIntegration(
       profile(), std::make_unique<WebAppInstallInfo>(info->Clone()),
-      /*overwrite_existing_fields=*/true,
+      /*overwrite_existing_manifest_fields=*/true,
       webapps::WebappInstallSource::EXTERNAL_DEFAULT);
 
   EXPECT_EQ(app_id, GenerateAppId(/*manifest_id_path=*/std::nullopt,
@@ -279,19 +379,12 @@ TEST_F(FinalizeUpdateJobTest, InstallOsHooksDisabledForDefaultApps) {
   PopulateFileHandlerInfoFromManifest(file_handlers, info->start_url(),
                                       info.get());
 
-  base::test::TestFuture<webapps::AppId, webapps::InstallResultCode>
-      update_future;
-  provider().command_manager().ScheduleCommand(
-      std::make_unique<FinalizeUpdateJobWrapperCommand>(
-          provider(), *info, update_future.GetCallback()));
-  auto [updated_app_id, code] = update_future.Take();
-  EXPECT_EQ(webapps::InstallResultCode::kSuccessAlreadyInstalled, code);
+  EXPECT_EQ(webapps::InstallResultCode::kSuccessAlreadyInstalled,
+            RunFinalizeUpdateJob(*info));
 }
 
 TEST_F(FinalizeUpdateJobTest, MigrationSourceChangeSchedulesSync) {
-  GURL start_url("https://foo.example");
-  auto info = WebAppInstallInfo::CreateWithStartUrlForTesting(start_url);
-  info->title = u"Foo Title";
+  auto info = CreateAppInfo(kDefaultAppUrl, kDefaultAppTitle);
   static_cast<FakeWebAppOriginAssociationManager&>(
       provider().origin_association_manager())
       .SetMigrationSourcesData(
@@ -300,7 +393,7 @@ TEST_F(FinalizeUpdateJobTest, MigrationSourceChangeSchedulesSync) {
   // 1. Install without migration sources.
   webapps::AppId app_id = test::InstallWebApp(
       profile(), std::make_unique<WebAppInstallInfo>(info->Clone()),
-      /*overwrite_existing_fields=*/true,
+      /*overwrite_existing_manifest_fields=*/true,
       webapps::WebappInstallSource::INTERNAL_DEFAULT);
 
   // 2. Expect ScheduleResolveWebAppPendingMigrationInfo to be called.
@@ -313,20 +406,12 @@ TEST_F(FinalizeUpdateJobTest, MigrationSourceChangeSchedulesSync) {
       MigrationBehavior::kSuggest);
   info->migration_sources = {source};
 
-  base::test::TestFuture<webapps::AppId, webapps::InstallResultCode>
-      update_future;
-  provider().command_manager().ScheduleCommand(
-      std::make_unique<FinalizeUpdateJobWrapperCommand>(
-          provider(), *info, update_future.GetCallback()));
-  ASSERT_TRUE(update_future.Wait());
   EXPECT_EQ(webapps::InstallResultCode::kSuccessAlreadyInstalled,
-            update_future.Get<webapps::InstallResultCode>());
+            RunFinalizeUpdateJob(*info));
 }
 
 TEST_F(FinalizeUpdateJobTest, ValidateShortcutsSanitizedOutsideScope) {
-  GURL start_url("https://foo.example");
-  auto info = WebAppInstallInfo::CreateWithStartUrlForTesting(start_url);
-  info->title = u"Foo Title";
+  auto info = CreateAppInfo(kDefaultAppUrl, kDefaultAppTitle);
 
   webapps::AppId app_id = test::InstallWebApp(
       profile(), std::make_unique<WebAppInstallInfo>(info->Clone()),
@@ -352,14 +437,8 @@ TEST_F(FinalizeUpdateJobTest, ValidateShortcutsSanitizedOutsideScope) {
   invalid_bitmaps.any[16] = bitmap;
   info->shortcuts_menu_icon_bitmaps = {valid_bitmaps, invalid_bitmaps};
 
-  base::test::TestFuture<webapps::AppId, webapps::InstallResultCode>
-      update_future;
-  provider().command_manager().ScheduleCommand(
-      std::make_unique<FinalizeUpdateJobWrapperCommand>(
-          provider(), *info, update_future.GetCallback()));
-  ASSERT_TRUE(update_future.Wait());
   EXPECT_EQ(webapps::InstallResultCode::kSuccessAlreadyInstalled,
-            update_future.Get<webapps::InstallResultCode>());
+            RunFinalizeUpdateJob(*info));
 
   const WebApp* updated_app = registrar().GetAppById(app_id);
   ASSERT_EQ(1u, updated_app->shortcuts_menu_item_infos().size());
@@ -367,9 +446,7 @@ TEST_F(FinalizeUpdateJobTest, ValidateShortcutsSanitizedOutsideScope) {
 }
 
 TEST_F(FinalizeUpdateJobTest, ValidateShortcutsKeptInExtendedScope) {
-  GURL start_url("https://foo.example");
-  auto info = WebAppInstallInfo::CreateWithStartUrlForTesting(start_url);
-  info->title = u"Foo Title";
+  auto info = CreateAppInfo(kDefaultAppUrl, kDefaultAppTitle);
 
   webapps::AppId app_id = test::InstallWebApp(
       profile(), std::make_unique<WebAppInstallInfo>(info->Clone()),
@@ -400,14 +477,8 @@ TEST_F(FinalizeUpdateJobTest, ValidateShortcutsKeptInExtendedScope) {
       provider().origin_association_manager())
       .SetData(data);
 
-  base::test::TestFuture<webapps::AppId, webapps::InstallResultCode>
-      update_future;
-  provider().command_manager().ScheduleCommand(
-      std::make_unique<FinalizeUpdateJobWrapperCommand>(
-          provider(), *info, update_future.GetCallback()));
-  ASSERT_TRUE(update_future.Wait());
   EXPECT_EQ(webapps::InstallResultCode::kSuccessAlreadyInstalled,
-            update_future.Get<webapps::InstallResultCode>());
+            RunFinalizeUpdateJob(*info));
 
   const WebApp* updated_app = registrar().GetAppById(app_id);
   ASSERT_EQ(1u, updated_app->shortcuts_menu_item_infos().size());

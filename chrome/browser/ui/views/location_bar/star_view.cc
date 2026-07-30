@@ -25,6 +25,7 @@
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/view_ids.h"
 #include "chrome/browser/ui/views/bookmarks/bookmark_bubble_view.h"
+#include "chrome/grit/browser_resources.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/bookmarks/common/bookmark_pref_names.h"
 #include "components/feature_engagement/public/event_constants.h"
@@ -141,6 +142,28 @@ const gfx::VectorIcon& StarView::GetVectorIcon() const {
 std::u16string StarView::GetTextForTooltipAndAccessibleName() const {
   return l10n_util::GetStringUTF16(GetActive() ? IDS_TOOLTIP_STARRED
                                                : IDS_TOOLTIP_STAR);
+}
+
+void StarView::OnActiveStateChanged() {
+  const bool play_animations = features::IsToolbarGlowUpEnabled() &&
+                               !ui::TouchUiController::Get()->touch_ui();
+  if (!play_animations) {
+    return;
+  }
+
+  views::SingleAnimatedImageContainer::AnimationConfig config{
+      .direction =
+          views::SingleAnimatedImageContainer::AnimationDirection::kForward,
+      .end_behavior =
+          views::SingleAnimatedImageContainer::AnimationEndBehavior::kReset};
+
+  if (GetActive()) {
+    animated_image_container().PlayAnimation(
+        {IDR_UNSTAR_TO_STAR_LOTTIE, GetForegroundColor()}, config);
+  } else {
+    animated_image_container().PlayAnimation(
+        {IDR_STAR_TO_UNSTAR_LOTTIE, GetForegroundColor()}, config);
+  }
 }
 
 void StarView::EditBookmarksPrefUpdated() {

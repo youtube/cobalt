@@ -6,6 +6,7 @@
 #import "base/ios/ios_util.h"
 #import "base/test/ios/wait_util.h"
 #import "components/strings/grit/components_strings.h"
+#import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/test/earl_grey/chrome_earl_grey.h"
 #import "ios/chrome/test/earl_grey/chrome_matchers.h"
 #import "ios/chrome/test/earl_grey/chrome_test_case.h"
@@ -296,12 +297,18 @@ std::unique_ptr<net::test_server::HttpResponse> WindowLocationHashHandlers(
   [ChromeEarlGrey waitForWebStateContainingText:"pony"];
   [ChromeEarlGrey waitForWebStateVisibleURL:secondURL];
 
-  // Verify that the forward button is visible but not enabled.
-  id<GREYMatcher> disabledForwardButton =
-      grey_allOf(ForwardButton(),
-                 grey_accessibilityTrait(UIAccessibilityTraitNotEnabled), nil);
-  [[EarlGrey selectElementWithMatcher:disabledForwardButton]
-      assertWithMatcher:grey_notNil()];
+  // Verify that the forward button is visible but not enabled (or hidden under
+  // Chrome Next IA).
+  if ([ChromeEarlGrey isChromeNextEnabled]) {
+    [[EarlGrey selectElementWithMatcher:ForwardButton()]
+        assertWithMatcher:grey_notVisible()];
+  } else {
+    id<GREYMatcher> disabledForwardButton = grey_allOf(
+        ForwardButton(),
+        grey_accessibilityTrait(UIAccessibilityTraitNotEnabled), nil);
+    [[EarlGrey selectElementWithMatcher:disabledForwardButton]
+        assertWithMatcher:grey_notNil()];
+  }
 }
 
 // Test back-and-forward navigation from and to NTP.
@@ -318,6 +325,13 @@ std::unique_ptr<net::test_server::HttpResponse> WindowLocationHashHandlers(
       assertWithMatcher:grey_notNil()];
 
   // Tap the forward button and verify test page is loaded.
+  if ([ChromeEarlGrey isChromeNextEnabled] && ![ChromeEarlGrey isIPadIdiom]) {
+    // On compact iPhones under Chrome Next, toolbars are hidden on the NTP by
+    // default. We must scroll down the page to reveal the toolbar before we
+    // can tap the Forward button.
+    [[EarlGrey selectElementWithMatcher:NTPCollectionView()]
+        performAction:grey_swipeFastInDirection(kGREYDirectionUp)];
+  }
   [[EarlGrey selectElementWithMatcher:ForwardButton()]
       performAction:grey_tap()];
   [ChromeEarlGrey waitForWebStateContainingText:"pony"];

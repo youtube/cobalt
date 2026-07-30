@@ -16,6 +16,8 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxProperties.PopupButtonData;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxProperties.PopupButtonType;
 import org.chromium.components.browser_ui.util.ConversionUtils;
+import org.chromium.components.contextual_search.ContextUploadErrorType;
+import org.chromium.components.contextual_search.ContextUploadStatus;
 import org.chromium.components.feature_engagement.EventConstants;
 import org.chromium.components.feature_engagement.Tracker;
 import org.chromium.components.omnibox.AutocompleteRequestType;
@@ -40,6 +42,10 @@ public class FuseboxMetrics {
             "Omnibox.MobileFusebox.FileAttachmentSize";
 
     private static final String TOKEN_SEPARATOR = ".";
+
+    @VisibleForTesting /* package */
+    static final String FILE_ATTACHMENT_SIZE_LIMIT_CHECK_HISTOGRAM =
+            "Omnibox.MobileFusebox.AttachmentSizeLimitCheck";
 
     @VisibleForTesting /* package */ static final int TOOL_MODE_HISTOGRAM_BOUND = 11;
     @VisibleForTesting /* package */ static final int MODEL_MODE_HISTOGRAM_BOUND = 5;
@@ -91,6 +97,25 @@ public class FuseboxMetrics {
 
     // LINT.ThenChange(//tools/metrics/histograms/metadata/omnibox/enums.xml:FuseboxAttachmentButtonType)
 
+    // LINT.IfChange(FuseboxAttachmentSizeLimitCheck)
+    @IntDef({
+        FuseboxAttachmentSizeLimitCheck.UNDER_LIMIT_ON_METERED,
+        FuseboxAttachmentSizeLimitCheck.UNDER_LIMIT_ON_UNMETERED,
+        FuseboxAttachmentSizeLimitCheck.OVER_LIMIT_ON_METERED,
+        FuseboxAttachmentSizeLimitCheck.OVER_LIMIT_ON_UNMETERED,
+        FuseboxAttachmentSizeLimitCheck.COUNT
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface FuseboxAttachmentSizeLimitCheck {
+        int UNDER_LIMIT_ON_METERED = 0;
+        int UNDER_LIMIT_ON_UNMETERED = 1;
+        int OVER_LIMIT_ON_METERED = 2;
+        int OVER_LIMIT_ON_UNMETERED = 3;
+        int COUNT = 4;
+    }
+
+    // LINT.ThenChange(//tools/metrics/histograms/metadata/omnibox/enums.xml:FuseboxAttachmentSizeLimitCheck)
+
     private boolean mSessionStarted;
     private boolean mAttachmentsPopupButtonUsedInSession;
     private final boolean[] mAttachmentButtonsShownInSession =
@@ -103,6 +128,13 @@ public class FuseboxMetrics {
                 "Omnibox.MobileFusebox.AiModeActivationSource",
                 aiModeActivationSource,
                 AiModeActivationSource.COUNT);
+    }
+
+    static void notifyAttachmentSizeLimitCheck(@FuseboxAttachmentSizeLimitCheck int result) {
+        RecordHistogram.recordEnumeratedHistogram(
+                FILE_ATTACHMENT_SIZE_LIMIT_CHECK_HISTOGRAM,
+                result,
+                FuseboxAttachmentSizeLimitCheck.COUNT);
     }
 
     void notifyAttachmentsPopupToggled(boolean toShowPopup, PropertyModel model, Tracker tracker) {
@@ -236,6 +268,20 @@ public class FuseboxMetrics {
     private static void recordAttachmentSizeHistogram(String histogramName, int sizeInKiB) {
         UmaRecorderHolder.get()
                 .recordExponentialHistogram(histogramName, sizeInKiB, 100, 100000, 100);
+    }
+
+    static void recordContextUploadStatus(@ContextUploadStatus int status) {
+        RecordHistogram.recordEnumeratedHistogram(
+                "Omnibox.MobileFusebox.ContextUploadStatus",
+                status,
+                ContextUploadStatus.MAX_VALUE + 1);
+    }
+
+    static void recordContextUploadError(@ContextUploadErrorType int errorType) {
+        RecordHistogram.recordEnumeratedHistogram(
+                "Omnibox.MobileFusebox.ContextUploadError",
+                errorType,
+                ContextUploadErrorType.MAX_VALUE + 1);
     }
 
     @SuppressLint("SwitchIntDef") // COUNT entry missing

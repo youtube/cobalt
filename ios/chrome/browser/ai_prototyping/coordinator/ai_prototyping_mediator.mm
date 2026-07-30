@@ -10,6 +10,7 @@
 #import "base/base64.h"
 #import "base/functional/bind.h"
 #import "base/json/json_reader.h"
+#import "base/json/json_writer.h"
 #import "base/logging.h"
 #import "base/strings/string_number_conversions.h"
 #import "base/strings/stringprintf.h"
@@ -17,24 +18,23 @@
 #import "base/strings/utf_string_conversions.h"
 #import "base/task/thread_pool.h"
 #import "base/values.h"
+#import "components/actor/core/aggregated_journal.h"
+#import "components/actor/public/mojom/actor_types.mojom.h"
 #import "components/optimization_guide/optimization_guide_buildflags.h"
 #import "components/optimization_guide/proto/features/actions_data.pb.h"
 #import "components/optimization_guide/proto/features/bling_prototyping.pb.h"
 #import "components/optimization_guide/proto/features/common_quality_data.pb.h"
 #import "components/optimization_guide/proto/features/enhanced_calendar.pb.h"
 #import "components/optimization_guide/proto/features/ios_smart_tab_grouping.pb.h"
-#import "components/optimization_guide/proto/features/tab_organization.pb.h"
 #import "components/optimization_guide/proto/string_value.pb.h"  // nogncheck
 #import "ios/chrome/browser/ai_prototyping/features.h"
 #import "ios/chrome/browser/ai_prototyping/model/ai_prototyping_service_impl.h"
-#import "ios/chrome/browser/ai_prototyping/model/tab_organization_service_impl.h"
 #import "ios/chrome/browser/ai_prototyping/ui/ai_prototyping_consumer.h"
 #import "ios/chrome/browser/ai_prototyping/utils/ai_prototyping_constants.h"
 #import "ios/chrome/browser/ai_prototyping/utils/json_action_parser.h"
 #import "ios/chrome/browser/ai_prototyping/utils/page_context_util.h"
 #import "ios/chrome/browser/intelligence/actor/model/actor_service.h"
 #import "ios/chrome/browser/intelligence/actor/model/actor_service_factory.h"
-#import "ios/chrome/browser/intelligence/actor/model/aggregated_journal.h"
 #import "ios/chrome/browser/intelligence/actor/tools/model/actor_tool.h"
 #import "ios/chrome/browser/intelligence/actor/tools/public/actor_tool_types.h"
 #import "ios/chrome/browser/intelligence/actor/tools/utils/actor_tool_utils.h"
@@ -42,7 +42,6 @@
 #import "ios/chrome/browser/intelligence/proto_wrappers/ios_smart_tab_grouping_request_wrapper.h"
 #import "ios/chrome/browser/intelligence/proto_wrappers/page_context_wrapper.h"
 #import "ios/chrome/browser/intelligence/proto_wrappers/page_context_wrapper_config.h"
-#import "ios/chrome/browser/intelligence/proto_wrappers/tab_organization_request_wrapper.h"
 #import "ios/chrome/browser/intelligence/smart_tab_grouping/model/smart_tab_grouping_service_impl.h"
 #import "ios/chrome/browser/intelligence/smart_tab_grouping/utils/smart_tab_grouping_utils.h"
 #import "ios/chrome/browser/optimization_guide/model/optimization_guide_service.h"
@@ -50,7 +49,62 @@
 #import "ios/chrome/browser/optimization_guide/mojom/enhanced_calendar_service.mojom-forward.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
-#import "ios/web/public/web_state.h"
+
+namespace {
+
+std::string GetJournalLogsAsJson(actor::AggregatedJournal* journal) {
+  if (!journal) {
+    return "{}";
+  }
+  base::ListValue list;
+  for (actor::AggregatedJournal::EntryBuffer::Iterator it = journal->Items();
+       it; ++it) {
+    const std::unique_ptr<actor::AggregatedJournal::Entry>* entry_ptr = *it;
+    if (!entry_ptr || !*entry_ptr || !(*entry_ptr)->data) {
+      continue;
+    }
+    const actor::AggregatedJournal::Entry& entry_wrapper = **entry_ptr;
+    const actor::mojom::JournalEntry& entry = *entry_wrapper.data;
+    base::DictValue dict;
+    switch (entry.type) {
+      case actor::mojom::JournalEntryType::kBegin:
+        dict.Set("type", "Begin");
+        break;
+      case actor::mojom::JournalEntryType::kEnd:
+        dict.Set("type", "End");
+        break;
+      case actor::mojom::JournalEntryType::kInstant:
+        dict.Set("type", "Instant");
+        break;
+    }
+    dict.Set("task_id", base::NumberToString(entry.task_id.value()));
+    dict.Set("event", entry.event);
+    dict.Set("timestamp", entry.timestamp.InSecondsFSinceUnixEpoch());
+    dict.Set("track_uuid", base::NumberToString(entry.track_uuid));
+    if (!entry_wrapper.url.empty()) {
+      dict.Set("url", entry_wrapper.url);
+    }
+
+    base::ListValue details_list;
+    for (const actor::mojom::JournalDetailsPtr& detail : entry.details) {
+      if (!detail) {
+        continue;
+      }
+      base::DictValue detail_dict;
+      detail_dict.Set("key", detail->key);
+      detail_dict.Set("value", detail->value);
+      details_list.Append(std::move(detail_dict));
+    }
+    dict.Set("details", std::move(details_list));
+    list.Append(std::move(dict));
+  }
+
+  std::string json;
+  base::JSONWriter::Write(list, &json);
+  return json;
+}
+
+}  // namespace
 
 @implementation AIPrototypingMediator {
   // Browser agent responsible for persisting and retrieving tab context data.
@@ -66,13 +120,6 @@
   // `AIPrototypingServiceImpl`.
   std::unique_ptr<ai::AIPrototypingServiceImpl> _ai_prototyping_service_impl;
 
-  // Remote used to make calls to functions related to `TabOrganizationService`.
-  mojo::Remote<ai::mojom::TabOrganizationService> _tab_organization_service;
-  // Instantiated to pipe virtual remote calls to overridden functions in the
-  // `TabOrganizationServiceImpl`.
-  std::unique_ptr<ai::TabOrganizationServiceImpl>
-      _tab_organization_service_impl;
-
   // Remote used to make calls to functions related to
   // `EnhancedCalendarService`.
   mojo::Remote<ai::mojom::EnhancedCalendarService> _enhanced_calendar_service;
@@ -87,9 +134,6 @@
   // Instatiated to pipe virtual remote calls to overriden functions in
   // 'SmartTabGroupingServiceImpl'.
   std::unique_ptr<ai::SmartTabGroupingServiceImpl> _smartTabGroupingServiceImpl;
-
-  // The Tab Organization feature's request wrapper.
-  TabOrganizationRequestWrapper* _tabOrganizationRequestWrapper;
 
   // The freeform feature's PageContext wrapper.
   PageContextWrapper* _pageContextWrapper;
@@ -125,12 +169,7 @@
         std::make_unique<ai::AIPrototypingServiceImpl>(
             std::move(ai_prototyping_receiver), browserState, startOnDevice);
 
-    mojo::PendingReceiver<ai::mojom::TabOrganizationService>
-        tab_organization_receiver =
-            _tab_organization_service.BindNewPipeAndPassReceiver();
-    _tab_organization_service_impl =
-        std::make_unique<ai::TabOrganizationServiceImpl>(
-            std::move(tab_organization_receiver), _webStateList, startOnDevice);
+
 
     mojo::PendingReceiver<ai::mojom::EnhancedCalendarService>
         enhanced_calendar_receiver =
@@ -239,58 +278,6 @@
       }));
 }
 
-- (void)executeGroupTabsWithStrategy:
-    (optimization_guide::proto::
-         TabOrganizationRequest_TabOrganizationModelStrategy)strategy {
-  // Ensure that tabOrganizationRequestWrapper is reset from previous attempts.
-  if (_tabOrganizationRequestWrapper) {
-    _tabOrganizationRequestWrapper = nil;
-  }
-
-  __weak __typeof(self) weakSelf = self;
-
-  // Create return callback for `_tab_organization_service`.
-  base::OnceCallback<void(const std::string& response_string)>
-      service_callback =
-          base::BindOnce(^void(const std::string& response_string) {
-            [weakSelf.consumer
-                updateQueryResult:base::SysUTF8ToNSString(response_string)
-                       forFeature:AIPrototypingFeature::kTabOrganization];
-
-            // Assign to a strong variable to avoid race condition when setting
-            // `_tabOrganizationRequestWrapper` to nil.
-            AIPrototypingMediator* strongSelf = weakSelf;
-            if (strongSelf) {
-              strongSelf->_tabOrganizationRequestWrapper = nil;
-            }
-          });
-
-  // Create completion callback for TabOrganization request wrapper.
-  base::OnceCallback<void(
-      std::unique_ptr<optimization_guide::proto::TabOrganizationRequest>)>
-      completion_callback = base::BindOnce(
-          [](AIPrototypingMediator* mediator,
-             base::OnceCallback<void(const std::string& response_string)>
-                 callback,
-             std::unique_ptr<optimization_guide::proto::TabOrganizationRequest>
-                 request) {
-            ::mojo_base::ProtoWrapper proto_wrapper =
-                mojo_base::ProtoWrapper(*request.get());
-
-            mediator->_tab_organization_service->ExecuteGroupTabs(
-                std::move(proto_wrapper), std::move(callback));
-          },
-          base::Unretained(self), std::move(service_callback));
-
-  // Create the TabOrganization request wrapper, and start populating its
-  // fields. When completed, `completionCallback` will be executed.
-  _tabOrganizationRequestWrapper = [[TabOrganizationRequestWrapper alloc]
-                 initWithWebStateList:_webStateList
-      allowReorganizingExistingGroups:true
-                     groupingStrategy:strategy
-                   completionCallback:std::move(completion_callback)];
-  [_tabOrganizationRequestWrapper populateRequestFieldsAsync];
-}
 
 - (void)executeSmartTabGrouping {
   __weak __typeof(self) weakSelf = self;
@@ -661,9 +648,7 @@
           "\n";
     }
   }
-
-  actor::AggregatedJournal* journal = actorService->GetJournal();
-  std::string json_str = journal->GetLogsAsJson();
+  std::string json_str = GetJournalLogsAsJson(actorService->GetJournal());
 
   result_text =
       base::SysUTF8ToNSString(summary_str + "\nJSON journal:\n" + json_str);

@@ -9,6 +9,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/notreached.h"
 #include "base/strings/cstring_view.h"
+#include "services/webnn/gpu_task_scheduler.h"
 #include "services/webnn/ort/graph_impl_ort.h"
 #include "services/webnn/ort/ort_data_type.h"
 #include "services/webnn/ort/ort_status.h"
@@ -19,7 +20,6 @@
 #include "services/webnn/public/mojom/webnn_graph.mojom.h"
 #include "services/webnn/public/mojom/webnn_service_introspection.mojom.h"
 #include "services/webnn/public/mojom/webnn_tensor.mojom.h"
-#include "services/webnn/scoped_gpu_sequence.h"
 #include "services/webnn/webnn_constant_operand.h"
 #include "services/webnn/webnn_context_impl.h"
 #include "services/webnn/webnn_graph_impl.h"
@@ -110,18 +110,6 @@ void RecordFirstSelectedDevice(OrtHardwareDeviceType device_type) {
 // tensors for EPs, e.g. OpenVINO EP.
 BASE_FEATURE(kUseDeviceTensor, base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Maps WebNN device type to ORT hardware device type.
-OrtHardwareDeviceType ToOrtDeviceType(mojom::Device device_type) {
-  switch (device_type) {
-    case mojom::Device::kCpu:
-      return OrtHardwareDeviceType_CPU;
-    case mojom::Device::kGpu:
-      return OrtHardwareDeviceType_GPU;
-    case mojom::Device::kNpu:
-      return OrtHardwareDeviceType_NPU;
-  }
-}
-
 }  // namespace
 
 // static
@@ -132,7 +120,7 @@ std::unique_ptr<WebNNContextImpl, OnTaskRunnerDeleter> ContextImplOrt::Create(
     mojo::ScopedDataPipeConsumerHandle write_tensor_consumer,
     mojo::ScopedDataPipeProducerHandle read_tensor_producer,
     scoped_refptr<Environment> env,
-    std::unique_ptr<ScopedGpuSequence> gpu_sequence,
+    std::unique_ptr<GpuTaskScheduler> gpu_task_scheduler,
     scoped_refptr<gpu::MemoryTracker> memory_tracker,
     scoped_refptr<base::SingleThreadTaskRunner> owning_task_runner,
     gpu::SharedImageManager* shared_image_manager,
@@ -145,7 +133,7 @@ std::unique_ptr<WebNNContextImpl, OnTaskRunnerDeleter> ContextImplOrt::Create(
   // determine ORT device type.
   // TODO(crbug.com/469455162): Use power preference and accelerated
   // attributes from WebNN context options to determine ORT device type.
-  OrtHardwareDeviceType device_type = ToOrtDeviceType(options->device);
+  OrtHardwareDeviceType device_type = WebnnToOrtDeviceType(options->device);
   const EpWorkarounds ep_workarounds = env->GetEpWorkarounds(device_type);
   scoped_refptr<SessionOptions> session_options =
       SessionOptions::Create(device_type, env);
@@ -166,9 +154,9 @@ std::unique_ptr<WebNNContextImpl, OnTaskRunnerDeleter> ContextImplOrt::Create(
           std::move(ep_workarounds), dequantize_linear_input_support_int32,
           std::move(options), std::move(session_options),
           std::move(write_tensor_consumer), std::move(read_tensor_producer),
-          std::move(env), std::move(gpu_sequence), std::move(memory_tracker),
-          std::move(owning_task_runner), shared_image_manager,
-          std::move(main_task_runner)),
+          std::move(env), std::move(gpu_task_scheduler),
+          std::move(memory_tracker), std::move(owning_task_runner),
+          shared_image_manager, std::move(main_task_runner)),
       OnTaskRunnerDeleter(std::move(task_runner)));
   return context_impl;
 }
@@ -183,7 +171,7 @@ ContextImplOrt::ContextImplOrt(
     mojo::ScopedDataPipeConsumerHandle write_tensor_consumer,
     mojo::ScopedDataPipeProducerHandle write_tensor_producer,
     scoped_refptr<Environment> env,
-    std::unique_ptr<ScopedGpuSequence> gpu_sequence,
+    std::unique_ptr<GpuTaskScheduler> gpu_task_scheduler,
     scoped_refptr<gpu::MemoryTracker> memory_tracker,
     scoped_refptr<base::SingleThreadTaskRunner> owning_task_runner,
     gpu::SharedImageManager* shared_image_manager,
@@ -197,7 +185,7 @@ ContextImplOrt::ContextImplOrt(
           std::move(options),
           std::move(write_tensor_consumer),
           std::move(write_tensor_producer),
-          std::move(gpu_sequence),
+          std::move(gpu_task_scheduler),
           std::move(memory_tracker),
           std::move(owning_task_runner),
           shared_image_manager,

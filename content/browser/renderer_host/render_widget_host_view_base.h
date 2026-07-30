@@ -111,9 +111,6 @@ class CONTENT_EXPORT RenderWidgetHostViewBase
   // RenderWidgetHostView implementation.
   RenderWidgetHost* GetRenderWidgetHost() final;
   ui::TextInputClient* GetTextInputClient() override;
-  void Show() final;
-  void WasUnOccluded() override {}
-  void WasOccluded() override {}
   std::u16string GetSelectedText() override;
   bool GetIsPointerLockedUnadjustedMovementForTesting() override;
   bool CanBePointerLocked() override;
@@ -407,6 +404,14 @@ class CONTENT_EXPORT RenderWidgetHostViewBase
   // the web contents should be hidden, e.g., because a background tab is
   // screen captured.
   virtual void ShowWithVisibility(PageVisibilityState page_visibility) = 0;
+
+  // Hides the view.
+  virtual void Hide() = 0;
+
+  // Indicates that the view is currently occluded (e.g, not visible because
+  // it's covered up by other windows), and as a result the view's renderer may
+  // be suspended. Calling Show()/Hide() overrides the state set by this method.
+  virtual void WasOccluded() {}
 
   // Tells the View to destroy itself.
   virtual void Destroy();

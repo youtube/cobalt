@@ -19,6 +19,10 @@ BASE_DECLARE_FEATURE(kChromeFindsInternals);
 // The cooldown period in days for the model execution cooldown.
 extern const base::FeatureParam<int> kModelExecutionCooldownDurationInDays;
 
+// The history time window in days to query history entries. This should match
+// the model execution cooldown duration, except for testing configurations.
+extern const base::FeatureParam<int> kHistoryTimeWindowInDays;
+
 // The cooldown period in days for each theme not interested.
 extern const base::FeatureParam<int> kThemeCooldownDurationInDays;
 
@@ -67,6 +71,15 @@ extern const base::FeatureParam<bool> kEnableThemeUrlVisitCountOptIn;
 
 // The feature flag param to block model execution.
 extern const base::FeatureParam<bool> kBlockModelExecution;
+
+// The feature flag param to enable the omnibox recent search suggestion opt-in
+// flow.
+extern const base::FeatureParam<bool> kEnableOmniboxRecentSearchSuggestionOptIn;
+
+// The number of times a user should click recent search suggestions in the
+// omnibox before triggering the opt-in promo.
+extern const base::FeatureParam<int>
+    kOmniboxRecentSearchSuggestionCountThreshold;
 
 }  // namespace finds::features
 

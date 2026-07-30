@@ -148,7 +148,8 @@ public class GlicToolbarButtonControllerTest {
     public void testOnClick() {
         mController.onClick(null);
 
-        verify(mToggleGlicCallback).onClick(false);
+        verify(mToggleGlicCallback)
+                .onClick(false, GlicKeyedService.GlicInvocationSource.TOP_CHROME_BUTTON);
     }
 
     @Test
@@ -172,6 +173,9 @@ public class GlicToolbarButtonControllerTest {
         Assert.assertEquals(
                 mContext.getString(R.string.glic_button_status_review),
                 mContext.getString(buttonData.getButtonSpec().getActionChipLabelResId()));
+        Assert.assertEquals(
+                mContext.getString(R.string.glic_button_status_review_a11y_label),
+                buttonData.getButtonSpec().getContentDescription());
         verify(mObserver).buttonDataChanged(true);
     }
 
@@ -192,6 +196,9 @@ public class GlicToolbarButtonControllerTest {
         ButtonData buttonData = mController.get(mTab);
         Assert.assertTrue(buttonData.getButtonSpec().getDrawable() instanceof LayerDrawable);
         Assert.assertEquals(0, buttonData.getButtonSpec().getActionChipLabelResId());
+        Assert.assertEquals(
+                mContext.getString(R.string.glic_button_status_working_a11y_label),
+                buttonData.getButtonSpec().getContentDescription());
     }
 
     @Test
@@ -229,6 +236,9 @@ public class GlicToolbarButtonControllerTest {
         Assert.assertEquals(
                 mContext.getString(R.string.glic_button_status_done),
                 mContext.getString(buttonData.getButtonSpec().getActionChipLabelResId()));
+        Assert.assertEquals(
+                mContext.getString(R.string.glic_button_status_done_a11y_label),
+                buttonData.getButtonSpec().getContentDescription());
 
         when(mActorService.getCurrentActiveTask()).thenReturn(null);
 
@@ -236,6 +246,9 @@ public class GlicToolbarButtonControllerTest {
         Assert.assertEquals(
                 mContext.getString(R.string.glic_button_status_done),
                 mContext.getString(buttonData.getButtonSpec().getActionChipLabelResId()));
+        Assert.assertEquals(
+                mContext.getString(R.string.glic_button_status_done_a11y_label),
+                buttonData.getButtonSpec().getContentDescription());
     }
 
     @Test
@@ -256,6 +269,9 @@ public class GlicToolbarButtonControllerTest {
         Assert.assertEquals(
                 mContext.getString(R.string.glic_button_status_done),
                 mContext.getString(buttonData.getButtonSpec().getActionChipLabelResId()));
+        Assert.assertEquals(
+                mContext.getString(R.string.glic_button_status_done_a11y_label),
+                buttonData.getButtonSpec().getContentDescription());
         verify(mObserver).buttonDataChanged(true);
     }
 
@@ -277,11 +293,17 @@ public class GlicToolbarButtonControllerTest {
         Assert.assertEquals(
                 mContext.getString(R.string.glic_button_status_done),
                 mContext.getString(buttonData.getButtonSpec().getActionChipLabelResId()));
+        Assert.assertEquals(
+                mContext.getString(R.string.glic_button_status_done_a11y_label),
+                buttonData.getButtonSpec().getContentDescription());
 
         mController.onClick(null);
 
         buttonData = mController.get(mTab);
         Assert.assertEquals(0, buttonData.getButtonSpec().getActionChipLabelResId());
+        Assert.assertEquals(
+                mContext.getString(R.string.glic_button_entrypoint_ask_gemini_label),
+                buttonData.getButtonSpec().getContentDescription());
     }
 
     @Test
@@ -472,7 +494,8 @@ public class GlicToolbarButtonControllerTest {
 
         // Verify popup was NOT shown.
         verify(showHook, never()).run();
-        verify(mToggleGlicCallback).onClick(false);
+        verify(mToggleGlicCallback)
+                .onClick(false, GlicKeyedService.GlicInvocationSource.TOP_CHROME_BUTTON);
     }
 
     @Test

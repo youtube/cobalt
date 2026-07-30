@@ -104,6 +104,10 @@ namespace {
 BASE_FEATURE(kDelayUpdateWindowsAfterTextInputStateChanged,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+// If enabled, throttles resize IPCs on Mac to prevent jank during window
+// resize.
+BASE_FEATURE(kThrottleResizeIpc, base::FEATURE_DISABLED_BY_DEFAULT);
+
 }  // namespace
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -462,7 +466,7 @@ void RenderWidgetHostViewMac::InitAsPopup(
 
   // This path is used by the time/date picker.
   ns_view_->InitAsPopup(pos, popup_parent_host_view_->ns_view_id_);
-  Show();
+  ShowWithVisibility(PageVisibilityState::kVisible);
 }
 
 RenderWidgetHostViewBase*
@@ -509,10 +513,6 @@ void RenderWidgetHostViewMac::Hide() {
     browser_compositor_->GetDelegatedFrameHost()->WasHidden(
         DelegatedFrameHost::HiddenCause::kOther);
   }
-}
-
-void RenderWidgetHostViewMac::WasUnOccluded() {
-  OnShowWithPageVisibility(PageVisibilityState::kVisible);
 }
 
 void RenderWidgetHostViewMac::NotifyHostAndDelegateOnWasShown(
@@ -967,8 +967,11 @@ void RenderWidgetHostViewMac::UpdateScreenInfo() {
   // and for web platform APIs that expose screen and window info and events.
   // RenderWidgetHostImpl will query BrowserCompositorMac for the dimensions
   // to send to the renderer, so BrowserCompositorMac must be updated first.
-  if (dip_size_changed || any_display_changed)
-    host()->NotifyScreenInfoChanged();
+  if (dip_size_changed || any_display_changed) {
+    host()->NotifyScreenInfoChanged(
+        /*ignore_ack=*/any_display_changed ||
+        !base::FeatureList::IsEnabled(kThrottleResizeIpc));
+  }
 }
 
 viz::ScopedSurfaceIdAllocator

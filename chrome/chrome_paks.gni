@@ -583,15 +583,18 @@ template("chrome_extra_paks") {
       ]
     }
 
+    if (enable_dice_support || is_chromeos) {
+      sources += [ "$root_gen_dir/chrome/batch_upload_resources.pak" ]
+      deps += [ "//chrome/browser/resources/signin/batch_upload:resources" ]
+    }
+
     if (enable_dice_support) {
       sources += [
-        "$root_gen_dir/chrome/batch_upload_resources.pak",
         "$root_gen_dir/chrome/feature_showcase_resources.pak",
         "$root_gen_dir/chrome/signin_signout_confirmation_resources.pak",
       ]
       deps += [
         "//chrome/browser/resources/feature_showcase:resources",
-        "//chrome/browser/resources/signin/batch_upload:resources",
         "//chrome/browser/resources/signin/signout_confirmation:resources",
       ]
     }
@@ -617,6 +620,11 @@ template("chrome_extra_paks") {
           [ "$root_gen_dir/chrome/unexportable_keys_internals_resources.pak" ]
       deps +=
           [ "//chrome/browser/resources/unexportable_keys_internals:resources" ]
+    }
+
+    if (is_win) {
+      sources += [ "$root_gen_dir/chrome/visual_guided_setter_resources.pak" ]
+      deps += [ "//chrome/browser/resources/default_browser/visual_guided_setter:resources" ]
     }
 
     if (safe_browsing_mode == 1) {

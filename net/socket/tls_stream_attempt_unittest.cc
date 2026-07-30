@@ -76,6 +76,7 @@ class TlsStreamAttemptHelper : public TlsStreamAttempt::Delegate {
       : attempt_(std::make_unique<TlsStreamAttempt>(
             params,
             IPEndPoint(IPAddress(192, 0, 2, 1), 443),
+            handles::kInvalidNetworkHandle,
             perfetto::Track(),
             HostPortPair("a.test", 443),
             std::move(base_ssl_config),
@@ -1196,6 +1197,98 @@ TEST_F(TlsStreamAttemptTest, TrustAnchorIDsMTCFallback) {
   histogram_tester.ExpectUniqueSample(
       "Net.SSL.TrustAnchorIDsResult",
       SSLClientSocket::TrustAnchorIDsResult::kNoDnsSuccessRetryMtcFallback, 1);
+}
+
+TEST_F(TlsStreamAttemptTest, ServerPaddingNotRequested) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(features::kAddTLSServerHandshakePadding);
+
+  StaticSocketDataProvider data;
+  socket_factory().AddSocketDataProvider(&data);
+  SSLSocketDataProvider ssl(ASYNC, OK);
+  socket_factory().AddSSLSocketDataProvider(&ssl);
+
+  TlsStreamAttemptHelper helper(params(), SSLConfig(), ServiceEndpoint());
+  int rv = helper.Start();
+  EXPECT_THAT(rv, IsError(ERR_IO_PENDING));
+
+  base::HistogramTester histogram_tester;
+  rv = helper.WaitForCompletion();
+  EXPECT_THAT(rv, IsOk());
+  histogram_tester.ExpectTotalCount("Net.SSL_Connection_Latency_ServerPadding",
+                                    0);
+}
+
+TEST_F(TlsStreamAttemptTest, ServerPaddingRequest) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeatureWithParameters(
+      features::kAddTLSServerHandshakePadding,
+      {{"AddTLSServerHandshakePaddingBytes", "128"}});
+
+  StaticSocketDataProvider data;
+  socket_factory().AddSocketDataProvider(&data);
+  SSLSocketDataProvider ssl(ASYNC, OK);
+  ssl.expected_server_padding_to_request = 128;
+  ssl.ssl_info.server_padding_received = true;
+  socket_factory().AddSSLSocketDataProvider(&ssl);
+
+  TlsStreamAttemptHelper helper(params(), SSLConfig(), ServiceEndpoint());
+  int rv = helper.Start();
+  EXPECT_THAT(rv, IsError(ERR_IO_PENDING));
+
+  base::HistogramTester histogram_tester;
+  rv = helper.WaitForCompletion();
+  EXPECT_THAT(rv, IsOk());
+  histogram_tester.ExpectTotalCount("Net.SSL_Connection_Latency_ServerPadding",
+                                    1);
+}
+
+TEST_F(TlsStreamAttemptTest, ServerPaddingRequestZeroPadding) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeatureWithParameters(
+      features::kAddTLSServerHandshakePadding,
+      {{"AddTLSServerHandshakePaddingBytes", "0"}});
+
+  StaticSocketDataProvider data;
+  socket_factory().AddSocketDataProvider(&data);
+  SSLSocketDataProvider ssl(ASYNC, OK);
+  ssl.expected_server_padding_to_request = 0;
+  ssl.ssl_info.server_padding_received = true;
+  socket_factory().AddSSLSocketDataProvider(&ssl);
+
+  TlsStreamAttemptHelper helper(params(), SSLConfig(), ServiceEndpoint());
+  int rv = helper.Start();
+  EXPECT_THAT(rv, IsError(ERR_IO_PENDING));
+
+  base::HistogramTester histogram_tester;
+  rv = helper.WaitForCompletion();
+  EXPECT_THAT(rv, IsOk());
+  histogram_tester.ExpectTotalCount("Net.SSL_Connection_Latency_ServerPadding",
+                                    1);
+}
+
+TEST_F(TlsStreamAttemptTest, ServerPaddingRequestButNotReceived) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeatureWithParameters(
+      features::kAddTLSServerHandshakePadding,
+      {{"AddTLSServerHandshakePaddingBytes", "0"}});
+
+  StaticSocketDataProvider data;
+  socket_factory().AddSocketDataProvider(&data);
+  SSLSocketDataProvider ssl(ASYNC, OK);
+  ssl.expected_server_padding_to_request = 0;
+  ssl.ssl_info.server_padding_received = false;
+  socket_factory().AddSSLSocketDataProvider(&ssl);
+
+  TlsStreamAttemptHelper helper(params(), SSLConfig(), ServiceEndpoint());
+  int rv = helper.Start();
+  EXPECT_THAT(rv, IsError(ERR_IO_PENDING));
+
+  base::HistogramTester histogram_tester;
+  rv = helper.WaitForCompletion();
+  EXPECT_THAT(rv, IsOk());
+  histogram_tester.ExpectTotalCount("Net.SSL_Connection_Latency_ServerPadding",
+                                    0);
 }
 
 }  // namespace net

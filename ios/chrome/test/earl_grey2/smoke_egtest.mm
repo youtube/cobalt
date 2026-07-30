@@ -114,8 +114,7 @@
 // Tests that string resources are loaded into the ResourceBundle and available
 // for use in tests.
 - (void)testAppResourcesArePresent {
-  NSString* settingsLabel = l10n_util::GetNSString(IDS_IOS_TOOLBAR_SETTINGS);
-  [[EarlGrey selectElementWithMatcher:grey_accessibilityLabel(settingsLabel)]
+  [[EarlGrey selectElementWithMatcher:chrome_test_util::ToolsMenuButton()]
       assertWithMatcher:grey_sufficientlyVisible()];
 }
 

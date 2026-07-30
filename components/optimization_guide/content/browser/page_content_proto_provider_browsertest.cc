@@ -916,9 +916,8 @@ IN_PROC_BROWSER_TEST_F(PageContentProtoProviderBrowserTest,
 
   ASSERT_TRUE(image_node.content_attributes().has_image_data());
   const auto& image_data = image_node.content_attributes().image_data();
-  // TODO(crbug.com/382558422): Propagate image source URLs, this should be
-  // a.com.
-  EXPECT_TRUE(image_data.security_origin().value().empty());
+  EXPECT_TRUE(image_data.security_origin().opaque());
+  EXPECT_FALSE(image_data.security_origin().value().empty());
 }
 
 IN_PROC_BROWSER_TEST_F(PageContentProtoProviderBrowserTest, SVG) {
@@ -952,8 +951,13 @@ IN_PROC_BROWSER_TEST_F(PageContentProtoProviderBrowserTest, Video) {
   ASSERT_TRUE(video_node.content_attributes().has_video_data());
   EXPECT_EQ(video_node.content_attributes().attribute_type(),
             optimization_guide::proto::CONTENT_ATTRIBUTE_VIDEO);
+
+  GURL video_url = https_server()->GetURL("/video.mp4");
   EXPECT_EQ(video_node.content_attributes().video_data().url(),
-            https_server()->GetURL("/video.mp4").spec());
+            video_url.spec());
+  AssertValidOrigin(
+      video_node.content_attributes().video_data().security_origin(),
+      url::Origin::Create(video_url));
 }
 
 namespace {
@@ -972,10 +976,11 @@ std::string GetFilePathWithHostAndPortReplacement(
 
 IN_PROC_BROWSER_TEST_F(PageContentProtoProviderBrowserTest,
                        AIPageContentCrossOriginImage) {
+  GURL cross_origin_url = https_server()->GetURL("b.com", "/");
   // Add a "replace_text=" query param that the test server will use to replace
   // the string "REPLACE_WITH_HOST_AND_PORT" in the destination page.
   net::HostPortPair host_port_pair =
-      net::HostPortPair::FromURL(https_server()->GetURL("b.com", "/"));
+      net::HostPortPair::FromURL(cross_origin_url);
   std::string replacement_path = GetFilePathWithHostAndPortReplacement(
       "/cross_origin_image.html", host_port_pair);
 
@@ -986,9 +991,68 @@ IN_PROC_BROWSER_TEST_F(PageContentProtoProviderBrowserTest,
 
   ASSERT_TRUE(image_node.content_attributes().has_image_data());
   const auto& image_data = image_node.content_attributes().image_data();
-  // TODO(crbug.com/382558422): Propagate image source URLs, this should be
-  // b.com.
-  EXPECT_TRUE(image_data.security_origin().value().empty());
+  AssertValidOrigin(image_data.security_origin(),
+                    url::Origin::Create(cross_origin_url));
+}
+
+IN_PROC_BROWSER_TEST_F(PageContentProtoProviderBrowserTest,
+                       AIPageContentImageWithAboutBlank) {
+  ASSERT_TRUE(content::NavigateToURL(
+      web_contents(),
+      https_server()->GetURL("a.com", "/cross_origin_image.html")));
+
+  ASSERT_TRUE(content::ExecJs(web_contents(),
+                              "const img = document.getElementById('image');"
+                              "img.src = 'about:blank';"));
+
+  {
+    base::test::TestFuture<bool> future;
+    web_contents()
+        ->GetPrimaryMainFrame()
+        ->GetRenderWidgetHost()
+        ->InsertVisualStateCallback(future.GetCallback());
+    ASSERT_TRUE(future.Wait()) << "Timeout waiting for syncing with renderer";
+  }
+
+  LoadData();
+
+  ASSERT_EQ(page_content().root_node().children_nodes().size(), 1);
+  const auto& image_node = page_content().root_node().children_nodes().at(0);
+
+  ASSERT_TRUE(image_node.content_attributes().has_image_data());
+  const auto& image_data = image_node.content_attributes().image_data();
+  AssertValidOrigin(image_data.security_origin(),
+                    url::Origin::Create(https_server()->GetURL("a.com", "/")));
+}
+
+IN_PROC_BROWSER_TEST_F(PageContentProtoProviderBrowserTest,
+                       AIPageContentVideoWithAboutBlank) {
+  ASSERT_TRUE(content::NavigateToURL(
+      web_contents(), https_server()->GetURL("a.com", "/video.html")));
+
+  ASSERT_TRUE(content::ExecJs(web_contents(),
+                              "const video = document.querySelector('video');"
+                              "video.src = 'about:blank';"));
+
+  {
+    base::test::TestFuture<bool> future;
+    web_contents()
+        ->GetPrimaryMainFrame()
+        ->GetRenderWidgetHost()
+        ->InsertVisualStateCallback(future.GetCallback());
+    ASSERT_TRUE(future.Wait()) << "Timeout waiting for syncing with renderer";
+  }
+
+  LoadData();
+
+  ASSERT_EQ(page_content().root_node().children_nodes().size(), 1);
+  const auto& video_node = page_content().root_node().children_nodes().at(0);
+
+  ASSERT_TRUE(video_node.content_attributes().has_video_data());
+  const auto& video_data = video_node.content_attributes().video_data();
+  EXPECT_EQ(video_data.url(), "about:blank");
+  AssertValidOrigin(video_data.security_origin(),
+                    url::Origin::Create(https_server()->GetURL("a.com", "/")));
 }
 
 IN_PROC_BROWSER_TEST_F(PageContentProtoProviderBrowserTest,
@@ -3277,6 +3341,31 @@ IN_PROC_BROWSER_TEST_F(PageContentProtoProviderBrowserTest, NavigationMetrics) {
 
   tester.ExpectUniqueSample(kPerPageMetric, 3, 1);
 }
+
+// Popups may be rendered as native OS-level widgets on Android and Apple OSs.
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_APPLE)
+IN_PROC_BROWSER_TEST_F(PageContentProtoProviderBrowserTest,
+                       HiddenPopupsIgnored) {
+  LoadPage(https_server()->GetURL("/open_popup.html"));
+
+  content::ShowPopupWidgetWaiter new_popup_waiter(
+      web_contents(), web_contents()->GetPrimaryMainFrame());
+  ASSERT_TRUE(content::ExecJs(
+      web_contents(), "document.getElementById('select_input').showPicker();"));
+  new_popup_waiter.Wait();
+
+  // Verify initially that the popup is detected since it's showing.
+  LoadData(GetActionableAIPageContentOptions());
+  ASSERT_TRUE(page_content().has_popup_window());
+
+  // Hide the web contents to simulate hiding the popup and verify it is no
+  // longer verified/allowed as a popup.
+  web_contents()->WasHidden();
+
+  LoadData(GetActionableAIPageContentOptions());
+  EXPECT_FALSE(page_content().has_popup_window());
+}
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_APPLE)
 
 }  // namespace
 

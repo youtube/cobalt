@@ -77,6 +77,8 @@ import org.chromium.build.BuildConfig;
 import org.chromium.chrome.browser.banners.AppMenuVerbiage;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider.ControlsPosition;
+import org.chromium.chrome.browser.contextual_tasks.ContextualTasksUtils;
+import org.chromium.chrome.browser.contextual_tasks.ContextualTasksUtilsJni;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.layouts.toolbar.ToolbarWidthConsumer;
 import org.chromium.chrome.browser.lens.LensController;
@@ -214,6 +216,7 @@ public class LocationBarMediatorTest {
     @Mock private LocationBarMediator.OmniboxUma mOmniboxUma;
     @Mock private OmniboxSuggestionsDropdownEmbedderImpl mEmbedderImpl;
     @Mock private ResourceRequestBody.Natives mResourceRequestBodyJni;
+    @Mock private ContextualTasksUtils.Natives mContextualTasksUtilsJni;
     @Mock private BrowserControlsStateProvider mBrowserControlsStateProvider;
     @Mock private AppBannerManager mAppBannerManager;
     @Mock private AppBannerManager.Natives mAppBannerManagerJni;
@@ -272,6 +275,7 @@ public class LocationBarMediatorTest {
 
         mUrlBarData = UrlBarData.create(null, "text", 0, 0, "text");
         lenient().doReturn(true).when(mSearchEngineUtils).shouldShowSearchEngineLogo();
+        lenient().doReturn(true).when(mSearchEngineUtils).isDefaultSearchEngineGoogle();
         SearchEngineUtils.setInstanceForTesting(mSearchEngineUtils);
         lenient().doReturn(mUrlBarData).when(mLocationBarDataProvider).getUrlBarData();
         lenient()
@@ -297,6 +301,7 @@ public class LocationBarMediatorTest {
         lenient().doReturn(new WeakReference<>(null)).when(mWindowAndroid).getActivity();
         OmniboxPrerenderJni.setInstanceForTesting(mPrerenderJni);
         PreloadPagesSettingsBridgeJni.setInstanceForTesting(mPreloadPagesSettingsJni);
+        ContextualTasksUtilsJni.setInstanceForTesting(mContextualTasksUtilsJni);
         ResourceRequestBody.setNativesForTesting(mResourceRequestBodyJni);
         lenient().doReturn(mProfile).when(mTab).getProfile();
         lenient()
@@ -513,7 +518,7 @@ public class LocationBarMediatorTest {
         GURL url = JUnitTestGURLs.BLUE_1;
         input.setUserText("www.blue.com").setInitialUserText("www.blue.com").setPageUrl(url);
 
-        UrlBarData data = LocationBarMediator.getUrlBarDataForCurrentInput(input);
+        UrlBarData data = mMediator.getUrlBarDataForCurrentInput(input);
         assertEquals(url, data.url);
         assertEquals("www.blue.com", data.displayText.toString());
     }
@@ -524,7 +529,7 @@ public class LocationBarMediatorTest {
         GURL url = JUnitTestGURLs.BLUE_1;
         input.setUserText("user text").setInitialUserText("www.blue.com").setPageUrl(url);
 
-        UrlBarData data = LocationBarMediator.getUrlBarDataForCurrentInput(input);
+        UrlBarData data = mMediator.getUrlBarDataForCurrentInput(input);
         assertNull(data.url);
         assertEquals("user text", data.displayText.toString());
     }
@@ -535,9 +540,52 @@ public class LocationBarMediatorTest {
         GURL url = JUnitTestGURLs.BLUE_1;
         input.setUserText("").setInitialUserText("").setPageUrl(url);
 
-        UrlBarData data = LocationBarMediator.getUrlBarDataForCurrentInput(input);
+        UrlBarData data = mMediator.getUrlBarDataForCurrentInput(input);
         assertNull(data.url);
         assertEquals("", data.displayText.toString());
+    }
+
+    @Test
+    public void testContextualTasks_UrlBarData_PrettyUrl() {
+        GURL contextualTasksUrl = new GURL("chrome://contextual-tasks");
+        GURL prettyUrl = new GURL("chrome://google.com/search");
+        doReturn(contextualTasksUrl).when(mLocationBarDataProvider).getCurrentGurl();
+        doReturn(mWebContents).when(mLocationBarDataProvider).getWebContents();
+        doReturn(prettyUrl)
+                .when(mContextualTasksUtilsJni)
+                .getContextualTasksDisplayUrl(mWebContents);
+
+        AutocompleteInput input = new AutocompleteInput();
+        input.setUserText("chrome://google.com/search")
+                .setInitialUserText("chrome://google.com/search")
+                .setPageUrl(contextualTasksUrl);
+
+        UrlBarData data = mMediator.getUrlBarDataForCurrentInput(input);
+        assertEquals(contextualTasksUrl, data.url);
+        assertEquals(prettyUrl.getSpec(), data.displayText.toString());
+    }
+
+    @Test
+    public void testContextualTasks_Copy() {
+        GURL contextualTasksUrl = new GURL("chrome://contextual-tasks");
+        GURL functionalUrl = new GURL("https://www.google.com/search");
+        String text = "chrome://www.google.com/search";
+
+        doReturn(contextualTasksUrl).when(mLocationBarDataProvider).getCurrentGurl();
+        doReturn(mWebContents).when(mLocationBarDataProvider).getWebContents();
+        doReturn(functionalUrl)
+                .when(mContextualTasksUtilsJni)
+                .getContextualTasksFunctionalURL(mWebContents);
+        doReturn(new GURL(text))
+                .when(mContextualTasksUtilsJni)
+                .getContextualTasksDisplayUrl(mWebContents);
+        doReturn(functionalUrl.getSpec())
+                .when(mContextualTasksUtilsJni)
+                .getReplacementUrl(eq(text), anyInt(), anyInt(), eq(functionalUrl));
+
+        assertEquals(
+                functionalUrl.getSpec(),
+                mMediator.getReplacementCutCopyText(text, 0, text.length()));
     }
 
     @Test
@@ -1586,6 +1634,46 @@ public class LocationBarMediatorTest {
                 ArgumentCaptor.forClass(FuseboxSessionState.class);
         verify(mAutocompleteCoordinator, atLeastOnce()).beginInput(captor.capture());
         assertEquals("text", captor.getValue().getAutocompleteInput().getUserText());
+    }
+
+    @Test
+    public void testSetUrlFocusChangeInProgress_accessibilityWorkaroundPreservesSession() {
+        mMediator.addUrlFocusChangeListener(mUrlCoordinator);
+        mMediator.setUrlFocusChangeInProgress(true);
+        mMediator.onFinishNativeInitialization();
+        mProfileSupplier.set(mProfile);
+
+        ChromeAccessibilityUtil.get().setAccessibilityEnabledForTesting(true);
+        mMediator.beginInput(
+                new AutocompleteInput()
+                        .setUserText("text")
+                        .setFocusReason(OmniboxFocusReason.FAKE_BOX_TAP));
+        mMediator.onUrlFocusChange(true);
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+
+        doAnswer(
+                        invocation -> {
+                            mMediator.onUrlFocusChange(false);
+                            return null;
+                        })
+                .when(mUrlCoordinator)
+                .clearFocus();
+
+        doAnswer(
+                        invocation -> {
+                            mMediator.onUrlFocusChange(true);
+                            return null;
+                        })
+                .when(mUrlCoordinator)
+                .requestFocus();
+
+        reset(mAutocompleteCoordinator);
+
+        mMediator.setUrlFocusChangeInProgress(false);
+
+        verify(mUrlCoordinator).clearFocus();
+        verify(mUrlCoordinator, times(2)).requestFocus();
+        verify(mAutocompleteCoordinator, never()).endInput();
     }
 
     @Test
@@ -2677,6 +2765,28 @@ public class LocationBarMediatorTest {
     }
 
     @Test
+    public void testOnSearchBoxHintTextChanged_SiteSearchActive_HidesHintText() {
+        mProfileSupplier.set(mProfile);
+        mMediator.onFinishNativeInitialization();
+        RobolectricUtil.runAllBackgroundAndUi();
+
+        // Begin input to set mCurrentInput.
+        var input = mSessionState.getAutocompleteInput();
+        mMediator.beginInput(input);
+
+        // Set site search data.
+        input.setSiteSearchData(new SiteSearchData("keyword", "Search keyword"));
+
+        // Verify hint text is set to empty.
+        verify(mUrlCoordinator).setUrlBarHintText(eq(""));
+
+        // Triggering it again should also set it to empty.
+        clearInvocations(mUrlCoordinator);
+        mMediator.onSearchBoxHintTextChanged();
+        verify(mUrlCoordinator).setUrlBarHintText(eq(""));
+    }
+
+    @Test
     public void testEndInputResetsHint() {
         mProfileSupplier.set(mProfile);
         mMediator.onFinishNativeInitialization();
@@ -2920,6 +3030,18 @@ public class LocationBarMediatorTest {
         mMediator.deleteButtonClicked(null);
         assertEquals(AutocompleteRequestType.SEARCH, input.getRequestType());
         verify(mLocationBarLayout, atLeastOnce()).setDeleteButtonVisibility(false);
+    }
+
+    @Test
+    public void testDeleteButtonVisibility_hasDesktopExperience() {
+        OmniboxCapabilities.setHasDesktopExperienceForTesting(true);
+        mMediator.onFinishNativeInitialization();
+        doReturn("google.com").when(mUrlCoordinator).getTextWithAutocomplete();
+
+        mMediator.beginInput(new AutocompleteInput().setUserText("google.com"));
+        mMediator.onUrlFocusChange(true);
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        verify(mLocationBarLayout, never()).setDeleteButtonVisibility(true);
     }
 
     @Test

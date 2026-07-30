@@ -2953,6 +2953,9 @@ Called by update_autofill_enums.py.-->
              fragment."/>
   <int value="6"
       label="User entered the autofill options via autofill travel fragment."/>
+  <int value="7"
+      label="User entered the autofill options via autofill shopping
+             fragment."/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/autofill/android/java/src/org/chromium/chrome/browser/autofill/options/AutofillOptionsFragment.java:AutofillOptionsReferrer) -->
@@ -4121,7 +4124,7 @@ Called by update_autofill_enums.py.-->
   <int value="3" label="FillingFlowDropdown"/>
 </enum>
 
-<!-- LINT.ThenChange(/components/autofill/core/browser/metrics/autofill_settings_metrics.h:AutofillSettingsReferrer,/chrome/browser/resources/settings/metrics_browser_proxy.ts:AutofillSettingsReferrer) -->
+<!-- LINT.ThenChange(/components/autofill/core/browser/metrics/autofill_settings_metrics.h:AutofillSettingsReferrer, /chrome/browser/resources/settings/metrics_browser_proxy.ts:AutofillSettingsReferrer, /chrome/android/java/src/org/chromium/chrome/browser/autofill/settings/HomeOfTransactionsFragment.java:AutofillSettingsReferrer) -->
 
 <enum name="AutofillSettingsVisibleTypes">
   <int value="0" label="Undefined"/>
@@ -5103,6 +5106,29 @@ Called by update_autofill_enums.py.-->
 
 <!-- LINT.ThenChange(//components/autofill/ios/form_util/form_activity_tab_helper.mm:FormSubmissionOutcomeIOS) -->
 
+<!-- LINT.IfChange(GmailOneTimeTokensBackendErrorCode) -->
+
+<enum name="GmailOneTimeTokensBackendErrorCode">
+  <int value="8" label="Auth error"/>
+  <int value="9" label="Network error"/>
+  <int value="10" label="Invalid response"/>
+  <int value="12" label="Unknown error"/>
+  <int value="13" label="API not available"/>
+  <int value="14" label="Initialization failed"/>
+  <int value="15" label="Smart features in Gmail consent required"/>
+  <int value="16"
+      label="Smart features in other Google products consent required"/>
+  <int value="17" label="DMA cross product sharing consent required"/>
+  <int value="18" label="Bad message reference"/>
+  <int value="19" label="Message ID not found"/>
+  <int value="20" label="Wrong token type requested"/>
+  <int value="21" label="One time token expired"/>
+  <int value="22" label="OTP attribute not found"/>
+  <int value="23" label="Server error"/>
+</enum>
+
+<!-- LINT.ThenChange(/components/one_time_tokens/core/browser/one_time_token_retrieval_error.h) -->
+
 <enum name="IbanCountry">
   <int value="0" label="Unsupport"/>
   <int value="1" label="AD (Andorra)"/>
@@ -5684,6 +5710,7 @@ Called by update_autofill_enums.py.-->
   <int value="82" label="Open Gemini"/>
   <int value="83" label="AtMemory no connection"/>
   <int value="84" label="AtMemory search trigger affordance"/>
+  <int value="85" label="Personal context notice"/>
 </enum>
 
 <!-- LINT.ThenChange(/components/autofill/core/browser/suggestions/suggestion_type.h:SuggestionType) -->
@@ -5808,7 +5835,7 @@ Called by update_autofill_enums.py.-->
   <int value="5" label="Shopping"/>
 </enum>
 
-<!-- LINT.ThenChange(/chrome/browser/resources/settings/metrics_browser_proxy.ts:YourSavedInfoDataCategory) -->
+<!-- LINT.ThenChange(/chrome/browser/resources/settings/metrics_browser_proxy.ts:YourSavedInfoDataCategory, /chrome/android/java/src/org/chromium/chrome/browser/autofill/settings/HomeOfTransactionsFragment.java:YourSavedInfoDataCategory) -->
 
 <!-- LINT.IfChange(YourSavedInfoDataChip) -->
 

@@ -2,8 +2,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/chromeos/ui_mode.gni")
-
 assert(is_chromeos)
 
 static_library("drive") {
@@ -45,6 +43,7 @@ static_library("drive") {
     "//chrome/browser/profiles",
     "//chrome/browser/signin",
     "//chrome/common:constants",
+    "//chromeos/ash/components/browser_context_helper",
     "//chromeos/ash/components/drivefs/mojom:mojom_shared",
     "//chromeos/ash/components/drivefs/mojom:mojom_shared_cpp_sources",
     "//chromeos/ash/components/login/login_state",

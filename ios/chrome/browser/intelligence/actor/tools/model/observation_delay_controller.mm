@@ -13,8 +13,10 @@
 #import "base/notreached.h"
 #import "base/state_transitions.h"
 #import "base/task/sequenced_task_runner.h"
-#import "ios/chrome/browser/intelligence/actor/model/aggregated_journal.h"
+#import "components/actor/core/aggregated_journal.h"
+#import "components/actor/core/journal_details_builder.h"
 #import "ios/chrome/browser/intelligence/actor/public/actor_types.h"
+#import "ios/chrome/browser/intelligence/actor/tools/model/page_stability_monitor.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/web/public/js_messaging/web_frame.h"
 #import "ios/web/public/navigation/navigation_context.h"
@@ -41,11 +43,15 @@ void ObservationDelayController::Wait(base::WeakPtr<web::WebState> web_state,
                                       base::WeakPtr<web::WebFrame> web_frame,
                                       ReadyCallback callback) {
   if (journal_) {
-    journal_->Log(GURL(), task_id_, "ObservationDelay: Wait", {});
+    journal_->Log(GURL(), task_id_, "ObservationDelay: Wait",
+                  /*details=*/{});
   }
   if (web_state) {
     web_state_ = web_state;
     web_state_observation_.Observe(web_state.get());
+  }
+  if (web_frame) {
+    page_stability_monitor_ = std::make_unique<PageStabilityMonitor>(web_frame);
   }
   ready_callback_ = std::move(callback);
   // Schedule a kDidTimeout state transition to happen later.
@@ -93,9 +99,13 @@ void ObservationDelayController::MoveToState(State state) {
   }
   CheckStateTransition(state_, state);
   if (journal_) {
+    std::vector<mojom::JournalDetailsPtr> details =
+        JournalDetailsBuilder()
+            .Add("old_state", std::string(StateToString(state_)))
+            .Add("new_state", std::string(StateToString(state)))
+            .Build();
     journal_->Log(GURL(), task_id_, "ObservationDelay: State Change",
-                  {{"old_state", std::string(StateToString(state_))},
-                   {"new_state", std::string(StateToString(state))}});
+                  std::move(details));
   }
 
   state_ = state;
@@ -107,9 +117,7 @@ void ObservationDelayController::MoveToState(State state) {
     case State::kInitial:
       NOTREACHED();
     case State::kWaitForPageStability:
-      // TODO(crbug.com/498991756): We'll introduce and use a
-      // PageStabilityJavaScriptFeature in a followup. For now, go to kDone.
-      PostMoveToStateClosure(State::kWaitForLoadCompletion).Run();
+      WaitForPageStability();
       break;
     case State::kWaitForLoadCompletion:
       if (web_state_ && web_state_->IsLoading()) {
@@ -151,6 +159,29 @@ base::OnceClosure ObservationDelayController::PostMoveToStateClosure(
       base::BindOnce(&ObservationDelayController::MoveToState,
                      weak_ptr_factory_.GetWeakPtr(), new_state),
       delay);
+}
+
+void ObservationDelayController::WaitForPageStability() {
+  if (state_ != State::kWaitForPageStability) {
+    return;
+  }
+  if (!page_stability_monitor_) {
+    MoveToState(State::kWaitForLoadCompletion);
+    return;
+  }
+  // Wait for the targeted WebFrame to be stable before transitioning to the
+  // next state.
+  page_stability_monitor_->NotifyWhenStable(
+      // TODO(crbug.com/498991756): Use a delegate to provide this value,
+      // matching Desktop's ability to configure it per tool.
+      base::TimeDelta(),
+      base::BindOnce(
+          [](base::WeakPtr<ObservationDelayController> controller) {
+            if (controller) {
+              controller->MoveToState(State::kWaitForLoadCompletion);
+            }
+          },
+          weak_ptr_factory_.GetWeakPtr()));
 }
 
 void ObservationDelayController::CheckStateTransition(State old_state,

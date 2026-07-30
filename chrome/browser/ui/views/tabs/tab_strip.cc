@@ -222,6 +222,8 @@ class TabStrip::TabDragContextImpl : public TabDragContext,
   void OnMouseCaptureLost() override { EndDrag(EndDragReason::kCaptureLost); }
 
   void OnGestureEvent(ui::GestureEvent* event) override {
+    auto weak_this = weak_factory_.GetWeakPtr();
+
     Liveness tabstrip_alive = Liveness::kAlive;
     switch (event->type()) {
       case ui::EventType::kGestureScrollEnd:
@@ -251,7 +253,7 @@ class TabStrip::TabDragContextImpl : public TabDragContext,
 
     // If tabstrip was destroyed (during ContinueDrag above), return early to
     // avoid UAF below.
-    if (tabstrip_alive == Liveness::kDeleted) {
+    if (!weak_this || tabstrip_alive == Liveness::kDeleted) {
       return;
     }
 
@@ -564,7 +566,7 @@ class TabStrip::TabDragContextImpl : public TabDragContext,
       return 0;
     }
 
-    std::optional<int> first_dragged_tab_model_index = std::nullopt;
+    std::optional<int> first_dragged_tab_model_index;
     bool can_insert_into_groups = true;
     for (TabSlotView* tab_slot_view : dragged_views) {
       const bool is_tab =

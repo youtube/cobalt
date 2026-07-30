@@ -53,6 +53,7 @@ const AccessPoint kAccessPointsThatSupportUserAction[] = {
     AccessPoint::kIosPageActionMenu,
     AccessPoint::kIosGeminiButtonToolbar,
     AccessPoint::kSettingsAutofillAndPasswords,
+    AccessPoint::kIndigo,
 };
 
 const AccessPoint kAccessPointsThatSupportImpression[] = {
@@ -255,6 +256,10 @@ class SigninMetricsTest : public ::testing::Test {
         return "DeepLinkDefault";
       case AccessPoint::kAgeMismatchSignout:
         return "AgeMismatchSignout";
+      case AccessPoint::kIndigo:
+        return "Indigo";
+      case AccessPoint::kOverflowMenu:
+        return "OverflowMenu";
     }
   }
 };

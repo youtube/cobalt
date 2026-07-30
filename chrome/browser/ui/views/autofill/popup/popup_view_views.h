@@ -43,6 +43,7 @@ namespace autofill {
 class AutofillPopupController;
 class AutofillSuggestionController;
 class PopupBnplFootnoteView;
+class PopupPersonalContextNoticeView;
 class PopupSeparatorView;
 class PopupTitleView;
 class PopupWarningView;
@@ -95,7 +96,8 @@ class PopupViewViews : public PopupBaseView,
                                   PopupTitleView*,
                                   PopupWarningView*,
                                   PopupLoadingView*,
-                                  PopupBnplFootnoteView*>;
+                                  PopupBnplFootnoteView*,
+                                  PopupPersonalContextNoticeView*>;
 
   // The maximum width of the popup.
   static constexpr int kAutofillPopupMaxWidth = 456;
@@ -343,7 +345,7 @@ class PopupViewViews : public PopupBaseView,
   std::optional<size_t> row_with_open_sub_popup_;
 
   // Stores the initial width of the popup to maintain when switching tabs.
-  std::optional<int> tabbed_pane_initial_width_ = std::nullopt;
+  std::optional<int> tabbed_pane_initial_width_;
 
   std::vector<RowPointer> rows_;
   const std::optional<const AutofillPopupView::SearchBarConfig>

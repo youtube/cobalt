@@ -29,6 +29,7 @@ BASE_DECLARE_FEATURE(kGlicOrphanedReattachment);
 
 BASE_DECLARE_FEATURE(kAutoOpenGlicForPdf);
 extern const base::FeatureParam<bool> kAutoOpenGlicForPdfWithOnboarding;
+extern const base::FeatureParam<base::TimeDelta> kAutoOpenGlicCooldown;
 
 BASE_DECLARE_FEATURE(kGlicInvoke);
 
@@ -101,12 +102,17 @@ BASE_DECLARE_FEATURE(kGlicWebDragAndDropFileUpload);
 BASE_DECLARE_FEATURE(kGlicOptInImpressionMetrics);
 
 BASE_DECLARE_FEATURE(kGlicContentsInitiallyHidden);
+BASE_DECLARE_FEATURE(kGlicShowForSignedOut);
 
 BASE_DECLARE_FEATURE(kGlicSetWebContentsVisibilityWhenToggling);
 
 BASE_DECLARE_FEATURE(kGlicSetWebContentsVisibilityWhenToggling);
 
 BASE_DECLARE_FEATURE(kGlicAnchorEntryPointForOnboardedUsers);
+BASE_DECLARE_FEATURE(kGlicProcessCounterAbuseVerdict);
+BASE_DECLARE_FEATURE(kGlicNoWebUiLoader);
+BASE_DECLARE_FEATURE(kGlicGeminiEnterpriseSettingsEnabled);
+
 }  // namespace features
 
 #endif  // CHROME_BROWSER_GLIC_PUBLIC_FEATURES_H_

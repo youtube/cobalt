@@ -1659,7 +1659,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.Audio.LoopbackReference.HadRuntimeError"
-    enum="BooleanRuntimeError" expires_after="2026-07-03">
+    enum="BooleanRuntimeError" expires_after="2027-01-03">
   <owner>henrika@google.com</owner>
   <owner>fhernqvist@google.com</owner>
   <owner>webrtc-audio-uma@google.com</owner>
@@ -1853,18 +1853,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram
-    name="Media.Audio.Mac.VoiceProcessedInputStreamDetectedWithoutNativeAEC"
-    enum="BooleanDetected" expires_after="2027-04-27">
-  <owner>brandstrom@chromium.org</owner>
-  <owner>webrtc-audio-uma@google.com</owner>
-  <summary>
-    If we detect voice processing input streams. Logged at calls to
-    media::core_audio_mac::IsInputDevice. Used for debugging
-    crbug.com/392938088.
-  </summary>
-</histogram>
-
 <histogram name="Media.Audio.MakeAudioInputStreamStatus"
     enum="MakeAudioStreamStatus" expires_after="2026-08-30">
   <owner>yuhsuan@chromium.org</owner>
@@ -1888,16 +1876,27 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.Audio.Output.Win.{AudioOutputMethod}Error2"
-    enum="Hresult" expires_after="2027-05-15">
+    enum="Hresult" expires_after="2027-05-19">
   <owner>henrika@chromium.org</owner>
   <owner>dalecurtis@chromium.org</owner>
-  <owner>media-dev-uma@chromium.org</owner>
   <owner>webrtc-audio-uma@google.com</owner>
   <summary>
-    Errors from various methods on WASAPIAudioOutputStream. Recorded upon a
-    failure being returned from a call into WASAPI. This is version 2 of the
-    metric. Version 1 previously mixed raw Win32 errors with HRESULTs. This new
-    version strictly logs HRESULTs.
+    Logs the exact COM HRESULTs encountered during various phases of the Windows
+    WASAPI audio output stream lifecycle (Open, Start, Stop, Render, and Run).
+    This is version 2 of the metric, which strictly logs HRESULTs instead of
+    mixing them with raw Win32 errors.
+
+    Note on overlap between Run and Render: There is an intentional overlap for
+    fatal rendering errors. If a fatal error (like failing to get the endpoint
+    buffer) occurs during the rendering pass, it is logged to the Render
+    histogram. Because this fatal error also causes the background thread to
+    terminate, the exact same HRESULT is subsequently logged to the Run
+    histogram.
+
+    The Render histogram captures ALL rendering errors (including non-fatal ones
+    that do not kill the thread). The Run histogram acts as a catch-all for
+    whatever killed the background thread (including fatal Render errors as well
+    as thread synchronization failures).
   </summary>
   <token key="AudioOutputMethod">
     <variant name="Open"/>
@@ -2226,7 +2225,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.Audio.TabAudioMuted" enum="Boolean"
-    expires_after="2026-07-12">
+    expires_after="2027-06-01">
   <owner>evliu@google.com</owner>
   <owner>chrome-media-ux@google.com</owner>
   <summary>
@@ -3991,6 +3990,17 @@ chromium-metrics-reviews@google.com.
   </token>
 </histogram>
 
+<histogram name="Media.EME.ContentProtectionWindow.CreateStatus"
+    enum="ContentProtectionWindowStatus" expires_after="2026-12-09">
+  <owner>sangbaekpark@chromium.org</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    Outcome of attempting to create a browser-owned content-protection HWND
+    (used by Media Foundation hardware DRM to pick the correct GPU adapter on
+    multi-GPU systems).
+  </summary>
+</histogram>
+
 <histogram name="Media.EME.CrosCdmType" enum="CrosCdmType"
     expires_after="2026-09-01">
   <owner>hiroh@chromium.org</owner>
@@ -4208,6 +4218,19 @@ chromium-metrics-reviews@google.com.
   <summary>
     HRESULT of MediaFoundationCdm initialization when using {KeySystem} in
     hardware secure mode. Only reported on failures.
+  </summary>
+  <token key="KeySystem" variants="KeySystemForHardwareSecureOnly"/>
+</histogram>
+
+<histogram
+    name="Media.EME.MediaFoundationCdm.{KeySystem}.HardwareSecure.SetContentProtectionWindow"
+    enum="Hresult" expires_after="2026-12-09">
+  <owner>sangbaekpark@chromium.org</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    HRESULT of setting the content protection window for GPU adapter selection
+    when using {KeySystem} in hardware secure mode. Reported on both successes
+    and failures.
   </summary>
   <token key="KeySystem" variants="KeySystemForHardwareSecureOnly"/>
 </histogram>
@@ -6607,7 +6630,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.PictureInPicture.Window.TotalTime" units="ms"
-    expires_after="2026-07-12">
+    expires_after="2027-07-12">
   <owner>bkeen@google.com</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
@@ -6622,7 +6645,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.PictureInPicture.Window.TotalTimeV2" units="ms"
-    expires_after="2026-10-11">
+    expires_after="2027-07-12">
   <owner>bkeen@google.com</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
@@ -7330,6 +7353,31 @@ chromium-metrics-reviews@google.com.
     is reported once per captured window when the fullscreen module is created.
     Warning: this histogram was expired from 2026-01 to 2026-03; data may be
     missing.
+  </summary>
+</histogram>
+
+<histogram name="Media.ScreenCaptureKit.SCContentSharingPicker.SessionEvent"
+    enum="ScreenCaptureKitSCContentSharingPickerSessionEvent"
+    expires_after="2027-01-04">
+  <owner>tovep@chromium.org</owner>
+  <owner>kron@chromium.org</owner>
+  <owner>brandstrom@chromium.org</owner>
+  <summary>
+    Records lifecycle and modification events for SCContentSharingPicker capture
+    sessions on macOS, including opening the picker, updating the window list,
+    removal of the primary app, and requests for application-audio. Each event
+    is only logged once per session, when it first happens.
+  </summary>
+</histogram>
+
+<histogram name="Media.ScreenCaptureKit.SCContentSharingPicker.StopAudioEvent"
+    enum="SCContentSharingPickerStopAudioEvent" expires_after="2027-01-04">
+  <owner>tovep@chromium.org</owner>
+  <owner>kron@chromium.org</owner>
+  <owner>brandstrom@chromium.org</owner>
+  <summary>
+    Records when the macOS native sharing picker triggers a stop_audio_callback
+    and when application audio capture is actually stopped.
   </summary>
 </histogram>
 

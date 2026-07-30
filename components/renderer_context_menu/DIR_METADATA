@@ -1,6 +1,3 @@
-monorail: {
-  component: "Platform>Apps>BrowserTag"
-}
 buganizer_public: {
-  component_id: 1457211
+  component_id: 1457393
 }

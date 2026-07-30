@@ -109,6 +109,12 @@ IntroUI::IntroUI(content::WebUI* web_ui)
        IDS_FRE_REFRESH_DEFAULT_BROWSER_SET_AS_DEFAULT},
       {"refreshDefaultBrowserNoThanks",
        IDS_FRE_REFRESH_DEFAULT_BROWSER_NO_THANKS},
+      // Strings for finish or continue subpage.
+      {"finishOrContinueTitle", IDS_FRE_FINISH_OR_CONTINUE_TITLE},
+      {"seeMoreTipsButtonLabel",
+       IDS_FRE_FINISH_OR_CONTINUE_SEE_MORE_TIPS_BUTTON_LABEL},
+      {"startBrowsingButtonLabel",
+       IDS_FRE_FINISH_OR_CONTINUE_START_BROWSING_BUTTON_LABEL},
   };
   source->AddLocalizedStrings(localized_strings);
 
@@ -180,6 +186,9 @@ IntroUI::IntroUI(content::WebUI* web_ui)
     source->AddResourcePath(
         chrome::kChromeUIIntroSignInCelebrationSubPage,
         IDR_INTRO_SIGN_IN_CELEBRATION_SIGN_IN_CELEBRATION_HTML);
+    source->AddResourcePath(
+        chrome::kChromeUIIntroFinishOrContinueSubPage,
+        IDR_INTRO_FINISH_OR_CONTINUE_FINISH_OR_CONTINUE_HTML);
   }
 
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
@@ -257,20 +266,44 @@ void IntroUI::SetCanPinToTaskbar(bool can_pin) {
   intro_handler_->SetCanPinToTaskbar(can_pin);
 }
 
-void IntroUI::BindInterface(
-    mojo::PendingReceiver<intro::mojom::PageHandlerFactory> receiver) {
-  factory_receiver_.reset();
-  factory_receiver_.Bind(std::move(receiver));
+void IntroUI::SetSignInCelebrationFinishedCallback(
+    base::OnceClosure celebration_finished_callback) {
+  initialize_handler_callback_ = base::BindOnce(
+      &IntroUI::OnSignInCelebrationMojoHandlerReady,
+      weak_ptr_factory_.GetWeakPtr(), std::move(celebration_finished_callback));
 }
 
-void IntroUI::CreatePageHandler(
-    mojo::PendingRemote<intro::mojom::Page> page,
-    mojo::PendingReceiver<intro::mojom::PageHandler> receiver) {
+void IntroUI::BindInterface(
+    mojo::PendingReceiver<intro::mojom::SignInCelebrationPageHandlerFactory>
+        receiver) {
+  sign_in_celebration_factory_receiver_.reset();
+  sign_in_celebration_factory_receiver_.Bind(std::move(receiver));
+}
+
+void IntroUI::CreateSignInCelebrationPageHandler(
+    mojo::PendingRemote<intro::mojom::SignInCelebrationPage> page,
+    mojo::PendingReceiver<intro::mojom::SignInCelebrationPageHandler>
+        receiver) {
+  CHECK(page);
+  CHECK(receiver);
+  if (!initialize_handler_callback_) {
+    SetSignInCelebrationFinishedCallback(base::DoNothing());
+  }
+  std::move(initialize_handler_callback_)
+      .Run(std::move(page), std::move(receiver));
+}
+
+void IntroUI::OnSignInCelebrationMojoHandlerReady(
+    base::OnceClosure celebration_finished_callback,
+    mojo::PendingRemote<intro::mojom::SignInCelebrationPage> page,
+    mojo::PendingReceiver<intro::mojom::SignInCelebrationPageHandler>
+        receiver) {
+  CHECK(!intro_sign_in_celebration_handler_);
   Profile* profile = Profile::FromWebUI(web_ui());
   intro_sign_in_celebration_handler_ =
       std::make_unique<SignInCelebrationHandler>(
           IdentityManagerFactory::GetForProfile(profile), std::move(page),
-          std::move(receiver));
+          std::move(receiver), std::move(celebration_finished_callback));
 }
 
 WEB_UI_CONTROLLER_TYPE_IMPL(IntroUI)

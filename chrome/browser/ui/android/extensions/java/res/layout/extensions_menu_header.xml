@@ -14,7 +14,8 @@ found in the LICENSE file.
     android:gravity="center_vertical"
     android:paddingStart="@dimen/extensions_menu_horizontal_padding"
     android:paddingEnd="@dimen/extensions_menu_horizontal_padding"
-    android:paddingVertical="@dimen/extensions_menu_header_vertical_padding"
+    android:paddingTop="@dimen/extensions_menu_header_vertical_padding"
+    android:paddingBottom="0dp"
     tools:ignore="UnusedResources">
 
     <TextView
@@ -30,8 +31,9 @@ found in the LICENSE file.
         android:layout_width="@dimen/extensions_menu_header_button_size"
         android:layout_height="@dimen/extensions_menu_header_button_size"
         android:src="@drawable/ic_close"
-        android:background="?attr/selectableItemBackgroundBorderless"
+        android:background="@drawable/default_icon_background_selector"
         android:contentDescription="@string/close"
-        android:scaleType="fitCenter"/>
+        android:scaleType="fitCenter"
+        android:layout_gravity="top"/>
 
 </LinearLayout>

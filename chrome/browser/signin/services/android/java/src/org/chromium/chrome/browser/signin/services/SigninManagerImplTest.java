@@ -128,7 +128,7 @@ public class SigninManagerImplTest {
         verify(callback, never()).onSignInAborted();
 
         // The primary account is now present and consented to sign in.
-        assertTrue(mIdentityManager.hasPrimaryAccount());
+        assertNotNull(mSigninTestRule.getPrimaryAccount());
     }
 
     @Test
@@ -263,7 +263,7 @@ public class SigninManagerImplTest {
     @MediumTest
     public void testSignOutNotAllowedForChildAccounts() {
         mSigninTestRule.addChildTestAccountThenWaitForSignin();
-        assertTrue(mIdentityManager.hasPrimaryAccount());
+        assertNotNull(mSigninTestRule.getPrimaryAccount());
 
         ThreadUtils.runOnUiThreadBlocking(() -> assertFalse(mSigninManager.isSignOutAllowed()));
     }
@@ -284,6 +284,17 @@ public class SigninManagerImplTest {
 
         assertFalse(mSigninManager.isSigninSupported(/* requireUpdatedPlayServices= */ true));
         assertTrue(mSigninManager.isSigninSupported(/* requireUpdatedPlayServices= */ false));
+    }
+
+    @Test
+    @MediumTest
+    public void testIsSwitchAccountAllowed_signinNotSupported() {
+        when(mExternalAuthUtils.isGooglePlayServicesMissing(any())).thenReturn(true);
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    assertFalse(mSigninManager.isSwitchAccountAllowed());
+                });
     }
 
     @Test

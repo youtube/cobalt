@@ -92,7 +92,6 @@ id<GREYMatcher> ContextualPanelEntrypointImageViewMatcher() {
   // TODO(crbug.com/467331873): Re-enable this when the test is updated for
   // PSF.
   config.features_disabled.push_back(kProactiveSuggestionsFramework);
-
   return config;
 }
 
@@ -307,17 +306,18 @@ id<GREYMatcher> ContextualPanelEntrypointImageViewMatcher() {
   NSString* entryPointLabel = [ChromeEarlGrey isAskGeminiChipEnabled]
                                   ? kLocationBarBadgeLabelIdentifier
                                   : @"ContextualPanelEntrypointLabelAXID";
+  id<GREYMatcher> entryPointMatcher = grey_allOf(
+      grey_accessibilityID(entryPointLabel), grey_sufficientlyVisible(), nil);
   [ChromeEarlGrey
-      waitForSufficientlyVisibleElementWithMatcher:grey_accessibilityID(
-                                                       entryPointLabel)];
+      waitForSufficientlyVisibleElementWithMatcher:entryPointMatcher];
 
   // Side swipe on the entrypoint.
-  [[EarlGrey selectElementWithMatcher:grey_accessibilityID(entryPointLabel)]
+  [[EarlGrey selectElementWithMatcher:entryPointMatcher]
       performAction:grey_swipeSlowInDirectionWithStartPoint(kGREYDirectionLeft,
                                                             0.9, 0.5)];
 
   // Check that the entrypoint is now back to default size.
-  [[EarlGrey selectElementWithMatcher:grey_accessibilityID(entryPointLabel)]
+  [[EarlGrey selectElementWithMatcher:entryPointMatcher]
       assertWithMatcher:grey_notVisible()];
 }
 

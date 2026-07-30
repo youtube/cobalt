@@ -413,7 +413,6 @@ public class AwContents implements SmartClipProvider {
     private boolean mIsViewVisible;
     private boolean mIsWindowVisible;
     private boolean mIsAttachedToWindow;
-    private boolean mIsOnReceivedIconOverriden;
     private long mPreferredFrameIntervalNanos;
 
     // Visibility state of |mWebContents|.
@@ -1097,9 +1096,7 @@ public class AwContents implements SmartClipProvider {
             mAwDarkMode = new AwDarkMode(context);
             mStylusWritingController =
                     new StylusWritingController(
-                            context,
-                            AwFeatureMap.isEnabled(
-                                    AwFeatures.WEBVIEW_LAZY_FETCH_HAND_WRITING_ICON));
+                            context, /* lazyFetchHandWritingIconFeatureEnabled= */ true);
 
             setNewAwContents(
                     AwContentsJni.get().init(mBrowserContext.getNativeBrowserContextPointer()));
@@ -2051,13 +2048,6 @@ public class AwContents implements SmartClipProvider {
         AwContentsJni.get().setShouldDownloadFavicons();
     }
 
-    public void setOnReceivedIconOverridden(boolean isOverridden) {
-        if (isDestroyed(NO_WARN)) return;
-        mIsOnReceivedIconOverriden = isOverridden;
-        mFavicon = null;
-        AwContentsJni.get().setOnReceivedIconOverridden(mNativeAwContents, isOverridden);
-    }
-
     /**
      * Disables contents of JS-to-Java bridge objects to be inspectable using Object.keys() method
      * and "for .. in" loops. This is intended for applications targeting earlier Android releases
@@ -2147,10 +2137,6 @@ public class AwContents implements SmartClipProvider {
         return (int) Math.ceil(mContentWidthDip);
     }
 
-    public boolean getIsOnReceivedIconOverridden() {
-        return mIsOnReceivedIconOverriden;
-    }
-
     public Picture capturePicture() {
         if (TRACE) Log.i(TAG, "%s capturePicture", this);
         if (isDestroyed(WARN)) return null;
@@ -2216,9 +2202,6 @@ public class AwContents implements SmartClipProvider {
     public Bitmap getFavicon() {
         if (TRACE) Log.i(TAG, "%s getFavicon", this);
         if (isDestroyed(WARN)) return null;
-        if (!mIsOnReceivedIconOverriden) {
-            return AwContentsJni.get().getFavicon(mNativeAwContents);
-        }
         return mFavicon;
     }
 
@@ -4958,13 +4941,7 @@ public class AwContents implements SmartClipProvider {
 
         int getNativeInstanceCount();
 
-        @JniType("SkBitmap")
-        @Nullable
-        Bitmap getFavicon(long nativeAwContents);
-
         void setShouldDownloadFavicons();
-
-        void setOnReceivedIconOverridden(long nativeAwContents, boolean isOverridden);
 
         void updateDefaultLocale(String locale, String localeList);
 

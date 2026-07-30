@@ -4,7 +4,6 @@
 
 import("//build/config/cast.gni")
 import("//build/config/chrome_build.gni")
-import("//build/config/chromeos/ui_mode.gni")
 import("//build/config/compiler/compiler.gni")
 import("//build/config/features.gni")
 import("//build/config/ui.gni")
@@ -1955,7 +1954,6 @@ test("content_browsertests") {
     "//components/favicon/content",
     "//components/history/core/browser:features",
     "//components/input",
-    "//components/language_detection/content/common",
     "//components/metrics/dwa:dwa_builders",
     "//components/metrics/private_metrics",
     "//components/network_session_configurator/common",
@@ -2003,6 +2001,7 @@ test("content_browsertests") {
     "//device/bluetooth:mocks",
     "//device/fido",
     "//device/fido:test_support",
+    "//device/gamepad/public/mojom",
     "//gin",
     "//gpu/ipc/host",
     "//ipc",
@@ -2214,6 +2213,7 @@ test("content_browsertests") {
       "../browser/accessibility/ax_platform_node_textrangeprovider_win_browsertest.cc",
       "../browser/accessibility/ax_platform_node_win_browsertest.cc",
       "../browser/accessibility/hit_testing_win_browsertest.cc",
+      "../browser/media/content_protection_window_browsertest.cc",
       "../browser/media/system_media_controls/web_app_system_media_controls_browsertest.cc",
       "../browser/network/network_service_process_tracker_win_browsertest.cc",
       "../browser/renderer_host/accessibility_object_lifetime_win_browsertest.cc",
@@ -2319,6 +2319,7 @@ test("content_browsertests") {
       "../browser/font_preferences_browsertest.cc",
       "../browser/renderer_host/clipboard_host_impl_browsertest.cc",
       "../browser/speech/speech_recognition_browsertest.cc",
+      "../browser/speech/speech_synthesis_impl_browsertest.cc",
       "../browser/speech/tts_ssml_browsertest.cc",
       "../browser/storage_service_restart_browsertest.cc",
       "../browser/storage_service_sandbox_browsertest.cc",
@@ -2815,6 +2816,7 @@ test("content_unittests") {
     "../browser/mojo_binder_policy_applier_unittest.cc",
     "../browser/mojo_binder_policy_map_impl_unittest.cc",
     "../browser/network/cross_origin_embedder_policy_reporter_unittest.cc",
+    "../browser/network/declarative_performance_observer_unittest.cc",
     "../browser/network/network_quality_observer_impl_unittest.cc",
     "../browser/network/reporting_service_proxy_unittest.cc",
     "../browser/network_context_client_base_impl_unittest.cc",
@@ -2962,6 +2964,7 @@ test("content_unittests") {
     "../browser/renderer_host/render_widget_host_view_aura_unittest.cc",
     "../browser/renderer_host/render_widget_host_view_base_unittest.cc",
     "../browser/renderer_host/render_widget_host_view_child_frame_unittest.cc",
+    "../browser/renderer_host/text_input_manager_unittest.cc",
     "../browser/renderer_host/transient_allow_popup_unittest.cc",
     "../browser/renderer_host/visible_time_request_trigger_unittest.cc",
     "../browser/sandboxed_opaque_origin_creator_unittest.cc",
@@ -3050,6 +3053,7 @@ test("content_unittests") {
     "../browser/webid/delegation/email_verification_request_unittest.cc",
     "../browser/webid/delegation/email_verifier_impl_unittest.cc",
     "../browser/webid/delegation/email_verifier_network_request_manager_unittest.cc",
+    "../browser/webid/delegation/evt_verifier_unittest.cc",
     "../browser/webid/delegation/jwt_signer_unittest.cc",
     "../browser/webid/delegation/sd_jwt_unittest.cc",
     "../browser/webid/disconnect_request_unittest.cc",
@@ -3561,10 +3565,16 @@ test("content_unittests") {
     sources += [
       "../browser/media/capture/desktop_media_id_unittest.cc",
       "../browser/media/capture/frame_sink_video_capture_device_unittest.cc",
+      "../browser/media/capture/mouse_cursor_overlay_controller_unittest.cc",
+      "../browser/media/capture/mouse_cursor_overlay_controller_unittest.h",
       "../browser/media/capture/web_contents_auto_scaler_unittest.cc",
       "../browser/media/capture/web_contents_frame_tracker_unittest.cc",
       "../browser/renderer_host/media/sub_capture_target_id_web_contents_helper_unittest.cc",
     ]
+
+    if (is_mac) {
+      sources += [ "../browser/media/capture/mouse_cursor_overlay_controller_mac_unittest.mm" ]
+    }
     if (is_mac || is_win) {
       sources += [
         "../browser/media/capture/desktop_capture_util_mac_unittest.mm",

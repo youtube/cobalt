@@ -672,7 +672,7 @@ AuthenticatorTouchIdSheetModel::AuthenticatorTouchIdSheetModel(
 
 std::u16string AuthenticatorTouchIdSheetModel::GetStepTitle() const {
   const std::u16string rp_id = GetRelyingPartyIdStringTitle(dialog_model());
-  std::optional<int> id = std::nullopt;
+  std::optional<int> id;
   switch (dialog_model()->request_type) {
     case device::FidoRequestType::kMakeCredential:
       id = IDS_WEBAUTHN_GPM_CREATE_PASSKEY_TITLE;
@@ -799,38 +799,6 @@ std::u16string
 AuthenticatorOffTheRecordInterstitialSheetModel::GetCancelButtonLabel() const {
   return l10n_util::GetStringUTF16(
       IDS_WEBAUTHN_PLATFORM_AUTHENTICATOR_OFF_THE_RECORD_INTERSTITIAL_DENY);
-}
-
-// AuthenticatorPaaskSheetModel -----------------------------------------
-
-AuthenticatorPaaskSheetModel::AuthenticatorPaaskSheetModel(
-    AuthenticatorRequestDialogModel* dialog_model)
-    : AuthenticatorSheetModelBase(dialog_model,
-                                  OtherMechanismButtonVisibility::kHidden) {
-  vector_illustrations_.emplace(kPasskeyPhoneCustomIcon,
-                                kPasskeyPhoneDarkCustomIcon);
-}
-
-AuthenticatorPaaskSheetModel::~AuthenticatorPaaskSheetModel() = default;
-
-bool AuthenticatorPaaskSheetModel::IsActivityIndicatorVisible() const {
-  return true;
-}
-
-std::u16string AuthenticatorPaaskSheetModel::GetStepTitle() const {
-  switch (*dialog_model()->cable_ui_type) {
-    case AuthenticatorRequestDialogModel::CableUIType::CABLE_V1:
-    case AuthenticatorRequestDialogModel::CableUIType::CABLE_V2_SERVER_LINK:
-      // caBLEv1 and v2 server-link don't include device names.
-      return l10n_util::GetStringUTF16(IDS_WEBAUTHN_CABLE_ACTIVATE_TITLE);
-    case AuthenticatorRequestDialogModel::CableUIType::CABLE_V2_2ND_FACTOR:
-      return l10n_util::GetStringUTF16(
-          IDS_WEBAUTHN_CABLE_ACTIVATE_TITLE_DEVICE);
-  }
-}
-
-std::u16string AuthenticatorPaaskSheetModel::GetStepDescription() const {
-  return l10n_util::GetStringUTF16(IDS_WEBAUTHN_CABLE_ACTIVATE_DESCRIPTION);
 }
 
 // AuthenticatorClientPinEntrySheetModel

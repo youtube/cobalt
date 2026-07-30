@@ -393,7 +393,8 @@ class ExtensionsMenuMediator implements Destroyable, ExtensionsMenuBridge.Observ
                         .with(
                                 ExtensionsMenuItemProperties.SITE_ACCESS_TOGGLE_ON_CLICK,
                                 (buttonView, isOn) -> {
-                                    mMenuBridge.onExtensionToggleSelected(entry.id, isOn);
+                                    mMenuBridge.onExtensionToggleSelected(
+                                            entry.id, entry.origin, isOn);
                                     if (!isOn) {
                                         mOnDismissMenu.run();
                                     }
@@ -544,6 +545,11 @@ class ExtensionsMenuMediator implements Destroyable, ExtensionsMenuBridge.Observ
     private void updateSitePermissionsPage(String extensionId) {
         ExtensionsMenuTypes.ExtensionSitePermissionsState sitePermissionsState =
                 mMenuBridge.getExtensionSitePermissionsState(extensionId);
+        if (sitePermissionsState == null) {
+            mMainPageModel.set(
+                    ExtensionsMenuProperties.CURRENT_PAGE, ExtensionsMenuProperties.Page.MAIN);
+            return;
+        }
 
         mSitePermissionsPageModel.set(
                 SitePermissionsPageProperties.EXTENSION_NAME, sitePermissionsState.extensionName);
@@ -557,9 +563,12 @@ class ExtensionsMenuMediator implements Destroyable, ExtensionsMenuBridge.Observ
         mSitePermissionsPageModel.set(
                 SitePermissionsPageProperties.ON_ALL_SITES_STATE,
                 sitePermissionsState.onAllSitesOption);
+
         mSitePermissionsPageModel.set(
                 SitePermissionsPageProperties.ON_SITE_ACCESS_SELECTED_LISTENER,
-                (siteAccess) -> mMenuBridge.onExtensionSiteAccessSelected(extensionId, siteAccess));
+                (siteAccess) ->
+                        mMenuBridge.onExtensionSiteAccessSelected(
+                                extensionId, sitePermissionsState.origin, siteAccess));
 
         mSitePermissionsPageModel.set(
                 SitePermissionsPageProperties.SHOW_REQUESTS_TOGGLE_CHECKED,

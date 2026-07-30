@@ -5,11 +5,15 @@
 package org.chromium.chrome.browser.glic;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 import android.content.Context;
+import android.view.ContextThemeWrapper;
 import android.view.View;
 
 import org.junit.Before;
@@ -19,15 +23,17 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
-import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.Config;
 
+import org.chromium.base.ContextUtils;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.browser.actor.ActorTask;
+import org.chromium.chrome.browser.actor.ActorTaskState;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.ui.listmenu.ListMenuItemProperties;
 import org.chromium.ui.modelutil.MVCListAdapter.ListItem;
@@ -56,9 +62,15 @@ public class GlicTaskMenuCoordinatorUnitTest {
 
     @Before
     public void setUp() {
-        mContext = RuntimeEnvironment.getApplication();
+        mContext =
+                new ContextThemeWrapper(
+                        ContextUtils.getApplicationContext(), R.style.Theme_BrowserUI_DayNight);
         mCoordinator =
-                new GlicTaskMenuCoordinator(mContext, () -> mTabModelSelector, mToggleGlicCallback);
+                new GlicTaskMenuCoordinator(
+                        mContext,
+                        () -> mTabModelSelector,
+                        mToggleGlicCallback,
+                        GlicKeyedService.GlicInvocationSource.TOP_CHROME_BUTTON);
 
         ActorTask task1 = mock(ActorTask.class);
         doReturn("Task One").when(task1).getTitle();
@@ -76,9 +88,11 @@ public class GlicTaskMenuCoordinatorUnitTest {
 
         ListItem item1 = modelList.get(0);
         assertEquals("Task One", item1.model.get(ListMenuItemProperties.TITLE));
+        assertNull(item1.model.get(ListMenuItemProperties.SUBTITLE));
 
         ListItem item2 = modelList.get(1);
         assertEquals("Task Two", item2.model.get(ListMenuItemProperties.TITLE));
+        assertNull(item2.model.get(ListMenuItemProperties.SUBTITLE));
     }
 
     @Test
@@ -91,9 +105,38 @@ public class GlicTaskMenuCoordinatorUnitTest {
 
         ListItem item1 = modelList.get(0);
         assertEquals("Task One", item1.model.get(ListMenuItemProperties.TITLE));
+        assertEquals(
+                mContext.getString(R.string.actor_task_list_bubble_row_tab_closed_subtitle),
+                item1.model.get(ListMenuItemProperties.SUBTITLE));
+        assertEquals(
+                R.drawable.glic_menu_end_icon_standard,
+                item1.model.get(ListMenuItemProperties.END_ICON_ID));
 
         ListItem item2 = modelList.get(1);
         assertEquals("Task Two", item2.model.get(ListMenuItemProperties.TITLE));
+        assertEquals(
+                mContext.getString(R.string.actor_task_list_bubble_row_tab_closed_subtitle),
+                item2.model.get(ListMenuItemProperties.SUBTITLE));
+        assertEquals(
+                R.drawable.glic_menu_end_icon_standard,
+                item2.model.get(ListMenuItemProperties.END_ICON_ID));
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.ENABLE_ANDROID_SIDE_PANEL)
+    public void testBuildModelList_SidePanelEnabled_NeedsReview() {
+        ActorTask reviewTask = mock(ActorTask.class);
+        doReturn("Review Task").when(reviewTask).getTitle();
+        doReturn(ActorTaskState.WAITING_ON_USER).when(reviewTask).getState();
+
+        ModelList modelList = mCoordinator.buildModelList(Collections.singletonList(reviewTask));
+
+        assertEquals(1, modelList.size());
+        ListItem item = modelList.get(0);
+        assertEquals("Review Task", item.model.get(ListMenuItemProperties.TITLE));
+        assertEquals(
+                R.drawable.glic_menu_end_icon_needs_review,
+                item.model.get(ListMenuItemProperties.END_ICON_ID));
     }
 
     @Test
@@ -106,7 +149,10 @@ public class GlicTaskMenuCoordinatorUnitTest {
                 askGeminiItem.model.get(ListMenuItemProperties.CLICK_LISTENER);
         clickListener.onClick(null);
 
-        verify(mToggleGlicCallback).onClick(/* preventClose= */ false);
+        verify(mToggleGlicCallback)
+                .onClick(
+                        /* preventClose= */ false,
+                        GlicKeyedService.GlicInvocationSource.TOP_CHROME_BUTTON);
     }
 
     @Test
@@ -123,6 +169,51 @@ public class GlicTaskMenuCoordinatorUnitTest {
                 taskItem.model.get(ListMenuItemProperties.CLICK_LISTENER);
         clickListener.onClick(null);
 
-        verify(mToggleGlicCallback).onClick(/* preventClose= */ true);
+        verify(mToggleGlicCallback)
+                .onClick(
+                        /* preventClose= */ true,
+                        GlicKeyedService.GlicInvocationSource.TOP_CHROME_BUTTON);
+    }
+
+    @Test
+    public void testClickActorTask_EmptyTabs_OpensNewTab() {
+        ActorTask task = mock(ActorTask.class);
+        doReturn("Task Title").when(task).getTitle();
+        doReturn(Collections.emptySet()).when(task).getLastActedTabs();
+
+        ModelList modelList = mCoordinator.buildModelList(Arrays.asList(task));
+        ListItem taskItem = modelList.get(0);
+
+        View.OnClickListener clickListener =
+                taskItem.model.get(ListMenuItemProperties.CLICK_LISTENER);
+        clickListener.onClick(null);
+
+        verify(mTabModelSelector)
+                .openNewTab(any(), eq(TabLaunchType.FROM_CHROME_UI), eq(null), eq(false));
+        verify(mToggleGlicCallback)
+                .onClick(
+                        /* preventClose= */ true,
+                        GlicKeyedService.GlicInvocationSource.TOP_CHROME_BUTTON);
+    }
+
+    @Test
+    public void testClickAskGemini_UsesConfiguredInvocationSource() {
+        GlicTaskMenuCoordinator coordinator =
+                new GlicTaskMenuCoordinator(
+                        mContext,
+                        () -> mTabModelSelector,
+                        mToggleGlicCallback,
+                        GlicKeyedService.GlicInvocationSource.TOOLBAR_BUTTON);
+        ModelList modelList = coordinator.buildModelList(Collections.emptyList());
+        ListItem askGeminiItem = modelList.get(1);
+
+        View.OnClickListener clickListener =
+                askGeminiItem.model.get(ListMenuItemProperties.CLICK_LISTENER);
+        clickListener.onClick(null);
+
+        verify(mToggleGlicCallback)
+                .onClick(
+                        /* preventClose= */ false,
+                        GlicKeyedService.GlicInvocationSource.TOOLBAR_BUTTON);
     }
 }

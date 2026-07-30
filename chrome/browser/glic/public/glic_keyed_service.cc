@@ -232,55 +232,27 @@ GlicKeyedService* GlicKeyedService::Get(content::BrowserContext* context) {
 
 void GlicKeyedService::Shutdown() {
   instance_coordinator().Shutdown();
-
-  GlicProfileManager* glic_profile_manager = GlicProfileManager::GetInstance();
-  if (glic_profile_manager) {
-    glic_profile_manager->OnServiceShutdown(this);
-  }
-}
-
-void GlicKeyedService::ToggleUI(BrowserWindowInterface* bwi,
-                                bool prevent_close,
-                                mojom::InvocationSource source,
-                                std::optional<std::string> prompt_suggestion) {
-  ToggleUIInternal(bwi, prevent_close, source, std::move(prompt_suggestion));
 }
 
 void GlicKeyedService::ToggleUI(BrowserWindowInterface* bwi,
                                 bool prevent_close,
                                 mojom::InvocationSource source) {
-  ToggleUIInternal(bwi, prevent_close, source,
-                   /*prompt_suggestion=*/std::nullopt);
-}
-
-void GlicKeyedService::ToggleUIInternal(
-    BrowserWindowInterface* bwi,
-    bool prevent_close,
-    mojom::InvocationSource source,
-    std::optional<std::string> prompt_suggestion) {
   // Glic may be disabled for certain user profiles (the user is browsing in
   // incognito or guest mode, policy, etc). In those cases, the entry points to
   // this method should already have been removed.
   CHECK(GlicEnabling::ShouldShowGlicButton(profile_));
 
-  GlicProfileManager* glic_profile_manager = GlicProfileManager::GetInstance();
-  if (glic_profile_manager) {
-    glic_profile_manager->SetActiveGlic(this);
-  }
-
-  if (MaybeInvoke(bwi, source, prompt_suggestion)) {
+  if (MaybeInvoke(bwi, source)) {
     return;
   }
 
   instance_coordinator().Toggle(
-      bwi ? bwi : GetActiveGlicEligibleBrowser(profile_), prevent_close, source,
-      prompt_suggestion);
+      bwi ? bwi : GetActiveGlicEligibleBrowser(profile_), prevent_close,
+      source);
 }
 
-bool GlicKeyedService::MaybeInvoke(
-    BrowserWindowInterface* bwi,
-    mojom::InvocationSource source,
-    const std::optional<std::string>& prompt_suggestion) {
+bool GlicKeyedService::MaybeInvoke(BrowserWindowInterface* bwi,
+                                   mojom::InvocationSource source) {
   BrowserWindowInterface* target_bwi =
       bwi ? bwi : GetActiveGlicEligibleBrowser(profile_);
   if (!target_bwi) {
@@ -295,9 +267,6 @@ bool GlicKeyedService::MaybeInvoke(
       base::FeatureList::IsEnabled(features::kGlicMessageFirstFre)) {
     GlicInvokeOptions options(source);
     options.fre_override = mojom::FreOverride::kTrustFirstInline;
-    if (prompt_suggestion) {
-      options.prompts.push_back(*prompt_suggestion);
-    }
     options.target.surface = TabListInterface::From(target_bwi)->GetActiveTab();
     Invoke(std::move(options));
     return true;
@@ -319,11 +288,6 @@ base::WeakPtr<GlicInstance> GlicKeyedService::InvokeWithAutoSubmit(
     GlicInvokeWithAutoSubmitOptions auto_submit_options) {
   CHECK(GlicEnabling::IsEnabledForProfile(profile_));
 
-  GlicProfileManager* glic_profile_manager = GlicProfileManager::GetInstance();
-  if (glic_profile_manager) {
-    glic_profile_manager->SetActiveGlic(this);
-  }
-
   return static_cast<GlicInstanceCoordinatorImpl&>(instance_coordinator())
       .InvokeWithAutoSubmit(auto_submit_passkey, std::move(options),
                             std::move(auto_submit_options));
@@ -332,11 +296,6 @@ base::WeakPtr<GlicInstance> GlicKeyedService::InvokeWithAutoSubmit(
 base::WeakPtr<GlicInstance> GlicKeyedService::Invoke(
     GlicInvokeOptions options) {
   CHECK(GlicEnabling::IsEnabledForProfile(profile_));
-
-  GlicProfileManager* glic_profile_manager = GlicProfileManager::GetInstance();
-  if (glic_profile_manager) {
-    glic_profile_manager->SetActiveGlic(this);
-  }
 
   return static_cast<GlicInstanceCoordinatorImpl&>(instance_coordinator())
       .Invoke(std::move(options));

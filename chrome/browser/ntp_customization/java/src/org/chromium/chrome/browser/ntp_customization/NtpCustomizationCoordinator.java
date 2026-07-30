@@ -32,9 +32,12 @@ import org.chromium.chrome.browser.magic_stack.ModuleRegistry;
 import org.chromium.chrome.browser.ntp_customization.feed.FeedSettingsCoordinator;
 import org.chromium.chrome.browser.ntp_customization.most_visited_tiles.MvtSettingsCoordinator;
 import org.chromium.chrome.browser.ntp_customization.ntp_cards.NtpCardsCoordinator;
+import org.chromium.chrome.browser.ntp_customization.theme.NtpCustomizationPromoManager;
+import org.chromium.chrome.browser.ntp_customization.theme.NtpCustomizationPromoManager.SnackBarState;
 import org.chromium.chrome.browser.ntp_customization.theme.NtpThemeCoordinator;
 import org.chromium.chrome.browser.ntp_customization.theme.tip.NtpThemeTipCoordinator;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.modelutil.PropertyKey;
@@ -128,6 +131,7 @@ public class NtpCustomizationCoordinator {
      *     main bottom sheet will be shown instead, enabling its full navigation flow, otherwise the
      *     bottom sheet of the bottomSheetType will show by itself.
      * @param moduleRegistry The instance of {@link ModuleRegistry}.
+     * @param snackbarManager The instance of {@link SnackbarManager}.
      */
     NtpCustomizationCoordinator(
             Context context,
@@ -135,7 +139,8 @@ public class NtpCustomizationCoordinator {
             Supplier<@Nullable Profile> profileSupplier,
             @BottomSheetType int bottomSheetType,
             WindowAndroid windowAndroid,
-            @Nullable ModuleRegistry moduleRegistry) {
+            @Nullable ModuleRegistry moduleRegistry,
+            SnackbarManager snackbarManager) {
         mContext = context;
         mBottomSheetController = bottomSheetController;
         mProfileSupplier = profileSupplier;
@@ -183,7 +188,8 @@ public class NtpCustomizationCoordinator {
                         viewFlipperPropertyModel,
                         containerPropertyModel,
                         mProfileSupplier,
-                        windowAndroid);
+                        windowAndroid,
+                        snackbarManager);
         mMediator.registerBottomSheetLayout(MAIN);
 
         mDelegate = createBottomSheetDelegate();
@@ -278,11 +284,17 @@ public class NtpCustomizationCoordinator {
                     new NtpThemeTipCoordinator(
                             mContext,
                             mDelegate,
-                            view -> showThemeBottomSheet(),
+                            this::onCustomizeButtonClicked,
                             () -> mMediator.dismissBottomSheet(/* animate= */ false));
         }
         mMediator.setParentForBackOperations(THEME, THEME_TIP);
         mMediator.showBottomSheet(THEME_TIP);
+    }
+
+    private void onCustomizeButtonClicked(View view) {
+        NtpCustomizationPromoManager.maybeUpdateShowThemeTipSnackbarState(
+                SnackBarState.PROMO_OPEN, /* taskId= */ 0);
+        showThemeBottomSheet();
     }
 
     void dismissBottomSheet() {

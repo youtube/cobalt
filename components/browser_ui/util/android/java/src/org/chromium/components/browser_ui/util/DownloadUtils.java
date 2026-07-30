@@ -153,16 +153,23 @@ public class DownloadUtils {
         // show warning UI for. In the future, this may or may not expand to other danger types.
         // Note that this is a stricter subset of danger types than we count as
         // {@link OfflineItem#isDangerous}.
-        boolean dangerTypeShouldDisplayAsDangerous =
-                dangerType == DownloadDangerType.DANGEROUS_CONTENT
-                        || dangerType == DownloadDangerType.POTENTIALLY_UNWANTED;
-        return dangerTypeShouldDisplayAsDangerous && state != OfflineItemState.CANCELLED;
+        return dangerType == DownloadDangerType.DANGEROUS_CONTENT
+                && state != OfflineItemState.CANCELLED;
     }
 
     /** Returns whether a download is blocked due to sensitive content. */
+    // LINT.IfChange(isBlockedSensitiveDownload)
     public static boolean isBlockedSensitiveDownload(OfflineItem item) {
-        return item.state == OfflineItemState.FAILED
-                && item.failState == FailState.FILE_BLOCKED
-                && item.dangerType == DownloadDangerType.SENSITIVE_CONTENT_BLOCK;
+        if (item.state != OfflineItemState.FAILED || item.failState != FailState.FILE_BLOCKED) {
+            return false;
+        }
+        @DownloadDangerType int dangerType = item.dangerType;
+        return dangerType == DownloadDangerType.BLOCKED_PASSWORD_PROTECTED
+                || dangerType == DownloadDangerType.BLOCKED_TOO_LARGE
+                || dangerType == DownloadDangerType.SENSITIVE_CONTENT_BLOCK
+                || dangerType == DownloadDangerType.BLOCKED_SCAN_FAILED
+                || dangerType == DownloadDangerType.FORCE_SAVE_TO_GDRIVE
+                || dangerType == DownloadDangerType.FORCE_SAVE_TO_ONEDRIVE;
     }
+    // LINT.ThenChange(//chrome/browser/download/android/download_controller.cc:isEnterpriseBlockDownloadDangerType)
 }

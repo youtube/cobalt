@@ -43,7 +43,7 @@ export class ContextualEntrypointAndMenuElement extends
   }
 
   override render() {
-    return getHtml.bind(this as any)();
+    return getHtml.bind(this)();
   }
 
   static override get properties() {
@@ -59,15 +59,17 @@ export class ContextualEntrypointAndMenuElement extends
         type: Boolean,
       },
       disabledTabIds: {type: Object},
-      restoredTabIds: {type: Array},
+      aimThreadRestoredTabs: {type: Array},
       tabSuggestions: {type: Array},
       inputState: {type: Object},
-      glifAnimationState: {type: String, reflect: true},
+      glifAnimationState: {type: String},
       searchboxLayoutMode: {type: String},
       uploadButtonDisabled: {type: Boolean},
       disableAutoReposition: {type: Boolean},
+      isSidePanel: {type: Boolean},
       usePecApi: {type: Boolean},
       energyEffectAnimationEnabled: {type: Boolean, reflect: true},
+      disableFallbackGlifAnimation: {type: Boolean},
       recentTabId: {type: Number},
 
       // =========================================================================
@@ -78,7 +80,6 @@ export class ContextualEntrypointAndMenuElement extends
         type: Boolean,
       },
       sharedTabs: {type: Array},
-      restoredTabs_: {type: Array},
     };
   }
 
@@ -86,7 +87,7 @@ export class ContextualEntrypointAndMenuElement extends
   accessor showContextMenuDescription: boolean = false;
   accessor smartTabSharingActive: boolean = false;
   accessor disabledTabIds: Map<number, UnguessableToken> = new Map();
-  accessor restoredTabIds: number[] = [];
+  accessor aimThreadRestoredTabs: TabInfo[] = [];
   accessor tabSuggestions: TabInfo[] = [];
   accessor inputState: InputState|null = null;
   accessor glifAnimationState: GlifAnimationState =
@@ -100,11 +101,11 @@ export class ContextualEntrypointAndMenuElement extends
   accessor disableAutoReposition: boolean = false;
   accessor usePecApi: boolean = false;
   accessor energyEffectAnimationEnabled: boolean = false;
+  accessor isSidePanel: boolean = false;
+  accessor disableFallbackGlifAnimation: boolean = false;
 
   protected accessor enableMultiTabSelection_: boolean =
       loadTimeData.getBoolean('composeboxContextMenuEnableMultiTabSelection');
-
-  protected accessor restoredTabs_: TabInfo[] = [];
 
   // TODO(crbug.com/499310611): Explore avoiding/removing this local property.
   private shouldOpenMenuForMultiSelection_: boolean = false;
@@ -123,16 +124,6 @@ export class ContextualEntrypointAndMenuElement extends
     const entrypoint =
         entrypointButton?.shadowRoot?.querySelector<HTMLElement>('#entrypoint');
     return {entrypointButton, entrypoint};
-  }
-
-  override willUpdate(changedProperties: PropertyValues<this>) {
-    super.willUpdate(changedProperties);
-
-    if (changedProperties.has('tabSuggestions') ||
-        changedProperties.has('restoredTabIds')) {
-      this.restoredTabs_ = this.tabSuggestions.filter(
-          tab => this.restoredTabIds.includes(tab.tabId));
-    }
   }
 
   override updated(changedProperties: PropertyValues<this>) {

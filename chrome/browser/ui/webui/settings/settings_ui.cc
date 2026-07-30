@@ -95,7 +95,6 @@
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/url_constants.h"
-#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/settings_resources.h"
 #include "chrome/grit/settings_resources_map.h"
@@ -132,6 +131,7 @@
 #include "components/search_engines/template_url_service.h"
 #include "components/signin/public/base/signin_pref_names.h"
 #include "components/signin/public/base/signin_switches.h"
+#include "components/skills/features.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/subscription_eligibility/subscription_eligibility_service.h"
 #include "components/sync/base/features.h"
@@ -149,6 +149,7 @@
 #include "third_party/blink/public/common/features.h"
 #include "ui/accessibility/accessibility_features.h"
 #include "ui/base/interaction/element_identifier.h"
+#include "ui/webui/tracked_element/tracked_element_handler_document_singleton.h"
 #include "ui/webui/webui_util.h"
 
 #if !BUILDFLAG(OPTIMIZE_WEBUI)
@@ -207,9 +208,7 @@
 #include "device/vr/public/cpp/features.h"
 #endif
 
-#if BUILDFLAG(ENABLE_DICE_SUPPORT)
 #include "chrome/browser/ui/webui/batch_upload_promo/batch_upload_promo_handler.h"
-#endif
 
 namespace settings {
 
@@ -470,10 +469,8 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
   plural_string_handler->AddLocalizedString(
       "safetyHubNotificationPermissionsSecondaryLabel",
       IDS_SETTINGS_SAFETY_HUB_NOTIFICATION_PERMISSIONS_SECONDARY_LABEL);
-#if BUILDFLAG(ENABLE_DICE_SUPPORT)
   plural_string_handler->AddLocalizedString(
       "batchUploadPromoLabel", IDS_BATCH_UPLOAD_PROMO_SUBTITLE_ITEMS_WITH_LINK);
-#endif
   plural_string_handler->AddLocalizedString("cpuPerformanceCores",
                                             IDS_SETTINGS_CPU_PERFORMANCE_CORES);
   web_ui->AddMessageHandler(std::move(plural_string_handler));
@@ -581,11 +578,6 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
       base::FeatureList::IsEnabled(
           autofill::features::kAutofillAiWalletPrivatePasses));
 
-  html_source->AddBoolean(
-      "enableSaveToWalletFromSettings",
-      base::FeatureList::IsEnabled(
-          autofill::features::kAutofillEnableSaveToWalletFromSettings));
-
   // AI
   bool show_glic_section = false;
   bool glic_disallowed_by_admin = false;
@@ -629,13 +621,19 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
                ->UserIsActivePasswordChangeUser()},
       {"showAiSuggestionsControl",
        base::FeatureList::IsEnabled(contextual_cueing::kContextualCueingV2)},
+      {"showSkillsSettingPage",
+       base::FeatureList::IsEnabled(features::kSkillsEnabled)},
   };
 
   html_source->AddString("aiSuggestionsHelpCenterArticleLink",
                          contextual_cueing::kHelpCenterArticleLink.Get());
 
-  const bool enable_ai_mode_search = contextual_tasks::
-      ContextualTasksContextService::GetIsSmartTabSharingEnabled(profile);
+  const bool enable_ai_mode_search =
+      contextual_tasks::ContextualTasksContextService::
+          GetIsSmartTabSharingEnabled(profile) &&
+      base::FeatureList::IsEnabled(
+          contextual_tasks::
+              kContextualTasksContextSmartTabSharingDefaultOnAvailability);
   html_source->AddBoolean("enableAiModeSearchSetting", enable_ai_mode_search);
 
   const bool show_ai_settings_for_testing = base::FeatureList::IsEnabled(
@@ -701,6 +699,15 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
       "webuiRefresh2026",
       features::IsWebuiRefresh2026Enabled() ? "webui-refresh-2026" : "");
 
+  ui::TrackedElementHandlerDocumentSingleton::Register(
+      this, std::vector<ui::ElementIdentifier>{
+                kEnhancedProtectionSettingElementId,
+                kAnonymizedUrlCollectionPersonalizationSettingId,
+                kInactiveTabSettingElementId,
+                kGlicOsToggleElementId,
+                kGlicOsWidgetKeyboardShortcutElementId,
+            });
+
   TryShowHatsSurveyWithTimeout();
 }
 
@@ -762,7 +769,6 @@ void SettingsUI::BindInterface(
 }
 #endif  // !BUILDFLAG(IS_CHROMEOS)
 
-#if BUILDFLAG(ENABLE_DICE_SUPPORT)
 void SettingsUI::BindInterface(
     mojo::PendingReceiver<batch_upload_promo::mojom::PageHandlerFactory>
         pending_receiver) {
@@ -771,7 +777,6 @@ void SettingsUI::BindInterface(
   }
   batch_upload_promo_factory_receiver_.Bind(std::move(pending_receiver));
 }
-#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
 void SettingsUI::BindInterface(
     mojo::PendingReceiver<help_bubble::mojom::HelpBubbleHandlerFactory>
@@ -816,7 +821,6 @@ void SettingsUI::CreateThemeColorPickerHandler(
 }
 #endif  // !BUILDFLAG(IS_CHROMEOS)
 
-#if BUILDFLAG(ENABLE_DICE_SUPPORT)
 void SettingsUI::CreateBatchUploadPromoHandler(
     mojo::PendingRemote<batch_upload_promo::mojom::Page> pending_page,
     mojo::PendingReceiver<batch_upload_promo::mojom::PageHandler>
@@ -833,20 +837,14 @@ void SettingsUI::CreateBatchUploadPromoHandler(
       std::move(pending_page_handler), std::move(pending_page),
       Profile::FromWebUI(web_ui()), web_ui()->GetWebContents());
 }
-#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
 void SettingsUI::CreateHelpBubbleHandler(
     mojo::PendingRemote<help_bubble::mojom::HelpBubbleClient> client,
     mojo::PendingReceiver<help_bubble::mojom::HelpBubbleHandler> handler) {
   help_bubble_handler_ = std::make_unique<user_education::HelpBubbleHandler>(
-      std::move(handler), std::move(client), this,
-      std::vector<ui::ElementIdentifier>{
-          kEnhancedProtectionSettingElementId,
-          kAnonymizedUrlCollectionPersonalizationSettingId,
-          kInactiveTabSettingElementId,
-          kGlicOsToggleElementId,
-          kGlicOsWidgetKeyboardShortcutElementId,
-      });
+      std::move(handler), std::move(client),
+      ui::TrackedElementHandlerDocumentSingleton::GetOrCreate(
+          web_ui()->GetRenderFrameHost()));
 }
 
 void SettingsUI::CreateCustomizeColorSchemeModeHandler(

@@ -20,6 +20,7 @@
 #include "components/viz/common/features.h"
 #include "components/viz/common/frame_sinks/begin_frame_args.h"
 #include "components/viz/common/frame_sinks/begin_frame_source.h"
+#include "components/viz/service/display/frame_deadline_decider.h"
 #include "components/viz/service/performance_hint/hint_session.h"
 #include "third_party/perfetto/include/perfetto/tracing/track.h"
 #include "ui/gfx/presentation_feedback.h"
@@ -309,8 +310,9 @@ bool DisplayScheduler::DrawAndSwap() {
   params.max_pending_swaps = MaxPendingSwaps();
   if (current_begin_frame_args_.possible_deadlines) {
     auto& deadlines = *current_begin_frame_args_.possible_deadlines;
-    auto selected_deadline = deadlines.GetPreferredDeadline();
-
+    auto selected_deadline =
+        deadlines.deadlines[decider_.SelectDeadline(deadlines)];
+    // TODO(crbug.com/500826814): Move this logic into FrameDeadlineDecider.
     if (base::FeatureList::IsEnabled(features::kSelectFutureFrameDeadline)) {
       base::TimeTicks now = NowTicks();
       base::TimeTicks preferred_latch_time =
@@ -509,6 +511,7 @@ void DisplayScheduler::StartObservingBeginFrames() {
 }
 
 void DisplayScheduler::StopObservingBeginFrames() {
+  decider_.OnGoIdle();
   if (observing_begin_frame_source_) {
     begin_frame_source_->RemoveObserver(begin_frame_observer_.get());
     observing_begin_frame_source_ = false;

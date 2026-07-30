@@ -334,16 +334,30 @@ void ChromePermissionsClient::AreSitesImportant(
 }
 
 // Some Google-affiliated domains are not allowed to delete cookies for
-// supervised accounts.
+// supervised accounts. This restriction can also be applied to enterprise
+// users via policy.
 bool ChromePermissionsClient::IsCookieDeletionDisabled(
     content::BrowserContext* browser_context,
     const GURL& origin) {
-  if (!Profile::FromBrowserContext(browser_context)->IsChild()) {
+  Profile* profile = Profile::FromBrowserContext(browser_context);
+  bool is_youtube =
+      google_util::IsYoutubeDomainUrl(origin, google_util::ALLOW_SUBDOMAIN,
+                                      google_util::ALLOW_NON_STANDARD_PORTS);
+  if (!is_youtube) {
     return false;
   }
 
-  return google_util::IsYoutubeDomainUrl(origin, google_util::ALLOW_SUBDOMAIN,
-                                         google_util::ALLOW_NON_STANDARD_PORTS);
+  if (profile->IsChild()) {
+    return true;
+  }
+
+  const PrefService::Preference* pref = profile->GetPrefs()->FindPreference(
+      prefs::kRestrictYouTubeCookiesDeletion);
+  if (pref && pref->IsManaged()) {
+    return pref->GetValue()->GetBool();
+  }
+
+  return false;
 }
 
 void ChromePermissionsClient::GetUkmSourceId(
@@ -704,12 +718,27 @@ std::optional<GURL> ChromePermissionsClient::GetCanonicalOriginOverride(
     return requesting_origin;
   }
 
-  // Omnibox and Contextual Tasks:
+  // Contextual Tasks:
+  // Transform chrome:// origins to the DSE origin so that permissions are
+  // stored under and shared with the DSE. If the embedder is contextual tasks
+  // without the requester being the contextual tasks, do not override the URL.
+  // Only if the embedder is the contextual tasks AND the requester is the
+  // contextual tasks, override the canonical origin to be 'google.com'.
+  if (embedding_origin == chrome::kChromeUIContextualTasksURL) {
+    if (requesting_origin == chrome::kChromeUIContextualTasksURL) {
+      return GURL(UIThreadSearchTermsData().GoogleBaseURLValue())
+          .DeprecatedGetOriginAsURL();
+    }
+    // The contextual tasks WebUI does not allow 3P origins and there is no
+    // plan to. It is therefore okay to return requesting_origin here.
+    return requesting_origin;
+  }
+
+  // Omnibox:
   // Transform chrome:// origins to the DSE origin so that permissions are
   // stored under and shared with the DSE.
   if (requesting_origin == embedding_origin &&
-      (requesting_origin == chrome::kChromeUIOmniboxPopupURL ||
-       requesting_origin == chrome::kChromeUIContextualTasksURL)) {
+      requesting_origin == chrome::kChromeUIOmniboxPopupURL) {
     return GURL(UIThreadSearchTermsData().GoogleBaseURLValue())
         .DeprecatedGetOriginAsURL();
   }
@@ -732,6 +761,15 @@ std::optional<GURL> ChromePermissionsClient::GetEmbeddingOriginOverride(
     content::WebContents* web_contents) {
   GURL embedding_origin =
       web_contents->GetLastCommittedURL().DeprecatedGetOriginAsURL();
+  // This check is needed in cases where the requesting origin is embedded in a
+  // <webview> (guest view) rather than an iframe. Unlike an iframe, a <webview>
+  // operates in a separate inner WebContents, so the true embedding origin must
+  // be retrieved from the outer WebContents.
+  if (web_contents->GetOuterWebContents()) {
+    embedding_origin = web_contents->GetOuterWebContents()
+                           ->GetLastCommittedURL()
+                           .DeprecatedGetOriginAsURL();
+  }
 
   // New Tab Page:
   // Use the WebContents URL (chrome://newtab) as the embedding origin when

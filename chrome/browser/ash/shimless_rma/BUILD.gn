@@ -2,8 +2,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/chromeos/ui_mode.gni")
-
 assert(is_chromeos)
 
 static_library("shimless_rma") {
@@ -27,8 +25,6 @@ static_library("shimless_rma") {
     "//ash/constants",
     "//ash/strings",
     "//ash/strings:strings_grit",
-    "//chrome/app:generated_resources",
-    "//chrome/app:generated_resources_grit",
     "//chrome/browser:browser_process",
     "//chrome/browser/ash/accessibility",
     "//chrome/browser/ash/login",

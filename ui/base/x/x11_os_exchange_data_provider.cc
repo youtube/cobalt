@@ -4,10 +4,14 @@
 
 #include "ui/base/x/x11_os_exchange_data_provider.h"
 
+#include <stdint.h>
+
 #include <optional>
 #include <string_view>
 #include <utility>
+#include <vector>
 
+#include "base/containers/span.h"
 #include "base/files/file_path.h"
 #include "base/memory/ref_counted_memory.h"
 #include "base/notimplemented.h"
@@ -262,13 +266,14 @@ std::vector<ClipboardUrlInfo> XOSExchangeDataProvider::GetURLs(
     std::u16string unparsed;
     data.AssignTo(&unparsed);
 
-    std::vector<std::u16string> tokens = base::SplitString(
+    std::vector<std::u16string_view> tokens = base::SplitStringPiece(
         unparsed, u"\n", base::KEEP_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
     if (!tokens.empty()) {
       GURL url(tokens[0]);
       if (url.is_valid()) {
-        url_infos.emplace_back(
-            url, tokens.size() > 1 ? std::move(tokens[1]) : std::u16string());
+        url_infos.emplace_back(url, tokens.size() > 1
+                                        ? std::u16string(tokens[1])
+                                        : std::u16string());
       }
     }
   }
@@ -410,7 +415,7 @@ bool XOSExchangeDataProvider::HasCustomFormat(
 
 void XOSExchangeDataProvider::SetFileContents(
     const base::FilePath& filename,
-    const std::string& file_contents) {
+    base::span<const uint8_t> file_contents) {
   DCHECK(!filename.empty());
   DCHECK(!format_map().contains(x11::GetAtom(kMimeTypeMozillaUrl)));
   set_file_contents_name(filename);
@@ -435,7 +440,7 @@ void XOSExchangeDataProvider::SetFileContents(
           base::MakeRefCounted<base::RefCountedString>(std::string("F"))));
   InsertData(x11::GetAtom(kMimeTypeOctetStream),
              scoped_refptr<base::RefCountedMemory>(
-                 base::MakeRefCounted<base::RefCountedString>(file_contents)));
+                 base::MakeRefCounted<base::RefCountedBytes>(file_contents)));
 }
 
 std::optional<OSExchangeDataProvider::FileContentsInfo>
@@ -461,7 +466,7 @@ XOSExchangeDataProvider::GetFileContents() const {
     return std::nullopt;
   }
 
-  std::string file_contents;
+  std::vector<uint8_t> file_contents;
   data.AssignTo(&file_contents);
   return FileContentsInfo{.filename = filename,
                           .file_contents = std::move(file_contents)};

@@ -31,7 +31,7 @@ BASE_FEATURE(kAbortNavigationsFromTabClosures,
 
 // Capture Android key event objects to send them to the web contents when the
 // IME sends composition texts.
-BASE_FEATURE(kAndroidCaptureKeyEvents, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kAndroidCaptureKeyEvents, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables the caret browsing a11y feature - can use arrow keys to navigate
 // through web pages.
@@ -47,6 +47,11 @@ BASE_FEATURE(kAndroidEnableBackgroundMediaLargeFormFactors,
 // Fallback to next named service slot if launching a privileged service process
 // hangs. In practice, this means if GPU launch hanges, then retry it once.
 BASE_FEATURE(kAndroidFallbackToNextSlot, base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Forces an active text input state update calculation and push from the
+// renderer process to browser whenever an editable view container gains focus.
+BASE_FEATURE(kAndroidForceTextInputStateUpdateUponFocus,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables IMEs to insert media content such as images, gifs and stickers.
 BASE_FEATURE(kAndroidMediaInsertion, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -507,6 +512,8 @@ BASE_FEATURE(kGuestViewMPArch, base::FEATURE_DISABLED_BY_DEFAULT);
 // about:flags.
 BASE_FEATURE(kIdbSqliteBackingStore, base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kIdbSqliteOnDiskRollout, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Controls whether we ignore duplicate navigations or not, in favor of
 // preserving the already ongoing navigation.
 BASE_FEATURE(kIgnoreDuplicateNavs, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -561,11 +568,11 @@ BASE_FEATURE_PARAM(bool,
                    "without_spellcheck",
                    true);
 
-// If enabled, the initial WebUI language detection initialization is skipped.
+// If enabled, the initial WebUI translation initialization is skipped.
 BASE_FEATURE_PARAM(bool,
-                   kInitialWebUIWithoutLanguageDetection,
+                   kInitialWebUIWithoutTranslate,
                    &features::kInitialWebUI,
-                   "without_language_detection",
+                   "without_translate",
                    false);
 
 // Whether initial WebUI navigations should synchronously go from navigation
@@ -1434,6 +1441,12 @@ BASE_FEATURE(kReduceGpuPriorityOnBackground, base::FEATURE_DISABLED_BY_DEFAULT);
 // it won't work.
 // Enabled by Finch depending on form factor.
 BASE_FEATURE(kUserMediaScreenCapturing, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enable timeout for TextClassifier calls. The timeout is configurable with a
+// default of 200ms.
+BASE_FEATURE(kTextClassifierTimeout, base::FEATURE_DISABLED_BY_DEFAULT);
+const base::FeatureParam<int> kTextClassifierTimeoutMs{&kTextClassifierTimeout,
+                                                       "timeout_ms", 200};
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_MAC)

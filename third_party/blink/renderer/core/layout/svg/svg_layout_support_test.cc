@@ -31,4 +31,28 @@ TEST_F(SVGLayoutSupportTest, FindClosestLayoutSVGText) {
   EXPECT_EQ("t3", To<Element>(hit_text->GetNode())->GetIdAttribute());
 }
 
+TEST_F(SVGLayoutSupportTest, VisualRectInAncestorSpaceContainerWithFilter) {
+  SetBodyInnerHTML(R"HTML(
+    <svg id="svg" width="500" height="500">
+      <defs>
+        <filter id="shadow">
+          <feDropShadow dx="10" dy="10" stdDeviation="0"/>
+        </filter>
+      </defs>
+      <g id="container" filter="url(#shadow)">
+        <rect x="0" y="0" width="10" height="10"/>
+        <rect id="target" transform="translate(200, 200)" width="10" height="10"/>
+      </g>
+    </svg>
+  )HTML");
+  UpdateAllLifecyclePhasesForTest();
+
+  LayoutObject* target = GetLayoutObjectByElementId("target");
+  ASSERT_TRUE(target);
+
+  PhysicalRect result_rect = VisualRectInDocument(*target);
+
+  EXPECT_EQ(result_rect, PhysicalRect(8, 8, 220, 220));
+}
+
 }  // namespace blink

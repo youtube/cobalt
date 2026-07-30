@@ -83,6 +83,7 @@ TAG_SPECIALIZATIONS = {
             'amd-0x6821',
             'amd-0x7340',
             'amd-0x7480',
+            'amd-0x7550',
         ],
         'apple': [
             'apple-apple-m1',
@@ -121,6 +122,7 @@ TAG_SPECIALIZATIONS = {
             'nvidia-0x1cb3',
             'nvidia-0x2184',
             'nvidia-0x2783',
+            'nvidia-0x2c02',
         ],
         'qualcomm': [
             # 0636 = 0x36333630 = Adreno 690 GPU (such as Surface Pro 9 5G)

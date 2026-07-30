@@ -917,8 +917,8 @@ class CONTENT_EXPORT WebContentsImpl
           blink_popup_widget_host,
       mojo::PendingAssociatedReceiver<blink::mojom::WidgetHost>
           blink_widget_host,
-      mojo::PendingAssociatedRemote<blink::mojom::Widget> blink_widget)
-      override;
+      mojo::PendingAssociatedRemote<blink::mojom::Widget> blink_widget,
+      GlobalRenderFrameHostId creator_frame_id) override;
   void DidLoadResourceFromMemoryCache(
       RenderFrameHostImpl* source,
       const GURL& url,
@@ -1062,6 +1062,10 @@ class CONTENT_EXPORT WebContentsImpl
   void DidStartNavigation(NavigationHandle* navigation_handle) override;
   void DidRedirectNavigation(NavigationHandle* navigation_handle) override;
   void ReadyToCommitNavigation(NavigationHandle* navigation_handle) override;
+  void OnStartDragging(
+      DropData* drop_data,
+      const GlobalRenderFrameHostToken& source_rfh_token) override;
+  void OnDragSourceEnded() override;
   void DidFinishNavigation(NavigationHandle* navigation_handle) override;
   void DidCancelNavigationBeforeStart(
       NavigationHandle* navigation_handle) override;
@@ -1257,7 +1261,7 @@ class CONTENT_EXPORT WebContentsImpl
   void NotifySwappedRWHVChildFrameFromRenderManager(
       RenderWidgetHostViewChildFrame* new_view,
       bool allow_paint_holding) override;
-  void PrimaryMainFrameSwapComplete(RenderFrameHostImpl* new_frame) override;
+  void PrimaryMainFrameCommitted(RenderFrameHostImpl* new_frame) override;
 
   // PageDelegate -------------------------------------------------------------
 
@@ -2805,6 +2809,11 @@ class CONTENT_EXPORT WebContentsImpl
 #if BUILDFLAG(IS_ANDROID)
   bool supports_forward_transition_animation_ = true;
 #endif  // !BUILDFLAG(IS_ANDROID)
+
+  void SetDragSource(const DragId& drag_id,
+                     const GlobalRenderFrameHostToken& source_rfh_token);
+
+  std::optional<DragId> active_drag_id_;
 
   const UniqueToken web_contents_token_;
   const base::trace_event::TrackRegistration<perfetto::NamedTrack>

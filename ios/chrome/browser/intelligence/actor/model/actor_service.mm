@@ -12,9 +12,10 @@
 #import "base/strings/string_number_conversions.h"
 #import "base/strings/stringprintf.h"
 #import "base/types/expected.h"
+#import "components/actor/core/aggregated_journal.h"
+#import "components/actor/core/journal_details_builder.h"
 #import "components/optimization_guide/proto/features/actions_data.pb.h"
 #import "ios/chrome/browser/intelligence/actor/model/actor_task.h"
-#import "ios/chrome/browser/intelligence/actor/model/aggregated_journal.h"
 #import "ios/chrome/browser/intelligence/actor/model/snackbar_actor_task_updates_observer.h"
 #import "ios/chrome/browser/intelligence/actor/tools/model/actor_tool.h"
 #import "ios/chrome/browser/intelligence/actor/tools/model/actor_tool_factory.h"
@@ -44,8 +45,10 @@ void LogToolCreationFailed(AggregatedJournal* journal,
                            const ToolExecutionResult& error) {
   CHECK(journal);
 
-  std::vector<JournalDetails> details = {
-      {"error", GetToolExecutionResultMessage(error)}};
+  std::vector<mojom::JournalDetailsPtr> details =
+      JournalDetailsBuilder()
+          .AddError(GetToolExecutionResultMessage(error))
+          .Build();
 
   journal->Log(
       GURL(), task_id,
@@ -62,7 +65,7 @@ void LogToolCreationAttempt(AggregatedJournal* journal,
   journal->Log(
       GURL(), task_id,
       base::StringPrintf("Attempting to create tool: %s", tool_name.c_str()),
-      std::vector<JournalDetails>());
+      /*details=*/{});
 }
 
 }  // namespace
@@ -328,7 +331,20 @@ void ActorService::PauseTask(ActorTaskId task_id, bool from_actor) {
 void ActorService::StopTask(ActorTaskId task_id,
                             ActorTaskStoppedReason reason) {
   // TODO(crbug.com/496163986): Implement and test.
+  auto it = active_tasks_.find(task_id);
+  if (it != active_tasks_.end()) {
+    it->second->Stop(reason);
+  }
   active_tasks_.erase(task_id);
+}
+
+// TODO(crbug.com/517583120): Remove when the temporary actuation prototype is
+// cleaned up.
+void ActorService::StopAllTasks() {
+  while (!active_tasks_.empty()) {
+    StopTask(active_tasks_.begin()->first,
+             ActorTaskStoppedReason::kStoppedByUser);
+  }
 }
 
 std::vector<optimization_guide::proto::Action::ActionCase>

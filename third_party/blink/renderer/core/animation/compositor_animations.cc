@@ -118,6 +118,17 @@ bool IsTransformRelatedCSSProperty(const PropertyHandle property) {
           property.GetCSSProperty().IDEquals(CSSPropertyID::kTranslate));
 }
 
+bool HasNativePaintWorketReason(
+    Animation::NativePaintWorkletReasons npw_reasons,
+    Animation::NativePaintWorkletProperties property) {
+  if (RuntimeEnabledFeatures::ConcurrentNativePaintWorkletsEnabled()) {
+    return npw_reasons & property;
+  }
+  // By default, only a single property can be animated on the compositor
+  // thread within a single animation.
+  return npw_reasons == property;
+}
+
 bool HasIncompatibleAnimations(const Element& target_element,
                                const Animation& animation_to_add,
                                const EffectModel& effect_to_add) {
@@ -314,7 +325,6 @@ CompositorAnimations::CheckCanStartEffectOnCompositor(
     }
 
     // Presently native paint worklets only work with monotonic timelines.
-    NativePaintImageGenerator* generator = nullptr;
     Animation::NativePaintWorkletReasons npw_reasons =
         Animation::NativePaintWorkletProperties::kNoPaintWorklet;
     if (animation_to_add) {
@@ -328,9 +338,11 @@ CompositorAnimations::CheckCanStartEffectOnCompositor(
       // Not having a layout object is a reason for not compositing marked
       // in CompositorAnimations::CheckCanStartElementOnCompositor.
       switch (property.GetCSSProperty().PropertyID()) {
-        case CSSPropertyID::kBackgroundColor:
-          if (npw_reasons == Animation::NativePaintWorkletProperties::
-                                 kBackgroundColorPaintWorklet) {
+        case CSSPropertyID::kBackgroundColor: {
+          NativePaintImageGenerator* generator = nullptr;
+          if (HasNativePaintWorketReason(
+                  npw_reasons, Animation::NativePaintWorkletProperties::
+                                   kBackgroundColorPaintWorklet)) {
             DCHECK(RuntimeEnabledFeatures::CompositeBGColorAnimationEnabled());
             generator = target_element.GetDocument()
                             .GetFrame()
@@ -342,10 +354,13 @@ CompositorAnimations::CheckCanStartEffectOnCompositor(
                                          property, &reasons);
           }
           break;
+        }
 
-        case CSSPropertyID::kClipPath:
-          if (npw_reasons ==
-              Animation::NativePaintWorkletProperties::kClipPathPaintWorklet) {
+        case CSSPropertyID::kClipPath: {
+          NativePaintImageGenerator* generator = nullptr;
+          if (HasNativePaintWorketReason(
+                  npw_reasons, Animation::NativePaintWorkletProperties::
+                                   kClipPathPaintWorklet)) {
             DCHECK(RuntimeEnabledFeatures::CompositeClipPathAnimationEnabled());
             generator = target_element.GetDocument()
                             .GetFrame()
@@ -357,6 +372,7 @@ CompositorAnimations::CheckCanStartEffectOnCompositor(
                                          property, &reasons);
           }
           break;
+        }
 
         default:
           break;
@@ -712,23 +728,6 @@ void CompositorAnimations::StartAnimationOnCompositor(
   DCHECK(!started_keyframe_model_ids.empty());
 }
 
-void CompositorAnimations::CancelAnimationOnCompositor(
-    const Element& element,
-    CompositorAnimation* compositor_animation,
-    int id,
-    const EffectModel& model) {
-  if (CheckCanStartElementOnCompositor(element, model) != kNoFailure) {
-    // When an element is being detached, we cancel any associated
-    // Animations for CSS animations. But by the time we get
-    // here the mapping will have been removed.
-    // FIXME: Defer remove/pause operations until after the
-    // compositing update.
-    return;
-  }
-  if (compositor_animation)
-    compositor_animation->RemoveKeyframeModel(id);
-}
-
 void CompositorAnimations::PauseAnimationForTestingOnCompositor(
     const Element& element,
     const Animation& animation,
@@ -748,16 +747,14 @@ void CompositorAnimations::AttachCompositedLayers(
   if (!compositor_animation)
     return;
 
-  CompositorElementIdNamespace element_id_namespace =
-      CompositorElementIdNamespace::kPrimary;
   // We create an animation namespace element id when an element has created all
   // property tree nodes which may be required by the keyframe effects. The
   // animation affects multiple element ids, and one is pushed each
   // KeyframeModel. See |GetAnimationOnCompositor|. We use the kPrimaryEffect
   // node to know if nodes have been created for animations.
-  element_id_namespace = CompositorElementIdNamespace::kPrimaryEffect;
   compositor_animation->AttachElement(CompositorElementIdFromUniqueObjectId(
-      element.GetLayoutObject()->UniqueId(), element_id_namespace));
+      element.GetLayoutObject()->UniqueId(),
+      CompositorElementIdNamespace::kPrimaryEffect));
 }
 
 bool CompositorAnimations::ConvertTimingForCompositor(

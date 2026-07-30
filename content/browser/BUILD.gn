@@ -62,7 +62,10 @@ rust_static_library("child_process_security_policy_impl") {
   sources = [ "child_process_security_policy_impl.rs" ]
   cxx_bindings = [ "child_process_security_policy_impl.rs" ]
   visibility = [ ":browser" ]
-  deps = [ "//third_party/rust/cxx/v1:lib" ]
+  deps = [
+    "//third_party/rust/cxx/v1:lib",
+    "//url:url_rust",
+  ]
 }
 
 if (is_ios) {
@@ -1399,6 +1402,8 @@ source_set("browser") {
     "media/capture/desktop_capture_device_uma_types.h",
     "media/capture/desktop_streams_registry_impl.cc",
     "media/capture/desktop_streams_registry_impl.h",
+    "network/declarative_performance_observer.cc",
+    "network/declarative_performance_observer.h",
     "permissions/permission_descriptor_util.cc",
     "web_contents_based_canceller.cc",
     "web_contents_based_canceller.h",
@@ -1626,6 +1631,8 @@ source_set("browser") {
     "preloading/preconnector.h",
     "preloading/prefetch/assert_prefetch_container_observer.cc",
     "preloading/prefetch/assert_prefetch_container_observer.h",
+    "preloading/prefetch/cancel_unrelated_prefetch_url_loader_throttle.cc",
+    "preloading/prefetch/cancel_unrelated_prefetch_url_loader_throttle.h",
     "preloading/prefetch/contamination_delay_navigation_throttle.cc",
     "preloading/prefetch/contamination_delay_navigation_throttle.h",
     "preloading/prefetch/no_vary_search_helper.cc",
@@ -2389,6 +2396,10 @@ source_set("browser") {
     "web_contents/aura/gesture_nav_simple.h",
     "web_contents/aura/types.cc",
     "web_contents/aura/types.h",
+    "web_contents/drag_source_document_tracker.cc",
+    "web_contents/drag_source_document_tracker.h",
+    "web_contents/drag_source_map.cc",
+    "web_contents/drag_source_map.h",
     "web_contents/file_chooser_impl.cc",
     "web_contents/file_chooser_impl.h",
     "web_contents/java_script_dialog_commit_deferring_condition.cc",
@@ -2465,8 +2476,8 @@ source_set("browser") {
     "webid/delegation/email_verifier_impl.h",
     "webid/delegation/email_verifier_network_request_manager.cc",
     "webid/delegation/email_verifier_network_request_manager.h",
-    "webid/delegation/evp_metrics.cc",
-    "webid/delegation/evp_metrics.h",
+    "webid/delegation/evt_verifier.cc",
+    "webid/delegation/evt_verifier.h",
     "webid/delegation/federated_sd_jwt_handler.cc",
     "webid/delegation/federated_sd_jwt_handler.h",
     "webid/delegation/jwt_signer.cc",
@@ -3161,6 +3172,8 @@ source_set("browser") {
       "installedapp/native_win_app_fetcher.h",
       "installedapp/native_win_app_fetcher_impl.cc",
       "installedapp/native_win_app_fetcher_impl.h",
+      "media/content_protection_window.cc",
+      "media/content_protection_window.h",
       "media/dcomp_surface_registry_broker.cc",
       "media/dcomp_surface_registry_broker.h",
       "media/key_system_support_win.cc",
@@ -3191,6 +3204,8 @@ source_set("browser") {
       "speech/tts_win.cc",
       "speech/tts_win_utils.cc",
       "speech/tts_win_utils.h",
+      "webnn/webnn_compiler_launcher.cc",
+      "webnn/webnn_compiler_launcher.h",
     ]
     deps += [
       "//components/app_launch_prefetch",

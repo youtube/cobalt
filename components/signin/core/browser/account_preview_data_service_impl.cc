@@ -9,35 +9,31 @@
 #include "base/check_deref.h"
 #include "base/functional/bind.h"
 #include "components/prefs/pref_service.h"
-#include "components/prefs/scoped_user_pref_update.h"
 #include "components/signin/core/browser/account_preview_data.h"
 #include "components/signin/core/browser/account_preview_data_fetcher.h"
 #include "components/signin/public/base/persistent_repeating_timer.h"
 #include "components/signin/public/base/signin_pref_names.h"
 #include "components/signin/public/identity_manager/accounts_in_cookie_jar_info.h"
 #include "components/signin/public/identity_manager/identity_utils.h"
+#include "services/network/public/cpp/shared_url_loader_factory.h"
 
 namespace signin {
 
 AccountPreviewDataServiceImpl::AccountPreviewDataServiceImpl(
     IdentityManager* identity_manager,
-    PrefService* pref_service)
+    PrefService* pref_service,
+    scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
+    std::unique_ptr<WaitForNetworkCallbackHelper> network_delay_helper,
+    version_info::Channel channel)
     : identity_manager_(identity_manager),
-      pref_service_(CHECK_DEREF(pref_service)) {
+      url_loader_factory_(std::move(url_loader_factory)),
+      network_delay_helper_(std::move(network_delay_helper)),
+      channel_(channel) {
+  CHECK(network_delay_helper_);
   identity_manager_observation_.Observe(identity_manager_);
 
-  // Load cached data from prefs at startup.
-  const auto& dict = pref_service_->GetDict(prefs::kAccountPreviewDataDict);
-  for (auto item : dict) {
-    if (std::optional<AccountPreviewData> data =
-            AccountPreviewData::Deserialize(item.second)) {
-      cached_data_[GaiaId(item.first)] = std::move(data.value());
-    }
-  }
-
   repeating_timer_ = std::make_unique<PersistentRepeatingTimer>(
-      &*pref_service_, prefs::kAccountPreviewDataLastUpdatePref,
-      base::Hours(24),
+      pref_service, prefs::kAccountPreviewDataLastUpdatePref, base::Hours(24),
       base::BindRepeating(
           &AccountPreviewDataServiceImpl::RefreshAllAccountPreviewData,
           weak_ptr_factory_.GetWeakPtr()));
@@ -75,27 +71,29 @@ void AccountPreviewDataServiceImpl::OnRefreshTokenRemovedForAccount(
   GaiaId gaia_id = info.gaia;
   cached_data_.erase(gaia_id);
   active_fetchers_.erase(gaia_id);
+}
 
-  // Delete data from prefs.
-  ScopedDictPrefUpdate update(&*pref_service_, prefs::kAccountPreviewDataDict);
-  update->Remove(gaia_id.ToString());
+void AccountPreviewDataServiceImpl::SetFetchCompleteCallbackForTesting(
+    base::OnceClosure callback) {
+  fetch_complete_callback_for_testing_ = std::move(callback);
 }
 
 void AccountPreviewDataServiceImpl::OnFetchCompleted(
     const GaiaId& gaia_id,
     std::optional<AccountPreviewData> data) {
-  active_fetchers_.erase(gaia_id);
   if (data.has_value()) {
-    cached_data_[gaia_id] = std::move(data).value();
-    SaveToPrefs(gaia_id, cached_data_[gaia_id]);
-  }
-}
+    // TODO(crbug.com/510760810): Metrics logging can happen here for data type
+    // counts of interest.
 
-void AccountPreviewDataServiceImpl::SaveToPrefs(
-    const GaiaId& gaia_id,
-    const AccountPreviewData& data) {
-  ScopedDictPrefUpdate update(&*pref_service_, prefs::kAccountPreviewDataDict);
-  update->Set(gaia_id.ToString(), AccountPreviewData::Serialize(data));
+    cached_data_[gaia_id] = std::move(data).value();
+  }
+
+  // `gaia_id` is owned by the fetcher and should not be used beyond this point.
+  active_fetchers_.erase(gaia_id);
+
+  if (fetch_complete_callback_for_testing_) {
+    std::move(fetch_complete_callback_for_testing_).Run();
+  }
 }
 
 void AccountPreviewDataServiceImpl::OnRefreshTokensLoaded() {
@@ -119,19 +117,14 @@ void AccountPreviewDataServiceImpl::MaybeClearInvalidAccountPreviewData(
   // Gather all gaia_id keys that do not have valid cookies, those will have
   // their data removed in the next step.
   std::vector<GaiaId> accounts_prefs_to_remove;
-  for (const std::pair<const std::string&, const base::Value&> account_prefs :
-       pref_service_->GetDict(prefs::kAccountPreviewDataDict)) {
-    GaiaId gaia_id(account_prefs.first);
+  for (const auto& [gaia_id, data] : cached_data_) {
     if (!gaia_ids_to_keep.contains(gaia_id)) {
-      accounts_prefs_to_remove.push_back(std::move(gaia_id));
+      accounts_prefs_to_remove.push_back(gaia_id);
     }
   }
 
   // Remove the account prefs/data that should not be kept.
-  ScopedDictPrefUpdate scoped_update(pref_service_.get(),
-                                     prefs::kAccountPreviewDataDict);
   for (const GaiaId& account_prefs_to_remove : accounts_prefs_to_remove) {
-    scoped_update->Remove(account_prefs_to_remove.ToString());
     cached_data_.erase(account_prefs_to_remove);
   }
 }
@@ -183,12 +176,21 @@ void AccountPreviewDataServiceImpl::FetchAccountPreviewData(
     const GaiaId& gaia_id) {
   CHECK(identity_manager_);
 
-  if (active_fetchers_.find(gaia_id) != active_fetchers_.end()) {
+  // TODO(crbug.com/510760810): Consider adding the retry logic while an active
+  // fetch is already in flight and the connection is lost.
+  network_delay_helper_->DelayNetworkCall(
+      base::BindOnce(&AccountPreviewDataServiceImpl::StartFetch,
+                     weak_ptr_factory_.GetWeakPtr(), gaia_id));
+}
+
+void AccountPreviewDataServiceImpl::StartFetch(const GaiaId& gaia_id) {
+  if (active_fetchers_.contains(gaia_id)) {
     return;
   }
 
+  CHECK(!network_delay_helper_->AreNetworkCallsDelayed());
   active_fetchers_[gaia_id] = std::make_unique<AccountPreviewDataFetcher>(
-      gaia_id, identity_manager_,
+      gaia_id, identity_manager_, url_loader_factory_, channel_,
       base::BindOnce(&AccountPreviewDataServiceImpl::OnFetchCompleted,
                      weak_ptr_factory_.GetWeakPtr()));
 }

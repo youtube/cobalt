@@ -28,7 +28,7 @@ import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import type {AutocompleteResult, FileAttachment, PageCallbackRouter as SearchboxPageCallbackRouter, PageHandlerRemote as SearchboxPageHandlerRemote, SearchContext, TabAttachment, TabInfo} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import type {UnguessableToken} from '//resources/mojo/mojo/public/mojom/base/unguessable_token.mojom-webui.js';
 
-import {ComposeboxFile, getLoadTimeBoolean, mapUploadErrorToProcessFilesError, ProcessFilesError, recordBoolean, recordContextAdditionMethod, recordUserAction, TabUploadOrigin} from './common.js';
+import {ComposeboxFile, getLoadTimeBoolean, GlifAnimationState, mapUploadErrorToProcessFilesError, ProcessFilesError, recordBoolean, recordContextAdditionMethod, recordUserAction, TabUploadOrigin} from './common.js';
 import type {TabUpload} from './common.js';
 import {getCss} from './composebox.css.js';
 import {getHtml} from './composebox.html.js';
@@ -36,7 +36,7 @@ import type {PageHandlerRemote} from './composebox.mojom-webui.js';
 import type {ComposeboxDropdownElement} from './composebox_dropdown.js';
 import type {ComposeboxFileInputsElement} from './composebox_file_inputs.js';
 import type {ComposeboxInputElement} from './composebox_input.js';
-import {ComposeboxEmbedderMixin, VoiceSearchAction} from './composebox_mixin.js';
+import {ComposeboxEmbedderMixin, SubmitButtonIconType, VoiceSearchAction} from './composebox_mixin.js';
 import {ComposeboxProxyImpl} from './composebox_proxy.js';
 import type {ContextUploadErrorType} from './composebox_query.mojom-webui.js';
 import {ContextUploadStatus, ToolMode} from './composebox_query.mojom-webui.js';
@@ -45,12 +45,7 @@ import type {ContextualEntrypointButtonElement} from './contextual_entrypoint_bu
 import type {ErrorScrimElement} from './error_scrim.js';
 import type {ComposeboxFileCarouselElement} from './file_carousel.js';
 
-export {VoiceSearchAction};
-
-export enum SubmitButtonIconType {
-  FORWARD = 'forward',
-  UPWARD = 'upward',
-}
+export {SubmitButtonIconType, VoiceSearchAction};
 
 const DEBOUNCE_TIMEOUT_MS: number = 20;
 
@@ -111,14 +106,10 @@ export class ComposeboxElement extends ComposeboxEmbedderMixin
         // `searchboxNextEnabled`. For NTP-specific styling, use CSS from the
         // embedding component (e.g., `new_tab_page/app.css`).
       },
-      submitButtonIconType: {
-        type: String,
-      },
       lensButtonDisabled: {
         reflect: true,
         type: Boolean,
       },
-      voiceSearchCoherenceEnabled: {type: Boolean},
       carouselOnTop_: {
         type: Boolean,
       },
@@ -145,7 +136,11 @@ export class ComposeboxElement extends ComposeboxEmbedderMixin
         type: Boolean,
         reflect: true,
       },
+      disableFallbackGlifAnimation: {type: Boolean},
       enableFileHint: {type: Boolean},
+      // TODO(crbug.com/486707842): Move to the Contextual Tasks embedder.
+      glifAnimationState: {type: String, reflect: true},
+      isSidePanel: {type: Boolean},
       inputPlaceholderOverride: {type: String},
       contextManagementInComposeboxEnabled_: {type: Boolean},
       // Must be property so can pass it down to children.
@@ -158,8 +153,12 @@ export class ComposeboxElement extends ComposeboxEmbedderMixin
   }
 
   accessor energyEffectEnabled: boolean = false;
+  accessor isSidePanel: boolean = false;
   accessor energyEffectAnimationEnabled: boolean = false;
   accessor isZeroState: boolean = false;
+  accessor glifAnimationState: GlifAnimationState =
+      GlifAnimationState.INELIGIBLE;
+  accessor disableFallbackGlifAnimation: boolean = false;
   accessor isFollowupQuery: boolean = false;
   accessor enableFileHint: boolean = false;
   accessor inputPlaceholderOverride: string = '';
@@ -173,11 +172,7 @@ export class ComposeboxElement extends ComposeboxEmbedderMixin
   accessor carouselOnTop_: boolean = false;
   accessor entrypointName: string = '';
   accessor lensButtonDisabled: boolean = false;
-  accessor voiceSearchCoherenceEnabled: boolean = false;
   accessor applyContextButtonBackground: boolean = false;
-
-  accessor submitButtonIconType: SubmitButtonIconType =
-      SubmitButtonIconType.UPWARD;
   protected isRtl_: boolean = document.documentElement.dir === 'rtl';
 
   // If isCollapsible is set to true, the composebox will be a pill shape until
@@ -204,6 +199,7 @@ export class ComposeboxElement extends ComposeboxEmbedderMixin
   private pageHandler_: PageHandlerRemote;
   private searchboxHandler_: SearchboxPageHandlerRemote;
   private resizeObservers_: ResizeObserver[] = [];
+
   override shouldShowDivider(): boolean {
     // TODO(crbug.com/476175193): Remove `entrypointName` condition.
     if (this.entrypointName === 'Omnibox' &&
@@ -296,6 +292,9 @@ export class ComposeboxElement extends ComposeboxEmbedderMixin
     if (smartTabSharingVisible) {
       const {active} = await this.pageHandler_.getSmartTabSharingActive();
       this.smartTabSharingActive = active;
+      if (active) {
+        this.clearContextForSmartTabSharingActive_();
+      }
     }
     this.syncResizeObservers_();
   }
@@ -432,11 +431,6 @@ export class ComposeboxElement extends ComposeboxEmbedderMixin
     this.expanding_ = expanding;
   }
 
-  protected computeCancelButtonTitle_() {
-    return this.input.trim().length > 0 || this.files.size > 0 ?
-        this.i18n('composeboxCancelButtonTitleInput') :
-        this.i18n('composeboxCancelButtonTitle');
-  }
 
   override hasValidQuery(): boolean {
     // If there is at least one file that supports unimodal search, query is
@@ -557,6 +551,14 @@ export class ComposeboxElement extends ComposeboxEmbedderMixin
 
   // TODO(crbug.com/486707842): Move this to contextual tasks composebox.
   private updateAutoSuggestedTabContext_(tab: TabInfo|null) {
+    if (this.smartTabSharingActive) {
+      if (this.automaticActiveTab_) {
+        this.deleteFile(this.automaticActiveTab_.uuid);
+        this.automaticActiveTab_ = null;
+      }
+      return;
+    }
+
     const shouldDeleteAutomaticActiveTab = this.automaticActiveTab_ &&
         (!tab || this.automaticActiveTab_.url !== tab.url);
     if (shouldDeleteAutomaticActiveTab) {
@@ -892,8 +894,8 @@ export class ComposeboxElement extends ComposeboxEmbedderMixin
     super.clearAllInputs(querySubmitted, shouldBlockAutoSuggestedTabs);
   }
 
-  protected shouldDisableFileInputs_() {
-    return !this.contextMenuEnabled || !this.showMenuOnClick ||
+  override shouldDisableFileInputs() {
+    return super.shouldDisableFileInputs() ||
         this.entrypointName === 'ContextualTasks';
   }
 
@@ -942,6 +944,35 @@ export class ComposeboxElement extends ComposeboxEmbedderMixin
   // TODO(crbug.com/486707842): Move this to contextual tasks composebox.
   updateAutoSuggestedTabContextForTesting(tab: TabInfo|null) {
     this.updateAutoSuggestedTabContext_(tab);
+  }
+
+  // TODO: crbug.com/486707842 - Move to the Contextual Tasks embedder
+  override onSmartTabSharingActiveChanged(e: CustomEvent<{active: boolean}>) {
+    super.onSmartTabSharingActiveChanged(e);
+    if (e.detail.active) {
+      this.clearContextForSmartTabSharingActive_();
+    }
+  }
+
+  private clearContextForSmartTabSharingActive_() {
+    this.clearManualTabs_();
+    if (this.automaticActiveTab_) {
+      const uuid = this.automaticActiveTab_.uuid;
+      this.automaticActiveTab_ = null;
+      this.deleteFile(uuid, /*fromUserAction=*/ false);
+    }
+  }
+
+  // TODO: crbug.com/486707842 - Move to the Contextual Tasks embedder
+  private clearManualTabs_() {
+    const fileMap = new Map(this.files);
+    for (const [uuid, file] of fileMap.entries()) {
+      if (file.type === 'tab' &&
+          (!this.automaticActiveTab_ ||
+           file.uuid !== this.automaticActiveTab_.uuid)) {
+        this.deleteFile(uuid, /*fromUserAction=*/ false);
+      }
+    }
   }
 }
 // LINT.ThenChange(//ui/webui/resources/cr_components/composebox/Componentization.md)

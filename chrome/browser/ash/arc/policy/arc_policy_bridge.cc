@@ -9,8 +9,8 @@
 #include <string_view>
 #include <utility>
 
-#include "arc_policy_util.h"
 #include "ash/constants/ash_switches.h"
+#include "ash/constants/chrome_pref_names.h"
 #include "base/command_line.h"
 #include "base/containers/fixed_flat_set.h"
 #include "base/functional/bind.h"
@@ -32,7 +32,6 @@
 #include "chrome/browser/policy/profile_policy_connector.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/chrome_switches.h"
-#include "chrome/common/pref_names.h"
 #include "chromeos/ash/experiences/arc/arc_browser_context_keyed_service_factory_base.h"
 #include "chromeos/ash/experiences/arc/arc_prefs.h"
 #include "chromeos/ash/experiences/arc/session/arc_bridge_service.h"
@@ -251,10 +250,6 @@ void AddRequiredKeyPairs(const CertStoreService* cert_store_service,
                          std::move(cert_names));
 }
 
-bool LooksLikeAndroidPackageName(const std::string& name) {
-  return name.find(".") != std::string::npos;
-}
-
 void AddChoosePrivateKeyRuleToPolicy(
     policy::PolicyService* const policy_service,
     const CertStoreService* cert_store_service,
@@ -264,12 +259,10 @@ void AddChoosePrivateKeyRuleToPolicy(
   }
 
   auto app_ids = chromeos::platform_keys::ExtensionKeyPermissionsService::
-      GetCorporateKeyUsageAllowedAppIds(policy_service);
+      GetCorporateKeyUsageAllowedAndroidAppIds(policy_service);
   base::ListValue arc_app_ids;
   for (const auto& app_id : app_ids) {
-    if (LooksLikeAndroidPackageName(app_id)) {
-      arc_app_ids.Append(app_id);
-    }
+    arc_app_ids.Append(app_id);
   }
   if (arc_app_ids.empty() ||
       cert_store_service->get_required_cert_names().empty()) {
@@ -398,7 +391,7 @@ void MapChromeToArcPolicies(base::DictValue& filtered_policies,
   // policies.
   MapManagedIntPrefToBool(
       policy_util::kArcPolicyKeyDebuggingFeaturesDisabled,
-      ::prefs::kDevToolsAvailability, profile_prefs,
+      ash::chrome_prefs::kDevToolsAvailability, profile_prefs,
       static_cast<int>(
           policy::DeveloperToolsPolicyHandler::Availability::kDisallowed),
       &filtered_policies);

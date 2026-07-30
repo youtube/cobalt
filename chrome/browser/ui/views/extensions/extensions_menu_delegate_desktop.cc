@@ -31,7 +31,6 @@
 #include "chrome/browser/ui/views/extensions/extensions_menu_entry_view.h"
 #include "chrome/browser/ui/views/extensions/extensions_menu_main_page_view.h"
 #include "chrome/browser/ui/views/extensions/extensions_menu_site_permissions_page_view.h"
-#include "chrome/grit/generated_resources.h"
 #include "content/public/browser/web_contents.h"
 #include "extensions/browser/extension_system.h"
 #include "extensions/browser/permissions/active_tab_permission_granter.h"
@@ -41,6 +40,7 @@
 #include "ui/base/metadata/metadata_types.h"
 #include "ui/views/view_utils.h"
 #include "ui/views/widget/widget.h"
+#include "url/origin.h"
 
 namespace {
 
@@ -336,10 +336,15 @@ void ExtensionsMenuDelegateDesktop::OnActionIconUpdated(
     return;
   }
 
-  // Update the icon for the extension's site permission page
+  // Update the site permissions page if it can be shown for the updated action,
+  // otherwise go back to the main page.
   // TODO(crbug.com/431902556): consider updating only the icon and not the
   // whole site permissions page.
-  UpdateSitePermissionsPage(site_permissions_page);
+  if (menu_model_->CanShowSitePermissionsPage(action_id)) {
+    UpdateSitePermissionsPage(site_permissions_page);
+  } else {
+    OpenMainPage();
+  }
 }
 
 void ExtensionsMenuDelegateDesktop::OnActionsInitialized() {
@@ -432,8 +437,9 @@ void ExtensionsMenuDelegateDesktop::CloseBubble() {
 
 void ExtensionsMenuDelegateDesktop::OnSiteAccessSelected(
     const extensions::ExtensionId& extension_id,
+    const url::Origin& origin,
     PermissionsManager::UserSiteAccess site_access) {
-  menu_model_->UpdateSiteAccess(extension_id, site_access);
+  menu_model_->UpdateSiteAccess(extension_id, origin, site_access);
 }
 
 void ExtensionsMenuDelegateDesktop::OnActionButtonClicked(
@@ -451,11 +457,12 @@ void ExtensionsMenuDelegateDesktop::OnSiteSettingsToggleButtonPressed(
 
 void ExtensionsMenuDelegateDesktop::OnExtensionToggleSelected(
     const extensions::ExtensionId& extension_id,
+    const url::Origin& origin,
     bool is_on) {
   if (is_on) {
-    menu_model_->GrantSiteAccess(extension_id);
+    menu_model_->GrantSiteAccess(extension_id, origin);
   } else {
-    menu_model_->RevokeSiteAccess(extension_id);
+    menu_model_->RevokeSiteAccess(extension_id, origin);
   }
 }
 

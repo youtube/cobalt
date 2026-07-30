@@ -10,29 +10,6 @@
     The application appears to be invalid.
   </message>
 
-  <!-- Per-App Time Limits -->
-  <message name="IDS_APP_TIME_LIMIT_APP_BLOCKED_NOTIFICATION_MESSAGE" desc="PerAppTimeLimit system notification message specifying that the application has been blocked.">
-    <ph name="APP_NAME">$1<ex>Gmail</ex></ph> is blocked
-  </message>
-  <message name="IDS_APP_TIME_LIMIT_APP_AVAILABLE_NOTIFICATION_MESSAGE" desc="PerAppTimeLimit system notification message specifying that the application is no longer blocked.">
-    <ph name="APP_NAME">$1<ex>Gmail</ex></ph> is now available
-  </message>
-  <message name="IDS_APP_TIME_LIMIT_APP_WILL_PAUSE_SYSTEM_NOTIFICATION_TITLE" desc="PerAppTimeLimit system notification title specifying that the application will pause soon.">
-    <ph name="APP_NAME">$1<ex>App x</ex></ph> will pause soon
-  </message>
-  <message name="IDS_APP_TIME_LIMIT_APP_WILL_PAUSE_SYSTEM_NOTIFICATION_MESSAGE" desc="PerAppTimeLimit system notification message specifying that the application will pause in the specified time.">
-    <ph name="TIME">$1<ex> 5 minutes</ex></ph> left
-  </message>
-  <message name="IDS_APP_TIME_LIMIT_APP_TIME_LIMIT_SET_SYSTEM_NOTIFICATION_TITLE" desc="PerAppTimeLimit system notification title specifying that the application's time limit has been set by a parent.">
-    Update from your parent
-  </message>
-  <message name="IDS_APP_TIME_LIMIT_APP_TIME_LIMIT_SET_SYSTEM_NOTIFICATION_MESSAGE" desc="PerAppTimeLimit system notification message specifying that the application's time limit has been set by a parent.">
-    <ph name="TIME">$1<ex> 1 hour 30 minutes</ex></ph> time limit set for <ph name="APP_NAME">$2<ex>Gmail</ex></ph>
-  </message>
-  <message name="IDS_APP_TIME_LIMIT_APP_TIME_LIMIT_REMOVED_SYSTEM_NOTIFICATION_MESSAGE" desc="PerAppTimeLimit system notification message specifying that the application's time limit has been removed by parent.">
-    Time limit removed for <ph name="APP_NAME">$1<ex>Gmail</ex></ph>
-  </message>
-
   <!-- Website Permission -->
   <message name="IDS_WEBSITE_APPROVED_NOTIFICATION_TITLE" desc="Title of system notification for remote website approvals. This is shown to a child user when a parent has remotely approved their request to access a certain website.">
     Website request approved
@@ -491,12 +468,6 @@
   </message>
   <message name="IDS_NETWORK_ADD_WI_FI_LIST_ITEM_NAME" desc="OOBE network screen list entry that opens 'Add New WiFi Network' dialog">
     Add other WiFi network
-  </message>
-  <message name="IDS_RESET_SCREEN_TITLE" desc="Title of the reset screen">
-    Factory reset
-  </message>
-  <message name="IDS_RESET_SCREEN_ICON_TITLE" desc="Accessible title of the reset screen icon depicting exclamation mark.">
-    Exclamation mark icon
   </message>
   <message name="IDS_UPDATING_SCREEN_TITLE" desc="Title of the OOBE screen displayed while system update is being dowloaded.">
     Updating...
@@ -964,136 +935,6 @@
   </message>
   <message name="IDS_OOBE_DEMO_SETUP_PROGRESS_STEP_ENROLL" desc="List item shown when enterprise enrolling for demo mode">
     Enrolling in Demo Mode
-  </message>
-  <!-- Demo setup flow errors -->
-  <message name="IDS_DEMO_SETUP_OFFLINE_UNAVAILABLE_ERROR" desc="Error message shown on demo setup screen when offline demo mode is not available on the device.">
-    This device cannot be set up in offline demo mode.
-  </message>
-  <message name="IDS_DEMO_SETUP_COMPONENT_ERROR" desc="Error message shown on demo setup screen when loading online component with demo resources failed.">
-    Could not load online component with demo mode resources.
-  </message>
-  <message name="IDS_DEMO_SETUP_NO_STATE_KEYS_ERROR" desc="Error message shown on demo setup screen when the system failed to determine server-backed state keys.">
-    The system failed to determine device identifiers for this device.
-  </message>
-  <message name="IDS_DEMO_SETUP_ROBOT_ERROR" desc="Error message shown on demo setup screen upon failure to fetch the OAuth2 token for device-level API access.">
-    The system failed to authorize API access for this device.
-  </message>
-  <message name="IDS_DEMO_SETUP_ROBOT_STORE_ERROR" desc="Error message shown on demo setup screen upon failure to store the OAuth2 refresh token for device-level API access.">
-    The system failed to store the long-term API access token for this device.
-  </message>
-  <message name="IDS_DEMO_SETUP_BAD_MODE_ERROR" desc="Error message shown on demo setup screen upon receiving a bad mode on device registration.">
-    The supplied enrollment mode is not supported by this version of the operating system. Please make sure you are running the newest version.
-  </message>
-  <message name="IDS_DEMO_SETUP_CERT_FETCH_ERROR" desc="Error message shown when a registration certificate could not be obtained.">
-    A registration certificate could not be obtained.
-  </message>
-  <message name="IDS_DEMO_SETUP_POLICY_FETCH_ERROR" desc="Error message shown on demo setup screen upon a failed policy fetch.">
-    Error when fetching policy from the server.
-  </message>
-  <message name="IDS_DEMO_SETUP_POLICY_VALIDATION_ERROR" desc="Error message shown on demo setup screen upon a failure to validate downloaded policy.">
-    The policy downloaded from the server is invalid.
-  </message>
-  <message name="IDS_DEMO_SETUP_LOCK_TIMEOUT_ERROR" desc="Error message shown on demo setup screen when the initialization of the lockbox is taking too long.">
-    The initialization of the installation-time attributes has timed out.
-  </message>
-  <message name="IDS_DEMO_SETUP_LOCK_ERROR" desc="Error message shown on demo setup screen upon failure to lock the device mode.">
-    The system failed to establish the device installation-time attributes lock.
-  </message>
-  <message name="IDS_DEMO_SETUP_ALREADY_LOCKED_ERROR" desc="Error message shown on demo setup screen when device is already locked with different domain or mode.">
-    This device was locked to different domain or mode.
-  </message>
-  <message name="IDS_DEMO_SETUP_ONLINE_STORE_ERROR" desc="Error message shown on demo setup screen when the installation of the policy on the device failed.">
-    Failed to install policy on the device.
-  </message>
-  <message name="IDS_DEMO_SETUP_NO_MACHINE_IDENTIFICATION_ERROR" desc="Error message shown on demo setup screen when the system failed to determine the device model or serial number.">
-    The system failed to determine device model or serial number.
-  </message>
-  <message name="IDS_DEMO_SETUP_DM_TOKEN_STORE_ERROR" desc="Error message shown on demo setup screen when the system failed to save some part of the device configuration. e.g. token from the device management server.">
-    The system failed to save device configuration.
-  </message>
-  <message name="IDS_DEMO_SETUP_UNEXPECTED_ERROR" desc="Error message to show shown on demo setup screen when there is an fatal/unexpected error.">
-    Oops! Something went wrong while setting up demo mode.
-  </message>
-  <message name="IDS_DEMO_SETUP_INVALID_REQUEST_ERROR" desc="Error message to show on demo setup screen when request issued to DMServer was invalid.">
-    A problem with demo registration request occurred.
-  </message>
-  <message name="IDS_DEMO_SETUP_NETWORK_ERROR" desc="Error message to show on demo setup screen when network error occurred.">
-    Network error occurred.
-  </message>
-  <message name="IDS_DEMO_SETUP_TEMPORARY_ERROR" desc="Error message to show on demo setup screen when temporary error occurred.">
-    Temporary server error occurred.
-  </message>
-  <message name="IDS_DEMO_SETUP_RESPONSE_ERROR" desc="Error message to show on demo setup screen when management service sent an abnormal HTTP code.">
-    Management service sent HTTP error.
-  </message>
-  <message name="IDS_DEMO_SETUP_RESPONSE_DECODING_ERROR" desc="Error message to show on demo setup screen when decoding management server response failed.">
-    A problem occurred when decoding server response.
-  </message>
-  <message name="IDS_DEMO_SETUP_ACCOUNT_ERROR" desc="Error message to show on demo setup screen when there is a problem with the demo mode account.">
-    A problem with demo mode account occurred.
-  </message>
-  <message name="IDS_DEMO_SETUP_DEVICE_NOT_FOUND_ERROR" desc="Error message to show on demo setup screen when management service could not find the device.">
-    Missing device record.
-  </message>
-  <message name="IDS_DEMO_SETUP_INVALID_DM_TOKEN_ERROR" desc="Error message to show on demo setup screen when device management token is invalid.">
-    Device management token is invalid.
-  </message>
-  <message name="IDS_DEMO_SETUP_INVALID_SERIAL_NUMBER_ERROR" desc="Error message to show on demo setup screen when provided serial number is invalid.">
-    Device serial number is invalid.
-  </message>
-  <message name="IDS_DEMO_SETUP_DEVICE_ID_ERROR" desc="Error message to show on demo setup screen in case of conflicting device id.">
-    Conflicting device identifier.
-  </message>
-  <message name="IDS_DEMO_SETUP_TOO_MANY_REQUESTS_ERROR" desc="Error message to show on demo setup screen in case of too many requests.">
-    Too many requests.
-  </message>
-  <message name="IDS_DEMO_SETUP_LICENSE_ERROR" desc="Error message to show on demo setup screen when the demo domain has expired or exhausted licenses.">
-    A problem with demo mode device licenses occurred.
-  </message>
-  <message name="IDS_DEMO_SETUP_DEPROVISIONED_ERROR" desc="Error message to show on demo setup screen when enrollment fails because device has been deprovisioned on the server side.">
-    This demo device has been placed into a deprovisioned state.
-  </message>
-  <message name="IDS_DEMO_SETUP_DOMAIN_MISMATCH_ERROR" desc="Error message shown on demo setup screen when the device belongs to the domain different than demo mode.">
-    This device is marked for management by a different domain. Deprovision it from that domain before setting up demo mode.
-  </message>
-  <message name="IDS_DEMO_SETUP_SIGNING_ERROR" desc="Error message shown on demo setup screen when failure to sign request occurred.">
-    Request could not be signed.
-  </message>
-  <message name="IDS_DEMO_SETUP_POLICY_NOT_FOUND_ERROR" desc="Error message shown on demo setup screen when management server failed to find the policy to be applied to the device.">
-    Policy not found.
-  </message>
-  <message name="IDS_DEMO_SETUP_ARC_ERROR" desc="Error message shown when ARC is disabled.">
-    A problem with ARC++ occurred.
-  </message>
-    <!-- Demo setup error recovery suggestions -->
-  <message name="IDS_DEMO_SETUP_RECOVERY_RETRY" desc="Error recovery recommendation to retry demo setup. Shown on demo setup screen.">
-    Please try again.
-  </message>
-  <message name="IDS_DEMO_SETUP_RECOVERY_REBOOT" desc="Error recovery recommendation to reboot and retry demo setup. Shown on demo setup screen.">
-    Please reboot the device and try again.
-  </message>
-  <message name="IDS_DEMO_SETUP_RECOVERY_POWERWASH" desc="Error recovery recommendation to powerwash and retry demo setup. Shown on demo setup screen.">
-    Please powerwash the device and try again.
-  </message>
-  <message name="IDS_DEMO_SETUP_RECOVERY_CHECK_NETWORK" desc="Error recovery recommendation to check network and retry demo setup. Shown on demo setup screen.">
-    Please check your network connection and try again.
-  </message>
-  <message name="IDS_DEMO_SETUP_RECOVERY_OFFLINE_FATAL" desc="Error recovery recommendation to contact support. Shown on demo setup screen.">
-    This device might be only eligible for online demo mode. Please contact your support representative for more details.
-  </message>
-  <message name="IDS_DEMO_SETUP_RECOVERY_FATAL" desc="Error recovery recommendation to contact support. Shown on demo setup screen.">
-    Please retry. If you see this error again please contact your support representative.
-  </message>
-
-  <!-- Strings for Demo Sessions -->
-  <message name="IDS_DEMO_SESSION_TOS_NOTIFICATION_TITLE" desc="Title of the ToS notification in demo session.">
-    You are using a demo device
-  </message>
-  <message name="IDS_DEMO_SESSION_TOS_NOTIFICATION_MESSAGE" desc="Message of the ToS notification in demo session.">
-    Demo mode is intended for users 18+ and is governed by Google's Terms of Service and Privacy Policy. Data entered on this device may be viewed by others between periodic wipes.
-  </message>
-  <message name="IDS_DEMO_SESSION_TOS_NOTIFICATION_BUTTON_TEXT" desc="The text of the button on the ToS notification in demo session.">
-    Learn more
   </message>
 
   <!-- Strings for OS trial screen-->
@@ -1949,35 +1790,6 @@
   </message>
   <!-- ONC (Open Network Configuration) strings have moved to //chromeos/chromeos_strings.grd -->
 
-  <!-- Strings shown within Tether notifications -->
-  <message name="IDS_TETHER_NOTIFICATION_CONNECTION_FAILED_TITLE" desc="Title of the notification shown to the user when an attempt to tether to another device has failed.">
-    Instant hotspot connection failed
-  </message>
-  <message name="IDS_TETHER_NOTIFICATION_CONNECTION_FAILED_MESSAGE" desc="Message shown as part of the notification shown to the user when an attempt to tether to another device has failed which gives the user instructions about how to configure tethering.">
-    Tap to configure
-  </message>
-  <message name="IDS_TETHER_NOTIFICATION_WIFI_AVAILABLE_ONE_DEVICE_TITLE" desc="Title of the notification shown to the user when a tether hotspot is available via one nearby device.">
-    Wi-Fi available via phone
-  </message>
-  <message name="IDS_TETHER_NOTIFICATION_WIFI_AVAILABLE_ONE_DEVICE_MESSAGE" desc="Message shown as part of the notification shown to the user when a tether hotspot is available via one nearby device.">
-    Data connection available from your <ph name="PHONE_NAME">$1<ex>Google Pixel XL</ex></ph>
-  </message>
-  <message name="IDS_TETHER_NOTIFICATION_WIFI_AVAILABLE_ONE_DEVICE_CONNECT" desc="Text of the button shown to the user when a tether hotspot is available via one nearby device. When the button is clicked, a connection starts.">
-    Connect
-  </message>
-  <message name="IDS_TETHER_NOTIFICATION_WIFI_AVAILABLE_MULTIPLE_DEVICES_TITLE" desc="Title of the notification shown to the user when multiple tether hotspots are available via multiple nearby devices.">
-    Wi-Fi available via multiple devices
-  </message>
-  <message name="IDS_TETHER_NOTIFICATION_WIFI_AVAILABLE_MULTIPLE_DEVICES_MESSAGE" desc="Message shown as part of the notification shown to the user when multiple tether hotspots are available via multiple nearby devices.">
-    Data connection available
-  </message>
-  <message name="IDS_TETHER_NOTIFICATION_SETUP_REQUIRED_TITLE" desc="Title of the notification shown to the user when set up is needed on another device to start tethering.">
-    Set up connection on your <ph name="PHONE_NAME">$1<ex>Google Pixel XL</ex></ph>
-  </message>
-  <message name="IDS_TETHER_NOTIFICATION_SETUP_REQUIRED_MESSAGE" desc="Message shown as part of the notification shown to the user when set up is needed on another device to start tethering.">
-    Tap the notification on your <ph name="PHONE_NAME">$1<ex>Google Pixel XL</ex></ph> to set up the mobile hotspot that can be used by this device.
-  </message>
-
   <!-- Misc settings related strings -->
   <message name="IDS_OPTIONS_SETTINGS_TIMEZONE_DISPLAY_TEMPLATE" desc="In the settings tab, the display template of a timezone in the pull-down list of timezones">
     (<ph name="UTCOffset">$1<ex>UTC-8:00</ex></ph>) <ph name="LongTZName">$2<ex>Pacific Standard Time</ex></ph> (<ph name="ExemplarCity">$3<ex>Los Angeles</ex></ph>)
@@ -2124,57 +1936,6 @@
   <message name="IDS_ENABLE_ARC_ADB_SIDELOADING_OK_BUTTON" desc="Button for acknowledging in a dialog for ARC ADB Sideloading.">
     OK
   </message>
-  <message name="IDS_RESET_SCREEN_WARNING_MSG" desc="Warning text shown on reset screen above the exclamation icon.">
-    Reset this <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>
-  </message>
-  <message name="IDS_RESET_SCREEN_WARNING_POWERWASH_MSG" desc="Warning text shown on reset screen below the exclamation icon.">
-    Powerwash to reset your <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph> to be just like new.
-  </message>
-  <message name="IDS_RESET_SCREEN_WARNING_POWERWASH_AND_ROLLBACK_MSG" desc="Warning text shown on reset screen below the exclamation icon.">
-    Powerwash your <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph> and return to the previous version.
-  </message>
-  <message name="IDS_RESET_SCREEN_WARNING_DETAILS_DATA" desc="Additional warning text shown on reset screen below the main warning.">
-    All user accounts and local data will be removed.
-  </message>
-  <message name="IDS_RESET_SCREEN_RESTART_MSG" desc="Text shown on reset screen below warning messages if device needs extra restart before powerwash.">
-    A restart is required to begin the Powerwash process. After restart you will be asked to confirm that you want to proceed.
-  </message>
-  <message name="IDS_RESET_SCREEN_TPM_FIRMWARE_UPDATE_OPTION" desc="Checkbox label for the TPM firmware update option of the powerwash process, shown on the device reset screen.">
-    Update firmware for added security.
-  </message>
-  <message name="IDS_RESET_SCREEN_POWERWASH" desc="Powerwash button text">
-    Powerwash
-  </message>
-  <message name="IDS_RESET_SCREEN_POWERWASH_AND_REVERT" desc="Powerwash+rollback button text">
-    Powerwash and Revert
-  </message>
-  <message name="IDS_RESET_SCREEN_PREPARING_REVERT_PROMISE" desc="Message shown on reset screen after user initiates powerwash with version revert while revert is prepared until reboot.">
-    <ph name="IDS_SHORT_PRODUCT_NAME">$1<ex>Chrome</ex></ph> will restart and reset momentarily
-  </message>
-  <message name="IDS_RESET_SCREEN_PREPARING_REVERT_SPINNER_MESSAGE" desc="Spinner message shown on reset screen after user initiates powerwash with version revert while revert is prepared until reboot.">
-    Reverting to the previously installed version of <ph name="IDS_SHORT_PRODUCT_NAME">$1<ex>Chrome</ex></ph>
-  </message>
-  <message name="IDS_RESET_SCREEN_REVERT_ERROR" desc="Error message shown when revert was initiated but unavailable to be performed." meaning="Device reset screen revert option context.">
-    Oops, something went wrong.
-  </message>
-  <message name="IDS_RESET_SCREEN_REVERT_ERROR_EXPLANATION" desc="Error description shown when revert was initiated but unavailable to be performed.">
-    <ph name="IDS_SHORT_PRODUCT_NAME">$1<ex>Chrome</ex></ph> is unable to revert to the previously installed version. Please try again to Powerwash your device.
-  </message>
-  <message name="IDS_RESET_SCREEN_POPUP_POWERWASH_TITLE" desc="Confirmational pop-up on top of reset device dialog. Pop-up title for powerwash.">
-    Confirm Powerwash
-  </message>
-  <message name="IDS_RESET_SCREEN_POPUP_ROLLBACK_TITLE" desc="Confirmational pop-up on top of reset device dialog. Pop-up title for rollback.">
-    Confirm Powerwash with return to previous version
-  </message>
-  <message name="IDS_RESET_SCREEN_POPUP_POWERWASH_TEXT" desc="Confirmational pop-up on top of reset device dialog. Pop-up text for powerwash.">
-    Your device will be reset and all user accounts and local data will be removed. This cannot be undone.
-  </message>
-  <message name="IDS_RESET_SCREEN_POPUP_ROLLBACK_TEXT" desc="Confirmational pop-up on top of reset device dialog. Pop-up text for rollback.">
-    Your device will be returned to the previously installed version of Chrome. All user accounts and local data will be removed. This cannot be undone.
-  </message>
-  <message name="IDS_RESET_SCREEN_POPUP_CONFIRM_BUTTON" desc="Confirmational pop-up on top of reset device dialog. Confirm button text.">
-    Continue
-  </message>
 
   <message name="IDS_WRONG_HWID_SCREEN_HEADER" desc="Header of message shown on screen notifying about malformed hardware ID.">
     A factory error has been detected
@@ -2198,28 +1959,6 @@
 
   <message name="IDS_AUTO_ENROLLMENT_CHECK_SCREEN_MESSAGE" desc="Warning message shown on screen notifying about pending auto-enrollment check completion.">
     Determining device configuration...
-  </message>
-
-  <message name="IDS_TERMS_OF_SERVICE_SCREEN_HEADING" desc="Heading at the top of the Terms of Service screen. MANAGER can be a domain or an email address.">
-    <ph name="MANAGER">$1<ex>example.com</ex></ph> Terms of Service
-  </message>
-  <message name="IDS_TERMS_OF_SERVICE_SCREEN_LOADING" desc="Message shown while the Terms of Service are being downloaded.">
-    Loading...
-  </message>
-  <message name="IDS_TERMS_OF_SERVICE_SCREEN_ERROR" desc="Error message shown when the Terms of Service could not be loaded.">
-    Terms of Service could not be loaded
-  </message>
-  <message name="IDS_TERMS_OF_SERVICE_SCREEN_TRY_AGAIN" desc="Message telling the user to try again later. Shown beneath the error message when the Terms of Service could not be loaded.">
-    Please check your network connection and try again.
-  </message>
-  <message name="IDS_TERMS_OF_SERVICE_SCREEN_BACK_BUTTON" desc="Text of the back button on Terms of Service screen.">
-    Back
-  </message>
-  <message name="IDS_TERMS_OF_SERVICE_SCREEN_RETRY_BUTTON" desc="Text of the retry button on Terms of Service screen.">
-    Retry
-  </message>
-  <message name="IDS_TERMS_OF_SERVICE_SCREEN_ACCEPT_BUTTON" desc="Text of the accept button on the Terms of Service screen.">
-    Accept and continue
   </message>
   <message name="IDS_CONTROLLED_SETTING_WITH_OWNER" desc="Text displayed in the controlled settings bubble when a setting's value can be edited only by the owner.">
     This setting is managed by the device owner, <ph name="OWNER_EMAIL">$1<ex>john@google.com</ex></ph>.
@@ -2245,74 +1984,6 @@
   </message>
   <message name="IDS_AUTO_LAUNCH_NOTIFICATION_BUTTON" desc="Text of the button.">
     View details
-  </message>
-
-
-  <!-- Removable device notifications -->
-  <message name="IDS_REMOVABLE_DEVICE_DETECTION_TITLE" desc="Text of notification message which is shown when user inserts removable device (SD card, USB key...)">
-    Removable device detected
-  </message>
-  <message name="IDS_REMOVABLE_DEVICE_NAVIGATION_MESSAGE" desc="Text of notification message to navigate users to the Files app. If user clicks a button in the notification, the Files app opens.">
-    Explore the device’s content in the Files app.
-  </message>
-  <message name="IDS_REMOVABLE_DEVICE_ALLOW_PLAY_STORE_ACCESS_MESSAGE" desc="Text of notification message to navigate users to the ARC settings page. If user clicks a button in the notification, the page opens.">
-    For device preferences, go to Settings.
-  </message>
-  <message name="IDS_REMOVABLE_DEVICE_PLAY_STORE_APPS_HAVE_ACCESS_MESSAGE" desc="Text of notification message to navigate users to the ARC settings page. If user clicks a button in the notification, the page opens.">
-    Play Store applications have access to this device.
-  </message>
-  <message name="IDS_REMOVABLE_DEVICE_NAVIGATION_MESSAGE_READONLY_POLICY" desc="Text of notification message to navigate users to the Files app when attaching a removable media, but the administrator's poilcy forbids writing data to them. If user clicks a button in the notification, the Files app opens.">
-    Explore the device's content in the Files app. The content is restricted by an admin and can’t be modified.
-  </message>
-  <message name="IDS_REMOVABLE_DEVICE_NAVIGATION_BUTTON_LABEL" desc="Text of a button label in a notification to navigate users to the Files app. If user clicks the button, the Files app opens.">
-    Open Files app
-  </message>
-  <message name="IDS_REMOVABLE_DEVICE_OPEN_SETTTINGS_BUTTON_LABEL" desc="Text of a button label in a notification to navigate users to the ARC settings page. If user clicks the button, the page opens.">
-    Open settings
-  </message>
-  <message name="IDS_REMOVABLE_DEVICE_IMPORT_MESSAGE" desc="Text of notification message to start the media import flow. If user clicks a button in the notification, the import flow begins.">
-    Back up media from the device using the Files app.
-  </message>
-  <message name="IDS_REMOVABLE_DEVICE_IMPORT_BUTTON_LABEL" desc="Text of a button label in a notification to start the import flow. If user clicks the button, the import flow begins.">
-    View/Backup media
-  </message>
-  <message name="IDS_DEVICE_UNSUPPORTED_MESSAGE" desc="Text of notification message which is shown when user inserts removable device (SD card, USB key...)">
-   Sorry, the device <ph name="DEVICE_LABEL">$1<ex>My SD card</ex></ph> is not supported at this time.
-  </message>
-  <message name="IDS_DEVICE_UNSUPPORTED_DEFAULT_MESSAGE" desc="Text of notification message which is shown when user inserts removable device (SD card, USB key...)">
-   Sorry, your external storage device is not supported at this time.
-  </message>
-  <message name="IDS_DEVICE_UNKNOWN_MESSAGE" desc="Text of notification message which is shown when user inserts removable device (SD card, USB key...)">
-   Sorry, the device <ph name="DEVICE_LABEL">$1<ex>My SD card</ex></ph> could not be recognized.
-  </message>
-  <message name="IDS_DEVICE_UNKNOWN_BUTTON_LABEL" desc="Text of a button label in a notification to format the device. If user clicks the button, the Files app opens and focus on unknown the device.">
-    Format this device
-  </message>
-  <message name="IDS_DEVICE_UNKNOWN_DEFAULT_MESSAGE" desc="Text of notification message which is shown when user inserts removable device (SD card, USB key...)">
-   Sorry, your external storage device could not be recognized.
-  </message>
-  <message name="IDS_MULTIPART_DEVICE_UNSUPPORTED_MESSAGE" desc="Text of notification message which is shown when user inserts removable device (SD card, USB key...)">
-   Sorry, at least one partition on the device <ph name="DEVICE_LABEL">$1<ex>MySDcard</ex></ph> could not be mounted.
-  </message>
-  <message name="IDS_MULTIPART_DEVICE_UNSUPPORTED_DEFAULT_MESSAGE" desc="Text of notification message which is shown when user inserts removable device (SD card, USB key...)">
-   Sorry, at least one partition on your external storage device could not be mounted.
-  </message>
-  <message name="IDS_EXTERNAL_STORAGE_DISABLED_MESSAGE" desc="Text of notification message which is shown when user inserts removable device but external storage is disabled by policy">
-   Sorry, your administrator has disabled external storage on your account.
-  </message>
-  <message name="IDS_DEVICE_HARD_UNPLUGGED_TITLE" desc="Text of notification title which is shown when user manually removes external storage without clicking the eject icon">
-   Whoa, there. Be careful.
-  </message>
-  <message name="IDS_DEVICE_HARD_UNPLUGGED_MESSAGE" desc="Text of notification message which is shown when user manually removes external storage without clicking the eject icon">
-    In the future, be sure to eject your removable device in the Files app before unplugging it. Otherwise, you might lose data.
-  </message>
-
-  <!-- Renaming device notifications -->
-  <message name="IDS_RENAMING_OF_DEVICE_FAILED_TITLE" desc="Title of notification message which is shown when renaming process fails">
-    Renaming failed
-  </message>
-  <message name="IDS_RENAMING_OF_DEVICE_FINISHED_FAILURE_MESSAGE" desc="Text of notification message which is shown when there are some errors while renaming.">
-    Aw, Snap! There was an error during renaming.
   </message>
 
   <message name="IDS_LOGIN_ERROR_ALLOWLIST" desc="Couldn't sign in because user is not authorized by the device owner.">
@@ -2479,15 +2150,6 @@
   <message name="IDS_LOGIN_SSH_WARNING" desc="A message telling user that the device has SSH server configured. So they should be carefule with accounts they use to sign in.">
     Device has SSH server configured. Do not sign in with sensitive accounts.
   </message>
-  <message name="IDS_DEVICE_DISABLED_HEADING" desc="Heading of the message shown to the user when the device has been disabled by its owner.">
-    Your device is locked
-  </message>
-  <message name="IDS_DEVICE_DISABLED_EXPLANATION_WITH_DOMAIN" desc="Explanation shown to the user when the device has been disabled by its owner. This version is used when the domain that owns the device is known.">
-    This device (SN: <ph name="SERIAL_NUMBER">$1<ex>1234</ex></ph>) was locked by the <ph name="SAML_DOMAIN">$2<ex>example.com</ex></ph> administrator.
-  </message>
-  <message name="IDS_DEVICE_DISABLED_EXPLANATION_WITHOUT_DOMAIN" desc="Explanation shown to the user when the device has been disabled by its owner. This version is used when the domain that owns the device is not known.">
-    This device (SN: <ph name="SERIAL_NUMBER">$1<ex>1234</ex></ph>) was locked by the owner.
-  </message>
 
   <!-- Encryption migration dialog -->
   <message name="IDS_ENCRYPTION_MIGRATION_READY_TITLE" desc="Title shown in encryption migration screen, which asks the user to install an OS update.">
@@ -2612,100 +2274,6 @@
   <message name="IDS_TPM_FIRMWARE_UPDATE_NOTIFICATION_MESSAGE" desc="Notification shown to inform the user that there is a pending TPM firmware update for the device.">
     Reset your <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph> to upgrade your security.
   </message>
-
-  <!-- Update Required Screen Strings-->
-  <message name="IDS_UPDATE_REQUIRED_SCREEN_TITLE" desc="The title of the update required dialog on the login screen to inform the user that policy prevents user sign in before OS version is is updated.">
-     Immediate update required
-  </message>
-  <message name="IDS_UPDATE_REQUIRED_SCREEN_MESSAGE" desc="The message of the update required dialog on the login screen to inform the user that policy prevents user sign in before OS version is is updated. MANAGER can be a domain or an email address.">
-     <ph name="MANAGER">$1<ex>example.com</ex></ph> requires you to update your <ph name="DEVICE_TYPE">$2<ex>Chromebook</ex></ph> immediately.
-  </message>
-  <message name="IDS_UPDATE_REQUIRED_SCREEN_START_UPDATE" desc="Label for the update button on the update required dialog on the login screen to start the update process.">
-     Update now
-  </message>
-  <message name="IDS_UPDATE_REQUIRED_SCREEN_EOL_TITLE" desc="The title on login screen to inform the user that policy prevents the device from being used as it has reached its end of life.">
-    <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph> has been blocked
-  </message>
-  <message name="IDS_UPDATE_REQUIRED_SCREEN_EOL_MESSAGE" desc="The message on login screen to inform the user that policy prevents the device from being used as it has reached its end of life.">
-    The deadline to return this <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph> has passed.
-  </message>
-  <message name="IDS_UPDATE_REQUIRED_SCREEN_METERED_MESSAGE" desc="The message on the dialog shown to the user in ChromeOS before forced update is attempted if the ChromeOS device is connected to a cellular/metered network. The dialog warns the user that procceeding on a metered network can cause overage charges. MANAGER can be a domain or an email address.">
-    <ph name="MANAGER">$1<ex>example.com</ex></ph> requires you to connect to Wi-Fi now and download an update. Or, download from a metered connection (charges may apply).
-  </message>
-  <message name="IDS_UPDATE_REQUIRED_SCREEN_ALLOW_METERED" desc="Label for button to allow downloading update over a metered connection.">
-    Use metered connection
-  </message>
-  <message name="IDS_UPDATE_REQUIRED_SCREEN_NO_NETWORK_MESSAGE" desc="The message on the dialog shown to the user in ChromeOS before forced update is attempted if the ChromeOS device is not connected to a network. MANAGER can be a domain or an email address.">
-    <ph name="MANAGER">$1<ex>example.com</ex></ph> requires you to connect to Wi-Fi now and download an update.
-  </message>
-  <message name="IDS_UPDATE_REQUIRED_SCREEN_OPEN_NETWORK_SETTINGS" desc="Label for network configuration button on the update required dialog on the login screen to open network settings so that the user can connect to a network.">
-    Open network settings
-  </message>
-  <message name="IDS_UPDATE_REQUIRED_UPDATING_MESSAGE" desc="The message of the update required dialog on the login screen to inform the user that the device is updating and will restart after the update is complete.">
-    <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph> will restart when updates are complete.
-  </message>
-  <message name="IDS_UPDATE_REQUIRED_EOL_ADMIN_MESSAGE" desc="The title of the message on the update required dialog on the login screen showing return instructions from the device administrator as the device has reached its end of life.">
-    Instructions from your device administrator:
-  </message>
-  <message name="IDS_UPDATE_REQUIRED_EOL_DELETE_USERS_DATA_MESSAGE" desc="The message on the update required dialog on the login screen to inform the user that the data for all users on this device can be deleted by clicking on the included link.">
-    To delete all data from this <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>, <ph name="BEGIN_LINK">&lt;a id="deleteDataLink"&gt;</ph>click here<ph name="END_LINK">&lt;/a&gt;</ph>.
-  </message>
-  <message name="IDS_UPDATE_REQUIRED_EOL_NO_USERS_DATA_MESSAGE" desc="The message on the update required dialog on the login screen to inform the user that the device has no user data.">
-    All files and local data for all users on this <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph> has been permanently deleted.
-  </message>
-  <message name="IDS_UPDATE_REQUIRED_EOL_DELETE_USERS_DATA_POPUP_MESSAGE" desc="The message on the confirmational popup over the update required dialog on the login screen asking the user to confirm that all users data on this device should be deleted.">
-    All files and local data for all users on this <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph> will be permanently deleted.
-  </message>
-  <message name="IDS_UPDATE_REQUIRED_EOL_DELETE_USERS_DATA_POPUP_TITLE" desc="The title of the confirmational pop on top the update required dialog on the login screen asking the user to confirm that all users data on this device should be deleted.">
-    Delete all data?
-  </message>
-  <message name="IDS_UPDATE_REQUIRED_EOL_DELETE_USERS_DATA_CONFIRM" desc="The label for the confirm button on the confirmational pop-up on top of update required dialog on the login screen.">
-    Delete
-  </message>
-  <message name="IDS_UPDATE_REQUIRED_EOL_DELETE_USERS_DATA_CANCEL" desc="The label for the cancel button on the confirmational pop-up on top of update required dialog on the login screen.">
-    Cancel
-  </message>
-
-  <!-- Update Required Notification Strings-->
-  <message name="IDS_UPDATE_REQUIRED_NETWORK_LIMITATION_TITLE_DAYS" desc="The title of the notification dialog informing the user that the device is not connected to a network suitable for downloading updates and an update is required within one or more days.">
-    {NUM_DAYS, plural,
-      =1 {Last day to update <ph name="DEVICE_TYPE">{1}<ex>Chromebook</ex></ph>}
-      other {Update <ph name="DEVICE_TYPE">{1}<ex>Chromebook</ex></ph> within {NUM_DAYS} days}}
-  </message>
-  <message name="IDS_UPDATE_REQUIRED_NETWORK_LIMITATION_TITLE_WEEKS" desc="The title of the notification dialog informing the user that the device is not connected to a network suitable for downloading updates and an update is required within one or more weeks.">
-    {NUM_WEEKS, plural,
-      =1 {Update <ph name="DEVICE_TYPE">{1}<ex>Chromebook</ex></ph> within 1 week}
-      other {Update <ph name="DEVICE_TYPE">{1}<ex>Chromebook</ex></ph> within {NUM_WEEKS} weeks}}
-  </message>
-  <message name="IDS_UPDATE_REQUIRED_NO_NETWORK_MESSAGE" desc="The body text of the notification dialog informing the user that the device is not connected to the internet and an update is required before the deadline which is within one or more days. MANAGER can be a domain or an email address.">
-    {NUM_DAYS, plural,
-      =1 {<ph name="MANAGER">{1}<ex>example.com</ex></ph> requires you to download an update today. The update will download automatically when you connect to the internet.}
-      other {<ph name="MANAGER">{1}<ex>example.com</ex></ph> requires you to download an update before the deadline. The update will download automatically when you connect to the internet.}}
-  </message>
-  <message name="IDS_UPDATE_REQUIRED_METERED_NETWORK_MESSAGE" desc="The body text of the notification dialog informing the user that the device is connected to a metered network and an update is required before the deadline which is within one or more days. MANAGER can be a domain or an email address.">
-    {NUM_DAYS, plural,
-      =1 {<ph name="MANAGER">{1}<ex>example.com</ex></ph> requires you to connect to Wi-Fi today to download an update. Or, download from a metered connection (charges may apply).}
-      other {<ph name="MANAGER">{1}<ex>example.com</ex></ph> requires you to connect to Wi-Fi and download an update before the deadline. Or, download from a metered connection (charges may apply).}}
-  </message>
-  <message name="IDS_UPDATE_REQUIRED_EOL_TITLE_DAYS" desc="The title of the notification dialog informing the user that the device has reached end of life and should be returned before the deadline.">
-    {NUM_DAYS, plural,
-      =1 {Immediate return required}
-      other {Return <ph name="DEVICE_TYPE">{1}<ex>Chromebook</ex></ph> within {NUM_DAYS} days}}
-  </message>
-  <message name="IDS_UPDATE_REQUIRED_EOL_TITLE_WEEKS" desc="The title of the notification dialog informing the user that the device has reached end of life and should be returned within one or more weeks.">
-    {NUM_WEEKS, plural,
-      =1 {Return <ph name="DEVICE_TYPE">{1}<ex>Chromebook</ex></ph> within {NUM_WEEKS} week}
-      other {Return <ph name="DEVICE_TYPE">{1}<ex>Chromebook</ex></ph> within {NUM_WEEKS} weeks}}
-  </message>
-  <message name="IDS_UPDATE_REQUIRED_EOL_MESSAGE" desc="The body text of the notification dialog informing the user that the device has reached end of life and should be returned before the deadline which is within one or more days. MANAGER can be a domain or an email address.">
-    {NUM_DAYS, plural,
-      =1 {<ph name="MANAGER">{1}<ex>example.com</ex></ph> requires you to back up your data and return this <ph name="DEVICE_TYPE">{2}<ex>Chromebook</ex></ph> today.}
-      other {<ph name="MANAGER">{1}<ex>example.com</ex></ph> requires you to back up your data and return this <ph name="DEVICE_TYPE">{2}<ex>Chromebook</ex></ph> before the deadline.}}
-  </message>
-  <message name="IDS_UPDATE_REQUIRED_EOL_SEE_DETAILS" desc="The button text of the notification dialog which can be clicked to view return instructions from the admin on the settings page.">
-    See Details
-  </message>
-
   <!-- Genius App -->
   <message name="IDS_GENIUS_APP_NAME" desc="Name of the genius app in the app shelf">
     Get Help
@@ -2747,67 +2315,6 @@
      Please contact your mobile provider
   </message>
 
-  <!-- About power UI display strings -->
-  <message name="IDS_ABOUT_POWER_TITLE" desc="Title of the about:power page">
-    Power
-  </message>
-  <message name="IDS_ABOUT_POWER_SHOW_BUTTON" desc="Text on the 'Show' buttons of the about:power page">
-    Show
-  </message>
-  <message name="IDS_ABOUT_POWER_HIDE_BUTTON" desc="Text on the 'Hide' buttons of the about:power page">
-    Hide
-  </message>
-  <message name="IDS_ABOUT_POWER_RELOAD_BUTTON" desc="Text on the 'Reload' buttons of the about:power page ">
-    Reload
-  </message>
-  <message name="IDS_ABOUT_POWER_BATTERY_CHARGE_SECTION_TITLE" desc="Title for the battery charge related plots on the about:power page">
-    Battery Charge
-  </message>
-  <message name="IDS_ABOUT_POWER_BATTERY_CHARGE_PERCENTAGE_HEADER" desc="Header of the battery charge plot on the about:power page">
-    Battery Charge Percentage
-  </message>
-  <message name="IDS_ABOUT_POWER_BATTERY_DISCHARGE_RATE_HEADER" desc="Header of the battery discharge rate plot on the about:power page">
-    Battery Discharge Rate in Watts (Negative value means battery is charging)
-  </message>
-  <message name="IDS_ABOUT_POWER_DISCHARGE_RATE_LEGEND_TEXT" desc="Text to be displayed for the discharge rate legend entry of the discharge rate plot on the about:power page">
-    Discharge Rate in Watts
-  </message>
-  <message name="IDS_ABOUT_POWER_MOVING_AVERAGE_LEGEND_TEXT" desc="Text to be displayed for the moving average legend entry of the plots on the about:power page">
-    Moving Average
-  </message>
-  <message name="IDS_ABOUT_POWER_BINNED_AVERAGE_LEGEND_TEXT" desc="Text to be displayed for the binned average legend entry of the plots on the about:power page">
-    Binned Average
-  </message>
-  <message name="IDS_ABOUT_POWER_AVERAGE_OVER_TEXT" desc="Pre text to be displayed in the label of the moving average sample count.">
-    Average Over
-  </message>
-  <message name="IDS_ABOUT_POWER_AVERAGE_SAMPLES_TEXT" desc="Post text to be displayed in the label of the moving average sample count.">
-    Samples
-  </message>
-  <message name="IDS_ABOUT_POWER_CPU_IDLE_SECTION_TITLE" desc="Title for the CPU idle state data section on the about:power page">
-    Idle State Data
-  </message>
-  <message name="IDS_ABOUT_POWER_CPU_IDLE_STATE_OCCUPANCY_PERCENTAGE" desc="Header for idle state plots on the about:power page">
-    Idle State Occupancy Percentage
-  </message>
-  <message name="IDS_ABOUT_POWER_CPU_FREQ_SECTION_TITLE" desc="Title for the CPU frequency state data section on the about:power page">
-    Frequency State Data
-  </message>
-  <message name="IDS_ABOUT_POWER_CPU_FREQ_STATE_OCCUPANCY_PERCENTAGE" desc="Header for frequency state plots on the about:power page">
-    Frequency State Occupancy Percentage
-  </message>
-  <message name="IDS_ABOUT_POWER_NOT_ENOUGH_DATA" desc="String to display on the plots of the about:power page when enough plot data is not available">
-    Not enough data available yet.
-  </message>
-  <message name="IDS_ABOUT_POWER_SYSTEM_SUSPENDED" desc="String to display on the plots of the about:power page for sleep duration">
-    Suspended
-  </message>
-  <message name="IDS_ABOUT_POWER_INVALID" desc="String to display on the plots of the about:power page for invalid data">
-    Invalid
-  </message>
-  <message name="IDS_ABOUT_POWER_OFFLINE" desc="String to display on the plots of the about:power page for offline CPUs">
-    Offline
-  </message>
 
   <!-- Strings for the "Hangouts Meet" OOBE UI. -->
   <message name="IDS_ENTERPRISE_DEVICE_REQUISITION_PROMPT_CANCEL" desc="Cancel button text in the device requisition poup.">
@@ -3054,26 +2561,6 @@
     Checking TPM status...
   </message>
 
-    <!-- Skip Enrollment confirmation dialog -->
-  <message name="IDS_SKIP_ENROLLMENT_DIALOG_TITLE" desc="The title for the modal dialog shown when skipping enrollment. Only displayed if the device is License Packaged device.">
-    Skip enterprise enrollment?
-  </message>
-  <message name="IDS_SKIP_ENROLLMENT_DIALOG_EDUCATION_TITLE" desc="The title for the modal dialog shown when skipping enrollment. Only displayed if the device is License Packaged device.">
-    Skip school enrollment?
-  </message>
-  <message name="IDS_SKIP_ENROLLMENT_DIALOG_TEXT" desc="The message for the modal dialog shown when skipping enrollment. Only displayed if the device is License Packaged device.">
-    You will have to factory reset this device to use enterprise features.
-  </message>
-  <message name="IDS_SKIP_ENROLLMENT_DIALOG_EDUCATION_TEXT" desc="The message for the modal dialog shown when skipping enrollment. Only displayed if the device is License Packaged device.">
-    You will have to factory reset this device to use Chrome Education Upgrade features.
-  </message>
-   <message name="IDS_SKIP_ENROLLMENT_DIALOG_GO_BACK_BUTTON" desc="Cancel button for skipping enrollment">
-    Go back
-  </message>
-   <message name="IDS_SKIP_ENROLLMENT_DIALOG_SKIP_BUTTON" desc="Confirmation button for skipping enrollment">
-    Skip
-  </message>
-
   <!-- String for enrollment nudging pop-up -->
   <message name="IDS_ENROLLMENT_NUDGE_TITLE" desc="The title for the modal dialog shown when managed user is required to go through enrollment during OOBE.">
     Use enterprise enrollment for work and school accounts
@@ -3318,21 +2805,6 @@
   </message>
   <message name="IDS_NETWORK_UI_REFRESH_WIFI_DIRECT_CLIENT_INFO_BUTTON_TEXT" desc="Text for button which, when pressed, refreshing WiFi Direct clients info.">
     Refresh WiFi Direct Clients Info
-  </message>
-
-  <message name="IDS_DEVICE_LOG_LINK_TEXT" desc="Message preceeding link to chrome://device-log">
-    To view network UI logs, see: <ph name="DEVICE_LOG_LINK">&lt;a href="chrome://device-log"&gt;chrome://device-log&lt;/a&gt;</ph>
-  </message>
-
-  <!-- Device health display strings-->
-  <message name="IDS_DEVICE_ERROR_INSTALL_ATTRIBUTES_FAILURE_TITLE" desc="Title of the screen notifying user about install attributes error.">
-    Something went wrong with setting up the device
-  </message>
-  <message name="IDS_DEVICE_ERROR_INSTALL_ATTRIBUTES_FAILURE_RESTART" desc="Suggestion to restart the device in case of the install attributes error.">
-    The device encountered an error. Please restart your device and try again.
-  </message>
-  <message name="IDS_DEVICE_ERROR_INSTALL_ATTRIBUTES_FAILURE_RESET" desc="Suggestion to reset the device in case of the install attributes error.">
-    The device encountered an unrecoverable error. Please reset your device (it will erase all user data) and try again.
   </message>
 
   <!-- Set time/date UI display strings -->
@@ -3604,26 +3076,6 @@
     Accept and continue
   </message>
 
-  <!-- Smart privacy protection OOBE screen -->
-  <message name="IDS_SMART_PRIVACY_PROTECTION_TITLE" desc="Title of the screen, which introduces privacy protection features.">
-    Keep your screen private
-  </message>
-  <message name="IDS_SMART_PRIVACY_PROTECTION_SCREEN_LOCK" desc="Title of the lock-on-leave section.">
-    Lock-on-leave
-  </message>
-  <message name="IDS_SMART_PRIVACY_PROTECTION_SCREEN_LOCK_DESCRIPTION" desc="Description of the lock-on-leave feature.">
-    If you move away from your device, your screen will lock automatically. When you're in front of your device, your screen will stay awake longer. If lock screen is disabled, your device will sleep instead of lock.
-  </message>
-  <message name="IDS_SMART_PRIVACY_PROTECTION_CONTENT" desc="Description of the privacy protection features implementation. This message is followed by a 'Learn more' link.">
-    Your Chromebook uses a built-in sensor to detect people in front of your device. All data is processed on your device immediately and then deleted. Sensor data is never sent to Google.
-  </message>
-  <message name="IDS_SMART_PRIVACY_PROTECTION_TURN_ON_BUTTON" desc="Label on a button to turn on the smart privacy protection feature and continue.">
-    Turn on
-  </message>
-  <message name="IDS_SMART_PRIVACY_PROTECTION_TURN_OFF_BUTTON" desc="Label on a button to turn off the smart privacy protection feature and continue.">
-    No thanks
-  </message>
-
   <!-- Supervision transition OOBE screen. -->
   <message name="IDS_ADDING_MANAGEMENT_TITLE" desc="Title of the management transition OOBE scree when user transitions to managed state. MANAGER can be a domain or an email address.">
     Setting up management by <ph name="MANAGER">$1<ex>example.com</ex></ph>
@@ -3752,28 +3204,6 @@
     Searching for networks...
   </message>
 
-
-  <!-- Scanning DLC Installation Notification -->
-  <message name="IDS_SCANNING_DLC_NOTIFICATION_DISPLAY_SOURCE" desc="The context title of scanning DLC download notifications.">
-    Scan
-  </message>
-
-  <message name="IDS_SCANNING_DLC_NOTIFICATION_INSTALLING_TITLE" desc="Title of Scanner DLC installing progress bar">
-    Installing scanner software
-  </message>
-
-  <message name="IDS_SCANNING_DLC_NOTIFICATION_INSTALLED_TITLE" desc="Title of Scanner DLC successfully completed notification">
-    Scanner software installed
-  </message>
-
-  <message name="IDS_SCANNING_DLC_NOTIFICATION_INSTALL_FAILED_TITLE" desc="Title of Scanner DLC failed notification">
-    Can't install scanner software
-  </message>
-
-  <message name="IDS_SCANNING_DLC_NOTIFICATION_INSTALL_FAILED_MESSAGE" desc="Message of Scanner DLC failed notification">
-    Unplug the scanner's USB cable and re-plug it to retry
-  </message>
-
   <!-- HaTS Strings -->
   <message name="IDS_HATS_NOTIFICATION_TITLE" desc="The title of the notification for Happiness Tracking Survey.">
     Help us improve Chromebooks
@@ -3811,157 +3241,6 @@
   </message>
   <message name="IDS_TIME_LIMIT_NOTIFICATION_DISPLAY_SOURCE" desc="The string shown as the display source of the bedtime or screen time notifications.">
     Family Link
-  </message>
-
-  <!-- Easy Unlock strings -->
-  <!-- Strings for notification shown when the Chromebook is added to Easy Unlock -->
-  <message name="IDS_EASY_UNLOCK_CHROMEBOOK_ADDED_NOTIFICATION_TITLE" desc="Title for notification shown when this Chromebook is added to Easy Unlock as an additional Easy Unlock device.">
-    Smart Lock is turned on
-  </message>
-  <message name="IDS_EASY_UNLOCK_CHROMEBOOK_ADDED_NOTIFICATION_MESSAGE" desc="Message for the notification shown when this Chromebook is added to Easy Unlock as an additional Easy Unlock device.">
-    Next time, your phone will unlock your <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>. You can turn off Smart Lock in Settings.
-  </message>
-  <message name="IDS_EASY_UNLOCK_CHROMEBOOK_ADDED_NOTIFICATION_ABOUT_BUTTON" desc="Label of a button on the new chrome notification to bring user to smart lock settings.">
-    Change settings
-  </message>
-  <!-- Strings for the phone changed (aka old Chromebook setup) notification -->
-  <message name="IDS_EASY_UNLOCK_PAIRING_CHANGED_NOTIFICATION_TITLE" desc="Title for notification shown when the paired phone is changed.">
-    Smart Lock phone changed
-  </message>
-  <message name="IDS_EASY_UNLOCK_PAIRING_CHANGED_NOTIFICATION_MESSAGE" desc="Message for notification shown when the paired phone is changed.">
-    Next time, a new phone will unlock this <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>. You can turn off Smart Lock in Settings.
-  </message>
-  <message name="IDS_EASY_UNLOCK_PAIRING_CHANGED_NOTIFICATION_UPDATE_BUTTON" desc="Label of a button on the notification shown when the paired phone is changed to update Smart lock now.">
-    Update now
-  </message>
-  <!-- Strings for the phone change applied notification -->
-  <message name="IDS_EASY_UNLOCK_PAIRING_CHANGE_APPLIED_NOTIFICATION_TITLE" desc="Title for notification shown when the pairing change is applied.">
-    Phone change updated
-  </message>
-  <message name="IDS_EASY_UNLOCK_PAIRING_CHANGE_APPLIED_NOTIFICATION_MESSAGE" desc="Message for notification shown when the pairing change is applied.">
-    Your <ph name="PHONE_NAME">$1<ex>Moto X</ex></ph> can now unlock this <ph name="DEVICE_TYPE">$2<ex>Chromebook</ex></ph> too.
-  </message>
-
-  <!-- Strings for the Easy Unlock setup dialog -->
-  <!-- Easy Unlock strings shown on the lock screen -->
-  <message name="IDS_EASY_UNLOCK_SCREENLOCK_USER_POD_AUTH_VALUE" desc="Message on lock screen user pod shown in place of password field when Easy Unlock is enabled and a phone that can unlock the Chromebook is detected in proximity.">
-    Select your photo
-  </message>
-
-  <!-- Strings for EcheApp -->
-  <message name="IDS_ECHE_APP_NAME" desc="Public facing name for the Eche App.">
-    App Streaming
-  </message>
-  <message name="IDS_ECHE_APP_SCREEN_LOCK_SETTINGS_BUTTON" desc="Label for the button in the screen lock notification of EcheApp to open the settings app.">
-    Settings
-  </message>
-  <message name="IDS_ECHE_APP_NOTIFICATION_TRY_AGAIN_BUTTON" desc="Label for the connection lost button of EcheApp to try again.">
-    Try again
-  </message>
-  <message name="IDS_ECHE_APP_SCREEN_LOCK_NOTIFICATION_TITLE" desc="Title for notification shown when screen lock is not enabled while using app stream of EcheApp.">
-    Can't open <ph name="APP_NAME">$1<ex>the app</ex></ph>
-  </message>
-  <message name="IDS_ECHE_APP_SCREEN_LOCK_NOTIFICATION_MESSAGE" desc="Message for the notification shown when screen lock is not enabled while using app stream of EcheApp.">
-    Turn on "Show lock screen when waking from sleep" and try again
-  </message>
-  <message name="IDS_ECHE_APP_NOTIFICATION_OPEN_AGAIN_BUTTON" desc="Label for the inactivity notification button of EcheApp to open open.">
-    Open again
-  </message>
-
-  <!-- Strings for OOBE fingerprint setup screen and Settings fingerprint setup dialog -->
-  <message name="IDS_OOBE_FINGERPINT_SETUP_SCREEN_TITLE" desc="The title of the dialog that allow users to register their fingerprint.">
-    Unlock faster with your fingerprint
-  </message>
-  <message name="IDS_OOBE_FINGERPINT_SETUP_SCREEN_TITLE_CHILD" desc="The title of the dialog that allow users to register their fingerprint, when a child account is in use.">
-    Unlock faster with fingerprint
-  </message>
-  <message name="IDS_OOBE_FINGERPINT_SETUP_SCREEN_SENSOR_POWER_BUTTON_DESCRIPTION" desc="The label that explains that the fingerprint sensor is in the power button.">
-    Touch the power button with your finger. Your fingerprint data is stored securely and never leaves your <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>.
-  </message>
-  <message name="IDS_OOBE_FINGERPINT_SETUP_SCREEN_SENSOR_POWER_BUTTON_DESCRIPTION_CHILD" desc="The label that explains that the fingerprint sensor is in the power button, when a child account is in use.">
-    To set up fingerprint, have your child touch the power button. Your child’s fingerprint data is stored securely and never leaves this <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>.
-  </message>
-  <message name="IDS_OOBE_FINGERPINT_SETUP_SCREEN_SENSOR_GENERAL_DESCRIPTION" desc="The label that explains the location of the fingerprint sensor on the device.">
-    Touch the fingerprint sensor with your finger. Your fingerprint data is stored securely and never leaves your <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>.
-  </message>
-  <message name="IDS_OOBE_FINGERPINT_SETUP_SCREEN_SENSOR_GENERAL_DESCRIPTION_CHILD" desc="The label that explains the location of the fingerprint sensor on the device, when a child account is in use.">
-    To set up fingerprint, have your child touch the fingerprint sensor. Your child’s fingerprint data is stored securely and never leaves this <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>.
-  </message>
-  <message name="IDS_OOBE_FINGERPINT_SETUP_SCREEN_SENSOR_LEFT_OF_POWER_BUTTON_TOP_RIGHT_DESCRIPTION" desc="The label that explains the location of the fingerprint sensor for devices with fingerprint sensor located left to the power button on the top right corner of the keyboard.">
-    Touch the fingerprint sensor at the top right corner of your keyboard, next to the Power button. Your fingerprint data is stored securely and never leaves your <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>.
-  </message>
-  <message name="IDS_OOBE_FINGERPINT_SETUP_SCREEN_SENSOR_LEFT_OF_POWER_BUTTON_TOP_RIGHT_DESCRIPTION_CHILD" desc="The label that explains the location of the fingerprint sensor for devices with fingerprint sensor located left to the power button on the top right corner of the keyboard, when a child account is in use.">
-    To set up fingerprint, have your child touch the fingerprint sensor at the top right corner of the keyboard, next to the Power button. Your child’s fingerprint data is stored securely and never leaves this <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>.
-  </message>
-  <message name="IDS_OOBE_FINGERPINT_SETUP_SCREEN_SENSOR_KEYBOARD_BOTTOM_LEFT_DESCRIPTION" desc="The label that explains the location of the fingerprint sensor for devices with fingerprint sensor on the bottom left corner of the keyboard.">
-    Touch the fingerprint sensor at the bottom left corner of your keyboard. Your fingerprint data is stored securely and never leaves your <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>.
-  </message>
-  <message name="IDS_OOBE_FINGERPINT_SETUP_SCREEN_SENSOR_KEYBOARD_BOTTOM_LEFT_DESCRIPTION_CHILD" desc="The label that explains the location of the fingerprint sensor for devices with fingerprint sensor on the bottom left corner of the keyboard, when a child account is in use.">
-    To set up fingerprint, have your child touch the fingerprint sensor at the bottom left corner of the keyboard. Your child's fingerprint data is stored securely and never leaves this <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>.
-  </message>
-  <message name="IDS_OOBE_FINGERPINT_SETUP_SCREEN_SENSOR_KEYBOARD_BOTTOM_RIGHT_DESCRIPTION" desc="The label that explains the location of the fingerprint sensor for devices with fingerprint sensor located at the bottom right corner of the keyboard.">
-    Touch the fingerprint sensor at the bottom right corner of your keyboard. Your fingerprint data is stored securely and never leaves your <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>.
-  </message>
-  <message name="IDS_OOBE_FINGERPINT_SETUP_SCREEN_SENSOR_KEYBOARD_BOTTOM_RIGHT_DESCRIPTION_CHILD" desc="The label that explains the location of the fingerprint sensor for devices with fingerprint sensor located at the bottom right corner of the keyboard, when a child account is in use.">
-    To set up fingerprint, have your child touch the fingerprint sensor at the bottom right corner of the keyboard. Your child's fingerprint data is stored securely and never leaves this <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>.
-  </message>
-  <message name="IDS_OOBE_FINGERPINT_SETUP_SCREEN_SENSOR_KEYBOARD_TOP_RIGHT_DESCRIPTION" desc="The label that explains the location of the fingerprint sensor for devices with fingerprint sensor located at the top right corner of the keyboard.">
-    Touch the fingerprint sensor at the top right corner of your keyboard. Your fingerprint data is stored securely and never leaves your <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>.
-  </message>
-  <message name="IDS_OOBE_FINGERPINT_SETUP_SCREEN_SENSOR_KEYBOARD_TOP_RIGHT_DESCRIPTION_CHILD" desc="The label that explains the location of the fingerprint sensor for devices with fingerprint sensor located at the top right corner of the keyboard, when a child account is in use.">
-    To set up fingerprint, have your child touch the fingerprint sensor at the top right corner of the keyboard. Your child's fingerprint data is stored securely and never leaves this <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>.
-  </message>
-  <message name="IDS_OOBE_FINGERPINT_SETUP_SCREEN_SENSOR_RIGHT_SIDE_DESCRIPTION" desc="The label that explains the location of the fingerprint sensor for devices with fingerprint sensor located at the right hand side of the device.">
-    Touch the fingerprint sensor at the right hand side of your <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>. Your fingerprint data is stored securely and never leaves your <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>.
-  </message>
-  <message name="IDS_OOBE_FINGERPINT_SETUP_SCREEN_SENSOR_RIGHT_SIDE_DESCRIPTION_CHILD" desc="The label that explains the location of the fingerprint sensor for devices with fingerprint sensor located at the right hand side of the device, when a child account is in use.">
-    To set up fingerprint, have your child touch the fingerprint sensor at the right hand side of this <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>. Your child's fingerprint data is stored securely and never leaves this <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>.
-  </message>
-  <message name="IDS_OOBE_FINGERPINT_SETUP_SCREEN_SENSOR_LEFT_SIDE_DESCRIPTION" desc="The label that explains the location of the fingerprint sensor for devices with fingerprint sensor located at left side of the device.">
-    Touch the fingerprint sensor at the left hand side of your <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>. Your fingerprint data is stored securely and never leaves your <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>.
-  </message>
-  <message name="IDS_OOBE_FINGERPINT_SETUP_SCREEN_SENSOR_LEFT_SIDE_DESCRIPTION_CHILD" desc="The label that explains the location of the fingerprint sensor for devices with fingerprint sensor located at left side of the device, when a child account is in use.">
-    To set up fingerprint, have your child touch the fingerprint sensor at the left hand side of this <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>. Your child's fingerprint data is stored securely and never leaves this <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>.
-  </message>
-
-  <message name="IDS_OOBE_FINGERPINT_SETUP_SCREEN_ENROLLMENT_PROGRESS_TITLE" desc="The title of the dialog that shows where the fingerprint sensor is.">
-    Lift, then touch again
-  </message>
-  <message name="IDS_OOBE_FINGERPINT_SETUP_SCREEN_ENROLLMENT_SUCCESS_TITLE" desc="The title of the dialog that shows when fingerprint enrollment is successful.">
-    Fingerprint added
-  </message>
-  <message name="IDS_OOBE_FINGERPINT_SETUP_SCREEN_ENROLLMENT_SUCCESS_DESCRIPTION" desc="The label that shows when fingerprint enrollment is successful.">
-    When you see this icon, use your fingerprint for identification or to approve purchases.
-  </message>
-  <message name="IDS_OOBE_FINGERPINT_SETUP_SCREEN_ENROLLMENT_SUCCESS_DESCRIPTION_CHILD" desc="The label that shows when fingerprint enrollment is successful, when a child account is in use.">
-    When your child sees this icon, a fingerprint can be used for identification or to approve purchases.
-  </message>
-  <message name="IDS_OOBE_FINGERPINT_SETUP_SCREEN_BUTTON_SKIP" desc="In fingerprint setup screen, button label to skip the fingerprint setup.">
-    Skip
-  </message>
-  <message name="IDS_OOBE_FINGERPINT_SETUP_SCREEN_BUTTON_DONE" desc="Fingerprint setup is done, button label to exit the setup.">
-    Done
-  </message>
-  <message name="IDS_OOBE_FINGERPINT_SETUP_SCREEN_BUTTON_ADD_ANOTHER" desc="In fingerprint setup screen, button label to add another fingerprint.">
-    Add another
-  </message>
-  <message name="IDS_OOBE_FINGERPINT_SETUP_SCREEN_NEW_FINGERPRINT_DEFAULT_NAME_1" desc="The default name for first newly added fingerprint.">
-    Finger 1
-  </message>
-  <message name="IDS_OOBE_FINGERPINT_SETUP_SCREEN_NEW_FINGERPRINT_DEFAULT_NAME_2" desc="The default name for second newly added fingerprint.">
-    Finger 2
-  </message>
-  <message name="IDS_OOBE_FINGERPINT_SETUP_SCREEN_NEW_FINGERPRINT_DEFAULT_NAME_3" desc="The default name for third newly added fingerprint.">
-    Finger 3
-  </message>
-  <message name="IDS_OOBE_FINGERPINT_SETUP_SCREEN_INSTRUCTION_MOVE_FINGER" desc="Text in the fingerprint setup screen telling users to lift their finger to capture the different parts of fingerprint.">
-    Keep lifting your finger to add the different parts of your fingerprint
-  </message>
-  <message name="IDS_OOBE_FINGERPINT_SETUP_SCREEN_INSTRUCTION_MOVE_FINGER_CHILD" desc="Text in the fingerprint setup screen telling users to lift their finger to capture the different parts of fingerprint, when a child account is in use.">
-    Have your child keep lifting their finger to save the fingerprint
-  </message>
-  <message name="IDS_OOBE_FINGERPINT_SETUP_SCREEN_INSTRUCTION_TRY_AGAIN" desc="Text in the fingerprint setup screen telling users to scan their finger again.">
-    Try again.
   </message>
 
   <!-- Strings for Oobe gesture navigation education screen -->
@@ -4246,134 +3525,6 @@
       =1 {1 <ph name="VM_TYPE">$1<ex>Parallels Desktop</ex></ph> VM found: <ph name="VM_NAME_LIST">$2<ex>vm_name1</ex></ph>}
       other {{NUM_VMS} <ph name="VM_TYPE">$1<ex>Parallels Desktop</ex></ph> VMs found: <ph name="VM_NAME_LIST">$2<ex>vm_name1, vm_name2, vm_name3</ex></ph>}
     }
-  </message>
-
-  <!-- Strings for Plugin VM -->
-  <message name="IDS_PLUGIN_VM_INSTALLER_CONFIRMATION_TITLE" desc="Title of the Plugin VM installer when asking user to start installation.">
-    Set up <ph name="APP_NAME">$1<ex>Plugin VM</ex></ph> on your Chromebook
-  </message>
-  <message name="IDS_PLUGIN_VM_INSTALLER_CONFIRMATION_MESSAGE" desc="Body of the Parallels installer when asking user to start installation.">
-    <ph name="PARALLELS_NAME">Parallels Desktop</ph> allows you to run Windows® apps on your Chromebook. <ph name="MINIMUM_SPACE">$1<ex>20GB</ex></ph> of free space is recommended for installation.
-  </message>
-  <message name="IDS_PLUGIN_VM_INSTALLER_INSTALL_BUTTON" desc="Label for the button in the Plugin VM installer to begin installion.">
-    Install
-  </message>
-  <message name="IDS_PLUGIN_VM_INSTALLER_ENVIRONMENT_SETTING_TITLE" desc="Title of the Plugin VM installer during installation.">
-    Setting up <ph name="APP_NAME">$1<ex>Plugin VM</ex></ph>...
-  </message>
-  <message name="IDS_PLUGIN_VM_INSTALLER_FINISHED_TITLE" desc="Title of the Plugin VM installer after successful installation.">
-    Setup complete
-  </message>
-  <message name="IDS_PLUGIN_VM_INSTALLER_ERROR_TITLE" desc="Title of the Plugin VM installer if there was an error during installation.">
-    Setup couldn't complete
-  </message>
-  <message name="IDS_PLUGIN_VM_INSTALLER_NOT_ALLOWED_TITLE" desc="Title of the Plugin VM installer if Plugin VM is disallowed.">
-    <ph name="APP_NAME">$1<ex>Plugin VM</ex></ph> needs permission to run
-  </message>
-  <message name="IDS_PLUGIN_VM_INSTALLER_ERROR_OFFLINE_TITLE" desc="Title of the Plugin VM installer when the user starts installation but the device is offline.">
-    <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph> is offline
-  </message>
-  <message name="IDS_PLUGIN_VM_INSTALLER_ERROR_OFFLINE_MESSAGE" desc="Text of the Plugin VM installer when the user starts installation but the device is offline.">
-    Connect to the internet and try again
-  </message>
-  <message name="IDS_PLUGIN_VM_INSTALLER_START_DOWNLOADING_MESSAGE" desc="Text of the Plugin VM installer that informs the user that setup may take a while.">
-    This may take a while
-  </message>
-  <message name="IDS_PLUGIN_VM_INSTALLER_DOWNLOADING_MESSAGE" desc="Text of the Plugin VM installer while downloading the VM.">
-    Downloading the virtual machine
-  </message>
-  <message name="IDS_PLUGIN_VM_INSTALLER_IMPORTING_MESSAGE" desc="Text of the Plugin VM installer while configuring the VM.">
-    Configuring the virtual machine. This may take a few minutes.
-  </message>
-  <message name="IDS_PLUGIN_VM_INSTALLER_IMPORTED_MESSAGE" desc="Text of the Plugin VM installer after successful installation.">
-    <ph name="APP_NAME">$1<ex>Plugin VM</ex></ph> is ready to use.
-  </message>
-  <message name="IDS_PLUGIN_VM_INSTALLER_CREATED_MESSAGE" desc="Text of the Parallels installer after new VM creation.">
-    Please launch Parallels Desktop to install Windows.
-  </message>
-  <message name="IDS_PLUGIN_VM_INSTALLER_ERROR_MESSAGE_LOGIC_ERROR" desc="Text of the Plugin VM installer if the installation failed due to an internal error.">
-    Couldn't install <ph name="APP_NAME">$1<ex>Plugin VM</ex></ph>. Please try again, or contact your administrator. Error code: <ph name="ERROR_CODE">$2<ex>7</ex></ph>.
-  </message>
-  <message name="IDS_PLUGIN_VM_INSTALLER_ERROR_MESSAGE_CONFIG_ERROR" desc="Text of the Plugin VM installer if the installation failed because there was an error in the configuration.">
-    Couldn't set up <ph name="APP_NAME">$1<ex>Plugin VM</ex></ph> because of a configuration problem. Please contact your administrator. Error code: <ph name="ERROR_CODE">$2<ex>7</ex></ph>.
-  </message>
-  <message name="IDS_PLUGIN_VM_INSTALLER_ERROR_MESSAGE_DOWNLOAD_FAILED" desc="Text of the Plugin VM installer if the installation failed because something went wrong while downloading the virtual machine.">
-    Couldn't install the virtual machine because of a network error. Please try again, or contact your administrator. Error code: <ph name="ERROR_CODE">$1<ex>7</ex></ph>.
-  </message>
-  <message name="IDS_PLUGIN_VM_INSTALLER_ERROR_MESSAGE_DOWNLOAD_HTTP_ERROR" desc="Text of the Parallels Desktop installer when downloading the virtual machine image failed due to a HTTP error (e.g. 401, 403, 404).">
-    Couldn't install <ph name="VM_NAME">$1<ex>Parallels Desktop</ex></ph>: Image URL returned a <ph name="HTTP_ERROR">$2<ex>404</ex></ph> error code. Please contact your administrator.
-  </message>
-  <message name="IDS_PLUGIN_VM_INSTALLER_ERROR_MESSAGE_INSTALLING_FAILED" desc="Text of the Plugin VM installer if the installation failed because downloaded Plugin VM could not be installed.">
-    Couldn't install the virtual machine. Please try again, or contact your administrator. Error code: <ph name="ERROR_CODE">$1<ex>7</ex></ph>.
-  </message>
-  <message name="IDS_PLUGIN_VM_INSTALLER_NOT_ALLOWED_MESSAGE" desc="Error message to be shown if a setup/launch is attempted although Plugin VM is disallowed.">
-    <ph name="APP_NAME">$1<ex>Plugin VM</ex></ph> isn't allowed on this device. Contact your administrator. Error code: <ph name="ERROR_CODE">$2<ex>7</ex></ph>.
-  </message>
-  <message name="IDS_PLUGIN_VM_INSTALLER_DOWNLOAD_PROGRESS_MESSAGE" desc="Text of the Plugin VM installer during downloading Plugin VM image, showing download progress.">
-    <ph name="DOWNLOADED_SIZE">$1<ex>1.2</ex></ph>/<ph name="DOWNLOAD_SIZE">$2<ex>3.4 GB</ex></ph>
-  </message>
-  <message name="IDS_PLUGIN_VM_INSTALLER_LAUNCH_BUTTON" desc="Label for the button in the Plugin VM installer to launch Plugin VM after successful installation.">
-    Launch
-  </message>
-  <message name="IDS_PLUGIN_VM_INSTALLER_RETRY_BUTTON" desc="Label for the button in the Plugin VM installer to retry installation on failure.">
-    Retry
-  </message>
-  <message name="IDS_PLUGIN_VM_SHUT_DOWN_MENU_ITEM" desc="Text shown in the launcher and shelf context menus for the Plugin VM app to shut it down.">
-    Shut down
-  </message>
-  <message name="IDS_PLUGIN_VM_INVALID_LICENSE_TITLE" desc="Title in the notification shown when launching the 'Plugin VM' app failed due to an invalid or missing license.">
-    <ph name="APP_NAME">$1<ex>Plugin VM</ex></ph> requires a license
-  </message>
-  <message name="IDS_PLUGIN_VM_EXPIRED_LICENSE_TITLE" desc="Title in the notification shown when launching the 'Plugin VM' app failed due to an expired license.">
-    <ph name="APP_NAME">$1<ex>Plugin VM</ex></ph> license has expired
-  </message>
-  <message name="IDS_PLUGIN_VM_INVALID_LICENSE_MESSAGE" desc="Message in the notification shown when launching the 'Plugin VM' app failed due to an invalid, missing, or expired license.">
-    Contact your administrator
-  </message>
-  <message name="IDS_PLUGIN_VM_START_VM_ERROR_TITLE" desc="Title in the notification shown when launching the 'Plugin VM' app failed due to a network or unknown error.">
-    Couldn't open <ph name="APP_NAME">$1<ex>Plugin VM</ex></ph>
-  </message>
-  <message name="IDS_PLUGIN_VM_START_VM_INSUFFICIENT_DISK_SPACE_ERROR_MESSAGE" desc="Message in the error dialog shown when launching Parallels Desktop fails due to insufficient disk space.">
-    Disk space is critically low. Free up disk space and try again.
-  </message>
-  <message name="IDS_PLUGIN_VM_NETWORK_ERROR_MESSAGE" desc="Message in the notification shown when launching the 'Plugin VM' app failed due to a network error.">
-    Connect to the internet and try again
-  </message>
-  <message name="IDS_PLUGIN_VM_START_VM_ERROR_MESSAGE" desc="Message in the notificataion shown when launching the 'Plugin VM' app failed due to an unknown error.">
-    Something went wrong. Please try again.
-  </message>
-  <message name="IDS_PLUGIN_VM_UNINSTALL_PROMPT_BODY" desc="Message of the confirmation dialog displayed before removal begins.">
-    Uninstalling Parallels Desktop will delete your Windows image. This includes its applications, settings, and data. Are you sure you wish to continue?
-  </message>
-  <message name="IDS_PLUGIN_VM_REMOVING_NOTIFICATION_IN_PROGRESS_MESSAGE" desc="Message in the notification shown when removing the 'Plugin VM' app.">
-    Uninstalling <ph name="APP_NAME">$1<ex>Plugin VM</ex></ph>...
-  </message>
-  <message name="IDS_PLUGIN_VM_REMOVING_NOTIFICATION_COMPLETE_MESSAGE" desc="Message in the notification shown when removing the 'Plugin VM' app has completed successfully.">
-    <ph name="APP_NAME">$1<ex>Plugin VM</ex></ph> has been uninstalled
-  </message>
-  <message name="IDS_PLUGIN_VM_REMOVING_NOTIFICATION_FAILED_MESSAGE" desc="Message in the notification shown when removing the 'Plugin VM' app failed.">
-    Couldn't uninstall <ph name="APP_NAME">$1<ex>Plugin VM</ex></ph>
-  </message>
-  <message name="IDS_PLUGIN_VM_SHUTDOWN_WINDOWS_TO_UNINSTALL_MESSAGE" desc="Message in the notification shown when uninstalling Parallels Desktop failed because the Windows VM failed to shut down.">
-    Shut down Windows to uninstall <ph name="PARALLELS_DESKTOP">$1<ex>Parallels Desktop</ex></ph>.
-  </message>
-  <message name="IDS_PLUGIN_VM_DLC_INTERNAL_FAILED_MESSAGE" desc="Error message shown if Plugin VM installation fails because an internal error indicates the device needs to be updated.">
-    Your device needs to be updated before you can use <ph name="APP_NAME">$1<ex>Plugin VM</ex></ph>.
-  </message>
-  <message name="IDS_PLUGIN_VM_DLC_BUSY_FAILED_MESSAGE" desc="Error message shown if Plugin VM installation fails because dlcservice and update_engine are busy.">
-    Something went wrong. Please wait a few minutes and run <ph name="APP_NAME">$1<ex>Plugin VM</ex></ph> again.
-  </message>
-  <message name="IDS_PLUGIN_VM_DLC_NEED_REBOOT_FAILED_MESSAGE" desc="Error message shown if Plugin VM installation fails because a pending update requires the device to be restarted.">
-    Please restart your device to use <ph name="APP_NAME">$1<ex>Plugin VM</ex></ph>.
-  </message>
-  <message name="IDS_PLUGIN_VM_INSUFFICIENT_DISK_SPACE_MESSAGE" desc="Error message shown if Plugin VM installation fails because there is not enough free space on the device.">
-      Your device is low on storage. At least <ph name="MINIMUM_SPACE">$1<ex>16GB</ex></ph> of free space is required to use <ph name="APP_NAME">$2<ex>Plugin VM</ex></ph>. To increase free space, delete files from device.
-  </message>
-  <message name="IDS_PLUGIN_VM_INSTALLER_ERROR_INVALID_IMAGE_MESSAGE" desc="Error message shown if Plugin VM installation fails because there is already VM with given name, but wrong type.">
-      Virtual machine "<ph name="VM_NAME">$1<ex>Plugin VM</ex></ph>" exists, but does not appear to be a valid <ph name="APP_NAME">$2<ex>Parallels Desktop</ex></ph> virtual machine. Please contact your administrator.
-  </message>
-  <message name="IDS_PLUGIN_VM_APP_NAME_WINDOWS_SUFFIX" desc="Application name with ' (Windows)' suffix. Do not translate 'Windows'">
-    <ph name="APP_NAME">$1<ex>Notepad</ex></ph> (Windows)
   </message>
 
   <!-- Strings for camera/mic permission -->
@@ -4724,85 +3875,6 @@ You can manage this account’s settings by installing the Family Link app on yo
   <message name="IDS_AUTH_SETUP_SET_LOCAL_PASSWORD_NO_MATCH_ERROR" desc="Error message shown when the user sets a password but the first entry does not match the second entry.">
     Passwords do not match
   </message>
-  <message name="IDS_SETTINGS_PEOPLE_CONFIGURE_PIN_WEAK_PIN" desc="Message shown below the title that warns the user they have entered a PIN that is easy to guess.">
-    PIN may be easy to guess
-  </message>
-  <message name="IDS_SETTINGS_PEOPLE_CONFIGURE_PIN_INTERNAL_ERROR" desc="Message shown below the title that warns the user that internal error occured.">
-    Internal error
-  </message>
-  <message name="IDS_SETTINGS_PEOPLE_CONFIGURE_PIN_TOO_SHORT" desc="Message shown below the title that tells the user that the PIN they entered needs to be at least minimum digits long.">
-    PIN must be at least <ph name="MINIMUM">$1<ex>4</ex></ph> digits
-  </message>
-  <message name="IDS_SETTINGS_PEOPLE_CONFIGURE_PIN_TOO_LONG" desc="Message shown below the title that tells the user that the PIN they entered needs to be less than maximum digits long.">
-    PIN must be less than <ph name="MAXIMUM">$1<ex>0</ex></ph> digits
-  </message>
-  <message name="IDS_SETTINGS_PEOPLE_CONFIGURE_PIN_NONDIGIT" desc="Message shown below the title that tells the user that the PIN they entered contains non-digits.">
-    PIN must use numbers only
-  </message>
-  <message name="IDS_SETTINGS_PEOPLE_CONFIGURE_PIN_MISMATCHED" desc="Message shown below the title that tells the user they have entered two different PIN values.">
-    PINs do not match
-  </message>
-  <message name="IDS_SETTINGS_PEOPLE_CONFIGURE_PIN_COMPLEXITY_ERROR_NONE" desc="Message shown below the title that tells the user the PIN requirements when the complexity policy is set to None.">
-    Must be at least 1 digit
-  </message>
-  <message name="IDS_SETTINGS_PEOPLE_CONFIGURE_PIN_COMPLEXITY_ERROR_LOW" desc="Message shown below the title that tells the user the PIN requirements when the complexity policy is set to Low.">
-    Must be at least 4 digits
-  </message>
-  <message name="IDS_SETTINGS_PEOPLE_CONFIGURE_PIN_COMPLEXITY_ERROR_MEDIUM" desc="Message shown below the title that tells the user the PIN requirements when the complexity policy is set to Medium.">
-    Must be at least 6 digits and can't contain repeating or ordered sequences
-  </message>
-  <message name="IDS_SETTINGS_PEOPLE_CONFIGURE_PIN_COMPLEXITY_ERROR_HIGH" desc="Message shown below the title that tells the user the PIN requirements when the complexity policy is set to High.">
-    Must be at least 8 digits and can't contain repeating or ordered sequences
-  </message>
-  <message name="IDS_SETTINGS_PEOPLE_CONFIGURE_PIN_REPEATING_DIGITS" desc="Error message shown when the user enters a PIN that contains repeating digits.">
-    Can't contain repeating digits
-  </message>
-  <message name="IDS_SETTINGS_PEOPLE_CONFIGURE_PIN_ORDERED_SEQUENCE" desc="Error message shown when the user enters a PIN that contains an ordered sequence of digits.">
-    Can't contain ordered sequences
-  </message>
-  <message name="IDS_SETTINGS_PEOPLE_CONFIGURE_PIN_COMPLEXITY_TOO_SHORT" desc="Requirement message shown to the user telling them the minimum number of characters required for their PIN.">
-    Must be at least <ph name="MINIMUM">$1<ex>4</ex></ph> characters
-  </message>
-
-  <message name="IDS_SETTINGS_ACCOUNT_MANAGER_ACCOUNT_REMOVED_MESSAGE" desc="Notification message after account removal.">
-    <ph name="EMAIL">$1<ex>abcd@google.com</ex></ph> was removed from this device
-  </message>
-
-
-  <!-- Strings for Suggestion features -->
-  <message name="IDS_SUGGESTION_LEARN_MORE" desc="This string is a link that shows up along with a personal information suggestion (in the first 10 instances) to inform the users about the feature. It takes users to the settings page to learn more.">
-    Learn about suggestions
-  </message>
-  <message name="IDS_SUGGESTION_ENTER_KEY" desc="This string is the enter key annotation to educate users how to accept a personal information suggestion.">
-    Enter
-  </message>
-  <message name="IDS_SUGGESTION_DIACRITICS_OPEN" desc="String announced by screenreader when diacritics suggestion pops up.">
-    Accent marks menu open. Press left, right, or number keys to navigate and enter to insert.
-  </message>
-  <message name="IDS_SUGGESTION_DIACRITICS_INSERTED" desc="String announced by screenreader when diacritics are inserted.">
-    Accent mark inserted.
-  </message>
-  <message name="IDS_SUGGESTION_DIACRITICS_DISMISSED" desc="String announced by screenreader when diacritics are dismissed.">
-    Accent marks menu dismissed.
-  </message>
-  <message name="IDS_SUGGESTION_INSERTED" desc="String announced by screenreader when a suggestion is inserted.">
-    Suggestion inserted
-  </message>
-  <message name="IDS_SUGGESTION_AUTOCORRECT_UNDO_TEXT" desc="Label for autocorrect undo button in undo window.">
-    Undo
-  </message>
-  <message name="IDS_SUGGESTION_AUTOCORRECT_LEARN_MORE" desc="String announced by screenreader when a button to learn more about autocorrect is highlighted.">
-    Autocorrect learn more button. Go to autocorrection settings page. Press enter to activate, escape to dismiss.
-  </message>
-  <message name="IDS_SUGGESTION_AUTOCORRECT_UNDO_BUTTON" desc="String announced by screenreader when a button to undo an autocorrect is highlighted. Example, user types 'hllo', system autocorrects to 'hello', user then prepares to revert the autocorrect.">
-    Undo autocorrect button. Revert to <ph name="TYPED_WORD">$1<ex>hllo</ex></ph>.  Press enter to activate, escape to dismiss.
-  </message>
-  <message name="IDS_SUGGESTION_AUTOCORRECT_UNDO_WINDOW_SHOWN" desc="String announced by screenreader when a button to undo an autocorrect is shown. Example, user types 'hllo', system autocorrects to 'hello', user then prepares to revert the autocorrect.">
-    Autocorrect undo dialog is shown for <ph name="TYPED_WORD">$1<ex>hllo</ex></ph> corrected to <ph name="CORRECTED_WORD">$2<ex>hello</ex></ph>.  Press up arrow to access, escape to ignore.
-  </message>
-  <message name="IDS_SUGGESTION_TAB_KEY" desc="This string is the tab key annotation, which is used to educate users how to accept a predictive writing suggestion">
-    tab
-  </message>
 
   <!-- Strings for emoji picker-->
   <message name="IDS_ACCNAME_EMOJI_PICKER" desc="The accessible name for the emoji picker.">
@@ -4815,84 +3887,6 @@ You can manage this account’s settings by installing the Family Link app on yo
   <!-- Strings for orca-->
   <message name="IDS_ACCNAME_ORCA" desc="The name for the orca feature in the task manager">
     Tool: Help me write
-  </message>
-
-  <!-- Strings for the System-proxy authentication dialog that requests proxy credentials for network traffic at OS level (outside the Browser) -->
-  <message name="IDS_SYSTEM_PROXY_AUTH_DIALOG_TITLE" desc="Title for the dialog.">
-    Sign in
-  </message>
-  <message name="IDS_SYSTEM_PROXY_AUTH_DIALOG_OK_BUTTON" desc="Text for the OK button.">
-    Sign in
-  </message>
-  <message name="IDS_SYSTEM_PROXY_AUTH_DIALOG_TEXT" desc="Text for the dialog informing users that the remote proxy requires authentication.">
-    The proxy <ph name="PROXY_SERVER">$1<ex>http://localhost:3128</ex></ph> requires a username and password.
-  </message>
-  <message name="IDS_SYSTEM_PROXY_AUTH_DIALOG_PRIVACY_WARNING" desc="Text for the privacy disclosure section on the dialog.">
-    Your connection is not private for all network traffic
-  </message>
-  <message name="IDS_SYSTEM_PROXY_AUTH_DIALOG_USERNAME_LABEL" desc="Text for the label associated with the username input.">
-    Username
-  </message>
-  <message name="IDS_SYSTEM_PROXY_AUTH_DIALOG_PASSWORD_LABEL" desc="Text for the label associated with the password input.">
-    Password
-  </message>
-  <message name="IDS_SYSTEM_PROXY_AUTH_DIALOG_ERROR_LABEL" desc="Text for the error label that informs users that the authentication attempt failed.">
-    Unable to connect to the proxy
-  </message>
-  <!-- Strings for the System-proxy notifications informing the user that System-proxy required credentials-->
-  <message name="IDS_SYSTEM_PROXY_AUTH_REQUIRED_NOTIFICATION_TITLE" desc="Title of notification displayed when System-proxy requires user credentials to authenticate to a remote web proxy.">
-    Sign in
-  </message>
-  <message name="IDS_SYSTEM_PROXY_AUTH_REQUIRED_NOTIFICATION_BODY" desc="Body of notification informing user that they need to provide username and password for System-proxy to connect to a remote web proxy.">
-    Your username and password are required for the proxy <ph name="PROXY">$1<ex>http://localhost:3128</ex></ph> so the admin can configure your network
-  </message>
-  <message name="IDS_SYSTEM_PROXY_AUTH_REQUIRED_NOTIFICATION_ERROR_TITLE" desc="Title of notification displayed when System-proxy requires new user credentials because the previous ones were incorrect.">
-    Can’t connect to proxy, please sign in again
-  </message>
-
-  <!-- Strings for Security Token Sessions -->
-  <message name="IDS_SECURITY_TOKEN_SESSION_LOGOUT_NOTIFICATION_BUTTON_TITLE" desc="This belongs to a notification that informs the user that they will be logged out in a few seconds. This string is the title of a button with which the user can log out immediately.">
-    Sign out now
-  </message>
-  <message name="IDS_SECURITY_TOKEN_SESSION_LOGOUT_NOTIFICATION_TITLE" desc="This is the title of a notification informing the user that they will be logged out soon, unless they re-insert the smart card they used to log into the session. The notification appears when they remove this smart card.">
-    Insert smart card to stay signed in
-  </message>
-  <message name="IDS_SECURITY_TOKEN_SESSION_LOGOUT_NOTIFICATION_BODY" desc="This is the text of a notification informing the user that they will be logged out soon, unless they re-insert the smart card they used to log into the session. The notification appears when they remove this smart card.">
-{0, plural,
-=1 {You will be automatically signed out in # second.
-<ph name="DOMAIN">{1}<ex>example.com</ex></ph> requires you to keep your smart card inserted.}
-other {You will be automatically signed out in # seconds.
-<ph name="DOMAIN">{1}<ex>example.com</ex></ph> requires you to keep your smart card inserted.}}
-  </message>
-  <message name="IDS_SECURITY_TOKEN_SESSION_IMMEDIATE_LOGOUT_NOTIFICATION_BODY" desc="This is the text of a notification informing the user that they will be logged out now because they removed their smart card.">
-You will be automatically signed out now.
-<ph name="DOMAIN">{0}<ex>example.com</ex></ph> requires you to keep your smart card inserted.
-  </message>
-  <message name="IDS_SECURITY_TOKEN_SESSION_LOCK_NOTIFICATION_BUTTON_TITLE" desc="This belongs to a notification that informs the user that the session will be locked in a few seconds. This string is the title of a button with which the user can lock the session immediately.">
-    Lock now
-  </message>
-  <message name="IDS_SECURITY_TOKEN_SESSION_LOCK_NOTIFICATION_TITLE" desc="This is the title of a notification informing the user that the session will be locked soon, unless they re-insert the smart card they used to log into the session. The notification appears when they remove this smart card.">
-    Insert smart card to keep using your <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>
-  </message>
-  <message name="IDS_SECURITY_TOKEN_SESSION_LOCK_NOTIFICATION_BODY" desc="This is the text of a notification informing the user that the session will be locked soon, unless they re-insert the smart card they used to log into the session. The notification appears when they remove this smart card.">
-{0, plural,
-=1 {Your <ph name="DEVICE_TYPE">{1}<ex>Chromebook</ex></ph> will be locked automatically in # second.
-<ph name="DOMAIN">{2}<ex>example.com</ex></ph> requires you to keep your smart card inserted.}
-other {Your <ph name="DEVICE_TYPE">{1}<ex>Chromebook</ex></ph> will be locked automatically in # seconds.
-<ph name="DOMAIN">{2}<ex>example.com</ex></ph> requires you to keep your smart card inserted.}}
-  </message>
-  <message name="IDS_SECURITY_TOKEN_SESSION_IMMEDIATE_LOCK_NOTIFICATION_BODY" desc="This is the text of a notification informing the user that the session will be locked now because they removed their smart card.">
-Your <ph name="DEVICE_TYPE">{0}<ex>Chromebook</ex></ph> will be locked now.
-<ph name="DOMAIN">{1}<ex>example.com</ex></ph> requires you to keep your smart card inserted.
-  </message>
-  <message name="IDS_SECURITY_TOKEN_SESSION_LOGOUT_MESSAGE_TITLE" desc="This is the title of a notification appearing the first time a user is logged out because they removed their smart card. This only applies to users that authenticate with a smart card and for who this behavior was enabled by a policy.">
-    You were logged out.
-  </message>
-  <message name="IDS_SECURITY_TOKEN_SESSION_LOCK_MESSAGE_TITLE" desc="This is the title of a notification appearing the first time the session of a user is locked because they removed their smart card. This only applies to users that authenticate with a smart card and for who this behavior was enabled by a policy.">
-    Your <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph> was locked.
-  </message>
-  <message name="IDS_SECURITY_TOKEN_SESSION_LOGOUT_MESSAGE_BODY" desc="This is the text of a notification appearing the first time the a user was logged out because they removed their smart card. This only applies to users that authenticate with a smart card and for who this behavior was enabled by a policy.">
-    <ph name="DOMAIN">$1<ex>example.com</ex></ph> requires you to keep your smart card inserted.
   </message>
 
   <!-- Strings for Projector-->
@@ -5419,14 +4413,6 @@ Your <ph name="DEVICE_TYPE">{0}<ex>Chromebook</ex></ph> will be locked now.
   </message>
   <message name="IDS_OFFICE_FILE_ALREADY_BEING_OPENED_TITLE" desc="Title of notification for opening office files indicating same file is already being opened.">
     File is already being opened
-  </message>
-
-  <!-- security curtain -->
-  <message name="IDS_SECURITY_CURTAIN_TITLE" desc="Title text displayed to inform the user a remote admin has taken control of the ChromeOs device.">
-    Your administrator is controlling your device
-  </message>
-  <message name="IDS_SECURITY_CURTAIN_DESCRIPTION" desc="Detailed description displayed to inform the user a remote admin has taken control of the ChromeOs device.">
-    Your administrator has logged in to look into an issue. You can continue to use the device after the administrator gives the control back to you.
   </message>
 
   <!-- Gaia Info -->

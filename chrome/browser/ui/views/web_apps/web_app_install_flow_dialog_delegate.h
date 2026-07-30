@@ -44,12 +44,15 @@ class WebAppInstallProgressView;
 class WebAppInstallOptionsView;
 struct WebAppInstallInfo;
 
+// LINT.IfChange(InstallDialogStep)
 enum class InstallDialogStep {
   kInstallDialog = 0,
   kInstallerOptions = 1,
   kProgress = 2,
   kSuccessful = 3,
+  kMaxValue = kSuccessful,
 };
+// LINT.ThenChange(//tools/metrics/histograms/enums.xml:WebAppInstallFlowStep)
 
 enum class InstallOsType { kMac, kWin, kCros, kOther };
 inline constexpr int kLargeImageSize = 80;
@@ -136,8 +139,13 @@ class WebAppInstallFlowDialogDelegate : public WebAppModalDialogDelegate {
   void UpdateDialogTitleAndHeader(InstallDialogStep step);
   void UpdateProgressAndMaybeAdvance();
   void OnInstallResult(bool success, base::OnceClosure reparent_closure);
+  void AcceptForTesting();  // IN-TEST
+  void OnAutoAcceptInstallResultForTesting(
+      bool success,
+      base::OnceClosure reparent_closure);  // IN-TEST
+  void DeclineForTesting();                 // IN-TEST
 
-  void MeasureIphOnDialogClose();
+  void MeasureMetricsOnDialogClose(bool was_closed_by_user_action);
   void MeasureAcceptUserActionsForInstallDialog();
   void MeasureCancelUserActionsForInstallDialog();
 

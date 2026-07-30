@@ -101,7 +101,6 @@ FieldPrediction::Source ToSafeFieldPredictionSource(
     case FieldPrediction::SOURCE_UNSPECIFIED:
     case FieldPrediction::SOURCE_AUTOFILL_DEFAULT:
     case FieldPrediction::SOURCE_PASSWORDS_DEFAULT:
-    case FieldPrediction::SOURCE_ALL_APPROVED_EXPERIMENTS:
     case FieldPrediction::SOURCE_FIELD_RANKS:
     case FieldPrediction::SOURCE_OVERRIDE:
     case FieldPrediction::SOURCE_MANUAL_OVERRIDE:
@@ -720,7 +719,6 @@ std::optional<FieldSuggestion> GetFieldSuggestion(
           case FieldPrediction::SOURCE_UNSPECIFIED:
           case FieldPrediction::SOURCE_AUTOFILL_DEFAULT:
           case FieldPrediction::SOURCE_PASSWORDS_DEFAULT:
-          case FieldPrediction::SOURCE_ALL_APPROVED_EXPERIMENTS:
           case FieldPrediction::SOURCE_FIELD_RANKS:
           case FieldPrediction::SOURCE_AUTOFILL_COMBINED_TYPES:
             return std::ranges::all_of(suggestion->predictions(),
@@ -923,7 +921,6 @@ void ClearSmallAddressFormPredictions(
         break;  // Continue below to check if this is an address prediction.
       case FieldPrediction::SOURCE_UNSPECIFIED:
       case FieldPrediction::SOURCE_PASSWORDS_DEFAULT:
-      case FieldPrediction::SOURCE_ALL_APPROVED_EXPERIMENTS:
       case FieldPrediction::SOURCE_OVERRIDE:
       case FieldPrediction::SOURCE_MANUAL_OVERRIDE:
       case FieldPrediction::SOURCE_AUTOFILL_COMBINED_TYPES:
@@ -1081,9 +1078,14 @@ std::vector<AutofillUploadContents> EncodeUploadRequest(
                               (*subform_begin)->renderer_form_id();
                      });
     // SAFETY: The iterators are from the same container.
-    EncodeFormFieldsForUpload(form, options.encoder, options.fields,
-                              UNSAFE_BUFFERS({subform_begin, subform_end}),
-                              &uploads.back());
+    EncodeFormFieldsForUpload(
+        form, options.encoder, options.fields,
+        base::span(upload_fields)
+            .subspan(
+                static_cast<size_t>(
+                    std::distance(upload_fields.begin(), subform_begin)),
+                static_cast<size_t>(std::distance(subform_begin, subform_end))),
+        &uploads.back());
     subform_begin = subform_end;
   }
   return uploads;

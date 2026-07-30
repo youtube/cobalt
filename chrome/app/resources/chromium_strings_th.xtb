@@ -23,6 +23,7 @@
 <translation id="1203500561924088507">ขอขอบคุณที่ติดตั้ง คุณต้องรีสตาร์ทเบราว์เซอร์ก่อนใช้ <ph name="BUNDLE_NAME" /></translation>
 <translation id="1232234696885483911">เมื่อคุณเปิดการค้นหารูปภาพ ระบบจะส่งชื่อหน้า, URL และเนื้อหา รวมถึง PDF ไปยังเซิร์ฟเวอร์โดยอัตโนมัติ <ph name="LEARN_MORE" /></translation>
 <translation id="123265588161106468">เมื่อลงชื่อเข้าใช้อยู่ คุณจะใช้รหัสผ่านและข้อมูลอื่นๆ จากบัญชี Google ใน Chromium ได้ หากต้องการเปลี่ยน ให้ไปที่ "บัญชีของคุณใน Chromium"</translation>
+<translation id="1257483544893909270">ใช้แป้นพิมพ์ลัดเพื่อเลือกส่วนหนึ่งของหน้าจอใน Gemini ใน Chromium</translation>
 <translation id="1262876892872089030">ขณะที่แท็บนี้ไม่มีการใช้งาน ระบบจะเพิ่มพื้นที่ว่างในหน่วยความจำเพื่อให้ใช้ Chromium ได้อย่างรวดเร็วอยู่เสมอ ทั้งนี้คุณจะเลือกยกเว้นให้เว็บไซต์นี้ทำงานตลอดเวลาได้</translation>
 <translation id="1265577313130862557">Chromium บล็อกการดาวน์โหลดนี้เนื่องจากไฟล์เป็นอันตราย</translation>
 <translation id="126567311906253476">เมื่อลงชื่อเข้าใช้บริการของ Google อย่าง Gmail หรือ YouTube ด้วย <ph name="USER_EMAIL" /> คุณจะลงชื่อเข้าใช้ Chromium ด้วยบัญชีเดียวกันได้โดยอัตโนมัติ</translation>
@@ -153,9 +154,11 @@
 <translation id="2620436844016719705">ระบบ</translation>
 <translation id="2629740064077610681">องค์กรของคุณจะดูและจัดการข้อมูลการท่องเว็บได้ เช่น บุ๊กมาร์ก ประวัติการเข้าชม และรหัสผ่าน แต่จะไม่เห็นข้อมูลการท่องเว็บในโปรไฟล์ Chromium อื่นๆ</translation>
 <translation id="2635452620547538388">โปรดยืนยันว่าเป็นคุณเพื่อใช้และบันทึกข้อมูล Chromium ในบัญชี <ph name="ACCOUNT_EMAIL" /></translation>
+<translation id="2636783171884046627">ใช้แป้นพิมพ์ลัด หากต้องการออกหรือกลับมาที่ Gemini ใน Chromium</translation>
 <translation id="2637732208198500597">{COUNT,plural, =0{การปกป้องขั้นสูงกำหนดให้คุณต้องเปิด Chromium ขึ้นมาใหม่เพื่อใช้การอัปเดต}=1{การปกป้องขั้นสูงกำหนดให้คุณต้องเปิด Chromium ขึ้นมาใหม่เพื่อใช้การอัปเดต หน้าต่างที่ไม่ระบุตัวตนจะไม่เปิดให้อีก}other{การปกป้องขั้นสูงกำหนดให้คุณต้องเปิด Chromium ขึ้นมาใหม่เพื่อใช้การอัปเดต หน้าต่างที่ไม่ระบุตัวตนจำนวน # หน้าต่างจะไม่เปิดให้อีก}}</translation>
 <translation id="2648074677641340862">เกิดข้อผิดพลาดของระบบปฏิบัติในระหว่างการติดตั้ง โปรดดาวน์โหลด Chromium อีกครั้ง</translation>
 <translation id="2661879430930417727">เพื่อนและครอบครัวสามารถท่องเว็บแยกกันและตั้งค่า Chromium ตามที่ตนต้องการในกรณีที่ใช้อุปกรณ์ร่วมกัน</translation>
+<translation id="2676569452213089702">เข้าถึงและใช้ Gemini ใน Chromium ในอุปกรณ์ต่างๆ ได้ง่ายๆ แม้จะย่อ Chromium อยู่</translation>
 <translation id="2711502716910134313">แท็บ Chromium</translation>
 <translation id="2718390899429598676">เพื่อเพิ่มความปลอดภัยให้มากยิ่งขึ้น Chromium จะเข้ารหัสข้อมูลของคุณ</translation>
 <translation id="2721354645805494590">หากต้องการนำบัญชี Google ออกจาก Chromium ให้ออกจากระบบ</translation>
@@ -174,7 +177,6 @@
 <translation id="2885378588091291677">ตัวจัดการงาน</translation>
 <translation id="2910007522516064972">เกี่ยวกับ &amp;Chromium</translation>
 <translation id="2915996080311180594">รีสตาร์ทภายหลัง</translation>
-<translation id="2928420929544864228">การติดตั้งเสร็จสมบูรณ์</translation>
 <translation id="2933336679234709858">ข้อมูลของคุณมีการเข้ารหัสด้วยพาสเฟรส ป้อนพาสเฟรสเพื่อใช้และบันทึกข้อมูล Chromium ในบัญชี Google</translation>
 <translation id="2945997411976714835">ข้อผิดพลาดในการติดตั้ง: เริ่มขั้นตอนของโปรแกรมติดตั้งไม่สำเร็จ</translation>
 <translation id="2948852018303413228">ลงชื่อเข้าใช้เว็บไซต์ได้เร็วขึ้นโดยใช้รหัสผ่านที่บันทึกไว้สำหรับ Chromium บน iOS</translation>
@@ -271,6 +273,7 @@
 <translation id="3954172517175569325">ระบบจะนำรหัสผ่าน วิธีการชำระเงิน และที่อยู่ที่คุณบันทึกไว้ในบัญชี Google ออกจากอุปกรณ์นี้ หากต้องการใช้ข้อมูลเหล่านี้ใน Chromium ให้ลงชื่อเข้าใช้อีกครั้ง</translation>
 <translation id="395904275706073188">อ่านหน้าเว็บที่มีการป้องกันไม่ได้ โปรดลองใช้หน้าอื่น</translation>
 <translation id="3962647064319009959">ดูวิธีที่ Chromium ช่วยให้คุณปลอดภัย</translation>
+<translation id="3967822245660637423">ดาวน์โหลดเสร็จสมบูรณ์</translation>
 <translation id="3971865010372729242">เมื่อคุณพิมพ์ในแถบที่อยู่หรือช่องค้นหา Chromium จะส่งสิ่งที่คุณพิมพ์ไปยังเครื่องมือค้นหา, AI และเครื่องมือตัวแทนขององค์กรเพื่อรับคำแนะนำ</translation>
 <translation id="3975724895399328945">เกี่ยวกับ Google Chrome สำหรับการทดสอบ</translation>
 <translation id="3997429360543082038">เกี่ยวกับ Chromium OS</translation>
@@ -306,10 +309,9 @@
 <translation id="4298125729853015961">ส่งออกรหัสผ่านจาก Chromium</translation>
 <translation id="4304713468139749426">เครื่องมือจัดการรหัสผ่าน</translation>
 <translation id="4334241893986177674">ค้นหาในภาพหน้าจอนี้</translation>
-<translation id="4334294535648607276">ดาวน์โหลดเสร็จสมบูรณ์</translation>
 <translation id="4384331407722351213">เปิด Chromium เมื่อ Windows เริ่มทำงาน</translation>
 <translation id="4384993550046411228">เข้าถึงฟีเจอร์ที่คุณรู้จัก ชื่นชอบ และไว้วางใจได้อย่างง่ายดายด้วยการตั้ง Chromium เป็นเบราว์เซอร์เริ่มต้น ระบบจะปักหมุด Chromium ไว้ที่แถบงานเพื่อให้เข้าถึงได้อย่างรวดเร็ว</translation>
-<translation id="439358628917130594"><ph name="MANAGER" /> กำหนดว่าคุณต้องอ่านและยอมรับข้อกำหนดในการให้บริการต่อไปนี้ก่อนใช้อุปกรณ์นี้ ข้อกำหนดเหล่านี้ไม่ได้ขยาย แก้ไข หรือจำกัดข้อกำหนดของ Chromium OS</translation>
+<translation id="4400772909124543403">ไม่มีอัปเดตพร้อมใช้งาน</translation>
 <translation id="4407044323746248786">ออกจาก Chromium ใช่ไหม</translation>
 <translation id="4413205837991854510">แสดงทางลัดการค้นหารูปภาพเสมอ</translation>
 <translation id="4415566066719264597">ให้ Chromium ทำงานในพื้นหลัง</translation>
@@ -348,6 +350,7 @@
 <translation id="4746050847053251315">ปิด Chromium ใช่ไหม</translation>
 <translation id="4748217263233248895">ระบบเพิ่งนำการอัปเดตความปลอดภัยพิเศษไปใช้กับ Chromium รีสตาร์ทเลย แล้วเราจะคืนค่าแท็บให้คุณ</translation>
 <translation id="4771701986670315895">คุณไม่ได้เข้าชมเมื่อเร็วๆ นี้ Chromium นำสิทธิ์เข้าถึง<ph name="PERMISSION_1" /> <ph name="PERMISSION_2" /> และอีก <ph name="COUNT" /> รายการออกแล้ว</translation>
+<translation id="4786083865378785874">หาก Gemini ใน Chromium เปิดอยู่ แผงด้านข้างจะเปิดอยู่เมื่อสร้างแท็บใหม่</translation>
 <translation id="479167709087336770">การดำเนินการนี้จะใช้โปรแกรมตรวจตัวสะกดแบบเดียวกับใน Google Search ข้อความที่คุณพิมพ์ในเบราว์เซอร์จะส่งไปยัง Google คุณปรับเปลี่ยนลักษณะการทำงานนี้ได้ทุกเมื่อในการตั้งค่า</translation>
 <translation id="4814736265800133385">ใช้ Chromium โดยไม่มีบัญชี</translation>
 <translation id="4888717733111232871">กฎขาเข้าสำหรับ Chromium เพื่ออนุญาตการเข้าชมแบบ mDNS</translation>
@@ -360,7 +363,6 @@
 <translation id="4987820182225656817">ผู้เยี่ยมชมสามารถใช้ Chromium โดยไม่ทิ้งร่องรอยไว้</translation>
 <translation id="4992938037305302429">บัญชีของคุณใน Chromium</translation>
 <translation id="4994636714258228724">เพิ่มตัวคุณเองใน Chromium</translation>
-<translation id="5083712646171654472">Gemini ใน Chromium ใช้การท่องเว็บอัตโนมัติเพื่อทำงานในแท็บและดำเนินงานที่คุณมอบหมายให้เสร็จสมบูรณ์ <ph name="LINK_BEGIN" />ดูข้อมูลเพิ่มเติม<ph name="LINK_END" /></translation>
 <translation id="5123973130450702873">Chromium ต้องการสิทธิ์ในการติดตามการเคลื่อนไหวของมือ</translation>
 <translation id="5141988424377517949">คุณไม่ได้เข้าชมเมื่อเร็วๆ นี้ Chromium นำสิทธิ์เข้าถึง<ph name="PERMISSION_1" /> <ph name="PERMISSION_2" /> และ<ph name="PERMISSION_3" />ออกแล้ว</translation>
 <translation id="5174969993834422967">คุณมักจะบล็อกการแจ้งเตือน หากต้องการให้เว็บไซต์ส่งการแจ้งเตือน ให้คลิกไอคอนการแจ้งเตือนที่มุมขวาของแถบตําแหน่ง</translation>
@@ -400,6 +402,7 @@
 <translation id="555970465369471303">Chromium จะปิดการเพิ่มประสิทธิภาพ JavaScript เมื่อคุณเข้าชมเว็บไซต์เป็นครั้งแรกเพื่อความปลอดภัย
 
 หากหน้านี้ไม่ทำงานตามที่คาดไว้ ให้ลองอนุญาตการเพิ่มประสิทธิภาพ</translation>
+<translation id="5575874067957905201">แสดง Gemini ใน Chromium ในแถบเมนูของ Mac และเปิดแป้นพิมพ์ลัด</translation>
 <translation id="5579324208890605088">ข้อผิดพลาดในการเริ่มต้น: โปรดเรียกใช้โปรแกรมติดตั้งในฐานะผู้ใช้ทั่วไป ไม่ใช่ในฐานะผู้ดูแลระบบ</translation>
 <translation id="5580770360767802657">ใช้ Chromium โดยค่าเริ่มต้นและปักหมุดไว้</translation>
 <translation id="5596627076506792578">ตัวเลือกเพิ่มเติม</translation>
@@ -471,7 +474,6 @@
 <translation id="6294831894865512704">ส่วนขยายต้องการให้คุณลงชื่อเข้าใช้ Chromium</translation>
 <translation id="6295779123002464101"><ph name="FILE_NAME" /> อาจเป็นอันตราย Chromium จึงบล็อกไว้</translation>
 <translation id="6309712487085796862">Chromium ใช้กล้องของคุณอยู่</translation>
-<translation id="6327105987658262776">ไม่มีอัปเดตพร้อมใช้งาน</translation>
 <translation id="6333502561965082103">Chromium กำลังดำเนินการอย่างอื่นอยู่ โปรดลองอีกครั้งในภายหลัง</translation>
 <translation id="6334986366598267305">ตอนนี้การใช้ Chromium กับบัญชี Google ของคุณและบนคอมพิวเตอร์ที่ใช้ร่วมกันทำได้ง่ายกว่าเดิม</translation>
 <translation id="6347002662287820329">เข้าถึงฟีเจอร์ที่คุณรู้จัก ชื่นชอบ และไว้วางใจได้อย่างง่ายดายด้วยการตั้ง Chromium เป็นเบราว์เซอร์เริ่มต้น</translation>
@@ -547,7 +549,6 @@
 <translation id="7003299027384820442">ป้อนพาสเฟรสเพื่อใช้และบันทึกข้อมูล Chromium ในบัญชี <ph name="ACCOUNT_EMAIL" /></translation>
 <translation id="7011190694940573312">การติดตั้งไม่สำเร็จเนื่องจากระบบไม่รองรับระบบปฏิบัติการเวอร์ชันนี้</translation>
 <translation id="7024536598735240744">ข้อผิดพลาดในการคลายการแพคข้อมูล: <ph name="UNPACK_ERROR" /></translation>
-<translation id="7025789849649390912">หยุดการติดตั้งแล้ว</translation>
 <translation id="7045244423563602563">ปรับเปลี่ยน Chromium ในแบบของคุณ</translation>
 <translation id="7047386856539490735">ผลการค้นหาเหล่านี้มีประโยชน์ไหม</translation>
 <translation id="705851970750939768">อัปเดต Chromium</translation>
@@ -603,7 +604,6 @@ Chromium ไม่สามารถกู้คืนการตั้งค�
 <translation id="7624307931717240213">เราใช้ข้อมูลเพื่อปรับปรุงบริการนี้ ดูนโยบายความเป็นส่วนตัวและข้อกำหนดในการให้บริการ</translation>
 <translation id="7649070708921625228">ความช่วยเหลือ</translation>
 <translation id="7650134251917003571">ดาวน์โหลดแอป Chromium</translation>
-<translation id="7656340475565475526">ให้ Chromium ท่องเว็บแทนคุณ</translation>
 <translation id="7658239707568436148">ยกเลิก</translation>
 <translation id="7686590090926151193">Chromium ไม่ใช่เบราว์เซอร์เริ่มต้น</translation>
 <translation id="7689606757190482937">ซิงค์และปรับเปลี่ยน Chromium ในอุปกรณ์ต่างๆ</translation>
@@ -626,6 +626,7 @@ Chromium ไม่สามารถกู้คืนการตั้งค�
 <translation id="7867198900892795913">Chromium อัปเดตเป็นเวอร์ชันล่าสุดไม่ได้ คุณจึงไม่ได้รับฟีเจอร์ใหม่และการแก้ไขด้านความปลอดภัย</translation>
 <translation id="7872446069773932638">กำลังดาวน์โหลด... เหลืออีก <ph name="SECONDS" /> วินาที</translation>
 <translation id="7873537467422636035">หากลืมพาสเฟรสหรือต้องการเปลี่ยนการตั้งค่านี้ ให้<ph name="BEGIN_LINK" />ลบข้อมูล Chromium ในบัญชี<ph name="END_LINK" /></translation>
+<translation id="7874369989024033742">เปิด Gemini ใน Chromium ได้อย่างรวดเร็วทุกเมื่อที่ต้องการ</translation>
 <translation id="7877212753140190672">ถามเกี่ยวกับรูปภาพนี้</translation>
 <translation id="7888981273428720788">ตั้ง Chromium เป็นเบราว์เซอร์เริ่มต้น</translation>
 <translation id="7934340546140346950">Chromium จะอัปเกรดการเชื่อมต่อที่ไม่ปลอดภัยเป็น HTTPS โดยอัตโนมัติเมื่อเป็นไปได้</translation>
@@ -647,6 +648,7 @@ Chromium ไม่สามารถกู้คืนการตั้งค�
 <translation id="8118331347066725040">ส่งความคิดเห็นเกี่ยวกับการค้นหาด้วย Lens</translation>
 <translation id="8133124826068723441">Chromium OS ซิงค์ข้อมูลไม่ได้เนื่องจากการซิงค์ไม่พร้อมใช้งานสำหรับโดเมนของคุณ</translation>
 <translation id="813913629614996137">กำลังเริ่มดำเนินการ...</translation>
+<translation id="8161503455832158203">เปิด Gemini ใน Chromium ด้วยแป้นพิมพ์ลัด</translation>
 <translation id="8164014945047474187">ข้อกำหนดในการให้บริการเพิ่มเติมของ Chromium</translation>
 <translation id="81770708095080097">ไฟล์นี้อันตราย Chromium จึงบล็อกไว้</translation>
 <translation id="8177472873527554730">ไม่พบเนื้อหาในหน้าเว็บ</translation>
@@ -656,6 +658,7 @@ Chromium ไม่สามารถกู้คืนการตั้งค�
 <translation id="8232193495299001329">Chromium ไม่สามารถยืนยันได้ว่าส่วนขยายนี้มาจากไหนและอาจไม่ปลอดภัย นำส่วนขยายดังกล่าวออกจาก Chromium เพื่อไม่ให้ดูและเปลี่ยนแปลงข้อมูลของคุณในเว็บไซต์ที่เข้าชม รวมถึงข้อมูลส่วนบุคคลได้อีกต่อไป</translation>
 <translation id="8248265253516264921">หากรูปภาพไม่มีคำอธิบายที่เป็นประโยชน์ Chromium จะพยายามใส่คำอธิบายให้คุณ รูปภาพจะส่งมายัง Google เพื่อสร้างคำอธิบาย คุณปิดการดำเนินการนี้ได้ทุกเมื่อในการตั้งค่า</translation>
 <translation id="8254601181414348851">ต้องการลงชื่อเข้าใช้ Chromium ในโปรไฟล์ใหม่ใช่ไหม</translation>
+<translation id="8277334259226003205">แสดง Gemini ใน Chromium ในถาดระบบและเปิดแป้นพิมพ์ลัด</translation>
 <translation id="8286943863733751221"><ph name="BEGIN_LINK" />Chromium จะเตือนคุณ<ph name="END_LINK" />เกี่ยวกับเว็บไซต์และการดาวน์โหลดที่ไม่ปลอดภัย</translation>
 <translation id="8295827201165805317">คุณไม่ได้เข้าชมเมื่อเร็วๆ นี้ Chromium นำสิทธิ์เข้าถึง<ph name="PERMISSION" />ออกแล้ว</translation>
 <translation id="8296236834352487533">เลือกซื้อ แปล และระบุสิ่งที่คุณเห็นโดยใช้กล้องในแอป Chromium สำหรับ iOS</translation>
@@ -684,6 +687,7 @@ Chromium ไม่สามารถกู้คืนการตั้งค�
 <translation id="8493179195440786826">Chromium ล้าสมัย</translation>
 <translation id="850264194101621529">ขอขอบคุณที่เลือกใช้ Chromium เป็นเบราว์เซอร์เริ่มต้น</translation>
 <translation id="8522801943730206384">Chromium จะตรวจสอบรหัสผ่านได้เมื่อคุณบันทึกรหัสผ่านไว้</translation>
+<translation id="8525579356836940628">หยุดการติดตั้งแล้ว</translation>
 <translation id="8548787790260785208">รับคำเตือนหาก Chromium พบรหัสผ่านของคุณในการละเมิดข้อมูลสาธารณะ</translation>
 <translation id="8555465886620020932">ข้อผิดพลาดในการบริการ: <ph name="SERVICE_ERROR" /></translation>
 <translation id="8556055872671007529">ฟีเจอร์และส่วนขยายบางอย่างของ Chromium มาพร้อมทางลัด ซึ่งคุณเลือกเปิดใช้อีกครั้งได้</translation>
@@ -717,6 +721,7 @@ Chromium ไม่สามารถกู้คืนการตั้งค�
 <translation id="897581876605952338">โลโก้ Chromium Enterprise</translation>
 <translation id="8981150672034878610">เริ่ม Chromium ไม่ได้เนื่องจากเกิดข้อผิดพลาดขณะเปิดโปรไฟล์ ลองรีสตาร์ท Chromium</translation>
 <translation id="8988036198400390003">จัดการโปรไฟล์ Chromium</translation>
+<translation id="9018218886431812662">ติดตั้งเสร็จสมบูรณ์แล้ว</translation>
 <translation id="9019929317751753759">เพื่อให้ Chromium ปลอดภัยขึ้น เราได้ปิดส่วนขยายต่อไปนี้ซึ่งไม่ได้แสดงอยู่ใน <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> และอาจมีการเพิ่มเข้ามาโดยที่คุณไม่รู้ตัว</translation>
 <translation id="9022552996538154597">ลงชื่อเข้าใช้ Chromium</translation>
 <translation id="904366664621834601">Chromium บล็อกการดาวน์โหลดนี้เนื่องจากไฟล์ที่เก็บถาวรมีไฟล์อื่นๆ ที่อาจซ่อนมัลแวร์ไว้</translation>

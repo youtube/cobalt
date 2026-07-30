@@ -156,6 +156,10 @@ webapps::LaunchQueue& WebAppTabHelper::EnsureLaunchQueue() {
   return *launch_queue_;
 }
 
+void WebAppTabHelper::EnqueueLaunchParams(webapps::LaunchParams launch_params) {
+  EnsureLaunchQueue().Enqueue(std::move(launch_params));
+}
+
 void WebAppTabHelper::SetState(std::optional<webapps::AppId> app_id,
                                std::optional<webapps::AppId> window_app_id) {
   // Empty string should not be used to indicate "no app ID".
@@ -238,6 +242,19 @@ void WebAppTabHelper::ReadyToCommitNavigation(
     provider_->ui_manager().NotifyReadyToCommitNavigation(app_id_.value(),
                                                           navigation_handle);
   }
+}
+
+void WebAppTabHelper::DidFinishNavigation(
+    content::NavigationHandle* navigation_handle) {
+  if (!navigation_handle->IsInPrimaryMainFrame()) {
+    return;
+  }
+
+  if (launch_queue_) {
+    launch_queue_->DidFinishNavigation(navigation_handle);
+  }
+
+  provider_->ui_manager().NotifyDidFinishNavigation(navigation_handle);
 }
 
 void WebAppTabHelper::PrimaryPageChanged(content::Page& page) {
@@ -497,6 +514,12 @@ void WebAppTabHelper::OnManifestSpecifiedOnPrimaryPage(
     last_processed_manifest_id_for_current_page_ = manifest_id;
     manifest_processed_callbacks_.Notify(manifest_id);
   }
+}
+
+std::optional<webapps::AppId> WebAppTabHelper::pending_launch_app_id() const {
+  return pending_launch_params_holder_
+             ? std::make_optional(pending_launch_params_holder_->app_id())
+             : std::nullopt;
 }
 
 WEB_CONTENTS_USER_DATA_KEY_IMPL(WebAppTabHelper);

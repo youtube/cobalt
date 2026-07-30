@@ -8291,7 +8291,12 @@ be describing additional metrics about the same event.
   <summary>
     Metrics recorded when the user interacts with or dismisses a v2 cue.
   </summary>
-  <metric name="ProactiveCueShownDuration">
+  <metric name="ProactiveCueInteraction" enum="ContextualCueingInteraction">
+    <summary>
+      Records user interaction or non-interaction with the cue.
+    </summary>
+  </metric>
+  <metric name="ProactiveCueShownDurationMs">
     <summary>
       Duration in milliseconds between showing the cue and user interaction or
       dismissal. Exponentially bucketed.
@@ -14099,8 +14104,9 @@ be describing additional metrics about the same event.
       a percentage from 0 to 100. 0 means that the element is not visible due to
       factors like being off-screen, clipped, occluded by other elements, or
       styled as invisible (e.g., opacity:0). 100 means that the element is fully
-      visible. This value is currently set for only encrypted media and if the
-      kEncryptedMediaOcclusionTracking flag is enabled.
+      visible. This value is currently set only for encrypted media using
+      hardware secure codecs, and if the kEncryptedMediaOcclusionTracking flag
+      is enabled.
     </summary>
   </metric>
 </event>
@@ -15211,6 +15217,22 @@ be describing additional metrics about the same event.
       The duration (in milliseconds) for how long it took from the time the
       navigation loader is created to the time the navigation loader receives
       the response from the networking layer.
+    </summary>
+  </metric>
+</event>
+
+<event name="Navigation.TypedAndDefault">
+  <owner>koretadaniel@chromium.org</owner>
+  <owner>chrome-desktop-ui-waterloo@google.com</owner>
+  <summary>
+    Recorded immediately after a successful navigation completes if the user
+    explicitly navigates to a domain via the Omnibox.
+  </summary>
+  <metric name="IsSameAsDefault" enum="Boolean">
+    <summary>
+      Recorded as 1 if the explicitly typed search engine destination matches
+      the user's currently active Default Search Engine (DSE), and 0 if it
+      differs.
     </summary>
   </metric>
 </event>
@@ -16441,6 +16463,27 @@ be describing additional metrics about the same event.
   </metric>
 </event>
 
+<event name="OptimizationGuide.PageContentExtraction">
+  <owner>chrome-intelligence-core@google.com</owner>
+  <owner>linnan@chromium.org</owner>
+  <summary>
+    Metrics related to the page settling and stability detection during page
+    content extraction. Recorded once per committed primary main frame
+    navigation when the page first becomes stable and ready for extraction.
+  </summary>
+  <metric name="IsSameDocument" enum="Boolean">
+    <summary>
+      Whether the navigation was a same-document navigation.
+    </summary>
+  </metric>
+  <metric name="NavigationToReadyLatencyMs">
+    <summary>
+      The duration in milliseconds from when a main frame navigation commits
+      until the page is considered stable and ready for extraction.
+    </summary>
+  </metric>
+</event>
+
 <event name="PageContentAnnotations2" singular="True">
   <owner>chrome-intelligence-core@google.com</owner>
   <owner>mcrouse@chromium.org</owner>
@@ -16528,18 +16571,6 @@ be describing additional metrics about the same event.
       Delay refers to the duration between the hardware timestamp and the start
       of event processing on the main thread for the meaningful input. In ms.
     </summary>
-    <aggregation>
-      <history>
-        <index fields="profile.country"/>
-        <index fields="profile.country,profile.system_ram"/>
-        <index fields="profile.is_dominant_version"/>
-        <index fields="profile.is_latest_version"/>
-        <index fields="profile.system_ram"/>
-        <statistics>
-          <quantiles type="std-percentiles"/>
-        </statistics>
-      </history>
-    </aggregation>
   </metric>
 </event>
 
@@ -16682,18 +16713,6 @@ be describing additional metrics about the same event.
       record the layout shift values which are not able to be recorded in
       LayoutInstability.CumulativeShiftScore for some reasons.
     </summary>
-    <aggregation>
-      <history>
-        <index fields="profile.country"/>
-        <index fields="profile.country,profile.system_ram"/>
-        <index fields="profile.is_dominant_version"/>
-        <index fields="profile.is_latest_version"/>
-        <index fields="profile.system_ram"/>
-        <statistics>
-          <quantiles type="std-percentiles"/>
-        </statistics>
-      </history>
-    </aggregation>
   </metric>
   <metric
       name="Experimental.LayoutInstability.MaxCumulativeShiftScoreAtFirstOnHidden.SessionWindow.Gap1000ms.Max5000ms">
@@ -16708,13 +16727,6 @@ be describing additional metrics about the same event.
       LayoutInstability.MaxCumulativeShiftScore.SessionWindow.Gap1000ms.Max5000ms
       for some reasons.
     </summary>
-    <aggregation>
-      <history>
-        <statistics>
-          <quantiles type="std-percentiles"/>
-        </statistics>
-      </history>
-    </aggregation>
   </metric>
   <metric name="Experimental.Navigation.UserInitiated">
     <summary>
@@ -16818,6 +16830,13 @@ be describing additional metrics about the same event.
       page load, in ms. For this metric, we measure the latency of user
       interactions by Responsiveness.UserInteraction.MaxEventDuration.
     </summary>
+    <aggregation>
+      <history>
+        <statistics>
+          <quantiles type="std-percentiles"/>
+        </statistics>
+      </history>
+    </aggregation>
   </metric>
   <metric
       name="InteractiveTiming.UserInteractionLatencyAtFirstOnHidden.HighPercentile2.MaxEventDuration">
@@ -16869,6 +16888,13 @@ be describing additional metrics about the same event.
       measure the latency of user interactions by
       Responsiveness.UserInteraction.MaxEventDuration.
     </summary>
+    <aggregation>
+      <history>
+        <statistics>
+          <quantiles type="std-percentiles"/>
+        </statistics>
+      </history>
+    </aggregation>
   </metric>
   <metric name="IsCrossProcessNavigation">
     <owner>arthursonzogni@chromium.org</owner>
@@ -17528,18 +17554,6 @@ be describing additional metrics about the same event.
       recorded in PaintTiming.NavigationToLargestContentfulPaint2 for some
       reasons.
     </summary>
-    <aggregation>
-      <history>
-        <index fields="profile.country"/>
-        <index fields="profile.country,profile.system_ram"/>
-        <index fields="profile.is_dominant_version"/>
-        <index fields="profile.is_latest_version"/>
-        <index fields="profile.system_ram"/>
-        <statistics>
-          <quantiles type="std-percentiles"/>
-        </statistics>
-      </history>
-    </aggregation>
   </metric>
   <metric name="PaintTiming.ParseStartToFirstContentfulPaintMs">
     <summary>
@@ -17559,6 +17573,13 @@ be describing additional metrics about the same event.
       Similar to PaintTiming.NavigationToLargestContentfulPaint2, except that it
       is recorded before the first soft navigation.
     </summary>
+    <aggregation>
+      <history>
+        <statistics>
+          <quantiles type="std-percentiles"/>
+        </statistics>
+      </history>
+    </aggregation>
   </metric>
   <metric name="ParseTiming.ActualNavigationStartToParseStartMs">
     <summary>
@@ -17616,6 +17637,13 @@ be describing additional metrics about the same event.
       the history API or the new Navigation API, triggered by a user gesture and
       meaningfully modify the DOM, replacing the previous content with new one.
     </summary>
+    <aggregation>
+      <history>
+        <statistics>
+          <quantiles type="std-percentiles"/>
+        </statistics>
+      </history>
+    </aggregation>
   </metric>
   <metric name="ThirdPartyCookieBlockingEnabledForSite" enum="Boolean">
     <owner>dullweber@chromium.org</owner>
@@ -18345,7 +18373,7 @@ be describing additional metrics about the same event.
 
 <event name="PasswordManager.Classification">
   <owner>kazinova@google.com</owner>
-  <owner>vasilii@chromium.org</owner>
+  <owner>chrome-password-manager-metrics-alerts@google.com</owner>
   <summary>
     Metrics for clientside password form classifications. Recorded when the
     field types are received by Password Manager after the model finishes
@@ -18426,7 +18454,7 @@ be describing additional metrics about the same event.
 
 <event name="PasswordManager.NewlySavedPassword">
   <owner>kazinova@google.com</owner>
-  <owner>vasilii@chromium.org</owner>
+  <owner>chrome-password-manager-metrics-alerts@google.com</owner>
   <summary>
     Metrics for newly saved credentials, recorded at the moment of saving.
   </summary>
@@ -18542,7 +18570,7 @@ be describing additional metrics about the same event.
 
 <event name="PasswordManager.SavedPassword">
   <owner>kazinova@google.com</owner>
-  <owner>vasilii@chromium.org</owner>
+  <owner>chrome-password-manager-metrics-alerts@google.com</owner>
   <summary>
     Metrics for saved passwords, recorded at the moment of saving.
   </summary>
@@ -18563,7 +18591,7 @@ be describing additional metrics about the same event.
 
 <event name="PasswordManager.WellKnownChangePasswordResult">
   <owner>kazinova@google.com</owner>
-  <owner>vasilii@chromium.org</owner>
+  <owner>chrome-password-manager-metrics-alerts@google.com</owner>
   <summary>
     Metrics related to the usage and support of .well-known/change-password. The
     .well-known/change-password standard is defined to redirect to the sites
@@ -23273,6 +23301,13 @@ be describing additional metrics about the same event.
       the page load end. See definition of user interaction:
       https://web.dev/better-responsiveness-metric/#group-events-into-interactions
     </summary>
+    <aggregation>
+      <history>
+        <statistics>
+          <quantiles type="std-percentiles"/>
+        </statistics>
+      </history>
+    </aggregation>
   </metric>
   <metric
       name="InteractiveTiming.UserInteractionLatency.HighPercentile2.MaxEventDuration">
@@ -23283,6 +23318,13 @@ be describing additional metrics about the same event.
       measure the latency of user interactions by
       Responsiveness.UserInteraction.MaxEventDuration.
     </summary>
+    <aggregation>
+      <history>
+        <statistics>
+          <quantiles type="std-percentiles"/>
+        </statistics>
+      </history>
+    </aggregation>
   </metric>
   <metric
       name="LayoutInstability.MaxCumulativeShiftScore.SessionWindow.Gap1000ms.Max5000ms">
@@ -23326,6 +23368,13 @@ be describing additional metrics about the same event.
       Measures the LargestContentfulPaint in milliseconds from the start time of
       the soft navigation to the LCP time.
     </summary>
+    <aggregation>
+      <history>
+        <statistics>
+          <quantiles type="std-percentiles"/>
+        </statistics>
+      </history>
+    </aggregation>
   </metric>
   <metric name="PaintTiming.LargestContentfulPaintBPP"
       enum="BitsPerPixelExponential">

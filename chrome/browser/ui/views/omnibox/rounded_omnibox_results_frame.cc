@@ -17,6 +17,7 @@
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_aim_popup_webui_content.h"
+#include "chrome/browser/ui/views/omnibox/omnibox_popup_webui_base_content.h"
 #include "ui/base/cursor/cursor.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
@@ -29,6 +30,7 @@
 #include "ui/views/bubble/bubble_border.h"
 #include "ui/views/layout/layout_provider.h"
 #include "ui/views/metadata/view_factory.h"
+#include "ui/views/view_utils.h"
 
 #if defined(USE_AURA)
 #include "ui/aura/window.h"
@@ -40,9 +42,6 @@
 #endif
 
 namespace {
-
-// Value from the spec controlling appearance of the shadow.
-constexpr int kElevation = 16;
 
 #if !defined(USE_AURA)
 
@@ -263,12 +262,7 @@ RoundedOmniboxResultsFrame::RoundedOmniboxResultsFrame(
   contents_host->AddChildViewRaw(contents_.get());
 
   // Initialize the shadow.
-  auto border = std::make_unique<views::BubbleBorder>(
-      views::BubbleBorder::Arrow::NONE,
-      views::BubbleBorder::Shadow::STANDARD_SHADOW);
-  border->set_rounded_corners(gfx::RoundedCornersF(corner_radius));
-  border->set_md_shadow_elevation(kElevation);
-  SetBorder(std::move(border));
+  SetElevation(kDefaultElevation);
 
   AddChildView(std::move(contents_host));
 }
@@ -314,7 +308,7 @@ gfx::Insets RoundedOmniboxResultsFrame::GetLocationBarAlignmentInsets() {
 
 // static
 gfx::Insets RoundedOmniboxResultsFrame::GetShadowInsets() {
-  return views::BubbleBorder::GetBorderAndShadowInsets(kElevation);
+  return views::BubbleBorder::GetBorderAndShadowInsets(kDefaultElevation);
 }
 
 std::unique_ptr<views::View> RoundedOmniboxResultsFrame::ExtractContents() {
@@ -326,11 +320,37 @@ views::View* RoundedOmniboxResultsFrame::GetContents() {
   return contents_;
 }
 
+OmniboxPopupWebUIBaseContent*
+RoundedOmniboxResultsFrame::GetOmniboxPopupWebUIBaseContent() {
+  views::View* container = GetContents();
+  // `container` holds the `OmniboxPopupWebUIBaseContent` as a child. It can be
+  // empty before the WebUI content wrapper has finished loading, or after the
+  // widget/popup is closed and contents are extracted.
+  return container && !container->children().empty()
+             ? views::AsViewClass<OmniboxPopupWebUIBaseContent>(
+                   container->children().front())
+             : nullptr;
+}
+
 void RoundedOmniboxResultsFrame::SetCutoutVisibility(bool visible) {
   if (visible == top_background_->GetVisible()) {
     return;
   }
   top_background_->SetVisible(visible);
+}
+
+void RoundedOmniboxResultsFrame::SetElevation(int elevation) {
+  const int corner_radius = views::LayoutProvider::Get()->GetCornerRadiusMetric(
+      views::ShapeContextTokens::kOmniboxExpandedRadius);
+  auto border = std::make_unique<views::BubbleBorder>(
+      views::BubbleBorder::Arrow::NONE,
+      elevation == 0 ? views::BubbleBorder::Shadow::NO_SHADOW
+                     : views::BubbleBorder::Shadow::STANDARD_SHADOW);
+  border->set_rounded_corners(gfx::RoundedCornersF(corner_radius));
+  if (elevation > 0) {
+    border->set_md_shadow_elevation(elevation);
+  }
+  SetBorder(std::move(border));
 }
 
 void RoundedOmniboxResultsFrame::Layout(PassKey) {

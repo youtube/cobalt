@@ -365,7 +365,7 @@ void SendTabToSelfBridge::OnCommitAttemptErrors(
 
 syncer::DataTypeSyncBridge::CommitAttemptFailedBehavior
 SendTabToSelfBridge::OnCommitAttemptFailed(syncer::SyncCommitError error) {
-  commit_tracker_->OnCommitAttemptFailed();
+  commit_tracker_->OnCommitAttemptFailed(error);
   // Even if the immediate UI notification failed, the sync engine should
   // keep trying to commit the entry in the background (e.g. if the failure was
   // due to a transient network issue).
@@ -727,6 +727,10 @@ void SendTabToSelfBridge::OnReadAllMetadata(
     return;
   }
   change_processor()->ModelReadyToSync(std::move(metadata_batch));
+
+  for (auto& observer : observers_) {
+    observer.OnModelReady();
+  }
 
   DoGarbageCollection();
 }

@@ -1,7 +1,1 @@
-monorail: {
-  component: "Blink>Forms>Color"
-}
-team_email: "dom-dev@google.com"
-buganizer_public: {
-  component_id: 1456485
-}
+mixins: "//third_party/blink/renderer/modules/eyedropper/COMMON_METADATA"

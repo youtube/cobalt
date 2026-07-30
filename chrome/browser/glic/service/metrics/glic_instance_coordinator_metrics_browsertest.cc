@@ -49,10 +49,8 @@ IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorMetricsBrowserTest,
   ASSERT_OK_AND_ASSIGN(GlicInstanceImpl * instance2, OpenGlicForActiveTab());
 
   // 4. Close one instance to end concurrent visibility.
-  instance2->Close(new_tab);
-
-  // Wait for it to close.
-  ASSERT_TRUE(base::test::RunUntil([&]() { return !instance2->IsShowing(); }));
+  PreventDeletionOnClose(instance2);
+  ASSERT_OK(CloseGlicForTabAndWait(new_tab));
 
   // Verify histograms.
   histogram_tester.ExpectUniqueSample("Glic.ConcurrentVisibility.PeakCount", 2,

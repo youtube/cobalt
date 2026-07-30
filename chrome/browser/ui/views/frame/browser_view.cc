@@ -681,7 +681,7 @@ class BrowserView::ExclusiveAccessContextImpl
   }
 
   ExclusiveAccessManager* GetExclusiveAccessManager() override {
-    return browser_view_->browser_->GetFeatures().exclusive_access_manager();
+    return ExclusiveAccessManager::From(browser_view_->browser());
   }
 
   ui::AcceleratorProvider* GetAcceleratorProvider() override {
@@ -1963,7 +1963,7 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
   UpdateUIForContents(new_contents, !tab_change_in_split_view);
 
   if (!IsFullscreen() || !tab_change_in_split_view) {
-    RevealTabStripIfNeeded();
+    RevealTopContainerIfNeeded();
   }
 
   if (change_tab_contents) {
@@ -2099,22 +2099,27 @@ void BrowserView::SetContentsSize(const gfx::Size& size) {
   DCHECK(!GetContentsSize().IsEmpty());
 
   int width_diff = size.width() - GetContentsSize().width();
-  const int height_diff = size.height() - GetContentsSize().height();
+  int height_diff = size.height() - GetContentsSize().height();
 
   // Resizing the window may be expensive, so only do it if the size is wrong.
   if (width_diff == 0 && height_diff == 0) {
     return;
   }
 
-  // If in split view, the width diff needs to be scaled by the split ratio to
+  // If in split view, the size diff needs to be scaled by the split ratio to
   // account for the combined width of both contents views.
   if (multi_contents_view_->IsInSplitView()) {
     const double split_ratio = multi_contents_view_->GetSplitRatio();
     CHECK(split_ratio > 0.0 && split_ratio < 1.0);
-    const double multiplier = 1.0 / (multi_contents_view_->GetActiveIndex() == 0
-                                         ? split_ratio
-                                         : (1.0 - split_ratio));
-    width_diff *= multiplier;
+    const double divider = multi_contents_view_->GetActiveIndex() == 0
+                               ? split_ratio
+                               : (1.0 - split_ratio);
+    if (multi_contents_view_->GetSplitLayout() ==
+        split_tabs::SplitTabLayout::kSideBySide) {
+      width_diff = std::round(width_diff / divider);
+    } else {
+      height_diff = std::round(height_diff / divider);
+    }
   }
 
   gfx::Rect bounds = GetBounds();
@@ -3032,23 +3037,6 @@ ShowTranslateBubbleResult BrowserView::ShowTranslateBubble(
   return ShowTranslateBubbleResult::kSuccess;
 }
 
-void BrowserView::StartPartialTranslate(const std::string& source_language,
-                                        const std::string& target_language,
-                                        const std::u16string& text_selection) {
-  // Show the Translate icon and enabled the associated command to show the
-  // Translate UI.
-  ChromeTranslateClient::FromWebContents(GetActiveWebContents())
-      ->GetTranslateManager()
-      ->GetLanguageState()
-      ->SetTranslateEnabled(true);
-
-  CHECK_DEREF(TranslateBubbleController::From(browser_.get()))
-      .StartPartialTranslate(
-          GetActiveWebContents(),
-          toolbar_button_provider()->GetBubbleAnchor(kActionShowTranslate),
-          kTranslatePageActionElementId, source_language, target_language,
-          text_selection);
-}
 
 DownloadBubbleUIController* BrowserView::GetDownloadBubbleUIController() {
 #if !BUILDFLAG(IS_CHROMEOS)
@@ -3408,6 +3396,13 @@ void BrowserView::OnTabChangedAt(tabs::TabInterface* tab,
                                  TabChangeType change_type) {
   content::WebContents* contents = tab->GetContents();
 
+  if (change_type == TabChangeType::kBlockedOnly) {
+    if (auto* container =
+            multi_contents_view_->GetContentsContainerViewFor(contents)) {
+      container->contents_view()->UpdateIsBlockedByModal();
+    }
+  }
+
   if (change_type != TabChangeType::kLoadingOnly || contents->IsLoading()) {
     return;
   }
@@ -3659,6 +3654,7 @@ BrowserView::GetNativeViewHostsForTopControlsSlide() {
 void BrowserView::ReparentTopContainerForStartOfImmersive() {
   top_container()->SetPaintToLayer();
   top_container()->layer()->SetFillsBoundsOpaquely(false);
+  top_container()->SetProperty(views::kViewDoesNotLayOutChildren, false);
 
   ReparentTabStripAndWebAppViewsToTopContainer(
       TabStripAndWebAppViewsReparentedState::kImmersiveMode);
@@ -3687,6 +3683,7 @@ void BrowserView::ReparentTopContainerForEndOfImmersive() {
       TabStripAndWebAppViewsReparentedState::kImmersiveMode);
 
   EnsureFocusOrder();
+  top_container()->SetProperty(views::kViewDoesNotLayOutChildren, true);
 }
 
 void BrowserView::ReparentTabStripAndWebAppViewsToTopContainer(
@@ -4353,10 +4350,19 @@ std::vector<ContentsWebView*> BrowserView::GetAllVisibleContentsWebViews() {
   return contents_views;
 }
 
-void BrowserView::RevealTabStripIfNeeded() {
+void BrowserView::RevealTopContainerIfNeeded() {
   auto* const immersive_mode_controller =
       ImmersiveModeController::From(browser());
   if (!immersive_mode_controller->IsEnabled()) {
+    return;
+  }
+
+  // With vertical tab strip, the tab strip isn't in the immersive bar so it
+  // only needs to be shown if the toolbar or location bar had focus.
+  if (auto* vertical_tab_strip_state_controller =
+          tabs::VerticalTabStripStateController::From(browser());
+      vertical_tab_strip_state_controller &&
+      vertical_tab_strip_state_controller->ShouldDisplayVerticalTabs()) {
     return;
   }
 
@@ -4861,12 +4867,6 @@ void BrowserView::AddedToWidget() {
   }
 
   UpdateTabSearchBubbleHost();
-
-  // TODO(pbos): Investigate whether the side panels should be creatable when
-  // the ToolbarView does not create a button for them. This specifically seems
-  // to hit web apps. See https://crbug.com/40803038.
-  auto* const side_panel_coordinator = SidePanelCoordinator::From(browser_);
-  side_panel_->AddObserver(side_panel_coordinator);
 
 #if BUILDFLAG(IS_CHROMEOS)
   // TopControlsSlideController must be initialized here in AddedToWidget()

@@ -51,10 +51,14 @@ if (use_system_harfbuzz) {
     allow_unsafe = true
     no_allocator_crate = true
     edition = "2021"
-    features = [ "font" ]
+    features = [
+      "font",
+      "shape",
+    ]
     bindgen_deps = [ ":hb_rs_generator" ]
     deps = [
       "//third_party/rust/font_types/v0_11:lib",
+      "//third_party/rust/harfrust/v0_8:lib",
       "//third_party/rust/read_fonts/v0_39:lib",
       "//third_party/rust/skrifa/v0_42:lib",
     ]
@@ -463,6 +467,7 @@ if (use_system_harfbuzz) {
       "HAVE_FONTATIONS",
       "HB_NO_MMAP",
       "HB_NO_RESOURCE_FORK",
+      "HAVE_HARFRUST",
 
       # Use assignment to empty value to work around a build failure.
       "HB_NO_PAINT=",
@@ -495,13 +500,6 @@ if (use_system_harfbuzz) {
       # We're not using HarfBuzz' drawing functions or debug tools in this
       # build.
       "HB_NO_DRAW",
-
-      # Workaround: We want HB_NO_DRAW but we still need CFF support for
-      # subsetting.
-      # TODO(crbug.com/507839557): Need to remove config override workaround
-      # after
-      # https://github.com/harfbuzz/harfbuzz/issues/5955 is resolved.
-      "HB_CONFIG_OVERRIDE_LAST_H=\"chromium-config-override.h\"",
 
       # Don't ship experimental extensions.
       "HB_NO_BORING_EXPANSION",
@@ -560,6 +558,7 @@ if (use_system_harfbuzz) {
     deps = [
       ":harfbuzz_rust",
       "//third_party/icu:icuuc",
+      "//third_party/rust/harfrust/v0_8:lib",
     ]
 
     if (use_glib) {

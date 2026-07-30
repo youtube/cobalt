@@ -77,6 +77,7 @@
 #include "base/android/jni_android.h"
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
+#include "base/memory/scoped_refptr.h"
 #include "components/password_manager/core/browser/split_stores_and_local_upm.h"
 #include "components/sync/android/jni_headers/ExplicitPassphrasePlatformClient_jni.h"
 #include "components/sync/android/sync_service_android_bridge.h"
@@ -350,12 +351,19 @@ void SyncServiceImpl::Initialize(DataTypeController::TypeVector controllers) {
   if (HasDisableReason(DISABLE_REASON_ENTERPRISE_POLICY)) {
     StopAndClear(ResetEngineReason::kEnterprisePolicy);
 #if BUILDFLAG(IS_CHROMEOS)
-    // On ChromeOS Ash, sync-the-feature stays disabled even after the policy is
-    // removed, for historic reasons. It is unclear if this behavior is
-    // optional, because it is indistinguishable from the
-    // sync-reset-via-dashboard case. It can be resolved by invoking
-    // ClearSyncFeatureDisabledViaDashboard().
-    user_settings_->SetSyncFeatureDisabledViaDashboard();
+    // Disable OS data types to avoid automatic local data upload upon policy
+    // removal, as OS data types do not support dual storage with UNO.
+    if (!HasSyncConsent() && IsReplaceSyncPromosWithSignInPromosEnabled()) {
+      user_settings_->SetSelectedOsTypes(/*sync_all_os_types=*/false,
+                                         UserSelectableOsTypeSet());
+    } else {
+      // On ChromeOS Ash, sync-the-feature stays disabled even after the policy
+      // is removed, for historic reasons. It is unclear if this behavior is
+      // optional, because it is indistinguishable from the
+      // sync-reset-via-dashboard case. It can be resolved by invoking
+      // ClearSyncFeatureDisabledViaDashboard().
+      user_settings_->SetSyncFeatureDisabledViaDashboard();
+    }
 #endif  // BUILDFLAG(IS_CHROMEOS)
   } else if (HasDisableReason(DISABLE_REASON_NOT_SIGNED_IN)) {
     // On ChromeOS-Ash, signout is not possible, so it's not necessary to handle
@@ -553,9 +561,14 @@ void SyncServiceImpl::TryStart() {
   // OSCryptAsync will just queue the callbacks and run them once the
   // encryptor is available. The first call to TryStartImpl() that succeeds
   // will create the engine, and subsequent ones will be no-ops.
-  auto barrier = base::BarrierCallback<os_crypt_async::Encryptor>(
-      2, base::BindOnce(&SyncServiceImpl::TryStartImpl,
-                        weak_factory_.GetWeakPtr(), base::TimeTicks::Now()));
+  // TODO(crbug.com/514283732): Now that Encryptor is a refcounted object, we
+  // can the barrier is probably not needed anymore. Investigate if it can be
+  // removed.
+  auto barrier =
+      base::BarrierCallback<scoped_refptr<os_crypt_async::Encryptor>>(
+          2,
+          base::BindOnce(&SyncServiceImpl::TryStartImpl,
+                         weak_factory_.GetWeakPtr(), base::TimeTicks::Now()));
 
   // One instance of Encryptor is needed for SyncServiceImpl and one for
   // SyncEngine.
@@ -565,7 +578,7 @@ void SyncServiceImpl::TryStart() {
 
 void SyncServiceImpl::TryStartImpl(
     base::TimeTicks try_start_time,
-    std::vector<os_crypt_async::Encryptor> encryptors) {
+    std::vector<scoped_refptr<os_crypt_async::Encryptor>> encryptors) {
   base::Time deferral_time;
   std::swap(deferring_first_start_since_, deferral_time);
 
@@ -580,8 +593,7 @@ void SyncServiceImpl::TryStartImpl(
 
   // One instance of Encryptor is needed for SyncServiceImpl and one for
   // SyncEngine.
-  crypto_.SetEncryptor(
-      std::make_unique<os_crypt_async::Encryptor>(std::move(encryptors[0])));
+  crypto_.SetEncryptor(std::move(encryptors[0]));
 
   if (!deferral_time.is_null()) {
     base::UmaHistogramCustomTimes("Sync.Startup.TimeDeferred2",
@@ -638,8 +650,7 @@ void SyncServiceImpl::TryStartImpl(
       std::make_unique<EngineComponentsFactoryImpl>(
           EngineSwitchesFromCommandLine());
 
-  params.encryptor =
-      std::make_unique<os_crypt_async::Encryptor>(std::move(encryptors[1]));
+  params.encryptor = std::move(encryptors[1]);
 
   if (!IsLocalSyncEnabled()) {
     auth_manager_->ConnectionOpened();
@@ -1394,15 +1405,15 @@ void SyncServiceImpl::ReconfigureDataTypesDueToCrypto() {
 
 void SyncServiceImpl::PassphraseTypeChanged(PassphraseType passphrase_type) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-#if !(BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX))
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
   // If kReplaceSyncPromosWithSignInPromos is enabled, new users with custom
   // passphrase should have kAutofill disabled upon the initial sign-in. This is
   // done to prevent confusion, as addresses are NOT encrypted by the custom
   // passphrase
   //
-  // This check is skipped on desktop (Windows, Mac, Linux) because the user
-  // interface on those platforms already clarifies this nuance about address
-  // encryption.
+  // This check is skipped on desktop (Windows, Mac, Linux) and ChromeOS because
+  // the user interface on those platforms already clarifies this nuance about
+  // address encryption.
   //
   // The first `PassphraseTypeChanged()` call reflects the server-side
   // passphrase type before signing in.
@@ -1854,12 +1865,6 @@ void SyncServiceImpl::HasUnsyncedItemsForTest(
   engine_->HasUnsyncedItemsForTest(std::move(cb));  // IN-TEST
 }
 
-BackendMigrator* SyncServiceImpl::GetBackendMigratorForTest() {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  CHECK_IS_TEST();
-  return migrator_.get();
-}
-
 TypeStatusMapForDebugging SyncServiceImpl::GetTypeStatusMapForDebugging()
     const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -1890,12 +1895,19 @@ void SyncServiceImpl::OnSyncClientDisabledByPolicyChanged() {
   if (user_settings_->IsSyncClientDisabledByPolicy()) {
     StopAndClear(ResetEngineReason::kEnterprisePolicy);
 #if BUILDFLAG(IS_CHROMEOS)
-    // On ChromeOS Ash, sync-the-feature stays disabled even after the policy is
-    // removed, for historic reasons. It is unclear if this behavior is
-    // optional, because it is indistinguishable from the
-    // sync-reset-via-dashboard case. It can be resolved by invoking
-    // ClearSyncFeatureDisabledViaDashboard().
-    user_settings_->SetSyncFeatureDisabledViaDashboard();
+    // Disable OS data types to avoid automatic local data upload upon policy
+    // removal, as OS data types do not support dual storage with UNO.
+    if (!HasSyncConsent() && IsReplaceSyncPromosWithSignInPromosEnabled()) {
+      user_settings_->SetSelectedOsTypes(/*sync_all_os_types=*/false,
+                                         UserSelectableOsTypeSet());
+    } else {
+      // On ChromeOS Ash, sync-the-feature stays disabled even after the policy
+      // is removed, for historic reasons. It is unclear if this behavior is
+      // optional, because it is indistinguishable from the
+      // sync-reset-via-dashboard case. It can be resolved by invoking
+      // ClearSyncFeatureDisabledViaDashboard().
+      user_settings_->SetSyncFeatureDisabledViaDashboard();
+    }
 #endif  // BUILDFLAG(IS_CHROMEOS)
   } else {
     // Sync is no longer disabled by policy. Try starting it up if appropriate.

@@ -168,6 +168,9 @@ public class ToolbarPositionControllerTest {
                 public void showAndroidControls(boolean animate) {}
 
                 @Override
+                public void hideAndroidControls(boolean animate) {}
+
+                @Override
                 public void restoreControlsPositions() {}
 
                 @Override
@@ -1047,21 +1050,21 @@ public class ToolbarPositionControllerTest {
         assertTrue(mController.getIsFirstPositionChangeForTesting());
         // After setUp, mIsFirstPositionChange is true because initial position (TOP) didn't change.
         mController.maybeForceBottomToolbarLayoutUpdateAndCapture(/* isNtpShowing= */ true);
-        verify(mControlContainer, never()).doSynchronousLayoutAndCapture();
+        verify(mControlContainer, never()).doSynchronousLayout(anyBoolean());
 
         // Trigger a position change to set mIsFirstPositionChange to false.
         setUserToolbarAnchorPreference(false); // Changes to BOTTOM
         assertControlsAtBottom();
         // During this first change, maybeForceToolbarLayoutUpdateAndCapture() was called inside
         // updateCurrentPosition(), but mIsFirstPositionChange was still true, so it did nothing.
-        verify(mControlContainer, never()).doSynchronousLayoutAndCapture();
+        verify(mControlContainer, never()).doSynchronousLayout(anyBoolean());
 
         // mIsFirstPositionChange is now false.
         assertFalse(mController.getIsFirstPositionChangeForTesting());
 
         // 2. Test active tab is NTP.
         mController.maybeForceBottomToolbarLayoutUpdateAndCapture(/* isNtpShowing= */ true);
-        verify(mControlContainer, never()).doSynchronousLayoutAndCapture();
+        verify(mControlContainer, never()).doSynchronousLayout(anyBoolean());
 
         // 3. Test active tab is not NTP, and layout changed.
         // We need onToEdgeChange to return true.
@@ -1072,13 +1075,13 @@ public class ToolbarPositionControllerTest {
         mActivityTabSupplier.set(mTab);
         mController.onToEdgeChange(50, true, LayoutType.BROWSING);
         mController.maybeForceBottomToolbarLayoutUpdateAndCapture(/* isNtpShowing= */ false);
-        verify(mControlContainer).doSynchronousLayoutAndCapture();
+        verify(mControlContainer).doSynchronousLayout(true);
 
         // 4. Test active tab is not NTP, but layout DID NOT change.
         // mTopInset is now 0 (from previous call).
         clearInvocations(mControlContainer);
         mController.maybeForceBottomToolbarLayoutUpdateAndCapture(/* isNtpShowing= */ false);
-        verify(mControlContainer, never()).doSynchronousLayoutAndCapture();
+        verify(mControlContainer, never()).doSynchronousLayout(anyBoolean());
     }
 
     @Test
@@ -1244,6 +1247,34 @@ public class ToolbarPositionControllerTest {
 
         // Should become HIDDEN.
         assertEquals(LayerVisibility.HIDDEN, toolbarLayer.getLayerVisibility());
+    }
+
+    @Test
+    @Config(qualifiers = "sw400dp")
+    public void testLayerVisibilityTransitions_Snap() {
+        // Start at BOTTOM (pref is BOTTOM).
+        setUserToolbarAnchorPreference(false);
+        assertControlsAtBottom();
+        mBrowserControlsObserver
+                .onBottomControlsHeightAnimationEnded(); // Resolve initial SHOWING to VISIBLE
+
+        BottomControlsLayer toolbarLayer =
+                mBottomControlsStacker.getLayerForTesting(LayerType.BOTTOM_TOOLBAR);
+        assertEquals(LayerVisibility.VISIBLE, toolbarLayer.getLayerVisibility());
+
+        // Simulate Omnibox Focus -> Should SNAP to TOP.
+        mIsOmniboxFocused.set(true);
+        assertControlsAtTop();
+
+        // It should be in HIDDEN state IMMEDIATELY, not HIDING.
+        assertEquals(LayerVisibility.HIDDEN, toolbarLayer.getLayerVisibility());
+
+        // Simulate Omnibox Unfocus -> Should SNAP to BOTTOM.
+        mIsOmniboxFocused.set(false);
+        assertControlsAtBottom();
+
+        // It should be in VISIBLE state IMMEDIATELY, not SHOWING.
+        assertEquals(LayerVisibility.VISIBLE, toolbarLayer.getLayerVisibility());
     }
 
     private void assertControlsAtBottom() {

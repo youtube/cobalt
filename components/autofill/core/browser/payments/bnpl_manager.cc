@@ -312,10 +312,10 @@ void BnplManager::OnCreditCardSuggestionsShown(
   }
 
   CHECK(payments_autofill_client().GetBnplStrategy());
-  using enum BnplStrategy::SuggestionShownNextAction;
+  using enum BnplStrategy::SuggestionsShownNextAction;
   switch (payments_autofill_client()
               .GetBnplStrategy()
-              ->GetNextActionOnSuggestionShown()) {
+              ->GetNextActionOnSuggestionsShown()) {
     case kNotifyUpdateCallbackOfSuggestionsShownResponse:
       // The update suggestions callback attempts to add a BNPL entry to the
       // list of suggestions if no BNPL entry exists in the list.
@@ -1261,8 +1261,8 @@ void BnplManager::ReplaceIssuerSuggestionsWithLoadingThrobber() {
 void BnplManager::HideSuggestionsOrRemoveSelectBnplIssuerOrProgressUi() {
   if (base::FeatureList::IsEnabled(
           features::kAutofillEnablePayNowPayLaterTabs)) {
-    browser_autofill_manager_->client().HideAutofillSuggestions(
-        SuggestionHidingReason::kHiddenByCaller);
+    browser_autofill_manager_->client().HideSuggestions(
+        SuggestionHidingReason::kHiddenByCaller, /*product=*/std::nullopt);
   } else {
     payments_autofill_client()
         .GetBnplUiDelegate()

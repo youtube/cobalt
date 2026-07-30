@@ -10,6 +10,7 @@
 #import "components/prefs/ios/pref_observer_bridge.h"
 #import "components/prefs/pref_change_registrar.h"
 #import "ios/chrome/browser/banner_promo/model/default_browser_banner_promo_app_agent.h"
+#import "ios/chrome/browser/bubble/model/tab_based_iph_browser_agent.h"
 #import "ios/chrome/browser/default_browser/model/promo_source.h"
 #import "ios/chrome/browser/fullscreen/public/fullscreen_metrics.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_controller.h"
@@ -154,15 +155,14 @@
   return self;
 }
 
+#pragma mark - Public
+
 - (void)updateConsumerWithWebState:(web::WebState*)webState
                           animated:(BOOL)animated {
   if (!webState) {
     return;
   }
-  [self.consumer setCanGoBack:self.navigationBrowserAgent->CanGoBack(webState)];
-  [self.consumer
-      setCanGoForward:self.navigationBrowserAgent->CanGoForward(webState)
-             animated:animated];
+  [self updateConsumerNavigationButtons:webState animated:animated];
 
   const GURL visibleURL = webState->GetVisibleURL();
   [self.consumer setShareEnabled:!visibleURL.is_empty()];
@@ -248,11 +248,17 @@
   if (self.navigationBrowserAgent) {
     self.navigationBrowserAgent->GoBack();
   }
+  if (self.tabBasedIPHAgent) {
+    self.tabBasedIPHAgent->NotifyBackForwardButtonTap();
+  }
 }
 
 - (void)goForward {
   if (self.navigationBrowserAgent) {
     self.navigationBrowserAgent->GoForward();
+  }
+  if (self.tabBasedIPHAgent) {
+    self.tabBasedIPHAgent->NotifyBackForwardButtonTap();
   }
 }
 
@@ -268,10 +274,20 @@
   }
 }
 
-#pragma mark - ToolbarMutator
-
 - (void)tabGroupIndicatorVisibilityUpdated:(BOOL)visible {
   [self setUICurrentlySupportsPromo:!visible];
+}
+
+- (void)assistantButtonTapped {
+  GeminiStartupState* startupState = [[GeminiStartupState alloc]
+      initWithEntryPoint:gemini::EntryPoint::Toolbar];
+  [self.geminiHandler
+      startGeminiEntryFlowWithStartupState:startupState
+                        baseViewController:self.baseViewController
+                               accessPoint:signin_metrics::AccessPoint::
+                                               kIosGeminiButtonToolbar
+                  showSnackbarOnCompletion:YES
+                                completion:nil];
 }
 
 #pragma mark - ToolbarButtonMenuFactoryDelegate
@@ -305,21 +321,6 @@
   NOTREACHED();
 }
 
-- (void)addCurrentTabToGroup:(const TabGroup*)destinationGroup {
-  /// TODO(crbug.com/493948951): Implement this (iPad).
-  NOTIMPLEMENTED();
-}
-
-- (void)removeCurrentTabFromGroup {
-  /// TODO(crbug.com/493948951): Implement this (iPad).
-  NOTIMPLEMENTED();
-}
-
-- (void)moveCurrentTabToGroup:(const TabGroup*)destinationGroup {
-  /// TODO(crbug.com/493948951): Implement this (iPad).
-  NOTIMPLEMENTED();
-}
-
 #pragma mark - CRWWebStateObserver
 
 - (void)webState:(web::WebState*)webState
@@ -338,7 +339,7 @@
 }
 
 - (void)webStateDidStartLoading:(web::WebState*)webState {
-  [self updateConsumerWithWebState:webState animated:YES];
+  [self updateConsumerWithWebState:webState animated:NO];
 }
 
 - (void)webStateDidStopLoading:(web::WebState*)webState {
@@ -499,6 +500,35 @@
   return NO;
 }
 
+// Updates the consumer navigation arrows (forward, back) states for the given
+// `webState`.
+- (void)updateConsumerNavigationButtons:(web::WebState*)webState
+                               animated:(BOOL)animated {
+  if (!webState) {
+    return;
+  }
+  const GURL lastCommittedURL = webState->GetLastCommittedURL();
+  BOOL isLastCommittedUrlNtp =
+      IsUrlNtp(lastCommittedURL) || lastCommittedURL.is_empty();
+  BOOL isToolbarTransitioningToVisible =
+      isLastCommittedUrlNtp && !IsUrlNtp(webState->GetVisibleURL());
+
+  BOOL canGoForward = self.navigationBrowserAgent->CanGoForward(webState);
+  if (isToolbarTransitioningToVisible) {
+    // Navigation buttons will be preloaded before the toolbar appears.
+    animated = NO;
+    if (webState->GetNavigationManager()->GetPendingItemIndex() == -1) {
+      // The Web State is mid-navigation from the NTP to a webpage. Prevents the
+      // forward button from appearing during the navigation if it will not be
+      // present after the navigation.
+      canGoForward = NO;
+    }
+  }
+
+  [self.consumer setCanGoBack:self.navigationBrowserAgent->CanGoBack(webState)];
+  [self.consumer setCanGoForward:canGoForward animated:animated];
+}
+
 // Updates the consumer tab state.
 - (void)updateConsumerTabCountAndGroupState {
   if (_webStateList) {
@@ -523,20 +553,6 @@
   BOOL enabled = visible;
 
   [self.consumer setAssistantButtonVisible:visible enabled:enabled];
-}
-
-#pragma mark - ToolbarMutator
-
-- (void)assistantButtonTapped {
-  GeminiStartupState* startupState = [[GeminiStartupState alloc]
-      initWithEntryPoint:gemini::EntryPoint::Toolbar];
-  [self.geminiHandler
-      startGeminiEntryFlowWithStartupState:startupState
-                        baseViewController:self.baseViewController
-                               accessPoint:signin_metrics::AccessPoint::
-                                               kIosGeminiButtonToolbar
-                  showSnackbarOnCompletion:YES
-                                completion:nil];
 }
 
 @end

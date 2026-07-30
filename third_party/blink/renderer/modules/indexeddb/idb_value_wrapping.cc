@@ -127,7 +127,7 @@ void IDBValueWrapper::Clone(ScriptState* script_state, ScriptValue* clone) {
 }
 
 // static
-void IDBValueWrapper::WriteVarInt(unsigned value, Vector<char>& output) {
+void IDBValueWrapper::WriteVarInt(unsigned value, Vector<uint8_t>& output) {
   // Writes an unsigned integer as a base-128 varint.
   // The number is written, 7 bits at a time, from the least significant to
   // the most significant 7 bits. Each byte, except the last, has the MSB set.
@@ -189,7 +189,8 @@ void IDBValueWrapper::MaybeCompress() {
   wire_data_buffer_[2] = kCompressedWithSnappy;
   size_t compressed_length;
   snappy::RawCompress(reinterpret_cast<const char*>(wire_data_.data()),
-                      wire_data_size, &wire_data_buffer_[kHeaderSize],
+                      wire_data_size,
+                      reinterpret_cast<char*>(&wire_data_buffer_[kHeaderSize]),
                       &compressed_length);
   if (ShouldTransmitCompressed(wire_data_size, compressed_length)) {
     // Truncate the excess space that was previously allocated.
@@ -229,7 +230,7 @@ void IDBValueWrapper::MaybeStoreInBlob() {
     wrapper_blob_data->AppendBytes(wire_data_);
   } else {
     scoped_refptr<RawData> raw_data = RawData::Create();
-    raw_data->MutableData()->swap(wire_data_buffer_);
+    raw_data->MutableData().swap(wire_data_buffer_);
     wrapper_blob_data->AppendData(std::move(raw_data));
   }
   const size_t wire_data_size = wire_data_.size();
@@ -269,8 +270,7 @@ std::unique_ptr<IDBValue> IDBValueWrapper::Build() && {
         std::move(*serialized_value_.release()).ConsumeAndTakeBuffer());
   } else {
     // The wire bytes are coming from wire_data_buffer_, so we can avoid a copy.
-    DCHECK_EQ(wire_data_buffer_.data(),
-              reinterpret_cast<const char*>(wire_data_.data()));
+    DCHECK_EQ(wire_data_buffer_.data(), wire_data_.data());
     DCHECK_EQ(wire_data_buffer_.size(), wire_data_.size());
     value->SetData(std::move(wire_data_buffer_));
   }
@@ -305,7 +305,7 @@ bool IDBValueUnwrapper::IsWrapped(
 }
 
 // static
-void IDBValueUnwrapper::Unwrap(Vector<char>&& wrapper_blob_content,
+void IDBValueUnwrapper::Unwrap(Vector<uint8_t>&& wrapper_blob_content,
                                IDBValue& wrapped_value) {
   wrapped_value.SetData(std::move(wrapper_blob_content));
   wrapped_value.TakeLastBlob();

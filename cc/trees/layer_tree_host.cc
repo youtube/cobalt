@@ -475,11 +475,9 @@ std::unique_ptr<CommitState> LayerTreeHost::WillCommit(
     // ActiveCommitState() and return.
     pending_commit_state_ = std::move(activated_commit_state);
     pending_commit_state()->source_frame_number++;
+    property_trees()->ApplyChangeStateFrom(
+        pending_commit_state()->property_trees);
     pending_commit_state()->property_trees.clear();
-    property_trees()->ApplyChangeState(
-        pending_commit_state()->property_trees_change_state);
-    pending_commit_state()->property_trees_change_state =
-        PropertyTreesChangeState();
     // The completion event will be handled appropriately by the caller that
     // provided it.
     commit_completion_event_ = std::move(completion);
@@ -510,9 +508,8 @@ std::unique_ptr<CommitState> LayerTreeHost::ActivateCommitState() {
 
   // Snapshot property trees now to lock in the commit state while paint event
   // handlers run.
-  property_trees()->GetChangeState(
-      pending_commit_state()->property_trees_change_state);
   pending_commit_state()->property_trees = *property_trees();
+  pending_commit_state()->property_trees.TakeChangeStateFrom(*property_trees());
   property_trees()->ResetAllChangeTracking();
 
   std::unique_ptr<CommitState> result = std::move(pending_commit_state_);
@@ -777,9 +774,9 @@ bool LayerTreeHost::StartDeferringCommits(base::TimeDelta timeout,
   return proxy_->StartDeferringCommits(timeout, reason);
 }
 
-void LayerTreeHost::StopDeferringCommits(PaintHoldingCommitTrigger trigger) {
+void LayerTreeHost::StopDeferringCommits() {
   DCHECK(IsMainThread());
-  proxy_->StopDeferringCommits(trigger);
+  proxy_->StopDeferringCommits();
 }
 
 bool LayerTreeHost::IsDeferringCommits() const {
@@ -791,12 +788,10 @@ bool LayerTreeHost::IsRenderingPaused() const {
   return pause_rendering_count_ > 0;
 }
 
-void LayerTreeHost::OnDeferCommitsChanged(
-    bool defer_status,
-    PaintHoldingReason reason,
-    std::optional<PaintHoldingCommitTrigger> trigger) {
+void LayerTreeHost::OnDeferCommitsChanged(bool defer_status,
+                                          PaintHoldingReason reason) {
   DCHECK(IsMainThread());
-  client_->OnDeferCommitsChanged(defer_status, reason, trigger);
+  client_->OnDeferCommitsChanged(defer_status, reason);
 }
 
 void LayerTreeHost::SetShouldThrottleFrameRate(bool flag) {
@@ -888,7 +883,7 @@ void LayerTreeHost::SetNeedsCommitWithForcedRedraw() {
   pending_commit_state()->next_commit_forces_redraw = true;
   // This method is used by tests to ensure a commit before grabbing a screen
   // shot or processing input, so do not defer the commit.
-  StopDeferringCommits(PaintHoldingCommitTrigger::kFeatureDisabled);
+  StopDeferringCommits();
   proxy_->SetNeedsCommit();
 }
 

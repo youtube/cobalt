@@ -1699,7 +1699,8 @@ class CONTENT_EXPORT ContentBrowserClient {
 
   // Handles an unhandled incoming interface binding request from a Utility
   // process. Called on the IO thread.
-  virtual void BindUtilityHostReceiver(mojo::GenericPendingReceiver receiver) {}
+  virtual void BindUtilityHostReceiver(const std::string& service_name,
+                                       mojo::GenericPendingReceiver receiver) {}
 
   // Called on the main thread to handle an unhandled interface receiver binding
   // request from a render process. See |RenderThread::BindHostReceiver()|.
@@ -1863,12 +1864,6 @@ class CONTENT_EXPORT ContentBrowserClient {
   // be used in child process tokens, or nullopt if there is no security
   // attribute.
   virtual std::optional<std::wstring> GetWindowsSecurityAttributeName() const;
-
-  // Returns a list of base addresses that should be reserved in sandboxed
-  // child processes to force the OS to choose a different ASLR base for them.
-  // The addresses are later freed in the child process.
-  virtual std::vector<uintptr_t> GetAslrBeaconAddresses(
-      sandbox::mojom::Sandbox sandbox_type);
 #endif
 
   // Binds a new media remoter service to |receiver|, if supported by the
@@ -3052,7 +3047,8 @@ class CONTENT_EXPORT ContentBrowserClient {
   // Checks if file or directory pickers from the file system access web API
   // require a user gesture (transient activation). They usually do, but this
   // can be bypassed via admin policy.
-  virtual bool IsTransientActivationRequiredForShowFileOrDirectoryPicker(
+  [[nodiscard]] virtual bool
+  IsTransientActivationRequiredForShowFileOrDirectoryPicker(
       WebContents* web_contents);
 
   // Checks if the file picker from the file system access web API should be

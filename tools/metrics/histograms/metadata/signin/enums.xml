@@ -724,6 +724,18 @@ chromium-metrics-reviews@google.com.
   <int value="11" label="Token binding challenge success"/>
 </enum>
 
+<!-- LINT.IfChange(OAuth2UpgradeTokenFlowResult) -->
+
+<enum name="OAuth2UpgradeTokenFlowResult">
+  <int value="0" label="kSuccess"/>
+  <int value="1" label="kNetworkError"/>
+  <int value="2" label="kServerError"/>
+  <int value="3" label="kTokenGenerationFailure"/>
+  <int value="4" label="kFailedToSaveBindingKey"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/signin/internal/identity_manager/oauth2_upgrade_token_flow.h:OAuth2UpgradeTokenFlowResult) -->
+
 <!-- LINT.IfChange(OAuthConsumerId) -->
 
 <enum name="OAuthConsumerId">
@@ -829,6 +841,7 @@ chromium-metrics-reviews@google.com.
   <int value="99" label="Drive Picker Host"/>
   <int value="100" label="Skills Service"/>
   <int value="101" label="Context Memory Service"/>
+  <int value="102" label="Sync Preview"/>
 </enum>
 
 <!-- LINT.ThenChange(//components/signin/public/base/oauth_consumer_id.h:OAuthConsumerId) -->
@@ -1064,6 +1077,8 @@ chromium-metrics-reviews@google.com.
   <int value="102" label="Sign-in deep link (e.g. from cross-device QR code)"/>
   <int value="103" label="Age mismatch signout (iOS only)"/>
   <int value="104" label="Gemini Toolbar button (iOS only)"/>
+  <int value="105" label="Indigo"/>
+  <int value="106" label="Overflow Menu (iOS only)"/>
 </enum>
 
 <enum name="SigninAccountReconcilorState">
@@ -1635,6 +1650,15 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(//google_apis/gaia/token_binding_response_encryption_error.h:TokenBindingResponseEncryptionError) -->
+
+<!-- LINT.IfChange(TokenBindingUpgradeSaveBindingKeyResult) -->
+
+<enum name="TokenBindingUpgradeSaveBindingKeyResult">
+  <int value="0" label="Success"/>
+  <int value="1" label="Refresh token not found"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/signin/internal/identity_manager/token_binding_helper.h:SaveBindingKeyResult) -->
 
 <!-- LINT.IfChange(WebSigninLoadingDialogStatus) -->
 

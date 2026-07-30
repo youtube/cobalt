@@ -547,7 +547,7 @@ bool Sanitizer::ReplaceElement(const QualifiedName& name) {
   // with element. (Done by caller.)
   // https://github.com/WICG/sanitizer-api/issues/365:
   // If name is "html", return false.
-  if (name == html_names::kHTMLTag) {
+  if (html_names::kHTMLTag.Matches(name)) {
     return false;
   }
   // Step 4: If configuration["replaceWithChildrenElements"] contains element:
@@ -769,6 +769,27 @@ bool Sanitizer::RemoveProcessingInstruction(const AtomicString& target) {
   }
 }
 
+bool Sanitizer::KeepAttribute(const SanitizerNameSet* allow_per_element,
+                              const SanitizerNameSet* remove_per_element,
+                              const QualifiedName& attribute) const {
+  bool keep = false;
+  if (remove_per_element && remove_per_element->Contains(attribute)) {
+    keep = false;
+  } else if (allow_attrs_ && allow_attrs_->Contains(attribute)) {
+    keep = true;
+  } else if (allow_per_element && allow_per_element->Contains(attribute)) {
+    keep = true;
+  } else if (remove_attrs_ && remove_attrs_->Contains(attribute)) {
+    keep = false;
+  } else if (allow_attrs_ && attribute.NamespaceURI().IsNull() &&
+             attribute.LocalName().starts_with("data-")) {
+    keep = data_attrs_ == SanitizerBoolWithAbsence::kTrue;
+  } else {
+    keep = !allow_attrs_ && !allow_per_element;
+  }
+  return keep;
+}
+
 void Sanitizer::SanitizeElement(Element* element, Mode safe) const {
   // https://wicg.github.io/sanitizer-api/#sanitize-core, Step 1.5.8 + 1.5.9.1-4
   //
@@ -789,21 +810,7 @@ void Sanitizer::SanitizeElement(Element* element, Mode safe) const {
           ? nullptr
           : &remove_per_element_iter->value;
   for (const QualifiedName& name : element->getAttributeQualifiedNames()) {
-    bool keep = false;
-    if (remove_per_element && remove_per_element->Contains(name)) {
-      keep = false;
-    } else if (allow_attrs_ && allow_attrs_->Contains(name)) {
-      keep = true;
-    } else if (allow_per_element && allow_per_element->Contains(name)) {
-      keep = true;
-    } else if (remove_attrs_ && remove_attrs_->Contains(name)) {
-      keep = false;
-    } else if (allow_attrs_ && name.NamespaceURI().IsNull() &&
-               name.LocalName().starts_with("data-")) {
-      keep = data_attrs_ == SanitizerBoolWithAbsence::kTrue;
-    } else {
-      keep = !allow_attrs_ && !allow_per_element;
-    }
+    bool keep = KeepAttribute(allow_per_element, remove_per_element, name);
     if (!keep) {
       element->removeAttribute(name);
     }
@@ -859,25 +866,25 @@ void Sanitizer::SanitizeJavascriptNavigationAttributes(Element* element,
 
   // Attributes that trigger navigation:
   const QualifiedName& qname = element->TagQName();
-  if (qname == html_names::kATag || qname == html_names::kAreaTag ||
-      qname == html_names::kBaseTag) {
+  if (html_names::kATag.Matches(qname) || html_names::kAreaTag.Matches(qname) ||
+      html_names::kBaseTag.Matches(qname)) {
     RemoveAttributeIfProtocolIsJavaScript(element, html_names::kHrefAttr);
-  } else if (qname == svg_names::kATag ||
+  } else if (svg_names::kATag.Matches(qname) ||
              element->namespaceURI() == mathml_names::kNamespaceURI) {
     RemoveAttributeIfProtocolIsJavaScript(element, html_names::kHrefAttr);
     RemoveAttributeIfProtocolIsJavaScript(element, xlink_names::kHrefAttr);
-  } else if (qname == html_names::kButtonTag ||
-             qname == html_names::kInputTag) {
+  } else if (html_names::kButtonTag.Matches(qname) ||
+             html_names::kInputTag.Matches(qname)) {
     RemoveAttributeIfProtocolIsJavaScript(element, html_names::kFormactionAttr);
-  } else if (qname == html_names::kFormTag) {
+  } else if (html_names::kFormTag.Matches(qname)) {
     RemoveAttributeIfProtocolIsJavaScript(element, html_names::kActionAttr);
-  } else if (qname == html_names::kIFrameTag) {
+  } else if (html_names::kIFrameTag.Matches(qname)) {
     RemoveAttributeIfProtocolIsJavaScript(element, html_names::kSrcAttr);
 
     // SVG animations of navigating attributes:
-  } else if (qname == svg_names::kAnimateTag ||
-             qname == svg_names::kAnimateTransformTag ||
-             qname == svg_names::kSetTag) {
+  } else if (svg_names::kAnimateTag.Matches(qname) ||
+             svg_names::kAnimateTransformTag.Matches(qname) ||
+             svg_names::kSetTag.Matches(qname)) {
     RemoveAttributeIfValueIsHref(element, svg_names::kAttributeNameAttr);
   }
 }
@@ -1408,6 +1415,23 @@ bool Sanitizer::isValid() const {
   }
 
   return true;
+}
+
+bool Sanitizer::AllowIsAttribute(const QualifiedName& element_name) const {
+  const auto allow_per_element_iter =
+      allow_attrs_per_element_.find(element_name);
+  const SanitizerNameSet* allow_per_element =
+      (allow_per_element_iter == allow_attrs_per_element_.end())
+          ? nullptr
+          : &allow_per_element_iter->value;
+  const auto remove_per_element_iter =
+      remove_attrs_per_element_.find(element_name);
+  const SanitizerNameSet* remove_per_element =
+      (remove_per_element_iter == remove_attrs_per_element_.end())
+          ? nullptr
+          : &remove_per_element_iter->value;
+  return KeepAttribute(allow_per_element, remove_per_element,
+                       html_names::kIsAttr);
 }
 
 void StreamingSanitizer::DidParseDocument(Document* document) {

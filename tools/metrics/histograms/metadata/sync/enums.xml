@@ -387,6 +387,8 @@ chromium-metrics-reviews@google.com.
   <int value="113" label="DriveDisclaimerAccepted"/>
   <int value="114" label="AutofillAiShoppingEntitiesEnabled"/>
   <int value="115" label="PrefTranslateRecentTargets"/>
+  <int value="116" label="BookmarkBarVisibilityState"/>
+  <int value="117" label="SyncableAccountScopedPrefForTesting"/>
 <!-- LINT.ThenChange(/components/sync_preferences/common_syncable_prefs_database.cc:CommonSyncablePref)-->
 
 <!-- LINT.IfChange(ChromeSyncablePref) -->
@@ -807,6 +809,8 @@ chromium-metrics-reviews@google.com.
   <int value="100378" label="iOSPriceTrackingPromoOptOut"/>
   <int value="100379" label="AccessibilityReadAnythingLineFocusEnabledMode"/>
   <int value="100380" label="AppRatingPromptShown"/>
+  <int value="100381"
+      label="AccessibilityReadAnythingLastOpenedPresentationState"/>
 <!-- LINT.ThenChange(/chrome/browser/sync/prefs/chrome_syncable_prefs_database.cc:ChromeSyncablePref)-->
 
 <!-- LINT.IfChange(IosSyncablePref) -->
@@ -825,6 +829,9 @@ chromium-metrics-reviews@google.com.
   <int value="200011" label="IOSBwgConsent"/>
   <int value="200012" label="IOSGeminiLiveConsent"/>
   <int value="200013" label="IOSGeminiLiveIntroPlayed"/>
+  <int value="200014" label="LevelUpCompletedTasks"/>
+  <int value="200015" label="LevelUpHighestLevel"/>
+  <int value="200016" label="LevelUpUIEnabled"/>
 <!-- LINT.ThenChange(/ios/chrome/browser/sync/model/prefs/ios_chrome_syncable_prefs_database.cc:IosSyncablePref)-->
 
 </enum>
@@ -1031,7 +1038,7 @@ chromium-metrics-reviews@google.com.
   <int value="76" label="Skill"/>
   <int value="77" label="Gemini Thread"/>
   <int value="78" label="Themes (iOS)"/>
-  <int value="79" label="Accessibility Annotation"/>
+  <int value="79" label="(Obsolete) Accessibility Annotation"/>
   <int value="80" label="Themes (Android)"/>
 </enum>
 
