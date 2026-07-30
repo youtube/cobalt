@@ -580,6 +580,7 @@
 <translation id="3143515551205905069">Cancel·la la sincronització</translation>
 <translation id="3144126448740580210">FET</translation>
 <translation id="3148052723910099040">Quadrícula de pestanyes normals</translation>
+<translation id="3148237711805373460">Porta-m'hi</translation>
 <translation id="3157387275655328056">Afegeix a la llista de lectura</translation>
 <translation id="315778507796115851">Historial</translation>
 <translation id="31652791196570636">Ignora</translation>
@@ -1523,6 +1524,7 @@ Handoff també ha d'estar activat a la secció General de Configuració, i els v
 <translation id="6556866813142980365">Refés</translation>
 <translation id="6559301491397835130">{count,plural, =1{L'adreça d'interès s'ha desat a "{title}", i només en aquest dispositiu.}other{Les adreces d'interès s'han desat a "{title}", i només en aquest dispositiu.}}</translation>
 <translation id="656065428026159829">Mostra'n més</translation>
+<translation id="6565899972286925956">Crea qualsevol cosa</translation>
 <translation id="6571070086367343653">Edita la targeta de crèdit</translation>
 <translation id="6574092468346088891">Activa les notificacions de Comprovació de seguretat</translation>
 <translation id="6579867704846662339">Pots triar si vols obrir els URL entrants d'altres aplicacions en incògnit.</translation>
@@ -1633,6 +1635,7 @@ Handoff també ha d'estar activat a la secció General de Configuració, i els v
 <translation id="6930799952781667037">Toca per canviar a aquest idioma.</translation>
 <translation id="693761253105515415">Estableix una contrasenya</translation>
 <translation id="6945221475159498467">Selecciona</translation>
+<translation id="6946722113367118030">Pensant</translation>
 <translation id="6950522403736391608">Amagades</translation>
 <translation id="6962809930976936328">Obtén informació detallada amb Gemini</translation>
 <translation id="6964300328304469089">Selecció actual: <ph name="NAME" />, <ph name="EMAIL" />. Tria un compte.</translation>
@@ -1975,6 +1978,7 @@ Handoff també ha d'estar activat a la secció General de Configuració, i els v
 <translation id="8205564605687841303">Cancel·la</translation>
 <translation id="8206354486702514201">L'administrador aplica aquesta opció de configuració.</translation>
 <translation id="8209050860603202033">Obre la imatge</translation>
+<translation id="8209237163365258530">Models de Gemini <ph name="VERSION_NUMBER" /></translation>
 <translation id="8211030355252954494">Has rebut contrasenyes per a <ph name="WEBSITE" /></translation>
 <translation id="8211406090763984747">La connexió és segura</translation>
 <translation id="8214293972734702249">Fixada, <ph name="TAB_TITLE" /></translation>

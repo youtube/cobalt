@@ -13,6 +13,7 @@
 #import "base/not_fatal_until.h"
 #import "base/notreached.h"
 #import "components/webauthn/core/browser/passkey_model_utils.h"
+#import "components/webauthn/ios/passkey_types.h"
 #import "ios/chrome/common/app_group/app_group_metrics.h"
 #import "ios/chrome/common/app_group/app_group_utils.h"
 #import "ios/chrome/common/crash_report/crash_helper.h"
@@ -563,7 +564,6 @@ enum class PasskeyUserVerificationStatus {
   if (!_passkeyKeychainProviderBridge) {
     _passkeyKeychainProviderBridge = [[PasskeyKeychainProviderBridge alloc]
           initWithEnableLogging:[self metricsAreEnabled]
-           navigationController:self.passkeyNavigationController
         navigationItemTitleView:self.passkeyNavigationItemTitleView];
     _passkeyKeychainProviderBridge.delegate = self;
   }
@@ -670,24 +670,12 @@ enum class PasskeyUserVerificationStatus {
                        }];
 }
 
-- (void)showEnrollmentWelcomeScreen:(ProceduralBlock)enrollBlock {
-  [self createAndPresentPasskeyWelcomeScreenForPurpose:
-            PasskeyWelcomeScreenPurpose::kEnroll
-                                   primaryButtonAction:enrollBlock];
-}
-
-- (void)showFixDegradedRecoverabilityWelcomeScreen:
-    (ProceduralBlock)fixDegradedRecoverabilityBlock {
-  [self createAndPresentPasskeyWelcomeScreenForPurpose:
-            PasskeyWelcomeScreenPurpose::kFixDegradedRecoverability
-                                   primaryButtonAction:
-                                       fixDegradedRecoverabilityBlock];
-}
-
-- (void)showReauthenticationWelcomeScreen:(ProceduralBlock)reauthenticateBlock {
-  [self createAndPresentPasskeyWelcomeScreenForPurpose:
-            PasskeyWelcomeScreenPurpose::kReauthenticate
-                                   primaryButtonAction:reauthenticateBlock];
+- (void)showWelcomeScreenWithPurpose:
+            (webauthn::PasskeyWelcomeScreenPurpose)purpose
+                          completion:
+                              (webauthn::PasskeyWelcomeScreenAction)completion {
+  [self createAndPresentPasskeyWelcomeScreenForPurpose:purpose
+                                   primaryButtonAction:completion];
 }
 
 - (void)providerDidCompleteReauthentication {
@@ -1321,9 +1309,10 @@ enum class PasskeyUserVerificationStatus {
 
 // Creates and presents a PasskeyWelcomeScreenViewController.
 - (void)createAndPresentPasskeyWelcomeScreenForPurpose:
-            (PasskeyWelcomeScreenPurpose)purpose
+            (webauthn::PasskeyWelcomeScreenPurpose)purpose
                                    primaryButtonAction:
-                                       (ProceduralBlock)primaryButtonAction {
+                                       (webauthn::PasskeyWelcomeScreenAction)
+                                           primaryButtonAction {
   // Early return if the `passkeyNavigationController` is already visible. This
   // means that a passkey welcome screen is already presented and a new one
   // shouldn't be shown. Hitting this early return is most likely a result of
@@ -1341,20 +1330,20 @@ enum class PasskeyUserVerificationStatus {
     return;
   }
 
-  ProceduralBlock action;
+  webauthn::PasskeyWelcomeScreenAction action;
   // With the `kReauthenticate` purpose, the user will be asked to enter their
   // Google Password Manager PIN, so no need to also do a device
   // reauthentication before showing the UI.
-  if (purpose != PasskeyWelcomeScreenPurpose::kReauthenticate &&
+  if (purpose != webauthn::PasskeyWelcomeScreenPurpose::kReauthenticate &&
       _userVerificationStatus == PasskeyUserVerificationStatus::kRequired) {
     __weak __typeof(self) weakSelf = self;
-    action = ^{
+    action = ^(UINavigationController* navigationController) {
       [weakSelf
           reauthenticateIfNeededToAccessPasskeys:YES
                            withCompletionHandler:^(
                                ReauthenticationResult result) {
                              if (result != ReauthenticationResult::kFailure) {
-                               primaryButtonAction();
+                               primaryButtonAction(navigationController);
                              } else {
                                [weakSelf exitWithErrorCode:
                                              ASExtensionErrorCodeFailed];
@@ -1366,7 +1355,7 @@ enum class PasskeyUserVerificationStatus {
   }
 
   NSString* userEmail;
-  if (purpose == PasskeyWelcomeScreenPurpose::kEnroll) {
+  if (purpose == webauthn::PasskeyWelcomeScreenPurpose::kEnroll) {
     userEmail = [self userEmail];
     if (!userEmail.length) {
       [self showGenericErrorAlert];

@@ -9,6 +9,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "build/build_config.h"
+#include "build/buildflag.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/themes/theme_properties.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
@@ -18,6 +19,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/frame/window_frame_util.h"
 #include "chrome/browser/ui/layout_constants.h"
+#include "chrome/browser/ui/tab_search_feature.h"
 #include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/tabs/tab_menu_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -40,6 +42,7 @@
 #include "chrome/browser/ui/views/tabs/tab_style_views.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
+#include "chrome/common/buildflags.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/commerce/core/commerce_feature_list.h"
@@ -68,6 +71,10 @@
 #include "ui/views/view.h"
 #include "ui/views/view_class_properties.h"
 #include "ui/views/view_utils.h"
+
+#if BUILDFLAG(ENABLE_GLIC)
+#include "chrome/browser/ui/views/tabs/glic/glic_button.h"
+#endif  // BUILDFLAG(ENABLE_GLIC)
 
 namespace {
 
@@ -558,6 +565,12 @@ views::View* HorizontalTabStripRegionView::GetDefaultFocusableChild() {
                          : AccessiblePaneView::GetDefaultFocusableChild();
 }
 
+#if BUILDFLAG(ENABLE_GLIC)
+glic::GlicButton* HorizontalTabStripRegionView::GetGlicButton() {
+  return tab_strip_action_container_->GetGlicButton();
+}
+#endif  // BUILDFLAG(ENABLE_GLIC)
+
 void HorizontalTabStripRegionView::InitializeTabStrip() {
   if (tab_strip_set_) {
     return;
@@ -579,20 +592,12 @@ bool HorizontalTabStripRegionView::IsTabStripEditable() const {
   return tab_strip_->IsTabStripEditable();
 }
 
-void HorizontalTabStripRegionView::DisableTabStripEditingForTesting() const {
+void HorizontalTabStripRegionView::DisableTabStripEditingForTesting() {
   tab_strip_->DisableTabStripEditingForTesting();  // IN-TEST
 }
 
 bool HorizontalTabStripRegionView::IsTabStripCloseable() const {
   return tab_strip_->IsTabStripCloseable();
-}
-
-bool HorizontalTabStripRegionView::IsAnimating() const {
-  return tab_strip_->IsAnimatingInTabStrip();
-}
-
-void HorizontalTabStripRegionView::StopAnimating() {
-  return tab_strip_->StopAnimating();
 }
 
 void HorizontalTabStripRegionView::UpdateLoadingAnimations(

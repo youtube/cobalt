@@ -1138,10 +1138,14 @@ void HTMLSelectElement::RestoreFormControlState(const FormControlState& state) {
         option_element->SetDirty(true);
         last_on_change_option_ = option_element;
       } else {
+        // If we couldn't restore any option, then reset to default selection
+        // instead of leaving this select in a broken state where no option is
+        // selected. See http://crbug.com/41360677
+        ResetToDefaultSelection();
         option_element = nullptr;
       }
     }
-    UpdateAllSelectedcontents(option_element);
+    UpdateAllSelectedcontents(last_on_change_option_);
   } else {
     wtf_size_t start_index = 0;
     for (wtf_size_t i = 0; i < state.ValueSize(); i += 2) {
@@ -1455,6 +1459,12 @@ IndexedPropertySetterResult HTMLSelectElement::AnonymousIndexedSetter(
 
 bool HTMLSelectElement::IsInteractiveContent() const {
   return true;
+}
+
+FocusgroupFlags HTMLSelectElement::NativeArrowKeyAxes() const {
+  // Select elements use arrow keys for option navigation (up/down and
+  // left/right both cycle through options in Chromium).
+  return FocusgroupFlags::kInline | FocusgroupFlags::kBlock;
 }
 
 void HTMLSelectElement::Trace(Visitor* visitor) const {
@@ -2052,6 +2062,24 @@ bool HTMLSelectElement::ShouldIgnoreDescendantsForOptionTraversals(
   }
   return IsA<HTMLSelectElement>(element) || IsA<HTMLOptionElement>(element) ||
          IsA<HTMLHRElement>(element);
+}
+
+std::unique_ptr<JSONObject> HTMLSelectElement::GetWebMCPParameterSchema()
+    const {
+  CHECK(RuntimeEnabledFeatures::WebMCPEnabled());
+  auto schema = std::make_unique<JSONObject>();
+  schema->SetString("type", "string");
+
+  auto one_of = std::make_unique<JSONArray>();
+  for (HTMLOptionElement& option : GetOptionList()) {
+    auto option_object = std::make_unique<JSONObject>();
+    option_object->SetString("const", option.value());
+    option_object->SetString("title", option.textContent());
+    one_of->PushObject(std::move(option_object));
+  }
+  schema->SetArray("oneOf", std::move(one_of));
+
+  return schema;
 }
 
 void HTMLSelectElement::FillWebMCPData(JSONValue& data) {

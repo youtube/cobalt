@@ -173,8 +173,8 @@
 #![allow(unused)]
 
 chromium::import! {
-  "//mojo/public/rust:mojo_rust_system_api";
-  "//mojo/public/rust/sequences:sequences";
+  "//mojo/public/rust/system";
+  "//mojo/public/rust/sequences";
 }
 
 use std::collections::HashMap;
@@ -185,9 +185,10 @@ use std::marker::PhantomData;
 // it's stabilized, if any uses remain.
 use std::sync::{Arc, Mutex, Weak};
 
-use mojo_rust_system_api::message_pipe::{MessageEndpoint, RawMojoMessage};
-use mojo_rust_system_api::mojo_types::{MojoResult, UntypedHandle};
 use sequences::SequencedTaskRunnerHandle;
+use system::message::RawMojoMessage;
+use system::message_pipe::MessageEndpoint;
+use system::mojo_types::{MojoResult, UntypedHandle};
 
 use crate::message::MojomMessage;
 use crate::message_pipe_watcher::{MessagePipeWatcher, ResponseSender};
@@ -377,8 +378,7 @@ pub mod remote {
 
         /// Create a new Mojo message pipe corresponding to `T`'s interface, and
         /// return the endpoints
-        pub fn new_pipe(
-        ) -> Result<(PendingRemote<T>, super::receiver::PendingReceiver<T>), MojoResult> {
+        pub fn new_pipe() -> MojoResult<(PendingRemote<T>, super::receiver::PendingReceiver<T>)> {
             let (endpoint1, endpoint2) = MessageEndpoint::create_pipe()?;
             return Ok((
                 PendingRemote::new(endpoint1),
@@ -483,22 +483,28 @@ pub mod remote {
         /// header, retrieve the corresponding response callback from
         /// the map, and invoke the interface's response handler with
         /// it.
-        fn incoming_message_handler(
-            raw_message: (Vec<u8>, Vec<UntypedHandle>),
-            callback_map: &CallbackMap<T>,
-        ) {
-            // FOR_RELEASE: This indicates a malformed mojo message, we should figure out
-            // what to do about those
-            let message: MojomMessage = MojomMessage::from_bytes(raw_message.0)
-                .expect("Incoming response failed to parse!");
+        fn incoming_message_handler(raw_message: RawMojoMessage, callback_map: &CallbackMap<T>) {
+            let message: MojomMessage = match MojomMessage::from_raw(&raw_message) {
+                Ok(msg) => msg,
+                Err(err) => {
+                    raw_message.report_bad_message(&err.to_string());
+                    return;
+                }
+            };
             let response_callback = callback_map
                 .lock()
                 .expect("Callback map should never be poisoned")
                 .remove(&message.header.request_id);
-            // FOR_RELEASE: This indicates a malformed mojo message, we should figure out
-            // what to do about those
-            let response_callback =
-                response_callback.expect("Incoming response had no request_id!");
+            let response_callback = match response_callback {
+                Some(callback) => callback,
+                None => {
+                    raw_message.report_bad_message(&format!(
+                        "Received message with unknown request_id {}",
+                        message.header.request_id
+                    ));
+                    return;
+                }
+            };
             T::handle_incoming_response(message, response_callback);
         }
     }
@@ -510,8 +516,6 @@ pub mod remote {
 
 // FOR_RELEASE: Put in a different file
 pub mod receiver {
-    use mojo_rust_system_api_61c68895::message_pipe::RawMojoMessage;
-
     use super::*;
 
     /// This type represents one end of a Mojo pipe corresponding to a
@@ -654,14 +658,17 @@ pub mod receiver {
         /// header, call the corresponding method on the state object, and then
         /// send a response back through the pipe (if the message expects one).
         fn incoming_message_handler(
-            raw_message: (Vec<u8>, Vec<UntypedHandle>),
+            raw_message: RawMojoMessage,
             state_weak: &Weak<Mutex<StateTy>>,
             sender: &ResponseSender,
         ) {
-            // FOR_RELEASE: This indicates a malformed mojo message, we should figure out
-            // what to do about those
-            let message: MojomMessage = MojomMessage::from_bytes(raw_message.0)
-                .expect("Incoming response failed to parse!");
+            let message: MojomMessage = match MojomMessage::from_raw(&raw_message) {
+                Ok(msg) => msg,
+                Err(err) => {
+                    raw_message.report_bad_message(&err.to_string());
+                    return;
+                }
+            };
 
             let expects_response = message
                 .header

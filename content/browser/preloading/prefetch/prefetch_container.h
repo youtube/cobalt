@@ -7,6 +7,7 @@
 
 #include <optional>
 
+#include "base/auto_reset.h"
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "base/observer_list_types.h"
@@ -198,17 +199,20 @@ class CONTENT_EXPORT PrefetchContainer {
     //
     // TODO(crbug.com/356314759): Update the description to "Called just
     // before dtor is called."
-    virtual void OnWillBeDestroyed(PrefetchContainer& prefetch_container) = 0;
+    virtual void OnWillBeDestroyed(
+        const PrefetchContainer& prefetch_container) = 0;
     // Called when initial eligibility is got.
-    virtual void OnGotInitialEligibility(PrefetchContainer& prefetch_container,
-                                         PreloadingEligibility eligibility) = 0;
+    virtual void OnGotInitialEligibility(
+        const PrefetchContainer& prefetch_container,
+        PreloadingEligibility eligibility) = 0;
     // Called if non-redirect header of prefetch response is determined, i.e.
     // successfully received or fetch requests including redirects failed.
     // Callers can check success/failure by `GetNonRedirectHead()`.
-    virtual void OnDeterminedHead(PrefetchContainer& prefetch_container) = 0;
+    virtual void OnDeterminedHead(
+        const PrefetchContainer& prefetch_container) = 0;
     // Called when load of prefetch completed or failed.
     virtual void OnPrefetchCompletedOrFailed(
-        PrefetchContainer& prefetch_container,
+        const PrefetchContainer& prefetch_container,
         const network::URLLoaderCompletionStatus& completion_status,
         const std::optional<int>& response_code) = 0;
   };
@@ -250,6 +254,9 @@ class CONTENT_EXPORT PrefetchContainer {
   const std::optional<net::HttpNoVarySearchData>& GetNoVarySearchHint() const;
 
   base::WeakPtr<PrefetchContainer> GetWeakPtr() {
+    return weak_method_factory_.GetWeakPtr();
+  }
+  base::WeakPtr<const PrefetchContainer> GetWeakPtr() const {
     return weak_method_factory_.GetWeakPtr();
   }
 
@@ -371,9 +378,10 @@ class CONTENT_EXPORT PrefetchContainer {
   // Note: Even if this returns `kServable`, `CreateRequestHandler()` can still
   // fail (returning null handler) due to final checks. See also the comment for
   // `PrefetchResponseReader::CreateRequestHandler()`.
-  PrefetchServableState GetServableState(
-      base::TimeDelta cacheable_duration) const;
-  PrefetchMatchResolverAction GetMatchResolverAction(
+  PrefetchServableState GetServableState() const;
+  PrefetchMatchResolverAction GetMatchResolverAction() const;
+  // Allows to pass `cacheable_duration` for testing.
+  PrefetchServableState GetServableStateForTesting(
       base::TimeDelta cacheable_duration) const;
 
   // Starts blocking `PrefetchMatchResolver` until non-redirect response header
@@ -466,6 +474,10 @@ class CONTENT_EXPORT PrefetchContainer {
   void OnPrefetchStarted();
 
   PrefetchServingHandle CreateServingHandle();
+
+  // Only for temporary const queries to `PrefetchServingHandle`, namely
+  // `HaveDefaultContextCookiesChanged()`.
+  std::unique_ptr<const PrefetchServingHandle> CreateConstServingHandle() const;
 
   void AddObserver(Observer* observer);
   void RemoveObserver(Observer* observer);
@@ -582,6 +594,12 @@ class CONTENT_EXPORT PrefetchContainer {
   void SetTriggeringOutcomeAndFailureReasonFromStatus(
       PrefetchStatus new_prefetch_status);
 
+  template <typename Method, typename... Args>
+  void NotifyObservers(Method method, const Args&... args) {
+    base::AutoReset<bool> auto_reset(&during_observer_notification_, true);
+    observers_.Notify(method, *this, args...);
+  }
+
   // Returns if WebContents-level UA overrides should be applied for a prefetch
   // request for `request_url`. Note that not only the User-Agent header but
   // also Client-Hints headers are affected by the UA overrides.
@@ -660,6 +678,10 @@ class CONTENT_EXPORT PrefetchContainer {
       const network::URLLoaderCompletionStatus& completion_status);
 
   PrefetchServableState GetServableStateInternal(
+      base::TimeDelta cacheable_duration) const;
+  PrefetchServableState GetServableStateInternal2(
+      base::TimeDelta cacheable_duration) const;
+  PrefetchMatchResolverAction GetMatchResolverActionInternal(
       base::TimeDelta cacheable_duration) const;
 
   // The prefetch request parameters of the very first initiator/requester of
@@ -781,7 +803,15 @@ class CONTENT_EXPORT PrefetchContainer {
   // True iff the destructor was called.
   bool is_in_dtor_ = false;
 
-  base::ObserverList<Observer> observers_;
+  // True during notifying `observers_`.
+  // This is used to `DUMP_WILL_BE_CHECK()` the disallowed operations during
+  // `Observer` callbacks. Theoretically there can still be violating corner
+  // cases, so `DUMP_WILL_BE_CHECK()` is used, to first monitor if there are
+  // actual violations in the wild.
+  bool during_observer_notification_ = false;
+
+  base::ObserverList<Observer> observers_{
+      base::ObserverListPolicy::EXISTING_ONLY};
 
   bool is_likely_ahead_of_prerender_ = false;
 

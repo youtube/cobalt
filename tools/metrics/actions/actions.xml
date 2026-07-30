@@ -680,6 +680,8 @@ should be able to be added at any place in this file.
       summary="For the RequestDesktopSiteWindowSetting feature."/>
   <variant name="_RestoreTabsOnFRE"
       summary="For the RestoreTabsOnFRE feature."/>
+  <variant name="_ResumptionRail"
+      summary="For Resumption Rail feature entrypoint."/>
   <variant name="_RtlGestureNavigation"
       summary="For the gesture navigation in RTL mode."/>
   <variant name="_SharedHighlightingBuilder"
@@ -4121,6 +4123,36 @@ should be able to be added at any place in this file.
   <description>
     Recorded when the user taps on the &quot;Apply&quot; button in the
     cross-device settings import snackbar.
+  </description>
+</action>
+
+<action name="Android.CrossDeviceSettingImport.OmniboxPosition.Apply">
+  <owner>clank-app-team@google.com</owner>
+  <owner>jhimawan@google.com</owner>
+  <description>
+    Recorded when the user taps on the &quot;Apply&quot; button in the
+    cross-device settings import snackbar, to apply the bottom/top omnibox
+    position setting only.
+  </description>
+</action>
+
+<action name="Android.CrossDeviceSettingImport.OmniboxPosition.Redo">
+  <owner>clank-app-team@google.com</owner>
+  <owner>jhimawan@google.com</owner>
+  <description>
+    Recorded when the user taps on the &quot;Redo&quot; button in the
+    cross-device settings import snackbar, to redo applying the bottom/top
+    omnibox position setting only.
+  </description>
+</action>
+
+<action name="Android.CrossDeviceSettingImport.OmniboxPosition.Undo">
+  <owner>clank-app-team@google.com</owner>
+  <owner>jhimawan@google.com</owner>
+  <description>
+    Recorded when the user taps on the &quot;Undo&quot; button in the
+    cross-device settings import snackbar, to undo applying the bottom/top
+    omnibox position setting only.
   </description>
 </action>
 
@@ -26767,6 +26799,60 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="MobileGeminiCameraFlowGeminiCameraPermissionAlertAllow">
+  <owner>joepeplowski@google.com</owner>
+  <owner>bling-alchemy-eng@google.com</owner>
+  <description>
+    The user tapped &quot;Allow&quot; on the Gemini camera permission alert in
+    the Gemini camera flow.
+  </description>
+</action>
+
+<action name="MobileGeminiCameraFlowGeminiCameraPermissionAlertDontAllow">
+  <owner>joepeplowski@google.com</owner>
+  <owner>bling-alchemy-eng@google.com</owner>
+  <description>
+    The user tapped &quot;Don't Allow&quot; on the Gemini camera permission
+    alert in the Gemini camera flow.
+  </description>
+</action>
+
+<action name="MobileGeminiCameraFlowGoToOSSettingsAlertGoToSettings">
+  <owner>joepeplowski@google.com</owner>
+  <owner>bling-alchemy-eng@google.com</owner>
+  <description>
+    The user tapped &quot;Go to Settings&quot; on the alert directing users to
+    OS camera settings in the Gemini camera flow.
+  </description>
+</action>
+
+<action name="MobileGeminiCameraFlowGoToOSSettingsAlertNoThanks">
+  <owner>joepeplowski@google.com</owner>
+  <owner>bling-alchemy-eng@google.com</owner>
+  <description>
+    The user tapped &quot;No thanks&quot; on the alert directing users to OS
+    camera settings in the Gemini camera flow.
+  </description>
+</action>
+
+<action name="MobileGeminiCameraFlowOSCameraAuthorizationRequestDenied">
+  <owner>joepeplowski@google.com</owner>
+  <owner>bling-alchemy-eng@google.com</owner>
+  <description>
+    The OS-level camera authorization request in the Gemini camera flow was
+    denied.
+  </description>
+</action>
+
+<action name="MobileGeminiCameraFlowOSCameraAuthorizationRequestGranted">
+  <owner>joepeplowski@google.com</owner>
+  <owner>bling-alchemy-eng@google.com</owner>
+  <description>
+    The OS-level camera authorization request in the Gemini camera flow was
+    granted.
+  </description>
+</action>
+
 <action name="MobileGeminiCameraSettingsBack">
   <owner>joepeplowski@google.com</owner>
   <owner>bling-alchemy-eng@google.com</owner>
@@ -26781,6 +26867,24 @@ should be able to be added at any place in this file.
   <owner>bling-alchemy-eng@google.com</owner>
   <description>
     Reported when Gemini Camera Settings UI was dismissed. iOS only.
+  </description>
+</action>
+
+<action name="MobileGeminiCameraSettingsGeminiCameraPermissionToggledOff">
+  <owner>joepeplowski@google.com</owner>
+  <owner>bling-alchemy-eng@google.com</owner>
+  <description>
+    Reported when the user toggles the Gemini camera permission setting off from
+    the Gemini Camera Settings UI.
+  </description>
+</action>
+
+<action name="MobileGeminiCameraSettingsGeminiCameraPermissionToggledOn">
+  <owner>joepeplowski@google.com</owner>
+  <owner>bling-alchemy-eng@google.com</owner>
+  <description>
+    Reported when the user toggles the Gemini camera permission setting on from
+    the Gemini Camera Settings UI.
   </description>
 </action>
 
@@ -26840,6 +26944,27 @@ should be able to be added at any place in this file.
   <description>
     Reported when the user receives the first response from Gemini per session.
     iOS only.
+  </description>
+</action>
+
+<action name="MobileGeminiFloatyCollapsedToDismissed">
+  <owner>joemerramos@google.com</owner>
+  <description>
+    The user dismissed the Gemini floaty from a collapsed state. iOS only.
+  </description>
+</action>
+
+<action name="MobileGeminiFloatyCollapsedToExpanded">
+  <owner>joemerramos@google.com</owner>
+  <description>
+    The user expanded the Gemini view from a collapsed state. iOS only.
+  </description>
+</action>
+
+<action name="MobileGeminiFloatyExpandedToCollapsed">
+  <owner>joemerramos@google.com</owner>
+  <description>
+    The user collapsed the Gemini view from an expanded state. iOS only.
   </description>
 </action>
 
@@ -28114,6 +28239,11 @@ should be able to be added at any place in this file.
 <action name="MobileMenuShare">
   <owner>aurimas@chromium.org</owner>
   <description>User pressed 'Share' in the app menu.</description>
+</action>
+
+<action name="MobileMenuShareThisPage">
+  <owner>stkhapugin@chromium.org</owner>
+  <description>User pressed 'Share This Page' in the app menu.</description>
 </action>
 
 <action name="MobileMenuShow">
@@ -30454,7 +30584,11 @@ should be able to be added at any place in this file.
 <action name="MobileTabGridDone">
   <owner>edchin@chromium.org</owner>
   <owner>marq@chromium.org</owner>
-  <description>User tapped the 'Done' button in the iOS tab grid.</description>
+  <description>
+    User tapped the 'Done' button in the iOS tab grid. The UI of the bar changed
+    from a toolbar UI to an an appbar UI, which may affect usage. This change
+    happened when the flag ChromeNextIa was enabled.
+  </description>
 </action>
 
 <action name="MobileTabGridEndedWithoutReordering">
@@ -31211,6 +31345,14 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="MobileToolbarAssistant">
+  <owner>gambard@chromium.org</owner>
+  <owner>meridian@google.com</owner>
+  <description>
+    The user tapped on the Assistant button in the toolbar.
+  </description>
+</action>
+
 <action name="MobileToolbarBack">
   <owner>Please list the metric's owners. Add more owner tags as needed.</owner>
   <description>Please enter the description of this user action.</description>
@@ -31343,7 +31485,9 @@ should be able to be added at any place in this file.
   <owner>gambard@chromium.org</owner>
   <owner>stkhapugin@chromium.org</owner>
   <description>
-    User pressed the NewTab shortcut on the toolbar. iOS only.
+    User pressed the NewTab shortcut on the toolbar. iOS only. The UI of the bar
+    changed from a toolbar UI to an an appbar UI, which may affect usage. This
+    change happened when the flag ChromeNextIa was enabled.
   </description>
 </action>
 
@@ -31483,8 +31627,12 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="MobileToolbarShowStackView">
-  <owner>Please list the metric's owners. Add more owner tags as needed.</owner>
-  <description>Please enter the description of this user action.</description>
+  <owner>gambard@chromiumorg</owner>
+  <description>
+    User tapped on the toolbar button to show the TabGrid. On iOS the UI of the
+    bar changed from a toolbar UI to an an appbar UI, which may affect usage.
+    This change happened when the flag ChromeNextIa was enabled.
+  </description>
 </action>
 
 <action name="MobileToolbarShowTabGridMenu">
@@ -46360,6 +46508,158 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="SplitViewCreated_BookmarkContextMenu">
+  <owner>agale@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    Recorded when a Split View was created within the browser by clicking the
+    bookmark context menu item.
+  </description>
+</action>
+
+<action name="SplitViewCreated_DragAndDropLink">
+  <owner>agale@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    Recorded when a Split View was created within the browser by dragging and
+    dropping a link.
+  </description>
+</action>
+
+<action name="SplitViewCreated_DragAndDropTab">
+  <owner>agale@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    Recorded when a Split View was created within the browser by dragging and
+    dropping a tab.
+  </description>
+</action>
+
+<action name="SplitViewCreated_DuplicateSplit">
+  <owner>agale@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    Recorded when a Split View was created within the browser by duplicating an
+    existing Split View.
+  </description>
+</action>
+
+<action name="SplitViewCreated_ExtensionsApi">
+  <owner>agale@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    Recorded when a Split View was created within the browser via the extensions
+    API which is used to create Split Views from the bookmarks side panel.
+  </description>
+</action>
+
+<action name="SplitViewCreated_KeyboardShortcut">
+  <owner>agale@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    Recorded when a Split View was created within the browser by triggering the
+    keyboard shortcut.
+  </description>
+</action>
+
+<action name="SplitViewCreated_LinkContextMenu">
+  <owner>agale@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    Recorded when a Split View was created within the browser by clicking the
+    link context menu item.
+  </description>
+</action>
+
+<action name="SplitViewCreated_NewTabButton">
+  <owner>agale@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    Recorded when a Split View was created within the browser by clicking the
+    new tab button context menu item.
+  </description>
+</action>
+
+<action name="SplitViewCreated_TabContextMenu">
+  <owner>agale@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    Recorded when a Split View was created within the browser by clicking the
+    tab context menu item.
+  </description>
+</action>
+
+<action name="SplitViewCreated_ToolbarButton">
+  <owner>agale@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    Recorded when a Split View was created within the browser by clicking the
+    toolbar button.
+  </description>
+</action>
+
+<action name="SplitViewCreated_WhatsNew">
+  <owner>agale@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    Recorded when a Split View was created within the browser by clicking the
+    What's New page button.
+  </description>
+</action>
+
+<action name="SplitViewMenuClicked_CloseEndTab">
+  <owner>agale@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    Recorded when the &quot;Close right view&quot; Split View menu item was
+    clicked.
+  </description>
+</action>
+
+<action name="SplitViewMenuClicked_CloseSpecifiedTab">
+  <owner>agale@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    Recorded when the &quot;Close this view&quot; Split View menu item was
+    clicked.
+  </description>
+</action>
+
+<action name="SplitViewMenuClicked_CloseStartTab">
+  <owner>agale@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    Recorded when the &quot;Close left view&quot; Split View menu item was
+    clicked.
+  </description>
+</action>
+
+<action name="SplitViewMenuClicked_ExitSplit">
+  <owner>agale@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    Recorded when the &quot;Separate views&quot; Split View menu item was
+    clicked.
+  </description>
+</action>
+
+<action name="SplitViewMenuClicked_ReversePosition">
+  <owner>agale@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    Recorded when the &quot;Reverse&quot; Split View menu item was clicked.
+  </description>
+</action>
+
+<action name="SplitViewMenuClicked_SendFeedback">
+  <owner>agale@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    Recorded when the &quot;Send feedback&quot; Split View menu item was
+    clicked.
+  </description>
+</action>
+
 <action name="SSL.DisplayedInsecureContent" not_user_triggered="true">
   <obsolete>Deprecated 02/2017</obsolete>
   <owner>Please list the metric's owners. Add more owner tags as needed.</owner>
@@ -47460,9 +47760,10 @@ should be able to be added at any place in this file.
 <action name="Suggestions.Button.AddItem">
   <owner>ckitagawa@chromium.org</owner>
   <owner>huangs@chromium.org</owner>
+  <owner>ginnyhuang@chromium.org</owner>
   <description>
-    Android: Recorded when user clicks the &quot;Add new&quot; button to open
-    the &quot;Add shortcut&quot; dialog (disregarding what happens thereafter).
+    Mobile: Recorded when user clicks the &quot;Add new&quot; button to open the
+    &quot;Add shortcut&quot; dialog (disregarding what happens thereafter).
   </description>
 </action>
 
@@ -47581,8 +47882,9 @@ should be able to be added at any place in this file.
 <action name="Suggestions.Drag.ReorderItem">
   <owner>ckitagawa@chromium.org</owner>
   <owner>huangs@chromium.org</owner>
+  <owner>ginnyhuang@chromium.org</owner>
   <description>
-    Android: Recorded user using drag-and-drop to rearrange Custom Tiles in the
+    Mobile: Recorded user using drag-and-drop to rearrange Custom Tiles in the
     Most Visited Tiles area on the NTP, disregarding cancelled actions
     (including dragging tile back to its original position).
   </description>
@@ -47643,12 +47945,22 @@ should be able to be added at any place in this file.
   <description>User removed a suggested site.</description>
 </action>
 
+<action name="Suggestions.SnackBar.UndoPinItem">
+  <owner>ginnyhuang@chromium.org</owner>
+  <description>
+    iOS: Recorded when user clicks the &quot;Undo&quot; link in the &quot;Item
+    removed&quot; SnackBar that appears on pinning a Custom Tile.
+  </description>
+</action>
+
 <action name="Suggestions.SnackBar.UndoUnpinItem">
   <owner>ckitagawa@chromium.org</owner>
   <owner>huangs@chromium.org</owner>
+  <owner>ginnyhuang@chromium.org</owner>
   <description>
-    Android: Recorded when user clicks the &quot;Undo&quot; link in the
+    Mobile: Recorded when user clicks the &quot;Undo&quot; link in the
     &quot;Item removed&quot; SnackBar that appears on unpinning a Custom Tile.
+    (iOS support added on M146)
   </description>
 </action>
 

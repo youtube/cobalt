@@ -26,6 +26,7 @@
 <translation id="1158134713295836892">Gemini i Chrome</translation>
 <translation id="1184145431117212167">Installationen mislykkedes, da din version af Windows ikke understøttes.</translation>
 <translation id="1194807384646768652">Chrome har blokeret denne download, fordi filtypen normalt ikke downloades og kan være skadelig</translation>
+<translation id="1197860368385086056">Næste gang du åbner Chrome på din <ph name="DEVICE_TYPE" />, får du en meddelelse om at aktivere underretninger om prissporing.</translation>
 <translation id="1203500561924088507">Tak for installationen. Du skal genstarte browseren, før du bruger <ph name="BUNDLE_NAME" />.</translation>
 <translation id="1278833599417554002">Genstart og opdater &amp;Chrome</translation>
 <translation id="1290883685122687410">Konfigurationsfejl: <ph name="METAINSTALLER_EXIT_CODE" />. <ph name="WINDOWS_ERROR" /></translation>
@@ -281,7 +282,6 @@
 <translation id="4022972681110646219">Oversæt skærmen</translation>
 <translation id="4023601594785368013">Originalsprog: <ph name="LANGUAGE" /></translation>
 <translation id="4035053306113201399">ChromeOS skal genstartes, før opdateringen kan anvendes.</translation>
-<translation id="4039097928859803404">Vis altid genveje til AI-tilstand</translation>
 <translation id="4050175100176540509">Vigtige sikkerhedsforbedringer og nye funktioner er tilgængelige i den seneste version.</translation>
 <translation id="4053720452172726777">Tilpas Google Chrome</translation>
 <translation id="408393047846373801">For at kunne se dine adgangskoder m.m. på alle dine enheder skal du logge ind på Chrome. Denne adgangskode gemmes på din Google-konto, når du er logget ind.</translation>
@@ -393,6 +393,7 @@
 <translation id="5334309298019785904">ChromeOS kunne ikke synkronisere dine data, fordi synkronisering ikke er tilgængelig for dit domæne.</translation>
 <translation id="5334487786912937552">Chrome skal have adgangstilladelse til lagerplads for at downloade filer</translation>
 <translation id="5337648990166757586">Valgfrit: Vær med til at forbedre funktioner og ydeevne i ChromeOS ved automatisk at sende diagnostik og brugsdata til Google.</translation>
+<translation id="5346059693449184483">Hvad har du på hjerte?</translation>
 <translation id="5346389065299425353">Gør din søgning mere dybdegående ved at tilføje flere faner, filer og værktøjer</translation>
 <translation id="5353252989841766347">Eksportér adgangskoder fra Chrome</translation>
 <translation id="5368118228313795342">Ekstra kode: <ph name="EXTRA_CODE" />.</translation>
@@ -500,6 +501,7 @@
 <translation id="6321592572353357376">Udvidelsen "<ph name="EXTENSION_NAME" />" vil have dig til at logge ind i Chrome</translation>
 <translation id="6326175484149238433">Fjern fra Chrome</translation>
 <translation id="6327105987658262776">Der er ingen opdatering tilgængelig.</translation>
+<translation id="6333195756043503664">Åbn Chrome, når min computer starter</translation>
 <translation id="6334815226785304306">Gør Google Chrome til din standardbrowser, og fastgør den til proceslinjen</translation>
 <translation id="63540178978900677">Chrome er ikke længere din standardbrowser. Vil du gøre Chrome til din standardbrowser?</translation>
 <translation id="6360449101159168105">Mens denne fane var inaktiv, blev der frigjort hukommelse for at sikre, at Chrome kører hurtigt. Du kan vælge, at dette website altid skal være inaktivt.</translation>
@@ -609,6 +611,7 @@
 <translation id="7515191208480168435">Du kan fastgøre Google Lens for at få nem adgang</translation>
 <translation id="7535429826459677826">Udviklerversionen af Chrome</translation>
 <translation id="7543146567111253230">For at få dette bogmærke og meget mere på alle dine enheder skal du logge ind på Chrome</translation>
+<translation id="756134248912568991">Næste gang du åbner Chrome på din <ph name="DEVICE_TYPE" />, får du en meddelelse om at bruge fanegrupper.</translation>
 <translation id="756809126120519699">Chrome-dataene blev ryddet</translation>
 <translation id="7572537927358445944">Fra • Chrome kan ikke verificere, hvor denne udvidelse kommer fra</translation>
 <translation id="7583399374488819119">Installationsprogram til <ph name="COMPANY_NAME" /></translation>
@@ -653,7 +656,6 @@
 <translation id="7869620795354551924">Hvis du vil bruge dine gemte adgangskoder, skal du følge QR-koden, downloade Chrome til iOS og logge ind på din Google-konto</translation>
 <translation id="7872446069773932638">Downloader… Der er <ph name="SECONDS" /> sekunder tilbage</translation>
 <translation id="7886087451482920026">Vælg tekst med Google Lens</translation>
-<translation id="7887929410013642057">Vis altid genveje til AI-tilstand</translation>
 <translation id="7890208801193284374">Hvis du deler en computer, kan venner og familie browse individuelt og konfigurere Chrome, som de ønsker hver især.</translation>
 <translation id="7896673875602241923">Nogen har tidligere logget ind på Chrome på denne computer som <ph name="ACCOUNT_EMAIL_LAST" />. Opret en ny Chrome-bruger for at holde dine oplysninger adskilt.</translation>
 <translation id="7904985524660297937">Prøv Gemini i Google Chrome</translation>
@@ -683,6 +685,7 @@
 <translation id="8162006532256575008">Brug Chrome uden en konto</translation>
 <translation id="8177472873527554730">Der blev ikke fundet indhold på siden</translation>
 <translation id="8221491193165283816">Du blokerer som regel notifikationer. Klik her for at give websitet tilladelse til at sende notifikationer.</translation>
+<translation id="8223142476690844338">Hej <ph name="USER_NAME" />! Hvad har du på hjerte?</translation>
 <translation id="8255190535488645436">Google Chrome bruger dit kamera og din mikrofon.</translation>
 <translation id="8267953129876836456">Chrome har fundet nogle sikkerhedsanbefalinger, du kan gennemgå</translation>
 <translation id="8286862437124483331">Google Chrome forsøger at vise adgangskoder. Angiv din Windows-adgangskode for at tillade dette.</translation>

@@ -1194,7 +1194,8 @@ Element& Element::CloneWithChildren(
 
 Element& Element::CloneWithoutChildren() const {
   NodeCloningData data;
-  return CloneWithoutChildren(data, /*registry*/ nullptr);
+  auto* registry = CustomElementRegistry::DefaultRegistry(GetDocument());
+  return CloneWithoutChildren(data, registry);
 }
 
 Element& Element::CloneWithoutChildren(NodeCloningData& data,
@@ -2031,7 +2032,9 @@ void Element::DefaultEventHandler(Event& event) {
       // `null` target for that pointerup event.
       if (auto* target_popover = DynamicTo<HTMLElement>(InterestForElement());
           target_popover && target_popover->IsPopover()) {
-        GetDocument().SetPopoverPointerdownTarget(target_popover);
+        if (!RuntimeEnabledFeatures::LightDismissFromClickEnabled()) {
+          GetDocument().SetPopoverPointerdownTarget(target_popover);
+        }
       }
       // Delays don't apply to long-press, since the "long press" has a
       // built-in delay. Just show interest immediately in this case. This
@@ -4082,7 +4085,7 @@ static inline bool IsEventHandlerAttribute(const Attribute& attribute) {
 
 bool Element::AttributeValueIsJavaScriptURL(const Attribute& attribute) {
   return ProtocolIsJavaScript(
-      StripLeadingAndTrailingHTMLSpaces(attribute.Value()));
+      StripLeadingAndTrailingHtmlSpaces(attribute.Value()));
 }
 
 bool Element::IsJavaScriptURLAttribute(const Attribute& attribute) const {
@@ -8607,6 +8610,24 @@ bool Element::IsAutofocusable() const {
          FastHasAttribute(html_names::kAutofocusAttr);
 }
 
+FocusgroupFlags Element::NativeArrowKeyAxes() const {
+  // Focusable scrollable containers use arrow keys for scrolling. Check each
+  // axis independently since a container may only scroll in one direction.
+  if (IsFocusable()) {
+    if (const ComputedStyle* style = GetComputedStyle()) {
+      FocusgroupFlags axes = FocusgroupFlags::kNone;
+      if (style->ScrollsOverflowX()) {
+        axes |= FocusgroupFlags::kInline;
+      }
+      if (style->ScrollsOverflowY()) {
+        axes |= FocusgroupFlags::kBlock;
+      }
+      return axes;
+    }
+  }
+  return FocusgroupFlags::kNone;
+}
+
 // This is used by FrameSelection to denote when the active-state of the page
 // has changed independent of the focused element changing.
 void Element::FocusStateChanged() {
@@ -10887,15 +10908,15 @@ String Element::GetURLAttribute(const QualifiedName& name) const {
     }
   }
 #endif
-  KURL url = GetDocument().CompleteURL(
-      StripLeadingAndTrailingHTMLSpaces(getAttribute(name)));
-  return url.IsValid() ? url
-                       : StripLeadingAndTrailingHTMLSpaces(getAttribute(name));
+  StringView stripped_value =
+      StripLeadingAndTrailingHtmlSpaces(getAttribute(name));
+  KURL url = GetDocument().CompleteURL(stripped_value);
+  return url.IsValid() ? url.GetString() : stripped_value.ToString();
 }
 
 KURL Element::GetURLAttributeAsKURL(const QualifiedName& name) const {
   return GetDocument().CompleteURL(
-      StripLeadingAndTrailingHTMLSpaces(getAttribute(name)));
+      StripLeadingAndTrailingHtmlSpaces(getAttribute(name)));
 }
 
 KURL Element::GetNonEmptyURLAttribute(const QualifiedName& name) const {
@@ -10906,7 +10927,7 @@ KURL Element::GetNonEmptyURLAttribute(const QualifiedName& name) const {
     }
   }
 #endif
-  String value = StripLeadingAndTrailingHTMLSpaces(getAttribute(name));
+  StringView value = StripLeadingAndTrailingHtmlSpaces(getAttribute(name));
   if (value.empty()) {
     return KURL();
   }

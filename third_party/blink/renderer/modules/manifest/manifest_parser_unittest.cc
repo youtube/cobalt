@@ -255,8 +255,8 @@ TEST_F(ManifestParserTest, ValidNoContentParses) {
   EXPECT_EQ(manifest->display, blink::mojom::DisplayMode::kUndefined);
   EXPECT_EQ(manifest->orientation,
             device::mojom::ScreenOrientationLockType::DEFAULT);
-  EXPECT_FALSE(manifest->has_theme_color);
-  EXPECT_FALSE(manifest->has_background_color);
+  EXPECT_FALSE(manifest->theme_color.has_value());
+  EXPECT_FALSE(manifest->background_color.has_value());
   EXPECT_TRUE(manifest->gcm_sender_id.IsNull());
   EXPECT_EQ(DefaultDocumentUrl().BaseAsString(), manifest->scope.GetString());
   EXPECT_TRUE(manifest->shortcuts.empty());
@@ -717,6 +717,51 @@ TEST_F(ManifestParserTest, StartURLParseRules) {
     EXPECT_THAT(errors(), testing::IsEmpty());
     EXPECT_TRUE(manifest->has_valid_specified_start_url);
   }
+
+  // When manifest is a data URL, relative start_url should resolve against
+  // document URL.
+  {
+    auto& manifest = ParseManifestWithURLs(R"({ "start_url": "/" })",
+                                           KURL("data:application/json,{}"),
+                                           KURL("http://foo.com/index.html"));
+    EXPECT_EQ(manifest->start_url.GetString(), "http://foo.com/");
+    EXPECT_THAT(errors(), testing::IsEmpty());
+    EXPECT_TRUE(manifest->has_valid_specified_start_url);
+  }
+
+  // When manifest is a data URL, relative path should resolve against document
+  // URL.
+  {
+    auto& manifest = ParseManifestWithURLs(
+        R"({ "start_url": "app/start.html" })",
+        KURL("data:application/json,{}"), KURL("http://foo.com/index.html"));
+    EXPECT_EQ(manifest->start_url.GetString(), "http://foo.com/app/start.html");
+    EXPECT_THAT(errors(), testing::IsEmpty());
+    EXPECT_TRUE(manifest->has_valid_specified_start_url);
+  }
+
+  // When manifest is a data URL, absolute same-origin URL should still work.
+  {
+    auto& manifest = ParseManifestWithURLs(
+        R"({ "start_url": "http://foo.com/start.html" })",
+        KURL("data:application/json,{}"), KURL("http://foo.com/index.html"));
+    EXPECT_EQ(manifest->start_url.GetString(), "http://foo.com/start.html");
+    EXPECT_THAT(errors(), testing::IsEmpty());
+    EXPECT_TRUE(manifest->has_valid_specified_start_url);
+  }
+
+  // When manifest is a data URL, cross-origin start_url should still be
+  // rejected.
+  {
+    auto& manifest = ParseManifestWithURLs(
+        R"({ "start_url": "http://bar.com/start.html" })",
+        KURL("data:application/json,{}"), KURL("http://foo.com/index.html"));
+    EXPECT_EQ(manifest->start_url.GetString(), "http://foo.com/index.html");
+    EXPECT_THAT(errors(),
+                testing::ElementsAre("property 'start_url' ignored, should "
+                                     "be same origin as document."));
+    EXPECT_FALSE(manifest->has_valid_specified_start_url);
+  }
 }
 
 TEST_F(ManifestParserTest, ScopeParseRules) {
@@ -906,6 +951,27 @@ TEST_F(ManifestParserTest, ScopeParseRules) {
   {
     auto& manifest = ParseManifest("{}");
     ASSERT_EQ(manifest->scope, KURL(DefaultDocumentUrl(), "."));
+    EXPECT_EQ(0u, GetErrorCount());
+  }
+
+  // When manifest is a data URL, relative scope should resolve against document
+  // URL.
+  {
+    auto& manifest = ParseManifestWithURLs(
+        R"({ "start_url": "app/index.html", "scope": "app/" })",
+        KURL("data:application/json,{}"), KURL("http://foo.com/index.html"));
+    ASSERT_EQ(manifest->scope.GetString(), "http://foo.com/app/");
+    ASSERT_EQ(manifest->start_url.GetString(), "http://foo.com/app/index.html");
+    EXPECT_EQ(0u, GetErrorCount());
+  }
+
+  // When manifest is a data URL, root scope should work.
+  {
+    auto& manifest = ParseManifestWithURLs(
+        R"({ "start_url": "/", "scope": "/" })",
+        KURL("data:application/json,{}"), KURL("http://foo.com/index.html"));
+    ASSERT_EQ(manifest->scope.GetString(), "http://foo.com/");
+    ASSERT_EQ(manifest->start_url.GetString(), "http://foo.com/");
     EXPECT_EQ(0u, GetErrorCount());
   }
 }
@@ -1662,6 +1728,24 @@ TEST_F(ManifestParserTest, IconsParseRules) {
     EXPECT_EQ(manifest->icons[1]->sizes.size(), 1u);
     EXPECT_EQ(manifest->icons[1]->sizes[0].width(), 144);
     EXPECT_EQ(manifest->icons[1]->sizes[0].height(), 144);
+    EXPECT_EQ(0u, GetErrorCount());
+  }
+
+  // When manifest is a data URL, icon src should resolve against document URL.
+  {
+    auto& manifest = ParseManifestWithURLs(
+        R"({
+          "icons": [
+            { "src": "/icon.png", "sizes": "192x192" },
+            { "src": "images/icon.svg", "type": "image/svg+xml" }
+          ]
+        })",
+        KURL("data:application/json,{}"),
+        KURL("http://foo.com/app/index.html"));
+    ASSERT_EQ(manifest->icons.size(), 2u);
+    EXPECT_EQ(manifest->icons[0]->src.GetString(), "http://foo.com/icon.png");
+    EXPECT_EQ(manifest->icons[1]->src.GetString(),
+              "http://foo.com/app/images/icon.svg");
     EXPECT_EQ(0u, GetErrorCount());
   }
 }
@@ -5637,8 +5721,8 @@ TEST_F(ManifestParserTest, ThemeColorParserRules) {
   // Smoke test.
   {
     auto& manifest = ParseManifest(R"({ "theme_color": "#FF0000" })");
-    EXPECT_TRUE(manifest->has_theme_color);
-    EXPECT_EQ(manifest->theme_color, 0xFFFF0000u);
+    EXPECT_TRUE(manifest->theme_color.has_value());
+    EXPECT_EQ(manifest->theme_color.value(), 0xFFFF0000u);
     EXPECT_FALSE(IsManifestEmpty(manifest));
     EXPECT_EQ(0u, GetErrorCount());
   }
@@ -5646,15 +5730,15 @@ TEST_F(ManifestParserTest, ThemeColorParserRules) {
   // Trim whitespaces.
   {
     auto& manifest = ParseManifest(R"({ "theme_color": "  blue   " })");
-    EXPECT_TRUE(manifest->has_theme_color);
-    EXPECT_EQ(manifest->theme_color, 0xFF0000FFu);
+    EXPECT_TRUE(manifest->theme_color.has_value());
+    EXPECT_EQ(manifest->theme_color.value(), 0xFF0000FFu);
     EXPECT_EQ(0u, GetErrorCount());
   }
 
   // Don't parse if theme_color isn't a string.
   {
     auto& manifest = ParseManifest(R"({ "theme_color": {} })");
-    EXPECT_FALSE(manifest->has_theme_color);
+    EXPECT_FALSE(manifest->theme_color.has_value());
     EXPECT_EQ(1u, GetErrorCount());
     EXPECT_EQ("property 'theme_color' ignored, type string expected.",
               errors()[0]);
@@ -5663,7 +5747,7 @@ TEST_F(ManifestParserTest, ThemeColorParserRules) {
   // Don't parse if theme_color isn't a string.
   {
     auto& manifest = ParseManifest(R"({ "theme_color": false })");
-    EXPECT_FALSE(manifest->has_theme_color);
+    EXPECT_FALSE(manifest->theme_color.has_value());
     EXPECT_EQ(1u, GetErrorCount());
     EXPECT_EQ("property 'theme_color' ignored, type string expected.",
               errors()[0]);
@@ -5672,7 +5756,7 @@ TEST_F(ManifestParserTest, ThemeColorParserRules) {
   // Don't parse if theme_color isn't a string.
   {
     auto& manifest = ParseManifest(R"({ "theme_color": null })");
-    EXPECT_FALSE(manifest->has_theme_color);
+    EXPECT_FALSE(manifest->theme_color.has_value());
     EXPECT_EQ(1u, GetErrorCount());
     EXPECT_EQ("property 'theme_color' ignored, type string expected.",
               errors()[0]);
@@ -5681,7 +5765,7 @@ TEST_F(ManifestParserTest, ThemeColorParserRules) {
   // Don't parse if theme_color isn't a string.
   {
     auto& manifest = ParseManifest(R"({ "theme_color": [] })");
-    EXPECT_FALSE(manifest->has_theme_color);
+    EXPECT_FALSE(manifest->theme_color.has_value());
     EXPECT_EQ(1u, GetErrorCount());
     EXPECT_EQ("property 'theme_color' ignored, type string expected.",
               errors()[0]);
@@ -5690,7 +5774,7 @@ TEST_F(ManifestParserTest, ThemeColorParserRules) {
   // Don't parse if theme_color isn't a string.
   {
     auto& manifest = ParseManifest(R"({ "theme_color": 42 })");
-    EXPECT_FALSE(manifest->has_theme_color);
+    EXPECT_FALSE(manifest->theme_color.has_value());
     EXPECT_EQ(1u, GetErrorCount());
     EXPECT_EQ("property 'theme_color' ignored, type string expected.",
               errors()[0]);
@@ -5699,7 +5783,7 @@ TEST_F(ManifestParserTest, ThemeColorParserRules) {
   // Parse fails if string is not in a known format.
   {
     auto& manifest = ParseManifest(R"~({ "theme_color": "foo(bar)" })~");
-    EXPECT_FALSE(manifest->has_theme_color);
+    EXPECT_FALSE(manifest->theme_color.has_value());
     EXPECT_EQ(1u, GetErrorCount());
     EXPECT_EQ(
         "property 'theme_color' ignored,"
@@ -5710,7 +5794,7 @@ TEST_F(ManifestParserTest, ThemeColorParserRules) {
   // Parse fails if string is not in a known format.
   {
     auto& manifest = ParseManifest(R"({ "theme_color": "bleu" })");
-    EXPECT_FALSE(manifest->has_theme_color);
+    EXPECT_FALSE(manifest->theme_color.has_value());
     EXPECT_EQ(1u, GetErrorCount());
     EXPECT_EQ("property 'theme_color' ignored, 'bleu' is not a valid color.",
               errors()[0]);
@@ -5719,7 +5803,7 @@ TEST_F(ManifestParserTest, ThemeColorParserRules) {
   // Parse fails if string is not in a known format.
   {
     auto& manifest = ParseManifest(R"({ "theme_color": "FF00FF" })");
-    EXPECT_FALSE(manifest->has_theme_color);
+    EXPECT_FALSE(manifest->theme_color.has_value());
     EXPECT_EQ(1u, GetErrorCount());
     EXPECT_EQ(
         "property 'theme_color' ignored, 'FF00FF'"
@@ -5730,7 +5814,7 @@ TEST_F(ManifestParserTest, ThemeColorParserRules) {
   // Parse fails if multiple values for theme_color are given.
   {
     auto& manifest = ParseManifest(R"({ "theme_color": "#ABC #DEF" })");
-    EXPECT_FALSE(manifest->has_theme_color);
+    EXPECT_FALSE(manifest->theme_color.has_value());
     EXPECT_EQ(1u, GetErrorCount());
     EXPECT_EQ(
         "property 'theme_color' ignored, "
@@ -5741,7 +5825,7 @@ TEST_F(ManifestParserTest, ThemeColorParserRules) {
   // Parse fails if multiple values for theme_color are given.
   {
     auto& manifest = ParseManifest(R"({ "theme_color": "#AABBCC #DDEEFF" })");
-    EXPECT_FALSE(manifest->has_theme_color);
+    EXPECT_FALSE(manifest->theme_color.has_value());
     EXPECT_EQ(1u, GetErrorCount());
     EXPECT_EQ(
         "property 'theme_color' ignored, "
@@ -5752,35 +5836,35 @@ TEST_F(ManifestParserTest, ThemeColorParserRules) {
   // Accept CSS color keyword format.
   {
     auto& manifest = ParseManifest(R"({ "theme_color": "blue" })");
-    EXPECT_EQ(manifest->theme_color, 0xFF0000FFu);
+    EXPECT_EQ(manifest->theme_color.value(), 0xFF0000FFu);
     EXPECT_EQ(0u, GetErrorCount());
   }
 
   // Accept CSS color keyword format.
   {
     auto& manifest = ParseManifest(R"({ "theme_color": "chartreuse" })");
-    EXPECT_EQ(manifest->theme_color, 0xFF7FFF00u);
+    EXPECT_EQ(manifest->theme_color.value(), 0xFF7FFF00u);
     EXPECT_EQ(0u, GetErrorCount());
   }
 
   // Accept CSS RGB format.
   {
     auto& manifest = ParseManifest(R"({ "theme_color": "#FFF" })");
-    EXPECT_EQ(manifest->theme_color, 0xFFFFFFFFu);
+    EXPECT_EQ(manifest->theme_color.value(), 0xFFFFFFFFu);
     EXPECT_EQ(0u, GetErrorCount());
   }
 
   // Accept CSS RGB format.
   {
     auto& manifest = ParseManifest(R"({ "theme_color": "#ABC" })");
-    EXPECT_EQ(manifest->theme_color, 0xFFAABBCCu);
+    EXPECT_EQ(manifest->theme_color.value(), 0xFFAABBCCu);
     EXPECT_EQ(0u, GetErrorCount());
   }
 
   // Accept CSS RRGGBB format.
   {
     auto& manifest = ParseManifest(R"({ "theme_color": "#FF0000" })");
-    EXPECT_EQ(manifest->theme_color, 0xFFFF0000u);
+    EXPECT_EQ(manifest->theme_color.value(), 0xFFFF0000u);
     EXPECT_EQ(0u, GetErrorCount());
   }
 
@@ -5788,14 +5872,14 @@ TEST_F(ManifestParserTest, ThemeColorParserRules) {
   {
     auto& manifest =
         ParseManifest(R"~({ "theme_color": "rgba(255,0,0,0.4)" })~");
-    EXPECT_EQ(manifest->theme_color, 0x66FF0000u);
+    EXPECT_EQ(manifest->theme_color.value(), 0x66FF0000u);
     EXPECT_EQ(0u, GetErrorCount());
   }
 
   // Accept transparent colors.
   {
     auto& manifest = ParseManifest(R"~({ "theme_color": "rgba(0,0,0,0)" })~");
-    EXPECT_EQ(manifest->theme_color, 0x00000000u);
+    EXPECT_EQ(manifest->theme_color.value(), 0x00000000u);
     EXPECT_EQ(0u, GetErrorCount());
   }
 }
@@ -5804,7 +5888,7 @@ TEST_F(ManifestParserTest, BackgroundColorParserRules) {
   // Smoke test.
   {
     auto& manifest = ParseManifest(R"({ "background_color": "#FF0000" })");
-    EXPECT_EQ(manifest->background_color, 0xFFFF0000u);
+    EXPECT_EQ(manifest->background_color.value(), 0xFFFF0000u);
     EXPECT_FALSE(IsManifestEmpty(manifest));
     EXPECT_EQ(0u, GetErrorCount());
   }
@@ -5812,14 +5896,14 @@ TEST_F(ManifestParserTest, BackgroundColorParserRules) {
   // Trim whitespaces.
   {
     auto& manifest = ParseManifest(R"({ "background_color": "  blue   " })");
-    EXPECT_EQ(manifest->background_color, 0xFF0000FFu);
+    EXPECT_EQ(manifest->background_color.value(), 0xFF0000FFu);
     EXPECT_EQ(0u, GetErrorCount());
   }
 
   // Don't parse if background_color isn't a string.
   {
     auto& manifest = ParseManifest(R"({ "background_color": {} })");
-    EXPECT_FALSE(manifest->has_background_color);
+    EXPECT_FALSE(manifest->background_color.has_value());
     EXPECT_EQ(1u, GetErrorCount());
     EXPECT_EQ("property 'background_color' ignored, type string expected.",
               errors()[0]);
@@ -5828,7 +5912,7 @@ TEST_F(ManifestParserTest, BackgroundColorParserRules) {
   // Don't parse if background_color isn't a string.
   {
     auto& manifest = ParseManifest(R"({ "background_color": false })");
-    EXPECT_FALSE(manifest->has_background_color);
+    EXPECT_FALSE(manifest->background_color.has_value());
     EXPECT_EQ(1u, GetErrorCount());
     EXPECT_EQ("property 'background_color' ignored, type string expected.",
               errors()[0]);
@@ -5837,7 +5921,7 @@ TEST_F(ManifestParserTest, BackgroundColorParserRules) {
   // Don't parse if background_color isn't a string.
   {
     auto& manifest = ParseManifest(R"({ "background_color": null })");
-    EXPECT_FALSE(manifest->has_background_color);
+    EXPECT_FALSE(manifest->background_color.has_value());
     EXPECT_EQ(1u, GetErrorCount());
     EXPECT_EQ("property 'background_color' ignored, type string expected.",
               errors()[0]);
@@ -5846,7 +5930,7 @@ TEST_F(ManifestParserTest, BackgroundColorParserRules) {
   // Don't parse if background_color isn't a string.
   {
     auto& manifest = ParseManifest(R"({ "background_color": [] })");
-    EXPECT_FALSE(manifest->has_background_color);
+    EXPECT_FALSE(manifest->background_color.has_value());
     EXPECT_EQ(1u, GetErrorCount());
     EXPECT_EQ("property 'background_color' ignored, type string expected.",
               errors()[0]);
@@ -5855,7 +5939,7 @@ TEST_F(ManifestParserTest, BackgroundColorParserRules) {
   // Don't parse if background_color isn't a string.
   {
     auto& manifest = ParseManifest(R"({ "background_color": 42 })");
-    EXPECT_FALSE(manifest->has_background_color);
+    EXPECT_FALSE(manifest->background_color.has_value());
     EXPECT_EQ(1u, GetErrorCount());
     EXPECT_EQ("property 'background_color' ignored, type string expected.",
               errors()[0]);
@@ -5864,7 +5948,7 @@ TEST_F(ManifestParserTest, BackgroundColorParserRules) {
   // Parse fails if string is not in a known format.
   {
     auto& manifest = ParseManifest(R"~({ "background_color": "foo(bar)" })~");
-    EXPECT_FALSE(manifest->has_background_color);
+    EXPECT_FALSE(manifest->background_color.has_value());
     EXPECT_EQ(1u, GetErrorCount());
     EXPECT_EQ(
         "property 'background_color' ignored,"
@@ -5875,7 +5959,7 @@ TEST_F(ManifestParserTest, BackgroundColorParserRules) {
   // Parse fails if string is not in a known format.
   {
     auto& manifest = ParseManifest(R"({ "background_color": "bleu" })");
-    EXPECT_FALSE(manifest->has_background_color);
+    EXPECT_FALSE(manifest->background_color.has_value());
     EXPECT_EQ(1u, GetErrorCount());
     EXPECT_EQ(
         "property 'background_color' ignored,"
@@ -5886,7 +5970,7 @@ TEST_F(ManifestParserTest, BackgroundColorParserRules) {
   // Parse fails if string is not in a known format.
   {
     auto& manifest = ParseManifest(R"({ "background_color": "FF00FF" })");
-    EXPECT_FALSE(manifest->has_background_color);
+    EXPECT_FALSE(manifest->background_color.has_value());
     EXPECT_EQ(1u, GetErrorCount());
     EXPECT_EQ(
         "property 'background_color' ignored,"
@@ -5897,7 +5981,7 @@ TEST_F(ManifestParserTest, BackgroundColorParserRules) {
   // Parse fails if multiple values for background_color are given.
   {
     auto& manifest = ParseManifest(R"({ "background_color": "#ABC #DEF" })");
-    EXPECT_FALSE(manifest->has_background_color);
+    EXPECT_FALSE(manifest->background_color.has_value());
     EXPECT_EQ(1u, GetErrorCount());
     EXPECT_EQ(
         "property 'background_color' ignored, "
@@ -5909,7 +5993,7 @@ TEST_F(ManifestParserTest, BackgroundColorParserRules) {
   {
     auto& manifest =
         ParseManifest(R"({ "background_color": "#AABBCC #DDEEFF" })");
-    EXPECT_FALSE(manifest->has_background_color);
+    EXPECT_FALSE(manifest->background_color.has_value());
     EXPECT_EQ(1u, GetErrorCount());
     EXPECT_EQ(
         "property 'background_color' ignored, "
@@ -5920,35 +6004,35 @@ TEST_F(ManifestParserTest, BackgroundColorParserRules) {
   // Accept CSS color keyword format.
   {
     auto& manifest = ParseManifest(R"({ "background_color": "blue" })");
-    EXPECT_EQ(manifest->background_color, 0xFF0000FFu);
+    EXPECT_EQ(manifest->background_color.value(), 0xFF0000FFu);
     EXPECT_EQ(0u, GetErrorCount());
   }
 
   // Accept CSS color keyword format.
   {
     auto& manifest = ParseManifest(R"({ "background_color": "chartreuse" })");
-    EXPECT_EQ(manifest->background_color, 0xFF7FFF00u);
+    EXPECT_EQ(manifest->background_color.value(), 0xFF7FFF00u);
     EXPECT_EQ(0u, GetErrorCount());
   }
 
   // Accept CSS RGB format.
   {
     auto& manifest = ParseManifest(R"({ "background_color": "#FFF" })");
-    EXPECT_EQ(manifest->background_color, 0xFFFFFFFFu);
+    EXPECT_EQ(manifest->background_color.value(), 0xFFFFFFFFu);
     EXPECT_EQ(0u, GetErrorCount());
   }
 
   // Accept CSS RGB format.
   {
     auto& manifest = ParseManifest(R"({ "background_color": "#ABC" })");
-    EXPECT_EQ(manifest->background_color, 0xFFAABBCCu);
+    EXPECT_EQ(manifest->background_color.value(), 0xFFAABBCCu);
     EXPECT_EQ(0u, GetErrorCount());
   }
 
   // Accept CSS RRGGBB format.
   {
     auto& manifest = ParseManifest(R"({ "background_color": "#FF0000" })");
-    EXPECT_EQ(manifest->background_color, 0xFFFF0000u);
+    EXPECT_EQ(manifest->background_color.value(), 0xFFFF0000u);
     EXPECT_EQ(0u, GetErrorCount());
   }
 
@@ -5956,7 +6040,7 @@ TEST_F(ManifestParserTest, BackgroundColorParserRules) {
   {
     auto& manifest =
         ParseManifest(R"~({ "background_color": "rgba(255,0,0,0.4)" })~");
-    EXPECT_EQ(manifest->background_color, 0x66FF0000u);
+    EXPECT_EQ(manifest->background_color.value(), 0x66FF0000u);
     EXPECT_EQ(0u, GetErrorCount());
   }
 
@@ -5964,7 +6048,7 @@ TEST_F(ManifestParserTest, BackgroundColorParserRules) {
   {
     auto& manifest =
         ParseManifest(R"~({ "background_color": "rgba(0,0,0,0)" })~");
-    EXPECT_EQ(manifest->background_color, 0x00000000u);
+    EXPECT_EQ(manifest->background_color.value(), 0x00000000u);
     EXPECT_EQ(0u, GetErrorCount());
   }
 }

@@ -12,6 +12,22 @@ namespace webauthn {
 
 namespace {
 
+// Message event.
+constexpr char kEvent[] = "event";
+
+// Message event types.
+constexpr char kHandleGetRequest[] = "handleGetRequest";
+constexpr char kHandleCreateRequest[] = "handleCreateRequest";
+constexpr char kLogGetRequest[] = "logGetRequest";
+constexpr char kLogCreateRequest[] = "logCreateRequest";
+constexpr char kLogGetResolved[] = "logGetResolved";
+constexpr char kLogCreateResolved[] = "logCreateResolved";
+
+// Parameters for logging events.
+constexpr char kCredentialId[] = "credentialId";
+constexpr char kRpId[] = "rpId";
+constexpr char kIsGpm[] = "isGpm";
+
 // Request ID associated with deferred promises.
 constexpr char kRequestId[] = "requestId";
 
@@ -172,6 +188,18 @@ device::UserVerificationRequirement ToUserVerificationRequirement(
   // ShouldPerformUserVerificationForPreference().
   return device::ConvertToUserVerificationRequirement(*user_verification)
       .value_or(device::UserVerificationRequirement::kPreferred);
+}
+
+// Converts the provided booleans to a PasskeyRequestParams::RequestType enum.
+PasskeyRequestParams::RequestType ToRequestType(bool is_conditional,
+                                                bool for_create_request) {
+  if (!is_conditional) {
+    return PasskeyRequestParams::RequestType::kModal;
+  }
+
+  return for_create_request
+             ? PasskeyRequestParams::RequestType::kConditionalCreate
+             : PasskeyRequestParams::RequestType::kConditionalGet;
 }
 
 // Reads a list of PublicKeyCredentialDescriptor from the provided list.
@@ -380,7 +408,8 @@ base::expected<PasskeyRequestParams, PasskeysParsingError> BuildRequestParams(
                               std::move(*challenge),
                               ToUserVerificationRequirement(
                                   request_dict->FindString(kUserVerification)),
-                              *isConditional, std::move(*extension_data));
+                              ToRequestType(*isConditional, for_create_request),
+                              std::move(*extension_data));
 }
 
 }  // namespace
@@ -491,6 +520,52 @@ base::DictValue ToAuthenticationExtensionsClientOutputsJSON(
   }
 
   return extensions_dict;
+}
+
+std::optional<PasskeyScriptEvent> ParsePasskeyScriptEvent(
+    const base::DictValue& dict,
+    IsGpmPasskeyFunc is_gpm_passkey_func) {
+  const std::string* event_string = dict.FindString(kEvent);
+  if (!event_string || event_string->empty()) {
+    return std::nullopt;
+  }
+
+  if (*event_string == kHandleGetRequest) {
+    return PasskeyScriptEvent::kHandleGetRequest;
+  }
+  if (*event_string == kHandleCreateRequest) {
+    return PasskeyScriptEvent::kHandleCreateRequest;
+  }
+  if (*event_string == kLogGetRequest) {
+    return PasskeyScriptEvent::kLogGetRequest;
+  }
+  if (*event_string == kLogCreateRequest) {
+    return PasskeyScriptEvent::kLogCreateRequest;
+  }
+
+  if (*event_string == kLogGetResolved) {
+    const std::string* credential_id = dict.FindString(kCredentialId);
+    const std::string* rp_id = dict.FindString(kRpId);
+    if (!credential_id || credential_id->empty() || !rp_id || rp_id->empty()) {
+      return std::nullopt;
+    }
+    // Checks whether a passkey matching the provided rp ID and credential ID is
+    // present in the currently logged in user's GPM passkeys.
+    bool is_gpm = is_gpm_passkey_func(*rp_id, *credential_id);
+    return is_gpm ? PasskeyScriptEvent::kLogGetResolvedGpm
+                  : PasskeyScriptEvent::kLogGetResolvedNonGpm;
+  }
+
+  if (*event_string == kLogCreateResolved) {
+    std::optional<bool> is_gpm = dict.FindBool(kIsGpm);
+    if (!is_gpm.has_value()) {
+      return std::nullopt;
+    }
+    return *is_gpm ? PasskeyScriptEvent::kLogCreateResolvedGpm
+                   : PasskeyScriptEvent::kLogCreateResolvedNonGpm;
+  }
+
+  return std::nullopt;
 }
 
 }  // namespace webauthn

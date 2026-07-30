@@ -156,104 +156,11 @@ using api::extension_types::InjectDetails;
 
 namespace {
 
-constexpr char kTabIndexNotFoundError[] = "No tab at index: *.";
 constexpr char kCannotFindTabToDiscard[] = "Cannot find a tab to discard.";
-constexpr char kNoHighlightedTabError[] = "No highlighted tab";
 
 }  // namespace
 
 // Tabs ------------------------------------------------------------------------
-
-ExtensionFunction::ResponseAction TabsHighlightFunction::Run() {
-  std::optional<tabs::Highlight::Params> params =
-      tabs::Highlight::Params::Create(args());
-  EXTENSION_FUNCTION_VALIDATE(params);
-
-  // Get the window id from the params; default to current window if omitted.
-  int window_id = params->highlight_info.window_id.value_or(
-      extension_misc::kCurrentWindowId);
-
-  std::string error;
-  WindowController* window_controller =
-      ExtensionTabUtil::GetControllerFromWindowID(
-          ChromeExtensionFunctionDetails(this), window_id, &error);
-  if (!window_controller) {
-    return RespondNow(Error(std::move(error)));
-  }
-
-  // Don't let the extension update the tab if the user is dragging tabs.
-  TabStripModel* tab_strip_model = ExtensionTabUtil::GetEditableTabStripModel(
-      window_controller->GetBrowser());
-  if (!tab_strip_model) {
-    return RespondNow(Error(ExtensionTabUtil::kTabStripNotEditableError));
-  }
-  ui::ListSelectionModel selection;
-  std::optional<size_t> active_index;
-
-  if (params->highlight_info.tabs.as_integers) {
-    std::vector<int>& tab_indices = *params->highlight_info.tabs.as_integers;
-    // Create a new selection model as we read the list of tab indices.
-    for (int tab_index : tab_indices) {
-      if (!HighlightTab(tab_strip_model, &selection, &active_index, tab_index,
-                        &error)) {
-        return RespondNow(Error(std::move(error)));
-      }
-    }
-  } else {
-    EXTENSION_FUNCTION_VALIDATE(params->highlight_info.tabs.as_integer);
-    if (!HighlightTab(tab_strip_model, &selection, &active_index,
-                      *params->highlight_info.tabs.as_integer, &error)) {
-      return RespondNow(Error(std::move(error)));
-    }
-  }
-
-  // Make sure they actually specified tabs to select.
-  if (selection.empty()) {
-    return RespondNow(Error(kNoHighlightedTabError));
-  }
-
-  // Extend selection for any split tabs.
-  for (const auto& index : selection.selected_indices()) {
-    std::optional<split_tabs::SplitTabId> split_id =
-        tab_strip_model->GetSplitForTab(index);
-    if (!split_id.has_value()) {
-      continue;
-    }
-    // All the tabs in a split should be contiguous.
-    std::vector<::tabs::TabInterface*> split_tabs =
-        tab_strip_model->GetSplitData(split_id.value())->ListTabs();
-    size_t start = tab_strip_model->GetIndexOfTab(split_tabs[0]);
-    selection.AddIndexRangeToSelection(start, start + split_tabs.size() - 1);
-  }
-
-  selection.set_active(active_index);
-  tab_strip_model->SetSelectionFromModel(std::move(selection));
-  return RespondNow(
-      WithArguments(window_controller->CreateWindowValueForExtension(
-          extension(), WindowController::kPopulateTabs,
-          source_context_type())));
-}
-
-bool TabsHighlightFunction::HighlightTab(TabStripModel* tabstrip,
-                                         ui::ListSelectionModel* selection,
-                                         std::optional<size_t>* active_index,
-                                         int index,
-                                         std::string* error) {
-  // Make sure the index is in range.
-  if (!tabstrip->ContainsIndex(index)) {
-    *error = ErrorUtils::FormatErrorMessage(kTabIndexNotFoundError,
-                                            base::NumberToString(index));
-    return false;
-  }
-
-  // By default, we make the first tab in the list active.
-  if (!active_index->has_value()) {
-    *active_index = static_cast<size_t>(index);
-  }
-
-  selection->AddIndexToSelection(index);
-  return true;
-}
 
 ExtensionFunction::ResponseAction TabsUngroupFunction::Run() {
   std::optional<tabs::Ungroup::Params> params =

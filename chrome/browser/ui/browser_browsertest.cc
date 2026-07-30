@@ -253,8 +253,7 @@ class TabClosingObserver : public TabStripModelObserver {
 
     auto* remove = change.GetRemove();
     for (const auto& contents : remove->contents) {
-      if (contents.remove_reason ==
-          TabStripModelChange::RemoveReason::kDeleted) {
+      if (contents.remove_reason == TabRemovedReason::kDeleted) {
         closing_count_ += 1;
       }
     }
@@ -1526,7 +1525,7 @@ IN_PROC_BROWSER_TEST_F(BrowserTest, StartMinimized) {
   });
   for (auto& param : params) {
     param.initial_show_state = ui::mojom::WindowShowState::kMinimized;
-    AddBlankTabAndShow(Browser::Create(param));
+    AddBlankTabAndShow(Browser::Create(param), /*wait_for_activation=*/false);
   }
 }
 

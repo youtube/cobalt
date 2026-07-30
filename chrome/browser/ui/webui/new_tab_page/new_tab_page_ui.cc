@@ -283,9 +283,6 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(Profile* profile) {
   source->AddBoolean("searchboxCyclingPlaceholders",
                      ntp_realbox::IsNtpRealboxNextEnabled(profile) &&
                          ntp_realbox::kCyclingPlaceholders.Get());
-  source->AddBoolean("expandedSearchboxShowVoiceSearch",
-                     ntp_realbox::IsNtpRealboxNextEnabled(profile) &&
-                         ntp_realbox::kShowVoiceSearchInExpandedRealbox.Get());
   source->AddBoolean("multiLineEnabled",
                      ntp_realbox::IsNtpRealboxNextEnabled(profile) &&
                          ntp_realbox::kMultiLineEnabled.Get());
@@ -655,8 +652,7 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(Profile* profile) {
                      ntp_composebox::kContextMenuEnableMultiTabSelection.Get());
   source->AddBoolean("searchboxShowComposebox",
                      ntp_composebox::IsNtpComposeboxEnabled(profile));
-  source->AddBoolean("composeboxShowZps",
-                     ntp_composebox::kShowComposeboxZps.Get());
+  source->AddBoolean("composeboxShowZps", true);
   source->AddBoolean("composeboxShowTypedSuggest",
                      ntp_composebox::kShowComposeboxTypedSuggest.Get());
   source->AddBoolean("composeboxShowImageSuggest",
@@ -700,8 +696,6 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(Profile* profile) {
                          composebox_config.is_pdf_upload_enabled();
   source->AddBoolean("composeboxShowPdfUpload", show_pdf_upload);
 
-  source->AddBoolean("composeboxShowSubmit", ntp_composebox::kShowSubmit.Get());
-
   source->AddBoolean("steadyComposeboxShowVoiceSearch",
                      ntp_composebox::kShowVoiceSearchInSteadyComposebox.Get());
 
@@ -724,8 +718,6 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(Profile* profile) {
   // Action Chips LoadTimeData
   bool action_chips_eligible =
       aim_eligibility_service && aim_eligibility_service->IsAimEligible() &&
-      contextual_search::ContextualSearchService::IsContextSharingEnabled(
-          profile->GetPrefs()) &&
       (ntp_features::kNtpNextShowSimplificationUIParam.Get()
            ? (aim_eligibility_service->IsDeepSearchEligible() ||
               aim_eligibility_service->IsCreateImagesEligible())

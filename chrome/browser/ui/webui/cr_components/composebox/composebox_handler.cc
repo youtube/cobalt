@@ -158,56 +158,6 @@ ComposeboxHandler::ComposeboxHandler(
 
 ComposeboxHandler::~ComposeboxHandler() = default;
 
-omnibox::ToolMode ComposeboxHandler::GetAimToolMode() const {
-  return aim_tool_mode_;
-}
-
-// TODO(crbug.com/450894455): Clean up how we set the tool mode. Create a enum
-// on the WebUI side that can set this.
-void ComposeboxHandler::SetDeepSearchMode(bool enabled) {
-  if (enabled) {
-    aim_tool_mode_ = omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH;
-  } else {
-    aim_tool_mode_ = omnibox::ToolMode::TOOL_MODE_UNSPECIFIED;
-  }
-
-  if (auto* metrics_recorder = GetMetricsRecorder()) {
-    metrics_recorder->RecordToolState(
-        contextual_search::SubmissionType::kDeepSearch,
-        enabled ? contextual_search::AimToolState::kEnabled
-                : contextual_search::AimToolState::kDisabled);
-  }
-}
-
-void ComposeboxHandler::SetCreateImageMode(bool enabled, bool image_present) {
-  std::optional<contextual_search::AimToolState> tool_state;
-  if (enabled) {
-    // Only log if not already in some form of create image mode so this metric
-    // does not get double counted.
-    if (aim_tool_mode_ == omnibox::ToolMode::TOOL_MODE_UNSPECIFIED) {
-      tool_state = contextual_search::AimToolState::kEnabled;
-    }
-    // Server uses different `azm` param to make IMAGE_GEN requests when an
-    // image is present.
-    if (image_present) {
-      aim_tool_mode_ = omnibox::ToolMode::TOOL_MODE_IMAGE_GEN_UPLOAD;
-    } else {
-      aim_tool_mode_ = omnibox::ToolMode::TOOL_MODE_IMAGE_GEN;
-    }
-  } else {
-    aim_tool_mode_ = omnibox::ToolMode::TOOL_MODE_UNSPECIFIED;
-    tool_state = contextual_search::AimToolState::kDisabled;
-  }
-
-  if (!tool_state) {
-    return;
-  }
-  if (auto* metrics_recorder = GetMetricsRecorder()) {
-    metrics_recorder->RecordToolState(
-        contextual_search::SubmissionType::kCreateImages, *tool_state);
-  }
-}
-
 void ComposeboxHandler::FocusChanged(bool focused) {
   // Unimplemented. Currently the composebox session is tied to when it is
   // connected/disconnected from the DOM, so this is not needed.
@@ -260,8 +210,9 @@ void ComposeboxHandler::OnThumbnailRemoved() {
 void ComposeboxHandler::ClearFiles() {
   ContextualSearchboxHandler::ClearFiles();
   // Reset the AIM tool mode to not include file upload if it currently does.
-  if (aim_tool_mode_ == omnibox::ToolMode::TOOL_MODE_IMAGE_GEN_UPLOAD) {
-    aim_tool_mode_ = omnibox::ToolMode::TOOL_MODE_IMAGE_GEN;
+  if (GetInputState().active_tool ==
+      omnibox::ToolMode::TOOL_MODE_IMAGE_GEN_UPLOAD) {
+    input_state_model_->setActiveTool(omnibox::ToolMode::TOOL_MODE_IMAGE_GEN);
   }
 }
 
@@ -294,7 +245,7 @@ void ComposeboxHandler::SubmitQuery(
     omnibox::ChromeAimEntryPoint aim_entrypoint,
     std::map<std::string, std::string> additional_params) {
   contextual_search::SubmissionType submission_type;
-  switch (aim_tool_mode_) {
+  switch (GetInputState().active_tool) {
     case omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH:
       submission_type = contextual_search::SubmissionType::kDeepSearch;
       break;

@@ -27,7 +27,7 @@
 #import "ios/chrome/browser/feature_engagement/model/tracker_factory.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_snapshot_utils.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_page_context.h"
-#import "ios/chrome/browser/intelligence/bwg/ui/bwg_ui_utils.h"
+#import "ios/chrome/browser/intelligence/bwg/ui/gemini_ui_utils.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/intelligence/proto_wrappers/page_context_wrapper.h"
@@ -186,7 +186,7 @@ void BwgTabHelper::GeneratePageContext(
       web_state_->IsLoading();
   if (should_update_context_after_page_load) {
     // TODO(crbug.com/466107255): Move waiting for page loading responsibility
-    // to BwgBrowserAgent.
+    // to GeminiBrowserAgent.
     base::OnceCallback<void()> pageContextPopulateCallback =
         base::BindOnce(&BwgTabHelper::PopulatePageContextFields,
                        weak_ptr_factory_.GetWeakPtr());
@@ -256,10 +256,6 @@ bool BwgTabHelper::GetIsFirstRun() {
   return is_first_run_;
 }
 
-std::optional<bool> BwgTabHelper::GetIsGeminiEligible() {
-  return is_gemini_eligible_;
-}
-
 bool BwgTabHelper::ShouldPreventContextualPanelEntryPoint() {
   return prevent_contextual_panel_entry_point_;
 }
@@ -283,9 +279,7 @@ void BwgTabHelper::SetContextualCueLabel(NSString* cue_label) {
 GeminiPageContext* BwgTabHelper::GetPartialPageContext() {
   GeminiPageContext* gemini_page_context = [[GeminiPageContext alloc] init];
   gemini_page_context.BWGPageContextComputationState =
-      is_gemini_eligible_.value_or(true)
-          ? ios::provider::BWGPageContextComputationState::kPending
-          : ios::provider::BWGPageContextComputationState::kBlocked;
+      ios::provider::BWGPageContextComputationState::kPending;
   gemini_page_context.favicon = current_favicon_;
 
   std::unique_ptr<optimization_guide::proto::PageContext> page_context =
@@ -411,7 +405,10 @@ void BwgTabHelper::WasShown(web::WebState* web_state) {
   }
 
   if (IsGeminiCopresenceEnabled()) {
-    [bwg_commands_handler_ updateFloatyVisibilityForWebState:web_state];
+    [bwg_commands_handler_
+        updateFloatyVisibilityIfEligibleAnimated:NO
+                                      fromSource:gemini::FloatyUpdateSource::
+                                                     WebNavigation];
   }
 }
 
@@ -427,6 +424,14 @@ void BwgTabHelper::WasHidden(web::WebState* web_state) {
   }
 
   UpdateWebStateSnapshotInStorage();
+
+  if (!IsGeminiCopresenceEnabled()) {
+    return;
+  }
+
+  [bwg_commands_handler_
+      hideFloatyIfInvokedAnimated:NO
+                       fromSource:gemini::FloatyUpdateSource::WebNavigation];
 }
 
 void BwgTabHelper::DidStartNavigation(
@@ -444,7 +449,6 @@ void BwgTabHelper::DidStartNavigation(
   }
 
   weak_ptr_factory_.InvalidateWeakPtrs();
-  is_gemini_eligible_ = std::nullopt;
   current_url_ = new_url;
   if (IsGeminiCopresenceEnabled()) {
     NotifyPageContextUpdated(web_state_);
@@ -484,7 +488,10 @@ void BwgTabHelper::DidFinishNavigation(
     web::WebState* web_state,
     web::NavigationContext* navigation_context) {
   if (IsGeminiCopresenceEnabled()) {
-    [bwg_commands_handler_ updateFloatyVisibilityForWebState:web_state];
+    [bwg_commands_handler_
+        updateFloatyVisibilityIfEligibleAnimated:NO
+                                      fromSource:gemini::FloatyUpdateSource::
+                                                     WebNavigation];
   }
 
   const GURL& current_url = navigation_context->GetUrl().GetWithoutRef();
@@ -727,7 +734,7 @@ void BwgTabHelper::OnCanApplyContextualCueingDecision(
   }
 
   UIImage* badge_image =
-      [BWGUIUtils brandedGeminiSymbolWithPointSize:kBadgeSymbolPointSize];
+      [GeminiUIUtils brandedGeminiSymbolWithPointSize:kBadgeSymbolPointSize];
   NSString* cue_label =
       l10n_util::GetNSString(IDS_IOS_ASK_GEMINI_CHIP_CUE_LABEL);
   LocationBarBadgeConfiguration* badge_config =
@@ -772,11 +779,6 @@ void BwgTabHelper::OnGeminiEligibilityDecision(
   }
 
   const bool eligible = ComputeGeminiEligibility(decision, metadata);
-  is_gemini_eligible_ = eligible;
-  if (IsGeminiCopresenceEnabled()) {
-    NotifyPageContextUpdated(web_state_);
-  }
-
   if (IsZeroStateSuggestionsEnabled()) {
     zero_state_suggestions_->can_apply = eligible;
   }

@@ -39,6 +39,7 @@
 #import "ios/chrome/browser/incognito_reauth/ui_bundled/incognito_reauth_constants.h"
 #import "ios/chrome/browser/incognito_reauth/ui_bundled/incognito_reauth_scene_agent.h"
 #import "ios/chrome/browser/incognito_reauth/ui_bundled/incognito_reauth_view.h"
+#import "ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/intents/model/intents_donation_helper.h"
 #import "ios/chrome/browser/main_content/ui_bundled/main_content_ui.h"
@@ -296,8 +297,7 @@ const CGFloat kMultilineOmniboxAnimationDuration = 0.3f;
 @property(nonatomic, strong) TabStripCoordinator* tabStripCoordinator;
 // A weak reference to the view of the tab strip on tablet.
 @property(nonatomic, weak) UIView* tabStripView;
-// Constraint for the top of the tab strip view.
-@property(nonatomic, strong) NSLayoutConstraint* tabStripTopConstraint;
+
 // Returns the header views, all the chrome on top of the page, including the
 // ones that cannot be scrolled off screen by full screen.
 @property(nonatomic, strong, readonly) NSArray<HeaderDefinition*>* headerViews;
@@ -992,7 +992,7 @@ const CGFloat kMultilineOmniboxAnimationDuration = 0.3f;
 
   // Update the tab strip placement.
   if (self.tabStripView) {
-    self.tabStripTopConstraint.constant = self.headerOffset;
+    [self showTabStripView:self.tabStripView];
   }
 }
 
@@ -1136,13 +1136,8 @@ const CGFloat kMultilineOmniboxAnimationDuration = 0.3f;
   __weak BrowserViewController* weakSelf = self;
   [super dismissViewControllerAnimated:flag
                             completion:^{
-                              BrowserViewController* strongSelf = weakSelf;
-                              strongSelf.dismissingModal = NO;
-                              if (completion) {
-                                completion();
-                              }
-                              [strongSelf.geminiHandler
-                                  showFloatyIfInvokedAnimated:YES];
+                              [weakSelf viewControllerDismissedWithCompletion:
+                                            completion];
                             }];
 }
 
@@ -1212,7 +1207,9 @@ const CGFloat kMultilineOmniboxAnimationDuration = 0.3f;
   // would be changed back to `kVisible` afterwards. Fix the bug and update the
   // visibility state.
 
-  [self.geminiHandler hideFloatyIfInvokedAnimated:YES];
+  [self.geminiHandler
+      hideFloatyIfInvokedAnimated:YES
+                       fromSource:gemini::FloatyUpdateSource::ViewTransition];
   void (^superCall)() = ^{
     [super presentViewController:viewControllerToPresent
                         animated:flag
@@ -1483,19 +1480,13 @@ const CGFloat kMultilineOmniboxAnimationDuration = 0.3f;
         self.tabStripView = tabStripViewController.view;
         [self.view addSubview:self.tabStripView];
         [tabStripViewController didMoveToParentViewController:self];
-        self.tabStripView.translatesAutoresizingMaskIntoConstraints = NO;
-        self.tabStripTopConstraint = [self.tabStripView.topAnchor
-            constraintEqualToAnchor:self.view.topAnchor
-                           constant:self.headerOffset];
-        [NSLayoutConstraint activateConstraints:@[
-          self.tabStripTopConstraint,
-          [self.tabStripView.leadingAnchor
-              constraintEqualToAnchor:self.view.leadingAnchor],
-          [self.tabStripView.trailingAnchor
-              constraintEqualToAnchor:self.view.trailingAnchor],
-          [self.tabStripView.heightAnchor
-              constraintEqualToConstant:TabStripCollectionViewConstants.height],
-        ]];
+        CGRect tabStripFrame =
+            CGRectMake(0, self.headerOffset, self.view.bounds.size.width,
+                       TabStripCollectionViewConstants.height);
+        self.tabStripView.frame = tabStripFrame;
+        self.tabStripView.autoresizingMask =
+            (UIViewAutoresizingFlexibleWidth |
+             UIViewAutoresizingFlexibleBottomMargin);
       }
       [self.view insertSubview:primaryToolbarView
                   aboveSubview:self.tabStripView];
@@ -1740,18 +1731,15 @@ const CGFloat kMultilineOmniboxAnimationDuration = 0.3f;
     if (isPrimaryToolbar && !CanShowTabStrip(self)) {
       self.primaryToolbarOffsetConstraint.constant = yOrigin;
     }
-
-    if (header.view == self.tabStripView) {
-      self.tabStripTopConstraint.constant = yOrigin;
-      [self setNeedsStatusBarAppearanceUpdate];
-    } else {
-      CGRect frame = [header.view frame];
-      frame.origin.y = yOrigin;
-      [header.view setFrame:frame];
+    CGRect frame = [header.view frame];
+    frame.origin.y = yOrigin;
+    [header.view setFrame:frame];
+    if (header.behaviour != Overlap) {
+      height += CGRectGetHeight(frame);
     }
 
-    if (header.behaviour != Overlap) {
-      height += CGRectGetHeight(header.view.frame);
+    if (header.view == self.tabStripView) {
+      [self setNeedsStatusBarAppearanceUpdate];
     }
   }
 }
@@ -1832,6 +1820,8 @@ const CGFloat kMultilineOmniboxAnimationDuration = 0.3f;
 
   // Update the tab strip visibility.
   if (self.tabStripView) {
+    [self showTabStripView:self.tabStripView];
+    [self.tabStripView layoutSubviews];
     const bool canShowTabStrip = CanShowTabStrip(self);
     [self.tabStripCoordinator hideTabStrip:!canShowTabStrip];
     _fakeStatusBarView.hidden = !canShowTabStrip;
@@ -1853,6 +1843,25 @@ const CGFloat kMultilineOmniboxAnimationDuration = 0.3f;
   }
 
   self.fullscreenController->BrowserTraitCollectionChangedEnd();
+}
+
+// Shows the `tabStripView`.
+- (void)showTabStripView:(UIView*)tabStripView {
+  DCHECK([self isViewLoaded]);
+  DCHECK(tabStripView);
+  self.tabStripView = tabStripView;
+  CGRect tabStripFrame = [self.tabStripView frame];
+  tabStripFrame.origin = CGPointZero;
+  // TODO(crbug.com/41023322): Move the origin.y below to -setUpViewLayout.
+  // because the CGPointZero above will break reset the offset, but it's not
+  // clear what removing that will do.
+  tabStripFrame.origin.y = self.headerOffset;
+  tabStripFrame.size.width = CGRectGetWidth([self view].bounds);
+  [self.tabStripView setFrame:tabStripFrame];
+
+  UIView* primaryToolbar =
+      self.toolbarCoordinator.primaryToolbarViewController.view;
+  [self.view insertSubview:tabStripView belowSubview:primaryToolbar];
 }
 
 // On iOS 26, returns the top inset with corner adapation, otherwise returns 0.
@@ -1894,6 +1903,19 @@ const CGFloat kMultilineOmniboxAnimationDuration = 0.3f;
       ]];
     }
   }
+}
+
+// Helper method for dismissing view controller with `completion` block.
+- (void)viewControllerDismissedWithCompletion:(void (^)())completion {
+  self.dismissingModal = NO;
+  if (completion) {
+    completion();
+  }
+
+  [self.geminiHandler
+      updateFloatyVisibilityIfEligibleAnimated:NO
+                                    fromSource:gemini::FloatyUpdateSource::
+                                                   ViewTransition];
 }
 
 #pragma mark - Private Methods: Tap handling
@@ -2915,22 +2937,6 @@ const CGFloat kMultilineOmniboxAnimationDuration = 0.3f;
   return nil;
 }
 
-#pragma mark - LensPresentationDelegate
-
-- (CGRect)webContentAreaForLensCoordinator:(LensCoordinator*)lensCoordinator {
-  DCHECK(lensCoordinator);
-
-  // The LensCoordinator needs the content area of the webView with the
-  // header and footer toolbars visible.
-  UIEdgeInsets viewportInsets = self.rootSafeAreaInsets;
-  if (!CanShowTabStrip(self)) {
-    viewportInsets.bottom = [self secondaryToolbarHeightWithInset];
-  }
-
-  viewportInsets.top = [self expandedTopToolbarHeight];
-  return UIEdgeInsetsInsetRect(self.contentArea.bounds, viewportInsets);
-}
-
 #pragma mark - ContextualSheetPresenter
 
 - (void)insertContextualSheet:(UIView*)contextualSheet {
@@ -2946,7 +2952,9 @@ const CGFloat kMultilineOmniboxAnimationDuration = 0.3f;
     return;
   }
 
-  [self.geminiHandler hideFloatyIfInvokedAnimated:NO];
+  [self.geminiHandler
+      hideFloatyIfInvokedAnimated:NO
+                       fromSource:gemini::FloatyUpdateSource::Overlay];
 }
 
 - (void)lensOverlayWillAppear {
@@ -2966,7 +2974,10 @@ const CGFloat kMultilineOmniboxAnimationDuration = 0.3f;
     return;
   }
 
-  [self.geminiHandler showFloatyIfInvokedAnimated:YES];
+  [self.geminiHandler
+      updateFloatyVisibilityIfEligibleAnimated:NO
+                                    fromSource:gemini::FloatyUpdateSource::
+                                                   Overlay];
 }
 
 - (void)lensOverlayDidReadjustPresentation {

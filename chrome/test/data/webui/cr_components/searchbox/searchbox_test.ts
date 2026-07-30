@@ -5,7 +5,8 @@
 import 'chrome://new-tab-page/new_tab_page.js';
 
 import type {SearchboxElement, SearchboxIconElement, SearchboxMatchElement} from 'chrome://new-tab-page/new_tab_page.js';
-import {$$, BrowserProxyImpl, createAutocompleteMatch, MetricsReporterImpl, PlaceholderTextCycler, SearchboxBrowserProxy} from 'chrome://new-tab-page/new_tab_page.js';
+import {$$, BrowserProxyImpl, MetricsReporterImpl, PlaceholderTextCycler, SearchboxBrowserProxy} from 'chrome://new-tab-page/new_tab_page.js';
+import {createAutocompleteMatch, createAutocompleteResultForTesting, createSearchMatchForTesting} from 'chrome://resources/cr_components/searchbox/searchbox_browser_proxy.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {PageMetricsCallbackRouter} from 'chrome://resources/js/metrics_reporter.mojom-webui.js';
 import {getDeepActiveElement} from 'chrome://resources/js/util.js';
@@ -20,7 +21,7 @@ import {fakeMetricsPrivate} from 'chrome://webui-test/metrics_test_support.js';
 import {TestMock} from 'chrome://webui-test/test_mock.js';
 import {eventToPromise, isVisible, microtasksFinished} from 'chrome://webui-test/test_util.js';
 
-import {assertStyle, createAutocompleteResult, createSearchMatch, waitForAttributeChange} from './searchbox_test_utils.js';
+import {assertStyle, waitForAttributeChange} from './searchbox_test_utils.js';
 import {TestSearchboxBrowserProxy} from './test_searchbox_browser_proxy.js';
 
 enum Attributes {
@@ -41,33 +42,31 @@ function createClipboardEvent(name: string): ClipboardEvent {
 
 function createUrlMatch(modifiers: Partial<AutocompleteMatch> = {}):
     AutocompleteMatch {
-  return Object.assign(
-      createAutocompleteMatch(), {
-        swapContentsAndDescription: true,
-        contents: 'helloworld.com',
-        contentsClass: [{offset: 0, style: 1}],
-        destinationUrl: 'https://helloworld.com/',
-        fillIntoEdit: 'https://helloworld.com',
-        type: 'url-what-you-typed',
-      },
-      modifiers);
+  return createAutocompleteMatch({
+    swapContentsAndDescription: true,
+    contents: 'helloworld.com',
+    contentsClass: [{offset: 0, style: 1}],
+    destinationUrl: 'https://helloworld.com/',
+    fillIntoEdit: 'https://helloworld.com',
+    type: 'url-what-you-typed',
+    ...modifiers,
+  });
 }
 
 function createCalculatorMatch(modifiers: Partial<AutocompleteMatch>):
     AutocompleteMatch {
-  return Object.assign(
-      createAutocompleteMatch(), {
-        isSearchType: true,
-        contents: '2 + 3',
-        contentsClass: [{offset: 0, style: 0}],
-        description: '5',
-        descriptionClass: [{offset: 0, style: 0}],
-        destinationUrl: 'https://www.google.com/search?q=2+%2B+3',
-        fillIntoEdit: '5',
-        type: 'search-calculator-answer',
-        iconPath: 'calculator.svg',
-      },
-      modifiers);
+  return createAutocompleteMatch({
+    isSearchType: true,
+    contents: '2 + 3',
+    contentsClass: [{offset: 0, style: 0}],
+    description: '5',
+    descriptionClass: [{offset: 0, style: 0}],
+    destinationUrl: 'https://www.google.com/search?q=2+%2B+3',
+    fillIntoEdit: '5',
+    type: 'search-calculator-answer',
+    iconPath: 'calculator.svg',
+    ...modifiers,
+  });
 }
 
 /** Verifies the autocomplete match is showing. */
@@ -145,6 +144,7 @@ suite('NewTabPageRealboxTest', () => {
     metrics = fakeMetricsPrivate();
 
     realbox = await createAndAppendRealbox();
+    testProxy.handler.setResultFor('getRecentTabs', {tabs: []});
   });
 
   // TODO(crbug.com/328270499): Uncomment once flakiness is fixed.
@@ -575,16 +575,16 @@ suite('NewTabPageRealboxTest', () => {
     realbox.$.input.dispatchEvent(new MouseEvent('mousedown', {button: 0}));
 
     const args = await testProxy.handler.whenCalled('queryAutocomplete');
-    assertEquals(args.input, realbox.$.input.value);
-    assertFalse(args.preventInlineAutocomplete);
+    assertEquals(/*input=*/ args[0], realbox.$.input.value);
+    assertFalse(/*preventInlineAutocomplete=*/ args[1]);
     assertEquals(1, testProxy.handler.getCallCount('queryAutocomplete'));
 
     testProxy.handler.reset();
 
     // Show zero-prefix matches.
-    const matches = [createSearchMatch(), createUrlMatch()];
+    const matches = [createSearchMatchForTesting(), createUrlMatch()];
     testProxy.callbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResult({
+        createAutocompleteResultForTesting({
           matches: matches,
         }));
     assertTrue(await areMatchesShowing());
@@ -637,16 +637,16 @@ suite('NewTabPageRealboxTest', () => {
     realbox.$.input.value = '';
     realbox.$.input.dispatchEvent(new MouseEvent('mousedown', {button: 0}));
     let args = await testProxy.handler.whenCalled('queryAutocomplete');
-    assertEquals(args.input, realbox.$.input.value);
-    assertFalse(args.preventInlineAutocomplete);
+    assertEquals(/*input=*/ args[0], realbox.$.input.value);
+    assertFalse(/*preventInlineAutocomplete=*/ args[1]);
     assertEquals(1, testProxy.handler.getCallCount('queryAutocomplete'));
 
     testProxy.handler.reset();
 
     // Show zero-prefix matches.
-    const matches = [createSearchMatch(), createUrlMatch()];
+    const matches = [createSearchMatchForTesting(), createUrlMatch()];
     testProxy.callbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResult({
+        createAutocompleteResultForTesting({
           matches: matches,
         }));
     assertTrue(await areMatchesShowing());
@@ -679,8 +679,8 @@ suite('NewTabPageRealboxTest', () => {
       key: 'Tab',
     }));
     args = await testProxy.handler.whenCalled('queryAutocomplete');
-    assertEquals(args.input, realbox.$.input.value);
-    assertFalse(args.preventInlineAutocomplete);
+    assertEquals(/*input=*/ args[0], realbox.$.input.value);
+    assertFalse(/*preventInlineAutocomplete=*/ args[1]);
     assertEquals(1, testProxy.handler.getCallCount('queryAutocomplete'));
 
     testProxy.handler.reset();
@@ -700,16 +700,16 @@ suite('NewTabPageRealboxTest', () => {
     realbox.$.input.value = '';
     realbox.$.input.dispatchEvent(new MouseEvent('mousedown', {button: 0}));
     const args = await testProxy.handler.whenCalled('queryAutocomplete');
-    assertEquals(args.input, realbox.$.input.value);
-    assertFalse(args.preventInlineAutocomplete);
+    assertEquals(/*input=*/ args[0], realbox.$.input.value);
+    assertFalse(/*preventInlineAutocomplete=*/ args[1]);
     assertEquals(1, testProxy.handler.getCallCount('queryAutocomplete'));
 
     testProxy.handler.reset();
 
     // Show zero-prefix matches.
-    const matches = [createSearchMatch(), createUrlMatch()];
+    const matches = [createSearchMatchForTesting(), createUrlMatch()];
     testProxy.callbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResult({
+        createAutocompleteResultForTesting({
           matches: matches,
         }));
     assertTrue(await areMatchesShowing());
@@ -757,16 +757,16 @@ suite('NewTabPageRealboxTest', () => {
     realbox.$.input.value = 'hello';
     realbox.$.input.dispatchEvent(new InputEvent('input'));
     let args = await testProxy.handler.whenCalled('queryAutocomplete');
-    assertEquals(args.input, realbox.$.input.value);
-    assertFalse(args.preventInlineAutocomplete);
+    assertEquals(/*input=*/ args[0], realbox.$.input.value);
+    assertFalse(/*preventInlineAutocomplete=*/ args[1]);
     assertEquals(1, testProxy.handler.getCallCount('queryAutocomplete'));
 
     testProxy.handler.reset();
 
     // Show matches.
-    const matches = [createSearchMatch(), createUrlMatch()];
+    const matches = [createSearchMatchForTesting(), createUrlMatch()];
     testProxy.callbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResult({
+        createAutocompleteResultForTesting({
           input: 'hello',
           matches: matches,
         }));
@@ -799,8 +799,8 @@ suite('NewTabPageRealboxTest', () => {
       key: 'ArrowDown',
     }));
     args = await testProxy.handler.whenCalled('queryAutocomplete');
-    assertEquals(args.input, realbox.$.input.value);
-    assertFalse(args.preventInlineAutocomplete);
+    assertEquals(/*input=*/ args[0], realbox.$.input.value);
+    assertFalse(/*preventInlineAutocomplete=*/ args[1]);
     assertEquals(1, testProxy.handler.getCallCount('queryAutocomplete'));
   });
 
@@ -821,8 +821,8 @@ suite('NewTabPageRealboxTest', () => {
     realbox.$.input.dispatchEvent(new InputEvent('input'));
 
     let args = await testProxy.handler.whenCalled('queryAutocomplete');
-    assertEquals(args.input, realbox.$.input.value);
-    assertFalse(args.preventInlineAutocomplete);
+    assertEquals(/*input=*/ args[0], realbox.$.input.value);
+    assertFalse(/*preventInlineAutocomplete=*/ args[1]);
     assertEquals(1, testProxy.handler.getCallCount('queryAutocomplete'));
 
     testProxy.handler.reset();
@@ -832,8 +832,8 @@ suite('NewTabPageRealboxTest', () => {
     realbox.$.input.dispatchEvent(new InputEvent('input'));
 
     args = await testProxy.handler.whenCalled('queryAutocomplete');
-    assertEquals(args.input, realbox.$.input.value);
-    assertTrue(args.preventInlineAutocomplete);
+    assertEquals(/*input=*/ args[0], realbox.$.input.value);
+    assertTrue(/*preventInlineAutocomplete=*/ args[1]);
     assertEquals(1, testProxy.handler.getCallCount('queryAutocomplete'));
 
     testProxy.handler.reset();
@@ -842,8 +842,8 @@ suite('NewTabPageRealboxTest', () => {
     realbox.$.input.dispatchEvent(new InputEvent('input'));
 
     args = await testProxy.handler.whenCalled('queryAutocomplete');
-    assertEquals(args.input, realbox.$.input.value);
-    assertFalse(args.preventInlineAutocomplete);
+    assertEquals(/*input=*/ args[0], realbox.$.input.value);
+    assertFalse(/*preventInlineAutocomplete=*/ args[1]);
     assertEquals(1, testProxy.handler.getCallCount('queryAutocomplete'));
 
     testProxy.handler.reset();
@@ -856,8 +856,8 @@ suite('NewTabPageRealboxTest', () => {
     realbox.$.input.dispatchEvent(new InputEvent('input'));
 
     args = await testProxy.handler.whenCalled('queryAutocomplete');
-    assertEquals(args.input, realbox.$.input.value);
-    assertTrue(args.preventInlineAutocomplete);
+    assertEquals(/*input=*/ args[0], realbox.$.input.value);
+    assertTrue(/*preventInlineAutocomplete=*/ args[1]);
     assertEquals(1, testProxy.handler.getCallCount('queryAutocomplete'));
 
     testProxy.handler.reset();
@@ -866,8 +866,8 @@ suite('NewTabPageRealboxTest', () => {
     realbox.$.input.dispatchEvent(new InputEvent('input'));
 
     args = await testProxy.handler.whenCalled('queryAutocomplete');
-    assertEquals(args.input, realbox.$.input.value);
-    assertFalse(args.preventInlineAutocomplete);
+    assertEquals(/*input=*/ args[0], realbox.$.input.value);
+    assertFalse(/*preventInlineAutocomplete=*/ args[1]);
     assertEquals(1, testProxy.handler.getCallCount('queryAutocomplete'));
 
     testProxy.handler.reset();
@@ -878,8 +878,8 @@ suite('NewTabPageRealboxTest', () => {
     realbox.$.input.dispatchEvent(new InputEvent('input'));
 
     args = await testProxy.handler.whenCalled('queryAutocomplete');
-    assertEquals(args.input, realbox.$.input.value);
-    assertTrue(args.preventInlineAutocomplete);
+    assertEquals(/*input=*/ args[0], realbox.$.input.value);
+    assertTrue(/*preventInlineAutocomplete=*/ args[1]);
     assertEquals(1, testProxy.handler.getCallCount('queryAutocomplete'));
 
     testProxy.handler.reset();
@@ -890,8 +890,8 @@ suite('NewTabPageRealboxTest', () => {
     realbox.$.input.dispatchEvent(inputEvent);
 
     args = await testProxy.handler.whenCalled('queryAutocomplete');
-    assertEquals(args.input, realbox.$.input.value);
-    assertTrue(args.preventInlineAutocomplete);
+    assertEquals(/*input=*/ args[0], realbox.$.input.value);
+    assertTrue(/*preventInlineAutocomplete=*/ args[1]);
     assertEquals(1, testProxy.handler.getCallCount('queryAutocomplete'));
 
     testProxy.handler.reset();
@@ -901,15 +901,15 @@ suite('NewTabPageRealboxTest', () => {
     realbox.$.input.value = 'h';
     realbox.$.input.dispatchEvent(new InputEvent('input'));
 
-    let args = await testProxy.handler.whenCalled('queryAutocomplete');
-    assertEquals(args.input, realbox.$.input.value);
-    assertFalse(args.preventInlineAutocomplete);
+    const args = await testProxy.handler.whenCalled('queryAutocomplete');
+    assertEquals(/*input=*/ args[0], realbox.$.input.value);
+    assertFalse(/*preventInlineAutocomplete=*/ args[1]);
     assertEquals(1, testProxy.handler.getCallCount('queryAutocomplete'));
 
     realbox.$.input.value = '';
     realbox.$.input.dispatchEvent(new InputEvent('input'));
-    args = await testProxy.handler.whenCalled('stopAutocomplete');
-    assertTrue(args.clearResult);
+    const clearResult = await testProxy.handler.whenCalled('stopAutocomplete');
+    assertTrue(clearResult);
   });
 
   test(
@@ -932,7 +932,7 @@ suite('NewTabPageRealboxTest', () => {
         // Check that autocomplete gets queried with last input on click with
         // non empty input when thumbnail is showing.
         let args = await testProxy.handler.whenCalled('queryAutocomplete');
-        assertEquals(args.input, realbox.$.input.value);
+        assertEquals(/*input=*/ args[0], realbox.$.input.value);
 
         // Make sure realbox focus is not focused and matches aren't showing.
         realbox.$.input.blur();
@@ -948,7 +948,7 @@ suite('NewTabPageRealboxTest', () => {
         // Check that autocomplete gets queried with last input on keyup with
         // non empty input when thumbnail is showing.
         args = await testProxy.handler.whenCalled('queryAutocomplete');
-        assertEquals(args.input, realbox.$.input.value);
+        assertEquals(/*input=*/ args[0], realbox.$.input.value);
       });
 
   //============================================================================
@@ -959,18 +959,18 @@ suite('NewTabPageRealboxTest', () => {
     realbox.$.input.value = '      hello world';
     realbox.$.input.dispatchEvent(new InputEvent('input'));
     const args = await testProxy.handler.whenCalled('queryAutocomplete');
-    assertEquals(args.input, realbox.$.input.value);
-    assertFalse(args.preventInlineAutocomplete);
+    assertEquals(/*input=*/ args[0], realbox.$.input.value);
+    assertFalse(/*preventInlineAutocomplete=*/ args[1]);
     assertEquals(1, testProxy.handler.getCallCount('queryAutocomplete'));
 
     const matches = [
-      createSearchMatch({
+      createSearchMatchForTesting({
         allowedToBeDefaultMatch: true,
       }),
       createUrlMatch(),
     ];
     testProxy.callbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResult({
+        createAutocompleteResultForTesting({
           input: realbox.$.input.value.trimStart(),
           matches: matches,
         }));
@@ -996,18 +996,18 @@ suite('NewTabPageRealboxTest', () => {
     realbox.$.input.value = 'hello ';
     realbox.$.input.dispatchEvent(new InputEvent('input'));
     let args = await testProxy.handler.whenCalled('queryAutocomplete');
-    assertEquals(args.input, realbox.$.input.value);
-    assertFalse(args.preventInlineAutocomplete);
+    assertEquals(/*input=*/ args[0], realbox.$.input.value);
+    assertFalse(/*preventInlineAutocomplete=*/ args[1]);
     assertEquals(1, testProxy.handler.getCallCount('queryAutocomplete'));
 
     testProxy.handler.reset();
 
-    const matches = [createSearchMatch({
+    const matches = [createSearchMatchForTesting({
       allowedToBeDefaultMatch: true,
       inlineAutocompletion: 'world',
     })];
     testProxy.callbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResult({
+        createAutocompleteResultForTesting({
           input: realbox.$.input.value.trimStart(),
           matches: matches,
         }));
@@ -1057,8 +1057,8 @@ suite('NewTabPageRealboxTest', () => {
     assertEquals('orld', realbox.$.input.value.substring(start, end));
 
     args = await testProxy.handler.whenCalled('queryAutocomplete');
-    assertEquals(args.input, 'hello w');
-    assertFalse(args.preventInlineAutocomplete);
+    assertEquals(/*input=*/ args[0], 'hello w');
+    assertFalse(/*preventInlineAutocomplete=*/ args[1]);
     assertEquals(1, testProxy.handler.getCallCount('queryAutocomplete'));
   });
 
@@ -1068,12 +1068,12 @@ suite('NewTabPageRealboxTest', () => {
     realbox.$.input.selectionEnd = 4;
     realbox.$.input.dispatchEvent(new InputEvent('input'));
 
-    const matches = [createSearchMatch({
+    const matches = [createSearchMatchForTesting({
       allowedToBeDefaultMatch: true,
       contents: 'hello',
     })];
     testProxy.callbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResult({
+        createAutocompleteResultForTesting({
           input: realbox.$.input.value.trimStart(),
           matches: matches,
         }));
@@ -1089,9 +1089,9 @@ suite('NewTabPageRealboxTest', () => {
     realbox.$.input.value = 'he';
     realbox.$.input.dispatchEvent(new InputEvent('input'));
 
-    const matches = [createSearchMatch(), createUrlMatch()];
+    const matches = [createSearchMatchForTesting(), createUrlMatch()];
     testProxy.callbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResult({
+        createAutocompleteResultForTesting({
           input: 'h',  // Simulate stale response.
           matches: matches,
         }));
@@ -1106,9 +1106,9 @@ suite('NewTabPageRealboxTest', () => {
     realbox.$.input.value = 'he';
     realbox.$.input.dispatchEvent(new InputEvent('input'));
 
-    const matches = [createSearchMatch(), createUrlMatch()];
+    const matches = [createSearchMatchForTesting(), createUrlMatch()];
     testProxy.callbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResult({
+        createAutocompleteResultForTesting({
           input: realbox.$.input.value.trimStart(),
           matches: matches,
         }));
@@ -1122,7 +1122,7 @@ suite('NewTabPageRealboxTest', () => {
     realbox.$.input.dispatchEvent(new InputEvent('input'));
 
     testProxy.callbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResult({
+        createAutocompleteResultForTesting({
           input: realbox.$.input.value.trimStart(),
         }));
     assertFalse(await areMatchesShowing());
@@ -1135,7 +1135,7 @@ suite('NewTabPageRealboxTest', () => {
     realbox.$.input.dispatchEvent(new InputEvent('input'));
 
     testProxy.callbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResult({
+        createAutocompleteResultForTesting({
           input: realbox.$.input.value.trimStart(),
           matches: matches,
         }));
@@ -1204,9 +1204,9 @@ suite('NewTabPageRealboxTest', () => {
                            '#voiceSearchButton')!.focus();
     assertEquals('voiceSearchButton', getDeepActiveElement()!.id);
 
-    const matches = [createSearchMatch(), createUrlMatch()];
+    const matches = [createSearchMatchForTesting(), createUrlMatch()];
     testProxy.callbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResult({
+        createAutocompleteResultForTesting({
           input: realbox.$.input.value.trimStart(),
           matches: matches,
         }));
@@ -1235,12 +1235,12 @@ suite('NewTabPageRealboxTest', () => {
     realbox.$.input.value = 'hello ';
     realbox.$.input.dispatchEvent(new InputEvent('input'));
 
-    const matches = [createSearchMatch({
+    const matches = [createSearchMatchForTesting({
       allowedToBeDefaultMatch: true,
       inlineAutocompletion: 'world',
     })];
     testProxy.callbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResult({
+        createAutocompleteResultForTesting({
           input: realbox.$.input.value.trimStart(),
           matches: matches,
         }));
@@ -1272,7 +1272,7 @@ suite('NewTabPageRealboxTest', () => {
       inlineAutocompletion: 'world.com',
     })];
     testProxy.callbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResult({
+        createAutocompleteResultForTesting({
           input: realbox.$.input.value.trimStart(),
           matches: matches,
         }));
@@ -1322,14 +1322,14 @@ suite('NewTabPageRealboxTest', () => {
     realbox.$.input.dispatchEvent(new InputEvent('input'));
 
     const matches = [
-      createSearchMatch({
+      createSearchMatchForTesting({
         allowedToBeDefaultMatch: true,
         inlineAutocompletion: 'world',
       }),
       createUrlMatch(),
     ];
     testProxy.callbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResult({
+        createAutocompleteResultForTesting({
           input: realbox.$.input.value.trimStart(),
           matches: matches,
         }));
@@ -1361,10 +1361,10 @@ suite('NewTabPageRealboxTest', () => {
 
     // Navigates to the first match.
     const args = await testProxy.handler.whenCalled('openAutocompleteMatch');
-    assertEquals(0, args.line);
-    assertEquals(matches[0]!.destinationUrl, args.url);
-    assertTrue(args.areMatchesShowing);
-    assertTrue(args.shiftKey);
+    assertEquals(0, /*line=*/ args[0]);
+    assertEquals(matches[0]!.destinationUrl, /*url=*/ args[1]);
+    assertTrue(/*areMatchesShowing=*/ args[2]);
+    assertTrue(/*shiftKey=*/ args[7]);
     assertEquals(1, testProxy.handler.getCallCount('openAutocompleteMatch'));
 
     // Navigation should close the dropdown.
@@ -1387,10 +1387,12 @@ suite('NewTabPageRealboxTest', () => {
         realbox.$.input.value = '  hello  ';
         realbox.$.input.dispatchEvent(new InputEvent('input'));
 
-        const matches =
-            [createSearchMatch({iconPath: 'clock.svg'}), createUrlMatch()];
+        const matches = [
+          createSearchMatchForTesting({iconPath: 'clock.svg'}),
+          createUrlMatch(),
+        ];
         testProxy.callbackRouterRemote.autocompleteResultChanged(
-            createAutocompleteResult({
+            createAutocompleteResultForTesting({
               input: realbox.$.input.value.trimStart(),
               matches: matches,
             }));
@@ -1450,10 +1452,10 @@ suite('NewTabPageRealboxTest', () => {
         // Navigates to the first match.
         const args =
             await testProxy.handler.whenCalled('openAutocompleteMatch');
-        assertEquals(0, args.line);
-        assertEquals(matches[0]!.destinationUrl, args.url);
-        assertFalse(args.areMatchesShowing);
-        assertTrue(args.shiftKey);
+        assertEquals(0, /*line=*/ args[0]);
+        assertEquals(matches[0]!.destinationUrl, /*url=*/ args[1]);
+        assertFalse(/*areMatchesShowing*/ args[2]);
+        assertTrue(/*shiftKey*/ args[7]);
         assertEquals(
             1, testProxy.handler.getCallCount('openAutocompleteMatch'));
       });
@@ -1465,9 +1467,9 @@ suite('NewTabPageRealboxTest', () => {
     realbox.$.input.value = 'hello';
     realbox.$.input.dispatchEvent(new InputEvent('input'));
 
-    const matches = [createSearchMatch(), createUrlMatch()];
+    const matches = [createSearchMatchForTesting(), createUrlMatch()];
     testProxy.callbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResult({
+        createAutocompleteResultForTesting({
           input: realbox.$.input.value.trimStart(),
           matches: matches,
         }));
@@ -1500,10 +1502,12 @@ suite('NewTabPageRealboxTest', () => {
         realbox.$.input.value = '';
         realbox.$.input.dispatchEvent(new MouseEvent('mousedown', {button: 0}));
 
-        const matches =
-            [createSearchMatch({iconPath: 'clock.svg'}), createUrlMatch()];
+        const matches = [
+          createSearchMatchForTesting({iconPath: 'clock.svg'}),
+          createUrlMatch(),
+        ];
         testProxy.callbackRouterRemote.autocompleteResultChanged(
-            createAutocompleteResult({
+            createAutocompleteResultForTesting({
               input: realbox.$.input.value.trimStart(),
               matches: matches,
             }));
@@ -1572,13 +1576,13 @@ suite('NewTabPageRealboxTest', () => {
     realbox.$.input.dispatchEvent(new InputEvent('input'));
 
     const matches = [
-      createSearchMatch({
+      createSearchMatchForTesting({
         allowedToBeDefaultMatch: true,
       }),
       createUrlMatch(),
     ];
     testProxy.callbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResult({
+        createAutocompleteResultForTesting({
           input: realbox.$.input.value.trimStart(),
           matches: matches,
         }));
@@ -1611,7 +1615,7 @@ suite('NewTabPageRealboxTest', () => {
 
     // New matches arrive.
     testProxy.callbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResult({
+        createAutocompleteResultForTesting({
           input: realbox.$.input.value.trimStart(),
           matches: matches,
         }));
@@ -1624,10 +1628,10 @@ suite('NewTabPageRealboxTest', () => {
 
     // Navigates to the first match immediately without further user action.
     const args = await testProxy.handler.whenCalled('openAutocompleteMatch');
-    assertEquals(0, args.line);
-    assertEquals(matches[0]!.destinationUrl, args.url);
-    assertTrue(args.areMatchesShowing);
-    assertTrue(args.shiftKey);
+    assertEquals(0, /*line=*/ args[0]);
+    assertEquals(matches[0]!.destinationUrl, /*url=*/ args[1]);
+    assertTrue(/*areMatchesShowing=*/ args[2]);
+    assertTrue(/*shiftKey*/ args[7]);
     assertEquals(1, testProxy.handler.getCallCount('openAutocompleteMatch'));
   });
 
@@ -1639,13 +1643,13 @@ suite('NewTabPageRealboxTest', () => {
     realbox.$.input.dispatchEvent(new InputEvent('input'));
 
     const matches = [
-      createSearchMatch({
+      createSearchMatchForTesting({
         allowedToBeDefaultMatch: true,
       }),
       createUrlMatch(),
     ];
     testProxy.callbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResult({
+        createAutocompleteResultForTesting({
           input: realbox.$.input.value.trimStart(),
           matches: matches,
         }));
@@ -1670,10 +1674,10 @@ suite('NewTabPageRealboxTest', () => {
 
     // Navigates to the first match is selected.
     const args = await testProxy.handler.whenCalled('openAutocompleteMatch');
-    assertEquals(0, args.line);
-    assertEquals(matches[0]!.destinationUrl, args.url);
-    assertTrue(args.areMatchesShowing);
-    assertTrue(args.shiftKey);
+    assertEquals(0, /*line=*/ args[0]);
+    assertEquals(matches[0]!.destinationUrl, /*url=*/ args[1]);
+    assertTrue(/*areMatchesShowing=*/ args[2]);
+    assertTrue(/*shiftKey=*/ args[7]);
     assertEquals(1, testProxy.handler.getCallCount('openAutocompleteMatch'));
   });
 
@@ -1685,10 +1689,12 @@ suite('NewTabPageRealboxTest', () => {
     realbox.$.input.value = 'hello';
     realbox.$.input.dispatchEvent(new InputEvent('input'));
 
-    const matches =
-        [createSearchMatch(), createUrlMatch({supportsDeletion: true})];
+    const matches = [
+      createSearchMatchForTesting(),
+      createUrlMatch({supportsDeletion: true}),
+    ];
     testProxy.callbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResult({
+        createAutocompleteResultForTesting({
           input: realbox.$.input.value.trimStart(),
           matches: matches,
         }));
@@ -1717,13 +1723,13 @@ suite('NewTabPageRealboxTest', () => {
     realbox.$.input.dispatchEvent(new InputEvent('input'));
 
     const matches = [
-      createSearchMatch({
+      createSearchMatchForTesting({
         allowedToBeDefaultMatch: true,
       }),
       createUrlMatch({supportsDeletion: true}),
     ];
     testProxy.callbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResult({
+        createAutocompleteResultForTesting({
           input: realbox.$.input.value.trimStart(),
           matches: matches,
         }));
@@ -1768,7 +1774,7 @@ suite('NewTabPageRealboxTest', () => {
     realbox.$.input.dispatchEvent(shiftDeleteEvent);
     assertTrue(shiftDeleteEvent.defaultPrevented);
     const args = await testProxy.handler.whenCalled('deleteAutocompleteMatch');
-    assertEquals(1, args.line);
+    assertEquals(1, /*line=*/ args[0]);
     assertEquals(1, testProxy.handler.getCallCount('deleteAutocompleteMatch'));
   });
 
@@ -1777,12 +1783,12 @@ suite('NewTabPageRealboxTest', () => {
     realbox.$.input.dispatchEvent(new InputEvent('input'));
 
     let matches = [
-      createSearchMatch({
+      createSearchMatchForTesting({
         supportsDeletion: true,
       }),
     ];
     testProxy.callbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResult({
+        createAutocompleteResultForTesting({
           input: realbox.$.input.value.trimStart(),
           matches: matches,
         }));
@@ -1798,14 +1804,14 @@ suite('NewTabPageRealboxTest', () => {
     // Remove the first match.
     matchEls[0]!.$.remove.click();
     let args = await testProxy.handler.whenCalled('deleteAutocompleteMatch');
-    assertEquals(0, args.line);
+    assertEquals(0, /*line=*/ args[0]);
     assertEquals(1, testProxy.handler.getCallCount('deleteAutocompleteMatch'));
 
     testProxy.handler.reset();
 
     matches = [createUrlMatch({supportsDeletion: true})];
     testProxy.callbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResult({
+        createAutocompleteResultForTesting({
           input: 'hello',
           matches: matches,
         }));
@@ -1837,12 +1843,12 @@ suite('NewTabPageRealboxTest', () => {
     realbox.$.input.dispatchEvent(shiftDeleteEvent);
     assertTrue(shiftDeleteEvent.defaultPrevented);
     args = await testProxy.handler.whenCalled('deleteAutocompleteMatch');
-    assertEquals(0, args.line);
+    assertEquals(0, /*line=*/ args[0]);
     assertEquals(1, testProxy.handler.getCallCount('deleteAutocompleteMatch'));
 
-    matches = [createSearchMatch()];
+    matches = [createSearchMatchForTesting()];
     testProxy.callbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResult({
+        createAutocompleteResultForTesting({
           input: 'hello',
           matches: matches,
         }));
@@ -1865,9 +1871,9 @@ suite('NewTabPageRealboxTest', () => {
     realbox.$.input.value = 'hello';
     realbox.$.input.dispatchEvent(new InputEvent('input'));
 
-    const matches = [createSearchMatch(), createUrlMatch()];
+    const matches = [createSearchMatchForTesting(), createUrlMatch()];
     testProxy.callbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResult({
+        createAutocompleteResultForTesting({
           input: realbox.$.input.value.trimStart(),
           matches: matches,
         }));
@@ -1927,7 +1933,7 @@ suite('NewTabPageRealboxTest', () => {
     // Show zero-prefix matches.
     realbox.$.input.dispatchEvent(new MouseEvent('mousedown', {button: 0}));
     testProxy.callbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResult({
+        createAutocompleteResultForTesting({
           matches: matches,
         }));
     assertTrue(await areMatchesShowing());
@@ -1962,9 +1968,9 @@ suite('NewTabPageRealboxTest', () => {
     await testProxy.handler.whenCalled('onFocusChanged');
     assertEquals(1, testProxy.handler.getCallCount('onFocusChanged'));
 
-    const matches = [createSearchMatch(), createUrlMatch()];
+    const matches = [createSearchMatchForTesting(), createUrlMatch()];
     testProxy.callbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResult({
+        createAutocompleteResultForTesting({
           input: realbox.$.input.value.trimStart(),
           matches: matches,
         }));
@@ -2051,7 +2057,7 @@ suite('NewTabPageRealboxTest', () => {
     realbox.$.input.value = 'clear browsing history';
     realbox.$.input.dispatchEvent(new InputEvent('input'));
 
-    const matches = [createSearchMatch({
+    const matches = [createSearchMatchForTesting({
       actions: [{
         hint: 'Clear Browsing History',
         suggestionContents: '',
@@ -2062,7 +2068,7 @@ suite('NewTabPageRealboxTest', () => {
       supportsDeletion: true,
     })];
     testProxy.callbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResult({
+        createAutocompleteResultForTesting({
           input: realbox.$.input.value.trimStart(),
           matches: matches,
         }));
@@ -2111,10 +2117,10 @@ suite('NewTabPageRealboxTest', () => {
     // painted.
     assertEquals(0, testMetricsReporterProxy.getCallCount('umaReportTime'));
 
-    let matches = [createSearchMatch()];
+    let matches = [createSearchMatchForTesting()];
     MetricsReporterImpl.getInstance().mark('ResultChanged');  // Marked in C++.
     testProxy.callbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResult({
+        createAutocompleteResultForTesting({
           input: realbox.$.input.value.trimStart(),
           matches: matches,
         }));
@@ -2129,13 +2135,13 @@ suite('NewTabPageRealboxTest', () => {
     realbox.$.input.value = 'h';
     realbox.$.input.dispatchEvent(new InputEvent('input'));
 
-    matches = [createSearchMatch({
+    matches = [createSearchMatchForTesting({
       allowedToBeDefaultMatch: true,
       inlineAutocompletion: 'ello',
     })];
     MetricsReporterImpl.getInstance().mark('ResultChanged');  // Marked in C++.
     testProxy.callbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResult({
+        createAutocompleteResultForTesting({
           input: realbox.$.input.value.trimStart(),
           matches: matches,
         }));
@@ -2161,13 +2167,13 @@ suite('NewTabPageRealboxTest', () => {
     realbox.$.input.dispatchEvent(keyEvent);
     assertTrue(keyEvent.defaultPrevented);
 
-    matches = [createSearchMatch({
+    matches = [createSearchMatchForTesting({
       allowedToBeDefaultMatch: true,
       inlineAutocompletion: 'llo',
     })];
     MetricsReporterImpl.getInstance().mark('ResultChanged');  // Marked in C++.
     testProxy.callbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResult({
+        createAutocompleteResultForTesting({
           input: 'he',
           matches: matches,
         }));
@@ -2191,11 +2197,11 @@ suite('NewTabPageRealboxTest', () => {
         realbox.$.input.dispatchEvent(new InputEvent('input'));
 
         const matches = [
-          createSearchMatch({iconPath: 'clock.svg'}),
+          createSearchMatchForTesting({iconPath: 'clock.svg'}),
           createUrlMatch({iconPath: 'page.svg'}),
         ];
         testProxy.callbackRouterRemote.autocompleteResultChanged(
-            createAutocompleteResult({
+            createAutocompleteResultForTesting({
               input: realbox.$.input.value.trimStart(),
               matches: matches,
             }));
@@ -2263,7 +2269,7 @@ suite('NewTabPageRealboxTest', () => {
             {allowedToBeDefaultMatch: true, iconPath: 'page.svg'})];
 
         testProxy.callbackRouterRemote.autocompleteResultChanged(
-            createAutocompleteResult({
+            createAutocompleteResultForTesting({
               input: realbox.$.input.value.trimStart(),
               matches: matches,
             }));
@@ -2290,7 +2296,7 @@ suite('NewTabPageRealboxTest', () => {
 
         const matches = [
           createUrlMatch({iconPath: 'page.svg'}),
-          createSearchMatch({
+          createSearchMatchForTesting({
             iconPath: 'clock.svg',
             imageUrl: 'https://gstatic.com/',
             imageDominantColor: '#757575',
@@ -2298,7 +2304,7 @@ suite('NewTabPageRealboxTest', () => {
           }),
         ];
         testProxy.callbackRouterRemote.autocompleteResultChanged(
-            createAutocompleteResult({
+            createAutocompleteResultForTesting({
               input: realbox.$.input.value.trimStart(),
               matches: matches,
             }));
@@ -2431,7 +2437,7 @@ suite('NewTabPageRealboxTest', () => {
             iconUrl: 'https://helloworld.com/url.png',
             iconPath: 'page.svg',
           }),
-          createSearchMatch({
+          createSearchMatchForTesting({
             iconUrl: 'https://helloworld.com/search.png',
             iconPath: 'clock.svg',
             imageUrl: 'https://gstatic.com/',
@@ -2440,7 +2446,7 @@ suite('NewTabPageRealboxTest', () => {
           }),
         ];
         testProxy.callbackRouterRemote.autocompleteResultChanged(
-            createAutocompleteResult({
+            createAutocompleteResultForTesting({
               input: realbox.$.input.value.trimStart(),
               matches: matches,
             }));
@@ -2565,7 +2571,7 @@ suite('NewTabPageRealboxTest', () => {
       }),
     ];
     testProxy.callbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResult({
+        createAutocompleteResultForTesting({
           input: realbox.$.input.value.trimStart(),
           matches: matches,
         }));
@@ -2681,7 +2687,7 @@ suite('NewTabPageRealboxTest', () => {
       createUrlMatch({iconPath: 'page.svg'}),
     ];
     testProxy.callbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResult({
+        createAutocompleteResultForTesting({
           input: realbox.$.input.value.trimStart(),
           matches: matches,
         }));
@@ -2719,7 +2725,7 @@ suite('NewTabPageRealboxTest', () => {
       },
     };
     testProxy.callbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResult({
+        createAutocompleteResultForTesting({
           input: '',
           matches: matches,
           suggestionGroupsMap: suggestionGroupsMap,
@@ -2730,7 +2736,7 @@ suite('NewTabPageRealboxTest', () => {
     // realbox dropdown show.
     suggestionGroupsMap[100].sideType = SideType.kDefaultPrimary;
     testProxy.callbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResult({
+        createAutocompleteResultForTesting({
           input: '',
           matches: matches,
         }));
@@ -2748,7 +2754,7 @@ suite('NewTabPageRealboxTest', () => {
     realbox.$.input.dispatchEvent(new InputEvent('input'));
 
     testProxy.callbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResult({
+        createAutocompleteResultForTesting({
           input: realbox.$.input.value.trimStart(),
           matches: matches,
         }));
@@ -2783,7 +2789,7 @@ suite('NewTabPageRealboxTest', () => {
   test('Test Rich Suggestion Answer for Verbatim Question', async () => {
     realbox.$.input.value = 'When is Christmas Day';
     realbox.$.input.dispatchEvent(new InputEvent('input'));
-    const matches = [createSearchMatch({
+    const matches = [createSearchMatchForTesting({
       answer: {
         firstLine: 'When is Christmas Day',
         secondLine: 'Saturday, December 25, 2021',
@@ -2791,7 +2797,7 @@ suite('NewTabPageRealboxTest', () => {
       isRichSuggestion: true,
     })];
     testProxy.callbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResult({
+        createAutocompleteResultForTesting({
           input: realbox.$.input.value.trimStart(),
           matches: matches,
         }));
@@ -2822,7 +2828,7 @@ suite('NewTabPageRealboxTest', () => {
     realbox.$.input.value = 'Open extension email';
     realbox.$.input.dispatchEvent(new InputEvent('input'));
     const matches = [
-      createSearchMatch({
+      createSearchMatchForTesting({
         actions: [{
           hint: 'Open Email',
           suggestionContents: '',
@@ -2830,7 +2836,7 @@ suite('NewTabPageRealboxTest', () => {
           a11yLabel: '',
         }],
       }),
-      createSearchMatch({
+      createSearchMatchForTesting({
         actions: [{
           hint: 'Open Email',
           suggestionContents: '',
@@ -2840,7 +2846,7 @@ suite('NewTabPageRealboxTest', () => {
       }),
     ];
     testProxy.callbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResult({
+        createAutocompleteResultForTesting({
           input: realbox.$.input.value.trimStart(),
           matches: matches,
         }));
@@ -2878,7 +2884,7 @@ suite('NewTabPageRealboxTest', () => {
   test('Test Actions for Verbatim Query', async () => {
     realbox.$.input.value = 'Clear Browsing History';
     realbox.$.input.dispatchEvent(new InputEvent('input'));
-    const matches = [createSearchMatch({
+    const matches = [createSearchMatchForTesting({
       actions: [{
         hint: 'Clear Browsing History',
         suggestionContents: '',
@@ -2887,7 +2893,7 @@ suite('NewTabPageRealboxTest', () => {
       }],
     })];
     testProxy.callbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResult({
+        createAutocompleteResultForTesting({
           input: realbox.$.input.value.trimStart(),
           matches: matches,
         }));
@@ -2910,10 +2916,10 @@ suite('NewTabPageRealboxTest', () => {
     assertTrue(leftClick.defaultPrevented);
 
     const args = await testProxy.handler.whenCalled('executeAction');
-    assertTrue(args.ctrlKey);
-    assertEquals(0, args.line);
-    assertEquals(args.mouseButton, 1);
-    assertTrue(args.matchSelectionTimestamp['internalValue'] > 0);
+    assertTrue(/*ctrlKey=*/ args[6]);
+    assertEquals(0, /*line=*/ args[0]);
+    assertEquals(/*mouseButton=*/ args[4], 1);
+    assertTrue(/*matchSelectionTimestamp=*/ args[3]['internalValue'] > 0);
     assertEquals(1, testProxy.handler.getCallCount('executeAction'));
   });
 
@@ -2921,8 +2927,8 @@ suite('NewTabPageRealboxTest', () => {
     realbox.$.input.value = 'Clear Bro';
     realbox.$.input.dispatchEvent(new InputEvent('input'));
     const matches = [
-      createSearchMatch({contents: 'Clear Bro'}),
-      createSearchMatch({
+      createSearchMatchForTesting({contents: 'Clear Bro'}),
+      createSearchMatchForTesting({
         actions: [
           {
             hint: 'Clear Browsing History',
@@ -2940,7 +2946,7 @@ suite('NewTabPageRealboxTest', () => {
       }),
     ];
     testProxy.callbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResult({
+        createAutocompleteResultForTesting({
           input: realbox.$.input.value.trimStart(),
           matches: matches,
         }));
@@ -2965,9 +2971,9 @@ suite('NewTabPageRealboxTest', () => {
     assertTrue(leftClick.defaultPrevented);
 
     let args = await testProxy.handler.whenCalled('executeAction');
-    assertEquals(1, args.line);
-    assertEquals(args.mouseButton, 0);
-    assertTrue(args.matchSelectionTimestamp['internalValue'] > 0);
+    assertEquals(1, /*line=*/ args[0]);
+    assertEquals(/*mouseButton=*/ args[4], 0);
+    assertTrue(/*matchSelectionTimestamp=*/ args[3]['internalValue'] > 0);
     assertEquals(1, testProxy.handler.getCallCount('executeAction'));
 
     const pedalElTab =
@@ -2976,11 +2982,12 @@ suite('NewTabPageRealboxTest', () => {
 
     pedalElTab.dispatchEvent(leftClick);
     assertTrue(leftClick.defaultPrevented);
+    testProxy.callbackRouterRemote.$.flushForTesting();
 
     args = await testProxy.handler.whenCalled('executeAction');
-    assertEquals(1, args.line);
-    assertEquals(args.mouseButton, 0);
-    assertTrue(args.matchSelectionTimestamp['internalValue'] > 0);
+    assertEquals(1, /*line=*/ args[0]);
+    assertEquals(/*mouseButton=*/ args[4], 0);
+    assertTrue(/*matchSelectionTimestamp=*/ args[3]['internalValue'] > 0);
     assertEquals(2, testProxy.handler.getCallCount('executeAction'));
   });
 
@@ -2992,9 +2999,9 @@ suite('NewTabPageRealboxTest', () => {
     realbox.$.input.value = 'he';
     realbox.$.input.dispatchEvent(new InputEvent('input'));
 
-    const matches = [createSearchMatch()];
+    const matches = [createSearchMatchForTesting()];
     testProxy.callbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResult({
+        createAutocompleteResultForTesting({
           input: realbox.$.input.value.trimStart(),
           matches: matches,
         }));
@@ -3003,9 +3010,10 @@ suite('NewTabPageRealboxTest', () => {
     arrowDown(realbox);
 
     const args = await testProxy.handler.whenCalled('onNavigationLikely');
-    assertEquals(0, args.line);
+    assertEquals(0, /*line=*/ args[0]);
     assertEquals(
-        NavigationPredictor.kUpOrDownArrowButton, args.navigationPredictor);
+        NavigationPredictor.kUpOrDownArrowButton,
+        /*navigationPredictor=*/ args[2]);
   });
 
   //============================================================================
@@ -3055,8 +3063,9 @@ suite('NewTabPageRealboxTest', () => {
     await testProxy.handler.whenCalled('onThumbnailRemoved');
     assertEquals(1, testProxy.handler.getCallCount('onThumbnailRemoved'));
     // When thumbnail is removed, autocomplete should be requeried
-    const args = await testProxy.handler.whenCalled('stopAutocomplete');
-    assertTrue(args.clearResult);
+    const stopAutocomplete =
+        await testProxy.handler.whenCalled('stopAutocomplete');
+    assertTrue(stopAutocomplete);
     assertEquals(1, testProxy.handler.getCallCount('queryAutocomplete'));
   });
 
@@ -3095,8 +3104,9 @@ suite('NewTabPageRealboxTest', () => {
     await testProxy.handler.whenCalled('onThumbnailRemoved');
     assertEquals(1, testProxy.handler.getCallCount('onThumbnailRemoved'));
     // When thumbnail is removed, autocomplete should be requeried
-    const args = await testProxy.handler.whenCalled('stopAutocomplete');
-    assertTrue(args.clearResult);
+    const stopAutocomplete =
+        await testProxy.handler.whenCalled('stopAutocomplete');
+    assertTrue(stopAutocomplete);
     assertEquals(1, testProxy.handler.getCallCount('queryAutocomplete'));
   });
 
@@ -3298,48 +3308,5 @@ suite('PlaceholderTextCyclerTest', () => {
     assertEquals(sampleTransitionPlaceholder, text);
 
     placeholderTextCycler.stop();
-  });
-});
-
-suite('NewTabPageRealboxTabsTest', () => {
-  let realbox: SearchboxElement;
-  let testProxy: TestSearchboxBrowserProxy;
-
-  setup(async () => {
-    loadTimeData.overrideValues({
-      ntpRealboxNextEnabled: true,
-    });
-
-    testProxy = new TestSearchboxBrowserProxy();
-    SearchboxBrowserProxy.setInstance(testProxy);
-
-    realbox = await createAndAppendRealbox();
-  });
-
-  test('on tab strip changed', async () => {
-    const sampleTabs = [
-      {
-        tabId: 1,
-        title: 'Sample Tab 1',
-        url: 'https://example.com/1',
-        showInRecentTabChip: true,
-        lastActive: {internalValue: BigInt(1)},
-      },
-      {
-        tabId: 2,
-        title: 'Sample Tab 2',
-        url: 'https://example.com/2',
-        showInRecentTabChip: true,
-        lastActive: {internalValue: BigInt(2)},
-      },
-    ];
-    testProxy.handler.setResultFor(
-        'getRecentTabs', Promise.resolve({tabs: sampleTabs}));
-
-    testProxy.callbackRouterRemote.onTabStripChanged();
-    await microtasksFinished();
-
-    assertEquals(testProxy.handler.getCallCount('getRecentTabs'), 1);
-    assertDeepEquals((realbox as any).tabSuggestions_, sampleTabs);
   });
 });

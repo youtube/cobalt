@@ -34,24 +34,19 @@ class ExtensionParentApproval {
      * @param windowAndroid The window to which the approval UI should be attached.
      */
     @CalledByNative
-    private static void requestExtensionApproval(
-            @SuppressWarnings("unused") WindowAndroid windowAndroid) {
+    private static void requestExtensionApproval(WindowAndroid windowAndroid) {
         ParentAuthDelegate delegate = ParentAuthDelegateProvider.getInstance();
         assert delegate != null;
 
-        // TODO(crbug.com/452271027): Enable this call in the cleanup CL.
-        // delegate.requestExtensionAuthWithResult(
-        //         windowAndroid,
-        //         (result) -> {
-        //             ExtensionParentApprovalJni.get().onCompletion(result);
-        //         });
-
-        // TEMPORARY STUB: Immediately call completion callback.
-        ExtensionParentApprovalJni.get().onCompletion(SupervisedExtensionApprovalResult.FAILED);
+        delegate.requestExtensionAuthWithResult(
+                windowAndroid,
+                (result) -> {
+                    ExtensionParentApprovalJni.get().onCompletion(result);
+                });
     }
 
     @NativeMethods
     interface Natives {
-        void onCompletion(int resultValue);
+        void onCompletion(@SupervisedExtensionApprovalResult int resultValue);
     }
 }

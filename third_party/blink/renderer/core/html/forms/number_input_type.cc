@@ -47,6 +47,7 @@
 #include "third_party/blink/renderer/core/layout/layout_object.h"
 #include "third_party/blink/renderer/core/layout/layout_object_inlines.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
+#include "third_party/blink/renderer/platform/json/json_values.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/text/platform_locale.h"
 #include "third_party/blink/renderer/platform/wtf/math_extras.h"
@@ -288,12 +289,18 @@ void NumberInputType::HandleBeforeTextInsertedEvent(
     // - Reject if the editing value already contains two signs
     // - Reject if the editing value contains 'e' and the caret is placed
     // neither at the beginning of the value nor just after 'e'
+    // - Reject if there is already a sign immediately following the caret.
+    // - Reject leading '+' insertion when 'e' is already present.
     else if (locale.IsSignPrefix(c)) {
       String both_halves = StrCat({left_half, right_half});
       if (locale.HasTwoSignChars(both_halves) ||
           (both_halves.Find(IsE) != kNotFound &&
-           !(left_half == "" || IsE(left_half[left_half.length() - 1]))))
+           !(left_half == "" || IsE(left_half[left_half.length() - 1]))) ||
+          (!right_half.empty() && locale.IsSignPrefix(right_half[0])) ||
+          (c == '+' && both_halves.Find(IsE) != kNotFound &&
+           left_half.empty())) {
         continue;
+      }
     }
     // For a digit input:
     // - Reject if the first letter of the editing value is a sign and the
@@ -425,6 +432,21 @@ void NumberInputType::StepAttributeChanged() {
 
 bool NumberInputType::SupportsSelectionAPI() const {
   return false;
+}
+
+std::unique_ptr<JSONObject> NumberInputType::GetWebMCPParameterSchema() const {
+  auto schema = std::make_unique<JSONObject>();
+  // TODO(crbug.com/475972617): Consider type:integer for matching StepRanges?
+  schema->SetString("type", "number");
+  StepRange step_range = CreateStepRange(kRejectAny);
+  if (step_range.HasMin()) {
+    schema->SetDouble("minimum", step_range.Minimum().ToDouble());
+  }
+  if (step_range.HasMax()) {
+    schema->SetDouble("maximum", step_range.Maximum().ToDouble());
+  }
+  // TODO(crbug.com/475972617): Add multipleOf?
+  return schema;
 }
 
 }  // namespace blink

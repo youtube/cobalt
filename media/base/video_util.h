@@ -142,18 +142,18 @@ MEDIA_EXPORT gfx::Size GetRectSizeFromOrigin(const gfx::Rect& rect);
 MEDIA_EXPORT gfx::Size PadToMatchAspectRatio(const gfx::Size& size,
                                              const gfx::Size& target);
 
-// A helper function to map GpuMemoryBuffer-based VideoFrame. This function
-// maps the given GpuMemoryBuffer of |frame| as-is without converting pixel
-// format, unless the video frame is backed by DXGI GMB.
+// A helper function to map MappableSharedImage-based VideoFrames. This function
+// maps the given MappableSharedImage of the |frame| as-is without converting
+// pixel format, unless the SI is backed by a DXGI buffer.
 // The returned VideoFrame owns the |frame|.
-// If the underlying buffer is DXGI, then it will be copied to shared memory
-// in GPU process.
+// If the underlying buffer is DXGI, then it will be copied to shared memory in
+// GPU process.
 MEDIA_EXPORT scoped_refptr<VideoFrame> ConvertToMemoryMappedFrame(
     scoped_refptr<VideoFrame> frame);
 
-// A helper function to map GpuMemoryBuffer-based VideoFrame. This function
-// maps the given GpuMemoryBuffer of |frame| as-is without converting pixel
-// format, unless the video frame is backed by DXGI GMB.
+// A helper function to map MappableSharedImage-based VideoFrames. This function
+// maps the given MappableSharedImage of |frame| as-is without converting pixel
+// format, unless the SI is backed by a DXGI buffer.
 // The returned VideoFrame owns the |frame|.
 // If the underlying buffer is DXGI, then it will be copied to shared memory
 // in GPU process.
@@ -215,9 +215,25 @@ MEDIA_EXPORT scoped_refptr<VideoFrame> WrapAsI420VideoFrame(
 MEDIA_EXPORT VideoPixelFormat
 VideoPixelFormatFromSkColorType(SkColorType sk_color_type, bool is_opaque);
 
-// Get SkColor suitable type for various formats and planes.
+// Get the SkColorType for various formats and planes. This will CHECK if there
+// is no suitable SkColorType.
 MEDIA_EXPORT SkColorType SkColorTypeForPlane(VideoPixelFormat format,
                                              size_t plane);
+
+// This is the same as the above but will return kUnknown_SkColorType on
+// failure.
+MEDIA_EXPORT SkColorType SkColorTypeForPlaneNoCheck(VideoPixelFormat format,
+                                                    size_t plane);
+
+// The SkYUVAInfo::PlaneConfig for a VideoPixelFormat. This will return
+// SkYUVAInfo::PlaneConfig::kUnknown on failure.
+MEDIA_EXPORT SkYUVAInfo::PlaneConfig SkYUVAPlaneConfigForFormat(
+    VideoPixelFormat format);
+
+// The SkYUVAInfo::Subsampling for a VideoPixelFormat. This will return
+// SkYUVAInfo::Subsampling::kUnknown on failure.
+MEDIA_EXPORT SkYUVAInfo::Subsampling SkYUVASubsamplingForFormat(
+    VideoPixelFormat format);
 
 // Backs a VideoFrame with a SkImage. The created frame takes a ref on the
 // provided SkImage to make this operation zero copy. Only works with CPU

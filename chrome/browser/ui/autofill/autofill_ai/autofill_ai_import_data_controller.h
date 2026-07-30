@@ -42,18 +42,31 @@ class AutofillAiImportDataController {
   // of what was changed.
   virtual void ShowPrompt(EntityInstance new_entity,
                           std::optional<EntityInstance> old_entity,
+                          bool close_on_accept,
                           AutofillClient::EntityImportPromptResultCallback
                               prompt_result_callback) = 0;
+
+  // Show  a notification that the entity could not be saved to Wallet and
+  // instead was saved locally.
+  virtual void ShowLocalSaveNotification() = 0;
+
+  virtual base::WeakPtr<AutofillAiImportDataController> GetWeakPtr() = 0;
+
+  // The following methods are related to the save or update Autofill AI data
+  // bubble and should only be called when such a bubble is showing.
+  // The code CHECKs this precondition:
 
   // Called when the user accepts to save or update Autofill AI data.
   virtual void OnSaveButtonClicked() = 0;
 
-  virtual std::u16string GetDialogTitle() const = 0;
+  virtual std::u16string GetSaveUpdateDialogPrimaryButtonText() const = 0;
+  virtual std::u16string GetSaveUpdateDialogTitle() const = 0;
+
+  // Returns an image resource id to be used in the dialog header.
+  virtual int GetSaveUpdateDialogTitleImagesResourceId() const = 0;
 
   // Returns the user's primary account email.
   virtual std::u16string GetPrimaryAccountEmail() const = 0;
-
-  virtual std::u16string GetDialogPrimaryButtonText() const = 0;
 
   // Returns true if the entity to be saved or updated will be stored in the
   // wallet server.
@@ -62,9 +75,6 @@ class AutofillAiImportDataController {
   // Whether the user clicked the link the dialog subtitle which navigates them
   // to wallet.
   virtual void OnGoToWalletLinkClicked() = 0;
-
-  // Returns an image resource id to be used in the dialog header.
-  virtual int GetTitleImagesResourceId() const = 0;
 
   // Returns details about the new/updated prompted entity. This is used by the
   // UI layer to give users details about what changes will be done if they
@@ -80,11 +90,12 @@ class AutofillAiImportDataController {
   virtual base::optional_ref<const EntityInstance> GetAutofillAiData()
       const = 0;
 
-  // Called when the Autofill AI data bubble is closed.
+  // Whether the bubble should be closed when the user accepts the prompt.
+  virtual bool CloseOnAccept() const = 0;
+
+  // Called when the Autofill AI save or update bubble is closed.
   virtual void OnBubbleClosed(
       AutofillClient::AutofillAiBubbleResult result) = 0;
-
-  virtual base::WeakPtr<AutofillAiImportDataController> GetWeakPtr() = 0;
 };
 
 }  // namespace autofill

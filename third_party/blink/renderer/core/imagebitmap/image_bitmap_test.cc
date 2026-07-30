@@ -85,7 +85,7 @@ class ImageBitmapTest : public testing::Test {
     image2_ = surface2->makeImageSnapshot();
 
     test_context_provider_ = viz::TestContextProvider::CreateRaster();
-    InitializeSharedGpuContextRaster(test_context_provider_.get());
+    InitializeSharedGpuContext(test_context_provider_.get());
   }
 
   void TearDown() override {
@@ -257,7 +257,7 @@ static void TestImageBitmapTextureBacked(
 TEST_F(ImageBitmapTest, AvoidGPUReadback) {
   base::WeakPtr<WebGraphicsContext3DProviderWrapper> context_provider_wrapper =
       SharedGpuContext::ContextProviderWrapper();
-  auto resource_provider = CanvasResourceProvider::CreateSharedImageProvider(
+  auto resource_provider = CanvasNon2DResourceProviderSharedImage::Create(
       gfx::Size(100, 100), GetN32FormatForCanvas(), kPremul_SkAlphaType,
       gfx::ColorSpace::CreateSRGB(),
       CanvasResourceProvider::ShouldInitialize::kNo, context_provider_wrapper,

@@ -580,6 +580,7 @@
 <translation id="3143515551205905069">စင့်ခ်လုပ်ခြင်း ပယ်ဖျက်ရန်</translation>
 <translation id="3144126448740580210">လုပ်ပြီး</translation>
 <translation id="3148052723910099040">ပုံမှန်တဘ် ဇယားကွက်</translation>
+<translation id="3148237711805373460">ထိုနေရာသို့ သွားရန်</translation>
 <translation id="3157387275655328056">ဖတ်ရန်စာရင်းသို့ ထည့်ပါ</translation>
 <translation id="315778507796115851">မှတ်တမ်း</translation>
 <translation id="31652791196570636">ပယ်ရန်</translation>
@@ -1115,7 +1116,7 @@
 <translation id="5148717509369231739">Safari ထည့်သွင်းမှု</translation>
 <translation id="5152483358138813104">သင့်စက်များတွင် ပိုမိုမြန်ဆန်စွာ လက်မှတ်ထိုးဝင်ပါ</translation>
 <translation id="5155502059906700593">လိပ်စာဘားနေရာကို ထိပ် (သို့) အောက်ခြေသို့ ပြောင်းနိုင်သည်။</translation>
-<translation id="5157638238828697074">တစ်ခုခုမှားသွားသည်။ ဤအပလီကေးရှင်းကို ဖွင့်၍မရပါ။</translation>
+<translation id="5157638238828697074">တစ်ခုခု မှားသွားသည်။ ဤအပလီကေးရှင်းကို ဖွင့်၍မရပါ။</translation>
 <translation id="5163417375525818870">PDF များ</translation>
 <translation id="5168414296986405587">iPadOS အတွက် ပြုလုပ်ထားသည်</translation>
 <translation id="5169725654005786900">လုပ်ဆောင်နေသည်…</translation>
@@ -1449,7 +1450,7 @@ Handoff ကို ဆက်တင်များ၏ ယေဘူယျအပိ�
 <translation id="6331836477476466332">သင့်အတွက် ပိုဘေးကင်း၊ ပိုအားကောင်းသော ဘရောင်ဇာ</translation>
 <translation id="6335744088476213315">ဤကတ်သည် သင် မကြာသေးမီက ကြည့်ထားပြီး ဈေးကျသည့် သတိပေးချက်များ ရရှိရန် ခြေရာခံရာတွင် စိတ်ဝင်စားနိုင်သော ကုန်ပစ္စည်းများကို ပြသည်</translation>
 <translation id="6337234675334993532">လျှို့ဝှက်ကုဒ်သွင်းခြင်း</translation>
-<translation id="6337313937331295309">Gemini Apps အချက်အလက်လုံခြုံမှုဆိုင်ရာ သတိပေးချက်</translation>
+<translation id="6337313937331295309">Gemini Apps အချက်အလက်လုံခြုံမှုဆိုင်ရာ ထုတ်ပြန်ချက်</translation>
 <translation id="633809752005859102">တစ်စုံတစ်ခု အမှန်တစ်ကယ်မှားယွင်းနေပါသည်။ ထိုအရာကို ကျွန်ုပ်တို့ ပြင်ဆင်ပါမည်။</translation>
 <translation id="6339793034470834130">Web Inspector အသုံးပြုရန် သင့်ကွန်ပျူတာတွင် ကေဘယ်ကြိုးဖြင့် Safari သို့ ချိတ်ဆက်ပြီး Develop မီနူးမှတစ်ဆင့် သင့် iPhone ကို ဝင်ကြည့်ပါ။ သင့်ကွန်ပျူတာရှိ Safari ဆက်တင်များ၏ ‘အဆင့်မြင့် ကဏ္ဍ’ တွင် Develop မီနူးကို ဖွင့်နိုင်သည်။</translation>
 <translation id="6340285871011301182">တစ်စိတ်တစ်ပိုင်းဘာသာပြန်ခြင်း မရနိုင်ပါ။</translation>
@@ -1522,6 +1523,7 @@ Handoff ကို ဆက်တင်များ၏ ယေဘူယျအပိ�
 <translation id="6556866813142980365">ပြန်လုပ်ရန်</translation>
 <translation id="6559301491397835130">{count,plural, =1{လိပ်စာကို “{title}” တွင် သိမ်းလိုက်သည်။ ၎င်းကို ဤစက်တွင်သာ သိမ်းသည်။}other{လိပ်စာများကို “{title}” တွင် သိမ်းလိုက်သည်။ ၎င်းတို့ကို ဤစက်တွင်သာ သိမ်းသည်။}}</translation>
 <translation id="656065428026159829">ပိုကြည့်ရန်</translation>
+<translation id="6565899972286925956">ကြိုက်ရာပြုလုပ်ရန်</translation>
 <translation id="6571070086367343653">အကြွေးဝယ်ကဒ် တည်းဖြတ်မည်</translation>
 <translation id="6574092468346088891">‘လုံခြုံရေး စစ်ဆေးမှု’ အတွက် အကြောင်းကြားချက်များ ဖွင့်ရန်</translation>
 <translation id="6579867704846662339">အခြားအက်ပ်များမှ အဝင် URL များကို ‘ရုပ်ဖျက်မုဒ်’ တွင် ဖွင့်ရန် ရွေးနိုင်သည်။</translation>
@@ -1632,6 +1634,7 @@ Handoff ကို ဆက်တင်များ၏ ယေဘူယျအပိ�
 <translation id="6930799952781667037">ဤဘာသာစကားသို့ ပြောင်းရန် တို့ပါ</translation>
 <translation id="693761253105515415">လျှို့ဝှက်ကုဒ် သတ်မှတ်ခြင်း</translation>
 <translation id="6945221475159498467">ရွေးရန်</translation>
+<translation id="6946722113367118030">စဉ်းစားခြင်း</translation>
 <translation id="6950522403736391608">ဖျောက်ထားသည်များ</translation>
 <translation id="6962809930976936328">Gemini ဖြင့် သိကောင်းစရာများ ရယူရန်</translation>
 <translation id="6964300328304469089"><ph name="NAME" />၊ <ph name="EMAIL" /> ကို လောလောဆယ် ရွေးထားသည်။ အကောင့်ရွေးပါ။</translation>
@@ -1974,6 +1977,7 @@ Handoff ကို ဆက်တင်များ၏ ယေဘူယျအပိ�
 <translation id="8205564605687841303">မလုပ်တော့</translation>
 <translation id="8206354486702514201">ဤဆက်တင်အား သင့်ကြီးကြပ်သူမှ တွန်းအားပေးထားခြင်း ဖြစ်သည်။</translation>
 <translation id="8209050860603202033">ပုံဖွင့်</translation>
+<translation id="8209237163365258530">Gemini <ph name="VERSION_NUMBER" /> မိုဒယ်များ</translation>
 <translation id="8211030355252954494"><ph name="WEBSITE" /> အတွက် စကားဝှက်များ ရရှိထားသည်</translation>
 <translation id="8211406090763984747">ချိတ်ဆက်မှုသည် လုံခြုံပါသည်</translation>
 <translation id="8214293972734702249">ပင်ထိုးထားသည်၊ <ph name="TAB_TITLE" /></translation>

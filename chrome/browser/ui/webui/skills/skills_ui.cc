@@ -4,22 +4,30 @@
 
 #include "chrome/browser/ui/webui/skills/skills_ui.h"
 
+#include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
+#include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/skills/skills_service_factory.h"
+#include "chrome/browser/ui/webui/skills/skills_dialog_handler.h"
 #include "chrome/browser/ui/webui/skills/skills_page_handler.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/skills_resources.h"
 #include "chrome/grit/skills_resources_map.h"
 #include "components/skills/features.h"
 #include "components/strings/grit/components_strings.h"
+#include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "ui/webui/webui_util.h"
+
+#if BUILDFLAG(ENABLE_GLIC)
+#include "chrome/browser/glic/public/glic_enabling.h"
+#endif
 
 namespace skills {
 
 void AddDialogStringResources(content::WebUIDataSource* source) {
   static constexpr webui::LocalizedString kStrings[] = {
       {"cancel", IDS_CANCEL},
+      {"edit", IDS_EDIT2},
       {"save", IDS_SAVE},
   };
 
@@ -34,6 +42,11 @@ SkillsUI::SkillsUI(content::WebUI* web_ui) : ui::MojoWebUIController(web_ui) {
   AddDialogStringResources(source);
 }
 
+void SkillsUI::SetSkillsDialogDelegate(
+    base::WeakPtr<SkillsDialogDelegate> delegate) {
+  delegate_ = delegate;
+}
+
 void SkillsUI::BindInterface(
     mojo::PendingReceiver<skills::mojom::PageHandlerFactory> receiver) {
   page_factory_receiver_.reset();
@@ -41,10 +54,19 @@ void SkillsUI::BindInterface(
 }
 
 void SkillsUI::CreatePageHandler(
+    mojo::PendingRemote<skills::mojom::SkillsPage> page,
     mojo::PendingReceiver<skills::mojom::PageHandler> receiver) {
   page_handler_ = std::make_unique<SkillsPageHandler>(
-      std::move(receiver), skills::SkillsServiceFactory::GetForProfile(
-                               Profile::FromWebUI(web_ui())));
+      std::move(receiver), std::move(page), web_ui()->GetWebContents());
+}
+
+void SkillsUI::CreateDialogHandler(
+    mojo::PendingReceiver<skills::mojom::DialogHandler> receiver) {
+  dialog_handler_ = std::make_unique<SkillsDialogHandler>(
+      std::move(receiver), web_ui()->GetWebContents(),
+      OptimizationGuideKeyedServiceFactory::GetForProfile(
+          Profile::FromWebUI(web_ui())),
+      delegate_);
 }
 
 WEB_UI_CONTROLLER_TYPE_IMPL(SkillsUI)
@@ -52,7 +74,14 @@ WEB_UI_CONTROLLER_TYPE_IMPL(SkillsUI)
 SkillsUI::~SkillsUI() = default;
 
 bool SkillsUIConfig::IsWebUIEnabled(content::BrowserContext* browser_context) {
-  return base::FeatureList::IsEnabled(features::kSkillsEnabled);
+  // TODO(b/481023023): Show error page instead of disabling the WebUI.
+  Profile* profile = Profile::FromBrowserContext(browser_context);
+#if BUILDFLAG(ENABLE_GLIC)
+  return base::FeatureList::IsEnabled(features::kSkillsEnabled) &&
+         glic::GlicEnabling::IsEnabledForProfile(profile);
+#else
+  return false;
+#endif
 }
 
 }  // namespace skills

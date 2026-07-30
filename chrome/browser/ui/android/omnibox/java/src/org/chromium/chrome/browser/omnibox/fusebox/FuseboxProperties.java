@@ -38,10 +38,6 @@ class FuseboxProperties {
     public static final WritableObjectPropertyKey<@AutocompleteRequestType Integer>
             AUTOCOMPLETE_REQUEST_TYPE = new WritableObjectPropertyKey<>();
 
-    /** Whether the navigation type toggle is changeable. */
-    public static final WritableBooleanPropertyKey AUTOCOMPLETE_REQUEST_TYPE_CHANGEABLE =
-            new WritableBooleanPropertyKey();
-
     /** Action to perform when the user clicks the Autocomplete Request Type button. */
     public static final WritableObjectPropertyKey<Runnable> AUTOCOMPLETE_REQUEST_TYPE_CLICKED =
             new WritableObjectPropertyKey<>();
@@ -139,10 +135,6 @@ class FuseboxProperties {
     public static final WritableBooleanPropertyKey POPUP_TAB_PICKER_ENABLED =
             new WritableBooleanPropertyKey();
 
-    /** Whether the recent tabs header is visible. */
-    public static final WritableBooleanPropertyKey RECENT_TABS_HEADER_VISIBLE =
-            new WritableBooleanPropertyKey();
-
     /** Whether to show the dedicated AIMode button directly in the Fusebox. */
     public static final WritableBooleanPropertyKey SHOW_DEDICATED_MODE_BUTTON =
             new WritableBooleanPropertyKey();
@@ -154,7 +146,6 @@ class FuseboxProperties {
         ATTACHMENTS_TOOLBAR_VISIBLE,
         ATTACHMENTS_VISIBLE,
         AUTOCOMPLETE_REQUEST_TYPE,
-        AUTOCOMPLETE_REQUEST_TYPE_CHANGEABLE,
         AUTOCOMPLETE_REQUEST_TYPE_CLICKED,
         BUTTON_ADD_CLICKED,
         COLOR_SCHEME,
@@ -178,7 +169,6 @@ class FuseboxProperties {
         POPUP_GALLERY_CLICKED,
         POPUP_TAB_PICKER_CLICKED,
         POPUP_TAB_PICKER_ENABLED,
-        RECENT_TABS_HEADER_VISIBLE,
         SHOW_DEDICATED_MODE_BUTTON
         // go/keep-sorted end
     };

@@ -6451,6 +6451,7 @@ interface NavigateEvent : Event
     getter sourceElement
     getter userInitiated
     method constructor
+    method deferPageSwap
     method intercept
     method scroll
 interface Navigation : EventTarget
@@ -6486,6 +6487,10 @@ interface NavigationCurrentEntryChangeEvent : Event
     attribute @@toStringTag
     getter from
     getter navigationType
+    method constructor
+interface NavigationDeferPageSwapController
+    attribute @@toStringTag
+    method addRestoreCallback
     method constructor
 interface NavigationDestination
     attribute @@toStringTag
@@ -7132,6 +7137,7 @@ interface PerformanceLongAnimationFrameTiming : PerformanceEntry
     getter renderStart
     getter scripts
     getter styleAndLayoutStart
+    getter styleDuration
     method constructor
     method toJSON
 interface PerformanceLongTaskTiming : PerformanceEntry
@@ -7232,6 +7238,7 @@ interface PerformanceScriptTiming : PerformanceEntry
     attribute @@toStringTag
     getter executionStart
     getter forcedStyleAndLayoutDuration
+    getter forcedStyleDuration
     getter invoker
     getter invokerType
     getter pauseDuration

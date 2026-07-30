@@ -108,6 +108,7 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
       showLensSearchChip: {reflect: true, type: Boolean},
       searchboxLayoutMode: {type: String},
       tabSuggestions: {type: Array},
+      showMenuOnClick: {type: Boolean},
       entrypointName: {type: String},
       showVoiceSearch: {
         reflect: true,
@@ -120,18 +121,17 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
       // AIM composebox where the entrypoint is always visible.
       hideEntrypointButton: {type: Boolean},
       inComposebox: {type: Boolean},
-      showCanvas: {type: Boolean},
       showModelPicker: {type: Boolean},
 
       // =========================================================================
       // Protected properties
       // =========================================================================
-      attachmentFileTypes_: {type: String},
+      attachmentFileTypes_: {type: Array},
       contextMenuEnabled_: {type: Boolean},
       files_: {type: Object},
       pendingFiles_: {type: Object},
       addedTabsIds_: {type: Object},
-      imageFileTypes_: {type: String},
+      imageFileTypes_: {type: Array},
       inputsDisabled_: {
         reflect: true,
         type: Boolean,
@@ -160,6 +160,7 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
   accessor showDropdown: boolean = false;
   accessor showLensSearchChip: boolean = false;
   accessor searchboxLayoutMode: string = '';
+  accessor showMenuOnClick: boolean = true;
   accessor entrypointName: string = '';
   accessor tabSuggestions: TabInfo[] = [];
   accessor carouselOnTop_: boolean = false;
@@ -169,20 +170,19 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
   accessor contextMenuGlifAnimationState: GlifAnimationState =
       GlifAnimationState.INELIGIBLE;
   accessor inComposebox: boolean = false;
-  accessor showCanvas: boolean = false;
   accessor showModelPicker: boolean = false;
   accessor isOmniboxInCompactMode_: boolean = false;
 
-  protected accessor attachmentFileTypes_: string =
-      loadTimeData.getString('composeboxAttachmentFileTypes');
+  protected accessor attachmentFileTypes_: string[] =
+      loadTimeData.getString('composeboxAttachmentFileTypes').split(',');
   protected accessor contextMenuEnabled_: boolean =
       loadTimeData.getBoolean('composeboxShowContextMenu');
   protected accessor files_: Map<UnguessableToken, ComposeboxFile> = new Map();
   protected accessor addedTabsIds_: Map<number, UnguessableToken> = new Map();
   protected accessor pendingFiles_: Map<UnguessableToken, FileUploadStatus> =
       new Map();
-  protected accessor imageFileTypes_: string =
-      loadTimeData.getString('composeboxImageFileTypes');
+  protected accessor imageFileTypes_: string[] =
+      loadTimeData.getString('composeboxImageFileTypes').split(',');
   protected accessor inputsDisabled_: boolean = false;
   protected accessor composeboxShowPdfUpload_: boolean =
       loadTimeData.getBoolean('composeboxShowPdfUpload');
@@ -356,6 +356,12 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
 
   blurEntrypoint() {
     this.$.contextEntrypoint.blur();
+  }
+
+  closeMenu() {
+    if (this.contextMenuEnabled_) {
+      this.$.contextEntrypoint.closeMenu();
+    }
   }
 
   setContextFiles(files: ContextualUpload[]) {
@@ -589,6 +595,9 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
       case ToolMode.kCreateImage:
         this.setInitialMode(ComposeboxToolMode.kImageGen);
         break;
+      case ToolMode.kCanvas:
+        this.setInitialMode(ComposeboxToolMode.kCanvas);
+        break;
       default:
     }
   }
@@ -681,11 +690,8 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
     });
   }
 
-  private isFileAllowed_(file: File, acceptedFileTypes: string): boolean {
-    // TODO(crbug.com/466876679):refractor isFileAllowed_ to use pre-split
-    // string arrays
+  private isFileAllowed_(file: File, allowedTypes: string[]): boolean {
     const fileType = file.type.toLowerCase();
-    const allowedTypes = acceptedFileTypes.split(',');
     return allowedTypes.some(type => {
       if (type.endsWith('/*')) {
         const prefix = type.slice(0, -1);

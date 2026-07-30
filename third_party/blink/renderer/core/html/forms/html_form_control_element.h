@@ -37,6 +37,7 @@
 namespace blink {
 
 class HTMLFormElement;
+class JSONObject;
 class JSONValue;
 
 // HTMLFormControlElement is the default implementation of
@@ -158,7 +159,20 @@ class CORE_EXPORT HTMLFormControlElement : public HTMLElement,
   String GetMCPJSONValue(JSONValue& value) const;
   virtual bool SupportsWebMCP() const { return false; }
   virtual String GetWebMCPParameterName() const;
+  // An object containing JSON Schema describing the parameter.
+  //
+  // For example, a simple <input type=text> might return:
+  //
+  //   {
+  //     "type": "string"
+  //   }
+  //
+  // Note that the return value should not contain top-level "description"
+  // or "title" fields, as these are automatically added to all objects
+  // at the call site.
+  virtual std::unique_ptr<JSONObject> GetWebMCPParameterSchema() const;
   virtual void FillWebMCPData(JSONValue& data);
+  String GetWebMCPParameterDescription();
 
  protected:
   HTMLFormControlElement(const QualifiedName& tag_name, Document&);

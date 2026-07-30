@@ -10,6 +10,7 @@
 #include "components/optimization_guide/core/hints/optimization_guide_decider.h"
 #include "components/optimization_guide/proto/hints.pb.h"
 #include "components/skills/features.h"
+#include "components/skills/internal/skills_downloader.h"
 #include "components/skills/internal/skills_sync_bridge.h"
 #include "components/skills/public/skill.h"
 #include "components/sync/base/data_type.h"
@@ -22,7 +23,8 @@ namespace skills {
 SkillsServiceImpl::SkillsServiceImpl(
     optimization_guide::OptimizationGuideDecider* optimization_guide,
     version_info::Channel channel,
-    syncer::OnceDataTypeStoreFactory create_store_callback) {
+    syncer::OnceDataTypeStoreFactory create_store_callback,
+    scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory) {
   sync_bridge_ = std::make_unique<SkillsSyncBridge>(
       std::make_unique<syncer::ClientTagBasedDataTypeProcessor>(
           syncer::SKILL,
@@ -37,9 +39,17 @@ SkillsServiceImpl::SkillsServiceImpl(
           {optimization_guide::proto::SKILLS});
     }
   }
+  skills_downloader_ =
+      std::make_unique<SkillsDownloader>(std::move(url_loader_factory));
 }
 
 SkillsServiceImpl::~SkillsServiceImpl() = default;
+
+void SkillsServiceImpl::Shutdown() {
+  for (Observer& observer : observers_) {
+    observer.OnSkillsServiceShuttingDown();
+  }
+}
 
 void SkillsServiceImpl::NotifySkillChanged(std::string_view skill_id,
                                            UpdateSource update_source) {
@@ -53,60 +63,50 @@ const Skill* SkillsServiceImpl::AddSkill(const std::string& name,
                                          const std::string& prompt) {
   CHECK(is_initialized_);
 
-  // TODO(crbug.com/475855831): Add a check to ensure service is initialized.
   auto skill = std::make_unique<Skill>(
       base::Uuid::GenerateRandomV4().AsLowercaseString(), name, icon, prompt);
   return AddSkillImpl(std::move(skill), UpdateSource::kLocal);
 }
 
-const Skill* SkillsServiceImpl::AddSkillFromSync(std::string_view skill_id,
-                                                 std::string_view name,
-                                                 std::string_view icon,
-                                                 std::string_view prompt) {
+const Skill* SkillsServiceImpl::AddOrUpdateSkillFromSync(
+    std::string_view skill_id,
+    std::string_view name,
+    std::string_view icon,
+    std::string_view prompt,
+    base::Time creation_time,
+    base::Time last_update_time) {
   CHECK(is_initialized_);
+
+  if (Skill* skill = GetMutableSkillById(skill_id)) {
+    // Skill already exists, update its fields.
+    UpdateSkillImpl(skill, name, icon, prompt, last_update_time,
+                    UpdateSource::kSync);
+    return skill;
+  }
+
   auto skill = std::make_unique<Skill>(std::string(skill_id), std::string(name),
                                        std::string(icon), std::string(prompt));
+  // Use the creation and last update time from sync to keep them in sync with
+  // other clients.
+  skill->creation_time = creation_time;
+  skill->last_update_time = last_update_time;
   return AddSkillImpl(std::move(skill), UpdateSource::kSync);
 }
 
 const Skill* SkillsServiceImpl::UpdateSkill(std::string_view skill_id,
                                             std::string_view name,
                                             std::string_view icon,
-                                            std::string_view prompt,
-                                            UpdateSource update_source) {
+                                            std::string_view prompt) {
   CHECK(is_initialized_);
 
-  // TODO(crbug.com/475855831): Add a check to ensure service is initialized.
   Skill* skill = GetMutableSkillById(skill_id);
   if (!skill) {
-    // Skill not found.
+    // Skill does not exist, nothing to update.
     return nullptr;
   }
 
-  // First party skills are not owned by the user. They cannot be updated.
-  // Instead, the user should copy the skill content, so that the new, copied
-  // skill is user created, then update the copied skill.
-  CHECK(skill->source == SkillSource::kUserCreated)
-      << "Skill does not belong to the user. Cannot update skill.";
-
-  // Update the existing skill.
-  bool is_changed = false;
-  if (skill->name != name) {
-    skill->name = name;
-    is_changed = true;
-  }
-  if (skill->icon != icon) {
-    skill->icon = icon;
-    is_changed = true;
-  }
-  if (skill->prompt != prompt) {
-    skill->prompt = prompt;
-    is_changed = true;
-  }
-  if (is_changed) {
-    NotifySkillChanged(skill->id, update_source);
-  }
-
+  UpdateSkillImpl(skill, name, icon, prompt,
+                  /*update_time=*/base::Time::Now(), UpdateSource::kLocal);
   return skill;
 }
 
@@ -197,8 +197,66 @@ const Skill* SkillsServiceImpl::AddSkillImpl(std::unique_ptr<Skill> skill,
   return skill_ptr;
 }
 
+void SkillsServiceImpl::FetchDiscoverySkills() {
+  if (!base::FeatureList::IsEnabled(features::kSkillsEnabled)) {
+    return;
+  }
+  skills_downloader_->FetchDiscoverySkills(base::BindOnce(
+      &SkillsServiceImpl::Handle1pSkillsMap, weak_ptr_factory_.GetWeakPtr()));
+}
+
+void SkillsServiceImpl::Handle1pSkillsMap(
+    std::unique_ptr<SkillsMap> skills_map) {
+  for (Observer& observer : observers_) {
+    observer.OnDiscoverySkillsUpdated(std::move(skills_map));
+  }
+}
+
 Skill* SkillsServiceImpl::GetMutableSkillById(std::string_view skill_id) {
   return const_cast<Skill*>(GetSkillById(skill_id));
+}
+
+void SkillsServiceImpl::UpdateSkillImpl(Skill* skill,
+                                        std::string_view name,
+                                        std::string_view icon,
+                                        std::string_view prompt,
+                                        base::Time update_time,
+                                        UpdateSource update_source) {
+  CHECK(skill);
+
+  // First party skills are not owned by the user. They cannot be updated.
+  // Instead, the user should copy the skill content, so that the new, copied
+  // skill is user created, then update the copied skill.
+  CHECK(skill->source == SkillSource::kUserCreated)
+      << "Skill does not belong to the user. Cannot update skill.";
+
+  // Update the existing skill.
+  bool is_changed = false;
+  if (skill->name != name) {
+    skill->name = name;
+    is_changed = true;
+  }
+  if (skill->icon != icon) {
+    skill->icon = icon;
+    is_changed = true;
+  }
+  if (skill->prompt != prompt) {
+    skill->prompt = prompt;
+    is_changed = true;
+  }
+
+  if (update_source == UpdateSource::kSync &&
+      skill->last_update_time < update_time) {
+    // Mark the skill as changed to update its last update time and notify
+    // observers. This is relevant for sync updates only to keep the
+    // `last_update_time` in sync with other clients.
+    is_changed = true;
+  }
+
+  if (is_changed) {
+    skill->last_update_time = update_time;
+    NotifySkillChanged(skill->id, update_source);
+  }
 }
 
 }  // namespace skills

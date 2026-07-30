@@ -428,6 +428,7 @@ base::expected<void, std::string> UpdatePropertyTreeNode(
   node.may_have_backdrop_effect = wire.may_have_backdrop_effect;
   node.needs_effect_for_2d_scale_transform =
       wire.needs_effect_for_2d_scale_transform;
+  node.only_draws_visible_content = wire.only_draws_visible_content;
 
   return base::ok();
 }
@@ -995,6 +996,7 @@ base::expected<void, std::string> CreateOrUpdateLayers(
     base::flat_map<int, size_t> layer_indices(base::sorted_unique,
                                               std::move(layer_indices_vector));
 
+    layers.ReserveLayers(layer_order->size());
     for (auto id : *layer_order) {
       auto it = layer_indices.find(id);
       if (it == layer_indices.end()) {

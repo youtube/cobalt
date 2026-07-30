@@ -52,10 +52,9 @@ void BookmarkSyncService::SetIsTrackingMetadataForTesting() {
   is_tracking_metadata_for_testing_ = true;
 }
 
-void BookmarkSyncService::SetBookmarksLimitForTesting(size_t limit) {
-  bookmark_data_type_processor_
-      .SetMaxBookmarksTillSyncEnabledForTest(  // IN-TEST
-          limit);
+void BookmarkSyncService::SetLocalBookmarksLimitForTesting(size_t limit) {
+  bookmark_data_type_processor_.SetLocalBookmarksLimitForTesting(  // IN-TEST
+      limit);
 }
 
 }  // namespace sync_bookmarks

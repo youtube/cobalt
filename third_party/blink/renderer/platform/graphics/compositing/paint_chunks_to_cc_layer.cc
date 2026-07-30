@@ -277,8 +277,13 @@ class ConversionContext {
   void ApplyTransform(const TransformPaintPropertyNode& target_transform) {
     if (&target_transform == current_transform_)
       return;
-    gfx::Transform projection = TargetToCurrentProjection(target_transform);
-    if (projection.IsIdentityOr2dTranslation()) {
+    gfx::Transform projection;
+    bool valid_projection =
+        TargetToCurrentProjection(target_transform, projection);
+    if (!valid_projection) [[unlikely]] {
+      push<cc::ClipRectOp>(SkRect::MakeEmpty(), SkClipOp::kIntersect,
+                           /*antialias=*/false);
+    } else if (projection.IsIdentityOr2dTranslation()) {
       gfx::Vector2dF translation = projection.To2dTranslation();
       if (!translation.IsZero())
         push<cc::TranslateOp>(translation.x(), translation.y());
@@ -287,10 +292,11 @@ class ConversionContext {
     }
   }
 
-  gfx::Transform TargetToCurrentProjection(
-      const TransformPaintPropertyNode& target_transform) const {
-    return GeometryMapper::SourceToDestinationProjection(target_transform,
-                                                         *current_transform_);
+  bool TargetToCurrentProjection(
+      const TransformPaintPropertyNode& target_transform,
+      gfx::Transform& projection) const {
+    return GeometryMapper::SourceToDestinationProjection(
+        target_transform, *current_transform_, projection);
   }
 
   void AppendRestore() {
@@ -857,14 +863,19 @@ ScrollTranslationAction ConversionContext<Result>::SwitchToTransform(
     return action;
   }
 
-  gfx::Transform projection = TargetToCurrentProjection(target_transform);
-  if (projection.IsIdentity()) {
+  gfx::Transform projection;
+  bool valid_projection =
+      TargetToCurrentProjection(target_transform, projection);
+  if (valid_projection && projection.IsIdentity()) {
     return {};
   }
 
   result_.StartPaint();
   push<cc::SaveOp>();
-  if (projection.IsIdentityOr2dTranslation()) {
+  if (!valid_projection) [[unlikely]] {
+    push<cc::ClipRectOp>(SkRect::MakeEmpty(), SkClipOp::kIntersect,
+                         /*antialias=*/false);
+  } else if (projection.IsIdentityOr2dTranslation()) {
     gfx::Vector2dF translation = projection.To2dTranslation();
     push<cc::TranslateOp>(translation.x(), translation.y());
   } else {
@@ -1166,13 +1177,11 @@ class LayerPropertiesUpdater {
                          const PropertyTreeState& layer_state,
                          const PaintChunkSubset& chunks,
                          cc::LayerSelection& layer_selection,
-                         bool selection_only,
-                         CompositorElementId canvas_subtree_id)
+                         bool selection_only)
       : chunk_to_layer_mapper_(layer_state, layer.offset_to_transform_parent()),
         layer_(layer),
         chunks_(chunks),
         layer_selection_(layer_selection),
-        canvas_subtree_id_(canvas_subtree_id),
         selection_only_(selection_only),
         layer_scroll_translation_(
             layer_state.Transform().NearestScrollTranslationNode()) {}
@@ -1205,7 +1214,6 @@ class LayerPropertiesUpdater {
   cc::Layer& layer_;
   const PaintChunkSubset& chunks_;
   cc::LayerSelection& layer_selection_;
-  CompositorElementId canvas_subtree_id_;
   const bool selection_only_;
   const TransformPaintPropertyNode& layer_scroll_translation_;
 
@@ -1651,7 +1659,6 @@ void LayerPropertiesUpdater::Update() {
         std::move(main_thread_scroll_hit_test_region_));
     layer_.SetNonCompositedScrollHitTestRects(
         std::move(non_composited_scroll_hit_test_rects));
-    layer_.SetCanvasSubtreeId(canvas_subtree_id_);
   }
 
   if (any_selection_was_painted) {
@@ -1677,10 +1684,9 @@ void PaintChunksToCcLayer::UpdateLayerProperties(
     const PropertyTreeState& layer_state,
     const PaintChunkSubset& chunks,
     cc::LayerSelection& layer_selection,
-    bool selection_only,
-    CompositorElementId canvas_subtree_id) {
+    bool selection_only) {
   LayerPropertiesUpdater(layer, layer_state, chunks, layer_selection,
-                         selection_only, canvas_subtree_id)
+                         selection_only)
       .Update();
 }
 

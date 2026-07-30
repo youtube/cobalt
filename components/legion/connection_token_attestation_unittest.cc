@@ -31,6 +31,10 @@ class FakeTokenManager : public phosphor::TokenManager {
   }
 
   void PrefetchAuthTokens() override {}
+  void GetAuthTokenForProxy(GetAuthTokenCallback callback) override {
+    NOTREACHED();
+  }
+  void PrefetchAuthTokensForProxy() override { NOTREACHED(); }
 
   std::optional<phosphor::BlindSignedAuthToken> GetToken() {
     if (!return_token_) {
@@ -62,7 +66,7 @@ class ConnectionTokenAttestationTest : public testing::Test {
   ~ConnectionTokenAttestationTest() override = default;
 
   void CreateConnectionAttestation() {
-    auto fake_connection = std::make_unique<FakeConnection>();
+    auto fake_connection = std::make_unique<FakeConnection>(base::DoNothing());
     fake_connection_ = fake_connection.get();
     connection_attestation_ = std::make_unique<ConnectionTokenAttestation>(
         std::move(fake_connection), &token_manager_,

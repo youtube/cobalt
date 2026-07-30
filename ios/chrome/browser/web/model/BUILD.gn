@@ -94,12 +94,15 @@ source_set("delegate") {
     "//ios/chrome/browser/context_menu/ui_bundled:coordinator",
     "//ios/chrome/browser/dialogs/ui_bundled:dialogs_internal",
     "//ios/chrome/browser/enterprise/data_controls/model",
+    "//ios/chrome/browser/intelligence/bwg/utils:constants",
+    "//ios/chrome/browser/intelligence/features",
     "//ios/chrome/browser/overlays/model",
     "//ios/chrome/browser/overlays/model/public/web_content_area",
     "//ios/chrome/browser/permissions/model:tab_helper",
     "//ios/chrome/browser/shared/model/browser",
     "//ios/chrome/browser/shared/model/profile",
     "//ios/chrome/browser/shared/model/web_state_list",
+    "//ios/chrome/browser/shared/public/commands",
     "//ios/chrome/browser/shared/public/features",
     "//ios/chrome/browser/snapshots/model",
     "//ios/chrome/browser/supervised_user/model:capabilities",
@@ -136,7 +139,6 @@ source_set("page_placeholder") {
     "//ios/chrome/browser/snapshots/model:features",
     "//ios/chrome/common/ui/util",
     "//ios/net",
-    "//ios/web/common:features",
   ]
   public_deps = [ "//ios/web/public" ]
 }

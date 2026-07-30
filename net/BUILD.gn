@@ -1688,6 +1688,7 @@ component("net") {
     libs = [ "resolv" ]
     frameworks = [
       "CFNetwork.framework",
+      "Network.framework",
       "MobileCoreServices.framework",
       "Security.framework",
       "SystemConfiguration.framework",
@@ -1848,6 +1849,10 @@ component("net") {
     sources += [
       "disk_cache/sql/cache_entry_key.cc",
       "disk_cache/sql/cache_entry_key.h",
+      "disk_cache/sql/entry_db_handle.cc",
+      "disk_cache/sql/entry_db_handle.h",
+      "disk_cache/sql/entry_write_buffer.cc",
+      "disk_cache/sql/entry_write_buffer.h",
       "disk_cache/sql/eviction_candidate_aggregator.cc",
       "disk_cache/sql/eviction_candidate_aggregator.h",
       "disk_cache/sql/exclusive_operation_coordinator.cc",
@@ -1868,6 +1873,8 @@ component("net") {
       "disk_cache/sql/sql_persistent_store_in_memory_index.cc",
       "disk_cache/sql/sql_persistent_store_in_memory_index.h",
       "disk_cache/sql/sql_persistent_store_queries.h",
+      "disk_cache/sql/sql_read_cache_memory_monitor.cc",
+      "disk_cache/sql/sql_read_cache_memory_monitor.h",
     ]
     deps += [
       "//components/performance_manager/scenario_api",
@@ -3560,6 +3567,7 @@ target(_test_target_type, "net_unittests") {
       "device_bound_sessions/session_store_unittest.cc",
       "device_bound_sessions/session_unittest.cc",
       "device_bound_sessions/unexportable_key_service_factory_unittest.cc",
+      "device_bound_sessions/url_fetcher_unittest.cc",
     ]
     deps += [
       ":device_bound_sessions_storage_proto",
@@ -3571,6 +3579,7 @@ target(_test_target_type, "net_unittests") {
   if (enable_disk_cache_sql_backend) {
     sources += [
       "disk_cache/sql/cache_entry_key_unittest.cc",
+      "disk_cache/sql/entry_write_buffer_unittest.cc",
       "disk_cache/sql/eviction_candidate_aggregator_unittest.cc",
       "disk_cache/sql/exclusive_operation_coordinator_unittest.cc",
       "disk_cache/sql/indexed_pair_set_unittest.cc",

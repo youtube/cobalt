@@ -977,10 +977,10 @@ void WebContentsAccessibilityAndroid::HandleAtomicLiveRegionChanged(
            ->GetString16Attribute(ax::mojom::StringAttribute::kName)
            .empty();
 
-  // TODO(accessibility): this condition isn't technically part of accessible
-  // name computation. It should only be valid to do this for roles that support
-  // `ui::SupportsNamingFromChildcontents`. This condition makes it so that we
-  // rarely if ever traverse into descendants.
+  // TODO(crbug.com/478972594): this condition isn't technically part of
+  // accessible name computation. It should only be valid to do this for roles
+  // that support `ui::SupportsNamingFromChildContents`. This condition makes it
+  // so that we rarely if ever traverse into descendants.
   bool root_has_nonempty_text =
       !android_root_node->GetTextContentUTF16().empty();
 
@@ -1002,8 +1002,8 @@ void WebContentsAccessibilityAndroid::HandleAtomicLiveRegionChanged(
     // changed event.
     if (!current_node->GetString16Attribute(ax::mojom::StringAttribute::kName)
              .empty() ||
-        // TODO(accessibility), similarly to the root, this shouldn't be part of
-        // name computation generally.
+        // TODO(crbug.com/478972594), similarly to the root, this shouldn't be
+        // part of name computation generally.
         !current_node->GetTextContentUTF16().empty()) {
       HandleLiveRegionNodeChanged(current_node->GetUniqueId());
     }
@@ -2050,7 +2050,14 @@ void WebContentsAccessibilityAndroid::ClearExtendedSelection(JNIEnv* env,
     return;
   }
 
-  node->manager()->SetSelection(ui::BrowserAccessibility::AXRange());
+  ui::BrowserAccessibility::AXPosition start_position =
+      node->CreatePositionForSelectionAt(ax::mojom::kNoSelectionOffset);
+  ui::BrowserAccessibility::AXPosition end_position =
+      node->CreatePositionForSelectionAt(ax::mojom::kNoSelectionOffset);
+
+  // TODO(crbug.com/443078007): Add test.
+  node->manager()->SetSelection(ui::BrowserAccessibility::AXRange(
+      std::move(start_position), std::move(end_position)));
 }
 
 bool WebContentsAccessibilityAndroid::AdjustSlider(JNIEnv* env,

@@ -1226,6 +1226,14 @@ class CORE_EXPORT Element : public ContainerNode {
   Element* AdjustedFocusedElementInTreeScope() const;
   bool IsAutofocusable() const;
 
+  // Returns the axes (using FocusgroupFlags::kInline and kBlock) on which this
+  // element has native (built-in) arrow key behavior, e.g., cursor movement in
+  // text fields, scrolling in focusable scroll containers. Elements with
+  // author-defined script handlers are not considered.
+  // Base implementation handles focusable scrollable containers; subclasses
+  // override to add element-specific behavior.
+  virtual FocusgroupFlags NativeArrowKeyAxes() const;
+
   // Returns true if `last_focus_type_` was not the result of an unknown or
   // script source. For more see:
   // https://explainers-by-googlers.github.io/user-dictionary-leaks/
@@ -2007,6 +2015,15 @@ class CORE_EXPORT Element : public ContainerNode {
   Element* GetOverscrollContainer() const;
   void SetOverscrollContainer(Element*);
   void ClearOverscrollContainer();
+
+  // This method matches the logic of the following UA style rule, and is used
+  // in the case that the overlay property is not enabled. This is separate from
+  // the IsInTopLayer() method which stores a flag on this element and
+  // corresponds to the top layer list in the document.
+  // dialog:modal, [popover]:popover-open {
+  //     overlay: auto !important;
+  // }
+  virtual bool IsRenderedInTopLayer() const { return false; }
 
  protected:
   bool HasElementData() const { return static_cast<bool>(element_data_); }
