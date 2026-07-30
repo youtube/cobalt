@@ -148,6 +148,47 @@ class Configurator : public base::RefCountedThreadSafe<Configurator> {
 
   virtual bool IsConnectionMetered() const = 0;
 
+#if BUILDFLAG(IS_STARBOARD)
+  // Returns the brand code or distribution tag that has been assigned to
+  // a partner. A brand code is a 4-character string used to identify
+  // installations that took place as a result of partner deals or website
+  // promotions.
+  virtual std::string GetBrand() const = 0;
+
+  // Sets the value we use for the "updaterchannel=" and "prodchannel="
+  // parameters.
+  virtual void SetChannel(const std::string& channel) = 0;
+
+  virtual std::string GetPreviousUpdaterStatus() const = 0;
+  virtual void SetPreviousUpdaterStatus(const std::string& status) = 0;
+
+  virtual std::string GetUpdaterStatus() const = 0;
+  virtual void SetUpdaterStatus(const std::string& status) = 0;
+
+  // Compare and swap the is_channel_changed flag.
+  virtual void CompareAndSwapForcedUpdate(int old_value, int new_value) = 0;
+
+  virtual void SetMinFreeSpaceBytes(uint64_t bytes) = 0;
+  virtual uint64_t GetMinFreeSpaceBytes() = 0;
+
+  virtual bool GetUseCompressedUpdates() const = 0;
+  virtual void SetUseCompressedUpdates(bool use_compressed_updates) = 0;
+
+  virtual bool GetAllowSelfSignedPackages() const = 0;
+  virtual void SetAllowSelfSignedPackages(bool allow_self_signed_packages) = 0;
+
+  virtual std::string GetUpdateServerUrl() const = 0;
+  virtual void SetUpdateServerUrl(const std::string& update_server_url) = 0;
+
+  virtual bool GetRequireNetworkEncryption() const = 0;
+  virtual void SetRequireNetworkEncryption(bool require_network_encryption) = 0;
+
+  // Returns the app GUID with which Chrome is registered with Google Update, or
+  // an empty string if this brand does not integrate with Google Update.
+  virtual std::string GetAppGuid() const = 0;
+
+#endif
+
  protected:
   friend class base::RefCountedThreadSafe<Configurator>;
 

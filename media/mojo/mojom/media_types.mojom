@@ -218,6 +218,8 @@ struct AudioDecoderConfig {
   ChannelLayout target_output_channel_layout;
   SampleFormat target_output_sample_format;
   bool should_discard_decoder_delay;
+  [EnableIf=use_starboard_media]
+  string mime_type;
 };
 
 // This defines a mojo transport format for media::VideoDecoderConfig.
@@ -235,7 +237,13 @@ struct VideoDecoderConfig {
   array<uint8> extra_data;
   EncryptionScheme encryption_scheme;
   VideoColorSpace color_space_info;
+<<<<<<< HEAD
   gfx.mojom.HDRMetadata hdr_metadata;
+=======
+  gfx.mojom.HDRMetadata? hdr_metadata;
+  [EnableIf=use_starboard_media]
+  string mime_type;
+>>>>>>> parent of 14506af6e1e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 };
 
 // Native struct media::SubsampleEntry;
@@ -313,6 +321,10 @@ struct DataDecoderBuffer {
   DecryptConfig? decrypt_config;
 
   DecoderBufferSideData? side_data;
+
+  [EnableIf=use_starboard_media]
+  // This stores the address of DecoderBuffer.
+  uint64 address;
 };
 
 // This defines a mojo transport format for an EOS media::DecoderBuffer.
@@ -654,6 +666,8 @@ enum RendererType {
   kCastStreaming = 9,    // CastStreamingRendererFactory
   kContentEmbedderDefined = 10,  // Defined by the content embedder
   kTest= 11,             // Renderer implementations used in tests
+  [EnableIf=use_starboard_media]
+  kStarboard = 12,       // StarboardRendererFactory
 };
 
 // See media/base/demuxer.h for description.
@@ -666,6 +680,8 @@ enum DemuxerType {
   kFrameInjectingDemuxer = 5,
   kStreamProviderDemuxer = 6,
   kManifestDemuxer = 7,
+  [EnableIf=use_starboard_media&is_ios]
+  kUrlPlayerDemuxer = 8,  // URL player placeholder demuxer.
 };
 
 // See media::CreateCdmStatus

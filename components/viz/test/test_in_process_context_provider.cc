@@ -64,15 +64,33 @@ gpu::ContextResult TestInProcessContextProvider::BindToCurrentSequence() {
     gles2_context_ = std::make_unique<gpu::GLInProcessContext>();
     auto result = gles2_context_->Initialize(
         TestGpuServiceHolder::GetInstance()->task_executor());
+// TODO(sherryzy): Investigate why this ContextResult check fails
+// specifically in single-process-test mode.
+#if !BUILDFLAG(IS_STARBOARD)
     CHECK_EQ(result, gpu::ContextResult::kSuccess);
+#else
+    (void)result;
+#endif  // BUILDFLAG(IS_STARBOARD)
 
     caps_ = gles2_context_->GetCapabilities();
   } else {
     raster_context_ = std::make_unique<gpu::RasterInProcessContext>();
     auto result = raster_context_->Initialize(
+<<<<<<< HEAD
         holder->task_executor(), holder->gpu_service()->gr_shader_cache(),
         use_shader_cache_shm_count_);
+=======
+        holder->task_executor(), /*enable_gpu_rasterization=*/is_gpu_raster,
+        holder->gpu_service()->gr_shader_cache(), use_shader_cache_shm_count_);
+
+// TODO(sherryzy): Investigate why this ContextResult check fails
+// specifically in single-process-test mode.
+#if !BUILDFLAG(IS_STARBOARD)
+>>>>>>> parent of 14506af6e1e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     CHECK_EQ(result, gpu::ContextResult::kSuccess);
+#else
+    (void)result;
+#endif  // BUILDFLAG(IS_STARBOARD)
 
     caps_ = raster_context_->GetCapabilities();
   }

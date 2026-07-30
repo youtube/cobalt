@@ -188,7 +188,7 @@
 #include "media/base/win/mf_feature_checks.h"
 #endif
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS)
 #include "content/child/sandboxed_process_thread_type_handler.h"
 #endif
 
@@ -557,7 +557,7 @@ void RenderThreadImpl::Init() {
   }
 #endif
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS)
   SandboxedProcessThreadTypeHandler::NotifyMainChildThreadCreated();
 #endif
 
@@ -606,7 +606,7 @@ void RenderThreadImpl::Init() {
   base::DiscardableMemoryAllocator::SetInstance(
       discardable_memory_allocator_.get());
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS)
   ChildProcess::current()->SetIOThreadType(base::ThreadType::kDisplayCritical);
 #endif
 
@@ -1130,6 +1130,20 @@ RenderThreadImpl::SharedMainThreadContextProvider() {
   return shared_main_thread_contexts_;
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+uint64_t RenderThreadImpl::GetMediaSourceMaximumMemoryCapacity() const {
+  return RenderMediaClient::GetMediaSourceMaximumMemoryCapacity();
+}
+
+uint64_t RenderThreadImpl::GetMediaSourceCurrentMemoryCapacity() const {
+  return RenderMediaClient::GetMediaSourceCurrentMemoryCapacity();
+}
+
+uint64_t RenderThreadImpl::GetMediaSourceTotalAllocatedMemory() const {
+  return RenderMediaClient::GetMediaSourceTotalAllocatedMemory();
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 #if BUILDFLAG(IS_WIN)
 scoped_refptr<DCOMPTextureFactory> RenderThreadImpl::GetDCOMPTextureFactory() {
   DCHECK(IsMainThread());
@@ -1239,7 +1253,13 @@ void RenderThreadImpl::OnChannelError() {
   // So, if we get a channel error, crash the whole process right now to get a
   // more informative stack, since we will otherwise just crash later when we
   // try to restart it.
+  // In Cobalt single-process mode, when BrowserMainLoop shuts down IPC channels
+  // during application termination, the in-process renderer thread naturally
+  // receives a channel error notification. Crashing here would prevent clean
+  // process exit.
+#if !BUILDFLAG(IS_COBALT)
   CHECK(!IsSingleProcess());
+#endif
   ChildThreadImpl::OnChannelError();
 }
 

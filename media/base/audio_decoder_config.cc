@@ -73,6 +73,10 @@ bool AudioDecoderConfig::IsValidConfig() const {
          seek_preroll_ >= base::TimeDelta() && codec_delay_ >= 0;
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+// TODO(b/545325130): Explicitly signal SbPlayer of a changeType() call when
+// the config/mime_type is identical to the current config/mime_type.
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 bool AudioDecoderConfig::Matches(const AudioDecoderConfig& config) const {
   return (
       (codec() == config.codec()) &&
@@ -89,6 +93,9 @@ bool AudioDecoderConfig::Matches(const AudioDecoderConfig& config) const {
        config.should_discard_decoder_delay()) &&
       (target_output_channel_layout() ==
        config.target_output_channel_layout()) &&
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      (mime_type() == config.mime_type()) &&
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
       (target_output_sample_format() == config.target_output_sample_format()));
 }
 
@@ -110,6 +117,9 @@ std::string AudioDecoderConfig::AsHumanReadableString() const {
     << base::ToString(should_discard_decoder_delay())
     << ", target_output_channel_layout: "
     << ChannelLayoutToString(target_output_channel_layout())
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    << ", mime_type: " << mime_type()
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     << ", target_output_sample_format: "
     << SampleFormatToString(target_output_sample_format());
   return s.str();

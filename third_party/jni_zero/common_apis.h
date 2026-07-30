@@ -8,6 +8,8 @@
 #include <jni.h>
 #include <stdint.h>
 
+#include "build/build_config.h"
+#include "build/buildflag.h"
 #include "third_party/jni_zero/java_refs.h"
 #include "third_party/jni_zero/jni_export.h"
 #include "third_party/jni_zero/type_conversions.h"
@@ -41,8 +43,19 @@ JNI_ZERO_COMPONENT_BUILD_EXPORT ScopedJavaLocalRef<jobject> ListSet(
     jint idx,
     const JavaRef<jobject>& value);
 // Use ToJniType on the value.
+#if BUILDFLAG(IS_COBALT)
+template <typename V
+#if !defined(__cpp_concepts) || __cpp_concepts < 201907L
+          , std::enable_if_t<!internal::IsJavaRef<V>, int> = 0
+#endif  // !defined(__cpp_concepts) || __cpp_concepts < 201907L
+          >
+#if defined(__cpp_concepts) && __cpp_concepts >= 201907L
+  requires(!internal::IsJavaRef<V>)
+#endif  // defined(__cpp_concepts) && __cpp_concepts >= 201907L
+#else   // BUILDFLAG(IS_COBALT)
 template <typename V>
   requires(!internal::IsJavaRef<V>)
+#endif  // BUILDFLAG(IS_COBALT)
 inline ScopedJavaLocalRef<jobject> ListSet(JNIEnv* env,
                                            const JavaRef<jobject>& list,
                                            jint idx,
@@ -58,11 +71,29 @@ JNI_ZERO_COMPONENT_BUILD_EXPORT bool CollectionAdd(
     const JavaRef<jobject>& collection,
     const JavaRef<jobject>& value);
 // Use ToJniType on the value.
+#if BUILDFLAG(IS_COBALT)
+template <typename V
+#if !defined(__cpp_concepts) || __cpp_concepts < 201907L
+          , std::enable_if_t<!internal::IsJavaRef<V>, int> = 0
+#endif  // !defined(__cpp_concepts) || __cpp_concepts < 201907L
+          >
+#if defined(__cpp_concepts) && __cpp_concepts >= 201907L
+  requires(!internal::IsJavaRef<V>)
+#endif  // defined(__cpp_concepts) && __cpp_concepts >= 201907L
+#else   // BUILDFLAG(IS_COBALT)
 template <typename V>
   requires(!internal::IsJavaRef<V>)
+<<<<<<< HEAD
 inline ScopedJavaLocalRef<jobject>
 CollectionAdd(JNIEnv* env, const JavaRef<jobject>& collection, const V& value) {
   return CollectionAdd(env, collection, ToJniType(env, value));
+=======
+#endif  // BUILDFLAG(IS_COBALT)
+inline ScopedJavaLocalRef<jobject> ListAdd(JNIEnv* env,
+                                           const JavaRef<jobject>& list,
+                                           const V& value) {
+  return ListAdd(env, list, ToJniType(env, value));
+>>>>>>> parent of 14506af6e1e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 JNI_ZERO_COMPONENT_BUILD_EXPORT bool CollectionRemove(
@@ -96,8 +127,19 @@ JNI_ZERO_COMPONENT_BUILD_EXPORT ScopedJavaLocalRef<jobject> MapPut(
     const JavaRef<jobject>& value);
 
 // Use ToJniType on the key/value.
+#if BUILDFLAG(IS_COBALT)
+template <typename K, typename V
+#if !defined(__cpp_concepts) || __cpp_concepts < 201907L
+          , std::enable_if_t<!internal::IsJavaRef<K> && !internal::IsJavaRef<V>, int> = 0
+#endif  // !defined(__cpp_concepts) || __cpp_concepts < 201907L
+          >
+#if defined(__cpp_concepts) && __cpp_concepts >= 201907L
+  requires(!internal::IsJavaRef<K> && !internal::IsJavaRef<V>)
+#endif  // defined(__cpp_concepts) && __cpp_concepts >= 201907L
+#else   // BUILDFLAG(IS_COBALT)
 template <typename K, typename V>
   requires(!internal::IsJavaRef<K> && !internal::IsJavaRef<V>)
+#endif  // BUILDFLAG(IS_COBALT)
 inline ScopedJavaLocalRef<jobject> MapPut(JNIEnv* env,
                                           const JavaRef<jobject>& map,
                                           const K& key,

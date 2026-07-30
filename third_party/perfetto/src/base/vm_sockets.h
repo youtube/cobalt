@@ -27,7 +27,7 @@
 #if PERFETTO_BUILDFLAG(PERFETTO_OS_QNX)
 // Requires the QNX Advanced Virtualization Framework
 #include <vm_sockets.h>
-#elif defined(AF_VSOCK)
+#elif defined(AF_VSOCK) && !defined(STARBOARD)
 // Use system vm_socket.h if available.
 #include <linux/vm_sockets.h>
 #else  // defined(AF_SOCK)
@@ -35,7 +35,9 @@
 
 #include <stdint.h>  // For uint8_t.
 
+#if !defined(STARBOARD)
 #define AF_VSOCK 40
+#endif
 
 struct sockaddr_vm {
   sa_family_t svm_family;

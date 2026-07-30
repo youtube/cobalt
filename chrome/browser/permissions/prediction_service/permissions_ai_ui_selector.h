@@ -25,8 +25,12 @@
 #if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
 #include "chrome/browser/permissions/prediction_service/language_detection_observer.h"
 #include "components/content_extraction/content/browser/inner_text.h"
+<<<<<<< HEAD
 #include "components/passage_embeddings/passage_embeddings_types.h"
 #include "third_party/skia/include/core/SkBitmap.h"
+=======
+#include "components/passage_embeddings/passage_embeddings_types.h"  // nogncheck
+>>>>>>> parent of 14506af6e1e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #endif
 
 class PredictionServiceRequest;

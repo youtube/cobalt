@@ -14,7 +14,10 @@
 
 #include "base/atomic_sequence_num.h"
 #include "base/containers/span.h"
+#include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/ref_counted.h"
+#include "build/build_config.h"
 #include "cc/paint/tone_map_util.h"
 #include "cc/paint/transfer_cache_entry.h"
 #include "third_party/skia/include/core/SkImageInfo.h"
@@ -97,6 +100,18 @@ class CC_PAINT_EXPORT ClientImageTransferCacheEntry final
   // ClientTransferCacheEntry implementation:
   uint32_t SerializedSize() const final;
   bool Serialize(base::span<uint8_t> data) const final;
+#if BUILDFLAG(IS_COBALT)
+  uint32_t SerializedSizeInProcess() const;
+  bool SerializeInProcess(
+      base::span<uint8_t> data,
+      base::ScopedClosureRunner unref_runner =
+          base::ScopedClosureRunner()) const;
+
+  // Clears all in-flight in-process image transfer payloads and runs their
+  // unref_runner runners to unref decoded images, typically called during
+  // cache clear or context loss cleanup.
+  static void ClearInProcessRegistry();
+#endif  // BUILDFLAG(IS_COBALT)
 
   static uint32_t GetNextId() { return s_next_id_.GetNext(); }
   bool IsYuv() const {
@@ -160,6 +175,13 @@ class CC_PAINT_EXPORT ServiceImageTransferCacheEntry final
   bool Deserialize(GrDirectContext* gr_context,
                    skgpu::graphite::Recorder* graphite_recorder,
                    base::span<const uint8_t> data) final;
+#if BUILDFLAG(IS_COBALT)
+  bool DeserializeInProcess(GrDirectContext* gr_context,
+                            base::span<const uint8_t> data);
+  sk_sp<SkImage> UploadImageInProcess(GrDirectContext* gr_context,
+                                      sk_sp<SkImage> img,
+                                      bool mip_mapped_for_upload);
+#endif  // BUILDFLAG(IS_COBALT)
 
   const sk_sp<SkImage>& image() const { return image_; }
 

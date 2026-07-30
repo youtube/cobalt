@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "third_party/blink/renderer/modules/webaudio/audio_context.h"
+#include "third_party/blink/public/common/buildflags.h"
 
 #include <atomic>
 
@@ -39,6 +40,12 @@
 #include "third_party/blink/renderer/core/timing/dom_window_performance.h"
 #include "third_party/blink/renderer/core/timing/window_performance.h"
 #include "third_party/blink/renderer/modules/mediastream/media_stream.h"
+<<<<<<< HEAD
+=======
+#if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
+#include "third_party/blink/renderer/modules/peerconnection/peer_connection_dependency_factory.h"  // nogncheck
+#endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
+>>>>>>> parent of 14506af6e1e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "third_party/blink/renderer/modules/permissions/permission_utils.h"
 #include "third_party/blink/renderer/modules/webaudio/audio_listener.h"
 #include "third_party/blink/renderer/modules/webaudio/audio_playout_stats.h"
@@ -47,6 +54,12 @@
 #include "third_party/blink/renderer/modules/webaudio/media_stream_audio_destination_node.h"
 #include "third_party/blink/renderer/modules/webaudio/media_stream_audio_source_node.h"
 #include "third_party/blink/renderer/modules/webaudio/realtime_audio_destination_node.h"
+<<<<<<< HEAD
+=======
+#if BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
+#include "third_party/blink/renderer/modules/webrtc/webrtc_audio_device_impl.h"  // nogncheck
+#endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
+>>>>>>> parent of 14506af6e1e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "third_party/blink/renderer/platform/audio/audio_utilities.h"
 #include "third_party/blink/renderer/platform/audio/vector_math.h"
 #include "third_party/blink/renderer/platform/bindings/exception_messages.h"
@@ -63,6 +76,12 @@
 #if DEBUG_AUDIONODE_REFERENCES
 #include <stdio.h>
 #endif
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "base/feature_list.h"
+#include "media/base/media_switches.h"
+#include "cobalt/media/audio/audio_input_constants.h"
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace blink {
 
@@ -423,6 +442,7 @@ AudioContext* AudioContext::Create(ExecutionContext* context,
     sample_rate = context_options->sampleRate();
   }
 
+<<<<<<< HEAD
   std::optional<uint32_t> render_quantum_frames = 128;
   if (RuntimeEnabledFeatures::WebAudioConfigurableRenderQuantumEnabled() &&
       context_options->hasRenderSizeHint()) {
@@ -442,10 +462,26 @@ AudioContext* AudioContext::Create(ExecutionContext* context,
         break;
     }
   }
+=======
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Force 16kHz default for Cobalt if no rate is specified.
+  // This aligns the JS engine with the native "Straight Pipe" 16kHz hardware capture,
+  // bypassing the heavy OfflineAudioContext downsampling in the YouTube application.
+  if (!sample_rate.has_value()) {
+    sample_rate = cobalt::media::kSampleRate;
+    LOG(INFO) << "Cobalt: Force-set sample rate to " << sample_rate.value();
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+>>>>>>> parent of 14506af6e1e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   // The empty string means the default audio device.
   auto frame_token = window.GetLocalFrameToken();
-  WebAudioSinkDescriptor sink_descriptor(g_empty_string, frame_token);
+  WebAudioSinkDescriptor sink_descriptor =
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      WebAudioSinkDescriptor(frame_token);
+#else
+      WebAudioSinkDescriptor(g_empty_string, frame_token);
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
   // In order to not break echo cancellation of PeerConnection audio, we must
   // not update the echo cancellation reference unless the sink ID is explicitly
   // specified.
