@@ -5,27 +5,53 @@
 #import "ios/chrome/browser/lens_overlay/coordinator/lens_view_finder_coordinator.h"
 
 #import "base/ios/block_types.h"
+#import "base/not_fatal_until.h"
+#import "base/strings/sys_string_conversions.h"
+#import "components/feature_engagement/public/event_constants.h"
+#import "components/feature_engagement/public/tracker.h"
+#import "components/prefs/pref_service.h"
+#import "components/search_engines/template_url.h"
+#import "components/search_engines/template_url_service.h"
+#import "components/segmentation_platform/embedder/home_modules/tips_manager/signal_constants.h"
 #import "ios/chrome/app/application_delegate/app_state.h"
 #import "ios/chrome/app/profile/profile_state.h"
 #import "ios/chrome/browser/device_orientation/ui_bundled/scoped_force_portrait_orientation.h"
+#import "ios/chrome/browser/feature_engagement/model/tracker_factory.h"
+#import "ios/chrome/browser/first_run/public/best_features_item.h"
+#import "ios/chrome/browser/intents/model/intents_constants.h"
+#import "ios/chrome/browser/intents/model/intents_donation_helper.h"
+#import "ios/chrome/browser/lens/ui_bundled/lens_availability.h"
+#import "ios/chrome/browser/lens/ui_bundled/lens_entrypoint.h"
 #import "ios/chrome/browser/lens_overlay/model/lens_overlay_configuration_factory.h"
 #import "ios/chrome/browser/lens_overlay/model/lens_overlay_entrypoint.h"
 #import "ios/chrome/browser/lens_overlay/model/lens_view_finder_metrics_recorder.h"
 #import "ios/chrome/browser/lens_overlay/ui/lens_view_finder_transition_manager.h"
+#import "ios/chrome/browser/search_engines/model/template_url_service_factory.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_state.h"
+#import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
+#import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/shared/public/commands/browser_coordinator_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/lens_commands.h"
 #import "ios/chrome/browser/shared/public/commands/lens_overlay_commands.h"
+#import "ios/chrome/browser/shared/public/commands/new_tab_page_commands.h"
 #import "ios/chrome/browser/shared/public/commands/omnibox_commands.h"
 #import "ios/chrome/browser/shared/public/commands/open_lens_input_selection_command.h"
 #import "ios/chrome/browser/shared/public/commands/open_new_tab_command.h"
 #import "ios/chrome/browser/shared/public/commands/scene_commands.h"
 #import "ios/chrome/browser/shared/public/commands/search_image_with_lens_command.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
+#import "ios/chrome/browser/shared/ui/symbols/symbols.h"
+#import "ios/chrome/browser/tips_manager/model/tips_manager_ios.h"
+#import "ios/chrome/browser/tips_manager/model/tips_manager_ios_factory.h"
+#import "ios/chrome/browser/welcome_back/model/features.h"
+#import "ios/chrome/common/app_group/app_group_constants.h"
+#import "ios/chrome/grit/ios_strings.h"
 #import "ios/public/provider/chrome/browser/lens/lens_api.h"
+#import "ui/base/device_form_factor.h"
+#import "ui/base/l10n/l10n_util_mac.h"
 
 namespace {
 
@@ -65,6 +91,10 @@ LensViewFinderTransition TransitionFromPresentationStyle(
 
   /// Records LVF related metrics.
   LensViewFinderMetricsRecorder* _metricsRecorder;
+
+  // If set to YES, an IPH bubble will be presented on the NTP that points to
+  // the Lens icon in the NTP fakebox, if Lens is dismissed by the user.
+  BOOL _presentNTPLensIconBubbleOnDismiss;
 }
 
 @synthesize baseViewController = _baseViewController;
@@ -76,18 +106,18 @@ LensViewFinderTransition TransitionFromPresentationStyle(
 #pragma mark - ChromeCoordinator
 
 - (void)start {
-  [super start];
   _metricsRecorder = [[LensViewFinderMetricsRecorder alloc] init];
   [self.browser->GetCommandDispatcher()
       startDispatchingToTarget:self
                    forProtocol:@protocol(LensCommands)];
+  [self updateLensAvailabilityForWidgets];
+  [self updateQRCodeOrLensAppShortcutItem];
 }
 
 - (void)stop {
   [self.browser->GetCommandDispatcher() stopDispatchingToTarget:self];
   [self lockOrientationPortrait:NO];
   _metricsRecorder = nil;
-  [super stop];
 }
 
 #pragma mark - LensCommands
@@ -175,7 +205,13 @@ LensViewFinderTransition TransitionFromPresentationStyle(
 - (void)lensControllerDidTapDismissButton:
     (id<ChromeLensViewFinderController>)lensController {
   [_metricsRecorder recordLensViewFinderDismissTapped];
-  [self exitLensViewFinderAnimated:YES completion:nil];
+  ProceduralBlock completion = nil;
+  if (_presentNTPLensIconBubbleOnDismiss) {
+    completion = ^{
+      [self presentNTPLensIconBubble];
+    };
+  }
+  [self exitLensViewFinderAnimated:YES completion:completion];
 }
 
 - (void)lensControllerWillAppear:
@@ -200,8 +236,16 @@ LensViewFinderTransition TransitionFromPresentationStyle(
     return;
   }
 
+  _presentNTPLensIconBubbleOnDismiss =
+      command.presentNTPLensIconBubbleOnDismiss;
+
+  LensEntrypoint entrypoint = command.entryPoint;
+
+  [self signalTrackerCameraOpenFromEntrypoint:entrypoint];
+
   [_lensViewController setLensViewFinderDelegate:self];
-  [_metricsRecorder recordLensViewFinderOpened];
+  [_metricsRecorder recordLensViewFinderOpenedFromEntrypoint:entrypoint];
+
   [self.baseViewController
       presentViewController:_lensViewController
                    animated:YES
@@ -301,6 +345,111 @@ LensViewFinderTransition TransitionFromPresentationStyle(
   id<BrowserCoordinatorCommands> browserCoordinatorHandler =
       HandlerForProtocol(dispatcher, BrowserCoordinatorCommands);
   [browserCoordinatorHandler hideComposebox];
+}
+
+// Sets the visibility of the Lens replacement for the QR code scanner in the
+// home screen widget.
+- (void)updateLensAvailabilityForWidgets {
+  NSUserDefaults* sharedDefaults = app_group::GetGroupUserDefaults();
+  NSString* enableLensInWidgetKey =
+      base::SysUTF8ToNSString(app_group::kChromeAppGroupEnableLensInWidget);
+
+  // Determine the availability of the Lens entrypoint in the home screen
+  // widget. We don't use LensAvailability here because the seach engine status
+  // is determined elsewhere in the Extension Search Engine Data Updater.
+  const bool enableLensInWidget =
+      ios::provider::IsLensSupported() &&
+      GetApplicationContext()->GetLocalState()->GetBoolean(
+          prefs::kLensCameraAssistedSearchPolicyAllowed) &&
+      !base::FeatureList::IsEnabled(kDisableLensCamera) &&
+      ui::GetDeviceFormFactor() != ui::DEVICE_FORM_FACTOR_TABLET;
+  [sharedDefaults setBool:enableLensInWidget forKey:enableLensInWidgetKey];
+}
+
+// Returns whether Google is the default search engine.
+- (BOOL)isGoogleDefaultSearchEngine {
+  TemplateURLService* templateURLService =
+      ios::TemplateURLServiceFactory::GetForProfile(self.profile);
+  const TemplateURL* defaultURL =
+      templateURLService->GetDefaultSearchProvider();
+  BOOL isGoogleDefaultSearchProvider =
+      defaultURL &&
+      defaultURL->GetEngineType(templateURLService->search_terms_data()) ==
+          SEARCH_ENGINE_GOOGLE;
+  return isGoogleDefaultSearchProvider;
+}
+
+// Sets the app shortcut item for either the QR code scanner or Lens.
+- (void)updateQRCodeOrLensAppShortcutItem {
+  const bool useLens =
+      lens_availability::CheckAndLogAvailabilityForLensEntryPoint(
+          LensEntrypoint::AppIconLongPress, [self isGoogleDefaultSearchEngine]);
+
+  NSString* shortcutType;
+  NSString* shortcutTitle;
+  UIApplicationShortcutIcon* shortcutIcon;
+  if (useLens) {
+    shortcutType = kShortcutLensFromAppIconLongPress;
+    shortcutTitle = l10n_util::GetNSStringWithFixup(
+        IDS_IOS_APPLICATION_SHORTCUT_LENS_TITLE);
+    shortcutIcon =
+        [UIApplicationShortcutIcon iconWithTemplateImageName:kCameraLensSymbol];
+  } else {
+    shortcutType = kShortcutQRScanner;
+    shortcutTitle = l10n_util::GetNSStringWithFixup(
+        IDS_IOS_APPLICATION_SHORTCUT_QR_SCANNER_TITLE);
+    shortcutIcon =
+        [UIApplicationShortcutIcon iconWithSystemImageName:kQRCodeSymbol];
+  }
+  UIApplicationShortcutItem* item =
+      [[UIApplicationShortcutItem alloc] initWithType:shortcutType
+                                       localizedTitle:shortcutTitle
+                                    localizedSubtitle:nil
+                                                 icon:shortcutIcon
+                                             userInfo:nil];
+  [[UIApplication sharedApplication] setShortcutItems:@[ item ]];
+}
+
+// Presents an IPH bubble that points to the Lens Icon in the NTP's Fakebox.
+- (void)presentNTPLensIconBubble {
+  CommandDispatcher* dispatcher = self.browser->GetCommandDispatcher();
+  [HandlerForProtocol(dispatcher, NewTabPageCommands) presentLensIconBubble];
+}
+
+// Signals the different trackers that the camera view finder has been opened
+// from `entrypoint`.
+- (void)signalTrackerCameraOpenFromEntrypoint:(LensEntrypoint)entrypoint {
+  ProfileIOS* profile = self.profile;
+
+  [IntentDonationHelper donateIntent:IntentType::kStartLens];
+
+  feature_engagement::Tracker* featureTracker =
+      feature_engagement::TrackerFactory::GetForProfile(profile);
+  CHECK(featureTracker, base::NotFatalUntil::M160);
+
+  // Mark IPHs as completed.
+  if (entrypoint == LensEntrypoint::Keyboard) {
+    featureTracker->NotifyEvent(
+        feature_engagement::events::kLensButtonKeyboardUsed);
+  } else if (entrypoint == LensEntrypoint::Composebox) {
+    featureTracker->NotifyEvent(
+        feature_engagement::events::kIOSLensButtonComposeboxUsed);
+  }
+
+  TipsManagerIOS* tipsManager = TipsManagerIOSFactory::GetForProfile(profile);
+
+  if (tipsManager) {
+    tipsManager->NotifySignal(
+        segmentation_platform::tips_manager::signals::kLensUsed);
+  }
+
+  // Notify Welcome Back to remove Lens from the eligible features.
+  if (IsWelcomeBackEnabled()) {
+    MarkWelcomeBackFeatureUsed(BestFeaturesItemType::kLensSearch);
+  }
+
+  GetApplicationContext()->GetLocalState()->SetTime(prefs::kLensLastOpened,
+                                                    base::Time::Now());
 }
 
 @end

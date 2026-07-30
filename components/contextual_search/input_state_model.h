@@ -12,37 +12,20 @@
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ref.h"
 #include "components/contextual_search/contextual_search_session_handle.h"
-#include "third_party/omnibox_proto/aim_input_types.pb.h"
-#include "third_party/omnibox_proto/aim_models.pb.h"
-#include "third_party/omnibox_proto/aim_tools.pb.h"
+#include "components/omnibox/common/input_state.h"
+#include "third_party/omnibox_proto/input_type.pb.h"
+#include "third_party/omnibox_proto/model_mode.pb.h"
 #include "third_party/omnibox_proto/searchbox_config.pb.h"
+#include "third_party/omnibox_proto/tool_mode.pb.h"
 
+class PrefService;
 namespace contextual_search {
 
+using omnibox::InputState;
 using omnibox::InputType;
 using omnibox::ModelMode;
 using omnibox::SearchboxConfig;
 using omnibox::ToolMode;
-
-// Represents a valid searchbox inputs state.
-// LINT.IfChange(InputState)
-struct InputState {
-  InputState();
-  InputState(const InputState&);
-  ~InputState();
-  // The set of allowed tools, models, and input types.
-  std::vector<ToolMode> allowed_tools;
-  std::vector<ModelMode> allowed_models;
-  std::vector<InputType> allowed_input_types;
-  // The currently active tool and model.
-  ToolMode active_tool;
-  ModelMode active_model;
-  // The set of currently disabled tools, models, and input types.
-  std::vector<ToolMode> disabled_tools;
-  std::vector<ModelMode> disabled_models;
-  std::vector<InputType> disabled_input_types;
-};
-// LINT.ThenChange(//components/omnibox/composebox/composebox_query.mojom:InputState)
 
 // Manages the state of composebox inputs including tools, models, and
 // multimodal inputs.
@@ -55,6 +38,9 @@ class InputStateModel {
   explicit InputStateModel(
       contextual_search::ContextualSearchSessionHandle& session_handle,
       const SearchboxConfig& config);
+  InputStateModel(
+      const InputStateModel& other,
+      contextual_search::ContextualSearchSessionHandle& new_session_handle);
   virtual ~InputStateModel();
 
   // Add a subscriber to this model.
@@ -69,12 +55,18 @@ class InputStateModel {
   // Set a new model.
   void setActiveModel(ModelMode model);
 
+  // Called when an input of type `InputType` is added or deleted.
+  void OnContextChanged();
+
   // Gets additional query params for the current state.
   std::map<std::string, std::string> GetAdditionalQueryParams();
 
   // Methods for testing.
   void set_state_for_testing(const InputState& state) { state_ = state; }
   const InputState& get_state_for_testing() { return state_; }
+
+  // Gets the `PrefService`.
+  void SetPrefService(const PrefService* pref_service);
 
  private:
   // Notify all subscribers of the current `state_`.
@@ -98,11 +90,17 @@ class InputStateModel {
   // Gets the input type limits based on the current state.
   std::map<omnibox::InputType, int> GetInputTypeLimits();
 
+  // Helper to check if search content sharing is enabled based on the
+  // user preference from enterprise policy.
+  bool IsSearchContentSharingEnabled() const;
+
   InputState state_;
   omnibox::RuleSet rule_set_;
   base::raw_ref<contextual_search::ContextualSearchSessionHandle>
       session_handle_;
   base::RepeatingCallbackList<void(const InputState&)> subscribers_;
+
+  raw_ptr<const PrefService> pref_service_ = nullptr;
 };
 
 }  // namespace contextual_search

@@ -14,30 +14,26 @@
 #include "base/containers/fixed_flat_set.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
-#include "base/memory/scoped_refptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/notreached.h"
 #include "base/strings/escape.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
-#include "base/task/thread_pool.h"
+#include "base/values.h"
+#include "components/prefs/pref_service.h"
 #include "components/safe_search_api/url_checker.h"
-#include "components/signin/public/identity_manager/identity_manager.h"
-#include "components/supervised_user/core/browser/family_link_user_capabilities.h"
 #include "components/supervised_user/core/browser/kids_chrome_management_url_checker_client.h"
 #include "components/supervised_user/core/browser/supervised_user_preferences.h"
 #include "components/supervised_user/core/browser/supervised_user_utils.h"
 #include "components/supervised_user/core/common/features.h"
 #include "components/supervised_user/core/common/pref_names.h"
-#include "components/supervised_user/core/common/supervised_user_constants.h"
 #include "components/url_formatter/url_formatter.h"
 #include "components/url_matcher/url_util.h"
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
-#include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "third_party/abseil-cpp/absl/cleanup/cleanup.h"
+#include "ui/base/page_transition_types.h"
 #include "url/gurl.h"
-#include "url/url_constants.h"
 
 using net::registry_controlled_domains::EXCLUDE_PRIVATE_REGISTRIES;
 using net::registry_controlled_domains::EXCLUDE_UNKNOWN_REGISTRIES;
@@ -396,6 +392,9 @@ void FamilyLinkUrlFilter::OnFamilyLinkSettingsChanged(
   // Refresh auxiliary data structures.
   UpdateManualHosts();
   UpdateManualUrls();
+
+  // And notify the delegate owner that the settings have changed.
+  NotifyUrlFilteringDelegateChanged();
 }
 
 FamilyLinkUrlFilter::ManagedSiteList
@@ -624,13 +623,13 @@ void FamilyLinkUrlFilter::GetFilteringBehavior(
     const WebFilterMetricsOptions& options) {
   WebFilteringResult result = GetFilteringBehavior(url);
   if (result.IsAllowedBecauseOfDisabledFilter()) {
-    NotifyCallerAndObservers(std::move(callback), result);
+    std::move(callback).Run(result);
     return;
   }
 
   callback = WrapCallbackWithMetrics(std::move(callback), options);
   if (result.IsAllowed() && !result.IsFromDefaultSetting()) {
-    NotifyCallerAndObservers(std::move(callback), result);
+    std::move(callback).Run(result);
     return;
   }
 
@@ -638,7 +637,7 @@ void FamilyLinkUrlFilter::GetFilteringBehavior(
     // Any non-default reason trumps the async checker.
     // Also, if we're blocking anyway, then there's no need to check it.
     if (!result.IsFromDefaultSetting() || result.IsBlocked()) {
-      NotifyCallerAndObservers(std::move(callback), result);
+      std::move(callback).Run(result);
       return;
     }
   }
@@ -654,7 +653,7 @@ void FamilyLinkUrlFilter::GetFilteringBehaviorForSubFrame(
     const WebFilterMetricsOptions& options) {
   WebFilteringResult result = GetFilteringBehavior(url);
   if (result.IsAllowedBecauseOfDisabledFilter()) {
-    NotifyCallerAndObservers(std::move(callback), result);
+    std::move(callback).Run(result);
     return;
   }
 
@@ -662,7 +661,7 @@ void FamilyLinkUrlFilter::GetFilteringBehaviorForSubFrame(
 
   // If the reason is not default, then it is manually allowed or blocked.
   if (!result.IsFromDefaultSetting()) {
-    NotifyCallerAndObservers(std::move(callback), result);
+    std::move(callback).Run(result);
     return;
   }
 
@@ -670,7 +669,7 @@ void FamilyLinkUrlFilter::GetFilteringBehaviorForSubFrame(
   // the same domain as the main frame, block the subframe.
   if (result.IsBlocked() && !IsSameDomain(url, main_frame_url)) {
     // It is not in the same domain and is blocked.
-    NotifyCallerAndObservers(std::move(callback), result);
+    std::move(callback).Run(result);
     return;
   }
 
@@ -740,14 +739,6 @@ FamilyLinkUrlFilter::Statistics FamilyLinkUrlFilter::GetFilteringStatistics()
   return statistics_;
 }
 
-void FamilyLinkUrlFilter::AddObserver(Observer* observer) {
-  observers_.AddObserver(observer);
-}
-
-void FamilyLinkUrlFilter::RemoveObserver(Observer* observer) {
-  observers_.RemoveObserver(observer);
-}
-
 WebFilterType FamilyLinkUrlFilter::GetWebFilterType() const {
   if (base::FeatureList::IsEnabled(kSupervisedUserUseUrlFilteringService)) {
     return family_link_settings_service_->GetWebFilterType();
@@ -771,7 +762,7 @@ WebFilterType FamilyLinkUrlFilter::GetWebFilterType() const {
   // LINT.ThenChange(//components/supervised_user/core/browser/supervised_user_settings_service.cc:GetWebFilterType)
 }
 
-bool FamilyLinkUrlFilter::RunAsyncChecker(
+void FamilyLinkUrlFilter::RunAsyncChecker(
     const GURL& url,
     WebFilteringResult::Callback callback) {
   // The parental setting may allow all sites to be visited.
@@ -779,14 +770,14 @@ bool FamilyLinkUrlFilter::RunAsyncChecker(
     std::move(callback).Run(
         {url, FilteringBehavior::kAllow,
          supervised_user::FilteringBehaviorReason::DEFAULT});
-    return true;
+    return;
   }
 
   CHECK(async_url_checker_) << "Filter must always have a checker.";
-  return async_url_checker_->CheckURL(
+  async_url_checker_->CheckURL(
       url_matcher::util::Normalize(url),
       base::BindOnce(&FamilyLinkUrlFilter::CheckCallback,
-                     base::Unretained(this), std::move(callback), url));
+                     weak_factory_.GetWeakPtr(), std::move(callback), url));
 }
 
 void FamilyLinkUrlFilter::SetURLCheckerClientForTesting(
@@ -801,20 +792,10 @@ void FamilyLinkUrlFilter::CheckCallback(
     const GURL& checked_url,
     safe_search_api::Classification classification,
     safe_search_api::ClassificationDetails details) const {
-  NotifyCallerAndObservers(
-      std::move(callback),
+  std::move(callback).Run(
       {.url = requested_url,
        .behavior = GetBehaviorFromSafeSearchClassification(classification),
        .reason = supervised_user::FilteringBehaviorReason::ASYNC_CHECKER,
        .async_check_details = details});
-}
-
-void FamilyLinkUrlFilter::NotifyCallerAndObservers(
-    WebFilteringResult::Callback callback,
-    WebFilteringResult result) const {
-  std::move(callback).Run(result);
-  for (Observer& observer : observers_) {
-    observer.OnURLChecked(result);
-  }
 }
 }  // namespace supervised_user

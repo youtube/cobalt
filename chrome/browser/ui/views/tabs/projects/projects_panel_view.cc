@@ -11,6 +11,7 @@
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/layout_constants.h"
+#include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/tabs/projects/projects_panel_state_controller.h"
 #include "chrome/browser/ui/views/tabs/projects/layout_constants.h"
 #include "chrome/browser/ui/views/tabs/projects/projects_panel_controller.h"
@@ -29,6 +30,7 @@
 #include "ui/views/background.h"
 #include "ui/views/controls/button/label_button.h"
 #include "ui/views/controls/scroll_view.h"
+#include "ui/views/event_monitor.h"
 #include "ui/views/layout/flex_layout.h"
 #include "ui/views/view_class_properties.h"
 
@@ -37,6 +39,15 @@ constexpr int kProjectPanelWidth = 240;
 constexpr gfx::Insets kRegionInteriorMargins = gfx::Insets::VH(12, 12);
 // The padding around a list header.
 constexpr gfx::Insets kListHeaderPadding = gfx::Insets::VH(10, 20);
+
+// Assigns shared list title properties.
+void SetListTitleProperties(views::Label& label) {
+  label.SetTextStyle(views::style::TextStyle::STYLE_HEADLINE_5);
+  label.SetHorizontalAlignment(gfx::HorizontalAlignment::ALIGN_TO_HEAD);
+  label.SetProperty(views::kMarginsKey, kListHeaderPadding);
+}
+
+static bool disable_animations_for_testing_ = false;
 }  // namespace
 
 ProjectsPanelView::ProjectsPanelView(actions::ActionItem* root_action_item,
@@ -68,40 +79,45 @@ ProjectsPanelView::ProjectsPanelView(actions::ActionItem* root_action_item,
       std::make_unique<ProjectsPanelControlsView>(
           root_action_item_.get(), action_view_controller_.get()));
 
+  auto* groups_list_title =
+      content_container_->AddChildView(std::make_unique<views::Label>());
+  groups_list_title->SetText(l10n_util::GetStringUTF16(IDS_TAB_GROUPS_TITLE));
+  SetListTitleProperties(*groups_list_title);
+
   tab_groups_view_ = content_container_->AddChildView(
       std::make_unique<ProjectsPanelTabGroupsView>(
-          root_action_item_.get(), action_view_controller_.get(),
-          panel_controller_.get()));
+          root_action_item_.get(), action_view_controller_.get()));
 
-  auto* threads_list_title =
-      content_container_->AddChildView(std::make_unique<views::Label>());
-  threads_list_title->SetText(
-      l10n_util::GetStringUTF16(IDS_RECENT_CHATS_TITLE));
-  threads_list_title->SetTextStyle(views::style::TextStyle::STYLE_BODY_3_BOLD);
-  threads_list_title->SetHorizontalAlignment(
-      gfx::HorizontalAlignment::ALIGN_TO_HEAD);
-  threads_list_title->SetProperty(views::kMarginsKey, kListHeaderPadding);
+  if (tabs::IsThreadsInProjectsPanelEnabled()) {
+    auto* threads_list_title =
+        content_container_->AddChildView(std::make_unique<views::Label>());
+    threads_list_title->SetText(
+        l10n_util::GetStringUTF16(IDS_RECENT_CHATS_TITLE));
+    SetListTitleProperties(*threads_list_title);
 
-  threads_scroll_view_ =
-      content_container_->AddChildView(std::make_unique<views::ScrollView>(
-          views::ScrollView::ScrollWithLayers::kEnabled));
-  // TODO(crbug.com/475300882): Fetch thread data from the controller once
-  // available.
-  threads_scroll_view_->SetContents(
-      std::make_unique<ProjectsPanelRecentThreadsView>(threads_));
-  threads_scroll_view_->SetBackgroundColor(std::nullopt);
-  threads_scroll_view_->SetHorizontalScrollBarMode(
-      views::ScrollView::ScrollBarMode::kDisabled);
-  threads_scroll_view_->SetOverflowGradientMask(
-      views::ScrollView::GradientDirection::kVertical);
-  threads_scroll_view_->SetProperty(
-      views::kFlexBehaviorKey,
-      views::FlexSpecification(views::MinimumFlexSizeRule::kScaleToZero,
-                               views::MaximumFlexSizeRule::kUnbounded));
+    threads_scroll_view_ =
+        content_container_->AddChildView(std::make_unique<views::ScrollView>(
+            views::ScrollView::ScrollWithLayers::kEnabled));
+    // TODO(crbug.com/475300882): Fetch thread data from the controller once
+    // available.
+    threads_scroll_view_->SetContents(
+        std::make_unique<ProjectsPanelRecentThreadsView>(threads_));
+    threads_scroll_view_->SetBackgroundColor(std::nullopt);
+    threads_scroll_view_->SetHorizontalScrollBarMode(
+        views::ScrollView::ScrollBarMode::kDisabled);
+    threads_scroll_view_->SetOverflowGradientMask(
+        views::ScrollView::GradientDirection::kVertical);
+    threads_scroll_view_->SetProperty(
+        views::kFlexBehaviorKey,
+        views::FlexSpecification(views::MinimumFlexSizeRule::kScaleToZero,
+                                 views::MaximumFlexSizeRule::kUnbounded));
+  }
 
   resize_animation_.SetSlideDuration(
       gfx::Animation::RichAnimationDuration(base::Milliseconds(450)));
   resize_animation_.SetTweenType(gfx::Tween::Type::EASE_IN_OUT_EMPHASIZED);
+
+  AddAccelerator(ui::Accelerator(ui::VKEY_ESCAPE, ui::EF_NONE));
 
   SetVisible(false);
   SetPreferredSize(gfx::Size(kProjectPanelWidth, 0));
@@ -123,7 +139,30 @@ bool ProjectsPanelView::IsPositionInWindowCaption(const gfx::Point& point) {
 void ProjectsPanelView::OnProjectsPanelStateChanged(
     ProjectsPanelStateController* state_controller) {
   TooltipTextChanged();
+
   const bool visible = state_controller->IsProjectsPanelVisible();
+
+  if (visible) {
+    event_monitor_ = views::EventMonitor::CreateWindowMonitor(
+        &mouse_event_handler_, GetWidget()->GetNativeWindow(),
+        {ui::EventType::kMousePressed, ui::EventType::kGestureTapDown});
+
+    // TODO(crbug.com/477602874): Have the panel view observe the controller and
+    // pipe updates to the list.
+    tab_groups_view_->SetTabGroups(panel_controller_->GetTabGroups());
+  } else {
+    event_monitor_.reset();
+  }
+
+  if (disable_animations_for_testing_) {
+    // Fast-forward the animation to its final state (1.0 = shown, 0.0 =
+    // hidden).
+    resize_animation_.SetSlideDuration(base::TimeDelta());
+    resize_animation_.Reset(/*value=*/visible ? 1.0 : 0.0);
+    SetVisible(visible);
+    return;
+  }
+
   if (visible) {
     SetVisible(true);
     resize_animation_.Show();
@@ -143,6 +182,14 @@ void ProjectsPanelView::Layout(PassKey) {
                                 target_width, height());
 }
 
+bool ProjectsPanelView::AcceleratorPressed(const ui::Accelerator& accelerator) {
+  if (accelerator.key_code() == ui::VKEY_ESCAPE) {
+    ClosePanel();
+    return true;
+  }
+  return false;
+}
+
 void ProjectsPanelView::AnimationProgressed(const gfx::Animation* animation) {
   InvalidateLayout();
 }
@@ -150,6 +197,44 @@ void ProjectsPanelView::AnimationProgressed(const gfx::Animation* animation) {
 void ProjectsPanelView::AnimationEnded(const gfx::Animation* animation) {
   if (animation->GetCurrentValue() == 0.0) {
     SetVisible(false);
+  }
+}
+
+// static
+void ProjectsPanelView::disable_animations_for_testing() {
+  disable_animations_for_testing_ = true;
+}
+
+void ProjectsPanelView::ClosePanel() {
+  // Ignore if the panel is already animating closed.
+  if (resize_animation_.IsClosing()) {
+    return;
+  }
+
+  actions::ActionItem* action_item = actions::ActionManager::Get().FindAction(
+      kActionToggleProjectsPanel, root_action_item_);
+  action_item->InvokeAction();
+}
+
+ProjectsPanelView::MouseEventHandler::MouseEventHandler(
+    ProjectsPanelView* owning_view)
+    : owning_view_(owning_view) {}
+
+ProjectsPanelView::MouseEventHandler::~MouseEventHandler() = default;
+
+void ProjectsPanelView::MouseEventHandler::OnEvent(const ui::Event& event) {
+  // Ignore mouse events when the panel is closed.
+  if (!owning_view_->GetVisible()) {
+    return;
+  }
+
+  if (event.type() == ui::EventType::kMousePressed ||
+      event.type() == ui::EventType::kGestureTapDown) {
+    auto* mouse_event = event.AsMouseEvent();
+    gfx::Point click_point = mouse_event->root_location();
+    if (!owning_view_->GetBoundsInScreen().Contains(click_point)) {
+      owning_view_->ClosePanel();
+    }
   }
 }
 

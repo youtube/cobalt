@@ -134,4 +134,26 @@ void RecordSyncToSigninMigrationReadingListStep(ReadingListMigrationStep step) {
       "Sync.SyncToSigninMigration.ReadingListMigrationStep", step);
 }
 
+void RecordSyncToSigninMigrationExtensionsStep(
+    SyncToSigninMigrationExtensionsStep step) {
+  base::UmaHistogramEnumeration(
+      "Sync.SyncToSigninMigration.ExtensionsMigrationStep", step);
+}
+
+void RecordSyncToSigninMigrationExtensionsDeduplicatedCount(int count) {
+  base::UmaHistogramCounts100(
+      "Sync.SyncToSigninMigrationOutcome.ExtensionsDeduplicatedCount", count);
+}
+
+void RecordSyncToSigninMigrationThemeStep(SyncToSigninMigrationThemeStep step) {
+  base::UmaHistogramEnumeration("Sync.SyncToSigninMigration.ThemeMigrationStep",
+                                step);
+}
+
+void RecordSyncToSigninMigrationThemeOutcome(
+    SyncToSigninMigrationThemeOutcome outcome) {
+  base::UmaHistogramEnumeration(
+      "Sync.SyncToSigninMigrationOutcome.ThemeDeduplication", outcome);
+}
+
 }  // namespace syncer

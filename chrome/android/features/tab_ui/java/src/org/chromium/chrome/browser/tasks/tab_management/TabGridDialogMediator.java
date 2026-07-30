@@ -281,8 +281,8 @@ public class TabGridDialogMediator
             Runnable showColorPickerPopupRunnable,
             @Nullable ModalDialogManager modalDialogManager,
             @Nullable DesktopWindowStateManager desktopWindowStateManager,
-            MonotonicObservableSupplier<TabBookmarker> tabBookmarkerSupplier,
-            Supplier<ShareDelegate> shareDelegateSupplier) {
+            Supplier<@Nullable TabBookmarker> tabBookmarkerSupplier,
+            Supplier<@Nullable ShareDelegate> shareDelegateSupplier) {
         mActivity = activity;
         mDialogController = dialogController;
         mModel = model;
@@ -513,8 +513,7 @@ public class TabGridDialogMediator
         mTabGroupModelFilterObserver =
                 new TabGroupModelFilterObserver() {
                     @Override
-                    public void didChangeTabGroupTitle(
-                            Token tabGroupId, @Nullable String newTitle) {
+                    public void didChangeTabGroupTitle(Token tabGroupId, String newTitle) {
                         if (currentTabGroupIdMatches(tabGroupId)
                                 && !Objects.equals(
                                         mModel.get(TabGridDialogProperties.HEADER_TITLE),
@@ -830,7 +829,7 @@ public class TabGridDialogMediator
         TabGroupModelFilter filter = mCurrentTabGroupModelFilterSupplier.get();
         assumeNonNull(filter);
         String storedTitle =
-                mCurrentTabGroupId != null ? filter.getTabGroupTitle(mCurrentTabGroupId) : null;
+                mCurrentTabGroupId != null ? filter.getTabGroupTitle(mCurrentTabGroupId) : "";
         if (!TextUtils.isEmpty(storedTitle)) {
             mModel.set(
                     TabGridDialogProperties.COLLAPSE_BUTTON_CONTENT_DESCRIPTION,
@@ -1254,9 +1253,9 @@ public class TabGridDialogMediator
                                     tabsCount,
                                     tabsCount));
             mModel.set(TabGridDialogProperties.HEADER_TITLE, originalTitle);
-            // Setting the tab group title to null ensures the default title isn't saved, but
+            // Setting the tab group title to empty ensures the default title isn't saved, but
             // observers downstream will update to the correct default title.
-            filter.setTabGroupTitle(mCurrentTabGroupId, null);
+            filter.setTabGroupTitle(mCurrentTabGroupId, "");
             mCurrentGroupModifiedTitle = null;
             RecordUserAction.record("TabGridDialog.ResetTabGroupName");
             return;

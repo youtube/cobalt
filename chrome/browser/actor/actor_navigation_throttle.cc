@@ -17,6 +17,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/actor/journal_details_builder.h"
 #include "chrome/common/actor_webui.mojom.h"
+#include "chrome/common/chrome_features.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/navigation_throttle.h"
@@ -40,6 +41,12 @@ constexpr auto kBlockedMimeTypes = base::MakeFixedFlatSet<std::string_view>({
 // static
 void ActorNavigationThrottle::MaybeCreateAndAdd(
     content::NavigationThrottleRegistry& registry) {
+#if BUILDFLAG(IS_ANDROID)
+  if (!base::FeatureList::IsEnabled(features::kGlicActor)) {
+    return;
+  }
+#endif
+
   content::NavigationHandle& navigation_handle = registry.GetNavigationHandle();
 
   if (!navigation_handle.IsInPrimaryMainFrame() &&
@@ -89,7 +96,7 @@ ActorNavigationThrottle::ActorNavigationThrottle(
     const ActorTask& task)
     : content::NavigationThrottle(registry),
       task_id_(task.id()),
-      execution_engine_(task.GetExecutionEngine()->GetWeakPtr()) {}
+      execution_engine_(task.GetExecutionEngine().GetWeakPtr()) {}
 
 ActorNavigationThrottle::~ActorNavigationThrottle() = default;
 
@@ -207,6 +214,14 @@ ActorNavigationThrottle::WillStartOrRedirectRequest(bool is_redirection) {
     return content::NavigationThrottle::PROCEED;
   }
 
+  actor::ActorTask* task =
+      ActorKeyedService::Get(GetProfile())->GetTask(task_id_);
+  if (!task) {
+    journal.Log(navigation_url, task_id_, "NavThrottle",
+                JournalDetailsBuilder().AddError("TaskWentAway").Build());
+    return content::NavigationThrottle::CANCEL_AND_IGNORE;
+  }
+
   auto journal_entry = journal.CreatePendingAsyncEntry(
       navigation_url, task_id_, MakeBrowserTrackUUID(task_id_), "NavThrottle",
       JournalDetailsBuilder()
@@ -214,13 +229,11 @@ ActorNavigationThrottle::WillStartOrRedirectRequest(bool is_redirection) {
                                        : "Check navigation safety")
           .Build());
 
-  ActorKeyedService::Get(GetProfile())
-      ->GetPolicyChecker()
-      .MayActOnUrl(
-          navigation_url, /*allow_insecure_http=*/true, GetProfile(), journal,
-          task_id_,
-          base::BindOnce(&ActorNavigationThrottle::OnMayActOnUrlResult,
-                         weak_factory_.GetWeakPtr(), std::move(journal_entry)));
+  ::actor::MayActOnUrl(
+      navigation_url, /*allow_insecure_http=*/true, GetProfile(), journal,
+      task_id_, task->policy_checker(),
+      base::BindOnce(&ActorNavigationThrottle::OnMayActOnUrlResult,
+                     weak_factory_.GetWeakPtr(), std::move(journal_entry)));
 
   return content::NavigationThrottle::DEFER;
 }

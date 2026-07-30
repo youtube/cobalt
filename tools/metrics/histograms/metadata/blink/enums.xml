@@ -5580,7 +5580,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5021" label="V8FileSystemObserver_Observe_Method"/>
   <int value="5022" label="V8FileSystemObserver_Disconnect_Method"/>
   <int value="5023" label="V8ML_CreateContext_Method"/>
-  <int value="5024" label="V8MLContext_Compute_Method"/>
+  <int value="5024" label="OBSOLETE_V8MLContext_Compute_Method"/>
   <int value="5025" label="V8MLContext_Dispatch_Method"/>
   <int value="5026" label="CSSMixins"/>
   <int value="5027" label="DurationFormat"/>
@@ -6413,6 +6413,12 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5779" label="AudioContextAsyncStateTransitions"/>
   <int value="5780" label="AudioContextAsyncTransitionToRunningStateRead"/>
   <int value="5781" label="AudioContextAsyncTransitionToSuspendedStateRead"/>
+  <int value="5782" label="GetComputedStylePseudoElementWithoutColon"/>
+  <int value="5783"
+      label="GeolocationRequestPositionWithPotentiallyUpToDateWatchedCachedPosition"/>
+  <int value="5784" label="AnchorCaseSensitiveMatch"/>
+  <int value="5785" label="AnchorCaseInsensitiveMatch"/>
+  <int value="5786" label="PrerenderActivationByFormSubmission"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom:WebFeature) -->
@@ -8250,6 +8256,9 @@ Called by update_use_counter_css.py.-->
   <int value="923" label="grid-lanes-pack"/>
   <int value="924" label="text-fit"/>
   <int value="925" label="view-transition-scope"/>
+  <int value="926" label="rule-visibility-items"/>
+  <int value="927" label="frame-sizing"/>
+  <int value="928" label="image-animation"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/css_property_id.mojom:CSSSampleId) -->
@@ -8629,7 +8638,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="243" label="OBSOLETE_LocaleInfoObsoletedGetters"/>
   <int value="244" label="IntlLocaleInfo"/>
   <int value="245" label="ViewTransitionClass"/>
-  <int value="246" label="DRAFT_ReferenceTarget"/>
+  <int value="246" label="Referencetarget"/>
   <int value="247" label="Fedcm"/>
   <int value="248" label="WebOtp"/>
   <int value="249" label="PreservesPitch"/>
@@ -8758,7 +8767,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="372" label="WasmSignExtensionOperators"/>
   <int value="373" label="DRAFT_IncomingCallNotifications"/>
   <int value="374" label="Popover"/>
-  <int value="375" label="DRAFT_WebInstallAPI"/>
+  <int value="375" label="NavigatorInstall"/>
   <int value="376" label="TopLevelAwait"/>
   <int value="377" label="AtomicsPause"/>
   <int value="378" label="LogicalAssignments"/>

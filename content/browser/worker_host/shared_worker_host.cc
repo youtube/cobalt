@@ -41,6 +41,7 @@
 #include "content/public/browser/permission_controller.h"
 #include "content/public/browser/permission_descriptor_util.h"
 #include "content/public/browser/service_worker_context.h"
+#include "content/public/common/child_process_id_util.h"
 #include "content/public/common/content_client.h"
 #include "content/public/common/content_features.h"
 #include "net/base/isolation_info.h"
@@ -270,7 +271,7 @@ void SharedWorkerHost::Start(
               network::mojom::CrossOriginEmbedderPolicyValue::kRequireCorp),
           /*is_web_secure_context=*/false,
           network::mojom::IPAddressSpace::kUnknown,
-          network::mojom::PrivateNetworkRequestPolicy::kBlock,
+          network::mojom::LocalNetworkAccessRequestPolicy::kBlock,
           network::DocumentIsolationPolicy(
               network::mojom::DocumentIsolationPolicyValue::
                   kIsolateAndRequireCorp));
@@ -311,9 +312,9 @@ void SharedWorkerHost::Start(
     ContentBrowserClient::LocalNetworkAccessRequestPolicyOverride
         policy_override = client->ShouldOverrideLocalNetworkAccessRequestPolicy(
             context, origin);
-    worker_client_security_state_->private_network_request_policy =
+    worker_client_security_state_->local_network_access_request_policy =
         OverrideLocalNetworkAccessPolicy(
-            worker_client_security_state_->private_network_request_policy,
+            worker_client_security_state_->local_network_access_request_policy,
             policy_override);
 
     policy_container_host =
@@ -338,8 +339,7 @@ void SharedWorkerHost::Start(
         break;
     }
 
-    auto* storage_partition = static_cast<StoragePartitionImpl*>(
-        GetProcessHost()->GetStoragePartition());
+    auto* storage_partition = GetStoragePartitionImpl();
     // Create a COEP reporter with worker's policy.
     coep_reporter_ = std::make_unique<CrossOriginEmbedderPolicyReporter>(
         storage_partition->GetWeakPtr(), result.final_response_url,
@@ -524,10 +524,9 @@ SharedWorkerHost::CreateNetworkFactoryParamsForSubresources() {
       URLLoaderFactoryParamsHelper::CreateForWorker(
           GetProcessHost(), origin, GetStorageKey().ToPartialNetIsolationInfo(),
           std::move(coep_reporter), std::move(dip_reporter),
-          static_cast<StoragePartitionImpl*>(
-              GetProcessHost()->GetStoragePartition())
+          GetStoragePartitionImpl()
               ->CreateURLLoaderNetworkObserverForServiceOrSharedWorker(
-                  GetProcessHost()->GetDeprecatedID(), origin),
+                  ToOriginatingProcess(GetProcessHost()->GetID()), origin),
           /*devtools_observer=*/mojo::NullRemote(),
           mojo::Clone(worker_client_security_state_),
           /*debug_tag=*/
@@ -582,8 +581,8 @@ void SharedWorkerHost::BindCacheStorageInternal(
 
 void SharedWorkerHost::CreateLockManager(
     mojo::PendingReceiver<blink::mojom::LockManager> receiver) {
-  static_cast<StoragePartitionImpl*>(GetProcessHost()->GetStoragePartition())
-      ->BindLockManager(GetStorageKey(), token().value(), std::move(receiver));
+  GetStoragePartitionImpl()->BindLockManager(GetStorageKey(), token().value(),
+                                             std::move(receiver));
 }
 
 void SharedWorkerHost::GetSandboxedFileSystemForBucket(
@@ -648,7 +647,8 @@ void SharedWorkerHost::CreateWebSocketConnector(
 
   mojo::MakeSelfOwnedReceiver(
       std::make_unique<WebSocketConnectorImpl>(
-          GetProcessHost()->GetDeprecatedID(), IPC::mojom::kRoutingIdNone,
+          GlobalRenderFrameHostId(GetProcessHost()->GetID(),
+                                  IPC::mojom::kRoutingIdNone),
           storage_key.origin(), storage_key.ToPartialNetIsolationInfo(),
           worker_client_security_state_->Clone()),
       std::move(receiver));
@@ -666,8 +666,7 @@ void SharedWorkerHost::CreateBroadcastChannelProvider(
     mojo::PendingReceiver<blink::mojom::BroadcastChannelProvider> receiver) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
-  auto* storage_partition_impl = static_cast<StoragePartitionImpl*>(
-      GetProcessHost()->GetStoragePartition());
+  auto* storage_partition_impl = GetStoragePartitionImpl();
 
   auto* broadcast_channel_service =
       storage_partition_impl->GetBroadcastChannelService();
@@ -681,8 +680,7 @@ void SharedWorkerHost::CreateBlobUrlStoreProvider(
     mojo::PendingReceiver<blink::mojom::BlobURLStore> receiver) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
-  auto* storage_partition_impl = static_cast<StoragePartitionImpl*>(
-      GetProcessHost()->GetStoragePartition());
+  auto* storage_partition_impl = GetStoragePartitionImpl();
 
   storage_partition_impl->GetBlobUrlRegistry()->AddReceiver(
       GetStorageKey(), instance().renderer_origin(),
@@ -870,6 +868,11 @@ void SharedWorkerHost::RenderProcessHostDestroyed(RenderProcessHost* host) {
   Destruct();
 }
 
+StoragePartitionImpl* SharedWorkerHost::GetStoragePartitionImpl() {
+  return static_cast<StoragePartitionImpl*>(
+      GetProcessHost()->GetStoragePartition());
+}
+
 std::vector<GlobalRenderFrameHostId>
 SharedWorkerHost::GetRenderFrameIDsForWorker() {
   std::vector<GlobalRenderFrameHostId> result;
@@ -962,6 +965,10 @@ void SharedWorkerHost::AddClient(
   info.client.set_disconnect_handler(base::BindOnce(
       &SharedWorkerHost::OnClientConnectionLost, weak_factory_.GetWeakPtr()));
 
+  if (base::FeatureList::IsEnabled(blink::features::kFreezeSharedWorker)) {
+    // Re-evaluate the worker status upon acquiring a new client.
+    OnClientStateChanged();
+  }
   worker_->Connect(info.connection_request_id, port.ReleaseHandle());
 
   // Notify that a new client was added now.
@@ -987,6 +994,13 @@ void SharedWorkerHost::PruneNonExistentClients() {
       ++it;
     }
   }
+  // The worker will be destroyed if there are no clients left.
+  if (!clients_.empty() &&
+      base::FeatureList::IsEnabled(blink::features::kFreezeSharedWorker)) {
+    // Freeze the worker if we pruned the last active client, leaving only
+    // BFCached clients.
+    OnClientStateChanged();
+  }
 }
 
 bool SharedWorkerHost::HasClients() const {
@@ -1001,6 +1015,14 @@ bool SharedWorkerHost::ContainsClient(
       clients_.begin(), clients_.end(), [&](const ClientInfo& info) {
         return info.render_frame_host_id == client_render_frame_host_id;
       });
+}
+
+bool SharedWorkerHost::HasActiveClients() const {
+  return std::ranges::any_of(clients_, [](const auto& client_info) {
+    RenderFrameHostImpl* rfh =
+        RenderFrameHostImpl::FromID(client_info.render_frame_host_id);
+    return rfh && rfh->IsActive();
+  });
 }
 
 bool SharedWorkerHost::EvictBFCachedClientsIfLastActive(
@@ -1029,6 +1051,45 @@ bool SharedWorkerHost::EvictBFCachedClientsIfLastActive(
   return true;
 }
 
+void SharedWorkerHost::OnClientStateChanged() {
+  bool has_active_client = HasActiveClients();
+
+  // Resume if there is an active client, or freeze if there are none.
+  if (is_frozen_ && has_active_client) {
+    worker_->Resume();
+    is_frozen_ = false;
+  } else if (!is_frozen_ && !has_active_client) {
+    if (instance_.extended_lifetime()) {
+      // If the worker has extended lifetime, it will be frozen after a delay
+      // if there are no active clients.
+      base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
+          FROM_HERE,
+          base::BindOnce(&SharedWorkerHost::FreezeIfNoActiveClient,
+                         weak_factory_.GetWeakPtr()),
+          kSharedWorkerDestructionDelay);
+      return;
+    }
+    worker_->Freeze();
+    is_frozen_ = true;
+  }
+}
+
+void SharedWorkerHost::FreezeIfNoActiveClient() {
+  if (clients_.empty()) {
+    RecordDestructionSource(SharedWorkerHostDestructionSource::kNoClients);
+    Destruct();
+    return;
+  }
+  if (HasActiveClients()) {
+    // Cancel the freeze if a client became active during the delay.
+    return;
+  }
+  if (!is_frozen_) {
+    worker_->Freeze();
+    is_frozen_ = true;
+  }
+}
+
 const base::UnguessableToken& SharedWorkerHost::GetDevToolsToken() const {
   return devtools_handle_->dev_tools_token();
 }
@@ -1055,6 +1116,12 @@ void SharedWorkerHost::OnClientConnectionLost() {
       clients_.erase(it);
       break;
     }
+  }
+  if (!clients_.empty() &&
+      base::FeatureList::IsEnabled(blink::features::kFreezeSharedWorker)) {
+    // The disconnected client might have been the last active one. Re-evaluate
+    // the freeze state to freeze the worker if no active clients remain.
+    OnClientStateChanged();
   }
   if (instance_.extended_lifetime()) {
     if (!clients_.empty()) {  // Early return.

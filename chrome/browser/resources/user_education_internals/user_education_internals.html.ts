@@ -154,6 +154,20 @@ export function getHtml(this: UserEducationInternalsElement) {
                 environment for the duration of the browser session.
               </p>
             </div>
+            <p>
+              To view debug information for What's New, open the page and run
+              <span class="inline-code">
+                chromeWhatsNew.debugInfo()
+              </span>
+              in the javascript console.
+            </p>
+            <p>
+              To test a browser command for What's New, open the page and run
+              <span class="inline-code">
+                chromeWhatsNew.triggerBrowserCommand(number)
+              </span>
+              in the javascript console.
+            </p>
           </div>
         </if>
         ${this.whatsNewModules_.length > 0 ? html`

@@ -11,11 +11,17 @@ typedef NS_ENUM(NSInteger, GeminiInputType);
 
 namespace base {
 class TimeDelta;
+class TimeTicks;
 }  // namespace base
 
 namespace gemini {
 enum class EntryPoint;
+enum class FloatyUpdateSource;
 }  // namespace gemini
+
+namespace ios::provider {
+enum class GeminiViewState;
+}
 
 // UMA histogram key for IOS.Gemini.Eligibility.
 extern const char kEligibilityHistogram[];
@@ -37,6 +43,18 @@ extern const char kSessionPromptCountHistogram[];
 
 // UMA histogram key for IOS.Gemini.Session.FirstPrompt.
 extern const char kSessionFirstPromptHistogram[];
+
+// UMA histogram key for IOS.Gemini.Floaty.TimeMinimized.
+extern const char kFloatyTimeMinimizedHistogram[];
+
+// UMA histogram key for IOS.Gemini.Floaty.ViewStateTransition.
+extern const char kFloatyViewStateTransitionHistogram[];
+
+// UMA histogram key for IOS.Gemini.Floaty.ShownFromSource.
+extern const char kFloatyShownFromSourceHistogram[];
+
+// UMA histogram key for IOS.Gemini.Floaty.HiddenFromSource.
+extern const char kFloatyHiddenFromSourceHistogram[];
 
 // Enum for the IOS.Gemini.FRE.PromoAction and IOS.Gemini.FRE.ConsentAction
 // histograms.
@@ -155,6 +173,12 @@ extern const char kResponseLatencyWithContextHistogram[];
 // UMA histogram key for IOS.Gemini.Response.Latency.WithoutContext.
 extern const char kResponseLatencyWithoutContextHistogram[];
 
+// UMA histogram key for IOS.Gemini.Response.Latency.WithGeneratedImage.
+extern const char kResponseLatencyWithGeneratedImageHistogram[];
+
+// UMA histogram key for IOS.Gemini.Response.Latency.WithoutGeneratedImage.
+extern const char kResponseLatencyWithoutGeneratedImageHistogram[];
+
 // Represents the completed Gemini session types.
 enum class IOSGeminiSessionType {
   kUnknown = 0,
@@ -190,6 +214,52 @@ enum class IOSGeminiAspectRatioBucket {
   kMaxValue = kVeryWide,
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/ios/enums.xml:IOSGeminiAspectRatioBucket)
+
+// Enum for the IOS.Gemini.CameraFlow.OSCameraAuthorization.Result histogram.
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+// LINT.IfChange(IOSGeminiCameraFlowOSCameraAuthorizationResult)
+enum class IOSGeminiCameraFlowOSCameraAuthorizationResult {
+  kGranted = 0,
+  kDenied = 1,
+  kMaxValue = kDenied,
+};
+// LINT.ThenChange(/tools/metrics/histograms/metadata/ios/enums.xml:IOSGeminiCameraFlowOSCameraAuthorizationResult)
+
+// UMA histogram key for
+// IOS.Gemini.CameraFlow.OSCameraAuthorizationRequest.Result.
+extern const char kCameraFlowOSAuthorizationRequestResultHistogram[];
+
+// Enum for the IOS.Gemini.CameraFlow.GoToOSSettingsAlert.Result histogram.
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+// LINT.IfChange(IOSGeminiGoToOSSettingsAlertResult)
+enum class IOSGeminiGoToOSSettingsAlertResult {
+  kGoToSettings = 0,
+  kNoThanks = 1,
+  kMaxValue = kNoThanks,
+};
+// LINT.ThenChange(/tools/metrics/histograms/metadata/ios/enums.xml:IOSGeminiGoToOSSettingsAlertResult)
+
+// UMA histogram key for
+// IOS.Gemini.CameraFlow.GoToOSSettingsAlert.Result.
+extern const char kCameraFlowGoToOSSettingsAlertResultHistogram[];
+
+// Enum for the IOS.Gemini.CameraFlow.GeminiCameraPermissionAlert.Result
+// histogram.
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+// LINT.IfChange(IOSGeminiCameraPermissionAlertResult)
+enum class IOSGeminiCameraPermissionAlertResult {
+  kAllow = 0,
+  kDontAllow = 1,
+  kMaxValue = kDontAllow,
+};
+// LINT.ThenChange(/tools/metrics/histograms/metadata/ios/enums.xml:IOSGeminiCameraPermissionAlertResult)
+
+// UMA histogram key for
+// IOS.Gemini.CameraFlow.GeminiCameraPermissionAlert.Result.
+extern const char kCameraFlowGeminiCameraPermissionAlertResultHistogram[];
 
 // UMA histogram key for
 // IOS.Gemini.ImageRemix.ContextMenuEntryPoint.AspectRatio.Tapped.
@@ -249,14 +319,54 @@ void RecordFREConsentLinkClick();
 // Records prompt context attachment metrics.
 void RecordPromptContextAttachment(bool has_page_context);
 
-// Records the latency from prompt submission to response received.
-void RecordResponseLatency(base::TimeDelta latency, bool had_page_context);
+// Records the latency from prompt submission to response received, including
+// metadata about the prompt & response.
+void RecordResponseLatency(base::TimeDelta latency,
+                           bool had_page_context,
+                           bool had_generated_image);
 
 // Records the total number of prompts sent in a Gemini session.
 void RecordSessionPromptCount(int prompt_count);
 
 // Records if a first prompt was sent in a Gemini session.
 void RecordSessionFirstPrompt(bool had_first_prompt);
+
+// Enum for the IOS.Gemini.ViewStateTransition histogram.
+// LINT.IfChange(IOSGeminiViewStateTransition)
+enum class IOSGeminiViewStateTransition {
+  kUnknown = 0,
+  kCollapsedToExpanded = 1,
+  kExpandedToCollapsed = 2,
+  kHiddenToCollapsed = 3,
+  kHiddenToExpanded = 4,
+  kMaxValue = kHiddenToExpanded,
+};
+// LINT.ThenChange(/tools/metrics/histograms/metadata/ios/enums.xml:IOSGeminiViewStateTransition)
+
+// Records the floaty transition from expanded to collapsed.
+void RecordFloatyExpandedToCollapsed();
+
+// Records the floaty transition from collapsed to expanded.
+void RecordFloatyCollapsedToExpanded();
+
+// Records the floaty dismissing while collapsed.
+void RecordFloatyDismissedWhileCollapsed();
+
+// Records the length of time a floaty is minimized until it is expanded.
+void RecordFloatyMinimizedTime(base::TimeTicks elapsed_minimized_floaty_time);
+
+// Records the Gemini floaty view state transition.
+void RecordGeminiViewStateTransition(IOSGeminiViewStateTransition transition);
+
+// Records the `view_state` that will be shown from the hidden state.
+void RecordGeminiViewStateHiddenToShown(
+    ios::provider::GeminiViewState view_state);
+
+// Records the floaty being shown from the `source` that triggered the call.
+void RecordFloatyShownFromSource(gemini::FloatyUpdateSource source);
+
+// Records the floaty being hidden from the `source` that triggered the call.
+void RecordFloatyHiddenFromSource(gemini::FloatyUpdateSource source);
 
 // Records that the user clicked a URL in a Gemini session.
 void RecordURLOpened();
@@ -280,5 +390,14 @@ void RecordGeminiPromptSent(bool is_nano_banana_enabled,
                             int images_attached_count,
                             bool long_press_image_included,
                             bool has_page_context);
+
+// Records the result of an OS-level camera authorization request.
+void RecordGeminiCameraFlowOSAuthorizationResult(bool granted);
+
+// Records the result of the alert directing users to OS settings.
+void RecordGeminiCameraFlowGoToOSSettingsAlertResult(bool accepted);
+
+// Records the result of the Gemini camera permission alert.
+void RecordGeminiCameraFlowGeminiCameraPermissionAlertResult(bool accepted);
 
 #endif  // IOS_CHROME_BROWSER_INTELLIGENCE_BWG_METRICS_GEMINI_METRICS_H_

@@ -334,10 +334,8 @@ std::optional<std::string> Origin::SerializeWithNonceImpl() const {
     pickle.WriteUInt64(0);
   }
 
-  base::span<const uint8_t> UNSAFE_TODO(
-      data(static_cast<const uint8_t*>(pickle.data()), pickle.size()));
   // Base64 encode the data to make it nicer to play with.
-  return base::Base64Encode(data);
+  return base::Base64Encode(pickle.AsBytes());
 }
 
 // static
@@ -346,9 +344,8 @@ std::optional<Origin> Origin::Deserialize(std::string_view value) {
   if (!base::Base64Decode(value, &data))
     return std::nullopt;
 
-  base::Pickle pickle =
-      base::Pickle::WithUnownedBuffer(base::as_byte_span(data));
-  base::PickleIterator reader(pickle);
+  base::PickleIterator reader =
+      base::PickleIterator::WithData(base::as_byte_span(data));
 
   std::string pickled_url;
   if (!reader.ReadString(&pickled_url))

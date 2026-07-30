@@ -300,9 +300,8 @@ std::string FilePathToProto(const base::FilePath& path) {
 }
 
 std::optional<base::FilePath> ProtoToFilePath(const std::string& bytes) {
-  const base::Pickle pickle =
-      base::Pickle::WithUnownedBuffer(base::as_byte_span(bytes));
-  base::PickleIterator pickle_iterator(pickle);
+  base::PickleIterator pickle_iterator =
+      base::PickleIterator::WithData(base::as_byte_span(bytes));
 
   base::FilePath path;
   if (!path.ReadFromPickle(&pickle_iterator)) {
@@ -425,6 +424,17 @@ std::unique_ptr<WebApp> ParseWebAppProto(
     DLOG(ERROR) << "WebApp proto start_url parse error: "
                 << start_url.possibly_invalid_spec();
     return nullptr;
+  }
+
+  if (sync_data.has_migrated_from_manifest_id()) {
+    webapps::ManifestId migrated_from_manifest_id(
+        sync_data.migrated_from_manifest_id());
+    if (!migrated_from_manifest_id.is_valid()) {
+      RecordProtoParseResult(ProtoParseResult::kMigratedFromManifestIdInvalid);
+      DLOG(ERROR) << "WebApp sync proto migrated from manifest id parse error "
+                  << migrated_from_manifest_id.possibly_invalid_spec();
+      return nullptr;
+    }
   }
 
   // Post-migration check: Scope should not be empty.

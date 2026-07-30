@@ -10,7 +10,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks.mojom.h"
-#include "chrome/browser/contextual_tasks/contextual_tasks_ui.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_ui_interface.h"
 #include "components/contextual_tasks/public/contextual_tasks_service.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
@@ -20,8 +20,6 @@
 namespace base {
 class Uuid;
 }
-
-class ContextualTasksUI;
 
 namespace contextual_tasks {
 class ContextualTasksService;
@@ -34,7 +32,7 @@ class ContextualTasksPageHandler
  public:
   ContextualTasksPageHandler(
       mojo::PendingReceiver<contextual_tasks::mojom::PageHandler> receiver,
-      ContextualTasksUI* web_ui_controller,
+      contextual_tasks::ContextualTasksUIInterface* web_ui_controller,
       contextual_tasks::ContextualTasksUiService* ui_service,
       contextual_tasks::ContextualTasksService* contextual_tasks_service);
   ~ContextualTasksPageHandler() override;
@@ -53,6 +51,7 @@ class ContextualTasksPageHandler
   void OpenMyActivityUi() override;
   void OpenHelpUi() override;
   void OpenOnboardingHelpUi() override;
+  void OpenUrl(const GURL& url, WindowOpenDisposition disposition) override;
   void MoveTaskUiToNewTab() override;
   void OnTabClickedFromSourcesMenu(int32_t tab_id, const GURL& url) override;
   void OnFileClickedFromSourcesMenu(const GURL& url) override;
@@ -75,7 +74,7 @@ class ContextualTasksPageHandler
       const lens::UpdateThreadContextLibrary& message);
 
   mojo::Receiver<contextual_tasks::mojom::PageHandler> receiver_;
-  raw_ptr<ContextualTasksUI> web_ui_controller_;
+  raw_ptr<contextual_tasks::ContextualTasksUIInterface> web_ui_controller_;
   raw_ptr<contextual_tasks::ContextualTasksUiService> ui_service_;
   raw_ptr<contextual_tasks::ContextualTasksService> contextual_tasks_service_;
 

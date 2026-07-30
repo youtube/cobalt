@@ -54,6 +54,7 @@
 #include "chrome/browser/ui/views/frame/browser_widget.h"
 #include "chrome/browser/ui/views/frame/horizontal_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/tabs/tab.h"
+#include "chrome/browser/ui/views/tabs/tab_accessibility.h"
 #include "chrome/browser/ui/views/tabs/tab_context_menu_controller.h"
 #include "chrome/browser/ui/views/tabs/tab_group_accessibility.h"
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
@@ -631,8 +632,9 @@ gfx::Range BrowserTabStripController::ListTabsInGroup(
 
 std::u16string BrowserTabStripController::GetAccessibleTabName(
     const Tab* tab) const {
-  return browser_view_->GetAccessibleTabLabel(
-      tabstrip_->GetModelIndexOf(tab).value(), /*is_for_tab=*/true);
+  int tab_index = tabstrip_->GetModelIndexOf(tab).value();
+  return tabs::GetAccessibleTabLabel(model_->GetTabAtIndex(tab_index),
+                                     /*is_for_tab=*/true);
 }
 
 BrowserWindowInterface* BrowserTabStripController::GetBrowserWindowInterface() {
@@ -662,7 +664,7 @@ void BrowserTabStripController::OnTabStripModelChanged(
         tabstrip_->RemoveTabAt(contents.contents, contents.index,
                                contents.contents == selection.old_contents);
         if (contents.remove_reason ==
-            TabStripModelChange::RemoveReason::kInsertedIntoSidePanel) {
+            TabRemovedReason::kInsertedIntoSidePanel) {
           tabstrip_->StopAnimating();
         }
       }
@@ -675,9 +677,9 @@ void BrowserTabStripController::OnTabStripModelChanged(
 
       // A move may have resulted in the pinned state changing, so pass in a
       // TabRendererData.
-      tabstrip_->MoveTab(
-          move->from_index, move->to_index,
-          TabRendererData::FromTabInModel(model_, move->to_index));
+      tabstrip_->MoveTab(move->from_index, move->to_index,
+                         TabRendererData::FromTabInterface(
+                             model_->GetTabAtIndex(move->to_index)));
       break;
     }
     case TabStripModelChange::kReplaced: {
@@ -890,8 +892,8 @@ const BrowserFrameView* BrowserTabStripController::GetFrameView() const {
 }
 
 void BrowserTabStripController::SetTabDataAt(int model_index) {
-  tabstrip_->SetTabData(model_index,
-                        TabRendererData::FromTabInModel(model_, model_index));
+  tabstrip_->SetTabData(model_index, TabRendererData::FromTabInterface(
+                                         model_->GetTabAtIndex(model_index)));
 }
 
 void BrowserTabStripController::AddTabs(
@@ -901,10 +903,9 @@ void BrowserTabStripController::AddTabs(
 
   std::vector<TabStrip::AddTabData> tabs_data;
   for (const auto& [tab, index] : contents_list) {
-    tabs_data.push_back(
-        {.index = index,
-         .handle = tab->GetHandle(),
-         .data = TabRendererData::FromTabInModel(model_, index)});
+    tabs_data.push_back({.index = index,
+                         .handle = tab->GetHandle(),
+                         .data = TabRendererData::FromTabInterface(tab)});
   }
 
   tabstrip_->AddTabsAt(std::move(tabs_data));

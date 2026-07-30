@@ -67,7 +67,7 @@ void SyncRecordDataTypeNumUnsyncedEntitiesFromDataCounts(
 
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused.
-// LINT.IfChange(SyncToSigninMigrationReadingListStep)
+// LINT.IfChange(ReadingListMigrationStep)
 enum class ReadingListMigrationStep {
   kMigrationRequested = 0,
   kMigrationStarted = 1,
@@ -77,6 +77,46 @@ enum class ReadingListMigrationStep {
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/sync/enums.xml:SyncToSigninMigrationReadingListStep)
 void RecordSyncToSigninMigrationReadingListStep(ReadingListMigrationStep step);
+
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+// LINT.IfChange(SyncToSigninMigrationExtensionsStep)
+enum class SyncToSigninMigrationExtensionsStep {
+  kMigrationRequested = 0,
+  kMigrationStarted = 1,
+  kMigrationFinishedAndPrefCleared = 2,
+  kMaxValue = kMigrationFinishedAndPrefCleared
+};
+// LINT.ThenChange(/tools/metrics/histograms/metadata/sync/enums.xml:SyncToSigninMigrationExtensionsStep)
+void RecordSyncToSigninMigrationExtensionsStep(
+    SyncToSigninMigrationExtensionsStep step);
+void RecordSyncToSigninMigrationExtensionsDeduplicatedCount(int count);
+
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+// LINT.IfChange(SyncToSigninMigrationThemeStep)
+enum class SyncToSigninMigrationThemeStep {
+  kMigrationRequested = 0,
+  kMigrationStarted = 1,
+  kMigrationFinishedAndPrefCleared = 2,
+  kMaxValue = kMigrationFinishedAndPrefCleared
+};
+// LINT.ThenChange(/tools/metrics/histograms/metadata/sync/enums.xml:SyncToSigninMigrationThemeStep)
+void RecordSyncToSigninMigrationThemeStep(SyncToSigninMigrationThemeStep step);
+
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+// LINT.IfChange(SyncToSigninMigrationThemeOutcome)
+enum class SyncToSigninMigrationThemeOutcome {
+  kNoLocalTheme = 0,
+  kNoAccountTheme = 1,
+  kLocalThemeDifferentFromAccountTheme = 2,
+  kRemovedLocalTheme = 3,
+  kMaxValue = kRemovedLocalTheme
+};
+// LINT.ThenChange(/tools/metrics/histograms/metadata/sync/enums.xml:SyncToSigninMigrationThemeOutcome)
+void RecordSyncToSigninMigrationThemeOutcome(
+    SyncToSigninMigrationThemeOutcome outcome);
 
 }  // namespace syncer
 

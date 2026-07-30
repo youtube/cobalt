@@ -57,6 +57,7 @@ type WebClientMessageHandlerInterface = {
 class WebClientMessageHandler implements WebClientMessageHandlerInterface {
   private cachedPinnedTabs: TabData[]|undefined = undefined;
   private cachedSkillPreviews: SkillPreview[] = [];
+  private cachedContextualSkillPreviews: SkillPreview[] = [];
   private cachedSkillPrompts = new Map<string, string>();
 
   constructor(
@@ -211,7 +212,14 @@ class WebClientMessageHandler implements WebClientMessageHandlerInterface {
   }): void {
     this.cachedSkillPrompts.clear();
     this.cachedSkillPreviews = payload.skillPreviews;
-    this.host.skillPreviews.assignAndSignal(this.cachedSkillPreviews);
+    this.host.skillPreviews.assignAndSignal(this.combineSkillPreviews());
+  }
+
+  glicWebClientNotifyContextualSkillPreviewsChanged(payload: {
+    contextualSkillPreviews: SkillPreview[],
+  }): void {
+    this.cachedContextualSkillPreviews = payload.contextualSkillPreviews;
+    this.host.skillPreviews.assignAndSignal(this.combineSkillPreviews());
   }
 
   glicWebClientNotifySkillPreviewChanged(payload: {skillPreview: SkillPreview}):
@@ -235,7 +243,7 @@ class WebClientMessageHandler implements WebClientMessageHandlerInterface {
     }
 
     // Signal the change to the host.
-    this.host.skillPreviews.assignAndSignal(this.cachedSkillPreviews);
+    this.host.skillPreviews.assignAndSignal(this.combineSkillPreviews());
   }
 
   glicWebClientNotifySkillDeleted(payload: {
@@ -252,7 +260,7 @@ class WebClientMessageHandler implements WebClientMessageHandlerInterface {
         ...this.cachedSkillPreviews.slice(index + 1),
       ];
     }
-    this.host.skillPreviews.assignAndSignal(this.cachedSkillPreviews);
+    this.host.skillPreviews.assignAndSignal(this.combineSkillPreviews());
   }
 
   glicWebClientNotifySkillToInvokeChanged(payload: {skill: Skill}): void {
@@ -499,6 +507,10 @@ class WebClientMessageHandler implements WebClientMessageHandlerInterface {
       this.cachedSkillPrompts.set(preview.id, skill.prompt);
     }
   }
+
+  combineSkillPreviews() {
+    return [...this.cachedContextualSkillPreviews, ...this.cachedSkillPreviews];
+  }
 }
 
 class GlicBrowserHostImpl implements GlicBrowserHost {
@@ -650,6 +662,7 @@ class GlicBrowserHostImpl implements GlicBrowserHost {
     if (!state.enableSkills) {
       this.createSkill = undefined;
       this.updateSkill = undefined;
+      this.showManageSkillsUi = undefined;
       this.getSkill = undefined;
     }
 
@@ -1179,6 +1192,10 @@ class GlicBrowserHostImpl implements GlicBrowserHost {
     if (!result.modalOpened) {
       throw new Error('updateSkill: failed to open dialog');
     }
+  }
+
+  showManageSkillsUi?(): void {
+    this.sender.requestNoResponse('glicBrowserShowManageSkillsUi', undefined);
   }
 
   async getSkill?(id: string): Promise<Skill> {

@@ -7,6 +7,7 @@
 #include <algorithm>
 
 #include "base/strings/strcat.h"
+#include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "components/ukm/test_ukm_recorder.h"
@@ -401,9 +402,9 @@ TEST_P(PrefetchContainerTest, Servable) {
 
   task_environment()->FastForwardBy(base::Minutes(2));
 
-  EXPECT_NE(prefetch_container->GetServableState(base::Minutes(1)),
+  EXPECT_NE(prefetch_container->GetServableStateForTesting(base::Minutes(1)),
             PrefetchServableState::kServable);
-  EXPECT_EQ(prefetch_container->GetServableState(base::Minutes(3)),
+  EXPECT_EQ(prefetch_container->GetServableStateForTesting(base::Minutes(3)),
             PrefetchServableState::kServable);
   EXPECT_TRUE(prefetch_container->GetNonRedirectHead());
 }
@@ -1361,15 +1362,17 @@ TEST_P(PrefetchContainerTest, MultipleStreamingURLLoaders) {
 
   EXPECT_FALSE(prefetch_container->GetStreamingURLLoader());
 
-  EXPECT_NE(prefetch_container->GetServableState(base::TimeDelta::Max()),
-            PrefetchServableState::kServable);
+  EXPECT_NE(
+      prefetch_container->GetServableStateForTesting(base::TimeDelta::Max()),
+      PrefetchServableState::kServable);
   EXPECT_FALSE(prefetch_container->GetNonRedirectHead());
 
   prefetch_container->SimulatePrefetchEligibleForTest();
   MakeServableStreamingURLLoadersWithNetworkTransitionRedirectForTest(
       prefetch_container.get(), kTestUrl1, kTestUrl2);
-  EXPECT_EQ(prefetch_container->GetServableState(base::TimeDelta::Max()),
-            PrefetchServableState::kServable);
+  EXPECT_EQ(
+      prefetch_container->GetServableStateForTesting(base::TimeDelta::Max()),
+      PrefetchServableState::kServable);
   EXPECT_TRUE(prefetch_container->GetNonRedirectHead());
 
   // As the prefetch is already completed, the streaming loader is deleted
@@ -1394,8 +1397,9 @@ TEST_P(PrefetchContainerTest, MultipleStreamingURLLoaders) {
 
   // `CreateRequestHandler()` itself doesn't make the PrefetchContainer
   // non-servable.
-  EXPECT_EQ(prefetch_container->GetServableState(base::TimeDelta::Max()),
-            PrefetchServableState::kServable);
+  EXPECT_EQ(
+      prefetch_container->GetServableStateForTesting(base::TimeDelta::Max()),
+      PrefetchServableState::kServable);
   EXPECT_TRUE(prefetch_container->GetNonRedirectHead());
 
   std::unique_ptr<PrefetchTestURLLoaderClient> first_serving_url_loader_client =
@@ -1469,24 +1473,27 @@ TEST_P(PrefetchContainerTest, CancelAndClearStreamingLoader) {
   ASSERT_TRUE(prefetch_container->GetStreamingURLLoader());
   base::WeakPtr<PrefetchStreamingURLLoader> streaming_loader =
       prefetch_container->GetStreamingURLLoader();
-  EXPECT_EQ(prefetch_container->GetServableState(base::TimeDelta::Max()),
-            PrefetchServableState::kServable);
+  EXPECT_EQ(
+      prefetch_container->GetServableStateForTesting(base::TimeDelta::Max()),
+      PrefetchServableState::kServable);
 
   prefetch_container->CancelStreamingURLLoaderIfNotServing();
 
   // `streaming_loader` is still alive and working.
   EXPECT_FALSE(prefetch_container->GetStreamingURLLoader());
   EXPECT_TRUE(streaming_loader);
-  EXPECT_EQ(prefetch_container->GetServableState(base::TimeDelta::Max()),
-            PrefetchServableState::kServable);
+  EXPECT_EQ(
+      prefetch_container->GetServableStateForTesting(base::TimeDelta::Max()),
+      PrefetchServableState::kServable);
 
   task_environment()->RunUntilIdle();
 
   // `streaming_loader` is deleted asynchronously and its prefetching URL loader
   // is canceled. This itself doesn't make PrefetchContainer non-servable.
   EXPECT_FALSE(streaming_loader);
-  EXPECT_EQ(prefetch_container->GetServableState(base::TimeDelta::Max()),
-            PrefetchServableState::kServable);
+  EXPECT_EQ(
+      prefetch_container->GetServableStateForTesting(base::TimeDelta::Max()),
+      PrefetchServableState::kServable);
 }
 
 // To test lifetime and ownership issues, all possible event orderings for
@@ -1621,8 +1628,9 @@ TEST_P(PrefetchContainerLifetimeTest, Lifetime) {
                             std::move(producer), &producer_completed));
   }
 
-  EXPECT_NE(prefetch_container->GetServableState(base::TimeDelta::Max()),
-            PrefetchServableState::kServable);
+  EXPECT_NE(
+      prefetch_container->GetServableStateForTesting(base::TimeDelta::Max()),
+      PrefetchServableState::kServable);
   EXPECT_FALSE(prefetch_container->GetNonRedirectHead());
 
   pending_request.client->OnReceiveResponse(
@@ -1630,8 +1638,9 @@ TEST_P(PrefetchContainerLifetimeTest, Lifetime) {
       std::nullopt);
   task_environment()->RunUntilIdle();
 
-  EXPECT_EQ(prefetch_container->GetServableState(base::TimeDelta::Max()),
-            PrefetchServableState::kServable);
+  EXPECT_EQ(
+      prefetch_container->GetServableStateForTesting(base::TimeDelta::Max()),
+      PrefetchServableState::kServable);
   EXPECT_TRUE(prefetch_container->GetNonRedirectHead());
 
   PrefetchServingHandle serving_handle =
@@ -1670,7 +1679,8 @@ TEST_P(PrefetchContainerLifetimeTest, Lifetime) {
       case Event::kCreateRequestHandler:
         ASSERT_FALSE(request_handler);
         ASSERT_TRUE(prefetch_container);
-        EXPECT_EQ(prefetch_container->GetServableState(base::TimeDelta::Max()),
+        EXPECT_EQ(prefetch_container->GetServableStateForTesting(
+                      base::TimeDelta::Max()),
                   PrefetchServableState::kServable);
         request_handler = serving_handle.CreateRequestHandler().first;
         ASSERT_TRUE(request_handler);
@@ -1718,7 +1728,8 @@ TEST_P(PrefetchContainerLifetimeTest, Lifetime) {
 
       case Event::kSecondClient:
         ASSERT_TRUE(prefetch_container);
-        EXPECT_EQ(prefetch_container->GetServableState(base::TimeDelta::Max()),
+        EXPECT_EQ(prefetch_container->GetServableStateForTesting(
+                      base::TimeDelta::Max()),
                   PrefetchServableState::kServable);
 
         // The second request is servable if the body data pipe is finished and
@@ -1840,6 +1851,67 @@ TEST_P(PrefetchContainerTest, SpeculationRulesNoTagAddedToRequestHeader) {
                 ->headers.GetHeader(blink::kSecSpeculationTagsHeaderName)
                 .value(),
             "null");
+}
+
+class TestPrefetchContainerObserver final : public PrefetchContainer::Observer {
+ public:
+  explicit TestPrefetchContainerObserver(base::OnceClosure callback)
+      : callback_(std::move(callback)) {
+    CHECK(callback_);
+  }
+  ~TestPrefetchContainerObserver() override = default;
+
+  bool IsNotified() const { return !callback_; }
+
+ private:
+  void OnWillBeDestroyed(const PrefetchContainer& prefetch_container) override {
+  }
+  // This uses `OnGotInitialEligibility()` as an example of the `Observer` calls
+  // in general.
+  void OnGotInitialEligibility(const PrefetchContainer& prefetch_container,
+                               PreloadingEligibility eligibility) override {
+    std::move(callback_).Run();
+  }
+  void OnDeterminedHead(const PrefetchContainer& prefetch_container) override {}
+  void OnPrefetchCompletedOrFailed(
+      const PrefetchContainer& prefetch_container,
+      const network::URLLoaderCompletionStatus& completion_status,
+      const std::optional<int>& response_code) override {}
+
+  base::OnceClosure callback_;
+};
+
+// Tests that:
+// - Observers removed during notification do not get notified of the current
+//   event, if not already notified.
+// - Observers added during notification do not get notified of the current
+//   event.
+TEST_P(PrefetchContainerTest, ObserverAddedDuringNotification) {
+  auto prefetch_container =
+      CreateSpeculationRulesPrefetchContainer(GURL("https://test.com"));
+
+  TestPrefetchContainerObserver observer_added_during_notification(
+      base::DoNothing());
+  TestPrefetchContainerObserver observer_removed_during_notification(
+      base::DoNothing());
+  TestPrefetchContainerObserver observer(base::BindLambdaForTesting([&]() {
+    prefetch_container->AddObserver(&observer_added_during_notification);
+    prefetch_container->RemoveObserver(&observer_removed_during_notification);
+  }));
+  prefetch_container->AddObserver(&observer);
+  prefetch_container->AddObserver(&observer_removed_during_notification);
+
+  // Trigger the observer call.
+  prefetch_container->SimulatePrefetchEligibleForTest();
+
+  // Check that the observers are not notified.
+  ASSERT_TRUE(observer.IsNotified());
+  EXPECT_FALSE(observer_added_during_notification.IsNotified());
+  EXPECT_FALSE(observer_removed_during_notification.IsNotified());
+
+  // Cleanup.
+  prefetch_container->RemoveObserver(&observer);
+  prefetch_container->RemoveObserver(&observer_added_during_notification);
 }
 
 INSTANTIATE_TEST_SUITE_P(,

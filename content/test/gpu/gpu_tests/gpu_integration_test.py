@@ -318,10 +318,7 @@ class GpuIntegrationTest(
         # causes trace_test speed regression on Android devices.
         '--disable-features=AndroidWarmUpSpareRendererWithTimeout',
     ]
-    # TODO(crbug.com/476172416): Either remove the IsWindows11() condition or
-    # update the comment below once we determine whether disabling backgrounding
-    # works around flaky timeouts on Windows 11.
-    if cls._SuiteSupportsParallelTests() or host_information.IsWindows11():
+    if cls._SuiteSupportsParallelTests():
       # When running tests in parallel, windows can be treated as occluded if a
       # newly opened window fully covers a previous one, which can cause issues
       # in a few tests. This is practically only an issue on Windows since
@@ -1391,6 +1388,7 @@ class GpuIntegrationTest(
         'qualcomm-adreno-(tm)-610',  # android-sm-a236b
         'qualcomm-adreno-(tm)-640',  # android-pixel-4
         'qualcomm-adreno-(tm)-740',  # android-sm-s911u1
+        'arm-0x92020010',  # android-pixel-6
         'arm-mali-g78',  # android-pixel-6
         'nvidia-nvidia-tegra',  # android-shield-android-tv
         'imagination-technologies-0x71061212',  # android-pixel-10

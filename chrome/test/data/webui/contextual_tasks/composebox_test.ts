@@ -14,8 +14,8 @@ import {FileUploadStatus} from 'chrome://resources/cr_components/composebox/comp
 import type {ComposeboxFileCarouselElement} from 'chrome://resources/cr_components/composebox/file_carousel.js';
 import {WindowProxy} from 'chrome://resources/cr_components/composebox/window_proxy.js';
 import {GlowAnimationState} from 'chrome://resources/cr_components/search/constants.js';
+import {createAutocompleteMatch, createAutocompleteResultForTesting} from 'chrome://resources/cr_components/searchbox/searchbox_browser_proxy.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
-import type {AutocompleteMatch, AutocompleteResult} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import {PageCallbackRouter as SearchboxPageCallbackRouter, PageHandlerRemote as SearchboxPageHandlerRemote, type PageRemote as SearchboxPageRemote} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import {assertDeepEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import type {MetricsTracker} from 'chrome://webui-test/metrics_test_support.js';
@@ -43,6 +43,20 @@ function pressEnter(element: HTMLElement) {
     bubbles: true,
     composed: true,
   }));
+}
+
+// Checks if suggestions container is rendered yet.
+function checkIfCanFindSuggestionsContainer(
+    contextualTasksApp: MockContextualTasksAppElement, canFind: boolean) {
+  const suggestions = contextualTasksApp.$.composebox.shadowRoot.querySelector(
+      '#coBrSuggestionsContainer');
+
+  if (canFind) {
+    assertTrue(!!suggestions, 'Suggestions container should be present in DOM');
+  } else {
+    assertEquals(
+        null, suggestions, 'Suggestions container should not be in DOM');
+  }
 }
 
 async function dispatchDragAndDropEvent(dropZone: Element, files: File[]) {
@@ -89,58 +103,6 @@ function createDragEvent(type: string, files: File[]): DragEvent {
     value: mockDataTransfer,
   });
   return event;
-}
-
-function createAutocompleteMatch(modifiers: Partial<AutocompleteMatch> = {}):
-    AutocompleteMatch {
-  const base: AutocompleteMatch = {
-    allowedToBeDefaultMatch: false,
-    isSearchType: true,
-    contents: 'a suggestion',
-    destinationUrl: `https://google.com/search?q=a+suggestion`,
-    fillIntoEdit: 'a suggestion',
-    type: 'search-suggest',
-
-    // Add all other fields needed to satisfy the AutocompleteMatch type
-    isHidden: false,
-    a11yLabel: '',
-    actions: [],
-    isEnterpriseSearchAggregatorPeopleType: false,
-    swapContentsAndDescription: false,
-    supportsDeletion: false,
-    suggestionGroupId: -1,
-    contentsClass: [{offset: 0, style: 0}],
-    description: '',
-    descriptionClass: [{offset: 0, style: 0}],
-    inlineAutocompletion: '',
-    iconPath: '',
-    iconUrl: '',
-    imageDominantColor: '',
-    imageUrl: '',
-    isNoncannedAimSuggestion: false,
-    removeButtonA11yLabel: '',
-    isRichSuggestion: false,
-    isWeatherAnswerSuggestion: null,
-    answer: null,
-    tailSuggestCommonPrefix: null,
-    hasInstantKeyword: false,
-    keywordChipHint: '',
-    keywordChipA11y: '',
-  } as AutocompleteMatch;
-
-  return Object.assign(base, modifiers);
-}
-
-function createAutocompleteResult(modifiers: Partial<AutocompleteResult> = {}):
-    AutocompleteResult {
-  const base: AutocompleteResult = {
-    input: '',
-    matches: [],
-    suggestionGroupsMap: {},
-    smartComposeInlineHint: null,
-  };
-
-  return Object.assign(base, modifiers);
 }
 
 class MockSpeechRecognition {
@@ -248,7 +210,7 @@ suite('ContextualTasksComposeboxTest', () => {
       createAutocompleteMatch(),
     ];
     searchboxCallbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResult({
+        createAutocompleteResultForTesting({
           input: testQuery,
           matches: matches,
         }));
@@ -490,20 +452,16 @@ suite('ContextualTasksComposeboxTest', () => {
     await mockComposeboxPageHandler.whenCalled('handleLensButtonClick');
     assertEquals(
         1, mockComposeboxPageHandler.getCallCount('handleLensButtonClick'));
-  });
 
-  test('LensButtonDisabledWhenOverlayShowing', async () => {
-    const composebox = contextualTasksApp.$.composebox.$.composebox;
-    contextualTasksApp.$.composebox.isSidePanel = true;
-    contextualTasksApp.$.composebox.isLensOverlayShowing = false;
-    await microtasksFinished();
 
+    // A second click should still trigger the same handler and the button
+    // should still be disabled.
     assertFalse(composebox.lensButtonDisabled);
+    lensButton.click();
 
-    contextualTasksApp.$.composebox.isLensOverlayShowing = true;
-    await microtasksFinished();
-
-    assertTrue(composebox.lensButtonDisabled);
+    await mockComposeboxPageHandler.whenCalled('handleLensButtonClick');
+    assertEquals(
+        2, mockComposeboxPageHandler.getCallCount('handleLensButtonClick'));
   });
 
   test('hides composebox and header when hideInput called', async () => {
@@ -945,7 +903,8 @@ suite('ContextualTasksComposeboxTest', () => {
       createAutocompleteMatch({fillIntoEdit: 'match 2'}),
     ];
     searchboxCallbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResult({input: testQuery, matches: matches}));
+        createAutocompleteResultForTesting(
+            {input: testQuery, matches: matches}));
     await searchboxCallbackRouterRemote.$.flushForTesting();
     mockTimer.tick(0);
 
@@ -1286,7 +1245,7 @@ suite('ContextualTasksComposeboxTest', () => {
             'Voice search button clicked metric count is incorrect');
 
         const voiceSearchElement = (composebox as any).$.voiceSearch;
-        voiceSearchElement.finalResult_ = 'test';
+        voiceSearchElement.transcript_ = 'test';
         voiceSearchElement.onIdleTimeout_();
         await microtasksFinished();
 
@@ -1457,6 +1416,133 @@ suite('ContextualTasksComposeboxTest', () => {
     assertEquals(composebox.animationState, GlowAnimationState.NONE);
   });
 
+  test(
+      'suggestions show correctly in side panel zero state based on loading',
+      async () => {
+        contextualTasksApp.isShownInTab_ = false;
+        contextualTasksApp.isZeroState_ = true;
+        contextualTasksApp.enableNativeZeroStateSuggestions = false;
+
+        await contextualTasksApp.updateComplete;
+        await contextualTasksApp.$.composebox.updateComplete;
+        await microtasksFinished();
+
+        assertStyle(contextualTasksApp.$.composebox, 'bottom', '0px');
+        checkIfCanFindSuggestionsContainer(
+            contextualTasksApp, /*canFind=*/ false);
+
+        contextualTasksApp.enableNativeZeroStateSuggestions = true;
+        await contextualTasksApp.updateComplete;
+        await contextualTasksApp.$.composebox.updateComplete;
+        await microtasksFinished();
+
+        assertStyle(contextualTasksApp.$.composebox, 'bottom', '30px');
+
+        (contextualTasksApp.$.composebox as any).isLoading_ = true;
+        await contextualTasksApp.updateComplete;
+        await contextualTasksApp.$.composebox.updateComplete;
+        await microtasksFinished();
+        checkIfCanFindSuggestionsContainer(
+            contextualTasksApp, /*canFind=*/ true);
+        const firstMatch: any =
+            contextualTasksApp.$.composebox.$.coBrSuggestionsContainer
+                .shadowRoot.querySelector('#match0');
+        assertTrue(
+            !!firstMatch.$.textContainer,
+            'First suggestion match should exist');
+        assertStyle(
+            firstMatch.$.textContainer, 'animation-duration', '2s',
+            'When in loading side panel but in zero-state, suggestions\
+                should be in loading state');
+
+        (contextualTasksApp.$.composebox as any).isLoading_ = false;
+        await contextualTasksApp.updateComplete;
+        await contextualTasksApp.$.composebox.updateComplete;
+        await contextualTasksApp.$.composebox.$.coBrSuggestionsContainer
+            .updateComplete;
+        await firstMatch.updateComplete;
+        await microtasksFinished();
+
+        assertStyle(
+            firstMatch.$.textContainer, 'animation', 'none',
+            'When not in loading side panel zero-state,\
+                suggestions should be normal');
+
+        contextualTasksApp.isZeroState_ = false;
+        await contextualTasksApp.updateComplete;
+        await contextualTasksApp.$.composebox.updateComplete;
+        await microtasksFinished();
+        assertTrue(
+            contextualTasksApp.$.composebox.$.coBrSuggestionsContainer.hidden,
+            'Dropdown should be hidden when NOT in zero state');
+      });
+
+  test(
+      'suggestions show correctly in full tab zero state based on loading',
+      async () => {
+        contextualTasksApp.isShownInTab_ = true;
+        contextualTasksApp.isZeroState_ = true;
+        contextualTasksApp.enableNativeZeroStateSuggestions = false;
+
+        await contextualTasksApp.updateComplete;
+        await contextualTasksApp.$.composebox.updateComplete;
+        await microtasksFinished();
+        checkIfCanFindSuggestionsContainer(
+            contextualTasksApp, /*canFind=*/ false);
+        contextualTasksApp.enableNativeZeroStateSuggestions = true;
+
+        await contextualTasksApp.updateComplete;
+        await contextualTasksApp.$.composebox.updateComplete;
+        await microtasksFinished();
+        checkIfCanFindSuggestionsContainer(
+            contextualTasksApp, /*canFind=*/ true);
+        assertStyle(contextualTasksApp.$.flexCenterContainer, 'top', '88px');
+
+        (contextualTasksApp.$.composebox as any).isLoading_ = true;
+        await contextualTasksApp.updateComplete;
+        await contextualTasksApp.$.composebox.updateComplete;
+        await contextualTasksApp.$.composebox.$.coBrSuggestionsContainer
+            .updateComplete;
+        const firstMatch: any =
+            contextualTasksApp.$.composebox.$.coBrSuggestionsContainer
+                .shadowRoot.querySelector('#match0');
+        assertTrue(
+            !!firstMatch.$.textContainer,
+            'First suggestion match should exist');
+
+        await microtasksFinished();
+
+        assertStyle(
+            firstMatch.$.textContainer, 'animation-duration', '2s',
+            'When in loading full tab zero-state,\
+                suggestions should be in loading state');
+        (contextualTasksApp.$.composebox as any).isLoading_ = false;
+        await contextualTasksApp.updateComplete;
+        await contextualTasksApp.$.composebox.updateComplete;
+        await contextualTasksApp.$.composebox.$.coBrSuggestionsContainer
+            .updateComplete;
+        await firstMatch.updateComplete;
+        await microtasksFinished();
+
+        assertStyle(
+            firstMatch.$.textContainer, 'animation', 'none',
+            'When not in loading full tab but in zero-state,\
+                suggestions should be normal');
+
+        contextualTasksApp.isZeroState_ = false;
+
+        await contextualTasksApp.updateComplete;
+        await contextualTasksApp.$.composebox.updateComplete;
+        await contextualTasksApp.$.composebox.$.coBrSuggestionsContainer
+            .updateComplete;
+        await firstMatch.updateComplete;
+
+        await microtasksFinished();
+        assertTrue(
+            contextualTasksApp.$.composebox.$.coBrSuggestionsContainer.hidden,
+            'Dropdown should be hidden when NOT in zero state',
+        );
+      });
   test(
       'side panel handles AIM queries to show side panel zero state correctly',
       async () => {
@@ -1634,8 +1720,11 @@ suite('ContextualTasksComposeboxTest', () => {
 
     const app = document.createElement('contextual-tasks-app') as unknown as
         MockContextualTasksAppElement;
-    app.isZeroState_ = true;
+    app.isZeroState_ = false;
     document.body.appendChild(app);
+    await microtasksFinished();
+    // Mock `isZeroState_` updating value from parent.
+    app.isZeroState_ = true;
     await microtasksFinished();
 
     assertEquals(1, mockSearchboxPageHandler.getCallCount('queryAutocomplete'));
@@ -1666,6 +1755,9 @@ suite('ContextualTasksComposeboxTest', () => {
             MockContextualTasksAppElement;
         app.isZeroState_ = false;
         document.body.appendChild(app);
+        await microtasksFinished();
+        // Mock `isZeroState_` updating value from parent.
+        app.isZeroState_ = false;
         await microtasksFinished();
 
         assertEquals(

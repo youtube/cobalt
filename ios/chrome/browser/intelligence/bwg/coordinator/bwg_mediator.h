@@ -8,9 +8,9 @@
 #import <UIKit/UIKit.h>
 
 #import "components/feature_engagement/public/tracker.h"
-#import "ios/chrome/browser/intelligence/bwg/ui/bwg_consent_mutator.h"
+#import "ios/chrome/browser/intelligence/bwg/ui/gemini_consent_mutator.h"
 
-class BwgBrowserAgent;
+class GeminiBrowserAgent;
 class BwgService;
 class PrefService;
 @protocol SceneCommands;
@@ -23,14 +23,14 @@ enum class EntryPoint;
 }  // namespace gemini
 
 // BWG Mediator.
-@interface BWGMediator : NSObject <BWGConsentMutator>
+@interface BWGMediator : NSObject <GeminiConsentMutator>
 
 - (instancetype)initWithPrefService:(PrefService*)prefService
                        webStateList:(WebStateList*)webStateList
                  baseViewController:(UIViewController*)baseViewController
                          entryPoint:(gemini::EntryPoint)entryPoint
                          BWGService:(BwgService*)BWGService
-                    BWGBrowserAgent:(BwgBrowserAgent*)BWGBrowserAgent
+                 geminiBrowserAgent:(GeminiBrowserAgent*)geminiBrowserAgent
                             tracker:(feature_engagement::Tracker*)tracker;
 
 // The delegate for this mediator.

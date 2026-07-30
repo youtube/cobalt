@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "chrome/browser/ai/ai_crx_component.h"
+#include "components/on_device_ai/ai_crx_component.h"
 
 #include <cstdint>
 #include <memory>
@@ -12,8 +12,8 @@
 #include "base/task/current_thread.h"
 #include "base/test/gtest_util.h"
 #include "base/time/time.h"
-#include "chrome/browser/ai/ai_model_download_progress_manager.h"
 #include "chrome/browser/ai/ai_test_utils.h"
+#include "components/on_device_ai/ai_model_download_progress_manager.h"
 #include "components/on_device_ai/ai_utils.h"
 #include "testing/gmock/include/gmock/gmock-matchers.h"
 #include "testing/gtest/include/gtest/gtest.h"

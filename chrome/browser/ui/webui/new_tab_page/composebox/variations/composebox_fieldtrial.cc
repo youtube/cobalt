@@ -134,7 +134,8 @@ bool IsNtpComposeboxEnabled(Profile* profile) {
   }
 
   if (!contextual_search::ContextualSearchService::IsContextSharingEnabled(
-          profile->GetPrefs())) {
+          profile->GetPrefs()) &&
+      !ntp_composebox::kShowModelPicker.Get()) {
     return false;
   }
 
@@ -164,13 +165,9 @@ bool IsDeepSearchEnabled(Profile* profile) {
     return false;
   }
 
-  if (kShowToolsAndModels.Get()) {
-    return true;
-  }
-
   AimEligibilityService* aim_eligibility_service =
       AimEligibilityServiceFactory::GetForProfile(profile);
-  return kShowToolsAndModels.Get() && aim_eligibility_service &&
+  return aim_eligibility_service &&
          aim_eligibility_service->IsDeepSearchEligible();
 }
 
@@ -183,13 +180,9 @@ bool IsCreateImagesEnabled(Profile* profile) {
     return false;
   }
 
-  if (kShowToolsAndModels.Get()) {
-    return true;
-  }
-
   AimEligibilityService* aim_eligibility_service =
       AimEligibilityServiceFactory::GetForProfile(profile);
-  return kShowToolsAndModels.Get() && aim_eligibility_service &&
+  return aim_eligibility_service &&
          aim_eligibility_service->IsCreateImagesEligible();
 }
 
@@ -199,10 +192,7 @@ CreateQueryControllerConfigParams() {
   auto config_params = std::make_unique<
       contextual_search::ContextualSearchContextController::ConfigParams>();
   config_params->send_lns_surface = true;
-  config_params->enable_multi_context_input_flow = kMaxNumFiles.Get() > 1;
   config_params->enable_viewport_images = kEnableViewportImages.Get();
-  config_params->use_separate_request_ids_for_multi_context_viewport_images =
-      kUseSeparateRequestIdsForMultiContextViewportImages.Get();
   config_params->attach_page_title_and_url_to_suggest_requests =
       kAttachPageTitleAndUrlToSuggestRequest.Get();
   return config_params;
@@ -211,27 +201,17 @@ CreateQueryControllerConfigParams() {
 BASE_FEATURE(kNtpComposebox, base::FEATURE_DISABLED_BY_DEFAULT);
 
 const base::FeatureParam<std::string> kConfigParam(&kNtpComposebox,
-                                                   "ConfigParam",
+                                                   "NtpComposeboxConfigParam",
                                                    "");
-
-const base::FeatureParam<bool>
-    kUseSeparateRequestIdsForMultiContextViewportImages(
-        &kNtpComposebox,
-        "UseSeparateRequestIdsForMultiContextViewportImages",
-        false);
-
-const base::FeatureParam<bool> kShowComposeboxZps(&kNtpComposebox,
-                                                  "ShowComposeboxZps",
-                                                  false);
 
 const base::FeatureParam<bool> kShowComposeboxTypedSuggest(
     &kNtpComposebox,
-    "ShowComposeboxTypedSuggest",
+    "NtpComposeboxShowComposeboxTypedSuggest",
     false);
 
 const base::FeatureParam<bool> kShowComposeboxImageSuggestions(
     &kNtpComposebox,
-    "ShowComposeboxImageSuggestions",
+    "NtpComposeboxShowComposeboxImageSuggestions",
     true);
 
 const base::FeatureParam<bool> kAttachPageTitleAndUrlToSuggestRequest(
@@ -240,19 +220,20 @@ const base::FeatureParam<bool> kAttachPageTitleAndUrlToSuggestRequest(
     false);
 
 const base::FeatureParam<bool> kShowContextMenu(&kNtpComposebox,
-                                                "ShowContextMenu",
+                                                "NtpComposeboxShowContextMenu",
                                                 false);
-const base::FeatureParam<bool> kShowRecentTabChip(&kNtpComposebox,
-                                                  "ShowRecentTabChip",
-                                                  false);
+const base::FeatureParam<bool> kShowRecentTabChip(
+    &kNtpComposebox,
+    "NtpComposeboxShowRecentTabChip",
+    false);
 const base::FeatureParam<bool> kShowContextMenuTabPreviews(
     &kNtpComposebox,
-    "ShowContextMenuTabPreviews",
+    "NtpComposeboxShowContextMenuTabPreviews",
     false);
 
 const base::FeatureParam<bool> kShowContextMenuDescription(
     &kNtpComposebox,
-    "ShowContextMenuDescription",
+    "NtpComposeboxShowContextMenuDescription",
     true);
 const base::FeatureParam<bool> kEnableEphemeralContextMenuDescription(
     &kNtpComposebox,
@@ -262,19 +243,9 @@ const base::FeatureParam<bool> kEnableViewportImages(&kNtpComposebox,
                                                      "EnableViewportImages",
                                                      true);
 
-const base::FeatureParam<bool> kShowToolsAndModels(&kNtpComposebox,
-                                                   "ShowToolsAndModels",
-                                                   false);
-
-const base::FeatureParam<bool> kShowCanvas(&kNtpComposebox,
-                                           "ShowCanvas",
-                                           false);
-
 const base::FeatureParam<bool> kShowModelPicker(&kNtpComposebox,
-                                                "ShowModelPicker",
+                                                "NtpComposeboxShowModelPicker",
                                                 false);
-
-const base::FeatureParam<bool> kShowSubmit(&kNtpComposebox, "ShowSubmit", true);
 
 const base::FeatureParam<bool> kShowVoiceSearchInSteadyComposebox(
     &kNtpComposebox,
@@ -286,21 +257,22 @@ const base::FeatureParam<bool> kShowVoiceSearchInExpandedComposebox(
     "ShowVoiceSearchInExpandedComposebox",
     true);
 
-const base::FeatureParam<bool> kShowSmartCompose(&kNtpComposebox,
-                                                 "ShowSmartCompose",
-                                                 true);
+const base::FeatureParam<bool>
+    kShowSmartCompose(&kNtpComposebox, "NtpComposeboxShowSmartCompose", true);
 
 const base::FeatureParam<int> kContextMenuMaxTabSuggestions(
     &kNtpComposebox,
-    "ContextMenuMaxTabSuggestions",
+    "NtpComposeboxContextMenuMaxTabSuggestions",
     5);
 
 const base::FeatureParam<bool> kContextMenuEnableMultiTabSelection(
     &kNtpComposebox,
-    "ContextMenuEnableMultiTabSelection",
+    "NtpComposeboxContextMenuEnableMultiTabSelection",
     false);
 
-const base::FeatureParam<int> kMaxNumFiles(&kNtpComposebox, "MaxNumFiles", 10);
+const base::FeatureParam<int> kMaxNumFiles(&kNtpComposebox,
+                                           "NtpComposeboxMaxNumFiles",
+                                           10);
 
 const base::FeatureParam<bool> kEnableContextDragAndDrop(
     &kNtpComposebox,
@@ -316,7 +288,7 @@ const base::FeatureParam<bool> kCloseComposeboxByClickOutside(
     true);
 const base::FeatureParam<bool> kAddTabUploadDelayOnRecentTabChipClick(
     &kNtpComposebox,
-    "AddTabUploadDelayOnRecentTabChipClick",
+    "NtpComposeboxAddTabUploadDelayOnRecentTabChipClick",
     false);
 const base::FeatureParam<bool> kEnableThreadsRail(&kNtpComposebox,
                                                   "EnableThreadsRail",
@@ -347,7 +319,8 @@ bool IsNtpRealboxNextEnabled(Profile* profile) {
   }
 
   if (!contextual_search::ContextualSearchService::IsContextSharingEnabled(
-          profile->GetPrefs())) {
+          profile->GetPrefs()) &&
+      !ntp_composebox::kShowModelPicker.Get()) {
     return false;
   }
 
@@ -385,11 +358,6 @@ const base::FeatureParam<PlaceholderText> kSteadyPlaceholder(
 const base::FeatureParam<bool> kCyclingPlaceholders(&kNtpRealboxNext,
                                                     "CyclingPlaceholders",
                                                     false);
-
-const base::FeatureParam<bool> kShowVoiceSearchInExpandedRealbox(
-    &kNtpRealboxNext,
-    "ShowVoiceSearchInExpandedRealbox",
-    false);
 
 const base::FeatureParam<RealboxLayoutMode>::Option
     kRealboxLayoutModeOptions[] = {

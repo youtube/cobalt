@@ -314,7 +314,10 @@ class CONTENT_EXPORT NavigationRequest
       scoped_refptr<PrefetchedSignedExchangeCache>
           prefetched_signed_exchange_cache,
       mojo::PendingReceiver<mojom::NavigationRendererCancellationListener>
-          renderer_cancellation_listener);
+          renderer_cancellation_listener,
+      mojo::PendingReceiver<
+          blink::mojom::NavigationResumeDeferredCommitListener>
+          deferred_commit_resume_listener);
 
   // Creates a NavigationRequest for synchronous navigation that have committed
   // in the renderer process. Those are:
@@ -1024,9 +1027,9 @@ class CONTENT_EXPORT NavigationRequest
     return isolation_info_for_subresources_;
   }
 
-  network::mojom::PrivateNetworkRequestPolicy private_network_request_policy()
-      const {
-    return private_network_request_policy_;
+  network::mojom::LocalNetworkAccessRequestPolicy
+  local_network_access_request_policy() const {
+    return local_network_access_request_policy_;
   }
 
   // Whether this navigation request waits for the result of beforeunload before
@@ -1718,6 +1721,15 @@ class CONTENT_EXPORT NavigationRequest
     network_restrictions_id_ = network_restrictions_id;
   }
 
+  bool HasResumeAfterDeferredCommitListener() const {
+    return resume_after_deferred_commit_listener_.is_valid();
+  }
+
+  mojo::PendingReceiver<blink::mojom::NavigationResumeDeferredCommitListener>
+  TakeResumeAfterDeferredCommitListener() {
+    return std::move(resume_after_deferred_commit_listener_);
+  }
+
   // Checks whether the navigation request contains active view transition
   // resources.
   bool HasViewTransitionResources() const {
@@ -1786,6 +1798,9 @@ class CONTENT_EXPORT NavigationRequest
       bool is_embedder_initiated_fenced_frame_navigation = false,
       mojo::PendingReceiver<mojom::NavigationRendererCancellationListener>
           renderer_cancellation_listener = mojo::NullReceiver(),
+      mojo::PendingReceiver<
+          blink::mojom::NavigationResumeDeferredCommitListener>
+          deferred_commit_resume_listener = mojo::NullReceiver(),
       std::optional<std::u16string> embedder_shared_storage_context =
           std::nullopt);
 
@@ -2175,11 +2190,12 @@ class CONTENT_EXPORT NavigationRequest
   // redirect.
   void UpdateStateFollowingRedirect(const GURL& new_referrer_url);
 
-  // Updates |private_network_request_policy_| for ReadyToCommitNavigation().
+  // Updates |local_network_access_request_policy_| for
+  // ReadyToCommitNavigation().
   //
   // Must not be called for same-document navigation requests nor for requests
   // served from the back-forward cache or from prerendered pages.
-  void UpdatePrivateNetworkRequestPolicy();
+  void UpdateLocalNetworkAccessRequestPolicy();
 
   // Called when the navigation is ready to be committed. This will update the
   // |state_| and inform the delegate.
@@ -3110,8 +3126,9 @@ class CONTENT_EXPORT NavigationRequest
   // The policy to apply to private network requests for subresources of the
   // document we are navigating to. Influenced by the document's policy
   // container, origin, and `ContentBrowserClient`.
-  network::mojom::PrivateNetworkRequestPolicy private_network_request_policy_ =
-      network::mojom::PrivateNetworkRequestPolicy::kWarn;
+  network::mojom::LocalNetworkAccessRequestPolicy
+      local_network_access_request_policy_ =
+          network::mojom::LocalNetworkAccessRequestPolicy::kWarn;
 
   // The list of web features that were used by the new document during
   // navigation. These can only be logged once the document commits, so they are
@@ -3474,6 +3491,8 @@ class CONTENT_EXPORT NavigationRequest
   // If true, any extra headers provided will be removed on a cross-origin
   // redirect.
   bool remove_extra_headers_on_cross_origin_redirect_ = false;
+  mojo::PendingReceiver<blink::mojom::NavigationResumeDeferredCommitListener>
+      resume_after_deferred_commit_listener_;
 
   base::WeakPtrFactory<NavigationRequest> weak_factory_{this};
 };

@@ -870,6 +870,7 @@ void DatabaseConnection::Release(base::WeakPtr<DatabaseConnection> db) {
   // in case the page reopens the same database soon.
   DatabaseConnection* db_ptr = db.get();
   db.reset();
+
   if (db_ptr->CanSelfDestruct()) {
     db_ptr->backing_store_->DestroyConnection(db_ptr->metadata_.name);
   }
@@ -925,10 +926,15 @@ DatabaseConnection::~DatabaseConnection() {
         db_.get(), db_->GetErrorCode(),
         sql::Recovery::Strategy::kRecoverWithMetaVersionOrRaze);
 #endif
-  } else if (legacy_blob_files_) {
+  } else if (legacy_blob_files_ && legacy_blob_files_to_move_.empty()) {
     // Delete any leftover legacy blobs which may have been left behind due to
     // a past failed recovery or other errors. `legacy_blob_files_` are the
     // ones still referenced by the DB, so keep those.
+    //
+    // We skip this step if `legacy_blob_files_to_move_` is non-empty, which
+    // would indicate that there was a migration executed by this instance of
+    // `DatabaseConnection`.
+    //
     // TODO(crbug.com/419264073): since this requires reading from disk to
     // enumerate directory contents, consider combining it with other
     // potentially slow cleanup steps such as vacuuming, and/or skipping
@@ -1093,6 +1099,10 @@ uint64_t DatabaseConnection::GetSize() const {
 
 std::unique_ptr<BackingStoreDatabaseImpl>
 DatabaseConnection::CreateDatabaseWrapper() {
+  // If `this` was marked for deletion, and entered a zygotic state, but then
+  // a page reopened a database with the same name, then don't delete the new
+  // DB.
+  marked_for_permanent_deletion_ = false;
   return std::make_unique<BackingStoreDatabaseImpl>(
       interface_wrapper_weak_factory_.GetWeakPtr());
 }
@@ -1277,6 +1287,32 @@ Status DatabaseConnection::CommitTransactionPhaseTwo(
     CHECK(metadata_snapshot_.has_value());
     metadata_snapshot_.reset();
   }
+
+  // Migration case.
+  if (!legacy_blob_files_to_move_.empty() &&
+      !base::CreateDirectory(GetLegacyBlobDirectory())) {
+    return Status::IOError("Unable to create blob directory");
+  }
+  // First make a pass that verifies the blob files are all there. This occurs
+  // before the second loop to avoid moving *some* of them before running into
+  // errors, thus leaving both DBs in a broken state.
+  for (const auto& [_, file_path] : legacy_blob_files_to_move_) {
+    if (!base::PathExists(file_path)) {
+      return Status::IOError("Migration failed due to missing blob");
+    }
+  }
+  for (const auto& [blob_row_id, file_path] : legacy_blob_files_to_move_) {
+    base::File::Error error;
+    // Note that an error here probably leaves both stores (the one being
+    // migrated from and this one) in a broken state. The most likely reason for
+    // this failure would be that the file is missing from the source store, so
+    // it was already in a broken state.
+    // TODO(crbug.com/419264073): consider handling this more gracefully.
+    if (!base::ReplaceFile(file_path, GetBlobFilePath(blob_row_id), &error)) {
+      return Status::IOError(base::File::ErrorToString(error));
+    }
+  }
+
   return Status::OK();
 }
 
@@ -1832,6 +1868,8 @@ StatusOr<BackingStore::RecordIdentifier> DatabaseConnection::PutRecord(
       const int main_chunk_size = base::checked_cast<int>(
           std::min(external_object.size(),
                    base::checked_cast<int64_t>(GetMaxBlobSize().InBytes())));
+      const bool being_migrated_from_leveldb =
+          !external_object.indexed_db_file_path().empty();
       {
         sql::Statement statement(
             db_->GetCachedStatement(SQL_FROM_HERE,
@@ -1842,7 +1880,11 @@ StatusOr<BackingStore::RecordIdentifier> DatabaseConnection::PutRecord(
         statement.BindInt(0, static_cast<int>(external_object.object_type()));
         statement.BindString16(1, external_object.type());
         statement.BindInt64(2, external_object.size());
-        statement.BindBlobForStreaming(3, main_chunk_size);
+        if (being_migrated_from_leveldb) {
+          statement.BindNull(3);
+        } else {
+          statement.BindBlobForStreaming(3, main_chunk_size);
+        }
         if (external_object.object_type() ==
             IndexedDBExternalObject::ObjectType::kBlob) {
           statement.BindNull(4);
@@ -1858,23 +1900,29 @@ StatusOr<BackingStore::RecordIdentifier> DatabaseConnection::PutRecord(
 
       blob_row_id = db_->GetLastInsertRowId();
 
-      // Reserve space for overflow chunks, if any.
-      int chunk_index = 1;
-      for (int64_t bytes_written = main_chunk_size;
-           bytes_written < external_object.size();) {
-        const int64_t chunk_size =
-            std::min(external_object.size() - bytes_written,
-                     base::checked_cast<int64_t>(GetMaxBlobSize().InBytes()));
-        sql::Statement statement(
-            db_->GetCachedStatement(SQL_FROM_HERE,
-                                    "INSERT INTO overflow_blob_chunks "
-                                    "(blob_row_id, chunk_index, bytes)"
-                                    "VALUES (?, ?, ?)"));
-        statement.BindInt64(0, blob_row_id);
-        statement.BindInt(1, chunk_index++);
-        statement.BindBlobForStreaming(2, chunk_size);
-        RUN_STATEMENT_RETURN_ON_ERROR(statement);
-        bytes_written += chunk_size;
+      if (being_migrated_from_leveldb) {
+        // The migration case --- move the old file to a new location.
+        legacy_blob_files_to_move_[blob_row_id] =
+            external_object.indexed_db_file_path();
+      } else {
+        // Reserve space for overflow chunks, if any.
+        int chunk_index = 1;
+        for (int64_t bytes_written = main_chunk_size;
+             bytes_written < external_object.size();) {
+          const int64_t chunk_size =
+              std::min(external_object.size() - bytes_written,
+                       base::checked_cast<int64_t>(GetMaxBlobSize().InBytes()));
+          sql::Statement statement(
+              db_->GetCachedStatement(SQL_FROM_HERE,
+                                      "INSERT INTO overflow_blob_chunks "
+                                      "(blob_row_id, chunk_index, bytes)"
+                                      "VALUES (?, ?, ?)"));
+          statement.BindInt64(0, blob_row_id);
+          statement.BindInt(1, chunk_index++);
+          statement.BindBlobForStreaming(2, chunk_size);
+          RUN_STATEMENT_RETURN_ON_ERROR(statement);
+          bytes_written += chunk_size;
+        }
       }
     }
 
@@ -2069,9 +2117,10 @@ DatabaseConnection::CreateAllExternalObjects(
     auto it = active_blobs_.find(object.blob_number());
     if (it == active_blobs_.end()) {
       std::unique_ptr<BlobEndpoint> endpoint;
-      // TODO(crbug.com/436887363): add metrics for number of blobs served from
-      // SQLite DB vs legacy files.
-      if (object.indexed_db_file_path().empty()) {
+      const bool is_legacy_blob = !object.indexed_db_file_path().empty();
+      base::UmaHistogramBoolean("IndexedDB.SQLite.BlobServedFromLegacyFile",
+                                is_legacy_blob);
+      if (!is_legacy_blob) {
         endpoint = std::make_unique<ActiveBlobStreamer>(
             object,
             // Unretained is safe because `this` owns `endpoint`.

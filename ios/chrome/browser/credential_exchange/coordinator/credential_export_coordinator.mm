@@ -14,6 +14,7 @@
 #import "components/prefs/pref_service.h"
 #import "components/signin/public/identity_manager/account_info.h"
 #import "components/signin/public/identity_manager/identity_manager.h"
+#import "components/webauthn/ios/passkey_types.h"
 #import "ios/chrome/browser/credential_exchange/coordinator/credential_export_mediator.h"
 #import "ios/chrome/browser/credential_exchange/ui/credential_export_view_controller.h"
 #import "ios/chrome/browser/credential_exchange/ui/credential_export_view_controller_presentation_delegate.h"
@@ -116,24 +117,13 @@
   completion();
 }
 
-- (void)showEnrollmentWelcomeScreen:(ProceduralBlock)enrollBlock {
-  CreateAndPresentPasskeyWelcomeScreen(
-      PasskeyWelcomeScreenPurpose::kEnroll, _baseNavigationController,
-      /*delegate=*/self, enrollBlock, _userEmail);
-}
-
-- (void)showFixDegradedRecoverabilityWelcomeScreen:
-    (ProceduralBlock)fixDegradedRecoverabilityBlock {
-  CreateAndPresentPasskeyWelcomeScreen(
-      PasskeyWelcomeScreenPurpose::kFixDegradedRecoverability,
-      _baseNavigationController, /*delegate=*/self,
-      fixDegradedRecoverabilityBlock, _userEmail);
-}
-
-- (void)showReauthenticationWelcomeScreen:(ProceduralBlock)reauthenticateBlock {
-  CreateAndPresentPasskeyWelcomeScreen(
-      PasskeyWelcomeScreenPurpose::kReauthenticate, _baseNavigationController,
-      /*delegate=*/self, reauthenticateBlock, _userEmail);
+- (void)showWelcomeScreenWithPurpose:
+            (webauthn::PasskeyWelcomeScreenPurpose)purpose
+                          completion:
+                              (webauthn::PasskeyWelcomeScreenAction)completion {
+  CreateAndPresentPasskeyWelcomeScreen(purpose, _baseNavigationController,
+                                       /*delegate=*/self, completion,
+                                       _userEmail);
 }
 
 - (void)providerDidCompleteReauthentication {
@@ -156,7 +146,6 @@
           metrics::prefs::kMetricsReportingEnabled);
   _passkeyKeychainProviderBridge = [[PasskeyKeychainProviderBridge alloc]
         initWithEnableLogging:metricsReportingEnabled
-         navigationController:_baseNavigationController
       navigationItemTitleView:password_manager::CreatePasswordManagerTitleView(
                                   l10n_util::GetNSString(
                                       IDS_IOS_PASSWORD_MANAGER))];

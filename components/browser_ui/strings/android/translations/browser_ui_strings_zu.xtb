@@ -9,6 +9,7 @@
 <translation id="1074758928858737435">Ungabuza ukuze ubone uhlelo lwedeskithophu lwamasayithi</translation>
 <translation id="1085696779717592361">Sebenzisa i-Chrome Ngokuzenzakalela</translation>
 <translation id="113098737392899175">Ungazulazula emakhasini nge-cursor yombhalo uma ikhibhodi ixhunyiwe</translation>
+<translation id="1149644372535087155">Londoloza amaphasiwedi kuChrome</translation>
 <translation id="1178015372320901893">Izinqamuleli zami zeshidi eliphansi</translation>
 <translation id="1178581264944972037">Misa isikhashana</translation>
 <translation id="1181037720776840403">Susa</translation>
@@ -49,6 +50,8 @@
 <translation id="1547123415014299762">Amakhukhi wongahlangene ngqo awavunyelwe</translation>
 <translation id="1569054338208717605">Sheshisa amasayithi ngenjini yeChrome V8 kodwa wenze iChrome imelane kalula nokuhlaselwa</translation>
 <translation id="1593426485665524382">Izenzo ezintsha ziyatholakala eduze kwaphezulu kwesikrini</translation>
+<translation id="1594521731409209842">Ncinza isikrini ukuze ushintshe usayizi wesithombe</translation>
+<translation id="1601560923496285236">Faka</translation>
 <translation id="1615755956145364867">Amasayithi angacela ukudlala okuqukethwe okuvikelwe</translation>
 <translation id="1620510694547887537">Ikhamela</translation>
 <translation id="1621729191093924223">Izici ezidinga imakrofoni ngeke zisebenze</translation>
@@ -171,6 +174,7 @@ Ukuvikela Okuthuthukile kulawula lawa masethingi eChrome:
 <translation id="2682367912565197520">Sula izinga lokusondeza elilondoloziwe</translation>
 <translation id="2683434792633810741">Sula futhi setha kabusha?</translation>
 <translation id="2685514716378236873">Akuvumelekile</translation>
+<translation id="2710883118091822664">Ngena ngemvume ukuze uqhubeke kalula kuwo wonke amadivayisi akho</translation>
 <translation id="2713106313042589954">Vala ikhamera</translation>
 <translation id="2717722538473713889">Amakheli we-imeyili</translation>
 <translation id="2726059656860238749">Qalisa iChrome ugxilise i-Omnibox, wehlise isikhathi sokuqalisa kumadivayisi anesimo esiphansi.</translation>
@@ -198,6 +202,7 @@ Ukuvikela Okuthuthukile kulawula lawa masethingi eChrome:
 <translation id="3004438526346162184">Amasayithi angasebenzisa lesi sakhi ukuze aphathe amawindi kuzo zonke izibonisi zakho</translation>
 <translation id="3008272652534848354">Setha kabusha izimvume</translation>
 <translation id="301521992641321250">Kuvinjelwe ngokuzenzakalelayo</translation>
+<translation id="3026311960038210">Amaqoqo etimu</translation>
 <translation id="3064871050034234884">Amasayithi angadlala umsindo</translation>
 <translation id="3065787901655140044">Ukuvikela Okuthuthukile kuvuliwe</translation>
 <translation id="3069226013421428034">Vumela ukungena ngemvume kwenkampani yangaphandle kusayithi elithile.</translation>
@@ -340,6 +345,7 @@ Ukuvikela Okuthuthukile kulawula lawa masethingi eChrome:
 <translation id="4478158430052450698">Kwenze kube lula ukwenza ngokwezifiso ukusondeza kumasayithi ahlukene</translation>
 <translation id="4479647676395637221">Buza kuqala ngaphambi kokuvumela amasayithi ukuthi asebenzise ikhamera yakho (kunconyiwe)</translation>
 <translation id="4505788138578415521">I-URL inwetshiwe</translation>
+<translation id="4523472416386354622">Ngena ngemvume ukuze uqale</translation>
 <translation id="4534723447064627427">Ukuze uvumele i-<ph name="APP_NAME" /> ifinyelele imakrofoni yakho, vula nemakrofoni <ph name="BEGIN_LINK" />Kumasethingi e-Android<ph name="END_LINK" />.</translation>
 <translation id="4566417217121906555">Thulisa imakrofoni</translation>
 <translation id="4570913071927164677">Imininingwane</translation>
@@ -396,6 +402,7 @@ Ukuvikela Okuthuthukile kulawula lawa masethingi eChrome:
 <translation id="512938610812707830">Ikhasi elisha lethebhu yokubukeka kwamaqoqo etimu kweshidi eliphansi elivulwe ngokuphakama okugcwele</translation>
 <translation id="5137460097045297858">Ishidi eliphansi lesiphakeli seDiscover livulwe ngobude obuphakathi nendawo</translation>
 <translation id="5139253256813381453">{PRICE_DROP_COUNT,plural, =1{Intengo yehlile kumathebhu akho avuliwe}one{Intengo yehlile kumathebhu akho avuliwe}other{Intengo yehlile kumathebhu akho avuliwe}}</translation>
+<translation id="5150048675001754041">Ngena ngemvume ngokushesha kalula kumasayithi nama-app</translation>
 <translation id="5186036860380548585">Inketho iyatholakala eduze kwaphezulu kwesikrini</translation>
 <translation id="5197729504361054390">Oxhumana nabo obakhethayo bazokwabiwa no-<ph name="BEGIN_BOLD" /><ph name="SITE" /><ph name="END_BOLD" />.</translation>
 <translation id="5198930230016462977">Hlela ngendlela oyithandayo ikhasi lakho elisha lethebhu yeshidi eliphansi elivaliwe</translation>
@@ -523,6 +530,7 @@ Ukuvikela Okuthuthukile kulawula lawa masethingi eChrome:
 <translation id="6545864417968258051">Ukuskena kwe-Bluetooth</translation>
 <translation id="6552800053856095716">{PERMISSIONS_SUMMARY_BLOCKED,plural, =1{I-<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />, nezinye ezingu-<ph name="NUM_MORE" /> zivinjelwe}one{I-<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />, nezinye ezingu-<ph name="NUM_MORE" /> zivinjelwe}other{I-<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />, nezinye ezingu-<ph name="NUM_MORE" /> zivinjelwe}}</translation>
 <translation id="6554732001434021288">Kugcine ukuvakashelwa ezinsukwini ezi-<ph name="NUM_DAYS" /> ezedlule</translation>
+<translation id="6556866813142980365">Yenza kabusha</translation>
 <translation id="6557290421156335491">Izinqamuleli zami</translation>
 <translation id="656065428026159829">Bona okwengeziwe</translation>
 <translation id="6561560012278703671">Sebenzisa umlayezo wokushiya (ivimbela isaziso esiyalela kusuka ekukuphazamiseni)</translation>
@@ -564,6 +572,7 @@ Ukuvikela Okuthuthukile kulawula lawa masethingi eChrome:
 <translation id="6980861169612950611">Sula idatha yesayithi? <ph name="SITE_NAME" /></translation>
 <translation id="6981982820502123353">Ukufinyeleleka</translation>
 <translation id="6991142177939282156">Kuvunyelwe • Kusetshenziswa okulinganiselwe</translation>
+<translation id="6992014788289743568">Qinisa ukuvikeleka kwakho futhi ugcine idatha yakho iphephile ngokuhlola amaphasiwedi akho</translation>
 <translation id="6992289844737586249">Buza kuqala ngaphambi kokuvumela amasayithi ukuthi asebenzise imakrofoni yakho (kunconyiwe)</translation>
 <translation id="7000754031042624318">Kuvaliwe kuzilungiselelo ze-Android</translation>
 <translation id="702275896380648118">LeLI sayithi Linquma izinto ozithandayo bese liphakamisa izikhangiso kwamanye amasayithi. Leli sayithi lithola izihloko zezikhangiso zakho ku-Chrome ukuze likubonise izikhangiso ezihambisana kakhulu.</translation>

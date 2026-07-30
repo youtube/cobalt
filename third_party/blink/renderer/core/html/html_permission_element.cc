@@ -414,7 +414,8 @@ void HTMLPermissionElement::OnPermissionStatusInitialized(
 Node::InsertionNotificationRequest HTMLPermissionElement::InsertedInto(
     ContainerNode& insertion_point) {
   HTMLElement::InsertedInto(insertion_point);
-  if (!is_cache_registered_ && !permission_descriptors_.empty()) {
+  if (!is_cache_registered_ && !permission_descriptors_.empty() &&
+      GetExecutionContext()) {
     CachedPermissionStatus::From(GetExecutionContext())
         ->RegisterClient(this, permission_descriptors_);
     is_cache_registered_ = true;
@@ -628,9 +629,9 @@ void HTMLPermissionElement::UpdateAppearance() {
       GetLocale().QueryString(translated_message_id));
 }
 
-void HTMLPermissionElement::UpdateIcon(PermissionName permnission) {
+void HTMLPermissionElement::UpdateIcon(PermissionName permission) {
   PermissionIconType icon_type;
-  switch (permnission) {
+  switch (permission) {
     case PermissionName::GEOLOCATION:
       icon_type = is_precise_location_ ? PermissionIconType::kLocationPrecise
                                        : PermissionIconType::kLocation;
@@ -640,9 +641,6 @@ void HTMLPermissionElement::UpdateIcon(PermissionName permnission) {
       break;
     case PermissionName::AUDIO_CAPTURE:
       icon_type = PermissionIconType::kMicrophone;
-      break;
-    case PermissionName::WEB_APP_INSTALLATION:
-      icon_type = PermissionIconType::kInstall;
       break;
     default:
       return;
@@ -1289,7 +1287,7 @@ void HTMLPermissionElement::MaybeDispatchValidationChangeEvent() {
 
 scoped_refptr<base::SingleThreadTaskRunner>
 HTMLPermissionElement::GetTaskRunner() {
-  return GetExecutionContext()->GetTaskRunner(TaskType::kInternalDefault);
+  return GetDocument().GetTaskRunner(TaskType::kInternalDefault);
 }
 
 bool HTMLPermissionElement::IsClickingEnabled() {

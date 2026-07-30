@@ -31,11 +31,12 @@ source_set("activity_reporter") {
     ]
     deps += [
       "//base/version_info",
+      "//components/policy/core/common",
       "//components/prefs",
       "//url",
     ]
 
-    if (checkout_src_internal) {
+    if (is_chrome_branded && is_official_build) {
       sources += [ "internal/constants.h" ]
     } else {
       sources += [ "constants.h" ]
