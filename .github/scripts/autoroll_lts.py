@@ -3,10 +3,25 @@
 import argparse
 from collections import defaultdict
 import enum
+import os
 import re
 import shutil
 import subprocess
 import sys
+
+_COBALT_SUBMODULE_DIRS = [
+    'net/third_party/quiche/src',
+    'third_party/angle',
+    'third_party/boringssl/src',
+    'third_party/cpuinfo/src',
+    'third_party/googletest/src',
+    'third_party/icu',
+    'third_party/libc++/src',
+    'third_party/perfetto',
+    'third_party/skia',
+    'third_party/webrtc',
+    'v8',
+]
 
 
 @enum.unique
@@ -22,8 +37,8 @@ def log(msg):
   print(msg, file=sys.stderr)
 
 
-def run(cmd):
-  subprocess.run(cmd, check=True, stdout=sys.stderr)
+def run(cmd, cwd=None):
+  subprocess.run(cmd, check=True, stdout=sys.stderr, cwd=cwd)
 
 
 def get_out(cmd):
@@ -183,6 +198,29 @@ def get_submodule_root_dirs():
       {line.split(' ', 1)[1].split('/')[0] for line in paths.splitlines()})
 
 
+def remove_local_checkout():
+  log('Removing local checkout...')
+  roots = get_submodule_root_dirs()
+  if roots:
+    run(['rm', '-rf', '--'] + roots)
+  run(['git', 'rm', '-qrf', '--', '.'])
+  run(['git', 'clean', '-qffdx'])
+
+
+def replace_submodules_with_dirs():
+  log('Running gclient sync...')
+  repo_url = get_out(['git', 'remote', 'get-url', 'origin']).strip()
+  run(['gclient', 'config', '--name=src', '--unmanaged', repo_url], cwd='..')
+  run(['gclient', 'sync', '--no-history'], cwd='..')
+  run(['rm', '-f', '--', os.path.join('..', '.gclient')])
+  log('Removing Chromium submodules for Cobalt directories...')
+  for submodule_dir in _COBALT_SUBMODULE_DIRS:
+    run(['rm', '-rf', '--', os.path.join(submodule_dir, '.git')])
+    run([
+        'git', 'rm', '-qrf', '--cached', '--ignore-unmatch', '--', submodule_dir
+    ])
+
+
 def chromium_cherry_pick(previous_sha, sha, metadata, first_commit,
                          autoroll_file):
   """Temporarily reverts Cobalt changes to apply a Chromium cherry-pick.
@@ -204,29 +242,39 @@ def chromium_cherry_pick(previous_sha, sha, metadata, first_commit,
   Returns:
     CommitStatus and unmerged_files.
   """
-  log('Deleting everything...')
-  roots = get_submodule_root_dirs()
-  if roots:
-    run(['rm', '-rf', '--'] + roots)
-  run(['git', 'rm', '-rf', '--', '.'])
-  run(['git', 'clean', '-ffdx'])
-
   log(f'Checking out clean Chromium state: {previous_sha}')
+  remove_local_checkout()
   run(['git', 'checkout', previous_sha, '--', '.'])
+
+  replace_submodules_with_dirs()
 
   log('Committing Cobalt revert...')
   run(['git', 'add', '--', '.'])
   run([
-      'git', 'commit', '--no-verify', '-m',
-      'CONFLICTED Chromium Cherry pick: Reverting Cobalt.'
+      'git', 'commit', '--no-verify', '-qm',
+      'CONFLICTED Chromium Cherry pick: Revert Cobalt.'
   ])
-  cobalt_revert_sha = get_out(['git', 'rev-parse', 'HEAD']).strip()
+  revert_cobalt_sha = get_out(['git', 'rev-parse', 'HEAD']).strip()
+
+  log(f'Checking out clean Chromium state: {previous_sha}')
+  remove_local_checkout()
+  run(['git', 'checkout', '-f', previous_sha, '--', '.'])
+
+  log('Committing submodules restore...')
+  run(['git', 'add', '--', '.'])
+  run(['git', 'commit', '--no-verify', '-qm', 'Restore submodules.'])
 
   log('Cherry picking Chromium...')
   run(['git', 'cherry-pick', sha])
 
+  replace_submodules_with_dirs()
+
+  log('Committing submodules replace...')
+  run(['git', 'add', '--', '.'])
+  run(['git', 'commit', '--no-verify', '-qm', 'Remove submodules.'])
+
   log('Reverting Cobalt revert...')
-  return revert(cobalt_revert_sha, metadata, first_commit, autoroll_file)
+  return revert(revert_cobalt_sha, metadata, first_commit, autoroll_file)
 
 
 def cherry_pick(sha, metadata, first_commit, autoroll_file):
