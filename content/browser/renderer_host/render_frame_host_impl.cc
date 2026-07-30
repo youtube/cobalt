@@ -316,6 +316,7 @@
 #include "ui/accessibility/platform/browser_accessibility_manager.h"
 #include "ui/base/clipboard/clipboard_metadata.h"
 #include "ui/base/ime/text_input_client.h"
+#include "ui/base/window_open_disposition.h"
 #include "ui/display/screen.h"
 #include "ui/events/event_constants.h"
 #include "url/gurl.h"
@@ -8224,8 +8225,7 @@ FrameTreeNode* RenderFrameHostImpl::FindAndVerifyChildInternal(
 }
 
 void RenderFrameHostImpl::UpdateTitle(
-    const std::optional<::std::u16string>& title,
-    base::i18n::TextDirection title_direction) {
+    const std::optional<std::u16string>& title) {
   // This message should only be sent for top-level frames. Suppress title
   // updates if the message was sent for a discarded document.
   if (!is_main_frame() || document_associated_data_->is_discarded()) {
@@ -8242,12 +8242,12 @@ void RenderFrameHostImpl::UpdateTitle(
     return;
   }
 
-  delegate_->UpdateTitle(this, received_title, title_direction);
+  delegate_->UpdateTitle(this, received_title);
 }
 
 // Update application title.
 void RenderFrameHostImpl::UpdateApplicationTitle(
-    const ::std::u16string& application_title) {
+    const std::u16string& application_title) {
   delegate_->UpdateApplicationTitle(this, application_title);
 }
 
@@ -9941,6 +9941,15 @@ void RenderFrameHostImpl::CreateNewWindow(
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   TRACE_EVENT2("navigation", "RenderFrameHostImpl::CreateNewWindow",
                "render_frame_host", this, "url", params->target_url);
+
+  // Filter out invalid UNKNOWN disposition to prevent renderer-triggered
+  // browser crashes.
+  if (params->disposition == WindowOpenDisposition::UNKNOWN) {
+    bad_message::ReceivedBadMessage(
+        GetProcess(), bad_message::RFH_CREATE_NEW_WINDOW_INVALID_DISPOSITION);
+    std::move(callback).Run(mojom::CreateNewWindowStatus::kBlocked, nullptr);
+    return;
+  }
 
   // Only top-most frames can open picture-in-picture windows.
   if (params->disposition == WindowOpenDisposition::NEW_PICTURE_IN_PICTURE &&
@@ -11685,8 +11694,17 @@ CanCommitStatus RenderFrameHostImpl::CanCommitOriginAndUrl(
   // URL which is not allowed in a WebUI process. As we are at the commit stage,
   // set OriginIsolationRequest to kNone (this is implicitly done by the
   // UrlInfoInit constructor).
+  UrlInfo url_info(
+      UrlInfoInit(url)
+          .WithOrigin(origin)
+          .WithStoragePartitionConfig(
+              GetSiteInstance()->GetSiteInfo().storage_partition_config())
+          .WithWebExposedIsolationInfo(
+              GetSiteInstance()->GetWebExposedIsolationInfo())
+          .WithSandbox(is_sandboxed)
+          .WithIsPdf(is_pdf));
   if (!Navigator::CheckWebUIRendererDoesNotDisplayNormalURL(
-          this, UrlInfo(UrlInfoInit(url).WithOrigin(origin).WithIsPdf(is_pdf)),
+          this, url_info,
           /*is_renderer_initiated_check=*/true)) {
     return CanCommitStatus::CANNOT_COMMIT_URL;
   }
@@ -11746,14 +11764,7 @@ CanCommitStatus RenderFrameHostImpl::CanCommitOriginAndUrl(
   auto* policy = ChildProcessSecurityPolicyImpl::GetInstance();
   const CanCommitStatus can_commit_status = policy->CanCommitOriginAndUrl(
       GetProcess()->GetDeprecatedID(), GetSiteInstance()->GetIsolationContext(),
-      UrlInfo(
-          UrlInfoInit(url)
-              .WithOrigin(origin)
-              .WithStoragePartitionConfig(
-                  GetSiteInstance()->GetSiteInfo().storage_partition_config())
-              .WithWebExposedIsolationInfo(
-                  GetSiteInstance()->GetWebExposedIsolationInfo())
-              .WithSandbox(is_sandboxed)));
+      url_info);
   if (can_commit_status != CanCommitStatus::CAN_COMMIT_ORIGIN_AND_URL) {
     LogCanCommitOriginAndUrlFailureReason("cpspi_disallowed_commit");
     return can_commit_status;
@@ -11856,7 +11867,7 @@ bool RenderFrameHostImpl::CanSubframeCommitOriginAndUrl(
   const bool is_top_pdf =
       GetMainFrame()->GetSiteInstance()->GetSiteInfo().is_pdf();
   const bool is_top_sandboxed =
-      GetMainFrame()->GetSiteInstance()->GetSiteInfo().is_sandboxed();
+      GetMainFrame()->GetSiteInstance()->GetSecurityPrincipal().IsSandboxed();
 
   return GetMainFrame()->CanCommitOriginAndUrl(
              dest_top_origin, dest_top_url,
@@ -12518,8 +12529,8 @@ void RenderFrameHostImpl::CommitNavigation(
     // both parent and child are sandboxed), or that the two are in different
     // SiteInstances when only the child is sandboxed.
     CHECK(GetSiteInstance() == parent_->GetSiteInstance() ||
-          !parent_->GetSiteInstance()->GetSiteInfo().is_sandboxed() &&
-              GetSiteInstance()->GetSiteInfo().is_sandboxed());
+          !parent_->GetSiteInstance()->GetSecurityPrincipal().IsSandboxed() &&
+              GetSiteInstance()->GetSecurityPrincipal().IsSandboxed());
   }
 
   // If this is an attempt to commit a URL in an incompatible process, capture a
@@ -14580,7 +14591,8 @@ void RenderFrameHostImpl::CreateDedicatedWorkerHostFactory(
           /*creator=*/GetGlobalId(),
           /*ancestor_render_frame_host_id=*/GetGlobalId(), GetStorageKey(),
           isolation_info_, BuildClientSecurityState(),
-          /*creator_coep_reporter=*/coep_reporter),
+          policy_container_host()->policies(),
+          /*creator_coep_reporter=*/coep_reporter, GetNetworkRestrictionsID()),
       std::move(receiver));
 }
 
@@ -15556,7 +15568,7 @@ void RenderFrameHost::LogSandboxedIframesIsolationMetrics() {
     auto* site_instance =
         static_cast<SiteInstanceImpl*>(rfhi->GetSiteInstance());
     DCHECK(site_instance->HasProcess());
-    if (site_instance->GetSiteInfo().is_sandboxed()) {
+    if (site_instance->GetSecurityPrincipal().IsSandboxed()) {
       sandboxed_rphs.insert(site_instance->GetProcess());
     }
   }
@@ -15599,7 +15611,7 @@ void RenderFrameHostImpl::UpdateIsolatableSandboxedIframeTracking(
 
       if (!frame_owner) {
         frame_is_isolatable = false;
-      } else if (GetSiteInstance()->GetSiteInfo().is_sandboxed()) {
+      } else if (GetSiteInstance()->GetSecurityPrincipal().IsSandboxed()) {
         DCHECK(frame_is_isolatable);
       } else if (frame_owner->GetSiteInstance() != GetSiteInstance()) {
         // If this host's SiteInstance isn't already marked as is_sandboxed

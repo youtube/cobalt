@@ -491,6 +491,12 @@ For more settings that use data to improve your Chrome experience, go to <ph nam
       <message name="IDS_SITE_SEARCH_SEARCH_ENGINES_DESCRIPTION" desc="Explanation for 'Search Engines' section">
         To use a search engine other than the default, type its shortcut in the address bar followed by your preferred keyboard shortcut. You can also change your default search engine here.
       </message>
+      <message name="IDS_SITE_SEARCH_SITE_SEARCH_HEADER" desc="Label for 'Site Search' section">
+        Site search
+      </message>
+      <message name="IDS_SITE_SEARCH_SITE_SEARCH_DESCRIPTION" desc="Explanation for 'Site Search' section">
+        To search a specific site or part of Chrome, type its shortcut in the address bar, followed by your preferred keyboard shortcut.
+      </message>
 
 
 
@@ -4435,6 +4441,12 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_MENU_REOPEN_CLOSED_GROUP" desc="Menu item for reopening the last closed tab group.">
         Reopen closed group
       </message>
+      <message name="IDS_MENU_BOOKMARK_ALL_TABS" desc="Menu item for bookmarking all tabs.">
+        Bookmark all tabs
+      </message>
+      <message name="IDS_MENU_PIN_GLIC" desc="Menu item for pinning Gemini button on tab strip.">
+        Pin Gemini
+      </message>
 
       <!-- Bookmarks strings -->
       <message name="IDS_BOOKMARKS" desc="Title of the bookmarks page, which shows a list of the user's bookmarks. [CHAR_LIMIT=18]">
@@ -6527,15 +6539,6 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_NOTIFICATION_PERMISSION_RATIONALE_REJECT_BUTTON_TEXT" desc="The text of the negative button on the notification permission prompt dialog">
         No thanks
       </message>
-      <message name="IDS_NOTIFICATION_PERMISSION_RATIONALE_CONTENT_DESCRIPTION" desc="The content description for the notification permission rationale bottom sheet. Read as accessibility string when tapping on the bottom sheet.">
-        Notification permission flow
-      </message>
-      <message name="IDS_NOTIFICATION_PERMISSION_RATIONALE_OPENED_FULL" desc="The accessibility string read when the notification permission rationale bottom sheet is fully opened.">
-        Notification permission flow opened at full height
-      </message>
-      <message name="IDS_NOTIFICATION_PERMISSION_RATIONALE_CLOSED_DESCRIPTION" desc="The accessibility string read when the notification permission rationale bottom sheet is closed.">
-        Notification permission flow closed
-      </message>
 
       <!-- Notification Trampoline Toast Messages-->
       <message name="IDS_NOTIFICATION_TRAMPOLINE_TOAST_MESSAGE" desc="A short message that was shown when a notification is clicked while Chrome is in background waiting to be launched.">
@@ -7427,6 +7430,9 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_TIPS_PROMO_BOTTOM_SHEET_POSITIVE_BUTTON_TEXT_LENS" desc="Button text for the Tips Promo bottom sheet to open Google Lens.">
         Open Google Lens
       </message>
+      <message name="IDS_TIPS_PROMO_BOTTOM_SHEET_POSITIVE_BUTTON_TEXT_NOOP" desc="Button text for the Tips Promo bottom sheet to exit without action.">
+        Got it
+      </message>
       <message name="IDS_TIPS_PROMO_BOTTOM_SHEET_NEGATIVE_BUTTON_TEXT" desc="Button text for the Tips Promo bottom sheet to go to an education page on the tip feature usage.">
         Show me how
       </message>
@@ -7453,6 +7459,12 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       </message>
       <message name="IDS_TIPS_PROMO_BOTTOM_SHEET_DESCRIPTION_BOTTOM_OMNIBOX" desc="Description of the Bottom Omnibox feature tip main page promo.">
         Switch the position of your address bar to the top or bottom for a customized browsing experience
+      </message>
+      <message name="IDS_TIPS_PROMO_BOTTOM_SHEET_TITLE_PASSWORD_AUTOFILL" desc="Title of the Password Autofill feature tip main page promo. [CHAR_LIMIT=32]">
+        Autofill your passwords
+      </message>
+      <message name="IDS_TIPS_PROMO_BOTTOM_SHEET_DESCRIPTION_PASSWORD_AUTOFILL" desc="Description of the Password Autofill feature tip main page promo.">
+        Create, save, and manage your passwords so you can easily sign in to sites and apps using Chrome
       </message>
       <message name="IDS_TIPS_PROMO_BOTTOM_SHEET_FIRST_STEP_ESB" desc="Description of the Enhanced Safe Browsing feature tip first step detail page promo.">
         Open Chrome menu > Settings
@@ -7489,6 +7501,15 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       </message>
       <message name="IDS_TIPS_PROMO_BOTTOM_SHEET_THIRD_STEP_BOTTOM_OMNIBOX" desc="Description of the Bottom Omnibox feature tip third step detail page promo.">
         Choose your preferred position
+      </message>
+      <message name="IDS_TIPS_PROMO_BOTTOM_SHEET_FIRST_STEP_PASSWORD_AUTOFILL" desc="Description of the Password Autofill feature tip first step detail page promo.">
+        Sign in to a website
+      </message>
+      <message name="IDS_TIPS_PROMO_BOTTOM_SHEET_SECOND_STEP_PASSWORD_AUTOFILL" desc="Description of the Password Autofill feature tip second step detail page promo.">
+        Chrome will offer to save your password
+      </message>
+      <message name="IDS_TIPS_PROMO_BOTTOM_SHEET_THIRD_STEP_PASSWORD_AUTOFILL" desc="Description of the Password Autofill feature tip third step detail page promo.">
+        Tap Save to easily access this password the next time you sign in
       </message>
       <message name="IDS_TIPS_PROMO_BOTTOM_SHEET_TITLE_QUICK_DELETE_SHORT" desc="Title of the Quick Delete feature tip detail page promo. [CHAR_LIMIT=32]">
         Quickly delete browsing data
@@ -7540,6 +7561,43 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <!-- Document Picture-in-Picture -->
       <message name="IDS_DOCUMENT_PICTURE_IN_PICTURE_BACK_TO_TAB" desc="Content description for the back to tab button in the document picture-in-picture window header.">
         Back to tab
+      </message>
+
+      <!-- Tab Bottom Sheet Strings TODO(crbug.com/483420685): Move strings to somewhere better-->
+      <message name="IDS_TAB_BOTTOM_SHEET_CLOSED" desc="The announcement when the Tab Bottom Sheet is closed.">
+        Tab Bottom Sheet changes closed.
+      </message>
+      <message name="IDS_TAB_BOTTOM_SHEET_HALF_HEIGHT" desc="The announcement when the Tab Bottom Sheet is opened to half height.">
+        Tab Bottom Sheet at half height.
+      </message>
+      <message name="IDS_TAB_BOTTOM_SHEET_FULL_HEIGHT" desc="The announcement when the Tab Bottom Sheet is opened to full height.">
+        Tab Bottom Sheet at full height
+      </message>
+
+      <!-- Chrome Finds -->
+      <message name="IDS_CHROME_FINDS_OPT_IN_BOTTOM_SHEET_TITLE" desc="Title of the Chrome Finds opt-in bottom sheet promo. [CHAR_LIMIT=32]">
+        Let Chrome keep looking?
+      </message>
+      <message name="IDS_CHROME_FINDS_OPT_IN_BOTTOM_SHEET_DESCRIPTION" desc="Description of the Chrome Finds opt-in bottom sheet promo.">
+        Get notified when Chrome finds the best results for your searches while you\u2019re away.
+      </message>
+      <message name="IDS_CHROME_FINDS_OPT_IN_BOTTOM_SHEET_POSITIVE_BUTTON_TEXT" desc="Button text for the Chrome Finds opt-in bottom sheet to accept notifications. [CHAR_LIMIT=32]">
+        Notify me
+      </message>
+      <message name="IDS_CHROME_FINDS_OPT_IN_BOTTOM_SHEET_NEGATIVE_BUTTON_TEXT" desc="Button text for the Chrome Finds opt-in bottom sheet to reject notifications. [CHAR_LIMIT=32]">
+        No, thanks
+      </message>
+      <message name="IDS_CHROME_FINDS_OPT_IN_BOTTOM_SHEET_CONTENT_DESCRIPTION" desc="Content description of the Chrome Finds opt-in bottom sheet informing the user on what Chrome Finds is and asking whether to opt-in.">
+        Chrome Finds opt-in bottom sheet
+      </message>
+      <message name="IDS_CHROME_FINDS_OPT_IN_BOTTOM_SHEET_CLOSED_CONTENT_DESCRIPTION" desc="Content description of the Chrome Finds opt-in bottom sheet when closed.">
+        Chrome Finds opt-in closed
+      </message>
+      <message name="IDS_CHROME_FINDS_OPT_IN_BOTTOM_SHEET_HALF_HEIGHT_CONTENT_DESCRIPTION" desc="Content description of the Chrome Finds opt-in bottom sheet when opened at half height.">
+        Chrome Finds opt-in opened at half height
+      </message>
+      <message name="IDS_CHROME_FINDS_OPT_IN_BOTTOM_SHEET_FULL_HEIGHT_CONTENT_DESCRIPTION" desc="Content description of the Chrome Finds opt-in bottom sheet when opened at full height.">
+        Chrome Finds opt-in opened at full height
       </message>
     </messages>
   </release>

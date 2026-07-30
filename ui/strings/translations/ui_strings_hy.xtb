@@ -20,6 +20,7 @@
 <translation id="1432724887402139994">{SECONDS,plural, =1{1 րոպե առաջ}one{# րոպե առաջ}other{# րոպե առաջ}}</translation>
 <translation id="1450753235335490080">Չհաջողվեց ուղարկել բովանդակությունը (<ph name="CONTENT_TYPE" />)</translation>
 <translation id="1523230076022876491">{MONTHS,plural, =1{1 ամիս առաջ}one{# ամիս առաջ}other{# ամիս առաջ}}</translation>
+<translation id="1591017414891297549">ՆԱԽԱԴԻՏՈՒՄ</translation>
 <translation id="1591184457164800433">{MINUTES,plural, =1{1 րոպե }one{# րոպե }other{# րոպե }}</translation>
 <translation id="1643823602425662293">Ծանուցում</translation>
 <translation id="169515659049020177">Shift</translation>
@@ -85,7 +86,7 @@
 <translation id="3240426699337459095">Հղումը պատճենվեց</translation>
 <translation id="3291688615589870984">{DAYS,plural, =1{1 օր}one{# օր}other{# օր}}</translation>
 <translation id="3295886253693811851">Զանգել հավելվածից</translation>
-<translation id="3306688585798492231">Ներկա­ռուցված էկրան</translation>
+<translation id="3306688585798492231">Ներ­կա­­ռուց­ված էկրան</translation>
 <translation id="335581015389089642">Speech</translation>
 <translation id="3372635229069101468">Սեղմեք <ph name="BEGIN_BOLD" />Մանրամասներ<ph name="END_BOLD" /></translation>
 <translation id="3389286852084373014">Տեքստը չափազանց մեծ է</translation>
@@ -232,6 +233,7 @@
 <translation id="8677655579646609597"><ph name="QUANTITY" /> ԿԲ/վ</translation>
 <translation id="8725488761726303204">ևս <ph name="NUMBER" /> տարր</translation>
 <translation id="8730621377337864115">Պատրաստ է</translation>
+<translation id="8741385002816058621">Սա նախնական տարբերակ է</translation>
 <translation id="8772073294905169192">{HOURS,plural, =1{1 ժ}one{# ժ}other{# ժ}}</translation>
 <translation id="8798099450830957504">Կանխադրված</translation>
 <translation id="8841375032071747811">«Հետ» կոճակ</translation>

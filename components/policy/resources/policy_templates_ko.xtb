@@ -1696,6 +1696,7 @@ URL로 입력된 측정항목 수집이 허용되거나 사용자가 이를 사�
 <translation id="2158741059065130266">정책을 True로 설정하면 <ph name="PRODUCT_OS_NAME" /> Files 앱 사용자에게 휴지통이 표시되며 내 파일 및 다운로드에 속한 파일(사용자가 만든 하위 항목 포함)을 삭제하면 휴지통으로 전송됩니다.
 
       정책을 False로 설정하면 휴지통에 있던 파일을 내 파일 또는 다운로드에서 계속 접근할 수 있게 됩니다. 숨겨진 파일을 표시하고 내 파일 또는 다운로드의 .Trash 디렉터리를 찾으면 됩니다.</translation>
+<translation id="215891883000260452">특정 출처에 대해 WebRTC 진단 로그 수집 사용 설정</translation>
 <translation id="2159092270572925582">차단 가능한(능동) 혼합 콘텐츠(HTTPS 사이트의 HTTP 콘텐츠) 표시를 허용하고 선택적으로 차단 가능한 혼합 콘텐츠 업그레이드를 사용 중지할 사이트를 지정하는 URL 패턴 목록을 설정할 수 있습니다.
 
           정책을 설정하지 않으면 차단 가능한 혼합 콘텐츠는 차단되고 선택적으로 차단 가능한 혼합 콘텐츠는 업그레이드되며 사용자는 예외를 설정해 특정 사이트에서 혼합 콘텐츠를 허용할 수 있습니다.
@@ -1985,6 +1986,7 @@ Chrome 앱은 ID(예: pjkljhegncpnkpknbcohdijeoejaedia)로, Android 앱은 패�
       이 정책은 <ph name="DEFAULT_WEB_USB_GUARD_SETTING_POLICY_NAME" />, <ph name="WEB_USB_ASK_FOR_URLS_POLICY_NAME" />, <ph name="WEB_USB_BLOCKED_FOR_URLS_POLICY_NAME" />, 사용자의 환경설정보다 우선 적용됩니다.
 
       이 정책은 WebUSB API를 통한 USB 기기 액세스에만 영향을 미칩니다. Web Serial API를 통한 USB 기기 액세스 권한을 부여하려면 <ph name="SERIAL_ALLOW_USB_DEVICES_FOR_URLS_POLICY_NAME" /> 정책을 확인하세요.</translation>
+<translation id="2318353380372431186">IWA 사용자 설치 사용 설정</translation>
 <translation id="2318583605563438459">부모가 감독 대상 계정을 추가하도록 허용</translation>
 <translation id="2326031114717677574">오디오 데이터가 샘플링 및 수집되는 속도입니다. 허용되는 최솟값은 1분입니다.
 
@@ -2168,6 +2170,17 @@ False로 설정하면 개인 정보 보호 화면은 항상 사용 중지됩니�
 <translation id="2466131534462628618">캡티브 포털 승인에서 프록시를 무시함</translation>
 <translation id="2467181864598429837">기본 브라우저 동작</translation>
 <translation id="2467896267442150508">최대 1주일 기간의 시간 간격입니다. 시작 시간이 종료 시간 이후인 경우 간격이 범위를 둘러싼 값으로 설정됩니다.</translation>
+<translation id="2475594733565572760">이 정책은 적용 범위 내의 모든 생성형 AI 기능에 대한 기본 설정을 정의합니다. 예를 들어 정책이 값 1로 설정되면 모든 적용되는 생성형 AI 기능의 기본 설정이 1이 됩니다. 수동으로 설정된 정책 값에는 영향을 미치지 않습니다. 이 설정은 Chrome의 적용 범위에 해당하는 생성형 AI 기능의 기본값을 정의합니다. 적용되는 기능 목록은 https://support.google.com/chrome/a?p=generative_ai_settings를 참고하세요.
+
+<ph name="GEMINI_SETTINGS_POLICY_NAME" /> 정책과 같은 일부 정책은 '허용' 및 '허용 안함' 상태만 지원합니다. 이 경우 <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> 정책을 0 또는 1로 설정하면 이 기능이 사용 설정됩니다. <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> 정책을 2로 설정하면 이 기능이 사용 중지됩니다. 각 기능의 문서에는 이 정책의 값과 상호작용하는 방식에 관한 자세한 내용이 포함되어 있습니다(예: Chrome의 Gemini - https://support.google.com/chrome/a/?p=gemini_in_chrome). 이러한 기능에는 자체 보증 또는 서비스 약관 (https://support.google.com/chrome/a/?p=genai_features_chrome)이 적용되므로 Chrome의 Gemini, Google 렌즈, AI 모드 기능에 적용됩니다.
+
+0 = 이 기능을 사용하도록 허용하면서 Google에서 관련 데이터를 사용하여 AI 모델을 개선하도록 허용합니다. 관련 데이터에는 기능에 따라 프롬프트나 입력, 출력, 소스 자료, 서면 의견이 포함될 수 있습니다. AI 모델을 개선하기 위해 사람이 데이터를 검토할 수도 있습니다. 아래에 명시된 경우를 제외하고 0이 기본값입니다.
+
+1 = 기능을 사용하도록 허용하되 Google에서 사용자 콘텐츠(프롬프트, 입력, 출력, 소스 자료, 서면 의견 등)를 사용하여 모델을 개선하도록 허용하지 않습니다. 1은 <ph name="GOOGLE_ADMIN_CONSOLE_PRODUCT_NAME" />에서 관리되는 기업 사용자 및 <ph name="GOOGLE_WORKSPACE_PRODUCT_NAME" />에서 관리되는 Education 계정의 기본값입니다.
+
+2 = 기능을 허용하지 않습니다.
+
+생성형 AI 기능의 데이터 처리에 관한 자세한 내용은 https://support.google.com/chrome/a?p=generative_ai_settings 페이지를 참고하세요.</translation>
 <translation id="2476249479201711962">기본 검색 제공업체 컨텍스트 메뉴에 대한 액세스 허용</translation>
 <translation id="2478756867046106663">악의적 사용자 환경이 포함된 사이트에서 새 창 또는 탭 열기 허용</translation>
 <translation id="2479760962196319822">이 정책은 <ph name="PRODUCT_OS_NAME" /> 사용자가 데이터를 로컬로 저장할 수 있는지 제어합니다.
@@ -2518,6 +2531,13 @@ Chrome에서 퍼스트 파티 세트 관련 통합을 지원하는지 제어합�
       참고: M114부터는 특정 키오스크 앱에서 학생 평가와 같은 특수한 사용 사례의 경우 이 정책의 동작을 재정의할 수 있습니다.</translation>
 <translation id="2667894101494585925">최적화 가이드 가져오기를 사용 설정합니다.</translation>
 <translation id="2669157090883237118"><ph name="PRODUCT_OS_NAME" /> 추천 구성 변경 안함</translation>
+<translation id="2669314653349044073">이 정책을 통해 특정 출처에 대한 WebRTC의 진단 로그 수집을 사용 설정할 수 있습니다.
+
+유효한 입력 패턴에 관한 자세한 내용은 https://chromeenterprise.google/policies/url-patterns 페이지를 참고하세요. <ph name="WILDCARD_VALUE" /> 값은 이 정책에 허용되는 값이 아닙니다. 이 정책은 출처만 기준으로 일치 여부를 판단하므로 URL 패턴의 경로는 무시됩니다. 스키마 및 하위 도메인이 지원됩니다.
+
+정책을 설정하면 목록의 패턴과 일치하는 출처에 대해 진단 로그 수집이 사용 설정됩니다.
+
+정책을 설정하지 않으면 진단 로그 수집이 기본적으로 사용 중지됩니다.</translation>
 <translation id="2672012807430078509">SMB 마운트용 인증 프로토콜로 NTLM을 사용할지 여부를 제어합니다.</translation>
 <translation id="2673363037046384711">최종 사용자가 고효율 모드를 사용 또는 사용 중지할 수 있음</translation>
 <translation id="2673968385134502798">게임</translation>
@@ -2625,6 +2645,7 @@ Chrome에서 퍼스트 파티 세트 관련 통합을 지원하는지 제어합�
       사용 중지하면 기본 메시지 호스트가 시스템 수준에서 설치된 경우에만 <ph name="PRODUCT_NAME" />에서 이러한 호스트를 사용할 수 있습니다.</translation>
 <translation id="2753637905605932878">WebRTC가 사용하는 로컬 UDP 포트 범위 제한</translation>
 <translation id="2755847332939882873">시스템 전체의 성능 흔적 수집 허용</translation>
+<translation id="2755963656455766808">사용자가 분리형 웹 앱을 수동으로 설치할 수 있는 기능을 제어합니다.</translation>
 <translation id="2757054304033424106">설치가 허용된 확장 프로그램/앱 유형</translation>
 <translation id="275769337615229465">대부분의 출처는 동일한 사이트의 다른 출처와 격리됩니다.</translation>
 <translation id="2759224876420453487">멀티 프로필 세션에서 사용자 활동 제어</translation>
@@ -4330,6 +4351,7 @@ HTTPS용 RSA 인증서에 두 가지를 모두 포함해야 합니다.</translat
 <translation id="3927291637826333102">출처의 바탕화면, 창, 탭 캡처 허용</translation>
 <translation id="3928726028264020458">기기 VPD 정보 보고 사용 설정</translation>
 <translation id="3935592079035695061">자정부터 경과된 밀리초입니다.</translation>
+<translation id="3937800910397007337">모든 탭에 포그라운드 우선순위 강제 적용</translation>
 <translation id="3941289958028934630">로그인 화면에서 음성 피드백 사용 중지</translation>
 <translation id="3943930334592166130">이 정책은 <ph name="AUTO_SELECT_CERTIFICATE_FOR_URLS_POLICY_NAME" />와 일치하는 인증서가 여러 개일 때 사용자에게 클라이언트 인증서를 선택하라는 메시지를 표시할지 제어합니다.
       정책을 사용으로 설정하면 자동 선택 정책과 일치하는 인증서가 여러 개 있을 때마다 사용자에게 클라이언트 인증서를 선택하라는 메시지가 표시됩니다.
@@ -5728,6 +5750,12 @@ JavaScript 최적화 정책 예외는 사이트 세부사항에서만 시행됩�
        완전한 호스트 일치 또는 모든 도메인 일치를 통해 호스트 이름을 허용할 수 있습니다. 예를 들어, 이 목록에 'foo.example.com' 또는 'example.com'이 포함될 경우 'https://foo.example.com/bar' 같은 URL에는 경고가 표시되지 않을 수 있습니다.</translation>
 <translation id="4852900976354340846">Direct Sockets 설정</translation>
 <translation id="485419696366295465"><ph name="BOREALIS_NAME" /> 하위 시스템과 관련된 정책을 관리합니다.</translation>
+<translation id="4854384393031206645">분리형 웹 앱(IWA)을 수동으로 설치하는 사용자 기능을 제어합니다.
+
+이 정책을 false로 설정하면 IWA 사용자 설치가 차단됩니다.
+
+이 정책을 true로 설정하거나 정책을 설정하지 않으면 IWA 사용자 설치가 허용됩니다.
+</translation>
 <translation id="4855636880814771207">정책을 '사용'으로 설정하거나 설정하지 않으면 사용자가 블루투스를 켜거나 끄도록 허용합니다.
 
       정책을 '사용 안함'으로 설정하면 <ph name="PRODUCT_OS_NAME" />에서 블루투스를 끄며 사용자가 켤 수 없습니다.
@@ -6162,6 +6190,7 @@ https://chromeenterprise.google/policies/url-patterns/ 페이지를 참고하세
       </translation>
 <translation id="5104606191349861549">키보드 단축키(버전 129부터 지원됨)</translation>
 <translation id="5105313908130842249">배터리 전원으로 실행할 때 화면 잠금 지연</translation>
+<translation id="5105593357527099243">IWA 사용자 설치 사용 중지</translation>
 <translation id="510604120100968366">배터리 잔량 낮음 알림음 기능을 켭니다.
 
           이 기능은 배터리 잔량 낮음 알림음을 재생합니다.
@@ -6309,6 +6338,7 @@ https://chromeenterprise.google/policies/url-patterns/ 페이지를 참고하세
       * '보통' - 사용자는 YouTube에서 보통 제한 모드와 엄격 제한 모드만 선택할 수 있지만 제한 모드를 사용 중지할 수는 없습니다.
 
       * '사용 안함' 또는 설정하지 않음 - Chrome에서 YouTube의 제한 모드가 적용되지 않습니다. 하지만 YouTube 정책과 같은 외부 정책에서 제한 모드를 계속 실행할 수 있습니다.</translation>
+<translation id="5191007233343702012">표준 탭 우선순위 지정 사용</translation>
 <translation id="5191476996923842491">setTimeout() 함수의 클램프 기본 동작입니다.</translation>
 <translation id="519247340330463721">세이프 브라우징 관련 정책을 설정합니다.</translation>
 <translation id="5192555640439947289">정책을 사용으로 설정하면 기기가 정지되거나 덮개가 닫혀 있는 경우 <ph name="PRODUCT_OS_NAME" />에서 사용자가 기기를 잠금 해제할 때 비밀번호를 요청합니다.
@@ -6509,6 +6539,13 @@ False로 설정하면 <ph name="PRODUCT_NAME" />에서 시스템 알림을 사�
 <translation id="5303080953475303561">정책을 설정하면 빠른 잠금 해제를 위해 잠금 화면에서 비밀번호를 요청하는 빈도를 제어할 수 있습니다. 선택한 값을 통해 지정된 기간 이전에 마지막 비밀번호 입력이 이루어진 경우 잠금 화면이 표시되었을 때 빠른 잠금 해제를 사용할 수 없습니다. 사용자가 이 시간이 지날 때까지 잠금 화면에 머무르면 다음번에 잘못된 코드를 입력하거나 잠금 화면으로 다시 이동했을 때(둘 중 먼저 발생한 상황에 적용됨) 비밀번호를 입력해야 합니다.
 
       정책을 설정하지 않으면 빠른 잠금 해제를 이용하는 사용자가 잠금 화면에서 매일 비밀번호를 입력해야 합니다.</translation>
+<translation id="530488290401810961"><ph name="PRODUCT_NAME" />에서 기본적인 생성형 AI 모델을 다운로드하고 로컬에서 추론에 사용하는 방법을 구성합니다.
+
+정책을 허용됨(0)으로 설정하거나 설정하지 않으면 모델이 자동으로 다운로드되어 추론에 사용됩니다.
+
+정책을 사용 안함(1)으로 설정하면 모델이 다운로드되지 않으며 기존 모델(이미 다운로드된 경우)이 삭제됩니다.
+
+데스크톱 플랫폼의 경우 <ph name="COMPONENT_UPDATES_ENABLED_POLICY_NAME" />에서 모델 다운로드를 사용 중지할 수도 있습니다.</translation>
 <translation id="5306186200045823863">Symantec Corporation의 Legacy PKI 인프라에서 트러스트를 사용 설정합니다.</translation>
 <translation id="5307432759655324440">시크릿 모드 사용 가능 여부</translation>
 <translation id="5308551343115571396"><ph name="LACROS_NAME" />가 사용 중지되면 최대한 많은 사용자 데이터 유지를 시도하는 동시에 모든 브라우저 데이터를 삭제합니다.</translation>
@@ -6565,6 +6602,22 @@ False로 설정하면 <ph name="PRODUCT_NAME" />에서 시스템 알림을 사�
 <translation id="5345892164332459671">플로팅 SSO를 사용 중지하고 사용자의 웹 서비스 인증을 새 기기로 이동하지 않음</translation>
 <translation id="5345910753471481870">새 탭 페이지의 검색창에 Google 렌즈 버튼을 표시하지 않습니다.</translation>
 <translation id="5346587320074666194">이 사이트에서 센서에 액세스할 수 없도록 차단</translation>
+<translation id="5347735051291224683">이 정책은 백그라운드 웹 콘텐츠를 강제로 포그라운드 우선순위로 실행할지
+제어합니다.
+
+기본적으로 브라우저는 백그라운드 탭의 콘텐츠 우선순위를 낮춰
+리소스를 최적화합니다. 이 정책을 사용 설정하면 해당 동작이 재정의되어
+백그라운드 탭이 활성 탭과 동일한 방식으로 예약됩니다.
+
+백그라운드 콘텐츠를 강제로 포그라운드 우선순위로 실행하도록 설정하면
+활성 탭의 반응 속도가 약간 떨어질 수 있습니다.
+
+이 정책을 '사용'으로 설정하면 모든 웹 콘텐츠가 표시 상태와 관계없이
+포그라운드 우선순위로 실행됩니다.
+
+이 정책을 '사용 안함'으로 설정하거나 설정하지 않으면 브라우저가
+표준 휴리스틱(예: 표시되지 않거나 오디오를 재생하지 않는 콘텐츠, 영상 통화에
+참여 중이 아닌 콘텐츠의 우선순위 낮춤)을 기준으로 우선순위를 정합니다.</translation>
 <translation id="534836255587440809">로그인 화면에서 자동 클릭 사용 안함</translation>
 <translation id="5348658899015174540"><ph name="GET_DISPLAY_MEDIA_SET_NAME" /> API는 웹 애플리케이션에서 한 번에 여러 표시 경로를 캡처하도록 허용합니다.
       이 정책은 정의된 출처에서 웹 애플리케이션에 대한 <ph name="AUTO_SELECT_ALL_SCREENS_NAME" /> 속성을 잠금 해제합니다.

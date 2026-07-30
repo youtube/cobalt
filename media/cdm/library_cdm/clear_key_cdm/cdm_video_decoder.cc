@@ -75,8 +75,8 @@ bool ToCdmVideoFrame(const VideoFrame& video_frame,
                      CdmVideoDecoder::CdmVideoFrame* cdm_video_frame) {
   CHECK(cdm_video_frame);
 
-  if (!video_frame.IsMappable()) {
-    DVLOG(1) << "VideoFrame is not mappable";
+  if (!video_frame.HasDirectCpuAccess()) {
+    DVLOG(1) << "No direct CPU access to VideoFrame";
     return false;
   }
 

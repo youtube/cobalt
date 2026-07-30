@@ -26,9 +26,9 @@
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/service/glic_instance_helper.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
-#include "chrome/browser/ui/tabs/tab_list_interface.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_handle.h"
@@ -528,10 +528,11 @@ void GlicPinnedTabManagerImpl::SendPinCandidatesUpdate() {
 
   std::vector<content::WebContents*> candidates = GetUnsortedPinCandidates();
   GlicPinCandidateComparator comparator(pin_candidates_options_->query);
-  std::sort(candidates.begin(), candidates.end(), std::ref(comparator));
   size_t limit =
       std::min(static_cast<size_t>(pin_candidates_options_->max_candidates),
                candidates.size());
+  std::partial_sort(candidates.begin(), candidates.begin() + limit,
+                    candidates.end(), std::ref(comparator));
   std::vector<mojom::PinCandidatePtr> results;
   for (size_t i = 0; i < limit; ++i) {
     results.push_back(mojom::PinCandidate::New(

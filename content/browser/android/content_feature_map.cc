@@ -8,6 +8,7 @@
 #include "components/input/features.h"
 #include "content/common/features.h"
 #include "content/public/common/content_features.h"
+#include "media/base/media_switches.h"
 #include "third_party/blink/public/common/features.h"
 #include "ui/accessibility/accessibility_features.h"
 
@@ -28,10 +29,12 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &blink::features::kSecurePaymentConfirmationBrowserBoundKeys,
     &blink::features::kSecurePaymentConfirmationUxRefresh,
     &blink::features::kViewportSegments,
+    &media::kAllowDelayedAudioFocusGainAndroid,
     &input::features::kInputOnViz,
     &features::kAndroidCaptureKeyEvents,
     &features::kAndroidCaretBrowsing,
     &features::kAndroidDevToolsFrontend,
+    &features::kAndroidEnableBackgroundMediaCapturing,
     &features::kAccessibilityCheckJavaNodeCacheFreshness,
     &features::kAccessibilityAtomicLiveRegions,
     &features::kAccessibilityDeprecateJavaNodeCache,

@@ -31,7 +31,7 @@
 #ifndef THIRD_PARTY_BLINK_PUBLIC_WEB_WEB_SERIALIZED_SCRIPT_VALUE_H_
 #define THIRD_PARTY_BLINK_PUBLIC_WEB_WEB_SERIALIZED_SCRIPT_VALUE_H_
 
-#include "base/containers/span.h"
+#include "third_party/blink/public/common/messaging/cloneable_message.h"
 #include "third_party/blink/public/platform/web_common.h"
 #include "third_party/blink/public/platform/web_private_ptr.h"
 #include "v8/include/v8-local-handle.h"
@@ -59,11 +59,17 @@ class BLINK_EXPORT WebSerializedScriptValue {
 
   static WebSerializedScriptValue Serialize(v8::Isolate*, v8::Local<v8::Value>);
 
-  static WebSerializedScriptValue Create(base::span<const uint8_t> data);
-
   // Create a WebSerializedScriptValue that represents a serialization error.
   // Use `!IsValid()` to check for this state.
   static WebSerializedScriptValue CreateInvalid();
+
+  // Reconstructs a `WebSerializedScriptValue` from a `CloneableMessage`.
+  static WebSerializedScriptValue CreateFromCloneableMessage(CloneableMessage);
+
+  // Returns a `CloneableMessage` containing the serialized data.
+  // `sender_agent_cluster_id` is set on the CloneableMessage.
+  CloneableMessage GetCloneableMessage(
+      base::UnguessableToken sender_agent_cluster_id) const;
 
   void Reset();
   void Assign(const WebSerializedScriptValue&);
@@ -73,8 +79,6 @@ class BLINK_EXPORT WebSerializedScriptValue {
   // Returns true if the value is valid. Valid means that a
   // `SerializedScriptValue` has been assigned and has wire data.
   bool IsValid() const;
-
-  base::span<const uint8_t> WireData() const;
 
   // Convert the serialized value to a parsed v8 value.
   v8::Local<v8::Value> Deserialize(v8::Isolate*);

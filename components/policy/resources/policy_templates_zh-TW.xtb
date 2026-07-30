@@ -1635,6 +1635,7 @@ Attribution Reporting API 已淘汰，因此這項政策也已在 <ph name="PROD
 
 如果未設定這項政策，就不會傳送受管理裝置的 DNS-over-HTTPS 查詢。如果設定這項政策，瀏覽器可能會將 DNS-over-HTTPS 要求傳送給與使用者所設系統解析器相關聯的解析器。</translation>
 <translation id="2158741059065130266">如果將這項政策設為 True，<ph name="PRODUCT_OS_NAME" />「檔案」應用程式的使用者將可查看垃圾桶中的項目。如果使用者要刪除「我的檔案」及「下載內容」中的檔案 (包括使用者建立的子系)，這些檔案也會傳送到垃圾桶中。如果將這項政策設為 False，使用者仍可查看先前位於垃圾桶中的檔案，方法是顯示隱藏的檔案，並在「我的檔案」或「下載內容」中找出 .Trash 目錄即可。</translation>
+<translation id="215891883000260452">為特定來源啟用 WebRTC 診斷記錄收集功能</translation>
 <translation id="2159092270572925582">你可以設定網址模式清單，指定哪些網站能夠顯示可封鎖的 (即主動) 複合型內容 (亦即 HTTPS 網站上的 HTTP 內容)，並禁止這些網站升級可選擇性封鎖的複合型內容。
 
          如果未設定這項政策，系統會禁止顯示可封鎖的複合型內容，並升級可選擇性封鎖的複合型內容。此外，使用者可以設定例外狀況清單，允許特定網站顯示複合型內容。
@@ -1922,6 +1923,7 @@ Attribution Reporting API 已淘汰，因此這項政策也已在 <ph name="PROD
       這項政策會覆寫 <ph name="DEFAULT_WEB_USB_GUARD_SETTING_POLICY_NAME" />、<ph name="WEB_USB_ASK_FOR_URLS_POLICY_NAME" />、<ph name="WEB_USB_BLOCKED_FOR_URLS_POLICY_NAME" /> 和使用者的偏好設定。
 
       這項政策只會影響透過 WebUSB API 存取 USB 裝置的權限。如要授予透過 Web Serial API 存取 USB 裝置的權限，請參閱 <ph name="SERIAL_ALLOW_USB_DEVICES_FOR_URLS_POLICY_NAME" /> 政策。</translation>
+<translation id="2318353380372431186">啟用 IWA 使用者安裝程式</translation>
 <translation id="2318583605563438459">允許家長新增受監護的帳戶</translation>
 <translation id="2326031114717677574">系統取樣和收集音訊資料的頻率。下限值是 1 分鐘。
 
@@ -2448,6 +2450,13 @@ Attribution Reporting API 已淘汰，因此這項政策也已在 <ph name="PROD
 注意：自 M114 起，特定資訊站應用程式可在特殊用途 (例如學生評量) 情況下覆寫這項政策的行為。</translation>
 <translation id="2667894101494585925">啟用最佳化指南擷取功能</translation>
 <translation id="2669157090883237118">不要變更 <ph name="PRODUCT_OS_NAME" /> 建議設定。</translation>
+<translation id="2669314653349044073">這項政策可針對特定來源啟用 WebRTC 診斷記錄收集功能。
+
+如要進一步瞭解有效的輸入模式，請參閱 https://chromeenterprise.google/policies/url-patterns。<ph name="WILDCARD_VALUE" /> 不是這項政策許可的值。這項政策只會根據來源進行比對，因此會忽略網址模式中的路徑。支援通訊協定和子網域。
+
+如果設定這項政策，與清單中模式相符的來源就會啟用診斷記錄收集功能。
+
+如果未設定這項政策，系統預設會停用診斷記錄收集功能。</translation>
 <translation id="2672012807430078509">控管是否要為 SMB 掛接功能啟用 NTLM 驗證通訊協定</translation>
 <translation id="2673363037046384711">使用者可以啟用或停用高效率模式。</translation>
 <translation id="2673968385134502798">遊戲</translation>
@@ -2554,6 +2563,7 @@ Attribution Reporting API 已淘汰，因此這項政策也已在 <ph name="PROD
       如果設為停用，<ph name="PRODUCT_NAME" /> 只能使用安裝在系統層級的主機。</translation>
 <translation id="2753637905605932878">限制 WebRTC 所使用的本機 UDP 連接埠範圍</translation>
 <translation id="2755847332939882873">允許收集整個系統的效能追蹤記錄</translation>
+<translation id="2755963656455766808">控管使用者是否能手動安裝隔離網頁應用程式</translation>
 <translation id="2757054304033424106">允許安裝的擴充功能/應用程式類型</translation>
 <translation id="275769337615229465">大多數來源都會與同一網站中的其他來源隔離。</translation>
 <translation id="2759224876420453487">控制使用者在多重設定檔工作階段中的行為</translation>
@@ -5523,6 +5533,12 @@ https://developers.google.com/privacy-sandbox/cookies/storage-partitioning。</t
        系統可允許與主機完全相符或網域相符的主機名稱。舉例來說，如果這份清單包含「foo.example.com」或「example.com」，「https://foo.example.com/bar」這類網址可能不會顯示警告訊息。</translation>
 <translation id="4852900976354340846">Direct Sockets 設定</translation>
 <translation id="485419696366295465">控管 <ph name="BOREALIS_NAME" /> 子系統的相關政策。</translation>
+<translation id="4854384393031206645">控管使用者是否能手動安裝隔離網頁應用程式 (IWA)。
+
+如果將這項政策設為「False」，將無法使用 IWA 使用者安裝程式。
+
+如果將這項政策設為「True」或未設定，將可使用 IWA 使用者安裝程式。
+</translation>
 <translation id="4855636880814771207">如果將這項政策設為啟用或不設定，使用者將可開啟或關閉藍牙。
 
        如果將這項政策設為停用，<ph name="PRODUCT_OS_NAME" />會關閉藍牙，且使用者無法開啟。
@@ -5934,6 +5950,7 @@ Protected Audience API 已淘汰，因此這項政策也已在 <ph name="PRODUCT
       </translation>
 <translation id="5104606191349861549">Key Shortcuts (自 129 版開始支援)</translation>
 <translation id="5105313908130842249">在電池供電環境下執行時的螢幕鎖定延遲時間</translation>
+<translation id="5105593357527099243">停用 IWA 使用者安裝程式</translation>
 <translation id="510604120100968366">啟用低電量音效功能。
 
           這項功能可以播放低電量音效。
@@ -6271,6 +6288,13 @@ Protected Audience API 已淘汰，因此這項政策也已在 <ph name="PRODUCT
 <translation id="5303080953475303561">你可以透過這項政策，控管螢幕鎖定畫面要求使用者輸入密碼以快速解鎖的頻率。每當螢幕鎖定畫面顯示時，如果上一次輸入密碼的時間點落在所選值指定的時間範圍之前，裝置將無法快速解鎖。如果使用者停留在螢幕鎖定畫面的時間超過這個時間長度，則下次當他們輸入錯誤的解鎖碼或重新進入螢幕鎖定畫面時 (以先發生者為準)，系統就會要求輸入密碼。
 
       如果不設定這項政策，則使用快速解鎖功能的使用者每天都必須在螢幕鎖定畫面輸入密碼。</translation>
+<translation id="530488290401810961">設定 <ph name="PRODUCT_NAME" /> 如何下載基礎生成式 AI 模型，並在本機用於推論。
+
+如果將這項政策設為允許 (0) 或不設定，系統會自動下載模型並用於推論。
+
+如果將這項政策設為停用 (1)，系統就不會下載模型，並會刪除現有模型 (如果已下載)。
+
+在電腦平台上，<ph name="COMPONENT_UPDATES_ENABLED_POLICY_NAME" /> 也可以停用模型下載功能。</translation>
 <translation id="5306186200045823863">信任 Symantec 公司的舊版 PKI 基礎架構</translation>
 <translation id="5307432759655324440">無痕模式適用性</translation>
 <translation id="5308551343115571396"><ph name="LACROS_NAME" /> 停用後，我們將移除所有瀏覽器資料，但會盡可能嘗試保留使用者資料。</translation>
@@ -6290,7 +6314,6 @@ Protected Audience API 已淘汰，因此這項政策也已在 <ph name="PRODUCT
 <translation id="530949964068726932">隱藏系統匣選單中的無障礙選項</translation>
 <translation id="5309944663104291505">禁止強制安裝的隔離網頁應用程式和資訊站應用程式使用 Device Attributes API</translation>
 <translation id="5311275381462687162">預設的舊版 <ph name="ATTRIBUTE_SAMESITE_NAME" /> Cookie 行為設定</translation>
-<translation id="5311430612584074035">強制將設定檔中所有分頁設為前景優先</translation>
 <translation id="5312253627576569499">如果系統在螢幕調暗時或畫面關閉後不久便偵測到使用者活動，要將螢幕調暗延遲時間延長的百分比</translation>
 <translation id="5316856058059940708">停用大型游標</translation>
 <translation id="5318185076587284965">啟用遠端存取主機所使用的轉送伺服器</translation>

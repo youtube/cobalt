@@ -50,7 +50,7 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
-import org.robolectric.annotation.Config;
+import org.robolectric.shadows.ShadowLooper;
 
 import org.chromium.base.Token;
 import org.chromium.base.test.BaseRobolectricTestRunner;
@@ -1238,13 +1238,9 @@ public class TabContextMenuCoordinatorUnitTest {
                         TAB_OUTSIDE_OF_GROUP_ID,
                         Collections.singletonList(TAB_OUTSIDE_OF_GROUP_ID)));
         StripLayoutContextMenuCoordinatorTestUtils.clickMoveToNewWindow(modelList, 1, mView);
-        verify(mMultiInstanceManager, times(1))
-                .moveTabsToWindow(
-                        /* destWindowId= */ MultiInstanceManager.INVALID_WINDOW_ID,
-                        Collections.singletonList(mTabOutsideOfGroup),
-                        /* destTabIndex= */ TabList.INVALID_TAB_INDEX,
-                        /* destGroupTabId= */ TabList.INVALID_TAB_INDEX,
-                        NewWindowAppSource.MENU);
+        verify(mMultiInstanceManager)
+                .moveTabsToNewWindow(
+                        Collections.singletonList(mTabOutsideOfGroup), NewWindowAppSource.MENU);
     }
 
     @Test
@@ -1269,12 +1265,12 @@ public class TabContextMenuCoordinatorUnitTest {
         StripLayoutContextMenuCoordinatorTestUtils.clickMoveToWindowRow(
                 modelList, 1, WINDOW_TITLE_2, mView);
 
-        verify(mMultiInstanceManager, times(1))
-                .moveTabsToWindow(
-                        INSTANCE_INFO_2,
+        verify(mMultiInstanceManager)
+                .moveTabsToWindowByIdChecked(
+                        INSTANCE_ID_2,
                         Collections.singletonList(mTabOutsideOfGroup),
-                        TabList.INVALID_TAB_INDEX,
-                        NewWindowAppSource.MENU);
+                        /* destTabIndex= */ TabList.INVALID_TAB_INDEX,
+                        /* destGroupTabId= */ TabList.INVALID_TAB_INDEX);
     }
 
     @Test
@@ -1686,8 +1682,6 @@ public class TabContextMenuCoordinatorUnitTest {
         return modelListContents.toString();
     }
 
-    // TODO(crbug.com/450954710): This test fails on SDK 36.
-    @Config(sdk = 29)
     @Test
     @Feature("Tab Strip Context Menu")
     @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
@@ -1706,6 +1700,7 @@ public class TabContextMenuCoordinatorUnitTest {
         var addToGroupItem = modelList.get(0);
         addToGroupItem.model.get(CLICK_LISTENER).onClick(mView);
 
+        ShadowLooper.idleMainLooper();
         // Verify that the top item of the submenu is selected.
         ListView listView =
                 mTabContextMenuCoordinator
@@ -1719,6 +1714,7 @@ public class TabContextMenuCoordinatorUnitTest {
         // Click back to parent menu.
         var headerItem = modelList.get(0);
         headerItem.model.get(CLICK_LISTENER).onClick(mView);
+        ShadowLooper.idleMainLooper();
 
         // Verify that the top item of the parent menu is selected.
         assertEquals(

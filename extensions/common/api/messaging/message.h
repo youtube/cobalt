@@ -6,19 +6,17 @@
 #define EXTENSIONS_COMMON_API_MESSAGING_MESSAGE_H_
 
 #include <string>
+#include <utility>
 #include <variant>
 
 #include "extensions/common/mojom/message_port.mojom-shared.h"
-#include "mojo/public/cpp/base/big_buffer.h"
+#include "third_party/blink/public/common/messaging/cloneable_message.h"
 
 namespace extensions {
 
-// TODO(crbug.com/40321352): `mojo_base::BigBuffer`, by itself, doesn't support
-// JS `Blob`s because it doesn't have the `Blob`'s metadata. Switch to
-// `blink::mojom::CloneableMessage` to get `Blob` support.
-using StructuredCloneMessageWireData = mojo_base::BigBuffer;
+using StructuredCloneMessageData = blink::CloneableMessage;
 // C++ type-safe representation of the `extensions::mojom::MessageData` `union`.
-using MessageData = std::variant<std::string, StructuredCloneMessageWireData>;
+using MessageData = std::variant<std::string, StructuredCloneMessageData>;
 
 // Represents a message sent between extension components, encapsulating the
 // data payload and associated metadata. This class is represented in mojom as
@@ -33,8 +31,8 @@ using MessageData = std::variant<std::string, StructuredCloneMessageWireData>;
 //
 // 2. Structure-cloned data: For complex, non-JSON-serializable objects, this
 //    class can hold data serialized by Blink's `(Web)SerializedScriptValue`.
-//    This wire data is stored in the `structured_data_` member as a
-//    `mojo_base::BigBuffer`, and the `format()` will be
+//    This wire data is stored in the `data_` member as a
+//    `blink::CloneableMessage`, and the `format()` will be
 //    `mojom::SerializationFormat::kStructuredClone`.
 //
 // Metadata:
@@ -54,21 +52,64 @@ class Message {
           mojom::SerializationFormat format,
           bool user_gesture,
           bool from_privileged_context = false);
-  Message(const Message& other);
+  // This class is move-only to:
+  // 1) discourage unintentional copies (messages can be quite large see
+  //    `extensions::mojom::kMaxMessageBytes`).
+  // 2) satisfy `blink::CloneableMessage` (via `StructuredCloneMessageData`)
+  //    which contains move-only resources like
+  //    `mojo::PendingRemote<blink::mojom::Blob>`.
+  Message(const Message&) = delete;
+  Message& operator=(const Message&) = delete;
+
   Message(Message&& other);
   ~Message();
 
-  Message& operator=(const Message& other);
   Message& operator=(Message&& other);
 
-  bool operator==(const Message& other) const;
+  // ALL messaging data cannot be easily compared equally (and due to it's
+  // potential size is not encouraged anyways). A specifically bad example are
+  // JS `Blob`s that use mojom remotes for access to the underlying message
+  // bytes. Pulling the bytes of both objects over mojom to do the comparison is
+  // not efficient.
+  bool operator==(const Message& other) const = delete;
 
-  // TODO(crbug.com/40321352): Merge `data()` and `structured_data()` into
+  // Equality tester for messages.
+  //
+  // NOTE: For messages containing Blobs, this only compares Blob metadata
+  // (UUID, content type, and size) to determine identity, rather than
+  // performing a byte-for-byte comparison of the Blob's content.
+  bool EqualsForTesting(const Message& other) const;
+
+  // Performs a deep copy of the message.
+  //
+  // Note: messages can be large so this should only be called when necessary,
+  // otherwise use `std::move` mechanics to avoid unnecessary copies. However,
+  // in some cases (e.g. `ExtensionMessagePort::DispatchOnMessage`), a single
+  // message needs to be broadcast to multiple listeners/contexts. This method
+  // provides an explicit way to copy the message for such scenarios.
+  Message Clone() const;
+
+  // Moves the underlying `StructuredCloneMessageData` out of this `Message` and
+  // returns it.
+  //
+  // WHY: This is necessary to pass the internal move-only message data (which
+  // includes Mojo handles for Blobs) to Blink APIs (like
+  // `WebSerializedScriptValue`) or other components that expect the
+  // `blink::CloneableMessage` type directly rather than the `Message` wrapper.
+  //
+  // NOTE: This leaves this `Message` object without its underlying message
+  // data. Attempting to access the data after this call will result in a
+  // `CHECK` failure.
+  StructuredCloneMessageData TakeStructuredMessage();
+
+  // TODO(crbug.com/40321352): Merge `data()` and `structured_message()` into
   // `message_data()` once the feature is complete and callers are updated to
   // handle the variant.
   const std::string& data() const;
-  const StructuredCloneMessageWireData& structured_data() const;
+  const StructuredCloneMessageData& structured_message() const;
   const MessageData& message_data() const { return data_; }
+  MessageData& message_data() { return data_; }
+
   mojom::SerializationFormat format() const { return format_; }
   bool user_gesture() const { return user_gesture_; }
   bool from_privileged_context() const { return from_privileged_context_; }

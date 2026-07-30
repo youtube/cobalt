@@ -136,7 +136,7 @@ class UserSessionManager
     // TODO(pmarko): Split this into multiple categories, such as kPolicy,
     // kKioskControl. Consider also adding sentinels automatically and
     // pre-filling these switches from the command-line if the chrome has been
-    // started with the --login-user flag (https://crbug.com/832857).
+    // started with the --login-user flag (https://crbug.com/276837931).
     kPolicyAndKioskControl
   };
 
@@ -293,7 +293,7 @@ class UserSessionManager
   // passed account id. For each type, only the last-set switches will be
   // honored.
   // TODO(pmarko): Introduce a CHECK making sure that `account_id` is the
-  // primary user (https://crbug.com/832857).
+  // primary user (https://crbug.com/276837931).
   void SetSwitchesForUser(const AccountId& account_id,
                           CommandLineSwitchesType switches_type,
                           const std::vector<std::string>& switches);
@@ -608,7 +608,10 @@ class UserSessionManager
 
   scoped_refptr<HatsNotificationController> hats_notification_controller_;
 
-  // Mapped to `chrome::AttemptRestart`, except in tests.
+  // Mapped to `session_manager::SessionManager::Get()->RequestRestart()`,
+  // except in tests.
+  // TODO(crbug.com/479113713): Now we should be able to inject the behavior
+  // at SessionManager.
   base::RepeatingClosure attempt_restart_closure_;
 
   base::flat_set<raw_ptr<Profile, CtnExperimental>>

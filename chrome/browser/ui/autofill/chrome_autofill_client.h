@@ -48,6 +48,8 @@
 #include "chrome/browser/ui/autofill/autofill_field_promo_controller.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
+class ToastController;
+
 namespace optimization_guide {
 class RemoteModelExecutor;
 }
@@ -64,6 +66,10 @@ namespace autofill {
 class AutofillAiSaveUpdateEntityFlowManager;
 class SaveUpdateAddressProfileFlowManager;
 class AutofillMessageController;
+#endif
+
+#if !BUILDFLAG(IS_ANDROID)
+class GlicFormParsingTracker;
 #endif
 
 class AutofillOptimizationGuideDecider;
@@ -241,6 +247,7 @@ class ChromeAutofillClient : public ContentAutofillClient {
       EntityImportPromptResultCallback prompt_result_callback) final;
   void CloseEntityImportBubble() final;
   void ShowAutofillAiLocalSaveNotification() final;
+  void ShowAutofillAiFailureNotification(std::u16string message) final;
   void ShowEmailVerifiedToast() final;
 
   // TODO(crbug.com/407666146): Create a test API.
@@ -292,6 +299,10 @@ class ChromeAutofillClient : public ContentAutofillClient {
  private:
   Profile* GetProfile() const;
   tabs::TabInterface* GetTabInterface();
+
+  // Returns the ToastController for the current tab, if it exists.
+  ToastController* GetToastController();
+
   bool SupportsConsentlessExecution(const url::Origin& origin);
   void ShowAutofillSuggestionsImpl(
       SuggestionUiSessionId session_id,
@@ -365,6 +376,8 @@ class ChromeAutofillClient : public ContentAutofillClient {
   // differently. There can be at most one actor on a given tab. If there is no
   // actor interacting with the current tab it is `std::nullopt`.
   std::optional<actor::TaskId> active_actor_task_;
+
+  std::unique_ptr<GlicFormParsingTracker> glic_form_parsing_tracker_;
 #endif  // BUILDFLAG(IS_ANDROID)
 
   SEQUENCE_CHECKER(sequence_checker_);

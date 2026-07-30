@@ -160,18 +160,12 @@ class PermissionElementBrowserTest : public PermissionElementBrowserTestBase {
  public:
   PermissionElementBrowserTest() {
     feature_list_.InitWithFeatures(
-        {blink::features::kPermissionElement,
+        {blink::features::kGeolocationElement,
          blink::features::kUserMediaElement,
          blink::features::kBypassPepcSecurityForTesting},
         {permissions::features::kPermissionElementPromptPositioning});
   }
 };
-
-IN_PROC_BROWSER_TEST_F(PermissionElementBrowserTest,
-                       RequestInvalidPermissionType) {
-  WaitForDevtoolsIssue("InvalidType");
-  WaitForDevtoolsIssue("GeolocationDeprecated");
-}
 
 IN_PROC_BROWSER_TEST_F(PermissionElementBrowserTest,
                        RequestPermissionDispatchResolveEvent) {
@@ -182,7 +176,8 @@ IN_PROC_BROWSER_TEST_F(PermissionElementBrowserTest,
 
   std::string permission_ids[] = {"geolocation", "microphone", "camera",
                                   "camera-microphone"};
-
+  HostContentSettingsMap* map = HostContentSettingsMapFactory::GetForProfile(
+      Profile::FromBrowserContext(web_contents()->GetBrowserContext()));
   for (const auto& response : responses) {
     permissions::PermissionRequestManager::FromWebContents(web_contents())
         ->set_auto_response_for_test(response);
@@ -191,6 +186,18 @@ IN_PROC_BROWSER_TEST_F(PermissionElementBrowserTest,
       ClickElementWithId(web_contents(), id);
       observer.Wait();
       WaitForPromptActionEvent(id);
+      map->SetContentSettingDefaultScope(
+          embedded_test_server()->base_url(),
+          embedded_test_server()->base_url(),
+          ContentSettingsType::MEDIASTREAM_CAMERA, CONTENT_SETTING_DEFAULT);
+      map->SetContentSettingDefaultScope(embedded_test_server()->base_url(),
+                                         embedded_test_server()->base_url(),
+                                         ContentSettingsType::MEDIASTREAM_MIC,
+                                         CONTENT_SETTING_DEFAULT);
+      map->SetContentSettingDefaultScope(embedded_test_server()->base_url(),
+                                         embedded_test_server()->base_url(),
+                                         ContentSettingsType::GEOLOCATION,
+                                         CONTENT_SETTING_DEFAULT);
     }
   }
 }
@@ -276,15 +283,21 @@ IN_PROC_BROWSER_TEST_F(PermissionElementBrowserTest,
           PermissionManagerFactory::GetForProfile(browser()->profile())
               ->GetPermissionContextForTesting(
                   ContentSettingsType::MEDIASTREAM_CAMERA));
+  camera_permission_context->set_can_request_device_permission_for_test(
+      /*can_request=*/false);
   camera_permission_context->set_has_device_permission_for_test(
       /*has_permission=*/false);
   permission_service.AddPermissionStatusObserver(
       blink::mojom::PermissionName::VIDEO_CAPTURE);
   ClickElementWithId(web_contents(), "camera");
   // Simulate that we accept the device permission request.
+  camera_permission_context->set_can_request_device_permission_for_test(
+      /*can_request=*/true);
   camera_permission_context->set_has_device_permission_for_test(
       /*has_permission=*/true);
   permission_service.WaitForPermissionGranted();
+  camera_permission_context->set_can_request_device_permission_for_test(
+      std::nullopt);
   camera_permission_context->set_has_device_permission_for_test(std::nullopt);
 }
 
@@ -410,7 +423,7 @@ class PermissionElementWithSecurityBrowserTest
     : public PermissionElementBrowserTestBase {
  public:
   PermissionElementWithSecurityBrowserTest() {
-    feature_list_.InitWithFeatures({blink::features::kPermissionElement,
+    feature_list_.InitWithFeatures({blink::features::kGeolocationElement,
                                     blink::features::kUserMediaElement},
                                    {});
   }
@@ -463,14 +476,14 @@ class PermissionElementStandardizedBrowserZoomTest
     // Also enable/disable the StandardizedBrowserZoom feature.
     if (GetParam()) {
       feature_list_.InitWithFeatures(
-          {blink::features::kPermissionElement,
+          {blink::features::kGeolocationElement,
            blink::features::kUserMediaElement,
            blink::features::kBypassPepcSecurityForTesting,
            blink::features::kStandardizedBrowserZoom},
           {});
     } else {
       feature_list_.InitWithFeatures(
-          {blink::features::kPermissionElement,
+          {blink::features::kGeolocationElement,
            blink::features::kUserMediaElement,
            blink::features::kBypassPepcSecurityForTesting},
           {blink::features::kStandardizedBrowserZoom});
@@ -514,7 +527,7 @@ class PermissionElementNearElementBrowserTest
  public:
   PermissionElementNearElementBrowserTest() {
     feature_list_.InitWithFeaturesAndParameters(
-        {{blink::features::kPermissionElement, {}},
+        {{blink::features::kGeolocationElement, {}},
          {blink::features::kUserMediaElement, {}},
          {blink::features::kBypassPepcSecurityForTesting, {}},
          {permissions::features::kPermissionElementPromptPositioning,
@@ -528,7 +541,7 @@ class PermissionElementWindowMiddleBrowserTest
  public:
   PermissionElementWindowMiddleBrowserTest() {
     feature_list_.InitWithFeaturesAndParameters(
-        {{blink::features::kPermissionElement, {}},
+        {{blink::features::kGeolocationElement, {}},
          {blink::features::kUserMediaElement, {}},
          {blink::features::kBypassPepcSecurityForTesting, {}},
          {permissions::features::kPermissionElementPromptPositioning,
@@ -542,7 +555,7 @@ class PermissionElementLegacyPromptBrowserTest
  public:
   PermissionElementLegacyPromptBrowserTest() {
     feature_list_.InitWithFeaturesAndParameters(
-        {{blink::features::kPermissionElement, {}},
+        {{blink::features::kGeolocationElement, {}},
          {blink::features::kUserMediaElement, {}},
          {blink::features::kBypassPepcSecurityForTesting, {}},
          {permissions::features::kPermissionElementPromptPositioning,
@@ -581,7 +594,7 @@ class MiscellaneousElementBrowserTest
  public:
   MiscellaneousElementBrowserTest() {
     feature_list_.InitWithFeatures(
-        {blink::features::kPermissionElement,
+        {blink::features::kGeolocationElement,
          blink::features::kUserMediaElement,
          blink::features::kBypassPepcSecurityForTesting},
         {permissions::features::kPermissionElementPromptPositioning});

@@ -972,7 +972,7 @@ prefs when the profile is loaded.  -->
 <histogram
     name="Signin.BoundSessionCredentials.CookieRotationResult{SessionOrigin}{Trigger}"
     enum="BoundSessionCredentialsCookieRotationResult"
-    expires_after="2026-06-07">
+    expires_after="2026-08-09">
   <owner>alexilin@chromium.org</owner>
   <owner>msalama@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
@@ -1496,6 +1496,19 @@ prefs when the profile is loaded.  -->
   </summary>
 </histogram>
 
+<histogram name="Signin.DiceEnableSyncHeaderAccountInfoIsPresent"
+    enum="BooleanPresent" expires_after="2027-02-11">
+  <owner>ahijazi@chromium.org</owner>
+  <owner>alexilin@chromium.org</owner>
+  <owner>chrome-signin-team@google.com</owner>
+  <summary>
+    Records whether the AccountInfo is Present or Missing when processing a Dice
+    &quot;ENABLE_SYNC&quot; header. Missing AccountInfo can happen during OAuth
+    outages where the previous signin header didn't contain an authorization
+    code.
+  </summary>
+</histogram>
+
 <histogram name="Signin.DiceMigration.ForceMigrated" enum="Boolean"
     expires_after="2026-08-18">
   <owner>ankushkush@google.com</owner>
@@ -1503,116 +1516,6 @@ prefs when the profile is loaded.  -->
   <summary>
     Records whether a user was force migrated out of the DICe state. This is
     recorded once per profile load for all users.
-  </summary>
-</histogram>
-
-<histogram name="Signin.DiceMigration.RestoredFromBackup" enum="Boolean"
-    expires_after="2026-07-30">
-  <owner>ankushkush@google.com</owner>
-  <owner>droger@chromium.org</owner>
-  <summary>
-    Records whether the DICe migration was reverted from a backup upon feature
-    disable. This is recorded once per profile load, only for users who were
-    migrated to explicitly signed-in state with the DICe migration dialog.
-  </summary>
-</histogram>
-
-<histogram name="Signin.DiceMigrationDialog.AccountManagedStatus"
-    enum="AccountManagedStatusFinderOutcome" expires_after="2026-07-30">
-  <owner>ankushkush@google.com</owner>
-  <owner>droger@chromium.org</owner>
-  <summary>
-    Records the outcome of the account managed status finder. This is recorded
-    once per profile load, only for eligible users, after the dialog trigger
-    timer has finished.
-  </summary>
-</histogram>
-
-<histogram name="Signin.DiceMigrationDialog.CloseReason"
-    enum="DiceMigrationDialogCloseReason" expires_after="2026-07-30">
-  <owner>ankushkush@google.com</owner>
-  <owner>droger@chromium.org</owner>
-  <summary>
-    Records the reason why the DICe migration dialog was closed. This is
-    recorded only once per dialog.
-  </summary>
-</histogram>
-
-<histogram name="Signin.DiceMigrationDialog.DaysSinceLastShown" units="days"
-    expires_after="2026-07-30">
-  <owner>ankushkush@google.com</owner>
-  <owner>droger@chromium.org</owner>
-  <summary>
-    Records the number of days between the last time the DICe migration dialog
-    was shown and the current time. This is recorded once per profile load, only
-    for eligible users, that is, implicitly signed-in users and only if the
-    dialog has not been shown the maximum number of times yet.
-  </summary>
-</histogram>
-
-<histogram name="Signin.DiceMigrationDialog.Migrated" enum="Boolean"
-    expires_after="2026-07-30">
-  <owner>ankushkush@google.com</owner>
-  <owner>droger@chromium.org</owner>
-  <summary>
-    Records whether the user was successfully migrated to explicitly signed-in
-    state. This is recorded when an eligible user clicks on the accept button on
-    the migration dialog.
-  </summary>
-</histogram>
-
-<histogram name="Signin.DiceMigrationDialog.NotShownReason"
-    enum="DiceMigrationDialogNotShownReason" expires_after="2026-07-30">
-  <owner>ankushkush@google.com</owner>
-  <owner>droger@chromium.org</owner>
-  <summary>
-    Records the reason why the DICe migration dialog was not shown. This is
-    recorded once per profile load for all users.
-  </summary>
-</histogram>
-
-<histogram name="Signin.DiceMigrationDialog.PreviouslyShownCount" units="count"
-    expires_after="2026-07-30">
-  <owner>ankushkush@google.com</owner>
-  <owner>droger@chromium.org</owner>
-  <summary>
-    Records the number of times the DICe migration dialog has previously been
-    shown. This is recorded once per profile load, only for eligible users, that
-    is, implicitly signed-in users.
-  </summary>
-</histogram>
-
-<histogram name="Signin.DiceMigrationDialog.Shown" enum="Boolean"
-    expires_after="2026-07-30">
-  <owner>ankushkush@google.com</owner>
-  <owner>droger@chromium.org</owner>
-  <summary>
-    Records whether the DICe migration dialog was shown. This is recorded once
-    per profile load, only for users who were eligible for the dialog till the
-    time the timer fired but were not shown the dialog due to, for example,them
-    not being eligible anymore or the browser instance not being available or
-    the avatar button not being shown.
-  </summary>
-</histogram>
-
-<histogram name="Signin.DiceMigrationDialog.TimerStarted" enum="Boolean"
-    expires_after="2026-07-30">
-  <owner>ankushkush@google.com</owner>
-  <owner>droger@chromium.org</owner>
-  <summary>
-    Records whether the timer was started to show the DICe migration dialog.
-    This is recorded once per profile load for all users.
-  </summary>
-</histogram>
-
-<histogram name="Signin.DiceMigrationDialog.ToastTriggered" enum="Boolean"
-    expires_after="2026-07-30">
-  <owner>ankushkush@google.com</owner>
-  <owner>droger@chromium.org</owner>
-  <summary>
-    Records whether the migration confirmation toast was successfully triggered.
-    This is recorded upon a successful migration of eligible users to explicitly
-    signed-in state when they accept the migration dialog.
   </summary>
 </histogram>
 
@@ -2426,16 +2329,6 @@ prefs when the profile is loaded.  -->
   </summary>
 </histogram>
 
-<histogram name="Signin.IsShared{AccountInvestigationReportingType}"
-    enum="BooleanIsShared" expires_after="2024-08-18">
-  <owner>droger@chromium.org</owner>
-  <owner>skym@chromium.org</owner>
-  <summary>
-    Current best guess if this device is shared between multiple users.
-    {AccountInvestigationReportingType}
-  </summary>
-</histogram>
-
 <histogram name="Signin.ListAccountsFailure" enum="GoogleServiceAuthError"
     expires_after="never">
 <!-- expires-never: ListAccounts calls are used to monitor the accounts in the
@@ -2467,7 +2360,7 @@ the browser and content area. -->
 </histogram>
 
 <histogram name="Signin.ListFamilyMembersRequest.OverallLatency" units="ms"
-    expires_after="2026-06-07">
+    expires_after="2026-08-09">
   <owner>tju@google.com</owner>
   <owner>chrome-kids-eng@google.com</owner>
   <summary>
@@ -2490,7 +2383,7 @@ the browser and content area. -->
 </histogram>
 
 <histogram name="Signin.ListFamilyMembersRequest.RetryCount" units="retries"
-    expires_after="2026-06-07">
+    expires_after="2026-08-09">
   <owner>tju@google.com</owner>
   <owner>chrome-kids-eng@google.com</owner>
   <summary>
@@ -3310,7 +3203,7 @@ OAuth Multilogin call. -->
 </histogram>
 
 <histogram name="Signin.SigninManager.SetPrimaryAccountSigninInStage"
-    enum="GaiaIntegrationState" expires_after="2026-06-07">
+    enum="GaiaIntegrationState" expires_after="2026-08-09">
   <owner>droger@chromium.org</owner>
   <owner>anthie@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>

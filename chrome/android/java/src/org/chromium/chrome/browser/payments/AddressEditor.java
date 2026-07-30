@@ -11,16 +11,17 @@ import static org.chromium.chrome.browser.autofill.editors.address.EditorPropert
 import static org.chromium.chrome.browser.autofill.editors.address.EditorProperties.DONE_RUNNABLE;
 import static org.chromium.chrome.browser.autofill.editors.address.EditorProperties.EDITOR_FIELDS;
 import static org.chromium.chrome.browser.autofill.editors.address.EditorProperties.EDITOR_TITLE;
-import static org.chromium.chrome.browser.autofill.editors.address.EditorProperties.ItemType.DROPDOWN;
-import static org.chromium.chrome.browser.autofill.editors.address.EditorProperties.ItemType.NOTICE;
-import static org.chromium.chrome.browser.autofill.editors.address.EditorProperties.ItemType.TEXT_INPUT;
 import static org.chromium.chrome.browser.autofill.editors.address.EditorProperties.VALIDATE_ON_SHOW;
 import static org.chromium.chrome.browser.autofill.editors.address.EditorProperties.VISIBLE;
 import static org.chromium.chrome.browser.autofill.editors.address.EditorProperties.scrollToFieldWithErrorMessage;
 import static org.chromium.chrome.browser.autofill.editors.address.EditorProperties.validateForm;
+import static org.chromium.chrome.browser.autofill.editors.common.EditorComponentsProperties.ItemType.DROPDOWN;
+import static org.chromium.chrome.browser.autofill.editors.common.EditorComponentsProperties.ItemType.NOTICE;
+import static org.chromium.chrome.browser.autofill.editors.common.EditorComponentsProperties.ItemType.TEXT_INPUT;
 import static org.chromium.chrome.browser.autofill.editors.common.EditorComponentsProperties.NoticeProperties.IMPORTANT_FOR_ACCESSIBILITY;
 import static org.chromium.chrome.browser.autofill.editors.common.EditorComponentsProperties.NoticeProperties.NOTICE_ALL_KEYS;
 import static org.chromium.chrome.browser.autofill.editors.common.EditorComponentsProperties.NoticeProperties.NOTICE_TEXT;
+import static org.chromium.chrome.browser.autofill.editors.common.EditorComponentsProperties.NoticeProperties.SHOW_BACKGROUND;
 import static org.chromium.chrome.browser.autofill.editors.common.dropdown_field.DropdownFieldProperties.DROPDOWN_ALL_KEYS;
 import static org.chromium.chrome.browser.autofill.editors.common.dropdown_field.DropdownFieldProperties.DROPDOWN_CALLBACK;
 import static org.chromium.chrome.browser.autofill.editors.common.dropdown_field.DropdownFieldProperties.DROPDOWN_HINT;
@@ -51,8 +52,8 @@ import org.chromium.chrome.browser.autofill.PersonalDataManager;
 import org.chromium.chrome.browser.autofill.PhoneNumberUtil;
 import org.chromium.chrome.browser.autofill.SubKeyRequesterFactory;
 import org.chromium.chrome.browser.autofill.editors.address.EditorDialogViewBinder;
-import org.chromium.chrome.browser.autofill.editors.address.EditorProperties.ItemType;
 import org.chromium.chrome.browser.autofill.editors.common.EditorComponentsProperties.EditorItem;
+import org.chromium.chrome.browser.autofill.editors.common.EditorComponentsProperties.ItemType;
 import org.chromium.chrome.browser.autofill.editors.common.field.EditorFieldValidator;
 import org.chromium.components.autofill.AutofillAddressEditorUiInfo;
 import org.chromium.components.autofill.AutofillAddressUiComponent;
@@ -576,6 +577,7 @@ public class AddressEditor extends EditorBase<AutofillAddress>
                                         NOTICE_TEXT,
                                         mContext.getString(
                                                 R.string.payments_required_field_message))
+                                .with(SHOW_BACKGROUND, false)
                                 // Required fields are indicated by an asterisk (*) and announced
                                 // separately by screen readers. Don't announce the message itself.
                                 .with(IMPORTANT_FOR_ACCESSIBILITY, false)

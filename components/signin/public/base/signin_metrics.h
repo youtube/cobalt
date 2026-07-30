@@ -218,7 +218,7 @@ enum class AccessPoint : int {
   // Access point for the consistency service.
   kAccountConsistencyService = 49,
   // kSearchCompanion = 50, no longer used.
-  // Access point for the IOS Set Up List on the NTP.
+  // Access point for the Set Up List on the NTP (Mobile only).
   kSetUpList = 51,
   // Access point for the local password migration warning on Android.
   // Deprecated: kPasswordMigrationWarningAndroid = 52,
@@ -746,10 +746,6 @@ void LogCookieJarCounts(const int signed_in,
 // account(s) present in the cookie jar.
 void LogAccountRelation(const AccountRelation relation,
                         const ReportingType type);
-
-// Records if the best guess is that this profile is currently shared or not
-// between multiple users.
-void LogIsShared(const bool is_shared, const ReportingType type);
 
 // Records the number of signed-in accounts in the cookie jar for the given
 // (potentially unconsented) primary account type, characterized by sync being

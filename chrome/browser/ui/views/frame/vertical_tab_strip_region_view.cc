@@ -67,6 +67,9 @@ VerticalTabStripRegionView::VerticalTabStripRegionView(
     : browser_view_(browser_view),
       tab_strip_model_(browser_view->browser()->GetTabStripModel()),
       state_controller_(state_controller),
+      hover_card_controller_(
+          std::make_unique<TabHoverCardController>(this,
+                                                   browser_view->browser())),
       resize_animation_(this) {
   // For z-ordering purposes this needs to be on a layer.
   SetPaintToLayer();
@@ -200,7 +203,7 @@ void VerticalTabStripRegionView::InitializeTabStrip() {
   CHECK(!tab_strip_controller_);
   tab_strip_controller_ = std::make_unique<VerticalTabStripController>(
       tab_strip_model, browser_view_, *AddChildView(std::move(drag_handler)),
-      std::move(tab_menu_model_factory));
+      hover_card_controller_.get(), std::move(tab_menu_model_factory));
 
   root_node_->SetController(tab_strip_controller_.get());
 
@@ -328,7 +331,7 @@ const TabRendererData& VerticalTabStripRegionView::GetTabRendererData(
   VerticalTabView* tab_view = views::AsViewClass<VerticalTabView>(node->view());
   CHECK(tab_view);
 
-  return tab_view->tab_data();
+  return tab_view->data();
 }
 
 views::View* VerticalTabStripRegionView::GetTabAnchorViewAt(int tab_index) {
@@ -423,6 +426,15 @@ void VerticalTabStripRegionView::OnResize(int resize_amount,
     new_state.uncollapsed_width = target_collapse_state_.uncollapsed_width;
   }
 
+  if (done_resizing) {
+    base::RecordAction(base::UserMetricsAction(
+        new_state.collapsed ? "VerticalTabs_TabStrip_ResizeToCollapsed"
+                            : "VerticalTabs_TabStrip_ResizeToUncollapsed"));
+    base::UmaHistogramCounts1000(
+        "Tabs.VerticalTabs.TabStripSize",
+        new_state.collapsed ? kCollapsedWidth : new_state.uncollapsed_width);
+  }
+
   UpdateCollapseState(new_state);
 }
 
@@ -440,26 +452,34 @@ bool VerticalTabStripRegionView::IsPositionInWindowCaption(
     return false;
   }
 
+  if (IsHitInView(top_button_container_, point)) {
+    gfx::Point point_in_child = point;
+    views::View::ConvertPointToTarget(this, top_button_container_,
+                                      &point_in_child);
+    return top_button_container_->IsPositionInWindowCaption(point_in_child);
+  }
+
+  if (IsHitInView(bottom_button_container_, point)) {
+    gfx::Point point_in_child = point;
+    views::View::ConvertPointToTarget(this, bottom_button_container_,
+                                      &point_in_child);
+    return bottom_button_container_->IsPositionInWindowCaption(point_in_child);
+  }
+
+  // For any of the other children, absorb the click as non window caption.
   for (views::View* child : children()) {
     if (!child->GetVisible()) {
       continue;
     }
+
     gfx::Point point_in_child = point;
     views::View::ConvertPointToTarget(this, child, &point_in_child);
     if (child->HitTestPoint(point_in_child)) {
-      if (child == top_button_container_) {
-        return top_button_container_->IsPositionInWindowCaption(point_in_child);
-      }
-      if (child == tab_strip_view_) {
-        return tab_strip_view_->IsPositionInWindowCaption(point_in_child);
-      }
-      if (child == bottom_button_container_) {
-        return bottom_button_container_->IsPositionInWindowCaption(
-            point_in_child);
-      }
       return false;
     }
   }
+
+  // If the click doesnt fall under any view,then it counts as window caption.
   return true;
 }
 

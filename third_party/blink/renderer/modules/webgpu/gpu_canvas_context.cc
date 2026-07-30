@@ -261,7 +261,7 @@ GPUCanvasContext::PaintRenderingResultsToSnapshot(
                           ? SkColors::kBlack
                           : SkColors::kTransparent;
     return resource_provider->DoExternalDrawAndSnapshot(
-        [color](MemoryManagedPaintCanvas& canvas) { canvas.clear(color); },
+        [color](cc::PaintCanvas& canvas) { canvas.clear(color); },
         ImageOrientationEnum::kDefault);
   }
 
@@ -919,9 +919,7 @@ bool GPUCanvasContext::CopyTextureToResourceProvider(
   }
 
   gpu::SyncToken sync_token;
-  auto dst_client_si =
-      resource_provider->GetBackingClientSharedImageForExternalWrite(
-          gpu::SharedImageUsageSet(), sync_token);
+  auto dst_client_si = resource_provider->BeginExternalWrite(sync_token);
   if (!dst_client_si) {
     return false;
   }

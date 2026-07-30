@@ -42,7 +42,11 @@ TabSearchPosition GetTabSearchPosition(const Profile* profile) {
     return TabSearchPosition::kVerticalTabstrip;
   }
 
-  static const bool has_tab_search_toolbar_button =
+  if (base::FeatureList::IsEnabled(tabs::kHorizontalTabStripComboButton)) {
+    return TabSearchPosition::kLeadingHorizontalTabstrip;
+  }
+
+  const bool has_tab_search_toolbar_button =
       features::HasTabSearchToolbarButton();
   if (has_tab_search_toolbar_button) {
     return TabSearchPosition::kToolbarButton;

@@ -12,6 +12,7 @@
 #include "cc/cc_export.h"
 #include "cc/debug/debug_colors.h"
 #include "cc/layers/append_quads_context.h"
+#include "cc/layers/append_quads_data.h"
 #include "cc/layers/layer_impl.h"
 #include "cc/layers/solid_color_layer_impl.h"
 #include "cc/tiles/tiling_set_coverage_iterator.h"
@@ -103,19 +104,19 @@ class CC_EXPORT TileBasedLayerImpl : public LayerImpl {
   // Called when AppendQuads() goes through a flow for which behavior is
   // subclass-specific (i.e., not defined in TileBasedLayerImpl::AppendQuads()
   // itself). `quad_offset` is the offset by which appended quads should be
-  // adjusted.
+  // adjusted. The return value is the number of tiles that were determined to
+  // be missing.
   // NOTE: `shared_quad_state` is *not* adjusted by `quad_offset` when passed
   // into this method to allow implementations to operate on the original state
   // (e.g., to locate tiles in layer space). However, it will be properly
   // adjusted before AppendQuads() returns to the caller.
-  virtual void AppendQuadsSpecialization(
-      const AppendQuadsContext& context,
-      viz::CompositorRenderPass* render_pass,
-      AppendQuadsData* append_quads_data,
-      viz::SharedQuadState* shared_quad_state,
-      const Occlusion& scaled_occlusion,
-      const gfx::Vector2d& quad_offset,
-      float max_contents_scale) = 0;
+  virtual int AppendQuadsSpecialization(const AppendQuadsContext& context,
+                                        viz::CompositorRenderPass* render_pass,
+                                        AppendQuadsData* append_quads_data,
+                                        viz::SharedQuadState* shared_quad_state,
+                                        const Occlusion& scaled_occlusion,
+                                        const gfx::Vector2d& quad_offset,
+                                        float max_contents_scale) = 0;
 
   virtual float GetMaximumContentsScaleForUseInAppendQuads() const = 0;
 
@@ -130,6 +131,10 @@ class CC_EXPORT TileBasedLayerImpl : public LayerImpl {
       float ideal_contents_scale) = 0;
 
   virtual float GetIdealContentsScaleKey() const = 0;
+
+  // Called at the end of AppendQuads() to allow subclasses to do any specific
+  // validation desired.
+  virtual void SanityCheckTilingState() const {}
 
   // Appends a solid-color quad with color `color`.
   void AppendSolidQuad(viz::CompositorRenderPass* render_pass,
@@ -284,15 +289,25 @@ void TileBasedLayerImpl<Tiling>::AppendQuads(
   // be considered for removal.
   ClearLastAppendQuadsScales();
 
-  AppendQuadsSpecialization(context, render_pass, append_quads_data,
-                            shared_quad_state, scaled_occlusion, quad_offset,
-                            max_contents_scale);
+  int missing_tile_count = AppendQuadsSpecialization(
+      context, render_pass, append_quads_data, shared_quad_state,
+      scaled_occlusion, quad_offset, max_contents_scale);
+
+  if (missing_tile_count) {
+    append_quads_data->num_missing_tiles += missing_tile_count;
+    append_quads_data->checkerboarded_needs_raster = true;
+    TRACE_EVENT_INSTANT1("cc", "TileBasedLayerImpl::AppendQuads checkerboard",
+                         TRACE_EVENT_SCOPE_THREAD, "missing_tile_count",
+                         missing_tile_count);
+  }
 
   // Adjust shared_quad_state with the quad_offset, since by contract
   // AppendQuadsSpecialization() has adjusted each quad appended by that offset.
   shared_quad_state->quad_to_target_transform.Translate(-quad_offset);
   shared_quad_state->quad_layer_rect.Offset(quad_offset);
   shared_quad_state->visible_quad_layer_rect.Offset(quad_offset);
+
+  SanityCheckTilingState();
 }
 
 template <typename Tiling>

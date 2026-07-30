@@ -11,7 +11,6 @@
 #include <utility>
 
 #include "net/base/features.h"
-#include "net/cookies/canonical_cookie.h"
 #include "services/network/public/cpp/is_potentially_trustworthy.h"
 #include "services/network/public/mojom/restricted_cookie_manager.mojom-blink.h"
 #include "third_party/blink/public/common/features_generated.h"
@@ -69,11 +68,10 @@ network::mojom::blink::CookieManagerGetOptionsPtr ToBackendOptions(
 }
 
 // Returns no value if and only if an exception is thrown.
-std::unique_ptr<net::CanonicalCookie> ToCanonicalCookie(
+network::mojom::blink::RestrictedCanonicalCookieParamsPtr ToCookieParams(
     const KURL& cookie_url,
     const CookieInit* options,
     ExceptionState& exception_state,
-    net::CookieInclusionStatus& status_out,
     ExecutionContext* execution_context) {
   const String& name = options->name();
   const String& value = options->value();
@@ -119,9 +117,9 @@ std::unique_ptr<net::CanonicalCookie> ToCanonicalCookie(
   // Trying to set `__http-` prefixed cookie will be rejected further down by
   // CreateSanitizedCookie regardless of the condition below. Its role is to
   // provide a more meaningful exception message than "Cookie was malformed..".
-  const bool is_http_prefix = name.StartsWithIgnoringASCIICase("__http-");
+  const bool is_http_prefix = name.StartsWithIgnoringAsciiCase("__http-");
   const bool is_host_http_prefix =
-      name.StartsWithIgnoringASCIICase("__host-http-");
+      name.StartsWithIgnoringAsciiCase("__host-http-");
   if (is_http_prefix || is_host_http_prefix) {
     StringBuilder builder;
     UNSAFE_TODO(builder.AppendFormat(
@@ -131,7 +129,7 @@ std::unique_ptr<net::CanonicalCookie> ToCanonicalCookie(
     return nullptr;
   }
   const bool is_host_prefixed_cookie =
-      name.StartsWithIgnoringASCIICase("__host-");
+      name.StartsWithIgnoringAsciiCase("__host-");
   if (!options->domain().IsNull()) {
     if (is_host_prefixed_cookie) {
       exception_state.ThrowTypeError(
@@ -194,43 +192,27 @@ std::unique_ptr<net::CanonicalCookie> ToCanonicalCookie(
     return nullptr;
   }
 
-  net::CookieSameSite same_site;
+  network::mojom::blink::CookieSameSite same_site;
   switch (options->sameSite().AsEnum()) {
     case V8CookieSameSite::Enum::kStrict:
-      same_site = net::CookieSameSite::STRICT_MODE;
+      same_site = network::mojom::blink::CookieSameSite::STRICT_MODE;
       break;
     case V8CookieSameSite::Enum::kLax:
-      same_site = net::CookieSameSite::LAX_MODE;
+      same_site = network::mojom::blink::CookieSameSite::LAX_MODE;
       break;
     case V8CookieSameSite::Enum::kNone:
-      same_site = net::CookieSameSite::NO_RESTRICTION;
+      same_site = network::mojom::blink::CookieSameSite::NO_RESTRICTION;
       break;
   }
 
-  std::optional<net::CookiePartitionKey> cookie_partition_key = std::nullopt;
-  if (options->partitioned()) {
-    // We don't trust the renderer to determine the cookie partition key, so we
-    // use this factory to indicate we are using a temporary value here.
-    cookie_partition_key = net::CookiePartitionKey::FromScript();
-  }
-
-  std::unique_ptr<net::CanonicalCookie> cookie =
-      net::CanonicalCookie::CreateSanitizedCookie(
-          GURL(cookie_url), name.Utf8(), value.Utf8(), domain.Utf8(),
-          path.Utf8(), base::Time() /*creation*/, expiry_time,
-          base::Time() /*last_access*/, true /*secure*/, false /*http_only*/,
-          same_site, net::CookiePriority::COOKIE_PRIORITY_DEFAULT,
-          cookie_partition_key, &status_out);
-
-  // TODO(crbug.com/1310444): Improve serialization validation comments and
-  // associate them with ExceptionState codes.
-  if (!status_out.IsInclude()) {
-    exception_state.ThrowTypeError(
-        "Cookie was malformed and could not be stored, due to problem(s) while "
-        "parsing.");
-  }
-
-  return cookie;
+  return network::mojom::blink::RestrictedCanonicalCookieParams::New(
+      name, value, domain.IsNull() ? "" : domain, path,
+      base::Time() /*creation*/, expiry_time, base::Time() /*last_access*/,
+      true /*secure*/, false /*http_only*/, same_site,
+      network::mojom::blink::CookiePriority::MEDIUM,
+      options->partitioned()
+          ? network::mojom::blink::RestrictedCookiePartition::PARTITIONED
+          : network::mojom::blink::RestrictedCookiePartition::UNPARTITIONED);
 }
 
 const KURL DefaultCookieURL(ExecutionContext* execution_context) {
@@ -595,17 +577,13 @@ ScriptPromise<IDLUndefined> CookieStore::DoWrite(
     return EmptyPromise();
   }
 
-  net::CookieInclusionStatus status;
-  std::unique_ptr<net::CanonicalCookie> canonical_cookie = ToCanonicalCookie(
-      default_cookie_url_, options, exception_state, status, context);
+  network::mojom::blink::RestrictedCanonicalCookieParamsPtr cookie_params =
+      ToCookieParams(default_cookie_url_, options, exception_state, context);
 
-  if (!canonical_cookie) {
+  if (!cookie_params) {
     DCHECK(exception_state.HadException());
     return EmptyPromise();
   }
-  // Since a canonical cookie exists, the status should have no exclusion
-  // reasons associated with it.
-  DCHECK(status.IsInclude());
 
   if (!backend_) {
     exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
@@ -621,10 +599,9 @@ ScriptPromise<IDLUndefined> CookieStore::DoWrite(
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
       script_state, exception_state.GetContext());
   backend_->SetCanonicalCookie(
-      *std::move(canonical_cookie), default_cookie_url_,
-      default_site_for_cookies_, default_top_frame_origin_,
-      context->GetStorageAccessApiStatus(), status, is_ad_tagged,
-      should_apply_devtools_overrides,
+      std::move(cookie_params), default_cookie_url_, default_site_for_cookies_,
+      default_top_frame_origin_, context->GetStorageAccessApiStatus(),
+      is_ad_tagged, should_apply_devtools_overrides,
       BindOnce(&CookieStore::OnSetCanonicalCookieResult,
                WrapPersistent(resolver)));
   return resolver->Promise();
@@ -635,24 +612,30 @@ void CookieStore::OnSetCanonicalCookieResult(
     ScriptPromiseResolver<IDLUndefined>* resolver,
     bool backend_success) {
   if (!backend_success) {
-    resolver->RejectWithDOMException(
-        DOMExceptionCode::kUnknownError,
-        "An unknown error occurred while writing the cookie.");
+    resolver->RejectWithTypeError(
+        "Cookie was malformed and could not be stored, due to problem(s) while "
+        "parsing.");
     return;
   }
   resolver->Resolve();
 }
 
 void CookieStore::StartObserving() {
-  if (change_listener_receiver_.is_bound() || !backend_)
+  auto* execution_context = GetExecutionContext();
+
+  if (change_listener_receiver_.is_bound() || !backend_ ||
+      /* If we don't have permission to access cookies, don't ask
+         RestrictedCookieManager, since that would make it upset to us. */
+      !execution_context->GetSecurityOrigin()->CanAccessCookies()) {
     return;
+  }
 
   // See https://bit.ly/2S0zRAS for task types.
   auto task_runner =
-      GetExecutionContext()->GetTaskRunner(TaskType::kDOMManipulation);
+      execution_context->GetTaskRunner(TaskType::kDOMManipulation);
   backend_->AddChangeListener(
       default_cookie_url_, default_site_for_cookies_, default_top_frame_origin_,
-      GetExecutionContext()->GetStorageAccessApiStatus(),
+      execution_context->GetStorageAccessApiStatus(),
       change_listener_receiver_.BindNewPipeAndPassRemote(task_runner), {});
 }
 

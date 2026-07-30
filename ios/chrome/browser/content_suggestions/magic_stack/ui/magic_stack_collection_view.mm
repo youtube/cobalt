@@ -65,9 +65,7 @@ typedef NSDiffableDataSourceSnapshot<NSString*, MagicStackModule*>
 
   self.view = _collectionView;
 
-  NSArray<UITrait>* traits = TraitCollectionSetForTraits(
-      @[ UITraitPreferredContentSizeCategory.class ]);
-  [self registerForTraitChanges:traits
+  [self registerForTraitChanges:@[ UITraitPreferredContentSizeCategory.class ]
                      withAction:@selector(updateCardHeightOnTraitChange)];
 }
 
@@ -259,6 +257,11 @@ typedef NSDiffableDataSourceSnapshot<NSString*, MagicStackModule*>
     return;
   }
   MagicStackSnapshot* snapshot = [self.diffableDataSource snapshot];
+  // Make sure `item` is the same memory pointer as the old item since UIKit
+  // only considers them as identifiers, so it will just pass the original item
+  // "identifier" into the cellProvider block expecting the logic to fetch the
+  // latest data there.
+  // https://developer.apple.com/documentation/uikit/updating-collection-views-using-diffable-data-sources?language=objc
   [snapshot reconfigureItemsWithIdentifiers:@[ item ]];
   [self.diffableDataSource applySnapshot:snapshot animatingDifferences:NO];
 }

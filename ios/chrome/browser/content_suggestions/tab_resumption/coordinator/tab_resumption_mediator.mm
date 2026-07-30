@@ -48,8 +48,6 @@
 #import "ios/chrome/browser/content_suggestions/tab_resumption/coordinator/tab_resumption_mediator_delegate.h"
 #import "ios/chrome/browser/content_suggestions/tab_resumption/public/tab_resumption_constants.h"
 #import "ios/chrome/browser/content_suggestions/tab_resumption/ui/tab_resumption_commands.h"
-#import "ios/chrome/browser/content_suggestions/tab_resumption/ui/tab_resumption_consumer.h"
-#import "ios/chrome/browser/content_suggestions/tab_resumption/ui/tab_resumption_consumer_source.h"
 #import "ios/chrome/browser/content_suggestions/tab_resumption/ui/tab_resumption_item.h"
 #import "ios/chrome/browser/favicon/model/favicon_loader.h"
 #import "ios/chrome/browser/favicon/model/ios_chrome_favicon_loader_factory.h"
@@ -109,10 +107,6 @@
 #import "ui/base/l10n/l10n_util_mac.h"
 
 namespace {
-
-// Kill switch to disable remote tab resumption.
-BASE_FEATURE(kIOSRemoteTabResumptionKillSwitch,
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // A command line flag to override the default sync threshold.
 const char kTabResumptionThresholdParameter[] = "tab-resumption-sync-threshold";
@@ -359,8 +353,7 @@ class TabResumptionMediatorProxy {
                                      StartSurfaceRecentTabObserving,
                                      SyncedSessionsObserver,
                                      SyncObserverModelBridge,
-                                     TabResumptionCommands,
-                                     TabResumptionConsumerSource>
+                                     TabResumptionCommands>
 // readwrite override.
 @property(nonatomic, strong, readwrite) TabResumptionItem* itemConfig;
 
@@ -423,7 +416,6 @@ class TabResumptionMediatorProxy {
   // Whether the item is currently presented as Top Module by Magic Stack.
   BOOL _currentlyTopModule;
   PrefBackedBoolean* _tabResumptionDisabled;
-  id<TabResumptionConsumer> _consumer;
 }
 
 - (instancetype)
@@ -812,12 +804,14 @@ class TabResumptionMediatorProxy {
       titleWasUpdated:(NSString*)title {
 }
 
-#pragma mark - TabResumptionConsumerSource
-- (void)addConsumer:(id<TabResumptionConsumer>)consumer {
-  _consumer = consumer;
+#pragma mark - Private
+
+// Updates the Tab Resumption card view for the configuration of a given `item`.
+- (void)updateCardWithItem:(TabResumptionItem*)item {
+  [self.itemConfig reconfigureWithItem:item];
+  [self.delegate tabResumptionMediatorDidReconfigureItem];
 }
 
-#pragma mark - Private
 // Fetches the item to display from the model.
 - (void)fetchLastTabResumptionItem {
   if (tab_resumption_prefs::IsTabResumptionDisabled(_profilePrefs)) {
@@ -883,8 +877,6 @@ class TabResumptionMediatorProxy {
       return;
     }
   }
-
-  item.consumerSource = self;
 
   if (commerce::kShopCardVariation.Get().contains(commerce::kShopCardArm3) ||
       commerce::kShopCardVariation.Get() == commerce::kShopCardArm4) {
@@ -1013,8 +1005,7 @@ class TabResumptionMediatorProxy {
                                     forItem:item
                                 updateImage:YES];
               } else {
-                [strongSelf.itemConfig reconfigureWithItem:item];
-                [strongSelf->_consumer shopCardDataCompleted:item];
+                [self updateCardWithItem:item];
               }
             }));
       }));
@@ -1087,8 +1078,7 @@ class TabResumptionMediatorProxy {
   }
   item.contentImage = image;
   if (updateImage) {
-    [self.itemConfig reconfigureWithItem:item];
-    [self->_consumer shopCardDataCompleted:item];
+    [self updateCardWithItem:item];
   } else {
     [self showItem:item];
   }
@@ -1137,8 +1127,7 @@ class TabResumptionMediatorProxy {
 
   // The item is already used by some view, so it cannot be replaced.
   // Instead the existing config must be updated.
-  [self.itemConfig reconfigureWithItem:item];
-  [self.delegate tabResumptionMediatorDidReconfigureItem];
+  [self updateCardWithItem:item];
   [self fetchPriceDropIfApplicable:item];
 }
 

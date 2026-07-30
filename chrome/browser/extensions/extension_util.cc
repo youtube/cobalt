@@ -10,7 +10,6 @@
 #include "base/check_is_test.h"
 #include "base/check_op.h"
 #include "base/command_line.h"
-#include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/extensions/shared_module_service.h"
@@ -41,8 +40,6 @@
 #include "extensions/common/manifest_handlers/incognito_info.h"
 #include "extensions/common/permissions/permissions_data.h"
 #include "extensions/common/switches.h"
-#include "ui/gfx/text_constants.h"
-#include "ui/gfx/text_elider.h"
 #include "url/gurl.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -65,7 +62,7 @@ bool ExtensionsDisabledViaCommandLine(const base::CommandLine& command_line) {
 std::string ReloadExtension(const std::string& extension_id,
                             content::BrowserContext* context) {
   // When we reload the extension the ID may be invalidated if we've passed it
-  // by const ref everywhere. Make a copy to be safe. http://crbug.com/103762
+  // by const ref everywhere. Make a copy to be safe. http://crbug.com/40112884
   std::string id = extension_id;
   ExtensionRegistrar::Get(context)->ReloadExtension(extension_id);
   return id;
@@ -186,12 +183,13 @@ void SetIsIncognitoEnabled(const std::string& extension_id,
     if (extension->location() == mojom::ManifestLocation::kComponent) {
       // This shouldn't be called for component extensions unless it is called
       // by sync, for syncable component extensions.
-      // See http://crbug.com/112290 and associated CLs for the sordid history.
+      // See http://crbug.com/40716400 and associated CLs for the sordid
+      // history.
       bool syncable = sync_helper::IsSyncableComponentExtension(extension);
 #if BUILDFLAG(IS_CHROMEOS)
       // For some users, the file manager app somehow ended up being synced even
-      // though it's supposed to be unsyncable; see crbug.com/576964. If the bad
-      // data ever gets cleaned up, this hack should be removed.
+      // though it's supposed to be unsyncable; see crbug.com/40452071. If the
+      // bad data ever gets cleaned up, this hack should be removed.
       syncable = syncable || extension->id() == file_manager::kFileManagerAppId;
 #endif
       DCHECK(syncable);
@@ -326,21 +324,6 @@ void SetDeveloperModeForProfile(Profile* profile, bool in_developer_mode) {
 
   user_script_manager->SetUserScriptSourceEnabledForExtensions(
       UserScript::Source::kDynamicUserScript, in_developer_mode);
-}
-
-std::u16string GetFixupExtensionNameForUIDisplay(
-    const std::u16string& extension_name) {
-  const size_t extension_name_char_limit =
-      75;  // Extension name char limit on CWS
-  gfx::BreakType break_type = gfx::BreakType::CHARACTER_BREAK;
-  std::u16string fixup_extension_name = gfx::TruncateString(
-      extension_name, extension_name_char_limit, break_type);
-  return fixup_extension_name;
-}
-
-std::u16string GetFixupExtensionNameForUIDisplay(
-    const std::string& extension_name) {
-  return GetFixupExtensionNameForUIDisplay(base::UTF8ToUTF16(extension_name));
 }
 
 void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {

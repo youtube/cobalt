@@ -58,8 +58,9 @@ enum class AccountInPrefState {
   kValid = 0,
   kEmptyAccount = 1,
   kEmptyEmailOrGaiaId = 2,
+  kEmptyAccountId = 3,
 
-  kMaxValue = kEmptyEmailOrGaiaId,
+  kMaxValue = kEmptyAccountId,
 };
 
 // Reads a PNG image from disk and decodes it. If the reading/decoding attempt
@@ -259,7 +260,7 @@ void AccountTrackerService::StopTrackingAccount(
 
 void AccountTrackerService::SetAccountInfoFromUserInfo(
     const CoreAccountId& account_id,
-    const base::DictValue& user_info) {
+    std::optional<AccountInfo> fetched_user_info) {
   DCHECK(accounts_.contains(account_id));
   AccountInfo& account_info = accounts_[account_id];
 
@@ -269,35 +270,36 @@ void AccountTrackerService::SetAccountInfoFromUserInfo(
   } else if (account_info.gaia.empty() || account_info.email.empty()) {
     // This may happen if account capabilities are fetched first.
     state = AccountInPrefState::kEmptyEmailOrGaiaId;
+  } else if (account_info.GetAccountId().empty()) {
+    // Needed to investigate https://crbug.com/483657395.
+    state = AccountInPrefState::kEmptyAccountId;
   }
   base::UmaHistogramEnumeration("Signin.AccountInPref.State", state);
 
-  std::optional<AccountInfo> maybe_account_info =
-      signin::AccountInfoFromUserInfo(user_info);
-  if (maybe_account_info) {
-    DCHECK(!maybe_account_info->gaia.empty());
-    DCHECK(!maybe_account_info->email.empty());
-    maybe_account_info->account_id = PickAccountIdForAccount(
-        maybe_account_info->gaia, maybe_account_info->email);
+  if (fetched_user_info) {
+    DCHECK(!fetched_user_info->gaia.empty());
+    DCHECK(!fetched_user_info->email.empty());
+    fetched_user_info->account_id = PickAccountIdForAccount(
+        fetched_user_info->gaia, fetched_user_info->email);
 
     // Whether the existing account in pref matches the fetched account.
     bool accounts_matching =
-        maybe_account_info->account_id == account_info.account_id;
+        fetched_user_info->account_id == account_info.account_id;
     base::UmaHistogramBoolean("Signin.AccountInPref.MatchingFetchedAccount",
                               accounts_matching);
 
     if (accounts_matching) {
-      account_info.UpdateWith(maybe_account_info.value());
+      account_info.UpdateWith(fetched_user_info.value());
     } else {
       DLOG(ERROR) << "Cannot set account info from user info as account ids "
                      "do not match: existing_account_info = {"
                   << account_info << "} new_account_info = {"
-                  << maybe_account_info.value() << "}";
+                  << fetched_user_info.value() << "}";
     }
   }
 
   // TODO(msarda): Should account update notification be sent if the account was
-  // not updated (e.g. |maybe_account_info|==nullopt)?
+  // not updated (e.g. |fetched_user_info|==nullopt)?
   if (!account_info.gaia.empty()) {
     NotifyAccountUpdated(account_info);
   }
@@ -754,11 +756,15 @@ CoreAccountId AccountTrackerService::PickAccountIdForAccount(
 CoreAccountId AccountTrackerService::SeedAccountInfo(
     const GaiaId& gaia,
     const std::string& email,
-    signin_metrics::AccessPoint access_point) {
+    std::optional<signin_metrics::AccessPoint> access_point) {
   AccountInfo account_info;
   account_info.gaia = gaia;
   account_info.email = email;
-  account_info.access_point = access_point;
+  if (access_point == signin_metrics::AccessPoint::kUnknown) {
+    account_info.access_point = std::optional<signin_metrics::AccessPoint>();
+  } else {
+    account_info.access_point = access_point;
+  }
   CoreAccountId account_id = SeedAccountInfo(account_info);
 
   DVLOG(1) << "AccountTrackerService::SeedAccountInfo"

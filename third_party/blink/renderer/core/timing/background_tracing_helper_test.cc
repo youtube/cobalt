@@ -32,6 +32,10 @@ class BackgroundTracingHelperTest : public testing::Test {
     return BackgroundTracingHelper::SplitMarkNameAndId(mark_name);
   }
 
+  static bool MarkNameIsTrigger(StringView mark_name) {
+    return BackgroundTracingHelper::MarkNameIsTrigger(mark_name);
+  }
+
   static SiteHashSet ParsePerformanceMarkSiteHashes(
       const std::string& allow_list) {
     return BackgroundTracingHelper::ParsePerformanceMarkSiteHashes(allow_list);
@@ -66,11 +70,21 @@ TEST_F(BackgroundTracingHelperTest, MD5Hash32) {
   EXPECT_EQ(kQuickFoxHash, MD5Hash32(kQuickFox));
 }
 
+TEST_F(BackgroundTracingHelperTest, MarkNameIsTrigger) {
+  EXPECT_FALSE(MarkNameIsTrigger(""));
+  EXPECT_FALSE(MarkNameIsTrigger("a"));
+  EXPECT_FALSE(MarkNameIsTrigger("foo"));
+  EXPECT_FALSE(MarkNameIsTrigger("aaaaaaaaa"));
+  EXPECT_FALSE(MarkNameIsTrigger("trigger:"));
+  EXPECT_TRUE(MarkNameIsTrigger("trigger:foo"));
+}
+
 TEST_F(BackgroundTracingHelperTest, GetMarkHashAndSequenceNumber) {
   static constexpr char kNoSuffix[] = "trigger:foo";
   static constexpr char kInvalidSuffix0[] = "trigger:foo_";
   static constexpr char kInvalidSuffix1[] = "trigger:foo123";
   static constexpr char kHasSuffix[] = "trigger:foo_123";
+  static constexpr char kHasBigSuffix[] = "trigger:foo_2147483648";
 
   {
     auto result = SplitMarkNameAndId(kNoSuffix);
@@ -94,6 +108,12 @@ TEST_F(BackgroundTracingHelperTest, GetMarkHashAndSequenceNumber) {
     auto result = SplitMarkNameAndId(kHasSuffix);
     EXPECT_EQ("foo", result.first);
     EXPECT_EQ(123u, result.second);
+  }
+
+  {
+    auto result = SplitMarkNameAndId(kHasBigSuffix);
+    EXPECT_EQ("foo", result.first);
+    EXPECT_EQ(0x80000000, result.second);
   }
 }
 

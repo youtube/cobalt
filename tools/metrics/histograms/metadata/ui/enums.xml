@@ -150,13 +150,6 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//chrome/browser/ui/waap/waap_ui_metrics_service.cc:InitialWebUIView) -->
 
-<enum name="OpenLinkAs">
-  <int value="0" label="Open Link as Profile displayed."/>
-  <int value="1" label="Open Link as Profile clicked."/>
-  <int value="2" label="Open Link in Incognito Window displayed."/>
-  <int value="3" label="Open Link in Incognito Window clicked."/>
-</enum>
-
 <!-- LINT.IfChange(PinInfoBarUserInteraction) -->
 
 <enum name="PinInfoBarUserInteraction">
@@ -380,6 +373,19 @@ chromium-metrics-reviews@google.com.
   </int>
   <int value="3" label="FALLBACKS">
     Call to GetFallbackFonts(...) was required find the appropriate font.
+  </int>
+</enum>
+
+<enum name="SnackbarDismissalReason">
+  <int value="0" label="Unknown"/>
+  <int value="1" label="Action button"/>
+  <int value="2" label="Timeout"/>
+  <int value="3" label="Swipe"/>
+  <int value="4" label="Dismissed by caller"/>
+  <int value="5" label="Replaced by action snackbar"/>
+  <int value="6" label="Others">
+    The snackbar was cleared by other events, such as activity being stopped or
+    manually cleared by the manager.
   </int>
 </enum>
 
@@ -648,26 +654,6 @@ chromium-metrics-reviews@google.com.
   <int value="2136345292" label="/privacy"/>
 </enum>
 
-<enum name="WebUITabStripCloseActions">
-  <int value="0" label="Tap on tab counter"/>
-  <int value="1" label="Tap outside tab strip (deprecated)"/>
-  <int value="2" label="Tab selected in tab strip"/>
-  <int value="3" label="Tap in tab's content area"/>
-  <int value="4"
-      label="Omnibox focused (either by tap or by creating a new tab)"/>
-</enum>
-
-<enum name="WebUITabStripCloseTabActions">
-  <int value="0" label="Tap on close button"/>
-  <int value="1" label="Swiped to close"/>
-</enum>
-
-<enum name="WebUITabStripOpenActions">
-  <int value="0" label="Tap on tab counter"/>
-  <int value="1" label="Dragged open from toolbar"/>
-  <int value="2" label="Tab from other window dragged over toolbar"/>
-</enum>
-
 <enum name="WebUIUrlHashes">
   <int value="-2137891043" label="chrome-untrusted://scanner-feedback/"/>
   <int value="-2117475303" label="chrome://comments-side-panel.top-chrome/"/>
@@ -792,6 +778,7 @@ chromium-metrics-reviews@google.com.
   <int value="-853789543" label="chrome://bluetooth-pairing/"/>
   <int value="-833683433" label="chrome://on-device-internals/"/>
   <int value="-823585847" label="chrome://chrome-signin/"/>
+  <int value="-780324767" label="chrome://webnn-internals/"/>
   <int value="-769094624" label="chrome://borealis-credits/"/>
   <int value="-756514973" label="chrome://version/"/>
   <int value="-753390931" label="chrome://interstitials/"/>

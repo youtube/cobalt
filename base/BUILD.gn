@@ -117,9 +117,12 @@ if (is_fuchsia) {
 
 _build_date_header = "$target_gen_dir/generated_build_date.h"
 
-_enable_code_ordering = is_android && !is_component_build &&
-                        (current_cpu == "arm" || current_cpu == "arm64" ||
-                         current_cpu == "x86" || current_cpu == "x64")
+# mold does not support PROVIDE_HIDDEN.
+# https://github.com/rui314/mold/issues/1055
+_enable_code_ordering =
+    is_android && !is_component_build && experimental_linker_path == "" &&
+    (current_cpu == "arm" || current_cpu == "arm64" || current_cpu == "x86" ||
+     current_cpu == "x64")
 
 if (is_win) {
   # This is in a separate config so the flags can be applied to dependents.
@@ -838,6 +841,7 @@ component("base") {
     "task/thread_pool/worker_thread_observer.h",
     "task/thread_pool/worker_thread_set.cc",
     "task/thread_pool/worker_thread_set.h",
+    "task/thread_type.cc",
     "task/thread_type.h",
     "task/updateable_sequenced_task_runner.h",
     "test/scoped_logging_settings.h",
@@ -5070,6 +5074,7 @@ if (is_android) {
     sources = [ "android/java/src/org/chromium/base/Promise.java" ]
     deps = [
       ":callback_java",
+      ":tasks_java",
       "//third_party/androidx:androidx_annotation_annotation_java",
     ]
   }

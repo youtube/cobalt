@@ -23,7 +23,6 @@
 #include "base/time/time.h"
 #include "chrome/browser/ash/arc/arc_migration_constants.h"
 #include "chrome/browser/ash/login/wizard_controller.h"
-#include "chrome/browser/lifetime/application_lifetime.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/ash/login/login_display_host.h"
 #include "chrome/browser/ui/ash/login/login_feedback.h"
@@ -337,7 +336,7 @@ void EncryptionMigrationScreen::OnRequestRestartOnFailure() {
 void EncryptionMigrationScreen::OnOpenFeedbackDialog() {
   RecordUserChoice(UserChoice::USER_CHOICE_REPORT_AN_ISSUE);
   const std::string description = base::StringPrintf(
-      "Auto generated feedback for http://crbug.com/719266.\n"
+      "Auto generated feedback for http://crbug.com/40519275.\n"
       "(uniquifier:%s)",
       base::NumberToString(base::Time::Now().ToInternalValue()).c_str());
   login_feedback_ = std::make_unique<LoginFeedback>(Profile::FromWebUI(

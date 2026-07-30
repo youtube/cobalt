@@ -9,12 +9,14 @@ import static org.chromium.build.NullUtil.assumeNonNull;
 
 import android.app.Activity;
 import android.graphics.Color;
+import android.os.Bundle;
 import android.view.View;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.activity.result.ActivityResult;
 import androidx.annotation.ColorInt;
 
+import org.chromium.base.Callback;
 import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.base.supplier.SupplierUtils;
 import org.chromium.build.annotations.Initializer;
@@ -124,13 +126,13 @@ public class BottomSheetSigninAndHistorySyncCoordinator extends SigninAndHistory
     public interface Delegate {
 
         /** Called when the whole flow finishes. */
-        void onFlowComplete(SigninAndHistorySyncCoordinator.Result result);
+        default void onFlowComplete(SigninAndHistorySyncCoordinator.Result result) {}
 
         /**
          * Called when the sign-in flow has been undone, executing after the user has been signed
          * out and history sync has been optionally opted out.
          */
-        void onSigninUndone();
+        default void onSigninUndone() {}
     }
 
     /**
@@ -262,7 +264,10 @@ public class BottomSheetSigninAndHistorySyncCoordinator extends SigninAndHistory
         mIsLegacyFlow = true;
 
         profileProviderSupplier.onAvailable(
-                profileProvider -> onProfileAvailable(profileProvider.getOriginalProfile()));
+                profileProvider ->
+                        onProfileAvailable(
+                                profileProvider.getOriginalProfile(),
+                                this::finishLoadingAndSelectSigninFlow));
 
         // TODO(crbug.com/41493768): Implement the loading state UI.
     }
@@ -280,13 +285,22 @@ public class BottomSheetSigninAndHistorySyncCoordinator extends SigninAndHistory
      */
     @Initializer
     public void startSigninFlow(BottomSheetSigninAndHistorySyncConfig config) {
-        // TODO(https://crbug.com/437039516): trigger error UI when sign-in can't be
-        // launched from the sign-in coordinator.
         assert SigninFeatureMap.isEnabled(SigninFeatures.ENABLE_SEAMLESS_SIGNIN);
 
         mConfig = config;
         mDidShowSigninStep = false;
-        assumeNonNull(mProfileSupplier).runSyncOrOnAvailable(this::onProfileAvailable);
+        assumeNonNull(mProfileSupplier)
+                .runSyncOrOnAvailable(
+                        profile -> {
+                            validateProfile(profile);
+                            if (canStartSigninAndHistorySyncOrShowError(
+                                    mActivity,
+                                    profile,
+                                    config.historyOptInMode,
+                                    mSigninAccessPoint)) {
+                                onProfileAvailable(profile, this::finishLoadingAndSelectSigninFlow);
+                            }
+                        });
     }
 
     /**
@@ -303,6 +317,11 @@ public class BottomSheetSigninAndHistorySyncCoordinator extends SigninAndHistory
         if (mHistorySyncCoordinator != null) {
             mHistorySyncCoordinator.destroy();
             mHistorySyncCoordinator = null;
+        }
+
+        if (!mIsLegacyFlow) {
+            assert SigninFeatureMap.isEnabled(SigninFeatures.ENABLE_SEAMLESS_SIGNIN);
+            mActivityResultTracker.unregister(this);
         }
     }
 
@@ -367,9 +386,9 @@ public class BottomSheetSigninAndHistorySyncCoordinator extends SigninAndHistory
                                     return;
                                 }
                                 SigninMetricsUtils.logAddAccountStateHistogram(State.STARTED);
-                                // TODO(https://crbug.com/437039516): Save the config in instance
-                                // state via ActivityResultTracker.
-                                mActivityResultTracker.startActivity(this, intent);
+                                Bundle configBundle =
+                                        SigninAndHistorySyncBundleHelper.getBundle(mConfig);
+                                mActivityResultTracker.startActivity(this, intent, configBundle);
                             });
         } else {
             mActivityDelegate.addAccount();
@@ -467,8 +486,24 @@ public class BottomSheetSigninAndHistorySyncCoordinator extends SigninAndHistory
 
     /** Implements {@link ActivityResultTracker.ResultListener} */
     @Override
-    public void onActivityResult(ActivityResult result) {
-        onAddAccountResult(result.getResultCode(), result.getData());
+    public void onActivityResult(ActivityResult result, @Nullable Bundle savedInstanceData) {
+        if (mConfig == null) {
+            if (savedInstanceData == null) {
+                throw new IllegalStateException(
+                        "mConfig and savedInstanceData shouldn't be both null at this point.");
+            }
+            mConfig = SigninAndHistorySyncBundleHelper.getBottomSheetConfig(savedInstanceData);
+        }
+        assumeNonNull(mProfileSupplier)
+                .runSyncOrOnAvailable(
+                        profile -> {
+                            onProfileAvailable(
+                                    profile,
+                                    (accounts) -> {
+                                        onAddAccountResult(
+                                                result.getResultCode(), result.getData());
+                                    });
+                        });
     }
 
     /** Implements {@link ActivityResultTracker.ResultListener} */
@@ -477,7 +512,8 @@ public class BottomSheetSigninAndHistorySyncCoordinator extends SigninAndHistory
         return assertNonNull(mRegisteredActivityKey);
     }
 
-    private void onProfileAvailable(Profile profile) {
+    private void onProfileAvailable(
+            Profile profile, Callback<List<AccountInfo>> onAccountAvailable) {
         validateProfile(profile);
         mProfile = profile;
         AccountManagerFacadeProvider.getInstance()
@@ -485,7 +521,7 @@ public class BottomSheetSigninAndHistorySyncCoordinator extends SigninAndHistory
                 .then(
                         accounts -> {
                             mFlowInitialized = true;
-                            finishLoadingAndSelectSigninFlow(accounts);
+                            onAccountAvailable.onResult(accounts);
                         });
     }
 
@@ -699,6 +735,10 @@ public class BottomSheetSigninAndHistorySyncCoordinator extends SigninAndHistory
     }
 
     private void notifyAccountAdded(String accountEmail) {
+        if (!mIsLegacyFlow && mSigninBottomSheetCoordinator == null) {
+            showSigninBottomSheet();
+        }
+
         if (mSigninBottomSheetCoordinator != null) {
             mSigninBottomSheetCoordinator.onAccountAdded(accountEmail);
         }

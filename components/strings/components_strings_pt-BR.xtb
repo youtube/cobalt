@@ -184,7 +184,6 @@ Se não fizer isso, a permissão será bloqueada pelas configurações de privac
 <translation id="1289129165308566697">Veja seu histórico em outros dispositivos</translation>
 <translation id="1292571435393770077">Bandeja 16</translation>
 <translation id="1292701964462482250">"Algum software no seu computador está impedindo o Google Chrome de se conectar com segurança à Web" (somente computadores Windows)</translation>
-<translation id="1293154089865862473">Para oferecer essas opções, o conteúdo da página de finalização da compra é compartilhado com o Google. Se quiser ocultar as opções de parcelamento no preenchimento automático, acesse as <ph name="IDS_AUTOFILL_CARD_BNPL_SELECT_PROVIDER_FOOTNOTE_HIDE_OPTION_PAYMENT_SETTINGS_LINK_TEXT" />.</translation>
 <translation id="1293556467332435079">Arquivos</translation>
 <translation id="1293797321964802402">Envelope de 23 cm x 28 cm</translation>
 <translation id="129553762522093515">Fechadas recentemente</translation>
@@ -656,6 +655,7 @@ Se não fizer isso, a permissão será bloqueada pelas configurações de privac
 <translation id="2071156619270205202">Esse não é um número de cartão virtual.</translation>
 <translation id="2071852865256799872">O navegador é gerenciado pela sua organização, e seu perfil é gerenciado por <ph name="PROFILE_DOMAIN" /></translation>
 <translation id="2072011841331007013">Google Jamboard</translation>
+<translation id="2073286362006276165">Informações salvas apenas no dispositivo</translation>
 <translation id="2074733626795553847">Desbloquear <ph name="TOPIC" /></translation>
 <translation id="2074771604462073334">Você visitou</translation>
 <translation id="2078956195623975415">Jogos de música e dança</translation>
@@ -704,6 +704,7 @@ Se não fizer isso, a permissão será bloqueada pelas configurações de privac
 <translation id="2137891579555018930">Aguardando permissão...</translation>
 <translation id="213826338245044447">Favoritos nos Dispositivos Móveis</translation>
 <translation id="2141000681034340397">Editar entrada</translation>
+<translation id="2141475438898772664">Pagar em 4 parcelas ou mensalmente</translation>
 <translation id="2144171668675205303">Nenhum tema ativo</translation>
 <translation id="2145193671493396738">Notícias econômicas</translation>
 <translation id="214556005048008348">Cancelar pagamento</translation>
@@ -1117,13 +1118,13 @@ Se não fizer isso, a permissão será bloqueada pelas configurações de privac
 <translation id="277133753123645258">Método de envio</translation>
 <translation id="277499241957683684">Registro de dispositivo não encontrado</translation>
 <translation id="2775884851269838147">Primeira página de impressão</translation>
+<translation id="277828055419948999">O Chromium poderá preencher campos difíceis que o preenchimento automático padrão não conseguir completar</translation>
 <translation id="2781185443919227679">Praias e ilhas</translation>
 <translation id="2781692009645368755">Google Pay</translation>
 <translation id="2781799097551205934">Preparando o pagamento</translation>
 <translation id="2782088940970074970">Aluguel de carro</translation>
 <translation id="278436560439594386">Aparelhos domésticos</translation>
 <translation id="2784474685437057136">B5 Extra</translation>
-<translation id="2784540996156451674">Para oferecer essas opções, o conteúdo da página de finalização da compra é compartilhado com o Google.</translation>
 <translation id="2784949926578158345">A conexão foi redefinida.</translation>
 <translation id="2786008859124691917">Bicicletas e acessórios</translation>
 <translation id="2792012897584536778">Os administradores deste dispositivo configuraram certificados de segurança que podem permitir que eles vejam o conteúdo dos sites que você visita.</translation>
@@ -2474,6 +2475,7 @@ Se não fizer isso, a permissão será bloqueada pelas configurações de privac
 <translation id="4950898438188848926">Botão de alternância de guia. Pressione Enter para mudar para a guia aberta, <ph name="TAB_SWITCH_FOCUSED_FRIENDLY_MATCH_TEXT" /></translation>
 <translation id="495170559598752135">Ações</translation>
 <translation id="4953689047182316270">Responder a eventos de acessibilidade</translation>
+<translation id="4954505713046251871">Para o recurso dar sugestões e ser aprimorado, o URL e o conteúdo da página são compartilhados com o Google</translation>
 <translation id="4954891067389874142">Salve seu cartão para pagar mais rápido. Os detalhes do cartão são criptografados na Carteira do Google.</translation>
 <translation id="4957080528849277028">Botão "Ver seu histórico do Chrome". Ative para abrir e gerenciar seu histórico de navegação nas configurações do Chrome</translation>
 <translation id="4957781475307065660">{DOMAIN_COUNT,plural, =1{e mais 1 site}one{e mais # site}other{e mais # sites}}</translation>
@@ -2791,6 +2793,7 @@ Se não fizer isso, a permissão será bloqueada pelas configurações de privac
 <translation id="5466018172325111652">Não recebeu o código? <ph name="BEGIN_LINK" />Gerar outro<ph name="END_LINK" /></translation>
 <translation id="5466818462212249084">Apps de pagamento</translation>
 <translation id="5470861586879999274">&amp;Refazer editar</translation>
+<translation id="5471158297908124590">Confirme que é você para editar as formas de pagamento</translation>
 <translation id="5472588168895083535">Rastreamento de mãos bloqueado</translation>
 <translation id="5477756102936130143">Ativar o redirecionamento para apps de pagamento compatíveis</translation>
 <translation id="5479505548832623900">Provavelmente ignoradas pela extensão.</translation>
@@ -2847,6 +2850,7 @@ Se não fizer isso, a permissão será bloqueada pelas configurações de privac
 <translation id="5543564889050342791">Zoológicos, aquários e reservas</translation>
 <translation id="5543722831081909240">180 graus</translation>
 <translation id="5544836308113951378">Cruzeiros e fretes</translation>
+<translation id="5545314360139398232">Vincular <ph name="ISSUER_NAME" /> para pagamento parcelado</translation>
 <translation id="5547939254150808298">Impressão e publicação</translation>
 <translation id="554815783948612276">Provedores de fórum e chat</translation>
 <translation id="5548606607480005320">Confirmação de segurança</translation>
@@ -2868,6 +2872,7 @@ Se não fizer isso, a permissão será bloqueada pelas configurações de privac
 <translation id="5570825185877910964">Proteger conta</translation>
 <translation id="5571083550517324815">Não é possível fazer a retirada nesse endereço. Tente um endereço diferente.</translation>
 <translation id="5572434905385510939">22 x 28 pol.</translation>
+<translation id="5573090972398558474">Sua organização bloqueou esta página no modo de navegação anônima.</translation>
 <translation id="5573641252776268565">Editar passaporte</translation>
 <translation id="5578606540385219379">Provedores de serviços</translation>
 <translation id="5580958916614886209">Verifique o mês de validade e tente novamente</translation>
@@ -3174,6 +3179,7 @@ Se não fizer isso, a permissão será bloqueada pelas configurações de privac
 <translation id="6093795393556121384">Seu cartão foi verificado</translation>
 <translation id="6094253940069566294">Editar veículo</translation>
 <translation id="6094290315941448991">A gravação de tela é desativada pela política do administrador quando há conteúdo protegido visível</translation>
+<translation id="6097297436119286254">Confirme que é você para preencher as informações de pagamento</translation>
 <translation id="6099269767116481177">22 x 29,5 pol.</translation>
 <translation id="6101583188322746099">Serviços de entrega de produtos de mercearia</translation>
 <translation id="6104072995492677441">JIS B6</translation>
@@ -3692,6 +3698,7 @@ Se não fizer isso, a permissão será bloqueada pelas configurações de privac
 <translation id="6926216138694948720">Arte corporal</translation>
 <translation id="692638818576287323">Veículos comerciais</translation>
 <translation id="6927878187051807444">arquivos da câmera e capturas de tela</translation>
+<translation id="6929949393612835405">Fechar e voltar para "<ph name="OPENER_TITLE" />"</translation>
 <translation id="6930607614725241390">Pesquise no painel lateral</translation>
 <translation id="6934236486840930310"><ph name="BEGIN_BOLD" />O mecanismo de pesquisa padrão é o que vai ser usado para pesquisas na Internet, além de servir de base para recursos do Chrome<ph name="END_BOLD" />, como a pesquisa na barra de endereço e em imagens de páginas da Web. Alguns recursos podem ficar indisponíveis se o mecanismo de pesquisa escolhido não tiver suporte para ele.</translation>
 <translation id="6934672428414710184">Este nome é da sua Conta do Google</translation>
@@ -3974,6 +3981,7 @@ Mais detalhes:
 <translation id="7377314930809374926">Indústria da hospitalidade</translation>
 <translation id="7378594059915113390">Controles de mídia</translation>
 <translation id="7378810950367401542">/</translation>
+<translation id="7379321689415048316">O Chrome poderá preencher campos difíceis que o preenchimento automático padrão não conseguir completar</translation>
 <translation id="7380398842872229465">10 x 15 pol.</translation>
 <translation id="7381551826960739226">O preenchimento automático das formas de pagamento está desativado porque este formulário não usa uma conexão segura.</translation>
 <translation id="7388380253839603603">Preços de combustível e abastecimento de veículos</translation>
@@ -4295,6 +4303,7 @@ Mais detalhes:
 <translation id="7844689747373518809">{COUNT,plural, =0{Nenhum}=1{1 app (<ph name="EXAMPLE_APP_1" />)}=2{2 apps (<ph name="EXAMPLE_APP_1" />, <ph name="EXAMPLE_APP_2" />)}one{# app (<ph name="EXAMPLE_APP_1" />, <ph name="EXAMPLE_APP_2" /> <ph name="AND_MORE" />)}other{# apps (<ph name="EXAMPLE_APP_1" />, <ph name="EXAMPLE_APP_2" /> <ph name="AND_MORE" />)}}</translation>
 <translation id="7846161022626028328">Ocorreu um erro. Tente de novo.</translation>
 <translation id="784623644169604270">Nenhuma atividade recente</translation>
+<translation id="7848926355794727168">Navegação automática</translation>
 <translation id="7853222852810008596">A opção "Pague depois" não está disponível nesta moeda</translation>
 <translation id="785476343534277563">Esportes universitários</translation>
 <translation id="7855695075675558090"><ph name="TOTAL_LABEL" /> <ph name="CURRENCY_CODE" /> <ph name="FORMATTED_TOTAL_AMOUNT" /></translation>
@@ -4524,6 +4533,7 @@ Mais detalhes:
 <translation id="8241707690549784388">A página que você está procurando usou as informações inseridas. Voltar à essa página poderá fazer com que todas as ações realizadas antes sejam repetidas. Quer continuar?</translation>
 <translation id="8241712895048303527">Bloquear neste site</translation>
 <translation id="8242426110754782860">Continuar</translation>
+<translation id="824620968958405573">Tarefa de navegação automática</translation>
 <translation id="8246482227229072868">Anéis</translation>
 <translation id="8248406213705193919">Salvar cartão com segurança?</translation>
 <translation id="8249296373107784235">Cancelar</translation>
@@ -4897,6 +4907,7 @@ Mais detalhes:
 <translation id="8858065207712248076">O Chrome recomenda redefinir sua senha de <ph name="BEGIN_BOLD" /><ph name="ORG_NAME" /><ph name="END_BOLD" /> se você a reutilizou em outros sites.</translation>
 <translation id="885906927438988819">Se o endereço estiver correto, <ph name="BEGIN_LINK" />tente executar o Diagnóstico de Rede do Windows<ph name="END_LINK" />.</translation>
 <translation id="8861126751581835107">Artes digitais e fotográficas</translation>
+<translation id="8861482055962701239">Não foi possível salvar essas informações na sua Carteira do Google. Elas foram salvas no Chrome deste dispositivo. Quando você usar a Carteira de novo, o Chrome vai oferecer a opção de salvar essas informações nela.</translation>
 <translation id="8863218129525348270">Para agilizar o pagamento na próxima vez, salve o cartão no seu dispositivo</translation>
 <translation id="8864939224504814334">Ternos e roupas sociais</translation>
 <translation id="8866132857352163524">Trilhas sonoras</translation>
@@ -4922,6 +4933,7 @@ Mais detalhes:
 <translation id="8897428486789851669">Natação</translation>
 <translation id="8899807382908246773">Anúncios invasivos</translation>
 <translation id="8903921497873541725">Aumentar zoom</translation>
+<translation id="8903998444169664879">Confirme que é você para mudar as configurações de pagamento</translation>
 <translation id="890493561996401738">Botão "Remover sugestão", pressione Enter para remover, <ph name="REMOVE_BUTTON_FOCUSED_FRIENDLY_MATCH_TEXT" /></translation>
 <translation id="8910898109640902752">20 x 25 cm</translation>
 <translation id="8914504000324227558">Reiniciar o Google Chrome</translation>

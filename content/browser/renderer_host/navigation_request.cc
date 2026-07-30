@@ -2132,12 +2132,14 @@ NavigationRequest::NavigationRequest(
 
   if (NeedsUrlLoader() && common_params_->url.SchemeIsHTTPOrHTTPS()) {
     if (GetContentClient()->browser()->ShouldPreconnectNavigation(
-            frame_tree_node_->current_frame_host())) {
+            frame_tree_node_->current_frame_host()) &&
+        IsAllowedByConnectionAllowlist()) {
       auto* storage_partition =
           frame_tree_node_->current_frame_host()->GetStoragePartition();
 
-      // TODO(crbug.com/447954811): pass the `network_restrictions_id` from the
-      // caller.
+      // Initiator frame's `network_restriction_id` is not passed because the
+      // preconnection has already been checked against the connection-allowlist
+      // by the `IsAllowedByConnectionAllowlist()` call above.
       storage_partition->GetNetworkContext()->PreconnectSockets(
           1, common_params_->url, network::mojom::CredentialsMode::kInclude,
           GetIsolationInfo().network_anonymization_key(),
@@ -4427,7 +4429,7 @@ UrlInfo NavigationRequest::GetUrlInfo() {
   bool is_eligible_for_sandboxing =
       !GetURL().IsAboutBlank() ||
       (source_site_instance_ &&
-       source_site_instance_->GetSiteInfo().is_sandboxed());
+       source_site_instance_->GetSecurityPrincipal().IsSandboxed());
   if (SiteIsolationPolicy::AreIsolatedSandboxedIframesEnabled() &&
       is_eligible_for_sandboxing) {
     // Determine if the frame has the sandbox flag or not.
@@ -4454,7 +4456,7 @@ UrlInfo NavigationRequest::GetUrlInfo() {
     // flags here, but should still respect the sandbox of the initiator.
     bool should_inherit_initiators_sandbox =
         GetURL().IsAboutBlank() && source_site_instance_ &&
-        source_site_instance_->GetSiteInfo().is_sandboxed();
+        source_site_instance_->GetSecurityPrincipal().IsSandboxed();
 
     // Consider isolating sandboxed frames that won't end up as downloads or
     // 204s.

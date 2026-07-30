@@ -6,6 +6,7 @@ module actor.mojom;
 
 import "mojo/public/mojom/base/time.mojom";
 import "third_party/blink/public/mojom/content_extraction/ai_page_content.mojom";
+import "third_party/blink/public/mojom/content_extraction/script_tools.mojom";
 import "ui/gfx/geometry/mojom/geometry.mojom";
 
 // This interface is meant to largely mirror the
@@ -19,6 +20,10 @@ union ToolTarget {
   // An x,y pair representing a location relative to the origin at the top-left
   // corner of the local root frame (i.e. the blink::WebWidget/RenderWidget). In
   // DIP.
+  //
+  // Note: Renderer-side hit testing uses BlinkSpace (device pixels). This
+  // coordinate is converted via WebFrameWidget::DIPsToBlinkSpace() before
+  // performing a hit test.
   gfx.mojom.Point coordinate_dip;
 };
 
@@ -544,14 +549,36 @@ struct ToolInvocation {
   ObservedToolTarget? observed_target;
 };
 
+// TODO: crbug.com/483074087 - `name` is redundant and should be removed.
 struct ScriptToolResponse {
   // The name and input arguments provided in the script tool action.
   string name;
   string input_arguments;
 
+  // The corresponding tool declaration.
+  blink.mojom.ScriptTool tool;
+
   // The result of executing the action. If not provided, the action resulted in
   // a navigation and the result will be on the next Document.
   string? result;
+};
+
+// Represents the outcome of tool initialization.
+// This union covers three possible outcomes:
+// 1. Success with a target: `success_point` is set to a valid Point.
+// 2. Success without a target: `success_point` is explicitly set to null.
+// 3. Failure: `error_result` is populated.
+union InitializeToolResult {
+  // Populated when the tool is successfully initialized.
+  // Contains the resolved target point in Blink (physical) pixels relative
+  // to the widget's origin.
+  //
+  // NOTE: Not all tools provide a point. In those success cases, this
+  // field will be null.
+  gfx.mojom.Point? success_point;
+
+  // Populated when initialization fails.
+  ActionResult error_result;
 };
 
 struct ActionResult {

@@ -6,6 +6,7 @@ package org.chromium.chrome.browser.educational_tip;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -25,8 +26,9 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
+import org.robolectric.shadows.ShadowLooper;
 
-import org.chromium.base.shared_preferences.SharedPreferencesManager;
+import org.chromium.base.FakeTimeTestRule;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
@@ -35,13 +37,14 @@ import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.magic_stack.ModuleDelegate;
 import org.chromium.chrome.browser.magic_stack.ModuleDelegate.ModuleType;
-import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.setup_list.SetupListManager;
 import org.chromium.chrome.browser.signin.services.IdentityServicesProvider;
 import org.chromium.chrome.browser.sync.SyncServiceFactory;
 import org.chromium.chrome.browser.ui.default_browser_promo.DefaultBrowserPromoUtils;
 import org.chromium.chrome.browser.ui.default_browser_promo.DefaultBrowserPromoUtils.DefaultBrowserPromoTriggerStateListener;
+import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
+import org.chromium.components.browser_ui.bottomsheet.BottomSheetObserver;
 import org.chromium.components.feature_engagement.FeatureConstants;
 import org.chromium.components.feature_engagement.Tracker;
 import org.chromium.components.signin.identitymanager.IdentityManager;
@@ -56,6 +59,7 @@ import org.chromium.ui.shadows.ShadowAppCompatResources;
         shadows = {ShadowAppCompatResources.class})
 public class EducationalTipModuleMediatorUnitTest {
     @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
+    @Rule public FakeTimeTestRule mFakeTime = new FakeTimeTestRule();
 
     private PropertyModel mModel;
     @Mock private ModuleDelegate mModuleDelegate;
@@ -67,11 +71,13 @@ public class EducationalTipModuleMediatorUnitTest {
     @Mock private SyncService mSyncService;
     @Mock private IdentityManager mIdentityManager;
     @Mock private SetupListManager mSetupListManager;
-    private SharedPreferencesManager mPrefsManager;
+    @Mock private BottomSheetController mBottomSheetController;
 
     @Captor
     private ArgumentCaptor<DefaultBrowserPromoTriggerStateListener>
             mDefaultBrowserPromoTriggerStateListener;
+
+    @Captor private ArgumentCaptor<BottomSheetObserver> mBottomSheetObserverCaptor;
 
     SettableMonotonicObservableSupplier<Profile> mProfileSupplier;
     private Context mContext;
@@ -84,9 +90,9 @@ public class EducationalTipModuleMediatorUnitTest {
         when(mActionDelegate.getContext()).thenReturn(mContext);
         mDefaultModuleTypeForTesting = ModuleType.DEFAULT_BROWSER_PROMO;
         TrackerFactory.setTrackerForTests(mTracker);
-        mPrefsManager = ChromeSharedPreferences.getInstance();
         DefaultBrowserPromoUtils.setInstanceForTesting(mMockDefaultBrowserPromoUtils);
         SetupListManager.setInstanceForTesting(mSetupListManager);
+        when(mActionDelegate.getBottomSheetController()).thenReturn(mBottomSheetController);
 
         // Setup for History sync promo
         mProfileSupplier = ObservableSuppliers.createMonotonic();
@@ -261,6 +267,35 @@ public class EducationalTipModuleMediatorUnitTest {
 
     @Test
     @SmallTest
+    public void testUpdateModule_TriggersAnimation() {
+        mEducationalTipModuleMediator.setModuleTypeForTesting(ModuleType.SIGN_IN_PROMO);
+        when(mSetupListManager.isModuleAwaitingCompletionAnimation(ModuleType.SIGN_IN_PROMO))
+                .thenReturn(true);
+        when(mProfile.getOriginalProfile()).thenReturn(mProfile);
+
+        mEducationalTipModuleMediator.updateModule();
+
+        // Verify priming was called immediately.
+        verify(mSetupListManager).maybePrimeCompletionStatus(mProfile);
+
+        // Should be marked completed immediately.
+        assertEquals(true, mModel.get(EducationalTipModuleProperties.MARK_COMPLETED));
+
+        // Verify reordering has NOT happened yet.
+        verify(mModuleDelegate, never()).updateModuleRanking(anyInt());
+
+        // 1. Advance to the combined duration.
+        mFakeTime.advanceMillis(
+                SetupListManager.STRIKETHROUGH_DURATION_MS + SetupListManager.HIDE_DURATION_MS);
+        ShadowLooper.runMainLooperOneTask();
+
+        // Final verification of completion signal and reordering trigger.
+        verify(mSetupListManager).onCompletionAnimationFinished(ModuleType.SIGN_IN_PROMO);
+        verify(mModuleDelegate).updateModuleRanking(ModuleType.SIGN_IN_PROMO);
+    }
+
+    @Test
+    @SmallTest
     public void testOnViewCreated_DefaultBrowserPromo_TrackerInitialized_ShouldDisplay() {
         when(mTracker.isInitialized()).thenReturn(true);
         when(mTracker.shouldTriggerHelpUi(FeatureConstants.DEFAULT_BROWSER_PROMO_MAGIC_STACK))
@@ -326,6 +361,46 @@ public class EducationalTipModuleMediatorUnitTest {
         verify(mModuleDelegate).removeModule(mDefaultModuleTypeForTesting);
         verify(mMockDefaultBrowserPromoUtils)
                 .removeListener(mDefaultBrowserPromoTriggerStateListener.capture());
+    }
+
+    @Test
+    @SmallTest
+    public void testBottomSheetObserver_AddedAndRemoved() {
+        verify(mBottomSheetController).addObserver(any());
+        mEducationalTipModuleMediator.destroy();
+        verify(mBottomSheetController).removeObserver(any());
+    }
+
+    @Test
+    @SmallTest
+    public void testBottomSheetObserver_TriggersUpdate() {
+        mEducationalTipModuleMediator.setModuleTypeForTesting(ModuleType.SAVE_PASSWORDS_PROMO);
+        verify(mBottomSheetController).addObserver(mBottomSheetObserverCaptor.capture());
+
+        // Simulate sheet dismissal.
+        mBottomSheetObserverCaptor
+                .getValue()
+                .onSheetStateChanged(BottomSheetController.SheetState.HIDDEN, 0);
+
+        // verify it triggers a profile check as part of updateModule().
+        verify(mActionDelegate).getProfileSupplier();
+    }
+
+    @Test
+    @SmallTest
+    public void testBottomSheetObserver_DefaultBrowser_SkipsOnInteractionComplete() {
+        mEducationalTipModuleMediator.setModuleTypeForTesting(ModuleType.DEFAULT_BROWSER_PROMO);
+        verify(mBottomSheetController).addObserver(mBottomSheetObserverCaptor.capture());
+
+        // Simulate sheet dismissal with interaction complete (clicked button).
+        mBottomSheetObserverCaptor
+                .getValue()
+                .onSheetStateChanged(
+                        BottomSheetController.SheetState.HIDDEN,
+                        BottomSheetController.StateChangeReason.INTERACTION_COMPLETE);
+
+        // verify updateModule was NOT called (profile supplier never accessed).
+        verify(mActionDelegate, never()).getProfileSupplier();
     }
 
     private void testShowModuleImpl(

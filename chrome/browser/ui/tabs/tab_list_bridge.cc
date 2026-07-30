@@ -19,6 +19,7 @@
 #include "components/tab_groups/tab_group_visual_data.h"
 #include "components/tabs/public/tab_group.h"
 #include "components/tabs/public/tab_interface.h"
+#include "content/public/browser/web_contents.h"
 
 namespace {
 
@@ -99,8 +100,6 @@ int GetClosestValidIndexBetweenTabGroups(TabStripModel& tab_strip,
 
 }  // namespace
 
-DEFINE_USER_DATA(TabListBridge);
-
 TabListBridge::TabListBridge(TabStripModel& tab_strip_model,
                              ui::UnownedUserDataHost& unowned_user_data_host)
     : tab_strip_(tab_strip_model),
@@ -163,13 +162,8 @@ void TabListBridge::SetOpenerForTab(tabs::TabHandle target,
                                     tabs::TabHandle opener) {
   const int target_index = GetIndexOfTab(target);
   CHECK_NE(target_index, TabStripModel::kNoTab);
-  CHECK_NE(GetIndexOfTab(opener), TabStripModel::kNoTab);
 
-  content::WebContents* opener_contents = opener.Get()->GetContents();
-  if (!opener_contents) {
-    return;
-  }
-  tab_strip_->SetOpenerOfWebContentsAt(target_index, opener_contents);
+  tab_strip_->SetOpenerOfTabAt(target_index, opener.Get());
 }
 
 tabs::TabInterface* TabListBridge::GetOpenerForTab(tabs::TabHandle target) {
@@ -178,17 +172,21 @@ tabs::TabInterface* TabListBridge::GetOpenerForTab(tabs::TabHandle target) {
   return tab_strip_->GetOpenerOfTabAt(target_index);
 }
 
-void TabListBridge::DiscardTab(tabs::TabHandle tab) {
+content::WebContents* TabListBridge::DiscardTab(tabs::TabHandle tab) {
   content::WebContents* contents = tab.Get()->GetContents();
-  if (contents) {
-    resource_coordinator::TabLifecycleUnitExternal*
-        tab_lifecycle_unit_external =
-            resource_coordinator::TabLifecycleUnitExternal::FromWebContents(
-                contents);
-    CHECK(tab_lifecycle_unit_external);
-    tab_lifecycle_unit_external->DiscardTab(
-        mojom::LifecycleUnitDiscardReason::EXTERNAL);
+  if (!contents) {
+    return nullptr;
   }
+
+  resource_coordinator::TabLifecycleUnitExternal* tab_lifecycle_unit_external =
+      resource_coordinator::TabLifecycleUnitExternal::FromWebContents(contents);
+  CHECK(tab_lifecycle_unit_external);
+  if (tab_lifecycle_unit_external->DiscardTab(
+          mojom::LifecycleUnitDiscardReason::EXTERNAL)) {
+    return tab_lifecycle_unit_external->GetWebContents();
+  }
+
+  return nullptr;
 }
 
 tabs::TabInterface* TabListBridge::DuplicateTab(tabs::TabHandle tab) {
@@ -606,15 +604,7 @@ void TabListBridge::WillCloseAllTabs(TabStripModel* model) {
 }
 
 // static
-// From //chrome/browser/ui/tabs/tab_list_interface.h
-TabListInterface* TabListInterface::From(
-    BrowserWindowInterface* browser_window_interface) {
-  return ui::ScopedUnownedUserData<TabListBridge>::Get(
-      browser_window_interface->GetUnownedUserDataHost());
-}
-
-// static
-// From //chrome/browser/ui/tabs/tab_list_interface.h
+// From //chrome/browser/tab_list/tab_list_interface.h
 bool TabListInterface::CanEditTabList(Profile& profile) {
   std::vector<BrowserWindowInterface*> all_browsers =
       GetAllBrowserWindowInterfaces();

@@ -407,7 +407,7 @@ bool ManifestParser::Parse() {
         UseCounter::Count(execution_context_,
                           WebFeature::kWebAppWindowControlsOverlay);
         break;
-      case mojom::blink::DisplayMode::kBorderless:
+      case mojom::blink::DisplayMode::kUnframed:
         UseCounter::Count(
             execution_context_,
             base::FeatureList::IsEnabled(blink::features::kWebAppBorderless)
@@ -1000,7 +1000,7 @@ Vector<blink::Manifest::DisplayOverride> ManifestParser::ParseDisplayOverride(
 
     if (!base::FeatureList::IsEnabled(blink::features::kWebAppBorderless) &&
         !base::FeatureList::IsEnabled(blink::features::kUnframedIwa) &&
-        display_enum == mojom::blink::DisplayMode::kBorderless) {
+        display_enum == mojom::blink::DisplayMode::kUnframed) {
       display_enum = mojom::blink::DisplayMode::kUndefined;
     }
 
@@ -1010,7 +1010,7 @@ Vector<blink::Manifest::DisplayOverride> ManifestParser::ParseDisplayOverride(
         url_patterns = ToStdVector(
             ParseUrlPatterns(display_override_object, "url_patterns"));
       }
-      if (display_enum == mojom::blink::DisplayMode::kBorderless) {
+      if (display_enum == mojom::blink::DisplayMode::kUnframed) {
         display_override.push_back(
             blink::Manifest::DisplayOverride::CreateUnframed(
                 std::move(url_patterns)));
@@ -1889,7 +1889,7 @@ ManifestParser::ParseProtocolHandler(const JSONObject* object) {
     const char kToken[] = "%s";
     String user_url = protocol_handler->url.GetString();
     String tokenless_url = protocol_handler->url.GetString();
-    tokenless_url.Remove(user_url.Find(kToken), std::size(kToken) - 1);
+    tokenless_url.Remove(user_url.find(kToken), std::size(kToken) - 1);
     KURL full_url(manifest_url_, tokenless_url);
 
     if (!VerifyCustomHandlerURLSyntax(full_url, manifest_url_, user_url,

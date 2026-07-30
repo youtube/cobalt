@@ -10,14 +10,15 @@
 
 #include "base/check_op.h"
 #include "base/memory_coordinator/mock_memory_consumer.h"
-#include "base/memory_coordinator/traits.h"
 #include "base/test/run_until.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
 #include "content/child/memory_coordinator/child_memory_coordinator.h"
+#include "content/common/memory_coordinator/memory_consumer_registry.h"
+#include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
-#include "mojo/public/cpp/bindings/receiver_set.h"
-#include "mojo/public/cpp/bindings/remote_set.h"
+#include "mojo/public/cpp/bindings/receiver.h"
+#include "mojo/public/cpp/bindings/remote.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
@@ -75,7 +76,7 @@ class BrowserMemoryCoordinatorBridgeTest : public Test {
   BrowserMemoryCoordinatorBridgeTest() = default;
 
   ChildMemoryCoordinator& coordinator() { return coordinator_; }
-  ChildMemoryConsumerRegistry& registry() { return coordinator_.registry(); }
+  MemoryConsumerRegistry& registry() { return coordinator_.registry(); }
 
   std::unique_ptr<DummyChildMemoryConsumerRegistryHost> CreateRegistryHost() {
     return std::make_unique<DummyChildMemoryConsumerRegistryHost>(
@@ -153,7 +154,7 @@ TEST_F(BrowserMemoryCoordinatorBridgeTest, BrowserNotification) {
   EXPECT_CALL(consumer, OnReleaseMemory()).WillOnce([&]() {
     release_memory_future.SetValue();
   });
-  registry_host->coordinator()->NotifyReleaseMemory("consumer");
+  registry_host->coordinator()->UpdateConsumers({{"consumer", 100, true}});
 
   // Wait for the Mojo call to reach the child and trigger the consumer.
   EXPECT_TRUE(release_memory_future.Wait());

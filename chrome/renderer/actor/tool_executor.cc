@@ -11,6 +11,7 @@
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/ptr_util.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/notreached.h"
 #include "base/time/time.h"
 #include "chrome/common/actor.mojom.h"
@@ -30,6 +31,7 @@
 #include "content/public/renderer/render_frame.h"
 #include "third_party/blink/public/web/web_local_frame.h"
 #include "third_party/blink/public/web/web_node.h"
+#include "ui/gfx/geometry/point_conversions.h"
 
 using blink::WebLocalFrame;
 using content::RenderFrame;
@@ -51,7 +53,13 @@ ToolExecutor::~ToolExecutor() {
   }
 }
 
-mojom::ActionResultPtr ToolExecutor::InitializeTool(
+mojom::InitializeToolResultPtr ToolExecutor::InitializeTool(
+    mojom::ToolInvocationPtr invocation) {
+  is_split_execution_ = true;
+  return InitializeToolImpl(std::move(invocation));
+}
+
+mojom::InitializeToolResultPtr ToolExecutor::InitializeToolImpl(
     mojom::ToolInvocationPtr invocation) {
   auto init_entry = journal_->CreatePendingAsyncEntry(invocation->task_id,
                                                       "InitializeTool", {});
@@ -61,8 +69,12 @@ mojom::ActionResultPtr ToolExecutor::InitializeTool(
   journal_->SendLogBuffer();
 
   if (tool_) {
-    return MakeResult(mojom::ActionResultCode::kExecutorBusy);
+    return mojom::InitializeToolResult::NewErrorResult(
+        MakeResult(mojom::ActionResultCode::kExecutorBusy));
   }
+
+  CHECK_EQ(phase_, ExecutionPhase::kStart)
+      << "InitializeTool called from invalid phase.";
 
   WebLocalFrame* web_frame = frame_->GetWebFrame();
 
@@ -71,7 +83,8 @@ mojom::ActionResultPtr ToolExecutor::InitializeTool(
 
   // Check LocalRoot in case the frame is a subframe.
   if (!web_frame || !web_frame->FrameWidget()) {
-    return MakeResult(mojom::ActionResultCode::kFrameWentAway);
+    return mojom::InitializeToolResult::NewErrorResult(
+        MakeResult(mojom::ActionResultCode::kFrameWentAway));
   }
 
   switch (invocation->action->which()) {
@@ -149,11 +162,26 @@ mojom::ActionResultPtr ToolExecutor::InitializeTool(
     performed_scroll_into_view_ = true;
   }
 
-  return tool_->Validate();
+  ValidationResult validation = tool_->Validate();
+
+  if (!IsOk(*validation.result)) {
+    return mojom::InitializeToolResult::NewErrorResult(
+        std::move(validation.result));
+  }
+  std::optional<gfx::Point> point;
+  if (validation.target_point.has_value()) {
+    point = gfx::ToRoundedPoint(validation.target_point.value());
+  }
+
+  phase_ = ExecutionPhase::kInitialized;
+  return mojom::InitializeToolResult::NewSuccessPoint(point);
 }
 
 void ToolExecutor::ExecuteTool(const actor::TaskId& task_id,
                                ToolExecutorCallback callback) {
+  CHECK_EQ(phase_, ExecutionPhase::kInitialized)
+      << "ExecuteTool called without successful InitializeTool.";
+  phase_ = ExecutionPhase::kExecuting;
   execute_journal_entry_ = journal_->CreatePendingAsyncEntry(
       task_id, "ExecuteTool",
       JournalDetailsBuilder().Add("tool", tool_->DebugString()).Build());
@@ -164,6 +192,16 @@ void ToolExecutor::ExecuteTool(const actor::TaskId& task_id,
   CHECK_EQ(tool_->task_id(), task_id);
   CHECK(!completion_callback_);
   completion_callback_ = std::move(callback);
+  if (is_split_execution_) {
+    tool_->MarkAsRevalidation();
+    ValidationResult revalidation = tool_->Validate();
+    base::UmaHistogramEnumeration("Actor.Tools.RevalidationResult",
+                                  revalidation.result->code);
+    if (!IsOk(*revalidation.result)) {
+      ToolFinished(std::move(revalidation.result));
+      return;
+    }
+  }
   tool_->Execute(base::BindOnce(&ToolExecutor::ToolFinished,
                                 weak_ptr_factory_.GetWeakPtr()));
 }
@@ -175,14 +213,14 @@ void ToolExecutor::InvokeTool(mojom::ToolInvocationPtr invocation,
   // Send the buffer now so the journal shows we received the message. This
   // helps when debugging unresponsive renderers.
   journal_->SendLogBuffer();
-  CHECK(!base::FeatureList::IsEnabled(
-      features::kGlicActorSplitValidateAndExecute));
+  is_split_execution_ = false;
   actor::TaskId task_id = invocation->task_id;
-  mojom::ActionResultPtr result = InitializeTool(std::move(invocation));
-  if (!IsOk(*result)) {
+  mojom::InitializeToolResultPtr result =
+      InitializeToolImpl(std::move(invocation));
+  if (result->is_error_result()) {
     CHECK(!completion_callback_);
     completion_callback_ = std::move(callback);
-    ToolFinished(std::move(result));
+    ToolFinished(std::move(result->get_error_result()));
     return;
   }
   ExecuteTool(task_id, std::move(callback));
@@ -203,6 +241,9 @@ void ToolExecutor::CancelTool(const actor::TaskId& task_id) {
   if (!tool_) {
     // Benign race condition: the tool has already finished.
     CHECK(!completion_callback_);
+    // If the tool is already null, that means it has already finished and we
+    // should be at the start phase.
+    CHECK_EQ(phase_, ExecutionPhase::kStart);
     return;
   }
 
@@ -217,6 +258,7 @@ void ToolExecutor::CancelTool(const actor::TaskId& task_id) {
 }
 
 void ToolExecutor::ToolFinished(mojom::ActionResultPtr result) {
+  phase_ = ExecutionPhase::kStart;
   CHECK(completion_callback_);
   execute_journal_entry_.reset();
   invoke_journal_entry_.reset();

@@ -61,6 +61,14 @@ std::string_view GetToastName(ToastId toast_id) {
       return "EnhancedBundledSecuritySettings";
     case ToastId::kSavedAutofillAiEntityToWallet:
       return "SavedAutofillAiEntityToWallet";
+    case ToastId::kTranslate:
+      return "Translate";
+    case ToastId::kAutofillAiWalletErrorMessage:
+      return "AutofillAiWalletErrorMessage";
+    case ToastId::kRecordReplay:
+      return "RecordReplay";
+    case ToastId::kAutoSignIn:
+      return "AutoSignIn";
   }
 
   NOTREACHED();

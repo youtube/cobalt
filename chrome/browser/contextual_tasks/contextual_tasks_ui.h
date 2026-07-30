@@ -126,6 +126,7 @@ class ContextualTasksUI
   void SetThreadTurnId(std::optional<std::string> id) override;
   const std::optional<std::string>& GetThreadTitle() override;
   void SetThreadTitle(std::optional<std::string> title) override;
+  void SetAimUrl(const GURL& url) override;
   void SetIsAiPage(bool is_ai_page) override;
   bool IsShownInTab() override;
   BrowserWindowInterface* GetBrowser() override;
@@ -133,6 +134,7 @@ class ContextualTasksUI
   void OnZeroStateChange(bool is_zero_state) override;
   void PrepareForTaskChange() override;
   void OnTaskChanged() override;
+  GURL GetAimUrl() override;
 
   // contextual_tasks::ContextualTasksUIInterface implementation:
   Profile* GetProfile() override;
@@ -161,6 +163,11 @@ class ContextualTasksUI
   static bool IsZeroState(
       const GURL& url,
       contextual_tasks::ContextualTasksUiService* ui_service);
+
+  // Returns whether OnActiveTabContextStatusChanged should proceed with trying
+  // to add the current tab as an auto-chip.
+  bool CanUpdateSuggestedTabContext(tabs::TabInterface* tab,
+                                    const GURL& last_committed_url);
 
   void BindInterface(
       mojo::PendingReceiver<contextual_tasks::mojom::PageHandlerFactory>

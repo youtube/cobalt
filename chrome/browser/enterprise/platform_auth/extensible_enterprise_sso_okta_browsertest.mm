@@ -57,19 +57,6 @@ namespace {
 
 constexpr char kLoginWebsiteDomain[] = "foo.bar.example";
 
-std::string CreateSsoRequest(std::string_view domain) {
-  std::string path = enterprise_auth::kOktaSsoURLPattern.Get();
-
-  // Replace all wildcard segments in the path.
-  size_t pos = path.find('*');
-  while (pos != std::string::npos) {
-    path.replace(pos, 1, "123");
-    pos = path.find('*', pos);
-  }
-
-  return base::StrCat({"https://", domain, path});
-}
-
 ScopedPropList HostsToPropRef(const std::vector<std::string>& hosts) {
   base::apple::ScopedCFTypeRef<CFMutableArrayRef> res(
       CFArrayCreateMutable(kCFAllocatorDefault, 0, &kCFTypeArrayCallBacks));
@@ -101,7 +88,7 @@ class MockCFPreferencesObserver
 namespace enterprise_auth {
 
 // These tests simulate the user navigating to a login website, which then
-// performs the Okta SSO POST request.Depending on the conditions the request
+// performs the Okta SSO POST request. Depending on the conditions the request
 // should be intercepted and performed using URLSession or left untouched. By
 // using a stub URLSession we verify that the request in question indeed
 // circumvents Chrome's network stack and is performed using URLSession API.
@@ -126,6 +113,8 @@ class ExtensibleEnterpriseSsoOktaBrowserTest : public InProcessBrowserTest {
   void SetUpOnMainThread() override {
     InProcessBrowserTest::SetUpOnMainThread();
 
+    session_override_.emplace();
+
     PrefService* prefs = g_browser_process->local_state();
     ASSERT_TRUE(prefs);
     platform_auth_policy_observer_.emplace(prefs);
@@ -140,7 +129,10 @@ class ExtensibleEnterpriseSsoOktaBrowserTest : public InProcessBrowserTest {
     ASSERT_TRUE(https_server_.Start());
   }
 
-  void TearDown() override { InProcessBrowserTest::TearDown(); }
+  void TearDown() override {
+    session_override_.reset();
+    InProcessBrowserTest::TearDown();
+  }
 
  protected:
   std::unique_ptr<CFPreferencesObserver> CreateMockCFPreferenceObserver() {
@@ -175,6 +167,16 @@ class ExtensibleEnterpriseSsoOktaBrowserTest : public InProcessBrowserTest {
     http_response->set_content("<html><body><h1>Login Page</h1></body></html>");
     http_response->set_content_type("text/html");
     return http_response;
+  }
+
+  std::string CreateSsoRequest(std::string_view domain) {
+    std::string path = enterprise_auth::kOktaSsoURLPattern.Get();
+
+    // Replace all wildcard segments in the path.
+    base::ReplaceChars(path, "*", "123", &path);
+
+    const GURL test_gurl = https_server_.GetURL(domain, path);
+    return test_gurl.spec();
   }
 
   void CheckSSORequest(bool expect_response,
@@ -225,7 +227,7 @@ class ExtensibleEnterpriseSsoOktaBrowserTest : public InProcessBrowserTest {
       policy::EnterpriseManagementAuthority::COMPUTER_LOCAL};
 
   net::EmbeddedTestServer https_server_{net::EmbeddedTestServer::TYPE_HTTPS};
-  const ProxyingURLLoaderFactory::ScopedURLSessionOverrideForTesting
+  std::optional<ProxyingURLLoaderFactory::ScopedURLSessionOverrideForTesting>
       session_override_;
   const ScopedCFPreferenceObserverOverride cf_prefs_override_;
 };

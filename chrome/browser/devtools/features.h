@@ -88,6 +88,12 @@ extern const base::FeatureParam<double> kDevToolsAiCodeGenerationTemperature;
 extern const base::FeatureParam<DevToolsFreestylerUserTier>
     kDevToolsAiCodeGenerationUserTier;
 
+BASE_DECLARE_FEATURE(kDevToolsAiCodeCompletionStyles);
+extern const base::FeatureParam<std::string> kDevToolsAiCodeCompletionStylesModelId;
+extern const base::FeatureParam<double> kDevToolsAiCodeCompletionStylesTemperature;
+extern const base::FeatureParam<DevToolsFreestylerUserTier>
+    kDevToolsAiCodeCompletionStylesUserTier;
+
 BASE_DECLARE_FEATURE(kDevToolsSharedProcessInfobar);
 
 BASE_DECLARE_FEATURE(kDevToolsAnimationStylesInStylesTab);
@@ -108,8 +114,6 @@ extern const base::FeatureParam<bool> kDevToolsGlobalAiButtonPromotionEnabled;
 BASE_DECLARE_FEATURE(kDevToolsGdpProfiles);
 extern const base::FeatureParam<bool> kDevToolsGdpProfilesBadgesEnabled;
 extern const base::FeatureParam<bool> kDevToolsGdpProfilesStarterBadgeEnabled;
-
-BASE_DECLARE_FEATURE(kDevToolsIndividualRequestThrottling);
 
 BASE_DECLARE_FEATURE(kDevToolsAiPromptApi);
 extern const base::FeatureParam<bool> kDevToolsAiPromptApiAllowWithoutGpu;

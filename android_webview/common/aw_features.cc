@@ -34,6 +34,9 @@ BASE_FEATURE(kWebViewConfigurableLibraryPrefetch,
 BASE_FEATURE(kWebViewContentRestrictionSupport,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// When enabled, defers GMS calls to after Chromium startup.
+BASE_FEATURE(kWebViewDeferStartupGmsCalls, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enable JS FileSystemAccess API.
 // This flag is set by WebView internal code based on an app's targetSdkVersion.
 // It is enabled for version B+. The default value here is not relevant, and is
@@ -118,6 +121,12 @@ BASE_FEATURE(kWebViewPrefetchNativeLibrary, base::FEATURE_ENABLED_BY_DEFAULT);
 // A parameter to trigger the prefetch from the renderer instead of the browser.
 const base::FeatureParam<bool> kWebViewPrefetchFromRenderer{
     &kWebViewPrefetchNativeLibrary, "WebViewPrefetchFromRenderer", true};
+
+// This enables to start main resource prefetch request from off the main thread
+// for WebView Prefetch API. See crbug.com/452406598, crbug.com//452389538 for
+// more details.
+BASE_FEATURE(kWebViewPrefetchOffTheMainThread,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // This enables WebView's hyperlink context menu.
 BASE_FEATURE(kWebViewHyperlinkContextMenu, base::FEATURE_DISABLED_BY_DEFAULT);
