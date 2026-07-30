@@ -122,6 +122,7 @@ source_set("sync") {
     "//chrome/browser/profiles:profile_manager",
     "//chrome/browser/reading_list",
     "//chrome/browser/search_engines",
+    "//chrome/browser/tab_group_sync",
     "//chrome/browser/tab_group_sync:utils",
     "//chrome/browser/ui:ui_features",
     "//chrome/browser/undo",
@@ -210,11 +211,12 @@ source_set("sync") {
       "sessions/browser_list_router_helper.h",
     ]
     public_deps += [
-      "//chrome/browser/ui:browser_list",
+      "//chrome/browser/ui/browser_window",
       "//chrome/browser/ui/tabs:tab_strip_model_observer",
     ]
     deps += [
       "//chrome/browser/accessibility/tree_fixing:prefs",
+      "//chrome/browser/ui/read_anything:prefs",
       "//chrome/browser/ui/tabs:tab_strip",
       "//chrome/browser/ui/tabs/saved_tab_groups",
     ]

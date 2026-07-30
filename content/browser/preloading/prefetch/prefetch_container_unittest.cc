@@ -138,8 +138,10 @@ class PrefetchContainerTestBase : public PrefetchingMetricsTestBase,
                           /*referring_origin=*/std::nullopt,
                           /*no_vary_search_hint=*/std::nullopt,
                           /*priority=*/std::nullopt);
+                  PrefetchUpdateHeadersParams ui_thread_pre_calculated_headers;
                   return PrePrefetchContainer::CreateAndStartForTesting(
-                      std::move(prefetch_request), std::move(factory));
+                      std::move(prefetch_request), std::move(factory),
+                      ui_thread_pre_calculated_headers);
                 },
                 base::Unretained(this), prefetch_url,
                 std::move(pending_remote)),
@@ -184,40 +186,6 @@ class PrefetchContainerTestBase : public PrefetchingMetricsTestBase,
         should_append_additional_headers,
         /*should_disable_block_until_head_timeout=*/false,
         /*should_bypass_http_cache=*/false);
-  }
-
-  bool SetCookie(const GURL& url, const std::string& value) {
-    std::unique_ptr<net::CanonicalCookie> cookie(
-        net::CanonicalCookie::CreateForTesting(url, value, base::Time::Now(),
-                                               net::CookieSourceType::kOther));
-
-    EXPECT_TRUE(cookie.get());
-
-    bool result = false;
-    base::RunLoop run_loop;
-
-    net::CookieOptions options;
-    options.set_include_httponly();
-    options.set_same_site_cookie_context(
-        net::CookieOptions::SameSiteCookieContext::MakeInclusive());
-
-    cookie_manager()->SetCanonicalCookie(
-        *cookie.get(), url, options,
-        base::BindOnce(
-            [](bool* result, base::RunLoop* run_loop,
-               net::CookieAccessResult set_cookie_access_result) {
-              *result = set_cookie_access_result.status.IsInclude();
-              run_loop->Quit();
-            },
-            &result, &run_loop));
-
-    // This will run until the cookie is set.
-    run_loop.Run();
-
-    // This will run until the cookie listener is updated.
-    task_environment()->RunUntilIdle();
-
-    return result;
   }
 
  protected:

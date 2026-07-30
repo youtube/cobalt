@@ -206,7 +206,7 @@ class OverlayBaseController : public content::WebContentsDelegate,
   virtual ui::ElementIdentifier GetViewContainerId() = 0;
 
   // The side panel type.
-  virtual SidePanelEntry::PanelType GetSidePanelType() = 0;
+  virtual SidePanelType GetSidePanelType() = 0;
 
   // Whether the side panel should be closed if it doesn't match
   // the desired type.
@@ -234,12 +234,13 @@ class OverlayBaseController : public content::WebContentsDelegate,
   // Notification that the tab was foregrounded.
   virtual void NotifyTabWillEnterBackground() = 0;
 
-  struct PreselectionBubbleResources {
+  struct PreselectionUIConfig {
     int message_string_id;
+    bool show_cancel_button = false;
   };
 
   // Returns the resources for the preselection bubble.
-  virtual PreselectionBubbleResources GetPreselectionBubbleResources() = 0;
+  virtual PreselectionUIConfig GetPreselectionBubbleConfig() = 0;
 
   // Returns if the overlay view can be shared between multiple tabs.
   virtual bool IsOverlayViewShared() const = 0;

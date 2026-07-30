@@ -10,7 +10,6 @@ import("//components/offline_pages/buildflags/features.gni")
 import("//components/optimization_guide/features.gni")
 import("//components/signin/features.gni")
 import("//components/spellcheck/spellcheck_build_features.gni")
-import("//components/surface_embed/buildflags/buildflags.gni")
 import("//content/public/common/features.gni")
 import("//extensions/buildflags/buildflags.gni")
 import("//media/media_options.gni")
@@ -117,8 +116,6 @@ static_library("renderer") {
     "url_loader_throttle_provider_impl.h",
     "v8_unwinder.cc",
     "v8_unwinder.h",
-    "web_link_preview_triggerer_impl.cc",
-    "web_link_preview_triggerer_impl.h",
     "websocket_handshake_throttle_provider_impl.cc",
     "websocket_handshake_throttle_provider_impl.h",
     "worker_content_settings_client.cc",
@@ -198,7 +195,8 @@ static_library("renderer") {
     "//components/subresource_filter/content/renderer",
     "//components/subresource_filter/core/common",
     "//components/supervised_user/core/common:buildflags",
-    "//components/surface_embed/buildflags",
+    "//components/surface_embed/common",
+    "//components/surface_embed/renderer",
     "//components/translate/content/renderer",
     "//components/translate/core/common",
     "//components/translate/core/language_detection",
@@ -323,13 +321,6 @@ static_library("renderer") {
     deps += [ "//components/paint_preview/renderer" ]
   }
 
-  if (enable_surface_embed) {
-    deps += [
-      "//components/surface_embed/common",
-      "//components/surface_embed/renderer",
-    ]
-  }
-
   if (is_win) {
     deps += [ "//third_party/wtl" ]
     sources += [
@@ -430,6 +421,8 @@ static_library("renderer") {
     sources += [
       "indigo/indigo_agent.cc",
       "indigo/indigo_agent.h",
+      "indigo/onboarding_agent.cc",
+      "indigo/onboarding_agent.h",
     ]
   }
 }

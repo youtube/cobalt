@@ -108,12 +108,13 @@ class CommandStorageBackendTest : public testing::Test {
       const SessionType session_type,
       bool encrypted,
       base::Clock* clock = nullptr) {
-    std::optional<os_crypt_async::Encryptor> encryptor;
+    std::unique_ptr<os_crypt_async::Encryptor> encryptor;
     if (encrypted) {
       base::RunLoop run_loop;
       os_crypt_->GetInstance(
           base::BindLambdaForTesting([&](os_crypt_async::Encryptor e) {
-            encryptor = std::move(e);
+            encryptor =
+                std::make_unique<os_crypt_async::Encryptor>(std::move(e));
             run_loop.Quit();
           }));
       run_loop.Run();
@@ -1284,15 +1285,18 @@ std::string TestParamNameGenerator(
   return base::JoinString({session_type_name, encryption_name}, "_");
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    All,
-    CommandStorageBackendParamTest,
-    ::testing::Values(TestParams(SessionType::kAppRestore, false),
-                      TestParams(SessionType::kAppRestore, true),
-                      TestParams(SessionType::kSessionRestore, false),
-                      TestParams(SessionType::kSessionRestore, true),
-                      TestParams(SessionType::kTabRestore, false),
-                      TestParams(SessionType::kTabRestore, true)),
-    TestParamNameGenerator);
+INSTANTIATE_TEST_SUITE_P(All,
+                         CommandStorageBackendParamTest,
+                         ::testing::Values(
+// On iOS, SessionRestore and AppRestore do not use CommandStorageBackend.
+#if !BUILDFLAG(IS_IOS)
+                             TestParams(SessionType::kAppRestore, false),
+                             TestParams(SessionType::kAppRestore, true),
+                             TestParams(SessionType::kSessionRestore, false),
+                             TestParams(SessionType::kSessionRestore, true),
+#endif  // !BUILDFLAG(IS_IOS)
+                             TestParams(SessionType::kTabRestore, false),
+                             TestParams(SessionType::kTabRestore, true)),
+                         TestParamNameGenerator);
 
 }  // namespace sessions

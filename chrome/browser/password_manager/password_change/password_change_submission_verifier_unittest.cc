@@ -15,13 +15,16 @@
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/password_manager/password_change/annotated_page_content_capturer.h"
+#include "chrome/browser/password_manager/password_change/fake_annotated_page_content_capturer.h"
 #include "chrome/browser/password_manager/password_change/model_quality_logs_uploader.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "components/optimization_guide/core/model_execution/test/mock_remote_model_executor.h"
 #include "components/optimization_guide/core/optimization_guide_proto_util.h"
 #include "components/password_manager/core/browser/features/password_features.h"
 #include "components/password_manager/core/browser/password_manager_metrics_util.h"
+#include "components/password_manager/core/browser/stub_password_manager_client.h"
 #include "components/ukm/test_ukm_recorder.h"
+#include "content/public/test/test_renderer_host.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -82,6 +85,14 @@ class PasswordChangeSubmissionVerifierTest
             profile(), base::BindRepeating(&CreateOptimizationService));
     logs_uploader_ =
         std::make_unique<ModelQualityLogsUploader>(web_contents(), GURL());
+    AnnotatedPageContentCapturer::SetFactoryForTesting(base::BindRepeating(
+        [](content::WebContents* web_contents,
+           blink::mojom::AIPageContentOptionsPtr options,
+           optimization_guide::OnAIPageContentDone callback)
+            -> std::unique_ptr<AnnotatedPageContentCapturer> {
+          return std::make_unique<FakeAnnotatedPageContentCapturer>(
+              std::move(callback));
+        }));
   }
 
   void TearDown() override {
@@ -95,6 +106,9 @@ class PasswordChangeSubmissionVerifierTest
     return static_cast<MockOptimizationGuideKeyedService*>(
         OptimizationGuideKeyedServiceFactory::GetForProfile(profile()));
   }
+
+ protected:
+  password_manager::StubPasswordManagerClient stub_client_;
 
  private:
   std::unique_ptr<ModelQualityLogsUploader> logs_uploader_;
@@ -111,11 +125,12 @@ TEST_F(PasswordChangeSubmissionVerifierTest, Succeeded) {
               PasswordChangeOutcome::
                   PasswordChangeSubmissionData_PasswordChangeOutcome_SUCCESSFUL_OUTCOME>));
   auto verifier = std::make_unique<PasswordChangeSubmissionVerifier>(
-      web_contents(), logs_uploader(), completion_future.GetCallback());
+      web_contents(), &stub_client_, logs_uploader(),
+      completion_future.GetCallback());
 
   EXPECT_TRUE(verifier->capturer());
-  verifier->capturer()->ReplyWithContent(
-      optimization_guide::AIPageContentResult());
+  static_cast<FakeAnnotatedPageContentCapturer*>(verifier->capturer())
+      ->SimulateResponse(optimization_guide::AIPageContentResult());
 
   EXPECT_EQ(completion_future.Get(), SubmissionResult::kSuccess);
   histogram_tester.ExpectTotalCount(
@@ -144,11 +159,12 @@ TEST_F(PasswordChangeSubmissionVerifierTest, Failed) {
               PasswordChangeOutcome::
                   PasswordChangeSubmissionData_PasswordChangeOutcome_UNSUCCESSFUL_OUTCOME>));
   auto verifier = std::make_unique<PasswordChangeSubmissionVerifier>(
-      web_contents(), logs_uploader(), completion_future.GetCallback());
+      web_contents(), &stub_client_, logs_uploader(),
+      completion_future.GetCallback());
 
   EXPECT_TRUE(verifier->capturer());
-  verifier->capturer()->ReplyWithContent(
-      optimization_guide::AIPageContentResult());
+  static_cast<FakeAnnotatedPageContentCapturer*>(verifier->capturer())
+      ->SimulateResponse(optimization_guide::AIPageContentResult());
 
   EXPECT_EQ(completion_future.Get(), SubmissionResult::kFailure);
 
@@ -175,11 +191,12 @@ TEST_F(PasswordChangeSubmissionVerifierTest, UnknownOutcome) {
               PasswordChangeOutcome::
                   PasswordChangeSubmissionData_PasswordChangeOutcome_UNKNOWN_OUTCOME>));
   auto verifier = std::make_unique<PasswordChangeSubmissionVerifier>(
-      web_contents(), logs_uploader(), completion_future.GetCallback());
+      web_contents(), &stub_client_, logs_uploader(),
+      completion_future.GetCallback());
 
   EXPECT_TRUE(verifier->capturer());
-  verifier->capturer()->ReplyWithContent(
-      optimization_guide::AIPageContentResult());
+  static_cast<FakeAnnotatedPageContentCapturer*>(verifier->capturer())
+      ->SimulateResponse(optimization_guide::AIPageContentResult());
 
   EXPECT_EQ(completion_future.Get(), SubmissionResult::kSuccess);
   histogram_tester.ExpectTotalCount(
@@ -213,11 +230,12 @@ TEST_F(PasswordChangeSubmissionVerifierTest,
               PasswordChangeOutcome::
                   PasswordChangeSubmissionData_PasswordChangeOutcome_SUCCESSFUL_OUTCOME>));
   auto verifier = std::make_unique<PasswordChangeSubmissionVerifier>(
-      web_contents(), logs_uploader(), completion_future.GetCallback());
+      web_contents(), &stub_client_, logs_uploader(),
+      completion_future.GetCallback());
 
   EXPECT_TRUE(verifier->capturer());
-  verifier->capturer()->ReplyWithContent(
-      optimization_guide::AIPageContentResult());
+  static_cast<FakeAnnotatedPageContentCapturer*>(verifier->capturer())
+      ->SimulateResponse(optimization_guide::AIPageContentResult());
 
   EXPECT_EQ(completion_future.Get(), SubmissionResult::kSuccess);
   histogram_tester.ExpectTotalCount(
@@ -250,11 +268,12 @@ TEST_F(PasswordChangeSubmissionVerifierTest, Failed_UserInterventionEnabled) {
               PasswordChangeOutcome::
                   PasswordChangeSubmissionData_PasswordChangeOutcome_UNSUCCESSFUL_OUTCOME>));
   auto verifier = std::make_unique<PasswordChangeSubmissionVerifier>(
-      web_contents(), logs_uploader(), completion_future.GetCallback());
+      web_contents(), &stub_client_, logs_uploader(),
+      completion_future.GetCallback());
 
   EXPECT_TRUE(verifier->capturer());
-  verifier->capturer()->ReplyWithContent(
-      optimization_guide::AIPageContentResult());
+  static_cast<FakeAnnotatedPageContentCapturer*>(verifier->capturer())
+      ->SimulateResponse(optimization_guide::AIPageContentResult());
 
   EXPECT_EQ(completion_future.Get(), SubmissionResult::kFailure);
 
@@ -286,11 +305,12 @@ TEST_F(PasswordChangeSubmissionVerifierTest,
               PasswordChangeOutcome::
                   PasswordChangeSubmissionData_PasswordChangeOutcome_UNKNOWN_OUTCOME>));
   auto verifier = std::make_unique<PasswordChangeSubmissionVerifier>(
-      web_contents(), logs_uploader(), completion_future.GetCallback());
+      web_contents(), &stub_client_, logs_uploader(),
+      completion_future.GetCallback());
 
   EXPECT_TRUE(verifier->capturer());
-  verifier->capturer()->ReplyWithContent(
-      optimization_guide::AIPageContentResult());
+  static_cast<FakeAnnotatedPageContentCapturer*>(verifier->capturer())
+      ->SimulateResponse(optimization_guide::AIPageContentResult());
 
   EXPECT_EQ(completion_future.Get(), SubmissionResult::kSuccess);
   histogram_tester.ExpectTotalCount(
@@ -324,11 +344,12 @@ TEST_F(PasswordChangeSubmissionVerifierTest,
               PasswordChangeOutcome::
                   PasswordChangeSubmissionData_PasswordChangeOutcome_USER_INTERVENTION_NEEDED>));
   auto verifier = std::make_unique<PasswordChangeSubmissionVerifier>(
-      web_contents(), logs_uploader(), completion_future.GetCallback());
+      web_contents(), &stub_client_, logs_uploader(),
+      completion_future.GetCallback());
 
   EXPECT_TRUE(verifier->capturer());
-  verifier->capturer()->ReplyWithContent(
-      optimization_guide::AIPageContentResult());
+  static_cast<FakeAnnotatedPageContentCapturer*>(verifier->capturer())
+      ->SimulateResponse(optimization_guide::AIPageContentResult());
 
   EXPECT_EQ(completion_future.Get(), SubmissionResult::kUserInterventionNeeded);
 
@@ -361,11 +382,12 @@ TEST_F(PasswordChangeSubmissionVerifierTest,
               PasswordChangeOutcome::
                   PasswordChangeSubmissionData_PasswordChangeOutcome_USER_INTERVENTION_NEEDED>));
   auto verifier = std::make_unique<PasswordChangeSubmissionVerifier>(
-      web_contents(), logs_uploader(), completion_future.GetCallback());
+      web_contents(), &stub_client_, logs_uploader(),
+      completion_future.GetCallback());
 
   EXPECT_TRUE(verifier->capturer());
-  verifier->capturer()->ReplyWithContent(
-      optimization_guide::AIPageContentResult());
+  static_cast<FakeAnnotatedPageContentCapturer*>(verifier->capturer())
+      ->SimulateResponse(optimization_guide::AIPageContentResult());
 
   EXPECT_EQ(completion_future.Get(), SubmissionResult::kFailure);
   histogram_tester.ExpectUniqueSample(
@@ -391,11 +413,12 @@ TEST_F(PasswordChangeSubmissionVerifierTest,
   base::test::TestFuture<SubmissionResult> completion_future;
   EXPECT_CALL(*optimization_service(), ExecuteModel).Times(0);
   auto verifier = std::make_unique<PasswordChangeSubmissionVerifier>(
-      web_contents(), logs_uploader(), completion_future.GetCallback());
+      web_contents(), &stub_client_, logs_uploader(),
+      completion_future.GetCallback());
 
   EXPECT_TRUE(verifier->capturer());
-  verifier->capturer()->ReplyWithContent(
-      base::unexpected("APC Capture Failed"));
+  static_cast<FakeAnnotatedPageContentCapturer*>(verifier->capturer())
+      ->SimulateResponse(base::unexpected("APC Capture Failed"));
 
   EXPECT_EQ(completion_future.Get(), SubmissionResult::kFailure);
   histogram_tester.ExpectUniqueSample(
@@ -407,7 +430,7 @@ TEST_F(PasswordChangeSubmissionVerifierTest,
 
 TEST_F(PasswordChangeSubmissionVerifierTest, DurationRecordedOnDestruction) {
   auto verifier = std::make_unique<PasswordChangeSubmissionVerifier>(
-      web_contents(), logs_uploader(), base::DoNothing());
+      web_contents(), &stub_client_, logs_uploader(), base::DoNothing());
 
   task_environment()->FastForwardBy(base::Milliseconds(4543));
 

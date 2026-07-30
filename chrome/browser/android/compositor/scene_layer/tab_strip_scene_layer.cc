@@ -347,8 +347,8 @@ void TabStripSceneLayer::UpdateGlicButton(
     float icon_text_padding,
     float corner_radius) {
   DCHECK(resource_manager_);
-  ui::Resource* icon_resource =
-      resource_manager_->GetStaticResourceWithTint(resource_id, tint);
+  ui::Resource* icon_resource = resource_manager_->GetResource(
+      ui::ANDROID_RESOURCE_TYPE_STATIC, resource_id);
   ui::Resource* text_resource = resource_manager_->GetResource(
       ui::ANDROID_RESOURCE_TYPE_DYNAMIC, text_texture_id);
   ui::Resource* keyboard_focus_ring_drawable =
@@ -643,7 +643,9 @@ void TabStripSceneLayer::PutStripTabLayer(
     bool is_pinned,
     float pinned_icon_offset_x,
     bool is_underlined,
-    int32_t underline_color) {
+    int32_t underline_start_color,
+    int32_t underline_end_color,
+    int32_t underline_width_threshold) {
   DCHECK(layer_title_cache_);
   scoped_refptr<TabHandleLayer> layer = GetNextTabLayer(layer_title_cache_);
 
@@ -707,7 +709,8 @@ void TabStripSceneLayer::PutStripTabLayer(
       is_keyboard_focused, keyboard_focus_ring_drawable,
       keyboard_focus_ring_offset, stroke_width, folio_foot_length,
       width_to_hide_tab_title, pinned_icon_offset_x, is_underlined,
-      static_cast<SkColor>(underline_color));
+      static_cast<SkColor>(underline_start_color),
+      static_cast<SkColor>(underline_end_color), underline_width_threshold);
 }
 
 void TabStripSceneLayer::PutGroupIndicatorLayer(

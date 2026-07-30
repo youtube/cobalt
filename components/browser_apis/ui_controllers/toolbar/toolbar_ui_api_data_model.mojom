@@ -123,18 +123,7 @@ struct ContentSettingImageState {
   // accessibility technologies.
   bool should_notify_accessibility;
 
-  // If true, the bubble should open on its own, without requiring a click from
-  // the user. This round-trips through WebUI so that the bubble never opens
-  // before the icon is ready.
-  //
-  // If set, `is_bubble_visible` should also be set. Technically, the bubble
-  // only displays after requested by the WebUI, but this prevents a flicker
-  // where the icon appears non-highlighted initially before immediately
-  // transitioning to highlighted.
-  bool should_auto_open_bubble;
-
-  // If true, the bubble is visible, so the icon should be highlighted. Should
-  // always be set to true if `should_auto_open_bubble` is true.
+  // If true, the bubble is visible, so the icon should be highlighted.
   bool is_bubble_visible;
 
   // If true, when `explanitory_string` is displayed, it should appear via an
@@ -248,8 +237,55 @@ struct PinnedToolbarActionState {
 struct LocationBarState {
   OmniboxViewState omnibox_view_state;
   LocationBarFlags location_bar_flags;
-  // The set of content setting icon state for each visible LHS icon.
+  // The set of content setting icon state for each visible RHS icon.
   array<ContentSettingImageState> content_setting_image_states;
+  // LHS location bar chips states.
+  LhsChipsState lhs_chips_state;
+};
+
+enum LhsChipIdentifier {
+  kUnspecified,
+  kLocationIcon,
+};
+
+enum SecurityChipIcon {
+  kUnspecified,
+  kHttp,
+  kSecurePageInfo,
+  kNotSecureWarning,
+  kDangerous,
+  kGoogleSuperG,
+  kGoogleGMonochrome,
+  kAddContext,
+};
+
+// Represents the security state of the current page.
+// This strictly maps to native security_state::SecurityLevel values.
+enum SecurityLevel {
+  kUnspecified,
+  kNone,
+  kSecure,
+  kDangerous,
+  kWarning,
+};
+
+struct SecurityChipState {
+  SecurityChipIcon icon;
+  SecurityLevel security_level;
+  mojo_base.mojom.String16 text;
+  bool is_clickable;
+};
+
+// Note: The security chip and permission chips are visually mutually exclusive.
+// When active permission indicators exist, they override and hide the security
+// chip. The WebUI frontend is responsible for this logic.
+struct LhsChipsState {
+  // The data payload for the location icon. This is referred to as the
+  // "security chip" because its primary role is displaying the page's security
+  // status (e.g., tune icon, "Not Secure" warning, G logo).
+  SecurityChipState security_chip;
+  // Multiple indicators can be active (e.g., Camera + Mic).
+  array<ContentSettingImageState> activity_indicators;
 };
 
 struct NavigationControlsState {

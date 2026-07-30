@@ -15,6 +15,7 @@
 #include "chrome/browser/ui/tabs/tab_strip_api/event_broadcaster.h"
 #include "chrome/browser/ui/tabs/tab_strip_api/events/tab_strip_event_recorder.h"
 #include "chrome/browser/ui/tabs/tab_strip_api/utilities/tab_id_utils.h"
+#include "chrome/browser/ui/tabs/tab_strip_api/utilities/tab_strip_api_utilities.h"
 #include "mojo/public/mojom/base/error.mojom.h"
 #include "url/gurl.h"
 
@@ -79,9 +80,11 @@ TabStripServiceImpl::TabStripServiceImpl(
       std::make_unique<SessionControllerImpl>(recorder_.get());
 
   adapters_provider_->event_bridge().AddObserver(recorder_.get());
+  AddObserver(this);
 }
 
 TabStripServiceImpl::~TabStripServiceImpl() {
+  RemoveObserver(this);
   adapters_provider_->event_bridge().RemoveObserver(recorder_.get());
 }
 
@@ -103,11 +106,25 @@ void TabStripServiceImpl::BroadcastEvents(
   broadcaster.Broadcast(observers_, events);
 }
 
-TabStripService::GetTabsResult TabStripServiceImpl::GetTabs() {
+TabStripService::GetTabsResult
+TabStripServiceImpl::GetTabsWithoutObservation() {
   auto session = session_controller_->CreateSession();
 
   return tab_strip_model_adapter().GetTabStripTopology(
       tab_strip_model_adapter().GetRoot()->GetHandle());
+}
+
+mojom::TabStripService::GetTabsResult TabStripServiceImpl::GetTabs() {
+  auto snapshot = tabs_api::mojom::TabsSnapshot::New();
+  ASSIGN_OR_RETURN(auto result, GetTabsWithoutObservation());
+  snapshot->tab_strip = std::move(result);
+
+  mojo::AssociatedRemote<tabs_api::mojom::TabsObserver> stream;
+  auto pending_receiver = stream.BindNewEndpointAndPassReceiver();
+  mojo_observers_.Add(std::move(stream));
+  snapshot->stream = std::move(pending_receiver);
+
+  return snapshot;
 }
 
 mojom::TabStripService::GetTabResult TabStripServiceImpl::GetTab(
@@ -197,13 +214,9 @@ mojom::TabStripService::CloseNodesResult TabStripServiceImpl::CloseNodes(
 
 base::expected<void, mojo_base::mojom::ErrorPtr>
 TabStripServiceImpl::CloseCollection(const NodeId& id) {
-  ASSIGN_OR_RETURN(auto collection_id, utils::GetCollectionNativeId(id));
-  tabs::TabCollectionHandle collection_handle(collection_id);
-
-  auto group_id = tab_strip_model_adapter().FindGroupIdFor(collection_handle);
-  if (group_id.has_value()) {
-    tab_strip_model_adapter().CloseTabGroup(group_id.value());
-  }
+  ASSIGN_OR_RETURN(auto group_id,
+                   utils::GetTabGroupId(tab_strip_model_adapter(), id));
+  tab_strip_model_adapter().CloseTabGroup(group_id);
 
   return base::ok();
 }
@@ -331,21 +344,13 @@ mojom::TabStripService::UpdateResult TabStripServiceImpl::Update(
 
   if (data->is_tab_group()) {
     const auto& tab_group = data->get_tab_group();
-    ASSIGN_OR_RETURN(auto collection_id,
-                     utils::GetCollectionNativeId(tab_group->id));
-    tabs::TabCollectionHandle collection_handle(collection_id);
+    ASSIGN_OR_RETURN(
+        auto group_id,
+        utils::GetTabGroupId(tab_strip_model_adapter(), tab_group->id));
 
-    const std::optional<const tab_groups::TabGroupId> group_id =
-        tab_strip_model_adapter().FindGroupIdFor(collection_handle);
-    if (!group_id.has_value()) {
-      return base::unexpected(mojo_base::mojom::Error::New(
-          mojo_base::mojom::Code::kNotFound,
-          "group with the specified ID not found."));
-    }
-
-    tab_strip_model_adapter().UpdateTabGroupVisuals(group_id.value(),
-                                                    tab_group->data);
-    return translation_adapter().ToMojoData(collection_handle);
+    tab_strip_model_adapter().UpdateTabGroupVisuals(group_id, tab_group->data);
+    return translation_adapter().ToMojoData(
+        tab_group->id.ToTabCollectionHandle().value());
   }
 
   return base::unexpected(mojo_base::mojom::Error::New(
@@ -358,28 +363,6 @@ mojom::TabStripService::UpdateResult TabStripServiceImpl::Update(
 // TabStripExperimentalService is intended for quick prototyping for
 // experimental apis that may not necessarily fit in the standard
 // TabStripService.
-mojom::TabStripExperimentService::UpdateTabGroupVisualResult
-TabStripServiceImpl::UpdateTabGroupVisual(
-    const tabs_api::NodeId& id,
-    const tab_groups::TabGroupVisualData& visual_data) {
-  auto session = session_controller_->CreateSession();
-
-  ASSIGN_OR_RETURN(auto collection_id, utils::GetCollectionNativeId(id));
-  tabs::TabCollectionHandle collection_handle(collection_id);
-
-  const std::optional<const tab_groups::TabGroupId> group_id =
-      tab_strip_model_adapter().FindGroupIdFor(collection_handle);
-  if (!group_id.has_value()) {
-    return base::unexpected(
-        mojo_base::mojom::Error::New(mojo_base::mojom::Code::kNotFound,
-                                     "group with the specified ID not found."));
-  }
-
-  tab_strip_model_adapter().UpdateTabGroupVisuals(group_id.value(),
-                                                  visual_data);
-  return std::monostate();
-}
-
 mojom::TabStripExperimentService::ShowTabContextMenuResult
 TabStripServiceImpl::ShowTabContextMenu(const tabs_api::NodeId& tab_id,
                                         const gfx::Point& location) {
@@ -422,6 +405,20 @@ void TabStripServiceImpl::RemoveObserver(
   observers_.RemoveObserver(observer);
 }
 
+// TODO(crbug.com/445765534): we should probably just move the mojo bits out
+// of this class into their own object. Interleaving them in this class leads
+// to some pertty strange code...
+void TabStripServiceImpl::OnTabEvents(
+    const std::vector<tabs_api::mojom::TabsEventPtr>& events) {
+  for (auto& observer : mojo_observers_) {
+    std::vector<tabs_api::mojom::TabsEventPtr> copy;
+    for (auto& event : events) {
+      copy.push_back(event.Clone());
+    }
+    observer->OnTabEvents(std::move(copy));
+  }
+}
+
 mojom::TabStripExperimentService::ReplaceTabInSplitResult
 TabStripServiceImpl::ReplaceTabInSplit(const tabs_api::NodeId& tab_to_replace,
                                        const tabs_api::NodeId& tab_to_insert) {
@@ -448,6 +445,16 @@ TabStripServiceImpl::ReplaceTabInSplit(const tabs_api::NodeId& tab_to_replace,
                                               insert_index.value());
 
   return std::monostate();
+}
+
+void TabStripServiceImpl::Accept(
+    mojo::PendingReceiver<tabs_api::mojom::TabStripService> client) {
+  mojo_clients_.Add(&bridge_, std::move(client));
+}
+
+void TabStripServiceImpl::AcceptExperimental(
+    mojo::PendingReceiver<tabs_api::mojom::TabStripExperimentService> client) {
+  mojo_experiment_clients_.Add(&experimental_bridge_, std::move(client));
 }
 
 }  // namespace tabs_api

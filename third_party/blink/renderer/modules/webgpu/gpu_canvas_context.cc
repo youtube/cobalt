@@ -261,7 +261,7 @@ GPUCanvasContext::PaintRenderingResultsToSnapshot(
     SkColor4f color = alpha_mode_ == V8GPUCanvasAlphaMode::Enum::kOpaque
                           ? SkColors::kBlack
                           : SkColors::kTransparent;
-    return resource_provider->DoExternalDrawAndSnapshot(
+    return resource_provider->DoExternalOverdrawAndSnapshot(
         [color](cc::PaintCanvas& canvas) { canvas.clear(color); },
         ImageOrientationEnum::kDefault);
   }
@@ -918,8 +918,7 @@ bool GPUCanvasContext::CopyTextureToResourceProvider(
   }
 
   gpu::SyncToken sync_token;
-  auto dst_client_si =
-      resource_provider->BeginExternalWrite(sync_token, /*is_overwrite=*/true);
+  auto dst_client_si = resource_provider->BeginExternalOverwrite(sync_token);
   if (!dst_client_si) {
     return false;
   }

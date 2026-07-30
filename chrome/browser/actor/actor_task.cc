@@ -17,10 +17,9 @@
 #include "base/task/sequenced_task_runner.h"
 #include "build/build_config.h"
 #include "chrome/browser/actor/action_tracker_for_metrics.h"
-#include "chrome/browser/actor/actor_features.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/actor_metrics.h"
-#include "chrome/browser/actor/enterprise_policy_url_checker.h"
+#include "chrome/browser/actor/enterprise_policy_checker.h"
 #include "chrome/browser/actor/execution_engine.h"
 #include "chrome/browser/actor/ui/event_dispatcher.h"
 #include "chrome/browser/profiles/profile.h"
@@ -29,6 +28,7 @@
 #include "chrome/common/actor/journal_details_builder.h"
 #include "chrome/common/actor_webui.mojom.h"
 #include "chrome/common/chrome_features.h"
+#include "components/actor/core/actor_features.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/page.h"
 #include "content/public/browser/render_frame_host.h"
@@ -138,7 +138,7 @@ ActorTask::ActorTask(base::PassKey<ActorKeyedService, ActorTask>,
                      std::unique_ptr<ui::UiEventDispatcher> ui_event_dispatcher,
                      webui::mojom::TaskOptionsPtr options,
                      const TaskSourceInfo& source_info,
-                     const EnterprisePolicyUrlChecker* policy_checker,
+                     const EnterprisePolicyChecker* policy_checker,
                      base::WeakPtr<ActorTaskDelegate> delegate)
     : service_(service),
       id_(id),
@@ -149,6 +149,11 @@ ActorTask::ActorTask(base::PassKey<ActorKeyedService, ActorTask>,
       journal_(service_->GetJournal().GetSafeRef()),
       title_(options && options->title.has_value() ? options->title.value()
                                                    : ""),
+      duration_(options && options->duration.has_value() &&
+                        options->duration.value() ==
+                            actor::webui::mojom::TaskDuration::kTransient
+                    ? TaskDuration::kTransient
+                    : TaskDuration::kDefault),
       policy_checker_(*policy_checker),
       delegate_(std::move(delegate)),
       ui_weak_ptr_factory_(ui_event_dispatcher_.get()) {
@@ -170,7 +175,7 @@ std::unique_ptr<ActorTask> ActorTask::CreateForTesting(
     std::unique_ptr<ui::UiEventDispatcher> ui_event_dispatcher,
     webui::mojom::TaskOptionsPtr options,
     const TaskSourceInfo& source_info,
-    const EnterprisePolicyUrlChecker* policy_checker,
+    const EnterprisePolicyChecker* policy_checker,
     base::WeakPtr<ActorTaskDelegate> delegate) {
   return std::make_unique<ActorTask>(
       base::PassKey<ActorTask>(), service, id, std::move(ui_event_dispatcher),

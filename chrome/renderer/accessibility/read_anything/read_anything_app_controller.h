@@ -350,6 +350,7 @@ class ReadAnythingAppController
   void TogglePresentation();
   void TogglePinState();
   void OnPinStatusReceived(bool pin_state) override;
+  void OnSpeechEngineFirstStall();
   void OnSpeechEngineStalled();
 
   // Returns the current active distillation method state as an integer.
@@ -535,6 +536,8 @@ class ReadAnythingAppController
   // between the training protos and the screenshot if it runs more than once.
   void DistillAndScreenshot();
 
+  bool IsHidden();
+
   std::unique_ptr<AXTreeDistiller> distiller_;
   mojo::Remote<read_anything::mojom::UntrustedPageHandlerFactory>
       page_handler_factory_;
@@ -578,6 +581,12 @@ class ReadAnythingAppController
   // A timer that causes a distillation after a user stops typing for a set
   // number of seconds.
   std::unique_ptr<base::RetainingOneShotTimer> post_user_entry_draw_timer_;
+
+  // A timer for debouncing draws for a PDF. Since most of the content updates
+  // occur via SUBTREE_CREATED a11y events, PDFs end up redrawing several
+  // times in a row which can be jarring. Wait for all the updates before
+  // drawing instead.
+  std::unique_ptr<base::RetainingOneShotTimer> pdf_draw_debouncer_;
 
   base::OneShotTimer timer_;
 

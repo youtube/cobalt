@@ -267,7 +267,7 @@ class CookieManagerTest : public testing::Test {
     cookie_store()->SetCanonicalCookieAsync(
         std::make_unique<net::CanonicalCookie>(cookie),
         net::cookie_util::SimulatedCookieSource(cookie, source_scheme), options,
-        callback.MakeCallback());
+        callback.MakeCallback(), /*cookie_access_result=*/std::nullopt);
     callback.WaitUntilDone();
     return callback.result().status.IsInclude();
   }
@@ -350,8 +350,7 @@ class CookieManagerTest : public testing::Test {
     cookie_service_ = std::make_unique<CookieManager>(
         url_request_context_.get(),
         /*first_party_sets_access_delegate=*/nullptr, std::move(cleanup_store),
-        /*params=*/nullptr,
-        /*tpcd_metadata_manager=*/nullptr);
+        /*params=*/nullptr);
     cookie_service_->AddReceiver(
         cookie_service_remote_.BindNewPipeAndPassReceiver());
     service_wrapper_ = std::make_unique<SynchronousCookieManager>(

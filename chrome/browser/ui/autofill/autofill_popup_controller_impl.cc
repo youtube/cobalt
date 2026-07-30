@@ -85,21 +85,36 @@ constexpr DenseSet<AutofillSuggestionTriggerSource>
     kTriggerSourcesExemptFromTimeReset = {
         AutofillSuggestionTriggerSource::kPlusAddressUpdatedInBrowserProcess};
 
-// TODO(crbug.com/491834951) Replace `SuggestionFiltrationResult` pair with
-// struct.
-using SuggestionFiltrationResult =
-    std::pair<std::vector<Suggestion>,
-              std::vector<AutofillPopupController::SuggestionFilterMatch>>;
+struct SuggestionFiltrationResult {
+  void AddSuggestion(
+      const Suggestion& suggestion,
+      std::optional<AutofillPopupController::SuggestionFilterMatch>
+          filter_match) {
+    suggestions.push_back(suggestion);
+    filter_matches.push_back(std::move(filter_match));
+  }
+
+  // Filtered suggestions, in display order.
+  std::vector<Suggestion> suggestions;
+  // Per-suggestion filter metadata aligned with `suggestions` by index.
+  // `std::nullopt` means the suggestion matched but has no text range to
+  // highlight.
+  std::vector<std::optional<AutofillPopupController::SuggestionFilterMatch>>
+      filter_matches;
+};
+
 SuggestionFiltrationResult FilterSuggestions(
     const std::vector<Suggestion>& suggestions,
     const AutofillPopupController::SuggestionFilter& filter) {
   SuggestionFiltrationResult result;
+  result.suggestions.reserve(suggestions.size());
+  result.filter_matches.reserve(suggestions.size());
 
   auto add_suggestion_filtration_result =
       [&result](const Suggestion& suggestion,
-                gfx::Range main_text_match = gfx::Range()) {
-        result.first.push_back(suggestion);
-        result.second.emplace_back(main_text_match);
+                std::optional<AutofillPopupController::SuggestionFilterMatch>
+                    filter_match = std::nullopt) {
+        result.AddSuggestion(suggestion, std::move(filter_match));
       };
 
   std::optional<std::u16string> lower_string_filter =
@@ -120,7 +135,9 @@ SuggestionFiltrationResult FilterSuggestions(
           pos != std::u16string::npos) {
         add_suggestion_filtration_result(
             suggestion,
-            gfx::Range(pos, pos + lower_string_filter.value().size()));
+            AutofillPopupController::SuggestionFilterMatch{
+                .main_text_match =
+                    gfx::Range(pos, pos + lower_string_filter.value().size())});
       }
     } else if (std::holds_alternative<SuggestionTabIndex>(filter) &&
                std::get<SuggestionTabIndex>(filter) == suggestion.tab_index) {
@@ -213,11 +230,6 @@ void AutofillPopupControllerImpl::Show(
   trigger_source_ = trigger_source;
   if (IsAtMemoryTriggerSource(trigger_source_)) {
     suggestions_filling_product_ = FillingProduct::kAtMemory;
-    base::UmaHistogramEnumeration(
-        "Autofill.AtMemory.Funnel.PopupDisplayed",
-        trigger_source_ == AutofillSuggestionTriggerSource::kAtMemory
-            ? AutofillMetrics::AtMemoryTriggerSource::kTypedTrigger
-            : AutofillMetrics::AtMemoryTriggerSource::kContextMenu);
   } else if (!suggestions.empty() &&
              IsStandaloneSuggestionType(suggestions[0].type)) {
     suggestions_filling_product_ =
@@ -237,10 +249,15 @@ void AutofillPopupControllerImpl::Show(
       suggestions[0].type == SuggestionType::kDatalistEntry) {
     AutofillMetrics::LogDataListSuggestionsShown();
   }
+
+  const bool should_ignore_focus_loss =
+      *ignore_focus_loss_ || (view_ && view_->HasFocus());
+
   // Autofill popups should only be shown in focused windows because on Windows
   // the popup may overlap the focused window (see crbug.com/1239760).
   if (auto* rwhv = web_contents_->GetRenderWidgetHostView();
-      (!rwhv || !rwhv->HasFocus()) && IsRootPopup()) {
+      (!rwhv || !rwhv->HasFocus()) && IsRootPopup() &&
+      !should_ignore_focus_loss) {
     Hide(SuggestionHidingReason::kNoFrameHasFocus);
     return;
   }
@@ -255,8 +272,9 @@ void AutofillPopupControllerImpl::Show(
   // `delegate_`'s frame. We observe the focused frame's RenderFrameDeleted()
   // event.
   content::RenderFrameHost* rfh = web_contents_->GetFocusedFrame();
-  if (!rfh || !delegate_ ||
-      !IsAncestorOf(GetRenderFrameHost(*delegate_), rfh)) {
+  if (!should_ignore_focus_loss &&
+      (!rfh || !delegate_ ||
+       !IsAncestorOf(GetRenderFrameHost(*delegate_), rfh))) {
     Hide(SuggestionHidingReason::kNoFrameHasFocus);
     return;
   }
@@ -453,6 +471,11 @@ void AutofillPopupControllerImpl::AcceptSuggestion(
   if (!suggestion.IsAcceptable()) {
     return;
   }
+  if (Suggestion::AtMemoryPayload* payload =
+          std::get_if<Suggestion::AtMemoryPayload>(&suggestion.payload);
+      payload && payload->reveal_callback) {
+    payload->value = payload->reveal_callback.Run();
+  }
   NotifyUserEducationAboutAcceptedSuggestion(web_contents_.get(), suggestion);
   if (suggestion.acceptance_a11y_announcement && view_) {
     view_->AxAnnounce(*suggestion.acceptance_a11y_announcement);
@@ -549,8 +572,8 @@ void AutofillPopupControllerImpl::UpdateFilteredSuggestions() {
   if (filter_) {
     SuggestionFiltrationResult filtration_result =
         FilterSuggestions(non_filtered_suggestions_, *filter_);
-    filtered_suggestions_ = std::move(filtration_result.first);
-    suggestion_filter_matches_ = std::move(filtration_result.second);
+    filtered_suggestions_ = std::move(filtration_result.suggestions);
+    suggestion_filter_matches_ = std::move(filtration_result.filter_matches);
   } else {
     filtered_suggestions_.clear();
     suggestion_filter_matches_.clear();
@@ -909,7 +932,8 @@ void AutofillPopupControllerImpl::PerformButtonActionForSuggestion(
                                                  button_action);
 }
 
-const std::vector<AutofillPopupController::SuggestionFilterMatch>&
+const std::vector<
+    std::optional<AutofillPopupController::SuggestionFilterMatch>>&
 AutofillPopupControllerImpl::GetSuggestionFilterMatches() const {
   return suggestion_filter_matches_;
 }
@@ -919,80 +943,37 @@ void AutofillPopupControllerImpl::SetFilter(
     FilterSource source) {
   filter_ = std::move(filter);
 
-  if (TryStartSearch(source)) {
+  auto maybe_handle_with_delegate = [&]() {
+    if (!delegate_) {
+      return false;
+    }
+
+    std::u16string filter_value;
+    if (filter_) {
+      if (const auto* string_filter =
+              std::get_if<AutofillPopupController::StringFilter>(&*filter_)) {
+        filter_value = **string_filter;
+      } else {
+        return false;
+      }
+    }
+
+    switch (source) {
+      case FilterSource::kInputChanged:
+        return delegate_->OnFilterChanged(filter_value);
+      case FilterSource::kSearchSubmitted:
+        return delegate_->OnSearchSubmitted(filter_value);
+      case FilterSource::kTabSelected:
+        return false;
+    }
+  };
+
+  if (maybe_handle_with_delegate()) {
     return;
   }
 
   UpdateFilteredSuggestions();
   OnSuggestionsChanged(/*prefer_prev_arrow_side=*/true);
-}
-
-bool AutofillPopupControllerImpl::TryStartSearch(FilterSource source) {
-  if (suggestions_filling_product_ != FillingProduct::kAtMemory) {
-    return false;
-  }
-
-  if (!filter_) {
-    SetSuggestions({});
-    OnSuggestionsChanged(/*prefer_prev_arrow_side=*/true);
-    return true;
-  }
-
-  const auto* string_filter =
-      std::get_if<AutofillPopupController::StringFilter>(&*filter_);
-  if (!string_filter) {
-    return true;
-  }
-  ContentAutofillClient* client =
-      ContentAutofillClient::FromWebContents(GetWebContents());
-  if (!client) {
-    return true;
-  }
-  auto* query_service = client->GetAccessibilityQueryService();
-  if (!query_service) {
-    return true;
-  }
-
-  auto transform =
-      [](const accessibility_annotator::MemorySearchResult& entry) {
-        Suggestion suggestion(entry.value,
-                              SuggestionType::kAtMemorySearchResult);
-        // Label row: [type_name, metadata[0].value, ...]
-        std::vector<Suggestion::Text> label_row;
-        std::u16string type_name = entry.type_name.empty()
-                                       ? GetEntryTypeNameForI18n(entry.type)
-                                       : entry.type_name;
-        if (!type_name.empty()) {
-          label_row.emplace_back(std::move(type_name));
-        }
-        for (const accessibility_annotator::EntryMetadata& metadata :
-             entry.metadata_list) {
-          if (!label_row.empty()) {
-            label_row.emplace_back(u"\u2022");
-          }
-          label_row.emplace_back(metadata.value);
-        }
-        suggestion.labels.emplace_back(std::move(label_row));
-        suggestion.payload = Suggestion::AtMemoryPayload(entry.value);
-        suggestion.filtration_policy = Suggestion::FiltrationPolicy::kStatic;
-        return suggestion;
-      };
-
-  query_service->Query(
-      **string_filter, /*full_search=*/source == FilterSource::kSearchSubmitted,
-      base::BindRepeating(
-          [](base::WeakPtr<AutofillPopupControllerImpl> self,
-             Suggestion (*transform)(
-                 const accessibility_annotator::MemorySearchResult&),
-             accessibility_annotator::MemorySearchResults result) {
-            if (!self) {
-              return;
-            }
-            self->SetSuggestions(base::ToVector(result.entries, transform));
-            self->OnSuggestionsChanged(/*prefer_prev_arrow_side=*/true);
-          },
-          weak_ptr_factory_.GetWeakPtr(), transform));
-  return true;
 }
 
 bool AutofillPopupControllerImpl::HandleKeyPressEvent(

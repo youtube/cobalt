@@ -46,9 +46,8 @@ class PLATFORM_EXPORT MultiBufferDataSource
     : public media::CrossOriginDataSource {
  public:
   using DownloadingCB = base::RepeatingCallback<void(bool)>;
-  using RedirectCB = base::RepeatingCallback<void()>;
 
-  class Factory : public media::DataSource::Factory {
+  class PLATFORM_EXPORT Factory : public media::DataSource::Factory {
    public:
     using UrlDataCb = base::RepeatingCallback<void(
         const GURL& url,
@@ -56,10 +55,13 @@ class PLATFORM_EXPORT MultiBufferDataSource
         base::OnceCallback<void(scoped_refptr<UrlData>)>)>;
 
     ~Factory() override;
-    Factory(media::MediaLog* media_log,
+    Factory(std::unique_ptr<media::MediaLog> media_log,
             UrlDataCb get_url_data,
-            scoped_refptr<base::SingleThreadTaskRunner> main_task_runner,
-            const base::TickClock* tick_clock);
+            bool is_audio_element,
+            Preload preload,
+            EventCb data_source_tainted_cb,
+            const base::TickClock* tick_clock,
+            scoped_refptr<base::SingleThreadTaskRunner> main_task_runner);
 
     void Create(const GURL& uri, bool ignore_cache, DataSourceCb cb) override;
 
@@ -68,11 +70,19 @@ class PLATFORM_EXPORT MultiBufferDataSource
                    base::RepeatingCallback<void(bool)> download_cb,
                    scoped_refptr<UrlData> data);
 
+    // Flags & Options passed to the created MultiBufferDataSources in `Create`.
+    const bool is_audio_element_;
+    const Preload preload_;
     std::unique_ptr<media::MediaLog> media_log_;
+
+    EventCb tainted_source_cb_;
+
     UrlDataCb get_url_data_;
+
     scoped_refptr<base::SingleThreadTaskRunner> main_task_runner_;
 
     std::unique_ptr<BufferedDataSourceHostImpl> buffered_data_source_host_;
+
     base::WeakPtrFactory<Factory> weak_factory_{this};
   };
 
@@ -101,14 +111,9 @@ class PLATFORM_EXPORT MultiBufferDataSource
   // Adjusts the buffering algorithm based on the given preload value.
   void SetPreload(media::DataSource::Preload preload) override;
 
-  // Returns true if the media resource has a single origin, false otherwise.
-  // Only valid to call after Initialize() has completed.
-  //
-  // Method called on the render thread.
-  bool HasSingleOrigin() const;
-
-  // Provides a callback to be run when the underlying url is redirected.
-  void OnRedirect(RedirectCB callback);
+  // Provides a callback to be run when the request becomes CORS tainted via
+  // redirection or some other mechanism.
+  void SetTaintedCallback(media::DataSource::EventCb callback);
 
   bool PassedTimingAllowOriginCheck() override;
 
@@ -267,8 +272,8 @@ class PLATFORM_EXPORT MultiBufferDataSource
   // go between different origins.
   bool single_origin_ = true;
 
-  // Callback used when a redirect occurs.
-  RedirectCB redirect_cb_;
+  // Callback used when a data source becomes tainted.
+  media::DataSource::EventCb notify_tainted_cb_;
 
   // Stops preloading and closes the connection when we have enough data.
   bool cancel_on_defer_ = false;

@@ -38,7 +38,6 @@
 #include "base/values.h"
 #include "build/build_config.h"
 #include "components/input/render_widget_host_input_event_router.h"
-#include "components/surface_embed/buildflags/buildflags.h"
 #include "components/ukm/test_ukm_recorder.h"
 #include "components/url_formatter/url_formatter.h"
 #include "content/browser/preloading/prerender/prerender_host_registry.h"
@@ -53,6 +52,7 @@
 #include "content/browser/renderer_host/render_widget_host_view_base.h"
 #include "content/browser/renderer_host/render_widget_host_view_child_frame.h"
 #include "content/browser/renderer_host/text_input_manager.h"
+#include "content/browser/surface_embed/surface_embed_connector_impl.h"
 #include "content/browser/web_contents/web_contents_view.h"
 #include "content/common/content_navigation_policy.h"
 #include "content/common/frame.mojom-test-utils.h"
@@ -127,12 +127,8 @@
 #include "ui/color/color_provider_manager.h"
 #include "ui/color/color_provider_utils.h"
 #include "ui/display/screen.h"
-#include "url/gurl.h"
-
-#if BUILDFLAG(ENABLE_SURFACE_EMBED)
-#include "content/browser/surface_embed/surface_embed_connector_impl.h"
 #include "ui/gfx/native_ui_types.h"
-#endif  // BUILDFLAG(ENABLE_SURFACE_EMBED)
+#include "url/gurl.h"
 
 namespace content {
 
@@ -5566,7 +5562,6 @@ IN_PROC_BROWSER_TEST_F(UnownedInnerWebContentsBrowserTest,
 
 #endif  // !BUILDFLAG(IS_ANDROID)
 
-#if BUILDFLAG(ENABLE_SURFACE_EMBED)
 // SurfaceEmbedConnectorWebContentsBrowserTest tests are similar to
 // UnownedInnerWebContentsBrowserTest but for SurfaceEmbedConnector instead of
 // UnownedInnerWebContents. They test almost the same set of scenarios to ensure
@@ -5852,6 +5847,16 @@ IN_PROC_BROWSER_TEST_F(SurfaceEmbedConnectorWebContentsBrowserTest,
   RenderFrameHost* rfh_b2 = ChildFrameAt(rfh_a, 1);
   ASSERT_TRUE(rfh_b2);
 
+  bool has_full_site_isolation = AreAllSitesIsolatedForTesting();
+  // When full site isolation is not enabled, all frames in the inner
+  // WebContents should share the same RenderWidgetHostView.
+  if (!has_full_site_isolation) {
+    EXPECT_EQ(rfh_a->GetView(), rfh_b1->GetView());
+    EXPECT_EQ(rfh_a->GetView(), rfh_a_nested->GetView());
+    EXPECT_EQ(rfh_a->GetView(), rfh_b2->GetView());
+  }
+  size_t expected_inner_widget_view_count = has_full_site_isolation ? 4U : 1U;
+
   // Verify that views are registered in their respective WebContents for input
   // event routing and text input management.
   {
@@ -5861,7 +5866,8 @@ IN_PROC_BROWSER_TEST_F(SurfaceEmbedConnectorWebContentsBrowserTest,
               outer_text_input_manager->GetRegisteredViewsCountForTesting());
     EXPECT_TRUE(outer_text_input_manager->IsRegistered(outer_view));
 
-    EXPECT_EQ(4U, inner_event_router->RegisteredViewCountForTesting());
+    EXPECT_EQ(expected_inner_widget_view_count,
+              inner_event_router->RegisteredViewCountForTesting());
     EXPECT_TRUE(inner_event_router->IsViewInMap(
         static_cast<RenderWidgetHostViewBase*>(rfh_a->GetView())));
     EXPECT_TRUE(inner_event_router->IsViewInMap(
@@ -5870,7 +5876,7 @@ IN_PROC_BROWSER_TEST_F(SurfaceEmbedConnectorWebContentsBrowserTest,
         static_cast<RenderWidgetHostViewBase*>(rfh_a_nested->GetView())));
     EXPECT_TRUE(inner_event_router->IsViewInMap(
         static_cast<RenderWidgetHostViewBase*>(rfh_b2->GetView())));
-    EXPECT_EQ(4U,
+    EXPECT_EQ(expected_inner_widget_view_count,
               inner_text_input_manager->GetRegisteredViewsCountForTesting());
     EXPECT_TRUE(inner_text_input_manager->IsRegistered(
         static_cast<RenderWidgetHostViewBase*>(rfh_a->GetView())));
@@ -5898,7 +5904,8 @@ IN_PROC_BROWSER_TEST_F(SurfaceEmbedConnectorWebContentsBrowserTest,
   // Verify that views are registered appropriately after setting connector for
   // input event routing and text input management.
   {
-    EXPECT_EQ(5U, outer_event_router->RegisteredViewCountForTesting());
+    EXPECT_EQ(expected_inner_widget_view_count + 1,
+              outer_event_router->RegisteredViewCountForTesting());
     EXPECT_TRUE(outer_event_router->IsViewInMap(outer_view));
     EXPECT_TRUE(outer_event_router->IsViewInMap(
         static_cast<RenderWidgetHostViewBase*>(rfh_a->GetView())));
@@ -5908,7 +5915,7 @@ IN_PROC_BROWSER_TEST_F(SurfaceEmbedConnectorWebContentsBrowserTest,
         static_cast<RenderWidgetHostViewBase*>(rfh_a_nested->GetView())));
     EXPECT_TRUE(outer_event_router->IsViewInMap(
         static_cast<RenderWidgetHostViewBase*>(rfh_b2->GetView())));
-    EXPECT_EQ(5U,
+    EXPECT_EQ(expected_inner_widget_view_count + 1,
               outer_text_input_manager->GetRegisteredViewsCountForTesting());
     EXPECT_TRUE(outer_text_input_manager->IsRegistered(outer_view));
     EXPECT_TRUE(outer_text_input_manager->IsRegistered(
@@ -5944,7 +5951,8 @@ IN_PROC_BROWSER_TEST_F(SurfaceEmbedConnectorWebContentsBrowserTest,
               outer_text_input_manager->GetRegisteredViewsCountForTesting());
     EXPECT_TRUE(outer_text_input_manager->IsRegistered(outer_view));
 
-    EXPECT_EQ(4U, inner_event_router->RegisteredViewCountForTesting());
+    EXPECT_EQ(expected_inner_widget_view_count,
+              inner_event_router->RegisteredViewCountForTesting());
     EXPECT_TRUE(inner_event_router->IsViewInMap(
         static_cast<RenderWidgetHostViewBase*>(rfh_a->GetView())));
     EXPECT_TRUE(inner_event_router->IsViewInMap(
@@ -5953,7 +5961,7 @@ IN_PROC_BROWSER_TEST_F(SurfaceEmbedConnectorWebContentsBrowserTest,
         static_cast<RenderWidgetHostViewBase*>(rfh_a_nested->GetView())));
     EXPECT_TRUE(inner_event_router->IsViewInMap(
         static_cast<RenderWidgetHostViewBase*>(rfh_b2->GetView())));
-    EXPECT_EQ(4U,
+    EXPECT_EQ(expected_inner_widget_view_count,
               inner_text_input_manager->GetRegisteredViewsCountForTesting());
     EXPECT_TRUE(inner_text_input_manager->IsRegistered(
         static_cast<RenderWidgetHostViewBase*>(rfh_a->GetView())));
@@ -6027,6 +6035,14 @@ IN_PROC_BROWSER_TEST_F(SurfaceEmbedConnectorWebContentsBrowserTest,
       tree_node_b->render_manager()->speculative_frame_host();
   ASSERT_TRUE(rfh_b);
 
+  bool has_full_site_isolation = AreAllSitesIsolatedForTesting();
+  // When full site isolation is not enabled, all frames in the inner
+  // WebContents should share the same RenderWidgetHostView.
+  if (!has_full_site_isolation) {
+    EXPECT_EQ(rfh_a->GetView(), rfh_b->GetView());
+  }
+  size_t expected_inner_widget_view_count = has_full_site_isolation ? 2U : 1U;
+
   // Verify that views for pending navigation are registered in their respective
   // WebContents for input event routing and text input management.
   {
@@ -6036,12 +6052,13 @@ IN_PROC_BROWSER_TEST_F(SurfaceEmbedConnectorWebContentsBrowserTest,
               outer_text_input_manager->GetRegisteredViewsCountForTesting());
     EXPECT_TRUE(outer_text_input_manager->IsRegistered(outer_view));
 
-    EXPECT_EQ(2U, inner_event_router->RegisteredViewCountForTesting());
+    EXPECT_EQ(expected_inner_widget_view_count,
+              inner_event_router->RegisteredViewCountForTesting());
     EXPECT_TRUE(inner_event_router->IsViewInMap(
         static_cast<RenderWidgetHostViewBase*>(rfh_a->GetView())));
     EXPECT_TRUE(inner_event_router->IsViewInMap(
         static_cast<RenderWidgetHostViewBase*>(rfh_b->GetView())));
-    EXPECT_EQ(2U,
+    EXPECT_EQ(expected_inner_widget_view_count,
               inner_text_input_manager->GetRegisteredViewsCountForTesting());
     EXPECT_TRUE(inner_text_input_manager->IsRegistered(
         static_cast<RenderWidgetHostViewBase*>(rfh_a->GetView())));
@@ -6062,13 +6079,14 @@ IN_PROC_BROWSER_TEST_F(SurfaceEmbedConnectorWebContentsBrowserTest,
   // Verify that views are registered appropriately after setting connector for
   // input event routing and text input management.
   {
-    EXPECT_EQ(3U, outer_event_router->RegisteredViewCountForTesting());
+    EXPECT_EQ(expected_inner_widget_view_count + 1,
+              outer_event_router->RegisteredViewCountForTesting());
     EXPECT_TRUE(outer_event_router->IsViewInMap(outer_view));
     EXPECT_TRUE(outer_event_router->IsViewInMap(
         static_cast<RenderWidgetHostViewBase*>(rfh_a->GetView())));
     EXPECT_TRUE(outer_event_router->IsViewInMap(
         static_cast<RenderWidgetHostViewBase*>(rfh_b->GetView())));
-    EXPECT_EQ(3U,
+    EXPECT_EQ(expected_inner_widget_view_count + 1,
               outer_text_input_manager->GetRegisteredViewsCountForTesting());
     EXPECT_TRUE(outer_text_input_manager->IsRegistered(outer_view));
     EXPECT_TRUE(outer_text_input_manager->IsRegistered(
@@ -6098,12 +6116,13 @@ IN_PROC_BROWSER_TEST_F(SurfaceEmbedConnectorWebContentsBrowserTest,
               outer_text_input_manager->GetRegisteredViewsCountForTesting());
     EXPECT_TRUE(outer_text_input_manager->IsRegistered(outer_view));
 
-    EXPECT_EQ(2U, inner_event_router->RegisteredViewCountForTesting());
+    EXPECT_EQ(expected_inner_widget_view_count,
+              inner_event_router->RegisteredViewCountForTesting());
     EXPECT_TRUE(inner_event_router->IsViewInMap(
         static_cast<RenderWidgetHostViewBase*>(rfh_a->GetView())));
     EXPECT_TRUE(inner_event_router->IsViewInMap(
         static_cast<RenderWidgetHostViewBase*>(rfh_b->GetView())));
-    EXPECT_EQ(2U,
+    EXPECT_EQ(expected_inner_widget_view_count,
               inner_text_input_manager->GetRegisteredViewsCountForTesting());
     EXPECT_TRUE(inner_text_input_manager->IsRegistered(
         static_cast<RenderWidgetHostViewBase*>(rfh_a->GetView())));
@@ -6126,13 +6145,14 @@ IN_PROC_BROWSER_TEST_F(SurfaceEmbedConnectorWebContentsBrowserTest,
   // Verify that views are still registered appropriately for input event
   // routing and text input management.
   {
-    EXPECT_EQ(3U, outer_event_router->RegisteredViewCountForTesting());
+    EXPECT_EQ(expected_inner_widget_view_count + 1,
+              outer_event_router->RegisteredViewCountForTesting());
     EXPECT_TRUE(outer_event_router->IsViewInMap(outer_view));
     EXPECT_TRUE(outer_event_router->IsViewInMap(
         static_cast<RenderWidgetHostViewBase*>(rfh_a->GetView())));
     EXPECT_TRUE(outer_event_router->IsViewInMap(
         static_cast<RenderWidgetHostViewBase*>(rfh_b->GetView())));
-    EXPECT_EQ(3U,
+    EXPECT_EQ(expected_inner_widget_view_count + 1,
               outer_text_input_manager->GetRegisteredViewsCountForTesting());
     EXPECT_TRUE(outer_text_input_manager->IsRegistered(outer_view));
     EXPECT_TRUE(outer_text_input_manager->IsRegistered(
@@ -6516,8 +6536,6 @@ IN_PROC_BROWSER_TEST_F(SurfaceEmbedConnectorWebContentsBrowserTest,
     EXPECT_TRUE(rwhv2->IsRenderWidgetHostViewChildFrame());
   }
 }
-#endif  // BUILDFLAG(ENABLE_SURFACE_EMBED)
-
 IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
                        ShutdownDuringSpeculativeNavigation) {
   ASSERT_TRUE(embedded_test_server()->Start());

@@ -71,8 +71,6 @@ class WebAudioSinkDescriptor;
 class PLATFORM_EXPORT AudioDestination final
     : public ThreadSafeRefCounted<AudioDestination>,
       public media::AudioRendererSink::RenderCallback {
-  USING_FAST_MALLOC(AudioDestination);
-
  public:
   // Represents the current state of the underlying `WebAudioDevice` object
   // (RendererWebAudioDeviceImpl).
@@ -156,7 +154,7 @@ class PLATFORM_EXPORT AudioDestination final
       const scoped_refptr<AudioDestination> previous_platform_destination);
 
   const PushPullFIFOStateForTest GetPushPullFIFOStateForTest() {
-    return fifo_->GetStateForTest();
+    return fifo_->StateForTest();
   }
 
   MediaMultiChannelResampler* GetResamplerForTesting() {

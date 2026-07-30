@@ -4,11 +4,15 @@
 
 #include "chrome/browser/ui/send_tab_to_self/send_tab_to_self_toolbar_icon_controller.h"
 
+#include "base/test/metrics/histogram_tester.h"
 #include "chrome/browser/send_tab_to_self/send_tab_to_self_client_service.h"
 #include "chrome/browser/send_tab_to_self/send_tab_to_self_client_service_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/toasts/api/toast_id.h"
+#include "chrome/browser/ui/toasts/toast_controller.h"
+#include "chrome/browser/ui/toasts/toast_service.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/send_tab_to_self/send_tab_to_self_toolbar_bubble_controller.h"
 #include "chrome/browser/ui/web_applications/test/web_app_browsertest_util.h"
@@ -18,8 +22,11 @@
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/interactive_test_utils.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "components/send_tab_to_self/features.h"
+#include "components/send_tab_to_self/metrics_util.h"
 #include "components/send_tab_to_self/page_context.h"
 #include "components/send_tab_to_self/send_tab_to_self_entry.h"
+#include "components/send_tab_to_self/send_tab_to_self_model.h"
 #include "content/public/test/browser_test.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -31,7 +38,7 @@ class SendTabToSelfToolbarIconControllerTest : public InProcessBrowserTest {
  public:
   void SetUpOnMainThread() override {
     InProcessBrowserTest::SetUpOnMainThread();
-    ASSERT_TRUE(ui_test_utils::BringBrowserWindowToFront(browser()));
+    ui_test_utils::WaitForBrowserSetLastActive(browser());
   }
 
   void WaitUntilBrowserBecomeActiveOrLastActive(Browser* browser) {
@@ -49,9 +56,7 @@ class SendTabToSelfToolbarIconControllerTest : public InProcessBrowserTest {
   }
 
   SendTabToSelfToolbarBubbleController* bubble_controller() {
-    return browser()
-        ->browser_window_features()
-        ->send_tab_to_self_toolbar_bubble_controller();
+    return SendTabToSelfToolbarBubbleController::From(browser());
   }
 
  private:
@@ -126,6 +131,7 @@ IN_PROC_BROWSER_TEST_F(SendTabToSelfToolbarIconControllerTest,
 
 IN_PROC_BROWSER_TEST_F(SendTabToSelfToolbarIconControllerTest,
                        ReplaceExistingEntry) {
+  controller()->set_ignore_active_for_testing(true);
   SendTabToSelfEntry existing_entry(
       "a", GURL("http://www.example-a.com"), "a site", base::Time(), "device a",
       "device b", PageContext(), NavigationHistory());
@@ -146,5 +152,81 @@ IN_PROC_BROWSER_TEST_F(SendTabToSelfToolbarIconControllerTest,
   EXPECT_EQ(new_entry.GetGUID(),
             bubble_controller()->bubble()->GetGuidForTesting());
 }
+
+class SendTabToSelfToolbarIconControllerAutoOpenTest
+    : public SendTabToSelfToolbarIconControllerTest {
+  base::test::ScopedFeatureList feature_list_{kSendTabToSelfAutoOpen};
+};
+
+IN_PROC_BROWSER_TEST_F(SendTabToSelfToolbarIconControllerAutoOpenTest,
+                       AutoOpenNewEntryIfActive) {
+  base::HistogramTester histogram_tester;
+
+  WaitUntilBrowserBecomeActiveOrLastActive(browser());
+  ASSERT_TRUE(browser()->IsActive());
+
+  GURL url("https://www.example-a.com");
+  SendTabToSelfEntry entry("new_entry", url, "a site", base::Time::Now(),
+                           "device a", "device b", PageContext(),
+                           NavigationHistory());
+
+  int tab_count = browser()->tab_strip_model()->count();
+  controller()->DisplayNewEntries({&entry});
+
+  EXPECT_FALSE(bubble_controller()->IsBubbleShowing());
+  EXPECT_EQ(tab_count + 1, browser()->tab_strip_model()->count());
+  EXPECT_EQ(url,
+            browser()->tab_strip_model()->GetActiveWebContents()->GetURL());
+
+  histogram_tester.ExpectUniqueSample("Sharing.SendTabToSelf.AutoOpenOutcome",
+                                      AutoOpenOutcome::kSuccess, 1);
+
+  EXPECT_EQ(browser()
+                ->browser_window_features()
+                ->toast_service()
+                ->toast_controller()
+                ->GetCurrentToastId(),
+            ToastId::kSendTabToSelfTabOpened);
+}
+
+// This test cannot work on Wayland because the platform does not allow clients
+// to position top level windows, activate them, and set focus.
+#if !BUILDFLAG(SUPPORTS_OZONE_WAYLAND)
+IN_PROC_BROWSER_TEST_F(SendTabToSelfToolbarIconControllerAutoOpenTest,
+                       AutoOpenPendingEntryOnActivation) {
+  base::HistogramTester histogram_tester;
+
+  // Create an incognito browser and remove the current browser from focus.
+  Browser* incognito_browser = CreateIncognitoBrowser();
+  WaitUntilBrowserBecomeActiveOrLastActive(incognito_browser);
+  ASSERT_FALSE(browser()->IsActive());
+
+  GURL url("http://www.example-a.com");
+  SendTabToSelfEntry entry("new_entry", url, "a site", base::Time::Now(),
+                           "device a", "device b", PageContext(),
+                           NavigationHistory());
+
+  int tab_count = browser()->tab_strip_model()->count();
+  controller()->DisplayNewEntries({&entry});
+
+  EXPECT_EQ(tab_count, browser()->tab_strip_model()->count());
+
+  histogram_tester.ExpectUniqueSample("Sharing.SendTabToSelf.AutoOpenOutcome",
+                                      AutoOpenOutcome::kPending, 1);
+
+  // Activate the browser and check that the entry is opened in a new tab and
+  // the auto-open outcome is recorded.
+  browser_view()->Activate();
+  WaitUntilBrowserBecomeActiveOrLastActive(browser());
+
+  EXPECT_FALSE(bubble_controller()->IsBubbleShowing());
+  EXPECT_EQ(tab_count + 1, browser()->tab_strip_model()->count());
+  EXPECT_EQ(url,
+            browser()->tab_strip_model()->GetActiveWebContents()->GetURL());
+
+  histogram_tester.ExpectBucketCount("Sharing.SendTabToSelf.AutoOpenOutcome",
+                                     AutoOpenOutcome::kOpenedPending, 1);
+}
+#endif  // !BUILDFLAG(SUPPORTS_OZONE_WAYLAND)
 
 }  // namespace send_tab_to_self

@@ -19,6 +19,7 @@ source_set("internal") {
     "//chrome/browser/ui/browser_window",
     "//chrome/browser/ui/browser_window:create_browser_window",
     "//components/sessions:session_id",
+    "//ui/base",
     "//ui/base/unowned_user_data",
   ]
 
@@ -51,7 +52,10 @@ source_set("internal") {
       "embedder_browser_window_features.cc",
       "global_browser_collection_platform_delegate_non_android.cc",
     ]
-    public_deps = [ "//chrome/browser:browser_public_dependencies" ]
+    public_deps = [
+      "//chrome/browser:browser_public_dependencies",
+      "//chrome/browser/ui/zoom:browser_window_zoom_observer",
+    ]
 
     deps += [
       "//chrome/browser:global_features",
@@ -100,6 +104,7 @@ source_set("internal") {
       "//chrome/browser/ui/views/contextual_tasks",
       "//chrome/browser/ui/views/download",
       "//chrome/browser/ui/views/interaction:impl",
+      "//chrome/browser/ui/views/location_bar:impl",
       "//chrome/browser/ui/views/location_bar/cookie_controls",
       "//chrome/browser/ui/views/new_tab_footer",
       "//chrome/browser/ui/views/send_tab_to_self",

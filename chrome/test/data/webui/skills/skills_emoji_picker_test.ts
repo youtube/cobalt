@@ -45,6 +45,10 @@ suite('SkillsEmojiPicker', function() {
 
     // Wait for the data to be "loaded" (it should be immediate).
     await microtasksFinished();
+
+    // Wait for a frame to ensure the component's rAF-delayed setup
+    // (like document click listeners) is complete.
+    await microtasksFinished();
   });
 
   test('EmojiPickerLoadsData', function() {
@@ -92,7 +96,8 @@ suite('SkillsEmojiPicker', function() {
         emojiPicker.shadowRoot.querySelector<HTMLElement>('.emoji-button');
     assertTrue(!!button);
 
-    const eventPromise = eventToPromise('emoji-selected', emojiPicker);
+    const eventPromise = eventToPromise<CustomEvent<{emoji: string}>>(
+        'emoji-selected', emojiPicker);
     button.click();
 
     const event = await eventPromise;

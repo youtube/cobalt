@@ -78,12 +78,14 @@ class MockVideoFrameFactory : public VideoFrameFactory {
  public:
   MOCK_METHOD2(Initialize, void(OverlayMode overlay_mode, InitCB init_cb));
   MOCK_METHOD1(MockSetSurfaceBundle, void(scoped_refptr<CodecSurfaceBundle>));
-  MOCK_METHOD5(
+  MOCK_METHOD7(
       MockCreateVideoFrame,
       void(CodecOutputBuffer* raw_output_buffer,
            scoped_refptr<gpu::TextureOwner> texture_owner,
            base::TimeDelta timestamp,
            gfx::Size natural_size,
+           const gfx::ColorSpace& color_space,
+           const gfx::HDRMetadata& hdr_metadata,
            PromotionHintAggregator::NotifyPromotionHintCB promotion_hint_cb));
   MOCK_METHOD1(MockRunAfterPendingVideoFrames,
                void(base::OnceClosure* closure));
@@ -107,10 +109,13 @@ class MockVideoFrameFactory : public VideoFrameFactory {
       std::unique_ptr<CodecOutputBuffer> output_buffer,
       base::TimeDelta timestamp,
       gfx::Size natural_size,
+      const gfx::ColorSpace& color_space,
+      const gfx::HDRMetadata& hdr_metadata,
       PromotionHintAggregator::NotifyPromotionHintCB promotion_hint_cb,
       VideoFrameFactory::OnceOutputCB output_cb) override {
     MockCreateVideoFrame(output_buffer.get(), texture_owner_, timestamp,
-                         natural_size, promotion_hint_cb);
+                         natural_size, color_space, hdr_metadata,
+                         promotion_hint_cb);
     last_output_buffer_ = std::move(output_buffer);
     std::move(output_cb).Run(VideoFrame::CreateBlackFrame(gfx::Size(10, 10)));
   }
@@ -897,7 +902,7 @@ TEST_P(MediaCodecVideoDecoderTest, VideoFramesArePowerEfficient) {
   // Produce one output.
   codec->AcceptOneInput();
   codec->ProduceOneOutput();
-  EXPECT_CALL(*video_frame_factory_, MockCreateVideoFrame(_, _, _, _, _));
+  EXPECT_CALL(*video_frame_factory_, MockCreateVideoFrame(_, _, _, _, _, _, _));
   PumpCodec();
   base::RunLoop().RunUntilIdle();
 
@@ -951,7 +956,7 @@ TEST_P(MediaCodecVideoDecoderVp9Test, ColorSpaceIsIncludedInCodecConfig) {
       TestVideoConfig::NormalWithColorSpace(VideoCodec::kVP9, color_space);
   EXPECT_TRUE(InitializeFully_OneDecodePending(config));
 
-  EXPECT_EQ(color_space,
+  EXPECT_EQ(MediaFormatColorSpace(color_space),
             codec_allocator_->most_recent_config->container_color_space);
 }
 

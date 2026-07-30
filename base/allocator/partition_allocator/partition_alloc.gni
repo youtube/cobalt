@@ -159,14 +159,22 @@ declare_args() {
 
 declare_args() {
   # Whether the allocator shim supports alloc token or not. If true, malloc()
-  # and operator new() families are injected with an alloc token parameter,
-  # which is used to select the partition in PartitionAlloc.
+  # and operator new() families are injected with an alloc token parameter.
   # shim_supports_alloc_token = use_partition_alloc_as_malloc
   shim_supports_alloc_token = false
 }
 
 assert(!is_component_build || is_linux || !shim_supports_alloc_token,
        "In the component build, alloc token is only supported on Linux.")
+
+declare_args() {
+  # Whether the allocator shim supports automatic heap partitioning based on AllocToken
+  # or not. If true, shim creates multiple partitions and route allocations based on AllocToken provided.
+  enable_auto_partitioning = false
+}
+assert(shim_supports_alloc_token || !enable_auto_partitioning,
+       "Auto Partitioning requires AllocToken.")
+
 if (use_allocator_shim && is_win) {
   # It's hard to override CRT's malloc family in every case in the component
   # build, and it's very easy to override it partially and to be inconsistent
@@ -413,6 +421,7 @@ if (!use_partition_alloc ||
   enable_backup_ref_ptr_instance_tracer = false
   use_full_mte = false
   shim_supports_alloc_token = false
+  enable_auto_partitioning = false
 }
 
 # Disable |use_full_mte| if memory tagging is not available. This is for targets that run as part the build process.
@@ -561,4 +570,15 @@ declare_args() {
 }
 
 # Activates bounds checks for two-arg constructor of `base::span`.
-use_checked_span = use_partition_alloc && false
+#
+# We actively exclude sanitizer builds because they show us a data race
+# between early unsafe constructions of `base::span` and PartitionAlloc
+# address space initialization. In PA-E builds, this is not a concern,
+# because the PA-E partition will have initialized address space earlier
+# than any span. More generally, though, at worst this data race causes
+# `IsManagedByPartitionAlloc()` to report a false negative, which will
+# lose us coverage of that particular span in that exact moment. This is
+# not a big deal, and is probably preferable to sticking
+# `base::unchecked` on all those spans (shutting them out entirely).
+use_checked_span = !(is_asan || is_ubsan || is_tsan) && use_partition_alloc &&
+                   has_64_bit_pointers && is_debug

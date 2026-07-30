@@ -114,6 +114,10 @@ struct CORE_EXPORT PaintLayerScrollableAreaRareData final
 
   // True if an overscroll gesture is currently in progress.
   bool in_active_overscroll_ = false;
+  // True if we're targeting an "open" snap point state for the overscroll.
+  // Note that this is only updated at overscrollchanging timing, meaning that
+  // it (correctly) has the opposite value at overscrollstart event.
+  bool is_currently_overscrolling_ = false;
 };
 
 // PaintLayerScrollableArea represents the scrollable area of a LayoutBox.
@@ -332,10 +336,9 @@ class CORE_EXPORT PaintLayerScrollableArea final
   gfx::Vector2d MaximumScrollOffsetInt() const override;
   PhysicalRect LayoutContentRect(
       IncludeScrollbarsInRect = kExcludeScrollbars) const;
-  gfx::Rect VisibleContentRect(
-      IncludeScrollbarsInRect = kExcludeScrollbars) const override;
+  gfx::Rect VisibleContentRect(IncludeScrollbarsInRect) const override;
   PhysicalRect VisibleScrollSnapportRect(
-      IncludeScrollbarsInRect = kExcludeScrollbars) const override;
+      IncludeScrollbarsInRect) const override;
   gfx::Size ContentsSize() const override;
 
   // Similar to |ContentsSize| but snapped considering |paint_offset| which can
@@ -462,7 +465,8 @@ class CORE_EXPORT PaintLayerScrollableArea final
   PhysicalRect ScrollIntoView(
       const PhysicalRect&,
       const PhysicalBoxStrut& scroll_margin,
-      const mojom::blink::ScrollIntoViewParamsPtr&) override;
+      const mojom::blink::ScrollIntoViewParamsPtr&,
+      std::unique_ptr<ScrollPromiseResolver::ActiveScrollTracker>) override;
 
   // Returns true if the scrollable area is user-scrollable and it does
   // in fact overflow. This means this method will return false for
@@ -798,6 +802,7 @@ class CORE_EXPORT PaintLayerScrollableArea final
   void InvalidatePaintOfScrollbarIfNeeded(const PaintInvalidatorContext&,
                                           bool needs_paint_invalidation,
                                           Scrollbar* scrollbar,
+                                          bool force_invalidate_for_opaqueness,
                                           bool& previously_was_overlay,
                                           bool& previously_might_be_composited,
                                           gfx::Rect& visual_rect);
@@ -831,7 +836,7 @@ class CORE_EXPORT PaintLayerScrollableArea final
 
   // Overscroll events.
   void EnqueueOverscrollStartEventIfNeeded();
-  void EnqueueOverscrollChangingEventIfNeeded(bool overscrolling);
+  void EnqueueOverscrollChangingEventIfNeeded();
   void EnqueueOverscrollFinishedEventIfNeeded(bool snap_changed);
 
   // PaintLayer is destructed before PaintLayerScrollable area, during this
@@ -912,6 +917,10 @@ class CORE_EXPORT PaintLayerScrollableArea final
 
   ContainerScrolled last_scrolled_horizontal_ = ContainerScrolled::kNone;
   ContainerScrolled last_scrolled_vertical_ = ContainerScrolled::kNone;
+
+  // The used pointer events value that was in effect at last paint
+  // invalidation. Used to invalidate paint!
+  EPointerEvents last_used_pointer_events_ = EPointerEvents::kAuto;
 
   class ScrollingBackgroundDisplayItemClient final
       : public GarbageCollected<ScrollingBackgroundDisplayItemClient>,

@@ -69,6 +69,7 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(kCommittedOriginTracking);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kCopyFromSurfaceAlwaysCallCallback);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kCriticalClientHint);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kDeviceBoundSessionsDevTools);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kWorkerOrWorkletAgentDoubleReleaseFix);
 #if BUILDFLAG(IS_ANDROID)
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kDisableAutoResizeOutputSurface);
 #endif
@@ -190,6 +191,7 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(kPrivacySandboxAdsAPIsM1Override);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kProcessReuseOnPrerenderCOOPSwap);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kProgressiveAccessibilityPhase2);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kReloadHiddenTabsWithCrashedSubframes);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kPreferWarmRendererProcess);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kReusePrerenderingProcessForMainFrames);
 #if BUILDFLAG(IS_ANDROID)
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kRestrictOrientationLockToPhones);
@@ -214,12 +216,16 @@ CONTENT_EXPORT extern const base::FeatureParam<std::string>
     kServiceWorkerBypassFetchHandlerBypassedHashStrings;
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kServiceWorkerSrcdocSupport);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kServiceWorkerStaticRouterRaceRequestFix2);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kServiceWorkerStaticRouterCORPCheck);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kServiceWorkerStaticRouterOpaqueCheck);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(
+    kServiceWorkerStaticRouterConsolidateMainScriptResponse);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(
     kServiceWorkerStaticRouterStartServiceWorker);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(
     kServiceWorkerSuppressTimeoutWhenPaymentWindowOpen);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kServiceWorkerClientUrlIsCreationUrl);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kServiceWorkerOptionalTimeoutIterator);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kServiceWorkerWindowClientInitiator);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(
     kServiceWorkerSoftUpdateOnFunctionalEvent);

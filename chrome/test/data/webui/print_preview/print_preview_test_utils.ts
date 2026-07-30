@@ -341,14 +341,14 @@ export function getMediaSizeCapabilityWithCustomNames(): MediaSizeCapability {
  */
 export async function triggerInputEvent(
     inputElement: HTMLInputElement|CrInputElement, input: string,
-    parentElement: HTMLElement): Promise<void> {
+    parentElement: HTMLElement): Promise<CustomEvent<string>> {
   inputElement.value = input;
   if (inputElement.tagName === 'CR-INPUT') {
     await (inputElement as CrInputElement).updateComplete;
   }
   inputElement.dispatchEvent(
       new CustomEvent('input', {composed: true, bubbles: true}));
-  return await eventToPromise('input-change', parentElement);
+  return eventToPromise<CustomEvent<string>>('input-change', parentElement);
 }
 
 export function createDestinationStore(): DestinationStore {
@@ -372,7 +372,7 @@ export function getSaveAsPdfDestination(): Destination {
  *     process-select-change event has fired.
  */
 export function selectOption(
-    section: HTMLElement, option: string): Promise<void> {
+    section: HTMLElement, option: string): Promise<Event> {
   const select = section.shadowRoot!.querySelector('select')!;
   select.focus();
   select.value = option;

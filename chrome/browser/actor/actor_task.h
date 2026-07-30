@@ -26,7 +26,7 @@
 #include "chrome/browser/actor/tools/tool_request.h"
 #include "chrome/common/actor/task_id.h"
 #include "chrome/common/actor_webui.mojom-forward.h"
-#include "components/actor/task_source_info.h"
+#include "components/actor/core/task_source_info.h"
 #include "components/optimization_guide/proto/features/actions_data.pb.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/visibility.h"
@@ -39,7 +39,7 @@ namespace actor {
 
 class ActionTrackerForMetrics;
 class ActorKeyedService;
-class EnterprisePolicyUrlChecker;
+class EnterprisePolicyChecker;
 class ExecutionEngine;
 
 namespace ui {
@@ -73,7 +73,7 @@ class ActorTask : public base::SupportsUserData {
             std::unique_ptr<ui::UiEventDispatcher> ui_event_dispatcher,
             webui::mojom::TaskOptionsPtr options,
             const TaskSourceInfo& source_info,
-            const EnterprisePolicyUrlChecker* policy_checker,
+            const EnterprisePolicyChecker* policy_checker,
             base::WeakPtr<ActorTaskDelegate> delegate = nullptr);
   ~ActorTask() override;
 
@@ -87,7 +87,7 @@ class ActorTask : public base::SupportsUserData {
       std::unique_ptr<ui::UiEventDispatcher> ui_event_dispatcher,
       webui::mojom::TaskOptionsPtr options,
       const TaskSourceInfo& source_info,
-      const EnterprisePolicyUrlChecker* policy_checker,
+      const EnterprisePolicyChecker* policy_checker,
       base::WeakPtr<ActorTaskDelegate> delegate);
 
   TaskId id() const { return id_; }
@@ -97,7 +97,7 @@ class ActorTask : public base::SupportsUserData {
   const std::string& title() const { return title_; }
   base::WeakPtr<ActorTaskDelegate> delegate() const { return delegate_; }
 
-  const EnterprisePolicyUrlChecker& policy_checker() const {
+  const EnterprisePolicyChecker& policy_checker() const {
     return policy_checker_.get();
   }
 
@@ -142,11 +142,18 @@ class ActorTask : public base::SupportsUserData {
   // LINT.ThenChange(//tools/metrics/histograms/metadata/actor/histograms.xml:StoppedReason,
   // //tools/metrics/histograms/metadata/actor/enums.xml:StoppedReasonEnum)
 
+  enum class TaskDuration {
+    kDefault = 0,
+    kTransient = 1,
+  };
+
   State GetState() const;
   // TODO(bokan): This should be private (this class must be in control of its
   // state) but is used by tests. Make the tests friends (or update the tests)
   // and remove it from the public interface.
   void SetState(State new_state);
+
+  TaskDuration get_task_duration() const { return duration_; }
 
   base::Time GetEndTime() const;
 
@@ -330,8 +337,11 @@ class ActorTask : public base::SupportsUserData {
 
   base::SafeRef<AggregatedJournal> journal_;
 
-  // The title does not change for the duration of a task.
+  // The title does not change for the lifetime of a task.
   const std::string title_;
+
+  // The task duration type does not change for the lifetime of a task.
+  const TaskDuration duration_;
 
   // The callback to notify the client of the result of calling Act().
   ActCallback callback_for_act_;
@@ -380,7 +390,7 @@ class ActorTask : public base::SupportsUserData {
   std::optional<StoppedReason> stopped_reason_;
 
   // This is owned by actor keyed service which owns this class.
-  const raw_ref<const EnterprisePolicyUrlChecker> policy_checker_;
+  const raw_ref<const EnterprisePolicyChecker> policy_checker_;
 
   // Delegate for task-related events.
   base::WeakPtr<ActorTaskDelegate> delegate_;

@@ -56,12 +56,7 @@ namespace {
 // cookies.
 constexpr uint64_t kAllowedDevToolsCookieSettingOverrides =
     1u << static_cast<int>(
-        net::CookieSettingOverride::kForceDisableThirdPartyCookies) |
-    1u << static_cast<int>(
-        net::CookieSettingOverride::kForceEnableThirdPartyCookieMitigations) |
-    1u << static_cast<int>(net::CookieSettingOverride::kSkipTPCDMetadataGrant) |
-    1u << static_cast<int>(
-        net::CookieSettingOverride::kSkipTPCDHeuristicsGrant);
+        net::CookieSettingOverride::kForceDisableThirdPartyCookies);
 
 const char* GetDestinationTypePartString(
     network::mojom::RequestDestination destination) {
@@ -296,9 +291,8 @@ bool HasFetchStreamingUploadBody(const ResourceRequest& request) {
   if (elements->size() != 1u) {
     return false;
   }
-  const auto& element = elements->front();
-  return element.type() == mojom::DataElementDataView::Tag::kChunkedDataPipe &&
-         element.As<network::DataElementChunkedDataPipe>().read_only_once();
+  const auto* element = elements->front().TryAs<DataElementChunkedDataPipe>();
+  return element && element->read_only_once();
 }
 
 std::unique_ptr<net::UploadDataStream> CreateUploadDataStream(
@@ -307,15 +301,14 @@ std::unique_ptr<net::UploadDataStream> CreateUploadDataStream(
     base::SequencedTaskRunner* file_task_runner) {
   // In the case of a chunked upload, there will just be one element.
   if (body->elements()->size() == 1) {
-    if (body->elements()->begin()->type() ==
-        network::mojom::DataElementDataView::Tag::kChunkedDataPipe) {
-      auto& element =
-          body->elements_mutable()->at(0).As<DataElementChunkedDataPipe>();
-      const bool has_null_source = element.read_only_once().value();
+    if (auto* element = body->elements_mutable()
+                            ->front()
+                            .TryAs<DataElementChunkedDataPipe>()) {
+      const bool has_null_source = element->read_only_once().value();
       auto upload_data_stream =
           std::make_unique<ChunkedDataPipeUploadDataStream>(
-              body, element.ReleaseChunkedDataPipeGetter(), has_null_source);
-      if (element.read_only_once()) {
+              body, element->ReleaseChunkedDataPipeGetter(), has_null_source);
+      if (element->read_only_once()) {
         upload_data_stream->EnableCache();
       }
       return upload_data_stream;
@@ -574,8 +567,10 @@ void ConfigureUrlRequest(const ResourceRequest& request,
     url_request.set_socket_tag(request.socket_tag);
   }
 
-  url_request.set_allows_device_bound_sessions(
-      request.allows_device_bound_sessions);
+  url_request.set_device_bound_session_mode(
+      request.allows_device_bound_sessions
+          ? net::DeviceBoundSessionMode::kAllowed
+          : net::DeviceBoundSessionMode::kDisabled);
 
   if (base::FeatureList::IsEnabled(features::kSendSameSiteLaxForFedCM) &&
       (request.destination == mojom::RequestDestination::kWebIdentity ||

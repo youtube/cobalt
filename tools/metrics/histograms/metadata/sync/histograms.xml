@@ -219,19 +219,8 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Sync.AndroidExplicitPassphrasePlatformApiResponse"
-    enum="AndroidExplicitPassphrasePlatformApiResponse"
-    expires_after="2026-03-30">
-  <owner>mastiz@chromium.org</owner>
-  <owner>src/components/sync/OWNERS</owner>
-  <summary>
-    The response returned by the API internally called by
-    ExplicitPassphrasePlatformClient (see class docs). Recorded only on Android.
-  </summary>
-</histogram>
-
 <histogram name="Sync.AssociateWindowsTime.On{Type}" units="ms"
-    expires_after="2026-08-02">
+    expires_after="2026-10-04">
   <owner>skym@chromium.org</owner>
   <owner>ckitagawa@chromium.org</owner>
   <summary>
@@ -244,7 +233,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.BackedOffDataType" enum="SyncDataTypes"
-    expires_after="2026-08-02">
+    expires_after="2026-10-04">
   <owner>treib@chromium.org</owner>
   <owner>src/components/sync/OWNERS</owner>
   <summary>
@@ -579,17 +568,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Sync.ClearMetadataDueToEmptyStorageKey" enum="SyncDataTypes"
-    expires_after="2026-03-30">
-  <owner>treib@chromium.org</owner>
-  <owner>src/components/sync/OWNERS</owner>
-  <summary>
-    Records when a data type's metadata is cleared due to empty/missing storage
-    keys in the persisted metadata. This will result in a re-download of all
-    data of this type.
-  </summary>
-</histogram>
-
 <histogram name="Sync.ClearMetadataWhileStopped{ClearTime}"
     enum="SyncDataTypes" expires_after="2026-05-13">
   <owner>ankushkush@google.com</owner>
@@ -681,7 +659,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.ConfigureDataTypeManagerOption"
-    enum="SyncFeatureOrTransport" expires_after="2026-08-02">
+    enum="SyncFeatureOrTransport" expires_after="2026-10-04">
   <owner>mastiz@chromium.org</owner>
   <owner>treib@chromium.org</owner>
   <summary>
@@ -876,7 +854,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.DataTypeCommitMessageHasDepletedQuota"
-    enum="SyncDataTypes" expires_after="2026-08-04">
+    enum="SyncDataTypes" expires_after="2026-10-04">
   <owner>rushans@google.com</owner>
   <owner>treib@chromium.org</owner>
   <summary>
@@ -976,7 +954,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.DataTypeMemoryKB{SyncDataType}" units="KB"
-    expires_after="2026-08-02">
+    expires_after="2026-10-04">
   <owner>mastiz@chromium.org</owner>
   <owner>rushans@google.com</owner>
   <summary>
@@ -1653,17 +1631,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Sync.InvalidSessionHeader.AssociateWindows"
-    enum="SessionSpecificsInvalidReason" expires_after="2026-03-30">
-  <owner>treib@chromium.org</owner>
-  <owner>src/components/sync/OWNERS</owner>
-  <summary>
-    Recorded if the SessionHeader specifics produced at the end of an
-    AssociateWindows() call was invalid (and thus not actually sent to the sync
-    machinery).
-  </summary>
-</histogram>
-
 <histogram name="Sync.KeystoreDecryptionFailed"
     enum="SyncKeystoreDecryptionFailure" expires_after="2026-09-13">
   <owner>mmoskvitin@google.com</owner>
@@ -1937,7 +1904,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.PendingInvalidationStatus"
-    enum="PendingInvalidationStatus" expires_after="2026-08-02">
+    enum="PendingInvalidationStatus" expires_after="2026-10-04">
   <owner>shabdan@google.com</owner>
   <owner>rushans@google.com</owner>
   <summary>

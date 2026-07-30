@@ -10,6 +10,7 @@
 
 #include "base/callback_list.h"
 #include "base/memory/raw_ptr.h"
+#include "base/strings/string_number_conversions.h"
 #include "chrome/browser/ui/side_panel/side_panel_entry.h"
 #include "chrome/browser/ui/side_panel/side_panel_entry_id.h"
 #include "chrome/browser/ui/side_panel/side_panel_entry_key.h"
@@ -42,6 +43,16 @@ class SidePanelUIBase : public SidePanelUI {
     std::optional<tabs::TabHandle> tab_handle;
     SidePanelEntry::Key key;
     friend bool operator==(const UniqueKey&, const UniqueKey&) = default;
+    friend std::ostream& operator<<(std::ostream& os,
+                                    const UniqueKey& unique_key) {
+      os << "UniqueKey{tab_handle: "
+         << (unique_key.tab_handle
+                 ? ("TabHandle@" +
+                    base::NumberToString(unique_key.tab_handle->raw_value()))
+                 : "null")
+         << ", key: " << unique_key.key.ToString() << "}";
+      return os;
+    }
   };
 
   // SidePanelUI:
@@ -54,16 +65,15 @@ class SidePanelUIBase : public SidePanelUI {
             std::optional<SidePanelOpenTrigger> open_trigger,
             bool suppress_animations) override;
   std::optional<SidePanelEntry::Id> GetCurrentEntryId(
-      SidePanelEntry::PanelType panel_type) const override;
-  int GetCurrentEntryDefaultContentWidth(
-      SidePanelEntry::PanelType type) const override;
-  bool IsSidePanelShowing(SidePanelEntry::PanelType type) const override;
+      SidePanelType panel_type) const override;
+  int GetCurrentEntryDefaultContentWidth(SidePanelType type) const override;
+  bool IsSidePanelShowing(SidePanelType type) const override;
   bool IsSidePanelEntryShowing(
       const SidePanelEntry::Key& entry_key) const override;
   bool IsSidePanelEntryShowing(const SidePanelEntry::Key& entry_key,
                                bool for_tab) const override;
   base::CallbackListSubscription RegisterSidePanelShown(
-      SidePanelEntry::PanelType type,
+      SidePanelType type,
       SidePanelUI::ShownCallback callback) override;
   void OnActiveTabChanged(content::WebContents* old_contents,
                           content::WebContents* new_contents,
@@ -125,19 +135,17 @@ class SidePanelUIBase : public SidePanelUI {
       SidePanelRegistry* old_contextual_registry,
       SidePanelRegistry* new_contextual_registry) = 0;
 
-  void SetOpenedTimestamp(SidePanelEntry::PanelType type,
-                          base::TimeTicks timestamp);
-  base::TimeTicks opened_timestamp(SidePanelEntry::PanelType type) {
+  void SetOpenedTimestamp(SidePanelType type, base::TimeTicks timestamp);
+  base::TimeTicks opened_timestamp(SidePanelType type) {
     return panel_data_.at(type)->opened_timestamp;
   }
 
-  void NotifyShownCallbacksFor(SidePanelEntry::PanelType type);
+  void NotifyShownCallbacksFor(SidePanelType type);
 
-  std::optional<UniqueKey> current_key(SidePanelEntry::PanelType type) const {
+  std::optional<UniqueKey> current_key(SidePanelType type) const {
     return panel_data_.at(type)->current_key;
   }
-  void SetCurrentKey(SidePanelEntry::PanelType type,
-                     std::optional<UniqueKey> new_key);
+  void SetCurrentKey(SidePanelType type, std::optional<UniqueKey> new_key);
 
   std::optional<UniqueKey> GetUniqueKeyForKey(
       const SidePanelEntry::Key& entry_key) const;
@@ -154,14 +162,13 @@ class SidePanelUIBase : public SidePanelUI {
   // nullopt if no suitable entry is found. Called from
   // `OnTabStripModelChanged()` when there's an active entry being shown in the
   // side panel.
-  std::optional<UniqueKey> GetNewActiveKeyOnTabChanged(
-      SidePanelEntry::PanelType type);
+  std::optional<UniqueKey> GetNewActiveKeyOnTabChanged(SidePanelType type);
 
-  SidePanelEntryWaiter* waiter(SidePanelEntry::PanelType type) const;
+  SidePanelEntryWaiter* waiter(SidePanelType type) const;
 
  private:
   const raw_ptr<BrowserWindowInterface> browser_;
-  std::map<SidePanelEntry::PanelType, std::unique_ptr<PanelData>> panel_data_;
+  std::map<SidePanelType, std::unique_ptr<PanelData>> panel_data_;
 };
 
 #endif  // CHROME_BROWSER_UI_SIDE_PANEL_SIDE_PANEL_UI_BASE_H_

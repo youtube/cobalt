@@ -248,7 +248,7 @@ IN_PROC_BROWSER_TEST_F(PasswordGenerationPopupViewTest,
 
   ui::AXNodeData node_data;
   popup_view->GetViewAccessibility().GetAccessibleNodeData(&node_data);
-  EXPECT_EQ(node_data.role, ax::mojom::Role::kListBox);
+  EXPECT_EQ(node_data.role, ax::mojom::Role::kDialog);
   EXPECT_FALSE(node_data.HasState(ax::mojom::State::kInvisible));
 }
 
@@ -270,7 +270,7 @@ IN_PROC_BROWSER_TEST_F(PasswordGenerationPopupViewTest, PopupInAxTree) {
   // the right place than on Linux or Windows (see below) where the popup
   // subtree lives separately.
   waiter.WaitIfNeededAndGet();
-  window = chrome::FindLastActive()->window()->GetNativeWindow();
+  window = chrome::FindLastActive()->GetWindow()->GetNativeWindow();
 #elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
   views::Widget* dialog_widget = waiter.WaitIfNeededAndGet();
   window = dialog_widget->GetNativeWindow();

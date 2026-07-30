@@ -26,7 +26,6 @@
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "cc/input/browser_controls_state.h"
-#include "components/surface_embed/buildflags/buildflags.h"
 #include "content/common/content_export.h"
 #include "content/public/browser/frame_tree_node_id.h"
 #include "content/public/browser/invalidate_type.h"
@@ -133,6 +132,7 @@ class RenderWidgetHost;
 class RenderWidgetHostView;
 class ScreenOrientationDelegate;
 class SiteInstance;
+class SurfaceEmbedConnector;
 class UnownedInnerWebContentsClient;
 class WebContentsDelegate;
 class WebUI;
@@ -143,10 +143,6 @@ class PreloadingAttempt;
 #if BUILDFLAG(IS_ANDROID)
 class SelectionPopupDelegate;
 #endif
-
-#if BUILDFLAG(ENABLE_SURFACE_EMBED)
-class SurfaceEmbedConnector;
-#endif  // BUILDFLAG(ENABLE_SURFACE_EMBED)
 
 // WebContents is the core class in content/. A WebContents renders web content
 // (usually HTML) in a rectangular area.
@@ -442,11 +438,9 @@ class WebContents : public PageNavigator, public base::SupportsUserData {
   virtual WebContentsDelegate* GetDelegate() = 0;
   virtual void SetDelegate(WebContentsDelegate* delegate) = 0;
 
-#if BUILDFLAG(ENABLE_SURFACE_EMBED)
   // Gets the SurfaceEmbedConnector for this WebContents, or nullptr if this
   // WebContents is not embedded with SurfaceEmbed.
   virtual SurfaceEmbedConnector* GetSurfaceEmbedConnector() const = 0;
-#endif  // BUILDFLAG(ENABLE_SURFACE_EMBED)
 
   // Gets the NavigationController for primary frame tree of this WebContents.
   // See comments on NavigationController for more details.
@@ -1681,24 +1675,6 @@ class WebContents : public PageNavigator, public base::SupportsUserData {
   // event and the time when the WebContents is painted.
   virtual void SetTabSwitchStartTime(base::TimeTicks start_time,
                                      bool destination_is_loaded) = 0;
-
-  // Checks if the WebContents host pages in preview mode.
-  virtual bool IsInPreviewMode() const = 0;
-
-  // Called before ActivatePreviewPage() to prepare the activation. This will
-  // end the preview mode and IsInPreviewMode() will start returning false after
-  // the call. This allows embedders to run preparation steps on the activating
-  // WebContents (e.g. attach TabHelpers) before activating the page shown by
-  // the WebContents through ActivatePreviewPage().
-  virtual void WillActivatePreviewPage() = 0;
-
-  // Activates the primary page that is shown in preview mode. This will relax
-  // capability restriction in the browser process, and notify the renderer to
-  // process the prerendering activation algorithm.
-  // This all processes happens asynchronously, and
-  // `WebContentsDelegate::DidActivatePreviewedPage` will be called once it's
-  // done.
-  virtual void ActivatePreviewPage() = 0;
 
   // Starts browser-initiated prefetch, triggered by embedder.
   // - `prefetch_url` is the url the prefetch will be performed.

@@ -14,7 +14,6 @@
 #include "components/sync/base/data_type.h"
 #include "components/sync/model/client_tag_based_data_type_processor.h"
 #include "components/sync/model/data_type_store.h"
-#include "components/sync/model/in_memory_metadata_change_list.h"
 #include "components/sync/model/mutable_data_batch.h"
 #include "components/sync/protocol/entity_data.h"
 #include "components/sync/protocol/plus_address_setting_specifics.pb.h"
@@ -101,11 +100,6 @@ void PlusAddressSettingSyncBridge::WriteSetting(
                      weak_factory_.GetWeakPtr()));
 }
 
-std::unique_ptr<syncer::MetadataChangeList>
-PlusAddressSettingSyncBridge::CreateMetadataChangeList() {
-  return std::make_unique<syncer::InMemoryMetadataChangeList>();
-}
-
 std::optional<syncer::ModelError>
 PlusAddressSettingSyncBridge::MergeFullSyncData(
     std::unique_ptr<syncer::MetadataChangeList> metadata_change_list,
@@ -152,6 +146,7 @@ void PlusAddressSettingSyncBridge::ApplyDisableSyncChanges(
     std::unique_ptr<syncer::MetadataChangeList> delete_metadata_change_list) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   store_->DeleteAllDataAndMetadata(
+      std::move(delete_metadata_change_list),
       base::BindOnce(&PlusAddressSettingSyncBridge::ReportErrorIfSet,
                      weak_factory_.GetWeakPtr()));
   settings_.clear();

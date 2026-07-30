@@ -306,7 +306,17 @@ GURL SelectionOverlayController::GetInitialURL() {
   return GURL(chrome::kChromeUIGlicSelectionOverlayURL);
 }
 
-void SelectionOverlayController::NotifyIsOverlayShowing(bool is_showing) {}
+void SelectionOverlayController::NotifyIsOverlayShowing(bool is_showing) {
+  if (!is_showing) {
+    GlicKeyedService* service =
+        GlicKeyedService::Get(tab_->GetBrowserWindowInterface()->GetProfile());
+    if (service) {
+      if (GlicInstance* instance = service->GetInstanceForTab(tab_)) {
+        instance->OnSelectionAreasChanged(0);
+      }
+    }
+  }
+}
 
 int SelectionOverlayController::GetToolResourceId() {
   return IDS_GLIC_SELECTION_OVERLAY_RENDERER_LABEL;
@@ -316,8 +326,8 @@ ui::ElementIdentifier SelectionOverlayController::GetViewContainerId() {
   return kGlicSelectionOverlayViewElementId;
 }
 
-SidePanelEntry::PanelType SelectionOverlayController::GetSidePanelType() {
-  return SidePanelEntry::PanelType::kContent;
+SidePanelType SelectionOverlayController::GetSidePanelType() {
+  return SidePanelType::kContent;
 }
 
 bool SelectionOverlayController::ShouldCloseSidePanel() {
@@ -340,10 +350,11 @@ void SelectionOverlayController::NotifyTabForegrounded() {}
 
 void SelectionOverlayController::NotifyTabWillEnterBackground() {}
 
-OverlayBaseController::PreselectionBubbleResources
-SelectionOverlayController::GetPreselectionBubbleResources() {
-  return {.message_string_id =
-              IDS_GLIC_SELECTION_OVERLAY_PRESELECTION_BUBBLE_TEXT};
+OverlayBaseController::PreselectionUIConfig
+SelectionOverlayController::GetPreselectionBubbleConfig() {
+  return {
+      .message_string_id = IDS_GLIC_SELECTION_OVERLAY_PRESELECTION_BUBBLE_TEXT,
+      .show_cancel_button = true};
 }
 
 bool SelectionOverlayController::IsOverlayViewShared() const {
@@ -372,6 +383,10 @@ void SelectionOverlayController::AdjustRegion(
 void SelectionOverlayController::DeleteRegion(
     const base::UnguessableToken& id) {
   if (selected_regions_.erase(id)) {
+    if (selected_regions_.empty()) {
+      CloseUI();
+      return;
+    }
     RenderRegions();
   }
 }
@@ -435,11 +450,13 @@ void SelectionOverlayController::RenderRegions() {
       GlicKeyedService::Get(tab_->GetBrowserWindowInterface()->GetProfile());
   service->SendAdditionalContext(tab_->GetHandle(),
                                  std::move(additional_context));
-  if (GlicInstance* instance = service->GetInstanceForTab(tab_);
-      instance && instance->IsActive()) {
-    if (content::WebContents* web_contents =
-            instance->host().webui_contents()) {
-      web_contents->Focus();
+  if (GlicInstance* instance = service->GetInstanceForTab(tab_)) {
+    instance->OnSelectionAreasChanged(selected_regions_.size());
+    if (instance->IsActive()) {
+      if (content::WebContents* web_contents =
+              instance->host().webui_contents()) {
+        web_contents->Focus();
+      }
     }
   }
 

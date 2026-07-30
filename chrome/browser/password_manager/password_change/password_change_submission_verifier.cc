@@ -135,14 +135,15 @@ char PasswordChangeSubmissionVerifier::kSubmissionOutcomeHistogramName[] =
 
 PasswordChangeSubmissionVerifier::PasswordChangeSubmissionVerifier(
     content::WebContents* web_contents,
+    password_manager::PasswordManagerClient* client,
     ModelQualityLogsUploader* logs_uploader,
     FormSubmissionVerificationResultCallback callback)
     : creation_time_(base::Time::Now()),
       web_contents_(web_contents),
       logs_uploader_(logs_uploader),
       callback_(std::move(callback)) {
-  capturer_ = std::make_unique<AnnotatedPageContentCapturer>(
-      web_contents_, GetAIPageContentOptions(),
+  capturer_ = AnnotatedPageContentCapturer::Create(
+      web_contents_, client, GetAIPageContentOptions(),
       base::BindOnce(
           &PasswordChangeSubmissionVerifier::CheckSubmissionSuccessful,
           weak_ptr_factory_.GetWeakPtr()));

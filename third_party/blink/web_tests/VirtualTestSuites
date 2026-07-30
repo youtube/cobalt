@@ -1945,27 +1945,6 @@
     ]
   },
   {
-    "prefix": "lcpp-fetched-fonts",
-    "platforms": [
-      "Linux",
-      "Mac",
-      "Win"
-    ],
-    "bases": [
-      "http/tests/lcpp_fetched_fonts"
-    ],
-    "exclusive_tests": "ALL",
-    "args": [
-      "--enable-features=LCPPFontURLPredictor"
-    ],
-    "expires": "Apr 1, 2026",
-    "owners": [
-      "yyanagisawa@chromium.org",
-      "kouhei@chromium.org",
-      "yoichio@chromium.org"
-    ]
-  },
-  {
     "prefix": "lcpp-timing-predictor",
     "platforms": [
       "Linux",
@@ -2339,23 +2318,6 @@
     ],
     "owners": [
       "ikilpatrick@chromium.org"
-    ],
-    "expires": "Jul 1, 2025"
-  },
-  {
-    "prefix": "option-mutation-observer-improvement-disabled",
-    "platforms": [
-      "Linux"
-    ],
-    "bases": [
-      "fast/forms/select",
-      "external/wpt/html/semantics/forms/the-select-element"
-    ],
-    "args": [
-      "--disable-features=OptionMutationObserverImprovement"
-    ],
-    "owners": [
-      "jarhar@chromium.org"
     ],
     "expires": "Dec 1, 2026"
   },
@@ -3067,7 +3029,7 @@
     ],
     "bases": [
       "external/wpt/html/semantics/forms/the-select-element/customizable-select/selectedcontent-in-option-crash.html",
-      "external/wpt/html/semantics/forms/the-select-element/customizable-select/selectedcontent-restore.html",
+      "external/wpt/html/semantics/forms/the-select-element/customizable-select/selectedcontent-restore.optional.html",
       "external/wpt/html/semantics/forms/the-select-element/customizable-select/selectedcontent-color.html",
       "external/wpt/html/semantics/forms/the-select-element/customizable-select/selectedcontent-nested.html",
       "external/wpt/html/semantics/forms/the-select-element/customizable-select/selectedcontentelement-attr.tentative.html"
@@ -4661,7 +4623,7 @@
     "args": [
       "--enable-threaded-compositing",
       "--enable-viewport",
-      "--blink-settings=textAutosizingEnabled=true,viewportMetaEnabled=true"
+      "--blink-settings=textAutosizingEnabled=true,textSizeAdjustEnabled=true,viewportMetaEnabled=true"
     ],
     "expires": "never"
   },
@@ -4681,7 +4643,7 @@
     "args": [
       "--enable-threaded-compositing",
       "--enable-viewport",
-      "--blink-settings=textAutosizingEnabled=true,accessibilityFontScaleFactor=2,deviceScaleAdjustment=3,viewportMetaEnabled=true"
+      "--blink-settings=textAutosizingEnabled=true,textSizeAdjustEnabled=true,accessibilityFontScaleFactor=2,deviceScaleAdjustment=3,viewportMetaEnabled=true"
     ],
     "expires": "never"
   },
@@ -5240,6 +5202,26 @@
       "web-bluetooth@google.com"
     ],
     "expires": "Jan 1, 2027"
+  },
+  {
+    "prefix": "web-install",
+    "platforms": [
+      "Linux",
+      "Mac",
+      "Win"
+    ],
+    "bases": [
+      "external/wpt/web-install"
+    ],
+    "exclusive_tests": "ALL",
+    "args": [
+      "--enable-features=WebAppInstallation"
+    ],
+    "owners": [
+      "pwa-team@google.com",
+      "liahiscock@microsoft.com"
+    ],
+    "expires": "Jan 1, 2028"
   },
   "--webauthn-remote-desktop-support can be toggled with enterprise policies, ",
   "so we need to support this long term.",
@@ -6399,15 +6381,12 @@
     "expires": "Dec 31, 2026"
   },
   {
-    "prefix": "single-axis-scroll-containers",
+    "prefix": "disable-single-axis-scroll-containers",
     "platforms": ["Linux", "Mac", "Win", "Android"],
     "bases": [
-      "external/wpt/css/css-position/sticky/position-sticky-single-axis-basic.html",
-      "external/wpt/css/css-position/sticky/position-sticky-single-axis-dynamic.html",
-      "external/wpt/css/css-position/sticky/position-sticky-single-axis-nested.html"
+      "external/wpt/css/css-position/sticky/"
     ],
-    "exclusive_tests": "ALL",
-    "args": ["--enable-blink-features=SingleAxisScrollContainers"],
+    "args": ["--disable-blink-features=SingleAxisScrollContainers"],
     "owners": [
       "freedebreuil@google.com"
     ],

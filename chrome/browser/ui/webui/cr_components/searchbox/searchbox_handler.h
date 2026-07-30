@@ -16,6 +16,7 @@
 #include "base/time/time.h"
 #include "base/values.h"
 #include "components/contextual_search/contextual_search_types.h"
+#include "components/contextual_search/pref_names.h"
 #include "components/omnibox/browser/autocomplete_controller.h"
 #include "components/omnibox/browser/searchbox.mojom.h"
 #include "components/omnibox/common/input_state.h"
@@ -84,8 +85,6 @@ class SearchboxHandler : public searchbox::mojom::PageHandler,
                        bool default_match_changed) override;
 
   // searchbox::mojom::PageHandler:
-  void SetPage(
-      mojo::PendingRemote<searchbox::mojom::Page> pending_page) override;
   void OnFocusChanged(bool focused) override;
   void QueryAutocomplete(const std::u16string& input,
                          bool prevent_inline_autocomplete) override;
@@ -148,6 +147,10 @@ class SearchboxHandler : public searchbox::mojom::PageHandler,
   void SetActiveModelMode(omnibox::ModelMode model) override {}
   void RecordModelSelectionAction(omnibox::ModelMode model) override {}
   void ActivateMetricsFunnel(const std::string& funnel_name) override {}
+  void ShouldShowDriveDisclaimer(
+      ShouldShowDriveDisclaimerCallback callback) override;
+  void OnDriveDisclaimerAccepted() override;
+  void GetPageClassification(GetPageClassificationCallback callback) override;
 
   // Stores `callback` to be run when the page remote is bound and ready to
   // receive calls. Runs `callback` immediately if the remote is already bound.
@@ -167,6 +170,7 @@ class SearchboxHandler : public searchbox::mojom::PageHandler,
                            QueryAutocomplete_SkipsLensInputs_InToolModes);
   SearchboxHandler(
       mojo::PendingReceiver<searchbox::mojom::PageHandler> pending_page_handler,
+      mojo::PendingRemote<searchbox::mojom::Page> pending_page,
       Profile* profile,
       content::WebContents* web_contents,
       std::unique_ptr<OmniboxController> controller);

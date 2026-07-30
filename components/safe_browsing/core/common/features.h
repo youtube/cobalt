@@ -83,6 +83,8 @@ extern const base::FeatureParam<double> kCsdCreditCardFormSampleRate;
 // If the user has visited more times than this max, then the CSD ping is
 // blocked.
 extern const base::FeatureParam<int> kCsdCreditCardFormMaxUserVisit;
+// Sets the lookback period in minutes for determining the site visit count.
+extern const base::FeatureParam<int> kCsdCreditCardFormUserVisitLookback;
 // Specifies whether to filter credit card CSD pings based on whether the user
 // is on a new site.
 extern const base::FeatureParam<bool> kCsdCreditCardFormEnableNewSiteFilter;
@@ -115,11 +117,6 @@ extern const base::FeatureParam<bool>
 // OptimizationGuide.
 BASE_DECLARE_FEATURE(kClientSideDetectionKillswitch);
 
-// Inquire the on device model when the forced llama trigger info in
-// RTLookupResponse asks to scan the page.
-BASE_DECLARE_FEATURE(
-    kClientSideDetectionLlamaForcedTriggerInfoForScamDetection);
-
 // The observers that trigger the image classification have been tweaked with a
 // more defined page loading state check.
 BASE_DECLARE_FEATURE(kClientSideDetectionNewObservers);
@@ -144,30 +141,11 @@ extern const base::FeatureParam<int> kClientSideDetectionRetryLimitTime;
 BASE_DECLARE_FEATURE(kClientSideDetectionSamplePing);
 
 #if BUILDFLAG(IS_ANDROID)
-// Send IntelligentScanInfo in CSD pings on Android.
-BASE_DECLARE_FEATURE(kClientSideDetectionSendIntelligentScanInfoAndroid);
-#endif
-
-// Pass the LlamaTriggerRuleInfo from RTLookupResponse to ClientPhishingRequest
-// if it exists and the force request mechanism occurs.
-BASE_DECLARE_FEATURE(kClientSideDetectionSendLlamaForcedTriggerInfo);
-
-#if BUILDFLAG(IS_ANDROID)
 // Inquire the server-side model instead of the on-device model for scam
 // detection.
 BASE_DECLARE_FEATURE(kClientSideDetectionServerModelForScamDetectionAndroid);
 extern const base::FeatureParam<int>
     kClientSideDetectionServerModelMaxScansPerDay;
-#endif
-
-// Show a warning to the user based on the
-// IntelligentScanVerdict::SCAM_EXPERIMENT_VERDICT_2.
-BASE_DECLARE_FEATURE(kClientSideDetectionShowLlamaScamVerdictWarning);
-
-#if BUILDFLAG(IS_ANDROID)
-// Show a warning to the user that factors in the IntelligentScanVerdict from
-// ClientPhishingResponse on Android.
-BASE_DECLARE_FEATURE(kClientSideDetectionShowScamVerdictWarningAndroid);
 #endif
 
 BASE_DECLARE_FEATURE(kClientSideDetectionSkipErrorPage);

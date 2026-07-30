@@ -6,11 +6,21 @@
 
 #include <string>
 
+#include "base/containers/flat_set.h"
 #include "base/feature_list.h"
+#include "base/no_destructor.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_split.h"
+#include "base/strings/string_util.h"
+#include "components/accessibility_annotator/core/accessibility_annotator_debug_features.h"
 #include "components/accessibility_annotator/core/accessibility_annotator_features.h"
+#include "components/accessibility_annotator/core/country_type.h"
+#include "components/accessibility_annotator/core/prefs.h"
 #include "components/account_settings/account_setting_service.h"
+#include "components/prefs/pref_service.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
+#include "components/subscription_eligibility/subscription_eligibility_service.h"
 
 namespace accessibility_annotator {
 namespace {
@@ -41,9 +51,30 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
   return true;
 }
 
+const base::flat_set<int32_t>& GetAnnotatorEligibleTiers() {
+  static const base::NoDestructor<base::flat_set<int32_t>> eligible_tiers([] {
+    std::string tier_list =
+        features::kAccessibilityAnnotatorEligibleTiers.Get();
+    std::vector<std::string_view> tier_pieces = base::SplitStringPiece(
+        tier_list, ",", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+    base::flat_set<int32_t> tiers;
+    tiers.reserve(tier_pieces.size());
+    for (std::string_view piece : tier_pieces) {
+      int32_t tier_id = 0;
+      if (base::StringToInt(piece, &tier_id)) {
+        tiers.insert(tier_id);
+      }
+    }
+    return tiers;
+  }());
+  return *eligible_tiers;
+}
+
 // Checks whether all requirements for `IdentityManager` state are met.
 [[nodiscard]] bool SatisfiesAccountRequirements(
     const signin::IdentityManager* identity_manager,
+    subscription_eligibility::SubscriptionEligibilityService*
+        subscription_eligibility_service,
     std::string* debug_message = nullptr) {
   // The user is signed out.
   if (!identity_manager ||
@@ -73,6 +104,19 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
     return false;
   }
 
+  if (!subscription_eligibility_service) {
+    MaybeOutputReason(debug_message,
+                      "Subscription eligibility service not available.");
+    return false;
+  }
+
+  const int32_t tier =
+      subscription_eligibility_service->GetAiSubscriptionTier();
+  if (!GetAnnotatorEligibleTiers().contains(tier)) {
+    MaybeOutputReason(debug_message, "User subscription tier is not eligible.");
+    return false;
+  }
+
   return true;
 }
 
@@ -82,36 +126,87 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
   // TODO(crbug.com/494149753) Implement
   return true;
 }
+
+// Checks whether miscellaneous "other" requirements (e.g. Geo-IP)
+// are satisfied.
+[[nodiscard]] bool SatisfiesMiscellaneousRequirements(
+    GeoIpCountryCode country_code,
+    std::string* debug_message = nullptr) {
+  if (country_code != GeoIpCountryCode("US")) {
+    MaybeOutputReason(debug_message, "Unsupported GeoIp.");
+    return false;
+  }
+
+  return true;
+}
+
+// Checks whether preference requirements are satisfied.
+[[nodiscard]] RemoteAnnotatorEnablementState SatisfiesPreferenceRequirements(
+    PrefService* pref_service,
+    std::string* debug_message = nullptr) {
+  using enum RemoteAnnotatorEnablementState;
+
+  if (!pref_service) {
+    MaybeOutputReason(debug_message, "Prefs are not available.");
+    return kDisabledNotEligible;
+  }
+
+  if (pref_service->GetBoolean(prefs::kShouldShowRemoteAnnotatorFirstRunInfo)) {
+    MaybeOutputReason(debug_message, "Info not yet acknowledged.");
+    return kDisabledPendingInfo;
+  }
+
+  return kEnabled;
+}
 }  // namespace
 
 AccessibilityAnnotatorEnablementServiceImpl::
     AccessibilityAnnotatorEnablementServiceImpl(
         account_settings::AccountSettingService* account_settings_service,
-        signin::IdentityManager* identity_manager)
+        signin::IdentityManager* identity_manager,
+        subscription_eligibility::SubscriptionEligibilityService*
+            subscription_eligibility_service,
+        PrefService* pref_service,
+        GeoIpCountryCode country_code)
     : account_settings_service_(account_settings_service),
-      identity_manager_(identity_manager) {}
+      identity_manager_(identity_manager),
+      subscription_eligibility_service_(subscription_eligibility_service),
+      pref_service_(pref_service),
+      country_code_(std::move(country_code)) {
+  if (identity_manager) {
+    identity_manager_observer_.Observe(identity_manager);
+  }
+}
 
 AccessibilityAnnotatorEnablementServiceImpl::
     ~AccessibilityAnnotatorEnablementServiceImpl() = default;
 
 void AccessibilityAnnotatorEnablementServiceImpl::AddObserver(
-    Observer* observer) {
+    AccessibilityAnnotatorEnablementService::Observer* observer) {
   observers_.AddObserver(observer);
 }
 
 void AccessibilityAnnotatorEnablementServiceImpl::RemoveObserver(
-    Observer* observer) {
+    AccessibilityAnnotatorEnablementService::Observer* observer) {
   observers_.RemoveObserver(observer);
 }
 
 RemoteAnnotatorEnablementState
 AccessibilityAnnotatorEnablementServiceImpl::GetEnablementState() {
   using enum RemoteAnnotatorEnablementState;
+  if (base::FeatureList::IsEnabled(
+          features::debug::kAccessibilityAnnotatorForceEnablementState)) {
+    return static_cast<RemoteAnnotatorEnablementState>(
+        features::debug::kAccessibilityAnnotatorForceEnablementStateParam
+            .Get());
+  }
+
   if (!SatisfiesFeatureRequirements()) {
     return kDisabledNotEligible;
   }
 
-  if (!SatisfiesAccountRequirements(identity_manager_.get())) {
+  if (!SatisfiesAccountRequirements(identity_manager_.get(),
+                                    subscription_eligibility_service_.get())) {
     return kDisabledNotEligible;
   }
 
@@ -119,7 +214,26 @@ AccessibilityAnnotatorEnablementServiceImpl::GetEnablementState() {
     return kDisabledNotEligible;
   }
 
-  return kEnabled;
+  if (!SatisfiesMiscellaneousRequirements(country_code_)) {
+    return kDisabledNotEligible;
+  }
+
+  return SatisfiesPreferenceRequirements(pref_service_.get());
+}
+
+void AccessibilityAnnotatorEnablementServiceImpl::OnPrimaryAccountChanged(
+    const signin::PrimaryAccountChangeEvent& event_details) {
+  if (event_details.GetEventTypeFor(signin::ConsentLevel::kSignin) ==
+      signin::PrimaryAccountChangeEvent::Type::kCleared) {
+    if (pref_service_) {
+      pref_service_->ClearPref(prefs::kShouldShowRemoteAnnotatorFirstRunInfo);
+    }
+  }
+}
+
+void AccessibilityAnnotatorEnablementServiceImpl::OnIdentityManagerShutdown(
+    signin::IdentityManager* identity_manager) {
+  identity_manager_observer_.Reset();
 }
 
 }  // namespace accessibility_annotator

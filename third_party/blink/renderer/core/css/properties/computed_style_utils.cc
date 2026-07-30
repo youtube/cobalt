@@ -64,7 +64,6 @@
 #include "third_party/blink/renderer/core/layout/grid_lanes/layout_grid_lanes.h"
 #include "third_party/blink/renderer/core/layout/layout_block.h"
 #include "third_party/blink/renderer/core/layout/layout_box.h"
-#include "third_party/blink/renderer/core/layout/svg/layout_svg_viewport_container.h"
 #include "third_party/blink/renderer/core/layout/svg/transform_helper.h"
 #include "third_party/blink/renderer/core/page/scrolling/sticky_position_scrolling_constraints.h"
 #include "third_party/blink/renderer/core/style/computed_style_constants.h"
@@ -2255,6 +2254,25 @@ CSSValue* ComputedStyleUtils::ValueForGridPosition(
   return list;
 }
 
+CSSValue* ComputedStyleUtils::ValueForHangingPunctuation(
+    HangingPunctuation hanging_punctuation) {
+  if (hanging_punctuation == HangingPunctuation::kNone) {
+    return CSSIdentifierValue::Create(CSSValueID::kNone);
+  }
+
+  CSSValueList* list = CSSValueList::CreateSpaceSeparated();
+  if (EnumHasFlags(hanging_punctuation, HangingPunctuation::kFirst)) {
+    list->Append(*CSSIdentifierValue::Create(CSSValueID::kFirst));
+  }
+  if (EnumHasFlags(hanging_punctuation, HangingPunctuation::kAllowEnd)) {
+    list->Append(*CSSIdentifierValue::Create(CSSValueID::kAllowEnd));
+  }
+  if (EnumHasFlags(hanging_punctuation, HangingPunctuation::kLast)) {
+    list->Append(*CSSIdentifierValue::Create(CSSValueID::kLast));
+  }
+  return list;
+}
+
 CSSValue* ComputedStyleUtils::ValueForFlowTolerance(
     const FlowTolerance& flow_tolerance,
     const ComputedStyle& style) {
@@ -2289,9 +2307,6 @@ CSSValue* ComputedStyleUtils::ValueForGridLanesDirection(
 static bool IsSVGObjectWithWidthAndHeight(const LayoutObject& layout_object) {
   DCHECK(layout_object.IsSVGChild());
   return layout_object.IsSVGImage() || layout_object.IsSVGForeignObject() ||
-         (layout_object.IsSVGViewportContainer() &&
-          RuntimeEnabledFeatures::
-              WidthAndHeightAsPresentationAttributesOnNestedSvgEnabled()) ||
          (layout_object.IsSVGShape() &&
           IsA<SVGRectElement>(layout_object.GetNode()));
 }
@@ -2312,14 +2327,7 @@ std::optional<gfx::SizeF> ComputedStyleUtils::UsedBoxSize(
     if (!IsSVGObjectWithWidthAndHeight(layout_object)) {
       return std::nullopt;
     }
-    auto* viewport_container =
-        DynamicTo<LayoutSVGViewportContainer>(layout_object);
-    gfx::SizeF size =
-        viewport_container &&
-                RuntimeEnabledFeatures::
-                    WidthAndHeightAsPresentationAttributesOnNestedSvgEnabled()
-            ? viewport_container->Viewport().size()
-            : layout_object.ObjectBoundingBox().size();
+    gfx::SizeF size = layout_object.ObjectBoundingBox().size();
     // The object bounding box does not have zoom applied. Multiply with zoom
     // here since we'll divide by it when we produce the CSS value.
     size.Scale(layout_object.StyleRef().EffectiveZoom());

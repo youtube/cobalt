@@ -118,14 +118,11 @@ class EmbedderMetadataProvider {
 class Embedding {
  public:
   explicit Embedding(std::vector<float> data);
-  Embedding(std::vector<float> data, size_t passage_word_count);
-  Embedding();
   ~Embedding();
   Embedding(const Embedding&);
   Embedding& operator=(const Embedding&);
   Embedding(Embedding&&);
   Embedding& operator=(Embedding&&);
-  bool operator==(const Embedding&) const;
 
   // The number of elements in the data vector.
   size_t Dimensions() const;
@@ -142,15 +139,8 @@ class Embedding {
   // Const accessor used for storage.
   const std::vector<float>& GetData() const { return data_; }
 
-  // Used for search filtering of passages with low word count.
-  size_t GetPassageWordCount() const { return passage_word_count_; }
-  void SetPassageWordCount(size_t passage_word_count) {
-    passage_word_count_ = passage_word_count;
-  }
-
  private:
   std::vector<float> data_;
-  size_t passage_word_count_ = 0;
 };
 
 // Computes embeddings for passages. Allows for cancellation of tasks.

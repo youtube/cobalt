@@ -111,6 +111,9 @@ bool BnplManager::IsBnplIssuerSupported(std::string_view issuer_id) {
 void BnplManager::OnUserDecisionToUseBnpl(
     std::optional<int64_t> final_checkout_amount,
     OnBnplVcnFetchedCallback on_bnpl_vcn_fetched_callback) {
+  browser_autofill_manager_->GetCreditCardFormEventLogger()
+      .OnUserDecisionToUseBnpl();
+
   if (ongoing_flow_state_ != nullptr &&
       base::FeatureList::IsEnabled(
           features::kAutofillEnablePayNowPayLaterTabs)) {
@@ -214,9 +217,6 @@ void BnplManager::OnUserDecisionToUseBnpl(
           .SetAutofillAmountExtractionAiTermsSeen();
     }
   }
-
-  browser_autofill_manager_->GetCreditCardFormEventLogger()
-      .OnUserDecisionToUseBnpl();
 }
 
 void BnplManager::OnIssuerAccepted(BnplIssuer issuer) {
@@ -225,6 +225,11 @@ void BnplManager::OnIssuerAccepted(BnplIssuer issuer) {
   if (base::FeatureList::IsEnabled(
           features::kAutofillEnablePayNowPayLaterTabs)) {
     ReplaceIssuerSuggestionsWithLoadingThrobber();
+    if (!has_logged_bnpl_suggestion_accepted_) {
+      autofill_metrics::LogPayLaterTabSuggestionAccepted(
+          ongoing_flow_state_->issuer->issuer_id());
+      has_logged_bnpl_suggestion_accepted_ = true;
+    }
   }
 
   // When an issuer is accepted but no checkout amount is present, call
@@ -319,6 +324,9 @@ void BnplManager::OnCreditCardSuggestionsShown(
 void BnplManager::OnUserDecisionToUseSavedCards() {
   CancelOngoingRequests();
   CHECK(ongoing_flow_state_);
+
+  browser_autofill_manager_->GetCreditCardFormEventLogger()
+      .OnUserDecisionToUsePayNowTab();
 
   // Always go to issuer suggestions if there is a checkout amount present.
   // Early return in this case to keep the checkout amount cached.

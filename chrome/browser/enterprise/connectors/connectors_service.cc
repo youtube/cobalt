@@ -8,7 +8,6 @@
 #include <variant>
 
 #include "base/check_op.h"
-#include "base/memory/singleton.h"
 #include "base/no_destructor.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
@@ -43,8 +42,8 @@
 #include "google_apis/gaia/gaia_auth_util.h"
 
 #if BUILDFLAG(ENTERPRISE_CONTENT_ANALYSIS)
-#include "chrome/browser/extensions/chrome_content_browser_client_extensions_part.h"
-#include "extensions/browser/extension_registry_factory.h"
+#include "chrome/browser/extensions/chrome_content_browser_client_extensions_part.h"  // nogncheck crbug.com/40147906
+#include "extensions/browser/extension_registry_factory.h"  // nogncheck crbug.com/40147906
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -396,7 +395,8 @@ bool ConnectorsService::IsURLExemptFromAnalysis(const GURL& url,
 
 // static
 ConnectorsServiceFactory* ConnectorsServiceFactory::GetInstance() {
-  return base::Singleton<ConnectorsServiceFactory>::get();
+  static base::NoDestructor<ConnectorsServiceFactory> instance;
+  return instance.get();
 }
 
 ConnectorsService* ConnectorsServiceFactory::GetForBrowserContext(

@@ -51,31 +51,11 @@ class ApiTests extends ApiTestFixtureBase {
 
   async testDoNothing() {}
 
-  async testInvocationSource() {
-    const expectedSource = this.testParams as number;
-    const panelOpenData =
-        checkDefined(this.client.panelOpenData.getCurrentValue());
-    assertEquals(panelOpenData.invocationSource, expectedSource);
-  }
-
   async testDefaultInvocationSource() {
     const panelOpenData =
         checkDefined(this.client.panelOpenData.getCurrentValue());
     assertEquals(
         panelOpenData.invocationSource, InvocationSource.TOP_CHROME_BUTTON);
-  }
-
-  async testWebClientReadyOnFullLoad() {}
-
-  async testWebClientReadyOnPreload() {}
-
-  // This test should fail even if the ApiTestError is captured in a try-catch
-  // block.
-  async testFailureForCapturedApiTestError() {
-    try {
-      throw new ApiTestError('Non-throwing test error');
-    } catch (e) {
-    }
   }
 
   async testRequestHeader() {
@@ -307,6 +287,17 @@ class ApiTests extends ApiTestFixtureBase {
     // this.host.attachPanel();
     // await panelStates.waitFor(state => state.kind ===
     //    PanelStateKind.ATTACHED);
+  }
+
+  async testDetachPanelNoFloatyOrLiveMode() {
+    assertDefined(this.host.getPanelState);
+    // getPanelState and notifyPanelWillOpen should signal the ATTACHED state.
+    const panelStates = observeSequence(this.host.getPanelState());
+    await panelStates.waitFor(state => state.kind === PanelStateKind.ATTACHED);
+
+    assertRejects((async () => {
+      this.host.detachPanel?.();
+    })());
   }
 
   async testCanAttachPanelSidePanel() {
@@ -1903,7 +1894,6 @@ class ApiTests extends ApiTestFixtureBase {
     }
   }
 
-  async testReloadWebUi() {}
 
   private async assertCreateTabFails(url: string) {
     assertDefined(this.host.createTab);
@@ -2752,10 +2742,6 @@ class ApiTestWithoutOpen extends ApiTestFixtureBase {
     await this.client.waitForInitialize();
   }
 
-  async testLoadWhileWindowClosed() {
-    await observeSequence(this.host.panelActive()).waitForValue(false);
-  }
-
   async testDeferredFocusedTabStateAtCreation() {
     // Initial state.
     assertDefined(this.host.getFocusedTabStateV2);
@@ -2984,14 +2970,6 @@ class ApiTestFailsToInitialize extends ApiTestFixtureBase {
   // is torn down.
   deferredSetUpClient() {
     sleep(100).then(() => super.setUpClient());
-  }
-
-  async testInitializeFailsWindowClosed() {
-    this.deferredSetUpClient();
-  }
-
-  async testInitializeFailsWindowOpen() {
-    this.deferredSetUpClient();
   }
 
   async testReload() {

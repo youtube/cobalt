@@ -91,6 +91,7 @@ import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.chrome.R;
+import org.chromium.chrome.browser.actor.ui.TabIndicatorStatus;
 import org.chromium.chrome.browser.collaboration.CollaborationServiceFactory;
 import org.chromium.chrome.browser.collaboration.messaging.MessagingBackendServiceFactory;
 import org.chromium.chrome.browser.compositor.LayerTitleCache;
@@ -235,6 +236,7 @@ public class StripLayoutHelperTest {
     @Mock private Bitmap mAvatarBitmap;
     @Mock TabStripIphController mController;
     @Mock private TabStripContextMenuCoordinator mTabStripContextMenuCoordinator;
+    @Mock private StripTabUnderlineManager.Natives mStripTabUnderlineMock;
 
     @Captor private ArgumentCaptor<DataSharingService.Observer> mSharingObserverCaptor;
     @Captor private ArgumentCaptor<TabModelActionListener> mTabModelActionListenerCaptor;
@@ -317,6 +319,8 @@ public class StripLayoutHelperTest {
         when(mServiceStatus.isAllowedToJoin()).thenReturn(false);
         when(mDataSharingService.getUiDelegate()).thenReturn(mDataSharingUiDelegate);
         mSharedGroupTestHelper = new SharedGroupTestHelper(mCollaborationService);
+
+        StripTabUnderlineManagerJni.setInstanceForTesting(mStripTabUnderlineMock);
     }
 
     @After
@@ -792,6 +796,33 @@ public class StripLayoutHelperTest {
                 MediaState.RECORDING,
                 stripTabs[0].getMediaState());
         assertFalse("Tab should no longer be a placeholder.", stripTabs[0].getIsPlaceholder());
+    }
+
+    @Test
+    public void testOnActuationStateChanged() {
+        // Initialize with 2 tabs.
+        initializeTest(false, false, 0, 2);
+        StripLayoutTab[] tabs = mStripLayoutHelper.getStripLayoutTabsForTesting();
+
+        Tab tab0 = mModel.getTabAt(0);
+
+        // Initially should be NONE.
+        assertEquals(
+                "Initial status should be NONE.",
+                TabIndicatorStatus.NONE,
+                tabs[0].getTabIndicatorStatus());
+
+        // Update to STATIC.
+        mStripLayoutHelper.onActuationStateChanged(tab0.getId(), TabIndicatorStatus.STATIC);
+        assertEquals(
+                "Status should be STATIC.",
+                TabIndicatorStatus.STATIC,
+                tabs[0].getTabIndicatorStatus());
+
+        // Update to NONE.
+        mStripLayoutHelper.onActuationStateChanged(tab0.getId(), TabIndicatorStatus.NONE);
+        assertEquals(
+                "Status should be NONE.", TabIndicatorStatus.NONE, tabs[0].getTabIndicatorStatus());
     }
 
     @Test
@@ -7292,6 +7323,27 @@ public class StripLayoutHelperTest {
                 DragDropGlobalState.store(
                         /* dragSourceInstanceId= */ 1, dropData, /* dragShadowBuilder= */ null);
         TabDragHandlerBase.setDragTokenForTesting(dragToken);
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.GLIC)
+    public void testSetTabUnderline() {
+        initializeTest(false, false, 0);
+        int tabId = mModel.getTabAt(0).getId();
+
+        // Test underline addition.
+        mStripLayoutHelper.setTabUnderline(tabId, true);
+        assertTrue(
+                "Tab should be underlined",
+                mStripLayoutHelper.getStripLayoutTabsForTesting()[0].isUnderlined());
+        verify(mUpdateHost, times(3)).requestUpdate();
+
+        // Test underline removal.
+        mStripLayoutHelper.setTabUnderline(tabId, false);
+        assertFalse(
+                "Tab should not be underlined",
+                mStripLayoutHelper.getStripLayoutTabsForTesting()[0].isUnderlined());
+        verify(mUpdateHost, times(4)).requestUpdate();
     }
 
     private class TestTabRemover implements TabRemover {

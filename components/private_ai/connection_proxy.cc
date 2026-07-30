@@ -19,7 +19,6 @@
 #include "net/http/http_request_headers.h"
 #include "net/proxy_resolution/proxy_config.h"
 #include "services/cert_verifier/public/mojom/cert_verifier_service_factory.mojom.h"
-#include "services/network/public/mojom/network_service.mojom.h"
 #include "services/network/public/mojom/proxy_config.mojom.h"
 #include "url/origin.h"
 
@@ -85,19 +84,16 @@ ConnectionProxy::ConnectionProxy(
     const GURL& proxy_url,
     PrivateAiLogger* logger,
     phosphor::TokenManager* token_manager,
-    network::mojom::NetworkService* network_service,
     InnerConnectionFactory inner_connection_factory,
-    base::OnceCallback<void(ErrorCode)> on_disconnect)
+    base::OnceCallback<void(StatusCode)> on_disconnect)
     : proxy_url_(proxy_url),
       logger_(logger),
       token_manager_(token_manager),
-      network_service_(network_service),
       inner_connection_factory_(std::move(inner_connection_factory)),
       on_disconnect_(std::move(on_disconnect)) {
   CHECK(proxy_url_.is_valid());
   CHECK(logger_);
   CHECK(token_manager_);
-  CHECK(network_service_);
   CHECK(inner_connection_factory_);
   CHECK(on_disconnect_);
 
@@ -119,34 +115,33 @@ void ConnectionProxy::Send(proto::PrivateAiRequest request,
 
   if (!inner_connection_) {
     // Initialization failed or connection disconnected.
-    std::move(callback).Run(base::unexpected(ErrorCode::kError));
+    std::move(callback).Run(base::unexpected(StatusCode::kError));
     return;
   }
 
   inner_connection_->Send(std::move(request), timeout, std::move(callback));
 }
 
-void ConnectionProxy::OnDestroy(ErrorCode error) {
+void ConnectionProxy::OnDestroy(StatusCode status_code) {
   on_disconnect_.Reset();
 
   auto pending_requests = std::move(pending_requests_);
   for (auto& pending : pending_requests) {
-    std::move(pending.callback).Run(base::unexpected(error));
+    std::move(pending.callback).Run(base::unexpected(status_code));
   }
 
   if (inner_connection_) {
-    inner_connection_->OnDestroy(error);
+    inner_connection_->OnDestroy(status_code);
   }
 
   token_manager_ = nullptr;
-  network_service_ = nullptr;
   logger_ = nullptr;
   weak_factory_.InvalidateWeakPtrsAndDoom();
 }
 
-void ConnectionProxy::CallOnDisconnect(ErrorCode error_code) {
+void ConnectionProxy::CallOnDisconnect(StatusCode status_code) {
   if (on_disconnect_) {
-    std::move(on_disconnect_).Run(error_code);
+    std::move(on_disconnect_).Run(status_code);
   }
 }
 
@@ -161,12 +156,10 @@ void ConnectionProxy::OnProxyToken(
 
   if (!auth_token) {
     logger_->LogError(FROM_HERE, "Failed to get auth token for proxy.");
-    CallOnDisconnect(ErrorCode::kError);
+    CallOnDisconnect(StatusCode::kError);
     return;
   }
 
-  logger_->LogInfo(FROM_HERE, "Got auth token for proxy. Connecting to " +
-                                  proxy_url_.spec());
 
   auto context_params = network::mojom::NetworkContextParams::New();
   context_params->cert_verifier_params = content::GetCertVerifierParams(
@@ -174,7 +167,15 @@ void ConnectionProxy::OnProxyToken(
   context_params->initial_custom_proxy_config =
       internal::CreateCustomProxyConfig(proxy_url_, *auth_token, logger_);
 
-  network_service_->CreateNetworkContext(
+  if (!context_params->initial_custom_proxy_config) {
+    CallOnDisconnect(StatusCode::kProxyConfigFailed);
+    return;
+  }
+
+  logger_->LogInfo(FROM_HERE, "Got auth token for proxy. Connecting to " +
+                                  proxy_url_.spec());
+
+  content::CreateNetworkContextInNetworkService(
       proxied_context_.BindNewPipeAndPassReceiver(), std::move(context_params));
 
   inner_connection_ =

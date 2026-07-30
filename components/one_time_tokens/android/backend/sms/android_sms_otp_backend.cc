@@ -6,7 +6,7 @@
 
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
-#include "components/one_time_tokens/android/backend/sms/sms_otp_retrieval_api_error_codes.h"
+#include "components/one_time_tokens/android/backend/sms/sms_otp_retrieval_api_errors.h"
 #include "components/one_time_tokens/android/backend/sms/sms_otp_to_one_time_token_retrieval_error_converter.h"
 #include "components/one_time_tokens/core/browser/one_time_token.h"
 
@@ -78,13 +78,13 @@ void AndroidSmsOtpBackend::OnOtpValueRetrieved(std::string value) {
 }
 
 void AndroidSmsOtpBackend::OnOtpValueRetrievalError(
-    SmsOtpRetrievalApiErrorCode error_code) {
+    SmsOtpRetrievalApiError error) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(main_sequence_checker_);
   // TODO(crbug.com/415272524): Record metrics on the API error codes.
 
   if (!pending_callbacks_.empty()) {
     std::move(pending_callbacks_.front())
-        .Run(base::unexpected(ConvertSmsOtpRetrievalApiErrorCode(error_code)));
+        .Run(base::unexpected(ConvertSmsOtpRetrievalApiError(error)));
     pending_callbacks_.pop();
   }
 }

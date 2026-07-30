@@ -98,7 +98,6 @@
 #include "chrome/browser/ui/views/page_action/page_action_view_params.h"
 #include "chrome/browser/ui/views/page_info/page_info_bubble_specification.h"
 #include "chrome/browser/ui/views/page_info/page_info_bubble_view.h"
-#include "chrome/browser/ui/views/passwords/manage_passwords_icon_views.h"
 #include "chrome/browser/ui/views/permissions/chip/permission_chip_view.h"
 #include "chrome/browser/ui/views/permissions/chip/permission_dashboard_view.h"
 #include "chrome/browser/ui/views/sharing_hub/sharing_hub_icon_view.h"
@@ -509,7 +508,6 @@ void LocationBarView::Init() {
     if (optimization_guide::features::ShouldEnableOptimizationGuideIconView()) {
       params.types_enabled.push_back(PageActionIconType::kOptimizationGuide);
     }
-    params.types_enabled.push_back(PageActionIconType::kManagePasswords);
     if (!apps::features::ShouldShowLinkCapturingUX()) {
       params.types_enabled.push_back(PageActionIconType::kIntentPicker);
     }
@@ -1394,7 +1392,7 @@ bool LocationBarView::ShouldHidePageActionIcon(
   }
 
   PinnedToolbarActions* pinned_toolbar_actions =
-      browser_view->toolbar()->pinned_toolbar_actions();
+      browser_view->toolbar_button_provider()->GetPinnedToolbarActions();
   return pinned_toolbar_actions &&
          pinned_toolbar_actions->IsActionPinnedOrPoppedOut(
              icon_view->action_id().value_or(-1));
@@ -1966,7 +1964,9 @@ void LocationBarView::ValidatePopupState(OmniboxPopupState state) {
   // popup state manager is updated. This leads to a race condition where
   // popup_state=kClassic but the popup widget is already destroyed.
   // Note: GetWidget() returns the BrowserView's widget, not the popup widget.
-  if (views::Widget* widget = GetWidget(); !widget || !widget->IsVisible()) {
+  if (views::Widget* widget = GetWidget();
+      !widget || !widget->IsVisible() ||
+      base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxFullPopup)) {
     return;
   }
 

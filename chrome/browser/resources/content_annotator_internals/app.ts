@@ -11,10 +11,13 @@ import {BrowserProxyImpl} from './browser_proxy.js';
 import type {BrowserProxy} from './browser_proxy.js';
 
 export interface AnnotationEntry {
+  visit_id: string;
+  navigation_timestamp: string;
   url: string;
   title: string;
   tab_id?: number;
-  annotations: any;
+  annotations?: any;
+  content_annotation?: any;
   classifier_results: any;
 }
 
@@ -35,11 +38,15 @@ export class ContentAnnotatorInternalsAppElement extends CrLitElement {
     return {
       logContent_: {type: Array},
       errorMessage_: {type: String},
+      showAnnotations_: {type: Boolean},
+      showContentAnnotation_: {type: Boolean},
     };
   }
 
   protected accessor logContent_: AnnotationEntry[] = [];
   protected accessor errorMessage_: string = '';
+  protected accessor showAnnotations_: boolean = false;
+  protected accessor showContentAnnotation_: boolean = false;
   private browserProxy_: BrowserProxy = BrowserProxyImpl.getInstance();
 
   override connectedCallback() {
@@ -52,9 +59,39 @@ export class ContentAnnotatorInternalsAppElement extends CrLitElement {
     try {
       const {content} = await this.browserProxy_.handler.getAnnotatedContent();
       this.logContent_ = this.flattenValue_(content) || [];
+      this.showAnnotations_ =
+          this.logContent_.some(entry => !!entry.annotations);
+      this.showContentAnnotation_ =
+          this.logContent_.some(entry => !!entry.content_annotation);
+
+      if (this.logContent_.length > 0 && !this.showAnnotations_ &&
+          !this.showContentAnnotation_) {
+        this.errorMessage_ =
+            'Error: No annotations or content annotations found.';
+        this.logContent_ = [];
+        this.showAnnotations_ = false;
+        this.showContentAnnotation_ = false;
+      }
     } catch (e) {
       this.errorMessage_ = 'Error: could not get content annotations.';
       this.logContent_ = [];
+      this.showAnnotations_ = false;
+      this.showContentAnnotation_ = false;
+    }
+  }
+
+  protected async onClearCacheClick_() {
+    this.errorMessage_ = '';
+    try {
+      const {success} =
+          await this.browserProxy_.handler.clearAnnotatedContent();
+      if (success) {
+        this.loadLogContent_();
+      } else {
+        this.errorMessage_ = 'Error: could not clear content annotations cache.';
+      }
+    } catch (e) {
+      this.errorMessage_ = 'Error: could not clear content annotations cache.';
     }
   }
 

@@ -33,11 +33,12 @@
 namespace glic {
 namespace {
 
+#if !BUILDFLAG(IS_ANDROID)
 GlicInstanceCoordinatorImpl& GetInstanceCoordinator(GlicKeyedService& service) {
-  CHECK(base::FeatureList::IsEnabled(features::kGlicMultiInstance));
   return static_cast<GlicInstanceCoordinatorImpl&>(
       service.instance_coordinator());
 }
+#endif
 
 }  // namespace
 
@@ -172,15 +173,6 @@ GlicInstance* GetOnlyGlicInstance(Profile* profile) {
     return nullptr;
   }
   auto instances = service->instance_coordinator().GetInstances();
-  // Ignore the warming instance.
-  if (base::FeatureList::IsEnabled(features::kGlicMultiInstance)) {
-    auto iter = std::find(
-        instances.begin(), instances.end(),
-        GetInstanceCoordinator(*service).GetWarmedInstanceForTesting());
-    if (iter != instances.end()) {
-      instances.erase(iter);
-    }
-  }
   CHECK_LT(instances.size(), 2u);
   return instances.empty() ? nullptr : instances[0];
 }
@@ -257,8 +249,7 @@ void SetGlicCapability(AccountCapabilitiesTestMutator& mutator, bool enabled) {
 }
 
 void SetFRECompletion(Profile* profile, prefs::FreStatus fre_status) {
-  profile->GetPrefs()->SetInteger(prefs::kGlicCompletedFre,
-                                  static_cast<int>(fre_status));
+  glic::GlicKeyedService::Get(profile)->enabling().SetCompletedFre(fre_status);
 }
 
 void InvalidateAccount(Profile* profile) {

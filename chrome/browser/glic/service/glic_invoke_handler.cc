@@ -12,6 +12,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "chrome/browser/glic/host/host.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
+#include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/service/glic_instance_helper.h"
 #include "chrome/browser/glic/service/glic_instance_impl.h"
 #include "chrome/common/chrome_features.h"
@@ -71,17 +72,53 @@ void GlicInvokeHandler::Invoke() {
 
   instance_->Show(show_options);
 
-  if (instance_->host().IsReady()) {
-    SendToClient();
-    return;
-  }
+  MaybeWaitForWebClientReady();
+}
 
-  host_observation_.Observe(&instance_->host());
+void GlicInvokeHandler::MaybeWaitForWebClientReady() {
+  if (instance_->host().IsWebClientConnected()) {
+    OnWebClientReady();
+  } else {
+    host_observation_.Observe(&instance_->host());
+  }
 }
 
 void GlicInvokeHandler::WebClientConnected() {
   host_observation_.Reset();
-  SendToClient();
+  OnWebClientReady();
+}
+
+void GlicInvokeHandler::OnWebClientReady() {
+  MaybeWaitForPanelOpen();
+}
+
+void GlicInvokeHandler::MaybeWaitForPanelOpen() {
+  if (options_.wait_for_panel_open) {
+    MaybeWaitForStableWidth();
+  } else {
+    MaybeWaitForFreCompletion();
+  }
+}
+
+void GlicInvokeHandler::MaybeWaitForStableWidth() {
+  if (tab_ && tab_->GetContents()) {
+    Observe(tab_->GetContents());
+  }
+
+  stabilization_timer_.Start(FROM_HERE, base::Milliseconds(300),
+                             base::BindOnce(&GlicInvokeHandler::OnStabilized,
+                                            weak_ptr_factory_.GetWeakPtr()));
+}
+
+void GlicInvokeHandler::PrimaryMainFrameWasResized(bool width_changed) {
+  if (stabilization_timer_.IsRunning()) {
+    stabilization_timer_.Reset();
+  }
+}
+
+void GlicInvokeHandler::OnStabilized() {
+  Observe(nullptr);
+  MaybeWaitForFreCompletion();
 }
 
 bool GlicInvokeHandler::RequiresAutoSubmitIncompatibleFre() const {
@@ -105,8 +142,45 @@ bool GlicInvokeHandler::RequiresOverrideIncompatibleFre() const {
       instance_->profile());
 }
 
+bool GlicInvokeHandler::ShouldWaitForFreCompletion() const {
+  if (GlicEnabling::HasConsentedForProfile(instance_->profile())) {
+    return false;
+  }
+  if (options_.fre_override == mojom::FreOverride::kTrustFirstClick) {
+    return true;
+  }
+  if (options_.fre_override == mojom::FreOverride::kUnspecified) {
+    return GlicEnabling::IsTrustFirstOnboardingEnabledForProfile(
+               instance_->profile()) &&
+           features::kGlicTrustFirstOnboardingArmParam.Get() == 2;
+  }
+  return false;
+}
+
+void GlicInvokeHandler::MaybeWaitForFreCompletion() {
+  if (ShouldWaitForFreCompletion()) {
+    if (!profile_ready_state_subscription_) {
+      profile_ready_state_subscription_ =
+          GlicKeyedService::Get(instance_->profile())
+              ->enabling()
+              .RegisterProfileReadyStateChanged(base::BindRepeating(
+                  &GlicInvokeHandler::OnProfileReadyStateChanged,
+                  weak_ptr_factory_.GetWeakPtr()));
+    }
+    return;
+  }
+  SendToClient();
+}
+
+void GlicInvokeHandler::OnProfileReadyStateChanged() {
+  if (GlicEnabling::HasConsentedForProfile(instance_->profile())) {
+    profile_ready_state_subscription_ = {};
+    SendToClient();
+  }
+}
+
 void GlicInvokeHandler::SendToClient() {
-  if (!instance_->host().IsReady()) {
+  if (!instance_->host().IsWebClientConnected()) {
     OnError(GlicInvokeError::kTimeout);
     return;
   }

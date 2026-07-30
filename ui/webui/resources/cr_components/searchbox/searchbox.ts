@@ -2,30 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import './searchbox_compose_button.js';
 import './searchbox_dropdown.js';
 import './searchbox_icon.js';
-import './searchbox_thumbnail.js';
-import '//resources/cr_components/composebox/composebox_file_inputs.js';
-import '//resources/cr_components/composebox/contextual_entrypoint_and_menu.js';
-import '//resources/cr_components/search/animated_glow.js';
 import './searchbox_input.js';
 
-import type {ComposeboxState, ContextualUpload, TabUpload, TabUploadOrigin} from '//resources/cr_components/composebox/common.js';
-import {GlifAnimationState, recordContextAdditionMethod} from '//resources/cr_components/composebox/common.js';
-import {ComposeboxContextAddedMethod, GlowAnimationState} from '//resources/cr_components/search/constants.js';
-import type {DragAndDropHandler} from '//resources/cr_components/search/drag_drop_handler.js';
-import type {DragAndDropHost} from '//resources/cr_components/search/drag_drop_host.js';
+import type {ComposeboxState, ContextualUpload} from '//resources/cr_components/composebox/common.js';
+import {ContextType, recordContextAdditionMethod, recordContextualElementClickedMetric, recordModelModeSelection, recordToolModeSelection} from '//resources/cr_components/composebox/common.js';
+import {ComposeboxContextAddedMethod} from '//resources/cr_components/search/constants.js';
 import {I18nMixinLit} from '//resources/cr_elements/i18n_mixin_lit.js';
 import {WebUiListenerMixinLit} from '//resources/cr_elements/web_ui_listener_mixin_lit.js';
 import {assert} from '//resources/js/assert.js';
 import {loadTimeData} from '//resources/js/load_time_data.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
-import type {AutocompleteMatch, PageCallbackRouter, PageHandlerInterface, TabInfo} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
-import type {InputState} from '//resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
+import type {AutocompleteMatch, PageCallbackRouter, PageHandlerInterface} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import {ModelMode, ToolMode} from '//resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
-import type {Url} from '//resources/mojo/url/mojom/url.mojom-webui.js';
 
 import {getCss} from './searchbox.css.js';
 import {getHtml} from './searchbox.html.js';
@@ -34,10 +25,6 @@ import type {SearchboxDropdownElement} from './searchbox_dropdown.js';
 import type {SearchboxInputElement} from './searchbox_input.js';
 import type {SearchboxMixinInterface} from './searchbox_mixin.js';
 import {SearchboxMixin} from './searchbox_mixin.js';
-
-// LINT.IfChange(GhostLoaderTagName)
-const LENS_GHOST_LOADER_TAG_NAME = 'cr-searchbox-ghost-loader';
-// LINT.ThenChange(/chrome/browser/resources/lens/shared/searchbox_ghost_loader.ts:GhostLoaderTagName)
 
 // Register --placeholder-opacity as type <number> so that we can animate it.
 CSS.registerProperty({
@@ -60,7 +47,7 @@ const SearchboxElementBase =
 
 /** A real search box that behaves just like the Omnibox. */
 export class SearchboxElement extends SearchboxElementBase implements
-    DragAndDropHost, SearchboxMixinInterface {
+    SearchboxMixinInterface {
   static get is() {
     return 'cr-searchbox';
   }
@@ -88,11 +75,6 @@ export class SearchboxElement extends SearchboxElementBase implements
         reflect: true,
       },
 
-      colorSourceIsBaseline: {
-        type: Boolean,
-        reflect: true,
-      },
-
       /**
        * Whether the secondary side was at any point available to be shown.
        */
@@ -110,12 +92,6 @@ export class SearchboxElement extends SearchboxElementBase implements
         reflect: true,
       },
 
-      /** Whether the theme is dark. */
-      isDark: {
-        type: Boolean,
-        reflect: true,
-      },
-
       searchboxChromeRefreshTheming: {
         type: Boolean,
         reflect: true,
@@ -126,30 +102,17 @@ export class SearchboxElement extends SearchboxElementBase implements
         reflect: true,
       },
 
-      searchboxLayoutMode: {
-        type: String,
-        reflect: true,
-      },
-
-      contextMenuGlifAnimationState: {
-        type: String,
-        reflect: true,
-      },
-
       placeholderText: {
         type: String,
         reflect: true,
         notify: true,
       },
 
+      showThumbnail: {type: Boolean},
+
       //========================================================================
       // Private properties
       //========================================================================
-
-      isLensSearchbox_: {
-        type: Boolean,
-        reflect: true,
-      },
 
       enableThumbnailSizingTweaks_: {
         type: Boolean,
@@ -171,49 +134,25 @@ export class SearchboxElement extends SearchboxElementBase implements
         reflect: true,
       },
 
-      showThumbnail: {
-        type: Boolean,
-        reflect: true,
-      },
-
-      thumbnailUrl_: {type: String},
-      isThumbnailDeletable_: {type: Boolean},
-
       useWebkitSearchIcons_: {
         type: Boolean,
         reflect: true,
       },
-      tabSuggestions_: {type: Array},
-      inputState_: {type: Object},
-      isDraggingFile: {
-        reflect: true,
-        type: Boolean,
-      },
-      animationState: {
-        reflect: true,
-        type: String,
-      },
     };
   }
 
+  // Required since searchbox_searchbox_dropdown.html.ts
+  // still uses it for other searchboxes despite it not
+  // being needed for regular searchbox
+  accessor showThumbnail: boolean = false;
   accessor canShowSecondarySide: boolean = false;
-  accessor colorSourceIsBaseline: boolean = false;
   accessor hadSecondarySide: boolean = false;
   accessor hasSecondarySide: boolean = false;
-  accessor isDark: boolean = false;
   accessor searchboxChromeRefreshTheming: boolean =
       loadTimeData.getBoolean('searchboxCr23Theming');
   accessor searchboxSteadyStateShadow: boolean =
       loadTimeData.getBoolean('searchboxCr23SteadyStateShadow');
-  accessor searchboxLayoutMode: string = '';
-  accessor contextMenuGlifAnimationState: GlifAnimationState =
-      GlifAnimationState.INELIGIBLE;
-  accessor showThumbnail: boolean = false;
   accessor placeholderText: string = '';
-  accessor isDraggingFile: boolean = false;
-  accessor animationState: GlowAnimationState = GlowAnimationState.NONE;
-  protected accessor isLensSearchbox_: boolean =
-      loadTimeData.getBoolean('isLensSearchbox');
   protected accessor enableThumbnailSizingTweaks_: boolean =
       loadTimeData.getBoolean('enableThumbnailSizingTweaks');
   protected accessor searchboxIcon_: string =
@@ -222,20 +161,12 @@ export class SearchboxElement extends SearchboxElementBase implements
       loadTimeData.getBoolean('searchboxVoiceSearch');
   protected accessor searchboxLensSearchEnabled_: boolean =
       loadTimeData.getBoolean('searchboxLensSearch');
-  protected accessor thumbnailUrl_: string = '';
-  protected accessor isThumbnailDeletable_: boolean = false;
   protected accessor useWebkitSearchIcons_: boolean = false;
-  protected accessor tabSuggestions_: TabInfo[] = [];
-  protected accessor inputState_: InputState|null = null;
 
+  protected callbackRouter_: PageCallbackRouter;
   private pageHandler_: PageHandlerInterface;
-  private callbackRouter_: PageCallbackRouter;
-  protected dragAndDropHandler: DragAndDropHandler|null = null;
 
   private autocompleteResultChangedListenerId_: number|null = null;
-  private thumbnailChangedListenerId_: number|null = null;
-  private onTabStripChangedListenerId_: number|null = null;
-  private contextMenuOpened_: boolean = false;
 
   constructor() {
     performance.mark('realbox-creation-start');
@@ -245,21 +176,11 @@ export class SearchboxElement extends SearchboxElementBase implements
     this.callbackRouter_ = SearchboxBrowserProxy.getInstance().callbackRouter;
   }
 
-  override async connectedCallback() {
+  override connectedCallback() {
     super.connectedCallback();
     this.autocompleteResultChangedListenerId_ =
         this.callbackRouter_.autocompleteResultChanged.addListener(
             this.onAutocompleteResultChanged.bind(this));
-    this.thumbnailChangedListenerId_ =
-        this.callbackRouter_.setThumbnail.addListener(
-            this.onSetThumbnail_.bind(this));
-    this.onTabStripChangedListenerId_ =
-        this.callbackRouter_.onTabStripChanged.addListener(
-            this.refreshTabSuggestions_.bind(this));
-    this.inputState_ = (await this.pageHandler_.getInputState()).state;
-    if (this.inputState_) {
-      this.inputState_.activeModel = ModelMode.kUnspecified;
-    }
   }
 
   override disconnectedCallback() {
@@ -268,19 +189,13 @@ export class SearchboxElement extends SearchboxElementBase implements
     assert(this.autocompleteResultChangedListenerId_);
     this.callbackRouter_.removeListener(
         this.autocompleteResultChangedListenerId_);
-    assert(this.thumbnailChangedListenerId_);
-    this.callbackRouter_.removeListener(this.thumbnailChangedListenerId_);
-    assert(this.onTabStripChangedListenerId_);
-    this.callbackRouter_.removeListener(this.onTabStripChangedListenerId_);
   }
 
   override willUpdate(changedProperties: PropertyValues<this>) {
     super.willUpdate(changedProperties);
 
-    if (changedProperties.has('searchboxChromeRefreshTheming') ||
-        changedProperties.has('colorSourceIsBaseline')) {
-      this.useWebkitSearchIcons_ =
-          this.searchboxChromeRefreshTheming && !this.colorSourceIsBaseline;
+    if (changedProperties.has('searchboxChromeRefreshTheming')) {
+      this.useWebkitSearchIcons_ = this.searchboxChromeRefreshTheming;
     }
 
     const changedPrivateProperties =
@@ -289,10 +204,6 @@ export class SearchboxElement extends SearchboxElementBase implements
     if (changedPrivateProperties.has('result') ||
         changedPrivateProperties.has('selectedMatchIndex')) {
       this.selectedMatch = this.computeSelectedMatch_();
-    }
-
-    if (changedPrivateProperties.has('thumbnailUrl_')) {
-      this.showThumbnail = !!this.thumbnailUrl_;
     }
   }
 
@@ -318,14 +229,6 @@ export class SearchboxElement extends SearchboxElementBase implements
 
   override pageHandler(): PageHandlerInterface {
     return this.pageHandler_;
-  }
-
-  getDropTarget() {
-    return this;
-  }
-
-  addDroppedFiles(files: FileList) {
-    this.processFiles_(files, ComposeboxContextAddedMethod.DRAG_AND_DROP);
   }
 
   isInputEmpty(): boolean {
@@ -373,22 +276,17 @@ export class SearchboxElement extends SearchboxElementBase implements
   // Callbacks
   //============================================================================
 
-  private onSetThumbnail_(thumbnailUrl: string, isDeletable: boolean) {
-    this.thumbnailUrl_ = thumbnailUrl;
-    this.isThumbnailDeletable_ = isDeletable;
-  }
-
   //============================================================================
   // Event handlers
   //============================================================================
 
-  protected onInputFocus_() {
+  protected onInputFocusin_() {
     this.pageHandler_.onFocusChanged(true);
   }
 
   protected onSearchboxInputTextUpdated_(
       e: CustomEvent<{value: string, isComposing: boolean}>) {
-    this.onSearchboxInputTextUpdated(e, this.isLensSearchbox_);
+    this.onSearchboxInputTextUpdated(e, /*is_composing=*/ false);
   }
 
   protected onSearchboxInputFilesPasted_(e: CustomEvent<{files: FileList}>) {
@@ -396,64 +294,7 @@ export class SearchboxElement extends SearchboxElementBase implements
   }
 
   override onInputWrapperFocusout(e: FocusEvent) {
-    const newlyFocusedEl = e.relatedTarget as Element;
-
-    // If this is a Lens searchbox, treat the ghost loader as keeping searchbox
-    // focus.
-    // TODO(380467089): This workaround wouldn't be needed if the ghost loader
-    // was part of the searchbox element. Remove this workaround once they are
-    // combined.
-    if (this.isLensSearchbox_ &&
-        newlyFocusedEl?.tagName.toLowerCase() === LENS_GHOST_LOADER_TAG_NAME) {
-      return;
-    }
-
     super.onInputWrapperFocusout(e);
-  }
-
-  override handleKeyNavigation(e: KeyboardEvent) {
-    if (this.showThumbnail) {
-      const thumbnail =
-          this.shadowRoot.querySelector<HTMLElement>('cr-searchbox-thumbnail');
-      if (thumbnail === this.shadowRoot.activeElement) {
-        if (e.key === 'Backspace' || e.key === 'Enter') {
-          // Remove thumbnail, focus input, and notify browser.
-          this.thumbnailUrl_ = '';
-          this.$.input.focus();
-          this.clearAutocompleteMatches();
-          this.pageHandler_.onThumbnailRemoved();
-          const inputValue = this.$.input.inputElement.value;
-          // Clearing the autocomplete matches above doesn't allow for
-          // navigation directly after removing the thumbnail. Must manually
-          // query autocomplete after removing the thumbnail since the
-          // thumbnail isn't part of the text input.
-          this.queryAutocomplete(inputValue, false);
-          e.preventDefault();
-        } else if (e.key === 'Tab' && !e.shiftKey) {
-          this.$.input.focus();
-          e.preventDefault();
-        } else if (
-            this.dropdownIsVisible &&
-            (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
-          // If the dropdown is visible, arrowing up and down unfocuses the
-          // thumbnail and follows standard arrow up/down behavior (selects
-          // the next/previous match).
-          this.$.input.focus();
-        }
-      } else if (
-          this.isThumbnailDeletable_ &&
-          this.$.input.inputElement.selectionStart === 0 &&
-          this.$.input.inputElement.selectionEnd === 0 &&
-          this.$.input === this.shadowRoot.activeElement &&
-          (e.key === 'Backspace' || (e.key === 'Tab' && e.shiftKey))) {
-        // Backspacing or shift-tabbing the thumbnail results in the thumbnail
-        // being focused.
-        thumbnail?.focus();
-        e.preventDefault();
-      }
-    }
-
-    super.handleKeyNavigation(e);
   }
 
   /**
@@ -484,80 +325,16 @@ export class SearchboxElement extends SearchboxElementBase implements
     this.dispatchEvent(new Event('open-lens-search'));
   }
 
-  protected onFileChange_(e: CustomEvent<{files: FileList}>) {
-    this.processFiles_(
-        e.detail.files, ComposeboxContextAddedMethod.CONTEXT_MENU);
-  }
-
-  protected onAddTabContext_(e: CustomEvent<{
-    id: number,
-    title: string,
-    url: Url,
-    delayUpload: boolean,
-    origin: TabUploadOrigin,
-  }>) {
-    const attachment: TabUpload = {
-      tabId: e.detail.id,
-      url: e.detail.url,
-      title: e.detail.title,
-      delayUpload: e.detail.delayUpload,
-      origin: e.detail.origin,
-    };
-    this.openComposebox_([attachment]);
-  }
-
-  protected async refreshTabSuggestions_(forceRefresh: boolean = false) {
-    // Only refresh tab suggestions if the context menu is opened.
-    const requiresRefresh = forceRefresh || this.contextMenuOpened_;
-    if (!requiresRefresh) {
-      return;
-    }
-    const {tabs} = await this.pageHandler_.getRecentTabs();
-    this.tabSuggestions_ = [...tabs];
-  }
-
-  protected async onGetTabPreview_(e: CustomEvent<{
-    tabId: number,
-    onPreviewFetched: (previewDataUrl: string) => void,
-  }>) {
-    const {previewDataUrl} =
-        await this.pageHandler_.getTabPreview(e.detail.tabId);
-    e.detail.onPreviewFetched(previewDataUrl || '');
-  }
-
-  protected onContextMenuClosed_() {
-    this.contextMenuOpened_ = false;
-    this.blur();
-  }
-
-  protected onContextMenuOpened_() {
-    this.contextMenuOpened_ = true;
-    this.refreshTabSuggestions_(/*forceRefresh=*/ true);
-  }
-
-  protected onContextMenuEntrypointClick_() {
-    this.pageHandler_.activateMetricsFunnel('PlusButton');
-  }
-
-  protected onToolClick_(e: CustomEvent<{toolMode: ToolMode}>) {
-    this.openComposebox_([], e.detail.toolMode);
-  }
-
-  protected onDeepSearchClick_() {
-    this.openComposebox_([], ToolMode.kDeepSearch);
-  }
-
-  protected onCreateImageClick_() {
-    this.openComposebox_([], ToolMode.kImageGen);
-  }
-
-  protected onModelClick_(e: CustomEvent<{model: ModelMode}>) {
-    this.openComposebox_([], ToolMode.kUnspecified, e.detail.model);
-  }
-
   protected openComposebox_(
       uploads: ContextualUpload[] = [], mode: ToolMode = ToolMode.kUnspecified,
       model: ModelMode = ModelMode.kUnspecified) {
+    if (mode !== ToolMode.kUnspecified) {
+      recordToolModeSelection(mode, this.composeboxSource, 'ClassicPopup');
+    }
+    if (model !== ModelMode.kUnspecified) {
+      recordModelModeSelection(model, this.composeboxSource, 'ClassicPopup');
+    }
+
     this.fire<ComposeboxState>('open-composebox', {
       text: this.$.input.inputElement.value,
       files: uploads,
@@ -565,23 +342,6 @@ export class SearchboxElement extends SearchboxElementBase implements
       model: model,
     });
     this.setInputText('');
-  }
-
-  hasThumbnail(): boolean {
-    return !!this.thumbnailUrl_;
-  }
-
-  protected onRemoveThumbnailClick_() {
-    /* Remove thumbnail, focus input, and notify browser. */
-    this.thumbnailUrl_ = '';
-    this.$.input.focus();
-    this.clearAutocompleteMatches();
-    this.pageHandler_.onThumbnailRemoved();
-    // Clearing the autocomplete matches above doesn't allow for
-    // navigation directly after removing the thumbnail. Must manually
-    // query autocomplete after removing the thumbnail since the
-    // thumbnail isn't part of the text input.
-    this.queryInputAutocomplete();
   }
 
   //============================================================================
@@ -604,14 +364,7 @@ export class SearchboxElement extends SearchboxElementBase implements
     if (placeholderText) {
       return placeholderText;
     }
-    return this.showThumbnail ? this.i18n('searchBoxHintMultimodal') :
-                                this.i18n('searchBoxHint');
-  }
-
-  protected getThumbnailTabindex_(): string {
-    // If the thumbnail can't be deleted, returning an empty string will set the
-    // tabindex to nothing, which will make the thumbnail not focusable.
-    return this.isThumbnailDeletable_ ? '1' : '';
+    return this.i18n('searchBoxHint');
   }
 
   protected onSelectedMatchIndexChanged_(e: CustomEvent<{value: number}>) {
@@ -626,18 +379,25 @@ export class SearchboxElement extends SearchboxElementBase implements
     this.hasSecondarySide = e.detail.value;
   }
 
-  protected useCompactLayout_(): boolean {
-    return this.searchboxLayoutMode === 'Compact';
-  }
-
-  private processFiles_(
+  protected processFiles_(
       files: FileList|null,
       contextAdditionMethod: ComposeboxContextAddedMethod) {
     if (!files || files.length === 0) {
       return;
     }
-    recordContextAdditionMethod(
-        contextAdditionMethod, loadTimeData.getString('composeboxSource'));
+    recordContextAdditionMethod(contextAdditionMethod, this.composeboxSource);
+
+    if (contextAdditionMethod === ComposeboxContextAddedMethod.CONTEXT_MENU) {
+      // In practice, the `files` list will only contain a single file when
+      // using the CONTEXT_MENU context addition method in the searchbox.
+      for (const file of files) {
+        const contextType =
+            file.type.includes('image') ? ContextType.IMAGE : ContextType.FILE;
+        recordContextualElementClickedMetric(
+            this.composeboxSource, 'ClassicPopup', contextType);
+      }
+    }
+
     this.openComposebox_(Array.from(files, (file) => ({file})));
   }
 }

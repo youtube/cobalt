@@ -504,6 +504,7 @@ Called by update_bad_message_reasons.py.-->
   <int value="336" label="RFH_MODAL_DIALOG_FROM_SANDBOXED_FRAME"/>
   <int value="337" label="RFH_OPEN_URL_INVALID_DISPOSITION"/>
   <int value="338" label="RFH_ENTER_FULLSCREEN_PERMISSION_DENIED"/>
+  <int value="339" label="DT_DUPLICATE_CHILD_TARGET_CREATED"/>
 </enum>
 
 <enum name="BadMessageReasonExtensions">
@@ -549,6 +550,7 @@ Called by update_bad_message_reasons.py.-->
   <int value="34" label="SWH_BAD_WORKER_THREAD_ID"/>
   <int value="35" label="ER_INVALID_EXTENSION_ID_FOR_PROCESS"/>
   <int value="36" label="CEFH_INVALID_EXTENSION_ID_FOR_SCRIPT_INJECT_REQUEST"/>
+  <int value="37" label="SWH_INVALID_SERVICE_WORKER_SCOPE"/>
 </enum>
 
 <enum name="BadMessageReasonGuestView">

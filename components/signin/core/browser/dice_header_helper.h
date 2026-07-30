@@ -13,14 +13,33 @@
 
 class GURL;
 
+namespace net {
+class HttpResponseHeaders;
+}
+
 namespace signin {
 
 // Version of the Dice protocol.
 extern const char kDiceProtocolVersion[];
+extern const char kGoogleSignoutResponseHeader[];
 
 // SigninHeaderHelper implementation managing the Dice header.
 class DiceHeaderHelper : public SigninHeaderHelper {
  public:
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused.
+  // LINT.IfChange(DiceLinkedAccountsMetaHeaderStatus)
+  enum class DiceLinkedAccountsMetaHeaderStatus {
+    kHeaderMissing = 0,
+    kValid = 1,
+    kMissingInitiatorId = 2,
+    kMissingPrimaryIsConnected = 3,
+    kMissingBothParams = 4,
+    kInitiatorMismatch = 5,
+    kMaxValue = kInitiatorMismatch,
+  };
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/signin/enums.xml:DiceLinkedAccountsMetaHeaderStatus)
+
   explicit DiceHeaderHelper(AccountConsistencyMethod account_consistency);
 
   DiceHeaderHelper(const DiceHeaderHelper&) = delete;
@@ -42,6 +61,11 @@ class DiceHeaderHelper : public SigninHeaderHelper {
   // X-Chrome-ID-Consistency-Linked-Accounts-Meta response header.
   static DiceResponseParams::SigninInfo::LinkedAccountsMetadata
   ParseLinkedAccountsMetadata(const std::string& header_value);
+
+  // Creates DiceResponseParams from the response headers by combining standard
+  // Dice and Linked Accounts metadata.
+  static DiceResponseParams CreateDiceResponseParams(
+      const net::HttpResponseHeaders* response_headers);
 
   // Adds the Dice to all Gaia requests from a connected profile, with the
   // exception of requests from gaia webview.

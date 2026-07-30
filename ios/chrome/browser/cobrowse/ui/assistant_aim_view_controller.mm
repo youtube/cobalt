@@ -3,11 +3,11 @@
 // found in the LICENSE file.
 #import "ios/chrome/browser/cobrowse/ui/assistant_aim_view_controller.h"
 
+#import <WebKit/WebKit.h>
+
 #import "ios/chrome/browser/cobrowse/ui/assistant_aim_header_view.h"
 #import "ios/chrome/browser/composebox/ui/composebox_input_plate_view_controller.h"
 #import "ios/chrome/browser/shared/public/features/system_flags.h"
-#import "ios/chrome/browser/shared/ui/elements/extended_touch_target_button.h"
-#import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
 
@@ -39,6 +39,7 @@ constexpr CGFloat kThresholdForCompleteVisibility = 0.3;
   AssistantAIMHeaderView* _headerView;
   NSLayoutConstraint* _headerTopMargin;
   NSLayoutConstraint* _inputPlateBottomMargin;
+  CGRect _keyboardFrameInWindow;
 }
 
 @synthesize delegate = _delegate;
@@ -56,6 +57,7 @@ constexpr CGFloat kThresholdForCompleteVisibility = 0.3;
   [super viewDidLayoutSubviews];
   [_inputViewController.view layoutIfNeeded];
   _fadeGradient.frame = _inputViewFade.bounds;
+  [self updateInputPlateOverlap];
 }
 
 - (void)addInputViewController:
@@ -107,7 +109,52 @@ constexpr CGFloat kThresholdForCompleteVisibility = 0.3;
 
   _inputViewController.view.alpha = effectPercentage;
   _webStateView.alpha = effectPercentage;
+  _inputViewFade.alpha = effectPercentage;
   [_headerView adjustForPercentage:effectPercentage];
+}
+
+- (BOOL)shouldPauseScrollView:(UIScrollView*)scrollView
+                   forGesture:(UIGestureRecognizer*)gesture
+            isInLargestDetent:(BOOL)isInLargestDetent {
+  // Only handle gestures in the assistant content.
+  BOOL inAssistantContent = [scrollView isDescendantOfView:self.view];
+  if (!inAssistantContent) {
+    return NO;
+  }
+
+  // Only pause if the gesture controls scrolling.
+  if (![gesture isKindOfClass:[UIPanGestureRecognizer class]]) {
+    return NO;
+  }
+
+  // Safe cast because the check above ensures it's a pan gesture.
+  UIPanGestureRecognizer* panRecognizer =
+      static_cast<UIPanGestureRecognizer*>(gesture);
+
+  // Horizontal scroll should not drag the assistant container.
+  if ([self gestureDidScrollHorizontally:panRecognizer]) {
+    return NO;
+  }
+
+  WKWebView* wkWebView = [self findWKWebViewInView:_webStateView];
+
+  // Refrain from moving when handling sub-scrolls within a WKWebView.
+  if (scrollView != wkWebView.scrollView) {
+    return NO;
+  }
+
+  // Check boundaries.
+  CGFloat verticalVelocity = [panRecognizer velocityInView:scrollView].y;
+  BOOL draggingDown = verticalVelocity > 0;
+  BOOL isAtTop = [self isContentScrolledToTop:wkWebView];
+  BOOL sheetMovementForLargestDetent =
+      isInLargestDetent && isAtTop && draggingDown;
+  BOOL sheetMovementForSmallerDetents = !isInLargestDetent && isAtTop;
+
+  if (sheetMovementForLargestDetent || sheetMovementForSmallerDetents) {
+    return YES;
+  }
+  return NO;
 }
 
 - (void)setupInputPlateConstraints {
@@ -168,10 +215,39 @@ constexpr CGFloat kThresholdForCompleteVisibility = 0.3;
   }
   [_webStateView removeFromSuperview];
   _webStateView = webStateView;
+
   [self setUpWebStateView];
 }
 
 #pragma mark - Private
+
+// Returns YES if the embedded content is at its top boundary.
+- (BOOL)isContentScrolledToTop:(WKWebView*)wkWebView {
+  if (wkWebView) {
+    return wkWebView.scrollView.contentOffset.y <= 0;
+  }
+  return YES;
+}
+
+// Recursively searches for a WKWebView in the given view's hierarchy.
+- (WKWebView*)findWKWebViewInView:(UIView*)view {
+  if ([view isKindOfClass:[WKWebView class]]) {
+    return static_cast<WKWebView*>(view);
+  }
+  for (UIView* subview in view.subviews) {
+    WKWebView* webView = [self findWKWebViewInView:subview];
+    if (webView) {
+      return webView;
+    }
+  }
+  return nil;
+}
+
+// Returns YES if the gesture has a mostly horizontal translation.
+- (BOOL)gestureDidScrollHorizontally:(UIPanGestureRecognizer*)panRecognizer {
+  CGPoint translation = [panRecognizer translationInView:panRecognizer.view];
+  return fabs(translation.y) <= 3 * fabs(translation.x);
+}
 
 // Creates a fade effect behind the input plate.
 - (void)createInputViewFade {
@@ -212,6 +288,8 @@ constexpr CGFloat kThresholdForCompleteVisibility = 0.3;
 
 // Called when the keyboard is hidden.
 - (void)keyboardDidHide:(NSNotification*)notification {
+  _keyboardFrameInWindow = CGRectZero;
+  [self updateInputPlateOverlap];
   [self.delegate assistantAIMViewControllerDidHideKeyboard:self];
 }
 
@@ -222,17 +300,9 @@ constexpr CGFloat kThresholdForCompleteVisibility = 0.3;
   }
   NSDictionary* userInfo = notification.userInfo;
   NSValue* rectValue = userInfo[UIKeyboardFrameEndUserInfoKey];
-  CGRect keyboardFrameInWindow = rectValue.CGRectValue;
-  CGRect keyboardFrameInView = [self.view convertRect:keyboardFrameInWindow
-                                             fromView:nil];
-  // The distance between the bottom of the view and the top of the keyboard.
-  CGFloat overlap =
-      CGRectGetMaxY(self.view.bounds) - CGRectGetMinY(keyboardFrameInView);
+  _keyboardFrameInWindow = rectValue.CGRectValue;
 
-  // The bottom margin of the input plate should be the overlap plus the margin
-  // between the input plate and the keyboard.
-  CGFloat bottomMargin = MAX(kInputPlateMargin, overlap + kInputPlateMargin);
-  _inputPlateBottomMargin.constant = -bottomMargin;
+  [self updateInputPlateOverlap];
 
   NSTimeInterval duration =
       [userInfo[UIKeyboardAnimationDurationUserInfoKey] doubleValue];
@@ -246,6 +316,20 @@ constexpr CGFloat kThresholdForCompleteVisibility = 0.3;
                      [self.view layoutIfNeeded];
                    }
                    completion:nil];
+}
+
+// Updates the input plate's bottom margin to account for the keyboard's frame.
+- (void)updateInputPlateOverlap {
+  if (CGRectIsEmpty(_keyboardFrameInWindow)) {
+    _inputPlateBottomMargin.constant = -kInputPlateMargin;
+    return;
+  }
+  CGRect keyboardFrameInView = [self.view convertRect:_keyboardFrameInWindow
+                                             fromView:nil];
+  CGFloat overlap =
+      CGRectGetMaxY(self.view.bounds) - CGRectGetMinY(keyboardFrameInView);
+  CGFloat bottomMargin = MAX(kInputPlateMargin, overlap + kInputPlateMargin);
+  _inputPlateBottomMargin.constant = -bottomMargin;
 }
 
 // Sets up the web state view.

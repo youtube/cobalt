@@ -91,6 +91,9 @@
 #include "components/zoom/zoom_controller.h"  // nogncheck
 #endif
 
+#if !BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+#include "chrome/grit/guest_view_shared_resources_map.h"  // nogncheck
+#endif  // !BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 namespace {
 
 // A method to add eligibility booleans for context menu items that are shown
@@ -267,7 +270,7 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
                               weak_ptr_factory_.GetWeakPtr()),
           base::BindRepeating(&ContextualTasksUI::ResetEmbeddedPage,
                               weak_ptr_factory_.GetWeakPtr()));
-  // Add a means of loading images fromexternal sources.
+  // Add a means of loading images from external sources.
 #if !BUILDFLAG(IS_ANDROID)
   // TODO(crbug.com/483442073): SanitizedImageSource is not available on
   // Android. Need to find an alternative.
@@ -297,6 +300,14 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
       profile, /*enable_voice_search=*/true,
       /*enable_lens_search=*/false, session_allows_drag_and_drop));
 #endif
+
+#if !BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+  auto bindings = web_ui->GetBindings();
+  bindings.Put(content::BindingsPolicyValue::kSlimWebView);
+  web_ui->SetBindings(bindings);
+  source->AddResourcePaths(kGuestViewSharedResources);
+#endif  // !BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+
   // Add strings.js
   source->UseStringsJs();
 
@@ -731,7 +742,7 @@ void ContextualTasksUI::CreatePageHandler(
   auto handler = std::make_unique<ContextualTasksComposeboxHandler>(
       this, Profile::FromWebUI(web_ui()), web_ui()->GetWebContents(),
       std::move(pending_page_handler), std::move(pending_page),
-      std::move(pending_searchbox_handler),
+      std::move(pending_searchbox_handler), std::move(pending_searchbox_page),
       base::BindRepeating(
           &ContextualTasksUI::GetOrCreateContextualSessionHandle,
           base::Unretained(this)),
@@ -739,7 +750,6 @@ void ContextualTasksUI::CreatePageHandler(
                           base::Unretained(this)),
       base::BindRepeating(&ContextualTasksUI::TakeInputStateModel,
                           base::Unretained(this)));
-  handler->SetPage(std::move(pending_searchbox_page));
   composebox_handler_ = std::move(handler);
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
@@ -755,6 +765,8 @@ ContextualTasksUI::GetOrCreateContextualSessionHandle() {
       task_id_.has_value() ? helper->GetSessionForTask(task_id_.value())
                            : helper->session_handle();
   if (existing_session) {
+    existing_session->GetMetricsRecorder()->UpdateContextualSearchSource(
+        contextual_search::ContextualSearchSource::kContextualTasks);
     return existing_session;
   }
 
@@ -984,7 +996,8 @@ bool ContextualTasksUI::CanUpdateSuggestedTabContext(
   }
 
   if (!last_committed_url.is_valid() ||
-      !last_committed_url.SchemeIsHTTPOrHTTPS()) {
+      !(last_committed_url.SchemeIsHTTPOrHTTPS() ||
+        last_committed_url.SchemeIsFile())) {
     return false;
   }
 

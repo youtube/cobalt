@@ -502,16 +502,6 @@ const LocalizedErrorMap dns_probe_error_options[] = {
     },
 };
 
-const LocalizedErrorMap link_preview_error_options[] = {
-    {
-        error_page::LinkPreviewErrorCode::kNonHttpsForbidden,
-        IDS_ERRORPAGES_HEADING_LINKPREVIEW_NON_HTTPS_FORBIDDEN,
-        IDS_ERRORPAGES_SUMMARY_LINKPREVIEW_NON_HTTPS_FORBIDDEN,
-        SUGGEST_NONE,
-        SHOW_NO_BUTTONS,
-    },
-};
-
 std::u16string GetStringWithPlaceholder(int resource_id,
                                         std::u16string host_name,
                                         std::u16string failed_url_string) {
@@ -586,11 +576,7 @@ const LocalizedErrorMap* LookupErrorMap(const std::string& error_domain,
         FindErrorMapInArray(dns_probe_error_options, error_code);
     DCHECK(map);
     return map;
-  } else if (error_domain == Error::kLinkPreviewErrorDomain) {
-    const LocalizedErrorMap* map =
-        FindErrorMapInArray(link_preview_error_options, error_code);
-    CHECK(map);
-    return map;
+
   } else {
     NOTREACHED();
   }
@@ -1138,9 +1124,7 @@ LocalizedError::PageState LocalizedError::GetPageState(
   } else if (error_domain == Error::kDnsProbeErrorDomain) {
     error_code_string =
         base::ASCIIToUTF16(error_page::DnsProbeStatusToString(error_code));
-  } else if (error_domain == Error::kLinkPreviewErrorDomain) {
-    // NOP. Link Preview doesn't show error code and describes an error with
-    // text only.
+
   } else {
     NOTREACHED();
   }

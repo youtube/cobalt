@@ -85,9 +85,7 @@ import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.base.ViewAndroidDelegate;
 import org.chromium.ui.base.ViewAndroidDelegate.ContainerViewObserver;
 import org.chromium.ui.base.WindowAndroid;
-import org.chromium.ui.hierarchicalmenu.HierarchicalMenuController;
 import org.chromium.ui.listmenu.ListMenuSubmenuItemProperties;
-import org.chromium.ui.listmenu.ListMenuUtils;
 import org.chromium.ui.listmenu.MenuModelBridge;
 import org.chromium.ui.modelutil.MVCListAdapter;
 import org.chromium.ui.modelutil.MVCListAdapter.ListItem;
@@ -656,12 +654,7 @@ public class SelectionPopupControllerImpl extends ActionModeCallbackHelper
         destroyActionModeAndKeepSelection();
 
         assert mWebContents != null;
-        ActionMode actionMode = mView.startActionMode(mCallback, ActionMode.TYPE_FLOATING);
-        if (actionMode != null) {
-            // This is to work around an LGE email issue. See crbug.com/651706 for more details.
-            LGEmailActionModeWorkaroundImpl.runIfNecessary(assumeNonNull(mContext), actionMode);
-        }
-        setActionMode(actionMode);
+        setActionMode(mView.startActionMode(mCallback, ActionMode.TYPE_FLOATING));
         mUnselectAllOnDismiss = true;
 
         if (!isActionModeValid() && hasSelection()) clearSelection();
@@ -742,15 +735,11 @@ public class SelectionPopupControllerImpl extends ActionModeCallbackHelper
         }
 
         assumeNonNull(mContext);
-        HierarchicalMenuController hierarchicalMenuController =
-                ListMenuUtils.createHierarchicalMenuController(mContext);
-        hierarchicalMenuController.setupCallbacksRecursively(
-                /* headerModelList= */ null, items, this::dismissMenu);
 
         SelectionDropdownMenuDelegate.ItemClickListener itemClickListener =
                 getDropdownItemClickListener(mDropdownMenuDelegate);
         mDropdownMenuDelegate.show(
-                mContext, mView, items, itemClickListener, hierarchicalMenuController, x, y);
+                mContext, mView, items, itemClickListener, this::dismissMenu, x, y);
     }
 
     // HideablePopup implementation

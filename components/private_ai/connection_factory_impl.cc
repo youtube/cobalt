@@ -23,7 +23,6 @@
 #include "components/private_ai/secure_channel_impl.h"
 #include "net/base/url_util.h"
 #include "services/network/public/mojom/network_context.mojom.h"
-#include "services/network/public/mojom/network_service.mojom.h"
 
 namespace private_ai {
 
@@ -34,7 +33,7 @@ std::unique_ptr<Connection> CreateConnectionStack(
     PrivateAiLogger* logger,
     phosphor::TokenManager* token_manager,
     ConnectionFactoryImpl::SecureChannelFactoryOverride secure_channel_override,
-    base::RepeatingCallback<void(ErrorCode)> on_disconnect,
+    base::RepeatingCallback<void(StatusCode)> on_disconnect,
     network::mojom::NetworkContext* network_context) {
   std::unique_ptr<SecureChannel::Factory> secure_channel_factory;
   if (secure_channel_override) {
@@ -84,15 +83,12 @@ void ConnectionFactoryImpl::EnableTokenAttestation(
   token_manager_ = token_manager;
 }
 
-void ConnectionFactoryImpl::EnableProxy(
-    const GURL& proxy_url,
-    network::mojom::NetworkService* network_service) {
+void ConnectionFactoryImpl::EnableProxy(const GURL& proxy_url) {
   proxy_url_ = proxy_url;
-  network_service_ = network_service;
 }
 
 std::unique_ptr<Connection> ConnectionFactoryImpl::Create(
-    base::RepeatingCallback<void(ErrorCode)> on_disconnect) {
+    base::RepeatingCallback<void(StatusCode)> on_disconnect) {
   std::unique_ptr<Connection> connection;
   if (!proxy_url_.is_valid()) {
     logger_->LogInfo(FROM_HERE,
@@ -104,7 +100,6 @@ std::unique_ptr<Connection> ConnectionFactoryImpl::Create(
     logger_->LogInfo(FROM_HERE,
                      "Creating connection to Private AI server via proxy: " +
                          proxy_url_.spec());
-    CHECK(network_service_);
     CHECK(token_manager_);
     // ConnectionProxy requires an inner factory that creates a connection
     // with token attestation.
@@ -113,7 +108,7 @@ std::unique_ptr<Connection> ConnectionFactoryImpl::Create(
                        secure_channel_override_, on_disconnect);
 
     connection = std::make_unique<ConnectionProxy>(
-        proxy_url_, logger_, token_manager_, network_service_,
+        proxy_url_, logger_, token_manager_,
         std::move(inner_connection_factory), std::move(on_disconnect));
   }
   connection = std::make_unique<ConnectionTimeout>(std::move(connection));

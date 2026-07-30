@@ -15,7 +15,6 @@ import("//components/on_device_translation/buildflags/features.gni")
 import("//components/optimization_guide/features.gni")
 import("//components/safe_browsing/buildflags.gni")
 import("//components/supervised_user/buildflags.gni")
-import("//components/surface_embed/buildflags/buildflags.gni")
 import("//extensions/buildflags/buildflags.gni")
 import("//media/media_options.gni")
 import("//pdf/features.gni")
@@ -368,8 +367,6 @@ test("components_unittests") {
     "//components/system_media_controls:unit_tests",
     "//components/test:run_all_unittests",
     "//components/themes:unit_tests",
-    "//components/tpcd/metadata/browser:unit_tests",
-    "//components/tpcd/metadata/common:unit_tests",
     "//components/translate/core/browser:unit_tests",
     "//components/translate/core/common:unit_tests",
     "//components/translate/core/language_detection:unit_tests",
@@ -420,7 +417,7 @@ test("components_unittests") {
     ]
   }
 
-  if (is_linux) {
+  if (is_linux || is_mac) {
     deps += [ "//components/gapis:unit_tests" ]
   }
 
@@ -472,6 +469,7 @@ test("components_unittests") {
 
   if (use_blink) {
     deps += [
+      "//components/accessibility_annotator/first_run:unit_tests",
       "//components/autofill/content/browser:unit_tests",
       "//components/autofill/core/common/mojom:unit_tests",
       "//components/browsing_data/content:unit_tests",
@@ -678,7 +676,6 @@ test("components_unittests") {
       "//components/android_autofill/browser:unit_tests",
       "//components/browser_ui/accessibility/android:unit_tests",
       "//components/browser_ui/site_settings/android:unit_tests",
-      "//components/browser_ui/sms/android:unit_tests",
       "//components/cdm/browser:unit_tests",
       "//components/collaboration/internal:comments_native_java_unittests_java",
       "//components/collaboration/internal:messaging_native_java_unittests_java",
@@ -765,7 +762,6 @@ test("components_unittests") {
       "//components/headless/console_message_logger:unit_tests",
       "//components/headless/screen_info:unit_tests",
       "//components/live_caption:unit_tests",
-      "//components/private_ai:unit_tests",
 
       # TODO(crbug.com/470475787): Enable this test on Android.
       "//components/password_manager/core/browser/actor_login/internal:unit_tests",
@@ -780,10 +776,14 @@ test("components_unittests") {
     deps += [
       "//components/accessibility_annotator/content/content_annotator:unit_tests",
       "//components/accessibility_annotator/core/live_tab_context:unit_tests",
+      "//components/private_ai:unit_tests",
     ]
   }
 
-  if (enable_guest_contents) {
+  if (use_blink) {
+    # guest_contents is a supporting component for any solution that embeds
+    # unowned inner WebContents. As it is for embedding WebContents, only
+    # add the deps when use_blink is true.
     deps += [ "//components/guest_contents/browser:unit_tests" ]
   }
 
@@ -1181,6 +1181,7 @@ if (use_blink) {
       "//components/optimization_guide/content/browser",
       "//components/optimization_guide/content/browser:test_support",
       "//components/optimization_guide/content/renderer",
+      "//components/page_content_annotations/content",
       "//components/paint_preview/renderer",
       "//components/password_manager/content/browser",
       "//components/performance_manager:browser_tests",
@@ -1188,6 +1189,7 @@ if (use_blink) {
       "//components/security_state/core",
       "//components/shared_highlighting/core/common",
       "//components/strings",
+      "//components/surface_embed/browser:browser_tests",
       "//components/ukm:test_support",
       "//components/ukm/content",
       "//components/url_rewrite/browser",
@@ -1270,10 +1272,6 @@ if (use_blink) {
         "//services/screen_ai/public/mojom",
         "//skia",
       ]
-    }
-
-    if (enable_surface_embed) {
-      deps += [ "//components/surface_embed/browser:browser_tests" ]
     }
 
     if (is_android) {

@@ -43,6 +43,7 @@ class BrowserUserEducationInterface;
 class BrowserView;
 class BrowserWindowInterface;
 class BrowserWindowThemeObserver;
+class BrowserWindowZoomObserver;
 class CallToActionLock;
 class ChromeLabsCoordinator;
 class ColorProviderBrowserHelper;
@@ -98,6 +99,7 @@ class VerticalTabIphController;
 class WebUIBrowserExclusiveAccessContext;
 class WebUIBrowserSidePanelUI;
 class ZoomBubbleCoordinator;
+class ZoomBubbleManager;
 
 #if BUILDFLAG(IS_WIN)
 class WindowsTaskbarIconUpdater;
@@ -270,10 +272,6 @@ class BrowserWindowFeatures {
     return mv2_disabled_dialog_controller_.get();
   }
 
-  ChromeLabsCoordinator* chrome_labs_coordinator() {
-    return chrome_labs_coordinator_.get();
-  }
-
   ImmersiveModeController* immersive_mode_controller() {
     return immersive_mode_controller_.get();
   }
@@ -302,10 +300,6 @@ class BrowserWindowFeatures {
   // implementation is not inlined.
   SidePanelUI* side_panel_ui();
 
-  lens::LensOverlayEntryPointController* lens_overlay_entry_point_controller() {
-    return lens_overlay_entry_point_controller_.get();
-  }
-
   lens::LensRegionSearchController* lens_region_search_controller() {
     return lens_region_search_controller_.get();
   }
@@ -325,11 +319,6 @@ class BrowserWindowFeatures {
   // return nullptr for non-normal browser windows because toasts are not
   // supported for those cases.
   ToastService* toast_service() { return toast_service_.get(); }
-
-  send_tab_to_self::SendTabToSelfToolbarBubbleController*
-  send_tab_to_self_toolbar_bubble_controller() {
-    return send_tab_to_self_toolbar_bubble_controller_.get();
-  }
 
   extensions::ExtensionSidePanelManager* extension_side_panel_manager() {
     return extension_side_panel_manager_.get();
@@ -357,10 +346,6 @@ class BrowserWindowFeatures {
   tab_groups::SharedTabGroupFeedbackController*
   shared_tab_group_feedback_controller() {
     return shared_tab_group_feedback_controller_.get();
-  }
-
-  TabSearchToolbarButtonController* tab_search_toolbar_button_controller() {
-    return tab_search_toolbar_button_controller_.get();
   }
 
   BrowserSyncedWindowDelegate* synced_window_delegate() {
@@ -530,10 +515,8 @@ class BrowserWindowFeatures {
   std::unique_ptr<TabListBridge> tab_list_bridge_;
 
   std::unique_ptr<BrowserInstantController> instant_controller_;
-
   std::unique_ptr<send_tab_to_self::SendTabToSelfToolbarBubbleController>
       send_tab_to_self_toolbar_bubble_controller_;
-
   std::unique_ptr<ChromeLabsCoordinator> chrome_labs_coordinator_;
 
   std::unique_ptr<ImmersiveModeController> immersive_mode_controller_;
@@ -618,6 +601,8 @@ class BrowserWindowFeatures {
 #if !BUILDFLAG(IS_CHROMEOS)
   std::unique_ptr<DownloadToolbarUIController> download_toolbar_ui_controller_;
 #endif
+
+  std::unique_ptr<ZoomBubbleManager> zoom_bubble_manager_;
 
   std::unique_ptr<ZoomBubbleCoordinator> zoom_bubble_coordinator_;
 
@@ -809,6 +794,8 @@ class BrowserWindowFeatures {
       contextual_cueing_controller_;
 
   std::unique_ptr<BrowserWindowThemeObserver> browser_window_theme_observer_;
+
+  std::unique_ptr<BrowserWindowZoomObserver> browser_window_zoom_observer_;
 
   // Keep this member last to ensure embedder features are torn down first, in
   // reverse order of initialization.

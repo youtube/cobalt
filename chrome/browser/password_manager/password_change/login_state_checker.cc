@@ -129,8 +129,8 @@ void LoginStateChecker::CheckLoginState(bool ignore_attempts_limit) {
   // Clear previously captured page content.
   cached_page_content_ = std::nullopt;
 
-  capturer_ = std::make_unique<AnnotatedPageContentCapturer>(
-      web_contents(), GetAIPageContentOptions(),
+  capturer_ = AnnotatedPageContentCapturer::Create(
+      web_contents(), client_, GetAIPageContentOptions(),
       base::BindRepeating(&LoginStateChecker::OnPageContentReceived,
                           weak_ptr_factory_.GetWeakPtr()));
 }
@@ -143,8 +143,13 @@ OptimizationGuideKeyedService* LoginStateChecker::GetOptimizationService() {
 
 void LoginStateChecker::OnPageContentReceived(
     optimization_guide::AIPageContentResultOrError content) {
-  // TODO(bokan): Surely this shouldn't crash on failure?
-  CHECK(content.has_value());
+  capturer_.reset();
+  if (!content.has_value()) {
+    LogPageContentCaptureFailure(password_manager::metrics_util::
+                                     PasswordChangeFlowStep::kLoginCheckStep);
+    return;
+  }
+
   if (is_request_in_flight_) {
     cached_page_content_.emplace(std::move(content.value()));
     return;

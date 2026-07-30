@@ -121,6 +121,15 @@ export class ToolbarAppElement extends CrLitElement {
         renderFocused: false,
       },
       contentSettingImageStates: [],
+      lhsChipsState: {
+        securityChip: {
+          icon: 0,
+          securityLevel: 0,
+          text: '',
+          isClickable: false,
+        },
+        activityIndicators: [],
+      },
     },
     layoutConstantsVersion: 0,
     pinnedToolbarActionsState: [],
@@ -169,7 +178,11 @@ export class ToolbarAppElement extends CrLitElement {
     for (const {selector, id} of TRACKED_ELEMENTS) {
       const el = this.shadowRoot.querySelector<HTMLElement>(selector);
       if (el) {
-        this.trackedElementManager_.startTracking(el, id);
+        this.trackedElementManager_.startTracking(el, id, {
+          onHighlightChanged: (highlighted: boolean) => {
+            el.classList.toggle('anchor-highlight', highlighted);
+          },
+        });
       }
     }
   }
@@ -204,20 +217,13 @@ export class ToolbarAppElement extends CrLitElement {
           Math.round(performance.now() - entry.domInteractive));
     }
 
-    const promises = [];
-    const reload = this.shadowRoot.querySelector<CrLitElement>('#reload');
-    if (reload) {
-      promises.push(reload.updateComplete);
-    }
-    const splitTabs =
-        this.shadowRoot.querySelector<CrLitElement>('#split-tabs');
-    if (splitTabs) {
-      promises.push(splitTabs.updateComplete);
-    }
-    const home = this.shadowRoot.querySelector<CrLitElement>('#home');
-    if (home) {
-      promises.push(home.updateComplete);
-    }
+    const waitSelectors =
+        ['#back', '#forward', '#reload', '#split-tabs', '#home'];
+    const promises =
+        waitSelectors.map(s => this.shadowRoot.querySelector<CrLitElement>(s))
+            .filter(el => !!el)
+            .map(el => el.updateComplete);
+
     Promise.all(promises).then(() => {
       this.browserProxy_.toolbarUIHandler.onPageInitialized();
     });

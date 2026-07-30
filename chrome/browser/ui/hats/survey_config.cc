@@ -346,7 +346,6 @@ std::vector<hats::SurveyConfig> GetAllSurveyConfigs() {
       /*product_specific_string_data_fields=*/
       std::vector<std::string>{"Experiment ID",
                                "ContextualTasksExpandButtonOptions",
-                               "ContextualTasksOpenSidePanelOnLinkClicked",
                                "ContextualTasksEnableLensInContextualTasks",
                                "ContextualTasksTabAutoSuggestionChipEnabled"});
 
@@ -799,6 +798,16 @@ std::vector<hats::SurveyConfig> GetAllSurveyConfigs() {
       &metrics::kHappinessTrackingSurveysForDownloadJourney,
       metrics::kHatsSurveyTriggerDownloadJourney,
       /*presupplied_trigger_id=*/"Y2We4jMf70ugnJ3q1cK0QFVzpBEr");
+
+  survey_configs.emplace_back(
+      &metrics::kHappinessTrackingSurveysForPinExtensionJourney,
+      metrics::kHatsSurveyTriggerPinExtensionJourney,
+      /*presupplied_trigger_id=*/"ZPGYEfdNz0ugnJ3q1cK0WdJNwYC3");
+
+  survey_configs.emplace_back(
+      &metrics::kHappinessTrackingSurveysForClearBrowsingHistory,
+      metrics::kHatsSurveyTriggerClearBrowsingHistory,
+      /*presupplied_trigger_id=*/"uAmt8ZyqJ0ugnJ3q1cK0PAWUdnZB");
 
   // Lens overlay surveys.
   survey_configs.emplace_back(

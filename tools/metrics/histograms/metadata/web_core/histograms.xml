@@ -63,7 +63,7 @@ chromium-metrics-reviews@google.com.
 </variants>
 
 <histogram name="WebCore.DistillabilityUs" units="microseconds"
-    expires_after="2026-05-31">
+    expires_after="2026-10-04">
   <owner>wychen@chromium.org</owner>
   <owner>gilmanmh@google.com</owner>
   <summary>
@@ -327,24 +327,6 @@ chromium-metrics-reviews@google.com.
     aborted, specifically recording the reason for the abort. This can be
     triggered by javascript code on the renderer, errors or force closes on the
     backend, or by the transaction timeout timer.
-  </summary>
-</histogram>
-
-<histogram name="WebCore.ResourceFetcher.ActionUponResourceRequest"
-    enum="ActionUponResourceRequest" expires_after="M85">
-  <owner>clamy@chromium.org</owner>
-  <summary>
-    The resulting action (e.g. load resource, use resource from in-memory
-    cache...) upon a resource request.
-  </summary>
-</histogram>
-
-<histogram name="WebCore.ResourceFetcher.ResourceHasClientUponCacheHit"
-    enum="ResourceHasClient" expires_after="M85">
-  <owner>clamy@chromium.org</owner>
-  <summary>
-    Whether the resource in the cache is being used by at least one client (live
-    resource) or not (dead resource) upon a cache hit.
   </summary>
 </histogram>
 

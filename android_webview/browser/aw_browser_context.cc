@@ -25,6 +25,7 @@
 #include "android_webview/browser/aw_permission_manager.h"
 #include "android_webview/browser/aw_quota_manager_bridge.h"
 #include "android_webview/browser/aw_web_ui_controller_factory.h"
+#include "android_webview/browser/content_restriction/aw_content_restriction_blocked_navigation_tracker.h"
 #include "android_webview/browser/content_restriction/aw_content_restriction_manager_client.h"
 #include "android_webview/browser/cookie_manager.h"
 #include "android_webview/browser/metrics/aw_metrics_service_client.h"
@@ -240,6 +241,8 @@ AwBrowserContext::AwBrowserContext(std::string name,
 
   content_restriction_manager_client_ =
       std::make_unique<AwContentRestrictionManagerClient>();
+  content_restriction_blocked_navigation_tracker_ =
+      std::make_unique<AwContentRestrictionBlockedNavigationTracker>();
 }
 
 AwBrowserContext::~AwBrowserContext() {
@@ -387,6 +390,12 @@ AwContentRestrictionManagerClient*
 AwBrowserContext::GetContentRestrictionManagerClient() {
   DCHECK(content_restriction_manager_client_);
   return content_restriction_manager_client_.get();
+}
+
+AwContentRestrictionBlockedNavigationTracker*
+AwBrowserContext::GetContentRestrictionBlockedNavigationTracker() {
+  DCHECK(content_restriction_blocked_navigation_tracker_);
+  return content_restriction_blocked_navigation_tracker_.get();
 }
 
 CookieManager* AwBrowserContext::GetCookieManager() {
@@ -817,17 +826,17 @@ int AwBrowserContext::AllowedPrerenderingCount() const {
   return allowed_prerendering_count_;
 }
 
-void AwBrowserContext::SetAllowedPrerenderingCount(
-    JNIEnv* const env,
-    std::optional<int> allowed_count) {
+void AwBrowserContext::SetAllowedPrerenderingCount(JNIEnv* const env,
+                                                   int allowed_count) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-
-  int sanitized_allowed_count =
-      allowed_count.value_or(kDefaultAllowedPrerenderingCount);
-  CHECK_GT(sanitized_allowed_count, 0);
-
+  CHECK_GT(allowed_count, 0);
   allowed_prerendering_count_ =
-      std::min(sanitized_allowed_count, kMaxAllowedPrerenderingCount);
+      std::min(allowed_count, kMaxAllowedPrerenderingCount);
+}
+
+void AwBrowserContext::ClearAllowedPrerenderingCount(JNIEnv* const env) {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  allowed_prerendering_count_ = kDefaultAllowedPrerenderingCount;
 }
 
 void AwBrowserContext::WarmUpSpareRenderer(JNIEnv* const env) {

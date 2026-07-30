@@ -79,7 +79,9 @@ void TabHandleLayer::SetProperties(
     float width_to_hide_tab_title,
     float pinned_icon_offset_x,
     bool is_underlined,
-    SkColor underline_color) {
+    SkColor underline_start_color,
+    SkColor underline_end_color,
+    int underline_width_threshold) {
   if (foreground != foreground_ || opacity != opacity_ ||
       is_pinned != is_pinned_) {
     foreground_ = foreground;
@@ -356,18 +358,43 @@ void TabHandleLayer::SetProperties(
   }
 
   if (is_underlined) {
-    underline_layer_->SetIsDrawable(true);
-    underline_layer_->SetBackgroundColor(SkColor4f::FromColor(underline_color));
-    underline_layer_->SetBounds(
-        gfx::Size(std::round(width - padding_left - padding_right),
-                  std::round(tab_underline_thickness_)));
-    underline_layer_->SetPosition(gfx::PointF(
+    float underline_width = width - padding_left - padding_right;
+
+    underline_start_layer_->SetIsDrawable(true);
+    underline_start_layer_->SetBackgroundColor(
+        SkColor4f::FromColor(underline_start_color));
+    underline_start_layer_->SetBounds(gfx::Size(
+        std::round(underline_width), std::round(tab_underline_thickness_)));
+    underline_start_layer_->SetPosition(gfx::PointF(
         padding_left,
         height - tab_underline_thickness_ - tab_underline_bottom_margin_));
-    underline_layer_->SetRoundedCorner(
+    underline_start_layer_->SetRoundedCorner(
         gfx::RoundedCornersF(tab_underline_corner_radius_));
+
+    if (underline_width < underline_width_threshold) {
+      underline_end_layer_->SetIsDrawable(false);
+      underline_start_layer_->SetGradientMask(gfx::LinearGradient());
+    } else {
+      underline_end_layer_->SetIsDrawable(true);
+      underline_end_layer_->SetBackgroundColor(
+          SkColor4f::FromColor(underline_end_color));
+      underline_end_layer_->SetBounds(gfx::Size(
+          std::round(underline_width), std::round(tab_underline_thickness_)));
+      underline_end_layer_->SetPosition(gfx::PointF(
+          padding_left,
+          height - tab_underline_thickness_ - tab_underline_bottom_margin_));
+      underline_end_layer_->SetRoundedCorner(
+          gfx::RoundedCornersF(tab_underline_corner_radius_));
+
+      gfx::LinearGradient gradient;
+      gradient.AddStep(0.f, 255);  // Opaque left (shows start_color: 50)
+      gradient.AddStep(1.f, 0);    // Transparent right (shows end_color: 70)
+      gradient.set_angle(0);
+      underline_start_layer_->SetGradientMask(gradient);
+    }
   } else {
-    underline_layer_->SetIsDrawable(false);
+    underline_end_layer_->SetIsDrawable(false);
+    underline_start_layer_->SetIsDrawable(false);
   }
 
   if (is_keyboard_focused) {
@@ -429,7 +456,8 @@ TabHandleLayer::TabHandleLayer(LayerTitleCache* layer_title_cache)
       media_indicator_layer_(cc::slim::UIResourceLayer::Create()),
       decoration_tab_(cc::slim::NinePatchLayer::Create()),
       tab_outline_(cc::slim::NinePatchLayer::Create()),
-      underline_layer_(cc::slim::SolidColorLayer::Create()),
+      underline_end_layer_(cc::slim::SolidColorLayer::Create()),
+      underline_start_layer_(cc::slim::SolidColorLayer::Create()),
       keyboard_focus_ring_(cc::slim::NinePatchLayer::Create()),
       foreground_(false) {
   decoration_tab_->SetIsDrawable(true);
@@ -449,7 +477,8 @@ TabHandleLayer::TabHandleLayer(LayerTitleCache* layer_title_cache)
   layer_->AddChild(start_divider_);
   layer_->AddChild(end_divider_);
   layer_->AddChild(close_keyboard_focus_ring_);
-  layer_->AddChild(underline_layer_);
+  layer_->AddChild(underline_end_layer_);
+  layer_->AddChild(underline_start_layer_);
   layer_->AddChild(keyboard_focus_ring_);
 }
 

@@ -1029,14 +1029,6 @@ targets.mixin(
 )
 
 targets.mixin(
-    name = "ios_custom_webkit",
-    args = [
-        "--args-json",
-        "{\"test_args\": [\"--run-with-custom-webkit\"]}",
-    ],
-)
-
-targets.mixin(
     name = "ios_output_disabled_tests",
     args = [
         "--output-disabled-tests",
@@ -1107,12 +1099,12 @@ targets.mixin(
 )
 
 targets.mixin(
-    name = "ios_runtime_cache_26_4",
+    name = "ios_runtime_cache_26_5",
     swarming = targets.swarming(
         named_caches = [
             swarming.cache(
-                name = "runtime_ios_26_4",
-                path = "Runtime-ios-26.4",
+                name = "runtime_ios_26_5",
+                path = "Runtime-ios-26.5",
             ),
         ],
     ),
@@ -2292,12 +2284,12 @@ targets.mixin(
     name = "xcode_26_beta",
     args = [
         "--xcode-build-version",
-        "17e192",
+        "17f5012f",
     ],
     swarming = targets.swarming(
         named_caches = [
             swarming.cache(
-                name = "xcode_ios_17e192",
+                name = "xcode_ios_17f5012f",
                 path = "Xcode.app",
             ),
         ],

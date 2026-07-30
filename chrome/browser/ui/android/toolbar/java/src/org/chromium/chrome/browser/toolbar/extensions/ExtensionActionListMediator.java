@@ -18,6 +18,7 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.extensions.ContextMenuSource;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.toolbar.MenuBuilderHelper;
 import org.chromium.chrome.browser.toolbar.R;
 import org.chromium.chrome.browser.toolbar.extensions.ExtensionActionButtonProperties.ListItemType;
@@ -92,6 +93,7 @@ class ExtensionActionListMediator implements Destroyable {
     private final @Nullable ContextMenuPopulatorFactory mContextMenuPopulatorFactory;
     private final @Nullable SelectionDropdownMenuDelegate mSelectionDropdownMenuDelegate;
     private final ExtensionActionListCoordinator.RecyclerViewDelegate mRecyclerViewDelegate;
+    private final TabModelSelector mTabModelSelector;
 
     private final ExtensionsToolbarBridge mExtensionsToolbarBridge;
     private final ToolbarDelegate mToolbarDelegate = new ToolbarDelegate();
@@ -124,7 +126,8 @@ class ExtensionActionListMediator implements Destroyable {
             ExtensionActionListCoordinator.RecyclerViewDelegate recyclerViewDelegate,
             ExtensionsToolbarBridge extensionsToolbarBridge,
             @Nullable ContextMenuPopulatorFactory contextMenuPopulatorFactory,
-            @Nullable SelectionDropdownMenuDelegate selectionDropdownMenuDelegate) {
+            @Nullable SelectionDropdownMenuDelegate selectionDropdownMenuDelegate,
+            TabModelSelector tabModelSelector) {
         mContext = context;
         mWindowAndroid = windowAndroid;
         mModels = models;
@@ -135,8 +138,9 @@ class ExtensionActionListMediator implements Destroyable {
         mExtensionsToolbarBridge = extensionsToolbarBridge;
         mContextMenuPopulatorFactory = contextMenuPopulatorFactory;
         mSelectionDropdownMenuDelegate = selectionDropdownMenuDelegate;
+        mTabModelSelector = tabModelSelector;
 
-        mExtensionsToolbarBridge.setDelegate(mToolbarDelegate);
+        mExtensionsToolbarBridge.setActionListDelegate(mToolbarDelegate);
         mExtensionsToolbarBridge.addObserver(mToolbarObserver);
         reconcileActionItems();
     }
@@ -149,7 +153,7 @@ class ExtensionActionListMediator implements Destroyable {
         assert mActionState instanceof ActionState.Idle;
 
         mExtensionsToolbarBridge.removeObserver(mToolbarObserver);
-        mExtensionsToolbarBridge.setDelegate(null);
+        mExtensionsToolbarBridge.setActionListDelegate(null);
         LifetimeAssert.setSafeToGc(mLifetimeAssert, true);
     }
 
@@ -503,7 +507,8 @@ class ExtensionActionListMediator implements Destroyable {
                         actionId,
                         contents,
                         mContextMenuPopulatorFactory,
-                        mSelectionDropdownMenuDelegate);
+                        mSelectionDropdownMenuDelegate,
+                        mTabModelSelector);
         popup.loadInitialPage();
         popup.addOnDismissListener(this::closePopup);
         mActionState = new ActionState.PopupActive(popup, actionId);
@@ -647,7 +652,7 @@ class ExtensionActionListMediator implements Destroyable {
         }
     }
 
-    private class ToolbarDelegate implements ExtensionsToolbarBridge.Delegate {
+    private class ToolbarDelegate implements ExtensionsToolbarBridge.ActionListDelegate {
         @Override
         public void triggerPopup(String actionId, long nativeHostPtr) {
             requestShowPopup(actionId, nativeHostPtr);

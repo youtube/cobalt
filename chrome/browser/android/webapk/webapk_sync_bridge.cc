@@ -217,11 +217,6 @@ void WebApkSyncBridge::OnDatabaseOpened(
   }
 }
 
-std::unique_ptr<syncer::MetadataChangeList>
-WebApkSyncBridge::CreateMetadataChangeList() {
-  return syncer::DataTypeStore::WriteBatch::CreateMetadataChangeList();
-}
-
 bool WebApkSyncBridge::AppWasUsedRecently(
     const sync_pb::WebApkSpecifics* specifics) const {
   return AppWasUsedRecentlyComparedTo(specifics, clock_->Now());
@@ -525,7 +520,8 @@ bool WebApkSyncBridge::IsEntityDataValid(
 
 void WebApkSyncBridge::ApplyDisableSyncChanges(
     std::unique_ptr<syncer::MetadataChangeList> delete_metadata_change_list) {
-  database_.DeleteAllDataAndMetadata(base::DoNothing());
+  database_.DeleteAllDataAndMetadata(std::move(delete_metadata_change_list),
+                                     base::DoNothing());
 
   registry_.clear();
 }

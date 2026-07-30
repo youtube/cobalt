@@ -37,11 +37,33 @@ extern const char
     kHistogramGWSConnectTimingFirstRequestDomainLookupDelaySecureDns[];
 extern const char
     kHistogramGWSConnectTimingFirstRequestDomainLookupDelayInsecureDns[];
+extern const char
+    kHistogramGWSConnectTimingFirstRequestResolutionDetailsTaskCompletionDelay
+        [];
+extern const char
+    kHistogramGWSConnectTimingFirstRequestDohDetailsSessionSource[];
+extern const char
+    kHistogramGWSConnectTimingFirstRequestDohDetailsConnectionInfo[];
 extern const char kHistogramGWSConnectTimingFirstRequestConnectDelay[];
 extern const char kHistogramGWSConnectTimingFirstRequestSslDelay[];
 extern const char kHistogramGWSConnectTimingFinalRequestDomainLookupDelay[];
 extern const char kHistogramGWSConnectTimingFinalRequestConnectDelay[];
 extern const char kHistogramGWSConnectTimingFinalRequestSslDelay[];
+
+extern const char kHistogramGWSInteractionToActualNavigationStart[];
+extern const char kHistogramGWSInteractionToNavigationStart[];
+extern const char kHistogramGWSNavigationStartToNavigationCommitSent[];
+extern const char kHistogramGWSNavigationCommitSentToParseStart[];
+extern const char kHistogramGWSParseStartToFirstContentfulPaint[];
+extern const char kHistogramGWSParseStartToDOMContentLoaded[];
+extern const char kHistogramGWSParseStartToLargestContentfulPaint[];
+
+extern const char kHistogramGWSActualNavigationStartToNavigationStart[];
+extern const char kHistogramGWSActualNavigationStartToNavigationCommitSent[];
+extern const char kHistogramGWSActualNavigationStartToParseStart[];
+extern const char kHistogramGWSActualNavigationStartToFirstContentfulPaint[];
+extern const char kHistogramGWSActualNavigationStartToDOMContentLoaded[];
+extern const char kHistogramGWSActualNavigationStartToLargestContentfulPaint[];
 
 extern const char kHistogramGWSAFTEnd[];
 extern const char kHistogramGWSAFTStart[];
@@ -79,6 +101,7 @@ extern const char kHistogramGWSActivationToLargestContentfulPaint[];
 
 extern const char kHistogramPrerenderSuffix[];
 extern const char kHistogramNonPrerenderSuffix[];
+extern const char kHistogramDuplicateIgnoredSuffix[];
 
 }  // namespace internal
 
@@ -186,7 +209,8 @@ class GWSPageLoadMetricsObserver
         timing_member;
   };
 
-  void LogMetricsOnComplete();
+  void LogMetricsOnComplete(
+      const page_load_metrics::mojom::PageLoadTiming& main_frame_timing);
   void RecordNavigationTimingHistograms();
   void RecordLatencyHistograms(base::TimeTicks response_start_time);
   void RecordSessionDetails(
@@ -234,6 +258,10 @@ class GWSPageLoadMetricsObserver
   // Indicates if the navigation was started from the context menu, for checking
   // the percentage of context menu triggered navigations.
   bool was_started_from_context_menu_ = false;
+
+  // Indicates if this navigation caused a subsequent duplicate request to be
+  // ignored.
+  bool did_ignore_duplicate_navigation_ = false;
 
   NavigationSourceType source_type_ = kUnknown;
   net::HttpConnectionInfoCoarse http_connection_info_ =

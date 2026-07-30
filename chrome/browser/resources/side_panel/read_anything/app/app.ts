@@ -88,6 +88,7 @@ export class AppElement extends AppElementBase implements SpeechListener,
       presentationState_: {type: Number},
       lineFocusStyle_: {type: Object},
       lineFocusMovement_: {type: Number},
+      isDocsLoadMoreButtonVisible_: {type: Boolean},
     };
   }
 
@@ -97,7 +98,7 @@ export class AppElement extends AppElementBase implements SpeechListener,
   protected accessor lineFocusStyle_: LineFocusStyle|null = null;
   protected accessor lineFocusMovement_: LineFocusMovement|null = null;
 
-  protected isDocsLoadMoreButtonVisible_: boolean = false;
+  protected accessor isDocsLoadMoreButtonVisible_: boolean = false;
   protected isImmersiveEnabled_: boolean = false;
 
   // If the speech engine is considered "loaded." If it is, we should display
@@ -319,6 +320,9 @@ export class AppElement extends AppElementBase implements SpeechListener,
           // TODO (crbug.com/450950100): The Read Anything app should determine
           // which content to display based on the presentation state.
           this.presentationState_ = presentationState;
+          this.logger_.setHidden(
+              presentationState ===
+              chrome.readingMode.inHiddenPresentationState);
         };
 
     chrome.readingMode.onPinStateReceived = (pinState: boolean) => {
@@ -474,13 +478,14 @@ export class AppElement extends AppElementBase implements SpeechListener,
         this.lineFocusController_.getHeight(), this.$.containerParent);
   }
 
-  onNeedScrollForLineFocus(scrollDiff: number): void {
+  onNeedScrollForLineFocus(scrollDiff: number, instant: boolean = false): void {
     if (!chrome.readingMode.isLineFocusEnabled) {
       return;
     }
 
     const top = this.$.containerScroller.scrollTop + scrollDiff;
-    this.$.containerScroller.scrollTo({top, behavior: 'smooth'});
+    this.$.containerScroller.scrollTo(
+        {top, behavior: instant ? 'instant' : 'smooth'});
   }
 
   onNeedScrollToTop(): void {
@@ -587,8 +592,7 @@ export class AppElement extends AppElementBase implements SpeechListener,
   }
 
   protected onReadabilityAnchorsReady_() {
-    if (chrome.readingMode.isReadabilityEnabled &&
-        chrome.readingMode.isReadabilityWithLinksEnabled) {
+    if (chrome.readingMode.isReadabilityEnabled) {
       this.contentController_.updateAnchorsForReadability(this.shadowRoot);
     }
   }

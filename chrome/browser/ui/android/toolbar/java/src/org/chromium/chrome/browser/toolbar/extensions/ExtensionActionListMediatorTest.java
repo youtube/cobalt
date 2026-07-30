@@ -42,6 +42,7 @@ import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.MockTab;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.toolbar.extensions.ExtensionActionButtonProperties.ListItemType;
 import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTask;
 import org.chromium.chrome.browser.ui.extensions.ExtensionAction;
@@ -125,9 +126,12 @@ public class ExtensionActionListMediatorTest {
 
     @Mock private ExtensionActionListCoordinator.RecyclerViewDelegate mRecyclerViewDelegate;
 
+    @Mock private TabModelSelector mTabModelSelector;
+
     @Captor private ArgumentCaptor<ListMenuHost.PopupMenuShownListener> mPopupListenerCaptor;
 
-    @Captor private ArgumentCaptor<ExtensionsToolbarBridge.Delegate> mBridgeDelegateCaptor;
+    @Captor
+    private ArgumentCaptor<ExtensionsToolbarBridge.ActionListDelegate> mBridgeDelegateCaptor;
 
     @Before
     public void setUp() {
@@ -166,7 +170,10 @@ public class ExtensionActionListMediatorTest {
                             assert action != null;
 
                             return new ExtensionAction(
-                                    action.getId(), action.getTitle(), action.getTitle());
+                                    action.getId(),
+                                    action.getTitle(),
+                                    action.getTitle(),
+                                    action.getTitle());
                         });
 
         when(mExtensionsToolbarBridge.getPinnedActionIds())
@@ -190,7 +197,8 @@ public class ExtensionActionListMediatorTest {
                         mRecyclerViewDelegate,
                         mExtensionsToolbarBridge,
                         /* contextMenuPopulatorFactory= */ null,
-                        /* selectionDropdownMenuDelegate= */ null) {
+                        /* selectionDropdownMenuDelegate= */ null,
+                        mTabModelSelector) {
                     @Override
                     Bitmap getIconForAction(String actionId, WebContents webContents) {
                         ActionData action = mActions.get(actionId);
@@ -201,7 +209,7 @@ public class ExtensionActionListMediatorTest {
                 };
 
         mMediator.fitActionsWithinWidth(1000);
-        verify(mExtensionsToolbarBridge).setDelegate(mBridgeDelegateCaptor.capture());
+        verify(mExtensionsToolbarBridge).setActionListDelegate(mBridgeDelegateCaptor.capture());
 
         shadowOf(Looper.getMainLooper()).idle();
     }

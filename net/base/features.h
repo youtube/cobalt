@@ -306,13 +306,6 @@ NET_EXPORT BASE_DECLARE_FEATURE(kCookieDomainRejectNonASCII);
 
 NET_EXPORT BASE_DECLARE_FEATURE(kThirdPartyStoragePartitioning);
 
-// Whether to enable the use of 3PC based on 3PCD metadata grants delivered via
-// component updater.
-NET_EXPORT BASE_DECLARE_FEATURE(kTpcdMetadataGrants);
-
-// Whether to enable staged rollback of the TPCD Metadata Entries.
-NET_EXPORT BASE_DECLARE_FEATURE(kTpcdMetadataStageControl);
-
 // Whether ALPS parsing is on for any type of frame.
 NET_EXPORT BASE_DECLARE_FEATURE(kAlpsParsing);
 
@@ -441,6 +434,11 @@ NET_EXPORT BASE_DECLARE_FEATURE(kDeviceBoundSessions);
 // across restarts. This feature is only valid if `kDeviceBoundSessions` is
 // enabled.
 NET_EXPORT BASE_DECLARE_FEATURE(kPersistDeviceBoundSessions);
+// This feature prevents deadlocks from recursive DBSC token refresh requests
+// by setting `device_bound_session_mode` to `kBypassDeferral` on DBSC refresh
+// requests.
+NET_EXPORT BASE_DECLARE_FEATURE(
+    kDeviceBoundSessionsBypassDeferralsForRefreshRequests);
 // This feature enables the Device Bound Session Credentials refresh quota.
 // This behavior is expected by default; disabling it should only be for
 // testing purposes.

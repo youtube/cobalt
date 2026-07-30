@@ -16,10 +16,10 @@
 #include "base/types/expected.h"
 #include "chrome/browser/glic/glic_enums.h"
 #include "chrome/browser/glic/glic_user_status_fetcher.h"
-#include "chrome/browser/subscription_eligibility/subscription_eligibility_service.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
+#include "components/subscription_eligibility/subscription_eligibility_service.h"
 #include "content/public/browser/web_contents.h"
 
 class Profile;
@@ -28,6 +28,7 @@ class ProfileAttributesStorage;
 namespace glic {
 namespace prefs {
 enum class SettingsPolicyState;
+enum class FreStatus;
 }
 namespace mojom {
 // TODO(crbug.com/406500707): This forward declaration is needed because we use
@@ -79,6 +80,7 @@ class GlicGlobalEnabling {
   explicit GlicGlobalEnabling(Delegate& delegate);
   ~GlicGlobalEnabling();
   bool IsEnabledByFlags();
+  bool IsSystemRequirementMet() const;
   bool IsLocaleEnabled() const { return locale_enablement_.value_or(true); }
   bool IsCountryEnabled() const { return country_enablement_.value_or(true); }
 
@@ -173,17 +175,12 @@ class GlicEnabling : public signin::IdentityManager::Observer,
   // Whether the tab web contents contextual menu item is enabled.
   static bool IsContextualMenuItemEnabled(Profile* profile);
 
-  // Deprecated, Multi-instance is always enabled.
-  static bool IsMultiInstanceEnabledByFlags();
-
   // Returns true if Glic is enabled for the profile, the feature is enabled,
   // and the account is non-enterprise (or for Glic dev).
   static bool IsShareImageEnabledForProfile(Profile* profile);
 
-  // Whether the required feature flags for multi-instance are enabled. This
-  // serves as the default enablement check for the multi-instance feature and
-  // should be used in most cases.
-  static bool IsMultiInstanceEnabled();
+  // Whether the live mode and floaty window are enabled by flags.
+  static bool IsLiveAndFloatyEnabledByFlags();
 
   struct ProfileEnablement {
     ProfileEnablement();
@@ -210,11 +207,28 @@ class GlicEnabling : public signin::IdentityManager::Observer,
     // Whether disallowed by locale filtering.
     bool disallowed_by_locale_filter : 1 = false;
 
+    // Whether the Glic feature flag is disabled.
+    bool feature_flag_disabled : 1 = false;
+
+    // Whether system requirements (relevant to ChromeOS only) for Glic are not
+    // met.
+    bool system_requirement_not_met : 1 = false;
+
     // Whether live (audio) functionality is disallowed for this account type.
     bool live_disallowed : 1 = false;
 
     // Whether share image functionality is disallowed for this account type.
     bool share_image_disallowed : 1 = false;
+
+    // LINT.IfChange(FeatureDisabledReason)
+    enum class FeatureDisabledReason {
+      kFeatureFlagDisabled = 0,
+      kCountryDisabled = 1,
+      kLocaleDisabled = 2,
+      kSystemRequirementNotMet = 3,
+      kMaxValue = kSystemRequirementNotMet,
+    };
+    // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicFeatureDisabledReason)
 
     enum class Reason {
       kFeatureDisabled = 0,
@@ -275,6 +289,7 @@ class GlicEnabling : public signin::IdentityManager::Observer,
    private:
     // `suffix` should be either "Startup" or "SteadyState".
     void RecordMetrics(const std::string& suffix) const;
+    void RecordFeatureDisabledReason(const std::string& suffix) const;
   };
   static ProfileEnablement EnablementForProfile(Profile* profile);
 
@@ -310,6 +325,22 @@ class GlicEnabling : public signin::IdentityManager::Observer,
   // Returns true if the given profile has completed the FRE and false
   // otherwise.
   bool HasConsented();
+
+  // Returns true if Trust-First Onboarding is enabled for this profile.
+  bool IsTrustFirstOnboardingEnabled() const;
+
+  // Returns the FRE status.
+  prefs::FreStatus GetCompletedFre() const;
+  // Sets the FRE status.
+  void SetCompletedFre(prefs::FreStatus status);
+
+  // Returns whether user enabled actuation on web.
+  bool GetUserEnabledActuationOnWeb() const;
+  // Returns true if the user enabled actuation on web pref is at its default
+  // value.
+  bool IsUserEnabledActuationOnWebDefault() const;
+  // Sets whether user enabled actuation on web.
+  void SetUserEnabledActuationOnWeb(bool enabled);
 
   // Checks if startup metrics have already been recorded, and if not, records
   // them.
@@ -348,6 +379,10 @@ class GlicEnabling : public signin::IdentityManager::Observer,
   base::CallbackListSubscription RegisterOnConsentChanged(
       ConsentChangedCallback callback);
 
+  using UserEnabledActuationOnWebChangedCallback = base::RepeatingClosure;
+  base::CallbackListSubscription RegisterOnUserEnabledActuationOnWebChanged(
+      UserEnabledActuationOnWebChangedCallback callback);
+
   // This is called anytime ShouldShowSettingsPage() might return a different
   // value.
   using ShowSettingsPageChangedCallback = base::RepeatingClosure;
@@ -360,6 +395,7 @@ class GlicEnabling : public signin::IdentityManager::Observer,
 
  private:
   void OnGlicSettingsPolicyChanged();
+  void OnUserEnabledActuationOnWebChanged();
 
   // IdentityManagerObserver:
   void OnPrimaryAccountChanged(
@@ -405,6 +441,10 @@ class GlicEnabling : public signin::IdentityManager::Observer,
   EnableChangedCallbackList enable_changed_callback_list_;
   using OnConsentChangeCallbackList = base::RepeatingCallbackList<void()>;
   OnConsentChangeCallbackList consent_changed_callback_list_;
+  using UserEnabledActuationOnWebChangedCallbackList =
+      base::RepeatingCallbackList<void()>;
+  UserEnabledActuationOnWebChangedCallbackList
+      user_enabled_actuation_on_web_changed_callback_list_;
   using OnShowSettingsPageChangeCallbackList =
       base::RepeatingCallbackList<void()>;
   OnShowSettingsPageChangeCallbackList

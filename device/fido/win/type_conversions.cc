@@ -56,25 +56,39 @@ std::optional<std::vector<uint8_t>> HMACSecretOutputs(
   return ret;
 }
 
+constexpr auto kTransportMap =
+    base::MakeFixedFlatMap<DWORD, FidoTransportProtocol>(
+        {{WEBAUTHN_CTAP_TRANSPORT_USB,
+          FidoTransportProtocol::kUsbHumanInterfaceDevice},
+         {WEBAUTHN_CTAP_TRANSPORT_NFC,
+          FidoTransportProtocol::kNearFieldCommunication},
+         {WEBAUTHN_CTAP_TRANSPORT_BLE,
+          FidoTransportProtocol::kBluetoothLowEnergy},
+         {WEBAUTHN_CTAP_TRANSPORT_INTERNAL, FidoTransportProtocol::kInternal},
+         {WEBAUTHN_CTAP_TRANSPORT_HYBRID, FidoTransportProtocol::kHybrid}});
+
 }  // namespace
 
 std::optional<FidoTransportProtocol> FromWinTransportsMask(
     const DWORD transport) {
-  switch (transport) {
-    case WEBAUTHN_CTAP_TRANSPORT_USB:
-      return FidoTransportProtocol::kUsbHumanInterfaceDevice;
-    case WEBAUTHN_CTAP_TRANSPORT_NFC:
-      return FidoTransportProtocol::kNearFieldCommunication;
-    case WEBAUTHN_CTAP_TRANSPORT_BLE:
-      return FidoTransportProtocol::kBluetoothLowEnergy;
-    case WEBAUTHN_CTAP_TRANSPORT_INTERNAL:
-      return FidoTransportProtocol::kInternal;
-    case WEBAUTHN_CTAP_TRANSPORT_HYBRID:
-      return FidoTransportProtocol::kHybrid;
-    default:
-      // Ignore _TEST and possibly future others.
-      return std::nullopt;
+  auto it = kTransportMap.find(transport);
+  if (it != kTransportMap.end()) {
+    return it->second;
   }
+
+  // Ignore _TEST and possibly future others.
+  return std::nullopt;
+}
+
+base::flat_set<FidoTransportProtocol> FromWinTransportsBitmask(
+    const DWORD transports) {
+  base::flat_set<FidoTransportProtocol> result;
+  for (const auto& [mask, protocol] : kTransportMap) {
+    if (transports & mask) {
+      result.insert(protocol);
+    }
+  }
+  return result;
 }
 
 uint32_t ToWinTransportsMask(
@@ -142,9 +156,14 @@ ToAuthenticatorMakeCredentialResponse(
           std::make_unique<OpaqueAttestationStatement>(
               base::WideToUTF8(credential_attestation.pwszFormatType),
               std::move(*cbor_attestation_statement))));
-  if (transport_used == FidoTransportProtocol::kInternal) {
-    // Windows platform credentials can't be used from other devices, so we can
-    // fill in the authenticator supported transports.
+  if (credential_attestation.dwVersion >=
+      WEBAUTHN_CREDENTIAL_ATTESTATION_VERSION_8) {
+    ret.transports =
+        FromWinTransportsBitmask(credential_attestation.dwTransports);
+  } else if (transport_used == FidoTransportProtocol::kInternal) {
+    // Before webauthn.dll version 9, Windows would only enumerate platform
+    // credentials. These credentials can't be used from other devices, so we
+    // can fill in the authenticator supported transports.
     ret.transports = {*transport_used};
   }
 
@@ -387,6 +406,9 @@ WinCredentialDetailsListToCredentialMetadata(
                   base::WideToUTF8(credential->pwszAuthenticatorName))
             : std::nullopt);
     metadata.system_created = !credential->bRemovable;
+    if (credential->dwVersion >= WEBAUTHN_CREDENTIAL_DETAILS_VERSION_4) {
+      metadata.transports = FromWinTransportsBitmask(credential->dwTransports);
+    }
     result.push_back(std::move(metadata));
   }
   return result;

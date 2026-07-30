@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "base/functional/bind.h"
+#include "base/no_destructor.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "components/javascript_dialogs/app_modal_dialog_manager_delegate.h"
@@ -51,7 +52,8 @@ bool ShouldDisplaySuppressCheckbox(
 
 // static
 AppModalDialogManager* AppModalDialogManager::GetInstance() {
-  return base::Singleton<AppModalDialogManager>::get();
+  static base::NoDestructor<AppModalDialogManager> instance;
+  return instance.get();
 }
 
 void AppModalDialogManager::SetNativeDialogFactory(

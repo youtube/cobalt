@@ -2,22 +2,24 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import type {BrowserProxy} from 'chrome://glic/browser_proxy.js';
 import {ZoomAction} from 'chrome://glic/glic.mojom-webui.js';
-import type {PageHandlerInterface} from 'chrome://glic/glic.mojom-webui.js';
-import type {ApiHostEmbedder} from 'chrome://glic/glic_api_impl/host/glic_api_host.js';
 import {matcherForOrigin, urlMatchesAllowedOrigin, WebviewController, WebviewPersistentState} from 'chrome://glic/webview.js';
-import type {PageType, WebviewDelegate} from 'chrome://glic/webview.js';
+import type {CrA11yAnnouncerMessagesSentEvent} from 'chrome://resources/cr_elements/cr_a11y_announcer/cr_a11y_announcer.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
-import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
+import {assertDeepEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
+import {eventToPromise} from 'chrome://webui-test/test_util.js';
+
+// Mock the `zoomchange` event defined in the chrome webviewTag API.
+interface WebViewZoomChangeEvent extends Event {
+  newZoomFactor: number;
+  oldZoomFactor?: number;
+}
+
+import {configureLoadTimeData, FakeApiHostEmbedder, FakeBrowserProxy, FakeWebviewDelegate} from './test_helpers.js';
 
 suite('WebviewTest', () => {
   setup(() => {
-    loadTimeData.resetForTesting({
-      glicAllowedOrigins: '',
-      glicGuestURL: 'https://cat.fun/',
-      devMode: false,
-    });
+    configureLoadTimeData();
   });
 
   function assertUrlMatchesAllowedOrigin(expectMatches: boolean, url: string) {
@@ -103,43 +105,11 @@ suite('WebviewZoomTest', () => {
   let controller: WebviewController;
 
   setup(() => {
-    loadTimeData.resetForTesting({
-      glicAllowedOrigins: '',
-      glicGuestURL: 'https://cat.fun/',
-      devMode: false,
-      chromeVersion: '123.0.0.0',
-      chromeChannel: 'stable',
-      glicHeaderRequestTypes: '',
-    });
+    configureLoadTimeData();
 
     // Set up mock interfaces to enable creating a WebviewController for test
     // use.
     const container = document.createElement('div');
-
-    class FakePageHandler implements Partial<PageHandlerInterface> {
-      webviewCommitted(_url: string) {}
-      prepareForClient() {
-        return Promise.resolve({result: 0});
-      }
-    }
-
-    class FakeBrowserProxy implements BrowserProxy {
-      pageHandler = new FakePageHandler() as PageHandlerInterface;
-    }
-
-    class FakeWebviewDelegate implements WebviewDelegate {
-      webviewError(_reason: string) {}
-      webviewUnresponsive() {}
-      webviewPageCommit(_pageType: PageType) {}
-      webviewDeniedByAdmin() {}
-    }
-
-    class FakeApiHostEmbedder implements ApiHostEmbedder {
-      onGuestResizeRequest(_size: {width: number, height: number}) {}
-      enableDragResize(_enabled: boolean) {}
-      webClientReady() {}
-      webClientWarmed() {}
-    }
 
     controller = new WebviewController(
         container,
@@ -152,7 +122,7 @@ suite('WebviewZoomTest', () => {
 
   test('ZoomInReturnsNextZoomFactor', () => {
     let lastSetZoom = 1.0;
-    const webview = controller.webview as any;
+    const webview = controller.webview as chrome.webviewTag.WebView;
     webview.getZoom = (cb: (z: number) => void) => cb(lastSetZoom);
     webview.setZoom = (z: number) => {
       lastSetZoom = z;
@@ -167,7 +137,7 @@ suite('WebviewZoomTest', () => {
 
   test('ZoomOutReturnsPreviousZoomFactor', () => {
     let lastSetZoom = 1.25;
-    const webview = controller.webview as any;
+    const webview = controller.webview as chrome.webviewTag.WebView;
     webview.getZoom = (cb: (z: number) => void) => cb(lastSetZoom);
     webview.setZoom = (currentZoom: number) => {
       lastSetZoom = currentZoom;
@@ -182,7 +152,7 @@ suite('WebviewZoomTest', () => {
 
   test('ZoomResetReturnsOne', () => {
     let lastSetZoom = 1.5;
-    const webview = controller.webview as any;
+    const webview = controller.webview as chrome.webviewTag.WebView;
     webview.setZoom = (currentZoom: number) => {
       lastSetZoom = currentZoom;
     };
@@ -194,7 +164,7 @@ suite('WebviewZoomTest', () => {
   test('ZoomBoundaryConditions', () => {
     let lastSetZoom = 2.0;
     let setZoomCalled = false;
-    const webview = controller.webview as any;
+    const webview = controller.webview as chrome.webviewTag.WebView;
     webview.getZoom = (cb: (z: number) => void) => cb(lastSetZoom);
     webview.setZoom = (currentZoom: number) => {
       lastSetZoom = currentZoom;
@@ -210,5 +180,19 @@ suite('WebviewZoomTest', () => {
     setZoomCalled = false;
     controller.zoom(ZoomAction.kZoomOut);
     assertFalse(setZoomCalled);
+  });
+
+  test('ZoomAnnouncementMade', async () => {
+    const announcementPromise =
+        eventToPromise<CrA11yAnnouncerMessagesSentEvent>(
+            'cr-a11y-announcer-messages-sent', document.body);
+
+    // Simulate a zoom change to 125%
+    const zoomEvent = new Event('zoomchange') as WebViewZoomChangeEvent;
+    zoomEvent.newZoomFactor = 1.25;
+    controller.webview.dispatchEvent(zoomEvent);
+
+    const event = await announcementPromise;
+    assertDeepEquals(event.detail.messages, ['Zoom: 125%']);
   });
 });

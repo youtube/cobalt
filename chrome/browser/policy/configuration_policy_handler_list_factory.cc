@@ -219,7 +219,7 @@
 #include "chromeos/dbus/power/power_policy_controller.h"
 #include "chromeos/ui/wm/fullscreen/pref_names.h"
 #include "components/account_manager_core/pref_names.h"
-#include "components/drive/drive_pref_names.h"  // nogncheck crbug.com/1125897
+#include "components/drive/drive_pref_names.h"  // nogncheck crbug.com/40147906
 #include "components/user_manager/user.h"
 #include "components/user_manager/user_manager.h"
 #include "components/user_manager/user_manager_pref_names.h"
@@ -261,7 +261,7 @@
 #include "chrome/browser/enterprise/idle/action.h"
 #include "chrome/browser/enterprise/signin/enterprise_signin_prefs.h"
 #include "chrome/browser/external_protocol/auto_launch_protocols_policy_handler.h"
-#include "components/device_signals/core/browser/pref_names.h"  // nogncheck due to crbug.com/1125897
+#include "components/device_signals/core/browser/pref_names.h"  // nogncheck due to crbug.com/40147906
 #include "components/proxy_config/proxy_config_pref_names.h"
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
@@ -304,6 +304,9 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kComponentUpdatesEnabled,
     prefs::kComponentUpdatesEnabled,
     base::Value::Type::BOOLEAN },
+  { key::kCpuPerformanceTierOverride,
+    prefs::kCpuPerformanceTierPolicyOverride,
+    base::Value::Type::INTEGER },
   { key::kDataURLWhitespacePreservationEnabled,
     prefs::kDataURLWhitespacePreservationEnabled,
     base::Value::Type::BOOLEAN },
@@ -1118,6 +1121,9 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kMetricsReportingEnabled,
     metrics::prefs::kMetricsReportingEnabled,
     base::Value::Type::BOOLEAN },
+  { key::kMetricsReportingLevel,
+    metrics::prefs::kMetricsReportingLevel,
+    base::Value::Type::INTEGER },
   { key::kVariationsRestrictParameter,
     variations::prefs::kVariationsRestrictParameter,
     base::Value::Type::STRING },
@@ -1424,7 +1430,7 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
     ash::prefs::kPersonalizationKeyboardBacklightColor,
     base::Value::Type::INTEGER },
   { key::kRebootAfterUpdate,
-    prefs::kRebootAfterUpdate,
+    ash::prefs::kRebootAfterUpdate,
     base::Value::Type::BOOLEAN },
   { key::kChromeOsMultiProfileUserBehavior,
     user_manager::prefs::kMultiProfileUserBehaviorPref,
@@ -1618,6 +1624,9 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kDeviceMetricsReportingEnabled,
     metrics::prefs::kMetricsReportingEnabled,
     base::Value::Type::BOOLEAN },
+  { key::kDeviceMetricsReportingLevel,
+    metrics::prefs::kMetricsReportingLevel,
+    base::Value::Type::INTEGER },
   { key::kSystemTimezoneAutomaticDetection,
     ash::prefs::kSystemTimezoneAutomaticDetectionPolicy,
     base::Value::Type::INTEGER },
@@ -3186,7 +3195,7 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
       key::kUserActivityScreenDimDelayScale,
       ash::prefs::kPowerUserActivityScreenDimDelayFactor, 100, INT_MAX, true));
   handlers->AddHandler(std::make_unique<IntRangePolicyHandler>(
-      key::kUptimeLimit, prefs::kUptimeLimit, 3600, INT_MAX, true));
+      key::kUptimeLimit, ash::prefs::kUptimeLimit, 3600, INT_MAX, true));
   handlers->AddHandler(std::make_unique<IntRangePolicyHandler>(
       key::kDeviceLoginScreenDefaultScreenMagnifierType, nullptr,
       static_cast<int>(MagnifierType::kDisabled),
@@ -3486,10 +3495,6 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
       key::kTabCompareSettings,
       optimization_guide::prefs::kProductSpecificationsEnterprisePolicyAllowed);
   gen_ai_default_policies.emplace_back(
-      key::kGeminiSettings, prefs::kGeminiSettings,
-      GenAiDefaultSettingsPolicyHandler::PolicyValueToPrefMap(
-          {{0, 0}, {1, 0}, {2, 1}}));
-  gen_ai_default_policies.emplace_back(
       key::kAutomatedPasswordChangeSettings,
       optimization_guide::prefs::
           kAutomatedPasswordChangeEnterprisePolicyAllowed);
@@ -3563,6 +3568,10 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
 #endif  // !BUILDFLAG(IS_ANDROID)
   gen_ai_default_policies.emplace_back(
       key::kAIModeSettings, omnibox::kAIModeSettings,
+      GenAiDefaultSettingsPolicyHandler::PolicyValueToPrefMap(
+          {{0, 0}, {1, 0}, {2, 1}}));
+  gen_ai_default_policies.emplace_back(
+      key::kGeminiSettings, prefs::kGeminiSettings,
       GenAiDefaultSettingsPolicyHandler::PolicyValueToPrefMap(
           {{0, 0}, {1, 0}, {2, 1}}));
   // Default value for SearchContentSharingSettings is 0 if

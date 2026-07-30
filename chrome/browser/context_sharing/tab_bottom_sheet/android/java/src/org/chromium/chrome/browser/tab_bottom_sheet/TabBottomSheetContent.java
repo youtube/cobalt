@@ -6,12 +6,15 @@ package org.chromium.chrome.browser.tab_bottom_sheet;
 
 import android.content.Context;
 import android.view.View;
+import android.graphics.Color;
 
+import androidx.annotation.ColorInt;
 import androidx.annotation.StringRes;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.context_sharing.R;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetContent;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetContent.GlowSpec;
 
@@ -19,15 +22,18 @@ import org.chromium.components.browser_ui.bottomsheet.BottomSheetContent.GlowSpe
 @NullMarked
 public class TabBottomSheetContent implements BottomSheetContent {
     private final View mContentView;
+    private final float mFullHeightRatio;
     private final GlowSpec mGlowSpec;
 
     /**
      * Constructor.
      *
      * @param contentView The inflated view for the bottom sheet.
+     * @param fullHeightRatio The full height ratio for the bottom sheet.
      */
-    public TabBottomSheetContent(View contentView) {
+    public TabBottomSheetContent(View contentView, float fullHeightRatio) {
         mContentView = contentView;
+        mFullHeightRatio = fullHeightRatio;
         mGlowSpec =
                 new GlowSpec(
                         mContentView.getContext().getColor(R.color.default_bg_color_blue),
@@ -69,6 +75,18 @@ public class TabBottomSheetContent implements BottomSheetContent {
     }
 
     @Override
+    public boolean hasCustomScrimLifecycle() {
+        // No scrim.
+        return true;
+    }
+
+    @Override
+    public @ColorInt int getSheetBackgroundColorOverride() {
+        // TODO(crbug.com/490402422): Remove when color scheme is updated.
+        return Color.WHITE;
+    }
+
+    @Override
     public void onBackPressed() {
         handleBackPress();
     }
@@ -86,12 +104,16 @@ public class TabBottomSheetContent implements BottomSheetContent {
 
     @Override
     public float getHalfHeightRatio() {
-        return HeightMode.DISABLED;
+        return ChromeFeatureList.sTabBottomSheetResizeWebview.getValue()
+                ? mFullHeightRatio
+                : HeightMode.DISABLED;
     }
 
     @Override
     public float getFullHeightRatio() {
-        return HeightMode.WRAP_CONTENT;
+        return ChromeFeatureList.sTabBottomSheetResizeWebview.getValue()
+                ? HeightMode.DEFAULT
+                : mFullHeightRatio;
     }
 
     @Override
@@ -125,8 +147,15 @@ public class TabBottomSheetContent implements BottomSheetContent {
     }
 
     @Override
-    public boolean canSuppressInAnyState() {
-        return false;
+    public boolean canBeSuppressed(BottomSheetContent nextContent) {
+        return true;
+    }
+
+    @Override
+    public boolean actsAsBrowserControls() {
+        // TODO(crbug.com/491512853): Revisit if this is correct for landscape mode or in non-PEEK
+        // states. For now, always returning true seems most correct.
+        return true;
     }
 
     @Override

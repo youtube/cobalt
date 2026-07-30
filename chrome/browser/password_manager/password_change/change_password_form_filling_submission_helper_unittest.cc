@@ -26,6 +26,7 @@
 #include "chrome/browser/password_manager/factories/profile_password_store_factory.h"
 #include "chrome/browser/password_manager/password_change/annotated_page_content_capturer.h"
 #include "chrome/browser/password_manager/password_change/change_password_form_waiter.h"
+#include "chrome/browser/password_manager/password_change/fake_annotated_page_content_capturer.h"
 #include "chrome/browser/password_manager/password_change/form_filling_helper.h"
 #include "chrome/browser/password_manager/password_change/model_quality_logs_uploader.h"
 #include "chrome/browser/sync/sync_service_factory.h"
@@ -216,6 +217,15 @@ class ChangePasswordFormFillingSubmissionHelperTest
     existing_credential_.in_store =
         password_manager::PasswordForm::Store::kProfileStore;
     existing_credential_.scheme = password_manager::PasswordForm::Scheme::kHtml;
+
+    AnnotatedPageContentCapturer::SetFactoryForTesting(base::BindRepeating(
+        [](content::WebContents* web_contents,
+           blink::mojom::AIPageContentOptionsPtr options,
+           optimization_guide::OnAIPageContentDone callback)
+            -> std::unique_ptr<AnnotatedPageContentCapturer> {
+          return std::make_unique<FakeAnnotatedPageContentCapturer>(
+              std::move(callback));
+        }));
   }
 
   void TearDown() override {
@@ -294,8 +304,8 @@ class ChangePasswordFormFillingSubmissionHelperTest
             }));
     CompleteFormFilling(manager, verifier, CreateFilledTestPasswordFormData());
     ASSERT_TRUE(verifier->capturer());
-    verifier->capturer()->ReplyWithContent(
-        optimization_guide::AIPageContentResult());
+    static_cast<FakeAnnotatedPageContentCapturer*>(verifier->capturer())
+        ->SimulateResponse(optimization_guide::AIPageContentResult());
     run_loop.Run();
   }
 
@@ -421,8 +431,8 @@ TEST_P(ChangePasswordFormFillingSubmissionHelperTest,
   CompleteFormFilling(form_manager, verifier.get(),
                       CreateFilledTestPasswordFormData());
   ASSERT_TRUE(verifier->capturer());
-  verifier->capturer()->ReplyWithContent(
-      optimization_guide::AIPageContentResult());
+  static_cast<FakeAnnotatedPageContentCapturer*>(verifier->capturer())
+      ->SimulateResponse(optimization_guide::AIPageContentResult());
   run_loop.Run();
 
   EXPECT_EQ(presaved_generated_password_form.username_value,
@@ -451,8 +461,8 @@ TEST_P(ChangePasswordFormFillingSubmissionHelperTest,
   EXPECT_FALSE(completion_future.IsReady());
 
   ASSERT_TRUE(verifier->capturer());
-  verifier->capturer()->ReplyWithContent(
-      base::unexpected("APC Capture Failed"));
+  static_cast<FakeAnnotatedPageContentCapturer*>(verifier->capturer())
+      ->SimulateResponse(base::unexpected("APC Capture Failed"));
 
   EXPECT_EQ(completion_future.Get().error(),
             SubmissionError::kFailedToCaptureContent);
@@ -535,15 +545,20 @@ TEST_P(ChangePasswordFormFillingSubmissionHelperTest, ProvisionallySaveFailed) {
 
   EXPECT_TRUE(verifier->form_waiter());
 
-  auto* new_form_manager = CreateFormManagerFromFormData(
-      CreateTestPasswordFormData("", "", 101, 102), /*credentials_to_seed=*/{});
+  autofill::FormData new_form_data =
+      CreateTestPasswordFormData("", "", 101, 102);
+  new_form_data.set_renderer_id(autofill::test::MakeFormRendererId());
+  auto* new_form_manager =
+      CreateFormManagerFromFormData(new_form_data, /*credentials_to_seed=*/{});
 
   // Verify that Chrome attempts to fill and submit a newly found form.
+  autofill::FormData filled_form = CreateFilledTestPasswordFormData();
+  filled_form.set_renderer_id(new_form_data.renderer_id());
+
   if (!base::FeatureList::IsEnabled(
           password_manager::features::kFillChangePasswordFormByTyping)) {
     EXPECT_CALL(driver(), FillChangePasswordForm)
-        .WillOnce(
-            base::test::RunOnceCallback<5>(CreateFilledTestPasswordFormData()));
+        .WillOnce(base::test::RunOnceCallback<5>(filled_form));
   }
   static_cast<password_manager::PasswordFormManagerObserver*>(
       verifier->form_waiter())
@@ -552,16 +567,15 @@ TEST_P(ChangePasswordFormFillingSubmissionHelperTest, ProvisionallySaveFailed) {
   if (base::FeatureList::IsEnabled(
           password_manager::features::kFillChangePasswordFormByTyping)) {
     ASSERT_TRUE(verifier->form_filler());
-    verifier->form_filler()->SimulateFillingResult(
-        CreateFilledTestPasswordFormData());
+    verifier->form_filler()->SimulateFillingResult(filled_form);
   } else {
     EXPECT_TRUE(base::test::RunUntil(
         [&]() { return verifier->capturer() != nullptr; }));
   }
 
   ASSERT_TRUE(verifier->capturer());
-  verifier->capturer()->ReplyWithContent(
-      optimization_guide::AIPageContentResult());
+  static_cast<FakeAnnotatedPageContentCapturer*>(verifier->capturer())
+      ->SimulateResponse(optimization_guide::AIPageContentResult());
   task_environment()->RunUntilIdle();
 }
 
@@ -600,8 +614,8 @@ TEST_P(ChangePasswordFormFillingSubmissionHelperTest, SubmitButtonNotFound) {
                       CreateFilledTestPasswordFormData());
 
   ASSERT_TRUE(verifier->capturer());
-  verifier->capturer()->ReplyWithContent(
-      optimization_guide::AIPageContentResult());
+  static_cast<FakeAnnotatedPageContentCapturer*>(verifier->capturer())
+      ->SimulateResponse(optimization_guide::AIPageContentResult());
 
   EXPECT_FALSE(verifier->click_helper());
 
@@ -647,14 +661,19 @@ TEST_P(ChangePasswordFormFillingSubmissionHelperTest,
           PasswordChangeQuality_StepQuality_SubmissionStatus_FORM_FILLING_FAILED);
 
   EXPECT_TRUE(verifier->form_waiter());
-  auto* new_form_manager = CreateFormManagerFromFormData(
-      CreateTestPasswordFormData("", "", 101, 102), /*credentials_to_seed=*/{});
+  autofill::FormData new_form_data =
+      CreateTestPasswordFormData("", "", 101, 102);
+  new_form_data.set_renderer_id(autofill::test::MakeFormRendererId());
+  auto* new_form_manager =
+      CreateFormManagerFromFormData(new_form_data, /*credentials_to_seed=*/{});
+
+  autofill::FormData filled_form = CreateFilledTestPasswordFormData();
+  filled_form.set_renderer_id(new_form_data.renderer_id());
 
   if (!base::FeatureList::IsEnabled(
           password_manager::features::kFillChangePasswordFormByTyping)) {
     EXPECT_CALL(driver(), FillChangePasswordForm)
-        .WillOnce(
-            base::test::RunOnceCallback<5>(CreateFilledTestPasswordFormData()));
+        .WillOnce(base::test::RunOnceCallback<5>(filled_form));
   }
   static_cast<password_manager::PasswordFormManagerObserver*>(
       verifier->form_waiter())
@@ -663,16 +682,15 @@ TEST_P(ChangePasswordFormFillingSubmissionHelperTest,
   if (base::FeatureList::IsEnabled(
           password_manager::features::kFillChangePasswordFormByTyping)) {
     ASSERT_TRUE(verifier->form_filler());
-    verifier->form_filler()->SimulateFillingResult(
-        CreateFilledTestPasswordFormData());
+    verifier->form_filler()->SimulateFillingResult(filled_form);
   } else {
     EXPECT_TRUE(base::test::RunUntil(
         [&]() { return verifier->capturer() != nullptr; }));
   }
 
   ASSERT_TRUE(verifier->capturer());
-  verifier->capturer()->ReplyWithContent(
-      optimization_guide::AIPageContentResult());
+  static_cast<FakeAnnotatedPageContentCapturer*>(verifier->capturer())
+      ->SimulateResponse(optimization_guide::AIPageContentResult());
   task_environment()->RunUntilIdle();
 }
 
@@ -691,8 +709,8 @@ TEST_P(ChangePasswordFormFillingSubmissionHelperTest,
   CompleteFormFilling(form_manager, verifier.get(),
                       CreateFilledTestPasswordFormData());
   ASSERT_TRUE(verifier->capturer());
-  verifier->capturer()->ReplyWithContent(
-      optimization_guide::AIPageContentResult());
+  static_cast<FakeAnnotatedPageContentCapturer*>(verifier->capturer())
+      ->SimulateResponse(optimization_guide::AIPageContentResult());
 
   EXPECT_EQ(completion_future.Get().error(),
             SubmissionError::kInterventionDetected);
@@ -714,8 +732,8 @@ TEST_P(ChangePasswordFormFillingSubmissionHelperTest,
   CompleteFormFilling(form_manager, verifier.get(),
                       CreateFilledTestPasswordFormData());
   ASSERT_TRUE(verifier->capturer());
-  verifier->capturer()->ReplyWithContent(
-      optimization_guide::AIPageContentResult());
+  static_cast<FakeAnnotatedPageContentCapturer*>(verifier->capturer())
+      ->SimulateResponse(optimization_guide::AIPageContentResult());
   EXPECT_EQ(completion_future.Get().error(),
             SubmissionError::kSubmitButtonNotFound);
   EXPECT_FALSE(verifier->click_helper());

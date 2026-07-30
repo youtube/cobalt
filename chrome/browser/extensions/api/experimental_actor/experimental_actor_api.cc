@@ -20,7 +20,7 @@
 #include "chrome/browser/actor/actor_proto_conversion.h"
 #include "chrome/browser/actor/actor_task_metadata.h"
 #include "chrome/browser/actor/aggregated_journal_file_serializer.h"
-#include "chrome/browser/actor/enterprise_policy_url_checker.h"
+#include "chrome/browser/actor/enterprise_policy_checker.h"
 #include "chrome/browser/actor/tools/tab_management_tool_request.h"
 #include "chrome/browser/ai/ai_data_keyed_service.h"
 #include "chrome/browser/extensions/chrome_extension_function_details.h"
@@ -32,7 +32,7 @@
 #include "chrome/common/actor/task_id.h"
 #include "chrome/common/extensions/api/experimental_actor.h"
 #include "chrome/common/extensions/api/tabs.h"
-#include "components/actor/task_source_info.h"
+#include "components/actor/core/task_source_info.h"
 #include "components/optimization_guide/proto/features/actions_data.pb.h"
 #include "components/optimization_guide/proto/features/model_prototyping.pb.h"
 #include "components/sessions/content/session_tab_helper.h"
@@ -44,10 +44,20 @@ namespace extensions {
 
 namespace {
 
-class NullPolicyChecker : public actor::EnterprisePolicyUrlChecker {
+class NullPolicyChecker : public actor::EnterprisePolicyChecker {
  public:
-  actor::EnterprisePolicyBlockReason Evaluate(const GURL& url) const override {
-    return actor::EnterprisePolicyBlockReason::kNotBlocked;
+  actor::EnterprisePolicyChecker::UrlBlockReason Evaluate(
+      const GURL& url) const override {
+    return actor::EnterprisePolicyChecker::UrlBlockReason::kNotBlocked;
+  }
+
+  void ValidateContentSentToRenderer(
+      content::RenderFrameHost* frame,
+      const std::string& content,
+      actor::EnterprisePolicyChecker::ContentValidationCallback callback)
+      const override {
+    std::move(callback).Run(
+        actor::EnterprisePolicyChecker::ContentValidationReason::kAllowed);
   }
 };
 

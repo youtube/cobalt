@@ -11,7 +11,6 @@
 #include "chrome/browser/accessibility/tree_fixing/pref_names.h"
 #include "chrome/browser/desktop_to_mobile_promos/promos_pref_names.h"
 #include "chrome/browser/glic/glic_pref_names.h"
-#include "chrome/browser/subscription_eligibility/subscription_eligibility_prefs.h"
 #include "chrome/browser/ui/read_anything/read_anything_prefs.h"
 #include "chrome/browser/ui/toolbar/toolbar_pref_names.h"
 #include "chrome/common/pref_names.h"
@@ -21,6 +20,7 @@
 #include "components/performance_manager/public/user_tuning/prefs.h"
 #include "components/privacy_sandbox/privacy_sandbox_prefs.h"
 #include "components/spellcheck/browser/pref_names.h"
+#include "components/subscription_eligibility/subscription_eligibility_prefs.h"
 #include "components/sync/base/data_type.h"
 #include "components/sync_preferences/syncable_prefs_database.h"
 #include "components/translate/core/browser/translate_prefs.h"
@@ -31,7 +31,7 @@
 #include "chrome/browser/ash/guest_os/guest_os_pref_names.h"
 #include "chrome/browser/ash/login/login_pref_names.h"
 #include "chromeos/ash/components/tether/pref_names.h"
-#include "components/drive/drive_pref_names.h"  // nogncheck crbug.com/1125897
+#include "components/drive/drive_pref_names.h"  // nogncheck crbug.com/40147906
 #include "components/metrics/demographics/user_demographics.h"
 #include "components/user_manager/user_manager_pref_names.h"
 #include "components/variations/service/google_groups_manager_prefs.h"
@@ -707,7 +707,7 @@ constexpr auto kChromeSyncablePrefsAllowlist = base::MakeFixedFlatMap<
     {ash::prefs::kAccessibilityCaretHighlightEnabled,
      {syncable_prefs_ids::kAccessibilityCaretHighlightEnabled,
       syncer::OS_PREFERENCES, sync_preferences::PrefSensitivity::kNone,
-      sync_preferences::MergeBehavior::kNone}},
+      sync_preferences::MergeBehavior::kCustom}},
     {ash::prefs::kAccessibilityColorCorrectionEnabled,
      {syncable_prefs_ids::kAccessibilityColorCorrectionEnabled,
       syncer::OS_PREFERENCES, sync_preferences::PrefSensitivity::kNone,
@@ -735,7 +735,7 @@ constexpr auto kChromeSyncablePrefsAllowlist = base::MakeFixedFlatMap<
     {ash::prefs::kAccessibilityCursorHighlightEnabled,
      {syncable_prefs_ids::kAccessibilityCursorHighlightEnabled,
       syncer::OS_PREFERENCES, sync_preferences::PrefSensitivity::kNone,
-      sync_preferences::MergeBehavior::kNone}},
+      sync_preferences::MergeBehavior::kCustom}},
     {ash::prefs::kAccessibilityEnhancedNetworkVoicesInSelectToSpeakAllowed,
      {syncable_prefs_ids::
           kAccessibilityEnhancedNetworkVoicesInSelectToSpeakAllowed,
@@ -756,7 +756,7 @@ constexpr auto kChromeSyncablePrefsAllowlist = base::MakeFixedFlatMap<
     {ash::prefs::kAccessibilityLargeCursorEnabled,
      {syncable_prefs_ids::kAccessibilityLargeCursorEnabled,
       syncer::OS_PREFERENCES, sync_preferences::PrefSensitivity::kNone,
-      sync_preferences::MergeBehavior::kNone}},
+      sync_preferences::MergeBehavior::kCustom}},
     {ash::prefs::kAccessibilityMagnifierFollowsChromeVox,
      {syncable_prefs_ids::kAccessibilityMagnifierFollowsChromeVox,
       syncer::OS_PREFERENCES, sync_preferences::PrefSensitivity::kNone,
@@ -864,7 +864,7 @@ constexpr auto kChromeSyncablePrefsAllowlist = base::MakeFixedFlatMap<
     {ash::prefs::kDockedMagnifierEnabled,
      {syncable_prefs_ids::kDockedMagnifierEnabled, syncer::OS_PREFERENCES,
       sync_preferences::PrefSensitivity::kNone,
-      sync_preferences::MergeBehavior::kNone}},
+      sync_preferences::MergeBehavior::kCustom}},
     {ash::prefs::kDockedMagnifierScale,
      {syncable_prefs_ids::kDockedMagnifierScale, syncer::OS_PREFERENCES,
       sync_preferences::PrefSensitivity::kNone,
@@ -1408,11 +1408,11 @@ constexpr auto kChromeSyncablePrefsAllowlist = base::MakeFixedFlatMap<
     {ash::prefs::kAccessibilityFocusHighlightEnabled,
      {syncable_prefs_ids::kAccessibilityFocusHighlightEnabled,
       syncer::OS_PREFERENCES, sync_preferences::PrefSensitivity::kNone,
-      sync_preferences::MergeBehavior::kNone}},
+      sync_preferences::MergeBehavior::kCustom}},
     {ash::prefs::kAccessibilityHighContrastEnabled,
      {syncable_prefs_ids::kAccessibilityHighContrastEnabled,
       syncer::OS_PREFERENCES, sync_preferences::PrefSensitivity::kNone,
-      sync_preferences::MergeBehavior::kNone}},
+      sync_preferences::MergeBehavior::kCustom}},
     {ash::prefs::kHighContrastAcceleratorDialogHasBeenAccepted,
      {syncable_prefs_ids::kHighContrastAcceleratorDialogHasBeenAccepted,
       syncer::OS_PREFERENCES, sync_preferences::PrefSensitivity::kNone,
@@ -1452,7 +1452,7 @@ constexpr auto kChromeSyncablePrefsAllowlist = base::MakeFixedFlatMap<
     {ash::prefs::kAccessibilityScreenMagnifierEnabled,
      {syncable_prefs_ids::kAccessibilityScreenMagnifierEnabled,
       syncer::OS_PREFERENCES, sync_preferences::PrefSensitivity::kNone,
-      sync_preferences::MergeBehavior::kNone}},
+      sync_preferences::MergeBehavior::kCustom}},
     {ash::prefs::kAccessibilityScreenMagnifierScale,
      {syncable_prefs_ids::kAccessibilityScreenMagnifierScale,
       syncer::OS_PREFERENCES, sync_preferences::PrefSensitivity::kNone,
@@ -1460,7 +1460,7 @@ constexpr auto kChromeSyncablePrefsAllowlist = base::MakeFixedFlatMap<
     {ash::prefs::kAccessibilitySelectToSpeakEnabled,
      {syncable_prefs_ids::kAccessibilitySelectToSpeakEnabled,
       syncer::OS_PREFERENCES, sync_preferences::PrefSensitivity::kNone,
-      sync_preferences::MergeBehavior::kNone}},
+      sync_preferences::MergeBehavior::kCustom}},
     {prefs::kShelfGeminiAppPinRolls,
      {syncable_prefs_ids::kShelfGeminiAppPinRolls, syncer::OS_PREFERENCES,
       sync_preferences::PrefSensitivity::kNone,

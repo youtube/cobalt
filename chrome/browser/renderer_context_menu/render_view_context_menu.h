@@ -62,6 +62,10 @@ class SpellingOptionsSubMenuObserver;
 class TemplateURL;
 class ToastController;
 
+namespace send_tab_to_self {
+class SendTabToSelfContextMenuDelegate;
+}
+
 namespace content {
 class RenderFrameHost;
 class WebContents;
@@ -376,7 +380,6 @@ class RenderViewContextMenu
 
   // Command execution functions.
   void ExecOpenWebApp();
-  void ExecOpenLinkPreview();
   void ExecProtocolHandler(int event_flags, int handler_index);
   void ExecOpenLinkInProfile(int profile_index);
   void ExecInspectElement();
@@ -511,6 +514,9 @@ class RenderViewContextMenu
   // Inspect sub-menu handling.
   ui::SimpleMenuModel inspect_submenu_model_;
 
+  // Video frame sub-menu handling.
+  ui::SimpleMenuModel video_frame_submenu_model_;
+
   // An observer that handles spelling suggestions, "Add to dictionary", and
   // "Use enhanced spell check" items.
   std::unique_ptr<SpellingMenuObserver> spelling_suggestions_menu_observer_;
@@ -580,6 +586,10 @@ class RenderViewContextMenu
   // Whether the "Paste and Match Style" menu item should be enabled.
   const bool is_paste_and_match_style_enabled_;
 
+  std::unique_ptr<ui::SimpleMenuModel> send_tab_to_self_submenu_;
+  std::unique_ptr<send_tab_to_self::SendTabToSelfContextMenuDelegate>
+      send_tab_to_self_submenu_delegate_;
+
   // Fenced frame can disable its untrusted network in exchange for access to
   // unpartitioned cross-site data. To prevent cross-site data from leaking out
   // of fenced frame, context menu commands should be gated on untrusted network
@@ -611,9 +621,6 @@ class RenderViewContextMenu
            IDC_CONTENT_CONTEXT_OPENLINKINPROFILE, IDC_CONTENT_CONTEXT_GOTOURL,
            IDC_CONTENT_CONTEXT_OPENLINKWITH, IDC_CONTENT_CONTEXT_OPENAVNEWTAB,
            IDC_CONTENT_CONTEXT_OPENIMAGENEWTAB,
-
-           // Link preview feature.
-           IDC_CONTENT_CONTEXT_OPENLINKPREVIEW,
 
            // Image loading commands.
            IDC_CONTENT_CONTEXT_LOAD_IMAGE,

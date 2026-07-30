@@ -60,13 +60,13 @@ suite('SecurityKeysSetPINDialog', function() {
   function assertComplete() {
     assertEquals(dialog.$.closeButton.textContent.trim(), 'OK');
     assertEquals(dialog.$.closeButton.className, 'action-button');
-    assertEquals(dialog.$.pinSubmit.hidden, true);
+    assertTrue(dialog.$.pinSubmit.hidden);
   }
 
   function assertNotComplete() {
     assertEquals(dialog.$.closeButton.textContent.trim(), 'Cancel');
     assertEquals(dialog.$.closeButton.className, 'cancel-button');
-    assertEquals(dialog.$.pinSubmit.hidden, false);
+    assertFalse(dialog.$.pinSubmit.hidden);
   }
 
   test('Initialization', async function() {
@@ -126,7 +126,7 @@ suite('SecurityKeysSetPINDialog', function() {
   }
 
   async function setNewPINEntries(
-      pinValue: string, confirmPINValue: string): Promise<void> {
+      pinValue: string, confirmPINValue: string): Promise<Event> {
     await setPINEntry(dialog.$.newPIN, pinValue);
     await setPINEntry(dialog.$.confirmPIN, confirmPINValue);
     const ret = eventToPromise('ui-ready', dialog);

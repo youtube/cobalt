@@ -110,8 +110,8 @@ class AutofillPopupControllerImpl : public AutofillPopupController,
   void PerformButtonActionForSuggestion(
       int index,
       const SuggestionButtonAction& button_action) override;
-  const std::vector<SuggestionFilterMatch>& GetSuggestionFilterMatches()
-      const override;
+  const std::vector<std::optional<SuggestionFilterMatch>>&
+  GetSuggestionFilterMatches() const override;
   void SetFilter(std::optional<SuggestionFilter> filter,
                  FilterSource source) override;
   bool HasFilteredOutSuggestions() const override;
@@ -184,11 +184,6 @@ class AutofillPopupControllerImpl : public AutofillPopupController,
   // Returns the search bar configuration for the given `trigger_source`.
   std::optional<AutofillPopupView::SearchBarConfig> GetSearchBarConfig(
       AutofillSuggestionTriggerSource trigger_source) const;
-
-  // Attempts to start an asynchronous search query if the current filling
-  // product supports it. Returns `true` if the search process was initiated or
-  // handled.
-  bool TryStartSearch(FilterSource source);
 
   void UpdateFilteredSuggestions();
 
@@ -269,7 +264,7 @@ class AutofillPopupControllerImpl : public AutofillPopupController,
 
   // Cached matches, one per suggestion in `filtered_suggestions_` if
   // the `filter_` is set, otherwise it is an empty vector.
-  std::vector<SuggestionFilterMatch> suggestion_filter_matches_;
+  std::vector<std::optional<SuggestionFilterMatch>> suggestion_filter_matches_;
 
   // The `FillingProduct` that matches the suggestions shown in the popup.
   // The first `IsStandaloneSuggestionType()` is used to define what the

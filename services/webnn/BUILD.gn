@@ -142,6 +142,8 @@ component("webnn_service") {
       "tflite/buffer_content_tflite.h",
       "tflite/context_impl_tflite.cc",
       "tflite/context_impl_tflite.h",
+      "tflite/context_provider_tflite.cc",
+      "tflite/context_provider_tflite.h",
       "tflite/graph_builder_tflite.cc",
       "tflite/graph_builder_tflite.h",
       "tflite/graph_impl_tflite.cc",
@@ -170,7 +172,10 @@ component("webnn_service") {
     ]
 
     if (webnn_use_litert) {
-      deps += [ "//third_party/litert" ]
+      deps += [
+        "//third_party/litert",
+        "//third_party/litert:buildflags",
+      ]
     }
 
     if (build_tflite_with_xnnpack) {
@@ -321,11 +326,26 @@ test("webnn_graph_impl_fuzzer") {
 
   fuzztests = [
     "WebNNGraphImplFuzzer_CPU.SingleOpConv2d",
-    "WebNNGraphImplFuzzer_GPU.SingleOpConv2d",
-    "WebNNGraphImplFuzzer_NPU.SingleOpConv2d",
+    "WebNNGraphImplFuzzer_CPU.SingleOpGemm",
     "WebNNGraphImplFuzzer_CPU.SingleOpPool2d",
+    "WebNNGraphImplFuzzer_CPU.SingleOpScatterElements",
+    "WebNNGraphImplFuzzer_CPU.SubgraphDQConv2dQ",
+    "WebNNGraphImplFuzzer_CPU.SubgraphDQGemmQ",
+    "WebNNGraphImplFuzzer_CPU.SubgraphDQPool2dQ",
+    "WebNNGraphImplFuzzer_GPU.SingleOpConv2d",
+    "WebNNGraphImplFuzzer_GPU.SingleOpGemm",
     "WebNNGraphImplFuzzer_GPU.SingleOpPool2d",
+    "WebNNGraphImplFuzzer_GPU.SingleOpScatterElements",
+    "WebNNGraphImplFuzzer_GPU.SubgraphDQConv2dQ",
+    "WebNNGraphImplFuzzer_GPU.SubgraphDQGemmQ",
+    "WebNNGraphImplFuzzer_GPU.SubgraphDQPool2dQ",
+    "WebNNGraphImplFuzzer_NPU.SingleOpConv2d",
+    "WebNNGraphImplFuzzer_NPU.SingleOpGemm",
     "WebNNGraphImplFuzzer_NPU.SingleOpPool2d",
+    "WebNNGraphImplFuzzer_NPU.SingleOpScatterElements",
+    "WebNNGraphImplFuzzer_NPU.SubgraphDQConv2dQ",
+    "WebNNGraphImplFuzzer_NPU.SubgraphDQGemmQ",
+    "WebNNGraphImplFuzzer_NPU.SubgraphDQPool2dQ",
   ]
 
   deps = [
@@ -338,6 +358,7 @@ test("webnn_graph_impl_fuzzer") {
     "//services/webnn/public/cpp",
     "//services/webnn/public/mojom",
     "//testing/gtest",
+    "//third_party/fp16",
     "//third_party/fuzztest:fuzztest_gtest_main",
   ]
 }

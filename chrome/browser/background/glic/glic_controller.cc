@@ -32,10 +32,8 @@ void GlicController::Close() {
   if (!glic_keyed_service) {
     return;
   }
-  if (GlicEnabling::IsMultiInstanceEnabled()) {
-    glic_keyed_service->ToggleUI(nullptr, /*prevent_close=*/false,
-                                 mojom::InvocationSource::kOsButton);
-  }
+  glic_keyed_service->ToggleUI(nullptr, /*prevent_close=*/false,
+                               mojom::InvocationSource::kOsButton);
 }
 
 bool GlicController::IsShowing() const {
@@ -71,9 +69,10 @@ void GlicController::RequestCaptureRegion() {
   if (!glic_keyed_service) {
     return;
   }
-  glic_keyed_service->Invoke(
-      bwi->GetActiveTabInterface(),
-      GlicInvokeOptions(glic::mojom::InvocationSource::kCaptureRegionHotkey));
+  GlicInvokeOptions options(
+      glic::mojom::InvocationSource::kCaptureRegionHotkey);
+  options.wait_for_panel_open = true;
+  glic_keyed_service->Invoke(bwi->GetActiveTabInterface(), std::move(options));
 }
 
 }  // namespace glic

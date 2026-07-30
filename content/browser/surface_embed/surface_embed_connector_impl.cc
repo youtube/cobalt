@@ -11,6 +11,8 @@
 #include "content/browser/renderer_host/render_widget_host_view_child_frame.h"
 #include "content/browser/surface_embed/dummy_surface_provider.h"
 #include "content/browser/web_contents/web_contents_impl.h"
+#include "content/public/browser/render_frame_host.h"
+#include "content/public/browser/web_contents_observer.h"
 #include "third_party/blink/public/common/frame/frame_visual_properties.h"
 #include "third_party/blink/public/mojom/frame/intrinsic_sizing_info.mojom.h"
 #include "third_party/blink/public/mojom/input/pointer_lock_result.mojom.h"
@@ -18,6 +20,27 @@
 #include "ui/compositor/compositor.h"
 
 namespace content {
+
+// Forwards notifications about the child web contents to the connector.
+class SurfaceEmbedConnectorImpl::WCObserver : public WebContentsObserver {
+ public:
+  explicit WCObserver(SurfaceEmbedConnectorImpl* surface_embed_connector,
+                      WebContents* child_web_contents)
+      : WebContentsObserver(child_web_contents),
+        surface_embed_connector_(surface_embed_connector) {}
+
+  ~WCObserver() override = default;
+
+  // WebContentsObserver:
+  void RenderFrameCreated(RenderFrameHost* render_frame_host) override {
+    if (render_frame_host->IsInPrimaryMainFrame()) {
+      surface_embed_connector_->OnRenderFrameCreated();
+    }
+  }
+
+ private:
+  raw_ptr<SurfaceEmbedConnectorImpl> surface_embed_connector_;
+};
 
 // static
 void SurfaceEmbedConnector::Attach(WebContents* child_web_contents,
@@ -49,9 +72,21 @@ SurfaceEmbedConnectorImpl::SurfaceEmbedConnectorImpl(
     : delegate_(delegate),
       child_web_contents_(static_cast<WebContentsImpl*>(child_web_contents)),
       parent_web_contents_(parent_web_contents->GetWeakPtr()),
-      dummy_surface_provider_(std::make_unique<DummySurfaceProvider>()) {}
+      dummy_surface_provider_(std::make_unique<DummySurfaceProvider>()) {
+  wc_observer_ = std::make_unique<WCObserver>(this, child_web_contents);
+  CHECK(current_child_frame_host());
 
-SurfaceEmbedConnectorImpl::~SurfaceEmbedConnectorImpl() = default;
+  // Current_child_frame_host must be the primary main frame of the child
+  // WebContents.
+  CHECK_EQ(current_child_frame_host()->GetOutermostMainFrameOrEmbedder(),
+           current_child_frame_host());
+  screen_infos_ =
+      current_child_frame_host()->GetRenderWidgetHost()->GetScreenInfos();
+}
+
+SurfaceEmbedConnectorImpl::~SurfaceEmbedConnectorImpl() {
+  SetView(nullptr, /*allow_paint_holding=*/false);
+}
 
 WebContentsView* SurfaceEmbedConnectorImpl::GetParentWebContentsView() const {
   return parent_web_contents() ? parent_web_contents()->GetView() : nullptr;
@@ -167,7 +202,21 @@ void SurfaceEmbedConnectorImpl::SendIntrinsicSizingInfoToParent(
 
 void SurfaceEmbedConnectorImpl::SynchronizeVisualProperties(
     const blink::FrameVisualProperties& visual_properties,
-    bool propagate) {}
+    bool propagate) {
+  last_received_zoom_level_ = visual_properties.zoom_level;
+  last_received_css_zoom_factor_ = visual_properties.css_zoom_factor;
+  last_received_local_frame_size_ = visual_properties.local_frame_size;
+  screen_infos_ = visual_properties.screen_infos;
+  local_surface_id_ = visual_properties.local_surface_id;
+  capture_sequence_number_ = visual_properties.capture_sequence_number;
+
+  SetRectInParentView(visual_properties.rect_in_local_root);
+  SetLocalFrameSize(visual_properties.local_frame_size);
+
+  // TODO(crbug.com/493315755): If `view_`, call UpdateScreenInfo() on it. If
+  // there is a RenderWidgetHostImpl*, SetAutoResize(),
+  // SetVisualPropertiesFromParentFrame(), and UpdateVisualProperties().
+}
 
 void SurfaceEmbedConnectorImpl::UpdateCursor(const ui::Cursor& cursor) {}
 
@@ -190,7 +239,7 @@ blink::mojom::PointerLockResult SurfaceEmbedConnectorImpl::ChangePointerLock(
 void SurfaceEmbedConnectorImpl::UnlockPointer() {}
 
 bool SurfaceEmbedConnectorImpl::HasSize() {
-  return false;
+  return has_size_;
 }
 
 const display::ScreenInfos& SurfaceEmbedConnectorImpl::GetScreenInfos() {
@@ -232,38 +281,55 @@ void SurfaceEmbedConnectorImpl::EnableAutoResize(const gfx::Size& min_size,
 void SurfaceEmbedConnectorImpl::DisableAutoResize() {}
 
 bool SurfaceEmbedConnectorImpl::IsInert() {
-  return false;
+  return is_inert_;
 }
 
 cc::TouchAction SurfaceEmbedConnectorImpl::InheritedEffectiveTouchAction() {
-  return cc::TouchAction::kAuto;
+  return inherited_effective_touch_action_;
 }
 
 bool SurfaceEmbedConnectorImpl::IsHidden() {
-  // TODO(crbug.com/496266441): Ensure consistency of the values with the
-  // visibility state as we get more complete visibility support.
-  return false;
+  // We want IsHidden() to return false even when the page isn't actually
+  // rendering us, since WebContents may want to render us for features like
+  // capture; any CSS that's hiding us should make us not show up incorrectly
+  // in the parent renderer regardless.
+  return !parent_web_contents_;
 }
 
 bool SurfaceEmbedConnectorImpl::IsThrottled() {
-  return false;
+  return is_throttled_;
 }
 
 bool SurfaceEmbedConnectorImpl::IsSubtreeThrottled() {
-  return false;
+  return subtree_throttled_;
 }
 
 bool SurfaceEmbedConnectorImpl::IsDisplayLocked() {
-  return false;
+  return display_locked_;
 }
 
 void SurfaceEmbedConnectorImpl::DidUpdateVisualProperties(
-    const cc::RenderFrameMetadata& metadata) {}
+    const cc::RenderFrameMetadata& metadata) {
+  if (metadata.local_surface_id.has_value() &&
+      local_surface_id_ != *metadata.local_surface_id) {
+    delegate_->UpdateLocalSurfaceIdFromChild(*metadata.local_surface_id);
+  }
+}
 
-void SurfaceEmbedConnectorImpl::SetVisibilityForChildViews(bool visible) {}
+void SurfaceEmbedConnectorImpl::SetVisibilityForChildViews(bool visible) {
+  if (current_child_frame_host()) {
+    current_child_frame_host()->SetVisibilityForChildViews(visible);
+  }
+}
 
 void SurfaceEmbedConnectorImpl::SetLocalFrameSize(
-    const gfx::Size& local_frame_size) {}
+    const gfx::Size& local_frame_size) {
+  has_size_ = true;
+  const float dsf = screen_infos_.current().device_scale_factor;
+  local_frame_size_in_pixels_ = local_frame_size;
+  local_frame_size_in_dip_ =
+      gfx::ScaleToRoundedSize(local_frame_size, 1.f / dsf);
+}
 
 void SurfaceEmbedConnectorImpl::SetRectInParentView(
     const gfx::Rect& rect_in_parent_view) {}
@@ -272,21 +338,49 @@ void SurfaceEmbedConnectorImpl::OnVisibilityChanged(
     blink::mojom::FrameVisibility visibility) {
   visibility_ = visibility;
 
-  // TODO(crbug.com/496266441): If there is a view, propagate the change in
-  // visibility to the current child render frame host and the child web
-  // contents.
+  if (!view_) {
+    return;
+  }
+
+  // TODO(crbug.com/496266441): Once we have upstreamed the fix to "Teach
+  // performance manager about our things" so that it can find the parent frame,
+  // propagate the change in visibility to the current child render frame host
+  // (if there is one).
+  // current_child_frame_host()->VisibilityChanged(visibility_);
+
+  switch (visibility) {
+    case blink::mojom::FrameVisibility::kRenderedInViewport:
+      child_web_contents_->WasShown();
+      break;
+    case blink::mojom::FrameVisibility::kNotRendered:
+      child_web_contents_->WasHidden();
+      break;
+    case blink::mojom::FrameVisibility::kRenderedOutOfViewport:
+      child_web_contents_->WasOccluded();
+      break;
+  }
 }
 
 bool SurfaceEmbedConnectorImpl::IsVisible() {
-  // TODO(crbug.com/496266441): Ensure consistency of the values with the
-  // visibility state as we get more complete visibility support.
+  if (visibility_ == blink::mojom::FrameVisibility::kNotRendered ||
+      GetIntersectionState().viewport_intersection.IsEmpty()) {
+    return false;
+  }
+
+  if (EmbedderVisibility() != Visibility::VISIBLE) {
+    return false;
+  }
+
   return true;
 }
 
 void SurfaceEmbedConnectorImpl::DelegateWasShown() {}
 
 Visibility SurfaceEmbedConnectorImpl::EmbedderVisibility() {
-  return Visibility::VISIBLE;
+  if (!parent_web_contents()) {
+    return Visibility::HIDDEN;
+  }
+  return parent_web_contents()->GetVisibility();
 }
 
 input::RenderWidgetHostViewInput*
@@ -300,7 +394,7 @@ SurfaceEmbedConnectorImpl::GetRootViewInput() {
 }
 
 void SurfaceEmbedConnectorImpl::UpdateViewForCurrentRenderFrameHost() {
-  // Should not get here without attached to a child WebContents.
+  // Should not get here without being attached to a child WebContents.
   CHECK(child_web_contents_);
 
   // Get the current RenderWidgetHostView for the child WebContents.
@@ -324,6 +418,19 @@ void SurfaceEmbedConnectorImpl::ResetRectInParentView() {
   local_surface_id_ = viz::LocalSurfaceId();
   rect_in_parent_view_in_dip_ = gfx::Rect();
   last_received_local_frame_size_ = gfx::Size();
+}
+
+void SurfaceEmbedConnectorImpl::OnRenderFrameCreated() {
+  UpdateViewForCurrentRenderFrameHost();
+}
+
+RenderFrameHostImpl* SurfaceEmbedConnectorImpl::current_child_frame_host()
+    const {
+  if (!child_web_contents()) {
+    return nullptr;
+  }
+  return static_cast<RenderFrameHostImpl*>(
+      child_web_contents()->GetPrimaryMainFrame());
 }
 
 }  // namespace content

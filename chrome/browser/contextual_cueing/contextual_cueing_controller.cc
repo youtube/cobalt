@@ -4,13 +4,20 @@
 
 #include "chrome/browser/contextual_cueing/contextual_cueing_controller.h"
 
+#include <algorithm>
 #include <memory>
 #include <optional>
+#include <vector>
 
+#include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros_local.h"
+#include "base/notimplemented.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/time/time.h"
+#include "chrome/browser/contextual_cueing/contextual_cueing_service.h"
+#include "chrome/browser/contextual_cueing/contextual_cueing_service_factory.h"
 #include "chrome/browser/contextual_cueing/features.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
@@ -18,12 +25,19 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "components/optimization_guide/core/optimization_guide_common.mojom.h"
 #include "components/optimization_guide/core/optimization_guide_util.h"
 #include "components/optimization_guide/proto/features/contextual_cueing.pb.h"
 #include "components/sessions/content/session_tab_helper.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
+#include "ui/actions/actions.h"
+
+#if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/ui/user_education/browser_user_education_interface.h"
+#include "chrome/browser/ui/views/page_action/page_action_controller.h"
+#endif
 
 namespace contextual_cueing {
 
@@ -43,6 +57,37 @@ void RecordContextualCueingDecision(
                                 contextual_cueing_decision);
 }
 
+std::optional<CueTargetType> GetTargetType(
+    optimization_guide::proto::ContextualCueingResponse::FulfillmentSurfaceCase
+        fulfillment_surface_case) {
+  using enum optimization_guide::proto::ContextualCueingResponse::
+      FulfillmentSurfaceCase;
+  switch (fulfillment_surface_case) {
+    case kGeminiInChromeSurface:
+      return CueTargetType::kGlic;
+    default:
+      return std::nullopt;
+  }
+}
+
+optimization_guide::proto::Tab GetTabProtoFromWebContents(
+    content::WebContents* web_contents) {
+  optimization_guide::proto::Tab tab;
+  tab.set_url(web_contents->GetLastCommittedURL().spec());
+  tab.set_title(base::UTF16ToUTF8(web_contents->GetTitle()));
+  SessionID tab_id = sessions::SessionTabHelper::IdForTab(web_contents);
+  if (tab_id.is_valid()) {
+    tab.set_tab_id(tab_id.id());
+  }
+  return tab;
+}
+
+bool AreTabsEqual(optimization_guide::proto::Tab tab1,
+                  optimization_guide::proto::Tab tab2) {
+  return tab1.tab_id() == tab2.tab_id() && tab1.url() == tab2.url() &&
+         tab1.title() == tab2.title();
+}
+
 }  // namespace
 
 ContextualCueingController::ContextualCueingController(
@@ -50,6 +95,8 @@ ContextualCueingController::ContextualCueingController(
     TabListInterface* tab_list_interface)
     : browser_window_interface_(browser_window_interface),
       tab_list_interface_(tab_list_interface),
+      contextual_cueing_service_(ContextualCueingServiceFactory::GetForProfile(
+          browser_window_interface_->GetProfile())),
       page_content_annotations_service_(
           PageContentAnnotationsServiceFactory::GetForProfile(
               browser_window_interface_->GetProfile())),
@@ -141,6 +188,12 @@ void ContextualCueingController::InitiateModelExecutionRequest() {
       active_web_contents->GetLastCommittedURL().spec());
   request.mutable_active_tab_page_context()->set_title(
       base::UTF16ToUTF8(active_web_contents->GetTitle()));
+
+  struct BackgroundTabInfo {
+    base::Time last_active_time;
+    raw_ptr<content::WebContents> contents;
+  };
+  std::vector<BackgroundTabInfo> background_tabs;
   for (int i = 0; i < tab_list_interface_->GetTabCount(); ++i) {
     tabs::TabInterface* tab = tab_list_interface_->GetTab(i);
     if (tab == tab_list_interface_->GetActiveTab()) {
@@ -154,15 +207,23 @@ void ContextualCueingController::InitiateModelExecutionRequest() {
     if (!tab_contents->GetLastCommittedURL().SchemeIsHTTPOrHTTPS()) {
       continue;
     }
-    SessionID tab_id = sessions::SessionTabHelper::IdForTab(tab_contents);
-    if (!tab_id.is_valid()) {
-      continue;
-    }
-    auto* background_tab = request.add_background_tabs();
-    background_tab->set_url(tab_contents->GetURL().spec());
-    background_tab->set_title(base::UTF16ToUTF8(tab_contents->GetTitle()));
-    background_tab->set_tab_id(tab_id.id());
+    background_tabs.push_back(
+        {.last_active_time = tab_contents->GetLastActiveTime(),
+         .contents = tab_contents});
   }
+
+  std::sort(background_tabs.begin(), background_tabs.end(),
+            [](const BackgroundTabInfo& a, const BackgroundTabInfo& b) {
+              return a.last_active_time > b.last_active_time;
+            });
+
+  for (size_t i = 0; i < std::min<size_t>(background_tabs.size(),
+                                          kMaxNumBackgroundTabs.Get());
+       ++i) {
+    *request.add_background_tabs() =
+        GetTabProtoFromWebContents(background_tabs[i].contents);
+  }
+
   LOCAL_HISTOGRAM_COUNTS_100("ContextualCueing.V2.NumRequestedBackgroundTabs",
                              request.background_tabs_size());
   optimization_guide_keyed_service_->ExecuteModel(
@@ -170,18 +231,28 @@ void ContextualCueingController::InitiateModelExecutionRequest() {
       /*options=*/{},
       base::BindOnce(
           &ContextualCueingController::OnModelExecutionResponseReceived,
-          weak_ptr_factory_.GetWeakPtr()));
+          weak_ptr_factory_.GetWeakPtr(),
+          GetTabProtoFromWebContents(active_web_contents)));
 }
 
 void ContextualCueingController::OnModelExecutionResponseReceived(
+    optimization_guide::proto::Tab active_tab,
     optimization_guide::OptimizationGuideModelExecutionResult result,
     std::unique_ptr<optimization_guide::ModelQualityLogEntry> log_entry) {
-  // TODO: b/496000131 - Ensure we are still on the same tab that we requested
-  // for.
+  tabs::TabInterface* current_active_tab = tab_list_interface_->GetActiveTab();
+  if (!current_active_tab || !current_active_tab->GetContents() ||
+      !AreTabsEqual(active_tab, GetTabProtoFromWebContents(
+                                    current_active_tab->GetContents()))) {
+    MODEL_EXECUTION_LOG(
+        "Model execution returned but tab for generated cue is no longer "
+        "active.");
+    RecordContextualCueingDecision(
+        ContextualCueingDecision::kNoLongerActiveTabAfterModelExecution);
+    return;
+  }
 
   if (!result.response.has_value()) {
-    MODEL_EXECUTION_LOG(
-        base::StringPrintf("Model execution to generate cue failed."));
+    MODEL_EXECUTION_LOG("Model execution to generate cue failed.");
     RecordContextualCueingDecision(
         ContextualCueingDecision::kModelExecutionFailed);
     return;
@@ -193,25 +264,114 @@ void ContextualCueingController::OnModelExecutionResponseReceived(
           *result.response);
   if (!response) {
     MODEL_EXECUTION_LOG(
-        base::StringPrintf("Model execution to generate cue failed."));
+        "Model execution to generate cue failed: couldn't parse proto.");
     RecordContextualCueingDecision(
         ContextualCueingDecision::kModelExecutionResponseFailedToParse);
     return;
   }
 
-  if (response->has_anchored_message_cue()) {
-    MODEL_EXECUTION_LOG(base::StringPrintf(
-        "Showing cue for CUJ %s: %s [%s]", response->suggested_cuj(),
-        response->anchored_message_cue().anchored_message_text(),
-        response->anchored_message_cue().action_text()));
-  }
-  if (response->has_gemini_in_chrome_surface() &&
-      !response->gemini_in_chrome_surface().prompt().empty()) {
+  if (!response->has_anchored_message_cue() ||
+      response->anchored_message_cue().anchored_message_text().empty() ||
+      response->anchored_message_cue().action_text().empty()) {
     MODEL_EXECUTION_LOG(
-        base::StringPrintf("Prompt for Gemini in Chrome surface: %s",
-                           response->gemini_in_chrome_surface().prompt()));
+        "Model execution to generate cue failed: missing anchored message "
+        "text.");
+    RecordContextualCueingDecision(
+        ContextualCueingDecision::kMissingAnchoredMessageText);
+    return;
   }
+
+  std::optional<CueTargetType> target_type =
+      GetTargetType(response->fulfillment_surface_case());
+  if (!target_type) {
+    MODEL_EXECUTION_LOG("Unknown fulfillment surface");
+    RecordContextualCueingDecision(
+        ContextualCueingDecision::kUnknownFulfillmentSurface);
+    return;
+  }
+
+  CueTarget* target = contextual_cueing_service_->GetTarget(*target_type);
+  if (!target) {
+    MODEL_EXECUTION_LOG(base::StringPrintf("No CueTarget registered for '%s'",
+                                           GetName(*target_type)));
+    RecordContextualCueingDecision(
+        ContextualCueingDecision::kTargetFeatureNotRegistered);
+    return;
+  }
+
+  if (!target->IsEligible()) {
+    MODEL_EXECUTION_LOG(base::StringPrintf("Not eligible for '%s' cues",
+                                           GetName(*target_type)));
+    RecordContextualCueingDecision(
+        ContextualCueingDecision::kTargetFeatureNotEligible);
+    return;
+  }
+
+  ShowCue(*target_type, *target, std::move(*response));
+}
+
+void ContextualCueingController::ShowCue(
+    CueTargetType cue_type,
+    const CueTarget& target,
+    optimization_guide::proto::ContextualCueingResponse response) {
+#if BUILDFLAG(IS_ANDROID)
+  NOTIMPLEMENTED()
+      << "Contextual cueing anchored message UI is not implemented for Android";
+#else
+  auto* browser_user_education_interface =
+      BrowserUserEducationInterface::From(browser_window_interface_);
+  if (browser_user_education_interface &&
+      browser_user_education_interface->IsAnyFeaturePromoActive()) {
+    RecordContextualCueingDecision(
+        ContextualCueingDecision::kFeaturePromoActive);
+    return;
+  }
+
+  tabs::TabInterface* tab = tab_list_interface_->GetActiveTab();
+  CHECK(tab);
+
+  auto* action =
+      actions::ActionManager::Get().FindAction(kActionAnchoredContextualCue);
+  CHECK(action);
+  action->SetInvokeActionCallback(base::BindRepeating(
+      &ContextualCueingController::OnCueClicked, weak_ptr_factory_.GetWeakPtr(),
+      cue_type, target.CueActionDataFromResponse(response)));
+
+  page_actions::PageActionController* page_action_controller =
+      tab->GetTabFeatures()->page_action_controller();
+  if (!page_action_controller) {
+    RecordContextualCueingDecision(ContextualCueingDecision::kNoActiveTab);
+    return;
+  }
+
+  page_action_controller->Show(kActionAnchoredContextualCue);
+  const auto& strings = response.anchored_message_cue();
+  page_action_controller->SetAnchoredMessageText(
+      kActionAnchoredContextualCue,
+      base::UTF8ToUTF16(strings.anchored_message_text()));
+  page_action_controller->OverrideText(
+      kActionAnchoredContextualCue, base::UTF8ToUTF16(strings.action_text()));
+  page_action_controller->OverrideImage(kActionAnchoredContextualCue,
+                                        target.GetIcon());
+  page_action_controller->ShowAnchoredMessage(
+      kActionAnchoredContextualCue,
+      {.priority = page_actions::PageActionPriorityCategory::kContextualCue});
+
+  MODEL_EXECUTION_LOG(base::StringPrintf(
+      "Showing cue for CUJ %s: %s [%s]", response.suggested_cuj(),
+      strings.anchored_message_text(), strings.action_text()));
+#endif
   RecordContextualCueingDecision(ContextualCueingDecision::kSuccess);
+}
+
+void ContextualCueingController::OnCueClicked(
+    CueTargetType cue_type,
+    CueActionData data,
+    actions::ActionItem*,
+    actions::ActionInvocationContext) {
+  MODEL_EXECUTION_LOG(
+      base::StringPrintf("Cue type '%s' was clicked", GetName(cue_type)));
+  contextual_cueing_service_->OnClick(cue_type, std::move(data));
 }
 
 }  // namespace contextual_cueing

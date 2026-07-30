@@ -35,6 +35,7 @@
 #include "chrome/common/actor/journal_details_builder.h"
 #include "chrome/common/actor_webui.mojom.h"
 #include "chrome/common/chrome_features.h"
+#include "components/actor/core/actor_features.h"
 #include "components/optimization_guide/proto/features/actions_data.pb.h"
 #include "components/page_content_annotations/content/page_context_fetcher.h"
 #include "components/sessions/core/session_id.h"
@@ -142,6 +143,19 @@ void GlicActorTaskManager::CreateTask(
   }
 
   actor::RecordActorTaskCreated(true);
+
+  if (base::FeatureList::IsEnabled(actor::kGlicActorTransientTasks)) {
+    if (actor::kGlicActorTransientTasksForceTransient.Get()) {
+      if (!options) {
+        options = actor::webui::mojom::TaskOptions::New();
+      }
+      options->duration = actor::webui::mojom::TaskDuration::kTransient;
+    }
+  } else if (options && options->duration ==
+                            actor::webui::mojom::TaskDuration::kTransient) {
+    options->duration = actor::webui::mojom::TaskDuration::kDefault;
+  }
+
   current_task_id_ = actor_keyed_service_->CreateTaskWithOptions(
       actor::TaskSourceInfo(actor::TaskSourceInfo::Client::kGlic,
                             conversation_id),

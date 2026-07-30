@@ -39,6 +39,7 @@ import org.chromium.base.ResettersForTesting;
 import org.chromium.base.TimeUtils;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
+import org.chromium.base.supplier.SupplierUtils;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
 import org.chromium.chrome.R;
@@ -61,12 +62,15 @@ import org.chromium.chrome.browser.history.HistoryManager;
 import org.chromium.chrome.browser.history.HistoryManagerUtils;
 import org.chromium.chrome.browser.history.HistoryTabHelper;
 import org.chromium.chrome.browser.infobar.InfoBarContainer;
+import org.chromium.chrome.browser.merchant_viewer.PageInfoStoreInfoController.StoreInfoActionHandler;
 import org.chromium.chrome.browser.night_mode.NightModeStateProvider;
 import org.chromium.chrome.browser.page_info.ChromePageInfo;
 import org.chromium.chrome.browser.page_info.ChromePageInfoHighlight;
+import org.chromium.chrome.browser.page_load_metrics.PageLoadMetrics;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TrustedCdn;
 import org.chromium.chrome.browser.ui.google_bottom_bar.GoogleBottomBarCoordinator;
+import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 import org.chromium.components.browser_ui.util.motion.MotionEventInfo;
 import org.chromium.components.page_info.PageInfoController.OpenedFromSource;
 import org.chromium.content_public.browser.LoadUrlParams;
@@ -226,6 +230,29 @@ public class CustomTabActivity extends BaseCustomTabActivity {
         }
 
         getCustomTabBottomBarDelegate().showBottomBarIfNecessary();
+        int bg = getIntentDataProvider().getTranslucentBackgroundColor(this);
+        if (bg != SemanticColorUtils.getDefaultBgColor(this)) {
+            setContentVisibility(false);
+            getWindow().setBackgroundDrawable(new ColorDrawable(bg));
+            PageLoadMetrics.addObserver(
+                    new PageLoadMetrics.Observer() {
+                        @Override
+                        public void onFirstContentfulPaint(
+                                WebContents webContents,
+                                long navigationId,
+                                long navigationStartMicros,
+                                long firstContentfulPaintMs) {
+                            setContentVisibility(true);
+                            PageLoadMetrics.removeObserver(this);
+                        }
+                    },
+                    true);
+        }
+    }
+
+    private void setContentVisibility(boolean visible) {
+        findViewById(R.id.compositor_view_holder)
+                .setVisibility(visible ? View.VISIBLE : View.INVISIBLE);
     }
 
     @Override
@@ -405,7 +432,9 @@ public class CustomTabActivity extends BaseCustomTabActivity {
                             getModalDialogManagerSupplier(),
                             publisher,
                             OpenedFromSource.MENU,
-                            mRootUiCoordinator.getMerchantTrustSignalsCoordinatorSupplier()::get,
+                            SupplierUtils.upcast(
+                                    mRootUiCoordinator.getMerchantTrustSignalsCoordinatorSupplier(),
+                                    StoreInfoActionHandler.class),
                             mRootUiCoordinator.getEphemeralTabCoordinatorSupplier(),
                             getTabCreator(getCurrentTabModel().isIncognito()));
             boolean isTWA = getIntentDataProvider().isTrustedWebActivity();
@@ -581,7 +610,6 @@ public class CustomTabActivity extends BaseCustomTabActivity {
         mIsEnterAnimationCompleted = true;
     }
 
-    @VisibleForTesting
     public static void setOnFinishCallbackForTesting(Runnable callback) {
         sOnFinishCallbackForTesting = callback;
         ResettersForTesting.register(() -> sOnFinishCallbackForTesting = null);

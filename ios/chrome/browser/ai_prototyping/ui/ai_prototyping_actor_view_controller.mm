@@ -4,6 +4,7 @@
 
 #import "ios/chrome/browser/ai_prototyping/ui/ai_prototyping_actor_view_controller.h"
 
+#import "base/apple/foundation_util.h"
 #import "base/strings/sys_string_conversions.h"
 #import "ios/chrome/browser/ai_prototyping/ui/ai_prototyping_mutator.h"
 #import "ios/chrome/browser/ai_prototyping/utils/ai_prototyping_constants.h"
@@ -11,16 +12,27 @@
 #import "ui/base/l10n/l10n_util.h"
 
 namespace {
+
+// Tool names.
 NSString* const kToolNavigate = @"Navigate";
 NSString* const kToolClick = @"Click";
 NSString* const kToolHistoryBack = @"History Back";
 NSString* const kToolHistoryForward = @"History Forward";
 NSString* const kToolType = @"Type";
+NSString* const kToolWait = @"Wait";
+NSString* const kToolMultiTool = @"Multi-tool";
 
+// Placeholder macro for tab ID.
+NSString* const kTabIdMacro = @"{{tab_id}}";
+
+// Whether the tool injects custom JavaScript on the page. For debugging
+// purposes, more tab related information will be exposed and available for
+// modification for these tools for debugging.
 bool IsWebActuationTool(NSString* tool) {
-  return [tool isEqualToString:kToolClick] || [tool isEqualToString:kToolType];
+  return [tool isEqualToString:kToolClick] ||
+         [tool isEqualToString:kToolType] ||
+         [tool isEqualToString:kToolMultiTool];
 }
-
 }  // namespace
 
 @interface AIPrototypingActorViewController () <UITextViewDelegate> {
@@ -83,7 +95,7 @@ bool IsWebActuationTool(NSString* tool) {
   [self setupToolConfigs];
 
   // Default tool
-  [self selectTool:kToolNavigate];
+  [self selectTool:kToolMultiTool];
 }
 
 - (void)viewWillAppear:(BOOL)animated {
@@ -173,6 +185,7 @@ bool IsWebActuationTool(NSString* tool) {
         }
         strongSelf->_frameMenuCompletion = completion;
         [strongSelf.mutator executeAPCExtractionWithRichExtraction:YES
+                                                    actionableMode:YES
                                                   includeDebugData:YES];
       }];
   _frameIdButton.menu = [UIMenu menuWithTitle:@"Select Frame"
@@ -386,41 +399,69 @@ bool IsWebActuationTool(NSString* tool) {
 // coordinate based approach.
 - (void)setupToolConfigs {
   _toolConfigs = @{
+    kToolMultiTool : @{
+      @"ui" : @[ _tabIdContainer, _frameIdContainer, _jsonContainer ],
+      @"template" : @[
+        @{
+          @"click" : @{
+            @"tab_id" : @(0),
+            @"target" : @{@"coordinate" : @{@"x" : @(100), @"y" : @(100)}},
+            @"click_type" : @(1),
+            @"click_count" : @(1)
+          }
+        },
+        @{@"wait" : @{@"wait_time_ms" : @(3000), @"observe_tab_id" : @(0)}}, @{
+          @"click" : @{
+            @"tab_id" : @(0),
+            @"target" : @{@"coordinate" : @{@"x" : @(200), @"y" : @(200)}},
+            @"click_type" : @(1),
+            @"click_count" : @(1)
+          }
+        }
+      ]
+    },
     kToolNavigate : @{
       @"ui" : @[ _tabIdContainer, _jsonContainer ],
       @"template" : @{
-        @"navigate" : @{@"tab_id" : @(0), @"url" : @"https://www.google.com"}
+        @"navigate" :
+            @{@"tab_id" : kTabIdMacro, @"url" : @"https://www.google.com"}
       }
     },
     kToolClick : @{
       @"ui" : @[ _tabIdContainer, _frameIdContainer, _jsonContainer ],
       @"template" : @{
         @"click" : @{
-          @"tab_id" : @(0),
+          @"tab_id" : kTabIdMacro,
           @"target" : @{@"coordinate" : @{@"x" : @(200), @"y" : @(200)}},
           @"click_type" : @(1),
           @"click_count" : @(1)
         }
       }
     },
-    kToolHistoryBack : @{
-      @"ui" : @[ _tabIdContainer, _jsonContainer ],
-      @"template" : @{@"back" : @{@"tab_id" : @(0)}}
-    },
-    kToolHistoryForward : @{
-      @"ui" : @[ _tabIdContainer, _jsonContainer ],
-      @"template" : @{@"forward" : @{@"tab_id" : @(0)}}
-    },
     kToolType : @{
       @"ui" : @[ _tabIdContainer, _frameIdContainer, _jsonContainer ],
       @"template" : @{
         @"type" : @{
-          @"tab_id" : @(0),
+          @"tab_id" : kTabIdMacro,
           @"target" : @{@"coordinate" : @{@"x" : @(200), @"y" : @(200)}},
           @"text" : @"Foobarbaz",
           @"follow_by_enter" : @(NO),
           @"mode" : @(1),
         }
+      }
+    },
+    kToolHistoryBack : @{
+      @"ui" : @[ _tabIdContainer, _jsonContainer ],
+      @"template" : @{@"back" : @{@"tab_id" : kTabIdMacro}}
+    },
+    kToolHistoryForward : @{
+      @"ui" : @[ _tabIdContainer, _jsonContainer ],
+      @"template" : @{@"forward" : @{@"tab_id" : kTabIdMacro}}
+    },
+    kToolWait : @{
+      @"ui" : @[ _tabIdContainer, _jsonContainer ],
+      @"template" : @{
+        @"wait" : @{@"wait_time_ms" : @(3000), @"observe_tab_id" : kTabIdMacro}
       }
     },
   };
@@ -446,6 +487,32 @@ bool IsWebActuationTool(NSString* tool) {
                                    children:@[ deferredElement ]];
 }
 
+// Helper to update a tool dictionary with tab ID and frame ID.
+- (void)updateToolDict:(NSMutableDictionary*)toolDict
+        configTemplate:(NSDictionary*)configTemplate
+                 tabId:(NSString*)tabId
+               frameId:(NSString*)frameId {
+  if (![toolDict isKindOfClass:[NSMutableDictionary class]]) {
+    return;
+  }
+  // 2. Update Tab ID.
+  if (tabId) {
+    toolDict[@"tab_id"] = @([tabId intValue]);
+  }
+
+  // 3. Update Target (Frame).
+  if (toolDict[@"target"]) {
+    if (frameId) {
+      toolDict[@"target"] =
+          [@{@"document_identifier" : frameId, @"content_node_id" : @(1)}
+              mutableCopy];
+    } else if (configTemplate && configTemplate[@"target"]) {
+      // Revert to template default if frame deselected.
+      toolDict[@"target"] = [configTemplate[@"target"] mutableCopy];
+    }
+  }
+}
+
 /**
  * Updates the JSON template for the specified tool with the given params.
  *
@@ -466,64 +533,112 @@ bool IsWebActuationTool(NSString* tool) {
     return;
   }
 
-  NSString* toolKey = [toolName lowercaseString];
-  NSMutableDictionary* jsonDict = nil;
-
-  // 1. Get or create the JSON Object.
+  // 1. Loads input data from `_jsonInputView` or, if empty, the template.
+  NSData* inputData;
   if (_jsonInputView.text.length == 0) {
-    NSData* data = [NSJSONSerialization dataWithJSONObject:config[@"template"]
-                                                   options:0
-                                                     error:nil];
-    jsonDict =
-        [NSJSONSerialization JSONObjectWithData:data
-                                        options:NSJSONReadingMutableContainers
-                                          error:nil];
+    inputData = [NSJSONSerialization dataWithJSONObject:config[@"template"]
+                                                options:0
+                                                  error:nil];
   } else {
-    NSError* error = nil;
-    NSData* data = [_jsonInputView.text dataUsingEncoding:NSUTF8StringEncoding];
-    jsonDict =
-        [NSJSONSerialization JSONObjectWithData:data
-                                        options:NSJSONReadingMutableContainers
-                                          error:&error];
-    if (!jsonDict) {
-      _responseContainer.text =
-          [NSString stringWithFormat:@"Failed to parse JSON: %@",
-                                     error.localizedDescription];
-      return;
-    }
-    if (!jsonDict[toolKey]) {
+    inputData = [_jsonInputView.text dataUsingEncoding:NSUTF8StringEncoding];
+  }
+
+  // 2. Replace the tab ID placeholder.
+  if (tabId) {
+    NSMutableString* jsonString =
+        [[NSMutableString alloc] initWithData:inputData
+                                     encoding:NSUTF8StringEncoding];
+    NSString* tabIdMacroAndQuotes =
+        [NSString stringWithFormat:@"\"%@\"", kTabIdMacro];
+    [jsonString replaceOccurrencesOfString:tabIdMacroAndQuotes
+                                withString:tabId
+                                   options:0
+                                     range:NSMakeRange(0, [jsonString length])];
+    inputData = [jsonString dataUsingEncoding:NSUTF8StringEncoding];
+  }
+
+  // 3. Parse the data into JSON format.
+  NSError* error = nil;
+  id jsonRoot =
+      [NSJSONSerialization JSONObjectWithData:inputData
+                                      options:NSJSONReadingMutableContainers
+                                        error:&error];
+
+  if (!jsonRoot) {
+    _responseContainer.text =
+        [NSString stringWithFormat:@"Failed to parse JSON: %@",
+                                   error.localizedDescription];
+    return;
+  }
+
+  NSString* toolKey = [toolName lowercaseString];
+
+  if (![toolName isEqualToString:kToolMultiTool]) {
+    if (![jsonRoot isKindOfClass:[NSMutableDictionary class]] ||
+        ![jsonRoot count]) {
       _responseContainer.text = [NSString
           stringWithFormat:@"JSON mismatch: missing key '%@'", toolKey];
       return;
     }
-  }
 
-  // 2. Update Tab ID.
-  if (tabId) {
-    jsonDict[toolKey][@"tab_id"] = @([tabId intValue]);
-  }
+    // Attempt to find the tool dictionary. Use the toolKey if present,
+    // otherwise fallback to the first object.
+    NSMutableDictionary* toolDict = jsonRoot[toolKey];
+    if (!toolDict) {
+      toolDict = [jsonRoot allValues].firstObject;
+    }
 
-  // 3. Update Target (Frame).
-  NSMutableDictionary* toolDict = jsonDict[toolKey];
-  if (toolDict && toolDict[@"target"]) {
-    if (frameId) {
-      toolDict[@"target"] =
-          @{@"document_identifier" : frameId, @"content_node_id" : @(1)};
-    } else if (toolDict[@"target"][@"document_identifier"]) {
-      // Revert to template default if frame deselected.
-      toolDict[@"target"] =
-          [config[@"template"][toolKey][@"target"] mutableCopy];
+    // Find the config template for target reversion.
+    NSDictionary* configTemplate = config[@"template"][toolKey];
+    if (!configTemplate &&
+        [config[@"template"] isKindOfClass:[NSDictionary class]]) {
+      configTemplate = [config[@"template"] allValues].firstObject;
+    }
+
+    [self updateToolDict:toolDict
+          configTemplate:configTemplate
+                   tabId:tabId
+                 frameId:frameId];
+  } else {
+    if (![jsonRoot isKindOfClass:[NSMutableArray class]]) {
+      _responseContainer.text =
+          @"JSON mismatch: Multi-tool requires an array of actions.";
+      return;
+    }
+
+    for (id action in (NSMutableArray*)jsonRoot) {
+      if (![action isKindOfClass:[NSMutableDictionary class]]) {
+        continue;
+      }
+      NSMutableDictionary* actionDict = (NSMutableDictionary*)action;
+      NSString* actionKey = [[actionDict allKeys] firstObject];
+      if (actionKey) {
+        // Find default template for this action type.
+        NSDictionary* defaultTemplate = nil;
+        for (NSString* key in _toolConfigs) {
+          NSDictionary* toolConfig = _toolConfigs[key];
+          if ([toolConfig[@"template"] isKindOfClass:[NSDictionary class]] &&
+              toolConfig[@"template"][actionKey]) {
+            defaultTemplate = toolConfig[@"template"][actionKey];
+            break;
+          }
+        }
+        [self updateToolDict:actionDict[actionKey]
+              configTemplate:defaultTemplate
+                       tabId:tabId
+                     frameId:frameId];
+      }
     }
   }
 
-  // 4. Write Back to UI.
-  NSData* output = [NSJSONSerialization
-      dataWithJSONObject:jsonDict
+  // 4. Serialize the JSON back to the input view.
+  NSData* updatedData = [NSJSONSerialization
+      dataWithJSONObject:jsonRoot
                  options:NSJSONWritingPrettyPrinted |
                          NSJSONWritingWithoutEscapingSlashes
                    error:nil];
-  if (output) {
-    _jsonInputView.text = [[NSString alloc] initWithData:output
+  if (updatedData) {
+    _jsonInputView.text = [[NSString alloc] initWithData:updatedData
                                                 encoding:NSUTF8StringEncoding];
   }
 }
@@ -547,6 +662,7 @@ bool IsWebActuationTool(NSString* tool) {
 
   if (isWebActuationTool) {
     [self.mutator executeAPCExtractionWithRichExtraction:YES
+                                          actionableMode:YES
                                         includeDebugData:YES];
   }
 
@@ -561,7 +677,14 @@ bool IsWebActuationTool(NSString* tool) {
 - (UIMenu*)createToolPickerMenu {
   NSMutableArray<UIAction*>* actions = [NSMutableArray array];
   __weak __typeof(self) weakSelf = self;
-  for (NSString* toolName in _toolConfigs) {
+
+  // Define the explicit order for the dropdown menu.
+  NSArray<NSString*>* orderedTools = @[
+    kToolMultiTool, kToolNavigate, kToolClick, kToolType, kToolHistoryBack,
+    kToolHistoryForward, kToolWait
+  ];
+
+  for (NSString* toolName in orderedTools) {
     UIAction* action = [UIAction actionWithTitle:toolName
                                            image:nil
                                       identifier:nil
@@ -593,6 +716,7 @@ bool IsWebActuationTool(NSString* tool) {
 - (void)onUpdateApcButtonPressed:(UIButton*)sender {
   _framesAndContentNodesContainer.text = @"Refreshing page context...";
   [self.mutator executeAPCExtractionWithRichExtraction:YES
+                                        actionableMode:YES
                                       includeDebugData:YES];
 }
 

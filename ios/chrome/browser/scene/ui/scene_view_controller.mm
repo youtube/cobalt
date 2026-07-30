@@ -17,6 +17,7 @@
 #import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/util/layout_guide_names.h"
+#import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/browser/shared/ui/util/util_swift.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
 
@@ -124,9 +125,6 @@
 
   [appBar didMoveToParentViewController:self];
 
-  UIView* appBarRealView =
-      [self.layoutGuideCenter referencedViewUnderName:kAppBarGuide];
-
   if (!IsFullscreenRefactoringEnabled()) {
     [self updateLayoutForViews];
     return;
@@ -137,14 +135,12 @@
     [_appContentView.leadingAnchor constraintEqualToAnchor:view.leadingAnchor],
     [_appContentView.trailingAnchor
         constraintEqualToAnchor:view.trailingAnchor],
-    [_appContentView.bottomAnchor
-        constraintEqualToAnchor:appBarRealView.topAnchor],
+    [_appContentView.bottomAnchor constraintEqualToAnchor:view.bottomAnchor],
   ];
   _landscapeLeftConstraints = @[
     [_appContentView.topAnchor constraintEqualToAnchor:view.topAnchor],
-    [_appContentView.leadingAnchor
-        constraintEqualToAnchor:view.leadingAnchor
-                       constant:kAppBarHeight - kAppBarCornerRadius],
+    [_appContentView.leadingAnchor constraintEqualToAnchor:view.leadingAnchor
+                                                  constant:kAppBarHeight],
     [_appContentView.trailingAnchor
         constraintEqualToAnchor:view.trailingAnchor],
     [_appContentView.bottomAnchor constraintEqualToAnchor:view.bottomAnchor],
@@ -152,9 +148,8 @@
   _landscapeRightConstraints = @[
     [_appContentView.topAnchor constraintEqualToAnchor:view.topAnchor],
     [_appContentView.leadingAnchor constraintEqualToAnchor:view.leadingAnchor],
-    [_appContentView.trailingAnchor
-        constraintEqualToAnchor:view.trailingAnchor
-                       constant:-(kAppBarHeight - kAppBarCornerRadius)],
+    [_appContentView.trailingAnchor constraintEqualToAnchor:view.trailingAnchor
+                                                   constant:-kAppBarHeight],
     [_appContentView.bottomAnchor constraintEqualToAnchor:view.bottomAnchor],
   ];
 
@@ -271,27 +266,33 @@
 // Updates the layout of the scene views depending on the active layout strategy
 // (Constraints vs. Frames).
 - (void)updateLayoutForViews {
+  AppBarPosition position = AppBarPositionForView(self.view);
+  _appBar.view.hidden = (position == AppBarPosition::kNone);
   if (IsFullscreenRefactoringEnabled()) {
-    [self applyConstraintsForLayout];
+    [self applyConstraintsForLayoutWithPosition:position];
   } else {
     [self applyFrameForLayout];
   }
 }
 
 // Applies Auto Layout constraints to views.
-- (void)applyConstraintsForLayout {
+- (void)applyConstraintsForLayoutWithPosition:(AppBarPosition)position {
   UIView* view = self.view;
-  if (!_appBar) {
-    return;
-  }
-  AppBarPosition position = AppBarPositionForView(view);
-  if (position == AppBarPosition::kNone) {
-    return;
-  }
 
   [NSLayoutConstraint deactivateConstraints:_portraitConstraints];
   [NSLayoutConstraint deactivateConstraints:_landscapeLeftConstraints];
   [NSLayoutConstraint deactivateConstraints:_landscapeRightConstraints];
+  [NSLayoutConstraint deactivateConstraints:_baseAssistantConstraints];
+
+  // Ensure default constraints are active to avoid leaving the view
+  // unconstrained if `_appBar` is hidden or missing.
+  if (position == AppBarPosition::kNone || !_appBar) {
+    if (!_assistantContainerViewController) {
+      [self setupDefaultConstraints];
+      [NSLayoutConstraint activateConstraints:_baseAssistantConstraints];
+    }
+    return;
+  }
 
   switch (position) {
     case AppBarPosition::kLeft:

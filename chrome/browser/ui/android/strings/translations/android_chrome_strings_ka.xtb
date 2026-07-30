@@ -293,6 +293,7 @@
 <translation id="2251809247798634662">ახალი ინკოგნიტო ფანჯარა</translation>
 <translation id="2253927598983295051">აირჩიეთ, რა გაუზიაროთ <ph name="APP_NAME" />-ს</translation>
 <translation id="2261570557291037252">აპის დამატებითი ინფორმაცია</translation>
+<translation id="2270544918551255912">უკან დასაბრუნებლად გადაუსვით კიდიდან</translation>
 <translation id="2276696007612801991">პაროლების შესამოწმებლად შედით თქვენს Google ანგარიშში</translation>
 <translation id="2281243904606300427"><ph name="TAB_TITLE" />, არჩეული ინკოგნიტო ჩანართი</translation>
 <translation id="2286841657746966508">ბილინგის მისამართი</translation>
@@ -480,6 +481,7 @@
 <translation id="2989523299700148168">ახლახან მონახულებული</translation>
 <translation id="2992473221983447149">სურათების აღწერილობები</translation>
 <translation id="2996291259634659425">საიდუმლო ფრაზის შექმნა</translation>
+<translation id="2996682533106928201">შეეხეთ დასახურად</translation>
 <translation id="2996809686854298943">საჭიროა URL</translation>
 <translation id="3024215143424744261">წაკითხვის რეჟიმის უპირატესი პარამეტრები დაიხურა</translation>
 <translation id="3026955690410463085">ბმულის დართვა</translation>
@@ -684,6 +686,7 @@
 <translation id="3927692899758076493">Sans Serif</translation>
 <translation id="3931947361983910192">ბოლო 4 კვირა</translation>
 <translation id="393697183122708255">ჩართული ხმოვანი ძიება მიუწვდომელია</translation>
+<translation id="3941718885865495207">Chrome Finds-ზე ცალსახა თანხმობის ქვედა ფურცელი</translation>
 <translation id="3943322906274039960"><ph name="TAB_TITLE" />, ჩამაგრებული ეკრანი ეკრანში ჩანართი</translation>
 <translation id="3950820424414687140">შესვლა</translation>
 <translation id="395377504920307820">ანგარიშის გარეშე გამოყენება</translation>
@@ -830,6 +833,7 @@
 <translation id="4521489764227272523">არჩეული მონაცემები ამოიშალა Chrome-იდან და სინქრონიზებული მოწყობილობებიდან.
 
 თქვენს Google ანგარიშში შეიძლება შენახული იყოს სხვა ტიპის დათვალიერების ისტორია (მაგალითად, ძიებები და აქტივობა Google-ის სხვა სერვისებზე), რომელიც ხელმისაწვდომია მისამართზე: <ph name="BEGIN_LINK" />myactivity.google.com<ph name="END_LINK" />.</translation>
+<translation id="4521637321901000942">მართეთ თქვენი გაფართოებები ხელსაწყოთა ზოლში</translation>
 <translation id="4523326818319942067">ბოლო საათში</translation>
 <translation id="452750746583162491">სინქრონიზებული მონაცემების გადახედვა</translation>
 <translation id="4532845899244822526">აირჩიეთ საქაღალდე</translation>
@@ -1189,6 +1193,7 @@
 <translation id="6011308810877101166">ძიების შემოთავაზებების გაუმჯობესება</translation>
 <translation id="6013305291643746595">უძველესის მიხედვით დალაგება</translation>
 <translation id="6022659036123304283">მოირგეთ Chrome</translation>
+<translation id="6023820583797130428">უკან დასაბრუნებლად გახსენით მენიუ</translation>
 <translation id="6026538407078977628">სრულ ეკრანზე გაფართოება</translation>
 <translation id="6030719887161080597">საიტების მიერ რეკლამის ეფექტურობის განსაზღვრისთვის გამოყენებული ინფორმაციის მართვა</translation>
 <translation id="6039379616847168523">შემდეგ ჩანართზე გადასვლა</translation>
@@ -1294,6 +1299,7 @@
 <translation id="6380100320871303656">უფრო ხშირად ჩატვირთავს წინასწარ გვერდებს, რომლებიც, Chrome-ის გათვლებით, შეიძლება მოინახულოთ. ამ პარამეტრმა შეიძლება გამოიწვიოს მონაცემთა გაზრდილი მოხმარება.</translation>
 <translation id="6382848304055775421">მიმდინარეობს ექსპორტირება</translation>
 <translation id="6388152137132427505">გაზიარებამდე კარგად დაფიქრდით. ბმულებს მოქმედების ვადა ეწურება 48 საათში.</translation>
+<translation id="6389513857577090038">დაუშვებთ გაფართოებას „<ph name="EXTENSION_NAME" />“?</translation>
 <translation id="6394791151443660613">ძიება: <ph name="SEARCH_QUERY" /></translation>
 <translation id="6397616442223433927">კვლავ ონლაინ ხართ</translation>
 <translation id="6399363707848566877">უკვე მარტივად შეგიძლიათ ჯგუფებში ჩანართების დამატება აქ</translation>
@@ -1633,6 +1639,7 @@
 <translation id="7597601275223325603">{NUMBER_OF_TABS,plural, =1{<ph name="TABS_COUNT_ONE" /> სტანდარტული ჩანართი}other{<ph name="TABS_COUNT_MANY" /> სტანდარტული ჩანართი}}</translation>
 <translation id="7603168929588204083">თარიღი არასწორია</translation>
 <translation id="7605594153474022051">სინქრონიზაცია არ მუშაობს</translation>
+<translation id="7608245556672190037">Chrome Finds-ზე ცალსახა თანხმობის გვერდი გაიხსნა სრულ სიმაღლეზე</translation>
 <translation id="7612619742409846846">Google-ში შესულია:</translation>
 <translation id="7612989789287281429">მიმდინარეობს შესვლა…</translation>
 <translation id="7619072057915878432"><ph name="FILE_NAME" /> ვერ ჩამოიტვირთა ქსელთან დაკავშირებული პრობლემების გამო.</translation>
@@ -1640,6 +1647,7 @@
 <translation id="7628417132421583481">პაროლების მმართველზე გადასვლა</translation>
 <translation id="7630202231528827509">მიუთითეთ URL</translation>
 <translation id="7638584964844754484">საიდუმლო ფრაზა არასწორია</translation>
+<translation id="764047009170754705">Chrome Finds-ზე ცალსახა თანხმობის გვერდი დაიხურა</translation>
 <translation id="7646499124171960488">გაგაფრთხილებთ საჯარო დაუცველი საიტების შესახებ</translation>
 <translation id="7646772052135772216">პაროლების სინქრონიზაცია არ მუშაობს</translation>
 <translation id="7655240423373329753">ბოლო 7 დღეში</translation>
@@ -1864,6 +1872,7 @@
 <translation id="8473863474539038330">მისამართები და სხვა</translation>
 <translation id="847433688444405067">დაათვალიერეთ ყველა მოწყობილობაზე</translation>
 <translation id="8477178913400731244">მონაცემების წაშლა</translation>
+<translation id="8481771036036087705">Chrome Finds-ზე ცალსახა თანხმობის გვერდი გაიხსნა ნახევარ სიმაღლეზე</translation>
 <translation id="8485434340281759656"><ph name="FILE_SIZE" /> <ph name="SEPARATOR" /> <ph name="DESCRIPTION" /></translation>
 <translation id="8491317241605644838">არააქტიური ფანჯრები არ არის</translation>
 <translation id="8493948351860045254">მეხსიერების გამოთავისუფლება</translation>

@@ -470,7 +470,7 @@ void TestRenderFrameHost::SendRendererInitiatedNavigationRequest(
           base::TimeTicks() /* before_unload_dialog_closed */,
           false /* started_with_transient_activation */,
           false /* started_by_ad */, false /* is_container_initiated */,
-          net::StorageAccessApiStatus::kNone, false /* has_rel_opener */);
+          false /* has_rel_opener */);
   auto common_params = blink::CreateCommonNavigationParams();
   common_params->url = url;
   common_params->initiator_origin = GetLastCommittedOrigin();
@@ -490,7 +490,7 @@ void TestRenderFrameHost::SendRendererInitiatedNavigationRequest(
   BeginNavigation(std::move(common_params), std::move(begin_params),
                   mojo::NullRemote(), std::move(navigation_client_remote),
                   mojo::NullRemote(), mojo::NullReceiver(),
-                  mojo::NullReceiver());
+                  mojo::NullReceiver(), mojo::NullReceiver());
 }
 
 void TestRenderFrameHost::SimulateDidChangeOpener(

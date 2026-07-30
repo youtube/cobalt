@@ -86,7 +86,7 @@ chromium-metrics-reviews@google.com.
 </variants>
 
 <histogram name="Search.Ambient.Query" enum="AmbientSearchEntryPoint"
-    expires_after="2026-07-26">
+    expires_after="2026-10-04">
   <owner>juanmojica@google.com</owner>
   <owner>schechter@google.com</owner>
   <owner>stanfield@google.com</owner>
@@ -1829,16 +1829,6 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
     together a list of built-in search engines providers, which can happen
     multiple times per run, when initially loading search engines for the
     omnibox, showing a search engine choice screen or settings screen, etc.
-  </summary>
-</histogram>
-
-<histogram name="Search.SearchWidgetUseAndDeviceInfo"
-    enum="SearchWidgetUseInfo" expires_after="2020-02-16">
-  <owner>yusufo@chromium.org</owner>
-  <summary>
-    The current state for search widget use and whether the device is a
-    partnership device related with the Android Search Widget. Collected on
-    every cold start.
   </summary>
 </histogram>
 

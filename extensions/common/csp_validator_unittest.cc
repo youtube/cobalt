@@ -457,8 +457,18 @@ TEST(ExtensionCSPValidator, IsSandboxed) {
   // Additional sandbox tokens are OK.
   EXPECT_TRUE(ContentSecurityPolicyIsSandboxed("sandbox allow-scripts",
                                                Manifest::Type::kExtension));
-  // Except for allow-same-origin.
+  // Except for allow-same-origin...
   EXPECT_FALSE(ContentSecurityPolicyIsSandboxed("sandbox allow-same-origin",
+                                                Manifest::Type::kExtension));
+
+  // ... even if obscured.
+  EXPECT_FALSE(ContentSecurityPolicyIsSandboxed("sandbox allow-same-origin\fa",
+                                                Manifest::Type::kExtension));
+  EXPECT_FALSE(ContentSecurityPolicyIsSandboxed("sandbox \fallow-same-origin",
+                                                Manifest::Type::kExtension));
+  EXPECT_FALSE(ContentSecurityPolicyIsSandboxed("sandbox allow-same-origin\f",
+                                                Manifest::Type::kExtension));
+  EXPECT_FALSE(ContentSecurityPolicyIsSandboxed("sandbox \fallow-same-origin\f",
                                                 Manifest::Type::kExtension));
 
   // Additional directives are OK.

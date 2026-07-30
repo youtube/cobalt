@@ -466,11 +466,14 @@ def _browser_startup_crossbench(estimated_runtime: int = 60,
       'browser_startup.crossbench',
       'loading',
       estimated_runtime=estimated_runtime,
-      flags=('--browser-config',
-             'config/benchmark/browser_startup/browser.config.hjson',
-             '--probe-config', 'config/benchmark/browser_startup/probe.hjson',
-             '--page-config', 'config/benchmark/browser_startup/story.hjson',
-             *flags))
+      flags=
+      ('--browser-config',
+       '../../third_party/crossbench/config/benchmark/browser_startup/browser.config.hjson',
+       '--probe-config',
+       '../../third_party/crossbench/config/benchmark/browser_startup/probe.hjson',
+       '--page-config',
+       '../../third_party/crossbench/config/benchmark/browser_startup/story.hjson',
+       *flags))
 
 
 @_register('speedometer_main.crossbench')
@@ -908,7 +911,7 @@ PLATFORM_INFO = {
     },
     'android-pixel-fold-perf': {
         'description': 'Android U',
-        'num_shards': 10,
+        'num_shards': 8,
         'platform_os': 'android',
         'is_fyi': False
     },

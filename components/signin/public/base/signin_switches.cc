@@ -93,6 +93,11 @@ BASE_FEATURE(kBoundSessionCredentialsKillSwitch,
 
 #if BUILDFLAG(IS_IOS)
 BASE_FEATURE(kBuildExternalPrivacyContext, base::FEATURE_DISABLED_BY_DEFAULT);
+const base::FeatureParam<std::string>
+    kBuildExternalPrivacyContextAgeMismatchLearnMoreUrl{
+        &kBuildExternalPrivacyContext, "AgeMismatchLearnMoreUrl",
+        "https://support.google.com/families/answer/"
+        "7087030#zippy=%2Ciphone-and-ipad"};
 #endif
 
 #if BUILDFLAG(IS_IOS)
@@ -466,6 +471,11 @@ BASE_FEATURE(kIdentityInAuthErrorFollowUps, base::FEATURE_ENABLED_BY_DEFAULT);
 // Feature flag to ignore invalid grant errors in AuthenticationService.
 BASE_FEATURE(kIgnoreInvalidGrantError, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
+
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+BASE_FEATURE(kMagiChromeSignInExperimentsBatch1,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kMakeIdentityManagerSourceOfAccounts,

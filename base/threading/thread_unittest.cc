@@ -520,7 +520,7 @@ class SequenceManagerThreadDelegate : public Thread::Delegate {
       : sequence_manager_(sequence_manager::CreateUnboundSequenceManager()),
         task_queue_(sequence_manager_->CreateTaskQueue(
             TaskQueue::Spec(sequence_manager::QueueName::DEFAULT_TQ))) {
-    sequence_manager_->SetDefaultTaskRunner(GetDefaultTaskRunner());
+    sequence_manager_->SetDefaultTaskQueue(task_queue_.get());
   }
 
   SequenceManagerThreadDelegate(const SequenceManagerThreadDelegate&) = delete;
@@ -538,10 +538,6 @@ class SequenceManagerThreadDelegate : public Thread::Delegate {
   void BindToCurrentThread() override {
     sequence_manager_->BindToMessagePump(
         MessagePump::Create(MessagePumpType::DEFAULT));
-  }
-
-  void AddTaskObserver(TaskObserver* observer) override {
-    sequence_manager_->AddTaskObserver(observer);
   }
 
  private:

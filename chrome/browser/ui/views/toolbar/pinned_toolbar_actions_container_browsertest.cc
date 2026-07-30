@@ -75,7 +75,7 @@ class PinnedToolbarActionsContainerBrowserTest : public InProcessBrowserTest {
     CHECK(!features::IsWebUIPinnedToolbarActionsEnabled())
         << "Test needs modification to support WebUIPinnedToolbarActions";
     return static_cast<PinnedToolbarActionsContainer*>(
-        browser_view()->toolbar()->pinned_toolbar_actions());
+        browser_view()->toolbar_button_provider()->GetPinnedToolbarActions());
   }
 
   void TranslatePage(content::WebContents* web_contents) {
@@ -205,7 +205,7 @@ IN_PROC_BROWSER_TEST_F(PinnedToolbarActionsContainerBrowserTest,
   SidePanelEntry* const entry =
       SidePanelRegistry::From(browser())->GetEntryForKey(
           SidePanelEntry::Key(SidePanelEntryId::kBookmarks));
-  SidePanelEntry::PanelType panel_type = entry->type();
+  SidePanelType panel_type = entry->type();
   entry->set_should_show_ephemerally_in_toolbar(false);
 
   // Verify no toolbar button is shown when the bookmarks side panel is opened.

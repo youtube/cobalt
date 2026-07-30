@@ -109,9 +109,6 @@ class GlicInstanceCoordinator {
   virtual base::CallbackListSubscription AddGlobalShowHideCallback(
       base::RepeatingClosure callback) = 0;
 
-  // Warms the glic web contents.
-  virtual void Preload() = 0;
-
   // Reloads the glic web contents or the FRE's web contents (depending on
   // which is currently visible).
   virtual void Reload(content::RenderFrameHost* render_frame_host) = 0;
@@ -153,13 +150,6 @@ class GlicInstanceCoordinator {
   AddActiveInstanceChangedCallbackAndNotifyImmediately(
       ActiveInstanceChangedCallback callback) = 0;
   virtual GlicInstance* GetActiveInstance() = 0;
-
-  // Helper function to return whether the kGlicDetached feature is enabled
-  // while multi-instance is not.
-  static bool AlwaysDetached() {
-    return base::FeatureList::IsEnabled(features::kGlicDetached) &&
-           !GlicEnabling::IsMultiInstanceEnabled();
-  }
 };
 
 }  // namespace glic

@@ -29,15 +29,11 @@
 #include "base/types/optional_ref.h"
 #include "base/types/pass_key.h"
 #include "chrome/browser/actor/action_tracker_for_metrics.h"
-#include "chrome/browser/actor/actor_features.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/actor_metrics.h"
 #include "chrome/browser/actor/actor_proto_conversion.h"
 #include "chrome/browser/actor/actor_task.h"
-#include "chrome/browser/actor/actor_util.h"
-#include "chrome/browser/actor/enterprise_policy_url_checker.h"
-#include "chrome/browser/actor/origin_checker.h"
-#include "chrome/browser/actor/safety_list_manager.h"
+#include "chrome/browser/actor/enterprise_policy_checker.h"
 #include "chrome/browser/actor/site_policy.h"
 #include "chrome/browser/actor/tools/attempt_login_tool.h"
 #include "chrome/browser/actor/tools/navigate_tool_request.h"
@@ -55,6 +51,10 @@
 #include "chrome/common/actor/journal_details_builder.h"
 #include "chrome/common/actor/task_id.h"
 #include "chrome/common/chrome_features.h"
+#include "components/actor/core/actor_features.h"
+#include "components/actor/core/actor_util.h"
+#include "components/actor/core/origin_checker.h"
+#include "components/actor/core/safety_list_manager.h"
 #include "components/affiliations/core/browser/affiliation_service.h"
 #include "components/keyed_service/core/service_access_type.h"
 #include "components/optimization_guide/content/browser/page_content_proto_provider.h"
@@ -345,11 +345,11 @@ ExecutionEngine::GatingDecision ExecutionEngine::DetermineGatingDecision(
     const GURL& source_url,
     const GURL& destination_url) const {
   switch (task_->policy_checker().Evaluate(destination_url)) {
-    case EnterprisePolicyBlockReason::kNotBlocked:
+    case EnterprisePolicyChecker::UrlBlockReason::kNotBlocked:
       break;
-    case EnterprisePolicyBlockReason::kExplicitlyAllowed:
+    case EnterprisePolicyChecker::UrlBlockReason::kExplicitlyAllowed:
       return GatingDecision::kAllowByStaticList;
-    case EnterprisePolicyBlockReason::kExplicitlyBlocked:
+    case EnterprisePolicyChecker::UrlBlockReason::kExplicitlyBlocked:
       return GatingDecision::kBlockByStaticList;
   }
 

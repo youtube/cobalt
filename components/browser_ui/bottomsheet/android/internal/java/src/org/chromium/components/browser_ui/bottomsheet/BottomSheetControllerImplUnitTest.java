@@ -4,6 +4,7 @@
 
 package org.chromium.components.browser_ui.bottomsheet;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.doReturn;
@@ -32,6 +33,7 @@ import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.OneshotSupplierImpl;
 import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.components.browser_ui.bottomsheet.BottomSheetController.SheetState;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController.StateChangeReason;
 import org.chromium.components.browser_ui.desktop_windowing.AppHeaderState;
 import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateManager;
@@ -181,6 +183,16 @@ public class BottomSheetControllerImplUnitTest {
     }
 
     @Test
+    public void testGetMaxOffset() {
+        assertEquals(0, mController.getMaxOffset());
+
+        mController.runSheetInitializerForTesting();
+        doReturn(123.0f).when(mBottomSheet).getMaxOffsetPx();
+
+        assertEquals(123, mController.getMaxOffset());
+    }
+
+    @Test
     public void testRequestShowContent_FailsIfRootViewIsNull() {
         // Create a new supplier that returns null to simulate a destroyed activity.
         Supplier<ViewGroup> nullRootSupplier = () -> null;
@@ -200,5 +212,89 @@ public class BottomSheetControllerImplUnitTest {
 
         // Verify that the request was blocked.
         assertFalse("requestShowContent should return false when the root view is null.", result);
+    }
+
+    @Test
+    public void testRequestShowContent_currentLow_newHigh_canBeSuppressed_returnsFalse() {
+        mController.runSheetInitializerForTesting();
+
+        BottomSheetContent newContent = mock(BottomSheetContent.class);
+        when(newContent.getPriority()).thenReturn(BottomSheetContent.ContentPriority.HIGH);
+        BottomSheetContent currentContent = mock(BottomSheetContent.class);
+        when(currentContent.getPriority()).thenReturn(BottomSheetContent.ContentPriority.LOW);
+        when(currentContent.canBeSuppressed(newContent)).thenReturn(false);
+        when(currentContent.getBackPressStateChangedSupplier())
+                .thenReturn(ObservableSuppliers.alwaysFalse());
+
+        when(mBottomSheet.getCurrentSheetContent()).thenReturn(currentContent);
+        when(mBottomSheet.isSheetOpen()).thenReturn(true);
+
+        boolean result = mController.requestShowContent(newContent, /* animate= */ true);
+
+        assertFalse("Request should return false as content cannot be suppressed", result);
+        verify(mBottomSheet, times(0)).setSheetState(SheetState.HIDDEN, true);
+    }
+
+    @Test
+    public void testRequestShowContent_currentLow_newHigh_canBeSuppressed_returnsTrue() {
+        mController.runSheetInitializerForTesting();
+
+        BottomSheetContent newContent = mock(BottomSheetContent.class);
+        when(newContent.getPriority()).thenReturn(BottomSheetContent.ContentPriority.HIGH);
+        BottomSheetContent currentContent = mock(BottomSheetContent.class);
+        when(currentContent.getPriority()).thenReturn(BottomSheetContent.ContentPriority.LOW);
+        when(currentContent.canBeSuppressed(newContent)).thenReturn(true);
+        when(currentContent.getBackPressStateChangedSupplier())
+                .thenReturn(ObservableSuppliers.alwaysFalse());
+
+        when(mBottomSheet.getCurrentSheetContent()).thenReturn(currentContent);
+        when(mBottomSheet.isSheetOpen()).thenReturn(true);
+
+        boolean result = mController.requestShowContent(newContent, /* animate= */ true);
+
+        assertTrue("Request should return true as content can be suppressed", result);
+        verify(mBottomSheet).setSheetState(SheetState.HIDDEN, true);
+    }
+
+    @Test
+    public void testRequestShowContent_currentHigh_newLow_canBeSuppressed_returnsTrue() {
+        mController.runSheetInitializerForTesting();
+
+        BottomSheetContent newContent = mock(BottomSheetContent.class);
+        when(newContent.getPriority()).thenReturn(BottomSheetContent.ContentPriority.LOW);
+        BottomSheetContent currentContent = mock(BottomSheetContent.class);
+        when(currentContent.getPriority()).thenReturn(BottomSheetContent.ContentPriority.HIGH);
+        when(currentContent.canBeSuppressed(newContent)).thenReturn(true);
+        when(currentContent.getBackPressStateChangedSupplier())
+                .thenReturn(ObservableSuppliers.alwaysFalse());
+
+        when(mBottomSheet.getCurrentSheetContent()).thenReturn(currentContent);
+        when(mBottomSheet.isSheetOpen()).thenReturn(true);
+
+        boolean result = mController.requestShowContent(newContent, /* animate= */ true);
+
+        assertTrue("Request should return true as content can be suppressed", result);
+        verify(mBottomSheet).setSheetState(SheetState.HIDDEN, true);
+    }
+
+    @Test
+    public void testRequestShowContent_currentHigh_newHigh_canBeSuppressed_returnsTrue() {
+        mController.runSheetInitializerForTesting();
+
+        BottomSheetContent newContent = mock(BottomSheetContent.class);
+        when(newContent.getPriority()).thenReturn(BottomSheetContent.ContentPriority.HIGH);
+        BottomSheetContent currentContent = mock(BottomSheetContent.class);
+        when(currentContent.getPriority()).thenReturn(BottomSheetContent.ContentPriority.HIGH);
+        when(currentContent.canBeSuppressed(newContent)).thenReturn(true);
+        when(currentContent.getBackPressStateChangedSupplier())
+                .thenReturn(ObservableSuppliers.alwaysFalse());
+
+        when(mBottomSheet.getCurrentSheetContent()).thenReturn(currentContent);
+        when(mBottomSheet.isSheetOpen()).thenReturn(true);
+
+        boolean result = mController.requestShowContent(newContent, /* animate= */ true);
+
+        assertTrue("Request should return true as high priority content can be suppressed", result);
+        verify(mBottomSheet).setSheetState(SheetState.HIDDEN, true);
     }
 }

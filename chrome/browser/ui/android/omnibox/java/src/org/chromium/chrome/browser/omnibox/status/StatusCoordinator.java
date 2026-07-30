@@ -25,9 +25,9 @@ import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.browser_controls.BrowserStateBrowserControlsVisibilityDelegate;
-import org.chromium.chrome.browser.merchant_viewer.MerchantTrustSignalsCoordinator;
 import org.chromium.chrome.browser.omnibox.LocationBarDataProvider;
 import org.chromium.chrome.browser.omnibox.R;
+import org.chromium.chrome.browser.omnibox.fusebox.FuseboxCoordinator.FuseboxState;
 import org.chromium.chrome.browser.page_info.ChromePageInfoHighlight;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
@@ -75,9 +75,6 @@ public class StatusCoordinator implements LocationBarDataProvider.Observer {
      *     default search engine.
      * @param windowAndroid The {@link WindowAndroid} that is used by the owning {@link Activity}.
      * @param pageInfoAction Displays page info popup.
-     * @param merchantTrustSignalsCoordinatorSupplier Supplier of {@link
-     *     MerchantTrustSignalsCoordinator}. Can be null if a store icon shouldn't be shown, such as
-     *     when called from a search activity.
      * @param browserControlsVisibilityDelegate Delegate interface allowing control of the
      *     visibility of the browser controls (i.e. toolbar).
      */
@@ -89,8 +86,6 @@ public class StatusCoordinator implements LocationBarDataProvider.Observer {
             MonotonicObservableSupplier<Profile> profileSupplier,
             WindowAndroid windowAndroid,
             PageInfoAction pageInfoAction,
-            @Nullable Supplier<MerchantTrustSignalsCoordinator>
-                    merchantTrustSignalsCoordinatorSupplier,
             @Nullable BrowserStateBrowserControlsVisibilityDelegate
                     browserControlsVisibilityDelegate) {
         mIsTablet = isTablet;
@@ -122,7 +117,6 @@ public class StatusCoordinator implements LocationBarDataProvider.Observer {
                         profileSupplier,
                         pageInfoIphController,
                         windowAndroid,
-                        merchantTrustSignalsCoordinatorSupplier,
                         pageInfoAction);
 
         Resources res = mStatusView.getResources();
@@ -159,7 +153,6 @@ public class StatusCoordinator implements LocationBarDataProvider.Observer {
     public void onNativeInitialized() {
         mMediator.updateLocationBarIcon(StatusView.IconTransitionType.CROSSFADE);
         mMediator.updateStatusVisibility();
-        mMediator.setStoreIconController();
     }
 
     /**
@@ -283,6 +276,11 @@ public class StatusCoordinator implements LocationBarDataProvider.Observer {
         return mModel.get(StatusProperties.STATUS_ICON_RESOURCE) == null
                 ? 0
                 : mModel.get(StatusProperties.STATUS_ICON_RESOURCE).getIconRes();
+    }
+
+    /** Called when teh fusebox state of the LocationBar changes */
+    public void onFuseboxStateChanged(@FuseboxState int state) {
+        mMediator.onFuseboxStateChanged(state);
     }
 
     /**

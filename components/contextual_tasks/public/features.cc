@@ -27,6 +27,10 @@ namespace contextual_tasks {
 // Enables the contextual tasks side panel while browsing.
 BASE_FEATURE(kContextualTasks, base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Enables the pin button in the toolbar for contextual tasks.
+BASE_FEATURE(kEnableContextualTasksPinButtonInToolbar,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enables the use of the kSearchResultsOAuth2Scope instead of the
 // kChromeSyncOAuth2Scope.
 BASE_FEATURE(kContextualTasksScopeChange, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -72,7 +76,7 @@ BASE_FEATURE(kContextualTasksUrlRedirectToAimUrl,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kContextualTasksUseStratusDarkModeColors,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled, animates the caret.
 BASE_FEATURE(kContextualTasksAnimatedCaret, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -158,7 +162,7 @@ const base::FeatureParam<bool> kContextualTasksTabAutoSuggestionChipEnabled(
 // The base URL for the AI page.
 const base::FeatureParam<std::string> kContextualTasksAiPageUrl{
     &kContextualTasks, "contextual-tasks-ai-page-url",
-    "https://www.google.com/search?udm=50&sourceid=chrome"};
+    "https://www.google.com/search?udm=50&sourceid=chrome&ccb=1"};
 
 const base::FeatureParam<std::string> kContextualTasksGeminiBaseUrl{
     &kContextualTasks, "contextual-tasks-gemini-base-url",
@@ -196,11 +200,6 @@ const base::FeatureParam<ExpandButtonOption> kExpandButtonOptions(
     ExpandButtonOption::kToolbarCloseButton,
     &kExpandButtonOption);
 
-const base::FeatureParam<bool> kOpenSidePanelOnLinkClicked(
-    &kContextualTasks,
-    "ContextualTasksOpenSidePanelOnLinkClicked",
-    true);
-
 const base::FeatureParam<bool> kEnableLensInContextualTasks(
     &kContextualTasks,
     "ContextualTasksEnableLensInContextualTasks",
@@ -217,8 +216,9 @@ const base::FeatureParam<bool> kForceGscInTabMode(
 // Version 1.2: Client is capable of composebox camouflage.
 // Version 1.3: Bug fix for privacy notice on composebox camouflage.
 // Version 2.0: M146 respin launch candidate.
+// Version 2.1: Enables stratus dark mode colors.
 const base::FeatureParam<std::string> kContextualTasksUserAgentSuffix{
-    &kContextualTasks, "contextual-tasks-user-agent-suffix", "Cobrowsing/2.0"};
+    &kContextualTasks, "contextual-tasks-user-agent-suffix", "Cobrowsing/2.1"};
 
 const base::FeatureParam<std::string> kContextualTasksHelpUrl(
     &kContextualTasks,
@@ -322,6 +322,9 @@ int ContextualTasksInactiveSidePanelKeepInCacheMinutes() {
   return kContextualTasksInactiveSidePanelKeepInCacheMinutes.Get();
 }
 
+bool IsContextualTasksPinButtonInToolbarEnabled() {
+  return base::FeatureList::IsEnabled(kEnableContextualTasksPinButtonInToolbar);
+}
 
 bool GetIsProtectedPageErrorEnabled() {
   return kEnableProtectedPageError.Get();

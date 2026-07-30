@@ -76,6 +76,10 @@ chromium-metrics-reviews@google.com.
   <variant name="IPH_AutofillAiValuables"
       summary="snooze educating users about the possibility of autofilling
                Google Wallet passses"/>
+  <variant name="IPH_AutofillAtMemory"
+      summary="message shown when users copy/paste a value from another tab
+               educating them that they can use the Autofill AtMemory feature
+               instead"/>
   <variant name="IPH_AutofillBnplAffirmOrZipSuggestion"
       summary="message shown when users see the Autofill BNPL chip to educate
                users that they can now pay over time using Affirm or Zip."/>
@@ -215,9 +219,12 @@ chromium-metrics-reviews@google.com.
       summary="Confirmation message that the explicit browser signin
                preference was remembered"/>
   <variant name="IPH_ExploreSitesTile" summary="Explore Sites feature"/>
-  <variant name="IPH_ExtensionsManageFeature"
+  <variant name="IPH_ExtensionsManageAppMenuFeature"
       summary="message shown informing users they can manage their extensions
-               in the extensions menu."/>
+               in the app menu."/>
+  <variant name="IPH_ExtensionsManageToolbarFeature"
+      summary="message shown informing users they can manage their extensions
+               in the extensions menu found in the toolbar."/>
   <variant name="IPH_ExtensionsMenu" summary="extensions menu opened"/>
   <variant name="IPH_ExtensionsRequestAccessButton"
       summary="extensions request access button shown"/>
@@ -687,6 +694,8 @@ chromium-metrics-reviews@google.com.
   <variant name="IPH_TranslateMenuButton" summary="translate menu button"/>
   <variant name="IPH_UpdatedConnectionSecurityIndicators"
       summary="updated omnibox connection security indicators"/>
+  <variant name="IPH_VerticalTabsExpandOnHoverFeature"
+      summary="The vertical tabstrip expand on hover IPH"/>
   <variant name="IPH_VerticalTabstripTutorialFeature"
       summary="The vertical tabstrip IPH"/>
   <variant name="IPH_VideoTutorial_NTP_ChromeIntro"
@@ -745,7 +754,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="InProductHelp.Db.TotalEvents" units="events"
-    expires_after="2026-07-26">
+    expires_after="2026-10-04">
   <owner>nyquist@chromium.org</owner>
   <summary>
     Records the total number of event records in the database for in-product
@@ -790,6 +799,19 @@ chromium-metrics-reviews@google.com.
   <summary>
     Recorded when a gestural in-product help view is dismissed, with the enum
     signifying the way the dismissal was triggered.
+  </summary>
+</histogram>
+
+<histogram name="InProductHelp.InitializationTime.Total" units="ms"
+    expires_after="2026-10-03">
+  <owner>agazal@chromium.org</owner>
+  <owner>mschillaci@chromium.org</owner>
+  <owner>nyquist@chromium.org</owner>
+  <summary>
+    Records the total end-to-end time taken for the Feature Engagement Tracker
+    to become fully initialized at startup. This includes asynchronous database
+    loading, event processing, profile-to-device migration (on iOS), and event
+    exports.
   </summary>
 </histogram>
 

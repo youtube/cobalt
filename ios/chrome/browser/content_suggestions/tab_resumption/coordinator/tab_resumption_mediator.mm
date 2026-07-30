@@ -236,9 +236,7 @@ void ConfigureTabResumptionItemForShopCard(
       decisionWithMetadata.metadata
           .ParsedMetadata<commerce::PriceTrackingData>();
 
-  if ((commerce::kShopCardVariation.Get().contains(commerce::kShopCardArm3) ||
-       commerce::kShopCardVariation.Get() == commerce::kShopCardArm6) &&
-      HasPriceDropDataForTabResumption(price_tracking_data)) {
+  if (HasPriceDropDataForTabResumption(price_tracking_data)) {
     config.shopCardData = [[ShopCardData alloc] init];
     config.shopCardData.shopCardItemType = ShopCardItemType::kPriceDropOnTab;
 
@@ -969,7 +967,8 @@ class TabResumptionMediatorProxy {
 // product image and updates the card when this data is availalbe.
 // This reduces the overall latency of the card.
 - (void)fetchPriceDropIfApplicable:(TabResumptionConfig*)config {
-  if (commerce::kShopCardVariation.Get() != commerce::kShopCardArm6) {
+  if (!_shoppingService->IsRegionLockedFeatureEnabled(
+          commerce::kTabResumptionShopCard)) {
     return;
   }
   __weak TabResumptionMediator* weakSelf = self;

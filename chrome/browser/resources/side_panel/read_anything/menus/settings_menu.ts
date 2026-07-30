@@ -159,6 +159,7 @@ export class SettingsMenuElement extends SettingsMenuElementBase {
         state: true,
         type: String,
       },
+      options_: {type: Array},
     };
   }
 
@@ -167,7 +168,7 @@ export class SettingsMenuElement extends SettingsMenuElementBase {
   accessor isSpeechActive: boolean = false;
   accessor settingsPrefs: SettingsPrefs = DEFAULT_SETTINGS;
 
-  protected options_: SettingsItem[] = [];
+  protected accessor options_: SettingsItem[] = [];
   protected accessor currentOpenId_: string|null = null;
 
   private interceptedEvents_: string[] =
@@ -209,7 +210,7 @@ export class SettingsMenuElement extends SettingsMenuElementBase {
   }
 
   private initializeMenuOptions_() {
-    let optionIDs = [
+    const optionIDs = [
       SettingsOption.COLOR,
       SettingsOption.FONT,
       SettingsOption.LINE_SPACING,
@@ -223,13 +224,7 @@ export class SettingsMenuElement extends SettingsMenuElementBase {
     }
 
     optionIDs.push(SettingsOption.PRESENTATION);
-
-    // If Readability is enabled but ReadabilityWithLinks is not enabled,
-    // don't show the links toggle.
-    if (!chrome.readingMode.isReadabilityEnabled ||
-        chrome.readingMode.isReadabilityWithLinksEnabled) {
-      optionIDs = optionIDs.concat([SettingsOption.LINKS]);
-    }
+    optionIDs.push(SettingsOption.LINKS);
 
     if (chrome.readingMode.imagesFeatureEnabled) {
       optionIDs.push(SettingsOption.IMAGES);

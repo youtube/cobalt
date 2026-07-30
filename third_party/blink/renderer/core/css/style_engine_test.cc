@@ -2934,7 +2934,7 @@ TEST_F(StyleEngineTest, ColorSchemeBaseBackgroundChange) {
   Color system_background_color = LayoutTheme::GetTheme().SystemColor(
       CSSValueID::kCanvas, color_scheme,
       GetDocument().GetColorProviderForPainting(color_scheme),
-      GetDocument().IsInWebAppScope());
+      GetDocument().IsInWebAppScope() && GetDocument().IsInitialProfile());
 
   EXPECT_EQ(system_background_color,
             GetDocument().View()->BaseBackgroundColor());
@@ -4671,6 +4671,51 @@ TEST_F(StyleEngineContainerQueryTest,
 
   // Three direct span.affected children, and the two display:none elements.
   EXPECT_EQ(6u, GetStyleEngine().StyleForElementCount() - start_count);
+}
+
+TEST_F(StyleEngineContainerQueryTest,
+       UpdateStyleAndLayoutTreeForContainerNameChange) {
+  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
+    <style>
+      #container {
+        container-type: size;
+        width: 100px;
+        height: 100px;
+      }
+      @container --foo (width = 100px) {
+        .affected { background-color: green; }
+      }
+      .foo { container-name: --foo; }
+    </style>
+    <div id="container">
+      <span class="affected"></span>
+      <div>
+        <span class="affected"></span>
+        <span></span>
+        <span></span>
+        <span></span>
+        <span></span>
+        <span class="affected"></span>
+        <span>
+          <span></span>
+          <span class="affected"></span></span>
+          <span></span>
+        </span>
+      </div>
+    </div>
+  )HTML");
+
+  UpdateAllLifecyclePhases();
+
+  Element* container = GetDocument().getElementById(AtomicString("container"));
+  ASSERT_TRUE(container);
+  unsigned start_count = GetStyleEngine().StyleForElementCount();
+
+  container->setAttribute(html_names::kClassAttr, AtomicString("foo"));
+  UpdateAllLifecyclePhases();
+
+  // Recalc the four  .affected elements + #container
+  EXPECT_EQ(5u, GetStyleEngine().StyleForElementCount() - start_count);
 }
 
 TEST_F(StyleEngineContainerQueryTest, ContainerQueriesContainmentNotApplying) {
@@ -7665,13 +7710,14 @@ TEST_F(StyleEngineTest, TestRandomValueCacheCleanedWhenElementIsGone) {
 
   Element* element = GetDocument().getElementById(AtomicString("test"));
 
-  RandomValueSharing* random_value_sharing =
-      MakeGarbageCollected<RandomValueSharing>(
-          AtomicString("--ident"), RandomValueSharing::ElementShared(false));
+  RandomCacheKey* random_value_sharing = MakeGarbageCollected<RandomCacheKey>(
+      AtomicString("--ident"), RandomCacheKey::ElementScoped(false),
+      g_null_atom, -1);
   GetStyleEngine().GetCachedRandomBaseValue(*random_value_sharing, element);
-  RandomValueSharing* random_value_sharing_element_shared =
-      MakeGarbageCollected<RandomValueSharing>(
-          AtomicString("--ident"), RandomValueSharing::ElementShared(true));
+  RandomCacheKey* random_value_sharing_element_shared =
+      MakeGarbageCollected<RandomCacheKey>(AtomicString("--ident"),
+                                           RandomCacheKey::ElementScoped(true),
+                                           g_null_atom, -1);
   GetStyleEngine().GetCachedRandomBaseValue(
       *random_value_sharing_element_shared, element);
 

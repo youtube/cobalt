@@ -565,7 +565,8 @@ void WorkerScriptFetcher::CreateScriptLoader(
             static_cast<StoragePartitionImpl*>(
                 factory_process->GetStoragePartition())
                 ->GetWeakPtr(),
-            *worker_network_restrictions_id, creator_policies->Clone())) {
+            *worker_network_restrictions_id, creator_policies->Clone(),
+            ancestor_render_frame_host.GetWeakPtr())) {
       throttles.push_back(std::move(throttle));
     }
   }
@@ -635,7 +636,8 @@ WorkerScriptFetcher::CreateFactoryBundle(
       GetContentClient()
           ->browser()
           ->RegisterNonNetworkWorkerMainResourceURLLoaderFactories(
-              storage_partition->browser_context(), &non_network_factories);
+              storage_partition->browser_context(),
+              request_initiator_storage_key.origin(), &non_network_factories);
       break;
     case LoaderType::kSubResource:
       GetContentClient()

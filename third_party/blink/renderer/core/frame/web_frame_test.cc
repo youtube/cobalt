@@ -376,8 +376,8 @@ class WebFrameTest : public PageTestBase {
     // TODO(crbug.com/751425): We should use the mock functionality
     // via the WebViewHelper instance in each test case.
     url_test_helpers::RegisterMockedURLLoadFromBase(
-        WebString::FromUTF8(base_url), test::CoreTestDataPath(),
-        WebString::FromUTF8(file_name));
+        WebString::FromUtf8(base_url), test::CoreTestDataPath(),
+        WebString::FromUtf8(file_name));
   }
 
   void RegisterMockedURLLoadWithCustomResponse(const WebURL& full_url,
@@ -397,9 +397,9 @@ class WebFrameTest : public PageTestBase {
     response.AddHttpHeaderField(
         report_only ? WebString("Content-Security-Policy-Report-Only")
                     : WebString("Content-Security-Policy"),
-        WebString::FromUTF8(csp));
+        WebString::FromUtf8(csp));
     RegisterMockedURLLoadWithCustomResponse(
-        url, test::CoreTestDataPath(WebString::FromUTF8(file_name)), response);
+        url, test::CoreTestDataPath(WebString::FromUtf8(file_name)), response);
   }
 
   void RegisterMockedHttpURLLoadWithMimeType(const std::string& file_name,
@@ -407,8 +407,8 @@ class WebFrameTest : public PageTestBase {
     // TODO(crbug.com/751425): We should use the mock functionality
     // via the WebViewHelper instance in each test case.
     url_test_helpers::RegisterMockedURLLoadFromBase(
-        WebString::FromUTF8(base_url_), test::CoreTestDataPath(),
-        WebString::FromUTF8(file_name), WebString::FromUTF8(mime_type));
+        WebString::FromUtf8(base_url_), test::CoreTestDataPath(),
+        WebString::FromUtf8(file_name), WebString::FromUtf8(mime_type));
   }
 
   static void ConfigureAndroid(WebSettings* settings) {
@@ -1416,7 +1416,7 @@ TEST_F(WebFrameCSSCallbackTest, AuthorStyleSheet) {
       "<div class=\"initial_on\"></div>"
       "<div class=\"initial_off\"></div>");
 
-  std::vector<WebString> selectors = {WebString::FromUTF8("div.initial_on")};
+  std::vector<WebString> selectors = {WebString("div.initial_on")};
   frame_->GetDocument().WatchCSSSelectors(selectors);
   frame_->View()->MainFrameWidget()->UpdateAllLifecyclePhases(
       DocumentUpdateReason::kTest);
@@ -1425,7 +1425,7 @@ TEST_F(WebFrameCSSCallbackTest, AuthorStyleSheet) {
   EXPECT_THAT(MatchedSelectors(), ElementsAre("div.initial_on"));
 
   // Check that adding a watched selector calls back for already-present nodes.
-  selectors.push_back(WebString::FromUTF8("div.initial_off"));
+  selectors.push_back(WebString("div.initial_off"));
   Doc().WatchCSSSelectors(selectors);
   frame_->View()->MainFrameWidget()->UpdateAllLifecyclePhases(
       DocumentUpdateReason::kTest);
@@ -1445,7 +1445,7 @@ TEST_F(WebFrameCSSCallbackTest, AuthorStyleSheet) {
 
 TEST_F(WebFrameCSSCallbackTest, SharedComputedStyle) {
   // Check that adding an element calls back when it matches an existing rule.
-  Doc().WatchCSSSelectors({WebString::FromUTF8("span")});
+  Doc().WatchCSSSelectors({WebString("span")});
 
   ExecuteScript(
       "i1 = document.createElement('span');"
@@ -1483,7 +1483,7 @@ TEST_F(WebFrameCSSCallbackTest, SharedComputedStyle) {
 TEST_F(WebFrameCSSCallbackTest, CatchesAttributeChange) {
   LoadHTML("<span></span>");
 
-  Doc().WatchCSSSelectors({WebString::FromUTF8("span[attr=\"value\"]")});
+  Doc().WatchCSSSelectors({WebString::FromUtf8("span[attr=\"value\"]")});
   RunPendingTasks();
 
   EXPECT_EQ(0, UpdateCount());
@@ -1498,7 +1498,7 @@ TEST_F(WebFrameCSSCallbackTest, CatchesAttributeChange) {
 TEST_F(WebFrameCSSCallbackTest, DisplayNone) {
   LoadHTML("<div style='display:none'><span></span></div>");
 
-  Doc().WatchCSSSelectors({WebString::FromUTF8("span")});
+  Doc().WatchCSSSelectors({WebString("span")});
   RunPendingTasks();
 
   EXPECT_EQ(0, UpdateCount()) << "Don't match elements in display:none trees.";
@@ -1546,7 +1546,7 @@ TEST_F(WebFrameCSSCallbackTest, DisplayNone) {
 TEST_F(WebFrameCSSCallbackTest, DisplayContents) {
   LoadHTML("<div style='display:contents'><span></span></div>");
 
-  Doc().WatchCSSSelectors({WebString::FromUTF8("span")});
+  Doc().WatchCSSSelectors({WebString("span")});
   frame_->View()->MainFrameWidget()->UpdateAllLifecyclePhases(
       DocumentUpdateReason::kTest);
   RunPendingTasks();
@@ -1580,7 +1580,7 @@ TEST_F(WebFrameCSSCallbackTest, Reparenting) {
       "<div id='d1'><span></span></div>"
       "<div id='d2'></div>");
 
-  Doc().WatchCSSSelectors({WebString::FromUTF8("span")});
+  Doc().WatchCSSSelectors({WebString("span")});
   frame_->View()->MainFrameWidget()->UpdateAllLifecyclePhases(
       DocumentUpdateReason::kTest);
   RunPendingTasks();
@@ -1602,8 +1602,7 @@ TEST_F(WebFrameCSSCallbackTest, MultiSelector) {
 
   // Check that selector lists match as the whole list, not as each element
   // independently.
-  Doc().WatchCSSSelectors(
-      {WebString::FromUTF8("span"), WebString::FromUTF8("span,p")});
+  Doc().WatchCSSSelectors({WebString("span"), WebString("span,p")});
   frame_->View()->MainFrameWidget()->UpdateAllLifecyclePhases(
       DocumentUpdateReason::kTest);
   RunPendingTasks();
@@ -1617,9 +1616,9 @@ TEST_F(WebFrameCSSCallbackTest, InvalidSelector) {
 
   // Build a list with one valid selector and one invalid.
   Doc().WatchCSSSelectors({
-      WebString::FromUTF8("span"),
-      WebString::FromUTF8("["),      // Invalid.
-      WebString::FromUTF8("p span")  // Not compound.
+      WebString("span"),
+      WebString("["),      // Invalid.
+      WebString("p span")  // Not compound.
   });
   frame_->View()->MainFrameWidget()->UpdateAllLifecyclePhases(
       DocumentUpdateReason::kTest);
@@ -5058,7 +5057,7 @@ TEST_F(WebFrameTest, FindInPage) {
 
   // Find in a <div> element.
   EXPECT_TRUE(frame->GetFindInPage()->FindInternal(
-      kFindIdentifier, WebString::FromUTF8("bar1"), *options, false));
+      kFindIdentifier, WebString("bar1"), *options, false));
   frame->GetFindInPage()->StopFinding(
       blink::mojom::StopFindAction::kStopFindActionKeepSelection);
   WebRange range = frame->SelectionRange();
@@ -5068,7 +5067,7 @@ TEST_F(WebFrameTest, FindInPage) {
 
   // Find in an <input> value.
   EXPECT_TRUE(frame->GetFindInPage()->FindInternal(
-      kFindIdentifier, WebString::FromUTF8("bar2"), *options, false));
+      kFindIdentifier, WebString("bar2"), *options, false));
   // Confirm stopFinding(WebLocalFrame::StopFindActionKeepSelection) sets the
   // selection on the found text.
   frame->GetFindInPage()->StopFinding(
@@ -5081,7 +5080,7 @@ TEST_F(WebFrameTest, FindInPage) {
 
   // Find in a <textarea> content.
   EXPECT_TRUE(frame->GetFindInPage()->FindInternal(
-      kFindIdentifier, WebString::FromUTF8("bar3"), *options, false));
+      kFindIdentifier, WebString("bar3"), *options, false));
   // Confirm stopFinding(WebLocalFrame::StopFindActionKeepSelection) sets the
   // selection on the found text.
   frame->GetFindInPage()->StopFinding(
@@ -5094,7 +5093,7 @@ TEST_F(WebFrameTest, FindInPage) {
 
   // Find in a contentEditable element.
   EXPECT_TRUE(frame->GetFindInPage()->FindInternal(
-      kFindIdentifier, WebString::FromUTF8("bar4"), *options, false));
+      kFindIdentifier, WebString("bar4"), *options, false));
   // Confirm stopFinding(WebLocalFrame::StopFindActionKeepSelection) sets the
   // selection on the found text.
   frame->GetFindInPage()->StopFinding(
@@ -5109,7 +5108,7 @@ TEST_F(WebFrameTest, FindInPage) {
 
   // Find in <select> content.
   EXPECT_FALSE(frame->GetFindInPage()->FindInternal(
-      kFindIdentifier, WebString::FromUTF8("bar5"), *options, false));
+      kFindIdentifier, WebString("bar5"), *options, false));
   // If there are any matches, stopFinding will set the selection on the found
   // text.  However, we do not expect any matches, so check that the selection
   // is null.
@@ -5192,9 +5191,9 @@ TEST_F(WebFrameTest, GetFullHtmlOfPage) {
 
   // Test selection check
   EXPECT_FALSE(frame->HasSelection());
-  frame->ExecuteCommand(WebString::FromUTF8("SelectAll"));
+  frame->ExecuteCommand(WebString("SelectAll"));
   EXPECT_TRUE(frame->HasSelection());
-  frame->ExecuteCommand(WebString::FromUTF8("Unselect"));
+  frame->ExecuteCommand(WebString("Unselect"));
   EXPECT_FALSE(frame->HasSelection());
   WebString selection_html = frame->SelectionAsMarkup();
   EXPECT_TRUE(selection_html.IsEmpty());
@@ -5287,7 +5286,7 @@ TEST_F(WebFrameTest, FindInPageMatchRects) {
 
   auto options = mojom::blink::FindOptions::New();
   options->run_synchronously_for_testing = true;
-  WebString search_text = WebString::FromUTF8(kFindString);
+  WebString search_text = WebString::FromUtf8(kFindString);
   WebLocalFrameImpl* main_frame = web_view_helper.LocalMainFrame();
   TestFindInPageClient find_in_page_client;
   find_in_page_client.SetFrame(main_frame);
@@ -5363,7 +5362,7 @@ TEST_F(WebFrameTest, FindInPageActiveIndex) {
 
   auto options = mojom::blink::FindOptions::New();
   options->run_synchronously_for_testing = true;
-  WebString search_text = WebString::FromUTF8(kFindString);
+  WebString search_text = WebString::FromUtf8(kFindString);
   WebLocalFrameImpl* main_frame = web_view_helper.LocalMainFrame();
   TestFindInPageClient find_in_page_client;
   find_in_page_client.SetFrame(main_frame);
@@ -5395,7 +5394,7 @@ TEST_F(WebFrameTest, FindInPageActiveIndex) {
   EXPECT_EQ(kActiveIndex, find_in_page_client.ActiveIndex());
 
   const char* kFindStringNew = "e";
-  WebString search_text_new = WebString::FromUTF8(kFindStringNew);
+  WebString search_text_new = WebString::FromUtf8(kFindStringNew);
 
   EXPECT_TRUE(main_frame->GetFindInPage()->FindInternal(
       kFindIdentifier, search_text_new, *options, false));
@@ -5428,7 +5427,7 @@ TEST_F(WebFrameTest, FindOnDetachedFrame) {
 
   auto options = mojom::blink::FindOptions::New();
   options->run_synchronously_for_testing = true;
-  WebString search_text = WebString::FromUTF8(kFindString);
+  WebString search_text = WebString::FromUtf8(kFindString);
   WebLocalFrameImpl* main_frame = web_view_helper.LocalMainFrame();
   TestFindInPageClient main_find_in_page_client;
   main_find_in_page_client.SetFrame(main_frame);
@@ -5474,7 +5473,7 @@ TEST_F(WebFrameTest, FindDetachFrameBeforeScopeStrings) {
 
   auto options = mojom::blink::FindOptions::New();
   options->run_synchronously_for_testing = true;
-  WebString search_text = WebString::FromUTF8(kFindString);
+  WebString search_text = WebString::FromUtf8(kFindString);
   WebLocalFrameImpl* main_frame = web_view_helper.LocalMainFrame();
   TestFindInPageClient find_in_page_client;
   find_in_page_client.SetFrame(main_frame);
@@ -5518,7 +5517,7 @@ TEST_F(WebFrameTest, FindDetachFrameWhileScopingStrings) {
 
   auto options = mojom::blink::FindOptions::New();
   options->run_synchronously_for_testing = true;
-  WebString search_text = WebString::FromUTF8(kFindString);
+  WebString search_text = WebString::FromUtf8(kFindString);
   WebLocalFrameImpl* main_frame = web_view_helper.LocalMainFrame();
   TestFindInPageClient find_in_page_client;
   find_in_page_client.SetFrame(main_frame);
@@ -5567,7 +5566,7 @@ TEST_F(WebFrameTest, ResetMatchCount) {
 
   auto options = mojom::blink::FindOptions::New();
   options->run_synchronously_for_testing = true;
-  WebString search_text = WebString::FromUTF8(kFindString);
+  WebString search_text = WebString::FromUtf8(kFindString);
   WebLocalFrameImpl* main_frame = web_view_helper.LocalMainFrame();
   TestFindInPageClient find_in_page_client;
   find_in_page_client.SetFrame(main_frame);
@@ -5601,7 +5600,7 @@ TEST_F(WebFrameTest, SetTickmarks) {
 
   auto options = mojom::blink::FindOptions::New();
   options->run_synchronously_for_testing = true;
-  WebString search_text = WebString::FromUTF8(kFindString);
+  WebString search_text = WebString::FromUtf8(kFindString);
   WebLocalFrameImpl* main_frame = web_view_helper.LocalMainFrame();
   TestFindInPageClient find_in_page_client;
   find_in_page_client.SetFrame(main_frame);
@@ -5700,7 +5699,7 @@ TEST_F(WebFrameTest, FindInPageJavaScriptUpdatesDOM) {
 
   const int kFindIdentifier = 12345;
   static const char* kFindString = "foo";
-  WebString search_text = WebString::FromUTF8(kFindString);
+  WebString search_text = WebString::FromUtf8(kFindString);
   auto options = mojom::blink::FindOptions::New();
   options->run_synchronously_for_testing = true;
   bool active_now;
@@ -5741,7 +5740,7 @@ TEST_F(WebFrameTest, FindInPageJavaScriptUpdatesDOM) {
 }
 
 TEST_F(WebFrameTest, FindInPageJavaScriptUpdatesDOMProperOrdinal) {
-  const WebString search_pattern = WebString::FromUTF8("abc");
+  const WebString search_pattern = WebString("abc");
   // We have 2 occurrences of the pattern in our text.
   const char* html =
       "foo bar foo bar foo abc bar foo bar foo bar foo bar foo bar foo bar foo "
@@ -5812,7 +5811,7 @@ TEST_F(WebFrameTest, FindInPageStopFindActionKeepSelectionInAnotherDocument) {
 
   // Set active match
   ASSERT_TRUE(frame->GetFindInPage()->FindInternal(
-      kFindIdentifier, WebString::FromUTF8("foo"), *options, false));
+      kFindIdentifier, WebString("foo"), *options, false));
   // Move to another page.
   frame_test_helpers::LoadFrame(frame, base_url_ + "hello_world.html");
 
@@ -5825,7 +5824,7 @@ TEST_F(WebFrameTest, FindInPageStopFindActionKeepSelectionInAnotherDocument) {
 }
 
 TEST_F(WebFrameTest, FindInPageForcedRedoOfFindInPage) {
-  const WebString search_pattern = WebString::FromUTF8("bar");
+  const WebString search_pattern = WebString("bar");
   const char* html = "foo bar foo foo bar";
   frame_test_helpers::TestWebFrameClient frame_client;
   frame_test_helpers::WebViewHelper web_view_helper;
@@ -5914,7 +5913,7 @@ TEST_F(WebFrameTest, SelectRange) {
   EXPECT_EQ("Some test text for testing.", SelectionAsString(frame));
   web_view_helper.GetWebView()->MainFrameViewWidget()->CalculateSelectionBounds(
       start_rect, end_rect);
-  frame->ExecuteCommand(WebString::FromUTF8("Unselect"));
+  frame->ExecuteCommand(WebString("Unselect"));
   EXPECT_EQ("", SelectionAsString(frame));
   frame->SelectRange(start_rect.origin(), BottomRightMinusOne(end_rect));
   // On some devices, the above bottomRightMinusOne() causes the ending '.' not
@@ -5929,7 +5928,7 @@ TEST_F(WebFrameTest, SelectRange) {
   EXPECT_EQ("Some offscreen test text for testing.", SelectionAsString(frame));
   web_view_helper.GetWebView()->MainFrameViewWidget()->CalculateSelectionBounds(
       start_rect, end_rect);
-  frame->ExecuteCommand(WebString::FromUTF8("Unselect"));
+  frame->ExecuteCommand(WebString("Unselect"));
   EXPECT_EQ("", SelectionAsString(frame));
   frame->SelectRange(start_rect.origin(), BottomRightMinusOne(end_rect));
   // On some devices, the above bottomRightMinusOne() causes the ending '.' not
@@ -6033,7 +6032,7 @@ TEST_F(WebFrameTest, SelectRangeInIframe) {
   EXPECT_EQ("Some test text for testing.", SelectionAsString(subframe));
   web_view_helper.GetWebView()->MainFrameViewWidget()->CalculateSelectionBounds(
       start_rect, end_rect);
-  subframe->ExecuteCommand(WebString::FromUTF8("Unselect"));
+  subframe->ExecuteCommand(WebString("Unselect"));
   EXPECT_EQ("", SelectionAsString(subframe));
   subframe->SelectRange(start_rect.origin(), BottomRightMinusOne(end_rect));
   // On some devices, the above bottomRightMinusOne() causes the ending '.' not
@@ -6270,7 +6269,7 @@ TEST_F(WebFrameTest, MoveRangeSelectionExtent) {
   EXPECT_EQ("16-char header. This text is initially selected.",
             SelectionAsString(frame));
 
-  frame->ExecuteCommand(WebString::FromUTF8("Unselect"));
+  frame->ExecuteCommand(WebString("Unselect"));
   EXPECT_EQ("", SelectionAsString(frame));
 }
 
@@ -7792,8 +7791,7 @@ TEST_F(WebFrameTest, ReloadPost) {
   // trigger the actual POST load request.
   frame_test_helpers::PumpPendingRequestsForFrameToLoad(
       web_view_helper.LocalMainFrame());
-  EXPECT_EQ(WebString::FromUTF8("POST"),
-            frame->GetDocumentLoader()->HttpMethod());
+  EXPECT_EQ(WebString("POST"), frame->GetDocumentLoader()->HttpMethod());
 
   frame_test_helpers::ReloadFrame(frame);
   EXPECT_EQ(mojom::FetchCacheMode::kValidateCache, client.GetCacheMode());
@@ -12496,7 +12494,7 @@ TEST_F(WebFrameSimTest, TickmarksDocumentRelative) {
       cc::ScrollSourceType::kNone);
   auto options = mojom::blink::FindOptions::New();
   options->run_synchronously_for_testing = true;
-  WebString search_text = WebString::FromUTF8("test");
+  WebString search_text = WebString("test");
   const int kFindIdentifier = 12345;
   EXPECT_TRUE(frame->GetFindInPage()->FindInternal(kFindIdentifier, search_text,
                                                    *options, false));
@@ -12561,7 +12559,7 @@ TEST_F(WebFrameSimTest, FindInPageSelectNextMatch) {
       cc::ScrollSourceType::kNone);
   auto options = mojom::blink::FindOptions::New();
   options->run_synchronously_for_testing = true;
-  WebString search_text = WebString::FromUTF8("test");
+  WebString search_text = WebString("test");
   const int kFindIdentifier = 12345;
   EXPECT_TRUE(frame->GetFindInPage()->FindInternal(kFindIdentifier, search_text,
                                                    *options, false));
@@ -12578,16 +12576,20 @@ TEST_F(WebFrameSimTest, FindInPageSelectNextMatch) {
   frame->EnsureTextFinder().SelectNearestFindMatch(result_rect.CenterPoint(),
                                                    nullptr);
 
-  EXPECT_TRUE(frame_view->GetScrollableArea()->VisibleContentRect().Contains(
-      box1_rect));
+  EXPECT_TRUE(frame_view->GetScrollableArea()
+                  ->VisibleContentRect(kExcludeScrollbars)
+                  .Contains(box1_rect));
   result_rect = web_match_rects[1];
   frame->EnsureTextFinder().SelectNearestFindMatch(result_rect.CenterPoint(),
                                                    nullptr);
 
-  EXPECT_TRUE(
-      frame_view->GetScrollableArea()->VisibleContentRect().Contains(box2_rect))
+  EXPECT_TRUE(frame_view->GetScrollableArea()
+                  ->VisibleContentRect(kExcludeScrollbars)
+                  .Contains(box2_rect))
       << "Box [" << box2_rect.ToString() << "] is not visible in viewport ["
-      << frame_view->GetScrollableArea()->VisibleContentRect().ToString()
+      << frame_view->GetScrollableArea()
+             ->VisibleContentRect(kExcludeScrollbars)
+             .ToString()
       << "]";
 }
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -12615,7 +12617,8 @@ TEST_F(WebFrameSimTest, TallBlockRectFindTest) {
   WebView().ZoomToFindInPageRect(span_rect);
 
   ScrollableArea* scrollable_area = frame_view->GetScrollableArea();
-  gfx::Rect viewport_rect(scrollable_area->VisibleContentRect());
+  gfx::Rect viewport_rect(
+      scrollable_area->VisibleContentRect(kExcludeScrollbars));
 
   // Ensure the target is vertically centered by checking that it's in
   // the central 100px band of the viewport. Centering includes an arbitrary
@@ -12775,7 +12778,8 @@ TEST_F(WebFrameSimTest, TestFocusPreventScrollNotScrollElementIntoView) {
   ASSERT_TRUE(input->GetLayoutObject());
   ASSERT_EQ(input, WebView().FocusedElement());
   ASSERT_EQ(ScrollOffset(), area->GetScrollOffset());
-  ASSERT_FALSE(area->VisibleContentRect().Contains(input_rect));
+  ASSERT_FALSE(
+      area->VisibleContentRect(kExcludeScrollbars).Contains(input_rect));
   ASSERT_EQ(WebView().FakePageScaleAnimationPageScaleForTesting(), 0.f);
   // Simulate the keyboard being shown and resizing the widget. Cause a scroll
   // into view after.
@@ -12799,7 +12803,8 @@ TEST_F(WebFrameSimTest, TestFocusPreventScrollNotScrollElementIntoView) {
   ASSERT_TRUE(input->GetLayoutObject());
   ASSERT_EQ(input, WebView().FocusedElement());
   ASSERT_NE(ScrollOffset(), area->GetScrollOffset());
-  ASSERT_TRUE(area->VisibleContentRect().Contains(input_rect));
+  ASSERT_TRUE(
+      area->VisibleContentRect(kExcludeScrollbars).Contains(input_rect));
 }
 
 TEST_F(WebFrameSimTest, TestScrollFocusedEditableElementIntoView) {
@@ -12853,8 +12858,9 @@ TEST_F(WebFrameSimTest, TestScrollFocusedEditableElementIntoView) {
       ScrollOffset(0, 0), mojom::blink::ScrollType::kProgrammatic,
       cc::ScrollSourceType::kNone);
 
-  ASSERT_EQ(gfx::Point(),
-            frame_view->GetScrollableArea()->VisibleContentRect().origin());
+  ASSERT_EQ(gfx::Point(), frame_view->GetScrollableArea()
+                              ->VisibleContentRect(kExcludeScrollbars)
+                              .origin());
 
   WebView()
       .MainFrameImpl()
@@ -12869,8 +12875,9 @@ TEST_F(WebFrameSimTest, TestScrollFocusedEditableElementIntoView) {
                        .OffsetFromOrigin()),
       mojom::blink::ScrollType::kProgrammatic, cc::ScrollSourceType::kNone);
 
-  EXPECT_TRUE(frame_view->GetScrollableArea()->VisibleContentRect().Contains(
-      inputRect));
+  EXPECT_TRUE(frame_view->GetScrollableArea()
+                  ->VisibleContentRect(kExcludeScrollbars)
+                  .Contains(inputRect));
 
   // Reset the testing getters.
   WebView().EnableFakePageScaleAnimationForTesting(true);
@@ -12888,8 +12895,9 @@ TEST_F(WebFrameSimTest, TestScrollFocusedEditableElementIntoView) {
   // Now resize the visual viewport so that the input box is no longer in view
   // (e.g. a keyboard is overlaid).
   WebView().ResizeVisualViewport(gfx::Size(200, 100));
-  ASSERT_FALSE(frame_view->GetScrollableArea()->VisibleContentRect().Contains(
-      inputRect));
+  ASSERT_FALSE(frame_view->GetScrollableArea()
+                   ->VisibleContentRect(kExcludeScrollbars)
+                   .Contains(inputRect));
 
   WebView()
       .MainFrameImpl()
@@ -12901,8 +12909,9 @@ TEST_F(WebFrameSimTest, TestScrollFocusedEditableElementIntoView) {
                        .OffsetFromOrigin()),
       mojom::blink::ScrollType::kProgrammatic, cc::ScrollSourceType::kNone);
 
-  EXPECT_TRUE(frame_view->GetScrollableArea()->VisibleContentRect().Contains(
-      inputRect));
+  EXPECT_TRUE(frame_view->GetScrollableArea()
+                  ->VisibleContentRect(kExcludeScrollbars)
+                  .Contains(inputRect));
   EXPECT_EQ(1, WebView().FakePageScaleAnimationPageScaleForTesting());
 }
 
@@ -12972,10 +12981,12 @@ TEST_F(WebFrameSimTest, TestScrollFocusedEditableInRootScroller) {
   LocalFrameView* frame_view = frame->View();
   gfx::Rect inputRect(200, 700, 100, 20);
   ASSERT_EQ(1, visual_viewport.Scale());
-  ASSERT_EQ(gfx::Point(0, 300),
-            frame_view->GetScrollableArea()->VisibleContentRect().origin());
-  ASSERT_FALSE(frame_view->GetScrollableArea()->VisibleContentRect().Contains(
-      inputRect));
+  ASSERT_EQ(gfx::Point(0, 300), frame_view->GetScrollableArea()
+                                    ->VisibleContentRect(kExcludeScrollbars)
+                                    .origin());
+  ASSERT_FALSE(frame_view->GetScrollableArea()
+                   ->VisibleContentRect(kExcludeScrollbars)
+                   .Contains(inputRect));
 
   WebView()
       .MainFrameImpl()
@@ -12993,8 +13004,9 @@ TEST_F(WebFrameSimTest, TestScrollFocusedEditableInRootScroller) {
       target_offset, mojom::blink::ScrollType::kProgrammatic,
       cc::ScrollSourceType::kNone);
 
-  EXPECT_TRUE(frame_view->GetScrollableArea()->VisibleContentRect().Contains(
-      inputRect));
+  EXPECT_TRUE(frame_view->GetScrollableArea()
+                  ->VisibleContentRect(kExcludeScrollbars)
+                  .Contains(inputRect));
 }
 
 TEST_F(WebFrameSimTest, ScrollFocusedIntoViewClipped) {
@@ -13057,8 +13069,9 @@ TEST_F(WebFrameSimTest, ScrollFocusedIntoViewClipped) {
   LocalFrameView* frame_view = frame->View();
   VisualViewport& visual_viewport = frame->GetPage()->GetVisualViewport();
 
-  ASSERT_EQ(gfx::Point(),
-            frame_view->GetScrollableArea()->VisibleContentRect().origin());
+  ASSERT_EQ(gfx::Point(), frame_view->GetScrollableArea()
+                              ->VisibleContentRect(kExcludeScrollbars)
+                              .origin());
 
   // Simulate the keyboard being shown and resizing the widget. Cause a scroll
   // into view after.
@@ -13218,8 +13231,9 @@ TEST_F(WebFrameSimTest, DoubleTapZoomWhileScrolled) {
         cc::ScrollSourceType::kNone);
 
     EXPECT_FLOAT_EQ(1, visual_viewport.Scale());
-    EXPECT_TRUE(frame_view->GetScrollableArea()->VisibleContentRect().Contains(
-        target_rect_in_document));
+    EXPECT_TRUE(frame_view->GetScrollableArea()
+                    ->VisibleContentRect(kExcludeScrollbars)
+                    .Contains(target_rect_in_document));
   }
 
   // Reset the testing getters.
@@ -13710,7 +13724,7 @@ TEST_F(WebFrameTest, ContextMenuDataSelectedText) {
   web_view->MainFrameImpl()->GetFrame()->SetInitialFocus(false);
   RunPendingTasks();
 
-  web_view->MainFrameImpl()->ExecuteCommand(WebString::FromUTF8("SelectAll"));
+  web_view->MainFrameImpl()->ExecuteCommand(WebString("SelectAll"));
 
   WebMouseEvent mouse_event(WebInputEvent::Type::kMouseDown,
                             WebInputEvent::kNoModifiers,
@@ -13739,7 +13753,7 @@ TEST_F(WebFrameTest, ContextMenuDataPasswordSelectedText) {
   web_view->MainFrameImpl()->GetFrame()->SetInitialFocus(false);
   RunPendingTasks();
 
-  web_view->MainFrameImpl()->ExecuteCommand(WebString::FromUTF8("SelectAll"));
+  web_view->MainFrameImpl()->ExecuteCommand(WebString("SelectAll"));
 
   WebMouseEvent mouse_event(WebInputEvent::Type::kMouseDown,
                             WebInputEvent::kNoModifiers,
@@ -14001,7 +14015,7 @@ TEST_F(WebFrameTest, RightClickActivatesForExecuteCommand) {
       WebCoalescedInputEvent(mouse_event, ui::LatencyInfo()));
   RunPendingTasks();
 
-  frame->ExecuteCommand(WebString::FromUTF8("Paste"));
+  frame->ExecuteCommand(WebString("Paste"));
   EXPECT_TRUE(frame->GetFrame()->HasStickyUserActivation());
 }
 
@@ -14218,6 +14232,9 @@ TEST_F(WebFrameTest, RemoteViewportAndMainframeIntersections) {
   helper.InitializeRemote();
   WebLocalFrameImpl* local_frame =
       helper.CreateLocalChild(*helper.RemoteMainFrame(), "frameName");
+
+  local_frame->FrameWidgetImpl()->Resize(gfx::Size(200, 100));
+
   frame_test_helpers::LoadHTMLString(local_frame, R"HTML(
       <!DOCTYPE html>
       <style>
@@ -14256,6 +14273,9 @@ TEST_F(WebFrameTest, RemoteViewportAndMainframeIntersections) {
           viewport_intersection, mainframe_intersection, viewport_intersection,
           occlusion_state, gfx::Size(), gfx::Point(), viewport_transform));
 
+  local_frame->FrameWidgetImpl()->UpdateAllLifecyclePhases(
+      DocumentUpdateReason::kTest);
+
   // The viewport intersection should be applied by the layout geometry mapping
   // code when these flags are used.
   int viewport_intersection_flags =
@@ -14282,6 +14302,23 @@ TEST_F(WebFrameTest, RemoteViewportAndMainframeIntersections) {
       ->MapToVisualRectInAncestorSpace(nullptr, mainframe_rect,
                                        kDontApplyMainFrameOverflowClip);
   EXPECT_EQ(PhysicalRect(7, -11, 25, 35), mainframe_rect);
+
+  constexpr auto kGeometryMapperFlags = static_cast<VisualRectFlags>(
+      kUseGeometryMapper | kVisualRectApplyRemoteViewportTransform |
+      kIgnoreFilters);
+
+  // Translate (0,0) by (7, -11) => (7, -11)
+  // Clip against parent viewport (0, 0, 200, 140):
+  // Resulting Rect Top: max(-11, 0) = 0.
+  // Resulting Rect Height: 35 - 11 = 24.
+  // Final Result: (7, 0, 25, 24).
+  PhysicalRect geometry_mapper_rect(0, 0, 25, 35);
+  local_frame->GetFrame()
+      ->GetDocument()
+      ->GetLayoutView()
+      ->MapToVisualRectInAncestorSpace(nullptr, geometry_mapper_rect,
+                                       kGeometryMapperFlags);
+  EXPECT_EQ(PhysicalRect(7, 0, 25, 24), geometry_mapper_rect);
 }
 
 class TestUpdateFaviconURLLocalFrameHost : public FakeLocalFrameHost {
@@ -14909,26 +14946,6 @@ TEST_F(WebFrameTest, SandboxedIframePopupCtrlClick) {
   EXPECT_EQ(web_frame_client.iframe_client()->BeginNavigationCallCount(), 1);
 }
 
-// Tests that a FrameLoadRequest for a POST request made from an opaque origin
-// results in a ResourceRequest with an Origin header of "null".
-TEST_F(WebFrameTest, FrameLoadRequestOriginPOSTOpaque) {
-  frame_test_helpers::WebViewHelper web_view_helper;
-  web_view_helper.Initialize();
-  auto* frame = web_view_helper.LocalMainFrame()->GetFrame();
-  auto* window = frame->DomWindow();
-
-  window->GetSecurityContext().SetSecurityOriginForTesting(
-      SecurityOrigin::CreateUniqueOpaque());
-
-  ResourceRequest resource_request(KURL("https://destination.test/"));
-  resource_request.SetHttpMethod(http_names::kPOST);
-
-  FrameLoadRequest frame_load_request(window, resource_request);
-
-  EXPECT_EQ("null", frame_load_request.GetResourceRequest().HttpHeaderField(
-                        http_names::kOrigin));
-}
-
 // Tests that a FrameLoadRequest for a GET request made from an opaque origin
 // results in a ResourceRequest with no Origin header.
 TEST_F(WebFrameTest, FrameLoadRequestOriginGETOpaque) {
@@ -14948,53 +14965,6 @@ TEST_F(WebFrameTest, FrameLoadRequestOriginGETOpaque) {
   EXPECT_TRUE(frame_load_request.GetResourceRequest()
                   .HttpHeaderField(http_names::kOrigin)
                   .IsNull());
-}
-
-// Tests that a FrameLoadRequest for a POST request made from a document with
-// URL "about:blank" and origin "https://example.test" results in a
-// ResourceRequest with an Origin header of "https://example.test".
-TEST_F(WebFrameTest, FrameLoadRequestOriginPOSTAboutBlank) {
-  frame_test_helpers::WebViewHelper web_view_helper;
-  web_view_helper.Initialize();
-  auto* frame = web_view_helper.LocalMainFrame()->GetFrame();
-  auto* window = frame->DomWindow();
-
-  frame->GetDocument()->SetURL(BlankUrl());
-  window->GetSecurityContext().SetSecurityOriginForTesting(
-      SecurityOrigin::CreateFromString("https://example.test"));
-
-  ResourceRequest resource_request(KURL("https://destination.test/"));
-  resource_request.SetHttpMethod(http_names::kPOST);
-
-  FrameLoadRequest frame_load_request(window, resource_request);
-
-  EXPECT_EQ("https://example.test",
-            frame_load_request.GetResourceRequest().HttpHeaderField(
-                http_names::kOrigin));
-}
-
-// Tests that a FrameLoadRequest for a POST request made from a document with
-// URL "about:blank" and origin "https://example.test" with a referrer policy of
-// "no-referrer" results in a ResourceRequest with an Origin header of "null".
-TEST_F(WebFrameTest, FrameLoadRequestOriginPOSTAboutBlankNoReferrer) {
-  frame_test_helpers::WebViewHelper web_view_helper;
-  web_view_helper.Initialize();
-  auto* frame = web_view_helper.LocalMainFrame()->GetFrame();
-  auto* window = frame->DomWindow();
-
-  KURL about_blank = BlankUrl();
-  frame->GetDocument()->SetURL(about_blank);
-  window->GetSecurityContext().SetSecurityOriginForTesting(
-      SecurityOrigin::CreateFromString("https://example.test"));
-  window->SetReferrerPolicy(network::mojom::ReferrerPolicy::kNever);
-
-  ResourceRequest resource_request(KURL("https://destination.test/"));
-  resource_request.SetHttpMethod(http_names::kPOST);
-
-  FrameLoadRequest frame_load_request(window, resource_request);
-
-  EXPECT_EQ("null", frame_load_request.GetResourceRequest().HttpHeaderField(
-                        http_names::kOrigin));
 }
 
 }  // namespace blink

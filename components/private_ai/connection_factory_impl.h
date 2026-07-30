@@ -16,7 +16,6 @@
 
 namespace network::mojom {
 class NetworkContext;
-class NetworkService;
 }  // namespace network::mojom
 
 namespace private_ai {
@@ -41,8 +40,7 @@ class ConnectionFactoryImpl : public ConnectionFactory {
   ConnectionFactoryImpl& operator=(const ConnectionFactoryImpl&) = delete;
 
   void EnableTokenAttestation(phosphor::TokenManager* token_manager);
-  void EnableProxy(const GURL& proxy_url,
-                   network::mojom::NetworkService* network_service);
+  void EnableProxy(const GURL& proxy_url);
 
   void SetSecureChannelFactoryForTesting(
       SecureChannelFactoryOverride override) {
@@ -51,7 +49,7 @@ class ConnectionFactoryImpl : public ConnectionFactory {
 
   // ConnectionFactory override:
   std::unique_ptr<Connection> Create(
-      base::RepeatingCallback<void(ErrorCode)> on_disconnect) override;
+      base::RepeatingCallback<void(StatusCode)> on_disconnect) override;
 
  private:
   const GURL url_;
@@ -62,7 +60,6 @@ class ConnectionFactoryImpl : public ConnectionFactory {
 
   raw_ptr<phosphor::TokenManager> token_manager_ = nullptr;
   GURL proxy_url_;
-  raw_ptr<network::mojom::NetworkService> network_service_ = nullptr;
 };
 
 }  // namespace private_ai

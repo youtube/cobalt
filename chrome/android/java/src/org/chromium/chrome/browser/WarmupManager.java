@@ -57,7 +57,6 @@ import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabBuilder;
 import org.chromium.chrome.browser.tab.TabDelegateFactory;
 import org.chromium.chrome.browser.tab.TabLaunchType;
-import org.chromium.chrome.browser.tab.TabLoadIfNeededCaller;
 import org.chromium.chrome.browser.tab.TabSelectionType;
 import org.chromium.chrome.browser.tab.TabUtils;
 import org.chromium.chrome.browser.toolbar.ControlContainer;
@@ -281,7 +280,7 @@ public class WarmupManager {
 
         // These are effectively unused as they will be set when finishing reparenting.
         TabDelegateFactory delegateFactory = CustomTabDelegateFactory.createEmpty();
-        WindowAndroid window = new WindowAndroid(context, /* trackOcclusion= */ false);
+        WindowAndroid window = new WindowAndroid(context, /* occlusionTrackingAllowed= */ false);
 
         // TODO(crbug.com/40174356): Set isIncognito flag here if spare tabs are allowed for
         // incognito mode.
@@ -331,9 +330,7 @@ public class WarmupManager {
             mSpareTabFinalStatus = SpareTabFinalStatus.TAB_USED;
 
             if (!initiallyHidden) {
-                spareTab.show(
-                        TabSelectionType.FROM_NEW,
-                        TabLoadIfNeededCaller.REQUEST_TO_SHOW_TAB_THEN_SHOW);
+                spareTab.show(TabSelectionType.FROM_NEW);
             }
 
             // Record the SpareTabFinalStatus once its used.

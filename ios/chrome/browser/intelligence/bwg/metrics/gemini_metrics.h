@@ -20,6 +20,7 @@ enum class FloatyUpdateSource;
 enum class ImageActionButtonType;
 enum class InputPlateAttachmentOption;
 enum class FREState;
+enum class RegenerateOptionType;
 // Encapsulates a set of ineligibility reasons computed during a single Gemini
 // eligibility check.
 struct IneligibilityReasons {
@@ -169,8 +170,8 @@ extern const char kGeminiSessionLengthFREWithPromptHistogram[];
 // UMA histogram key for IOS.Gemini.SessionLength.FRE.Abandoned.
 extern const char kGeminiSessionLengthFREWithAbandonedHistogram[];
 
-// TODO(crbug.com/481711842): Replace this enum and its
-// gemini_session_delegate.h equivalent with an enum in gemini_constants.h
+// TODO(crbug.com/481711842): Replace this enum with its equivalent defined in
+// gemini_constants.h as gemini::InputType.
 // Enum for the IOS.Gemini.FirstPrompt.SubmissionMethod histogram.
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused.
@@ -205,7 +206,7 @@ enum class IOSGeminiFirstPromptSubmissionMethod {
 };
 // LINT.ThenChange(
 //   /tools/metrics/histograms/metadata/ios/enums.xml:IOSGeminiFirstPromptSubmissionMethod,
-//   /ios/chrome/browser/intelligence/bwg/model/gemini_session_delegate.h:BWGInputType
+//   /ios/chrome/browser/intelligence/bwg/model/gemini_constants.h:InputType
 // )
 
 // UMA histogram key for IOS.Gemini.FirstPrompt.SubmissionMethod.
@@ -513,6 +514,9 @@ void RecordGeminiEntryPointClick(gemini::EntryPoint entry_point,
 
 // Records that the user tapped the new chat button in a Gemini session.
 void RecordGeminiNewChatButtonTapped();
+
+// Records that the user tapped the regenerate button in the Gemini floaty.
+void RecordGeminiRegenerateButtonTapped(gemini::RegenerateOptionType option);
 
 // Records that the AI Hub new badge was tapped.
 void RecordAIHubNewBadgeTapped();

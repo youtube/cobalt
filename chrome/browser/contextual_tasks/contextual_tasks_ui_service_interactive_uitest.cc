@@ -546,7 +546,8 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksUiServiceInteractiveUiTest,
         std::optional<ContextualTask> task =
             contextual_tasks_service->GetContextualTaskForTab(tab_id);
         EXPECT_TRUE(task.has_value());
-        const GURL expected_url("https://google.com/search?sourceid=chrome");
+        const GURL expected_url(
+            "https://google.com/search?sourceid=chrome&ccb=1");
         EXPECT_EQ(service->GetInitialUrlForTask(task->GetTaskId()),
                   expected_url);
       }));
@@ -668,59 +669,6 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksUiServiceInteractiveUiTest,
         // with the same task.
         EXPECT_FALSE(coordinator->IsPanelOpenForContextualTask());
       }));
-}
-
-class ContextualTasksUiServiceWithoutSidePanelInteractiveUiTest
-    : public ContextualTasksUiServiceInteractiveUiTest {
- public:
-  ContextualTasksUiServiceWithoutSidePanelInteractiveUiTest() {
-    scoped_feature_list_.InitWithFeaturesAndParameters(
-        {{kContextualTasks,
-          {{"ContextualTasksOpenSidePanelOnLinkClicked", "false"}}},
-         {kContextualTasksForceEntryPointEligibility, {}}},
-        {});
-  }
-  ~ContextualTasksUiServiceWithoutSidePanelInteractiveUiTest() override =
-      default;
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
-};
-
-IN_PROC_BROWSER_TEST_F(
-    ContextualTasksUiServiceWithoutSidePanelInteractiveUiTest,
-    OnThreadLinkClicked_DoNotOpenSidePanel) {
-  EXPECT_TRUE(ui_test_utils::NavigateToURL(
-      browser(), GURL(chrome::kChromeUIContextualTasksURL)));
-
-  ContextualTasksService* contextual_tasks_service =
-      ContextualTasksServiceFactory::GetForProfile(browser()->profile());
-
-  // Add a contextual-tasks tab and add it to a group.
-  ContextualTask task1 = contextual_tasks_service->CreateTask();
-
-  tabs::TabInterface* task_tab =
-      TabListInterface::From(browser())->GetActiveTab();
-
-  ContextualTasksUiService* service =
-      ContextualTasksUiServiceFactory::GetForBrowserContext(
-          browser()->profile());
-  ASSERT_TRUE(service);
-
-  // Fake a link click interception.
-  service->OnThreadLinkClicked(GURL(chrome::kChromeUIHistoryURL),
-                               task1.GetTaskId(), task_tab->GetWeakPtr(),
-                               browser()->GetWeakPtr());
-
-  // Wait for the navigation to finish.
-  content::TestNavigationObserver observer(
-      browser()->GetActiveTabInterface()->GetContents());
-  observer.WaitForNavigationFinished();
-
-  // Verify the side panel is not open.
-  ContextualTasksPanelController* coordinator =
-      ContextualTasksPanelController::From(browser());
-  EXPECT_FALSE(coordinator->IsPanelOpenForContextualTask());
 }
 
 class DisabledContextualTasksUiServiceInteractiveUiTest

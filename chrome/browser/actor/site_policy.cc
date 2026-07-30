@@ -15,11 +15,8 @@
 #include "base/strings/string_split.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/types/expected.h"
-#include "chrome/browser/actor/actor_features.h"
-#include "chrome/browser/actor/actor_util.h"
 #include "chrome/browser/actor/aggregated_journal.h"
-#include "chrome/browser/actor/enterprise_policy_url_checker.h"
-#include "chrome/browser/actor/origin_checker.h"
+#include "chrome/browser/actor/enterprise_policy_checker.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/lookalikes/lookalike_url_service.h"
 #include "chrome/browser/lookalikes/lookalike_url_service_factory.h"
@@ -29,6 +26,9 @@
 #include "chrome/browser/profiles/profile_io_data.h"
 #include "chrome/common/actor/actor_logging.h"
 #include "chrome/common/actor/journal_details_builder.h"
+#include "components/actor/core/actor_features.h"
+#include "components/actor/core/actor_util.h"
+#include "components/actor/core/origin_checker.h"
 #include "components/optimization_guide/core/filters/optimization_hints_component_update_listener.h"
 #include "components/optimization_guide/core/hints/optimization_guide_decision.h"
 #include "components/optimization_guide/core/optimization_guide_util.h"
@@ -137,7 +137,7 @@ void MayActOnUrlInternal(const GURL& url,
                          bool allow_insecure_http,
                          Profile* profile,
                          base::optional_ref<const OriginChecker> origin_checker,
-                         const EnterprisePolicyUrlChecker& policy_checker,
+                         const EnterprisePolicyChecker& policy_checker,
                          std::unique_ptr<DecisionWrapper> decision_wrapper) {
   if ((net::IsLocalhost(url) && url.SchemeIsHTTPOrHTTPS()) ||
       url.IsAboutBlank()) {
@@ -220,15 +220,15 @@ void MayActOnUrlInternal(const GURL& url,
     }
   }
 
-  const EnterprisePolicyBlockReason enterprise_reason =
+  const EnterprisePolicyChecker::UrlBlockReason enterprise_reason =
       policy_checker.Evaluate(url);
   switch (enterprise_reason) {
-    case EnterprisePolicyBlockReason::kNotBlocked:
+    case EnterprisePolicyChecker::UrlBlockReason::kNotBlocked:
       break;
-    case EnterprisePolicyBlockReason::kExplicitlyAllowed:
+    case EnterprisePolicyChecker::UrlBlockReason::kExplicitlyAllowed:
       decision_wrapper->Accept();
       return;
-    case EnterprisePolicyBlockReason::kExplicitlyBlocked:
+    case EnterprisePolicyChecker::UrlBlockReason::kExplicitlyBlocked:
       decision_wrapper->Reject("Enterprise policy block",
                                MayActOnUrlBlockReason::kEnterprisePolicy);
       return;
@@ -307,7 +307,7 @@ void MayActOnTab(const tabs::TabInterface& tab,
                  AggregatedJournal& journal,
                  TaskId task_id,
                  const OriginChecker& origin_checker,
-                 const EnterprisePolicyUrlChecker& policy_checker,
+                 const EnterprisePolicyChecker& policy_checker,
                  DecisionCallbackWithReason callback) {
   content::WebContents& web_contents = *tab.GetContents();
 
@@ -347,7 +347,7 @@ void MayActOnUrl(const GURL& url,
                  Profile* profile,
                  AggregatedJournal& journal,
                  TaskId task_id,
-                 const EnterprisePolicyUrlChecker& policy_checker,
+                 const EnterprisePolicyChecker& policy_checker,
                  DecisionCallbackWithReason callback) {
   std::unique_ptr<DecisionWrapper> decision_wrapper =
       std::make_unique<DecisionWrapper>(journal, url, task_id, "MayActOnUrl",

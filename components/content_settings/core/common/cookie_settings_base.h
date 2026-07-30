@@ -91,48 +91,26 @@ class CookieSettingsBase {
     // Allow by global 3p cookie setting setting (e.g. Enterprise Policy:
     // BlockThirdPartyCookies, UX).
     kAllowByGlobalSetting = 2,
-    // (DEPRECATED) Allow by 3PCD metadata grants content settings. This was
-    // replaced by the `kAllowBy3PCDMetadata.+` enums below.
     // kAllowBy3PCDMetadata = 3,
-    // Allow by third-party cookies deprecation trial.
-    kAllowBy3PCD = 4,
+    // kAllowBy3PCD = 4,  // Deprecated
     // kAllowBy3PCDHeuristics = 5,  // Deprecated
     kAllowByStorageAccess = 6,
     kAllowByTopLevelStorageAccess = 7,
     // kAllowByCORSException = 8,  // Deprecated
-    // Allow by 1P (AKA First Party, Top-level) DT (Deprecation Trial) token
-    // being deployed.
-    kAllowByTopLevel3PCD = 9,
+    // kAllowByTopLevel3PCD = 9,  // Deprecated
     // Allow by Enterprise Policy (SettingSource::kPolicy):
     // CookiesAllowedForUrls.
     kAllowByEnterprisePolicyCookieAllowedForUrls = 10,
-    // Same as kAllowBy3PCDMetadata but for
-    // mojom::TpcdMetadataRuleSource::SOURCE_UNSPECIFIED rules.
-    kAllowBy3PCDMetadataSourceUnspecified = 11,
-    // Same as kAllowBy3PCDMetadata but for
-    // mojom::TpcdMetadataRuleSource::SOURCE_TEST rules.
-    kAllowBy3PCDMetadataSourceTest = 12,
-    // Same as kAllowBy3PCDMetadata but for
-    // mojom::TpcdMetadataRuleSource::SOURCE_1P_DT rules.
-    kAllowBy3PCDMetadataSource1pDt = 13,
-    // Same as kAllowBy3PCDMetadata but for
-    // mojom::TpcdMetadataRuleSource::SOURCE_3P_DT rules.
-    kAllowBy3PCDMetadataSource3pDt = 14,
-    // Same as kAllowBy3PCDMetadata but for
-    // mojom::TpcdMetadataRuleSource::SOURCE_DOGFOOD rules.
-    kAllowBy3PCDMetadataSourceDogFood = 15,
-    // Same as kAllowBy3PCDMetadata but for
-    // mojom::TpcdMetadataRuleSource::SOURCE_CRITICAL_SECTOR rules.
-    kAllowBy3PCDMetadataSourceCriticalSector = 16,
-    // Same as kAllowBy3PCDMetadata but for
-    // mojom::TpcdMetadataRuleSource::SOURCE_CUJ rules.
-    kAllowBy3PCDMetadataSourceCuj = 17,
-    // Same as kAllowBy3PCDMetadata but for
-    // mojom::TpcdMetadataRuleSource::SOURCE_GOV_EDU_TLD rules.
-    kAllowBy3PCDMetadataSourceGovEduTld = 18,
+    // kAllowBy3PCDMetadataSourceUnspecified = 11,  // Deprecated
+    // kAllowBy3PCDMetadataSourceTest = 12,  // Deprecated
+    // kAllowBy3PCDMetadataSource1pDt = 13,  // Deprecated
+    // kAllowBy3PCDMetadataSource3pDt = 14,  // Deprecated
+    // kAllowBy3PCDMetadataSourceDogFood = 15,  // Deprecated
+    // kAllowBy3PCDMetadataSourceCriticalSector = 16,  // Deprecated
+    // kAllowBy3PCDMetadataSourceCuj = 17,  // Deprecated
+    // kAllowBy3PCDMetadataSourceGovEduTld = 18,  // Deprecated
     // Allowed by scheme.
     kAllowByScheme = 19,
-    // Allowed by tracking protection exception.
     // kAllowByTrackingProtectionException = 20,  // Deprecated
     // Allowed by sandbox 'allow-same-site-none-cookies' value.
     kAllowBySandboxValue = 21,
@@ -163,37 +141,6 @@ class CookieSettingsBase {
 
     kMaxValue = kTopLevelAndStorageAccess,
   };
-
-  // Returns true if the allow mechanism represents one of the multiple allow
-  // mechanisms derived from the TPCD Mitigations Metadata.
-  static bool IsAnyTpcdMetadataAllowMechanism(
-      const ThirdPartyCookieAllowMechanism& mechanism);
-
-  // Returns true if the allow mechanism corresponds to the 1P (AKA First Party,
-  // Top-level) DT (Deprecation Trial).
-  static bool Is1PDtRelatedAllowMechanism(
-      const ThirdPartyCookieAllowMechanism& mechanism);
-
-  static ThirdPartyCookieAllowMechanism TpcdMetadataSourceToAllowMechanism(
-      const mojom::TpcdMetadataRuleSource& source);
-
-  // MetadataSourceType exposes 3PCD metadata rule sources in UKM. It should
-  // match FirstPartyMetadataSource in tools/metrics/histograms/enums.xml.
-  // These values are persisted to logs. Entries should not be renumbered and
-  // numeric values should never be reused.
-  enum class MetadataSourceType {
-    None = 0,
-    FirstPartyDt = 1,
-    ThirdPartyDt = 2,
-    CriticalSector = 3,
-    CriticalSectorTld = 4,
-    Cuj = 5,
-    OtherMetadata = 6,
-    Heuristics = 7,
-  };
-
-  static MetadataSourceType AllowMechanismToMetadataSourceType(
-      const ThirdPartyCookieAllowMechanism& allow_mechanism);
 
   class CookieSettingWithMetadata {
    public:
@@ -256,7 +203,7 @@ class CookieSettingsBase {
   };
 
   // Set of types relevant for CookieSettings.
-  using CookieSettingsTypeSet = base::fixed_flat_set<ContentSettingsType, 7>;
+  using CookieSettingsTypeSet = base::fixed_flat_set<ContentSettingsType, 6>;
 
   // ContentSettings listed in this set will be automatically synced to the
   // CookieSettings instance in the network service.
@@ -365,8 +312,8 @@ class CookieSettingsBase {
 
   // Returns whether a cookie should be attached regardless of its SameSite
   // value vs the request context.
-  // This currently returns true if the `site_for_cookies` is a Chrome UI scheme
-  // URL and the `url` is secure.
+  // This currently returns true if the `site_for_cookies` is not null, the
+  // `top_level_origin` is a Chrome UI scheme URL, and the `url` is secure.
   //
   // This bypass refers to all SameSite cookies (unspecified-defaulted-into-Lax,
   // as well as explicitly specified Lax or Strict). This addresses cases where
@@ -383,7 +330,8 @@ class CookieSettingsBase {
   // embedding context.
   virtual bool ShouldIgnoreSameSiteRestrictions(
       const GURL& url,
-      const net::SiteForCookies& site_for_cookies) const = 0;
+      const net::SiteForCookies& site_for_cookies,
+      const url::Origin& top_level_origin) const = 0;
 
   // Determines whether |setting| is a valid content setting for cookies.
   static bool IsValidSetting(ContentSetting setting);
@@ -422,12 +370,6 @@ class CookieSettingsBase {
       net::CookieSettingOverrides overrides,
       SettingInfo* info) const;
 
-  // Returns true iff the query for third-party cookie access should consider
-  // grants awarded by the global allowlist.
-  bool ShouldConsider3pcdMetadataGrantsSettings(
-      const GURL& first_party_url,
-      net::CookieSettingOverrides overrides) const;
-
   // The cookie behavior that may result from a cookie settings modifier
   // (`CookieSettingOverrides`).
   enum class ModifierMode {
@@ -436,10 +378,7 @@ class CookieSettingsBase {
     kUndefined = 0,
     // Indicates that third-party cookies are allowed due to the modifiers.
     kAllow = 1,
-    // Indicates that third-party cookies are blocked but may also be unblocked
-    // due to third-party cookie phaseout related mitigations (grace period,
-    // heuristics, etc.)
-    kPhaseout = 2,
+    // kPhaseout = 2,  // Deprecated.
     // Indicates that third-party cookies are blocked and cannot be unblocked
     // due to third-party cookie phaseout related mitigations (grace period,
     // heuristics, etc.)
@@ -464,8 +403,7 @@ class CookieSettingsBase {
   // Returns a content setting for the requested parameters and populates |info|
   // if not null. Implementations might only implement a subset of all
   // ContentSettingsTypes. Currently only COOKIES, STORAGE_ACCESS,
-  // TPCD_METADATA_GRANTS, TPCD_HEURISTICS_GRANTS, TOP_LEVEL_STORAGE_ACCESS, and
-  // FEDERATED_IDENTITY_SHARING are required.
+  // TOP_LEVEL_STORAGE_ACCESS, and FEDERATED_IDENTITY_SHARING are required.
   virtual ContentSetting GetContentSetting(const GURL& primary_url,
                                            const GURL& secondary_url,
                                            ContentSettingsType content_type,
@@ -489,11 +427,6 @@ class CookieSettingsBase {
   bool IsAllowedBySandboxValue(const GURL& url,
                                const GURL& first_party_url,
                                net::CookieSettingOverrides overrides) const;
-
-  IsAllowedWithMetadata IsAllowedBy3pcdMetadataGrantsSettings(
-      const GURL& url,
-      const GURL& first_party_url,
-      net::CookieSettingOverrides overrides) const;
 
   // TODO(https://crbug.com/378872426): remove `storage_access_permissions` when
   // `API.TopLevelStorageAccess.AllowedByStorageAccessType` is no longer being
@@ -531,11 +464,6 @@ class CookieSettingsBase {
       base::optional_ref<const url::Origin> top_frame_origin,
       net::CookieSettingOverrides overrides) const = 0;
 
-  // Returns whether Third Party Cookie Deprecation mitigations should take
-  // effect. True when mitigations are enabled for
-  // 3PCD.
-  bool ShouldConsiderMitigationsFor3pcd(
-      net::CookieSettingOverrides overrides) const;
   // Returns whether Third Party Cookie Deprecation mitigations are enabled,
   // which requires that we are not blocking or allowing all 3PC and that either
   // 3PCD is enabled or that ForceThirdPartyCookieBlocking is enabled.

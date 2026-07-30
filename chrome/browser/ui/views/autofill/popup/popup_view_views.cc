@@ -266,7 +266,7 @@ void PopupViewViews::OnPaint(gfx::Canvas* canvas) {
 
 bool PopupViewViews::Show(
     AutoselectFirstSuggestion autoselect_first_suggestion) {
-  base::AutoReset show_in_progress_reset(&show_in_progress_, !!search_bar_);
+  base::AutoReset show_in_progress_reset(&show_in_progress_, search_bar_);
 
   UpdateAccessibleStates();
   if (!DoShow()) {
@@ -1079,6 +1079,9 @@ void PopupViewViews::CreateSuggestionViews() {
 
   const int kInterItemsPadding = GetContentsVerticalPadding();
   const std::vector<Suggestion> suggestions = controller_->GetSuggestions();
+  const std::vector<
+      std::optional<AutofillPopupController::SuggestionFilterMatch>>&
+      filter_matches = controller_->GetSuggestionFilterMatches();
 
   SetBackground(views::CreateSolidBackground(ui::kColorDropdownBackground));
 
@@ -1132,10 +1135,8 @@ void PopupViewViews::CreateSuggestionViews() {
         default:
           std::optional<AutofillPopupController::SuggestionFilterMatch>
               filter_match =
-                  controller_->GetSuggestionFilterMatches().empty()
-                      ? std::nullopt
-                      : std::optional(controller_->GetSuggestionFilterMatches()
-                                          [current_line_number]);
+                  filter_matches.empty() ? std::nullopt
+                                         : filter_matches[current_line_number];
           PopupRowView* row_view =
               body_container->AddChildView(CreatePopupRowView(
                   controller(), /*a11y_selection_delegate=*/*this,
@@ -1321,7 +1322,7 @@ gfx::Size PopupViewViews::CalculatePreferredSize(
 
   if (controller_ &&
       controller_->GetMainFillingProduct() == FillingProduct::kAtMemory) {
-    size.set_width(std::max(size.width(), kAutofillPopupMaxWidth));
+    size.set_width(kAtMemoryPopupWidth);
   }
 
   // This popup height limiting for popups with a search bar addresses a minor

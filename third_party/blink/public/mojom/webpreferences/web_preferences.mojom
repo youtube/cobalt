@@ -269,14 +269,21 @@ struct WebPreferences {
 
   bool immersive_mode_enabled;
 
+  bool immersive_video_playback_enabled;
+
   bool double_tap_to_zoom_enabled;
 
   bool fullscreen_supported;
 
   bool text_autosizing_enabled;
+  bool text_size_adjust_enabled;
 
   // Representation of the Web App Manifest scope if any.
   url.mojom.Url web_app_scope;
+
+  // Whether this renderer is associated with the browser's initial ("Default")
+  // profile.
+  bool is_initial_profile;
 
   [EnableIf=is_android]
   float font_scale_factor;
@@ -538,4 +545,9 @@ struct WebPreferences {
   // Chrome-rendered popups instead.
   [EnableIf=is_mac]
   bool should_disable_external_popups = false;
+
+  // Set if this is in a WebView for chrome/browser/indigo/onboarding/ and
+  // should be able to set the onboarding result. Note that this is separately
+  // verified when it sets the result.
+  bool is_indigo_onboarding = false;
 };

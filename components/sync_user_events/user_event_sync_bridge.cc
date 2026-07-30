@@ -79,10 +79,6 @@ UserEventSyncBridge::~UserEventSyncBridge() {
   }
 }
 
-std::unique_ptr<MetadataChangeList>
-UserEventSyncBridge::CreateMetadataChangeList() {
-  return DataTypeStore::WriteBatch::CreateMetadataChangeList();
-}
 
 std::optional<ModelError> UserEventSyncBridge::MergeFullSyncData(
     std::unique_ptr<MetadataChangeList> metadata_change_list,
@@ -182,8 +178,10 @@ void UserEventSyncBridge::ApplyDisableSyncChanges(
     std::unique_ptr<MetadataChangeList> delete_metadata_change_list) {
   CHECK(store_);
 
-  store_->DeleteAllDataAndMetadata(base::BindOnce(
-      &UserEventSyncBridge::OnStoreCommit, weak_ptr_factory_.GetWeakPtr()));
+  store_->DeleteAllDataAndMetadata(
+      std::move(delete_metadata_change_list),
+      base::BindOnce(&UserEventSyncBridge::OnStoreCommit,
+                     weak_ptr_factory_.GetWeakPtr()));
 }
 
 void UserEventSyncBridge::RecordUserEvent(

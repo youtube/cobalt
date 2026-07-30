@@ -150,6 +150,7 @@ chromium-metrics-reviews@google.com.
   <variant name=".DesktopSiteWindowSetting"/>
   <variant name=".DownloadIncognitoWarning"/>
   <variant name=".DownloadProgress"/>
+  <variant name=".ExtensionsRequestAccess"/>
   <variant name=".ExternalNavigation"/>
   <variant name=".FramebustBlocked"/>
   <variant name=".GeneratedPasswordSaved"/>
@@ -714,7 +715,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Android.AssistContent.WebPageContentProvider.GetAssistantPackageResult"
-    enum="BooleanSuccess" expires_after="2026-08-02">
+    enum="BooleanSuccess" expires_after="2026-10-04">
   <owner>salg@google.com</owner>
   <owner>ssid@google.com</owner>
   <summary>
@@ -729,7 +730,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Android.AssistContent.WebPageContentProvider.Latency.CreateToExtractionStart.{RequestType}.{Format}"
-    units="ms" expires_after="2026-08-02">
+    units="ms" expires_after="2026-10-04">
   <owner>salg@google.com</owner>
   <owner>ssid@google.com</owner>
   <summary>
@@ -1141,7 +1142,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.BackPress.MinimizeAppAndCloseTab.CustomTab.{Task}"
-    enum="MinimizeAppAndCloseTabType" expires_after="2026-08-02">
+    enum="MinimizeAppAndCloseTabType" expires_after="2026-10-04">
   <owner>lazzzis@chromium.org</owner>
   <owner>src/chrome/browser/back_press/android/OWNERS</owner>
   <summary>
@@ -1228,7 +1229,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Android.BottomControlsStacker.PercentageOfWindowUsedByBottomControlsAtMaxHeight"
-    units="%" expires_after="2026-08-02">
+    units="%" expires_after="2026-10-04">
   <owner>pnoland@chromium.org</owner>
   <owner>wenyufu@chromium.org</owner>
   <summary>
@@ -1241,7 +1242,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Android.BottomControlsStacker.PercentageOfWindowUsedByBottomControlsAtMinHeight"
-    units="%" expires_after="2026-08-02">
+    units="%" expires_after="2026-10-04">
   <owner>pnoland@chromium.org</owner>
   <owner>wenyufu@chromium.org</owner>
   <summary>
@@ -1314,7 +1315,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.BrowserControls.RenderDrivenShowConstraint"
-    enum="Boolean" expires_after="2026-08-02">
+    enum="Boolean" expires_after="2026-10-04">
   <owner>wenyufu@chromium.org</owner>
   <owner>clank-app-team@google.com</owner>
   <summary>
@@ -1476,7 +1477,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.ChildProcessConectionEventCounts"
-    enum="AndroidChildProcessConnectionEvents" expires_after="2026-08-02">
+    enum="AndroidChildProcessConnectionEvents" expires_after="2026-10-04">
   <owner>boliu@chromium.org</owner>
   <owner>yfriedman@chromium.org</owner>
   <summary>
@@ -1500,7 +1501,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.ChildProcessConnection.OnServiceConnectedCounts"
-    units="count" expires_after="2026-08-02">
+    units="count" expires_after="2026-10-04">
   <owner>boliu@chromium.org</owner>
   <owner>kawasin@chromium.org</owner>
   <owner>yfriedman@chromium.org</owner>
@@ -1515,7 +1516,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.ChildProcessRanking.{RankType}.Count" units="count"
-    expires_after="2026-08-02">
+    expires_after="2026-10-04">
   <owner>kawasin@google.com</owner>
   <owner>clank-performance-team@google.com</owner>
   <summary>
@@ -1800,6 +1801,17 @@ chromium-metrics-reviews@google.com.
     The final default browser state (outcome) after the user has been prompted
     to set Chrome as the default via the App Menu item. Recorded when the system
     UI prompting the user to change their default is dismissed.
+  </summary>
+</histogram>
+
+<histogram name="Android.DefaultBrowserPromo.Outcome.FRE"
+    enum="AndroidDefaultBrowserPromoOutcomeType" expires_after="2027-04-09">
+  <owner>eleanorlee@google.com</owner>
+  <owner>twellington@chromium.org</owner>
+  <summary>
+    The final default browser state (outcome) after the user has been prompted
+    to set Chrome as the default via the First Run Experience. Recorded when the
+    Role Manager Dialog is dismissed.
   </summary>
 </histogram>
 
@@ -2831,7 +2843,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.InputOnViz.Browser.TransferInputToVizResult2"
-    enum="TransferInputToVizResult" expires_after="2026-08-02">
+    enum="TransferInputToVizResult" expires_after="2026-10-04">
   <owner>kartarsingh@google.com</owner>
   <owner>amanvr@google.com</owner>
   <owner>woa-performance-team@google.com</owner>
@@ -2988,6 +3000,17 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Android.Intent.BringTabToFront.Result"
+    enum="BringTabToFrontResult" expires_after="2026-12-31">
+  <owner>philyan@chromium.org</owner>
+  <owner>skavuluru@google.com</owner>
+  <summary>
+    Records the outcome of attempting to bring a tabbed activity to the front
+    using a multi-window intent. This helps track the success rate and failure
+    reasons of the MoveToFrontInLaunchIntentDispatcher feature.
+  </summary>
+</histogram>
+
 <histogram name="Android.Intent.HasNonSpoofablePackageName" enum="Boolean"
     expires_after="2024-12-01">
   <owner>katzz@google.com</owner>
@@ -3042,6 +3065,31 @@ chromium-metrics-reviews@google.com.
     on Android, and should only happen when background/early navigations
     redirect.
   </summary>
+</histogram>
+
+<histogram name="Android.Intent.LaunchInInstance.EarlyFailureReason"
+    enum="LaunchInInstanceEarlyFailureReason" expires_after="2026-12-31">
+  <owner>philyan@chromium.org</owner>
+  <owner>skavuluru@google.com</owner>
+  <summary>
+    Records the reason for early failure when launching an intent into an
+    existing multi-window instance. Recorded only when an early failure occurs.
+  </summary>
+</histogram>
+
+<histogram name="Android.Intent.LaunchInInstance.{Api}.Result"
+    enum="BooleanSuccess" expires_after="2026-12-31">
+  <owner>philyan@chromium.org</owner>
+  <owner>skavuluru@google.com</owner>
+  <summary>
+    Records the success or failure of attempting to bring a task to the front
+    using the {Api} API path.
+  </summary>
+  <token key="Api">
+    <variant name="AppTaskStartActivity" summary="AppTask.startActivity()"/>
+    <variant name="SafeStartActivity"
+        summary="IntentUtils.safeStartActivity()"/>
+  </token>
 </histogram>
 
 <histogram name="Android.Intent.MainFrameIntentLaunch"
@@ -3162,6 +3210,17 @@ chromium-metrics-reviews@google.com.
     The low 16 bits of each version are combined into a 32-bit integer. The
     range is from [0x00020006,0x0004000a] to track kernel versions 2.6 through
     4.10.
+  </summary>
+</histogram>
+
+<histogram name="Android.LauncherShortcut.UpdateFailure"
+    enum="LauncherShortcutUpdateFailure" expires_after="2026-10-08">
+  <owner>shuyng@google.com</owner>
+  <owner>clank-large-form-factors@google.com</owner>
+  <summary>
+    Records failures when trying to update dynamic shortcuts in
+    LauncherShortcutActivity. Recorded when setDynamicShortcuts is rate-limited
+    or exceeds the maximum number of shortcuts.
   </summary>
 </histogram>
 
@@ -3297,7 +3356,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.Messages.Enqueued.Hidden" enum="MessageIdentifier"
-    expires_after="2026-08-02">
+    expires_after="2026-10-04">
   <owner>lazzzis@chromium.org</owner>
   <owner>src/components/messages/OWNERS</owner>
   <summary>
@@ -3486,7 +3545,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.MultiInstance.MaxInstanceCount" units="instances"
-    expires_after="2026-08-02">
+    expires_after="2026-10-04">
   <owner>jinsukkim@chromium.org</owner>
   <owner>twellington@chromium.org</owner>
   <owner>clank-app-team@google.com</owner>
@@ -3708,6 +3767,68 @@ chromium-metrics-reviews@google.com.
     Records whether multiple user profiles are present in Android.
 
     This is recorded every time a metrics log is created.
+  </summary>
+</histogram>
+
+<histogram name="Android.MultiWindow.Occlusion.CalculateResult"
+    enum="WindowOcclusionCalculateResult" expires_after="2027-04-02">
+  <owner>kalutes@google.com</owner>
+  <owner>clank-large-form-factors@google.com</owner>
+  <summary>
+    Records the result of WindowOcclusionTracker calculateOcclusion operation.
+    Emitted when window position changes or windows are redrawn.
+  </summary>
+</histogram>
+
+<histogram name="Android.MultiWindow.Occlusion.TrackResult" enum="Boolean"
+    expires_after="2027-04-02">
+  <owner>kalutes@google.com</owner>
+  <owner>clank-large-form-factors@google.com</owner>
+  <summary>
+    Records the result of WindowOcclusionTracker track operation. Emitted when a
+    new window is created. False if the root view could not be found, true on
+    success.
+  </summary>
+</histogram>
+
+<histogram name="Android.MultiWindow.Occlusion.UntrackResult" enum="Boolean"
+    expires_after="2027-04-02">
+  <owner>kalutes@google.com</owner>
+  <owner>clank-large-form-factors@google.com</owner>
+  <summary>
+    Records the result of WindowOcclusionTracker untrack operation. Emitted when
+    a window is destroyed. False if the root view could not be found, true on
+    success.
+  </summary>
+</histogram>
+
+<histogram name="Android.MultiWindow.WindowZOrder.DisplaysCount" units="count"
+    expires_after="2027-04-02">
+  <owner>kalutes@google.com</owner>
+  <owner>clank-large-form-factors@google.com</owner>
+  <summary>
+    Records the number of displays being tracked for WindowZOrderTracker.
+    Recorded every 5 minutes.
+  </summary>
+</histogram>
+
+<histogram name="Android.MultiWindow.WindowZOrder.FocusChangedCount"
+    units="count" expires_after="2027-04-02">
+  <owner>kalutes@google.com</owner>
+  <owner>clank-large-form-factors@google.com</owner>
+  <summary>
+    Records the number of window focus change events handled by
+    WindowZOrderTracker over the preceding 5 minutes.
+  </summary>
+</histogram>
+
+<histogram name="Android.MultiWindow.WindowZOrder.TrackedWindowsCount"
+    units="count" expires_after="2027-04-02">
+  <owner>kalutes@google.com</owner>
+  <owner>clank-large-form-factors@google.com</owner>
+  <summary>
+    Records the number of windows tracked by WindowZOrderTracker. Recorded every
+    5 minutes.
   </summary>
 </histogram>
 
@@ -4988,6 +5109,16 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Android.Pdf.UriIsNull" enum="Boolean"
+    expires_after="2026-09-20">
+  <owner>shuyng@google.com</owner>
+  <owner>clank-large-form-factors@google.com</owner>
+  <summary>
+    Records whether the PDF file URI is null when attempting to load the file.
+    Recorded in PdfCoordinator#loadPdfFile.
+  </summary>
+</histogram>
+
 <histogram name="Android.PhotoPicker.BitmapScalerTask" units="ms"
     expires_after="2024-06-01">
   <owner>finnur@chromium.org</owner>
@@ -5069,21 +5200,6 @@ chromium-metrics-reviews@google.com.
   <owner>twellington@chromium.org</owner>
   <summary>
     The percentage of runtime error decoding failures, per batch of videos (not
-    photos) decoded. Intended to help identify if there are devices where
-    decoding fails 100% of the time. Be wary at looking at other numbers in the
-    histogram, as a value emitted at, say, 50% may represent one failure in a
-    two-item decoding or 50 failures in a hundred-item decoding. These are
-    qualitatively different experiences for a user. Note: This metric was not
-    logged in June 2023.
-  </summary>
-</histogram>
-
-<histogram name="Android.PhotoPicker.DecoderHostVideoUnknownError" units="%"
-    expires_after="2024-06-01">
-  <owner>finnur@chromium.org</owner>
-  <owner>twellington@chromium.org</owner>
-  <summary>
-    The percentage of unknown decoding error failures, per batch of videos (not
     photos) decoded. Intended to help identify if there are devices where
     decoding fails 100% of the time. Be wary at looking at other numbers in the
     histogram, as a value emitted at, say, 50% may represent one failure in a
@@ -5798,16 +5914,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Android.StrictMode.ThumbnailCacheDir" units="ms"
-    expires_after="M85">
-  <owner>wnwen@chromium.org</owner>
-  <owner>yfriedman@chromium.org</owner>
-  <summary>
-    Measures the amount of time due to a StrictMode violation from fetching for
-    the thumbnail cache directory.
-  </summary>
-</histogram>
-
 <histogram name="Android.Survey.DownloadRequested2" enum="BooleanRequested"
     expires_after="2026-04-19">
   <owner>wenyufu@chromium.org</owner>
@@ -6243,19 +6349,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Android.TabStrip.ReopenClosedEntry.Result" enum="Boolean"
-    expires_after="2027-01-26">
-  <owner>mklw@google.com</owner>
-  <owner>clank-large-form-factors@google.com</owner>
-  <summary>
-    Records the result of the 'Reopen closed entry' action from the empty space
-    tab strip context menu. Recorded when the user selects the menu item. True
-    if the tab model is non-null, thus succeeding to call the tab model's
-    openMostRecentlyClosedEntry method. False if the tab model is null, thus
-    failing to call the method.
-  </summary>
-</histogram>
-
 <histogram name="Android.TabStrip.TabGroupCollapsed" enum="Boolean"
     expires_after="2025-11-09">
   <owner>nemco@google.com</owner>
@@ -6434,7 +6527,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.ToolbarPosition.PositionAtStartup"
-    enum="ToolbarPosition" expires_after="2026-08-02">
+    enum="ToolbarPosition" expires_after="2026-10-04">
   <owner>pnoland@chromium.org</owner>
   <owner>gangwu@chromium.org</owner>
   <summary>
@@ -6450,7 +6543,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.ToolbarPosition.PositionPrefChanged"
-    enum="ToolbarPosition" expires_after="2026-08-02">
+    enum="ToolbarPosition" expires_after="2026-10-04">
   <owner>pnoland@chromium.org</owner>
   <owner>gangwu@chromium.org</owner>
   <summary>
@@ -7842,7 +7935,6 @@ chromium-metrics-reviews@google.com.
 <histogram name="Android.WebView.LoadUrl.UrlScheme" enum="WebViewUrlScheme"
     expires_after="2024-06-13">
   <owner>ntfschr@chromium.org</owner>
-  <owner>oksamyt@chromium.org</owner>
   <owner>torne@chromium.org</owner>
   <owner>src/android_webview/OWNERS</owner>
   <summary>
@@ -8195,6 +8287,20 @@ chromium-metrics-reviews@google.com.
   <summary>
     Records the mixed content mode set when an app uses the
     WebSettings.setMixedContentMode API.
+  </summary>
+</histogram>
+
+<histogram name="Android.WebView.Navigation.MainFrame"
+    enum="WebViewNavigationType" expires_after="2026-09-30">
+  <owner>torne@chromium.org</owner>
+  <owner>src/android_webview/OWNERS</owner>
+  <summary>
+    For each committed navigation in the main frame of a WebView, records
+    whether this was the initial navigation, a same-document navigation, or in
+    all other cases whether it is same- or cross-origin and whether it was
+    triggered by the browser or renderer.
+
+    Navigations that do not commit (interrupted, HTTP 204, etc) are not counted.
   </summary>
 </histogram>
 
@@ -9551,6 +9657,16 @@ chromium-metrics-reviews@google.com.
   <summary>
     Reports whether or not the warm up renderer process API call starts a new
     process. Recorded once per call to the warm up renderer process API.
+  </summary>
+</histogram>
+
+<histogram name="Android.Window.OcclusionExperimental.Duration" units="ms"
+    expires_after="2027-04-02">
+  <owner>kalutes@google.com</owner>
+  <owner>clank-large-form-factors@google.com</owner>
+  <summary>
+    Records the duration a window was occluded. Recorded when a window is
+    unoccluded or destroyed.
   </summary>
 </histogram>
 

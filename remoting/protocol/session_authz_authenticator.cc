@@ -118,11 +118,15 @@ void SessionAuthzAuthenticator::ProcessMessage(
     case SessionAuthzState::WAITING_FOR_SESSION_TOKEN:
       VerifySessionToken(message, std::move(resume_callback));
       break;
-    case SessionAuthzState::SHARED_SECRET_FETCHED:
+    case SessionAuthzState::SHARED_SECRET_FETCHED: {
       DCHECK_EQ(underlying_->state(), WAITING_MESSAGE);
+      auto self = weak_factory_.GetWeakPtr();
       underlying_->ProcessMessage(message, std::move(resume_callback));
-      StartReauthorizerIfNecessary();
+      if (self) {
+        StartReauthorizerIfNecessary();
+      }
       break;
+    }
     default:
       NOTREACHED() << "Unexpected SessionAuthz state: "
                    << static_cast<int>(session_authz_state_);
@@ -133,9 +137,15 @@ JingleAuthentication SessionAuthzAuthenticator::GetNextMessage() {
   DCHECK_EQ(state(), MESSAGE_READY);
 
   JingleAuthentication message;
+  auto self = weak_factory_.GetWeakPtr();
   if (underlying_ && underlying_->state() == MESSAGE_READY) {
     message = underlying_->GetNextMessage();
-    StartReauthorizerIfNecessary();
+    if (self) {
+      StartReauthorizerIfNecessary();
+    }
+  }
+  if (!self) {
+    return message;
   }
 
   if (session_authz_state_ == SessionAuthzState::READY_TO_SEND_HOST_TOKEN) {
@@ -245,8 +255,11 @@ void SessionAuthzAuthenticator::OnVerifiedSessionToken(
                                                         WAITING_MESSAGE);
   session_policies_ = std::move(response->session_policies);
   verify_token_response_ = std::move(response);
+  auto self = weak_factory_.GetWeakPtr();
   underlying_->ProcessMessage(message, std::move(resume_callback));
-  StartReauthorizerIfNecessary();
+  if (self) {
+    StartReauthorizerIfNecessary();
+  }
 }
 
 void SessionAuthzAuthenticator::HandleSessionAuthzError(
@@ -289,7 +302,7 @@ void SessionAuthzAuthenticator::StartReauthorizerIfNecessary() {
       verify_token_response_->session_reauth_token,
       verify_token_response_->session_reauth_token_lifetime,
       base::BindOnce(&SessionAuthzAuthenticator::OnReauthorizationFailed,
-                     base::Unretained(this)));
+                     weak_factory_.GetWeakPtr()));
   reauthorizer_->Start();
   verify_token_response_.reset();
 }

@@ -16,6 +16,25 @@ namespace metrics {
 
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused.
+// LINT.IfChange(PinExtensionJourneySteps)
+enum class PinExtensionJourneySteps {
+  kExtensionsMenuButtonClicked = 1,
+  kPinExtensionsViaMenuItem = 2,
+  kPinExtensionsViaSidePanelPinButton = 3,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/critical_user_journeys/enums.xml:PinExtensionJourneySteps)
+
+// LINT.IfChange(ClearBrowsingHistoryJourneySteps)
+enum class ClearBrowsingHistoryJourneySteps {
+  kOpenClearBrowsingDataDialogViaAccelerator = 1,
+  kActivateAppMenuButton = 2,
+  kShowClearBrowsingDataSettingsDialog = 3,
+  kClearBrowsingDataHistoryEvent = 4,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/critical_user_journeys/enums.xml:ClearBrowsingHistoryJourneySteps)
+
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
 // LINT.IfChange(ViewDownloadedFileFromAppMenuJourneySteps)
 enum class ViewDownloadedFileFromAppMenuJourneySteps {
   kFinishDownload = 1,

@@ -609,6 +609,31 @@ class EslintTsTest(unittest.TestCase):
       self.assertFalse(
           e in str(context.exception), f'Found unexpected error: {e}')
 
+  def testWebUiEslintPlugin_LitReactiveProperties(self):
+    with self.assertRaises(RuntimeError) as context:
+      self._run_test([
+          "with_webui_plugin_lit_reactive_properties_violations.html.ts",
+          "with_webui_plugin_lit_reactive_properties_violations.ts",
+      ])
+
+    _EXPECTED_STRING = "@webui-eslint/lit-reactive-properties"
+    self.assertTrue(_EXPECTED_STRING in str(context.exception))
+
+    errors = [
+        "Missing Lit reactive property declaration for property 'propNotInProperties' in class 'SomeFooElement'",
+        "'get' syntax in Lit HTML templates is disallowed, encountered a getter for 'getterProp' in class 'SomeFooElement'",
+    ]
+    non_errors = [
+        "mixinString is referenced in the HTML template for SomeFooElement",
+        "propInProperties is referenced in the HTML template for SomeFooElement",
+    ]
+    for e in errors:
+      self.assertTrue(
+          e in str(context.exception), f'Didn\'t find expected error: {e}')
+    for e in non_errors:
+      self.assertFalse(
+          e in str(context.exception), f'Found unexpected error: {e}')
+
   def testWebUiEslintPlugin_LitElementInvalidInterface(self):
     with self.assertRaises(RuntimeError) as context:
       self._run_test([
@@ -865,6 +890,38 @@ class EslintTsTest(unittest.TestCase):
 
     _EXPECTED_ERROR = "Do not mix type and value imports in the same statement. Split them into separate import statements instead"
     self.assertTrue(_EXPECTED_ERROR in str(context.exception))
+
+  def testWebUiEslintPlugin_NoAssertEqualsBoolean(self):
+    with self.assertRaises(RuntimeError) as context:
+      self._run_test(
+          ["with_webui_plugin_no_assert_equals_boolean_violations.ts"])
+
+    _EXPECTED_STRING = "@webui-eslint/no-assert-equals-boolean"
+    self.assertTrue(_EXPECTED_STRING in str(context.exception))
+
+    errors = [
+        "Use assertTrue(bool) instead of assertEquals(true, bool)",
+        "Use assertTrue(bool) instead of assertEquals(bool, true)",
+        "Use assertFalse(bool) instead of assertEquals(false, bool)",
+        "Use assertFalse(bool) instead of assertEquals(bool, false)",
+    ]
+    for e in errors:
+      self.assertTrue(e in str(context.exception))
+
+    non_errors = [
+        "Use assertTrue(notBool) instead of assertEquals(true, notBool)",
+        "Use assertTrue(notBool) instead of assertEquals(notBool, true)",
+        "Use assertFalse(notBool) instead of assertEquals(false, notBool)",
+        "Use assertFalse(notBool) instead of assertEquals(notBool, false)",
+        "Use assertTrue(anyBool) instead of assertEquals(true, anyBool)",
+        "Use assertTrue(anyBool) instead of assertEquals(anyBool, true)",
+        "Use assertFalse(anyBool) instead of assertEquals(false, anyBool)",
+        "Use assertFalse(anyBool) instead of assertEquals(anyBool, false)",
+    ]
+    for e in non_errors:
+      self.assertFalse(
+          e in str(context.exception), f'Found unexpected error: {e}')
+
 
 if __name__ == "__main__":
   unittest.main()

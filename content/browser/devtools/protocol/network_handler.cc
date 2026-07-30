@@ -806,11 +806,11 @@ bool GetPostData(
   }
   for (const auto& element : *elements) {
     // TODO(caseq): Also support blobs.
-    if (element.type() != network::DataElement::Tag::kBytes) {
+    const auto* bytes_element = element.TryAs<network::DataElementBytes>();
+    if (!bytes_element) {
       return false;
     }
-    base::span<const uint8_t> bytes =
-        element.As<network::DataElementBytes>().bytes();
+    base::span<const uint8_t> bytes = bytes_element->bytes();
     auto data_entry = protocol::Network::PostDataEntry::Create().Build();
     data_entry->SetBytes(protocol::Binary::fromSpan(bytes));
     data_entries->push_back(std::move(data_entry));
@@ -1094,13 +1094,6 @@ Network::CookieExemptionReason GetProtocolCookieExemptionReason(
       return Network::CookieExemptionReasonEnum::UserSetting;
     case net::CookieInclusionStatus::ExemptionReason::k3PCDMetadata:
       return Network::CookieExemptionReasonEnum::TPCDMetadata;
-    case net::CookieInclusionStatus::ExemptionReason::k3PCDDeprecationTrial:
-      return Network::CookieExemptionReasonEnum::TPCDDeprecationTrial;
-    case net::CookieInclusionStatus::ExemptionReason::
-        kTopLevel3PCDDeprecationTrial:
-      return Network::CookieExemptionReasonEnum::TopLevelTPCDDeprecationTrial;
-    case net::CookieInclusionStatus::ExemptionReason::k3PCDHeuristics:
-      return Network::CookieExemptionReasonEnum::TPCDHeuristics;
     case net::CookieInclusionStatus::ExemptionReason::kEnterprisePolicy:
       return Network::CookieExemptionReasonEnum::EnterprisePolicy;
     case net::CookieInclusionStatus::ExemptionReason::kStorageAccess:
@@ -1644,8 +1637,6 @@ DispatchResponse NetworkHandler::Disable() {
   extra_headers_.clear();
   ClearAcceptedEncodingsOverride();
   enable_third_party_cookie_restriction_ = false;
-  disable_third_party_cookie_metadata_ = false;
-  disable_third_party_cookie_heuristics_ = false;
 #if BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
   device_bound_session_receiver_.reset();
 #endif  // BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
@@ -2802,7 +2793,8 @@ Response NetworkHandler::EmulateNetworkConditions(
 }
 
 Response NetworkHandler::EmulateNetworkConditionsByRule(
-    bool offline,
+    std::optional<bool> offline,
+    std::optional<bool> emulate_offline_service_worker,
     std::unique_ptr<protocol::Array<protocol::Network::NetworkConditions>>
         matched_network_conditions,
     std::unique_ptr<protocol::Array<String>>* rule_ids_result) {
@@ -2814,7 +2806,9 @@ Response NetworkHandler::EmulateNetworkConditionsByRule(
         network::mojom::MatchedNetworkConditions::New();
     conditions->pattern = matched_condition->GetUrlPattern();
     conditions->conditions = network::mojom::NetworkConditions::New();
-    conditions->conditions->offline = offline;
+    conditions->conditions->offline =
+        offline.has_value() ? offline.value()
+                            : matched_condition->GetOffline(false);
     conditions->conditions->latency =
         base::Milliseconds(matched_condition->GetLatency());
     conditions->conditions->download_throughput =
@@ -2830,7 +2824,9 @@ Response NetworkHandler::EmulateNetworkConditionsByRule(
     rule_ids_result->get()->push_back(rule_id.ToString());
     matched_conditions.emplace_back(std::move(conditions));
   }
-  SetNetworkConditions(std::move(matched_conditions), offline);
+  SetNetworkConditions(
+      std::move(matched_conditions),
+      emulate_offline_service_worker.value_or(offline.value_or(false)));
   return Response::Success();
 }
 
@@ -4232,16 +4228,6 @@ void NetworkHandler::ApplyCookieControlsOverrides(
     net::CookieSettingOverrides& overrides) {
   if (enable_third_party_cookie_restriction_) {
     overrides.Put(net::CookieSettingOverride::kForceDisableThirdPartyCookies);
-    overrides.Put(
-        net::CookieSettingOverride::kForceEnableThirdPartyCookieMitigations);
-  }
-  // TODO(https://crbug.com/375352611): Handle the case to force enable
-  // third-party cookies.
-  if (disable_third_party_cookie_metadata_) {
-    overrides.Put(net::CookieSettingOverride::kSkipTPCDMetadataGrant);
-  }
-  if (disable_third_party_cookie_heuristics_) {
-    overrides.Put(net::CookieSettingOverride::kSkipTPCDHeuristicsGrant);
   }
 }
 
@@ -4703,14 +4689,9 @@ void NetworkHandler::LoadNetworkResource(
 }
 
 DispatchResponse NetworkHandler::SetCookieControls(
-    bool enable_third_party_cookie_restriction,
-    bool disable_third_party_cookie_metadata,
-    bool disable_third_party_cookie_heuristics) {
+    bool enable_third_party_cookie_restriction) {
   enable_third_party_cookie_restriction_ =
       enable_third_party_cookie_restriction;
-  disable_third_party_cookie_metadata_ = disable_third_party_cookie_metadata;
-  disable_third_party_cookie_heuristics_ =
-      disable_third_party_cookie_heuristics;
 
   return Response::Success();
 }

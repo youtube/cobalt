@@ -1149,6 +1149,28 @@ void CompoundImageBacking::OnContextLost() {
   }
 }
 
+void CompoundImageBacking::SetPurgeable(bool purgeable) {
+  AutoLock auto_lock(this);
+  for (auto& element : elements_) {
+    if (element.backing) {
+      element.backing->SetPurgeable(purgeable);
+    }
+  }
+}
+
+bool CompoundImageBacking::IsPurgeable() const {
+  AutoLock auto_lock(this);
+  for (const auto& element : elements_) {
+    // If any of the elements is purgeable, then return true. The caller may
+    // rely on the return value to e.g. recreate data, so needs to be an OR, nor
+    // an AND.
+    if (element.backing && element.backing->IsPurgeable()) {
+      return true;
+    }
+  }
+  return false;
+}
+
 SharedImageBackingType CompoundImageBacking::GetType() const {
   return SharedImageBackingType::kCompound;
 }
@@ -1601,6 +1623,15 @@ const std::vector<SkPixmap>& CompoundImageBacking::GetSharedMemoryPixmaps() {
   AutoLock auto_lock(this);
   auto* shm_backing = GetShmElement().GetBacking();
   DCHECK(shm_backing);
+
+  // SECURITY: When kUseCompoundImageBackingAsDefault is on, WrapExternalBacking
+  // wraps arbitrary backing types and gives them AccessStreamSet::All()
+  // (including kMemory). GetShmElement() then returns that wrapped backing
+  // here regardless of its actual type. Guard against the resulting type
+  // confusion in the static_cast below. Note marking a backing to support all
+  // access stream is expected behavior wheres ::GetSharedMemoryPixmaps should
+  // only be invoked on SharedImageBackingType::kSharedMemory currently.
+  CHECK_EQ(shm_backing->GetType(), SharedImageBackingType::kSharedMemory);
 
   return static_cast<SharedMemoryImageBacking*>(shm_backing)->pixmaps();
 }

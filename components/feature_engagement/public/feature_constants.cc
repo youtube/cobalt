@@ -232,6 +232,9 @@ BASE_FEATURE(kIPHSideBySidePinnableFeature,
 BASE_FEATURE(kIPHSideBySideTabSwitchFeature,
              "IPH_SideBySideTabSwitchFeature",
              base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kIPHVerticalTabsExpandOnHoverFeature,
+             "IPH_VerticalTabsExpandOnHoverFeature",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHVerticalTabstripTutorialFeature,
              "IPH_VerticalTabstripTutorialFeature",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -411,8 +414,11 @@ BASE_FEATURE(kIPHDownloadInfoBarDownloadContinuingFeature,
 BASE_FEATURE(kIPHDownloadInfoBarDownloadsAreFasterFeature,
              "IPH_DownloadInfoBarDownloadsAreFaster",
              base::FEATURE_DISABLED_BY_DEFAULT);
-BASE_FEATURE(kIPHExtensionsManageFeature,
-             "IPH_ExtensionsManage",
+BASE_FEATURE(kIPHExtensionsManageToolbarFeature,
+             "IPH_ExtensionsManageToolbar",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kIPHExtensionsManageAppMenuFeature,
+             "IPH_ExtensionsManageAppMenu",
              base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHReadAloudAppMenuFeature,
              "IPH_ReadAloudAppMenuFeature",
@@ -899,6 +905,9 @@ BASE_FEATURE(kIPHiOSActiveDaysTrackingFeature,
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_LINUX) || \
     BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_FUCHSIA)
+BASE_FEATURE(kIPHAutofillAtMemoryFeature,
+             "IPH_AutofillAtMemory",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHAutofillBnplAffirmOrZipSuggestionFeature,
              "IPH_AutofillBnplAffirmOrZipSuggestion",
              base::FEATURE_ENABLED_BY_DEFAULT);

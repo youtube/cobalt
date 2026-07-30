@@ -273,6 +273,7 @@ class MockPasswordManagerClient : public StubPasswordManagerClient {
               (const std::u16string& submitted_username),
               (override));
   MOCK_METHOD(void, ResetSubmissionTrackingAfterTouchToFill, (), (override));
+  MOCK_METHOD(void, UpdateFormManagers, (), (override));
   MOCK_METHOD(void,
               AutomaticPasswordSave,
               (std::unique_ptr<PasswordFormManagerForUI>,
@@ -378,6 +379,10 @@ class MockPasswordManagerDriver : public StubPasswordManagerDriver {
               (override));
   MOCK_METHOD(bool, IsInPrimaryMainFrame, (), (const, override));
   MOCK_METHOD(const GURL&, GetLastCommittedURL, (), (const, override));
+  MOCK_METHOD(const url::Origin&,
+              GetLastCommittedOrigin,
+              (),
+              (const, override));
   MOCK_METHOD(void,
               GeneratedPasswordAccepted,
               (const std::u16string& password),
@@ -468,6 +473,9 @@ class PasswordManagerTestBase : public testing::Test {
         .WillByDefault(Return(&reuse_manager_));
 
     manager_ = std::make_unique<PasswordManager>(&client_);
+    ON_CALL(client_, UpdateFormManagers()).WillByDefault([this]() {
+      manager_->UpdateFormManagers();
+    });
     manager_->set_leak_factory(
         std::make_unique<testing::NiceMock<MockLeakDetectionCheckFactory>>());
     password_autofill_manager_ =
@@ -483,6 +491,8 @@ class PasswordManagerTestBase : public testing::Test {
         .WillByDefault(ReturnRef(test_form_url_));
     ON_CALL(client_, GetLastCommittedOrigin)
         .WillByDefault(Return(url::Origin::Create(test_form_url_)));
+    ON_CALL(driver_, GetLastCommittedOrigin)
+        .WillByDefault(ReturnRef(test_form_origin_));
     ON_CALL(client_, IsCommittedMainFrameSecure()).WillByDefault(Return(true));
     ON_CALL(client_, IsFillingEnabled).WillByDefault(Return(true));
     ON_CALL(client_, GetMetricsRecorder()).WillByDefault(Return(nullptr));
@@ -837,6 +847,7 @@ class PasswordManagerTestBase : public testing::Test {
   }
 
   const GURL test_form_url_{"https://www.google.com/a/LoginAuth"};
+  const url::Origin test_form_origin_{url::Origin::Create(test_form_url_)};
   const GURL test_form_action_{"https://www.google.com/a/Login"};
   const std::string test_signon_realm_ = "https://www.google.com/";
   base::test::SingleThreadTaskEnvironment task_environment_{
@@ -939,7 +950,9 @@ TEST_P(PasswordManagerTest, GeneratedPasswordFormSubmitEmptyStore) {
   // navigation occurs. The client will be informed that automatic saving has
   // occurred.
   EXPECT_CALL(client_, PromptUserToSaveOrUpdatePassword).Times(0);
-  EXPECT_CALL(client_, AutomaticPasswordSave);
+  EXPECT_CALL(client_, AutomaticPasswordSave)
+      .WillOnce([](std::unique_ptr<PasswordFormManagerForUI> form_manager,
+                   bool) { EXPECT_TRUE(form_manager->IsFetchCompleted()); });
 
   // Now the password manager waits for the navigation to complete.
   manager()->OnPasswordFormsParsed(&driver_, {});
@@ -953,6 +966,25 @@ TEST_P(PasswordManagerTest, GeneratedPasswordFormSubmitEmptyStore) {
   // What was "new password" field in the submitted form, becomes the current
   // password field in the form to save.
   EXPECT_EQ(forms_saved[0].password_value, generated_password);
+}
+
+TEST_P(PasswordManagerTest, GeneratedPasswordFormSubmit_SavingDisabled) {
+  EXPECT_CALL(client_, IsSavingAndFillingEnabled).WillRepeatedly(Return(false));
+
+  std::vector<FormData> observed;
+  FormData form_data(MakeSignUpFormData());
+  observed.push_back(form_data);
+  manager()->OnPasswordFormsParsed(&driver_, observed);
+  manager()->OnPasswordFormsRendered(&driver_, observed);
+
+  // Simulate the user generating the password.
+  const std::u16string generated_password = u"GeNeRaTeDRaNdOmPa$$";
+  manager()->OnPresaveGeneratedPassword(&driver_, form_data,
+                                        generated_password);
+  task_environment_.RunUntilIdle();
+
+  // Verify that it was NOT saved!
+  EXPECT_THAT(store_->stored_passwords(), IsEmpty());
 }
 
 #if BUILDFLAG(IS_IOS)
@@ -1514,6 +1546,26 @@ TEST_P(PasswordManagerTest, DontSaveAlreadySavedCredential) {
   task_environment_.RunUntilIdle();
   EXPECT_EQ(1,
             user_action_tester.GetActionCount("PasswordManager_LoginPassed"));
+}
+
+TEST_P(PasswordManagerTest, NoManualFallbackWhenFetchIsPending) {
+  EXPECT_CALL(client_, IsSavingAndFillingEnabled).WillRepeatedly(Return(true));
+
+  FormData form_data = MakeSimpleFormData();
+  std::vector<FormData> observed = {form_data};
+
+  // Register found form in PasswordManager. This starts the fetch.
+  manager()->OnPasswordFormsParsed(&driver_, observed);
+
+  // Do NOT call task_environment_.RunUntilIdle() here to keep fetch pending.
+
+  // The user types a password. Fallback should NOT be shown because fetch is
+  // pending.
+  EXPECT_CALL(client_, ShowManualFallbackForSaving).Times(0);
+
+  FormData user_input_form = form_data;
+  test_api(user_input_form).field(1).set_value(u"password");
+  manager()->OnInformAboutUserInput(&driver_, user_input_form);
 }
 
 TEST_P(PasswordManagerTest, DoNotSaveWhenUserDeletesPassword) {
@@ -2826,6 +2878,10 @@ TEST_P(PasswordManagerTest, FillPasswordOnManyFrames_SameId) {
 
   // Observe the form in the second frame.
   MockPasswordManagerDriver driver_b;
+  url::Origin test_origin =
+      url::Origin::Create(GURL("http://www.example.com/"));
+  ON_CALL(driver_b, GetLastCommittedOrigin)
+      .WillByDefault(ReturnRef(test_origin));
   EXPECT_CALL(driver_b, PropagateFillDataOnParsingCompletion);
   manager()->OnPasswordFormsParsed(&driver_b, {form_data2});
   task_environment_.RunUntilIdle();

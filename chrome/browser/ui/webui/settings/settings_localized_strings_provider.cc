@@ -40,7 +40,6 @@
 #include "chrome/browser/signin/account_consistency_mode_manager.h"
 #include "chrome/browser/signin/account_consistency_mode_manager_factory.h"
 #include "chrome/browser/signin/chrome_signin_client_factory.h"
-#include "chrome/browser/subscription_eligibility/subscription_eligibility_service.h"
 #include "chrome/browser/subscription_eligibility/subscription_eligibility_service_factory.h"
 #include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/browser/ui/managed_ui.h"
@@ -104,6 +103,7 @@
 #include "components/strings/grit/components_strings.h"
 #include "components/strings/grit/privacy_sandbox_strings.h"
 #include "components/subresource_filter/core/browser/subresource_filter_features.h"
+#include "components/subscription_eligibility/subscription_eligibility_service.h"
 #include "components/supervised_user/core/common/features.h"
 #include "components/sync/base/features.h"
 #include "components/sync/service/sync_service.h"
@@ -1414,6 +1414,12 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
       {"yourSavedInfoTravelInfoChip", IDS_AUTOFILL_AI_TRAVEL_INFO_TITLE},
       {"yourSavedInfoFlightReservationsChip",
        IDS_AUTOFILL_AI_FLIGHT_RESERVATIONS_TITLE},
+      {"shoppingCardTitle", IDS_AUTOFILL_SHOPPING_TITLE},
+      {"yourSavedInfoOrdersChip", IDS_AUTOFILL_AI_ORDERS_TITLE},
+      {"yourSavedInfoShipmentsChip", IDS_AUTOFILL_AI_SHIPMENTS_TITLE},
+      {"shoppingOptInToggleLabel", IDS_AUTOFILL_SHOPPING_OPT_IN_TOGGLE_LABEL},
+      {"shoppingOptInToggleSubLabel",
+       IDS_AUTOFILL_SHOPPING_OPT_IN_TOGGLE_SUB_LABEL},
       {"passwordsDescription", IDS_SETTINGS_PASSWORD_MANAGER_DESCRIPTION},
       {"genericCreditCard", IDS_AUTOFILL_CC_GENERIC},
       {"creditCards", IDS_AUTOFILL_PAYMENT_METHODS},
@@ -1606,6 +1612,7 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
        IDS_SETTINGS_AUTOFILL_AI_AUTHENTICATION_TOGGLE_SUBTITLE},
       {"autofillAiPageTitle", IDS_SETTINGS_AUTOFILL_AI_PAGE_TITLE},
       {"autofillAiDescription", IDS_SETTINGS_AUTOFILL_AI_DESCRIPTION},
+      {"autofillAiManageYourInfo", IDS_AUTOFILL_MANAGE_YOUR_INFO_LINK},
       {"autofillAiToggleSubLabel", IDS_SETTINGS_AUTOFILL_AI_TOGGLE_SUB_LABEL},
       {"autofillAiWhenOnSavedInfo",
        IDS_SETTINGS_AUTOFILL_AI_WHEN_ON_SAVED_INFO},
@@ -1644,7 +1651,7 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
       {"saveInfoToWalletAccountNotice",
        IDS_AUTOFILL_AI_SAVE_ENTITY_TO_WALLET_DIALOG_SUBTITLE},
       {"saveInfoToWalletSettingsAccountNotice",
-       IDS_AUTOFILL_AI_SAVE_ENTITY_TO_WALLET_SETTINGS_SUBTITLE},
+       IDS_AUTOFILL_AI_SAVE_ENTITY_TO_WALLET_DIALOG_SUBTITLE_NEW},
       {"autofillAiSubpageSublabelLoggingManagedDisabled",
        IDS_SETTINGS_AUTOFILL_AI_ENTERPRISE_LOGGING_MANAGED_DISABLED},
       {"autofillPayOverTimeSettingsLabel", IDS_AUTOFILL_BNPL_SETTINGS_LABEL},
@@ -1703,6 +1710,9 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
               autofill::payments::GetManageInstrumentsUrl().spec())));
   html_source->AddString("managePaymentMethodsUrl",
                          autofill::payments::GetManageInstrumentsUrl().spec());
+  html_source->AddString("managePrivatePassesUrl",
+                         chrome::kWalletPrivatePassHelpCenterURL);
+  html_source->AddString("managePublicPassesUrl", chrome::kWalletPassesPageURL);
   html_source->AddString("addressesAndPaymentMethodsLearnMoreURL",
                          chrome::kAddressesAndPaymentMethodsLearnMoreURL);
   html_source->AddString("cardBenefitsToggleLearnMoreUrl",

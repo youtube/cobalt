@@ -3,7 +3,10 @@
 # found in the LICENSE file.
 
 import("//build/config/c++/c++.gni")
+import("//build/config/linux/pkg_config.gni")
 import("//remoting/build/config/remoting_build.gni")
+import("//third_party/webrtc/webrtc.gni")
+import("//tools/generate_stubs/rules.gni")
 
 group("all_tests") {
   testonly = true
@@ -90,6 +93,35 @@ source_set("gvariant") {
   ]
 }
 
+group("pipewire") {
+  public_configs = [ ":pipewire_config" ]
+  deps = []
+  if (!rtc_link_pipewire) {
+    deps += [ ":pipewire_stubs" ]
+  }
+}
+
+pkg_config("pipewire_config") {
+  packages = [ "libpipewire-0.3" ]
+  if (!rtc_link_pipewire) {
+    # Dynamically loading the library.
+    ignore_libs = true
+    defines = [ "REMOTING_DLOPEN_PIPEWIRE" ]
+  }
+}
+
+if (!rtc_link_pipewire) {
+  generate_stubs("pipewire_stubs") {
+    configs = [ ":pipewire_config" ]
+    extra_header = "pipewire_stub_header.fragment"
+    logging_function = "VLOG(1)"
+    logging_include = "base/logging.h"
+    output_name = "pipewire_stubs"
+    path_from_source = "remoting/host/linux"
+    sigs = [ "pipewire.sigs" ]
+  }
+}
+
 source_set("utils") {
   sources = [
     "gdbus_connection_ref.cc",
@@ -120,7 +152,6 @@ source_set("platform_impls") {
     "active_display_monitor_x11.cc",
     "active_display_monitor_x11.h",
     "audio_capturer_linux.cc",
-    "audio_capturer_linux.h",
     "audio_pipe_reader.cc",
     "audio_pipe_reader.h",
     "capture_stream.h",
@@ -208,6 +239,8 @@ source_set("platform_impls") {
     "portal_remote_desktop_session.h",
     "portal_utils.cc",
     "portal_utils.h",
+    "pulse_audio_capturer.cc",
+    "pulse_audio_capturer.h",
     "remote_display_session_manager.cc",
     "remote_display_session_manager.h",
     "remote_session_info_main.cc",
@@ -215,11 +248,14 @@ source_set("platform_impls") {
     "scoped_portal_request.h",
     "scoped_portal_session.cc",
     "scoped_portal_session.h",
+    "screen_saver_inhibitor.cc",
+    "screen_saver_inhibitor.h",
     "systemd_user_env_setter.cc",
     "systemd_user_env_setter.h",
   ]
   deps = [
     ":gvariant",
+    ":pipewire",
     ":remote_session_info_main_headers",
     ":utils",
     ":x11",
@@ -237,6 +273,7 @@ source_set("platform_impls") {
     "//remoting/host:ipc_constants",
     "//remoting/host:mojo_caller_security_checker",
     "//remoting/host:platform_interfaces",
+    "//remoting/host:signal_handler",
     "//remoting/host/base",
     "//remoting/host/input_monitor",
     "//remoting/host/linux/dbus_interfaces:interface_headers",

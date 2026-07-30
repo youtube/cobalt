@@ -189,6 +189,8 @@ class MockFrameHost : public mojom::FrameHost {
       mojo::PendingRemote<blink::mojom::NavigationStateKeepAliveHandle>,
       mojo::PendingReceiver<mojom::NavigationRendererCancellationListener>,
       mojo::PendingReceiver<
+          mojom::NavigationRendererIgnoreDuplicateNavigationListener>,
+      mojo::PendingReceiver<
           blink::mojom::NavigationResumeDeferredCommitListener>) override {}
 
   void SubresourceResponseStarted(const url::SchemeHostPort& final_response_url,
@@ -361,8 +363,8 @@ void TestRenderFrame::BeginNavigation(
         charset = "UTF-8";
       }
       blink::WebNavigationParams::FillStaticResponse(
-          navigation_params.get(), blink::WebString::FromUTF8(mime_type),
-          blink::WebString::FromUTF8(charset), data);
+          navigation_params.get(), blink::WebString::FromUtf8(mime_type),
+          blink::WebString::FromUtf8(charset), data);
     }
     if (url.IsAboutSrcdoc()) {
       navigation_params->fallback_base_url = info->requestor_base_url;

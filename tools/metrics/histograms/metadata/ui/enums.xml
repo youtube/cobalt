@@ -76,7 +76,6 @@ chromium-metrics-reviews@google.com.
       label="Translate text in image with non-Google visual search provider"/>
   <int value="28" label="Translate text in image with Google Lens"/>
   <int value="29" label="Search web for... in new tab"/>
-  <int value="30" label="Open link in preview"/>
   <int value="31" label="Open link in split view"/>
   <int value="32" label="Create image with Gemini in Chrome"/>
 </enum>
@@ -336,7 +335,6 @@ chromium-metrics-reviews@google.com.
   <int value="141" label="IDC_CONTENT_CONTEXT_SAVEVIDEOFRAMEAS"/>
   <int value="142" label="IDC_CONTENT_CONTEXT_SEARCHLENSFORVIDEOFRAME"/>
   <int value="143" label="IDC_CONTENT_CONTEXT_SEARCHWEBFORVIDEOFRAME"/>
-  <int value="144" label="IDC_CONTENT_CONTEXT_OPENLINKPREVIEW"/>
   <int value="145" label="IDC_CONTENT_CONTEXT_AUTOFILL_FALLBACK_PLUS_ADDRESS"/>
   <int value="146"
       label="(Obsolete) IDC_CONTENT_CONTEXT_AUTOFILL_FALLBACK_PASSWORDS"/>
@@ -363,6 +361,7 @@ chromium-metrics-reviews@google.com.
   <int value="160" label="IDC_CONTENT_CONTEXT_INSPECTELEMENT_WITH_DEVTOOLS"/>
   <int value="161" label="IDC_CONTENT_CONTEXT_AUTOFILL_FALLBACK_AT_MEMORY"/>
   <int value="162" label="IDC_CONTENT_CONTEXT_GLIC"/>
+  <int value="163" label="IDC_CONTENT_CONTEXT_VIDEO_FRAME"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/renderer_context_menu/render_view_context_menu.cc:RenderViewContextMenuItem) -->
@@ -480,6 +479,8 @@ chromium-metrics-reviews@google.com.
   <int value="84" label="UMA_CROSS_DEVICE_SETTING_REDO"/>
   <int value="85" label="UMA_CHROME_FINDS_OPT_IN"/>
   <int value="86" label="UMA_AUTOFILL_AI_LOCAL_SAVE_FALLBACK"/>
+  <int value="87" label="UMA_EXCLUSIVE_ACCESS_BUBBLE"/>
+  <int value="88" label="UMA_CONTEXTUAL_TASKS_BOTTOM_SHEET_CLOSED_UNDO"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/ui/messages/android/java/src/org/chromium/chrome/browser/ui/messages/snackbar/Snackbar.java:SnackbarIdentifier) -->
@@ -887,6 +888,7 @@ chromium-metrics-reviews@google.com.
   <int value="253258497" label="chrome://components/"/>
   <int value="260253931" label="chrome://devices/"/>
   <int value="275260142" label="chrome://eoc-internals/"/>
+  <int value="296063954" label="chrome://accessibility-annotator-info/"/>
   <int value="296428820" label="chrome-untrusted://lens-overlay/"/>
   <int value="325375649" label="chrome://settings-frame/"/>
   <int value="361250371" label="chrome://nearby/"/>
@@ -1053,6 +1055,7 @@ chromium-metrics-reviews@google.com.
   <int value="2033331720" label="chrome-untrusted://os-feedback/"/>
   <int value="2040878656" label="chrome://bluetooth-internals/"/>
   <int value="2052019697" label="chrome://userimage/"/>
+  <int value="2065809529" label="chrome://feature-showcase/"/>
   <int value="2108016874" label="chrome-untrusted://projector/"/>
   <int value="2110022659" label="chrome-untrusted://ntp-microsoft-auth/"/>
   <int value="2111953935" label="chrome://topics-internals/"/>

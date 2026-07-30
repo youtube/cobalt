@@ -643,24 +643,6 @@ inline constexpr char kTextToSpeechVolume[] = "settings.tts.speech_volume";
 inline constexpr char kManagedSessionUseFullLoginWarning[] =
     "managed_session.use_full_warning";
 
-// Boolean pref indicating whether the user has previously dismissed the
-// one-time notification indicating the need for a cleanup powerwash after TPM
-// firmware update that didn't flush the TPM SRK.
-inline constexpr char kTPMFirmwareUpdateCleanupDismissed[] =
-    "tpm_firmware_update.cleanup_dismissed";
-
-// Int64 pref indicating the time in microseconds since Windows epoch
-// (1601-01-01 00:00:00 UTC) when the notification informing the user about a
-// planned TPM update that will clear all user data was shown. If the
-// notification was not yet shown the pref holds the value Time::Min().
-inline constexpr char kTPMUpdatePlannedNotificationShownTime[] =
-    "tpm_auto_update.planned_notification_shown_time";
-
-// Boolean pref indicating whether the notification informing the user that an
-// auto-update that will clear all the user data at next reboot was shown.
-inline constexpr char kTPMUpdateOnNextRebootNotificationShown[] =
-    "tpm_auto_update.update_on_reboot_notification_shown";
-
 // Boolean pref indicating whether the NetBios Name Query Request Protocol is
 // used for discovering shares on the user's network by the Network File
 // Shares for Chrome OS feature.
@@ -2461,28 +2443,6 @@ inline constexpr char kSameOriginTabCaptureAllowedByOrigins[] =
 // "xkb:us::eng".
 inline constexpr char kHardwareKeyboardLayout[] = "intl.hardware_keyboard";
 
-// The local state pref that stores device activity times before reporting
-// them to the policy server.
-inline constexpr char kDeviceActivityTimes[] = "device_status.activity_times";
-
-// A pref that stores user app activity times before reporting them to the
-// policy server.
-inline constexpr char kAppActivityTimes[] = "device_status.app_activity_times";
-
-// A pref that stores user activity times before reporting them to the policy
-// server.
-inline constexpr char kUserActivityTimes[] =
-    "consumer_device_status.activity_times";
-
-// The length of device uptime after which an automatic reboot is scheduled,
-// expressed in seconds.
-inline constexpr char kUptimeLimit[] = "automatic_reboot.uptime_limit";
-
-// Whether an automatic reboot should be scheduled when an update has been
-// applied and a reboot is required to complete the update process.
-inline constexpr char kRebootAfterUpdate[] =
-    "automatic_reboot.reboot_after_update";
-
 // An any-api scoped refresh token for enterprise-enrolled devices.  Allows
 // for connection to Google APIs when the user isn't logged in.  Currently used
 // for for getting a cloudprint scoped token to allow printing in Guest mode,
@@ -3672,6 +3632,14 @@ inline constexpr char kAuxiliarySearchLastDonatedHistoryEntryVisitTime[] =
 // Boolean pref indicating whether the app rating prompt has been shown.
 inline constexpr char kAppRatingPromptShown[] = "app_rating_prompt_shown";
 #endif  // BUILDFLAG(IS_ANDROID)
+
+// Integer value for overriding the CPU performance tier.
+// Controlled by enterprise policy.
+inline constexpr char kCpuPerformanceTierPolicyOverride[] =
+    "cpu_performance_tier_policy_override";
+
+// Value indicating that the CPU performance tier has not been overridden.
+inline constexpr int kCpuPerformanceTierOverrideNone = -1;
 
 }  // namespace prefs
 

@@ -1301,8 +1301,8 @@ LayoutBox* LayoutObject::ContainingNGBox() const {
     if (parent->IsMedia()) {
       return To<LayoutBox>(parent);
     }
-    if (parent->IsCanvas() &&
-        RuntimeEnabledFeatures::CanvasDrawElementEnabled()) {
+    if (parent->IsCanvas() && RuntimeEnabledFeatures::CanvasDrawElementEnabled(
+                                  GetDocument().GetExecutionContext())) {
       return To<LayoutBox>(parent);
     }
   }
@@ -1829,11 +1829,14 @@ const LayoutBox* LayoutObject::ContainingScrollContainer(
   return nullptr;
 }
 
-LayoutObject* LayoutObject::NonAnonymousContainingBlock() const {
+LayoutObject* LayoutObject::ContainingBlockForTextOverflow() const {
   NOT_DESTROYED();
   LayoutObject* block = ContainingBlock();
   if (block && block->IsAnonymous()) {
     block = block->Parent();
+  }
+  if (block && !block->BehavesLikeBlockContainer()) {
+    return nullptr;
   }
   return block;
 }
@@ -1996,7 +1999,8 @@ PhysicalRect LayoutObject::AbsoluteBoundingBoxRectForScrollIntoView() const {
       return originating_object->AbsoluteBoundingBoxRectForScrollIntoView();
     }
     // This is a ::column::scroll-marker
-    if (const auto* scroller = originating_element.GetLayoutBoxForScrolling()) {
+    if (const auto* scroller = originating_element.GetLayoutBoxForScrolling();
+        scroller && scroller->GetScrollableArea()->ScrollableAxes()) {
       // The originating element (the multicol container) is also the scrollable
       // container.
       PhysicalRect bounds = column_pseudo->ColumnRect();
@@ -2433,7 +2437,10 @@ bool LayoutObject::MapToVisualRectInAncestorSpaceInternalFastPath(
     return false;
   }
 
-  if (ancestor == this) {
+  // Ensure that transforms are applied to the roots of frames and iframes.
+  if (ancestor == this &&
+      (!map_to_viewport || !RuntimeEnabledFeatures::
+                               FixVisualRectRemoteViewportTransformEnabled())) {
     return true;
   }
 
@@ -3173,6 +3180,8 @@ void LayoutObject::StyleWillChange(StyleDifference diff,
                                    const ComputedStyle& new_style,
                                    StyleChangeContext& style_change_context) {
   NOT_DESTROYED();
+  DCHECK(!IsText());
+
   if (style_) {
     bool visibility_changed = style_->Visibility() != new_style.Visibility();
     // If our z-index changes value or our visibility changes,
@@ -3203,12 +3212,6 @@ void LayoutObject::StyleWillChange(StyleDifference diff,
         if (GetNode()) {
           cache->RemoveSubtree(GetNode(), /* remove_root */ false);
         }
-      }
-    }
-
-    if (visibility_changed || style_->IsInert() != new_style.IsInert()) {
-      if (AXObjectCache* cache = GetDocument().ExistingAXObjectCache()) {
-        cache->StyleChanged(this, /*visibility_or_inertness_changed*/ true);
       }
     }
 
@@ -3252,8 +3255,7 @@ void LayoutObject::StyleWillChange(StyleDifference diff,
       style_ ? (style_->EffectiveTouchAction() == TouchAction::kAuto) : true;
   const bool is_new_touch_action_auto =
       new_style.EffectiveTouchAction() == TouchAction::kAuto;
-  if (GetNode() && !IsText() &&
-      is_old_touch_action_auto != is_new_touch_action_auto) {
+  if (GetNode() && is_old_touch_action_auto != is_new_touch_action_auto) {
     EventHandlerRegistry& registry =
         GetDocument().GetFrame()->GetEventHandlerRegistry();
     if (is_new_touch_action_auto) {
@@ -3264,11 +3266,6 @@ void LayoutObject::StyleWillChange(StyleDifference diff,
                                   EventHandlerRegistry::kTouchAction);
     }
     MarkEffectiveAllowedTouchActionChanged();
-  }
-  if (IsDocumentElement() && style_ && style_->Opacity() == 0.0f &&
-      new_style.Opacity() != 0.0f) {
-    if (LocalFrameView* frame_view = GetFrameView())
-      frame_view->GetPaintTimingDetector().ReportIgnoredContent();
   }
 }
 
@@ -3417,8 +3414,21 @@ void LayoutObject::StyleDidChange(
     }
   }
 
+  if (diff.ax_visibility_or_inert_changed) {
+    if (AXObjectCache* cache = GetDocument().ExistingAXObjectCache()) {
+      cache->StyleChanged(this, /*visibility_or_inertness_changed*/ true);
+    }
+  }
+
   if (diff.disable_scroll_anchoring) {
     SetScrollAnchorDisablingStyleChanged(true);
+  }
+
+  if (diff.opacity_changed && IsDocumentElement() &&
+      old_style->Opacity() == 0.f && style_->Opacity() != 0.f) {
+    if (const LocalFrameView* frame_view = GetFrameView()) {
+      frame_view->GetPaintTimingDetector().ReportIgnoredContent();
+    }
   }
 
   // Don't check for paint invalidation here; we need to wait until the layer

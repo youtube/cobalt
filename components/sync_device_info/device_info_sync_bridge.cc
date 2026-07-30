@@ -463,10 +463,6 @@ void DeviceInfoSyncBridge::OnSyncStarting(
   ReconcileLocalAndStored();
 }
 
-std::unique_ptr<MetadataChangeList>
-DeviceInfoSyncBridge::CreateMetadataChangeList() {
-  return WriteBatch::CreateMetadataChangeList();
-}
 
 std::optional<ModelError> DeviceInfoSyncBridge::MergeFullSyncData(
     std::unique_ptr<MetadataChangeList> metadata_change_list,
@@ -618,7 +614,8 @@ void DeviceInfoSyncBridge::ApplyDisableSyncChanges(
 
   // Remove all local data, if sync is being disabled, the user has expressed
   // their desire to not have knowledge about other devices.
-  store_->DeleteAllDataAndMetadata(base::DoNothing());
+  store_->DeleteAllDataAndMetadata(std::move(delete_metadata_change_list),
+                                   base::DoNothing());
   if (!all_data_.empty()) {
     all_data_.clear();
     NotifyObservers();
@@ -896,7 +893,8 @@ void DeviceInfoSyncBridge::OnReadAllMetadata(
       all_data_.count(local_cache_guid_in_metadata) == 0) {
     // Data or metadata is off. Just throw everything away and start clean.
     all_data_.clear();
-    store_->DeleteAllDataAndMetadata(base::DoNothing());
+    store_->DeleteAllDataAndMetadata(/*metadata_change_list=*/nullptr,
+                                     base::DoNothing());
     change_processor()->ModelReadyToSync(std::make_unique<MetadataBatch>());
     return;
   }

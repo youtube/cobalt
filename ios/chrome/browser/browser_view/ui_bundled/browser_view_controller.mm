@@ -33,8 +33,8 @@
 #import "ios/chrome/browser/first_run/public/first_run_util.h"
 #import "ios/chrome/browser/fullscreen/model/fullscreen_browser_agent.h"
 #import "ios/chrome/browser/fullscreen/model/fullscreen_browser_agent_observer_bridge.h"
+#import "ios/chrome/browser/fullscreen/public/fullscreen_metrics.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_animator.h"
-#import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_metrics.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_ui_element.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_ui_updater.h"
 #import "ios/chrome/browser/incognito_reauth/ui_bundled/incognito_reauth_constants.h"
@@ -84,7 +84,7 @@
 #import "ios/chrome/browser/tabs/ui_bundled/background_tab_animation_view.h"
 #import "ios/chrome/browser/tabs/ui_bundled/foreground_tab_animation_view.h"
 #import "ios/chrome/browser/tabs/ui_bundled/switch_to_tab_animation_view.h"
-#import "ios/chrome/browser/toolbar/coordinator/toolbar_coordinator.h"
+#import "ios/chrome/browser/toolbar/coordinator/main_toolbar_coordinator.h"
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/accessory/toolbar_accessory_presenter.h"
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/buttons/toolbar_configuration.h"
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/fullscreen/toolbars_size.h"
@@ -233,6 +233,9 @@ const CGFloat kTopDynamicIslandInset = 24;
   std::unique_ptr<FullscreenBrowserAgentObserverBridge>
       _fullscreenBrowserAgentObserverBridge;
 
+  // The fullscreen browser agent.
+  raw_ptr<FullscreenBrowserAgent> _fullscreenBrowserAgent;
+
   // The service used to load url parameters in current or new tab.
   raw_ptr<UrlLoadingBrowserAgent> _urlLoadingBrowserAgent;
 
@@ -319,7 +322,7 @@ const CGFloat kTopDynamicIslandInset = 24;
 @property(nonatomic, assign) FullscreenController* fullscreenController;
 
 // Coordinator of primary and secondary toolbars.
-@property(nonatomic, strong) ToolbarCoordinator* toolbarCoordinator;
+@property(nonatomic, strong) MainToolbarCoordinator* toolbarCoordinator;
 
 // Vertical offset for the primary toolbar, used for fullscreen.
 @property(nonatomic, strong) NSLayoutConstraint* primaryToolbarOffsetConstraint;
@@ -401,6 +404,7 @@ const CGFloat kTopDynamicIslandInset = 24;
     _footerFullscreenProgress = 1.0;
 
     if (IsFullscreenRefactoringEnabled()) {
+      _fullscreenBrowserAgent = dependencies.fullscreenBrowserAgent;
       _fullscreenBrowserAgentObserverBridge =
           std::make_unique<FullscreenBrowserAgentObserverBridge>(
               self, dependencies.fullscreenBrowserAgent);
@@ -802,6 +806,7 @@ const CGFloat kTopDynamicIslandInset = 24;
   _tabUsageRecorderBrowserAgent = nullptr;
   _snapshotBrowserAgent = nullptr;
   _fullscreenBrowserAgentObserverBridge = nullptr;
+  _fullscreenBrowserAgent = nullptr;
 }
 
 #pragma mark - UIAccessibilityAction
@@ -1047,11 +1052,20 @@ const CGFloat kTopDynamicIslandInset = 24;
       animateAlongsideTransition:^(
           id<UIViewControllerTransitionCoordinatorContext>) {
         [weakSelf animateTransition];
+        [weakSelf invalidateFullscreenInsets];
       }
                       completion:nil];
 
   crash_keys::SetCurrentOrientation(GetInterfaceOrientation(),
                                     [[UIDevice currentDevice] orientation]);
+}
+
+- (void)invalidateFullscreenInsets {
+  if (!IsFullscreenRefactoringEnabled()) {
+    return;
+  }
+  CHECK(_fullscreenBrowserAgent);
+  _fullscreenBrowserAgent->InvalidateInsetRange();
 }
 
 - (void)animateTransition {
@@ -1396,8 +1410,10 @@ const CGFloat kTopDynamicIslandInset = 24;
     NewTabPageCoordinator* NTPCoordinator = self.ntpCoordinator;
     if (NTPCoordinator.isNTPActiveForCurrentWebState) {
       UIViewController* viewController = NTPCoordinator.viewController;
-      viewController.view.frame = [self ntpFrameForCurrentWebState];
-      [viewController.view layoutIfNeeded];
+      if (!IsFullscreenRefactoringEnabled()) {
+        viewController.view.frame = [self ntpFrameForCurrentWebState];
+        [viewController.view layoutIfNeeded];
+      }
       // TODO(crbug.com/41407753): For a newly created WebState, the session
       // will not be restored until LoadIfNecessary call. Remove when fixed.
       self.currentWebState->GetNavigationManager()->LoadIfNecessary();

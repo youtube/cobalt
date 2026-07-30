@@ -179,16 +179,6 @@ Regular profiles start at bucket 1. Incognito profiles count towards the origina
   </summary>
 </histogram>
 
-<histogram name="Settings.AllSites.DeprecatedRedirect" enum="BooleanRedirected"
-    expires_after="M101">
-  <owner>sauski@google.com</owner>
-  <owner>chrome-friendly-settings@google.com</owner>
-  <summary>
-    Whether or not navigations to the All Sites page occured because the user
-    was redirected from the deprecated Site Data page.
-  </summary>
-</histogram>
-
 <histogram name="Settings.AutocompleteSearches.OnStartup2"
     enum="BooleanEnabled" expires_after="2025-12-28">
   <owner>harrisonsean@chromium.org</owner>
@@ -272,7 +262,7 @@ Regular profiles start at bucket 1. Incognito profiles count towards the origina
 </histogram>
 
 <histogram name="Settings.GivenShowHomeButton_HomePageIsNewTabPage2"
-    enum="Boolean" expires_after="2026-08-02">
+    enum="Boolean" expires_after="2026-10-04">
   <owner>mpearson@chromium.org</owner>
   <owner>twellington@chromium.org</owner>
   <summary>
@@ -345,6 +335,15 @@ Regular profiles start at bucket 1. Incognito profiles count towards the origina
     SettingsActivity but not implements SettingsFragment interface. The name is
     hashed using String.hashCode. All fragment attached to SettingsActivity
     should implement SettingsFragment and this helps to identify missing ones.
+  </summary>
+</histogram>
+
+<histogram name="Settings.Opened" enum="Boolean" expires_after="2026-08-16">
+  <owner>adelm@google.com</owner>
+  <owner>jinsukkim@chromium.org</owner>
+  <summary>
+    User opened settings UI. Recorded when the main Settings preference fragment
+    is opened via 3-dot menu. Android only.
   </summary>
 </histogram>
 
@@ -1325,6 +1324,40 @@ Regular profiles start at bucket 1. Incognito profiles count towards the origina
   <token key="LifecycleEvent" variants="SafetyHubLifecycleEvent"/>
 </histogram>
 
+<histogram name="Settings.Search.ExitReason" enum="SettingsSearchExitReason"
+    expires_after="2026-08-16">
+  <owner>adelm@google.com</owner>
+  <owner>jinsukkim@chromium.org</owner>
+  <summary>
+    How search in settings was used i.e. user clicked the search results,
+    abandoned them without clicking, or abandoned due to getting no results at
+    all, etc. Recorded when users does something to the results after receiving
+    them or when user invokes OS back to go back to the search results and do
+    something again. Also recorded when search UI/Settings Activity is exited.
+    Android only.
+  </summary>
+</histogram>
+
+<histogram name="Settings.Search.UiOpened" enum="Boolean"
+    expires_after="2026-08-16">
+  <owner>adelm@google.com</owner>
+  <owner>jinsukkim@chromium.org</owner>
+  <summary>
+    User entered the search in settings. Recorded when the user clicks the
+    search box UI. Android only.
+  </summary>
+</histogram>
+
+<histogram name="Settings.Search.UiOpenedPerSession" enum="Boolean"
+    expires_after="2026-08-16">
+  <owner>adelm@google.com</owner>
+  <owner>jinsukkim@chromium.org</owner>
+  <summary>
+    Same as Settings.Search.UiOpened, but recorded only once since the user
+    opens Settings. Android only.
+  </summary>
+</histogram>
+
 <histogram name="Settings.SearchEngines.GoogleIconMismatches" enum="Boolean"
     expires_after="2027-01-15">
   <owner>alsan@chromium.org</owner>
@@ -1357,18 +1390,6 @@ Regular profiles start at bucket 1. Incognito profiles count towards the origina
     the user actually quits the Settings. Only the Activity started for the main
     settings is considered, and those starting sub-settings are ignored. Android
     only.
-  </summary>
-</histogram>
-
-<histogram name="Settings.SessionDuration.SearchCompleted" units="ms"
-    expires_after="2026-08-23">
-  <owner>adelm@google.com</owner>
-  <owner>jinsukkim@chromium.org</owner>
-  <summary>
-    The duration of the Settings session in ms where the user completed the
-    critical user journey for search i.e. performed search, and then clicked one
-    of the search results. Recorded when the user quits the Settings activity
-    started for the main settings. Android only.
   </summary>
 </histogram>
 
@@ -1410,15 +1431,6 @@ Regular profiles start at bucket 1. Incognito profiles count towards the origina
     To be explicit: not logged when an Incognito profile is opened because that
     inherits the settings from its parent profile. As such, it's not necessary
     to log the Incognito profile's settings.
-  </summary>
-</histogram>
-
-<histogram name="Settings.TimeToFirstSearch" units="ms" expires_after="M85">
-  <owner>dschuyler@chromium.org</owner>
-  <summary>
-    The time between when the chrome://settings page is opened to the first time
-    a search is done within that page. This is intended to evaluate how long a
-    user looks for a setting before giving up and searching for it.
   </summary>
 </histogram>
 

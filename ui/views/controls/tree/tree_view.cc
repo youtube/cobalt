@@ -118,10 +118,6 @@ TreeView::TreeView()
 }
 
 TreeView::~TreeView() {
-  if (model_) {
-    model_->RemoveObserver(this);
-  }
-
   if (GetInputMethod() && selector_.get()) {
     // TreeView should have been blurred before destroy.
     DCHECK(selector_.get() != GetInputMethod()->GetTextInputClient());
@@ -145,9 +141,8 @@ void TreeView::SetModel(TreeModel* model) {
   if (model == model_) {
     return;
   }
-  if (model_) {
-    model_->RemoveObserver(this);
-  }
+
+  tree_model_observation_.Reset();
 
   CancelEdit();
 
@@ -160,7 +155,7 @@ void TreeView::SetModel(TreeModel* model) {
   GetViewAccessibility().RemoveAllVirtualChildViews();
 
   if (model_) {
-    model_->AddObserver(this);
+    tree_model_observation_.Observe(model_);
     model_->GetIcons(&icons_);
 
     ConfigureInternalNode(model_->GetRoot(), &root_);
@@ -317,7 +312,6 @@ void TreeView::Collapse(ui::TreeModelNode* model_node) {
     DrawnNodesChanged();
     AXVirtualView* ax_view = node->accessibility_view();
     if (ax_view) {
-      ax_view->NotifyEvent(ax::mojom::Event::kExpandedChanged, true);
       ax_view->NotifyEvent(ax::mojom::Event::kRowCollapsed, true);
     }
     NotifyAccessibilityEventDeprecated(ax::mojom::Event::kRowCountChanged,
@@ -333,7 +327,6 @@ void TreeView::Expand(TreeModelNode* node) {
     AXVirtualView* ax_view =
         internal_node ? internal_node->accessibility_view() : nullptr;
     if (ax_view) {
-      ax_view->NotifyEvent(ax::mojom::Event::kExpandedChanged, true);
       ax_view->NotifyEvent(ax::mojom::Event::kRowExpanded, true);
     }
     NotifyAccessibilityEventDeprecated(ax::mojom::Event::kRowCountChanged,
@@ -360,7 +353,6 @@ void TreeView::ExpandAll(TreeModelNode* node) {
     AXVirtualView* ax_view =
         internal_node ? internal_node->accessibility_view() : nullptr;
     if (ax_view) {
-      ax_view->NotifyEvent(ax::mojom::Event::kExpandedChanged, true);
       ax_view->NotifyEvent(ax::mojom::Event::kRowExpanded, true);
     }
     NotifyAccessibilityEventDeprecated(ax::mojom::Event::kRowCountChanged,
@@ -1068,6 +1060,7 @@ std::unique_ptr<AXVirtualView> TreeView::CreateAndSetAccessibilityView(
   }
 
   node->set_accessibility_view(ax_view.get());
+  node->SetAccessibleIsExpanded(node->is_expanded());
   node->UpdateAccessibleName();
   return ax_view;
 }

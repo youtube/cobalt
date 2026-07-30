@@ -166,10 +166,6 @@ SendTabToSelfBridge::~SendTabToSelfBridge() {
   }
 }
 
-std::unique_ptr<syncer::MetadataChangeList>
-SendTabToSelfBridge::CreateMetadataChangeList() {
-  return DataTypeStore::WriteBatch::CreateMetadataChangeList();
-}
 
 std::optional<syncer::ModelError> SendTabToSelfBridge::MergeFullSyncData(
     std::unique_ptr<syncer::MetadataChangeList> metadata_change_list,
@@ -342,7 +338,8 @@ void SendTabToSelfBridge::ApplyDisableSyncChanges(
     std::unique_ptr<syncer::MetadataChangeList> delete_metadata_change_list) {
   DCHECK(store_);
 
-  store_->DeleteAllDataAndMetadata(base::DoNothing());
+  store_->DeleteAllDataAndMetadata(std::move(delete_metadata_change_list),
+                                   base::DoNothing());
 
   std::vector<std::string> all_guids = GetAllGuids();
 

@@ -63,7 +63,7 @@
 #include "components/sync/service/sync_service.h"
 #include "components/trusted_vault/frontend_trusted_vault_connection.h"
 #include "components/user_prefs/user_prefs.h"
-#include "components/webauthn/core/browser/immediate_request_rate_limiter.h"
+#include "components/webauthn/content/browser/immediate_request_rate_limiter.h"
 #include "components/webauthn/core/browser/passkey_model.h"
 #include "content/public/browser/authenticator_request_client_delegate.h"
 #include "content/public/browser/browser_context.h"
@@ -369,8 +369,6 @@ bool ChromeAuthenticatorRequestDelegate::DoesBlockRequestOnFailure(
     case InterestingFailureReason::kEnclaveCancel:
       dialog_model_->CancelAuthenticatorRequest();
       break;
-    case InterestingFailureReason::kChallengeUrlFailure:
-      dialog_controller_->OnChallengeUrlFailure();
   }
   return true;
 }
@@ -713,13 +711,6 @@ void ChromeAuthenticatorRequestDelegate::SetUserEntityForMakeCredentialRequest(
   dialog_model_->user_entity = user_entity;
 }
 
-void ChromeAuthenticatorRequestDelegate::ProvideChallengeUrl(
-    const GURL& url,
-    base::OnceCallback<void(std::optional<base::span<const uint8_t>>)>
-        callback) {
-  dialog_controller_->ProvideChallengeUrl(url, std::move(callback));
-}
-
 void ChromeAuthenticatorRequestDelegate::StartObserving(
     device::FidoRequestHandlerBase* request_handler) {
   request_handler_observation_.Observe(request_handler);
@@ -892,9 +883,7 @@ bool ChromeAuthenticatorRequestDelegate::MaybeHandleImmediateMediation(
 
   if (auto* rate_limiter =
           ImmediateRequestRateLimiterFactory::GetForProfile(profile())) {
-    const url::Origin top_frame_origin =
-        GetRenderFrameHost()->GetMainFrame()->GetLastCommittedOrigin();
-    if (!rate_limiter->IsRequestAllowed(top_frame_origin)) {
+    if (!rate_limiter->IsRequestAllowed(*GetRenderFrameHost())) {
       FIDO_LOG(ERROR) << "Immediate request rate limit exceeded for the main "
                          "frame's origin.";
       base::UmaHistogramEnumeration(

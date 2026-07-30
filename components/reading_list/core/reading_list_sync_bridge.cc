@@ -19,7 +19,6 @@
 #include "components/sync/model/data_type_local_change_processor.h"
 #include "components/sync/model/data_type_store.h"
 #include "components/sync/model/entity_change.h"
-#include "components/sync/model/in_memory_metadata_change_list.h"
 #include "components/sync/model/metadata_batch.h"
 #include "components/sync/model/mutable_data_batch.h"
 #include "components/sync/protocol/data_type_state.pb.h"
@@ -109,10 +108,6 @@ syncer::StorageType ReadingListSyncBridge::GetStorageTypeForUma() const {
   return storage_type_for_uma_;
 }
 
-std::unique_ptr<syncer::MetadataChangeList>
-ReadingListSyncBridge::CreateMetadataChangeList() {
-  return std::make_unique<syncer::InMemoryMetadataChangeList>();
-}
 
 // Perform the initial merge between local and sync data. This should only be
 // called when a data type is first enabled to start syncing, and there is no
@@ -328,7 +323,8 @@ void ReadingListSyncBridge::ApplyDisableSyncChanges(
       // |delete_metadata_change_list| represents), the actual reading list
       // entries need to be deleted. This function does both and is even
       // robust against orphan or unexpected data in storage.
-      model_->SyncDeleteAllEntriesAndSyncMetadata();
+      model_->SyncDeleteAllEntriesAndSyncMetadata(
+          std::move(delete_metadata_change_list));
       break;
   }
 }
@@ -375,12 +371,14 @@ bool ReadingListSyncBridge::CompareEntriesForSync(
     if ((rhs.status() == sync_pb::ReadingListSpecifics::UNSEEN &&
          lhs.status() != sync_pb::ReadingListSpecifics::UNSEEN) ||
         (rhs.status() == sync_pb::ReadingListSpecifics::UNREAD &&
-         lhs.status() == sync_pb::ReadingListSpecifics::READ))
+         lhs.status() == sync_pb::ReadingListSpecifics::READ)) {
       return false;
+    }
   }
   if (rhs.update_title_time_us() == lhs.update_title_time_us()) {
-    if (rhs.title().compare(lhs.title()) < 0)
+    if (rhs.title().compare(lhs.title()) < 0) {
       return false;
+    }
   }
   if (rhs.creation_time_us() == lhs.creation_time_us()) {
     if (rhs.first_read_time_us() == 0 && lhs.first_read_time_us() != 0) {

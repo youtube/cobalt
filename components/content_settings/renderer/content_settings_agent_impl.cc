@@ -253,8 +253,7 @@ void ContentSettingsAgentImpl::AllowStorageAccess(
 
   GetContentSettingsManager().AllowStorageAccess(
       frame->GetLocalFrameToken(), ConvertToMojoStorageType(storage_type),
-      frame->GetSecurityOrigin(), frame->GetDocument().SiteForCookies(),
-      frame->GetDocument().TopFrameOrigin(), std::move(new_cb));
+      std::move(new_cb));
 }
 
 bool ContentSettingsAgentImpl::AllowStorageAccessSync(
@@ -274,12 +273,10 @@ bool ContentSettingsAgentImpl::AllowStorageAccessSync(
   if (permissions != cached_storage_permissions_.end())
     return permissions->second;
 
-  SCOPED_UMA_HISTOGRAM_TIMER("ContentSettings.AllowStorageAccessSync");
   bool result = false;
   GetContentSettingsManager().AllowStorageAccess(
       frame->GetLocalFrameToken(), ConvertToMojoStorageType(storage_type),
-      frame->GetSecurityOrigin(), frame->GetDocument().SiteForCookies(),
-      frame->GetDocument().TopFrameOrigin(), &result);
+      &result);
   cached_storage_permissions_[key] = result;
   return result;
 }

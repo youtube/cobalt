@@ -34,8 +34,8 @@ dictionary ScriptSource {
 // Note: Though it is called "UserScript", this is used for scripts through
 // the scripting API (dynamic content scripts), content scripts in the
 // manifest (static content scripts), and user scripts through the userScripts
-// API. "UserScript" was chosen because it matches the correspodning
-// extenisons::UserScript object (the runtime representation of this) and
+// API. "UserScript" was chosen because it matches the corresponding
+// extensions::UserScript object (the runtime representation of this) and
 // because "Script" is ambiguous (e.g. background script, general JS script,
 // etc).
 dictionary SerializedUserScript {

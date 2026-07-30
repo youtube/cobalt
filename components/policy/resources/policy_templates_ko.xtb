@@ -132,11 +132,6 @@
 <translation id="1077675271127011209">사용 및 비정상 종료 관련 데이터 보고 사용 안함</translation>
 <translation id="1079498696402787191">TLS 핸드셰이크에서 허용되는 해시에 기본값을 사용합니다.</translation>
 <translation id="1079801999187584280">Developer Tools 사용 금지</translation>
-<translation id="1081263326166769685">정책을 사용 설정하면 <ph name="PRODUCT_OS_NAME" />에서 비정상 종료 보고서 등 사용 측정항목과 진단 데이터를 Google에 보고합니다. 정책을 사용 중지하면 측정항목 및 진단 데이터 보고가 사용 중지됩니다.
-
-관리 기기의 경우 이 정책은 기본적으로 사용 설정되며 측정항목이 Google에 전송됩니다.
-
-관리되지 않는 기기의 경우 정책이 설정되지 않으면 사용자가 측정항목 전송 여부를 결정할 수 있습니다.</translation>
 <translation id="1081470306474387129">분리형 웹 앱(IWA)과 같은 특정 분리형 컨텍스트에서 사용할 수 있는 Controlled Frame API를 사용하면 앱에서 임의의 콘텐츠를 삽입하고 조작할 수 있습니다.
 자세한 내용은 https://github.com/WICG/controlled-frame을 참고하세요.
 
@@ -369,6 +364,18 @@ https://chromeenterprise.google/policies/url-patterns/ 페이지를 참고하세
 <translation id="1262993197422487260">로그인 및 잠금 화면에 비밀번호 표시 버튼 사용 안함</translation>
 <translation id="1265053460044691532">SAML을 통해 인증한 사용자가 오프라인에서 로그인할 수 있는 기간을 제한</translation>
 <translation id="1265076559723566171">EDU 사용자의 제어 설정</translation>
+<translation id="1268782248484174352"><ph name="PRODUCT_OS_NAME" />의 측정항목 보고 수준을 지정합니다.
+
+이 정책을 설정하면 Google에 보고되는 사용량 및 비정상 종료 관련 데이터의 양이 결정됩니다.
+* 0 = 보고 사용 중지: 사용량 또는 비정상 종료 관련 데이터가 Google에 전송되지 않습니다.
+* 1 = 기본 보고: 제한된 사용량 및 비정상 종료 관련 데이터가 Google에 전송됩니다.
+* 2 = 고급 보고: 포괄적인 사용량 및 비정상 종료 관련 데이터가 Google에 전송됩니다.
+
+정책을 설정하지 않으면 설치 또는 최초 실행 시 사용자가 측정항목 보고 동작을 선택할 수 있으며 나중에 이 설정을 변경할 수 있습니다.
+
+이 정책은 기기에서 <ph name="RESTRUCTURE_METRICS_CONSENT_SETTINGS_EXPERIMENT_NAME" /> 실험이 진행 중인 경우에만 평가됩니다.
+
+기기에서 <ph name="RESTRUCTURE_METRICS_CONSENT_SETTINGS_EXPERIMENT_NAME" /> 실험이 진행 중이고 이 정책과 <ph name="DEVICE_METRICS_REPORTING_ENABLED_POLICY_NAME" /> 정책이 모두 설정된 경우 이 정책이 우선 적용됩니다.</translation>
 <translation id="1271811620059192171">정책 전체 그룹 사용 설정</translation>
 <translation id="127264587838521316"><ph name="PRODUCT_NAME" /> 확장 프로그램 설치 요청 사용</translation>
 <translation id="1272798957154751008">Chromad 기기를 클라우드 관리로 이전할 수 있도록 합니다.</translation>
@@ -438,8 +445,8 @@ https://chromeenterprise.google/policies/url-patterns/ 페이지를 참고하세
 <translation id="1354280967938151061">ARC 사용 안함</translation>
 <translation id="1354349503792572661"><ph name="PRODUCT_OS_NAME" />에서 Native Client(NaCl)를 실행할 수 있도록 강제 적용합니다.</translation>
 <translation id="1354424209129232709">최대:</translation>
-<translation id="1355050231181289439"> 이 정책은 개선된 국제 키보드 단축키 매핑을 사용할지 제어합니다.
-      이 기능을 사용하면 단축키가 국제 키보드 레이아웃과 일관되게 작동하며 기존 단축키는 지원 중단됩니다.
+<translation id="1355050231181289439">이 정책은 개선된 국제 키보드 단축키 매핑을 사용할지 제어합니다.
+      이 기능을 사용하면 키보드 단축키가 국제 키보드 레이아웃과 일관되게 작동하며 기존 단축키는 지원 중단됩니다.
 
       정책을 사용 중지하면 개선된 국제 키보드 단축키가 사용 중지됩니다.
       정책을 사용 설정하면 개선된 국제 키보드 단축키가 사용됩니다.
@@ -1667,6 +1674,7 @@ URL로 입력된 측정항목 수집이 허용되거나 사용자가 이를 사�
 <translation id="2149957154942061013">내부용</translation>
 <translation id="2151831603578119302">접근성 기능 단축키 사용</translation>
 <translation id="2156132677421487971">사용자가 탭, 사이트 또는 데스크톱의 콘텐츠를 브라우저에서 원격 디스플레이와 사운드 시스템으로 전송하도록 해 주는 기능인 <ph name="PRODUCT_NAME" />의 정책을 설정합니다.</translation>
+<translation id="2156359411909638496">Chrome Finds 설정</translation>
 <translation id="2156755242840687300">외부 프린트 서버가 사용 설정됨</translation>
 <translation id="2157842368188031417">이 정책은 관리되는 게스트 세션에만 적용됩니다. Imprivata의 공유 워크스테이션 모드에서 세션 내 사용자 전환을 허용하려면 이 정책이 사용 설정되어야 합니다.
       정책을 True로 설정하면 기능에 대한 특정 정책을 강제로 재정의하고, 그 결과 민감한 사용자 데이터가 보관되며 Imprivata 공유 워크스테이션 모드의 세션 내 사용자 전환에서 사용되는 삭제 메커니즘에 의해 처리되지 않습니다.
@@ -1762,9 +1770,9 @@ URL로 입력된 측정항목 수집이 허용되거나 사용자가 이를 사�
 <translation id="2183338188392346527">기기 런타임 카운터 보고 안함</translation>
 <translation id="2183838844225082873">정책을 0(기본값)으로 설정하면 개발자 도구와 JavaScript 콘솔에 액세스할 수 있지만 기업 정책으로 설치한 확장 프로그램의 컨텍스트나 버전 114 이상을 사용 중이며 관리 사용자인 경우 브라우저에 내장된 확장 프로그램의 컨텍스트에서는 액세스할 수 없습니다. 정책을 1로 설정하면 기업 정책으로 설치한 확장 프로그램을 비롯한 모든 컨텍스트에서 개발자 도구 및 JavaScript 콘솔에 액세스할 수 있습니다. 정책을 2로 설정하면 개발자 도구에 액세스할 수 없으며 웹사이트 요소를 검사할 수 없습니다.
 
-또한 이 설정은 개발자 도구 또는 JavaScript 콘솔을 여는 단축키, 메뉴 항목, 컨텍스트 메뉴 항목의 사용을 중지합니다.
+또한 이 설정은 개발자 도구 또는 JavaScript 콘솔을 여는 키보드 단축키, 메뉴 항목, 컨텍스트 메뉴 항목의 사용을 중지합니다.
 
-<ph name="PRODUCT_NAME" /> 버전 99부터는 '페이지 소스 보기' 기능의 진입점도 제어합니다. 이 정책을 'DeveloperToolsDisallowed'(값 2)로 설정하면 사용자가 단축키 또는 컨텍스트 메뉴를 통해 소스 보기에 액세스할 수 없습니다. 소스 보기를 완전히 차단하려면 <ph name="URL_BLOCKLIST_POLICY_NAME" /> 정책에 'view-source:*'도 추가해야 합니다.
+<ph name="PRODUCT_NAME" /> 버전 99부터는 '페이지 소스 보기' 기능의 진입점도 제어합니다. 이 정책을 'DeveloperToolsDisallowed'(값 2)로 설정하면 사용자가 키보드 단축키 또는 컨텍스트 메뉴를 통해 소스 보기에 액세스할 수 없습니다. 소스 보기를 완전히 차단하려면 <ph name="URL_BLOCKLIST_POLICY_NAME" /> 정책에 'view-source:*'도 추가해야 합니다.
 
 <ph name="PRODUCT_NAME" /> 버전 119부터 이 설정으로 분리형 웹 앱의 개발자 모드 활성화 및 사용 여부도 제어할 수 있습니다.
 
@@ -1815,6 +1823,18 @@ URI 템플릿에 <ph name="HTTP_VARIABLE_DNS" /> 변수가 포함된 경우 리�
 
       정책을 설정하면 사용자가 <ph name="PRODUCT_NAME" />에서 이를 변경할 수 없습니다. 설정하지 않으면 사용자 인증 정보 유출 확인은 허용되나 사용자가 이를 사용 중지할 수 있습니다.</translation>
 <translation id="2208976000652006649">POST를 사용하는 검색 URL용 매개변수</translation>
+<translation id="2211167090584042804"><ph name="PRODUCT_NAME" />의 측정항목 보고 수준을 지정합니다.
+
+이 정책을 설정하면 Google에 보고되는 사용량 및 비정상 종료 관련 데이터의 양이 결정됩니다.
+* 0 = 보고 사용 중지: 사용량 또는 비정상 종료 관련 데이터가 Google에 전송되지 않습니다.
+* 1 = 기본 보고: 제한된 사용량 및 비정상 종료 관련 데이터가 Google에 전송됩니다.
+* 2 = 고급 보고: 포괄적인 사용량 및 비정상 종료 관련 데이터가 Google에 전송됩니다.
+
+정책을 설정하지 않으면 설치 또는 최초 실행 시 사용자가 측정항목 보고 동작을 선택할 수 있으며 나중에 이 설정을 변경할 수 있습니다.
+
+이 정책은 기기에서 <ph name="RESTRUCTURE_METRICS_CONSENT_SETTINGS_EXPERIMENT_NAME" /> 실험이 진행 중인 경우에만 평가됩니다.
+
+기기에서 <ph name="RESTRUCTURE_METRICS_CONSENT_SETTINGS_EXPERIMENT_NAME" /> 실험이 진행 중이고 이 정책과 <ph name="METRICS_REPORTING_ENABLED_POLICY_NAME" /> 정책이 모두 설정된 경우 이 정책이 우선 적용됩니다.</translation>
 <translation id="2212011154693551439">그룹으로 구성된 Chrome 방문 기록 페이지가 기본적으로 chrome://history/grouped에 표시됩니다.</translation>
 <translation id="2212207215880394506">생성형 AI 포토 편집을 허용하지 않습니다.</translation>
 <translation id="221287948061571053">확장된 기업 툴바 배지 숨기기</translation>
@@ -2830,10 +2850,6 @@ Chrome에서 퍼스트 파티 세트 관련 통합을 지원하는지 제어합�
 <translation id="288923520817177650"><ph name="WEBXR_API_NAME_SHORT" />의 <ph name="WEBXR_AR_SESSION_ENUM_VALUE" /> 세션 생성 허용</translation>
 <translation id="2889842394011108075">window.mydomainStorageInfo를 사용할 수 있게 됩니다.</translation>
 <translation id="2890645751406497668">다음 사이트가 주어진 공급업체 및 제품 ID를 사용해 USB 기기에 연결할 수 있는 권한을 자동으로 부여합니다.</translation>
-<translation id="2891049933730408118">정책을 설정하면 <ph name="AUTH_SCHEMES_POLICY_NAME" /> 정책과 관계없이 <ph name="PRODUCT_NAME" />에서 지원하는 모든 HTTP 인증 스킴을 허용할 출처가 지정됩니다.
-
-      출처 패턴 형식은 이 형식(<ph name="URL_SCHEME_FORMAT_LINK" />)을 따라야 합니다. <ph name="ALL_HTTP_AUTH_ALLOWED_FOR_ORIGINS_POLICY_NAME" />에 최대 1,000개의 예외를 정의할 수 있습니다.
-      출처 전체 또는 스킴, 호스트, 포트 등의 일부에 와일드 카드를 사용할 수 있습니다.</translation>
 <translation id="2893546967669465276">시스템 로그를 관리 서버로 전송합니다.</translation>
 <translation id="2893660462311365527">네트워크 텔레메트리 수집 속도(밀리초)</translation>
 <translation id="2894914342151915910">Chrome이 지원되지 않는 시스템에서 실행 중인 경우 경고 표시 중단</translation>
@@ -4111,6 +4127,7 @@ HTTPS용 RSA 인증서에 두 가지를 모두 포함해야 합니다.</translat
 <translation id="3749511622128647337">오디오 출력 사용 중지</translation>
 <translation id="3750220015372671395">이 사이트에서 키 생성 차단</translation>
 <translation id="3753267109888284695">HTTP 허용 목록</translation>
+<translation id="3753514818525019935">Chrome Finds를 허용하지 않습니다.</translation>
 <translation id="3753959315989102457">기기 위치 보고 사용 중지</translation>
 <translation id="3755237588083934849">정책을 설정하면 기기 상태 업로드를 전송할 빈도를 밀리초 단위로 결정할 수 있습니다. 허용된 최솟값은 60초입니다.
 
@@ -4220,7 +4237,7 @@ HTTPS용 RSA 인증서에 두 가지를 모두 포함해야 합니다.</translat
 <translation id="3811407842708673996">정책을 설정하지 않거나 '사용'으로 설정하면 사용자가 컨텍스트 메뉴에서 <ph name="GOOGLE_LENS_PRODUCT_NAME" /> 영역 검색 메뉴 항목을 보고 사용할 수 있습니다. 정책을 '사용 안함'으로 설정하면 <ph name="GOOGLE_LENS_PRODUCT_NAME" /> 영역 검색이 지원되는 경우에도 컨텍스트 메뉴에 <ph name="GOOGLE_LENS_PRODUCT_NAME" /> 영역 검색 메뉴 항목이 표시되지 않습니다.
 이 정책은 <ph name="PRODUCT_NAME" /> 147부터 지원 중단됩니다. IT 관리자는 앞으로 <ph name="SEARCH_CONTENT_SHARING_SETTINGS_POLICY_NAME" /> 정책을 사용하여 이 기능을 제어할 수 있습니다.</translation>
 <translation id="3811562426301733860">모든 사이트에서 광고 허용</translation>
-<translation id="3816312845600780067">자동 로그인 시 긴급용 단축키 사용</translation>
+<translation id="3816312845600780067">자동 로그인 시 긴급용 키보드 단축키 사용</translation>
 <translation id="3817323252437541502">고급 보호 프로그램에 등록된 사용자를 위한 추가 보호 기능 사용</translation>
 <translation id="3821861026311587684">계정 인증이 해제되면 사용자를 강제로 로그아웃합니다.</translation>
 <translation id="3822756181940590230">VM 펌웨어가 사용하는 초기 비휘발성 UEFI 데이터입니다.</translation>
@@ -6088,6 +6105,13 @@ Chrome 114까지 이 정책을 적용하려면 <ph name="SYNC_DISABLED_POLICY_NA
 <translation id="4997074784107449343">이미지로 인쇄 옵션이 사용 가능한 경우 PDF 문서의 인쇄 미리보기로 기본적으로 설정되지 않습니다.</translation>
 <translation id="500149597848135831">모든 변형 허용</translation>
 <translation id="5006222080181284191">ChromeOS '작성 지원 기능' 사용 여부 제어</translation>
+<translation id="501542798290854504"><ph name="ANDROID_NAME" />에서 Microsoft® 클라우드 ID 공급업체가 지원하는 계정에 자동 사용자 로그인을 구성합니다.
+
+정책을 1(<ph name="POLICY_VALUE_ENABLED" />)로 설정하면 기기에서 Microsoft® 생산성 애플리케이션에 로그인한 사용자가 <ph name="PRODUCT_NAME" /> 내에서 Microsoft® 웹 서비스에 자동으로 로그인할 수 있습니다. 이 기능을 사용하려면 <ph name="MS_AUTH_APP_NAME" />, <ph name="MS_ICP_NAME" />, <ph name="MS_LTW_NAME" /> 등의 Microsoft® 인증 브로커 앱이 있어야 합니다. 싱글 사인온(SSO)을 용이하게 하기 위해 필요한 인증 데이터가 Microsoft® 클라우드 ID 공급업체와 공유됩니다.
+
+정책을 0(<ph name="POLICY_VALUE_DISABLED" />)으로 설정하거나 설정하지 않으면 위에 설명된 자동 로그인이 사용 중지되며 사용자가 Microsoft® 웹 서비스의 사용자 인증 정보를 직접 제공해야 합니다.
+
+참고: 이 정책은 시크릿 모드 또는 게스트 모드에 적용되지 않습니다.</translation>
 <translation id="5017157692744444035">이 정책은 기기 이름, 네트워크 주소 등 기기 식별을 위해 사용할 수 있는 정보의 보고 여부를 제어합니다.
 
 <ph name="CLOUD_REPORTING_ENABLED_POLICY_NAME" /> 정책이 설정되지 않거나 사용 중지되면 정책이 무시됩니다.
@@ -6571,6 +6595,22 @@ False로 설정하면 <ph name="PRODUCT_NAME" />에서 시스템 알림을 사�
 <translation id="5293285950307241933">모든 로컬 사용자 데이터 삭제</translation>
 <translation id="5293619885162445352"><ph name="PEPPER_NAME" />에서 새 동영상 디코더를 사용하도록 허용합니다.</translation>
 <translation id="529457411593078576">첫 실행 중 CCT에 서비스 약관 사용 설정</translation>
+<translation id="529718811410033393">정책을 설정하면 WebSocket이 아닌 요청에 대해 프록시 서버당 동시 연결할 수 있는 최대 수가 지정됩니다.
+
+WebSocket 요청 한도를 수정하려면 <ph name="MAX_CONNECTIONS_PER_PROXY_FOR_WEBSOCKET_POLICY_NAME" /> 정책을 참고하세요.
+
+정책을 설정하지 않으면 기본값 32가 사용됩니다.
+
+일부 웹 앱은 중지 상태인 GET에 너무 많은 연결을 사용하는 것으로 알려져 있으므로 32 밑으로 낮추면 연결이 중지 상태인 웹 앱이 여러 개 열려 있을 때 브라우저 네트워크가 끊길 수 있습니다.
+일부 프록시 서버는 클라이언트당 많은 수의 동시 연결을 처리할 수 없으며 정책을 더 낮은 값으로 설정하여 해결할 수 있습니다.
+
+값은 6 이상이어야 합니다.
+이 한도 미만의 값을 설정하면 6이 사용됩니다.
+기본값(32) 밑으로 낮추는 데 따르는 위험은 사용자가 감수해야 합니다.
+
+값은 256(<ph name="PRODUCT_NAME" /> 147 이전 버전에서는 99) 이하여야 합니다.
+이 한도를 초과하는 값을 설정하면 256(<ph name="PRODUCT_NAME" /> 147 이전 버전에서는 99)이 사용됩니다.
+기본값(32)보다 높게 설정하는 데 따르는 위험은 사용자가 감수해야 합니다.</translation>
 <translation id="5297873769621042075">정책을 설정하면 HTTPS로 업그레이드되지 않고 HTTPS 우선 모드가 설정된 경우 오류 전면 광고가 표시되지 않는 호스트 이름 또는 호스트 이름 패턴(예: '[*.]example.com') 목록이 지정됩니다. 조직에서 이 정책을 사용하면 HTTPS 업그레이드 또는 HTTPS 우선 모드를 사용 중지하지 않고도 HTTPS를 지원하지 않는 서버에 대한 액세스를 유지할 수 있습니다.
 
 제공된 호스트 이름은 표준화되어야 합니다. 모든 IDN은 A 라벨 형식으로 변환되어야 하며 모든 ASCII 문자는 소문자여야 합니다.
@@ -7324,6 +7364,7 @@ Microsoft SharePoint 및 OneDrive 카드에는 추가 관리자 구성이 필요
       VPD(필수 제품 데이터)는 기기와 관련된 구성 및 정보 데이터(예: 부품 및 일련번호)의 모음입니다.</translation>
 <translation id="5760861224093391268">사용자 보안 신호를 보고할 때 퍼스트 파티 인증 사용 중지</translation>
 <translation id="5762969307102447459">주소 입력 시 자동 완성 사용 안함</translation>
+<translation id="5763723496957591166">WebSocket 요청에 대해 프록시 서버당 동시 연결할 수 있는 최대 수</translation>
 <translation id="5765780083710877561">설명:</translation>
 <translation id="5766438888216077649"><ph name="BLANK_PAGE_NAME" />을(를) 타겟팅하는 링크의 경우 <ph name="WINDOW_OPENER_PROPERTY" /> 속성을 설정하지 않음</translation>
 <translation id="5767776869128458023">대체 오류 페이지 사용 중지</translation>
@@ -7335,6 +7376,7 @@ Microsoft SharePoint 및 OneDrive 카드에는 추가 관리자 구성이 필요
 <translation id="5776485039795852974">사이트에서 데스크톱 알림을 표시할 때마다 확인</translation>
 <translation id="5776508475264864949">Gemini 앱이 웹페이지에서 작업을 실행하도록 허용하지 않습니다.</translation>
 <translation id="5783009211970309878">인쇄 머리글 및 바닥글</translation>
+<translation id="5786913136266632175">Chrome Finds를 허용하고 AI 모델을 개선합니다.</translation>
 <translation id="5789288985554424301">웹사이트가 Idle Detection API를 사용하도록 허용할지 설정할 수 있습니다.
 
 정책을 1 - <ph name="ALLOW_IDLE_DETECTION_VALUE_NAME" />으로 설정하면 웹사이트에서 사용자에게 권한을 요청하지 않고도 API를 사용할 수 있습니다.
@@ -7520,6 +7562,7 @@ Microsoft SharePoint 및 OneDrive 카드에는 추가 관리자 구성이 필요
 
 정책을 사용 안함으로 설정하면 집중 모드에서 사운드가 사용 중지됩니다.</translation>
 <translation id="5890063326284543943">Serial API 사용 제어</translation>
+<translation id="5893086678951790439">측정항목 보고 수준</translation>
 <translation id="5893303508158298667"><ph name="REMOTE_ACCESS_HOST_FIREWALL_TRAVERSAL_POLICY_NAME" />이 사용 설정된 경우 <ph name="REMOTE_ACCESS_HOST_ALLOW_RELAYED_CONNECTION_POLICY_NAME" />을 사용 설정하거나 설정하지 않으면 방화벽 제한 등으로 인해 직접 연결이 불가능할 때 원격 클라이언트를 사용하여 릴레이 서버를 통해 이 컴퓨터에 연결할 수 있게 됩니다.
 
       정책을 사용 중지해도 원격 액세스는 사용 중지되지 않지만 NAT 순회 또는 릴레이가 아닌 같은 네트워크에서의 연결만 허용됩니다.</translation>
@@ -7644,6 +7687,7 @@ IP 주소 공간 재정의에는 두 가지 형식이 있습니다.
 
       정책을 설정하면 사용자가 변경할 수 없습니다. 설정하지 않으면 머리글과 바닥글의 표시 여부를 사용자가 결정합니다.</translation>
 <translation id="5951418260805607969">디스크 공간이 부족할 때 알림 표시</translation>
+<translation id="5952917461013988610">기본 보고</translation>
 <translation id="5958746038080720143">WPAD(웹 프록시 자동 검색) 최적화 사용 설정</translation>
 <translation id="5961137303188584693">기기의 내장 NIC MAC 주소</translation>
 <translation id="5962271004971310788">시크릿 모드에서 탐색하려면 사용자가 시크릿 모드에서 실행하도록 허용해야 하는 확장 프로그램</translation>
@@ -8861,6 +8905,17 @@ false로 설정되면 Crostini 컨테이너로 포트 전달이 사용 중지됩
 
       정책을 설정하지 않으면 신호 강도 변경 이벤트에 대한 추가 텔레메트리 데이터가 보고되지 않습니다.</translation>
 <translation id="6751612743847158732">항상 마지막 세션을 복원합니다.</translation>
+<translation id="6751882390104737961">Chrome Finds는 사용자가 현재 웹페이지에서 콘텐츠를 검색하고 이해하는 데 도움이 되는 AI 기반 기능입니다.
+
+0 = 이 기능을 사용하도록 허용하면서 Google에서 관련 데이터를 사용하여 AI 모델을 개선하도록 허용합니다. 관련 데이터에는 기능에 따라 프롬프트나 입력, 출력, 소스 자료, 서면 의견이 포함될 수 있습니다. AI 모델을 개선하기 위해 사람이 데이터를 검토할 수도 있습니다. 아래에 명시된 경우를 제외하고 0이 기본값입니다.
+
+1 = 기능을 사용하도록 허용하되 Google에서 사용자 콘텐츠(프롬프트, 입력, 출력, 소스 자료, 서면 의견 등)를 사용하여 모델을 개선하도록 허용하지 않습니다. 1은 <ph name="GOOGLE_ADMIN_CONSOLE_PRODUCT_NAME" />에서 관리되는 기업 사용자 및 <ph name="GOOGLE_WORKSPACE_PRODUCT_NAME" />에서 관리되는 Education 계정의 기본값입니다.
+
+2 = 기능을 허용하지 않습니다.
+
+정책을 설정하지 않으면 <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> 정책에 따라 동작이 결정됩니다.
+
+생성형 AI 기능의 데이터 처리에 관한 자세한 내용은 https://support.google.com/chrome/a?p=generative_ai_settings 페이지를 참고하세요.</translation>
 <translation id="6752711782954612641"><ph name="DEFAULT_SEARCH_PROVIDER_ENABLED_POLICY_NAME" />가 사용 설정되어 있으면 <ph name="DEFAULT_SEARCH_PROVIDER_SEARCH_URL_POST_PARAMS_POLICY_NAME" /> 설정은 POST로 URL을 검색할 때의 매개변수를 지정합니다. 이 매개변수는 쉼표로 구분된 이름 값의 쌍으로 구성됩니다. 값이 <ph name="SEARCH_TERM_MARKER" />와 같은 템플릿 매개변수면 실제 검색어 데이터로 교체됩니다.
 
       <ph name="DEFAULT_SEARCH_PROVIDER_SEARCH_URL_POST_PARAMS_POLICY_NAME" />를 설정하지 않으면 GET 메서드를 사용해 검색 요청이 전송됩니다.</translation>
@@ -8925,17 +8980,6 @@ false로 설정되면 Crostini 컨테이너로 포트 전달이 사용 중지됩
 <translation id="6813263547126514821">전원 및 종료</translation>
 <translation id="681446116407619279">지원되는 인증 스키마</translation>
 <translation id="6815628711329903153">Graphics3D API PPAPI 플러그인에 최신 버퍼 할당을 허용합니다.</translation>
-<translation id="6819031008957510729">정책을 사용 설정하면 기본적으로 <ph name="PRODUCT_NAME" /> 사용량 및 비정상 종료 관련 데이터가 익명으로 Google에 보고되는 방안이 권장되지만 사용자는 이 설정을 변경할 수 있습니다.
-
-정책을 사용 중지하면 익명 보고가 사용 중지되고 사용량 또는 비정상 종료 데이터가 Google로 전송되지 않습니다. 사용자는 이 설정을 변경할 수 없습니다.
-
-정책을 설정하지 않으면 설치 또는 최초 실행 시 사용자가 익명 보고 동작을 선택할 수 있으며 나중에 이 설정을 변경할 수 있습니다.
-
-(<ph name="PRODUCT_OS_NAME" />에 관해서는 <ph name="DEVICE_METRICS_REPORTING_ENABLED_POLICY_NAME" /> 참고)
-
-<ph name="MS_WIN_NAME" />의 경우 이 정책은 <ph name="MS_AD_NAME" /> 도메인에 연결되거나, <ph name="MS_AAD_NAME" />에 연결되거나, <ph name="CHROME_ENTERPRISE_CORE_NAME" />에 등록된 인스턴스에서만 사용할 수 있습니다.
-
-<ph name="MAC_OS_NAME" />의 경우 정책은 MDM을 통해 관리되거나, MCX를 통해 도메인에 연결되거나, <ph name="CHROME_ENTERPRISE_CORE_NAME" />에 등록된 인스턴스에서만 사용할 수 있습니다.</translation>
 <translation id="6819838337315703072"><ph name="LINUX_OS_NAME" /> 앱 지원이 제공될 경우 정책을 사용 설정하면 <ph name="LINUX_OS_NAME" /> 앱 사용 관련 정보가 서버로 다시 전송됩니다.
 
       정책을 사용 중지하거나 설정하지 않으면 사용 정보가 보고되지 않습니다.</translation>
@@ -9014,6 +9058,7 @@ False로 설정하거나 설정하지 않으면 레이아웃을 사용할 수 �
 <translation id="686079137349561371">Microsoft Windows 7 이상</translation>
 <translation id="6863927303509860338">새 탭 페이지에서 단축키 설정</translation>
 <translation id="6866755486434471318"><ph name="PEPPER_NAME" />에서 동영상 디코딩에 공유 이미지를 사용하도록 허용합니다.</translation>
+<translation id="6874461444739276423">기기 측정항목 보고 수준</translation>
 <translation id="6878757724611298427">사용자가 연결되지 않은 기기에서 Android 앱을 사용하도록 허용</translation>
 <translation id="6881447940489194100">16진수로 인코딩된 데이터의 SHA-256 해시입니다.</translation>
 <translation id="68818134518270542">정책을 설정하면 사용자가 <ph name="PRODUCT_OS_NAME" /> 잠금 화면에서 메모 앱으로 사용 설정할 수 있는 앱이 지정됩니다.
@@ -9740,6 +9785,7 @@ true로 설정하면 <ph name="PRODUCT_NAME" />에서는
 
       이 정책이 설정되지 않거나 공백으로 남아 있으면 사용자가 <ph name="PRODUCT_NAME" />에서 어떤 Google 계정이든 브라우저 기본 계정으로 설정할 수 있습니다.</translation>
 <translation id="723103540848640830">잠금 화면 PIN 최소 길이 설정</translation>
+<translation id="7231449913899026849">WebSocket이 아닌 요청에 대해 프록시 서버당 동시 연결할 수 있는 최대 수</translation>
 <translation id="7234280155140786597">차단된 기본 메시지 호스트의 이름(모두 차단하려면 * 값 적용)</translation>
 <translation id="723621412149834592">정책을 <ph name="BLOCK_WINDOW_PLACEMENT_POLICY_NAME" />(값 2) 정책으로 설정하면 기본적으로 창 배치 권한이 사이트에 부여되지 않도록 자동으로 거부됩니다. 이렇게 하면 사이트에서 기기 화면에 관한 정보를 본 다음, 해당 정보를 사용하여 창을 열고 배치하거나 특정 화면에서는 전체 화면을 요청하는 기능이 제한됩니다.
 
@@ -10060,6 +10106,7 @@ Kyber 제공 서비스는 이전 버전과 호환됩니다. 기존 TLS 서버 �
 <translation id="7481702249684965639">사용자에게 휴지통이 사용 설정되었습니다.</translation>
 <translation id="7482768039644066614">페이지 로드 메타데이터 및 머신러닝 모델 가져오기를 사용 설정하여 브라우저 사용 환경을 개선합니다.</translation>
 <translation id="748292668225669178"><ph name="MICROSOFT_ONE_DRIVE_NAME" />의 마운트를 구성합니다.</translation>
+<translation id="7483786326602801858"><ph name="ANDROID_NAME" />에서 Microsoft® 클라우드 ID 공급업체 자동 로그인 허용</translation>
 <translation id="7485481791539008776">기본 프린터 선택 규칙</translation>
 <translation id="7486205887492534734">여러 인증서가 일치하는 경우 로그인 화면에 메시지 표시</translation>
 <translation id="748873163367340515">검색에서 필수 쿠키와 데이터만 사용합니다.</translation>
@@ -10206,6 +10253,22 @@ URL 패턴은 <ph name="DIRECT_SOCKETS_PRIVATE_NETWORK_ACCESS_BLOCKED_FOR_URLS_P
 
       사용자의 기기가 관리되지 않는다면 이 기능의 사용 가능 여부는 사용자가 기기 소유자인지에 따라 추가로 달라집니다.</translation>
 <translation id="7570291542739287032">클라우드 전용</translation>
+<translation id="7571158727244273239">정책을 설정하면 WebSocket 요청에 대해 프록시 서버당 동시 연결할 수 있는 최대 수가 지정됩니다.
+
+WebSocket이 아닌 요청 한도를 수정하려면 <ph name="MAX_CONNECTIONS_PER_PROXY_POLICY_NAME" /> 정책을 참고하세요.
+
+정책을 설정하지 않으면 기본값 32가 사용됩니다.
+
+일부 웹 앱은 중지 상태인 GET에 너무 많은 연결을 사용하는 것으로 알려져 있으므로 32 밑으로 낮추면 연결이 중지 상태인 웹 앱이 여러 개 열려 있을 때 브라우저 네트워크가 끊길 수 있습니다.
+일부 프록시 서버는 클라이언트당 많은 수의 동시 연결을 처리할 수 없으며 정책을 더 낮은 값으로 설정하여 해결할 수 있습니다.
+
+값은 6 이상이어야 합니다.
+이 한도 미만의 값을 설정하면 6이 사용됩니다.
+기본값(32) 밑으로 낮추는 데 따르는 위험은 사용자가 감수해야 합니다.
+
+값은 256 이하여야 합니다.
+이 한도를 초과하는 값을 설정하면 256이 사용됩니다.
+기본값(32)보다 높게 설정하는 데 따르는 위험은 사용자가 감수해야 합니다.</translation>
 <translation id="7572641760104970905">복잡성 없음</translation>
 <translation id="757395965347379751">이 설정이 사용 설정되었다면 <ph name="PRODUCT_NAME" />은(는) 로컬에 설치된 CA 인증서를 성공적으로 확인하고 체인을 구축하는 한 SHA-1 서명 인증서를 허용합니다.
 
@@ -11097,6 +11160,13 @@ False로 설정하면 로그인 화면이 표시될 때 개인 정보 보호 화
 <translation id="8171262216089271568">로그인 화면에서 큰 커서 사용 설정</translation>
 <translation id="8171924760436219650">로그인 화면의 기본 마우스 버튼을 오른쪽 버튼으로 변경</translation>
 <translation id="81724933026241365">사용자가 종료 아이콘 또는 기기의 전원 버튼을 사용하여 기기를 끌 수 있도록 허용</translation>
+<translation id="8173338752620395043">정책을 사용 설정하면 <ph name="PRODUCT_OS_NAME" />에서 비정상 종료 보고서 등 사용 측정항목과 진단 데이터를 Google에 보고합니다. 정책을 사용 중지하면 측정항목 및 진단 데이터 보고가 사용 중지됩니다.
+
+관리 기기의 경우 이 정책은 기본적으로 사용 설정되며 측정항목이 Google에 전송됩니다.
+
+관리되지 않는 기기의 경우 정책이 설정되지 않으면 사용자가 측정항목 전송 여부를 결정할 수 있습니다.
+
+기기에서 <ph name="RESTRUCTURE_METRICS_CONSENT_SETTINGS_EXPERIMENT_NAME" /> 실험이 진행 중이고 이 정책과 <ph name="DEVICE_METRICS_REPORTING_LEVEL_POLICY_NAME" /> 정책이 모두 설정된 경우 <ph name="DEVICE_METRICS_REPORTING_LEVEL_POLICY_NAME" /> 정책이 우선 적용됩니다.</translation>
 <translation id="8173864651667424191">이미지로 인쇄 옵션이 사용 가능한 경우 PDF 문서의 인쇄 미리보기로 기본적으로 설정됩니다.</translation>
 <translation id="8175922758834816585">로그인 화면에서 음성 피드백을 사용 설정하고, 사용자가 일시적으로 사용 중지할 수 있도록 허용</translation>
 <translation id="8176035528522326671">기업 사용자에게 기본 멀티 프로필 사용자만 허용(기업에서 관리하는 사용자에 대한 기본 동작임)</translation>
@@ -11704,6 +11774,7 @@ Windows에서는 GPO를 통해 정책을 설정하는 것이 좋습니다. 하�
 생성형 AI 기능의 데이터 처리에 관한 자세한 내용은 https://support.google.com/chrome/a?p=generative_ai_settings 페이지를 참고하세요.</translation>
 <translation id="8566842294717252664">새 탭 페이지 및 앱 런처에서 웹 스토어 숨기기</translation>
 <translation id="8567697114274003779">관리 프로필에 맞춤 기업 라벨 설정</translation>
+<translation id="8570976102224880079">고급 보고서</translation>
 <translation id="8571069584826006598">분리형 웹 앱 출처에서 사용자에게 WebPrinting API를 통해 로컬 프린터 액세스 권한 부여를 요청하도록 허용</translation>
 <translation id="8571119890730528225">서드 파티 저장용량 파티셔닝을 사용 중지합니다.</translation>
 <translation id="8571314270766672278">채널 다운그레이드 시 기기를 롤백 및 재설정하고 등록을 유지하도록 시도</translation>
@@ -11900,6 +11971,7 @@ JavaScript 최적화를 사용 중지하면(이 정책의 값을 2로 설정) <p
 이 정책은 <ph name="PRODUCT_NAME" /> 버전 144부터 Topics API 지원 중단과 함께 지원 중단됩니다.</translation>
 <translation id="8672321184841719703">자동 업데이트 버전 타겟팅</translation>
 <translation id="867410340948518937">U2F(범용 2차 요소)</translation>
+<translation id="8675599659717867329">보고 사용 중지</translation>
 <translation id="8676959842615154675">정책을 사용 설정하면 원격 액세스 호스트가 호스트와 연결된 로컬 사용자의 이름과 호스트 소유자로 등록된 Google 계정의 이름(호스트 소유자가 'johndoe@example.com'인 경우 'johndoe')을 비교합니다. 호스트 소유자의 이름이 호스트와 연결된 로컬 사용자의 이름과 다르면 이 호스트는 시작되지 않습니다. 소유자의 Google 계정이 특정 도메인에 연결되도록 하려면 <ph name="REMOTE_ACCESS_HOST_DOMAIN_POLICY_NAME" />과 정책을 함께 사용합니다.
 
       정책을 사용 중지하거나 설정하지 않으면 원격 액세스 호스트를 모든 로컬 사용자와 연결할 수 있습니다.</translation>
@@ -11956,6 +12028,7 @@ JavaScript 최적화를 사용 중지하면(이 정책의 값을 2로 설정) <p
 설치 프로그램에 '자세히 알아보기' URL이 표시되지 않습니다. 설정된 경우 https 스키마를
 사용해야 합니다.</translation>
 <translation id="8715885991031124968">다른 출처 서브프레임에서 실행된 자바스크립트 대화상자 허용</translation>
+<translation id="8720288018555457355">AI 모델을 개선하지 않고 Chrome Finds를 허용합니다.</translation>
 <translation id="8720547069538712402">사용자가 맞춤법 검사를 사용 또는 사용 중지하도록 허용</translation>
 <translation id="8721685661759544418">웹페이지 소리 내어 읽어주기(텍스트 추출 및 텍스트 음성 변환 합성) 사용</translation>
 <translation id="8726080977639508431">이 정책은 <ph name="PRODUCT_NAME" />에서 이전 브라우저 지원 기능을 위한 사이트 목록/그레이리스트를 해석하는 방식을 결정합니다. <ph name="URL_LIST_POLICY_NAME" />, <ph name="URL_GREYLIST_POLICY_NAME" />, <ph name="USE_IE_SITELIST_POLICY_NAME" />, <ph name="EXTERNAL_SITELIST_POLICY_NAME" /> 및 <ph name="EXTERNAL_GREYLIST_POLICY_NAME" /> 정책에 영향을 미칩니다.
@@ -12727,6 +12800,19 @@ HTTPS 우선 모드는 처음에는 엄격 또는 균형 모드로 설정되지�
 사용 중지하면 스토리지 한도 API가 일반적으로 사용량과 관계없이 기기에서 사용할 수 있는 총 공간에 비례하는 동적 값을 반환합니다.
 설정하지 않으면 스토리지 한도 API가 기본 Chrome 동작을 사용합니다.
 무제한 저장용량 권한이 있는 사이트는 이 설정의 영향을 받지 않습니다. 시행된 한도도 영향받지 않습니다.</translation>
+<translation id="975621145048605048">정책을 사용 설정하면 기본적으로 <ph name="PRODUCT_NAME" /> 사용량 및 비정상 종료 관련 데이터가 익명으로 Google에 보고되는 방안이 권장되지만 사용자는 이 설정을 변경할 수 있습니다.
+
+정책을 사용 중지하면 익명 보고가 사용 중지되고 사용량 또는 비정상 종료 데이터가 Google로 전송되지 않습니다. 사용자는 이 설정을 변경할 수 없습니다.
+
+정책을 설정하지 않으면 설치 또는 최초 실행 시 사용자가 익명 보고 동작을 선택할 수 있으며 나중에 이 설정을 변경할 수 있습니다.
+
+(<ph name="PRODUCT_OS_NAME" />의 경우 <ph name="DEVICE_METRICS_REPORTING_ENABLED_POLICY_NAME" /> 참고)
+
+기기에서 <ph name="RESTRUCTURE_METRICS_CONSENT_SETTINGS_EXPERIMENT_NAME" /> 실험이 진행 중이고 이 정책과 <ph name="METRICS_REPORTING_LEVEL_POLICY_NAME" /> 정책이 모두 설정된 경우 <ph name="METRICS_REPORTING_LEVEL_POLICY_NAME" /> 정책이 우선 적용됩니다.
+
+<ph name="MS_WIN_NAME" />의 경우 이 정책은 <ph name="MS_AD_NAME" /> 도메인에 연결되거나, <ph name="MS_AAD_NAME" />에 연결되거나, <ph name="CHROME_ENTERPRISE_CORE_NAME" />에 등록된 인스턴스에서만 사용할 수 있습니다.
+
+<ph name="MAC_OS_NAME" />의 경우 이 정책은 MDM을 통해 관리되거나, MCX를 통해 도메인에 연결되거나, <ph name="CHROME_ENTERPRISE_CORE_NAME" />에 등록된 인스턴스에서만 사용할 수 있습니다.</translation>
 <translation id="976415389478739655"><ph name="CLASS_TOOLS_NAME" /> 수업에 속하려면 사용자 기기가 관리 네트워크에 있어야 함</translation>
 <translation id="978619365985286086">수업 관리 도구 설정</translation>
 <translation id="978658824596356870">24시간 형식</translation>

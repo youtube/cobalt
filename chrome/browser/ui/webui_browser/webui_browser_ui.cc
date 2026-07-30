@@ -32,20 +32,16 @@
 #include "components/contextual_search/contextual_search_session_handle.h"
 #include "components/favicon_base/favicon_url_parser.h"
 #include "components/guest_contents/browser/guest_contents_host_impl.h"
-#include "components/surface_embed/buildflags/buildflags.h"
+#include "components/surface_embed/common/features.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_data_source.h"
+#include "services/network/public/mojom/content_security_policy.mojom.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/views/interaction/element_tracker_views.h"
 #include "ui/webui/tracked_element/tracked_element_handler.h"
 #include "ui/webui/webui_util.h"
-
-#if BUILDFLAG(ENABLE_SURFACE_EMBED)
-#include "components/surface_embed/common/features.h"
-#include "services/network/public/mojom/content_security_policy.mojom.h"
-#endif  // BUILDFLAG(ENABLE_SURFACE_EMBED)
 
 #if BUILDFLAG(IS_MAC)
 #include "base/mac/mac_util.h"
@@ -123,7 +119,6 @@ WebUIBrowserUI::WebUIBrowserUI(content::WebUI* web_ui)
   source->AddLocalizedStrings(
       SearchboxHandler::GetWebUIDataSourceDict(profile));
 
-#if BUILDFLAG(ENABLE_SURFACE_EMBED)
   source->AddBoolean(
       "enableSurfaceEmbed",
       base::FeatureList::IsEnabled(surface_embed::features::kSurfaceEmbed));
@@ -133,9 +128,6 @@ WebUIBrowserUI::WebUIBrowserUI(content::WebUI* web_ui)
     source->OverrideContentSecurityPolicy(
         network::mojom::CSPDirectiveName::ObjectSrc, "object-src 'self';");
   }
-#else
-  source->AddBoolean("enableSurfaceEmbed", false);
-#endif  // BUILDFLAG(ENABLE_SURFACE_EMBED)
 
   // TODO(crbug.com/445510209): Uncomment after installing WebUIOmniboxHandler.
   // source->AddBoolean("reportMetrics", true);
@@ -171,13 +163,21 @@ void WebUIBrowserUI::BindInterface(
 }
 
 void WebUIBrowserUI::BindInterface(
+    mojo::PendingReceiver<searchbox::mojom::PageHandlerFactory>
+        receiver) {
+  searchbox_page_factory_receiver_.reset();
+  searchbox_page_factory_receiver_.Bind(std::move(receiver));
+}
+
+void WebUIBrowserUI::CreatePageHandler(
+    mojo::PendingRemote<searchbox::mojom::Page> page,
     mojo::PendingReceiver<searchbox::mojom::PageHandler> pending_page_handler) {
-  content::WebUI* webui = web_ui();
-  content::WebContents* web_contents = webui->GetWebContents();
+  content::WebContents* web_contents = web_ui()->GetWebContents();
   // TODO(crbug.com/445510209): Pass `metrics_reporter_` after installing a
   // WebUIOmniboxHandler.
   realbox_handler_ = std::make_unique<RealboxHandler>(
-      std::move(pending_page_handler), Profile::FromWebUI(webui), web_contents,
+      std::move(pending_page_handler), std::move(page),
+      Profile::FromWebUI(web_ui()), web_contents,
       base::BindRepeating(&WebUIBrowserUI::GetOrCreateContextualSessionHandle,
                           base::Unretained(this)));
 }
@@ -192,9 +192,7 @@ void WebUIBrowserUI::BindInterface(
     mojo::PendingReceiver<tabs_api::mojom::TabStripService> receiver) {
   auto* tab_strip_service_feature =
       browser_->browser_window_features()->tab_strip_service_feature();
-  CHECK(tab_strip_service_feature)
-      << "Browser missing TabStripService, did you enable "
-         "TabStripBrowserApi feature flag?";
+  CHECK(tab_strip_service_feature) << "Browser missing TabStripService";
   tab_strip_service_feature->Accept(std::move(receiver));
 }
 

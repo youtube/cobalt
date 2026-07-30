@@ -304,8 +304,6 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
   bool IsInitialWebUIURL(const GURL& url) override;
 #endif  // !BUILDFLAG(IS_ANDROID)
   bool IsTopChromeWebUIURL(const GURL& url) override;
-  bool IsIsolatedContextAllowedForUrl(content::BrowserContext* browser_context,
-                                      const GURL& lock_url) override;
   bool IsMultiCaptureAllowed(
       content::RenderFrameHost* render_frame_host) override;
   bool IsFileAccessAllowed(const base::FilePath& path,
@@ -613,8 +611,7 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
       content::WebUIBrowserInterfaceBrokerRegistry& registry) override;
   void RegisterMojoBinderPoliciesForSameOriginPrerendering(
       content::MojoBinderPolicyMap& policy_map) override;
-  void RegisterMojoBinderPoliciesForPreview(
-      content::MojoBinderPolicyMap& policy_map) override;
+
   void RegisterBrowserInterfaceBindersForServiceWorker(
       content::BrowserContext* browser_context,
       const content::ServiceWorkerVersionBaseInfo& service_worker_version_info,
@@ -685,6 +682,7 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
       content::FrameTreeNodeId frame_tree_node_id) override;
   void RegisterNonNetworkWorkerMainResourceURLLoaderFactories(
       content::BrowserContext* browser_context,
+      const std::optional<url::Origin>& request_initiator,
       NonNetworkURLLoaderFactoryMap* factories) override;
   void RegisterNonNetworkServiceWorkerUpdateURLLoaderFactories(
       content::BrowserContext* browser_context,
@@ -1202,6 +1200,9 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
       net::HttpRequestHeaders& modified_cors_exempt_headers) override;
   void UpdateCorsExemptHeaderForPrefetch(
       network::mojom::NetworkContextParams* params) override;
+
+  std::optional<int> GetCpuPerformanceTierOverride(
+      content::BrowserContext* browser_context) override;
 
   void RecordAssistedLogin(
       content::ContentBrowserClient::AssistedLoginType login_type) override;

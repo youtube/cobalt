@@ -36,7 +36,7 @@ class SidePanel : public views::AccessiblePaneView,
   // left side of the browser regardless of LTR / RTL mode.
   enum class HorizontalAlignment { kLeft = 0, kRight };
   explicit SidePanel(BrowserView* browser_view,
-                     SidePanelEntry::PanelType type,
+                     SidePanelType type,
                      bool has_border);
   SidePanel(const SidePanel&) = delete;
   SidePanel& operator=(const SidePanel&) = delete;
@@ -94,7 +94,7 @@ class SidePanel : public views::AccessiblePaneView,
   // panel has been resized since metrics were last logged.
   void RecordMetricsIfResized();
 
-  SidePanelEntry::PanelType type() const { return type_; }
+  SidePanelType type() const { return type_; }
 
   // Reflects the current state of the visibility of the side panel.
   enum class State { kClosed, kOpening, kOpen, kClosing };
@@ -146,7 +146,7 @@ class SidePanel : public views::AccessiblePaneView,
 
   raw_ptr<BorderView> border_view_ = nullptr;
   const raw_ptr<BrowserView> browser_view_;
-  const SidePanelEntry::PanelType type_;
+  const SidePanelType type_;
   raw_ptr<views::View> resize_area_ = nullptr;
   raw_ptr<views::View> header_view_ = nullptr;
   raw_ptr<views::View> content_parent_view_;
@@ -197,6 +197,11 @@ class SidePanel : public views::AccessiblePaneView,
 
   // Cache of recent animation values.
   std::map<BrowserAnimationSequence, double> last_animation_values_;
+
+  // Starting point for opening animations. This is updated any time the side
+  // panel animates other than during the open animation, so that if a close is
+  // interrupted, the open animation starts from there.
+  double open_starting_point_ = 0.0;
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_SIDE_PANEL_SIDE_PANEL_H_

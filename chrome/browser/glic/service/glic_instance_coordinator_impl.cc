@@ -35,12 +35,19 @@
 #include "chrome/browser/glic/widget/browser_conditions.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/tab_list/tab_list_interface.h"
+#include "chrome/browser/ui/browser_commands.h"
+#include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/common/chrome_features.h"
 #include "components/prefs/pref_service.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/web_contents.h"
 #include "third_party/abseil-cpp/absl/functional/overload.h"
+
+#if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/ui/browser_list.h"
+#endif
 
 namespace glic {
 
@@ -117,6 +124,9 @@ GlicInstanceCoordinatorImpl::GlicInstanceCoordinatorImpl(
           base::MemoryPressureListenerTag::kGlicKeyedService,
           this),
       metrics_(this) {
+  if (identity_manager) {
+    identity_manager_observation_.Observe(identity_manager);
+  }
   if (base::FeatureList::IsEnabled(features::kGlicDaisyChainNewTabs) ||
       base::FeatureList::IsEnabled(features::kGlicTabRestoration) ||
       base::FeatureList::IsEnabled(features::kGlicDaisyChainViaCoordinator)) {
@@ -149,7 +159,6 @@ GlicInstanceCoordinatorImpl::~GlicInstanceCoordinatorImpl() {
   last_active_instance_ = nullptr;
   auto instances = std::exchange(instances_, {});
   instances.clear();
-  warmed_instance_.reset();
 }
 
 void GlicInstanceCoordinatorImpl::OnInstanceActivationChanged(
@@ -176,6 +185,15 @@ void GlicInstanceCoordinatorImpl::OnInstanceVisibilityChanged(
     ComputeContentAccessIndicator();
   }
   metrics_.OnInstanceVisibilityChanged();
+}
+
+void GlicInstanceCoordinatorImpl::OnPrimaryAccountChanged(
+    const signin::PrimaryAccountChangeEvent& event_details) {
+  if (event_details.GetEventTypeFor(signin::ConsentLevel::kSignin) ==
+      signin::PrimaryAccountChangeEvent::Type::kCleared) {
+    // Close all instances on sign-out.
+    RemoveAllInstances();
+  }
 }
 
 void GlicInstanceCoordinatorImpl::NotifyActiveInstanceChanged() {
@@ -221,9 +239,6 @@ GlicInstanceImpl* GlicInstanceCoordinatorImpl::GetInstanceImplForTab(
 
 std::vector<GlicInstance*> GlicInstanceCoordinatorImpl::GetInstances() {
   std::vector<GlicInstance*> instances;
-  if (warmed_instance_) {
-    instances.push_back(warmed_instance_.get());
-  }
   for (auto& entry : instances_) {
     instances.push_back(entry.second.get());
   }
@@ -265,9 +280,20 @@ void GlicInstanceCoordinatorImpl::Toggle(
     bool deprecated_auto_send,
     std::optional<std::string> deprecated_conversation_id) {
   if (!browser) {
-    CHECK(!deprecated_conversation_id || deprecated_conversation_id->empty());
-    ToggleFloaty(prevent_close, source, deprecated_prompt_suggestion);
-    return;
+    if (!GlicEnabling::IsLiveAndFloatyEnabledByFlags()) {
+#if !BUILDFLAG(IS_ANDROID)
+      browser = chrome::OpenEmptyWindow(profile_);
+#endif
+      if (!browser) {
+        LOG(ERROR)
+            << "Could not find or create a browser window for Glic side panel.";
+        return;
+      }
+    } else {
+      CHECK(!deprecated_conversation_id || deprecated_conversation_id->empty());
+      ToggleFloaty(prevent_close, source, deprecated_prompt_suggestion);
+      return;
+    }
   }
 
   ToggleSidePanel(browser, prevent_close, source, deprecated_prompt_suggestion,
@@ -290,6 +316,12 @@ void GlicInstanceCoordinatorImpl::Close(const CloseOptions& options) {
   // TODO(crbug.com/450286204): Determine whether there are cases where this
   // should be able to close a side panel UI instead.
   CloseFloaty(options);
+}
+
+void GlicInstanceCoordinatorImpl::RemoveAllInstances() {
+  while (!instances_.empty()) {
+    RemoveInstance(instances_.begin()->second.get());
+  }
 }
 
 void GlicInstanceCoordinatorImpl::Invoke(tabs::TabInterface* tab,
@@ -327,7 +359,7 @@ void GlicInstanceCoordinatorImpl::InvokeInternal(
                          }
                          // TODO(crbug.com/483387751): Show default toast here
                          // once implemented.
-                         return (GlicInstanceImpl*)nullptr;
+                         return static_cast<GlicInstanceImpl*>(nullptr);
                        }
                        return GetOrCreateInstanceImplForConversationId(
                            conv_id.conversation_id, conv_id.turn_id);
@@ -418,15 +450,6 @@ base::CallbackListSubscription
 GlicInstanceCoordinatorImpl::AddGlobalShowHideCallback(
     base::RepeatingClosure callback) {
   return global_show_hide_callback_list_.Add(std::move(callback));
-}
-
-void GlicInstanceCoordinatorImpl::Preload() {
-  if (!base::FeatureList::IsEnabled(features::kGlicWebContentsWarming)) {
-    CreateWarmedInstance();
-    warmed_instance_->metrics()->OnWarmedInstanceCreated();
-  } else {
-    VLOG(1) << "WebContents warming is enabled, skipping GlicInstance warming";
-  }
 }
 
 void GlicInstanceCoordinatorImpl::Reload(
@@ -555,7 +578,12 @@ GlicInstanceCoordinatorImpl::GetOrCreateGlicInstanceImplForTab(
           features::kGlicDefaultToLastActiveConversation) &&
       last_active_instance_ &&
       last_active_instance_->GetTimeSinceLastActive() <
-          features::kGlicDefaultToLastActiveConversationMaxRecency.Get()) {
+          features::kGlicDefaultToLastActiveConversationMaxRecency.Get() &&
+      !last_active_instance_->IsActuating()) {
+    last_active_instance_->metrics()->OnDaisyChain(
+        DaisyChainSource::kLastActiveInstance,
+        /*success=*/true, tab,
+        /*source_tab=*/nullptr);
     return last_active_instance_;
   }
 
@@ -615,36 +643,12 @@ GlicInstanceImpl* GlicInstanceCoordinatorImpl::CreateGlicInstance(
     std::optional<InstanceId> instance_id) {
   ApplyMaxAwakeInstancesLimit();
 
-  if (!base::FeatureList::IsEnabled(features::kGlicWebContentsWarming)) {
-    if (!warmed_instance_) {
-      CreateWarmedInstance();
-      // Records a just-in-time instance creation when warming is disabled or
-      // failed.
-      warmed_instance_->metrics()->OnInstanceCreatedWithoutWarming();
-    }
-    auto* instance_ptr = warmed_instance_.get();
-    if (instance_id) {
-      instance_ptr->SetIdForRestoration(*instance_id);
-    }
-    instances_[instance_ptr->id()] = std::move(warmed_instance_);
-    // Records the promotion of an instance to an active one.
-    instance_ptr->metrics()->OnInstancePromoted();
-    if (warming_enabled_) {
-      CreateWarmedInstance();
-      // Records the creation of a new warmed instance to replace the promoted
-      // one.
-      warmed_instance_->metrics()->OnWarmedInstanceCreated();
-    } else {
-      VLOG(1) << "Warming is disabled, skipping warming";
-    }
-    return instance_ptr;
-  } else {
-    auto instance = CreateInstanceImpl(instance_id);
-    auto* instance_ptr = instance.get();
-    instances_[instance->id()] = std::move(instance);
-    instance_ptr->metrics()->OnInstanceCreatedWithoutWarming();
-    return instance_ptr;
-  }
+  auto instance = CreateInstanceImpl(instance_id);
+  auto* instance_ptr = instance.get();
+  instances_[instance->id()] = std::move(instance);
+  // TODO(harringtond): Figure out what to do about this metric.
+  instance_ptr->metrics()->OnInstanceCreatedWithoutWarming();
+  return instance_ptr;
 }
 
 std::unique_ptr<GlicInstanceImpl>
@@ -655,10 +659,6 @@ GlicInstanceCoordinatorImpl::CreateInstanceImpl(std::optional<InstanceId> id) {
       profile_, instance_id, weak_ptr_factory_.GetWeakPtr(),
       GlicKeyedServiceFactory::GetGlicKeyedService(profile_)->metrics(),
       contextual_cueing_service_);
-}
-
-void GlicInstanceCoordinatorImpl::CreateWarmedInstance() {
-  warmed_instance_ = CreateInstanceImpl();
 }
 
 void GlicInstanceCoordinatorImpl::ShowInstanceForTabs(
@@ -699,6 +699,7 @@ void GlicInstanceCoordinatorImpl::ToggleFloaty(
     bool prevent_close,
     glic::mojom::InvocationSource source,
     std::optional<std::string> prompt_suggestion) {
+  CHECK(GlicEnabling::IsLiveAndFloatyEnabledByFlags());
   GetOrCreateInstanceImplForFloaty()->Toggle(
       ShowOptions::ForFloating(/*source_tab=*/tabs::TabHandle::Null()),
       prevent_close, source, prompt_suggestion, /*auto_send=*/false);
@@ -722,6 +723,7 @@ void GlicInstanceCoordinatorImpl::ToggleSidePanel(
   }
 
   GlicInstanceImpl* instance = nullptr;
+
   if (base::FeatureList::IsEnabled(features::kGlicWebContinuity) &&
       conversation_id && !conversation_id->empty()) {
     instance = GetInstanceImplForConversationId(*conversation_id);
@@ -886,9 +888,6 @@ void GlicInstanceCoordinatorImpl::ContextAccessIndicatorChanged(
 void GlicInstanceCoordinatorImpl::SetWarmingEnabledForTesting(
     bool warming_enabled) {
   warming_enabled_ = warming_enabled;
-  if (!warming_enabled_) {
-    warmed_instance_.reset();
-  }
 }
 
 GlicInstanceImpl* GlicInstanceCoordinatorImpl::GetInstanceWithFloaty() const {
@@ -989,8 +988,6 @@ void GlicInstanceCoordinatorImpl::OnMemoryPressure(
   service_->web_contents_warming_pool().Clear();
 
   if (base::FeatureList::IsEnabled(kGlicHibernateAllOnMemoryPressure)) {
-    warmed_instance_.reset();
-
     // Iterate over a copy of instances to avoid issues with modification during
     // iteration.
     std::vector<GlicInstanceImpl*> instances_to_process;
@@ -1178,10 +1175,6 @@ std::string GlicInstanceCoordinatorImpl::DescribeForTesting() {
   std::stringstream ss;
   for (auto& inst : instances_) {
     ss << inst.second->DescribeForTesting();  // IN-TEST
-  }
-  if (warmed_instance_) {
-    ss << "(Warming instance) "
-       << warmed_instance_->DescribeForTesting();  // IN-TEST
   }
   return ss.str();
 }

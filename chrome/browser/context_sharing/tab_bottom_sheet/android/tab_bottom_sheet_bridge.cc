@@ -48,6 +48,10 @@ TabBottomSheetBridge::~TabBottomSheetBridge() {
 }
 
 void TabBottomSheetBridge::SetWebContents(content::WebContents* web_contents) {
+  if (web_contents) {
+    web_contents->SetIgnoreZoomGestures(true);
+  }
+
   if (!co_browse_views_) {
     CreateCoBrowseViews(web_contents);
     return;
@@ -55,6 +59,15 @@ void TabBottomSheetBridge::SetWebContents(content::WebContents* web_contents) {
 
   Java_CoBrowseViews_setWebContents(AttachCurrentThread(), co_browse_views_,
                                     web_contents);
+}
+
+void TabBottomSheetBridge::ResetTouchOffset(
+    content::WebContents* web_contents) {
+  if (!java_bridge_) {
+    return;
+  }
+  Java_TabBottomSheetNativeInterface_resetTouchOffset(
+      AttachCurrentThread(), java_bridge_, web_contents);
 }
 
 bool TabBottomSheetBridge::Show(bool animate, bool starts_expanded) {

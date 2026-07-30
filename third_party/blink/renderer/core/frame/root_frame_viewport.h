@@ -59,11 +59,11 @@ class CORE_EXPORT RootFrameViewport final
   PhysicalRect ScrollIntoView(
       const PhysicalRect&,
       const PhysicalBoxStrut& scroll_margin,
-      const mojom::blink::ScrollIntoViewParamsPtr&) override;
-  gfx::Rect VisibleContentRect(
-      IncludeScrollbarsInRect = kExcludeScrollbars) const override;
+      const mojom::blink::ScrollIntoViewParamsPtr&,
+      std::unique_ptr<ScrollPromiseResolver::ActiveScrollTracker>) override;
+  gfx::Rect VisibleContentRect(IncludeScrollbarsInRect) const override;
   PhysicalRect VisibleScrollSnapportRect(
-      IncludeScrollbarsInRect = kExcludeScrollbars) const override;
+      IncludeScrollbarsInRect) const override;
   bool ShouldUseIntegerScrollOffset() const override;
   bool IsThrottled() const override {
     // RootFrameViewport is always in the main frame, so the frame does not get
@@ -184,7 +184,7 @@ class CORE_EXPORT RootFrameViewport final
       cc::ScrollSourceType,
       mojom::blink::ScrollBehavior,
       bool targeted_scroll,
-      std::unique_ptr<ScopedScrollPromiseResolver>) override;
+      std::unique_ptr<ScrollPromiseResolver::ActiveScrollTracker>) override;
 
  private:
   FRIEND_TEST_ALL_PREFIXES(RootFrameViewportTest, DistributeScrollOrder);

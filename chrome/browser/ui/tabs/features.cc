@@ -17,7 +17,6 @@ BASE_FEATURE(kSessionRestoreShowThrobberOnVisible,
 BASE_FEATURE(kVerticalTabs, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kVerticalTabsLaunch, base::FEATURE_DISABLED_BY_DEFAULT);
-
 BASE_FEATURE_PARAM(bool,
                    kVerticalTabsToggleInTabContextMenu,
                    &kVerticalTabsLaunch,
@@ -29,12 +28,31 @@ BASE_FEATURE(kVerticalTabsPreviewBadge, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kVerticalTabsNewBadge, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kVerticalTabsExpandOnHover, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kVerticalTabsExpandOnHoverDelay,
+                   &kVerticalTabsExpandOnHover,
+                   "expand_on_hover_delay",
+                   base::Milliseconds(500));
+
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kVerticalTabsExpandOnHoverClickDelay,
+                   &kVerticalTabsExpandOnHover,
+                   "expand_on_hover_click_delay",
+                   base::Milliseconds(500));
+
+BASE_FEATURE_PARAM(bool,
+                   kVerticalTabsExpandOnHoverDefaultEnabled,
+                   &kVerticalTabsExpandOnHover,
+                   false);
 
 BASE_FEATURE(kTabSelectionByPointer, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kHorizontalTabStripComboButton, base::FEATURE_DISABLED_BY_DEFAULT);
-const base::FeatureParam<bool> kHorizontalTabStripComboButtonShowStartOnly{
-    &kHorizontalTabStripComboButton, "show_start_only", false};
+BASE_FEATURE_PARAM(bool,
+                   kHorizontalTabStripComboButtonShowStartOnly,
+                   &kHorizontalTabStripComboButton,
+                   "show_start_only",
+                   false);
 
 // Enables Back-to-Opener behavior, allowing users to press the back button in a
 // newly opened tab to close that tab and return focus to the opener tab.
@@ -49,6 +67,10 @@ bool IsVerticalTabsFeatureEnabled() {
 bool IsVerticalTabsExpandOnHoverFeatureEnabled() {
   return IsVerticalTabsFeatureEnabled() &&
          base::FeatureList::IsEnabled(kVerticalTabsExpandOnHover);
+}
+
+bool IsExpandOnHoverClickDelayEnabled() {
+  return !kVerticalTabsExpandOnHoverClickDelay.Get().is_zero();
 }
 
 }  // namespace tabs

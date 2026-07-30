@@ -49,9 +49,16 @@
 namespace accessibility_annotator {
 
 using ::testing::_;
+using ::testing::ElementsAreArray;
+using ::testing::ExplainMatchResult;
 using ::testing::Field;
 using ::testing::Optional;
 using ::testing::Return;
+
+MATCHER_P(EmbeddingDataEq, expected_data, "") {
+  return ExplainMatchResult(ElementsAreArray(expected_data), arg.GetData(),
+                            result_listener);
+}
 
 class ContentAnnotatorFeatureList {
  public:
@@ -217,10 +224,11 @@ class ContentAnnotatorServiceTest : public content::RenderViewHostTestHarness {
   // Helper to trigger all necessary inputs for MaybeAnnotate.
   void TriggerClassification(const GURL& url, base::Time base_time) {
     // 1. Send PageContentAnnotated
+    page_content_annotations::HistoryVisit visit(base_time, url);
+    visit.visit_id = 1;
     service_->OnPageContentAnnotated(
-        page_content_annotations::HistoryVisit(base_time, url),
-        page_content_annotations::PageContentAnnotationsResult::
-            CreateContentVisibilityScoreResult(0.5f));
+        visit, page_content_annotations::PageContentAnnotationsResult::
+                   CreateContentVisibilityScoreResult(0.5f));
 
     // 2. Send LanguageDetermined
     translate::LanguageDetectionDetails details;
@@ -298,22 +306,24 @@ TEST_F(ContentAnnotatorServiceTest, TestMaybeAnnotate_TwoUrlsOnlyOneCompletes) {
   apc2->data.mutable_main_frame_data()->set_title("Title 2");
 
   // Expect Classify to be called only for URL 2 with correct data
-  EXPECT_CALL(
-      *mock_classifier_,
-      Classify(testing::AllOf(
-          Field(&ContentClassificationInput::url, url2),
-          Field(&ContentClassificationInput::sensitivity_score,
-                Optional(testing::FloatEq(0.7f))),
-          Field(&ContentClassificationInput::navigation_timestamp,
-                Optional(nav_time2)),
-          Field(&ContentClassificationInput::adopted_language,
-                Optional(std::string("fr"))),
-          Field(&ContentClassificationInput::page_title,
-                Optional(std::string("Title 2"))),
-          Field(&ContentClassificationInput::annotated_page_content,
-                testing::Eq(apc2)),
-          Field(&ContentClassificationInput::page_title_embedding,
-                Optional(passage_embeddings::Embedding({1.0f, 2.0f, 3.0f}))))))
+  EXPECT_CALL(*mock_classifier_,
+              Classify(testing::AllOf(
+                  Field(&ContentClassificationInput::url, url2),
+                  Field(&ContentClassificationInput::visit_id,
+                        Optional(static_cast<history::VisitID>(2))),
+                  Field(&ContentClassificationInput::sensitivity_score,
+                        Optional(testing::FloatEq(0.7f))),
+                  Field(&ContentClassificationInput::navigation_timestamp,
+                        Optional(nav_time2)),
+                  Field(&ContentClassificationInput::adopted_language,
+                        Optional(std::string("fr"))),
+                  Field(&ContentClassificationInput::page_title,
+                        Optional(std::string("Title 2"))),
+                  Field(&ContentClassificationInput::annotated_page_content,
+                        testing::Eq(apc2)),
+                  Field(&ContentClassificationInput::page_title_embedding,
+                        Optional(EmbeddingDataEq(
+                            std::vector<float>{1.0f, 2.0f, 3.0f}))))))
       .WillOnce(Return(ContentClassificationResult()));
 
   // URL 1 shouldn't trigger classification because it's incomplete.
@@ -322,16 +332,18 @@ TEST_F(ContentAnnotatorServiceTest, TestMaybeAnnotate_TwoUrlsOnlyOneCompletes) {
       .Times(0);
 
   // 1. Send partial data for URL 1.
+  page_content_annotations::HistoryVisit visit1(base_time, url1);
+  visit1.visit_id = 1;
   service_->OnPageContentAnnotated(
-      page_content_annotations::HistoryVisit(base_time, url1),
-      page_content_annotations::PageContentAnnotationsResult::
-          CreateContentVisibilityScoreResult(0.5f));
+      visit1, page_content_annotations::PageContentAnnotationsResult::
+                  CreateContentVisibilityScoreResult(0.5f));
 
   // 2. Send all data for URL 2.
+  page_content_annotations::HistoryVisit visit2(nav_time2, url2);
+  visit2.visit_id = 2;
   service_->OnPageContentAnnotated(
-      page_content_annotations::HistoryVisit(nav_time2, url2),
-      page_content_annotations::PageContentAnnotationsResult::
-          CreateContentVisibilityScoreResult(0.3f));
+      visit2, page_content_annotations::PageContentAnnotationsResult::
+                  CreateContentVisibilityScoreResult(0.3f));
 
   translate::LanguageDetectionDetails details2;
   details2.url = url2;
@@ -478,6 +490,9 @@ TEST_F(ContentAnnotatorServiceTest,
   // URL1 is missing everything except adopted_language.
   histogram_tester.ExpectBucketCount(
       "AccessibilityAnnotator.ContentAnnotator.DependentInformationMissing",
+      ContentAnnotatorMissingDependentInformation::kVisitIdMissing, 1);
+  histogram_tester.ExpectBucketCount(
+      "AccessibilityAnnotator.ContentAnnotator.DependentInformationMissing",
       ContentAnnotatorMissingDependentInformation::kSensitivityScoreMissing, 1);
   histogram_tester.ExpectBucketCount(
       "AccessibilityAnnotator.ContentAnnotator.DependentInformationMissing",
@@ -498,7 +513,7 @@ TEST_F(ContentAnnotatorServiceTest,
       ContentAnnotatorMissingDependentInformation::kPageTitleEmbeddingMissing,
       1);
   histogram_tester.ExpectTotalCount(
-      "AccessibilityAnnotator.ContentAnnotator.DependentInformationMissing", 5);
+      "AccessibilityAnnotator.ContentAnnotator.DependentInformationMissing", 6);
 }
 
 TEST_F(ContentAnnotatorServiceTest, TestMaybeAnnotate_FullAnnotationReached) {
@@ -590,6 +605,8 @@ TEST_F(ContentAnnotatorServiceTest, TestMaybeAnnotate_FullAnnotationReached) {
   EXPECT_EQ(cached_data->annotations,
             base::JSONReader::Read(data, base::JSON_PARSE_RFC)->GetDict());
   EXPECT_EQ(cached_data->page_title, "Test Title");
+  EXPECT_EQ(cached_data->navigation_timestamp, base_time);
+  EXPECT_EQ(cached_data->visit_id, static_cast<history::VisitID>(1));
 
   base::DictValue expected_classifier_results;
   expected_classifier_results.Set("title_keyword_result", "test category");
@@ -685,6 +702,8 @@ TEST_F(ContentAnnotatorServiceTest,
   EXPECT_EQ(cached_data->content_annotation->structured_data().orders(0).id(),
             "order_123");
   EXPECT_EQ(cached_data->page_title, "Test Title");
+  EXPECT_EQ(cached_data->navigation_timestamp, base_time);
+  EXPECT_EQ(cached_data->visit_id, static_cast<history::VisitID>(1));
 
   base::DictValue expected_classifier_results;
   expected_classifier_results.Set("title_keyword_result", "test category");

@@ -71,8 +71,8 @@
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/views/page_action/page_action_controller.h"
 #include "components/private_ai/client.h"
-#include "components/private_ai/error_code.h"
 #include "components/private_ai/features.h"
+#include "components/private_ai/status_code.h"
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 namespace {
@@ -424,7 +424,9 @@ void TabStripActionContainer::OnTriggerAnchoredMessage(
   controller->SetAnchoredMessageAction(
       kActionGlicContextualCueing,
       page_actions::AnchoredMessageActionIconType::kClose, /*model=*/nullptr);
-  controller->ShowAnchoredMessage(kActionGlicContextualCueing);
+  controller->ShowAnchoredMessage(
+      kActionGlicContextualCueing,
+      {.priority = page_actions::PageActionPriorityCategory::kContextualCue});
 }
 
 void TabStripActionContainer::OnHideGlicNudgeUI() {
@@ -1018,8 +1020,7 @@ void TabStripActionContainer::OnAnimationSessionEnded() {
 
 bool TabStripActionContainer::ButtonOwnsAnimation(
     const TabStripNudgeButton* button) const {
-  return button == glic_button_ &&
-         base::FeatureList::IsEnabled(features::kGlicEntrypointVariations);
+  return button == glic_button_;
 }
 
 void TabStripActionContainer::FinalizeHideGlicActorTaskIcon() {

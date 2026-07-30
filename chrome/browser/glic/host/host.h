@@ -299,8 +299,9 @@ class Host : public GlicSharingManagerProvider {
   // This transitions to false after PanelWasClosed() is called.
   bool IsPrimaryClientOpen();
 
-  // Whether the primary web client is connected.
-  bool IsReady() const;
+  // Whether the primary web client is connected. Guaranteed not to be true
+  // until the initialize() handshake has completed.
+  bool IsWebClientConnected() const;
   bool IsContextAccessIndicatorEnabled() const;
 
   std::optional<mojom::InvocationSource> invocation_source() const {
@@ -440,7 +441,8 @@ class Host : public GlicSharingManagerProvider {
 
   void NotifySkillToInvokeChanged(mojom::SkillPtr skill);
 
-  void Invoke(mojom::InvokeOptionsPtr options, base::OnceClosure callback);
+  virtual void Invoke(mojom::InvokeOptionsPtr options,
+                      base::OnceClosure callback);
   void InvokeWithAutoSubmit(InvokeWithAutoSubmitPasskey auto_submit_passkey,
                             mojom::InvokeOptionsPtr options,
                             base::OnceClosure callback);

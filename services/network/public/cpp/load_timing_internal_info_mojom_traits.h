@@ -12,6 +12,7 @@
 #include "net/base/load_timing_internal_info.h"
 #include "net/dns/public/resolution_details.h"
 #include "net/http/alternate_protocol_usage.h"
+#include "net/http/http_connection_info.h"
 #include "services/network/public/mojom/load_timing_internal_info.mojom-shared.h"
 
 namespace mojo {
@@ -44,6 +45,54 @@ struct COMPONENT_EXPORT(NETWORK_CPP_BASE)
 
 template <>
 struct COMPONENT_EXPORT(NETWORK_CPP_BASE)
+    EnumTraits<network::mojom::HttpConnectionInfoCoarse,
+               net::HttpConnectionInfoCoarse> {
+  static network::mojom::HttpConnectionInfoCoarse ToMojom(
+      net::HttpConnectionInfoCoarse info);
+  static net::HttpConnectionInfoCoarse FromMojom(
+      network::mojom::HttpConnectionInfoCoarse in);
+};
+
+template <>
+struct COMPONENT_EXPORT(NETWORK_CPP_BASE)
+    StructTraits<network::mojom::DohResolutionDetailsDataView,
+                 net::DohResolutionDetails> {
+  static net::SessionSource session_source(
+      const net::DohResolutionDetails& details) {
+    return details.session_source;
+  }
+  static net::HttpConnectionInfoCoarse connection_info(
+      const net::DohResolutionDetails& details) {
+    return details.connection_info;
+  }
+  static bool Read(network::mojom::DohResolutionDetailsDataView data,
+                   net::DohResolutionDetails* details);
+};
+
+template <>
+struct COMPONENT_EXPORT(NETWORK_CPP_BASE)
+    StructTraits<network::mojom::ResolutionDetailsDataView,
+                 net::ResolutionDetails> {
+  static net::ResolutionSource source(const net::ResolutionDetails& details) {
+    return details.source;
+  }
+  static std::optional<base::TimeDelta> task_completion_delay(
+      const net::ResolutionDetails& details) {
+    return details.task_completion_delay;
+  }
+  static bool secure_dns_attempted(const net::ResolutionDetails& details) {
+    return details.secure_dns_attempted;
+  }
+  static const std::optional<net::DohResolutionDetails>& doh_details(
+      const net::ResolutionDetails& details) {
+    return details.doh_details;
+  }
+  static bool Read(network::mojom::ResolutionDetailsDataView data,
+                   net::ResolutionDetails* details);
+};
+
+template <>
+struct COMPONENT_EXPORT(NETWORK_CPP_BASE)
     StructTraits<network::mojom::LoadTimingInternalInfoDataView,
                  net::LoadTimingInternalInfo> {
   static std::optional<base::TimeDelta> max_stream_limit_pending_delay(
@@ -64,7 +113,7 @@ struct COMPONENT_EXPORT(NETWORK_CPP_BASE)
       const net::LoadTimingInternalInfo& info);
   static bool http_network_session_quic_enabled(
       const net::LoadTimingInternalInfo& info);
-  static std::optional<net::ResolutionSource> resolution_source(
+  static const std::optional<net::ResolutionDetails>& resolution_details(
       const net::LoadTimingInternalInfo& info);
   static bool Read(network::mojom::LoadTimingInternalInfoDataView data,
                    net::LoadTimingInternalInfo* info);

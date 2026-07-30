@@ -66,9 +66,6 @@ namespace {
 constexpr webapps::WebappInstallSource kInstallSource =
     webapps::WebappInstallSource::WEB_INSTALL;
 constexpr char kAbortError[] = "AbortError";
-constexpr char kDataError[] = "DataError";
-constexpr char kNotAllowedError[] = "NotAllowedError";
-constexpr char kTypeError[] = "TypeError";
 constexpr char kInstallResultUma[] = "WebApp.WebInstallApi.Result";
 constexpr char kInstallTypeUma[] = "WebApp.WebInstallApi.InstallType";
 constexpr char kVariantedInstallTypeUma[] =
@@ -890,65 +887,11 @@ IN_PROC_BROWSER_TEST_F(WebInstallPolicyDisabledTest,
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
 // Manifest validation for current document installs.
+// NOTE: Basic manifest validation tests (NoManifest, MissingId) are covered
+// by web_install_service_impl_unittest.cc. Browser tests here focus on
+// scenarios that require the full browser stack.
 using WebInstallCurrentDocumentBrowserTestManifestErrors =
     WebInstallCurrentDocumentBrowserTest;
-
-IN_PROC_BROWSER_TEST_F(WebInstallCurrentDocumentBrowserTestManifestErrors,
-                       NoManifest) {
-  GURL current_doc_url = embedded_https_test_server().GetURL(
-      "/banners/no_manifest_test_page.html");
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), current_doc_url));
-
-  base::HistogramTester histograms;
-  // No manifest on the page, so don't wait for one. Lets us test the
-  // api's timeout path before the browser test itself times out.
-  base::AutoReset<int> manifest_wait_timeout =
-      web_app::WebAppDataRetriever::SetManifestWaitTimeoutForTesting(0);
-
-  ASSERT_TRUE(TryInstallApp());
-
-  EXPECT_FALSE(ResultExists());
-  EXPECT_TRUE(ErrorExists());
-  EXPECT_EQ(GetErrorName(), kDataError);
-  histograms.ExpectBucketCount(
-      kInstallResultUma,
-      web_app::WebInstallServiceResult::kInstallCommandFailed, 1);
-  histograms.ExpectBucketCount(
-      kInstallTypeUma, web_app::WebInstallServiceType::kCurrentDocument, 1);
-  // Check the varianted UMAs.
-  histograms.ExpectBucketCount(
-      kVariantedInstallResultUma,
-      web_app::WebInstallServiceResult::kInstallCommandFailed, 1);
-  histograms.ExpectBucketCount(kVariantedInstallTypeUma,
-                               web_app::WebInstallServiceType::kCurrentDocument,
-                               1);
-}
-
-IN_PROC_BROWSER_TEST_F(WebInstallCurrentDocumentBrowserTestManifestErrors,
-                       MissingId) {
-  GURL current_doc_url = GetInstallableAppURL();
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), current_doc_url));
-
-  base::HistogramTester histograms;
-
-  ASSERT_TRUE(TryInstallApp());
-
-  EXPECT_FALSE(ResultExists());
-  EXPECT_TRUE(ErrorExists());
-  EXPECT_EQ(GetErrorName(), kDataError);
-  histograms.ExpectBucketCount(
-      kInstallResultUma, web_app::WebInstallServiceResult::kNoCustomManifestId,
-      1);
-  histograms.ExpectBucketCount(
-      kInstallTypeUma, web_app::WebInstallServiceType::kCurrentDocument, 1);
-  // Check the varianted UMAs.
-  histograms.ExpectBucketCount(
-      kVariantedInstallResultUma,
-      web_app::WebInstallServiceResult::kNoCustomManifestId, 1);
-  histograms.ExpectBucketCount(kVariantedInstallTypeUma,
-                               web_app::WebInstallServiceType::kCurrentDocument,
-                               1);
-}
 
 // Test that closing the web contents during manifest retrieval doesn't cause
 // crashes or leaks. The WebInstallServiceImpl and its data retrievers should
@@ -974,180 +917,6 @@ IN_PROC_BROWSER_TEST_F(WebInstallCurrentDocumentBrowserTestManifestErrors,
 
   // If we get here without crashing, the test passes. The WebInstallServiceImpl
   // and WebAppDataRetriever should have been cleaned up gracefully.
-}
-
-// Implementation-generic tests for bad JavaScript API inputs. This failure
-// handling is on the blink side, so there aren't any browser results to verify.
-using WebInstallServiceImplBrowserTestBadInput =
-    WebInstallCurrentDocumentBrowserTest;
-
-IN_PROC_BROWSER_TEST_F(WebInstallServiceImplBrowserTestBadInput,
-                       MissingUserGesture) {
-  NavigateToValidUrl();
-
-  std::string install_url = GetInstallableAppURL().spec();
-  std::string manifest_id = install_url;
-  ASSERT_TRUE(TryInstallApp(/*with_gesture=*/false));
-
-  EXPECT_FALSE(ResultExists());
-  EXPECT_TRUE(ErrorExists());
-  EXPECT_EQ(GetErrorName(), kNotAllowedError);
-}
-
-IN_PROC_BROWSER_TEST_F(WebInstallServiceImplBrowserTestBadInput,
-                       OneParam_Undefined) {
-  NavigateToValidUrl();
-
-  const std::string script =
-      "let install_url;"
-      "navigator.install(install_url).then(result => {"
-      "  webInstallResult = result;"
-      "}).catch(error => {"
-      "  webInstallError = error;"
-      "});";
-  ASSERT_TRUE(ExecJs(web_contents(), script));
-
-  EXPECT_FALSE(ResultExists());
-  EXPECT_TRUE(ErrorExists());
-  EXPECT_EQ(GetErrorName(), kTypeError);
-}
-
-IN_PROC_BROWSER_TEST_F(WebInstallServiceImplBrowserTestBadInput,
-                       OneParam_Null) {
-  NavigateToValidUrl();
-
-  const std::string script =
-      "let install_url=null;"
-      "navigator.install(install_url).then(result => {"
-      "  webInstallResult = result;"
-      "}).catch(error => {"
-      "  webInstallError = error;"
-      "});";
-  ASSERT_TRUE(ExecJs(web_contents(), script));
-
-  EXPECT_FALSE(ResultExists());
-  EXPECT_TRUE(ErrorExists());
-  EXPECT_EQ(GetErrorName(), kTypeError);
-}
-
-IN_PROC_BROWSER_TEST_F(WebInstallServiceImplBrowserTestBadInput,
-                       OneParam_Number) {
-  NavigateToValidUrl();
-
-  const std::string script =
-      "let install_url = new Number(1);"
-      "navigator.install(install_url).then(result => {"
-      "  webInstallResult = result;"
-      "}).catch(error => {"
-      "  webInstallError = error;"
-      "});";
-  ASSERT_TRUE(ExecJs(web_contents(), script));
-
-  EXPECT_FALSE(ResultExists());
-  EXPECT_TRUE(ErrorExists());
-  EXPECT_EQ(GetErrorName(), kTypeError);
-}
-
-IN_PROC_BROWSER_TEST_F(WebInstallServiceImplBrowserTestBadInput,
-                       OneParam_Empty) {
-  NavigateToValidUrl();
-
-  const std::string script =
-      "let install_url='';"
-      "navigator.install(install_url).then(result => {"
-      "  webInstallResult = result;"
-      "}).catch(error => {"
-      "  webInstallError = error;"
-      "});";
-  ASSERT_TRUE(ExecJs(web_contents(), script));
-
-  EXPECT_FALSE(ResultExists());
-  EXPECT_TRUE(ErrorExists());
-  EXPECT_EQ(GetErrorName(), kTypeError);
-}
-
-IN_PROC_BROWSER_TEST_F(WebInstallServiceImplBrowserTestBadInput,
-                       TwoParams_UndefinedInstallUrl) {
-  NavigateToValidUrl();
-
-  const std::string manifest_id = GetInstallableAppURL().spec();
-  const std::string script =
-      "let install_url;"
-      "navigator.install(install_url, '" +
-      manifest_id +
-      "').then(result => {"
-      "  webInstallResult = result;"
-      "}).catch(error => {"
-      "  webInstallError = error;"
-      "});";
-  ASSERT_TRUE(ExecJs(web_contents(), script));
-
-  EXPECT_FALSE(ResultExists());
-  EXPECT_TRUE(ErrorExists());
-  EXPECT_EQ(GetErrorName(), kTypeError);
-}
-
-IN_PROC_BROWSER_TEST_F(WebInstallServiceImplBrowserTestBadInput,
-                       TwoParams_UndefinedManifestId) {
-  NavigateToValidUrl();
-
-  const std::string install_url = GetInstallableAppURL().spec();
-  const std::string script =
-      "let manifest_id;"
-      "navigator.install('" +
-      install_url +
-      "', manifest_id).then(result => {"
-      "  webInstallResult = result;"
-      "}).catch(error => {"
-      "  webInstallError = error;"
-      "});";
-  ASSERT_TRUE(ExecJs(web_contents(), script));
-
-  EXPECT_FALSE(ResultExists());
-  EXPECT_TRUE(ErrorExists());
-  EXPECT_EQ(GetErrorName(), kTypeError);
-}
-
-IN_PROC_BROWSER_TEST_F(WebInstallServiceImplBrowserTestBadInput,
-                       TwoParams_EmptyManifestId) {
-  NavigateToValidUrl();
-
-  const std::string install_url = GetInstallableAppURL().spec();
-  const std::string script =
-      "let manifest_id = '';"
-      "navigator.install('" +
-      install_url +
-      "', manifest_id).then(result => {"
-      "  webInstallResult = result;"
-      "}).catch(error => {"
-      "  webInstallError = error;"
-      "});";
-  ASSERT_TRUE(ExecJs(web_contents(), script));
-
-  EXPECT_FALSE(ResultExists());
-  EXPECT_TRUE(ErrorExists());
-  EXPECT_EQ(GetErrorName(), kTypeError);
-}
-
-IN_PROC_BROWSER_TEST_F(WebInstallServiceImplBrowserTestBadInput,
-                       TwoParams_NullManifestId) {
-  NavigateToValidUrl();
-
-  const std::string install_url = GetInstallableAppURL().spec();
-  const std::string script =
-      "let manifest_id = null;"
-      "navigator.install('" +
-      install_url +
-      "', manifest_id).then(result => {"
-      "  webInstallResult = result;"
-      "}).catch(error => {"
-      "  webInstallError = error;"
-      "});";
-  ASSERT_TRUE(ExecJs(web_contents(), script));
-
-  EXPECT_FALSE(ResultExists());
-  EXPECT_TRUE(ErrorExists());
-  EXPECT_EQ(GetErrorName(), kTypeError);
 }
 
 namespace {

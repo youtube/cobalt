@@ -8,6 +8,7 @@
 #include "base/callback_list.h"
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
+#include "base/timer/timer.h"
 #include "chrome/browser/sessions/session_service_base_observer.h"
 #include "chrome/browser/ui/browser_window/public/browser_collection_observer.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
@@ -110,6 +111,9 @@ class VerticalTabStripStateController : public SessionServiceBaseObserver,
   base::CallbackListSubscription RegisterOnCollapseChanged(
       CollapseChangeCallback callback);
 
+  base::CallbackListSubscription RegisterOnExpandOnHoverEnabledChanged(
+      base::RepeatingCallback<void(bool)> callback);
+
   using StateChangedCallback =
       base::RepeatingCallback<void(VerticalTabStripStateController*)>;
   base::CallbackListSubscription RegisterOnModeWillChange(
@@ -123,6 +127,7 @@ class VerticalTabStripStateController : public SessionServiceBaseObserver,
 
  private:
   void NotifyCollapseChanged();
+  void NotifyExpandOnHoverEnabledChanged();
   void NotifyModeWillChange();
   void NotifyModeChanged();
 
@@ -150,6 +155,8 @@ class VerticalTabStripStateController : public SessionServiceBaseObserver,
   // BrowserCollectionObserver:
   void OnBrowserCreated(BrowserWindowInterface* browser) override;
 
+  void MaybeShowExpandOnHoverIPH();
+
   void OnLockCreated();
   void OnLockDestroyed();
 
@@ -168,6 +175,8 @@ class VerticalTabStripStateController : public SessionServiceBaseObserver,
 
   base::RepeatingCallbackList<void(VerticalTabStripCollapseState)>
       on_collapse_changed_callback_list_;
+  base::RepeatingCallbackList<void(bool)>
+      on_expand_on_hover_enabled_changed_callback_list_;
   base::RepeatingCallbackList<void(VerticalTabStripStateController*)>
       on_mode_will_change_callback_list_;
   base::RepeatingCallbackList<void(VerticalTabStripStateController*)>
@@ -181,6 +190,9 @@ class VerticalTabStripStateController : public SessionServiceBaseObserver,
   int enable_state_lock_count_ = 0;
 
   bool is_expand_on_hover_enabled_ = false;
+
+  base::OneShotTimer expand_on_hover_iph_startup_timer_;
+  base::OneShotTimer expand_on_hover_iph_collapse_timer_;
 };
 
 }  // namespace tabs

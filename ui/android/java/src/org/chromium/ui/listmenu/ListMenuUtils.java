@@ -88,11 +88,11 @@ public class ListMenuUtils {
 
         adapter.registerType(
                 ListItemType.DIVIDER,
-                new LayoutViewBuilder(R.layout.list_section_divider),
+                new LayoutViewBuilder<>(R.layout.list_section_divider),
                 ListSectionDividerViewBinder::bind);
         adapter.registerType(
                 ListItemType.MENU_ITEM,
-                new LayoutViewBuilder(R.layout.list_menu_item),
+                new LayoutViewBuilder<>(R.layout.list_menu_item),
                 ListMenuItemViewBinder::binder);
         adapter.registerType(
                 ListItemType.MENU_ITEM_WITH_CHECKBOX,
@@ -176,9 +176,12 @@ public class ListMenuUtils {
     /**
      * Creates an instance of {@link HierarchicalMenuController} for {@link ListMenu}.
      *
+     * @param <T> The type of the popup window managed by the controller's {@link FlyoutHandler}.
      * @param context The {@link Context} for the controller to use.
+     * @return A new {@link HierarchicalMenuController} instance.
      */
-    public static HierarchicalMenuController createHierarchicalMenuController(Context context) {
+    public static <T> HierarchicalMenuController<T> createHierarchicalMenuController(
+            Context context) {
         HierarchicalMenuKeyProvider keyProvider = new ListMenuUtils.ListMenuKeyProvider();
         SubmenuHeaderFactory headerFactory =
                 (clickedItem, backRunnable) -> {
@@ -205,7 +208,7 @@ public class ListMenuUtils {
 
                     return new ListItem(ListItemType.SUBMENU_HEADER, builder.build());
                 };
-        return new HierarchicalMenuController(context, keyProvider, headerFactory);
+        return new HierarchicalMenuController<>(context, keyProvider, headerFactory);
     }
 
     public static class ListMenuKeyProvider implements HierarchicalMenuKeyProvider {

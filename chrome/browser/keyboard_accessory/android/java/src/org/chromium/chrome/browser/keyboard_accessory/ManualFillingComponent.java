@@ -215,6 +215,13 @@ public interface ManualFillingComponent extends BackPressHandler {
      */
     void showAccessorySheetTab(@AccessoryTabType int tabType);
 
+    /**
+     * Sets the callback to be executed when the @memory search button is clicked.
+     *
+     * @param callback The {@link Runnable} to be executed.
+     */
+    void setAtMemoryCallback(Runnable callback);
+
     /** Notifies the component that the activity it's living in was resumed. */
     void onResume();
 
@@ -290,4 +297,19 @@ public interface ManualFillingComponent extends BackPressHandler {
      */
     MonotonicObservableSupplier<AccessorySheetVisualStateProvider>
             getAccessorySheetVisualStateProvider();
+
+    /**
+     * Informs the component whether an asynchronous action is pending. If true, the component might
+     * defer closing the soft keyboard. If false, it clears this state.
+     *
+     * @param waiting Whether an asynchronous action is pending.
+     */
+    void setWaitingForFetch(boolean waiting);
+
+    /**
+     * Dismisses the component only if it is currently waiting for an asynchronous fetch to
+     * complete. This allows consecutive calls to the component to interrupt and cancel this delayed
+     * dismiss.
+     */
+    void dismissIfWaitingForFetch();
 }

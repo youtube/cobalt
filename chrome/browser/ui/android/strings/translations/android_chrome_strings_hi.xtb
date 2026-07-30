@@ -293,6 +293,7 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="2251809247798634662">नई गुप्त विंडो</translation>
 <translation id="2253927598983295051">चुनें कि <ph name="APP_NAME" /> के साथ क्या शेयर करना है</translation>
 <translation id="2261570557291037252">ऐप्लिकेशन के बारे में ज़्यादा जानकारी</translation>
+<translation id="2270544918551255912">वापस जाने के लिए, स्क्रीन के किनारे से स्वाइप करें</translation>
 <translation id="2276696007612801991">अपने पासवर्ड की जांच करने के लिए, Google खाते में साइन इन करें</translation>
 <translation id="2281243904606300427"><ph name="TAB_TITLE" />, चुना गया गुप्त टैब</translation>
 <translation id="2286841657746966508">बिलिंग पता</translation>
@@ -480,6 +481,7 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="2989523299700148168">हाल ही में देखे गए</translation>
 <translation id="2992473221983447149">इमेज के बारे में जानकारी</translation>
 <translation id="2996291259634659425">'पासफ़्रेज़' बनाएं</translation>
+<translation id="2996682533106928201">खारिज करने के लिए टैप करें</translation>
 <translation id="2996809686854298943">URL ज़रूरी है</translation>
 <translation id="3024215143424744261">रीडिंग मोड की सेटिंग बंद की गईं</translation>
 <translation id="3026955690410463085">लिंक जोड़ें</translation>
@@ -640,6 +642,7 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="3739455665973395693">आपके Google खाते में ऐसा कोई भी पासवर्ड मौजूद नहीं है जो हैक हुआ है या चोरी हुआ है</translation>
 <translation id="3739899004075612870"><ph name="PRODUCT_NAME" /> में बुकमार्क किया गया</translation>
 <translation id="3740525748616366977">इस डिवाइस पर वॉइस सर्च की सुविधा नहीं है</translation>
+<translation id="3763110477555836428">इस कार्ड से पेमेंट करते समय, वर्चुअल कार्ड नंबर अपने-आप भर जाएगा. इससे आपके असल कार्ड की जानकारी सुरक्षित रहेगी. Google Wallet में मैनेज करें. <ph name="BEGIN_LINK1" />वर्चुअल कार्ड के बारे में ज़्यादा जानें<ph name="END_LINK1" /></translation>
 <translation id="376561056759077985">कुछ डेटा अब तक सेव नहीं हुआ है</translation>
 <translation id="3770620323585347665">विंडो को कोई नाम दें</translation>
 <translation id="3771033907050503522">गुप्त टैब</translation>
@@ -683,6 +686,7 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="3927692899758076493">Sans Serif</translation>
 <translation id="3931947361983910192">पिछले 4 सप्ताह</translation>
 <translation id="393697183122708255">कोई चालू बोलकर खोजने की सुविधा उपलब्‍ध नहीं है</translation>
+<translation id="3941718885865495207">Chrome Finds को चालू करने के लिए बॉटम शीट</translation>
 <translation id="3943322906274039960"><ph name="TAB_TITLE" />, पिक्चर में पिक्चर मोड में खुला ऐसा टैब जिसे पिन किया गया है</translation>
 <translation id="3950820424414687140">साइन इन करें</translation>
 <translation id="395377504920307820">साइन इन किए बिना जारी रखें</translation>
@@ -829,6 +833,7 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="4521489764227272523">चुना गया डेटा Chrome और आपके सिंक किए गए डिवाइस से हटा दिया गया है.
 
 आपके Google खाते में <ph name="BEGIN_LINK" />myactivity.google.com<ph name="END_LINK" /> पर की जाने वाली खोजों और अन्य Google सेवाओं की गतिविधि जैसे दूसरी तरह के ब्राउज़िंग इतिहास मौजूद हो सकते हैं.</translation>
+<translation id="4521637321901000942">टूलबार में जाकर अपने एक्सटेंशन मैनेज करें</translation>
 <translation id="4523326818319942067">पिछले घंटे का</translation>
 <translation id="452750746583162491">सिंक किए गए डेटा को कंट्रोल करें</translation>
 <translation id="4532845899244822526">फ़ोल्डर चुनें</translation>
@@ -1188,6 +1193,7 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="6011308810877101166">खोज से जुड़े सुझावों को बेहतर बनाएं</translation>
 <translation id="6013305291643746595">पुराने से नए के क्रम में लगाया जा रहा है</translation>
 <translation id="6022659036123304283">Chrome को अपने मुताबिक बनाएं</translation>
+<translation id="6023820583797130428">वापस जाने के लिए मेन्यू खोलें</translation>
 <translation id="6026538407078977628">बड़ा करके फ़ुल स्क्रीन पर दिखाएं</translation>
 <translation id="6030719887161080597">विज्ञापन की परफ़ॉर्मेंस मापने के लिए, साइटों की इस्तेमाल की गई जानकारी मैनेज करें</translation>
 <translation id="6039379616847168523">सीधे अगले टैब पर जाएं</translation>
@@ -1632,6 +1638,7 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="7597601275223325603">{NUMBER_OF_TABS,plural, =1{<ph name="TABS_COUNT_ONE" /> स्टैंडर्ड टैब}one{<ph name="TABS_COUNT_MANY" /> स्टैंडर्ड टैब}other{<ph name="TABS_COUNT_MANY" /> स्टैंडर्ड टैब}}</translation>
 <translation id="7603168929588204083">अमान्य तारीख</translation>
 <translation id="7605594153474022051">समन्वयन काम नहीं कर रहा है</translation>
+<translation id="7608245556672190037">Chrome Finds को चालू करने का विकल्प, पूरी स्क्रीन पर खुला है</translation>
 <translation id="7612619742409846846">आपने Google में इस ईमेल पते से साइन इन किया है</translation>
 <translation id="7612989789287281429">साइन इन किया जा रहा है…</translation>
 <translation id="7619072057915878432">नेटवर्क विफलताओं के कारण <ph name="FILE_NAME" /> डाउनलोड विफल रहा.</translation>
@@ -1639,6 +1646,7 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="7628417132421583481">Password Manager पर जाएं</translation>
 <translation id="7630202231528827509">सेवा देने वाली कंपनी का यूआरएल</translation>
 <translation id="7638584964844754484">गलत 'पासफ़्रेज़'</translation>
+<translation id="764047009170754705">Chrome Finds को चालू करने की सुविधा बंद है</translation>
 <translation id="7646499124171960488">इससे आपको असुरक्षित सार्वजनिक साइटों के बारे में चेतावनी मिलती है</translation>
 <translation id="7646772052135772216">पासवर्ड को सिंक करने की सुविधा काम नहीं कर रही है</translation>
 <translation id="7655240423373329753">पिछले सात दिन का</translation>
@@ -1863,6 +1871,7 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="8473863474539038330">पते और अन्य जानकारी</translation>
 <translation id="847433688444405067">सभी डिवाइसों पर ब्राउज़ करें</translation>
 <translation id="8477178913400731244">डेटा मिटाएं</translation>
+<translation id="8481771036036087705">Chrome Finds को चालू करने का विकल्प आधी स्क्रीन पर खुला है</translation>
 <translation id="8485434340281759656"><ph name="FILE_SIZE" /> <ph name="SEPARATOR" /> <ph name="DESCRIPTION" /></translation>
 <translation id="8491317241605644838">कोई इनऐक्टिव विंडो नहीं है</translation>
 <translation id="8493948351860045254">स्‍थान खाली करें</translation>

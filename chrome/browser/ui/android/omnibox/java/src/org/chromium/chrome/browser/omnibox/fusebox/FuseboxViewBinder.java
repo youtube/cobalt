@@ -119,10 +119,17 @@ class FuseboxViewBinder {
             view.popup.mAddCurrentTab.setOnClickListener(
                     v -> model.get(FuseboxProperties.POPUP_ATTACH_CURRENT_TAB_CLICKED).run());
         } else if (propertyKey == FuseboxProperties.POPUP_ATTACH_CURRENT_TAB_ENABLED) {
-            setIsEnabledAndReapplyColorFilter(
-                    model,
-                    FuseboxProperties.POPUP_ATTACH_CURRENT_TAB_ENABLED,
-                    view.popup.mAddCurrentTab);
+            boolean hasFavicon =
+                    model.get(FuseboxProperties.POPUP_ATTACH_CURRENT_TAB_FAVICON) != null;
+            if (hasFavicon) {
+                setIsEnabledAndReapplyColorFilter(
+                        model,
+                        FuseboxProperties.POPUP_ATTACH_CURRENT_TAB_ENABLED,
+                        view.popup.mAddCurrentTab);
+            } else {
+                view.popup.mAddCurrentTab.setEnabled(
+                        model.get(FuseboxProperties.POPUP_ATTACH_CURRENT_TAB_ENABLED));
+            }
         } else if (propertyKey == FuseboxProperties.POPUP_ATTACH_CURRENT_TAB_FAVICON) {
             updateForCurrentTabFavicon(
                     model.get(FuseboxProperties.POPUP_ATTACH_CURRENT_TAB_FAVICON), view);
@@ -174,6 +181,8 @@ class FuseboxViewBinder {
                     model.get(FuseboxProperties.POPUP_MODEL_HEADER_VISIBLE)
                             ? View.VISIBLE
                             : View.GONE);
+        } else if (propertyKey == FuseboxProperties.POPUP_STATE) {
+            view.popup.setPopupState(model.get(FuseboxProperties.POPUP_STATE));
         } else if (propertyKey == FuseboxProperties.POPUP_TOOL_AI_MODE_CLICKED) {
             view.popup.mAiModeButton.setOnClickListener(
                     v -> model.get(FuseboxProperties.POPUP_TOOL_AI_MODE_CLICKED).run());
@@ -326,7 +335,7 @@ class FuseboxViewBinder {
         int headerIndex = group.indexOfChild(view.popup.mModelsHeader);
         if (headerIndex == -1) {
             assert false;
-            // TODO(https://crbung.com/493288340): Remove this return if this assert is never hit.
+            // TODO(https://crbug.com/493288340): Remove this return if this assert is never hit.
             return;
         }
 

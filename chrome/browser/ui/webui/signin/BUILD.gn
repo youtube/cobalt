@@ -93,6 +93,7 @@ source_set("signin") {
   public_deps = [
     ":login_ui_service",
     "//base",
+    "//chrome/browser/enterprise",
     "//chrome/browser/signin",
     "//chrome/browser/ui/browser_window",
     "//chrome/common",
@@ -101,6 +102,9 @@ source_set("signin") {
     "//content/public/browser",
     "//ui/web_dialogs",
   ]
+
+  # enterprise headers include turn_sync_on_helper_policy_fetch_tracker.h.
+  allow_circular_includes_from = [ "//chrome/browser/enterprise" ]
 
   if (enable_dice_support) {
     sources += [
@@ -351,7 +355,6 @@ if (!is_chromeos) {
       "//build:buildflag_header_h",
       "//chrome/browser/profiles:profile",
       "//chrome/browser/profiles:profile_util",
-      "//chrome/browser/ui:browser_list",
       "//chrome/browser/ui/browser_window",
       "//chrome/browser/ui/webui/top_chrome",
       "//chrome/common",
@@ -404,7 +407,6 @@ if (!is_chromeos) {
       "//chrome/browser/search/background",
       "//chrome/browser/themes",
       "//chrome/browser/ui:browser_element_identifiers",
-      "//chrome/browser/ui:browser_list",
       "//chrome/browser/ui:ui_features",
       "//chrome/browser/ui/color:color_headers",
       "//chrome/browser/ui/profiles",

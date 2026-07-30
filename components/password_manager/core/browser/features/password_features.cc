@@ -6,6 +6,7 @@
 
 #include "base/feature_list.h"
 #include "base/metrics/field_trial_params.h"
+#include "base/time/time.h"
 #include "components/password_manager/core/browser/password_manager_buildflags.h"
 
 namespace password_manager::features {
@@ -48,6 +49,9 @@ BASE_FEATURE(kAutofillPasswordUserPerceptionSurvey,
 
 BASE_FEATURE(kAwaitPageStabilityForPasswordChange,
              base::FEATURE_DISABLED_BY_DEFAULT);
+const base::FeatureParam<base::TimeDelta> kAwaitPageStabilityTimeout = {
+    &kAwaitPageStabilityForPasswordChange, "stability_timeout",
+    base::Seconds(5)};
 
 // TODO: crbug.com/399124614 - Clean up in M151.
 BASE_FEATURE(kAutofillReintroduceHybridPasskeyDropdownItem,
@@ -159,7 +163,7 @@ BASE_FEATURE(kPasswordStorePropagatesActionableErrors,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kProactivelyDownloadModelForPasswordChange,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kReduceRequirementsForPasswordChange,
              base::FEATURE_ENABLED_BY_DEFAULT);

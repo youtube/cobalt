@@ -112,6 +112,7 @@
 #include "components/crash/core/common/crash_key.h"
 #include "components/embedder_support/origin_trials/origin_trials_settings_storage.h"
 #include "components/gcm_driver/gcm_driver.h"
+#include "components/javascript_dialogs/app_modal_dialog_queue.h"
 #include "components/keep_alive_registry/keep_alive_types.h"
 #include "components/language/core/browser/pref_names.h"
 #include "components/metrics/metrics_pref_names.h"
@@ -323,7 +324,8 @@ BrowserProcessImpl::BrowserProcessImpl(StartupData* startup_data)
 #endif
       platform_part_(std::make_unique<BrowserProcessPlatformPart>()),
       network_time_tracker_(startup_data->chrome_feature_list_creator()
-                                ->TakeNetworkTimeTracker()) {
+                                ->TakeNetworkTimeTracker()),
+      features_(GlobalFeatures::CreateGlobalFeatures()) {
   CHECK(!g_browser_process);
   g_browser_process = this;
 
@@ -348,9 +350,6 @@ const ui::UnownedUserDataHost& BrowserProcessImpl::GetUnownedUserDataHost()
 }
 
 void BrowserProcessImpl::Init() {
-  features_ = GlobalFeatures::CreateGlobalFeatures();
-  features_->PreBrowserProcessInit();
-
 #if BUILDFLAG(IS_ANDROID)
   device_parental_controls_->Init();
 #endif
@@ -1231,9 +1230,21 @@ HidSystemTrayIcon* BrowserProcessImpl::hid_system_tray_icon() {
   return hid_system_tray_icon_.get();
 }
 
+void BrowserProcessImpl::set_hid_system_tray_icon_for_test(
+    std::unique_ptr<HidSystemTrayIcon> icon) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  hid_system_tray_icon_ = std::move(icon);
+}
+
 UsbSystemTrayIcon* BrowserProcessImpl::usb_system_tray_icon() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return usb_system_tray_icon_.get();
+}
+
+void BrowserProcessImpl::set_usb_system_tray_icon_for_test(
+    std::unique_ptr<UsbSystemTrayIcon> icon) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  usb_system_tray_icon_ = std::move(icon);
 }
 #endif
 
@@ -1848,6 +1859,8 @@ void BrowserProcessImpl::Unpin() {
 
   DCHECK(!shutting_down_);
   shutting_down_ = true;
+
+  javascript_dialogs::AppModalDialogQueue::GetInstance()->CancelAllDialogs();
 
 #if !BUILDFLAG(IS_ANDROID)
   KeepAliveRegistry::GetInstance()->SetIsShuttingDown();

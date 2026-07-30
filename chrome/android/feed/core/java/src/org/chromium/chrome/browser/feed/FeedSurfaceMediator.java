@@ -57,7 +57,6 @@ import org.chromium.components.signin.SigninFeatureMap;
 import org.chromium.components.signin.SigninFeatures;
 import org.chromium.components.signin.identitymanager.IdentityManager;
 import org.chromium.components.signin.identitymanager.PrimaryAccountChangeEvent;
-import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.ui.base.DeviceFormFactor;
 
 import java.util.ArrayList;
@@ -187,11 +186,10 @@ public class FeedSurfaceMediator
     public static void setPrefForTest(
             PrefChangeRegistrar prefChangeRegistrar, PrefService prefService) {
         sTestPrefChangeRegistar = prefChangeRegistrar;
-        sPrefServiceForTest = prefService;
+        FeedFeatures.setFakePrefsForTest(prefService);
     }
 
     private static @Nullable PrefChangeRegistrar sTestPrefChangeRegistar;
-    private static @Nullable PrefService sPrefServiceForTest;
     private static final int SPAN_COUNT_SMALL_WIDTH = 1;
     private static final int SPAN_COUNT_LARGE_WIDTH = 2;
     private static final int SMALL_WIDTH_DP = 700;
@@ -210,12 +208,12 @@ public class FeedSurfaceMediator
             ObservableSuppliers.createNonNull(RestoringState.WAITING_TO_RESTORE);
 
     private RecyclerView.@Nullable OnScrollListener mStreamScrollListener;
+    private @Nullable RecyclerViewAnimationFinishDetector mStreamScrollAnimationFinishDetector;
     private final ObserverList<ScrollListener> mScrollListeners = new ObserverList<>();
     private @Nullable ContentChangedListener mStreamContentChangedListener;
     private @Nullable MemoryPressureCallback mMemoryPressureCallback;
     private @Nullable FeedSigninPromo mSigninPromo;
-    private final RecyclerViewAnimationFinishDetector mRecyclerViewAnimationFinishDetector =
-            new RecyclerViewAnimationFinishDetector();
+    private @Nullable RecyclerViewAnimationFinishDetector mRecyclerViewAnimationFinishDetector;
 
     private boolean mFeedEnabled;
     private boolean mTouchEnabled = true;
@@ -290,14 +288,15 @@ public class FeedSurfaceMediator
         mPrefChangeRegistrar.addObserver(Pref.ENABLE_SNIPPETS, this::updateContent);
         mPrefChangeRegistrar.addObserver(Pref.ENABLE_SNIPPETS_BY_DSE, this::updateContent);
 
+        mRecyclerViewAnimationFinishDetector = new RecyclerViewAnimationFinishDetector();
         // This works around the bug that the out-of-screen toolbar is not brought back together
         // with the new tab page view when it slides down. This is because the RecyclerView
         // animation may not finish when content changed event is triggered and thus the new tab
         // page layout view may still be partially off screen.
         mStreamContentChangedListener =
                 contents ->
-                        mRecyclerViewAnimationFinishDetector.runWhenAnimationComplete(
-                                this::onContentsChanged);
+                        assumeNonNull(mRecyclerViewAnimationFinishDetector)
+                                .runWhenAnimationComplete(this::onContentsChanged);
 
         initialize();
     }
@@ -358,6 +357,10 @@ public class FeedSurfaceMediator
         mStreamHolder = null;
         mCurrentStream = null;
         mStreamContentChangedListener = null;
+        if (mRecyclerViewAnimationFinishDetector != null) {
+            mRecyclerViewAnimationFinishDetector.destroy();
+            mRecyclerViewAnimationFinishDetector = null;
+        }
         mRestoreScrollState = null;
     }
 
@@ -476,11 +479,9 @@ public class FeedSurfaceMediator
 
         mSettingUpStreams = false;
 
+        mStreamScrollAnimationFinishDetector = new RecyclerViewAnimationFinishDetector();
         mStreamScrollListener =
                 new RecyclerView.OnScrollListener() {
-                    private final RecyclerViewAnimationFinishDetector mAnimationFinishDetector =
-                            new RecyclerViewAnimationFinishDetector();
-
                     @Override
                     public void onScrollStateChanged(RecyclerView recyclerView, int newState) {
                         for (ScrollListener listener : mScrollListeners) {
@@ -532,11 +533,12 @@ public class FeedSurfaceMediator
                                                         mCoordinator
                                                                 .getRecyclerView()
                                                                 .setItemAnimator(originalAnimator);
-                                                        mAnimationFinishDetector
+                                                        assumeNonNull(
+                                                                        mStreamScrollAnimationFinishDetector)
                                                                 .runWhenAnimationComplete(null);
                                                     };
-                                            mAnimationFinishDetector.runWhenAnimationComplete(
-                                                    onComplete);
+                                            assumeNonNull(mStreamScrollAnimationFinishDetector)
+                                                    .runWhenAnimationComplete(onComplete);
                                         }
                                     }
                                 };
@@ -712,6 +714,11 @@ public class FeedSurfaceMediator
             mStreamScrollListener = null;
         }
 
+        if (mStreamScrollAnimationFinishDetector != null) {
+            mStreamScrollAnimationFinishDetector.destroy();
+            mStreamScrollAnimationFinishDetector = null;
+        }
+
         if (mMemoryPressureCallback != null) {
             MemoryPressureListener.removeCallback(mMemoryPressureCallback);
             mMemoryPressureCallback = null;
@@ -729,8 +736,6 @@ public class FeedSurfaceMediator
             mStreamHolder = null;
         }
 
-        mRecyclerViewAnimationFinishDetector.destroy();
-        mStreamContentChangedListener = null;
         unbindStream();
 
         mPrefChangeRegistrar.removeObserver(Pref.ARTICLES_LIST_VISIBLE);
@@ -814,10 +819,8 @@ public class FeedSurfaceMediator
         return mTouchEnabled;
     }
 
-    // TODO(carlosk): replace with FeedFeatures.getPrefService().
     private PrefService getPrefService() {
-        if (sPrefServiceForTest != null) return sPrefServiceForTest;
-        return UserPrefs.get(mProfile);
+        return FeedFeatures.getPrefService(mProfile);
     }
 
     // TouchEnabledDelegate interface.

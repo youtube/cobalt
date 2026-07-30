@@ -35,14 +35,10 @@ BASE_FEATURE(kAndroidCaptureKeyEvents, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables the caret browsing a11y feature - can use arrow keys to navigate
 // through web pages.
-BASE_FEATURE(kAndroidCaretBrowsing, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kAndroidCaretBrowsing, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // DevTools frontend for Android.
 BASE_FEATURE(kAndroidDevToolsFrontend, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Enables media capturing to continue in the background.
-BASE_FEATURE(kAndroidEnableBackgroundMediaCapturing,
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables media to continue playing in the background.
 BASE_FEATURE(kAndroidEnableBackgroundMediaLargeFormFactors,
@@ -403,6 +399,11 @@ BASE_FEATURE(kFedCmDelegation, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables the FedCM email verification protocol.
 BASE_FEATURE(kEmailVerificationProtocol, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enforce same-origin check for dedicated worker script URLs.
+// See https://crbug.com/496253755.
+BASE_FEATURE(kEnforceDedicatedWorkerSameOriginCheck,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables the spec-compliant 'error' attribute in IdentityCredentialError while
 // deprecating the legacy 'code' attribute.
@@ -962,7 +963,7 @@ BASE_FEATURE(kWebOTP, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Trial to disable synchronous draw for synchronous compositor (ie Android
 // WebView).
-BASE_FEATURE(kWebViewAsyncDrawOnly, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kWebViewAsyncDrawOnly, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enable the web lockscreen API implementation
 // (https://github.com/WICG/lock-screen) in Chrome.

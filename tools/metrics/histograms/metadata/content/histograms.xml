@@ -103,7 +103,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Content.SharedWorker.Service.LastClientCheckTime" units="ms"
-    expires_after="2026-08-02">
+    expires_after="2026-10-04">
   <owner>annasato@chromium.org</owner>
   <owner>chrome-worker@google.com</owner>
   <summary>
@@ -278,16 +278,6 @@ chromium-metrics-reviews@google.com.
     granularity. Events are recorded at expiry time.
   </summary>
   <token key="ProviderType" variants="ContentAllProviderTypes"/>
-</histogram>
-
-<histogram name="ContentSettings.AllowStorageAccessSync" units="ms"
-    expires_after="2024-04-28">
-  <owner>cduvall@chromium.org</owner>
-  <owner>jam@chromium.org</owner>
-  <summary>
-    Measures how long a sync call to ContentSettingsManager::AllowStorageAccess
-    takes. Logged each time a sync call is made that is not cached.
-  </summary>
 </histogram>
 
 <histogram name="ContentSettings.Bubble.StorageAccess.Action"

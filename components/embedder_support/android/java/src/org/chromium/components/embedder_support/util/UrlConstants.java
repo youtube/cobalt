@@ -74,6 +74,7 @@ public class UrlConstants {
     public static final String GRID_TAB_SWITCHER_URL = "chrome-native://gts/";
 
     public static final String HISTORY_HOST = "history";
+    public static final String SETTINGS_HOST = "settings";
 
     public static final String CONTEXTUAL_TASKS_HOST = "contextual-tasks-page";
     public static final String CONTEXTUAL_TASKS_WEBUI_HOST = "contextual-tasks";
@@ -133,6 +134,7 @@ public class UrlConstants {
     public static final String CHROME_DINO_URL = "chrome://dino/";
 
     public static final String CHROME_EXTENSIONS_URL = "chrome://extensions/";
+    public static final String CHROME_EXTENSIONS_ID_URL = "chrome://extensions/?id=";
     public static final String CHROME_WEBSTORE_URL = "https://chromewebstore.google.com/";
 
     public static final String LOCALHOST = "localhost";

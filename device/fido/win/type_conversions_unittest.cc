@@ -10,6 +10,7 @@
 #include "components/cbor/writer.h"
 #include "device/fido/attestation_object.h"
 #include "device/fido/attestation_statement.h"
+#include "device/fido/discoverable_credential_metadata.h"
 #include "device/fido/fido_parsing_utils.h"
 #include "device/fido/fido_test_data.h"
 #include "device/fido/public/fido_transport_protocol.h"
@@ -134,6 +135,34 @@ TEST(TypeConversionsTest, ToAuthenticatorMakeCredentialResponse) {
   }
 }
 
+TEST(TypeConversionsTest, ToAuthenticatorMakeCredentialResponseVersion8) {
+  // With VERSION_8, dwTransports (multi-transport bitmask) should be used
+  // instead of inferring from dwUsedTransport alone.
+  auto auth_data =
+      fido_parsing_utils::Materialize(test_data::kTestSignAuthenticatorData);
+  auto att_stmt = fido_parsing_utils::Materialize(
+      test_data::kPackedAttestationStatementCBOR);
+  WEBAUTHN_CREDENTIAL_ATTESTATION attestation = {};
+  attestation.dwVersion = WEBAUTHN_CREDENTIAL_ATTESTATION_VERSION_8;
+  attestation.pwszFormatType = L"packed";
+  attestation.cbAuthenticatorData = base::checked_cast<DWORD>(auth_data.size());
+  attestation.pbAuthenticatorData = auth_data.data();
+  attestation.cbAttestation = base::checked_cast<DWORD>(att_stmt.size());
+  attestation.pbAttestation = att_stmt.data();
+  attestation.dwAttestationDecodeType = WEBAUTHN_ATTESTATION_DECODE_NONE;
+  attestation.dwUsedTransport = WEBAUTHN_CTAP_TRANSPORT_INTERNAL;
+  attestation.dwTransports =
+      WEBAUTHN_CTAP_TRANSPORT_INTERNAL | WEBAUTHN_CTAP_TRANSPORT_HYBRID;
+
+  auto response = ToAuthenticatorMakeCredentialResponse(attestation);
+  ASSERT_TRUE(response);
+  EXPECT_EQ(response->transport_used, FidoTransportProtocol::kInternal);
+  ASSERT_TRUE(response->transports);
+  EXPECT_THAT(*response->transports,
+              testing::UnorderedElementsAre(FidoTransportProtocol::kInternal,
+                                            FidoTransportProtocol::kHybrid));
+}
+
 TEST(TypeConversionsTest, Transports) {
   for (int i = 0; i < 16; i++) {
     const uint32_t mask = 1u << i;
@@ -144,6 +173,114 @@ TEST(TypeConversionsTest, Transports) {
       EXPECT_EQ(result, mask);
     }
   }
+}
+
+TEST(TypeConversionsTest, FromWinTransportsBitmask) {
+  // Empty bitmask returns empty set.
+  EXPECT_TRUE(FromWinTransportsBitmask(0).empty());
+
+  // Single transport.
+  EXPECT_THAT(FromWinTransportsBitmask(WEBAUTHN_CTAP_TRANSPORT_INTERNAL),
+              testing::UnorderedElementsAre(FidoTransportProtocol::kInternal));
+
+  // Multiple transports.
+  EXPECT_THAT(FromWinTransportsBitmask(WEBAUTHN_CTAP_TRANSPORT_INTERNAL |
+                                       WEBAUTHN_CTAP_TRANSPORT_HYBRID),
+              testing::UnorderedElementsAre(FidoTransportProtocol::kInternal,
+                                            FidoTransportProtocol::kHybrid));
+
+  // All known transports.
+  EXPECT_THAT(
+      FromWinTransportsBitmask(
+          WEBAUTHN_CTAP_TRANSPORT_USB | WEBAUTHN_CTAP_TRANSPORT_NFC |
+          WEBAUTHN_CTAP_TRANSPORT_BLE | WEBAUTHN_CTAP_TRANSPORT_INTERNAL |
+          WEBAUTHN_CTAP_TRANSPORT_HYBRID),
+      testing::UnorderedElementsAre(
+          FidoTransportProtocol::kUsbHumanInterfaceDevice,
+          FidoTransportProtocol::kNearFieldCommunication,
+          FidoTransportProtocol::kBluetoothLowEnergy,
+          FidoTransportProtocol::kInternal, FidoTransportProtocol::kHybrid));
+
+  // Unknown bits are ignored.
+  EXPECT_THAT(FromWinTransportsBitmask(WEBAUTHN_CTAP_TRANSPORT_INTERNAL |
+                                       WEBAUTHN_CTAP_TRANSPORT_TEST),
+              testing::UnorderedElementsAre(FidoTransportProtocol::kInternal));
+
+  // Round-trip: bitmask -> set -> bitmask.
+  const DWORD original =
+      WEBAUTHN_CTAP_TRANSPORT_USB | WEBAUTHN_CTAP_TRANSPORT_INTERNAL;
+  EXPECT_EQ(ToWinTransportsMask(FromWinTransportsBitmask(original)), original);
+}
+
+struct CredentialDetailsTestData {
+  std::vector<uint8_t> cred_id = {1, 2, 3, 4};
+  std::vector<uint8_t> user_id = {5, 6, 7, 8};
+  WEBAUTHN_RP_ENTITY_INFORMATION rp = {
+      .dwVersion = WEBAUTHN_RP_ENTITY_INFORMATION_CURRENT_VERSION,
+      .pwszId = L"example.com",
+      .pwszName = L"Example",
+  };
+  WEBAUTHN_USER_ENTITY_INFORMATION user;
+  WEBAUTHN_CREDENTIAL_DETAILS details = {};
+  PWEBAUTHN_CREDENTIAL_DETAILS details_ptr;
+  WEBAUTHN_CREDENTIAL_DETAILS_LIST list;
+
+  CredentialDetailsTestData() {
+    user = {
+        .dwVersion = WEBAUTHN_USER_ENTITY_INFORMATION_CURRENT_VERSION,
+        .cbId = static_cast<DWORD>(user_id.size()),
+        .pbId = user_id.data(),
+        .pwszName = L"user",
+        .pwszDisplayName = L"User",
+    };
+    details.cbCredentialID = static_cast<DWORD>(cred_id.size());
+    details.pbCredentialID = cred_id.data();
+    details.pRpInformation = &rp;
+    details.pUserInformation = &user;
+    details.bRemovable = TRUE;
+    details_ptr = &details;
+    list = {
+        .cCredentialDetails = 1,
+        .ppCredentialDetails = &details_ptr,
+    };
+  }
+};
+
+TEST(TypeConversionsTest,
+     WinCredentialDetailsListToCredentialMetadata_Version4_HasTransports) {
+  CredentialDetailsTestData data;
+  data.details.dwVersion = WEBAUTHN_CREDENTIAL_DETAILS_VERSION_4;
+  data.details.dwTransports =
+      WEBAUTHN_CTAP_TRANSPORT_INTERNAL | WEBAUTHN_CTAP_TRANSPORT_HYBRID;
+
+  auto result = WinCredentialDetailsListToCredentialMetadata(data.list);
+  ASSERT_EQ(result.size(), 1u);
+  EXPECT_THAT(result[0].transports,
+              testing::UnorderedElementsAre(FidoTransportProtocol::kInternal,
+                                            FidoTransportProtocol::kHybrid));
+}
+
+TEST(TypeConversionsTest,
+     WinCredentialDetailsListToCredentialMetadata_OlderVersion_NoTransports) {
+  CredentialDetailsTestData data;
+  data.details.dwVersion = WEBAUTHN_CREDENTIAL_DETAILS_VERSION_1;
+
+  auto result = WinCredentialDetailsListToCredentialMetadata(data.list);
+  ASSERT_EQ(result.size(), 1u);
+  EXPECT_TRUE(result[0].transports.empty());
+}
+
+TEST(
+    TypeConversionsTest,
+    WinCredentialDetailsListToCredentialMetadata_OlderVersion_IgnoresTransports) {
+  CredentialDetailsTestData data;
+  data.details.dwVersion = WEBAUTHN_CREDENTIAL_DETAILS_VERSION_1;
+  data.details.dwTransports =
+      WEBAUTHN_CTAP_TRANSPORT_INTERNAL | WEBAUTHN_CTAP_TRANSPORT_HYBRID;
+
+  auto result = WinCredentialDetailsListToCredentialMetadata(data.list);
+  ASSERT_EQ(result.size(), 1u);
+  EXPECT_TRUE(result[0].transports.empty());
 }
 
 }  // namespace

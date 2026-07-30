@@ -293,6 +293,7 @@
 <translation id="2251809247798634662">ផ្ទាំងឯកជន​ថ្មី</translation>
 <translation id="2253927598983295051">ជ្រើសរើស​អ្វី​ដែល​ត្រូវ​ចែករំលែក​ជា​មួយ <ph name="APP_NAME" /></translation>
 <translation id="2261570557291037252">ព័ត៌មាន​បន្ថែម​អំពី​កម្មវិធី</translation>
+<translation id="2270544918551255912">អូសពីគែម ដើម្បីថយក្រោយ</translation>
 <translation id="2276696007612801991">ចូលគណនី Google របស់អ្នក ដើម្បីពិនិត្យ​ពាក្យសម្ងាត់​របស់អ្នក</translation>
 <translation id="2281243904606300427"><ph name="TAB_TITLE" />, ផ្ទាំងឯកជន​ដែលបាន​ជ្រើសរើស</translation>
 <translation id="2286841657746966508">អាសយដ្ឋានទូទាត់​វិក្កយបត្រ</translation>
@@ -480,6 +481,7 @@
 <translation id="2989523299700148168">បាន​ចូល​ទៅ​កាន់​ថ្មីៗ</translation>
 <translation id="2992473221983447149">ការពណ៌នា​អំពីរូបភាព</translation>
 <translation id="2996291259634659425">បង្កើតឃ្លាសម្ងាត់</translation>
+<translation id="2996682533106928201">ចុចដើម្បី​ច្រានចោល</translation>
 <translation id="2996809686854298943">តម្រូវឲ្យមាន URL</translation>
 <translation id="3024215143424744261">បានបិទ​ចំណូលចិត្ត​មុខងារអាន</translation>
 <translation id="3026955690410463085">រួមបញ្ចូល​តំណ</translation>
@@ -684,6 +686,7 @@
 <translation id="3927692899758076493">Sans Serif</translation>
 <translation id="3931947361983910192">4 សប្តាហ៍ចុងក្រោយ</translation>
 <translation id="393697183122708255">គ្មានការគាំទ្រការស្វែងរកដោយសម្លេងទេ</translation>
+<translation id="3941718885865495207">សន្លឹក​ខាងក្រោម​នៃការជ្រើសរើស​ប្រើ Chrome finds</translation>
 <translation id="3943322906274039960"><ph name="TAB_TITLE" />, ផ្ទាំងរូបក្នុងរូបដែលបានខ្ទាស់</translation>
 <translation id="3950820424414687140">ចូល</translation>
 <translation id="395377504920307820">ប្រើ​ដោយមិនចាំបាច់​មានគណនី</translation>
@@ -830,6 +833,7 @@
 <translation id="4521489764227272523">ទិន្នន័យដែលបានជ្រើសរើស​ត្រូវបានលុបចេញពី Chrome និងឧបករណ៍ដែលបានធ្វើសមកាលកម្ម​របស់អ្នក​។
 
 គណនី Google របស់អ្នកអាចមានទម្រង់ប្រវត្តិរុករកផ្សេងទៀតដូចជា ការស្វែងរក និងសកម្មភាពពីសេវាកម្ម Google ផ្សេងទៀត​នៅ​ក្នុង <ph name="BEGIN_LINK" />myactivity.google.com<ph name="END_LINK" /> ។</translation>
+<translation id="4521637321901000942">គ្រប់គ្រង​កម្មវិធីបន្ថែម​របស់អ្នក​នៅក្នុង​របារឧបករណ៍</translation>
 <translation id="4523326818319942067">1 ម៉ោងចុងក្រោយ</translation>
 <translation id="452750746583162491">ពិនិត្យមើល​ទិន្នន័យ​ដែលបានធ្វើសមកាលកម្មរបស់អ្នក</translation>
 <translation id="4532845899244822526">ជ្រើសរើសថតឯកសារ</translation>
@@ -1189,6 +1193,7 @@
 <translation id="6011308810877101166">កែលម្អ​ការណែនាំ​ការស្វែងរក</translation>
 <translation id="6013305291643746595">តម្រៀបតាម​ចាស់បំផុត</translation>
 <translation id="6022659036123304283">ធ្វើឱ្យ Chrome ក្លាយជា​របស់អ្នក</translation>
+<translation id="6023820583797130428">បើក​ម៉ឺនុយ ដើម្បី​ត្រឡប់​ក្រោយ</translation>
 <translation id="6026538407078977628">ពង្រីក​ឱ្យ​ពេញ​អេក្រង់</translation>
 <translation id="6030719887161080597">គ្រប់គ្រង​ព័ត៌មាន​ដែលបានប្រើ​ដោយគេហទំព័រ ដើម្បី​វាស់ស្ទង់​លទ្ធផលនៃ​ការផ្សាយ​ពាណិជ្ជកម្ម</translation>
 <translation id="6039379616847168523">លោតទៅផ្ទាំងបន្ទាប់</translation>
@@ -1633,6 +1638,7 @@
 <translation id="7597601275223325603">{NUMBER_OF_TABS,plural, =1{<ph name="TABS_COUNT_ONE" /> ផ្ទាំង​ស្តង់ដារ}other{<ph name="TABS_COUNT_MANY" /> ផ្ទាំង​ស្តង់ដារ}}</translation>
 <translation id="7603168929588204083">កាលបរិច្ឆេទមិនត្រឹមត្រូវ</translation>
 <translation id="7605594153474022051">សមកាលកម្មមិនដំណើរការទេ</translation>
+<translation id="7608245556672190037">បានបើក​ការជ្រើសរើស​ប្រើ Chrome finds ពេញអេក្រង់</translation>
 <translation id="7612619742409846846">បានចូល Google ជា</translation>
 <translation id="7612989789287281429">កំពុងនាំអ្នកចូលគណនី…</translation>
 <translation id="7619072057915878432">ការដោនឡូត <ph name="FILE_NAME" /> បានបរាជ័យដោយសារបរាជ័យក្នុងការភ្ជាប់បណ្តាញ។</translation>
@@ -1640,6 +1646,7 @@
 <translation id="7628417132421583481">ចូលទៅកាន់​កម្មវិធីគ្រប់គ្រង​ពាក្យសម្ងាត់</translation>
 <translation id="7630202231528827509">URL ក្រុមហ៊ុនផ្ដល់សេវា</translation>
 <translation id="7638584964844754484">ឃ្លាសម្ងាត់មិនត្រឹមត្រូវ</translation>
+<translation id="764047009170754705">បានបិទ​ការជ្រើសរើស​ប្រើ Chrome finds</translation>
 <translation id="7646499124171960488">ប្រាប់​ឱ្យអ្នក​ប្រុងប្រយ័ត្ន​ចំពោះ​គេហទំព័រ​សាធារណៈ​ដែលគ្មាន​សុវត្ថិភាព</translation>
 <translation id="7646772052135772216">សមកាល​កម្ម​ពាក្យសម្ងាត់​មិន​ដំណើរការ​ទេ</translation>
 <translation id="7655240423373329753">7 ថ្ងៃ​ចុងក្រោយ</translation>
@@ -1864,6 +1871,7 @@
 <translation id="8473863474539038330">អាសយដ្ឋាន​ និងច្រើន​ទៀត</translation>
 <translation id="847433688444405067">រុករក​ឆ្លង​ឧបករណ៍</translation>
 <translation id="8477178913400731244">លុប​ទិន្នន័យ</translation>
+<translation id="8481771036036087705">បានបើក​ការជ្រើសរើសប្រើ Chrome finds ពាក់កណ្ដាល​អេក្រង់</translation>
 <translation id="8485434340281759656"><ph name="FILE_SIZE" /> <ph name="SEPARATOR" /> <ph name="DESCRIPTION" /></translation>
 <translation id="8491317241605644838">គ្មាន​វិនដូអសកម្ម​ទេ</translation>
 <translation id="8493948351860045254">បង្កើនទំហំផ្ទុក</translation>

@@ -122,6 +122,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &autofill::features::kAutofillAndroidDesktopKeyboardAccessoryRevamp,
     &autofill::features::kAutofillAndroidDesktopSuppressAccessoryOnEmpty,
     &autofill::features::kAutofillAndroidKeyboardAccessoryDynamicPositioning,
+    &autofill::features::kAutofillAtMemory,
     &autofill::features::kAutofillDeepLinkAutofillOptions,
     &autofill::features::kAutofillEnableAiBasedAmountExtraction,
     &autofill::features::kAutofillEnableBuyNowPayLater,
@@ -241,6 +242,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kAndroidSearchInSettings,
     &kAndroidSelfOcclusionTracking,
     &kAndroidSettingsContainment,
+    &kAndroidSettingsUrl,
     &kAndroidSetupList,
     &kAndroidSurfaceColorUpdate,
     &kAndroidTabDeclutterDedupeTabIdsKillSwitch,
@@ -255,6 +257,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kAndroidWindowPopupResizeAfterSpawn,
     &kAndroidXRUsesSurfaceControl,
     &kAndroidXrImmersivePlayer,
+    &kAndroidZoomImmersive,
     &kAnimatedGifRefactor,
     &kAnimatedImageDragShadow,
     &kAnnotatedPageContentsVirtualStructure,
@@ -354,6 +357,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kEmptyTabListAnimationKillSwitch,
     &kEnableAndroidSidePanel,
     &kEnableAndroidSidePanelDevFeature,
+    &kEnableAndroidSidePanelLogs,
     &kEnableBrowserWindowInterfaceForCustomTabActivity,
     &kEnableContextMenuForPreviewTab,
     &kEnableEscapeHandlingForSecondaryActivities,
@@ -435,6 +439,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kSearchInCCTAlternateTapHandling,
     &kSearchInCCTAlternateTapHandlingIfEnabledByEmbedder,
     &kSearchInCCTIfEnabledByEmbedder,
+    &kSessionRestoreAfterCrash,
     &kSettingsMultiColumn,
     &kSettingsSingleActivity,
     &kShareCustomActionsInCCT,
@@ -588,6 +593,7 @@ BASE_FEATURE(kAndroidSaveCardNonBlockingDialog, base::FEATURE_DISABLED_BY_DEFAUL
 BASE_FEATURE(kAndroidSearchInSettings,"SearchInSettings", base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kAndroidSelfOcclusionTracking, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kAndroidSettingsContainment, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kAndroidSettingsUrl, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kAndroidSetupList, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kAndroidSurfaceColorUpdate, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kAndroidTabDeclutterDedupeTabIdsKillSwitch, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -602,6 +608,7 @@ BASE_FEATURE(kAndroidWindowPopupPredictFinalBounds, base::FEATURE_ENABLED_BY_DEF
 BASE_FEATURE(kAndroidWindowPopupResizeAfterSpawn, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kAndroidXRUsesSurfaceControl, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kAndroidXrImmersivePlayer, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kAndroidZoomImmersive, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kAnimatedGifRefactor, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kAnimatedImageDragShadow, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kAnnotatedPageContentsVirtualStructure, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -704,8 +711,9 @@ BASE_FEATURE(kEducationalTipDefaultBrowserPromoCard, base::FEATURE_DISABLED_BY_D
 BASE_FEATURE(kEmptyTabListAnimationKillSwitch, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kEnableAndroidSidePanel, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kEnableAndroidSidePanelDevFeature, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kEnableAndroidSidePanelLogs, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kEnableBrowserWindowInterfaceForCustomTabActivity, base::FEATURE_ENABLED_BY_DEFAULT);
-BASE_FEATURE(kEnableContextMenuForPreviewTab, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kEnableContextMenuForPreviewTab, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kEnableEscapeHandlingForSecondaryActivities, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kEnableSwipeToSwitchPane, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kEnableToolbarPositioningInResizeMode, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -740,7 +748,7 @@ BASE_FEATURE(kLogoViewRefactor, base::FEATURE_DISABLED_BY_DEFAULT);
 // storage partition. This may reduce performance. This should not be enabled by
 // default.
 BASE_FEATURE(kMayLaunchUrlUsesSeparateStoragePartition, base::FEATURE_DISABLED_BY_DEFAULT);
-BASE_FEATURE(kMediaIndicatorsAndroid, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kMediaIndicatorsAndroid, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kMostVisitedTilesCustomization, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kMostVisitedTilesReselect, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kMoveToFrontInLaunchIntentDispatcher, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -792,6 +800,7 @@ BASE_FEATURE(kSearchInCCT, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kSearchInCCTAlternateTapHandling, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kSearchInCCTAlternateTapHandlingIfEnabledByEmbedder, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kSearchInCCTIfEnabledByEmbedder, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kSessionRestoreAfterCrash, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kSettingsMultiColumn, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kSettingsSingleActivity, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kShareCustomActionsInCCT, base::FEATURE_DISABLED_BY_DEFAULT);

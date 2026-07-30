@@ -732,7 +732,7 @@ std::optional<FeatureConfig> GetClientSideFeatureConfig(
     return config;
   }
 
-  if (kIPHExtensionsManageFeature.name == feature->name) {
+  if (kIPHExtensionsManageToolbarFeature.name == feature->name) {
     // Allows an IPH to be shown after a user installs an extension to inform
     // them where it can be managed.
     // Constraints:
@@ -745,10 +745,32 @@ std::optional<FeatureConfig> GetClientSideFeatureConfig(
     config->valid = true;
     config->availability = Comparator(ANY, 0);
     config->session_rate = Comparator(EQUAL, 0);
-    config->trigger = EventConfig("manage_extensions_iph_triggered",
+    config->trigger = EventConfig("manage_extensions_toolbar_iph_triggered",
                                   Comparator(LESS_THAN, 1), 360, 360);
     // Only show if the user hasn't already clicked the extension menu button.
     config->used = EventConfig("extensions_menu_button_clicked",
+                               Comparator(EQUAL, 0), 360, 360);
+    return config;
+  }
+
+  if (kIPHExtensionsManageAppMenuFeature.name == feature->name) {
+    // Allows an IPH to be shown after a user unpins the extensions menu to
+    // inform them where it can be managed.
+    // Constraints:
+    // - Show at most once per year (360 days).
+    // - Only show if the user hasn't already clicked open the Chrome app menu
+    //   button on their own.
+    // - session_rate is set to EQUAL, 0 to ensure we don't show this if another
+    //   IPH was already shown in the same session.
+    std::optional<FeatureConfig> config = FeatureConfig();
+    config->valid = true;
+    config->availability = Comparator(ANY, 0);
+    config->session_rate = Comparator(EQUAL, 0);
+    config->trigger = EventConfig("manage_extensions_app_menu_iph_triggered",
+                                  Comparator(LESS_THAN, 1), 360, 360);
+    // Only show if the user hasn't already clicked the "Extensions" section in
+    // the Chrome app menu.
+    config->used = EventConfig("extensions_row_in_app_menu_clicked",
                                Comparator(EQUAL, 0), 360, 360);
     return config;
   }
@@ -1146,19 +1168,21 @@ std::optional<FeatureConfig> GetClientSideFeatureConfig(
 
   if (kIPHNewTabPageThemeCustomizationFeature.name == feature->name) {
     // Allows an IPH for the theme customization entry point.
-    // * Only once in its lifetime.
-    // * Only as long as the user hasn't opened the NTP customization bottom
-    // sheet.
+    // * Once per 14 days. 3 times as maximum for lifetime.
     FeatureConfig config;
     config.valid = true;
     config.availability = Comparator(ANY, 0);
     config.session_rate = Comparator(EQUAL, 0);
     config.trigger =
         EventConfig("ntp_theme_customization_iph_triggered",
-                    Comparator(EQUAL, 0), k10YearsInDays, k10YearsInDays);
+                    Comparator(LESS_THAN, 3), k10YearsInDays, k10YearsInDays);
     config.used =
         EventConfig("ntp_theme_customization_iph_used", Comparator(EQUAL, 0),
                     k10YearsInDays, k10YearsInDays);
+
+    config.event_configs.insert(
+        EventConfig("ntp_theme_customization_iph_triggered",
+                    Comparator(LESS_THAN, 1), 14, k10YearsInDays));
     return config;
   }
   if (kIPHPageSummaryWebMenuFeature.name == feature->name) {

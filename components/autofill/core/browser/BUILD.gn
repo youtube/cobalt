@@ -123,6 +123,8 @@ proto_library("amount_extraction_heuristic_regexes_proto") {
 
 static_library("browser") {
   sources = [
+    "at_memory/at_memory_controller.cc",
+    "at_memory/at_memory_controller.h",
     "at_memory/at_memory_data_type.cc",
     "at_memory/at_memory_data_type.h",
     "at_memory/at_memory_funnel_metrics.cc",
@@ -352,8 +354,6 @@ static_library("browser") {
     "form_predictions_tracker.h",
     "form_processing/autofill_ai/determine_attribute_types.cc",
     "form_processing/autofill_ai/determine_attribute_types.h",
-    "form_processing/label_processing_util.cc",
-    "form_processing/label_processing_util.h",
     "form_processing/name_processing_util.cc",
     "form_processing/name_processing_util.h",
     "form_processing/optimization_guide_proto_util.cc",
@@ -1610,7 +1610,6 @@ source_set("unit_tests") {
     "form_parsing/standalone_cvc_field_parser_unittest.cc",
     "form_predictions_tracker_unittest.cc",
     "form_processing/autofill_ai/determine_attribute_types_unittest.cc",
-    "form_processing/label_processing_util_unittest.cc",
     "form_processing/name_processing_util_unittest.cc",
     "form_processing/optimization_guide_proto_util_unittest.cc",
     "form_qualifiers_unittest.cc",

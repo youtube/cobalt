@@ -600,7 +600,12 @@ void ComposeboxQueryController::CreateSearchUrl(
               *file_info->viewport_request_id_);
           has_image_upload = true;
         }
-        last_active_lens_file = file_info;
+        // Find the last file, preferring non-unresolved url uploads so that
+        // the correct request id is used for the interaction request.
+        if (!last_active_lens_file || !IsUnresolvedUrlUpload(*file_info) ||
+            IsUnresolvedUrlUpload(*last_active_lens_file)) {
+          last_active_lens_file = file_info;
+        }
       }
     }
 
@@ -1004,8 +1009,11 @@ void ComposeboxQueryController::StartFileUploadFlow(
     current_file_info.request_id->set_is_implicit_upload(
         current_file_info.is_implicit_upload);
   } else if (IsUnresolvedUrlUpload(current_file_info)) {
+    request_id_generator_.SetContextId(RandInt64());
+    request_id_generator_.SetHasChromeTabData(false);
+    request_id_generator_.SetIsImplicitUpload(true);
     current_file_info.request_id = *request_id_generator_.GetNextRequestId(
-        base_update_mode,
+        lens::RequestIdUpdateMode::kMultiContextUploadRequest,
         lens::LensOverlayRequestId::MEDIA_TYPE_UNRESOLVED_URL);
   } else {
     // Unlike image uploads, PDF / page content uploads need to increment the
@@ -1278,8 +1286,6 @@ ComposeboxQueryController::CreateOAuthHeadersAndContinue(
       identity_manager_->HasPrimaryAccount(signin::ConsentLevel::kSignin)) {
     signin::AccessTokenFetcher::TokenCallback token_callback =
         base::BindOnce(&lens::CreateOAuthHeader).Then(std::move(callback));
-    signin::ScopeSet oauth_scopes;
-    oauth_scopes.insert(GaiaConstants::kLensOAuth2Scope);
     return std::make_unique<signin::PrimaryAccountAccessTokenFetcher>(
         signin::OAuthConsumerId::kComposeboxQueryController, identity_manager_,
         std::move(token_callback),
@@ -1696,6 +1702,7 @@ void ComposeboxQueryController::CreateUploadRequestBodiesAndContinue(
   if (enable_viewport_images_ &&
       contextual_input_data->viewport_screenshot_bytes.has_value()) {
     CHECK(image_options.has_value());
+    size_t request_index = file_info->num_outstanding_network_requests_++;
     CreateImageUploadRequest(
         GetRequestIdForViewportImage(file_token),
         // Pass ownership of the viewport screenshot bytes to the callback.
@@ -1712,10 +1719,11 @@ void ComposeboxQueryController::CreateUploadRequestBodiesAndContinue(
                 base::BindOnce(
                     &ComposeboxQueryController::OnUploadRequestBodyReady,
                     weak_ptr_factory_.GetWeakPtr(), file_token,
-                    file_info->num_outstanding_network_requests_++))));
+                    request_index))));
   } else if (enable_viewport_images_ &&
              contextual_input_data->viewport_screenshot.has_value()) {
     CHECK(image_options.has_value());
+    size_t request_index = file_info->num_outstanding_network_requests_++;
     ProcessDecodedImageAndContinue(
         GetRequestIdForViewportImage(file_token), image_options.value(),
         base::BindOnce(
@@ -1729,11 +1737,20 @@ void ComposeboxQueryController::CreateUploadRequestBodiesAndContinue(
                 base::BindOnce(
                     &ComposeboxQueryController::OnUploadRequestBodyReady,
                     weak_ptr_factory_.GetWeakPtr(), file_token,
-                    file_info->num_outstanding_network_requests_++))),
+                    request_index))),
         /*file_name=*/std::nullopt,
         // Pass ownership of the viewport screenshot to the
         // callback.
         std::move(*contextual_input_data->viewport_screenshot));
+  }
+
+  // After potentially synchronous image processing, ensure the FileInfo
+  // still exists. It may have been deleted by an error callback. We re-fetch
+  // it from the map here to avoid a Use-After-Free if the original file_info
+  // pointer was invalidated.
+  file_info = GetMutableFileInfo(file_token);
+  if (!file_info) {
+    return;
   }
 
   switch (file_info->mime_type) {
@@ -1741,7 +1758,7 @@ void ComposeboxQueryController::CreateUploadRequestBodiesAndContinue(
       [[fallthrough]];
     case lens::MimeType::kAnnotatedPageContent:
       [[fallthrough]];
-    case lens::MimeType::kUnknown:
+    case lens::MimeType::kUnknown: {
       if (!contextual_input_data->context_input.has_value() ||
           contextual_input_data->context_input->empty()) {
         if (enable_viewport_images_ &&
@@ -1763,6 +1780,7 @@ void ComposeboxQueryController::CreateUploadRequestBodiesAndContinue(
       }
       // Call CreateContentextualDataUploadPayload off the main thread to avoid
       // blocking the main thread on compression.
+      size_t request_index = file_info->num_outstanding_network_requests_++;
       create_request_task_runner_->PostTaskAndReplyWithResult(
           FROM_HERE,
           base::BindOnce(
@@ -1788,8 +1806,8 @@ void ComposeboxQueryController::CreateUploadRequestBodiesAndContinue(
                       base::BindOnce(
                           &ComposeboxQueryController::OnUploadRequestBodyReady,
                           weak_ptr_factory_.GetWeakPtr(), file_token,
-                          file_info->num_outstanding_network_requests_++)))));
-      break;
+                          request_index)))));
+    } break;
     case lens::MimeType::kImage:
       if (contextual_input_data->context_input.has_value() &&
           contextual_input_data->context_input->empty() &&
@@ -1800,6 +1818,7 @@ void ComposeboxQueryController::CreateUploadRequestBodiesAndContinue(
       } else {
         CHECK(contextual_input_data->context_input.has_value() &&
               contextual_input_data->context_input->size() == 1);
+        size_t request_index = file_info->num_outstanding_network_requests_++;
         CreateImageUploadRequest(
             file_info->request_id.value(),
             // Pass ownership of the contextual input data to the callback.
@@ -1812,7 +1831,7 @@ void ComposeboxQueryController::CreateUploadRequestBodiesAndContinue(
                 base::BindOnce(
                     &ComposeboxQueryController::OnUploadRequestBodyReady,
                     weak_ptr_factory_.GetWeakPtr(), file_token,
-                    file_info->num_outstanding_network_requests_++)));
+                    request_index)));
       }
       break;
     default:

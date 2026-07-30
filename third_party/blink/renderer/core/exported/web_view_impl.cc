@@ -362,7 +362,7 @@ void ApplyCommandLineToSettings(WebSettings* settings) {
         WebSettings::SelectionStrategyType::kDirection);
   }
 
-  WebString network_quiet_timeout = WebString::FromUTF8(
+  WebString network_quiet_timeout = WebString::FromUtf8(
       command_line.GetSwitchValueASCII(switches::kNetworkQuietTimeout));
   if (!network_quiet_timeout.IsEmpty()) {
     auto network_quiet_timeout_seconds =
@@ -1740,6 +1740,7 @@ void WebView::ApplyWebPreferences(const web_pref::WebPreferences& prefs,
   settings->SetDontSendKeyEventsToJavascript(
       prefs.dont_send_key_events_to_javascript);
   settings->SetWebAppScope(WebString::FromAscii(prefs.web_app_scope.spec()));
+  settings->SetIsInitialProfile(prefs.is_initial_profile);
 
 #if BUILDFLAG(IS_ANDROID)
   settings->SetAllowCustomScrollbarInMainFrame(false);
@@ -1835,6 +1836,10 @@ void WebView::ApplyWebPreferences(const web_pref::WebPreferences& prefs,
 
   settings->SetPictureInPictureEnabled(prefs.picture_in_picture_enabled &&
                                        ::features::UseSurfaceLayerForVideo());
+
+  settings->SetImmersiveVideoPlaybackEnabled(
+      prefs.immersive_video_playback_enabled &&
+      ::features::UseSurfaceLayerForVideo());
 
   settings->SetRootScrollbarThemeColor(prefs.root_scrollbar_theme_color);
   settings->SetLazyLoadEnabled(prefs.lazy_load_enabled);
@@ -2267,8 +2272,10 @@ void WebViewImpl::ComputeScaleAndScrollForEditableElementRects(
       MainFrameImpl()->GetFrame()->View()->GetScrollableArea();
 
   // If the caret is offscreen, then animate.
-  if (!root_viewport->VisibleContentRect().Contains(caret_bounds_in_content))
+  if (!root_viewport->VisibleContentRect(kExcludeScrollbars)
+           .Contains(caret_bounds_in_content)) {
     need_animation = true;
+  }
 
   // If the box is partially offscreen and it's possible to bring it fully
   // onscreen, then animate.
@@ -2276,8 +2283,10 @@ void WebViewImpl::ComputeScaleAndScrollForEditableElementRects(
           element_bounds_in_content.width() &&
       visual_viewport.VisibleRect().height() >=
           element_bounds_in_content.height() &&
-      !root_viewport->VisibleContentRect().Contains(element_bounds_in_content))
+      !root_viewport->VisibleContentRect(kExcludeScrollbars)
+           .Contains(element_bounds_in_content)) {
     need_animation = true;
+  }
 
   if (!need_animation)
     return;
@@ -2760,11 +2769,6 @@ void WebViewImpl::DispatchPersistedPageshow(base::TimeTicks navigation_start) {
 
         performance->AddBackForwardCacheRestoration(
             navigation_start, pageshow_start_time, pageshow_end_time);
-      }
-      if (frame->IsOutermostMainFrame()) {
-        UMA_HISTOGRAM_BOOLEAN(
-            "BackForwardCache.MainFrameHasPageshowListenersOnRestore",
-            window->HasEventListeners(event_type_names::kPageshow));
       }
     }
   }
@@ -3617,7 +3621,7 @@ void WebViewImpl::UpdateFontRenderingFromRendererPrefs() {
       renderer_preferences_.use_subpixel_positioning);
 #if BUILDFLAG(IS_LINUX)
   if (!renderer_preferences_.system_font_family_name.empty()) {
-    WebFontRenderStyle::SetSystemFontFamily(blink::WebString::FromUTF8(
+    WebFontRenderStyle::SetSystemFontFamily(blink::WebString::FromUtf8(
         renderer_preferences_.system_font_family_name));
   }
 #endif  // BUILDFLAG(IS_LINUX)
@@ -3846,6 +3850,7 @@ void WebViewImpl::UpdateWebPreferences(
     web_preferences_.shrinks_viewport_contents_to_fit = false;
     web_preferences_.main_frame_resizes_are_orientation_changes = false;
     web_preferences_.text_autosizing_enabled = false;
+    web_preferences_.text_size_adjust_enabled = false;
 
     // Insecure content should not be allowed in a fenced frame.
     web_preferences_.allow_running_insecure_content = false;

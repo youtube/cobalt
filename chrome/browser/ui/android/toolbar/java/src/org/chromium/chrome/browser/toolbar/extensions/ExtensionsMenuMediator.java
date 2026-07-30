@@ -9,6 +9,7 @@ import android.graphics.Bitmap;
 
 import androidx.annotation.VisibleForTesting;
 
+import org.chromium.base.Callback;
 import org.chromium.base.lifetime.Destroyable;
 import org.chromium.base.supplier.NullableObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
@@ -20,6 +21,7 @@ import org.chromium.chrome.browser.ui.extensions.ExtensionActionContextMenuBridg
 import org.chromium.chrome.browser.ui.extensions.ExtensionsMenuBridge;
 import org.chromium.chrome.browser.ui.extensions.ExtensionsMenuTypes;
 import org.chromium.chrome.browser.ui.extensions.R;
+import org.chromium.components.embedder_support.util.UrlConstants;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.listmenu.ListMenuButton;
 import org.chromium.ui.modelutil.MVCListAdapter.ListItem;
@@ -73,16 +75,7 @@ class ExtensionsMenuMediator implements Destroyable, ExtensionsMenuBridge.Observ
         mMenuBridge = new ExtensionsMenuBridge(mTask, mProfile, /* observer= */ this);
 
         mMainPageModel = mainPageModel;
-        mMainPageModel.set(
-                ExtensionsMenuProperties.SITE_SETTINGS_TOGGLE_CLICK_LISTENER,
-                (buttonView, isChecked) -> mMenuBridge.onSiteSettingsToggleChanged(isChecked));
-
         mSitePermissionsPageModel = sitePermissionsPropertyModel;
-        mSitePermissionsPageModel.set(
-                SitePermissionsPageProperties.BACK_CLICK_LISTENER, (view) -> onBackButtonClicked());
-        mSitePermissionsPageModel.set(
-                SitePermissionsPageProperties.CLOSE_CLICK_LISTENER,
-                mMainPageModel.get(ExtensionsMenuProperties.CLOSE_CLICK_LISTENER));
 
         if (mMenuBridge.isReady()) {
             onReady();
@@ -123,9 +116,29 @@ class ExtensionsMenuMediator implements Destroyable, ExtensionsMenuBridge.Observ
         mMenuBridge.onAllowExtensionClicked(extensionId);
     }
 
+    /**
+     * Called when the back button in the site permissions page is clicked, navigates back to the
+     * main page.
+     */
+    public void onBackButtonClicked() {
+        mMainPageModel.set(
+                ExtensionsMenuProperties.CURRENT_PAGE, ExtensionsMenuProperties.Page.MAIN);
+        // Refresh the main page, since there may have been changes while the site permissions page
+        // was opened.
+        onModelChanged();
+    }
+
     /** Called when the dismiss extension button is clicked. */
     public void onDismissExtensionClicked(String extensionId) {
         mMenuBridge.onDismissExtensionClicked(extensionId);
+    }
+
+    /** Called when the manage extension button is clicked. */
+    public void onManageThisExtensionClicked(Callback<String> openUrlCallback) {
+        assert getCurrentPage() == ExtensionsMenuProperties.Page.SITE_PERMISSIONS;
+        String extensionId =
+                mSitePermissionsPageModel.get(SitePermissionsPageProperties.EXTENSION_ID);
+        openUrlCallback.onResult(UrlConstants.CHROME_EXTENSIONS_ID_URL + extensionId);
     }
 
     /** Called when the reload page button is clicked. */
@@ -133,11 +146,14 @@ class ExtensionsMenuMediator implements Destroyable, ExtensionsMenuBridge.Observ
         mMenuBridge.onReloadPageButtonClicked();
     }
 
+    /** Called when the site settings toggle is clicked. */
+    public void onSiteSettingsToggleChanged(boolean isChecked) {
+        mMenuBridge.onSiteSettingsToggleChanged(isChecked);
+    }
+
     /** Destroys the mediator. */
     @Override
     public void destroy() {
-        mMainPageModel.set(ExtensionsMenuProperties.SITE_SETTINGS_TOGGLE_CLICK_LISTENER, null);
-        mSitePermissionsPageModel.set(SitePermissionsPageProperties.BACK_CLICK_LISTENER, null);
         mMenuBridge.destroy();
     }
 
@@ -375,7 +391,7 @@ class ExtensionsMenuMediator implements Destroyable, ExtensionsMenuBridge.Observ
     private void onSitePermissionsButtonClicked(String extensionId) {
         mSitePermissionsPageModel.set(SitePermissionsPageProperties.EXTENSION_ID, extensionId);
 
-        // Find extension name and icon.
+        // Update the extensions header in the site permissions page.
         for (int i = 0; i < mActionModels.size(); i++) {
             PropertyModel model = mActionModels.get(i).model;
             if (extensionId.equals(model.get(ExtensionsMenuItemProperties.EXTENSION_ID))) {
@@ -389,18 +405,21 @@ class ExtensionsMenuMediator implements Destroyable, ExtensionsMenuBridge.Observ
             }
         }
 
+        // Update the site permissions page content.
+        ExtensionsMenuTypes.ExtensionSitePermissionsState sitePermissionsState =
+                mMenuBridge.getExtensionSitePermissionsState(extensionId);
+        mSitePermissionsPageModel.set(
+                SitePermissionsPageProperties.SHOW_REQUESTS_TOGGLE_CHECKED,
+                sitePermissionsState.showRequestsToggle.isOn);
+        mSitePermissionsPageModel.set(
+                SitePermissionsPageProperties.SHOW_REQUESTS_TOGGLE_CLICK_LISTENER,
+                (buttonView, isChecked) ->
+                        mMenuBridge.onShowRequestsTogglePressed(extensionId, isChecked));
+
+        // Set current page to site permissions page.
         mMainPageModel.set(
                 ExtensionsMenuProperties.CURRENT_PAGE,
                 ExtensionsMenuProperties.Page.SITE_PERMISSIONS);
-    }
-
-    /** Navigates back to the main page from a site permissions page. */
-    private void onBackButtonClicked() {
-        mMainPageModel.set(
-                ExtensionsMenuProperties.CURRENT_PAGE, ExtensionsMenuProperties.Page.MAIN);
-        // Refresh the main page, since there may have been changes while the site permissions page
-        // was opened.
-        onModelChanged();
     }
 
     /**

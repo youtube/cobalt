@@ -303,6 +303,8 @@ export class ContentController {
         return null;
       }
 
+      this.logger_.logNewPage(/*speechPlayed=*/ false);
+
       this.setState(ContentType.HAS_CONTENT);
 
       contentFragment.appendChild(contentContainer);
@@ -604,13 +606,6 @@ export class ContentController {
 
   // TODO(crbug.com/40910704): Potentially hide links during distillation.
   private shouldShowLinks_(): boolean {
-    // If Readability is enabled and the ReadabilityWithLinks flag is disabled,
-    // don't show links.
-    if (chrome.readingMode.isReadabilityEnabled &&
-        !chrome.readingMode.isReadabilityWithLinksEnabled) {
-      return false;
-    }
-
     // Links should only show when Read Aloud is paused.
     return chrome.readingMode.linksEnabled &&
         !this.speechController_.isSpeechActive();
@@ -682,7 +677,6 @@ export class ContentController {
 
   updateAnchorsForReadability(root: ParentNode) {
     if (!chrome.readingMode.isReadabilityEnabled ||
-        !chrome.readingMode.isReadabilityWithLinksEnabled ||
         !isDistilledByReadability()) {
       return;
     }

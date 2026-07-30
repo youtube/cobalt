@@ -219,7 +219,6 @@ class MappableSharedImageVideoFramePool::PoolImpl
   // `frame_resource` and return nullptr.
   scoped_refptr<VideoFrame> BindAndCreateMailboxHardwareFrameResource(
       FrameResource* frame_resource,
-      const gfx::Size& coded_size,
       const gfx::Rect& visible_rect,
       const gfx::Size& natural_size,
       const gfx::ColorSpace& color_space,
@@ -601,33 +600,25 @@ void CopyRowsToRGB10Buffer(bool is_rgba,
 
 gfx::Size CodedSize(const VideoFrame* video_frame,
                     GpuVideoAcceleratorFactories::OutputFormat output_format) {
-  DCHECK(gfx::Rect(video_frame->coded_size())
-             .Contains(video_frame->visible_rect()));
-
-  size_t width = video_frame->visible_rect().width();
-  size_t height = video_frame->visible_rect().height();
-  gfx::Size output;
   switch (output_format) {
     case GpuVideoAcceleratorFactories::OutputFormat::YV12:
     case GpuVideoAcceleratorFactories::OutputFormat::P010:
-    case GpuVideoAcceleratorFactories::OutputFormat::NV12:
+    case GpuVideoAcceleratorFactories::OutputFormat::NV12: {
       DCHECK_EQ(video_frame->visible_rect().x() % 2, 0);
       DCHECK_EQ(video_frame->visible_rect().y() % 2, 0);
-      if (!viz::IsOddSizeMultiPlanarBuffersAllowed()) {
-        width = base::bits::AlignUp(width, size_t{2});
-        height = base::bits::AlignUp(height, size_t{2});
+      if (viz::IsOddSizeMultiPlanarBuffersAllowed()) {
+        return video_frame->visible_rect().size();
       }
-      output = gfx::Size(width, height);
-      break;
+      auto even_size = video_frame->visible_rect().size();
+      even_size.Enlarge(even_size.width() % 2, even_size.height() % 2);
+      return even_size;
+    }
     case GpuVideoAcceleratorFactories::OutputFormat::XR30:
     case GpuVideoAcceleratorFactories::OutputFormat::XB30:
-      output = gfx::Size(base::bits::AlignUp(width, size_t{2}), height);
-      break;
+      return video_frame->visible_rect().size();
     case GpuVideoAcceleratorFactories::OutputFormat::UNDEFINED:
       NOTREACHED();
   }
-  DCHECK(gfx::Rect(video_frame->coded_size()).Contains(gfx::Rect(output)));
-  return output;
 }
 
 void SetPrefersExternalSampler(viz::SharedImageFormat& format) {
@@ -660,6 +651,16 @@ gfx::ColorSpace GetOutputColorSpace(
       NOTREACHED();
   }
 }
+
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+enum class SupportZeroCopyImportType {
+  kEmptyBuffer = 0,
+  kSharedMemory = 1,
+  kNativePixmapSupported = 2,
+  kNativePixmapUnsupported = 3,
+  kMaxValue = kNativePixmapUnsupported
+};
 
 }  // unnamed namespace
 
@@ -767,13 +768,15 @@ void MappableSharedImageVideoFramePool::PoolImpl::CreateHardwareFrame(
 
   // TODO(https://crbug.com/webrtc/9033): Eliminate odd size video frame input
   // cases as they are not valid.
-  if (video_frame->coded_size().width() % 2 &&
-      !viz::IsOddSizeMultiPlanarBuffersAllowed()) {
-    passthrough = true;
-  }
-  if (video_frame->coded_size().height() % 2 &&
-      !viz::IsOddSizeMultiPlanarBuffersAllowed()) {
-    passthrough = true;
+  const bool is_multiplanar =
+      output_format_ == GpuVideoAcceleratorFactories::OutputFormat::YV12 ||
+      output_format_ == GpuVideoAcceleratorFactories::OutputFormat::NV12 ||
+      output_format_ == GpuVideoAcceleratorFactories::OutputFormat::P010;
+  if (is_multiplanar && !viz::IsOddSizeMultiPlanarBuffersAllowed()) {
+    if (video_frame->coded_size().width() % 2 ||
+        video_frame->coded_size().height() % 2) {
+      passthrough = true;
+    }
   }
 
   frame_copy_requests_.emplace_back(std::move(video_frame),
@@ -1037,8 +1040,7 @@ void MappableSharedImageVideoFramePool::PoolImpl::OnCopiesDoneOnMediaThread(
   }
 
   scoped_refptr<VideoFrame> frame = BindAndCreateMailboxHardwareFrameResource(
-      frame_resource, CodedSize(video_frame.get(), output_format_),
-      gfx::Rect(video_frame->visible_rect().size()),
+      frame_resource, gfx::Rect(video_frame->visible_rect().size()),
       video_frame->natural_size(), video_frame->ColorSpace(),
       video_frame->timestamp(), video_frame->metadata().allow_overlay);
   if (!frame) {
@@ -1059,7 +1061,6 @@ void MappableSharedImageVideoFramePool::PoolImpl::OnCopiesDoneOnMediaThread(
 scoped_refptr<VideoFrame> MappableSharedImageVideoFramePool::PoolImpl::
     BindAndCreateMailboxHardwareFrameResource(
         FrameResource* frame_resource,
-        const gfx::Size& coded_size,
         const gfx::Rect& visible_rect,
         const gfx::Size& natural_size,
         const gfx::ColorSpace& color_space,
@@ -1103,11 +1104,28 @@ scoped_refptr<VideoFrame> MappableSharedImageVideoFramePool::PoolImpl::
   // Gate this on SharedImage usage as ScopedAccess now CHECKs for it.
   // TOOD(crbug.com/425634684, crbug.com/413659843): Check for webgpu support
   // from SharedImageCapabilities, once this metadata is compatible.
-  is_webgpu_compatible =
+  bool native_pixmap_supports_zero_copy =
       handle.type == gfx::NATIVE_PIXMAP &&
-      handle.native_pixmap_handle().supports_zero_copy_webgpu_import &&
-      frame_resource->shared_image->usage().Has(
-          gpu::SHARED_IMAGE_USAGE_WEBGPU_READ);
+      handle.native_pixmap_handle().supports_zero_copy_webgpu_import;
+
+  SupportZeroCopyImportType type = SupportZeroCopyImportType::kEmptyBuffer;
+  if (handle.type == gfx::GpuMemoryBufferType::SHARED_MEMORY_BUFFER) {
+    type = SupportZeroCopyImportType::kSharedMemory;
+  } else if (handle.type == gfx::GpuMemoryBufferType::NATIVE_PIXMAP) {
+    if (native_pixmap_supports_zero_copy) {
+      type = SupportZeroCopyImportType::kNativePixmapSupported;
+    } else {
+      type = SupportZeroCopyImportType::kNativePixmapUnsupported;
+    }
+  }
+  // TODO(crbug.com/413659843): Verify how popular this codepath is and if we
+  // even need a SharedImage capability for it.
+  base::UmaHistogramEnumeration(
+      "Media.GPU.MappableSIVideoFrameSupportZeroCopyImport", type);
+
+  is_webgpu_compatible = native_pixmap_supports_zero_copy &&
+                         frame_resource->shared_image->usage().Has(
+                             gpu::SHARED_IMAGE_USAGE_WEBGPU_READ);
 #endif
 
   // Bind the texture and create or rebind the image. This image may be read
@@ -1127,8 +1145,7 @@ scoped_refptr<VideoFrame> MappableSharedImageVideoFramePool::PoolImpl::
   // Create the VideoFrame backed by native textures.
   scoped_refptr<VideoFrame> frame = VideoFrame::WrapSharedImage(
       frame_format, frame_resource->shared_image, sync_token,
-      VideoFrame::ReleaseMailboxCB(), coded_size, visible_rect, natural_size,
-      timestamp);
+      VideoFrame::ReleaseMailboxCB(), visible_rect, natural_size, timestamp);
 
   if (!frame) {
     frame_resource->MarkUnused(tick_clock_->NowTicks());

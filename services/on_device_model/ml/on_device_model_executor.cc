@@ -134,15 +134,19 @@ std::optional<std::string> GetModelResponsePrefix(
 // on the model thread; it posts results back to the owning sequence.
 class Responder final {
  public:
-  explicit Responder(
+  Responder(
+      SessionImpl* owning_session_impl,
       mojo::PendingRemote<on_device_model::mojom::StreamingResponder> responder,
       base::OnceClosure on_complete,
       SessionAccessor::Ptr session,
-      base::RepeatingClosure on_tool_calls_emitted)
+      base::RepeatingClosure on_tool_calls_emitted,
+      bool add_output_tokens_to_context)
       : responder_(std::move(responder)),
         session_(std::move(session)),
         on_complete_(std::move(on_complete)),
-        on_tool_calls_emitted_(std::move(on_tool_calls_emitted)) {
+        on_tool_calls_emitted_(std::move(on_tool_calls_emitted)),
+        owning_session_impl_(owning_session_impl),
+        add_output_tokens_to_context_(add_output_tokens_to_context) {
     responder_.set_disconnect_handler(
         base::BindOnce(&Responder::Cancel, base::Unretained(this)));
   }
@@ -262,9 +266,19 @@ class Responder final {
       // Ends the `Decode` trace.
       TRACE_EVENT_END("optimization_guide", perfetto_id());
 
-      // Empty text means the output is finished. Delete the session immediately
-      // to free up any resources.
-      session_ = nullptr;
+      // Empty text means the output is finished.
+      if (add_output_tokens_to_context_) {
+        // The context of `session_` contains all the tokens of the original
+        // session it was cloned from, plus the newly-generated output tokens.
+        // "Add" the generated tokens to the `SessionImpl` by swapping out its
+        // original session with ours.
+        owning_session_impl_->ReplaceSession(std::move(session_),
+                                             base::PassKey<Responder>());
+      } else {
+        // Delete the session immediately to free up any resources.
+        session_ = nullptr;
+      }
+
       base::UmaHistogramCounts10000("OnDeviceModel.TokenCount.Output",
                                     num_output_tokens_);
       if (num_output_tokens_ > 1) {
@@ -308,6 +322,9 @@ class Responder final {
   ChromeMLCancelFn cancel_;
   base::OnceClosure on_complete_;
   base::RepeatingClosure on_tool_calls_emitted_;
+  // `raw_ptr` is safe here because `owning_session_impl_` owns `this`.
+  raw_ptr<SessionImpl> owning_session_impl_;
+  bool add_output_tokens_to_context_;
   base::WeakPtrFactory<Responder> weak_ptr_factory_{this};
 };
 
@@ -438,7 +455,7 @@ BackendImpl::CanCreate() {
         on_device_model::ServiceDisconnectReason::kFailedToLoadLibrary);
   }
   ml::DeviceInfo device_info =
-      ml::QueryDeviceInfo(chrome_ml_->api(), /*log_histogram=*/false);
+      ml::QueryDeviceInfo(*chrome_ml_, /*log_histogram=*/false);
   if (!on_device_model::IsCpuCapable() &&
       device_info.gpu_blocked_reason != GpuBlockedReason::kNotBlocked) {
     return base::unexpected(
@@ -447,15 +464,10 @@ BackendImpl::CanCreate() {
   return base::ok();
 }
 
-DISABLE_CFI_DLSYM
 on_device_model::Capabilities BackendImpl::GetCapabilities(
     on_device_model::ModelFile model_file) {
   TRACE_EVENT("optimization_guide", "BackendImpl::GetCapabilities");
   on_device_model::Capabilities result;
-  if (!chrome_ml_->api().GetCapabilities) {
-    return result;
-  }
-
   PlatformFile platform_file;
   if (model_file.IsFile()) {
     platform_file = model_file.file().TakePlatformFile();
@@ -465,7 +477,9 @@ on_device_model::Capabilities BackendImpl::GetCapabilities(
     platform_file = file.TakePlatformFile();
   }
   ChromeMLCapabilities capabilities;
-  chrome_ml_->api().GetCapabilities(platform_file, capabilities);
+  if (!chrome_ml_->GetCapabilities(platform_file, capabilities)) {
+    return result;
+  }
 
   if (capabilities.image_input) {
     result.Put(on_device_model::CapabilityFlags::kImageInput);
@@ -510,7 +524,6 @@ SessionImpl::SessionImpl(OnDeviceModelExecutor& executor,
       adaptation_id_(adaptation_id) {}
 SessionImpl::~SessionImpl() = default;
 
-DISABLE_CFI_DLSYM
 void SessionImpl::Append(
     on_device_model::mojom::AppendOptionsPtr options,
     mojo::PendingRemote<on_device_model::mojom::ContextClient> client,
@@ -550,7 +563,6 @@ void SessionImpl::Append(
   context_holders_.insert(std::move(context_holder));
 }
 
-DISABLE_CFI_DLSYM
 void SessionImpl::Generate(
     on_device_model::mojom::GenerateOptionsPtr options,
     mojo::PendingRemote<on_device_model::mojom::StreamingResponder> response,
@@ -575,8 +587,8 @@ void SessionImpl::Generate(
   }
 
   responder_ = std::make_unique<Responder>(
-      std::move(response), std::move(on_complete), std::move(cloned),
-      std::move(on_tool_calls_emitted));
+      this, std::move(response), std::move(on_complete), std::move(cloned),
+      std::move(on_tool_calls_emitted), options->add_output_tokens_to_context);
 
   TRACE_EVENT_BEGIN("optimization_guide", "Decode", responder_->perfetto_id());
   TRACE_EVENT_BEGIN("optimization_guide", "TTFT", responder_->perfetto_id());
@@ -587,7 +599,6 @@ void SessionImpl::Generate(
       executor_->GetConstraintFactory(), model_response_prefix_, output_fn);
 }
 
-DISABLE_CFI_DLSYM
 void SessionImpl::SizeInTokens(on_device_model::mojom::InputPtr input,
                                base::OnceCallback<void(uint32_t)> callback) {
   TRACE_EVENT("optimization_guide", "SessionImpl::SizeInTokens");
@@ -595,14 +606,12 @@ void SessionImpl::SizeInTokens(on_device_model::mojom::InputPtr input,
                          ConvertCallbackToFn(std::move(callback)));
 }
 
-DISABLE_CFI_DLSYM
 void SessionImpl::Score(const std::string& text,
                         base::OnceCallback<void(float)> callback) {
   TRACE_EVENT("optimization_guide", "SessionImpl::Score");
   session_->Score(text, ConvertCallbackToFn(std::move(callback)));
 }
 
-DISABLE_CFI_DLSYM
 void SessionImpl::GetProbabilitiesBlocking(
     const std::string& input,
     base::OnceCallback<void(const std::vector<float>&)> callback) {
@@ -611,7 +620,6 @@ void SessionImpl::GetProbabilitiesBlocking(
                                      ConvertCallbackToFn(std::move(callback)));
 }
 
-DISABLE_CFI_DLSYM
 void SessionImpl::AsrStream(
     odmm::AsrStreamOptionsPtr options,
     mojo::PendingRemote<odmm::AsrStreamResponder> responder) {
@@ -625,7 +633,6 @@ void SessionImpl::AsrStream(
   cloned_raw->CreateAsrStream(std::move(options), output_fn);
 }
 
-DISABLE_CFI_DLSYM
 void SessionImpl::AsrAddAudioChunk(odmm::AudioDataPtr data) {
   TRACE_EVENT("optimization_guide.debug", "SessionImpl::AsrAddAudioChunk");
   if (!asr_responder_) {
@@ -643,15 +650,19 @@ std::unique_ptr<on_device_model::BackendSession> SessionImpl::Clone() {
   return clone;
 }
 
+void SessionImpl::ReplaceSession(SessionAccessor::Ptr new_session,
+                                 base::PassKey<Responder> /*pass_key*/) {
+  session_ = std::move(new_session);
+}
+
 void SessionImpl::RemoveContext(ContextHolder* context) {
   TRACE_EVENT("optimization_guide", "SessionImpl::RemoveContext");
   std::erase_if(context_holders_, base::MatchesUniquePtr(context));
 }
 
-DISABLE_CFI_DLSYM
 void DestroyModel(const ChromeML* chrome_ml, ChromeMLModel model) {
   TRACE_EVENT("optimization_guide", "DestroyModel");
-  chrome_ml->api().DestroyModel(model);
+  chrome_ml->DestroyModel(model);
 }
 
 OnDeviceModelExecutor::OnDeviceModelExecutor(
@@ -725,13 +736,12 @@ void OnDeviceModelExecutor::UnloadAdaptation(uint32_t adaptation_id) {
   adaptation_params_.erase(adaptation_id);
 }
 
-DISABLE_CFI_DLSYM
 LoadModelResult OnDeviceModelExecutor::Init(
     on_device_model::mojom::LoadModelParamsPtr params,
     base::OnceClosure on_complete) {
   TRACE_EVENT("optimization_guide", "OnDeviceModelExecutor::Init");
   ml::DeviceInfo device_info =
-      ml::QueryDeviceInfo(chrome_ml_->api(), /*log_histogram=*/false);
+      ml::QueryDeviceInfo(*chrome_ml_, /*log_histogram=*/false);
   if (params->backend_type == ml::ModelBackendType::kGpuBackend &&
       device_info.gpu_blocked_reason != GpuBlockedReason::kNotBlocked) {
     return LoadModelResult::kGpuBlocked;
@@ -780,9 +790,9 @@ LoadModelResult OnDeviceModelExecutor::Init(
   // `SessionCreateModel` may take a long time to load the model. Deactivate
   // hang watcher so it doesn't report it as a hang.
   base::HangWatcher::InvalidateActiveExpectations();
-  model_ = chrome_ml_->api().SessionCreateModel(
-      &descriptor, reinterpret_cast<uintptr_t>(this),
-      OnDeviceModelExecutor::Schedule);
+  model_ = chrome_ml_->SessionCreateModel(&descriptor,
+                                          reinterpret_cast<uintptr_t>(this),
+                                          OnDeviceModelExecutor::Schedule);
   model_task_runner_->PostTask(FROM_HERE, std::move(on_complete));
   return (model_ != 0) ? LoadModelResult::kSuccess
                        : LoadModelResult::kFailedToLoadLibrary;

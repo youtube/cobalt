@@ -115,8 +115,7 @@ StyleSheetContents::StyleSheetContents(const StyleSheetContents& o)
   DCHECK(o.import_rules_.empty());
 
   for (unsigned i = 0; i < namespace_rules_.size(); ++i) {
-    namespace_rules_[i] =
-        static_cast<StyleRuleNamespace*>(o.namespace_rules_[i]->Copy());
+    namespace_rules_[i] = To<StyleRuleNamespace>(o.namespace_rules_[i]->Copy());
   }
 
   // Copying child rules is a strict point for deferred property parsing, so
@@ -268,51 +267,12 @@ void StyleSheetContents::ClearRules() {
   child_rules_.clear();
 }
 
-template <typename ChildRulesType>
-static wtf_size_t ReplaceRuleIfExistsInternal(const StyleRuleBase* old_rule,
-                                              StyleRuleBase* new_rule,
-                                              ChildRulesType& child_rules) {
-  for (wtf_size_t i = 0; i < child_rules.size(); ++i) {
-    StyleRuleBase* rule = child_rules[i].Get();
-    if (rule == old_rule) {
-      child_rules[i] = new_rule;
-      return i;
-    }
-    if (auto* style_rule_group = DynamicTo<StyleRuleGroup>(rule)) {
-      if (ReplaceRuleIfExistsInternal(old_rule, new_rule,
-                                      style_rule_group->ChildRules()) !=
-          std::numeric_limits<wtf_size_t>::max()) {
-        return 0;  // Dummy non-failure value.
-      }
-    } else if (auto* style_rule = DynamicTo<StyleRule>(rule);
-               style_rule && style_rule->ChildRules()) {
-      if (ReplaceRuleIfExistsInternal(old_rule, new_rule,
-                                      *style_rule->ChildRules()) !=
-          std::numeric_limits<wtf_size_t>::max()) {
-        return 0;  // Dummy non-failure value.
-      }
-    }
-  }
-
-  // Not found.
-  return std::numeric_limits<wtf_size_t>::max();
-}
-
-wtf_size_t StyleSheetContents::ReplaceRuleIfExists(StyleRuleBase* old_rule,
-                                                   StyleRuleBase* new_rule,
-                                                   wtf_size_t position_hint) {
-  if (rule_set_diff_) {
-    rule_set_diff_->AddDiff(old_rule);
-    rule_set_diff_->AddDiff(new_rule);
-  }
-
-  if (position_hint < child_rules_.size() &&
-      child_rules_[position_hint] == old_rule) {
-    child_rules_[position_hint] = new_rule;
-    return position_hint;
-  }
-
-  return ReplaceRuleIfExistsInternal(old_rule, new_rule, child_rules_);
+wtf_size_t StyleSheetContents::ReplaceChildRuleIfExists(
+    StyleRuleBase* old_rule,
+    StyleRuleBase* new_rule,
+    wtf_size_t position_hint) {
+  return ReplaceStyleRuleInVector(old_rule, new_rule, position_hint,
+                                  child_rules_);
 }
 
 bool StyleSheetContents::WrapperInsertRule(StyleRuleBase* rule,

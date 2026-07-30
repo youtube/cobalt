@@ -97,11 +97,6 @@ SecurityEventSyncBridgeImpl::GetControllerDelegate() {
   return change_processor()->GetControllerDelegate();
 }
 
-std::unique_ptr<syncer::MetadataChangeList>
-SecurityEventSyncBridgeImpl::CreateMetadataChangeList() {
-  return syncer::DataTypeStore::WriteBatch::CreateMetadataChangeList();
-}
-
 std::optional<syncer::ModelError>
 SecurityEventSyncBridgeImpl::MergeFullSyncData(
     std::unique_ptr<syncer::MetadataChangeList> metadata_change_list,
@@ -182,6 +177,7 @@ bool SecurityEventSyncBridgeImpl::IsEntityDataValid(
 void SecurityEventSyncBridgeImpl::ApplyDisableSyncChanges(
     std::unique_ptr<syncer::MetadataChangeList> delete_metadata_change_list) {
   store_->DeleteAllDataAndMetadata(
+      std::move(delete_metadata_change_list),
       base::BindOnce(&SecurityEventSyncBridgeImpl::OnStoreCommit,
                      weak_ptr_factory_.GetWeakPtr()));
 }

@@ -5,12 +5,20 @@
 import {html} from '//resources/lit/v3_0/lit.rollup.js';
 
 import type {ComposeboxVoiceSearchElement} from './composebox_voice_search.js';
+import {VoiceSearchError} from './composebox_voice_search.js';
 
 export function getHtml(this: ComposeboxVoiceSearchElement) {
   return html`
     <div id="container">
-      <div id="error-container" ?hidden="${!this.showErrorScrim_}">
+      <div id="error-container" ?hidden="${!this.shouldShowErrorScrim_()}">
         <span id="error-message">${this.errorMessage_}</span>
+                ${
+      this.detailedError_ === VoiceSearchError.NO_MATCH ? html`
+          <a id="tryAgainLink" href="#" @click="${this.onTryAgainClick_}">
+            ${this.i18n('tryAgain')}
+          </a>
+        ` :
+                                                          ''}
         <a id="details" target="_blank" href="${this.detailsUrl_}"
             @click="${this.onLinkClick_}">
           ${this.i18n('voiceDetails')}
@@ -19,7 +27,7 @@ export function getHtml(this: ComposeboxVoiceSearchElement) {
       <textarea id="input"
           .value="${this.finalResult_ + (this.interimResult_ || '')}"
           placeholder="${this.listeningPlaceholder_}"
-          ?hidden="${this.showErrorScrim_}" disabled>
+          ?hidden="${this.shouldShowErrorScrim_()}" disabled>
       </textarea>
       <cr-icon-button id="closeButton" class="icon-clear"
           part="voice-close-button"

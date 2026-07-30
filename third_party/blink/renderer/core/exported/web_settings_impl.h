@@ -122,9 +122,11 @@ class CORE_EXPORT WebSettingsImpl final : public WebSettings {
   void SetMaxTouchPoints(int) override;
   void SetPictureInPictureEnabled(bool) override;
   void SetWebAppScope(const WebString&) override;
+  void SetIsInitialProfile(bool) override;
   void SetPresentationRequiresUserGesture(bool) override;
   void SetEmbeddedMediaExperienceEnabled(bool) override;
   void SetImmersiveModeEnabled(bool) override;
+  void SetImmersiveVideoPlaybackEnabled(bool) override;
   void SetMinimumFontSize(int) override;
   void SetMinimumLogicalFontSize(int) override;
   void SetHideScrollbars(bool) override;

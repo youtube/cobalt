@@ -176,6 +176,9 @@ const CGFloat kIdentityDiscMaxFontSize = 24;
 }
 
 - (UIView*)fakeOmniboxView {
+  if (IsComposeboxIOSEnabled()) {
+    return self.fakeOmnibox;
+  }
   return self.headerView.omnibox;
 }
 
@@ -193,7 +196,6 @@ const CGFloat kIdentityDiscMaxFontSize = 24;
   void (^transitionBlock)(id<UIViewControllerTransitionCoordinatorContext>) =
       ^(id<UIViewControllerTransitionCoordinatorContext>) {
         __strong __typeof(self) strongSelf = weakSelf;
-
         if (!strongSelf) {
           return;
         }
@@ -203,7 +205,7 @@ const CGFloat kIdentityDiscMaxFontSize = 24;
         }
 
         // Ensure omnibox is reset when not a regular tablet.
-        if (isSplitToolbarMode) {
+        if (isSplitToolbarMode && !CanShowTabStrip(newCollection)) {
           [strongSelf.toolbarDelegate setScrollProgressForTabletOmnibox:1];
         }
         // Fake Tap button only needs to work in portrait. Disable the button
@@ -214,10 +216,19 @@ const CGFloat kIdentityDiscMaxFontSize = 24;
 
   void (^completionBlock)(id<UIViewControllerTransitionCoordinatorContext>) =
       ^(id<UIViewControllerTransitionCoordinatorContext>) {
+        __strong __typeof(self) strongSelf = weakSelf;
+        if (!strongSelf) {
+          return;
+        }
+
         if (IsChromeNextIaEnabled() && !isTabletFormFactor) {
+          if (!strongSelf.headerView.toolsMenuButton) {
+            return;
+          }
+
           // Hide the tools menu button if it is no longer visible.
-          weakSelf.headerView.toolsMenuButton.hidden =
-              weakSelf.headerView.toolsMenuButton.alpha == 0.0;
+          strongSelf.headerView.toolsMenuButton.hidden =
+              strongSelf.headerView.toolsMenuButton.alpha == 0.0;
         }
       };
 
@@ -243,28 +254,32 @@ const CGFloat kIdentityDiscMaxFontSize = 24;
 
   self.fakeOmniboxWidthConstraint.constant = self.headerView.bounds.size.width;
   [self.headerView layoutIfNeeded];
-  UIView* topOmnibox =
-      [self.layoutGuideCenter referencedViewUnderName:kTopOmniboxGuide];
-  CGRect omniboxFrameInFakebox = [topOmnibox convertRect:topOmnibox.bounds
-                                                  toView:self.fakeOmnibox];
-  self.headerView.fakeLocationBarLeadingConstraint.constant =
-      omniboxFrameInFakebox.origin.x;
-  self.headerView.fakeLocationBarTrailingConstraint.constant =
-      -(self.fakeOmnibox.bounds.size.width -
-        (omniboxFrameInFakebox.origin.x + omniboxFrameInFakebox.size.width));
-  self.headerView.voiceSearchButton.alpha = 0;
-  self.headerView.cancelButton.alpha = 0.7;
-  self.headerView.omnibox.alpha = 1;
-  self.headerView.searchHintLabel.alpha = 0;
+  if (!IsComposeboxIOSEnabled()) {
+    UIView* topOmnibox =
+        [self.layoutGuideCenter referencedViewUnderName:kTopOmniboxGuide];
+    CGRect omniboxFrameInFakebox = [topOmnibox convertRect:topOmnibox.bounds
+                                                    toView:self.fakeOmnibox];
+    self.headerView.fakeLocationBarLeadingConstraint.constant =
+        omniboxFrameInFakebox.origin.x;
+    self.headerView.fakeLocationBarTrailingConstraint.constant =
+        -(self.fakeOmnibox.bounds.size.width -
+          (omniboxFrameInFakebox.origin.x + omniboxFrameInFakebox.size.width));
+    self.headerView.voiceSearchButton.alpha = 0;
+    self.headerView.cancelButton.alpha = 0.7;
+    self.headerView.omnibox.alpha = 1;
+    self.headerView.searchHintLabel.alpha = 0;
+  }
   [self.headerView layoutIfNeeded];
 }
 
 - (void)completeHeaderFakeOmniboxFocusAnimationWithFinalPosition:
     (UIViewAnimatingPosition)finalPosition {
-  self.headerView.omnibox.hidden = YES;
-  self.headerView.cancelButton.hidden = YES;
-  self.headerView.searchHintLabel.alpha = 1;
-  self.headerView.voiceSearchButton.alpha = 1;
+  if (!IsComposeboxIOSEnabled()) {
+    self.headerView.omnibox.hidden = YES;
+    self.headerView.cancelButton.hidden = YES;
+    self.headerView.searchHintLabel.alpha = 1;
+    self.headerView.voiceSearchButton.alpha = 1;
+  }
   if (finalPosition == UIViewAnimatingPositionEnd &&
       self.delegate.scrolledToMinimumHeight) {
     // Check to see if the collection are still scrolled to the top --
@@ -702,6 +717,32 @@ const CGFloat kIdentityDiscMaxFontSize = 24;
   self.accessibilityButton.translatesAutoresizingMaskIntoConstraints = NO;
   AddSameConstraints(self.fakeOmnibox, self.accessibilityButton);
 
+  NSMutableArray<UIAccessibilityCustomAction*>* accessibilityCustomActions =
+      [[NSMutableArray alloc] init];
+  if (self.headerView.lensButton) {
+    [accessibilityCustomActions
+        addObject:[[UIAccessibilityCustomAction alloc]
+                      initWithName:l10n_util::GetNSString(
+                                       IDS_IOS_KEYBOARD_ACCESSORY_VIEW_LENS)
+                             image:nil
+                            target:self
+                          selector:@selector(openLensViewFinder)]];
+  }
+
+  if (self.headerView.voiceSearchButton) {
+    [accessibilityCustomActions
+        addObject:
+            [[UIAccessibilityCustomAction alloc]
+                initWithName:l10n_util::GetNSString(
+                                 IDS_IOS_KEYBOARD_ACCESSORY_VIEW_VOICE_SEARCH)
+                       image:nil
+                      target:self
+                    selector:@selector(openVoiceSearch)]];
+  }
+
+  self.accessibilityButton.accessibilityCustomActions =
+      accessibilityCustomActions;
+
   [self.fakeOmnibox
       addInteraction:[[UIPointerInteraction alloc] initWithDelegate:self]];
 
@@ -985,6 +1026,18 @@ const CGFloat kIdentityDiscMaxFontSize = 24;
   [self.NTPMetricsRecorder recordFakeOmniboxTapped];
   TriggerHapticFeedbackForSelectionChange();
   [self.commandHandler fakeboxTapped];
+}
+
+// Opens Lens View Finder.
+- (void)openLensViewFinder {
+  [self.NTPShortcutsHandler openLensViewFinder];
+}
+
+// Directly loads voice search in single action.
+- (void)openVoiceSearch {
+  [self.NTPShortcutsHandler preloadVoiceSearch];
+  [self.NTPShortcutsHandler
+      loadVoiceSearchFromView:self.headerView.voiceSearchButton];
 }
 
 - (void)focusAccessibilityOnOmnibox {

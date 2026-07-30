@@ -55,6 +55,7 @@ public class DeprecatedChromePreferenceKeys {
                 "Chrome.MultiWindowMode.StartTime2.*",
                 "Chrome.NtpCustomization.BackgroundImageLandscapeMatrix",
                 "Chrome.NtpCustomization.BackgroundImagePortraitMatrix",
+                "Chrome.NtpCustomization.MainBottomSheetShown",
                 "Chrome.OfflineMeasurements.HttpProbeResultsList",
                 "Chrome.OfflineMeasurements.IsAirplaneModeEnabledList",
                 "Chrome.OfflineMeasurements.IsRoaming",
@@ -205,6 +206,6 @@ public class DeprecatedChromePreferenceKeys {
     }
 
     static List<KeyPrefix> getPrefixesForTesting() {
-        return Collections.EMPTY_LIST;
+        return Collections.emptyList();
     }
 }

@@ -64,20 +64,21 @@ void UpdateVariationsHeaderForPrefetch(
 // ------------------------------------------------------------------------
 // Utilities for constructing `network::ResourceRequest`.
 
-// Constructs a `ResourceRequest` without headers.
-// Headers should be added using `PrepareInitialHeadersForPrefetch()`, in
-// `MakeInitialResourceRequestForPrefetch()` or separately for OMT prefetch.
-std::unique_ptr<network::ResourceRequest>
-MakeInitialResourceRequestWithoutHeadersForPrefetch(
-    const PrefetchRequest& prefetch_request,
-    bool is_decoy);
-
 // Constructs a full `ResourceRequest`, based on
 // `MakeInitialResourceRequestWithoutHeadersForPrefetch()` and
 // `PrepareInitialHeadersForPrefetch()`.
 CONTENT_EXPORT std::unique_ptr<network::ResourceRequest>
 MakeInitialResourceRequestForPrefetch(const PrefetchRequest& prefetch_request,
                                       bool is_decoy);
+
+// Constructs a full `ResourceRequest` for PrePrefetch, using the
+// pre-calculated headers on the UI thread via
+// `PrepareInitialHeadersForPrefetch()`, and
+// `MakeInitialResourceRequestWithoutHeadersForPrefetch()`.
+CONTENT_EXPORT std::unique_ptr<network::ResourceRequest>
+MakeInitialResourceRequestForPrePrefetch(
+    const PrefetchRequest& prefetch_request,
+    const PrefetchUpdateHeadersParams& ui_thread_pre_calculated_headers);
 
 }  // namespace content
 

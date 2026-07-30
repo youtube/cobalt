@@ -11,6 +11,7 @@
 #include "third_party/blink/public/platform/web_string.h"
 #include "third_party/blink/renderer/platform/allow_discouraged_type.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
+#include "third_party/blink/renderer/platform/wtf/cross_thread_functional.h"
 #include "third_party/blink/renderer/platform/wtf/hash_map.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #include "third_party/webrtc/api/scoped_refptr.h"
@@ -56,7 +57,7 @@ class PLATFORM_EXPORT RTCStatsReportPlatform {
 };
 
 using RTCStatsReportCallback =
-    base::OnceCallback<void(std::unique_ptr<RTCStatsReportPlatform>)>;
+    CrossThreadOnceFunction<void(std::unique_ptr<RTCStatsReportPlatform>)>;
 
 PLATFORM_EXPORT
 webrtc::scoped_refptr<webrtc::RTCStatsCollectorCallback>
@@ -80,9 +81,6 @@ class PLATFORM_EXPORT RTCStatsCollectorCallbackImpl
       scoped_refptr<base::SingleThreadTaskRunner> main_thread,
       RTCStatsReportCallback callback);
   ~RTCStatsCollectorCallbackImpl() override;
-
-  void OnStatsDeliveredOnMainThread(
-      webrtc::scoped_refptr<const webrtc::RTCStatsReport> report);
 
   const scoped_refptr<base::SingleThreadTaskRunner> main_thread_;
   RTCStatsReportCallback callback_;

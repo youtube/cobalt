@@ -171,6 +171,20 @@ public class AutofillProfilesFragment extends ChromeBaseSettingsFragment
                     entityDataManager.addOrUpdateEntityInstance(
                             entityInstance, () -> onLocalSaveFallback());
                 }
+
+                @Override
+                public void onOpenGoogleWallet(boolean isPrivateEntity) {
+                    Context context = getContext();
+                    if (context == null) {
+                        return;
+                    }
+
+                    if (isPrivateEntity) {
+                        GoogleWalletLauncher.openGoogleWalletPrivatePassHelpCenterPage(context);
+                    } else {
+                        GoogleWalletLauncher.openGoogleWallet(context, context.getPackageManager());
+                    }
+                }
             };
 
     private static @Nullable EditorObserverForTest sObserverForTest;
@@ -471,6 +485,7 @@ public class AutofillProfilesFragment extends ChromeBaseSettingsFragment
                                                             .RecordType.SERVER_WALLET
                                                     : org.chromium.components.autofill.autofill_ai
                                                             .RecordType.LOCAL)
+                                    .setIsMaskedServerEntity(entityType.isMaskedStorageSupported())
                                     .build());
                     return true;
                 });
@@ -631,6 +646,10 @@ public class AutofillProfilesFragment extends ChromeBaseSettingsFragment
         ResettersForTesting.register(() -> sObserverForTest = null);
     }
 
+    void onOpenGoogleWalletForTesting(boolean isPrivateEntity) {
+        mEntityEditorDelegate.onOpenGoogleWallet(isPrivateEntity);
+    }
+
     @Override
     public void onDisplayPreferenceDialog(Preference preference) {
         if (!(preference instanceof AutofillProfileEditorPreference)) {
@@ -671,12 +690,11 @@ public class AutofillProfilesFragment extends ChromeBaseSettingsFragment
     }
 
     private void onLocalSaveFallback() {
-        if (!(getActivity() instanceof SnackbarManager.SnackbarManageable)) {
+        if (!(getActivity() instanceof SnackbarManager.SnackbarManageable manageable)) {
             return;
         }
 
-        @Nullable SnackbarManager snackbarManager =
-                ((SnackbarManager.SnackbarManageable) getActivity()).getSnackbarManager();
+        @Nullable SnackbarManager snackbarManager = manageable.getSnackbarManager();
         if (snackbarManager == null) {
             return;
         }

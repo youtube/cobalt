@@ -2886,9 +2886,6 @@ void TabStripModel::ExecuteContextMenuCommand(int context_index,
       }
       if (command_id == CommandGlicStartShare) {
         CHECK(delegate_->GlicPinTabs(tab_handles));
-        if (!glic::GlicEnabling::IsMultiInstanceEnabled()) {
-          delegate_->OpenGlicWindowFromSharedTab();
-        }
       } else {
         CHECK(delegate_->GlicUnpinTabs(tab_handles));
       }
@@ -4656,6 +4653,10 @@ void TabStripModel::MoveTabToIndexImpl(
   if (group_model_) {
     if (initial_group != tab->GetGroup()) {
       TabGroupStateChanged(final_index, tab, initial_group, tab->GetGroup());
+    } else if (initial_group.has_value()) {
+      TabGroup* const tab_group =
+          group_model_->GetTabGroup(initial_group.value());
+      tab_group->MoveTab();
     }
   }
 }
@@ -5068,6 +5069,10 @@ void TabStripModel::MoveTabsWithNotifications(
       if (notification.intial_group != tab->GetGroup()) {
         TabGroupStateChanged(final_index, tab, notification.intial_group,
                              tab->GetGroup());
+      } else if (notification.intial_group.has_value()) {
+        TabGroup* const tab_group =
+            group_model_->GetTabGroup(notification.intial_group.value());
+        tab_group->MoveTab();
       }
     }
 

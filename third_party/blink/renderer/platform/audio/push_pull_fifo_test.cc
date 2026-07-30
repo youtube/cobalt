@@ -167,7 +167,7 @@ TEST_P(PushPullFIFOFeatureTest, FeatureTests) {
   }
 
   // Get FIFO config data.
-  const PushPullFIFOStateForTest actual_state = fifo->GetStateForTest();
+  const PushPullFIFOStateForTest actual_state = fifo->StateForTest();
 
   // Verify the read/write indexes.
   EXPECT_EQ(expected_state.index_read, actual_state.index_read);
@@ -177,8 +177,8 @@ TEST_P(PushPullFIFOFeatureTest, FeatureTests) {
 
   // Verify in-FIFO samples.
   for (const auto& sample : expected_state.fifo_samples) {
-    EXPECT_TRUE(VerifyBusValueAtIndex(fifo->GetFIFOBusForTest(),
-                                      sample.index, sample.value));
+    EXPECT_TRUE(VerifyBusValueAtIndex(fifo->FIFOBusForTest(), sample.index,
+                                      sample.value));
   }
 
   // Verify samples from the most recent output bus.
@@ -378,7 +378,7 @@ INSTANTIATE_TEST_SUITE_P(PushPullFIFOFeatureTest,
 struct FIFOEarmarkTestParam {
   FIFOTestSetup setup;
   size_t callback_buffer_size;
-  size_t expected_earmark_frames;
+  size_t expected_earmarked_frames;
 };
 
 class PushPullFIFOEarmarkFramesTest
@@ -387,12 +387,12 @@ class PushPullFIFOEarmarkFramesTest
 TEST_P(PushPullFIFOEarmarkFramesTest, FeatureTests) {
   const FIFOTestSetup setup = GetParam().setup;
   const size_t callback_buffer_size = GetParam().callback_buffer_size;
-  const size_t expected_earmark_frames = GetParam().expected_earmark_frames;
+  const size_t expected_earmarked_frames = GetParam().expected_earmarked_frames;
 
   // Create a FIFO with a specified configuration.
   std::unique_ptr<PushPullFIFO> fifo = std::make_unique<PushPullFIFO>(
       setup.number_of_channels, setup.fifo_length, setup.render_quantum_frames);
-  fifo->SetEarmarkFrames(callback_buffer_size);
+  fifo->SetEarmarkedFrames(callback_buffer_size);
 
   scoped_refptr<AudioBus> output_bus;
 
@@ -409,7 +409,8 @@ TEST_P(PushPullFIFOEarmarkFramesTest, FeatureTests) {
     } else if (std::string_view(action.action) == "PULL_EARMARK") {
       output_bus =
           AudioBus::Create(setup.number_of_channels, action.number_of_frames);
-      fifo->PullAndUpdateEarmark(output_bus.get(), action.number_of_frames);
+      fifo->PullAndUpdateEarmarkedFrames(output_bus.get(),
+                                         action.number_of_frames);
       LOG(INFO) << "PULL_EARMARK " << action.number_of_frames << " frames";
     } else {
       NOTREACHED();
@@ -417,8 +418,8 @@ TEST_P(PushPullFIFOEarmarkFramesTest, FeatureTests) {
   }
 
   // Test the earmark frames.
-  const size_t actual_earmark_frames = fifo->GetEarmarkFramesForTest();
-  EXPECT_EQ(expected_earmark_frames, actual_earmark_frames);
+  const size_t actual_earmarked_frames = fifo->EarmarkedFramesForTest();
+  EXPECT_EQ(expected_earmarked_frames, actual_earmarked_frames);
 }
 
 FIFOEarmarkTestParam g_earmark_test_params[] = {

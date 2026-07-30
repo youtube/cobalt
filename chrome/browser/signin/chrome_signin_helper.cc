@@ -60,12 +60,6 @@
 #include "chrome/browser/ui/browser_window.h"
 #include "chromeos/ash/components/account_manager/account_manager_factory.h"
 #include "components/supervised_user/core/browser/supervised_user_service.h"
-
-#if BUILDFLAG(ENABLE_EXTENSIONS)
-#include "content/public/browser/render_process_host.h"
-#include "extensions/browser/guest_view/web_view/web_view_renderer_state.h"
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
-
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
@@ -112,8 +106,6 @@ std::optional<CoreAccountInfo> FindCoreAccountInfoByEmail(
 #endif
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
-
-const char kGoogleSignoutResponseHeader[] = "Google-Accounts-SignOut";
 
 // Refcounted wrapper that facilitates creating and deleting a
 // AccountReconcilor::Lock.
@@ -514,48 +506,14 @@ void ProcessDiceResponseHeaderIfExists(ResponseAdapter* response,
   if (!response_headers)
     return;
 
-  DiceResponseParams params;
-  std::optional<std::string> header_value;
-  if (header_value = response_headers->GetNormalizedHeader(kDiceResponseHeader);
-      header_value) {
-    params = DiceHeaderHelper::BuildDiceSigninResponseParams(*header_value);
-    // The header must be removed for privacy reasons, so that renderers never
-    // have access to the authorization code.
+  DiceResponseParams params =
+      DiceHeaderHelper::CreateDiceResponseParams(response_headers);
+
+  if (response_headers->HasHeader(kDiceResponseHeader)) {
     response->RemoveHeader(kDiceResponseHeader);
-  } else if (header_value = response_headers->GetNormalizedHeader(
-                 kGoogleSignoutResponseHeader);
-             header_value) {
-    params = DiceHeaderHelper::BuildDiceSignoutResponseParams(*header_value);
-  }
-
-  if (std::optional<std::string> meta_header_value =
-          response_headers->GetNormalizedHeader(kDiceLinkedAccountsMetaHeader);
-      meta_header_value) {
-    DiceResponseParams::SigninInfo::LinkedAccountsMetadata meta_header =
-        DiceHeaderHelper::ParseLinkedAccountsMetadata(*meta_header_value);
-    if (!meta_header.IsValid()) {
-      // TODO(crbug.com/475435113):
-      // - Revisit handling gracefully malformed meta header. The code as it is
-      // as of now, sign-in will fail completely if `initiator_id is empty`.
-      // - Add histogram
-      DLOG(WARNING)
-          << "Malformed X-Chrome-ID-Consistency-LinkedAccounts-Meta header: "
-          << *meta_header_value;
-    }
-
-    if (DiceResponseParams::SigninInfo* signin_info = params.signin_info();
-        signin_info) {
-      signin_info->set_linked_accounts_metadata(std::move(meta_header));
-    } else {
-      DLOG(WARNING) << "X-Chrome-ID-Consistency-LinkedAccounts-Meta is only "
-                       "supported for Sign-in Dice action";
-    }
   }
 
   if (!params.IsValid()) {
-    if (header_value) {
-      DLOG(WARNING) << "Invalid header: " << *header_value;
-    }
     return;
   }
 

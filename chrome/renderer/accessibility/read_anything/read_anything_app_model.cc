@@ -841,6 +841,12 @@ void ReadAnythingAppModel::SetDefaultDistillationMethod() {
 
 void ReadAnythingAppModel::OnScroll(bool on_selection,
                                     bool from_reading_mode) const {
+  // Scroll events shouldn't be logged when reading mode is inactive.
+  if (features::IsImmersiveReadAnythingEnabled() &&
+      active_presentation_state_ ==
+          read_anything::mojom::ReadAnythingPresentationState::kInactive) {
+    return;
+  }
   // Enum for logging how a scroll occurs.
   // These values are persisted to logs. Entries should not be renumbered and
   // numeric values should never be reused.
@@ -1094,6 +1100,7 @@ void ReadAnythingAppModel::ProcessGeneratedEvents(
         // capture the complete PDF load mentioned earlier).
         if (is_pdf_ && prev_tree_size < tree_size) {
           requires_distillation_ = true;
+          reset_distillation_delay_timer_ = true;
         }
         break;
       case ui::AXEventGenerator::Event::COLLAPSED:
@@ -1293,8 +1300,6 @@ bool ReadAnythingAppModel::SelectionNodesContainedInDistilledContent() const {
 }
 
 bool ReadAnythingAppModel::ProcessAXTreeAnchors() {
-  DUMP_WILL_BE_CHECK(
-      features::IsReadAnythingWithReadabilityAllowLinksEnabled());
   if (!should_extract_anchors_from_tree_for_readability_) {
     return false;
   }

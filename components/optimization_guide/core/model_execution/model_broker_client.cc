@@ -81,7 +81,8 @@ ModelClient::ModelClient(mojo::PendingRemote<mojom::ModelSolution> remote,
       model_versions_(
           *config->model_versions.As<proto::OnDeviceModelVersions>()),
       capabilities_(config->model_capabilities),
-      feature_(*ToOnDeviceFeature(feature_adapter_->config().feature())) {
+      feature_(ToOnDeviceFeature(feature_adapter_->config().feature())
+                   .value_or(mojom::OnDeviceFeature::kTest)) {
   // Tool use is assumed supported since it is gated by RuntimeEnabledFeatures
   // in Blink. TODO(crbug.com/422803232): Expose actual model tool use
   // capability from model metadata instead of assuming support.
@@ -126,7 +127,10 @@ void ModelClient::OnDisconnect() {
 }
 
 ModelSubscriberImpl::ModelSubscriberImpl() = default;
-ModelSubscriberImpl::~ModelSubscriberImpl() = default;
+ModelSubscriberImpl::~ModelSubscriberImpl() {
+  TRACE_EVENT("optimization_guide", "ModelSubscriberImpl::~ModelSubscriberImpl",
+              perfetto::TerminatingFlow::FromPointer(this));
+}
 
 void ModelSubscriberImpl::CreateSession(
     const SessionConfigParams& config_params,
@@ -137,7 +141,8 @@ void ModelSubscriberImpl::CreateSession(
 }
 
 void ModelSubscriberImpl::WaitForClient(ClientCallback callback) {
-  TRACE_EVENT("optimization_guide", "ModelSubscriberImpl::WaitForClient");
+  TRACE_EVENT("optimization_guide", "ModelSubscriberImpl::WaitForClient",
+              perfetto::Flow::FromPointer(this));
   callbacks_.emplace_back(std::move(callback));
   FlushCallbacks();
 }
@@ -145,7 +150,8 @@ void ModelSubscriberImpl::WaitForClient(ClientCallback callback) {
 void ModelSubscriberImpl::CanCreateSession(
     const on_device_model::Capabilities& capabilities,
     CanCreateSessionCallback callback) {
-  TRACE_EVENT("optimization_guide", "ModelSubscriberImpl::CanCreateSession");
+  TRACE_EVENT("optimization_guide", "ModelSubscriberImpl::CanCreateSession",
+              perfetto::Flow::FromPointer(this));
   if (!features::IsOnDeviceExecutionEnabled()) {
     std::move(callback).Run(
         mojom::ModelUnavailableReason::kNotSupported,
@@ -161,7 +167,7 @@ void ModelSubscriberImpl::Unavailable(
     mojom::ModelUnavailableReason reason,
     std::optional<mojom::ModelNotSupportedDetailedReason> detailed_reason) {
   TRACE_EVENT("optimization_guide", "ModelSubscriberImpl::Unavailable",
-              "reason", reason);
+              perfetto::Flow::FromPointer(this), "reason", reason);
   unavailable_reason_ = reason;
   detailed_reason_ = detailed_reason;
   client_.reset();
@@ -172,7 +178,8 @@ void ModelSubscriberImpl::Unavailable(
 void ModelSubscriberImpl::Available(
     mojom::ModelSolutionConfigPtr config,
     mojo::PendingRemote<mojom::ModelSolution> remote) {
-  TRACE_EVENT("optimization_guide", "ModelSubscriberImpl::Available");
+  TRACE_EVENT("optimization_guide", "ModelSubscriberImpl::Available",
+              perfetto::Flow::FromPointer(this));
   unavailable_reason_ = std::nullopt;
   detailed_reason_ = std::nullopt;
   client_.emplace(std::move(remote), std::move(config),
@@ -183,7 +190,8 @@ void ModelSubscriberImpl::Available(
 
 void ModelSubscriberImpl::CapabilitiesUpdated(
     const on_device_model::Capabilities& capabilities) {
-  TRACE_EVENT("optimization_guide", "ModelSubscriberImpl::CapabilitiesUpdated");
+  TRACE_EVENT("optimization_guide", "ModelSubscriberImpl::CapabilitiesUpdated",
+              perfetto::Flow::FromPointer(this));
   capabilities_ = capabilities;
   FlushCanCreateSessionCallbacks();
 }
@@ -255,35 +263,60 @@ ModelBrokerClient::ModelBrokerClient(
     : remote_(std::move(remote)), logger_(logger) {}
 ModelBrokerClient::~ModelBrokerClient() = default;
 
-ModelSubscriber& ModelBrokerClient::GetSubscriber(
-    mojom::OnDeviceFeature feature) {
-  std::unique_ptr<ModelSubscriber>& ptr = subscribers_[feature];
+ModelSubscriber& ModelBrokerClient::GetSubscriber(const std::string& use_case) {
+  std::unique_ptr<ModelSubscriber>& ptr = subscribers_[use_case];
   if (!ptr) {
     TRACE_EVENT("optimization_guide", "ModelBrokerClient::CreateSubscriber",
-                "feature", base::ToString(feature));
+                "use_case", use_case);
     mojo::PendingRemote<mojom::ModelSubscriber> pending;
     ptr = std::make_unique<ModelSubscriber>(
         pending.InitWithNewPipeAndPassReceiver());
-    remote_->Subscribe(mojom::ModelSubscriptionOptions::New(feature),
+    remote_->Subscribe(mojom::ModelSubscriptionOptions::New(use_case),
                        std::move(pending));
   }
   return *ptr;
 }
 
+ModelSubscriber& ModelBrokerClient::GetSubscriber(
+    mojom::OnDeviceFeature feature) {
+  return GetSubscriber(ToUseCaseName(feature));
+}
+
+void ModelBrokerClient::RequestAssetsFor(const std::string& use_case) {
+  remote_->RequestAssetsFor(use_case);
+}
+
 void ModelBrokerClient::RequestAssetsFor(mojom::OnDeviceFeature feature) {
-  remote_->RequestAssetsFor(feature);
+  TRACE_EVENT("optimization_guide", "ModelBrokerClient::RequestAssetsFor");
+  RequestAssetsFor(ToUseCaseName(feature));
+}
+
+bool ModelBrokerClient::HasSubscriber(const std::string& use_case) {
+  return subscribers_.contains(use_case);
 }
 
 bool ModelBrokerClient::HasSubscriber(mojom::OnDeviceFeature feature) {
-  return subscribers_.contains(feature);
+  return HasSubscriber(ToUseCaseName(feature));
+}
+
+void ModelBrokerClient::CreateSession(const std::string& use_case,
+                                      const SessionConfigParams& config_params,
+                                      CreateSessionCallback callback) {
+  RequestAssetsFor(use_case);
+  GetSubscriber(use_case).CreateSession(std::move(config_params),
+                                        std::move(callback), logger_);
 }
 
 void ModelBrokerClient::CreateSession(mojom::OnDeviceFeature feature,
                                       const SessionConfigParams& config_params,
                                       CreateSessionCallback callback) {
-  RequestAssetsFor(feature);
-  GetSubscriber(feature).CreateSession(std::move(config_params),
-                                       std::move(callback), logger_);
+  CreateSession(ToUseCaseName(feature), std::move(config_params),
+                std::move(callback));
+}
+
+void ModelBrokerClient::GetConfig(mojom::OnDeviceFeature feature,
+                                  GetConfigCallback callback) {
+  remote_->GetConfig(feature, std::move(callback));
 }
 
 void ModelBrokerClient::AddModelDownloadProgressObserver(

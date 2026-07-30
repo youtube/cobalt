@@ -264,7 +264,6 @@ android_library("chrome_test_java_helper") {
     "//components/browser_ui/site_settings/android:constants_java",
     "//components/browser_ui/site_settings/android:java",
     "//components/browser_ui/site_settings/android:java_resources",
-    "//components/browser_ui/sms/android:java",
     "//components/browser_ui/styles/android:java",
     "//components/browser_ui/util/android:java",
     "//components/browser_ui/util/android:test_support_java",
@@ -1581,7 +1580,10 @@ android_library("chrome_test_java_org.chromium.chrome.browser.webapps") {
     "src/org/chromium/chrome/browser/webapps/WebappSplashScreenThemeColorTest.java",
   ]
 
-  deps = [ ":chrome_test_java_helper" ]
+  deps = [
+    ":chrome_test_java_helper",
+    "//chrome/browser/open_in_app/android:java",
+  ]
 }
 
 # This target contains test files in packages which has <= 2 test files.
@@ -1653,7 +1655,6 @@ android_library("chrome_test_java_various") {
     "src/org/chromium/chrome/browser/segmentation_platform/ContextualPageActionControllerTest.java",
     "src/org/chromium/chrome/browser/sensitive_content/SensitiveContentTest.java",
     "src/org/chromium/chrome/browser/shape_detection/ShapeDetectionTest.java",
-    "src/org/chromium/chrome/browser/sms/WebOTPServiceInfoBarTest.java",
     "src/org/chromium/chrome/browser/ssl/CaptivePortalTest.java",
     "src/org/chromium/chrome/browser/status_indicator/StatusIndicatorTest.java",
     "src/org/chromium/chrome/browser/storage/BlobUrlStoreTest.java",
@@ -1869,7 +1870,10 @@ android_library(
     "src/org/chromium/chrome/browser/contextmenu/ContextMenuRenderTest.java",
   ]
 
-  deps = [ ":common_unit_test_deps_java" ]
+  deps = [
+    ":common_unit_test_deps_java",
+    "//chrome/browser/ui/android/signin:java",
+  ]
 }
 
 android_library(

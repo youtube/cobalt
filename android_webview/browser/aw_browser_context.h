@@ -59,6 +59,7 @@ namespace android_webview {
 
 class AwBrowserContextIoThreadHandle;
 class AwContentRestrictionManagerClient;
+class AwContentRestrictionBlockedNavigationTracker;
 class AwQuotaManagerBridge;
 class CookieManager;
 
@@ -109,6 +110,8 @@ class AwBrowserContext : public content::BrowserContext,
   int64_t GetQuotaManagerBridge(JNIEnv* env);
 
   AwContentRestrictionManagerClient* GetContentRestrictionManagerClient();
+  AwContentRestrictionBlockedNavigationTracker*
+  GetContentRestrictionBlockedNavigationTracker();
 
   CookieManager* GetCookieManager();
 
@@ -123,8 +126,9 @@ class AwBrowserContext : public content::BrowserContext,
       const base::android::JavaRef<jobject>& io_thread_client);
 
   int AllowedPrerenderingCount() const;
-  void SetAllowedPrerenderingCount(JNIEnv* const env,
-                                   std::optional<int> allowed_count);
+  void SetAllowedPrerenderingCount(JNIEnv* const env, int allowed_count);
+  void ClearAllowedPrerenderingCount(JNIEnv* const env);
+
   void WarmUpSpareRenderer(JNIEnv* const env);
 
   // content::BrowserContext implementation.
@@ -306,6 +310,8 @@ class AwBrowserContext : public content::BrowserContext,
   std::unique_ptr<AwPreconnector> preconnector_;
   std::unique_ptr<AwContentRestrictionManagerClient>
       content_restriction_manager_client_;
+  std::unique_ptr<AwContentRestrictionBlockedNavigationTracker>
+      content_restriction_blocked_navigation_tracker_;
 
   // The IO thread client that should be used by service workers.
   base::android::ScopedJavaGlobalRef<jobject> sw_io_thread_client_;

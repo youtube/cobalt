@@ -849,7 +849,7 @@
             "os": "Ubuntu-22.04"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
-          "shards": 20
+          "shards": 19
         },
         "test": "interactive_ui_tests",
         "test_id_prefix": "ninja://chrome/test:interactive_ui_tests/"
@@ -2747,7 +2747,7 @@
     "gtest_tests": [
       {
         "args": [
-          "--enable-features=InitialWebUI,WebUIReloadButton,WebUISplitTabsButton,SkipIPCChannelPausingForNonGuests,WebUIInProcessResourceLoadingV2,InitialWebUISyncNavStartToCommit"
+          "--enable-features=InitialWebUI:high_stream_priority/true,WebUIReloadButton:WebUIReloadButtonDeferBrowserViewShow/true/WebUIReloadButtonKeepVisibleUntilPaint/true,SkipIPCChannelPausingForNonGuests,WebUIInProcessResourceLoadingV2,InitialWebUISyncNavStartToCommit,InitialWebUIWithoutExtensions,SendGPUChannelEarly"
         ],
         "isolate_profile_data": true,
         "merge": {
@@ -2770,7 +2770,7 @@
       },
       {
         "args": [
-          "--enable-features=InitialWebUI,WebUIReloadButton,WebUISplitTabsButton,SkipIPCChannelPausingForNonGuests,WebUIInProcessResourceLoadingV2,InitialWebUISyncNavStartToCommit"
+          "--enable-features=InitialWebUI:high_stream_priority/true,WebUIReloadButton:WebUIReloadButtonDeferBrowserViewShow/true/WebUIReloadButtonKeepVisibleUntilPaint/true,SkipIPCChannelPausingForNonGuests,WebUIInProcessResourceLoadingV2,InitialWebUISyncNavStartToCommit,InitialWebUIWithoutExtensions,SendGPUChannelEarly"
         ],
         "isolate_profile_data": true,
         "merge": {
@@ -2792,7 +2792,7 @@
       },
       {
         "args": [
-          "--enable-features=InitialWebUI,WebUIReloadButton,WebUISplitTabsButton,SkipIPCChannelPausingForNonGuests,WebUIInProcessResourceLoadingV2,InitialWebUISyncNavStartToCommit"
+          "--enable-features=InitialWebUI:high_stream_priority/true,WebUIReloadButton:WebUIReloadButtonDeferBrowserViewShow/true/WebUIReloadButtonKeepVisibleUntilPaint/true,SkipIPCChannelPausingForNonGuests,WebUIInProcessResourceLoadingV2,InitialWebUISyncNavStartToCommit,InitialWebUIWithoutExtensions,SendGPUChannelEarly"
         ],
         "isolate_profile_data": true,
         "merge": {

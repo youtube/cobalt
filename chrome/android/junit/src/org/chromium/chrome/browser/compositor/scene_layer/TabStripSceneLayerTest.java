@@ -115,7 +115,7 @@ public class TabStripSceneLayerTest {
                         mTooltipHandler,
                         mOnClickHandler,
                         mKeyboardFocusHandler,
-                        R.drawable.ic_spark_16dp,
+                        R.drawable.ic_spark_4c_16dp,
                         8.f,
                         /* hasLongClickAction= */ false,
                         /* dismissButton= */ null);
@@ -328,6 +328,8 @@ public class TabStripSceneLayerTest {
                         anyBoolean(),
                         anyFloat(),
                         anyBoolean(),
+                        anyInt(),
+                        anyInt(),
                         anyInt());
     }
 
@@ -399,6 +401,8 @@ public class TabStripSceneLayerTest {
                         anyBoolean(),
                         anyFloat(),
                         anyBoolean(),
+                        anyInt(),
+                        anyInt(),
                         anyInt());
     }
 
@@ -472,6 +476,8 @@ public class TabStripSceneLayerTest {
                         anyBoolean(),
                         anyFloat(),
                         anyBoolean(),
+                        anyInt(),
+                        anyInt(),
                         anyInt());
     }
 
@@ -544,6 +550,8 @@ public class TabStripSceneLayerTest {
                         anyBoolean(),
                         anyFloat(),
                         anyBoolean(),
+                        anyInt(),
+                        anyInt(),
                         anyInt());
     }
 

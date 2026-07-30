@@ -11,6 +11,7 @@
 #include "base/memory/ptr_util.h"
 #include "base/notimplemented.h"
 #include "base/notreached.h"
+#include "base/strings/string_util.h"
 #include "base/trace_event/trace_event.h"
 #include "base/types/expected.h"
 #include "components/guest_view/browser/guest_view_event.h"
@@ -28,6 +29,7 @@
 #include "net/http/http_util.h"
 #include "third_party/blink/public/mojom/window_features/window_features.mojom.h"
 #include "url/gurl.h"
+#include "url/origin.h"
 #include "url/url_constants.h"
 
 namespace guest_view {
@@ -35,6 +37,8 @@ namespace guest_view {
 namespace {
 
 const char kStoragePartitionId[] = "partition";
+const char kAllowedOrigins[] = "allowedOrigins";
+
 const char kPersistPrefix[] = "persist:";
 
 void ParsePartitionParam(const base::DictValue& create_params,
@@ -211,10 +215,25 @@ base::WeakPtr<SlimWebViewGuest> SlimWebViewGuest::GetWeakPtr() {
 void SlimWebViewGuest::Navigate(const GURL& url) {
   TRACE_EVENT_INSTANT("content", "SlimWebViewGuest::Navigate",
                       perfetto::Flow::FromPointer(this));
-  // TODO(acondor): Implement other security and navigation params, such as
-  // header overrides.
   content::NavigationController::LoadURLParams load_url_params(url);
   GetController().LoadURLWithParams(load_url_params);
+}
+
+bool SlimWebViewGuest::HasAllowedOrigins() const {
+  return !allowed_origins_.empty();
+}
+
+bool SlimWebViewGuest::IsUrlAllowed(const GURL& url) const {
+  if (allowed_origins_.empty()) {
+    return true;
+  }
+  url::Origin candidate_origin = url::Origin::Create(url);
+  for (const auto& origin : allowed_origins_) {
+    if (origin.IsSameOriginWith(candidate_origin)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 SlimWebViewGuest::SlimWebViewGuest(
@@ -433,6 +452,23 @@ void SlimWebViewGuest::CreateInnerPage(
     return;
   }
   before_send_headers_params_ = std::move(parse_result.value());
+
+  // Parse the origin allowlist if provided.
+  if (const base::ListValue* origins =
+          create_params.FindList(kAllowedOrigins)) {
+    for (const auto& origin_value : *origins) {
+      if (!origin_value.is_string()) {
+        RejectGuestCreation(std::move(owned_this), std::move(callback));
+        return;
+      }
+      GURL allowed_origin_url(origin_value.GetString());
+      if (!allowed_origin_url.is_valid()) {
+        RejectGuestCreation(std::move(owned_this), std::move(callback));
+        return;
+      }
+      allowed_origins_.push_back(url::Origin::Create(allowed_origin_url));
+    }
+  }
 
   std::string storage_partition_id;
   bool persist_storage = false;

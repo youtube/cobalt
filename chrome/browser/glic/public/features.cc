@@ -13,6 +13,7 @@
 namespace features {
 
 BASE_FEATURE(kGlicTabRestoration, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kGlicAndroidSidePanel, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicChromeStatusIcon, base::FEATURE_DISABLED_BY_DEFAULT);
 const base::FeatureParam<int> kGlicChromeStatusIconSizePx{
@@ -34,13 +35,14 @@ BASE_FEATURE(kAutoOpenGlicForPdf, base::FEATURE_DISABLED_BY_DEFAULT);
 const base::FeatureParam<bool> kAutoOpenGlicForPdfWithOnboarding({
     &kAutoOpenGlicForPdf,
     "AutoOpenGlicForPdfWithOnboarding",
-    false,
+    true,
 });
 
 BASE_FEATURE(kGlicInvoke, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicCreateTabAdjacent, base::FEATURE_ENABLED_BY_DEFAULT);
 
+// When off, disables both live mode and the glic floating panel.
 BASE_FEATURE(kGlicLiveMode,
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
              base::FEATURE_DISABLED_BY_DEFAULT
@@ -96,6 +98,8 @@ const base::flat_set<int32_t>& GetGlicTieredRolloutV2EligibleTiers() {
 
 BASE_FEATURE(kGlicHorizontalTabToolbarButton,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kGlicButtonAutoSummarize, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicGetTabFaviconById, base::FEATURE_ENABLED_BY_DEFAULT);
 

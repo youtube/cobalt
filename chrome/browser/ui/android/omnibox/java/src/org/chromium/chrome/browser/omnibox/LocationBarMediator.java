@@ -90,7 +90,6 @@ import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.theme.ThemeUtils;
 import org.chromium.chrome.browser.ui.default_browser_promo.DefaultBrowserPromoUtils;
 import org.chromium.chrome.browser.ui.extensions.ExtensionUi;
-import org.chromium.chrome.browser.ui.native_page.NativePage;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
 import org.chromium.chrome.browser.util.ChromeAccessibilityUtil;
 import org.chromium.components.browser_ui.accessibility.AccessibilityFeatureMap;
@@ -423,6 +422,7 @@ class LocationBarMediator
         // Intercept back press if it has focus.
         mBackPressStateSupplier.set(mUrlHasFocus);
         updateButtonVisibility();
+        onSearchBoxHintTextChanged();
         updateShouldAnimateIconChanges();
         onPrimaryColorChanged();
 
@@ -619,18 +619,17 @@ class LocationBarMediator
     }
 
     /*package */ void revertChanges() {
-        if (mUrlHasFocus) {
-            GURL currentUrl = mLocationBarDataProvider.getCurrentGurl();
-            if (NativePage.isChromePageUrl(currentUrl, mLocationBarDataProvider.isOffTheRecord())
-                    && mCurrentInput != null) {
-                mCurrentInput.setUserText(null);
-                beginOrResumeInput(/* activateNewSession= */ false);
-            } else {
-                setUrlBarText(
-                        mLocationBarDataProvider.getUrlBarData(),
-                        UrlBar.ScrollType.NO_SCROLL,
-                        UrlBarData.SELECT_ALL);
-            }
+        if (mCurrentInput != null) {
+            // Propagate the requested update to both Autocomplete and the UrlBar.
+            // Programmatic reselection of user text on UrlBar does not propagate the change to
+            // TextChange listeners.
+            mCurrentInput
+                    .setSuppressAutomaticSuggestionsUntilUserStartsTyping(true)
+                    .setUserText(mCurrentInput.getInitialUserText());
+            mUrlCoordinator.setUrlBarData(
+                    UrlBarData.forNonUrlText(mCurrentInput.getUserText()),
+                    UrlBar.ScrollType.NO_SCROLL,
+                    UrlBarData.SELECT_ALL);
             mUrlCoordinator.setKeyboardVisibility(false, false);
         } else {
             setUrl(
@@ -965,7 +964,10 @@ class LocationBarMediator
         if (mCurrentInput == null) return; // session not started yet.
 
         mCurrentInput.setUserText(null);
-        beginOrResumeInput(/* activateNewSession= */ false);
+        mUrlCoordinator.setUrlBarData(
+                UrlBarData.forNonUrlText(mCurrentInput.getUserText()),
+                UrlBar.ScrollType.NO_SCROLL,
+                mCurrentInput.getSelection());
         updateButtonVisibility();
         mUrlCoordinator.requestAccessibilityFocus();
     }
@@ -1634,6 +1636,7 @@ class LocationBarMediator
     private void onFuseboxStateChanged(@FuseboxState int state) {
         updateNavigateButtonVisibility();
         mLocationBarLayout.onFuseboxStateChanged(state);
+        mStatusCoordinator.onFuseboxStateChanged(state);
     }
 
     private void updateNavigateButtonVisibility() {
@@ -1807,11 +1810,25 @@ class LocationBarMediator
         return hasText && (mUrlHasFocus || mIsUrlFocusChangeInProgress);
     }
 
+    /**
+     * @return Whether the Omnibox is focused on a desktop. Lens and mic buttons should be
+     *     suppressed if the Omnibox is focused and the device is in desktop mode.
+     */
+    private boolean isUrlBarFocusedOnDesktop() {
+        if (!mUrlHasFocus && !mIsUrlFocusChangeInProgress && !mUrlFocusedWithoutAnimations) {
+            return false;
+        }
+        return OmniboxFeatures.isDesktopMode();
+    }
+
     @VisibleForTesting
     boolean shouldShowMicButton() {
         if (mCurrentInput != null && !mCurrentInput.isConventionalRequestType()) return false;
 
         if (isUrlBarFocusedWithUserInput()) return false;
+
+        if (isUrlBarFocusedOnDesktop()) return false;
+
         if (!mNativeInitialized
                 || mVoiceRecognitionHandler == null
                 || !mVoiceRecognitionHandler.isVoiceSearchEnabled()
@@ -1836,6 +1853,8 @@ class LocationBarMediator
         if (mCurrentInput != null && !mCurrentInput.isConventionalRequestType()) return false;
 
         if (isUrlBarFocusedWithUserInput()) return false;
+
+        if (isUrlBarFocusedOnDesktop()) return false;
 
         // When this method is called on UI inflation, return false as the native is not ready.
         if (!mNativeInitialized) {
@@ -1937,10 +1956,19 @@ class LocationBarMediator
 
     @Override
     public Boolean handleEscPress() {
-        KeyEvent event = new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ESCAPE);
-        if (mAutocompleteCoordinator != null
-                && !mAutocompleteCoordinator.handleKeyEvent(KeyEvent.KEYCODE_ESCAPE, event)) {
+        if (mCurrentInput == null) return false;
+        if (mAutocompleteCoordinator == null) return false;
+
+        if (mAutocompleteCoordinator.isServingSuggestions()) {
+            // First ESC keypress should close the suggestions list.
+            mAutocompleteCoordinator.stopAutocomplete();
+        } else if (!TextUtils.equals(
+                mCurrentInput.getUserText(), mCurrentInput.getInitialUserText())) {
+            // Second ESC keypress should reset the input to its initial state, if it's different.
             revertChanges();
+        } else {
+            // Third ESC keypress should terminate input.
+            endInput();
         }
         return true;
     }
