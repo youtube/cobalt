@@ -1,0 +1,16 @@
+{
+  "comment": "AOSP nplb exclusions.",
+  "failing_tests": [
+    "*MaximumPlayerConfigurationExplorer*",
+    "*MultiplePlayer*",
+    "*SbMediaSetAudioWriteDuration*",
+    "*SbPlayer*",
+    "*VerticalVideoTest*",
+    "PosixFileGetInfoTest.ReportsHardLinkCount",
+    "PosixLinkTest.SuccessfulCreation",
+    "PosixSetPriorityTests.ErrorOnPermissionDenied",
+    "SbAudioSinkTest.ContinuousAppend",
+    "SbDrmSessionTest.*",
+    "SbMediaCanPlayMimeAndKeySystem.MinimumSupport"
+  ]
+}
