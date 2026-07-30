@@ -234,11 +234,12 @@ static_library("cobalt_shell_switches") {
     "common/shell_switches.h",
   ]
   deps = [ "//base" ]
+  public_deps = [ "//cobalt/browser:features" ]
 }
 
 static_library("cobalt_shell_lib") {
   testonly = true
-  deps = []
+  deps = [ "//cobalt/browser:features" ]
   public_deps = [
     ":cobalt_shell_lib_deps",
     ":cobalt_shell_switches",

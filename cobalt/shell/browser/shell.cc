@@ -23,6 +23,7 @@
 #include <utility>
 
 #include "base/command_line.h"
+#include "base/feature_list.h"
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
 #include "base/no_destructor.h"
@@ -33,6 +34,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/bind_post_task.h"
 #include "build/build_config.h"
+#include "cobalt/browser/features.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
@@ -213,9 +215,8 @@ Shell::Shell(std::unique_ptr<WebContents> web_contents,
       splash_state_(STATE_SPLASH_SCREEN_UNINITIALIZED),
       splash_topic_(topic),
       skip_for_testing_(skip_for_testing),
-      is_video_splash_screen_(
-          !base::CommandLine::ForCurrentProcess()->HasSwitch(
-              switches::kForceImageSplashScreen)) {
+      is_video_splash_screen_(!base::FeatureList::IsEnabled(
+          cobalt::features::kForceImageSplashScreen)) {
   if (should_set_delegate) {
     web_contents_->SetDelegate(this);
   }

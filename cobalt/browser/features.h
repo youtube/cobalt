@@ -32,6 +32,12 @@ extern const base::Feature kTestFinchFeature;
 // Test finch feature param for Finch end to end testing.
 extern const base::FeatureParam<std::string> kTestFinchFeatureParam;
 
+// Disables showing the splash screen.
+extern const base::Feature kDisableSplashScreen;
+
+// Forces the display of an image as the splash screen.
+extern const base::Feature kForceImageSplashScreen;
+
 }  // namespace features
 }  // namespace cobalt
 
