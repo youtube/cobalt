@@ -43,6 +43,9 @@ class MEDIA_EXPORT SourceBufferState {
   ~SourceBufferState();
 
   void Init(StreamParser::InitCB init_cb,
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+            std::string_view mime_type,
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
             std::optional<std::string_view> expected_codecs,
             const StreamParser::EncryptedMediaInitDataCB&
                 encrypted_media_init_data_cb);
@@ -62,7 +65,16 @@ class MEDIA_EXPORT SourceBufferState {
   // append failure using a `QuotaExceededErr` exception per the MSE
   // specification. App could use a back-off and retry strategy or otherwise
   // alter their behavior to attempt to buffer media for further playback.
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // `data` is borrowed by the StreamParser and must remain valid until
+  // `release_runner` is destroyed. A null `release_runner` means `data` is not
+  // retained for the parser, which is then handed a copy instead.
+  [[nodiscard]] bool AppendToParseBuffer(
+      base::span<const uint8_t> data,
+      base::ScopedClosureRunner release_runner);
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   [[nodiscard]] bool AppendToParseBuffer(base::span<const uint8_t> data);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Tells the stream parser to parse more of the data previously sent to it
   // from this object's AppendToParseBuffer(). `*timestamp_offset` is used and
@@ -163,6 +175,14 @@ class MEDIA_EXPORT SourceBufferState {
   void SetTracksWatcher(Demuxer::MediaTracksUpdatedCB tracks_updated_cb);
 
   void SetParseWarningCallback(SourceBufferParseWarningCB parse_warning_cb);
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Set and get the current |mime_type_| string for the SourceBuffer.
+  void set_mime_type(std::string_view mime_type) {
+    mime_type_ = std::string(mime_type);
+  }
+  const std::string& mime_type() const { return mime_type_; }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
  private:
   // State advances through this list to PARSER_INITIALIZED.
@@ -280,6 +300,11 @@ class MEDIA_EXPORT SourceBufferState {
 
   std::vector<AudioCodec> expected_audio_codecs_;
   std::vector<VideoCodec> expected_video_codecs_;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Full mime_type string of the SourceBuffer.
+  std::string mime_type_;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 }  // namespace media

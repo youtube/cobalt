@@ -14,4 +14,15 @@ android_library("reporter_java") {
   ]
 
   sources = [ "java/src/org/chromium/test/reporter/TestStatusReporter.java" ]
+
+  # AOSP builds that use copied_base do not have the log_java in
+  # //copied_base/base, and moving more targets inside the main check for
+  # is_cobalt && is_partner_toolchain in //base/BUILD.gn requires too many
+  # changes.
+  # Instead, just manually depend on base_java (which contains the Log class in
+  # copied_base) in this case.
+  if (is_cobalt && is_partner_toolchain) {
+    deps -= [ "//base:log_java" ]
+    deps += [ "//base:base_java" ]
+  }
 }

@@ -8,6 +8,7 @@
 
 #include "base/task/single_thread_task_runner.h"
 #include "services/metrics/public/cpp/mojo_ukm_recorder.h"
+#include "third_party/blink/public/common/buildflags.h"
 #include "third_party/blink/public/common/thread_safe_browser_interface_broker_proxy.h"
 #include "third_party/blink/public/mojom/devtools/inspector_issue.mojom-blink.h"
 #include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink.h"
@@ -259,7 +260,13 @@ CoreProbeSink* WorkletGlobalScope::GetProbeSink() {
       return probe::ToCoreProbeSink(frame_);
     case ThreadType::kOffMainThread:
       DCHECK(worker_thread_);
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
       return worker_thread_->GetWorkerInspectorController()->GetProbeSink();
+#else
+      // WorkerInspectorController::Create() is stubbed to return nullptr, so we
+      // shouldn't try to access it.
+      return nullptr;
+#endif  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   }
 }
 

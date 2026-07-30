@@ -25,7 +25,10 @@
 #include "util/misc/pdb_structures.h"
 #include "util/misc/uuid.h"
 
-#if defined(COMPILER_MSVC)
+#if BUILDFLAG(BUILD_BASE_WITH_CPP17)
+#define PACKED
+#pragma pack(push, 1)
+#elif defined(COMPILER_MSVC)
 // C4200 is "nonstandard extension used : zero-sized array in struct/union".
 // We would like to globally disable this warning, but unfortunately, the
 // compiler is buggy and only supports disabling it with a pragma, so we can't
@@ -527,6 +530,9 @@ struct alignas(4) PACKED MinidumpCrashpadInfo {
   uint64_t address_mask;
 };
 
+#if BUILDFLAG(BUILD_BASE_WITH_CPP17)
+#pragma pack(pop)
+#endif
 #if defined(COMPILER_MSVC)
 #pragma pack(pop)
 #pragma warning(pop)  // C4200
