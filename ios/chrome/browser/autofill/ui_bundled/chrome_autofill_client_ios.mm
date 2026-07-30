@@ -54,6 +54,7 @@
 #import "ios/chrome/browser/autofill/autofill_ai/public/save_entity_params.h"
 #import "ios/chrome/browser/autofill/model/address_normalizer_factory.h"
 #import "ios/chrome/browser/autofill/model/autocomplete_history_manager_factory.h"
+#import "ios/chrome/browser/autofill/model/autofill_ai_prefetch_failure_infobar_delegate_ios.h"
 #import "ios/chrome/browser/autofill/model/autofill_ai_save_entity_infobar_delegate_ios.h"
 #import "ios/chrome/browser/autofill/model/autofill_ai_util.h"
 #import "ios/chrome/browser/autofill/model/autofill_log_router_factory.h"
@@ -62,6 +63,7 @@
 #import "ios/chrome/browser/autofill/model/ios_autofill_ai_model_executor_factory.h"
 #import "ios/chrome/browser/autofill/model/ios_autofill_entity_data_manager_factory.h"
 #import "ios/chrome/browser/autofill/model/ios_autofill_field_classification_model_handler_factory.h"
+#import "ios/chrome/browser/autofill/model/ios_personal_context_access_manager_factory.h"
 #import "ios/chrome/browser/autofill/model/ios_wallet_pass_access_manager_factory.h"
 #import "ios/chrome/browser/autofill/model/personal_data_manager_factory.h"
 #import "ios/chrome/browser/autofill/model/strike_database_factory.h"
@@ -280,6 +282,14 @@ void ChromeAutofillClientIOS::GetAiPageContent(
 
 AutofillAiManager* ChromeAutofillClientIOS::GetAutofillAiManager() {
   return autofill_ai_manager_.get();
+}
+
+PersonalContextAccessManager*
+ChromeAutofillClientIOS::GetPersonalContextAccessManager() {
+  if (!base::FeatureList::IsEnabled(features::kAutofillAmbientAutofill)) {
+    return nullptr;
+  }
+  return IOSPersonalContextAccessManagerFactory::GetForProfile(profile_);
 }
 
 AutofillAiModelCache* ChromeAutofillClientIOS::GetAutofillAiModelCache() {
@@ -683,6 +693,24 @@ void ChromeAutofillClientIOS::
   AutofillAiErrorDialogContext errorContext;
   errorContext.type = AutofillAiErrorDialogType::kTypeFetchFromWalletFailure;
   [commands_handler_ showAutofillAiErrorDialog:std::move(errorContext)];
+}
+
+void ChromeAutofillClientIOS::ShowAutofillAiPreFetchFailureNotification() {
+  const auto existing_infobar =
+      std::ranges::find(infobar_manager_->infobars(),
+                        infobars::InfoBarDelegate::
+                            AUTOFILL_AI_PRE_FETCH_FAILURE_INFOBAR_DELEGATE_IOS,
+                        &infobars::InfoBar::GetIdentifier);
+
+  if (existing_infobar != infobar_manager_->infobars().cend()) {
+    infobar_manager_->RemoveInfoBar(*existing_infobar);
+  }
+
+  auto delegate =
+      std::make_unique<AutofillAiPrefetchFailureInfoBarDelegateIOS>();
+
+  infobar_manager_->AddInfoBar(std::make_unique<InfoBarIOS>(
+      InfobarType::kInfobarTypeConfirm, std::move(delegate)));
 }
 
 AutofillAiSaveEntityInfoBarDelegateIOS*

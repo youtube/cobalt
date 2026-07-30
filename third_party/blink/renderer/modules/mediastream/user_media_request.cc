@@ -996,6 +996,7 @@ void UserMediaRequest::Fail(Result error, const String& message) {
     case Result::TRACK_START_FAILURE_VIDEO:
     case Result::AUDIO_DEVICE_SOCKET_ERROR:
     case Result::DEVICE_IN_USE:
+    case Result::DEVICE_REMOVED:
       exception_code = DOMExceptionCode::kNotReadableError;
       result_enum = UserMediaRequestResult::kNotReadableError;
       break;

@@ -414,6 +414,10 @@ BookmarkNodeIDSet GetBookmarkNodeIDSet(
 - (void)viewDidLoad {
   [super viewDidLoad];
 
+  if (!_bookmarkModel) {
+    return;
+  }
+
   // Set Navigation Bar, Toolbar and TableView appearance.
   self.navigationController.navigationBarHidden = NO;
 
@@ -468,7 +472,7 @@ BookmarkNodeIDSet GetBookmarkNodeIDSet(
 - (void)viewWillAppear:(BOOL)animated {
   [super viewWillAppear:animated];
 
-  if (_isShutDown) {
+  if (_isShutDown || !_bookmarkModel) {
     // After `shutdown` is called, `_profile` is null.
     return;
   }

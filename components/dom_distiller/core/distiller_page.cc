@@ -86,19 +86,6 @@ bool ReadabilityDistillerResultToDomDistillerResult(
   return true;
 }
 
-// This enum is used to record histograms for OnDistillationDone results.
-// These values are persisted to logs. Entries should not be renumbered and
-// numeric values should never be reused.
-
-// LINT.IfChange(DistillationParseResult)
-enum class DistillationParseResult {
-  kSuccess = 0,
-  kParseFailure = 1,
-  kNoData = 2,
-  kContentTooShort = 3,
-  kMaxValue = kContentTooShort,
-};
-// LINT.ThenChange(//tools/metrics/histograms/metadata/accessibility/enums.xml:DistillationParseResult)
 
 }  // namespace
 
@@ -141,8 +128,6 @@ void DistillerPage::OnDistillationDone(const GURL& page_url,
   std::unique_ptr<dom_distiller::proto::DomDistillerResult> distiller_result(
       new dom_distiller::proto::DomDistillerResult());
 
-  // Initialize variables to a default failure state.
-  bool found_content = false;
   DistillationParseResult result = DistillationParseResult::kParseFailure;
 
   if (!value || value->is_none()) {
@@ -163,7 +148,6 @@ void DistillerPage::OnDistillationDone(const GURL& page_url,
 
     if (parsed_successfully) {
       // Assume success unless a specific validation check fails.
-      found_content = true;
       result = DistillationParseResult::kSuccess;
 
       // Apply a content length check specifically for the Readability
@@ -180,7 +164,6 @@ void DistillerPage::OnDistillationDone(const GURL& page_url,
         // If content is too short, update the result state.
         if (!content_is_long_enough) {
           result = DistillationParseResult::kContentTooShort;
-          found_content = false;
         }
       }
     } else {
@@ -194,7 +177,7 @@ void DistillerPage::OnDistillationDone(const GURL& page_url,
 
   base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(std::move(distiller_page_callback_),
-                                std::move(distiller_result), found_content));
+                                std::move(distiller_result), result));
 }
 
 }  // namespace dom_distiller

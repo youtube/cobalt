@@ -12,6 +12,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/run_loop.h"
 #include "base/test/bind.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/threading/sequence_bound.h"
 #include "components/performance_manager/graph/page_node_impl.h"
 #include "components/performance_manager/persistence/site_data/site_data_cache.h"
@@ -19,6 +20,7 @@
 #include "components/performance_manager/persistence/site_data/site_data_impl.h"
 #include "components/performance_manager/persistence/site_data/site_data_writer.h"
 #include "components/performance_manager/persistence/site_data/tab_visibility.h"
+#include "components/performance_manager/public/features.h"
 #include "components/performance_manager/public/graph/graph.h"
 #include "components/performance_manager/public/performance_manager.h"
 #include "components/performance_manager/test_support/performance_manager_test_harness.h"
@@ -209,6 +211,10 @@ TEST_F(SiteDataRecorderTest, NavigationEventsBasicTests) {
 // Test that the feature usage events get forwarded to the writer when the tab
 // is in background.
 TEST_F(SiteDataRecorderTest, FeatureEventsGetForwardedWhenInBackground) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      features::kIgnoreMediaQueryFaviconUpdates);
+
   base::WeakPtr<PageNode> page_node =
       PerformanceManager::GetPrimaryPageNodeForWebContents(web_contents());
 
@@ -253,6 +259,16 @@ TEST_F(SiteDataRecorderTest, FeatureEventsGetForwardedWhenInBackground) {
 
   task_environment()->FastForwardBy(kTitleOrFaviconChangePostLoadGracePeriod);
 
+  // Media query changes should not be recorded.
+  node_impl->OnFaviconUpdated(
+      blink::mojom::FaviconUpdateReason::kMediaQueryChange);
+  ::testing::Mock::VerifyAndClear(mock_writer);
+
+  // Page load favicon updates should be recorded.
+  EXPECT_CALL(*mock_writer, NotifyUpdatesFaviconInBackground());
+  node_impl->OnFaviconUpdated(blink::mojom::FaviconUpdateReason::kPageLoad);
+  ::testing::Mock::VerifyAndClear(mock_writer);
+
   EXPECT_CALL(*mock_writer, NotifyUpdatesFaviconInBackground());
   node_impl->OnFaviconUpdated(
       blink::mojom::FaviconUpdateReason::kLinkElementChange);
@@ -292,6 +308,43 @@ TEST_F(SiteDataRecorderTest, FeatureEventsGetForwardedWhenInBackground) {
 
   EXPECT_CALL(*mock_writer, NotifySiteUnloaded(TabVisibility::kBackground));
 
+  NavigatePageNodeOnUIThread(web_contents(), GURL("about:blank"));
+}
+
+TEST_F(SiteDataRecorderTest,
+       MediaQueryFaviconUpdatesRecordedWhenFeatureDisabled) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(
+      features::kIgnoreMediaQueryFaviconUpdates);
+
+  base::WeakPtr<PageNode> page_node =
+      PerformanceManager::GetPrimaryPageNodeForWebContents(web_contents());
+  NavigatePageNodeOnUIThread(web_contents(), kTestUrl1);
+
+  MockDataWriter* mock_writer = GetMockWriterForPageNode(page_node.get());
+  ASSERT_TRUE(mock_writer);
+
+  PageNodeImpl* node_impl = PageNodeImpl::FromNode(page_node.get());
+  EXPECT_CALL(*mock_writer, NotifySiteLoaded(TabVisibility::kBackground));
+  node_impl->SetLoadingState(PageNode::LoadingState::kLoadedIdle);
+  ::testing::Mock::VerifyAndClear(mock_writer);
+
+  EXPECT_CALL(*mock_writer, NotifySiteForegrounded(true));
+  web_contents()->WasShown();
+  ::testing::Mock::VerifyAndClear(mock_writer);
+
+  EXPECT_CALL(*mock_writer, NotifySiteBackgrounded(true));
+  web_contents()->WasHidden();
+  ::testing::Mock::VerifyAndClear(mock_writer);
+
+  task_environment()->FastForwardBy(kTitleOrFaviconChangePostLoadGracePeriod);
+
+  EXPECT_CALL(*mock_writer, NotifyUpdatesFaviconInBackground());
+  node_impl->OnFaviconUpdated(
+      blink::mojom::FaviconUpdateReason::kMediaQueryChange);
+  ::testing::Mock::VerifyAndClear(mock_writer);
+
+  EXPECT_CALL(*mock_writer, NotifySiteUnloaded(TabVisibility::kBackground));
   NavigatePageNodeOnUIThread(web_contents(), GURL("about:blank"));
 }
 

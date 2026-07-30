@@ -63,7 +63,7 @@ about:version template page
               <span>$i18n{update_cohort_name}</span>
   </if>
             </span>
-            <button id="copy-to-clipboard" aria-label="$i18n{copy_label}">
+            <button id="copy-to-clipboard" class="copy-button" aria-label="$i18n{copy_label}">
               <div id="copy-to-clipboard-icon"></div>
             </button>
           </td>
@@ -177,7 +177,7 @@ about:version template page
           <td class="label">$i18n{variations_cmd_name}</td>
           <td class="version-wide" id="variations-cmd"></td>
           <td>
-            <button id="copy-variations-to-clipboard"
+            <button id="copy-variations-to-clipboard" class="copy-button"
                 aria-label="$i18n{copy_variations_label}">
               <div id="copy-to-clipboard-icon"></div>
             </button>
@@ -186,6 +186,12 @@ about:version template page
         <tr id="variations-section">
           <td class="label">$i18n{variations_name}</td>
           <td class="version" id="variations-list"></td>
+          <td>
+            <button id="copy-active-variations-to-clipboard" class="copy-button"
+                aria-label="$i18n{copy_variations_label}">
+              <div id="copy-to-clipboard-icon"></div>
+            </button>
+          </td>
         </tr>
         <tr id="sanitizer-section" hidden>
           <td class="label">Sanitizer</td>

@@ -286,7 +286,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Search.AuxiliarySearch.Schedule.Favicon.FetchTime" units="ms"
-    expires_after="2026-10-25">
+    expires_after="2026-12-27">
   <owner>hanxi@chromium.org</owner>
   <owner>gangwu@chromium.org</owner>
   <owner>clank-start@google.com</owner>
@@ -370,6 +370,31 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
     {Profile}
   </summary>
   <token key="Profile" variants="ProfileIndex"/>
+</histogram>
+
+<histogram name="Search.ChoiceDebug.PreexistingProgramTaggedEntries"
+    units="entries" expires_after="2026-12-01">
+  <owner>dgn@google.com</owner>
+  <owner>chrome-regionalcapabilities@google.com</owner>
+  <summary>
+    Recorded on Android whenever a new Play API search engine is set (e.g., via
+    the EEA Choice Screen). Records the total count of pre-existing regulatory
+    program tagged search engines (Android EEA) found in the
+    TemplateURLService's loaded engines list and removed prior to adding the new
+    engine. Identifies how many stale regulatory entries were accumulated and
+    successfully cleaned up.
+  </summary>
+</histogram>
+
+<histogram name="Search.ChoiceDebug.PropagatedDataOutcome"
+    enum="CurrentDefaultPropagationOutcome" expires_after="2026-12-01">
+  <owner>dgn@chromium.org</owner>
+  <owner>chrome-regionalcapabilities@google.com</owner>
+  <summary>
+    Records the outcome of attempting to propagate the search engine choice data
+    from an existing profile to a newly created one. Recorded each time a
+    profile forks or creates a new profile while capturing preferences.
+  </summary>
 </histogram>
 
 <histogram name="Search.ChoiceDebug.ScrollStateWithMoreButtonClick"
@@ -1147,7 +1172,7 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
 </histogram>
 
 <histogram name="Search.Integrity.CustomPopulatedDefault" enum="Boolean"
-    expires_after="2026-10-20">
+    expires_after="2026-12-27">
   <owner>musalmaan@chromium.org</owner>
   <owner>iclelland@chromium.org</owner>
   <owner>chrome-desktop-ui-waterloo@google.com</owner>
@@ -1195,7 +1220,7 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
 </histogram>
 
 <histogram name="Search.Integrity.Enterprise.Referral.ParameterFound"
-    enum="SearchReferralParam" expires_after="2026-10-20">
+    enum="SearchReferralParam" expires_after="2026-12-27">
   <owner>musalmaan@chromium.org</owner>
   <owner>iclelland@chromium.org</owner>
   <owner>chrome-desktop-ui-waterloo@google.com</owner>

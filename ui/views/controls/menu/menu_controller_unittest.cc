@@ -59,6 +59,10 @@
 #include "ui/views/widget/root_view.h"
 #include "ui/views/widget/widget_utils.h"
 
+#if BUILDFLAG(IS_OZONE)
+#include "ui/ozone/public/ozone_platform.h"
+#endif
+
 #if defined(USE_AURA)
 #include "ui/aura/client/aura_constants.h"
 #include "ui/aura/client/drag_drop_client.h"
@@ -72,9 +76,6 @@
 #include "ui/views/controls/menu/menu_pre_target_handler.h"
 #endif
 
-#if BUILDFLAG(IS_OZONE)
-#include "ui/ozone/public/ozone_platform.h"
-#endif
 
 #if BUILDFLAG(SUPPORTS_OZONE_X11)
 #include "ui/events/test/events_test_utils_x11.h"
@@ -2526,7 +2527,7 @@ TEST_F(MenuControllerTest, WidgetStateChangeCancelsMenu) {
 
 // TODO(pkasting): The test below fails most of the time on Wayland; not clear
 // it's important to support this case.
-#if BUILDFLAG(ENABLE_DESKTOP_AURA) && !BUILDFLAG(SUPPORTS_OZONE_WAYLAND)
+#if BUILDFLAG(ENABLE_DESKTOP_AURA)
 class DesktopMenuControllerTest : public MenuControllerTest {
  public:
   // MenuControllerTest:
@@ -2540,11 +2541,16 @@ class DesktopMenuControllerTest : public MenuControllerTest {
 // MenuPreTargetHandler. Having neither parent nor context pointers when
 // creating a Widget is only valid in desktop Aura.
 TEST_F(DesktopMenuControllerTest, RunWithoutWidgetDoesntCrash) {
+#if BUILDFLAG(IS_OZONE)
+  if (::ui::OzonePlatform::RunningOnWaylandForTest()) {
+    GTEST_SKIP() << "Fails on Wayland";
+  }
+#endif
   ExitMenuRun();
   menu_controller()->Run(nullptr, nullptr, menu_item(), gfx::Rect(),
                          MenuAnchorPosition::kTopLeft);
 }
-#endif  // BUILDFLAG(ENABLE_DESKTOP_AURA) && !BUILDFLAG(SUPPORTS_OZONE_WAYLAND)
+#endif  // BUILDFLAG(ENABLE_DESKTOP_AURA)
 
 // Tests that if a MenuController is destroying during drag/drop, and another
 // MenuController becomes active, that the exiting of drag does not cause a

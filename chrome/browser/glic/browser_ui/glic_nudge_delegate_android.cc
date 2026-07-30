@@ -13,9 +13,10 @@
 #include "base/no_destructor.h"
 #include "chrome/browser/glic/android/jni_headers/GlicNudgeDelegateBridge_jni.h"
 #include "chrome/browser/glic/browser_ui/glic_nudge_controller.h"
-#include "chrome/browser/tab_list/tab_list_interface.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/android/window_android.h"
+#include "ui/base/base_window.h"
 
 namespace glic {
 
@@ -28,11 +29,8 @@ std::vector<GlicNudgeDelegateAndroid*>& GetDelegates() {
 
 GlicNudgeDelegateAndroid::GlicNudgeDelegateAndroid(
     GlicNudgeController* controller,
-    TabListInterface* tab_list,
-    content::WebContents* web_contents)
-    : controller_(controller),
-      tab_list_(tab_list),
-      web_contents_(web_contents) {
+    BrowserWindowInterface* browser)
+    : controller_(controller), browser_(browser) {
   CHECK(controller_);
   GetDelegates().push_back(this);
 }
@@ -87,26 +85,10 @@ void GlicNudgeDelegateAndroid::OnNudgeActivity(GlicNudgeActivity activity) {
 }
 
 ui::WindowAndroid* GlicNudgeDelegateAndroid::GetWindowAndroid() {
-  if (!tab_list_) {
+  if (!browser_ || !browser_->GetWindow()) {
     return nullptr;
   }
-  tabs::TabInterface* active_tab = tab_list_->GetActiveTab();
-  if (!active_tab) {
-    return nullptr;
-  }
-  content::WebContents* web_contents = active_tab->GetContents();
-  if (!web_contents) {
-    return nullptr;
-  }
-  return web_contents->GetTopLevelNativeWindow();
-}
-
-bool GlicNudgeDelegateAndroid::IsActiveTab() {
-  if (!tab_list_ || !web_contents_) {
-    return false;
-  }
-  tabs::TabInterface* active_tab = tab_list_->GetActiveTab();
-  return active_tab && active_tab->GetContents() == web_contents_;
+  return browser_->GetWindow()->GetNativeWindow();
 }
 
 static void JNI_GlicNudgeDelegateBridge_OnNudgeActivity(
@@ -119,8 +101,7 @@ static void JNI_GlicNudgeDelegateBridge_OnNudgeActivity(
     return;
   }
   for (GlicNudgeDelegateAndroid* delegate : GetDelegates()) {
-    if (delegate->GetWindowAndroid() == target_window &&
-        delegate->IsActiveTab()) {
+    if (delegate->GetWindowAndroid() == target_window) {
       delegate->OnNudgeActivity(static_cast<GlicNudgeActivity>(event));
       break;
     }

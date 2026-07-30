@@ -9,6 +9,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/string_util.h"
+#include "components/crx_file/id_util.h"
 #include "components/safe_browsing/core/browser/db/sb_protocol_manager_util.h"
 #include "components/safe_browsing/core/browser/db/v4_store.pb.h"
 #include "components/safe_browsing/core/common/proto/v5_store.pb.h"
@@ -203,5 +204,29 @@ V5StoreReadResult SBStore::ParseAndValidateV5StoreFileFormat(
 
   return V5StoreReadResult::kReadSuccess;
 }
+
+// static
+std::string SBStore::ExtensionV4IdToV5Hash(std::string_view v4_id) {
+  CHECK_EQ(v4_id.size(), 32u);
+  CHECK(crx_file::id_util::IdIsValid(v4_id));
+  std::string v5_hash;
+  v5_hash.reserve(16);
+  for (size_t i = 0; i < 32; i += 2) {
+    uint8_t val1 = base::ToLowerASCII(v4_id[i]) - 'a';
+    uint8_t val2 = base::ToLowerASCII(v4_id[i + 1]) - 'a';
+    v5_hash.push_back(static_cast<char>((val1 << 4) | val2));
+  }
+  return v5_hash;
+}
+
+SBUpdateResponse::SBUpdateResponse() = default;
+SBUpdateResponse::~SBUpdateResponse() = default;
+
+SBStoreDeleter::SBStoreDeleter(
+    scoped_refptr<base::SequencedTaskRunner> task_runner)
+    : task_runner_(std::move(task_runner)) {}
+SBStoreDeleter::~SBStoreDeleter() = default;
+SBStoreDeleter::SBStoreDeleter(SBStoreDeleter&&) = default;
+SBStoreDeleter& SBStoreDeleter::operator=(SBStoreDeleter&&) = default;
 
 }  // namespace safe_browsing

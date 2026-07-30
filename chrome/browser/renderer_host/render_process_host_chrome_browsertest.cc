@@ -282,13 +282,8 @@ class ChromeRenderProcessHostTestWithCommandLine
   }
 };
 
-// TODO(crbug.com/497106715): Flaky on Mac.
-#if BUILDFLAG(IS_MAC)
-#define MAYBE_ProcessPerTab DISABLED_ProcessPerTab
-#else
-#define MAYBE_ProcessPerTab ProcessPerTab
-#endif
-IN_PROC_BROWSER_TEST_F(ChromeRenderProcessHostTest, MAYBE_ProcessPerTab) {
+// TODO(crbug.com/497106715): Fix and re-enable test
+IN_PROC_BROWSER_TEST_F(ChromeRenderProcessHostTest, DISABLED_ProcessPerTab) {
   // Set max renderers to 1 to force running out of processes.
   content::RenderProcessHost::SetMaxRendererProcessCount(1);
 

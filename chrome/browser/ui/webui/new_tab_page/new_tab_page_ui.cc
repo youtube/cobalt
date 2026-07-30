@@ -487,6 +487,7 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(
       {"modulesDriveTitle", IDS_NTP_MODULES_DRIVE_NAME},
       {"modulesDriveTitleV2", IDS_NTP_MODULES_DRIVE_NAME},
       {"modulesDriveInfo", IDS_NTP_MODULES_DRIVE_INFO},
+      {"modulesDriveSeeMore", IDS_NTP_MODULES_DRIVE_SEE_MORE},
       {"modulesMicrosoftFilesInfo", IDS_NTP_MODULES_MICROSOFT_FILES_INFO},
       {"modulesMicrosoftFilesName", IDS_NTP_MODULES_MICROSOFT_FILES_NAME},
       {"modulesMicrosoftFilesDisableButtonText",
@@ -624,6 +625,9 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(
       "hideDismissModules",
       base::FeatureList::IsEnabled(
           ntp_features::kNtpFeatureOptimizationDismissModulesRemoval));
+  source->AddBoolean(
+      "showDriveModuleSeeMoreLink",
+      base::FeatureList::IsEnabled(ntp_features::kNtpDriveModuleLink));
 
   source->AddString(
       "calendarModuleDismissHours",
@@ -711,8 +715,9 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(
                      ntp_composebox::kShowContextMenuTabPreviews.Get());
   source->AddBoolean("composeboxContextMenuEnableMultiTabSelection",
                      ntp_composebox::kContextMenuEnableMultiTabSelection.Get());
-  source->AddBoolean("contextManagementInComposeboxEnabled",
-  base::FeatureList::IsEnabled(omnibox::kContextManagementInComposebox));
+  source->AddBoolean(
+      "contextManagementInComposeboxEnabled",
+      base::FeatureList::IsEnabled(omnibox::kContextManagementInComposebox));
   source->AddBoolean(
       "tabFaviconChipsToCoinsEnabled",
       base::FeatureList::IsEnabled(omnibox::kContextManagementInComposebox) &&

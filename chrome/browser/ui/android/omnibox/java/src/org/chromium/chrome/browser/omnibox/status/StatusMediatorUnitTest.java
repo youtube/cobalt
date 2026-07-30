@@ -12,15 +12,11 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-
-import static org.chromium.chrome.browser.omnibox.status.StatusMediator.COOKIE_CONTROLS_ICON;
 
 import android.content.Context;
 import android.content.res.Resources;
@@ -75,7 +71,6 @@ import org.chromium.components.content_settings.ContentSetting;
 import org.chromium.components.content_settings.ContentSettingsType;
 import org.chromium.components.content_settings.CookieControlsBridge;
 import org.chromium.components.content_settings.CookieControlsBridgeJni;
-import org.chromium.components.content_settings.CookieControlsState;
 import org.chromium.components.favicon.LargeIconBridge;
 import org.chromium.components.favicon.LargeIconBridgeJni;
 import org.chromium.components.feature_engagement.Tracker;
@@ -477,70 +472,6 @@ public final class StatusMediatorUnitTest {
 
         mMediator.setBackground();
         assertNull(mModel.get(StatusProperties.STATUS_VIEW_BACKGROUND));
-    }
-
-    @Test
-    @SmallTest
-    public void iphCookieControls_animatesOnHighlightCookieControl() {
-        setupCookieControlsTest();
-
-        assertNotEquals(COOKIE_CONTROLS_ICON, getIconIdentifierForTesting());
-
-        mMediator.onHighlightCookieControl(true);
-
-        assertEquals(COOKIE_CONTROLS_ICON, getIconIdentifierForTesting());
-
-        mModel.get(StatusProperties.STATUS_ICON_RESOURCE).getAnimationFinishedCallback().run();
-        verify(mPageInfoIphController, times(1)).showCookieControlsIph(anyInt(), anyInt());
-        verify(mCookieControlsBridge, times(1)).onEntryPointAnimated();
-
-        mMediator.updateLocationBarIcon(IconTransitionType.CROSSFADE);
-
-        // CookieControlsIcon should not be set when no HIGH BreakageConfidenceLevel were
-        // explicitly reported.
-        mMediator.onHighlightCookieControl(false);
-        assertNotEquals(COOKIE_CONTROLS_ICON, getIconIdentifierForTesting());
-    }
-
-    @Test
-    @SmallTest
-    public void iphCookieControls() {
-        setupCookieControlsTest();
-        mMediator.onStatusChanged(
-                CookieControlsState.BLOCKED3PC, /* enforcement= */ 0, /* expiration= */ 0);
-
-        mMediator.onHighlightCookieControl(true);
-        assertEquals(COOKIE_CONTROLS_ICON, getIconIdentifierForTesting());
-        mModel.get(StatusProperties.STATUS_ICON_RESOURCE).getAnimationFinishedCallback().run();
-        verify(mPageInfoIphController, times(1)).showCookieControlsIph(anyInt(), anyInt());
-    }
-
-    private void setupCookieControlsTest() {
-        mMediator.beginInput(mFuseboxSessionState);
-        mMediator.updateVerboseStatus(ConnectionSecurityLevel.SECURE, false, false);
-        mMediator.setCookieControlsBridgeForTesting(mCookieControlsBridge);
-        doReturn(true).when(mTracker).wouldTriggerHelpUi(any());
-        doReturn(mWebContents).when(mTab).getWebContents();
-        doReturn(mTab).when(mLocationBarDataProvider).getTab();
-    }
-
-    @Test
-    @SmallTest
-    public void cookieControlsIcon_doesNotAnimateIfWebContentsNull() {
-        setupCookieControlsTest();
-
-        doReturn(null).when(mTab).getWebContents();
-
-        mMediator.onStatusChanged(
-                CookieControlsState.BLOCKED3PC, /* enforcement= */ 0, /* expiration= */ 0);
-        assertNotEquals(COOKIE_CONTROLS_ICON, getIconIdentifierForTesting());
-
-        mMediator.onHighlightCookieControl(true);
-
-        // Cookie controls icon should NOT be shown.
-        assertNotEquals(COOKIE_CONTROLS_ICON, getIconIdentifierForTesting());
-        // IPH should NOT be shown.
-        verify(mPageInfoIphController, never()).showCookieControlsIph(anyInt(), anyInt());
     }
 
     @Test

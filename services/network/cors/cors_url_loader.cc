@@ -44,6 +44,7 @@
 #include "services/network/public/cpp/record_ontransfersizeupdate_utils.h"
 #include "services/network/public/cpp/request_mode.h"
 #include "services/network/public/cpp/timing_allow_origin_parser.h"
+#include "services/network/public/mojom/device_bound_sessions.mojom-shared.h"
 #include "services/network/public/mojom/devtools_observer.mojom.h"
 #include "services/network/public/mojom/early_hints.mojom.h"
 #include "services/network/public/mojom/fetch_api.mojom.h"
@@ -703,6 +704,10 @@ void CorsURLLoader::OnReceiveResponse(
   response_head->timing_allow_passed = !timing_allow_failed_flag_;
   response_head->has_authorization_covered_by_wildcard_on_preflight =
       has_authorization_covered_by_wildcard_;
+  if (response_head->response_type != mojom::FetchResponseType::kBasic) {
+    response_head->device_bound_session_usage =
+        mojom::DeviceBoundSessionUsage::kUnknown;
+  }
 
   forwarding_client_->OnReceiveResponse(
       std::move(response_head), std::move(body), std::move(cached_metadata));
@@ -778,6 +783,8 @@ void CorsURLLoader::OnReceiveRedirect(const net::RedirectInfo& redirect_info,
         std::make_unique<GURL>(censored_redirect_info.new_url);
     response_head->response_type = mojom::FetchResponseType::kOpaqueRedirect;
     response_head->timing_allow_passed = !timing_allow_failed_flag_;
+    response_head->device_bound_session_usage =
+        mojom::DeviceBoundSessionUsage::kUnknown;
     forwarding_client_->OnReceiveRedirect(censored_redirect_info,
                                           std::move(response_head));
     return;
@@ -853,6 +860,10 @@ void CorsURLLoader::OnReceiveRedirect(const net::RedirectInfo& redirect_info,
     response_head->response_type = response_tainting_;
   }
   response_head->timing_allow_passed = !timing_allow_failed_flag_;
+  if (response_head->response_type != mojom::FetchResponseType::kBasic) {
+    response_head->device_bound_session_usage =
+        mojom::DeviceBoundSessionUsage::kUnknown;
+  }
   forwarding_client_->OnReceiveRedirect(redirect_info,
                                         std::move(response_head));
 }

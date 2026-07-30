@@ -91,7 +91,6 @@ inline constexpr char kOnSendHeaders[] = "onSendHeaders";
 // Error messages.
 extern const char kInvalidRedirectUrl[];
 extern const char kInvalidBlockingResponse[];
-extern const char kInvalidRequestFilterUrl[];
 extern const char kBlockingPermissionRequired[];
 extern const char kHostPermissionsRequired[];
 extern const char kInvalidHeaderKeyCombination[];

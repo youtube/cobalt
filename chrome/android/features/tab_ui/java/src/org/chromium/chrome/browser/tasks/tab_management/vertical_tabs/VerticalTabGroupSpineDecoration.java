@@ -5,6 +5,7 @@
 package org.chromium.chrome.browser.tasks.tab_management.vertical_tabs;
 
 import android.content.Context;
+import android.content.res.Resources;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.RectF;
@@ -43,14 +44,15 @@ class VerticalTabGroupSpineDecoration extends RecyclerView.ItemDecoration {
     // must account for both.
     private static final long COLLAPSE_DURATION_MS =
             TabListItemAnimator.DEFAULT_REMOVE_DURATION + TabListItemAnimator.DEFAULT_MOVE_DURATION;
+    private static final long EXPAND_DURATION_MS = TabListItemAnimator.DEFAULT_MOVE_DURATION;
 
     private final TabListModel mModel;
     private final TabModelSelector mTabModelSelector;
-    private final Runnable mInvalidationTrigger;
-    private final Set<Token> mDrawnGroupIds = new HashSet<>();
-    private final Set<Token> mCollapsingGroupIds = new HashSet<>();
-    private final Handler mHandler = new Handler(Looper.getMainLooper());
     private final Callback<TabModel> mCurrentTabModelObserver;
+    private final Runnable mInvalidationTrigger;
+    private final Set<Token> mDrawnGroups = new HashSet<>();
+    private final Set<Token> mCollapsingOrExpandingGroupIds = new HashSet<>();
+    private final Handler mHandler = new Handler(Looper.getMainLooper());
     private final Paint mPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final RectF mRectF = new RectF();
     private final int mSpineRadius;
@@ -58,6 +60,7 @@ class VerticalTabGroupSpineDecoration extends RecyclerView.ItemDecoration {
     private final int mMarginBottom;
     private final List<View> mSortedChildren = new ArrayList<>();
     private final ChildPositionComparator mChildPositionComparator = new ChildPositionComparator();
+    private final GroupInfo mCurrentGroupInfo = new GroupInfo();
 
     private @Nullable TabModel mCurrentTabModel;
 
@@ -72,15 +75,15 @@ class VerticalTabGroupSpineDecoration extends RecyclerView.ItemDecoration {
                 @Override
                 public void didChangeTabGroupCollapsed(
                         Token tabGroupId, boolean isCollapsed, boolean animate) {
-                    if (isCollapsed) {
-                        mCollapsingGroupIds.add(tabGroupId);
-                        mHandler.postDelayed(
-                                () -> {
-                                    mCollapsingGroupIds.remove(tabGroupId);
-                                    mInvalidationTrigger.run();
-                                },
-                                COLLAPSE_DURATION_MS);
-                    }
+                    long durationMs = isCollapsed ? COLLAPSE_DURATION_MS : EXPAND_DURATION_MS;
+
+                    mCollapsingOrExpandingGroupIds.add(tabGroupId);
+                    mHandler.postDelayed(
+                            () -> {
+                                mCollapsingOrExpandingGroupIds.remove(tabGroupId);
+                                mInvalidationTrigger.run();
+                            },
+                            durationMs);
                 }
             };
 
@@ -100,7 +103,7 @@ class VerticalTabGroupSpineDecoration extends RecyclerView.ItemDecoration {
         mInvalidationTrigger = invalidationTrigger;
         mModel = model;
         mTabModelSelector = tabModelSelector;
-        var res = context.getResources();
+        Resources res = context.getResources();
         mSpineWidth = res.getDimensionPixelSize(R.dimen.vertical_tab_spine_width);
         mSpineRadius = res.getDimensionPixelSize(R.dimen.vertical_tab_spine_radius);
         mMarginBottom = res.getDimensionPixelSize(R.dimen.vertical_tab_item_margin_bottom);
@@ -128,7 +131,7 @@ class VerticalTabGroupSpineDecoration extends RecyclerView.ItemDecoration {
             right = left + mSpineWidth;
         }
 
-        mDrawnGroupIds.clear();
+        mDrawnGroups.clear();
         boolean anyTabBeingDragged = sortAndCheckDragging(parent);
 
         float deferredTop = 0;
@@ -138,35 +141,15 @@ class VerticalTabGroupSpineDecoration extends RecyclerView.ItemDecoration {
 
         int sortedChildCount = mSortedChildren.size();
         for (int i = 0; i < sortedChildCount; i++) {
-            View child = mSortedChildren.get(i);
-            int pos = parent.getChildAdapterPosition(child);
+            if (!tryUpdateGroupInfo(tabModel, parent, sortedChildCount, i)) continue;
 
-            PropertyModel childModel = mModel.get(pos).model;
-            Token headerId = childModel.get(TabProperties.TAB_GROUP_HEADER_ID);
-            boolean isHeader = headerId != null;
-            Token groupId = isHeader ? headerId : childModel.get(TabProperties.TAB_GROUP_ID);
-            if (groupId == null || !mDrawnGroupIds.add(groupId)) {
-                continue;
-            }
-
-            boolean isCollapsed = isHeader && childModel.get(TabProperties.IS_COLLAPSED);
-            float top = calculateTop(parent, sortedChildCount, i, groupId, isHeader);
-            float bottom =
-                    calculateBottom(
-                            parent, sortedChildCount, i, groupId, isCollapsed, anyTabBeingDragged);
+            float top = calculateTop();
+            float bottom = calculateBottom(parent, anyTabBeingDragged);
             if (bottom <= top) continue;
 
-            @Nullable Integer cardColorId = childModel.get(TabProperties.TAB_GROUP_CARD_COLOR);
-            int colorId =
-                    cardColorId != null
-                            ? cardColorId
-                            : tabModel.getTabGroupColorWithFallback(groupId);
-            int color =
-                    TabGroupColorPickerUtils.getTabGroupColorPickerItemColor(
-                            parent.getContext(), colorId, isIncognito);
-
-            boolean isDragging = isHeader && childModel.get(TabProperties.IS_BEING_DRAGGED);
-            if (isDragging) {
+            int color = mCurrentGroupInfo.getColor(parent.getContext(), isIncognito, tabModel);
+            // If the group is being dragged, defer its spine drawing to make it the most top.
+            if (mCurrentGroupInfo.mGroupDraggingY != null) {
                 deferredTop = top;
                 deferredBottom = bottom;
                 deferredColor = color;
@@ -225,7 +208,7 @@ class VerticalTabGroupSpineDecoration extends RecyclerView.ItemDecoration {
 
                 // Check if this child is being dragged
                 PropertyModel model = mModel.get(pos).model;
-                if (model != null && model.get(TabProperties.IS_BEING_DRAGGED)) {
+                if (model != null && model.get(TabProperties.DRAGGING_Y) != null) {
                     anyVisibleTabDragging = true;
                 }
             }
@@ -244,120 +227,169 @@ class VerticalTabGroupSpineDecoration extends RecyclerView.ItemDecoration {
         return anyVisibleTabDragging;
     }
 
-    private float calculateTop(
-            RecyclerView parent,
-            int sortedChildCount,
-            int childIndex,
-            Token groupId,
-            boolean isHeader) {
-        View child = mSortedChildren.get(childIndex);
-        if (isHeader) {
-            PropertyModel model = mModel.get(parent.getChildAdapterPosition(child)).model;
-
-            boolean isGroupBeingDragged =
-                    model != null && model.get(TabProperties.IS_BEING_DRAGGED);
-            View firstGroupView = null;
-            int nextIndex = childIndex + 1;
-            if (nextIndex < sortedChildCount) {
-                View v = mSortedChildren.get(nextIndex);
-                int pos = parent.getChildAdapterPosition(v);
-                Token nextTabId = mModel.get(pos).model.get(TabProperties.TAB_GROUP_ID);
-                if (groupId.equals(nextTabId)) {
-                    firstGroupView = v;
-                }
-            }
-
-            if (isGroupBeingDragged && firstGroupView != null) {
-                // TODO(b/521987032): Remove this - check why header's translationY is not stable
-                // when dragging the whole group, so that we have to use firstGroupView's. Maybe due
-                // to early return in VerticalTabListItemTouchHelperCallback#onChildDraw, the
-                // viewHolder's end animation is not ended?
-                // TODO(b/521987032): check why firstGroupView's translationY is not stable when
-                // dragging an internal tab in this tab group
-                return firstGroupView.getTop() + firstGroupView.getTranslationY();
-            } else {
-                // For a group header, start the line right below the header card (plus trailing
-                // margin).
-                return child.getBottom() + child.getTranslationY() + mMarginBottom;
-            }
+    /**
+     * Calculates the top boundary of the spine.
+     *
+     * <ul>
+     *   <li>Case 1 (Collapsing/Expanding), Case 5 (External shifts), Case 6 (All other cases): Top
+     *       translates dynamically so the spine moves smoothly with the group.
+     *   <li>Case 3 (Group drag): Use groupDraggingY and header's bottom.
+     *   <li>Case 4 (Internal child drag): Top is static to keep the spine anchored.
+     * </ul>
+     */
+    private float calculateTop() {
+        View view = mCurrentGroupInfo.mView;
+        assert view != null;
+        float transY =
+                mCurrentGroupInfo.mIsChildBeingDraggedInternally ? 0 : view.getTranslationY();
+        if (mCurrentGroupInfo.mIsHeader) {
+            Float draggingY = mCurrentGroupInfo.mGroupDraggingY;
+            // For a group header, start the line right below the header card (plus draggingY or
+            // translationY, and margin).
+            return view.getBottom() + ((draggingY != null) ? draggingY : transY) + mMarginBottom;
         }
+
         // For a normal child tab (meaning the group header scrolled off-screen),
         // start the vertical line directly from the top edge of this card.
-        return child.getTop() + child.getTranslationY();
+        return view.getTop() + transY;
     }
 
-    private float calculateBottom(
-            RecyclerView parent,
-            int sortedChildCount,
-            int childIndex,
-            Token groupId,
-            boolean isCollapsed,
-            boolean anyTabBeingDragged) {
-        View child = mSortedChildren.get(childIndex);
-        View lastGroupView = child;
-        View lastStableGroupView = child;
-        View nextSiblingView = null;
-        boolean isChildBeingDragged = false;
+    private float calculateBottom(RecyclerView parent, boolean anyTabBeingDragged) {
+        // Case 1 (Collapsing/Expanding): Connects to the next sibling's translated top.
+        if (mCurrentGroupInfo.mIsBeingCollapsedOrExpanded
+                && mCurrentGroupInfo.mNextSiblingView != null) {
+            return mCurrentGroupInfo.mNextSiblingView.getTop()
+                    + mCurrentGroupInfo.mNextSiblingView.getTranslationY()
+                    - mMarginBottom;
+        }
 
-        // Scan subsequent visible items in the sorted array to find:
-        // 1. lastGroupView: The last visible child tab belonging to this group.
-        // 2. lastStableGroupView: The last fully visible tab, for expanding/adding tab animation if
-        // the tab group is the last one on the screen
-        // 3. isChildBeingDragged: Whether any of the child is being dragged
-        // 4. nextSiblingView: The first visible tab belonging to a DIFFERENT group.
-        for (int j = childIndex + 1; j < sortedChildCount; j++) {
+        // Case 2 (Collapsed): Hide spine
+        if (mCurrentGroupInfo.mIsCollapsed) {
+            return Integer.MIN_VALUE;
+        }
+
+        View lastGroupView = mCurrentGroupInfo.mLastGroupView;
+        assert lastGroupView != null;
+        // Case 3 (Group drag): If group header is being dragged, use draggingY.
+        if (mCurrentGroupInfo.mGroupDraggingY != null) {
+            return lastGroupView.getBottom() + mCurrentGroupInfo.mGroupDraggingY;
+        }
+
+        // Case 4 (Internal child drag): Anchored to the last static tab's bottom.
+        if (mCurrentGroupInfo.mIsChildBeingDraggedInternally) {
+            return lastGroupView.getBottom();
+        }
+
+        // Case 5 (External shifts): Stays at the last tab's translated bottom.
+        float targetBottom = lastGroupView.getBottom() + lastGroupView.getTranslationY();
+        boolean hasSubsequentItems =
+                parent.getChildAdapterPosition(lastGroupView) < mModel.size() - 1;
+        View lastStableGroupView = mCurrentGroupInfo.mLastStableGroupView;
+        if (anyTabBeingDragged || hasSubsequentItems || lastStableGroupView == null) {
+            return targetBottom;
+        }
+
+        // Case 6 (All other cases): Animates to the last tab's bottom using alpha.
+        float startBottom = lastStableGroupView.getBottom() + lastStableGroupView.getTranslationY();
+        return startBottom + ((targetBottom - startBottom) * lastGroupView.getAlpha());
+    }
+
+    private boolean tryUpdateGroupInfo(
+            TabModel tabModel, RecyclerView parent, int parentChildCount, int currentIndex) {
+        View view = mSortedChildren.get(currentIndex);
+        PropertyModel model = mModel.get(parent.getChildAdapterPosition(view)).model;
+        if (model == null) return false;
+
+        Token headerId = model.get(TabProperties.TAB_GROUP_HEADER_ID);
+        boolean isHeader = headerId != null;
+        Token groupId = isHeader ? headerId : model.get(TabProperties.TAB_GROUP_ID);
+        if (groupId == null || !mDrawnGroups.add(groupId)) {
+            return false;
+        }
+
+        mCurrentGroupInfo.reset(groupId, view);
+        mCurrentGroupInfo.mColorId = model.get(TabProperties.TAB_GROUP_CARD_COLOR);
+        mCurrentGroupInfo.mIsHeader = isHeader;
+        mCurrentGroupInfo.mIsBeingCollapsedOrExpanded =
+                mCollapsingOrExpandingGroupIds.contains(groupId);
+        mCurrentGroupInfo.mLastStableGroupView = view;
+
+        Float childDraggingY = !isHeader ? model.get(TabProperties.DRAGGING_Y) : null;
+        for (int j = currentIndex + 1; j < parentChildCount; j++) {
             View v = mSortedChildren.get(j);
             PropertyModel nextModel = mModel.get(parent.getChildAdapterPosition(v)).model;
             Token nextTabId =
                     (nextModel == null) ? null : nextModel.get(TabProperties.TAB_GROUP_ID);
             if (groupId.equals(nextTabId)) {
                 if (v.getAlpha() >= 1f) {
-                    lastStableGroupView = v;
+                    mCurrentGroupInfo.mLastStableGroupView = v;
                 }
-                lastGroupView = v;
-                isChildBeingDragged =
-                        isChildBeingDragged || nextModel.get(TabProperties.IS_BEING_DRAGGED);
+                mCurrentGroupInfo.mLastGroupView = v;
+
+                Float draggingY = nextModel.get(TabProperties.DRAGGING_Y);
+                if (draggingY != null) {
+                    childDraggingY = draggingY;
+                }
             } else {
-                nextSiblingView = v;
+                mCurrentGroupInfo.mNextSiblingView = v;
                 break;
             }
         }
 
-        // Case 1: Fully collapsed or actively collapsing group.
-        if (isCollapsed) {
-            // If this group is in mCollapsingGroupIds, it is actively collapsing. Connect its spine
-            // bottom to the next group.
-            if (mCollapsingGroupIds.contains(groupId) && nextSiblingView != null) {
-                return nextSiblingView.getTop() + nextSiblingView.getTranslationY() - mMarginBottom;
+        mCurrentGroupInfo.mIsChildBeingDraggedInternally = childDraggingY != null;
+        if (isHeader) {
+            mCurrentGroupInfo.mIsCollapsed = model.get(TabProperties.IS_COLLAPSED);
+            mCurrentGroupInfo.mGroupDraggingY = model.get(TabProperties.DRAGGING_Y);
+
+            // If there is only one child, and the child is being dragged, then the whole tab group
+            // is being dragged.
+            if (mCurrentGroupInfo.mIsChildBeingDraggedInternally
+                    && tabModel.getTabCountForGroup(groupId) <= 1) {
+                mCurrentGroupInfo.mIsChildBeingDraggedInternally = false;
+                mCurrentGroupInfo.mGroupDraggingY = childDraggingY;
             }
-            // If it's fully collapsed, do not draw spine
-            return Integer.MIN_VALUE;
+        }
+        return true;
+    }
+
+    private static class GroupInfo {
+        @Nullable View mView;
+        @Nullable Integer mColorId;
+        boolean mIsHeader;
+        boolean mIsBeingCollapsedOrExpanded;
+        boolean mIsCollapsed;
+        // A non-null draggingY indicates the entire group is being dragged.
+        @Nullable Float mGroupDraggingY;
+        boolean mIsChildBeingDraggedInternally;
+
+        @Nullable View mLastGroupView;
+        @Nullable View mLastStableGroupView;
+        @Nullable View mNextSiblingView;
+
+        private @Nullable Token mGroupId;
+
+        void reset(Token groupId, View view) {
+            mGroupId = groupId;
+            mView = view;
+            mColorId = null;
+            mIsHeader = false;
+            mIsBeingCollapsedOrExpanded = false;
+            mIsCollapsed = false;
+            mGroupDraggingY = null;
+            mIsChildBeingDraggedInternally = false;
+
+            mLastGroupView = view;
+            mLastStableGroupView = view;
+            mNextSiblingView = null;
         }
 
-        // Case 2: Middle group with items below it.
-        // When static (no tabs are being dragged, or only the internal tab is being dragged),
-        // connect the spine bottom to the top of the next group to eliminate sub-pixel gaps.
-        if ((!anyTabBeingDragged || isChildBeingDragged) && nextSiblingView != null) {
-            return nextSiblingView.getTop() + nextSiblingView.getTranslationY() - mMarginBottom;
+        private int getColor(Context context, boolean isIncognito, TabModel tabModel) {
+            assert mGroupId != null;
+            int colorId =
+                    mColorId != null ? mColorId : tabModel.getTabGroupColorWithFallback(mGroupId);
+            return TabGroupColorPickerUtils.getTabGroupColorPickerItemColor(
+                    context, colorId, isIncognito);
         }
-
-        // Case 3: The tab group is being dragged, or if there are more items in the adapter that
-        // are being pushed off-screen,  the spine should stick to the bottom without shrinking/any
-        // animation.
-        float targetBottom = lastGroupView.getBottom() + lastGroupView.getTranslationY();
-
-        int lastPos = parent.getChildAdapterPosition(lastGroupView);
-        boolean hasSubsequentItems = lastPos < mModel.size() - 1;
-        if (anyTabBeingDragged || hasSubsequentItems) {
-            return targetBottom;
-        }
-
-        // Case 4: The last group shown on the list.
-        // TODO(b/521987032): check why lastGroupView's translationY is not stable when dragging an
-        // internal tab in this tab group
-        float startBottom = lastStableGroupView.getBottom() + lastStableGroupView.getTranslationY();
-        float t = lastGroupView.getAlpha();
-        return startBottom + ((targetBottom - startBottom) * t);
     }
 
     private static class ChildPositionComparator implements Comparator<View> {

@@ -243,7 +243,7 @@ PasswordAutofillManager::GetWebauthnSignInWithAnotherDeviceSuggestion() const {
 }
 
 std::variant<autofill::AutofillDriver*, PasswordManagerDriver*>
-PasswordAutofillManager::GetDriver() {
+PasswordAutofillManager::GetDriver_DoNotUse() {
   return password_manager_driver_.get();
 }
 
@@ -555,6 +555,17 @@ void PasswordAutofillManager::ShowSuggestions(
   }
 #endif  // !BUILDFLAG(IS_ANDROID)
   if (autofill::IsPasswordsAutofillManuallyTriggered(field.trigger_source)) {
+    if (base::FeatureList::IsEnabled(
+            features::kPasswordManualFallbackSecurityChecks)) {
+      const bool manual_fallback_allowed_for_frame =
+          password_manager_driver_->HasValidURL(/*may_kill_renderer=*/true) &&
+          password_manager_driver_->IsRenderFrameHostSupported();
+      if (!manual_fallback_allowed_for_frame) {
+        // Do not show manual fallback suggestions if the current frame doesn't
+        // meet security criteria, see crbug.com/521502218.
+        return;
+      }
+    }
     if (!manual_fallback_flow_) {
       manual_fallback_flow_ = std::make_unique<PasswordManualFallbackFlow>(
           password_manager_driver_, autofill_client_, password_client_,
@@ -565,7 +576,7 @@ void PasswordAutofillManager::ShowSuggestions(
               password_client_->GetProfilePasswordStore(),
               password_client_->GetAccountPasswordStore()));
     }
-    manual_fallback_flow_->RunFlow(field.element_id.renderer_id, field.bounds,
+    manual_fallback_flow_->RunFlow(field.element_id, field.bounds,
                                    field.text_direction);
     return;
   }
@@ -646,7 +657,7 @@ void PasswordAutofillManager::OnPasskeysReady(
 void PasswordAutofillManager::ContinueShowingSuggestions(
     const autofill::TriggeringField& field) {
   bool autofill_available = ShowPopup(
-      field.bounds, field.text_direction,
+      field.element_id, field.bounds, field.text_direction,
       GetSuggestions(field.typed_username, OffersGeneration(false),
                      ShowPasswordSuggestions(true),
                      ShowWebAuthnCredentials(field.show_webauthn_credentials),
@@ -661,9 +672,10 @@ void PasswordAutofillManager::ContinueShowingSuggestions(
 }
 
 bool PasswordAutofillManager::MaybeShowPasswordSuggestions(
+    const autofill::FieldGlobalId& field_id,
     const gfx::RectF& bounds,
     base::i18n::TextDirection text_direction) {
-  return ShowPopup(bounds, text_direction,
+  return ShowPopup(field_id, bounds, text_direction,
                    GetSuggestions(std::u16string(), OffersGeneration(false),
                                   ShowPasswordSuggestions(true),
                                   ShowWebAuthnCredentials(false),
@@ -672,11 +684,12 @@ bool PasswordAutofillManager::MaybeShowPasswordSuggestions(
 }
 
 bool PasswordAutofillManager::MaybeShowPasswordSuggestionsWithGeneration(
+    const autofill::FieldGlobalId& field_id,
     const gfx::RectF& bounds,
     base::i18n::TextDirection text_direction,
     bool show_password_suggestions) {
   return ShowPopup(
-      bounds, text_direction,
+      field_id, bounds, text_direction,
       GetSuggestions(std::u16string(), OffersGeneration(true),
                      ShowPasswordSuggestions(show_password_suggestions),
                      ShowWebAuthnCredentials(false),
@@ -714,6 +727,7 @@ base::WeakPtr<PasswordAutofillManager> PasswordAutofillManager::GetWeakPtr() {
 // PasswordAutofillManager, private:
 
 bool PasswordAutofillManager::ShowPopup(
+    const autofill::FieldGlobalId& field_id,
     const gfx::RectF& bounds,
     base::i18n::TextDirection text_direction,
     const std::vector<Suggestion>& suggestions,
@@ -744,7 +758,7 @@ bool PasswordAutofillManager::ShowPopup(
         suggestions, is_for_webauthn_request);
     // TODO(crbug.com/41474723): Set the right `form_control_ax_id`.
     last_popup_open_args_ = autofill::AutofillClient::PopupOpenArgs(
-        bounds, text_direction, suggestions,
+        field_id.frame_token, bounds, text_direction, suggestions,
         autofill::AutofillSuggestionTriggerSource::kPasswordManager,
         /*form_control_ax_id=*/0, autofill::PopupAnchorType::kField);
   }

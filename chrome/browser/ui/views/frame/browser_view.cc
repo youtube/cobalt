@@ -127,6 +127,7 @@
 #include "chrome/browser/ui/toolbar/chrome_labs/chrome_labs_utils.h"
 #include "chrome/browser/ui/toolbar/toolbar_pref_names.h"
 #include "chrome/browser/ui/ui_features.h"
+#include "chrome/browser/ui/unload_controller.h"
 #include "chrome/browser/ui/user_education/browser_user_education_interface.h"
 #include "chrome/browser/ui/view_ids.h"
 #include "chrome/browser/ui/views/accessibility/accessibility_focus_highlight.h"
@@ -3076,7 +3077,7 @@ DownloadBubbleUIController* BrowserView::GetDownloadBubbleUIController() {
 
 void BrowserView::ConfirmBrowserCloseWithPendingDownloads(
     int download_count,
-    Browser::DownloadCloseType dialog_type,
+    UnloadController::DownloadCloseType dialog_type,
     base::OnceCallback<void(bool)> callback) {
   // The dialog eats mouse events which results in the close button
   // getting stuck in the hover state. Reset the window controls to
@@ -3375,10 +3376,18 @@ void BrowserView::OnSplitTabChanged(const SplitTabChange& change) {
           browser_->tab_strip_model()->GetActiveTab();
 
       if (active_tab->GetSplit() == change.split_id) {
-        if (change.GetVisualsChange()->new_visual_data() !=
-            change.GetVisualsChange()->old_visual_data()) {
-          multi_contents_view_->UpdateSplitVisualData(
-              change.GetVisualsChange()->new_visual_data());
+        multi_contents_view_->UpdateSplitVisualData(
+            change.GetVisualsChange()->new_visual_data());
+      }
+
+      if (change.GetVisualsChange()->reason() ==
+          SplitTabChange::SplitVisualChangeReason::kLayoutUpdated) {
+        gfx::Range split_indices_range = browser_->tab_strip_model()
+                                             ->GetSplitData(change.split_id)
+                                             ->GetIndexRange();
+        for (size_t i = split_indices_range.start();
+             i < split_indices_range.end(); ++i) {
+          UpdateAccessibleNameForTabAt(i);
         }
       }
       break;
@@ -3648,23 +3657,6 @@ std::u16string BrowserView::GetAccessibleWindowTitleForChannelAndProfile(
   }
 
   return title;
-}
-
-void BrowserView::UpdateAccessibleNameForAllTabs() {
-  for (int i = 0; i < browser()->tab_strip_model()->count(); ++i) {
-    std::u16string accessible_title = tabs::GetAccessibleTabLabel(
-        browser()->tab_strip_model()->GetTabAtIndex(i), /*is_for_tab=*/true);
-    views::View* tab = tab_strip_view()->GetTabAnchorViewAt(i);
-    CHECK(tab);
-    if (accessible_title.empty()) {
-      // Under the right conditions GetAccessibleTabLabel can return an empty
-      // string.
-      tab->GetViewAccessibility().SetName(
-          std::string(), ax::mojom::NameFrom::kAttributeExplicitlyEmpty);
-    } else {
-      tab->GetViewAccessibility().SetName(accessible_title);
-    }
-  }
 }
 
 std::vector<views::NativeViewHost*>
@@ -4479,7 +4471,7 @@ views::CloseRequestResult BrowserView::OnWindowCloseRequested() {
 
   // Give beforeunload handlers, the user, or policy the chance to cancel the
   // close before we hide the window below.
-  if (!browser_->HandleBeforeClose()) {
+  if (!UnloadController::From(browser_)->HandleBeforeClose()) {
     return views::CloseRequestResult::kCannotClose;
   }
 
@@ -4496,7 +4488,7 @@ views::CloseRequestResult BrowserView::OnWindowCloseRequested() {
   // when the layout manager is destroyed in the destructor, but it also needs
   // to happen when the tabstrip model is being torn down.
   base::AutoReset<bool> suppress_layout(&suppress_layout_for_teardown_, true);
-  browser_->OnWindowClosing();
+  UnloadController::From(browser_)->OnWindowClosing();
   return result;
 }
 
@@ -5925,6 +5917,29 @@ void BrowserView::FrameColorsChanged() {
     web_app_window_title_->SetEnabledColor(caption_color);
   }
   GetWidget()->SetBackgroundColor(kColorToolbar);
+}
+
+void BrowserView::UpdateAccessibleNameForAllTabs() {
+  for (int i = 0; i < browser()->tab_strip_model()->count(); ++i) {
+    UpdateAccessibleNameForTabAt(i);
+  }
+}
+
+// TODO(crbug.com/529834985): See if we can consolidate the logic here and in
+// TabView::UpdateAccessibleName/TabView::UpdateAccessibleName.
+void BrowserView::UpdateAccessibleNameForTabAt(int index) {
+  std::u16string accessible_title = tabs::GetAccessibleTabLabel(
+      browser()->tab_strip_model()->GetTabAtIndex(index), /*is_for_tab=*/true);
+  views::View* tab = tab_strip_view()->GetTabAnchorViewAt(index);
+  CHECK(tab);
+  if (accessible_title.empty()) {
+    // Under the right conditions GetAccessibleTabLabel can return an empty
+    // string.
+    tab->GetViewAccessibility().SetName(
+        std::string(), ax::mojom::NameFrom::kAttributeExplicitlyEmpty);
+  } else {
+    tab->GetViewAccessibility().SetName(accessible_title);
+  }
 }
 
 void BrowserView::UpdateAccessibleNameForRootView() {

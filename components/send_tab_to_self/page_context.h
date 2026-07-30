@@ -96,7 +96,8 @@ struct PageContext {
 
     std::u16string id_attribute;
     std::u16string name_attribute;
-    std::string form_control_type;
+    autofill::FormControlType form_control_type =
+        autofill::FormControlType::kInputText;
     std::u16string value;
     FormFieldAutofillSignature autofill_signature;
     base::flat_set<sync_pb::FormField_AutofillFieldType> autofill_types;

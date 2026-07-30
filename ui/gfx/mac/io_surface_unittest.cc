@@ -4,12 +4,64 @@
 
 #include "ui/gfx/mac/io_surface.h"
 
+#include <CoreVideo/CoreVideo.h>
+
 #include "components/viz/common/resources/shared_image_format.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace gfx {
 
 namespace {
+
+TEST(IOSurface, SharedImageFormatToIOSurfacePixelFormat) {
+  bool override_rgba_to_bgra = true;
+  EXPECT_EQ(SharedImageFormatToIOSurfacePixelFormat(
+                viz::SinglePlaneFormat::kR_8, override_rgba_to_bgra),
+            static_cast<uint32_t>(kCVPixelFormatType_OneComponent8));
+  EXPECT_EQ(
+      SharedImageFormatToIOSurfacePixelFormat(viz::MultiPlaneFormat::kNV12,
+                                              override_rgba_to_bgra),
+      static_cast<uint32_t>(kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange));
+  EXPECT_EQ(
+      SharedImageFormatToIOSurfacePixelFormat(viz::MultiPlaneFormat::kP010,
+                                              override_rgba_to_bgra),
+      static_cast<uint32_t>(kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange));
+  EXPECT_EQ(SharedImageFormatToIOSurfacePixelFormat(
+                viz::MultiPlaneFormat::kI420, override_rgba_to_bgra),
+            static_cast<uint32_t>(kCVPixelFormatType_420YpCbCr8Planar));
+  EXPECT_EQ(SharedImageFormatToIOSurfacePixelFormat(
+                viz::MultiPlaneFormat::kYV12, override_rgba_to_bgra),
+            std::nullopt);
+}
+
+TEST(IOSurface, IOSurfacePixelFormatToSharedImageFormat) {
+  EXPECT_EQ(
+      IOSurfacePixelFormatToSharedImageFormat(kCVPixelFormatType_OneComponent8),
+      viz::SinglePlaneFormat::kR_8);
+  EXPECT_EQ(IOSurfacePixelFormatToSharedImageFormat(
+                kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange),
+            viz::MultiPlaneFormat::kNV12);
+  EXPECT_EQ(IOSurfacePixelFormatToSharedImageFormat(
+                kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange),
+            viz::MultiPlaneFormat::kP010);
+  EXPECT_EQ(IOSurfacePixelFormatToSharedImageFormat(
+                kCVPixelFormatType_420YpCbCr8Planar),
+            viz::MultiPlaneFormat::kI420);
+  EXPECT_EQ(IOSurfacePixelFormatToSharedImageFormat('FAKE'), std::nullopt);
+}
+
+TEST(IOSurface, WebGPUCompatibility) {
+  EXPECT_TRUE(
+      IOSurfacePixelFormatIsWebGPUCompatible(kCVPixelFormatType_32BGRA));
+  EXPECT_TRUE(
+      IOSurfacePixelFormatIsWebGPUCompatible(kCVPixelFormatType_32RGBA));
+  EXPECT_TRUE(IOSurfacePixelFormatIsWebGPUCompatible(
+      kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange));
+  EXPECT_TRUE(IOSurfacePixelFormatIsWebGPUCompatible(
+      kCVPixelFormatType_TwoComponent16Half));
+  EXPECT_FALSE(IOSurfacePixelFormatIsWebGPUCompatible(
+      kCVPixelFormatType_420YpCbCr8Planar));
+}
 
 TEST(IOSurface, OddSizeMultiPlanar) {
   base::apple::ScopedCFTypeRef<IOSurfaceRef> io_surface =

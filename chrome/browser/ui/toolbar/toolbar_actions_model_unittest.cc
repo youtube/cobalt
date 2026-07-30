@@ -248,7 +248,6 @@ void ToolbarActionsModelUnitTest::RunEmitUserHistogramsTest(
 
   InitToolbarModelAndObserver();
 
-  histograms.ExpectTotalCount("ExtensionToolbarModel.BrowserActionsCount", 1);
   histograms.ExpectTotalCount("Extension.Toolbar.BrowserActionsCount2",
                               incremented_histogram_count);
 }
@@ -427,6 +426,47 @@ TEST_F(ToolbarActionsModelUnitTest,
   EXPECT_EQ(3u, num_actions());
   EXPECT_THAT(toolbar_model()->pinned_action_ids(),
               ::testing::ElementsAre(extension_b->id(), extension_c->id()));
+}
+
+// Test that new extension actions are pinned on installation when the
+// feature is enabled and the preference is enabled.
+TEST_F(ToolbarActionsModelUnitTest,
+       NewExtensionsArePinnedWhenPinnedByDefaultEnabledAndPrefEnabled) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(features::kExtensionsPinnedByDefault);
+  Init();
+
+  profile()->GetPrefs()->SetBoolean(prefs::kExtensionsPinnedByDefault, true);
+
+  // Load an extension.
+  extensions::TestExtensionDir test_dir;
+  const extensions::Extension* extension =
+      InstallExtensionWithAction(test_dir, "test_extension");
+  ASSERT_TRUE(extension);
+
+  EXPECT_EQ(1u, num_actions());
+  EXPECT_THAT(toolbar_model()->pinned_action_ids(),
+              ::testing::ElementsAre(extension->id()));
+}
+
+// Test that new extension actions are NOT pinned on installation when the
+// feature is enabled but the preference is disabled.
+TEST_F(ToolbarActionsModelUnitTest,
+       NewExtensionsAreUnpinnedWhenPinnedByDefaultEnabledButPrefDisabled) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(features::kExtensionsPinnedByDefault);
+  Init();
+
+  profile()->GetPrefs()->SetBoolean(prefs::kExtensionsPinnedByDefault, false);
+
+  // Load an extension.
+  extensions::TestExtensionDir test_dir;
+  const extensions::Extension* extension =
+      InstallExtensionWithAction(test_dir, "test_extension");
+  ASSERT_TRUE(extension);
+
+  EXPECT_EQ(1u, num_actions());
+  EXPECT_THAT(toolbar_model()->pinned_action_ids(), ::testing::IsEmpty());
 }
 
 // Test that new extension actions are NOT pinned on installation when the

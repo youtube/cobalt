@@ -132,7 +132,8 @@ class DeviceCommandFetchCrdAvailabilityInfoJobTest
   }
 
   Result CreateAndRunJob() {
-    DeviceCommandFetchCrdAvailabilityInfoJob job;
+    DeviceCommandFetchCrdAvailabilityInfoJob job(
+        TestingBrowserProcess::GetGlobal()->local_state());
 
     bool initialized = job.Init(base::TimeTicks::Now(), GenerateCommandProto(),
                                 enterprise_management::SignedData());
@@ -253,7 +254,8 @@ class DeviceCommandFetchCrdAvailabilityInfoJobTestParameterizedOverSessionType
 };
 
 TEST_F(DeviceCommandFetchCrdAvailabilityInfoJobTest, GetType) {
-  DeviceCommandFetchCrdAvailabilityInfoJob job;
+  DeviceCommandFetchCrdAvailabilityInfoJob job(
+      TestingBrowserProcess::GetGlobal()->local_state());
   EXPECT_EQ(job.GetType(), RemoteCommand::FETCH_CRD_AVAILABILITY_INFO);
 }
 

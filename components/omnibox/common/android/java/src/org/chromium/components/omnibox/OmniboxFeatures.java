@@ -118,6 +118,9 @@ public class OmniboxFeatures {
                     OmniboxFeatureList.OMNIBOX_FUSEBOX_ASYNC_INFLATION,
                     FeatureState.ENABLED_IN_TEST);
 
+    public static final CachedFlag sOmniboxAimImageDownscaling =
+            newFlag(OmniboxFeatureList.OMNIBOX_AIM_IMAGE_DOWNSCALING, FeatureState.DISABLED);
+
     public static final CachedFlag sJumpStartOmnibox =
             newFlag(OmniboxFeatureList.JUMP_START_OMNIBOX, FeatureState.ENABLED_IN_TEST);
 
@@ -192,6 +195,9 @@ public class OmniboxFeatures {
 
     public static final CachedFlag sResetSuggestionsScroll =
             newFlag(OmniboxFeatureList.RESET_SUGGESTIONS_SCROLL, FeatureState.DISABLED);
+
+    public static final CachedFlag sOmniboxListMenuContextMenu =
+            newFlag(OmniboxFeatureList.OMNIBOX_LIST_MENU_CONTEXT_MENU, FeatureState.DISABLED);
 
     public static final IntCachedFeatureParam sGeolocationRequestTimeoutMinutes =
             newIntParam(

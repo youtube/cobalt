@@ -42,7 +42,7 @@ class ExternalInstallError {
   // Returns the alert type of error UI.
   virtual AlertType alert_type() const = 0;
 
-  virtual ExtensionInstallPrompt::Prompt* GetPromptForTesting() const = 0;
+  virtual InstallPromptData* GetPromptForTesting() const = 0;
 };
 
 }  // namespace extensions

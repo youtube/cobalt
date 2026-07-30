@@ -12,6 +12,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/single_thread_task_runner.h"
+#include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/suggestions/contextual_cueing_features.h"
 #include "chrome/browser/glic/suggestions/zero_state_suggestions_page_data.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
@@ -180,8 +181,8 @@ void ZeroStateSuggestionsRequest::OnAllPageContextExtracted(
         identity_manager_->FindExtendedAccountInfoByAccountId(
             primary_account.account_id);
     account_can_use_private_ai =
-        extended_info.GetAccountCapabilities()
-            .can_use_model_execution_features() == signin::Tribool::kTrue;
+        GlicEnabling::CanUseAdultFeatures(
+            extended_info.GetAccountCapabilities());
   }
 
   optimization_guide::ModelExecutionServiceType service_type =

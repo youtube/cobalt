@@ -328,11 +328,27 @@ int OmniboxFieldTrial::MaxNumHQPUrlsIndexedAtStartup() {
   constexpr int kDefaultOnNonLowEndDevices = 20000;
 #endif
 
-  if (base::SysInfo::IsLowEndDeviceOrPartialLowEndModeEnabled()) {
-    return kDefaultOnLowEndDevices;
-  } else {
-    return kDefaultOnNonLowEndDevices;
+  const bool is_low_end =
+      base::SysInfo::IsLowEndDeviceOrPartialLowEndModeEnabled();
+  const int default_value =
+      is_low_end ? kDefaultOnLowEndDevices : kDefaultOnNonLowEndDevices;
+
+  // Allow the startup cap to be overridden via the bundled omnibox field trial,
+  // honoring the kMaxNumHQPUrlsIndexedAtStartupOn{Low,NonLow}EndDevicesParam
+  // parameters (previously declared but never read). Falls back to the
+  // constants above when no valid, positive value is configured, so default
+  // behavior is unchanged. Mirrors the HQPMaxVisitsToScore() pattern below.
+  const char* param_name =
+      is_low_end ? kMaxNumHQPUrlsIndexedAtStartupOnLowEndDevicesParam
+                 : kMaxNumHQPUrlsIndexedAtStartupOnNonLowEndDevicesParam;
+  const std::string param_value = base::GetFieldTrialParamValue(
+      kBundledExperimentFieldTrialName, param_name);
+  int parsed_value = 0;
+  if (!param_value.empty() && base::StringToInt(param_value, &parsed_value) &&
+      parsed_value > 0) {
+    return parsed_value;
   }
+  return default_value;
 }
 
 size_t OmniboxFieldTrial::HQPMaxVisitsToScore() {

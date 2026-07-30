@@ -9,6 +9,7 @@
 #include "base/containers/flat_set.h"
 #include "base/functional/callback.h"
 #include "base/logging.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/strcat.h"
@@ -58,13 +59,15 @@ ReferenceOpenOutcome MapStreamOpenOutcomeToReferenceOpenOutcome(
       return ReferenceOpenOutcome::STREAM_OPEN_SYSTEM_PERMISSIONS_ERROR;
     case OpenOutcome::kFailedInUse:
       return ReferenceOpenOutcome::STREAM_OPEN_DEVICE_IN_USE_ERROR;
+    case OpenOutcome::kFailedDeviceRemoved:
+      return ReferenceOpenOutcome::STREAM_OPEN_DEVICE_REMOVED_ERROR;
     default:
       return ReferenceOpenOutcome::STREAM_OPEN_ERROR;
   }
 }
 
 ReferenceOpenOutcome ReportOpenResult(ReferenceOpenOutcome outcome) {
-  base::UmaHistogramEnumeration("Media.Audio.LoopbackReference.OpenResult",
+  base::UmaHistogramEnumeration("Media.Audio.LoopbackReference.OpenResult2",
                                 outcome);
   return outcome;
 }
@@ -301,7 +304,8 @@ class LoopbackReferenceManagerCore
   int sample_rate_;
 
   base::Lock lock_;
-  base::flat_set<ReferenceOutput::Listener*> listeners_ GUARDED_BY(lock_);
+  base::flat_set<raw_ptr<ReferenceOutput::Listener>> listeners_
+      GUARDED_BY(lock_);
 
   base::WeakPtrFactory<LoopbackReferenceManagerCore> weak_ptr_factory_{this};
 };

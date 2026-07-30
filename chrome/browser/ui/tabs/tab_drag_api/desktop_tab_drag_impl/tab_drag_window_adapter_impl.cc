@@ -5,6 +5,7 @@
 #include "chrome/browser/ui/tabs/tab_drag_api/desktop_tab_drag_impl/tab_drag_window_adapter_impl.h"
 
 #include "base/notimplemented.h"
+#include "base/scoped_observation.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/global_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
@@ -16,6 +17,7 @@
 #include "components/browser_apis/tab_drag/sessions/tab_drag_window_registry.h"
 #include "mojo/public/mojom/base/error.mojom.h"
 #include "ui/base/base_window.h"
+#include "ui/display/screen.h"
 #include "ui/views/controls/native/native_view_host.h"
 #include "ui/views/view_utils.h"
 #include "ui/views/widget/widget.h"
@@ -168,7 +170,8 @@ TabDragWindowAdapterImpl::DetachToNewWindow(
 
 tabs_api::DragMoveLoopResult TabDragWindowAdapterImpl::RunWindowMoveLoop(
     const gfx::Point& screen_point,
-    const gfx::Vector2d& drag_offset) {
+    const gfx::Vector2d& drag_offset,
+    tabs_api::TabDragWindowAdapter::WindowMoveCallback move_callback) {
   if (!browser_window_) {
     return tabs_api::DragMoveLoopResult::kCanceled;
   }
@@ -184,9 +187,17 @@ tabs_api::DragMoveLoopResult TabDragWindowAdapterImpl::RunWindowMoveLoop(
   gfx::Point new_origin = screen_point - drag_offset;
   widget->SetBounds(gfx::Rect(new_origin, bounds.size()));
 
+  move_callback_ = std::move(move_callback);
+
+  base::ScopedObservation<views::Widget, views::WidgetObserver> observation(
+      this);
+  observation.Observe(widget);
+
   views::Widget::MoveLoopResult result =
       widget->RunMoveLoop(drag_offset, views::Widget::MoveLoopSource::kMouse,
                           views::Widget::MoveLoopEscapeBehavior::kHide);
+
+  move_callback_.Reset();
 
   return result == views::Widget::MoveLoopResult::kSuccessful
              ? tabs_api::DragMoveLoopResult::kSuccess
@@ -285,4 +296,12 @@ TabDragWindowAdapterImpl::MigrateTabs(
   }
 
   return base::ok();
+}
+
+void TabDragWindowAdapterImpl::OnWidgetBoundsChanged(
+    views::Widget* widget,
+    const gfx::Rect& new_bounds) {
+  if (move_callback_) {
+    move_callback_.Run(display::Screen::Get()->GetCursorScreenPoint());
+  }
 }

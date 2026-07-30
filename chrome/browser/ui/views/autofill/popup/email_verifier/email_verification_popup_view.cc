@@ -9,7 +9,6 @@
 
 #include "base/functional/bind.h"
 #include "base/memory/weak_ptr.h"
-#include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/favicon/large_icon_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/autofill/email_verifier/email_verification_popup_controller.h"

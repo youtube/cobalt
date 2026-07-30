@@ -5,7 +5,7 @@
 /**
  * @fileoverview
  * settings-slider wraps a cr-slider. It maps the slider's values from a
- * linear UI range to a range of real values.  When |value| does not map exactly
+ * linear UI range to a range of real values. When |value| does not map exactly
  * to a tick mark, it interpolates to the nearest tick.
  */
 import '//resources/cr_elements/cr_shared_vars.css.js';
@@ -14,12 +14,16 @@ import '/shared/settings/controls/cr_policy_pref_indicator.js';
 
 import type {CrSliderElement, SliderTick} from '//resources/cr_elements/cr_slider/cr_slider.js';
 import {assert} from '//resources/js/assert.js';
-import {PolymerElement} from '//resources/polymer/v3_0/polymer/polymer_bundled.min.js';
-import {CrPolicyPrefMixin} from '/shared/settings/controls/cr_policy_pref_mixin.js';
+import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
+import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
+import {CrPolicyPrefMixinLit} from '/shared/settings/controls/cr_policy_pref_mixin_lit.js';
+import {PrefService} from '/shared/settings/prefs2/pref_service.js';
+import {PrefServiceObserverMixinLit} from '/shared/settings/prefs2/pref_service_observer_mixin_lit.js';
 
 import {loadTimeData} from '../i18n_setup.js';
 
-import {getTemplate} from './settings_slider.html.js';
+import {getCss} from './settings_slider.css.js';
+import {getHtml} from './settings_slider.html.js';
 
 export interface SettingsSliderElement {
   $: {
@@ -27,97 +31,102 @@ export interface SettingsSliderElement {
   };
 }
 
-const SettingsSliderElementBase = CrPolicyPrefMixin(PolymerElement);
+const SettingsSliderElementBase =
+    CrPolicyPrefMixinLit(PrefServiceObserverMixinLit(CrLitElement));
 
 export class SettingsSliderElement extends SettingsSliderElementBase {
   static get is() {
     return 'settings-slider';
   }
 
-  static get template() {
-    return getTemplate();
+  static override get styles() {
+    return getCss();
   }
 
-  static get properties() {
-    return {
-      pref: Object,
+  override render() {
+    return getHtml.bind(this)();
+  }
 
-      /**
-       * Values corresponding to each tick.
-       */
-      ticks: {
-        type: Array,
-        value: () => [],
-      },
+  static override get properties() {
+    return {
+      /** Values corresponding to each tick. */
+      ticks: {type: Array},
 
       /**
        * A scale factor used to support fractional pref values. This is not
        * compatible with |ticks|, i.e. if |scale| is not 1 then |ticks| must be
        * empty.
        */
-      scale: {
-        type: Number,
-        value: 1,
-      },
+      scale: {type: Number},
 
-      min: Number,
-
-      max: Number,
-
-      labelAria: String,
-
-      labelMin: String,
-
-      labelMax: String,
-
-      disabled: Boolean,
+      min: {type: Number},
+      max: {type: Number},
+      labelAria: {type: String},
+      labelMin: {type: String},
+      labelMax: {type: String},
+      disabled: {type: Boolean},
 
       // The value of ariaDisabled should only be "true" or "false".
-      ariaDisabled: String,
+      ariaDisabled: {type: String},
 
-      showMarkers: Boolean,
-
-      disableSlider_: {
-        computed: 'computeDisableSlider_(pref.*, disabled, ticks.*)',
-        type: Boolean,
-      },
-
-      updateValueInstantly: {
-        type: Boolean,
-        value: true,
-        observer: 'onSliderChanged_',
-      },
-
-      loaded_: Boolean,
+      showMarkers: {type: Boolean},
+      disableSlider_: {type: Boolean},
+      updateValueInstantly: {type: Boolean},
+      sliderValue_: {type: Number},
+      markerCount_: {type: Number},
+      prefKey: {type: String},
+      pref: {type: Object},
     };
   }
 
-  static get observers() {
-    return [
-      'valueChanged_(pref.*, ticks.*, loaded_)',
-    ];
+  accessor prefKey: string = '';
+  override accessor pref: chrome.settingsPrivate.PrefObject<number>|undefined =
+      undefined;
+
+  accessor ticks: SliderTick[]|number[] = [];
+  accessor scale: number = 1;
+  accessor min: number|undefined = undefined;
+  accessor max: number|undefined = undefined;
+  accessor labelAria: string = '';
+  accessor labelMin: string = '';
+  accessor labelMax: string = '';
+  accessor disabled: boolean = false;
+  override accessor ariaDisabled: string = '';
+  accessor showMarkers: boolean = false;
+  accessor updateValueInstantly: boolean = true;
+
+  protected accessor disableSlider_: boolean = false;
+  protected accessor sliderValue_: number = 0;
+  protected accessor markerCount_: number = 0;
+
+  override willUpdate(changedProperties: PropertyValues) {
+    super.willUpdate(changedProperties as PropertyValues<this>);
+
+    if (changedProperties.has('prefKey')) {
+      const oldValue = changedProperties.get('prefKey');
+      // Disallow re-assigning the prefKey after initial assignment.
+      assert(oldValue === undefined || oldValue === '');
+      if (this.prefKey !== '') {
+        this.mirrorPref(this.prefKey, 'pref');
+      }
+    }
+
+    if (changedProperties.has('disabled') || changedProperties.has('pref')) {
+      this.disableSlider_ = this.computeDisableSlider_();
+    }
+
+    if (changedProperties.has('updateValueInstantly')) {
+      this.onSliderChanged_();
+    }
   }
 
-  declare pref: chrome.settingsPrivate.PrefObject<number>;
-  declare ticks: SliderTick[]|number[];
-  declare scale: number;
-  declare min: number;
-  declare max: number;
-  declare labelAria: string;
-  declare labelMin: string;
-  declare labelMax: string;
-  declare disabled: boolean;
-  declare showMarkers: boolean;
-  declare private disableSlider_: boolean;
-  declare updateValueInstantly: boolean;
-  declare private loaded_: boolean;
+  override updated(changedProperties: PropertyValues) {
+    super.updated(changedProperties as PropertyValues<this>);
 
-  declare ariaDisabled: string;
-
-  override connectedCallback() {
-    super.connectedCallback();
-
-    this.loaded_ = true;
+    if (changedProperties.has('pref') || changedProperties.has('ticks') ||
+        changedProperties.has('showMarkers')) {
+      this.valueChanged_();
+    }
   }
 
   override focus() {
@@ -132,12 +141,24 @@ export class SettingsSliderElement extends SettingsSliderElementBase {
     return this.getTickValue_(this.ticks[index]);
   }
 
+  protected onCrSliderValueChanged_() {
+    this.onSliderChanged_();
+  }
+
+  protected onDraggingChanged_() {
+    this.onSliderChanged_();
+  }
+
+  protected onUpdatingFromKey_() {
+    this.onSliderChanged_();
+  }
+
   /**
    * Sets the |pref.value| property to the value corresponding to the knob
    * position after a user action.
    */
   private onSliderChanged_() {
-    if (!this.loaded_) {
+    if (!this.pref) {
       return;
     }
 
@@ -154,7 +175,7 @@ export class SettingsSliderElement extends SettingsSliderElementBase {
       newValue = sliderValue / this.scale;
     }
 
-    this.set('pref.value', newValue);
+    PrefService.getInstance().setPrefValue(this.prefKey, newValue);
   }
 
   private computeDisableSlider_(): boolean {
@@ -167,15 +188,13 @@ export class SettingsSliderElement extends SettingsSliderElementBase {
    * position.
    */
   private valueChanged_() {
-    if (this.pref === undefined || !this.loaded_ || this.$.slider.dragging ||
+    if (this.pref === undefined || this.$.slider.dragging ||
         this.$.slider.updatingFromKey) {
       return;
     }
 
-    // First update the slider settings if |ticks| was set.
     const numTicks = this.ticks.length;
-    if (numTicks === 1) {
-      this.$.slider.disabled = true;
+    if (this.ticks.length === 1) {
       return;
     }
 
@@ -183,14 +202,14 @@ export class SettingsSliderElement extends SettingsSliderElementBase {
 
     // The preference and slider values are continuous when |ticks| is empty.
     if (numTicks === 0) {
-      this.$.slider.value = prefValue * this.scale;
+      this.sliderValue_ = prefValue * this.scale;
       return;
     }
 
     assert(this.scale === 1);
     // Limit the number of ticks to 10 to keep the slider from looking too busy.
     const MAX_TICKS = 10;
-    this.$.slider.markerCount =
+    this.markerCount_ =
         (this.showMarkers || numTicks <= MAX_TICKS) ? numTicks : 0;
 
     // Convert from the public |value| to the slider index (where the knob
@@ -205,16 +224,15 @@ export class SettingsSliderElement extends SettingsSliderElementBase {
                 {index: -1, diff: Number.MAX_VALUE})
             .index;
     assert(index !== -1);
-    if (this.$.slider.value !== index) {
-      this.$.slider.value = index;
-    }
+    this.sliderValue_ = index;
+
     const tickValue = this.getTickValueAtIndex_(index);
     if (this.pref.value !== tickValue) {
-      this.set('pref.value', tickValue);
+      PrefService.getInstance().setPrefValue(this.pref.key, tickValue);
     }
   }
 
-  private getRoleDescription_(): string {
+  protected getRoleDescription_(): string {
     return loadTimeData.getStringF(
         'settingsSliderRoleDescription', this.labelMin, this.labelMax);
   }

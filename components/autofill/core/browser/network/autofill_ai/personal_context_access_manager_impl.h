@@ -83,10 +83,6 @@ class PersonalContextAccessManagerImpl
   void OnEnablementStateChanged(
       personal_context::PersonalContextEnablementState new_state) override;
 
-  // This method should only be used to populate this access manager with
-  // testing entities provided via command line.
-  void SetTestingEntities(const std::vector<EntityInstance>& test_entities);
-
  private:
   friend class PersonalContextAccessManagerImplTestApi;
   using SpiiEntityPresenceSignal = EntityType;

@@ -180,7 +180,6 @@ public class TabGridItemTouchHelperCallback extends TabListItemTouchHelperCallba
         final int swipeFlags =
                 isSwipeable(viewHolder) ? ItemTouchHelper.START | ItemTouchHelper.END : 0;
 
-        mRecyclerViewSupplier.set(recyclerView);
         return makeMovementFlags(dragFlags, swipeFlags);
     }
 

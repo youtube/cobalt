@@ -109,14 +109,15 @@ class UnresponsiveContentAnalysisDelegate : public FakeContentAnalysisDelegate {
       std::string dm_token,
       content::WebContents* web_contents,
       Data data,
-      CompletionCallback callback) {
+      CompletionCallback callback,
+      DeepScanAccessPoint access_point) {
     FilesRequestHandler::SetFactoryForTesting(
         base::BindRepeating(&UnresponsiveFilesRequestHandler::Create));
     enterprise_connectors::ClipboardRequestHandler::SetFactoryForTesting(
         base::BindRepeating(&UnresponsiveClipboardRequestHandler::Create));
     return std::make_unique<UnresponsiveContentAnalysisDelegate>(
         delete_closure, status_callback, std::move(dm_token), web_contents,
-        std::move(data), std::move(callback));
+        std::move(data), std::move(callback), access_point);
   }
 };
 

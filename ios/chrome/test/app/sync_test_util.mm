@@ -541,7 +541,7 @@ std::string AddSendTabToSelfEntryToFakeSyncServer(
         form_field.id_attribute = base::UTF8ToUTF16(name);
         form_field.name_attribute = base::UTF8ToUTF16(name);
         form_field.value = base::UTF8ToUTF16(value);
-        form_field.form_control_type = "text";
+        form_field.form_control_type = autofill::FormControlType::kInputText;
         context.form_field_info.fields.push_back(form_field);
       }
     }

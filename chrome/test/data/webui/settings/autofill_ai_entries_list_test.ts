@@ -102,14 +102,14 @@ suite('AutofillAiEntriesListUiReflectsEligibilityStatus', function() {
 
   async function createEntriesList(
       eligibleUser: boolean = true,
-      autofillAddOtherDatatypesPrefIsEnabled: boolean = false,
+      autofillSettingsEnterprisePolicyEnabled: boolean = false,
       autofillAiAvailableByDefault: boolean = false,
       canEnableOrDisableAutofillAi: boolean =
           false): Promise<SettingsAutofillAiEntriesListElement> {
     loadTimeData.overrideValues({
       userEligibleForAutofillAi: eligibleUser,
-      AutofillAddOtherDatatypesPrefIsEnabled:
-          autofillAddOtherDatatypesPrefIsEnabled,
+      AutofillSettingsEnterprisePolicyEnabled:
+          autofillSettingsEnterprisePolicyEnabled,
       autofillAiAvailableByDefault: autofillAiAvailableByDefault,
       canEnableOrDisableAutofillAi: canEnableOrDisableAutofillAi,
     });
@@ -155,7 +155,7 @@ suite('AutofillAiEntriesListUiReflectsEligibilityStatus', function() {
       async function() {
         const entriesList = await createEntriesList(
             /*eligibleUser=*/ false,
-            /*autofillAddOtherDatatypesPrefIsEnabled=*/ false,
+            /*autofillSettingsEnterprisePolicyEnabled=*/ false,
             /*autofillAiAvailableByDefault=*/ true,
             /*canEnableOrDisableAutofillAi=*/ true);
 
@@ -180,7 +180,7 @@ suite('AutofillAiEntriesListUiReflectsEligibilityStatus', function() {
   test('CannotUseAutofillAiDisablesTheFeature', async function() {
     const entriesList = await createEntriesList(
         /*eligibleUser=*/ false,
-        /*autofillAddOtherDatatypesPrefIsEnabled=*/ false,
+        /*autofillSettingsEnterprisePolicyEnabled=*/ false,
         /*autofillAiAvailableByDefault=*/ true,
         /*canEnableOrDisableAutofillAi=*/ false);
     updateOptInStatus(false, entriesList);
@@ -214,7 +214,7 @@ suite('AutofillAiEntriesListUiReflectsEligibilityStatus', function() {
       async function() {
         const entriesList = await createEntriesList(
             /*eligibleUser=*/ false,
-            /*autofillAddOtherDatatypesPrefIsEnabled=*/ false,
+            /*autofillSettingsEnterprisePolicyEnabled=*/ false,
             /*autofillAiAvailableByDefault=*/ true,
             /*canEnableOrDisableAutofillAi=*/ true);
         await flushTasks();
@@ -238,7 +238,7 @@ suite('AutofillAiEntriesListUiReflectsEligibilityStatus', function() {
       async function() {
         const entriesList = await createEntriesList(
             /*userEligible=*/ true,
-            /*autofillAddOtherDatatypesPrefIsEnabled=*/ true);
+            /*autofillSettingsEnterprisePolicyEnabled=*/ true);
         updateOptInStatus(true, entriesList);
         await flushTasks();
 

@@ -4,6 +4,7 @@
 
 #include "services/network/public/cpp/content_decoding_interceptor.h"
 
+#include "base/byte_size.h"
 #include "base/containers/span.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
@@ -189,8 +190,7 @@ void TestSimpleDecodeTest(const std::string_view file_name,
   EXPECT_CALL(client, OnComplete)
       .WillOnce([&](::network::URLLoaderCompletionStatus st) {
         EXPECT_EQ(st.error_code, net::OK);
-        EXPECT_EQ(st.decoded_body_length,
-                  base::checked_cast<int64_t>(expected_data.size()));
+        EXPECT_EQ(st.decoded_body_length.InBytes(), expected_data.size());
         run_loop.Quit();
       });
   mojo::Receiver<network::mojom::URLLoaderClient> client_receiver(
@@ -282,8 +282,7 @@ TEST_F(ContentDecodingInterceptorTest, OnCompleteBeforeOnFinishDecode) {
   EXPECT_CALL(client, OnComplete)
       .WillOnce([&](::network::URLLoaderCompletionStatus st) {
         EXPECT_EQ(st.error_code, net::OK);
-        EXPECT_EQ(st.decoded_body_length,
-                  base::checked_cast<int64_t>(expected_data.size()));
+        EXPECT_EQ(st.decoded_body_length.InBytes(), expected_data.size());
         run_loop.Quit();
       });
   mojo::Receiver<network::mojom::URLLoaderClient> client_receiver(
@@ -333,7 +332,7 @@ TEST_F(ContentDecodingInterceptorTest, WrongContentType) {
       .WillOnce([&](::network::URLLoaderCompletionStatus st) {
         // OnComplete must be called with ERR_CONTENT_DECODING_FAILED.
         EXPECT_EQ(st.error_code, net::ERR_CONTENT_DECODING_FAILED);
-        EXPECT_EQ(st.decoded_body_length, 0u);
+        EXPECT_EQ(st.decoded_body_length.InBytes(), 0u);
         run_loop.Quit();
       });
   mojo::Receiver<network::mojom::URLLoaderClient> client_receiver(
@@ -384,7 +383,7 @@ TEST_F(ContentDecodingInterceptorTest, UrlLoaderError) {
       .WillOnce([&](::network::URLLoaderCompletionStatus st) {
         // OnComplete must be caled with ERR_FAILED.
         EXPECT_EQ(st.error_code, net::ERR_FAILED);
-        EXPECT_EQ(st.decoded_body_length, 0u);
+        EXPECT_EQ(st.decoded_body_length.InBytes(), 0u);
         run_loop.Quit();
       });
   mojo::Receiver<network::mojom::URLLoaderClient> client_receiver(
@@ -459,8 +458,7 @@ TEST_F(ContentDecodingInterceptorTest, SetPriority) {
   EXPECT_CALL(client, OnComplete)
       .WillOnce([&](network::URLLoaderCompletionStatus st) {
         EXPECT_EQ(st.error_code, net::OK);
-        EXPECT_EQ(st.decoded_body_length,
-                  base::checked_cast<int64_t>(expected_data.size()));
+        EXPECT_EQ(st.decoded_body_length.InBytes(), expected_data.size());
         run_loop.Quit();
       });
   mojo::Receiver<network::mojom::URLLoaderClient> client_receiver(
@@ -517,8 +515,7 @@ TEST_F(ContentDecodingInterceptorTest, OnTransferSizeUpdated) {
   EXPECT_CALL(client, OnComplete)
       .WillOnce([&](network::URLLoaderCompletionStatus st) {
         EXPECT_EQ(st.error_code, net::OK);
-        EXPECT_EQ(st.decoded_body_length,
-                  base::checked_cast<int64_t>(expected_data.size()));
+        EXPECT_EQ(st.decoded_body_length.InBytes(), expected_data.size());
         run_loop.Quit();
       });
   mojo::Receiver<network::mojom::URLLoaderClient> client_receiver(

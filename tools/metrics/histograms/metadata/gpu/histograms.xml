@@ -667,7 +667,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.D3D12FeatureLevel" enum="D3D12FeatureLevel"
-    expires_after="2026-10-25">
+    expires_after="2026-12-27">
   <owner>magchen@chromium.org</owner>
   <owner>zmo@chromium.org</owner>
   <summary>
@@ -724,7 +724,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.DirectComposition.CommitAndClearPendingOverlaysDuration"
-    units="microseconds" expires_after="2026-10-25">
+    units="microseconds" expires_after="2026-12-27">
   <owner>vasilyt@chromium.org</owner>
   <owner>tangm@microsoft.com</owner>
   <summary>
@@ -1240,7 +1240,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Gpu.GraphiteSharedContext.LockAcquireTimeUs"
-    units="microseconds" expires_after="2026-10-25">
+    units="microseconds" expires_after="2026-12-27">
   <owner>sunnyps@chromium.org</owner>
   <owner>magchen@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
@@ -1254,7 +1254,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Gpu.GraphiteSharedContext.LockAcquireTimeUs.LockedThreadInInsertRecording"
-    units="microseconds" expires_after="2026-10-25">
+    units="microseconds" expires_after="2026-12-27">
   <owner>sunnyps@chromium.org</owner>
   <owner>magchen@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
@@ -1269,7 +1269,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Gpu.GraphiteSharedContext.LockAcquireTimeUs.LockedThreadInSubmit"
-    units="microseconds" expires_after="2026-10-25">
+    units="microseconds" expires_after="2026-12-27">
   <owner>sunnyps@chromium.org</owner>
   <owner>magchen@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
@@ -1537,7 +1537,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="GPU.Output.HDR" enum="Boolean" expires_after="2026-10-25">
+<histogram name="GPU.Output.HDR" enum="Boolean" expires_after="2026-12-27">
   <owner>hubbe@chromium.org</owner>
   <owner>cassew@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
@@ -1586,7 +1586,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.PersistentCache.StaleCacheDeleted" enum="Boolean"
-    expires_after="2026-10-25">
+    expires_after="2026-12-27">
   <owner>geofflang@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <owner>mdb.webgpu-dev-team@google.com</owner>
@@ -2290,7 +2290,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NPU.Intel.DeviceId" enum="IntelNpuDeviceId"
-    expires_after="2026-10-25">
+    expires_after="2026-12-27">
   <owner>reillyg@chromium.org</owner>
   <owner>src/services/webnn/OWNERS</owner>
   <summary>
@@ -2487,7 +2487,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Viz.CreateFallbackImageResult"
-    enum="CreateFallbackImageResult" expires_after="2026-10-25">
+    enum="CreateFallbackImageResult" expires_after="2026-12-27">
   <owner>kylechar@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
@@ -2565,6 +2565,19 @@ chromium-metrics-reviews@google.com.
         summary="ExternalDisplayLink using CADisplayLink in the Browser
                  process"/>
   </token>
+</histogram>
+
+<histogram name="Viz.DisplayLink.IpcTimeFromNeedsBeginFramesToVSyncReceived"
+    units="ms" expires_after="2027-06-28">
+  <owner>magchen@chromium.org</owner>
+  <owner>chrome-gpu-metric-alerts@chromium.org</owner>
+  <summary>
+    The time elapsed from when a NeedsBeginFrames(true) request is sent via IPC
+    to the browser process until the first VSync signal is received by the GPU
+    process. This is recorded once per request cycle per display. This is
+    recorded only when the CADisplayLinkInBrowser feature is enabled (which uses
+    ExternalDisplayLink and VSyncProviderMac).
+  </summary>
 </histogram>
 
 <histogram name="Viz.ExternalBeginFrameSource.Interval" units="ms"

@@ -6,6 +6,7 @@
 
 #include "base/compiler_specific.h"
 #include "base/test/scoped_feature_list.h"
+#include "components/autofill/content/renderer/autofill_renderer_test.h"
 #include "components/autofill/content/renderer/form_autofill_util.h"
 #include "components/autofill/content/renderer/test_utils.h"
 #include "components/autofill/core/common/autofill_features.h"
@@ -36,7 +37,7 @@ auto as_invokable(MockFunction<R(Args...)>& fun LIFETIME_BOUND) {
   return [&fun](Args... args) { fun.Call(std::forward<Args>(args)...); };
 }
 
-class FormAutofillIssuesTest : public content::RenderViewTest {
+class FormAutofillIssuesTest : public test::AutofillRendererTest {
  public:
   FormAutofillIssuesTest() {
     feature_list_.InitWithFeatures(
@@ -46,20 +47,6 @@ class FormAutofillIssuesTest : public content::RenderViewTest {
   }
 
   ~FormAutofillIssuesTest() override = default;
-
-  WebDocument GetDocument() { return GetMainFrame()->GetDocument(); }
-
-  FormData ExtractTargetForm(std::string_view id) {
-    static constexpr CallTimerState kCallTimerStateDummy = {
-        .call_site = CallTimerState::CallSite::kUpdateFormCache,
-        .last_autofill_agent_reset = {},
-        .last_dom_content_loaded = {},
-    };
-    return *form_util::ExtractFormData(
-        GetDocument(), GetFormElementById(GetDocument(), id),
-        *base::MakeRefCounted<FieldDataManager>(), kCallTimerStateDummy,
-        /*button_titles_cache=*/nullptr);
-  }
 
  private:
   base::test::ScopedFeatureList feature_list_;
@@ -220,8 +207,9 @@ TEST_F(FormAutofillIssuesTest, FormLabelForNameError) {
   EXPECT_CALL(emit,
               Call(GetDocument(), kFormLabelForNameError, _, WebString("for")))
       .Times(2);
-  EmitFormIssues(GetDocument(), base::span_from_ref(ExtractTargetForm("f")),
-                 as_invokable(emit));
+  std::optional<FormData> form = ExtractFormData("f");
+  ASSERT_TRUE(form);
+  EmitFormIssues(GetDocument(), base::span_from_ref(*form), as_invokable(emit));
 }
 
 TEST_F(FormAutofillIssuesTest, FormLabelForMatchesNonExistingIdError) {
@@ -235,8 +223,9 @@ TEST_F(FormAutofillIssuesTest, FormLabelForMatchesNonExistingIdError) {
   MockEmit emit;
   EXPECT_CALL(emit, Call(GetDocument(), kFormLabelForMatchesNonExistingIdError,
                          _, WebString("for")));
-  EmitFormIssues(GetDocument(), base::span_from_ref(ExtractTargetForm("f")),
-                 as_invokable(emit));
+  std::optional<FormData> form = ExtractFormData("f");
+  ASSERT_TRUE(form);
+  EmitFormIssues(GetDocument(), base::span_from_ref(*form), as_invokable(emit));
 }
 
 // Tests that if the `autofill` and `manual-text` features are disabled in the

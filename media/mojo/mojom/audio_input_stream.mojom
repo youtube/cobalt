@@ -44,6 +44,7 @@ interface AudioInputStreamObserver {
     kDocumentDestroyed = 4,
     kSystemPermissions = 5,
     kDeviceInUse = 6,
+    kDeviceRemoved = 7,
   };
 
   // It will be called only once when input stream starts recording.

@@ -586,7 +586,7 @@ class BrowserView : public BrowserWindow,
   DownloadBubbleUIController* GetDownloadBubbleUIController() override;
   void ConfirmBrowserCloseWithPendingDownloads(
       int download_count,
-      Browser::DownloadCloseType dialog_type,
+      UnloadController::DownloadCloseType dialog_type,
       base::OnceCallback<void(bool)> callback) override;
   void ShowAppMenu() override;
   content::KeyboardEventProcessingResult PreHandleKeyboardEvent(
@@ -801,8 +801,6 @@ class BrowserView : public BrowserWindow,
   // FrameView to get the correct offset. See
   // ThemedBackground::PaintThemeCustomImage for details.
   gfx::Point GetThemeOffsetFromBrowserView() const;
-
-  void UpdateAccessibleNameForAllTabs();
 
 #if BUILDFLAG(ENTERPRISE_SCREENSHOT_PROTECTION)
   void ApplyScreenshotSettings(bool allow);
@@ -1073,6 +1071,9 @@ class BrowserView : public BrowserWindow,
 
   // Called by BrowserWindowZoomObserver when zoom changes on the active tab.
   void ZoomChangedForActiveTab(bool can_show_bubble);
+
+  void UpdateAccessibleNameForAllTabs();
+  void UpdateAccessibleNameForTabAt(int index);
 
   void UpdateAccessibleNameForRootView();
   void UpdateAccessibleURLForRootView(const GURL& url);

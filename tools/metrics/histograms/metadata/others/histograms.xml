@@ -2783,7 +2783,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ClientHints.CriticalCHRestart" enum="CriticalCHRestart"
-    expires_after="2026-10-25">
+    expires_after="2026-12-27">
   <owner>victortan@chromium.org</owner>
   <owner>miketaylr@chromium.org</owner>
   <owner>katabolism-finch@google.com</owner>
@@ -2971,6 +2971,28 @@ chromium-metrics-reviews@google.com.
     Time to complete an Install or an Update component update call. Warning:
     this histogram was expired from 2022-12-20 to 2023-12-04; data may be
     missing.
+  </summary>
+</histogram>
+
+<histogram name="DeclarativePerformanceObserver.BufferLimitExceeded"
+    enum="Boolean" expires_after="2026-12-19">
+  <owner>sisidovski@chromium.org</owner>
+  <owner>chrome-loading@google.com</owner>
+  <summary>
+    Records whether a document's declarative performance observer exceeded its
+    quota and dropped entries. Recorded at the end of the document's lifecycle
+    (session end).
+  </summary>
+</histogram>
+
+<histogram name="DeclarativePerformanceObserver.PeakBufferSize" units="KB"
+    expires_after="2026-12-19">
+  <owner>sisidovski@chromium.org</owner>
+  <owner>chrome-loading@google.com</owner>
+  <summary>
+    Records the peak buffer size (in KB) accumulated by a document's declarative
+    performance observer. Recorded at the end of the document's lifecycle
+    (session end).
   </summary>
 </histogram>
 
@@ -6040,7 +6062,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PushMessaging.PushSubscriptionChangeForNotificationPermissionChangeFired"
-    units="count" expires_after="2026-10-25">
+    units="count" expires_after="2026-12-27">
   <owner>peter@chromium.org</owner>
   <owner>antoniosartori@chromium.org</owner>
   <summary>

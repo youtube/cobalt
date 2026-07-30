@@ -7,9 +7,8 @@
 #include "base/test/bind.h"
 #include "base/test/scoped_feature_list.h"
 #include "build/branding_buildflags.h"
-#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/webui/data_sharing/data_sharing_ui.h"
-#include "chrome/test/base/browser_with_test_window_test.h"
+#include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "components/data_sharing/public/features.h"
 #include "components/saved_tab_groups/public/features.h"
 #include "content/public/test/test_web_ui.h"
@@ -59,27 +58,25 @@ class TestDataSharingPageHandler : public DataSharingPageHandler {
 
 }  // namespace
 
-class DataSharingPageHandlerUnitTest : public BrowserWithTestWindowTest {
+class DataSharingPageHandlerUnitTest : public ChromeRenderViewHostTestHarness {
  public:
   DataSharingPageHandlerUnitTest()
-      : BrowserWithTestWindowTest(
+      : ChromeRenderViewHostTestHarness(
             base::test::SingleThreadTaskEnvironment::TimeSource::MOCK_TIME) {}
   void SetUp() override {
     scoped_feature_list_.InitWithFeatures(
         {data_sharing::features::kDataSharingFeature}, {});
-    BrowserWithTestWindowTest::SetUp();
-    web_contents_ = content::WebContents::Create(
-        content::WebContents::CreateParams(profile()));
-    web_ui_.set_web_contents(web_contents_.get());
+    ChromeRenderViewHostTestHarness::SetUp();
+    web_ui_.set_web_contents(web_contents());
     webui_controller_ = std::make_unique<DataSharingUI>(&web_ui_);
     handler_ = std::make_unique<TestDataSharingPageHandler>(
         webui_controller_.get(), page_.BindAndGetRemote());
   }
 
   void TearDown() override {
-    web_contents_.reset();
     handler_.reset();
-    BrowserWithTestWindowTest::TearDown();
+    webui_controller_.reset();
+    ChromeRenderViewHostTestHarness::TearDown();
   }
 
   TestDataSharingPageHandler* handler() { return handler_.get(); }
@@ -88,7 +85,6 @@ class DataSharingPageHandlerUnitTest : public BrowserWithTestWindowTest {
   testing::StrictMock<MockPage> page_;
 
  private:
-  std::unique_ptr<content::WebContents> web_contents_;
   content::TestWebUI web_ui_;
   std::unique_ptr<TestDataSharingPageHandler> handler_;
   std::unique_ptr<DataSharingUI> webui_controller_;

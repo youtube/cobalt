@@ -6,13 +6,17 @@
 #define COMPONENTS_AUTOFILL_CONTENT_RENDERER_TEST_UTILS_H_
 
 #include <concepts>
+#include <optional>
+#include <string>
 #include <string_view>
 
 #include "base/types/strong_alias.h"
 #include "components/autofill/core/common/unique_ids.h"
+#include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/web/web_element.h"
 #include "third_party/blink/public/web/web_form_control_element.h"
 #include "third_party/blink/public/web/web_form_element.h"
+#include "third_party/blink/public/web/web_input_element.h"
 
 namespace blink {
 class WebDocument;
@@ -29,7 +33,27 @@ namespace internal {
 template <typename T>
 concept SupportsLookupById = (std::derived_from<T, blink::WebDocument> ||
                               std::derived_from<T, blink::WebNode>);
+
+template <typename = void>
+struct WebFormControlElementDescription {
+  std::optional<std::string> value;
+  std::optional<std::string> suggested_value;
+  std::optional<bool> is_autofilled;
+  std::optional<bool> is_previewed;
+};
 }  // namespace internal
+
+namespace test {
+
+using WebFormControlElementDescription =
+    internal::WebFormControlElementDescription<>;
+
+testing::Matcher<blink::WebInputElement> WebInputElementEq(
+    const WebFormControlElementDescription& description);
+testing::Matcher<blink::WebFormControlElement> WebFormControlElementEq(
+    const WebFormControlElementDescription& description);
+
+}  // namespace test
 
 using AllowNull = base::StrongAlias<struct AllowNullTag, bool>;
 

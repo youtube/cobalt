@@ -13,8 +13,11 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
+#include "chrome/common/readaloud/read_aloud.mojom.h"
 #include "components/dom_distiller/core/task_tracker.h"
 #include "components/keyed_service/core/keyed_service.h"
+#include "mojo/public/cpp/bindings/receiver.h"
+#include "mojo/public/cpp/bindings/remote.h"
 #include "url/gurl.h"
 
 namespace content {
@@ -27,7 +30,8 @@ namespace readaloud {
 
 // Central lifecycle and state orchestrator for Read Aloud.
 class ReadAloudService : public KeyedService,
-                         public dom_distiller::ViewRequestDelegate {
+                         public dom_distiller::ViewRequestDelegate,
+                         public read_aloud::mojom::ReadAloudPlayerObserver {
  public:
   // TODO(b/522830940): Share this enum with Java using java_cpp_enum.
   enum class PlaybackState {
@@ -182,16 +186,35 @@ class ReadAloudService : public KeyedService,
       const dom_distiller::DistilledArticleProto* article_proto) override;
   void OnArticleUpdated(
       dom_distiller::ArticleDistillationUpdate article_update) override;
+  void OnDistillationFailed(
+      dom_distiller::DistillationParseResult reason) override;
 
   dom_distiller::ViewerHandle* GetViewerHandleForTesting() const {
     return viewer_handle_.get();
   }
 
+  // Initializes the connection to the utility process.
+  void Initialize();
+
  private:
+  // read_aloud::mojom::ReadAloudPlayerObserver (called by Utility):
+  // TODO(b/524284001): Implement observer methods (OnProgress, OnError, etc.).
+
+  void EnsureServiceConnected();
+  void OnUtilityDisconnect();
+
   raw_ptr<Profile> profile_;
   std::unique_ptr<dom_distiller::ViewerHandle> viewer_handle_;
   std::unique_ptr<Delegate> delegate_;
   base::TimeTicks distillation_start_time_;
+
+  // Connection to the Utility process Factory.
+  mojo::Remote<read_aloud::mojom::ReadAloudPlayerFactory> player_factory_;
+
+  // Connections to the Utility process Player.
+  mojo::Remote<read_aloud::mojom::ReadAloudPlayer> utility_player_;
+  mojo::Receiver<read_aloud::mojom::ReadAloudPlayerObserver>
+      utility_observer_receiver_{this};
 
   base::WeakPtrFactory<ReadAloudService> weak_factory_{this};
 };

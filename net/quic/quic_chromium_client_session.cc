@@ -1858,6 +1858,35 @@ void QuicChromiumClientSession::LogZeroRttStats() {
     state = ZeroRttState::kNotAttempted;
   }
   UMA_HISTOGRAM_ENUMERATION("Net.QuicSession.ZeroRttState", state);
+
+  if (state != ZeroRttState::kNotAttempted) {
+    std::optional<quic::QuicWallTime> ticket_creation_time =
+        crypto_stream_->GetSessionTicketCreationTime();
+    if (ticket_creation_time.has_value()) {
+      quic::QuicWallTime now = clock_->WallNow();
+      uint64_t now_us = now.ToUNIXMicroseconds();
+      uint64_t ticket_us = ticket_creation_time->ToUNIXMicroseconds();
+      if (now_us >= ticket_us) {
+        // QuicWallTime gives us microsecond precision; compute the ticket age
+        // in microseconds to maintain precision before converting to seconds
+        // for histograms.
+        base::TimeDelta ticket_age =
+            base::Seconds(base::Microseconds(now_us - ticket_us).InSeconds());
+        base::UmaHistogramCustomTimes(
+            "Net.QuicSession.ResumeAttemptTicketAge.All", ticket_age,
+            base::Seconds(1), base::Days(7), 50);
+        if (state == ZeroRttState::kAttemptedAndSucceeded) {
+          base::UmaHistogramCustomTimes(
+              "Net.QuicSession.ResumeAttemptTicketAge.Accepted", ticket_age,
+              base::Seconds(1), base::Days(7), 50);
+        } else if (state == ZeroRttState::kAttemptedAndRejected) {
+          base::UmaHistogramCustomTimes(
+              "Net.QuicSession.ResumeAttemptTicketAge.Rejected", ticket_age,
+              base::Seconds(1), base::Days(7), 50);
+        }
+      }
+    }
+  }
   UMA_HISTOGRAM_ENUMERATION("Net.QuicSession.ZeroRttReason", early_data_reason,
                             ssl_early_data_reason_max_value + 1);
   if (IsGoogleHost(session_key_.host())) {
@@ -4355,6 +4384,17 @@ void QuicChromiumClientSession::OnServerPreferredAddressAvailable(
     });
     return;
   }
+
+  if (ToIPAddress(connection()->peer_address().host()).IsPubliclyRoutable() &&
+      !ToIPAddress(server_preferred_address.host()).IsPubliclyRoutable()) {
+    net_log_.AddEvent(NetLogEventType::QUIC_CONNECTION_MIGRATION_FAILURE, [&] {
+      return NetLogQuicMigrationFailureParams(
+          connection_id(),
+          "Ignored non-publicly routable server preferred address");
+    });
+    return;
+  }
+
   if (!allow_server_preferred_address_) {
     return;
   }

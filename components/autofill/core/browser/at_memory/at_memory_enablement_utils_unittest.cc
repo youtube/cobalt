@@ -17,6 +17,7 @@
 #include "components/personal_context/core/mock_personal_context_enablement_service.h"
 #include "components/personal_context/core/personal_context_prefs.h"
 #include "components/personal_context/core/personal_context_types.h"
+#include "components/prefs/pref_notifier_impl.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/testing_pref_service.h"
 #include "components/subscription_eligibility/subscription_eligibility_prefs.h"
@@ -37,13 +38,53 @@ namespace {
 
 using ::testing::Return;
 
+// A helper PrefStore that allows us to count how many times a specific
+// preference (the personal context toggle) is read. This is used to verify
+// the evaluation order of checks in MayPerformAtMemoryAction.
+class CountingPrefStore : public TestingPrefStore {
+ public:
+  explicit CountingPrefStore(std::string_view observed_key)
+      : observed_key_(observed_key) {}
+
+  bool GetValue(std::string_view key,
+                const base::Value** result) const override {
+    if (key == observed_key_) {
+      ++call_count_;
+    }
+    return TestingPrefStore::GetValue(key, result);
+  }
+
+  int call_count() const { return call_count_; }
+
+ private:
+  ~CountingPrefStore() override = default;
+  const std::string observed_key_;
+  mutable int call_count_ = 0;
+};
+
+// A helper PrefService that allows us to inject our custom CountingPrefStore
+// for user preferences. We must inherit from TestingPrefServiceBase because
+// TestingPrefServiceSimple does not allow injecting a custom PrefStore.
+class TestPrefService
+    : public TestingPrefServiceBase<PrefService, PrefRegistry> {
+ public:
+  TestPrefService(scoped_refptr<TestingPrefStore> user_prefs,
+                  scoped_refptr<PrefRegistry> pref_registry)
+      : TestingPrefServiceBase<PrefService, PrefRegistry>(
+            base::MakeRefCounted<TestingPrefStore>(),
+            base::MakeRefCounted<TestingPrefStore>(),
+            base::MakeRefCounted<TestingPrefStore>(),
+            user_prefs,
+            base::MakeRefCounted<TestingPrefStore>(),
+            pref_registry,
+            new PrefNotifierImpl()) {}
+};
+
 class AtMemoryEnablementUtilsTest : public testing::Test {
  protected:
   AtMemoryEnablementUtilsTest() {
     feature_list_.InitAndEnableFeatureWithParameters(
         features::kAutofillAtMemory, {{"at_memory_eligible_tiers", ""}});
-    personal_context::prefs::RegisterProfilePrefs(
-        autofill_client().GetPrefs()->registry());
     // Enable the toggle by default in tests since it represents the default
     // active state.
     autofill_client().GetPrefs()->SetUserPref(
@@ -153,26 +194,6 @@ TEST_F(AtMemoryEnablementUtilsTest, MayPerformAtMemoryAction_States) {
           Return(personal_context::PersonalContextEnablementState::kEnabled));
   EXPECT_TRUE(MayPerformAtMemoryAction(
       AtMemoryAction::kAllowCustomizeAtMemoryShortcut, autofill_client()));
-
-  // State: kEnabledShouldShowNotice
-  EXPECT_CALL(personal_context_service_, GetEnablementState)
-      .WillOnce(Return(personal_context::PersonalContextEnablementState::
-                           kEnabledShouldShowNotice));
-  autofill_client().GetPrefs()->SetUserPref(
-      personal_context::prefs::kPersonalContextInAutofillSettingsToggleStatus,
-      base::Value(true));
-  EXPECT_TRUE(MayPerformAtMemoryAction(
-      AtMemoryAction::kAllowCustomizeAtMemoryShortcut, autofill_client()));
-
-  // State: kDisabledViaPersonalIntelligenceInAutofillToggle
-  EXPECT_CALL(personal_context_service_, GetEnablementState)
-      .WillOnce(Return(personal_context::PersonalContextEnablementState::
-                           kDisabledViaPersonalIntelligenceInAutofillToggle));
-  autofill_client().GetPrefs()->SetUserPref(
-      personal_context::prefs::kPersonalContextInAutofillSettingsToggleStatus,
-      base::Value(false));
-  EXPECT_TRUE(MayPerformAtMemoryAction(AtMemoryAction::kShowAtMemoryInSettings,
-                                       autofill_client()));
 
   // State: kDisabledNeedsOptIn
   EXPECT_CALL(personal_context_service_, GetEnablementState)
@@ -322,6 +343,95 @@ TEST_F(AtMemoryEnablementUtilsTest,
       subscription_eligibility::prefs::kAiSubscriptionTier, 999);
   EXPECT_TRUE(MayPerformAtMemoryAction(AtMemoryAction::kTriggerSearchUI,
                                        autofill_client()));
+}
+
+// Tests that when the feature is disabled, the toggle pref is still checked
+// if the user is eligible but the toggle is OFF. This verifies that the
+// toggle check occurs before the feature flag check.
+TEST_F(AtMemoryEnablementUtilsTest,
+       MayPerformAtMemoryAction_FeatureCheckedLast_ToggleOff) {
+  auto pref_store = base::MakeRefCounted<CountingPrefStore>(
+      personal_context::prefs::kPersonalContextInAutofillSettingsToggleStatus);
+  auto registry = base::MakeRefCounted<PrefRegistrySimple>();
+  registry->RegisterBooleanPref(
+      personal_context::prefs::kPersonalContextInAutofillSettingsToggleStatus,
+      true);
+  auto pref_service = std::make_unique<TestPrefService>(pref_store, registry);
+
+  base::test::ScopedFeatureList disabled_features;
+  disabled_features.InitAndDisableFeature(features::kAutofillAtMemory);
+
+  ON_CALL(personal_context_service_, GetEnablementState)
+      .WillByDefault(
+          Return(personal_context::PersonalContextEnablementState::kEnabled));
+  pref_store->SetBoolean(
+      personal_context::prefs::kPersonalContextInAutofillSettingsToggleStatus,
+      false);
+
+  EXPECT_FALSE(MayPerformAtMemoryAction(
+      AtMemoryAction::kTriggerSearchUI, &personal_context_service_,
+      /*subscription_eligibility_service=*/nullptr, pref_service.get(),
+      /*google_groups_manager=*/nullptr));
+  EXPECT_EQ(pref_store->call_count(), 1);
+}
+
+// Tests that when the feature is disabled, the toggle pref is checked
+// if the user is eligible and the toggle is ON.
+TEST_F(AtMemoryEnablementUtilsTest,
+       MayPerformAtMemoryAction_FeatureCheckedLast_ToggleOn) {
+  auto pref_store = base::MakeRefCounted<CountingPrefStore>(
+      personal_context::prefs::kPersonalContextInAutofillSettingsToggleStatus);
+  auto registry = base::MakeRefCounted<PrefRegistrySimple>();
+  registry->RegisterBooleanPref(
+      personal_context::prefs::kPersonalContextInAutofillSettingsToggleStatus,
+      true);
+  auto pref_service = std::make_unique<TestPrefService>(pref_store, registry);
+
+  base::test::ScopedFeatureList disabled_features;
+  disabled_features.InitAndDisableFeature(features::kAutofillAtMemory);
+
+  ON_CALL(personal_context_service_, GetEnablementState)
+      .WillByDefault(
+          Return(personal_context::PersonalContextEnablementState::kEnabled));
+  pref_store->SetBoolean(
+      personal_context::prefs::kPersonalContextInAutofillSettingsToggleStatus,
+      true);
+
+  EXPECT_FALSE(MayPerformAtMemoryAction(
+      AtMemoryAction::kTriggerSearchUI, &personal_context_service_,
+      /*subscription_eligibility_service=*/nullptr, pref_service.get(),
+      /*google_groups_manager=*/nullptr));
+  EXPECT_EQ(pref_store->call_count(), 1);
+}
+
+// Tests that if the user is NOT eligible, the function returns early
+// without checking the toggle pref, verifying that eligibility is checked
+// before the toggle.
+TEST_F(AtMemoryEnablementUtilsTest,
+       MayPerformAtMemoryAction_FeatureCheckedLast_NotEligible) {
+  auto pref_store = base::MakeRefCounted<CountingPrefStore>(
+      personal_context::prefs::kPersonalContextInAutofillSettingsToggleStatus);
+  auto registry = base::MakeRefCounted<PrefRegistrySimple>();
+  registry->RegisterBooleanPref(
+      personal_context::prefs::kPersonalContextInAutofillSettingsToggleStatus,
+      true);
+  auto pref_service = std::make_unique<TestPrefService>(pref_store, registry);
+
+  base::test::ScopedFeatureList disabled_features;
+  disabled_features.InitAndDisableFeature(features::kAutofillAtMemory);
+
+  ON_CALL(personal_context_service_, GetEnablementState)
+      .WillByDefault(Return(personal_context::PersonalContextEnablementState::
+                                kDisabledNotEligible));
+  pref_store->SetBoolean(
+      personal_context::prefs::kPersonalContextInAutofillSettingsToggleStatus,
+      true);
+
+  EXPECT_FALSE(MayPerformAtMemoryAction(
+      AtMemoryAction::kTriggerSearchUI, &personal_context_service_,
+      /*subscription_eligibility_service=*/nullptr, pref_service.get(),
+      /*google_groups_manager=*/nullptr));
+  EXPECT_EQ(pref_store->call_count(), 0);
 }
 
 #endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)

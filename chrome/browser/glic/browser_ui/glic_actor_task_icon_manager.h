@@ -32,6 +32,9 @@ class GlicActorTaskIconManager : public KeyedService {
   // Called whenever actor task state updates.
   void OnActorTaskStateUpdate(actor::TaskId task_id);
 
+  // Called when a tab is added to the task.
+  void OnTabAddedToTask(actor::TaskId task_id);
+
   // Called whenever updates are needed to the task icon components.
   void UpdateTaskIconComponents(actor::TaskId task_id);
 
@@ -52,6 +55,10 @@ class GlicActorTaskIconManager : public KeyedService {
   // Returns true if the task is an active experimental task.
   static bool IsActiveExperimentalTask(actor::ActorTask::State state,
                                        glic::mojom::FeatureMode feature_mode);
+
+  // Returns true if the task is an active universal cart task.
+  static bool IsActiveUniversalCartTask(actor::ActorTask::State state,
+                                        glic::mojom::FeatureMode feature_mode);
 
   // Register for this callback to get task nudge state change notifications.
   using TaskNudgeChangeCallback = base::RepeatingCallback<void(

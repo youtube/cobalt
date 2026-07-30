@@ -1088,12 +1088,7 @@ bool ChromeDownloadManagerDelegate::ShouldOpenDownload(
         &ChromeDownloadManagerDelegate::OnInstallerDone,
         weak_ptr_factory_.GetWeakPtr(), token, std::move(callback)));
 
-    if (extensions::UserScript::IsURLUserScript(item->GetURL(),
-                                                item->GetMimeType())) {
-      installer->InstallUserScript(item->GetFullPath(), item->GetURL());
-    } else {
-      installer->InstallCrx(item->GetFullPath());
-    }
+    installer->InstallCrx(item->GetFullPath());
 
     // The status text and percent complete indicator will change now
     // that we are installing a CRX.  Update observers so that they pick

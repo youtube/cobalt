@@ -4,7 +4,7 @@
 
 #include "chrome/browser/glic/browser_ui/glic_button_controller.h"
 
-#include "chrome/browser/glic/browser_ui/glic_button_controller_delegate.h"
+#include "chrome/browser/glic/browser_ui/glic_split_button_delegate.h"
 #include "chrome/browser/glic/browser_ui/glic_vector_icon_manager.h"
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
@@ -20,8 +20,8 @@ namespace glic {
 GlicButtonController::GlicButtonController(
     Profile* profile,
     BrowserWindowInterface& browser,
-    GlicButtonControllerDelegate* tab_strip_delegate,
-    GlicButtonControllerDelegate* toolbar_delegate,
+    GlicSplitButtonDelegate* tab_strip_delegate,
+    GlicSplitButtonDelegate* toolbar_delegate,
     GlicKeyedService* service)
     : profile_(profile),
       browser_(browser),

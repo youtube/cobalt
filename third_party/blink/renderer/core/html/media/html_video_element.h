@@ -32,7 +32,7 @@
 #include "third_party/blink/renderer/core/html/html_image_loader.h"
 #include "third_party/blink/renderer/core/html/media/html_media_element.h"
 #include "third_party/blink/renderer/core/imagebitmap/image_bitmap_source.h"
-#include "third_party/blink/renderer/platform/graphics/canvas_resource_provider.h"
+#include "third_party/blink/renderer/platform/graphics/canvas_non_2d_resource_provider.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_snapshot_info.h"
 #include "third_party/blink/renderer/platform/timer.h"
 
@@ -115,7 +115,9 @@ class CORE_EXPORT HTMLVideoElement final
   // though it is in sRGB color space.
   scoped_refptr<StaticBitmapImage> CreateStaticBitmapImage(
       std::optional<gfx::Size> size = std::nullopt,
-      bool reinterpret_as_srgb = false);
+      bool reinterpret_as_srgb = false,
+      RespectImageOrientationEnum respect_orientation =
+          kRespectImageOrientation);
 
   // CanvasImageSource implementation
   scoped_refptr<Image> GetSourceImageForCanvas(SourceImageStatus*,
@@ -316,7 +318,7 @@ class CORE_EXPORT HTMLVideoElement final
 
   // Used to fulfill blink::Image requests (CreateImage(),
   // GetSourceImageForCanvas(), etc). Created on demand.
-  std::unique_ptr<CanvasNon2DResourceProviderSharedImage> snapshot_provider_;
+  std::unique_ptr<CanvasNon2DResourceProvider> snapshot_provider_;
   std::optional<CanvasSnapshotInfo> cached_draw_info_;
   HeapTaskRunnerTimer<HTMLVideoElement> cache_deleting_timer_;
 

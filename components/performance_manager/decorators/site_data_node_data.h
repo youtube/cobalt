@@ -12,6 +12,7 @@
 #include "base/time/time.h"
 #include "components/performance_manager/graph/node_inline_data.h"
 #include "components/performance_manager/public/decorators/site_data_recorder.h"
+#include "third_party/blink/public/mojom/favicon/favicon_url.mojom.h"
 
 class GURL;
 
@@ -48,7 +49,7 @@ class SiteDataNodeData : public SiteDataRecorder::Data,
   void OnIsVisibleChanged(bool is_visible);
   void OnIsAudibleChanged(bool audible);
   void OnTitleUpdated();
-  void OnFaviconUpdated();
+  void OnFaviconUpdated(blink::mojom::FaviconUpdateReason reason);
 
   void Reset();
 

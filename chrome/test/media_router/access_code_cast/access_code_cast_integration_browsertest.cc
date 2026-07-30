@@ -7,6 +7,7 @@
 #include <algorithm>
 
 #include "base/auto_reset.h"
+#include "base/byte_size.h"
 #include "base/memory/ptr_util.h"
 #include "base/strings/string_util.h"
 #include "base/task/sequenced_task_runner.h"
@@ -531,7 +532,7 @@ bool AccessCodeCastIntegrationBrowserTest::InterceptRequest(
       static_cast<int>(response_code_), GetHttpReasonPhrase(response_code_)));
 
   network::URLLoaderCompletionStatus status(error_);
-  status.decoded_body_length = response_data_.size();
+  status.decoded_body_length = base::ByteSize(response_data_.size());
 
   content::URLLoaderInterceptor::WriteResponse(headers, response_data_,
                                                params->client.get());

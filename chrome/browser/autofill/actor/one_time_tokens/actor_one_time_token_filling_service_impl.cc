@@ -22,6 +22,7 @@
 #include "chrome/browser/ui/autofill/autofill_client_provider.h"
 #include "chrome/browser/ui/autofill/autofill_client_provider_factory.h"
 #include "components/autofill/content/browser/content_autofill_client.h"
+#include "components/autofill/core/browser/autofill_browser_util.h"
 #include "components/autofill/core/browser/autofill_field.h"
 #include "components/autofill/core/browser/autofill_trigger_source.h"
 #include "components/autofill/core/browser/form_structure.h"
@@ -32,12 +33,18 @@
 #include "components/one_time_tokens/core/browser/one_time_token.h"
 #include "components/one_time_tokens/core/browser/one_time_token_service.h"
 #include "components/one_time_tokens/core/common/one_time_token_features.h"
+#include "components/security_state/content/security_state_tab_helper.h"
+#include "components/security_state/core/security_state.h"
 #include "components/tabs/public/tab_interface.h"
+#include "content/public/browser/navigation_controller.h"
+#include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
 
 namespace autofill {
+
+using ::one_time_tokens::OneTimeTokenRetrievalError;
 
 namespace {
 
@@ -132,10 +139,12 @@ ActorOneTimeTokenFillingServiceImpl::ConsumeLoginContext() {
 void ActorOneTimeTokenFillingServiceImpl::RetrieveOtp(
     const tabs::TabHandle tab_handle,
     const std::vector<FieldGlobalId>& trigger_field_ids,
-    base::OnceCallback<void(std::string)> callback) {
+    base::OnceCallback<void(
+        base::expected<std::string, OneTimeTokenRetrievalError>)> callback) {
   tabs::TabInterface* tab = tab_handle.Get();
   if (!tab || !tab->GetContents()) {
-    std::move(callback).Run("");
+    std::move(callback).Run(
+        base::unexpected(OneTimeTokenRetrievalError::kGmailOtpUnknown));
     return;
   }
 
@@ -152,7 +161,8 @@ void ActorOneTimeTokenFillingServiceImpl::RetrieveOtp(
   one_time_tokens::OneTimeTokenService* service =
       OneTimeTokenServiceFactory::GetForProfile(profile_);
   if (!service) {
-    std::move(callback).Run("");
+    std::move(callback).Run(base::unexpected(
+        OneTimeTokenRetrievalError::kGmailOtpBackendApiNotAvailable));
     return;
   }
 
@@ -175,20 +185,22 @@ void ActorOneTimeTokenFillingServiceImpl::RetrieveOtp(
   if (most_recent_token) {
     subscription_ = {};
     // If there is a pending request, its callback is superseded. We run the
-    // previous callback with an empty string so the old caller can gracefully
+    // previous callback with a default error so the old caller can gracefully
     // time out rather than hanging indefinitely.
     if (retrieve_otp_callback_) {
-      std::move(retrieve_otp_callback_).Run("");
+      std::move(retrieve_otp_callback_)
+          .Run(base::unexpected(OneTimeTokenRetrievalError::kGmailOtpUnknown));
     }
     std::move(callback).Run(most_recent_token->value());
     return;
   }
 
   // If there is a pending request, its callback is superseded. We run the
-  // previous callback with an empty string so the old caller can gracefully
+  // previous callback with a default error so the old caller can gracefully
   // time out rather than hanging indefinitely.
   if (retrieve_otp_callback_) {
-    std::move(retrieve_otp_callback_).Run("");
+    std::move(retrieve_otp_callback_)
+        .Run(base::unexpected(OneTimeTokenRetrievalError::kGmailOtpUnknown));
   }
   retrieve_otp_callback_ = std::move(callback);
 
@@ -203,16 +215,19 @@ void ActorOneTimeTokenFillingServiceImpl::RetrieveOtp(
 
 void ActorOneTimeTokenFillingServiceImpl::OnOneTimeTokenReceived(
     one_time_tokens::OneTimeTokenSource source,
-    base::expected<one_time_tokens::OneTimeToken,
-                   one_time_tokens::OneTimeTokenRetrievalError> result) {
+    base::expected<one_time_tokens::OneTimeToken, OneTimeTokenRetrievalError>
+        result) {
   if (!retrieve_otp_callback_) {
     return;
   }
 
   subscription_ = {};
 
-  std::move(retrieve_otp_callback_)
-      .Run(result.has_value() ? result->value() : "");
+  if (result.has_value()) {
+    std::move(retrieve_otp_callback_).Run(result->value());
+  } else {
+    std::move(retrieve_otp_callback_).Run(base::unexpected(result.error()));
+  }
 }
 
 void ActorOneTimeTokenFillingServiceImpl::FillOtp(
@@ -327,6 +342,58 @@ void ActorOneTimeTokenFillingServiceImpl::FillOtp(
         std::move(callback).Run(result.has_value());
       },
       weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
+}
+
+bool ActorOneTimeTokenFillingServiceImpl::IsFormFillingSecure(
+    tabs::TabHandle tab_handle,
+    base::span<const FieldGlobalId> trigger_field_ids) const {
+  CHECK(!trigger_field_ids.empty());
+  tabs::TabInterface* tab = tab_handle.Get();
+  if (!tab || !tab->GetContents()) {
+    return false;
+  }
+
+  content::WebContents* web_contents = tab->GetContents();
+  SecurityStateTabHelper* helper =
+      SecurityStateTabHelper::FromWebContents(web_contents);
+  if (!helper) {
+    return false;
+  }
+
+  const security_state::SecurityLevel security_level =
+      helper->GetSecurityLevel();
+  content::NavigationEntry* entry =
+      web_contents->GetController().GetVisibleEntry();
+
+  // Verify that the page in `web_contents` is loaded over cryptographic HTTPS
+  // and has a valid certificate without mixed content.
+  if (!entry || !entry->GetURL().SchemeIsCryptographic() ||
+      !security_state::IsSslCertificateValid(security_level)) {
+    return false;
+  }
+
+  base::expected<std::reference_wrapper<BrowserAutofillManager>,
+                 ActorFormFillingError>
+      maybe_manager = GetAutofillManager(*tab);
+  if (!maybe_manager.has_value()) {
+    return false;
+  }
+  BrowserAutofillManager& autofill_manager = maybe_manager.value();
+
+  // Find `form_structure` in `autofill_manager` using the first ID in
+  // `trigger_field_ids`.
+  const FormStructure* const form_structure =
+      autofill_manager.FindCachedFormById(trigger_field_ids.front());
+  // TODO(crbug.com/502907795): Maybe handle this check ahead of time and return
+  // a filling error instead.
+  if (!form_structure) {
+    return false;
+  }
+
+  // Ensure `form_structure` does not submit to an insecure mixed content
+  // action.
+  return !autofill::IsFormMixedContent(autofill_manager.client(),
+                                       form_structure->ToFormData());
 }
 
 base::WeakPtr<ActorOneTimeTokenFillingService>

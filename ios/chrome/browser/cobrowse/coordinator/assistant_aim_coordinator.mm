@@ -104,11 +104,10 @@ class AssistantAIMUIStateProvider
 }
 
 - (void)start {
-  if (base::FeatureList::IsEnabled(kAssistantAimMinimizedState)) {
-    _currentDetent = AssistantContainerDetent::kMinimized;
-  } else {
-    _currentDetent = AssistantContainerDetent::kMedium;
-  }
+  [self startInMinimizedState:NO];
+}
+
+- (void)startInMinimizedState:(BOOL)shouldStartInMinimized {
   if (self.browser->GetProfile()->IsOffTheRecord()) {
     return;
   }
@@ -174,6 +173,14 @@ class AssistantAIMUIStateProvider
 
   [self dismissSnackbars];
 
+  BOOL showInMinimizedState =
+      shouldStartInMinimized ||
+      base::FeatureList::IsEnabled(kAssistantAimMinimizedState);
+  AssistantContainerDetent targetDetent =
+      showInMinimizedState ? AssistantContainerDetent::kMinimized
+                           : AssistantContainerDetent::kMedium;
+  _currentDetent = targetDetent;
+
   // This must be called AFTER the view controller and its children (like the
   // input plate) are fully set up. This is because the initial layout and
   // percentage updates need to be applied to the fully constructed content.
@@ -182,10 +189,6 @@ class AssistantAIMUIStateProvider
   [_containerHandler showAssistantContainerWithContent:_viewController
                                               delegate:self];
 
-  AssistantContainerDetent targetDetent =
-      base::FeatureList::IsEnabled(kAssistantAimMinimizedState)
-          ? AssistantContainerDetent::kMinimized
-          : AssistantContainerDetent::kMedium;
   [_containerHandler
       animateAssistantContainerToDetent:targetDetent
                                duration:0
@@ -210,15 +213,23 @@ class AssistantAIMUIStateProvider
 
   if (_viewController) {
     _viewController = nil;
-    [self dismissAssistantContainerAnimated:NO];
+    [self dismissAssistantContainerAnimated:NO completion:nil];
   }
   [_activityReporter reportInactive];
 }
 
 - (void)setVisible:(BOOL)visible {
+  [self setVisible:visible inMinimizedState:NO];
+}
+
+- (void)setVisible:(BOOL)visible inMinimizedState:(BOOL)minimized {
   if (visible) {
     [self dismissSnackbars];
     if (_viewController) {
+      if (minimized) {
+        _currentDetent = AssistantContainerDetent::kMinimized;
+      }
+
       AssistantContainerDetent targetDetent = _currentDetent;
       [_containerHandler showAssistantContainerWithContent:_viewController
                                                   delegate:self];
@@ -235,7 +246,7 @@ class AssistantAIMUIStateProvider
     }
   } else {
     _isHiding = YES;
-    [self dismissAssistantContainerAnimated:YES];
+    [self dismissAssistantContainerAnimated:YES completion:nil];
     [_activityReporter reportInactive];
   }
 }
@@ -264,8 +275,11 @@ class AssistantAIMUIStateProvider
   // Initially the assistant is only hidden, the actual closing happens after
   // the snackbar dismisses and the undo window elapses.
   _isHiding = YES;
-  [self dismissAssistantContainerAnimated:YES];
-  [self showUndoSnackbar];
+  __weak __typeof(self) weakSelf = self;
+  [self dismissAssistantContainerAnimated:YES
+                               completion:^{
+                                 [weakSelf showUndoSnackbar];
+                               }];
 }
 
 - (void)assistantAIMViewController:(AssistantAIMViewController*)viewController
@@ -311,16 +325,22 @@ class AssistantAIMUIStateProvider
 }
 
 // Dismisses the assistant container safely.
-- (void)dismissAssistantContainerAnimated:(BOOL)animated {
-  if (self.browser) {
-    CommandDispatcher* dispatcher = self.browser->GetCommandDispatcher();
-    if ([dispatcher
-            dispatchingForProtocol:@protocol(AssistantContainerCommands)]) {
-      id<AssistantContainerCommands> containerHandler =
-          HandlerForProtocol(dispatcher, AssistantContainerCommands);
-      [containerHandler dismissAssistantContainerAnimated:animated
-                                               completion:nil];
+- (void)dismissAssistantContainerAnimated:(BOOL)animated
+                               completion:(ProceduralBlock)completion {
+  if (!self.browser) {
+    if (completion) {
+      completion();
     }
+    return;
+  }
+
+  CommandDispatcher* dispatcher = self.browser->GetCommandDispatcher();
+  if ([dispatcher
+          dispatchingForProtocol:@protocol(AssistantContainerCommands)]) {
+    id<AssistantContainerCommands> containerHandler =
+        HandlerForProtocol(dispatcher, AssistantContainerCommands);
+    [containerHandler dismissAssistantContainerAnimated:animated
+                                             completion:completion];
   }
 }
 
@@ -431,7 +451,7 @@ class AssistantAIMUIStateProvider
 - (void)assistantContainerDidRequestDismissal:
     (AssistantContainerViewController*)container {
   [_mediator endSession];
-  [self dismissAssistantContainerAnimated:YES];
+  [self dismissAssistantContainerAnimated:YES completion:nil];
 }
 
 #pragma mark - AssistantAIMMediatorDelegate

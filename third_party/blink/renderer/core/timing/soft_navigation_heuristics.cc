@@ -104,7 +104,7 @@ void OnSoftNavigationContextWasExhausted(const SoftNavigationContext& context,
     uint64_t total_paint_area = context.PaintedArea();
     base::UmaHistogramCounts1M(
         kPageLoadInternalSoftNavigationNotEmittedUrlEmptyTotalPaintArea,
-        total_paint_area);
+        base::saturated_cast<int>(total_paint_area));
 
     // viewport_area is guaranteed to be >= 1.
     uint64_t points_val = (total_paint_area * 10000ULL) / viewport_area;
@@ -123,7 +123,8 @@ void OnSoftNavigationContextWasExhausted(const SoftNavigationContext& context,
     // However, we can report the final paint area metrics here.
     uint64_t total_paint_area = context.PaintedArea();
     base::UmaHistogramCounts1M(
-        kPageLoadInternalSoftNavigationEmittedTotalPaintArea, total_paint_area);
+        kPageLoadInternalSoftNavigationEmittedTotalPaintArea,
+        base::saturated_cast<int>(total_paint_area));
 
     // viewport_area is guaranteed to be >= 1.
     uint64_t points_val = (total_paint_area * 10000ULL) / viewport_area;
@@ -139,7 +140,7 @@ void OnSoftNavigationContextWasExhausted(const SoftNavigationContext& context,
     uint64_t total_paint_area = context.PaintedArea();
     base::UmaHistogramCounts1M(
         kPageLoadInternalSoftNavigationNotEmittedInsufficientPaintTotalPaintArea,
-        total_paint_area);
+        base::saturated_cast<int>(total_paint_area));
 
     // viewport_area is guaranteed to be >= 1.
     uint64_t points_val = (total_paint_area * 10000ULL) / viewport_area;

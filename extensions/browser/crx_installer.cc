@@ -33,7 +33,6 @@
 #include "extensions/browser/blocklist.h"
 #include "extensions/browser/blocklist_check.h"
 #include "extensions/browser/content_verifier/content_verifier.h"
-#include "extensions/browser/convert_user_script.h"
 #include "extensions/browser/event_router_factory.h"
 #include "extensions/browser/extension_assets_manager.h"
 #include "extensions/browser/extension_file_task_runner.h"
@@ -274,42 +273,6 @@ void CrxInstaller::InstallUnpackedCrx(const ExtensionId& extension_id,
                          extension_id, public_key, unpacked_dir))) {
     NOTREACHED();
   }
-}
-
-void CrxInstaller::InstallUserScript(const base::FilePath& source_file,
-                                     const GURL& download_url) {
-  DCHECK(!download_url.is_empty());
-
-  if (!AcquireKeepAlive()) {
-    return;
-  }
-  NotifyCrxInstallBegin();
-
-  source_file_ = source_file;
-  download_url_ = download_url;
-
-  if (!shared_file_task_runner_->PostTask(
-          FROM_HERE,
-          base::BindOnce(&CrxInstaller::ConvertUserScriptOnSharedFileThread,
-                         this))) {
-    NOTREACHED();
-  }
-}
-
-void CrxInstaller::ConvertUserScriptOnSharedFileThread() {
-  std::u16string error;
-  scoped_refptr<Extension> extension = ConvertUserScriptToExtension(
-      source_file_, download_url_, install_directory_, &error);
-  if (!extension.get()) {
-    ReportFailureFromSharedFileThread(CrxInstallError(
-        CrxInstallErrorType::OTHER,
-        CrxInstallErrorDetail::CONVERT_USER_SCRIPT_TO_EXTENSION_FAILED, error));
-    return;
-  }
-
-  OnUnpackSuccessOnSharedFileThread(extension->path(), extension->path(),
-                                    nullptr, extension, SkBitmap(),
-                                    /*ruleset_install_prefs=*/{});
 }
 
 void CrxInstaller::UpdateExtensionFromUnpackedCrx(

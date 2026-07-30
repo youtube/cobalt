@@ -9,6 +9,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -31,7 +32,8 @@ class DistillerImpl;
 class Distiller {
  public:
   using DistillationFinishedCallback =
-      base::OnceCallback<void(std::unique_ptr<DistilledArticleProto>)>;
+      base::OnceCallback<void(std::unique_ptr<DistilledArticleProto> proto,
+                              DistillationParseResult result)>;
   using DistillationUpdateCallback =
       base::RepeatingCallback<void(const ArticleDistillationUpdate&)>;
 
@@ -117,7 +119,7 @@ class DistillerImpl : public Distiller {
       int page_num,
       const GURL& page_url,
       std::unique_ptr<proto::DomDistillerResult> distilled_page,
-      bool distillation_successful);
+      DistillationParseResult result);
 
   virtual void MaybeFetchImage(int page_num,
                                const std::string& image_id,
@@ -188,6 +190,8 @@ class DistillerImpl : public Distiller {
   size_t max_pages_in_article_;
 
   bool destruction_allowed_;
+  std::optional<DistillationParseResult> last_error_ =
+      DistillationParseResult::kSuccess;
 
   base::WeakPtrFactory<DistillerImpl> weak_factory_{this};
 };

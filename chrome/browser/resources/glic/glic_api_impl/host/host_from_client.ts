@@ -10,13 +10,13 @@ import {loadTimeData} from '//resources/js/load_time_data.js';
 import type {BitmapN32} from '//resources/mojo/skia/public/mojom/bitmap.mojom-webui.js';
 
 import {ContentSettingsType} from '../../content_settings_types.mojom-webui.js';
-import {CaptureRegionObserverReceiver, ClientErrorDialogType as ClientErrorDialogTypeMojo, PinCandidatesObserverReceiver, ResponseStopCause as ResponseStopCauseMojo, SettingsPageField as SettingsPageFieldMojo, SkillSource as SkillSourceMojo, TabDataHandlerReceiver, TabFaviconHandlerReceiver, WebClientReceiver} from '../../glic.mojom-webui.js';
+import {CaptureRegionObserverReceiver, ClientErrorDialogType as ClientErrorDialogTypeMojo, PinCandidatesObserverReceiver, ResponseStopCause as ResponseStopCauseMojo, SettingsPageField as SettingsPageFieldMojo, TabDataHandlerReceiver, TabFaviconHandlerReceiver, WebClientReceiver} from '../../glic.mojom-webui.js';
 import type {CaptureRegionErrorReason as CaptureRegionErrorReasonMojo, CaptureRegionObserver, CaptureRegionResult as CaptureRegionResultMojo, OpenSettingsOptions as OpenSettingsOptionsMojo, PinCandidate as PinCandidateMojo, PinCandidatesObserver, TabDataHandlerInterface, TabDataMojoType, TabFaviconHandlerInterface, WebClientHandlerInterface} from '../../glic.mojom-webui.js';
 import {CaptureScreenshotErrorReason, ClientCapabilities, ResponseStopCause} from '../../glic_api/glic_api.js';
-import type {CaptureRegionParams, ClientErrorDialogType, ConversationInfo, CounterAbuseVerdict, CreateSkillRequest, ExperimentalTriggeringUpdate, GetPinCandidatesOptions, MicrophoneStatus, OnResponseStoppedDetails, OpenSettingsOptions, PinTabsOptions, Screenshot, Skill, SkillsWebClientEvent, TabContextOptions, UnpinTabsOptions, UpdateSkillRequest, WebClientMode, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../../glic_api/glic_api.js';
+import type {CaptureRegionParams, ClientErrorDialogType, ConversationInfo, CounterAbuseVerdict, ExperimentalTriggeringUpdate, GetPinCandidatesOptions, MicrophoneStatus, OnResponseStoppedDetails, OpenSettingsOptions, PinTabsOptions, Screenshot, TabContextOptions, UnpinTabsOptions, WebClientMode, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../../glic_api/glic_api.js';
 import {replaceProperties} from '../conversions.js';
 import {enumFromClient, enumToClient} from '../enum_conversions.js';
-import type {ActorClient, ActorHost, AnnotationHost, GlicException, ImageBytesResultPrivate, RgbaImage, TabContextResultPrivate, WebClientHost, WebClientInitialStatePrivate, WebClientPinCandidatesObserver, WebClientRegionCapture, WebClientTabDataObserver, WebClientTabFaviconObserver} from '../request_types.js';
+import type {ActorClient, ActorHost, AnnotationHost, GlicException, ImageBytesResultPrivate, RgbaImage, SkillsClient, SkillsHost, TabContextResultPrivate, WebClientHost, WebClientInitialStatePrivate, WebClientPinCandidatesObserver, WebClientRegionCapture, WebClientTabDataObserver, WebClientTabFaviconObserver} from '../request_types.js';
 import {ErrorWithReasonImpl, exceptionFromTransferable, SubscriberObservationType} from '../request_types.js';
 import {ResponseExtras} from '../transport/messaging.js';
 import type {PendingReceiver, PendingRemote, PostMessageHandler, PostMessageRemote, PostMessageRouter} from '../transport/post_message_transport.js';
@@ -58,6 +58,8 @@ export class HostMessageHandler implements PostMessageHandler<WebClientHost> {
     initialState: WebClientInitialStatePrivate,
     actorRemote?: PendingRemote<ActorHost>,
     actorReceiver?: PendingReceiver<ActorClient>,
+    skillsRemote?: PendingRemote<SkillsHost>,
+    skillsReceiver?: PendingReceiver<SkillsClient>,
   }> {
     if (this.receiver) {
       throw new Error('web client already created');
@@ -109,6 +111,8 @@ export class HostMessageHandler implements PostMessageHandler<WebClientHost> {
       }),
       actorRemote: initialPipes.actorRemote,
       actorReceiver: initialPipes.actorReceiver,
+      skillsRemote: initialPipes.skillsRemote,
+      skillsReceiver: initialPipes.skillsReceiver,
     };
   }
 
@@ -342,59 +346,6 @@ export class HostMessageHandler implements PostMessageHandler<WebClientHost> {
     return {effectiveMax};
   }
 
-  async createSkill(request: {
-    request: CreateSkillRequest,
-  }): Promise<{modalOpened: boolean}> {
-    const mojoRequest = {
-      id: request.request.id ?? '',
-      name: request.request.name ?? '',
-      icon: request.request.icon ?? '',
-      prompt: request.request.prompt,
-      description: request.request.description ?? '',
-      source:
-          enumFromClient(request.request.source) ?? SkillSourceMojo.kUnknown,
-    };
-    return await this.handler.createSkill(mojoRequest);
-  }
-
-  async updateSkill(request: {
-    request: UpdateSkillRequest,
-  }): Promise<{modalOpened: boolean}> {
-    return await this.handler.updateSkill(request.request);
-  }
-
-  showManageSkillsUi(_request: void): void {
-    this.handler.showManageSkillsUi();
-  }
-
-  showBrowseSkillsUi(_request: void): void {
-    this.handler.showBrowseSkillsUi();
-  }
-
-  async getSkill(request: {
-    id: string,
-  }): Promise<{skill?: Skill}> {
-    const {skill: mojoSkill} = await this.handler.getSkill(request.id);
-    if (!mojoSkill) {
-      return {};
-    }
-    return {
-      skill: {
-        ...mojoSkill,
-        sourceSkillId: optionalFromClient(mojoSkill.sourceSkillId) || undefined,
-        preview: {
-          ...mojoSkill.preview,
-          source: enumToClient(mojoSkill.preview.source),
-        },
-      },
-    };
-  }
-
-  recordSkillsWebClientEvent(request: {
-    event: SkillsWebClientEvent,
-  }): void {
-    this.handler.recordSkillsWebClientEvent(enumFromClient(request.event));
-  }
 
   activateTab(request: {tabId: string}): void {
     this.handler.activateTab(idFromClient(request.tabId));
@@ -718,6 +669,9 @@ export class HostMessageHandler implements PostMessageHandler<WebClientHost> {
 
   setOnboardingCompleted(): void {
     this.handler.setOnboardingCompleted();
+    if (this.embedder.onboardingCompleted) {
+      this.embedder.onboardingCompleted();
+    }
   }
 
   subscribeToTabData(request: {

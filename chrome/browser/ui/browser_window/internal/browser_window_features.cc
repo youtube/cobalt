@@ -299,7 +299,7 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
       GetUserDataFactory().CreateInstance<WindowFeatureController>(
           *browser, fullscreen_controller_.get(), app_browser_controller_.get(),
           browser->GetType(),
-          browser->GetBrowserForMigrationOnly()->is_trusted_source(),
+          browser->GetBrowserForMigrationOnly()->create_params().trusted_source,
           browser->GetUnownedUserDataHost());
 
   side_panel_registry_ =

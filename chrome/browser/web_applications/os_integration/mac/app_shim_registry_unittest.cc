@@ -10,6 +10,7 @@
 #include "base/strings/string_view_util.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/test_future.h"
+#include "base/values.h"
 #include "chrome/browser/browser_process.h"
 #include "components/os_crypt/async/browser/os_crypt_async.h"
 #include "components/os_crypt/async/common/encryptor.h"
@@ -363,27 +364,108 @@ TEST_F(AppShimRegistryTest, CodeDirectoryHashes) {
   const uint8_t other_cd_hash[] = {10, 11, 12, 13, 14, 15, 16, 17, 18, 19};
   base::FilePath profile_path("/x/y/z/Profile");
 
-  EXPECT_FALSE(VerifyCdHashForAppSync(app_id, cd_hash));
+  {
+    base::HistogramTester histogram_tester;
+    EXPECT_FALSE(VerifyCdHashForAppSync(app_id, cd_hash));
+    histogram_tester.ExpectUniqueSample(
+        "Apps.AppShimRegistry.VerifyCdHashResult",
+        AppShimRegistry::VerifyCdHashResult::kNoAppInfo, 1);
+  }
 
   // Saving code directory hash for an app that isn't in any profile should
   // be a noop.
   SaveCdHashForAppSync(app_id, cd_hash);
-  EXPECT_FALSE(VerifyCdHashForAppSync(app_id, cd_hash));
+  {
+    base::HistogramTester histogram_tester;
+    EXPECT_FALSE(VerifyCdHashForAppSync(app_id, cd_hash));
+    histogram_tester.ExpectUniqueSample(
+        "Apps.AppShimRegistry.VerifyCdHashResult",
+        AppShimRegistry::VerifyCdHashResult::kNoAppInfo, 1);
+  }
 
   // Install app in profile.
   registry_->OnAppInstalledForProfile(app_id, profile_path);
-  EXPECT_FALSE(VerifyCdHashForAppSync(app_id, cd_hash));
+  {
+    base::HistogramTester histogram_tester;
+    EXPECT_FALSE(VerifyCdHashForAppSync(app_id, cd_hash));
+    histogram_tester.ExpectUniqueSample(
+        "Apps.AppShimRegistry.VerifyCdHashResult",
+        AppShimRegistry::VerifyCdHashResult::kNoCdHash, 1);
+  }
 
   // Verify saving code directory hash.
   SaveCdHashForAppSync(app_id, cd_hash);
-  EXPECT_TRUE(VerifyCdHashForAppSync(app_id, cd_hash));
+  {
+    base::HistogramTester histogram_tester;
+    EXPECT_TRUE(VerifyCdHashForAppSync(app_id, cd_hash));
+    histogram_tester.ExpectUniqueSample(
+        "Apps.AppShimRegistry.VerifyCdHashResult",
+        AppShimRegistry::VerifyCdHashResult::kSuccess, 1);
+  }
 
   // Ensure that a different code directory hash is invalid for this app.
-  EXPECT_FALSE(VerifyCdHashForAppSync(app_id, other_cd_hash));
+  {
+    base::HistogramTester histogram_tester;
+    EXPECT_FALSE(VerifyCdHashForAppSync(app_id, other_cd_hash));
+    histogram_tester.ExpectUniqueSample(
+        "Apps.AppShimRegistry.VerifyCdHashResult",
+        AppShimRegistry::VerifyCdHashResult::kVerificationFailed, 1);
+  }
 
   // Verify uninstalling an app removes its code directory hash.
   EXPECT_TRUE(registry_->OnAppUninstalledForProfile(app_id, profile_path));
-  EXPECT_FALSE(VerifyCdHashForAppSync(app_id, cd_hash));
+  {
+    base::HistogramTester histogram_tester;
+    EXPECT_FALSE(VerifyCdHashForAppSync(app_id, cd_hash));
+    histogram_tester.ExpectUniqueSample(
+        "Apps.AppShimRegistry.VerifyCdHashResult",
+        AppShimRegistry::VerifyCdHashResult::kNoAppInfo, 1);
+  }
+}
+
+TEST_F(AppShimRegistryTest, CodeDirectoryHashesCorruptedRegistry) {
+  const std::string app_id("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+  const uint8_t cd_hash[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+  base::FilePath profile_path("/x/y/z/Profile");
+
+  // Install app in profile.
+  registry_->OnAppInstalledForProfile(app_id, profile_path);
+  SaveCdHashForAppSync(app_id, cd_hash);
+  EXPECT_TRUE(VerifyCdHashForAppSync(app_id, cd_hash));
+
+  // Corrupt the stored hash in prefs (not valid base64).
+  {
+    base::DictValue update = local_state_->GetDict("app_shims").Clone();
+    base::DictValue* app_info = update.FindDict(app_id);
+    ASSERT_TRUE(app_info);
+    app_info->Set("cdhash_hmac", "this-is-not-valid-base64");
+    local_state_->SetDict("app_shims", std::move(update));
+  }
+
+  {
+    base::HistogramTester histogram_tester;
+    EXPECT_FALSE(VerifyCdHashForAppSync(app_id, cd_hash));
+    histogram_tester.ExpectUniqueSample(
+        "Apps.AppShimRegistry.VerifyCdHashResult",
+        AppShimRegistry::VerifyCdHashResult::kDecodeFailure, 1);
+  }
+
+  // Corrupt the stored hash in prefs (valid base64 but wrong size).
+  {
+    base::DictValue update = local_state_->GetDict("app_shims").Clone();
+    base::DictValue* app_info = update.FindDict(app_id);
+    ASSERT_TRUE(app_info);
+    app_info->Set("cdhash_hmac", base::Base64Encode("short"));
+    local_state_->SetDict("app_shims", std::move(update));
+  }
+
+  {
+    base::HistogramTester histogram_tester;
+    EXPECT_FALSE(VerifyCdHashForAppSync(app_id, cd_hash));
+    histogram_tester.ExpectUniqueSample(
+        "Apps.AppShimRegistry.VerifyCdHashResult",
+        AppShimRegistry::VerifyCdHashResult::kUnexpectedSize, 1);
+  }
 }
 
 TEST_F(AppShimRegistryTest, CodeDirectoryHashesAsync) {

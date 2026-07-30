@@ -1188,18 +1188,21 @@ bool TemplateURLService::ResetPlayAPISearchEngine(
     }
   }
 
-  // 1.B) We can only have 1 Play API engine at a time. we have to remove the
-  // old one, if it exits. If it's the current default, we'll have to remove it
-  // first.
-  auto found = std::ranges::find_if(template_urls_, [](const auto& turl) {
-    return turl->GetRegulatoryExtensionType() ==
-           RegulatoryExtensionType::kAndroidEEA;
-  });
+  // 1.B) We can only have 1 Play API engine at a time. Collect and remove all
+  // old ones.
+  std::vector<TemplateURL*> old_play_api_engines;
+  for (const auto& turl : template_urls_) {
+    if (turl->GetRegulatoryExtensionType() ==
+        RegulatoryExtensionType::kAndroidEEA) {
+      old_play_api_engines.push_back(turl.get());
+    }
+  }
 
-  if (found != template_urls_.cend()) {
-    // There is already an old Play API engine. To proceed we'll need to remove
-    // it.
-    TemplateURL* old_play_api_engine = found->get();
+  base::UmaHistogramCounts100(
+      "Search.ChoiceDebug.PreexistingProgramTaggedEntries",
+      old_play_api_engines.size());
+
+  for (TemplateURL* old_play_api_engine : old_play_api_engines) {
     old_play_keyword = old_play_api_engine->keyword();
     if (old_play_api_engine == default_search_provider_) {
       // The DSE can't be removed from the loaded engines. We need to clear the

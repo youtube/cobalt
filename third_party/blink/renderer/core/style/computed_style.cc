@@ -348,6 +348,11 @@ bool ComputedStyle::NeedsReattachLayoutTree(const Element& element,
     return true;
   }
 
+  if (element.SupportsBaseAppearance(old_style->EffectiveAppearance()) !=
+      element.SupportsBaseAppearance(new_style->EffectiveAppearance())) {
+    return true;
+  }
+
   // LayoutObject tree structure for <legend> depends on whether it's a
   // rendered legend or not.
   if (IsA<HTMLLegendElement>(element) &&
@@ -1602,8 +1607,8 @@ PointAndTangent ComputedStyle::CalculatePointAndTangentOnRay(
 }
 
 PointAndTangent ComputedStyle::CalculatePointAndTangentOnPath(
-    const Path& path) const {
-  float zoom = EffectiveZoom();
+    const Path& path,
+    float zoom) const {
   float path_length = path.length();
   float float_distance =
       FloatValueForLength(OffsetDistance(), path_length * zoom) / zoom;
@@ -1643,7 +1648,8 @@ void ComputedStyle::ApplyMotionPathTransform(float origin_x,
     switch (basic_shape.GetType()) {
       case BasicShape::kStylePathType: {
         const StylePath& path = To<StylePath>(basic_shape);
-        path_position = CalculatePointAndTangentOnPath(path.GetPath());
+        path_position = CalculatePointAndTangentOnPath(path.GetUnzoomedPath(),
+                                                       EffectiveZoom());
         break;
       }
       case BasicShape::kStyleRayType: {
@@ -1663,8 +1669,8 @@ void ComputedStyle::ApplyMotionPathTransform(float origin_x,
         // if `at position` is omitted, it will be computed as 50% 50%.
         gfx::PointF starting_point;
         if (ray.HasExplicitCenter() || position.X().IsNone()) {
-          starting_point = PointForCenterCoordinate(
-              ray.CenterX(), ray.CenterY(), reference_box_size);
+          starting_point =
+              PointForLengthPoint(ray.Center(), reference_box_size);
         } else {
           starting_point = GetStartingPointOfThePath(
               offset_from_reference_box, position, reference_box_size);
@@ -1735,7 +1741,7 @@ void ComputedStyle::ApplyMotionPathTransform(float origin_x,
     } else {
       path = target->AsPath();
     }
-    path_position = CalculatePointAndTangentOnPath(path);
+    path_position = CalculatePointAndTangentOnPath(path, 1);
   }
 
   if (rotate.type == OffsetRotationType::kFixed) {

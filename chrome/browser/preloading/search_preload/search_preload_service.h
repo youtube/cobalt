@@ -5,6 +5,9 @@
 #ifndef CHROME_BROWSER_PRELOADING_SEARCH_PRELOAD_SEARCH_PRELOAD_SERVICE_H_
 #define CHROME_BROWSER_PRELOADING_SEARCH_PRELOAD_SEARCH_PRELOAD_SERVICE_H_
 
+#include <optional>
+#include <string>
+
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
@@ -23,6 +26,10 @@ class WebContents;
 
 namespace omnibox::mojom {
 enum class NavigationPredictor;
+}
+
+namespace user_prefs {
+class PrefRegistrySyncable;
 }
 
 // Roles:
@@ -47,6 +54,8 @@ class SearchPreloadService : public KeyedService,
                              public TemplateURLServiceObserver {
  public:
   static SearchPreloadService* GetForProfile(Profile* profile);
+
+  static void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry);
 
   explicit SearchPreloadService(Profile* profile);
   ~SearchPreloadService() override;
@@ -104,12 +113,20 @@ class SearchPreloadService : public KeyedService,
   SearchPreloadPipelineManager& GetOrCreatePipelineManagerWithLimit(
       content::WebContents& web_contents);
 
+  void SaveNoVarySearchDataCacheToPrefs();
+  void ClearNoVarySearchDataCache();
+
   base::ScopedObservation<TemplateURLService, TemplateURLServiceObserver>
       observer_{this};
 
   const raw_ptr<Profile> profile_;
 
   std::optional<base::WeakPtr<SearchPreloadPipelineManager>> pipeline_manager_;
+
+  // The GUID of the default search provider when the service was last notified
+  // of Default Search Provider changes. Used to detect actual Default Search
+  // Provider changes.
+  std::optional<std::string> default_search_provider_guid_;
 
   // Cache of No-Vary-Search header for the No-Vary-Search hint of the next
   // prefetch.
@@ -120,6 +137,10 @@ class SearchPreloadService : public KeyedService,
 
   base::WeakPtrFactory<SearchPreloadService> weak_factory_{this};
 };
+
+namespace prefs {
+extern const char kSearchPreloadNoVarySearchHintCache[];
+}
 
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused.

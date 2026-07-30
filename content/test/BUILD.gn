@@ -754,10 +754,14 @@ static_library("test_support") {
 
   # HID support is not available without udev.
   is_linux_without_udev = (is_linux || is_chromeos) && !use_udev
-  if (!is_linux_without_udev && !is_android) {
+  if (!is_linux_without_udev) {
     sources += [
       "../browser/hid/hid_test_utils.cc",
       "../browser/hid/hid_test_utils.h",
+    ]
+  }
+  if (!is_linux_without_udev && !is_android) {
+    sources += [
       "../browser/webauth/authenticator_test_base.cc",
       "../browser/webauth/authenticator_test_base.h",
     ]
@@ -1432,10 +1436,7 @@ if (is_android) {
     input =
         "//content/shell/android/browsertests_apk/AndroidManifest.xml.jinja2"
     output = content_browsertests_manifest
-    variables = [
-      "javaless_renderers=$enable_javaless_renderers",
-      "library_name=content_browsertests__library",
-    ]
+    variables = [ "library_name=content_browsertests__library" ]
   }
 
   android_library("content_browsertests_java") {
@@ -1570,6 +1571,7 @@ test("content_browsertests") {
     "../browser/display_cutout/display_cutout_browsertest.cc",
     "../browser/do_not_track_browsertest.cc",
     "../browser/dom_storage/dom_storage_browsertest.cc",
+    "../browser/dom_storage/dom_storage_rollout_browsertest.cc",
     "../browser/download/download_browsertest.cc",
     "../browser/download/drag_download_file_browsertest.cc",
     "../browser/download/mhtml_generation_browsertest.cc",
@@ -2315,7 +2317,6 @@ test("content_browsertests") {
       "//ui/events:motionevent_jni_headers",
       "//ui/touch_selection",
     ]
-
     android_manifest =
         "${target_gen_dir}/content_browsertests_manifest/AndroidManifest.xml"
     android_manifest_dep = ":content_browsertests_manifest"
@@ -2391,11 +2392,11 @@ test("content_browsertests") {
 
   # HID support is not available without udev.
   is_linux_without_udev = (is_linux || is_chromeos) && !use_udev
+  if (!is_linux_without_udev) {
+    sources += [ "../browser/hid/hid_browsertest.cc" ]
+  }
   if (!is_linux_without_udev && !is_android) {
-    sources += [
-      "../browser/hid/hid_browsertest.cc",
-      "../browser/webauth/webauth_browsertest.cc",
-    ]
+    sources += [ "../browser/webauth/webauth_browsertest.cc" ]
   }
 
   if (is_mac) {
@@ -2704,6 +2705,7 @@ test("content_unittests") {
     "../browser/devtools/devtools_http_handler_unittest.cc",
     "../browser/devtools/devtools_session_unittest.cc",
     "../browser/devtools/devtools_video_consumer_unittest.cc",
+    "../browser/devtools/protocol/digital_credentials_handler_unittest.cc",
     "../browser/devtools/protocol/tracing_handler_unittest.cc",
     "../browser/devtools/protocol_unittest.cc",
     "../browser/devtools/request_body_collector_unittest.cc",
@@ -2715,6 +2717,7 @@ test("content_unittests") {
     "../browser/dom_storage/dom_storage_context_wrapper_unittest.cc",
     "../browser/download/download_manager_impl_unittest.cc",
     "../browser/download/save_package_unittest.cc",
+    "../browser/eye_dropper_chooser_impl_unittest.cc",
     "../browser/fenced_frame/fenced_frame_reporter_unittest.cc",
     "../browser/fenced_frame/fenced_frame_unittest.cc",
     "../browser/fenced_frame/fenced_frame_url_mapping_unittest.cc",
@@ -3088,8 +3091,8 @@ test("content_unittests") {
     "../browser/webid/request_unittest.cc",
     "../browser/webid/test/delegated_idp_network_request_manager.cc",
     "../browser/webid/test/delegated_idp_network_request_manager.h",
-    "../browser/webid/test/federated_auth_request_request_token_callback_helper.cc",
-    "../browser/webid/test/federated_auth_request_request_token_callback_helper.h",
+    "../browser/webid/test/federated_request_token_callback_helper.cc",
+    "../browser/webid/test/federated_request_token_callback_helper.h",
     "../browser/webid/test/mock_api_permission_delegate.cc",
     "../browser/webid/test/mock_api_permission_delegate.h",
     "../browser/webid/test/mock_auto_reauthn_permission_delegate.cc",
@@ -3349,6 +3352,7 @@ test("content_unittests") {
     "//base/test:fuzztest_support",
     "//base/test:proto_test_support",
     "//base/test:test_support",
+    "//build:android_buildflags",
     "//build:buildflag_header_h",
     "//build:chromecast_buildflags",
     "//cc",

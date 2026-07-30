@@ -173,10 +173,12 @@ WebNNContextImpl::~WebNNContextImpl() {
       << "Graph builders must be cleared in OnDisconnect().";
 
   for (auto impl : tensor_impls_) {
-    // Delete non-interop tensor instances from the tracker as they can't
-    // unregister themselves since they're ref-counted and might outlive the
-    // context.
-    if (!impl->has_shared_image()) {
+    // Non-interop tensors require manual tracking cleanup since the memory
+    // is owned by the context and unlike interop, cannot be released by shared
+    // image.
+    if (impl->has_shared_image()) {
+      impl->DestroyAccessAndRepresentationAndWait();
+    } else {
       memory_type_tracker_.TrackMemFree(impl->PackedByteLength());
     }
   }
@@ -235,9 +237,6 @@ void WebNNContextImpl::OnDisconnect() {
     impl->ResetMojoReceiver();
   }
 
-  for (auto impl : graph_impls_) {
-    impl->ResetMojoReceiver();
-  }
 
   // Close the primary pipe before clearing builders. Closing the pipe detaches
   // all endpoint clients on the router, so the subsequent Clear() won't trigger
@@ -310,7 +309,6 @@ void WebNNContextImpl::CreateWeightsFile(
 }
 
 void WebNNContextImpl::BuildGraph(
-    mojo::PendingReceiver<mojom::WebNNGraph> receiver,
     mojom::GraphInfoPtr graph_info,
     WebNNGraphImpl::ComputeResourceInfo compute_resource_info,
     base::flat_map<OperandId, std::unique_ptr<WebNNConstantOperand>>
@@ -318,8 +316,7 @@ void WebNNContextImpl::BuildGraph(
     base::flat_map<OperandId, scoped_refptr<WebNNTensorImpl>>
         constant_tensor_operands,
     BuildGraphCallback callback) {
-  CreateGraphImpl(std::move(receiver), std::move(graph_info),
-                  std::move(compute_resource_info),
+  CreateGraphImpl(std::move(graph_info), std::move(compute_resource_info),
                   std::move(constant_operands),
                   std::move(constant_tensor_operands),
                   base::BindOnce(&WebNNContextImpl::OnGraphBuilt, AsWeakPtr(),
@@ -647,7 +644,6 @@ void WebNNContextImpl::DestroyGraph(
     GetMojoReceiver().ReportBadMessage(kBadMessageInvalidGraph);
     return;
   }
-  (*it)->ResetMojoReceiver();
   graph_impls_.erase(it);
 }
 
@@ -665,7 +661,9 @@ void WebNNContextImpl::RemoveWebNNTensorImpl(
     const blink::WebNNTensorToken& handle) {
   const auto it = tensor_impls_.find(handle);
   CHECK(it != tensor_impls_.end());
-  if (!it->get()->has_shared_image()) {
+  if (it->get()->has_shared_image()) {
+    it->get()->DestroyAccessAndRepresentationAndWait();
+  } else {
     memory_type_tracker_.TrackMemFree(it->get()->PackedByteLength());
   }
   // Upon calling erase, the handle will no longer refer to a valid

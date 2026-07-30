@@ -8,13 +8,16 @@
 
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/ui/tab_sharing/mock_tab_sharing_ui.h"
+#include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/grit/generated_resources.h"
-#include "chrome/test/base/browser_with_test_window_test.h"
+#include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "components/infobars/content/content_infobar_manager.h"
 #include "components/infobars/core/infobar.h"
 #include "components/url_formatter/elide_url.h"
 #include "components/vector_icons/vector_icons.h"
 #include "content/public/common/content_features.h"
+#include "content/public/test/navigation_simulator.h"
+#include "content/public/test/web_contents_tester.h"
 #include "media/capture/capture_switches.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -40,7 +43,7 @@ const std::u16string kCapturingUrl = u"https://capturing.chromium.org/";
 }  // namespace
 
 class TabSharingInfoBarDelegateTest
-    : public BrowserWithTestWindowTest,
+    : public ChromeRenderViewHostTestHarness,
       public ::testing::WithParamInterface<bool> {
  public:
   struct Preferences {
@@ -58,9 +61,30 @@ class TabSharingInfoBarDelegateTest
   TabSharingInfoBarDelegateTest()
       : captured_surface_control_active_(GetParam()) {}
 
+  void SetUp() override {
+    ChromeRenderViewHostTestHarness::SetUp();
+    layout_provider_ = std::make_unique<ChromeLayoutProvider>();
+  }
+
+  void TearDown() override {
+    web_contents_list_.clear();
+    layout_provider_.reset();
+    ChromeRenderViewHostTestHarness::TearDown();
+  }
+
+  std::unique_ptr<ChromeLayoutProvider> layout_provider_;
+
+  void AddTab(const GURL& url) {
+    std::unique_ptr<content::WebContents> web_contents =
+        content::WebContentsTester::CreateTestWebContents(browser_context(),
+                                                          nullptr);
+    infobars::ContentInfoBarManager::CreateForWebContents(web_contents.get());
+    content::WebContentsTester::For(web_contents.get())->NavigateAndCommit(url);
+    web_contents_list_.push_back(std::move(web_contents));
+  }
+
   infobars::InfoBar* CreateInfobar(const Preferences& prefs) {
-    content::WebContents* const web_contents =
-        browser()->tab_strip_model()->GetWebContentsAt(prefs.tab_index);
+    content::WebContents* const web_contents = GetWebContents(prefs.tab_index);
     return TabSharingInfoBarDelegate::Create(
         infobars::ContentInfoBarManager::FromWebContents(web_contents), nullptr,
         prefs.shared_tab_id, prefs.capturer_id, prefs.shared_tab_name,
@@ -78,7 +102,9 @@ class TabSharingInfoBarDelegateTest
   }
 
   content::WebContents* GetWebContents(int tab) {
-    return browser()->tab_strip_model()->GetWebContentsAt(tab);
+    CHECK_GE(tab, 0);
+    CHECK_LT(static_cast<size_t>(tab), web_contents_list_.size());
+    return web_contents_list_[tab].get();
   }
 
   GlobalRenderFrameHostId GetGlobalId(int tab) {
@@ -96,6 +122,11 @@ class TabSharingInfoBarDelegateTest
             url_formatter::SchemeDisplay::OMIT_HTTP_AND_HTTPS));
   }
 
+  void NavigateAndCommit(content::WebContents* web_contents, const GURL& url) {
+    content::NavigationSimulator::NavigateAndCommitFromBrowser(web_contents,
+                                                               url);
+  }
+
   MockTabSharingUI* tab_sharing_mock_ui() { return &mock_ui; }
 
  protected:
@@ -103,6 +134,7 @@ class TabSharingInfoBarDelegateTest
 
  private:
   MockTabSharingUI mock_ui;
+  std::vector<std::unique_ptr<content::WebContents>> web_contents_list_;
 };
 
 INSTANTIATE_TEST_SUITE_P(,
@@ -110,7 +142,7 @@ INSTANTIATE_TEST_SUITE_P(,
                          /*captured_surface_control_active=*/::testing::Bool());
 
 TEST_P(TabSharingInfoBarDelegateTest, StartSharingOnCancel) {
-  AddTab(browser(), GURL("about:blank"));
+  AddTab(GURL("about:blank"));
   infobars::InfoBar* const infobar =
       CreateInfobar({.shared_tab_name = kSharedTabName,
                      .capturer_name = kAppName,
@@ -123,7 +155,7 @@ TEST_P(TabSharingInfoBarDelegateTest, StartSharingOnCancel) {
 }
 
 TEST_P(TabSharingInfoBarDelegateTest, StopSharingOnAccept) {
-  AddTab(browser(), GURL("about:blank"));
+  AddTab(GURL("about:blank"));
   TabSharingInfoBarDelegate* const delegate =
       CreateDelegate({.shared_tab_name = kSharedTabName,
                       .capturer_name = kAppName,
@@ -138,8 +170,8 @@ TEST_P(TabSharingInfoBarDelegateTest, StopSharingOnAccept) {
 // If Captured Surface Control is active, the CSC indicator
 // should also be visible.
 TEST_P(TabSharingInfoBarDelegateTest, InfobarOnCapturingTab) {
-  AddTab(browser(), GURL(kCapturedUrl));   // index = 0.
-  AddTab(browser(), GURL(kCapturingUrl));  // index = 1.
+  AddTab(GURL(kCapturedUrl));   // index = 0.
+  AddTab(GURL(kCapturingUrl));  // index = 1.
 
   TabSharingInfoBarDelegate* const delegate =
       CreateDelegate({.shared_tab_name = std::u16string(),
@@ -175,8 +207,8 @@ TEST_P(TabSharingInfoBarDelegateTest, InfobarOnCapturingTab) {
 // Test that the infobar on the shared tab has the correct layout:
 // "|icon| Sharing this tab to |app| [Switch to capturer]"
 TEST_P(TabSharingInfoBarDelegateTest, InfobarOnCapturedTab) {
-  AddTab(browser(), GURL("about:blank"));  // Captured; index = 0.
-  AddTab(browser(), GURL("about:blank"));  // Capturing; index = 1.
+  AddTab(GURL("about:blank"));  // Captured; index = 0.
+  AddTab(GURL("about:blank"));  // Capturing; index = 1.
 
   TabSharingInfoBarDelegate* const delegate =
       CreateDelegate({.shared_tab_name = std::u16string(),
@@ -198,7 +230,7 @@ TEST_P(TabSharingInfoBarDelegateTest, InfobarOnCapturedTab) {
 // Test that the infobar on another not share tab has the correct layout:
 // |icon| Sharing |shared_tab| to |app| [Stop sharing] [Share this tab instead]
 TEST_P(TabSharingInfoBarDelegateTest, InfobarOnNotSharedTab) {
-  AddTab(browser(), GURL("about:blank"));
+  AddTab(GURL("about:blank"));
   TabSharingInfoBarDelegate* const delegate =
       CreateDelegate({.shared_tab_name = kSharedTabName,
                       .capturer_name = kAppName,
@@ -223,7 +255,7 @@ TEST_P(TabSharingInfoBarDelegateTest, InfobarOnNotSharedTab) {
 // has one button (the "Stop" button) on both shared and not shared tabs.
 TEST_P(TabSharingInfoBarDelegateTest, InfobarWhenSharingNotAllowed) {
   // Create infobar for shared tab.
-  AddTab(browser(), GURL("about:blank"));
+  AddTab(GURL("about:blank"));
   TabSharingInfoBarDelegate* const delegate_shared_tab =
       CreateDelegate({.shared_tab_name = std::u16string(),
                       .capturer_name = kAppName,
@@ -234,7 +266,7 @@ TEST_P(TabSharingInfoBarDelegateTest, InfobarWhenSharingNotAllowed) {
             TabSharingInfoBarDelegate::kStop);
 
   // Create infobar for another not shared tab.
-  AddTab(browser(), GURL("about:blank"));
+  AddTab(GURL("about:blank"));
   TabSharingInfoBarDelegate* const delegate =
       CreateDelegate({.shared_tab_name = kSharedTabName,
                       .capturer_name = kAppName,
@@ -251,8 +283,8 @@ TEST_P(TabSharingInfoBarDelegateTest, InfobarWhenSharingNotAllowed) {
 // (Where STTI = share-this-tab-instead, and quick-nav changes the focused tab.)
 TEST_P(TabSharingInfoBarDelegateTest,
        InfobarOnCapturingTabIfCapturedAnotherTabButSelfCapturePreferred) {
-  AddTab(browser(), GURL("about:blank"));  // Captured; index = 0.
-  AddTab(browser(), GURL("about:blank"));  // Capturing; index = 1.
+  AddTab(GURL("about:blank"));  // Captured; index = 0.
+  AddTab(GURL("about:blank"));  // Capturing; index = 1.
 
   // The key part of this test, is that `can_share_instead` is set.
   TabSharingInfoBarDelegate* const delegate =
@@ -286,10 +318,9 @@ TEST_P(TabSharingInfoBarDelegateTest,
 
 // Test that multiple infobars can be created on the same tab.
 TEST_P(TabSharingInfoBarDelegateTest, MultipleInfobarsOnSameTab) {
-  AddTab(browser(), GURL("about:blank"));
+  AddTab(GURL("about:blank"));
   infobars::ContentInfoBarManager* infobar_manager =
-      infobars::ContentInfoBarManager::FromWebContents(
-          browser()->tab_strip_model()->GetWebContentsAt(0));
+      infobars::ContentInfoBarManager::FromWebContents(GetWebContents(0));
   EXPECT_EQ(infobar_manager->infobars().size(), 0u);
   CreateInfobar({.shared_tab_name = kSharedTabName,
                  .capturer_name = kAppName,
@@ -304,9 +335,8 @@ TEST_P(TabSharingInfoBarDelegateTest, MultipleInfobarsOnSameTab) {
 }
 
 TEST_P(TabSharingInfoBarDelegateTest, InfobarNotDismissedOnNavigation) {
-  AddTab(browser(), GURL("http://foo"));
-  content::WebContents* web_contents =
-      browser()->tab_strip_model()->GetWebContentsAt(0);
+  AddTab(GURL("http://foo"));
+  content::WebContents* web_contents = GetWebContents(0);
   infobars::ContentInfoBarManager* infobar_manager =
       infobars::ContentInfoBarManager::FromWebContents(web_contents);
   CreateInfobar({.shared_tab_name = kSharedTabName,
@@ -322,7 +352,7 @@ TEST_P(TabSharingInfoBarDelegateTest, InfobarNotDismissedOnNavigation) {
 // "|icon| Casting |tab_being_cast| to |sink| [Stop casting] [Cast this tab
 // instead]"
 TEST_P(TabSharingInfoBarDelegateTest, InfobarOnNotCastTab) {
-  AddTab(browser(), GURL("about:blank"));
+  AddTab(GURL("about:blank"));
   Preferences preferences = {
       .shared_tab_name = kSharedTabName,
       .capturer_name = kSinkName,
@@ -348,7 +378,7 @@ TEST_P(TabSharingInfoBarDelegateTest, InfobarOnNotCastTab) {
 // Test that the infobar on the tab being cast has the correct layout:
 // "|icon| Casting this tab to |sink| [Stop casting]"
 TEST_P(TabSharingInfoBarDelegateTest, InfobarOnCastTab) {
-  AddTab(browser(), GURL("about:blank"));
+  AddTab(GURL("about:blank"));
   Preferences preferences = {
       .shared_tab_name = std::u16string(),
       .capturer_name = kSinkName,

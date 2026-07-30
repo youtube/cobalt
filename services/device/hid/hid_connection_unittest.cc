@@ -518,6 +518,7 @@ TEST_F(HidConnectionProtectedReportTest, AllowFidoReportsAllowsFido) {
   EXPECT_TRUE(connection().closed());
 }
 
+#if !BUILDFLAG(IS_ANDROID)
 TEST_F(HidConnectionProtectedReportTest,
        AllowFidoReportsAllowsNonFidoSecurityKey) {
   base::test::ScopedFeatureList scoped_feature_list;
@@ -556,6 +557,7 @@ TEST_F(HidConnectionProtectedReportTest,
   connection().Close();
   EXPECT_TRUE(connection().closed());
 }
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 TEST_F(HidConnectionProtectedReportTest, InvisibleConstFeatureReport) {
   auto collection = HidCollection(nullptr, mojom::kPageGenericDesktop,

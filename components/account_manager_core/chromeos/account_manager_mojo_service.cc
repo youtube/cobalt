@@ -61,12 +61,9 @@ AccountManagerMojoService::AccountManagerMojoService(
     account_manager::AccountManager* account_manager)
     : account_manager_(account_manager) {
   CHECK(account_manager_);
-  account_manager_->AddObserver(this);
 }
 
-AccountManagerMojoService::~AccountManagerMojoService() {
-  account_manager_->RemoveObserver(this);
-}
+AccountManagerMojoService::~AccountManagerMojoService() = default;
 
 void AccountManagerMojoService::BindReceiver(
     mojo::PendingReceiver<mojom::AccountManager> receiver) {
@@ -190,53 +187,6 @@ void AccountManagerMojoService::CreateAccessTokenFetcher(
   std::move(callback).Run(std::move(pending_remote));
 }
 
-void AccountManagerMojoService::ReportAuthError(
-    mojom::AccountKeyPtr mojo_account_key,
-    mojom::GoogleServiceAuthErrorPtr mojo_error) {
-  std::optional<account_manager::AccountKey> maybe_account_key =
-      account_manager::FromMojoAccountKey(mojo_account_key);
-  base::UmaHistogramBoolean("AccountManager.ReportAuthError.IsAccountKeyEmpty",
-                            !maybe_account_key.has_value());
-  if (!maybe_account_key) {
-    LOG(ERROR) << "Can't unmarshal account with id: " << mojo_account_key->id
-               << " and type: " << mojo_account_key->account_type;
-    return;
-  }
-
-  std::optional<GoogleServiceAuthError> maybe_error =
-      account_manager::FromMojoGoogleServiceAuthError(mojo_error);
-  if (!maybe_error) {
-    // Newer version of Lacros may have reported an error that older version of
-    // Ash doesn't understand yet. Ignore such errors.
-    LOG(ERROR) << "Can't unmarshal error with state: " << mojo_error->state;
-    return;
-  }
-
-  const GoogleServiceAuthError& error = maybe_error.value();
-  if (error.IsTransientError()) {
-    // Silently ignore transient errors reported by apps to avoid polluting
-    // other apps' error caches with transient errors like
-    // `GoogleServiceAuthError::CONNECTION_FAILED`.
-    return;
-  }
-
-  account_manager_->GetAccounts(base::BindOnce(
-      &AccountManagerMojoService::MaybeNotifyAuthErrorObservers,
-      weak_ptr_factory_.GetWeakPtr(), maybe_account_key.value(), error));
-}
-
-void AccountManagerMojoService::OnTokenUpserted(
-    const account_manager::Account& account) {
-  for (auto& observer : observers_)
-    observer->OnTokenUpserted(ToMojoAccount(account));
-}
-
-void AccountManagerMojoService::OnAccountRemoved(
-    const account_manager::Account& account) {
-  for (auto& observer : observers_)
-    observer->OnAccountRemoved(ToMojoAccount(account));
-}
-
 void AccountManagerMojoService::OnAccountUpsertionFinished(
     const account_manager::AccountUpsertionResult& result) {
   if (!account_signin_in_progress_) {
@@ -284,25 +234,6 @@ void AccountManagerMojoService::DeletePendingAccessTokenFetchRequest(
       pending_access_token_requests_,
       [&request](const std::unique_ptr<AccessTokenFetcher>& pending_request)
           -> bool { return pending_request.get() == request; });
-}
-
-void AccountManagerMojoService::MaybeNotifyAuthErrorObservers(
-    const account_manager::AccountKey& account_key,
-    const GoogleServiceAuthError& error,
-    const std::vector<account_manager::Account>& known_accounts) {
-  if (!std::ranges::contains(known_accounts, account_key,
-                             [](const account_manager::Account& account) {
-                               return account.key;
-                             })) {
-    // Ignore if the account is not known.
-    return;
-  }
-
-  for (auto& observer : observers_) {
-    observer->OnAuthErrorChanged(
-        account_manager::ToMojoAccountKey(account_key),
-        account_manager::ToMojoGoogleServiceAuthError(error));
-  }
 }
 
 void AccountManagerMojoService::NotifySigninDialogClosed() {

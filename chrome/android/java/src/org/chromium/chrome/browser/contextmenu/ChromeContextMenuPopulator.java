@@ -15,6 +15,7 @@ import static org.chromium.ui.listmenu.ListMenuItemProperties.MENU_ITEM_ID;
 import static org.chromium.ui.listmenu.ListMenuItemProperties.TEXT_APPEARANCE_ID;
 import static org.chromium.ui.listmenu.ListMenuItemProperties.TITLE;
 
+import android.app.Activity;
 import android.app.ActivityOptions;
 import android.app.PendingIntent;
 import android.content.ContentResolver;
@@ -35,6 +36,7 @@ import androidx.browser.customtabs.CustomTabsIntent;
 
 import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.base.ContextUtils;
+import org.chromium.base.LocaleUtils;
 import org.chromium.base.Log;
 import org.chromium.base.ResettersForTesting;
 import org.chromium.base.metrics.RecordHistogram;
@@ -71,9 +73,13 @@ import org.chromium.chrome.browser.share.ShareDelegate.ShareOrigin;
 import org.chromium.chrome.browser.share.ShareHelper;
 import org.chromium.chrome.browser.share.ShareUtils;
 import org.chromium.chrome.browser.share.link_to_text.LinkToTextHelper;
+import org.chromium.chrome.browser.share.qrcode.QrCodeCoordinator;
+import org.chromium.chrome.browser.share.send_tab_to_self.SendTabToSelfAndroidBridge;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabContextMenuItemDelegate;
 import org.chromium.chrome.browser.tab.TabUtils;
+import org.chromium.chrome.browser.translate.TranslateBridge;
+import org.chromium.chrome.browser.translate.TranslateUtils;
 import org.chromium.chrome.browser.ui.lens.LensOverlayCoordinator;
 import org.chromium.chrome.browser.ui.lens.LensOverlayInvocationSource;
 import org.chromium.chrome.browser.ui.lens.LensOverlayTabHelper;
@@ -99,7 +105,6 @@ import org.chromium.content_public.browser.BrowserStartupController;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.common.ContentUrlConstants;
 import org.chromium.ui.base.DeviceFormFactor;
-import org.chromium.ui.base.DeviceInput;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.listmenu.ListItemType;
 import org.chromium.ui.listmenu.ListMenuItemProperties;
@@ -254,6 +259,9 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
             Action.COPY_VIDEO_FRAME,
             Action.DOWNLOAD_VIDEO_FRAME,
             Action.READING_MODE,
+            Action.SEND_TAB_TO_SELF,
+            Action.TRANSLATE,
+            Action.CREATE_QR_CODE,
         })
         @Retention(RetentionPolicy.SOURCE)
         public @interface Action {
@@ -313,7 +321,10 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
             int COPY_VIDEO_FRAME = 53;
             int DOWNLOAD_VIDEO_FRAME = 54;
             int READING_MODE = 55;
-            int NUM_ENTRIES = 56;
+            int SEND_TAB_TO_SELF = 56;
+            int TRANSLATE = 57;
+            int CREATE_QR_CODE = 58;
+            int NUM_ENTRIES = 59;
         }
 
         // LINT.ThenChange(/tools/metrics/histograms/enums.xml:ContextMenuOptionAndroid)
@@ -468,11 +479,23 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
     }
 
     @VisibleForTesting
+    boolean shouldShowTranslateItem() {
+        Tab tab = getTab();
+        if (tab == null || !TranslateUtils.canTranslateCurrentTab(tab)) {
+            return false;
+        }
+        String pageLanguage = TranslateBridge.getCurrentLanguage(tab);
+        if (TextUtils.isEmpty(pageLanguage)) return false;
+        String targetLanguage = TranslateBridge.getTargetLanguageForChromium(getProfile());
+        if (TextUtils.isEmpty(targetLanguage)) return false;
+        return !LocaleUtils.isBaseLanguageEqual(pageLanguage, targetLanguage);
+    }
+
+    @VisibleForTesting
     boolean shouldShowDeveloperMenu() {
         return DevToolsWindowAndroid.isDevToolsAllowedFor(
                         getProfile(), mItemDelegate.getWebContents())
-                && DeviceInput.supportsAlphabeticKeyboard()
-                && DeviceInput.supportsPrecisionPointer();
+                && isTabletScreen();
     }
 
     @VisibleForTesting
@@ -530,7 +553,7 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
                     pageGroup.add(
                             createListItem(
                                     Item.SEARCH_TAB_WITH_GOOGLE_LENS,
-                                    /* showInProductHelp= */ false,
+                                    /* showInProductHelp= */ true,
                                     isEnabled));
                     maybeRecordUkmLensShown();
                 }
@@ -544,8 +567,22 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
                         && !DomDistillerUrlUtils.isDistilledPage(mParams.getPageUrl())) {
                     pageGroup.add(createListItem(Item.READING_MODE));
                 }
+                Integer sendTabToSelfDisplayReason =
+                        SendTabToSelfAndroidBridge.getEntryPointDisplayReason(
+                                getProfile(), mParams.getPageUrl().getSpec());
+                if (sendTabToSelfDisplayReason != null) {
+                    pageGroup.add(createListItem(Item.SEND_TAB_TO_SELF));
+                }
+                if (!isEmptyUrl(mParams.getPageUrl())) {
+                    pageGroup.add(createListItem(Item.CREATE_QR_CODE));
+                }
             }
             groupedItems.add(pageGroup);
+            if (mMode != ContextMenuMode.THIN_WEB_VIEW && shouldShowTranslateItem()) {
+                ModelList utilGroup = new ModelList();
+                utilGroup.add(createListItem(Item.TRANSLATE));
+                groupedItems.add(utilGroup);
+            }
         }
         if (mParams.isAnchor()) {
             ModelList linkGroup = new ModelList();
@@ -707,7 +744,8 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
                 imageGroup.add(createListItem(Item.OPEN_IMAGE_IN_NEW_TAB));
             }
             if (mItemDelegate.supportsOpenInEphemeralTab()
-                    && EphemeralTabCoordinator.isSupported()) {
+                    && EphemeralTabCoordinator.isSupported()
+                    && !mParams.getSrcUrl().getScheme().equals(UrlConstants.DATA_SCHEME)) {
                 if (mShowEphemeralTabNewLabel == null) {
                     mShowEphemeralTabNewLabel = shouldTriggerEphemeralTabHelpUi();
                 }
@@ -1136,6 +1174,32 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
             if (tab != null) {
                 LensOverlayCoordinator.getOrCreateForTab(tab)
                         .start(LensOverlayInvocationSource.CONTEXT_MENU);
+            }
+            SharedPreferencesManager prefManager = ChromeSharedPreferences.getInstance();
+            prefManager.writeBoolean(
+                    ChromePreferenceKeys.CONTEXT_MENU_SEARCH_TAB_WITH_GOOGLE_LENS_CLICKED, true);
+        } else if (itemId == R.id.contextmenu_send_tab_to_self) {
+            recordContextMenuSelection(ContextMenuUma.Action.SEND_TAB_TO_SELF);
+            Tab tab = getTab();
+            if (tab != null) {
+                assumeNonNull(mShareDelegateSupplier.get()).sendTabToSelf(tab);
+            }
+        } else if (itemId == R.id.contextmenu_translate) {
+            recordContextMenuSelection(ContextMenuUma.Action.TRANSLATE);
+            Tab tab = getTab();
+            if (tab != null) {
+                TranslateBridge.translateTabWhenReady(tab);
+            }
+        } else if (itemId == R.id.contextmenu_create_qr_code) {
+            recordContextMenuSelection(ContextMenuUma.Action.CREATE_QR_CODE);
+            WindowAndroid window = getWindow();
+            if (window != null) {
+                Activity activity = window.getActivity().get();
+                if (activity != null) {
+                    QrCodeCoordinator qrCodeCoordinator =
+                            new QrCodeCoordinator(activity, mParams.getPageUrl().getSpec(), window);
+                    qrCodeCoordinator.show();
+                }
             }
         } else if (itemId == R.id.contextmenu_share_link) {
             recordContextMenuSelection(ContextMenuUma.Action.SHARE_LINK);

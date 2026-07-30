@@ -24,6 +24,8 @@ inline constexpr char kBadMessageInvalidContext[] =
     "Invalid context from renderer.";
 inline constexpr char kBadMessageInvalidSyncToken[] =
     "Invalid sync token from renderer.";
+inline constexpr char kBadMessageGraphBuilderBypassesCompiler[] =
+    "CreateGraphBuilder must go through the Compiler process.";
 
 template <typename MojoResultType>
 mojo::StructPtr<MojoResultType> ToError(const mojom::Error::Code& error_code,

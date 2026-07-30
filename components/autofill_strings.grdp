@@ -421,6 +421,12 @@
   <message name="IDS_AUTOFILL_ENABLE_PROFILES_TOGGLE_LABEL" desc="Label for a toggle that allows users to control whether addresses should be saved and forms should be autofilled with them. Sentence-Cased." formatter_data="android_java">
     Save and fill addresses
   </message>
+  <message name="IDS_AUTOFILL_GMAIL_OTP_FILLING_TOGGLE_TITLE" desc="Title for the toggle that enables autofilling verification codes from Gmail.">
+    Autofill verification codes from Gmail
+  </message>
+  <message name="IDS_AUTOFILL_GMAIL_OTP_FILLING_TOGGLE_DESCRIPTION" desc="Description for the toggle that enables autofilling verification codes from Gmail.">
+    Autofill verification codes sites use to improve your security. Chrome can get these codes from your Gmail. <ph name="BEGIN_LINK">&lt;a href="$1" tabindex="0" aria-description="$2" target="_blank"&gt;</ph>Learn more about this feature<ph name="LINK_END">&lt;/a&gt;</ph>
+  </message>
   <message name="IDS_AUTOFILL_DISABLE_SETTINGS_EXPLANATION_TITLE" desc="Title of the card explaining why the settings page was disabled. Sentence-Cased." formatter_data="android_java">
     Google isn’t your autofill provider
   </message>
@@ -863,6 +869,9 @@
   </if>
   <message name="IDS_AUTOFILL_AT_MEMORY_MANAGE_SUGGESTION_MAIN_TEXT" desc="The label for a button in the At Memory flyout that opens the Autofill for AI information management interface in Chrome settings." formatter_data="android_java" translateable="false">
     Manage information
+  </message>
+   <message name="IDS_AUTOFILL_AT_MEMORY_SUGGESTION_SOURCE_TEXT" desc="The label for a text in the At Memory flyout that shows the source of the autofill suggestion." formatter_data="android_java" translateable="false">
+    Suggested by Gemini
   </message>
 
   <!-- Autofill Address Edit Dialog -->
@@ -1362,11 +1371,10 @@
     Trouble filling your info. Check your connection.
   </message>
 
-  <!-- TODO(crbug.com/503303085): Translate these strings. -->
-  <message name="IDS_AUTOFILL_AI_PRE_FETCH_ERROR_MESSAGE" desc="A message that appears when prefetching Autofill AI entities fails." translateable="false">
-    Trouble finding the data
+  <message name="IDS_AUTOFILL_AI_PRE_FETCH_ERROR_MESSAGE" desc="A message that appears when prefetching Autofill AI entities fails.">
+    Trouble filling your info
   </message>
-  <message name="IDS_AUTOFILL_AI_PRE_FETCH_ERROR_MESSAGE_BUTTON_TEXT" desc="A button that is shown in the message that appears when prefetching Autofill AI entities fails." translateable="false">
+  <message name="IDS_AUTOFILL_AI_PRE_FETCH_ERROR_MESSAGE_BUTTON_TEXT" desc="A button that is shown in the message that appears when prefetching Autofill AI entities fails.">
     Got it
   </message>
 
@@ -1483,13 +1491,13 @@
     </message>
 
     <message name="IDS_AUTOFILL_AI_SUGGESTION_LONG_PRESS_DIALOG_DESCRIPTION" desc="The description text shown in the dialog after the user long presses a suggestion in the keyboard accessory." formatter_data="android_java">
-      Found by Personal Intelligence. You can manage your info in settings.
+      Suggested by Gemini. Manage enhanced autofill in settings.
     </message>
     <message name="IDS_AUTOFILL_AI_SUGGESTION_LONG_PRESS_DIALOG_POSITIVE_BUTTON" desc="The positive button shown in the dialog after the user long presses a suggestion in the keyboard accessory." formatter_data="android_java">
       Settings
     </message>
     <message name="IDS_AUTOFILL_AI_SUGGESTION_LONG_PRESS_DIALOG_NEGATIVE_BUTTON" desc="The negative button shown in the dialog after the user long presses a suggestion in the keyboard accessory." formatter_data="android_java">
-      Cancel
+      Back
     </message>
   </if>
 

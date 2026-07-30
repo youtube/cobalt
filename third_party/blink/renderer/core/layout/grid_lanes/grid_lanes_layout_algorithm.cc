@@ -115,7 +115,7 @@ MinMaxSizesResult GridLanesLayoutAlgorithm::ComputeMinMaxSizes(
       const auto stacking_axis_gap =
           GridTrackSizingAlgorithm::CalculateGutterSize(
               style, grid_lanes_available_size_, kForColumns);
-      return running_positions.GetMaxPositionForSpan(
+      return running_positions.GetStackingAxisSizeForSpan(
                  GridSpan::TranslatedDefiniteGridSpan(
                      /*start_line=*/0,
                      /*end_line=*/track_collection.EndLineOfImplicitGrid())) -
@@ -449,7 +449,7 @@ void GridLanesLayoutAlgorithm::PlaceGridLanesItems(
   // Determine intrinsic size of the grid-lanes container. For the stacking
   // axis, remove the last gap that was added, since there is no item after it.
   stacking_axis_size_ =
-      running_positions.GetMaxPositionForSpan(
+      running_positions.GetStackingAxisSizeForSpan(
           GridSpan::TranslatedDefiniteGridSpan(
               /*start_line=*/0,
               /*end_line=*/track_collection.EndLineOfImplicitGrid())) -
@@ -551,6 +551,7 @@ void GridLanesLayoutAlgorithm::ApplyStackingAxisAlignment(
   const auto& style = Style();
   const auto grid_axis_direction = style.GridLanesTrackSizingDirection();
   const bool is_for_columns = grid_axis_direction == kForColumns;
+  const bool is_fill_reverse = style.IsReverseGridLanesFillDirection();
 
   running_positions.FinalizeTrackOpeningsForStackingAxisAlignment(
       effective_stacking_axis_size, stacking_axis_gap);
@@ -572,34 +573,52 @@ void GridLanesLayoutAlgorithm::ApplyStackingAxisAlignment(
       // TODO(celestepan): Whether or not the explicit size overrides stretch
       // alignment is still in discussion with the CSSWG:
       // https://github.com/w3c/csswg-drafts/issues/13950.
+      //
+      // At the moment, we are assuming that if a stretch item has an explicit
+      // size, then no alignment changes should be made to it.
       const bool has_explicit_stacking_size =
           is_for_columns ? !item_style.LogicalHeight().IsAuto()
                          : !item_style.LogicalWidth().IsAuto();
-      if (!has_explicit_stacking_size) {
-        // TODO(layout-dev): We currently don't account for the case where the
-        // stretched item is a subgrid. Accounting for this would be complicated
-        // and possibly circular. If the stretched subgridded item has
-        // `grid-template-rows: 1fr 1fr` and contains items with aspect ratio,
-        // then stretching the item would change the width of the subgridded
-        // item as well. This would mean that we would need to re-calculcate
-        // track sizing, and that might change the placement of the subgridded
-        // item such that it no longer is in a position where it needs to be
-        // stretched.
-        RelayoutStackingAxisStretchItem(*candidate, running_positions);
+      if (has_explicit_stacking_size) {
         continue;
       }
-    }
 
-    // TODO(celestepan): Account for the case of fill-reverse.
-    //
-    // For center/end alignment, compute the offset and adjust the child's
-    // position directly.
-    const auto stacking_axis_alignment =
-        is_for_columns ? item.Alignment(kForRows) : item.Alignment(kForColumns);
-    if (stacking_axis_alignment == AxisEdge::kStart) {
+      // TODO(layout-dev): We currently don't account for the case where the
+      // stretched item is a subgrid. Accounting for this would be complicated
+      // and possibly circular. If the stretched subgridded item has
+      // `grid-template-rows: 1fr 1fr` and contains items with aspect ratio,
+      // then stretching the item would change the width of the subgridded
+      // item as well. This would mean that we would need to re-calculcate
+      // track sizing, and that might change the placement of the subgridded
+      // item such that it no longer is in a position where it needs to be
+      // stretched.
+      RelayoutStackingAxisStretchItem(*candidate, running_positions);
       continue;
     }
 
+    // In `fill-reverse`, items are reflected so they stack from the end of the
+    // container, so `end` aligned items are already in place after reflection.
+    // In normal mode, `start` aligned items are already in place.
+    auto stacking_axis_alignment =
+        is_for_columns ? item.Alignment(kForRows) : item.Alignment(kForColumns);
+    if (is_fill_reverse ? stacking_axis_alignment == AxisEdge::kEnd
+                        : stacking_axis_alignment == AxisEdge::kStart) {
+      continue;
+    }
+
+    // `AlignmentOffset` assumes items are placed at the start and computes
+    // the offset to move them toward center/end. In `fill-reverse`, items have
+    // been reflected so they are placed at the end instead. To get the correct
+    // offset from end toward center/start, swap `kStart` with `kEnd` before
+    // calling `AlignmentOffset`, and negate the result to move in the reverse
+    // direction. `kCenter` is symmetric so it doesn't need swapping.
+    if (is_fill_reverse) {
+      if (stacking_axis_alignment == AxisEdge::kStart) {
+        stacking_axis_alignment = AxisEdge::kEnd;
+      } else if (stacking_axis_alignment == AxisEdge::kEnd) {
+        stacking_axis_alignment = AxisEdge::kStart;
+      }
+    }
     const LayoutUnit alignment_offset_adjustment = AlignmentOffset(
         candidate->available_alignment_space, /*size=*/LayoutUnit(),
         /*margin_start=*/LayoutUnit(), /*margin_end=*/LayoutUnit(),
@@ -609,9 +628,13 @@ void GridLanesLayoutAlgorithm::ApplyStackingAxisAlignment(
       LogicalOffset adjusted_offset =
           container_builder_.Children()[candidate->item_index].offset;
       if (is_for_columns) {
-        adjusted_offset.block_offset += alignment_offset_adjustment;
+        adjusted_offset.block_offset += is_fill_reverse
+                                            ? -alignment_offset_adjustment
+                                            : alignment_offset_adjustment;
       } else {
-        adjusted_offset.inline_offset += alignment_offset_adjustment;
+        adjusted_offset.inline_offset += is_fill_reverse
+                                             ? -alignment_offset_adjustment
+                                             : alignment_offset_adjustment;
       }
       container_builder_.SetChildOffset(candidate->item_index, adjusted_offset);
     }
@@ -655,9 +678,22 @@ void GridLanesLayoutAlgorithm::RelayoutStackingAxisStretchItem(
 
   const LayoutResult* stretched_result =
       candidate.item->node.Layout(stretched_space);
+
+  // In `fill-reverse`, items have been reflected to the end of the container,
+  // so stretching should grow the item toward the container start.
+  LogicalOffset stretched_offset = child.offset;
+  if (Style().IsReverseGridLanesFillDirection()) {
+    const auto grid_axis_direction = Style().GridLanesTrackSizingDirection();
+    if (grid_axis_direction == kForColumns) {
+      stretched_offset.block_offset -= candidate.available_alignment_space;
+    } else {
+      stretched_offset.inline_offset -= candidate.available_alignment_space;
+    }
+  }
+
   container_builder_.ReplaceChild(candidate.item_index,
                                   stretched_result->GetPhysicalFragment(),
-                                  child.offset);
+                                  stretched_offset);
 }
 
 void GridLanesLayoutAlgorithm::RunGridLanesPlacementPhase(

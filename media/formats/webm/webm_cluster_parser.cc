@@ -478,10 +478,8 @@ bool WebMClusterParser::OnBlock(bool is_simple_block,
   std::unique_ptr<DecryptConfig> decrypt_config;
   size_t data_offset = 0;
   if (!encryption_key_id.empty() &&
-      !WebMCreateDecryptConfig(
-          data.data(), data.size(),
-          reinterpret_cast<const uint8_t*>(encryption_key_id.data()),
-          encryption_key_id.size(), &decrypt_config, &data_offset)) {
+      !WebMCreateDecryptConfig(data, base::as_byte_span(encryption_key_id),
+                               &decrypt_config, &data_offset)) {
     MEDIA_LOG(ERROR, media_log_) << "Failed to extract decrypt config.";
     return false;
   }
@@ -502,9 +500,8 @@ bool WebMClusterParser::OnBlock(bool is_simple_block,
       buffer->WritableSideData().alpha_data =
           base::HeapArray<uint8_t>::CopiedFrom(side_data.subspan(8u));
     } else if (side_data_id == 4) {
-      if (auto agtm = GetAgtmFromT35(side_data.subspan(8u))) {
-        buffer->WritableSideData().hdr_metadata.SetSerializedAgtm(*agtm);
-      }
+      SetAgtmFromT35(buffer->WritableSideData().hdr_metadata,
+                     side_data.subspan(8u));
     }
   }
 

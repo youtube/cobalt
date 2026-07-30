@@ -67,6 +67,7 @@
 #include "remoting/host/remote_open_url/url_forwarder_configurator.h"
 #include "remoting/host/remote_open_url/url_forwarder_control_message_handler.h"
 #include "remoting/host/security_key/security_key_auth_handler.h"
+#include "remoting/host/security_key/security_key_data_channel_handler.h"
 #include "remoting/host/security_key/security_key_extension.h"
 #include "remoting/host/security_key/security_key_extension_session.h"
 #include "remoting/host/webauthn/remote_webauthn_constants.h"
@@ -373,6 +374,13 @@ void ClientSession::SetCapabilities(
                             base::Unretained(this)));
   }
 
+  if (HasCapability(capabilities_, protocol::kSecurityKeyV2Capability)) {
+    data_channel_manager_.RegisterCreateHandlerCallback(
+        SecurityKeyDataChannelHandler::kChannelName,
+        base::BindRepeating(&ClientSession::CreateSecurityKeyDataChannelHandler,
+                            base::Unretained(this)));
+  }
+
   std::vector<ActionRequest::Action> supported_actions;
   if (HasCapability(capabilities_, protocol::kSendAttentionSequenceAction)) {
     supported_actions.push_back(ActionRequest::SEND_ATTENTION_SEQUENCE);
@@ -518,6 +526,11 @@ void ClientSession::SetVideoLayout(const protocol::VideoLayout& video_layout) {
     LogVideoTrack(i, video_layout.video_track(i));
   }
   screen_controls_->SetVideoLayout(video_layout);
+}
+
+void ClientSession::ControlTerminal(
+    const protocol::TerminalControl& terminal_control) {
+  NOTIMPLEMENTED(); // Will be implemented in a later CL.
 }
 
 void ClientSession::OnConnectionAuthenticating() {
@@ -1069,6 +1082,7 @@ void ClientSession::OnDesktopEnvironmentCreated(
     host_capabilities_.append(" ");
   }
   host_capabilities_.append(extension_manager_->GetCapabilities());
+
   if (!host_capabilities_.empty()) {
     host_capabilities_.append(" ");
   }
@@ -1093,6 +1107,13 @@ void ClientSession::OnDesktopEnvironmentCreated(
 
   host_capabilities_.append(" ");
   host_capabilities_.append(protocol::kClientRenderedHostCursorCapability);
+  if (security_key_auth_handler_) {
+    host_capabilities_.append(" ");
+    host_capabilities_.append(protocol::kSecurityKeyV2Capability);
+  }
+
+  host_capabilities_.append(" ");
+  host_capabilities_.append(protocol::kTerminalModeCapability);
 
   // Create the object that controls the screen resolution.
   screen_controls_ = desktop_environment_->CreateScreenControls();
@@ -1537,6 +1558,37 @@ void ClientSession::CreateRemoteWebAuthnMessageHandler(
       channel_name, std::move(pipe),
       desktop_environment_->CreateRemoteWebAuthnStateChangeNotifier());
   remote_webauthn_message_handler_ = unowned_handler->GetWeakPtr();
+}
+
+void ClientSession::CreateSecurityKeyDataChannelHandler(
+    const std::string& channel_name,
+    std::unique_ptr<protocol::MessagePipe> pipe) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!security_key_auth_handler_) {
+    LOG(WARNING) << "Security key auth handler not active.";
+    return;
+  }
+
+  // Create a callback to destroy the legacy signaling extension session.
+  // This will be invoked by the data channel handler once it has successfully
+  // connected and registered its own callback, avoiding a race condition
+  // where requests are dropped.
+  base::OnceClosure takeover_callback =
+      base::BindOnce(&ClientSession::DestroySecurityKeyExtensionSession,
+                     weak_factory_.GetWeakPtr());
+
+  // Instantiate the data channel handler.
+  // It binds directly to the handler and registers its own callback, cleanly
+  // taking over.
+  new SecurityKeyDataChannelHandler(std::move(pipe),
+                                    security_key_auth_handler_->GetWeakPtr(),
+                                    std::move(takeover_callback));
+}
+
+void ClientSession::DestroySecurityKeyExtensionSession() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  HOST_LOG << "Destroying legacy security key extension session (takeover).";
+  extension_manager_->RemoveExtensionSession(SecurityKeyExtension::kCapability);
 }
 
 bool ClientSession::IsValidDisplayIndex(webrtc::ScreenId index) const {

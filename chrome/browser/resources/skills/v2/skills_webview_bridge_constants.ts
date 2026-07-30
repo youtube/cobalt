@@ -8,6 +8,9 @@ export const SKILLS_HANDSHAKE_TYPE = 'skills-handshake';
 /** Message type used by the guest to acknowledge the handshake. */
 export const SKILLS_HANDSHAKE_ACK = 'SKILLS_HANDSHAKE_ACK';
 
+/** Message type used by the guest to request showing a toast. */
+export const SKILLS_SHOW_TOAST = 'show-toast';
+
 /**
  * Interval in milliseconds between successive handshake pings sent by the
  * host.

@@ -8,6 +8,7 @@
 #include <string_view>
 #include <utility>
 
+#include "base/byte_size.h"
 #include "base/containers/unique_ptr_adapters.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
@@ -465,7 +466,7 @@ void URLLoaderInterceptor::WriteResponse(
                             std::nullopt);
 
   network::URLLoaderCompletionStatus status;
-  status.decoded_body_length = body.size();
+  status.decoded_body_length = base::ByteSize(body.size());
   status.error_code = net::OK;
   client->OnComplete(status);
 }

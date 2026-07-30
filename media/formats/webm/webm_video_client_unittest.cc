@@ -221,8 +221,6 @@ TEST_F(WebMVideoClientTest, VerifyTransformationFromProjection) {
         ASSERT_TRUE(
             projection_parser_client->OnFloat(kWebMIdProjectionPoseYaw, yaw));
         ASSERT_TRUE(
-            projection_parser_client->OnFloat(kWebMIdProjectionPosePitch, 0.0));
-        ASSERT_TRUE(
             projection_parser_client->OnFloat(kWebMIdProjectionPoseRoll, roll));
         OnListEnd(kWebMIdProjection);
 

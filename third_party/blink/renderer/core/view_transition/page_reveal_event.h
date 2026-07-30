@@ -20,8 +20,7 @@ class PageRevealEventInit;
 // Implementation for the pagereveal event. Fired before the first
 // rendering update after a Document is activated (loaded, restored from
 // BFCache, prerender activated).
-// TODO(bokan): Update spec link once it's settled.
-// https://drafts.csswg.org/css-view-transitions-2/#reveal-event
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#the-pagerevealevent-interface
 class PageRevealEvent final : public Event {
   DEFINE_WRAPPERTYPEINFO();
 

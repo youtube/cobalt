@@ -406,11 +406,7 @@ animations/prefixed/string-keyframes-identifier-prefixed.html
 animations/responsive/responsive-neutral-keyframes.html
 animations/retain-zero-percent.html
 animations/some-keyframes-empty.html
-animations/stability/animation-transition-collision-crash.html
 animations/stability/empty-keyframes.html
-animations/stability/keyframe-timing-function-unset-crash.html
-animations/stability/keyframeeffect-no-target-crash.html
-animations/stability/option-opacity-inherit-crash.html
 animations/stability/zero-duration-infinite-iterations.html
 animations/timing/keyframe-timing-functions3.html
 animations/timing/longhand-timing-function.html
@@ -593,11 +589,9 @@ css3/motion-path/offset-anchor-rotation.html
 css3/motion-path/path-establishes-stacking-context.html
 css3/selectors3/html/css3-modsel-148.html
 css3/selectors3/html/css3-modsel-151.html
-css3/selectors3/html/css3-modsel-159.html
 css3/selectors3/html/css3-modsel-168.html
 css3/selectors3/html/css3-modsel-169a.html
 css3/selectors3/html/css3-modsel-175c.html
-css3/selectors3/html/css3-modsel-177a.html
 css3/selectors3/html/css3-modsel-184c.html
 css3/selectors3/html/css3-modsel-184e.html
 css3/supports-crash.html
@@ -606,8 +600,13 @@ css3/viewport-percentage-lengths/css3-viewport-percentage-lengths-getStyle.html
 css3/viewport-percentage-lengths/css3-viewport-percentage-lengths-vmax-absolute.html
 css3/viewport-percentage-lengths/viewport-percentage-lengths-page-zoom.html
 cssom/elementfrompoint-scrolloffset.html
+external/wpt/css/css-animations/crashtests/animation-transition-collision-crash.html
+external/wpt/css/css-animations/crashtests/keyframe-timing-function-unset-crash.html
+external/wpt/css/css-animations/crashtests/option-opacity-inherit-crash.html
 external/wpt/css/css-fonts/animations/font-size-composition.html
+external/wpt/css/css-transforms/crashtests/transformed-scroller-snapping-crash.html
 external/wpt/svg/geometry/animations/x-composition.html
+external/wpt/web-animations/crashtests/keyframeeffect-no-target-crash.html
 fast/canvas/2d.fillText.gradient.html
 fast/canvas/2d.text.draw.fill.maxWidth.gradient.html
 fast/canvas/OffscreenCanvas-2d-drawImage-no-context.html
@@ -767,7 +766,6 @@ transforms/transform-hit-test-flipped.html
 transforms/transform-inside-overflow-scroll.html
 transforms/transform-style-parsing.html
 transforms/transformed-caret.html
-transforms/transformed-scroller-snapping-crash.html
 transforms/translate.html
 transforms/webkit-perspective-origin-csstext.html
 

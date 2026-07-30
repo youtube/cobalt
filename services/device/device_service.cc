@@ -20,6 +20,7 @@
 #include "services/device/geolocation/geolocation_context.h"
 #include "services/device/geolocation/public_ip_address_geolocator.h"
 #include "services/device/geolocation/public_ip_address_location_notifier.h"
+#include "services/device/hid/hid_manager_impl.h"
 #include "services/device/power_monitor/power_monitor_message_broadcaster.h"
 #include "services/device/public/mojom/battery_monitor.mojom.h"
 #include "services/device/serial/serial_port_manager_impl.h"
@@ -36,7 +37,6 @@
 #else
 #include "services/device/battery/battery_monitor_impl.h"
 #include "services/device/battery/battery_status_service.h"
-#include "services/device/hid/hid_manager_impl.h"
 #endif
 
 #if BUILDFLAG(ENABLE_COMPUTE_PRESSURE)
@@ -205,7 +205,6 @@ void DeviceService::BindVibrationManager(
 #endif
 }
 
-#if !BUILDFLAG(IS_ANDROID)
 void DeviceService::BindHidManager(
     mojo::PendingReceiver<mojom::HidManager> receiver) {
   if (!hid_manager_) {
@@ -213,7 +212,6 @@ void DeviceService::BindHidManager(
   }
   hid_manager_->AddReceiver(std::move(receiver));
 }
-#endif
 
 #if BUILDFLAG(IS_CHROMEOS)
 void DeviceService::BindMtpManager(

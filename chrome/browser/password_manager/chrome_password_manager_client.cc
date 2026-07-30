@@ -1554,6 +1554,11 @@ void ChromePasswordManagerClient::AutomaticGenerationAvailable(
           /*log_debug_data*/ false)) {
     return;
   }
+
+  autofill::FieldGlobalId field_id = autofill::FieldGlobalId(
+      autofill::LocalFrameToken(*driver->render_frame_host()->GetFrameToken()),
+      ui_data.generation_element_id);
+
 #if BUILDFLAG(IS_ANDROID)
   if (!ShouldAcceptFocusEvent(web_contents(), driver,
                               FocusedFieldType::kFillablePasswordField)) {
@@ -1576,14 +1581,15 @@ void ChromePasswordManagerClient::AutomaticGenerationAvailable(
   // Trigger password suggestions. This is a fallback case if the field was
   // wrongly classified as new password field.
   driver->GetPasswordAutofillManager()->MaybeShowPasswordSuggestions(
-      element_bounds_in_screen_space, ui_data.text_direction);
+      field_id, element_bounds_in_screen_space, ui_data.text_direction);
 #else
   // Attempt to show the autofill dropdown UI first.
   gfx::RectF element_bounds_in_top_frame_space =
       TransformToRootCoordinates(driver->render_frame_host(), ui_data.bounds);
   if (driver->GetPasswordAutofillManager()
           ->MaybeShowPasswordSuggestionsWithGeneration(
-              element_bounds_in_top_frame_space, ui_data.text_direction,
+              field_id, element_bounds_in_top_frame_space,
+              ui_data.text_direction,
               /*show_password_suggestions=*/
               ui_data.is_generation_element_password_type)) {
     // (see crbug.com/40229464)
@@ -1937,6 +1943,7 @@ void ChromePasswordManagerClient::WebContentsDestroyed() {
 void ChromePasswordManagerClient::ResourceLoadComplete(
     content::RenderFrameHost* render_frame_host,
     const content::GlobalRequestID& request_id,
+    const GURL& original_url,
     const blink::mojom::ResourceLoadInfo& resource_load_info) {
   if (resource_load_info.method == "POST" &&
       resource_load_info.http_status_code >= 400 &&
@@ -1944,7 +1951,7 @@ void ChromePasswordManagerClient::ResourceLoadComplete(
     password_manager_.OnResourceLoadingFailed(
         password_manager::ContentPasswordManagerDriver::GetForRenderFrameHost(
             render_frame_host),
-        resource_load_info.original_url);
+        original_url);
   }
 }
 

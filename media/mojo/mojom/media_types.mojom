@@ -651,6 +651,7 @@ enum InputStreamErrorCode {
   kSystemPermissions = 1,
   kDeviceInUse = 2,
   kSocketError = 3,
+  kDeviceRemoved = 4,
 };
 
 // See media/base/renderer.h for description.

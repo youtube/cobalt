@@ -28,6 +28,7 @@
 #include "content/public/browser/web_contents.h"
 #include "net/base/features.h"
 #include "net/base/ip_address.h"
+#include "services/network/public/cpp/constants.h"
 
 NavigationPredictorPreconnectClient::NavigationPredictorPreconnectClient(
     content::WebContents* web_contents)
@@ -203,9 +204,12 @@ void NavigationPredictorPreconnectClient::MaybePreconnectNow(
   if (!loading_predictor)
     return;
 
+  // TODO(crbug.com/447954811, crbug.com/524282506): Pass the
+  // `network_restrictions_id` from the request initiator RenderFrameHost.
   loading_predictor->PrepareForPageLoad(
       preconnect_origin, preconnect_url_serialized,
-      predictors::HintOrigin::NAVIGATION_PREDICTOR, true);
+      predictors::HintOrigin::NAVIGATION_PREDICTOR,
+      network::GetTODONetworkRestrictionsId(), true);
 
   // The delay beyond the idle socket timeout that net uses when
   // re-preconnecting. If negative, no retries occur.

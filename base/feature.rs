@@ -18,6 +18,11 @@ pub mod internal {
     }
 }
 
+/// Specifies whether a given feature is enabled or disabled by default.
+///
+/// Note: The country-restricted states (`FEATURE_DISABLED_FOR_COUNTRIES` and
+// `FEATURE_ENABLED_FOR_COUNTRIES`) defined in C++ are not supported for
+/// Rust-defined features and are omitted here.
 #[repr(i32)]
 #[derive(Clone, Copy)]
 pub enum FeatureState {
@@ -96,7 +101,9 @@ impl<'a> From<&'a Feature> for &'a ffi::Feature {
 unsafe impl Sync for Feature {}
 
 #[cxx::bridge(namespace = "base")]
-mod ffi {
+// Public so other crates can use the Feature type in their own cxx bridges
+#[doc(hidden)]
+pub mod ffi {
     unsafe extern "C++" {
         include!("base/feature.h");
         include!("base/feature_list.h");

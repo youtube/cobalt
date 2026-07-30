@@ -30,6 +30,8 @@ std::string_view GetAISessionTypeName(AIMetrics::AISessionType session_type) {
       return "Proofreader";
     case AIMetrics::AISessionType::kClassifier:
       return "Classifier";
+    case AIMetrics::AISessionType::kSemanticEmbedder:
+      return "SemanticEmbedder";
   }
   NOTREACHED();
 }

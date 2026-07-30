@@ -9,6 +9,7 @@ import {getRequiredElement} from '//resources/js/util.js';
 import {ErrorType} from '../error_page.js';
 import {SkillsPageHandler} from '../skills.mojom-webui.js';
 
+import type {SkillsWebviewBridgeDelegate} from './skills_webview_bridge.js';
 import {SkillsWebviewBridge} from './skills_webview_bridge.js';
 import {SKILLS_HOST_URL} from './skills_webview_bridge_constants.js';
 
@@ -33,10 +34,13 @@ async function init() {
     return;
   }
 
+  const delegate: SkillsWebviewBridgeDelegate = {
+    onError: () => showError(webview, ErrorType.REMOTE_AUTHORITY_UNREACHABLE),
+    onShowToast: (skillId, toastType) => handler.showToast(skillId, toastType),
+  };
+
   // Initiate handshake. Show error page on failure.
-  new SkillsWebviewBridge(webview, () => {
-    showError(webview, ErrorType.REMOTE_AUTHORITY_UNREACHABLE);
-  });
+  new SkillsWebviewBridge(webview, delegate);
   webview.setAttribute('src', SKILLS_HOST_URL);
 }
 

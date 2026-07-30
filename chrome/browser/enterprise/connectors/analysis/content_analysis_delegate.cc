@@ -328,6 +328,8 @@ std::u16string ContentAnalysisDelegate::GetBypassJustificationLabel() const {
     case DeepScanAccessPoint::COPY:
       id = IDS_DEEP_SCANNING_DIALOG_PASTE_BYPASS_JUSTIFICATION_LABEL;
       break;
+    case DeepScanAccessPoint::NETWORK_REQUEST:
+      NOTREACHED();
   }
   return l10n_util::GetStringUTF16(id);
 }
@@ -387,7 +389,7 @@ void ContentAnalysisDelegate::CreateForWebContents(
                             web_contents, std::move(data), std::move(callback),
                             access_point))
                       : testing_factory->Run(web_contents, std::move(data),
-                                             std::move(callback));
+                                             std::move(callback), access_point);
 
   delegate->creation_time_ = base::TimeTicks::Now();
   UploadDataStatus upload_data_status = delegate->UploadData();
@@ -746,6 +748,13 @@ void ContentAnalysisDelegate::PrepareTextRequest() {
                                    /*min=*/1,
                                    /*max=*/51 * 1024 * 1024,
                                    /*buckets=*/50);
+    if (access_point_ == DeepScanAccessPoint::ACTOR) {
+      base::UmaHistogramCustomCounts(
+          "Enterprise.OnBulkDataEntry.Actor.DataSize", full_text.size(),
+          /*min=*/1,
+          /*max=*/51 * 1024 * 1024,
+          /*buckets=*/50);
+    }
   }
 
   if (text_request_complete_) {
@@ -782,6 +791,13 @@ void ContentAnalysisDelegate::PrepareImageRequest() {
                                    /*min=*/1,
                                    /*max=*/51 * 1024 * 1024,
                                    /*buckets=*/50);
+    if (access_point_ == DeepScanAccessPoint::ACTOR) {
+      base::UmaHistogramCustomCounts(
+          "Enterprise.OnBulkDataEntry.Actor.DataSize", data_.image.size(),
+          /*min=*/1,
+          /*max=*/51 * 1024 * 1024,
+          /*buckets=*/50);
+    }
   }
 
   if (image_request_complete_) {

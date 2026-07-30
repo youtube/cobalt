@@ -77,7 +77,6 @@
 #include "content/browser/permissions/permission_controller_impl.h"
 #include "content/browser/preloading/prefetch/prefetch_document_manager.h"
 #include "content/browser/preloading/prefetch/prefetch_features.h"
-#include "content/browser/preloading/prefetch/prefetch_serving_page_metrics_container.h"
 #include "content/browser/preloading/preload_activation_report_manager.h"
 #include "content/browser/preloading/preload_activation_report_utils.h"
 #include "content/browser/preloading/prerender/prerender_host_registry.h"
@@ -1846,10 +1845,14 @@ NavigationRequest::NavigationRequest(
   CHECK_EQ(common_params_->url, original_url_);
   if (base::FeatureList::IsEnabled(
           features::kSanitizeOriginalUrlDuringNavigation)) {
+    // TODO(crbug.com/495463654): We need to get the origin of the original_url
+    // here because the NavigationRequestTest helpers directly set original_url
+    // without triggering paths that may sanitize it. This will no longer be an
+    // issue once original_url is converted to be an original_origin.
     // TODO(523555340): CHECK-exclusion: Convert to a CHECK once we are
     // confident it won't be triggered.
     DCHECK_EQ(common_params_->url.DeprecatedGetOriginAsURL(),
-              commit_params_->original_url);
+              commit_params_->original_url.DeprecatedGetOriginAsURL());
   } else {
     // TODO(523555340): CHECK-exclusion: Convert to a CHECK once we are
     // confident it won't be triggered.
@@ -1878,15 +1881,18 @@ NavigationRequest::NavigationRequest(
 
 #if !BUILDFLAG(IS_ANDROID)
   // It should not be possible to navigate away from the initial WebUI page,
-  // except when recovering from a crash or doing a manual reload from e.g.
-  // DevTools.
+  // except when recovering from a crash. We allow navigating away to
+  // about:blank if `kDebugTopChromeWebUI` is enabled so that DevTools can
+  // reload.
   bool current_rfh_is_initial_webui =
       GetContentClient()->browser()->IsInitialWebUIURL(
           frame_tree_node_->current_frame_host()
               ->GetSiteInstance()
               ->GetSecurityPrincipal()
               .GetDeprecatedSiteURL());
-  if (current_rfh_is_initial_webui && !IsInitialWebUINavigation()) {
+  if (current_rfh_is_initial_webui && !IsInitialWebUINavigation() &&
+      !(base::FeatureList::IsEnabled(features::kDebugTopChromeWebUI) &&
+        GetURL().IsAboutBlank())) {
     // TODO(crbug.com/511971445): Turn this into a CHECK again once
     // investigation on what can cause this is finished.
     base::debug::DumpWithoutCrashing();
@@ -1915,7 +1921,8 @@ NavigationRequest::NavigationRequest(
             .controller()
             .GetLastCommittedEntry()
             ->IsInitialEntry();
-    CHECK(is_navigating_from_initial_empty_document ||
+    CHECK(base::FeatureList::IsEnabled(features::kDebugTopChromeWebUI) ||
+          is_navigating_from_initial_empty_document ||
           current_rfh_is_initial_webui);
   }
 #endif
@@ -5974,6 +5981,7 @@ void NavigationRequest::OnStartChecksComplete(
     headers.MergeFrom(headers_update_params_.modified_headers);
     headers_update_params_.Clear();
     begin_params_->headers = headers.ToString();
+    request_headers_.reset();
   }
 
   // TODO(clamy): Avoid cloning the navigation params and create the
@@ -6021,19 +6029,6 @@ void NavigationRequest::OnStartChecksComplete(
   BrowserContext* browser_context =
       frame_tree_node_->navigator().controller().GetBrowserContext();
 
-  // Create `PrefetchServingPageMetricsContainer` only if the initiator
-  // document has its `PrefetchDocumentManager`.
-  base::WeakPtr<PrefetchServingPageMetricsContainer>
-      serving_page_metrics_container;
-  if (!IsSameDocument() && initiator_document_token_ &&
-      PrefetchDocumentManager::FromDocumentToken(initiator_process_id_,
-                                                 *initiator_document_token_)) {
-    serving_page_metrics_container =
-        PrefetchServingPageMetricsContainer::GetOrCreateForNavigationHandle(
-            *this)
-            ->GetWeakPtr();
-  }
-
   // DevTools throttling profiles are only associated with local frame roots,
   // not each individual frame.
   RenderFrameHostImpl* local_root_rfh = frame_tree_node_->current_frame_host();
@@ -6058,9 +6053,8 @@ void NavigationRequest::OnStartChecksComplete(
           devtools_navigation_token(), local_root_rfh->devtools_frame_token(),
           BuildClientSecurityStateForNavigationFetch(),
           devtools_accepted_stream_types, IsPdf(), GetInitiatorProcessId(),
-          initiator_document_token_, std::move(serving_page_metrics_container),
-          allow_cookies_from_browser_, navigation_id_,
-          shared_storage_writable_eligible_, is_ad_tagged_,
+          initiator_document_token_, allow_cookies_from_browser_,
+          navigation_id_, shared_storage_writable_eligible_, is_ad_tagged_,
           force_no_https_upgrade_),
       std::move(navigation_ui_data), service_worker_handle_.get(),
       std::move(prefetched_signed_exchange_cache_), this, loader_type,
@@ -6208,20 +6202,9 @@ void NavigationRequest::MaybeAddResourceTimingEntryForCancelledNavigation() {
 void NavigationRequest::AddResourceTimingEntryForFailedSubframeNavigation(
     const network::URLLoaderCompletionStatus& status) {
   auto resource_lengths = blink::mojom::SubframeResourceLengths::New();
-  // TODO(crbug.com/448661443): Remove signedness checks once
-  // URLLoaderCompletionStatus uses ByteSize.
-  if (status.encoded_data_length >= 0) {
-    resource_lengths->encoded_data_length =
-        base::ByteSize(base::as_unsigned(status.encoded_data_length));
-  }
-  if (status.encoded_body_length >= 0) {
-    resource_lengths->encoded_body_length =
-        base::ByteSize(base::as_unsigned(status.encoded_body_length));
-  }
-  if (status.decoded_body_length >= 0) {
-    resource_lengths->decoded_body_length =
-        base::ByteSize(base::as_unsigned(status.decoded_body_length));
-  }
+  resource_lengths->encoded_data_length = status.encoded_data_length;
+  resource_lengths->encoded_body_length = status.encoded_body_length;
+  resource_lengths->decoded_body_length = status.decoded_body_length;
   AddResourceTimingEntryForFailedSubframeNavigation(
       status.completion_time, std::move(resource_lengths));
 }
@@ -7130,6 +7113,19 @@ void NavigationRequest::CommitNavigation() {
   blink::mojom::ServiceWorkerContainerInfoForClientPtr
       service_worker_container_info;
   blink::mojom::ControllerServiceWorkerInfoPtr controller;
+
+  // The decision to create `service_worker_handle_` was made before the
+  // request was sent, based only on the sandbox flags inherited from the frame
+  // owner element. If the response delivered a `Content-Security-Policy:
+  // sandbox` header without `allow-same-origin`, the document will commit with
+  // an opaque origin and is not eligible to use service workers, so drop the
+  // handle now instead of creating a container host for the committed document.
+  if (service_worker_handle_ &&
+      (policy_container_builder_->FinalPolicies().sandbox_flags &
+       network::mojom::WebSandboxFlags::kOrigin) ==
+          network::mojom::WebSandboxFlags::kOrigin) {
+    service_worker_handle_.reset();
+  }
 
   // Notify the service worker navigation handle that navigation commit is
   // about to go.
@@ -9984,24 +9980,35 @@ NavigationRequest::GetDeclarativePerformanceObserverPolicy() {
            ->declarative_performance_observer_policy) {
     return nullptr;
   }
-
-  // If globally enabled, return the parsed policy.
-  if (base::FeatureList::IsEnabled(
-          network::features::kDeclarativePerformanceObserver)) {
-    return response_head_->parsed_headers
-        ->declarative_performance_observer_policy.get();
+  if (!base::FeatureList::IsEnabled(
+          blink::features::kDeclarativePerformanceObserver)) {
+    return nullptr;
   }
 
-  // Otherwise, check if enabled via Origin Trial.
-  if (response_head_->headers &&
+  CHECK(response_head_->headers);
+  const bool is_enabled_by_origin_trial =
       blink::TrialTokenValidator().RequestEnablesFeature(
           GetURL(), response_head_->headers.get(),
-          "DeclarativePerformanceObserver", base::Time::Now())) {
-    return response_head_->parsed_headers
-        ->declarative_performance_observer_policy.get();
+          "DeclarativePerformanceObserver", base::Time::Now());
+  std::optional<bool> override_state = base::FeatureList::GetStateIfOverridden(
+      blink::features::kDeclarativePerformanceObserver);
+  const bool is_enabled_by_flag_override =
+      override_state.has_value() && override_state.value();
+  if (!is_enabled_by_origin_trial && !is_enabled_by_flag_override) {
+    return nullptr;
   }
 
-  return nullptr;
+  auto* policy = response_head_->parsed_headers
+                     ->declarative_performance_observer_policy.get();
+  if (!policy) {
+    return nullptr;
+  }
+
+  if (!blink::features::
+           kDeclarativePerformanceObserverSupportCaptureEarlyFailures.Get()) {
+    policy->capture_early_failures = false;
+  }
+  return policy;
 }
 
 mojom::DidCommitProvisionalLoadParamsPtr

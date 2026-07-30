@@ -352,6 +352,15 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="Encryption Failed"/>
 </enum>
 
+<enum name="AppShimRegistryVerifyCdHashResult">
+  <int value="0" label="Success"/>
+  <int value="1" label="No App Info"/>
+  <int value="2" label="No CD Hash"/>
+  <int value="3" label="Decode Failure"/>
+  <int value="4" label="Unexpected Size"/>
+  <int value="5" label="Verification Failed"/>
+</enum>
+
 <enum name="AppTypeV2">
   <int value="0" label="Unknown"/>
   <int value="1" label="Android app"/>

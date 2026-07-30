@@ -143,6 +143,9 @@ BASE_FEATURE(kUnthrottledTabProcessReporting, base::FEATURE_ENABLED_BY_DEFAULT);
 
 #endif
 
+BASE_FEATURE(kLevelDBSiteDataStoreBestEffort,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kEnableBestEffortTaskInhibitingPolicy,
              base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE_PARAM(base::TimeDelta,
@@ -312,6 +315,8 @@ BASE_FEATURE(kDisableTabDiscarding, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kUseLoadingStateToDetectBackgroundTitleOrFaviconUpdate,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kGlicActuationPriorityVoter, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kGlicActuationPriorityVoter, base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kIgnoreMediaQueryFaviconUpdates, base::FEATURE_ENABLED_BY_DEFAULT);
 
 }  // namespace performance_manager::features

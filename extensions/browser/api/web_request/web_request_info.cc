@@ -15,6 +15,7 @@
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/notimplemented.h"
+#include "base/notreached.h"
 #include "base/types/zip.h"
 #include "base/values.h"
 #include "components/guest_view/buildflags/buildflags.h"
@@ -33,6 +34,7 @@
 #include "net/base/upload_data_stream.h"
 #include "net/base/upload_file_element_reader.h"
 #include "services/network/public/cpp/resource_request.h"
+#include "services/network/public/mojom/fetch_api.mojom-shared.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
 #include "services/network/url_loader.h"
@@ -168,6 +170,78 @@ std::optional<base::DictValue> CreateRequestBodyData(
   }
 
   return request_body_data;
+}
+
+WebRequestResourceType ToWebRequestResourceType(
+    const network::ResourceRequest& request,
+    bool is_download) {
+  if (request.url.SchemeIsWSOrWSS()) {
+    return WebRequestResourceType::WEB_SOCKET;
+  }
+  if (is_download) {
+    return WebRequestResourceType::OTHER;
+  }
+  if (request.is_fetch_like_api) {
+    // This must be checked before `request.keepalive` check below, because
+    // currently Fetch keepAlive is not reported as ping.
+    // See https://crbug.com/41253689 for more details.
+    return WebRequestResourceType::XHR;
+  }
+
+  switch (request.destination) {
+    case network::mojom::RequestDestination::kDocument:
+      return WebRequestResourceType::MAIN_FRAME;
+    case network::mojom::RequestDestination::kIframe:
+    case network::mojom::RequestDestination::kFrame:
+    case network::mojom::RequestDestination::kFencedframe:
+      return WebRequestResourceType::SUB_FRAME;
+    case network::mojom::RequestDestination::kStyle:
+    case network::mojom::RequestDestination::kXslt:
+      return WebRequestResourceType::STYLESHEET;
+    // TODO(crbug.com/41484304): Consider adding a new
+    // webRequest.ResourceType for JSON requests modules.
+    case network::mojom::RequestDestination::kJson:
+    case network::mojom::RequestDestination::kScript:
+    case network::mojom::RequestDestination::kText:
+      return WebRequestResourceType::SCRIPT;
+    case network::mojom::RequestDestination::kImage:
+      return WebRequestResourceType::IMAGE;
+    case network::mojom::RequestDestination::kFont:
+      return WebRequestResourceType::FONT;
+    case network::mojom::RequestDestination::kObject:
+    case network::mojom::RequestDestination::kEmbed:
+      return WebRequestResourceType::OBJECT;
+    case network::mojom::RequestDestination::kAudio:
+    case network::mojom::RequestDestination::kTrack:
+    case network::mojom::RequestDestination::kVideo:
+      return WebRequestResourceType::MEDIA;
+    case network::mojom::RequestDestination::kWorker:
+    case network::mojom::RequestDestination::kSharedWorker:
+    case network::mojom::RequestDestination::kServiceWorker:
+    case network::mojom::RequestDestination::kSharedStorageWorklet:
+      return WebRequestResourceType::SCRIPT;
+    case network::mojom::RequestDestination::kReport:
+      return WebRequestResourceType::CSP_REPORT;
+    case network::mojom::RequestDestination::kEmpty:
+      // https://fetch.spec.whatwg.org/#concept-request-destination
+      if (request.keepalive) {
+        return WebRequestResourceType::PING;
+      }
+      return WebRequestResourceType::OTHER;
+    case network::mojom::RequestDestination::kWebBundle:
+      return WebRequestResourceType::WEBBUNDLE;
+    case network::mojom::RequestDestination::kAudioWorklet:
+    case network::mojom::RequestDestination::kManifest:
+    case network::mojom::RequestDestination::kPaintWorklet:
+    case network::mojom::RequestDestination::kWebIdentity:
+    case network::mojom::RequestDestination::kEmailVerification:
+    // The compression dictionary has not been exposed to extensions yet.
+    // We could do so if the need arises.
+    case network::mojom::RequestDestination::kDictionary:
+    case network::mojom::RequestDestination::kSpeculationRules:
+      return WebRequestResourceType::OTHER;
+  }
+  NOTREACHED();
 }
 
 }  // namespace

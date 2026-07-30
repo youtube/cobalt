@@ -35,6 +35,7 @@ import org.chromium.base.ThreadUtils;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.lifetime.LifetimeAssert;
 import org.chromium.base.metrics.UmaRecorderHolder;
+import org.chromium.base.task.AsyncTask;
 import org.chromium.base.test.params.MethodParamAnnotationRule;
 import org.chromium.base.test.util.AndroidSdkLevelSkipCheck;
 import org.chromium.base.test.util.BaseRestrictions;
@@ -639,6 +640,7 @@ public class BaseJUnit4ClassRunner extends AndroidJUnit4ClassRunner {
                     ResettersForTesting::afterHooksDidExecute);
             JniTestInstancesSnapshot.restoreSnapshotForTesting(mJniZeroSnapshot);
             clearJobSchedulerJobs();
+            AsyncTask.cancelAllTasksForTesting();
         } finally {
             Bundle b = new Bundle();
             b.putLong(DURATION_BUNDLE_ID, SystemClock.uptimeMillis() - mTestStartTimeMs);

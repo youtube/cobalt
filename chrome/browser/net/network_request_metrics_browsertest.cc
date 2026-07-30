@@ -94,6 +94,7 @@ class WaitForMainFrameResourceObserver : public content::WebContentsObserver {
   void ResourceLoadComplete(
       RenderFrameHost* render_frame_host,
       const content::GlobalRequestID& request_id,
+      const GURL& original_url,
       const blink::mojom::ResourceLoadInfo& resource_load_info) override {
     EXPECT_EQ(network::mojom::RequestDestination::kDocument,
               resource_load_info.request_destination);

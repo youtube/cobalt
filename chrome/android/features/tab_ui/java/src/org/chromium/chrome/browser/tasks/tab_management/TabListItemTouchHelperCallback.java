@@ -79,6 +79,15 @@ public abstract class TabListItemTouchHelperCallback extends ItemTouchHelper2.Si
     }
 
     /**
+     * Sets the RecyclerView that this callback is attached to.
+     *
+     * @param recyclerView The RecyclerView.
+     */
+    public void setRecyclerView(RecyclerView recyclerView) {
+        mRecyclerViewSupplier.set(recyclerView);
+    }
+
+    /**
      * Calculates the squared Euclidean distance of pointer travel.
      *
      * @param dX Displacement along the x-axis.

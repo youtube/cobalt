@@ -107,7 +107,7 @@ PageContext::FormField MakeFormField(std::u16string id_attribute,
                                      std::u16string value) {
   PageContext::FormField field;
   field.id_attribute = std::move(id_attribute);
-  field.form_control_type = "text";
+  field.form_control_type = autofill::FormControlType::kInputText;
   field.value = std::move(value);
   return field;
 }

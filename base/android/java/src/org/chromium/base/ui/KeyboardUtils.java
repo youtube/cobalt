@@ -15,6 +15,7 @@ import android.view.inputmethod.InputMethodManager;
 
 import androidx.core.view.WindowInsetsCompat;
 
+import org.chromium.base.BaseFeatureList;
 import org.chromium.base.Log;
 import org.chromium.base.TraceEvent;
 import org.chromium.build.annotations.NullMarked;
@@ -108,7 +109,11 @@ public final class KeyboardUtils {
             if (imeHeightIncludingSystemBars == 0) return 0;
             int bottomSystemBarsHeight =
                     windowInsetsCompat.getInsets(WindowInsetsCompat.Type.systemBars()).bottom;
-            return imeHeightIncludingSystemBars - bottomSystemBarsHeight;
+            if (!BaseFeatureList.sVirtualKeyboardGeometryAndInsetFixes.isEnabled()) {
+                return imeHeightIncludingSystemBars - bottomSystemBarsHeight;
+            }
+
+            return Math.max(0, imeHeightIncludingSystemBars - bottomSystemBarsHeight);
         }
     }
 

@@ -17,6 +17,7 @@
 #import "components/component_updater/installer_policies/safety_tips_component_installer.h"
 #import "components/password_manager/core/common/password_manager_features.h"
 #import "components/signin/public/base/signin_switches.h"
+#import "components/strike_database/strike_database_features.h"
 #import "components/variations/variations_ids_provider.h"
 #import "ios/web/public/webui/web_ui_ios_controller_factory.h"
 #import "ios/web_view/internal/app/application_context.h"
@@ -134,6 +135,13 @@ void WebViewWebMainParts::PreCreateThreads() {
     enabled_features.push_back(&autofill::features::kAutofillAcrossIframesIos);
   } else {
     disabled_features.push_back(&autofill::features::kAutofillAcrossIframesIos);
+  }
+  if ([CWVGlobalState sharedInstance].isAutofillStrikeSystemEnabled) {
+    disabled_features.push_back(
+        &strike_database::features::kDisableStrikeSystem);
+  } else {
+    enabled_features.push_back(
+        &strike_database::features::kDisableStrikeSystem);
   }
   feature_list->InitFromCommandLine(
       /*enable_features=*/MakeFeaturesString(enabled_features),

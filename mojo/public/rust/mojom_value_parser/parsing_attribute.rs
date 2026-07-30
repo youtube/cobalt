@@ -124,6 +124,18 @@ fn derive_mojomparse_struct(
         })
         .collect();
 
+    // The names of the `context` and `value` parameters in the `MojomParse`
+    // functions.
+    //
+    // If the mojom file has a struct with a field named "context" or "value", those
+    // functions will create local variables named `context` and `value`
+    // respectively. To distinguish that variable from the parameters (and thus
+    // prevent accidental variable shadowing), we give the parameters a
+    // `mixed_site` span and the variables a `call_site` span. This tells the
+    // compiler to treat them as separate values that don't shadow each other.
+    let context_ident = syn::Ident::new("context", proc_macro2::Span::mixed_site());
+    let value_ident = syn::Ident::new("value", proc_macro2::Span::mixed_site());
+
     // A bunch of entries for a MojomValue::Struct
     let to_mojom_value_fields: Vec<proc_macro2::TokenStream> = struct_fields
         .iter()
@@ -134,12 +146,12 @@ fn derive_mojomparse_struct(
                 let parse_as_ty = syn::Ident::new(&parse_as, proc_macro2::Span::call_site());
                 quote! {
                     (#name_str.to_string(), {
-                        let original: #parse_as_ty = value.#name.into();
-                        original.into_mojom_value(context)
+                        let original: #parse_as_ty = #value_ident.#name.into();
+                        original.into_mojom_value(#context_ident)
                     })
                 }
             } else {
-                quote! { (#name_str.to_string(), value.#name.into_mojom_value(context)) }
+                quote! { (#name_str.to_string(), #value_ident.#name.into_mojom_value(#context_ident)) }
             }
         })
         .collect();
@@ -154,13 +166,13 @@ fn derive_mojomparse_struct(
                 let parse_as_ty = syn::Ident::new(&parse_as, proc_macro2::Span::call_site());
                 quote! {
                     #name: {
-                        let original = <#parse_as_ty>::try_from_mojom_value(#name, context)?;
+                        let original = <#parse_as_ty>::try_from_mojom_value(#name, #context_ident)?;
                         original.try_into()?
                     }
                 }
             } else {
                 let ty = &field.ty;
-                quote! { #name: <#ty>::try_from_mojom_value(#name, context)? }
+                quote! { #name: <#ty>::try_from_mojom_value(#name, #context_ident)? }
             }
         })
         .collect();
@@ -198,8 +210,8 @@ fn derive_mojomparse_struct(
                     MojomType::Struct { field_names, fields }
                 }
 
-                fn into_mojom_value(self, context: &Context) -> MojomValue {
-                    let value = self;
+                fn into_mojom_value(self, #context_ident: &Context) -> MojomValue {
+                    let #value_ident = self;
                     let (field_names, fields) : (Vec<String>, Vec<MojomValue>) = vec![
                         #(#to_mojom_value_fields),*
                     ]
@@ -207,12 +219,12 @@ fn derive_mojomparse_struct(
                     MojomValue::Struct ( field_names, fields )
                 }
 
-                fn try_from_mojom_value(value: MojomValue, context: &Context) -> ::anyhow::Result<Self> {
-                    let MojomValue::Struct(field_names, fields) = value else {
+                fn try_from_mojom_value(#value_ident: MojomValue, #context_ident: &Context) -> ::anyhow::Result<Self> {
+                    let MojomValue::Struct(field_names, fields) = #value_ident else {
                         ::anyhow::bail!(
                             "Cannot construct a value of type {} from non-struct MojomValue {:?}",
                             std::any::type_name::<#name>(),
-                            value
+                            #value_ident
                         );
                     };
 
@@ -267,12 +279,15 @@ fn derive_mojomparse_union(
     let mojom_type_fields = variant_info
         .iter()
         .map(|(_, ty, discriminant)| quote! { (#discriminant, <#ty as MojomParse<Context>>::mojom_type()) });
+    let context_ident = syn::Ident::new("context", proc_macro2::Span::mixed_site());
+    let value_ident = syn::Ident::new("value", proc_macro2::Span::mixed_site());
+
     let to_mojom_value_branches = variant_info
         .iter()
-        .map(|(variant_name, _, discriminant)| quote! { #name::#variant_name(v) => (#discriminant, v.into_mojom_value(context)) });
+        .map(|(variant_name, _, discriminant)| quote! { #name::#variant_name(v) => (#discriminant, v.into_mojom_value(#context_ident)) });
     let from_mojom_value_branches = variant_info.iter().map(|(name, ty, discriminant)| {
         // boxed_value is defined by the surrounding scope
-        quote! { #discriminant => Ok(Self::#name(<#ty>::try_from_mojom_value(*boxed_value, context)?)), }
+        quote! { #discriminant => Ok(Self::#name(<#ty>::try_from_mojom_value(*boxed_value, #context_ident)?)), }
     });
 
     let imports = if in_bindings_crate {
@@ -306,19 +321,19 @@ fn derive_mojomparse_union(
                     MojomType::Union { variants }
                 }
 
-                fn into_mojom_value(self, context: &Context) -> MojomValue {
+                fn into_mojom_value(self, #context_ident: &Context) -> MojomValue {
                     let (discriminant, mojom_value) = match self {
                         #(#to_mojom_value_branches),*
                     };
                     MojomValue::Union ( discriminant, Box::new(mojom_value) )
                 }
 
-                fn try_from_mojom_value(value: MojomValue, context: &Context) -> ::anyhow::Result<Self> {
-                    let MojomValue::Union(discriminant, boxed_value) = value else {
+                fn try_from_mojom_value(#value_ident: MojomValue, #context_ident: &Context) -> ::anyhow::Result<Self> {
+                    let MojomValue::Union(discriminant, boxed_value) = #value_ident else {
                         ::anyhow::bail!(
                             "Cannot construct a value of type {} from non-union MojomValue {:?}",
                             std::any::type_name::<#name>(),
-                            value
+                            #value_ident
                         );
                     };
 

@@ -230,11 +230,19 @@ UIColor* AssistantHighlightBackgroundColor() {
     didChangeAppBarPosition:(AppBarPosition)appBarPosition {
   // Update the alpha with a duration of 0 as it is already in an animation
   // block.
-  [self setButtonsTitleAlpha:_fullscreenProgress animationDuration:0];
+  CGFloat targetAlpha =
+      self.layoutState.appBarLockedInFullscreen ? 0.0 : _fullscreenProgress;
+  [self setButtonsTitleAlpha:targetAlpha animationDuration:0];
   [self updateTabSwitcherGuide];
   if (appBarPosition != AppBarPosition::kBottom) {
     _backgroundView.cornerRadius = kAppBarCornerRadius;
   }
+}
+
+- (void)layoutState:(LayoutState*)layoutState
+    didChangeAppBarLockedInFullscreen:(BOOL)appBarLockedInFullscreen {
+  CGFloat targetAlpha = appBarLockedInFullscreen ? 0.0 : _fullscreenProgress;
+  [self setButtonsTitleAlpha:targetAlpha animationDuration:0];
 }
 
 #pragma mark - Accessors & Mutators
@@ -574,10 +582,16 @@ UIColor* AssistantHighlightBackgroundColor() {
 
 - (void)updateForFullscreenProgress:(CGFloat)progress {
   _fullscreenProgress = progress;
+  if (self.layoutState.appBarLockedInFullscreen) {
+    return;
+  }
   [self setButtonsTitleAlpha:_fullscreenProgress animationDuration:0];
 }
 
 - (void)animateFullscreenWithAnimator:(FullscreenAnimator*)animator {
+  if (self.layoutState.appBarLockedInFullscreen) {
+    return;
+  }
   [self setButtonsTitleAlpha:animator.finalProgress
            animationDuration:animator.duration];
 }
@@ -586,6 +600,9 @@ UIColor* AssistantHighlightBackgroundColor() {
 
 - (void)fullscreenWillUpdateState:(FullscreenBrowserAgent*)agent {
   _fullscreenProgress = agent->bottom_progress();
+  if (self.layoutState.appBarLockedInFullscreen) {
+    return;
+  }
   [self setButtonsTitleAlpha:_fullscreenProgress
            animationDuration:agent->animation_duration().InSecondsF()];
 }

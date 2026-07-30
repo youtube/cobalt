@@ -24,6 +24,7 @@ import android.view.ViewOutlineProvider;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 
+import androidx.annotation.ColorInt;
 import androidx.appcompat.content.res.AppCompatResources;
 
 import org.chromium.build.annotations.Initializer;
@@ -34,6 +35,7 @@ import org.chromium.chrome.browser.omnibox.fusebox.FuseboxCoordinator.FuseboxSta
 import org.chromium.chrome.browser.omnibox.status.StatusCoordinator;
 import org.chromium.chrome.browser.omnibox.styles.OmniboxResourceProvider;
 import org.chromium.chrome.browser.omnibox.suggestions.AutocompleteCoordinator;
+import org.chromium.chrome.browser.theme.ThemeUtils;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.base.LocalizationUtils;
@@ -478,9 +480,20 @@ class LocationBarTablet extends LocationBarLayout implements OnLongClickListener
         GradientDrawable unfocusedRect =
                 (GradientDrawable) mUnfocusedDrawable.findDrawableByLayerId(R.id.unfocused_bg);
         if (unfocusedRect != null) {
-            unfocusedRect.setColor(
-                    OmniboxResourceProvider.getTabletToolbarTextBoxBackgroundColor(
-                            context, mBrandedColorScheme));
+            if (mIsInStandby) {
+                unfocusedRect.setColor(
+                        OmniboxResourceProvider.getTabletToolbarTextBoxStandbyBackgroundColor(
+                                context, mBrandedColorScheme));
+            } else {
+                final @ColorInt int color = mLocationBarDataProvider.getPrimaryColor();
+                final @ColorInt int textBoxColor =
+                        ThemeUtils.getTextBoxColorForToolbarBackgroundInNonNativePage(
+                                context,
+                                color,
+                                mBrandedColorScheme == BrandedColorScheme.INCOGNITO,
+                                /* isCustomTab= */ false);
+                unfocusedRect.setColor(textBoxColor);
+            }
         }
     }
 
@@ -562,6 +575,7 @@ class LocationBarTablet extends LocationBarLayout implements OnLongClickListener
         mIsInStandby = isInStandby;
         updateLayoutAndBackground();
         updateForeground();
+        updateVisualsForState(mBrandedColorScheme);
     }
 
     private void updateForeground() {

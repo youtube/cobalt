@@ -4,6 +4,7 @@
 
 #include "components/manta/base_provider_test_helper.h"
 
+#include "base/byte_size.h"
 #include "base/strings/stringprintf.h"
 #include "components/endpoint_fetcher/endpoint_fetcher.h"
 #include "components/manta/base_provider.h"
@@ -87,7 +88,7 @@ void BaseProviderTest::SetEndpointMockResponse(
       net::HttpUtil::AssembleRawHeaders(headers));
   head->mime_type = "application/x-protobuf";
   network::URLLoaderCompletionStatus status(error);
-  status.decoded_body_length = response_data.size();
+  status.decoded_body_length = base::ByteSize(response_data.size());
   test_url_loader_factory_.AddResponse(request_url, std::move(head),
                                        response_data, status);
 }

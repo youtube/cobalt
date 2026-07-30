@@ -10,6 +10,7 @@
 
 #include "base/callback_list.h"
 #include "base/check.h"
+#include "components/omnibox/common/omnibox_features.h"
 #include "components/search_engines/search_engine_type.h"
 #include "components/search_engines/search_terms_data.h"
 #include "components/search_engines/template_url.h"
@@ -104,6 +105,13 @@ AiModeButtonService::LookupCurrentConfig() const {
   const ai_mode_button_config::AiModeButtonConfig* found_config = nullptr;
   for (const auto* config : ai_mode_button_config::kAiModeButtonConfigs) {
     if (config->id == type) {
+      // `kAiModeButtonConfigs` contains a debug config to allow for manual
+      // testing. Skip it if the debug param is false.
+      bool is_debug = config == &ai_mode_button_config::google_debug;
+      if (is_debug && !omnibox::kAim3pEntrypointDebug.Get()) {
+        continue;
+      }
+
       found_config = config;
       break;
     }

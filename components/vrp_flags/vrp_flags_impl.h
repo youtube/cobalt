@@ -10,6 +10,7 @@
 
 #include "base/component_export.h"
 #include "base/containers/heap_array.h"
+#include "base/memory/raw_ptr.h"
 #include "base/no_destructor.h"
 #include "base/unguessable_token.h"
 #include "components/vrp_flags/vrp_flags.h"
@@ -56,7 +57,7 @@ class COMPONENT_EXPORT(VRP_FLAGS) VrpFlagsImpl : public mojom::VrpFlags {
   uint64_t arbitrary_value_ = 0;
   std::vector<base::HeapArray<uint64_t>> write_allocations_;
   // These point into `write_allocations_` and cannot outlive them.
-  std::vector<uint64_t*> write_locations_;
+  std::vector<raw_ptr<uint64_t>> write_locations_;
   std::unique_ptr<ReadFlag> read_flag_;
 
   mojo::ReceiverSet<mojom::VrpFlags> receivers_;

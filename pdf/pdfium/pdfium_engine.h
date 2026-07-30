@@ -184,6 +184,13 @@ class PDFiumEngine : public DocumentLoader::Client,
     std::string xyz_params;
   };
 
+#if BUILDFLAG(ENABLE_PDF_INK2)
+  struct InkIdentifiers {
+    PDFLoadedWithInkTextAnnotations ink_text_annotations;
+    PDFLoadedWithV2InkAnnotations v2_ink_path;
+  };
+#endif
+
   // NOTE: `script_option` is ignored when PDF_ENABLE_V8 is not defined.
   PDFiumEngine(PDFiumEngineClient* client,
                PDFiumFormFiller::ScriptOption script_option);
@@ -383,6 +390,11 @@ class PDFiumEngine : public DocumentLoader::Client,
   // otherwise, it may return false if pages are not yet available.
   virtual bool HasMeaningfulText() const;
 
+  // Returns true if the PDF contains JavaScript actions. This method should be
+  // called after the document is loaded; otherwise, it returns false if the
+  // document is not yet available.
+  virtual bool HasJavaScript() const;
+
   // Returns a copy of the structure tree which describes the logical
   // organization of the PDF, if present.
   std::unique_ptr<AccessibilityStructureElement> GetStructureTree() const;
@@ -456,11 +468,10 @@ class PDFiumEngine : public DocumentLoader::Client,
   // `ApplyStroke()`. Virtual to support testing.
   virtual void DiscardStroke(int page_index, InkStrokeId id);
 
-  // Returns whether any of the pages contains a "V2" path created by Ink or
-  // unknown if unable to find any "V2" paths within `timeout`. Virtual to
-  // support testing.
-  virtual PDFLoadedWithV2InkAnnotations ContainsV2InkPath(
-      base::TimeDelta timeout) const;
+  // Scans the document to detect the presence of Ink annotations (Ink text
+  // annotations and "V2" Ink paths) within `timeout`. Virtual to support
+  // testing.
+  virtual InkIdentifiers ScanForInkAnnotations(base::TimeDelta timeout) const;
 
   // Loads "V2" Ink paths from a page in the PDF identified by `page_index`. The
   // `page_index` must be in bounds.

@@ -292,4 +292,15 @@ TEST_F(BookmarksHomeViewControllerTest,
   [controller shutdown];
 }
 
+// Tests that accessing view lifecycle methods after shutdown does not crash.
+TEST_F(BookmarksHomeViewControllerTest,
+       ViewLifecycleAfterShutdownDoesNotCrash) {
+  BookmarksHomeViewController* controller =
+      [[BookmarksHomeViewController alloc] initWithBrowser:browser_.get()];
+  [controller shutdown];
+  // Force view loading and appearing after shutdown.
+  [controller loadViewIfNeeded];
+  [controller viewWillAppear:NO];
+}
+
 }  // namespace

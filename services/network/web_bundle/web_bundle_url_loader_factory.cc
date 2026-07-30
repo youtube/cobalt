@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <optional>
 
+#include "base/byte_size.h"
 #include "base/functional/callback.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/notimplemented.h"
@@ -261,11 +262,12 @@ class WebBundleURLLoaderFactory::URLLoader : public mojom::URLLoader {
   void OnWriteCompleted(MojoResult result) {
     URLLoaderCompletionStatus status(
         result == MOJO_RESULT_OK ? net::OK : net::ERR_INVALID_WEB_BUNDLE);
-    status.encoded_data_length = body_length_ + headers_bytes_;
+    status.encoded_data_length =
+        base::ByteSize(body_length_) + base::ByteSize(headers_bytes_);
     // For these values we use the same `body_length_` as we don't currently
     // provide encoding in WebBundles.
-    status.encoded_body_length = body_length_;
-    status.decoded_body_length = body_length_;
+    status.encoded_body_length = base::ByteSize(body_length_);
+    status.decoded_body_length = base::ByteSize(body_length_);
     client_->OnComplete(status);
     deleteThis();
   }
@@ -302,9 +304,9 @@ class WebBundleURLLoaderFactory::URLLoader : public mojom::URLLoader {
     URLLoaderCompletionStatus status;
     status.error_code = error_code;
     status.completion_time = base::TimeTicks::Now();
-    status.encoded_data_length = 0;
-    status.encoded_body_length = 0;
-    status.decoded_body_length = 0;
+    status.encoded_data_length = base::ByteSize(0);
+    status.encoded_body_length = base::ByteSize(0);
+    status.decoded_body_length = base::ByteSize(0);
     status.blocked_by_response_reason = reason;
     client_->OnComplete(status);
 

@@ -32,23 +32,16 @@ class DictationContextBrowserTest : public DictationBrowserTestBase {
 };
 
 IN_PROC_BROWSER_TEST_F(DictationContextBrowserTest, APCCaptured) {
-  ASSERT_TRUE(embedded_test_server()->Start());
-
-  LoadTestExtensionInManualMode(profile());
-
   // This test page has a bit of text content.
   const GURL url = embedded_test_server()->GetURL("/simple.html");
   ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
 
-  dictation_service().StartSession(
-      *GetBrowserWindowInterface(),
-      std::make_unique<Target>(web_contents()->GetPrimaryMainFrame(), ""));
+  StartSession();
 
-  SessionController* controller = dictation_service().session_controller();
-  ASSERT_NE(controller, nullptr);
+  ASSERT_NE(session_controller(), nullptr);
 
   ListenerStreamProvider* provider = static_cast<ListenerStreamProvider*>(
-      controller->attached_stream_provider());
+      session_controller()->attached_stream_provider());
   ASSERT_NE(provider, nullptr);
 
   ExtensionWaitForStreamStart(profile(), provider->stream_id_for_testing());
@@ -73,24 +66,25 @@ IN_PROC_BROWSER_TEST_F(DictationContextBrowserTest, APCCaptured) {
 }
 
 IN_PROC_BROWSER_TEST_F(DictationContextBrowserTest, SelectedTextCaptured) {
-  ASSERT_TRUE(embedded_test_server()->Start());
-
-  LoadTestExtensionInManualMode(profile());
-
-  const GURL url = embedded_test_server()->GetURL("/simple.html");
+  const GURL url =
+      embedded_test_server()->GetURL("/textinput/simple_textarea.html");
   ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
 
-  // Start the session with a non-empty selected text.
-  dictation_service().StartSession(
-      *GetBrowserWindowInterface(),
-      std::make_unique<Target>(web_contents()->GetPrimaryMainFrame(),
-                               "hello world"));
+  const std::string script = R"JS(
+    var textarea = document.getElementById('text_id');
+    textarea.value = 'the quick brown fox';
+    textarea.focus();
+    textarea.setSelectionRange(4, 15); // "quick brown"
+    textarea.value.substring(textarea.selectionStart, textarea.selectionEnd);
+  )JS";
+  ASSERT_EQ(content::EvalJs(web_contents(), script), "quick brown");
 
-  SessionController* controller = dictation_service().session_controller();
-  ASSERT_NE(controller, nullptr);
+  StartSession();
+
+  ASSERT_NE(session_controller(), nullptr);
 
   ListenerStreamProvider* provider = static_cast<ListenerStreamProvider*>(
-      controller->attached_stream_provider());
+      session_controller()->attached_stream_provider());
   ASSERT_NE(provider, nullptr);
 
   ExtensionWaitForStreamStart(profile(), provider->stream_id_for_testing());
@@ -100,20 +94,14 @@ IN_PROC_BROWSER_TEST_F(DictationContextBrowserTest, SelectedTextCaptured) {
 
   // Verify that the editable content was captured and matches.
   ASSERT_TRUE(context->editable_content.has_value());
-  EXPECT_EQ(*context->editable_content, "hello world");
+  EXPECT_EQ(*context->editable_content, "quick brown");
 }
 
 IN_PROC_BROWSER_TEST_F(DictationContextBrowserTest, InnerTextCaptured) {
-  ASSERT_TRUE(embedded_test_server()->Start());
-
-  LoadTestExtensionInManualMode(profile());
-
   const GURL url = embedded_test_server()->GetURL("/simple.html");
   ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
 
-  dictation_service().StartSession(
-      *GetBrowserWindowInterface(),
-      std::make_unique<Target>(web_contents()->GetPrimaryMainFrame(), ""));
+  StartSession();
 
   SessionController* controller = dictation_service().session_controller();
   ASSERT_NE(controller, nullptr);
@@ -147,17 +135,20 @@ class DictationContextAsyncBrowserTest : public DictationContextBrowserTest {
 };
 
 IN_PROC_BROWSER_TEST_F(DictationContextAsyncBrowserTest, AsyncContextCaptured) {
-  ASSERT_TRUE(embedded_test_server()->Start());
-
-  LoadTestExtensionInManualMode(profile());
-
-  const GURL url = embedded_test_server()->GetURL("/simple.html");
+  const GURL url =
+      embedded_test_server()->GetURL("/textinput/simple_textarea.html");
   ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
 
-  dictation_service().StartSession(
-      *GetBrowserWindowInterface(),
-      std::make_unique<Target>(web_contents()->GetPrimaryMainFrame(),
-                               "hello world"));
+  const std::string script = R"JS(
+    var textarea = document.getElementById('text_id');
+    textarea.value = 'the quick brown fox';
+    textarea.focus();
+    textarea.setSelectionRange(4, 15); // "quick brown"
+    textarea.value.substring(textarea.selectionStart, textarea.selectionEnd);
+  )JS";
+  ASSERT_EQ(content::EvalJs(web_contents(), script), "quick brown");
+
+  StartSession();
 
   SessionController* controller = dictation_service().session_controller();
   ASSERT_NE(controller, nullptr);
@@ -182,11 +173,52 @@ IN_PROC_BROWSER_TEST_F(DictationContextAsyncBrowserTest, AsyncContextCaptured) {
   // Verify that the context was eventually captured.
   ASSERT_TRUE(updated_context.annotated_page_content.has_value());
   EXPECT_TRUE(updated_context.annotated_page_content->has_root_node());
-  EXPECT_EQ(updated_context.annotated_page_content->main_frame_data().title(),
-            "OK");
 
   ASSERT_TRUE(updated_context.editable_content.has_value());
-  EXPECT_EQ(*updated_context.editable_content, "hello world");
+  EXPECT_EQ(*updated_context.editable_content, "quick brown");
+}
+
+IN_PROC_BROWSER_TEST_F(DictationContextBrowserTest,
+                       SelectedTextCapturedFromIframe) {
+  // Load the page with the iframe.
+  const GURL url = embedded_test_server()->GetURL("/actor/simple_iframe.html");
+  ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
+
+  // Navigate the iframe to the simple textarea page.
+  const GURL iframe_url =
+      embedded_test_server()->GetURL("/textinput/simple_textarea.html");
+  ASSERT_TRUE(
+      content::NavigateIframeToURL(web_contents(), "iframe", iframe_url));
+
+  content::RenderFrameHost* main_frame = web_contents()->GetPrimaryMainFrame();
+  content::RenderFrameHost* iframe = content::ChildFrameAt(main_frame, 0);
+  ASSERT_NE(iframe, nullptr);
+  EXPECT_EQ(iframe->GetLastCommittedURL(), iframe_url);
+
+  std::string setup_script = R"JS(
+    const textarea = document.getElementById('text_id');
+    textarea.value = 'the quick brown fox';
+    textarea.focus();
+    textarea.setSelectionRange(4, 15); // "quick brown"
+    textarea.value.substring(textarea.selectionStart, textarea.selectionEnd);
+  )JS";
+  ASSERT_EQ(content::EvalJs(iframe, setup_script), "quick brown");
+
+  StartSession(TargetId{iframe->GetWeakDocumentPtr()});
+
+  ASSERT_NE(session_controller(), nullptr);
+
+  ListenerStreamProvider* provider = static_cast<ListenerStreamProvider*>(
+      session_controller()->attached_stream_provider());
+  ASSERT_NE(provider, nullptr);
+
+  ExtensionWaitForStreamStart(profile(), provider->stream_id_for_testing());
+  std::optional<DictationContext> context = ExtensionGetStartStreamDetails(
+      profile(), provider->stream_id_for_testing());
+  ASSERT_TRUE(context.has_value());
+
+  ASSERT_TRUE(context->editable_content.has_value());
+  EXPECT_EQ(*context->editable_content, "quick brown");
 }
 
 }  // namespace dictation

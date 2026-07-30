@@ -154,12 +154,9 @@ class CORE_EXPORT DomSelection final : public ScriptWrappable,
   // Rescope the provided selection endpoint to be within the list of shadow
   // roots. If endpoint is inside a not listed shadow root, the endpoint will
   // be rescoped to include the host element for that shadow root.
-  // Both arguments node and offset are references and might be modified by
-  // this function.
-  void Rescope(Node*& node,
-               unsigned& offset,
-               const HeapVector<Member<ShadowRoot>>&,
-               bool) const;
+  Position Rescope(const Position&,
+                   const HeapVector<Member<ShadowRoot>>&,
+                   bool) const;
 
   Member<const TreeScope> tree_scope_;
 };

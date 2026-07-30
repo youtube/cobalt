@@ -137,6 +137,9 @@ NET_EXPORT BASE_DECLARE_FEATURE(kAdjustIPv6FallbackTime);
 // The duration to use for the slow timer if the feature is enabled.
 NET_EXPORT BASE_DECLARE_FEATURE_PARAM(base::TimeDelta, kIPv6FallbackTime);
 
+// Allows Cache-Control: immutable to override Pragma: no-cache.
+NET_EXPORT BASE_DECLARE_FEATURE(kCacheControlImmutable);
+
 // Enables transparent zstd decompression of cached HTTP response bodies
 // written by the CDT (Compression Dictionary Transport) cache compression
 // feature. When disabled, compressed cache entries are doomed and the
@@ -153,6 +156,10 @@ NET_EXPORT BASE_DECLARE_FEATURE(kHttpCacheZstdCompression);
 // Enables the Renderer-Accessible HTTP Cache (crbug.com/473666511), an
 // experimental feature allowing renderers direct access to the HTTP cache.
 NET_EXPORT BASE_DECLARE_FEATURE(kRendererAccessibleHttpCache);
+// Enables Write-Ahead Logging (WAL) mode for the Renderer-Accessible HTTP
+// Cache.
+NET_EXPORT BASE_DECLARE_FEATURE_PARAM(bool,
+                                      kRendererAccessibleHttpCacheWalMode);
 
 // If the `kUseAlternativePortForGloballyReachableCheck` flag is enabled, the
 // globally reachable check will use the port number specified by
@@ -828,8 +835,6 @@ NET_EXPORT BASE_DECLARE_FEATURE_PARAM(
     bool,
     kIgnoreIpMatchingWhenFindingExistingSessions);
 
-NET_EXPORT BASE_DECLARE_FEATURE(kDnsResponseDiscardPartialQuestions);
-
 // When enabled, allows DoH upgrade even if there are local nameservers.
 NET_EXPORT BASE_DECLARE_FEATURE(kDohFallbackAllowedWithLocalNameservers);
 
@@ -880,13 +885,6 @@ NET_EXPORT BASE_DECLARE_FEATURE(kPermitTcpSocketPoolConnectBackupJobs);
 // If enabled, examine why a network operation was blocked due to local network
 // permission.
 NET_EXPORT BASE_DECLARE_FEATURE(kLocalNetworkPermissionCheck);
-
-// Whether or not this client is participating in the TCP connection pool proxy
-// limit and, if so, what the limit should be.
-// See crbug.com/467278609 to track efforts to raise defaults.
-NET_EXPORT BASE_DECLARE_FEATURE(kTcpSocketPoolProxyLimit);
-NET_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kTcpSocketPoolProxyLimitNormal);
-NET_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kTcpSocketPoolProxyLimitWebSocket);
 
 // If enabled, QuicCryptoClientConfigOwner will ignore memory pressure events
 // for all network isolation partitions.
@@ -939,6 +937,13 @@ NET_EXPORT BASE_DECLARE_FEATURE(kCacheCertVerification);
 // If set to 0, entries will still technically be put into the cache, but will
 // already be expired.
 NET_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kCacheCertVerificationTtlSecs);
+
+// If enabled, configures SSLClientSocketImpl to enable GREASE for
+// signature_algorithms. This is a killswitch for behavior that is enabled by
+// default.
+// TODO(crbug.com/526597789): Clean up this killswitch after successfully
+// deployed.
+NET_EXPORT BASE_DECLARE_FEATURE(kTlsGreaseSigalgs);
 
 }  // namespace net::features
 

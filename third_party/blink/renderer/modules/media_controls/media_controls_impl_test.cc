@@ -400,6 +400,15 @@ class MediaControlsImplTest
                               ui::mojom::blink::MenuSourceType::kNone);
   }
 
+  void SimulateGestureTap(Element* element) {
+    element->DispatchEvent(
+        *CreateTouchPointerEvent(event_type_names::kGesturetap));
+  }
+
+  void SimulateClick(Element* element) {
+    element->DispatchEvent(*CreatePointerEvent(event_type_names::kClick));
+  }
+
  private:
   Persistent<MediaControlsImpl> media_controls_;
   base::HistogramTester histogram_tester_;
@@ -1782,6 +1791,38 @@ TEST_F(MediaControlsImplTest, TouchInteractionResetsOnMouseEvents) {
         << "Touch interaction should NOT be reset by touch-type event: "
         << event_name;
   }
+}
+
+TEST_F(MediaControlsImplTest,
+       OverlayPlayButtonTogglesPlayPauseOnGestureTapAndClick) {
+  EnsureSizing();
+
+  auto* overlay_play_button = OverlayPlayButtonElement();
+  ASSERT_NE(nullptr, overlay_play_button);
+
+  MediaControls().MediaElement().SetSrc(
+      AtomicString("https://example.com/foo.mp4"));
+  test::RunPendingTasks();
+  SimulateLoadedMetadata();
+
+  // Initially paused.
+  EXPECT_TRUE(MediaControls().MediaElement().paused());
+
+  // Tap to play.
+  SimulateGestureTap(overlay_play_button);
+  EXPECT_FALSE(MediaControls().MediaElement().paused());
+
+  // Tap to pause.
+  SimulateGestureTap(overlay_play_button);
+  EXPECT_TRUE(MediaControls().MediaElement().paused());
+
+  // Click to play.
+  SimulateClick(overlay_play_button);
+  EXPECT_FALSE(MediaControls().MediaElement().paused());
+
+  // Click to pause.
+  SimulateClick(overlay_play_button);
+  EXPECT_TRUE(MediaControls().MediaElement().paused());
 }
 
 }  // namespace blink

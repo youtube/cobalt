@@ -6,7 +6,6 @@
 
 #include <string>
 
-#include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/ui/views/autofill/payments/card_unmask_prompt_views.h"
 #include "ui/views/controls/textfield/textfield.h"
 

@@ -8,6 +8,7 @@
 
 #include "base/functional/bind.h"
 #include "base/strings/utf_string_conversions.h"
+#include "build/build_config.h"
 #include "content/browser/service_host/service_process_tracker.h"
 #include "content/browser/service_host/utility_process_client.h"
 #include "content/browser/service_host/utility_process_host.h"
@@ -33,6 +34,11 @@ bool ShouldEnableSandbox(sandbox::mojom::Sandbox sandbox) {
   if (sandbox == sandbox::mojom::Sandbox::kNetwork) {
     return GetContentClient()->browser()->ShouldSandboxNetworkService();
   }
+#if BUILDFLAG(IS_WIN)
+  if (sandbox == sandbox::mojom::Sandbox::kWebNNModelCompilation) {
+    return GetContentClient()->browser()->ShouldSandboxWebNNCompilerService();
+  }
+#endif
   return true;
 }
 

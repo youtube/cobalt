@@ -3813,6 +3813,7 @@ test("ash_unittests") {
     "curtain/security_curtain_controller_impl_unittest.cc",
     "dbus/gesture_properties_service_provider_unittest.cc",
     "dbus/url_handler_service_provider_unittest.cc",
+    "debug_unittest.cc",
     "detachable_base/detachable_base_handler_unittest.cc",
     "detachable_base/detachable_base_notification_controller_unittest.cc",
     "dip_unittest.cc",

@@ -198,6 +198,12 @@
   </translations>
   <release seq="1">
     <messages fallback_to_english="true">
+      <if expr="_google_chrome">
+        <part file="extensions_google_chrome_strings.grdp" />
+      </if>
+      <if expr="not _google_chrome">
+        <part file="extensions_chromium_strings.grdp" />
+      </if>
 
       <!-- Document Scan API strings. Please keep alphabetized. -->
 
@@ -512,6 +518,119 @@
         From your administrator: <ph name="ADMIN_MESSAGE">$1<ex>Please visit www.example.com/extension for more information.</ex></ph>
       </message>
 
+      <!-- Extension/App install prompt -->
+      <message name="IDS_EXTENSION_INSTALL_PROMPT_TITLE" desc="Titlebar of the extension or app installation prompt. Asks the user if they want to install a particular extension or app.">
+        Add "<ph name="EXTENSION_NAME">$1<ex>Gmail Checker</ex></ph>"?
+      </message>
+      <message name="IDS_EXTENSION_REQUEST_PROMPT_TITLE" desc="Titlebar of the extension or app request prompt. Asks the user if they want to send installation request for a particular extension or app to their admin.">
+        Send a request to your administrator to install "<ph name="EXTENSION_NAME">$1<ex>Gmail Checker</ex></ph>"?
+      </message>
+      <message name="IDS_EXTENSION_PENDING_REQUEST_PROMPT_TITLE" desc="Titlebar of the extension or app request prompt. Tells the user their installation request for a particular extension or app is still pending review.">
+        You already requested "<ph name="EXTENSION_NAME">$1<ex>Gmail Checker</ex></ph>"
+      </message>
+      <message name="IDS_EXTENSION_RE_ENABLE_PROMPT_TITLE" desc="Titlebar of the extension or app installation prompt. Asks the user if they want to re-enable a particular extension or app.">
+        The newest version of "<ph name="EXTENSION_NAME">$1<ex>Gmail Checker</ex></ph>" has been disabled because it requires more permissions.
+      </message>
+      <message name="IDS_EXTENSION_PERMISSIONS_PROMPT_TITLE" desc="Titlebar of the extension or app permissions prompt. Asks the user if they want to grant the permissions to the particular extension or app.">
+        "<ph name="EXTENSION_NAME">$1<ex>Gmail Checker</ex></ph>" has requested additional permissions.
+      </message>
+      <message name="IDS_EXTENSION_REMOTE_INSTALL_PROMPT_TITLE" desc="Titlebar of the extension or app installation prompt. Asks the user if they want to enable a particular extension or app that was installed remotely.">
+        Enable "<ph name="EXTENSION_NAME">$1<ex>Gmail Checker</ex></ph>"?
+      </message>
+      <message name="IDS_EXTENSION_REPAIR_PROMPT_TITLE" desc="Titlebar of the extension or app installation prompt. Asks the user if they want to update the extension/app.">
+        Repair "<ph name="EXTENSION_NAME">$1<ex>Gmail Checker</ex></ph>"?
+      </message>
+      <message name="IDS_EXTENSION_PARENT_APPROVAL_PROMPT_TITLE" desc="Titlebar of the extension or app permissions prompt. Asks the user if they want to grant the permissions to the particular extension or app.">
+        Install "<ph name="EXTENSION_NAME">$1<ex>Gmail Checker</ex></ph>"
+      </message>
+      <if expr="use_titlecase">
+        <message name="IDS_EXTENSION_EXTERNAL_INSTALL_PROMPT_ACCEPT_BUTTON_EXTENSION" desc="In Title Case: Button on the external install prompt to enable an extension installed by a third party.">
+          Enable Extension
+        </message>
+        <message name="IDS_EXTENSION_EXTERNAL_INSTALL_PROMPT_ACCEPT_BUTTON_APP" desc="In Title Case: Button on the external install prompt to enable an extension installed by a third party.">
+          Enable App
+        </message>
+        <message name="IDS_EXTENSION_EXTERNAL_INSTALL_PROMPT_ACCEPT_BUTTON_THEME" desc="In Title Case: Button on the external install prompt to enable an extension installed by a third party.">
+          Enable Theme
+        </message>
+      </if>
+      <if expr="not use_titlecase">
+        <message name="IDS_EXTENSION_EXTERNAL_INSTALL_PROMPT_ACCEPT_BUTTON_EXTENSION" desc="Button on the external install prompt to enable an extension installed by a third party.">
+          Enable extension
+        </message>
+        <message name="IDS_EXTENSION_EXTERNAL_INSTALL_PROMPT_ACCEPT_BUTTON_APP" desc="Button on the external install prompt to enable an extension installed by a third party.">
+          Enable app
+        </message>
+        <message name="IDS_EXTENSION_EXTERNAL_INSTALL_PROMPT_ACCEPT_BUTTON_THEME" desc="Button on the external install prompt to enable an extension installed by a third party.">
+          Enable theme
+        </message>
+      </if>
+      <message name="IDS_EXTENSION_PROMPT_WILL_HAVE_ACCESS_TO" desc="Second line in the content area of the extension or app installation prompt. Note that the exact wording is important. This should mean that the extension or app _can_ access the listed privileges, but not necessarily that it will or needs to.">
+        It can:
+      </message>
+      <message name="IDS_EXTENSION_PROMPT_WILL_NOW_HAVE_ACCESS_TO" desc="Second line in the content area of the extension or app re-enable prompt. Note that the exact wording is important. This should mean that the extension _can now_ access the listed privileges, but not necessarily that it will or needs to. This message appeared because the user must approve new permissions of the extension or app.">
+        It can now:
+      </message>
+      <message name="IDS_EXTENSION_PROMPT_WANTS_ACCESS_TO" desc="Second line in the content area of the extension or app permissions prompt. Note that the exact wording is important. This should mean that the extension _wants to_ access the listed privileges, but not necessarily that it will or needs to. This message appeared because the user must approve new permissions of the extension or app.">
+        It could:
+      </message>
+      <message name="IDS_EXTENSION_PROMPT_CAN_ACCESS" desc="Second line in the content area of the extension or app permissions view dialog. Note that the exact wording is important. This should mean that the extension _can now_ access the listed privileges, because it has already been installed. This message appeared because the user must approve new permissions of the extension or app.">
+        It can:
+      </message>
+      <message name="IDS_EXTENSION_PROMPT_REQUESTS_PERMISSIONS" desc="Second line in the content area of the extension or app installation prompt. Note that the exact wording is important. This should mean that the extension or app _can_ access the listed privileges, but not necessarily that it will or needs to.">
+        This extension requests the following permissions:
+      </message>
+      <message name="IDS_EXTENSION_PROMPT_RE_ENABLE_BUTTON" desc="Text for the enable button on the extension re-enable prompt">
+        Re-enable
+      </message>
+      <message name="IDS_EXTENSION_PROMPT_PERMISSIONS_BUTTON" desc="Text for the allow button on the extension permissions prompt">
+        Allow
+      </message>
+      <message name="IDS_EXTENSION_PROMPT_PERMISSIONS_ACCEPT_BUTTON" desc="Text for the accept permissions button on the extension permissions prompt">
+        Accept permissions
+      </message>
+      <message name="IDS_EXTENSION_PROMPT_PERMISSIONS_ABORT_BUTTON" desc="Text for the deny button on the extension permissions prompt">
+        Deny
+      </message>
+      <message name="IDS_EXTENSION_PROMPT_REMOTE_INSTALL_BUTTON_EXTENSION" desc="Text for the install button on the extension install prompt for a remotely installed extension">
+        Enable extension
+      </message>
+      <message name="IDS_EXTENSION_PROMPT_REMOTE_INSTALL_BUTTON_APP" desc="Text for the install button on the extension install prompt for a remotely installed app">
+        Enable app
+      </message>
+      <message name="IDS_EXTENSION_PROMPT_REPAIR_BUTTON_EXTENSION" desc="Text for the install button on the extension reinstall prompt.">
+        Repair extension
+      </message>
+      <message name="IDS_EXTENSION_PROMPT_REPAIR_BUTTON_APP" desc="Text for the install button on the app reinstall prompt.">
+        Repair app
+      </message>
+      <message name="IDS_EXTENSION_INSTALL_PROMPT_ACCEPT_BUTTON_EXTENSION" desc="Text for the install button on the extension install prompt, for an extension (i.e. not app or theme).">
+        Add extension
+      </message>
+      <message name="IDS_EXTENSION_INSTALL_PROMPT_ACCEPT_BUTTON_APP" desc="Text for the install button on the extension install prompt, for an app.">
+        Add app
+      </message>
+      <message name="IDS_EXTENSION_INSTALL_PROMPT_ACCEPT_BUTTON_THEME" desc="Text for the install button on the extension install prompt, for a theme.">
+        Add theme
+      </message>
+      <message name="IDS_EXTENSION_INSTALL_PROMPT_ASK_A_PARENT_BUTTON" desc="Text for the ask-a-parent button on the extension install prompt.">
+        Ask a parent
+      </message>
+      <message name="IDS_EXTENSION_INSTALL_PROMPT_REQUEST_BUTTON" desc="Text for the request button on the extension request prompt.">
+        Send
+      </message>
+      <message name="IDS_EXTENSION_RATING_COUNT" desc="Number of ratings an app or extensions has (displayed after star icons)">
+        (<ph name="RATING_COUNT">$1<ex>46</ex></ph>)
+      </message>
+      <message name="IDS_EXTENSION_USER_COUNT" desc="Number of users an app or extension has">
+        <ph name="USER_COUNT">$1<ex>10,479</ex></ph> users
+      </message>
+      <message name="IDS_PARENT_PERMISSION_PROMPT_APPROVE_BUTTON" desc="Text for the approve button on the parent permission prompt.">
+        Approve
+      </message>
+      <message name="IDS_PARENT_PERMISSION_PROMPT_CANCEL_BUTTON" desc="Text for the cancel button on the parent permission prompt.">
+        Cancel
+      </message>
     </messages>
   </release>
 </grit>

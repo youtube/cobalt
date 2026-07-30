@@ -8,6 +8,7 @@
 #include "base/memory/ptr_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/run_until.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/threading/thread_restrictions.h"
 #include "chrome/browser/download/download_prefs.h"
 #include "chrome/browser/preloading/preloading_prefs.h"
@@ -21,6 +22,7 @@
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "components/bookmarks/common/bookmark_bar_visibility_state.h"
 #include "components/bookmarks/common/bookmark_pref_names.h"
 #include "components/content_settings/core/browser/website_settings_info.h"
 #include "components/content_settings/core/browser/website_settings_registry.h"
@@ -28,6 +30,7 @@
 #include "components/content_settings/core/common/pref_names.h"
 #include "components/embedder_support/pref_names.h"
 #include "components/safe_browsing/core/common/safe_browsing_prefs.h"
+#include "components/search/ntp_features.h"
 #include "components/sync_preferences/pref_service_syncable.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
@@ -140,8 +143,19 @@ IN_PROC_BROWSER_TEST_F(PrefsFunctionalTest, TestJavascriptEnableDisable) {
             browser()->tab_strip_model()->GetActiveWebContents()->GetTitle());
 }
 
+class LegacyBookmarkBarPrefsTest : public PrefsFunctionalTest {
+ public:
+  LegacyBookmarkBarPrefsTest() {
+    scoped_feature_list_.InitAndDisableFeature(
+        ntp_features::kNtpSimplificationBookmarkBar);
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
 // Verify restore for bookmark bar visibility.
-IN_PROC_BROWSER_TEST_F(PrefsFunctionalTest,
+IN_PROC_BROWSER_TEST_F(LegacyBookmarkBarPrefsTest,
                        TestSessionRestoreShowBookmarkBar) {
   EXPECT_FALSE(browser()->profile()->GetPrefs()->GetBoolean(
       bookmarks::prefs::kShowBookmarkBar));
@@ -154,6 +168,36 @@ IN_PROC_BROWSER_TEST_F(PrefsFunctionalTest,
       bookmarks::prefs::kShowBookmarkBar));
   EXPECT_EQ(BookmarkBar::SHOW,
             BookmarkBarController::From(browser())->bookmark_bar_state());
+}
+
+class SimplifiedBookmarkBarPrefsTest : public PrefsFunctionalTest {
+ public:
+  SimplifiedBookmarkBarPrefsTest() {
+    scoped_feature_list_.InitAndEnableFeature(
+        ntp_features::kNtpSimplificationBookmarkBar);
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(SimplifiedBookmarkBarPrefsTest,
+                       TestSimplifiedBookmarkBarVisibilityState) {
+  PrefService* prefs = browser()->profile()->GetPrefs();
+
+  prefs->SetInteger(
+      bookmarks::prefs::kBookmarkBarVisibilityState,
+      static_cast<int>(bookmarks::BookmarkBarVisibilityState::kAlwaysShow));
+  EXPECT_EQ(BookmarkBar::SHOW,
+            BookmarkBarController::From(browser())->bookmark_bar_state());
+  EXPECT_TRUE(prefs->GetBoolean(bookmarks::prefs::kShowBookmarkBar));
+
+  prefs->SetInteger(
+      bookmarks::prefs::kBookmarkBarVisibilityState,
+      static_cast<int>(bookmarks::BookmarkBarVisibilityState::kAlwaysHide));
+  EXPECT_EQ(BookmarkBar::HIDDEN,
+            BookmarkBarController::From(browser())->bookmark_bar_state());
+  EXPECT_FALSE(prefs->GetBoolean(bookmarks::prefs::kShowBookmarkBar));
 }
 
 // Verify images are not blocked in incognito mode.

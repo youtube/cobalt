@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "base/byte_size.h"
 #include "base/json/json_writer.h"
 #include "base/values.h"
 #include "components/safe_search_api/safe_search/safe_search_url_checker_client.h"
@@ -65,7 +66,7 @@ void StubURLChecker::ClearResponses() {
 void StubURLChecker::SetUpResponse(net::Error error,
                                    const std::string& response) {
   network::URLLoaderCompletionStatus status(error);
-  status.decoded_body_length = response.size();
+  status.decoded_body_length = base::ByteSize(response.size());
   test_url_loader_factory_.AddResponse(GURL(kSafeSearchApiUrl),
                                        network::mojom::URLResponseHead::New(),
                                        response, status);

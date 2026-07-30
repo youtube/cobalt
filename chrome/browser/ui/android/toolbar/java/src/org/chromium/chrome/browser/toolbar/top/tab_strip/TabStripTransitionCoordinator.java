@@ -12,6 +12,8 @@ import android.util.DisplayMetrics;
 import android.view.View;
 import android.view.View.OnLayoutChangeListener;
 
+import androidx.annotation.IntDef;
+
 import org.chromium.base.Callback;
 import org.chromium.base.CallbackController;
 import org.chromium.base.Log;
@@ -29,6 +31,9 @@ import org.chromium.components.browser_ui.desktop_windowing.AppHeaderState;
 import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateManager;
 import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateManager.AppHeaderObserver;
 
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+
 /**
  * Class used to manage tab strip visibility and height updates.
  *
@@ -42,10 +47,12 @@ public class TabStripTransitionCoordinator implements ComponentCallbacks, AppHea
     private static final String TAG = "TabStripTransition";
 
     /** Callsite for requesting tab strip size update. */
-    public enum Callsite {
-        INITIALIZATION,
-        LAYOUT_CHANGE,
-        APP_HEADER_STATE_CHANGE
+    @IntDef({Callsite.INITIALIZATION, Callsite.LAYOUT_CHANGE, Callsite.APP_HEADER_STATE_CHANGE})
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface Callsite {
+        int INITIALIZATION = 0;
+        int LAYOUT_CHANGE = 1;
+        int APP_HEADER_STATE_CHANGE = 2;
     }
 
     // Delay to kickoff the transition to avoid frame drops while application is too busy when the
@@ -129,6 +136,14 @@ public class TabStripTransitionCoordinator implements ComponentCallbacks, AppHea
         default int getFadeTransitionThresholdDp() {
             return 0;
         }
+
+        /**
+         * Sets the callback to re-evaluate the fade transition threshold when an affecting update
+         * occurs, for example, tab strip button margins changing.
+         *
+         * @param callback Callback to handle a fade transition threshold update.
+         */
+        default void setFadeTransitionThresholdChangedCallback(@Nullable Runnable callback) {}
     }
 
     private final CallbackController mCallbackController = new CallbackController();
@@ -226,7 +241,10 @@ public class TabStripTransitionCoordinator implements ComponentCallbacks, AppHea
         controlContainerView().addOnLayoutChangeListener(mOnLayoutChangedListener);
 
         mTabStripTransitionDelegateSupplier.runSyncOrOnAvailable(
-                (unused) -> updateTabStripTransitionThreshold());
+                (delegate) -> {
+                    updateTabStripTransitionThreshold();
+                    delegate.setFadeTransitionThresholdChangedCallback(this::updateTabStripTransitionThreshold);
+                });
 
         AppHeaderState appHeaderState = null;
         if (mDesktopWindowStateManager != null) {
@@ -259,9 +277,8 @@ public class TabStripTransitionCoordinator implements ComponentCallbacks, AppHea
         onAppHeaderStateChanged(newState, Callsite.APP_HEADER_STATE_CHANGE);
     }
 
-    private void onAppHeaderStateChanged(AppHeaderState newState, Callsite callsite) {
+    private void onAppHeaderStateChanged(AppHeaderState newState, @Callsite int callsite) {
         assert mDesktopWindowStateManager != null;
-        assert newState != null;
 
         boolean wasInDesktopWindow = mAppHeaderState != null && mAppHeaderState.isInDesktopWindow();
         boolean isInDesktopWindow = newState.isInDesktopWindow();
@@ -305,6 +322,10 @@ public class TabStripTransitionCoordinator implements ComponentCallbacks, AppHea
         if (mDesktopWindowStateManager != null) {
             mDesktopWindowStateManager.removeObserver(this);
         }
+        mTabStripTransitionDelegateSupplier.runSyncOrOnAvailable(
+                (delegate) -> {
+                    delegate.setFadeTransitionThresholdChangedCallback(null);
+                });
         mCallbackController.destroy();
         mHeightTransitionHandler.destroy();
     }
@@ -370,7 +391,7 @@ public class TabStripTransitionCoordinator implements ComponentCallbacks, AppHea
         return mControlContainer.getView();
     }
 
-    private void onLayoutWidthChanged(int newWidth, Callsite callsite) {
+    private void onLayoutWidthChanged(int newWidth, @Callsite int callsite) {
         // If mAppHeaderState exists, check the widestUnoccludedRect too. This is needed as
         // updates in mAppHeaderState can happen prior / during a layout pass, while the
         // transition needs to wait until UI is in a stable state.
@@ -390,13 +411,13 @@ public class TabStripTransitionCoordinator implements ComponentCallbacks, AppHea
      * @param topPadding The top padding to be added to the tab strip.
      * @param callsite The callsite requesting the transition.
      */
-    private void onTabStripSizeChanged(int width, int topPadding, Callsite callsite) {
+    private void onTabStripSizeChanged(int width, int topPadding, @Callsite int callsite) {
         Log.i(
                 TAG,
                 "onTabStripSizeChanged: callsite=%s, width=%d, topPadding=%d,"
                         + " controlContainerHeight=%d, forceUpdateHeight=%b, forceFadeIn=%b,"
                         + " appHeaderState=%s",
-                callsite.name(),
+                getCallsiteName(callsite),
                 width,
                 topPadding,
                 controlContainerView().getHeight(),
@@ -506,6 +527,19 @@ public class TabStripTransitionCoordinator implements ComponentCallbacks, AppHea
         if (ChromeFeatureList.sTabStripHeightTransitionGlitchFix.isEnabled()
                 || ChromeFeatureList.sTabStripLayoutTransitionDebounceFix.isEnabled()) {
             mIsHeightTransitionPending = false;
+        }
+    }
+
+    private static String getCallsiteName(@Callsite int callsite) {
+        switch (callsite) {
+            case Callsite.INITIALIZATION:
+                return "INITIALIZATION";
+            case Callsite.LAYOUT_CHANGE:
+                return "LAYOUT_CHANGE";
+            case Callsite.APP_HEADER_STATE_CHANGE:
+                return "APP_HEADER_STATE_CHANGE";
+            default:
+                return "UNKNOWN";
         }
     }
 

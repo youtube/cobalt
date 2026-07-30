@@ -45,20 +45,21 @@ DECLARE_RESOURCE_ID(IDR_ANDROID_INFOBAR_MEDIA_STREAM_CAMERA,
 DECLARE_RESOURCE_ID(IDR_ANDROID_INFOBAR_MEDIA_STREAM_MIC,
                     R.drawable.gm_filled_mic_24)
 DECLARE_RESOURCE_ID(IDR_ANDROID_INFOBAR_MIDI, R.drawable.gm_filled_piano_24)
-DECLARE_RESOURCE_ID(IDR_ANDROID_INFOBAR_MULTIPLE_DOWNLOADS,
-                    R.drawable.infobar_downloading)
+DECLARE_RESOURCE_ID(IDR_ANDROID_PERMISSION_MULTIPLE_DOWNLOADS,
+                    R.drawable.permission_downloading)
 DECLARE_RESOURCE_ID(IDR_ANDROID_INFOBAR_NFC, R.drawable.gm_filled_nfc_24)
 DECLARE_RESOURCE_ID(IDR_ANDROID_INFOBAR_NOTIFICATIONS,
                     R.drawable.gm_filled_notifications_24)
 DECLARE_RESOURCE_ID(IDR_ANDROID_INFOBAR_PERMISSION_COOKIE,
                     R.drawable.permission_cookie)
-DECLARE_RESOURCE_ID(IDR_ANDROID_INFOBAR_PROTECTED_MEDIA_IDENTIFIER,
-                    R.drawable.infobar_protected_media_identifier)
+DECLARE_RESOURCE_ID(IDR_ANDROID_PERMISSION_PROTECTED_MEDIA,
+                    R.drawable.permission_protected_media)
 DECLARE_RESOURCE_ID(IDR_ANDROID_INFOBAR_SENSORS, R.drawable.settings_sensors)
 DECLARE_RESOURCE_ID(IDR_ANDROID_STORAGE_ACCESS, R.drawable.ic_storage_access_24)
 DECLARE_RESOURCE_ID(IDR_ANDROID_INFOBAR_VR_HEADSET,
                     R.drawable.gm_filled_cardboard_24)
-DECLARE_RESOURCE_ID(IDR_ANDROID_INFOBAR_WARNING, R.drawable.infobar_warning)
+DECLARE_RESOURCE_ID(IDR_ANDROID_PERMISSION_WARNING,
+                    R.drawable.permission_warning)
 DECLARE_RESOURCE_ID(IDR_ANDROID_INFOBAR_WINDOW_MANAGEMENT,
                     R.drawable.gm_filled_select_window_24)
 DECLARE_RESOURCE_ID(IDR_BUSINESS, R.drawable.ic_domain)

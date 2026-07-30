@@ -4,6 +4,7 @@
 
 #include "base/test/run_until.h"
 #include "base/test/test_future.h"
+#include "build/build_config.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/actor_task_metadata.h"
@@ -11,6 +12,8 @@
 #include "chrome/browser/actor/ui/actor_ui_interactive_browser_test.h"
 #include "chrome/browser/actor/ui/actor_ui_tab_controller.h"
 #include "chrome/browser/actor/ui/handoff_button_controller.h"
+#include "chrome/browser/glic/test_support/glic_test_environment.h"
+#include "chrome/browser/glic/widget/glic_view.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_window.h"
@@ -35,8 +38,10 @@
 #include "ui/views/focus/focus_manager.h"
 #include "ui/views/interaction/element_tracker_views.h"
 #include "ui/views/view_utils.h"
-#include "chrome/browser/glic/test_support/glic_test_environment.h"
-#include "chrome/browser/glic/widget/glic_view.h"
+
+#if BUILDFLAG(IS_OZONE)
+#include "ui/ozone/public/ozone_platform.h"
+#endif
 
 namespace actor::ui {
 namespace {
@@ -191,15 +196,15 @@ IN_PROC_BROWSER_TEST_F(ActorUiHandoffButtonControllerInteractiveUiTest,
 }
 #endif  // BUILDFLAG(IS_MAC)
 
-// TODO(crbug.com/465113623) Test flaky on Wayland.
-#if BUILDFLAG(SUPPORTS_OZONE_WAYLAND)
-#define MAYBE_ButtonHidesWhenOmniboxIsFocused \
-  DISABLED_ButtonHidesWhenOmniboxIsFocused
-#else
-#define MAYBE_ButtonHidesWhenOmniboxIsFocused ButtonHidesWhenOmniboxIsFocused
-#endif
+// Ensure button hides when omnibox is focused.
 IN_PROC_BROWSER_TEST_F(ActorUiHandoffButtonControllerInteractiveUiTest,
-                       MAYBE_ButtonHidesWhenOmniboxIsFocused) {
+                       ButtonHidesWhenOmniboxIsFocused) {
+#if BUILDFLAG(IS_OZONE)
+  // TODO(crbug.com/465113623) Test flaky on Wayland.
+  if (::ui::OzonePlatform::RunningOnWaylandForTest()) {
+    GTEST_SKIP() << "Wayland has focus limitations";
+  }
+#endif
   StartActingOnTab();
   RunTestSequence(
       ClearOmniboxFocus(),

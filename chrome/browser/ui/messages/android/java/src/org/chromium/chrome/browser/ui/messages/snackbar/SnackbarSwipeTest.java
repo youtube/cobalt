@@ -151,4 +151,53 @@ public class SnackbarSwipeTest {
         assertFalse("Snackbar should not be dismissed", mDismissed);
         assertTrue("Snackbar should still be showing", mManager.isShowing());
     }
+
+    @Test
+    @MediumTest
+    public void testSwipeToDismissWithQueuedSnackbar() {
+        Snackbar snackbar1 =
+                Snackbar.make(
+                        "First snackbar",
+                        mDefaultController,
+                        Snackbar.TYPE_ACTION,
+                        Snackbar.UMA_TEST_SNACKBAR);
+        Snackbar snackbar2 =
+                Snackbar.make(
+                        "Second snackbar",
+                        mDefaultController,
+                        Snackbar.TYPE_ACTION,
+                        Snackbar.UMA_TEST_SNACKBAR);
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mManager.showSnackbar(snackbar1);
+                    mManager.showSnackbar(snackbar2);
+                });
+
+        CriteriaHelper.pollUiThread(() -> mManager.isShowing(), "Snackbar should be showing");
+        SnackbarView snackbarView = mManager.getCurrentSnackbarViewForTesting();
+        ViewGroup container = snackbarView.mContainerView;
+        CriteriaHelper.pollUiThread(() -> container.getWidth() > 0, "Container not laid out");
+        CriteriaHelper.pollUiThread(
+                () -> container.getTranslationY() == 0f, "Snackbar animation did not finish.");
+
+        int[] location = new int[2];
+        container.getLocationOnScreen(location);
+        float startX = location[0] + container.getWidth() / 2f;
+        float startY = location[1] + container.getHeight() / 2f;
+
+        mDismissed = false;
+        TouchCommon.performWallClockDrag(
+                mActivity, startX, startX + container.getWidth(), startY, startY, 2000, 60, true);
+
+        CriteriaHelper.pollUiThread(() -> mDismissed, "First snackbar should be dismissed");
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    SnackbarView newView = mManager.getCurrentSnackbarViewForTesting();
+                    return newView != null
+                            && newView != snackbarView
+                            && newView.mContainerView.getTranslationX() == 0f;
+                },
+                "Second snackbar should be showing with fresh view and zero translationX");
+    }
 }

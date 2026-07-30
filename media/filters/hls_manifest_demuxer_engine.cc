@@ -343,13 +343,13 @@ HlsManifestDemuxerEngine::FilterDemuxerStreams(
   if (rendition_manager_) {
     switch (rendition_manager_->GetSupportedStreamTypes()) {
       case hls::RenditionManager::CodecSupportType::kSupportedAudioOnly: {
-        std::erase_if(all_streams, [](DemuxerStream* stream) {
+        std::erase_if(all_streams, [](raw_ptr<DemuxerStream> stream) {
           return stream->type() != DemuxerStream::AUDIO;
         });
         break;
       }
       case hls::RenditionManager::CodecSupportType::kSupportedVideoOnly: {
-        std::erase_if(all_streams, [](DemuxerStream* stream) {
+        std::erase_if(all_streams, [](raw_ptr<DemuxerStream> stream) {
           return stream->type() != DemuxerStream::VIDEO;
         });
         break;
@@ -548,17 +548,14 @@ void HlsManifestDemuxerEngine::UpdateRenditionManifestUri(
     GURL uri,
     HlsDemuxerStatusCallback cb) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(media_sequence_checker_);
-  GURL uri_copy = uri;
-  ReadManifest(
-      std::move(uri_copy),
-      base::BindOnce(&HlsManifestDemuxerEngine::UpdateMediaPlaylistForRole,
-                     weak_factory_.GetWeakPtr(), std::move(role),
-                     std::move(uri), std::move(cb)));
+  ReadManifest(std::move(uri),
+               base::BindOnce(
+                   &HlsManifestDemuxerEngine::UpdateMediaPlaylistForRole,
+                   weak_factory_.GetWeakPtr(), std::move(role), std::move(cb)));
 }
 
 void HlsManifestDemuxerEngine::UpdateMediaPlaylistForRole(
     std::string role,
-    GURL uri,
     HlsDemuxerStatusCallback cb,
     HlsDataSourceProvider::ReadResult maybe_stream) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(media_sequence_checker_);
@@ -577,7 +574,7 @@ void HlsManifestDemuxerEngine::UpdateMediaPlaylistForRole(
       break;
     }
     case 0: {
-      if (uri.SchemeIs("data")) {
+      if (stream->uri().has_value() && stream->uri()->SchemeIs("data")) {
         // Data URIs have no security origin. Any other url should have one.
         break;
       }
@@ -611,7 +608,7 @@ void HlsManifestDemuxerEngine::UpdateMediaPlaylistForRole(
   }
 
   auto maybe_playlist = ParseMediaPlaylistFromStringSource(
-      stream->AsString(), std::move(uri),
+      stream->AsString(), stream->uri().value(),
       manifest_origin.value_or(security_origin_), (*maybe_info).version);
   if (!maybe_playlist.has_value()) {
     auto error = std::move(maybe_playlist).error();
@@ -652,8 +649,7 @@ void HlsManifestDemuxerEngine::AdaptationAction(
 
 void HlsManifestDemuxerEngine::UpdateHlsDataSourceStats(
     HlsDataSourceProvider::ReadCb cb,
-    HlsDataSourceProvider::ReadStatus::Or<std::unique_ptr<HlsDataSourceStream>>
-        result) {
+    HlsDataSourceProvider::ReadResult result) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(media_sequence_checker_);
   if (!result.has_value()) {
     std::move(cb).Run(std::move(result).error().AddHere());
@@ -716,7 +712,7 @@ void HlsManifestDemuxerEngine::ParsePlaylist(
       break;
     }
     case 0: {
-      if (parse_info.uri.SchemeIs("data")) {
+      if (stream->uri().has_value() && stream->uri()->SchemeIs("data")) {
         // Data URIs have no security origin. Any other url should have one.
         break;
       }
@@ -754,7 +750,7 @@ void HlsManifestDemuxerEngine::ParsePlaylist(
         return;
       }
       auto playlist = hls::MultivariantPlaylist::Parse(
-          stream->AsString(), parse_info.uri,
+          stream->AsString(), stream->uri().value(),
           manifest_origin.value_or(security_origin_), (*m_info).version);
       if (!playlist.has_value()) {
         auto error = std::move(playlist).error();
@@ -775,7 +771,7 @@ void HlsManifestDemuxerEngine::ParsePlaylist(
       }
 
       auto playlist = ParseMediaPlaylistFromStringSource(
-          stream->AsString(), parse_info.uri,
+          stream->AsString(), stream->uri().value(),
           manifest_origin.value_or(security_origin_), (*m_info).version);
       if (!playlist.has_value()) {
         auto error = std::move(playlist).error();

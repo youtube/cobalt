@@ -330,7 +330,8 @@ SyncServiceFactory::TestingFactory SyncServiceFactory::GetDefaultFactory() {
 }
 
 SyncServiceFactory::SyncServiceFactory()
-    : ProfileKeyedServiceFactoryIOS("SyncService") {
+    : ProfileKeyedServiceFactoryIOS("SyncService",
+                                    TestingCreation::kNoServiceForTests) {
   // The SyncServiceImpl depends on various KeyedServices being around
   // when it is shut down.  Specify those dependencies here to build the proper
   // destruction order. Note that some of the dependencies are listed here but

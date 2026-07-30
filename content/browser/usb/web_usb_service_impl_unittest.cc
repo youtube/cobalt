@@ -17,6 +17,7 @@
 #include "base/strings/stringprintf.h"
 #include "base/test/gmock_callback_support.h"
 #include "base/test/test_future.h"
+#include "build/android_buildflags.h"
 #include "content/browser/service_worker/embedded_worker_test_helper.h"
 #include "content/browser/usb/usb_test_utils.h"
 #include "content/public/browser/web_contents_observer.h"
@@ -514,6 +515,35 @@ TEST_F(WebUsbServiceImplFrameTest, RejectOpaqueOriginEmbeddedFrame) {
             "WebUSB is not allowed when the top-level document has an "
             "opaque origin.");
 }
+
+using WebUsbServiceImplServiceWorkerTest = WebUsbServiceImplBaseTest;
+
+#if !BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)
+TEST_F(WebUsbServiceImplServiceWorkerTest,
+       GetPermissionFromServiceWorkerReportsBadMessage) {
+  // Create the service via the service worker path, which sets
+  // render_frame_host_ to nullptr.
+  const auto& service = GetService(kCreateForServiceWorker);
+
+  // Set up the delegate to allow the permission request to pass through
+  // the initial checks so execution reaches the null dereference.
+  EXPECT_CALL(delegate(), CanRequestDevicePermission).WillOnce(Return(true));
+
+  // Set up the bad message observer to catch the expected ReportBadMessage.
+  mojo::FakeMessageDispatchContext fake_dispatch_context;
+  mojo::test::BadMessageObserver bad_message_observer;
+
+  // Call GetPermission with empty options. Without the fix, this crashes
+  // the browser process due to dereferencing a null render_frame_host_.
+  auto options = blink::mojom::WebUsbRequestDeviceOptions::New();
+  TestFuture<device::mojom::UsbDeviceInfoPtr> future;
+  service->GetPermission(std::move(options), future.GetCallback());
+
+  EXPECT_EQ(bad_message_observer.WaitForBadMessage(),
+            "GetPermission is not allowed from a service worker.");
+  EXPECT_FALSE(future.Get());
+}
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 class WebUsbServiceImplProtectedInterfaceTest
     : public WebUsbServiceImplBaseTest,

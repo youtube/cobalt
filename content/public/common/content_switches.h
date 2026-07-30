@@ -202,6 +202,7 @@ CONTENT_EXPORT extern const char kTouchEventFeatureDetection[];
 CONTENT_EXPORT extern const char kTouchEventFeatureDetectionAuto[];
 CONTENT_EXPORT extern const char kTouchEventFeatureDetectionEnabled[];
 CONTENT_EXPORT extern const char kTouchEventFeatureDetectionDisabled[];
+CONTENT_EXPORT extern const char kUnboundedWindowDebug[];
 CONTENT_EXPORT extern const char kUseFakeCodecForPeerConnection[];
 CONTENT_EXPORT extern const char kUseFakeUIForDigitalIdentity[];
 CONTENT_EXPORT extern const char kUseFakeUIForFedCM[];

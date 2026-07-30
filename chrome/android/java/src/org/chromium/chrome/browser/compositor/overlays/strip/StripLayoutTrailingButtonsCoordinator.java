@@ -412,14 +412,8 @@ public class StripLayoutTrailingButtonsCoordinator {
             mGlicActorButton.setWidth(0.0f);
             mGlicActorButton.setOpacity(0.0f);
             mGlicActorButton.setVisible(false);
-
-            @ColorInt int bgTint = SemanticColorUtils.getColorSurfaceContainerLow(mContext);
-            @ColorInt
-            int bgHoverTint = mContext.getColor(R.color.tab_strip_glic_button_bg_hover_tint);
-            @ColorInt
-            int bgPressedTint = mContext.getColor(R.color.tab_strip_glic_button_bg_pressed_tint);
-
-            mGlicActorButton.setBackgroundTint(bgTint, bgHoverTint, bgPressedTint, bgPressedTint);
+            mGlicActorButton.setBackgroundTint(
+                    mContext.getColorStateList(R.color.tab_strip_glic_button_bg_tint_list));
 
             mGlicActorButton.setTint(SemanticColorUtils.getDefaultIconColor(mContext));
 
@@ -702,25 +696,18 @@ public class StripLayoutTrailingButtonsCoordinator {
     private void updateButtonTints(boolean incognito) {
         if (mGlicButton == null) return;
 
-        @ColorInt int iconTint = SemanticColorUtils.getDefaultIconColor(mContext);
-        @ColorInt int bgTint = SemanticColorUtils.getColorSurfaceContainerLow(mContext);
-
-        @ColorRes int bgHoverTintRes = R.color.tab_strip_glic_button_bg_hover_tint;
-        @ColorRes int bgPressedTintRes = R.color.tab_strip_glic_button_bg_pressed_tint;
-
-        if (incognito) {
-            iconTint = mContext.getColor(R.color.tab_strip_glic_button_icon_incognito_tint);
-            bgTint = mContext.getColor(R.color.tab_strip_glic_button_bg_incognito_tint);
-            bgHoverTintRes = R.color.tab_strip_glic_button_bg_incognito_tint;
-            bgPressedTintRes = R.color.tab_strip_glic_button_bg_incognito_tint;
-        }
-
+        @ColorInt
+        int iconTint =
+                incognito
+                        ? mContext.getColor(R.color.tab_strip_glic_icon_incognito_tint_list)
+                        : SemanticColorUtils.getDefaultIconColor(mContext);
+        @ColorRes
+        int bgTintRes =
+                incognito
+                        ? R.color.tab_strip_glic_button_bg_incognito_tint_list
+                        : R.color.tab_strip_glic_button_bg_tint_list;
         mGlicButton.setTint(iconTint);
-        mGlicButton.setBackgroundTint(
-                bgTint,
-                mContext.getColor(bgHoverTintRes),
-                mContext.getColor(bgPressedTintRes),
-                mContext.getColor(bgPressedTintRes));
+        mGlicButton.setBackgroundTint(mContext.getColorStateList(bgTintRes));
     }
 
     @VisibleForTesting

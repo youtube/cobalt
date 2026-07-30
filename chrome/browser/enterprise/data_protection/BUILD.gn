@@ -2,20 +2,79 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-source_set("data_protection_view_lib") {
-  public = [ "data_protection_overlay_view.h" ]
+import("//components/enterprise/buildflags/buildflags.gni")
+import("//extensions/buildflags/buildflags.gni")
+import("//ui/base/ui_features.gni")
 
-  sources = [ "data_protection_overlay_view.cc" ]
+# This library wraps //ui/views and can only be built where views is available.
+if (toolkit_views) {
+  source_set("data_protection_view_lib") {
+    public = [ "data_protection_overlay_view.h" ]
+
+    sources = [ "data_protection_overlay_view.cc" ]
+
+    deps = [
+      "//base",
+      "//cc/paint",
+      "//skia",
+    ]
+
+    public_deps = [
+      "//chrome/browser/enterprise/watermark:watermark_lib",
+      "//components/enterprise/watermarking",
+      "//ui/views",
+    ]
+  }
+}
+
+source_set("unit_tests") {
+  testonly = true
+
+  # Some of these tests declare file-scope objects with non-trivial
+  # destructors.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
+
+  sources = []
 
   deps = [
     "//base",
-    "//cc/paint",
-    "//skia",
+    "//chrome/browser/enterprise:impl",
+    "//chrome/browser/enterprise/connectors/test:test_support",
+    "//chrome/test:test_support",
+    "//components/enterprise/data_controls/core/browser:test_support",
+    "//testing/gtest",
+    "//ui/base/clipboard:clipboard_test_support",
   ]
 
-  public_deps = [
-    "//chrome/browser/enterprise/watermark:watermark_lib",
-    "//components/enterprise/watermarking",
-    "//ui/views",
-  ]
+  if ((enterprise_data_controls || enterprise_screenshot_protection) &&
+      !is_android) {
+    sources += [ "paste_allowed_request_unittest.cc" ]
+    deps += [ "//components/enterprise/connectors/core:cloud_content_scanning" ]
+  }
+
+  if (enable_extensions && enterprise_local_content_analysis) {
+    sources += [ "print_utils_unittest.cc" ]
+    deps += [ "//chrome/browser/printing:test_support" ]
+  }
+
+  if (enterprise_data_controls) {
+    sources += [ "data_protection_clipboard_utils_unittest.cc" ]
+    deps += [ "//components/enterprise/data_controls/core/browser:features" ]
+    if (!is_android) {
+      sources += [ "clipboard_toast_tracker_unittest.cc" ]
+    }
+  }
+
+  if (toolkit_views) {
+    sources += [
+      "data_protection_navigation_observer_unittest.cc",
+      "data_protection_overlay_view_unittest.cc",
+      "data_protection_page_user_data_unittest.cc",
+    ]
+    deps += [
+      ":data_protection_view_lib",
+      "//components/safe_browsing/core/browser:referring_app_info",
+      "//components/safe_browsing/core/browser/realtime:test_support",
+    ]
+  }
 }

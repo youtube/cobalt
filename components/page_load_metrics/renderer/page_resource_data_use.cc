@@ -5,6 +5,7 @@
 #include "components/page_load_metrics/renderer/page_resource_data_use.h"
 
 #include "base/byte_count.h"
+#include "base/byte_size.h"
 #include "net/base/proxy_chain.h"
 #include "services/network/public/cpp/url_loader_completion_status.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
@@ -51,10 +52,11 @@ void PageResourceDataUse::DidCompleteResponse(
     const network::URLLoaderCompletionStatus& status) {
   // Report the difference in received bytes.
   is_complete_ = true;
-  encoded_body_length_ = base::ByteCount(status.encoded_body_length);
-  decoded_body_length_ = base::ByteCount(status.decoded_body_length);
+  encoded_body_length_ = status.encoded_body_length.AsDeprecatedByteCount();
+  decoded_body_length_ = status.decoded_body_length.AsDeprecatedByteCount();
   base::ByteCount delta_bytes =
-      base::ByteCount(status.encoded_data_length) - total_received_bytes_;
+      status.encoded_data_length.AsDeprecatedByteCount() -
+      total_received_bytes_;
   if (delta_bytes.is_positive()) {
     total_received_bytes_ += delta_bytes;
   }

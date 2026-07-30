@@ -10,14 +10,13 @@
 #include "chrome/common/pref_names.h"
 #include "components/metrics/metrics_pref_names.h"
 #include "components/metrics/metrics_reporting_choice_service.h"
-#include "components/metrics/metrics_reporting_level.h"
 #include "components/policy/core/common/features.h"
 #include "components/prefs/pref_service.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "chrome/android/chrome_jni_headers/PrivacyPreferencesManagerImpl_jni.h"
 
-static bool JNI_PrivacyPreferencesManagerImpl_IsBasicMetricsReportingEnabled() {
+static bool JNI_PrivacyPreferencesManagerImpl_IsMetricsReportingEnabled() {
   PrefService* local_state = g_browser_process->local_state();
   return metrics::MetricsReportingChoiceService::IsBasicMetricsReportingEnabled(
       local_state);
@@ -34,14 +33,6 @@ JNI_PrivacyPreferencesManagerImpl_IsMetricsReportingDisabledByPolicy() {
   const PrefService* local_state = g_browser_process->local_state();
   return metrics::MetricsReportingChoiceService::
       IsMetricsReportingDisabledByPolicy(local_state);
-}
-
-static void
-JNI_PrivacyPreferencesManagerImpl_SetMetricsReportingLevelInLocalState(
-    metrics::MetricsReportingLevel level) {
-  PrefService* local_state = g_browser_process->local_state();
-  metrics::MetricsReportingChoiceService::SetMetricsReportingLevel(local_state,
-                                                                   level);
 }
 
 static bool

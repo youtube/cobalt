@@ -50,12 +50,11 @@ IN_PROC_BROWSER_TEST_F(GlicActorMediaControlToolUiTest, PauseAndPlayMedia) {
       InitializeWithOpenGlicWindow(),
       StartActorTaskInNewTab(url, kNewActorTabId),
       ExecuteJs(kNewActorTabId, "play"),
+      WaitForJsResult(kNewActorTabId, "() => waitForEvent('play')"),
       MediaControlAction(actor::PauseMedia()),
-      WaitForJsResult(kNewActorTabId, "() => { return event_log.join(','); }",
-                      "pause"),
+      WaitForJsResult(kNewActorTabId, "() => waitForEvent('pause')"),
       MediaControlAction(actor::PlayMedia()),
-      WaitForJsResult(kNewActorTabId, "() => { return event_log.join(','); }",
-                      "pause,play"));
+      WaitForJsResult(kNewActorTabId, "() => waitForEvent('play')"));
 }
 
 IN_PROC_BROWSER_TEST_F(GlicActorMediaControlToolUiTest, SeekMedia) {
@@ -65,9 +64,11 @@ IN_PROC_BROWSER_TEST_F(GlicActorMediaControlToolUiTest, SeekMedia) {
       InitializeWithOpenGlicWindow(),
       StartActorTaskInNewTab(url, kNewActorTabId),
       ExecuteJs(kNewActorTabId, "play"),
+      WaitForJsResult(kNewActorTabId, "() => waitForEvent('play')"),
+      ExecuteJs(kNewActorTabId, "() => { video.pause(); }"),
+      WaitForJsResult(kNewActorTabId, "() => waitForEvent('pause')"),
       MediaControlAction(actor::SeekMedia{.seek_time_milliseconds = 1000}),
-      WaitForJsResult(kNewActorTabId, "() => { return event_log.join(','); }",
-                      "seek 1"));
+      WaitForJsResult(kNewActorTabId, "() => waitForSeek(1.0)"));
 }
 
 }  //  namespace

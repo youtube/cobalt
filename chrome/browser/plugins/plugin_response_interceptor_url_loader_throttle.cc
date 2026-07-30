@@ -7,6 +7,7 @@
 #include <tuple>
 #include <utility>
 
+#include "base/byte_size.h"
 #include "base/containers/span.h"
 #include "base/functional/bind.h"
 #include "base/numerics/safe_conversions.h"
@@ -281,7 +282,7 @@ void PluginResponseInterceptorURLLoaderThrottle::WillProcessResponse(
            producer_handle->WriteAllData(base::as_byte_span(payload)));
 
   network::URLLoaderCompletionStatus status(net::OK);
-  status.decoded_body_length = base::checked_cast<int64_t>(payload.size());
+  status.decoded_body_length = base::ByteSize(payload.size());
   new_client->OnComplete(status);
 
   mojo::PendingRemote<network::mojom::URLLoader> original_loader;
@@ -348,13 +349,14 @@ void PluginResponseInterceptorURLLoaderThrottle::WillProcessResponse(
     // responses).
     network::URLLoaderCompletionStatus completion_status(net::OK);
     completion_status.decoded_body_length =
-        base::checked_cast<int64_t>(cached_body->decoded_body_size);
+        base::ByteSize(cached_body->decoded_body_size);
     if (response_head->content_length >= 0) {
-      completion_status.encoded_body_length = response_head->content_length;
+      completion_status.encoded_body_length =
+          base::ByteSize(base::as_unsigned(response_head->content_length));
     }
     if (response_head->encoded_data_length >= 0) {
       completion_status.encoded_data_length =
-          response_head->encoded_data_length;
+          base::ByteSize(base::as_unsigned(response_head->encoded_data_length));
     }
     completion_client->OnComplete(completion_status);
   } else {

@@ -160,7 +160,6 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &commerce::kShoppingList,
     &commerce::kShoppingPDPMetrics,
     &content_capture::features::kContentCaptureSendMetadataForDataShare,
-    &content_settings::features::kUserBypassUI,
     &content_settings::kDarkenWebsitesCheckboxInThemesSetting,
     &contextual_tasks::kContextualTasks,
     &contextual_tasks::kContextualTasksJavaFusebox,
@@ -192,6 +191,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &features::kFluidResize,
     &features::kGenericSensorExtraClasses,
     &features::kGlic,
+    &features::kGlicBackgroundActuation,
     &features::kHttpsFirstBalancedMode,
     &features::kLoadingPredictorLimitPreconnectSocketCount,
     &features::kNetworkServiceInProcess,
@@ -245,7 +245,6 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kAndroidSettingsContainment,
     &kAndroidSettingsUrl,
     &kAndroidSetupList,
-    &kAndroidShareFullLink,
     &kAndroidSurfaceColorUpdate,
     &kAndroidTabDeclutterDedupeTabIdsKillSwitch,
     &kAndroidTabSkipSaveTabsKillswitch,
@@ -375,20 +374,20 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kHistoryPaneAndroid,
     &kHomeButtonRemoval,
     &kHomeModulePrefRefactor,
+    &kInAppWindowManagerDeprecation,
     &kIncognitoAsWindowFullScreen,
     &kIncognitoModeForcedAndroid,
-    &kIncognitoNtpSmallIcon,
     &kIncognitoScreenshot,
     &kIncognitoThemeOverlayTesting,
     &kInlinePdfV2,
     &kInlinePdfV2Download,
+    &kInlinePdfV2Incognito,
     &kKeyboardEscBackNavigation,
     &kLaunchCauseScreenOffFix,
     &kLensOnQuickActionSearchWidget,
     &kLinkHoverStatusBar,
     &kLoadAllTabsAtStartup,
     &kLoadNativeEarly,
-    &kLockBackPressHandlerAtStart,
     &kLockTopControlsOnLargeTabletsV2,
     &kLogoViewRefactor,
     &kLongScreenshotsLenientMemoryCheck,
@@ -404,8 +403,8 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kNotificationTrampoline,
     &kNotificationTrampolineNoNewTask,
     &kNtpMvcRefactor,
+    &kNtpVision,
     &kOmahaMinSdkVersionAndroid,
-    &kOmniboxAutofocusOnIncognitoNtp,
     &kOnDemandBackgroundTabContextCapture,
     &kOnStartupWindowPolicy,
     &kPCCTMinimumHeight,
@@ -425,7 +424,6 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kReadAloudAudioOverviews,
     &kReadAloudIPHMenuButtonHighlightCCT,
     &kReadAloudPlayback,
-    &kRecordIncognitoNtpTimeToFirstNavigationMetric,
     &kRecordSuppressionMetrics,
     &kReengagementNotification,
     &kRelatedSearchesAllLanguage,
@@ -461,7 +459,6 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kTabSwitcherGroupSuggestionsAndroid,
     &kTabSwitcherGroupSuggestionsTestModeAndroid,
     &kTabWindowManagerReportIndicesMismatch,
-    &kTaskGetIdAnrFix,
     &kTestDefaultDisabled,
     &kTestDefaultEnabled,
     &kThreeDotMenuBackButton,
@@ -614,7 +611,6 @@ BASE_FEATURE(kAndroidSaveCardNonBlockingDialog, base::FEATURE_DISABLED_BY_DEFAUL
 BASE_FEATURE(kAndroidSettingsContainment, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kAndroidSettingsUrl, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kAndroidSetupList, base::FEATURE_DISABLED_BY_DEFAULT);
-BASE_FEATURE(kAndroidShareFullLink, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kAndroidSurfaceColorUpdate, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kAndroidTabDeclutterDedupeTabIdsKillSwitch, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kAndroidTabSkipSaveTabsKillswitch,"AndroidTabSkipSaveTabsTaskKillswitch", base::FEATURE_ENABLED_BY_DEFAULT);
@@ -747,20 +743,20 @@ BASE_FEATURE(kGroupNewTabWithParent, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kHistoryPaneAndroid, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kHomeButtonRemoval, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kHomeModulePrefRefactor, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kInAppWindowManagerDeprecation, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kIncognitoAsWindowFullScreen, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kIncognitoModeForcedAndroid, base::FEATURE_DISABLED_BY_DEFAULT);
-BASE_FEATURE(kIncognitoNtpSmallIcon, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kIncognitoScreenshot, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kIncognitoThemeOverlayTesting, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kInlinePdfV2, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kInlinePdfV2Download, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kInlinePdfV2Incognito, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kKeyboardEscBackNavigation, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kLaunchCauseScreenOffFix, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kLensOnQuickActionSearchWidget, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kLinkHoverStatusBar, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kLoadAllTabsAtStartup, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kLoadNativeEarly, base::FEATURE_ENABLED_BY_DEFAULT);
-BASE_FEATURE(kLockBackPressHandlerAtStart, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kLockTopControlsOnLargeTabletsV2, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kLogoViewRefactor, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kLongScreenshotsLenientMemoryCheck, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -779,8 +775,8 @@ BASE_FEATURE(kNotificationPermissionVariant, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kNotificationTrampoline, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kNotificationTrampolineNoNewTask, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kNtpMvcRefactor, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kNtpVision, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kOmahaMinSdkVersionAndroid, base::FEATURE_DISABLED_BY_DEFAULT);
-BASE_FEATURE(kOmniboxAutofocusOnIncognitoNtp, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kOnDemandBackgroundTabContextCapture, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kOnStartupWindowPolicy, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kPCCTMinimumHeight, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -804,7 +800,6 @@ BASE_FEATURE(kReadAloudAudioOverviews, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kReadAloudIPHMenuButtonHighlightCCT, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kReadAloudPlayback, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kReadAloudServerExperiments, base::FEATURE_DISABLED_BY_DEFAULT);
-BASE_FEATURE(kRecordIncognitoNtpTimeToFirstNavigationMetric, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kRecordSuppressionMetrics, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kReengagementNotification, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kRelatedSearchesAllLanguage, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -840,7 +835,6 @@ BASE_FEATURE(kTabSwitcherDragDropAndroid, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kTabSwitcherGroupSuggestionsAndroid, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kTabSwitcherGroupSuggestionsTestModeAndroid, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kTabWindowManagerReportIndicesMismatch, base::FEATURE_ENABLED_BY_DEFAULT);
-BASE_FEATURE(kTaskGetIdAnrFix, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kTestDefaultDisabled, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kTestDefaultEnabled, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kThreeDotMenuBackButton, base::FEATURE_DISABLED_BY_DEFAULT);

@@ -35,7 +35,6 @@
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/buttons/toolbar_configuration.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
-#import "ios/chrome/common/ui/util/device_util.h"
 #import "ios/chrome/common/ui/util/ui_util.h"
 #import "ui/base/device_form_factor.h"
 
@@ -839,6 +838,8 @@ const CGFloat kCloseButtonPadding = 16.0f;
   contentConfiguration.text = title;
   contentConfiguration.textProperties.font =
       [UIFont systemFontOfSize:14 weight:UIFontWeightSemibold];
+  contentConfiguration.textProperties.color =
+      [UIColor colorNamed:kTextSecondaryColor];
   contentConfiguration.textProperties.transform =
       UIListContentTextTransformUppercase;
   contentConfiguration.directionalLayoutMargins = NSDirectionalEdgeInsetsMake(

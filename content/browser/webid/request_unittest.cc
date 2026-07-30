@@ -30,7 +30,7 @@
 #include "content/browser/webid/metrics.h"
 #include "content/browser/webid/request_service.h"
 #include "content/browser/webid/test/delegated_idp_network_request_manager.h"
-#include "content/browser/webid/test/federated_auth_request_request_token_callback_helper.h"
+#include "content/browser/webid/test/federated_request_token_callback_helper.h"
 #include "content/browser/webid/test/mock_api_permission_delegate.h"
 #include "content/browser/webid/test/mock_auto_reauthn_permission_delegate.h"
 #include "content/browser/webid/test/mock_identity_registry.h"
@@ -39,6 +39,7 @@
 #include "content/browser/webid/test/mock_permission_delegate.h"
 #include "content/browser/webid/webid_utils.h"
 #include "content/common/content_navigation_policy.h"
+#include "content/public/browser/content_browser_client.h"
 #include "content/public/browser/webid/federated_embedder_login_request.h"
 #include "content/public/browser/webid/identity_credential_source.h"
 #include "content/public/browser/webid/identity_request_dialog_controller.h"
@@ -73,8 +74,7 @@ using blink::mojom::TokenRequestFailurePtr;
 using blink::mojom::TokenRequestSuccessPtr;
 using ApiPermissionStatus =
     content::FederatedIdentityApiPermissionContextDelegate::PermissionStatus;
-using AuthRequestCallbackHelper =
-    content::FederatedAuthRequestRequestTokenCallbackHelper;
+using AuthRequestCallbackHelper = content::FederatedRequestTokenCallbackHelper;
 using DismissReason = content::IdentityRequestDialogController::DismissReason;
 using FedCmEntry = ukm::builders::Blink_FedCm;
 using FedCmIdpEntry = ukm::builders::Blink_FedCmIdp;
@@ -1317,6 +1317,23 @@ class RequestTest : public RenderViewHostImplTestHarness {
   void SetDialogController(
       std::unique_ptr<TestDialogController> dialog_controller) {
     custom_dialog_controller_ = std::move(dialog_controller);
+  }
+
+  void CompleteTokenRequest(
+      RequestService* service,
+      Request* request,
+      blink::mojom::FederatedRequestService::StartTokenRequestCallback callback,
+      blink::mojom::RequestTokenStatus status,
+      const std::optional<GURL>& selected_idp_config_url,
+      std::optional<base::Value> token,
+      blink::mojom::TokenErrorPtr error,
+      bool is_auto_selected) {
+    auto wrapped_callback = base::BindOnce(
+        &RequestService::InvokeTokenRequestCallback, std::move(callback));
+
+    service->OnTokenRequestCompleteInternal(
+        request, std::move(wrapped_callback), status, selected_idp_config_url,
+        std::move(token), std::move(error), is_auto_selected);
   }
 
   void RunAuthTest(const RequestParameters& request_parameters,
@@ -3777,7 +3794,7 @@ TEST_F(RequestTest,
   EXPECT_FALSE(DidFetchAnyEndpoint());
 
   // Abort the request before DelayTimer kicks in.
-  request_->CancelTokenRequest();
+  request_->Abort();
 
   // If double counted, these samples would not be unique so the following
   // checks will fail.
@@ -6867,7 +6884,9 @@ TEST_F(RequestTest, ActiveFlowDismissLoadingUI) {
 TEST_F(RequestTest, CloseModalDialogView) {
   // Test that IdentityRegistry is notified when modal dialog view is closed.
   EXPECT_FALSE(test_identity_registry_->notified_);
-  request_->CloseModalDialogView();
+  RequestService* service =
+      RequestService::GetOrCreateForCurrentDocument(main_test_rfh());
+  service->CloseModalDialogView();
   EXPECT_TRUE(test_identity_registry_->notified_);
 }
 
@@ -6918,7 +6937,7 @@ class UserInfoCallbackHelper {
   ~UserInfoCallbackHelper() = default;
 
   // This can only be called once per lifetime of this object.
-  blink::mojom::FederatedAuthRequest::RequestUserInfoCallback callback() {
+  blink::mojom::FederatedRequestService::RequestUserInfoCallback callback() {
     return base::BindOnce(&UserInfoCallbackHelper::Complete,
                           base::Unretained(this));
   }
@@ -6932,9 +6951,7 @@ class UserInfoCallbackHelper {
     wait_for_callback_loop_.Run();
   }
 
-  void Complete(
-      blink::mojom::RequestUserInfoStatus user_info_status,
-      std::optional<std::vector<blink::mojom::IdentityUserInfoPtr>> user_info) {
+  void Complete(blink::mojom::RequestUserInfoResultPtr result) {
     CHECK(!was_called_);
     was_called_ = true;
     wait_for_callback_loop_.Quit();
@@ -6951,9 +6968,9 @@ TEST_F(RequestTest, RequestUserInfoFailure) {
   config->config_url = GURL(kIdpUrl);
   UserInfoCallbackHelper callback_helper;
   // This request will fail right away (not from IDP origin).
-  request_->RequestUserInfo(std::move(config),
-                            base::BindOnce(&UserInfoCallbackHelper::Complete,
-                                           base::Unretained(&callback_helper)));
+  service_remote_->RequestUserInfo(
+      std::move(config), base::BindOnce(&UserInfoCallbackHelper::Complete,
+                                        base::Unretained(&callback_helper)));
   // This is a regression test and it passes if the test does not crash.
   callback_helper.WaitForCallback();
 }
@@ -7079,7 +7096,7 @@ TEST_F(RequestTest, AbortedAccountsDialogShownDurationMetric) {
   EXPECT_FALSE(did_show_idp_signin_status_mismatch_dialog());
 
   // Abort the request.
-  request_->CancelTokenRequest();
+  request_->Abort();
 
   WaitForCurrentAuthRequest();
   RequestExpectations expectations{RequestTokenStatus::kErrorCanceled,
@@ -7124,7 +7141,7 @@ TEST_F(RequestTest, AbortedMismatchDialogShownDurationMetric) {
   EXPECT_FALSE(did_show_accounts_dialog());
 
   // Abort the request.
-  request_->CancelTokenRequest();
+  request_->Abort();
 
   RequestExpectations expectations{RequestTokenStatus::kErrorCanceled,
                                    FederatedAuthRequestResult::kCanceled,
@@ -7160,7 +7177,7 @@ TEST_F(RequestTest, RecordNumRequestsPerDocumentMetric) {
   EXPECT_FALSE(did_show_idp_signin_status_mismatch_dialog());
 
   // Abort the first auth request.
-  request_->CancelTokenRequest();
+  request_->Abort();
 
   WaitForCurrentAuthRequest();
   RequestExpectations expectations{RequestTokenStatus::kErrorCanceled,
@@ -8103,13 +8120,12 @@ TEST_F(RequestTest, BrandingWithInsufficientContrastTextColor) {
   EXPECT_EQ(brand_text_color(), std::nullopt);
 }
 
-class FederatedAuthRequestExampleOrgTest : public RequestTest {
+class FederatedRequestExampleOrgTest : public RequestTest {
  public:
-  FederatedAuthRequestExampleOrgTest()
-      : RequestTest("https://rp.example.org/") {}
+  FederatedRequestExampleOrgTest() : RequestTest("https://rp.example.org/") {}
 };
 
-TEST_F(FederatedAuthRequestExampleOrgTest, WellKnownSameSite) {
+TEST_F(FederatedRequestExampleOrgTest, WellKnownSameSite) {
   static const char kExampleOrgProviderUrl[] =
       "https://idp.example.org/fedcm.json";
 
@@ -9117,7 +9133,8 @@ TEST_P(RequestNotifyAutofillParamTest, NotifyAutofillSuggestionAccepted) {
       std::make_unique<TestDialogController>(kConfigurationValid);
 
   dialog_controller->SetState(&dialog_controller_state_);
-  request_->SetDialogControllerForTests(std::move(dialog_controller));
+  RequestService::GetOrCreateForCurrentDocument(main_test_rfh())
+      ->SetDialogControllerForTests(std::move(dialog_controller));
 
   GURL idp = params.unknown_idp ? GURL("https://unknownidp.example/")
                                 : GURL(kProviderUrlFull);
@@ -9362,6 +9379,58 @@ TEST_F(RequestTest, AbortViaFederatedRequest) {
   // Abort the request session explicitly via the FederatedRequest pipe!
   federated_request->Abort();
   run_loop.Run();
+}
+
+class TestContentBrowserClientForDialogReset : public ContentBrowserClient {
+ public:
+  TestContentBrowserClientForDialogReset() = default;
+  ~TestContentBrowserClientForDialogReset() override = default;
+
+  std::unique_ptr<IdentityRequestDialogController>
+  CreateIdentityRequestDialogController(WebContents* web_contents) override {
+    create_count_++;
+    return std::make_unique<MockIdentityRequestDialogController>();
+  }
+
+  int create_count() const { return create_count_; }
+
+ private:
+  int create_count_ = 0;
+};
+
+TEST_F(RequestTest, DialogControllerResetOnCompletion) {
+  TestContentBrowserClientForDialogReset browser_client;
+  ContentBrowserClient* original_client =
+      SetBrowserClientForTesting(&browser_client);
+
+  RequestService* request_service =
+      RequestService::GetOrCreateForCurrentDocument(main_test_rfh());
+
+  request_service->SetDialogControllerForTests(nullptr);
+
+  EXPECT_FALSE(request_service->HasDialogControllerForTesting());
+
+  request_service->GetOrCreateActiveRequest();
+  request_service->GetOrCreateDialogController();
+
+  EXPECT_TRUE(request_service->HasDialogControllerForTesting());
+  EXPECT_EQ(browser_client.create_count(), 1);
+
+  CompleteTokenRequest(
+      request_service, request_service->GetActiveRequestForTesting(),
+      base::DoNothing(), blink::mojom::RequestTokenStatus::kError,
+      /*selected_idp_config_url=*/std::nullopt,
+      /*token=*/std::nullopt,
+      /*error=*/nullptr,
+      /*is_auto_selected=*/false);
+  ASSERT_TRUE(base::test::RunUntil([&]() { return !request_; }));
+
+  request_service->GetOrCreateActiveRequest();
+  request_service->GetOrCreateDialogController();
+
+  EXPECT_EQ(browser_client.create_count(), 2);
+
+  SetBrowserClientForTesting(original_client);
 }
 
 }  // namespace content::webid

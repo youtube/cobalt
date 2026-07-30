@@ -59,12 +59,6 @@ BASE_FEATURE(kAutofillActorRewriteCreditCardTriggerField,
 // saving to Autocomplete.
 BASE_FEATURE(kAutofillActorSuppressImport, base::FEATURE_DISABLED_BY_DEFAULT);
 
-// When enabled, other Autofill AI data types are controlled by the
-// autofillOtherDatatypesEnabled policy and extension API. Previously, these
-// were controlled by autofillAddressesEnabled; consequently, Autofill AI no
-// longer depends on address-based Autofill being enabled.
-BASE_FEATURE(kAutofillAddOtherDatatypesPref, base::FEATURE_DISABLED_BY_DEFAULT);
-
 // Feature flag to control displaying of Autofill suggestions on
 // unclassified fields based on prefix matching. These suggestions are displayed
 // after the user typed a certain number of characters that match some data
@@ -413,7 +407,7 @@ BASE_FEATURE(kAutofillAndroidDisableSuggestionsOnJSFocus,
 // some of the logic in AndroidAutofillProvider.
 // TODO(crbug.com/456526604): Remove when launched.
 BASE_FEATURE(kAutofillAndroidFormDataCompareFieldGlobalId,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled, on Android, the Autofill keyboard accessory will not be
 // displayed attached to the keyboard but will be placed below or above the
@@ -689,26 +683,6 @@ BASE_FEATURE(kAutofillIgnoreCheckableElements,
              base::FEATURE_ENABLED_BY_DEFAULT);
 // LINT.ThenChange(//components/autofill/ios/form_util/resources/autofill_form_features.ts:autofill_ignore_checkable_elements)
 
-// When enabled, address field swapping suggestions will not include a
-// suggestion matching the field's current value. This decreases noises in the
-// suggestion UI.
-// TODO(crbug.com/381531027): Remove when launched.
-BASE_FEATURE(kAutofillImproveAddressFieldSwapping,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// When enabled, a new grammar for phone numbers is considered and we get
-// slightly better at detecting cases where the generic regex for
-// PHONE_COUNTRY_CODE matches a field that should not actually be classified as
-// such.
-BASE_FEATURE(kAutofillImprovePhoneFieldParser,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// When enabled, `(PHONE_HOME_COUNTRY_CODE, PHONE_HOME_WHOLE_NUMBER)` are
-// rationalized to `(PHONE_HOME_COUNTRY_CODE,
-// PHONE_HOME_CITY_AND_NUMBER_WITHOUT_TRUNK_PREFIX)`.
-BASE_FEATURE(kAutofillImprovePhoneNumberRationalization,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // If enabled, global rules are applied to rewrite empty string values like
 // "null" to an empty string. These rules are applied for all types during
 // address normalization.
@@ -777,16 +751,6 @@ BASE_FEATURE_PARAM(bool,
 // will take care of this logic.
 BASE_FEATURE(kAutofillMoveSmallFormLogicToClient,
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Improves the regex for matching augmented country code select options by
-// supporting cases like +1 (234).
-BASE_FEATURE(kAutofillNewAugmentedPhoneCountryCodeRegex,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// If enabled, more patterns are added to the PHONE_COUNTRY_CODE regex.
-// TODO(crbug.com/479503511): Remove once launched.
-BASE_FEATURE(kAutofillNewRegexForPhoneCountryCode,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled, the new suggestion generation logic is used.
 // TODO(crbug.com/409962888): Remove once launched.
@@ -858,11 +822,6 @@ BASE_FEATURE(kAutofillPopupDontAcceptNonVisibleEnoughSuggestion,
 BASE_FEATURE(kAutofillPopupZOrderSecuritySurface,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// When enabled, we prefer a `PHONE_HOME_COUNTRY_CODE` heuristic type over a
-// `HtmlFieldType::kCountryCode`.
-BASE_FEATURE(kAutofillPreferPhoneCountryCodeTypeOverCountryHtmlType,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Replaces blink::WebFormElementObserver usage in FormTracker by updated logic
 // for tracking the disappearance of forms as well as other submission
 // triggering events.
@@ -895,6 +854,11 @@ BASE_FEATURE(kAutofillServerUploadMoreData, base::FEATURE_ENABLED_BY_DEFAULT);
 // TODO(crbug.com/432429605): Remove when launched.
 BASE_FEATURE(kAutofillShowBubblesBasedOnPriorities,
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Kill switch: If enabled, the focus check in AutofillPopupControllerImpl and
+// AutofillKeyboardAccessoryControllerImpl is simplified.
+// TODO(crbug.com/530190112): Clean up after September 1, 2026.
+BASE_FEATURE(kAutofillSimplifyFocusCheck, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled, a pre-filled field will not be filled.
 BASE_FEATURE(kAutofillSkipPreFilledFields, base::FEATURE_ENABLED_BY_DEFAULT);

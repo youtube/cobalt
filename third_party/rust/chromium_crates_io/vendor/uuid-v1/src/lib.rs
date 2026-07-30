@@ -38,7 +38,7 @@
 //!
 //! ```toml
 //! [dependencies.uuid]
-//! version = "1.23.3"
+//! version = "1.23.4"
 //! # Lets you generate random UUIDs
 //! features = [
 //!     "v4",
@@ -138,7 +138,7 @@
 //!
 //! ```toml
 //! [dependencies.uuid]
-//! version = "1.23.3"
+//! version = "1.23.4"
 //! features = [
 //!     "v4",
 //!     "v7",
@@ -153,7 +153,7 @@
 //!
 //! ```toml
 //! [dependencies.uuid]
-//! version = "1.23.3"
+//! version = "1.23.4"
 //! default-features = false
 //! ```
 //!
@@ -205,13 +205,15 @@
 //!
 //! [`wasm-bindgen`]: https://crates.io/crates/wasm-bindgen
 
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
 #![no_std]
 #![deny(missing_debug_implementations, missing_docs)]
 #![allow(clippy::mixed_attributes_style)]
 #![doc(
     html_logo_url = "https://www.rust-lang.org/logos/rust-logo-128x128-blk-v2.png",
     html_favicon_url = "https://www.rust-lang.org/favicon.ico",
-    html_root_url = "https://docs.rs/uuid/1.23.3"
+    html_root_url = "https://docs.rs/uuid/1.23.4"
 )]
 
 #[cfg(any(feature = "std", test))]

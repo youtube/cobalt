@@ -8,8 +8,8 @@
 #include "base/functional/bind.h"
 #include "components/browser_apis/tab_drag/adapters/tab_drag_session_input_adapter.h"
 #include "components/browser_apis/tab_drag/adapters/tab_drag_window_adapter.h"
-#include "components/browser_apis/tab_drag/sessions/drop_target.h"
-#include "components/browser_apis/tab_drag/sessions/drop_target_registry.h"
+#include "components/browser_apis/tab_drag/destinations/drop_target.h"
+#include "components/browser_apis/tab_drag/destinations/drop_target_registry.h"
 #include "components/browser_apis/tab_drag/sessions/tab_drag_session_injector.h"
 #include "components/browser_apis/tab_drag/sessions/tab_drag_session_listener.h"
 #include "components/browser_apis/tab_drag/sessions/tab_drag_window_registry.h"
@@ -88,7 +88,8 @@ void TabDragSession::OnInputEvent(const TabDragInputEvent& event) {
       EndSession();
       break;
     case TabDragInputEvent::Type::kCaptureChanged: {
-      if (drag_mode_ == DragMode::kDetaching) {
+      if (drag_mode_ == DragMode::kDetaching ||
+          drag_mode_ == DragMode::kAttaching) {
         break;
       }
       TabDragWindowAdapter* window = registry()->Get(dragged_window_);
@@ -115,7 +116,8 @@ void TabDragSession::HandleMovedEvent(const gfx::Point& screen_point) {
       HandleMoveWhileAttached(screen_point);
       break;
     case DragMode::kDetaching:
-      // Transient state during detach; should not receive move events.
+    case DragMode::kAttaching:
+      // Transient state; ignore move events to prevent reentrancy.
       break;
     case DragMode::kDetachedWindow:
       HandleMoveWhileDetached(screen_point);
@@ -153,10 +155,12 @@ void TabDragSession::HandleMoveWhileDetached(const gfx::Point& screen_point) {
       CHECK(detached_window);
 
       detached_window->EndWindowMoveLoop();
+      drag_mode_ = DragMode::kAttaching;
 
       auto migrate_result =
           detached_window->MigrateTabs(target_window_id, dragged_tabs_);
       if (!migrate_result.has_value()) {
+        drag_mode_ = DragMode::kDetachedWindow;
         injector_->GetSessionListener().OnSessionCancelled();
         EndSession();
         return;
@@ -208,8 +212,15 @@ void TabDragSession::StartWindowDrag(TabDragWindowId window_id,
   TabDragWindowAdapter* window = registry()->Get(window_id);
   CHECK(window);
 
-  DragMoveLoopResult loop_result =
-      window->RunWindowMoveLoop(screen_point, start_window_offset_);
+  base::WeakPtr<TabDragSession> weak_this = weak_factory_.GetWeakPtr();
+
+  DragMoveLoopResult loop_result = window->RunWindowMoveLoop(
+      screen_point, start_window_offset_,
+      base::BindRepeating(&TabDragSession::OnWindowMoved, weak_this));
+
+  if (!weak_this) {
+    return;
+  }
 
   if (drag_mode_ == DragMode::kDetachedWindow) {
     if (loop_result == DragMoveLoopResult::kSuccess) {
@@ -236,6 +247,11 @@ void TabDragSession::DetachAndStartWindowDrag(const gfx::Point& screen_point) {
   TabDragWindowId new_window_id = detach_result.value();
   UpdateDraggedWindow(new_window_id);
   StartWindowDrag(new_window_id, screen_point);
+}
+
+void TabDragSession::OnWindowMoved(const gfx::Point& cursor_screen_point) {
+  last_mouse_screen_point_ = cursor_screen_point;
+  HandleMovedEvent(cursor_screen_point);
 }
 
 }  // namespace tabs_api

@@ -11,4 +11,8 @@ using uint8_t = unsigned char;
 
 using int8_t = signed char;
 
+using uint32_t = unsigned int;
+
+using int32_t = int;
+
 #endif  // TOOLS_CLANG_RAW_PTR_PLUGIN_TESTS_SYSTEM_CSTDINT_

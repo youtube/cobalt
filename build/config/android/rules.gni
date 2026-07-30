@@ -2050,10 +2050,6 @@ if (!is_robolectric && enable_java_templates) {
         defines += [ "_IS_DESKTOP_ANDROID" ]
       }
 
-      if (enable_javaless_renderers) {
-        defines += [ "_JAVALESS_RENDERERS_AVAILABLE" ]
-      }
-
       if (defined(invoker.write_clang_profiling_data) &&
           invoker.write_clang_profiling_data) {
         defines += [ "_WRITE_CLANG_PROFILING_DATA" ]
@@ -2558,6 +2554,11 @@ if (!is_robolectric && enable_java_templates) {
         resource_ids_provider_dep = invoker.apk_under_test
 
         _link_against = invoker.apk_under_test
+
+        apk_under_test_rtxt =
+            get_label_info(invoker.apk_under_test, "target_gen_dir") + "/" +
+            get_label_info(invoker.apk_under_test, "name") +
+            "__compile_resources_R.txt"
       }
 
       if (_is_bundle_module || _optimize_resources) {

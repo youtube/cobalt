@@ -476,8 +476,8 @@ ExtensionFunction::ResponseAction PermissionsRequestFunction::Run() {
   install_ui_->ShowDialog(
       base::BindOnce(&PermissionsRequestFunction::OnInstallPromptDone, this),
       extension(), nullptr,
-      std::make_unique<ExtensionInstallPrompt::Prompt>(
-          ExtensionInstallPrompt::PERMISSIONS_PROMPT),
+      std::make_unique<InstallPromptData>(
+          InstallPromptData::PERMISSIONS_PROMPT),
       std::move(total_new_permissions),
       ExtensionInstallPrompt::GetDefaultShowDialogCallback());
 

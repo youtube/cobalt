@@ -9,6 +9,7 @@
 #include "base/values.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/host/glic_features.mojom.h"
+#include "chrome/browser/glic/host/glic_skills_manager.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
@@ -147,8 +148,10 @@ SkillsInteractiveUiTestBase::UpdateContextualSkillPreviews(
     std::vector<glic::mojom::SkillPreviewPtr> contextual_skill_previews) {
   return Steps(Do([this, contextual_skill_previews =
                              std::move(contextual_skill_previews)]() mutable {
-    GetGlicInstanceImpl()->host().NotifyContextualSkillsChanged(
-        std::move(contextual_skill_previews));
+    GetGlicInstanceImpl()
+        ->host()
+        .skills_manager()
+        .NotifyContextualSkillsChanged(std::move(contextual_skill_previews));
   }));
 }
 

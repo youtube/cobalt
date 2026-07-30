@@ -242,7 +242,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebRTC.Audio.ApmCaptureInputLevelAverageRms"
-    units="dBFS (negated)" expires_after="2026-10-25">
+    units="dBFS (negated)" expires_after="2026-12-27">
   <owner>hlundin@chromium.org</owner>
   <owner>webrtc-audio-uma@google.com</owner>
   <summary>
@@ -255,7 +255,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebRTC.Audio.ApmCaptureInputLevelPeakRms"
-    units="dBFS (negated)" expires_after="2026-10-25">
+    units="dBFS (negated)" expires_after="2026-12-27">
   <owner>hlundin@chromium.org</owner>
   <owner>webrtc-audio-uma@google.com</owner>
   <summary>
@@ -379,7 +379,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebRTC.Audio.EchoCanceller.CaptureSaturation" enum="Boolean"
-    expires_after="2026-10-25">
+    expires_after="2026-12-27">
   <owner>peah@chromium.org</owner>
   <owner>saza@chromium.org</owner>
   <owner>webrtc-audio-uma@google.com</owner>
@@ -833,7 +833,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="WebRTC.Call.AbsCapture.Delta" units="microseconds"
     expires_after="2026-02-01">
-  <owner>hta@chromium.org</owner>
+  <owner>danilchap@chromium.org</owner>
   <owner>webrtc-dev@chromium.org</owner>
   <summary>
     Difference between the local clock and the timestamp carried in the
@@ -845,7 +845,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="WebRTC.Call.AbsCapture.DeltaDeviation" units="microseconds"
     expires_after="2026-02-01">
-  <owner>hta@chromium.org</owner>
+  <owner>danilchap@chromium.org</owner>
   <owner>webrtc-dev@chromium.org</owner>
   <summary>
     Change from sample to sample of the difference between the local clock and
@@ -858,7 +858,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="WebRTC.Call.AbsCapture.ExtensionWait" units="ms"
     expires_after="2026-02-01">
-  <owner>hta@chromium.org</owner>
+  <owner>danilchap@chromium.org</owner>
   <owner>webrtc-dev@chromium.org</owner>
   <summary>
     Amount of time between the first RTP packet on a connection and the first
@@ -869,7 +869,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="WebRTC.Call.AbsCapture.Offset" units="microseconds"
     expires_after="2026-02-01">
-  <owner>hta@chromium.org</owner>
+  <owner>danilchap@chromium.org</owner>
   <owner>webrtc-dev@chromium.org</owner>
   <summary>
     Value of the &quot;offset&quot; field carried in the abs-capture-time RTP
@@ -881,7 +881,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="WebRTC.Call.AbsCapture.OffsetDeviation" units="microseconds"
     expires_after="2026-02-01">
-  <owner>hta@chromium.org</owner>
+  <owner>danilchap@chromium.org</owner>
   <owner>webrtc-dev@chromium.org</owner>
   <summary>
     Change from sample to sample of the &quot;offset&quot; field carried in the
@@ -892,7 +892,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="WebRTC.Call.AbsCapture.OffsetWait" units="ms"
     expires_after="2026-02-01">
-  <owner>hta@chromium.org</owner>
+  <owner>danilchap@chromium.org</owner>
   <owner>webrtc-dev@chromium.org</owner>
   <summary>
     Amount of time between the first RTP packet on a connection and the first
@@ -935,7 +935,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebRTC.Call.LifetimeInSeconds" units="seconds"
-    expires_after="2026-10-25">
+    expires_after="2026-12-27">
   <owner>asapersson@chromium.org</owner>
   <summary>
     The lifetime of a call. Recorded when a Call instance is destroyed.
@@ -1225,7 +1225,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="WebRTC.P2P.UDP.SendResult"
     enum="CombinedHttpResponseAndNetErrorCode" expires_after="2026-11-01">
-  <owner>hta@chromium.org</owner>
+  <owner>danilchap@chromium.org</owner>
   <owner>stevebe@microsoft.com</owner>
   <owner>webrtc-dev@chromium.org</owner>
   <summary>
@@ -1236,7 +1236,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="WebRTC.P2P.UDP.SendRetryDelay" units="ms"
     expires_after="2026-07-01">
-  <owner>hta@chromium.org</owner>
+  <owner>danilchap@chromium.org</owner>
   <owner>stevebe@microsoft.com</owner>
   <owner>webrtc-dev@chromium.org</owner>
   <summary>
@@ -1248,7 +1248,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="WebRTC.P2P.UDP.SendRetryResult"
     enum="CombinedHttpResponseAndNetErrorCode" expires_after="2026-07-01">
-  <owner>hta@chromium.org</owner>
+  <owner>danilchap@chromium.org</owner>
   <owner>stevebe@microsoft.com</owner>
   <owner>webrtc-dev@chromium.org</owner>
   <summary>
@@ -1275,7 +1275,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="WebRTC.PeerConnection.AddIceCandidate"
     enum="AddIceCandidateResult" expires_after="2026-09-06">
-  <owner>hta@chromium.org</owner>
+  <owner>danilchap@chromium.org</owner>
   <owner>webrtc-dev@chromium.org</owner>
   <summary>
     Outcomes of adding ICE candidates to a PeerConnection. Used to check the
@@ -1300,7 +1300,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="WebRTC.PeerConnection.BundlePolicy"
     enum="PeerConnectionBundlePolicy" expires_after="2026-12-16">
-  <owner>hta@chromium.org</owner>
+  <owner>danilchap@chromium.org</owner>
   <owner>webrtc-dev@chromium.org</owner>
   <summary>
     Determines whether BUNDLE is configured. Recorded during the first DTLS
@@ -1314,7 +1314,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="WebRTC.PeerConnection.BundleUsage"
     enum="PeerConnectionBundleUsage" expires_after="2026-12-16">
-  <owner>hta@chromium.org</owner>
+  <owner>danilchap@chromium.org</owner>
   <owner>webrtc-dev@chromium.org</owner>
   <summary>
     Determines whether BUNDLE is used in remote offers or answers. Recorded
@@ -1328,7 +1328,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="WebRTC.PeerConnection.CandidateAddressType"
     enum="IpAddressType" expires_after="2026-12-06">
-  <owner>hta@chromium.org</owner>
+  <owner>danilchap@chromium.org</owner>
   <owner>ortuno@chromium.org</owner>
   <owner>webrtc-dev@chromium.org</owner>
   <summary>
@@ -1339,7 +1339,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="WebRTC.PeerConnection.CandidatePairType{IPProtocolType}"
     enum="IceCandidatePairTypes" expires_after="2024-08-18">
-  <owner>hta@chromium.org</owner>
+  <owner>danilchap@chromium.org</owner>
   <owner>webrtc-dev@chromium.org</owner>
   <owner>phancke@microsoft.com</owner>
   <summary>
@@ -1355,7 +1355,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="WebRTC.PeerConnection.ConnectionState"
     enum="IceConnectionStates" expires_after="2024-05-05">
-  <owner>hta@chromium.org</owner>
+  <owner>danilchap@chromium.org</owner>
   <owner>webrtc-dev@chromium.org</owner>
   <summary>
     Counters of ICE Connection states. These values are logged when the
@@ -1369,7 +1369,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="WebRTC.PeerConnection.CryptexUsage"
     enum="PeerConnectionCryptexUsage" expires_after="2027-02-15">
-  <owner>hta@chromium.org</owner>
+  <owner>danilchap@chromium.org</owner>
   <owner>webrtc-dev@chromium.org</owner>
   <summary>
     Determines whether CRYPTEX is negotiated. Recorded during first connect.
@@ -1382,7 +1382,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="WebRTC.PeerConnection.DtlsFingerprintLegacySha1"
     enum="Boolean" expires_after="2026-06-21">
-  <owner>hta@chromium.org</owner>
+  <owner>danilchap@chromium.org</owner>
   <owner>webrtc-dev@chromium.org</owner>
   <owner>phancke@meta.com</owner>
   <summary>
@@ -1397,7 +1397,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="WebRTC.PeerConnection.DtlsHandshakeError"
     enum="DtlsHandshakeError" expires_after="2026-12-16">
-  <owner>hta@chromium.org</owner>
+  <owner>danilchap@chromium.org</owner>
   <owner>webrtc-dev@chromium.org</owner>
   <summary>
     Records the error whenever the Dtls handshake fails. There are only two
@@ -1411,7 +1411,7 @@ chromium-metrics-reviews@google.com.
 <histogram name="WebRTC.PeerConnection.DtlsVersion{Role}"
     enum="WebRtcDtlsVersion" expires_after="2026-11-10">
   <owner>guidou@chromium.org</owner>
-  <owner>hta@chromium.org</owner>
+  <owner>danilchap@chromium.org</owner>
   <owner>webrtc-dev@chromium.org</owner>
   <summary>
     DTLS version used by the peer when acting as a DTLS {Role}. Recorded when
@@ -1426,7 +1426,7 @@ chromium-metrics-reviews@google.com.
 <histogram name="WebRTC.PeerConnection.Dtls{Role}ConnectionTime"
     units="microseconds" expires_after="2026-11-10">
   <owner>guidou@chromium.org</owner>
-  <owner>hta@chromium.org</owner>
+  <owner>danilchap@chromium.org</owner>
   <owner>webrtc-dev@chromium.org</owner>
   <summary>
     Time elapsed between the moment the DTLS state changes from Connecting to
@@ -1488,7 +1488,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="WebRTC.PeerConnection.GenerateCertificate.Algorithms"
     enum="GenerateCertificateAlgorithms" expires_after="2025-06-01">
-  <owner>hta@chromium.org</owner>
+  <owner>danilchap@chromium.org</owner>
   <owner>philipp.hancke@googlemail.com</owner>
   <owner>webrtc-dev@chromium.org</owner>
   <summary>
@@ -1500,7 +1500,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="WebRTC.PeerConnection.IPMetrics" enum="PeerConnectionCounters"
     expires_after="2024-06-15">
-  <owner>hta@chromium.org</owner>
+  <owner>danilchap@chromium.org</owner>
   <owner>webrtc-dev@chromium.org</owner>
   <owner>phancke@microsoft.com</owner>
   <summary>
@@ -1512,7 +1512,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="WebRTC.PeerConnection.IPv4Interfaces" units="units"
     expires_after="2024-09-01">
-  <owner>hta@chromium.org</owner>
+  <owner>danilchap@chromium.org</owner>
   <owner>webrtc-dev@chromium.org</owner>
   <summary>
     Number of IPv4 network interfaces discovered in a PeerConnection Session.
@@ -1524,7 +1524,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="WebRTC.PeerConnection.IPv6Interfaces" units="units"
     expires_after="2024-09-01">
-  <owner>hta@chromium.org</owner>
+  <owner>danilchap@chromium.org</owner>
   <owner>webrtc-dev@chromium.org</owner>
   <summary>
     Number of IPv6 network interfaces discovered in a PeerConnection Session.
@@ -1584,7 +1584,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="WebRTC.PeerConnection.LocalNetworkAccess.RequestType"
     enum="LocalNetworkAccessRequestType" expires_after="2026-12-06">
-  <owner>hta@chromium.org</owner>
+  <owner>danilchap@chromium.org</owner>
   <owner>ortuno@chromium.org</owner>
   <owner>webrtc-dev@chromium.org</owner>
   <summary>
@@ -1606,7 +1606,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="WebRTC.PeerConnection.NegotiatedFeedbackType"
     enum="PeerConnectionRtcpFeedbackType" expires_after="2026-12-16">
-  <owner>hta@chromium.org</owner>
+  <owner>danilchap@chromium.org</owner>
   <owner>webrtc-dev@chromium.org</owner>
   <summary>
     Records the preferred congestion control format negotiated. Recorded after
@@ -1639,46 +1639,9 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="WebRTC.PeerConnection.RestrictedCandidates.MungeAllowed"
-    enum="Boolean" expires_after="2026-07-05">
-  <owner>hta@chromium.org</owner>
-  <owner>webrtc-dev@chromium.org</owner>
-  <owner>tov@chromium.org</owner>
-  <summary>
-    For added remote candidates with munged ufrag, this records whether the
-    candidate was allowed or not in the check for restricted addresses.
-  </summary>
-</histogram>
-
-<histogram name="WebRTC.PeerConnection.RestrictedCandidates.Port"
-    units="candidates" expires_after="2025-12-31">
-  <owner>tov@chromium.org</owner>
-  <owner>hta@chromium.org</owner>
-  <owner>webrtc-dev@chromium.org</owner>
-  <summary>
-    Classifies the port of the connection that has been restricted when non-spec
-    munging was used between createOffer/createAnswer and setLocalDescription
-    Recorded when a candidate is restricted. This happens for the ports blocked
-    through the WebRTC-NoSdpMangleUfragRestrictedAddresses feature.
-  </summary>
-</histogram>
-
-<histogram name="WebRTC.PeerConnection.RestrictedCandidates.SdpMungingType"
-    enum="SdpMungingType" expires_after="2025-12-31">
-  <owner>tov@chromium.org</owner>
-  <owner>hta@chromium.org</owner>
-  <owner>webrtc-dev@chromium.org</owner>
-  <summary>
-    Classifies the type of non-spec SDP munging used between
-    createOffer/createAnswer and setLocalDescription that has been blocked.
-    Recorded when a candidate is restricted. This happens for the ports blocked
-    through the WebRTC-NoSdpMangleUfragRestrictedAddresses feature.
-  </summary>
-</histogram>
-
 <histogram name="WebRTC.PeerConnection.RtcpMux" enum="PeerConnectionRtcpMux"
     expires_after="2027-03-01">
-  <owner>hta@chromium.org</owner>
+  <owner>danilchap@chromium.org</owner>
   <owner>webrtc-dev@chromium.org</owner>
   <summary>
     Whether RTCP-mux is used for the PeerConnection (both the local and remote
@@ -1692,7 +1655,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="WebRTC.PeerConnection.RtcpMuxPolicy"
     enum="PeerConnectionRtcpMux" expires_after="2027-03-01">
-  <owner>hta@chromium.org</owner>
+  <owner>danilchap@chromium.org</owner>
   <owner>webrtc-dev@chromium.org</owner>
   <summary>
     Which RTCPMuxPolicy was requested for the PeerConnection. Recorded during
@@ -1705,7 +1668,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="WebRTC.PeerConnection.RtpHeaderExtensionRedefinition"
     enum="Boolean" expires_after="2027-05-20">
-  <owner>hta@chromium.org</owner>
+  <owner>danilchap@chromium.org</owner>
   <owner>webrtc-dev@chromium.org</owner>
   <summary>
     Records whether an RTP header extension is redefined in a PeerConnection.
@@ -1717,7 +1680,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="WebRTC.PeerConnection.RtpTransportCount" units="counts"
     expires_after="2026-10-25">
-  <owner>hta@chromium.org</owner>
+  <owner>danilchap@chromium.org</owner>
   <owner>webrtc-dev@chromium.org</owner>
   <summary>
     Number of RTP transport connections used by a PeerConnection. Recorded every
@@ -1727,7 +1690,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="WebRTC.PeerConnection.SdpBandwidth" enum="SdpBandwidthValue"
     expires_after="2026-11-15">
-  <owner>hta@chromium.org</owner>
+  <owner>danilchap@chromium.org</owner>
   <owner>webrtc-dev@chromium.org</owner>
   <summary>
     Classifier for the numbers presented in b= lines in SDP descriptions. The
@@ -1740,7 +1703,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="WebRTC.PeerConnection.SdpMunging.Outcome"
     enum="SdpMungingOutcome" expires_after="2026-09-06">
-  <owner>hta@chromium.org</owner>
+  <owner>danilchap@chromium.org</owner>
   <owner>webrtc-dev@chromium.org</owner>
   <summary>
     Classifies the outcome when a local description is set; either no SDP
@@ -1751,7 +1714,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="WebRTC.PeerConnection.SdpMunging.SdpOutcome.{Outcome}"
     enum="SdpMungingType" expires_after="2026-05-03">
-  <owner>hta@chromium.org</owner>
+  <owner>danilchap@chromium.org</owner>
   <owner>webrtc-dev@chromium.org</owner>
   <summary>
     Classifies the outcome for each SDP munging type when a local description is
@@ -1766,7 +1729,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="WebRTC.PeerConnection.SdpMunging.{DescriptionType}.{Stage}"
     enum="SdpMungingType" expires_after="2026-11-08">
-  <owner>hta@chromium.org</owner>
+  <owner>danilchap@chromium.org</owner>
   <owner>webrtc-dev@chromium.org</owner>
   <summary>
     Classifies the type of non-spec SDP munging used between
@@ -1866,7 +1829,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="WebRTC.PeerConnection.UsagePattern"
     enum="WebRtcPeerConnectionUsagePattern" expires_after="2026-04-05">
-  <owner>hta@chromium.org</owner>
+  <owner>danilchap@chromium.org</owner>
   <owner>webrtc-dev@chromium.org</owner>
   <summary>
     Capsule history of a WebRTC PeerConnection, encoded as a sequence of bits
@@ -1891,8 +1854,8 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebRTC.PeerConnection.ValidIceChars" enum="Boolean"
-    expires_after="2026-08-30">
-  <owner>hta@chromium.org</owner>
+    expires_after="2026-12-27">
+  <owner>danilchap@chromium.org</owner>
   <owner>webrtc-dev@chromium.org</owner>
   <owner>phancke@microsoft.com</owner>
   <summary>
@@ -1905,7 +1868,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="WebRTC.PeerConnection.{ServerType}.ServerAddressType"
     enum="IpAddressType" expires_after="2026-08-02">
-  <owner>hta@chromium.org</owner>
+  <owner>danilchap@chromium.org</owner>
   <owner>ortuno@chromium.org</owner>
   <owner>webrtc-dev@chromium.org</owner>
   <summary>
@@ -1923,7 +1886,8 @@ chromium-metrics-reviews@google.com.
 <!-- expires-never: WebRTC health metric. -->
 
   <owner>handellm@google.com</owner>
-  <owner>hta@chromium.org</owner>
+  <owner>danilchap@chromium.org</owner>
+  <owner>webrtc-dev@chromium.org</owner>
   <summary>
     Durations of audio tracks received over a PeerConnection. The stopwatch
     starts when the track first becomes connected, and ends when it is
@@ -1937,7 +1901,8 @@ chromium-metrics-reviews@google.com.
 <!-- expires-never: WebRTC health metric. -->
 
   <owner>handellm@google.com</owner>
-  <owner>hta@chromium.org</owner>
+  <owner>danilchap@chromium.org</owner>
+  <owner>webrtc-dev@chromium.org</owner>
   <summary>
     Durations of video tracks received over a PeerConnection. The stopwatch
     starts when the track first becomes connected, and ends when it is
@@ -2019,7 +1984,8 @@ chromium-metrics-reviews@google.com.
 <!-- expires-never: WebRTC health metric. -->
 
   <owner>handellm@google.com</owner>
-  <owner>hta@chromium.org</owner>
+  <owner>danilchap@chromium.org</owner>
+  <owner>webrtc-dev@chromium.org</owner>
   <summary>
     Durations of audio tracks sent over a PeerConnection. The stopwatch starts
     when the track first becomes connected, and ends when it is disconnected or
@@ -2032,7 +1998,8 @@ chromium-metrics-reviews@google.com.
 <!-- expires-never: WebRTC health metric. -->
 
   <owner>handellm@google.com</owner>
-  <owner>hta@chromium.org</owner>
+  <owner>danilchap@chromium.org</owner>
+  <owner>webrtc-dev@chromium.org</owner>
   <summary>
     Durations of video tracks sent over a PeerConnection. The stopwatch starts
     when the track first becomes connected, and ends when it is disconnected or
@@ -2042,7 +2009,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="WebRTC.Stun.Integrity.{StunPacketType}"
     enum="WebRtcStunIntegrityOutcome" expires_after="2024-10-13">
-  <owner>hta@chromium.org</owner>
+  <owner>danilchap@chromium.org</owner>
   <owner>webrtc-dev@chromium.org</owner>
   <summary>
     Records outcome of integrity checks for STUN requests. This is used in
@@ -2089,7 +2056,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="WebRTC.UserMediaRequest.{RequestType}.Result3"
+<histogram name="WebRTC.UserMediaRequest.{RequestType}.Result4"
     enum="MediaStreamRequestResult" expires_after="2027-02-26">
   <owner>tovep@chromium.org</owner>
   <owner>agpalak@chromium.org</owner>
@@ -2097,8 +2064,8 @@ chromium-metrics-reviews@google.com.
   <summary>
     Counters for UserMediaRequests results for type {RequestType} such as
     failure reasons. The standard specification error names are in parenthesis.
-    The suffix 3 to the histogram name was added when the enum
-    MediaStreamRequestResult was updated with new values.
+    This is a V4 metric replacing the V3 metric to include the new
+    DEVICE_REMOVED outcome.
   </summary>
   <token key="RequestType">
     <variant name="GetAllScreensMedia"/>

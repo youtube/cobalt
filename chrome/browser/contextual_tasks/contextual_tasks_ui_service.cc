@@ -659,7 +659,11 @@ static tabs::TabInterface* GetExistingTab(const GURL& url,
   GURL url_no_fragments =
       shared_highlighting::RemoveFragmentSelectorDirectives(url);
   for (int i = 0; i < tab_list->GetTabCount(); ++i) {
-    content::WebContents* web_contents = tab_list->GetTab(i)->GetContents();
+    tabs::TabInterface* tab = tab_list->GetTab(i);
+    content::WebContents* web_contents = tab ? tab->GetContents() : nullptr;
+    if (!web_contents) {
+      continue;
+    }
     std::optional<ContextualTask> task = service->GetContextualTaskForTab(
         SessionTabHelper::IdForTab(web_contents));
     GURL tab_url_no_fragments =
@@ -1800,6 +1804,27 @@ bool ContextualTasksUiService::HandleNavigationImpl(
           }
         }
       }
+
+      // On mobile phones without window tracking, link navigations that request
+      // new window creation cannot create separate windows. Intercept them here
+      // and route to `OnThreadLinkClicked` for bottom-sheet handling, whereas
+      // Desktop/AL allows natural window creation and handles AIM links at line
+      // 1846.
+      if (IsAndroidMobileFormFactor() &&
+          !GetIsContextualTasksWindowTrackingEnabled()) {
+        base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+            FROM_HERE,
+            base::BindOnce(
+                &ContextualTasksUiService::OnThreadLinkClicked,
+                weak_ptr_factory_.GetWeakPtr(), url_params.url, task_id,
+                tab ? tab->GetWeakPtr() : nullptr,
+                browser ? browser->GetWeakPtr() : nullptr,
+                initiator_origin.value_or(source_contents->GetPrimaryMainFrame()
+                                              ->GetLastCommittedOrigin())));
+        return true;  // Return true to cancel natural (unsupported) window
+                      // creation on mobile.
+      }
+
       return false;
     }
 

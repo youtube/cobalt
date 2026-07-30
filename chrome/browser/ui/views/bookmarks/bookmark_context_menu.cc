@@ -7,15 +7,12 @@
 #include <memory>
 
 #include "base/command_line.h"
-#include "base/i18n/rtl.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/no_destructor.h"
-#include "base/strings/utf_string_conversions.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/ui/bookmarks/bookmark_utils.h"
 #include "chrome/common/chrome_switches.h"
-#include "components/bookmarks/browser/bookmark_model.h"
 #include "ui/base/mojom/menu_source_type.mojom-forward.h"
 #include "ui/gfx/native_ui_types.h"
 #include "ui/views/controls/menu/menu_item_view.h"

@@ -11,6 +11,7 @@ import org.chromium.base.ThreadUtils;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.tab.Tab;
 
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -71,8 +72,7 @@ public class NavigationInfoCaptureTrigger {
 
     /**
      * Cancels any pending capture Runnables. Should be called when the owning Tab/Activity is being
-     * destroyed to prevent the queued Runnables (which strongly reference {@link Tab} and therefore
-     * the owning Activity) from leaking the Activity until the delay elapses.
+     * destroyed.
      */
     public void destroy() {
         clearPendingRunnables();
@@ -107,16 +107,19 @@ public class NavigationInfoCaptureTrigger {
      */
     private class CaptureRunnable implements Runnable {
         private final Callable<Boolean> mCheck;
-        private final Tab mTab;
+        private final WeakReference<Tab> mTabRef;
 
         public CaptureRunnable(Tab tab, Callable<Boolean> check) {
             mCheck = check;
-            mTab = tab;
+            mTabRef = new WeakReference<>(tab);
         }
 
         @Override
         public void run() {
             assert !mCaptureTaken;
+
+            Tab tab = mTabRef.get();
+            if (tab == null || tab.isDestroyed()) return;
 
             try {
                 if (!mCheck.call()) return;
@@ -126,7 +129,7 @@ public class NavigationInfoCaptureTrigger {
                 throw new RuntimeException(e);
             }
 
-            mCapture.onResult(mTab);
+            mCapture.onResult(tab);
             mCaptureTaken = true;
 
             clearPendingRunnables();

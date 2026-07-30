@@ -134,7 +134,7 @@ Regular profiles start at bucket 1, we don't consider non-regular profiles. -->
 </variants>
 
 <histogram name="Privacy.3PCD.RollbackNotice.Action"
-    enum="RollBack3pcdNoticeAction" expires_after="2026-10-25">
+    enum="RollBack3pcdNoticeAction" expires_after="2026-12-27">
   <owner>fmacintosh@google.com</owner>
   <owner>koilos@google.com</owner>
   <summary>

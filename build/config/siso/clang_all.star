@@ -100,6 +100,9 @@ def __input_deps(ctx):
             "third_party/llvm-build/Release+Asserts/bin/lld",
             "tools/win/DebugVisualizers/absl.natvis",
             "tools/win/DebugVisualizers/blink.natvis",
+            "tools/win/DebugVisualizers/cc-component-build.natvis",
+            "tools/win/DebugVisualizers/cc-non-component-build.natvis",
+            "tools/win/DebugVisualizers/cc.natvis",
             "tools/win/DebugVisualizers/chrome.natvis",
         ],
         "third_party/llvm-build/Release+Asserts/bin/lld-link.exe": [
@@ -113,6 +116,9 @@ def __input_deps(ctx):
             "third_party/llvm-build/Release+Asserts/bin/lld.exe",
             "tools/win/DebugVisualizers/absl.natvis",
             "tools/win/DebugVisualizers/blink.natvis",
+            "tools/win/DebugVisualizers/cc-component-build.natvis",
+            "tools/win/DebugVisualizers/cc-non-component-build.natvis",
+            "tools/win/DebugVisualizers/cc.natvis",
             "tools/win/DebugVisualizers/chrome.natvis",
         ],
         "build/toolchain/gcc_solink_wrapper.py": [
@@ -145,6 +151,9 @@ def __input_deps(ctx):
     }
 
 def __lld_link(ctx, cmd):
+    if not (config.get(ctx, "remote-link") or config.get(ctx, "default-remote")):
+        return
+
     # Replace thin archives with /start-lib ... /end-lib in rsp file.
     new_lines = []
     for line in str(cmd.rspfile_content).split("\n"):

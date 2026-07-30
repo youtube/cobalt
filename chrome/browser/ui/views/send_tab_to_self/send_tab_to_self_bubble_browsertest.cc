@@ -20,6 +20,7 @@
 #include "chrome/browser/ui/views/toolbar/pinned_action_toolbar_button.h"
 #include "chrome/browser/ui/views/toolbar/pinned_toolbar_actions_container.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
+#include "components/send_tab_to_self/features.h"
 #include "components/send_tab_to_self/metrics_util.h"
 #include "components/send_tab_to_self/target_device_info.h"
 #include "components/signin/public/identity_manager/account_info.h"
@@ -123,23 +124,37 @@ class SendTabToSelfBubbleTest : public DialogBrowserTest {
   raw_ptr<StubSendTabToSelfBubbleController> controller_ = nullptr;
 };
 
+// Test suite for pixel/dialog tests that assert the old bubble UI.
+// These tests must run with SendTabToSelfEnhancedDesktopUI disabled to match
+// the existing pixel baselines.
+class SendTabToSelfBubbleOldUITest : public SendTabToSelfBubbleTest {
+ public:
+  SendTabToSelfBubbleOldUITest() {
+    feature_list_.InitAndDisableFeature(kSendTabToSelfEnhancedDesktopUI);
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
 // TODO(crbug.com/40927205): Flakily fails on some Windows builders.
 #if BUILDFLAG(IS_WIN)
 #define MAYBE_InvokeUi_ShowDeviceList DISABLED_InvokeUi_ShowDeviceList
 #else
 #define MAYBE_InvokeUi_ShowDeviceList InvokeUi_ShowDeviceList
 #endif
-IN_PROC_BROWSER_TEST_F(SendTabToSelfBubbleTest, MAYBE_InvokeUi_ShowDeviceList) {
+IN_PROC_BROWSER_TEST_F(SendTabToSelfBubbleOldUITest,
+                       MAYBE_InvokeUi_ShowDeviceList) {
   ShowAndVerifyUi();
 }
 
-IN_PROC_BROWSER_TEST_F(SendTabToSelfBubbleTest, InvokeUi_ShowSigninPromo) {
+IN_PROC_BROWSER_TEST_F(SendTabToSelfBubbleOldUITest, InvokeUi_ShowSigninPromo) {
   // Last updated in crrev.com/c/3776623.
   set_baseline("3776623");
   ShowAndVerifyUi();
 }
 
-IN_PROC_BROWSER_TEST_F(SendTabToSelfBubbleTest,
+IN_PROC_BROWSER_TEST_F(SendTabToSelfBubbleOldUITest,
                        InvokeUi_ShowNoTargetDevicePromo) {
   // Last updated in crrev.com/c/3832669.
   set_baseline("3832669");

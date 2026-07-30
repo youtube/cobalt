@@ -4,6 +4,7 @@
 
 #include "content/common/web_ui_loading_util.h"
 
+#include "base/byte_size.h"
 #include "base/check.h"
 #include "base/debug/crash_logging.h"
 #include "base/functional/bind.h"
@@ -120,9 +121,9 @@ bool SendData(
   client->OnReceiveResponse(std::move(headers), std::move(pipe), std::nullopt);
 
   network::URLLoaderCompletionStatus status(net::OK);
-  status.encoded_data_length = output_size;
-  status.encoded_body_length = output_size;
-  status.decoded_body_length = output_size;
+  status.encoded_data_length = base::ByteSize(output_size);
+  status.encoded_body_length = base::ByteSize(output_size);
+  status.decoded_body_length = base::ByteSize(output_size);
   status.completion_time = base::TimeTicks::Now();
   client->OnComplete(status);
   return true;

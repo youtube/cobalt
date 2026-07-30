@@ -2893,18 +2893,6 @@ CSSMathExpressionOperation::CSSMathExpressionOperation(
   }
 }
 
-CSSMathExpressionOperation::CSSMathExpressionOperation(
-    CalculationResultCategory category,
-    CSSMathOperator op,
-    CSSMathType type)
-    : CSSMathExpressionNode(category), operator_(op), type_(std::move(type)) {
-  DCHECK_NE(CSSMathOperator::kDivide, op);
-  if (IsComparison(operator_)) {
-    value_feature_flags_ = kHasComparisons;
-  }
-  has_nested_intermediate_result_ = type_.IsIntermediateResult();
-}
-
 std::optional<PixelsAndPercent> CSSMathExpressionOperation::ToPixelsAndPercent(
     const CSSLengthResolver& length_resolver) const {
   std::optional<PixelsAndPercent> result;
@@ -2942,11 +2930,7 @@ std::optional<PixelsAndPercent> CSSMathExpressionOperation::ToPixelsAndPercent(
       if (!result) {
         return std::nullopt;
       }
-      float number = number_side->DoubleValue();
-      if (operator_ == CSSMathOperator::kDivide) {
-        number = 1.0 / number;
-      }
-      result.value() *= number;
+      result.value() *= number_side->DoubleValue();
       break;
     }
     case CSSMathOperator::kInvert:
@@ -5497,7 +5481,7 @@ CSSMathExpressionNode* CSSMathExpressionNode::Create(
       CSSMathExpressionOperation::Operands operands;
       operands.push_back(Create(*children.front()));
       operands.push_back(Create(*children.back()));
-      return CSSMathExpressionOperation::CreateSignRelatedFunction(
+      return CSSMathExpressionOperation::CreateExponentialFunction(
           std::move(operands), CSSValueID::kPow);
     }
     case CalculationOperator::kSin:
@@ -5519,7 +5503,7 @@ CSSMathExpressionNode* CSSMathExpressionNode::Create(
       CSSMathExpressionOperation::Operands operands;
       operands.push_back(Create(*children.front()));
       operands.push_back(Create(*children.back()));
-      return CSSMathExpressionOperation::CreateSignRelatedFunction(
+      return CSSMathExpressionOperation::CreateTrigonometricFunction(
           std::move(operands), CSSValueID::kAtan2);
     }
     case CalculationOperator::kRandom: {

@@ -25,7 +25,7 @@ class SimpleUrlPatternMatcher;
 namespace guest_view {
 
 // These types are equivalent to the resource types in the extensions API
-// defined in extensions/browser/api/web_request/web_request_resource_type.cc
+// defined in extensions/common/api/web_request/web_request_resource_type.cc
 enum class RequestResourceType : uint8_t {
   kMainFrame,
   kSubFrame,

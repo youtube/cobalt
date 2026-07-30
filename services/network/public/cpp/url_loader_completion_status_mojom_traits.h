@@ -7,6 +7,7 @@
 
 #include <optional>
 
+#include "base/byte_size.h"
 #include "base/component_export.h"
 #include "base/time/time.h"
 #include "mojo/public/cpp/bindings/struct_traits.h"
@@ -61,17 +62,17 @@ class COMPONENT_EXPORT(NETWORK_CPP_BASE)
     return status.completion_time;
   }
 
-  static int64_t encoded_data_length(
+  static base::ByteSize encoded_data_length(
       const network::URLLoaderCompletionStatus& status) {
     return status.encoded_data_length;
   }
 
-  static int64_t encoded_body_length(
+  static base::ByteSize encoded_body_length(
       const network::URLLoaderCompletionStatus& status) {
     return status.encoded_body_length;
   }
 
-  static int64_t decoded_body_length(
+  static base::ByteSize decoded_body_length(
       const network::URLLoaderCompletionStatus& status) {
     return status.decoded_body_length;
   }

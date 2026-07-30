@@ -19,6 +19,7 @@
 #include "net/cookies/cookie_util.h"
 #include "net/cookies/site_for_cookies.h"
 #include "net/http/http_request_headers.h"
+#include "net/http/http_response_headers.h"
 #include "net/log/test_net_log_util.h"
 #include "net/storage_access_api/status.h"
 #include "net/test/gtest_util.h"
@@ -29,6 +30,7 @@
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/mojom/cors.mojom.h"
+#include "services/network/public/mojom/device_bound_sessions.mojom-shared.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/network/public/mojom/url_request.mojom-forward.h"
 #include "services/network/test/mock_devtools_observer.h"
@@ -498,6 +500,77 @@ TEST_F(CorsURLLoaderTest, CrossOriginRequestWithCorsMode) {
   EXPECT_TRUE(client().has_received_response());
   EXPECT_TRUE(client().has_received_completion());
   EXPECT_EQ(net::OK, client().completion_status().error_code);
+}
+
+TEST_F(CorsURLLoaderTest, DeviceBoundSessionUsageSameOrigin) {
+  const GURL origin("https://example.com");
+  const GURL url("https://example.com/foo.png");
+  CreateLoaderAndStart(origin, url, mojom::RequestMode::kNoCors);
+  RunUntilCreateLoaderAndStartCalled();
+
+  auto response = mojom::URLResponseHead::New();
+  response->headers = base::MakeRefCounted<net::HttpResponseHeaders>(
+      "HTTP/1.1 200 OK\nContent-Type: image/png\n");
+  response->device_bound_session_usage =
+      mojom::DeviceBoundSessionUsage::kInScopeRefreshNotYetNeeded;
+  NotifyLoaderClientOnReceiveResponse(std::move(response));
+  NotifyLoaderClientOnComplete(net::OK);
+
+  RunUntilComplete();
+
+  ASSERT_TRUE(client().has_received_response());
+  EXPECT_EQ(mojom::FetchResponseType::kBasic,
+            client().response_head()->response_type);
+  EXPECT_EQ(mojom::DeviceBoundSessionUsage::kInScopeRefreshNotYetNeeded,
+            client().response_head()->device_bound_session_usage);
+}
+
+TEST_F(CorsURLLoaderTest, DeviceBoundSessionUsageCrossOriginNoCors) {
+  const GURL origin("https://example.com");
+  const GURL url("https://other.example.com/foo.png");
+  CreateLoaderAndStart(origin, url, mojom::RequestMode::kNoCors);
+  RunUntilCreateLoaderAndStartCalled();
+
+  auto response = mojom::URLResponseHead::New();
+  response->headers = base::MakeRefCounted<net::HttpResponseHeaders>(
+      "HTTP/1.1 200 OK\nContent-Type: image/png\n");
+  response->device_bound_session_usage =
+      mojom::DeviceBoundSessionUsage::kInScopeRefreshNotYetNeeded;
+  NotifyLoaderClientOnReceiveResponse(std::move(response));
+  NotifyLoaderClientOnComplete(net::OK);
+
+  RunUntilComplete();
+
+  ASSERT_TRUE(client().has_received_response());
+  EXPECT_EQ(mojom::FetchResponseType::kOpaque,
+            client().response_head()->response_type);
+  EXPECT_EQ(mojom::DeviceBoundSessionUsage::kUnknown,
+            client().response_head()->device_bound_session_usage);
+}
+
+TEST_F(CorsURLLoaderTest, DeviceBoundSessionUsageCrossOriginCors) {
+  const GURL origin("https://example.com");
+  const GURL url("https://other.example.com/foo.png");
+  CreateLoaderAndStart(origin, url, mojom::RequestMode::kCors);
+  RunUntilCreateLoaderAndStartCalled();
+
+  auto response = mojom::URLResponseHead::New();
+  response->headers = base::MakeRefCounted<net::HttpResponseHeaders>(
+      "HTTP/1.1 200 OK\nContent-Type: image/png\n");
+  response->headers->SetHeader("Access-Control-Allow-Origin",
+                               "https://example.com");
+  response->device_bound_session_usage =
+      mojom::DeviceBoundSessionUsage::kInScopeRefreshNotYetNeeded;
+  NotifyLoaderClientOnReceiveResponse(std::move(response));
+  NotifyLoaderClientOnComplete(net::OK);
+
+  RunUntilComplete();
+
+  ASSERT_TRUE(client().has_received_response());
+  EXPECT_EQ(mojom::FetchResponseType::kCors,
+            client().response_head()->response_type);
+  EXPECT_EQ(mojom::DeviceBoundSessionUsage::kUnknown,
+            client().response_head()->device_bound_session_usage);
 }
 
 TEST_F(CorsURLLoaderTest,

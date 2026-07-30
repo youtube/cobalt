@@ -1,4 +1,10 @@
 private let mojoBuiltins: [String: ILType] = [
+    /// Profiles declare this method, a wrapper method around `getRemote` that follows
+    /// the Singleton pattern, in `codePrefix`. This method ensures: (1) `getRemote`
+    /// is only called once, and (2) the remote is saved to a global variable so it
+    /// can be closed at the end of the program.
+    "getOrCreatePrimaryRemote": .function([] => {{primary|format_il_type}}),
+    "{{primary|name_with_namespace}}": .js{{primary.name}},
 ]
 
 private let keepGenerators = [
@@ -20,8 +26,16 @@ let mojo{{primary.name}}Profile = Profile(
     ],
     maxExecsBeforeRespawn: 1000,
     timeout: Timeout.interval(11000, 11000),
-    codePrefix: "",
-    codeSuffix: "",
+    codePrefix: """
+        let globalRemote = null;
+        function getOrCreatePrimaryRemote() {
+            if (!globalRemote) {
+                globalRemote = {{primary|name_with_namespace}}.getRemote();
+            }
+            return globalRemote;
+        }
+        """,
+    codeSuffix: "if (globalRemote) {globalRemote.$.close()}",
     ecmaVersion: v8Profile.ecmaVersion,
     startupTests: [
         ("fuzzilli('FUZZILLI_PRINT', 'test')", .shouldSucceed),
@@ -43,6 +57,9 @@ let mojo{{primary.name}}Profile = Profile(
     disabledMutators: v8Profile.disabledMutators,
     additionalBuiltins: mojoBuiltins.merging(commonMojoBuiltins) { (existing, _) in existing },
     additionalObjectGroups: [
+        .{{primary.name|to_camel(True)}},
+        .{{primary.name|to_camel(True)}}Remote,
+        .{{primary.name|to_camel(True)}}RemoteWrapper,
     ] + commonMojoObjectGroups,
     additionalEnumerations: [
     ] + commonMojoEnumerations,

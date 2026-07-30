@@ -128,6 +128,10 @@ class NetExportFileWriter {
   // `NetExportFileWriter`.
   base::DictValue GetState() const;
 
+  // Returns true if NetExportFileWriter is currently logging (or in the
+  // process of starting or stopping a log).
+  bool IsLogging() const;
+
   // Gets the log filepath. |path_callback| will be used to notify the caller
   // when the filepath is retrieved. |path_callback| will be executed with an
   // empty filepath if any of the following occurs:

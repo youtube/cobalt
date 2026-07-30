@@ -26,6 +26,7 @@
 #include "components/performance_manager/test_support/persistence/test_site_data_reader.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 #include "third_party/blink/public/mojom/permissions/permission_status.mojom.h"
 #include "url/gurl.h"
 
@@ -36,6 +37,8 @@ namespace policies {
 using PageNodeData = BackgroundTabLoadingPolicy::PageNodeData;
 
 namespace {
+
+using ::testing::_;
 
 // Mock version of a performance_manager::mechanism::PageLoader.
 class LenientMockPageLoader
@@ -266,6 +269,83 @@ TEST_F(BackgroundTabLoadingPolicyTest, AllLoadingSlotsUsed) {
   page_nodes[2]->SetLoadingState(PageNode::LoadingState::kLoadedIdle);
   page_nodes[3]->SetLoadingState(PageNode::LoadingState::kLoading);
   page_nodes[3]->SetLoadingState(PageNode::LoadingState::kLoadedIdle);
+  EXPECT_EQ(1, num_all_tabs_loaded_calls());
+}
+
+TEST_F(BackgroundTabLoadingPolicyTest, MaxTabsToRestore) {
+  // Create more than kMaxTabsToLoad PageNodes to restore.
+  std::vector<TestNodeWrapper<PageNodeImpl>> page_nodes;
+  std::vector<PageNodeData> to_load;
+  for (int i = 0; i < policy()->kMaxTabsToLoad + 2; i++) {
+    page_nodes.push_back(CreateNode<PageNodeImpl>());
+    to_load.emplace_back(page_nodes.back().get()->GetWeakPtr());
+
+    // Mark the PageNode as a tab as this is a requirement to pass it to
+    // ScheduleLoadForRestoredTabs().
+    page_nodes.back()->SetType(PageType::kTab);
+  }
+
+  // Only kMaxTabsToLoad pages should start loading (in any order).
+  absl::flat_hash_set<PageNodeImpl*> loading_pages;
+  EXPECT_CALL(*loader(), LoadPageNode(_))
+      .Times(policy()->kMaxTabsToLoad)
+      .WillRepeatedly([&](const PageNode* page_node) {
+        auto* page_node_impl = PageNodeImpl::FromNode(page_node);
+        page_node_impl->SetLoadingState(PageNode::LoadingState::kLoading);
+        loading_pages.insert(page_node_impl);
+      });
+  policy()->SetMaxSimultaneousLoadsForTesting(to_load.size());
+  policy()->ScheduleLoadForRestoredTabs(to_load);
+  EXPECT_EQ(loading_pages.size(), policy()->kMaxTabsToLoad);
+
+  // Find a tab that's not scheduled to load, and load it manually. (Simulates
+  // the user switching to it.) This tests that a tab that's loaded outside of
+  // session restore doesn't interfere with session restore's loading count.
+  PageNodeImpl* manual_page = nullptr;
+  for (auto& page_node : page_nodes) {
+    if (page_node->GetLoadingState() ==
+        PageNode::LoadingState::kLoadingNotStarted) {
+      page_node->SetLoadingState(PageNode::LoadingState::kLoading);
+      manual_page = page_node.get();
+      break;
+    }
+  }
+  ASSERT_TRUE(manual_page);
+  EXPECT_FALSE(loading_pages.contains(manual_page));
+
+  // Finish loading the unscheduled page. This shouldn't affect the scheduled
+  // pages.
+  EXPECT_EQ(0, num_all_tabs_loaded_calls());
+  manual_page->SetLoadingState(PageNode::LoadingState::kLoadedIdle);
+  EXPECT_EQ(0, num_all_tabs_loaded_calls());
+
+  // The "all tabs loaded" callback should be invoked after all scheduled pages
+  // finish loading. If `manual_page` is incorrectly included, the callback will
+  // be invoked before the loop finishes.
+  for (PageNodeImpl* page_node : loading_pages) {
+    EXPECT_EQ(0, num_all_tabs_loaded_calls());
+    page_node->SetLoadingState(PageNode::LoadingState::kLoadedIdle);
+  }
+  EXPECT_EQ(1, num_all_tabs_loaded_calls());
+
+  // Now that all scheduled pages and `manual_page` are loaded, there's one more
+  // page in the list that wasn't started. Load it now. This should NOT trigger
+  // the "all tabs loaded" callback again.
+  PageNodeImpl* final_page = nullptr;
+  for (auto& page_node : page_nodes) {
+    if (page_node->GetLoadingState() ==
+        PageNode::LoadingState::kLoadingNotStarted) {
+      page_node->SetLoadingState(PageNode::LoadingState::kLoading);
+      final_page = page_node.get();
+      break;
+    }
+  }
+  ASSERT_TRUE(final_page);
+  EXPECT_NE(final_page, manual_page);
+  EXPECT_FALSE(loading_pages.contains(final_page));
+
+  EXPECT_EQ(1, num_all_tabs_loaded_calls());
+  final_page->SetLoadingState(PageNode::LoadingState::kLoadedIdle);
   EXPECT_EQ(1, num_all_tabs_loaded_calls());
 }
 

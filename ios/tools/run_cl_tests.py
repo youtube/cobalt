@@ -75,9 +75,14 @@ def main() -> int:
       '--out-dir',
       default='out/Debug-iphonesimulator',
       help='The output directory to use for the build (default: %(default)s).')
-  parser.add_argument('--device', help='The device type to use for the test.')
-  parser.add_argument('--os',
-                      help='The OS version to use for the test (e.g., 17.5).')
+  parser.add_argument(
+      '--device',
+      help='The device type or UDID to use for the test '
+           '(can also be set via IOS_SIMULATOR_DEFAULT_DEVICE).')
+  parser.add_argument(
+      '--os',
+      help='The OS version to use for the test (e.g., 17.5) '
+           '(can also be set via IOS_SIMULATOR_DEFAULT_OS).')
   args = parser.parse_args()
 
   print_header("--- Finding Test Suites ---")

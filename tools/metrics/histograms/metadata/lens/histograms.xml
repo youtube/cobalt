@@ -115,7 +115,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Lens.Composebox.HandshakeCompletedInSession" enum="Boolean"
-    expires_after="2026-10-25">
+    expires_after="2026-12-27">
   <owner>mercerd@google.com</owner>
   <owner>lens-chrome@google.com</owner>
   <summary>
@@ -182,7 +182,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Lens.Composebox.ShownInSession" enum="Boolean"
-    expires_after="2026-10-25">
+    expires_after="2026-12-27">
   <owner>mercerd@google.com</owner>
   <owner>lens-chrome@google.com</owner>
   <summary>
@@ -193,7 +193,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Lens.Composebox.UserAction" enum="ComposeboxUserAction"
-    expires_after="2026-10-25">
+    expires_after="2026-12-27">
   <owner>mercerd@google.com</owner>
   <owner>lens-chrome@google.com</owner>
   <summary>
@@ -203,7 +203,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Lens.Composebox.UserActionInSession"
-    enum="ComposeboxUserAction" expires_after="2026-10-25">
+    enum="ComposeboxUserAction" expires_after="2026-12-27">
   <owner>mercerd@google.com</owner>
   <owner>lens-chrome@google.com</owner>
   <summary>
@@ -1073,7 +1073,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Lens.Overlay.TimeToWebUIReady" units="ms"
-    expires_after="2026-10-25">
+    expires_after="2026-12-27">
   <owner>jdonnelly@chromium.org</owner>
   <owner>lens-chrome@google.com</owner>
   <summary>

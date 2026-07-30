@@ -2,7 +2,7 @@ Name: International Phone Number Library
 Short Name: libphonenumber
 URL: https://github.com/googlei18n/libphonenumber/
 Version: N/A
-Revision: 5f4c9f039934e2d56fb71c17bdf43d4ceb78fdbf
+Revision: c6220b3b17441062b015bc4afe8728f38cbde9a2
 Update Mechanism: Autoroll
 License: Apache-2.0
 License File: LICENSE
@@ -25,6 +25,17 @@ Additional files, not in the original library:
   charntorune_fuzzer.cc
   libphonenumber_fuzzer.cc
   phonenumber_api.h
+  phonenumber_brotli.h
+  phonenumber_brotli.cc
+  gen_compressed_metadata.py
+
+The production metadata table is stored brotli-compressed to reduce binary
+size. At build time gen_compressed_metadata.py compresses the upstream
+lite_metadata.cc blob and emits a replacement GetMetadata() that decompresses
+it on first use via phonenumber_brotli.{h,cc}. This relies on the upstream
+MetadataBytes accessor API (cpp/src/phonenumbers/metadata_bytes.h), which lets
+GetMetadata() return an owning buffer that is freed once PhoneNumberUtil has
+parsed it.
 
 The library is mapped through the DEPS file into the Chromium sources root
 folder. To update:

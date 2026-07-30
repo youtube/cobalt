@@ -57,6 +57,10 @@ interface ShowAtConfig {
   height?: number;
   anchorAlignmentX?: AnchorAlignment;
   anchorAlignmentY?: AnchorAlignment;
+  minX?: number;
+  minY?: number;
+  maxX?: number;
+  maxY?: number;
   noOffset?: boolean;
 }
 
@@ -118,7 +122,7 @@ export class ContextualActionMenuElement extends
       tabPreviewsEnabled_: {type: Boolean},
       showContextMenuHeaders_: {type: Boolean},
       disableAutoReposition: {type: Boolean},
-      contextManagementInComposeboxEnabled_: {
+      contextManagementInComposeboxEnabled: {
         reflect: true,
         type: Boolean,
         attribute: 'context-management-enabled',
@@ -141,6 +145,7 @@ export class ContextualActionMenuElement extends
   accessor inputState: InputState|null = null;
   accessor smartTabSharingActive: boolean = false;
   accessor smartTabSharingVisible: boolean = false;
+  accessor contextManagementInComposeboxEnabled: boolean = false;
   accessor disableAutoReposition: boolean = false;
   accessor uploadButtonDisabled: boolean = false;
   accessor isSidePanel: boolean = false;
@@ -176,18 +181,21 @@ export class ContextualActionMenuElement extends
   private metricsSource_: string = loadTimeData.getString('composeboxSource');
   protected accessor showContextMenuHeaders_: boolean =
       loadTimeData.getBoolean('ShowContextMenuHeaders');
-  protected accessor contextManagementInComposeboxEnabled_: boolean =
-      getLoadTimeBoolean('contextManagementInComposeboxEnabled', false);
   protected accessor shareTabsFlyoutPosition_: string = 'right';
   protected accessor sharingTabsText_: string = '';
-  protected closeMenuOnSelect: boolean =
-      !getLoadTimeBoolean('keepMenuOpenOnTabSelectForRealbox', false);
+  // Only close menu if the context management flag and the
+  // `keepMenuOpenOnTabSelectForRealbox` param are enabled.
+  protected get closeMenuOnSelect(): boolean {
+    return this.contextManagementInComposeboxEnabled &&
+        !getLoadTimeBoolean('keepMenuOpenOnTabSelectForRealbox', false);
+  }
 
   private closeTimer_: number|null = null;
   private pointerOverTrigger_: boolean = false;
   private pointerOverFlyout_: boolean = false;
   private firstTabBeingAdded_: boolean = false;
   private pendingTabAddId_: number|null = null;
+  private anchor_: HTMLElement|null = null;
 
   private onScroll_ = (e: Event) => {
     if (!this.shareTabsFlyoutOpen) {
@@ -273,6 +281,7 @@ export class ContextualActionMenuElement extends
   override willUpdate(changedProperties: PropertyValues<this>) {
     super.willUpdate(changedProperties);
 
+
     if (!this.closeMenuOnSelect && changedProperties.has('disabledTabIds') &&
         this.pendingTabAddId_ !== null) {
       if (this.disabledTabIds.has(this.pendingTabAddId_)) {
@@ -292,7 +301,7 @@ export class ContextualActionMenuElement extends
   override updated(changedProperties: PropertyValues<this>) {
     super.updated(changedProperties);
 
-    if (this.contextManagementInComposeboxEnabled_) {
+    if (this.contextManagementInComposeboxEnabled) {
       if (changedProperties.has('disabledTabIds') ||
           changedProperties.has('aimThreadRestoredTabs')) {
         this.updateSharingTabsText_();
@@ -307,6 +316,10 @@ export class ContextualActionMenuElement extends
     if (changedProperties.has('tabSuggestions') ||
         changedProperties.has('inputState')) {
       this.updateScrollable_();
+
+      if (this.open && this.anchor_) {
+        this.showAt(this.anchor_);
+      }
       if (this.shareTabsFlyoutOpen) {
         this.updateFlyoutPosition_();
       }
@@ -321,13 +334,47 @@ export class ContextualActionMenuElement extends
   }
 
   private onWindowBlur_ = this.close.bind(this);
+  private boundReposition_?: () => void;
+  private layoutResizeObserver_?: ResizeObserver|null = null;
+  private lastConfig_?: unknown;
+
+  private reposition_() {
+    if (!this.anchor_ || !this.open || !this.lastConfig_) {
+      return;
+    }
+    const rect = this.anchor_.getBoundingClientRect();
+    const height = rect.height;
+
+    const doc = document.scrollingElement || document.documentElement;
+    const scrollLeft = doc.scrollLeft;
+    const scrollTop = doc.scrollTop;
+
+    const config =
+        Object.assign({}, this.lastConfig_ as Record<string, unknown>, {
+          minX: scrollLeft + VIEWPORT_BUFFER_PX,
+          minY: scrollTop + VIEWPORT_BUFFER_PX,
+          maxX: scrollLeft + doc.clientWidth - VIEWPORT_BUFFER_PX,
+          maxY: scrollTop + doc.clientHeight - VIEWPORT_BUFFER_PX,
+          top: rect.top + scrollTop,
+          left: rect.left + scrollLeft,
+          height: height,
+          width: rect.width,
+        });
+
+    ((this.$.menu as unknown) as {
+      positionDialog_: (c: unknown) => void,
+    }).positionDialog_(config);
+    if (this.shareTabsFlyoutOpen) {
+      this.updateFlyoutPosition_();
+    }
+  }
 
   getDialog(): HTMLDialogElement {
     return this.$.menu.getDialog();
   }
 
   private computeMenuWidth_(): number {
-    return this.contextManagementInComposeboxEnabled_ ?
+    return this.contextManagementInComposeboxEnabled ?
         SHARE_TABS_MENU_WIDTH_PX :
         MENU_WIDTH_PX;
   }
@@ -377,6 +424,7 @@ export class ContextualActionMenuElement extends
   }
 
   showAt(anchor: HTMLElement) {
+    this.anchor_ = anchor;
     const menuWidth = this.computeMenuWidth_();
     // Clear any previous max height limit before measuring natural full height.
     this.$.menu.style.removeProperty('--contextual-menu-max-height');
@@ -399,9 +447,19 @@ export class ContextualActionMenuElement extends
     const fullMenuHeight = this.$.menu.getDialog().scrollHeight;
     const requiredHeight = fullMenuHeight + VIEWPORT_BUFFER_PX;
 
+    const doc = document.scrollingElement || document.documentElement;
+    const scrollLeft = doc.scrollLeft;
+    const scrollTop = doc.scrollTop;
+    const clientWidth = doc.clientWidth;
+    const clientHeight = doc.clientHeight;
+
     let config: ShowAtConfig = {
       width: menuWidth,
       noOffset: true,
+      minX: scrollLeft + VIEWPORT_BUFFER_PX,
+      minY: scrollTop + VIEWPORT_BUFFER_PX,
+      maxX: scrollLeft + clientWidth - VIEWPORT_BUFFER_PX,
+      maxY: scrollTop + clientHeight - VIEWPORT_BUFFER_PX,
     };
 
     if (spaceBelow >= requiredHeight) {
@@ -420,7 +478,7 @@ export class ContextualActionMenuElement extends
       };
     } else {
       // Neither below nor above has enough space for the full menu.
-      let shouldAnchorRight = Math.max(spaceBelow, spaceAbove) < fullMenuHeight;
+      let shouldAnchorRight = Math.max(spaceBelow, spaceAbove) < requiredHeight;
       const horizontalLimit = this.computeHorizontalLimit_(iconRect);
       // iconRect.right is the left edge of the right-anchored menu.
       const menuRight = iconRect.right + menuWidth;
@@ -461,10 +519,25 @@ export class ContextualActionMenuElement extends
     }
 
     // Position the menu using the finalized alignment.
+    this.lastConfig_ = config;
     this.$.menu.showAt(anchor, config);
+    this.reposition_();
     window.addEventListener('blur', this.onWindowBlur_);
 
-    if (this.contextManagementInComposeboxEnabled_) {
+    this.boundReposition_ =
+        this.boundReposition_ || this.reposition_.bind(this);
+    window.addEventListener(
+        'scroll', this.boundReposition_, {capture: true, passive: true});
+
+    if (this.layoutResizeObserver_) {
+      this.layoutResizeObserver_.disconnect();
+    }
+    this.layoutResizeObserver_ = new ResizeObserver(() => {
+      this.reposition_();
+    });
+    this.layoutResizeObserver_.observe(document.body);
+
+    if (this.contextManagementInComposeboxEnabled) {
       this.updateSharingTabsText_();
       if (this.shareTabsFlyoutOpen) {
         this.updateFlyoutPosition_();
@@ -502,7 +575,7 @@ export class ContextualActionMenuElement extends
         this.aimThreadRestoredTabs.length :
         0;
     const totalTabs = this.disabledTabIds.size + restoredCount;
-    if (!this.contextManagementInComposeboxEnabled_ || totalTabs === 0) {
+    if (!this.contextManagementInComposeboxEnabled || totalTabs === 0) {
       this.sharingTabsText_ = this.i18n('shareTabs');
       return;
     }
@@ -1071,6 +1144,15 @@ export class ContextualActionMenuElement extends
 
   protected onMenuClose_() {
     window.removeEventListener('blur', this.onWindowBlur_);
+    if (this.boundReposition_) {
+      window.removeEventListener(
+          'scroll', this.boundReposition_, {capture: true});
+    }
+    if (this.layoutResizeObserver_) {
+      this.layoutResizeObserver_.disconnect();
+      this.layoutResizeObserver_ = null;
+    }
+    this.lastConfig_ = undefined;
     this.resetShareTabsFlyout_();
     this.$.menu.style.removeProperty('--contextual-menu-max-height');
     this.$.menu.style.removeProperty('--contextual-menu-min-height');

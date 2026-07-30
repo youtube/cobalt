@@ -7,14 +7,17 @@
 
 #include <iosfwd>
 #include <memory>
+#include <optional>
 
 #include "base/callback_list.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
+#include "chrome/browser/dictation/metrics.h"
 #include "chrome/browser/dictation/session_state.h"
 #include "chrome/browser/dictation/session_ui_delegate.h"
 #include "chrome/browser/dictation/stream_provider_delegate.h"
+#include "chrome/browser/dictation/target.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 
 namespace dictation {
@@ -22,7 +25,6 @@ namespace dictation {
 class SessionControllerDelegate;
 class SessionUi;
 class StreamProvider;
-class Target;
 
 // The session_controller is a coordinating class between the StreamProvider and
 // the UI. It manages Profile-level state and transitions and synchronizes the
@@ -41,9 +43,12 @@ class SessionController : public SessionUiDelegate,
   // SessionUiDelegate:
   void UiRequestEndSession() override;
   void UiRequestEndActiveStream() override;
+  void FinalizeAndShutdown() override;
+  void UiRequestStartStream() override;
   SessionState GetState() const override;
   base::CallbackListSubscription AddSessionStateChangedCallback(
       SessionStateChangedCallback callback) override;
+  void HostTabDidClose() override;
 
   // StreamProviderDelegate:
   void DidUpdateStreamProviderState(
@@ -53,7 +58,8 @@ class SessionController : public SessionUiDelegate,
   // Starts a new dictation stream by creating and attaching a new stream
   // provider. An existing stream must have been detached before calling this
   // method.
-  void StartDictationStream(std::unique_ptr<Target> target);
+  void StartDictationStream(const TargetId& target_id,
+                            DictationStreamStartTrigger trigger);
 
   // Ends the current dictation stream and detaches the stream provider.
   void EndDictationStream();
@@ -66,11 +72,13 @@ class SessionController : public SessionUiDelegate,
 
  private:
   void MoveToState(SessionState new_state);
+  void EndSessionAsynchronously();
   void PurgeToDeleteStreamProviders();
 
   const base::raw_ref<SessionControllerDelegate> delegate_;
 
   SessionState state_ = SessionState::kInactive;
+  bool is_shutting_down_ = false;
 
   // The currently attached stream provider. The state of this provider is used
   // to drive the current state of dictation in the UI.
@@ -88,6 +96,8 @@ class SessionController : public SessionUiDelegate,
 
   base::RepeatingCallbackList<void(SessionState)>
       session_state_changed_callback_list_;
+
+  std::optional<TargetId> last_used_target_id_;
 
   base::WeakPtrFactory<SessionController> weak_ptr_factory_{this};
 };

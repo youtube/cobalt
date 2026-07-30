@@ -129,29 +129,19 @@ ContextualCueingHelper::ContextualCueingHelper(
 ContextualCueingHelper::~ContextualCueingHelper() = default;
 
 glic::GlicNudgeController* ContextualCueingHelper::GetGlicNudgeController() {
-#if !BUILDFLAG(IS_ANDROID)
   if (!IsContextualCueingEnabled()) {
     return nullptr;
   }
-
-  BrowserWindowInterface* browser =
-      GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
-          web_contents());
+  tabs::TabInterface* tab =
+      tabs::TabInterface::MaybeGetFromContents(web_contents());
+  if (!tab) {
+    return nullptr;
+  }
+  BrowserWindowInterface* browser = tab->GetBrowserWindowInterface();
   if (!browser) {
     return nullptr;
   }
-  return browser->GetFeatures().glic_nudge_controller();
-#else
-  if (!web_contents() || web_contents()->IsBeingDestroyed()) {
-    return nullptr;
-  }
-
-  if (!glic_nudge_controller_) {
-    glic_nudge_controller_ =
-        std::make_unique<glic::GlicNudgeControllerAndroid>(web_contents());
-  }
-  return glic_nudge_controller_.get();
-#endif
+  return glic::GlicNudgeController::From(browser);
 }
 
 void ContextualCueingHelper::PrimaryPageChanged(content::Page& page) {

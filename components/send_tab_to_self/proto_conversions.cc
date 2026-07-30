@@ -9,6 +9,7 @@
 #include "base/notreached.h"
 #include "base/strings/utf_string_conversions.h"
 #include "components/autofill/core/browser/field_types.h"
+#include "components/autofill/core/common/form_field_data.h"
 #include "components/autofill/core/common/signatures.h"
 #include "components/send_tab_to_self/page_context.h"
 #include "components/sync/protocol/send_tab_to_self_specifics.pb.h"
@@ -308,7 +309,8 @@ sync_pb::FormField FormFieldToProto(const PageContext::FormField& field) {
   sync_pb::FormField pb_field;
   pb_field.set_id_attribute(base::UTF16ToUTF8(field.id_attribute));
   pb_field.set_name_attribute(base::UTF16ToUTF8(field.name_attribute));
-  pb_field.set_form_control_type(field.form_control_type);
+  pb_field.set_form_control_type(
+      std::string(autofill::FormControlTypeToString(field.form_control_type)));
   pb_field.set_value(base::UTF16ToUTF8(field.value));
   pb_field.set_form_signature(field.autofill_signature.form_signature.value());
   pb_field.set_field_signature(
@@ -320,11 +322,19 @@ sync_pb::FormField FormFieldToProto(const PageContext::FormField& field) {
   return pb_field;
 }
 
-PageContext::FormField FormFieldFromProto(const sync_pb::FormField& pb_field) {
+std::optional<PageContext::FormField> FormFieldFromProto(
+    const sync_pb::FormField& pb_field) {
+  std::optional<autofill::FormControlType> form_control_type =
+      autofill::StringToFormControlTypeDiscouraged(
+          pb_field.form_control_type());
+  if (!form_control_type.has_value()) {
+    return std::nullopt;
+  }
+
   PageContext::FormField field;
   field.id_attribute = base::UTF8ToUTF16(pb_field.id_attribute());
   field.name_attribute = base::UTF8ToUTF16(pb_field.name_attribute());
-  field.form_control_type = pb_field.form_control_type();
+  field.form_control_type = *form_control_type;
   field.value = base::UTF8ToUTF16(pb_field.value());
   field.autofill_signature.form_signature =
       autofill::FormSignature(pb_field.form_signature());
@@ -350,7 +360,10 @@ PageContext::FormFieldInfo FormFieldInfoFromProto(
     const sync_pb::FormFieldInfo& pb_info) {
   PageContext::FormFieldInfo info;
   for (const auto& pb_field : pb_info.fields()) {
-    info.fields.push_back(FormFieldFromProto(pb_field));
+    if (std::optional<PageContext::FormField> field =
+            FormFieldFromProto(pb_field)) {
+      info.fields.push_back(std::move(*field));
+    }
   }
   return info;
 }

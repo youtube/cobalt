@@ -14,6 +14,8 @@
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
+#include "chrome/browser/apps/intent_helper/preferred_apps_test_util.h"
+#include "chrome/browser/apps/link_capturing/link_capturing_feature_test_support.h"
 #include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/policy/policy_test_utils.h"
 #include "chrome/browser/policy/profile_policy_connector.h"
@@ -50,13 +52,19 @@ constexpr char kMicrosoft365PWAStartUrl[] =
 
 namespace chromeos::cloud_storage {
 
-class OneDrivePrefObserverBrowserTest : public policy::PolicyTest {
+class OneDrivePrefObserverBrowserTest
+    : public policy::PolicyTest,
+      public testing::WithParamInterface<
+          apps::test::LinkCapturingFeatureVersion> {
  public:
   OneDrivePrefObserverBrowserTest() {
-    feature_list_.InitWithFeatures(
-        {chromeos::features::kUploadOfficeToCloud,
-         chromeos::features::kMicrosoftOneDriveIntegrationForEnterprise},
-        {});
+    std::vector<base::test::FeatureRefAndParams> features_to_enable =
+        apps::test::GetFeaturesToEnableLinkCapturingUX(GetParam());
+    features_to_enable.push_back(
+        {chromeos::features::kUploadOfficeToCloud, {}});
+    features_to_enable.push_back(
+        {chromeos::features::kMicrosoftOneDriveIntegrationForEnterprise, {}});
+    feature_list_.InitWithFeaturesAndParameters(features_to_enable, {});
   }
   ~OneDrivePrefObserverBrowserTest() override = default;
 
@@ -134,6 +142,21 @@ class OneDrivePrefObserverBrowserTest : public policy::PolicyTest {
                          ash::prefs::kM365SupportedLinkDefaultSet));
   }
 
+  void WaitForSupportedLinksPreference(const std::string& app_id,
+                                       bool is_preferred_app) {
+    auto* proxy = apps::AppServiceProxyFactory::GetForProfile(profile());
+    if (proxy->PreferredAppsList().IsPreferredAppForSupportedLinks(app_id) ==
+        is_preferred_app) {
+      return;
+    }
+    apps_util::PreferredAppUpdateWaiter waiter(proxy->PreferredAppsList(),
+                                               app_id);
+    waiter.Wait();
+    EXPECT_EQ(
+        is_preferred_app,
+        proxy->PreferredAppsList().IsPreferredAppForSupportedLinks(app_id));
+  }
+
   Profile* profile() { return browser()->profile(); }
 
   extensions::ExtensionRegistrar* extension_registrar() {
@@ -152,12 +175,12 @@ class OneDrivePrefObserverBrowserTest : public policy::PolicyTest {
   base::test::ScopedFeatureList feature_list_;
 };
 
-IN_PROC_BROWSER_TEST_F(OneDrivePrefObserverBrowserTest,
+IN_PROC_BROWSER_TEST_P(OneDrivePrefObserverBrowserTest,
                        KeyedServiceRegistered) {
   ASSERT_TRUE(OneDrivePrefObserverServiceExists());
 }
 
-IN_PROC_BROWSER_TEST_F(OneDrivePrefObserverBrowserTest,
+IN_PROC_BROWSER_TEST_P(OneDrivePrefObserverBrowserTest,
                        OneDriveModeChangedEventTriggered) {
   extensions::EventRouter* event_router =
       extensions::EventRouter::Get(profile());
@@ -187,7 +210,7 @@ IN_PROC_BROWSER_TEST_F(OneDrivePrefObserverBrowserTest,
   observer.ClearEvents();
 }
 
-IN_PROC_BROWSER_TEST_F(OneDrivePrefObserverBrowserTest,
+IN_PROC_BROWSER_TEST_P(OneDrivePrefObserverBrowserTest,
                        OneDriveAccountRestrictionsChangedEventTriggered) {
   extensions::EventRouter* event_router =
       extensions::EventRouter::Get(profile());
@@ -222,7 +245,7 @@ IN_PROC_BROWSER_TEST_F(OneDrivePrefObserverBrowserTest,
   observer.ClearEvents();
 }
 
-IN_PROC_BROWSER_TEST_F(OneDrivePrefObserverBrowserTest,
+IN_PROC_BROWSER_TEST_P(OneDrivePrefObserverBrowserTest,
                        OdfsExtensionUninstalledOnDisallowed) {
   profile_policy_connector()->OverrideIsManagedForTesting(true);
   SetOneDriveMount(ToString(Mount::kAutomated));
@@ -240,7 +263,7 @@ IN_PROC_BROWSER_TEST_F(OneDrivePrefObserverBrowserTest,
       extensions::ExtensionRegistry::IncludeFlag::EVERYTHING));
 }
 
-IN_PROC_BROWSER_TEST_F(OneDrivePrefObserverBrowserTest,
+IN_PROC_BROWSER_TEST_P(OneDrivePrefObserverBrowserTest,
                        UnmanagedOdfsExtensionNotUninstalledOnDisallowed) {
   profile_policy_connector()->OverrideIsManagedForTesting(false);
   SetOneDriveMount(ToString(Mount::kAutomated));
@@ -258,19 +281,17 @@ IN_PROC_BROWSER_TEST_F(OneDrivePrefObserverBrowserTest,
       extensions::ExtensionRegistry::IncludeFlag::EVERYTHING));
 }
 
-IN_PROC_BROWSER_TEST_F(OneDrivePrefObserverBrowserTest,
+IN_PROC_BROWSER_TEST_P(OneDrivePrefObserverBrowserTest,
                        SetSupportedLinksPreferenceForM365SuccessOnInstall) {
   profile_policy_connector()->OverrideIsManagedForTesting(true);
   SetOneDriveMount(ToString(Mount::kAutomated));
   InstallMicrosoft365();
 
-  ASSERT_TRUE(apps::AppServiceProxyFactory::GetForProfile(profile())
-                  ->PreferredAppsList()
-                  .IsPreferredAppForSupportedLinks(ash::kMicrosoft365AppId));
+  WaitForSupportedLinksPreference(ash::kMicrosoft365AppId, true);
   CheckM365SupportedLinkDefaultPrefSet(true);
 }
 
-IN_PROC_BROWSER_TEST_F(
+IN_PROC_BROWSER_TEST_P(
     OneDrivePrefObserverBrowserTest,
     PRE_SetSupportedLinksPreferenceForM365SuccessOnAppReadiness) {
   // Install Microsoft365 while Clippy is deactivated, so that the supported
@@ -279,9 +300,10 @@ IN_PROC_BROWSER_TEST_F(
   SetOneDriveMount(ToString(Mount::kDisallowed));
   InstallMicrosoft365();
 
-  ASSERT_FALSE(apps::AppServiceProxyFactory::GetForProfile(profile())
-                   ->PreferredAppsList()
-                   .IsPreferredAppForSupportedLinks(ash::kMicrosoft365AppId));
+  bool expected_link_capturing =
+      GetParam() == apps::test::LinkCapturingFeatureVersion::kV2DefaultOn;
+  WaitForSupportedLinksPreference(ash::kMicrosoft365AppId,
+                                  expected_link_capturing);
   CheckM365SupportedLinkDefaultPrefSet(false);
 
   // Let the main test start with Clippy set to automated.
@@ -291,16 +313,14 @@ IN_PROC_BROWSER_TEST_F(
 // The Microsoft 365 PWA was installed in the pre-test without properly setting
 // the supported link preference to simulate the scenario of an existing user
 // with the Microsoft 365 already installed before enabling Clippy.
-IN_PROC_BROWSER_TEST_F(
+IN_PROC_BROWSER_TEST_P(
     OneDrivePrefObserverBrowserTest,
     SetSupportedLinksPreferenceForM365SuccessOnAppReadiness) {
-  ASSERT_TRUE(apps::AppServiceProxyFactory::GetForProfile(profile())
-                  ->PreferredAppsList()
-                  .IsPreferredAppForSupportedLinks(ash::kMicrosoft365AppId));
+  WaitForSupportedLinksPreference(ash::kMicrosoft365AppId, true);
   CheckM365SupportedLinkDefaultPrefSet(true);
 }
 
-IN_PROC_BROWSER_TEST_F(
+IN_PROC_BROWSER_TEST_P(
     OneDrivePrefObserverBrowserTest,
     PRE_SetSupportedLinksPreferenceForM365DontResetUserActions) {
   auto* proxy = apps::AppServiceProxyFactory::GetForProfile(profile());
@@ -310,8 +330,7 @@ IN_PROC_BROWSER_TEST_F(
   SetOneDriveMount(ToString(Mount::kAutomated));
   InstallMicrosoft365();
 
-  ASSERT_TRUE(proxy->PreferredAppsList().IsPreferredAppForSupportedLinks(
-      ash::kMicrosoft365AppId));
+  WaitForSupportedLinksPreference(ash::kMicrosoft365AppId, true);
   CheckM365SupportedLinkDefaultPrefSet(true);
 
   // Reset the link preference for M365 before simulating a user logout.
@@ -320,24 +339,29 @@ IN_PROC_BROWSER_TEST_F(
 
 // Since the supported links preference was already set once by default in the
 // pre test, it should not be set again on session start.
-IN_PROC_BROWSER_TEST_F(OneDrivePrefObserverBrowserTest,
+IN_PROC_BROWSER_TEST_P(OneDrivePrefObserverBrowserTest,
                        SetSupportedLinksPreferenceForM365DontResetUserActions) {
-  ASSERT_FALSE(apps::AppServiceProxyFactory::GetForProfile(profile())
-                   ->PreferredAppsList()
-                   .IsPreferredAppForSupportedLinks(ash::kMicrosoft365AppId));
+  WaitForSupportedLinksPreference(ash::kMicrosoft365AppId, false);
   CheckM365SupportedLinkDefaultPrefSet(true);
 }
 
-IN_PROC_BROWSER_TEST_F(OneDrivePrefObserverBrowserTest,
+IN_PROC_BROWSER_TEST_P(OneDrivePrefObserverBrowserTest,
                        SetSupportedLinksPreferenceForM365NoDefaultOnAllowed) {
   profile_policy_connector()->OverrideIsManagedForTesting(true);
   SetOneDriveMount(ToString(Mount::kAllowed));
   InstallMicrosoft365();
-
-  ASSERT_FALSE(apps::AppServiceProxyFactory::GetForProfile(profile())
-                   ->PreferredAppsList()
-                   .IsPreferredAppForSupportedLinks(ash::kMicrosoft365AppId));
+  bool expected_link_capturing =
+      GetParam() == apps::test::LinkCapturingFeatureVersion::kV2DefaultOn;
+  WaitForSupportedLinksPreference(ash::kMicrosoft365AppId,
+                                  expected_link_capturing);
   CheckM365SupportedLinkDefaultPrefSet(false);
 }
+
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    OneDrivePrefObserverBrowserTest,
+    testing::Values(apps::test::LinkCapturingFeatureVersion::kV2DefaultOff,
+                    apps::test::LinkCapturingFeatureVersion::kV2DefaultOn),
+    apps::test::LinkCapturingVersionToString);
 
 }  // namespace chromeos::cloud_storage

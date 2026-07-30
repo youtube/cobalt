@@ -79,6 +79,7 @@ class LoadingPredictor : public KeyedService,
       const std::optional<url::Origin>& initiator_origin,
       const GURL& url,
       HintOrigin origin,
+      base::UnguessableToken network_restrictions_id,
       bool preconnectable = false,
       std::optional<PreconnectPrediction> preconnect_prediction = std::nullopt);
 
@@ -185,10 +186,12 @@ class LoadingPredictor : public KeyedService,
 
   // May start a preconnect or a preresolve for `url`. `preconnectable`
   // indicates if preconnect is possible, or only preresolve will be performed.
-  bool HandleHintByOrigin(const GURL& url,
-                          bool preconnectable,
-                          bool only_allow_https,
-                          PreconnectData& preconnect_data);
+  bool HandleHintByOrigin(
+      const GURL& url,
+      bool preconnectable,
+      bool only_allow_https,
+      PreconnectData& preconnect_data,
+      base::UnguessableToken network_restrictions_id);
 
   // For testing.
   void set_mock_resource_prefetch_predictor(
@@ -238,6 +241,7 @@ class LoadingPredictor : public KeyedService,
   friend class LoadingPredictorTabHelperTest;
   friend class LoadingPredictorTabHelperTestCollectorTest;
   friend class LCPPTimingPredictorTestBase;
+  friend class NetworkHintsHandlerImplTest;
   FRIEND_TEST_ALL_PREFIXES(LoadingPredictorTest,
                            TestMainFrameResponseCancelsHint);
   FRIEND_TEST_ALL_PREFIXES(LoadingPredictorTest,

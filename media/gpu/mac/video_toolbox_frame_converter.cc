@@ -19,6 +19,7 @@
 #include "gpu/ipc/service/gpu_channel.h"
 #include "gpu/ipc/service/gpu_channel_shared_image_interface.h"
 #include "gpu/ipc/service/shared_image_stub.h"
+#include "media/base/format_utils.h"
 #include "media/base/mac/color_space_util_mac.h"
 #include "media/base/mac/video_frame_mac.h"
 #include "media/base/media_log.h"
@@ -44,49 +45,6 @@ constexpr gpu::SharedImageUsageSet kSharedImageUsage =
     gpu::SHARED_IMAGE_USAGE_RASTER_READ | gpu::SHARED_IMAGE_USAGE_GLES2_READ;
 
 constexpr char kSharedImageDebugLabel[] = "VideoToolboxVideoDecoder";
-
-std::optional<viz::SharedImageFormat> PixelFormatToImageFormat(
-    OSType pixel_format) {
-  switch (pixel_format) {
-    case kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange:
-      return viz::MultiPlaneFormat::kNV12;
-    case kCVPixelFormatType_422YpCbCr8BiPlanarVideoRange:
-      return viz::MultiPlaneFormat::kNV16;
-    case kCVPixelFormatType_444YpCbCr8BiPlanarVideoRange:
-      return viz::MultiPlaneFormat::kNV24;
-    case kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange:
-      return viz::MultiPlaneFormat::kP010;
-    case kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange:
-      return viz::MultiPlaneFormat::kP210;
-    case kCVPixelFormatType_444YpCbCr10BiPlanarVideoRange:
-      return viz::MultiPlaneFormat::kP410;
-    case kCVPixelFormatType_420YpCbCr8VideoRange_8A_TriPlanar:
-      return viz::MultiPlaneFormat::kNV12A;
-    default:
-      return std::nullopt;
-  }
-}
-
-VideoPixelFormat PixelFormatToVideoPixelFormat(OSType pixel_format) {
-  switch (pixel_format) {
-    case kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange:
-      return PIXEL_FORMAT_NV12;
-    case kCVPixelFormatType_422YpCbCr8BiPlanarVideoRange:
-      return PIXEL_FORMAT_NV16;
-    case kCVPixelFormatType_444YpCbCr8BiPlanarVideoRange:
-      return PIXEL_FORMAT_NV24;
-    case kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange:
-      return PIXEL_FORMAT_P010LE;
-    case kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange:
-      return PIXEL_FORMAT_P210LE;
-    case kCVPixelFormatType_444YpCbCr10BiPlanarVideoRange:
-      return PIXEL_FORMAT_P410LE;
-    case kCVPixelFormatType_420YpCbCr8VideoRange_8A_TriPlanar:
-      return PIXEL_FORMAT_NV12A;
-    default:
-      return PIXEL_FORMAT_UNKNOWN;
-  }
-}
 
 // If enabled, adds SHARED_IMAGE_USAGE_WEBGPU_READ as a usage when creating
 // SharedImages for a WebGpu-compatible IOSurface. Intended as a killswitch
@@ -193,17 +151,24 @@ void VideoToolboxFrameConverter::Convert(
 
   OSType pixel_format = IOSurfaceGetPixelFormat(handle.io_surface().get());
   std::optional<viz::SharedImageFormat> format =
-      PixelFormatToImageFormat(pixel_format);
+      gfx::IOSurfacePixelFormatToSharedImageFormat(pixel_format);
   if (!format) {
     MEDIA_LOG(ERROR, media_log_.get())
-        << "Unknown pixel format " << pixel_format;
+        << "Failed to translate IOSurface format to SharedImageFormat "
+        << pixel_format;
     std::move(output_cb).Run(nullptr, std::move(metadata));
     return;
   }
 
-  VideoPixelFormat video_pixel_format =
-      PixelFormatToVideoPixelFormat(pixel_format);
-
+  std::optional<VideoPixelFormat> video_pixel_format =
+      SharedImageFormatToVideoPixelFormat(*format);
+  if (!video_pixel_format) {
+    MEDIA_LOG(ERROR, media_log_.get())
+        << "Failed to translate IOSurface format to VideoPixelFormat "
+        << pixel_format;
+    std::move(output_cb).Run(nullptr, std::move(metadata));
+    return;
+  }
   bool allow_overlay = true;
 
   auto shared_image_interface = sis_->shared_image_interface();
@@ -211,7 +176,7 @@ void VideoToolboxFrameConverter::Convert(
 
   // Extract IOSurface webgpu compatible attribute before image is moved.
   const bool is_webgpu_compatible =
-      gfx::IOSurfaceIsWebGPUCompatible(CVPixelBufferGetIOSurface(image.get()));
+      gfx::IOSurfacePixelFormatIsWebGPUCompatible(pixel_format);
   gpu::SharedImageUsageSet shared_image_usage = kSharedImageUsage;
   if (is_webgpu_compatible &&
       base::FeatureList::IsEnabled(
@@ -247,7 +212,7 @@ void VideoToolboxFrameConverter::Convert(
                      shared_image, std::move(image)));
 
   scoped_refptr<VideoFrame> frame = VideoFrame::WrapSharedImage(
-      video_pixel_format, shared_image, shared_image->creation_sync_token(),
+      *video_pixel_format, shared_image, shared_image->creation_sync_token(),
       std::move(release_cb), visible_rect, natural_size, metadata->timestamp);
 
   if (!frame) {

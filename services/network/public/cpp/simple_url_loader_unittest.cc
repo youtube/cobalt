@@ -946,10 +946,9 @@ TEST_P(SimpleURLLoaderTest, BasicRequest) {
     EXPECT_EQ(kExpectedResponse, *test_helper->response_body());
     EXPECT_EQ(static_cast<int64_t>(kExpectedResponseSize),
               test_helper->simple_url_loader()->GetContentSize());
-    EXPECT_EQ(static_cast<int64_t>(kExpectedResponseSize),
-              test_helper->simple_url_loader()
-                  ->CompletionStatus()
-                  ->decoded_body_length);
+    EXPECT_EQ(kExpectedResponseSize, test_helper->simple_url_loader()
+                                         ->CompletionStatus()
+                                         ->decoded_body_length.InBytes());
   }
 }
 
@@ -974,10 +973,9 @@ TEST_P(SimpleURLLoaderTest, GzipBody) {
     EXPECT_EQ(static_cast<int64_t>(content.size()),
               test_helper->simple_url_loader()->GetContentSize());
     ASSERT_TRUE(test_helper->simple_url_loader()->CompletionStatus());
-    EXPECT_EQ(static_cast<int64_t>(content.size()),
-              test_helper->simple_url_loader()
-                  ->CompletionStatus()
-                  ->decoded_body_length);
+    EXPECT_EQ(content.size(), test_helper->simple_url_loader()
+                                  ->CompletionStatus()
+                                  ->decoded_body_length.InBytes());
     EXPECT_LT(test_helper->simple_url_loader()
                   ->CompletionStatus()
                   ->encoded_body_length,
@@ -1410,9 +1408,9 @@ TEST_P(SimpleURLLoaderTest, HttpErrorStatusCodeResponseAllowed) {
     ASSERT_TRUE(test_helper->response_body());
     EXPECT_EQ("Echo", *test_helper->response_body());
     EXPECT_EQ(4, test_helper->simple_url_loader()->GetContentSize());
-    EXPECT_EQ(4, test_helper->simple_url_loader()
-                     ->CompletionStatus()
-                     ->decoded_body_length);
+    EXPECT_EQ(4u, test_helper->simple_url_loader()
+                      ->CompletionStatus()
+                      ->decoded_body_length.InBytes());
   }
 }
 
@@ -1432,9 +1430,9 @@ TEST_P(SimpleURLLoaderTest, EmptyResponseBody) {
     // A response body is sent from the NetworkService, but it's empty.
     EXPECT_EQ("", *test_helper->response_body());
     EXPECT_EQ(0, test_helper->simple_url_loader()->GetContentSize());
-    EXPECT_EQ(0, test_helper->simple_url_loader()
-                     ->CompletionStatus()
-                     ->decoded_body_length);
+    EXPECT_EQ(0u, test_helper->simple_url_loader()
+                      ->CompletionStatus()
+                      ->decoded_body_length.InBytes());
   }
 }
 
@@ -1463,7 +1461,7 @@ TEST_P(SimpleURLLoaderTest, BigResponseBody) {
               test_helper->simple_url_loader()->GetContentSize());
     EXPECT_EQ(kResponseSize, test_helper->simple_url_loader()
                                  ->CompletionStatus()
-                                 ->decoded_body_length);
+                                 ->decoded_body_length.InBytes());
   }
 }
 
@@ -1496,7 +1494,7 @@ TEST_P(SimpleURLLoaderTest, ResponseBodyWithSizeMatchingLimit) {
               test_helper->simple_url_loader()->GetContentSize());
     EXPECT_EQ(kResponseSize, test_helper->simple_url_loader()
                                  ->CompletionStatus()
-                                 ->decoded_body_length);
+                                 ->decoded_body_length.InBytes());
   }
 }
 
@@ -1525,7 +1523,7 @@ TEST_P(SimpleURLLoaderTest, ResponseBodyWithSizeBelowLimit) {
               test_helper->simple_url_loader()->GetContentSize());
     EXPECT_EQ(kResponseSize, test_helper->simple_url_loader()
                                  ->CompletionStatus()
-                                 ->decoded_body_length);
+                                 ->decoded_body_length.InBytes());
   }
 }
 
@@ -1606,7 +1604,7 @@ TEST_P(SimpleURLLoaderTest, BigResponseBodyWithSizeMatchingLimit) {
               test_helper->simple_url_loader()->GetContentSize());
     EXPECT_EQ(kResponseSize, test_helper->simple_url_loader()
                                  ->CompletionStatus()
-                                 ->decoded_body_length);
+                                 ->decoded_body_length.InBytes());
   }
 }
 
@@ -1634,7 +1632,7 @@ TEST_P(SimpleURLLoaderTest, BigResponseBodyWithSizeBelowLimit) {
               test_helper->simple_url_loader()->GetContentSize());
     EXPECT_EQ(kResponseSize, test_helper->simple_url_loader()
                                  ->CompletionStatus()
-                                 ->decoded_body_length);
+                                 ->decoded_body_length.InBytes());
   }
 }
 
@@ -1706,9 +1704,9 @@ TEST_P(SimpleURLLoaderTest, NetErrorBeforeHeaders) {
   EXPECT_FALSE(test_helper->simple_url_loader()->ResponseInfo());
   EXPECT_FALSE(test_helper->response_body());
   EXPECT_EQ(0, test_helper->simple_url_loader()->GetContentSize());
-  EXPECT_EQ(0, test_helper->simple_url_loader()
-                   ->CompletionStatus()
-                   ->decoded_body_length);
+  EXPECT_EQ(0u, test_helper->simple_url_loader()
+                    ->CompletionStatus()
+                    ->decoded_body_length.InBytes());
 }
 
 TEST_P(SimpleURLLoaderTest, NetErrorBeforeHeadersWithPartialResults) {
@@ -1728,9 +1726,9 @@ TEST_P(SimpleURLLoaderTest, NetErrorBeforeHeadersWithPartialResults) {
             test_helper->simple_url_loader()->CompletionStatus()->error_code);
   EXPECT_FALSE(test_helper->simple_url_loader()->ResponseInfo());
   EXPECT_EQ(0, test_helper->simple_url_loader()->GetContentSize());
-  EXPECT_EQ(0, test_helper->simple_url_loader()
-                   ->CompletionStatus()
-                   ->decoded_body_length);
+  EXPECT_EQ(0u, test_helper->simple_url_loader()
+                    ->CompletionStatus()
+                    ->decoded_body_length.InBytes());
 }
 
 TEST_P(SimpleURLLoaderTest, NetErrorAfterHeaders) {
@@ -1746,9 +1744,9 @@ TEST_P(SimpleURLLoaderTest, NetErrorAfterHeaders) {
   EXPECT_EQ(200, test_helper->GetResponseCode());
   EXPECT_FALSE(test_helper->response_body());
   EXPECT_EQ(0, test_helper->simple_url_loader()->GetContentSize());
-  EXPECT_EQ(0, test_helper->simple_url_loader()
-                   ->CompletionStatus()
-                   ->decoded_body_length);
+  EXPECT_EQ(0u, test_helper->simple_url_loader()
+                    ->CompletionStatus()
+                    ->decoded_body_length.InBytes());
 }
 
 TEST_P(SimpleURLLoaderTest, NetErrorAfterHeadersWithPartialResults) {
@@ -1769,9 +1767,9 @@ TEST_P(SimpleURLLoaderTest, NetErrorAfterHeadersWithPartialResults) {
     ASSERT_TRUE(test_helper->response_body());
     EXPECT_EQ("", *test_helper->response_body());
     EXPECT_EQ(0, test_helper->simple_url_loader()->GetContentSize());
-    EXPECT_EQ(0, test_helper->simple_url_loader()
-                     ->CompletionStatus()
-                     ->decoded_body_length);
+    EXPECT_EQ(0u, test_helper->simple_url_loader()
+                      ->CompletionStatus()
+                      ->decoded_body_length.InBytes());
   }
 }
 
@@ -1789,10 +1787,9 @@ TEST_P(SimpleURLLoaderTest, TruncatedBody) {
   EXPECT_FALSE(test_helper->response_body());
   EXPECT_EQ(static_cast<int64_t>(strlen(kTruncatedBody)),
             test_helper->simple_url_loader()->GetContentSize());
-  EXPECT_EQ(static_cast<int64_t>(strlen(kTruncatedBody)),
-            test_helper->simple_url_loader()
-                ->CompletionStatus()
-                ->decoded_body_length);
+  EXPECT_EQ(strlen(kTruncatedBody), test_helper->simple_url_loader()
+                                        ->CompletionStatus()
+                                        ->decoded_body_length.InBytes());
 }
 
 TEST_P(SimpleURLLoaderTest, TruncatedBodyWithPartialResults) {
@@ -1812,10 +1809,9 @@ TEST_P(SimpleURLLoaderTest, TruncatedBodyWithPartialResults) {
     ASSERT_TRUE(test_helper->response_body());
     EXPECT_EQ(static_cast<int64_t>(strlen(kTruncatedBody)),
               test_helper->simple_url_loader()->GetContentSize());
-    EXPECT_EQ(static_cast<int64_t>(strlen(kTruncatedBody)),
-              test_helper->simple_url_loader()
-                  ->CompletionStatus()
-                  ->decoded_body_length);
+    EXPECT_EQ(strlen(kTruncatedBody), test_helper->simple_url_loader()
+                                          ->CompletionStatus()
+                                          ->decoded_body_length.InBytes());
   }
 }
 
@@ -2065,10 +2061,10 @@ TEST_P(SimpleURLLoaderNoAdoptInProgressLoadTest, UploadFileWithRetry) {
     EXPECT_EQ(GetTestFileContents(), *test_helper->response_body());
     EXPECT_EQ(static_cast<int64_t>(GetTestFileContents().size()),
               test_helper->simple_url_loader()->GetContentSize());
-    EXPECT_EQ(static_cast<int64_t>(GetTestFileContents().size()),
+    EXPECT_EQ(GetTestFileContents().size(),
               test_helper->simple_url_loader()
                   ->CompletionStatus()
-                  ->decoded_body_length);
+                  ->decoded_body_length.InBytes());
   }
 
   if (GetDownloadType() == SimpleLoaderTestHelper::DownloadType::AS_STREAM) {
@@ -2095,9 +2091,9 @@ TEST_P(SimpleURLLoaderNoAdoptInProgressLoadTest, UploadNonexistentFile) {
   EXPECT_FALSE(test_helper->simple_url_loader()->ResponseInfo());
   EXPECT_FALSE(test_helper->response_body());
   EXPECT_EQ(0, test_helper->simple_url_loader()->GetContentSize());
-  EXPECT_EQ(0, test_helper->simple_url_loader()
-                   ->CompletionStatus()
-                   ->decoded_body_length);
+  EXPECT_EQ(0u, test_helper->simple_url_loader()
+                    ->CompletionStatus()
+                    ->decoded_body_length.InBytes());
 }
 
 // Test case where uploading a file is canceled before the URLLoader is started
@@ -2275,7 +2271,7 @@ class MockURLLoader : public network::mojom::URLLoader {
         case TestLoaderEvent::kNameNotResolved: {
           network::URLLoaderCompletionStatus status;
           status.error_code = net::ERR_NAME_NOT_RESOLVED;
-          status.decoded_body_length = CountBytesToSend().InBytes();
+          status.decoded_body_length = CountBytesToSend();
           client_->OnComplete(status);
           break;
         }
@@ -2367,7 +2363,7 @@ class MockURLLoader : public network::mojom::URLLoader {
         case TestLoaderEvent::kResponseComplete: {
           network::URLLoaderCompletionStatus status;
           status.error_code = net::OK;
-          status.decoded_body_length = CountBytesToSend().InBytes();
+          status.decoded_body_length = CountBytesToSend();
           client_->OnComplete(status);
           break;
         }
@@ -2376,22 +2372,21 @@ class MockURLLoader : public network::mojom::URLLoader {
           // Use an error that SimpleURLLoader doesn't create itself, so clear
           // when this is the source of the error code.
           status.error_code = net::ERR_TIMED_OUT;
-          status.decoded_body_length = CountBytesToSend().InBytes();
+          status.decoded_body_length = CountBytesToSend();
           client_->OnComplete(status);
           break;
         }
         case TestLoaderEvent::kResponseCompleteNetworkChanged: {
           network::URLLoaderCompletionStatus status;
           status.error_code = net::ERR_NETWORK_CHANGED;
-          status.decoded_body_length = CountBytesToSend().InBytes();
+          status.decoded_body_length = CountBytesToSend();
           client_->OnComplete(status);
           break;
         }
         case TestLoaderEvent::kResponseCompleteTruncated: {
           network::URLLoaderCompletionStatus status;
           status.error_code = net::OK;
-          status.decoded_body_length =
-              (CountBytesToSend() + base::ByteSize(1)).InBytes();
+          status.decoded_body_length = CountBytesToSend() + base::ByteSize(1);
           client_->OnComplete(status);
           break;
         }
@@ -2401,7 +2396,7 @@ class MockURLLoader : public network::mojom::URLLoader {
           network::URLLoaderCompletionStatus status;
           status.error_code = net::OK;
           status.decoded_body_length =
-              (CountBytesToSend() - base::ByteSize(1)).InBytes();
+              (CountBytesToSend() - base::ByteSize(1)).AsByteSize();
           client_->OnComplete(status);
           break;
         }

@@ -126,9 +126,14 @@ def main() -> int:
                       help='The gtest_filter to use for running the tests.')
   parser.add_argument('--gtest_repeat',
                       help='The gtest_repeat to use for running the tests.')
-  parser.add_argument('--device', help='The device type to use for the test.')
-  parser.add_argument('--os',
-                      help='The OS version to use for the test (e.g., 17.5).')
+  parser.add_argument(
+      '--device',
+      help='The device type or UDID to use for the test '
+           '(can also be set via IOS_SIMULATOR_DEFAULT_DEVICE).')
+  parser.add_argument(
+      '--os',
+      help='The OS version to use for the test (e.g., 17.5) '
+           '(can also be set via IOS_SIMULATOR_DEFAULT_OS).')
   parser.add_argument(
       '--test-target',
       default='ios_chrome_unittests',

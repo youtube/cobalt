@@ -121,7 +121,7 @@ class DistillerPageWebContentsTest : public ContentBrowserTest {
   void OnPageDistillationFinished(
       base::OnceClosure quit_closure,
       std::unique_ptr<proto::DomDistillerResult> distiller_result,
-      bool distillation_successful) {
+      DistillationParseResult /*result*/) {
     distiller_result_ = std::move(distiller_result);
     std::move(quit_closure).Run();
   }

@@ -190,7 +190,7 @@ suite('TravelPage', function() {
         async function() {
           loadTimeData.overrideValues({
             userEligibleForAutofillAi: true,
-            AutofillAddOtherDatatypesPrefIsEnabled: experimentEnabled,
+            AutofillSettingsEnterprisePolicyEnabled: experimentEnabled,
             autofillAiAvailableByDefault: false,
           });
 
@@ -213,7 +213,7 @@ suite('TravelPage', function() {
       async function() {
         loadTimeData.overrideValues({
           userEligibleForAutofillAi: true,
-          AutofillAddOtherDatatypesPrefIsEnabled: false,
+          AutofillSettingsEnterprisePolicyEnabled: false,
           autofillAiAvailableByDefault: true,
           canEnableOrDisableAutofillAi: true,
         });
@@ -243,7 +243,7 @@ suite('TravelPage', function() {
       async function() {
         loadTimeData.overrideValues({
           userEligibleForAutofillAi: true,
-          AutofillAddOtherDatatypesPrefIsEnabled: false,
+          AutofillSettingsEnterprisePolicyEnabled: false,
           autofillAiAvailableByDefault: true,
           canEnableOrDisableAutofillAi: true,
         });
@@ -274,7 +274,7 @@ suite('TravelPage', function() {
       async function() {
         loadTimeData.overrideValues({
           userEligibleForAutofillAi: true,
-          AutofillAddOtherDatatypesPrefIsEnabled: false,
+          AutofillSettingsEnterprisePolicyEnabled: false,
           autofillAiAvailableByDefault: true,
           canEnableOrDisableAutofillAi: true,
         });
@@ -302,7 +302,7 @@ suite('TravelPage', function() {
       async function() {
         loadTimeData.overrideValues({
           userEligibleForAutofillAi: true,
-          AutofillAddOtherDatatypesPrefIsEnabled: false,
+          AutofillSettingsEnterprisePolicyEnabled: false,
           autofillAiAvailableByDefault: true,
           canEnableOrDisableAutofillAi: true,
         });
@@ -329,7 +329,7 @@ suite('TravelPage', function() {
       async function() {
         loadTimeData.overrideValues({
           userEligibleForAutofillAi: true,
-          AutofillAddOtherDatatypesPrefIsEnabled: false,
+          AutofillSettingsEnterprisePolicyEnabled: false,
           autofillAiAvailableByDefault: true,
           canEnableOrDisableAutofillAi: true,
         });
@@ -378,8 +378,7 @@ suite('TravelPage', function() {
 
       button.click();
       assertEquals(
-          '/autofill/suggestionsFromGemini',
-          Router.getInstance().currentRoute.path);
+          '/suggestionsFromGemini', Router.getInstance().currentRoute.path);
     });
 
     test('row is hidden when flag is disabled', async function() {

@@ -154,7 +154,7 @@ TARGET_DEVICES = {
             'Speedometer3': 20,
         },
         'speedometer3.crossbench': 20,
-        'speedometer_main.crossbench': 20,
+        'speedometer_main.all.crossbench': 20,
     },
     'win-10_laptop_low_end-perf': {
         'jetstream2': {
@@ -184,7 +184,7 @@ TARGET_DEVICES = {
             'load:search:google:2018': 10,
         },
         'speedometer3.crossbench': 20,
-        'speedometer_main.crossbench': 20,
+        'speedometer_main.all.crossbench': 20,
     },
     'win-11-perf': {
         'jetstream2': {
@@ -199,7 +199,7 @@ TARGET_DEVICES = {
         },
         'speedometer3.crossbench': 20,
         'speedometer3.a11y.crossbench': 20,
-        'speedometer_main.crossbench': 20,
+        'speedometer_main.all.crossbench': 20,
     },
     'win-arm64-snapdragon-elite-perf': {
         'jetstream2.crossbench': 5,
@@ -232,7 +232,7 @@ TARGET_DEVICES = {
             'Speedometer2': 20,
         },
         'speedometer3.crossbench': 20,
-        'speedometer_main.crossbench': 20,
+        'speedometer_main.all.crossbench': 20,
     },
     'mac-m1_mini_2020-perf': {
         'jetstream2': {
@@ -251,7 +251,7 @@ TARGET_DEVICES = {
         },
         'speedometer3-no-field-trials': 28,
         'speedometer3.crossbench': 20,
-        'speedometer_main.crossbench': 10,
+        'speedometer_main.all.crossbench': 10,
         'rendering.desktop.notracing': 20,
         'motionmark1.3.crossbench': 20,
     },
@@ -295,7 +295,7 @@ TARGET_DEVICES = {
         'jetstream_main.crossbench': 6,
         'speedometer2': 20,
         'speedometer3.crossbench': 20,
-        'speedometer_main.crossbench': 10,
+        'speedometer_main.all.crossbench': 10,
         'rendering.desktop.notracing': 20,
         'motionmark1.3.crossbench': 20,
     },

@@ -172,18 +172,18 @@ TEST_F(ContextHubPageHandlerTest, GenerateAutoTodos_Failure) {
   EXPECT_FALSE(result.has_value());
 }
 
-TEST_F(ContextHubPageHandlerTest, GetAllEntries_Empty) {
+TEST_F(ContextHubPageHandlerTest, GetAllMemoryBankEntries_Empty) {
   base::test::TestFuture<
       std::vector<browser::context_hub::mojom::MemoryBankEntryPtr>>
       future;
-  handler_->GetAllEntries(future.GetCallback());
+  handler_->GetAllMemoryBankEntries(future.GetCallback());
 
   std::vector<browser::context_hub::mojom::MemoryBankEntryPtr> result =
       future.Take();
   EXPECT_TRUE(result.empty());
 }
 
-TEST_F(ContextHubPageHandlerTest, GetAllEntries_Success) {
+TEST_F(ContextHubPageHandlerTest, GetAllMemoryBankEntries_Success) {
   ContextHubService* service =
       ContextHubServiceFactory::GetForProfile(&profile_);
   ASSERT_TRUE(service);
@@ -202,7 +202,7 @@ TEST_F(ContextHubPageHandlerTest, GetAllEntries_Success) {
   base::test::TestFuture<
       std::vector<browser::context_hub::mojom::MemoryBankEntryPtr>>
       future;
-  handler_->GetAllEntries(future.GetCallback());
+  handler_->GetAllMemoryBankEntries(future.GetCallback());
 
   std::vector<browser::context_hub::mojom::MemoryBankEntryPtr> result =
       future.Take();
@@ -230,6 +230,43 @@ TEST_F(ContextHubPageHandlerTest, GetAllEntries_Success) {
   EXPECT_EQ((*text_entry)->tab_title, "Selection Title");
   EXPECT_EQ((*text_entry)->selected_text, "Selected Text Detail");
   EXPECT_FALSE((*text_entry)->timestamp.is_null());
+}
+
+TEST_F(ContextHubPageHandlerTest, DeleteMemoryBankEntries_Success) {
+  ContextHubService* service =
+      ContextHubServiceFactory::GetForProfile(&profile_);
+  ASSERT_TRUE(service);
+
+  base::test::TestFuture<void> save_tab_future1;
+  service->SaveTab(GURL("https://example.com/tab1"), "Tab Title 1",
+                   save_tab_future1.GetCallback());
+  ASSERT_TRUE(save_tab_future1.Wait());
+
+  base::test::TestFuture<void> save_tab_future2;
+  service->SaveTab(GURL("https://example.com/tab2"), "Tab Title 2",
+                   save_tab_future2.GetCallback());
+  ASSERT_TRUE(save_tab_future2.Wait());
+
+  base::test::TestFuture<
+      std::vector<browser::context_hub::mojom::MemoryBankEntryPtr>>
+      get_all_future1;
+  handler_->GetAllMemoryBankEntries(get_all_future1.GetCallback());
+  std::vector<browser::context_hub::mojom::MemoryBankEntryPtr> entries1 =
+      get_all_future1.Take();
+  ASSERT_EQ(entries1.size(), 2u);
+
+  std::vector<int64_t> entry_ids = {entries1[0]->id, entries1[1]->id};
+  base::test::TestFuture<void> delete_future;
+  handler_->DeleteMemoryBankEntries(entry_ids, delete_future.GetCallback());
+  ASSERT_TRUE(delete_future.Wait());
+
+  base::test::TestFuture<
+      std::vector<browser::context_hub::mojom::MemoryBankEntryPtr>>
+      get_all_future2;
+  handler_->GetAllMemoryBankEntries(get_all_future2.GetCallback());
+  std::vector<browser::context_hub::mojom::MemoryBankEntryPtr> entries2 =
+      get_all_future2.Take();
+  EXPECT_TRUE(entries2.empty());
 }
 
 }  // namespace

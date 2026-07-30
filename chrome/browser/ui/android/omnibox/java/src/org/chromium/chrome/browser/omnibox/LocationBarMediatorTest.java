@@ -96,11 +96,13 @@ import org.chromium.chrome.browser.omnibox.status.StatusCoordinator;
 import org.chromium.chrome.browser.omnibox.suggestions.AutocompleteController;
 import org.chromium.chrome.browser.omnibox.suggestions.AutocompleteCoordinator;
 import org.chromium.chrome.browser.omnibox.suggestions.AutocompleteDelegate.AutocompleteLoadCallback;
+import org.chromium.chrome.browser.omnibox.suggestions.OmniboxAnimator;
 import org.chromium.chrome.browser.omnibox.suggestions.OmniboxLoadUrlParams;
 import org.chromium.chrome.browser.omnibox.suggestions.OmniboxSuggestionsContainer;
 import org.chromium.chrome.browser.omnibox.suggestions.OmniboxSuggestionsDropdown;
 import org.chromium.chrome.browser.omnibox.suggestions.SiteSearchActivationSource;
 import org.chromium.chrome.browser.omnibox.voice.VoiceRecognitionHandler;
+import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.prefetch.settings.PreloadPagesSettingsBridge;
 import org.chromium.chrome.browser.prefetch.settings.PreloadPagesSettingsBridgeJni;
 import org.chromium.chrome.browser.prefetch.settings.PreloadPagesState;
@@ -132,9 +134,13 @@ import org.chromium.components.omnibox.OmniboxFeatureList;
 import org.chromium.components.omnibox.OmniboxFocusReason;
 import org.chromium.components.omnibox.OmniboxSuggestionType;
 import org.chromium.components.omnibox.TextSelection;
+import org.chromium.components.prefs.PrefChangeRegistrar;
+import org.chromium.components.prefs.PrefChangeRegistrarJni;
+import org.chromium.components.prefs.PrefService;
 import org.chromium.components.search_engines.TemplateUrlService;
 import org.chromium.components.security_state.ConnectionSecurityLevel;
 import org.chromium.components.signin.identitymanager.IdentityManager;
+import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.components.webapps.AddToHomescreenCoordinator;
 import org.chromium.components.webapps.AppBannerManager;
 import org.chromium.components.webapps.AppBannerManagerJni;
@@ -216,6 +222,8 @@ public class LocationBarMediatorTest {
     @Mock private IdentityServicesProvider mIdentityServicesProvider;
     @Mock private IdentityManager mIdentityManager;
     @Mock private Profile mProfile;
+    @Mock private PrefService mPrefService;
+    @Mock private PrefChangeRegistrar.Natives mPrefChangeRegistrarJni;
     @Mock private PreloadPagesSettingsBridge.Natives mPreloadPagesSettingsJni;
     @Mock private LocationBarMediator.OmniboxUma mOmniboxUma;
     @Mock private OmniboxSuggestionsDropdownEmbedderImpl mEmbedderImpl;
@@ -231,6 +239,10 @@ public class LocationBarMediatorTest {
     @Mock private OmniboxSuggestionsContainer mSuggestionsContainer;
     @Mock private OmniboxSuggestionsDropdown mDropdown;
     @Mock private VoiceRecognitionHandler mVoiceRecognitionHandler;
+    @Mock private View mUrlBar;
+    @Mock private View mMicButton;
+    @Mock private View mNavigateButton;
+    @Mock private View mPlusButton;
 
     @Captor private ArgumentCaptor<Runnable> mRunnableCaptor;
     @Captor private ArgumentCaptor<LoadUrlParams> mLoadUrlParamsCaptor;
@@ -262,6 +274,7 @@ public class LocationBarMediatorTest {
             ObservableSuppliers.createNullable();
     private final SettableNonNullObservableSupplier<Boolean> mScrimVisibilitySupplier =
             ObservableSuppliers.createNonNull(false);
+    private final OmniboxAnimator mOmniboxAnimator = new OmniboxAnimator(1.0f, 0);
 
     // Members capturing final state of the LocationBarLayout elements.
     private boolean mNavigateButtonIsVisible;
@@ -275,11 +288,19 @@ public class LocationBarMediatorTest {
         // The reason we use lenient() mocks is to suppress abundant "unused action on mock"
         // warnings being emitted any time each of the 140+ tests below is not using that
         // action.
+        mOmniboxAnimator.setFloatValues(1.0f);
         mTabModelSelectorSupplier = ObservableSuppliers.createNonNull(mTabModelSelector);
         mContext =
                 new ContextThemeWrapper(
                         ApplicationProvider.getApplicationContext(),
                         R.style.Theme_BrowserUI_DayNight);
+
+        UserPrefs.setPrefServiceForTesting(mPrefService);
+        lenient().doReturn(mProfile).when(mProfile).getOriginalProfile();
+        lenient().doReturn(true).when(mPrefService).getBoolean(Pref.SHOW_AI_MODE_OMNIBOX_BUTTON);
+
+        PrefChangeRegistrarJni.setInstanceForTesting(mPrefChangeRegistrarJni);
+        lenient().doReturn(1L).when(mPrefChangeRegistrarJni).init(any(), any());
 
         AutocompleteController.setInstanceForTesting(mAutocompleteController);
         ComposeboxQueryControllerBridge.setInstanceForTesting(mComposeboxBridge);
@@ -385,7 +406,14 @@ public class LocationBarMediatorTest {
                 .setOnInteractionCompletedCallback(mOnInteractionCompletedCallbackCaptor.capture());
         mOnInteractionCompletedCallback = mOnInteractionCompletedCallbackCaptor.getValue();
         lenient().doReturn(true).when(mScrimHandler).isScrimShown();
+        doReturn(mOmniboxAnimator)
+                .when(mAutocompleteCoordinator)
+                .setupSuggestionsListShowAnimation();
 
+        doReturn(mUrlBar).when(mLocationBarLayout).getUrlBar();
+        doReturn(mPlusButton).when(mLocationBarLayout).findViewById(R.id.fusebox_plus_button);
+        doReturn(mMicButton).when(mLocationBarLayout).getMicButton();
+        doReturn(mNavigateButton).when(mLocationBarLayout).getNavigateButton();
         mMediator.setCoordinators(mUrlCoordinator, mAutocompleteCoordinator, mStatusCoordinator);
         mMediator.setAddToHomescreenCoordinatorForTesting(mAddToHomescreenCoordinator);
         ObjectAnimatorShadow.setUrlAnimator(mUrlAnimator);
@@ -427,6 +455,10 @@ public class LocationBarMediatorTest {
                         /* omniboxChipManager= */ null,
                         /* scrimHandler= */ null,
                         mExactMatchUrlSupplier);
+        doReturn(mUrlBar).when(mLocationBarTablet).getUrlBar();
+        doReturn(mPlusButton).when(mLocationBarTablet).findViewById(R.id.fusebox_plus_button);
+        doReturn(mMicButton).when(mLocationBarTablet).getMicButton();
+        doReturn(mNavigateButton).when(mLocationBarTablet).getNavigateButton();
         tabletMediator.setCoordinators(
                 mUrlCoordinator, mAutocompleteCoordinator, mStatusCoordinator);
         return tabletMediator;
@@ -1140,18 +1172,6 @@ public class LocationBarMediatorTest {
         verify(mUrlCoordinator).clearFocus();
     }
 
-    // KEYCODE_BACK will not be sent from Android OS starting from T. And no feature should
-    // rely on KEYCODE_BACK to intercept back press.
-    @Test
-    public void testOnKey_autocompleteHandles() {
-        doReturn(false)
-                .when(mAutocompleteCoordinator)
-                .handleKeyEvent(KeyEvent.KEYCODE_BACK, mKeyEvent);
-        mMediator.onKey(mView, KeyEvent.KEYCODE_BACK, mKeyEvent);
-        // No-op.
-        verify(mAutocompleteCoordinator).handleKeyEvent(KeyEvent.KEYCODE_BACK, mKeyEvent);
-    }
-
     @Test
     public void testOnKey_back() {
         assertFalse(mMediator.onKey(mView, KeyEvent.KEYCODE_BACK, mKeyEvent));
@@ -1805,6 +1825,9 @@ public class LocationBarMediatorTest {
 
         reset(mAutocompleteCoordinator);
 
+        doReturn(mOmniboxAnimator)
+                .when(mAutocompleteCoordinator)
+                .setupSuggestionsListShowAnimation();
         mMediator.setUrlFocusChangeInProgress(false);
 
         verify(mUrlCoordinator).clearFocus();
@@ -2325,6 +2348,7 @@ public class LocationBarMediatorTest {
 
         // Prepare a session state to be restored.
         String newText = "new text";
+        doReturn(newText).when(mUrlCoordinator).getTextWithoutAutocomplete();
         final int newSelectionStart = 2;
         final int newSelectionEnd = 6;
         var newState = mSessionState;
@@ -3367,5 +3391,119 @@ public class LocationBarMediatorTest {
         mMediator.onUrlFocusChange(new UrlBarFocusChangeInfo(true, View.FOCUS_DOWN));
 
         verify(mLocationBarLayout, never()).setIsInStandby(true);
+    }
+
+    @Test
+    public void testTranslateDisplaySelectionToEditing() {
+        // display: "youtube.com/?app=desktop", selection [3,7] = "tube"
+        // editing: "www.youtube.com/?app=desktop", expect [7,11] = "tube"
+        assertEquals(
+                new TextSelection(7, 11),
+                LocationBarMediator.translateDisplaySelectionToEditing(
+                        new TextSelection(3, 7),
+                        "youtube.com/?app=desktop",
+                        "www.youtube.com/?app=desktop"));
+
+        // Collapsed selection (just a cursor) -> unchanged, never select-all.
+        assertEquals(
+                new TextSelection(5, 5),
+                LocationBarMediator.translateDisplaySelectionToEditing(
+                        new TextSelection(5, 5), "youtube.com", "www.youtube.com"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testAlwaysShowAiModePrefTogglesAndSyncs() throws Exception {
+        mFuseboxLayoutModeSupplier.set(FuseboxLayoutMode.SUGGESTIONS_POPOVER);
+        mMediator.onFinishNativeInitialization();
+        mProfileSupplier.set(mProfile);
+
+        verify(mUrlCoordinator).setShowAiMode(true);
+        ArgumentCaptor<Callback<Boolean>> callbackCaptor = ArgumentCaptor.forClass(Callback.class);
+        verify(mUrlCoordinator).setShowAiModeCallback(callbackCaptor.capture());
+        assertNotNull(callbackCaptor.getValue());
+
+        // Toggle the pref via callback (set to false) and verify it writes to PrefService
+        // and updates the coordinator directly
+        callbackCaptor.getValue().onResult(false);
+        verify(mPrefService).setBoolean(Pref.SHOW_AI_MODE_OMNIBOX_BUTTON, false);
+        verify(mUrlCoordinator).setShowAiMode(false);
+    }
+
+    @Test
+    public void testHandleKeyNavigationEventIneligibleKey() {
+        doReturn(KeyEvent.KEYCODE_A).when(mKeyEvent).getKeyCode();
+        doReturn(KeyEvent.ACTION_DOWN).when(mKeyEvent).getAction();
+        assertFalse(mMediator.handleKeyNavigationEvent(KeyEvent.KEYCODE_A, mKeyEvent));
+    }
+
+    @Test
+    public void testHandleKeyNavigationEvent_activate() {
+        doReturn(KeyEvent.KEYCODE_ENTER).when(mKeyEvent).getKeyCode();
+        doReturn(KeyEvent.ACTION_DOWN).when(mKeyEvent).getAction();
+
+        doReturn(View.VISIBLE).when(mUrlBar).getVisibility();
+        assertTrue(mMediator.handleKeyNavigationEvent(KeyEvent.KEYCODE_ENTER, mKeyEvent));
+        verify(mAutocompleteCoordinator).loadTypedOmniboxText(false);
+
+        doReturn(true).when(mKeyEvent).isAltPressed();
+        assertTrue(mMediator.handleKeyNavigationEvent(KeyEvent.KEYCODE_ENTER, mKeyEvent));
+        verify(mAutocompleteCoordinator).loadTypedOmniboxText(true);
+    }
+
+    @Test
+    public void testHandleKeyNavigationEvent_delegateToAutocomplete() {
+        doReturn(KeyEvent.KEYCODE_TAB).when(mKeyEvent).getKeyCode();
+        doReturn(true).when(mKeyEvent).hasNoModifiers();
+        doReturn(KeyEvent.ACTION_DOWN).when(mKeyEvent).getAction();
+
+        doReturn(View.VISIBLE).when(mUrlBar).getVisibility();
+        doReturn(View.VISIBLE).when(mPlusButton).getVisibility();
+        assertTrue(mMediator.handleKeyNavigationEvent(KeyEvent.KEYCODE_TAB, mKeyEvent));
+        LocationBarSelectionController selectionController =
+                mMediator.getSelectionControllerForTesting();
+        assertEquals(1, selectionController.getPosition().intValue());
+        verify(mAutocompleteCoordinator).selectFirstItem();
+        assertTrue(selectionController.isAutocompleteSelected());
+
+        doReturn(true)
+                .when(mAutocompleteCoordinator)
+                .handleKeyEvent(KeyEvent.KEYCODE_TAB, mKeyEvent);
+        assertTrue(mMediator.handleKeyNavigationEvent(KeyEvent.KEYCODE_TAB, mKeyEvent));
+        assertEquals(1, selectionController.getPosition().intValue());
+        assertTrue(selectionController.isAutocompleteSelected());
+
+        doReturn(KeyEvent.KEYCODE_ENTER).when(mKeyEvent).getKeyCode();
+        doReturn(true)
+                .when(mAutocompleteCoordinator)
+                .handleKeyEvent(KeyEvent.KEYCODE_ENTER, mKeyEvent);
+        assertTrue(mMediator.handleKeyNavigationEvent(KeyEvent.KEYCODE_ENTER, mKeyEvent));
+        verify(mAutocompleteCoordinator).handleKeyEvent(KeyEvent.KEYCODE_ENTER, mKeyEvent);
+
+        doReturn(KeyEvent.KEYCODE_TAB).when(mKeyEvent).getKeyCode();
+
+        doReturn(false)
+                .when(mAutocompleteCoordinator)
+                .handleKeyEvent(KeyEvent.KEYCODE_TAB, mKeyEvent);
+        doReturn(true).when(mAutocompleteCoordinator).isLastItemSelected();
+        when(mAutocompleteCoordinator.getSelectedIndex()).thenReturn(1, 2);
+        assertTrue(mMediator.handleKeyNavigationEvent(KeyEvent.KEYCODE_TAB, mKeyEvent));
+        assertEquals(2, selectionController.getPosition().intValue());
+        assertFalse(selectionController.isAutocompleteSelected());
+        verify(mAutocompleteCoordinator).resetSelection();
+
+        doReturn(false).when(mKeyEvent).hasNoModifiers();
+        doReturn(true).when(mKeyEvent).hasModifiers(KeyEvent.META_SHIFT_ON);
+        assertTrue(mMediator.handleKeyNavigationEvent(KeyEvent.KEYCODE_TAB, mKeyEvent));
+        assertEquals(1, selectionController.getPosition().intValue());
+        verify(mAutocompleteCoordinator).selectFirstItem();
+        assertTrue(selectionController.isAutocompleteSelected());
+
+        doReturn(true).when(mAutocompleteCoordinator).isFirstItemSelected();
+        when(mAutocompleteCoordinator.getSelectedIndex()).thenReturn(2, 1);
+        assertTrue(mMediator.handleKeyNavigationEvent(KeyEvent.KEYCODE_TAB, mKeyEvent));
+        assertFalse(selectionController.isAutocompleteSelected());
+        verify(mAutocompleteCoordinator, times(2)).resetSelection();
+        assertEquals(0, selectionController.getPosition().intValue());
     }
 }

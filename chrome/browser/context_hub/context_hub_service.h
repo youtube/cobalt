@@ -8,6 +8,7 @@
 #include <memory>
 #include <optional>
 
+#include "base/containers/span.h"
 #include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/context_hub/memory_bank/memory_bank.h"
@@ -50,7 +51,8 @@ class ContextHubService : public KeyedService {
                          const std::string& selected_text,
                          MemoryBank::OperationCompleteCallback callback);
   // Deletes an entry from the memory bank.
-  void DeleteEntry(int64_t id, MemoryBank::OperationCompleteCallback callback);
+  void DeleteEntries(base::span<const int64_t> ids,
+                     MemoryBank::OperationCompleteCallback callback);
   // Returns all entries from the memory bank.
   void GetAllEntries(MemoryBank::GetAllEntriesCallback callback) const;
 

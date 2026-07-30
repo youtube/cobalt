@@ -13,10 +13,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
 import org.robolectric.shadows.ShadowLooper;
 
@@ -29,6 +31,8 @@ import org.chromium.chrome.browser.flags.ChromeFeatureList;
 @Config(manifest = Config.NONE)
 @EnableFeatures(ChromeFeatureList.ANDROID_ACTOR_TASK_TIMEOUT)
 public class ActorTaskTimeoutManagerTest {
+    @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
+
     // TODO(crbug.com/528360965): Add integration tests for changing states and seeing warning
     // notifications based on time elapsed.
     private static final int TASK_ID = 123;
@@ -43,7 +47,6 @@ public class ActorTaskTimeoutManagerTest {
 
     @Before
     public void setUp() {
-        MockitoAnnotations.initMocks(this);
         when(mKeyedService.getTask(TASK_ID)).thenReturn(mTask);
         when(mTask.getId()).thenReturn(TASK_ID);
         when(mKeyedService.getTask(TASK_ID_2)).thenReturn(mTask2);
@@ -71,7 +74,7 @@ public class ActorTaskTimeoutManagerTest {
         ShadowLooper.idleMainLooper(
                 ActorTaskTimeoutParameters.getWarningTimeoutMs(),
                 java.util.concurrent.TimeUnit.MILLISECONDS);
-        verify(mKeyedService).stopTask(TASK_ID, StoppedReason.CHROME_FAILURE);
+        verify(mKeyedService).stopTask(TASK_ID, StoppedReason.TIMEOUT);
     }
 
     @Test
@@ -100,7 +103,7 @@ public class ActorTaskTimeoutManagerTest {
                 ActorTaskTimeoutParameters.getWarningTimeoutMs(),
                 java.util.concurrent.TimeUnit.MILLISECONDS);
 
-        verify(mKeyedService).stopTask(TASK_ID, StoppedReason.CHROME_FAILURE);
+        verify(mKeyedService).stopTask(TASK_ID, StoppedReason.TIMEOUT);
     }
 
     @Test

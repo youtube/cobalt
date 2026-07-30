@@ -13,6 +13,10 @@ mod ffi {
         /// `input` is the validation file contents to be parsed; the other
         /// arguments are out-parameters and will be cleared/written to.
         /// See the C++ function definition for more details.
+        ///
+        /// # Safety
+        ///
+        /// All pointers must be valid to write to.
         #[namespace = "mojo::test"]
         unsafe fn ParseValidationTestInput(
             input: &CxxString,

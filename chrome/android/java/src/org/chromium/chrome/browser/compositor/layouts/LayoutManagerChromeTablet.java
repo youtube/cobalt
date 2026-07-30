@@ -23,6 +23,7 @@ import org.chromium.chrome.browser.back_press.BackPressManager;
 import org.chromium.chrome.browser.bookmarks.TabBookmarker;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
 import org.chromium.chrome.browser.compositor.LayerTitleCache;
+import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutHelper.LeadingButtonDelegate;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutHelperManager;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutHelperManager.TabModelStartupInfo;
 import org.chromium.chrome.browser.data_sharing.DataSharingTabManager;
@@ -85,6 +86,7 @@ public class LayoutManagerChromeTablet extends LayoutManagerChrome {
      * @param browserControlsStateProvider The BrowserControlsStateProvider for top controls.
      * @param tabContentManagerSupplier Supplier of the TabContentManager instance.
      * @param toolbarThemeColorProvider ThemeColorProvider for the toolbar.
+     * @param tabModelStartupInfoSupplier Supplier for the {@link TabModelStartupInfo} on startup.
      * @param lifecycleDispatcher ActivityLifecycleDispatcher to be passed to TabStrip helper.
      * @param hubLayoutDependencyHolder The dependency holder for creating HubLayout.
      * @param multiInstanceManager MultiInstanceManager passed to StripLayoutHelper to support tab
@@ -107,6 +109,10 @@ public class LayoutManagerChromeTablet extends LayoutManagerChrome {
      * @param snackbarManager The {@link SnackbarManager} used to show snackbar UI.
      * @param activityResultTracker The {@link ActivityResultTracker}.
      * @param glicClickHandler The {@link GlicButtonDelegate} for the tab strip Glic button.
+     * @param leadingButtonDelegate The {@link LeadingButtonDelegate} for the tab strip's leading
+     *     button.
+     * @param sideUiStateProviderSupplier Supplier of the {@link SideUiStateProvider}.
+     * @param tabObscuringHandler The {@link TabObscuringHandler} to manage tab obscuring.
      */
     public LayoutManagerChromeTablet(
             LayoutManagerHost host,
@@ -136,6 +142,7 @@ public class LayoutManagerChromeTablet extends LayoutManagerChrome {
             SnackbarManager snackbarManager,
             ActivityResultTracker activityResultTracker,
             GlicButtonDelegate glicClickHandler,
+            LeadingButtonDelegate leadingButtonDelegate,
             OneshotSupplier<SideUiStateProvider> sideUiStateProviderSupplier,
             TabObscuringHandler tabObscuringHandler) {
         super(
@@ -181,6 +188,7 @@ public class LayoutManagerChromeTablet extends LayoutManagerChrome {
                         snackbarManager,
                         activityResultTracker,
                         glicClickHandler,
+                        leadingButtonDelegate,
                         sideUiStateProviderSupplier,
                         tabObscuringHandler);
         addSceneOverlay(mTabStripLayoutHelperManager);

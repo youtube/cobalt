@@ -329,7 +329,8 @@ def run_performance_test(video_file: str, driver: webdriver, args,
             logging.info("Preparing browser window...")
             subprocess.run([
                 ADB_PATH, 'shell', 'am', 'start',
-                '-n', 'com.android.chrome/com.google.android.apps.chrome.Main',
+                '-n',
+                'com.android.chrome/com.google.android.apps.chrome.Main',
                 '-a', 'android.intent.action.VIEW',
                 '-d', 'about:blank',
                 '--ez', 'create_new_tab', 'true',
@@ -350,7 +351,8 @@ def run_performance_test(video_file: str, driver: webdriver, args,
             logging.info("Loading video page into landscape browser...")
             subprocess.run([
                 ADB_PATH, 'shell', 'am', 'start',
-                '-n', 'com.android.chrome/com.google.android.apps.chrome.Main',
+                '-n',
+                'com.android.chrome/com.google.android.apps.chrome.Main',
                 '-a', 'android.intent.action.VIEW',
                 '-d', remote_url
             ], check=False, timeout=10)

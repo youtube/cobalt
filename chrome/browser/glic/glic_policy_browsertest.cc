@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include <sstream>
+#include <utility>
 
 #include "base/run_loop.h"
 #include "base/scoped_observation.h"
@@ -11,7 +12,6 @@
 #include "base/test/values_test_util.h"
 #include "base/types/expected.h"
 #include "base/values.h"
-#include "testing/gmock/include/gmock/gmock.h"
 #include "chrome/browser/background/glic/glic_background_mode_manager.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/glic/glic_pref_names.h"
@@ -54,6 +54,7 @@
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/test_navigation_observer.h"
+#include "testing/gmock/include/gmock/gmock.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
 #include "ash/constants/ash_switches.h"
@@ -80,7 +81,7 @@ class GlicButtonInterface;
 namespace {
 
 int ToInt(GlicActuationOnWebPolicyState state) {
-  return static_cast<int>(state);
+  return std::to_underlying(state);
 }
 
 // An observer of the GlicInstanceCoordinator's panel state. Fires the given
@@ -270,7 +271,7 @@ class GlicPolicyTest : public PolicyTest {
                              .Clone();
     policies.Set(kGeminiSettings, POLICY_LEVEL_MANDATORY, POLICY_SCOPE_USER,
                  POLICY_SOURCE_ENTERPRISE_DEFAULT,
-                 base::Value(static_cast<int>(value)), nullptr);
+                 base::Value(std::to_underlying(value)), nullptr);
     provider.UpdateChromePolicy(policies);
   }
 
@@ -323,9 +324,9 @@ class GlicPolicyTest : public PolicyTest {
   raw_ptr<Profile> profile_2_;
 
   static constexpr int kEnabledValue =
-      static_cast<int>(SettingsPolicyState::kEnabled);
+      std::to_underlying(SettingsPolicyState::kEnabled);
   static constexpr int kDisabledValue =
-      static_cast<int>(SettingsPolicyState::kDisabled);
+      std::to_underlying(SettingsPolicyState::kDisabled);
 
  private:
 #if BUILDFLAG(IS_CHROMEOS)

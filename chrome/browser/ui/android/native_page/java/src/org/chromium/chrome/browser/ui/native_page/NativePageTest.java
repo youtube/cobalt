@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.ui.native_page;
 
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 
@@ -107,7 +108,7 @@ public class NativePageTest {
         Assert.assertEquals(
                 "Settings page should be a native page",
                 NativePageType.SETTINGS,
-                NativePage.nativePageType(gurl, null, false, false));
+                NativePage.nativePageType(gurl, null, false, false, false));
     }
 
     @Test
@@ -118,7 +119,7 @@ public class NativePageTest {
         Assert.assertEquals(
                 "Settings page should not be a native page",
                 NativePageType.NONE,
-                NativePage.nativePageType(gurl, null, false, false));
+                NativePage.nativePageType(gurl, null, false, false, false));
     }
 
     @Test
@@ -129,22 +130,39 @@ public class NativePageTest {
         GURL gurl1 = new GURL(url1);
 
         NativePage candidatePage = mock(NativePage.class);
+        final boolean incognito = true;
+        final boolean urlTyped = true;
+        final boolean loadPdf = true;
         doReturn(url1).when(candidatePage).getUrl();
         Assert.assertEquals(
-                "Candidate page should be reused when url matches",
+                "Pdf page should be created for non-pdf -> pdf",
+                NativePageType.PDF,
+                NativePage.nativePageType(gurl1, candidatePage, !incognito, !urlTyped, loadPdf));
+
+        doReturn(true).when(candidatePage).isPdf();
+        doReturn(true).when(candidatePage).shouldReusePage(eq(url1), eq(url1), eq(!urlTyped));
+        Assert.assertEquals(
+                "Candidate page should be reused for pdf -> pdf",
                 NativePageType.CANDIDATE,
-                NativePage.nativePageType(gurl1, candidatePage, false, true));
+                NativePage.nativePageType(gurl1, candidatePage, !incognito, !urlTyped, loadPdf));
+
+        doReturn(false).when(candidatePage).shouldReusePage(eq(url1), eq(url1), eq(!urlTyped));
+        Assert.assertEquals(
+                "Pdf page should be created for pdf activity restart",
+                NativePageType.PDF,
+                NativePage.nativePageType(gurl1, candidatePage, !incognito, !urlTyped, loadPdf));
 
         doReturn(url2).when(candidatePage).getUrl();
+        doReturn(true).when(candidatePage).shouldReusePage(eq(url2), eq(url1), eq(!urlTyped));
         Assert.assertEquals(
-                "Candidate page should not be reused when url does not match",
-                NativePageType.PDF,
-                NativePage.nativePageType(gurl1, candidatePage, false, true));
+                "Candidate page should be reused for pdf pages",
+                NativePageType.CANDIDATE,
+                NativePage.nativePageType(gurl1, candidatePage, !incognito, !urlTyped, loadPdf));
 
         Assert.assertEquals(
                 "Native page should not be created without associated pdf download",
                 NativePageType.NONE,
-                NativePage.nativePageType(gurl1, candidatePage, false, false));
+                NativePage.nativePageType(gurl1, candidatePage, !incognito, !urlTyped, !loadPdf));
     }
 
     @Test
@@ -153,7 +171,7 @@ public class NativePageTest {
         Assert.assertEquals(
                 "Management page should be a native page",
                 NativePageType.MANAGEMENT,
-                NativePage.nativePageType(url, null, false, false));
+                NativePage.nativePageType(url, null, false, false, false));
     }
 
     @Test

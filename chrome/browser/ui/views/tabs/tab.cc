@@ -277,11 +277,7 @@ Tab::Tab(tabs::TabHandle handle, TabSlotController* controller)
   title_animation_.SetDuration(base::Milliseconds(100));
 
   // Enable keyboard focus.
-#if BUILDFLAG(IS_MAC)
-  SetFocusBehavior(FocusBehavior::ALWAYS);
-#else
   SetFocusBehavior(FocusBehavior::ACCESSIBLE_ONLY);
-#endif
   views::FocusRing::Install(this);
   views::HighlightPathGenerator::Install(
       this,
@@ -1192,7 +1188,7 @@ void Tab::UpdateIconVisibility() {
       showing_icon_ = !showing_alert_indicator_ && has_favicon;
 
       // See comments near top of function on why this conditional is here.
-      if (!closing_) {
+      if (!closing_ && (showing_alert_indicator_ || showing_icon_)) {
         center_icon_ = true;
       }
     }

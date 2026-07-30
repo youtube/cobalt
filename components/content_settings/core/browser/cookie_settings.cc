@@ -98,17 +98,7 @@ void CookieSettings::SetCookieSetting(const GURL& primary_url,
 void CookieSettings::SetCookieSettingForUserBypass(
     const GURL& first_party_url) {
   ContentSettingConstraints constraints;
-
-  // Only apply a lifetime outside incognito. In incognito, the duration is
-  // inherently limited.
-  if (!is_incognito_ &&
-      !base::FeatureList::IsEnabled(features::kUserBypassUxSimplification)) {
-    constraints.set_lifetime(
-        content_settings::features::kUserBypassUIExceptionExpiration.Get());
-  }
-
   constraints.set_session_model(mojom::SessionModel::DURABLE);
-
   host_content_settings_map_->SetContentSettingCustomScope(
       ContentSettingsPattern::Wildcard(),
       ContentSettingsPattern::FromURLToSchemefulSitePattern(first_party_url),
