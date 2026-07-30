@@ -10,8 +10,12 @@
 #import "ios/chrome/browser/shared/coordinator/scene/scene_state.h"
 #import "ios/chrome/browser/shared/coordinator/scene/state/tab_grid_state.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
+#import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/scene_commands.h"
+#import "ios/chrome/browser/shared/public/commands/tab_grid_commands.h"
+#import "ios/chrome/browser/shared/public/commands/tab_groups_commands.h"
+#import "ios/chrome/browser/url_loading/model/url_loading_browser_agent.h"
 
 @implementation AppBarCoordinator {
   AppBarViewController* _viewController;
@@ -31,20 +35,34 @@
 }
 
 - (void)start {
-  _viewController = [[AppBarViewController alloc] init];
+  CommandDispatcher* regularDispatcher =
+      _regularBrowser->GetCommandDispatcher();
   // It is ok to use the regular browser here as the Scene commands are
   // handled by the same object for both modes.
-  _viewController.sceneHandler = HandlerForProtocol(
-      _regularBrowser->GetCommandDispatcher(), SceneCommands);
+  id<SceneCommands> sceneHandler =
+      HandlerForProtocol(regularDispatcher, SceneCommands);
+  id<TabGridCommands> tabGridHandler =
+      HandlerForProtocol(regularDispatcher, TabGridCommands);
+
+  _viewController = [[AppBarViewController alloc] init];
+  _viewController.sceneHandler = sceneHandler;
   _viewController.layoutGuideCenter = LayoutGuideCenterForBrowser(nil);
+
+  SceneState* sceneState = _regularBrowser->GetSceneState();
 
   _mediator = [[AppBarMediator alloc]
       initWithRegularWebStateList:_regularBrowser->GetWebStateList()
-            incognitoWebStateList:_incognitoBrowser->GetWebStateList()];
+            incognitoWebStateList:_incognitoBrowser->GetWebStateList()
+                      prefService:_regularBrowser->GetProfile()->GetPrefs()
+                        URLLoader:UrlLoadingBrowserAgent::FromBrowser(
+                                      _regularBrowser)
+                     tabGridState:sceneState.tabGridState
+                   incognitoState:sceneState.incognitoState];
   _mediator.consumer = _viewController;
-
-  SceneState* sceneState = _regularBrowser->GetSceneState();
-  [sceneState.tabGridState addObserver:_mediator];
+  _mediator.sceneHandler = sceneHandler;
+  _mediator.tabGridHandler = tabGridHandler;
+  _mediator.regularTabGroupsCommands =
+      HandlerForProtocol(regularDispatcher, TabGroupsCommands);
 
   _viewController.mutator = _mediator;
 }
@@ -65,6 +83,9 @@
 
 - (void)setIncognitoBrowser:(Browser*)incognitoBrowser {
   _incognitoBrowser = incognitoBrowser;
+  [_mediator setIncognitoWebStateList:incognitoBrowser
+                                          ? incognitoBrowser->GetWebStateList()
+                                          : nullptr];
 }
 
 @end

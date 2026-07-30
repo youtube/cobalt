@@ -34,6 +34,7 @@ import org.chromium.base.Token;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
+import org.chromium.base.supplier.NullableObservableSupplier;
 import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.build.annotations.Contract;
 import org.chromium.build.annotations.NullMarked;
@@ -51,6 +52,7 @@ import org.chromium.chrome.browser.layouts.LayoutType;
 import org.chromium.chrome.browser.multiwindow.MultiWindowModeStateDispatcher;
 import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
 import org.chromium.chrome.browser.night_mode.WebContentsDarkModeController;
+import org.chromium.chrome.browser.open_in_app.OpenInAppMenuItemProvider;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.readaloud.ReadAloudController;
 import org.chromium.chrome.browser.share.ShareHelper;
@@ -112,11 +114,12 @@ public abstract class AppMenuPropertiesDelegateImpl implements AppMenuProperties
     protected final Supplier<ReadAloudController> mReadAloudControllerSupplier;
 
     private CallbackController mCallbackController = new CallbackController();
-    private MonotonicObservableSupplier<BookmarkModel> mBookmarkModelSupplier;
+    private final NullableObservableSupplier<BookmarkModel> mBookmarkModelSupplier;
     private @Nullable ModelList mModelList;
     private int mReadAloudPos;
     protected @Nullable Runnable mReadAloudAppMenuResetter;
     private boolean mHasReadAloudInserted;
+    protected final @Nullable OpenInAppMenuItemProvider mOpenInAppMenuItemProvider;
 
     @VisibleForTesting
     @IntDef({
@@ -173,7 +176,10 @@ public abstract class AppMenuPropertiesDelegateImpl implements AppMenuProperties
      *     activity.
      * @param layoutStateProvidersSupplier An {@link MonotonicObservableSupplier} for the {@link
      *     LayoutStateProvider} associated with the containing activity.
-     * @param bookmarkModelSupplier An {@link MonotonicObservableSupplier} for the {@link BookmarkModel}
+     * @param bookmarkModelSupplier An {@link MonotonicObservableSupplier} for the {@link
+     *     BookmarkModel}.
+     * @param openInAppMenuItemProvider The {@link OpenInAppMenuItemProvider} that may provide an
+     *     open in app item.
      */
     protected AppMenuPropertiesDelegateImpl(
             Context context,
@@ -183,8 +189,9 @@ public abstract class AppMenuPropertiesDelegateImpl implements AppMenuProperties
             ToolbarManager toolbarManager,
             View decorView,
             @Nullable OneshotSupplier<LayoutStateProvider> layoutStateProvidersSupplier,
-            MonotonicObservableSupplier<BookmarkModel> bookmarkModelSupplier,
-            Supplier<ReadAloudController> readAloudControllerSupplier) {
+            NullableObservableSupplier<BookmarkModel> bookmarkModelSupplier,
+            Supplier<ReadAloudController> readAloudControllerSupplier,
+            @Nullable OpenInAppMenuItemProvider openInAppMenuItemProvider) {
         mContext = context;
         mIsTablet = DeviceFormFactor.isNonMultiDisplayContextOnTablet(mContext);
         mActivityTabProvider = activityTabProvider;
@@ -203,6 +210,7 @@ public abstract class AppMenuPropertiesDelegateImpl implements AppMenuProperties
         }
 
         mBookmarkModelSupplier = bookmarkModelSupplier;
+        mOpenInAppMenuItemProvider = openInAppMenuItemProvider;
     }
 
     @SuppressWarnings("NullAway")
@@ -726,6 +734,17 @@ public abstract class AppMenuPropertiesDelegateImpl implements AppMenuProperties
         return downloadButton;
     }
 
+    protected PropertyModel buildGlicActionModel(@Nullable Tab currentTab) {
+        PropertyModel glicButton =
+                buildModelForIcon(
+                        R.id.glic_menu_id,
+                        R.string.glic_button_entrypoint_ask_gemini_label,
+                        R.string.glic_button_entrypoint_label,
+                        R.drawable.ic_spark_24dp);
+        glicButton.set(AppMenuItemProperties.ENABLED, true);
+        return glicButton;
+    }
+
     /** Build the PropertyModel for the page info action. */
     protected PropertyModel buildPageInfoModel(@Nullable Tab currentTab) {
         PropertyModel pageInfoButton =
@@ -1224,11 +1243,6 @@ public abstract class AppMenuPropertiesDelegateImpl implements AppMenuProperties
         ResettersForTesting.register(() -> sItemBookmarkedForTesting = null);
     }
 
-    void setBookmarkModelSupplierForTesting(
-            MonotonicObservableSupplier<BookmarkModel> bookmarkModelSupplier) {
-        mBookmarkModelSupplier = bookmarkModelSupplier;
-    }
-
     /**
      * @return Whether the menu item's icon need to be tinted to blue.
      */
@@ -1305,5 +1319,17 @@ public abstract class AppMenuPropertiesDelegateImpl implements AppMenuProperties
             return hasGroups ? R.string.menu_add_tab_to_group : R.string.menu_add_tab_to_new_group;
         }
         return R.string.menu_add_tab_to_group;
+    }
+
+    /** Returns whether to show the open in app menu item. */
+    protected boolean shouldShowOpenInAppItem() {
+        return mOpenInAppMenuItemProvider != null
+                && mOpenInAppMenuItemProvider.getOpenInAppInfo() != null;
+    }
+
+    /** Returns a new open in app menu item. */
+    protected ListItem buildOpenInAppItem() {
+        // TODO(crbug.com/450253146): Build the actual item.
+        return new ListItem(AppMenuItemType.STANDARD, new PropertyModel());
     }
 }

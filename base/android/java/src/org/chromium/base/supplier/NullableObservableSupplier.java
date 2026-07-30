@@ -12,7 +12,7 @@ import org.chromium.build.annotations.Nullable;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-/** An interface for classes that can be observed. */
+/** An interface for Suppliers that can be observed. Implementations are not thread-safe. */
 @NullMarked
 public interface NullableObservableSupplier<T> extends Supplier<@Nullable T> {
     /**
@@ -50,6 +50,11 @@ public interface NullableObservableSupplier<T> extends Supplier<@Nullable T> {
     /**
      * Adds a synchronous observer to the supplier and posts a notification if the value is not
      * null.
+     *
+     * <ul>
+     *   <li>Posted callbacks are not run if removeObserver() is called before they are run.
+     *   <li>Posted callbacks are not run if set() is called with a new value before they are run.
+     * </ul>
      *
      * @param obs The observer to add.
      * @return The current value of the supplier.

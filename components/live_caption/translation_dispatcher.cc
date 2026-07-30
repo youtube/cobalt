@@ -169,7 +169,7 @@ void TranslationDispatcher::GetTranslation(absl::string_view result,
 void TranslationDispatcher::ResetURLLoaderFactory() {
   network::mojom::URLLoaderFactoryParamsPtr params =
       network::mojom::URLLoaderFactoryParams::New();
-  params->process_id = network::mojom::kBrowserProcessId;
+  params->process_id = network::OriginatingProcess::browser();
   params->is_trusted = false;
   params->automatically_assign_isolation_info = true;
   network::mojom::NetworkContext* network_context =
@@ -256,7 +256,7 @@ void TranslationDispatcher::OnResponseJsonParsed(
     return;
   }
 
-  const base::Value::Dict* data_dict =
+  const base::DictValue* data_dict =
       result.value().GetDict().FindDict(kDataKey);
   if (!data_dict) {
     base::UmaHistogramEnumeration(
@@ -267,7 +267,7 @@ void TranslationDispatcher::OnResponseJsonParsed(
     return;
   }
 
-  const base::Value::List* translations_list =
+  const base::ListValue* translations_list =
       data_dict->FindList(kTranslationsKey);
   if (!translations_list || translations_list->empty()) {
     base::UmaHistogramEnumeration(
@@ -278,8 +278,7 @@ void TranslationDispatcher::OnResponseJsonParsed(
     return;
   }
 
-  const base::Value::Dict* translated_text =
-      (*translations_list)[0].GetIfDict();
+  const base::DictValue* translated_text = (*translations_list)[0].GetIfDict();
   if (!translated_text) {
     base::UmaHistogramEnumeration(
         kTranslationDispatcherParseResultHistogram,

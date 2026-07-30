@@ -5,6 +5,7 @@
 import type {NavigationPredictor} from 'chrome://resources/mojo/components/omnibox/browser/omnibox.mojom-webui.js';
 import type {PageHandlerInterface, PageRemote, PlaceholderConfig, SelectedFileInfo} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import {PageCallbackRouter} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
+import type {ModelMode, ToolMode} from 'chrome://resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
 import type {BigBuffer} from 'chrome://resources/mojo/mojo/public/mojom/base/big_buffer.mojom-webui.js';
 import type {String16} from 'chrome://resources/mojo/mojo/public/mojom/base/string16.mojom-webui.js';
 import type {TimeTicks} from 'chrome://resources/mojo/mojo/public/mojom/base/time.mojom-webui.js';
@@ -46,6 +47,9 @@ class FakePageHandler extends TestBrowserProxy implements PageHandlerInterface {
       'clearFiles',
       'submitQuery',
       'openLensSearch',
+      'setActiveToolMode',
+      'setActiveModelMode',
+      'getInputState',
     ]);
   }
 
@@ -157,6 +161,22 @@ class FakePageHandler extends TestBrowserProxy implements PageHandlerInterface {
     return Promise.resolve({previewDataUrl: ''});
   }
 
+  getInputState() {
+    this.methodCalled('getInputState');
+    return Promise.resolve({
+      state: {
+        allowedModels: [],
+        allowedTools: [],
+        allowedInputTypes: [],
+        activeModel: 0,
+        activeTool: 0,
+        disabledModels: [],
+        disabledTools: [],
+        disabledInputTypes: [],
+      },
+    });
+  }
+
   notifySessionStarted() {
     this.methodCalled('notifySessionStarted');
   }
@@ -193,6 +213,14 @@ class FakePageHandler extends TestBrowserProxy implements PageHandlerInterface {
 
   openLensSearch() {
     this.methodCalled('openLensSearch');
+  }
+
+  setActiveToolMode(tool: ToolMode) {
+    this.methodCalled('setActiveToolMode', tool);
+  }
+
+  setActiveModelMode(model: ModelMode) {
+    this.methodCalled('setActiveModelMode', model);
   }
 }
 

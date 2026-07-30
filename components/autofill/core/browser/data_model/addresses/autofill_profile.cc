@@ -82,7 +82,7 @@ constexpr char kAddressComponentsDefaultLocality[] = "en-US";
 
 // Returns `NAME_FULL` for first, middle, and last name field types, and groups
 // phone number types similarly.
-FieldType GetStorableTypeCollapsingGroupsForPartialType(FieldType type) {
+FieldType GetStorableTypeCollapsingGroups(FieldType type) {
   if (GroupTypeOfFieldType(type) == FieldTypeGroup::kName) {
     return NAME_FULL;
   }
@@ -92,55 +92,19 @@ FieldType GetStorableTypeCollapsingGroupsForPartialType(FieldType type) {
   return type;
 }
 
-// Like `GetStorableTypeCollapsingGroupsForPartialType()`, but also similarly
-// groups types which include address line 1.
-//
-// `GetStorableTypeCollapsingGroups()` serves this purpose:
-// If `ADDRESS_HOME_STREET_ADDRESS` is an excluded field, we also want to
-// exclude `ADDRESS_HOME_LINE1`, because it doesn't add extra relevant
-// information. Names and phone numbers also behave like this for the same
-// reason. i.e. if `NAME_FIRST` is excluded, we also exclude `NAME_LAST`.
-//
-// `GetStorableTypeCollapsingGroupsForPartialType()` serves the purpose of
-// including `NAME_FULL` in the label candidates, as a last resort, if a partial
-// name field is excluded. Similar for phone numbers. For more details, check
-// the comment where `GetStorableTypeCollapsingGroupsForPartialType()` is used.
-// This does not apply to `ADDRESS_HOME_LINE1`, because if a field is
-// `ADDRESS_HOME_STREET_ADDRESS` and we don't want to accidentally include back
-// `ADDRESS_HOME_LINE1` in the label candidates.
-FieldType GetStorableTypeCollapsingGroups(FieldType type,
-                                          bool use_improved_labels_order) {
-  if ((type == ADDRESS_HOME_LINE1 || type == ADDRESS_HOME_STREET_ADDRESS) &&
-      use_improved_labels_order) {
-    return ADDRESS_HOME_LINE1;
-  }
-  return GetStorableTypeCollapsingGroupsForPartialType(type);
-}
-
 // Returns a value that represents specificity/privacy of the given type. This
 // is used for prioritizing which data types are shown in inferred labels. For
 // example, if the profile is going to fill ADDRESS_HOME_ZIP, it should
 // prioritize showing that over ADDRESS_HOME_STATE in the suggestion sublabel.
-int SpecificityForType(FieldType type, bool use_improved_labels_order) {
-  // TODO(crbug.com/380273791): Clean up after launch. To make `kDefaultOrder`
-  // and `kImprovedOrder` have the same size/type, an `EMPTY_TYPE` dummy value
-  // is added to the end of `kImprovedOrder`. It can be removed together with
-  // the CHECK() after launch.
-  static constexpr auto kDefaultOrder =
+int SpecificityForType(FieldType type) {
+  static constexpr auto kOrder =
       std::to_array({ADDRESS_HOME_LINE1, ADDRESS_HOME_LINE2, EMAIL_ADDRESS,
                      PHONE_HOME_WHOLE_NUMBER, NAME_FULL, ADDRESS_HOME_ZIP,
                      ADDRESS_HOME_SORTING_CODE, COMPANY_NAME, ADDRESS_HOME_CITY,
                      ADDRESS_HOME_STATE, ADDRESS_HOME_COUNTRY});
-  static constexpr auto kImprovedOrder =
-      std::to_array({ADDRESS_HOME_LINE1, NAME_FULL, EMAIL_ADDRESS,
-                     PHONE_HOME_WHOLE_NUMBER, ADDRESS_HOME_ZIP,
-                     ADDRESS_HOME_SORTING_CODE, COMPANY_NAME, ADDRESS_HOME_CITY,
-                     ADDRESS_HOME_STATE, ADDRESS_HOME_COUNTRY, EMPTY_TYPE});
   CHECK_NE(type, EMPTY_TYPE);
-  const auto& order =
-      use_improved_labels_order ? kImprovedOrder : kDefaultOrder;
-  if (auto it = std::ranges::find(order, type); it != order.end()) {
-    return it - order.begin();
+  if (auto it = std::ranges::find(kOrder, type); it != kOrder.end()) {
+    return it - kOrder.begin();
   }
   // The priority of other types is arbitrary, but deterministic.
   return 100 + type;
@@ -156,13 +120,11 @@ int SpecificityForType(FieldType type, bool use_improved_labels_order) {
 void GetFieldsForDistinguishingProfiles(
     const std::vector<FieldType>* suggested_fields,
     FieldTypeSet excluded_fields,
-    std::vector<FieldType>* distinguishing_fields,
-    bool use_improved_labels_order) {
+    std::vector<FieldType>* distinguishing_fields) {
   std::vector<FieldType> default_fields;
   if (!suggested_fields) {
-    default_fields.assign(
-        AutofillProfile::kDefaultDistinguishingFieldsForLabels.begin(),
-        AutofillProfile::kDefaultDistinguishingFieldsForLabels.end());
+    default_fields.append_range(
+        AutofillProfile::kDefaultDistinguishingFieldsForLabels);
     if (excluded_fields.empty()) {
       distinguishing_fields->swap(default_fields);
       return;
@@ -172,26 +134,17 @@ void GetFieldsForDistinguishingProfiles(
 
   // Keep track of which fields we've seen so that we avoid duplicate entries.
   // Always ignore fields of unknown type and those part of `excluded_fields`.
-  FieldTypeSet seen_fields;
+  FieldTypeSet seen_fields(excluded_fields, &GetStorableTypeCollapsingGroups);
   seen_fields.insert(UNKNOWN_TYPE);
-  for (FieldType excluded_field : excluded_fields) {
-    seen_fields.insert(GetStorableTypeCollapsingGroups(
-        excluded_field, use_improved_labels_order));
-  }
 
   distinguishing_fields->clear();
   for (const FieldType& it : *suggested_fields) {
-    FieldType suggested_type =
-        GetStorableTypeCollapsingGroups(it, use_improved_labels_order);
+    FieldType suggested_type = GetStorableTypeCollapsingGroups(it);
     if (seen_fields.insert(suggested_type).second) {
       distinguishing_fields->push_back(suggested_type);
     }
   }
-  std::sort(distinguishing_fields->begin(), distinguishing_fields->end(),
-            [use_improved_labels_order](FieldType type1, FieldType type2) {
-              return SpecificityForType(type1, use_improved_labels_order) <
-                     SpecificityForType(type2, use_improved_labels_order);
-            });
+  std::ranges::sort(*distinguishing_fields, {}, &SpecificityForType);
 
   // Special case: If one of the excluded fields is a partial name (e.g.
   // `NAME_FIRST`) or phone number (e.g `PHONE_HOME_CITY_CODE`) and the
@@ -203,13 +156,13 @@ void GetFieldsForDistinguishingProfiles(
   // to just append `PHONE_HOME_WHOLE_NUMBER` at the end.
   for (FieldType excluded_field : excluded_fields) {
     FieldType effective_excluded_type =
-        GetStorableTypeCollapsingGroupsForPartialType(excluded_field);
+        GetStorableTypeCollapsingGroups(excluded_field);
     if (excluded_field == effective_excluded_type) {
       continue;
     }
     for (const FieldType& it : *suggested_fields) {
-      if (it != excluded_field && GetStorableTypeCollapsingGroupsForPartialType(
-                                      it) == effective_excluded_type) {
+      if (it != excluded_field &&
+          GetStorableTypeCollapsingGroups(it) == effective_excluded_type) {
         distinguishing_fields->push_back(effective_excluded_type);
         break;
       }
@@ -889,7 +842,6 @@ std::vector<std::u16string> AutofillProfile::CreateDifferentiatingLabels(
     std::string_view app_locale) {
   const size_t kMinimalFieldsShown = 2;
   return CreateInferredLabels(profiles, /*suggested_fields=*/std::nullopt,
-                              /*triggering_field_type=*/std::nullopt,
                               /*excluded_fields=*/{}, kMinimalFieldsShown,
                               app_locale);
 }
@@ -898,17 +850,9 @@ std::vector<std::u16string> AutofillProfile::CreateDifferentiatingLabels(
 std::vector<std::u16string> AutofillProfile::CreateInferredLabels(
     base::span<const AutofillProfile* const> profiles,
     const std::optional<FieldTypeSet> suggested_fields,
-    std::optional<FieldType> triggering_field_type,
     FieldTypeSet excluded_fields,
     size_t minimal_fields_shown,
-    std::string_view app_locale,
-    bool use_improved_labels_order) {
-  // TODO(crbug.com/380273791): Clean up after launch.
-  CHECK(!triggering_field_type ||
-        base::FeatureList::IsEnabled(features::kAutofillImprovedLabels));
-  CHECK(!use_improved_labels_order ||
-        base::FeatureList::IsEnabled(features::kAutofillImprovedLabels));
-
+    std::string_view app_locale) {
   std::vector<FieldType> fields_to_use;
   std::vector<FieldType> suggested_fields_types =
       suggested_fields
@@ -916,25 +860,18 @@ std::vector<std::u16string> AutofillProfile::CreateInferredLabels(
           : std::vector<FieldType>();
   GetFieldsForDistinguishingProfiles(
       suggested_fields ? &suggested_fields_types : nullptr, excluded_fields,
-      &fields_to_use, use_improved_labels_order);
+      &fields_to_use);
 
   // Construct the default label for each profile. Also construct a map that
-  // associates each (main_text, label) pair with the profiles that have this
-  // info. This map is then used to detect which labels need further
-  // differentiating fields.
-  // Note that the actual displayed main text might slightly differ due to
-  // formatting, but it is not needed to format the text for differentiating the
-  // labels.
-  std::map<std::pair<std::u16string, std::u16string>, std::list<size_t>>
-      labels_to_profiles;
+  // associates each label with the profiles that have this info. This map is
+  // then used to detect which labels need further differentiating fields. Note
+  // that the actual displayed label might slightly differ due to formatting,
+  // but it is not needed to format the text for differentiating the labels.
+  std::map<std::u16string, std::list<size_t>> labels_to_profiles;
   for (size_t i = 0; i < profiles.size(); ++i) {
     std::u16string label = profiles[i]->ConstructInferredLabel(
         fields_to_use, minimal_fields_shown, app_locale);
-    std::u16string main_text =
-        triggering_field_type
-            ? profiles[i]->GetInfo(*triggering_field_type, app_locale)
-            : u"";
-    labels_to_profiles[{main_text, label}].push_back(i);
+    labels_to_profiles[label].push_back(i);
   }
 
   std::vector<std::u16string> labels;
@@ -942,9 +879,8 @@ std::vector<std::u16string> AutofillProfile::CreateInferredLabels(
   for (auto& it : labels_to_profiles) {
     if (it.second.size() == 1) {
       // This label is unique, so use it without any further ado.
-      std::u16string label = it.first.second;
       size_t profile_index = it.second.front();
-      labels[profile_index] = label;
+      labels[profile_index] = it.first;
     } else {
       // We have more than one profile with the same label, so add
       // differentiating fields.

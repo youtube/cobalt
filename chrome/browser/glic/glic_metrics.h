@@ -189,7 +189,11 @@ enum class ResponseSegmentation {
   kHandoffButtonAttachedAudio = 54,
   kHandoffButtonDetachedText = 55,
   kHandoffButtonDetachedAudio = 56,
-  kMaxValue = kHandoffButtonDetachedAudio,
+  kSkillsAttachedText = 57,
+  kSkillsAttachedAudio = 58,
+  kSkillsDetachedText = 59,
+  kSkillsDetachedAudio = 60,
+  kMaxValue = kSkillsDetachedAudio,
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicResponseSegmentation)
 
@@ -295,7 +299,6 @@ class GlicMetrics : public GlicInstanceMetricsBackwardsCompatibility {
   void OnSessionTerminated();
   void OnResponseRated(bool positive);
   void OnTurnCompleted(mojom::WebClientModel model, base::TimeDelta duration);
-  void OnModelChanged(mojom::WebClientModel model);
   void OnRecordUseCounter(uint16_t counter);
 
   void OnAttachedToBrowser(AttachChangeReason reason);
@@ -379,8 +382,6 @@ class GlicMetrics : public GlicInstanceMetricsBackwardsCompatibility {
   // opened and in every subsequent mode change.
   void SetWebClientMode(mojom::WebClientMode mode);
 
-  mojom::WebClientModel current_model() const { return current_model_; }
-
  private:
   // Called when `impression_timer_` fires.
   void OnImpressionTimerFired();
@@ -445,8 +446,6 @@ class GlicMetrics : public GlicInstanceMetricsBackwardsCompatibility {
   // Tracks the source ID from the latest tab context requested by the web
   // client. It is reset when user input is submitted.
   ukm::SourceId last_tab_context_source_id_ = ukm::NoURLSourceId();
-
-  mojom::WebClientModel current_model_ = mojom::WebClientModel::kDefault;
 
   // Session state. `session_start_time_` is a sentinel that is cleared in
   // OnGlicWindowClose() and is used to determine whether

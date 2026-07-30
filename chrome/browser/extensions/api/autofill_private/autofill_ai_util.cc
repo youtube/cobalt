@@ -6,10 +6,12 @@
 
 #include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 
 #include "base/containers/flat_set.h"
 #include "base/containers/to_vector.h"
+#include "base/notimplemented.h"
 #include "base/notreached.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
@@ -59,7 +61,7 @@ using autofill::EntityTypeName;
 //    `api::autofill_private::EntityInstanceWithLabels` to the output.
 void EntityInstanceToPrivateApiEntityInstanceWithLabels(
     base::span<const EntityInstance*> entity_instances,
-    const std::string& app_locale,
+    std::string_view app_locale,
     bool obfuscate_sensitive_types,
     std::vector<autofill_private::EntityInstanceWithLabels>& output) {
   // Step 1#, get all available labels for `entity_instances`.
@@ -130,7 +132,7 @@ AttributeTypeDataTypeToPrivateApiAttributeTypeDataType(
 
 std::optional<EntityInstance> PrivateApiEntityInstanceToEntityInstance(
     const autofill_private::EntityInstance& private_api_entity_instance,
-    const std::string& app_locale) {
+    std::string_view app_locale) {
   base::flat_set<AttributeInstance, AttributeInstance::CompareByType>
       attribute_instances;
   for (const autofill_private::AttributeInstance&
@@ -208,7 +210,7 @@ std::optional<EntityInstance> PrivateApiEntityInstanceToEntityInstance(
 
 autofill_private::EntityInstance EntityInstanceToPrivateApiEntityInstance(
     const EntityInstance& entity_instance,
-    const std::string& app_locale) {
+    std::string_view app_locale) {
   std::vector<autofill_private::AttributeInstance>
       private_api_attribute_instances;
   bool should_authenticate_to_view = false;
@@ -282,7 +284,7 @@ std::vector<autofill_private::EntityInstanceWithLabels>
 EntityInstancesToPrivateApiEntityInstancesWithLabels(
     base::span<const EntityInstance> entity_instances,
     bool obfuscate_sensitive_types,
-    const std::string& app_locale) {
+    std::string_view app_locale) {
   // Entity labels should be generated based on other entities of the same
   // type. This is because the disambiguation values of attributes are only
   // relevant inside a specific entity type.
@@ -300,7 +302,7 @@ EntityInstancesToPrivateApiEntityInstancesWithLabels(
 }
 
 api::autofill_private::EntityType EntityTypeToPrivateApiEntityType(
-    const EntityType& entity_type,
+    EntityType entity_type,
     bool supports_wallet_storage) {
   autofill_private::EntityType api_type;
   api_type.type_name = std::to_underlying(entity_type.name());
@@ -314,6 +316,36 @@ api::autofill_private::EntityType EntityTypeToPrivateApiEntityType(
       autofill::GetDeleteEntityTypeStringForI18n(entity_type);
   api_type.supports_wallet_storage = supports_wallet_storage;
   return api_type;
+}
+
+api::autofill_private::AttributeType AttributeTypeToPrivateApiAttributeType(
+    autofill::AttributeType attribute_type) {
+  api::autofill_private::AttributeType api_attr;
+  api_attr.type_name = std::to_underlying(attribute_type.name());
+  api_attr.type_name_as_string =
+      base::UTF16ToUTF8(attribute_type.GetNameForI18n());
+  api_attr.data_type = AttributeTypeDataTypeToPrivateApiAttributeTypeDataType(
+      attribute_type.data_type());
+  return api_attr;
+}
+
+std::vector<api::autofill_private::AttributeType> GetRequiredAttributesForType(
+    autofill::EntityType entity_type) {
+  return base::ToVector(entity_type.import_constraints(), [](autofill::DenseSet<
+                                                              AttributeType>
+                                                                 group) {
+    // It was decided to keep the schema expressive to allow future complex
+    // constraints, rather than restricting it to match current UI
+    // capabilities. Consequently, this code enforces the current UI limitation
+    // (simple disjunctions only) via runtime checks.
+    // Ex. "[[a]]", "[[a], [b]]", "[[a], [b], [c]]" etc are supported in UI.
+    // More details here: crrev.com/c/7245980
+    CHECK_EQ(group.size(), 1u)
+        << "Unsupported format: Complex constraint groups not supported by UI";
+
+    // Flatten the constraints: {{A}, {B}} -> [A, B]
+    return AttributeTypeToPrivateApiAttributeType(*group.begin());
+  });
 }
 
 }  // namespace extensions::autofill_ai_util

@@ -4,10 +4,13 @@
 
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_browser_agent.h"
 
+#import "base/barrier_closure.h"
 #import "base/functional/bind.h"
 #import "base/metrics/histogram_functions.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/strings/utf_string_conversions.h"
+#import "base/time/time.h"
+#import "base/timer/timer.h"
 #import "components/favicon/ios/web_favicon_driver.h"
 #import "components/optimization_guide/proto/features/common_quality_data.pb.h"
 #import "components/prefs/pref_service.h"
@@ -31,8 +34,11 @@
 #import "ios/chrome/browser/shared/coordinator/layout_guide/layout_guide_util.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
+#import "ios/chrome/browser/shared/model/browser/browser_list.h"
+#import "ios/chrome/browser/shared/model/browser/browser_list_factory.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
+#import "ios/chrome/browser/shared/model/profile/profile_manager_ios.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
@@ -72,11 +78,21 @@ CGFloat kFullscreenEnabled = 0.0;
 // Used for forcing non-fullscreen progress value.
 CGFloat kFullscreenDisabled = 1.0;
 
+// Used to check if floaty visibility updates are part of a UIView dismissal or
+// presentation.
+double kViewTransitionTime = 1.5;
+
 }  // namespace
 
 BwgBrowserAgent::BwgBrowserAgent(Browser* browser) : BrowserUserData(browser) {
   if (IsGeminiCopresenceEnabled()) {
     StartObserving(browser_, TabsDependencyInstaller::Policy::kOnlyRealized);
+
+    pref_change_registrar_.Init(browser_->GetProfile()->GetPrefs());
+    pref_change_registrar_.Add(
+        prefs::kIOSBWGPageContentSetting,
+        base::BindRepeating(&BwgBrowserAgent::OnPageContentPrefChanged,
+                            base::Unretained(this)));
   }
 
   bwg_gateway_ = ios::provider::CreateBWGGateway();
@@ -84,8 +100,6 @@ BwgBrowserAgent::BwgBrowserAgent(Browser* browser) : BrowserUserData(browser) {
   if (bwg_gateway_) {
     bwg_link_opening_handler_ = [[BWGLinkOpeningHandler alloc]
         initWithURLLoader:UrlLoadingBrowserAgent::FromBrowser(browser_)];
-    bwg_gateway_.linkOpeningHandler = bwg_link_opening_handler_;
-
     bwg_page_state_change_handler_ = [[BWGPageStateChangeHandler alloc]
         initWithPrefService:browser_->GetProfile()->GetPrefs()];
     bwg_gateway_.pageStateChangeHandler = bwg_page_state_change_handler_;
@@ -96,8 +110,11 @@ BwgBrowserAgent::BwgBrowserAgent(Browser* browser) : BrowserUserData(browser) {
       gemini_view_state_handler_ = [[GeminiViewStateChangeHandler alloc]
           initWithBrowserAgent:weak_factory_.GetWeakPtr()];
       bwg_session_handler_.geminiViewStateDelegate = gemini_view_state_handler_;
+      bwg_link_opening_handler_.geminiViewStateDelegate =
+          gemini_view_state_handler_;
     }
     bwg_gateway_.sessionHandler = bwg_session_handler_;
+    bwg_gateway_.linkOpeningHandler = bwg_link_opening_handler_;
 
     gemini_suggestion_handler_ = [[GeminiSuggestionHandler alloc]
         initWithWebStateList:browser_->GetWebStateList()];
@@ -115,15 +132,57 @@ BwgBrowserAgent::BwgBrowserAgent(Browser* browser) : BrowserUserData(browser) {
     FullscreenController::CreateForBrowser(browser_);
     fullscreen_controller_ = FullscreenController::FromBrowser(browser_);
     fullscreen_controller_->AddObserver(this);
+
+    base::WeakPtr<BwgBrowserAgent> weak_ptr = weak_factory_.GetWeakPtr();
+    keyboard_show_observer_ = [[NSNotificationCenter defaultCenter]
+        addObserverForName:UIKeyboardWillShowNotification
+                    object:nil
+                     queue:nil
+                usingBlock:^(NSNotification* notification) {
+                  if (weak_ptr) {
+                    weak_ptr->OnKeyboardStateChanged(true);
+                  }
+                }];
+    keyboard_hide_observer_ = [[NSNotificationCenter defaultCenter]
+        addObserverForName:UIKeyboardWillHideNotification
+                    object:nil
+                     queue:nil
+                usingBlock:^(NSNotification* notification) {
+                  if (weak_ptr) {
+                    weak_ptr->OnKeyboardStateChanged(false);
+                  }
+                }];
   }
 }
 
 BwgBrowserAgent::~BwgBrowserAgent() {
+  if (keyboard_show_observer_) {
+    [[NSNotificationCenter defaultCenter]
+        removeObserver:keyboard_show_observer_];
+    keyboard_show_observer_ = nil;
+  }
+  if (keyboard_hide_observer_) {
+    [[NSNotificationCenter defaultCenter]
+        removeObserver:keyboard_hide_observer_];
+    keyboard_hide_observer_ = nil;
+  }
+
   if (fullscreen_controller_) {
     fullscreen_controller_->RemoveObserver(this);
     fullscreen_controller_ = nullptr;
   }
+
   StopObserving();
+}
+
+void BwgBrowserAgent::OnKeyboardStateChanged(bool is_visible) {
+  is_keyboard_visible_ = is_visible;
+  if (fullscreen_controller_) {
+    // Re-trigger the update with the current progress to apply opacity override
+    // if needed.
+    FullscreenProgressUpdated(fullscreen_controller_,
+                              fullscreen_controller_->GetProgress());
+  }
 }
 
 void BwgBrowserAgent::StartGeminiFlow(UIViewController* base_view_controller,
@@ -170,6 +229,23 @@ bool BwgBrowserAgent::HasCompletedFirstRun() {
   }
 
   return pref_service->GetBoolean(prefs::kIOSBwgConsent);
+}
+
+CGFloat BwgBrowserAgent::GetFloatyOffsetFromFullscreenController(
+    FullscreenController* controller) {
+  CGFloat fullyExpandedBottomToolbarHeight =
+      controller->GetMaxViewportInsets().bottom;
+  CGFloat offset = fullyExpandedBottomToolbarHeight +
+                   kOverlayFullscreenOffset * (1.0 - controller->GetProgress());
+  return offset;
+}
+
+void BwgBrowserAgent::UpdateForTraitCollection(
+    UITraitCollection* traitCollection) {
+  // Update the offset for a device orientation update to landscape or portrait.
+  CGFloat offset =
+      GetFloatyOffsetFromFullscreenController(fullscreen_controller_);
+  ios::provider::UpdateOverlayOffsetWithOpacity(offset, 1.0);
 }
 
 void BwgBrowserAgent::PresentFloaty(UIViewController* base_view_controller,
@@ -249,9 +325,16 @@ void BwgBrowserAgent::PresentFloatyWithPendingContext(
     UIViewController* base_view_controller,
     std::unique_ptr<optimization_guide::proto::PageContext> page_context,
     gemini::EntryPoint entry_point) {
-  PresentFloatyWithState(
-      base_view_controller, std::move(page_context),
-      ios::provider::BWGPageContextComputationState::kPending, entry_point);
+  web::WebState* active_web_state =
+      browser_->GetWebStateList()->GetActiveWebState();
+  BwgTabHelper* tab_helper = GetActiveTabHelper(active_web_state);
+  if (!tab_helper) {
+    return;
+  }
+  GeminiPageContext* gemini_page_context = tab_helper->GetPartialPageContext();
+  PresentFloatyWithState(base_view_controller, std::move(page_context),
+                         gemini_page_context.BWGPageContextComputationState,
+                         entry_point);
 }
 
 void BwgBrowserAgent::PresentFloatyWithPendingContext(
@@ -260,9 +343,11 @@ void BwgBrowserAgent::PresentFloatyWithPendingContext(
     UIImage* image_attachment) {
   web::WebState* active_web_state =
       browser_->GetWebStateList()->GetActiveWebState();
-  if (!active_web_state) {
+  BwgTabHelper* tab_helper = GetActiveTabHelper(active_web_state);
+  if (!tab_helper) {
     return;
   }
+  GeminiPageContext* gemini_page_context = tab_helper->GetPartialPageContext();
 
   std::unique_ptr<optimization_guide::proto::PageContext> partial_page_context =
       std::make_unique<optimization_guide::proto::PageContext>();
@@ -270,19 +355,26 @@ void BwgBrowserAgent::PresentFloatyWithPendingContext(
   partial_page_context->set_title(
       base::UTF16ToUTF8(active_web_state->GetTitle()));
 
-  PresentFloatyWithState(
-      base_view_controller, std::move(partial_page_context),
-      ios::provider::BWGPageContextComputationState::kPending, entry_point,
-      image_attachment);
+  PresentFloatyWithState(base_view_controller, std::move(partial_page_context),
+                         gemini_page_context.BWGPageContextComputationState,
+                         entry_point, image_attachment);
 }
 
 void BwgBrowserAgent::UpdateFloatyPageContext(
     base::expected<std::unique_ptr<optimization_guide::proto::PageContext>,
                    PageContextWrapperError> expected_page_context) {
+  web::WebState* active_web_state =
+      browser_->GetWebStateList()->GetActiveWebState();
+  BwgTabHelper* tab_helper = GetActiveTabHelper(active_web_state);
+  if (!tab_helper) {
+    return;
+  }
+
   GeminiPageContext* gemini_page_context = [[GeminiPageContext alloc] init];
   gemini_page_context.BWGPageContextComputationState =
-      ios::provider::BWGPageContextComputationState::kSuccess;
-
+      tab_helper->GetIsGeminiEligible().value_or(true)
+          ? ios::provider::BWGPageContextComputationState::kSuccess
+          : ios::provider::BWGPageContextComputationState::kBlocked;
   std::unique_ptr<optimization_guide::proto::PageContext> page_context_proto =
       nullptr;
   if (expected_page_context.has_value()) {
@@ -311,6 +403,66 @@ void BwgBrowserAgent::OnGeminiViewStateExpanded() {
                        weak_factory_.GetWeakPtr()),
         /*full_page_context=*/true);
   }
+  // Show page attachment UI chip every time the floaty is expanded.
+  ios::provider::RequestUIChange(
+      ios::provider::GeminiUIElementType::kContextAttachment);
+}
+
+void BwgBrowserAgent::CollapseFloatyIfInvoked() {
+  if (!is_floaty_invoked_) {
+    return;
+  }
+
+  ios::provider::UpdateGeminiViewState(
+      ios::provider::GeminiViewState::kCollapsed, /*animated=*/true);
+}
+
+void BwgBrowserAgent::SetLastShownViewState(
+    ios::provider::GeminiViewState view_state) {
+  if (view_state == ios::provider::GeminiViewState::kHidden) {
+    return;
+  }
+  last_shown_view_state_ = view_state;
+}
+
+void BwgBrowserAgent::DismissGeminiFromOtherWindows(
+    base::OnceClosure completion) {
+  // Collect all browsers (excluding the current one) for all profiles.
+  std::vector<base::WeakPtr<Browser>> other_browsers;
+  for (ProfileIOS* profile :
+       GetApplicationContext()->GetProfileManager()->GetLoadedProfiles()) {
+    BrowserList* browser_list = BrowserListFactory::GetForProfile(profile);
+    const std::set<Browser*>& browsers =
+        browser_list->BrowsersOfType(BrowserList::BrowserType::kRegular);
+    for (Browser* browser : browsers) {
+      if (browser == browser_) {
+        continue;
+      }
+      other_browsers.push_back(browser->AsWeakPtr());
+    }
+  }
+
+  if (other_browsers.empty()) {
+    std::move(completion).Run();
+    return;
+  }
+
+  // Gate the completion behind this barrier closure which executes it when all
+  // other browsers have dismissed their Gemini sessions.
+  base::RepeatingClosure barrier =
+      base::BarrierClosure(other_browsers.size(), std::move(completion));
+
+  // Dismiss Gemini in all the other browsers for all profiles.
+  for (base::WeakPtr<Browser> browser : other_browsers) {
+    if (!browser) {
+      barrier.Run();
+      continue;
+    }
+    id<BWGCommands> gemini_commands_handler =
+        HandlerForProtocol(browser->GetCommandDispatcher(), BWGCommands);
+    [gemini_commands_handler
+        dismissGeminiFlowWithCompletion:base::CallbackToBlock(barrier)];
+  }
 }
 
 void BwgBrowserAgent::DismissFloaty() {
@@ -333,21 +485,37 @@ void BwgBrowserAgent::DismissFloaty() {
   ios::provider::ResetGemini();
 }
 
-void BwgBrowserAgent::HideFloatyIfInvoked() {
+void BwgBrowserAgent::HideFloatyIfInvoked(bool animated) {
   if (!is_floaty_invoked_) {
     return;
   }
+
   is_floaty_temporarily_hidden_ = true;
-  last_view_state_ = ios::provider::GetCurrentGeminiViewState();
-  ios::provider::UpdateGeminiViewState(ios::provider::GeminiViewState::kHidden);
+  floaty_hidden_timestamp_ = base::TimeTicks::Now();
+  ios::provider::GeminiViewState current_view_state =
+      ios::provider::GetCurrentGeminiViewState();
+  SetLastShownViewState(current_view_state);
+
+  ios::provider::UpdateGeminiViewState(ios::provider::GeminiViewState::kHidden,
+                                       animated);
 }
 
-void BwgBrowserAgent::ShowFloatyIfInvoked() {
+void BwgBrowserAgent::ShowFloatyIfInvoked(bool animated) {
   if (!is_floaty_invoked_) {
     return;
   }
+
+  // `HideFloatyIfInvoked()` may be called when a view controller
+  // dismisses. If a view controller dismisses as part of presenting another
+  // view controller, the floaty should not show.
+  base::TimeDelta time_since_last_hidden =
+      base::TimeTicks::Now() - floaty_hidden_timestamp_;
+  if (time_since_last_hidden <= base::Seconds(kViewTransitionTime)) {
+    return;
+  }
+
   is_floaty_temporarily_hidden_ = false;
-  ios::provider::UpdateGeminiViewState(last_view_state_);
+  ios::provider::UpdateGeminiViewState(last_shown_view_state_, animated);
 }
 
 #pragma mark - TabsDependencyInstaller
@@ -409,16 +577,20 @@ void BwgBrowserAgent::OnGeminiTabHelperDestroyed(BwgTabHelper* tab_helper) {
 void BwgBrowserAgent::FullscreenProgressUpdated(
     FullscreenController* controller,
     CGFloat progress) {
-  CGFloat fullyExpandedBottomToolbarHeight =
-      fullscreen_controller_->GetMaxViewportInsets().bottom;
-  CGFloat offset = fullyExpandedBottomToolbarHeight +
-                   kOverlayFullscreenOffset * (1.0 - progress);
+  CGFloat offset = GetFloatyOffsetFromFullscreenController(controller);
 
   // When fullscreen mode is disabled (progress == 1), the offset will be a
   // positive value equal to the `fullyExpandedBottomToolbarHeight`. When
   // fullscreen mode is enabled (progress == 0), the offset will be a negative
   // value, `kOverlayFullscreenOffset`.
-  ios::provider::UpdateOverlayOffsetWithOpacity(offset, progress);
+  if (is_keyboard_visible_) {
+    // When the keyboard is visible, force the opacity to 1.0 (fully opaque) to
+    // prevent the floaty from disappearing, even if the fullscreen progress is
+    // 0 (enabled).
+    ios::provider::UpdateOverlayOffsetWithOpacity(offset, 1.0);
+  } else {
+    ios::provider::UpdateOverlayOffsetWithOpacity(offset, progress);
+  }
 }
 
 void BwgBrowserAgent::FullscreenWillAnimate(FullscreenController* controller,
@@ -433,10 +605,26 @@ void BwgBrowserAgent::FullscreenWillAnimate(FullscreenController* controller,
   }];
 }
 
+void BwgBrowserAgent::FullscreenDidAnimate(FullscreenController* controller,
+                                           FullscreenAnimatorStyle style) {
+  if (style == FullscreenAnimatorStyle::ENTER_FULLSCREEN) {
+    FullscreenProgressUpdated(controller, kFullscreenEnabled);
+  } else {
+    FullscreenProgressUpdated(controller, kFullscreenDisabled);
+  }
+}
+
 void BwgBrowserAgent::FullscreenControllerWillShutDown(
     FullscreenController* controller) {
   controller->RemoveObserver(this);
   fullscreen_controller_ = nullptr;
+}
+
+void BwgBrowserAgent::FullscreenViewportInsetRangeChanged(
+    FullscreenController* controller,
+    UIEdgeInsets min_viewport_insets,
+    UIEdgeInsets max_viewport_insets) {
+  FullscreenProgressUpdated(controller, controller->GetProgress());
 }
 
 #pragma mark - Private
@@ -490,12 +678,18 @@ void BwgBrowserAgent::PresentFloatyWithState(
   config.pageContext.uniquePageContext = std::move(page_context_proto);
   config.pageContext.favicon = FetchPageFavicon();
   ApplyUserPrefsToPageContext(config.pageContext);
+  if (IsGeminiCopresenceEnabled()) {
+    config.initialBottomOffset =
+        GetFloatyOffsetFromFullscreenController(fullscreen_controller_);
+  }
 
   // Start the overlay and update the tab helper to reflect this.
   ios::provider::StartBwgOverlay(config);
   gemini_tab_helper->SetBwgUiShowing(true);
-  last_view_state_ = ios::provider::GetCurrentGeminiViewState();
-  is_floaty_invoked_ = true;
+  if (IsGeminiCopresenceEnabled()) {
+    last_shown_view_state_ = ios::provider::GetCurrentGeminiViewState();
+    is_floaty_invoked_ = true;
+  }
 }
 
 UIImage* BwgBrowserAgent::FetchPageFavicon() {
@@ -564,6 +758,24 @@ void BwgBrowserAgent::SetSessionCommandHandlers() {
 
   bwg_session_handler_.settingsHandler = settings_handler;
   bwg_session_handler_.BWGHandler = bwg_handler;
+}
+
+void BwgBrowserAgent::OnPageContentPrefChanged() {
+  web::WebState* active_web_state =
+      browser_->GetWebStateList()->GetActiveWebState();
+  BwgTabHelper* tab_helper = GetActiveTabHelper(active_web_state);
+  if (!tab_helper) {
+    return;
+  }
+
+  GeminiPageContext* gemini_page_context = tab_helper->GetPartialPageContext();
+  ApplyUserPrefsToPageContext(gemini_page_context);
+
+  ios::provider::UpdatePageContext(gemini_page_context);
+
+  // Trigger UI update for the attachment chip.
+  ios::provider::RequestUIChange(
+      ios::provider::GeminiUIElementType::kContextAttachment);
 }
 
 BwgTabHelper* BwgBrowserAgent::GetActiveTabHelper(web::WebState* web_state) {

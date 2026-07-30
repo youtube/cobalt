@@ -31,7 +31,6 @@ import "third_party/blink/public/mojom/loader/mixed_content.mojom";
 import "third_party/blink/public/mojom/loader/referrer.mojom";
 import "third_party/blink/public/mojom/messaging/task_attribution_id.mojom";
 import "third_party/blink/public/mojom/navigation/navigation_api_history_entry_arrays.mojom";
-import "third_party/blink/public/mojom/navigation/navigation_initiator_activation_and_ad_status.mojom";
 import "third_party/blink/public/mojom/navigation/navigation_policy.mojom";
 import "third_party/blink/public/mojom/navigation/prefetched_signed_exchange_info.mojom";
 import "third_party/blink/public/mojom/navigation/renderer_content_settings.mojom";
@@ -172,9 +171,21 @@ struct BeginNavigationParams {
   mojo_base.mojom.TimeTicks before_unload_start;
   mojo_base.mojom.TimeTicks before_unload_end;
 
-  // The navigation initiator's user activation and ad status.
-  blink.mojom.NavigationInitiatorActivationAndAdStatus
-      initiator_activation_and_ad_status;
+  // The time when the user-visible beforeunload dialog opens or null
+  // if the user-visible dialog is not opened in this navigation.
+  mojo_base.mojom.TimeTicks before_unload_dialog_opened;
+
+  // The time when the user-visible beforeunload dialog closes or null
+  // if the user-visible dialog is not opened in this navigation.
+  mojo_base.mojom.TimeTicks before_unload_dialog_closed;
+
+  // Whether this navigation started with a transient user activation.
+  bool started_with_transient_activation;
+
+  // Whether this navigation was started by an ad (i.e., an ad script was in the
+  // JavaScript stack at the time of the navigation, or the frame is an ad
+  // frame, as determined by Ad Tagging).
+  bool started_by_ad;
 
   // Whether this navigation was container initiated (e.g. iframe changed src).
   // This is currently partially specified in
@@ -269,8 +280,10 @@ struct CommonNavigationParams {
   // Whether or not this navigation was started from a context menu.
   bool started_from_context_menu = false;
 
-  // True if the request was user initiated.
-  bool has_user_gesture = false;
+  // True if the request was user initiated. This gesture is filtered out during
+  // proxy navigations, to prevent it from being exposed to the committed
+  // document in the renderer.
+  bool has_possibly_filtered_user_gesture = false;
 
   // True if the navigation should allow the target document to invoke a text
   // fragment (i.e. fragments with :~:text=). This is based on user gesture
@@ -360,6 +373,16 @@ struct OldPageInfo {
   // pagehide and visibilitychange events won't get dispatched again when we
   // unload/freeze the page later on.
   blink.mojom.PageLifecycleState new_lifecycle_state_for_old_page;
+};
+
+// There are other structures for passing permissions policies via Mojo.
+// The difference is that this one passes yet-unparsed mapping of policies
+// to allowlists, just converted from JSON format. This can contain invalid
+// entries and malformed data. It will be parsed and then merged with
+// allowlists from the headers in renderer.
+struct IsolatedAppPermissionPolicyEntry {
+  string feature;
+  array<string> allowed_origins;
 };
 
 // Used by commit IPC messages. Holds the parameters needed by the renderer to
@@ -695,6 +718,10 @@ struct CommitNavigationParams {
   // optimizations and code path for initial WebUI should apply for general
   // topchrome WebUI as well.
   bool is_initial_webui = false;
+
+  // The permissions policy to use for the document. This is used for Isolated
+  // Web Apps to pass the policy from the manifest to the renderer.
+  array<IsolatedAppPermissionPolicyEntry>? isolated_app_policy;
 };
 
 // Parameters used to dispatch the `pageswap` event on the old Document for

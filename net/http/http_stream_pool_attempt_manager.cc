@@ -24,6 +24,7 @@
 #include "base/timer/timer.h"
 #include "base/trace_event/trace_event.h"
 #include "base/trace_event/trace_id_helper.h"
+#include "base/types/optional_ref.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/load_states.h"
@@ -71,10 +72,10 @@ StreamSocketHandle::SocketReuseType GetReuseTypeFromIdleStreamSocket(
              : StreamSocketHandle::SocketReuseType::kUnusedIdle;
 }
 
-base::Value::Dict GetServiceEndpointRequestAsValue(
+base::DictValue GetServiceEndpointRequestAsValue(
     HostResolver::ServiceEndpointRequest* request) {
-  base::Value::Dict dict;
-  base::Value::List endpoints;
+  base::DictValue dict;
+  base::ListValue endpoints;
   for (const auto& endpoint : request->GetEndpointResults()) {
     endpoints.Append(endpoint.ToValue());
   }
@@ -84,7 +85,8 @@ base::Value::Dict GetServiceEndpointRequestAsValue(
 }
 
 // Converts a NextProtoSet containing allowed ALPNs to a value usable in NetLog
-// events - currently a std::string, though could make it a Value::List instead.
+// events - currently a std::string, though could make it a base::ListValue
+// instead.
 std::string AllowedAlpnsToValue(const NextProtoSet& allowed_alpns) {
   std::string list;
   for (const auto proto : allowed_alpns) {
@@ -193,7 +195,7 @@ HttpStreamPool::AttemptManager::AttemptManager(Group* group, NetLog* net_log)
 
   net_log_.BeginEvent(
       NetLogEventType::HTTP_STREAM_POOL_ATTEMPT_MANAGER_ALIVE, [&] {
-        base::Value::Dict dict;
+        base::DictValue dict;
         dict.Set("stream_key", stream_key().ToValue());
         dict.Set("tcp_based_attempt_delay",
                  static_cast<int>(tcp_based_attempt_delay_.InMilliseconds()));
@@ -253,9 +255,9 @@ void HttpStreamPool::AttemptManager::RequestStream(Job* job) {
 
   net_log_.AddEvent(
       NetLogEventType::HTTP_STREAM_POOL_ATTEMPT_MANAGER_REQUEST_STREAM, [&] {
-        base::Value::Dict dict;
+        base::DictValue dict;
         dict.Set("priority", job->priority());
-        base::Value::List allowed_bad_certs_list;
+        base::ListValue allowed_bad_certs_list;
         for (const auto& cert_and_status : job->allowed_bad_certs()) {
           allowed_bad_certs_list.Append(
               cert_and_status.cert->subject().GetDisplayName());
@@ -291,7 +293,7 @@ void HttpStreamPool::AttemptManager::Preconnect(Job* job) {
 
   net_log_.AddEvent(
       NetLogEventType::HTTP_STREAM_POOL_ATTEMPT_MANAGER_PRECONNECT, [&] {
-        base::Value::Dict dict;
+        base::DictValue dict;
         dict.Set("num_streams", static_cast<int>(job->num_streams()));
         dict.Set("quic_version",
                  quic::ParsedQuicVersionToString(job->quic_version()));
@@ -344,7 +346,7 @@ void HttpStreamPool::AttemptManager::OnServiceEndpointRequestFinished(int rv) {
   net_log().AddEvent(
       NetLogEventType::HTTP_STREAM_POOL_ATTEMPT_MANAGER_DNS_RESOLUTION_FINISHED,
       [&] {
-        base::Value::Dict dict =
+        base::DictValue dict =
             GetServiceEndpointRequestAsValue(service_endpoint_request_.get());
         dict.Set("result", ErrorToString(rv));
         dict.Set("resolve_error", resolve_error_info_.error);
@@ -457,7 +459,7 @@ void HttpStreamPool::AttemptManager::SetInitialAttemptState() {
   net_log_.AddEvent(
       NetLogEventType::HTTP_STREAM_POOL_ATTEMPT_MANAGER_INITIAL_ATTEMPT_STATE,
       [&] {
-        return base::Value::Dict().Set(
+        return base::DictValue().Set(
             "state", InitialAttemptStateToString(*initial_attempt_state_));
       });
   base::UmaHistogramEnumeration("Net.HttpStreamPool.InitialAttemptState2",
@@ -587,11 +589,25 @@ void HttpStreamPool::AttemptManager::CancelJobs(
   HandleFinalError(error);
 }
 
-void HttpStreamPool::AttemptManager::CancelQuicAttempt(int error) {
-  if (quic_attempt_) {
-    quic_attempt_result_ = error;
-    quic_attempt_.reset();
+void HttpStreamPool::AttemptManager::CompleteQuicAttempt(
+    int result,
+    base::optional_ref<NetErrorDetails> net_error_details,
+    bool overwrite_old_result) {
+  if (quic_attempt_result_.has_value() && !overwrite_old_result) {
+    CHECK(!quic_attempt_);
+    CHECK_NE(result, OK)
+        << "QUIC attempt should not be completed with OK more than once";
+    CHECK_NE(*quic_attempt_result_, OK)
+        << "QUIC attempt should not be completed more than once if initially "
+           "succeeded";
+    return;
   }
+
+  if (net_error_details.has_value()) {
+    net_error_details_ = *net_error_details;
+  }
+  quic_attempt_result_ = result;
+  quic_attempt_.reset();
 }
 
 const HttpStreamKey& HttpStreamPool::AttemptManager::stream_key() const {
@@ -777,8 +793,13 @@ void HttpStreamPool::AttemptManager::OnTcpBasedAttemptComplete(
             spdy_session_key(), std::move(handle), net_log(),
             MultiplexedSessionCreationInitiator::kUnknown, &spdy_session,
             std::nullopt, SpdySessionInitiator::kHttpStreamPoolAttemptManager);
+    // Treat SpdySession creation failure as a fatal error, since the creation
+    // failure indicates that the socket doesn't have acceptable transport
+    // security or ALPS. The passed socket is already closed on failure.
     if (create_result != OK) {
-      HandleTcpBasedAttemptFailure(std::move(tcp_based_attempt), create_result);
+      DCHECK_NE(create_result, ERR_IO_PENDING);
+      tcp_based_attempt.reset();
+      HandleFinalError(create_result);
       return;
     }
 
@@ -822,8 +843,8 @@ void HttpStreamPool::AttemptManager::OnTcpBasedAttemptSlow(
   net_log().AddEvent(
       NetLogEventType::HTTP_STREAM_POOL_ATTEMPT_MANAGER_TCP_BASED_ATTEMPT_SLOW,
       [&] {
-        return base::Value::Dict().Set("ip_endpoint",
-                                       raw_attempt->ip_endpoint().ToString());
+        return base::DictValue().Set("ip_endpoint",
+                                     raw_attempt->ip_endpoint().ToString());
       });
 
   ip_endpoint_state_tracker_.OnEndpointSlow(raw_attempt->ip_endpoint());
@@ -838,9 +859,6 @@ void HttpStreamPool::AttemptManager::OnQuicAttemptComplete(
   int rv = outcome.result;
   QuicChromiumClientSession* quic_session = outcome.session;
 
-  quic_attempt_result_ = rv;
-  net_error_details_ = std::move(outcome.error_details);
-
   // Record completion time only when QuicAttempt actually attempted QUIC.
   if (rv != ERR_DNS_NO_MATCHING_SUPPORTED_ALPN) {
     base::UmaHistogramTimes(
@@ -849,12 +867,12 @@ void HttpStreamPool::AttemptManager::OnQuicAttemptComplete(
         base::TimeTicks::Now() - quic_attempt_->start_time());
   }
 
-  quic_attempt_.reset();
+  CompleteQuicAttempt(rv, outcome.error_details);
 
   net_log().AddEvent(
       NetLogEventType::HTTP_STREAM_POOL_ATTEMPT_MANAGER_QUIC_ATTEMPT_COMPLETED,
       [&] {
-        base::Value::Dict dict = GetStatesAsNetLogParams();
+        base::DictValue dict = GetStatesAsNetLogParams();
         dict.Set("result", rv);
         if (net_error_details_.quic_connection_error != quic::QUIC_NO_ERROR) {
           dict.Set("quic_error", quic::QuicErrorCodeToString(
@@ -904,19 +922,19 @@ void HttpStreamPool::AttemptManager::OnQuicAttemptSlow() {
                       quic_attempt_->quic_endpoint().ip_endpoint.ToString());
   net_log().AddEvent(
       NetLogEventType::HTTP_STREAM_POOL_ATTEMPT_MANAGER_QUIC_ATTEMPT_SLOW, [&] {
-        return base::Value::Dict().Set(
+        return base::DictValue().Set(
             "ip_endpoint",
             quic_attempt_->quic_endpoint().ip_endpoint.ToString());
       });
 
   if (is_shutting_down()) {
-    CancelQuicAttempt(ERR_ABORTED);
+    CompleteQuicAttempt(ERR_ABORTED);
     MaybeCompleteLater();
   }
 }
 
-base::Value::Dict HttpStreamPool::AttemptManager::GetInfoAsValue() const {
-  base::Value::Dict dict;
+base::DictValue HttpStreamPool::AttemptManager::GetInfoAsValue() const {
+  base::DictValue dict;
   dict.Set("request_job_count", static_cast<int>(request_jobs_.size()));
   dict.Set("job_count_limit_ignoring",
            static_cast<int>(limit_ignoring_jobs_.size()));
@@ -936,7 +954,7 @@ base::Value::Dict HttpStreamPool::AttemptManager::GetInfoAsValue() const {
            service_endpoint_request_finished_);
   if (service_endpoint_request_ &&
       !service_endpoint_request_->GetEndpointResults().empty()) {
-    base::Value::List service_endpoints;
+    base::ListValue service_endpoints;
     for (const auto& endpoint :
          service_endpoint_request_->GetEndpointResults()) {
       service_endpoints.Append(endpoint.ToValue());
@@ -951,7 +969,7 @@ base::Value::Dict HttpStreamPool::AttemptManager::GetInfoAsValue() const {
 
   dict.Set("tcp_based_attempt_slots", GetTcpBasedAttemptSlotsAsValue());
 
-  base::Value::List ip_endpoint_states =
+  base::ListValue ip_endpoint_states =
       ip_endpoint_state_tracker_.GetInfoAsValue();
   if (!ip_endpoint_states.empty()) {
     dict.Set("ip_endpoint_states", std::move(ip_endpoint_states));
@@ -967,13 +985,13 @@ base::Value::Dict HttpStreamPool::AttemptManager::GetInfoAsValue() const {
   return dict;
 }
 
-base::Value::Dict HttpStreamPool::AttemptManager::GetStatesAsNetLogParams()
+base::DictValue HttpStreamPool::AttemptManager::GetStatesAsNetLogParams()
     const {
   if (VerboseNetLog()) {
     return GetInfoAsValue();
   }
 
-  base::Value::Dict dict;
+  base::DictValue dict;
   dict.Set("num_active_sockets",
            static_cast<int>(group_->ActiveStreamSocketCount()));
   dict.Set("num_idle_sockets",
@@ -1129,7 +1147,7 @@ void HttpStreamPool::AttemptManager::RestrictAllowedProtocols(
 
   if (!CanUseQuic()) {
     // TODO(crbug.com/346835898): Use other error code?
-    CancelQuicAttempt(ERR_ABORTED);
+    CompleteQuicAttempt(ERR_ABORTED);
   }
 }
 
@@ -1162,7 +1180,7 @@ void HttpStreamPool::AttemptManager::ProcessServiceEndpointChanges() {
         NetLogEventType::
             HTTP_STREAM_POOL_ATTEMPT_MANAGER_EXISTING_QUIC_SESSION_MATCHED,
         [&] {
-          base::Value::Dict dict;
+          base::DictValue dict;
           quic_session->net_log().source().AddToEventParameters(dict);
           return dict;
         });
@@ -1170,7 +1188,8 @@ void HttpStreamPool::AttemptManager::ProcessServiceEndpointChanges() {
         "Net.HttpStreamPool.ExistingQuicSessionFoundTime",
         base::TimeTicks::Now() - dns_resolution_start_time_);
 
-    CancelQuicAttempt(OK);
+    CompleteQuicAttempt(OK, /*net_error_details=*/std::nullopt,
+                        /*overwrite_old_result=*/true);
     HandleQuicSessionReady(quic_session,
                            StreamSocketCloseReason::kUsingExistingQuicSession);
 
@@ -1184,7 +1203,7 @@ void HttpStreamPool::AttemptManager::ProcessServiceEndpointChanges() {
         NetLogEventType::
             HTTP_STREAM_POOL_ATTEMPT_MANAGER_EXISTING_SPDY_SESSION_MATCHED,
         [&] {
-          base::Value::Dict dict;
+          base::DictValue dict;
           spdy_session->net_log().source().AddToEventParameters(dict);
           return dict;
         });
@@ -1423,8 +1442,8 @@ bool HttpStreamPool::AttemptManager::IsTcpBasedAttemptReady() {
                       track_, "can_attempt", can_attempt);
   net_log_.AddEvent(
       NetLogEventType::HTTP_STREAM_POOL_ATTEMPT_MANAGER_CAN_ATTEMPT_TCP, [&] {
-        return base::Value::Dict().Set("can_attempt",
-                                       static_cast<int>(can_attempt));
+        return base::DictValue().Set("can_attempt",
+                                     static_cast<int>(can_attempt));
       });
   switch (can_attempt) {
     case CanAttemptResult::kAttempt:
@@ -1597,10 +1616,15 @@ HttpStreamPool::AttemptManager::CalculateRequiredTcpBasedAttemptForPreconnect()
     const {
   const size_t max_preconnect_count = CalculateMaxPreconnectCount();
   // Required preconnect count is treated as zero when the maximum preconnect
-  // count is less than or equals to the active stream socket count. This
-  // behavior is for compatibility with the non-HEv3 code path. See
+  // count is less than or equals to the active non-slow stream socket count.
+  // This behavior is for compatibility with the non-HEv3 code path. See
   // TransportClientSocketPool::RequestSockets().
-  if (max_preconnect_count <= group_->ActiveStreamSocketCount()) {
+  // TODO(crbug.com/457478038): Update this logic when we migrate to the new
+  // Attempt class.
+  size_t active_non_slow_count = group_->HandedOutStreamSocketCount() +
+                                 group_->IdleStreamSocketCount() +
+                                 NonSlowTcpBasedAttemptCount();
+  if (max_preconnect_count <= active_non_slow_count) {
     return 0;
   }
   return max_preconnect_count;
@@ -1651,13 +1675,13 @@ void HttpStreamPool::AttemptManager::HandleFinalError(int error) {
 
   net_log_.AddEvent(
       NetLogEventType::HTTP_STREAM_POOL_ATTEMPT_MANAGER_NOTIFY_FAILURE, [&] {
-        base::Value::Dict dict = GetStatesAsNetLogParams();
+        base::DictValue dict = GetStatesAsNetLogParams();
         dict.Set("net_error", final_error_to_notify_jobs());
         return dict;
       });
 
   CancelTcpBasedAttempts(StreamSocketCloseReason::kAbort);
-  CancelQuicAttempt(final_error_to_notify_jobs());
+  CompleteQuicAttempt(final_error_to_notify_jobs());
   NotifyPreconnectsComplete(final_error_to_notify_jobs());
   NotifyRequestJobsOfFailure();
 
@@ -1834,7 +1858,7 @@ void HttpStreamPool::AttemptManager::MaybeStartDraining() {
   CancelTcpBasedAttempts(StreamSocketCloseReason::kAttemptManagerDraining);
 
   if (quic_attempt_ && quic_attempt_->is_slow()) {
-    CancelQuicAttempt(ERR_ABORTED);
+    CompleteQuicAttempt(ERR_ABORTED);
   }
 
   group_->OnAttemptManagerShuttingDown(this);
@@ -2132,7 +2156,7 @@ void HttpStreamPool::AttemptManager::OnTcpBasedAttemptDelayPassed() {
       NetLogEventType::
           HTTP_STREAM_POOL_ATTEMPT_MANAGER_TCP_BASED_ATTEMPT_DELAY_PASSED,
       [&] {
-        base::Value::Dict dict;
+        base::DictValue dict;
         dict.Set("tcp_based_attempt_delay",
                  static_cast<int>(tcp_based_attempt_delay_.InMilliseconds()));
         return dict;
@@ -2173,7 +2197,8 @@ void HttpStreamPool::AttemptManager::MaybeMarkQuicBroken() {
   if (*quic_attempt_result_ == OK ||
       *quic_attempt_result_ == ERR_DNS_NO_MATCHING_SUPPORTED_ALPN ||
       *quic_attempt_result_ == ERR_NETWORK_CHANGED ||
-      *quic_attempt_result_ == ERR_INTERNET_DISCONNECTED) {
+      *quic_attempt_result_ == ERR_INTERNET_DISCONNECTED ||
+      *quic_attempt_result_ == ERR_ABORTED) {
     return;
   }
 
@@ -2193,13 +2218,13 @@ void HttpStreamPool::AttemptManager::MaybeMarkQuicBroken() {
           stream_key().network_anonymization_key());
 }
 
-base::Value::Dict
-HttpStreamPool::AttemptManager::GetTcpBasedAttemptSlotsAsValue() const {
-  base::Value::Dict dict;
+base::DictValue HttpStreamPool::AttemptManager::GetTcpBasedAttemptSlotsAsValue()
+    const {
+  base::DictValue dict;
   dict.Set("num_slots", static_cast<int>(tcp_based_attempt_slots_.size()));
 
   if (!tcp_based_attempt_slots_.empty()) {
-    base::Value::List slots;
+    base::ListValue slots;
     for (const auto& slot : tcp_based_attempt_slots_) {
       slots.Append(slot->GetInfoAsValue());
     }

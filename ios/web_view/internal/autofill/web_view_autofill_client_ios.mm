@@ -75,10 +75,10 @@ WebViewAutofillClientIOS::WebViewAutofillClientIOS(
       personal_data_manager_(personal_data_manager),
       autocomplete_history_manager_(autocomplete_history_manager),
       identity_manager_(identity_manager),
+      strike_database_(strike_database),
       form_data_importer_(
           std::make_unique<FormDataImporter>(this,
                                              /*history_service=*/nullptr)),
-      strike_database_(strike_database),
       sync_service_(sync_service),
       log_router_(log_router) {}
 
@@ -276,13 +276,6 @@ bool WebViewAutofillClientIOS::IsContextSecure() const {
 
 bool WebViewAutofillClientIOS::IsCvcSavingSupported() const {
   return false;
-}
-
-autofill::FormInteractionsFlowId
-WebViewAutofillClientIOS::GetCurrentFormInteractionsFlowId() {
-  // Currently not in use here. See `ChromeAutofillClient` for a proper
-  // implementation.
-  return {};
 }
 
 bool WebViewAutofillClientIOS::IsLastQueriedField(FieldGlobalId field_id) {

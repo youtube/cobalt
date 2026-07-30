@@ -47,7 +47,6 @@
 #include "build/build_config.h"
 #include "build/buildflag.h"
 #include "chrome/browser/apps/app_service/app_icon/app_icon_factory.h"
-#include "chrome/browser/apps/app_service/app_launch_params.h"
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
 #include "chrome/browser/apps/app_service/intent_util.h"
@@ -85,6 +84,7 @@
 #include "components/content_settings/core/common/content_settings.h"
 #include "components/content_settings/core/common/content_settings_pattern.h"
 #include "components/content_settings/core/common/content_settings_types.h"
+#include "components/services/app_service/public/cpp/app_launch_params.h"
 #include "components/services/app_service/public/cpp/app_launch_util.h"
 #include "components/services/app_service/public/cpp/file_handler.h"
 #include "components/services/app_service/public/cpp/icon_effects.h"
@@ -280,6 +280,7 @@ apps::InstallSource GetInstallSource(
     case webapps::WebappInstallSource::OOBE_APP_RECOMMENDATIONS:
     case webapps::WebappInstallSource::WEB_INSTALL:
     case webapps::WebappInstallSource::CHROMEOS_HELP_APP:
+    case webapps::WebappInstallSource::MIGRATION:
       return apps::InstallSource::kBrowser;
     case webapps::WebappInstallSource::ARC:
       return apps::InstallSource::kPlayStore;
@@ -314,6 +315,7 @@ apps::Readiness ConvertWebappUninstallSourceToReadiness(
     case webapps::WebappUninstallSource::kParentUninstall:
     case webapps::WebappUninstallSource::kTestCleanup:
     case webapps::WebappUninstallSource::kDevtools:
+    case webapps::WebappUninstallSource::kAppMigration:
       return apps::Readiness::kUninstalledByUser;
     case webapps::WebappUninstallSource::kMigration:
     case webapps::WebappUninstallSource::kInternalPreinstalled:
@@ -324,6 +326,7 @@ apps::Readiness ConvertWebappUninstallSourceToReadiness(
     case webapps::WebappUninstallSource::kInstallUrlDeduping:
     case webapps::WebappUninstallSource::kHealthcareUserInstallCleanup:
     case webapps::WebappUninstallSource::kIwaEnterprisePolicy:
+    case webapps::WebappUninstallSource::kIwaBlocklisted:
       return apps::Readiness::kUninstalledByNonUser;
   }
 }
@@ -723,7 +726,8 @@ apps::AppPtr WebAppPublisherHelper::CreateWebApp(const WebApp* web_app) {
 
   app->description =
       provider_->registrar_unsafe().GetAppDescription(web_app->app_id());
-  if (web_app->isolation_data().has_value()) {
+  if (provider_->registrar_unsafe().AppMatches(web_app->app_id(),
+                                               WebAppFilter::IsIsolatedApp())) {
     // Show the version of Isolated Web App in ChromeOS Settings
     app->version = web_app->isolation_data()->version().GetString();
   }
@@ -750,7 +754,8 @@ apps::AppPtr WebAppPublisherHelper::CreateWebApp(const WebApp* web_app) {
   app->permissions = CreatePermissions(web_app);
 
   // Isolated web apps can only be opened in window.
-  app->allow_window_mode_selection = !web_app->isolation_data().has_value();
+  app->allow_window_mode_selection = !provider_->registrar_unsafe().AppMatches(
+      web_app->app_id(), WebAppFilter::IsIsolatedApp());
 
   SetWebAppShowInFields(web_app, *app);
 

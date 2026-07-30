@@ -36,13 +36,17 @@ const HIGHLIGHT_PREVIOUS_CUSTOM =
 // Link colors.
 const LINK_DEFAULT = 'var(--color-read-anything-link-default';
 const LINK_VISITED = 'var(--color-read-anything-link-visited';
+// Read aloud player colors.
+const AUDIO_PLAYER_BACKGROUND =
+    'var(--color-read-anything-audio-player-background';
+const AUDIO_PLAYER_ICON = 'var(--color-read-anything-audio-player-icon';
 // Line focus styles.
 // Determined by experimentation to balance visibility without risking
 // obstructing any text.
 const LINE_FOCUS_LINE_HEIGHT_SCALE = 2;
 const LINE_FOCUS_BOX_SHADOW_LINE = 'none';
 const LINE_FOCUS_BOX_SHADOW_WINDOW =
-    '0 0 0 9999px var(--color-sys-state-scrim)';
+    '0 0 0 9999px var(--color-read-anything-line-focus-scrim)';
 const LINE_FOCUS_BG_LINE_DEFAULT = 'var(--color-sys-state-focus-ring)';
 const LINE_FOCUS_BG_LINE_CUSTOM = 'var(--color-read-anything-line-focus';
 const LINE_FOCUS_BG_WINDOW = 'none';
@@ -71,6 +75,14 @@ export class AppStyleUpdater {
 
   setMaxLineWidth() {
     this.setStyle_('--max-width', `${chrome.readingMode.maxLineWidth}ch`);
+  }
+
+  setPaddingForLineFocus(padding: number) {
+    if (!chrome.readingMode.isLineFocusEnabled) {
+      return;
+    }
+
+    this.setStyle_('--line-focus-padding', `${padding}px`);
   }
 
   setLineFocusPos(y: number, height: number|null, container: HTMLElement) {
@@ -189,6 +201,12 @@ export class AppStyleUpdater {
         this.getEmptyStateBodyColor_(colorSuffix));
     this.setStyle_('--link-color', `${LINK_DEFAULT}${colorSuffix})`);
     this.setStyle_('--visited-link-color', `${LINK_VISITED}${colorSuffix})`);
+    this.setStyle_(
+        '--audio-player-background-color',
+        this.getAudioPlayerBackgroundColor_(colorSuffix));
+    this.setStyle_(
+        '--audio-player-icon-color',
+        this.getAudioPlayerIconColor_(colorSuffix));
     const lineFocusBg = this.app_.style.getPropertyValue('--line-focus-bg');
     if (lineFocusBg !== LINE_FOCUS_BG_WINDOW) {
       this.setStyle_('--line-focus-bg', this.getLineFocusColor_(colorSuffix));
@@ -284,5 +302,17 @@ export class AppStyleUpdater {
     return (colorSuffix === ColorSuffix.DEFAULT) ?
         LINE_FOCUS_BG_LINE_DEFAULT :
         (LINE_FOCUS_BG_LINE_CUSTOM + `${colorSuffix})`);
+  }
+
+  private getAudioPlayerBackgroundColor_(colorSuffix: ColorSuffix): string {
+    return (colorSuffix === ColorSuffix.DEFAULT) ?
+        AUDIO_PLAYER_BACKGROUND :
+        (AUDIO_PLAYER_BACKGROUND + `${colorSuffix})`);
+  }
+
+  private getAudioPlayerIconColor_(colorSuffix: ColorSuffix): string {
+    return (colorSuffix === ColorSuffix.DEFAULT) ?
+        AUDIO_PLAYER_ICON :
+        (AUDIO_PLAYER_ICON + `${colorSuffix})`);
   }
 }

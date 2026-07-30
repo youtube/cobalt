@@ -6,8 +6,10 @@
 
 #include <map>
 #include <memory>
+#include <string>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 #include "base/check.h"
 #include "base/check_op.h"
@@ -24,7 +26,6 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/types/pass_key.h"
 #include "build/build_config.h"
-#include "chrome/browser/apps/app_service/app_launch_params.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
@@ -58,6 +59,7 @@
 #include "chrome/browser/web_applications/web_app_uninstall_dialog_user_options.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
 #include "components/feature_engagement/public/feature_constants.h"
+#include "components/services/app_service/public/cpp/app_launch_params.h"
 #include "components/user_education/common/feature_promo/feature_promo_controller.h"
 #include "components/user_education/common/feature_promo/feature_promo_result.h"
 #include "components/user_education/common/user_education_data.h"
@@ -375,6 +377,19 @@ void WebAppUiManagerImpl::ShowWebAppIdentityUpdateDialog(
   ::web_app::ShowWebAppIdentityUpdateDialog(
       app_id, title_change, icon_change, old_title, new_title, old_icon,
       new_icon, web_contents, std::move(callback));
+}
+
+void WebAppUiManagerImpl::ShowSubAppsInstallDialog(
+    content::WebContents* initiating_web_contents,
+    const std::vector<std::unique_ptr<WebAppInstallInfo>>& sub_apps,
+    const webapps::AppId& parent_app_id,
+    base::OnceCallback<void(bool)> callback) {
+  std::string parent_app_name = WebAppProvider::GetForWebApps(profile_)
+                                    ->registrar_unsafe()
+                                    .GetAppShortName(parent_app_id);
+  web_app::ShowSubAppsInstallDialog(initiating_web_contents, sub_apps,
+                                    parent_app_name, parent_app_id,
+                                    std::move(callback));
 }
 
 void WebAppUiManagerImpl::ShowWebAppSettings(const webapps::AppId& app_id) {

@@ -39,6 +39,7 @@
 #include "components/tabs/public/tab_interface.h"
 #include "components/translate/core/browser/translate_manager.h"
 #include "content/public/test/browser_test.h"
+#include "content/public/test/content_browser_test_utils.h"
 #include "content/public/test/test_web_ui.h"
 #include "mojo/public/mojom/base/values.mojom.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -99,8 +100,8 @@ class MockPage : public read_anything::mojom::UntrustedPage {
                bool images_enabled,
                read_anything::mojom::Colors color,
                double speech_rate,
-               base::Value::Dict voices,
-               base::Value::List languages_enabled_in_pref,
+               base::DictValue voices,
+               base::ListValue languages_enabled_in_pref,
                read_anything::mojom::HighlightGranularity granularity,
                read_anything::mojom::LineFocus line_focus));
   MOCK_METHOD(void,
@@ -817,7 +818,7 @@ IN_PROC_BROWSER_TEST_P(ReadAnythingUntrustedPageHandlerTest,
   OnLanguagePrefChange(kLang2, true);
   OnLanguagePrefChange(kDisabledLang, false);
 
-  const base::Value::List* langs = &browser()->profile()->GetPrefs()->GetList(
+  const base::ListValue* langs = &browser()->profile()->GetPrefs()->GetList(
       prefs::kAccessibilityReadAnythingLanguagesEnabled);
   ASSERT_EQ(langs->size(), 2u);
   ASSERT_EQ((*langs)[0].GetString(), kLang1);
@@ -872,11 +873,11 @@ IN_PROC_BROWSER_TEST_P(
   const char kVoice1[] = "Rapunzel";
   const char kVoice2[] = "Eugene";
   const char kVoice3[] = "Cassandra";
-  base::Value::Dict voices = base::Value::Dict()
-                                 .Set(kLang1, kVoice1)
-                                 .Set(kLang2, kVoice2)
-                                 .Set(kLang3, kVoice3);
-  base::Value::List langs;
+  base::DictValue voices = base::DictValue()
+                               .Set(kLang1, kVoice1)
+                               .Set(kLang2, kVoice2)
+                               .Set(kLang3, kVoice3);
+  base::ListValue langs;
   langs.Append(kLang1);
   langs.Append(kLang2);
   langs.Append(kLang3);
@@ -898,18 +899,18 @@ IN_PROC_BROWSER_TEST_P(
                          _, _, _, _, _, _, _, expected_speech_rate, _, _,
                          expected_highlight_granularity, _))
       .Times(1)
-      .WillOnce(testing::WithArgs<8, 9>(
-          [&](base::Value::Dict voices, base::Value::List langs) {
-            EXPECT_THAT(voices, base::test::DictionaryHasValues(
-                                    base::Value::Dict()
-                                        .Set(kLang1, kVoice1)
-                                        .Set(kLang2, kVoice2)
-                                        .Set(kLang3, kVoice3)));
-            EXPECT_EQ(3u, langs.size());
-            EXPECT_EQ(langs[0].GetString(), kLang1);
-            EXPECT_EQ(langs[1].GetString(), kLang2);
-            EXPECT_EQ(langs[2].GetString(), kLang3);
-          }));
+      .WillOnce(testing::WithArgs<8, 9>([&](base::DictValue voices,
+                                            base::ListValue langs) {
+        EXPECT_THAT(voices,
+                    base::test::DictionaryHasValues(base::DictValue()
+                                                        .Set(kLang1, kVoice1)
+                                                        .Set(kLang2, kVoice2)
+                                                        .Set(kLang3, kVoice3)));
+        EXPECT_EQ(3u, langs.size());
+        EXPECT_EQ(langs[0].GetString(), kLang1);
+        EXPECT_EQ(langs[1].GetString(), kLang2);
+        EXPECT_EQ(langs[2].GetString(), kLang3);
+      }));
 
   handler_ = CreateHandler();
 }
@@ -925,13 +926,12 @@ IN_PROC_BROWSER_TEST_P(ReadAnythingUntrustedPageHandlerTest,
   OnVoiceChange(kVoice1, kLang1);
   OnVoiceChange(kVoice2, kLang2);
 
-  const base::Value::Dict* voices = &browser()->profile()->GetPrefs()->GetDict(
+  const base::DictValue* voices = &browser()->profile()->GetPrefs()->GetDict(
       prefs::kAccessibilityReadAnythingVoiceName);
   ASSERT_EQ(voices->size(), 2u);
-  EXPECT_THAT(
-      *voices,
-      base::test::DictionaryHasValues(
-          base::Value::Dict().Set(kLang1, kVoice1).Set(kLang2, kVoice2)));
+  EXPECT_THAT(*voices,
+              base::test::DictionaryHasValues(
+                  base::DictValue().Set(kLang1, kVoice1).Set(kLang2, kVoice2)));
 }
 
 IN_PROC_BROWSER_TEST_P(ReadAnythingUntrustedPageHandlerTest,
@@ -944,7 +944,7 @@ IN_PROC_BROWSER_TEST_P(ReadAnythingUntrustedPageHandlerTest,
   OnVoiceChange(kVoice1, kLang);
   OnVoiceChange(kVoice2, kLang);
 
-  const base::Value::Dict* voices = &browser()->profile()->GetPrefs()->GetDict(
+  const base::DictValue* voices = &browser()->profile()->GetPrefs()->GetDict(
       prefs::kAccessibilityReadAnythingVoiceName);
   ASSERT_EQ(voices->size(), 1u);
   EXPECT_THAT(*voices,
@@ -961,12 +961,12 @@ IN_PROC_BROWSER_TEST_P(ReadAnythingUntrustedPageHandlerTest,
   OnVoiceChange(kVoice, kLang1);
   OnVoiceChange(kVoice, kLang2);
 
-  const base::Value::Dict* voices = &browser()->profile()->GetPrefs()->GetDict(
+  const base::DictValue* voices = &browser()->profile()->GetPrefs()->GetDict(
       prefs::kAccessibilityReadAnythingVoiceName);
   ASSERT_EQ(voices->size(), 2u);
   EXPECT_THAT(*voices,
               base::test::DictionaryHasValues(
-                  base::Value::Dict().Set(kLang1, kVoice).Set(kLang2, kVoice)));
+                  base::DictValue().Set(kLang1, kVoice).Set(kLang2, kVoice)));
 }
 
 IN_PROC_BROWSER_TEST_P(ReadAnythingUntrustedPageHandlerTest, BadImageData) {
@@ -1967,6 +1967,71 @@ IN_PROC_BROWSER_TEST_P(ReadAnythingUntrustedPageHandlerDistillerTest,
       [&]() { return handler_->dom_distiller_title().has_value(); }));
   EXPECT_TRUE(base::test::RunUntil(
       [&]() { return handler_->dom_distiller_content().has_value(); }));
+}
+
+IN_PROC_BROWSER_TEST_P(ReadAnythingUntrustedPageHandlerDistillerTest,
+                       RecordNonHttpDistillationAttempt) {
+  const std::string_view histogram =
+      "Accessibility.ReadAnything.DistillationScheme";
+  base::HistogramTester histogram_tester;
+
+  histogram_tester.ExpectTotalCount(histogram, 0);
+
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  // It will start at about/blank.
+  handler_ = CreateHandler();
+
+  histogram_tester.ExpectBucketCount(histogram,
+                                     ReadAnythingDistillationScheme::kAbout, 1);
+
+  // Http/https.
+  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
+      browser(), GURL(embedded_test_server()->GetURL("/simple.html")),
+      WindowOpenDisposition::CURRENT_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
+
+  histogram_tester.ExpectBucketCount(
+      histogram, ReadAnythingDistillationScheme::kHttpOrHttps, 1);
+
+  // Data.
+  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
+      browser(), GURL("data:text/html,<html><body>Main content</body></html>"),
+      WindowOpenDisposition::CURRENT_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
+
+  histogram_tester.ExpectBucketCount(histogram,
+                                     ReadAnythingDistillationScheme::kData, 1);
+
+  // File.
+  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
+      browser(), content::GetTestUrl(".", "simple_page.html"),
+      WindowOpenDisposition::CURRENT_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
+
+  histogram_tester.ExpectBucketCount(histogram,
+                                     ReadAnythingDistillationScheme::kFile, 1);
+
+  // Blob.
+  // new Blob(["This is a test for Reading Mode."], {type: 'text/plain'});
+  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
+      browser(), GURL("blob:null/5e556357-49b2-4749-b18d-1bd57a1be47f"),
+      WindowOpenDisposition::CURRENT_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
+
+  histogram_tester.ExpectBucketCount(histogram,
+                                     ReadAnythingDistillationScheme::kBlob, 1);
+
+  // Extension.
+  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
+      browser(), GURL("chrome-extension://test/options.html"),
+      WindowOpenDisposition::CURRENT_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
+
+  histogram_tester.ExpectBucketCount(
+      histogram, ReadAnythingDistillationScheme::kExtension, 1);
+
+  histogram_tester.ExpectTotalCount(histogram, 6);
 }
 
 }  // namespace

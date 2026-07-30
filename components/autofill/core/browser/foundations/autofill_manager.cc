@@ -34,6 +34,7 @@
 #include "components/autofill/core/browser/logging/log_manager.h"
 #include "components/autofill/core/browser/metrics/form_interactions_ukm_logger.h"
 #include "components/autofill/core/browser/metrics/quality_metrics.h"
+#include "components/autofill/core/browser/suggestions/suggestion_util.h"
 #include "components/autofill/core/common/autofill_constants.h"
 #include "components/autofill/core/common/autofill_data_validation.h"
 #include "components/autofill/core/common/autofill_debug_features.h"
@@ -115,9 +116,10 @@ bool NeedsReparse(const FormData& live_form, const FormStructure& cached_form) {
              });
 }
 
-bool IsCreditCardFormForSignaturePurposes(const FormStructure& form_structure,
-                                          bool suppress_if_ac_unrecognized) {
-  return form_structure.GetFormTypes(suppress_if_ac_unrecognized) ==
+bool IsCreditCardFormForSignaturePurposes(
+    const FormStructure& form_structure,
+    AutocompleteUnrecognizedBehavior ac_unrecognized_behavior) {
+  return form_structure.GetFormTypes(ac_unrecognized_behavior) ==
          DenseSet<FormType>{FormType::kCreditCardForm};
 }
 
@@ -513,32 +515,6 @@ void AutofillManager::OnJavaScriptChangedAutofilledValue(
               form.global_id(), field_id)));
 }
 
-std::vector<raw_ref<const FormStructure>>
-AutofillManager::FindCachedFormsBySignature(
-    FormSignature form_signature) const {
-  std::vector<raw_ref<const FormStructure>> form_structures;
-  for (const auto& [form_id, form_structure] : form_structures_) {
-    if (form_structure->form_signature() == form_signature) {
-      form_structures.emplace_back(*form_structure);
-    }
-  }
-  return form_structures;
-}
-
-size_t AutofillManager::FindCachedFormsBySignature(
-    FormSignature form_signature,
-    std::vector<raw_ref<FormStructure>>* form_structures) const {
-  DCHECK(form_structures);
-  size_t hits_num = 0;
-  for (const auto& [form_id, form_structure] : form_structures_) {
-    if (form_structure->form_signature() == form_signature) {
-      ++hits_num;
-      form_structures->emplace_back(*form_structure);
-    }
-  }
-  return hits_num;
-}
-
 const FormStructure* AutofillManager::FindCachedFormById(
     const FormGlobalId& form_id) const {
   auto it = form_structures_.find(form_id);
@@ -925,65 +901,48 @@ void AutofillManager::OnLoadedServerPredictions(
     PopulateCacheForQueryResponse(forms, *response);
   }
 
-  // Get the current valid FormStructures represented by
-  // `response->queried_form_signatures`.
   std::vector<raw_ref<FormStructure>> queried_forms;
-  queried_forms.reserve(response->queried_form_signatures.size());
-  for (const auto& form_signature : response->queried_form_signatures) {
-    FindCachedFormsBySignature(form_signature, &queried_forms);
-  }
+  queried_forms.reserve(forms.size());
 
-  // Each form signature in |queried_form_signatures| is supposed to be unique,
-  // and therefore appear only once. This ensures that
-  // FindCachedFormsBySignature() produces an output without duplicates in the
-  // forms.
-  // TODO(crbug.com/40123827): |queried_forms| could be a set data structure;
-  // their order should be irrelevant.
-  DCHECK_EQ(queried_forms.size(),
-            std::set<raw_ref<FormStructure>>(queried_forms.begin(),
-                                             queried_forms.end())
-                .size());
-
-  // If there are no current forms corresponding to the queried signatures, drop
-  // the query response.
-  if (queried_forms.empty()) {
-    return;
-  }
-
-  // Parse and store the server predictions.
-  ParseServerPredictionsQueryResponse(
-      std::move(response->response), queried_forms,
-      response->queried_form_signatures, log_manager(),
-      /*ignore_small_forms=*/!client().IsTabInActorMode());
-
-  for (const raw_ref<FormStructure>& form : queried_forms) {
-    form->RationalizeAndAssignSections(client().GetVariationConfigCountryCode(),
-                                       GetCurrentPageLanguage(), log_manager());
-    LogCurrentFieldTypes(&*form);
-    NotifyObservers(&Observer::OnFieldTypesDetermined, form->global_id(),
-                    Observer::FieldTypeSource::kAutofillServer);
-  }
-
-  LogServerQueryResponseMetrics(queried_forms);
-  if (base::FeatureList::IsEnabled(features::debug::kShowDomNodeIDs)) {
-    driver().ExposeDomNodeIdsInAllFrames();
-  }
-  OnLoadedServerPredictionsImpl(queried_forms);
-
-  if (base::FeatureList::IsEnabled(
-          features::kAutofillServerQueryPredictionsEarly)) {
-    for (const FormData& form_data : forms) {
-      const FormStructure* form_structure =
-          FindCachedFormById(form_data.global_id());
+  if (std::vector<ServerPredictions> form_server_predictions =
+          ParseServerPredictionsFromQueryResponse(
+              std::move(response->response), forms,
+              response->queried_form_signatures, log_manager(),
+              /*ignore_small_forms=*/!client().IsTabInActorMode());
+      !form_server_predictions.empty()) {
+    CHECK_EQ(forms.size(), form_server_predictions.size());
+    // TODO(crbug.com/475586865): Use `AutofillManager::UpdateFormCache()`
+    // instead of duplicating the logic.
+    for (auto [form, server_predictions] :
+         base::zip(forms, form_server_predictions)) {
+      FormStructure* form_structure =
+          FindCachedFormById(form.global_id(), /*pass_key=*/{});
       if (!form_structure) {
         continue;
       }
-      // TODO(crbug.com/470949499): OnFormProcessed and OnFieldTypesDetermined()
-      // are both called in sequence after parsing and after receiving server
-      // predictions. One of these calls may be able to be removed/merged.
-      OnFormProcessed(form_data, *form_structure);
+
+      queried_forms.emplace_back(*form_structure);
+      server_predictions.ApplyTo(*form_structure);
+      form_structure->RationalizeAndAssignSections(
+          client().GetVariationConfigCountryCode(), GetCurrentPageLanguage(),
+          log_manager());
+      LogCurrentFieldTypes(form_structure);
+      NotifyObservers(&Observer::OnFieldTypesDetermined, form.global_id(),
+                      Observer::FieldTypeSource::kAutofillServer);
+      if (base::FeatureList::IsEnabled(
+              features::kAutofillServerQueryPredictionsEarly)) {
+        OnFormProcessed(form, *form_structure);
+      }
     }
+    LogServerQueryResponseMetrics(queried_forms);
   }
+
+  if (base::FeatureList::IsEnabled(features::debug::kShowDomNodeIDs)) {
+    driver().ExposeDomNodeIdsInAllFrames();
+  }
+  // TODO(crbug.com/470949499): Consider merging OnFormProcessed() and
+  // OnLoadedServerPredictionsImpl().
+  OnLoadedServerPredictionsImpl(queried_forms);
 }
 
 void AutofillManager::LogServerQueryResponseMetrics(
@@ -1095,9 +1054,8 @@ void AutofillManager::UpdateFormCache(
       }
       if (preserve_signatures ||
           IsCreditCardFormForSignaturePurposes(
-              *cached_form_structure,
-              /*suppress_if_ac_unrecognized=*/!client().IsTabInActorMode())) {
-        // Not updating signatures of credit card forms is legacy behaviour. We
+              *cached_form_structure, GetAcUnrecognizedBehavior(client()))) {
+        // Not updating signatures of credit card forms is legacy behavior. We
         // believe that the signatures are kept stable for voting purposes.
         // Credit card forms are those which contain only credit card fields.
         // TODO(crbug.com/431754194): Investigate making the behavior consistent
@@ -1115,9 +1073,8 @@ void AutofillManager::UpdateFormCache(
 
       if (!preserve_signatures &&
           !IsCreditCardFormForSignaturePurposes(
-              *cached_form_structure,
-              /*suppress_if_ac_unrecognized=*/!client().IsTabInActorMode())) {
-        // Not updating signatures of credit card forms is legacy behaviour. We
+              *cached_form_structure, GetAcUnrecognizedBehavior(client()))) {
+        // Not updating signatures of credit card forms is legacy behavior. We
         // believe that the signatures are kept stable for voting purposes.
         // Credit card forms are those which contain only credit card fields.
         // TODO(crbug.com/431754194): Investigate making the behavior consistent

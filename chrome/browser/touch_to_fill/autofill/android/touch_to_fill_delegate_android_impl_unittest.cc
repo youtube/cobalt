@@ -276,11 +276,6 @@ class TouchToFillDelegateAndroidImplUnitTest
                                   /*should_reshow=*/false);
           }
         });
-    autofill::MockFastCheckoutClient* fast_checkout_client =
-        static_cast<autofill::MockFastCheckoutClient*>(
-            autofill_client().GetFastCheckoutClient());
-    ON_CALL(*fast_checkout_client, IsNotShownYet)
-        .WillByDefault(testing::Return(true));
   }
 
   // Helper method to add the given `card` and create a card form.
@@ -412,7 +407,7 @@ TEST_F(TouchToFillDelegateAndroidImplUnitTest,
       FillOrPreviewForm(
           mojom::ActionPersistence::kFill, form_, form_.fields()[0].global_id(),
           ::testing::VariantWith<const CreditCard*>(Pointee(test_card)),
-          AutofillTriggerSource::kTouchToFillCreditCard));
+          AutofillTriggerSource::kKeyboardAccessoryOrBottomSheet));
 
   // Run the captured callback, simulating a successful VCN fetch.
   std::move(captured_callback).Run(test_card);
@@ -948,20 +943,6 @@ TEST_F(TouchToFillDelegateAndroidImplCreditCardUnitTest,
       .WillOnce(Return(false));
 
   TryToShowTouchToFill(/*expected_success=*/false);
-}
-
-TEST_F(TouchToFillDelegateAndroidImplCreditCardUnitTest,
-       TryToShowTouchToFillFailsIfFastCheckoutWasShown) {
-  ASSERT_FALSE(touch_to_fill_delegate_->IsShowingTouchToFill());
-  autofill::MockFastCheckoutClient* fast_checkout_client =
-      static_cast<autofill::MockFastCheckoutClient*>(
-          autofill_client().GetFastCheckoutClient());
-  EXPECT_CALL(*fast_checkout_client, IsNotShownYet).WillOnce(Return(false));
-
-  TryToShowTouchToFill(/*expected_success=*/false);
-  histogram_tester_.ExpectUniqueSample(
-      kUmaTouchToFillCreditCardTriggerOutcome,
-      TouchToFillPaymentMethodTriggerOutcome::kFastCheckoutWasShown, 1);
 }
 
 TEST_F(TouchToFillDelegateAndroidImplCreditCardUnitTest,

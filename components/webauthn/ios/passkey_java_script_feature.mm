@@ -100,7 +100,7 @@ std::string Base64UrlEncode(std::string_view input) {
 // Returns std::nullopt on any non log event or invalid log event.
 std::optional<PasskeyTabHelper::WebAuthenticationIOSContentAreaEvent>
 ReadLogEventType(const std::string& event,
-                 const base::Value::Dict& dict,
+                 const base::DictValue& dict,
                  const PasskeyTabHelper& tab_helper) {
   if (event == kLogGetRequest) {
     return kGetRequested;
@@ -126,6 +126,14 @@ ReadLogEventType(const std::string& event,
   }
 
   return std::nullopt;
+}
+
+bool ValidateFeatureUsage(const PasskeyRequestParams& request_params) {
+  if (request_params.IsConditional()) {
+    return base::FeatureList::IsEnabled(kIOSPasskeyConditionalLoginWithShim);
+  } else {
+    return base::FeatureList::IsEnabled(kIOSPasskeyModalLoginWithShim);
+  }
 }
 
 }  // namespace
@@ -180,15 +188,14 @@ PasskeyJavaScriptFeature::PasskeyJavaScriptFeature()
               // (https://w3c.github.io/webauthn/#sctn-permissions-policy).
               FeatureScript::TargetFrames::kAllFrames,
               FeatureScript::ReinjectionBehavior::kInjectOncePerWindow,
-              base::BindRepeating(&GetPlaceholderReplacements))},
-          {web::java_script_features::GetCommonJavaScriptFeature()}) {}
+              base::BindRepeating(&GetPlaceholderReplacements))}) {}
 
 PasskeyJavaScriptFeature::~PasskeyJavaScriptFeature() = default;
 
 void PasskeyJavaScriptFeature::DeferToRenderer(web::WebFrame* web_frame,
                                                std::string_view request_id) {
   CallJavaScriptFunction(web_frame, "passkey.deferToRenderer",
-                         base::Value::List().Append(request_id));
+                         base::ListValue().Append(request_id));
 }
 
 void PasskeyJavaScriptFeature::ResolveAttestationRequest(
@@ -198,7 +205,7 @@ void PasskeyJavaScriptFeature::ResolveAttestationRequest(
     AttestationData attestation_data) {
   CallJavaScriptFunction(
       web_frame, "passkey.resolveAttestationRequest",
-      base::Value::List()
+      base::ListValue()
           .Append(request_id)
           .Append(Base64UrlEncode(credential_id))
           .Append(Base64UrlEncode(attestation_data.attestation_object))
@@ -216,7 +223,7 @@ void PasskeyJavaScriptFeature::ResolveAssertionRequest(
     AssertionData assertion_data) {
   CallJavaScriptFunction(
       web_frame, "passkey.resolveAssertionRequest",
-      base::Value::List()
+      base::ListValue()
           .Append(request_id)
           .Append(Base64UrlEncode(credential_id))
           .Append(Base64UrlEncode(assertion_data.signature))
@@ -257,7 +264,7 @@ void PasskeyJavaScriptFeature::ScriptMessageReceived(
     return;
   }
 
-  const base::Value::Dict& dict = body->GetDict();
+  const base::DictValue& dict = body->GetDict();
   const std::string* event = dict.FindString(kEvent);
   if (!event || event->empty()) {
     return;
@@ -298,6 +305,12 @@ void PasskeyJavaScriptFeature::ScriptMessageReceived(
       return;
     }
 
+    if (!ValidateFeatureUsage(*assertion_request_params)) {
+      // TODO(460485333): Log the error.
+      passkey_tab_helper->DeferToRenderer(std::move(*request_info));
+      return;
+    }
+
     passkey_tab_helper->HandleGetRequestedEvent(
         std::move(*assertion_request_params));
   } else {  // is_handle_create_request_event
@@ -307,6 +320,12 @@ void PasskeyJavaScriptFeature::ScriptMessageReceived(
     auto registration_request_params =
         BuildRegistrationRequestParams(std::move(*request_info), dict);
     if (!registration_request_params.has_value()) {
+      // TODO(460485333): Log the error.
+      passkey_tab_helper->DeferToRenderer(std::move(*request_info));
+      return;
+    }
+
+    if (!ValidateFeatureUsage(*registration_request_params)) {
       // TODO(460485333): Log the error.
       passkey_tab_helper->DeferToRenderer(std::move(*request_info));
       return;

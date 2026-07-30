@@ -98,16 +98,14 @@ class MagicBoostBrowserTest
   void SetUp() override {
     if (IsMagicBoostRevampEnabled()) {
       feature_list_.InitWithFeatures(
-          /*enabled_features=*/{chromeos::features::kMahi,
-                                chromeos::features::kOrca,
+          /*enabled_features=*/{chromeos::features::kOrca,
                                 chromeos::features::kFeatureManagementMahi,
                                 chromeos::features::kFeatureManagementOrca,
                                 chromeos::features::kMagicBoostRevamp},
           /*disabled_features=*/{});
     } else {
       feature_list_.InitWithFeatures(
-          /*enabled_features=*/{chromeos::features::kMahi,
-                                chromeos::features::kOrca,
+          /*enabled_features=*/{chromeos::features::kOrca,
                                 chromeos::features::kFeatureManagementMahi,
                                 chromeos::features::kFeatureManagementOrca},
           /*disabled_features=*/{chromeos::features::kMagicBoostRevamp});
@@ -161,7 +159,7 @@ class MagicBoostBrowserTest
         content::EvalJs(browser()->tab_strip_model()->GetActiveWebContents(),
                         "getTextfieldBound();");
     ASSERT_TRUE(result.is_ok());
-    const base::Value::List& bounds_as_list = result.ExtractList();
+    const base::ListValue& bounds_as_list = result.ExtractList();
     ASSERT_EQ(bounds_as_list.size(), 4u);
     const double left = bounds_as_list[0].GetDouble();
     const double top = bounds_as_list[1].GetDouble();
@@ -1122,7 +1120,6 @@ class MahiUiWithOptInCardBrowserTest
     feature_list_.InitWithFeatures(
         /*enabled_features=*/{chromeos::features::kFeatureManagementOrca,
                               chromeos::features::kFeatureManagementMahi,
-                              chromeos::features::kMahi,
                               chromeos::features::kOrca},
         /*disabled_features=*/{chromeos::features::kMagicBoostRevamp});
 
@@ -1211,7 +1208,6 @@ class MahiUiWithMagicBoostRevampBrowserTest
     feature_list_.InitWithFeatures(
         /*enabled_features=*/{chromeos::features::kFeatureManagementOrca,
                               chromeos::features::kFeatureManagementMahi,
-                              chromeos::features::kMahi,
                               chromeos::features::kOrca,
                               chromeos::features::kMagicBoostRevamp},
         /*disabled_features=*/{});

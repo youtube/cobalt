@@ -273,7 +273,6 @@ bool IsOnDeviceHeadSuggestEnabledForAnyMode();
 bool IsOnDeviceHeadSuggestEnabledForLocale(const std::string& locale);
 bool IsOnDeviceTailSuggestEnabled(const std::string& locale);
 bool ShouldEncodeLeadingSpaceForOnDeviceTailSuggest();
-bool ShouldApplyOnDeviceHeadModelSelectionFix();
 // Functions can be used in both non-incognito and incognito.
 std::string OnDeviceHeadModelLocaleConstraint(bool is_incognito);
 
@@ -346,7 +345,6 @@ extern const char kDynamicMaxAutocompleteIncreasedLimitParam[];
 
 // Parameter names used by on device head model.
 extern const char kOnDeviceHeadModelLocaleConstraint[];
-extern const char kOnDeviceHeadModelSelectionFix[];
 
 // The amount of time to wait before sending a new suggest request after the
 // previous one unless overridden by a field trial parameter.
@@ -716,6 +714,9 @@ inline constexpr base::FeatureParam<bool>
 // Fusebox -->
 inline constexpr base::FeatureParam<bool> kOmniboxMultimodalInputMultiContext{
     &omnibox::kOmniboxMultimodalInput, "multi_context", false};
+
+inline constexpr base::FeatureParam<bool> kOmniboxShowModelPicker{
+    &omnibox::kOmniboxMultimodalInput, "show_model_picker", false};
 
 inline constexpr base::FeatureParam<bool>
     kOmniboxMultimodalPrioritizeSuggestionsForFirstDocument{

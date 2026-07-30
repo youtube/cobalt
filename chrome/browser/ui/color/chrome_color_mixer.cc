@@ -901,6 +901,8 @@ void AddChromeColorMixer(ui::ColorProvider* provider,
       SkColorSetRGB(143, 143, 143)};
   mixer[kColorReadAnythingForegroundSepiaLight] = {SkColorSetRGB(98, 78, 65)};
   mixer[kColorReadAnythingForegroundSepiaDark] = {SkColorSetRGB(155, 149, 141)};
+  mixer[kColorReadAnythingLineFocusScrim] =
+      ui::SetAlpha(ui::kColorSysShadow, 0xCC);
   mixer[kColorReadAnythingLineFocus] = {dark_mode
                                             ? kColorReadAnythingLineFocusDark
                                             : kColorReadAnythingLineFocusLight};
@@ -947,6 +949,60 @@ void AddChromeColorMixer(ui::ColorProvider* provider,
       SkColorSetRGB(18, 74, 115)};
   mixer[kColorReadAnythingPreviousReadAloudHighlightSepiaDark] = {
       SkColorSetRGB(91, 179, 240)};
+  mixer[kColorReadAnythingAudioPlayerBackground] = {
+      dark_mode ? kColorReadAnythingAudioPlayerBackgroundDark
+                : kColorReadAnythingAudioPlayerBackgroundLight};
+  mixer[kColorReadAnythingAudioPlayerBackgroundBlue] = {
+      dark_mode ? ui::kColorSysStateFocusRing
+                : ui::kColorSysStateFocusRingInverse};
+  mixer[kColorReadAnythingAudioPlayerBackgroundDark] = {
+      dark_mode ? ui::kColorSysStateFocusRingInverse
+                : ui::kColorSysStateFocusRing};
+  mixer[kColorReadAnythingAudioPlayerBackgroundLight] = {
+      dark_mode ? ui::kColorSysStateFocusRing
+                : ui::kColorSysStateFocusRingInverse};
+  mixer[kColorReadAnythingAudioPlayerBackgroundYellow] = {
+      dark_mode ? ui::kColorSysStateFocusRing
+                : ui::kColorSysStateFocusRingInverse};
+  mixer[kColorReadAnythingAudioPlayerBackgroundHighContrast] = {
+      dark_mode ? ui::kColorSysStateFocusRingInverse
+                : ui::kColorSysStateFocusRing};
+  mixer[kColorReadAnythingAudioPlayerBackgroundLowContrast] = {
+      dark_mode ? ui::kColorSysStateFocusRingInverse
+                : ui::kColorSysStateFocusRing};
+  mixer[kColorReadAnythingAudioPlayerBackgroundSepiaLight] = {
+      dark_mode ? ui::kColorSysStateFocusRing
+                : ui::kColorSysStateFocusRingInverse};
+  mixer[kColorReadAnythingAudioPlayerBackgroundSepiaDark] = {
+      dark_mode ? ui::kColorSysStateFocusRingInverse
+                : ui::kColorSysStateFocusRing};
+  mixer[kColorReadAnythingAudioPlayerIcon] = {
+      dark_mode ? kColorReadAnythingAudioPlayerIconDark
+                : kColorReadAnythingAudioPlayerIconLight};
+  mixer[kColorReadAnythingAudioPlayerIconBlue] = {
+      dark_mode ? ui::kColorSysStateFocusRingInverse
+                : ui::kColorSysStateFocusRing};
+  mixer[kColorReadAnythingAudioPlayerIconDark] = {
+      dark_mode ? ui::kColorSysStateFocusRing
+                : ui::kColorSysStateFocusRingInverse};
+  mixer[kColorReadAnythingAudioPlayerIconLight] = {
+      dark_mode ? ui::kColorSysStateFocusRingInverse
+                : ui::kColorSysStateFocusRing};
+  mixer[kColorReadAnythingAudioPlayerIconYellow] = {
+      dark_mode ? ui::kColorSysStateFocusRingInverse
+                : ui::kColorSysStateFocusRing};
+  mixer[kColorReadAnythingAudioPlayerIconHighContrast] = {
+      dark_mode ? ui::kColorSysStateFocusRing
+                : ui::kColorSysStateFocusRingInverse};
+  mixer[kColorReadAnythingAudioPlayerIconLowContrast] = {
+      dark_mode ? ui::kColorSysStateFocusRing
+                : ui::kColorSysStateFocusRingInverse};
+  mixer[kColorReadAnythingAudioPlayerIconSepiaLight] = {
+      dark_mode ? ui::kColorSysStateFocusRingInverse
+                : ui::kColorSysStateFocusRing};
+  mixer[kColorReadAnythingAudioPlayerIconSepiaDark] = {
+      dark_mode ? ui::kColorSysStateFocusRing
+                : ui::kColorSysStateFocusRingInverse};
   mixer[kColorReadAnythingSeparator] = {dark_mode
                                             ? kColorReadAnythingSeparatorDark
                                             : kColorReadAnythingSeparatorLight};

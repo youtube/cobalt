@@ -345,8 +345,8 @@ struct SameSizeAsDocumentLoader
   Member<MHTMLArchive> archive;
   std::unique_ptr<WebNavigationParams> params;
   std::unique_ptr<PolicyContainer> policy_container;
-  std::optional<network::ParsedPermissionsPolicy>
-      isolated_app_permissions_policy;
+  const std::optional<Vector<IsolatedAppPermissionPolicyEntry>>
+      isolated_app_policy;
   DocumentToken token;
   KURL url;
   KURL original_url;
@@ -532,7 +532,7 @@ DocumentLoader::DocumentLoader(
     std::unique_ptr<ExtraData> extra_data)
     : params_(std::move(navigation_params)),
       policy_container_(std::move(policy_container)),
-      initial_permissions_policy_(params_->permissions_policy_override),
+      isolated_app_policy_(params_->isolated_app_policy),
       token_(params_->document_token),
       url_(params_->url),
       original_url_(params_->url),
@@ -2637,14 +2637,10 @@ void DocumentLoader::InitializeWindow(Document* owner_document) {
     // In this case we either have AllowUniversalAccessFromFileURLs enabled, or
     // WebSecurity is disabled, or it's a local scheme such as file://; any of
     // these cases forces us to use a common WindowAgent for all origins, so
-    // don't attempt to pass the AgentClusterKey sent from the browser. Instead
-    // recreate a site-keyed one based on the SecurityOrigin. For file URLs,
-    // this will be picked up by the WindowAgentFactory to assign the common
-    // file WindowAgent. Note:
+    // don't attempt to pass the AgentClusterKey sent from the browser. Note:
     // AllowUniversalAccessFromFileURLs is deprecated as of Android R, so
     // eventually this use case will diminish.
-    agent_cluster_key =
-        AgentClusterKey::CreateSiteKeyed(KURL(security_origin->ToString()));
+    agent_cluster_key = AgentClusterKey::CreateUniversalFileAgent();
   } else if (ShouldInheritAgentClusterKey(Url(), commit_reason_) &&
              owner_document && owner_document->domWindow()) {
     // Since we're inheriting the owner document's origin, we should also use
@@ -2910,9 +2906,9 @@ void DocumentLoader::CommitNavigation() {
     // PermissionsPolicy and DocumentPolicy require SecurityOrigin and origin
     // trials to be initialized.
     // TODO(iclelland): Add Permissions-Policy-Report-Only to Origin Policy.
-    security_init.ApplyPermissionsPolicy(
-        *frame_.Get(), response_, frame_policy_, initial_permissions_policy_,
-        FencedFrameProperties(), url_);
+    security_init.ApplyPermissionsPolicy(*frame_.Get(), response_,
+                                         frame_policy_, isolated_app_policy_,
+                                         FencedFrameProperties(), url_);
 
     // |document_policy_| is parsed in document loader because it is
     // compared with |frame_policy.required_document_policy| to decide
@@ -3538,10 +3534,16 @@ void DocumentLoader::RecordUseCountersForCommit() {
     case network::mojom::DeviceBoundSessionUsage::kDeferred:
       CountUse(WebFeature::kDeviceBoundSessionRequestDeferral);
       [[fallthrough]];
-    case network::mojom::DeviceBoundSessionUsage::kInScopeNotDeferred:
+    case network::mojom::DeviceBoundSessionUsage::kInScopeRefreshNotYetNeeded:
+    case network::mojom::DeviceBoundSessionUsage::kInScopeRefreshNotAllowed:
+    case network::mojom::DeviceBoundSessionUsage::
+        kInScopeProactiveRefreshNotPossible:
+    case network::mojom::DeviceBoundSessionUsage::
+        kInScopeProactiveRefreshAttempted:
       CountUse(WebFeature::kDeviceBoundSessionRequestInScope);
       break;
-    case network::mojom::DeviceBoundSessionUsage::kNoUsage:
+    case network::mojom::DeviceBoundSessionUsage::kNoSiteMatchNotInScope:
+    case network::mojom::DeviceBoundSessionUsage::kSiteMatchNotInScope:
     case network::mojom::DeviceBoundSessionUsage::kUnknown:
       break;
   }

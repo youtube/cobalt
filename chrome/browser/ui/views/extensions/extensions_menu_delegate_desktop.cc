@@ -105,9 +105,27 @@ ExtensionsMenuDelegateDesktop::CreateActionViewModel(
           browser_, &extensions_container_.get(), extensions_container_views_));
 }
 
-void ExtensionsMenuDelegateDesktop::OnActiveWebContentsChanged(
-    content::WebContents* web_contents) {
-  UpdatePage(web_contents);
+void ExtensionsMenuDelegateDesktop::OnActiveWebContentsChanged() {
+  DCHECK(current_page_);
+
+  // Update main page if it is open.
+  auto* main_page = GetMainPage(current_page_.view());
+  if (main_page) {
+    UpdateMainPage(main_page);
+    return;
+  }
+
+  auto* site_permissions_page = GetSitePermissionsPage(current_page_.view());
+  CHECK(site_permissions_page);
+  if (menu_model_->CanShowSitePermissionsPage(
+          site_permissions_page->extension_id())) {
+    // Update site permissions page if it is open and the extension can have
+    // one.
+    UpdateSitePermissionsPage(site_permissions_page);
+  } else {
+    // Otherwise navigate back to the main page.
+    OpenMainPage();
+  }
 }
 
 void ExtensionsMenuDelegateDesktop::OnHostAccessRequestAdded(
@@ -251,8 +269,33 @@ void ExtensionsMenuDelegateDesktop::OnActionRemoved(
   main_page->RemoveMenuEntry(index);
 }
 
-void ExtensionsMenuDelegateDesktop::OnActionUpdated() {
-  UpdatePage(GetActiveWebContents());
+void ExtensionsMenuDelegateDesktop::OnActionUpdated(
+    const ToolbarActionsModel::ActionId& action_id) {
+  CHECK(current_page_);
+
+  // Update the main page if it is open since an action update can affect the
+  // whole main page, and not just its menu entry.
+  auto* main_page = GetMainPage(current_page_.view());
+  if (main_page) {
+    UpdateMainPage(main_page);
+    return;
+  }
+
+  // Do nothing when the site permissions page is opened for a different
+  // extension.
+  auto* site_permissions_page = GetSitePermissionsPage(current_page_.view());
+  CHECK(site_permissions_page);
+  if (site_permissions_page->extension_id() != action_id) {
+    return;
+  }
+
+  // Update the site permissions page if it can be shown for the updated action,
+  // otherwise go back to the main page.
+  if (menu_model_->CanShowSitePermissionsPage(action_id)) {
+    UpdateSitePermissionsPage(site_permissions_page);
+  } else {
+    OpenMainPage();
+  }
 }
 
 void ExtensionsMenuDelegateDesktop::OnActionsInitialized() {
@@ -295,7 +338,8 @@ void ExtensionsMenuDelegateDesktop::OnUserPermissionsSettingsChanged() {
     // "customize by extension". Thus, when site settings changed, we have to
     // return to main page.
     DCHECK_NE(PermissionsManager::Get(browser_->profile())
-                  ->GetUserSiteSetting(GetActiveWebContents()
+                  ->GetUserSiteSetting(browser_->tab_strip_model()
+                                           ->GetActiveWebContents()
                                            ->GetPrimaryMainFrame()
                                            ->GetLastCommittedOrigin()),
               PermissionsManager::UserSiteSetting::kCustomizeByExtension);
@@ -329,8 +373,7 @@ void ExtensionsMenuDelegateDesktop::OpenSitePermissionsPage(
   auto site_permissions_page =
       std::make_unique<ExtensionsMenuSitePermissionsPageView>(
           browser_, extension_id, this);
-  UpdateSitePermissionsPage(site_permissions_page.get(),
-                            GetActiveWebContents());
+  UpdateSitePermissionsPage(site_permissions_page.get());
 
   SwitchToPage(std::move(site_permissions_page));
 
@@ -387,33 +430,6 @@ void ExtensionsMenuDelegateDesktop::OnShowRequestsTogglePressed(
   menu_model_->ShowHostAccessRequestsInToolbar(extension_id, is_on);
 }
 
-void ExtensionsMenuDelegateDesktop::UpdatePage(
-    content::WebContents* web_contents) {
-  DCHECK(current_page_);
-
-  if (!web_contents) {
-    return;
-  }
-
-  auto* site_permissions_page = GetSitePermissionsPage(current_page_.view());
-  if (site_permissions_page) {
-    // Update site permissions page if the extension can have one.
-    if (menu_model_->CanShowSitePermissionsPage(
-            site_permissions_page->extension_id())) {
-      UpdateSitePermissionsPage(site_permissions_page, web_contents);
-      return;
-    }
-
-    // Otherwise navigate back to the main page.
-    OpenMainPage();
-    return;
-  }
-
-  ExtensionsMenuMainPageView* main_page = GetMainPage(current_page_.view());
-  DCHECK(main_page);
-  UpdateMainPage(main_page);
-}
-
 void ExtensionsMenuDelegateDesktop::UpdateMainPage(
     ExtensionsMenuMainPageView* main_page) {
   // Update site settings.
@@ -455,10 +471,7 @@ void ExtensionsMenuDelegateDesktop::UpdateMainPage(
 }
 
 void ExtensionsMenuDelegateDesktop::UpdateSitePermissionsPage(
-    ExtensionsMenuSitePermissionsPageView* site_permissions_page,
-    content::WebContents* web_contents) {
-  CHECK(web_contents);
-
+    ExtensionsMenuSitePermissionsPageView* site_permissions_page) {
   extensions::ExtensionId extension_id = site_permissions_page->extension_id();
   const int icon_size = ChromeLayoutProvider::Get()->GetDistanceMetric(
       DISTANCE_EXTENSIONS_MENU_EXTENSION_ICON_SIZE);
@@ -506,9 +519,4 @@ void ExtensionsMenuDelegateDesktop::InsertMenuEntry(
   ExtensionsMenuViewModel::MenuEntryState menu_item =
       menu_model_->GetMenuEntryState(action_model->GetId());
   main_page->CreateAndInsertMenuEntry(action_model, menu_item, index);
-}
-
-content::WebContents* ExtensionsMenuDelegateDesktop::GetActiveWebContents()
-    const {
-  return browser_->tab_strip_model()->GetActiveWebContents();
 }

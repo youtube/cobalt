@@ -22,8 +22,8 @@ import org.chromium.base.lifetime.Destroyable;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.NonNullObservableSupplier;
-import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.supplier.OneshotSupplier;
+import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
@@ -319,7 +319,11 @@ public class NativePageFactory {
 
         protected NativePage buildBookmarksPage(Tab tab) {
             return new BookmarkPage(
+                    mWindowAndroid,
+                    mActivity,
                     mSnackbarManagerSupplier.get(),
+                    () -> mBottomSheetController,
+                    mActivityResultTracker,
                     tab.getProfile(),
                     new TabShim(
                             tab,
@@ -347,6 +351,8 @@ public class NativePageFactory {
 
         protected NativePage buildHistoryPage(Tab tab, String url) {
             return new HistoryPage(
+                    tab.getProfile(),
+                    mWindowAndroid,
                     mActivity,
                     new TabShim(
                             tab,
@@ -354,8 +360,9 @@ public class NativePageFactory {
                             mTabModelSelector,
                             mEdgeToEdgeControllerSupplier),
                     mSnackbarManagerSupplier.get(),
-                    tab.getProfile(),
                     mBottomSheetController,
+                    mModalDialogManagerSupplier,
+                    mActivityResultTracker,
                     mCurrentTabSupplier,
                     url,
                     mBackPressManager);
@@ -644,7 +651,8 @@ public class NativePageFactory {
         }
 
         @Override
-        public Destroyable createDefaultMarginAdapter(ObservableSupplierImpl<Rect> supplierImpl) {
+        public Destroyable createDefaultMarginAdapter(
+                SettableMonotonicObservableSupplier<Rect> supplierImpl) {
             return BrowserControlsMarginAdapter.create(mBrowserControlsStateProvider, supplierImpl);
         }
 

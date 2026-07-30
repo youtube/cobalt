@@ -5,8 +5,11 @@
 #ifndef CHROME_BROWSER_ASH_LOGIN_SESSION_CHROME_SESSION_MANAGER_H_
 #define CHROME_BROWSER_ASH_LOGIN_SESSION_CHROME_SESSION_MANAGER_H_
 
+#include <memory>
 #include <string>
 
+#include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ref.h"
 #include "base/scoped_observation.h"
 #include "chrome/browser/ash/login/oobe_configuration.h"
 #include "chrome/browser/ash/login/session/user_session_initializer.h"
@@ -24,10 +27,11 @@ namespace ash {
 
 class SessionLengthLimiter;
 
-class ChromeSessionManager : public session_manager::SessionManager {
+class ChromeSessionManager : public session_manager::SessionManagerObserver {
  public:
-  ChromeSessionManager(
-      std::unique_ptr<session_manager::SessionManagerDelegate> delegate);
+  // `session_manager` must not be nullptr, and must outlive this instance.
+  explicit ChromeSessionManager(
+      session_manager::SessionManager* session_manager);
 
   ChromeSessionManager(const ChromeSessionManager&) = delete;
   ChromeSessionManager& operator=(const ChromeSessionManager&) = delete;
@@ -50,18 +54,25 @@ class ChromeSessionManager : public session_manager::SessionManager {
   // Shuts down the session manager.
   void Shutdown();
 
-  // session_manager::SessionManager:
-  void OnUserManagerCreated(user_manager::UserManager* user_manager) override;
-  void SessionStarted() override;
-  void OnSessionCreated(bool browser_restart) override;
+  // Called when user_manager::UserManager is created.
+  void OnUserManagerCreated(user_manager::UserManager* user_manager);
+
+  // session_manager::SessionManagerObserver:
+  void OnSessionCreated(const AccountId& account_id) override;
 
   SessionLengthLimiter* GetSessionLengthLimiterForTesting() {
     return session_length_limiter_.get();
   }
 
  private:
+  const raw_ref<session_manager::SessionManager> session_manager_;
   std::unique_ptr<OobeConfiguration> oobe_configuration_;
   std::unique_ptr<UserSessionInitializer> user_session_initializer_;
+  base::ScopedObservation<session_manager::SessionManager,
+                          session_manager::SessionManagerObserver>
+      observation_{this};
+
+  raw_ptr<user_manager::UserManager> user_manager_ = nullptr;
   std::unique_ptr<SessionLengthLimiter> session_length_limiter_;
 };
 

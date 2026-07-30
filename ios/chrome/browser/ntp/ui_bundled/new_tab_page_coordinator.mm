@@ -167,6 +167,7 @@
                                      NewTabPageDelegate,
                                      NewTabPageHeaderCommands,
                                      NewTabPageActionsDelegate,
+                                     NewTabPageViewControllerDelegate,
                                      OverscrollActionsControllerDelegate,
                                      ProfileStateObserver,
                                      SceneStateObserver,
@@ -501,6 +502,10 @@
   return [self.NTPViewController isNTPScrolledToTop];
 }
 
+- (void)scrollToTop {
+  [self.NTPViewController setContentOffsetToTop];
+}
+
 - (void)willUpdateSnapshot {
   if (self.contentSuggestionsCoordinator.started) {
     [self.NTPViewController willUpdateSnapshot];
@@ -673,6 +678,9 @@
   id<NewTabPageComponentFactoryProtocol> componentFactory =
       self.componentFactory;
   self.NTPViewController = [componentFactory NTPViewController];
+  self.NTPViewController.engagementTracker =
+      feature_engagement::TrackerFactory::GetForProfile(self.profile);
+  self.NTPViewController.delegate = self;
   self.NTPViewController.incognitoDisabled =
       IsIncognitoModeDisabled(self.prefService);
   self.headerViewController =
@@ -1179,9 +1187,9 @@
 }
 
 - (void)cancelOmniboxEdit {
-  id<OmniboxCommands> omniboxCommandHandler =
-      HandlerForProtocol(self.browser->GetCommandDispatcher(), OmniboxCommands);
-  [omniboxCommandHandler cancelOmniboxEdit];
+  id<BrowserCoordinatorCommands> browserCoordinatorHandler = HandlerForProtocol(
+      self.browser->GetCommandDispatcher(), BrowserCoordinatorCommands);
+  [browserCoordinatorHandler hideComposebox];
 }
 
 - (void)onFakeboxBlur {
@@ -1191,11 +1199,18 @@
 }
 
 - (void)focusOmnibox {
-  id<FakeboxFocuser> fakeboxFocuserHandler =
-      HandlerForProtocol(self.browser->GetCommandDispatcher(), FakeboxFocuser);
-  [fakeboxFocuserHandler focusOmniboxFromFakebox:_fakeboxTapped
-                                          pinned:[self isFakeboxPinned]
-                  fakeboxButtonsSnapshotProvider:self.headerViewController];
+  if (IsChromeNextIaEnabled()) {
+    id<BrowserCoordinatorCommands> browserCoordinatorHandler =
+        HandlerForProtocol(self.browser->GetCommandDispatcher(),
+                           BrowserCoordinatorCommands);
+    [browserCoordinatorHandler showComposebox];
+  } else {
+    id<FakeboxFocuser> fakeboxFocuserHandler = HandlerForProtocol(
+        self.browser->GetCommandDispatcher(), FakeboxFocuser);
+    [fakeboxFocuserHandler focusOmniboxFromFakebox:_fakeboxTapped
+                                            pinned:[self isFakeboxPinned]
+                    fakeboxButtonsSnapshotProvider:self.headerViewController];
+  }
 }
 
 - (void)refreshNTPContent {
@@ -1910,6 +1925,29 @@
   }
   [_safariDataImportExportCoordinator stop];
   _safariDataImportExportCoordinator = nil;
+}
+
+#pragma mark - NewTabPageViewControllerDelegate
+
+- (void)showCustomizationMenuForUserEducationFromNewTabPageViewController:
+    (NewTabPageViewController*)newTabPageViewController {
+  if (_customizationCoordinator) {
+    // Make sure to alert the coordinator that user education is active, so it
+    // can alert the Feature Engagement Tracker on dismissal.
+    _customizationCoordinator.openedForUserEducation = YES;
+    return;
+  }
+
+  // Hide the 'new' badge for the current session after being tapped.
+  [self.headerViewController hideBadgeOnCustomizationMenu];
+
+  [self.NTPMetricsRecorder recordHomeCustomizationMenuOpenedFromEntrypoint:
+                               HomeCustomizationEntrypoint::kPromo];
+
+  [self openCustomizationMenuAtPage:CustomizationMenuPage::kMain animated:YES];
+  // Make sure to alert the coordinator that user education is active, so it can
+  // alert the Feature Engagement Tracker on dismissal.
+  _customizationCoordinator.openedForUserEducation = YES;
 }
 
 @end

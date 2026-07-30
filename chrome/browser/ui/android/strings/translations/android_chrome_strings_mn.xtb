@@ -41,6 +41,7 @@
 <translation id="1150263420752757504"><ph name="APP_NAME" />-г Chrome-д нээнэ. Үргэлжлүүлснээр та <ph name="BEGIN_LINK1" />Google-н үйлчилгээний нөхцөл<ph name="END_LINK1" /> болон <ph name="BEGIN_LINK2" />Google Chrome, ChromeOS-н үйлчилгээний нэмэлт нөхцөлийг<ph name="END_LINK2" /> зөвшөөрч байна.</translation>
 <translation id="1154555449933432029">Танд Google Нууц үгний менежерт хадгалсан нууц үг байхгүй байна.</translation>
 <translation id="115483310321669804"><ph name="PASSWORD" /> нууц үгийг ашиглах</translation>
+<translation id="1161065531352634524">Таб, түүхийг синк хийх</translation>
 <translation id="1165109137568919258">Хайхын тулд зураг авах эсвэл зургийн цомгоосоо зураг нэмнэ үү</translation>
 <translation id="1173894706177603556">Нэр солих</translation>
 <translation id="1174479719160874822">Дэлгэц нарийн үед Chrome мобайл сайтын хүсэлт тавина</translation>
@@ -126,6 +127,7 @@
 <translation id="147982357559798527">Өөрчилсөн</translation>
 <translation id="1480287803138246127">Таны зарим түүхийг энд харуулахгүй байж магадгүй. Chrome-н бүх түүхээ харахын тулд Chrome-н бүтэн түүхийг нээнэ үү.</translation>
 <translation id="1493287004536771723">Та <ph name="SITE_NAME" />-г дагаж байна</translation>
+<translation id="1495677929897281669">Таб руу буцах</translation>
 <translation id="1496514951988037011">хэрэглэгчийн нэр</translation>
 <translation id="1501480321619201731">Бүлгийг устгах</translation>
 <translation id="1506061864768559482">Хайлтын хэрэгсэл</translation>
@@ -433,6 +435,7 @@
 <translation id="2885355868600171871">Хаяг оруулах хэсэг рүү очих</translation>
 <translation id="2888126860611144412">Chrome-н тухай</translation>
 <translation id="2891154217021530873">Хуудас ачаалахыг зогсоох</translation>
+<translation id="2893168226686371498">Стандарт веб хөтөч</translation>
 <translation id="2894821468041866720">Таны хөтөч эсвэл төхөөрөмжийг мэдэгдэхүйц хэмжээгээр удаашруулахгүй.</translation>
 <translation id="2895521649038438824">Та энэ хуудсыг сонсох боломжтой</translation>
 <translation id="289596984386220317"><ph name="TAB_TITLE" />, Бэхлэгдэж, аудио тоглуулж буй таб</translation>
@@ -980,6 +983,7 @@ Tаны Google бүртгэл <ph name="BEGIN_LINK" />history.google.com<ph name
 <translation id="5210286577605176222">Өмнөх табад очих</translation>
 <translation id="5210365745912300556">Табыг хаах</translation>
 <translation id="5212800876504289412">Энэ өөрчлөлтийг дуусгахын тулд Chrome-г дахин эхлүүлнэ үү. Таныг дахин эхлүүлэхэд табууд автоматаар дахин нээгдэнэ.</translation>
+<translation id="5213114823401215820">Хаасан бүлгийг дахин нээх</translation>
 <translation id="5215957675041756913">Өгөгдөл, бүртгэлээ хянах</translation>
 <translation id="5218324087477576825">Картын дугаар, оруулах шаардлагатай</translation>
 <translation id="5221437554987713282"><ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> болон бусад <ph name="SEPARATOR" /> Та сүүлийн үед зочлоогүй тул Chrome эдгээр зөвшөөрлийг хассан</translation>
@@ -1098,7 +1102,6 @@ Tаны Google бүртгэл <ph name="BEGIN_LINK" />history.google.com<ph name
 <translation id="5765780083710877561">Тодорхойлолт:</translation>
 <translation id="5776970333778123608">Чухал биш өгөгдөл</translation>
 <translation id="5793665092639000975"><ph name="SPACE_AVAILABLE" />-н <ph name="SPACE_USED" />-г ашиглаж байна</translation>
-<translation id="5795872532621730126">Хайх болон үзэх</translation>
 <translation id="5797949256525811424">Сэдвийг блоклосон</translation>
 <translation id="580893287573699959">Сонирхдог сэдэв болон сайтуудаа удирдана уу</translation>
 <translation id="5809361687334836369">{HOURS,plural, =1{# цагийн өмнө}other{# цагийн өмнө}}</translation>
@@ -1415,7 +1418,6 @@ Tаны Google бүртгэл <ph name="BEGIN_LINK" />history.google.com<ph name
 <translation id="6937524809504266803">Хувийн болгох, холбох</translation>
 <translation id="6937876069006524083">Хоч (заавал биш)</translation>
 <translation id="6942665639005891494">Тохиргооны цэсийн сонголтоор таталтын өгөгдмөл байршлыг дурын үед өөрчлөх</translation>
-<translation id="694267552845942083">Та одоогоор Синк хийх тохиргоогоо өөрчилж байна. Синкийг асааж дуусгахын тулд дэлгэцийн доод хэсгийн ойролцоо байгаа Баталгаажуулах товчлуурыг товшино уу. Дээш шилжих</translation>
 <translation id="6945221475159498467">Сонгох</translation>
 <translation id="6955535239952325894">Удирдсан хөтчүүд дээр энэ тохиргоог идэвхгүй болгосон</translation>
 <translation id="6963766334940102469">Хавчуургыг устгах</translation>
@@ -1437,6 +1439,7 @@ Tаны Google бүртгэл <ph name="BEGIN_LINK" />history.google.com<ph name
 <translation id="7020741890149022655">Унших жагсаалтад нэмэх <ph name="BEGIN_NEW" />Шинэ<ph name="END_NEW" /></translation>
 <translation id="7022756207310403729">Хөтчид нээх</translation>
 <translation id="7029809446516969842">Нууц үг</translation>
+<translation id="7037994709569287156">Chrome-г өгөгдмөл болгох</translation>
 <translation id="7053256416619638731">Энэ төхөөрөмж дээрх нууц үгээ сайжруулах</translation>
 <translation id="7053983685419859001">Блоклох</translation>
 <translation id="7054588988317389591">Зургийн тайлбар авах уу?</translation>
@@ -1469,6 +1472,7 @@ Tаны Google бүртгэл <ph name="BEGIN_LINK" />history.google.com<ph name
 Энэ тохиргоог өөрчлөхийн тулд <ph name="BEGIN_LINK" />бүртгэлийнхээ Chrome-н өгөгдлийг устгана уу<ph name="END_LINK" />.</translation>
 <translation id="7165972437814027679">Chrome яагаад зарим файлыг блоклодог талаар нэмэлт мэдээлэл авна уу</translation>
 <translation id="7168323970702333693"><ph name="USER_NAME" />-р нэвтэрсэн. Тохиргоог нээнэ.</translation>
+<translation id="7170930892977483182">Таны төхөөрөмж, Google Wallet-д хадгалсан хамгаалалтын бүх кодыг устгана</translation>
 <translation id="7173114856073700355">Тохиргоог нээх</translation>
 <translation id="7173338713290252554">Веб дээрх үнийн түүх</translation>
 <translation id="7177466738963138057">Та дараа үүнийг Тохиргоо хэсэгт өөрчлөх боломжтой</translation>
@@ -1801,6 +1805,7 @@ Tаны Google бүртгэл <ph name="BEGIN_LINK" />history.google.com<ph name
 <translation id="8458413889418591446">Зочилсон сайтдаа түргэн буцаж очихын тулд түүх, табаа синк хийнэ үү</translation>
 <translation id="84594714173170813">Google Бүртгэлдээ Chrome-н өгөгдлийг үргэлжлүүлэн ашиглана уу</translation>
 <translation id="8460448946170646641">Нууцлал болон аюулгүй байдлын үндсэн хяналтуудыг шалгана уу</translation>
+<translation id="8460932807646981183">Хайлтын систем болон сайтын хайлтыг удирдах</translation>
 <translation id="8473863474539038330">Хаяг болон бусад</translation>
 <translation id="847433688444405067">Төхөөрөмжүүдэд үзэх</translation>
 <translation id="8477178913400731244">Өгөгдлийг устгах</translation>
@@ -1936,7 +1941,6 @@ Tаны Google бүртгэл <ph name="BEGIN_LINK" />history.google.com<ph name
 <translation id="9073805459138993880"><ph name="TAB_TITLE" />, Олноороо сонгогдож, хуваалцаж буй таб</translation>
 <translation id="9074739597929991885">Bluetooth</translation>
 <translation id="9081543426177426948">Таны зочилсон сайтуудыг Нууцлалын горимд хадгалдаггүй</translation>
-<translation id="9086302186042011942">Sync хийж байна.</translation>
 <translation id="9086455579313502267">Сүлжээнд хандах боломжгүй байна</translation>
 <translation id="9093915805850895575">Chrome-н цонхонд нээх</translation>
 <translation id="909756639352028172">Хамгийн хувийн болгосон хэрэглээг авахын тулд Chrome-г Веб, аппын үйл ажиллагаа болон Google-н холбосон үйлчилгээнүүдэд багтаана уу</translation>

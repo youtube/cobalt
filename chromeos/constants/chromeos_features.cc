@@ -46,9 +46,6 @@ BASE_FEATURE(kDataControlsFileAccessDefaultDeny,
 // Enables data migration.
 BASE_FEATURE(kDataMigration, base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Disables blur on various system surfaces.
-BASE_FEATURE(kDisableSystemBlur, base::FEATURE_DISABLED_BY_DEFAULT);
-
 // Disables translation services of the Quick Answers V2.
 BASE_FEATURE(kDisableQuickAnswersV2Translation,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -75,9 +72,6 @@ BASE_FEATURE(kMagicBoostRevamp, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kMagicBoostRevampForQuickAnswers,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Controls enabling / disabling the mahi feature.
-BASE_FEATURE(kMahi, base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Controls enabling / disabling the mahi feature from the feature management
 // module.
 BASE_FEATURE(kFeatureManagementMahi, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -88,9 +82,6 @@ BASE_FEATURE(kMahiPanelResizable, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Controls whether mahi sends url when making request to the server.
 BASE_FEATURE(kMahiSendingUrl, base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Controls whether to enable Mahi for managed users.
-BASE_FEATURE(kMahiManaged, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Controls enabling / disabling the mahi debugging.
 BASE_FEATURE(kMahiDebugging, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -359,17 +350,12 @@ bool IsMagicBoostRevampForQuickAnswersEnabled() {
 }
 
 bool IsMahiEnabled() {
-  return base::FeatureList::IsEnabled(kMahi) &&
-         base::FeatureList::IsEnabled(kFeatureManagementMahi);
+  return base::FeatureList::IsEnabled(kFeatureManagementMahi);
 }
 
 // Mahi requests are composed & sent from ash.
 bool IsMahiSendingUrl() {
   return base::FeatureList::IsEnabled(kMahiSendingUrl);
-}
-
-bool IsMahiManagedEnabled() {
-  return base::FeatureList::IsEnabled(kMahiManaged);
 }
 
 bool IsMahiDebuggingEnabled() {
@@ -460,14 +446,7 @@ bool IsRoundedWindowsEnabled() {
 
 bool IsSystemBlurEnabled() {
   constexpr base::ByteCount kMinimumMemoryThreshold = base::GiB(4);  // 4GB
-  bool disable_blur =
-      base::SysInfo::AmountOfPhysicalMemory() <= kMinimumMemoryThreshold;
-  if (std::optional<bool> force_disable =
-          base::FeatureList::GetStateIfOverridden(kDisableSystemBlur)) {
-    disable_blur = force_disable.value();
-  }
-
-  return !disable_blur;
+  return base::SysInfo::AmountOfPhysicalMemory() > kMinimumMemoryThreshold;
 }
 
 bool IsFeatureManagementHistoryEmbeddingEnabled() {

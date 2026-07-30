@@ -41,6 +41,7 @@
 <translation id="1150263420752757504"><ph name="APP_NAME" />将在 Chrome 中打开。继续操作即表示您同意接受 <ph name="BEGIN_LINK1" />Google 服务条款<ph name="END_LINK1" />以及 <ph name="BEGIN_LINK2" />Google Chrome 和 Chrome 操作系统附加服务条款<ph name="END_LINK2" />。</translation>
 <translation id="1154555449933432029">您未在 Google 密码管理工具中保存任何密码。</translation>
 <translation id="115483310321669804">使用密码 <ph name="PASSWORD" /></translation>
+<translation id="1161065531352634524">同步标签页和历史记录</translation>
 <translation id="1165109137568919258">拍张照片，或从图库中选择图片进行搜索</translation>
 <translation id="1173894706177603556">重命名</translation>
 <translation id="1174479719160874822">当屏幕较窄时，Chrome 会请求改用移动网站</translation>
@@ -126,6 +127,7 @@
 <translation id="147982357559798527">已更改</translation>
 <translation id="1480287803138246127">您的部分历史记录可能不会在此处显示。如需查看您的所有 Chrome 历史记录，请打开完整的 Chrome 历史记录。</translation>
 <translation id="1493287004536771723">您已关注 <ph name="SITE_NAME" /></translation>
+<translation id="1495677929897281669">返回到标签页</translation>
 <translation id="1496514951988037011">用户名</translation>
 <translation id="1501480321619201731">删除群组</translation>
 <translation id="1506061864768559482">搜索引擎</translation>
@@ -433,6 +435,7 @@
 <translation id="2885355868600171871">跳转到地址栏</translation>
 <translation id="2888126860611144412">关于 Chrome</translation>
 <translation id="2891154217021530873">停止加载网页</translation>
+<translation id="2893168226686371498">默认浏览器</translation>
 <translation id="2894821468041866720">不会显著减慢浏览器或设备的运行速度。</translation>
 <translation id="2895521649038438824">您可以聆听此页面</translation>
 <translation id="289596984386220317"><ph name="TAB_TITLE" />，已固定的标签页，正在播放音频</translation>
@@ -980,6 +983,7 @@
 <translation id="5210286577605176222">跳转到上一个标签页</translation>
 <translation id="5210365745912300556">关闭标签页</translation>
 <translation id="5212800876504289412">重启 Chrome 即可完成此更改。重启后，标签页会自动重新打开。</translation>
+<translation id="5213114823401215820">重新打开已关闭的群组</translation>
 <translation id="5215957675041756913">控制您的数据和账号</translation>
 <translation id="5218324087477576825">卡号（必填）</translation>
 <translation id="5221437554987713282"><ph name="PERMISSION_1" />、<ph name="PERMISSION_2" />等 <ph name="SEPARATOR" /> 由于您近期未访问过此网站，Chrome 已移除这些权限</translation>
@@ -1098,7 +1102,6 @@
 <translation id="5765780083710877561">说明：</translation>
 <translation id="5776970333778123608">不重要的数据</translation>
 <translation id="5793665092639000975">已使用 <ph name="SPACE_USED" />，共 <ph name="SPACE_AVAILABLE" /></translation>
-<translation id="5795872532621730126">搜索和浏览</translation>
 <translation id="5797949256525811424">已屏蔽此主题</translation>
 <translation id="580893287573699959">管理您感兴趣的主题和网站</translation>
 <translation id="5809361687334836369">{HOURS,plural, =1{# 小时前}other{# 小时前}}</translation>
@@ -1415,7 +1418,6 @@
 <translation id="6937524809504266803">个性化和关联</translation>
 <translation id="6937876069006524083">昵称（可选）</translation>
 <translation id="6942665639005891494">使用“设置”菜单选项随时更改默认的下载内容保存位置</translation>
-<translation id="694267552845942083">您正在自定义您的同步设置。如需完成开启同步功能的操作，请点按屏幕底部附近的“确认”按钮。转到上一层级</translation>
 <translation id="6945221475159498467">选择</translation>
 <translation id="6955535239952325894">在受管理的浏览器上，此设置已被停用</translation>
 <translation id="6963766334940102469">删除书签</translation>
@@ -1437,6 +1439,7 @@
 <translation id="7020741890149022655">添加到阅读清单<ph name="BEGIN_NEW" />新功能<ph name="END_NEW" /></translation>
 <translation id="7022756207310403729">在浏览器中打开</translation>
 <translation id="7029809446516969842">密码</translation>
+<translation id="7037994709569287156">将 Chrome 设为默认浏览器</translation>
 <translation id="7053256416619638731">强化此设备上的密码</translation>
 <translation id="7053983685419859001">屏蔽</translation>
 <translation id="7054588988317389591">获取图片说明？</translation>
@@ -1467,6 +1470,7 @@
 <translation id="71503698506017927">口令加密不涵盖 Google Pay 中的付款方式和地址。如要更改此设置，请<ph name="BEGIN_LINK" />删除您账号中的 Chrome 数据<ph name="END_LINK" />。</translation>
 <translation id="7165972437814027679">详细了解 Chrome 为何屏蔽某些文件</translation>
 <translation id="7168323970702333693">您已使用<ph name="USER_NAME" />的身份登录。打开设置。</translation>
+<translation id="7170930892977483182">您的设备和 Google 钱包中保存的所有安全码都将被删除</translation>
 <translation id="7173114856073700355">打开“设置”</translation>
 <translation id="7173338713290252554">网上的既往价格</translation>
 <translation id="7177466738963138057">以后，您可以在“设置”中更改此设置。</translation>
@@ -1639,6 +1643,7 @@
 <translation id="784652447248278262">当前窗口</translation>
 <translation id="784934925303690534">时间范围</translation>
 <translation id="7851858861565204677">来自其他设备的同步</translation>
+<translation id="78527117619130387">再次按 ^W 才能关闭固定标签页</translation>
 <translation id="7853202427316060426">活动</translation>
 <translation id="7859988229622350291">一律不翻译</translation>
 <translation id="7866213166286285359">翻译此处显示的网页</translation>
@@ -1652,6 +1657,7 @@
 <translation id="7919123827536834358">自动翻译以下语言</translation>
 <translation id="7921782882718083488">总结此页面</translation>
 <translation id="7926975587469166629">卡的别名</translation>
+<translation id="7927073875790626822">XR</translation>
 <translation id="7929587383660661825">对于滥用通知的网站或您近期未访问的网站，Chrome 会自动移除其权限</translation>
 <translation id="7934668619883965330">无法下载此文件。文件格式不受支持。</translation>
 <translation id="7942131818088350342"><ph name="PRODUCT_NAME" /> 不是最新版本。</translation>
@@ -1797,6 +1803,7 @@
 <translation id="8458413889418591446">如果想快速重新访问浏览过的网站，请同步您的历史记录和标签页</translation>
 <translation id="84594714173170813">请继续使用您的 Google 账号中的 Chrome 数据</translation>
 <translation id="8460448946170646641">检查重要的隐私控制设置和安全控件</translation>
+<translation id="8460932807646981183">管理搜索引擎和网站搜索</translation>
 <translation id="8473863474539038330">地址和其他信息</translation>
 <translation id="847433688444405067">跨设备浏览</translation>
 <translation id="8477178913400731244">删除数据</translation>
@@ -1932,7 +1939,6 @@
 <translation id="9073805459138993880"><ph name="TAB_TITLE" />，已选择的多个标签页之一，正在共享内容</translation>
 <translation id="9074739597929991885">蓝牙</translation>
 <translation id="9081543426177426948">在无痕模式下，系统不会保存您访问过的网站</translation>
-<translation id="9086302186042011942">正在同步</translation>
 <translation id="9086455579313502267">无法访问网络</translation>
 <translation id="9093915805850895575">在 Chrome 窗口中打开</translation>
 <translation id="909756639352028172">若要获得最具个性化的体验，请在“网络与应用活动记录”和关联的 Google 服务中包括 Chrome</translation>

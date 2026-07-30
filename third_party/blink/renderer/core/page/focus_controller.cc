@@ -795,7 +795,7 @@ bool ScopedFocusNavigation::IsNonEntryFocusgroupItem(const Element& element) {
   const Element* focusgroup_owner =
       FocusgroupControllerUtils::GetFocusgroupOwnerOfItem(&element);
   if (!focusgroup_owner) {
-    // Not in a focusgroup.
+    // Not participating in a focusgroup.
     return false;
   }
 
@@ -924,6 +924,9 @@ ScopedFocusNavigation ScopedFocusNavigation::OwnedByPopoverInvoker(
     const Element& invoker,
     FocusController::OwnerMap& owner_map) {
   HTMLElement* popover = invoker.GetOpenPopoverTarget();
+  if (IsShadowHost(popover)) {
+    return ScopedFocusNavigation::OwnedByShadowHost(*popover, owner_map);
+  }
   DCHECK(InvokerForOpenPopover(popover));
   return ScopedFocusNavigation(*popover, nullptr, owner_map);
 }

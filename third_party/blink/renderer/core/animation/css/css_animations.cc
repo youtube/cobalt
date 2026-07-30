@@ -78,6 +78,7 @@
 #include "third_party/blink/renderer/core/css/properties/css_property.h"
 #include "third_party/blink/renderer/core/css/properties/css_property_ref.h"
 #include "third_party/blink/renderer/core/css/properties/longhands.h"
+#include "third_party/blink/renderer/core/css/property_bitsets.h"
 #include "third_party/blink/renderer/core/css/property_registry.h"
 #include "third_party/blink/renderer/core/css/resolver/css_to_style_map.h"
 #include "third_party/blink/renderer/core/css/resolver/style_resolver.h"
@@ -908,7 +909,7 @@ TimelineType* GetTimeline(const CSSTimelineMap<TimelineType>* timelines,
 
 DeferredTimeline* GetTimelineAttachment(
     const TimelineAttachmentMap* timeline_attachments,
-    ScrollSnapshotTimeline* timeline) {
+    ScrollTimeline* timeline) {
   if (!timeline_attachments) {
     return nullptr;
   }
@@ -2088,6 +2089,13 @@ bool AffectsBackgroundColor(const AnimationEffect& effect) {
   return effect.Affects(PropertyHandle(GetCSSPropertyBackgroundColor()));
 }
 
+bool HasAnimationTrigger(size_t animation_index,
+                         ComputedStyleBuilder& builder) {
+  CSSAnimationData* data = builder.Animations();
+  return data && animation_index < data->NameList().size() &&
+         data->GetTriggerAttachments(animation_index);
+}
+
 void UpdateAnimationFlagsForEffect(const AnimationEffect& effect,
                                    ComputedStyleBuilder& builder) {
   if (effect.Affects(PropertyHandle(GetCSSPropertyOpacity())))
@@ -2109,10 +2117,19 @@ void UpdateAnimationFlagsForEffect(const AnimationEffect& effect,
 }
 
 // Called for animations that are newly created or updated.
-void UpdateAnimationFlagsForInertEffect(const InertEffect& effect,
-                                        ComputedStyleBuilder& builder) {
-  if (!effect.IsCurrent())
+void UpdateAnimationFlagsForInertEffect(
+    const InertEffect& effect,
+    ComputedStyleBuilder& builder,
+    std::optional<size_t> animation_index = std::nullopt) {
+  bool has_triggers = RuntimeEnabledFeatures::AnimationTriggerEnabled() &&
+                      animation_index.has_value() &&
+                      HasAnimationTrigger(*animation_index, builder);
+
+  if (!effect.IsCurrent() && !has_triggers) {
+    // If the animation has triggers, the triggers will eventually make it
+    // current. Ensure that we create the necessary property nodes.
     return;
+  }
 
   UpdateAnimationFlagsForEffect(effect, builder);
 }
@@ -2122,7 +2139,12 @@ void UpdateAnimationFlagsForAnimation(const Animation& animation,
                                       ComputedStyleBuilder& builder) {
   const AnimationEffect& effect = *animation.effect();
 
-  if (!effect.IsCurrent() && !effect.IsInEffect()) {
+  const CSSAnimation* css_animation = DynamicTo<CSSAnimation>(&animation);
+  bool has_triggers =
+      RuntimeEnabledFeatures::AnimationTriggerEnabled() && css_animation &&
+      HasAnimationTrigger(css_animation->AnimationIndex(), builder);
+
+  if (!effect.IsCurrent() && !effect.IsInEffect() && !has_triggers) {
     return;
   }
 
@@ -2134,8 +2156,10 @@ void UpdateAnimationFlagsForAnimation(const Animation& animation,
 void CSSAnimations::UpdateAnimationFlags(Element& animating_element,
                                          CSSAnimationUpdate& update,
                                          ComputedStyleBuilder& builder) {
-  for (const auto& new_animation : update.NewAnimations())
-    UpdateAnimationFlagsForInertEffect(*new_animation.effect, builder);
+  for (const auto& new_animation : update.NewAnimations()) {
+    UpdateAnimationFlagsForInertEffect(*new_animation.effect, builder,
+                                       new_animation.name_index);
+  }
 
   for (const auto& updated_animation : update.AnimationsWithUpdates())
     UpdateAnimationFlagsForInertEffect(*updated_animation.effect, builder);
@@ -2506,13 +2530,12 @@ void CSSAnimations::CalculateTransitionUpdateForPropertyHandle(
   const ComputedStyle& after_change_style =
       CalculateAfterChangeStyle(state, property);
 
-  const RunningTransition* interrupted_transition = nullptr;
+  const RunningTransition* running_transition = nullptr;
   if (state.active_transitions) {
     TransitionMap::const_iterator active_transition_iter =
         state.active_transitions->find(property);
     if (active_transition_iter != state.active_transitions->end()) {
-      const RunningTransition* running_transition =
-          active_transition_iter->value;
+      running_transition = active_transition_iter->value;
       if (ComputedValuesEqual(property, after_change_style,
                               *running_transition->to)) {
         return;
@@ -2521,12 +2544,6 @@ void CSSAnimations::CalculateTransitionUpdateForPropertyHandle(
       DCHECK(!state.animating_element.GetElementAnimations() ||
              !state.animating_element.GetElementAnimations()
                   ->IsAnimationStyleChange());
-
-      if (ComputedValuesEqual(
-              property, after_change_style,
-              *running_transition->reversing_adjusted_start_value)) {
-        interrupted_transition = running_transition;
-      }
     }
   }
 
@@ -2650,16 +2667,21 @@ void CSSAnimations::CalculateTransitionUpdateForPropertyHandle(
   const ComputedStyle* reversing_adjusted_start_value =
       state.before_change_style;
   double reversing_shortening_factor = 1;
-  if (interrupted_transition) {
-    AnimationEffect* effect = interrupted_transition->animation->effect();
+
+  if (running_transition &&
+      ComputedValuesEqual(
+          property, after_change_style,
+          *running_transition->reversing_adjusted_start_value)) {
+    // Interrupted transition.
+    AnimationEffect* effect = running_transition->animation->effect();
     const std::optional<double> interrupted_progress =
         effect ? effect->Progress() : std::nullopt;
     if (interrupted_progress) {
-      reversing_adjusted_start_value = interrupted_transition->to;
+      reversing_adjusted_start_value = running_transition->to;
       reversing_shortening_factor =
           ClampTo((interrupted_progress.value() *
-                   interrupted_transition->reversing_shortening_factor) +
-                      (1 - interrupted_transition->reversing_shortening_factor),
+                   running_transition->reversing_shortening_factor) +
+                      (1 - running_transition->reversing_shortening_factor),
                   0.0, 1.0);
       timing.iteration_duration.value() *= reversing_shortening_factor;
       if (timing.start_delay.AsTimeValue() < AnimationTimeDelta()) {
@@ -3183,7 +3205,7 @@ void CSSAnimations::TimelineData::SetViewTimeline(const AtomicString& name,
 }
 
 void CSSAnimations::TimelineData::SetTimelineAttachment(
-    ScrollSnapshotTimeline* attached_timeline,
+    ScrollTimeline* attached_timeline,
     DeferredTimeline* deferred_timeline) {
   if (deferred_timeline == nullptr) {
     timeline_attachments_.erase(attached_timeline);
@@ -3193,7 +3215,7 @@ void CSSAnimations::TimelineData::SetTimelineAttachment(
 }
 
 DeferredTimeline* CSSAnimations::TimelineData::GetTimelineAttachment(
-    ScrollSnapshotTimeline* attached_timeline) {
+    ScrollTimeline* attached_timeline) {
   auto i = timeline_attachments_.find(attached_timeline);
   return i != timeline_attachments_.end() ? i->value.Get() : nullptr;
 }
@@ -3523,61 +3545,7 @@ const StylePropertyShorthand& CSSAnimations::PropertiesForTransitionAll(
 // animations.
 // https://w3.org/TR/web-animations-1/#animating-properties
 bool CSSAnimations::IsAnimationAffectingProperty(const CSSProperty& property) {
-  // Internal properties are not animatable because they should not be exposed
-  // to the page/author in the first place.
-  if (property.IsInternal()) {
-    return true;
-  }
-
-  switch (property.PropertyID()) {
-    case CSSPropertyID::kAnimation:
-    case CSSPropertyID::kAnimationComposition:
-    case CSSPropertyID::kAnimationDelay:
-    case CSSPropertyID::kAnimationDirection:
-    case CSSPropertyID::kAnimationDuration:
-    case CSSPropertyID::kAnimationFillMode:
-    case CSSPropertyID::kAnimationIterationCount:
-    case CSSPropertyID::kAnimationName:
-    case CSSPropertyID::kAnimationPlayState:
-    case CSSPropertyID::kAnimationRange:
-    case CSSPropertyID::kAnimationRangeEnd:
-    case CSSPropertyID::kAnimationRangeStart:
-    case CSSPropertyID::kAnimationTimeline:
-    case CSSPropertyID::kAnimationTimingFunction:
-    case CSSPropertyID::kAnimationTrigger:
-    case CSSPropertyID::kContain:
-    case CSSPropertyID::kContainerName:
-    case CSSPropertyID::kContainerType:
-    case CSSPropertyID::kDirection:
-    case CSSPropertyID::kInterpolateSize:
-    case CSSPropertyID::kScrollTimelineAxis:
-    case CSSPropertyID::kScrollTimelineName:
-    case CSSPropertyID::kTextCombineUpright:
-    case CSSPropertyID::kTextOrientation:
-    case CSSPropertyID::kTimelineScope:
-    case CSSPropertyID::kTimelineTriggerName:
-    case CSSPropertyID::kTimelineTriggerEntryRangeStart:
-    case CSSPropertyID::kTimelineTriggerEntryRangeEnd:
-    case CSSPropertyID::kTimelineTriggerActiveRangeStart:
-    case CSSPropertyID::kTimelineTriggerActiveRangeEnd:
-    case CSSPropertyID::kTimelineTriggerSource:
-    case CSSPropertyID::kTransition:
-    case CSSPropertyID::kTransitionBehavior:
-    case CSSPropertyID::kTransitionDelay:
-    case CSSPropertyID::kTransitionDuration:
-    case CSSPropertyID::kTransitionProperty:
-    case CSSPropertyID::kTransitionTimingFunction:
-    case CSSPropertyID::kUnicodeBidi:
-    case CSSPropertyID::kViewTimelineAxis:
-    case CSSPropertyID::kViewTimelineInset:
-    case CSSPropertyID::kViewTimelineName:
-    case CSSPropertyID::kWebkitWritingMode:
-    case CSSPropertyID::kWillChange:
-    case CSSPropertyID::kWritingMode:
-      return true;
-    default:
-      return false;
-  }
+  return kAnimationAffectingProperties.Has(property.PropertyID());
 }
 
 bool CSSAnimations::IsAffectedByKeyframesFromScope(

@@ -92,6 +92,7 @@
 #include "third_party/blink/renderer/core/dom/first_letter_pseudo_element.h"
 #include "third_party/blink/renderer/core/dom/flat_tree_traversal.h"
 #include "third_party/blink/renderer/core/dom/layout_tree_builder_traversal.h"
+#include "third_party/blink/renderer/core/dom/node-inl.h"
 #include "third_party/blink/renderer/core/dom/shadow_root.h"
 #include "third_party/blink/renderer/core/dom/space_split_string.h"
 #include "third_party/blink/renderer/core/dom/text.h"
@@ -129,7 +130,7 @@
 #include "third_party/blink/renderer/core/style_property_shorthand.h"
 #include "third_party/blink/renderer/core/svg/svg_element.h"
 #include "third_party/blink/renderer/core/svg/svg_svg_element.h"
-#include "third_party/blink/renderer/core/view_transition/view_transition_pseudo_element_base.h"
+#include "third_party/blink/renderer/core/view_transition/view_transition_transition_element.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
@@ -2520,8 +2521,8 @@ void StyleResolver::CollectPseudoRulesForElement(
         element.GetPseudoElement(kPseudoIdViewTransition);
     if (view_transition_element) {
       auto* view_transition_group_element =
-          view_transition_element->GetPseudoElement(
-              kPseudoIdViewTransitionGroup, pseudo_argument);
+          To<ViewTransitionTransitionElement>(*view_transition_element)
+              .FindViewTransitionGroupPseudoElement(pseudo_argument);
       if (view_transition_group_element) {
         style_request.pseudo_ident_list =
             To<ViewTransitionPseudoElementBase>(*view_transition_group_element)
@@ -2593,7 +2594,7 @@ bool StyleResolver::ApplyAnimatedStyle(
       state.AnimationUpdate(), *animating_element, state.StyleBuilder(),
       state.OldStyle(), style_recalc_context, state.CanTriggerAnimations());
 
-  bool apply = !state.AnimationUpdate().IsEmpty();
+  bool apply = state.AnimationUpdate().HasActiveInterpolations();
   if (apply) {
     const ActiveInterpolationsMap& animations =
         state.AnimationUpdate().ActiveInterpolationsForAnimations();

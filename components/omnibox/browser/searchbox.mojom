@@ -311,6 +311,9 @@ interface PageHandler {
   // Returns a data URL for the preview of the tab with the given ID.
   GetTabPreview(int32 tab_id) => (string? preview_data_url);
 
+  // Returns information about the current input state.
+  GetInputState() => (composebox_query.mojom.InputState? state);
+
   // Called when a user has started a contextual searchbox session.
   NotifySessionStarted();
 
@@ -356,6 +359,11 @@ interface PageHandler {
 
   // Opens the Lens search UI.
   OpenLensSearch();
+
+  // Called when a user enables a tool.
+  SetActiveToolMode(composebox_query.mojom.ToolMode tool);
+  // Called when a user enables a model.
+  SetActiveModelMode(composebox_query.mojom.ModelMode model);
 };
 
 // WebUI-side handler for requests from the browser.

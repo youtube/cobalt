@@ -8,9 +8,12 @@ source_set("internal") {
   sources = [
     "browser_collection.cc",
     "create_browser_window.cc",
+    "global_browser_collection.cc",
   ]
   deps = [
     "//base",
+    "//chrome/browser:browser_process",
+    "//chrome/browser:global_features",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/ui/browser_window",
     "//chrome/browser/ui/browser_window:create_browser_window",
@@ -26,14 +29,17 @@ source_set("internal") {
       "android/android_browser_window_enumerator.h",
       "android/browser_window_interface_iterator_android.cc",
       "android/create_browser_window_android.cc",
-      "android/global_browser_collection_android.cc",
+      "android/global_browser_collection_platform_delegate_android.cc",
       "android/profile_browser_collection_android.cc",
     ]
     deps += [
       ":jni",
+      "//chrome/browser/content_settings:content_settings_factory",
       "//chrome/browser/prefs",
       "//chrome/browser/profiles:profile_util",
       "//chrome/browser/ui:browser_navigator_params_headers",
+      "//chrome/browser/ui/blocked_content",
+      "//components/blocked_content",
       "//ui/android",
     ]
   } else {
@@ -43,7 +49,7 @@ source_set("internal") {
       "create_browser_window_non_android.cc",
       "desktop_browser_window_capabilities.cc",
       "embedder_browser_window_features.cc",
-      "global_browser_collection_non_android.cc",
+      "global_browser_collection_platform_delegate_non_android.cc",
       "profile_browser_collection_non_android.cc",
     ]
     public_deps = [ "//chrome/browser:browser_public_dependencies" ]
@@ -59,7 +65,7 @@ source_set("internal") {
       "//chrome/browser/lens/region_search",
       "//chrome/browser/media/router:media_router_feature",
       "//chrome/browser/prefs",
-      "//chrome/browser/skills",
+      "//chrome/browser/skills:ui",
       "//chrome/browser/tab_group_sync:factories",
       "//chrome/browser/ui:ui_features",
       "//chrome/browser/ui/bookmarks",
@@ -90,6 +96,7 @@ source_set("internal") {
       "//chrome/browser/ui/views/side_panel",
       "//chrome/browser/ui/views/toolbar",
       "//chrome/browser/ui/waap",
+      "//chrome/browser/ui/waap:window_metrics_manager",
       "//chrome/browser/ui/web_applications",
       "//chrome/browser/ui/web_applications:launch_utils",
       "//chrome/browser/ui/webui_browser",
@@ -116,7 +123,10 @@ source_set("internal") {
     }
 
     if (is_chromeos) {
-      deps += [ "//components/session_manager/core" ]
+      deps += [
+        "//chrome/browser/ash/boca/on_task",
+        "//components/session_manager/core",
+      ]
     }
 
     if (enable_glic) {
@@ -178,13 +188,13 @@ if (is_android) {
       "android/java/src/org/chromium/chrome/browser/ui/browser_window/AndroidBaseWindow.java",
       "android/java/src/org/chromium/chrome/browser/ui/browser_window/AndroidBrowserWindow.java",
       "android/java/src/org/chromium/chrome/browser/ui/browser_window/AndroidBrowserWindowCreateParamsImpl.java",
-      "android/java/src/org/chromium/chrome/browser/ui/browser_window/AndroidBrowserWindowEnumerator.java",
       "android/java/src/org/chromium/chrome/browser/ui/browser_window/BrowserWindowCreatorBridge.java",
       "android/java/src/org/chromium/chrome/browser/ui/browser_window/BrowserWindowInterfaceIteratorAndroid.java",
       "android/java/src/org/chromium/chrome/browser/ui/browser_window/ChromeAndroidTaskBoundsConstraints.java",
       "android/java/src/org/chromium/chrome/browser/ui/browser_window/ChromeAndroidTaskImpl.java",
       "android/java/src/org/chromium/chrome/browser/ui/browser_window/ChromeAndroidTaskTrackerFactory.java",
       "android/java/src/org/chromium/chrome/browser/ui/browser_window/ChromeAndroidTaskTrackerImpl.java",
+      "android/java/src/org/chromium/chrome/browser/ui/browser_window/GlobalBrowserCollectionPlatformDelegate.java",
       "android/java/src/org/chromium/chrome/browser/ui/browser_window/IdSequencer.java",
       "android/java/src/org/chromium/chrome/browser/ui/browser_window/PendingActionManager.java",
     ]
@@ -220,9 +230,9 @@ if (is_android) {
       "android/java/src/org/chromium/chrome/browser/ui/browser_window/AndroidBaseWindow.java",
       "android/java/src/org/chromium/chrome/browser/ui/browser_window/AndroidBrowserWindow.java",
       "android/java/src/org/chromium/chrome/browser/ui/browser_window/AndroidBrowserWindowCreateParamsImpl.java",
-      "android/java/src/org/chromium/chrome/browser/ui/browser_window/AndroidBrowserWindowEnumerator.java",
       "android/java/src/org/chromium/chrome/browser/ui/browser_window/BrowserWindowCreatorBridge.java",
       "android/java/src/org/chromium/chrome/browser/ui/browser_window/BrowserWindowInterfaceIteratorAndroid.java",
+      "android/java/src/org/chromium/chrome/browser/ui/browser_window/GlobalBrowserCollectionPlatformDelegate.java",
     ]
   }
 
@@ -309,6 +319,7 @@ if (is_android) {
       "//chrome/browser/ui:browser_navigator_params_headers",
       "//chrome/browser/ui/browser_window",
       "//chrome/browser/ui/browser_window:create_browser_window",
+      "//chrome/browser/ui/browser_window/test:android_browser_test_support",
       "//chrome/browser/ui/tabs:tab_list_interface",
       "//chrome/test:test_support_ui_android",
       "//components/feed:feature_list",

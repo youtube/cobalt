@@ -24,12 +24,12 @@
 #include "components/policy/core/common/policy_pref_names.h"
 #include "components/prefs/pref_service.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
+#include "components/supervised_user/core/browser/family_link_settings_service.h"
+#include "components/supervised_user/core/browser/family_link_url_filter.h"
 #include "components/supervised_user/core/browser/kids_chrome_management_url_checker_client.h"
 #include "components/supervised_user/core/browser/permission_request_creator_impl.h"
 #include "components/supervised_user/core/browser/supervised_user_preferences.h"
 #include "components/supervised_user/core/browser/supervised_user_service_observer.h"
-#include "components/supervised_user/core/browser/supervised_user_settings_service.h"
-#include "components/supervised_user/core/browser/supervised_user_url_filter.h"
 #include "components/supervised_user/core/browser/supervised_user_utils.h"
 #include "components/supervised_user/core/common/features.h"
 #include "components/supervised_user/core/common/pref_names.h"
@@ -91,7 +91,7 @@ SupervisedUserService::~SupervisedUserService() {
   DCHECK(did_shutdown_);
 }
 
-SupervisedUserURLFilter* SupervisedUserService::GetURLFilter() const {
+FamilyLinkUrlFilter* SupervisedUserService::GetURLFilter() const {
   return url_filter_.get();
 }
 
@@ -111,15 +111,6 @@ std::optional<Custodian> SupervisedUserService::GetSecondCustodian() const {
       prefs::kSupervisedUserSecondCustodianProfileImageURL);
 }
 
-bool SupervisedUserService::IsBlockedURL(const GURL& url) const {
-  // TODO(b/359161670): prevent access to URL filtering through lifecycle events
-  // rather than individually checking active state.
-  if (!IsSubjectToParentalControls(user_prefs_.get())) {
-    return false;
-  }
-  return GetURLFilter()->GetFilteringBehavior(url).IsBlocked();
-}
-
 void SupervisedUserService::AddObserver(
     SupervisedUserServiceObserver* observer) {
   observer_list_.AddObserver(observer);
@@ -136,9 +127,9 @@ SupervisedUserService::SupervisedUserService(
     signin::IdentityManager* identity_manager,
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
     PrefService& user_prefs,
-    SupervisedUserSettingsService& settings_service,
+    FamilyLinkSettingsService& settings_service,
     syncer::SyncService* sync_service,
-    std::unique_ptr<SupervisedUserURLFilter> url_filter,
+    std::unique_ptr<FamilyLinkUrlFilter> url_filter,
     std::unique_ptr<SupervisedUserService::PlatformDelegate> platform_delegate,
     const DeviceParentalControls& device_parental_controls)
     : user_prefs_(user_prefs),
@@ -206,7 +197,12 @@ void SupervisedUserService::OnFamilyLinkParentalControlsEnabled() {
   // consists of multiple prefs changing at once but producing separate
   // notifications).
   AddCustodianPrefChangeHandlers();
-  AddURLFilterPrefChangeHandlers();
+
+  if (!base::FeatureList::IsEnabled(kSupervisedUserUseUrlFilteringService)) {
+    // Add handler at the end to avoid multiple notifications (if the Url filter
+    // is still reading its configuration from the PrefService).
+    AddURLFilterPrefChangeHandlers();
+  }
 
   // Synchronize the filter.
   UpdateURLFilter();
@@ -222,8 +218,11 @@ void SupervisedUserService::OnFamilyLinkParentalControlsDisabled() {
   SetSettingsServiceActive(false);
   remote_web_approvals_manager_.ClearApprovalRequestsCreators();
 
-  // Add handler at the end to avoid multiple notifications.
-  AddURLFilterPrefChangeHandlers();
+  if (!base::FeatureList::IsEnabled(kSupervisedUserUseUrlFilteringService)) {
+    // Add handler at the end to avoid multiple notifications (if the Url filter
+    // is still reading its configuration from the PrefService).
+    AddURLFilterPrefChangeHandlers();
+  }
 
   // Synchronize the filter.
   UpdateURLFilter();

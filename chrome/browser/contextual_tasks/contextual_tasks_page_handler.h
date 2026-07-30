@@ -46,6 +46,7 @@ class ContextualTasksPageHandler
   void SetTaskId(const base::Uuid& uuid) override;
   void SetThreadTitle(const std::string& title) override;
   void IsZeroState(const GURL& url, IsZeroStateCallback callback) override;
+  void IsAiPage(const GURL& url, IsAiPageCallback callback) override;
   void CloseSidePanel() override;
   void ShowThreadHistory() override;
   void IsShownInTab(IsShownInTabCallback callback) override;
@@ -54,6 +55,8 @@ class ContextualTasksPageHandler
   void OpenOnboardingHelpUi() override;
   void MoveTaskUiToNewTab() override;
   void OnTabClickedFromSourcesMenu(int32_t tab_id, const GURL& url) override;
+  void OnFileClickedFromSourcesMenu(const GURL& url) override;
+  void OnImageClickedFromSourcesMenu(const GURL& url) override;
   void OnWebviewMessage(const std::vector<uint8_t>& message) override;
   void GetCommonSearchParams(bool is_dark_mode,
                              bool is_side_panel,

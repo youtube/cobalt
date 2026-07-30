@@ -204,6 +204,13 @@ public abstract class TabSwitcherPaneBase extends PaneBase
                         return false;
                     }
                 };
+
+        mManualSearchBoxAnimationSupplier =
+                mTabSwitcherPaneCoordinatorSupplier.createTransitiveNonNull(
+                        false, TabSwitcherPaneCoordinator::getManualSearchBoxAnimationSupplier);
+        mSearchBoxVisibilityFractionSupplier =
+                mTabSwitcherPaneCoordinatorSupplier.createTransitiveNonNull(
+                        0.0f, TabSwitcherPaneCoordinator::getSearchBoxVisibilityFractionSupplier);
     }
 
     @Override
@@ -218,13 +225,11 @@ public abstract class TabSwitcherPaneBase extends PaneBase
     public void setPaneHubController(@Nullable PaneHubController paneHubController) {
         mPaneHubController = paneHubController;
 
-        boolean showSearch = false;
         if (isFocused()) {
             int screenWidthDp =
                     mRootView.getContext().getResources().getConfiguration().screenWidthDp;
-            showSearch = !HubUtils.isScreenWidthTablet(screenWidthDp);
+            mHubSearchBoxVisibilitySupplier.set(!HubUtils.isScreenWidthTablet(screenWidthDp));
         }
-        mHubSearchBoxVisibilitySupplier.set(showSearch);
     }
 
     @Override
@@ -337,6 +342,16 @@ public abstract class TabSwitcherPaneBase extends PaneBase
                 mOnToolbarAlphaChange);
     }
 
+    @Override
+    public NonNullObservableSupplier<Boolean> getManualSearchBoxAnimationSupplier() {
+        return mManualSearchBoxAnimationSupplier;
+    }
+
+    @Override
+    public NonNullObservableSupplier<Float> getSearchBoxVisibilityFractionSupplier() {
+        return mSearchBoxVisibilityFractionSupplier;
+    }
+
     private @ColorInt int getAnimationBackgroundColor() {
         if (mIsIncognito) {
             return ChromeColors.getPrimaryBackgroundColor(mRootView.getContext(), mIsIncognito);
@@ -413,7 +428,8 @@ public abstract class TabSwitcherPaneBase extends PaneBase
                     Rect finalRect;
                     Rect viewportRect = new Rect();
 
-                    CompositorViewHolder viewHolder = mCompositorViewHolderSupplier.get();
+                    CompositorViewHolder viewHolder =
+                            assumeNonNull(mCompositorViewHolderSupplier.get());
                     RectF viewportRectf = new RectF();
                     viewHolder.getVisibleViewport(viewportRectf);
                     viewportRectf.round(viewportRect);

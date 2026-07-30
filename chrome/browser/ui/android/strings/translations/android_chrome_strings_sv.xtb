@@ -41,6 +41,7 @@
 <translation id="1150263420752757504"><ph name="APP_NAME" /> öppnas i Chrome. Genom att fortsätta godkänner du <ph name="BEGIN_LINK1" />Googles användarvillkor<ph name="END_LINK1" /> och <ph name="BEGIN_LINK2" />de ytterligare användarvillkoren för Google Chrome och ChromeOS<ph name="END_LINK2" />.</translation>
 <translation id="1154555449933432029">Du har inga sparade lösenord i Google Lösenordshantering.</translation>
 <translation id="115483310321669804">Använd lösenordet <ph name="PASSWORD" /></translation>
+<translation id="1161065531352634524">Synkronisera flikar och historik</translation>
 <translation id="1165109137568919258">Ta ett foto eller lägg till en bild från fotogalleriet för att söka</translation>
 <translation id="1173894706177603556">Ändra namn</translation>
 <translation id="1174479719160874822">Chrome begär den mobila webbplatsen när skärmen är smal</translation>
@@ -126,6 +127,7 @@ Du hittar fler inställningar som använder data för att förbättra Chrome-upp
 <translation id="147982357559798527">Ändrade</translation>
 <translation id="1480287803138246127">En del av din historik kanske inte visas här. Öppna fullständig Chrome-historik om du vill se all Chrome-historik.</translation>
 <translation id="1493287004536771723">Du följer <ph name="SITE_NAME" /></translation>
+<translation id="1495677929897281669">Tillbaka till flik</translation>
 <translation id="1496514951988037011">användarnamn</translation>
 <translation id="1501480321619201731">Ta bort grupp</translation>
 <translation id="1506061864768559482">Sökmotor</translation>
@@ -433,6 +435,7 @@ Din krypterade data kan endast läsas av en person som har din lösenfras. Löse
 <translation id="2885355868600171871">Hoppa till adressfältet</translation>
 <translation id="2888126860611144412">Om Chrome</translation>
 <translation id="2891154217021530873">Avbryt inläsningen av sidan</translation>
+<translation id="2893168226686371498">Standardwebbläsare</translation>
 <translation id="2894821468041866720">Gör inte webbläsaren eller enheten märkbart långsammare.</translation>
 <translation id="2895521649038438824">Du kan få den här sidan uppläst</translation>
 <translation id="289596984386220317"><ph name="TAB_TITLE" />, fäst flik med ljud</translation>
@@ -981,6 +984,7 @@ Det kan finnas andra former av webbhistorik i Google-kontot på <ph name="BEGIN_
 <translation id="5210286577605176222">Hoppa till föregående flik</translation>
 <translation id="5210365745912300556">Stäng flik</translation>
 <translation id="5212800876504289412">Starta om Chrome för att slutföra ändringen. Flikarna öppnas automatiskt när du startar om.</translation>
+<translation id="5213114823401215820">Öppna stängd grupp igen</translation>
 <translation id="5215957675041756913">Styra din data och ditt konto</translation>
 <translation id="5218324087477576825">Kortnummer, obligatoriskt</translation>
 <translation id="5221437554987713282"><ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> med flera <ph name="SEPARATOR" /> Chrome har tagit bort dessa behörigheter eftersom du inte har besökt webbplatsen nyligen</translation>
@@ -1099,7 +1103,6 @@ Det kan finnas andra former av webbhistorik i Google-kontot på <ph name="BEGIN_
 <translation id="5765780083710877561">Beskrivning:</translation>
 <translation id="5776970333778123608">Oviktig data</translation>
 <translation id="5793665092639000975"><ph name="SPACE_USED" /> av <ph name="SPACE_AVAILABLE" /> används</translation>
-<translation id="5795872532621730126">Sök och utforska</translation>
 <translation id="5797949256525811424">Blockerat ämne</translation>
 <translation id="580893287573699959">Hantera ämnen och webbplatser som du är intresserad av</translation>
 <translation id="5809361687334836369">{HOURS,plural, =1{för # timme sedan}other{för # timmar sedan}}</translation>
@@ -1416,7 +1419,6 @@ Vissa webbplatser kan till exempel svara på begäran genom att visa annonser so
 <translation id="6937524809504266803">Anpassning och länkning</translation>
 <translation id="6937876069006524083">Namn (valfritt)</translation>
 <translation id="6942665639005891494">Ändra standardplats för nedladdningar när som helst via alternativet i inställningsmenyn</translation>
-<translation id="694267552845942083">Du anpassar synkroniseringsinställningarna. Aktivera synkroniseringen genom att trycka på Bekräfta längst ned på skärmen. Navigera uppåt</translation>
 <translation id="6945221475159498467">Välj</translation>
 <translation id="6955535239952325894">Inställningen är inaktiverad för hanterade webbläsare</translation>
 <translation id="6963766334940102469">Radera bokmärken</translation>
@@ -1438,6 +1440,7 @@ Vissa webbplatser kan till exempel svara på begäran genom att visa annonser so
 <translation id="7020741890149022655">Lägg till i läslistan <ph name="BEGIN_NEW" />Ny<ph name="END_NEW" /></translation>
 <translation id="7022756207310403729">Öppna i webbläsaren</translation>
 <translation id="7029809446516969842">Lösenord</translation>
+<translation id="7037994709569287156">Ange Chrome som standard</translation>
 <translation id="7053256416619638731">Gör dina lösenord starkare på den här enheten</translation>
 <translation id="7053983685419859001">Blockera</translation>
 <translation id="7054588988317389591">Vill du få bildbeskrivningar?</translation>
@@ -1470,6 +1473,7 @@ Vissa webbplatser kan till exempel svara på begäran genom att visa annonser so
 Om du vill ändra den här inställningen <ph name="BEGIN_LINK" />raderar du Chrome-datan i kontot<ph name="END_LINK" />.</translation>
 <translation id="7165972437814027679">Läs mer om varför vissa filer blockeras i Chrome</translation>
 <translation id="7168323970702333693">Inloggad som <ph name="USER_NAME" />. Öppnar inställningarna.</translation>
+<translation id="7170930892977483182">Alla säkerhetskoder som sparas på enheten och i Google Wallet raderas</translation>
 <translation id="7173114856073700355">Inställningar</translation>
 <translation id="7173338713290252554">Prishistorik på webben</translation>
 <translation id="7177466738963138057">Du kan ändra detta senare i inställningarna</translation>
@@ -1642,6 +1646,7 @@ Om du vill ändra den här inställningen <ph name="BEGIN_LINK" />raderar du Chr
 <translation id="784652447248278262">Aktuellt fönster</translation>
 <translation id="784934925303690534">Tidsintervall</translation>
 <translation id="7851858861565204677">Andra enheter</translation>
+<translation id="78527117619130387">Tryck på ^W igen för att stänga den fästa fliken</translation>
 <translation id="7853202427316060426">Aktivitet</translation>
 <translation id="7859988229622350291">Översätt aldrig</translation>
 <translation id="7866213166286285359">Översätt sidor här</translation>
@@ -1655,6 +1660,7 @@ Om du vill ändra den här inställningen <ph name="BEGIN_LINK" />raderar du Chr
 <translation id="7919123827536834358">Översätt dessa språk automatiskt</translation>
 <translation id="7921782882718083488">Sammanfatta den här sidan</translation>
 <translation id="7926975587469166629">Kortets namn</translation>
+<translation id="7927073875790626822">XR</translation>
 <translation id="7929587383660661825">Chrome tar automatiskt bort behörigheter för webbplatser som missbrukar aviseringar eller som du inte har besökt nyligen</translation>
 <translation id="7934668619883965330">Det gick inte att ladda ned filen. Filformatet stöds inte.</translation>
 <translation id="7942131818088350342"><ph name="PRODUCT_NAME" /> är inaktuell.</translation>
@@ -1800,6 +1806,7 @@ Om du vill ändra den här inställningen <ph name="BEGIN_LINK" />raderar du Chr
 <translation id="8458413889418591446">Synkronisera flikar och historik för att snabbt återgå till webbplatser du har besökt</translation>
 <translation id="84594714173170813">Fortsätt använda Chrome-data i Google-kontot</translation>
 <translation id="8460448946170646641">Granska viktiga säkerhets- och integritetskontroller</translation>
+<translation id="8460932807646981183">Hantera sökmotorer och webbplatssökning</translation>
 <translation id="8473863474539038330">Adresser och annat</translation>
 <translation id="847433688444405067">Bläddra bland enheter</translation>
 <translation id="8477178913400731244">Ta bort data</translation>
@@ -1935,7 +1942,6 @@ Om du vill ändra den här inställningen <ph name="BEGIN_LINK" />raderar du Chr
 <translation id="9073805459138993880"><ph name="TAB_TITLE" />, flik som delas och som har valts tillsammans med andra</translation>
 <translation id="9074739597929991885">Bluetooth</translation>
 <translation id="9081543426177426948">Webbplatser du besöker sparas inte i inkognitoläget</translation>
-<translation id="9086302186042011942">Synkroniserar</translation>
 <translation id="9086455579313502267">Det går inte att ansluta till nätverket</translation>
 <translation id="9093915805850895575">Öppna i Chrome-fönster</translation>
 <translation id="909756639352028172">Få en så anpassad upplevelse som möjligt genom att inkludera Chrome i webb- och appaktiviteten och dina länkade Google-tjänster</translation>

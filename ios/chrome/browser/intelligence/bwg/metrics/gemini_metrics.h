@@ -96,6 +96,8 @@ extern const char kGeminiSessionLengthFREWithPromptHistogram[];
 extern const char kGeminiSessionLengthFREWithAbandonedHistogram[];
 
 // Enum for the IOS.Gemini.FirstPrompt.SubmissionMethod histogram.
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
 // LINT.IfChange(IOSGeminiFirstPromptSubmissionMethod)
 enum class IOSGeminiFirstPromptSubmissionMethod {
   kText = 0,
@@ -108,15 +110,44 @@ enum class IOSGeminiFirstPromptSubmissionMethod {
   kZeroStateSuggestions = 7,
   kWhatCanGeminiDo = 8,
   kDiscoveryCard = 9,
-  kMaxValue = kDiscoveryCard,
+  kOmniboxSummarize = 10,
+  kOmniboxPrompt = 11,
+  kTransitionToLive = 12,
+  kOnboardingWhatCanGeminiDo = 13,
+  kOnboardingAskAboutPage = 14,
+  kOnboardingSummarize = 15,
+  kSuggestedReply = 16,
+  kNanoBananaTurnThisPageIntoAComicStrip = 17,
+  kNanoBananaMakeAFolkArtIllustration = 18,
+  kNanoBananaMakeACustomMiniFigure = 19,
+  kNanoBananaGiveMeAGrungeMakeover = 20,
+  kNanoBananaTurnThisImageIntoAVintagePostcard = 21,
+  kNanoBananaTurnThisImageIntoAWatercolorPainting = 22,
+  kNanoBananaMakeThisImageLookLikeInstantFilm = 23,
+  kMaxValue = kNanoBananaMakeThisImageLookLikeInstantFilm,
 };
-// LINT.ThenChange(/tools/metrics/histograms/metadata/ios/enums.xml:IOSGeminiFirstPromptSubmissionMethod)
+// LINT.ThenChange(
+//   /tools/metrics/histograms/metadata/ios/enums.xml:IOSGeminiFirstPromptSubmissionMethod,
+//   /ios/chrome/browser/intelligence/bwg/model/gemini_session_delegate.h:BWGInputType
+// )
 
 // UMA histogram key for IOS.Gemini.FirstPrompt.SubmissionMethod.
 extern const char kFirstPromptSubmissionMethodHistogram[];
 
+// UMA histogram key for IOS.Gemini.Prompt.ImagesAttached.Count.
+extern const char kPromptImagesAttachedCountHistogram[];
+
+// UMA histogram key for IOS.Gemini.Prompt.ImageRemix.Enabled.
+extern const char kPromptImageRemixEnabledHistogram[];
+
+// UMA histogram key for IOS.Gemini.Prompt.LongPressImage.Included.
+extern const char kPromptLongPressImageIncludedHistogram[];
+
 // UMA histogram key for IOS.Gemini.Prompt.ContextAttachment.
 extern const char kPromptContextAttachmentHistogram[];
+
+// UMA histogram key for IOS.Gemini.Response.GeneratedImage.Included.
+extern const char kResponseGeneratedImageIncluded[];
 
 // UMA histogram key for IOS.Gemini.Response.Latency.WithContext.
 extern const char kResponseLatencyWithContextHistogram[];
@@ -144,6 +175,33 @@ enum class IOSGeminiFeedback {
 // UMA histogram key for IOS.Gemini.Feedback.
 extern const char kFeedbackHistogram[];
 
+// Enum for the IOS.Gemini.ImageRemix.ContextMenuEntryPoint.AspectRatio.*
+// histograms.
+// LINT.IfChange(IOSGeminiAspectRatioBucket)
+enum class IOSGeminiAspectRatioBucket {
+  kUnknown = 0,
+  kVeryTall = 1,
+  kTall = 2,
+  kSlightlyTall = 3,
+  kPerfectSquare = 4,
+  kSlightlyWide = 5,
+  kWide = 6,
+  kVeryWide = 7,
+  kMaxValue = kVeryWide,
+};
+// LINT.ThenChange(/tools/metrics/histograms/metadata/ios/enums.xml:IOSGeminiAspectRatioBucket)
+
+// UMA histogram key for
+// IOS.Gemini.ImageRemix.ContextMenuEntryPoint.AspectRatio.Tapped.
+extern const char kImageRemixContextMenuEntryPointAspectRatioTappedHistogram[];
+
+// Records that the Image Remix context menu entry point was shown.
+void RecordImageRemixContextMenuEntryPointShown();
+
+// Records that the Image Remix context menu entry point was tapped with the
+// given image aspect ratio.
+void RecordImageRemixContextMenuEntryPointTapped(double aspect_ratio);
+
 // Records user feedback on a Gemini response.
 void RecordGeminiFeedback(IOSGeminiFeedback feedback);
 // Records the duration of a Gemini session.
@@ -164,11 +222,12 @@ void RecordFREShown();
 // Records user action for first response received.
 void RecordFirstResponseReceived();
 
-// Records that the user submitted their first prompt and how it was submitted.
+// Records that the user submitted their first prompt.
 void RecordFirstPromptSubmission(IOSGeminiFirstPromptSubmissionMethod method);
 
-// Records that the user received any response from Gemini.
-void RecordGeminiResponseReceived();
+// Records that the user received a response from Gemini with a boolean
+// indicating whether a generated image was included in the response.
+void RecordGeminiResponseReceived(bool generated_image_included);
 
 // Records that the user tapped the "Get Started" button on the Gemini FRE promo
 // screen.
@@ -215,7 +274,11 @@ void RecordAIHubNewBadgeTapped();
 // Records that the AI Hub icon was tapped.
 void RecordAIHubIconTapped();
 
-// Records that the user sent a prompt in a Gemini session.
-void RecordGeminiPromptSent();
+// Records that the user sent a prompt in a Gemini session. Includes parameters
+// for histogram metrics.
+void RecordGeminiPromptSent(bool is_nano_banana_enabled,
+                            int images_attached_count,
+                            bool long_press_image_included,
+                            bool has_page_context);
 
 #endif  // IOS_CHROME_BROWSER_INTELLIGENCE_BWG_METRICS_GEMINI_METRICS_H_

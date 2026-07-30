@@ -44,6 +44,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
@@ -56,8 +57,9 @@ import org.robolectric.shadows.ShadowPackageManager;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.DeviceInfo;
 import org.chromium.base.ThreadUtils;
-import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.OneshotSupplierImpl;
+import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRule;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.DisableFeatures;
@@ -112,6 +114,7 @@ import org.chromium.chrome.browser.ui.appmenu.AppMenuDelegate;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuHandler;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuItemProperties;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuItemWithSubmenuProperties;
+import org.chromium.chrome.browser.ui.default_browser_promo.DefaultBrowserPromoUtils;
 import org.chromium.chrome.browser.ui.extensions.ExtensionsBuildflags;
 import org.chromium.chrome.browser.ui.extensions.FakeExtensionUiBackendRule;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
@@ -165,6 +168,7 @@ import java.util.List;
     ChromeFeatureList.ADAPTIVE_BUTTON_IN_TOP_TOOLBAR_PAGE_SUMMARY,
     ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION,
     ChromeFeatureList.FEED_AUDIO_OVERVIEWS,
+    ChromeFeatureList.GLIC,
     DomDistillerFeatures.READER_MODE_IMPROVEMENTS,
     DomDistillerFeatures.READER_MODE_DISTILL_IN_APP
 })
@@ -201,6 +205,8 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
     @Rule
     public FakeExtensionUiBackendRule mFakeExtensionUiBackendRule =
             new FakeExtensionUiBackendRule();
+
+    @Rule public TestName mTestName = new TestName();
 
     @Mock private Tab mTab;
     @Mock private WebContents mWebContents;
@@ -242,6 +248,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
     @Mock private DomDistillerUrlUtilsJni mDomDistillerUrlUtilsJni;
     @Mock private FeedServiceBridge.Natives mFeedServiceBridgeJniMock;
     @Mock private PageZoomManager mPageZoomManagerMock;
+    @Mock private DefaultBrowserPromoUtils mMockDefaultBrowserPromoUtils;
 
     private ShadowPackageManager mShadowPackageManager;
 
@@ -250,10 +257,10 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
             new OneshotSupplierImpl<>();
     private final OneshotSupplierImpl<IncognitoReauthController>
             mIncognitoReauthControllerSupplier = new OneshotSupplierImpl<>();
-    private final ObservableSupplierImpl<BookmarkModel> mBookmarkModelSupplier =
-            new ObservableSupplierImpl<>();
-    private final ObservableSupplierImpl<ReadAloudController> mReadAloudControllerSupplier =
-            new ObservableSupplierImpl<>();
+    private final SettableMonotonicObservableSupplier<BookmarkModel> mBookmarkModelSupplier =
+            ObservableSuppliers.createMonotonic();
+    private final SettableMonotonicObservableSupplier<ReadAloudController>
+            mReadAloudControllerSupplier = ObservableSuppliers.createMonotonic();
 
     private TabbedAppMenuPropertiesDelegate mTabbedAppMenuPropertiesDelegate;
     private MenuUiState mUpdateAvailableMenuUiState;
@@ -278,7 +285,9 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
 
         mLayoutStateProviderSupplier.set(mLayoutStateProvider);
         mIncognitoReauthControllerSupplier.set(mIncognitoReauthControllerMock);
-        mReadAloudControllerSupplier.set(mReadAloudController);
+        if (!mTestName.getMethodName().equals("testReadAloudMenuItem_readAloudNotEnabled")) {
+            mReadAloudControllerSupplier.set(mReadAloudController);
+        }
         when(mTab.getWebContents()).thenReturn(mWebContents);
         when(mTab.getProfile()).thenReturn(mProfile);
         when(mWebContents.getNavigationController()).thenReturn(mNavigationController);
@@ -354,7 +363,8 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                         mSnackbarManager,
                         mIncognitoReauthControllerSupplier,
                         mReadAloudControllerSupplier,
-                        mPageZoomManagerMock);
+                        mPageZoomManagerMock,
+                        /* openInAppMenuItemProvider= */ null);
         BaseRobolectricTestRule.runAllBackgroundAndUi();
         mTabbedAppMenuPropertiesDelegate = Mockito.spy(delegate);
 
@@ -366,6 +376,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         LargeIconBridgeJni.setInstanceForTesting(mLargeIconBridgeJni);
 
         DomDistillerUrlUtilsJni.setInstanceForTesting(mDomDistillerUrlUtilsJni);
+        DefaultBrowserPromoUtils.setInstanceForTesting(mMockDefaultBrowserPromoUtils);
     }
 
     @After
@@ -1649,6 +1660,47 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
     }
 
     @Test
+    @Config(qualifiers = "sw320dp")
+    @EnableFeatures({
+        ChromeFeatureList.DEFAULT_BROWSER_PROMO_ENTRY_POINT + ":show_app_menu_item/true"
+    })
+    public void testDefaultBrowserPromo_Enabled() {
+        setUpMocksForPageMenu();
+        setMenuOptions(new MenuOptions());
+        doReturn(true).when(mMockDefaultBrowserPromoUtils).shouldShowAppMenuItemEntryPoint();
+
+        MVCListAdapter.ModelList modelList = mTabbedAppMenuPropertiesDelegate.getMenuItems();
+
+        // Verify that that the menu item exists.
+        assertTrue(
+                "Default Browser Promo item should be visible",
+                isMenuVisible(modelList, R.id.default_browser_promo_menu_id));
+
+        // Verify that it has the correct title.
+        assertTrue(
+                "Title should match",
+                isMenuVisibleWithCorrectTitle(
+                        modelList,
+                        R.id.default_browser_promo_menu_id,
+                        ContextUtils.getApplicationContext()
+                                .getString(R.string.make_chrome_default)));
+    }
+
+    @Test
+    @Config(qualifiers = "sw320dp")
+    @DisableFeatures(ChromeFeatureList.DEFAULT_BROWSER_PROMO_ENTRY_POINT)
+    public void testDefaultBrowserPromo_Disabled() {
+        setUpMocksForPageMenu();
+        setMenuOptions(new MenuOptions());
+
+        MVCListAdapter.ModelList modelList = mTabbedAppMenuPropertiesDelegate.getMenuItems();
+
+        assertFalse(
+                "Default Browser Promo item should not be visible",
+                isMenuVisible(modelList, R.id.default_browser_promo_menu_id));
+    }
+
+    @Test
     public void pageZoomMenuOption_NotVisibleInReadingMode() {
         setUpMocksForPageMenu();
         PageZoomUtils.setShouldShowMenuItemForTesting(true);
@@ -2153,7 +2205,6 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
 
     @Test
     public void testReadAloudMenuItem_readAloudNotEnabled() {
-        mReadAloudControllerSupplier.set(null);
         when(mTab.getUrl()).thenReturn(JUnitTestGURLs.EXAMPLE_URL);
         setUpMocksForPageMenu();
         MVCListAdapter.ModelList modelList = mTabbedAppMenuPropertiesDelegate.getMenuItems();

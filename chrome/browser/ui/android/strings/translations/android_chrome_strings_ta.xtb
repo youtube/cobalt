@@ -41,6 +41,7 @@
 <translation id="1150263420752757504"><ph name="APP_NAME" /> Chromeமில் திறக்கப்படும். தொடர்வதன் மூலம் <ph name="BEGIN_LINK1" />Google சேவை விதிமுறைகள்<ph name="END_LINK1" />, <ph name="BEGIN_LINK2" />Google Chrome &amp; ChromeOS தொடர்பான கூடுதல் சேவை விதிமுறைகள்<ph name="END_LINK2" /> ஆகியவற்றை ஏற்கிறீர்கள்.</translation>
 <translation id="1154555449933432029">Google Password Managerரில் நீங்கள் எந்தக் கடவுச்சொல்லையும் சேமிக்கவில்லை.</translation>
 <translation id="115483310321669804"><ph name="PASSWORD" /> கடவுச்சொல்லைப் பயன்படுத்தும்</translation>
+<translation id="1161065531352634524">பக்கங்களையும் பதிவுகளையும் ஒத்திசைத்தல்</translation>
 <translation id="1165109137568919258">தேட, படமெடுக்கவும் அல்லது உங்கள் புகைப்பட கேலரியில் இருந்து படத்தைச் சேர்க்கவும்</translation>
 <translation id="1173894706177603556">பெயர் மாற்று</translation>
 <translation id="1174479719160874822">திரையின் அளவு சிறியதாக இருந்தால் Chrome மொபைல் தளத்திற்குக் கோரிக்கை விடுக்கும்</translation>
@@ -126,6 +127,7 @@
 <translation id="147982357559798527">மாற்றப்பட்டது</translation>
 <translation id="1480287803138246127">இதுவரையிலான செயல்பாடுகளில் சில இங்கே காட்டப்படாமல் போகலாம். இதுவரையிலான Chrome செயல்பாடுகள் முழுவதையும் பார்க்க, Chrome செயல்பாடுகளை முழுமையாகக் காட்டு என்பதைத் தட்டவும்.</translation>
 <translation id="1493287004536771723"><ph name="SITE_NAME" /> தளத்தைப் பின்தொடர்கிறீர்கள்</translation>
+<translation id="1495677929897281669">தாவலுக்குத் திரும்பு</translation>
 <translation id="1496514951988037011">பயனர்பெயர்</translation>
 <translation id="1501480321619201731">குழுவை நீக்கு</translation>
 <translation id="1506061864768559482">தேடல் இன்ஜின்</translation>
@@ -433,6 +435,7 @@
 <translation id="2885355868600171871">முகவரிப் பட்டிக்குச் செல்லும்</translation>
 <translation id="2888126860611144412">Chrome அறிமுகம்</translation>
 <translation id="2891154217021530873">பக்கத்தை ஏற்றுவதை நிறுத்து</translation>
+<translation id="2893168226686371498">இயல்புநிலை உலாவி</translation>
 <translation id="2894821468041866720">உங்கள் உலாவி அல்லது சாதனத்தின் செயல்திறனைப் பெருமளவில் குறைக்காது.</translation>
 <translation id="2895521649038438824">இந்தப் பக்கத்தின் உள்ளடக்கத்தை ஆடியோவாகக் கேட்கலாம்</translation>
 <translation id="289596984386220317"><ph name="TAB_TITLE" />, பின் செய்யப்பட்ட ஒலியடக்கப்படாத பக்கம்</translation>
@@ -980,6 +983,7 @@
 <translation id="5210286577605176222">முந்தைய தாவலுக்குச் செல்லும்</translation>
 <translation id="5210365745912300556">பக்கத்தை மூடுக</translation>
 <translation id="5212800876504289412">இந்த மாற்றத்தைப் பயன்படுத்த Chromeமை மீண்டும் தொடங்குங்கள். மீண்டும் தொடங்கும்போது பக்கங்கள் தானாகவே மீண்டும் திறக்கப்படும்.</translation>
+<translation id="5213114823401215820">மூடிய குழுக்களை மீண்டும் திற</translation>
 <translation id="5215957675041756913">உங்கள் தரவையும் கணக்கையும் கட்டுப்படுத்துங்கள்</translation>
 <translation id="5218324087477576825">கார்டு எண் அவசியம்</translation>
 <translation id="5221437554987713282"><ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> மற்றும் பல <ph name="SEPARATOR" /> நீங்கள் சமீபத்தில் இந்தத் தளத்தைப் பார்வையிடாததால் Chrome இந்த அனுமதிகளை அகற்றியது</translation>
@@ -1098,7 +1102,6 @@
 <translation id="5765780083710877561">விவரம்:</translation>
 <translation id="5776970333778123608">முக்கியமில்லாத தரவு</translation>
 <translation id="5793665092639000975"><ph name="SPACE_AVAILABLE" /> இல் <ph name="SPACE_USED" /> பயன்படுத்தப்படுகிறது</translation>
-<translation id="5795872532621730126">தேடல் &amp; உலாவல்</translation>
 <translation id="5797949256525811424">தடுக்கப்பட்ட தலைப்பு</translation>
 <translation id="580893287573699959">உங்களுக்கு ஆர்வமுள்ள தலைப்புகளையும் தளங்களையும் நிர்வகிக்கலாம்</translation>
 <translation id="5809361687334836369">{HOURS,plural, =1{# மணிநேரம் முன்பு}other{# மணிநேரம் முன்பு}}</translation>
@@ -1415,7 +1418,6 @@
 <translation id="6937524809504266803">பிரத்தியேகமாக்குதல் &amp; இணைத்தல்</translation>
 <translation id="6937876069006524083">புனைப்பெயர் (கட்டாயமல்ல)</translation>
 <translation id="6942665639005891494">அமைப்புகள் மெனு விருப்பத்தைப் பயன்படுத்தி எப்போது வேண்டுமானாலும் இயல்புப் பதிவிறக்க இடத்தை மாற்றலாம்</translation>
-<translation id="694267552845942083">தற்போது ஒத்திசைவு அமைப்புகளைப் பிரத்தியேகமாக்குகிறீர்கள். ஒத்திசைவை இயக்க திரையின் கீழ்ப்பகுதிக்கு அருகிலுள்ள ‘உறுதிப்படுத்து’ பட்டனைத் தட்டவும். மேலே செல்</translation>
 <translation id="6945221475159498467">தேர்ந்தெடு</translation>
 <translation id="6955535239952325894">நிர்வகிக்கப்பட்ட உலாவிகளில் இந்த அமைப்பு முடக்கப்பட்டுள்ளது</translation>
 <translation id="6963766334940102469">புத்தகக்குறிகளை நீக்கு</translation>
@@ -1437,6 +1439,7 @@
 <translation id="7020741890149022655">பட்டியலில் சேர் <ph name="BEGIN_NEW" />புதிது<ph name="END_NEW" /></translation>
 <translation id="7022756207310403729">உலாவியில் திற</translation>
 <translation id="7029809446516969842">கடவுச்சொற்கள்</translation>
+<translation id="7037994709569287156">Chromeமை இயல்பு பிரவுசராக அமை</translation>
 <translation id="7053256416619638731">இந்தச் சாதனத்தில் உங்கள் கடவுச்சொற்களை வலுப்படுத்துங்கள்</translation>
 <translation id="7053983685419859001">தடு</translation>
 <translation id="7054588988317389591">பட விளக்கங்களைப் பெற வேண்டுமா?</translation>
@@ -1469,6 +1472,7 @@
 இந்த அமைப்பை மாற்ற, <ph name="BEGIN_LINK" />உங்கள் கணக்கில் உள்ள Chrome தரவை நீக்கவும்<ph name="END_LINK" />.</translation>
 <translation id="7165972437814027679">சில ஃபைல்களை Chrome தடுப்பதற்கான காரணம் குறித்து மேலும் தெரிந்துகொள்ளுங்கள்</translation>
 <translation id="7168323970702333693">உள்நுழைந்துள்ள கணக்கு: <ph name="USER_NAME" />. அமைப்புகளைத் திறக்கும்.</translation>
+<translation id="7170930892977483182">உங்கள் சாதனத்திலும் Google Walletடிலும் சேமிக்கப்பட்டுள்ள எல்லாப் பாதுகாப்புக் குறியீடுகளும் நீக்கப்படும்</translation>
 <translation id="7173114856073700355">ஒத்திசைவு அமைப்புகளைப் பார்க்கவும்</translation>
 <translation id="7173338713290252554">இணையத்தில் உள்ள இதுவரையிலான விலைகள்</translation>
 <translation id="7177466738963138057">இதைப் பிறகு அமைப்புகளில் மாற்றலாம்</translation>
@@ -1641,6 +1645,7 @@
 <translation id="784652447248278262">தற்போதைய சாளரம்</translation>
 <translation id="784934925303690534">நேர வரம்பு</translation>
 <translation id="7851858861565204677">பிற சாதனங்கள்</translation>
+<translation id="78527117619130387">இடம் மாறாத பக்கத்தை மூட மீண்டும் ^W அழுத்தவும்</translation>
 <translation id="7853202427316060426">செயல்பாடு</translation>
 <translation id="7859988229622350291">மொழிபெயர்க்கக்கூடாதவை</translation>
 <translation id="7866213166286285359">பக்கங்களை இங்கே மொழிபெயர்க்கலாம்</translation>
@@ -1654,6 +1659,7 @@
 <translation id="7919123827536834358">தானாக மொழிபெயர்க்கப்படும் மொழிகள்</translation>
 <translation id="7921782882718083488">இந்தப் பக்கத்தின் சுருக்க விவரம்</translation>
 <translation id="7926975587469166629">கார்டின் புனைப்பெயர்</translation>
+<translation id="7927073875790626822">XR</translation>
 <translation id="7929587383660661825">அறிவிப்புகளைத் தவறாகப் பயன்படுத்தும் தளங்கள் அல்லது நீங்கள் சமீபத்தில் பார்வையிடாத தளங்களுக்கான அனுமதிகளை Chrome தானாகவே அகற்றும்</translation>
 <translation id="7934668619883965330">ஃபைலைப் பதிவிறக்க முடியவில்லை. ஆதரிக்கப்படாத ஃபைல் வடிவம்.</translation>
 <translation id="7942131818088350342"><ph name="PRODUCT_NAME" /> காலாவதியாகிவிட்டது.</translation>
@@ -1799,6 +1805,7 @@
 <translation id="8458413889418591446">நீங்கள் பார்த்த தளங்களுக்கு விரைவாகச் செல்ல, பதிவுகளையும் பக்கங்களையும் ஒத்திசைக்கவும்</translation>
 <translation id="84594714173170813">உங்கள் Google கணக்கில் தொடர்ந்து Chrome தரவைப் பயன்படுத்தவும்</translation>
 <translation id="8460448946170646641">முக்கியமான தனியுரிமை மற்றும் பாதுகாப்புக் கட்டுப்பாடுகளைச் சரிபாருங்கள்</translation>
+<translation id="8460932807646981183">தேடல் இன்ஜின்களையும் தளத்தில் தேடியவற்றையும் நிர்வகித்தல்</translation>
 <translation id="8473863474539038330">முகவரிகள் மற்றும் பல</translation>
 <translation id="847433688444405067">சாதனங்களிடையே உலாவுங்கள்</translation>
 <translation id="8477178913400731244">தரவை நீக்கு</translation>
@@ -1934,7 +1941,6 @@
 <translation id="9073805459138993880"><ph name="TAB_TITLE" />, தேர்ந்தெடுத்தவற்றில் பகிரப்படுகின்ற பக்கம்</translation>
 <translation id="9074739597929991885">புளூடூத்</translation>
 <translation id="9081543426177426948">மறைநிலைப் பயன்முறையில் நீங்கள் பார்க்கும் தளங்கள் சேமிக்கப்படாது</translation>
-<translation id="9086302186042011942">ஒத்திசைக்கிறது</translation>
 <translation id="9086455579313502267">நெட்வொர்க்கை அணுக முடியவில்லை</translation>
 <translation id="9093915805850895575">Chrome சாளரத்தில் திற</translation>
 <translation id="909756639352028172">மிகவும் பிரத்தியேகமான அனுபவத்தைப் பெற இணையம் மற்றும் ஆப்ஸ் செயல்பாடு, இணைக்கப்பட்ட Google சேவைகள் ஆகியவற்றில் Chromeமைச் சேர்க்கவும்</translation>

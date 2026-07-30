@@ -183,8 +183,11 @@ enum class LayoutConstant {
   // tabs.
   kVerticalTabCornerRadius,
 
-  // The height of a vertical tab.
+  // The height of an unpinned vertical tab.
   kVerticalTabHeight,
+
+  // The height of a pinned vertical tab.
+  kVerticalTabPinnedHeight,
 
   // The minimum possible width for a vertical tab.
   kVerticalTabMinWidth,
@@ -202,6 +205,14 @@ enum class LayoutConstant {
 
   // The icon size of top buttons in the vertical tab strip.
   kVerticalTabStripTopButtonIconSize,
+
+  // The padding between the buttons in the top container of the vertical tab
+  // strip. When it is collapsed, this is vertical padding. When it is
+  // uncollapsed and expanded, this is horizontal padding.
+  kVerticalTabStripTopButtonPadding,
+
+  // The icon size of bottom buttons in the vertical tab strip.
+  kVerticalTabStripBottomButtonIconSize,
 
   // The horizontal padding between the two buttons in the bottom container of
   // the vertical tab strip when it is uncollapsed.
@@ -268,6 +279,14 @@ enum LayoutInset {
   // maximized and the tabstrip is collapsed the toolbar will sit flush with the
   // edge of the screen.
   WEBUI_TAB_STRIP_TOOLBAR_INTERIOR_MARGIN,
+
+  // The insets for the buttons in the bottom container of the vertical tab
+  // strip when it is uncollapsed.
+  VERTICAL_TAB_STRIP_BOTTOM_BUTTON_UNCOLLAPSED,
+
+  // The insets for the buttons in the bottom container of the vertical tab
+  // strip when it is collapsed.
+  VERTICAL_TAB_STRIP_BOTTOM_BUTTON_COLLAPSED,
 };
 
 int GetLayoutConstant(LayoutConstant constant);

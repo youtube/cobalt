@@ -141,12 +141,6 @@ BASE_FEATURE(kWebAuthnAndroidSignal,
 BASE_FEATURE(kDigitalCredentialsHybridLinking,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Default enabled on Desktop in M136 and Android in M142. Remove in or after
-// M145.
-BASE_FEATURE(kWebAuthnPasskeyUpgrade,
-             "WebAuthenticationPasskeyUpgrade",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Disabled by default.
 BASE_FEATURE(kWebAuthnEnclaveAttestation,
              "WebAuthenticationEnclaveAttestation",
@@ -174,15 +168,10 @@ BASE_FEATURE_PARAM(int,
                    "window_seconds",
                    kDefaultWindowSeconds);
 
-// Enabled by default on Desktop for the Origin Trial. Do not remove until the
-// Origin Trial expires.
+// Not yet enabled by default.
 BASE_FEATURE(kWebAuthnImmediateGet,
              "WebAuthenticationImmediateGet",
-#if BUILDFLAG(IS_ANDROID)
              base::FEATURE_DISABLED_BY_DEFAULT);
-#else
-             base::FEATURE_ENABLED_BY_DEFAULT);
-#endif  // BUILDFLAG(IS_ANDROID)
 
 BASE_FEATURE_PARAM(int,
                    kWebAuthnImmediateMediationTimeoutMilliseconds,

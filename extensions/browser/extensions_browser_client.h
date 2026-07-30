@@ -109,7 +109,7 @@ class ProcessManagerDelegate;
 class ProcessMap;
 class RuntimeAPIDelegate;
 class SafeBrowsingDelegate;
-class ScopedExtensionUpdaterKeepAlive;
+class ScopedBrowserContextKeepAlive;
 class ScriptExecutor;
 class SitePermissionsHelper;
 class UserScriptListener;
@@ -351,7 +351,7 @@ class ExtensionsBrowserClient {
   virtual void BroadcastEventToRenderers(
       events::HistogramValue histogram_value,
       const std::string& event_name,
-      base::Value::List args,
+      base::ListValue args,
       bool dispatch_to_off_the_record_profiles) = 0;
 
   // Gets the single ExtensionCache instance shared across the browser process.
@@ -403,10 +403,15 @@ class ExtensionsBrowserClient {
   virtual scoped_refptr<update_client::Configurator>
   CreateUpdateClientConfigurator(content::BrowserContext* context);
 
-  // Returns a new ScopedExtensionUpdaterKeepAlive, or nullptr if the embedder
+  // Returns a new ScopedBrowserContextKeepAlive, or nullptr if the embedder
   // does not support keeping the context alive while the updater is running.
-  virtual std::unique_ptr<ScopedExtensionUpdaterKeepAlive>
-  CreateUpdaterKeepAlive(content::BrowserContext* context);
+  virtual std::unique_ptr<ScopedBrowserContextKeepAlive> CreateUpdaterKeepAlive(
+      content::BrowserContext* context);
+
+  // Returns a new ScopedBrowserContextKeepAlive, or nullptr if the embedder
+  // does not support keeping the context alive while the installer is running.
+  virtual std::unique_ptr<ScopedBrowserContextKeepAlive>
+  CreateCrxInstallerKeepAlive(content::BrowserContext* context);
 
   // Returns true if activity logging is enabled for the given `context`.
   virtual bool IsActivityLoggingEnabled(content::BrowserContext* context);
@@ -519,18 +524,18 @@ class ExtensionsBrowserClient {
       content::BrowserContext* browser_context,
       const ExtensionId& extension_id,
       const std::string& call_name,
-      base::Value::List args,
+      base::ListValue args,
       const std::string& extra);
   virtual void AddEventToActivityLog(content::BrowserContext* context,
                                      const ExtensionId& extension_id,
                                      const std::string& call_name,
-                                     base::Value::List args,
+                                     base::ListValue args,
                                      const std::string& extra);
   virtual void AddDOMActionToActivityLog(
       content::BrowserContext* browser_context,
       const ExtensionId& extension_id,
       const std::string& call_name,
-      base::Value::List args,
+      base::ListValue args,
       const GURL& url,
       const std::u16string& url_title,
       int call_type);

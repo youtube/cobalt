@@ -47,6 +47,11 @@ class ReaderModeMetricsHelper
   // Records the distillation timeout and resets state for the next event.
   void RecordReaderDistillerTimedOut();
 
+  // Records histograms tracking the time taken to load data after distillation
+  // has been completed.
+  void RecordDataLoadTriggered();
+  void RecordDataLoadCompleted();
+
   // Records that the last event, showing the Reading Mode UI, has completed.
   void RecordReaderShown();
 
@@ -59,6 +64,7 @@ class ReaderModeMetricsHelper
       dom_distiller::mojom::Theme theme,
       dom_distiller::ThemeSettingsUpdateSource source) override;
   void OnChangeFontScaling(float scaling) override;
+  void OnChangeLinksEnabled(bool enabled) override;
 
  private:
   // Records the distillation time for the web page and its result if the
@@ -67,6 +73,7 @@ class ReaderModeMetricsHelper
 
   std::unique_ptr<base::ElapsedTimer> heuristic_timer_;
   std::unique_ptr<base::ElapsedTimer> distiller_timer_;
+  std::unique_ptr<base::ElapsedTimer> data_load_timer_;
   std::unique_ptr<base::ElapsedTimer> reading_timer_;
 
   // Tracks the last state that was recorded in the Reading Mode events.

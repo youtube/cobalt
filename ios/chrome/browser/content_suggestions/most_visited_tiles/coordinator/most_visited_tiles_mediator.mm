@@ -10,14 +10,19 @@
 #import "base/memory/raw_ptr.h"
 #import "base/metrics/user_metrics.h"
 #import "base/strings/sys_string_conversions.h"
+#import "base/task/cancelable_task_tracker.h"
+#import "base/time/time.h"
 #import "base/values.h"
 #import "components/feature_engagement/public/event_constants.h"
+#import "components/feature_engagement/public/feature_constants.h"
 #import "components/feature_engagement/public/tracker.h"
+#import "components/history/core/browser/history_service.h"
 #import "components/ntp_tiles/features.h"
 #import "components/ntp_tiles/metrics.h"
 #import "components/ntp_tiles/most_visited_sites.h"
 #import "components/ntp_tiles/ntp_tile.h"
 #import "components/ntp_tiles/pref_names.h"
+#import "components/ntp_tiles/tile_source.h"
 #import "components/prefs/pref_change_registrar.h"
 #import "components/prefs/pref_service.h"
 #import "components/strings/grit/components_strings.h"
@@ -66,6 +71,19 @@ const NSInteger kMaxNumMostVisitedTiles = 8;
 // Size below which the provider returns a colored tile instead of an image.
 const CGFloat kMagicStackMostVisitedFaviconMinimalSize = 18;
 
+// Number of repeating visits of a site to trigger an in-product help.
+const int kRepeatingVisitsToTriggerIPH = 3;
+
+// Returns YES if an in-product help should be triggered, based on the result of
+// querying visits of a URL.
+BOOL ShouldTriggerIPHForURLVisits(history::QueryURLAndVisitsResult result) {
+  if (!result.success || result.visits.size() < kRepeatingVisitsToTriggerIPH) {
+    return NO;
+  }
+  base::Time earliest_visit_time = result.visits.back().visit_time;
+  return (base::Time::Now() - earliest_visit_time) < base::Days(7);
+}
+
 }  // namespace
 
 @interface MostVisitedTilesMediator () <ContentSuggestionsMenuElementsProvider,
@@ -83,6 +101,7 @@ const CGFloat kMagicStackMostVisitedFaviconMinimalSize = 18;
   // Whether incognito mode is available.
   BOOL _incognitoAvailable;
   BOOL _recordedPageImpression;
+  raw_ptr<history::HistoryService> _historyService;
   raw_ptr<PrefService, DanglingUntriaged> _prefService;
   PrefChangeRegistrar _prefChangeRegistrar;
   raw_ptr<UrlLoadingBrowserAgent, DanglingUntriaged> _URLLoadingBrowserAgent;
@@ -90,11 +109,14 @@ const CGFloat kMagicStackMostVisitedFaviconMinimalSize = 18;
       _accountManagerService;
   raw_ptr<feature_engagement::Tracker> _engagementTracker;
   LayoutGuideCenter* _layoutGuideCenter;
+  // Tracker for cancellable tasks initiated by the mediator.
+  base::CancelableTaskTracker _cancelableTaskTracker;
 }
 
 - (instancetype)
     initWithMostVisitedSite:
         (std::unique_ptr<ntp_tiles::MostVisitedSites>)mostVisitedSites
+             historyService:(history::HistoryService*)historyService
                 prefService:(PrefService*)prefService
            largeIconService:(favicon::LargeIconService*)largeIconService
              largeIconCache:(LargeIconCache*)largeIconCache
@@ -104,11 +126,13 @@ const CGFloat kMagicStackMostVisitedFaviconMinimalSize = 18;
           layoutGuideCenter:(LayoutGuideCenter*)layoutGuideCenter {
   self = [super init];
   if (self) {
+    CHECK(historyService);
     CHECK(engagementTracker);
     _prefService = prefService;
     _prefChangeRegistrar.Init(_prefService);
     _URLLoadingBrowserAgent = URLLoadingBrowserAgent;
     _accountManagerService = accountManagerService;
+    _historyService = historyService;
     _engagementTracker = engagementTracker;
     _layoutGuideCenter = layoutGuideCenter;
     _incognitoAvailable = !IsIncognitoModeDisabled(prefService);
@@ -138,6 +162,8 @@ const CGFloat kMagicStackMostVisitedFaviconMinimalSize = 18;
 }
 
 - (void)disconnect {
+  _cancelableTaskTracker.TryCancelAll();
+  _historyService = nullptr;
   _engagementTracker = nullptr;
   _prefChangeRegistrar.RemoveAll();
   _mostVisitedBridge.reset();
@@ -282,6 +308,10 @@ const CGFloat kMagicStackMostVisitedFaviconMinimalSize = 18;
                      }];
 }
 
+- (void)moveMostVisitedItem:(MostVisitedItem*)item toIndex:(NSUInteger)index {
+  _mostVisitedSites->ReorderCustomLink(item.URL, index);
+}
+
 - (void)openModalToAddPinnedSite {
   [self.contentSuggestionsHandler showPinnedSiteCreator];
 }
@@ -413,9 +443,9 @@ const CGFloat kMagicStackMostVisitedFaviconMinimalSize = 18;
 
 // Replaces the Most Visited items currently displayed by the most recent ones.
 - (void)useFreshMostVisited {
-  base::Value::List oldMostVisitedSites =
+  base::ListValue oldMostVisitedSites =
       _prefService->GetList(prefs::kIosLatestMostVisitedSites).Clone();
-  base::Value::List freshMostVisitedSites;
+  base::ListValue freshMostVisitedSites;
   for (MostVisitedItem* item in _freshMostVisitedItems) {
     freshMostVisitedSites.Append(item.URL.spec());
   }
@@ -492,9 +522,8 @@ const CGFloat kMagicStackMostVisitedFaviconMinimalSize = 18;
 
 // Logs a User Action if `freshMostVisitedSites` has at least one site that
 // isn't in `oldMostVisitedSites`.
-- (void)
-    lookForNewMostVisitedSite:(const base::Value::List&)freshMostVisitedSites
-          oldMostVisitedSites:(const base::Value::List&)oldMostVisitedSites {
+- (void)lookForNewMostVisitedSite:(const base::ListValue&)freshMostVisitedSites
+              oldMostVisitedSites:(const base::ListValue&)oldMostVisitedSites {
   for (const auto& freshSiteURLValue : freshMostVisitedSites) {
     BOOL freshSiteInOldList = NO;
     for (const auto& oldSiteURLValue : oldMostVisitedSites) {
@@ -574,20 +603,37 @@ const CGFloat kMagicStackMostVisitedFaviconMinimalSize = 18;
 // Display an in-product help on the first tile of the most visited tiles if
 // conditions are met.
 - (void)maybeDisplayIPH {
+  if (_freshMostVisitedItems.firstObject &&
+      _freshMostVisitedItems.firstObject.source !=
+          ntp_tiles::TileSource::TOP_SITES) {
+    // The order of the items are pinned sites, most visited sites and popular
+    // sites. If this happens, either the user does not have a list of most
+    // visited sites, or has already pinned a site.
+    return;
+  }
   if (!_engagementTracker->WouldTriggerHelpUI(
           feature_engagement::kIPHiOSPinMostVisitedSiteFeature)) {
     // If the in-product help is not eligible as determined by the in-product
     // help view, return directly without consulting history service.
     return;
   }
-  // TODO(crbug.com/475119329): Check history service to see if the user has
-  // visited the same site in the current items 3 times or more in the past
-  // week. This process will be asynchronous.
   id<HelpCommands> helpHandler = self.helpHandler;
-  dispatch_async(dispatch_get_main_queue(), ^{
-    [helpHandler
-        presentInProductHelpWithType:InProductHelpType::kPinSiteToMostVisited];
-  });
+  auto presentIPHForRepeatingVisits =
+      ^void(history::QueryURLAndVisitsResult result) {
+        if (ShouldTriggerIPHForURLVisits(result)) {
+          [helpHandler presentInProductHelpWithType:InProductHelpType::
+                                                        kPinSiteToMostVisited];
+        }
+      };
+  for (MostVisitedItem* item in _freshMostVisitedItems) {
+    if (item.source == ntp_tiles::TileSource::TOP_SITES) {
+      _historyService->GetMostRecentVisitsForGurl(
+          item.URL, /*max_visits=*/kRepeatingVisitsToTriggerIPH,
+          history::VisitQuery404sPolicy::kInclude404s,
+          base::BindOnce(presentIPHForRepeatingVisits),
+          &_cancelableTaskTracker);
+    }
+  }
 }
 
 @end

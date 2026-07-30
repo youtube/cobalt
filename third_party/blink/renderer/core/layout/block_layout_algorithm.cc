@@ -655,10 +655,13 @@ const LayoutResult* BlockLayoutAlgorithm::LayoutInlineChild(
     const InlineNode& node) {
   ParagraphScale paragraph_scale;
   if (RuntimeEnabledFeatures::CssFitWidthTextEnabled()) {
+    const FitText& fit_text = Style().TextFit();
     const bool grow_consistent =
-        Style().TextGrow().Target() == FitTextTarget::kConsistent;
+        fit_text.Type() == FitTextType::kGrow &&
+        fit_text.Target() == FitTextTarget::kConsistent;
     const bool shrink_consistent =
-        Style().TextShrink().Target() == FitTextTarget::kConsistent;
+        fit_text.Type() == FitTextType::kShrink &&
+        fit_text.Target() == FitTextTarget::kConsistent;
     if (grow_consistent || shrink_consistent) {
       // Compute the paragraph scaling factor with a cloned
       // BlockLayoutAlgorithm.
@@ -1192,7 +1195,7 @@ const LayoutResult* BlockLayoutAlgorithm::FinishLayout(
     intrinsic_block_size_ = std::max(
         intrinsic_block_size_, BorderScrollbarPadding().block_start +
                                    Node().EmptyLineBlockSize(GetBreakToken()));
-    if (container_builder_.IsInitialColumnBalancingPass()) {
+    if (GetConstraintSpace().IsInitialColumnBalancingPass()) {
       container_builder_.PropagateTallestUnbreakableBlockSize(
           intrinsic_block_size_);
     }
@@ -1721,6 +1724,10 @@ void BlockLayoutAlgorithm::HandleFloat(
   if (positioned_float.minimum_space_shortage > LayoutUnit()) {
     container_builder_.PropagateSpaceShortage(
         positioned_float.minimum_space_shortage);
+    DCHECK_EQ(positioned_float.tallest_unbreakable_block_size, LayoutUnit());
+  } else if (positioned_float.tallest_unbreakable_block_size) {
+    container_builder_.PropagateTallestUnbreakableBlockSize(
+        positioned_float.tallest_unbreakable_block_size);
   }
 
   if (positioned_float.break_before_token) {
@@ -3384,8 +3391,7 @@ ConstraintSpace BlockLayoutAlgorithm::CreateConstraintSpaceForChild(
     // up with zero block size.
     if (constraint_space.IsRestrictedBlockSizeTableCell() &&
         child_percentage_size_.block_size == kIndefiniteSize &&
-        !child.ShouldBeConsideredAsReplaced() &&
-        child_style.LogicalHeight().HasPercent() &&
+        !child.IsSemiReplaced() && child_style.LogicalHeight().HasPercent() &&
         (child_style.OverflowBlockDirection() == EOverflow::kAuto ||
          child_style.OverflowBlockDirection() == EOverflow::kScroll)) {
       builder.SetIsRestrictedBlockSizeTableCellChild();

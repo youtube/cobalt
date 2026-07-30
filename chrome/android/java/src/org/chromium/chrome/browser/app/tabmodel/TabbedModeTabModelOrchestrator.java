@@ -14,7 +14,6 @@ import android.util.Pair;
 
 import androidx.annotation.VisibleForTesting;
 
-import org.chromium.base.Callback;
 import org.chromium.base.Log;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.supplier.OneshotSupplier;
@@ -75,7 +74,6 @@ public class TabbedModeTabModelOrchestrator extends TabModelOrchestrator {
     private @Nullable Supplier<TabModel> mArchivedHistoricalObserverSupplier;
 
     // Currently used to perform shadow operations for an alternative storage. Not always enabled.
-    private @Nullable TabPersistentStore mShadowTabPersistentStore;
     private @Nullable Boolean mTabStateStoreIsAuthoritative;
     private final AccumulatingTabCreator mRegularShadowTabCreator = new AccumulatingTabCreator();
     private final AccumulatingTabCreator mIncognitoShadowTabCreator = new AccumulatingTabCreator();
@@ -103,10 +101,6 @@ public class TabbedModeTabModelOrchestrator extends TabModelOrchestrator {
             mArchivedTabModelOrchestrator.removeHistoricalTabModelObserver(
                     assumeNonNull(mArchivedHistoricalObserverSupplier));
             mArchivedTabModelOrchestrator.unregisterTabModelOrchestrator(this);
-        }
-        if (mShadowTabPersistentStore != null) {
-            mShadowTabPersistentStore.destroy();
-            mShadowTabPersistentStore = null;
         }
         super.destroy();
     }
@@ -261,14 +255,8 @@ public class TabbedModeTabModelOrchestrator extends TabModelOrchestrator {
             // Temporary variable usage to avoid unused variable warning.
             Log.i(TAG, "mTabStateStoreIsAuthoritative: " + mTabStateStoreIsAuthoritative);
 
-            assert mProfileProviderSupplier.get() != null;
-            ProfileProvider profileProvider = mProfileProviderSupplier.get();
-            Profile profile = profileProvider.getOriginalProfile();
-            assert profile != null;
-
             mShadowTabPersistentStore =
                     buildShadowStore(
-                            profile,
                             mRegularShadowTabCreator,
                             mIncognitoShadowTabCreator,
                             mTabModelSelector,
@@ -277,6 +265,7 @@ public class TabbedModeTabModelOrchestrator extends TabModelOrchestrator {
                             mWindowTag,
                             mCipherFactory,
                             TABBED_TAG);
+            if (mShadowTabPersistentStore != null) mShadowTabPersistentStore.onNativeLibraryReady();
         }
     }
 
@@ -293,23 +282,6 @@ public class TabbedModeTabModelOrchestrator extends TabModelOrchestrator {
         if (mArchivedTabModelOrchestrator != null
                 && mArchivedTabModelOrchestrator.areTabModelsInitialized()) {
             mArchivedTabModelOrchestrator.saveState();
-        }
-    }
-
-    @Override
-    public void loadState(
-            boolean ignoreIncognitoFiles, @Nullable Callback<String> onStandardActiveIndexRead) {
-        super.loadState(ignoreIncognitoFiles, onStandardActiveIndexRead);
-        if (mShadowTabPersistentStore != null) {
-            mShadowTabPersistentStore.loadState(ignoreIncognitoFiles);
-        }
-    }
-
-    @Override
-    public void restoreTabs(boolean setActiveTab) {
-        super.restoreTabs(setActiveTab);
-        if (mShadowTabPersistentStore != null) {
-            mShadowTabPersistentStore.restoreTabs(setActiveTab);
         }
     }
 

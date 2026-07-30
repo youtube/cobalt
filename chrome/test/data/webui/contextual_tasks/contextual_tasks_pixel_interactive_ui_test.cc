@@ -22,7 +22,10 @@ class FakeContextualTasksUiService
     : public contextual_tasks::ContextualTasksUiService {
  public:
   explicit FakeContextualTasksUiService(Profile* profile)
-      : contextual_tasks::ContextualTasksUiService(profile, nullptr, nullptr) {}
+      : contextual_tasks::ContextualTasksUiService(profile,
+                                                   nullptr,
+                                                   nullptr,
+                                                   nullptr) {}
   GURL GetDefaultAiPageUrl() override { return GURL(url::kAboutBlankURL); }
 
   static std::unique_ptr<KeyedService> BuildFakeService(
@@ -68,6 +71,12 @@ class ContextualTasksPixelTestBase : public WebUIComposeBoxPixelTest {
   }
 
  protected:
+  auto HideCaret(const ui::ElementIdentifier& web_contents_id,
+                 const DeepQuery& query) {
+    return ExecuteJsAt(web_contents_id, query,
+                       R"((el) => { el.style.caretColor = 'transparent'; })");
+  }
+
   base::test::ScopedFeatureList feature_list_;
   std::unique_ptr<IdentityTestEnvironmentProfileAdaptor>
       identity_test_environment_adaptor_;
@@ -173,8 +182,7 @@ IN_PROC_BROWSER_TEST_P(ContextualTasksComposeBoxPixelTest, Screenshots) {
                       url::kAboutBlankURL),
 
       // Disable the blinking caret to reduce flakiness.
-      ExecuteJsAt(kActiveTab, kComposeBoxInput,
-                  R"((el) => {el.style.caretColor = 'transparent'})"),
+      HideCaret(kActiveTab, kComposeBoxInput),
 
       // Focus the composebox if specified.
       If([]() { return GetParam().focused; },
@@ -254,6 +262,9 @@ IN_PROC_BROWSER_TEST_P(ContextualTasksAppPixelTest, Screenshots) {
   DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kActiveTab);
   const DeepQuery kApp = {"contextual-tasks-app"};
   const DeepQuery kAiPageWebView = {"contextual-tasks-app", "webview"};
+  const DeepQuery kComposeBoxInput = {"contextual-tasks-app",
+                                      "contextual-tasks-composebox",
+                                      "#composebox", "textarea"};
 
   RunTestSequence(
       SetupWebUIEnvironment(kActiveTab,
@@ -280,11 +291,13 @@ IN_PROC_BROWSER_TEST_P(ContextualTasksAppPixelTest, Screenshots) {
       // are.
       ExecuteJsAt(kActiveTab, kAiPageWebView,
                   "(el) => { el.style.border = '1px solid green'; }"),
+      // Disable the blinking caret to reduce flakiness.
+      HideCaret(kActiveTab, kComposeBoxInput),
       WaitForWebContentsPainted(kActiveTab),
       SetOnIncompatibleAction(OnIncompatibleAction::kIgnoreAndContinue,
                               "Screenshots not captured on this platform."),
       ScreenshotWebUi(kActiveTab, kApp, "ContextualTasksApp",
-                      /*baseline_cl=*/"7398710"));
+                      /*baseline_cl=*/"7499458"));
 }
 
 enum class TitleType { kNone, kShort, kLong };

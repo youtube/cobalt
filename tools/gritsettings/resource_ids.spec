@@ -378,7 +378,7 @@
     "includes": [3720],
   },
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/compose/resources.grd": {
-    "META": {"sizes": {"includes": [15]}},
+    "META": {"sizes": {"includes": [20]}},
     "includes": [3740],
   },
   "<(SHARED_INTERMEDIATE_DIR)/components/enterprise/connectors/resources/resources.grd": {
@@ -404,6 +404,10 @@
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/chromeos/dlp_internals/resources.grd": {
     "META": {"sizes": {"includes": [15]}},
     "includes": [3860],
+  },
+  "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/default_browser/default_browser_modal/resources.grd": {
+    "META": {"sizes": {"includes": [20],}},
+    "includes": [3870],
   },
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/downloads/resources.grd": {
     "META": {"sizes": {"includes": [50],}},
@@ -454,7 +458,7 @@
     "includes": [4030],
   },
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/history/resources.grd": {
-    "META": {"sizes": {"includes": [50]}},
+    "META": {"sizes": {"includes": [53]}},
     "includes": [4040],
   },
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/infobar_internals/resources.grd": {
@@ -694,7 +698,7 @@
     "includes": [4990],
   },
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/skills/resources.grd": {
-    "META": {"sizes": {"includes": [10],}},
+    "META": {"sizes": {"includes": [30],}},
     "includes": [4991],
   },
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/suggest_internals/resources.grd": {
@@ -821,7 +825,7 @@
     "includes" : [5740],
   },
   "<(SHARED_INTERMEDIATE_DIR)/chromeos/ash/experiences/guest_os/borealis/motd/resources/resources.grd": {
-    "META": {"sizes": {"includes": [3],}},
+    "META": {"sizes": {"includes": [5],}},
     "includes": [5750],
    },
   "chromeos/ash/resources/ash_resources.grd": {
@@ -1098,6 +1102,9 @@
   },
   "components/embedder_support/android/java/strings/web_contents_delegate_android_strings.grd": {
     "messages": [7100],
+  },
+  "components/guest_view/browser/slim_web_view/strings/slim_web_view_strings.grd": {
+    "messages": [7110],
   },
   "components/headless/command_handler/headless_command.grd": {
     "includes": [7120],

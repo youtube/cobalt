@@ -102,27 +102,72 @@ BASE_DECLARE_FEATURE(kChromeAndroidIdentitySurveyBookmarkPromo);
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kChromeIdentitySurveyAddressBubbleSignin);
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE_PARAM(double,
+                           kChromeIdentitySurveyAddressBubbleSigninProbability);
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kChromeIdentitySurveyDiceWebSigninAccepted);
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE_PARAM(
+    double,
+    kChromeIdentitySurveyDiceWebSigninAcceptedProbability);
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kChromeIdentitySurveyDiceWebSigninDeclined);
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE_PARAM(
+    double,
+    kChromeIdentitySurveyDiceWebSigninDeclinedProbability);
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kChromeIdentitySurveyFirstRunSignin);
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE_PARAM(double,
+                           kChromeIdentitySurveyFirstRunSigninProbability);
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kChromeIdentitySurveyPasswordBubbleSignin);
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE_PARAM(
+    double,
+    kChromeIdentitySurveyPasswordBubbleSigninProbability);
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kChromeIdentitySurveyProfileMenuDismissed);
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE_PARAM(
+    double,
+    kChromeIdentitySurveyProfileMenuDismissedProbability);
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kChromeIdentitySurveyProfileMenuSignin);
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE_PARAM(double,
+                           kChromeIdentitySurveyProfileMenuSigninProbability);
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kChromeIdentitySurveyProfilePickerAddProfileSignin);
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE_PARAM(
+    double,
+    kChromeIdentitySurveyProfilePickerAddProfileSigninProbability);
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kChromeIdentitySurveySigninInterceptProfileSeparation);
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE_PARAM(
+    double,
+    kChromeIdentitySurveySigninInterceptProfileSeparationProbability);
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kChromeIdentitySurveySigninPromoBubbleDismissed);
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE_PARAM(
+    double,
+    kChromeIdentitySurveySigninPromoBubbleDismissedProbability);
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kChromeIdentitySurveySwitchProfileFromProfileMenu);
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE_PARAM(
+    double,
+    kChromeIdentitySurveySwitchProfileFromProfileMenuProbability);
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kChromeIdentitySurveySwitchProfileFromProfilePicker);
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE_PARAM(
+    double,
+    kChromeIdentitySurveySwitchProfileFromProfilePickerProbability);
 // LINT.ThenChange(//chrome/browser/signin/signin_hats_util.cc)
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
@@ -362,6 +407,13 @@ BASE_DECLARE_FEATURE(kRollbackDiceMigration);
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kShowProfilePickerToAllUsersExperiment);
 
+#if BUILDFLAG(IS_ANDROID)
+// Experiment replacing signed out avatar with signin button on Android, see
+// crbug.com/475816843.
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE(kSigninLevelUpButton);
+#endif  // BUILDFLAG(IS_ANDROID)
+
 // Feature to control the experiment for max count of showing contextual sign-in
 // promos and UNO bubble reprompt.
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
@@ -417,6 +469,12 @@ BASE_DECLARE_FEATURE(kStableDeviceId);
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kSupportAddSessionEmailPrefill);
 #endif
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+// Kill switch for displaying sign-in errors in the profile picker.
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE(kSupportErrorsInProfilePicker);
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
 #if BUILDFLAG(IS_ANDROID)
 COMPONENT_EXPORT(SIGNIN_SWITCHES)

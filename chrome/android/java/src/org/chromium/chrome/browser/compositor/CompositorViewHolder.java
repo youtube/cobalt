@@ -48,7 +48,6 @@ import org.chromium.base.InputHintChecker;
 import org.chromium.base.ObserverList;
 import org.chromium.base.TraceEvent;
 import org.chromium.base.metrics.RecordHistogram;
-import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.NonNullObservableSupplier;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.SettableNonNullObservableSupplier;
@@ -1135,9 +1134,7 @@ public class CompositorViewHolder extends FrameLayout
 
         // TODO(crbug.com/415825206): Revisit when requestNewFrame is set to true, it currently
         // depends on the controls' hidden ratio, but I don't think that's right.
-        boolean scrollingWithBciv =
-                ChromeFeatureList.sBrowserControlsInViz.isEnabled()
-                        && (mInGesture || mContentViewScrolling);
+        boolean scrollingWithBciv = mInGesture || mContentViewScrolling;
         if ((requestNewFrame || topControlsMinHeightChanged || bottomControlsMinHeightChanged)
                 && !scrollingWithBciv) {
             requestRender();
@@ -1480,7 +1477,7 @@ public class CompositorViewHolder extends FrameLayout
     public void onFinishNativeInitialization(
             TabModelSelector tabModelSelector,
             TabCreatorManager tabCreatorManager,
-            MonotonicObservableSupplier<Integer> bottomControlsOffsetSupplier) {
+            NonNullObservableSupplier<Integer> bottomControlsOffsetSupplier) {
         assert mLayoutManager != null;
         assert mTopUiThemeColorProvider != null;
         mLayoutManager.init(

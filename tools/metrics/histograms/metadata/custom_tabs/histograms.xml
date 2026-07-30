@@ -61,7 +61,7 @@ chromium-metrics-reviews@google.com.
 </variants>
 
 <histogram name="CustomTab.AdaptiveToolbarButton.ActionButtons"
-    enum="CustomTabsToolbarButtons" expires_after="2026-05-17">
+    enum="CustomTabsToolbarButtons" expires_after="2026-07-19">
   <owner>jinsukkiim@google.com</owner>
   <owner>clank-app-team@google.com</owner>
   <summary>
@@ -99,7 +99,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.AdaptiveToolbarButton.ChosenRanking" units="rank"
-    expires_after="2026-05-17">
+    expires_after="2026-07-19">
   <owner>jinsukkiim@google.com</owner>
   <owner>clank-app-team@google.com</owner>
   <summary>
@@ -110,7 +110,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.AdaptiveToolbarButton.FallbackIndicator.Clicked"
-    enum="AdaptiveToolbarButtonVariant" expires_after="2026-05-17">
+    enum="AdaptiveToolbarButtonVariant" expires_after="2026-07-19">
   <owner>jinsukkiim@google.com</owner>
   <owner>clank-app-team@google.com</owner>
   <summary>
@@ -121,7 +121,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.AdaptiveToolbarButton.FallbackIndicator.Shown"
-    enum="AdaptiveToolbarButtonVariant" expires_after="2026-05-17">
+    enum="AdaptiveToolbarButtonVariant" expires_after="2026-07-19">
   <owner>jinsukkiim@google.com</owner>
   <owner>clank-app-team@google.com</owner>
   <summary>
@@ -132,7 +132,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.AdaptiveToolbarButton.HiddenReason"
-    enum="CustomTabsMtbHiddenReason" expires_after="2026-05-17">
+    enum="CustomTabsMtbHiddenReason" expires_after="2026-07-19">
   <owner>jinsukkiim@google.com</owner>
   <owner>clank-app-team@google.com</owner>
   <summary>
@@ -153,7 +153,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.AndroidBrowserHelper.Version" units="versioncode"
-    expires_after="2026-05-21">
+    expires_after="2026-07-26">
   <owner>hattorij@google.com</owner>
   <owner>ishitatsuyuki@google.com</owner>
   <owner>cros-virt-devices-guests@google.com</owner>
@@ -208,7 +208,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.AuthView.UrlParams" units="bit field"
-    expires_after="2026-05-17">
+    expires_after="2026-07-19">
   <owner>sinansahin@google.com</owner>
   <owner>chrome-connective-tissue@google.com</owner>
   <summary>
@@ -258,7 +258,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.ClientAppId" enum="ClientAppId"
-    expires_after="2026-05-24">
+    expires_after="2026-07-26">
   <owner>yusufo@chromium.org</owner>
   <summary>
     Android: AppId declared by the launching application in EXTRA_APPLICATION_ID
@@ -270,7 +270,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.ClientAppId.Incognito" enum="ClientAppId"
-    expires_after="2026-05-17">
+    expires_after="2026-07-19">
   <owner>zalmashni@google.com</owner>
   <owner>chrome-incognito@google.com</owner>
   <owner>cct-team@google.com</owner>
@@ -290,7 +290,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.CloseCause" enum="CustomTabsCloseCause"
-    expires_after="2026-05-24">
+    expires_after="2026-07-26">
   <owner>jinsukkim@chromium.org</owner>
   <owner>twellington@chromium.org</owner>
   <owner>cct-team@google.com</owner>
@@ -718,7 +718,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="CustomTabs.PostMessage.RequestPostMessageChannelWithTargetOrigin"
-    enum="Boolean" expires_after="2026-05-17">
+    enum="Boolean" expires_after="2026-07-19">
   <owner>elabadysayed@chromium.org</owner>
   <owner>chrome-connective-tissue@google.com</owner>
   <summary>
@@ -939,7 +939,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.WarmupStateOnLaunch" enum="WarmupStateOnLaunch"
-    expires_after="2026-05-24">
+    expires_after="2026-07-26">
   <owner>lizeb@chromium.org</owner>
   <summary>
     Recorded only on Android. Reports whether warmup() has been called when a

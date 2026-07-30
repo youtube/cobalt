@@ -36,6 +36,7 @@
 #include "cc/paint/paint_op.h"
 #include "cc/test/paint_op_matchers.h"
 #include "components/viz/common/resources/release_callback.h"
+#include "components/viz/common/resources/shared_image_format.h"
 #include "components/viz/common/resources/shared_image_format_utils.h"
 #include "components/viz/common/resources/transferable_resource.h"
 #include "components/viz/test/test_context_provider.h"
@@ -106,7 +107,7 @@
 #include "third_party/blink/renderer/platform/graphics/memory_managed_paint_recorder.h"
 #include "third_party/blink/renderer/platform/graphics/opacity_mode.h"
 #include "third_party/blink/renderer/platform/graphics/skia/skia_utils.h"
-#include "third_party/blink/renderer/platform/graphics/test/gpu_memory_buffer_test_platform.h"
+#include "third_party/blink/renderer/platform/graphics/test/gpu_compositing_test_platform.h"
 #include "third_party/blink/renderer/platform/graphics/test/gpu_test_utils.h"
 #include "third_party/blink/renderer/platform/graphics/unaccelerated_static_bitmap_image.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
@@ -142,7 +143,6 @@
 #include "third_party/skia/include/core/SkRefCnt.h"
 #include "third_party/skia/include/core/SkSurface.h"
 #include "third_party/skia/include/gpu/ganesh/GrDirectContext.h"
-#include "ui/gfx/buffer_types.h"
 #include "ui/gfx/geometry/point_f.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
@@ -461,7 +461,7 @@ class CanvasRenderingContext2DTestAccelerated
   }
 
  private:
-  ScopedTestingPlatformSupport<GpuMemoryBufferTestPlatform> platform_;
+  ScopedTestingPlatformSupport<GpuCompositingTestPlatform> platform_;
 };
 
 INSTANTIATE_PAINT_TEST_SUITE_P(CanvasRenderingContext2DTestAccelerated);
@@ -598,7 +598,10 @@ class FakeCanvasResourceProvider : public CanvasResourceProviderSharedImage {
         GetSharedImageUsageFlags()));
   }
   sk_sp<SkSurface> CreateSkSurface() const override {
-    return SkSurfaces::Raster(GetSkImageInfo());
+    const auto info = SkImageInfo::Make(
+        size_.width(), size_.height(), viz::ToClosestSkColorType(format_),
+        alpha_type_, color_space_.ToSkColorSpace());
+    return SkSurfaces::Raster(info);
   }
 
   MOCK_METHOD((void), RasterRecord, (cc::PaintRecord last_recording));
@@ -1529,11 +1532,11 @@ TEST_P(CanvasRenderingContext2DTest,
   // Ensure that the context will create a SharedImage provider for the test to
   // be meaningful.
   ScopedCanvas2dImageChromiumForTest canvas_2d_image_chromium(true);
-  ScopedTestingPlatformSupport<GpuMemoryBufferTestPlatform> platform;
+  ScopedTestingPlatformSupport<GpuCompositingTestPlatform> platform;
   const_cast<gpu::Capabilities&>(SharedGpuContext::ContextProviderWrapper()
                                      ->ContextProvider()
                                      .GetCapabilities())
-      .gpu_memory_buffer_formats.Put(gfx::BufferFormat::BGRA_8888);
+      .mappable_formats.insert(viz::SinglePlaneFormat::kBGRA_8888);
 
   CreateContext(kNonOpaque, kLowLatency);
   // No need to set-up the layer bridge when testing low latency mode.
@@ -1717,11 +1720,11 @@ TEST_P(CanvasRenderingContext2DTest,
   // Ensure that native support for BGRA GMBs is present, as otherwise
   // compositing will not occur irrespective of whether
   // `ScopedCanvas2dImageChromium` is enabled.
-  ScopedTestingPlatformSupport<GpuMemoryBufferTestPlatform> platform;
+  ScopedTestingPlatformSupport<GpuCompositingTestPlatform> platform;
   const_cast<gpu::Capabilities&>(SharedGpuContext::ContextProviderWrapper()
                                      ->ContextProvider()
                                      .GetCapabilities())
-      .gpu_memory_buffer_formats.Put(gfx::BufferFormat::BGRA_8888);
+      .mappable_formats.insert(viz::SinglePlaneFormat::kBGRA_8888);
 
   CreateContext(kNonOpaque);
   EXPECT_TRUE(Context2D()->GetOrCreateResourceProvider());
@@ -1742,11 +1745,11 @@ TEST_P(CanvasRenderingContext2DTest,
   // Ensure that native support for BGRA GMBs is present, as otherwise
   // compositing will not occur irrespective of whether
   // `ScopedCanvas2dImageChromium` is enabled.
-  ScopedTestingPlatformSupport<GpuMemoryBufferTestPlatform> platform;
+  ScopedTestingPlatformSupport<GpuCompositingTestPlatform> platform;
   const_cast<gpu::Capabilities&>(SharedGpuContext::ContextProviderWrapper()
                                      ->ContextProvider()
                                      .GetCapabilities())
-      .gpu_memory_buffer_formats.Put(gfx::BufferFormat::BGRA_8888);
+      .mappable_formats.insert(viz::SinglePlaneFormat::kBGRA_8888);
 
   // Draw to the canvas and verify that the canvas is not composited.
   Context2D()->fillRect(0, 0, 1, 1);
@@ -3511,8 +3514,8 @@ class CanvasRenderingContext2DTestImageChromium
       viz::TestContextProvider& context_provider) override {
     auto* test_raster = context_provider.GetTestRasterInterface();
     test_raster->set_max_texture_size(1024);
-    test_raster->set_supports_gpu_memory_buffer_format(
-        gfx::BufferFormat::BGRA_8888, true);
+    test_raster->set_supports_mappable_format(
+        viz::SinglePlaneFormat::kBGRA_8888, true);
 
     gpu::SharedImageCapabilities shared_image_caps;
     shared_image_caps.supports_scanout_shared_images = true;

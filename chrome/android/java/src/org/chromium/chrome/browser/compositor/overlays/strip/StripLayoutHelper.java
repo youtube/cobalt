@@ -117,6 +117,7 @@ import org.chromium.chrome.browser.tabmodel.TabGroupModelFilterObserver;
 import org.chromium.chrome.browser.tabmodel.TabGroupTitleUtils;
 import org.chromium.chrome.browser.tabmodel.TabGroupUtils.TabGroupCreationCallback;
 import org.chromium.chrome.browser.tabmodel.TabModel;
+import org.chromium.chrome.browser.tabmodel.TabModel.RecentlyClosedEntryType;
 import org.chromium.chrome.browser.tabmodel.TabModelObserver;
 import org.chromium.chrome.browser.tabmodel.TabModelUtils;
 import org.chromium.chrome.browser.tabmodel.TabRemover;
@@ -3181,6 +3182,20 @@ public class StripLayoutHelper
                                 }
 
                                 @Override
+                                public @RecentlyClosedEntryType int getRecentlyClosedEntryType() {
+                                    return (mModel != null)
+                                            ? mModel.getMostRecentlyClosedEntryType()
+                                            : RecentlyClosedEntryType.NONE;
+                                }
+
+                                @Override
+                                public void onReopenClosedEntry() {
+                                    RecordUserAction.record(
+                                            "Android.TabStripMenu.ReopenClosedEntry");
+                                    if (mModel != null) mModel.openMostRecentlyClosedEntry();
+                                }
+
+                                @Override
                                 public void onNameWindow() {
                                     mMultiInstanceManager.showNameWindowDialog(
                                             NameWindowDialogSource.TAB_STRIP);
@@ -3523,7 +3538,7 @@ public class StripLayoutHelper
         TabRemover tabRemover = mTabGroupModelFilter.getTabModel().getTabRemover();
         if (ChromeFeatureList.isEnabled(ChromeFeatureList.TAB_STRIP_CLOSE_REFACTOR_ANDROID)) {
             int nextIndex = getNextIndexAfterClose(Collections.singleton(tab));
-            paramsBuilder.recommendedNextTab(mModel.getTabAtChecked(nextIndex));
+            paramsBuilder.recommendedNextTab(mModel.getTabAt(nextIndex));
             tabRemover.closeTabs(paramsBuilder.build(), /* allowDialog= */ true, listener);
         } else {
             tabRemover.prepareCloseTabs(
@@ -4544,6 +4559,7 @@ public class StripLayoutHelper
     private void pushPropertiesToPlaceholder(StripLayoutTab placeholderTab, @Nullable Tab tab) {
         if (tab == null) return;
         placeholderTab.setTabId(tab.getId());
+        placeholderTab.setMediaState(tab.getMediaState());
         mTabDelegate.setIsTabPlaceholder(placeholderTab, false);
         setAccessibilityDescription(placeholderTab, tab);
     }

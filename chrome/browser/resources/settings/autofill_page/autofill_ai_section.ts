@@ -200,6 +200,14 @@ export class SettingsAutofillAiSectionElement extends
     }
   }
 
+  private onChangeAuthenticationRequirementClicked_(e: Event) {
+    e.preventDefault();
+    if (this.ineligibleUser) {
+      return;
+    }
+    this.entityDataManager_.toggleAutofillAiReauthRequirement();
+  }
+
   /**
    * Whether an info bullet regarding logging is shown. Autofill Ai only shows
    * logging behaviour information for enterprise clients who have either the

@@ -65,6 +65,7 @@ class IncognitoClearBrowsingDataDialogCoordinator;
 class ImmersiveModeController;
 class IOSPromoController;
 class InitialWebUIManager;
+class InitialWebUIWindowMetricsManager;
 class LocationBarModel;
 class MemorySaverOptInIPHController;
 class PinnedToolbarActionsController;
@@ -112,6 +113,12 @@ namespace session_restore_infobar {
 class SessionRestoreInfobarController;
 }
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+
+#if BUILDFLAG(IS_CHROMEOS)
+namespace ash::boca {
+class OnTaskLockedController;
+}
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 #if !BUILDFLAG(IS_CHROMEOS)
 class DownloadToolbarUIController;
@@ -560,6 +567,9 @@ class BrowserWindowFeatures {
 
   std::unique_ptr<InitialWebUIManager> initial_web_ui_manager_;
 
+  std::unique_ptr<InitialWebUIWindowMetricsManager>
+      initial_webui_window_metrics_manager_;
+
   std::unique_ptr<IOSPromoController> ios_promo_controller_;
 
   std::unique_ptr<lens::LensOverlayEntryPointController>
@@ -800,6 +810,10 @@ class BrowserWindowFeatures {
   std::unique_ptr<omnibox::OmniboxPopupCloser> omnibox_popup_closer_;
 
   std::unique_ptr<skills::SkillsUiController> skills_ui_controller_;
+
+#if BUILDFLAG(IS_CHROMEOS)
+  std::unique_ptr<ash::boca::OnTaskLockedController> on_task_locked_controller_;
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
   // Keep this member last to ensure embedder features are torn down first, in
   // reverse order of initialization.

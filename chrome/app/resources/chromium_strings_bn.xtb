@@ -3,7 +3,6 @@
 <translationbundle lang="bn">
 <translation id="1026101648481255140">ইনস্টলেশন আবার চালু করুন</translation>
 <translation id="1029669172902658969">&amp;ChromiumOS আপডেট করতে আবার লঞ্চ করুন</translation>
-<translation id="103359417695385097">Chromium ফর্ম আরও ভালো বুঝতে পারে এবং আপনার জন্য আরও দ্রুত তা অটোফিল করতে পারে। এই সেটিংস বন্ধ করা আছে।</translation>
 <translation id="1040916596585577953">এই এক্সটেনশন পর্যালোচনা করার জন্য Chromium সাজেশন দেয়</translation>
 <translation id="1042552502243217427">কোনও সাইট তার পৃষ্ঠায় লিঙ্ক ব্যক্তিগতভাবে প্রিলোড করতে বললে, Chromium, Google সার্ভার ব্যবহার করে। এর ফলে প্রিলোড করা সাইটের থেকে আপনার পরিচয় লুকানো থাকে, কিন্তু Google জানতে পারে কোন সাইটগুলি প্রিলোড করা হয়েছে।</translation>
 <translation id="1051793555070215510">এই ১-মিনিটের সমীক্ষায় অংশ নিয়ে ছদ্মবেশী মোড উন্নত করতে আমাদের সাহায্য করুন।</translation>
@@ -36,11 +35,9 @@
 <translation id="1356661055722410047">নতুন! আপনি স্ক্রিনে টেক্সট ও ছবি দুটিই অনুবাদ করতে পারবেন</translation>
 <translation id="1383876407941801731">খুঁজুন</translation>
 <translation id="1397530502368084401">Chromium প্রোফাইল ম্যানেজ করুন</translation>
-<translation id="1414495520565016063">আপনি Chromium এ প্রবেশ করেছেন!</translation>
 <translation id="141901961143729572">আপনার মতামত শেয়ার করুন</translation>
 <translation id="1465192221147974788">আপনার উইন্ডো শেয়ার করতে, সিস্টেম সেটিংস থেকে Chromium-এর জন্য স্ক্রিন রেকর্ডিংয়ের অনুমতি দিন।</translation>
 <translation id="1478370723027452770">Chrome for Testing ব্যবহার করে সহায়তা পান</translation>
-<translation id="1496875977627931224">হ্যালো <ph name="USER_NAME" />,<ph name="LINE_BREAK" />আজ আপনি কী ভাবছেন?</translation>
 <translation id="1497802159252041924">ইনস্টলেশন সংক্রান্ত সমস্যা: <ph name="INSTALL_ERROR" /></translation>
 <translation id="1518627427551567882">এই পৃষ্ঠাটি সুরক্ষিত</translation>
 <translation id="1524282610922162960">একটি Chromium ট্যাব শেয়ার করুন</translation>
@@ -70,6 +67,7 @@
 <translation id="183031085822326697">পরেরবার আপনার <ph name="DEVICE_TYPE" />-এ Chromium খোলার সময়, Google Password Manager ব্যবহার করার জন্য আপনাকে প্রম্পট দেখানো হবে।</translation>
 <translation id="1838374766361614909">সার্চ সাফ করুন</translation>
 <translation id="18552579716432081">শুধুমাত্র এই ডিভাইস থেকে ব্রাউজ করা ডেটা মুছে দিতে, তা নিজের Google অ্যাকাউন্টে রেখে দেওয়ার সময়, <ph name="BEGIN_LINK" />Chromium থেকে সাইন-আউট করুন<ph name="END_LINK" />।</translation>
+<translation id="1857749206890802997">যেকোনও জায়গা থেকে নতুন ট্যাব গ্রুপ খুলতে বা তৈরি করতে আপনার ফোনে Chromium ডাউনলোড করুন।</translation>
 <translation id="185970820835152459">আপনার সাইন-ইন করা Google অ্যাকাউন্ট ম্যানেজ করতে পারবেন। Chromium ব্রাউজার, Play Store, Gmail সহ আরও অনেক কিছুর জন্য আপনার Google অ্যাকাউন্ট ব্যবহার করা হয়। পরিবারের সদস্যের মতো অন্য কারও অ্যাকাউন্ট যোগ করতে চাইলে, তার পরিবর্তে আপনার <ph name="DEVICE_TYPE" />-এ নতুন ব্যক্তিকে যোগ করুন। <ph name="LINK_BEGIN" />আরও জানুন<ph name="LINK_END" /></translation>
 <translation id="1862852878885210965">'ছবি সার্চ করা' ফিচারের মাধ্যমে সার্চ করুন</translation>
 <translation id="1880677175115548835">টেক্সট বেছে নিন</translation>
@@ -160,6 +158,7 @@
 <translation id="2738871930057338499">ইন্টারনেটের সাথে কানেক্ট করা যায়নি। HTTP 403 নিষিদ্ধ। আপনার প্রক্সি কনফিগারেশন চেক করুন।</translation>
 <translation id="2753623023919742414">সার্চ করার জন্য ক্লিক করুন</translation>
 <translation id="2768103863314748511">আপনার ডিফল্ট PDF ভিউয়ার হিসেবে Chromium সেট করুন</translation>
+<translation id="277828055419948999">Chromium কঠিন ফিল্ড অটোফিল করতে পারে যা সাধারণ অটোফিল মিস করতে পারে</translation>
 <translation id="2785438272836277133">এই এক্সটেনশনে ম্যালওয়্যার রয়েছে এবং এটি নিরাপদ নাও হতে পারে। Chromium থেকে এটি সরান যাতে আপনার ভিজিট করা সাইটের ডেটা এটি আর দেখতে না পায় এবং তা পরিবর্তন না করতে পারে, এর মধ্যে আপনার ব্যক্তিগত তথ্যও রয়েছে।</translation>
 <translation id="2799223571221894425">পুনঃশুরু</translation>
 <translation id="2803971713792056305">আপনার Chromium</translation>
@@ -324,10 +323,8 @@
 <translation id="4510853178268397146">এই এক্সটেনশন গোপনীয়তা অনুশীলন প্রকাশ করেনি, যেমন কীভাবে এটি ডেটা সংগ্রহ ও ব্যবহার করে। Chromium আপনাকে এটি সরিয়ে দেওয়ার সাজেশন দেয়।</translation>
 <translation id="452711251841752011">Chromium-এ স্বাগতম; নতুন ব্রাউজার উইন্ডো খোলা হয়েছে</translation>
 <translation id="4531137820806573936">আপনার আশপাশ সম্পর্কে জানতে ও হাত ট্র্যাক করতে Chromium-এর অনুমতি প্রয়োজন</translation>
-<translation id="4534145890176164066">Chromium ফর্ম আরও ভালো বুঝতে পারে এবং আপনার জন্য আরও দ্রুত তা অটোফিল করতে পারে</translation>
 <translation id="4536805923587466102">আপনি আগে থেকেই অন্য Chromium প্রোফাইলে <ph name="USER_EMAIL_ADDRESS" /> হিসেবে সাইন-ইন করেছেন</translation>
 <translation id="4548534452171747496">Chromium পৃষ্ঠা প্রিলোড করে যার ফলে আরও ঝটপট ব্রাউজ ও সার্চ করা যায়। <ph name="BEGIN_LINK" />পৃষ্ঠা প্রিলোড করা সম্পর্কে আরও জানুন<ph name="END_LINK" /></translation>
-<translation id="4567424176335768812">আপনি <ph name="USER_EMAIL_ADDRESS" /> হিসেবে সাইন-ইন করেছেন৷ এখন আপনি আপনার সমস্ত সাইন-ইন করা ডিভাইসে আপনার বুকমার্ক, ইতিহাস এবং অন্যান্য সেটিংস অ্যাক্সেস করতে পারেন৷</translation>
 <translation id="4570813286784708942">আপনি Safe Browsing ফিচারটি বন্ধ করে দেওয়ার ফলে ফাইলটি যাচাই করা যাচ্ছে না, তাই Chromium এই ডাউনলোডটি ব্লক করে দিয়েছে</translation>
 <translation id="4583692638088316420">আপনার ফোনে Chromium-এর সাথে Google Lens ব্যবহার করে দেখুন</translation>
 <translation id="4594305310729380060">এই ডিভাইসের Password Manager-এর জন্য</translation>
@@ -336,7 +333,6 @@
 <translation id="4613863813562375431">ChromiumOS ভার্সন</translation>
 <translation id="4621240073146040695">প্রায় আপ-টু-ডেট হয়েছে! আপডেট শেষ করতে Chromium আবার চালু করুন।</translation>
 <translation id="4625064703209785397">Chromium-এর ভি৮ ইঞ্জিন সাইটের স্পিড বাড়িয়ে দেয় কিন্তু Chromium-এর অ্যাটাক প্রতিরোধের ক্ষমতা সামান্য কমে যায়</translation>
-<translation id="4654936675281451226">Chromium ফর্ম আরও ভালো বুঝতে পারে এবং আপনার জন্য আরও দ্রুত তা অটোফিল করতে পারে। এই সেটিংস চালু করা আছে।</translation>
 <translation id="4665829708273112819">সতর্কতা: Chromium কোনও এক্সটেনশনকে আপনার ব্রাউজিং ইতিহাস রেকর্ড করার কাজে বাধা দিতে পারে না। ছদ্মবেশী মোডে এই এক্সটেনশনটি বন্ধ করতে, আপনার বেছে নেওয়া বিকল্পগুলির মধ্যে থেকে এটিকে সরিয়ে দিন।</translation>
 <translation id="4673151026126227699">আপনি Chromium ব্যবহারের রিপোর্ট শেয়ার করলেও, আপনার দেখা URL তার মধ্যে অন্তর্ভুক্ত থাকে</translation>
 <translation id="4677944499843243528">অন্য একটি কম্পিউটারে (<ph name="HOST_NAME" />) প্রোফাইলটি অন্য Chromium প্রক্রিয়া (<ph name="PROCESS_ID" />) দ্বারা ব্যবহৃত হচ্ছে বলে মনে হচ্ছে৷ Chromium প্রোফাইলটিকে লক করেছে যাতে এটি বিকৃত না হয়ে যায়৷ যদি আপনি নিশ্চিত হন যে আর কোনো প্রক্রিয়া এই প্রোফাইলটিকে ব্যবহার করছে না, তবে আপনি প্রোফাইলটিকে আনলক করতে পারেন এবং Chromium কে পুনরায় লঞ্চ করতে পারেন৷</translation>
@@ -365,7 +361,6 @@
 <translation id="5083712646171654472">Gemini in Chromium আপনার ট্যাবে কাজ করতে ও আপনি তাকে যে টাস্ক দেন সেটি সম্পূর্ণ করতে অটোমেটিক ব্রাউজ ব্যবহার করে। <ph name="LINK_BEGIN" />আরও জানুন<ph name="LINK_END" /></translation>
 <translation id="5123973130450702873">আপনার হাত ট্র্যাক করতে Chromium-এর অনুমতি প্রয়োজন</translation>
 <translation id="5141988424377517949">আপনি সম্প্রতি ভিজিট করেননি। Chromium <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />, <ph name="PERMISSION_3" /> সম্পর্কিত অনুমতি সরিয়ে দিয়েছে।</translation>
-<translation id="5167819546851111585">আজ আপনি কী ভাবছেন?</translation>
 <translation id="5174969993834422967">আপনি সাধারণত বিজ্ঞপ্তি ব্লক করেন। এই সাইট থেকে বিজ্ঞপ্তি পেতে, আপনার লোকেশন বারের ডানদিকের কোণায় বিজ্ঞপ্তির আইকনে ক্লিক করুন।</translation>
 <translation id="5174983315706567306">ডিস্ক স্টোরেজে যথেষ্ট খালি জায়গা নেই।</translation>
 <translation id="5187123684706427865">Chromium অ্যাকাউন্ট আবার যাচাই করতে হবে</translation>
@@ -440,7 +435,6 @@
 <translation id="6063093106622310249">Chromium এ খুলুন</translation>
 <translation id="6069027071882229820">ছবি হিসেবে কপি করুন</translation>
 <translation id="6072279588547424923">Chromium-এ <ph name="EXTENSION_NAME" /> যোগ করা হয়েছে</translation>
-<translation id="6072463441809498330">Chromium-এর ব্যবহার আরও দ্রুত করে তোলা</translation>
 <translation id="6096348254544841612">Chromium কে কাস্টমাইজ এবং নিয়ন্ত্রণ করুন৷ আপডেট পাওয়া যাবে৷</translation>
 <translation id="6107893135096467929">চালু আছে • Chromium এই এক্সটেনশনের সোর্স যাচাই করতে পারে না</translation>
 <translation id="611228897408671387">Chromium-এ আপনার অ্যাকাউন্ট</translation>
@@ -485,6 +479,7 @@
 <translation id="6436260184216827876">'ছবি সার্চ করা' ফিচার উপলভ্য নেই। পরে আবার চেষ্টা করুন।</translation>
 <translation id="6442900851116057561">ChromiumOS রিস্টার্ট করুন</translation>
 <translation id="6443470774889161065">আপনি ভিজিট করতে পারেন এমন আরও বেশি সংখ্যক পৃষ্ঠা Chromium প্রিলোড করে, যাতে ভিজিট করার সময় সেই পৃষ্ঠাগুলি আরও দ্রুত লোড হয়</translation>
+<translation id="6450948450282634257">আপনার ফোনে Chromium ডাউনলোড করুন যাতে দাম ট্র্যাক করতে পারেন এবং কোনও সাইটে দাম কমে গেলে সেই সম্পর্কিত সতর্কতা পান</translation>
 <translation id="645458117210240797">বন্ধ রয়েছে • Chromium এই এক্সটেনশনের সোর্স যাচাই করতে পারে না</translation>
 <translation id="6455857529632101747">Chromium প্রোফাইল-এ স্বাগতম</translation>
 <translation id="6466344609055215035">Chromium থেকে অ্যাকাউন্ট সরান</translation>

@@ -95,12 +95,10 @@ PhysicalFragment::BoxType FragmentBuilder::GetBoxType() const {
   if (layout_object_->StyleRef().IsPageMarginBox()) {
     return PhysicalFragment::BoxType::kPageMargin;
   }
+  if (layout_object_->IsAtomicInline()) {
+    return PhysicalFragment::BoxType::kAtomicInline;
+  }
   if (layout_object_->IsInline()) {
-    // Check |IsAtomicInlineLevel()| after |IsInline()| because |LayoutReplaced|
-    // sets |IsAtomicInlineLevel()| even when it's block-level. crbug.com/567964
-    if (layout_object_->IsAtomicInlineLevel()) {
-      return PhysicalFragment::BoxType::kAtomicInline;
-    }
     return PhysicalFragment::BoxType::kInlineBox;
   }
   DCHECK(node_) << "Must call SetBoxType if there is no node";
@@ -427,8 +425,8 @@ void FragmentBuilder::PropagateFromFragment(
   // Collect any (block) break tokens, but skip break tokens for fragmentainers,
   // as they should only escape a fragmentation context at the discretion of the
   // fragmentation context. Also skip this if there's a pre-set break token.
-  if (has_block_fragmentation_ && !child.IsFragmentainerBox() &&
-      !break_token_) {
+  if (GetConstraintSpace().HasBlockFragmentation() &&
+      !child.IsFragmentainerBox() && !break_token_) {
     const BreakToken* child_break_token = child.GetBreakToken();
     switch (child.Type()) {
       case PhysicalFragment::kFragmentBox:
@@ -1109,7 +1107,7 @@ void FragmentBuilder::PropagateSpaceShortage(
   // in the initial column balancing pass, because then we have no
   // fragmentainer block-size at all, so who's to tell what's too short or
   // not?
-  DCHECK(!IsInitialColumnBalancingPass());
+  DCHECK(!GetConstraintSpace().IsInitialColumnBalancingPass());
   UpdateMinimalSpaceShortage(space_shortage, &minimal_space_shortage_);
 }
 

@@ -215,7 +215,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 </histogram>
 
 <histogram name="SBClientDownload.DownloadRequestNetworkResult"
-    enum="CombinedHttpResponseAndNetErrorCode" expires_after="2026-05-24">
+    enum="CombinedHttpResponseAndNetErrorCode" expires_after="2026-07-26">
 <!-- Note to owner: This histogram can be renewed 1 full year if it is still
 useful for Chirp alerts (go/crca-alerts). -->
 
@@ -713,7 +713,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 </histogram>
 
 <histogram name="SBClientPhishing.ImageEmbedder.Event"
-    enum="SBPhishingClassifierEvent" expires_after="2026-05-17">
+    enum="SBPhishingClassifierEvent" expires_after="2026-07-19">
   <owner>andysjlim@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -807,16 +807,19 @@ useful for Chirp alerts (go/crca-alerts). -->
       variants="ClientSideDetectionIntelligentScanRequestType"/>
 </histogram>
 
-<histogram name="SBClientPhishing.IntelligentScanOngoingOnNewPreclassification"
-    enum="BooleanExists" expires_after="2026-04-14">
+<histogram
+    name="SBClientPhishing.IntelligentScanOngoingOnNewPreclassification{RequestType}"
+    enum="BooleanExists" expires_after="2027-01-20">
   <owner>andysjlim@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
     Records whether or not the intelligent scan is ongoing when a new
     preclassification happens. This is logged when a new request happens through
     a new preclassification check and the current existing scan will be
-    destroyed.
+    destroyed. The {RequestType} will be the triggering preclassification check
+    to destroy the existing scan.
   </summary>
+  <token key="RequestType" variants="ClientSideDetectionRequestType"/>
 </histogram>
 
 <histogram name="SBClientPhishing.IntelligentScanVerdict"
@@ -906,7 +909,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 </histogram>
 
 <histogram name="SBClientPhishing.LocalModelDetectsPhishing{RequestType}"
-    enum="BooleanIsPhishing" expires_after="2026-05-24">
+    enum="BooleanIsPhishing" expires_after="2026-07-26">
   <owner>andysjlim@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -929,7 +932,6 @@ useful for Chirp alerts (go/crca-alerts). -->
   <token key="RequestType">
     <variant name="ClipboardCopyApi" summary="Clipboard copy API"/>
     <variant name="CreditCardForm" summary="Credit Card Form"/>
-    <variant name="FullscreenApi" summary="Fullscreen API"/>
   </token>
 </histogram>
 
@@ -979,7 +981,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 </histogram>
 
 <histogram name="SBClientPhishing.NetworkResult2"
-    enum="CombinedHttpResponseAndNetErrorCode" expires_after="2026-05-24">
+    enum="CombinedHttpResponseAndNetErrorCode" expires_after="2026-07-26">
 <!-- Note to owner: This histogram can be renewed 1 full year if it is still
 useful for Chirp alerts (go/crca-alerts). -->
 
@@ -1004,7 +1006,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 <histogram
     name="SBClientPhishing.OnDeviceModelEligibilityReasonAtInquiryFailure"
     enum="OptimizationGuideOnDeviceModelEligibilityReason"
-    expires_after="2026-05-24">
+    expires_after="2026-07-26">
   <owner>andysjlim@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -1067,7 +1069,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 
 <histogram
     name="SBClientPhishing.OnDeviceModelInnerTextSize{IntelligentScanRequestType}"
-    units="bytes" expires_after="2026-05-17">
+    units="bytes" expires_after="2026-07-19">
   <owner>xinghuilu@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -1344,7 +1346,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 
 <histogram
     name="SBClientPhishing.RTLookupForceRequest.HasLlamaForcedTriggerInfo"
-    enum="BooleanForceRequest" expires_after="2026-05-24">
+    enum="BooleanForceRequest" expires_after="2026-07-26">
   <owner>andysjlim@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -1490,6 +1492,16 @@ useful for Chirp alerts (go/crca-alerts). -->
     Log the reason why CSD-Phishing pings do not contain visual features images.
     This is logged after deciding that the ping is eligible to be sent and the
     visual features extraction capability has been determined.
+  </summary>
+</histogram>
+
+<histogram name="SBClientPhishing.VisualFeaturesExistAfterImageEmbedding"
+    enum="BooleanExists" expires_after="2027-01-20">
+  <owner>andysjlim@chromium.org</owner>
+  <owner>chrome-counter-abuse-alerts@google.com</owner>
+  <summary>
+    Records whether visual features exist after image embedding. This is
+    recorded after every image embedding.
   </summary>
 </histogram>
 

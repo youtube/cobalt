@@ -18,6 +18,7 @@
 
 #include "base/check.h"
 #include "base/command_line.h"
+#include "base/containers/flat_set.h"
 #include "base/containers/span_reader.h"
 #include "base/debug/crash_logging.h"
 #include "base/debug/dump_without_crashing.h"
@@ -56,6 +57,7 @@
 #include "base/trace_event/optional_trace_event.h"
 #include "base/trace_event/trace_event.h"
 #include "base/trace_event/trace_id_helper.h"
+#include "base/types/expected_macros.h"
 #include "base/types/optional_util.h"
 #include "base/uuid.h"
 #include "build/build_config.h"
@@ -133,6 +135,7 @@
 #include "content/browser/renderer_host/frame_tree_node.h"
 #include "content/browser/renderer_host/input/input_injector_impl.h"
 #include "content/browser/renderer_host/ipc_utils.h"
+#include "content/browser/renderer_host/local_network_access_util.h"
 #include "content/browser/renderer_host/media/peer_connection_tracker_host.h"
 #include "content/browser/renderer_host/navigation_controller_impl.h"
 #include "content/browser/renderer_host/navigation_entry_impl.h"
@@ -141,7 +144,6 @@
 #include "content/browser/renderer_host/navigation_state_keep_alive.h"
 #include "content/browser/renderer_host/navigator.h"
 #include "content/browser/renderer_host/page_delegate.h"
-#include "content/browser/renderer_host/private_network_access_util.h"
 #include "content/browser/renderer_host/randomized_confidence_utils.h"
 #include "content/browser/renderer_host/render_frame_host_delegate.h"
 #include "content/browser/renderer_host/render_frame_host_owner.h"
@@ -215,6 +217,7 @@
 #include "content/public/browser/web_ui_url_loader_factory.h"
 #include "content/public/common/alternative_error_page_override_info.mojom.h"
 #include "content/public/common/bindings_policy.h"
+#include "content/public/common/child_process_id_util.h"
 #include "content/public/common/content_client.h"
 #include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
@@ -277,6 +280,7 @@
 #include "third_party/blink/public/common/navigation/navigation_params_mojom_traits.h"
 #include "third_party/blink/public/common/permissions/permission_utils.h"
 #include "third_party/blink/public/common/permissions_policy/document_policy.h"
+#include "third_party/blink/public/common/permissions_policy/policy_helper_public.h"
 #include "third_party/blink/public/common/runtime_feature_state/runtime_feature_state_context.h"
 #include "third_party/blink/public/common/scheduler/web_scheduler_tracked_feature.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
@@ -511,7 +515,7 @@ class ScopedCommitStateResetter {
   bool disabled_ = false;
 };
 
-void GrantFileAccess(int child_id,
+void GrantFileAccess(ChildProcessId child_id,
                      const std::vector<base::FilePath>& file_paths) {
   ChildProcessSecurityPolicyImpl* policy =
       ChildProcessSecurityPolicyImpl::GetInstance();
@@ -1159,7 +1163,7 @@ std::vector<GURL> GetTargetUrlsOfBoostRenderProcessForLoading() {
     return {};
   }
 
-  base::Value::List* entries = json_value->GetIfList();
+  base::ListValue* entries = json_value->GetIfList();
   if (!entries) {
     return {};
   }
@@ -1623,6 +1627,11 @@ void RecordNavigationTraceEventsAndMetrics(
           timeline.navigation_request_creation,
           &ukm::builders::NavigationTimeline::
               SetBeforeUnloadPhase1ToNavigationRequestCreationDuration);
+      if (!timeline.beforeunload_phase1_dialog_opened.is_null()) {
+        log_trace_event_and_uma("BeforeUnloadPhase1Dialog", track1,
+                                timeline.beforeunload_phase1_dialog_opened,
+                                timeline.beforeunload_phase1_dialog_closed);
+      }
     } else {
       log_trace_event_and_uma("StartToNavigationRequestCreation", track1,
                               timeline.start,
@@ -1648,6 +1657,11 @@ void RecordNavigationTraceEventsAndMetrics(
           timeline.beforeunload_phase2_end, timeline.begin_navigation,
           &ukm::builders::NavigationTimeline::
               SetBeforeUnloadPhase2ToBeginNavigationDuration);
+      if (!timeline.beforeunload_phase2_dialog_opened.is_null()) {
+        log_trace_event_and_uma("BeforeUnloadPhase2Dialog", track1,
+                                timeline.beforeunload_phase2_dialog_opened,
+                                timeline.beforeunload_phase2_dialog_closed);
+      }
     } else {
       log_trace_event_and_uma(
           "NavigationRequestToBeginNavigation", track1,
@@ -1750,15 +1764,37 @@ void RecordNavigationTraceEventsAndMetrics(
       "Navigation: Durations", base::trace_event::GetNextGlobalTraceId(),
       perfetto::Track::Global(kGlobalInstantTrackId));
 
+  base::TimeDelta beforeunload_dialog_total_duration;
+  if (!timeline.beforeunload_phase1_dialog_opened.is_null() &&
+      !timeline.beforeunload_phase1_dialog_closed.is_null() &&
+      timeline.beforeunload_phase1_dialog_opened <
+          timeline.beforeunload_phase1_dialog_closed) {
+    beforeunload_dialog_total_duration +=
+        timeline.beforeunload_phase1_dialog_closed -
+        timeline.beforeunload_phase1_dialog_opened;
+  }
+  if (!timeline.beforeunload_phase2_dialog_opened.is_null() &&
+      !timeline.beforeunload_phase2_dialog_closed.is_null() &&
+      timeline.beforeunload_phase2_dialog_opened <
+          timeline.beforeunload_phase2_dialog_closed) {
+    beforeunload_dialog_total_duration +=
+        timeline.beforeunload_phase2_dialog_closed -
+        timeline.beforeunload_phase2_dialog_opened;
+  }
+
   // Excluding beforeunload time from the total navigation duration is useful
   // because it is not under the browser's control, and may include long periods
   // of waiting for the user to interact with a dialog.
   base::TimeDelta beforeunload_total_duration;
-  if (!timeline.beforeunload_phase1_start.is_null()) {
+  if (!timeline.beforeunload_phase1_start.is_null() &&
+      !timeline.beforeunload_phase1_end.is_null() &&
+      timeline.beforeunload_phase1_start < timeline.beforeunload_phase1_end) {
     beforeunload_total_duration +=
         timeline.beforeunload_phase1_end - timeline.beforeunload_phase1_start;
   }
-  if (!timeline.beforeunload_phase2_start.is_null()) {
+  if (!timeline.beforeunload_phase2_start.is_null() &&
+      !timeline.beforeunload_phase2_end.is_null() &&
+      timeline.beforeunload_phase2_start < timeline.beforeunload_phase2_end) {
     beforeunload_total_duration +=
         timeline.beforeunload_phase2_end - timeline.beforeunload_phase2_start;
   }
@@ -1788,6 +1824,25 @@ void RecordNavigationTraceEventsAndMetrics(
         timeline.finish - duration_start);
   }
 
+  base::TimeDelta total_excluding_before_unload_dialog;
+  if (!timeline.start.is_null() && !timeline.finish.is_null() &&
+      timeline.start < timeline.finish) {
+    total_excluding_before_unload_dialog =
+        (timeline.finish - timeline.start) - beforeunload_dialog_total_duration;
+  }
+
+  if (total_excluding_before_unload_dialog.is_positive()) {
+    base::UmaHistogramTimes(
+        "Navigation.Timeline.TotalExcludingBeforeUnloadDialog.Duration",
+        total_excluding_before_unload_dialog);
+    if (is_main_frame_cross_doc) {
+      base::UmaHistogramTimes(
+          "Navigation.Timeline.TotalExcludingBeforeUnloadDialog.MainFrameOnly."
+          "Duration",
+          total_excluding_before_unload_dialog);
+    }
+  }
+
   // Also record metrics of duration that starts from user interaction timing
   // when the user interaction timing is available.
   if (is_main_frame_cross_doc && !timeline.user_interaction.is_null() &&
@@ -1800,6 +1855,8 @@ void RecordNavigationTraceEventsAndMetrics(
         timeline.finish - timeline.user_interaction;
     const base::TimeDelta excluding_before_unload_duration =
         including_before_unload_duration - beforeunload_total_duration;
+    const base::TimeDelta excluding_before_unload_dialog_duration =
+        including_before_unload_duration - beforeunload_dialog_total_duration;
     base::UmaHistogramTimes(
         "Navigation.Timeline.InteractionToActualNavigationStart."
         "MainFrameOnly.Duration",
@@ -1812,6 +1869,10 @@ void RecordNavigationTraceEventsAndMetrics(
         "Navigation.Timeline.InteractionToNavigationFinished."
         "ExcludingBeforeUnload.MainFrameOnly.Duration",
         excluding_before_unload_duration);
+    base::UmaHistogramTimes(
+        "Navigation.Timeline.InteractionToNavigationFinished."
+        "ExcludingBeforeUnloadDialog.MainFrameOnly.Duration",
+        excluding_before_unload_dialog_duration);
     if (ukm_builder.has_value()) {
       ukm_builder->SetInteractionToActualNavigationStartDurationMs(
           interaction_to_actual_navigation_start.InMilliseconds());
@@ -2637,10 +2698,8 @@ RenderFrameHostImpl::RenderFrameHostImpl(
       GetLocalRenderWidgetHost()->SetIntersectsViewport(true);
     }
     GetLocalRenderWidgetHost()->SetFrameDepth(depth_);
-    if (base::FeatureList::IsEnabled(features::kSubframePriorityContribution)) {
-      GetLocalRenderWidgetHost()->SetShouldContributePriorityToProcess(
-          ShouldContributePriorityToProcess(lifecycle_state_));
-    }
+    GetLocalRenderWidgetHost()->SetShouldContributePriorityToProcess(
+        ShouldContributePriorityToProcess(lifecycle_state_));
   }
   // Verify is_local_root() now indicates whether this frame is a local root or
   // not. It is safe to use this method anywhere beyond this point.
@@ -3450,6 +3509,17 @@ RenderFrameHostImpl::GetPendingIsolationInfoForSubresources() {
   return config.isolation_info();
 }
 
+std::optional<base::UnguessableToken>
+RenderFrameHostImpl::GetNetworkRestrictionsID() {
+  // TODO(crbug.com/447954811): Consider refactoring this method after
+  // RenderDocument launches, because we may not need to consider pending
+  // navigations anymore.
+  auto config =
+      SubresourceLoaderFactoriesConfig::ForPendingOrLastCommittedNavigation(
+          *this);
+  return config.network_restrictions_id();
+}
+
 void RenderFrameHostImpl::GetCanonicalUrl(
     base::OnceCallback<void(const std::optional<GURL>&)> callback) {
   if (IsRenderFrameLive()) {
@@ -3696,7 +3766,7 @@ void RenderFrameHostImpl::AddMessageToConsole(
 void RenderFrameHostImpl::ExecuteJavaScriptMethod(
     const std::u16string& object_name,
     const std::u16string& method_name,
-    base::Value::List arguments,
+    base::ListValue arguments,
     JavaScriptResultCallback callback) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   CHECK(CanExecuteJavaScript());
@@ -4230,9 +4300,9 @@ void RenderFrameHostImpl::InitializePrivateNetworkRequestPolicy() {
     return;
   }
 
-  private_network_request_policy_ = DerivePrivateNetworkRequestPolicy(
+  private_network_request_policy_ = DeriveLocalNetworkAccessRequestPolicy(
       policy_container_host_->policies(),
-      PrivateNetworkRequestContext::kSubresource);
+      LocalNetworkAccessRequestContext::kSubresource);
 }
 
 void RenderFrameHostImpl::RenderProcessGone(
@@ -5139,7 +5209,7 @@ void RenderFrameHostImpl::DidNavigate(
   // Sets whether the last navigation has user gesture/transient activation or
   // not.
   last_committed_common_params_has_user_gesture_ =
-      navigation_request->common_params().has_user_gesture;
+      navigation_request->common_params().has_possibly_filtered_user_gesture;
 
   // Sets whether the last cross-document navigation was initiated from the
   // browser (e.g. typing on the location bar) or from the renderer while having
@@ -5147,10 +5217,7 @@ void RenderFrameHostImpl::DidNavigate(
   if (!was_within_same_document) {
     last_cross_document_navigation_started_by_user_ =
         !navigation_request->IsRendererInitiated() ||
-        (navigation_request->begin_params()
-             .initiator_activation_and_ad_status !=
-         blink::mojom::NavigationInitiatorActivationAndAdStatus::
-             kDidNotStartWithTransientActivation);
+        navigation_request->StartedWithTransientActivation();
   }
 
   // Navigations that activate an existing bfcached or prerendered document do
@@ -5561,28 +5628,31 @@ void RenderFrameHostImpl::SetOriginDependentStateOfNewFrame(
 
   // Apply private network request policy according to our new origin.
   // TODO(crbug.com/452389539): Centralize these policy overrides.
-  switch (
-      GetContentClient()->browser()->ShouldOverridePrivateNetworkRequestPolicy(
-          GetBrowserContext(), new_frame_origin)) {
-    case ContentBrowserClient::PrivateNetworkRequestPolicyOverride::kForceAllow:
+  switch (GetContentClient()
+              ->browser()
+              ->ShouldOverrideLocalNetworkAccessRequestPolicy(
+                  GetBrowserContext(), new_frame_origin)) {
+    case ContentBrowserClient::LocalNetworkAccessRequestPolicyOverride::
+        kForceAllow:
       private_network_request_policy_ =
           network::mojom::PrivateNetworkRequestPolicy::kAllow;
       break;
-    case ContentBrowserClient::PrivateNetworkRequestPolicyOverride::
+    case ContentBrowserClient::LocalNetworkAccessRequestPolicyOverride::
         kBlockInsteadOfWarn:
       private_network_request_policy_ =
-          OverrideToBlockInsteadOfWarn(DerivePrivateNetworkRequestPolicy(
+          OverrideToBlockInsteadOfWarn(DeriveLocalNetworkAccessRequestPolicy(
               policy_container_host_->policies(),
-              PrivateNetworkRequestContext::kSubresource));
+              LocalNetworkAccessRequestContext::kSubresource));
       break;
-    case ContentBrowserClient::PrivateNetworkRequestPolicyOverride::
+    case ContentBrowserClient::LocalNetworkAccessRequestPolicyOverride::
         kWarnInsteadOfBlock:
       private_network_request_policy_ =
-          OverrideToWarnInsteadOfBlock(DerivePrivateNetworkRequestPolicy(
+          OverrideToWarnInsteadOfBlock(DeriveLocalNetworkAccessRequestPolicy(
               policy_container_host_->policies(),
-              PrivateNetworkRequestContext::kSubresource));
+              LocalNetworkAccessRequestContext::kSubresource));
       break;
-    case ContentBrowserClient::PrivateNetworkRequestPolicyOverride::kDefault:
+    case ContentBrowserClient::LocalNetworkAccessRequestPolicyOverride::
+        kDefault:
       break;
   }
 
@@ -9692,7 +9762,7 @@ void RenderFrameHostImpl::OpenURL(blink::mojom::OpenURLParamsPtr params) {
     blink::NavigationDownloadPolicy download_policy;
 
     MaybeRecordAdClickMainFrameNavigationMetrics(
-        /*initiator_frame=*/this, params->initiator_activation_and_ad_status);
+        /*initiator_frame=*/this, params->user_gesture, params->started_by_ad);
 
     target_frame->frame_tree_node()->navigator().NavigateFromFrameProxy(
         target_frame, validated_params_url,
@@ -9703,9 +9773,8 @@ void RenderFrameHostImpl::OpenURL(blink::mojom::OpenURLParamsPtr params) {
         "GET",
         /*post_body=*/nullptr, params->extra_headers,
         /*blob_url_loader_factory=*/nullptr,
-        network::mojom::SourceLocation::New(), /*has_user_gesture=*/false,
-        params->is_form_submission, params->impression,
-        params->initiator_activation_and_ad_status,
+        network::mojom::SourceLocation::New(), params->user_gesture,
+        params->is_form_submission, params->impression, params->started_by_ad,
         params->actual_navigation_start,
         /*navigation_start_time=*/base::TimeTicks::Now(),
         /*is_embedder_initiated_fenced_frame_navigation=*/false,
@@ -9727,7 +9796,7 @@ void RenderFrameHostImpl::OpenURL(blink::mojom::OpenURLParamsPtr params) {
     if (params->disposition != WindowOpenDisposition::CURRENT_TAB ||
         IsOutermostMainFrame()) {
       MaybeRecordAdClickMainFrameNavigationMetrics(
-          initiator_frame, params->initiator_activation_and_ad_status);
+          initiator_frame, params->user_gesture, params->started_by_ad);
     }
   }
 
@@ -10011,7 +10080,8 @@ void RenderFrameHostImpl::CreateNewWindow(
   transient_allow_popup_.Deactivate();
 
   MaybeRecordAdClickMainFrameNavigationMetrics(
-      /*initiator_frame=*/this, params->initiator_activation_and_ad_status);
+      /*initiator_frame=*/this, params->started_with_transient_activation,
+      params->started_by_ad);
 
   if (is_new_browsing_instance || !new_frame_tree) {
     // Opener suppressed, Javascript access disabled, or delegate did not
@@ -10506,10 +10576,8 @@ void RenderFrameHostImpl::MaybeSendFencedFrameAutomaticReportingBeacon(
   // It is safe to check both values at once. If one is not properly set, it
   // will always be set to a false negative and not a false positive, so there
   // is no way for that to cause an accidental beacon to be sent.
-  if (navigation_request.GetNavigationInitiatorActivationAndAdStatus() ==
-          blink::mojom::NavigationInitiatorActivationAndAdStatus::
-              kDidNotStartWithTransientActivation &&
-      !navigation_request.common_params().has_user_gesture) {
+  if (!navigation_request.StartedWithTransientActivation() &&
+      !navigation_request.common_params().has_possibly_filtered_user_gesture) {
     RecordAutomaticBeaconOutcome(
         blink::AutomaticBeaconOutcome::kNoUserActivation);
     return;
@@ -10913,17 +10981,6 @@ void RenderFrameHostImpl::CalculateUntrustedNetworkStatus() {
               ->frame_tree_node_id());
     }
   }
-}
-
-std::optional<base::UnguessableToken>
-RenderFrameHostImpl::GetNetworkRestrictionsID() {
-  // TODO(crbug.com/447954811): Consider refactoring this method after
-  // RenderDocument launches, because we may not need to consider pending
-  // navigations anymore.
-  auto config =
-      SubresourceLoaderFactoriesConfig::ForPendingOrLastCommittedNavigation(
-          *this);
-  return config.network_restrictions_id();
 }
 
 RenderFrameHostImpl* RenderFrameHostImpl::GetBeforeUnloadInitiator() {
@@ -11339,7 +11396,8 @@ void RenderFrameHostImpl::BeginNavigation(
   if (begin_params->initiator_frame_token) {
     if (IsOutermostMainFrame()) {
       MaybeRecordAdClickMainFrameNavigationMetrics(
-          initiator_frame, begin_params->initiator_activation_and_ad_status);
+          initiator_frame, begin_params->started_with_transient_activation,
+          begin_params->started_by_ad);
     }
   }
 
@@ -12403,6 +12461,15 @@ void RenderFrameHostImpl::CommitNavigation(
   DCHECK_EQ(this, navigation_request->GetRenderFrameHost());
   AssertBrowserContextShutdownHasntStarted();
 
+  if (IsOutermostMainFrame() && GetSiteInstance()
+                                    ->GetWebExposedIsolationInfo()
+                                    .is_isolated_application()) {
+    commit_params->isolated_app_policy =
+        GetContentClient()->browser()->GetPermissionsPolicyForIsolatedWebApp(
+            GetBrowserContext(),
+            url::Origin::Create(navigation_request->GetURL()));
+  }
+
   bool is_same_document =
       NavigationTypeUtils::IsSameDocument(common_params->navigation_type);
   bool is_mhtml_subframe = navigation_request->IsForMhtmlSubframe();
@@ -12449,8 +12516,6 @@ void RenderFrameHostImpl::CommitNavigation(
           !parent_->GetSiteInstance()->GetSiteInfo().is_sandboxed() &&
               GetSiteInstance()->GetSiteInfo().is_sandboxed());
   }
-
-  // TODO(crbug.com/40092527): Compute the Origin to commit here.
 
   // If this is an attempt to commit a URL in an incompatible process, capture a
   // crash dump to diagnose why it is occurring.
@@ -12843,16 +12908,6 @@ void RenderFrameHostImpl::CommitNavigation(
     blink::mojom::PolicyContainerPtr policy_container =
         navigation_request->CreatePolicyContainerForBlink();
 
-    auto isolation_info = GetSiteInstance()->GetWebExposedIsolationInfo();
-
-    std::optional<network::ParsedPermissionsPolicy> manifest_policy;
-    if (IsOutermostMainFrame() && isolation_info.is_isolated_application()) {
-      if (auto isolated_web_app_permissions_policy =
-              delegate_->GetPermissionsPolicyForIsolatedWebApp(this)) {
-        manifest_policy = std::move(isolated_web_app_permissions_policy);
-      }
-    }
-
     if (common_params->url.SchemeIsHTTPOrHTTPS() && IsOutermostMainFrame() &&
         (!navigation_request->IsRestore() ||
          blink::features::kBoostRenderProcessForLoadingPrioritizeRestore
@@ -12880,9 +12935,9 @@ void RenderFrameHostImpl::CommitNavigation(
         std::move(container_info),
         std::move(subresource_proxying_loader_factory_for_renderer),
         std::move(keep_alive_loader_factory),
-        std::move(fetch_later_loader_factory), manifest_policy,
-        std::move(policy_container), *document_token,
-        devtools_navigation_token);
+        std::move(fetch_later_loader_factory),
+        /*permissions_policy=*/std::nullopt, std::move(policy_container),
+        *document_token, devtools_navigation_token);
     navigation_request->frame_tree_node()
         ->navigator()
         .LogCommitNavigationSent();
@@ -13642,12 +13697,12 @@ RenderFrameHostImpl* RenderFrameHostImpl::GetOutermostMainFrame() {
 bool RenderFrameHostImpl::CanAccessFilesOfPageState(
     const blink::PageState& state) {
   return ChildProcessSecurityPolicyImpl::GetInstance()->CanReadAllFiles(
-      GetProcess()->GetDeprecatedID(), state.GetReferencedFiles());
+      GetProcess()->GetID(), state.GetReferencedFiles());
 }
 
 void RenderFrameHostImpl::GrantFileAccessFromPageState(
     const blink::PageState& state) {
-  GrantFileAccess(GetProcess()->GetDeprecatedID(), state.GetReferencedFiles());
+  GrantFileAccess(GetProcess()->GetID(), state.GetReferencedFiles());
 }
 
 void RenderFrameHostImpl::SetHasPendingLifecycleStateUpdate(
@@ -13670,7 +13725,7 @@ void RenderFrameHostImpl::SetHasPendingLifecycleStateUpdate(
 
 void RenderFrameHostImpl::GrantFileAccessFromResourceRequestBody(
     const network::ResourceRequestBody& body) {
-  GrantFileAccess(GetProcess()->GetDeprecatedID(), body.GetReferencedFiles());
+  GrantFileAccess(GetProcess()->GetID(), body.GetReferencedFiles());
 }
 
 void RenderFrameHostImpl::UpdatePermissionsForNavigation(
@@ -13810,7 +13865,8 @@ bool RenderFrameHostImpl::CreateNetworkServiceDefaultFactoryAndObserve(
     StoragePartition* storage_partition = GetStoragePartition();
     network::mojom::URLLoaderFactoryParamsPtr monitoring_factory_params =
         network::mojom::URLLoaderFactoryParams::New();
-    monitoring_factory_params->process_id = GetProcess()->GetDeprecatedID();
+    monitoring_factory_params->process_id =
+        ToOriginatingProcess(GetProcess()->GetID());
     monitoring_factory_params->debug_tag = "RFHI - monitoring_factory_params";
 
     // This factory should never be used to issue actual requests (i.e. it
@@ -14141,9 +14197,20 @@ void RenderFrameHostImpl::ResetPermissionsPolicy(
     // behavior, which uses a fully permissive policy as its base permissions
     // policy and accepts rules specifying which permissions policy features
     // should be blocked, aka a blocklist.
+    //
+    // Interpretation of the permission policies and merging is done in the
+    // renderer. However, as it is untrusted, we perform a sanity check whether
+    // it did not add any new policies which would mean it's been compromised.
+    if (!VerifyIsolatedWebAppPermissionsPolicyIsSubsetOfManifest(
+            header_policy)) {
+      bad_message::ReceivedBadMessage(
+          GetProcess(), bad_message::BadMessageReason::
+                            RFH_NEW_ISOLATED_WEB_APP_PERMISSION_POLICIES);
+      return;
+    }
+
     permissions_policy_ = network::PermissionsPolicy::CreateFromParsedPolicy(
-        header_policy, delegate_->GetPermissionsPolicyForIsolatedWebApp(this),
-        last_committed_origin_);
+        header_policy, /*base_policy=*/std::nullopt, last_committed_origin_);
     return;
   }
 
@@ -14155,6 +14222,45 @@ void RenderFrameHostImpl::ResetPermissionsPolicy(
 
   permissions_policy_ = network::PermissionsPolicy::CreateFromParentPolicy(
       parent_policy, header_policy, container_policy, last_committed_origin_);
+}
+
+bool RenderFrameHostImpl::
+    VerifyIsolatedWebAppPermissionsPolicyIsSubsetOfManifest(
+        const network::ParsedPermissionsPolicy& header_policy) {
+  if (header_policy.empty()) {
+    return true;
+  }
+
+  ASSIGN_OR_RETURN(
+      const auto isolated_app_policy,
+      GetContentClient()->browser()->GetPermissionsPolicyForIsolatedWebApp(
+          GetBrowserContext(),
+          GetSiteInstance()->GetWebExposedIsolationInfo().origin()),
+      [] {
+        // The only way this could happen is if the renderer has
+        // been compromised and added new permission policies that
+        // were not in the manifest.
+        return false;
+      });
+
+  const auto features_in_manifest = base::MakeFlatSet<std::string>(
+      isolated_app_policy, std::less(),
+      [](const auto& entry) { return entry->feature; });
+  const auto& permission_policy_to_feature_map =
+      blink::GetPermissionsPolicyFeatureToNameMap();
+  for (const auto& feature_in_headers : header_policy) {
+    const auto* name_mapping = base::FindOrNull(
+        permission_policy_to_feature_map, feature_in_headers.feature);
+    // Okay state: returned feature is valid (in the mapping) and is
+    // mentioned in the manifest.
+    if (name_mapping && features_in_manifest.contains(*name_mapping)) {
+      continue;
+    }
+    // Bad state: renderer added new permission policies, which means that
+    // it's most likely compromised.
+    return false;
+  }
+  return true;
 }
 
 void RenderFrameHostImpl::CreateAudioInputStreamFactory(
@@ -14732,7 +14838,8 @@ void RenderFrameHostImpl::GetFileSystemAccessManager(
 
 void RenderFrameHostImpl::CreateLockManager(
     mojo::PendingReceiver<blink::mojom::LockManager> receiver) {
-  GetProcess()->CreateLockManager(GetStorageKey(), std::move(receiver));
+  GetStoragePartition()->BindLockManager(
+      GetStorageKey(), GetFrameToken().value(), std::move(receiver));
 }
 
 void RenderFrameHostImpl::CreateIDBFactory(
@@ -15053,11 +15160,11 @@ RenderFrameHostImpl::BuildClientSecurityStateForWorkers() const {
       policy_container_host_->policies().allow_non_secure_local_network_access;
 
   client_security_state->private_network_request_policy =
-      DerivePrivateNetworkRequestPolicy(
+      DeriveLocalNetworkAccessRequestPolicy(
           client_security_state->ip_address_space,
           client_security_state->is_web_secure_context,
           allow_non_secure_local_network_access,
-          PrivateNetworkRequestContext::kWorker);
+          LocalNetworkAccessRequestContext::kWorker);
 
   return client_security_state;
 }
@@ -16379,7 +16486,7 @@ void RenderFrameHostImpl::MaybeGenerateCrashReport(
   }
 
   // Construct the crash report.
-  base::Value::Dict body;
+  base::DictValue body;
   if (base::FeatureList::IsEnabled(
           blink::features::kCrashReportingAPIMoreContextData)) {
     body.Set("is_top_level", IsOutermostMainFrame() ? true : false);
@@ -16391,7 +16498,7 @@ void RenderFrameHostImpl::MaybeGenerateCrashReport(
   // Read the key/value data from the document associated data shared memory
   // buffer that the renderer may have written to; parse it as JSON, and add it
   // to the crash report.
-  base::Value::Dict crash_report_api_body = ReadCrashReportAPIBody();
+  base::DictValue crash_report_api_body = ReadCrashReportAPIBody();
   body.Set("crash_report_api", std::move(crash_report_api_body));
 
   if (!reason.empty()) {
@@ -16424,8 +16531,8 @@ void RenderFrameHostImpl::MaybeGenerateCrashReport(
       std::move(body));
 }
 
-base::Value::Dict RenderFrameHostImpl::ReadCrashReportAPIBody() {
-  base::Value::Dict crash_report_api_body;
+base::DictValue RenderFrameHostImpl::ReadCrashReportAPIBody() {
+  base::DictValue crash_report_api_body;
   if (!document_associated_data_->crash_report_storage_region().IsValid()) {
     return crash_report_api_body;
   }
@@ -16561,10 +16668,8 @@ void RenderFrameHostImpl::SendCommitNavigation(
 
   // PDF processes should not need to access cookies or storage, so do not set
   // up those interfaces for them.
-  // TODO(crbug.com/40205612): Remove the kill switch for this check.
   bool should_block_storage_access_for_pdf =
-      GetSiteInstance()->GetSiteInfo().is_pdf() &&
-      base::FeatureList::IsEnabled(features::kPdfEnforcements);
+      GetSiteInstance()->GetSiteInfo().is_pdf();
 
   // Make sure the origin of the isolation info and origin to commit match,
   // otherwise the cookie manager will crash. Sending the cookie manager here
@@ -16935,10 +17040,25 @@ void RenderFrameHostImpl::SendBeforeUnload(
   auto before_unload_closure = base::BindOnce(
       [](base::WeakPtr<RenderFrameHostImpl> impl, bool for_legacy, bool proceed,
          base::TimeTicks renderer_before_unload_start_time,
-         base::TimeTicks renderer_before_unload_end_time) {
+         base::TimeTicks renderer_before_unload_end_time,
+         base::TimeTicks before_unload_dialog_opened_time,
+         base::TimeTicks before_unload_dialog_closed_time) {
         if (!impl) {
           return;
         }
+
+        if (impl->frame_tree_node() &&
+            !before_unload_dialog_opened_time.is_null() &&
+            !before_unload_dialog_closed_time.is_null()) {
+          if (NavigationRequest* navigation_request =
+                  impl->frame_tree_node()->navigation_request()) {
+            navigation_request->set_beforeunload_phase2_dialog_opened_time(
+                before_unload_dialog_opened_time);
+            navigation_request->set_beforeunload_phase2_dialog_closed_time(
+                before_unload_dialog_closed_time);
+          }
+        }
+
         impl->ProcessBeforeUnloadCompleted(
             proceed, /*treat_as_final_completion_callback=*/false,
             renderer_before_unload_start_time, renderer_before_unload_end_time,
@@ -16993,7 +17113,9 @@ void RenderFrameHostImpl::SendBeforeUnload(
           .Run(/*proceed=*/true, /*renderer_before_unload_start_time=*/
                send_before_unload_start_time_,
                /*renderer_before_unload_end_time=*/
-               renderer_before_unload_end_time_for_legacy);
+               renderer_before_unload_end_time_for_legacy,
+               /*before_unload_dialog_opened_time=*/base::TimeTicks(),
+               /*before_unload_dialog_closed_time=*/base::TimeTicks());
       return;
     }
 
@@ -17018,9 +17140,11 @@ void RenderFrameHostImpl::SendBeforeUnload(
                   }
                   SCOPED_CRASH_KEY_BOOL("RFHI", "is_renderer_init_nav",
                                         is_renderer_initiated_navigation);
-                  std::move(callback).Run(/*proceed=*/true,
-                                          renderer_before_unload_start_time,
-                                          renderer_before_unload_end_time);
+                  std::move(callback).Run(
+                      /*proceed=*/true, renderer_before_unload_start_time,
+                      renderer_before_unload_end_time,
+                      /*before_unload_dialog_opened_time=*/base::TimeTicks(),
+                      /*before_unload_dialog_closed_time=*/base::TimeTicks());
                   if (can_be_in_navigate_to_pending_entry &&
                       navigation_controller) {
                     navigation_controller
@@ -17822,8 +17946,9 @@ void RenderFrameHostImpl::
   SCOPED_CRASH_KEY_BOOL("VerifyDidCommit", "suh_renderer",
                         params.should_update_history);
 
-  SCOPED_CRASH_KEY_BOOL("VerifyDidCommit", "gesture",
-                        request->common_params().has_user_gesture);
+  SCOPED_CRASH_KEY_BOOL(
+      "VerifyDidCommit", "gesture",
+      request->common_params().has_possibly_filtered_user_gesture);
 
   SCOPED_CRASH_KEY_BOOL("VerifyDidCommit", "replace",
                         should_replace_current_entry);
@@ -18570,22 +18695,20 @@ void RenderFrameHostImpl::SetLifecycleState(LifecycleStateImpl new_state) {
   LifecycleStateImpl old_state = lifecycle_state_;
   lifecycle_state_ = new_state;
 
-  if (base::FeatureList::IsEnabled(features::kSubframePriorityContribution)) {
-    auto* local_render_widget_host = GetLocalRenderWidgetHost();
-    if (local_render_widget_host) {
-      // The priority contribution of the main frame is controlled also by
-      // RenderViewHostImpl::IsMainFrameActive. The main purpose of
-      // RenderViewHostImpl::IsMainFrameActive is to prevent RWH owned by RVH of
-      // subframes from contributing to the process priority and allow RWH owned
-      // by RVM of a main frame to contribute. IsMainFrameActive() of RVH of a
-      // main frame also returns false while the main frame is in BFCache, which
-      // is the same as here. But we explicitly
-      // SetShouldContributePriorityToProcess() for the main frame here to make
-      // the priority contribution of the main frame more readable and be robust
-      // to future changes (e.g. for the case we want to disallow other states).
-      local_render_widget_host->SetShouldContributePriorityToProcess(
-          ShouldContributePriorityToProcess(new_state));
-    }
+  auto* local_render_widget_host = GetLocalRenderWidgetHost();
+  if (local_render_widget_host) {
+    // The priority contribution of the main frame is controlled also by
+    // RenderViewHostImpl::IsMainFrameActive. The main purpose of
+    // RenderViewHostImpl::IsMainFrameActive is to prevent RWH owned by RVH of
+    // subframes from contributing to the process priority and allow RWH owned
+    // by RVM of a main frame to contribute. IsMainFrameActive() of RVH of a
+    // main frame also returns false while the main frame is in BFCache, which
+    // is the same as here. But we explicitly
+    // SetShouldContributePriorityToProcess() for the main frame here to make
+    // the priority contribution of the main frame more readable and be robust
+    // to future changes (e.g. for the case we want to disallow other states).
+    local_render_widget_host->SetShouldContributePriorityToProcess(
+        ShouldContributePriorityToProcess(new_state));
   }
 
   // If the state changes from or to kActive, update the active document count.

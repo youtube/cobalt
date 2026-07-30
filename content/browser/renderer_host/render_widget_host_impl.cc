@@ -26,6 +26,7 @@
 #include "base/lazy_instance.h"
 #include "base/location.h"
 #include "base/memory/ptr_util.h"
+#include "base/memory/safety_checks.h"
 #include "base/metrics/field_trial.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
@@ -394,6 +395,7 @@ RenderWidgetHostImpl::RenderWidgetHostImpl(
       last_view_screen_rect_(kInvalidScreenRect),
       last_window_screen_rect_(kInvalidScreenRect),
       new_content_rendering_delay_(blink::kNewContentRenderingDelay),
+      hung_renderer_delay_(input::features::kRendererHangWatcherDelay.Get()),
       render_frame_metadata_provider_(
 #if BUILDFLAG(IS_MAC)
           ui::WindowResizeHelperMac::Get()->task_runner()
@@ -1584,6 +1586,10 @@ void RenderWidgetHostImpl::ForwardMouseEventWithLatencyInfo(
   TRACE_EVENT2("input", "RenderWidgetHostImpl::ForwardMouseEvent", "x",
                mouse_event.PositionInWidget().x(), "y",
                mouse_event.PositionInWidget().y());
+  // Input comes from the OS (trusted) and is critical for user interaction, we
+  // exclude free-d memory from additional safety checks.
+  // TODO(crbug.com/478562227): Optimize and remove if possible.
+  base::ScopedSafetyChecksExclusion excluded;
 
   CHECK_GE(mouse_event.GetType(), WebInputEvent::Type::kMouseTypeFirst);
   CHECK_LE(mouse_event.GetType(), WebInputEvent::Type::kMouseTypeLast);
@@ -1629,6 +1635,10 @@ void RenderWidgetHostImpl::ForwardWheelEventWithLatencyInfo(
     const ui::LatencyInfo& latency) {
   TRACE_EVENT2("input", "RenderWidgetHostImpl::ForwardWheelEvent", "dx",
                wheel_event.delta_x, "dy", wheel_event.delta_y);
+  // Input comes from the OS (trusted) and is critical for user interaction, we
+  // exclude free-d memory from additional safety checks.
+  // TODO(crbug.com/478562227): Optimize and remove if possible.
+  base::ScopedSafetyChecksExclusion excluded;
 
   if (IsIgnoringWebInputEvents(wheel_event)) {
     return;
@@ -1693,6 +1703,10 @@ void RenderWidgetHostImpl::ForwardKeyboardEventWithCommands(
     const ui::LatencyInfo& latency,
     std::vector<blink::mojom::EditCommandPtr> commands,
     bool* update_event) {
+  // Input comes from the OS (trusted) and is critical for user interaction, we
+  // exclude free-d memory from additional safety checks.
+  // TODO(crbug.com/478562227): Optimize and remove if possible.
+  base::ScopedSafetyChecksExclusion excluded;
   CHECK(WebInputEvent::IsKeyboardEventType(key_event.GetType()));
 
   TRACE_EVENT0("input", "RenderWidgetHostImpl::ForwardKeyboardEvent");
@@ -2102,6 +2116,15 @@ void RenderWidgetHostImpl::InsertVisualStateCallback(
       mojo::WrapCallbackWithDefaultInvokeIfNotRun(std::move(callback), false)));
 }
 
+void RenderWidgetHostImpl::SetHungRendererDelay(const base::TimeDelta& delay) {
+  hung_renderer_delay_ = delay;
+  GetRenderInputRouter()->SetHungRendererDelay(delay);
+}
+
+base::TimeDelta RenderWidgetHostImpl::GetHungRendererDelayForTesting() {
+  return hung_renderer_delay_;
+}
+
 RenderProcessHostPriorityClient::Priority RenderWidgetHostImpl::GetPriority() {
   RenderProcessHostPriorityClient::Priority priority = {
       is_hidden_,  frame_depth_, intersects_viewport_, is_discarding_,
@@ -2109,21 +2132,15 @@ RenderProcessHostPriorityClient::Priority RenderWidgetHostImpl::GetPriority() {
       importance_,
 #endif
   };
-  bool should_contribute = false;
-  if (base::FeatureList::IsEnabled(features::kSubframePriorityContribution)) {
-    should_contribute = should_contribute_priority_to_process_;
-    if (owner_delegate_ && !owner_delegate_->IsMainFrameActive()) {
-      // If this RenderWidgetHost is owned by a RenderViewHost which does not
-      // have an active main frame, it should not contribute to the priority of
-      // the process. This can happen for an OOPIF which not only has its own
-      // RenderWidgetHost, but also has an inactive RenderViewHost in its
-      // SiteInstance, and that RenderViewHost owns another unused
-      // RenderWidgetHost which is what's being excluded here.
-      should_contribute = false;
-    }
-  } else {
-    should_contribute = !owner_delegate_ ||
-                        owner_delegate_->ShouldContributePriorityToProcess();
+  bool should_contribute = should_contribute_priority_to_process_;
+  if (owner_delegate_ && !owner_delegate_->IsMainFrameActive()) {
+    // If this RenderWidgetHost is owned by a RenderViewHost which does not
+    // have an active main frame, it should not contribute to the priority of
+    // the process. This can happen for an OOPIF which not only has its own
+    // RenderWidgetHost, but also has an inactive RenderViewHost in its
+    // SiteInstance, and that RenderViewHost owns another unused
+    // RenderWidgetHost which is what's being excluded here.
+    should_contribute = false;
   }
 
 #if BUILDFLAG(IS_ANDROID)
@@ -2494,9 +2511,8 @@ void RenderWidgetHostImpl::OnInputEventAckTimeout(
 
   // If a widget's visibility changed mid-input sequence handling and an ack
   // later times out, defer marking the renderer unresponsive until the widget
-  // has been shown for at least `kRendererHangWatcherDelay`.
-  if ((ack_timeout_ts - latest_shown_time_) <
-      input::features::kRendererHangWatcherDelay.Get()) {
+  // has been shown for at least `hung_renderer_delay_`.
+  if ((ack_timeout_ts - latest_shown_time_) < hung_renderer_delay_) {
     return;
   }
 
@@ -2895,7 +2911,7 @@ void RenderWidgetHostImpl::StartDragging(
   //    renderer for any file paths in the drop.
   filtered_data.filenames.clear();
   for (const auto& file_info : drop_data.filenames) {
-    if (policy->CanReadFile(GetProcess()->GetDeprecatedID(), file_info.path)) {
+    if (policy->CanReadFile(GetProcess()->GetID(), file_info.path)) {
       filtered_data.filenames.push_back(file_info);
     }
   }
@@ -2918,8 +2934,7 @@ void RenderWidgetHostImpl::StartDragging(
       continue;
     }
 
-    if (policy->CanReadFileSystemFile(GetProcess()->GetDeprecatedID(),
-                                      file_system_url)) {
+    if (policy->CanReadFileSystemFile(GetProcess()->GetID(), file_system_url)) {
       filtered_data.file_system_files.push_back(file_system_file);
     }
   }
@@ -3643,8 +3658,7 @@ void RenderWidgetHostImpl::GrantFileAccessFromDropData(DropData* drop_data) {
   RenderProcessHost* process = GetProcess();
   PrepareDropDataForChildProcess(
       drop_data, ChildProcessSecurityPolicyImpl::GetInstance(),
-      process->GetDeprecatedID(),
-      process->GetStoragePartition()->GetFileSystemContext());
+      process->GetID(), process->GetStoragePartition()->GetFileSystemContext());
 }
 
 void RenderWidgetHostImpl::RequestCompositionUpdates(bool immediate_request,
@@ -3791,6 +3805,7 @@ void RenderWidgetHostImpl::SetupRenderInputRouter() {
   render_input_router_ = std::make_unique<input::RenderInputRouter>(
       this, MakeFlingScheduler(), this,
       GetUIThreadTaskRunner({BrowserTaskType::kUserInput}));
+  render_input_router_->SetHungRendererDelay(hung_renderer_delay_);
   SetupInputRouter();
 }
 
