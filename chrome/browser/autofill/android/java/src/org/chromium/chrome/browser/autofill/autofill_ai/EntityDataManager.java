@@ -6,6 +6,7 @@ package org.chromium.chrome.browser.autofill.autofill_ai;
 
 import androidx.annotation.VisibleForTesting;
 
+import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.JniType;
 import org.jni_zero.NativeMethods;
@@ -14,6 +15,7 @@ import org.chromium.base.ThreadUtils;
 import org.chromium.base.lifetime.Destroyable;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.components.autofill.autofill_ai.AutofillAiOptInStatus;
 import org.chromium.components.autofill.autofill_ai.EntityInstance;
 import org.chromium.components.autofill.autofill_ai.EntityInstanceWithLabels;
 import org.chromium.components.autofill.autofill_ai.EntityType;
@@ -77,12 +79,52 @@ public class EntityDataManager implements Destroyable {
         return EntityDataManagerJni.get().getWritableEntityTypes(mNativeEntityDataManagerAndroid);
     }
 
+    /** Called by C++ when there is a change in the instances. */
+    @CalledByNative
+    public void onEntityInstancesChanged() {
+        ThreadUtils.assertOnUiThread();
+        // TODO(crbug.com/411324196): Handle entities changes, this should recall
+        // `getEntitiesWithLabels()`.
+    }
+
+    /** Returns whether the user is eligible for Autofill AI. */
+    public boolean isEligibleToAutofillAi() {
+        ThreadUtils.assertOnUiThread();
+        return EntityDataManagerJni.get().isEligibleToAutofillAi(mNativeEntityDataManagerAndroid);
+    }
+
+    /** Returns the opt-in status for Autofill AI. */
+    public boolean getAutofillAiOptInStatus() {
+        ThreadUtils.assertOnUiThread();
+        return EntityDataManagerJni.get().getAutofillAiOptInStatus(mNativeEntityDataManagerAndroid);
+    }
+
+    /**
+     * Sets the opt-in status for Autofill AI.
+     *
+     * @param optInStatus The new opt-in status.
+     * @return Whether the status was successfully set.
+     */
+    public boolean setAutofillAiOptInStatus(@AutofillAiOptInStatus int optInStatus) {
+        ThreadUtils.assertOnUiThread();
+        return EntityDataManagerJni.get()
+                .setAutofillAiOptInStatus(mNativeEntityDataManagerAndroid, optInStatus);
+    }
+
     @NativeMethods
     @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
     public interface Natives {
         long init(EntityDataManager self, @JniType("Profile*") Profile profile);
 
         void destroy(long nativeEntityDataManagerAndroid);
+
+        boolean isEligibleToAutofillAi(long nativeEntityDataManagerAndroid);
+
+        boolean getAutofillAiOptInStatus(long nativeEntityDataManagerAndroid);
+
+        boolean setAutofillAiOptInStatus(
+                long nativeEntityDataManagerAndroid,
+                @JniType("autofill::AutofillAiOptInStatus") @AutofillAiOptInStatus int optInStatus);
 
         void removeEntityInstance(
                 long nativeEntityDataManagerAndroid, @JniType("std::string") String guid);

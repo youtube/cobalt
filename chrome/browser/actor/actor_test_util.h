@@ -16,6 +16,7 @@
 #include "base/test/test_future.h"
 #include "base/time/time.h"
 #include "base/types/expected.h"
+#include "chrome/browser/actor/enterprise_policy_checker.h"
 #include "chrome/browser/actor/execution_engine.h"
 #include "chrome/browser/actor/tools/media_control_tool_request.h"
 #include "chrome/browser/actor/tools/tool_request.h"
@@ -262,6 +263,29 @@ class ExecutionEngineStateWaiter : public ExecutionEngine::StateObserver {
   base::OnceClosure callback_;
   const base::WeakPtr<ExecutionEngine> execution_engine_;
   ExecutionEngine::State target_state_;
+};
+
+// Use this RAII helper to provide a factory function for constructing
+// ExecutionEngine. This allows tests to provide a mock ExecutionEngine or one
+// constructed specially to be instrumented for testing.
+class ScopedExecutionEngineFactory {
+ public:
+  explicit ScopedExecutionEngineFactory(
+      ExecutionEngine::FactoryFunction factory);
+  ~ScopedExecutionEngineFactory();
+};
+
+class MockPolicyChecker : public EnterprisePolicyChecker {
+ public:
+  explicit MockPolicyChecker(EnterprisePolicyBlockReason reason);
+  ~MockPolicyChecker();
+
+  bool CanActOnWeb() const override;
+  EnterprisePolicyBlockReason Evaluate(const GURL& url) const override;
+  CannotActReason CannotActOnWebReason() const override;
+
+ private:
+  EnterprisePolicyBlockReason reason_;
 };
 
 }  // namespace actor

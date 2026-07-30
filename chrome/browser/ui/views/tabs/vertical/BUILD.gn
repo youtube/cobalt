@@ -15,7 +15,9 @@ source_set("vertical") {
     "vertical_split_tab_view.h",
     "vertical_tab_strip_bottom_container.h",
     "vertical_tab_strip_flat_edge_button.h",
+    "vertical_tab_strip_scroll_bar.h",
     "vertical_tab_strip_top_container.h",
+    "vertical_tab_strip_utils.h",
     "vertical_tab_strip_view.h",
     "vertical_unpinned_tab_container_view.h",
   ]
@@ -51,7 +53,9 @@ source_set("impl") {
     "vertical_tab_group_view.h",
     "vertical_tab_strip_bottom_container.cc",
     "vertical_tab_strip_flat_edge_button.cc",
+    "vertical_tab_strip_scroll_bar.cc",
     "vertical_tab_strip_top_container.cc",
+    "vertical_tab_strip_utils.cc",
     "vertical_tab_strip_view.cc",
     "vertical_tab_view.cc",
     "vertical_tab_view.h",
@@ -72,7 +76,9 @@ source_set("impl") {
     "//chrome/browser/ui/tabs:tab_group",
     "//chrome/browser/ui/tabs:tab_strip",
     "//chrome/browser/ui/tabs:utils",
+    "//chrome/browser/ui/tabs/projects:impl",
     "//chrome/browser/ui/tabs/saved_tab_groups",
+    "//chrome/browser/ui/user_education",
     "//chrome/browser/ui/views/frame",
     "//chrome/browser/ui/views/tabs/dragging:tab_drag_target",
     "//chrome/browser/ui/views/toolbar",
@@ -125,6 +131,7 @@ source_set("unit_tests") {
   testonly = true
   sources = [
     "tab_collection_animating_layout_manager_unittest.cc",
+    "vertical_tab_group_header_view_unittest.cc",
     "vertical_tab_strip_top_container_unittest.cc",
   ]
   deps = [

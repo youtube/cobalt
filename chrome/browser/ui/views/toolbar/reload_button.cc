@@ -71,6 +71,9 @@ ReloadButton::ReloadButton(
       double_click_timer_delay_(views::GetDoubleClickInterval()),
       mode_switch_timer_delay_(base::Milliseconds(1350)),
       window_metrics_manager_(window_metrics_manager) {
+  if (window_metrics_manager_) {
+    window_metrics_manager_->OnReloadButtonCreated();
+  }
   SetVisibleMode(Mode::kReload);
   SetTriggerableEventFlags(ui::EF_LEFT_MOUSE_BUTTON |
                            ui::EF_MIDDLE_MOUSE_BUTTON);
@@ -133,12 +136,12 @@ void ReloadButton::SetVectorIconsForMode(Mode mode,
   }
 }
 
-bool ReloadButton::GetMenuEnabled() const {
-  return is_menu_enabled_;
+bool ReloadButton::GetDevToolsStatusForTesting() const {
+  return is_dev_tools_connected_;
 }
 
-void ReloadButton::SetMenuEnabled(bool is_menu_enabled) {
-  is_menu_enabled_ = is_menu_enabled;
+void ReloadButton::SetDevToolsStatus(bool is_dev_tools_connected) {
+  is_dev_tools_connected_ = is_dev_tools_connected;
   UpdateAccessibleHasPopup();
   UpdateCachedTooltipText();
 }
@@ -177,13 +180,13 @@ void ReloadButton::PaintButtonContents(gfx::Canvas* canvas) {
 
 void ReloadButton::UpdateCachedTooltipText() {
   int reload_tooltip =
-      is_menu_enabled_ ? IDS_TOOLTIP_RELOAD_WITH_MENU : IDS_TOOLTIP_RELOAD;
+      ShouldShowMenu() ? IDS_TOOLTIP_RELOAD_WITH_MENU : IDS_TOOLTIP_RELOAD;
   SetTooltipText(l10n_util::GetStringUTF16(
       visible_mode_ == Mode::kReload ? reload_tooltip : IDS_TOOLTIP_STOP));
 }
 
 bool ReloadButton::ShouldShowMenu() {
-  return is_menu_enabled_ && (visible_mode_ == Mode::kReload);
+  return is_dev_tools_connected_ && (visible_mode_ == Mode::kReload);
 }
 
 void ReloadButton::ShowDropDownMenu(ui::mojom::MenuSourceType source_type) {
@@ -315,7 +318,7 @@ void ReloadButton::OnStopToReloadTimer() {
 }
 
 void ReloadButton::UpdateAccessibleHasPopup() {
-  if (is_menu_enabled_ && menu_model()) {
+  if (ShouldShowMenu()) {
     GetViewAccessibility().SetHasPopup(ax::mojom::HasPopup::kMenu);
   } else {
     GetViewAccessibility().SetHasPopup(ax::mojom::HasPopup::kNone);
@@ -338,5 +341,4 @@ void ReloadButton::OnNextPresentation(
 }
 
 BEGIN_METADATA(ReloadButton)
-ADD_PROPERTY_METADATA(bool, MenuEnabled)
 END_METADATA

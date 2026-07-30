@@ -4,21 +4,23 @@
 
 #include "net/disk_cache/sql/sql_entry_impl.h"
 
+#include "net/base/features.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
+#include "net/disk_cache/sql/entry_db_handle.h"
 #include "net/disk_cache/sql/sql_backend_impl.h"
 
 namespace disk_cache {
 
 SqlEntryImpl::SqlEntryImpl(base::WeakPtr<SqlBackendImpl> backend,
                            CacheEntryKey key,
-                           scoped_refptr<ResIdOrErrorHolder> res_id_or_error,
+                           scoped_refptr<EntryDbHandle> db_handle,
                            base::Time last_used,
                            int64_t body_end,
                            scoped_refptr<net::GrowableIOBuffer> head)
     : backend_(backend),
       key_(key),
-      res_id_or_error_(std::move(res_id_or_error)),
+      db_handle_(std::move(db_handle)),
       last_used_(last_used),
       body_end_(body_end),
       head_(head ? std::move(head)
@@ -31,24 +33,36 @@ SqlEntryImpl::~SqlEntryImpl() {
 
   if (doomed_) {
     backend_->ReleaseDoomedEntry(*this);
-  } else {
-    if (previous_header_size_in_storage_.has_value() ||
-        new_hints_.has_value()) {
-      // If the entry's header was modified (i.e., a write to stream 0
-      // occurred) or `new_hints_` is set, update the header, `last_used` and
-      // optionally `hints` in the persistent store.
-      const int64_t header_size_delta =
-          static_cast<int64_t>(head_->size()) -
-          previous_header_size_in_storage_.value_or(0);
-      backend_->UpdateEntryHeaderAndLastUsed(key_, res_id_or_error_, last_used_,
-                                             new_hints_, head_,
-                                             header_size_delta);
-    } else if (last_used_modified_) {
-      // Otherwise, if only last_used was modified, update just last_used.
-      backend_->UpdateEntryLastUsed(key_, res_id_or_error_, last_used_);
-    }
-    backend_->ReleaseActiveEntry(*this);
+    return;
   }
+
+  std::optional<int64_t> old_body_end;
+  EntryWriteBuffer buffer;
+
+  if (auto write_buffer = TakeWriteBuffer()) {
+    old_body_end = write_buffer->offset;
+    buffer = std::move(*write_buffer);
+  }
+
+  int64_t header_size_delta = 0;
+  scoped_refptr<net::GrowableIOBuffer> head_to_send;
+  bool metadata_update_needed = false;
+  if (previous_header_size_in_storage_.has_value() || new_hints_.has_value()) {
+    header_size_delta = static_cast<int64_t>(head_->size()) -
+                        previous_header_size_in_storage_.value_or(0);
+    head_to_send = head_;
+    metadata_update_needed = true;
+  } else if (last_used_modified_) {
+    metadata_update_needed = true;
+  }
+
+  if (old_body_end.has_value() || metadata_update_needed) {
+    backend_->WriteEntryDataAndMetadata(
+        key_, db_handle_, old_body_end, body_end_, std::move(buffer),
+        last_used_, new_hints_, std::move(head_to_send), header_size_delta);
+  }
+
+  backend_->ReleaseActiveEntry(*this);
 }
 
 void SqlEntryImpl::Doom() {
@@ -134,10 +148,82 @@ int SqlEntryImpl::ReadDataInternal(int64_t offset,
   if (body_end_ <= offset) {
     return 0;
   }
+  if (read_cache_buffer_) {
+    const int64_t cache_end =
+        read_cache_buffer_offset_ + read_cache_buffer_->size();
+    if (offset >= read_cache_buffer_offset_ && offset < cache_end) {
+      const int64_t relative_offset = offset - read_cache_buffer_offset_;
+      const int copy_size =
+          std::min(buf_len, static_cast<int>(cache_end - offset));
+      base::as_writable_bytes(buf->span())
+          .first(static_cast<size_t>(copy_size))
+          .copy_from(base::as_bytes(read_cache_buffer_->span())
+                         .subspan(static_cast<size_t>(relative_offset),
+                                  static_cast<size_t>(copy_size)));
+      return copy_size;
+    }
+  }
 
-  return backend_->ReadEntryData(key_, res_id_or_error_, offset, buf, buf_len,
+  if (!write_buffer_.buffers.empty()) {
+    const int64_t write_buffer_end =
+        write_buffer_.offset + static_cast<int64_t>(write_buffer_.size);
+    // If the request is fully within the buffer, copy from the buffer.
+    if (offset >= write_buffer_.offset &&
+        offset + buf_len <= write_buffer_end) {
+      int64_t relative_offset = offset - write_buffer_.offset;
+      CHECK_GE(relative_offset, 0);
+      CHECK_LE(relative_offset + buf_len,
+               static_cast<int64_t>(write_buffer_.size));
+      size_t bytes_copied = 0;
+      for (const auto& chunk : write_buffer_.buffers) {
+        if (relative_offset < static_cast<int64_t>(chunk->size())) {
+          const size_t copy_size =
+              std::min(static_cast<size_t>(buf_len - bytes_copied),
+                       chunk->size() - static_cast<size_t>(relative_offset));
+          base::as_writable_bytes(buf->span())
+              .subspan(bytes_copied, copy_size)
+              .copy_from(base::as_bytes(chunk->span())
+                             .subspan(static_cast<size_t>(relative_offset),
+                                      copy_size));
+          bytes_copied += copy_size;
+          relative_offset = 0;
+          if (bytes_copied == static_cast<size_t>(buf_len)) {
+            break;
+          }
+        } else {
+          relative_offset -= chunk->size();
+        }
+      }
+      return buf_len;
+    }
+    // If the request overlaps with the buffer, flush the buffer first.
+    if (std::max(offset, write_buffer_.offset) <
+        std::min(offset + buf_len, write_buffer_end)) {
+      FlushBuffer();
+    }
+  }
+
+  auto read_callback = base::BindOnce(
+      [](base::WeakPtr<SqlEntryImpl> self, CompletionOnceCallback callback,
+         SqlPersistentStore::ReadResultOrError result) {
+        if (!result.has_value()) {
+          std::move(callback).Run(result.error() ==
+                                          SqlPersistentStore::Error::kAborted
+                                      ? net::ERR_ABORTED
+                                      : net::ERR_FAILED);
+          return;
+        }
+        if (self) {
+          self->read_cache_buffer_ = std::move(result->cache_buffer);
+          self->read_cache_buffer_offset_ = result->cache_buffer_offset;
+        }
+        std::move(callback).Run(result->read_bytes);
+      },
+      weak_factory_.GetWeakPtr(), std::move(callback));
+
+  return backend_->ReadEntryData(key_, db_handle_, offset, buf, buf_len,
                                  body_end_, sparse_reading,
-                                 std::move(callback));
+                                 std::move(read_callback));
 }
 
 int SqlEntryImpl::WriteData(int index,
@@ -208,12 +294,50 @@ int SqlEntryImpl::WriteDataInternal(int64_t offset,
   if (!backend_) {
     return net::ERR_FAILED;
   }
+  if (db_handle_->GetError().has_value()) {
+    return net::ERR_FAILED;
+  }
+
+  read_cache_buffer_.reset();
+  read_cache_buffer_offset_ = -1;
+
   // Ignore zero-length writes that do not change the file size.
   if (buf_len == 0) {
     if (truncate ? (offset == body_end_) : (offset <= body_end_)) {
       return buf_len;
     }
   }
+
+  // Try to buffer the write if it's a sequential append.
+  if (offset == body_end_ && !sparse_write) {
+    const int total_limit =
+        net::features::kSqlDiskCacheMaxWriteBufferTotalSize.Get();
+    const int entry_limit =
+        net::features::kSqlDiskCacheMaxWriteBufferSizePerEntry.Get();
+
+    if (backend_->GetWriteBufferTotalSize() + buf_len <= total_limit &&
+        write_buffer_.size + buf_len <= entry_limit) {
+      if (write_buffer_.buffers.empty()) {
+        write_buffer_.offset = offset;
+      } else {
+        // Ensure continuity.
+        CHECK_EQ(
+            write_buffer_.offset + static_cast<int64_t>(write_buffer_.size),
+            offset);
+      }
+      write_buffer_.buffers.push_back(base::MakeRefCounted<net::VectorIOBuffer>(
+          buf->first(static_cast<size_t>(buf_len))));
+      write_buffer_.size += buf_len;
+
+      backend_->ReportWriteBufferChange(buf_len);
+      body_end_ += buf_len;
+
+      return buf_len;
+    }
+  }
+
+  FlushBuffer();
+
   // The end of the current write must not cause an integer overflow. Callers
   // are responsible for validating this, so we CHECK it here.
   const int64_t end_offset = base::CheckAdd(offset, buf_len).ValueOrDie();
@@ -230,9 +354,42 @@ int SqlEntryImpl::WriteDataInternal(int64_t offset,
   const auto old_body_end = body_end_;
   body_end_ = new_body_end;
 
-  return backend_->WriteEntryData(key_, res_id_or_error_, old_body_end,
-                                  body_end_, offset, buf, buf_len, truncate,
-                                  std::move(callback));
+  return backend_->WriteEntryData(
+      key_, db_handle_, old_body_end, body_end_,
+      EntryWriteBuffer(buf, buf_len, offset), truncate,
+      /*copy_buffer_for_optimistic_write=*/true, std::move(callback));
+}
+
+void SqlEntryImpl::FlushBuffer() {
+  CHECK(backend_);
+  auto write_buffer = TakeWriteBuffer();
+  if (!write_buffer) {
+    return;
+  }
+
+  const int64_t offset = write_buffer->offset;
+
+  // We use base::DoNothing() as the callback because we don't need to wait for
+  // completion. The backend will serialize this operation.
+  // We pass copy_buffer_for_optimistic_write=false because we are passing
+  // ownership of the write buffer to the backend.
+  backend_->WriteEntryData(
+      key_, db_handle_, /*old_body_end=*/offset,
+      /*body_end=*/body_end_, std::move(*write_buffer), /*truncate=*/false,
+      /*copy_buffer_for_optimistic_write=*/false, base::DoNothing());
+}
+
+std::optional<EntryWriteBuffer> SqlEntryImpl::TakeWriteBuffer() {
+  if (write_buffer_.buffers.empty()) {
+    return std::nullopt;
+  }
+
+  const int buf_len = write_buffer_.size;
+  backend_->ReportWriteBufferChange(-buf_len);
+
+  EntryWriteBuffer buffer_to_flush = std::move(write_buffer_);
+  write_buffer_ = EntryWriteBuffer();
+  return buffer_to_flush;
 }
 
 int SqlEntryImpl::ReadSparseData(int64_t offset,
@@ -273,7 +430,7 @@ RangeResult SqlEntryImpl::GetAvailableRange(int64_t offset,
     return RangeResult(net::ERR_INVALID_ARGUMENT);
   }
 
-  return backend_->GetEntryAvailableRange(key_, res_id_or_error_, offset, len,
+  return backend_->GetEntryAvailableRange(key_, db_handle_, offset, len,
                                           std::move(callback));
 }
 
@@ -295,7 +452,7 @@ void SqlEntryImpl::SetEntryInMemoryData(uint8_t data) {
   const MemoryEntryDataHints hints(data);
   new_hints_ = hints;
   if (backend_) {
-    backend_->SetEntryDataHints(key_, res_id_or_error_, hints);
+    backend_->SetEntryDataHints(key_, db_handle_, hints);
   }
 }
 

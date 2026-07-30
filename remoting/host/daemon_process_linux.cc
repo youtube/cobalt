@@ -42,14 +42,15 @@
 #include "remoting/host/chromoting_host_services_server.h"
 #include "remoting/host/host_config.h"
 #include "remoting/host/host_main.h"
-#include "remoting/host/ipc_constants.h"
+#include "remoting/host/linux/remote_display_session_manager.h"
 #include "remoting/host/mojom/chromoting_host_services.mojom.h"
 #include "remoting/host/mojom/remoting_host.mojom.h"
 #include "remoting/host/usage_stats_consent.h"
 
 namespace remoting {
 
-class DaemonProcessLinux : public DaemonProcess {
+class DaemonProcessLinux : public DaemonProcess,
+                           public RemoteDisplaySessionManager::Delegate {
  public:
   DaemonProcessLinux(scoped_refptr<AutoThreadTaskRunner> caller_task_runner,
                      scoped_refptr<AutoThreadTaskRunner> io_task_runner,
@@ -70,7 +71,9 @@ class DaemonProcessLinux : public DaemonProcess {
       int session_id,
       mojo::ScopedMessagePipeHandle desktop_pipe) override;
 
- protected:
+  void StartRemoteDisplaySessionManager();
+
+ private:
   // DaemonProcess implementation.
   std::unique_ptr<DesktopSession> DoCreateDesktopSession(
       int terminal_id,
@@ -83,7 +86,15 @@ class DaemonProcessLinux : public DaemonProcess {
   void SendTerminalDisconnected(int terminal_id) override;
   void StartChromotingHostServices() override;
 
- private:
+  void OnStartRemoteDisplaySessionManagerResult(
+      base::expected<void, Loggable> result);
+
+  // RemoteDisplaySessionManager::Delegate:
+  void OnRemoteDisplaySessionChanged(
+      std::string_view display_name,
+      const RemoteDisplaySessionManager::RemoteDisplayInfo& info) override;
+  void OnRemoteDisplayTerminated(std::string_view display_name) override;
+
   void BindChromotingHostServices(
       mojo::PendingReceiver<mojom::ChromotingHostServices> receiver,
       base::ProcessId peer_pid);
@@ -94,6 +105,7 @@ class DaemonProcessLinux : public DaemonProcess {
   mojo::core::ScopedIPCSupport ipc_support_;
 
   std::unique_ptr<ChromotingHostServicesServer> ipc_server_;
+  RemoteDisplaySessionManager remote_display_session_manager_;
 
   mojo::AssociatedRemote<mojom::DesktopSessionConnectionEvents>
       desktop_session_connection_events_;
@@ -137,6 +149,15 @@ bool DaemonProcessLinux::OnDesktopSessionAgentAttached(
   }
 
   return true;
+}
+
+void DaemonProcessLinux::StartRemoteDisplaySessionManager() {
+  DCHECK(caller_task_runner()->BelongsToCurrentThread());
+
+  remote_display_session_manager_.Start(
+      this, base::BindOnce(
+                &DaemonProcessLinux::OnStartRemoteDisplaySessionManagerResult,
+                base::Unretained(this)));
 }
 
 std::unique_ptr<DesktopSession> DaemonProcessLinux::DoCreateDesktopSession(
@@ -197,12 +218,49 @@ void DaemonProcessLinux::StartChromotingHostServices() {
   HOST_LOG << "ChromotingHostServices IPC server has been started.";
 }
 
+void DaemonProcessLinux::OnStartRemoteDisplaySessionManagerResult(
+    base::expected<void, Loggable> result) {
+  DCHECK(caller_task_runner()->BelongsToCurrentThread());
+
+  if (!result.has_value()) {
+    LOG(ERROR) << result.error();
+    return;
+  }
+  remote_display_session_manager_.CreateRemoteDisplay(
+      "test", base::BindOnce([](base::expected<void, Loggable> result) {
+        if (!result.has_value()) {
+          LOG(ERROR) << result.error();
+        }
+      }));
+}
+
+void DaemonProcessLinux::OnRemoteDisplaySessionChanged(
+    std::string_view display_name,
+    const RemoteDisplaySessionManager::RemoteDisplayInfo& info) {
+  DCHECK(caller_task_runner()->BelongsToCurrentThread());
+
+  LOG(INFO) << "Remote display session changed.";
+  LOG(INFO) << "  display_name: " << display_name;
+  LOG(INFO) << "  session_object_path: "
+            << info.session_info->object_path.value();
+  for (const auto& [key, value] : info.environment_variables) {
+    LOG(INFO) << "  " << key << "=" << value;
+  }
+}
+
+void DaemonProcessLinux::OnRemoteDisplayTerminated(
+    std::string_view display_name) {
+  LOG(INFO) << "Remote display terminated: " << display_name;
+}
+
 std::unique_ptr<DaemonProcess> DaemonProcess::Create(
     scoped_refptr<AutoThreadTaskRunner> caller_task_runner,
     scoped_refptr<AutoThreadTaskRunner> io_task_runner,
     base::OnceClosure stopped_callback) {
   auto daemon_process = std::make_unique<DaemonProcessLinux>(
       caller_task_runner, io_task_runner, std::move(stopped_callback));
+
+  daemon_process->StartRemoteDisplaySessionManager();
 
   // Finishes configuring the Daemon process and launches the network process.
   daemon_process->Initialize();

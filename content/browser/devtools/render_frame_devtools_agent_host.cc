@@ -70,7 +70,9 @@
 #include "content/public/browser/network_service_instance.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_widget_host_iterator.h"
+#include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_delegate.h"
+#include "content/public/common/child_process_id_util.h"
 #include "content/public/common/content_features.h"
 #include "services/network/public/mojom/network_service.mojom.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
@@ -83,6 +85,10 @@
 #include "services/device/public/mojom/wake_lock_context.mojom.h"
 #else
 #include "content/browser/devtools/protocol/webauthn_handler.h"
+#endif
+
+#ifdef ENABLE_SMART_CARD
+#include "content/browser/devtools/protocol/smart_card_emulation_handler.h"
 #endif
 
 #if BUILDFLAG(USE_VIZ_DEBUGGER)
@@ -277,7 +283,7 @@ void RenderFrameDevToolsAgentHost::UpdateRawHeadersAccess(
       process_origins.insert(frame_host->GetLastCommittedOrigin());
   }
   GetNetworkService()->SetRawHeadersAccess(
-      rph->GetDeprecatedID(),
+      ToRendererProcess(rph->GetID()),
       std::vector<url::Origin>(process_origins.begin(), process_origins.end()));
 }
 
@@ -337,6 +343,8 @@ bool RenderFrameDevToolsAgentHost::AttachSession(DevToolsSession* session) {
     return false;
   }
 
+  const bool is_main_frame = !frame_tree_node_ || !frame_tree_node_->parent();
+
   if (frame_tree_node_ && !frame_tree_node_->parent() &&
       frame_tree_node_->is_on_initial_empty_document()) {
     // Since the DevTools protocol can be used to modify the initial empty
@@ -366,11 +374,18 @@ bool RenderFrameDevToolsAgentHost::AttachSession(DevToolsSession* session) {
   session->CreateAndAddHandler<protocol::InspectorHandler>();
   session->CreateAndAddHandler<protocol::IOHandler>(GetIOContext());
   session->CreateAndAddHandler<protocol::MemoryHandler>();
+#ifdef ENABLE_SMART_CARD
+  if (is_main_frame) {
+    session->CreateAndAddHandler<protocol::SmartCardEmulationHandler>(
+        content::WebContents::FromRenderFrameHost(frame_host_));
+  }
+#endif
 #if BUILDFLAG(USE_VIZ_DEBUGGER)
   session->CreateAndAddHandler<protocol::VisualDebuggerHandler>();
 #endif
-  if (!frame_tree_node_ || !frame_tree_node_->parent())
+  if (is_main_frame) {
     session->CreateAndAddHandler<protocol::OverlayHandler>();
+  }
   session->CreateAndAddHandler<protocol::NetworkHandler>(
       GetId(),
       frame_host_ ? frame_host_->devtools_frame_token()
@@ -409,7 +424,7 @@ bool RenderFrameDevToolsAgentHost::AttachSession(DevToolsSession* session) {
       session->GetClient()->MayReadLocalFiles(),
       session->MakePrepareForReloadCallback());
   session->CreateAndAddHandler<protocol::SecurityHandler>();
-  if (!frame_tree_node_ || !frame_tree_node_->parent()) {
+  if (is_main_frame) {
     DevToolsSession* root_session = session->GetRootSession();
     CHECK(root_session);
     session->CreateAndAddHandler<protocol::TracingHandler>(this, GetIOContext(),

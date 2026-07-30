@@ -580,6 +580,7 @@
 <translation id="3143515551205905069">সিঙ্ক বাতিল করুন</translation>
 <translation id="3144126448740580210">সম্পন্ন হয়েছে</translation>
 <translation id="3148052723910099040">রেগুলার ট্যাব গ্রিড</translation>
+<translation id="3148237711805373460">আমি সেখানে যেতে চাই</translation>
 <translation id="3157387275655328056">পড়ার তালিকায় যোগ করুন</translation>
 <translation id="315778507796115851">ইতিহাস</translation>
 <translation id="31652791196570636">বাতিল করুন</translation>
@@ -1524,6 +1525,7 @@
 <translation id="6556866813142980365">আবার করুন</translation>
 <translation id="6559301491397835130">{count,plural, =1{বুকমার্ক "{title}"-এ সেভ করা হয়েছে। এটি শুধুমাত্র এই ডিভাইসে সেভ করা হয়।}one{বুকমার্ক "{title}"-এ সেভ করা হয়েছে। এগুলি শুধুমাত্র এই ডিভাইসে সেভ করা হয়।}other{বুকমার্ক "{title}"-এ সেভ করা হয়েছে। এগুলি শুধুমাত্র এই ডিভাইসে সেভ করা হয়।}}</translation>
 <translation id="656065428026159829">আরও দেখুন</translation>
+<translation id="6565899972286925956">যেকোনও কিছু তৈরি করুন</translation>
 <translation id="6571070086367343653">ক্রেডিট কার্ড সম্পাদনা করুন</translation>
 <translation id="6574092468346088891">নিরাপত্তা সংক্রান্ত পরীক্ষার বিজ্ঞপ্তি চালু করুন</translation>
 <translation id="6579867704846662339">'ছদ্মবেশী' ট্যাবে অন্যান্য অ্যাপ থেকে ইনকামিং URL খোলার বিকল্প বেছে নিতে পারবেন।</translation>
@@ -1634,6 +1636,7 @@
 <translation id="6930799952781667037">এই ভাষায় পরিবর্তন করতে ট্যাপ করুন।</translation>
 <translation id="693761253105515415">একটি পাসকোড সেট করুন</translation>
 <translation id="6945221475159498467">নির্বাচন</translation>
+<translation id="6946722113367118030">চিন্তা করা</translation>
 <translation id="6950522403736391608">লুকানো আছে</translation>
 <translation id="6962809930976936328">Gemini-এর সাহায্যে ইনসাইট পান</translation>
 <translation id="6964300328304469089">বর্তমানে, <ph name="NAME" />, <ph name="EMAIL" /> আইডি বেছে নেওয়া হয়েছে। একটি অ্যাকাউন্ট বেছে নিন।</translation>
@@ -1976,6 +1979,7 @@
 <translation id="8205564605687841303">বাতিল করুন</translation>
 <translation id="8206354486702514201">এই সেটিংটি আপনার প্রশাসক দ্বারা কার্যকরী করা হয়েছে৷</translation>
 <translation id="8209050860603202033">ছবি খুলুন</translation>
+<translation id="8209237163365258530">Gemini <ph name="VERSION_NUMBER" /> মডেল</translation>
 <translation id="8211030355252954494">আপনি <ph name="WEBSITE" />-এর জন্য পাসওয়ার্ড পেয়েছেন</translation>
 <translation id="8211406090763984747">কানেকশনটি নিরাপদ</translation>
 <translation id="8214293972734702249">পিন করা হয়েছে, <ph name="TAB_TITLE" /></translation>

@@ -309,7 +309,7 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
                                 underName:kPageActionMenuEntrypointGuide];
   }
 
-  if (IsLensOverlayAvailable(_profilePrefs)) {
+  if (IsLensOverlayAllowedByPolicy(_profilePrefs)) {
     _lensOverlayPlaceholderView = [[LensOverlayEntrypointButton alloc]
         initWithProfilePrefs:_profilePrefs];
     [self.layoutGuideCenter referenceView:_lensOverlayPlaceholderView
@@ -473,7 +473,8 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
 }
 
 - (void)attemptShowingLensOverlayIPH {
-  if (IsLensOverlayAvailable(_profilePrefs) && !IsPageActionMenuEnabled() &&
+  if (IsLensOverlayAllowedByPolicy(_profilePrefs) &&
+      !IsPageActionMenuEnabled() &&
       !self.locationBarSteadyView.badgesContainerView.placeholderView.hidden) {
     [self.helpCommandsHandler
         presentInProductHelpWithType:InProductHelpType::kLensOverlayEntrypoint];
@@ -756,6 +757,13 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
 }
 
 - (void)setTrailingButtonState:(TrailingButtonState)state {
+  // This is dirty, but this is experiment-only and will be removed in one
+  // milestone.
+  if (base::FeatureList::IsEnabled(kDisableShareButton) &&
+      state == kShareButton) {
+    state = kNoButton;
+  }
+
   if (_trailingButtonState == state) {
     return;
   }
@@ -808,6 +816,27 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
 - (UIMenu*)contextMenuUIMenu:(NSArray<UIMenuElement*>*)suggestedActions {
   NSMutableArray<UIMenuElement*>* menuElements = [[NSMutableArray alloc] init];
   __weak __typeof__(self) weakSelf = self;
+
+  if (base::FeatureList::IsEnabled(kShareInOmniboxLongPress)) {
+    UIImage* image =
+        DefaultSymbolWithPointSize(kShareSymbol, kSymbolImagePointSize);
+
+    UIAction* shareThisPageAction =
+        [UIAction actionWithTitle:l10n_util::GetNSString(
+                                      IDS_IOS_TOOLS_MENU_SHARE_THIS_PAGE)
+                            image:image
+                       identifier:nil
+                          handler:^(UIAction* action) {
+                            [weakSelf.dispatcher showShareSheet];
+                          }];
+
+    UIMenu* divider = [UIMenu menuWithTitle:@""
+                                      image:nil
+                                 identifier:nil
+                                    options:UIMenuOptionsDisplayInline
+                                   children:@[ shareThisPageAction ]];
+    [menuElements addObject:divider];
+  }
 
   UIImage* pasteImage = nil;
   if (IsBottomOmniboxAvailable()) {
@@ -978,21 +1007,9 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
     return;
   }
 
-  [self.geminiHandler hideFloatyIfInvokedAnimated:YES];
-}
-
-- (void)contextMenuInteraction:(UIContextMenuInteraction*)interaction
-       willEndForConfiguration:(UIContextMenuConfiguration*)configuration
-                      animator:(id<UIContextMenuInteractionAnimating>)animator {
-  if (!IsGeminiCopresenceEnabled()) {
-    return;
-  }
-
-  // Ensure floaty is shown after the context menu has fully dismissed.
-  __weak __typeof(self) weakSelf = self;
-  [animator addCompletion:^() {
-    [weakSelf.geminiHandler showFloatyIfInvokedAnimated:YES];
-  }];
+  [self.geminiHandler
+      hideFloatyIfInvokedAnimated:YES
+                       fromSource:gemini::FloatyUpdateSource::ContextMenu];
 }
 
 - (BOOL)canPerformAction:(SEL)action withSender:(id)sender {

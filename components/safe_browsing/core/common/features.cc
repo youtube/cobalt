@@ -154,9 +154,6 @@ BASE_FEATURE(kClientSideDetectionShowScamVerdictWarningAndroid,
 BASE_FEATURE(kClientSideDetectionSkipErrorPage,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kClientSideDetectionVibrationApi,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kConditionalImageResize, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kCreateNotificationsAcceptedClientSafeBrowsingReports,
@@ -211,7 +208,6 @@ BASE_FEATURE(kEnterpriseRealTimeUrlCheckNewUrl,
 BASE_FEATURE(kEsbAsASyncedSetting, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kExtendedReportingRemovePrefDependency,
-             "ExtendedReportingRemovePrefDependency",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kExtensionTelemetryConfiguration,
@@ -233,7 +229,13 @@ BASE_FEATURE(kExternalAppRedirectTelemetry,
              "SafeBrowsingExternalAppRedirectTelemetry",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kGeminiAntiscamProtectionForMetricsCollection, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kGeminiAntiscamProtectionForMetricsCollection,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+constexpr base::FeatureParam<double>
+    kGeminiAntiscamProtectionMinScamScoreLogPageContent{
+        &kGeminiAntiscamProtectionForMetricsCollection,
+        "GeminiAntiscamProtectionMinScamScoreLogPageContent",
+        /*default_value=*/0.5};
 
 BASE_FEATURE(kGlobalCacheListForGatingNotificationProtections,
              base::FEATURE_ENABLED_BY_DEFAULT);

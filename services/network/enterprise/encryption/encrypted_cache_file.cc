@@ -8,11 +8,25 @@
 #include <utility>
 
 #include "base/check_op.h"
+#include "base/metrics/histogram_functions.h"
 #include "crypto/process_bound_string.h"
 
 namespace network::enterprise_encryption {
 
 namespace {
+
+void RecordOpenResult(EncryptionError error) {
+  base::UmaHistogramEnumeration("Enterprise.EncryptedCache.Open.Result", error);
+}
+
+void RecordReadResult(EncryptionError error) {
+  base::UmaHistogramEnumeration("Enterprise.EncryptedCache.Read.Result", error);
+}
+
+void RecordWriteResult(EncryptionError error) {
+  base::UmaHistogramEnumeration("Enterprise.EncryptedCache.Write.Result",
+                                error);
+}
 
 int64_t GetPhysicalOffset(uint32_t chunk_index) {
   return kHeaderSize + static_cast<int64_t>(chunk_index) * kEncryptedChunkSize;
@@ -66,7 +80,7 @@ std::optional<size_t> EncryptedCacheFile::Read(int64_t offset,
        ++chunk_index) {
     auto result = ReadAndDecryptChunk(chunk_index);
     if (!result.has_value()) {
-      // TODO(crbug.com/474585860): Log errors in UMA.
+      RecordReadResult(EncryptionError::kDecryptionFailed);
       return std::nullopt;
     }
     const std::vector<uint8_t>& plaintext = result.value();
@@ -93,6 +107,7 @@ std::optional<size_t> EncryptedCacheFile::Read(int64_t offset,
       break;
     }
   }
+  RecordReadResult(EncryptionError::kSuccess);
   return bytes_read;
 }
 
@@ -176,6 +191,7 @@ std::optional<size_t> EncryptedCacheFile::Write(
     bytes_written += chunk_write_size;
   }
 
+  RecordWriteResult(EncryptionError::kSuccess);
   return bytes_written;
 }
 
@@ -244,7 +260,6 @@ bool EncryptedCacheFile::SetLength(int64_t length) {
     // new length.
     auto result = ReadAndDecryptChunk(new_last_chunk_index);
     if (!result.has_value()) {
-      // TODO(crbug.com/474585860): Log errors in UMA.
       return false;
     }
     std::vector<uint8_t> plaintext = std::move(result.value());
@@ -283,7 +298,6 @@ bool EncryptedCacheFile::SetLength(int64_t length) {
 
     auto val = Write(current_len, base::span(zeros));
     if (!val.has_value()) {
-      // TODO(crbug.com/474585860): Log errors in UMA.
       return false;
     }
 
@@ -317,9 +331,9 @@ bool EncryptedCacheFile::EnsureInitialized() {
 
   if (file_length == 0) {
     // New file: Create and write header.
-    auto result = CreateHeader(base::as_byte_span(key_->secure_value()));
+    auto result = CreateHeader(base::as_byte_span(key_.secure_value()));
     if (!result.has_value()) {
-      // TODO(crbug.com/474585860): Log errors in UMA.
+      RecordOpenResult(EncryptionError::kInvalidKey);
       return false;
     }
     auto& [header, context] = result.value();
@@ -330,6 +344,7 @@ bool EncryptedCacheFile::EnsureInitialized() {
   } else {
     // Existing file: Read and parse header.
     if (file_length < static_cast<int64_t>(kHeaderSize)) {
+      RecordOpenResult(EncryptionError::kInvalidHeader);
       return false;
     }
 
@@ -339,15 +354,16 @@ bool EncryptedCacheFile::EnsureInitialized() {
     }
 
     auto context_or_error =
-        ParseHeader(header_bytes, base::as_byte_span(key_->secure_value()));
+        ParseHeader(header_bytes, base::as_byte_span(key_.secure_value()));
     if (!context_or_error.has_value()) {
-      // TODO(crbug.com/474585860): Log errors in UMA.
+      RecordOpenResult(context_or_error.error());
       return false;
     }
     encryptor_ =
         std::make_unique<ChunkedEncryptor>(std::move(context_or_error.value()));
   }
 
+  RecordOpenResult(EncryptionError::kSuccess);
   initialized_ = true;
   return true;
 }
@@ -448,7 +464,7 @@ bool EncryptedCacheFile::EnsurePreviousChunkNotLast(
       new_last_chunk_index > old_last_chunk_index) {
     auto result = ReadAndDecryptChunk(old_last_chunk_index);
     if (!result.has_value()) {
-      // TODO(crbug.com/474585860): Log errors in UMA.
+      RecordReadResult(EncryptionError::kDecryptionFailed);
       return false;
     }
     std::vector<uint8_t> data = std::move(result.value());

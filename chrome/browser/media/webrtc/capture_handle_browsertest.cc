@@ -498,9 +498,17 @@ IN_PROC_BROWSER_TEST_F(
   EXPECT_EQ(capturing_tab.ReadCaptureHandle(), "null");
 }
 
+// TODO(https://crbug.com/448444706): Flaky on linux msan.
+#if BUILDFLAG(IS_LINUX) && defined(MEMORY_SANITIZER)
+#define MAYBE_CallingSetCaptureHandleConfigWithNewHandleChangesConfigAndFiresEvent \
+  DISABLED_CallingSetCaptureHandleConfigWithNewHandleChangesConfigAndFiresEvent
+#else
+#define MAYBE_CallingSetCaptureHandleConfigWithNewHandleChangesConfigAndFiresEvent \
+  CallingSetCaptureHandleConfigWithNewHandleChangesConfigAndFiresEvent
+#endif
 IN_PROC_BROWSER_TEST_F(
     CaptureHandleBrowserTest,
-    CallingSetCaptureHandleConfigWithNewHandleChangesConfigAndFiresEvent) {
+    MAYBE_CallingSetCaptureHandleConfigWithNewHandleChangesConfigAndFiresEvent) {
   TabInfo captured_tab =
       SetUpCapturedPage(/*expose_origin=*/true, "handle", {"*"});
 
@@ -535,9 +543,17 @@ IN_PROC_BROWSER_TEST_F(
   EXPECT_EQ(capturing_tab.ReadCaptureHandle(), captured_tab.capture_handle);
 }
 
+// TODO(crbug.com/462962569): Flaky on linux msan.
+#if BUILDFLAG(IS_LINUX) && defined(MEMORY_SANITIZER)
+#define MAYBE_PermittedOriginsChangeThatRemovesCapturerCausesEventAndEmptyConfig \
+  DISABLED_PermittedOriginsChangeThatRemovesCapturerCausesEventAndEmptyConfig
+#else
+#define MAYBE_PermittedOriginsChangeThatRemovesCapturerCausesEventAndEmptyConfig \
+  PermittedOriginsChangeThatRemovesCapturerCausesEventAndEmptyConfig
+#endif
 IN_PROC_BROWSER_TEST_F(
     CaptureHandleBrowserTest,
-    PermittedOriginsChangeThatRemovesCapturerCausesEventAndEmptyConfig) {
+    MAYBE_PermittedOriginsChangeThatRemovesCapturerCausesEventAndEmptyConfig) {
   TabInfo captured_tab =
       SetUpCapturedPage(/*expose_origin=*/true, "handle", {"*"});
 
@@ -554,9 +570,17 @@ IN_PROC_BROWSER_TEST_F(
   EXPECT_EQ(capturing_tab.ReadCaptureHandle(), "null");
 }
 
+// TODO(https://crbug.com/448444706): Flaky on linux msan.
+#if BUILDFLAG(IS_LINUX) && defined(MEMORY_SANITIZER)
+#define MAYBE_PermittedOriginsChangeThatAddsCapturerCausesEventAndConfigExposure \
+  DISABLED_PermittedOriginsChangeThatAddsCapturerCausesEventAndConfigExposure
+#else
+#define MAYBE_PermittedOriginsChangeThatAddsCapturerCausesEventAndConfigExposure \
+  PermittedOriginsChangeThatAddsCapturerCausesEventAndConfigExposure
+#endif
 IN_PROC_BROWSER_TEST_F(
     CaptureHandleBrowserTest,
-    PermittedOriginsChangeThatAddsCapturerCausesEventAndConfigExposure) {
+    MAYBE_PermittedOriginsChangeThatAddsCapturerCausesEventAndConfigExposure) {
   TabInfo captured_tab =
       SetUpCapturedPage(/*expose_origin=*/true, "handle", {kArbitraryOrigin});
 
@@ -630,8 +654,16 @@ IN_PROC_BROWSER_TEST_F(CaptureHandleBrowserTest,
   EXPECT_EQ(capturing_tab.ReadCaptureHandle(), "null");
 }
 
+// TODO(https://crbug.com/448444706): Flaky on linux msan.
+#if BUILDFLAG(IS_LINUX) && defined(MEMORY_SANITIZER)
+#define MAYBE_CrossOriginNavigationClearsTheCaptureHandle \
+  DISABLED_CrossOriginNavigationClearsTheCaptureHandle
+#else
+#define MAYBE_CrossOriginNavigationClearsTheCaptureHandle \
+  CrossOriginNavigationClearsTheCaptureHandle
+#endif
 IN_PROC_BROWSER_TEST_F(CaptureHandleBrowserTest,
-                       CrossOriginNavigationClearsTheCaptureHandle) {
+                       MAYBE_CrossOriginNavigationClearsTheCaptureHandle) {
   TabInfo captured_tab =
       SetUpCapturedPage(/*expose_origin=*/true, "handle", {"*"});
 
@@ -808,8 +840,16 @@ class CaptureHandleBrowserTestPrerender : public CaptureHandleBrowserTest {
 };
 
 // Verifies that pre-rendered pages don't change the capture handle config.
+// TODO(https://crbug.com/448444706): Flaky on linux msan.
+#if BUILDFLAG(IS_LINUX) && defined(MEMORY_SANITIZER)
+#define MAYBE_EmptyConfigForCrossDocumentNavigations \
+  DISABLED_EmptyConfigForCrossDocumentNavigations
+#else
+#define MAYBE_EmptyConfigForCrossDocumentNavigations \
+  EmptyConfigForCrossDocumentNavigations
+#endif
 IN_PROC_BROWSER_TEST_F(CaptureHandleBrowserTestPrerender,
-                       EmptyConfigForCrossDocumentNavigations) {
+                       MAYBE_EmptyConfigForCrossDocumentNavigations) {
   TabInfo captured_tab =
       SetUpCapturedPage(/*expose_origin=*/true, "handle", {"*"});
   captured_web_contents_ = captured_tab.web_contents;

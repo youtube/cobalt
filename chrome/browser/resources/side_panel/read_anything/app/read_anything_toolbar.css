@@ -34,17 +34,10 @@
   --audio-controls-right-padding: 0px;
 }
 
-.audio-background-speech-active {
+.audio-background-active {
   --audio-controls-background: var(--audio-player-background-color);
   --audio-controls-right-margin: 6px;
   --audio-controls-right-padding: 4px;
-}
-
-.audio-background-immersive-enabled {
-  --audio-controls-background: var(--audio-player-background-color);
-  --audio-controls-right-margin: 6px;
-  --audio-controls-right-padding: 4px;
-  border: 1px solid var(--audio-player-icon-color);
 }
 
 #audio-controls {
@@ -125,6 +118,11 @@
   overflow: visible;
   padding: 6px 8px;
   flex-wrap: var(--toolbar-flex-wrap);
+  font-family: var(--immersive-menu-font);
+  font-size: var(--immersive-menu-font-size);
+  font-style: normal;
+  font-weight: var(--immersive-menu-font-weight);
+  line-height: var(--immersive-menu-font-line-height);
 }
 
 .announce-block {

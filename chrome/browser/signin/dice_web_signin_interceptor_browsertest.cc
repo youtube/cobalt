@@ -75,6 +75,7 @@
 #include "components/signin/public/identity_manager/accounts_mutator.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
+#include "components/signin/public/identity_manager/identity_test_utils.h"
 #include "components/signin/public/identity_manager/primary_account_mutator.h"
 #include "components/signin/public/identity_manager/test_identity_manager_observer.h"
 #include "components/sync/base/features.h"
@@ -452,13 +453,9 @@ IN_PROC_BROWSER_TEST_F(DiceWebSigninInterceptorBrowserTest, SwitchAlreadyOpen) {
   // Add the account to the other profile.
   signin::IdentityManager* other_identity_manager =
       IdentityManagerFactory::GetForProfile(other_profile);
-  other_identity_manager->GetAccountsMutator()->AddOrUpdateAccount(
-      account_info.gaia, account_info.email, "dummy_refresh_token",
-      /*is_under_advanced_protection=*/false,
-      signin_metrics::AccessPoint::kUnknown,
-      signin_metrics::SourceForRefreshTokenOperation::kUnknown);
-  other_identity_manager->GetPrimaryAccountMutator()->SetPrimaryAccount(
-      account_info.account_id, signin::ConsentLevel::kSync);
+  signin::MakePrimaryAccountAvailable(other_identity_manager,
+                                      account_info.email,
+                                      signin::ConsentLevel::kSignin);
 
   // Add a tab.
   GURL intercepted_url = embedded_test_server()->GetURL("/defaultresponse");
@@ -718,7 +715,7 @@ IN_PROC_BROWSER_TEST_F(DiceWebSigninInterceptorWithHatsSurveyBrowserTest,
 }
 
 // Test to sign in to Chrome from the Chrome Signin Bubble Intercept.
-class DiceWebSigninInterceptorWithExplicitSigninEnabledBrowserTest
+class DiceWebSigninInterceptorSigninBubbleBrowserTest
     : public DiceWebSigninInterceptorWithChromeSigninHelpersBrowserTest {
  public:
   // This function is specific to ChromeSigninDecline reprompt logic, as it does
@@ -756,9 +753,8 @@ class DiceWebSigninInterceptorWithExplicitSigninEnabledBrowserTest
   }
 };
 
-IN_PROC_BROWSER_TEST_F(
-    DiceWebSigninInterceptorWithExplicitSigninEnabledBrowserTest,
-    ChromeSigninInterceptAccepted) {
+IN_PROC_BROWSER_TEST_F(DiceWebSigninInterceptorSigninBubbleBrowserTest,
+                       ChromeSigninInterceptAccepted) {
   base::HistogramTester histogram_tester;
   base::UserActionTester user_action_tester;
 
@@ -807,9 +803,8 @@ IN_PROC_BROWSER_TEST_F(
   ExpectAttemptToShowChromeSigninBubbleNotToShow(account_info);
 }
 
-IN_PROC_BROWSER_TEST_F(
-    DiceWebSigninInterceptorWithExplicitSigninEnabledBrowserTest,
-    ChromeSigninInterceptDeclined) {
+IN_PROC_BROWSER_TEST_F(DiceWebSigninInterceptorSigninBubbleBrowserTest,
+                       ChromeSigninInterceptDeclined) {
   base::HistogramTester histogram_tester;
   base::UserActionTester user_action_tester;
 
@@ -866,9 +861,8 @@ IN_PROC_BROWSER_TEST_F(
 // In this test, we simulate moving time forward by setting the needed pref in
 // the past. This allows to have the right conditions for reprompts. Testing the
 // minimum time reprompt logic here.
-IN_PROC_BROWSER_TEST_F(
-    DiceWebSigninInterceptorWithExplicitSigninEnabledBrowserTest,
-    ChromeSigninInterceptDeclinesAndReprompts) {
+IN_PROC_BROWSER_TEST_F(DiceWebSigninInterceptorSigninBubbleBrowserTest,
+                       ChromeSigninInterceptDeclinesAndReprompts) {
   base::HistogramTester histogram_tester;
   // Setup account for interception.
   AccountInfo info =
@@ -992,9 +986,8 @@ IN_PROC_BROWSER_TEST_F(
 
 // This test makes sure that the reprompts are count based and not depending one
 // total time duration.
-IN_PROC_BROWSER_TEST_F(
-    DiceWebSigninInterceptorWithExplicitSigninEnabledBrowserTest,
-    ChromeSigninInterceptRepromptsHasNoTimeLimit) {
+IN_PROC_BROWSER_TEST_F(DiceWebSigninInterceptorSigninBubbleBrowserTest,
+                       ChromeSigninInterceptRepromptsHasNoTimeLimit) {
   // Setup account for interception.
   AccountInfo info =
       MakeAccountInfoAvailableAndUpdate("alice@example.com",
@@ -1037,7 +1030,7 @@ IN_PROC_BROWSER_TEST_F(
 }
 
 IN_PROC_BROWSER_TEST_F(
-    DiceWebSigninInterceptorWithExplicitSigninEnabledBrowserTest,
+    DiceWebSigninInterceptorSigninBubbleBrowserTest,
     ChromeSigninInterceptDeclinesRepromptAttemptWithExplicitDoNotSignin) {
   // Setup account for interception.
   AccountInfo info =
@@ -1075,7 +1068,7 @@ IN_PROC_BROWSER_TEST_F(
 }
 
 IN_PROC_BROWSER_TEST_F(
-    DiceWebSigninInterceptorWithExplicitSigninEnabledBrowserTest,
+    DiceWebSigninInterceptorSigninBubbleBrowserTest,
     ChromeSigninInterceptDeclinesRepromptsThenDismissReprompt) {
   // Setup account for interception.
   AccountInfo info =
@@ -1136,7 +1129,7 @@ IN_PROC_BROWSER_TEST_F(
 }
 
 IN_PROC_BROWSER_TEST_F(
-    DiceWebSigninInterceptorWithExplicitSigninEnabledBrowserTest,
+    DiceWebSigninInterceptorSigninBubbleBrowserTest,
     ChromeSigninInterceptDeclinesRepromptsThenAcceptReprompt) {
   // Setup account for interception.
   AccountInfo info =
@@ -1176,9 +1169,8 @@ IN_PROC_BROWSER_TEST_F(
 }
 
 // Test the memory of the user's account storage preference.
-IN_PROC_BROWSER_TEST_F(
-    DiceWebSigninInterceptorWithExplicitSigninEnabledBrowserTest,
-    DisableAccountStorage) {
+IN_PROC_BROWSER_TEST_F(DiceWebSigninInterceptorSigninBubbleBrowserTest,
+                       DisableAccountStorage) {
   // Setup account and accept intersection.
   const std::string email("alice@example.com");
   AccountInfo account_info =
@@ -1218,9 +1210,8 @@ IN_PROC_BROWSER_TEST_F(
 
 // Test the recording of the user entering or resolving an inconsistent state
 // (sign in pending with account A, sign in to web with account B).)
-IN_PROC_BROWSER_TEST_F(
-    DiceWebSigninInterceptorWithExplicitSigninEnabledBrowserTest,
-    RecordInconsistentStateResolvedAfterSignInPending) {
+IN_PROC_BROWSER_TEST_F(DiceWebSigninInterceptorSigninBubbleBrowserTest,
+                       RecordInconsistentStateResolvedAfterSignInPending) {
   base::HistogramTester histogram_tester;
 
   // Set up a primary account in sign in pending state and a secondary account
@@ -1255,9 +1246,8 @@ IN_PROC_BROWSER_TEST_F(
       "Signin.SigninPending.InconsistentStateInvoked", true, 1);
 }
 
-IN_PROC_BROWSER_TEST_F(
-    DiceWebSigninInterceptorWithExplicitSigninEnabledBrowserTest,
-    MultiUserSigninInterception) {
+IN_PROC_BROWSER_TEST_F(DiceWebSigninInterceptorSigninBubbleBrowserTest,
+                       MultiUserSigninInterception) {
   // Set up for Multi user signin interception.
   AccountInfo primary_account_info =
       identity_test_env()->MakePrimaryAccountAvailable(
@@ -1685,93 +1675,6 @@ INSTANTIATE_TEST_SUITE_P(
                     SigninNotAllowedByPatternTestParams{"test@example.com",
                                                         true}));
 
-// Test Suite where PRE_* tests are with explicit signin disabled, and regular
-// test with explicit signin enabled, simulating users transitioning in to
-// explicit signin active.
-class DiceWebSigninInterceptorWithUnoEnabledAndPREDisabledBrowserTest
-    : public DiceWebSigninInterceptorWithChromeSigninHelpersBrowserTest {
- public:
-  DiceWebSigninInterceptorWithUnoEnabledAndPREDisabledBrowserTest() {
-    // With kForcedDiceMigration enabled, am implicit signed-in user is signed
-    // out leaving the test a no-op.
-    feature_list_.InitAndDisableFeature(switches::kForcedDiceMigration);
-  }
-
- protected:
-  const std::string email_ = "alice@example.com";
-  base::test::ScopedFeatureList feature_list_;
-};
-
-// Signing in to Chrome while explicit signin is disabled, to simulate a signed
-// in user prior to explicit signin activation, then enabling the feature for
-// them.
-IN_PROC_BROWSER_TEST_F(
-    DiceWebSigninInterceptorWithUnoEnabledAndPREDisabledBrowserTest,
-    PRE_ChromeSignedInTransitionToUnoEnabled) {
-  signin::AccountAvailabilityOptionsBuilder builder;
-  AccountInfo account_info = signin::MakeAccountAvailable(
-      identity_manager(),
-      builder
-          .AsPrimary(signin::ConsentLevel::kSignin)
-          // `kUnknown` is not explicit signin.
-          .WithAccessPoint(signin_metrics::AccessPoint::kWebSignin)
-          .Build(email_));
-
-  EXPECT_TRUE(IsChromeSignedIn());
-  EXPECT_FALSE(browser()->profile()->GetPrefs()->GetBoolean(
-      prefs::kExplicitBrowserSignin));
-  // Passwords are defaulted to disabled without an explicit signin.
-  EXPECT_FALSE(password_manager::features_util::IsAccountStorageActive(
-      SyncServiceFactory::GetForProfile(GetProfile())));
-
-  SetSignoutAllowed(false);
-}
-
-// Enabling explicit signin, after being signed in
-// already.
-IN_PROC_BROWSER_TEST_F(
-    DiceWebSigninInterceptorWithUnoEnabledAndPREDisabledBrowserTest,
-    ChromeSignedInTransitionToUnoEnabled) {
-  // We are still signed in from the PRE_ test.
-  ASSERT_TRUE(IsChromeSignedIn());
-
-  // Starting Chrome with a Signed in account prior to explicit signin
-  // activation should not turn this pref on.
-  EXPECT_FALSE(browser()->profile()->GetPrefs()->GetBoolean(
-      prefs::kExplicitBrowserSignin));
-  // Since we did not interact with passwords before, passwords should remain
-  // disabled as long as we did not explicitly sign in.
-  syncer::SyncService* sync_service =
-      SyncServiceFactory::GetForProfile(GetProfile());
-  EXPECT_FALSE(
-      password_manager::features_util::IsAccountStorageActive(sync_service));
-
-  // Sign out, and sign back in.
-  SetSignoutAllowed(true);
-  identity_test_env()->ClearPrimaryAccount();
-  ASSERT_FALSE(IsChromeSignedIn());
-  signin::MakeAccountAvailable(
-      identity_manager(),
-      signin::AccountAvailabilityOptionsBuilder()
-          .AsPrimary(signin::ConsentLevel::kSignin)
-          .WithAccessPoint(
-              signin_metrics::AccessPoint::kChromeSigninInterceptBubble)
-          .Build(email_));
-
-  // Explicit Signing in should be stored.
-  EXPECT_TRUE(browser()->profile()->GetPrefs()->GetBoolean(
-      prefs::kExplicitBrowserSignin));
-  // Signing in with explicit signin enabled, should affect the passwords
-  // default.
-  EXPECT_TRUE(
-      password_manager::features_util::IsAccountStorageActive(sync_service));
-
-  // Sign out should clear the explicit signin pref.
-  identity_test_env()->ClearPrimaryAccount();
-  EXPECT_FALSE(browser()->profile()->GetPrefs()->GetBoolean(
-      prefs::kExplicitBrowserSignin));
-}
-
 // Tests the complete interception flow including profile and browser creation.
 IN_PROC_BROWSER_TEST_F(DiceWebSigninInterceptorBrowserTest,
                        ForcedEnterpriseInterceptionTestNoForcedInterception) {
@@ -1782,7 +1685,7 @@ IN_PROC_BROWSER_TEST_F(DiceWebSigninInterceptorBrowserTest,
   IdentityManagerFactory::GetForProfile(GetProfile())
       ->GetPrimaryAccountMutator()
       ->SetPrimaryAccount(primary_account_info.account_id,
-                          signin::ConsentLevel::kSync);
+                          signin::ConsentLevel::kSignin);
 
   AccountInfo account_info =
       MakeAccountInfoAvailableAndUpdate("alice@example.com", "example.com");
@@ -2390,7 +2293,7 @@ IN_PROC_BROWSER_TEST_F(DiceWebSigninInterceptorBrowserTest,
 // non-syncing profile.
 IN_PROC_BROWSER_TEST_F(
     DiceWebSigninInterceptorBrowserTest,
-    ForcedEnterpriseInterceptionPrimaryACcountReauthSyncDisabledTest) {
+    ForcedEnterpriseInterceptionPrimaryAccountReauthSyncDisabledTest) {
   base::HistogramTester histogram_tester;
   AccountInfo account_info =
       MakeAccountInfoAvailableAndUpdate("alice@example.com", "example.com");
@@ -2608,13 +2511,10 @@ IN_PROC_BROWSER_TEST_F(DiceWebSigninInterceptorBrowserTest,
   // Add the account to the other profile.
   signin::IdentityManager* other_identity_manager =
       IdentityManagerFactory::GetForProfile(other_profile);
-  other_identity_manager->GetAccountsMutator()->AddOrUpdateAccount(
-      account_info.gaia, account_info.email, "dummy_refresh_token",
-      /*is_under_advanced_protection=*/false,
-      signin_metrics::AccessPoint::kUnknown,
-      signin_metrics::SourceForRefreshTokenOperation::kUnknown);
-  other_identity_manager->GetPrimaryAccountMutator()->SetPrimaryAccount(
-      account_info.account_id, signin::ConsentLevel::kSync);
+
+  signin::MakePrimaryAccountAvailable(other_identity_manager,
+                                      account_info.email,
+                                      signin::ConsentLevel::kSignin);
   enterprise_util::SetUserAcceptedAccountManagement(other_profile, true);
 
   // Add a tab.

@@ -33,7 +33,6 @@
 #include "third_party/blink/renderer/platform/graphics/paint/drawing_recorder.h"
 #include "third_party/blink/renderer/platform/graphics/paint/foreign_layer_display_item.h"
 #include "third_party/blink/renderer/platform/graphics/paint/geometry_mapper.h"
-#include "third_party/blink/renderer/platform/graphics/paint/scoped_canvas_subtree_id.h"
 #include "third_party/blink/renderer/platform/graphics/paint/scoped_display_item_fragment.h"
 #include "third_party/blink/renderer/platform/graphics/paint/scoped_effectively_invisible.h"
 #include "third_party/blink/renderer/platform/graphics/paint/scoped_paint_chunk_properties.h"
@@ -392,23 +391,24 @@ PaintResult PaintLayerPainter::Paint(GraphicsContext& context,
   PaintController& controller = context.GetPaintController();
 
   std::optional<ScopedEffectivelyInvisible> effectively_invisible;
-  if (PaintedOutputInvisible(object.StyleRef())) {
-    effectively_invisible.emplace(controller);
-  }
 
-  std::optional<ScopedCanvasSubtreeId> canvas_subtree_id_scope;
+  bool is_invisible_drawn_canvas_child = false;
   if (RuntimeEnabledFeatures::CanvasDrawElementEnabled()) {
-    // Start a canvas subtree id scope with the id of each direct child of a
-    // layoutsubtree canvas.
     auto* element = DynamicTo<Element>(object.GetNode());
-    if (element && element->IsInCanvasSubtree()) [[unlikely]] {
-      auto* canvas = DynamicTo<HTMLCanvasElement>(element->parentElement());
-      if (canvas && canvas->layoutSubtree()) {
-        auto canvas_subtree_id =
-            CompositorElementIdFromDOMNodeId(element->GetDomNodeId());
-        canvas_subtree_id_scope.emplace(controller, canvas_subtree_id);
+    if (element) {
+      if (auto* canvas = DynamicTo<HTMLCanvasElement>(
+              element->ParentOrShadowHostNode())) [[unlikely]] {
+        if (canvas->layoutSubtree() &&
+            !(paint_flags & PaintFlag::kCanvasElementImage)) {
+          is_invisible_drawn_canvas_child = true;
+        }
       }
     }
+  }
+
+  if (is_invisible_drawn_canvas_child ||
+      PaintedOutputInvisible(object.StyleRef())) {
+    effectively_invisible.emplace(controller);
   }
 
   std::optional<ScopedPaintChunkProperties> layer_chunk_properties;
@@ -531,11 +531,17 @@ void PaintLayerPainter::PaintTransitionScopeSnapshotIfNeeded(
     return;
   }
 
-  PhysicalRect box_border_rect =
-      paint_layer_.LocalBoundingBoxIncludingSelfPaintingDescendants();
-  PhysicalRect ink_overflow_rect = object.ApplyFiltersToRect(box_border_rect);
-  PhysicalOffset paint_offset = ink_overflow_rect.offset;
-  layer->SetBounds(ink_overflow_rect.PixelSnappedSize());
+  gfx::Point paint_offset;
+  if (layer->is_live_content_layer()) {
+    PhysicalRect box_border_rect =
+        paint_layer_.LocalBoundingBoxIncludingSelfPaintingDescendants();
+    PhysicalRect ink_overflow_rect = object.ApplyFiltersToRect(box_border_rect);
+    paint_offset = ToRoundedPoint(ink_overflow_rect.offset);
+    layer->SetBounds(ink_overflow_rect.PixelSnappedSize());
+    layer->SetPaintOffset(paint_offset);
+  } else {
+    paint_offset = layer->paint_offset();
+  }
   layer->SetIsDrawable(true);
 
   PropertyTreeStateOrAlias properties =
@@ -543,9 +549,9 @@ void PaintLayerPainter::PaintTransitionScopeSnapshotIfNeeded(
   DCHECK(effect);
   properties.SetEffect(*effect);
 
-  RecordForeignLayer(
-      context, paint_layer_, DisplayItem::kForeignLayerViewTransitionContent,
-      std::move(layer), ToRoundedPoint(paint_offset), &properties);
+  RecordForeignLayer(context, paint_layer_,
+                     DisplayItem::kForeignLayerViewTransitionContent,
+                     std::move(layer), paint_offset, &properties);
 }
 
 PaintResult PaintLayerPainter::PaintTransitionPseudos(

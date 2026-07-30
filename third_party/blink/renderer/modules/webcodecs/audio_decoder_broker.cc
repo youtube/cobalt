@@ -101,6 +101,7 @@ class MediaAudioTaskWrapper {
         // consistent in using weak pointers.
         BindRepeating(&MediaAudioTaskWrapper::OnCreateDecoders,
                       Unretained(this)),
+        media_log_.get(),
         blink::BindRepeating(&MediaAudioTaskWrapper::OnDecodeOutput,
                              weak_factory_.GetWeakPtr()));
 
@@ -173,7 +174,8 @@ class MediaAudioTaskWrapper {
     return audio_decoders;
   }
 
-  void OnDecoderSelected(std::unique_ptr<media::AudioDecoder> decoder) {
+  void OnDecoderSelected(
+      WebCodecsAudioDecoderSelector::DecoderOrError decoder_or_error) {
     DVLOG(2) << __func__;
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
@@ -181,16 +183,16 @@ class MediaAudioTaskWrapper {
     DCHECK(selector_);
     selector_.reset();
 
-    decoder_ = std::move(decoder);
-
     media::DecoderStatus status = media::DecoderStatus::Codes::kOk;
     std::optional<DecoderDetails> decoder_details = std::nullopt;
-    if (decoder_) {
+
+    if (decoder_or_error.has_value()) {
+      decoder_ = std::move(decoder_or_error).value();
       decoder_details = DecoderDetails({decoder_->GetDecoderType(),
                                         decoder_->IsPlatformDecoder(),
                                         decoder_->NeedsBitstreamConversion()});
     } else {
-      status = media::DecoderStatus::Codes::kUnsupportedConfig;
+      status = std::move(decoder_or_error).error();
     }
 
     // Fire |init_cb|.
@@ -231,13 +233,12 @@ class MediaAudioTaskWrapper {
   base::WeakPtr<CrossThreadAudioDecoderClient> weak_client_;
   scoped_refptr<base::SequencedTaskRunner> media_task_runner_;
   scoped_refptr<base::SequencedTaskRunner> main_task_runner_;
+  std::unique_ptr<media::MediaLog> media_log_;
   mojo::Remote<media::mojom::InterfaceFactory> media_interface_factory_;
   std::unique_ptr<WebCodecsAudioDecoderSelector> selector_;
   std::unique_ptr<media::DefaultDecoderFactory> decoder_factory_;
   std::unique_ptr<media::AudioDecoder> decoder_;
   gfx::ColorSpace target_color_space_;
-
-  std::unique_ptr<media::MediaLog> media_log_;
 
   SEQUENCE_CHECKER(sequence_checker_);
 

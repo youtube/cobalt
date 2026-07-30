@@ -157,6 +157,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="164269334534774161">このページの <ph name="CREATION_TIME" /> のオフライン コピーを表示しています</translation>
 <translation id="1644574205037202324">履歴</translation>
 <translation id="1645262572857218659"><ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> でログイン</translation>
+<translation id="1650979352027263879">デザインの設定を削除しました</translation>
 <translation id="1671236975893690980">ダウンロードを待機しています...</translation>
 <translation id="1672586136351118594">次回から表示しない</translation>
 <translation id="1680919990519905526">Google レンズで画像を購入 <ph name="BEGIN_NEW" />New<ph name="END_NEW" /></translation>
@@ -425,6 +426,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="2854916915045135148">シークレット モードに切り替えるには長押しします</translation>
 <translation id="2860954141821109167">このデバイスで通話アプリが有効になっていることを確認してください</translation>
 <translation id="2861923151411510142">Chrome の一部の機能は使用できなくなります</translation>
+<translation id="286473047976978798">デザインの設定を適用しますか？</translation>
 <translation id="2869416538780777323">{OTHER_TAB_COUNT,plural, =1{<ph name="URL" />、他 1 個のタブ}other{<ph name="URL" />、他 <ph name="TAB_COUNT_MANY" /> 個のタブ}}</translation>
 <translation id="2869430948265924908">車内で機密性の高いコンテンツを保護するには、車のプロフィールのロックを作成する必要があります。ロックには PIN、コード、パスワードを使用できます。</translation>
 <translation id="2870560284913253234">ウェブサイト</translation>
@@ -1372,6 +1374,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="6811034713472274749">ページを表示できます</translation>
 <translation id="6813359536773993594">{FILE_COUNT,plural, =1{画像、リストの 1 件の画像}other{画像、リストの # 件の画像}}</translation>
 <translation id="6813446258015311409">Chrome にログイン、の画面が開きました。</translation>
+<translation id="6815692190508268848">デザインの設定を適用しました</translation>
 <translation id="6817747507826986771">このページをすばやく共有します。このショートカットを編集するには、長押ししてください。</translation>
 <translation id="6820686453637990663">CVC</translation>
 <translation id="6820942662346226299">Google パスワード マネージャーの更新メッセージを閉じました</translation>
@@ -1572,6 +1575,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="7523960634226602883">Google レンズを使ってカメラで検索します</translation>
 <translation id="7525248386620136756"><ph name="TAB_GROUPS_AND_TABS_PART" /> を閉じて保存しました</translation>
 <translation id="7545347190366646170">アクセス権があるユーザー</translation>
+<translation id="7553482318994371148">閉じたタブを再度開く</translation>
 <translation id="7554643625247105821">Chrome のバージョンを確認できません</translation>
 <translation id="7557508262441527045">ログアウトしました</translation>
 <translation id="7573665567024262965">デフォルトのアプリを選択</translation>
@@ -1892,6 +1896,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="8856931513242997049">通知権限フローは閉じています</translation>
 <translation id="8863714995118816041"><ph name="SITE_NAME" /> にもう一度権限を許可しました</translation>
 <translation id="8865415417596392024">アカウント内の Chrome のデータ</translation>
+<translation id="8872506776304248286">アプリで開く</translation>
 <translation id="8890668505403261809">シークレット タブを検索</translation>
 <translation id="8894890673032951011"><ph name="TAB_TITLE" />、選択された録画中のシークレット タブ</translation>
 <translation id="8898822736010347272">新たな脅威の発見と、すべてのウェブユーザーの保護に役立てるため、アクセスした一部のページの URL、限定的なシステム情報、一部のページ コンテンツを Google に送信します。</translation>

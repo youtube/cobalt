@@ -15,6 +15,7 @@
 #include "chrome/grit/generated_resources.h"
 #include "components/contextual_search/contextual_search_metrics_recorder.h"
 #include "components/contextual_search/contextual_search_service.h"
+#include "components/contextual_search/contextual_search_session_handle.h"
 #include "components/omnibox/browser/aim_eligibility_service.h"
 #include "components/omnibox/browser/omnibox_field_trial.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -203,13 +204,16 @@ bool IsAimPopupEnabled(Profile* profile) {
   }
 
   auto* aim_service = AimEligibilityServiceFactory::GetForProfile(profile);
-  // TODO(b/469148777): Implement more granular enterprise policy checks.
-  //   As noted in b/469148777#comment2, gating the entire AIM popup by the
-  //   "context sharing" enterprise policy pref is a stopgap measure, until
-  //   we're able to implement more granular checks in M145.
-  return aim_service && aim_service->IsAimEligible() &&
-         contextual_search::ContextualSearchService::IsContextSharingEnabled(
-             profile->GetPrefs());
+  return aim_service && aim_service->IsAimEligible();
+}
+
+bool IsContentSharingEnabled(
+    Profile* profile,
+    contextual_search::ContextualSearchSessionHandle* session_handle) {
+  if (!profile || !session_handle) {
+    return false;
+  }
+  return session_handle->CheckSearchContentSharingSettings(profile->GetPrefs());
 }
 
 bool IsCreateImagesEnabled(Profile* profile) {
@@ -256,10 +260,7 @@ CreateQueryControllerConfigParams() {
   auto config_params = std::make_unique<
       contextual_search::ContextualSearchContextController::ConfigParams>();
   config_params->send_lns_surface = true;
-  config_params->enable_multi_context_input_flow = kMaxNumFiles.Get() > 1;
   config_params->enable_viewport_images = kEnableViewportImages.Get();
-  config_params->use_separate_request_ids_for_multi_context_viewport_images =
-      kUseSeparateRequestIdsForMultiContextViewportImages.Get();
   config_params->attach_page_title_and_url_to_suggest_requests =
       kAttachPageTitleAndUrlToSuggestRequest.Get();
   return config_params;
@@ -335,9 +336,6 @@ const base::FeatureParam<bool> kShowToolsAndModels(
     &internal::kWebUIOmniboxAimPopup,
     "ShowToolsAndModels",
     true);
-const base::FeatureParam<bool> kShowCanvas(&internal::kWebUIOmniboxAimPopup,
-                                           "ShowCanvas",
-                                           false);
 const base::FeatureParam<bool> kShowModelPicker(
     &internal::kWebUIOmniboxAimPopup,
     "ShowModelPicker",
@@ -362,11 +360,6 @@ const base::FeatureParam<bool> kEnableContextDragAndDrop(
     &internal::kWebUIOmniboxAimPopup,
     "EnableContextDragAndDrop",
     true);
-const base::FeatureParam<bool>
-    kUseSeparateRequestIdsForMultiContextViewportImages(
-        &internal::kWebUIOmniboxAimPopup,
-        "UseSeparateRequestIdsForMultiContextViewportImages",
-        false);
 const base::FeatureParam<bool> kAttachPageTitleAndUrlToSuggestRequest(
     &internal::kWebUIOmniboxAimPopup,
     "AttachPageTitleAndUrlToSuggestRequest",

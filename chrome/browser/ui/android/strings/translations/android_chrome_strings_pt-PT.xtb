@@ -157,6 +157,7 @@ Só alguém com a sua frase de acesso pode ler os dados encriptados. A Google n�
 <translation id="164269334534774161">Está a visualizar uma cópia offline desta página de <ph name="CREATION_TIME" /></translation>
 <translation id="1644574205037202324">Histórico</translation>
 <translation id="1645262572857218659">Inicie sessão com <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /></translation>
+<translation id="1650979352027263879">Preferências de aspeto removidas</translation>
 <translation id="1671236975893690980">Transferência pendente…</translation>
 <translation id="1672586136351118594">Não mostrar de novo</translation>
 <translation id="1680919990519905526">Comprar imagem com o Lens <ph name="BEGIN_NEW" />Novo<ph name="END_NEW" /></translation>
@@ -425,6 +426,7 @@ Só alguém com a sua frase de acesso pode ler os dados encriptados. A Google n�
 <translation id="2854916915045135148">Toque sem soltar para mudar para a Navegação anónima</translation>
 <translation id="2860954141821109167">Certifique-se de que uma aplicação de telefone está ativada neste dispositivo.</translation>
 <translation id="2861923151411510142">Algumas funcionalidades do Chrome vão deixar de estar disponíveis</translation>
+<translation id="286473047976978798">Aplicar as suas preferências de aspeto?</translation>
 <translation id="2869416538780777323">{OTHER_TAB_COUNT,plural, =1{<ph name="URL" /> e mais 1 separador}other{<ph name="URL" /> e mais <ph name="TAB_COUNT_MANY" /> separadores}}</translation>
 <translation id="2869430948265924908">Para proteger o seu conteúdo sensível no carro, tem de criar um bloqueio do perfil do carro.  Pode fazê-lo com um PIN, um código ou uma palavra-passe.</translation>
 <translation id="2870560284913253234">Site</translation>
@@ -1372,6 +1374,7 @@ Por exemplo, alguns Sites podem responder a este pedido ao mostrar-lhe anúncios
 <translation id="6811034713472274749">A página está preparada para ser visualizada</translation>
 <translation id="6813359536773993594">{FILE_COUNT,plural, =1{Imagens, 1 imagem na lista}other{Imagens, # imagens na lista}}</translation>
 <translation id="6813446258015311409">Iniciar sessão no Chrome, aberto.</translation>
+<translation id="6815692190508268848">Preferências de aspeto aplicadas</translation>
 <translation id="6817747507826986771">Partilhe esta página rapidamente. Para editar este atalho, toque sem soltar.</translation>
 <translation id="6820686453637990663">Código de segurança</translation>
 <translation id="6820942662346226299">Atualização do Gestor de Palavras-passe da Google fechada</translation>
@@ -1572,6 +1575,7 @@ Para alterar esta definição, <ph name="BEGIN_LINK" />elimine os dados do Chrom
 <translation id="7523960634226602883">Pesquise com a sua câmara através do Google Lens.</translation>
 <translation id="7525248386620136756"><ph name="TAB_GROUPS_AND_TABS_PART" /> fechado(s) e guardado(s)</translation>
 <translation id="7545347190366646170">Pessoas com acesso</translation>
+<translation id="7553482318994371148">Reabrir separadores fechados</translation>
 <translation id="7554643625247105821">Não é possível verificar a versão do Chrome</translation>
 <translation id="7557508262441527045">Sessão terminada</translation>
 <translation id="7573665567024262965">Escolha as suas apps predefinidas</translation>
@@ -1892,6 +1896,7 @@ Para alterar esta definição, <ph name="BEGIN_LINK" />elimine os dados do Chrom
 <translation id="8856931513242997049">Fluxo de autorização de notificações fechado</translation>
 <translation id="8863714995118816041">Autorizações permitidas novamente para <ph name="SITE_NAME" /></translation>
 <translation id="8865415417596392024">Dados do Chrome na sua conta</translation>
+<translation id="8872506776304248286">Abrir na app</translation>
 <translation id="8890668505403261809">Pesquise nos seus separadores de navegação anónima</translation>
 <translation id="8894890673032951011"><ph name="TAB_TITLE" />, separador de navegação anónima a gravar selecionado</translation>
 <translation id="8898822736010347272">Envia URLs de algumas páginas que visita, informações limitadas do sistema e algum conteúdo das páginas para a Google para ajudar a detetar novas ameaças e a proteger todos os utilizadores na Web.</translation>

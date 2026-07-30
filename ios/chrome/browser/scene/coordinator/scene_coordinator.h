@@ -19,10 +19,13 @@ class GURL;
 enum class SafariDataImportEntryPoint;
 @protocol SafariDataImportUIHandler;
 @protocol SceneCommands;
+@class BrowserLayoutViewController;
+@class SceneCoordinator;
 @class SettingsNavigationController;
 @class ShowSigninCommand;
 @class SigninCoordinator;
-@class SceneCoordinator;
+@protocol TabOpening;
+struct UrlLoadParams;
 
 namespace password_manager {
 enum class PasswordCheckReferrer;
@@ -35,6 +38,7 @@ enum class WarningType;
 
 - (instancetype)initWithSceneCommandsEndpoint:
                     (id<SceneCommands>)sceneCommandsEndpoint
+                                    tabOpener:(id<TabOpening>)tabOpener
     NS_DESIGNATED_INITIALIZER;
 
 - (instancetype)init NS_UNAVAILABLE;
@@ -75,11 +79,12 @@ enum class WarningType;
 // Displays the TabGrid at `page`.
 - (void)showTabGridPage:(TabGridPage)page;
 
-// Displays the given view controller.
+// Displays the given browser layout view controller.
 // Runs the given `completion` block after the view controller is visible.
-- (void)showTabViewController:(UIViewController*)viewController
-                    incognito:(BOOL)incognito
-                   completion:(ProceduralBlock)completion;
+- (void)showBrowserLayoutViewController:
+            (BrowserLayoutViewController*)viewController
+                              incognito:(BOOL)incognito
+                             completion:(ProceduralBlock)completion;
 
 // Sets the `mode` as the active one.
 - (void)setActiveMode:(TabGridMode)mode;
@@ -141,6 +146,20 @@ enum class WarningType;
 
 // Stops the History coordinator.
 - (void)stopHistoryCoordinator;
+
+// Shows the Youtube Incognito interstitial with the given `URLLoadParams`.
+- (void)showYoutubeIncognitoWithUrlLoadParams:
+    (const UrlLoadParams&)URLLoadParams;
+
+// Stops the Youtube Incognito coordinator.
+- (void)stopYoutubeIncognitoCoordinator;
+
+// Shows the Incognito interstitial with the given `URLLoadParams`.
+- (void)showIncognitoInterstitialWithUrlLoadParams:
+    (const UrlLoadParams&)URLLoadParams;
+
+// Stops the Incognito interstitial coordinator.
+- (void)stopIncognitoInterstitialCoordinator;
 
 // Shows the settings navigation controller.
 - (void)presentSettingsFromViewController:(UIViewController*)baseViewController;

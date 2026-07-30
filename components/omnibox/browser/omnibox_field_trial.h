@@ -147,8 +147,6 @@ void GetActiveSuggestFieldTrialHashes(std::vector<uint32_t>* field_trial_hash);
 // particular provider, returns the limit. Otherwise returns the default limit.
 size_t GetProviderMaxMatches(AutocompleteProvider::Type provider);
 
-
-
 // ---------------------------------------------------------
 // For the HistoryURL provider new scoring experiment that is part of the
 // bundled omnibox field trial.
@@ -687,9 +685,6 @@ inline constexpr base::FeatureParam<bool> kAndroidDiagInputConnection{
 // <- Diagnostics
 // ---------------------------------------------------------
 // Mobile Parity update -->
-inline constexpr base::FeatureParam<bool> kMobileParityRetrieveBuiltinFavicon{
-    &omnibox::kOmniboxMobileParityUpdateV2, "retrieve_builtin_favicon", true};
-
 inline constexpr base::FeatureParam<bool> kMobileParityEnableFeedForGoogleOnly{
     &omnibox::kOmniboxMobileParityUpdate, "enable_feed_for_google_only", true};
 // <-- Mobile Parity update
@@ -712,9 +707,6 @@ inline constexpr base::FeatureParam<bool>
 
 // <-- Omnibox Improvement for Large Form Factors
 // Fusebox -->
-inline constexpr base::FeatureParam<bool> kOmniboxMultimodalInputMultiContext{
-    &omnibox::kOmniboxMultimodalInput, "multi_context", false};
-
 inline constexpr base::FeatureParam<bool> kOmniboxShowModelPicker{
     &omnibox::kOmniboxMultimodalInput, "show_model_picker", false};
 

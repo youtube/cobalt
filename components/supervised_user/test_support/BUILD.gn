@@ -9,6 +9,7 @@ source_set("test_support") {
   sources = [
     "family_link_settings_state_management.cc",
     "family_link_settings_state_management.h",
+    "features.h",
     "kids_chrome_management_test_utils.cc",
     "kids_chrome_management_test_utils.h",
     "kids_management_api_server_mock.cc",
@@ -29,6 +30,7 @@ source_set("test_support") {
     "//components/content_settings/core/browser",
     "//components/prefs",
     "//components/safe_search_api",
+    "//components/safe_search_api:test_support",
     "//components/signin/public/identity_manager",
     "//components/signin/public/identity_manager:test_support",
     "//components/supervised_user/core/browser",

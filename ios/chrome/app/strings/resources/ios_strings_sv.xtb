@@ -580,6 +580,7 @@
 <translation id="3143515551205905069">Avbryt synkronisering</translation>
 <translation id="3144126448740580210">KLART</translation>
 <translation id="3148052723910099040">Rutnät med vanliga flikar</translation>
+<translation id="3148237711805373460">Öppna</translation>
 <translation id="3157387275655328056">Lägg till i läslistan</translation>
 <translation id="315778507796115851">Historik</translation>
 <translation id="31652791196570636">Ignorera</translation>
@@ -1523,6 +1524,7 @@ Du måste även aktivera Handoff i avsnittet Allmänt i inställningarna och sam
 <translation id="6556866813142980365">Upprepa</translation>
 <translation id="6559301491397835130">{count,plural, =1{Bokmärket har sparats i {title}. Det är bara sparat på den här enheten.}other{Bokmärkena har sparats i {title}. De är bara sparade på den här enheten.}}</translation>
 <translation id="656065428026159829">Visa fler</translation>
+<translation id="6565899972286925956">Skapa vad som helst</translation>
 <translation id="6571070086367343653">Redigera kreditkort</translation>
 <translation id="6574092468346088891">Aktivera aviseringar från säkerhetskontroll</translation>
 <translation id="6579867704846662339">Du kan välja att öppna inkommande webbadresser från andra appar i inkognitoläget.</translation>
@@ -1633,6 +1635,7 @@ Du måste även aktivera Handoff i avsnittet Allmänt i inställningarna och sam
 <translation id="6930799952781667037">Tryck för att byta till det här språket.</translation>
 <translation id="693761253105515415">Ställ in ett lösenord</translation>
 <translation id="6945221475159498467">Välj</translation>
+<translation id="6946722113367118030">Tänker</translation>
 <translation id="6950522403736391608">Dolda</translation>
 <translation id="6962809930976936328">Få insikter med Gemini</translation>
 <translation id="6964300328304469089"><ph name="NAME" />, <ph name="EMAIL" /> är valt just nu. Välj ett konto.</translation>
@@ -1975,6 +1978,7 @@ Du måste även aktivera Handoff i avsnittet Allmänt i inställningarna och sam
 <translation id="8205564605687841303">Avbryt</translation>
 <translation id="8206354486702514201">Administratören har gjort den här inställningen obligatorisk.</translation>
 <translation id="8209050860603202033">Öppna bild</translation>
+<translation id="8209237163365258530">Gemini <ph name="VERSION_NUMBER" />-modeller</translation>
 <translation id="8211030355252954494">Du har fått lösenord för <ph name="WEBSITE" /></translation>
 <translation id="8211406090763984747">Anslutningen är säker</translation>
 <translation id="8214293972734702249">Fäst, <ph name="TAB_TITLE" /></translation>

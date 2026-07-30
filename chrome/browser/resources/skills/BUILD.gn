@@ -21,6 +21,8 @@ build_webui("build") {
   ts_files = [
     "app.html.ts",
     "app.ts",
+    "card.html.ts",
+    "card.ts",
     "discover_skills_page.html.ts",
     "discover_skills_page.ts",
     "icons.html.ts",
@@ -29,12 +31,16 @@ build_webui("build") {
     "skills_dialog_app.html.ts",
     "skills_dialog_app.ts",
     "skills_dialog_browser_proxy.ts",
+    "skills_page_browser_proxy.ts",
     "user_skills_page.html.ts",
     "user_skills_page.ts",
   ]
 
   css_files = [
     "app.css",
+    "card.css",
+    "discover_skills_page.css",
+    "shared_style.css",
     "sidebar.css",
     "skills_dialog.css",
     "user_skills_page.css",

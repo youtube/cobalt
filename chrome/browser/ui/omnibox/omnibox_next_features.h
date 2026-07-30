@@ -9,6 +9,7 @@
 #include "base/metrics/field_trial_params.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/contextual_search/contextual_search_context_controller.h"
+#include "components/contextual_search/contextual_search_session_handle.h"
 #include "components/omnibox/common/omnibox_feature_configs.h"
 #include "third_party/omnibox_proto/ntp_composebox_config.pb.h"
 
@@ -90,8 +91,6 @@ extern const base::FeatureParam<bool> kShowSmartCompose;
 extern const base::FeatureParam<bool> kShowSubmit;
 // Whether to show the tools and models in the composebox.
 extern const base::FeatureParam<bool> kShowToolsAndModels;
-// Whether to show canvas in the composebox.
-extern const base::FeatureParam<bool> kShowCanvas;
 // Whether to show the model picker in the composebox.
 extern const base::FeatureParam<bool> kShowModelPicker;
 // Whether to show section headers in the context menu.
@@ -102,10 +101,6 @@ extern const base::FeatureParam<bool> kShowVoiceSearchInSteadyComposebox;
 extern const base::FeatureParam<bool> kShowVoiceSearchInExpandedComposebox;
 // Whether to auto submit voice queries in the composebox.
 extern const base::FeatureParam<bool> kAutoSubmitVoiceSearchQuery;
-// Whether or not to use separate request ids for viewport images if the
-// multi-context input flow is enabled.
-extern const base::FeatureParam<bool>
-    kUseSeparateRequestIdsForMultiContextViewportImages;
 // Whether to attach the page title and URL to the suggest request.
 extern const base::FeatureParam<bool> kAttachPageTitleAndUrlToSuggestRequest;
 
@@ -120,6 +115,11 @@ bool IsAimPopupFeatureEnabled();
 // eligibility.
 bool IsAimPopupEnabled(Profile* profile);
 bool ShouldShowAimContextMenuOption(Profile* profile);
+
+// Returns true if search content sharing is permitted by enterprise policy.
+bool IsContentSharingEnabled(
+    Profile* profile,
+    contextual_search::ContextualSearchSessionHandle* session_handle);
 
 bool IsCreateImagesEnabled(Profile* profile);
 bool IsDeepSearchEnabled(Profile* profile);

@@ -49,7 +49,6 @@
 #include "components/favicon/content/content_favicon_driver.h"
 #include "components/favicon/core/favicon_driver.h"
 #include "components/favicon/core/favicon_driver_observer.h"
-#include "components/power_bookmarks/core/power_bookmark_features.h"
 #include "components/prefs/pref_service.h"
 #include "components/saved_tab_groups/internal/tab_group_sync_service_impl.h"
 #include "components/saved_tab_groups/public/features.h"
@@ -79,6 +78,7 @@
 #include "ui/events/keycodes/keyboard_codes.h"
 #include "ui/events/test/event_generator.h"
 #include "ui/events/types/event_type.h"
+#include "ui/gfx/animation/animation_test_api.h"
 #include "ui/gfx/skia_util.h"
 #include "ui/views/controls/menu/menu_item_view.h"
 #include "ui/views/interaction/element_tracker_views.h"
@@ -1078,6 +1078,10 @@ IN_PROC_BROWSER_TEST_P(SavedTabGroupInteractiveTest,
 // interpreted as an absolute position.
 IN_PROC_BROWSER_TEST_P(SavedTabGroupInteractiveTest,
                        DISABLED_DragGroupWithinBar) {
+  const gfx::AnimationTestApi::RenderModeResetter disable_rich_animations =
+      gfx::AnimationTestApi::SetRichAnimationRenderMode(
+          gfx::Animation::RichAnimationRenderMode::FORCE_DISABLED);
+
   // Create two tab groups with one tab each.
   const tab_groups::TabGroupId group_id_1 =
       browser()->tab_strip_model()->AddToNewGroup({0});
@@ -1085,9 +1089,6 @@ IN_PROC_BROWSER_TEST_P(SavedTabGroupInteractiveTest,
                                                     AddTabTypes::ADD_NONE);
   const tab_groups::TabGroupId group_id_2 =
       browser()->tab_strip_model()->AddToNewGroup({1});
-  BrowserView::GetBrowserViewForBrowser(browser())
-      ->tab_strip_view()
-      ->StopAnimating();
 
   const char kSavedTabGroupButton1[] = "SavedTabGroupButton1";
   const char kSavedTabGroupButton2[] = "SavedTabGroupButton2";
