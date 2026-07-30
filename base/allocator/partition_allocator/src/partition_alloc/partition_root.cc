@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <cstring>
 
 #include "partition_alloc/bucket_lookup.h"
 #include "partition_alloc/build_config.h"
@@ -62,7 +63,6 @@ void RecordAllocOrFree(uintptr_t addr, size_t size) {
                   kAllocInfoSize] = {addr, size};
 }
 #endif  // PA_BUILDFLAG(RECORD_ALLOC_INFO)
-
 
 }  // namespace partition_alloc::internal
 
@@ -1385,8 +1385,8 @@ bool PartitionRoot::TryReallocInPlaceForNormalBuckets(
     }
 #endif  // PA_BUILDFLAG(ENABLE_BACKUP_REF_PTR_SUPPORT) &&
         // PA_BUILDFLAG(DCHECKS_ARE_ON)
-    // Write a new trailing cookie only when it is possible to keep track
-    // raw size (otherwise we wouldn't know where to look for it later).
+        // Write a new trailing cookie only when it is possible to keep track
+        // raw size (otherwise we wouldn't know where to look for it later).
 #if PA_BUILDFLAG(USE_PARTITION_COOKIE)
     if (settings_.use_cookie) {
       internal::PartitionCookieWriteValue(PA_UNSAFE_TODO(
@@ -2020,6 +2020,29 @@ void PartitionRoot::CheckMetadataIntegrity(const void* ptr) {
 #endif  // PA_BUILDFLAG(USE_PARTITION_COOKIE)
 }
 
+// static
+PA_NOINLINE PartitionRoot* PartitionRoot::GetRootFromAddress(void* object) {
+  uintptr_t address = reinterpret_cast<uintptr_t>(UntagPtr(object));
+  if (!IsManagedByPartitionAlloc(address)) {
+    // No PartitionRoot because the `object` is not managed by PartitionAlloc.
+    return nullptr;
+  }
+
+  auto table = internal::ReservationOffsetTable::Get(address);
+  if (table.IsManagedByNormalBuckets(address)) {
+    return GetRootFromAddressInFirstSuperpage(object);
+  }
+
+  if (table.IsManagedByDirectMap(address)) {
+    uintptr_t reservation_start_address =
+        table.GetDirectMapReservationStart(address);
+    return GetRootFromAddressInFirstSuperpage(
+        internal::TagAddr(reservation_start_address));
+  }
+
+  return nullptr;
+}
+
 template <AllocFlags flags>
 PA_NOINLINE PA_MALLOC_FN void* PartitionRoot::AlignedAlloc(
     size_t alignment,
@@ -2050,9 +2073,12 @@ template <FreeFlags flags>
 PA_NOINLINE void PartitionRoot::FreeInline(void* object) {
   FreeInlineInternal<flags>(object);
 }
+
 template <FreeFlags flags>
-PA_NOINLINE void PartitionRoot::FreeWithSize(void* object, size_t size) {
-  FreeWithSizeInline<flags>(object, size);
+PA_NOINLINE void PartitionRoot::FreeInline(
+    void* object,
+    FreeHintType<FreeHintFlags(flags)> hint) {
+  FreeInlineInternal<flags>(object, hint);
 }
 
 template <FreeFlags flags>
@@ -2074,17 +2100,10 @@ PA_NOINLINE void PartitionRoot::AlignedFree(void* object) {
 }
 
 template <FreeFlags flags>
-PA_NOINLINE void PartitionRoot::FreeWithSizeInUnknownRoot(void* object,
-                                                          size_t size) {
-  FreeWithSizeInlineInUnknownRoot<flags>(object, size);
-}
-
-template <FreeFlags flags>
-PA_NOINLINE void PartitionRoot::FreeWithSizeAndAlignmentInUnknownRoot(
+PA_NOINLINE void PartitionRoot::FreeInUnknownRoot(
     void* object,
-    size_t size,
-    size_t alignment) {
-  FreeWithSizeAndAlignmentInlineInUnknownRoot<flags>(object, size, alignment);
+    FreeHintType<FreeHintFlags(flags)> hint) {
+  FreeInlineInUnknownRoot<flags>(object, hint);
 }
 
 #define DEFINE_PARTITION_ROOT_EXPORT_TEMPLATE 1

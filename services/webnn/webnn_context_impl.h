@@ -27,7 +27,6 @@
 #include "mojo/public/cpp/bindings/pending_associated_receiver.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
-#include "mojo/public/cpp/bindings/unique_receiver_set.h"
 #include "services/webnn/buildflags.h"
 #include "services/webnn/graph_builder_context.h"
 #include "services/webnn/public/cpp/context_properties.h"
@@ -48,16 +47,11 @@
 
 namespace webnn {
 
-#if BUILDFLAG(WEBNN_USE_TFLITE) || BUILDFLAG(WEBNN_USE_LITERT)
-namespace tflite {
-class ContextProviderTflite;
-}
-#endif  // BUILDFLAG(WEBNN_USE_TFLITE) || BUILDFLAG(WEBNN_USE_LITERT)
-
 class WebNNContextProviderImpl;
+class WebNNContextProviderInRenderer;
 class WebNNGraphBuilderImpl;
 class WebNNTensorImpl;
-class ScopedGpuSequence;
+class GpuTaskScheduler;
 
 // A WebNNContextImpl owns a collection of graphs and tensors and may be bound
 // to a device such as a GPU or NPU. It is created and destroyed on its
@@ -88,6 +82,12 @@ class COMPONENT_EXPORT(WEBNN_SERVICE) WebNNContextImpl
 
   static void RecordContextBackendUma(ContextBackendUma backend_uma);
 
+  // Sets a callback invoked from ~WebNNContextImpl for testing. Allows tests
+  // to observe when context destruction completes (e.g., to wait for
+  // MultiplexRouter ref release). Pass nullptr to clear.
+  static void SetDestructionCallbackForTesting(
+      base::RepeatingClosure* callback);
+
   using CreateGraphImplCallback = base::OnceCallback<void(
       base::expected<scoped_refptr<WebNNGraphImpl>, mojom::ErrorPtr>)>;
 
@@ -102,24 +102,23 @@ class COMPONENT_EXPORT(WEBNN_SERVICE) WebNNContextImpl
       mojom::CreateContextOptionsPtr options,
       mojo::ScopedDataPipeConsumerHandle write_tensor_consumer,
       mojo::ScopedDataPipeProducerHandle read_tensor_producer,
-      std::unique_ptr<ScopedGpuSequence> gpu_sequence,
+      std::unique_ptr<GpuTaskScheduler> gpu_task_scheduler,
       scoped_refptr<gpu::MemoryTracker> memory_tracker,
       scoped_refptr<base::SingleThreadTaskRunner> owning_task_runner,
       gpu::SharedImageManager* shared_image_manager,
       scoped_refptr<base::SingleThreadTaskRunner> main_task_runner);
 
-#if BUILDFLAG(WEBNN_USE_TFLITE) || BUILDFLAG(WEBNN_USE_LITERT)
-  // Constructor for running without GPU dependencies (e.g., TFLite in the
-  // renderer process).
+  // Constructor for running without GPU dependencies (e.g., in the renderer
+  // process).
   WebNNContextImpl(
       mojo::PendingReceiver<mojom::WebNNContext> receiver,
-      base::WeakPtr<tflite::ContextProviderTflite> tflite_context_provider,
+      base::WeakPtr<WebNNContextProviderInRenderer>
+          context_provider_in_renderer,
       WebNNContextImpl::ContextBackendUma backend_uma,
       ContextProperties properties,
       mojom::CreateContextOptionsPtr options,
       scoped_refptr<base::SingleThreadTaskRunner> owning_task_runner,
       scoped_refptr<base::SingleThreadTaskRunner> main_task_runner);
-#endif  // BUILDFLAG(WEBNN_USE_TFLITE) || BUILDFLAG(WEBNN_USE_LITERT)
 
   WebNNContextImpl(const WebNNContextImpl&) = delete;
   WebNNContextImpl& operator=(const WebNNContextImpl&) = delete;
@@ -136,12 +135,6 @@ class COMPONENT_EXPORT(WEBNN_SERVICE) WebNNContextImpl
   scoped_refptr<WebNNTensorImpl> GetWebNNTensorImpl(
       const blink::WebNNTensorToken& handle);
 
-  // Report the currently dispatching Message as bad and remove the GraphBuilder
-  // receiver which received it.
-  void ReportBadGraphBuilderMessage(
-      const std::string& message,
-      base::PassKey<WebNNGraphBuilderImpl> pass_key) override;
-
   // This method will be called by `WebNNGraphBuilderImpl::CreateGraph()` after
   // `graph_info` is validated. A backend subclass should implement this method
   // to build and compile a platform specific graph asynchronously.
@@ -157,11 +150,6 @@ class COMPONENT_EXPORT(WEBNN_SERVICE) WebNNContextImpl
       base::flat_map<OperandId, scoped_refptr<WebNNTensorImpl>>
           constant_tensor_operands,
       CreateGraphImplCallback callback) = 0;
-
-  // Called by a graph builder to destroy itself.
-  void RemoveGraphBuilder(
-      mojo::ReceiverId graph_builder_id,
-      base::PassKey<WebNNGraphBuilderImpl> pass_key) override;
 
   // Get context properties with op support limits that are intersection
   // between WebNN generic limits and backend specific limits.
@@ -186,10 +174,10 @@ class COMPONENT_EXPORT(WEBNN_SERVICE) WebNNContextImpl
   // by removing itself from the ownership of `context_provider_`.
   void OnLost(const std::string& reason);
 
-  // Exposes the ScopedGpuSequence which can be used to schedule tasks
+  // Exposes the GpuTaskScheduler which can be used to schedule tasks
   // in sequence with this WebNNContext -- that is, on the same gpu::Scheduler
   // sequence. May be null when running without GPU dependencies.
-  ScopedGpuSequence* gpu_sequence() const;
+  GpuTaskScheduler* gpu_task_scheduler() const;
 
   // Returns true if the data pipe consumer handle for WriteTensor() is valid.
   bool HasValidWriteTensorConsumer() const;
@@ -305,19 +293,23 @@ class COMPONENT_EXPORT(WEBNN_SERVICE) WebNNContextImpl
 
   void CreateWeightsFile(base::OnceCallback<void(base::File)> callback);
 
+  // True when this context is owned by a WebNNContextProviderImpl (GPU
+  // process). This flag is thread-safe to read since it is set at construction
+  // and never modified.
+  const bool has_context_provider_ = false;
+
   // This weak pointer can only be dereferenced on the sequence where
   // `context_provider_->main_thread_task_runner()` runs tasks.
   base::WeakPtr<WebNNContextProviderImpl> context_provider_;
 
-#if BUILDFLAG(WEBNN_USE_TFLITE) || BUILDFLAG(WEBNN_USE_LITERT)
-  // For tflite renderer process. Only dereference on main_task_runner_.
-  base::WeakPtr<tflite::ContextProviderTflite> tflite_context_provider_;
+  // Set when this context is owned by a WebNNContextProviderInRenderer
+  // (renderer process). Only dereference on main_task_runner_.
+  base::WeakPtr<WebNNContextProviderInRenderer> context_provider_in_renderer_;
 
-  // True when this context is owned by a ContextProviderTflite (renderer
-  // process). This flag is thread-safe to read since it is set at construction
-  // and never modified.
-  const bool is_tflite_context_provider_ = false;
-#endif  // BUILDFLAG(WEBNN_USE_TFLITE) || BUILDFLAG(WEBNN_USE_LITERT)
+  // True when this context is owned by a WebNNContextProviderInRenderer
+  // (renderer process). This flag is thread-safe to read since it is set at
+  // construction and never modified.
+  const bool is_context_provider_in_renderer_ = false;
 
   // Context properties reported to the renderer process.
   const ContextProperties properties_;
@@ -350,6 +342,11 @@ class COMPONENT_EXPORT(WEBNN_SERVICE) WebNNContextImpl
 
   void OnDisconnect() override;
 
+  // Reports a bad message from the renderer and disconnects this context.
+  // After this call, the context will be scheduled for removal. Callers
+  // must return immediately after calling this method.
+  void ReportBadMessageAndDisconnect(std::string_view message);
+
   // Callback for BuildGraph. Takes ownership of the graph and
   // extracts the devices for the builder.
   void OnGraphBuilt(
@@ -364,9 +361,6 @@ class COMPONENT_EXPORT(WEBNN_SERVICE) WebNNContextImpl
       RunOrScheduleTaskCallback task,
       const gpu::SyncToken& fence = gpu::SyncToken());
 
-  // Graph builders owned by this context.
-  mojo::UniqueReceiverSet<mojom::WebNNGraphBuilder> graph_builder_impls_;
-
   // GraphImpls owned by the context. Graphs use a WeakPtr to safely access the
   // context during build operations.
   base::flat_set<scoped_refptr<WebNNGraphImpl>,
@@ -378,7 +372,7 @@ class COMPONENT_EXPORT(WEBNN_SERVICE) WebNNContextImpl
   // WebNN context API operations execute tasks in a sequence.
   // Within a WebNN context, tasks are orderered, but remain async with respect
   // to tasks in other WebNN contexts or sequences.
-  std::unique_ptr<ScopedGpuSequence> gpu_sequence_;
+  std::unique_ptr<GpuTaskScheduler> gpu_task_scheduler_;
 
   // Data pipe handles for transferring tensor data across processes.
   mojo::ScopedDataPipeConsumerHandle write_tensor_consumer_;

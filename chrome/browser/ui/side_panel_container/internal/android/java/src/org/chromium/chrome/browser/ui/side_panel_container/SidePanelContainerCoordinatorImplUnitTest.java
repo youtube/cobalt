@@ -8,6 +8,7 @@ import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
+import static org.chromium.chrome.browser.ui.side_panel_container.SidePanelContainerCoordinator.MIN_SIDE_PANEL_WIDTH_DP;
 import static org.chromium.chrome.browser.ui.side_panel_container.SidePanelContainerCoordinator.MIN_WINDOW_WIDTH_DP_FOR_WIDE_SIDE_PANEL;
 import static org.chromium.chrome.browser.ui.side_panel_container.SidePanelContainerCoordinator.NARROW_SIDE_PANEL_WIDTH_DP;
 import static org.chromium.chrome.browser.ui.side_panel_container.SidePanelContainerCoordinator.WIDE_SIDE_PANEL_WIDTH_DP;
@@ -79,10 +80,18 @@ public class SidePanelContainerCoordinatorImplUnitTest {
                         availableWidthDp, windowWidthDp));
 
         // 3. Fill available space.
-        windowWidthDp = MIN_WEB_CONTENTS_WIDTH_DP + (NARROW_SIDE_PANEL_WIDTH_DP - 10);
-        availableWidthDp = NARROW_SIDE_PANEL_WIDTH_DP - 10;
+        availableWidthDp = MIN_SIDE_PANEL_WIDTH_DP + 10;
+        windowWidthDp = MIN_WEB_CONTENTS_WIDTH_DP + availableWidthDp;
         assertEquals(
                 availableWidthDp,
+                SidePanelContainerCoordinatorImpl.determineContainerWidthDp(
+                        availableWidthDp, windowWidthDp));
+
+        // 4. Not enough space to accommodate MIN_SIDE_PANEL_WIDTH_DP.
+        availableWidthDp = MIN_SIDE_PANEL_WIDTH_DP - 10;
+        windowWidthDp = MIN_WEB_CONTENTS_WIDTH_DP + availableWidthDp;
+        assertEquals(
+                0,
                 SidePanelContainerCoordinatorImpl.determineContainerWidthDp(
                         availableWidthDp, windowWidthDp));
     }

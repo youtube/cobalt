@@ -104,8 +104,10 @@ void VerticalTabStripController::ShowContextMenuForNode(
       base::BindRepeating(&VerticalTabStripController::OnTabContextMenuClosed,
                           base::Unretained(this));
 
-  context_menu_controller_->LoadModel(std::move(model),
-                                      std::move(on_menu_closed));
+  ui::SimpleMenuModel* model_ptr = model.get();
+  context_menu_controller_->LoadModel(
+      std::move(model), menu_model_factory_->AsTabMenuModel(model_ptr),
+      std::move(on_menu_closed));
 
   context_menu_controller_->RunMenuAt(point, source_type, source->GetWidget());
 }
@@ -472,7 +474,7 @@ void VerticalTabStripController::TabGroupFocusChanged(
 
 void VerticalTabStripController::TabKeyboardFocusChangedTo(
     const tabs::TabInterface* tab) {
-  std::optional<int> tab_index = std::nullopt;
+  std::optional<int> tab_index;
   if (tab) {
     tab_index = model_->GetIndexOfTab(tab);
   }

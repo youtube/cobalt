@@ -265,6 +265,20 @@ signin::Tribool AccountCapabilities::is_subject_to_parental_controls() const {
   return GetCapabilityByName(kIsSubjectToParentalControlsCapabilityName);
 }
 
+#if BUILDFLAG(IS_IOS)
+signin::Tribool AccountCapabilities::must_fetch_apple_age_range_in_chrome()
+    const {
+  return GetCapabilityByName(kMustFetchAppleAgeRangeInChromeCapabilityName);
+}
+#endif
+
+#if BUILDFLAG(IS_IOS)
+signin::Tribool AccountCapabilities::must_skip_apple_age_range_in_chrome()
+    const {
+  return GetCapabilityByName(kMustSkipAppleAgeRangeInChromeCapabilityName);
+}
+#endif
+
 // keep-sorted end
 
 bool AccountCapabilities::UpdateWith(const AccountCapabilities& other) {

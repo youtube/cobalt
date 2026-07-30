@@ -33,6 +33,7 @@ struct OptimizationGuideModelExecutionResult;
 }  // namespace optimization_guide
 
 namespace page_actions {
+class PageActionController;
 class PageActionObserver;
 }  // namespace page_actions
 
@@ -47,6 +48,7 @@ class SyncService;
 namespace contextual_cueing {
 
 class ContextualCueingService;
+struct CueTabMetrics;
 
 class ContextualCueingController
     : public page_content_annotations::PageContentAnnotationsService::
@@ -84,11 +86,10 @@ class ContextualCueingController
   // Returns the CueTarget for the given CueTargetType, or nullptr if there is
   // none.
   CueTarget* GetTarget(CueTargetType type);
-  // Getter function for CUJ of shown cue
-  const std::string& current_cuj() const { return current_cuj_; }
   void OnCueInteraction(ContextualCueingInteraction interaction_type,
                         CueTargetType cue_type,
-                        CueActionData data);
+                        const std::string& cuj,
+                        CueActionData action);
 
  private:
   // Initiates a model execution request to MES for the current window state.
@@ -107,8 +108,9 @@ class ContextualCueingController
   // Whether the URL is eligible for a cue.
   bool IsUrlEligibleForCue(const GURL& url);
 
-  // Returns true if the cue should be shown to the user.
-  bool IsAllowedToShowCue();
+  // Returns ContextualCueingDecision::kUnspecified if the cue should be shown
+  // to the user, or the specific decision explaining why it is not allowed.
+  ContextualCueingDecision IsAllowedToShowCue();
 
   // Returns true if the user is subject to age restrictions.
   bool IsUserSubjectToAgeRestrictions();
@@ -117,14 +119,25 @@ class ContextualCueingController
   // is no active tab.
   ukm::SourceId GetActiveTabSourceId() const;
 
+  std::pair<std::vector<tabs::TabHandle>, CueTabMetrics> GetTabsToShow(
+      const optimization_guide::proto::ContextualCue& cue);
+
   void ShowCue(CueTargetType cue_type,
                const CueTarget& target,
-               optimization_guide::proto::ContextualCueingResponse response);
+               const optimization_guide::proto::ContextualCue& cue);
+#if !BUILDFLAG(IS_ANDROID)
+  void MaybeShowTabList(
+      page_actions::PageActionController* page_action_controller,
+      const std::vector<tabs::TabHandle>& tabs_to_show);
+#endif
   void OnCueClicked(CueTargetType cue_type,
-                    CueActionData data,
+                    std::string cuj,
+                    CueActionData action,
                     actions::ActionItem*,
                     actions::ActionInvocationContext);
   void OnCueHidden();
+  void OnCueFormFactorShown(CueFormFactor form_factor);
+  void OnCueFormFactorHidden(CueFormFactor form_factor);
 
   void OnSidePanelShown();
 
@@ -147,9 +160,9 @@ class ContextualCueingController
   raw_ptr<TemplateURLService> template_url_service_;
   raw_ptr<signin::IdentityManager> identity_manager_;
   absl::flat_hash_map<CueTargetType, std::unique_ptr<CueTarget>> cue_targets_;
-  std::string current_cuj_;
   base::CallbackListSubscription side_panel_shown_subscription_;
   base::TimeTicks cue_shown_time_;
+  base::TimeTicks cue_hidden_time_;
 
 #if !BUILDFLAG(IS_ANDROID)
   std::unique_ptr<page_actions::PageActionObserver> page_action_observer_;

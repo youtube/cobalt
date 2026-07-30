@@ -5428,6 +5428,80 @@ TEST_P(WaylandWindowTest, UiScale_ForceDeviceScaleFactor) {
   EXPECT_EQ(window_->applied_state(), previous_state);
 }
 
+// Regression POC: WaylandToplevelWindow::HandleToplevelConfigure() continues to
+// use `this` after delegate()->OnActivationChanged() synchronously destroys the
+// platform window. This mirrors the production path documented at
+// DesktopWindowTreeHostPlatform::OnActivationChanged where
+// HandleActivationChanged() can synchronously close the widget, which in turn
+// calls SetPlatformWindow(nullptr) and frees the WaylandToplevelWindow while
+// the xdg_toplevel.configure handler is still on the stack.
+TEST_P(WaylandWindowTest, HandleToplevelConfigureSyncCloseOnDeactivate) {
+  // After SetUp(), |window_| has already received an activated configure, so
+  // is_xdg_active_ == is_active_ == true.
+  ASSERT_TRUE(window_);
+  WaylandWindow* raw_window = window_.get();
+
+  // Simulate a delegate that destroys the platform window inside
+  // OnActivationChanged(false) — exactly what happens in production when a
+  // WidgetObserver calls Widget::CloseNow() on deactivation, leading to
+  // DesktopWindowTreeHostPlatform::OnClosed -> SetPlatformWindow(nullptr).
+  EXPECT_CALL(delegate_, OnActivationChanged(Eq(false)))
+      .WillOnce(InvokeWithoutArgs([this]() { window_.reset(); }));
+
+  // Don't try to talk to the server after the window has been torn down
+  // mid-dispatch.
+  DisableSyncOnTearDown();
+
+  // Drive the standard xdg_toplevel.configure entry point with the activated
+  // bit cleared. This calls HandleToplevelConfigureWithOrigin() ->
+  // UpdateActivationState() -> delegate()->OnActivationChanged(false), which
+  // (via the mock above) frees `this`. Control then returns to
+  // HandleToplevelConfigure:469 which calls UpdateSessionStateIfNeeded() on
+  // the freed object.
+  WaylandWindow::WindowStates deactivated_states;
+  deactivated_states.is_activated = false;
+  raw_window->HandleToplevelConfigure(800, 600, deactivated_states);
+
+  // If we got here without ASAN reporting a heap-use-after-free, the bug is
+  // fixed.
+  EXPECT_FALSE(window_);
+}
+
+TEST_P(WaylandWindowTest, WaylandPopupSetBoundsUaf) {
+  MockWaylandPlatformWindowDelegate popup_delegate(connection_.get());
+  gfx::Rect popup_bounds(10, 10, 50, 50);
+  auto wayland_popup =
+      CreateWaylandWindowWithParams(PlatformWindowType::kPopup, popup_bounds,
+                                    &popup_delegate, window_->GetWidget());
+  ASSERT_TRUE(wayland_popup);
+
+  popup_delegate.set_on_state_update_callback(base::BindLambdaForTesting([&]() {
+    wayland_popup.reset();
+    return true;
+  }));
+
+  // This should not crash if the fix is applied.
+  wayland_popup->SetBoundsInDIP(gfx::Rect(15, 15, 60, 60));
+}
+
+TEST_P(WaylandWindowTest, WaylandBubbleSetBoundsUaf) {
+  MockWaylandPlatformWindowDelegate bubble_delegate(connection_.get());
+  gfx::Rect bubble_bounds(10, 10, 50, 50);
+  auto wayland_bubble =
+      CreateWaylandWindowWithParams(PlatformWindowType::kBubble, bubble_bounds,
+                                    &bubble_delegate, window_->GetWidget());
+  ASSERT_TRUE(wayland_bubble);
+
+  bubble_delegate.set_on_state_update_callback(
+      base::BindLambdaForTesting([&]() {
+        wayland_bubble.reset();
+        return true;
+      }));
+
+  // This should not crash if the fix is applied.
+  wayland_bubble->SetBoundsInDIP(gfx::Rect(15, 15, 60, 60));
+}
+
 INSTANTIATE_TEST_SUITE_P(XdgVersionStableTest,
                          WaylandWindowTest,
                          Values(wl::ServerConfig{}));

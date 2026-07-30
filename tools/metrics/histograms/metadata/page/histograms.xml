@@ -343,7 +343,6 @@ chromium-metrics-reviews@google.com.
   <variant name=""/>
   <variant name=".access-code-cast"/>
   <variant name=".accessibility"/>
-  <variant name=".accessibility-annotator-info"/>
   <variant name=".accessory-update"/>
   <variant name=".account-manager-error"/>
   <variant name=".account-migration-welcome"/>
@@ -389,6 +388,7 @@ chromium-metrics-reviews@google.com.
   <variant name=".connectivity-diagnostics"/>
   <variant name=".connectors-internals"/>
   <variant name=".constrained-test"/>
+  <variant name=".context-hub"/>
   <variant name=".contextual-tasks"/>
   <variant name=".crashes"/>
   <variant name=".credits"/>
@@ -399,6 +399,7 @@ chromium-metrics-reviews@google.com.
   <variant name=".customize-chrome-side-panel.top-chrome"/>
   <variant name=".data-sharing"/>
   <variant name=".debug-webuis-disabled"/>
+  <variant name=".default-browser"/>
   <variant name=".default-browser-modal"/>
   <variant name=".demo-mode-app"/>
   <variant name=".device-emulator"/>
@@ -489,6 +490,7 @@ chromium-metrics-reviews@google.com.
   <variant name=".password-manager"/>
   <variant name=".password-manager-internals"/>
   <variant name=".personal-context-internals"/>
+  <variant name=".personal-context-notice"/>
   <variant name=".personalization"/>
   <variant name=".policy"/>
   <variant name=".power"/>
@@ -578,7 +580,6 @@ chromium-metrics-reviews@google.com.
 
 <variants name="WebUIName">
   <variant name=""/>
-  <variant name=".AccessibilityAnnotatorInfo"/>
   <variant name=".BookmarksSidePanel"/>
   <variant name=".CommentsSidePanel"/>
   <variant name=".Compose"/>
@@ -598,6 +599,7 @@ chromium-metrics-reviews@google.com.
   <variant name=".NewTabFooter"/>
   <variant name=".OmniboxPopup"/>
   <variant name=".PerformanceSidePanel"/>
+  <variant name=".PersonalContextNotice"/>
   <variant name=".ReadAnythingUntrusted"/>
   <variant name=".ReadingList"/>
   <variant name=".ReloadButtonUI"/>
@@ -1017,7 +1019,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PageLoad.Clients.AMP.Experimental.PageTiming.InputToNavigation.Subframe"
-    units="ms" expires_after="2026-09-06">
+    units="ms" expires_after="2027-07-03">
   <owner>iclelland@chromium.org</owner>
   <owner>sullivan@chromium.org</owner>
   <owner>speed-metrics-dev@chromium.org</owner>
@@ -1034,7 +1036,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PageLoad.Clients.AMP.InteractiveTiming.NumInteractions.Subframe"
-    units="Count" expires_after="2026-07-03">
+    units="Count" expires_after="2027-07-03">
   <owner>iclelland@chromium.org</owner>
   <owner>sullivan@chromium.org</owner>
   <owner>speed-metrics-dev@chromium.org</owner>
@@ -1047,7 +1049,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PageLoad.Clients.AMP.InteractiveTiming.{NormalizedResponsivenessMetric}.{UserInteractionLatency}.Subframe{FullNavigation}"
-    units="ms" expires_after="2026-07-03">
+    units="ms" expires_after="2027-07-03">
   <owner>iclelland@chromium.org</owner>
   <owner>sullivan@chromium.org</owner>
   <owner>speed-metrics-dev@chromium.org</owner>
@@ -1106,7 +1108,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PageLoad.Clients.AMP.LayoutInstability.MaxCumulativeShiftScore.Subframe.{Navigation}{Window}.Gap{Gap}.Max{MaxWindowSize}"
-    units="scorex10" expires_after="2026-07-03">
+    units="scorex10" expires_after="2027-07-03">
   <owner>iclelland@chromium.org</owner>
   <owner>sullivan@chromium.org</owner>
   <owner>speed-metrics-dev@chromium.org</owner>
@@ -1138,7 +1140,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PageLoad.Clients.AMP.PaintTiming.InputToFirstContentfulPaint.Subframe"
-    units="ms" expires_after="2026-11-15">
+    units="ms" expires_after="2027-07-03">
   <owner>iclelland@chromium.org</owner>
   <owner>sullivan@chromium.org</owner>
   <owner>speed-metrics-dev@chromium.org</owner>
@@ -1154,7 +1156,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PageLoad.Clients.AMP.PaintTiming.InputToFirstContentfulPaint.Subframe.FullNavigation"
-    units="ms" expires_after="2026-07-03">
+    units="ms" expires_after="2027-07-03">
   <owner>iclelland@chromium.org</owner>
   <owner>sullivan@chromium.org</owner>
   <owner>speed-metrics-dev@chromium.org</owner>
@@ -1169,7 +1171,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PageLoad.Clients.AMP.PaintTiming.InputToLargestContentfulPaint.Subframe"
-    units="ms" expires_after="2026-07-03">
+    units="ms" expires_after="2027-07-03">
   <owner>iclelland@chromium.org</owner>
   <owner>sullivan@chromium.org</owner>
   <owner>speed-metrics-dev@chromium.org</owner>
@@ -1191,7 +1193,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PageLoad.Clients.AMP.PaintTiming.InputToLargestContentfulPaint.Subframe.FullNavigation"
-    units="ms" expires_after="2026-07-03">
+    units="ms" expires_after="2027-07-03">
   <owner>iclelland@chromium.org</owner>
   <owner>sullivan@chromium.org</owner>
   <owner>speed-metrics-dev@chromium.org</owner>
@@ -5411,6 +5413,19 @@ chromium-metrics-reviews@google.com.
   <summary>
     Measures the LargestContentfulPaint in milliseconds from the start time of
     the soft navigation to the LCP time.
+  </summary>
+</histogram>
+
+<histogram
+    name="PageLoad.SoftNavigation.SoftNavigationPageLoadMetricsObserverState"
+    enum="SoftNavigationPageLoadMetricsObserverState"
+    expires_after="2026-09-20">
+  <owner>sullivan@chromium.org</owner>
+  <owner>johannes@chromium.org</owner>
+  <owner>speed-metrics-dev@chromium.org</owner>
+  <summary>
+    Reports the state in which the SoftNavigationPageLoadMetricsObserver is when
+    an OnSoftNavigation event arrives.
   </summary>
 </histogram>
 

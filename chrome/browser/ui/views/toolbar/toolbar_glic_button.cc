@@ -30,6 +30,8 @@
 namespace {
 constexpr int kCloseButtonSize = 16;
 constexpr int kSpaceBetweenButtons = 2;
+constexpr int kLabelToolbarButtonRightMargin = 6;
+constexpr int kIconToolbarButtonLeftMargin = 3;
 }  // namespace
 
 namespace glic {
@@ -48,7 +50,7 @@ ToolbarGlicButton::ToolbarGlicButton(
   auto* image_view = static_cast<views::ImageView*>(image_container_view());
   image_view->SetImageSize({kToolbarGlicIconSize, kToolbarGlicIconSize});
   image_view->SetProperty(views::kMarginsKey,
-                          gfx::Insets().set_left(kIconLeftMargin));
+                          gfx::Insets().set_left(kIconToolbarButtonLeftMargin));
 
   SetLabelMargins();
 
@@ -66,8 +68,8 @@ gfx::Size ToolbarGlicButton::CalculatePreferredSize(
 }
 
 gfx::Size ToolbarGlicButton::GetMinimumSize() const {
-  return gfx::Size(kCollapsedWidth,
-                   GetLayoutConstant(LayoutConstant::kToolbarButtonHeight));
+  const int size = GetLayoutConstant(LayoutConstant::kToolbarButtonHeight);
+  return gfx::Size(size, size);
 }
 
 void ToolbarGlicButton::AddedToWidget() {
@@ -123,6 +125,10 @@ float ToolbarGlicButton::GetCornerRadiusFor(ToolbarButton::Edge edge) const {
   }
 }
 
+int ToolbarGlicButton::GetRoundedCornerRadius() const {
+  return GetLayoutConstant(LayoutConstant::kToolbarButtonHeight) / 2;
+}
+
 int ToolbarGlicButton::GetSplitRoundedEdgeRadius() {
   return split_rounded_edge_radius_;
 }
@@ -147,6 +153,16 @@ void ToolbarGlicButton::UpdateStyle(bool should_match_toolbar) {
 void ToolbarGlicButton::SetCloseButtonFocusBehavior(
     views::View::FocusBehavior focus_behavior) {}
 
+void ToolbarGlicButton::SetLabelMargins() {
+  const bool close_button_visible =
+      close_button() && close_button()->GetVisible();
+  this->label()->SetProperty(
+      views::kMarginsKey,
+      gfx::Insets().set_right(close_button_visible
+                                  ? kLabelWithCloseButtonRightMargin
+                                  : kLabelToolbarButtonRightMargin));
+}
+
 void ToolbarGlicButton::AddCloseButton(PressedCallback pressed_callback) {
   auto close_button =
       std::make_unique<views::LabelButton>(std::move(pressed_callback));
@@ -155,7 +171,7 @@ void ToolbarGlicButton::AddCloseButton(PressedCallback pressed_callback) {
 
   const ui::ImageModel icon_image_model = ui::ImageModel::FromVectorIcon(
       features::IsRoundedIconsEnabled()
-          ? vector_icons::kCloseIcon
+          ? vector_icons::kCloseSmallIcon
           : vector_icons::kCloseChromeRefreshOldIcon,
       kColorTabSearchButtonCRForegroundFrameActive, kCloseButtonSize);
 
@@ -237,10 +253,11 @@ void ToolbarGlicButton::OnBoundsChanged(const gfx::Rect& previous_bounds) {
   } else {
     if (!label()->GetVisible()) {
       label()->SetVisible(true);
-      image_view->SetProperty(views::kMarginsKey,
-                              gfx::Insets().set_left(kIconLeftMargin));
+      image_view->SetProperty(
+          views::kMarginsKey,
+          gfx::Insets().set_left(kIconToolbarButtonLeftMargin));
       box_layout->set_main_axis_alignment(
-          views::BoxLayout::MainAxisAlignment::kStart);
+          views::BoxLayout::MainAxisAlignment::kCenter);
     }
   }
 }

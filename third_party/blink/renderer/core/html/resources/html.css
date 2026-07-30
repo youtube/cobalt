@@ -977,7 +977,7 @@ input[type="hidden" i] {
   display: none !important;
 }
 @supports blink-feature(UnboundedElement) {
-  [unbounded] {
+  [unbounded]:-internal-unbounded-element-inactive {
     visibility: hidden;
   }
 }
@@ -1567,15 +1567,16 @@ button[interestfor] {
   min-block-size: max(24px, 1lh);
   margin-inline-start: 0.25em;
   margin-block: min(-24px, -1lh);
+  align-content: center;
   text-align: center;
   user-select: none;
   cursor: help;
 }
 [interestfor]::interest-button:hover {
-  background-color: color-mix(in lab, currentColor 10%, transparent);
+  background-color: color-mix(currentColor 10%, transparent);
 }
 [interestfor]::interest-button:active {
-  background-color: color-mix(in lab, currentColor 20%, transparent);
+  background-color: color-mix(currentColor 20%, transparent);
 }
 
 html:focus-visible, body:focus-visible {
@@ -2456,6 +2457,13 @@ select optgroup optgroup {
     }
     menuitem:disabled {
       color: color-mix(currentColor 50%, transparent);
+    }
+
+    a:any-link, img[usemap] {
+      /* The menubar/menulist/menuitem elements are for application menus, not
+       * navigation menus.  Hide links to strongly discourage misuse as
+       * navigation menus. */
+      display: none;
     }
   }
 }

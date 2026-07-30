@@ -165,6 +165,7 @@ bool SupportsInvalidation(CSSSelector::PseudoType type) {
     case CSSSelector::kPseudoMenulistPopoverWithMenulistAnchor:
     case CSSSelector::kPseudoSelectHasSlottedButton:
     case CSSSelector::kPseudoSlotted:
+    case CSSSelector::kPseudoUnboundedElementInactive:
     case CSSSelector::kPseudoVideoPersistent:
     case CSSSelector::kPseudoVideoPersistentAncestor:
     case CSSSelector::kPseudoXrOverlay:
@@ -190,6 +191,7 @@ bool SupportsInvalidation(CSSSelector::PseudoType type) {
     case CSSSelector::kPseudoInterestTarget:
     case CSSSelector::kPseudoHasSlotted:
     case CSSSelector::kPseudoLinkTo:
+    case CSSSelector::kPseudoActiveNavigation:
     case CSSSelector::kPseudoPlaying:
     case CSSSelector::kPseudoPaused:
     case CSSSelector::kPseudoSeeking:

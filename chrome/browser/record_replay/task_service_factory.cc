@@ -5,8 +5,13 @@
 #include "chrome/browser/record_replay/task_service_factory.h"
 
 #include "base/feature_list.h"
+#include "base/functional/bind.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/record_replay/recording_data_manager_factory.h"
+#include "chrome/browser/record_replay/task_executor.h"
+#include "chrome/browser/record_replay/task_parameters_extractor_factory.h"
+#include "chrome/browser/record_replay/task_store_factory.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "components/record_replay/core/browser/task_service.h"
 #include "components/record_replay/core/common/record_replay_features.h"
 
@@ -26,9 +31,10 @@ TaskServiceFactory* TaskServiceFactory::GetInstance() {
 
 TaskServiceFactory::TaskServiceFactory()
     : ProfileKeyedServiceFactory("TaskService") {
-  // The TaskService depends on the RecordingDataManager to be able to use the
+  // The TaskService depends on the TaskStore to be able to use the
   // TaskDatabase.
-  DependsOn(RecordingDataManagerFactory::GetInstance());
+  DependsOn(TaskStoreFactory::GetInstance());
+  DependsOn(TaskParametersExtractorFactory::GetInstance());
 }
 
 TaskServiceFactory::~TaskServiceFactory() = default;
@@ -40,8 +46,24 @@ TaskServiceFactory::BuildServiceInstanceForBrowserContext(
     return nullptr;
   }
   Profile* profile = Profile::FromBrowserContext(context);
+
+  auto execution_callback = base::BindRepeating(
+      [](Profile* profile, const TaskDefinition& definition,
+         const TaskParameterValues& parameter_values) {
+        BrowserWindowInterface* browser =
+            ProfileBrowserCollection::GetForProfile(profile)
+                ->GetLastActiveBrowser();
+        if (browser) {
+          TaskExecutor::ExecuteTask(profile, browser, definition,
+                                    parameter_values);
+        }
+      },
+      profile);
+
   return std::make_unique<TaskService>(
-      RecordingDataManagerFactory::GetForProfile(profile));
+      TaskStoreFactory::GetForProfile(profile),
+      TaskParametersExtractorFactory::GetForProfile(profile),
+      std::move(execution_callback));
 }
 
 }  // namespace record_replay

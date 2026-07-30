@@ -232,11 +232,25 @@ void AddIntListAttributeFromObjects(ax::mojom::blink::IntListAttribute attr,
 // Returns true if |target| satisfies the Author MUST requirements for
 // aria-actions targets per the spec PR
 // (https://github.com/w3c/aria/pull/1805) #aria-actions. The UA drops targets
-// that fail these checks. Currently validates accessible name;
-// follow-up CLs add click-handler and keyboard-access checks.
+// that fail these checks. Validates accessible name, click-handler
+// availability, and keyboard accessibility.
 bool IsValidAriaActionsTarget(const AXObject& target) {
   String name = target.ComputedName();
-  return !name.StripWhiteSpace().empty();
+  if (name.StripWhiteSpace().empty()) {
+    return false;
+  }
+  // IsClickable() is virtually dispatched to AXNodeObject::IsClickable(),
+  // which considers mouse-button event listeners, contenteditable, native
+  // clickable roles, and correctly returns false for disabled elements.
+  if (!target.IsClickable()) {
+    return false;
+  }
+  // CanSetFocusAttribute() accepts elements that are either mouse-focusable
+  // (native focusable roles, tabindex>=0, or tabindex=-1 inside a
+  // managed-focus widget) or keyboard-focusable. It rejects disabled,
+  // hidden, and inert elements. The const overload returns the cached
+  // value, which has been updated by the surrounding serialization path.
+  return target.CanSetFocusAttribute();
 }
 
 // Max length for attributes such as aria-label.
@@ -2041,7 +2055,8 @@ void AXObject::SerializeRelationAttributes(ui::AXNodeData* node_data) const {
         active_descendant->AXObjectID());
   }
 
-  if (RuntimeEnabledFeatures::AriaActionsEnabled()) {
+  if (RuntimeEnabledFeatures::AriaActionsEnabled() &&
+      RoleSupportsAriaAttribute(RoleValue(), html_names::kAriaActionsAttr)) {
     AXObjectVector action_targets =
         RelationVectorFromAria(html_names::kAriaActionsAttr);
     AXObjectVector valid_targets;
@@ -2371,11 +2386,6 @@ void AXObject::SerializeUnignoredAttributes(ui::AXNodeData* node_data,
     TruncateAndAddStringAttribute(
         node_data, ax::mojom::blink::StringAttribute::kKeyShortcuts,
         AriaAttribute(html_names::kAriaKeyshortcutsAttr));
-    if (RuntimeEnabledFeatures::AccessibilityAriaVirtualContentEnabled()) {
-      TruncateAndAddStringAttribute(
-          node_data, ax::mojom::blink::StringAttribute::kVirtualContent,
-          AriaAttribute(html_names::kAriaVirtualcontentAttr));
-    }
 
     if (IsAriaAttributeTrue(html_names::kAriaBusyAttr)) {
       node_data->AddBoolAttribute(ax::mojom::blink::BoolAttribute::kBusy, true);
@@ -2637,9 +2647,7 @@ AXObject* AXObject::GetCommandForElementForDetailsRelation() const {
   if (action != CommandEventType::kTogglePopover &&
       action != CommandEventType::kShowPopover &&
       action != CommandEventType::kHidePopover &&
-      action != CommandEventType::kToggleMenu &&
-      action != CommandEventType::kShowMenu &&
-      action != CommandEventType::kHideMenu) {
+      action != CommandEventType::kToggleMenu) {
     return nullptr;
   }
 
@@ -5855,6 +5863,10 @@ bool AXObject::HasRequiredParentContext(ax::mojom::blink::Role role) const {
     return !IsOrphanedOption(*element);
   }
 
+  if (role == ax::mojom::blink::Role::kTreeItem) {
+    return !IsOrphanedTreeItem(*element);
+  }
+
   return true;
 }
 
@@ -5966,6 +5978,73 @@ bool AXObject::IsOrphanedOption(const Element& element) const {
   }
 
   return true;
+}
+
+bool AXObject::IsOrphanedTreeItem(const Element& element) const {
+  // Check if owned via aria-owns (Relation Cache lookup).
+  AXRelationCache* relation_cache = AXObjectCache().RelationCache();
+  if (relation_cache && relation_cache->IsAriaOwned(this)) {
+    AXObject* owner = relation_cache->ValidatedAriaOwner(this);
+    if (owner) {
+      ax::mojom::blink::Role owner_role = owner->RoleValue();
+      if (owner_role == ax::mojom::blink::Role::kTree ||
+          owner_role == ax::mojom::blink::Role::kGroup) {
+        return false;  // It has a valid owner, so it is not an orphan.
+      }
+    }
+  }
+
+  // Walk up the DOM tree looking for a valid tree or group container parent.
+  for (Node* curr = LayoutTreeBuilderTraversal::Parent(element); curr;
+       curr = LayoutTreeBuilderTraversal::Parent(*curr)) {
+    auto* parent = DynamicTo<Element>(curr);
+    if (!parent) {
+      continue;
+    }
+
+    const AtomicString& role_str =
+        AXObject::AriaAttribute(*parent, html_names::kRoleAttr);
+    ax::mojom::blink::Role parent_role = ax::mojom::blink::Role::kUnknown;
+    if (!role_str.empty()) {
+      parent_role = FirstValidRoleInRoleString(role_str);
+    }
+    if (parent_role == ax::mojom::blink::Role::kTree ||
+        parent_role == ax::mojom::blink::Role::kGroup) {
+      return false;  // Found valid tree/group parent, so it is not an orphan.
+    }
+
+    // Allow walking up through parent treeitem elements in nested tree
+    // structures.
+    if (parent_role == ax::mojom::blink::Role::kTreeItem) {
+      continue;
+    }
+
+    // Skip presentational wrappers that do not affect tree structure.
+    if (ui::IsPresentational(parent_role)) {
+      continue;
+    }
+
+    // Skip anonymous/generic <div> wrappers without explicit roles.
+    if (parent->HasTagName(html_names::kDivTag) && role_str.empty()) {
+      continue;
+    }
+
+    // Skip anonymous/generic <span> wrappers without explicit roles.
+    if (parent->HasTagName(html_names::kSpanTag) && role_str.empty()) {
+      continue;
+    }
+
+    // Skip generic custom element wrappers (e.g. <cr-tree-item>) without
+    // explicit roles.
+    if (parent->IsCustomElement() && role_str.empty()) {
+      continue;
+    }
+
+    // Any other non-generic structural element interrupts the context.
+    break;
+  }
+
+  return true;  // No tree/group parent found, it is an orphan.
 }
 
 ax::mojom::blink::Role AXObject::FirstValidRoleInRoleStringWithContext(

@@ -328,6 +328,7 @@ constexpr char kOneTimeTokenServiceName[] = "one_time_token_service";
 constexpr char kDrivePickerHostName[] = "drive_picker_host";
 constexpr char kMultistepFilterName[] = "multistep_filter";
 constexpr char kContextMemoryServiceName[] = "context_memory_service";
+constexpr char kSyncPreviewName[] = "chromesync_preview";
 }  // namespace
 
 namespace signin {
@@ -760,10 +761,7 @@ OAuthConsumer OAuthConsumerRegistry::GetOAuthConsumerFromId(
       return OAuthConsumer(
           /*name=*/kOneTimeTokenServiceName,
           /*scopes=*/{kOneTimeTokenOAuth2Scope, kGmailMetadataOAuth2Scope,
-                      kGmailOtpReadonlyOAuth2Scope,
-                      // TODO(b/506950478): Remove kGoogleUserInfoEmail scope
-                      // once the service accepts kOneTimeTokenOAuth2Scope.
-                      GaiaConstants::kGoogleUserInfoEmail});
+                      kGmailOtpReadonlyOAuth2Scope});
     case OAuthConsumerId::kMultistepFilter:
       return OAuthConsumer(
           /*name=*/kMultistepFilterName,
@@ -784,6 +782,10 @@ OAuthConsumer OAuthConsumerRegistry::GetOAuthConsumerFromId(
       return OAuthConsumer(
           /*name=*/kContextMemoryServiceName,
           /*scopes=*/{kContextMemoryServiceOAuth2Scope});
+    case OAuthConsumerId::kSyncPreview:
+      return OAuthConsumer(
+          /*name=*/kSyncPreviewName,
+          /*scopes=*/{GaiaConstants::kChromeSyncPreviewOAuth2Scope});
   }
 }
 

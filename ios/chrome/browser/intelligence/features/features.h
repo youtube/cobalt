@@ -289,6 +289,9 @@ bool IsActorEnabled();
 extern const char kActorToolsPageStabilityParam[];
 bool IsPageStabilityEnabled();
 base::TimeDelta GetActorObservationDelayTimeout();
+// Used to configure how long the PageStabilityMonitor in Chrome for iOS waits.
+base::TimeDelta GetActorPageStabilityMinWait();
+base::TimeDelta GetActorPageStabilityTimeout();
 
 // Returns true if the specified tool is disabled via the "DisabledTools"
 // feature parameter of the `kActorTools` feature.
@@ -432,5 +435,11 @@ BASE_DECLARE_FEATURE(kBWGPromoConsent);
 // Feature flag to enable the ActorServiceLogging feature for debugging.
 BASE_DECLARE_FEATURE(kActorServiceLogging);
 bool IsActorServiceLoggingEnabled();
+
+// Feature flag to enable the iOS bottom sheet migration.
+BASE_DECLARE_FEATURE(kIOSBottomSheetMigration);
+
+// Helper function to check if `kIOSBottomSheetMigration` is enabled.
+bool IsIOSBottomSheetMigrationEnabled();
 
 #endif  // IOS_CHROME_BROWSER_INTELLIGENCE_FEATURES_FEATURES_H_

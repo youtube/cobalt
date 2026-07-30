@@ -1048,6 +1048,13 @@ gn_args.config(
 )
 
 gn_args.config(
+    name = "no_mold",
+    args = {
+        "use_mold": False,
+    },
+)
+
+gn_args.config(
     name = "no_reclient",
     args = {
         "use_reclient": False,
@@ -1622,4 +1629,11 @@ gn_args.config(
 gn_args.config(
     name = "enable_swift_cxx_interop",
     args = {"enable_swift_cxx_interop": True},
+)
+
+gn_args.config(
+    name = "use_typescript_go",
+    args = {
+        "use_typescript_go": True,
+    },
 )

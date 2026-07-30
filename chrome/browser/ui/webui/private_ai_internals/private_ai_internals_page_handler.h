@@ -10,6 +10,8 @@
 #include "chrome/browser/ui/webui/private_ai_internals/private_ai_internals.mojom.h"
 #include "components/private_ai/client.h"
 #include "components/private_ai/common/private_ai_logger.h"
+#include "components/private_ai/content/private_ai_network_driver_content.h"
+#include "components/private_ai/content/private_ai_oak_session_driver_content.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
 
@@ -55,10 +57,6 @@ class PrivateAiInternalsPageHandler
   void SendRequest(const std::string& feature_name,
                    const std::string& request,
                    SendRequestCallback callback) override;
-  void SendZssRequest(const std::string& inner_text,
-                      SendZssRequestCallback callback) override;
-  void SendFormsAiRequest(const std::string& url,
-                          SendFormsAiRequestCallback callback) override;
 
   // PrivateAiLogger::Observer:
   void OnLogInfo(const base::Location& location,
@@ -73,12 +71,23 @@ class PrivateAiInternalsPageHandler
                  const base::Location& location,
                  std::string_view message);
 
+  void SendTextRequest(proto::FeatureName feature_name,
+                       const std::string& request,
+                       SendRequestCallback callback);
+  void SendZssRequest(const std::string& inner_text,
+                      SendRequestCallback callback);
+  void SendFormsAiRequest(const std::string& url, SendRequestCallback callback);
+  void SendContextualCueRequest(const std::string& request,
+                                SendRequestCallback callback);
+
   raw_ptr<phosphor::TokenManager> token_manager_;
   // The global client, only used for observation.
   raw_ptr<Client> private_ai_client_;
   raw_ptr<PrivateAiLogger> private_ai_logger_;
   // The client created by webui. Used for testing.
   PrivateAiLogger webui_logger_;
+  PrivateAiOakSessionDriverContent oak_session_driver_content_;
+  PrivateAiNetworkDriverContent network_driver_content_;
   std::unique_ptr<Client> webui_client_;
   raw_ptr<network::mojom::NetworkContext> network_context_;
   mojo::Receiver<private_ai_internals::mojom::PrivateAiInternalsPageHandler>

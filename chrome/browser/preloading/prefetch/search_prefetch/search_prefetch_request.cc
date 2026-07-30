@@ -144,16 +144,13 @@ void MaybeRecordTraceFromSearchPrefetchRequestStartToNavigationIntercepted(
 
   const char kSearchPrefetchRequestStartToNavigationIntercepted[] =
       "SearchPrefetchRequestStartToNavigationIntercepted";
-  const auto trace_id =
-      TRACE_ID_WITH_SCOPE(kSearchPrefetchRequestStartToNavigationIntercepted,
-                          TRACE_ID_LOCAL(search_prefetch_request));
+  auto track = perfetto::NamedTrack::FromPointer(
+      kSearchPrefetchRequestStartToNavigationIntercepted,
+      search_prefetch_request);
   TRACE_EVENT_BEGIN("navigation",
-                    kSearchPrefetchRequestStartToNavigationIntercepted,
-                    perfetto::Track::FromPointer(search_prefetch_request),
+                    kSearchPrefetchRequestStartToNavigationIntercepted, track,
                     time_start_prefetch_request);
-  TRACE_EVENT_END("navigation",
-                  perfetto::Track::FromPointer(search_prefetch_request),
-                  base::TimeTicks::Now());
+  TRACE_EVENT_END("navigation", track, base::TimeTicks::Now());
 }
 
 }  // namespace
@@ -307,11 +304,6 @@ bool SearchPrefetchRequest::StartPrefetchRequest(
   resource_request->headers.SetHeader(
       net::HttpRequestHeaders::kUserAgent,
       GetUserAgentValue(prefetch_url_, web_contents));
-  if (!base::FeatureList::IsEnabled(
-          blink::features::kRemovePurposeHeaderForPrefetch)) {
-    resource_request->headers.SetHeader(blink::kPurposeHeaderName,
-                                        blink::kSecPurposePrefetchHeaderValue);
-  }
   resource_request->headers.SetHeader(blink::kSecPurposeHeaderName,
                                       blink::kSecPurposePrefetchHeaderValue);
   resource_request->headers.SetHeader(

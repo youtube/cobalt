@@ -737,7 +737,7 @@ TEST_P(CanvasRenderingContext2DTest,
   // Install a CanvasResourceProvider that does not support direct compositing.
   gfx::Size size = CanvasElement().Size();
   auto provider = Canvas2DResourceProviderBitmap::CreateForTesting(
-      size, Canvas2DColorParams(PredefinedColorSpace::kSRGB,
+      size, Canvas2DColorParams(PredefinedColorSpace::kSRGB, gfx::HDRMetadata(),
                                 CanvasPixelFormat::kUint8,
                                 /*has_alpha=*/true));
 
@@ -1552,7 +1552,7 @@ TEST_P(CanvasRenderingContext2DTest,
   EXPECT_TRUE(CanvasElement().LowLatencyEnabled());
   EXPECT_FALSE(Context2D()
                    ->GetOrCreateResourceProvider()
-                   ->As2DSharedImageProvider()
+                   ->AsSharedImageProvider()
                    ->IsSingleBuffered());
   EXPECT_EQ(CanvasElement().GetRasterModeForCanvas2D(), RasterMode::kCPU);
 }
@@ -2998,7 +2998,7 @@ TEST_P(CanvasRenderingContext2DTestAccelerated,
   Context2D()->fillRect(3, 3, 1, 1);
 
   const Canvas2DResourceProviderSharedImage* provider =
-      Context2D()->GetResourceProviderForTesting()->As2DSharedImageProvider();
+      Context2D()->GetResourceProviderForTesting()->AsSharedImageProvider();
   ASSERT_THAT(provider, NotNull());
   EXPECT_EQ(provider->NumInflightResourcesForTesting(), 1);
 
@@ -3322,7 +3322,7 @@ TEST_P(CanvasRenderingContext2DTestAccelerated, LowLatencyIsNotSingleBuffered) {
   EXPECT_TRUE(CanvasElement().LowLatencyEnabled());
   EXPECT_FALSE(Context2D()
                    ->GetOrCreateResourceProvider()
-                   ->As2DSharedImageProvider()
+                   ->AsSharedImageProvider()
                    ->IsSingleBuffered());
   EXPECT_EQ(CanvasElement().GetRasterModeForCanvas2D(), RasterMode::kGPU);
 }
@@ -3546,17 +3546,17 @@ TEST_P(CanvasRenderingContext2DTestLowLatency, LowLatencyIsSingleBuffered) {
   EXPECT_EQ(CanvasElement().GetRasterModeForCanvas2D(), RasterMode::kGPU);
   EXPECT_TRUE(Context2D()
                   ->GetOrCreateResourceProvider()
-                  ->As2DSharedImageProvider()
+                  ->AsSharedImageProvider()
                   ->IsSingleBuffered());
   auto frame1_resource = Context2D()
                              ->GetOrCreateResourceProvider()
-                             ->As2DSharedImageProvider()
+                             ->AsSharedImageProvider()
                              ->ProduceCanvasResource(FlushReason::kOther);
   EXPECT_TRUE(frame1_resource);
   DrawSomething();
   auto frame2_resource = Context2D()
                              ->GetOrCreateResourceProvider()
-                             ->As2DSharedImageProvider()
+                             ->AsSharedImageProvider()
                              ->ProduceCanvasResource(FlushReason::kOther);
   EXPECT_TRUE(frame2_resource);
   EXPECT_EQ(frame1_resource.get(), frame2_resource.get());
@@ -3595,17 +3595,17 @@ TEST_P(CanvasRenderingContext2DTestSwapChain, LowLatencyIsSingleBuffered) {
   EXPECT_EQ(CanvasElement().GetRasterModeForCanvas2D(), RasterMode::kGPU);
   EXPECT_TRUE(Context2D()
                   ->GetOrCreateResourceProvider()
-                  ->As2DSharedImageProvider()
+                  ->AsSharedImageProvider()
                   ->IsSingleBuffered());
   auto frame1_resource = Context2D()
                              ->GetOrCreateResourceProvider()
-                             ->As2DSharedImageProvider()
+                             ->AsSharedImageProvider()
                              ->ProduceCanvasResource(FlushReason::kOther);
   EXPECT_TRUE(frame1_resource);
   DrawSomething();
   auto frame2_resource = Context2D()
                              ->GetOrCreateResourceProvider()
-                             ->As2DSharedImageProvider()
+                             ->AsSharedImageProvider()
                              ->ProduceCanvasResource(FlushReason::kOther);
   EXPECT_TRUE(frame2_resource);
   EXPECT_EQ(frame1_resource.get(), frame2_resource.get());

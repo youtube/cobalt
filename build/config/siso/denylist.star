@@ -26,22 +26,25 @@ def __step_config(ctx, step_config):
     #      `action_with_pydeps` instead of manually listing them in `inputs`.
     # 4. Re-build and verify the action succeeds remotely.
     python_scripts = [
-        "base/win/embedded_i18n/create_string_rc.py",
         "build/modules/unified/generate_system_modulemap.py",
         # Reads .gclient_entries which is outside of the source tree.
         "build/private_code_test/list_gclient_deps.py",
         "build/private_code_test/ninja_parser.py",
         "build/rust/gni_impl/rustc_print_cfg.py",
         "build/rust/gni_impl/write_rustflags.py",
-        "chrome/test/chromedriver/embed_mobile_devices_in_cpp.py",
-        "components/language/content/browser/ulp_language_code_locator/ulp_serialized_to_static_c.py",
+        "chrome/installer/linux/debian/build.py",
+        "chrome/installer/linux/debian/calculate_package_deps.py",
+        "chrome/installer/linux/debian/merge_package_versions.py",
+        "chrome/installer/linux/rpm/build.py",
+        "chrome/installer/linux/rpm/calculate_package_deps.py",
+        "chrome/installer/linux/rpm/merge_package_deps.py",
+        # Parses components_locale_settings.grd and dynamically reads multiple
+        # translation .xtb files, making static input tracking too complex.
+        "components/language/core/browser/generate_incognito_language_list_map.py",
         "components/optimization_guide/tools/gen_on_device_proto_descriptors.py",
         # Requires dynamic globbing of hundreds of policy definition YAML files
         # under components/policy/resources/templates/ directory.
         "components/policy/resources/policy_templates.py",
-        "components/resources/ssl/ssl_error_assistant/gen_ssl_error_assistant_proto.py",
-        "components/safe_browsing/content/resources/gen_file_type_proto.py",
-        "components/safe_browsing/content/resources/real_time_url_checks_allowlist/gen_real_time_url_allowlist_proto.py",
         "components/vector_icons/aggregate_vector_icons.py",
         "components/zucchini/fuzzers/generate_fuzzer_data.py",
         "mojo/public/tools/bindings/minify_with_terser.py",
@@ -49,7 +52,6 @@ def __step_config(ctx, step_config):
         "testing/libfuzzer/fuzzers/generate_v8_inspector_fuzzer_corpus.py",
         "testing/libfuzzer/research/domatolpm/fuzzer_generator.py",
         "testing/libfuzzer/research/domatolpm/generator.py",
-        "testing/libfuzzer/research/fuzzilli_idl_fuzzing/generator.py",
         "testing/scripts/rust/generate_script.py",
         # Dynamically walks and loads 160+ translated grd files (xtb) and requires
         # full grit python libraries. Too many dynamic dependencies to track.
@@ -77,7 +79,6 @@ def __step_config(ctx, step_config):
         "third_party/inspector_protocol/check_protocol_compatibility.py",
         "third_party/inspector_protocol/code_generator.py",
         "third_party/inspector_protocol/concatenate_protocols.py",
-        "third_party/libdrm/src/gen_table_fourcc.py",
         "third_party/libei/scanner.py",
         "third_party/lottie/minify_lottie.py",
         "third_party/perfetto/src/trace_processor/plugins/wattson/gen_wattson_curves.py",
@@ -89,13 +90,11 @@ def __step_config(ctx, step_config):
         "third_party/webgpu-cts/scripts/compile_src.py",
         "third_party/webgpu-cts/scripts/gen_ts_dep_lists.py",
         "third_party/webgpu-cts/scripts/run_regenerate_internal_cts_html.py",
-        "tools/flags/generate_expired_list.py",
         "tools/grit/grit_info.py",
         "tools/grit/grit.py",
         "tools/grit/pak_util.py",
         "tools/grit/preprocess_if_expr.py",
         "tools/json_schema_compiler/compiler.py",
-        "tools/json_schema_compiler/feature_compiler.py",
         "tools/licenses/licenses.py",
 
         # merge_xml.py relies on expand_owners.py, which
@@ -107,7 +106,6 @@ def __step_config(ctx, step_config):
         "tools/nocompile/wrapper.py",
         "tools/polymer/css_to_wrapper.py",
         "tools/polymer/html_to_wrapper.py",
-        "tools/variations/fieldtrial_to_struct.py",
         "ui/webui/resources/tools/bundle_js.py",
         "ui/webui/resources/tools/eslint_ts.py",
         "ui/webui/resources/tools/generate_code_cache.py",

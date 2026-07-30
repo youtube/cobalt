@@ -102,6 +102,7 @@
         android:name="org.chromium.chrome.browser.LauncherShortcutActivity"
         android:excludeFromRecents="true"
         android:exported="false"
+        android:launchMode="singleInstance"
         android:taskAffinity=""
         android:theme="@style/Theme.BrowserUI.NoDisplay">
       <property android:name="android.window.PROPERTY_SUPPORTS_MULTI_INSTANCE_SYSTEM_UI" android:value="true"/>
@@ -212,6 +213,14 @@
         android:exported="false"
         android:theme="@style/Theme.Chromium.DialogWhenLarge">
     </activity>  # DIFF-ANCHOR: 6ad7b5dd
+    <activity  # DIFF-ANCHOR: a6346d72
+        android:name="org.chromium.chrome.browser.devtools.DevToolsActivity"
+        android:configChanges="orientation|keyboardHidden|keyboard|screenSize|mcc|mnc|screenLayout|smallestScreenSize|uiMode|navigation|density|touchscreen|colorMode"
+        android:exported="false"
+        android:hardwareAccelerated="false"
+        android:theme="@style/Theme.Chromium.Activity"
+        android:windowSoftInputMode="adjustResize">
+    </activity>  # DIFF-ANCHOR: a6346d72
     <activity  # DIFF-ANCHOR: 1acdfd19
         android:name="org.chromium.chrome.browser.document.ChromeLauncherActivity"
         android:configChanges="orientation|keyboardHidden|keyboard|screenSize|mcc|mnc|screenLayout|smallestScreenSize|uiMode|density"

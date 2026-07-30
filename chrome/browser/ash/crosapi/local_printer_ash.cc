@@ -11,7 +11,7 @@
 #include <vector>
 
 #include "ash/constants/ash_features.h"
-#include "ash/constants/ash_pref_names.h"
+#include "ash/constants/chrome_pref_names.h"
 #include "ash/webui/settings/public/constants/routes.mojom.h"
 #include "base/check.h"
 #include "base/check_deref.h"
@@ -23,9 +23,6 @@
 #include "base/memory/weak_ptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/values.h"
-#include "chrome/browser/ash/printing/cups_print_job.h"
-#include "chrome/browser/ash/printing/cups_print_job_manager.h"
-#include "chrome/browser/ash/printing/cups_print_job_manager_factory.h"
 #include "chrome/browser/ash/printing/cups_printers_manager.h"
 #include "chrome/browser/ash/printing/cups_printers_manager_factory.h"
 #include "chrome/browser/ash/printing/history/print_job_info.pb.h"
@@ -43,7 +40,6 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/printing/local_printer_utils_chromeos.h"
 #include "chrome/browser/profiles/profile_manager.h"
-#include "chrome/common/pref_names.h"
 #include "chromeos/ash/experiences/settings_ui/settings_app_manager.h"
 #include "chromeos/crosapi/mojom/local_printer.mojom.h"
 #include "chromeos/printing/ppd_provider.h"
@@ -117,77 +113,10 @@ void LocalPrinterAsh::OnProfileAdded(Profile* profile) {
     // This can occur during browser tests.
     LOG(ERROR) << "PrintServersManager object not found";
   }
-  auto* print_job_manager =
-      ash::CupsPrintJobManagerFactory::GetForBrowserContext(profile);
-  print_job_manager->AddObserver(this);
 }
 
 void LocalPrinterAsh::OnProfileManagerDestroying() {
   profile_manager_observer_.Reset();
-}
-
-void LocalPrinterAsh::OnPrintJobCreated(base::WeakPtr<ash::CupsPrintJob> job) {
-  NotifyPrintJobUpdate(job, mojom::PrintJobStatus::kCreated);
-}
-
-void LocalPrinterAsh::OnPrintJobStarted(base::WeakPtr<ash::CupsPrintJob> job) {
-  NotifyPrintJobUpdate(job, mojom::PrintJobStatus::kStarted);
-}
-
-void LocalPrinterAsh::OnPrintJobUpdated(base::WeakPtr<ash::CupsPrintJob> job) {
-  NotifyPrintJobUpdate(job, mojom::PrintJobStatus::kUpdated);
-}
-
-void LocalPrinterAsh::OnPrintJobSuspended(
-    base::WeakPtr<ash::CupsPrintJob> job) {
-  NotifyPrintJobUpdate(job, mojom::PrintJobStatus::kSuspended);
-}
-
-void LocalPrinterAsh::OnPrintJobResumed(base::WeakPtr<ash::CupsPrintJob> job) {
-  NotifyPrintJobUpdate(job, mojom::PrintJobStatus::kResumed);
-}
-
-void LocalPrinterAsh::OnPrintJobDone(base::WeakPtr<ash::CupsPrintJob> job) {
-  NotifyPrintJobUpdate(job, mojom::PrintJobStatus::kDone);
-}
-
-void LocalPrinterAsh::OnPrintJobError(base::WeakPtr<ash::CupsPrintJob> job) {
-  NotifyPrintJobUpdate(job, mojom::PrintJobStatus::kError);
-}
-
-void LocalPrinterAsh::OnPrintJobCancelled(
-    base::WeakPtr<ash::CupsPrintJob> job) {
-  NotifyPrintJobUpdate(job, mojom::PrintJobStatus::kCancelled);
-}
-
-void LocalPrinterAsh::NotifyPrintJobUpdate(base::WeakPtr<ash::CupsPrintJob> job,
-                                           mojom::PrintJobStatus status) {
-  if (!job) {
-    LOG(WARNING) << "Ignoring invalid print job";
-    return;
-  }
-  const auto& printer_id = job->printer().id();
-  const auto& job_id = job->job_id();
-  auto update = mojom::PrintJobUpdate::New();
-  update->status = status;
-  update->pages_printed = job->printed_page_number();
-  for (auto& remote : print_job_remotes_) {
-    remote->OnPrintJobUpdate(printer_id, job_id, update.Clone());
-  }
-  switch (job->source()) {
-    case mojom::PrintJob::Source::kExtension:
-      for (auto& remote : extension_print_job_remotes_) {
-        remote->OnPrintJobUpdate(printer_id, job_id, update.Clone());
-      }
-      break;
-    case mojom::PrintJob::Source::kIsolatedWebApp:
-      for (auto& remote : iwa_print_job_remotes_) {
-        remote->OnPrintJobUpdate(printer_id, job_id, update.Clone());
-      }
-      break;
-    default:
-      break;
-  }
 }
 
 void LocalPrinterAsh::OnPrintServersChanged(
@@ -243,13 +172,13 @@ void LocalPrinterAsh::GetPrinterTypeDenyList(
   PrefService* prefs = profile->GetPrefs();
 
   std::vector<printing::mojom::PrinterType> deny_list;
-  if (!prefs->HasPrefPath(prefs::kPrinterTypeDenyList)) {
+  if (!prefs->HasPrefPath(ash::chrome_prefs::kPrinterTypeDenyList)) {
     std::move(callback).Run(deny_list);
     return;
   }
 
   const base::Value& deny_list_from_prefs =
-      prefs->GetValue(prefs::kPrinterTypeDenyList);
+      prefs->GetValue(ash::chrome_prefs::kPrinterTypeDenyList);
 
   deny_list.reserve(deny_list_from_prefs.GetList().size());
   for (const base::Value& deny_list_value : deny_list_from_prefs.GetList()) {
@@ -276,24 +205,6 @@ Profile* LocalPrinterAsh::GetProfile() {
     return nullptr;
   }
   return ProfileManager::GetPrimaryUserProfile();
-}
-
-void LocalPrinterAsh::AddPrintJobObserver(
-    mojo::PendingRemote<mojom::PrintJobObserver> remote,
-    mojom::PrintJobSource source,
-    AddPrintJobObserverCallback callback) {
-  switch (source) {
-    case mojom::PrintJobSource::kExtension:
-      extension_print_job_remotes_.Add(std::move(remote));
-      break;
-    case mojom::PrintJobSource::kIsolatedWebApp:
-      iwa_print_job_remotes_.Add(std::move(remote));
-      break;
-    case mojom::PrintJobSource::kAny:
-      print_job_remotes_.Add(std::move(remote));
-      break;
-  }
-  std::move(callback).Run();
 }
 
 scoped_refptr<chromeos::PpdProvider> LocalPrinterAsh::CreatePpdProvider(

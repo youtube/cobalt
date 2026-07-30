@@ -39,6 +39,7 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/child_process_id_util.h"
 #include "content/public/common/origin_util.h"
+#include "content/public/common/page_visibility_state.h"
 #include "device/vr/buildflags/buildflags.h"
 #include "device/vr/public/cpp/features.h"
 #include "device/vr/public/cpp/session_mode.h"
@@ -424,6 +425,12 @@ void VRServiceImpl::OnImmersiveSessionCreated(
     return;
   }
 
+  if (enabled_features.contains(device::mojom::XRSessionFeature::DOM_OVERLAY)) {
+    // Tell RenderFrameHostImpl that we're setting up the WebXR DOM Overlay,
+    // it checks for this in EnterFullscreen via HasSeenRecentXrOverlaySetup().
+    render_frame_host_->SetIsXrOverlaySetup();
+  }
+
   // Get the metrics tracker for the new immersive session
   mojo::PendingRemote<device::mojom::XRSessionMetricsRecorder>
       session_metrics_recorder =
@@ -557,6 +564,17 @@ void VRServiceImpl::RequestSession(
     RejectSession(std::move(callback), options->trace_id,
                   device::mojom::RequestSessionError::UNKNOWN_FAILURE,
                   "Missing user activation.");
+    return;
+  }
+
+  if (render_frame_host_->GetVisibilityState() !=
+      content::PageVisibilityState::kVisible) {
+    // Page visibility is verified blink-side, so this should never fail unless
+    // the requesting client is misbehaving or compromised. Treat non-visible
+    // page as unknown failure:
+    RejectSession(std::move(callback), options->trace_id,
+                  device::mojom::RequestSessionError::UNKNOWN_FAILURE,
+                  "Page is not visible.");
     return;
   }
 
@@ -874,18 +892,6 @@ void VRServiceImpl::DoRequestSession(SessionRequestData request) {
               ToRendererProcessId(render_frame_host_->GetProcess()->GetID()),
               render_frame_host_->GetRoutingID());
     }
-  }
-
-  bool use_dom_overlay =
-      std::ranges::contains(runtime_options->required_features,
-                            device::mojom::XRSessionFeature::DOM_OVERLAY) ||
-      std::ranges::contains(runtime_options->optional_features,
-                            device::mojom::XRSessionFeature::DOM_OVERLAY);
-
-  if (use_dom_overlay) {
-    // Tell RenderFrameHostImpl that we're setting up the WebXR DOM Overlay,
-    // it checks for this in EnterFullscreen via HasSeenRecentXrOverlaySetup().
-    render_frame_host_->SetIsXrOverlaySetup();
   }
 
   if (device::XRSessionModeUtils::IsImmersive(runtime_options->mode)) {

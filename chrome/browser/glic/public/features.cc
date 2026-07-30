@@ -52,6 +52,11 @@ const base::FeatureParam<bool> kAutoOpenGlicForPdfWithOnboarding({
     "AutoOpenGlicForPdfWithOnboarding",
     true,
 });
+const base::FeatureParam<base::TimeDelta> kAutoOpenGlicCooldown({
+    &kAutoOpenGlicForPdf,
+    "AutoOpenGlicCooldown",
+    base::Hours(1),
+});
 
 BASE_FEATURE(kGlicInvoke, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -153,13 +158,14 @@ BASE_FEATURE(kGlicContextualCueingV2AutoSubmit,
 
 BASE_FEATURE(kGlicWebDragAndDropFileUpload, base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kGlicOptInImpressionMetrics, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kGlicOptInImpressionMetrics, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Killswitch that controls whether the WebContents visibility state is
 // set to hidden when the Glic panel is warming.
 // TODO(crbug.com/513620671) Investigate enabling on Windows.
+// TODO(crbug.com/516381993) Investigate enabling on ChromeOS.
 BASE_FEATURE(kGlicContentsInitiallyHidden,
-#if BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
              base::FEATURE_DISABLED_BY_DEFAULT
 #else
              base::FEATURE_ENABLED_BY_DEFAULT
@@ -169,9 +175,26 @@ BASE_FEATURE(kGlicContentsInitiallyHidden,
 BASE_FEATURE(kGlicAnchorEntryPointForOnboardedUsers,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// If kGlicShowForSignedOut is enabled, the GiC panel can be shown to signed out
+// users to show the sign-in promotion.
+BASE_FEATURE(kGlicShowForSignedOut,
+#if BUILDFLAG(IS_ANDROID)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif
+);
+
 // Killswitch that controls whether to update the WebContents visibility state
 // when toggling the Glic panel.
 BASE_FEATURE(kGlicSetWebContentsVisibilityWhenToggling,
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kGlicProcessCounterAbuseVerdict,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kGlicNoWebUiLoader, base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kGlicGeminiEnterpriseSettingsEnabled,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace features

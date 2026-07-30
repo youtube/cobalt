@@ -123,7 +123,7 @@ suite('ComposeboxTest', () => {
     const localizedLink = suggestionActivity.querySelector('localized-link');
     assertTrue(!!localizedLink);
 
-    const testUrl = 'https://google.com/activity';
+    const testUrl = 'about:blank?activity';
     // Simulate the event fired by localized-link.
     const anchor = document.createElement('a');
     anchor.href = testUrl;
@@ -364,7 +364,7 @@ suite('ComposeboxTest', () => {
         // Prepare mock files: one regular file, one tab (identified by having a
         // 'url').
         const regularFile = {name: 'image.png', type: 'image/png'} as any;
-        const tabFile = {name: 'Google', url: 'https://www.google.com/'} as any;
+        const tabFile = {name: 'Google', url: 'about:blank'} as any;
         freshComposebox.files =
             new Map([['uuid-1', regularFile], ['uuid-2', tabFile]]);
 
@@ -395,7 +395,7 @@ suite('ComposeboxTest', () => {
     // Prepare mock files: one regular file, one tab (identified by having a
     // 'url').
     const regularFile = {name: 'image.png', type: 'image/png'} as any;
-    const tabFile = {name: 'Google', url: 'https://www.google.com/'} as any;
+    const tabFile = {name: 'Google', url: 'about:blank'} as any;
     freshComposebox.files =
         new Map([['uuid-1', regularFile], ['uuid-2', tabFile]]);
 
@@ -479,6 +479,87 @@ suite('ComposeboxTest', () => {
 
         const args = await searchboxHandler.whenCalled('queryAutocomplete');
         assertDeepEquals(args, ['hello world', false, 11]);
+      });
+
+  test('clears selected tabs on submit', async () => {
+    // Selected Tab (ID: 100) checked by the user.
+    const tokenTab = 'test-token-tab' as unknown as UnguessableToken;
+    const selectedTabId = 100;
+    const mockTabFile = new ComposeboxFile(
+        tokenTab, 'Selected Tab', 'tab', InputType.kBrowserTab, {
+          isDeletable: true,
+          tabId: selectedTabId,
+          url: 'about:blank',
+        });
+
+    // Add the selected tab to the active files and added tabs maps.
+    composebox.files = new Map([[tokenTab, mockTabFile]]);
+    composebox.addedTabsIds = new Map([[selectedTabId, tokenTab]]);
+
+    await composebox.updateComplete;
+
+    composebox.submitCleanup();
+
+    // Verify: The selected Tab 100 must be completely removed from the
+    // current active selection.
+    assertFalse(composebox.addedTabsIds.has(selectedTabId));
+    assertFalse(composebox.files.has(tokenTab));
+  });
+
+  test(
+      'refreshTabSuggestions() dedupes restored and current tabs', async () => {
+        const tab1 = {
+          tabId: 0,
+          title: 'Tab 1',
+          url: 'about:blank?1',
+          showInCurrentTabChip: false,
+          showInPreviousTabChip: false,
+          lastActive: {internalValue: 0n},
+        };
+        const tab2Restored = {
+          tabId: 0,
+          title: 'Tab 2',
+          url: 'about:blank?2',
+          showInCurrentTabChip: false,
+          showInPreviousTabChip: false,
+          lastActive: {internalValue: 0n},
+        };
+        const tab2Recent = {
+          tabId: 2,
+          title: 'Tab 2',
+          url: 'about:blank?2',
+          showInCurrentTabChip: false,
+          showInPreviousTabChip: false,
+          lastActive: {internalValue: 0n},
+        };
+        const tab3 = {
+          tabId: 3,
+          title: 'Tab 3',
+          url: 'about:blank?3',
+          showInCurrentTabChip: false,
+          showInPreviousTabChip: false,
+          lastActive: {internalValue: 0n},
+        };
+
+        // Mock searchboxHandler.getRecentTabs to return tab2Recent and tab3.
+        searchboxHandler.setResultFor(
+            'getRecentTabs', Promise.resolve({tabs: [tab2Recent, tab3]}));
+
+        // Set aimThreadRestoredTabs to contain tab1 and tab2Restored.
+        composebox.aimThreadRestoredTabs = [tab1, tab2Restored];
+
+        await composebox.refreshTabSuggestions();
+
+        // Expected tabSuggestions: [tab1, tab2Restored, tab3]
+        // (tab2Recent from recent tabs should be filtered out because its URL
+        // matches tab2Restored)
+        assertEquals(3, composebox.tabSuggestions.length);
+        assertEquals(0, composebox.tabSuggestions[0]!.tabId);
+        assertEquals('about:blank?1', composebox.tabSuggestions[0]!.url);
+        assertEquals(0, composebox.tabSuggestions[1]!.tabId);
+        assertEquals('about:blank?2', composebox.tabSuggestions[1]!.url);
+        assertEquals(3, composebox.tabSuggestions[2]!.tabId);
+        assertEquals('about:blank?3', composebox.tabSuggestions[2]!.url);
       });
 
   test(

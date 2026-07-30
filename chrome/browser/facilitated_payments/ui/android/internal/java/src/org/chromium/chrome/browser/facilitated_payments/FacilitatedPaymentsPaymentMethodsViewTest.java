@@ -22,6 +22,7 @@ import static org.chromium.chrome.browser.facilitated_payments.FacilitatedPaymen
 import static org.chromium.chrome.browser.facilitated_payments.FacilitatedPaymentsPaymentMethodsProperties.ItemType.CONTINUE_BUTTON;
 import static org.chromium.chrome.browser.facilitated_payments.FacilitatedPaymentsPaymentMethodsProperties.ItemType.EWALLET;
 import static org.chromium.chrome.browser.facilitated_payments.FacilitatedPaymentsPaymentMethodsProperties.ItemType.PAYMENT_APP;
+import static org.chromium.chrome.browser.facilitated_payments.FacilitatedPaymentsPaymentMethodsProperties.PixAccountLinkingPromptProperties.DECLINE_BUTTON_TEXT_ID;
 import static org.chromium.chrome.browser.facilitated_payments.FacilitatedPaymentsPaymentMethodsProperties.PixAccountLinkingPromptProperties.SETTINGS_LINK_CALLBACK;
 import static org.chromium.chrome.browser.facilitated_payments.FacilitatedPaymentsPaymentMethodsProperties.PixAccountLinkingPromptProperties.VIDEO_LINK_CALLBACK;
 import static org.chromium.chrome.browser.facilitated_payments.FacilitatedPaymentsPaymentMethodsProperties.SCREEN;
@@ -904,6 +905,11 @@ public final class FacilitatedPaymentsPaymentMethodsViewTest {
         runOnUiThreadBlocking(
                 () -> {
                     mModel.set(SCREEN, PIX_ACCOUNT_LINKING_PROMPT);
+                    mModel.get(SCREEN_VIEW_MODEL).set(SETTINGS_LINK_CALLBACK, v -> {});
+                    mModel.get(SCREEN_VIEW_MODEL)
+                            .set(
+                                    DECLINE_BUTTON_TEXT_ID,
+                                    R.string.pix_account_linking_prompt_decline_first_two_times);
                     mModel.set(VISIBLE_STATE, SHOWN);
                 });
         BottomSheetTestSupport.waitForOpen(mBottomSheetController);
@@ -924,10 +930,16 @@ public final class FacilitatedPaymentsPaymentMethodsViewTest {
         assertThat(valuePropMessage3.getText(), is("Encryption protects your personal info"));
         assertNotNull(valuePropMessage3.getCompoundDrawablesRelative()[0]);
 
+        TextView settingsLink =
+                mView.getContentView().findViewById(R.id.pix_code_detection_settings_link);
+        assertThat(
+                settingsLink.getText().toString(),
+                is("To turn off Pix code detection, go to Chrome settings"));
+
         ButtonCompat acceptButton = mView.getContentView().findViewById(R.id.accept_button);
         assertThat(acceptButton.getText(), is("Enable Pix in Wallet"));
         ButtonCompat declineButton = mView.getContentView().findViewById(R.id.decline_button);
-        assertThat(declineButton.getText(), is("No thanks"));
+        assertThat(declineButton.getText(), is("Not now"));
     }
 
     @Test
@@ -939,6 +951,10 @@ public final class FacilitatedPaymentsPaymentMethodsViewTest {
                 () -> {
                     mModel.set(SCREEN, PIX_ACCOUNT_LINKING_PROMPT);
                     mModel.get(SCREEN_VIEW_MODEL).set(SETTINGS_LINK_CALLBACK, v -> {});
+                    mModel.get(SCREEN_VIEW_MODEL)
+                            .set(
+                                    DECLINE_BUTTON_TEXT_ID,
+                                    R.string.pix_account_linking_prompt_decline_first_two_times);
                     mModel.get(SCREEN_VIEW_MODEL)
                             .set(VIDEO_LINK_CALLBACK, v -> videoLinkClicked[0] = true);
                     mModel.set(VISIBLE_STATE, SHOWN);
@@ -989,6 +1005,10 @@ public final class FacilitatedPaymentsPaymentMethodsViewTest {
                 () -> {
                     mModel.set(SCREEN, PIX_ACCOUNT_LINKING_PROMPT);
                     mModel.get(SCREEN_VIEW_MODEL).set(SETTINGS_LINK_CALLBACK, v -> {});
+                    mModel.get(SCREEN_VIEW_MODEL)
+                            .set(
+                                    DECLINE_BUTTON_TEXT_ID,
+                                    R.string.pix_account_linking_prompt_decline_first_two_times);
                     mModel.set(VISIBLE_STATE, SHOWN);
                 });
         BottomSheetTestSupport.waitForOpen(mBottomSheetController);

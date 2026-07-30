@@ -59,7 +59,13 @@ class FuseboxViewBinder {
      * @see PropertyModelChangeProcessor.ViewBinder#bind(Object, Object, Object)
      */
     public static void bind(PropertyModel model, FuseboxViewHolder view, PropertyKey propertyKey) {
-        if (propertyKey == FuseboxProperties.ADAPTER) {
+        if (propertyKey == FuseboxProperties.ACTIVATION_CHIP_CLICKED) {
+            view.activationChip.setOnClickListener(
+                    v -> model.get(FuseboxProperties.ACTIVATION_CHIP_CLICKED).run());
+        } else if (propertyKey == FuseboxProperties.ACTIVATION_CHIP_VISIBLE) {
+            updateButtonVisibility(
+                    model, FuseboxProperties.ACTIVATION_CHIP_VISIBLE, view.activationChip);
+        } else if (propertyKey == FuseboxProperties.ADAPTER) {
             view.attachmentsView.setAdapter(model.get(FuseboxProperties.ADAPTER));
         } else if (propertyKey == FuseboxProperties.ADD_BUTTON_VISIBLE) {
             updateAddButton(model, view);
@@ -526,6 +532,7 @@ class FuseboxViewBinder {
         updateNavigateButton(model, view);
         updateRequestTypeButton(model, view);
         updatePopupTheme(model, view);
+        updateActivationChip(model, view);
         Context context = view.parentView.getContext();
         @BrandedColorScheme int brandedColorScheme = model.get(FuseboxProperties.COLOR_SCHEME);
         Drawable background =
@@ -578,41 +585,19 @@ class FuseboxViewBinder {
         Context context = view.parentView.getContext();
         Resources res = context.getResources();
 
-        final String text;
-        final String description;
-        final @ColorInt int buttonColor;
-        final @ColorInt int borderColor;
-        final @StyleRes int textAppearanceRes;
-        final Drawable startDrawable;
-        final Drawable endDrawable;
         @ColorInt
-        int colorPrimary = OmniboxResourceProvider.getColorPrimary(context, brandedColorScheme);
+        int colorOnSurface = OmniboxResourceProvider.getColorOnSurface(context, brandedColorScheme);
 
-        text = res.getString(getTextResForTool(requestType));
-        description = res.getString(R.string.accessibility_omnibox_reset_mode, text);
-        startDrawable = context.getDrawable(getIconResForTool(requestType));
-        endDrawable = assumeNonNull(context.getDrawable(R.drawable.btn_close)).mutate();
-        borderColor =
-                OmniboxResourceProvider.getRequestTypeButtonBorderColor(
-                        context, brandedColorScheme);
-        if (requestType == AutocompleteRequestType.AI_MODE) {
-            buttonColor = OmniboxResourceProvider.getAiModeButtonColor(context, brandedColorScheme);
-            textAppearanceRes = OmniboxResourceProvider.getAiModeButtonTextRes(brandedColorScheme);
-            assumeNonNull(startDrawable).mutate().setTint(colorPrimary);
-            endDrawable.setTint(colorPrimary);
-        } else {
-            buttonColor =
-                    OmniboxResourceProvider.getImageGenButtonColor(context, brandedColorScheme);
-            textAppearanceRes =
-                    OmniboxResourceProvider.getImageGenButtonTextRes(brandedColorScheme);
-            @ColorInt
-            int iconColor =
-                    OmniboxResourceProvider.getDefaultIconColor(context, brandedColorScheme);
-            if (requestType != AutocompleteRequestType.IMAGE_GENERATION) {
-                assumeNonNull(startDrawable).mutate().setTint(colorPrimary);
-            }
-            endDrawable.setTint(iconColor);
+        String text = res.getString(getTextResForTool(requestType));
+        Drawable startDrawable = context.getDrawable(getIconResForTool(requestType));
+        Drawable endDrawable = assumeNonNull(context.getDrawable(R.drawable.btn_close)).mutate();
+        @ColorInt
+        int buttonColor =
+                OmniboxResourceProvider.getRequestTypeButtonColor(context, brandedColorScheme);
+        if (requestType != AutocompleteRequestType.IMAGE_GENERATION) {
+            assumeNonNull(startDrawable).mutate().setTint(colorOnSurface);
         }
+        endDrawable.setTint(colorOnSurface);
 
         @Px int iconSizePx = res.getDimensionPixelSize(R.dimen.fusebox_button_icon_size);
         scaleDrawable(startDrawable, iconSizePx);
@@ -621,11 +606,29 @@ class FuseboxViewBinder {
         ButtonCompat button = view.requestType;
         button.setVisibility(View.VISIBLE);
         button.setText(text);
-        button.setContentDescription(description);
+        button.setContentDescription(
+                res.getString(R.string.accessibility_omnibox_reset_mode, text));
         button.setButtonColor(ColorStateList.valueOf(buttonColor));
-        button.setBorderColor(ColorStateList.valueOf(borderColor));
-        button.setTextAppearance(textAppearanceRes);
+        button.setTextAppearance(
+                OmniboxResourceProvider.getRequestTypeButtonTextRes(brandedColorScheme));
         button.setCompoundDrawablesRelative(startDrawable, null, endDrawable, null);
+    }
+
+    private static void updateActivationChip(
+            PropertyModel propertyModel, FuseboxViewHolder viewHolder) {
+        Context context = viewHolder.parentView.getContext();
+        @BrandedColorScheme
+        int brandedColorScheme = propertyModel.get(FuseboxProperties.COLOR_SCHEME);
+        @ColorInt
+        int buttonColor =
+                OmniboxResourceProvider.getColorSurfaceContainerHigh(context, brandedColorScheme);
+        ButtonCompat button = viewHolder.activationChip;
+        button.setButtonColor(ColorStateList.valueOf(buttonColor));
+
+        @ColorInt
+        int colorOnSurface = OmniboxResourceProvider.getColorOnSurface(context, brandedColorScheme);
+        // TODO(pnoland): handle text color, selection, and hover states.
+        button.setCompoundDrawableTintList(ColorStateList.valueOf(colorOnSurface));
     }
 
     @SuppressLint("SwitchIntDef")

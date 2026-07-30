@@ -685,10 +685,8 @@ void WidgetBase::OnDeferMainFrameUpdatesChanged(bool defer) {
   widget_input_handler_manager_->OnDeferMainFrameUpdatesChanged(defer);
 }
 
-void WidgetBase::OnDeferCommitsChanged(
-    bool defer,
-    cc::PaintHoldingReason reason,
-    std::optional<cc::PaintHoldingCommitTrigger> trigger) {
+void WidgetBase::OnDeferCommitsChanged(bool defer,
+                                       cc::PaintHoldingReason reason) {
   // The input handler wants to know about the commit status for metric purposes
   // and to enable/disable input.
   widget_input_handler_manager_->OnDeferCommitsChanged(defer, reason);
@@ -1981,13 +1979,6 @@ bool WidgetBase::AreMainFramesPausedOrDeferred() const {
   cc::LayerTreeHost* host = LayerTreeHost();
   CHECK(host);
   return host->MainFrameUpdatesAreDeferred() || host->IsRenderingPaused();
-}
-
-void WidgetBase::RequestEfficientScheduling(
-    const bool prefer_efficient_scheduling) const {
-  if (LayerTreeHost()) [[likely]] {
-    LayerTreeHost()->RequestEfficientScheduling(prefer_efficient_scheduling);
-  }
 }
 
 }  // namespace blink

@@ -10,7 +10,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "components/viz/common/resources/shared_image_format.h"
 #include "media/base/video_transformation.h"
-#include "third_party/blink/renderer/platform/graphics/canvas_snapshot_provider.h"
+#include "third_party/blink/renderer/platform/graphics/canvas_snapshot_info.h"
 #include "third_party/blink/renderer/platform/graphics/image_orientation.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/skia/include/core/SkAlphaType.h"
@@ -88,7 +88,7 @@ CreateAcceleratedImageFromVideoFrame(
 PLATFORM_EXPORT scoped_refptr<StaticBitmapImage>
 CreateUnacceleratedImageFromVideoFrame(
     scoped_refptr<media::VideoFrame> frame,
-    const CanvasSnapshotProvider::Info& draw_info,
+    const CanvasSnapshotInfo& draw_info,
     media::PaintCanvasVideoRenderer* video_renderer = nullptr,
     bool prefer_tagged_orientation = true,
     bool reinterpret_video_as_srgb = false);
@@ -101,6 +101,12 @@ PLATFORM_EXPORT void DrawVideoFrameIntoCanvas(
     cc::PaintCanvas* canvas,
     const cc::PaintFlags& flags,
     bool ignore_video_transformation = false);
+
+// Renders to a RAM-backed bitmap via an external (client-supplied) draw.
+PLATFORM_EXPORT scoped_refptr<StaticBitmapImage> DrawAndSnapshotToImage(
+    const CanvasSnapshotInfo& info,
+    base::FunctionRef<void(cc::PaintCanvas&)> draw_callback,
+    ImageOrientation orientation);
 
 // Extract a RasterContextProvider from the current SharedGpuContext.
 PLATFORM_EXPORT scoped_refptr<viz::RasterContextProvider>
@@ -117,8 +123,7 @@ GetRasterContextProvider();
 //   format: Always GetN32FormatForCanvas() at the time of writing.
 //
 //   size: Set to frame.natural_size() unless `scaled_size` is provided.
-PLATFORM_EXPORT CanvasSnapshotProvider::Info
-CreateSnapshotProviderInfoForVideoFrame(
+PLATFORM_EXPORT CanvasSnapshotInfo CreateSnapshotProviderInfoForVideoFrame(
     const media::VideoFrame& frame,
     std::optional<gfx::Size> scaled_size = std::nullopt,
     bool reinterpret_video_as_srgb = false);

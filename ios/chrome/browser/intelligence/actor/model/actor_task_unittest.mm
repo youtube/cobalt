@@ -8,11 +8,12 @@
 #import "base/strings/string_number_conversions.h"
 #import "base/token.h"
 #import "base/types/strong_alias.h"
-#import "ios/chrome/browser/intelligence/actor/model/aggregated_journal.h"
+#import "components/actor/core/aggregated_journal.h"
 #import "ios/chrome/browser/intelligence/actor/public/actor_task_updates_observer.h"
 #import "ios/chrome/browser/intelligence/actor/public/actor_types.h"
 #import "ios/chrome/browser/intelligence/actor/tools/model/actor_tool.h"
 #import "ios/web/public/test/fakes/fake_web_state.h"
+#import "ios/web/public/test/web_task_environment.h"
 #import "testing/gtest/include/gtest/gtest.h"
 #import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
@@ -126,6 +127,24 @@
 
 namespace actor {
 
+namespace {
+
+// Returns all raw log entries in the journal for testing.
+std::vector<mojom::JournalEntryPtr> GetLogsForTesting(
+    AggregatedJournal* journal) {
+  std::vector<mojom::JournalEntryPtr> result;
+  for (AggregatedJournal::EntryBuffer::Iterator it = journal->Items(); it;
+       ++it) {
+    const std::unique_ptr<AggregatedJournal::Entry>* entry_ptr = *it;
+    if (entry_ptr && *entry_ptr && (*entry_ptr)->data) {
+      result.push_back((*entry_ptr)->data->Clone());
+    }
+  }
+  return result;
+}
+
+}  // namespace
+
 class MockTool : public ActorTool {
  public:
   explicit MockTool(base::WeakPtr<web::WebState> web_state)
@@ -183,6 +202,9 @@ class ActorTaskTest : public PlatformTest {
     task_->OnWillExecuteTool(tool_type, web_state_id);
   }
 
+  void TriggerOnPageLoadedTimeout() { task_->OnPageLoadedTimeout(); }
+
+  web::WebTaskEnvironment task_environment_;
   std::unique_ptr<AggregatedJournal> journal_;
   std::unique_ptr<ActorTask> task_;
 };
@@ -236,15 +258,15 @@ TEST_F(ActorTaskTest, SetState) {
 
   EXPECT_EQ(ActorTaskState::kActing, task_->GetState());
 
-  std::vector<JournalEntry> logs = journal_->GetLogs();
+  std::vector<mojom::JournalEntryPtr> logs = GetLogsForTesting(journal_.get());
   ASSERT_EQ(1u, logs.size());
-  EXPECT_EQ("ActorTask::SetState", logs[0].event);
+  EXPECT_EQ("ActorTask::SetState", logs[0]->event);
 
-  ASSERT_EQ(2u, logs[0].details.size());
-  EXPECT_EQ("current_state", logs[0].details[0].key);
-  EXPECT_EQ("Init", logs[0].details[0].value);
-  EXPECT_EQ("new_state", logs[0].details[1].key);
-  EXPECT_EQ("Acting", logs[0].details[1].value);
+  ASSERT_EQ(2u, logs[0]->details.size());
+  EXPECT_EQ("current_state", logs[0]->details[0]->key);
+  EXPECT_EQ("Init", logs[0]->details[0]->value);
+  EXPECT_EQ("new_state", logs[0]->details[1]->key);
+  EXPECT_EQ("Acting", logs[0]->details[1]->value);
 }
 
 // Tests that AddControlledWebStates correctly adds targeted tabs and ignores
@@ -310,13 +332,13 @@ TEST_F(ActorTaskTest, AddControlledWebState) {
   EXPECT_EQ(1u, controlled_states.size());
   EXPECT_EQ(web_state.get(), controlled_states[0].get());
 
-  std::vector<JournalEntry> logs = journal_->GetLogs();
+  std::vector<mojom::JournalEntryPtr> logs = GetLogsForTesting(journal_.get());
   ASSERT_EQ(1u, logs.size());
-  EXPECT_EQ("ActorTask::AddControlledWebState", logs[0].event);
-  ASSERT_EQ(1u, logs[0].details.size());
-  EXPECT_EQ("web_state_id", logs[0].details[0].key);
+  EXPECT_EQ("ActorTask::AddControlledWebState", logs[0]->event);
+  ASSERT_EQ(1u, logs[0]->details.size());
+  EXPECT_EQ("web_state_id", logs[0]->details[0]->key);
   EXPECT_EQ(base::NumberToString(web_state->GetUniqueIdentifier().identifier()),
-            logs[0].details[0].value);
+            logs[0]->details[0]->value);
 
   // Test adding nullptr or duplicate.
   observer.didAddWebStateCalled = NO;
@@ -324,7 +346,7 @@ TEST_F(ActorTaskTest, AddControlledWebState) {
   task_->AddControlledWebState(web_state.get());
   EXPECT_FALSE(observer.didAddWebStateCalled);
   EXPECT_EQ(1u, GetControlledWebStates().size());
-  EXPECT_EQ(1u, journal_->GetLogs().size());
+  EXPECT_EQ(1u, GetLogsForTesting(journal_.get()).size());
 }
 
 // Tests that AddObserver registers the observer and immediately sends the
@@ -532,6 +554,100 @@ TEST_F(ActorTaskTest, SafeSelfRemovalDuringNotification) {
     SetTaskState(ActorTaskState::kFinished);
     EXPECT_FALSE(observer.didChangeStateCalled);
   }
+}
+
+// Test that successful execution of Act transitions the state to reflecting
+// before the Act completion callback is executed.
+TEST_F(ActorTaskTest, StateTransitionsToReflectingBeforeCallback) {
+  std::unique_ptr<web::FakeWebState> web_state =
+      std::make_unique<web::FakeWebState>();
+  std::vector<std::unique_ptr<ActorTool>> actions;
+  actions.push_back(std::make_unique<MockTool>(web_state->GetWeakPtr()));
+
+  bool callback_executed = false;
+  ActorTaskState state_in_callback = ActorTaskState::kInit;
+
+  task_->Act(
+      std::move(actions), "Performing actions",
+      base::BindOnce(
+          [](bool* executed, ActorTaskState* state, const ActorTask* task,
+             std::vector<ActionResult> results) {
+            *executed = true;
+            *state = task->GetState();
+          },
+          base::Unretained(&callback_executed),
+          base::Unretained(&state_in_callback), base::Unretained(task_.get())));
+
+  EXPECT_TRUE(callback_executed);
+  EXPECT_EQ(ActorTaskState::kReflecting, state_in_callback);
+}
+
+// Test that deferred execution of Act transitions the state to reflecting
+// before the Act completion callback is executed when page loading completes.
+TEST_F(ActorTaskTest, StateTransitionsToReflectingBeforeDeferredCallback) {
+  std::unique_ptr<web::FakeWebState> web_state =
+      std::make_unique<web::FakeWebState>();
+  web_state->SetLoading(true);
+
+  std::vector<std::unique_ptr<ActorTool>> actions;
+  actions.push_back(std::make_unique<MockTool>(web_state->GetWeakPtr()));
+
+  bool callback_executed = false;
+  ActorTaskState state_in_callback = ActorTaskState::kInit;
+
+  task_->Act(
+      std::move(actions), "Performing actions on loading state",
+      base::BindOnce(
+          [](bool* executed, ActorTaskState* state, const ActorTask* task,
+             std::vector<ActionResult> results) {
+            *executed = true;
+            *state = task->GetState();
+          },
+          base::Unretained(&callback_executed),
+          base::Unretained(&state_in_callback), base::Unretained(task_.get())));
+
+  // The callback should not be executed yet since the web_state is loading.
+  EXPECT_FALSE(callback_executed);
+
+  // Stop loading to trigger the deferred callback.
+  web_state->SetLoading(false);
+
+  EXPECT_TRUE(callback_executed);
+  EXPECT_EQ(ActorTaskState::kReflecting, state_in_callback);
+}
+
+// Test that deferred execution of Act transitions the state to reflecting
+// before the Act completion callback is executed when page loading times out.
+TEST_F(ActorTaskTest, StateTransitionsToReflectingBeforeTimeoutCallback) {
+  std::unique_ptr<web::FakeWebState> web_state =
+      std::make_unique<web::FakeWebState>();
+  web_state->SetLoading(true);
+
+  std::vector<std::unique_ptr<ActorTool>> actions;
+  actions.push_back(std::make_unique<MockTool>(web_state->GetWeakPtr()));
+
+  bool callback_executed = false;
+  ActorTaskState state_in_callback = ActorTaskState::kInit;
+
+  task_->Act(
+      std::move(actions), "Performing actions on loading state",
+      base::BindOnce(
+          [](bool* executed, ActorTaskState* state, const ActorTask* task,
+             std::vector<ActionResult> results) {
+            *executed = true;
+            *state = task->GetState();
+          },
+          base::Unretained(&callback_executed),
+          base::Unretained(&state_in_callback), base::Unretained(task_.get())));
+
+  // The callback should not be executed yet since the web_state is loading.
+  EXPECT_FALSE(callback_executed);
+
+  // Directly trigger the page load timeout callback.
+  TriggerOnPageLoadedTimeout();
+
+  EXPECT_TRUE(callback_executed);
+  EXPECT_EQ(ActorTaskState::kReflecting, state_in_callback);
 }
 
 }  // namespace actor

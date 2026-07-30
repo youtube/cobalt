@@ -18,6 +18,7 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.actor.ActorTask;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsVisibilityManager;
 import org.chromium.chrome.browser.glic.GlicButtonStateController.ButtonState;
+import org.chromium.chrome.browser.glic.GlicKeyedService.GlicInvocationSource;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
@@ -123,6 +124,8 @@ public class GlicToolbarButtonController extends BaseButtonDataProvider {
     private ButtonSpec createReviewSpec() {
         return new ButtonSpec.Builder(mDefaultSpec)
                 .setActionChipLabelResId(R.string.glic_button_status_review)
+                .setContentDescription(
+                        mActivity.getString(R.string.glic_button_status_review_a11y_label))
                 .setShouldSuppressCpa(true)
                 .setActionChipCollapseDelayMs(ACTION_CHIP_COLLAPSE_DELAY_MS)
                 .setActionChipBackgroundColorResId(R.attr.colorSecondaryContainer)
@@ -133,6 +136,8 @@ public class GlicToolbarButtonController extends BaseButtonDataProvider {
     private ButtonSpec createDoneSpec() {
         return new ButtonSpec.Builder(mDefaultSpec)
                 .setActionChipLabelResId(R.string.glic_button_status_done)
+                .setContentDescription(
+                        mActivity.getString(R.string.glic_button_status_done_a11y_label))
                 .setShouldSuppressCpa(true)
                 .setActionChipCollapseDelayMs(ACTION_CHIP_COLLAPSE_DELAY_MS)
                 .setActionChipBackgroundColorResId(R.attr.colorTertiaryContainer)
@@ -145,6 +150,8 @@ public class GlicToolbarButtonController extends BaseButtonDataProvider {
         Drawable layerDrawable = GlicUiHelper.createWorkingDrawable(context, sparkIcon);
         return new ButtonSpec.Builder(mDefaultSpec)
                 .setDrawable(layerDrawable)
+                .setContentDescription(
+                        context.getString(R.string.glic_button_status_working_a11y_label))
                 .setShouldSuppressCpa(true)
                 .build();
     }
@@ -184,6 +191,9 @@ public class GlicToolbarButtonController extends BaseButtonDataProvider {
         }
 
         assumeNonNull(tab);
+        assert AdaptiveToolbarFeatures.isGlicEnabledForProfile(
+                        tab.getProfile().getOriginalProfile())
+                : "Glic get() called when Glic is not eligible/enabled for profile";
         if (tab.isOffTheRecord()) {
             mButtonData.setButtonSpec(new ButtonSpec.Builder(mDefaultSpec).build());
             return buttonData;
@@ -237,14 +247,17 @@ public class GlicToolbarButtonController extends BaseButtonDataProvider {
 
     @Override
     public void onClick(View view) {
+        Tab tab = mActiveTabSupplier.get();
+        assert tab != null
+                        && AdaptiveToolbarFeatures.isGlicEnabledForProfile(
+                                tab.getProfile().getOriginalProfile())
+                : "Glic click invoked when Glic is not eligible/enabled for profile";
         mStateController.setPersistDoneState(false);
 
         if (mTaskMenuCoordinator != null && mTaskMenuCoordinator.isShowing()) {
             mTaskMenuCoordinator.dismiss();
             return;
         }
-
-        Tab tab = mActiveTabSupplier.get();
         if (tab != null && tab.isOffTheRecord()) {
             if (mActivity instanceof SnackbarManager.SnackbarManageable) {
                 SnackbarManager snackbarManager =
@@ -274,14 +287,17 @@ public class GlicToolbarButtonController extends BaseButtonDataProvider {
                 if (mTaskMenuCoordinator == null) {
                     mTaskMenuCoordinator =
                             new GlicTaskMenuCoordinator(
-                                    mActivity, mTabModelSelectorSupplier, mToggleGlicCallback);
+                                    mActivity,
+                                    mTabModelSelectorSupplier,
+                                    mToggleGlicCallback,
+                                    GlicInvocationSource.TOP_CHROME_BUTTON);
                 }
                 mTaskMenuCoordinator.show(view, tasks);
                 return;
             }
         }
 
-        mToggleGlicCallback.onClick(false);
+        mToggleGlicCallback.onClick(false, GlicInvocationSource.TOP_CHROME_BUTTON);
         Tracker tracker = mTrackerSupplier.get();
         if (tracker != null) {
             tracker.notifyEvent(EventConstants.ADAPTIVE_TOOLBAR_CUSTOMIZATION_GLIC_CLICKED);

@@ -41,6 +41,10 @@ namespace signin {
 //
 // TODO(alexilin): support a timeout aborting the token generation if it takes
 // too long.
+//
+// TODO(crbug.com/516196445): move this class into
+// `//components/signin/internal/identity_manager/` once it's no longer used
+// outside of the signin component.
 class BindingKeyRegistrationTokenHelper {
  public:
   // Initialization parameter indicating which binding key should be used for
@@ -81,6 +85,14 @@ class BindingKeyRegistrationTokenHelper {
 
   virtual ~BindingKeyRegistrationTokenHelper();
 
+  // Initiates loading or generation of the binding key if not already started.
+  void CreateKeyLoaderIfNeeded();
+
+  // Returns `true` if the binding key was successfully generated or unwrapped.
+  // Returns `false` if the key hasn't been created yet or if it failed to
+  // create/unwrap.
+  bool IsRegistrationKeyReady() const;
+
   // Invokes `callback` with a `Result` containing a new binding key ID and a
   // corresponding registration token on success. Otherwise, invokes `callback`
   // with `std::nullopt`.
@@ -102,7 +114,6 @@ class BindingKeyRegistrationTokenHelper {
           base::span<const uint8_t>,
           base::Time)>;
 
-  void CreateKeyLoaderIfNeeded();
   void SignHeaderAndPayload(
       HeaderAndPayloadGenerator header_and_payload_generator,
       base::OnceCallback<void(base::expected<Result, Error>)> callback,

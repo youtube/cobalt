@@ -115,6 +115,7 @@ const char kMtlsOAuth2TokenUrlSuffix[] = "token";
 
 // API calls from oauthaccountmanager.googleapis.com
 const char kOAuth2IssueTokenUrlSuffix[] = "v1/issuetoken";
+const char kOAuth2UpgradeTokenUrlSuffix[] = "v1/upgradetoken";
 
 // API calls from accountcapabilities-pa.googleapis.com
 const char kAccountCapabilitiesBatchGetUrlSuffix[] =
@@ -262,8 +263,14 @@ const GURL& GaiaUrls::reauth_chrome_dice() const {
   return reauth_chrome_dice_;
 }
 
-const GURL& GaiaUrls::signin_chrome_sync_keys_retrieval_url() const {
-  return signin_chrome_sync_keys_retrieval_url_;
+GURL GaiaUrls::SigninChromeSyncKeysRetrievalUrl(size_t account_index) const {
+  if (!base::FeatureList::IsEnabled(
+          gaia::features::kSigninChromeSyncKeysUrlUsesAccountIndex)) {
+    return signin_chrome_sync_keys_retrieval_url_;
+  }
+  return net::AppendQueryParameter(signin_chrome_sync_keys_retrieval_url_,
+                                   "authuser",
+                                   base::NumberToString(account_index));
 }
 
 GURL GaiaUrls::SigninChromePasskeyUnlockUrl(size_t account_index) const {
@@ -281,9 +288,15 @@ const std::string_view GaiaUrls::signin_chrome_passkey_unlock_kdi_parameter()
   return kPasskeyUnlockUrlKdiParameter;
 }
 
-const GURL& GaiaUrls::signin_chrome_sync_keys_recoverability_degraded_url()
-    const {
-  return signin_chrome_sync_keys_recoverability_degraded_url_;
+GURL GaiaUrls::SigninChromeSyncKeysRecoverabilityDegradedUrl(
+    size_t account_index) const {
+  if (!base::FeatureList::IsEnabled(
+          gaia::features::kSigninChromeSyncKeysUrlUsesAccountIndex)) {
+    return signin_chrome_sync_keys_recoverability_degraded_url_;
+  }
+  return net::AppendQueryParameter(
+      signin_chrome_sync_keys_recoverability_degraded_url_, "authuser",
+      base::NumberToString(account_index));
 }
 
 const GURL& GaiaUrls::service_logout_url() const {
@@ -340,6 +353,10 @@ const GURL& GaiaUrls::oauth2_issue_token_url() const {
 
 const GURL& GaiaUrls::mtls_oauth2_issue_token_url() const {
   return mtls_oauth2_issue_token_url_;
+}
+
+const GURL& GaiaUrls::oauth2_upgrade_token_url() const {
+  return oauth2_upgrade_token_url_;
 }
 
 const GURL& GaiaUrls::oauth2_token_info_url() const {
@@ -509,6 +526,9 @@ void GaiaUrls::InitializeDefault() {
   ResolveURLIfInvalid(&oauth2_issue_token_url_,
                       oauth_account_manager_origin_url_,
                       kOAuth2IssueTokenUrlSuffix);
+  ResolveURLIfInvalid(&oauth2_upgrade_token_url_,
+                      oauth_account_manager_origin_url_,
+                      kOAuth2UpgradeTokenUrlSuffix);
 
   // URLs from |google_apis_mtls_origin_url_|.
   ResolveURLIfInvalid(&mtls_oauth2_token_url_, oauth2_mtls_origin_url_,
@@ -582,6 +602,7 @@ void GaiaUrls::InitializeFromConfig() {
   config->GetURLIfExists(URL_KEY_AND_PTR(mtls_oauth2_token_url));
   config->GetURLIfExists(URL_KEY_AND_PTR(oauth2_issue_token_url));
   config->GetURLIfExists(URL_KEY_AND_PTR(mtls_oauth2_issue_token_url));
+  config->GetURLIfExists(URL_KEY_AND_PTR(oauth2_upgrade_token_url));
   config->GetURLIfExists(URL_KEY_AND_PTR(oauth2_token_info_url));
   config->GetURLIfExists(URL_KEY_AND_PTR(oauth2_revoke_url));
   config->GetURLIfExists(URL_KEY_AND_PTR(reauth_api_url));

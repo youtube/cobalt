@@ -20,6 +20,7 @@ import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationView
 import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationViewProperties.MAIN_BOTTOM_SHEET_FEED_SECTION_SUBTITLE;
 import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationViewProperties.MAIN_BOTTOM_SHEET_MVT_SECTION_SUBTITLE;
 
+import android.app.Activity;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.view.View;
@@ -28,15 +29,19 @@ import android.widget.ViewFlipper;
 import androidx.annotation.StringRes;
 import androidx.annotation.VisibleForTesting;
 
+import org.chromium.base.ApplicationStatus;
 import org.chromium.base.ResettersForTesting;
 import org.chromium.base.TimeUtils;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.feed.FeedFeatures;
+import org.chromium.chrome.browser.ntp_customization.theme.NtpCustomizationPromoManager;
+import org.chromium.chrome.browser.ntp_customization.theme.NtpCustomizationPromoManager.SnackBarState;
 import org.chromium.chrome.browser.ntp_customization.theme.NtpThemeStateProvider;
 import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.search_engines.TemplateUrlServiceFactory;
+import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetContent;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetObserver;
@@ -95,7 +100,8 @@ public class NtpCustomizationMediator implements TemplateUrlServiceObserver {
             PropertyModel viewFlipperPropertyModel,
             @Nullable PropertyModel containerPropertyModel,
             Supplier<@Nullable Profile> profileSupplier,
-            WindowAndroid windowAndroid) {
+            WindowAndroid windowAndroid,
+            SnackbarManager snackbarManager) {
         mBottomSheetController = bottomSheetController;
         mBottomSheetContent = bottomSheetContent;
         mViewFlipperPropertyModel = viewFlipperPropertyModel;
@@ -133,9 +139,18 @@ public class NtpCustomizationMediator implements TemplateUrlServiceObserver {
                         // Notify to recreate activities if a new customized theme color is selected
                         // or removed.
                         if (mShouldRecreate) {
+                            if (context instanceof Activity activity) {
+                                NtpCustomizationPromoManager.maybeUpdateShowThemeTipSnackbarState(
+                                        SnackBarState.PENDING_ON_RECREATE,
+                                        ApplicationStatus.getTaskId(activity));
+                            }
                             NtpCustomizationUtils.setLastApplyThemeTimestampToSharedPreference(
-                                    TimeUtils.uptimeMillis());
+                                    TimeUtils.currentTimeMillis());
                             NtpThemeStateProvider.getInstance().notifyApplyThemeChanges();
+                        } else {
+                            NtpCustomizationPromoManager
+                                    .maybeShowHomepageCustomizationSnackbarOnDismiss(
+                                            context, snackbarManager);
                         }
                     }
                 };

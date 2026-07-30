@@ -409,7 +409,9 @@ class RestrictedCookieManagerTest
     return std::make_unique<TestCookieChangeListener>(std::move(receiver));
   }
 
-  void ExpectBadMessage() { expecting_bad_message_ = true; }
+  void ExpectBadMessage(const std::string& reason) {
+    expecting_bad_message_ = reason;
+  }
 
   bool received_bad_message() { return received_bad_message_; }
 
@@ -417,7 +419,8 @@ class RestrictedCookieManagerTest
 
  protected:
   void OnBadMessage(const std::string& reason) {
-    EXPECT_TRUE(expecting_bad_message_) << "Unexpected bad message: " << reason;
+    EXPECT_EQ(expecting_bad_message_, reason)
+        << "Unexpected bad message: " << reason;
     received_bad_message_ = true;
   }
 
@@ -464,7 +467,7 @@ class RestrictedCookieManagerTest
   mojo::Remote<mojom::RestrictedCookieManager> service_remote_;
   mojo::Receiver<mojom::RestrictedCookieManager> receiver_;
   std::unique_ptr<RestrictedCookieManagerSync> sync_service_;
-  bool expecting_bad_message_ = false;
+  std::optional<std::string> expecting_bad_message_;
   bool received_bad_message_ = false;
 };
 
@@ -530,7 +533,7 @@ TEST_P(RestrictedCookieManagerTest,
     auto options = mojom::CookieManagerGetOptions::New();
     options->name = "new-name";
     options->match_type = mojom::CookieMatchType::EQUALS;
-    ExpectBadMessage();
+    ExpectBadMessage("Incorrect url origin");
     std::vector<net::CanonicalCookie> cookies = sync_service_->GetAllForUrl(
         kDefaultUrl, kDefaultSiteForCookies, kDefaultOrigin,
         net::StorageAccessApiStatus::kNone, std::move(options));
@@ -757,7 +760,7 @@ TEST_P(RestrictedCookieManagerTest, GetAllForUrlFromWrongOrigin) {
   SetSessionCookie("other-cookie-name", "other-cookie-value", "notexample.com",
                    "/");
 
-  ExpectBadMessage();
+  ExpectBadMessage("Incorrect url origin");
   EXPECT_THAT(sync_service_->GetAllForUrl(
                   kOtherUrlWithPath, kDefaultSiteForCookies, kDefaultOrigin,
                   net::StorageAccessApiStatus::kNone, GetAllCookiesOptions()),
@@ -772,7 +775,7 @@ TEST_P(RestrictedCookieManagerTest, GetAllForUrlFromOpaqueOrigin) {
   ASSERT_TRUE(opaque_origin.opaque());
   service_->OverrideOriginForTesting(opaque_origin);
 
-  ExpectBadMessage();
+  ExpectBadMessage("Access is denied in this context");
   EXPECT_THAT(sync_service_->GetAllForUrl(
                   kDefaultUrlWithPath, kDefaultSiteForCookies, kDefaultOrigin,
                   net::StorageAccessApiStatus::kNone, GetAllCookiesOptions()),
@@ -849,13 +852,13 @@ TEST_P(RestrictedCookieManagerTest,
   }
 }
 
-TEST_P(RestrictedCookieManagerTest, GetCookieStringFromWrongOrigin) {
+TEST_P(RestrictedCookieManagerTest, GetCookiesStringFromWrongOrigin) {
   SetSessionCookie("cookie-name", "cookie-value", "example.com", "/");
   SetSessionCookie("cookie-name-2", "cookie-value-2", "example.com", "/");
   SetSessionCookie("other-cookie-name", "other-cookie-value", "notexample.com",
                    "/");
 
-  ExpectBadMessage();
+  ExpectBadMessage("Incorrect url origin");
   std::string cookies_out;
   base::ReadOnlySharedMemoryRegion mapped_region;
   uint64_t version;
@@ -869,6 +872,8 @@ TEST_P(RestrictedCookieManagerTest, GetCookieStringFromWrongOrigin) {
       &cookies_out));
   EXPECT_TRUE(received_bad_message());
   EXPECT_THAT(cookies_out, IsEmpty());
+  EXPECT_EQ(version, mojo::shared_memory_version::kInvalidVersion);
+  EXPECT_FALSE(mapped_region.IsValid());
 
   // One more time but also requesting some shared memory.
   EXPECT_TRUE(backend()->GetCookiesString(
@@ -880,6 +885,31 @@ TEST_P(RestrictedCookieManagerTest, GetCookieStringFromWrongOrigin) {
       &cookies_out));
   EXPECT_TRUE(received_bad_message());
   EXPECT_THAT(cookies_out, IsEmpty());
+  EXPECT_EQ(version, mojo::shared_memory_version::kInvalidVersion);
+  EXPECT_FALSE(mapped_region.IsValid());
+}
+
+TEST_P(RestrictedCookieManagerTest, GetCookiesStringFromOpaqueOrigin) {
+  SetSessionCookie("cookie-name", "cookie-value", "example.com", "/");
+
+  service_->OverrideOriginForTesting(url::Origin());
+
+  ExpectBadMessage("Access is denied in this context");
+  std::string cookies_out;
+  base::ReadOnlySharedMemoryRegion mapped_region;
+  uint64_t version = 0;
+
+  EXPECT_TRUE(backend()->GetCookiesString(
+      kDefaultUrlWithPath, kDefaultSiteForCookies, kDefaultOrigin,
+      net::StorageAccessApiStatus::kNone,
+      /*get_version_shared_memory=*/true,
+      /*is_ad_tagged=*/false, /*apply_devtools_overrides=*/false,
+      /*force_disable_third_party_cookies=*/false, &version, &mapped_region,
+      &cookies_out));
+  EXPECT_TRUE(received_bad_message());
+  EXPECT_EQ(cookies_out, "");
+  EXPECT_EQ(version, mojo::shared_memory_version::kInvalidVersion);
+  EXPECT_FALSE(mapped_region.IsValid());
 }
 
 TEST_P(RestrictedCookieManagerTest, GetAllAdTagged) {
@@ -1308,7 +1338,7 @@ TEST_P(RestrictedCookieManagerTest, SetCookieFromStringCrossOrigin) {
 }
 
 TEST_P(RestrictedCookieManagerTest, SetCanonicalCookieFromWrongOrigin) {
-  ExpectBadMessage();
+  ExpectBadMessage("Incorrect url origin");
   EXPECT_FALSE(sync_service_->SetCanonicalCookie(
       mojom::RestrictedCanonicalCookieParams::New(
           "new-name", "new-value", "notexample.com", "/", base::Time(),
@@ -1321,12 +1351,25 @@ TEST_P(RestrictedCookieManagerTest, SetCanonicalCookieFromWrongOrigin) {
   ASSERT_TRUE(received_bad_message());
 }
 
+TEST_P(RestrictedCookieManagerTest, SetCookieFromStringWithMismatchingDomain) {
+  backend()->SetCookieFromString(
+      kDefaultUrlWithPath, kDefaultSiteForCookies, kDefaultOrigin,
+      net::StorageAccessApiStatus::kNone,
+      /*is_ad_tagged=*/false, /*apply_devtools_overrides=*/false,
+      "new-name=new-value;path=/;domain=not-example.com");
+  service_remote_.FlushForTesting();
+  // SetCookieFromString does not BadMessage the caller if the cookie's domain
+  // mismatches, since the caller is not required to have parsed the cookie
+  // string to identify that case.
+  ASSERT_FALSE(received_bad_message());
+}
+
 TEST_P(RestrictedCookieManagerTest, SetCanonicalCookieFromOpaqueOrigin) {
   url::Origin opaque_origin;
   ASSERT_TRUE(opaque_origin.opaque());
   service_->OverrideOriginForTesting(opaque_origin);
 
-  ExpectBadMessage();
+  ExpectBadMessage("Access is denied in this context");
   EXPECT_FALSE(sync_service_->SetCanonicalCookie(
       mojom::RestrictedCanonicalCookieParams::New(
           "new-name", "new-value", "example.com", "/", base::Time(),
@@ -1340,7 +1383,7 @@ TEST_P(RestrictedCookieManagerTest, SetCanonicalCookieFromOpaqueOrigin) {
 }
 
 TEST_P(RestrictedCookieManagerTest, SetCanonicalCookieWithMismatchingDomain) {
-  ExpectBadMessage();
+  ExpectBadMessage("Setting cookies on other domains is disallowed.");
   EXPECT_FALSE(sync_service_->SetCanonicalCookie(
       mojom::RestrictedCanonicalCookieParams::New(
           "new-name", "new-value", "not-example.com", "/", base::Time(),
@@ -1354,7 +1397,7 @@ TEST_P(RestrictedCookieManagerTest, SetCanonicalCookieWithMismatchingDomain) {
 }
 
 TEST_P(RestrictedCookieManagerTest, SetCookieFromStringWrongOrigin) {
-  ExpectBadMessage();
+  ExpectBadMessage("Incorrect url origin");
   backend()->SetCookieFromString(
       kOtherUrlWithPath, kDefaultSiteForCookies, kDefaultOrigin,
       net::StorageAccessApiStatus::kNone,
@@ -1366,7 +1409,7 @@ TEST_P(RestrictedCookieManagerTest, SetCookieFromStringWrongOrigin) {
 
 TEST_P(RestrictedCookieManagerTest,
        SetCookieFromStringInvalidCookieAndWrongOrigin) {
-  ExpectBadMessage();
+  ExpectBadMessage("Incorrect url origin");
   // Control characters are disallowed in cookie names, so
   // `CanonicalCookie::Create` fails in the backend. Verify that no cookie
   // access is recorded in that case, since the given URL should not have access
@@ -1398,7 +1441,7 @@ TEST_P(RestrictedCookieManagerTest,
   mojo::Receiver<mojom::RestrictedCookieManager> local_receiver(
       local_service.get(), local_service_remote.BindNewPipeAndPassReceiver());
 
-  ExpectBadMessage();
+  ExpectBadMessage("Incorrect url origin");
   // The control character causes this cookie to be rejected.
   local_service_remote->SetCookieFromString(
       kOtherUrlWithPath, kDefaultSiteForCookies, kDefaultOrigin,
@@ -1705,7 +1748,7 @@ TEST_P(RestrictedCookieManagerTest, AddChangeListenerFromWrongOrigin) {
   mojo::PendingRemote<network::mojom::CookieChangeListener> bad_listener_remote;
   mojo::PendingReceiver<network::mojom::CookieChangeListener> bad_receiver =
       bad_listener_remote.InitWithNewPipeAndPassReceiver();
-  ExpectBadMessage();
+  ExpectBadMessage("Incorrect url origin");
   sync_service_->AddChangeListener(
       kOtherUrlWithPath, kDefaultSiteForCookies, kDefaultOrigin,
       net::StorageAccessApiStatus::kNone, std::move(bad_listener_remote));
@@ -1746,7 +1789,7 @@ TEST_P(RestrictedCookieManagerTest, AddChangeListenerFromOpaqueOrigin) {
   mojo::PendingRemote<network::mojom::CookieChangeListener> bad_listener_remote;
   mojo::PendingReceiver<network::mojom::CookieChangeListener> bad_receiver =
       bad_listener_remote.InitWithNewPipeAndPassReceiver();
-  ExpectBadMessage();
+  ExpectBadMessage("Access is denied in this context");
   sync_service_->AddChangeListener(
       kDefaultUrlWithPath, kDefaultSiteForCookies, kDefaultOrigin,
       net::StorageAccessApiStatus::kNone, std::move(bad_listener_remote));

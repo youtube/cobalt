@@ -61,6 +61,13 @@ void HistorySyncOptinServiceDefaultDelegate::ShowAccountManagementScreen(
   NOTREACHED();
 }
 
+void HistorySyncOptinServiceDefaultDelegate::ShowSignInCelebration(
+    base::OnceClosure celebration_finished) {
+  // The celebration screen is only available for the FRE flow, which does
+  // not use this delegate.
+  NOTREACHED();
+}
+
 void HistorySyncOptinServiceDefaultDelegate::
     FinishFlowWithoutHistorySyncOptin() {}
 
@@ -257,6 +264,7 @@ void HistorySyncOptinService::OnPrimaryAccountChanged(
     case signin_metrics::AccessPoint::kCctAccountMismatchNotification:
     case signin_metrics::AccessPoint::kDriveFilePickerIos:
     case signin_metrics::AccessPoint::kGlicLaunchButton:
+    case signin_metrics::AccessPoint::kIndigo:
     case signin_metrics::AccessPoint::kHistoryPage:
     case signin_metrics::AccessPoint::kHistorySyncOptinExpansionPillOnStartup:
     case signin_metrics::AccessPoint::kWidget:
@@ -285,6 +293,7 @@ void HistorySyncOptinService::OnPrimaryAccountChanged(
     case signin_metrics::AccessPoint::kDeepLinkDefault:
     case signin_metrics::AccessPoint::kAgeMismatchSignout:
     case signin_metrics::AccessPoint::kIosGeminiButtonToolbar:
+    case signin_metrics::AccessPoint::kOverflowMenu:
       return;
   }
 

@@ -32,6 +32,7 @@
 #include "chrome/browser/glic/browser_ui/glic_button_controller.h"
 #include "chrome/browser/glic/browser_ui/glic_iph_controller.h"
 #include "chrome/browser/glic/browser_ui/glic_nudge_controller.h"
+#include "chrome/browser/glic/browser_ui/glic_nudge_controller_desktop.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
@@ -80,6 +81,7 @@
 #include "chrome/browser/ui/sessions/session_service_browser_helper.h"
 #include "chrome/browser/ui/sharing_hub/sharing_hub_window_controller.h"
 #include "chrome/browser/ui/side_panel/side_panel_registry.h"
+#include "chrome/browser/ui/side_panel/side_panel_ui.h"
 #include "chrome/browser/ui/signin/signin_view_controller.h"
 #include "chrome/browser/ui/sync/browser_synced_window_delegate.h"
 #include "chrome/browser/ui/tab_search_feature.h"
@@ -91,6 +93,7 @@
 #include "chrome/browser/ui/tabs/saved_tab_groups/shared_tab_group_feedback_controller.h"
 #include "chrome/browser/ui/tabs/split_tab_highlight_controller.h"
 #include "chrome/browser/ui/tabs/split_view_iph_controller.h"
+#include "chrome/browser/ui/tabs/tab_drag_api/tab_drag_service_feature.h"
 #include "chrome/browser/ui/tabs/tab_group_deletion_dialog_controller.h"
 #include "chrome/browser/ui/tabs/tab_list_bridge.h"
 #include "chrome/browser/ui/tabs/tab_strip_api/controllers/tab_strip_ui_controller_impl.h"
@@ -344,8 +347,9 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
     if (glic::GlicEnabling::IsProfileEligible(profile)) {
       glic_iph_controller_ = std::make_unique<glic::GlicIphController>(
           browser, *glic::GlicKeyedService::Get(profile));
-      glic_nudge_controller_ = std::make_unique<glic::GlicNudgeController>(
-          browser, tab_list_bridge_.get());
+      glic_nudge_controller_ =
+          std::make_unique<glic::GlicNudgeControllerDesktop>(
+              browser, tab_list_bridge_.get());
     }
 
     if (tabs::IsVerticalTabsFeatureEnabled()) {
@@ -405,6 +409,8 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
   tab_strip_service_feature_ = std::make_unique<TabStripServiceFeature>(
       std::make_unique<tabs_api::tab_strip_model::TabStripModelInjector>(
           browser, tab_strip_model_));
+
+  tab_drag_service_feature_ = std::make_unique<TabDragServiceFeature>();
 
   tab_strip_ui_controller_ =
       std::make_unique<tabs_api::TabStripUIControllerImpl>(
@@ -466,6 +472,42 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
       GetUserDataFactory().CreateInstance<BookmarksSidePanelCoordinator>(
           *browser, *browser);
 
+  if (base::FeatureList::IsEnabled(contextual_tasks::kContextualTasks)) {
+    contextual_tasks_active_task_context_provider_ =
+        std::make_unique<contextual_tasks::ActiveTaskContextProviderImpl>(
+            browser_,
+            contextual_tasks::ContextualTasksServiceFactory::GetForProfile(
+                browser_->GetProfile()));
+    contextual_tasks_entry_point_eligibility_manager_ =
+        GetUserDataFactory()
+            .CreateInstance<contextual_tasks::EntryPointEligibilityManager>(
+                *browser_, browser_);
+    contextual_tasks_side_panel_coordinator_ =
+        GetUserDataFactory()
+            .CreateInstance<
+                contextual_tasks::ContextualTasksSidePanelCoordinator>(
+                *browser_, browser_,
+                contextual_tasks_active_task_context_provider_.get(),
+                contextual_tasks_entry_point_eligibility_manager_.get());
+
+    if (contextual_tasks::kShowEntryPoint.Get() ==
+            contextual_tasks::EntryPointOption::kToolbarRevisit ||
+        contextual_tasks::kShowEntryPoint.Get() ==
+            contextual_tasks::EntryPointOption::kToolbarEphemeralBranded) {
+      contextual_tasks_ephemeral_button_controller_ =
+          GetUserDataFactory()
+              .CreateInstance<ContextualTasksEphemeralButtonController>(
+                  *browser_, browser_);
+    }
+
+    contextual_tasks_close_button_controller_ =
+        GetUserDataFactory()
+            .CreateInstance<ContextualTasksCloseButtonController>(
+                *browser_, browser_,
+                contextual_tasks_entry_point_eligibility_manager_.get(),
+                contextual_tasks_side_panel_coordinator_.get());
+  }
+
   signin_view_controller_ = std::make_unique<SigninViewController>(
       browser, profile, tab_strip_model_);
 
@@ -519,9 +561,6 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
       GetUserDataFactory().CreateInstance<BrowserAnimationController>(*browser,
                                                                       *browser);
 
-  browser_select_file_dialog_controller_ =
-      std::make_unique<BrowserSelectFileDialogController>(profile);
-
   context_highlight_window_feature_ =
       std::make_unique<ContextHighlightWindowFeature>(*browser);
 
@@ -570,12 +609,31 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
   Profile* const profile = browser_->GetProfile();
   BrowserView* const browser_view =
       BrowserView::GetBrowserViewForBrowser(browser);
+  WebUIBrowserWindow* const webui_browser_window =
+      WebUIBrowserWindow::FromBrowser(browser);
 
   desktop_browser_window_capabilities_ =
       GetUserDataFactory().CreateInstance<DesktopBrowserWindowCapabilities>(
           *browser, browser_window_modal_dialog_delegate_.get(),
           unload_controller_.get(), browser->window(),
           browser->GetUnownedUserDataHost());
+
+  // TODO(crbug.com/346148093): Move SidePanelCoordinator construction to
+  // Init.
+  // TODO(crbug.com/346148554): Do not create a SidePanelCoordinator for most
+  // browser.h types
+  // Conceptually, SidePanelCoordinator handles the "model" whereas
+  // BrowserView::side_panel_ handles the "ui". When we stop
+  // making this for most browser.h types, we should also stop making the
+  // side_panel_.
+  if (browser_view) {
+    side_panel_coordinator_ =
+        GetUserDataFactory().CreateInstance<SidePanelCoordinator>(*browser_,
+                                                                  browser);
+  } else if (webui_browser_window) {
+    webui_browser_side_panel_ui_ =
+        std::make_unique<WebUIBrowserSidePanelUI>(browser);
+  }
 
   if (browser_view) {
     browser_focus_controller_ =
@@ -593,8 +651,7 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
             *browser, browser->GetWindow(), browser->GetUnownedUserDataHost());
   }
 
-  if (WebUIBrowserWindow* webui_browser_window =
-          WebUIBrowserWindow::FromBrowser(browser)) {
+  if (webui_browser_window) {
     webui_browser_exclusive_access_context_ =
         std::make_unique<WebUIBrowserExclusiveAccessContext>(
             browser->profile(), browser_, browser->GetTabStripModel(),
@@ -602,7 +659,7 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
   }
 
   exclusive_access_manager_ = std::make_unique<ExclusiveAccessManager>(
-      browser->window()->GetExclusiveAccessContext());
+      browser, browser->window()->GetExclusiveAccessContext());
 
   // This code needs exclusive access manager to be initialized.
 #if !BUILDFLAG(IS_CHROMEOS)
@@ -788,11 +845,8 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
         browser->window()->GetNativeWindow()));
   }
 
-  if (WebUIBrowserWindow* webui_browser_window =
-          WebUIBrowserWindow::FromBrowser(browser)) {
+  if (webui_browser_window) {
     focus_manager = webui_browser_window->widget()->GetFocusManager();
-    webui_browser_side_panel_ui_ =
-        std::make_unique<WebUIBrowserSidePanelUI>(browser);
 
     // WebUIBrowserWindow is an AcceleratorProvider.
     accelerator_provider_ = webui_browser_window;
@@ -817,6 +871,11 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
             extensions::ExtensionKeybindingRegistry::ALL_EXTENSIONS,
             focus_manager);
   }
+
+  browser_select_file_dialog_controller_ =
+      std::make_unique<BrowserSelectFileDialogController>(
+          browser->profile(), browser->tab_strip_model(), browser->window(),
+          browser);
 
   // Initialize post-window dependent embedder features last.
   embedder_browser_window_features_->InitPostWindowConstruction(browser);
@@ -843,18 +902,6 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
   browser_animation_controller_->AddAnimationProvider(
       std::make_unique<TabStripAnimations>());
 
-  // TODO(crbug.com/346148093): Move SidePanelCoordinator construction to
-  // Init.
-  // TODO(crbug.com/346148554): Do not create a SidePanelCoordinator for most
-  // browser.h types
-  // Conceptually, SidePanelCoordinator handles the "model" whereas
-  // BrowserView::side_panel_ handles the "ui". When we stop
-  // making this for most browser.h types, we should also stop making the
-  // side_panel_.
-  side_panel_coordinator_ =
-      GetUserDataFactory().CreateInstance<SidePanelCoordinator>(*browser_,
-                                                                browser_view);
-
   if (HistorySidePanelCoordinator::IsSupported()) {
     GetUserDataFactory().CreateInstance<HistorySidePanelCoordinator>(
         *browser_view->browser(), browser_view->browser());
@@ -869,44 +916,6 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
         GetUserDataFactory().CreateInstance<CommentsSidePanelCoordinator>(
             *browser_view->browser(), browser_view->browser());
   }
-
-  if (base::FeatureList::IsEnabled(contextual_tasks::kContextualTasks)) {
-    contextual_tasks_active_task_context_provider_ =
-        std::make_unique<contextual_tasks::ActiveTaskContextProviderImpl>(
-            browser_,
-            contextual_tasks::ContextualTasksServiceFactory::GetForProfile(
-                browser_->GetProfile()));
-    contextual_tasks_entry_point_eligibility_manager_ =
-        GetUserDataFactory()
-            .CreateInstance<contextual_tasks::EntryPointEligibilityManager>(
-                *browser_, browser_);
-    contextual_tasks_side_panel_coordinator_ =
-        GetUserDataFactory()
-            .CreateInstance<
-                contextual_tasks::ContextualTasksSidePanelCoordinator>(
-                *browser_, browser_,
-                contextual_tasks_active_task_context_provider_.get(),
-                contextual_tasks_entry_point_eligibility_manager_.get());
-
-    if (contextual_tasks::kShowEntryPoint.Get() ==
-            contextual_tasks::EntryPointOption::kToolbarRevisit ||
-        contextual_tasks::kShowEntryPoint.Get() ==
-            contextual_tasks::EntryPointOption::kToolbarEphemeralBranded) {
-      contextual_tasks_ephemeral_button_controller_ =
-          GetUserDataFactory()
-              .CreateInstance<ContextualTasksEphemeralButtonController>(
-                  *browser_, browser_);
-    }
-
-    contextual_tasks_close_button_controller_ =
-        GetUserDataFactory()
-            .CreateInstance<ContextualTasksCloseButtonController>(
-                *browser_, browser_,
-                contextual_tasks_entry_point_eligibility_manager_.get(),
-                contextual_tasks_side_panel_coordinator_.get());
-  }
-
-  side_panel_coordinator_->Init(browser_view->browser());
 
   extension_side_panel_manager_ =
       std::make_unique<extensions::ExtensionSidePanelManager>(
@@ -1065,6 +1074,7 @@ void BrowserWindowFeatures::TearDownPreBrowserWindowDestruction() {
   actor_task_list_bubble_controller_.reset();
 
   contextual_tasks_close_button_controller_.reset();
+  contextual_tasks_ephemeral_button_controller_.reset();
   contextual_tasks_side_panel_coordinator_.reset();
   contextual_tasks_entry_point_eligibility_manager_.reset();
 
@@ -1170,15 +1180,15 @@ void BrowserWindowFeatures::TearDownPreBrowserWindowDestruction() {
 
   context_highlight_window_feature_.reset();
 
+  browser_select_file_dialog_controller_.reset();
+
   browser_animation_controller_.reset();
 }
 
 SidePanelUI* BrowserWindowFeatures::side_panel_ui() {
-  if (webui_browser::IsWebUIBrowserEnabled() && webui_browser_side_panel_ui_) {
-    return webui_browser_side_panel_ui_.get();
-  }
-
-  return side_panel_coordinator_.get();
+  // TODO(crbug.com/428946261): Remove this and replace all clients with
+  // `SidePanelUI::From()`.
+  return browser_ ? SidePanelUI::From(browser_) : nullptr;
 }
 
 ToastController* BrowserWindowFeatures::toast_controller() {

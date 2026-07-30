@@ -8,7 +8,6 @@ import 'chrome://resources/cr_components/composebox/composebox_favicon_group.js'
 
 import type {ComposeboxFaviconGroupElement} from 'chrome://resources/cr_components/composebox/composebox_favicon_group.js';
 import type {ContextualActionMenuElement} from 'chrome://resources/cr_components/composebox/contextual_action_menu.js';
-import type {CrToggleElement} from 'chrome://resources/cr_elements/cr_toggle/cr_toggle.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {PluralStringProxyImpl} from 'chrome://resources/js/plural_string_proxy.js';
 import type {TabInfo} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
@@ -461,7 +460,7 @@ suite('ContextualActionMenu', () => {
     const tabInfo = {
       tabId: 1,
       title: 'Google',
-      url: 'https://google.com',
+      url: 'about:blank',
       lastActiveTime: {internalValue: 0n},
       showInCurrentTabChip: false,
       showInPreviousTabChip: false,
@@ -487,7 +486,7 @@ suite('ContextualActionMenu', () => {
     const tabInfo = {
       tabId: 1,
       title: 'Google',
-      url: 'https://google.com',
+      url: 'about:blank',
       lastActiveTime: {internalValue: 0n},
       showInCurrentTabChip: false,
       showInPreviousTabChip: false,
@@ -569,17 +568,35 @@ suite('ContextualActionMenu', () => {
   });
 
   test('Toggling smart tab sharing fires event', async () => {
-    loadTimeData.overrideValues({composeboxSmartTabSharingVisible: true});
+    loadTimeData.overrideValues({
+      composeboxSmartTabSharingVisible: true,
+      contextManagementInComposeboxEnabled: true,
+    });
     actionMenu.remove();
     actionMenu = document.createElement('cr-composebox-contextual-action-menu');
+    actionMenu.tabSuggestions = [
+      {
+        tabId: 1,
+        title: 'Tab 1',
+        url: 'about:blank',
+        showInCurrentTabChip: false,
+        showInPreviousTabChip: false,
+        lastActive: {internalValue: 0n},
+      },
+    ];
+    actionMenu.inputState = new MockInputState({
+      allowedInputTypes: [InputType.kBrowserTab],
+    });
     document.body.appendChild(actionMenu);
 
-    actionMenu.smartTabSharingActive = false;
+    actionMenu.smartTabSharingActive = true;
     actionMenu.showAt(actionMenu);
     await actionMenu.updateComplete;
 
-    const toggle = $$(actionMenu, '#smartTabSharingToggle') as CrToggleElement;
-    assertTrue(!!toggle);
+    const item = $$(actionMenu, '#smartTabSharingItem');
+    assertTrue(!!item);
+    assertTrue(!!item.querySelector('.share-tabs-check'));
+    assertEquals('true', item.getAttribute('aria-checked'));
 
     let eventDetail: {active: boolean}|null = null;
     actionMenu.addEventListener(
@@ -587,36 +604,53 @@ suite('ContextualActionMenu', () => {
           eventDetail = (e as CustomEvent).detail;
         }, {once: true});
 
-    toggle.checked = true;
-    toggle.dispatchEvent(new CustomEvent('change'));
+    item.click();
 
     assertTrue(!!eventDetail);
-    assertTrue((eventDetail as {active: boolean}).active);
+    assertFalse((eventDetail as {active: boolean}).active);
   });
 
-  test('Clicking smart tab sharing row toggles state', async () => {
-    loadTimeData.overrideValues({composeboxSmartTabSharingVisible: true});
+  test('Clicking smart tab sharing row updates UI', async () => {
+    loadTimeData.overrideValues({
+      composeboxSmartTabSharingVisible: true,
+      contextManagementInComposeboxEnabled: true,
+    });
     actionMenu.remove();
     actionMenu = document.createElement('cr-composebox-contextual-action-menu');
+    actionMenu.tabSuggestions = [
+      {
+        tabId: 1,
+        title: 'Tab 1',
+        url: 'about:blank',
+        showInCurrentTabChip: false,
+        showInPreviousTabChip: false,
+        lastActive: {internalValue: 0n},
+      },
+    ];
+    actionMenu.inputState = new MockInputState({
+      allowedInputTypes: [InputType.kBrowserTab],
+    });
+
     document.body.appendChild(actionMenu);
 
-    actionMenu.smartTabSharingActive = false;
+    actionMenu.smartTabSharingActive = true;
     actionMenu.showAt(actionMenu);
     await actionMenu.updateComplete;
 
-    const item = $$(actionMenu, '#smartTabSharingItem') as HTMLElement;
+    const item = $$(actionMenu, '#smartTabSharingItem');
     assertTrue(!!item);
-    const toggle = $$(actionMenu, '#smartTabSharingToggle') as CrToggleElement;
-
-    let eventFired = false;
-    actionMenu.addEventListener('smart-tab-sharing-active-changed', () => {
-      eventFired = true;
-    }, {once: true});
 
     item.click();
 
-    assertTrue(eventFired);
-    assertTrue(toggle.checked);
+    actionMenu.smartTabSharingActive = false;
+    await actionMenu.updateComplete;
+
+    const mainMenuToggle = $$(actionMenu, '#smartTabSharingItem');
+    assertFalse(!!mainMenuToggle);
+
+    const trigger = $$(actionMenu, '#shareTabsTrigger');
+    assertTrue(!!trigger);
+    assertTrue(isVisible(trigger));
   });
 
   test('AutoRepositionEnabledByDefaultOnSharedWrapper', () => {
@@ -647,7 +681,7 @@ suite('ContextualActionMenu', () => {
       {
         tabId: 1,
         title: 'Tab 1',
-        url: {url: 'https://example.com'},
+        url: {url: 'about:blank'},
         lastActiveTime: {internalValue: 0n},
         showInCurrentTabChip: false,
         showInPreviousTabChip: false,
@@ -672,10 +706,12 @@ suite('ContextualActionMenu', () => {
     assertTrue(!!flyout);
     assertFalse(flyout.hidden);
 
-    actionMenu.tabSuggestions = Array(10).fill({
+    // 11 suggestions: 11 * 32px + 16px (padding) = 368px, which exceeds 344px
+    // max height.
+    actionMenu.tabSuggestions = Array(11).fill({
       tabId: 1,
       title: 'Tab',
-      url: {url: 'https://example.com'},
+      url: {url: 'about:blank'},
       lastActiveTime: {internalValue: 0n},
       showInCurrentTabChip: false,
       showInPreviousTabChip: false,
@@ -684,9 +720,11 @@ suite('ContextualActionMenu', () => {
     await microtasksFinished();
 
     // Ensure flyout has max height even with many tab suggestions.
-    assertEquals(144, flyout.offsetHeight);
+    assertEquals(344, flyout.offsetHeight);
   });
 
+  // TODO(crbug.com/512920161): Reenable this test on Linux and Mac
+  // <if expr="not is_linux and not is_macosx">
   test('Share tabs flyout keyboard navigation', async () => {
     loadTimeData.overrideValues({
       contextManagementInComposeboxEnabled: true,
@@ -698,7 +736,7 @@ suite('ContextualActionMenu', () => {
       {
         tabId: 1,
         title: 'Tab 1',
-        url: {url: 'https://example.com'},
+        url: {url: 'about:blank'},
         lastActiveTime: {internalValue: 0n},
         showInCurrentTabChip: false,
         showInPreviousTabChip: false,
@@ -720,7 +758,6 @@ suite('ContextualActionMenu', () => {
     const flyout = $$(actionMenu, '.share-tabs-flyout') as HTMLElement;
     assertTrue(!!trigger);
     assertTrue(!!flyout);
-
     // Verify that the flyout is hidden initially.
     assertTrue(flyout.hidden);
 
@@ -755,6 +792,7 @@ suite('ContextualActionMenu', () => {
     // Assert that the focus is correctly returned to the parent trigger button.
     assertEquals(trigger, actionMenu.shadowRoot.activeElement);
   });
+  // </if>
 
   test('Tabs counter visibility', async () => {
     actionMenu.showAt(actionMenu);
@@ -769,7 +807,7 @@ suite('ContextualActionMenu', () => {
       {
         tabId: 1,
         title: 'Tab 1',
-        url: {url: 'https://example.com'},
+        url: {url: 'about:blank'},
         lastActiveTime: {internalValue: 0n},
         showInCurrentTabChip: false,
         showInPreviousTabChip: false,
@@ -800,6 +838,41 @@ suite('ContextualActionMenu', () => {
     await microtasksFinished();
     assertFalse(shareTabsTrigger.textContent.includes('1'));
   });
+
+  test(
+      'Tabs counter visibility with restored tabs and no suggestions',
+      async () => {
+        loadTimeData.overrideValues(
+            {contextManagementInComposeboxEnabled: true});
+        actionMenu.remove();
+        actionMenu =
+            document.createElement('cr-composebox-contextual-action-menu');
+        const restoredTab: TabInfo = {
+          tabId: 1,
+          title: 'Restored Tab',
+          url: 'about:blank',
+          showInCurrentTabChip: false,
+          showInPreviousTabChip: false,
+          lastActive: {internalValue: 0n},
+        };
+        actionMenu.aimThreadRestoredTabs = [restoredTab];
+        actionMenu.tabSuggestions = [restoredTab];
+        actionMenu.inputState = new MockInputState({
+          allowedInputTypes: [InputType.kBrowserTab],
+          toolsSectionConfig: {header: ''},
+          modelSectionConfig: {header: ''},
+        });
+        document.body.appendChild(actionMenu);
+        actionMenu.showAt(actionMenu);
+        await microtasksFinished();
+
+        const shareTabsTrigger = $$(actionMenu, '#shareTabsTrigger');
+        assertTrue(!!shareTabsTrigger);
+
+        // Since we have restored tabs showing as suggestions, there should be a
+        // dropdown arrow.
+        assertTrue(!!shareTabsTrigger.querySelector('.share-tabs-arrow'));
+      });
 
   test('focuses Share Tabs when opening the + menu via keydown', async () => {
     loadTimeData.overrideValues({
@@ -834,7 +907,7 @@ suite('ContextualActionMenu', () => {
       {
         tabId: 1,
         title: 'Tab 1',
-        url: {url: 'https://example.com'},
+        url: {url: 'about:blank'},
         lastActiveTime: {internalValue: 0n},
         showInCurrentTabChip: false,
         showInPreviousTabChip: false,
@@ -857,24 +930,15 @@ suite('ContextualActionMenu', () => {
       async () => {
         loadTimeData.overrideValues({
           contextManagementInComposeboxEnabled: true,
+          composeboxSmartTabSharingVisible: true,
         });
 
         actionMenu.remove();
         actionMenu =
             document.createElement('cr-composebox-contextual-action-menu');
 
-        // Populate data to ensure both Share Tabs and Image Upload exist.
-        actionMenu.tabSuggestions = [
-          {
-            tabId: 1,
-            title: 'Tab 1',
-            url: {url: 'https://example.com'},
-            lastActiveTime: {internalValue: 0n},
-            showInCurrentTabChip: false,
-            showInPreviousTabChip: false,
-            lastActive: {internalValue: 0n},
-          } as any,
-        ];
+        actionMenu.smartTabSharingActive = true;
+        actionMenu.tabSuggestions = [];
         actionMenu.inputState =
             new MockInputState({
               allowedInputTypes: [InputType.kBrowserTab, InputType.kLensImage],
@@ -884,32 +948,28 @@ suite('ContextualActionMenu', () => {
 
         actionMenu.showAt(actionMenu);
         await actionMenu.updateComplete;
-        await new Promise(resolve => setTimeout(resolve, 50));
 
-        const trigger = $$(actionMenu, '#shareTabsTrigger') as HTMLElement;
+        (actionMenu as any).onWindowBlur_ = () => {};
+
+        const trigger = $$(actionMenu, '#smartTabSharingItem') as HTMLElement;
         const imageUpload = $$(actionMenu, '#imageUpload') as HTMLElement;
 
-        // Manually move focus to the Share Tabs button.
+        await new Promise(resolve => requestAnimationFrame(resolve));
+
         trigger.focus();
         assertEquals(trigger, actionMenu.shadowRoot.activeElement);
 
-        // Simulate an ArrowDown key press with full properties expected by
-        // <cr-action-menu>.
         trigger.dispatchEvent(new KeyboardEvent('keydown', {
           key: 'ArrowDown',
           code: 'ArrowDown',
-          keyCode: 40,  // Chromium action menu strictly requires keyCode 40 for
-                        // ArrowDown.
+          keyCode: 40,
           bubbles: true,
           composed: true,
           cancelable: true,
         } as any));
 
-        // Wait for the menu's internal focus manager to react.
-        await new Promise(resolve => setTimeout(resolve, 50));
+        await microtasksFinished();
 
-        // Assert focus successfully skipped the hidden flyout and landed
-        // directly on Image Upload.
         assertEquals(imageUpload, actionMenu.shadowRoot.activeElement);
       });
 
@@ -924,7 +984,7 @@ suite('ContextualActionMenu', () => {
       {
         tabId: 1,
         title: 'Tab 1',
-        url: {url: 'https://example.com'},
+        url: {url: 'about:blank'},
         lastActiveTime: {internalValue: 0n},
         showInCurrentTabChip: false,
         showInPreviousTabChip: false,
@@ -949,7 +1009,12 @@ suite('ContextualActionMenu', () => {
 
     // Enough space to the right positions the flyout to the right.
     trigger.getBoundingClientRect = () => ({
-      left: 10, right: 330, top: 100, bottom: 132, width: 320, height: 32,
+      left: 10,
+      right: 250,
+      top: 100,
+      bottom: 132,
+      width: 240,
+      height: 32,
     } as DOMRect);
     Object.defineProperty(window, 'innerWidth', {value: 1000, configurable: true});
 
@@ -962,7 +1027,12 @@ suite('ContextualActionMenu', () => {
 
     // When blocked on the right, enough space to the left positions the flyout to the left.
     trigger.getBoundingClientRect = () => ({
-      left: 400, right: 720, top: 100, bottom: 132, width: 320, height: 32,
+      left: 400,
+      right: 640,
+      top: 100,
+      bottom: 132,
+      width: 240,
+      height: 32,
     } as DOMRect);
     Object.defineProperty(window, 'innerWidth', {value: 800, configurable: true});
 
@@ -975,7 +1045,12 @@ suite('ContextualActionMenu', () => {
 
     // When blocked on both sides in a narrow panel, the flyout positions at the bottom with a bounded indent.
     trigger.getBoundingClientRect = () => ({
-      left: 16, right: 336, top: 100, bottom: 132, width: 320, height: 32,
+      left: 16,
+      right: 256,
+      top: 100,
+      bottom: 132,
+      width: 240,
+      height: 32,
     } as DOMRect);
     Object.defineProperty(window, 'innerWidth', {value: 380, configurable: true});
 
@@ -995,10 +1070,10 @@ suite('ContextualActionMenu', () => {
     const tabInfo: TabInfo = {
       tabId: 1,
       title: 'Tab 1',
-      url: 'https://google.com',
+      url: 'about:blank',
       showInCurrentTabChip: false,
       showInPreviousTabChip: false,
-      lastActive: { internalValue: 0n },
+      lastActive: {internalValue: 0n},
     };
     actionMenu.tabSuggestions = [tabInfo];
     actionMenu.inputState = new MockInputState({
@@ -1031,7 +1106,7 @@ suite('ContextualActionMenu', () => {
         const tabInfo = {
           tabId: 1,
           title: 'Google',
-          url: 'https://google.com',
+          url: 'about:blank',
           lastActiveTime: {internalValue: 0n},
           showInCurrentTabChip: false,
           showInPreviousTabChip: false,
@@ -1081,7 +1156,7 @@ suite('ContextualActionMenu', () => {
     const tabInfo = {
       tabId: 1,
       title: 'Google',
-      url: 'https://google.com',
+      url: 'about:blank',
       lastActiveTime: {internalValue: 0n},
       showInCurrentTabChip: false,
       showInPreviousTabChip: false,
@@ -1156,7 +1231,7 @@ suite('ContextualActionMenu', () => {
     const tabInfo: TabInfo = {
       tabId: 1,
       title: 'Recent Tab',
-      url: 'https://example.com',
+      url: 'about:blank',
       showInCurrentTabChip: false,
       showInPreviousTabChip: false,
       lastActive: {internalValue: 0n},
@@ -1196,7 +1271,7 @@ suite('ContextualActionMenu', () => {
     const tabInfo: TabInfo = {
       tabId: 1,
       title: 'Tab 1',
-      url: 'https://google.com',
+      url: 'about:blank',
       showInCurrentTabChip: false,
       showInPreviousTabChip: false,
       lastActive: {internalValue: 0n},
@@ -1238,7 +1313,7 @@ suite('ContextualActionMenu', () => {
         const tabInfo: TabInfo = {
           tabId: 1,
           title: 'Tab 1',
-          url: 'https://google.com',
+          url: 'about:blank',
           showInCurrentTabChip: false,
           showInPreviousTabChip: false,
           lastActive: {internalValue: 0n},
@@ -1264,12 +1339,53 @@ suite('ContextualActionMenu', () => {
       });
 
   test(
+    'Menu closes when a selected tab is clicked (deselected) in NTP/Omnibox mode',
+    async () => {
+      const tabInfo: TabInfo = {
+        tabId: 1,
+        title: 'Tab 1',
+        url: 'about:blank',
+        showInCurrentTabChip: false,
+        showInPreviousTabChip: false,
+        lastActive: { internalValue: 0n },
+      };
+      loadTimeData.overrideValues({
+        contextManagementInComposeboxEnabled: true,
+        composeboxContextMenuEnableMultiTabSelection: true,
+      });
+      actionMenu.remove();
+      actionMenu = document.createElement('cr-composebox-contextual-action-menu');
+      Object.assign(actionMenu, {
+        metricsSource_: 'NewTabPage',
+        disabledTabIds: new Map([[1, 'some-token']]),
+      });
+
+      actionMenu.tabSuggestions = [tabInfo];
+      actionMenu.inputState = new MockInputState({
+        allowedInputTypes: [InputType.kBrowserTab],
+      });
+      document.body.appendChild(actionMenu);
+      await microtasksFinished();
+
+      actionMenu.showAt(actionMenu);
+      Object.assign(actionMenu, { shareTabsFlyoutOpen_: true });
+      await microtasksFinished();
+      assertTrue(actionMenu.$.menu.open);
+
+      const tabButton = actionMenu.$.menu.querySelector<HTMLButtonElement>(
+        '.share-tabs-flyout button.dropdown-item')!;
+      tabButton.click();
+      await microtasksFinished();
+
+      assertFalse(actionMenu.$.menu.open);
+    });
+  test(
       'Recent tab suffix follows the correct tab after reordering',
       async () => {
         const tab1: TabInfo = {
           tabId: 1,
           title: 'Tab 1',
-          url: 'https://google.com/1',
+          url: 'about:blank/1',
           showInCurrentTabChip: false,
           showInPreviousTabChip: false,
           lastActive: {internalValue: 0n},
@@ -1277,7 +1393,7 @@ suite('ContextualActionMenu', () => {
         const tab2: TabInfo = {
           tabId: 2,
           title: 'Tab 2',
-          url: 'https://google.com/2',
+          url: 'about:blank/2',
           showInCurrentTabChip: false,
           showInPreviousTabChip: false,
           lastActive: {internalValue: 0n},
@@ -1341,4 +1457,288 @@ suite('ContextualActionMenu', () => {
             !!items[1]?.querySelector('.recent-tabs-suffix'),
             'Tab 1 should retain the suffix after reordering');
       });
+
+  test(
+      'Dynamic suffix shows Current Tab only in Side Panel Contextual Tasks',
+      async () => {
+        loadTimeData.overrideValues({
+          contextManagementInComposeboxEnabled: true,
+        });
+        actionMenu.remove();
+        actionMenu =
+            document.createElement('cr-composebox-contextual-action-menu');
+
+        const tabInfo = {
+          tabId: 1,
+          title: 'Google Docs',
+          url: 'about:blank',
+          showInCurrentTabChip: false,
+          showInPreviousTabChip: false,
+          lastActive: {internalValue: 0n},
+        };
+        actionMenu.tabSuggestions = [tabInfo];
+        actionMenu.recentTabId = tabInfo.tabId;
+        actionMenu.inputState = new MockInputState({
+          allowedInputTypes: [InputType.kBrowserTab],
+        });
+
+        document.body.appendChild(actionMenu);
+        await microtasksFinished();
+
+        actionMenu.showAt(actionMenu);
+        await microtasksFinished();
+
+        const trigger = $$(actionMenu, '#shareTabsTrigger') as HTMLElement;
+        trigger.dispatchEvent(new PointerEvent('pointerenter'));
+        await microtasksFinished();
+
+        const suffix = $$(actionMenu, '.recent-tabs-suffix') as HTMLElement;
+        assertTrue(isVisible(suffix), 'Suffix should be visible');
+
+        actionMenu.isSidePanel = true;
+        await microtasksFinished();
+        assertEquals(
+            actionMenu.i18n('currentTabSuffix'), suffix.textContent.trim(),
+            'Should render "Current tab" in side panel contextual tasks');
+
+        actionMenu.isSidePanel = false;
+        await microtasksFinished();
+        assertEquals(
+            actionMenu.i18n('recentTabsSuffix'), suffix.textContent.trim(),
+            'Should fall back to "Recent tab" on the NTP');
+      });
+
+  suite('SmartTabSharingTogglePositioning', () => {
+    setup(async () => {
+      loadTimeData.overrideValues({
+        composeboxSmartTabSharingVisible: true,
+        contextManagementInComposeboxEnabled: true,
+      });
+
+      actionMenu.remove();
+      actionMenu =
+          document.createElement('cr-composebox-contextual-action-menu');
+      actionMenu.tabSuggestions = [
+        {
+          tabId: 1,
+          title: 'Tab 1',
+          url: 'about:blank',
+          showInCurrentTabChip: false,
+          showInPreviousTabChip: false,
+          lastActive: {internalValue: 0n},
+        },
+      ];
+      actionMenu.inputState = new MockInputState({
+        allowedInputTypes: [InputType.kBrowserTab],
+      });
+      document.body.appendChild(actionMenu);
+      await microtasksFinished();
+    });
+
+    test('STS is OFF: Show Add tabs trigger, toggle in flyout', async () => {
+      actionMenu.smartTabSharingActive = false;
+      actionMenu.showAt(actionMenu);
+      await microtasksFinished();
+      await actionMenu.updateComplete;
+
+      // Trigger is visible in main menu
+      const trigger = $$(actionMenu, '#shareTabsTrigger');
+      assertTrue(!!trigger);
+      assertTrue(isVisible(trigger));
+
+      // Main menu toggle is NOT visible
+      const mainMenuToggle = $$(actionMenu, '#smartTabSharingItem');
+      assertFalse(!!mainMenuToggle);
+
+      // Open flyout
+      trigger.dispatchEvent(new PointerEvent('pointerenter'));
+      await microtasksFinished();
+      await actionMenu.updateComplete;
+
+      const flyout = $$(actionMenu, '.share-tabs-flyout');
+      assertTrue(!!flyout);
+      assertTrue(isVisible(flyout));
+
+      // Toggle is visible in flyout
+      const flyoutToggleItem = $$(actionMenu, '#smartTabSharingItemFlyout');
+      assertTrue(!!flyoutToggleItem);
+      assertTrue(isVisible(flyoutToggleItem));
+
+      assertEquals('false', flyoutToggleItem.getAttribute('aria-checked'));
+      assertFalse(!!flyoutToggleItem.querySelector('.share-tabs-check'));
+    });
+
+    test('STS is ON: Show toggle in main menu, no flyout', async () => {
+      actionMenu.smartTabSharingActive = true;
+      actionMenu.showAt(actionMenu);
+      await microtasksFinished();
+      await actionMenu.updateComplete;
+
+      // Main menu toggle is visible
+      const mainMenuToggle = $$(actionMenu, '#smartTabSharingItem');
+      assertTrue(!!mainMenuToggle);
+      assertTrue(isVisible(mainMenuToggle));
+
+      assertEquals('true', mainMenuToggle.getAttribute('aria-checked'));
+      assertTrue(!!mainMenuToggle.querySelector('.share-tabs-check'));
+      // Trigger is NOT visible
+      const trigger = $$(actionMenu, '#shareTabsTrigger');
+      assertFalse(!!trigger);
+    });
+
+    test('Clicking toggle in flyout closes the menu', async () => {
+      actionMenu.smartTabSharingActive = false;
+      actionMenu.showAt(actionMenu);
+      await microtasksFinished();
+      await actionMenu.updateComplete;
+
+      const trigger = $$(actionMenu, '#shareTabsTrigger');
+      assertTrue(!!trigger);
+
+      // Open flyout
+      trigger.dispatchEvent(new PointerEvent('pointerenter'));
+      await microtasksFinished();
+      await actionMenu.updateComplete;
+
+      const flyoutToggleItem =
+          $$(actionMenu, '#smartTabSharingItemFlyout') as HTMLElement;
+      assertTrue(!!flyoutToggleItem);
+
+      // Verify menu is open
+      assertTrue(actionMenu.$.menu.open);
+
+      flyoutToggleItem.click();
+      await microtasksFinished();
+
+      // Verify menu is now closed!
+      assertFalse(actionMenu.$.menu.open);
+    });
+
+    test('Clicking toggle in main menu does NOT close the menu', async () => {
+      actionMenu.smartTabSharingActive = true;
+      actionMenu.showAt(actionMenu);
+      await microtasksFinished();
+      await actionMenu.updateComplete;
+
+      const mainMenuToggle =
+          $$(actionMenu, '#smartTabSharingItem') as HTMLElement;
+      assertTrue(!!mainMenuToggle);
+
+      // Verify menu is open
+      assertTrue(actionMenu.$.menu.open);
+
+      mainMenuToggle.click();
+      await microtasksFinished();
+
+      // Verify menu stays open!
+      assertTrue(actionMenu.$.menu.open);
+    });
+
+    test(
+        'STS is ON: Show toggle even when suggestions are empty (prevent trapping)',
+        async () => {
+          actionMenu.smartTabSharingActive = true;
+          actionMenu.tabSuggestions = [];
+          actionMenu.showAt(actionMenu);
+          await microtasksFinished();
+          await actionMenu.updateComplete;
+
+          const mainMenuToggle = $$(actionMenu, '#smartTabSharingItem');
+          assertTrue(!!mainMenuToggle);
+          assertTrue(isVisible(mainMenuToggle));
+
+          const trigger = $$(actionMenu, '#shareTabsTrigger');
+          assertFalse(!!trigger);
+        });
+  });
+
+  suite('getSelectedTabs_', () => {
+    test(
+        'returns empty array when disabled and restored are empty', () => {
+          actionMenu.disabledTabIds = new Map();
+          actionMenu.aimThreadRestoredTabs = [];
+          actionMenu.tabSuggestions = [
+            {
+              tabId: 1,
+              title: 'Tab 1',
+              url: 'about:blank',
+              showInCurrentTabChip: false,
+              showInPreviousTabChip: false,
+              lastActive: {internalValue: 0n},
+            },
+          ];
+          const selectedTabs = (actionMenu as any).getSelectedTabs_();
+          assertEquals(0, selectedTabs.length);
+        });
+
+    test(
+        'returns matched tabs in reverse order of' +
+            ' addition to disabled and concatenated with restored',
+        () => {
+          const tab1: TabInfo = {
+            tabId: 1,
+            title: 'Tab 1',
+            url: 'about:blank',
+            showInCurrentTabChip: false,
+            showInPreviousTabChip: false,
+            lastActive: {internalValue: 0n},
+          };
+          const tab2: TabInfo = {
+            tabId: 2,
+            title: 'Tab 2',
+            url: 'about:blank',
+            showInCurrentTabChip: false,
+            showInPreviousTabChip: false,
+            lastActive: {internalValue: 0n},
+          };
+          const tab3: TabInfo = {
+            tabId: 3,
+            title: 'Tab 3',
+            url: 'about:blank',
+            showInCurrentTabChip: false,
+            showInPreviousTabChip: false,
+            lastActive: {internalValue: 0n},
+          };
+
+          actionMenu.tabSuggestions = [tab1, tab2, tab3];
+
+          actionMenu.aimThreadRestoredTabs = [tab1];
+          const disabledTabIds = new Map();
+          disabledTabIds.set(2, 'token2');
+          disabledTabIds.set(3, 'token3');
+          actionMenu.disabledTabIds = disabledTabIds;
+
+          const selectedTabs = (actionMenu as any).getSelectedTabs_();
+          assertEquals(3, selectedTabs.length);
+          // Given the displayed tabs are reversed (least to most recent),
+          // tab3 should be first, then tab2, and restored tabs are concatenated
+          // at the end (tab1).
+          assertEquals(tab3, selectedTabs[0]);
+          assertEquals(tab2, selectedTabs[1]);
+          assertEquals(tab1, selectedTabs[2]);
+        });
+
+    test('filters out tab IDs not found in tabSuggestions', () => {
+      const tab1: TabInfo = {
+        tabId: 1,
+        title: 'Tab 1',
+        url: 'about:blank',
+        showInCurrentTabChip: false,
+        showInPreviousTabChip: false,
+        lastActive: {internalValue: 0n},
+      };
+      actionMenu.tabSuggestions = [tab1];
+
+      actionMenu.aimThreadRestoredTabs = [];
+      const disabledTabIds = new Map();
+      disabledTabIds.set(1, 'token1');
+      disabledTabIds.set(5, 'token5');
+      actionMenu.disabledTabIds = disabledTabIds;
+
+      const selectedTabs = (actionMenu as any).getSelectedTabs_();
+      // Tab 5 is filtered out because it is not found in tabSuggestions.
+      assertEquals(1, selectedTabs.length);
+      assertEquals(tab1, selectedTabs[0]);
+    });
+  });
 });

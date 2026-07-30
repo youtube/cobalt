@@ -1261,10 +1261,6 @@ void RenderWidgetHostViewAndroid::WasOccluded() {
   TryUpdateVisibilities(Visibility::OCCLUDED, PageVisibilityState::kHidden);
 }
 
-void RenderWidgetHostViewAndroid::WasUnOccluded() {
-  TryUpdateVisibilities(Visibility::VISIBLE, PageVisibilityState::kVisible);
-}
-
 bool RenderWidgetHostViewAndroid::IsShowing() {
   // |view_.parent()| being NULL means that it is not attached
   // to the View system yet, so we treat this RWHVA as hidden.
@@ -2092,6 +2088,10 @@ void RenderWidgetHostViewAndroid::ResetSynchronousCompositor() {
 void RenderWidgetHostViewAndroid::OnOverscrollRefreshHandlerAvailable() {
   DCHECK(!overscroll_controller_);
   CreateOverscrollControllerIfPossible();
+}
+
+void RenderWidgetHostViewAndroid::ResetOverscrollController() {
+  overscroll_controller_.reset();
 }
 
 bool RenderWidgetHostViewAndroid::SupportsAnimation() const {

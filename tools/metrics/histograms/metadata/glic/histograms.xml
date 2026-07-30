@@ -82,6 +82,7 @@ chromium-metrics-reviews@google.com.
   <variant name="PauseActorTask"/>
   <variant name="PerformActions"/>
   <variant name="PinTabs"/>
+  <variant name="ProcessCounterAbuseVerdict"/>
   <variant name="RecordSkillsWebClientEvent"/>
   <variant name="RefreshSignInCookies"/>
   <variant name="RegisterConversation"/>
@@ -471,6 +472,23 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Glic.EntryPoint.Click.{TabContext}"
+    enum="GlicInvocationSource" expires_after="2027-05-30">
+  <owner>haileywang@google.com</owner>
+  <owner>wenyufu@google.com</owner>
+  <summary>
+    Recorded on Android when a user clicks on a Glic entry point (e.g., toolbar
+    button or 3-dot menu). The recorded sample represents the source of the
+    invocation. This metric is split by {TabContext} to distinguish whether the
+    user was on the New Tab Page or another tab when they clicked the entry
+    point.
+  </summary>
+  <token key="TabContext">
+    <variant name="Ntp" summary="the New Tab Page"/>
+    <variant name="Other" summary="any tab other than the New Tab Page"/>
+  </token>
+</histogram>
+
 <histogram name="Glic.EntryPoint.Status" enum="GlicEntryPointStatus"
     expires_after="2026-09-27">
   <owner>sanaakbani@google.com</owner>
@@ -482,6 +500,62 @@ chromium-metrics-reviews@google.com.
     Three-Dot. The entry points are only shown if a profile is eligible to use
     glic. The Three-Dot menu entry is always shown but the Tabstrip and OS
     entrypoints can be removed based on user configuration.
+  </summary>
+</histogram>
+
+<histogram name="Glic.ExperimentalTriggering.OptIn.Accepted.Version"
+    enum="GlicRequiredExperimentalOptIn" expires_after="2027-05-18">
+  <owner>sauski@google.com</owner>
+  <owner>nyquist@chromium.org</owner>
+  <summary>
+    Records the version of Glic Experimental Opt-In dialog accepted by the user
+    (Glic FRE, Actuation, or Experimental Triggering). Recorded when the user
+    clicks the Accept button.
+  </summary>
+</histogram>
+
+<histogram name="Glic.ExperimentalTriggering.OptIn.NoThanks.Version"
+    enum="GlicRequiredExperimentalOptIn" expires_after="2027-05-18">
+  <owner>sauski@google.com</owner>
+  <owner>nyquist@chromium.org</owner>
+  <summary>
+    Records the version of Glic Experimental Opt-In dialog declined (No Thanks)
+    by the user (Glic FRE, Actuation, or Experimental Triggering). Recorded when
+    the user clicks the Reject/No Thanks button.
+  </summary>
+</histogram>
+
+<histogram name="Glic.ExperimentalTriggering.OptIn.Shown.Version"
+    enum="GlicRequiredExperimentalOptIn" expires_after="2027-05-18">
+  <owner>sauski@google.com</owner>
+  <owner>nyquist@chromium.org</owner>
+  <summary>
+    Records the version of Glic Experimental Opt-In dialog shown to the user
+    (Glic FRE, Actuation, or Experimental Triggering). Recorded when the dialog
+    is successfully shown.
+  </summary>
+</histogram>
+
+<histogram name="Glic.ExperimentalTriggering.OptInDialog.ShowDuration"
+    units="ms" expires_after="2027-05-19">
+  <owner>sauski@google.com</owner>
+  <owner>qinmin@chromium.org</owner>
+  <summary>
+    Records the total duration of time from when the Glic experimental
+    triggering device opt-in dialog is opened until the user makes a decision or
+    dismisses it, including time spent in the background.
+  </summary>
+</histogram>
+
+<histogram name="Glic.ExperimentalTriggering.OptInDialog.VisibleDuration"
+    units="ms" expires_after="2027-05-19">
+  <owner>sauski@google.com</owner>
+  <owner>qinmin@chromium.org</owner>
+  <summary>
+    Records the total visible duration of time that the Glic experimental
+    triggering device opt-in dialog is actively shown to the user before they
+    make a decision or dismiss it. Excludes time when the dialog's tab is in the
+    background.
   </summary>
 </histogram>
 
@@ -509,6 +583,15 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Glic.Fre.Accept.FlowSource" enum="GlicOptInFlowSource"
+    expires_after="2027-05-18">
+  <owner>sauski@google.com</owner>
+  <owner>perrier@chromium.org</owner>
+  <summary>
+    Records the onboarding flow source where the user accepted Glic opt-in.
+  </summary>
+</histogram>
+
 <histogram name="Glic.Fre.Accept.InvocationSource" enum="GlicInvocationSource"
     expires_after="2026-10-04">
   <owner>erikchen@chromium.org</owner>
@@ -517,6 +600,15 @@ chromium-metrics-reviews@google.com.
     Records the invocation source used to trigger the opening of the glic panel
     that led to the user accepting the Trust-First Onboarding. Recorded when the
     user accepts the Trust-First Onboarding.
+  </summary>
+</histogram>
+
+<histogram name="Glic.Fre.Dismissed.FlowSource" enum="GlicOptInFlowSource"
+    expires_after="2027-05-18">
+  <owner>sauski@google.com</owner>
+  <owner>perrier@chromium.org</owner>
+  <summary>
+    Records the onboarding flow source where the user dismissed Glic opt-in.
   </summary>
 </histogram>
 
@@ -561,6 +653,25 @@ chromium-metrics-reviews@google.com.
     Records the time elapsed between the FRE being fully loaded (the Ready
     state) and the user explicitly clicking the No thanks button. This is logged
     when the user rejects the FRE.
+  </summary>
+</histogram>
+
+<histogram name="Glic.Fre.NoThanks.FlowSource" enum="GlicOptInFlowSource"
+    expires_after="2027-05-18">
+  <owner>sauski@google.com</owner>
+  <owner>perrier@chromium.org</owner>
+  <summary>
+    Records the onboarding flow source where the user explicitly rejected Glic
+    opt-in.
+  </summary>
+</histogram>
+
+<histogram name="Glic.Fre.Shown.FlowSource" enum="GlicOptInFlowSource"
+    expires_after="2027-05-18">
+  <owner>sauski@google.com</owner>
+  <owner>perrier@chromium.org</owner>
+  <summary>
+    Records the onboarding flow source where the user was shown the Glic opt-in.
   </summary>
 </histogram>
 
@@ -912,18 +1023,6 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Glic.Instance.Floaty.OpenSource" enum="GlicInvocationSource"
-    expires_after="2026-10-04">
-  <owner>basiaz@google.com</owner>
-  <owner>birnie@google.com</owner>
-  <summary>
-    Records the source of the invocation that opened the floaty GlicInstance.
-    Recorded each time toggle is called for showing the floaty and is a
-    companion metric to Glic.Instance.Floaty.ToggleSource which included
-    invocations that close Floaty.
-  </summary>
-</histogram>
-
-<histogram name="Glic.Instance.Floaty.OpenSource2" enum="GlicInvocationSource"
     expires_after="2026-10-04">
   <owner>basiaz@google.com</owner>
   <owner>birnie@google.com</owner>
@@ -1287,26 +1386,11 @@ chromium-metrics-reviews@google.com.
   <owner>birnie@google.com</owner>
   <owner>perrier@google.com</owner>
   <summary>
-    Records the source of the invocation that opened the Glic instance in the
-    side panel. Recorded each time Show() is called to show the instance in the
-    side panel and it was not already showing. Note that this may be recorded
-    even if the side panel UI container was already open for a different
-    instance (e.g., when invoking a new conversation).
-  </summary>
-</histogram>
-
-<histogram name="Glic.Instance.SidePanel.OpenSource2"
-    enum="GlicInvocationSource" expires_after="2026-10-04">
-  <owner>birnie@google.com</owner>
-  <owner>perrier@google.com</owner>
-  <summary>
     Records the source of the invocation when the Glic panel becomes visible for
     the first time after being closed. Recorded when first visible (for
     foreground and background instance creation), when popped back from Floaty,
-    for a conversation switch. It is not logged on tab switches. This is
-    different from Glic.Instance.SidePanel.OpenSource in that this metric is
-    also recorded for background instances which the previous version did not
-    do.
+    for a conversation switch. Background opens were not recorded before M150.
+    This metric is not logged on tab switches.
   </summary>
 </histogram>
 
@@ -1581,6 +1665,28 @@ chromium-metrics-reviews@google.com.
   <token key="Visibility" variants="Visibility"/>
 </histogram>
 
+<histogram name="Glic.InvokeResult" enum="GlicInvokeResult"
+    expires_after="2027-06-01">
+  <owner>vollick@chromium.org</owner>
+  <owner>glic-dev@google.com</owner>
+  <summary>
+    Records the result of a Glic invocation (success or specific error).
+    Recorded when the invocation completes successfully or fails.
+  </summary>
+</histogram>
+
+<histogram name="Glic.InvokeResult.{InvocationSource}" enum="GlicInvokeResult"
+    expires_after="2027-06-01">
+  <owner>vollick@chromium.org</owner>
+  <owner>glic-dev@google.com</owner>
+  <summary>
+    Records the result of a Glic invocation (success or specific error) sliced
+    by the invocation source. Recorded when the invocation completes
+    successfully or fails.
+  </summary>
+  <token key="InvocationSource" variants="GlicInvocationSource"/>
+</histogram>
+
 <histogram name="Glic.LocaleFilteringResult" enum="GlicFilteringResult"
     expires_after="2026-08-01">
   <owner>harringtond@chromium.org</owner>
@@ -1674,6 +1780,13 @@ chromium-metrics-reviews@google.com.
   </token>
 </histogram>
 
+<histogram name="Glic.Onboarding.OptInImpression.FlowSource"
+    enum="GlicOptInFlowSource" expires_after="2027-05-18">
+  <owner>sauski@google.com</owner>
+  <owner>perrier@chromium.org</owner>
+  <summary>Records the onboarding flow source shown to the user.</summary>
+</histogram>
+
 <histogram name="Glic.OsEntrypoint.Settings.Shortcut" enum="BooleanEnabled"
     expires_after="2026-09-27">
   <owner>agale@chromium.org</owner>
@@ -1748,6 +1861,29 @@ chromium-metrics-reviews@google.com.
   <owner>dtapuska@google.com</owner>
   <owner>chrome-synapse-team@google.com</owner>
   <summary>Recorded when a page gets screenshot error from Viz.</summary>
+</histogram>
+
+<histogram name="Glic.PageContextFetcher.IframeInfoAddedToAPC" enum="Boolean"
+    expires_after="2027-06-01">
+  <owner>ryankalla@google.com</owner>
+  <owner>chrome-ai-security@google.com</owner>
+  <summary>
+    Recorded when a page context fetcher processes iframe data after the
+    screenshot is taken and the annotated page content is generated. Records
+    true if any iframe info was added to the annotated page content, and false
+    otherwise.
+  </summary>
+</histogram>
+
+<histogram name="Glic.PageContextFetcher.IframeInfoHasUrlOrigin" enum="Boolean"
+    expires_after="2027-06-01">
+  <owner>ryankalla@google.com</owner>
+  <owner>chrome-ai-security@google.com</owner>
+  <summary>
+    Recorded for each iframe-info message that was added to the annotated page
+    content. Records whether the iframe-info origin field was populated. If
+    false, that means we were unable to determine the src origin of the iframe.
+  </summary>
 </histogram>
 
 <histogram name="Glic.PageContextFetcher.PdfTextExtraction.Size" units="bytes"
@@ -2930,11 +3066,9 @@ chromium-metrics-reviews@google.com.
   </summary>
   <token key="Suffix">
     <variant name="OnOpen"
-        summary="when the Glic panel is opened by the user."/>
-    <variant name="OnOpen2"
         summary="when the Glic panel is opened by the user for the first time
-                 from a closed state, for the new metrics behavior (see
-                 Glic.Instance.{SidePanel,Floaty}.OpenSource2) for detailed
+                 from a closed state, see
+                 Glic.Instance.{SidePanel,Floaty}.OpenSource for detailed
                  definitions."/>
     <variant name="SteadyState"
         summary="periodically for active users (those who have completed the

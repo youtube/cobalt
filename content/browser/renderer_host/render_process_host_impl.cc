@@ -2728,7 +2728,7 @@ void RenderProcessHostImpl::WriteIntoTrace(
     const {
   proto->set_id(GetDeprecatedID());
   proto->set_process_lock(GetProcessLock().ToString());
-  proto.Set(TraceProto::kBrowserContext, browser_context_);
+  proto.Set(TraceProto::kBrowserContext, browser_context_.get());
 
   // Pid() can be called only on valid process, so we should check for this
   // before accessing it. In addition, Pid() should only be read once the
@@ -6031,11 +6031,6 @@ void RenderProcessHostImpl::OnProcessLaunched() {
                       ChromeTrackEvent::kRenderProcessHost, *this);
       channel_->Unpause(false /* flush */);
     }
-
-#if BUILDFLAG(IS_WIN)
-    ChildProcessHostImpl::FreeAslrBeaconsInChildProcess(
-        child_process_.get(), sandbox::mojom::Sandbox::kRenderer);
-#endif
 
     gpu_client_->SetClientPid(GetProcess().Pid());
 

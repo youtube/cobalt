@@ -5,6 +5,7 @@
 package org.chromium.chrome.browser.media.document_picture_in_picture_header;
 
 import android.content.res.ColorStateList;
+import android.text.TextUtils;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
@@ -94,10 +95,38 @@ public class DocumentPictureInPictureHeaderViewBinder {
                                             .ON_SECURITY_ICON_CLICK_LISTENER));
         } else if (key == DocumentPictureInPictureHeaderProperties.URL_STRING) {
             updateUrl(view, model.get(DocumentPictureInPictureHeaderProperties.URL_STRING));
+        } else if (key == DocumentPictureInPictureHeaderProperties.URL_ELLIPSIZE_BEHAVIOR) {
+            updateUrlEllipsizeBehavior(
+                    view,
+                    model.get(DocumentPictureInPictureHeaderProperties.URL_ELLIPSIZE_BEHAVIOR));
         } else if (key == DocumentPictureInPictureHeaderProperties.BRANDED_COLOR_SCHEME) {
             updateBrandedColorScheme(
                     view, model.get(DocumentPictureInPictureHeaderProperties.BRANDED_COLOR_SCHEME));
+        } else if (key == DocumentPictureInPictureHeaderProperties.COMPONENT_SIZE) {
+            int componentSize = model.get(DocumentPictureInPictureHeaderProperties.COMPONENT_SIZE);
+            updateComponentSize(view, componentSize);
         }
+    }
+
+    private static void updateComponentSize(View view, int componentSize) {
+        View backToTab = view.findViewById(R.id.document_picture_in_picture_header_back_to_tab);
+        View securityIcon =
+                view.findViewById(R.id.document_picture_in_picture_header_security_icon);
+        View urlBar = view.findViewById(R.id.document_picture_in_picture_header_url_bar);
+
+        ViewGroup.LayoutParams backToTabParams = backToTab.getLayoutParams();
+        backToTabParams.width = componentSize;
+        backToTabParams.height = componentSize;
+        backToTab.setLayoutParams(backToTabParams);
+
+        ViewGroup.LayoutParams securityIconParams = securityIcon.getLayoutParams();
+        securityIconParams.width = componentSize;
+        securityIconParams.height = componentSize;
+        securityIcon.setLayoutParams(securityIconParams);
+
+        ViewGroup.LayoutParams urlBarParams = urlBar.getLayoutParams();
+        urlBarParams.height = componentSize;
+        urlBar.setLayoutParams(urlBarParams);
     }
 
     private static void updateTintColorList(View view, ColorStateList tintColorList) {
@@ -132,5 +161,10 @@ public class DocumentPictureInPictureHeaderViewBinder {
         TextView urlBar = view.findViewById(R.id.document_picture_in_picture_header_url_bar);
         urlBar.setText(urlHost);
         urlBar.setTooltipText(urlHost);
+    }
+
+    private static void updateUrlEllipsizeBehavior(View view, TextUtils.TruncateAt behavior) {
+        TextView urlBar = view.findViewById(R.id.document_picture_in_picture_header_url_bar);
+        urlBar.setEllipsize(behavior);
     }
 }

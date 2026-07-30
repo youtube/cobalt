@@ -35,6 +35,8 @@ class WebFrame;
 
 namespace webauthn {
 
+class IOSWebAuthnCredentialsDelegate;
+
 // Handles script messages received from PasskeyJavaScriptFeature related to
 // interactions with WebAuthn credentials and for now logs appropriate metrics.
 class PasskeyTabHelper : public web::WebStateObserver,
@@ -108,6 +110,10 @@ class PasskeyTabHelper : public web::WebStateObserver,
   // string if the request is not found. Note that only registration requests
   // have a username.
   std::string UsernameForRequest(const std::string& request_id);
+
+  // Returns the relying party identifier associated with the current request ID
+  // or an empty string if the request is not found.
+  std::string RelyingPartyIdForRequest(const std::string& request_id);
 
   // Sets the passkey command handler.
   void SetIOSPasskeyClientCommandsHandler(id<IOSPasskeyClientCommands> handler);
@@ -195,6 +201,12 @@ class PasskeyTabHelper : public web::WebStateObserver,
 
   // Handles passkey assertion request after it passes validation.
   void HandleAssertion(AssertionRequestParams params);
+
+  // Callback invoked when the WebAuthn credentials delegate is resolved for an
+  // assertion request.
+  void OnWebAuthnCredentialsDelegateResolved(
+      AssertionRequestParams params,
+      IOSWebAuthnCredentialsDelegate* delegate);
 
   // Whether automatic passkey upgrade is allowed.
   bool CanPerformAutomaticPasskeyUpgrade(

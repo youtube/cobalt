@@ -4,6 +4,7 @@
 
 #include "ui/gl/gl_features.h"
 
+#include "base/byte_size.h"
 #include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/strings/string_split.h"
@@ -299,7 +300,8 @@ bool IsSwiftShaderAllowedByCommandLine(const base::CommandLine* command_line) {
 
   std::string angle_name =
       command_line->GetSwitchValueASCII(switches::kUseANGLE);
-  if (angle_name == gl::kANGLEImplementationSwiftShaderName) {
+  if (angle_name == gl::kANGLEImplementationSwiftShaderName ||
+      angle_name == gl::kANGLEImplementationSwiftShaderForWebGLName) {
     // If SwiftShader is specifically requested with the --use-angle command
     // line flag, allow it.
     return true;
@@ -373,7 +375,7 @@ BASE_FEATURE(kAndroidLimitRgb565DisplayToApi32,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 bool PreferRGB565ResourcesForDisplay() {
-  return base::SysInfo::AmountOfPhysicalMemory().InMiB() <= 512 &&
+  return base::SysInfo::AmountOfTotalPhysicalMemory().InMiB() <= 512 &&
          (base::android::android_info::sdk_int() <=
               base::android::android_info::SDK_VERSION_Sv2 ||
           !base::FeatureList::IsEnabled(kAndroidLimitRgb565DisplayToApi32));

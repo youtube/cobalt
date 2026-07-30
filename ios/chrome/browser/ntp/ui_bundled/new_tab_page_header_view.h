@@ -7,20 +7,33 @@
 
 #import <UIKit/UIKit.h>
 
+#import "ios/chrome/browser/content_suggestions/ui/user_account_image_update_delegate.h"
+#import "ios/chrome/browser/location_bar/ui_bundled/fakebox_buttons_snapshot_provider.h"
+#import "ios/chrome/browser/ntp/search_engine_logo/ui/search_engine_logo_consumer.h"
+#import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_header_consumer.h"
+#import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_header_view_delegate.h"
+
 @class GradientView;
 @class LayoutGuideCenter;
 @class NewTabPageColorPalette;
 @protocol NewTabPageShortcutsHandler;
 @protocol NewTabPageHeaderCommands;
 @protocol NewTabPageControllerDelegate;
+@protocol NewTabPageMutator;
+@protocol HelpCommands;
+@protocol FakeboxFocuser;
 @class OmniboxContainerView;
+@class SearchEngineLogoMediator;
 enum class SearchEngineLogoState;
 @class TabGroupIndicatorView;
 
 // Header view for the NTP. The header view contains all views that are
 // displayed above the list of most visited sites, which includes the
 // primary toolbar, doodle, and fake omnibox.
-@interface NewTabPageHeaderView : UIView
+@interface NewTabPageHeaderView : UIView <UserAccountImageUpdateDelegate,
+                                          SearchEngineLogoConsumer,
+                                          NewTabPageHeaderConsumer,
+                                          FakeboxButtonsSnapshotProvider>
 
 // Returns the toolbar view.
 @property(nonatomic, readonly) UIView* toolBarView;
@@ -69,8 +82,11 @@ enum class SearchEngineLogoState;
 // View that contains tab group information.
 @property(nonatomic, weak) TabGroupIndicatorView* tabGroupIndicatorView;
 
-// `YES` if Google is the default search engine.
-@property(nonatomic, assign) BOOL isGoogleDefaultSearchEngine;
+// Sets whether Google is the default search engine.
+- (void)setIsGoogleDefaultSearchEngine:(BOOL)isGoogleDefaultSearchEngine;
+
+// `YES` if the user is signed in.
+@property(nonatomic, assign, readonly) BOOL isSignedIn;
 
 // Name of the default search engine. Used for the omnibox placeholder text.
 @property(nonatomic, copy) NSString* placeholderText;
@@ -88,11 +104,31 @@ enum class SearchEngineLogoState;
 // Delegate for toolbar actions.
 @property(nonatomic, weak) id<NewTabPageControllerDelegate> toolbarDelegate;
 
+// Delegate for header view actions.
+@property(nonatomic, weak) id<NewTabPageHeaderViewDelegate> delegate;
+
+// The mutator for the NTP.
+@property(nonatomic, weak) id<NewTabPageMutator> mutator;
+
+// In-product help handler.
+@property(nonatomic, weak) id<HelpCommands> helpHandler;
+
+// Fakebox focus handler.
+@property(nonatomic, weak) id<FakeboxFocuser> fakeboxFocuserHandler;
+
+// Whether the NTP is currently showing.
+@property(nonatomic, assign, getter=isShowing) BOOL showing;
+
+// The mediator for the search engine logo.
+@property(nonatomic, strong) SearchEngineLogoMediator* searchEngineLogoMediator;
+
 // The logo state.
 @property(nonatomic, assign) SearchEngineLogoState logoState;
 
-// Initializes the view with the Lens button new badge status.
+// Initializes the view with the Lens and customization menu badge status.
 - (instancetype)initWithUseNewBadgeForLensButton:(BOOL)useNewBadgeForLensButton
+                 useNewBadgeForCustomizationMenu:
+                     (BOOL)useNewBadgeForCustomizationMenu
     NS_DESIGNATED_INITIALIZER;
 
 - (instancetype)initWithFrame:(CGRect)frame NS_UNAVAILABLE;
@@ -125,9 +161,6 @@ enum class SearchEngineLogoState;
                    screenWidth:(CGFloat)screenWidth
                 safeAreaInsets:(UIEdgeInsets)safeAreaInsets;
 
-// Configures the current default search engine logo.
-- (void)setDefaultSearchEngineLogo:(UIImage*)logo;
-
 // Highlights the fake omnibox.
 - (void)setFakeboxHighlighted:(BOOL)highlighted;
 
@@ -153,21 +186,50 @@ enum class SearchEngineLogoState;
 // and defocus animations.
 - (UIView*)fakeboxButtonsSnapshot;
 
-// Whether AIM is allowed.
-- (void)setAIMAllowed:(BOOL)allowed;
-
-// Whether the current session is eligible for fusebox.
-- (void)setFuseboxEligible:(BOOL)eligible;
-
-// Sets whether the omnibox is pinned to the bottom position.
-- (void)setOmniboxPositionIsBottom:(BOOL)isBottomOmnibox;
-
 // Whether to show the plus button.
 - (BOOL)shouldShowPlusButton;
 
 // Resets the resizing of this view for scroll progress in split toolbar mode.
 // Should be called on rotations.
 - (void)resetSplitToolbarResizing;
+
+// Animation to expand this header in response to focusing the omnibox.
+- (void)expandHeaderForFocus;
+
+// Updates the fake omnibox layout for the given scroll offset.
+- (void)updateFakeOmniboxForOffset:(CGFloat)offset
+                       screenWidth:(CGFloat)screenWidth
+                    safeAreaInsets:(UIEdgeInsets)safeAreaInsets
+            animateScrollAnimation:(BOOL)animateScrollAnimation;
+
+// Updates the fake omnibox layout for the given width.
+- (void)updateFakeOmniboxForWidth:(CGFloat)width;
+
+// Layouts the header view.
+- (void)layoutHeader;
+
+// Returns the height of the header.
+- (CGFloat)headerHeight;
+
+// Notifies the view that it appeared.
+- (void)didAppear;
+
+// Sends notification to focus the accessibility of the omnibox.
+- (void)focusAccessibilityOnOmnibox;
+
+// Configure the header after the focus omnibox animation has completed.
+- (void)completeHeaderFakeOmniboxFocusAnimationWithFinalPosition:
+    (UIViewAnimatingPosition)finalPosition;
+
+// Resets fakebox state when omnibox ends editing.
+- (void)omniboxDidEndEditing;
+
+// Returns the view containing the fake omnibox.
+- (UIView*)fakeOmniboxView;
+
+// Returns the Y value to use for the scroll view's contentOffset when scrolling
+// the omnibox to the top of the screen.
+- (CGFloat)pinnedOffsetY;
 
 @end
 

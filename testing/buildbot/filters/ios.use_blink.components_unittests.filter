@@ -370,6 +370,10 @@
 -SafariDataImporterTest.ImportCreditCard
 -SafariDataImporterTest.ImportHistory
 -SafariDataImporterTest.ImportPasswords
+-SqliteVfsMultiprocessTest.AbandonAndReconnect/Rollback
+-SqliteVfsMultiprocessTest.AbandonAndReconnect/Wal
+-SqliteVfsMultiprocessTest.AbandonReadOnlyShared/Rollback
+-SqliteVfsMultiprocessTest.AbandonReadOnlyShared/Wal
 -SqliteVfsMultiprocessTest.CanReadFromAProcessWhileTheOtherIsWritingMMap
 -SqliteVfsMultiprocessTest.CanReadFromAProcessWhileTheOtherIsWritingWal
 -SqliteVfsMultiprocessTest.CanWriteInMultipleProcessesMMap
@@ -379,6 +383,19 @@
 -SqliteVfsMultiprocessTest.DeletionDoesNotCorruptWal
 -SqliteVfsMultiprocessTest.MigratesFromOldMMapJournalToWal
 -SqliteVfsMultiprocessTest.ReturnsDataIfStaleConnectionInAnotherProcess
+-SqliteVfsMultiprocessTest.ParallelStressTest/Rollback
+-SqliteVfsMultiprocessTest.ParallelStressTest/Wal
+-SqliteVfsMultiprocessTest.ReaderBlocksWriterInRollback/Rollback
+-SqliteVfsMultiprocessTest.ReaderDoesNotBlockWriterInWal/Wal
+-SqliteVfsMultiprocessTest.ReadOnlyFirstConnection/Wal
+-SqliteVfsMultiprocessTest.WalDynamicGrowth/Wal
+-SqliteVfsMultiprocessTest.WalReadMarkNecessity/Wal
+-SqliteVfsMultiprocessTest.WalSourceTest/Wal
+-SqliteVfsMultiprocessTest.WriterBlocksReaderInRollback/Rollback
+-VfsTransitionMultiprocessTest.TransitionAfterCrash/MultiConnection_Rollback
+-VfsTransitionMultiprocessTest.TransitionAfterCrash/MultiConnection_Wal
+-VfsTransitionMultiprocessTest.TransitionAfterCrash/SingleConnection_Rollback
+-VfsTransitionMultiprocessTest.TransitionAfterCrash/SingleConnection_Wal
 -VfsTransitionMultiprocessTest.VfsChangeTest
 
 # TODO(crbug.com/514423253): Miscellaneous components_unittests failures on iOS
@@ -396,3 +413,7 @@
 -PolicyLoggerTest.DeleteOldLogsMultithreaded
 -UmaPageLoadMetricsObserverTest.TestTracingDomContentLoadedEventStart
 -UmaPageLoadMetricsObserverTest.TestTracingLoadEventStart
+
+# TODO(crbug.com/517208683): The test is flaky on the ios-blink and tvos bots.
+# The test was updated by https://crrev.com/c/7676358.
+-SessionStorageImplFakeDbTest.TransientErrorsAfterRecovery

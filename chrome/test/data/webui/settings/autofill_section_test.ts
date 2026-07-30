@@ -6,7 +6,8 @@
 import 'chrome://settings/settings.js';
 
 import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
-import type {CrInputElement, CrTextareaElement} from 'chrome://settings/lazy_load.js';
+import type {CrActionMenuElement} from 'chrome://settings/settings.js';
+import type {CrInputElement, CrTextareaElement, SettingsSimpleConfirmationDialogElement} from 'chrome://settings/lazy_load.js';
 import {AutofillAddressOptInChange, AutofillManagerImpl, CountryDetailManagerProxyImpl} from 'chrome://settings/lazy_load.js';
 import {assertEquals, assertFalse, assertGT, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import type {MetricsTracker} from 'chrome://webui-test/metrics_test_support.js';
@@ -141,10 +142,23 @@ const ADDRESS_COMPONENTS_IL = {
 };
 
 suite('AutofillSectionUiTest', function() {
+  setup(function() {
+    loadTimeData.overrideValues({emailVerificationProtocolEnabled: false});
+    document.body.innerHTML = window.trustedTypes!.emptyHTML;
+  });
+
   test('AutofillExtensionIndicator', function() {
     // Initializing with fake prefs
     const section = document.createElement('settings-autofill-section');
-    section.prefs = {autofill: {profile_enabled: {}}};
+    section.prefs = {
+      autofill: {
+        profile_enabled: {},
+        email_verification_state: {
+          type: chrome.settingsPrivate.PrefType.DICTIONARY,
+          value: {},
+        },
+      },
+    };
     document.body.appendChild(section);
 
     assertFalse(
@@ -154,8 +168,110 @@ suite('AutofillSectionUiTest', function() {
 
     assertTrue(
         !!section.shadowRoot!.querySelector('#autofillExtensionIndicator'));
+  });
 
-    document.body.removeChild(section);
+  test('EmailVerificationToggle', async function() {
+    loadTimeData.overrideValues({emailVerificationProtocolEnabled: true});
+
+    const section = await createAutofillSection([], {
+      profile_enabled: {value: true},
+      email_verification_enabled: {value: true},
+    });
+    const toggle =
+        section.shadowRoot!.querySelector('#autofillEmailVerificationToggle');
+    assertTrue(!!toggle);
+
+    const noEmailsLabel = section.shadowRoot!.querySelector('#noEmailsLabel');
+    assertTrue(!!noEmailsLabel);
+    assertFalse((noEmailsLabel as HTMLElement).hidden);
+  });
+
+  test('EmailVerificationList', async function() {
+    loadTimeData.overrideValues({emailVerificationProtocolEnabled: true});
+
+    const emailState = {
+      'test1@example.com': {allowed: true, issuer_site: 'https://google.com'},
+      'test2@example.com': {allowed: false, issuer_site: 'https://yahoo.com'},
+    };
+
+    const section = await createAutofillSection([], {
+      profile_enabled: {value: true},
+      email_verification_enabled: {value: true},
+      email_verification_state: {
+        type: chrome.settingsPrivate.PrefType.DICTIONARY,
+        value: emailState,
+      },
+    });
+
+    flush();
+
+    const menuButtons =
+        section.shadowRoot!.querySelectorAll<HTMLElement>('.email-menu');
+    assertEquals(2, menuButtons.length);
+
+    const button0 = menuButtons[0]!;
+    const button1 = menuButtons[1]!;
+
+    const item0 = button0.parentElement;
+    const item1 = button1.parentElement;
+    assertTrue(!!item0);
+    assertTrue(!!item1);
+
+    const start0 = item0.querySelector('.start');
+    assertTrue(!!start0);
+    assertEquals('test1@example.com', start0.textContent.trim());
+    const favicon0 = item0.querySelector('site-favicon');
+    assertTrue(!!favicon0);
+    assertEquals('https://google.com', favicon0.url);
+
+    const start1 = item1.querySelector('.start');
+    assertTrue(!!start1);
+    assertEquals('test2@example.com', start1.textContent.trim());
+    const favicon1 = item1.querySelector('site-favicon');
+    assertTrue(!!favicon1);
+    assertEquals('https://yahoo.com', favicon1.url);
+
+    // Click menu on first item.
+    button0.click();
+    await flushTasks();
+
+    const actionMenu = section.shadowRoot!.querySelector<CrActionMenuElement>(
+        '#emailSharedMenu')!;
+    assertTrue(actionMenu.open);
+
+    // Click remove.
+    const removeButton =
+        actionMenu.querySelector<HTMLElement>('#menuRemoveEmail');
+    assertTrue(!!removeButton);
+    removeButton.click();
+    await flushTasks();
+
+    const dialog = section.shadowRoot!
+                       .querySelector<SettingsSimpleConfirmationDialogElement>(
+                           '#emailRemoveConfirmationDialog');
+    assertTrue(!!dialog);
+    dialog.$.confirm.click();
+
+    await eventToPromise('close', dialog.$.dialog);
+    await flushTasks();
+
+    // Verify pref was updated.
+    const updatedPrefs = section
+                             .getPref<Record<string, unknown>>(
+                                 'autofill.email_verification_state')
+                             .value;
+    assertFalse('test1@example.com' in updatedPrefs);
+    assertTrue('test2@example.com' in updatedPrefs);
+
+    // Verify UI updated.
+    const newMenuButtons = section.shadowRoot!.querySelectorAll('.email-menu');
+    assertEquals(1, newMenuButtons.length);
+    const newButton0 = newMenuButtons[0]!;
+    const newItem0 = newButton0.parentElement!;
+    assertTrue(!!newItem0);
+    const newStart0 = newItem0.querySelector('.start');
+    assertTrue(!!newStart0);
+    assertEquals('test2@example.com', newStart0.textContent.trim());
   });
 
   test('verifyAddressDeleteRecordTypeNotice', async () => {
@@ -250,8 +366,6 @@ suite('AutofillSectionUiTest', function() {
       // Make sure closing clean-ups are finished.
       await eventToPromise('close', dialog.$.dialog);
     }
-
-    document.body.removeChild(section);
   });
 
   test('verifyAddressDeleteHomeAddressNotice', async () => {
@@ -285,8 +399,6 @@ suite('AutofillSectionUiTest', function() {
       // Make sure closing clean-ups are finished.
       await eventToPromise('close', dialog.$.dialog);
     }
-
-    document.body.removeChild(section);
   });
 
   test('verifyAddressDeleteWorkAddressNotice', async () => {
@@ -320,8 +432,6 @@ suite('AutofillSectionUiTest', function() {
       // Make sure closing clean-ups are finished.
       await eventToPromise('close', dialog.$.dialog);
     }
-
-    document.body.removeChild(section);
   });
 
   test('verifyAddressDeleteNameEmailAddressNotice', async () => {
@@ -372,8 +482,6 @@ suite('AutofillSectionUiTest', function() {
       // Make sure closing clean-ups are finished.
       await eventToPromise('close', dialog.$.dialog);
     }
-
-    document.body.removeChild(section);
   });
 
   test('verifyAddressEditRecordTypeNotice', async () => {
@@ -413,8 +521,6 @@ suite('AutofillSectionUiTest', function() {
       // Make sure closing clean-ups are finished.
       await eventToPromise('close', dialog.$.dialog);
     }
-
-    document.body.removeChild(section);
   });
 });
 

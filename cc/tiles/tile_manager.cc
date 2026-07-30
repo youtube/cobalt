@@ -415,20 +415,20 @@ TileManager::~TileManager() {
 }
 
 void TileManager::FinishTasksAndCleanUp() {
-  if (!tile_task_manager_)
-    return;
+  if (tile_task_manager_) {
+    global_state_ = GlobalStateThatImpactsTilePriority();
 
-  global_state_ = GlobalStateThatImpactsTilePriority();
+    // This cancels tasks if possible, finishes pending tasks, and release any
+    // uninitialized resources.
+    tile_task_manager_->Shutdown();
 
-  // This cancels tasks if possible, finishes pending tasks, and release any
-  // uninitialized resources.
-  tile_task_manager_->Shutdown();
+    raster_buffer_provider_->Shutdown();
 
-  raster_buffer_provider_->Shutdown();
+    tile_task_manager_->CheckForCompletedTasks();
 
-  tile_task_manager_->CheckForCompletedTasks();
+    tile_task_manager_ = nullptr;
+  }
 
-  tile_task_manager_ = nullptr;
   resource_pool_ = nullptr;
   pending_raster_queries_ = nullptr;
   more_tiles_need_prepare_check_notifier_.Cancel();
@@ -1098,13 +1098,27 @@ TileManager::PrioritizedWorkToSchedule TileManager::AssignGpuMemoryToTiles() {
                             had_enough_memory_to_schedule_tiles_needed_now);
       if (had_enough_memory_to_schedule_tiles_needed_now) {
         UMA_HISTOGRAM_MEMORY_MEDIUM_MB(
-            "Compositing.TileManager.MemoryUsageWhenEnoughMemory",
+            "Compositing.TileManager.MemoryUsageWhenEnoughMemory.Browser",
             memory_usage.memory_bytes() / (1024 * 1024));
       }
       if (did_oom_on_last_assign_) {
         auto memory_limit = hard_memory_limit.memory_bytes() / (1024 * 1024);
         UMA_HISTOGRAM_MEMORY_MEDIUM_MB(
             "Compositing.TileManager.LimitWhenNotEnoughMemory.Browser",
+            memory_limit);
+      }
+    } else {
+      UMA_HISTOGRAM_BOOLEAN("Compositing.TileManager.EnoughMemory.Renderer",
+                            had_enough_memory_to_schedule_tiles_needed_now);
+      if (had_enough_memory_to_schedule_tiles_needed_now) {
+        UMA_HISTOGRAM_MEMORY_MEDIUM_MB(
+            "Compositing.TileManager.MemoryUsageWhenEnoughMemory.Renderer",
+            memory_usage.memory_bytes() / (1024 * 1024));
+      }
+      if (did_oom_on_last_assign_) {
+        auto memory_limit = hard_memory_limit.memory_bytes() / (1024 * 1024);
+        UMA_HISTOGRAM_MEMORY_MEDIUM_MB(
+            "Compositing.TileManager.LimitWhenNotEnoughMemory.Renderer",
             memory_limit);
       }
     }

@@ -250,8 +250,7 @@ class CONTENT_EXPORT RenderFrameHostManager {
 
     // Called when the frame swap from a commit is complete and the new frame is
     // ready to be shown.
-    virtual void PrimaryMainFrameSwapComplete(
-        RenderFrameHostImpl* new_frame) = 0;
+    virtual void PrimaryMainFrameCommitted(RenderFrameHostImpl* new_frame) = 0;
 
    protected:
     virtual ~Delegate() = default;
@@ -1158,6 +1157,10 @@ class CONTENT_EXPORT RenderFrameHostManager {
       const base::optional_ref<const GURL> navigation_request_url,
       bool is_backward_navigation);
 
+  // Called when either a same-RenderFrameHost or pending RenderFrameHost
+  // navigation commits.
+  void UpdateViewVisibilityAfterCommit(bool was_same_render_frame_host);
+
   // Runs the unload handler in the old RenderFrameHost, after the new
   // RenderFrameHost has committed.  |old_render_frame_host| will either be
   // deleted or put on the pending delete list during this call.
@@ -1176,11 +1179,6 @@ class CONTENT_EXPORT RenderFrameHostManager {
   // RenderFrameHost and updates counts.
   std::unique_ptr<RenderFrameHostImpl> SetRenderFrameHost(
       std::unique_ptr<RenderFrameHostImpl> render_frame_host);
-
-  // After a renderer process crash we'd have marked the host as invisible, so
-  // we need to set the visibility of the new View to the correct value here
-  // after reload.
-  void EnsureRenderFrameHostVisibilityConsistent();
 
   // Similarly to visibility, we need to ensure RenderWidgetHost and
   // RenderWidget know about page focus.

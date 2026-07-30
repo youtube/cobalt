@@ -38,12 +38,25 @@ void MarkThemeAsNotInterested(
 // Returns the model execution cooldown duration as a base::TimeDelta.
 base::TimeDelta GetModelExecutionCooldownDurationTimeDelta();
 
+// Returns the history time window duration as a base::TimeDelta.
+base::TimeDelta GetHistoryTimeWindowTimeDelta();
+
 // Returns true if History Sync and MSBB are enabled.
 bool IsHistorySyncAndMsbbEnabled(syncer::SyncService* sync_service,
                                  PrefService* pref_service);
 
 // Returns true if the Chrome finds feature is allowed by enterprise policy.
 bool IsAllowedByEnterprisePolicy(PrefService* pref_service);
+
+// Returns true if the finds opt-in promo was already interacted with.
+bool IsFindsOptInPromoAlreadyInteracted(const PrefService* pref_service);
+
+// Returns true if the finds opt-in promo has exceeded its max interaction
+// count.
+bool IsFindsOptInPromoMaxCountExceeded(const PrefService* pref_service);
+
+// Returns true if the finds opt-in promo cooldown period has passed.
+bool IsFindsOptInPromoCooldownPassed(const PrefService* pref_service);
 
 }  // namespace finds
 

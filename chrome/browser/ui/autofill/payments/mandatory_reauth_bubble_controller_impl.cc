@@ -9,7 +9,6 @@
 #include "chrome/browser/ui/autofill/autofill_bubble_handler.h"
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/page_action/page_action_icon_type.h"
-#include "chrome/grit/generated_resources.h"
 #include "components/autofill/core/browser/metrics/payments/mandatory_reauth_metrics.h"
 #include "components/strings/grit/components_strings.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -188,6 +187,13 @@ void MandatoryReauthBubbleControllerImpl::OnBubbleClosed(
   view_android_.reset();
 #endif
 
+  // On macOS without biometrics, the accept/cancel callbacks have the potential
+  // to destroy WebContents in a nested runloop due to OS implementations. A
+  // weak pointer must be kept to then later be checked.
+  // TODO(crbug.com/517126769): Make callbacks below asynchronous so that a weak
+  // pointer isn't needed.
+  auto weak_this = weak_ptr_factory_.GetWeakPtr();
+
   if (current_bubble_type_ == MandatoryReauthBubbleType::kOptIn) {
     if (!bubble_hide_initiated_by_bubble_manager_) {
       LogBubbleCloseOptInMetrics(closed_reason);
@@ -224,6 +230,12 @@ void MandatoryReauthBubbleControllerImpl::OnBubbleClosed(
     }
   } else {
     current_bubble_type_ = MandatoryReauthBubbleType::kInactive;
+  }
+
+  if (!weak_this) {
+    // `this` was freed inside the callback (e.g. WebContents destroyed during
+    // a nested run loop on macOS). Do not touch members.
+    return;
   }
 
   UpdatePageActionIcon();

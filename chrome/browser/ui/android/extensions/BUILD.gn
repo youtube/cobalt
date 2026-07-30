@@ -268,9 +268,10 @@ android_resources("java_resources") {
   sources = [
     "java/res/drawable/chrome_extension.xml",
     "java/res/drawable/extension_request_access_button_bg.xml",
+    "java/res/drawable/extensions_menu_background_selector.xml",
     "java/res/drawable/extensions_menu_button_bg.xml",
+    "java/res/drawable/extensions_menu_containment.xml",
     "java/res/drawable/extensions_menu_context_menu_icon_selector.xml",
-    "java/res/drawable/extensions_request_access_bg.xml",
     "java/res/drawable/extensions_zero_state.xml",
     "java/res/drawable/ic_close.xml",
     "java/res/drawable/ic_more_vert.xml",
@@ -301,6 +302,7 @@ android_resources("java_resources") {
     "//chrome/browser/ui/android/theme:java_resources",
     "//components/browser_ui/modaldialog/android:java_resources",
     "//components/browser_ui/styles/android:java_resources",
+    "//components/browser_ui/widget/android:java_resources",
     "//ui/android:ui_java_resources",
   ]
 }

@@ -157,6 +157,14 @@ class Elevator
       MAKE_HRESULT(SEVERITY_ERROR, FACILITY_ITF, 0xA017);
   static constexpr HRESULT kIsolationStateInvalid =
       MAKE_HRESULT(SEVERITY_ERROR, FACILITY_ITF, 0xA018);
+  static constexpr HRESULT kErrorCouldQueryProcessToken =
+      MAKE_HRESULT(SEVERITY_ERROR, FACILITY_ITF, 0xA019);
+  static constexpr HRESULT kErrorCouldObtainTokenSecurityDescriptor =
+      MAKE_HRESULT(SEVERITY_ERROR, FACILITY_ITF, 0xA01A);
+  static constexpr HRESULT kErrorCouldWriteTokenDacl =
+      MAKE_HRESULT(SEVERITY_ERROR, FACILITY_ITF, 0xA01B);
+  static constexpr HRESULT kErrorCouldNotResumeThread =
+      MAKE_HRESULT(SEVERITY_ERROR, FACILITY_ITF, 0xA01C);
 
   // Success codes.
   static constexpr HRESULT kSuccessShouldReencrypt =

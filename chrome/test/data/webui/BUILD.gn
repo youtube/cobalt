@@ -44,13 +44,16 @@ source_set("browser_tests") {
     "//ui/compositor",
   ]
 
+  if (!is_android) {
+    deps += [ "//chrome/browser/ui/webui/net_internals:test_support" ]
+  }
+
   data = []
 
   if (!is_android) {
     sources += [
       "about_sys/about_sys_browsertest.cc",
       "access_code_cast/access_code_cast_browsertest.cc",
-      "accessibility_annotator_info/personal_context_notice_browsertest.cc",
       "actor_overlay/actor_overlay_browsertest.cc",
       "bookmarks/bookmarks_browsertest.cc",
       "chrome_apis/chrome_histograms_browsertest.cc",
@@ -86,6 +89,7 @@ source_set("browser_tests") {
       "optimization_guide_internals/optimization_guide_internals_browsertest.cc",
       "password_manager/password_manager_browsertest.cc",
       "password_manager_internals/password_manager_internals_browsertest.cc",
+      "personal_context_notice/personal_context_notice_browsertest.cc",
       "privacy_sandbox/internals/privacy_sandbox_internals_browsertest.cc",
       "privacy_sandbox/internals/private_state_tokens/private_state_tokens_browsertest.cc",
       "privacy_sandbox/internals/related_website_sets/related_website_sets_browsertest.cc",
@@ -134,11 +138,13 @@ source_set("browser_tests") {
     ]
   }
 
+  if (enable_dice_support || is_chromeos) {
+    sources += [ "signin/batch_upload_view_browsertest.cc" ]
+  }
   if (enable_dice_support) {
     sources += [
       "feature_showcase/feature_showcase_browsertest.cc",
       "intro/intro_browsertest.cc",
-      "signin/batch_upload_view_browsertest.cc",
     ]
   }
 
@@ -331,6 +337,7 @@ source_set("browser_tests") {
         [ "certificate_viewer_dialog/certificate_viewer_dialog_browsertest.cc" ]
     deps += [
       "//chrome/browser:certificate_viewer",
+      "//chrome/browser/ui/webui/certificate_viewer",
       "//components/server_certificate_database:test_support",
     ]
   }
@@ -596,7 +603,6 @@ generate_grd("build_grd") {
     deps += [
       "about_sys:build_grdp",
       "access_code_cast:build_grdp",
-      "accessibility_annotator_info:build_grdp",
       "actor_overlay:build_grdp",
       "bookmarks:build_grdp",
       "chrome_apis:build_grdp",
@@ -636,6 +642,7 @@ generate_grd("build_grd") {
       "optimization_guide_internals:build_grdp",
       "password_manager:build_grdp",
       "password_manager_internals:build_grdp",
+      "personal_context_notice:build_grdp",
       "privacy_sandbox/internals:build_grdp",
       "privacy_sandbox/internals/private_state_tokens:build_grdp",
       "privacy_sandbox/internals/related_website_sets:build_grdp",
@@ -657,7 +664,6 @@ generate_grd("build_grd") {
     grdp_files += [
       "$target_gen_dir/about_sys/resources.grdp",
       "$target_gen_dir/access_code_cast/resources.grdp",
-      "$target_gen_dir/accessibility_annotator_info/resources.grdp",
       "$target_gen_dir/actor_overlay/resources.grdp",
       "$target_gen_dir/chrome_apis/resources.grdp",
 
@@ -699,6 +705,7 @@ generate_grd("build_grd") {
       "$target_gen_dir/optimization_guide_internals/resources.grdp",
       "$target_gen_dir/password_manager/resources.grdp",
       "$target_gen_dir/password_manager_internals/resources.grdp",
+      "$target_gen_dir/personal_context_notice/resources.grdp",
       "$target_gen_dir/privacy_sandbox/internals/resources.grdp",
       "$target_gen_dir/privacy_sandbox/internals/private_state_tokens/resources.grdp",
       "$target_gen_dir/privacy_sandbox/internals/related_website_sets/resources.grdp",
@@ -850,6 +857,7 @@ generate_grd("build_grd") {
       "chromeos/sys_internals:build_grdp",
       "chromeos/traffic_counters:build_grdp",
       "chromeos/vc_background_ui:build_grdp",
+      "signin:build_grdp",
       "//ui/file_manager:build_tests_gen_grdp",
       "//ui/file_manager:build_tests_grdp",
     ]
@@ -859,6 +867,7 @@ generate_grd("build_grd") {
       "$target_gen_dir/chromeos/ash_common/post_message_api/resources.grdp",
       "$target_gen_dir/chromeos/ash_common/sea_pen/resources.grdp",
       "$target_gen_dir/chromeos/account_manager/resources.grdp",
+      "$target_gen_dir/signin/resources.grdp",
       "$target_gen_dir/chromeos/bluetooth/resources.grdp",
       "$target_gen_dir/chromeos/boca_ui/resources.grdp",
       "$target_gen_dir/chromeos/boca_receiver_app_ui/resources.grdp",

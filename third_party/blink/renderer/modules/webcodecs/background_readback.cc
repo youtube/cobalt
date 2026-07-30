@@ -180,8 +180,9 @@ void BackgroundReadback::ReadbackRGBTextureBackedFrameToMemory(
   }
 
   TRACE_EVENT_BEGIN("media", "ReadbackRGBTextureBackedFrameToMemory",
-                    perfetto::Track::FromPointer(txt_frame.get()), "timestamp",
-                    txt_frame->timestamp());
+                    perfetto::NamedTrack::FromPointer(
+                        "blink::BackgroundReadback", txt_frame.get()),
+                    "timestamp", txt_frame->timestamp());
 
   base::span<uint8_t> dst_pixels =
       result->GetWritableVisiblePlaneData(media::VideoFrame::Plane::kARGB);
@@ -201,8 +202,8 @@ void BackgroundReadback::ReadbackRGBTextureBackedFrameToMemory(
       texture_size, src_point, info, base::saturated_cast<GLuint>(rgba_stride),
       dst_pixels,
       blink::BindOnce(&BackgroundReadback::OnARGBPixelsFrameReadCompleted,
-                      WrapWeakPersistent(this), std::move(result_cb), txt_frame,
-                      std::move(result)));
+                      MakeUnwrappingCrossThreadWeakHandle(this),
+                      std::move(result_cb), txt_frame, std::move(result)));
   media::WaitAndReplaceSyncTokenClient client(ri, std::move(ri_access));
   txt_frame->UpdateReleaseSyncToken(&client);
 }
@@ -212,7 +213,9 @@ void BackgroundReadback::OnARGBPixelsFrameReadCompleted(
     scoped_refptr<media::VideoFrame> txt_frame,
     scoped_refptr<media::VideoFrame> result_frame,
     bool success) {
-  TRACE_EVENT_END("media", perfetto::Track::FromPointer(txt_frame.get()),
+  TRACE_EVENT_END("media",
+                  perfetto::NamedTrack::FromPointer("blink::BackgroundReadback",
+                                                    txt_frame.get()),
                   "success", success);
   if (!success) {
     ReadbackOnThread(std::move(txt_frame), std::move(result_cb));
@@ -256,8 +259,9 @@ void BackgroundReadback::ReadbackRGBTextureBackedFrameToBuffer(
   }
 
   TRACE_EVENT_BEGIN("media", "ReadbackRGBTextureBackedFrameToBuffer",
-                    perfetto::Track::FromPointer(txt_frame.get()), "timestamp",
-                    txt_frame->timestamp());
+                    perfetto::NamedTrack::FromPointer(
+                        "blink::BackgroundReadback", txt_frame.get()),
+                    "timestamp", txt_frame->timestamp());
 
   SkImageInfo info = GetImageInfoForFrame(*txt_frame, src_rect.size());
   gfx::Point src_point = src_rect.origin();
@@ -272,8 +276,9 @@ void BackgroundReadback::ReadbackRGBTextureBackedFrameToBuffer(
       texture_size, src_point, info, base::saturated_cast<GLuint>(stride),
       dst_pixels,
       blink::BindOnce(&BackgroundReadback::OnARGBPixelsBufferReadCompleted,
-                      WrapWeakPersistent(this), std::move(txt_frame), src_rect,
-                      dest_layout, dest_buffer, std::move(done_cb)));
+                      MakeUnwrappingCrossThreadWeakHandle(this),
+                      std::move(txt_frame), src_rect, dest_layout, dest_buffer,
+                      std::move(done_cb)));
   gpu::RasterScopedAccess::EndAccess(std::move(ri_access));
 }
 
@@ -284,7 +289,9 @@ void BackgroundReadback::OnARGBPixelsBufferReadCompleted(
     base::span<uint8_t> dest_buffer,
     ReadbackDoneCallback done_cb,
     bool success) {
-  TRACE_EVENT_END("media", perfetto::Track::FromPointer(txt_frame.get()),
+  TRACE_EVENT_END("media",
+                  perfetto::NamedTrack::FromPointer("blink::BackgroundReadback",
+                                                    txt_frame.get()),
                   "success", success);
   if (!success) {
     ReadbackOnThread(std::move(txt_frame), src_rect, dest_layout, dest_buffer,

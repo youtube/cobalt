@@ -11,6 +11,7 @@
 #include "third_party/blink/public/web/web_script_tool_types.h"
 #include "third_party/blink/renderer/bindings/core/v8/capture_source_location.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_model_context_get_tool_options.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_model_context_register_tool_options.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_model_context_tool.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_registered_tool.h"
@@ -241,11 +242,9 @@ class ModelContext::ToolFunctionFinishedCallback
   const bool success_;
 };
 
-ModelContext::ModelContext(
-    Document& document,
-    scoped_refptr<base::SingleThreadTaskRunner> task_runner)
+ModelContext::ModelContext(Document& document)
     : document_(document),
-      task_runner_(std::move(task_runner)),
+      task_runner_(document.GetTaskRunner(TaskType::kUserInteraction)),
       script_tool_host_remote_(document.GetExecutionContext()),
       model_context_host_remote_(document.GetExecutionContext()),
       model_context_receiver_(this, document.GetExecutionContext()) {
@@ -344,6 +343,9 @@ void ModelContext::registerTool(ScriptState* script_state,
 
   auto script_tool = mojom::blink::ScriptTool::New();
   script_tool->name = tool->name();
+  // If `tool` is not provided, the null string fallback is treated as a
+  // nullable member by mojo.
+  script_tool->title = tool->hasTitle() ? tool->title() : String();
   script_tool->description = tool->description();
   script_tool->input_schema = input_schema;
   // TODO(https://crbug.com/509568047): Stop setting these two members.
@@ -661,6 +663,7 @@ void ModelContext::RegisterDeclarativeTool(
   auto script_tool = mojom::blink::ScriptTool::New();
   script_tool->name = declarative_tool->ToolName();
   script_tool->description = declarative_tool->ToolDescription();
+  script_tool->title = declarative_tool->ToolTitle();
   script_tool->input_schema = declarative_tool->ComputeInputSchema();
   // TODO(https://crbug.com/509568047): Stop setting these two members.
   script_tool->tool_owner_frame_token = document_->GetFrame()->GetFrameToken();
@@ -781,7 +784,8 @@ const AtomicString& ModelContext::InterfaceName() const {
 }
 
 ScriptPromise<IDLSequence<RegisteredTool>> ModelContext::getTools(
-    ScriptState* script_state) {
+    ScriptState* script_state,
+    const ModelContextGetToolOptions* options) {
   if (!document_->IsActive()) {
     return ScriptPromise<IDLSequence<RegisteredTool>>::RejectWithDOMException(
         script_state,
@@ -798,12 +802,30 @@ ScriptPromise<IDLSequence<RegisteredTool>> ModelContext::getTools(
                                            kPermissionPolicyNotEnabledError));
   }
 
+  Vector<scoped_refptr<const SecurityOrigin>> from_origins;
+  if (options && options->hasFromOrigins()) {
+    for (const String& origin_str : options->fromOrigins()) {
+      scoped_refptr<const SecurityOrigin> origin =
+          SecurityOrigin::CreateFromString(origin_str);
+      if (!origin->IsPotentiallyTrustworthy()) {
+        return ScriptPromise<IDLSequence<RegisteredTool>>::
+            RejectWithDOMException(script_state,
+                                   MakeGarbageCollected<DOMException>(
+                                       DOMExceptionCode::kSecurityError,
+                                       "Only secure origins are allowed in the "
+                                       "fromOrigins list."));
+      }
+      from_origins.push_back(origin);
+    }
+  }
+
   auto* resolver =
       MakeGarbageCollected<ScriptPromiseResolver<IDLSequence<RegisteredTool>>>(
           script_state);
   ScriptPromise promise = resolver->Promise();
 
   model_context_host_remote_->GetScriptTools(
+      std::move(from_origins),
       blink::BindOnce(&ModelContext::OnGetScriptToolsCompleted,
                       WrapWeakPersistent(this), WrapPersistent(resolver)));
 
@@ -819,6 +841,12 @@ void ModelContext::OnGetScriptToolsCompleted(
   for (const auto& t : tools) {
     auto* result = RegisteredTool::Create();
     result->setName(t->name);
+    // Because `ScriptTool`'s `title` member is nullable, `t->title` will always
+    // be a `String` but it could be `String::IsNull()`. Unconditionally assign
+    // it here, since the bindings will convert null strings to empty string,
+    // and we always want to expose a string to JavaScript here (never
+    // `undefined`).
+    result->setTitle(t->title);
     result->setDescription(t->description);
     if (!t->input_schema.IsNull()) {
       result->setInputSchema(t->input_schema);

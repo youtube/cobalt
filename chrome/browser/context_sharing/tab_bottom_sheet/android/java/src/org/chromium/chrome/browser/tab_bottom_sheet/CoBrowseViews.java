@@ -8,6 +8,7 @@ import static org.chromium.build.NullUtil.assertNonNull;
 
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewGroup.MarginLayoutParams;
 
 import androidx.annotation.ColorInt;
 import androidx.annotation.VisibleForTesting;
@@ -32,6 +33,8 @@ public class CoBrowseViews {
     private final @ColorInt int mBackgroundColor;
     private final View mContainerView;
     private final @TabBottomSheetClientType int mClientType;
+    private final @CoBrowseContainerType int mContainerType;
+    private final @Nullable TabBottomSheetContentProvider mContentProvider;
     private @Nullable View mPeekView;
 
     /**
@@ -39,22 +42,34 @@ public class CoBrowseViews {
      *
      * @param containerView The root view for the co-browse content.
      * @param clientType The client using the bottom sheet.
+     * @param containerType The type of container hosting the views.
      * @param webUi The web UI for the view.
      * @param fusebox The fusebox for the view.
      * @param backgroundColor The background color for the view.
+     * @param contentProvider The provider for custom sheet content implementations.
      */
     public CoBrowseViews(
             View containerView,
             @TabBottomSheetClientType int clientType,
+            @CoBrowseContainerType int containerType,
             @Nullable TabBottomSheetWebUi webUi,
             @Nullable ContextualTasksFusebox fusebox,
-            @ColorInt int backgroundColor) {
+            @ColorInt int backgroundColor,
+            @Nullable TabBottomSheetContentProvider contentProvider) {
         mClientType = clientType;
+        mContainerType = containerType;
         mWebUi = webUi;
         mFusebox = fusebox;
         mBackgroundColor = backgroundColor;
         mContainerView = containerView;
+        mContentProvider = contentProvider;
         populateViewHierarchy();
+        updateForContainerType();
+    }
+
+    /** Returns the custom content provider if one was specified, null otherwise. */
+    public @Nullable TabBottomSheetContentProvider getContentProvider() {
+        return mContentProvider;
     }
 
     /** Destroys the co-browse view and its components. */
@@ -63,7 +78,7 @@ public class CoBrowseViews {
     void destroy() {
         ViewGroup webUiContainer = mContainerView.findViewById(R.id.web_ui_container);
         ViewGroup fuseboxContainer = mContainerView.findViewById(R.id.fusebox_container);
-        ViewGroup peekContainer = mContainerView.findViewById(R.id.actor_control_container);
+        ViewGroup peekContainer = mContainerView.findViewById(R.id.peek_view_container);
         if (mWebUi != null) {
             webUiContainer.removeAllViews();
             mWebUi.destroy();
@@ -106,7 +121,7 @@ public class CoBrowseViews {
      * @param peekView The peek view to attach.
      */
     public void attachPeekView(View peekView) {
-        ViewGroup peekContainer = mContainerView.findViewById(R.id.actor_control_container);
+        ViewGroup peekContainer = mContainerView.findViewById(R.id.peek_view_container);
         peekContainer.removeAllViews();
         detachFromParent(peekView);
         mPeekView = peekView;
@@ -120,7 +135,7 @@ public class CoBrowseViews {
      */
     public void removePeekView(View peekView) {
         if (mPeekView == peekView) {
-            ViewGroup peekContainer = mContainerView.findViewById(R.id.actor_control_container);
+            ViewGroup peekContainer = mContainerView.findViewById(R.id.peek_view_container);
             peekContainer.removeView(mPeekView);
             mPeekView = null;
         }
@@ -129,10 +144,11 @@ public class CoBrowseViews {
     /** Sets the WebContents of the WebUi. */
     @CalledByNative
     public void setWebContents(
-            @Nullable @JniType("content::WebContents*") WebContents webContents) {
+            @Nullable @JniType("content::WebContents*") WebContents webContents,
+            boolean requestFocus) {
         if (mWebUi != null) {
             View oldView = mWebUi.getWebUiView();
-            mWebUi.setWebContents(webContents);
+            mWebUi.setWebContents(webContents, requestFocus);
             View newView = mWebUi.getWebUiView();
             if (oldView != newView) {
                 ViewGroup webUiContainer = mContainerView.findViewById(R.id.web_ui_container);
@@ -171,7 +187,7 @@ public class CoBrowseViews {
     private void populateViewHierarchy() {
         ViewGroup webUiContainer = mContainerView.findViewById(R.id.web_ui_container);
         ViewGroup fuseboxContainer = mContainerView.findViewById(R.id.fusebox_container);
-        ViewGroup peekContainer = mContainerView.findViewById(R.id.actor_control_container);
+        ViewGroup peekContainer = mContainerView.findViewById(R.id.peek_view_container);
 
         if (mWebUi != null) {
             View webUiView = mWebUi.getWebUiView();
@@ -196,5 +212,20 @@ public class CoBrowseViews {
         if (parent == null) return;
 
         parent.removeView(view);
+    }
+
+    private void updateForContainerType() {
+        ViewGroup webUiContainer = mContainerView.findViewById(R.id.web_ui_container);
+
+        if (mContainerType == CoBrowseContainerType.SIDE_PANEL) {
+            View handleBar = mContainerView.findViewById(R.id.handle_bar);
+            if (handleBar != null) {
+                handleBar.setVisibility(View.GONE);
+            }
+
+            MarginLayoutParams layoutParams = (MarginLayoutParams) webUiContainer.getLayoutParams();
+            layoutParams.topMargin = 0;
+            webUiContainer.setLayoutParams(layoutParams);
+        }
     }
 }

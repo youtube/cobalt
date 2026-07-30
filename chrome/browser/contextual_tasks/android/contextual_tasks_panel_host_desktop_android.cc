@@ -7,7 +7,9 @@
 #include <utility>
 
 #include "base/android/jni_android.h"
+#include "chrome/browser/context_sharing/tab_bottom_sheet/android/co_browse_container_type.h"
 #include "chrome/browser/context_sharing/tab_bottom_sheet/android/co_browse_views_bridge.h"
+#include "chrome/browser/context_sharing/tab_bottom_sheet/android/tab_bottom_sheet_client_type.h"
 #include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/side_panel/android/side_panel_native_view_android.h"
@@ -64,7 +66,7 @@ void ContextualTasksPanelHostDesktopAndroid::Show(AnimationStyle animation) {
 
 void ContextualTasksPanelHostDesktopAndroid::Close(AnimationStyle animation) {
   auto* side_panel_ui = GetSidePanelUI();
-  if (!side_panel_ui) {
+  if (!side_panel_ui || !side_panel_ui->IsSidePanelShowing()) {
     return;
   }
   side_panel_ui->Close(
@@ -129,7 +131,8 @@ bool ContextualTasksPanelHostDesktopAndroid::MaybeCreateBridge() {
   co_browse_views_bridge_ =
       std::make_unique<context_sharing::CoBrowseViewsBridge>(
           *active_tab,
-          context_sharing::TabBottomSheetClientType::kContextualTasks);
+          context_sharing::TabBottomSheetClientType::kContextualTasks,
+          context_sharing::CoBrowseContainerType::kSidePanel);
   return co_browse_views_bridge_ != nullptr;
 }
 
@@ -148,7 +151,8 @@ void ContextualTasksPanelHostDesktopAndroid::SetWebContents(
   }
 
   if (MaybeCreateBridge()) {
-    co_browse_views_bridge_->SetWebContents(web_contents);
+    co_browse_views_bridge_->SetWebContents(web_contents,
+                                            /*request_focus=*/true);
   }
 }
 

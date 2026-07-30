@@ -21,6 +21,7 @@
 #include "chrome/common/chrome_switches.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/page_load_metrics/browser/features.h"
+#include "components/page_load_metrics/browser/observers/soft_navigation_page_load_metrics_observer.h"
 #include "components/page_load_metrics/browser/page_load_metrics_test_waiter.h"
 #include "components/page_load_metrics/browser/page_load_metrics_util.h"
 #include "components/page_load_metrics/browser/page_load_type.h"
@@ -219,7 +220,7 @@ std::string JsSnippetGetPerformanceEntries() {
           const obj = byInteractionId.get(record.interactionId);
           if (obj) {
             obj.interactionContentfulPaint = {
-              renderTime: record.renderTime,
+              renderTime: record.largestContentfulPaint?.renderTime,
             }
           }
         }
@@ -540,6 +541,10 @@ IN_PROC_BROWSER_TEST_P(SoftNavigationTest, ImageLargestContentfulPaint) {
   EXPECT_EQ(source_id_to_lcp_request_priority.cbegin()->second, 4u);
 
   EXPECT_EQ(std::next(source_id_to_lcp_request_priority.cbegin())->second, 4u);
+
+  histogram_tester().ExpectUniqueSample(
+      "PageLoad.SoftNavigation.SoftNavigationPageLoadMetricsObserverState",
+      SoftNavigationPageLoadMetricsObserverState::kStarted, 2);
 }
 
 // This test focuses on measuring the text LCP of a soft navigation in UKM.
@@ -734,6 +739,9 @@ IN_PROC_BROWSER_TEST_P(SoftNavigationTest, BackButton) {
                                    static_cast<int>(PageLoadType::kPageLoad),
                                    static_cast<int>(PageLoadType::kPageLoad),
                                    static_cast<int>(PageLoadType::kPageLoad)));
+  histogram_tester().ExpectUniqueSample(
+      "PageLoad.SoftNavigation.SoftNavigationPageLoadMetricsObserverState",
+      SoftNavigationPageLoadMetricsObserverState::kStarted, 4);
 }
 
 IN_PROC_BROWSER_TEST_P(SoftNavigationTest, NoSoftNavigation) {
@@ -756,13 +764,7 @@ INSTANTIATE_TEST_SUITE_P(All,
                          SoftNavigationTest,
                          ::testing::Values(false, true));
 
-#if BUILDFLAG(IS_LINUX)
-// TODO(crbug.com/515171473): Flaky on Linux.
-#define MAYBE_INP_ClickWithPresentation DISABLED_INP_ClickWithPresentation
-#else
-#define MAYBE_INP_ClickWithPresentation INP_ClickWithPresentation
-#endif
-IN_PROC_BROWSER_TEST_P(SoftNavigationTest, MAYBE_INP_ClickWithPresentation) {
+IN_PROC_BROWSER_TEST_P(SoftNavigationTest, INP_ClickWithPresentation) {
   // Start tracing to record tracing data.
   StartTracing({"devtools.timeline"});
   Start();
@@ -849,17 +851,21 @@ IN_PROC_BROWSER_TEST_P(SoftNavigationTest, MAYBE_INP_ClickWithPresentation) {
       page_load_entry, PageLoad::kInteractiveTiming_NumInteractionsName);
   ASSERT_THAT(inp_num_interactions_value, testing::Eq(5));
 
+  std::optional<int64_t> num_interactions_before_softnavs;
   // Before soft navigation metrics: num interactions is 2, and INP exists.
-  EXPECT_THAT(
-      page_load_entry,
-      HasMetricWithValue(
-          PageLoad::kInteractiveTimingBeforeSoftNavigation_NumInteractionsName,
-          2));
-  EXPECT_THAT(
-      page_load_entry,
-      HasMetric(
-          PageLoad::
-              kInteractiveTimingBeforeSoftNavigation_UserInteractionLatency_HighPercentile2_MaxEventDurationName));
+  {
+    num_interactions_before_softnavs = GetMetricFromUkmEntry(
+        page_load_entry,
+        PageLoad::kInteractiveTimingBeforeSoftNavigation_NumInteractionsName);
+    // TODO(crbug.com/515874398): This should be exactly 2, but due to a race,
+    // sometimes it's counted toward the first softnav.
+    EXPECT_THAT(num_interactions_before_softnavs, testing::AnyOf(1, 2));
+    EXPECT_THAT(
+        page_load_entry,
+        HasMetric(
+            PageLoad::
+                kInteractiveTimingBeforeSoftNavigation_UserInteractionLatency_HighPercentile2_MaxEventDurationName));
+  }
 
   // There are two soft navigations.
   const auto& soft_nav_entries = ukm_recorder().GetMergedEntriesByName(
@@ -871,13 +877,17 @@ IN_PROC_BROWSER_TEST_P(SoftNavigationTest, MAYBE_INP_ClickWithPresentation) {
   ASSERT_TRUE(soft_nav2);
 
   // Soft Nav 1: number of interactions 2, offset is 1, or 2, there is INP.
+  std::optional<int64_t> num_interactions_softnav1;
   {
-    std::optional<int64_t> num_interactions = GetMetricFromUkmEntry(
+    num_interactions_softnav1 = GetMetricFromUkmEntry(
         soft_nav1, SoftNavigation::kInteractiveTiming_NumInteractionsName);
-    EXPECT_THAT(num_interactions, testing::Eq(2));
+    // TODO(crbug.com/515874398): This should be exactly 2, but due to a race,
+    // interactions can arrive late and can thus be counted towards the next
+    // softnav.
+    EXPECT_THAT(num_interactions_softnav1, testing::AnyOf(1, 2, 3));
     std::optional<int64_t> offset = GetMetricFromUkmEntry(
         soft_nav1, SoftNavigation::kInteractiveTiming_INPOffsetName);
-    EXPECT_THAT(offset, testing::AnyOf(1, 2));
+    EXPECT_THAT(offset, testing::AnyOf(1, 2, 3));  // Allow 3 due to race.
     EXPECT_THAT(
         soft_nav1,
         HasMetric(
@@ -886,19 +896,29 @@ IN_PROC_BROWSER_TEST_P(SoftNavigationTest, MAYBE_INP_ClickWithPresentation) {
   }
 
   // Soft Nav 2: number of interactions 1, offset is 1, there is INP.
+  std::optional<int64_t> num_interactions_softnav2;
   {
-    std::optional<int64_t> num_interactions = GetMetricFromUkmEntry(
+    num_interactions_softnav2 = GetMetricFromUkmEntry(
         soft_nav2, SoftNavigation::kInteractiveTiming_NumInteractionsName);
-    EXPECT_THAT(num_interactions, testing::Eq(1));
+    // TODO(crbug.com/515874398): This should be exactly 1, but due to a race,
+    // interactions can arrive late and can thus be counted towards the next
+    // softnav.
+    EXPECT_THAT(num_interactions_softnav2, testing::AnyOf(1, 2));
     std::optional<int64_t> offset = GetMetricFromUkmEntry(
         soft_nav2, SoftNavigation::kInteractiveTiming_INPOffsetName);
-    EXPECT_THAT(offset, testing::Eq(1));
+    // TODO(crbug.com/515874398): Should be 1, but allow offset=2 due to race.
+    EXPECT_THAT(offset, testing::AnyOf(1, 2));
     EXPECT_THAT(
         soft_nav2,
         HasMetric(
             SoftNavigation::
                 kInteractiveTiming_UserInteractionLatency_HighPercentile2_MaxEventDurationName));
   }
+  ASSERT_TRUE(num_interactions_before_softnavs.has_value());
+  ASSERT_TRUE(num_interactions_softnav1.has_value());
+  ASSERT_TRUE(num_interactions_softnav2.has_value());
+  EXPECT_EQ(5, *num_interactions_before_softnavs + *num_interactions_softnav1 +
+                   *num_interactions_softnav2);
 }
 
 // This test focuses on measuring the layout shift of soft navigations in UKM.
@@ -1267,6 +1287,10 @@ IN_PROC_BROWSER_TEST_P(SoftNavigationTest, Prerender) {
             "hadRecentInput");
     EXPECT_THAT(layout_shift_had_recent_input, testing::Optional(false));
   }
+
+  histogram_tester().ExpectUniqueSample(
+      "PageLoad.SoftNavigation.SoftNavigationPageLoadMetricsObserverState",
+      SoftNavigationPageLoadMetricsObserverState::kPrerenderActivated, 2);
 }
 
 //
@@ -1596,6 +1620,11 @@ IN_PROC_BROWSER_TEST_P(SoftNavigationTest, BackForwardCache) {
     EXPECT_EQ(LayoutShiftUkmValue(*layout_shift2_value + *layout_shift3_value),
               *soft_nav3_cls);
   }
+
+  histogram_tester().ExpectUniqueSample(
+      "PageLoad.SoftNavigation.SoftNavigationPageLoadMetricsObserverState",
+      SoftNavigationPageLoadMetricsObserverState::kRestoredFromBackForwardCache,
+      3);
 }
 }  // namespace
 }  // namespace page_load_metrics

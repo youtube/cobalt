@@ -4,6 +4,7 @@
 
 #import "components/omnibox/browser/omnibox_pref_names.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_names.h"
+#import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/test/earl_grey/chrome_earl_grey.h"
 #import "ios/chrome/test/earl_grey/chrome_earl_grey_ui.h"
 #import "ios/chrome/test/earl_grey/chrome_test_case.h"
@@ -66,7 +67,11 @@
   [ChromeEarlGrey setBoolValue:YES
              forLocalStatePref:omnibox::kIsOmniboxInBottomPosition];
   GREYWaitForAppToIdle(@"App failed to idle");
-  [self assertIsBottomOmnibox:NO];
+  if ([ChromeEarlGrey isChromeNextEnabled]) {
+    [self assertIsBottomOmnibox:YES];
+  } else {
+    [self assertIsBottomOmnibox:NO];
+  }
 }
 
 // Tests `IsCurrentLayoutBottomOmnibox` on incognito NTP.
@@ -109,7 +114,11 @@
   [ChromeEarlGrey setBoolValue:YES
              forLocalStatePref:omnibox::kIsOmniboxInBottomPosition];
   GREYWaitForAppToIdle(@"App failed to idle");
-  [self assertIsBottomOmnibox:NO];
+  if ([ChromeEarlGrey isChromeNextEnabled]) {
+    [self assertIsBottomOmnibox:YES];
+  } else {
+    [self assertIsBottomOmnibox:NO];
+  }
   [EarlGrey rotateInterfaceToOrientation:UIInterfaceOrientationPortrait
                                    error:nil];
   [self assertIsBottomOmnibox:YES];

@@ -5,6 +5,7 @@
 #import "ios/chrome/browser/autofill/scan_save_and_fill/coordinator/payments_scan_save_and_fill_offer_bottom_sheet_coordinator.h"
 
 #import "base/check.h"
+#import "base/ios/block_types.h"
 #import "components/autofill/core/browser/form_import/form_data_importer.h"
 #import "components/autofill/core/browser/form_import/payments/payments_form_data_importer.h"
 #import "components/autofill/ios/browser/autofill_client_ios.h"
@@ -86,15 +87,6 @@
 
   _mediator.consumer = _viewController;
 
-  _viewController.modalPresentationStyle = UIModalPresentationPageSheet;
-  UISheetPresentationController* presentationController =
-      _viewController.sheetPresentationController;
-  presentationController.prefersEdgeAttachedInCompactHeight = YES;
-  presentationController.detents = @[
-    [_viewController preferredHeightDetent],
-    [UISheetPresentationControllerDetent largeDetent]
-  ];
-
   [self.baseViewController presentViewController:_viewController
                                         animated:YES
                                       completion:nil];
@@ -144,6 +136,7 @@
 
 - (void)paymentsBottomSheetDidDisappear {
   [self logExitReasonIfNeeded:ScanCardSuggestionBottomSheetExitReason::kIgnore];
+  [_mediator refocus];
   [_mediator disconnect];
   id<BrowserCoordinatorCommands> handler = HandlerForProtocol(
       self.browser->GetCommandDispatcher(), BrowserCoordinatorCommands);
@@ -156,15 +149,21 @@
   // Disable user interactions on the root view of the view controller so any
   // further user action isn't allowed. Only one action is allowed on the sheet.
   _viewController.view.userInteractionEnabled = NO;
-  [_mediator didAcceptScanCardSuggestion];
 
   _viewController.delegate = nil;
+
+  [_mediator didAcceptScanCardSuggestion];
+  ProceduralBlock postDismissBlock = [_mediator postDismissBlock];
   [_mediator disconnect];
+  _mediator = nil;
 
   __weak id<BrowserCoordinatorCommands> weakHandler = HandlerForProtocol(
       self.browser->GetCommandDispatcher(), BrowserCoordinatorCommands);
   [_viewController dismissViewControllerAnimated:YES
                                       completion:^{
+                                        if (postDismissBlock) {
+                                          postDismissBlock();
+                                        }
                                         [weakHandler dismissPaymentSuggestions];
                                       }];
 }

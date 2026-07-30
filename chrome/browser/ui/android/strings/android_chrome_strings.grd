@@ -2075,6 +2075,20 @@ Your Google account may have other forms of browsing history like searches and a
         Download not recommended by your organization
       </message>
 
+      <!-- Non-dangerous download -->
+      <message name="IDS_NON_DANGEROUS_DOWNLOAD_DIALOG_CONFIRM_TEXT" desc="Text label for the confirm button on the download dialog asking users to confirm the download.">
+        Download
+      </message>
+      <message name="IDS_NON_DANGEROUS_DOWNLOAD_DIALOG_TITLE" desc="Title of the download dialog asking users to confirm a downloaded file.">
+        Download from this site?
+      </message>
+      <message name="IDS_NON_DANGEROUS_DOWNLOAD_DIALOG_TEXT" desc="Warning message shown on the download dialog asking users to validate the downloaded file.">
+        Make sure you trust this site
+      </message>
+      <message name="IDS_NON_DANGEROUS_DOWNLOAD_DIALOG_TEXT_WITH_DOMAIN" desc="Warning message shown on the download dialog asking users to validate the downloaded file, including the domain of the download.">
+        Make sure you trust <ph name="DOWNLOAD_DOMAIN">^1<ex>badsite.com</ex></ph>
+      </message>
+
       <!-- Mixed content download -->
       <message name="IDS_INSECURE_DOWNLOAD_DIALOG_TITLE" desc="Title of the dialog for asking user to confirm an insecure download">
         File can’t be downloaded securely
@@ -3110,6 +3124,9 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_PAGE_INFO_CONNECTION_LOCAL_PDF" desc="Message to display in the page info bubble when viewing a local pdf page.">
         You're viewing a local file
       </message>
+      <message name="IDS_PAGE_INFO_NOT_SECURE_DESCRIPTION" desc="Descriptive text announced by screen readers when focusing the Omnibox on a site with a non-secure connection.">
+        Connection is not secure
+      </message>
 
 <message name="IDS_PAGE_INFO_IPH" desc="Message to in InProductHelp bubble to make users aware of changing permissions in PageInfo.">
         Change your site settings here
@@ -3552,6 +3569,29 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       </message>
       <message name="IDS_FRE_SIGNING_IN_2" desc="Text to show below a progress spinner in the signin FRE to notify the user that signing in is in progress and that the user's data is being fetched.">
         Getting your stuff\u2026
+      </message>
+
+      <!-- Deep link signin flow strings -->
+      <message name="IDS_SIGNIN_DEEP_LINK_FLOW_ALREADY_SIGNED_IN_TOAST_MESSAGE" desc="Text of the toast shown when a user attempts to sign in to Chrome via deep link to a account that is already signed in.">
+        You stayed signed in as <ph name="NAME_OR_EMAIL">%1$s<ex>John</ex></ph>.
+      </message>
+      <message name="IDS_SIGNIN_DEEP_LINK_FLOW_SIGNIN_TITLE" desc="Title of the screen shown when an signed-out user starts a sigin flow with a signin deep link.">
+        Pick up where you left off
+      </message>
+      <message name="IDS_SIGNIN_DEEP_LINK_FLOW_SIGNIN_SUBTITLE" desc="Subtitle of the screen shown when an signed-out user starts a sigin flow with a signin deep link.">
+        You scanned a QR code to sign in to Chrome. Confirm that you want to get the passwords, bookmarks, and more from this profile.
+      </message>
+      <message name="IDS_SIGNIN_DEEP_LINK_FLOW_SIGNIN_DISMISS_BUTTON" desc="Text of the dismiss button shown on the screen displayed when an signed-out user starts a sigin flow with a signin deep link.">
+        Stay signed out
+      </message>
+      <message name="IDS_SIGNIN_DEEP_LINK_FLOW_SWITCH_ACCOUNT_TITLE" desc="Title of the screen shown when a signed-in user starts a sigin flow with a signin deep link.">
+        Switch accounts?
+      </message>
+      <message name="IDS_SIGNIN_DEEP_LINK_FLOW_SWITCH_ACCOUNT_SUBTITLE" desc="Subtitle of the screen shown when a signed-in user starts a sigin flow with a signin deep link.">
+        You’re signed in as <ph name="FROM_EMAIL">%1$s<ex>from@gmail.com</ex></ph>.\n\nTo continue from your computer, switch to <ph name="TO_EMAIL">%2$s<ex>to@gmail.com</ex></ph>. You’ll get the passwords, bookmarks, and more from this account.
+      </message>
+      <message name="IDS_SIGNIN_DEEP_LINK_FLOW_SWITCH_ACCOUNT_DISMISS_BUTTON" desc="Text of the dismiss button shown on the screen displayed when a signed-in user starts a sigin flow with a signin deep link.">
+        No thanks
       </message>
 
       <!-- Account Signin Strings -->
@@ -4681,8 +4721,11 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_READING_LIST_UNREAD" desc="The header for the unread section in the reading list UI.">
         Unread - Available offline
       </message>
-      <message name="IDS_READING_LIST_SAVED" desc="App-based message shown after user adds a new link to the reading list. [CHAR_LIMIT=32]">
+      <message name="IDS_READING_LIST_SAVED" desc="App-based message shown after user adds a new link to the reading list.">
         Added to reading list
+      </message>
+      <message name="IDS_READING_LIST_SAVED_PLURAL" desc="App-based message shown after user adds multiple links to the reading list.">
+        Pages added to reading list
       </message>
       <message name="IDS_READING_LIST_MARK_AS_READ" desc="The text for the action to mark the reading list as read.">
         Mark as read
@@ -4831,6 +4874,27 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <!-- Pdf Page -->
       <message name="IDS_PDF_PAGE_DOWNLOAD_IPH_TEXT" desc="Text shown in the text bubble to inform users about the option to download a PDF when the PDF document is opened in Chrome.">
         You can download PDFs here
+      </message>
+      <message name="IDS_PDF_TWO_PAGE_VIEW" desc="Menu option to enable two-page view in PDF.">
+        Two-page view
+      </message>
+      <message name="IDS_PDF_SINGLE_PAGE_VIEW" desc="Menu option to enable single page view in PDF.">
+        Single-page view
+      </message>
+      <message name="IDS_PDF_DOCUMENT_PROPERTIES" desc="Menu option to view PDF document properties.">
+        Document properties
+      </message>
+      <message name="IDS_PDF_DOWNLOAD" desc="Menu option to download the PDF document.">
+        Download
+      </message>
+      <message name="IDS_PDF_ROTATE" desc="Menu option to rotate the PDF document.">
+        Rotate
+      </message>
+      <message name="IDS_PDF_FIT_HEIGHT" desc="Menu option to fit the PDF page height to the screen.">
+        Fit to height
+      </message>
+      <message name="IDS_PDF_FIT_WIDTH" desc="Menu option to fit the PDF page width to the screen.">
+        Fit to width
       </message>
 
       <!-- Accessibility -->
@@ -5205,9 +5269,6 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       </message>
       <message name="IDS_ACCESSIBILITY_OMNIBOX_SUGGESTED_ITEMS" desc="Announcement about the presence and volume of suggestions below the Omnibox.">
         <ph name="SUGGESTIONS_COUNT">%d<ex>12</ex></ph> suggested items in list below.
-      </message>
-      <message name="IDS_ACCESSIBILITY_OMNIBOX_SUGGESTED_ITEMS_ABOVE" desc="Announcement about the presence and volume of suggestions below the Omnibox.">
-        <ph name="SUGGESTIONS_COUNT">%d<ex>12</ex></ph> suggested items in list above.
       </message>
       <message name="IDS_ACCESSIBILITY_OMNIBOX_MOST_VISITED_TILE_SEARCH" desc="Announces that interacting with a Tile executes a specific search query.">
         Search: <ph name="SEARCH_QUERY">%s<ex>Weather in San Francisco</ex></ph>
@@ -5919,7 +5980,7 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
 
       <!-- In-Product Help strings -->
       <message name="IDS_IPH_GLIC_PROMO_TEXT" desc="The in-product-help promotion message to try Glic.">
-        Gemini is now on your toolbar. To change your pinned tool anytime, long-press the icon.
+        Try Gemini in Chrome to get answers, key takeaways and more
       </message>
       <message name="IDS_IPH_GLIC_PROMO_ACCESSIBILITY_TEXT" desc="The in-product-help accessibility text to try Glic.">
         Gemini is now on your toolbar. To change your pinned tool anytime, long-press the icon.
@@ -5954,6 +6015,27 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_IPH_TAB_SWITCHER_ACCESSIBILITY_TEXT" desc="The in-product-help accessibility text to open the new tab page. The 'open tabs' button name should match TC 3108541343994525384">
         To open tabs and visit different pages at the same time, tap the open tabs button
       </message>
+
+      <!-- Bottom bar IPH strings. -->
+      <message name="IDS_IPH_ANDROID_BOTTOM_BAR_GLIC" desc="The in-product-help message for the GLIC button in the bottom bar.">
+        Ask Gemini to help with your tabs and tasks
+      </message>
+      <message name="IDS_IPH_ANDROID_BOTTOM_BAR_NEW_TAB" desc="The in-product-help message for the New Tab button in the bottom bar.">
+        Open a new tab
+      </message>
+      <message name="IDS_IPH_ANDROID_BOTTOM_BAR_DIALOG_TITLE" desc="Title for the in-product help dialog introducing Gemini in the bottom bar.">
+        Introducing Gemini in Chrome
+      </message>
+      <message name="IDS_IPH_ANDROID_BOTTOM_BAR_DIALOG_DESCRIPTION" desc="Description for the bottom bar Gemini introduction dialog.">
+        Some tools have moved to give you easy access to Gemini while you browse
+      </message>
+      <message name="IDS_IPH_ANDROID_BOTTOM_BAR_TRIGGER_IPH" desc="Text on the button that triggers the in-product-help sequence.">
+        Show me
+      </message>
+      <message name="IDS_IPH_ANDROID_BOTTOM_BAR_DIALOG_ACK" desc="Button text to acknowledge bottom bar changes and dismiss the dialog.">
+        Got it
+      </message>
+
       <message name="IDS_IPH_ANDROID_TAB_DECLUTTER_TEXT_WITH_TAB_GROUPS" desc="The in-product-help text for the android tab declutter feature.">
         Review your inactive tabs and groups here
       </message>
@@ -6073,6 +6155,15 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <!-- SendTabToSelf -->
       <message name="IDS_SEND_TAB_TO_SELF_TOAST" desc="Text for a toast indicating that the tab is being shared on the user's other synced devices.">
         Sending to <ph name="device_name">%1$s<ex>Tanya's Pixel 2</ex></ph>...
+      </message>
+      <message name="IDS_SEND_TAB_TO_SELF_MESSAGE_BANNER_TITLE" desc="The title for the message banner shown on Android when links are received in the background.">
+        Links received
+      </message>
+      <message name="IDS_SEND_TAB_TO_SELF_MESSAGE_BANNER_SUBTITLE" desc="The subtitle for the message banner shown on Android indicating the sender device.">
+        From <ph name="DEVICE_NAME">%1$s<ex>Tanya's Pixel 10a</ex></ph>
+      </message>
+      <message name="IDS_SEND_TAB_TO_SELF_MESSAGE_OPEN" desc="Label for the button to open a tab received from another device.">
+        Open
       </message>
       <message name="IDS_SEND_TAB_TO_SELF_NOTIFICATION_CONTEXT_TEXT" desc="Text displayed as the second line of a notification indicating the domain and the device the tab is shared from.">
         <ph name="DOMAIN">%1$s<ex>www.google.com</ex></ph> - Sent from <ph name="DEVICE_NAME">%2$s<ex>Tanya's Pixel 2XL</ex></ph>
@@ -6677,6 +6768,14 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       </message>
       <message name="IDS_ACCOUNT_SELECTION_MULTI_IDP_SHEET_TITLE_EXPLICIT_SIGNIN" desc="Header for sign in sheet. Sheet is shown to prompt user to sign in to a website using an account from one of several identity providers.">
         Sign in to <ph name="SITE_ETLD_PLUS_ONE">%1$s<ex>rp.example</ex></ph>
+      </message>
+
+      <!-- Settings Bottom Bar strings -->
+      <message name="IDS_SETTINGS_SHOW_GEMINI_IN_BOTTOM_BAR_TITLE" desc="Title for the settings toggle to show or hide Gemini in the bottom bar. [CHAR_LIMIT=32]">
+        Show Gemini in the bottom toolbar
+      </message>
+      <message name="IDS_SETTINGS_SHOW_GEMINI_IN_BOTTOM_BAR_SUMMARY" desc="Summary description for the settings toggle to show Gemini in the bottom bar.">
+        Quickly open Gemini when you need it
       </message>
 
       <!-- HTTPS-First Mode settings strings -->
@@ -7589,6 +7688,9 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       </message>
 
     <!-- Glic strings -->
+      <message name="IDS_GLIC_BUTTON_ENTRYPOINT_OPEN_GEMINI_LABEL" desc="Label on the 3-dot menu item used to open Gemini in Chrome.">
+        Open Gemini
+      </message>
       <message name="IDS_GLIC_ACTOR_TASK_IN_PROGRESS" desc="Snackbar message shown when a Glic actor task is still in progress.">
         Your task is still in progress
       </message>

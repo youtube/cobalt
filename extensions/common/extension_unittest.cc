@@ -6,6 +6,7 @@
 
 #include <optional>
 #include <string_view>
+#include <utility>
 
 #include "base/command_line.h"
 #include "base/logging.h"
@@ -48,7 +49,7 @@ testing::AssertionResult RunManifestVersionSuccess(
 
   if (extension->GetType() != expected_type) {
     return testing::AssertionFailure()
-           << "Wrong type: " << extension->GetType();
+           << "Wrong type: " << std::to_underlying(extension->GetType());
   }
 
   if (extension->manifest_version() != expected_manifest_version) {
@@ -101,7 +102,7 @@ testing::AssertionResult RunCreationWithFlags(
 
   if (extension->GetType() != expected_type) {
     return testing::AssertionFailure()
-           << "Wrong type: " << extension->GetType();
+           << "Wrong type: " << std::to_underlying(extension->GetType());
   }
   return testing::AssertionSuccess();
 }
@@ -385,6 +386,27 @@ TEST(ExtensionTest, ExtensionVersionFormat) {
   EXPECT_TRUE(RunVersionFailure("-1.0"));
   EXPECT_TRUE(RunVersionFailure("1.-1"));
   EXPECT_TRUE(RunVersionFailure("-0.0"));
+}
+
+// Verifies that short_name is sanitized by collapsing whitespace and
+// terminating bidirectional control characters.
+// Regression test for crbug.com/514071697.
+TEST(ExtensionTest, ExtensionShortNameSanitization) {
+  base::DictValue manifest =
+      base::DictValue()
+          .Set(manifest_keys::kName, "My Extension")
+          .Set(manifest_keys::kShortName, "Sec\n\nUpdate\u202E")
+          .Set(manifest_keys::kVersion, "0.1")
+          .Set(manifest_keys::kManifestVersion, 3);
+
+  std::u16string error;
+  scoped_refptr<const Extension> extension =
+      Extension::Create(base::FilePath(), ManifestLocation::kInternal, manifest,
+                        Extension::NO_FLAGS, &error);
+  ASSERT_TRUE(extension) << "Extension creation failed: " << error;
+
+  EXPECT_EQ(std::string("SecUpdate") + "\xE2\x80\xAE" + "\xE2\x80\xAC",
+            extension->short_name());
 }
 
 }  // namespace extensions

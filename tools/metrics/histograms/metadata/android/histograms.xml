@@ -159,6 +159,7 @@ chromium-metrics-reviews@google.com.
   <variant name=".ExternalNavigation"/>
   <variant name=".FramebustBlocked"/>
   <variant name=".GeneratedPasswordSaved"/>
+  <variant name=".GlicWindowResized"/>
   <variant name=".InstallableAmbientBadge"/>
   <variant name=".KnownInterceptionDisclosure"/>
   <variant name=".MerchantTrust"/>
@@ -186,6 +187,7 @@ chromium-metrics-reviews@google.com.
   <variant name=".SaveCardFailure"/>
   <variant name=".SavePassword"/>
   <variant name=".SaveUpdateEntity"/>
+  <variant name=".SendTabToSelf"/>
   <variant name=".SharedHighlighting"/>
   <variant name=".SigninSurvey"/>
   <variant name=".SyncError"/>
@@ -1201,6 +1203,30 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Android.BottomBar.GlicTimeToAppearSinceBottomBarShown"
+    units="ms" expires_after="2027-05-26">
+  <owner>madhavpruthi@google.com</owner>
+  <owner>ckitagawa@chromium.org</owner>
+  <summary>
+    Records the time elapsed from when the bottom bar becomes visible to when
+    the GLIC button actually appears (transitions from hidden to visible).
+    Recorded when the GLIC button becomes visible if the bottom bar was already
+    shown. Recorded only the first time it appears after the bottom bar is
+    shown.
+  </summary>
+</histogram>
+
+<histogram name="Android.BottomBar.GlicVisibilityDecisionTime" units="ms"
+    expires_after="2027-05-26">
+  <owner>madhavpruthi@google.com</owner>
+  <owner>ckitagawa@chromium.org</owner>
+  <summary>
+    Records the time taken to decide whether to show the GLIC button in the
+    bottom bar. This includes the time spent in GlicEnabling checks, which may
+    involve JNI calls. Recorded every time GLIC visibility is checked.
+  </summary>
+</histogram>
+
 <histogram name="Android.BottomControlsStacker.NumberOfVisibleLayers"
     units="layers" expires_after="2026-01-27">
   <owner>pnoland@chromium.org</owner>
@@ -2118,7 +2144,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.DragDrop{TabObjectType}.ReorderStripWithDragDrop"
-    enum="Boolean" expires_after="2026-07-05">
+    enum="Boolean" expires_after="2026-11-15">
   <owner>shuyng@google.com</owner>
   <owner>zheliooo@google.com</owner>
   <owner>clank-large-form-factors@google.com</owner>
@@ -3029,18 +3055,6 @@ chromium-metrics-reviews@google.com.
   <summary>
     Recorded when an external app is launched as the result of a navigation.
     Records the source and scheme of the navigation.
-  </summary>
-</histogram>
-
-<histogram name="Android.Intent.OverrideBrowserAuxiliaryNavigation"
-    enum="Boolean" expires_after="2026-07-05">
-  <owner>muratori@google.com</owner>
-  <owner>mthiesse@chromium.org</owner>
-  <owner>yfriedman@chromium.org</owner>
-  <summary>
-    It records whether a new auxiliary browsing context navigation would be
-    overridden by preventing any intent launch and causing the navigation to
-    stay in the browser by opening a new tab instead.
   </summary>
 </histogram>
 
@@ -4361,6 +4375,42 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Android.Omnibox.SuggestionsDropdown.AsyncInflationTime2"
+    units="ms" expires_after="2026-11-01">
+  <owner>peterkang@google.com</owner>
+  <owner>chrome-mobile-search@google.com</owner>
+  <summary>
+    Records thread time spent on construction of the Omnibox suggestions
+    dropdown on a background thread.
+
+    Measures the impact of offloading Omnibox suggestions dropdown inflation to
+    a background thread. Since layout inflation and view pool pre-warming occur
+    during construction, this metric reflects the overall amount of UI rendering
+    work saved from running on the main thread.
+
+    Recorded once per activity start when AsyncViewInflator inflates the
+    OmniboxSuggestionsDropdown.
+  </summary>
+</histogram>
+
+<histogram name="Android.Omnibox.SuggestionsDropdown.AsyncInflationTime3"
+    units="ms" expires_after="2026-11-01">
+  <owner>peterkang@google.com</owner>
+  <owner>ender@google.com</owner>
+  <summary>
+    Records wall time spent on construction of the Omnibox suggestions dropdown
+    on a background thread.
+
+    Measures the impact of offloading Omnibox suggestions dropdown inflation to
+    a background thread. Since layout inflation and view pool pre-warming occur
+    during construction, this metric reflects the overall amount of UI rendering
+    work saved from running on the main thread.
+
+    Recorded once per activity start when AsyncViewInflator inflates the
+    OmniboxSuggestionsDropdown.
+  </summary>
+</histogram>
+
 <histogram name="Android.Omnibox.SuggestionsListScrolled.{PageClass}"
     enum="Boolean" expires_after="2026-08-30">
   <owner>ender@google.com</owner>
@@ -4652,6 +4702,41 @@ chromium-metrics-reviews@google.com.
     Recorded when the user clicks the Open in App item in the App Menu. A true
     value indicates OpenInAppInfo was non-null for the current tab when the item
     was clicked, and vice versa.
+  </summary>
+</histogram>
+
+<histogram name="Android.OpenInApp.Clicked.AppMenuItem.ChipVisible"
+    enum="Boolean" expires_after="2027-05-27">
+  <owner>sinansahin@google.com</owner>
+  <owner>clank-app-team@google.com</owner>
+  <summary>
+    Recorded when the user clicks the Open in App item in the App Menu. Recorded
+    boolean denotes whether the Open in App chip in the omnibox was visible at
+    the time of the click.
+  </summary>
+</histogram>
+
+<histogram name="Android.OpenInApp.Clicked.OmniboxChip" enum="Boolean"
+    expires_after="2027-05-27">
+  <owner>sinansahin@google.com</owner>
+  <owner>clank-app-team@google.com</owner>
+  <summary>
+    Recorded when the user clicks the Open in App chip in the omnibox. Always
+    recorded true.
+  </summary>
+</histogram>
+
+<histogram name="Android.OpenInApp.Impression" enum="Boolean"
+    expires_after="2027-05-27">
+  <owner>sinansahin@google.com</owner>
+  <owner>clank-app-team@google.com</owner>
+  <summary>
+    Recorded when the Open in App option becomes available for a page (either as
+    a chip or in the app menu). It is recorded when the target app package
+    changes (e.g. navigating from a page with no app, or a different app). If
+    multiple apps are available, we compare by domain instead of package.
+    Navigations that resolve to the same package (or same domain if multiple
+    apps) do not emit this histogram again. Always recorded true.
   </summary>
 </histogram>
 
@@ -5433,7 +5518,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.RequestDesktopSite.SubDomainSettingChanged"
-    enum="Boolean" expires_after="2026-07-05">
+    enum="Boolean" expires_after="2026-11-15">
   <owner>shuyng@google.com</owner>
   <owner>twellington@chromium.org</owner>
   <summary>
@@ -6413,7 +6498,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.TabSwitcher.NullContextMenuCoordinatorIsIncognito"
-    enum="Boolean" expires_after="2026-07-05">
+    enum="Boolean" expires_after="2026-11-15">
   <owner>shuyng@google.com</owner>
   <owner>clank-large-form-factors@google.com</owner>
   <summary>
@@ -9210,6 +9295,38 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram
+    name="Android.WebView.Startup.CreationTime.TotalFactoryInitTime.MainLooper"
+    units="ms" expires_after="2027-05-01">
+  <owner>abhijithnair@chromium.org</owner>
+  <owner>src/android_webview/OWNERS</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
+  <summary>
+    The total time to initialize WebViewChromiumFactoryProvider if the
+    initialization is done on the main looper. Reported on S+.
+
+    This measurement is different from Stage1.FactoryInit as it takes into
+    account time spent in framework. Does not overlap with
+    Android.WebView.Startup.CreationTime.Stage2.* measurements.
+  </summary>
+</histogram>
+
+<histogram
+    name="Android.WebView.Startup.CreationTime.TotalFactoryInitTime.NotMainLooper"
+    units="ms" expires_after="2027-05-01">
+  <owner>abhijithnair@chromium.org</owner>
+  <owner>src/android_webview/OWNERS</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
+  <summary>
+    The total time to initialize WebViewChromiumFactoryProvider if
+    initialization is not on the main looper. Reported on S+.
+
+    This measurement is different from Stage1.FactoryInit as it takes into
+    account time spent in framework. Does not overlap with
+    Android.WebView.Startup.CreationTime.Stage2.* measurements.
+  </summary>
+</histogram>
+
 <histogram name="Android.WebView.Startup.CreationTime.waitForUIThreadInit"
     units="ms" expires_after="2025-12-31">
   <owner>torne@chromium.org</owner>
@@ -9599,6 +9716,22 @@ chromium-metrics-reviews@google.com.
   <summary>
     Reports whether or not the warm up renderer process API call starts a new
     process. Recorded once per call to the warm up renderer process API.
+  </summary>
+</histogram>
+
+<histogram name="Android.WebView.Webauthn.BrowserModePermissionGranted"
+    enum="Boolean" expires_after="2027-05-28">
+  <owner>ntfschr@google.com</owner>
+  <owner>src/android_webview/OWNERS</owner>
+  <summary>
+    Records whether the app calling setWebAuthenticationSupport with BROWSER
+    mode has the CREDENTIAL_MANAGER_SET_ORIGIN permission. This permission has
+    always been required for browser mode; however, if it is missing, the app
+    will only crash later at the time of performing WebAuthn operations. This is
+    recorded once per API call to setWebAuthenticationSupport, but only if the
+    app is requesting BROWSER mode. This will help evaluate if we can safely
+    throw a SecurityException earlier to indicate when apps are missing this
+    permission.
   </summary>
 </histogram>
 

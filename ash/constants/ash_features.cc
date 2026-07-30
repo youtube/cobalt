@@ -216,7 +216,7 @@ constexpr base::FeatureParam<std::string> kBocaGeminiUrl{
 // The URL to use for Gemini guided learning in Boca.
 constexpr base::FeatureParam<std::string> kBocaGeminiGuidedLearningUrl{
     &kBocaGeminiIntegration, "BocaGeminiGuidedLearningUrl",
-    "https://gemini.google.com/guided-learning"};
+    "https://gemini.google.com/classtools"};
 
 // Enables or disables Boca network restriction for Boca on ChromeOS.
 BASE_FEATURE(kBocaNetworkRestriction, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -233,6 +233,9 @@ BASE_FEATURE(kBocaAdjustCaptionBubbleOnExpand,
 
 // Enables or disables keeping the Boca SWA open when the session is ended.
 BASE_FEATURE(kBocaKeepSWAOpenOnSessionEnded, base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Enables or disables showing material type UI indicator in Boca SWA.
+BASE_FEATURE(kBocaMaterialTypeUiIndicator, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables or disables enforcing sequential execution for Boca Session load.
 BASE_FEATURE(kBocaSequentialSessionLoad, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -1500,9 +1503,6 @@ BASE_FEATURE(kOrcaServiceConnection, base::FEATURE_ENABLED_BY_DEFAULT);
 // Enables or disables proto-based Orca service communication logic.
 BASE_FEATURE(kOrcaServiceProto, base::FEATURE_DISABLED_BY_DEFAULT);
 
-// If enabled, Orca will only be available in English locales.
-BASE_FEATURE(kOrcaOnlyInEnglishLocales, base::FEATURE_DISABLED_BY_DEFAULT);
-
 // Enables or disables Orca resizing support.
 BASE_FEATURE(kOrcaResizingSupport, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -1825,7 +1825,7 @@ BASE_FEATURE(kUseAndroidStagingSmds, base::FEATURE_DISABLED_BY_DEFAULT);
 // This feature toggles which dhcpcd version is used for IPv4 provisioning.
 // If it is enabled, dhcpcd10 will be used, otherwise the legacy dhcpcd7 will be
 // used. Note that IPv6 (DHCPv6-PD) always uses dhcpcd10.
-BASE_FEATURE(kUseDHCPCD10, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kUseDHCPCD10, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled, the new `TokenHandleStoreImpl` will be used instead of
 // `TokenHandleUtil`.
@@ -2349,6 +2349,10 @@ bool IsBocaAdjustCaptionBubbleOnExpandEnabled() {
 
 bool IsBocaKeepSWAOpenOnSessionEndedEnabled() {
   return base::FeatureList::IsEnabled(kBocaKeepSWAOpenOnSessionEnded);
+}
+
+bool IsBocaMaterialTypeUiIndicatorEnabled() {
+  return base::FeatureList::IsEnabled(kBocaMaterialTypeUiIndicator);
 }
 
 bool IsBocaSequentialSessionLoadEnabled() {

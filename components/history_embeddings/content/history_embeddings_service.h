@@ -11,9 +11,11 @@
 #include <vector>
 
 #include "base/containers/flat_map.h"
+#include "base/containers/flat_set.h"
 #include "base/files/file_path.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "base/threading/sequence_bound.h"
@@ -170,8 +172,9 @@ class HistoryEmbeddingsService
 
     // Associate the given metadata with this Storage instance. The storage is
     // not considered initialized until this metadata is supplied.
-    void SetEmbedderMetadata(passage_embeddings::EmbedderMetadata metadata,
-                             os_crypt_async::Encryptor encryptor);
+    void SetEmbedderMetadata(
+        passage_embeddings::EmbedderMetadata metadata,
+        scoped_refptr<os_crypt_async::Encryptor> encryptor);
 
     // Called on the worker sequence to persist passages and embeddings.
     void ProcessAndStorePassages(UrlData url_data);
@@ -218,7 +221,7 @@ class HistoryEmbeddingsService
   void EmbedderMetadataUpdated(
       passage_embeddings::EmbedderMetadata metadata) override;
 
-  void OnOsCryptAsyncReady(os_crypt_async::Encryptor encryptor);
+  void OnOsCryptAsyncReady(scoped_refptr<os_crypt_async::Encryptor> encryptor);
 
   // This can be overridden to prepare a log entry that will then be filled
   // with data and sent on destruction. Default implementation returns null.
@@ -365,8 +368,13 @@ class HistoryEmbeddingsService
   // search loop while running so the atomic is needed for thread safety.
   std::atomic<size_t> query_id_ = 0u;
 
+  // A list of in-flight jobs for rebuilding absent embeddings.
+  base::flat_set<passage_embeddings::Embedder::Job,
+                 passage_embeddings::Embedder::JobTaskIdComparator>
+      rebuild_jobs_;
+
   // Used to cancel the in-flight embedding task for the previous stale query.
-  std::optional<passage_embeddings::Embedder::TaskId> query_embedding_task_id_;
+  std::optional<passage_embeddings::Embedder::Job> query_embedding_job_;
 
   base::ScopedObservation<
       page_content_annotations::PageEmbeddingsService,

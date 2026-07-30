@@ -266,19 +266,7 @@ Animation* ClipPathClipper::GetClipPathAnimation(
   CHECK(generator);
 
   Element* element = To<Element>(layout_object.GetNode());
-  Animation* animation = generator->GetAnimationIfCompositable(element);
-
-#if EXPENSIVE_DCHECKS_ARE_ON()
-  if (animation &&
-      CompositeClipPathStatus(element) == CompositedPaintStatus::kComposited) {
-    CHECK(animation->HasActiveAnimationsOnCompositor() ||
-          animation->CheckCanStartAnimationOnCompositor(
-              nullptr, StartOnCompositorReason::kGeneric) ==
-              CompositorAnimations::kNoFailure);
-  }
-#endif  // EXPENSIVE_DCHECKS_ARE_ON()
-
-  return animation;
+  return generator->GetAnimationIfCompositable(element);
 }
 
 bool ClipPathClipper::HasCompositeClipPathAnimation(
@@ -639,7 +627,8 @@ std::optional<Path> ClipPathClipper::PathBasedClipInternal(
 void ClipPathClipper::PaintClipPathAsMaskImage(
     GraphicsContext& context,
     const LayoutObject& layout_object,
-    const DisplayItemClient& display_item_client) {
+    const DisplayItemClient& display_item_client,
+    PaintFlags paint_flags) {
   const auto* properties = layout_object.FirstFragment().PaintProperties();
   DCHECK(properties);
   DCHECK(properties->ClipPathMask());
@@ -744,7 +733,7 @@ void ClipPathClipper::PaintClipPathAsMaskImage(
       }
       context.ConcatCTM(MaskToContentTransform(*resource_clipper, reference_box,
                                                layout_object));
-      context.DrawRecord(resource_clipper->CreatePaintRecord());
+      context.DrawRecord(resource_clipper->CreatePaintRecord(paint_flags));
 
       if (is_first)
         context.Restore();

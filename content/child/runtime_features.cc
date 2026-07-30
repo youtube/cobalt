@@ -163,8 +163,6 @@ void SetRuntimeFeaturesFromChromiumFeatures() {
   // in the next list.
   const RuntimeFeatureToChromiumFeatureMap<void (*)(bool)>
       blinkFeatureToBaseFeatureMapping[] = {
-          {wf::EnableAccessibilityAriaVirtualContent,
-           raw_ref(features::kEnableAccessibilityAriaVirtualContent)},
           {wf::EnableAccessibilityUseAXPositionForDocumentMarkers,
            raw_ref(features::kUseAXPositionForDocumentMarkers)},
 #if BUILDFLAG(IS_ANDROID)
@@ -256,6 +254,8 @@ void SetRuntimeFeaturesFromChromiumFeatures() {
            raw_ref(features::kTouchDragAndContextMenu)},
           {wf::EnableWebAuthenticationAmbient,
            raw_ref(device::kWebAuthnAmbientSignin)},
+          {wf::EnableWebAuthenticationCrossDeviceFallbackUrl,
+           raw_ref(device::kWebAuthnCrossDeviceFallbackUrl)},
           {wf::EnableWebAuthenticationImmediateGet,
            raw_ref(device::kWebAuthnImmediateGet), kDefault},
           {wf::EnableWebBluetooth, raw_ref(features::kWebBluetooth),

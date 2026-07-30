@@ -2452,6 +2452,8 @@ chromium-metrics-reviews@google.com.
   <int value="1454" label="HttpHeaderInjection"/>
   <int value="1455" label="ChromeSuggestionsSettings"/>
   <int value="1456" label="RestrictBackgroundFetchFromServiceWorkerEnabled"/>
+  <int value="1457" label="GeminiEnterpriseSettings"/>
+  <int value="1458" label="RestrictYouTubeCookiesDeletion"/>
 </enum>
 
 <enum name="EnterprisePoliciesSources">
@@ -2571,6 +2573,7 @@ chromium-metrics-reviews@google.com.
   <int value="11" label="Browser crash event"/>
   <int value="12" label="Extension telemetry event"/>
   <int value="13" label="Saas usage report event"/>
+  <int value="14" label="Browser launch event"/>
 </enum>
 
 <!-- LINT.IfChange(EnterpriseSkyVaultMigrationDialogAction) -->

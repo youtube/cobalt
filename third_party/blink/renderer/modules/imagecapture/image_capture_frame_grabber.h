@@ -15,6 +15,7 @@
 #include "third_party/blink/public/web/modules/mediastream/media_stream_video_sink.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_resource_provider.h"
+#include "third_party/blink/renderer/platform/graphics/canvas_snapshot_info.h"
 #include "third_party/blink/renderer/platform/scheduler/public/post_cancellable_task.h"
 
 class SkImage;
@@ -60,7 +61,7 @@ class ImageCaptureFrameGrabber final : public MediaStreamVideoSink {
 
   media::PaintCanvasVideoRenderer video_renderer_;
   std::unique_ptr<CanvasNon2DResourceProviderSharedImage> snapshot_provider_;
-  std::optional<CanvasSnapshotProvider::Info> cached_draw_info_;
+  std::optional<CanvasSnapshotInfo> cached_draw_info_;
 
   THREAD_CHECKER(thread_checker_);
   base::WeakPtrFactory<ImageCaptureFrameGrabber> weak_factory_{this};

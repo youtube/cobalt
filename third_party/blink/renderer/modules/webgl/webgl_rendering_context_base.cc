@@ -71,6 +71,7 @@
 #include "third_party/blink/renderer/bindings/core/v8/to_v8_traits.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_element_elementimage.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_htmlcanvaselement_offscreencanvas.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_webgl_copy_element_image_config.h"
 #include "third_party/blink/renderer/bindings/modules/v8/webgl_any.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
@@ -138,7 +139,6 @@
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/bindings/script_state.h"
 #include "third_party/blink/renderer/platform/graphics/accelerated_static_bitmap_image.h"
-#include "third_party/blink/renderer/platform/graphics/canvas_non2d_snapshot_provider_bitmap.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_resource.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_resource_provider.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/canvas_utils.h"
@@ -5878,7 +5878,7 @@ scoped_refptr<Image> WebGLRenderingContextBase::DrawImageIntoBufferForTexImage(
   // TODO(https://crbug.com/1341235): The choice of color type should match the
   // format of the TexImage function. The choice of alpha type should opaque for
   // opaque images. The color space should match the unpack color space.
-  auto snapshot = CanvasNon2DSnapshotProviderBitmap::DoExternalDrawAndSnapshot(
+  auto snapshot = DrawAndSnapshotToImage(
       {kPremul_SkAlphaType,
        gfx::ColorSpace::CreateSRGB(),
        GetN32FormatForCanvas(),
@@ -5949,6 +5949,10 @@ gfx::Rect WebGLRenderingContextBase::SafeGetImageSize(Image* image) {
     return gfx::Rect();
 
   return GetTextureSourceSize(image);
+}
+
+bool WebGLRenderingContextBase::IsOpaque() const {
+  return !CreationAttributes().alpha;
 }
 
 SkAlphaType WebGLRenderingContextBase::GetAlphaType() const {
@@ -6695,11 +6699,6 @@ void WebGLRenderingContextBase::TexImageHelperMediaVideoFrame(
                                   CanUseTexImageViaGPU(params) &&
                                   source_image_rect_is_default;
 
-  // If we can upload via GPU, try to to use an accelerated resource provider
-  // configured appropriately for video. Otherwise use the software cache.
-  auto& image_cache =
-      can_upload_via_gpu ? generated_video_cache_ : generated_image_cache_;
-
   // Orient the destination rect based on the frame's transform.
   const auto& visible_rect = media_video_frame->visible_rect();
   auto dest_rect = gfx::Rect(visible_rect.size());
@@ -6712,26 +6711,34 @@ void WebGLRenderingContextBase::TexImageHelperMediaVideoFrame(
 
   auto info = CreateSnapshotProviderInfoForVideoFrame(
       *media_video_frame, dest_rect.size(), reinterpret_video_as_srgb);
-  bool tried_to_create_provider = false;
-  auto* snapshot_provider =
-      image_cache.GetCanvasSnapshotProvider(info, tried_to_create_provider);
-  if (!snapshot_provider && tried_to_create_provider) {
-    return;
+
+  CanvasNon2DResourceProviderSharedImage* provider = nullptr;
+  if (can_upload_via_gpu) {
+    viz::RasterContextProvider* raster_context_provider = nullptr;
+    if (auto wrapper = SharedGpuContext::ContextProviderWrapper()) {
+      raster_context_provider =
+          wrapper->ContextProvider().RasterContextProvider();
+    }
+    if (ShouldCreateAcceleratedImages(raster_context_provider)) {
+      provider = generated_video_cache_.GetCanvasResourceProvider(info);
+      if (!provider) {
+        return;
+      }
+    }
   }
 
   // Since TexImageStaticBitmapImage() and TexImageGPU() don't know how to
   // handle tagged orientation, we set |prefer_tagged_orientation| to false.
   const bool kPreferTaggedOrientation = false;
   scoped_refptr<StaticBitmapImage> image;
-  if (!snapshot_provider) {
+  if (!provider) {
     image = CreateUnacceleratedImageFromVideoFrame(
         std::move(media_video_frame), info, video_renderer,
         kPreferTaggedOrientation, reinterpret_video_as_srgb);
   } else {
     image = CreateAcceleratedImageFromVideoFrame(
-        std::move(media_video_frame),
-        static_cast<CanvasNon2DResourceProviderSharedImage*>(snapshot_provider),
-        video_renderer, kPreferTaggedOrientation, reinterpret_video_as_srgb);
+        std::move(media_video_frame), provider, video_renderer,
+        kPreferTaggedOrientation, reinterpret_video_as_srgb);
   }
 
   if (!image) {
@@ -6925,89 +6932,82 @@ void WebGLRenderingContextBase::texParameteri(GLenum target,
 
 void WebGLRenderingContextBase::texElementImage2D(
     GLenum target,
-    GLint level,
-    GLint internalformat,
-    GLenum format,
-    GLenum type,
+    GLenum internalformat,
     const V8UnionElementOrElementImage* element,
+    const WebGLCopyElementImageConfig* config,
     ExceptionState& exception_state) {
-  TexElementImage2DInternal(target, level, internalformat,
-                            /*sx*/ std::nullopt, /*sy*/ std::nullopt,
-                            /*swidth*/ std::nullopt, /*sheight*/ std::nullopt,
-                            /*width*/ std::nullopt, /*height*/ std::nullopt,
-                            format, type, element, exception_state);
-}
+  std::optional<GLfloat> sx;
+  std::optional<GLfloat> sy;
+  std::optional<GLfloat> swidth;
+  std::optional<GLfloat> sheight;
+  std::optional<GLsizei> width;
+  std::optional<GLsizei> height;
 
-void WebGLRenderingContextBase::texElementImage2D(
-    GLenum target,
-    GLint level,
-    GLint internalformat,
-    GLsizei width,
-    GLsizei height,
-    GLenum format,
-    GLenum type,
-    const V8UnionElementOrElementImage* element,
-    ExceptionState& exception_state) {
-  TexElementImage2DInternal(target, level, internalformat,
-                            /*sx*/ std::nullopt, /*sy*/ std::nullopt,
-                            /*swidth*/ std::nullopt, /*sheight*/ std::nullopt,
-                            width, height, format, type, element,
-                            exception_state);
-}
+  size_t explicit_param_count = 0;
+  if (config) {
+    if (config->hasSx()) {
+      sx = config->sx();
+      explicit_param_count++;
+    }
+    if (config->hasSy()) {
+      sy = config->sy();
+      explicit_param_count++;
+    }
+    if (config->hasSwidth()) {
+      swidth = config->swidth();
+      explicit_param_count++;
+    }
+    if (config->hasSheight()) {
+      sheight = config->sheight();
+      explicit_param_count++;
+    }
+    if (explicit_param_count % 4 != 0) {
+      exception_state.ThrowDOMException(
+          DOMExceptionCode::kOperationError,
+          "Must specify all or none of (sx,sy,swidth,sheight).");
+      return;
+    }
+    if (config->hasWidth()) {
+      width = config->width();
+      explicit_param_count++;
+    }
+    if (config->hasHeight()) {
+      height = config->height();
+      explicit_param_count++;
+    }
+    if (explicit_param_count % 2 != 0) {
+      exception_state.ThrowDOMException(
+          DOMExceptionCode::kOperationError,
+          "Must specify neither or both of (width,height).");
+      return;
+    }
+  }
 
-void WebGLRenderingContextBase::texElementImage2D(
-    GLenum target,
-    GLint level,
-    GLint internalformat,
-    GLfloat sx,
-    GLfloat sy,
-    GLfloat swidth,
-    GLfloat sheight,
-    GLenum format,
-    GLenum type,
-    const V8UnionElementOrElementImage* element,
-    ExceptionState& exception_state) {
-  TexElementImage2DInternal(target, level, internalformat, sx, sy, swidth,
-                            sheight,
-                            /*width*/ std::nullopt, /*height*/ std::nullopt,
-                            format, type, element, exception_state);
-}
-
-void WebGLRenderingContextBase::texElementImage2D(
-    GLenum target,
-    GLint level,
-    GLint internalformat,
-    GLfloat sx,
-    GLfloat sy,
-    GLfloat swidth,
-    GLfloat sheight,
-    GLsizei width,
-    GLsizei height,
-    GLenum format,
-    GLenum type,
-    const V8UnionElementOrElementImage* element,
-    ExceptionState& exception_state) {
-  TexElementImage2DInternal(target, level, internalformat, sx, sy, swidth,
-                            sheight, width, height, format, type, element,
-                            exception_state);
+  TexElementImage2DInternal(target, internalformat, sx, sy, swidth, sheight,
+                            width, height, element, exception_state);
 }
 
 void WebGLRenderingContextBase::TexElementImage2DInternal(
     GLenum target,
-    GLint level,
-    GLint internalformat,
+    GLenum internalformat,
     std::optional<GLfloat> sx,
     std::optional<GLfloat> sy,
     std::optional<GLfloat> swidth,
     std::optional<GLfloat> sheight,
     std::optional<GLsizei> width,
     std::optional<GLsizei> height,
-    GLenum format,
-    GLenum type,
     const V8UnionElementOrElementImage* element,
     ExceptionState& exception_state) {
   CHECK(RuntimeEnabledFeatures::CanvasDrawElementEnabled(
       Host()->GetTopExecutionContext()));
+
+  if (internalformat != GL_RGBA8 && internalformat != GL_SRGB8_ALPHA8 &&
+      internalformat != GL_RGBA16F && internalformat != GL_RGBA32F) {
+    exception_state.ThrowTypeError(
+        "Invalid internalformat. Must be one of RGBA8, SRGB8_ALPHA8, RGBA16F, "
+        "or RGBA32F.");
+    return;
+  }
 
   if (isContextLost()) {
     return;
@@ -7025,15 +7025,22 @@ void WebGLRenderingContextBase::TexElementImage2DInternal(
     return;
   }
 
+  GLenum type = GL_UNSIGNED_BYTE;
+  if (internalformat == GL_RGBA16F) {
+    type = GL_HALF_FLOAT;
+  } else if (internalformat == GL_RGBA32F) {
+    type = GL_FLOAT;
+  }
+
   TexImageParams params = {
       .source_type = kSourceImageBitmap,
       .function_id = kTexImage2D,
       .target = target,
-      .level = level,
-      .internalformat = internalformat,
+      .level = 0,
+      .internalformat = static_cast<GLint>(internalformat),
       .width = image->Size().width(),
       .height = image->Size().height(),
-      .format = format,
+      .format = GL_RGBA,
       .type = type,
   };
   GetCurrentUnpackState(params);
@@ -7828,6 +7835,7 @@ void WebGLRenderingContextBase::DrawingBufferClientRestoreFramebufferBinding() {
   RestoreCurrentFramebuffer();
 }
 
+void WebGLRenderingContextBase::DrawingBufferClientRestoreRasterizerDiscard() {}
 void WebGLRenderingContextBase::
     DrawingBufferClientRestorePixelUnpackBufferBinding() {}
 void WebGLRenderingContextBase::
@@ -9066,66 +9074,48 @@ String WebGLRenderingContextBase::EnsureNotNull(const String& text) const {
   return text;
 }
 
-WebGLRenderingContextBase::LRUCanvasSnapshotProviderCache::
-    LRUCanvasSnapshotProviderCache(wtf_size_t capacity, CacheType type)
-    : capacity_(capacity), type_(type), snapshot_providers_(capacity) {}
+WebGLRenderingContextBase::LRUCanvasResourceProviderCache::
+    LRUCanvasResourceProviderCache(wtf_size_t capacity)
+    : capacity_(capacity), providers_(capacity) {}
 
-CanvasSnapshotProvider* WebGLRenderingContextBase::
-    LRUCanvasSnapshotProviderCache::GetCanvasSnapshotProvider(
-        const CanvasSnapshotProvider::Info& info,
-        bool& tried_to_create_provider) {
-  tried_to_create_provider = false;
+CanvasNon2DResourceProviderSharedImage* WebGLRenderingContextBase::
+    LRUCanvasResourceProviderCache::GetCanvasResourceProvider(
+        const CanvasSnapshotInfo& info) {
   wtf_size_t i;
   for (i = 0; i < capacity_; ++i) {
-    CanvasSnapshotProvider* snapshot_provider = snapshot_providers_[i].get();
-    if (!snapshot_provider) {
+    CanvasNon2DResourceProviderSharedImage* provider = providers_[i].get();
+    if (!provider) {
       break;
     }
-    if (!info.Matches(*snapshot_provider)) {
+    if (!provider->IsValid() || !info.Matches(provider->GetInfo())) {
       continue;
     }
-    tried_to_create_provider = true;
     BubbleToFront(i);
-    return snapshot_provider;
+    return provider;
   }
 
-  bool create_accelerated_provider = false;
-  if (type_ == CacheType::kVideo) {
-    viz::RasterContextProvider* raster_context_provider = nullptr;
-    if (auto wrapper = SharedGpuContext::ContextProviderWrapper()) {
-      raster_context_provider =
-          wrapper->ContextProvider().RasterContextProvider();
-    }
-    create_accelerated_provider =
-        ShouldCreateAcceleratedImages(raster_context_provider);
-  }
-
-  tried_to_create_provider = create_accelerated_provider;
-
-  std::unique_ptr<CanvasSnapshotProvider> temp;
-  if (create_accelerated_provider) {
-    temp = CanvasNon2DResourceProviderSharedImage::Create(
-        info.size, info.format, info.alpha_type, info.color_space,
-        SharedGpuContext::ContextProviderWrapper(),
-        gpu::SHARED_IMAGE_USAGE_DISPLAY_READ);
-  }
+  std::unique_ptr<CanvasNon2DResourceProviderSharedImage> temp =
+      CanvasNon2DResourceProviderSharedImage::Create(
+          info.size, info.format, info.alpha_type, info.color_space,
+          SharedGpuContext::ContextProviderWrapper(),
+          gpu::SHARED_IMAGE_USAGE_DISPLAY_READ);
 
   if (!temp) {
     return nullptr;
   }
 
   i = std::min(capacity_ - 1, i);
-  snapshot_providers_[i] = std::move(temp);
+  providers_[i] = std::move(temp);
 
-  CanvasSnapshotProvider* snapshot_provider = snapshot_providers_[i].get();
+  CanvasNon2DResourceProviderSharedImage* provider = providers_[i].get();
   BubbleToFront(i);
-  return snapshot_provider;
+  return provider;
 }
 
-void WebGLRenderingContextBase::LRUCanvasSnapshotProviderCache::BubbleToFront(
+void WebGLRenderingContextBase::LRUCanvasResourceProviderCache::BubbleToFront(
     wtf_size_t idx) {
   for (wtf_size_t i = idx; i > 0; --i) {
-    snapshot_providers_[i].swap(snapshot_providers_[i - 1]);
+    providers_[i].swap(providers_[i - 1]);
   }
 }
 

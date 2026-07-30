@@ -37,24 +37,31 @@ namespace private_ai {
 SecureChannelImpl::FactoryImpl::FactoryImpl(
     const GURL& url,
     network::mojom::NetworkContext* network_context,
-    PrivateAiLogger* logger)
-    : url_(url), network_context_(network_context), logger_(logger) {}
+    PrivateAiLogger* logger,
+    PrivateAiOakSessionDriver* oak_session_driver)
+    : url_(url),
+      network_context_(network_context),
+      logger_(logger),
+      oak_session_driver_(oak_session_driver) {}
 
 SecureChannelImpl::FactoryImpl::~FactoryImpl() = default;
 
 std::unique_ptr<SecureChannel> SecureChannelImpl::FactoryImpl::Create(
+    base::OnceClosure on_established,
     ResponseCallback callback) {
   auto transport =
       std::make_unique<WebSocketClient>(url_, network_context_, logger_);
-  auto secure_session = std::make_unique<SecureSessionAsyncImpl>();
+  auto secure_session =
+      std::make_unique<SecureSessionAsyncImpl>(oak_session_driver_);
   auto attestation_handler = std::make_unique<AttestationHandlerImpl>(logger_);
 
   return std::make_unique<SecureChannelImpl>(
-      std::move(callback), std::move(transport), std::move(secure_session),
-      std::move(attestation_handler), logger_);
+      std::move(on_established), std::move(callback), std::move(transport),
+      std::move(secure_session), std::move(attestation_handler), logger_);
 }
 
 SecureChannelImpl::SecureChannelImpl(
+    base::OnceClosure on_established,
     ResponseCallback callback,
     std::unique_ptr<Transport> transport,
     std::unique_ptr<SecureSession> secure_session,
@@ -64,7 +71,8 @@ SecureChannelImpl::SecureChannelImpl(
       secure_session_(std::move(secure_session)),
       attestation_handler_(std::move(attestation_handler)),
       logger_(logger),
-      response_callback_(std::move(callback)) {
+      response_callback_(std::move(callback)),
+      on_established_(std::move(on_established)) {
   CHECK(transport_);
   CHECK(secure_session_);
   CHECK(attestation_handler_);
@@ -279,8 +287,8 @@ void SecureChannelImpl::OnHandshakeMessageReady(
 void SecureChannelImpl::RecordSessionDurationMetrics() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (state_ == State::kEstablished) {
-    base::UmaHistogramMediumTimes(
-        "PrivateAi.SecureChannel.SessionDuration",
+    base::UmaHistogramLongTimes(
+        "PrivateAi.SecureChannel.SessionDuration2",
         base::TimeTicks::Now() - state_entry_times_[State::kEstablished]);
     base::UmaHistogramCounts1000("PrivateAi.SecureChannel.RequestsPerSession",
                                  requests_in_session_count_);
@@ -337,6 +345,10 @@ void SecureChannelImpl::OnHandshakeVerification(bool handshake_verified) {
 
   state_ = State::kEstablished;
   state_entry_times_[state_] = base::TimeTicks::Now();
+
+  if (on_established_) {
+    std::move(on_established_).Run();
+  }
 
   ProcessPendingEncryptionRequests();
 }

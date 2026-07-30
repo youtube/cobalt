@@ -11,6 +11,7 @@
 
 #include "ash/public/cpp/reauth_reason.h"
 #include "base/check.h"
+#include "base/check_deref.h"
 #include "base/check_op.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
@@ -63,11 +64,13 @@ std::string CryptohomeRecoveryScreen::GetResultString(Result result) {
 }
 
 CryptohomeRecoveryScreen::CryptohomeRecoveryScreen(
+    PrefService* local_state,
     scoped_refptr<network::SharedURLLoaderFactory> shared_url_loader_factory,
     base::WeakPtr<CryptohomeRecoveryScreenView> view,
     const ScreenExitCallback& exit_callback)
     : BaseScreen(CryptohomeRecoveryScreenView::kScreenId,
                  OobeScreenPriority::DEFAULT),
+      local_state_(CHECK_DEREF(local_state)),
       shared_url_loader_factory_(std::move(shared_url_loader_factory)),
       auth_factor_editor_(UserDataAuthClient::Get()),
       view_(std::move(view)),
@@ -139,7 +142,8 @@ void CryptohomeRecoveryScreen::OnGetAuthFactorsConfiguration(
       } else {
         LOG(WARNING) << "Reauth proof token is not present";
         was_reauth_proof_token_missing_ = true;
-        RecordReauthReason(account_id, ReauthReason::kCryptohomeRecovery);
+        RecordReauthReason(local_state_.get(), account_id,
+                           ReauthReason::kCryptohomeRecovery);
         view_->ShowReauthNotification();
         return;
       }

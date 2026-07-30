@@ -11,6 +11,7 @@
 #import "components/prefs/pref_service.h"
 #import "ios/chrome/app/profile/profile_state.h"
 #import "ios/chrome/browser/banner_promo/model/default_browser_banner_promo_app_agent.h"
+#import "ios/chrome/browser/bubble/model/tab_based_iph_browser_agent.h"
 #import "ios/chrome/browser/fullscreen/model/fullscreen_browser_agent.h"
 #import "ios/chrome/browser/fullscreen/model/fullscreen_browser_agent_observer_bridge.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_controller.h"
@@ -29,6 +30,7 @@
 #import "ios/chrome/browser/prerender/model/prerender_browser_agent.h"
 #import "ios/chrome/browser/shared/coordinator/layout_guide/layout_guide_util.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_state.h"
+#import "ios/chrome/browser/shared/coordinator/scene/state/layout_state.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
@@ -1102,7 +1104,12 @@ constexpr CGFloat kBannerPromoVerticalSpacing = 8;
 
 - (CGFloat)keyboardAttachedBottomOmniboxHeight {
   if (IsChromeNextIaEnabled()) {
-    return kKeyboardAttachedOmniboxBottomPadding;
+    if (self.browser->GetSceneState().layoutState.appBarPosition ==
+        AppBarPosition::kBottom) {
+      return kKeyboardAttachedOmniboxBottomPadding;
+    } else {
+      return kKeyboardAttachedOmniboxBottomPaddingLandscape;
+    }
   }
   return 0;
 }
@@ -1244,6 +1251,9 @@ constexpr CGFloat kBannerPromoVerticalSpacing = 8;
   ToolbarViewController* toolbarViewController =
       [[ToolbarViewController alloc] initInIncognito:incognito
                                          topPosition:topPosition];
+  toolbarViewController.layoutGuideCenter =
+      LayoutGuideCenterForBrowser(browser);
+  toolbarViewController.layoutState = browser->GetSceneState().layoutState;
   toolbarViewController.buttonFactory =
       [[ToolbarButtonFactory alloc] initWithIncognito:incognito];
   toolbarViewController.mutator = mediator;
@@ -1256,8 +1266,6 @@ constexpr CGFloat kBannerPromoVerticalSpacing = 8;
   toolbarViewController.sceneHandler =
       HandlerForProtocol(dispatcher, SceneCommands);
   toolbarViewController.toolbarHeightDelegate = self.toolbarHeightDelegate;
-  toolbarViewController.layoutGuideCenter =
-      LayoutGuideCenterForBrowser(browser);
   toolbarViewController.locationBarViewController = locationBar;
   toolbarViewController.bannerPromoDelegate = mediator;
 
@@ -1319,6 +1327,8 @@ constexpr CGFloat kBannerPromoVerticalSpacing = 8;
   toolbarMediator.incognito = isIncognito;
   toolbarMediator.navigationBrowserAgent =
       WebNavigationBrowserAgent::FromBrowser(browser);
+  toolbarMediator.tabBasedIPHAgent =
+      TabBasedIPHBrowserAgent::FromBrowser(browser);
   if (IsFullscreenRefactoringEnabled()) {
     toolbarMediator.fullscreenCommands =
         HandlerForProtocol(browser->GetCommandDispatcher(), FullscreenCommands);

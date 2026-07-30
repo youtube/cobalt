@@ -288,12 +288,13 @@ void DevToolsFileHelper::ConnectAutomaticFileSystem(
     ConnectCallback connect_callback) {
   DCHECK(file_system_uuid.is_valid());
 
-  // Make sure that |file_system_path| is a valid absolute path.
+  // Reject unsafe network, relative, or parent-referencing paths synchronously
+  // to avoid performing any filesystem existence/presence checks.
   base::FilePath path = base::FilePath::FromUTF8Unsafe(file_system_path);
-  if (!path.IsAbsolute()) {
+  if (!path.IsAbsolute() || path.IsNetwork() || path.ReferencesParent()) {
     LOG(ERROR) << "Rejected automatic file system " << file_system_path
-               << " with UUID " << file_system_uuid << " because it's not"
-               << " a valid absolute path.";
+               << " with UUID " << file_system_uuid
+               << " (not a safe local absolute path).";
     std::move(connect_callback).Run(false);
     FailedToAddFileSystem(kIllegalPath);
     return;
@@ -498,6 +499,22 @@ bool DevToolsFileHelper::IsFileSystemAdded(
     const std::string& file_system_path) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   return file_system_paths_.contains(file_system_path);
+}
+
+bool DevToolsFileHelper::IsFileInFileSystem(const std::string& file_path) {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  base::FilePath path = base::FilePath::FromUTF8Unsafe(file_path);
+  if (path.ReferencesParent()) {
+    return false;
+  }
+  for (const auto& pair : file_system_paths_) {
+    base::FilePath file_system_path =
+        base::FilePath::FromUTF8Unsafe(pair.first);
+    if (file_system_path == path || file_system_path.IsParent(path)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 void DevToolsFileHelper::OnOpenItemComplete(

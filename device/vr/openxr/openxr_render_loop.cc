@@ -918,6 +918,12 @@ void OpenXrRenderLoop::SubmitFrameDrawnIntoTexture(
   DVLOG(3) << __func__ << " frame_index=" << frame_index;
   gpu::gles2::GLES2Interface* gl = context_provider_->ContextGL();
 
+  if (!camera_sync_tokens.empty()) {
+    presentation_receiver_.ReportBadMessage(
+        "Received unexpected camera sync tokens.");
+    return;
+  }
+
   std::vector<LayerId> layer_ids;
   layer_ids.reserve(layer_updates.size());
   for (auto& layer : layer_updates) {

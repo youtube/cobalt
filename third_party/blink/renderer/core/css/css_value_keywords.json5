@@ -1506,7 +1506,6 @@
 
     // Route matching, such as @route, @navigation, and :link-to().
     "url-pattern",
-    "navigation-param",
 
     // colors
     "rgb",
@@ -2113,7 +2112,8 @@
 
     // https://drafts.csswg.org/css-conditional-5/#typedef-supports-named-feature-fn
     "named-feature",
-    "align-content-on-display-block",
+    "anchor-position-follows-transforms",
+    "single-axis-scroll-container",
 
     // hanging-punctuation
     // "first",

@@ -32,6 +32,9 @@
 #include "chrome/browser/signin/signin_hats_util.h"
 #include "chrome/browser/ui/hats/survey_config.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/profiles/feature_showcase/feature_showcase_eligibility_tracker.h"
+#include "chrome/browser/ui/views/profiles/feature_showcase/feature_showcase_step_eligibility_checker.h"
+#include "chrome/browser/ui/views/profiles/feature_showcase/password_manager_feature_showcase_eligibility_checker.h"
 #include "chrome/browser/ui/views/profiles/profile_management_flow_controller.h"
 #include "chrome/browser/ui/views/profiles/profile_management_flow_controller_impl.h"
 #include "chrome/browser/ui/views/profiles/profile_management_step_controller.h"
@@ -128,6 +131,18 @@ bool IsProfileInSearchEngineChoiceRegion(Profile* profile) {
   return CHECK_DEREF(regional_capabilities::RegionalCapabilitiesServiceFactory::
                          GetForProfile(profile))
       .IsInSearchEngineChoiceScreenRegion();
+}
+
+std::optional<std::vector<std::string>> GetForcedStepsFromCommandLine() {
+  const base::CommandLine& command_line =
+      CHECK_DEREF(base::CommandLine::ForCurrentProcess());
+  if (command_line.HasSwitch(switches::kForceFreFeatureShowcaseSteps)) {
+    std::string steps_str = command_line.GetSwitchValueASCII(
+        switches::kForceFreFeatureShowcaseSteps);
+    return base::SplitString(steps_str, ",", base::TRIM_WHITESPACE,
+                             base::SPLIT_WANT_NONEMPTY);
+  }
+  return std::nullopt;
 }
 
 #if BUILDFLAG(IS_WIN)
@@ -425,7 +440,16 @@ class FeatureShowcaseStepController : public ProfileManagementStepController {
       base::OnceClosure step_completed_callback)
       : ProfileManagementStepController(host),
         profile_(profile),
-        step_completed_callback_(std::move(step_completed_callback)) {}
+        step_completed_callback_(std::move(step_completed_callback)) {
+    std::vector<std::unique_ptr<FeatureShowcaseStepEligibilityChecker>>
+        checkers;
+
+    // Register checkers in order of priority (highest first).
+    checkers.push_back(
+        std::make_unique<PasswordManagerFeatureShowcaseEligibilityChecker>());
+    tracker_ = std::make_unique<FeatureShowcaseEligibilityTracker>(
+        std::move(checkers));
+  }
 
   ~FeatureShowcaseStepController() override = default;
 
@@ -433,19 +457,18 @@ class FeatureShowcaseStepController : public ProfileManagementStepController {
             bool reset_state) override {
     CHECK(reset_state);
 
-    if (ShouldSkipStep()) {
-      std::move(step_shown_callback.value()).Run(/*success=*/false);
-      std::move(step_completed_callback_).Run();
+    step_shown_callback_ = std::move(step_shown_callback);
+
+    if (std::optional<std::vector<std::string>> forced_steps =
+            GetForcedStepsFromCommandLine();
+        forced_steps) {
+      OnEligibilityDetermined(*forced_steps);
       return;
     }
 
-    step_shown_callback_ = std::move(step_shown_callback);
-
-    host()->ShowScreenInPickerContents(
-        // TODO(crbug.com/507795442): Represent steps as to-stringable enums and
-        // build the URL based on steps eligibility.
-        BuildFeatureShowcaseURL({"example", "default-browser"}),
-        base::BindOnce(&FeatureShowcaseStepController::OnLoadFinished,
+    tracker_->EvaluateEligibleSteps(
+        *profile_,
+        base::BindOnce(&FeatureShowcaseStepController::OnEligibilityDetermined,
                        weak_ptr_factory_.GetWeakPtr()));
   }
 
@@ -455,15 +478,23 @@ class FeatureShowcaseStepController : public ProfileManagementStepController {
   }
 
  private:
+  void OnEligibilityDetermined(const std::vector<std::string>& eligible_steps) {
+    if (eligible_steps.empty()) {
+      std::move(step_shown_callback_.value()).Run(/*success=*/false);
+      std::move(step_completed_callback_).Run();
+      return;
+    }
+
+    host()->ShowScreenInPickerContents(
+        BuildFeatureShowcaseURL(eligible_steps),
+        base::BindOnce(&FeatureShowcaseStepController::OnLoadFinished,
+                       weak_ptr_factory_.GetWeakPtr()));
+  }
+
   GURL BuildFeatureShowcaseURL(const std::vector<std::string>& steps) {
     GURL url(chrome::kChromeUIFeatureShowcaseURL);
     return net::AppendQueryParameter(url, "steps",
                                      base::JoinString(steps, ","));
-  }
-
-  bool ShouldSkipStep() const {
-    // TODO(crbug.com/507795442): Implement user eligibility checks here.
-    return false;
   }
 
   void OnLoadFinished() {
@@ -491,6 +522,7 @@ class FeatureShowcaseStepController : public ProfileManagementStepController {
   raw_ptr<Profile> profile_;
   base::OnceClosure step_completed_callback_;
   StepSwitchFinishedCallback step_shown_callback_;
+  std::unique_ptr<FeatureShowcaseEligibilityTracker> tracker_;
 
   base::WeakPtrFactory<FeatureShowcaseStepController> weak_ptr_factory_{this};
 };

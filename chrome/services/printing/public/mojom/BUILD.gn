@@ -2,7 +2,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/chromeos/ui_mode.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
 import("//printing/buildflags/buildflags.gni")
 
@@ -42,9 +41,6 @@ mojom("mojom") {
       "//printing/backend/mojom",
       "//printing/mojom:printing_context",
     ]
-    if (is_win) {
-      sources += [ "printer_xml_parser.mojom" ]
-    }
     if (enable_oop_basic_print_dialog) {
       enabled_features += [ "enable_oop_basic_print_dialog" ]
     }

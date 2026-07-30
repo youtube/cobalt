@@ -40,6 +40,7 @@ import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.chrome.R;
+import org.chromium.chrome.browser.back_press.BackPressManager;
 import org.chromium.chrome.browser.composeplate.ComposeplateUtils;
 import org.chromium.chrome.browser.composeplate.ComposeplateUtilsJni;
 import org.chromium.chrome.browser.feed.FeedSurfaceScrollDelegate;
@@ -126,6 +127,7 @@ public class NewTabPageCoordinatorUnitTest {
     @Mock private IdentityManager mIdentityManager;
     @Mock private SigninManager mSigninManager;
     @Mock private SyncService mSyncService;
+    @Mock private BackPressManager mBackPressManager;
 
     private Activity mActivity;
     private NewTabPageLayout mNewTabPageLayout;
@@ -301,7 +303,7 @@ public class NewTabPageCoordinatorUnitTest {
         NtpCustomizationCoordinatorFactory.setInstanceForTesting(factory);
         NtpCustomizationCoordinator customizationCoordinator =
                 mock(NtpCustomizationCoordinator.class);
-        when(factory.create(any(), any(), any(), anyInt(), any(), any()))
+        when(factory.create(any(), any(), any(), anyInt(), any(), any(), any()))
                 .thenReturn(customizationCoordinator);
         assertFalse(NtpCustomizationUtils.isThemeTipBottomSheetShownFromSharedPreference());
 
@@ -335,7 +337,8 @@ public class NewTabPageCoordinatorUnitTest {
                         mSnackbarManager,
                         /* isTablet= */ false,
                         mTabStripHeightSupplier,
-                        mHomeSurfaceTracker);
+                        mHomeSurfaceTracker,
+                        mBackPressManager);
 
         mCoordinator.initialize(
                 mTileGroupDelegate,
@@ -351,5 +354,25 @@ public class NewTabPageCoordinatorUnitTest {
     private void verifyIsHomeSurface(boolean isHomeSurface) {
         assertEquals(isHomeSurface, mCoordinator.isHomeSurface());
         assertNotNull(mCoordinator.getHomeModulesCoordinatorForTesting());
+    }
+
+    @Test
+    public void testSearchBoxAndComposeplateMaxWidthLimit() {
+        NewTabPageLayout layout = mCoordinator.getNewTabPageLayout();
+        int maxSearchBoxWidthPx =
+                mActivity.getResources().getDimensionPixelSize(R.dimen.ntp_search_box_max_width);
+
+        // Set the parent measure width to be significantly larger than the max allowed width
+        // to ensure the unconstrained width (width - margins) is guaranteed to exceed the cap.
+        int measureWidth = maxSearchBoxWidthPx * 10;
+        mCoordinator.onMeasure(measureWidth);
+
+        View searchBoxView = layout.findViewById(R.id.search_box);
+        assertNotNull(searchBoxView);
+        assertEquals(maxSearchBoxWidthPx, searchBoxView.getLayoutParams().width);
+
+        View composeplateView = layout.findViewById(R.id.composeplate_view);
+        assertNotNull(composeplateView);
+        assertEquals(maxSearchBoxWidthPx, composeplateView.getLayoutParams().width);
     }
 }

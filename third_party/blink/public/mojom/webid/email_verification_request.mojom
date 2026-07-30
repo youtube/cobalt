@@ -1,0 +1,71 @@
+// Copyright 2026 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module blink.mojom;
+
+// Represents the fetch result from an email verification request. Should
+// be updated alongside EmailVerificationRequestIssueReason in
+// third_party/blink/public/devtools_protocol/domains/Audits.pdl, which includes
+// all cases except for kSuccess.
+// LINT.IfChange(EmailVerificationRequestResult)
+enum EmailVerificationRequestResult {
+  kSuccess = 0,
+  kInvalidEmail = 1,
+  kDnsFetchFailed = 2,
+  kDnsInvalidRecord = 3,
+  kWellKnownHttpNotFound = 4,
+  kWellKnownNoResponse = 5,
+  kWellKnownInvalidResponse = 6,
+  kWellKnownListEmpty = 7,
+  kWellKnownInvalidContentType = 8,
+  kWellKnownMissingIssuanceEndpoint = 9,
+  kWellKnownIssuanceEndpointCrossOrigin = 10,
+  kWellKnownUnsupportedSigningAlgorithm = 11,
+  kTokenHttpNotFound = 12,
+  kTokenNoResponse = 13,
+  kTokenInvalidResponse = 14,
+  kTokenInvalidContentType = 15,
+  kTokenMalformedSdJwt = 16,
+  kTokenInvalidSdJwt = 17,
+  kKeyBindingSigningFailed = 18,
+  kRpOriginIsOpaque = 19,
+  kWellKnownMissingAccountsEndpoint = 20,
+  kUserLoggedOut = 21,
+  kWellKnownAccountsEndpointCrossOrigin = 22,
+  kAccountsHttpNotFound = 23,
+  kAccountsNoResponse = 24,
+  kAccountsInvalidResponse = 25,
+  kAccountsInvalidContentType = 26,
+  kAccountsEmptyList = 27,
+  kEmailVerificationWellKnownHttpNotFound = 28,
+  kEmailVerificationWellKnownNoResponse = 29,
+  kEmailVerificationWellKnownInvalidResponse = 30,
+  kEmailVerificationWellKnownInvalidContentType = 31,
+  kJwksHttpNotFound = 32,
+  kJwksInvalidResponse = 33,
+  kTokenVerificationSdJwtUnsupportedHeaderAlg = 34,
+  kTokenVerificationSdJwtMissingIss = 35,
+  kTokenVerificationSdJwtMissingIat = 36,
+  kTokenVerificationSdJwtMissingCnf = 37,
+  kTokenVerificationSdJwtMissingEmail = 38,
+  kTokenVerificationSdJwtInvalidIssuedAt = 39,
+  kTokenVerificationSdJwtInvalidIssuer = 40,
+  kTokenVerificationSdJwtJwksMissingKeys = 41,
+  kTokenVerificationSdJwtSignatureFailed = 42,
+  kTokenVerificationSdJwtInvalidEmailVerified = 43,
+  kTokenVerificationSdJwtInvalidEmail = 44,
+  kTokenVerificationSdJwtInvalidHolderKey = 45,
+  kTokenVerificationKbInvalidTyp = 46,
+  kTokenVerificationKbMissingAud = 47,
+  kTokenVerificationKbMissingNonce = 48,
+  kTokenVerificationKbMissingIat = 49,
+  kTokenVerificationKbMissingSdHash = 50,
+  kTokenVerificationKbInvalidIssuedAt = 51,
+  kTokenVerificationKbInvalidAudience = 52,
+  kTokenVerificationKbInvalidNonce = 53,
+  kTokenVerificationKbInvalidSdHash = 54,
+  kTokenVerificationKbMissingCnf = 55,
+  kTokenVerificationKbSignatureFailed = 56,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/blink/enums.xml:EvpRequestStatus)

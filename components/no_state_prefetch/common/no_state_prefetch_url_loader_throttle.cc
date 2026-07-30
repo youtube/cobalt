@@ -60,11 +60,6 @@ void NoStatePrefetchURLLoaderThrottle::WillStartRequest(
     network::ResourceRequest* request,
     bool* defer) {
   request->load_flags |= net::LOAD_PREFETCH;
-  if (!base::FeatureList::IsEnabled(
-          blink::features::kRemovePurposeHeaderForPrefetch)) {
-    request->cors_exempt_headers.SetHeader(
-        blink::kPurposeHeaderName, blink::kSecPurposePrefetchHeaderValue);
-  }
 
   if (base::FeatureList::IsEnabled(
           blink::features::kSecPurposePrefetchHeaderNoStatePrefetch)) {
@@ -129,9 +124,7 @@ void NoStatePrefetchURLLoaderThrottle::WillRedirectRequest(
     net::RedirectInfo* redirect_info,
     const network::mojom::URLResponseHead& response_head,
     bool* defer,
-    std::vector<std::string>* /* to_be_removed_headers */,
-    net::HttpRequestHeaders* /* modified_headers */,
-    net::HttpRequestHeaders* /* modified_cors_exempt_headers */) {
+    network::HttpRequestHeadersUpdateParams* headers_update_params) {
   std::string follow_only_when_prerender_shown_header;
   if (response_head.headers) {
     follow_only_when_prerender_shown_header =

@@ -7,9 +7,9 @@
 
 #include <vector>
 
+#include "base/memory/raw_ptr.h"
 #include "components/webapps/browser/launch_queue/launch_params.h"
 #include "components/webapps/common/web_app_id.h"
-#include "content/public/browser/web_contents_observer.h"
 
 class GURL;
 
@@ -37,7 +37,7 @@ class LaunchQueueDelegate;
 //   the scenario where a user opens a web app via a file handler which provides
 //   a file handle to the app. Without this reload mechanism the page would lose
 //   access to the file handle if the user were to refresh the page.
-class LaunchQueue : public content::WebContentsObserver {
+class LaunchQueue {
  public:
   LaunchQueue(content::WebContents* web_contents,
               std::unique_ptr<LaunchQueueDelegate> delegate);
@@ -45,29 +45,20 @@ class LaunchQueue : public content::WebContentsObserver {
   LaunchQueue(const LaunchQueue&) = delete;
   LaunchQueue& operator=(const LaunchQueue&) = delete;
 
-  ~LaunchQueue() override;
+  ~LaunchQueue();
 
   void Enqueue(LaunchParams launch_params);
 
-  const webapps::AppId* GetPendingLaunchAppId() const;
+  bool IsInScope(const LaunchParams& launch_params, const GURL& url) const;
 
   void FlushForTesting() const;
 
+  void DidFinishNavigation(content::NavigationHandle* handle);
+
  private:
-  // Reset self back to the initial state.
-  void Reset();
-
-  // content::WebContentsObserver:
-  void DidFinishNavigation(content::NavigationHandle* handle) override;
-
-  void SendQueuedLaunchParams(const GURL& current_url);
   void SendLaunchParams(LaunchParams launch_params, const GURL& current_url);
 
-  // Launch params queued up to be sent to the WebContents.
-  std::vector<LaunchParams> queue_;
-
-  // Whether to send the queue of launch params on the next navigation.
-  bool pending_navigation_ = false;
+  raw_ptr<content::WebContents> web_contents_;
 
   // A copy of the last sent launch params ready to resend should the user
   // reload the page.

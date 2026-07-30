@@ -9,6 +9,7 @@
 #import "base/test/ios/wait_util.h"
 #import "components/strings/grit/components_strings.h"
 #import "ios/chrome/browser/browser_content/ui_bundled/edit_menu_app_interface.h"
+#import "ios/chrome/browser/infobars/ui_bundled/banners/infobar_banner_constants.h"
 #import "ios/chrome/browser/popup_menu/public/popup_menu_constants.h"
 #import "ios/chrome/browser/settings/clear_browsing_data/public/quick_delete_constants.h"
 #import "ios/chrome/browser/shared/ui/table_view/table_view_constants.h"
@@ -145,7 +146,7 @@ const int kMaxNumberOfAttemptsAtTypingTextInOmnibox = 3;
   // TODO(crbug.com/41271107): Add logic to ensure the app is in the correct
   // state, for example DCHECK if no tabs are displayed.
   if ([ChromeEarlGrey isChromeNextEnabled] && ![ChromeEarlGrey isIPadIdiom] &&
-      [ChromeEarlGrey isCurrentTabNTP]) {
+      ![ChromeEarlGrey isIncognitoMode] && [ChromeEarlGrey isCurrentTabNTP]) {
     [self openToolsMenuWithMatcher:chrome_test_util::ToolsMenuNTPButton()];
   } else {
     [self openToolsMenuWithMatcher:chrome_test_util::ToolsMenuButton()];
@@ -198,6 +199,18 @@ const int kMaxNumberOfAttemptsAtTypingTextInOmnibox = 3;
 }
 
 - (void)openSettingsMenu {
+  // Dismiss infobar banner if present, as it might cover the tools menu button.
+  NSError* error = nil;
+  [[EarlGrey selectElementWithMatcher:grey_accessibilityID(
+                                          kInfobarBannerViewIdentifier)]
+      assertWithMatcher:grey_sufficientlyVisible()
+                  error:&error];
+  if (!error) {
+    [[EarlGrey selectElementWithMatcher:grey_accessibilityID(
+                                            kInfobarBannerViewIdentifier)]
+        performAction:grey_swipeFastInDirection(kGREYDirectionUp)];
+  }
+
   [self openToolsMenu];
   [self tapToolsMenuButton:SettingsDestinationButton()];
 }
@@ -429,8 +442,33 @@ const int kMaxNumberOfAttemptsAtTypingTextInOmnibox = 3;
 }
 
 - (void)openShareMenu {
+  NSError* error = nil;
+  // In ChromeNext IA, the share button may be hidden on the toolbar in portrait
+  // mode and moved to the overflow menu. Check if it's visible on the toolbar
+  // first, and if not, fall back to opening the tools menu and tapping the
+  // share action there.
+  [[EarlGrey selectElementWithMatcher:chrome_test_util::TabShareButton()]
+      assertWithMatcher:grey_sufficientlyVisible()
+                  error:&error];
+  if (error) {
+    [self openToolsMenu];
+    [self tapToolsMenuAction:chrome_test_util::ButtonWithAccessibilityLabelId(
+                                 IDS_IOS_TOOLS_MENU_SHARE_THIS_PAGE)];
+    return;
+  }
   [[EarlGrey selectElementWithMatcher:chrome_test_util::TabShareButton()]
       performAction:grey_tap()];
+}
+
+- (void)shareCurrentPage {
+  if ([ChromeEarlGrey isChromeNextEnabled] &&
+      ![ChromeEarlGrey isCompactHeight]) {
+    [self openToolsMenu];
+    [self tapToolsMenuAction:chrome_test_util::OverflowMenuShareButton()];
+  } else {
+    [[EarlGrey selectElementWithMatcher:chrome_test_util::TabShareButton()]
+        performAction:grey_tap()];
+  }
 }
 
 - (void)waitForToolbarVisible:(BOOL)isVisible {

@@ -11,6 +11,7 @@ import androidx.annotation.Px;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.ui.side_ui.SideUiCoordinator.AnchorSide;
+import org.chromium.chrome.browser.ui.side_ui.SideUiCoordinator.SideUiId;
 
 /**
  * Container for a side UI view that will be anchored to either the left or right side of the main
@@ -35,6 +36,13 @@ public interface SideUiContainer {
     View getView();
 
     /**
+     * Returns the unique ID assigned to this {@lin SideUiContainer}. The value should be one of the
+     * entries listed in {@link SideUiCoordinator#SideUiId}.
+     */
+    @SideUiId
+    int getSideUiId();
+
+    /**
      * Called by {@link SideUiCoordinator} for this container to determine its final width given the
      * constraints of {@code availableWidth} and {@code windowWidth}.
      *
@@ -55,6 +63,9 @@ public interface SideUiContainer {
     @Px
     int getCurrentWidth();
 
+    /** Returns the container's minimum width (in dp). */
+    int getMinWidthDp();
+
     /** Returns the container's current anchor side. */
     @AnchorSide
     int getAnchorSide();
@@ -66,6 +77,15 @@ public interface SideUiContainer {
      * @param width The new width in px.
      */
     void setWidth(@Px int width);
+
+    /**
+     * Called after the container has been resized. This is called after any animations or static
+     * resizing have completed.
+     *
+     * <p>This can be used by the container to perform post-transition cleanup or trigger subsequent
+     * actions that should only occur after the UI has settled.
+     */
+    void onContainerResized(@Px int containerWidth);
 
     /**
      * Called when a window size change affects this container's visibility.

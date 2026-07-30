@@ -232,6 +232,9 @@ void FontCache::Invalidate() {
   TRACE_EVENT0("fonts,ui", "FontCache::Invalidate");
   font_platform_data_cache_.Clear();
   font_data_cache_.Clear();
+#if BUILDFLAG(IS_MAC)
+  unavailable_font_families_.clear();
+#endif
 
   for (const auto& client : font_cache_clients_) {
     client->FontCacheInvalidated();

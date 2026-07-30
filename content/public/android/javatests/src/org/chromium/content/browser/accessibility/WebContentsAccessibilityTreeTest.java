@@ -168,9 +168,13 @@ public class WebContentsAccessibilityTreeTest {
         performTest(inputFile, expectationFile, BASE_ARIA_FILE_PATH);
     }
 
+    private String removeHtmlSuffix(String input) {
+        // ".html" has length 5.
+        return input.substring(0, input.length() - 5);
+    }
+
     private void performApgPatternTest(String input) {
-        // Remove the '.html' from the input file, and append the standard suffix.
-        performApgPatternTest(input, input.substring(0, input.length() - 5));
+        performApgPatternTest(input, removeHtmlSuffix(input));
     }
 
     private void performApgPatternTest(String inputFile, String expectationFile) {
@@ -178,8 +182,7 @@ public class WebContentsAccessibilityTreeTest {
     }
 
     private void performCssTest(String input) {
-        // Remove the '.html' from the input file, and append the standard suffix.
-        performCssTest(input, input.substring(0, input.length() - 5));
+        performCssTest(input, removeHtmlSuffix(input));
     }
 
     private void performCssTest(String inputFile, String expectationFile) {
@@ -187,8 +190,7 @@ public class WebContentsAccessibilityTreeTest {
     }
 
     private void performHtmlTest(String input) {
-        // Remove the '.html' from the input file, and append the standard suffix.
-        performHtmlTest(input, input.substring(0, input.length() - 5));
+        performHtmlTest(input, removeHtmlSuffix(input));
     }
 
     private void performHtmlTest(String inputFile, String expectationFile) {
@@ -768,6 +770,7 @@ public class WebContentsAccessibilityTreeTest {
 
     @Test
     @SmallTest
+    @DisabledTest(message = "https://crbug.com/517959931")
     public void test_ariaModal() {
         performAriaTest("aria-modal.html");
     }
@@ -1184,12 +1187,6 @@ public class WebContentsAccessibilityTreeTest {
     @SmallTest
     public void test_ariaValuetext() {
         performAriaTest("aria-valuetext.html");
-    }
-
-    @Test
-    @SmallTest
-    public void test_ariaVirtualcontent() {
-        performAriaTest("aria-virtualcontent.html");
     }
 
     @Test
@@ -2435,6 +2432,17 @@ public class WebContentsAccessibilityTreeTest {
     @SmallTest
     public void test_menu() {
         performHtmlTest("menu.html");
+    }
+
+    @Test
+    @SmallTest
+    @MinAndroidSdkLevel(Build.VERSION_CODES.BAKLAVA)
+    @CommandLineFlags.Add({"enable-blink-features=MenuElements"})
+    public void test_menulistInvokerHaspopup() {
+        Assume.assumeTrue(
+                "Requires Android 16 QPR2 (36.1) or higher",
+                Build.VERSION.SDK_INT_FULL >= VERSION_CODES_FULL.BAKLAVA_1);
+        performHtmlTest("menulist-invoker-haspopup.html");
     }
 
     @Test

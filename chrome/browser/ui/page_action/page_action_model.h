@@ -70,7 +70,8 @@ class PageActionModelInterface {
   virtual void SetOverrideImage(
       PageActionPassKey pass_key,
       const std::optional<ui::ImageModel>& override_image,
-      PageActionColorSource color_source) = 0;
+      PageActionColorSource color_source,
+      std::optional<int> animation_resource_id) = 0;
   virtual void SetOverrideTooltip(
       PageActionPassKey pass_key,
       const std::optional<std::u16string>& override_tooltip) = 0;
@@ -84,6 +85,9 @@ class PageActionModelInterface {
   virtual void SetAnchoredMessageIcon(
       PageActionPassKey pass_key,
       const std::optional<ui::ImageModel>& icon) = 0;
+  virtual void SetAnchoredMessageExpandableContent(
+      PageActionPassKey pass_key,
+      std::optional<AnchoredMessageExpandableContent> expandable_content) = 0;
   virtual void SetActionActive(PageActionPassKey pass_key, bool is_active) = 0;
   virtual void SetIsSuppressedByOmnibox(PageActionPassKey pass_key,
                                         bool is_suppressed) = 0;
@@ -91,6 +95,7 @@ class PageActionModelInterface {
                                                bool is_exempt) = 0;
   virtual void SetIsChipShowing(PageActionPassKey pass_key,
                                 bool is_chip_showing) = 0;
+  virtual void SetDidAnimateImage(PageActionPassKey pass_key) = 0;
   virtual void SetIsAnchoredMessageShowing(
       PageActionPassKey pass_key,
       bool is_anchored_message_showing) = 0;
@@ -100,16 +105,20 @@ class PageActionModelInterface {
   virtual bool ShouldShowSuggestionChip() const = 0;
   virtual bool GetShouldAnimateChipOut() const = 0;
   virtual bool GetShouldAnimateChipIn() const = 0;
+  virtual bool GetShouldAnimateImage() const = 0;
   virtual bool GetShouldAnnounceChip() const = 0;
   virtual bool ShouldShowAnchoredMessage() const = 0;
   virtual bool IsAnchoredMessageShowing() const = 0;
   virtual const ui::ImageModel& GetImage() const = 0;
+  virtual int GetImageAnimationResourceId() const = 0;
   virtual const std::u16string& GetText() const = 0;
   virtual const std::u16string& GetTooltipText() const = 0;
   virtual const std::u16string& GetAccessibleName() const = 0;
   virtual const std::u16string& GetAnchoredMessageText() const = 0;
   virtual const std::optional<ui::ImageModel>& GetAnchoredMessageIcon()
       const = 0;
+  virtual const std::optional<AnchoredMessageExpandableContent>&
+  GetAnchoredMessageExpandableContent() const = 0;
   virtual AnchoredMessageActionIconType GetAnchoredMessageActionIconType()
       const = 0;
   virtual ui::SimpleMenuModel* GetAnchoredMessageMenuModel() const = 0;
@@ -159,7 +168,8 @@ class PageActionModel : public PageActionModelInterface {
 
   void SetOverrideImage(PageActionPassKey pass_key,
                         const std::optional<ui::ImageModel>& override_image,
-                        PageActionColorSource color_source) override;
+                        PageActionColorSource color_source,
+                        std::optional<int> animation_resource_id) override;
 
   void SetOverrideTooltip(
       PageActionPassKey pass_key,
@@ -177,6 +187,11 @@ class PageActionModel : public PageActionModelInterface {
       PageActionPassKey pass_key,
       const std::optional<ui::ImageModel>& icon) override;
 
+  void SetAnchoredMessageExpandableContent(
+      PageActionPassKey pass_key,
+      std::optional<AnchoredMessageExpandableContent> expandable_content)
+      override;
+
   void SetActionActive(PageActionPassKey pass_key, bool is_active) override;
 
   void SetIsSuppressedByOmnibox(PageActionPassKey pass_key,
@@ -188,6 +203,8 @@ class PageActionModel : public PageActionModelInterface {
   void SetIsChipShowing(PageActionPassKey pass_key,
                         bool is_chip_showing) override;
 
+  void SetDidAnimateImage(PageActionPassKey pass_key) override;
+
   void SetIsAnchoredMessageShowing(PageActionPassKey pass_key,
                                    bool is_anchored_message_showing) override;
 
@@ -197,11 +214,13 @@ class PageActionModel : public PageActionModelInterface {
   bool ShouldShowSuggestionChip() const override;
   bool GetShouldAnimateChipOut() const override;
   bool GetShouldAnimateChipIn() const override;
+  bool GetShouldAnimateImage() const override;
   bool GetShouldAnnounceChip() const override;
   bool ShouldShowAnchoredMessage() const override;
   bool IsAnchoredMessageShowing() const override;
 
   const ui::ImageModel& GetImage() const override;
+  int GetImageAnimationResourceId() const override;
   const std::u16string& GetText() const override;
   const std::u16string& GetAccessibleName() const override;
   const std::u16string& GetAnchoredMessageText() const override;
@@ -209,6 +228,8 @@ class PageActionModel : public PageActionModelInterface {
       const override;
   ui::SimpleMenuModel* GetAnchoredMessageMenuModel() const override;
   const std::optional<ui::ImageModel>& GetAnchoredMessageIcon() const override;
+  const std::optional<AnchoredMessageExpandableContent>&
+  GetAnchoredMessageExpandableContent() const override;
   const std::u16string& GetTooltipText() const override;
   bool GetActionItemIsShowingBubble() const override;
   bool GetActionActive() const override;
@@ -239,7 +260,8 @@ class PageActionModel : public PageActionModelInterface {
     kAnchoredMessageActionIcon,
     kIsAnchoredMessageShowing,
     kAnchoredMessageIcon,
-    kMaxValue = kAnchoredMessageIcon,
+    kAnchoredMessageExpandableContent,
+    kMaxValue = kAnchoredMessageExpandableContent,
   };
   using PropertySet =
       base::EnumSet<Property, Property::kShowRequested, Property::kMaxValue>;
@@ -285,8 +307,11 @@ class PageActionModel : public PageActionModelInterface {
   // Whether the anchored message is showing.
   bool is_anchored_message_showing_ = false;
 
-  // Wgether the anchored message should be shown.
+  // Whether the anchored message should be shown.
   bool should_show_anchored_message_ = false;
+
+  // Represents whether we animated the image that was shown.
+  bool did_animate_image_ = false;
 
   // Properties taken from ActionItem.
   bool action_item_enabled_ = false;
@@ -300,6 +325,7 @@ class PageActionModel : public PageActionModelInterface {
   // When set, it will always take precedence over `action_item_image_`.
   std::optional<ui::ImageModel> override_image_;
   std::optional<PageActionColorSource> color_source_;
+  std::optional<int> image_animation_resource_id_;
 
   // When set, it will always take precedence over `text_`.
   std::optional<std::u16string> override_text_;
@@ -308,7 +334,11 @@ class PageActionModel : public PageActionModelInterface {
   std::u16string anchored_message_text_;
   // Special anchored message icon. If set, the normal page action icon will not
   // show on the anchored message.
-  std::optional<ui::ImageModel> anchored_message_icon_ = std::nullopt;
+  std::optional<ui::ImageModel> anchored_message_icon_;
+
+  // Optional content that resides on an expandable area of the anchored
+  // message.
+  std::optional<AnchoredMessageExpandableContent> expandable_content_;
 
   // When set, it will always take precedence over `text_` because by default
   // `text_` will be used.

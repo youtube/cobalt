@@ -72,7 +72,6 @@
 #include "cc/metrics/custom_metrics_recorder.h"
 #include "cc/metrics/frame_sequence_metrics.h"
 #include "cc/metrics/frame_sequence_tracker.h"
-#include "cc/metrics/lcd_text_metrics_reporter.h"
 #include "cc/metrics/stub_compositor_frame_reporting_controller.h"
 #include "cc/metrics/submit_info.h"
 #include "cc/paint/display_item_list.h"
@@ -503,7 +502,6 @@ LayerTreeHostImpl::LayerTreeHostImpl(
       id_(id),
       consecutive_frame_with_damage_count_(settings.damaged_frame_limit),
       frame_trackers_(settings.single_thread_proxy_scheduler),
-      lcd_text_metrics_reporter_(LCDTextMetricsReporter::CreateIfNeeded(this)),
       has_input_resetter_(
           GetTaskRunner(),
           base::BindRepeating(&LayerTreeHostImpl::ResetHasInputForFrameInterval,
@@ -1372,6 +1370,8 @@ DrawResult LayerTreeHostImpl::CalculateRenderPasses(FrameData* frame,
       DCHECK(quad->shared_quad_state);
     }
   }
+  DCHECK(settings_.enable_unbounded_element ||
+         frame->unbounded_render_passes.empty());
   for (const auto& render_pass : frame->unbounded_render_passes) {
     for (auto* quad : render_pass->quad_list) {
       DCHECK(quad->shared_quad_state);
@@ -2073,9 +2073,6 @@ void LayerTreeHostImpl::NotifyCompositorMetricsTrackerResults(
 
 void LayerTreeHostImpl::DidNotNeedBeginFrame() {
   frame_trackers_.NotifyPauseFrameProduction();
-  if (lcd_text_metrics_reporter_) {
-    lcd_text_metrics_reporter_->NotifyPauseFrameProduction();
-  }
 }
 
 void LayerTreeHostImpl::ReclaimResources(
@@ -2465,7 +2462,6 @@ viz::CompositorFrameMetadata LayerTreeHostImpl::MakeCompositorFrameMetadata() {
   }
 
   metadata.is_software = GetDrawMode() != DrawMode::DRAW_MODE_HARDWARE;
-  metadata.prefer_efficient_scheduling = prefer_efficient_scheduling_;
 
   return metadata;
 }
@@ -2794,11 +2790,6 @@ std::optional<SubmitInfo> LayerTreeHostImpl::DrawLayers(FrameData* frame) {
   } else if (!mutator_host_->HasViewTransition()) {
     frame_trackers_.StopSequence(
         FrameSequenceTrackerType::kSETMainThreadAnimation);
-  }
-
-  if (lcd_text_metrics_reporter_) {
-    lcd_text_metrics_reporter_->NotifySubmitFrame(
-        frame->origin_begin_main_frame_args);
   }
 
   // Clears the list of swap promises after calling DidSwap on each of them to
@@ -3172,6 +3163,7 @@ viz::CompositorFrame LayerTreeHostImpl::GenerateCompositorFrame(
   if (!frame->unbounded_render_passes.empty() && delegate_) {
     // Unbounded element is not implemented for TreesInViz yet.
     CHECK(!settings_.TreesInVizInClientProcess());
+    CHECK(settings_.enable_unbounded_element);
 
     viz::CompositorFrame unbounded_frame;
     // TODO(508672616): What other uses of `metadata` are relevant to unbounded
@@ -3181,7 +3173,12 @@ viz::CompositorFrame LayerTreeHostImpl::GenerateCompositorFrame(
     unbounded_frame.render_pass_list =
         std::move(frame->unbounded_render_passes);
 
-    populate_resources(unbounded_frame, unbounded_frame.render_pass_list);
+    // TODO(crbug.com/508672616): populate_resources is currently skipped for
+    // unbounded_frame because SubmitUnboundedCompositorFrame has an empty
+    // default implementation and drops the frame. In a later patchset when
+    // the frame is actually submitted to Viz, re-enable this call to ensure
+    // exported resources are properly tracked and returned.
+    // populate_resources(unbounded_frame, unbounded_frame.render_pass_list);
 
     // TODO(508672616): Consider moving this Submit call to
     // LayerTreeHostImpl::DrawLayers where the bounded compositor frame is

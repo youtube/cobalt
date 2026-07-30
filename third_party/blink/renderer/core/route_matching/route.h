@@ -6,6 +6,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_ROUTE_MATCHING_ROUTE_H_
 
 #include "third_party/blink/renderer/core/dom/events/event_target.h"
+#include "third_party/blink/renderer/core/route_matching/navigation_phase.h"
 #include "third_party/blink/renderer/core/route_matching/navigation_preposition.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_vector.h"
 #include "third_party/blink/renderer/platform/heap/member.h"
@@ -35,6 +36,8 @@ class Route : public EventTarget {
         return matches_from_;
       case NavigationPreposition::kTo:
         return matches_to_;
+      case NavigationPreposition::kWith:
+        return matches_with_;
     }
   }
 
@@ -43,18 +46,13 @@ class Route : public EventTarget {
   void AddPattern(URLPattern*);
 
   // Check and update whether or not this route matches anything. Store the
-  // current state. Fire "activate" or "deactivate" events if the match status
-  // changes. Return true if match status changed.
-  bool UpdateMatchStatus(const KURL& previous_url, const KURL& next_url);
+  // current state. Return true if any match status changed, false otherwise.
+  bool UpdateMatchStatus(const KURL& from_url,
+                         const KURL& to_url,
+                         NavigationPhase);
 
-  bool FromOrToMatchesParamInHref(const KURL& from,
-                                  const KURL& to,
-                                  const AtomicString& param,
-                                  const KURL& href) const;
-
-  bool HrefMatchesParam(const KURL& href,
-                        const AtomicString& key,
-                        const AtomicString& expected_value) const;
+  bool URLPatternMatchesURLAndHref(const KURL& active_navigation_url,
+                                   const KURL& href_url) const;
 
  private:
   // EventTarget:
@@ -66,6 +64,7 @@ class Route : public EventTarget {
   bool matches_at_ = false;
   bool matches_from_ = false;
   bool matches_to_ = false;
+  bool matches_with_ = false;
 };
 
 }  // namespace blink

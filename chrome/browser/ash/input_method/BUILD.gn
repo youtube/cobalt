@@ -2,8 +2,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/chromeos/ui_mode.gni")
-
 assert(is_chromeos)
 
 static_library("input_method") {
@@ -187,6 +185,7 @@ static_library("input_method") {
   deps = [
     "//ash/constants",
     "//ash/keyboard/ui",
+    "//ash/strings",
     "//ash/webui/settings/public/constants:mojom",
     "//base:i18n",
     "//build:branding_buildflags",
@@ -347,7 +346,6 @@ source_set("unit_tests") {
     "//base",
     "//base:i18n",
     "//base/test:test_support",
-    "//chrome/app:generated_resources",
     "//chrome/browser",
     "//chrome/browser:global_features",
     "//chrome/browser/ash/browser_delegate:impl",

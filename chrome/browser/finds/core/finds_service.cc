@@ -20,6 +20,7 @@
 #include "chrome/browser/finds/core/finds_features.h"
 #include "chrome/browser/finds/core/finds_metrics.h"
 #include "chrome/browser/finds/core/finds_pref_names.h"
+#include "chrome/browser/finds/core/finds_tab_helper.h"
 #include "chrome/browser/finds/core/finds_utils.h"
 #include "chrome/browser/notifications/scheduler/public/client_overview.h"
 #include "chrome/browser/notifications/scheduler/public/notification_data.h"
@@ -31,7 +32,6 @@
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/history/core/browser/history_service.h"
-#include "components/history/core/browser/history_types.h"
 #include "components/optimization_guide/proto/features/finds.pb.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
@@ -40,6 +40,7 @@
 #include "components/sync/service/sync_service.h"
 #include "components/sync/service/sync_user_settings.h"
 #include "components/unified_consent/pref_names.h"
+#include "content/public/browser/web_contents.h"
 #include "ui/base/l10n/l10n_util.h"
 
 using SuggestionTheme =
@@ -335,8 +336,7 @@ void FindsService::ExecuteModelAndScheduleNotification(
   }
 
   history::QueryOptions options;
-  options.begin_time =
-      base::Time::Now() - GetModelExecutionCooldownDurationTimeDelta();
+  options.begin_time = base::Time::Now() - GetHistoryTimeWindowTimeDelta();
   options.max_count = finds::features::kMaxHistoryEntries.Get();
 
   history_service_->QueryHistory(
@@ -356,16 +356,46 @@ void FindsService::RecordThemeURLVisited(
     return;
   }
 
-  // Increment the theme url visit count for the given theme type and notify
-  // observers if the threshold is met.
+  // Increment the theme url visit count for the given theme type and record
+  // if theme url visit count opt in criteria has been fulfilled.
   theme_url_visit_count_[theme_type]++;
   if (theme_url_visit_count_[theme_type] >=
       finds::features::kThemeUrlVisitCountForOptIn.Get()) {
-    NotifyOptInCriteriaFulfilled(FindsOptInTriggerReason::kThemeUrlVisitCount);
+    theme_opt_in_criteria_fulfilled_ = true;
 
     // Reset the count for the theme type.
     theme_url_visit_count_[theme_type] = 0;
   }
+}
+
+void FindsService::RecordNTPVisited() {
+  if (!IsFindsFeatureAllowedForUser()) {
+    return;
+  }
+
+  if (theme_opt_in_criteria_fulfilled_) {
+    NotifyOptInCriteriaFulfilled(FindsOptInTriggerReason::kThemeUrlVisitCount);
+    theme_opt_in_criteria_fulfilled_ = false;
+  }
+}
+
+bool FindsService::RecordRecentSearchSuggestionClickAndCheckThresholdReached() {
+  omnibox_recent_search_suggestion_click_count_++;
+  if (omnibox_recent_search_suggestion_click_count_ >=
+      features::kOmniboxRecentSearchSuggestionCountThreshold.Get()) {
+    omnibox_recent_search_suggestion_click_count_ = 0;
+    return true;
+  }
+  return false;
+}
+
+void FindsService::RecentSearchSuggestionCountForOptInReached() {
+  if (!IsFindsFeatureAllowedForUser()) {
+    return;
+  }
+
+  NotifyOptInCriteriaFulfilled(
+      FindsOptInTriggerReason::kOmniboxRecentSearchSuggestionCount);
 }
 
 void FindsService::SRPBackNavigationCountForOptInReached() {

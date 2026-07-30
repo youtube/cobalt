@@ -85,6 +85,7 @@ std::string_view OmniboxPopupFullPresenter::GetPopupMetricPrefix() const {
 }
 
 void OmniboxPopupFullPresenter::WidgetDestroyed() {
+  widget_observation_.Reset();
   // Update the popup state manager if widget was destroyed externally, e.g., by
   // the OS. This ensures the popup state manager stays in sync.
   if (controller()->popup_state_manager()->popup_state() ==
@@ -109,6 +110,10 @@ bool OmniboxPopupFullPresenter::ShouldDetachWebContentsOnHide() const {
       omnibox::kOmniboxAimDetachWebContentsOnHide);
 }
 
+bool OmniboxPopupFullPresenter::ShouldUseWebContentHeight() const {
+  return true;
+}
+
 void OmniboxPopupFullPresenter::OnWidgetActivationChanged(views::Widget* widget,
                                                           bool active) {
   if (!active &&
@@ -124,6 +129,10 @@ void OmniboxPopupFullPresenter::OnWidgetActivationChanged(views::Widget* widget,
         return;
       }
     }
+
+    controller()->client()->FocusWebContents();
+    controller()->edit_model()->SetCaretVisibility(false);
+
     controller()->popup_state_manager()->SetPopupState(
         OmniboxPopupState::kNone);
   }

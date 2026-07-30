@@ -125,8 +125,6 @@ bool IsNewTabGridTransitionsEnabled() {
   return base::FeatureList::IsEnabled(kTabGridNewTransitions);
 }
 
-BASE_FEATURE(kTabGroupInOverflowMenu, base::FEATURE_DISABLED_BY_DEFAULT);
-
 BASE_FEATURE(kTabSwitcherOverflowMenu, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kContextualPanelForceShowEntrypoint,
@@ -653,6 +651,8 @@ BASE_FEATURE(kIOSMiniMapUniversalLink, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kIOSMiniMapUniversalLinkCounterfactual,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kIOSMiniMapLinkifiedAddress, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsNotificationCollisionManagementEnabled() {
   return base::FeatureList::IsEnabled(kNotificationCollisionManagement);
@@ -1201,7 +1201,7 @@ bool IsAskAboutThisPageEnabled() {
 }
 
 BASE_FEATURE(kGridMediatorSnapshotUpdateBatchGuard,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 bool IsGridMediatorSnapshotUpdateBatchGuardEnabled() {
   return base::FeatureList::IsEnabled(kGridMediatorSnapshotUpdateBatchGuard);
@@ -1293,4 +1293,10 @@ BASE_FEATURE(kIOSDarkModeDetection, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsIOSDarkModeDetectionEnabled() {
   return base::FeatureList::IsEnabled(kIOSDarkModeDetection);
+}
+
+BASE_FEATURE(kIdentityAwareness, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsIdentityAwarenessEnabled() {
+  return base::FeatureList::IsEnabled(kIdentityAwareness);
 }

@@ -250,8 +250,9 @@ class NavigationCapturingProcess
   // attached to a `NavigationHandle`, also creates or updates the
   // `WebAppLaunchNavigationHandleUserData` for that handle. A nullopt `app_id`
   // will cause the launch data to be cleared.
-  void SetLaunchedAppId(std::optional<webapps::AppId> app_id,
-                        bool force_iph_off = false);
+  void SetLaunchedAppIdAndUpdateLaunchParams(
+      std::optional<webapps::AppId> app_id,
+      bool force_iph_off = false);
 
   // Returns true if `initial_nav_handling_result_` is one of the values where
   // the navigation was captured by an app.
@@ -316,7 +317,7 @@ class NavigationCapturingProcess
   // Debug information persisted to chrome://web-app-internals on destruction of
   // this class.
   base::DictValue debug_data_;
-  std::optional<int64_t> navigation_handle_id_ = std::nullopt;
+  std::optional<int64_t> navigation_handle_id_;
 
   // Stores the exact time when the navigation capturing process starts
   // "handling" the current navigation when asked from Navigate().

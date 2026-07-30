@@ -179,17 +179,17 @@
     Test address from <ph name="ENTRY_VOICEOVER">$1<ex>United states</ex></ph> selected.
   </message>
 
-  <message name="IDS_AUTOFILL_EMAIL_VERIFIER_PROMPT_TITLE" desc="Title of the prompt asking user to verify their email." translateable="false">
-    Allow <ph name="DOMAIN">$1<ex>example.com</ex></ph> to verify this email automatically?
+  <message name="IDS_AUTOFILL_EMAIL_VERIFIER_PROMPT_TITLE" desc="Title of the prompt asking user to verify their email.">
+    Verify this email automatically?
   </message>
-  <message name="IDS_AUTOFILL_EMAIL_VERIFIER_PROMPT_BODY" desc="Body of the prompt asking user to verify their email. $1 is the issuer domain (e.g., gmail.com) and $2 is the email address." translateable="false">
-    <ph name="DOMAIN">$1<ex>example.com</ex></ph> can confirm <ph name="EMAIL">$2<ex>foo@example.com</ex></ph> on supported sites so you don't have to check your inbox.
+  <message name="IDS_AUTOFILL_EMAIL_VERIFIER_PROMPT_BODY" desc="Body of the prompt asking user to verify their email. $1 is the issuer domain (e.g., gmail.com) and $2 is the email address.">
+    While you're signed in, <ph name="DOMAIN">$1<ex>example.com</ex></ph> can confirm <ph name="EMAIL">$2<ex>foo@example.com</ex></ph> on supported sites so you don't have to check your inbox
   </message>
 
-  <message name="IDS_AUTOFILL_EMAIL_VERIFIER_PROMPT_ALLOW" desc="Label for the allow button in the email verification prompt." translateable="false">
-    Allow
+  <message name="IDS_AUTOFILL_EMAIL_VERIFIER_PROMPT_VERIFY" desc="Label for the allow button in the email verification prompt.">
+    Verify
   </message>
-  <message name="IDS_AUTOFILL_EMAIL_VERIFIER_PROMPT_NOT_NOW" desc="Label for the not now button in the email verification prompt." translateable="false">
+  <message name="IDS_AUTOFILL_EMAIL_VERIFIER_PROMPT_NOT_NOW" desc="Label for the not now button in the email verification prompt.">
     Not now
   </message>
 
@@ -395,6 +395,15 @@
   </message>
   <message name="IDS_AUTOFILL_ADDRESSES_SETTINGS_SUBLABEL" desc="Description shown below the link to the Autofill settings page for managing addresses and more." translateable="false">
     Phone numbers, email addresses, shipping addresses, and plus addresses
+  </message>
+  <message name="IDS_AUTOFILL_SETTINGS_EMAIL_VERIFICATION_LABEL" desc="Label for a toggle that allows users to control whether email addresses should be automatically confirmed on supported sites.">
+    Automatically confirm your emails
+  </message>
+  <message name="IDS_AUTOFILL_SETTINGS_EMAIL_VERIFICATION_SECTION_TITLE" desc="Title for the email verification section in settings.">
+    Verified Email
+  </message>
+  <message name="IDS_AUTOFILL_SETTINGS_EMAIL_VERIFICATION_EMPTY_LABEL" desc="Label shown when no verified email addresses are stored.">
+    Verified email addresses will appear here
   </message>
   <!-- TODO(crbug.com/447113309): will no longer be used for title, update desc -->
   <message name="IDS_AUTOFILL_PAYMENT_METHODS" desc="Title for the list of saved payment methods that can be used to fill in forms. Also used as the title for the Autofill settings page that allows user to manage their list of saved payment methods and Autofill preferences for payment methods. Sentence-Cased." formatter_data="android_java">
@@ -629,6 +638,10 @@
   <message name="IDS_AUTOFILL_IDENTITY_DOCS_TITLE" desc="Title for the Your saved info settings sub page that allows user to manage their list of saved identity documents. Sentence-Cased." formatter_data="android_java">
     Identity docs
   </message>
+  <!-- TODO(crbug.com/498115758): Make Shopping strings translatable and add to Android and iOS. -->
+  <message name="IDS_AUTOFILL_SHOPPING_TITLE" desc="Title for the Your saved info settings sub page that allows user to manage their list of saved shopping items. Sentence-Cased." formatter_data="android_java" translateable="false">
+    Shopping
+  </message>
   <message name="IDS_AUTOFILL_TRAVEL_TITLE" desc="Title for the Your saved info settings sub page that allows user to manage their list of saved travel info. Sentence-Cased." formatter_data="android_java">
     Travel
   </message>
@@ -644,12 +657,15 @@
   <message name="IDS_AUTOFILL_IDENTITY_DOCS_OPT_IN_TOGGLE_SUB_LABEL" desc="Sub-label for a toggle allowing users to opt into Enhanced Autofill for identity docs. Sentence-Cased." formatter_data="android_java">
     Includes information such as passports and driver's licenses
   </message>
-  <!-- TODO(crbug.com/498115758): Make Shopping strings translatable and add to Android and iOS. -->
-  <if expr="not is_android and not is_ios">
-    <message name="IDS_AUTOFILL_SHOPPING_TITLE" desc="Title for the Your saved info settings sub page that allows user to manage their list of saved shopping info. Sentence-Cased." formatter_data="android_java" translateable="false">
-      Shopping
-    </message>
-  </if>
+
+  <!-- TODO(crbug.com/498115758): Make this string translateable. -->
+  <message name="IDS_AUTOFILL_SHOPPING_OPT_IN_TOGGLE_LABEL" desc="Label for a toggle allowing users to opt into Enhanced Autofill for shopping-related data types. Sentence-Cased." formatter_data="android_java" translateable="false">
+    Fill shopping info
+  </message>
+  <!-- TODO(crbug.com/498115758): Make this string translateable. -->
+  <message name="IDS_AUTOFILL_SHOPPING_OPT_IN_TOGGLE_SUB_LABEL" desc="Sub-label for a toggle allowing users to opt into Enhanced Autofill for shopping-related data types. Sentence-Cased." formatter_data="android_java" translateable="false">
+    Includes information such as orders and shipments
+  </message>
 
   <!-- Autofill and passwords entry point summaries - mobile only -->
   <if expr="is_android">
@@ -667,6 +683,10 @@
     </message>
     <message name="IDS_AUTOFILL_AND_PASSWORDS_TRAVEL_SUMMARY" desc="Summary for the Travel entry in the Autofill and passwords settings." formatter_data="android_java">
       Travel info · Vehicles
+    </message>
+    <!-- TODO(crbug.com/498115758): Make Shopping strings translatable and add to Android and iOS. -->
+    <message name="IDS_AUTOFILL_AND_PASSWORDS_SHOPPING_SUMMARY" desc="Summary for the Shopping entry in the Autofill and passwords settings." formatter_data="android_java" translateable="false">
+      Orders · Shipments
     </message>
     <message name="IDS_AUTOFILL_AND_PASSWORDS_SETTINGS_SUMMARY" desc="Summary for the Settings entry in the Autofill and passwords settings." formatter_data="android_java">
       Change autofill provider and other settings
@@ -766,12 +786,7 @@
     <message name="IDS_PASSWORD_MANAGER_UI_PASSWORD_RECOVERY_SHOWN_A11Y_ANNOUNCEMENT" is_accessibility_with_no_ui="true" desc="Text announced after a proactive password recovery popup is shown">
       Recovery password shown
     </message>
-    <message name="IDS_AUTOFILL_SHOPPING_OPT_IN_TOGGLE_LABEL" desc="Label for a toggle allowing users to opt into Enhanced Autofill for shopping-related data types. Sentence-Cased." formatter_data="android_java" translateable="false">
-      Fill shopping info
-    </message>
-    <message name="IDS_AUTOFILL_SHOPPING_OPT_IN_TOGGLE_SUB_LABEL" desc="Sub-label for a toggle allowing users to opt into Enhanced Autofill for shopping-related data types. Sentence-Cased." formatter_data="android_java" translateable="false">
-      Includes information such as orders and shipments
-    </message>
+
     <message name="IDS_AUTOFILL_AI_SAVE_OR_UPDATE_LOCAL_ENTITY_SOURCE_NOTICE" desc="A description that appears beneath the entity details notifying the user that their data is going to be stored locally on device.">
       Your info is saved to your device
     </message>
@@ -804,6 +819,9 @@
   </message>
   <message name="IDS_AUTOFILL_AT_MEMORY_NO_CONNECTION" desc="Message shown when @memory search fails to connect to the server." translateable="false">
     No server connection
+  </message>
+  <message name="IDS_AUTOFILL_AT_MEMORY_SEARCH_AFFORDANCE_SUBTITLE" desc="Subtitle of the AtMemory search trigger affordance." translateable="false">
+    Find and fill info with Gemini
   </message>
   <message name="IDS_AUTOFILL_AT_MEMORY_UNSUPPORTED_QUERY_TITLE" desc="Title for the suggestion shown when the query is unsupported by @memory." translateable="false">
     Couldn't find this info

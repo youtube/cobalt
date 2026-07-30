@@ -467,13 +467,6 @@ Si la inhabilitas o no la estableces, el restablecimiento completo de la configu
 <translation id="1340053691042184658">No permitir los accesos con la navegación como invitado</translation>
 <translation id="1342918903685430097">Configurar la versión mínima permitida de <ph name="PRODUCT_OS_NAME" /> para el dispositivo.</translation>
 <translation id="1343128241903870688">Inhabilitar los informes de apps del dispositivo</translation>
-<translation id="1347198119056266798">Esta política es obsoleta; usa las políticas <ph name="FORCE_GOOGLE_SAFE_SEARCH_POLICY_NAME" /> y <ph name="FORCE_YOUTUBE_RESTRICT_POLICY_NAME" /> en su lugar. Se ignorará esta política si se configuran las políticas <ph name="FORCE_GOOGLE_SAFE_SEARCH_POLICY_NAME" />, <ph name="FORCE_YOUTUBE_RESTRICT_POLICY_NAME" /> o <ph name="FORCE_YOUTUBE_SAFETY_MODE_POLICY_NAME" /> (obsoleta).
-
-      Esta configuración aplica el uso de la función SafeSearch para las consultas en Búsqueda web de Google y evita que los usuarios puedan cambiarla. Además, aplica el modo restringido moderado en YouTube.
-
-      Si habilitas esta configuración, SafeSearch en Búsqueda de Google y el modo restringido moderado en YouTube estarán activos siempre.
-
-      Si inhabilitas esta configuración o no estableces un valor, no se aplicarán SafeSearch en la Búsqueda de Google ni el modo restringido moderado en YouTube.</translation>
 <translation id="134745581157553029">Si estableces la política "DeviceArcDataSnapshotHours", se podrán tomar instantáneas de los datos de ARC. Además, se podrá definir que se actualicen de forma automática las instantáneas de los datos de ARC en los intervalos de tiempo definidos. Si se inicia un intervalo, se requiere la actualización de la instantánea de los datos de ARC y no accedió ningún usuario, comenzará la actualización de la instantánea sin que se notifique al usuario. Si hay una sesión de usuario activa, el usuario verá la notificación de la IU y deberá aceptarla para que se reinicie el dispositivo y comience el proceso de actualización de la instantánea de los datos de ARC. Nota: Durante el proceso de actualización, no se podrá usar el dispositivo.</translation>
 <translation id="1348603614848418219">Deshabilitar la migración de los dispositivos administrados por <ph name="MS_AD_NAME" /> a la administración en la nube</translation>
 <translation id="1352799151662469739">El período sin intervención del usuario después del cual se bloquea la pantalla cuando el dispositivo está funcionando con CA (en milisegundos).</translation>
@@ -1470,7 +1463,6 @@ Nota: Si bloqueas las URLs internas chrome://* y chrome-untrusted://*, es posibl
 <translation id="1963986268950915756">Habilitar la instalación de apps web por parte de los usuarios desde el navegador</translation>
 <translation id="1964191545419036999">Galería (compatible a partir de la versión 117)</translation>
 <translation id="1964634611280150550">Modo incógnito inhabilitado</translation>
-<translation id="1964802606569741174">Esta política no tiene efecto en la app de YouTube de Android. Si se debe aplicar el modo de seguridad en YouTube, se debe inhabilitar la instalación de la app de YouTube de Android.</translation>
 <translation id="1964985353230379667">Especifica la configuración sugerida de <ph name="KRB5_CONFIG" /> para los nuevos tickets creados manualmente.
 
       Si habilitas la política "KerberosUseCustomPrefilledConfig", su valor se aplicará como la configuración sugerida y se mostrará en la sección "Configuración avanzada" del diálogo de autenticación de Kerberos. Si estableces esta política como una cadena vacía o no la estableces, se borrará la configuración recomendada de <ph name="PRODUCT_OS_NAME" />.
@@ -1838,7 +1830,6 @@ Esta política es una medida temporal y se quitará después de la versión 145 
 
       Para obtener más información sobre la Navegación segura, consulta https://support.google.com/chrome?p=safe_browsing_preferences.</translation>
 <translation id="2177696016354404697">Inhabilitar siempre la pantalla de privacidad</translation>
-<translation id="2178899310296064282">Aplicar al menos el modo restringido moderado en YouTube</translation>
 <translation id="2180260434916939385">Permitir AI History Search y mejorar los modelos de IA.</translation>
 <translation id="2180795125410219364">Inhabilitar la configuración de Inicio/Fin</translation>
 <translation id="2180958780733364832">Controlar el uso del modo sin interfaz gráfica</translation>
@@ -2230,6 +2221,7 @@ Si estableces esta política, el usuario no podrá anular el valor.
 
 Si no la estableces, inicialmente se inhabilitará la pantalla de privacidad, pero el usuario podrá controlarla.</translation>
 <translation id="2413899611035194909">Mostrar las opciones de accesibilidad en el menú de la bandeja del sistema de la pantalla de acceso</translation>
+<translation id="2414712434655365347">Configurar la inyección de encabezados HTTP para patrones de URL específicos</translation>
 <translation id="2415715982424988916">Explorar (compatible a partir de la versión 91)</translation>
 <translation id="2420958105721932612">Especifica cómo se instala una app. AVAILABLE: La app no se instalará de manera automática, pero el usuario puede instalarla. Esta es la configuración predeterminada si no se especifica esta política. FORCE_INSTALLED: La app se instalará de manera automática y el usuario no podrá desinstalarla. BLOCKED: La app estará bloqueada y no se podrá instalar. Si la app se instaló conforme a una política previa, se desinstalará.</translation>
 <translation id="2421400544595297401">No permitir que los usuarios no afiliados utilicen apps para Android</translation>
@@ -2991,6 +2983,7 @@ Esta política solo se puede establecer como política del usuario basada en la 
 <translation id="2853757230661166968">Permite que las apps capturen y anulen las combinaciones de teclas predeterminadas del sistema.</translation>
 <translation id="285480231336205327">Habilitar el modo de contraste alto</translation>
 <translation id="285627849510728211">Establecer la configuración para el modo avanzado de carga de la batería durante el día</translation>
+<translation id="2856348870384508185">Inhabilitar las sugerencias de Chrome</translation>
 <translation id="2856932965866813330">Habilitar el uso compartido de credenciales de usuario con otros usuarios</translation>
 <translation id="28600673996840076">Permitir la personalización de la imagen de avatar del usuario desde la foto de perfil de Google o las imágenes locales</translation>
 <translation id="2864207379891420023">Configurar la lista de entidades permitidas para la instalación de extensiones</translation>
@@ -3102,6 +3095,7 @@ Los niveles de complejidad se basan en las métricas de calidad de contraseñas 
 
 Consulta el artículo del Centro de ayuda para obtener explicaciones detalladas de lo que implica cada nivel para los PIN y las contraseñas.</translation>
 <translation id="2926813071464307947">Inhabilitar la zona de pruebas del contenedor de la app del renderizador</translation>
+<translation id="2930792103747180259">Inhabilitado: Se permite Background Fetch de los service workers sin restricciones.</translation>
 <translation id="2931888116345994552">Si habilitas la política o no la estableces, se permitirán las actualizaciones de todos los componentes de <ph name="PRODUCT_NAME" />.
 
       Si la inhabilitas, no se permitirán las actualizaciones. Sin embargo, algunos componentes están exceptuados de esta política: no se inhabilitarán las actualizaciones de componentes que no contengan código ejecutable y que sean fundamentales para la seguridad del navegador.
@@ -3217,6 +3211,7 @@ Esta política es temporal y se quitará en el futuro.</translation>
 <translation id="2976033779241323433">Habilitar el teclado virtual táctil según la heurística predeterminada del sistema</translation>
 <translation id="2976429807269247880">Configuración del comportamiento de las cookies <ph name="ATTRIBUTE_SAMESITE_NAME" /> heredadas</translation>
 <translation id="2979696534869541158">Forzar la implementación anterior</translation>
+<translation id="2984696342503554732">Habilitado: Se restringe Background Fetch de los service workers.</translation>
 <translation id="2985927503455169394">Usa el modo predeterminado de la experiencia de integración del Asistente</translation>
 <translation id="2987155890997901449">Habilitar ARC</translation>
 <translation id="2987227569419001736">Controlar el uso de la API de Bluetooth web</translation>
@@ -4162,6 +4157,21 @@ Si habilitas la política, SwiftShader se usará como resguardo de software de W
 Si inhabilitas la política o no la estableces, es posible que falle la creación de contexto de WebGL si la aceleración de GPU de hardware no está disponible. Es posible que las páginas web no funcionen correctamente si no controlan bien el error de creación de contexto de WebGL.
 
 Se trata de una política temporal que se quitará en el futuro.</translation>
+<translation id="3607939601300521364">Controla si el agente de <ph name="GEMINI_SPARK_PRODUCT_NAME" /> puede conectarse a <ph name="PRODUCT_NAME" /> y usar la navegación automática.
+
+0 = <ph name="GEMINI_SPARK_PRODUCT_NAME" /> tiene permiso para conectarse a la navegación automática de <ph name="PRODUCT_NAME" /> y usarla
+
+1 = <ph name="GEMINI_SPARK_PRODUCT_NAME" /> no tiene permiso para conectarse a la navegación automática de <ph name="PRODUCT_NAME" /> ni usarla
+
+Advertencia: Si habilitas la conexión de <ph name="GEMINI_SPARK_PRODUCT_NAME" /> a <ph name="PRODUCT_NAME" /> y el uso de la navegación automática, el agente de <ph name="GEMINI_SPARK_PRODUCT_NAME" /> podrá realizar acciones autónomas de varios pasos en los clientes de <ph name="PRODUCT_NAME" /> con la sesión de navegador activa. Esto implica riesgos de seguridad significativos, incluidos los riesgos de credenciales, la entrada de red local y la pérdida de señales con reconocimiento de contexto. Es posible que no se respeten los controles de administración y seguridad existentes.
+
+Se recomienda a los administradores que evalúen cuidadosamente el modelo de amenazas de red, el cumplimiento y los lineamientos de privacidad de su organización antes de habilitar esta función.
+
+Esta política no tiene efecto cuando se inhabilitan la app de <ph name="GOOGLE_GEMINI_PRODUCT_NAME" /> o las políticas de navegación automática de <ph name="PRODUCT_NAME" />. Por ejemplo, la política <ph name="GEMINI_SETTINGS_POLICY_NAME" /> puede inhabilitar la app de <ph name="GOOGLE_GEMINI_PRODUCT_NAME" />. Para obtener más información sobre <ph name="GOOGLE_GEMINI_PRODUCT_NAME" /> en <ph name="PRODUCT_NAME" />, consulta https://support.google.com/chrome/a?p=gemini_in_chrome.
+
+La navegación automática de <ph name="PRODUCT_NAME" /> y <ph name="GEMINI_SPARK_PRODUCT_NAME" /> no están disponibles en todos los países ni en todos los idiomas. Si estableces esta política con el valor "0" (habilitada), no se garantiza que se habilitará la función, ya que sigue sujeta a la disponibilidad. Para obtener más información sobre el lanzamiento, consulta las notas de la versión de Enterprise: https://chromeenterprise.google/resources/release-notes/
+
+Si no se establece la política, su comportamiento se determina mediante la política <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" />.</translation>
 <translation id="3608206578291537084">Habilitar la canalización de informes encriptados</translation>
 <translation id="3608281460204780443">Mostrar el ícono de Chrome Web Store en el selector <ph name="PRODUCT_OS_NAME" /> y en la página de la nueva pestaña</translation>
 <translation id="3612482251405108708">Iniciar la reautenticación en línea de forma automática en la pantalla de bloqueo</translation>
@@ -4195,15 +4205,6 @@ Esta política siempre será válida para <ph name="PRODUCT_OS_NAME" />.</transl
 <translation id="3647212518036289905">Si estableces la política, esta especificará qué biblioteca GSSAPI se debe usar para la autenticación HTTP. Puedes establecerla asignándole un nombre de biblioteca o una ruta completa.
 
       Si no estableces la política, <ph name="PRODUCT_NAME" /> usará un nombre de biblioteca predeterminado.</translation>
-<translation id="3647756189889410780">https://github.com/WICG/service-worker-auto-preload
-La función ServiceWorkerAutoPreload envía una solicitud de red para un recurso principal al mismo tiempo que inicia el proceso de inicio de ServiceWorker.
-
-Si habilitas la política o no la estableces,
-<ph name="PRODUCT_NAME" /> habilitará ServiceWorkerAutoPreload. La solicitud de navegación se envía automáticamente cuando se inicia ServiceWorker en algunos casos, p. ej., cuando ServiceWorker no se está ejecutando.
-
-Si se inhabilita esta política, <ph name="PRODUCT_NAME" /> no habilitará ServiceWorkerAutoPreload. La solicitud de navegación siempre se envía después de iniciar ServiceWorker.
-
-Esta política es una medida temporal para controlar la función y se quitará en la versión M144.</translation>
 <translation id="3650122925429054129">Inhabilitar la función para resaltar el cursor en la pantalla de acceso</translation>
 <translation id="365093517647222762">Informa datos de telemetría de sitios web para las URLs permitidas que se especifican en la política <ph name="REPORT_WEBSITE_TELEMETRY_ALLOWLIST_POLICY_NAME" /> para los usuarios afiliados.
 
@@ -5232,6 +5233,7 @@ Esta es una capa de control adicional que se encuentra debajo de la capa de perm
 Los usuarios no pueden anular la selección de administrador. Si no estableces la política, los usuarios disfrutarán de la experiencia del consumidor, es decir, podrán modificar libremente la configuración de ubicación del sistema, si el valor predeterminado es <ph name="GLS_ALLOWED" />.
 
 Nota: Esta política da de baja la política <ph name="ARC_GLS_POLICY_NAME" />. Además, si estableces esta política, <ph name="DEFAULT_GEO_SETTING_POLICY_NAME" /> ya no afectará la preferencia de ubicación de <ph name="ANDROID_NAME" /> en <ph name="PRODUCT_OS_NAME" />.</translation>
+<translation id="4340826578810728651">Permitir que <ph name="GEMINI_SPARK_PRODUCT_NAME" /> se conecte a la navegación automática de <ph name="PRODUCT_NAME" /> y la use</translation>
 <translation id="4341199399451274159">Si activas <ph name="DEFAULT_SEARCH_PROVIDER_ENABLED_POLICY_NAME" />, establecer <ph name="DEFAULT_SEARCH_PROVIDER_ENCODINGS_POLICY_NAME" /> especificará la codificación de caracteres que admite el proveedor de búsqueda. Las codificaciones son nombres de página de código como UTF-8, GB2312 y ISO-8859-1. Estos se prueban en el orden establecido.
 
       Si no estableces <ph name="DEFAULT_SEARCH_PROVIDER_ENCODINGS_POLICY_NAME" />, se utilizará UTF-8.</translation>
@@ -5490,7 +5492,6 @@ Esta política está limitada a 1,000 entradas.</translation>
 <translation id="4510923771103268849">El usuario tiene acceso con permisos de administrador a los contenedores de Crostini</translation>
 <translation id="4511848671760711978">Impedir que los profesores vean de forma remota las pantallas de los estudiantes.</translation>
 <translation id="4512407512989846472">No permitir la copia al portapapeles en URLs específicas</translation>
-<translation id="4513691822411041977">No forzar el uso de SafeSearch en la Búsqueda de Google ni en el modo restringido de YouTube</translation>
 <translation id="4515404363392014383">Habilita la Navegación segura para las fuentes de confianza</translation>
 <translation id="4517327050150780380">Configuración de la función Ayúdame a leer</translation>
 <translation id="4518251772179446575">Preguntar siempre si un sitio quiere rastrear la ubicación física de los usuarios.</translation>
@@ -6002,6 +6003,13 @@ Si la inhabilitas, no se le mostrará la promoción para la extensión del Prove
 <translation id="4789450349513792856">Bloquear ventanas emergentes en estos sitios</translation>
 <translation id="4790391579868456557">Usar cookies esenciales y no esenciales en la búsqueda</translation>
 <translation id="4790588245699320140">Permitir que Asistente de Google acceda al contexto en pantalla</translation>
+<translation id="4797001637482545491">Este parámetro de configuración permite que Chrome sugiera funciones potenciadas por IA en momentos pertinentes.
+
+0 o no establecido = Las sugerencias de Chrome estarán habilitadas para los usuarios.
+
+1 = Las sugerencias de Chrome están inhabilitadas para los usuarios.
+
+Para obtener más información, consulta el artículo del Centro de ayuda: https://support.google.com/chrome/a?p=chrome_suggestions</translation>
 <translation id="4799820756794591883">TLS 1.3 Early Data es una extensión de TLS 1.3 para enviar una solicitud HTTP en simultáneo con el protocolo de enlace TLS.
 
       Si configuras la política, <ph name="PRODUCT_NAME" /> seguirá el proceso de lanzamiento predeterminado para TLS 1.3 Early Data.
@@ -6157,6 +6165,7 @@ Si no la estableces, <ph name="PRODUCT_NAME" /> seguirá el proceso de lanzamien
       - Si la estableces como <ph name="SKIP_TOS_DIALOG" />, las funciones del navegador estarán limitadas.
 
       - Si la estableces como <ph name="SKIP_TOS_DIALOG" />, los administradores deberán comunicárselo a los usuarios finales del dispositivo.</translation>
+<translation id="4896469165628792802"><ph name="GEMINI_SPARK_PRODUCT_NAME" /> tiene permiso para conectarse y usar la navegación automática de <ph name="PRODUCT_NAME" />.</translation>
 <translation id="489760181463331251">Esta política cambia el nivel de ahorro del Ahorro de memoria.
 
 Esto solo se aplica cuando el Ahorro de memoria está habilitado en la configuración o a través de la política <ph name="HIGH_EFFICIENCY_MODE_ENABLED_POLICY_NAME" />, y afectará la forma en que se usan las heurísticas para determinar cuándo descartar las pestañas. Por ejemplo, reducir la vida útil de una pestaña inactiva antes de descartarla puede ahorrar memoria, pero también significa que las pestañas se volverán a cargar con más frecuencia, lo que puede generar una mala experiencia del usuario y generar más tráfico de red.
@@ -6686,13 +6695,6 @@ política mientras se esté ejecutando el navegador.</translation>
 <translation id="5182483318861266793">Ubicar la biblioteca en el lado derecho de la pantalla</translation>
 <translation id="51859390023061147">Inhabilitar la función de restauración completa</translation>
 <translation id="5189360528842591274">Permitir la conexión solo con los servicios de Bluetooth que se especifican en la lista</translation>
-<translation id="5190426551516379357">Si estableces la política, se aplicará un Modo restringido mínimo en YouTube, y se impedirá que los usuarios seleccionen un modo menos restringido. Según el comportamiento buscado, establece alguno de los siguientes valores para esta política.
-
-      * Estricto: el modo restringido estricto estará siempre activo en YouTube.
-
-      * Moderado: el usuario podrá elegir entre el Modo restringido moderado y estricto en YouTube, pero no podrá desactivar el Modo restringido.
-
-      * Desactivado (o no estableces ningún valor): Chrome no aplicará el modo restringido en YouTube. Sin embargo, es posible que las políticas externas, como las de YouTube, apliquen el modo restringido.</translation>
 <translation id="5191007233343702012">Usar la priorización de pestañas estándar</translation>
 <translation id="5191476996923842491">Comportamiento predeterminado para la restricción de la función setTimeout().</translation>
 <translation id="519247340330463721">Configura las políticas relacionadas con la Navegación segura.</translation>
@@ -7022,6 +7024,7 @@ A partir de la versión 92 de <ph name="PRODUCT_NAME" />, esta política tambié
 Si el valor se establece como verdadero o no se establece, los profesores seleccionados pueden subtitular su voz y enviar la transcripción a los estudiantes.
 
 Si se establece como falsa, no podrán acceder a la función.</translation>
+<translation id="5377484655498931153"><ph name="GEMINI_SPARK_PRODUCT_NAME" /> no tiene permiso para conectarse a la navegación automática de <ph name="PRODUCT_NAME" /> ni para usarla.</translation>
 <translation id="5377606826822211923">Controla la forma en que el usuario usa las apps para Android de fuentes no confiables</translation>
 <translation id="537786648513450280">Controla la forma en que se usan las apps para Android de fuentes no confiables</translation>
 <translation id="5378885577701865339">Inhabilitar la función de portapapeles compartido</translation>
@@ -8312,6 +8315,26 @@ En la versión 114 y en versiones posteriores, esta política es opcional si se 
 <translation id="624219423122512710">Respuestas del navegador inactivo</translation>
 <translation id="6244061205361004687">Permitir que el usuario desconecte o modifique manualmente una VPN</translation>
 <translation id="6244210204546589761">Direcciones URL que se abrirán al iniciar.</translation>
+<translation id="6244263962918757383">Configuración de ChromeSuggestions</translation>
+<translation id="6245828368576563662">Esta política permite definir una lista de reglas para inyectar encabezados HTTP personalizados en las solicitudes web que coincidan con patrones de URL específicos. Los encabezados establecidos por esta política tienen prioridad sobre los que estaban presentes inicialmente en la solicitud, así como sobre las modificaciones que intenten realizar los usuarios o las extensiones.
+
+Un caso de uso común para esta política es aplicar controles de acceso de usuarios inyectando encabezados personalizados (p. ej., <ph name="EXAMPLE_HEADER_NAME" />).
+
+La política acepta una lista de reglas. Cada regla contiene lo siguiente:
+
+* <ph name="PATTERNS_KEY" />: Una lista de patrones de URL que deben coincidir. Consulta cómo darle formato a un patrón de URL ( https://support.google.com/chrome/a?p=url_blocklist_filter_format ).
+
+* <ph name="HEADERS_KEY" />: Una lista de objetos que representan los encabezados que se inyectarán, cada uno de los cuales contiene lo siguiente:
+
+  * <ph name="HEADER_NAME_KEY" />: El nombre del encabezado que se inyectará.
+
+  * <ph name="HEADER_VALUE_KEY" />: El valor del encabezado que se inyectará.
+
+Si varias reglas coinciden con una solicitud, se aplicarán los encabezados de todas las reglas coincidentes. En caso de que haya varios encabezados con el mismo nombre, se aplicará el que tenga el patrón de URL más específico. Si los patrones son igualmente específicos, se aplicará el que aparezca último en la lista.
+
+Los nombres de encabezado deben cumplir con RFC 2616 ( https://www.rfc-editor.org/rfc/rfc2616 ). Los valores de encabezado no deben contener símbolos NUL, CR o LF. Los encabezados individuales no deben superar los 8 KB de tamaño. Se ignorarán los encabezados y patrones de URL no válidos.
+
+Esta política está limitada a un total de 500 patrones de URL en todas las reglas. Cada regla puede contener 20 encabezados como máximo. Se ignorarán los patrones y encabezados que superen estos límites.</translation>
 <translation id="624595269193747921">Se debe limitar la búsqueda de la impresora a un grupo específico.</translation>
 <translation id="6246290059248303618">Mostrar los controles multimedia de las sesiones de <ph name="PRODUCT_NAME" /> que iniciaron otros dispositivos en la red local</translation>
 <translation id="6247316685259031374">Esta política controla la zona de pruebas del proceso de audio.
@@ -8835,13 +8858,6 @@ NOTA: El comportamiento predeterminado de los dispositivos de usuario y empresar
 <translation id="6483115462650732746">Mostrar el menú de accesibilidad flotante en el modo kiosco</translation>
 <translation id="6491139795995924304">Permitir Bluetooth en el dispositivo</translation>
 <translation id="6491305972928809525">No mostrar el menú de accesibilidad flotante en el modo kiosco</translation>
-<translation id="6491872498385040936">Esta política es obsoleta. Considera usar <ph name="FORCE_YOUTUBE_RESTRICT_POLICY_NAME" />, que anula esta política y te permite implementar una configuración más detallada.
-
-      Aplica el modo restringido moderado en YouTube y evita que los usuarios cambien esta configuración.
-
-      Si se habilita esta configuración, el modo restringido en YouTube estará siempre aplicado, al menos en el nivel moderado.
-
-      Si se inhabilita esta configuración, o no se configura ningún valor, <ph name="PRODUCT_NAME" /> no aplicará el modo restringido en YouTube. Sin embargo, es posible que las políticas externas, como las de YouTube, apliquen el modo restringido.</translation>
 <translation id="6492177700737407141">Brindar solo protección estándar para los usuarios inscritos en el Programa de Protección Avanzada</translation>
 <translation id="6492737559291967859">Si estableces la política, se especificará la configuración regional que usará <ph name="PRODUCT_NAME" />.
 
@@ -9346,6 +9362,7 @@ Esto reemplaza la política <ph name="WINDOW_PLACEMENT_BLOCKED_FOR_URLS_POLICY_N
 Si habilitas la política o no la estableces, los usuarios podrán guardar imágenes en <ph name="GOOGLE_PHOTOS_PRODUCT_NAME" /> desde el menú contextual. Si la inhabilitas, los usuarios no podrán ver la opción en el menú contextual.
 Esta política no impide que los usuarios guarden imágenes en <ph name="GOOGLE_PHOTOS_PRODUCT_NAME" /> de otras formas además del menú contextual.</translation>
 <translation id="6823711520976094072">Si la estableces en menos de 1 MB o no la estableces, <ph name="PRODUCT_OS_NAME" /> usará el tamaño predeterminado (256 MB) para almacenar en caché las apps y extensiones cuando las instalen varios usuarios del mismo dispositivo. Esta acción evitará que cada usuario las tenga que volver a descargar.</translation>
+<translation id="6828918560681256273">Restringir la API de Background Fetch cuando se llama desde un service worker</translation>
 <translation id="6829632070341067746">Esta política controla la refactorización reciente de las APIs de Graphics3D en el complemento PPAPI.
 
 La migración solo afecta los detalles de implementación internos y no debe
@@ -9421,7 +9438,6 @@ Si inhabilitas la política o no la estableces, se cerrará la sesión anterior 
 <translation id="6857240169209507953">Impide que se ejecute <ph name="BOREALIS_NAME" /> en un dispositivo</translation>
 <translation id="6857372417233723544">Si estableces la política, se habilitará el diseño InScript Hindi para <ph name="PRODUCT_OS_NAME" />.
 Si la estableces como falsa o no la estableces, el diseño no estará disponible. Debes reiniciar el dispositivo para que se apliquen los cambios.</translation>
-<translation id="685769593149966548">Aplicar el modo restringido estricto para YouTube</translation>
 <translation id="686079137349561371">Microsoft Windows 7 o versiones posteriores</translation>
 <translation id="6863927303509860338">Configurar accesos directos en la página Nueva pestaña</translation>
 <translation id="6866755486434471318">Permitir que <ph name="PEPPER_NAME" /> use las imágenes compartidas para la decodificación de videos</translation>
@@ -9771,14 +9787,6 @@ la optimización de JavaScript para el sitio.</translation>
       Si no la estableces, se ubicará la biblioteca de forma predeterminada en la parte inferior de la pantalla y el usuario podrá cambiar su posición.</translation>
 <translation id="7039815268521168329">Mostrar el flujo de Voice Match de Asistente de Google durante la configuración inicial</translation>
 <translation id="7040229947030068419">Valor de ejemplo:</translation>
-<translation id="7044626519138840387">Una lista de orígenes de apps de cliente de escritorio remoto que pueden ejecutar solicitudes a la API de WebAuthn
-que se originan a partir de una sesión de navegación en un host remoto.
-
-Cualquier origen configurado en esta política puede realizar solicitudes de WebAuthn para Relying
-Party IDs (RP IDs) que normalmente no se pueden reclamar.
-
-Solo se permiten orígenes HTTPS válidos. Los comodines no son compatibles.
-Se ignoran las entradas no válidas.</translation>
 <translation id="7044883996351280650">Controlar el servicio de restablecimiento y copias de seguridad</translation>
 <translation id="7045221780834308118">Si habilitas la política, las apps web de terceros podrán usar la API de Desk para controlar los escritorios de <ph name="PRODUCT_OS_NAME" />. Si no la estableces o la inhabilitas, la <ph name="DESK_API_NAME" /> no estará disponible. La política solo tendrá efecto en los dispositivos inscritos.</translation>
 <translation id="7046113122884041950">No permitir Smart Lock</translation>
@@ -9794,6 +9802,13 @@ En <ph name="MAC_OS_NAME" />, esta política solo está disponible en instancias
 <translation id="7055022222176591388">No permitir el complemento de <ph name="FLASH_PLUGIN_NAME" /> desactualizado</translation>
 <translation id="7056040036973126753">Enviar datos de confiabilidad de dominios a Google en función de la política de Métricas del usuario (UMA) de Chrome</translation>
 <translation id="7062803946218028349">Permitir que se habilite Phone Hub</translation>
+<translation id="7063646777978847358">Esta política controla si se restringen las solicitudes de Background Fetch de los service workers. Si se ve afectada una función que descarga archivos en segundo plano, esta política puede ser pertinente.
+
+Si habilitas esta política o no la estableces, la restricción estará activa y es posible que se bloqueen las solicitudes de Background Fetch de los contextos de service worker.
+
+Si inhabilitas esta política, se omitirá la restricción y se permitirá que todos los service workers realicen solicitudes de Background Fetch.
+
+Esta política empresarial es temporal y se quitará después de la versión M152.</translation>
 <translation id="7066292150801784098">Impedir que los usuarios remotos interactúen con las ventanas con permisos elevados en sesiones de asistencia remota</translation>
 <translation id="706669471845501145">Permitir que los sitios muestren notificaciones de escritorio.</translation>
 <translation id="7067419518071223152">Si estableces la política, podrás definir una lista de patrones de URL donde se especifiquen las aplicaciones web que tengan acceso a determinados tipos de archivos.
@@ -10195,7 +10210,6 @@ La compatibilidad con este parámetro de configuración de política finalizará
 <translation id="7238335422094660594">Habilitar el proveedor de <ph name="UIA_NAME" />.</translation>
 <translation id="7241007908714447207">Permitir que los orígenes de apps web aisladas soliciten conectarse a lectores de tarjetas inteligentes.</translation>
 <translation id="7241016798422122577">Habilitar el control con gestos faciales en la pantalla de acceso</translation>
-<translation id="7242191282517459095">YouTube (compatible a partir de la versión 135)</translation>
 <translation id="7244600351241637530">Si habilitas esta configuración, los usuarios que habilitaron la función Phone Hub podrán ver y descargar las fotos y los videos tomados recientemente con su teléfono en ChromeOS.
 
       Si la inhabilitas, los usuarios no podrán usar esta función. Si se inhabilita la política <ph name="PHONE_HUB_ALLOWED_POLICY_NAME" />, los usuarios tampoco podrán usar esta función.
@@ -11502,7 +11516,6 @@ Los valores válidos varían entre 1 segundo y 9,999 segundos. Si no estableces 
 
 Esta política no tendrá ningún efecto si estableces la política <ph name="SCREENSAVER_LOCK_SCREEN_ENABLED_POLICY_NAME" /> como falsa.</translation>
 <translation id="8113731369695819720">Inhabilitar la función de audio mono en la pantalla de acceso</translation>
-<translation id="8114382167597081590">No aplicar el modo restringido en YouTube</translation>
 <translation id="8117662664312039036">No permitir que los dispositivos utilicen PluginVm</translation>
 <translation id="8117921351531866504">Te permite establecer si los sitios web están autorizados a verificar que el usuario tenga formas de pago guardadas.
 
@@ -12028,6 +12041,7 @@ las configuren.</translation>
 
       Si se establece la política, se borrarán las instantáneas anteriores según sea necesario para respetar el límite. Si se establece la política como "0", no se realizarán instantáneas.</translation>
 <translation id="8446679541472571487">Mostrar la pantalla de presentación de la IA durante el acceso</translation>
+<translation id="8451205236854734195">Permitir sugerencias de Chrome</translation>
 <translation id="8451988835943702790">Usar la página Nueva pestaña como página principal</translation>
 <translation id="8452787853105404870">Enviar datos de hardware a Google para admitir mejoras en ChromeOS Flex</translation>
 <translation id="8453218444172088993">Inhabilitar la configuración de <ph name="PRIVACY_SANDBOX_NAME" /> de temas de anuncios para los usuarios</translation>
@@ -12047,7 +12061,6 @@ En <ph name="MS_WIN_NAME" />, esta política solo está disponible en instancias
 <translation id="846994437739309080">Si se habilita (o no se establece), se usarán certificados TLS agregados por el usuario desde los almacenes de confianza de la plataforma en la generación de rutas de acceso para la autenticación del servidor TLS.
 
 Si se inhabilita, no se usarán los certificados TLS agregados por el usuario desde los almacenes de confianza de la plataforma en la generación de rutas de acceso para la autenticación del servidor TLS.</translation>
-<translation id="8470317291588703478">No aplicar de manera forzosa el modo restringido de YouTube</translation>
 <translation id="8471117881949952479">Esta política dejó de estar disponible y, con el tiempo, se reemplazará por DataControlsRules.
 
 Esta política bloquea la copia de datos al portapapeles en URLs específicas.
@@ -12171,7 +12184,6 @@ No se admite la reversión a la versión 106 de <ph name="PRODUCT_OS_NAME" /> ni
 
       Advertencia: No se recomienda configurar restricciones a una versión, dado que es posible que esta acción impida que los usuarios reciban actualizaciones de software y correcciones críticas de seguridad. Si restringes las actualizaciones a una versión específica, es posible que los usuarios queden expuestos a riesgos.</translation>
 <translation id="8519617069657262768">Habilitar la sincronización de Google Drive</translation>
-<translation id="8520064498689833152">Forzar el uso de SafeSearch en la Búsqueda de Google y en el modo restringido de YouTube para que sea, al menos, moderado</translation>
 <translation id="8520950040439618600">Permitir métodos de autenticación con PIN y con vinculación para hosts de acceso remoto</translation>
 <translation id="8524334245528364388">La URL a un archivo JSON con una lista de servidores de impresión.</translation>
 <translation id="8525282442896658040">Permitir que la app use la autorización de notificaciones provisionales en iOS</translation>
@@ -12425,7 +12437,6 @@ Esta política es una medida temporal y se quitará después de algunos hitos.</
 <translation id="8676959842615154675">Si habilitas la política, el host de acceso remoto comparará el nombre del usuario local con el que está asociado el host y el nombre de la Cuenta de Google registrado como el propietario del host ("juanperez" si el host le pertenece a "juanperez@ejemplo.com"). No se iniciará el host si el nombre del propietario del host es diferente del nombre del usuario local con el que está asociado el host. Para asociar de forma forzosa la Cuenta de Google del propietario con un dominio específico, utiliza la política con <ph name="REMOTE_ACCESS_HOST_DOMAIN_POLICY_NAME" />.
 
       Si inhabilitas la política o no la estableces, el host de acceso remoto podrá asociarse a cualquier usuario local.</translation>
-<translation id="867708016260789630">Forzar que el modo restringido de YouTube sea, al menos, moderado</translation>
 <translation id="8677853537025397834">Permitir la API de WebHID en estos sitios</translation>
 <translation id="8684000025871334499">Configura las políticas de instalación y tiempo de ejecución para las VMs de Bruschetta en
 <ph name="PRODUCT_OS_NAME" />. Esto permite que
@@ -12501,7 +12512,6 @@ el esquema https.</translation>
       "http://acme.com/ABC" solo coincide en el modo "IESiteListMode".</translation>
 <translation id="8728854710675158426">Habilitar hashes no seguros en protocolos de enlace TLS</translation>
 <translation id="8734543507835977857">Iniciar los tiempos de espera para la administración de la energía y los límites de la extensión de la sesión al inicio de la sesión</translation>
-<translation id="8736538322216687231">Aplicar el modo restringido mínimo en YouTube</translation>
 <translation id="873800217865395140">Tasa de recopilación de telemetría de sitios web en milisegundos</translation>
 <translation id="8742596277791362306">Esta política permite controlar la habilitación de la función Conjuntos de sitios web relacionados.
 
@@ -12527,6 +12537,16 @@ Esta política dejará de estar disponible a partir de la versión 144 de <ph na
 <translation id="8757552286070680084">Configuración de DTC wilco</translation>
 <translation id="8758831693895931466">Habilitar la inscripción obligatoria en la administración de la nube</translation>
 <translation id="8759829385824155666">Se permiten los tipos de encriptación de Kerberos</translation>
+<translation id="8762128467207353085">Una lista de orígenes de apps de cliente de escritorio remoto que pueden ejecutar solicitudes a la API de WebAuthn
+que se originan a partir de una sesión de navegación en un host remoto.
+
+Cualquier origen configurado en esta política puede realizar solicitudes de WebAuthn para Relying
+Party IDs (RP IDs) que normalmente no se pueden reclamar.
+
+Solo se permiten orígenes HTTPS válidos. Los comodines no son compatibles.
+Se ignoran las entradas no válidas.
+
+Esta política solo se aplica a los usuarios afiliados.</translation>
 <translation id="8765401957266318536">Habilitar la integración de la app de Lens/Galería en <ph name="PRODUCT_OS_NAME" /></translation>
 <translation id="8766308369516978190">Si habilitas la política, los usuarios podrán usar <ph name="ASSISTANT_PRODUCT_NAME" /> en la Web, p. ej., para agilizar la confirmación de la compra y los cambios de contraseña. El uso de <ph name="ASSISTANT_PRODUCT_NAME" /> requiere consentimiento adicional del usuario, y <ph name="ASSISTANT_PRODUCT_NAME" /> solo se ejecutará si los usuarios lo otorgan, incluso si la política está habilitada.
 
@@ -12664,7 +12684,6 @@ búsquedas con proxy de mayor protección.
 Si inhabilitas la política, no se permitirán las búsquedas
 con proxy de mayor protección. Los hashes parciales de URLs se subirán a Google directamente con una frecuencia mucho
 menor, lo que disminuirá la protección.</translation>
-<translation id="8858642179038618439">Forzar el modo de seguridad de YouTube</translation>
 <translation id="8860342862142842017">Inhabilitar la aplicación del Certificado de transparencia para una lista de hash de subjectPublicKeyInfo</translation>
 <translation id="8860894781631833477">Los usuarios pueden configurar el canal de versiones de <ph name="PRODUCT_OS_NAME" /></translation>
 <translation id="8862086508140571198">Esta política permite establecer una lista de DLC (contenido descargable) para que se descarguen lo antes posible. Los DLC descargados estarán disponibles para todos los usuarios en el dispositivo.

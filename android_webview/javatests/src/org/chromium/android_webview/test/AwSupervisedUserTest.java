@@ -20,8 +20,6 @@ import android.app.Instrumentation.ActivityResult;
 import android.content.Intent;
 import android.net.Uri;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.test.espresso.intent.Intents;
 import androidx.test.espresso.intent.matcher.IntentMatchers;
 import androidx.test.filters.SmallTest;
@@ -42,6 +40,7 @@ import org.chromium.android_webview.WebMessageListener;
 import org.chromium.android_webview.common.AwSupervisedUserUrlClassifierDelegate;
 import org.chromium.android_webview.common.BackgroundThreadExecutor;
 import org.chromium.android_webview.common.PlatformServiceBridge;
+import org.chromium.android_webview.settings.SpeculativeLoadingAllowedFlags;
 import org.chromium.android_webview.supervised_user.AwSupervisedUserSafeModeAction;
 import org.chromium.android_webview.supervised_user.AwSupervisedUserUrlClassifier;
 import org.chromium.base.Callback;
@@ -51,6 +50,8 @@ import org.chromium.base.test.util.CallbackHelper;
 import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.base.test.util.Feature;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.content_public.browser.MessagePayload;
 import org.chromium.content_public.browser.MessagePort;
 import org.chromium.net.test.util.TestWebServer;
@@ -69,6 +70,7 @@ import java.util.concurrent.TimeoutException;
 @RunWith(Parameterized.class)
 @UseParametersRunnerFactory(AwJUnit4ClassRunnerWithParameters.Factory.class)
 @Batch(Batch.PER_CLASS)
+@NullMarked
 public class AwSupervisedUserTest extends AwParameterizedTest {
     private static final String SAFE_SITE_TITLE = "Safe site";
     private static final String SAFE_SITE_PATH = "/safe.html";
@@ -113,7 +115,7 @@ public class AwSupervisedUserTest extends AwParameterizedTest {
             new TestAwSupervisedUserUrlClassifierDelegate();
     private AwContents mAwContents;
     private TestWebServer mWebServer;
-    private final IframeLoadedListener mIframeLoadedListener = new IframeLoadedListener();
+    private final TestWebMessageListener mIframeLoadedListener = new TestWebMessageListener();
 
     public AwSupervisedUserTest(AwSettingsMutation param) {
         this.mActivityTestRule = new AwActivityTestRule(param.getMutation());
@@ -142,8 +144,12 @@ public class AwSupervisedUserTest extends AwParameterizedTest {
 
     @After
     public void tearDown() throws Exception {
-        mActivityTestRule.destroyAwContentsOnMainSync(mAwContents);
-        mWebServer.shutdown();
+        if (mAwContents != null) {
+            mActivityTestRule.destroyAwContentsOnMainSync(mAwContents);
+        }
+        if (mWebServer != null) {
+            mWebServer.shutdown();
+        }
         AwSupervisedUserSafeModeAction.resetForTesting();
     }
 
@@ -227,13 +233,9 @@ public class AwSupervisedUserTest extends AwParameterizedTest {
         // is the best option.
         CriteriaHelper.pollInstrumentationThread(
                 () -> {
-                    try {
-                        Criteria.checkThat(
-                                mActivityTestRule.getTitleOnUiThread(mAwContents),
-                                Matchers.is(BLOCKED_SITE_TITLE));
-                    } catch (Exception e) {
-                        throw new RuntimeException(e);
-                    }
+                    Criteria.checkThat(
+                            mActivityTestRule.getTitleOnUiThread(mAwContents),
+                            Matchers.is(BLOCKED_SITE_TITLE));
                 });
     }
 
@@ -280,6 +282,122 @@ public class AwSupervisedUserTest extends AwParameterizedTest {
         assertIframeTitle(MATURE_SITE_IFRAME_TITLE);
     }
 
+    @Test
+    @SmallTest
+    @Feature({"AndroidWebView"})
+    public void testPrerenderDisallowedSiteIsBlocked() throws Throwable {
+        mActivityTestRule
+                .getAwSettingsOnUiThread(mAwContents)
+                .setSpeculativeLoadingAllowed(SpeculativeLoadingAllowedFlags.PRERENDER_ENABLED);
+
+        String matureUrl = setUpWebPage(MATURE_SITE_PATH, MATURE_SITE_TITLE, null);
+        String safeUrl = setUpWebPage(SAFE_SITE_PATH, SAFE_SITE_TITLE, null);
+
+        loadUrl(safeUrl);
+        assertPageTitle(SAFE_SITE_TITLE);
+
+        injectSpeculationRules(matureUrl);
+        loadUrl(matureUrl);
+        CriteriaHelper.pollInstrumentationThread(
+                () -> {
+                    Criteria.checkThat(
+                            mActivityTestRule.getTitleOnUiThread(mAwContents),
+                            Matchers.is(BLOCKED_SITE_TITLE));
+                });
+
+        // If we get this far, then it means the page was correctly blocked (and prerender didn't
+        // cause the page to slip through navigation).
+
+        Assert.assertEquals(
+                "The unsafe test site should be blocked before the prerender starts",
+                0,
+                mWebServer.getRequestCount(MATURE_SITE_PATH));
+    }
+
+    @Test
+    @SmallTest
+    @Feature({"AndroidWebView"})
+    public void testSafeSitesCanBePrerendered() throws Throwable {
+        final TestWebMessageListener prerenderStatusListener = new TestWebMessageListener();
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mAwContents.addWebMessageListener(
+                            "prerenderStatusListener", new String[] {"*"}, prerenderStatusListener);
+                });
+
+        mActivityTestRule
+                .getAwSettingsOnUiThread(mAwContents)
+                .setSpeculativeLoadingAllowed(SpeculativeLoadingAllowedFlags.PRERENDER_ENABLED);
+
+        String prerenderSafeUrl = setUpPrerenderSafePage();
+        String safeUrl = setUpWebPage(SAFE_SITE_PATH, SAFE_SITE_TITLE, null);
+
+        loadUrl(safeUrl);
+        assertPageTitle(SAFE_SITE_TITLE);
+
+        injectSpeculationRules(prerenderSafeUrl);
+
+        // We poll for the subresource request "/prerendered_ready.png" to ensure the main page has
+        // been fully downloaded, parsed, and has started prerendering. If we don't wait for
+        // prerendering to start, then the prerender and loadUrl() call will race and this may not
+        // count as a prerendered navigation, which defeats the purpose of this test case.
+        CriteriaHelper.pollInstrumentationThread(
+                () -> {
+                    Criteria.checkThat(
+                            mWebServer.getRequestCount("/prerendered_ready.png"),
+                            Matchers.greaterThan(0));
+                });
+
+        // Verify that we can still navigate to the safe page.
+        loadUrl(prerenderSafeUrl);
+        assertPageTitle("Prerender Safe site");
+
+        // And verify that this navigation was for a page that was prerendered.
+        Assert.assertEquals("prerendered_and_activated", prerenderStatusListener.waitForResult());
+    }
+
+    private String setUpPrerenderSafePage() {
+        mWebServer.setResponseWithNoContentStatus("/prerendered_ready.png");
+        String content =
+                """
+                <html>
+                <head>
+                <title>Prerender Safe site</title>
+                <script>
+                  window.wasPrerendered = document.prerendering;
+                  if (document.prerendering) {
+                    document.addEventListener('prerenderingchange', function() {
+                      prerenderStatusListener.postMessage("prerendered_and_activated");
+                    });
+                  } else {
+                    prerenderStatusListener.postMessage("not_prerendered");
+                  }
+                </script>
+                </head>
+                <body>
+                  <h1>Prerender Safe site</h1>
+                  <img src="/prerendered_ready.png">
+                </body>
+                </html>
+                """;
+        return mWebServer.setResponse("/prerender-safe.html", content, null);
+    }
+
+    private void injectSpeculationRules(String url) throws Exception {
+        final String speculationRulesTemplate =
+                """
+                {
+                  const script = document.createElement('script');
+                  script.type = 'speculationrules';
+                  script.text = '{"prerender": [{"source": "list", "urls": ["%s"]}]}';
+                  document.head.appendChild(script);
+                }
+                """;
+        final String speculationRules = String.format(speculationRulesTemplate, url);
+        mActivityTestRule.executeJavaScriptAndWaitForResult(
+                mAwContents, mContentsClient, speculationRules);
+    }
+
     private String setUpWebPage(String path, String title, @Nullable String iFrameUrl) {
         return mWebServer.setResponse(path, makeTestPage(title, iFrameUrl), null);
     }
@@ -291,7 +409,7 @@ public class AwSupervisedUserTest extends AwParameterizedTest {
         mContentsClient.waitForFullLoad();
     }
 
-    private void assertPageTitle(String expectedTitle) throws Exception {
+    private void assertPageTitle(String expectedTitle) {
         Assert.assertEquals(expectedTitle, mActivityTestRule.getTitleOnUiThread(mAwContents));
     }
 
@@ -306,19 +424,19 @@ public class AwSupervisedUserTest extends AwParameterizedTest {
         @Override
         public void onProgressChanged(int progress) {
             super.onProgressChanged(progress);
-            if (progress == 100 && mCallbackHelper.getCallCount() == 0) {
+            if (progress == 100) {
                 mCallbackHelper.notifyCalled();
             }
         }
 
         public void waitForFullLoad() throws TimeoutException {
-            mCallbackHelper.waitForOnly();
+            mCallbackHelper.waitForNext();
         }
     }
 
-    private static class IframeLoadedListener implements WebMessageListener {
+    private static class TestWebMessageListener implements WebMessageListener {
         private final CallbackHelper mCallbackHelper = new CallbackHelper();
-        private volatile String mResult;
+        private volatile @Nullable String mResult;
 
         @Override
         public void onPostMessage(
@@ -332,7 +450,7 @@ public class AwSupervisedUserTest extends AwParameterizedTest {
             mCallbackHelper.notifyCalled();
         }
 
-        public String waitForResult() throws TimeoutException {
+        public @Nullable String waitForResult() throws TimeoutException {
             mCallbackHelper.waitForNext();
             return mResult;
         }
@@ -349,7 +467,7 @@ public class AwSupervisedUserTest extends AwParameterizedTest {
                 Set.of(MATURE_SITE_PATH, MATURE_SITE_IFRAME_PATH);
 
         @Override
-        public void shouldBlockUrl(GURL requestUrl, @NonNull final Callback<Boolean> callback) {
+        public void shouldBlockUrl(GURL requestUrl, final Callback<Boolean> callback) {
             String path = requestUrl.getPath();
             boolean isRestrictedContent = RESTRICTED_CONTENT_BLOCKLIST.contains(path);
             mExecutor.execute(
@@ -359,7 +477,7 @@ public class AwSupervisedUserTest extends AwParameterizedTest {
         }
 
         @Override
-        public void needsRestrictedContentBlocking(@NonNull final Callback<Boolean> callback) {
+        public void needsRestrictedContentBlocking(final Callback<Boolean> callback) {
             mExecutor.execute(
                     () -> {
                         callback.onResult(mNeedsRestrictionResponse);

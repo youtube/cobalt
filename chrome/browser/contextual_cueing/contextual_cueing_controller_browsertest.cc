@@ -29,6 +29,8 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/page_action/page_action_controller.h"
+#include "chrome/browser/ui/page_action/page_action_model.h"
+#include "chrome/browser/ui/page_action/page_action_model_observer.h"
 #include "chrome/browser/ui/page_action/page_action_observer.h"
 #include "chrome/browser/ui/side_panel/side_panel_entry_id.h"
 #include "chrome/browser/ui/side_panel/side_panel_ui.h"
@@ -217,14 +219,15 @@ class ContextualCueingControllerBrowserTestBase : public SigninBrowserTestBase {
 
 optimization_guide::proto::ContextualCueingResponse MakeCompleteResponse() {
   optimization_guide::proto::ContextualCueingResponse response;
+  auto* cue = response.add_contextual_cues();
 
   // Required UI text
-  response.mutable_anchored_message_cue()->set_action_text("Action text");
-  response.mutable_anchored_message_cue()->set_anchored_message_text(
+  cue->mutable_anchored_message_cue()->set_action_text("Action text");
+  cue->mutable_anchored_message_cue()->set_anchored_message_text(
       "Anchored message text");
 
   // Fulfillment surface
-  response.mutable_gemini_in_chrome_surface()->set_prompt("Prompt");
+  cue->mutable_gemini_in_chrome_surface()->set_prompt("Prompt");
 
   return response;
 }
@@ -235,10 +238,206 @@ class ContextualCueingControllerBrowserTest
   void InitializeFeatureList() override {
     scoped_feature_list_.InitWithFeaturesAndParameters(
         {{kContextualCueingV2,
-          {{"ContextualCueingV2DiscardShoppingPdfs", "true"}}}},
+          {{"ContextualCueingV2DiscardShoppingPdfs", "true"},
+           {"ContextualCueingV2TabListVisibility", "always"}}}},
         /*disabled_features=*/{kContextualCueingV2EnforceAgeRestriction});
   }
 };
+
+class ContextualCueingControllerTabListNeverTest
+    : public ContextualCueingControllerBrowserTestBase {
+ public:
+  void InitializeFeatureList() override {
+    scoped_feature_list_.InitWithFeaturesAndParameters(
+        {{kContextualCueingV2,
+          {{"ContextualCueingV2DiscardShoppingPdfs", "true"},
+           {"ContextualCueingV2TabListVisibility", "never"}}}},
+        /*disabled_features=*/{kContextualCueingV2EnforceAgeRestriction});
+  }
+};
+
+IN_PROC_BROWSER_TEST_F(ContextualCueingControllerTabListNeverTest,
+                       TabListNotShownWithMultipleTabs) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(),
+                                           GURL("https://www.example.com/1")));
+
+  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
+      browser(), GURL("https://www.activetab.com/abc"),
+      WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
+
+  content::WebContents* background_contents =
+      browser()->tab_strip_model()->GetWebContentsAt(0);
+  SessionID background_tab_id =
+      sessions::SessionTabHelper::IdForTab(background_contents);
+
+  optimization_guide::proto::ContextualCueingResponse response =
+      MakeCompleteResponse();
+  auto* cue = response.mutable_contextual_cues(0);
+  cue->mutable_anchored_message_cue()->add_tabs_to_show()->set_tab_id(
+      background_tab_id.id());
+
+  page_actions::PageActionController* page_action_controller =
+      GetPageActionController();
+  ASSERT_TRUE(page_action_controller);
+
+  class TestObserver : public page_actions::PageActionModelObserver {
+   public:
+    void OnPageActionModelChanged(
+        const page_actions::PageActionModelInterface& model) override {
+      expandable_content_ = model.GetAnchoredMessageExpandableContent();
+    }
+    std::optional<page_actions::AnchoredMessageExpandableContent>
+        expandable_content_;
+  };
+
+  TestObserver observer;
+  base::ScopedObservation<page_actions::PageActionModelInterface,
+                          page_actions::PageActionModelObserver>
+      observation(&observer);
+  page_action_controller->AddObserver(kActionAnchoredContextualCue,
+                                      observation);
+
+  SeedExecutionResult(response);
+  SimulateFilterPassed();
+
+  base::HistogramTester histogram_tester;
+  optimization_guide::RetryForHistogramUntilCountReached(
+      &histogram_tester, "ContextualCueing.V2.Decision", 1);
+
+  histogram_tester.ExpectUniqueSample("ContextualCueing.V2.Decision",
+                                      ContextualCueingDecision::kSuccess, 1);
+
+  EXPECT_FALSE(observer.expandable_content_.has_value());
+}
+
+class ContextualCueingControllerTabListOnlyIfMultipleTest
+    : public ContextualCueingControllerBrowserTestBase {
+ public:
+  void InitializeFeatureList() override {
+    scoped_feature_list_.InitWithFeaturesAndParameters(
+        {{kContextualCueingV2,
+          {{"ContextualCueingV2DiscardShoppingPdfs", "true"},
+           {"ContextualCueingV2TabListVisibility", "only-if-multiple"}}}},
+        /*disabled_features=*/{kContextualCueingV2EnforceAgeRestriction});
+  }
+};
+
+IN_PROC_BROWSER_TEST_F(ContextualCueingControllerTabListOnlyIfMultipleTest,
+                       TabListNotShownWithSingleTab) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), GURL("https://www.activetab.com/abc")));
+
+  optimization_guide::proto::ContextualCueingResponse response =
+      MakeCompleteResponse();
+
+  page_actions::PageActionController* page_action_controller =
+      GetPageActionController();
+  ASSERT_TRUE(page_action_controller);
+
+  class TestObserver : public page_actions::PageActionModelObserver {
+   public:
+    void OnPageActionModelChanged(
+        const page_actions::PageActionModelInterface& model) override {
+      expandable_content_ = model.GetAnchoredMessageExpandableContent();
+    }
+    std::optional<page_actions::AnchoredMessageExpandableContent>
+        expandable_content_;
+  };
+
+  TestObserver observer;
+  base::ScopedObservation<page_actions::PageActionModelInterface,
+                          page_actions::PageActionModelObserver>
+      observation(&observer);
+  page_action_controller->AddObserver(kActionAnchoredContextualCue,
+                                      observation);
+
+  SeedExecutionResult(response);
+  SimulateFilterPassed();
+
+  base::HistogramTester histogram_tester;
+  optimization_guide::RetryForHistogramUntilCountReached(
+      &histogram_tester, "ContextualCueing.V2.Decision", 1);
+
+  histogram_tester.ExpectUniqueSample("ContextualCueing.V2.Decision",
+                                      ContextualCueingDecision::kSuccess, 1);
+
+  // EXPECT_FALSE(observer.expandable_content_.has_value());
+}
+
+IN_PROC_BROWSER_TEST_F(ContextualCueingControllerTabListOnlyIfMultipleTest,
+                       TabListShownWithMultipleTabs) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(),
+                                           GURL("https://www.example.com/1")));
+
+  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
+      browser(), GURL("https://www.activetab.com/abc"),
+      WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
+
+  content::WebContents* background_contents =
+      browser()->tab_strip_model()->GetWebContentsAt(0);
+  SessionID background_tab_id =
+      sessions::SessionTabHelper::IdForTab(background_contents);
+
+  content::WebContents* active_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  SessionID active_tab_id =
+      sessions::SessionTabHelper::IdForTab(active_contents);
+
+  optimization_guide::proto::ContextualCueingResponse response =
+      MakeCompleteResponse();
+  auto* cue = response.mutable_contextual_cues(0);
+  auto* tab1 = cue->mutable_anchored_message_cue()->add_tabs_to_show();
+  tab1->set_tab_id(background_tab_id.id());
+  tab1->set_url("https://www.example.com/1");
+  auto* tab2 = cue->mutable_anchored_message_cue()->add_tabs_to_show();
+  tab2->set_tab_id(active_tab_id.id());
+  tab2->set_url("https://www.activetab.com/abc");
+
+  page_actions::PageActionController* page_action_controller =
+      GetPageActionController();
+  ASSERT_TRUE(page_action_controller);
+
+  class TestObserver : public page_actions::PageActionModelObserver {
+   public:
+    void OnPageActionModelChanged(
+        const page_actions::PageActionModelInterface& model) override {
+      expandable_content_ = model.GetAnchoredMessageExpandableContent();
+    }
+    std::optional<page_actions::AnchoredMessageExpandableContent>
+        expandable_content_;
+  };
+
+  TestObserver observer;
+  base::ScopedObservation<page_actions::PageActionModelInterface,
+                          page_actions::PageActionModelObserver>
+      observation(&observer);
+  page_action_controller->AddObserver(kActionAnchoredContextualCue,
+                                      observation);
+
+  ukm::TestAutoSetUkmRecorder ukm_recorder;
+
+  SeedExecutionResult(response);
+  SimulateFilterPassed();
+
+  base::HistogramTester histogram_tester;
+  optimization_guide::RetryForHistogramUntilCountReached(
+      &histogram_tester, "ContextualCueing.V2.Decision", 1);
+
+  histogram_tester.ExpectUniqueSample("ContextualCueing.V2.Decision",
+                                      ContextualCueingDecision::kSuccess, 1);
+
+  auto entries = ukm_recorder.GetEntriesByName(
+      ukm::builders::ContextualCueing_CueShown::kEntryName);
+  ASSERT_EQ(1u, entries.size());
+  ukm_recorder.ExpectEntryMetric(
+      entries[0].get(),
+      ukm::builders::ContextualCueing_CueShown::kMatchedTabCountName,
+      ukm::GetExponentialBucketMin(2, 1.5));
+
+  EXPECT_TRUE(observer.expandable_content_.has_value());
+}
 
 IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
                        NoLongerActiveTabAfterCategoryClassification) {
@@ -374,7 +573,8 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
   base::HistogramTester histogram_tester;
 
   auto response = MakeCompleteResponse();
-  response.set_suggested_cuj("TestCUJ");
+  auto* cue = response.mutable_contextual_cues(0);
+  cue->set_suggested_cuj("TestCUJ");
 
   content::WebContents* active_web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
@@ -383,16 +583,31 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
   // Add a valid tab to the response.
   SessionID active_tab_id =
       sessions::SessionTabHelper::IdForTab(active_web_contents);
-  auto* valid_tab =
-      response.mutable_gemini_in_chrome_surface()->add_tabs_to_share();
+  auto* valid_tab = cue->mutable_anchored_message_cue()->add_tabs_to_show();
   valid_tab->set_tab_id(active_tab_id.id());
+  valid_tab->set_url("https://www.example.com/abc");
 
   // Add an invalid tab to the response.
-  auto* invalid_tab =
-      response.mutable_gemini_in_chrome_surface()->add_tabs_to_share();
+  auto* invalid_tab = cue->mutable_anchored_message_cue()->add_tabs_to_show();
   invalid_tab->set_tab_id(9999);
 
   SeedExecutionResult(response);
+
+  class TestObserver : public page_actions::PageActionModelObserver {
+   public:
+    void OnPageActionModelChanged(
+        const page_actions::PageActionModelInterface& model) override {
+      content_ = model.GetAnchoredMessageExpandableContent();
+    }
+    std::optional<page_actions::AnchoredMessageExpandableContent> content_;
+  };
+
+  TestObserver model_observer;
+  base::ScopedObservation<page_actions::PageActionModelInterface,
+                          page_actions::PageActionModelObserver>
+      observation(&model_observer);
+  GetPageActionController()->AddObserver(kActionAnchoredContextualCue,
+                                         observation);
 
   contextual_cueing_controller()->OnPageContentAnnotated(
       page_content_annotations::HistoryVisit(
@@ -418,6 +633,9 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
   // skipped.
   histogram_tester.ExpectUniqueSample(
       "ContextualCueing.V2.NumRequestedBackgroundTabs", 1, 1);
+
+  histogram_tester.ExpectUniqueSample("ContextualCueing.V2.CueShown",
+                                      base::HashMetricName("TestCUJ"), 1);
 
   auto entries = ukm_recorder.GetEntriesByName(
       ukm::builders::ContextualCueing_CueShown::kEntryName);
@@ -452,6 +670,11 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
                  kProactiveCueLatencyAfterPageLoadName);
   ASSERT_TRUE(latency_value);
   EXPECT_GE(*latency_value, 0);
+
+  // Verify expandable content.
+  EXPECT_TRUE(model_observer.content_.has_value());
+  EXPECT_EQ(model_observer.content_->items.size(), 1u);
+  EXPECT_FALSE(model_observer.content_->items[0].text.empty());
 }
 
 IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
@@ -465,7 +688,7 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
 
   auto response = MakeCompleteResponse();
-  response.clear_anchored_message_cue();
+  response.mutable_contextual_cues(0)->clear_anchored_message_cue();
   SeedExecutionResult(std::move(response));
 
   SimulateFilterPassed();
@@ -490,7 +713,7 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
 
   auto response = MakeCompleteResponse();
-  response.clear_gemini_in_chrome_surface();
+  response.mutable_contextual_cues(0)->clear_gemini_in_chrome_surface();
   SeedExecutionResult(std::move(response));
 
   SimulateFilterPassed();
@@ -576,9 +799,15 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest, ShowCueAndClick) {
   const ukm::mojom::UkmEntry* entry = entries[0].get();
   const int64_t* duration_value = ukm_recorder.GetEntryMetric(
       entry, ukm::builders::ContextualCueing_CueInteraction::
-                 kProactiveCueShownDurationName);
+                 kProactiveCueShownDurationMsName);
   ASSERT_TRUE(duration_value);
   EXPECT_GE(*duration_value, 0);
+
+  ukm_recorder.ExpectEntryMetric(
+      entry,
+      ukm::builders::ContextualCueing_CueInteraction::
+          kProactiveCueInteractionName,
+      static_cast<int64_t>(ContextualCueingInteraction::kCueClicked));
 }
 
 IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
@@ -1052,7 +1281,7 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
 
   // 2. Mock the server response and inject a fake CUJ string
   auto response = MakeCompleteResponse();
-  response.set_suggested_cuj("test_cuj_string");
+  response.mutable_contextual_cues(0)->set_suggested_cuj("test_cuj_string");
   SeedExecutionResult(std::move(response));
 
   // 3. Trigger the cue execution flow
@@ -1086,7 +1315,7 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
 
   // 2. Mock the server response and inject a fake CUJ string
   auto response = MakeCompleteResponse();
-  response.set_suggested_cuj("test_cuj_string");
+  response.mutable_contextual_cues(0)->set_suggested_cuj("test_cuj_string");
   SeedExecutionResult(std::move(response));
 
   // 3. Trigger the cue execution flow
@@ -1111,6 +1340,17 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingControllerBrowserTest,
   histogram_tester.ExpectUniqueSample(
       "ContextualCueing.V2.CueInteraction.Clicked",
       base::HashMetricName("test_cuj_string"), 1);
+
+  // Verify UKM metric.
+  auto entries = ukm_recorder.GetEntriesByName(
+      ukm::builders::ContextualCueing_CueInteraction::kEntryName);
+  ASSERT_EQ(1u, entries.size());
+  const ukm::mojom::UkmEntry* entry = entries[0].get();
+  ukm_recorder.ExpectEntryMetric(
+      entry,
+      ukm::builders::ContextualCueing_CueInteraction::
+          kProactiveCueInteractionName,
+      static_cast<int64_t>(ContextualCueingInteraction::kCueClicked));
 }
 
 #if BUILDFLAG(ENABLE_PDF)

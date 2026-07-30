@@ -3,7 +3,6 @@
 # found in the LICENSE file.
 
 import("//build/config/chromebox_for_meetings/buildflags.gni")
-import("//build/config/chromeos/ui_mode.gni")
 import("//build/config/features.gni")
 import("//build/config/ozone.gni")
 import("//build/config/ui.gni")
@@ -12,6 +11,7 @@ import("//components/enterprise/buildflags/buildflags.gni")
 import("//components/guest_view/buildflags/buildflags.gni")
 import("//components/safe_browsing/buildflags.gni")
 import("//components/spellcheck/spellcheck_build_features.gni")
+import("//content/browser/devtools/features.gni")
 import("//content/public/common/features.gni")
 import("//extensions/buildflags/buildflags.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
@@ -108,6 +108,8 @@ source_set("extensions") {
     "api/identity/gaia_remote_consent_flow.h",
     "api/identity/identity_api.cc",
     "api/identity/identity_api.h",
+    "api/identity/identity_clear_all_cached_auth_tokens_function.cc",
+    "api/identity/identity_clear_all_cached_auth_tokens_function.h",
     "api/identity/identity_constants.cc",
     "api/identity/identity_constants.h",
     "api/identity/identity_get_accounts_function.cc",
@@ -122,6 +124,8 @@ source_set("extensions") {
     "api/identity/identity_launch_web_auth_flow_function.h",
     "api/identity/identity_mint_queue.cc",
     "api/identity/identity_mint_queue.h",
+    "api/identity/identity_remove_cached_auth_token_function.cc",
+    "api/identity/identity_remove_cached_auth_token_function.h",
     "api/identity/identity_token_cache.cc",
     "api/identity/identity_token_cache.h",
     "api/identity/launch_web_auth_flow_delegate.h",
@@ -637,6 +641,7 @@ source_set("extensions") {
     "//chrome/browser/media/webrtc",
     "//chrome/browser/supervised_user",
     "//chrome/browser/ui/tab_contents",
+    "//chrome/browser/ui/webui/extensions:headers",
     "//chrome/browser/upgrade_detector",
     "//components/safe_browsing/core/browser/db:util",
     "//components/signin/core/browser",
@@ -657,8 +662,6 @@ source_set("extensions") {
   if (is_android) {
     sources += [
       "api/chrome_extensions_api_client_android.cc",
-      "api/identity/identity_unimplemented_functions_android.cc",
-      "api/identity/identity_unimplemented_functions_android.h",
       "api/management/chrome_management_api_delegate_android.cc",
       "api/tabs/tabs_event_router_platform_delegate_android.cc",
       "api/tabs/tabs_event_router_platform_delegate_android.h",
@@ -741,10 +744,6 @@ source_set("extensions") {
       "api/file_system/chrome_file_system_delegate.h",
       "api/file_system/file_entry_picker.cc",
       "api/file_system/file_entry_picker.h",
-      "api/identity/identity_clear_all_cached_auth_tokens_function.cc",
-      "api/identity/identity_clear_all_cached_auth_tokens_function.h",
-      "api/identity/identity_remove_cached_auth_token_function.cc",
-      "api/identity/identity_remove_cached_auth_token_function.h",
       "api/image_writer_private/destroy_partitions_operation.cc",
       "api/image_writer_private/destroy_partitions_operation.h",
       "api/image_writer_private/error_constants.cc",
@@ -836,8 +835,6 @@ source_set("extensions") {
       "extension_view_host_web_modal_handler.h",
       "external_install_error_desktop.cc",
       "external_install_error_desktop.h",
-      "file_handlers/file_handling_launch_utils.cc",
-      "file_handlers/file_handling_launch_utils.h",
       "initial_external_extension_loader.cc",
       "initial_external_extension_loader.h",
       "theme_installed_infobar_delegate.cc",
@@ -1049,6 +1046,7 @@ source_set("extensions") {
       "//components/services/unzip/public/cpp",
       "//components/sessions",
       "//components/signin/public/identity_manager",
+      "//components/skills/public",
       "//components/strings",
       "//components/sync",
       "//components/sync_preferences",
@@ -1203,7 +1201,6 @@ source_set("extensions") {
         "//chrome/browser/chromeos/extensions/smart_card_provider_private",
 
         # TODO(crbug.com/40230380): Find an appropriate spot for vpn_provider.
-        "//chrome/browser/chromeos/extensions/contact_center_insights",
         "//chrome/browser/chromeos/extensions/vpn_provider",
         "//chrome/browser/chromeos/extensions/wm",
         "//chromeos/components/disks:prefs",
@@ -1220,7 +1217,6 @@ source_set("extensions") {
       allow_circular_includes_from += [
         "//chrome/browser/chromeos/app_mode",
         "//chrome/browser/chromeos/drivefs",
-        "//chrome/browser/chromeos/extensions/contact_center_insights",
         "//chrome/browser/chromeos/extensions/component_extension_content_settings",
         "//chrome/browser/chromeos/extensions/desk_api",
         "//chrome/browser/chromeos/extensions/file_system_provider",
@@ -1581,6 +1577,10 @@ source_set("extensions") {
       "api/tabs/app_window_helper.h",
     ]
   }
+
+  if (enable_devtools_frontend) {
+    deps += [ "//chrome/browser/ui/webui/devtools" ]
+  }
 }
 
 static_library("test_support") {
@@ -1743,6 +1743,7 @@ source_set("chrome_extensions_browser_client") {
       "//chrome/browser/extensions",
       "//chrome/browser/extensions/api/runtime",
       "//chrome/browser/profiles",
+      "//chrome/browser/ui/webui/devtools",
       "//chrome/common",
       "//components/signin/core/browser",
       "//components/update_client",

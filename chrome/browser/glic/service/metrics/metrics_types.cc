@@ -110,6 +110,8 @@ std::string GetInvocationSourceString(mojom::InvocationSource source) {
       return "ExperimentalTriggering";
     case mojom::InvocationSource::kIndigoPageAction:
       return "IndigoPageAction";
+    case mojom::InvocationSource::kWebDragDrop:
+      return "WebDragDrop";
     case mojom::InvocationSource::kUnsupported:
       return "Unsupported";
     case mojom::InvocationSource::kWebContentsContextMenu:
@@ -122,6 +124,8 @@ std::string GetInvocationSourceString(mojom::InvocationSource source) {
       return "ToolbarButton";
     case mojom::InvocationSource::kZeroStateAutoSummarize:
       return "ZeroStateAutoSummarize";
+    case mojom::InvocationSource::kPromotionPage:
+      return "PromotionPage";
   }
 }
 }  // namespace glic

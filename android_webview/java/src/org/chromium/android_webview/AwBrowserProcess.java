@@ -69,8 +69,6 @@ import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskRunner;
 import org.chromium.base.task.TaskTraits;
 import org.chromium.build.annotations.Nullable;
-import org.chromium.components.component_updater.ComponentLoaderPolicyBridge;
-import org.chromium.components.component_updater.EmbeddedComponentLoader;
 import org.chromium.components.minidump_uploader.CrashFileManager;
 import org.chromium.components.policy.CombinedPolicyProvider;
 import org.chromium.content_public.browser.BrowserStartupController;
@@ -84,7 +82,6 @@ import java.io.File;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -713,47 +710,6 @@ public final class AwBrowserProcess {
         }
     }
 
-    /**
-     * Load components files from {@link
-     * org.chromium.android_webview.services.ComponentsProviderService}.
-     */
-    public static void loadComponents() {
-        try (DualTraceEvent e = DualTraceEvent.scoped("AwBrowserProcess.loadComponents")) {
-            ComponentLoaderPolicyBridge[] componentPolicies =
-                    AwBrowserProcessJni.get().getComponentLoaderPolicies();
-            // Don't connect to the service if there are no components to load.
-            if (componentPolicies.length == 0) {
-                return;
-            }
-
-            // The origin trial component was the only component we were
-            // fetching, and we're in the process of disabling the component
-            // updater entirely. So, if fetching the origin trial component is
-            // disabled, we expect there to be no components to fetch, as no
-            // new ones should be being added to WebView.
-            // If we get here there was at least one component registered:
-            // crash on debug builds, otherwise no-op.
-            boolean componentLoadingAllowed =
-                    AwFeatureMap.isEnabled(AwFeatures.WEBVIEW_FETCH_ORIGIN_TRIALS_COMPONENT);
-            assert componentLoadingAllowed;
-            if (!componentLoadingAllowed) {
-                Log.w(TAG, "Components were registered but component loading is disabled!");
-                return;
-            }
-
-            EmbeddedComponentLoader loader =
-                    new EmbeddedComponentLoader(Arrays.asList(componentPolicies));
-            final Intent intent = new Intent();
-            intent.setClassName(
-                    getWebViewPackageName(),
-                    EmbeddedComponentLoader.AW_COMPONENTS_PROVIDER_SERVICE);
-            loader.connect(
-                    intent,
-                    AwFeatureMap.isEnabled(
-                            AwFeatures.WEBVIEW_CONNECT_TO_COMPONENT_PROVIDER_IN_BACKGROUND));
-        }
-    }
-
     /** Initialize the metrics uploader. */
     public static void initializeMetricsLogUploader() {
         try (DualTraceEvent e =
@@ -763,21 +719,29 @@ public final class AwBrowserProcess {
                             && AwFeatureMap.isEnabled(
                                     AwFeatures.WEBVIEW_USE_METRICS_UPLOAD_SERVICE_ONLY_SDK_RUNTIME);
 
+            boolean useCppFiltering =
+                    AwFeatureMap.isEnabled(AwFeatures.WEBVIEW_CPP_METRICS_FILTERING);
+
             if (metricServiceEnabledOnlySdkRuntime) {
                 AwMetricsLogUploader uploader = new AwMetricsLogUploader();
                 // Open a connection during startup while connecting to other services such as
                 // ComponentsProviderService and VariationSeedServer to try to avoid spinning the
                 // nonembedded ":webview_service" twice.
                 uploader.initialize();
-                AndroidMetricsLogUploader.setConsumer(new MetricsFilteringDecorator(uploader));
+                AndroidMetricsLogConsumer consumer =
+                        useCppFiltering ? uploader : new MetricsFilteringDecorator(uploader);
+                AndroidMetricsLogUploader.setConsumer(consumer);
             } else {
                 AndroidMetricsLogConsumer directUploader =
                         data -> {
                             PlatformServiceBridge.getInstance().logMetrics(data);
                             return HttpURLConnection.HTTP_OK;
                         };
-                AndroidMetricsLogUploader.setConsumer(
-                        new MetricsFilteringDecorator(directUploader));
+                AndroidMetricsLogConsumer consumer =
+                        useCppFiltering
+                                ? directUploader
+                                : new MetricsFilteringDecorator(directUploader);
+                AndroidMetricsLogUploader.setConsumer(consumer);
             }
         }
     }
@@ -954,8 +918,6 @@ public final class AwBrowserProcess {
         void setNativeWebViewZygoteEnabled(boolean enabled);
 
         void setProcessNameCrashKey(@JniType("std::string") String processName);
-
-        ComponentLoaderPolicyBridge[] getComponentLoaderPolicies();
 
         void onStartupComplete();
 

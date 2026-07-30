@@ -112,12 +112,12 @@ void FontMetadata::BlobImpl(ScriptPromiseResolver<Blob>* resolver,
 
   // TODO(https://crbug.com/1069900): This copies the font bytes. Lazy load and
   // stream the data instead.
-  Vector<char> bytes(font_byte_size);
+  Vector<uint8_t> bytes(font_byte_size);
   size_t returned_size = stream->read(bytes.data(), font_byte_size);
   DCHECK_EQ(returned_size, font_byte_size);
 
   scoped_refptr<RawData> raw_data = RawData::Create();
-  bytes.swap(*raw_data->MutableData());
+  bytes.swap(raw_data->MutableData());
   auto blob_data = std::make_unique<BlobData>();
   blob_data->AppendData(std::move(raw_data));
   blob_data->SetContentType("application/octet-stream");

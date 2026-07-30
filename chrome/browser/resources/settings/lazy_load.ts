@@ -7,6 +7,7 @@ import './ai_page/ai_mode_search_page.js';
 import './ai_page/ai_suggestions_page.js';
 import './ai_page/history_search_page.js';
 import './ai_page/offer_writing_help_page.js';
+import './ai_page/skills_page.js';
 import './appearance_page/appearance_fonts_page.js';
 import './autofill_page/autofill_ai_section.js';
 import './autofill_page/autofill_section.js';
@@ -143,12 +144,10 @@ export {CrTextareaElement} from 'chrome://resources/cr_elements/cr_textarea/cr_t
 export {CrToastElement} from 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
 export {getToastManager} from 'chrome://resources/cr_elements/cr_toast/cr_toast_manager.js';
 export {CrTooltipElement} from 'chrome://resources/cr_elements/cr_tooltip/cr_tooltip.js';
-// <if expr="not is_chromeos">
 export {PageCallbackRouter, PageHandlerFactory, PageHandlerRemote, PageRemote} from 'chrome://resources/js/batch_upload_promo.mojom-webui.js';
 export type {PageHandlerInterface} from 'chrome://resources/js/batch_upload_promo.mojom-webui.js';
 export {BatchUploadPromoProxyImpl} from 'chrome://resources/js/batch_upload_promo/batch_upload_promo_proxy.js';
 export type {BatchUploadPromoProxy} from 'chrome://resources/js/batch_upload_promo/batch_upload_promo_proxy.js';
-// </if>
 export type {IronListElement} from 'chrome://resources/polymer/v3_0/iron-list/iron-list.js';
 export {AccessibilityBrowserProxyImpl} from './a11y_page/a11y_browser_proxy.js';
 export type {AccessibilityBrowserProxy} from './a11y_page/a11y_browser_proxy.js';
@@ -167,6 +166,7 @@ export {SettingsAiSuggestionsPageElement} from './ai_page/ai_suggestions_page.js
 export {AiEnterpriseFeaturePrefName, AiPageActions, FeatureOptInState, SettingsAiPageFeaturePrefName} from './ai_page/constants.js';
 export {SettingsHistorySearchPageElement} from './ai_page/history_search_page.js';
 export {COMPOSE_PROACTIVE_NUDGE_DISABLED_SITES_PREF, COMPOSE_PROACTIVE_NUDGE_PREF, SettingsOfferWritingHelpPageElement} from './ai_page/offer_writing_help_page.js';
+export {SettingsSkillsPageElement} from './ai_page/skills_page.js';
 export {SettingsAppearanceFontsPageElement} from './appearance_page/appearance_fonts_page.js';
 export {SettingsAddressEditDialogElement} from './autofill_page/address_edit_dialog.js';
 export {SettingsAddressRemoveConfirmationDialogElement} from './autofill_page/address_remove_confirmation_dialog.js';

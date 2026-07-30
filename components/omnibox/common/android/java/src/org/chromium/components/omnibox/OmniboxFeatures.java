@@ -116,11 +116,17 @@ public class OmniboxFeatures {
     public static final CachedFlag sJumpStartOmnibox =
             newFlag(OmniboxFeatureList.JUMP_START_OMNIBOX, FeatureState.ENABLED_IN_TEST);
 
+    public static final CachedFlag sForceAndroidRealbox =
+            newFlag(OmniboxFeatureList.FORCE_ANDROID_REALBOX, FeatureState.DISABLED);
+
     public static final CachedFlag sPostDelayedTaskFocusTab =
             newFlag(OmniboxFeatureList.POST_DELAYED_TASK_FOCUS_TAB, FeatureState.ENABLED_IN_PROD);
 
     public static final CachedFlag sOmniboxSiteSearch =
             newFlag(OmniboxFeatureList.OMNIBOX_SITE_SEARCH, FeatureState.ENABLED_IN_TEST);
+
+    public static final CachedFlag sStarterPackExpansion =
+            newFlag(OmniboxFeatureList.STARTER_PACK_EXPANSION, FeatureState.ENABLED_IN_PROD);
 
     private static final CachedFlag sOmniboxMultimodalInput =
             newFlag(OmniboxFeatureList.OMNIBOX_MULTIMODAL_INPUT, FeatureState.ENABLED_IN_PROD);

@@ -148,10 +148,7 @@ namespace utils = api_test_utils;
 
 using api::oauth2::OAuth2Info;
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
 const char kAccessToken[] = "auth_token";
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
-
 const char kExtensionId[] = "ext_id";
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
@@ -3343,6 +3340,7 @@ INSTANTIATE_TEST_SUITE_P(
                     std::make_pair("\"enableGranularPermissions\": false",
                                    false),
                     std::make_pair("", false)));
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 class RemoveCachedAuthTokenFunctionTest : public ExtensionBrowserTest {
  protected:
@@ -3387,6 +3385,7 @@ class RemoveCachedAuthTokenFunctionTest : public ExtensionBrowserTest {
   }
 };
 
+#if BUILDFLAG(ENABLE_EXTENSIONS)
 class GetAuthTokenFunctionSelectedUserIdTest : public GetAuthTokenFunctionTest {
  public:
   // Executes a new function and checks that the selected_user_id is the
@@ -3561,6 +3560,7 @@ IN_PROC_BROWSER_TEST_F(GetAuthTokenFunctionSelectedUserIdTest,
       1);
 }
 #endif
+#endif  //  BUILDFLAG(ENABLE_EXTENSIONS)
 
 IN_PROC_BROWSER_TEST_F(RemoveCachedAuthTokenFunctionTest, NotFound) {
   EXPECT_TRUE(InvalidateDefaultToken());
@@ -3599,6 +3599,7 @@ IN_PROC_BROWSER_TEST_F(RemoveCachedAuthTokenFunctionTest, MatchingToken) {
             GetCachedToken().status());
 }
 
+#if BUILDFLAG(ENABLE_EXTENSIONS)
 class LaunchWebAuthFlowFunctionTest : public AsyncExtensionBrowserTest {
  public:
   void SetUpCommandLine(base::CommandLine* command_line) override {
@@ -3725,7 +3726,7 @@ IN_PROC_BROWSER_TEST_F(LaunchWebAuthFlowFunctionTest, NonInteractiveSuccess) {
   scoped_refptr<IdentityLaunchWebAuthFlowFunction> function =
       CreateLaunchWebAuthFlowFunction();
 
-  function->InitFinalRedirectURLDomainsForTest("abcdefghij");
+  function->InitFinalRedirectUrlsForTest("abcdefghij");
   std::optional<base::Value> value = utils::RunFunctionAndReturnSingleResult(
       function.get(),
       "[{\"interactive\": false,"
@@ -3750,7 +3751,7 @@ IN_PROC_BROWSER_TEST_F(LaunchWebAuthFlowFunctionTest,
   scoped_refptr<IdentityLaunchWebAuthFlowFunction> function =
       CreateLaunchWebAuthFlowFunction();
 
-  function->InitFinalRedirectURLDomainsForTest("abcdefghij");
+  function->InitFinalRedirectUrlsForTest("abcdefghij");
   std::string args = base::StringPrintf(
       R"([{
         "interactive": false,
@@ -3772,7 +3773,7 @@ IN_PROC_BROWSER_TEST_F(LaunchWebAuthFlowFunctionTest,
   scoped_refptr<IdentityLaunchWebAuthFlowFunction> function =
       CreateLaunchWebAuthFlowFunction();
 
-  function->InitFinalRedirectURLDomainsForTest("abcdefghij");
+  function->InitFinalRedirectUrlsForTest("abcdefghij");
   std::optional<base::Value> value = utils::RunFunctionAndReturnSingleResult(
       function.get(),
       "[{\"interactive\": true,"
@@ -3795,7 +3796,7 @@ IN_PROC_BROWSER_TEST_F(LaunchWebAuthFlowFunctionTest,
   scoped_refptr<IdentityLaunchWebAuthFlowFunction> function =
       CreateLaunchWebAuthFlowFunction();
 
-  function->InitFinalRedirectURLDomainsForTest("abcdefghij");
+  function->InitFinalRedirectUrlsForTest("abcdefghij");
   std::string args =
       "[{\"interactive\": true, \"url\": \"" + auth_url.spec() + "\"}]";
   std::optional<base::Value> value =
@@ -3950,7 +3951,7 @@ IN_PROC_BROWSER_TEST_F(LaunchWebAuthFlowFunctionTestWithBrowserTab,
       CreateLaunchWebAuthFlowFunction();
 
   const std::string extension_id("abcdefghij");
-  function->InitFinalRedirectURLDomainsForTest(extension_id);
+  function->InitFinalRedirectUrlsForTest(extension_id);
 
   const GURL auth_url(https_server->GetURL("/consent_page.html"));
   const GURL final_url("https://" + extension_id + ".chromiumapp.org/");
@@ -4041,6 +4042,63 @@ IN_PROC_BROWSER_TEST_F(LaunchWebAuthFlowFunctionTestWithBrowserTab,
       IdentityLaunchWebAuthFlowFunction::Error::kNone, 1);
 }
 
+struct WebAuthFlowTestParams {
+  std::string allowed_url;
+  std::string redirect_url;
+  bool expect_allowed = false;
+};
+
+class ParameterizedLaunchWebAuthFlowTest
+    : public LaunchWebAuthFlowFunctionTestWithBrowserTab,
+      public testing::WithParamInterface<WebAuthFlowTestParams> {};
+
+IN_PROC_BROWSER_TEST_P(ParameterizedLaunchWebAuthFlowTest, RedirectMatching) {
+  const auto& params = GetParam();
+
+  std::unique_ptr<net::EmbeddedTestServer> https_server = LaunchHttpsServer();
+  scoped_refptr<IdentityLaunchWebAuthFlowFunction> function =
+      CreateLaunchWebAuthFlowFunction();
+
+  const GURL auth_url(https_server->GetURL("/consent_page.html"));
+  const GURL allowed_gurl(params.allowed_url);
+  const GURL redirect_gurl(params.redirect_url);
+
+  const std::string args = base::StringPrintf(
+      R"([{"interactive": true, "url": "%s"}])", auth_url.spec().c_str());
+
+  profile()->GetPrefs()->SetDict(
+      extensions::pref_names::kOAuthRedirectUrls,
+      base::DictValue().Set(function->extension()->id(),
+                            base::ListValue().Append(allowed_gurl.spec())));
+  RunFunctionAndWaitForNavigation(function.get(), auth_url, args);
+
+  SimulateCustomUrlRedirect(
+      redirect_gurl.spec(),
+      function->GetWebAuthFlowForTesting()->web_contents());
+
+  if (params.expect_allowed) {
+    base::Value result_output;
+    WaitForOneResult(function.get(), &result_output);
+    EXPECT_EQ(result_output.GetString(), redirect_gurl.spec());
+  } else {
+    std::string error = WaitForError(function.get());
+    EXPECT_EQ(error, "Authorization page could not be loaded.");
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    ParameterizedLaunchWebAuthFlowTest,
+    testing::Values(
+        // Success case: exact match
+        WebAuthFlowTestParams{.allowed_url = "https://example.com/a",
+                              .redirect_url = "https://example.com/a",
+                              .expect_allowed = true},
+        // Failure case: prefix but not sub-path
+        WebAuthFlowTestParams{.allowed_url = "https://example.com/a",
+                              .redirect_url = "https://example.com/ab",
+                              .expect_allowed = false}));
+
 // TODO(crbug.com/40259192): This test should be adapted after the
 // implementation of the bug. Multiple TODOs in the test to fix.
 IN_PROC_BROWSER_TEST_F(LaunchWebAuthFlowFunctionTestWithBrowserTab,
@@ -4052,8 +4110,8 @@ IN_PROC_BROWSER_TEST_F(LaunchWebAuthFlowFunctionTestWithBrowserTab,
       CreateLaunchWebAuthFlowFunction();
 
   const std::string extension_id("final_url");
-  function1->InitFinalRedirectURLDomainsForTest(extension_id);
-  function2->InitFinalRedirectURLDomainsForTest(extension_id);
+  function1->InitFinalRedirectUrlsForTest(extension_id);
+  function2->InitFinalRedirectUrlsForTest(extension_id);
 
   const GURL auth_url(https_server->GetURL("/consent_page.html"));
   const GURL final_url("https://" + extension_id + ".chromiumapp.org/");
@@ -4101,9 +4159,9 @@ IN_PROC_BROWSER_TEST_F(LaunchWebAuthFlowFunctionTestWithBrowserTab,
       CreateLaunchWebAuthFlowFunction();
 
   const std::string extension_id1("extension1");
-  function1->InitFinalRedirectURLDomainsForTest(extension_id1);
+  function1->InitFinalRedirectUrlsForTest(extension_id1);
   const std::string extension_id2("extension2");
-  function2->InitFinalRedirectURLDomainsForTest(extension_id2);
+  function2->InitFinalRedirectUrlsForTest(extension_id2);
 
   const GURL auth_url(https_server->GetURL("/consent_page.html"));
   // Different final_urls.
@@ -4160,7 +4218,7 @@ IN_PROC_BROWSER_TEST_F(
       CreateLaunchWebAuthFlowFunction();
 
   const std::string extension_id("extension");
-  function1->InitFinalRedirectURLDomainsForTest(extension_id);
+  function1->InitFinalRedirectUrlsForTest(extension_id);
 
   const GURL auth_url1(https_server->GetURL("/consent_page.html"));
   const GURL auth_url2(https_server->GetURL("/interaction_required.html"));
@@ -4202,6 +4260,7 @@ IN_PROC_BROWSER_TEST_F(
       kLaunchWebAuthFlowResultHistogramName,
       IdentityLaunchWebAuthFlowFunction::Error::kNone, 1);
 }
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 class ClearAllCachedAuthTokensFunctionTest : public AsyncExtensionBrowserTest {
  public:
@@ -4259,7 +4318,6 @@ IN_PROC_BROWSER_TEST_F(ClearAllCachedAuthTokensFunctionTest,
   EXPECT_EQ(IdentityTokenCacheValue::CACHE_STATUS_NOTFOUND,
             id_api()->token_cache()->GetToken(token_key).status());
 }
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 class OnSignInChangedEventTest : public IdentityTestWithSignin {
  protected:

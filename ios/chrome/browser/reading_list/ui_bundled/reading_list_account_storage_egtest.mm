@@ -97,6 +97,11 @@ std::unique_ptr<net::test_server::HttpResponse> StandardResponse(
 
 @implementation ReadingListAccountStorageTestCase
 
+- (AppLaunchConfiguration)appConfigurationForTestCase {
+  AppLaunchConfiguration config = [super appConfigurationForTestCase];
+  return config;
+}
+
 - (void)setUp {
   [super setUp];
   self.testServer->RegisterRequestHandler(

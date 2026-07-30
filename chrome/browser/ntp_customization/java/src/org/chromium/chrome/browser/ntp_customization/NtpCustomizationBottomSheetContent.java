@@ -170,6 +170,9 @@ public class NtpCustomizationBottomSheetContent implements BottomSheetContent {
 
     @Override
     public int getSheetClosedAccessibilityStringId() {
+        // The accessibility string is hardcoded here because mCurrentBottomSheetTypeSupplier.get()
+        // will always return null in this function since mCurrentBottomSheet is set to null upon
+        // dismissal.
         return R.string.ntp_customization_main_bottom_sheet_closed;
     }
 

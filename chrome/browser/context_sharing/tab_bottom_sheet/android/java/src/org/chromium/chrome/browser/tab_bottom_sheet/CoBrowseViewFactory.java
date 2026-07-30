@@ -90,12 +90,15 @@ public class CoBrowseViewFactory {
      * @param webContents The {@link WebContents} to be displayed in the thin web view.
      * @param backgroundColor The background color for the content.
      * @param clientType The client using coBrowseViews.
+     * @param containerType The type of container hosting the views.
      * @return The {@link CoBrowseViews} instance.
      */
     CoBrowseViews buildCoBrowseViews(
             @Nullable WebContents webContents,
             @ColorInt int backgroundColor,
-            @TabBottomSheetClientType int clientType) {
+            @TabBottomSheetClientType int clientType,
+            @CoBrowseContainerType int containerType,
+            @Nullable TabBottomSheetContentProvider bottomSheetContentProvider) {
         View containerView =
                 LayoutInflater.from(mActivity).inflate(R.layout.tab_bottom_sheet, null);
         TabBottomSheetWebUi webUi =
@@ -129,9 +132,16 @@ public class CoBrowseViewFactory {
             }
         }
 
-        webUi.setWebContents(webContents);
+        webUi.setWebContents(webContents, false);
 
-        return new CoBrowseViews(containerView, clientType, webUi, fusebox, backgroundColor);
+        return new CoBrowseViews(
+                containerView,
+                clientType,
+                containerType,
+                webUi,
+                fusebox,
+                backgroundColor,
+                bottomSheetContentProvider);
     }
 
     @CalledByNative
@@ -139,7 +149,9 @@ public class CoBrowseViewFactory {
     public static @Nullable CoBrowseViews buildCoBrowseViews(
             @JniType("ui::WindowAndroid*") WindowAndroid windowAndroid,
             @Nullable @JniType("content::WebContents*") WebContents webContents,
-            @TabBottomSheetClientType int clientType) {
+            @TabBottomSheetClientType int clientType,
+            @CoBrowseContainerType int containerType,
+            @Nullable TabBottomSheetContentProvider bottomSheetContentProvider) {
         CoBrowseViewFactory factory = TabBottomSheetUtils.getFactoryFromWindow(windowAndroid);
         if (factory == null) {
             return null;
@@ -150,6 +162,11 @@ public class CoBrowseViewFactory {
                 clientType == TabBottomSheetClientType.GLIC
                         ? factory.mActivity.getColor(R.color.tab_bottom_sheet_glic_bg)
                         : factory.mActivity.getColor(R.color.tab_bottom_sheet_base_bg);
-        return factory.buildCoBrowseViews(webContents, backgroundColor, clientType);
+        return factory.buildCoBrowseViews(
+                webContents,
+                backgroundColor,
+                clientType,
+                containerType,
+                bottomSheetContentProvider);
     }
 }

@@ -266,6 +266,10 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
         type: Boolean,
         reflect: true,
       },
+      isDomContentLoaded_: {
+        type: Boolean,
+        reflect: true,
+      },
     };
   }
 
@@ -338,9 +342,11 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
       loadTimeData.getString('friendlyZeroStateSubtitle');
   protected accessor friendlyZeroStateTitle: string =
       loadTimeData.getString('friendlyZeroStateTitle');
+  protected accessor isDomContentLoaded_: boolean = false;
   // Tracks whether the frame is currently loading. Needed to avoid race
   // condition while awaiting isAiPage.
   private isFrameLoading: boolean = false;
+  private isSubmittingFromComposebox_: boolean = false;
   private listenerIds_: number[] = [];
   private eventTracker_: EventTracker = new EventTracker();
   private commonSearchParams_: {[key: string]: string}|null = null;
@@ -380,6 +386,8 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
   // Tracks whether the frame is loading for the very first time to prevent
   // double animations.
   private isInitialFrameLoad_: boolean = true;
+  private contextManagementInComposeboxEnabled_: boolean =
+      loadTimeData.getBoolean('contextManagementInComposeboxEnabled');
 
   private updateThemeFromUrl(url: URL) {
     const csParam = url.searchParams.get('cs');
@@ -481,7 +489,19 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
       }),
       callbackRouter.setTaskDetails.addListener(updateTaskDetailsInUrl),
       callbackRouter.onZeroStateChange.addListener(isZeroState => {
+        const wasZeroState = this.isZeroState_;
         this.isZeroState_ = isZeroState;
+        // Navigation goes from a non-zero state page to a zero state page.
+        // In this case, we need to trigger the submit cleanup if the submission
+        // is coming from the webview since webview does not trigger a cleanup
+        // on its own.
+        if (this.contextManagementInComposeboxEnabled_ && wasZeroState &&
+            !isZeroState) {
+          if (!this.isSubmittingFromComposebox_) {
+            this.composebox_?.getComposebox().submitCleanup();
+          }
+          this.isSubmittingFromComposebox_ = false;
+        }
         // If we just changed to zero state, that means
         // it is a new thread or new AIM page. Otherwise,
         // we are not in zero state anymore, or not in an AIM URL. In
@@ -582,6 +602,15 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
         'loadcommit', this.onThreadFrameLoadCommit.bind(this));
     this.$.threadFrame.addEventListener(
         'contentload', this.onThreadFrameContentLoad.bind(this));
+    this.eventTracker_.add(window, 'message', (event: MessageEvent) => {
+      if (event.data === 'domContentLoaded') {
+        this.isDomContentLoaded_ = true;
+        // Play the zero state animations, unhide the composebox and header.
+        if (this.isZeroState_) {
+          this.playZeroStateAnimations_();
+        }
+      }
+    });
 
     // Setup the webview request overrides before loading the first URL.
     this.setupWebviewRequestOverrides();
@@ -653,6 +682,12 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
 
     this.inNlm_ = this.checkInNlm_(threadUrlAsUrl);
 
+    // Add this fallback: If the DOM already loaded while we were awaiting, play
+    // it now!
+    if (this.isZeroState_ && this.isDomContentLoaded_) {
+      this.playZeroStateAnimations_();
+    }
+
     // The thread URL is considered pending (not loaded immediately in the
     // webview) until oauth tokens are received from the WebUI controller. This
     // prevents situations where the user is technically signed out of the
@@ -683,12 +718,13 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
     this.postMessageHandler_.setInputPlateBoundsUpdateCallback(
         this.onInputPlateBoundsUpdate_.bind(this));
 
-    this.postMessageHandler_.setInputPlateBoundsUpdateCallback(
-        this.onInputPlateBoundsUpdate_.bind(this));
-
     this.eventTracker_.add(
         composebox, 'context-menu-opened',
         () => this.onComposeboxContextMenuOpened_());
+
+    this.eventTracker_.add(composebox, 'composebox-submit', () => {
+      this.isSubmittingFromComposebox_ = true;
+    });
 
     this.eventTracker_.add(composebox, 'mouseenter', () => {
       this.composeboxHovered_ = true;
@@ -775,27 +811,16 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
     // </if>
   }
 
-  private async playZeroStateAnimations_() {
-    await this.updateComplete;
-    const restartAnimations = (element: HTMLElement) => {
-      element.getAnimations().forEach(animation => {
-        animation.cancel();
-        animation.play();
-      });
-    };
+  private playZeroStateAnimations_() {
+    this.clearZeroStateAnimations_();
+    this.classList.add('play-zero-state');
+    this.composebox_?.classList.add('play-zero-state');
+    this.composebox_?.startExpandAnimation();
+  }
 
-    const composebox = this.composebox_;
-    if (composebox) {
-      restartAnimations(composebox);
-      // Restart the composebox glow animation.
-      composebox.startExpandAnimation();
-    }
-    restartAnimations(this.$.composeboxHeaderWrapper);
-
-    const nameShimmer = this.shadowRoot.getElementById('nameShimmer');
-    if (nameShimmer) {
-      restartAnimations(nameShimmer);
-    }
+  private clearZeroStateAnimations_() {
+    this.classList.remove('play-zero-state');
+    this.composebox_?.classList.remove('play-zero-state');
   }
 
   protected onComposeboxContextMenuOpened_() {
@@ -1332,6 +1357,8 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
            PermissionRequestEvent) => {
             if (e.permission === 'download') {
               e.request.allow();
+            } else if (e.permission === 'geolocation') {
+              e.request.allow();
             }
           });
 
@@ -1341,6 +1368,37 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
       const userAgentSuffix = loadTimeData.getString('userAgentSuffix');
       this.$.threadFrame.setUserAgentOverride(
           `${userAgent} ${userAgentSuffix}`);
+
+      // Inject a script to notify the embedder when the DOM has loaded so the
+      // app knows when to show the header and composebox.
+      this.$.threadFrame.addContentScripts([{
+        name: 'contextualTasksDomContentLoaded',
+        matches: ['<all_urls>'],
+        js: {
+          code: `
+            (() => {
+              let messageSent = false;
+              let embedderSource = null;
+
+              const send = () => {
+                if (messageSent || !embedderSource) return;
+                if (document.readyState === 'loading') return;
+                embedderSource.postMessage('domContentLoaded', '*');
+                messageSent = true;
+              };
+
+              document.addEventListener('DOMContentLoaded', send);
+
+              window.addEventListener('message', (e) => {
+                if (messageSent || !e.source || e.source === window) return;
+                embedderSource = e.source;
+                send();
+              });
+            })();
+          `,
+        },
+        run_at: 'document_start',
+      }]);
     }
   }
 

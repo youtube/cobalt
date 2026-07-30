@@ -34,7 +34,6 @@ chromium-metrics-reviews@google.com.
 <!-- LINT.IfChange(DataTypeHistogramSuffix) -->
 
 <variants name="SyncDataType">
-  <variant name=".ACCESSIBILITY_ANNOTATION" summary="ACCESSIBILITY_ANNOTATION"/>
   <variant name=".ACCOUNT_SETTING" summary="ACCOUNT_SETTING"/>
   <variant name=".AI_THREAD" summary="AI_THREAD"/>
   <variant name=".APP" summary="APP"/>
@@ -1653,6 +1652,70 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram
+    name="Sync.InvalidationTransitLatency.ClockSkewDetected.{SyncInvalidationLatencySource}"
+    enum="Boolean" expires_after="2027-05-01">
+  <owner>mastiz@chromium.org</owner>
+  <owner>nyquist@chromium.org</owner>
+  <owner>src/components/sync/OWNERS</owner>
+  <summary>
+    Recorded true when a Sync invalidation is received with a timestamp in the
+    future relative to the client's clock, indicating clock skew, using
+    {SyncInvalidationLatencySource}. Recorded false when a valid latency sample
+    (non-negative) is recorded. Note that ServerBased.* metrics are recorded
+    cumulatively; a single sample is recorded in every histogram whose
+    uncertainty threshold is satisfied.
+  </summary>
+  <token key="SyncInvalidationLatencySource">
+    <variant name="ClientBased" summary="client-based clock time"/>
+    <variant name="ServerBased.Uncertainty2s"
+        summary="server-authoritative network time with uncertainty &lt;= 2s"/>
+    <variant name="ServerBased.Uncertainty10s"
+        summary="server-authoritative network time with uncertainty &lt;= 10s"/>
+    <variant name="ServerBased.Uncertainty15s"
+        summary="server-authoritative network time with uncertainty &lt;= 15s"/>
+  </token>
+</histogram>
+
+<histogram name="Sync.InvalidationTransitLatency.ServerBased.Uncertainty"
+    units="ms" expires_after="2027-05-01">
+  <owner>mastiz@chromium.org</owner>
+  <owner>nyquist@chromium.org</owner>
+  <owner>src/components/sync/OWNERS</owner>
+  <summary>
+    The uncertainty (estimated error range) of the network time used for
+    recording Sync.InvalidationTransitLatency.ServerBased.* histograms. Recorded
+    only when the network time is successfully retrieved and available.
+  </summary>
+</histogram>
+
+<histogram
+    name="Sync.InvalidationTransitLatency.{SyncInvalidationLatencySource}{SyncDataType}"
+    units="ms" expires_after="2027-05-01">
+  <owner>mastiz@chromium.org</owner>
+  <owner>nyquist@chromium.org</owner>
+  <owner>src/components/sync/OWNERS</owner>
+  <summary>
+    The end-to-end transit latency of Sync FCM invalidations for {SyncDataType},
+    measured from server dispatch (publish time in payload) to client receipt,
+    using {SyncInvalidationLatencySource}. Note that ServerBased.* metrics are
+    recorded cumulatively; a single sample is recorded in every histogram whose
+    uncertainty threshold is satisfied.
+  </summary>
+  <token key="SyncInvalidationLatencySource">
+    <variant name="ClientBased" summary="client-based clock time"/>
+    <variant name="ServerBased.Uncertainty2s"
+        summary="server-authoritative network time with uncertainty &lt;= 2s"/>
+    <variant name="ServerBased.Uncertainty10s"
+        summary="server-authoritative network time with uncertainty &lt;= 10s"/>
+    <variant name="ServerBased.Uncertainty15s"
+        summary="server-authoritative network time with uncertainty &lt;= 15s"/>
+  </token>
+  <token key="SyncDataType" variants="SyncDataType">
+    <variant name="" summary="all types combined"/>
+  </token>
+</histogram>
+
 <histogram name="Sync.InvalidBookmarkSpecifics"
     enum="InvalidBookmarkSpecificsError" expires_after="2026-05-24">
   <owner>mastiz@chromium.org</owner>
@@ -2393,7 +2456,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.SyncEverything2" enum="Boolean"
-    expires_after="2026-07-05">
+    expires_after="2026-12-05">
   <owner>treib@chromium.org</owner>
   <owner>mastiz@chromium.org</owner>
   <summary>
@@ -2701,6 +2764,19 @@ chromium-metrics-reviews@google.com.
   <summary>
     Records the 0-based index of the device from which a tab is opened in the
     TabsFromOtherDevices side panel ({Version}). Recorded when a tab is opened.
+  </summary>
+  <token key="Version" variants="TabsFromOtherDevicesVersion"/>
+</histogram>
+
+<histogram
+    name="Sync.TabsFromOtherDevicesSidePanel.{Version}.OpenedTabRecencyIndex"
+    units="index" expires_after="2027-05-07">
+  <owner>treib@chromium.org</owner>
+  <owner>src/components/sync/OWNERS</owner>
+  <summary>
+    Records the index (by recency, i.e., visual order in the side panel) of the
+    tab that was opened within its session/device in the TabsFromOtherDevices
+    side panel ({Version}). Recorded when a tab is opened.
   </summary>
   <token key="Version" variants="TabsFromOtherDevicesVersion"/>
 </histogram>

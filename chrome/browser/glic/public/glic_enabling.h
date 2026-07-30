@@ -14,8 +14,10 @@
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
 #include "base/types/expected.h"
+#include "base/values.h"
 #include "chrome/browser/glic/glic_enums.h"
 #include "chrome/browser/glic/glic_user_status_fetcher.h"
+#include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/public/features.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
 #include "components/prefs/pref_change_registrar.h"
@@ -83,6 +85,7 @@ class GlicGlobalEnabling {
   ~GlicGlobalEnabling();
   bool IsEnabledByGlobalCriteria();
   bool IsSystemRequirementMet() const;
+  bool IsOsVersionSupported() const;
   bool IsLocaleEnabled() const { return locale_enablement_.value_or(true); }
   bool IsCountryEnabled() const { return country_enablement_.value_or(true); }
 
@@ -91,12 +94,15 @@ class GlicGlobalEnabling {
   std::optional<bool> country_enablement_;
 };
 
+// LINT.IfChange(RequiredExperimentalOptIn)
 enum class RequiredExperimentalOptIn {
-  kGlic,
-  kActuation,
-  kExperimental,
-  kNotNeeded,
+  kGlic = 0,
+  kActuation = 1,
+  kExperimental = 2,
+  kNotNeeded = 3,
+  kMaxValue = kNotNeeded,
 };
+// LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicRequiredExperimentalOptIn)
 
 // This class provides a central location for checking if Glic is enabled. It
 // allows for future expansion to include other ways the feature may be disabled
@@ -127,6 +133,10 @@ class GlicEnabling final : public signin::IdentityManager::Observer,
   // Returns whether the global Glic feature is enabled for Chrome. This status
   // will not change at runtime.
   static bool IsEnabledByGlobalCriteria();
+
+  // Checks whether this client is likely a dogfooder, taking the ignore dogfood
+  // feature into account.
+  static bool IsLikelyDogfoodClient();
 
   // Returns true if a profile is eligible for Glic. Some profiles - such as
   // incognito, guest, system profile, etc. - are never eligible. An eligible
@@ -205,6 +215,11 @@ class GlicEnabling final : public signin::IdentityManager::Observer,
   // and the account is non-enterprise (or for Glic dev).
   static bool IsShareImageEnabledForProfile(Profile* profile);
 
+  // Returns the Gemini Enterprise settings, taking into account command line
+  // overrides.
+  static std::optional<glic::mojom::GeminiEnterpriseSettings>
+  GetGeminiEnterpriseSettings(Profile* profile);
+
   // Whether the live mode and floaty window are enabled by flags.
   static bool IsLiveAndFloatyEnabledByFlags();
 
@@ -222,6 +237,9 @@ class GlicEnabling final : public signin::IdentityManager::Observer,
     bool is_rolled_out : 1 = true;
     bool primary_account_is_capable : 1 = true;
     bool primary_account_is_fully_signed_in : 1 = true;
+    // The profile is signed out, but kGlicShowForSignedOut is enabled, so the
+    // GiC panel can be shown to show the sign-in promotion.
+    bool primary_account_needs_signed_in : 1 = false;
     bool allowed_by_chrome_policy : 1 = true;
     bool allowed_by_remote_admin : 1 = true;
     bool allowed_by_remote_other : 1 = true;
@@ -240,6 +258,9 @@ class GlicEnabling final : public signin::IdentityManager::Observer,
     // met.
     bool system_requirement_met : 1 = true;
 
+    // Whether the OS version is supported.
+    bool os_version_supported : 1 = true;
+
     // Whether the user has onboarded with this profile previously which keeps
     // Glic partially enabled to show error states instead of hiding the button.
     bool anchor_entrypoint_override_active : 1 = false;
@@ -256,7 +277,8 @@ class GlicEnabling final : public signin::IdentityManager::Observer,
       kCountryDisabled = 1,
       kLocaleDisabled = 2,
       kSystemRequirementNotMet = 3,
-      kMaxValue = kSystemRequirementNotMet,
+      kOsVersionNotSupported = 4,
+      kMaxValue = kOsVersionNotSupported,
     };
     // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicFeatureDisabledReason)
 
@@ -406,6 +428,12 @@ class GlicEnabling final : public signin::IdentityManager::Observer,
   // Returns true if the user enabled actuation on web pref is at its default
   // value.
   bool IsUserEnabledActuationOnWebDefault() const;
+  // Returns true if the experimental triggering enabled pref is at its default
+  // value.
+  bool IsExperimentalTriggeringEnabledDefault() const;
+  // Returns true if the experimental triggering enabled pref is user
+  // controlled.
+  bool IsExperimentalTriggeringUserControlled() const;
   // Sets whether user enabled actuation on web.
   void SetUserEnabledActuationOnWeb(bool enabled);
 

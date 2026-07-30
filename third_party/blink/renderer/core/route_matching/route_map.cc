@@ -173,7 +173,7 @@ void RouteMap::AddRouteFromRule(const String& dashed_ident,
   Route* route = MakeGarbageCollected<Route>(GetDocument());
   route->AddPattern(url_pattern);
   routes_.insert(dashed_ident, route);
-  route->UpdateMatchStatus(previous_url_, next_url_);
+  UpdateMatchStatus(*route);
 }
 
 void RouteMap::AddAnonymousRoute(URLPattern* pattern) {
@@ -185,7 +185,7 @@ void RouteMap::AddAnonymousRoute(URLPattern* pattern) {
   }
   route = MakeGarbageCollected<Route>(GetDocument());
   route->AddPattern(pattern);
-  route->UpdateMatchStatus(previous_url_, next_url_);
+  UpdateMatchStatus(*route);
 }
 
 const Route* RouteMap::FindRoute(const String& route_name) const {
@@ -206,14 +206,13 @@ void RouteMap::UpdateActiveRoutes() {
 #endif
 
   HeapVector<Member<Route>> routes_needing_event;
-  bool changed = false;
   for (const auto& entry : routes_) {
     Route& route = *entry.value;
-    changed |= UpdateMatchStatus(route, &routes_needing_event);
+    UpdateMatchStatus(route, &routes_needing_event);
   }
   for (const auto& entry : anonymous_routes_) {
     Route& route = *entry.value;
-    changed |= UpdateMatchStatus(route, &routes_needing_event);
+    UpdateMatchStatus(route, &routes_needing_event);
   }
 
   for (Route* route : routes_needing_event) {
@@ -222,10 +221,6 @@ void RouteMap::UpdateActiveRoutes() {
     auto* event = MakeGarbageCollected<RouteEvent>(type);
     event->SetTarget(route);
     route->DispatchEvent(*event);
-  }
-
-  if (changed) {
-    GetDocument().GetStyleEngine().NavigationsMayHaveChanged();
   }
 }
 
@@ -248,26 +243,31 @@ void RouteMap::GetActiveRoutes(NavigationPreposition preposition,
 
 void RouteMap::OnNavigationStart(const KURL& previous_url,
                                  const KURL& next_url) {
+  navigation_phase_ = NavigationPhase::kLoading;
   previous_url_ = previous_url;
   next_url_ = next_url;
   UpdateActiveRoutes();
+  GetDocument().GetStyleEngine().NavigationsMayHaveChanged();
 }
 
 void RouteMap::OnNavigationTraverse(HistoryTraverseType type) {
   history_traverse_type_ = type;
-  if (has_history_rules_) {
-    GetDocument().GetStyleEngine().NavigationsMayHaveChanged();
-  }
+  GetDocument().GetStyleEngine().NavigationsMayHaveChanged();
+}
+
+void RouteMap::OnNavigationCommitted() {
+  navigation_phase_ = NavigationPhase::kCommitted;
+  UpdateActiveRoutes();
+  GetDocument().GetStyleEngine().NavigationsMayHaveChanged();
 }
 
 void RouteMap::OnNavigationDone() {
+  navigation_phase_ = NavigationPhase::kInactive;
   previous_url_ = KURL();
   next_url_ = KURL();
   UpdateActiveRoutes();
   history_traverse_type_ = kNotTraversing;
-  if (has_history_rules_) {
-    GetDocument().GetStyleEngine().NavigationsMayHaveChanged();
-  }
+  GetDocument().GetStyleEngine().NavigationsMayHaveChanged();
 }
 
 void RouteMap::OnPreviewStart() {
@@ -286,6 +286,45 @@ void RouteMap::OnPreviewFinished() {
   GetDocument().GetStyleEngine().NavigationsMayHaveChanged();
 }
 
+KURL RouteMap::GetWithURL() const {
+  if (!IsActiveNavigation()) {
+    return KURL();
+  }
+  DCHECK(GetDocument().Url() == next_url_ ||
+         GetDocument().Url() == previous_url_);
+  // Return the URL that we're navigating towards or away from, i.e. the
+  // opposite of the "at" URL.
+  if (GetDocument().Url() == next_url_) {
+    return previous_url_;
+  }
+  return next_url_;
+}
+
+KURL RouteMap::GetAtURL() const {
+  if (!IsActiveNavigation()) {
+    return KURL();
+  }
+  DCHECK(GetDocument().Url() == next_url_ ||
+         GetDocument().Url() == previous_url_);
+  return GetDocument().Url();
+}
+
+// Get the "active navigation URL", given the specified preposition.
+//
+// https://drafts.csswg.org/css-navigation-1/#active-navigation-url
+KURL RouteMap::GetActiveNavigationURL(NavigationPreposition preposition) const {
+  switch (preposition) {
+    case NavigationPreposition::kAt:
+      return GetAtURL();
+    case NavigationPreposition::kFrom:
+      return GetFromURL();
+    case NavigationPreposition::kTo:
+      return GetToURL();
+    case NavigationPreposition::kWith:
+      return GetWithURL();
+  }
+}
+
 RouteMap::ParseResult RouteMap::AddPatternToRoute(Route& route,
                                                   const JSONValue& value) {
   base::expected<URLPattern*, String> pattern =
@@ -296,7 +335,7 @@ RouteMap::ParseResult RouteMap::AddPatternToRoute(Route& route,
     route.AddPattern(*pattern);
     // TODO(crbug.com/436805487): If we actually end up keeping support for
     // <script type="routemap">, we're missing events here.
-    if (route.UpdateMatchStatus(previous_url_, next_url_)) {
+    if (UpdateMatchStatus(route)) {
       GetDocument().GetStyleEngine().NavigationsMayHaveChanged();
     }
     return RouteMap::ParseResult(RouteMap::ParseResult::kSuccess);
@@ -309,11 +348,14 @@ bool RouteMap::UpdateMatchStatus(
     Route& route,
     HeapVector<Member<Route>>* routes_needing_event) {
   bool matched_at = route.Matches(NavigationPreposition::kAt);
-  if (!route.UpdateMatchStatus(previous_url_, next_url_)) {
+
+  if (!route.UpdateMatchStatus(GetFromURL(), GetToURL(), navigation_phase_)) {
     return false;
   }
-  if (matched_at != route.Matches(NavigationPreposition::kAt)) {
-    routes_needing_event->push_back(&route);
+  if (routes_needing_event) {
+    if (matched_at != route.Matches(NavigationPreposition::kAt)) {
+      routes_needing_event->push_back(&route);
+    }
   }
   return true;
 }

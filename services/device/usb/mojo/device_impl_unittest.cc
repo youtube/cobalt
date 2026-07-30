@@ -181,7 +181,7 @@ class USBDeviceImplTest : public testing::Test {
 
  protected:
   MockUsbDevice& mock_device() { return *mock_device_.get(); }
-  bool is_device_open() const { return is_device_open_; }
+  bool is_device_open() const { return open_count_ > 0; }
   MockUsbDeviceHandle& mock_handle() { return *mock_handle_.get(); }
 
   void set_allow_reset(bool allow_reset) { allow_reset_ = allow_reset; }
@@ -292,8 +292,7 @@ class USBDeviceImplTest : public testing::Test {
 
  private:
   void OpenMockHandle(UsbDevice::OpenCallback& callback) {
-    EXPECT_FALSE(is_device_open_);
-    is_device_open_ = true;
+    open_count_++;
     // Simulate the asynchronous device opening process.
     base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
         FROM_HERE, base::BindOnce(std::move(callback), mock_handle_),
@@ -301,8 +300,8 @@ class USBDeviceImplTest : public testing::Test {
   }
 
   void CloseMockHandle() {
-    EXPECT_TRUE(is_device_open_);
-    is_device_open_ = false;
+    EXPECT_GT(open_count_, 0);
+    open_count_--;
   }
 
   void SetConfiguration(uint8_t value,
@@ -466,7 +465,7 @@ class USBDeviceImplTest : public testing::Test {
   base::test::SingleThreadTaskEnvironment task_environment_;
   scoped_refptr<MockUsbDevice> mock_device_;
   scoped_refptr<MockUsbDeviceHandle> mock_handle_;
-  bool is_device_open_ = false;
+  int open_count_ = 0;
   bool allow_reset_ = false;
 
   std::map<uint8_t, raw_ptr<const mojom::UsbConfigurationInfo, CtnExperimental>>
@@ -907,6 +906,73 @@ TEST_F(USBDeviceImplTest, ClaimInterfaceFailsDuringSetConfiguration) {
   EXPECT_CALL(mock_handle(), Close());
 }
 
+TEST_F(USBDeviceImplTest, ClaimInterfaceFailsDuringSetConfigurationMultiPipe) {
+  mojo::Remote<mojom::UsbDevice> device1 = GetMockDeviceProxy();
+
+  // Create a second DeviceImpl pointing to the SAME mock UsbDevice to mimic
+  // dual Mojo pipes created from a compromised renderer pointing to the same
+  // physical device. We cannot use GetMockDeviceProxy() here as it would
+  // recreate and overwrite the mock device instance.
+  mojo::Remote<mojom::UsbDevice> device2;
+  DeviceImpl::Create(scoped_refptr<device::UsbDevice>(&mock_device()),
+                     device2.BindNewPipeAndPassReceiver(),
+                     /*client=*/mojo::NullRemote(),
+                     /*blocked_interface_classes=*/{},
+                     /*allow_security_key_requests=*/false);
+
+  EXPECT_CALL(mock_device(), OpenInternal(_)).Times(2);
+
+  // Open the device via both pipes.
+  {
+    base::test::TestFuture<mojom::UsbOpenDeviceResultPtr> future;
+    device1->Open(future.GetCallback());
+    EXPECT_TRUE(future.Get()->is_success());
+  }
+  {
+    base::test::TestFuture<mojom::UsbOpenDeviceResultPtr> future;
+    device2->Open(future.GetCallback());
+    EXPECT_TRUE(future.Get()->is_success());
+  }
+
+  AddMockConfig(ConfigBuilder(1).AddInterface(0, 0, 1, 2, 3).Build());
+
+  base::test::TestFuture<UsbDeviceHandle::ResultCallback>
+      set_config_callback_future;
+  EXPECT_CALL(mock_handle(), SetConfigurationInternal(1, _))
+      .WillOnce([&set_config_callback_future](
+                    int value, UsbDeviceHandle::ResultCallback& callback) {
+        set_config_callback_future.SetValue(std::move(callback));
+      });
+
+  // Initiate SetConfiguration via device1.
+  base::test::TestFuture<bool> set_config_future;
+  device1->SetConfiguration(1, set_config_future.GetCallback());
+
+  // Ensure the request has reached the service and retrieve the callback.
+  UsbDeviceHandle::ResultCallback saved_callback =
+      set_config_callback_future.Take();
+  ASSERT_TRUE(saved_callback);
+
+  // Immediately try to claim interface via device2; should fail
+  // synchronously in service.
+  base::test::TestFuture<mojom::UsbClaimInterfaceResult> claim_future;
+  device2->ClaimInterface(0, claim_future.GetCallback());
+  EXPECT_EQ(claim_future.Get(), mojom::UsbClaimInterfaceResult::kFailure);
+
+  // Now resolve the pending SetConfiguration.
+  mock_device().ActiveConfigurationChanged(1);
+  std::move(saved_callback).Run(true);
+  EXPECT_TRUE(set_config_future.Get());
+
+  // After SetConfiguration completes, claiming on device2 should succeed.
+  EXPECT_CALL(mock_handle(), ClaimInterfaceInternal(0, _));
+  base::test::TestFuture<mojom::UsbClaimInterfaceResult> claim_future2;
+  device2->ClaimInterface(0, claim_future2.GetCallback());
+  EXPECT_EQ(claim_future2.Get(), mojom::UsbClaimInterfaceResult::kSuccess);
+
+  EXPECT_CALL(mock_handle(), Close()).Times(2);
+}
+
 TEST_F(USBDeviceImplTest, SetInterfaceAlternateSetting) {
   mojo::Remote<mojom::UsbDevice> device = GetMockDeviceProxy();
 
@@ -1094,6 +1160,75 @@ TEST_F(USBDeviceImplTest, ControlTransferStandardWriteBlocked) {
                        mojom::UsbTransferStatus::PERMISSION_DENIED,
                        loop.QuitClosure()));
     loop.Run();
+  }
+
+  EXPECT_CALL(mock_handle(), Close());
+}
+
+// Verify that allowed standard requests (such as GET_DESCRIPTOR) are only
+// permitted when the transfer direction is correctly set to INBOUND. OUTBOUND
+// standard transfers are blocked with PERMISSION_DENIED.
+TEST_F(USBDeviceImplTest, ControlTransferOut_StandardGetRequests_Blocked) {
+  // Mark HID (class 3) as a blocked/protected interface class to prove the
+  // allowlist branch returns before the protected-class check.
+  constexpr uint8_t kHidClass = 0x03;
+  mojo::Remote<mojom::UsbDevice> device =
+      GetMockDeviceProxyWithBlockedInterfaces(base::span_from_ref(kHidClass));
+
+  EXPECT_CALL(mock_device(), OpenInternal(_));
+
+  {
+    base::test::TestFuture<mojom::UsbOpenDeviceResultPtr> future;
+    device->Open(future.GetCallback());
+    EXPECT_TRUE(future.Get()->is_success());
+  }
+
+  // Interface #2 is HID (class 3) -- a protected/blocked class.
+  constexpr uint8_t kHidInterfaceNumber = 2;
+  AddMockConfig(ConfigBuilder(/*configuration_value=*/1)
+                    .AddInterface(kHidInterfaceNumber, /*alternate_setting=*/0,
+                                  kHidClass, /*subclass=*/0, /*protocol=*/0)
+                    .Build());
+
+  EXPECT_CALL(mock_handle(), SetConfigurationInternal(1, _));
+  {
+    base::test::TestFuture<bool> future;
+    device->SetConfiguration(1, future.GetCallback());
+    EXPECT_TRUE(future.Get());
+  }
+
+  // Arbitrary attacker-controlled host->device data stage.
+  const std::vector<uint8_t> payload = {0xDE, 0xAD, 0xBE, 0xEF,
+                                        0xCA, 0xFE, 0xBA, 0xBE};
+
+  // The five IN-only standard requests permitted by the allowlist.
+  constexpr uint8_t kGetStatus = 0x00;
+  constexpr uint8_t kGetDescriptor = 0x06;
+  constexpr uint8_t kGetConfiguration = 0x08;
+  constexpr uint8_t kGetInterface = 0x0A;
+  constexpr uint8_t kSynchFrame = 0x0C;
+
+  for (uint8_t request : {kGetStatus, kGetDescriptor, kGetConfiguration,
+                          kGetInterface, kSynchFrame}) {
+    // Report the active request ID in gtest traces if any assertions fail
+    // during this loop iteration.
+    SCOPED_TRACE(base::StringPrintf("bRequest=0x%02x", request));
+
+    auto params = mojom::UsbControlTransferParams::New();
+    params->type = UsbControlTransferType::STANDARD;
+    params->recipient = UsbControlTransferRecipient::DEVICE;
+    params->request = request;
+    params->value = 0;
+    params->index = kHidInterfaceNumber;
+
+    base::test::TestFuture<mojom::UsbTransferStatus> future;
+    // Mimic the WebUSB abuse scenario where a website calls
+    // controlTransferOut() (forcing OUTBOUND direction and carrying an
+    // arbitrary payload) but specifies a standard read-only (IN-only) request
+    // ID.
+    device->ControlTransferOut(std::move(params), payload, /*timeout=*/0,
+                               future.GetCallback());
+    EXPECT_EQ(future.Get(), mojom::UsbTransferStatus::PERMISSION_DENIED);
   }
 
   EXPECT_CALL(mock_handle(), Close());

@@ -28,7 +28,12 @@
 #include "components/signin/public/identity_manager/access_token_fetcher.h"
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/signin/public/identity_manager/identity_mutator.h"
+#include "crypto/signature_verifier.h"
 #include "google_apis/gaia/oauth2_access_token_manager.h"
+
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+#include "components/signin/public/base/binding_key_registration_token_result.h"
+#endif
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/jni_android.h"
@@ -310,6 +315,20 @@ class IdentityManager : public KeyedService,
       const CoreAccountId& account_id) const;
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
+  // Asynchronously generates a registration token for binding a refresh token
+  // to a shared binding key.
+  // `supported_algorithms` is a space-separated list of acceptable signature
+  // algorithm names (e.g., "ES256 RS256"). This parameter may be ignored if an
+  // existing binding key is reused instead of generating a new one.
+  // Returns false if the generation cannot be started. In that case, `callback`
+  // will not be invoked.
+  bool GenerateBindingKeyRegistrationToken(
+      base::span<const crypto::SignatureVerifier::SignatureAlgorithm>
+          supported_algorithms,
+      std::string_view auth_code,
+      base::OnceCallback<void(
+          std::optional<signin::BindingKeyRegistrationTokenResult>)> callback);
+
   // Returns `true` if (a) a refresh token exists for `account_id`, and (b) the
   // refresh token is bound to a device, it returns `false` otherwise.
   bool HasAccountWithBoundRefreshToken(const CoreAccountId& account_id) const;
@@ -359,6 +378,13 @@ class IdentityManager : public KeyedService,
   // triggered and there will be a subsequent invocation of
   // IdentityManager::Observer::OnAccountsInCookieJarChanged().
   AccountsInCookieJarInfo GetAccountsInCookieJar() const;
+
+  // Returns the accounts in the cookie jar without triggering an internal
+  // update even if the accounts in the cookie jar are stale.
+  //
+  // TODO(crbug.com/517864199): Remove once GetAccountsInCookieJar() no longer
+  // triggers an update.
+  AccountsInCookieJarInfo GetCachedAccountsInCookieJar() const;
 
   // Returns the session index of the primary account in the cookie jar, or
   // std::nullopt if the primary account is not signed in or not found in the

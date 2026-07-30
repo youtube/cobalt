@@ -310,10 +310,11 @@ class CORE_EXPORT LineBreaker {
     return AvailableWidthToFit() - position_;
   }
   bool CanFitOnLine() const {
-    return (parent_breaker_ && !auto_wrap_) ||
-           position_ <= AvailableWidthToFit();
+    return position_ <= AvailableWidthToFit() ||
+           (parent_breaker_ && !auto_wrap_);
   }
   void UpdateAvailableWidth();
+  void UpdateAvailableWidthFromBaseAvailableWidth();
 
   // True if the current line is hyphenated.
   bool HasHyphen() const { return hyphen_index_.has_value(); }
@@ -350,6 +351,8 @@ class CORE_EXPORT LineBreaker {
   LayoutUnit position_;
   LayoutUnit applied_text_indent_;
   LayoutUnit available_width_;
+  // Available width without `box-decoration-break`.
+  LayoutUnit base_available_width_;
   LineLayoutOpportunity line_opportunity_;
 
   InlineNode node_;

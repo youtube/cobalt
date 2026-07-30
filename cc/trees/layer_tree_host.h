@@ -374,7 +374,7 @@ class CC_EXPORT LayerTreeHost : public MutatorHostDelegate {
                              PaintHoldingReason reason);
 
   // Stop deferring commits immediately.
-  void StopDeferringCommits(PaintHoldingCommitTrigger);
+  void StopDeferringCommits();
 
   // Returns true if commits are currently deferred.
   bool IsDeferringCommits() const;
@@ -383,9 +383,7 @@ class CC_EXPORT LayerTreeHost : public MutatorHostDelegate {
   bool IsRenderingPaused() const;
 
   // Notification that the proxy started or stopped deferring commits.
-  void OnDeferCommitsChanged(bool defer_status,
-                             PaintHoldingReason reason,
-                             std::optional<PaintHoldingCommitTrigger> trigger);
+  void OnDeferCommitsChanged(bool defer_status, PaintHoldingReason reason);
 
   // Several clients may call this independently. In this case, there is
   // internal reference counting so that the the state is only exited when the
@@ -690,13 +688,6 @@ class CC_EXPORT LayerTreeHost : public MutatorHostDelegate {
   // Requests that we force send RenderFrameMetadata with the next frame.
   void RequestForceSendMetadata() {
     pending_commit_state()->force_send_metadata_request = true;
-  }
-
-  // Requests a cap on CPU performance during idle periods. Forwarded
-  // to ADPF on Android, no-op on other platforms.
-  void RequestEfficientScheduling(bool prefer_efficient_scheduling) {
-    pending_commit_state()->prefer_efficient_scheduling =
-        prefer_efficient_scheduling;
   }
 
   // Returns the state of |force_send_metadata_request_| and resets the

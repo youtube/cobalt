@@ -14,6 +14,7 @@ import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.Window;
+import android.view.accessibility.AccessibilityEvent;
 
 import androidx.annotation.Px;
 
@@ -153,7 +154,6 @@ public class TabBottomSheetCoordinator {
     private boolean mIsShowingTabBottomSheet;
     private boolean mExpectingLayoutChange;
     private boolean mInitialContainerSizeChanged;
-    private boolean mCanNotBeSuppressed;
     private @Nullable KeyboardVisibilityListener mKeyboardVisibilityListener;
     private @Nullable ModalDialogManager mObservedModalDialogManager;
     private @Nullable ModalDialogManagerObserver mModalDialogManagerObserver;
@@ -213,13 +213,18 @@ public class TabBottomSheetCoordinator {
         mContentView = mCoBrowseViews.getView();
         mContentView.setOutlineProvider(mOutlineProvider);
         mContentView.setClipToOutline(true);
+        TabBottomSheetContentProvider provider = mCoBrowseViews.getContentProvider();
+        assert provider != null : "TabBottomSheetContentProvider must not be null";
         mSheetContent =
-                new TabBottomSheetContent(
+                provider.create(
                         mContentView,
                         FULL_HEIGHT_RATIO,
                         mCoBrowseViews.getBackgroundColor(),
-                        mCoBrowseViews.getClientType(),
-                        () -> mCanNotBeSuppressed);
+                        mContentView
+                                .getResources()
+                                .getDimensionPixelSize(R.dimen.tab_bottom_sheet_peek_height_total),
+                        R.id.peek_view_container,
+                        R.id.empty_placeholder_container);
         mViewBinder =
                 PropertyModelChangeProcessor.create(
                         mModel, mContentView, TabBottomSheetViewBinder::bind);
@@ -324,10 +329,6 @@ public class TabBottomSheetCoordinator {
         }
     }
 
-    void setCanNotBeSuppressed(boolean canNotBeSuppressed) {
-        mCanNotBeSuppressed = canNotBeSuppressed;
-    }
-
     void closeBottomSheet(boolean animate) {
         mBottomSheetController.hideContent(mSheetContent, animate, StateChangeReason.NONE);
     }
@@ -428,6 +429,9 @@ public class TabBottomSheetCoordinator {
 
                 if (state == SheetState.HALF || state == SheetState.FULL) {
                     observeCompositorViewInteractions();
+                    if (mContentView != null) {
+                        mContentView.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_FOCUSED);
+                    }
                 } else {
                     stopObservingCompositorViewInteractions();
                 }
@@ -520,6 +524,13 @@ public class TabBottomSheetCoordinator {
                     GlicMetrics.recordShowPeekView();
                 }
 
+                if ((state == SheetState.HALF || state == SheetState.FULL)
+                        && mLastStableState != SheetState.HALF
+                        && mLastStableState != SheetState.FULL
+                        && clientType == TabBottomSheetClientType.GLIC) {
+                    GlicMetrics.recordShowBottomSheet();
+                }
+
                 // Record transition if between open stable states (PEEK, HALF, FULL)
                 TabBottomSheetMetrics.recordTransition(clientType, mLastStableState, state);
 
@@ -597,7 +608,9 @@ public class TabBottomSheetCoordinator {
 
     private int getVisibleViewportHeight() {
         Window window = mWindowAndroid.getWindow();
-        assert window != null;
+        if (window == null) {
+            return 0;
+        }
 
         Rect visibleViewportRect = new Rect();
         View decorView = window.getDecorView();

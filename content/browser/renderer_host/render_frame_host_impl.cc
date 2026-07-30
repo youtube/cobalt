@@ -2809,7 +2809,7 @@ RenderFrameHostImpl::RenderFrameHostImpl(
 }
 
 RenderFrameHostImpl::~RenderFrameHostImpl() {
-  DismissUnboundedSurfaceIfActive();
+  DismissUnboundedSurface();
   base::trace_event::TraceSessionObserverList::RemoveObserver(this);
   TRACE_EVENT("navigation", "RenderFrameHostImpl::~RenderFrameHostImpl",
               perfetto::TerminatingFlow::FromPointer(this));
@@ -3913,9 +3913,9 @@ void RenderFrameHostImpl::ExecuteJavaScriptForTests(
     // TODO(mustaq): The render-to-browser state update caused by the below
     // JavaScriptExecuteRequestsForTests call is redundant with this update. We
     // should determine if the redundancy can be removed.
-    owner_->UpdateUserActivationState(
+    CHECK(owner_->UpdateUserActivationState(
         blink::mojom::UserActivationUpdateType::kNotifyActivation,
-        blink::mojom::UserActivationNotificationType::kTest);
+        blink::mojom::UserActivationNotificationType::kTest));
   }
 
   GetAssociatedLocalFrame()->JavaScriptExecuteRequestForTests(  // IN-TEST
@@ -4842,6 +4842,7 @@ void RenderFrameHostImpl::RenderFrameDeleted() {
   // the corruption will cause a crash but later, making the bug very
   // difficult to understand.
   CHECK_NE(render_frame_state_, RenderFrameState::kDeleting);
+  CHECK(children_.empty());
   bool was_created = is_render_frame_created();
   render_frame_state_ = RenderFrameState::kDeleting;
   render_frame_scoped_weak_ptr_factory_.InvalidateWeakPtrs();
@@ -6476,10 +6477,16 @@ void RenderFrameHostImpl::DidCommitPageActivation(
   });
 #endif
 
+  base::WeakPtr<RenderFrameHostImpl> weak_ptr = GetWeakPtr();
   DidCommitNavigationInternal(
       std::move(owned_request), std::move(params),
       /*same_document_params=*/nullptr,
       /*did_commit_ipc_received_time=*/base::TimeTicks());
+  if (!weak_ptr) {
+    // This RFH may be deleted after DidCommitNavigationInternal due to a nested
+    // message loop. All callers should handle this.
+    return;
+  }
 
   // NOTE: Navigation metrics assume that not much work is done between
   // DidCommitNavigationInternal() and the end of this function. Avoid adding
@@ -7151,8 +7158,12 @@ void RenderFrameHostImpl::OnUnloadACK() {
       IsPendingDeletion() ? GetFrameTreeNodeForUnload() : owner_;
   if (!is_main_frame() &&
       owner->GetRenderFrameHostManager().is_inner_delegate_attached()) {
-    // This RFH was unloaded while attaching an inner delegate. The RFH
-    // will stay around but it will no longer be associated with a RenderFrame.
+    // This RFH was unloaded while attaching an inner delegate. The RFH will
+    // stay around but it will no longer be associated with a RenderFrame.
+    // Ensure there are no lingering child frames before marking the frame
+    // deleted - this matters for compromised renderers (see
+    // https://crbug.com/517241992).
+    ResetChildren();
     RenderFrameDeleted();
     return;
   }
@@ -9585,7 +9596,13 @@ void RenderFrameHostImpl::UpdateUserActivationState(
   }
 
   CHECK(owner_);  // See `owner_` invariants about `lifecycle_state_`.
-  owner_->UpdateUserActivationState(update_type, notification_type);
+  // It would be nice to pass this along to our caller, but it turns out to be a
+  // bit of a rabbit hole.  We are the mojo IPC boundary, so blink::{Local,
+  // Remote}Frame would have to deal with the async callback.  Given that the
+  // renderer should already know whether it's asking us to consume a gesture it
+  // doesn't have, this is of marginal value.
+  std::ignore =
+      owner_->UpdateUserActivationState(update_type, notification_type);
 }
 
 void RenderFrameHostImpl::DidConsumeHistoryUserActivation() {
@@ -11196,15 +11213,49 @@ void RenderFrameHostImpl::InitializeCrashReportContext(
   std::move(callback).Run(std::move(region));
 }
 
+void RenderFrameHostImpl::DismissUnboundedSurface() {
+  if (!base::FeatureList::IsEnabled(blink::features::kUnboundedElement)) {
+    return;
+  }
+
+  if (unbounded_surface_client_.is_bound()) {
+    unbounded_surface_client_->OnDismissed();
+    unbounded_surface_client_.reset();
+  }
+
+  RenderFrameHostImpl* outermost = GetOutermostMainFrame();
+  if (outermost && outermost != this) {
+    outermost->DismissUnboundedSurface();
+    return;
+  }
+
+  if (active_unbounded_frame_) {
+    CHECK_EQ(active_unbounded_frame_->GetOutermostMainFrame(), this);
+    // Copy the pointer to a local variable and clear the member first to avoid
+    // footguns if subsequent code or re-entrant calls try to access it.
+    base::WeakPtr<RenderFrameHostImpl> active_frame = active_unbounded_frame_;
+    active_unbounded_frame_.reset();
+    if (active_frame && active_frame.get() != this) {
+      active_frame->DismissUnboundedSurface();
+    }
+  }
+}
+
 void RenderFrameHostImpl::RequestUnboundedSurface(
     mojo::PendingAssociatedReceiver<blink::mojom::UnboundedSurfaceHost> host,
-    mojo::PendingAssociatedRemote<blink::mojom::UnboundedSurfaceClient>
-        client) {
+    mojo::PendingAssociatedRemote<blink::mojom::UnboundedSurfaceClient> client,
+    const gfx::Rect& bounds) {
   // TODO(crbug.com/508672616) Store and use the mojo endpoints.
   if (!base::FeatureList::IsEnabled(blink::features::kUnboundedElement)) {
     local_frame_host_receiver_.ReportBadMessage(
-        "RequestUnboundedSurface should not be called without the "
-        "UnboundedElement feature enabled.");
+        "kUnboundedElement feature must be enabled.");
+    return;
+  }
+  if (!IsActive()) {
+    if (lifecycle_state() == LifecycleStateImpl::kPrerendering) {
+      bad_message::ReceivedBadMessage(
+          GetProcess(), bad_message::RFH_POPUP_REQUEST_WHILE_PRERENDERING);
+    }
     return;
   }
   if (!HasTransientUserActivation()) {
@@ -11223,37 +11274,62 @@ void RenderFrameHostImpl::RequestUnboundedSurface(
         "RequestUnboundedSurface is only supported from privileged contexts.");
     return;
   }
+  if (bounds.IsEmpty()) {
+    local_frame_host_receiver_.ReportBadMessage(
+        "RequestUnboundedSurface called with empty bounds.");
+    return;
+  }
   RenderFrameHostImpl* outermost = GetOutermostMainFrame();
   if (!outermost) {
     return;
   }
+  RenderWidgetHostView* parent_view = GetRenderWidgetHost()->GetView();
+  if (!parent_view) {
+    return;
+  }
 
-  DismissActiveUnboundedSurface();
+  DismissUnboundedSurface();
+  CHECK(!unbounded_surface_client_.is_bound());
+  CHECK(!outermost->active_unbounded_frame_);
 
   unbounded_surface_client_.Bind(std::move(client));
-  unbounded_surface_client_.set_disconnect_handler(
-      base::BindOnce(&RenderFrameHostImpl::DismissUnboundedSurfaceIfActive,
-                     base::Unretained(this)));
+  unbounded_surface_client_.set_disconnect_handler(base::BindOnce(
+      &RenderFrameHostImpl::DismissUnboundedSurface, base::Unretained(this)));
   outermost->active_unbounded_frame_ = GetWeakPtr();
-}
 
-void RenderFrameHostImpl::DismissActiveUnboundedSurface() {
-  RenderFrameHostImpl* outermost = GetOutermostMainFrame();
-  if (outermost && outermost->active_unbounded_frame_) {
-    DCHECK_EQ(outermost->active_unbounded_frame_->GetOutermostMainFrame(),
-              outermost);
-    outermost->active_unbounded_frame_->DismissUnboundedSurfaceIfActive();
-  }
-}
-
-void RenderFrameHostImpl::DismissUnboundedSurfaceIfActive() {
-  if (unbounded_surface_client_.is_bound()) {
-    unbounded_surface_client_->OnDismissed();
-    unbounded_surface_client_.reset();
-  }
-  RenderFrameHostImpl* outermost = GetOutermostMainFrame();
-  if (outermost && outermost->active_unbounded_frame_.get() == this) {
-    outermost->active_unbounded_frame_.reset();
+  // Allocate a dedicated popup widget for the unbounded element rendering
+  // surface. The popup is used only as a container for the rendering surface
+  // where unbounded content will be painted. It does not represent DOM content
+  // directly, which is why it doesn't have a corresponding WebWidget. For that
+  // reason, this widget is purposely left in `waiting_for_init_`, permanently,
+  // so that it doesn't try to talk back to the non-existent WebWidget. The
+  // widget is self-owned and will be destroyed automatically when the popup is
+  // closed.
+  int32_t widget_route_id = GetProcess()->GetNextRoutingID();
+  mojo::PendingAssociatedRemote<blink::mojom::Widget> widget_remote;
+  auto widget_receiver = widget_remote.InitWithNewEndpointAndPassReceiver();
+  mojo::PendingAssociatedRemote<blink::mojom::WidgetHost> widget_host_remote;
+  mojo::PendingAssociatedRemote<blink::mojom::PopupWidgetHost>
+      popup_widget_host_remote;
+  RenderWidgetHostImpl* widget = delegate_->CreateNewPopupWidget(
+      site_instance_->group()->GetSafeRef(), widget_route_id,
+      popup_widget_host_remote.InitWithNewEndpointAndPassReceiver(),
+      widget_host_remote.InitWithNewEndpointAndPassReceiver(),
+      std::move(widget_remote), GetGlobalId());
+  if (widget) {
+    RenderWidgetHostViewBase* widget_host_view =
+        static_cast<RenderWidgetHostViewBase*>(widget->GetView());
+    if (widget_host_view) {
+      float dsf = GetScaleFactorForView(parent_view);
+      int dip_x = std::round(bounds.x() / dsf);
+      int dip_y = std::round(bounds.y() / dsf);
+      int dip_w = std::round(bounds.width() / dsf);
+      int dip_h = std::round(bounds.height() / dsf);
+      gfx::Point origin =
+          parent_view->GetViewBounds().origin() + gfx::Vector2d(dip_x, dip_y);
+      gfx::Rect initial_rect = gfx::Rect(origin, gfx::Size(dip_w, dip_h));
+      widget_host_view->InitAsPopup(parent_view, initial_rect, initial_rect);
+    }
   }
 }
 
@@ -11282,7 +11358,7 @@ void RenderFrameHostImpl::CreateNewPopupWidget(
   RenderWidgetHostImpl* widget = delegate_->CreateNewPopupWidget(
       site_instance_->group()->GetSafeRef(), widget_route_id,
       std::move(blink_popup_widget_host), std::move(blink_widget_host),
-      std::move(blink_widget));
+      std::move(blink_widget), GetGlobalId());
   if (!widget) {
     return;
   }
@@ -15244,7 +15320,8 @@ void RenderFrameHostImpl::ForEachImmediateLocalRoot(
 
 void RenderFrameHostImpl::SetVisibilityForChildViews(bool visible) {
   ForEachImmediateLocalRoot([visible](RenderFrameHostImpl* frame_host) {
-    if (auto* view = frame_host->GetView()) {
+    if (auto* view = static_cast<RenderWidgetHostViewChildFrame*>(
+            frame_host->GetView())) {
       return visible ? view->Show() : view->Hide();
     }
   });
@@ -16334,10 +16411,17 @@ bool RenderFrameHostImpl::DidCommitNavigationInternal(
                                            : navigation_request->StartedByAd();
 
   // TODO(crbug.com/40150370): Do not pass |params| to DidNavigate().
-  NavigationRequest* raw_navigation_request = navigation_request.get();
-  raw_navigation_request->frame_tree_node()->navigator().DidNavigate(
+  FrameTreeNode* frame_tree_node = navigation_request->frame_tree_node();
+  base::WeakPtr<RenderFrameHostImpl> weak_ptr = GetWeakPtr();
+  frame_tree_node->navigator().DidNavigate(
       this, *params, std::move(navigation_request), is_same_document_navigation,
       caused_by_ad);
+  if (!weak_ptr) {
+    // This RFH may be deleted after DidNavigate due to a nested message loop.
+    // That occurs before the navigation has actually committed, so return false
+    // to indicate that the commit did not succeed.
+    return false;
+  }
 
   // Run any deferred shared storage operations from response headers now that
   // commit has occurred.

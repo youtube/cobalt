@@ -826,10 +826,6 @@ BASE_FEATURE(kPrefetchRequestIntegrityHeaders,
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
-#if BUILDFLAG(IS_WIN)
-BASE_FEATURE(kEnableASLRBeaconMitigation, base::FEATURE_DISABLED_BY_DEFAULT);
-#endif  // BUILDFLAG(IS_WIN)
-
 // Cached version of the locale so we can return the locale on the I/O
 // thread.
 std::string& GetIOThreadApplicationLocale() {
@@ -2298,7 +2294,8 @@ bool ChromeContentBrowserClient::HasWebRequestAPIProxy(
   if (!web_request_api) {
     return false;
   } else if (base::FeatureList::IsEnabled(
-          features::kOptimizeWebRequestProxyForServiceWorkerAutoPreload)) {
+                 features::
+                     kOptimizeWebRequestProxyForServiceWorkerAutoPreload)) {
     return web_request_api->HasWebRequestOrDeclarativeWebRequestExtension();
   } else {
     return web_request_api->MayHaveProxies();
@@ -4146,10 +4143,11 @@ GetPreferredColorScheme(const WebPreferences& web_prefs,
   preferred_root_scrollbar_color_scheme =
       web_prefs.preferred_root_scrollbar_color_scheme;
 
-  if (auto* theme_client = night_mode::WebContentsThemeClient::FromWebContents(web_contents)) {
+  if (auto* theme_client =
+          night_mode::WebContentsThemeClient::FromWebContents(web_contents)) {
     preferred_color_scheme = theme_client->IsNightModeEnabled()
-            ? blink::mojom::PreferredColorScheme::kDark
-            : blink::mojom::PreferredColorScheme::kLight;
+                                 ? blink::mojom::PreferredColorScheme::kDark
+                                 : blink::mojom::PreferredColorScheme::kLight;
     preferred_root_scrollbar_color_scheme = preferred_color_scheme;
   }
 #else  // !BUILDFLAG(IS_ANDROID)
@@ -4844,8 +4842,10 @@ void ChromeContentBrowserClient::OverrideWebPreferences(
       web_prefs->dynamic_safe_area_insets_enabled =
           delegate->IsDynamicSafeAreaInsetsEnabled();
     }
-    if (auto* theme_client = night_mode::WebContentsThemeClient::FromWebContents(web_contents)) {
-      web_prefs->force_dark_mode_enabled = theme_client->IsForceDarkWebContentEnabled();
+    if (auto* theme_client =
+            night_mode::WebContentsThemeClient::FromWebContents(web_contents)) {
+      web_prefs->force_dark_mode_enabled =
+          theme_client->IsForceDarkWebContentEnabled();
     }
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -5091,8 +5091,10 @@ bool ChromeContentBrowserClient::OverrideWebPreferencesAfterNavigation(
           old_preferred_root_scrollbar_color_scheme;
 
 #if BUILDFLAG(IS_ANDROID)
-  if (auto* theme_client = night_mode::WebContentsThemeClient::FromWebContents(web_contents)) {
-    bool force_dark_mode_new_state = theme_client->IsForceDarkWebContentEnabled();
+  if (auto* theme_client =
+          night_mode::WebContentsThemeClient::FromWebContents(web_contents)) {
+    bool force_dark_mode_new_state =
+        theme_client->IsForceDarkWebContentEnabled();
     prefs_changed |=
         (web_prefs->force_dark_mode_enabled != force_dark_mode_new_state);
     web_prefs->force_dark_mode_enabled = force_dark_mode_new_state;
@@ -5560,40 +5562,6 @@ bool ChromeContentBrowserClient::ShouldRestrictCoreSharingOnRenderer() {
 std::optional<std::wstring>
 ChromeContentBrowserClient::GetWindowsSecurityAttributeName() const {
   return installer::GetIsolationAttributeName();
-}
-
-std::vector<uintptr_t> ChromeContentBrowserClient::GetAslrBeaconAddresses(
-    sandbox::mojom::Sandbox sandbox_type) {
-  if (!base::FeatureList::IsEnabled(kEnableASLRBeaconMitigation)) {
-    return {};
-  }
-
-  if (sandbox_type == sandbox::mojom::Sandbox::kNoSandbox ||
-      sandbox_type ==
-          sandbox::mojom::Sandbox::kNoSandboxAndElevatedPrivileges) {
-    return {};
-  }
-
-  const auto* command_line = base::CommandLine::ForCurrentProcess();
-  if (command_line->HasSwitch(sandbox::policy::switches::kNoSandbox)) {
-    return {};
-  }
-
-  if (sandbox_type == sandbox::mojom::Sandbox::kGpu) {
-    if (command_line->HasSwitch(
-            sandbox::policy::switches::kDisableGpuSandbox)) {
-      return {};
-    }
-  }
-
-  // In a chrome build, kBrowserResourcesDll will be loaded. In tests, this will
-  // not exist and simply be skipped.
-  if (const auto chrome_dll =
-          base::win::GetModuleAddress(chrome::kBrowserResourcesDll)) {
-    return {reinterpret_cast<uintptr_t>(chrome_dll.value())};
-  }
-
-  return {};
 }
 #endif  // BUILDFLAG(IS_WIN)
 
@@ -6521,8 +6489,8 @@ void InitializeFileURLLoaderFactoryForExtension(
   // gets approval from ChildProcessSecurityPolicy. Keep this logic in sync with
   // ExtensionWebContentsObserver::RenderFrameCreated.
   Manifest::Type type = extension->GetType();
-  if ((type == Manifest::TYPE_EXTENSION ||
-       type == Manifest::TYPE_LEGACY_PACKAGED_APP) &&
+  if ((type == Manifest::Type::kExtension ||
+       type == Manifest::Type::kLegacyPackagedApp) &&
       extensions::util::AllowFileAccess(extension->id(), browser_context)) {
     factories->emplace(
         url::kFileScheme,
@@ -7073,9 +7041,29 @@ bool ChromeContentBrowserClient::IsSecurityLevelAcceptableForWebAuthn(
           webauthn::pref_names::kAllowWithBrokenCerts)) {
     return true;
   }
+  content::WebContents* web_contents =
+      content::WebContents::FromRenderFrameHost(rfh);
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
-  if (caller_origin.scheme() == extensions::kExtensionScheme) {
-    return true;
+  // If the top-level frame is an extension page and the WebAuthn caller is in
+  // a subframe, validate that all ancestor frames between the caller and the
+  // extension frame have secure origins. Chrome unconditionally blocks subframe
+  // navigations with certificate errors (see AllowCertificateError), so
+  // checking origin schemes is sufficient to determine security.
+  content::RenderFrameHost* main_frame = web_contents->GetPrimaryMainFrame();
+  if (main_frame->GetLastCommittedOrigin().scheme() ==
+      extensions::kExtensionScheme) {
+    content::RenderFrameHost* current = rfh;
+    while (current) {
+      const url::Origin& origin = current->GetLastCommittedOrigin();
+      if (origin.scheme() == extensions::kExtensionScheme) {
+        return true;
+      }
+      if (!origin.GetURL().SchemeIsCryptographic() &&
+          !net::IsLocalhost(origin.GetURL())) {
+        return false;
+      }
+      current = current->GetParentOrOuterDocument();
+    }
   }
 #endif
 #if !BUILDFLAG(IS_ANDROID)
@@ -7089,8 +7077,6 @@ bool ChromeContentBrowserClient::IsSecurityLevelAcceptableForWebAuthn(
   if (net::IsLocalhost(caller_origin.GetURL())) {
     return true;
   }
-  content::WebContents* web_contents =
-      content::WebContents::FromRenderFrameHost(rfh);
   ChromeSecurityStateTabHelper::CreateForWebContents(web_contents);
   SecurityStateTabHelper* helper =
       SecurityStateTabHelper::FromWebContents(web_contents);
@@ -7248,18 +7234,36 @@ bool ChromeContentBrowserClient::HandleExternalProtocol(
   // Handle the google-chrome:// scheme (and chromium://).
   // If the scheme is present, we strip it and navigate to the inner URL.
   // This avoids launching a new browser instance via the OS handler.
+  //
+  // For security, only standard web-safe URLs are allowed (nested filesystem:
+  // and blob: schemes are rejected by ValidateLaunchUrlWebSafe). These
+  // resolved navigations are treated as renderer-initiated with an opaque
+  // origin as a secure fallback when the initiator is missing.
   if (std::optional<GURL> new_url =
           startup::ExtractGoogleChromeSchemeInnerUrl(url)) {
-    if (startup::ValidateLaunchUrl(*new_url)) {
+    if (startup::ValidateLaunchUrlWebSafe(*new_url)) {
       auto* web_contents = web_contents_getter.Run();
       if (web_contents) {
+        // Treat this navigation as renderer-initiated to ensure downstream
+        // components apply all standard renderer-initiated security
+        // restrictions (such as blocking navigations to privileged chrome://
+        // pages).
+        //
+        // TODO(crbug.com/513728023): Block this scheme when coming from
+        // Chrome's own renderers, since this should only be allowed from
+        // external renderers. Blink should drop the scheme before it gets to
+        // the browser.
         content::OpenURLParams params(
             *new_url,
             content::Referrer(web_contents->GetLastCommittedURL(),
                               network::mojom::ReferrerPolicy::kDefault),
             WindowOpenDisposition::NEW_FOREGROUND_TAB, page_transition,
-            /*is_renderer_initiated=*/false);
-        params.initiator_origin = initiating_origin;
+            /*is_renderer_initiated=*/true);
+        // Fallback to an opaque origin if the initiating origin is not
+        // provided (e.g., for external OS-initiated or browser-initiated
+        // launches) to prevent it from being treated as a privileged
+        // browser-initiated navigation.
+        params.initiator_origin = initiating_origin.value_or(url::Origin());
         web_contents->OpenURL(params, /*navigation_handle_callback=*/{});
         return true;
       }
@@ -9188,10 +9192,9 @@ void ChromeContentBrowserClient::QueryInstalledWebAppsByManifestId(
              GURL frame_url, web_app::AppLock& lock,
              base::DictValue& debug_value)
               -> std::optional<blink::mojom::RelatedApplication> {
-            debug_value.Set("input",
-                            base::DictValue()
-                                .Set("manifest_id", manifest_id.spec())
-                                .Set("frame_url", frame_url.spec()));
+            debug_value.Set("input", base::DictValue()
+                                         .Set("manifest_id", manifest_id.spec())
+                                         .Set("frame_url", frame_url.spec()));
 
             if (!lock.registrar().AppMatches(
                     app_id, web_app::WebAppFilter::InstalledInChrome())) {
@@ -9208,7 +9211,7 @@ void ChromeContentBrowserClient::QueryInstalledWebAppsByManifestId(
             application.platform = "webapp";
             std::optional<webapps::ManifestId> app_manifest_id =
                 lock.registrar().GetAppManifestId(app_id);
-            if(!app_manifest_id.has_value()){
+            if (!app_manifest_id.has_value()) {
               debug_value.Set("manifest_id", "invalid manifest id");
               return std::nullopt;
             }
@@ -9229,8 +9232,7 @@ void ChromeContentBrowserClient::QueryInstalledWebAppsByManifestId(
                     .Set("manifest_url", application.url.value_or("")));
             return application;
           },
-          std::move(app_id), *valid_manifest_id,
-          std::move(frame_url)),
+          std::move(app_id), *valid_manifest_id, std::move(frame_url)),
       std::move(callback), std::move(arg_for_shutdown));
 }
 #endif  // !BUILDFLAG(IS_ANDROID)

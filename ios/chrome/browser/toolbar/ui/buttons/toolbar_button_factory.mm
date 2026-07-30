@@ -12,6 +12,8 @@
 #import "ios/chrome/browser/toolbar/ui/buttons/toolbar_tab_grid_badge_button.h"
 #import "ios/chrome/browser/toolbar/ui/toolbar_constants.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
+#import "ios/chrome/grit/ios_strings.h"
+#import "ui/base/l10n/l10n_util.h"
 
 namespace {
 // Default point size for toolbar buttons.
@@ -34,6 +36,8 @@ constexpr CGFloat kDefaultSymbolPointSize = 19;
                                               defaultImage:YES];
   button.visibilityMask = ToolbarButtonVisibility::kAlways;
   button.accessibilityIdentifier = kToolbarBackButtonIdentifier;
+  button.accessibilityHint =
+      l10n_util::GetNSString(IDS_IOS_TOOLBAR_ACCESSIBILITY_HINT_BACK);
   return button;
 }
 
@@ -42,6 +46,8 @@ constexpr CGFloat kDefaultSymbolPointSize = 19;
                                               defaultImage:YES];
   button.visibilityMask = ToolbarButtonVisibility::kWhenEnabled;
   button.accessibilityIdentifier = kToolbarForwardButtonIdentifier;
+  button.accessibilityHint =
+      l10n_util::GetNSString(IDS_IOS_TOOLBAR_ACCESSIBILITY_HINT_FORWARD);
   return button;
 }
 
@@ -104,6 +110,7 @@ constexpr CGFloat kDefaultSymbolPointSize = 19;
                                               defaultImage:NO];
   button.visibilityMask = ToolbarButtonVisibility::kWideLayout;
   button.accessibilityIdentifier = kToolbarReloadButtonIdentifier;
+  button.accessibilityLabel = l10n_util::GetNSString(IDS_IOS_ACCNAME_RELOAD);
   return button;
 }
 
@@ -112,6 +119,7 @@ constexpr CGFloat kDefaultSymbolPointSize = 19;
                                               defaultImage:YES];
   button.visibilityMask = ToolbarButtonVisibility::kWideLayout;
   button.accessibilityIdentifier = kToolbarStopButtonIdentifier;
+  button.accessibilityLabel = l10n_util::GetNSString(IDS_IOS_ACCNAME_STOP);
   return button;
 }
 
@@ -129,6 +137,8 @@ constexpr CGFloat kDefaultSymbolPointSize = 19;
                                                    incognito:_incognito];
   button.visibilityMask = ToolbarButtonVisibility::kRegularRegular;
   button.accessibilityIdentifier = kToolbarTabGridButtonIdentifier;
+  button.accessibilityHint =
+      l10n_util::GetNSString(IDS_IOS_TOOLBAR_ACCESSIBILITY_HINT_TAB_GRID);
   return button;
 }
 
@@ -153,6 +163,8 @@ constexpr CGFloat kDefaultSymbolPointSize = 19;
 #endif
   button.visibilityMask = ToolbarButtonVisibility::kRegularRegular;
   button.accessibilityIdentifier = kToolbarAssistantButtonIdentifier;
+  button.accessibilityLabel =
+      l10n_util::GetNSString(IDS_IOS_APP_BAR_ASK_GEMINI);
   return button;
 }
 

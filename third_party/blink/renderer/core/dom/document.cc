@@ -7918,10 +7918,7 @@ void Document::FinishedParsing() {
   DocumentParserTiming::From(*this).MarkParserStop();
 
   if (RuntimeEnabledFeatures::WebMCPEnabled(GetExecutionContext())) {
-    auto* navigator = domWindow() ? domWindow()->navigator() : nullptr;
-    auto* model_context =
-        navigator ? ModelContextSupplement::GetIfExists(*navigator) : nullptr;
-    if (model_context) {
+    if (auto* model_context = ModelContextSupplement::GetIfExists(*this)) {
       model_context->DidFinishParsing();
     }
   }
@@ -10209,7 +10206,7 @@ Document* Document::parseHTMLUnsafe(ExecutionContext* context,
 // static
 Document* Document::parseHTMLUnsafe(ExecutionContext* context,
                                     const V8UnionStringOrTrustedHTML* html,
-                                    SetHTMLUnsafeOptions* options,
+                                    ParseHTMLUnsafeOptions* options,
                                     ExceptionState& exception_state) {
   UseCounter::Count(context, WebFeature::kHTMLUnsafeMethods);
   CHECK(RuntimeEnabledFeatures::SanitizerAPIEnabled());

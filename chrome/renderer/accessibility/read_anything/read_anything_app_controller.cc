@@ -786,6 +786,9 @@ void ReadAnythingAppController::OnActiveAXTreeIDChanged(
   }
   VLOG(1) << "On active tree changed with new id: " << tree_id;
 
+  rendered_text_blocks_ready_recorded_ = false;
+  active_tree_changed_start_time_ = base::TimeTicks::Now();
+
   // If the previous tree was not unknown (e.g. this is not the first tree
   // seen), log session metrics for the previous tree.
   if (model_.active_tree_id() != ui::AXTreeIDUnknown()) {
@@ -819,6 +822,11 @@ void ReadAnythingAppController::OnActiveAXTreeIDChanged(
   // Clear any stale distillation content.
   dom_distiller_title_.clear();
   dom_distiller_content_html_.clear();
+
+  // Reset mapping state for the new page. Since no readability distillation is
+  // displayed yet, the mapping algorithm is not yet in progress.
+  model_.set_is_readability_mapping_in_progress(false);
+  model_.set_has_logged_early_selection(false);
 
   // Reset the distillation method for the new page. Every navigation
   // starts with the flag-determined distillation method before potentially
@@ -1534,7 +1542,9 @@ gin::ObjectTemplateBuilder ReadAnythingAppController::GetObjectTemplateBuilder(
                  &ReadAnythingAppController::OnSpeechEngineStalled)
       .SetMethod("onRenderedTextBlocksAvailable",
                  &ReadAnythingAppController::OnRenderedTextBlocksAvailable)
-      .SetMethod("getAxMapping", &ReadAnythingAppController::GetAXMapping);
+      .SetMethod("getAxMapping", &ReadAnythingAppController::GetAXMapping)
+      .SetMethod("attemptLogEarlySelection",
+                 &ReadAnythingAppController::AttemptLogEarlySelection);
 }
 
 ui::AXNodeID ReadAnythingAppController::RootId() const {
@@ -3026,6 +3036,7 @@ void ReadAnythingAppController::UpdateContent(const std::string& title,
     // not trigger a false positive when rendered text is not ready.
     model_.set_readability_text_blocks({});
     model_.set_should_map_rendered_text_to_tree_for_readability(false);
+    model_.set_is_readability_mapping_in_progress(true);
   }
   ExecuteJavaScript("chrome.readingMode.updateContent();");
 
@@ -3082,6 +3093,17 @@ void ReadAnythingAppController::ApplyAccessibilityUpdatesForReadability(
 
 void ReadAnythingAppController::OnRenderedTextBlocksAvailable(
     const std::vector<std::u16string>& blocks) {
+  if (!rendered_text_blocks_ready_recorded_) {
+    DCHECK(!active_tree_changed_start_time_.is_null());
+    base::TimeDelta elapsed_time =
+        base::TimeTicks::Now() - active_tree_changed_start_time_;
+    base::UmaHistogramLongTimes(
+        "Accessibility.ReadAnything."
+        "TimeFromActiveAXTreeIDChangedToRenderedTextBlocks",
+        elapsed_time);
+    rendered_text_blocks_ready_recorded_ = true;
+  }
+
   if (!IsReadabilitySelectTextEnabled()) {
     return;
   }
@@ -3103,6 +3125,7 @@ void ReadAnythingAppController::MaybeMapRenderedTextToTree() {
   }
 
   if (model_.MapRenderedTextToTree(model_.readability_text_blocks())) {
+    model_.set_is_readability_mapping_in_progress(false);
     ExecuteJavaScript("chrome.readingMode.onRenderedTextMappingReady();");
   }
 }
@@ -3138,11 +3161,26 @@ v8::Local<v8::Value> ReadAnythingAppController::GetAXMapping(int index) {
     segment_dict.Set("axNodeId", segment.id);
     segment_dict.Set("start", segment.start);
     segment_dict.Set("end", segment.end);
-
+    segment_dict.Set("axNodeOffset", segment.ax_node_offset);
     v8_segments->Set(context, static_cast<uint32_t>(i), segment_obj).Check();
   }
 
   return handle_scope.Escape(v8_segments);
+}
+
+void ReadAnythingAppController::AttemptLogEarlySelection(bool from_side_panel) {
+  if (model_.has_logged_early_selection() ||
+      !model_.is_readability_mapping_in_progress() ||
+      !IsReadabilitySelectTextEnabled()) {
+    return;
+  }
+  model_.set_has_logged_early_selection(true);
+
+  base::UmaHistogramEnumeration(
+      ReadAnythingAppModel::kEarlySelectionHistogramName,
+      from_side_panel
+          ? ReadAnythingAppModel::EarlySelection::kSidePanelSelection
+          : ReadAnythingAppModel::EarlySelection::kMainPanelSelection);
 }
 
 bool ReadAnythingAppController::IsHidden() const {

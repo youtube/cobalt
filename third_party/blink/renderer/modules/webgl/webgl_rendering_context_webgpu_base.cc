@@ -11,6 +11,7 @@
 #include "third_party/blink/public/platform/web_url.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_element_elementimage.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_htmlcanvaselement_offscreencanvas.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_webgl_copy_element_image_config.h"
 #include "third_party/blink/renderer/bindings/modules/v8/webgl_any.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
@@ -2305,56 +2306,9 @@ void WebGLRenderingContextWebGPUBase::texImage2D(
 
 void WebGLRenderingContextWebGPUBase::texElementImage2D(
     GLenum target,
-    GLint level,
-    GLint internalformat,
-    GLenum format,
-    GLenum type,
+    GLenum internalformat,
     const V8UnionElementOrElementImage* element,
-    ExceptionState& exception_state) {
-  NOTIMPLEMENTED();
-}
-
-void WebGLRenderingContextWebGPUBase::texElementImage2D(
-    GLenum target,
-    GLint level,
-    GLint internalformat,
-    GLsizei width,
-    GLsizei height,
-    GLenum format,
-    GLenum type,
-    const V8UnionElementOrElementImage* element,
-    ExceptionState& exception_state) {
-  NOTIMPLEMENTED();
-}
-
-void WebGLRenderingContextWebGPUBase::texElementImage2D(
-    GLenum target,
-    GLint level,
-    GLint internalformat,
-    GLfloat sx,
-    GLfloat sy,
-    GLfloat swidth,
-    GLfloat sheight,
-    GLenum format,
-    GLenum type,
-    const V8UnionElementOrElementImage* element,
-    ExceptionState& exception_state) {
-  NOTIMPLEMENTED();
-}
-
-void WebGLRenderingContextWebGPUBase::texElementImage2D(
-    GLenum target,
-    GLint level,
-    GLint internalformat,
-    GLfloat sx,
-    GLfloat sy,
-    GLfloat swidth,
-    GLfloat sheight,
-    GLsizei width,
-    GLsizei height,
-    GLenum format,
-    GLenum type,
-    const V8UnionElementOrElementImage* element,
+    const WebGLCopyElementImageConfig* config,
     ExceptionState& exception_state) {
   NOTIMPLEMENTED();
 }
@@ -3752,26 +3706,8 @@ void WebGLRenderingContextWebGPUBase::readPixels(
 // ****************************************************************************
 // Start of CanvasRenderingContext implementation
 // ****************************************************************************
-SkAlphaType WebGLRenderingContextWebGPUBase::GetAlphaType() const {
-  // WebGL spec section 2.2 The Drawing Buffer
-  //
-  //   If defined, the alpha channel is used by the HTML compositor to combine
-  //   the color buffer with the rest of the page.
-  return CreationAttributes().alpha ? kPremul_SkAlphaType : kOpaque_SkAlphaType;
-}
-
-viz::SharedImageFormat WebGLRenderingContextWebGPUBase::GetSharedImageFormat()
-    const {
-  // TODO(413078308): Add support for RGBA16Float drawing buffer.
-  if (swap_buffers_) {
-    return swap_buffers_->Format();
-  }
-  return GetN32FormatForCanvas();
-}
-
-gfx::ColorSpace WebGLRenderingContextWebGPUBase::GetColorSpace() const {
-  // TODO(413078308): Add support for non-SRGB color spaces.
-  return gfx::ColorSpace::CreateSRGB();
+bool WebGLRenderingContextWebGPUBase::IsOpaque() const {
+  return !CreationAttributes().alpha;
 }
 
 base::ByteSize WebGLRenderingContextWebGPUBase::AllocatedBufferSize() const {
@@ -3947,8 +3883,12 @@ void WebGLRenderingContextWebGPUBase::EnsureDefaultFramebuffer() {
   texDesc.format = swap_buffers_->TextureFormat();
   texDesc.dimension = wgpu::TextureDimension::e2D;
 
+  SkAlphaType alpha_type =
+      CreationAttributes().alpha ? kPremul_SkAlphaType : kOpaque_SkAlphaType;
+
   scoped_refptr<WebGPUMailboxTexture> mailbox_texture =
-      swap_buffers_->GetNewTexture(texDesc, GetAlphaType());
+      swap_buffers_->GetNewTexture(texDesc, alpha_type);
+
   Host()->UpdateMemoryUsage();
   mailbox_texture->SetNeedsPresent(true);
 

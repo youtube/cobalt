@@ -24,13 +24,17 @@ public interface GlicKeyedService {
     @IntDef({
         GlicInvocationSource.UNSUPPORTED,
         GlicInvocationSource.TOP_CHROME_BUTTON,
-        GlicInvocationSource.THREE_DOTS_MENU
+        GlicInvocationSource.THREE_DOTS_MENU,
+        GlicInvocationSource.TOOLBAR_BUTTON,
+        GlicInvocationSource.MAX_VALUE,
     })
     @Retention(RetentionPolicy.SOURCE)
     @interface GlicInvocationSource {
         int UNSUPPORTED = 8;
         int TOP_CHROME_BUTTON = 3;
         int THREE_DOTS_MENU = 7;
+        int TOOLBAR_BUTTON = 31;
+        int MAX_VALUE = 34;
     }
 
     // LINT.ThenChange(//chrome/browser/glic/host/glic.mojom:InvocationSource)
@@ -81,6 +85,17 @@ public interface GlicKeyedService {
 
     /** Removes an observer for user enabled actuation on web changes. */
     void removeUserEnabledActuationOnWebObserver(UserEnabledActuationOnWebObserver observer);
+
+    /** Observer for allowed changes. */
+    interface AllowedChangedObserver {
+        void onAllowedStateChanged();
+    }
+
+    /** Adds an observer for allowed changes. */
+    void addAllowedChangedObserver(AllowedChangedObserver observer);
+
+    /** Removes an observer for allowed changes. */
+    void removeAllowedChangedObserver(AllowedChangedObserver observer);
 
     /**
      * Checks if the panel is showing for a specific browser window.

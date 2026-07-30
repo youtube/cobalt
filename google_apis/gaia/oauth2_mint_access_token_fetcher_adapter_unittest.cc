@@ -111,6 +111,11 @@ class MockOAuth2MintTokenFlow : public OAuth2MintTokenFlow {
     result.time_to_live = base::Seconds(time_to_live);
     result.is_token_encrypted = is_encrypted;
     result.bound_token_upgrade_challenge = upgrade_challenge;
+    if (!upgrade_challenge.empty()) {
+      result.bound_token_upgrade_supported_algorithms = {
+          crypto::SignatureVerifier::ECDSA_SHA256,
+          crypto::SignatureVerifier::RSA_PKCS1_SHA256};
+    }
     delegate_->OnMintTokenSuccess(result);
   }
   void SimulateMintTokenFailure(const GoogleServiceAuthError& error) {
@@ -326,11 +331,17 @@ TEST_F(OAuth2MintAccessTokenFetcherAdapterTest, SuccessWithUpgradeEligibility) {
   base::TimeDelta kTimeToLive = base::Hours(4);
   EXPECT_CALL(*mock_consumer(), OnGetTokenSuccess(HasAccessTokenWithTtl(
                                     kTestAccessToken, kTimeToLive)));
-  EXPECT_CALL(mock_upgrade_callback, Run("challenge"));
+  EXPECT_CALL(mock_upgrade_callback, Run("challenge", _));
   mock_flow()->SimulateMintTokenSuccess(kTestAccessToken, {kTestScope},
                                         kTimeToLive.InSeconds(),
                                         /*is_encrypted=*/false, "challenge");
   VerifyUnboundFetchAuthErrorHistograms(GoogleServiceAuthError::NONE);
+  histogram_tester().ExpectUniqueSample(
+      "Signin.TokenBinding.UpgradeEligibility", /*sample=*/true,
+      /*expected_bucket_count=*/1);
+  histogram_tester().ExpectUniqueSample("Signin.TokenBinding.UpgradeRequested",
+                                        /*sample=*/true,
+                                        /*expected_bucket_count=*/1);
 }
 
 TEST_F(OAuth2MintAccessTokenFetcherAdapterTest, Success) {
@@ -344,6 +355,12 @@ TEST_F(OAuth2MintAccessTokenFetcherAdapterTest, Success) {
                                         /*is_encrypted=*/false);
   VerifyBoundFetchAuthErrorHistograms(GoogleServiceAuthError::NONE,
                                       kChallengeSentinelHistogramSuffix);
+  histogram_tester().ExpectUniqueSample(
+      "Signin.TokenBinding.UpgradeEligibility", /*sample=*/false,
+      /*expected_bucket_count=*/1);
+  histogram_tester().ExpectUniqueSample("Signin.TokenBinding.UpgradeRequested",
+                                        /*sample=*/false,
+                                        /*expected_bucket_count=*/1);
 }
 
 TEST_F(OAuth2MintAccessTokenFetcherAdapterTest, SuccessWithSignedAssertion) {

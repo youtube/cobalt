@@ -511,13 +511,6 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
     protected void onPostCreate() {
         incrementCounter(ChromePreferenceKeys.UMA_ON_POSTCREATE_COUNTER);
         super.onPostCreate();
-
-        // WindowAndroid is created in #onCreateInternal, happened before onPostCreate.
-        if (getWindowAndroid() != null) {
-            // EdgeToEdgeStateProvider is created in #onCreate.
-            assert getEdgeToEdgeStateProvider() != null;
-            getEdgeToEdgeStateProvider().attach(getWindowAndroid());
-        }
     }
 
     @Override
@@ -552,6 +545,10 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
 
     @Override
     public void performPreInflationStartup() {
+        // Initialize PopupCreator early so that it's available when WebContentsDelegateAndroid
+        // wants to create a new window.
+        PopupCreatorFactory.setInstance(new PopupCreatorImpl());
+
         mUmaActivityObserver =
                 new UmaActivityObserver(this, getLifecycleDispatcher(), getActivityType());
         setupUnownedUserDataSuppliers();
@@ -567,6 +564,17 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
 
         // Ensure that mConfig is initialized before tablet mode changes.
         mConfig = getResources().getConfiguration();
+
+        // WindowAndroid is created in #onCreateInternal, happened before
+        // performPreInflationStartup.
+        // Note: This needs to be called before creating the RootUiCoordinator, which checks whether
+        // edge-to-edge is enabled by calling
+        // NtpCustomizationUtils.supportsEnableEdgeToEdgeOnTop(WindowAndroid, boolean).
+        if (getWindowAndroid() != null) {
+            // EdgeToEdgeStateProvider is created in #onCreate.
+            assert getEdgeToEdgeStateProvider() != null;
+            getEdgeToEdgeStateProvider().attach(getWindowAndroid());
+        }
 
         // Make sure the root coordinator is created prior to calling super to ensure all
         // the activity lifecycle events are called.
@@ -623,7 +631,7 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
                             modalDialogManager,
                             () -> mRootUiCoordinator.getAppBrowserControlsVisibilityDelegate(),
                             this::getTabObscuringHandler,
-                            this::getToolbarManager,
+                            mRootUiCoordinator.getToolbarManagerSupplier(),
                             mRootUiCoordinator::hideContextualSearch,
                             getTabModelSelectorSupplier(),
                             this::getBrowserControlsManager,
@@ -987,11 +995,10 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
 
     /**
      * @return {@link ToolbarManager} that belongs to this activity or null if the current activity
-     *     does not support a toolbar. TODO(pnoland, https://crbug.com/40585866): remove this in
-     *     favor of having RootUICoordinator inject ToolbarManager directly to sub-components.
+     *     does not support a toolbar.
      */
     public @Nullable ToolbarManager getToolbarManager() {
-        return mRootUiCoordinator.getToolbarManager();
+        return mRootUiCoordinator.getToolbarManagerSupplier().get();
     }
 
     /**
@@ -1092,16 +1099,12 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
             @SupportedProfileType int supportedProfileType,
             @Nullable MultiInstanceManager multiInstanceManager) {
         try (TraceEvent e = TraceEvent.scoped("ChromeActivity.initializeChromeAndroidTask")) {
-            // 1. Initialize PopupCreator early so that ChromeAndroidTaskTracker can use it to
-            // create intents for popup windows. This overwrites the instance each time.
-            PopupCreatorFactory.setInstance(new PopupCreatorImpl());
-
             var chromeAndroidTaskTracker = ChromeAndroidTaskTrackerFactory.getInstance();
             if (chromeAndroidTaskTracker == null) {
                 return;
             }
 
-            // 2. Obtain ChromeAndroidTask dependencies.
+            // 1. Obtain ChromeAndroidTask dependencies.
             var activityWindowAndroid = getWindowAndroid();
             assert activityWindowAndroid != null
                     : "ChromeAndroidTask must be initialized after Java WindowAndroid is created.";
@@ -1117,7 +1120,7 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
                             /* defaultValue= */ -1);
             Integer pendingId = pendingIdExtraValue == -1 ? null : pendingIdExtraValue;
 
-            // 3. Obtain a ChromeAndroidTask that represents the Task (window) for this Activity.
+            // 2. Obtain a ChromeAndroidTask that represents the Task (window) for this Activity.
             var chromeAndroidTask =
                     chromeAndroidTaskTracker.obtainTask(
                             browserWindowType,
@@ -1129,13 +1132,13 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
                                     desktopWindowStateManager),
                             pendingId);
 
-            // 4. Add windowing features.
+            // 3. Add windowing features.
             // TODO(crbug.com/491791326): Handle multiple profiles for mobile.
             Profile profile = tabModelSelector.getCurrentModel().getProfile();
             assert profile != null;
             addWindowingFeatures(chromeAndroidTask, profile, activityWindowAndroid);
 
-            // 5. Make the ChromeAndroidTask available via OneshotSupplier.
+            // 4. Make the ChromeAndroidTask available via OneshotSupplier.
             mChromeAndroidTaskSupplier.set(chromeAndroidTask);
         }
     }
@@ -1445,14 +1448,14 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
 
     @VisibleForTesting
     public @Nullable ActorPictureInPictureController maybeCreateActorPipController() {
-        if (mActorPipController != null) {
-            return mActorPipController;
-        }
-
         if (getProfileProviderSupplier().get() == null
                 || !GlicEnabling.isProfileEligible(
                         getProfileProviderSupplier().get().getOriginalProfile())) {
             return null;
+        }
+
+        if (mActorPipController != null) {
+            return mActorPipController;
         }
 
         mActorPipController =
@@ -1791,11 +1794,13 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
 
     @Override
     public void onTopResumedActivityChanged(boolean isTopResumedActivity) {
-        super.onTopResumedActivityChanged(isTopResumedActivity);
+        // Update WindowAndroid state first so code triggered by super.onTopResumedActivityChanged()
+        // can get the correct states from WindowAndroid.
         WindowAndroid windowAndroid = getWindowAndroid();
         if (windowAndroid != null) {
             windowAndroid.onActivityTopResumedChanged(isTopResumedActivity);
         }
+        super.onTopResumedActivityChanged(isTopResumedActivity);
     }
 
     /**
@@ -2915,17 +2920,26 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
         }
 
         if (id == R.id.bookmark_menu_id) {
-            if (menuItemData != null
+            assert menuItemData != null
                     && menuItemData.containsKey(
-                            AppMenuPropertiesDelegateImpl.BOOKMARK_ID_BUNDLE_KEY)) {
-                BookmarkId bookmarkId =
-                        BookmarkId.getBookmarkIdFromString(
-                                menuItemData.getString(
-                                        AppMenuPropertiesDelegateImpl.BOOKMARK_ID_BUNDLE_KEY));
-                BookmarkOpener opener =
-                        new BookmarkOpenerImpl(mBookmarkModelSupplier, this, getComponentName());
-                opener.openBookmarkInCurrentTab(bookmarkId, currentTab.isIncognito());
-            }
+                            AppMenuPropertiesDelegateImpl.BOOKMARK_ID_BUNDLE_KEY);
+            BookmarkId bookmarkId =
+                    BookmarkId.getBookmarkIdFromString(
+                            menuItemData.getString(
+                                    AppMenuPropertiesDelegateImpl.BOOKMARK_ID_BUNDLE_KEY));
+            BookmarkOpener opener =
+                    new BookmarkOpenerImpl(mBookmarkModelSupplier, this, getComponentName());
+            opener.openBookmarkInCurrentTab(bookmarkId, currentTab.isIncognito());
+            return true;
+        }
+
+        if (id == R.id.tab_group_tab_menu_item) {
+            assert menuItemData != null
+                    && menuItemData.containsKey(AppMenuPropertiesDelegateImpl.TAB_ID_BUNDLE_KEY);
+            TabModelUtils.selectTabById(
+                    getTabModelSelector(),
+                    menuItemData.getInt(AppMenuPropertiesDelegateImpl.TAB_ID_BUNDLE_KEY),
+                    TabSelectionType.FROM_USER);
             return true;
         }
 
@@ -3398,6 +3412,11 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
 
         RecordHistogram.recordBooleanHistogram(
                 "Android.OpenInApp.Clicked.AppMenuItem", info != null);
+
+        var chipManager = mRootUiCoordinator.getOmniboxChipManager();
+        boolean chipVisible = chipManager != null && chipManager.isChipVisible();
+        RecordHistogram.recordBooleanHistogram(
+                "Android.OpenInApp.Clicked.AppMenuItem.ChipVisible", chipVisible);
     }
 
     /**

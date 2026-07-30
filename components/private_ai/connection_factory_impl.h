@@ -11,6 +11,8 @@
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
 #include "components/private_ai/connection_factory.h"
+#include "components/private_ai/private_ai_network_driver.h"
+#include "components/private_ai/private_ai_oak_session_driver.h"
 #include "components/private_ai/secure_channel.h"
 #include "url/gurl.h"
 
@@ -33,7 +35,9 @@ class ConnectionFactoryImpl : public ConnectionFactory {
 
   ConnectionFactoryImpl(const GURL& url,
                         network::mojom::NetworkContext* network_context,
-                        PrivateAiLogger* logger);
+                        PrivateAiLogger* logger,
+                        PrivateAiOakSessionDriver* oak_session_driver,
+                        PrivateAiNetworkDriver* network_driver);
   ~ConnectionFactoryImpl() override;
 
   ConnectionFactoryImpl(const ConnectionFactoryImpl&) = delete;
@@ -49,12 +53,15 @@ class ConnectionFactoryImpl : public ConnectionFactory {
 
   // ConnectionFactory override:
   std::unique_ptr<Connection> Create(
+      proto::FeatureName feature_name,
       base::RepeatingCallback<void(StatusCode)> on_disconnect) override;
 
  private:
   const GURL url_;
   const raw_ptr<network::mojom::NetworkContext> network_context_;
   const raw_ptr<PrivateAiLogger> logger_;
+  const raw_ptr<PrivateAiOakSessionDriver> oak_session_driver_;
+  const raw_ptr<PrivateAiNetworkDriver> network_driver_;
 
   SecureChannelFactoryOverride secure_channel_override_;
 

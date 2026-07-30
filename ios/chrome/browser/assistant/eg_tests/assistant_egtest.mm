@@ -67,7 +67,6 @@ void OpenAssistantFromOmnibox() {
   config.features_enabled_and_params.push_back(
       {kAssistantContainer,
        {{kAssistantContainerParam, kAssistantContainerParamDebug}}});
-
   return config;
 }
 

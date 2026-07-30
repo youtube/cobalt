@@ -105,14 +105,16 @@ ToolbarButton::ToolbarButton(PressedCallback callback,
                              std::unique_ptr<ui::MenuModel> model,
                              TabStripModel* tab_strip_model,
                              bool trigger_menu_on_long_press)
-    : views::LabelButton(std::move(callback),
-                         std::u16string(),
-                         CONTEXT_TOOLBAR_BUTTON),
+    : views::LabelButton(
+          std::move(callback),
+          std::u16string(),
+          CONTEXT_TOOLBAR_BUTTON,
+          std::make_unique<views::SingleAnimatedImageContainer>(this)),
       model_(std::move(model)),
       tab_strip_model_(tab_strip_model),
       trigger_menu_on_long_press_(trigger_menu_on_long_press),
       highlight_color_animation_(this) {
-  ConfigureInkDropForToolbar(
+  ConfigureInkDrop(
       this, std::make_unique<ToolbarButtonHighlightPathGenerator>(this));
 
   set_context_menu_controller(this);

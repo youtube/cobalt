@@ -148,6 +148,12 @@ H265Decoder::~H265Decoder() = default;
 void H265Decoder::SetStream(int32_t id,
                             scoped_refptr<DecoderBuffer> decoder_buffer) {
   CHECK(decoder_buffer);
+  curr_nalu_.reset();
+  curr_slice_hdr_.reset();
+  last_slice_hdr_.reset();
+  // Keep the old buffer alive until the end of this function to ensure
+  // that any active spans in the parser are cleared before the memory is freed.
+  auto outgoing_decoder_buffer = std::move(decoder_buffer_);
   decoder_buffer_ = std::move(decoder_buffer);
   const DecryptConfig* decrypt_config = decoder_buffer_->decrypt_config();
 
@@ -1179,6 +1185,15 @@ bool H265Decoder::PerformDpbOperations(const H265SPS* sps) {
   if (dpb_.IsFull()) {
     DVLOG(1) << "Could not free up space in DPB for current picture";
     return false;
+  }
+
+  // Non-decodable RASL frames are not stored in the DPB because the picture
+  // is not actually decoded so it doesn't make sense to store it.
+  if (curr_pic_->no_rasl_output_flag_ &&
+      (curr_pic_->nal_unit_type_ == H265NALU::RASL_N ||
+       curr_pic_->nal_unit_type_ == H265NALU::RASL_R)) {
+    DVLOG(1) << "Skipping storing non-decodable RASL frame in DPB";
+    return true;
   }
 
   // Put the current pic in the DPB.

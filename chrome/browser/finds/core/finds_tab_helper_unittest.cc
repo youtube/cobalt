@@ -94,6 +94,15 @@ class FindsTabHelperTest : public ChromeRenderViewHostTestHarness {
         ->DidFinishNavigation(handle);
   }
 
+  void SetPendingOmniboxRecentSearchSuggestionNavigation() {
+    tab_helper_->pending_omnibox_recent_search_suggestion_navigation_ = true;
+  }
+
+  void CallDidFirstVisuallyNonEmptyPaint() {
+    static_cast<content::WebContentsObserver*>(tab_helper_)
+        ->DidFirstVisuallyNonEmptyPaint();
+  }
+
   // Configures a minimal mock state that satisfies the IsValidNavigation check
   // required to enter the tab helper's logic.
   std::unique_ptr<content::MockNavigationHandle> CreateMockNavigationHandle(
@@ -120,6 +129,7 @@ class FindsTabHelperTest : public ChromeRenderViewHostTestHarness {
           srp_url,
           static_cast<ui::PageTransition>(ui::PAGE_TRANSITION_FORWARD_BACK));
       CallDidFinishNavigation(handle.get());
+      CallDidFirstVisuallyNonEmptyPaint();
     }
   }
 
@@ -143,6 +153,7 @@ TEST_F(FindsTabHelperTest, TestNonForwardBackNavToSRPDoesNotCount) {
   // Normal navigation (TYPED) to SRP does not count.
   auto handle = CreateMockNavigationHandle(srp_url, ui::PAGE_TRANSITION_TYPED);
   CallDidFinishNavigation(handle.get());
+  CallDidFirstVisuallyNonEmptyPaint();
   EXPECT_EQ(srp_return_count(), 0);
 }
 
@@ -197,6 +208,55 @@ TEST_F(FindsTabHelperTest, TestHistorySyncDisabled) {
   EXPECT_CALL(finds_service_observer_, OnOptInCriteriaFulfilled()).Times(0);
   SimulateSRPBackNavigations(srp_return_count_threshold_);
   EXPECT_EQ(srp_return_count(), 0);
+}
+
+TEST_F(FindsTabHelperTest, TestOmniboxRecentSearchSuggestionCountThresholdMet) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeatureWithParameters(
+      finds::features::kChromeFinds,
+      {{"omnibox_recent_search_suggestion_count_threshold", "2"},
+       {"enable_omnibox_recent_search_suggestion_opt_in", "true"}});
+
+  GURL srp_url("https://www.google.com/search?q=lebron");
+
+  SetPendingOmniboxRecentSearchSuggestionNavigation();
+  auto handle1 =
+      CreateMockNavigationHandle(srp_url, ui::PAGE_TRANSITION_GENERATED);
+  EXPECT_CALL(finds_service_observer_, OnOptInCriteriaFulfilled()).Times(0);
+  CallDidFinishNavigation(handle1.get());
+  CallDidFirstVisuallyNonEmptyPaint();
+
+  SetPendingOmniboxRecentSearchSuggestionNavigation();
+  auto handle2 =
+      CreateMockNavigationHandle(srp_url, ui::PAGE_TRANSITION_GENERATED);
+  EXPECT_CALL(finds_service_observer_, OnOptInCriteriaFulfilled()).Times(1);
+  CallDidFinishNavigation(handle2.get());
+  CallDidFirstVisuallyNonEmptyPaint();
+}
+
+TEST_F(FindsTabHelperTest,
+       TestOmniboxRecentSearchSuggestionClickedFeatureDisabled) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeatureWithParameters(
+      finds::features::kChromeFinds,
+      {{"enable_omnibox_recent_search_suggestion_opt_in", "false"},
+       {"omnibox_recent_search_suggestion_count_threshold", "2"}});
+
+  GURL srp_url("https://www.google.com/search?q=lebron");
+
+  SetPendingOmniboxRecentSearchSuggestionNavigation();
+  auto handle1 =
+      CreateMockNavigationHandle(srp_url, ui::PAGE_TRANSITION_GENERATED);
+  EXPECT_CALL(finds_service_observer_, OnOptInCriteriaFulfilled()).Times(0);
+  CallDidFinishNavigation(handle1.get());
+  CallDidFirstVisuallyNonEmptyPaint();
+
+  SetPendingOmniboxRecentSearchSuggestionNavigation();
+  auto handle2 =
+      CreateMockNavigationHandle(srp_url, ui::PAGE_TRANSITION_GENERATED);
+  EXPECT_CALL(finds_service_observer_, OnOptInCriteriaFulfilled()).Times(0);
+  CallDidFinishNavigation(handle2.get());
+  CallDidFirstVisuallyNonEmptyPaint();
 }
 
 }  // namespace finds

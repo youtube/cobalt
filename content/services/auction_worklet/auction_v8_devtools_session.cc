@@ -97,7 +97,8 @@ class AuctionV8DevToolsSession::IOSession
   using RunDispatch =
       base::RepeatingCallback<void(int32_t call_id,
                                    const std::string& method,
-                                   std::vector<uint8_t> message)>;
+                                   std::vector<uint8_t> message,
+                                   const std::string& fallthrough_data)>;
 
   ~IOSession() override {
     DCHECK_CALLED_ON_VALID_SEQUENCE(io_session_receiver_sequence_checker_);
@@ -119,14 +120,16 @@ class AuctionV8DevToolsSession::IOSession
   // DevToolsSession implementation.
   void DispatchProtocolCommand(int32_t call_id,
                                const std::string& method,
-                               base::span<const uint8_t> message) override {
+                               base::span<const uint8_t> message,
+                               const std::string& fallthrough_data) override {
     DCHECK_CALLED_ON_VALID_SEQUENCE(io_session_receiver_sequence_checker_);
 
     // TODO(morlovich): We probably need to do v8 interrupt on some commands
     // here. Discuss in review.
     debug_command_queue_->QueueTaskForV8Thread(
         base::BindOnce(v8_thread_dispatch_, call_id, method,
-                       std::vector<uint8_t>(message.begin(), message.end())));
+                       std::vector<uint8_t>(message.begin(), message.end()),
+                       fallthrough_data));
   }
 
   void UnpauseAndTerminate() override { NOTREACHED(); }
@@ -230,15 +233,18 @@ void AuctionV8DevToolsSession::MaybeTriggerInstrumentationBreakpoint(
 void AuctionV8DevToolsSession::DispatchProtocolCommandFromIO(
     int32_t call_id,
     const std::string& method,
-    std::vector<uint8_t> message) {
+    std::vector<uint8_t> message,
+    const std::string& fallthrough_data) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(v8_sequence_checker_);
-  DispatchProtocolCommand(call_id, method, std::move(message));
+  DispatchProtocolCommand(call_id, method, std::move(message),
+                          fallthrough_data);
 }
 
 void AuctionV8DevToolsSession::DispatchProtocolCommand(
     int32_t call_id,
     const std::string& method,
-    base::span<const uint8_t> message) {
+    base::span<const uint8_t> message,
+    const std::string& fallthrough_data) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(v8_sequence_checker_);
   // We always talk binary to V8 so it talks it back to us, making it easier
   // to append session ID. That's also useful for crdtp::Dispatchable.
@@ -264,9 +270,11 @@ void AuctionV8DevToolsSession::DispatchProtocolCommand(
 
     v8_session_->dispatchProtocolMessage(cbor_message);
   } else {
-    crdtp::Dispatchable dispatchable(crdtp::span<uint8_t>(
-        cbor_message.characters8(), cbor_message.length()));
-    fallback_dispatcher_.Dispatch(dispatchable).Run();
+    crdtp::Dispatchable dispatchable(
+        crdtp::span<uint8_t>(cbor_message.characters8(), cbor_message.length()),
+        fallthrough_data,
+        /*fallthrough_callback=*/nullptr);
+    fallback_dispatcher_.Dispatch(dispatchable);
   }
 }
 
@@ -315,13 +323,6 @@ void AuctionV8DevToolsSession::SendProtocolResponse(
 
 void AuctionV8DevToolsSession::SendProtocolNotification(
     std::unique_ptr<crdtp::Serializable> message) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(v8_sequence_checker_);
-  NOTIMPLEMENTED();
-}
-
-void AuctionV8DevToolsSession::FallThrough(int call_id,
-                                           crdtp::span<uint8_t> method,
-                                           crdtp::span<uint8_t> message) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(v8_sequence_checker_);
   NOTIMPLEMENTED();
 }

@@ -42,6 +42,7 @@ import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileProvider;
 import org.chromium.chrome.browser.signin.services.BadgeConfig;
 import org.chromium.chrome.browser.ui.device_lock.DeviceLockCoordinator;
+import org.chromium.chrome.browser.ui.signin.SigninAndHistorySyncCoordinator;
 import org.chromium.chrome.browser.ui.signin.SigninSurveyController;
 import org.chromium.chrome.browser.ui.signin.SigninUtils;
 import org.chromium.chrome.browser.ui.signin.fullscreen_signin.FullscreenSigninConfig;
@@ -93,7 +94,9 @@ public class SigninFirstRunFragment extends Fragment
                                 /* logoId= */ 0,
                                 /* shouldDisableSignin= */ DeviceInfo.isAutomotive(),
                                 /* surveyType= */ SigninSurveyController.SigninSurveyType.FRE,
-                                /* selectedAccountEmail= */ null),
+                                /* selectedAccountEmail= */ null,
+                                /* signinFlow= */ SigninAndHistorySyncCoordinator.SigninFlow
+                                        .DEFAULT_SIGNIN),
                         SigninAccessPoint.START_PAGE);
 
         var pageDelegate = assumeNonNull(getPageDelegate());
@@ -183,14 +186,25 @@ public class SigninFirstRunFragment extends Fragment
         mFullscreenSigninCoordinator.reset();
     }
 
+    /**
+     * Implements {@link FullscreenSigninCoordinator.Delegate}.
+     *
+     * @deprecated Use {@link #addAccount(String)} instead.
+     */
+    @Override
+    @Deprecated
+    public void addAccount() {
+        addAccount(null);
+    }
+
     /** Implements {@link FullscreenSigninCoordinator.Delegate}. */
     @Override
-    public void addAccount() {
+    public void addAccount(@Nullable String accountEmail) {
         assumeNonNull(getPageDelegate())
                 .recordFreProgressHistogram(MobileFreProgress.WELCOME_ADD_ACCOUNT);
         AccountManagerFacadeProvider.getInstance()
                 .createAddAccountIntent(
-                        null,
+                        accountEmail,
                         (@Nullable Intent intent) -> {
                             if (intent != null) {
                                 startActivityForResult(intent, ADD_ACCOUNT_REQUEST_CODE);
@@ -216,6 +230,12 @@ public class SigninFirstRunFragment extends Fragment
         if (pageDelegate != null) {
             pageDelegate.advanceToNextPage();
         }
+    }
+
+    /** Implements {@link FullscreenSigninCoordinator.Delegate} */
+    @Override
+    public void abortFlow() {
+        exitFirstRun();
     }
 
     /** Implements {@link FullscreenSigninCoordinator.Delegate}. */

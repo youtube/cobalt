@@ -872,6 +872,7 @@ public class AutocompleteMediatorUnitTest {
                 new AutocompleteMatchBuilder()
                         .setHasTabMatch(true)
                         .setType(OmniboxSuggestionType.OPEN_TAB)
+                        .setAndroidTabId(123)
                         .setActions(
                                 List.of(
                                         new OmniboxActionInSuggest(
@@ -1843,13 +1844,68 @@ public class AutocompleteMediatorUnitTest {
         verify(mOmniboxActionDelegate)
                 .setOnKeywordModeEnteredCb(mKeywordModeEnteredCaptor.capture());
 
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        clearInvocations(mAutocompleteController);
+
         SiteSearchData data = new SiteSearchData("keyword", "Full Name");
-        mMediator.allowPendingItemSelection();
         mKeywordModeEnteredCaptor.getValue().accept(data);
+
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
 
         verify(mTextStateProvider).setSiteSearchChip("Full Name");
         assertEquals("", session.getAutocompleteInput().getUserText());
         assertEquals(data, session.getAutocompleteInput().getSiteSearchData());
+
+        verify(mAutocompleteController).start(any(), any(), anyInt(), anyBoolean());
+    }
+
+    @Test
+    @SmallTest
+    public void onKeywordModeEntered_previewDoesNotTriggerAutocomplete() {
+        int pageClassification = PageClassification.BLANK_VALUE;
+        var session = createSession(JUnitTestGURLs.BLUE_1, "Title", pageClassification);
+        session.getAutocompleteInput().setUserText("original text");
+        mMediator.beginInput(session);
+
+        verify(mOmniboxActionDelegate)
+                .setOnKeywordModeEnteredCb(mKeywordModeEnteredCaptor.capture());
+
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        clearInvocations(mAutocompleteController);
+        clearInvocations(mTextStateProvider);
+        clearInvocations(mAutocompleteDelegate);
+
+        // Enter preview
+        SiteSearchData data =
+                new SiteSearchData("keyword", "Full Name", /* enteredViaSpace= */ false);
+        mMediator.allowPendingItemSelection();
+        mKeywordModeEnteredCaptor.getValue().accept(data);
+
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+
+        verify(mTextStateProvider).setSiteSearchChip("Full Name");
+        assertEquals("original text", session.getAutocompleteInput().getUserText());
+        assertEquals("", session.getAutocompleteInput().getPreviewText());
+        assertTrue(session.getAutocompleteInput().hasPreviewText());
+        verify(mAutocompleteDelegate).setOmniboxEditingText("");
+
+        verify(mAutocompleteController, never()).start(any(), any(), anyInt(), anyBoolean());
+
+        // Exit preview
+        clearInvocations(mAutocompleteController);
+        clearInvocations(mTextStateProvider);
+        clearInvocations(mAutocompleteDelegate);
+
+        mKeywordModeEnteredCaptor.getValue().accept(null);
+
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+
+        assertEquals("original text", session.getAutocompleteInput().getUserText());
+        assertEquals("original text", session.getAutocompleteInput().getPreviewText());
+        assertFalse(session.getAutocompleteInput().hasPreviewText());
+        verify(mAutocompleteDelegate).setOmniboxEditingText("original text");
+
+        verify(mAutocompleteController, never()).start(any(), any(), anyInt(), anyBoolean());
     }
 
     @Test
@@ -2063,6 +2119,29 @@ public class AutocompleteMediatorUnitTest {
 
     @Test
     @SmallTest
+    public void triggerSiteSearch_ReTriggerSuccess() {
+        var session = createEmptySession();
+        mMediator.beginInput(session);
+
+        // 1. First trigger: user types "@gemini "
+        setUpSiteSearchSpaceTrigger("@gemini", "Gemini", "Gemini AI", "");
+        assertTrue(mMediator.triggerSiteSearch(SiteSearchActivationSource.SPACE));
+        assertNotNull(session.getAutocompleteInput().getSiteSearchData());
+
+        // 2. Backspace: simulate clearing site search data (exit keyword mode)
+        session.getAutocompleteInput().setSiteSearchData(null);
+        doReturn("@gemini").when(mTextStateProvider).getTextWithoutAutocomplete();
+
+        // 3. Second trigger: user deletes space then types space again -> "@gemini "
+        doReturn("@gemini ").when(mTextStateProvider).getTextWithoutAutocomplete();
+        doReturn(mTemplateUrl).when(mAutocompleteController).getTemplateUrlForText("@gemini ");
+
+        assertTrue(mMediator.triggerSiteSearch(SiteSearchActivationSource.SPACE));
+        assertNotNull(session.getAutocompleteInput().getSiteSearchData());
+    }
+
+    @Test
+    @SmallTest
     public void onInputChanged_setsAllowParkingAtSentinelProperty_mobile() {
         var session = createEmptySession();
         mMediator.beginInput(session);
@@ -2190,5 +2269,18 @@ public class AutocompleteMediatorUnitTest {
         loadUrlForOmniboxMatch(JUnitTestGURLs.RED_1);
 
         verifyLoadUrl(JUnitTestGURLs.RED_1);
+    }
+
+    @Test
+    public void onNavigation_parkedAtSentinelInZeroPrefixState_clearsText() {
+        var session = createEmptySession();
+        session.getAutocompleteInput().setUserText("");
+        mMediator.beginInput(session);
+        RobolectricUtil.runAllBackgroundAndUi();
+
+        mMediator.onSuggestionDropdownNavigation(true);
+        RobolectricUtil.runAllBackgroundAndUi();
+
+        verify(mAutocompleteDelegate).setOmniboxEditingText("");
     }
 }

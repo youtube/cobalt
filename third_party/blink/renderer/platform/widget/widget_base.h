@@ -186,10 +186,8 @@ class PLATFORM_EXPORT WidgetBase : public mojom::blink::Widget,
       const cc::CompositorCommitData& commit_data) override;
   void BeginMainFrame(const viz::BeginFrameArgs& args) override;
   void OnDeferMainFrameUpdatesChanged(bool) override;
-  void OnDeferCommitsChanged(
-      bool defer_status,
-      cc::PaintHoldingReason reason,
-      std::optional<cc::PaintHoldingCommitTrigger> trigger) override;
+  void OnDeferCommitsChanged(bool defer_status,
+                             cc::PaintHoldingReason reason) override;
   void OnCommitRequested() override;
   void DidBeginMainFrame() override;
   void RequestNewLayerTreeFrameSink(
@@ -425,10 +423,6 @@ class PLATFORM_EXPORT WidgetBase : public mojom::blink::Widget,
 
   // Helper to get the non-emulated device scale factor.
   float GetOriginalDeviceScaleFactor() const;
-
-  // Indicates a change in scheduling needs that should be forwarded to viz.
-  void RequestEfficientScheduling(
-      bool prefer_efficient_scheduling) const override;
 
  private:
   static void AssertAreCompatible(const WidgetBase& a, const WidgetBase& b);

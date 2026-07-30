@@ -11,6 +11,7 @@
 #include "base/functional/callback.h"
 #include "base/observer_list_types.h"
 #include "base/scoped_observation_traits.h"
+#include "base/time/time.h"
 #include "base/types/strong_alias.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -128,14 +129,12 @@ class GlicInstance {
   // Returns base::TimeDelta() if the instance is currently active.
   virtual base::TimeDelta GetTimeSinceLastActive() const = 0;
 
-  virtual GlicActorTaskManager* GetActorTaskManager() = 0;
+  // Returns the duration since the user last submitted a prompt to a
+  // conversation in this instance. Returns base::TimeDelta::Max() if no prompt
+  // has been submitted yet.
+  virtual base::TimeDelta GetTimeSinceLastPromptSubmission() const = 0;
 
-  // Metrics springboard for selection area changed.
-  // TODO(b/500385503): Figure out what to do here. This is exposed for now
-  // given that GlicInstanceMetrics can't be used outside of glic
-  // implementation.
-  virtual void OnSelectionAreasChanged(int count) = 0;
-  virtual void OnPolylinePointsChanged(const std::vector<int>& counts) = 0;
+  virtual GlicActorTaskManager* GetActorTaskManager() = 0;
 
   // Returns true if the instance is currently performing an actuation task.
   virtual bool IsActuating() const = 0;

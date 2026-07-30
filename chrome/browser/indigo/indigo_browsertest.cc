@@ -192,11 +192,14 @@ class IndigoBrowserTest : public InteractiveBrowserTest {
             auto response =
                 std::make_unique<net::test_server::BasicHttpResponse>();
             response->set_code(net::HTTP_OK);
-            response->set_content(R"({
-              "result": {
-                "generatedImageUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
-              }
-            })");
+            response->set_content(
+                "{\n"
+                "  \"result\": {\n"
+                "    \"generatedImageUrl\": \"data:image/png;base64,"
+                "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M"
+                "9QDwADhgGAWjR9awAAAABJRU5ErkJggg==\"\n"
+                "  }\n"
+                "}");
             response->set_content_type("application/json");
             return response;
           }

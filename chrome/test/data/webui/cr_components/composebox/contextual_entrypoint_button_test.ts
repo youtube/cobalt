@@ -8,6 +8,7 @@ import 'chrome://resources/cr_components/composebox/contextual_entrypoint_button
 import type {ContextualEntrypointButtonElement} from 'chrome://resources/cr_components/composebox/contextual_entrypoint_button.js';
 import {WindowProxy} from 'chrome://resources/cr_components/composebox/window_proxy.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
+import type {TabInfo} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import {assertDeepEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {TestMock} from 'chrome://webui-test/test_mock.js';
 import {$$, eventToPromise, microtasksFinished} from 'chrome://webui-test/test_util.js';
@@ -256,4 +257,216 @@ suite('ContextualEntrypointButton', () => {
         // Clean up
         document.body.style.removeProperty('--cr-animations-disabled');
       });
+
+  suite('SmartTabSharingEntrypoint', () => {
+    setup(async () => {
+      loadTimeData.overrideValues({
+        tabFaviconChipsToCoinsEnabled: true,
+      });
+
+      entrypointButton = createEntrypointButton();
+      await microtasksFinished();
+    });
+
+    test('STS is active (with description)', async () => {
+      entrypointButton.smartTabSharingActive = true;
+      entrypointButton.showContextMenuDescription = true;
+
+      await microtasksFinished();
+      await entrypointButton.updateComplete;
+
+      const entrypoint = $$(entrypointButton, '#entrypoint');
+      assertTrue(!!entrypoint);
+      assertEquals(
+          entrypointButton.i18n('addContextTitle'),
+          entrypoint.getAttribute('title'));
+
+      // Main icon remains "+"
+      const icon = $$(entrypointButton, '#entrypointIcon');
+      assertTrue(!!icon);
+      assertEquals('cr:add', icon.getAttribute('icon'));
+
+      // STS icon is shown in coins slot
+      const coinIcon = $$(entrypointButton, '.sts-active-coin');
+      assertTrue(!!coinIcon);
+      assertEquals('composebox:shareTabs', coinIcon.getAttribute('icon'));
+      assertEquals(
+          entrypointButton.i18n('stsMegaplusShareRelevantOpenTabs'),
+          coinIcon.getAttribute('title'));
+
+      // Favicon group is NOT shown
+      const faviconGroup = $$(entrypointButton, 'composebox-favicon-group');
+      assertFalse(!!faviconGroup);
+    });
+
+    test('STS is active (description hidden)', async () => {
+      entrypointButton.smartTabSharingActive = true;
+      entrypointButton.showContextMenuDescription = false;
+
+      await microtasksFinished();
+      await entrypointButton.updateComplete;
+
+      const entrypoint = $$(entrypointButton, '#entrypoint');
+      assertTrue(!!entrypoint);
+      assertTrue(
+          entrypoint.classList.contains('pill-button'));  // Pill button layout
+      assertEquals(
+          entrypointButton.i18n('addContextTitle'),
+          entrypoint.getAttribute('title'));
+
+      // Main icon remains "+"
+      const icon = $$(entrypointButton, '#entrypointIcon');
+
+      assertTrue(!!icon);
+      assertEquals('cr:add', icon.getAttribute('icon'));
+
+      // STS icon is shown in coins slot
+      const coinIcon = $$(entrypointButton, '.sts-active-coin');
+      assertTrue(!!coinIcon);
+      assertEquals('composebox:shareTabs', coinIcon.getAttribute('icon'));
+      assertEquals(
+          entrypointButton.i18n('stsMegaplusShareRelevantOpenTabs'),
+          coinIcon.getAttribute('title'));
+    });
+
+    test(
+        'STS is inactive, description hidden, has tabs (show coins)',
+        async () => {
+          entrypointButton.smartTabSharingActive = false;
+          entrypointButton.showContextMenuDescription = false;
+
+          entrypointButton.sharedTabs = [
+            {
+              tabId: 1,
+              url: 'https://example.com',
+              title: 'Tab 1',
+              showInCurrentTabChip: false,
+              showInPreviousTabChip: false,
+              lastActive: {internalValue: 0n},
+            },
+          ];
+          await microtasksFinished();
+          await entrypointButton.updateComplete;
+
+          const entrypoint = $$(entrypointButton, '#entrypoint');
+          assertTrue(!!entrypoint);
+          assertFalse(entrypoint.classList.contains('sts-active'));
+          assertTrue(entrypoint.classList.contains('pill-button'));
+
+          // Main icon remains "+"
+          const icon = $$(entrypointButton, '#entrypointIcon');
+          assertTrue(!!icon);
+          assertEquals('cr:add', icon.getAttribute('icon'));
+
+          // Favicon group is shown
+          const faviconGroup = $$(entrypointButton, 'composebox-favicon-group');
+          assertTrue(!!faviconGroup);
+
+          // STS icon is NOT shown
+          const coinIcon = $$(entrypointButton, '.sts-active-coin');
+          assertFalse(!!coinIcon);
+        });
+  });
+
+  suite('getTabs_', () => {
+    const tab1: TabInfo = {
+      tabId: 1,
+      title: 'Tab 1',
+      url: 'https://example1.com',
+      showInCurrentTabChip: false,
+      showInPreviousTabChip: false,
+      lastActive: {internalValue: 0n},
+    };
+    const tab2: TabInfo = {
+      tabId: 2,
+      title: 'Tab 2',
+      url: 'https://example2.com',
+      showInCurrentTabChip: false,
+      showInPreviousTabChip: false,
+      lastActive: {internalValue: 0n},
+    };
+    const tab3: TabInfo = {
+      tabId: 3,
+      title: 'Tab 3',
+      url: 'https://example3.com',
+      showInCurrentTabChip: false,
+      showInPreviousTabChip: false,
+      lastActive: {internalValue: 0n},
+    };
+    const tab4: TabInfo = {
+      tabId: 4,
+      title: 'Tab 4',
+      url: 'https://example4.com',
+      showInCurrentTabChip: false,
+      showInPreviousTabChip: false,
+      lastActive: {internalValue: 0n},
+    };
+
+    test('combines and reverses sharedTabs and restoredTabs', async () => {
+      entrypointButton.sharedTabs = [tab1, tab2];
+      entrypointButton.restoredTabs = [tab3, tab4];
+      entrypointButton.smartTabSharingActive = false;
+      await entrypointButton.updateComplete;
+
+      const tabs = (entrypointButton as any).getTabs_();
+      assertEquals(4, tabs.length);
+      // sharedTabs reversed first: [tab2, tab1]
+      assertEquals(tab2, tabs[0]);
+      assertEquals(tab1, tabs[1]);
+      // restoredTabs reversed after: [tab4, tab3]
+      assertEquals(tab4, tabs[2]);
+      assertEquals(tab3, tabs[3]);
+    });
+
+    test('handles empty sharedTabs', async () => {
+      entrypointButton.sharedTabs = [];
+      entrypointButton.restoredTabs = [tab3, tab4];
+      await entrypointButton.updateComplete;
+
+      const tabs = (entrypointButton as any).getTabs_();
+      assertEquals(2, tabs.length);
+      // Only restoredTabs reversed: [tab4, tab3].
+      assertEquals(tab4, tabs[0]);
+      assertEquals(tab3, tabs[1]);
+    });
+
+    test('handles null or empty restoredTabs', async () => {
+      entrypointButton.sharedTabs = [tab1, tab2];
+      entrypointButton.restoredTabs = null as any;
+      await entrypointButton.updateComplete;
+
+      let tabs = (entrypointButton as any).getTabs_();
+      assertEquals(2, tabs.length);
+      // Only sharedTabs reversed: [tab2, tab1].
+      assertEquals(tab2, tabs[0]);
+      assertEquals(tab1, tabs[1]);
+
+      entrypointButton.restoredTabs = [];
+      await entrypointButton.updateComplete;
+
+      tabs = (entrypointButton as any).getTabs_();
+      assertEquals(2, tabs.length);
+      assertEquals(tab2, tabs[0]);
+      assertEquals(tab1, tabs[1]);
+    });
+
+
+    test('returns empty array when smartTabSharingActive is true', async () => {
+      entrypointButton.sharedTabs = [
+        {
+          tabId: 1,
+          title: 'Tab 1',
+          url: 'https://example1.com',
+          showInCurrentTabChip: false,
+          showInPreviousTabChip: false,
+          lastActive: {internalValue: 0n},
+        },
+      ];
+      entrypointButton.smartTabSharingActive = true;
+      await entrypointButton.updateComplete;
+
+      const tabs = (entrypointButton as any).getTabs_();
+      assertEquals(0, tabs.length);
+    });
+  });
 });

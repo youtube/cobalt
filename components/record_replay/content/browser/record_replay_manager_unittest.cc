@@ -10,8 +10,8 @@
 #include "base/types/optional_ref.h"
 #include "components/record_replay/core/browser/record_replay_client.h"
 #include "components/record_replay/core/browser/record_replay_driver_factory.h"
-#include "components/record_replay/core/browser/recording_data_manager.h"
 #include "components/record_replay/core/common/record_replay_features.h"
+#include "components/record_replay/core/common/test_support/mock_task_store.h"
 #include "components/tabs/public/mock_tab_interface.h"
 #include "content/public/test/test_renderer_host.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -26,56 +26,6 @@ using ::testing::MockFunction;
 using ::testing::NiceMock;
 using ::testing::Return;
 using ::testing::ReturnRef;
-
-class MockRecordingDataManager : public RecordingDataManager {
- public:
-  MOCK_METHOD(void,
-              AddRecording,
-              (Recording recording, base::OnceCallback<void(int64_t)> callback),
-              (override));
-  MOCK_METHOD(void,
-              GetRecordingsByUrl,
-              (std::string url,
-               base::OnceCallback<void(std::vector<Recording>)> callback),
-              (override));
-  MOCK_METHOD(void,
-              SaveTaskDefinition,
-              (std::optional<int64_t> task_definition_id,
-               TaskDefinition task_definition,
-               std::string target_url,
-               std::optional<int64_t> recording_id,
-               base::OnceClosure callback),
-              (override));
-  MOCK_METHOD(
-      void,
-      GetTaskDefinition,
-      (int64_t task_definition_id,
-       base::OnceCallback<void(std::optional<TaskDefinition>)> callback),
-      (override));
-  MOCK_METHOD(
-      void,
-      GetTaskDefinitionsByUrl,
-      (std::string url,
-       base::OnceCallback<void(std::vector<std::pair<int64_t, TaskDefinition>>)>
-           callback),
-      (override));
-  MOCK_METHOD(void,
-              SaveTaskData,
-              (int64_t task_definition_id,
-               TaskData data,
-               base::OnceCallback<void(bool)> callback),
-              (override));
-  MOCK_METHOD(void,
-              GetTaskData,
-              (int64_t task_definition_id,
-               base::OnceCallback<void(std::optional<TaskData>)> callback),
-              (override));
-  MOCK_METHOD(void,
-              DeleteTaskData,
-              (int64_t task_definition_id,
-               base::OnceCallback<void(bool)> callback),
-              (override));
-};
 
 class MockRecordReplayDriverFactory : public RecordReplayDriverFactory {
  public:
@@ -107,23 +57,19 @@ class MockRecordReplayClient : public RecordReplayClient {
     ON_CALL(*this, GetManager()).WillByDefault(ReturnRef(manager_));
     ON_CALL(*this, GetDriverFactory())
         .WillByDefault(ReturnRef(driver_factory_));
-    ON_CALL(*this, GetRecordingDataManager())
-        .WillByDefault(Return(&data_manager_));
+    ON_CALL(*this, GetTaskStore()).WillByDefault(Return(&data_manager_));
   }
   ~MockRecordReplayClient() override = default;
 
   MOCK_METHOD(RecordReplayManager&, GetManager, (), (override));
   MOCK_METHOD(RecordReplayDriverFactory&, GetDriverFactory, (), (override));
-  MOCK_METHOD(MockRecordingDataManager*,
-              GetRecordingDataManager,
-              (),
-              (override));
+  MOCK_METHOD(MockTaskStore*, GetTaskStore, (), (override));
   MOCK_METHOD(GURL, GetPrimaryMainFrameUrl, (), (override));
   MOCK_METHOD(autofill::AutofillClient*, GetAutofillClient, (), (override));
   MOCK_METHOD(void, ReportToUser, (std::string_view message), (override));
 
  private:
-  MockRecordingDataManager data_manager_;
+  MockTaskStore data_manager_;
   RecordReplayManager manager_;
   MockRecordReplayDriverFactory driver_factory_;
 };
@@ -144,9 +90,7 @@ class RecordReplayManagerTest : public content::RenderViewHostTestHarness {
   }
 
   MockRecordReplayClient& client() { return *client_; }
-  MockRecordingDataManager& data_manager() {
-    return *client_->GetRecordingDataManager();
-  }
+  MockTaskStore& data_manager() { return *client_->GetTaskStore(); }
   RecordReplayManager& manager() { return client_->GetManager(); }
 
  private:

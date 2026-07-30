@@ -6,15 +6,19 @@
 
 #include <ranges>
 
+#include "base/byte_size.h"
 #include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/functional/function_ref.h"
+#include "base/json/json_reader.h"
+#include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/user_metrics.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/system/sys_info.h"
+#include "base/values.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/enterprise/browser_management/browser_management_service.h"
 #include "chrome/browser/enterprise/browser_management/management_service_factory.h"
@@ -57,6 +61,10 @@
 #include "chromeos/constants/chromeos_features.h"
 #include "components/user_manager/user.h"       // nogncheck
 #include "components/user_manager/user_type.h"  // nogncheck
+#endif
+
+#if BUILDFLAG(IS_ANDROID)
+#include "base/android/android_info.h"
 #endif
 
 namespace glic {
@@ -278,6 +286,9 @@ void RecordFeatureDisabledReasonsWith(
   if (!enablement.system_requirement_met) {
     record_reason(FeatureDisabledReason::kSystemRequirementNotMet);
   }
+  if (!enablement.os_version_supported) {
+    record_reason(FeatureDisabledReason::kOsVersionNotSupported);
+  }
 }
 
 }  // namespace
@@ -344,7 +355,6 @@ void GlicEnabling::ProfileEnablement::RecordMetrics(
       base::StrCat(
           {"Glic.ProfileEnablement.IsPrimaryAccountFullySignedIn.", suffix}),
       primary_account_is_fully_signed_in);
-
   if (suffix == "Startup" && anchor_entrypoint_override_active) {
     auto record_disabled_reason = [&](FeatureDisabledReason reason) {
       base::UmaHistogramEnumeration(
@@ -356,6 +366,11 @@ void GlicEnabling::ProfileEnablement::RecordMetrics(
 
     RecordFeatureDisabledReasonsWith(*this, record_disabled_reason);
   }
+
+  base::UmaHistogramBoolean(
+      base::StrCat(
+          {"Glic.ProfileEnablement.IsPrimaryAccountNeedsSignedIn.", suffix}),
+      primary_account_needs_signed_in);
 }
 
 void GlicEnabling::ProfileEnablement::RecordFeatureDisabledReason(
@@ -386,6 +401,7 @@ GlicEnabling::ProfileEnablement GlicEnabling::EnablementForProfile(
   result.allowed_by_locale_filter = global_enabling.IsLocaleEnabled();
   result.system_requirement_met = global_enabling.IsSystemRequirementMet();
   result.fre_is_consented = HasConsentedForProfile(profile);
+  result.os_version_supported = global_enabling.IsOsVersionSupported();
 
   bool global_criteria_met = global_enabling.IsEnabledByGlobalCriteria();
   if (!global_criteria_met) {
@@ -418,10 +434,14 @@ GlicEnabling::ProfileEnablement GlicEnabling::EnablementForProfile(
             identity_manager->GetPrimaryAccountId(
                 signin::ConsentLevel::kSignin));
 
-    // Not having a primary account is considered ineligible, as is kUnknown
-    // for the required account capability (checked further below).
+    // Not having a primary account is considered not fully signed in if the
+    // kGlicShowForSignedOut feature is enabled. Otherwise, it is ineligible.
     if (primary_account.IsEmpty()) {
-      result.primary_account_is_capable = false;
+      if (base::FeatureList::IsEnabled(features::kGlicShowForSignedOut)) {
+        result.primary_account_needs_signed_in = true;
+      } else {
+        result.primary_account_is_capable = false;
+      }
     } else {
       // Check if the profile is currently paused.
       if (identity_manager->HasAccountWithRefreshTokenInPersistentErrorState(
@@ -511,18 +531,16 @@ GlicGlobalEnabling::~GlicGlobalEnabling() = default;
 
 bool GlicGlobalEnabling::IsSystemRequirementMet() const {
   static const bool supported_system_requirements = [] {
-    if (base::SysInfo::AmountOfPhysicalMemory() <
+    if (base::SysInfo::AmountOfTotalPhysicalMemory().AsDeprecatedByteCount() <
         base::MiB(features::kGlicMinRequiredRamMb.Get())) {
       return false;
     }
 #if BUILDFLAG(IS_CHROMEOS)
     constexpr base::ByteCount kMinimumMemoryThreshold = base::GiB(8);
-
-    // TODO(b:513258292): Remove the bypassing once Glic is fully launched.
     const bool bypass_cbx_requirement =
-        base::FeatureList::IsEnabled(
-            chromeos::features::kGlicEnableFor8GbDevices) &&
-        base::SysInfo::AmountOfPhysicalMemory() >= kMinimumMemoryThreshold;
+        GlicEnabling::IsLikelyDogfoodClient() &&
+        base::SysInfo::AmountOfTotalPhysicalMemory().AsDeprecatedByteCount() >=
+            kMinimumMemoryThreshold;
 
     return (bypass_cbx_requirement ||
             base::FeatureList::IsEnabled(
@@ -535,6 +553,24 @@ bool GlicGlobalEnabling::IsSystemRequirementMet() const {
   return supported_system_requirements;
 }
 
+bool GlicGlobalEnabling::IsOsVersionSupported() const {
+  static const bool supported_os_version = [] {
+#if BUILDFLAG(IS_ANDROID)
+    // Glic requires Foreground Services (FGS) to run, which has strict
+    // requirements starting from Android S (see b/515767943).
+    if (base::android::android_info::sdk_int() <
+        base::android::android_info::SDK_VERSION_S) {
+      return false;
+    }
+    return true;
+#else
+    return true;
+#endif
+  }();
+
+  return supported_os_version;
+}
+
 bool GlicGlobalEnabling::IsEnabledByGlobalCriteria() {
   if (g_bypass_enablement_checks_for_testing) {
     return true;
@@ -545,7 +581,7 @@ bool GlicGlobalEnabling::IsEnabledByGlobalCriteria() {
                     locale_enablement_.value_or(true) &&
                     country_enablement_.value_or(true);
 
-  return is_enabled && IsSystemRequirementMet();
+  return is_enabled && IsOsVersionSupported() && IsSystemRequirementMet();
 }
 
 // static
@@ -553,6 +589,16 @@ bool GlicEnabling::IsEnabledByGlobalCriteria() {
   return g_browser_process->GetFeatures()
       ->glic_global_enabling()
       .IsEnabledByGlobalCriteria();
+}
+
+// static
+bool GlicEnabling::IsLikelyDogfoodClient() {
+  if (base::FeatureList::IsEnabled(features::kGlicIgnoreDogfoodClient)) {
+    return false;
+  }
+  variations::VariationsService* variations_service =
+      g_browser_process->variations_service();
+  return variations_service && variations_service->IsLikelyDogfoodClient();
 }
 
 // static
@@ -669,7 +715,8 @@ mojom::ProfileReadyState GlicEnabling::GetProfileReadyState(Profile* profile) {
     return mojom::ProfileReadyState::kDisabledByAdmin;
   }
 
-  if (!enablement.primary_account_is_fully_signed_in) {
+  if (!enablement.primary_account_is_fully_signed_in ||
+      enablement.primary_account_needs_signed_in) {
     return mojom::ProfileReadyState::kSignInRequired;
   }
 
@@ -822,6 +869,59 @@ bool GlicEnabling::IsShareImageEnabledForProfile(Profile* profile) {
          base::FeatureList::IsEnabled(features::kGlicShareImage);
 }
 
+namespace {
+std::optional<glic::mojom::GeminiEnterpriseSettings>
+ParseGeminiEnterpriseSettings(const base::DictValue& dict) {
+  const std::string* project_id = dict.FindString("project_id");
+  const std::string* app_id = dict.FindString("app_id");
+  const std::string* location = dict.FindString("location");
+  if (project_id && app_id && location) {
+    glic::mojom::GeminiEnterpriseSettings settings;
+    settings.project_id = *project_id;
+    settings.app_id = *app_id;
+    settings.location = *location;
+    return settings;
+  }
+  return std::nullopt;
+}
+}  // namespace
+
+// static
+std::optional<glic::mojom::GeminiEnterpriseSettings>
+GlicEnabling::GetGeminiEnterpriseSettings(Profile* profile) {
+  if (!base::FeatureList::IsEnabled(
+          features::kGlicGeminiEnterpriseSettingsEnabled)) {
+    return std::nullopt;
+  }
+
+  auto* command_line = base::CommandLine::ForCurrentProcess();
+  // TODO(b/517605114): Remove this command line switch override before launch.
+  if (command_line->HasSwitch(
+          switches::kGlicGeminiEnterpriseSettingsOverride)) {
+    std::string switch_value = command_line->GetSwitchValueASCII(
+        switches::kGlicGeminiEnterpriseSettingsOverride);
+    auto parsed_json = base::JSONReader::Read(
+        switch_value, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
+    if (parsed_json && parsed_json->is_dict()) {
+      if (auto settings =
+              ParseGeminiEnterpriseSettings(parsed_json->GetDict());
+          settings.has_value()) {
+        return settings;
+      } else {
+        LOG(ERROR) << "Gemini Enterprise settings override is missing "
+                      "required fields.";
+      }
+    } else {
+      LOG(ERROR) << "Gemini Enterprise settings override is not a valid "
+                    "JSON dictionary.";
+    }
+  }
+
+  const base::DictValue& pref_dict =
+      profile->GetPrefs()->GetDict(glic::prefs::kGlicGeminiEnterpriseSettings);
+  return ParseGeminiEnterpriseSettings(pref_dict);
+}
+
 GlicEnabling::GlicEnabling(Profile* profile,
                            ProfileAttributesStorage* profile_attributes_storage)
     : profile_(profile),
@@ -918,6 +1018,18 @@ bool GlicEnabling::IsUserEnabledActuationOnWebDefault() const {
   return pref && pref->IsDefaultValue();
 }
 
+bool GlicEnabling::IsExperimentalTriggeringEnabledDefault() const {
+  const PrefService::Preference* pref = profile_->GetPrefs()->FindPreference(
+      prefs::kGlicExperimentalTriggeringEnabled);
+  return pref && pref->IsDefaultValue();
+}
+
+bool GlicEnabling::IsExperimentalTriggeringUserControlled() const {
+  const PrefService::Preference* pref = profile_->GetPrefs()->FindPreference(
+      prefs::kGlicExperimentalTriggeringEnabled);
+  return pref && !pref->IsManaged();
+}
+
 void GlicEnabling::SetUserEnabledActuationOnWeb(bool enabled) {
   profile_->GetPrefs()->SetBoolean(prefs::kGlicUserEnabledActuationOnWeb,
                                    enabled);
@@ -999,12 +1111,7 @@ GlicEnabling::GetExperimentalTriggeringState() const {
   bool is_managed = is_device_managed || has_managed_account;
 
   // Apply policy if managed, unless it's a dogfood client.
-  variations::VariationsService* variations_service =
-      g_browser_process->variations_service();
-  bool is_likely_dogfood_client =
-      variations_service && variations_service->IsLikelyDogfoodClient();
-
-  if (is_managed && !is_likely_dogfood_client) {
+  if (is_managed && !IsLikelyDogfoodClient()) {
     // Check policy
     auto* pref_service = profile_->GetPrefs();
     auto policy_state = static_cast<glic::prefs::GlicSparkPolicyState>(
@@ -1101,6 +1208,12 @@ base::CallbackListSubscription GlicEnabling::RegisterProfileReadyStateChanged(
 
 void GlicEnabling::OnPrimaryAccountChanged(
     const signin::PrimaryAccountChangeEvent& event_details) {
+#if BUILDFLAG(IS_ANDROID)
+  if (event_details.GetEventTypeFor(signin::ConsentLevel::kSignin) ==
+      signin::PrimaryAccountChangeEvent::Type::kCleared) {
+    SetCompletedFre(prefs::FreStatus::kNotStarted);
+  }
+#endif
   UpdateEnabledStatus();
 }
 

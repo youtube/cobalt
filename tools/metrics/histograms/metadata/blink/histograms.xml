@@ -1093,19 +1093,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Blink.CullRect.UpdateTime" units="microseconds"
-    expires_after="2026-05-31">
-  <owner>pdr@chromium.org</owner>
-  <owner>wangxianzhu@chromium.org</owner>
-  <owner>paint-dev@chromium.org</owner>
-  <improvement direction="LOWER_IS_BETTER"/>
-  <summary>
-    Time spent updating the cull rect in the Blink document lifecycle.
-
-    Note: Not recorded on ~5% of Windows machines with low-resolution clocks.
-  </summary>
-</histogram>
-
 <histogram name="Blink.DecodedImage.AvifDensity.Count.{ImageArea}"
     units="0.01 bits per pixel" expires_after="2026-08-23">
   <owner>wtc@google.com</owner>
@@ -1334,6 +1321,16 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Blink.DigitalCredentials.Create.IsDelegated" enum="Boolean"
+    expires_after="2026-08-12">
+  <owner>mamir@chromium.org</owner>
+  <owner>web-identity-eng@google.com</owner>
+  <summary>
+    Records whether a create() request to the digital credentials API
+    successfully utilized a delegated token. Recorded when the API is invoked.
+  </summary>
+</histogram>
+
 <histogram name="Blink.DigitalCredentials.Get.HasTransientUserActivation"
     enum="Boolean" expires_after="2026-09-05">
   <owner>mamir@chromium.org</owner>
@@ -1341,6 +1338,16 @@ chromium-metrics-reviews@google.com.
   <summary>
     Records whether a get() request to the digital credentials API had transient
     user activation at the time of the call.
+  </summary>
+</histogram>
+
+<histogram name="Blink.DigitalCredentials.Get.IsDelegated" enum="Boolean"
+    expires_after="2026-08-12">
+  <owner>mamir@chromium.org</owner>
+  <owner>web-identity-eng@google.com</owner>
+  <summary>
+    Records whether a get() request to the digital credentials API successfully
+    utilized a delegated token. Recorded when the API is invoked.
   </summary>
 </histogram>
 
@@ -1452,24 +1459,36 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Blink.EffectiveZoom" units="%" expires_after="2026-07-05">
-  <owner>pdr@chromium.org</owner>
-  <owner>paint-dev@chromium.org</owner>
-  <summary>
-    The EffectiveZoom as reported by ComputedStyle in a Blink renderer. The
-    value is reported each time the effective zoom is set to a new value. The
-    maximum zoom reported is 400% to keep the histogram of reasonable size.
-  </summary>
-</histogram>
-
-<histogram name="Blink.Evp.Status.Request" enum="EvpRequestStatus"
+<histogram name="Blink.Evp.PermissionUi.Status" enum="EvpPermissionUiStatus"
     expires_after="2026-11-01">
   <owner>yigu@chromium.org</owner>
   <owner>web-identity-eng@google.com</owner>
   <summary>
-    Records the status of an Email Verification Protocol (EVP) request. Recorded
-    once per email verification request when it completes (either successfully
-    or with a specific failure reason).
+    Records the outcome and dismissal reasons of the Email Verification
+    Permission UI. Recorded once per permission UI showing when it is dismissed
+    or accepted.
+  </summary>
+</histogram>
+
+<histogram name="Blink.Evp.Status.IsVerifiable" enum="EvpRequestStatus"
+    expires_after="2026-11-01">
+  <owner>yigu@chromium.org</owner>
+  <owner>web-identity-eng@google.com</owner>
+  <summary>
+    Records the status of the IsVerifiable stage of an Email Verification
+    Protocol (EVP) request. Recorded once per request when the IsVerifiable
+    check completes.
+  </summary>
+</histogram>
+
+<histogram name="Blink.Evp.Status.Verify" enum="EvpRequestStatus"
+    expires_after="2026-11-01">
+  <owner>yigu@chromium.org</owner>
+  <owner>web-identity-eng@google.com</owner>
+  <summary>
+    Records the status of the Verify stage of an Email Verification Protocol
+    (EVP) request. Recorded once per request when the Verify operation
+    completes.
   </summary>
 </histogram>
 

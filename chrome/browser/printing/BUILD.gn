@@ -2,7 +2,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/chromeos/ui_mode.gni")
 import("//extensions/buildflags/buildflags.gni")
 import("//pdf/features.gni")
 import("//printing/buildflags/buildflags.gni")
@@ -10,7 +9,6 @@ import("//printing/buildflags/buildflags.gni")
 if (enable_printing) {
   source_set("printing") {
     public = [
-      "print_compositor_util.h",
       "print_error_dialog.h",
       "print_job.h",
       "print_job_manager.h",
@@ -46,10 +44,7 @@ if (enable_printing) {
     ]
 
     if (is_win) {
-      public += [
-        "pdf_to_emf_converter.h",
-        "xps_features.h",
-      ]
+      public += [ "pdf_to_emf_converter.h" ]
     }
 
     if (is_chromeos) {
@@ -67,9 +62,6 @@ if (enable_printing) {
         "print_job_worker_oop.h",
         "printer_query_oop.h",
       ]
-      if (is_win) {
-        public += [ "printer_xml_parser_impl.h" ]
-      }
     }
 
     if (enable_oop_printing || enable_print_preview) {
@@ -119,7 +111,6 @@ if (enable_printing) {
 
   source_set("impl") {
     sources = [
-      "print_compositor_util.cc",
       "print_error_dialog.cc",
       "print_job.cc",
       "print_job_manager.cc",
@@ -170,7 +161,6 @@ if (enable_printing) {
       sources += [
         "pdf_to_emf_converter.cc",
         "printer_manager_dialog_win.cc",
-        "xps_features.cc",
       ]
       deps += [
         "//chrome/browser:primitives",
@@ -204,10 +194,6 @@ if (enable_printing) {
       deps += [ "//components/crash/core/common" ]
       if (is_linux) {
         deps += [ "//ui/linux:linux_ui" ]
-      }
-      if (is_win) {
-        sources += [ "printer_xml_parser_impl.cc" ]
-        deps += [ "//printing:printing_base" ]
       }
     }
 

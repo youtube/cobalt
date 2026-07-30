@@ -113,7 +113,6 @@
 #include "net/disk_cache/cache_util.h"
 #include "net/disk_cache/disk_cache.h"
 #include "net/disk_cache/memory/mem_backend_impl.h"
-#include "net/dns/canary_domain_service.h"
 #include "net/dns/context_host_resolver.h"
 #include "net/dns/dns_config.h"
 #include "net/dns/dns_session.h"
@@ -5530,120 +5529,6 @@ TEST_F(NetworkContextActivateDohProbesTest, NotPrimaryContext) {
   EXPECT_FALSE(state->IsDohProbeRunning());
 }
 
-TEST_F(NetworkContextTest, CanaryDomainServiceProbe_FeatureDisabled) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndDisableFeature(
-      net::features::kProbeSecureDnsCanaryDomain);
-
-  network_service_->set_host_resolver_factory_for_testing(
-      std::make_unique<net::MockHostResolverFactory>());
-
-  // Use a separate ResolveContext to control the DnsSession.
-  // Must outlive `network_context` because CanaryDomainService will hold a
-  // SafeRef to it.
-  net::ResolveContext resolve_context(nullptr, false);
-
-  mojom::NetworkContextParamsPtr params =
-      CreateNetworkContextParamsForTesting();
-  std::unique_ptr<NetworkContext> network_context =
-      CreateContextWithParams(std::move(params));
-
-  auto* mock_resolver = static_cast<net::MockHostResolverBase*>(
-      network_context->url_request_context()->host_resolver());
-  mock_resolver->SetResolveContextForTesting(&resolve_context);
-
-  network_context->ActivateDohProbes();
-
-  net::CanaryDomainService* canary_domain_service =
-      network_context->canary_domain_service_for_testing();
-  EXPECT_TRUE(canary_domain_service);
-  EXPECT_EQ(net::CanaryDomainCheckStatus::kInactive,
-            resolve_context.doh_fallback_canary_domain_check_status());
-  EXPECT_EQ(mock_resolver->num_resolve(), 0u);
-}
-
-TEST_F(NetworkContextTest,
-       CanaryDomainServiceProbe_NotStartedIfConfigDisallows) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeatureWithParameters(
-      net::features::kProbeSecureDnsCanaryDomain,
-      {{"canary_domain_host", "test.test"}});
-
-  network_service_->set_host_resolver_factory_for_testing(
-      std::make_unique<net::MockHostResolverFactory>());
-
-  // Use a separate ResolveContext to control the DnsSession.
-  // Must outlive `network_context` because CanaryDomainService will hold a
-  // SafeRef to it.
-  net::ResolveContext resolve_context(nullptr, false);
-
-  mojom::NetworkContextParamsPtr params =
-      CreateNetworkContextParamsForTesting();
-  std::unique_ptr<NetworkContext> network_context =
-      CreateContextWithParams(std::move(params));
-
-  auto* mock_resolver = static_cast<net::MockHostResolverBase*>(
-      network_context->url_request_context()->host_resolver());
-  mock_resolver->SetResolveContextForTesting(&resolve_context);
-
-  // Case 1: Mode is not AUTOMATIC.
-  {
-    net::DnsConfig config;
-    config.secure_dns_mode = net::SecureDnsMode::kSecure;
-    auto session = base::MakeRefCounted<net::DnsSession>(
-        config, base::BindRepeating([](int min, int max) -> int { return 0; }),
-        nullptr);
-    resolve_context.InvalidateCachesAndPerSessionData(session.get(), false);
-
-    network_context->ActivateDohProbes();
-    EXPECT_TRUE(network_context->canary_domain_service_for_testing());
-    EXPECT_EQ(net::CanaryDomainCheckStatus::kNotStarted,
-              resolve_context.doh_fallback_canary_domain_check_status());
-    EXPECT_EQ(mock_resolver->num_resolve(), 0u);
-  }
-
-  // Case 2: should_perform_doh_fallback_upgrade is false.
-  {
-    net::DnsConfig config;
-    config.secure_dns_mode = net::SecureDnsMode::kAutomatic;
-    config.should_perform_doh_fallback_upgrade = false;
-    auto session = base::MakeRefCounted<net::DnsSession>(
-        config, base::BindRepeating([](int min, int max) -> int { return 0; }),
-        nullptr);
-    resolve_context.InvalidateCachesAndPerSessionData(session.get(), false);
-
-    network_context->ActivateDohProbes();
-    EXPECT_TRUE(network_context->canary_domain_service_for_testing());
-    EXPECT_EQ(net::CanaryDomainCheckStatus::kNotStarted,
-              resolve_context.doh_fallback_canary_domain_check_status());
-    EXPECT_EQ(mock_resolver->num_resolve(), 0u);
-  }
-}
-
-// Simulates a HostResolver that returns a nullptr CanaryDomainService.
-class NullCanaryDomainServiceHostResolver : public net::HangingHostResolver {
- public:
-  std::unique_ptr<net::CanaryDomainService> CreateCanaryDomainService()
-      override {
-    return nullptr;
-  }
-};
-
-TEST_F(NetworkContextTest, CanaryDomainServiceProbe_NullService) {
-  auto resolver = std::make_unique<NullCanaryDomainServiceHostResolver>();
-  network_service_->set_host_resolver_factory_for_testing(
-      std::make_unique<HostResolverFactory>(std::move(resolver)));
-
-  mojom::NetworkContextParamsPtr params =
-      CreateNetworkContextParamsForTesting();
-  std::unique_ptr<NetworkContext> network_context =
-      CreateContextWithParams(std::move(params));
-
-  // Should not crash if CreateCanaryDomainService returns nullptr.
-  network_context->ActivateDohProbes();
-  EXPECT_FALSE(network_context->canary_domain_service_for_testing());
-}
-
 TEST_F(NetworkContextTest, PrivacyModeDisabledByDefault) {
   const GURL kURL("http://foo.com");
   const GURL kOtherURL("http://other.com");
@@ -7840,7 +7725,8 @@ TEST_F(NetworkContextIncludeRequestCookiesWithResponseTest,
   EXPECT_TRUE(
       HasCookie(client.response_head()->request_cookies, "chocolate", "chip"));
   EXPECT_EQ(client.redirect_info().new_url, final_url);
-  loader->FollowRedirect({}, {}, {}, {});
+  loader->FollowRedirect(/*headers_update_params=*/{},
+                         /*new_url=*/std::nullopt);
 
   client.RunUntilResponseReceived();
   EXPECT_EQ(net::HTTP_OK, client.response_head()->headers->response_code());
@@ -8010,14 +7896,16 @@ TEST_F(NetworkContextIncludeRequestCookiesWithResponseTest,
   EXPECT_TRUE(
       HasCookie(client.response_head()->request_cookies, "chocolate", "chip"));
   client.ClearHasReceivedRedirect();
-  loader->FollowRedirect({}, {}, {}, {});
+  loader->FollowRedirect(/*headers_update_params=*/{},
+                         /*new_url=*/std::nullopt);
 
   client.RunUntilRedirectReceived();
   EXPECT_EQ(net::HTTP_TEMPORARY_REDIRECT,
             client.response_head()->headers->response_code());
   EXPECT_FALSE(HasCookie(client.response_head()->request_cookies, "chocolate"));
   EXPECT_EQ(client.redirect_info().new_url, https_url);
-  loader->FollowRedirect({}, {}, {}, {});
+  loader->FollowRedirect(/*headers_update_params=*/{},
+                         /*new_url=*/std::nullopt);
 
   client.RunUntilResponseReceived();
   EXPECT_EQ(net::HTTP_OK, client.response_head()->headers->response_code());
@@ -8715,13 +8603,14 @@ class NetworkContextSplitCacheEnabledTest : public NetworkContextTest {
 
     if (expect_redirect) {
       client->RunUntilRedirectReceived();
-      loader->FollowRedirect({}, {}, {}, new_url);
+      loader->FollowRedirect({}, new_url);
       client->ClearHasReceivedRedirect();
     }
 
     if (new_url) {
       client->RunUntilRedirectReceived();
-      loader->FollowRedirect({}, {}, {}, std::nullopt);
+      loader->FollowRedirect(/*headers_update_params=*/{},
+                             /*new_url=*/std::nullopt);
     }
 
     client->RunUntilComplete();
@@ -10375,7 +10264,9 @@ TEST_P(NetworkContextBrowserCookieTest, Redirect) {
   ValidateRequestHeaderIsUnset(kHeader2Name);
 
   // Redirect with cookies added to the modified headers.
-  loader_->FollowRedirect({}, {GenerateTestRequestHeaders()}, {}, std::nullopt);
+  network::HttpRequestHeadersUpdateParams headers_update_params;
+  headers_update_params.modified_headers = GenerateTestRequestHeaders();
+  loader_->FollowRedirect(std::move(headers_update_params), std::nullopt);
   url_loader_client()->RunUntilComplete();
   EXPECT_EQ(net::OK, url_loader_client()->completion_status().error_code);
 
@@ -10417,7 +10308,10 @@ TEST_P(NetworkContextBrowserCookieTest, RedirectClear) {
   net::HttpRequestHeaders modified_headers;
   const char kHeader1ValueUpdated[] = "new-header-value-1";
   modified_headers.SetHeader(kHeader1Name, kHeader1ValueUpdated);
-  loader_->FollowRedirect({kHeader2Name}, {modified_headers}, {}, std::nullopt);
+  network::HttpRequestHeadersUpdateParams headers_update_params;
+  headers_update_params.removed_headers.push_back(kHeader2Name);
+  headers_update_params.modified_headers = modified_headers;
+  loader_->FollowRedirect(std::move(headers_update_params), std::nullopt);
   url_loader_client()->RunUntilComplete();
   EXPECT_EQ(net::OK, url_loader_client()->completion_status().error_code);
 
@@ -10446,9 +10340,12 @@ TEST_P(NetworkContextBrowserCookieTest, CorsRedirect) {
   ValidateRequestHeaderIsUnset(kCorsHeaderName);
 
   // Redirect with cookies added to the modified headers.
-  loader_->FollowRedirect({kHeader1Name}, {GenerateTestRequestHeaders()},
-                          {GenerateTestCorsExemptRequestHeaders()},
-                          std::nullopt);
+  network::HttpRequestHeadersUpdateParams headers_update_params;
+  headers_update_params.removed_headers.push_back(kHeader1Name);
+  headers_update_params.modified_headers = GenerateTestRequestHeaders();
+  headers_update_params.modified_cors_exempt_headers =
+      GenerateTestCorsExemptRequestHeaders();
+  loader_->FollowRedirect(std::move(headers_update_params), std::nullopt);
   url_loader_client()->RunUntilComplete();
   EXPECT_EQ(net::OK, url_loader_client()->completion_status().error_code);
 
@@ -10498,8 +10395,12 @@ TEST_P(NetworkContextBrowserCookieTest, CorsRedirectClear) {
   const char kCorsHeaderValueUpdated[] = "new-cors-header-value";
   modified_cors_exempt_headers.SetHeader(kCorsHeaderName,
                                          kCorsHeaderValueUpdated);
-  loader_->FollowRedirect({kHeader1Name}, {modified_headers},
-                          {modified_cors_exempt_headers}, std::nullopt);
+  network::HttpRequestHeadersUpdateParams headers_update_params;
+  headers_update_params.removed_headers.push_back(kHeader1Name);
+  headers_update_params.modified_headers = modified_headers;
+  headers_update_params.modified_cors_exempt_headers =
+      modified_cors_exempt_headers;
+  loader_->FollowRedirect(std::move(headers_update_params), std::nullopt);
   url_loader_client()->RunUntilComplete();
   EXPECT_EQ(net::OK, url_loader_client()->completion_status().error_code);
 
@@ -11112,7 +11013,8 @@ TEST_P(StorageAccessHeaderRedirectNetworkContextTest, RetryThenRedirect) {
       mojom::kURLLoadOptionNone, request, client.CreateRemote(),
       net::MutableNetworkTrafficAnnotationTag(TRAFFIC_ANNOTATION_FOR_TESTS));
   client.RunUntilRedirectReceived();
-  loader->FollowRedirect({}, {}, {}, {});
+  loader->FollowRedirect(/*headers_update_params=*/{},
+                         /*new_url=*/std::nullopt);
 
   client.RunUntilComplete();
 
@@ -11524,7 +11426,8 @@ TEST_F(StorageAccessHeaderNetworkContextTest, RedirectWithLoad) {
       net::MutableNetworkTrafficAnnotationTag(TRAFFIC_ANNOTATION_FOR_TESTS));
 
   client.RunUntilRedirectReceived();
-  loader->FollowRedirect({}, {}, {}, {});
+  loader->FollowRedirect(/*headers_update_params=*/{},
+                         /*new_url=*/std::nullopt);
   client.RunUntilComplete();
 
   EXPECT_THAT(cookie_headers(), ElementsAre("None", "None"));
@@ -11588,7 +11491,8 @@ TEST_F(StorageAccessHeaderNetworkContextTest, RedirectThenLoad) {
       net::MutableNetworkTrafficAnnotationTag(TRAFFIC_ANNOTATION_FOR_TESTS));
 
   client.RunUntilRedirectReceived();
-  loader->FollowRedirect({}, {}, {}, {});
+  loader->FollowRedirect(/*headers_update_params=*/{},
+                         /*new_url=*/std::nullopt);
   client.RunUntilComplete();
 
   EXPECT_THAT(cookie_headers(), ElementsAre("None", "None"));

@@ -115,6 +115,8 @@ class GlicInstanceCoordinatorImpl
   bool IsConversationPresent(const std::string& conversation_id) const override;
   // GlicInstanceCoordinator implementation
   GlicInstance* GetInstanceForTab(const tabs::TabInterface* tab) const override;
+  GlicInstance* GetInstanceWithGlicWebContents(
+      content::WebContents* glic_web_contents) const override;
   // Sorts instances by recency and returns the instance id and
   // conversation title of each conversation.
   std::vector<ConversationInfo> GetRecentlyActiveInstances(
@@ -142,8 +144,7 @@ class GlicInstanceCoordinatorImpl
   // sources are user initiated.
   void Toggle(BrowserWindowInterface* browser,
               bool prevent_close,
-              mojom::InvocationSource source,
-              std::optional<std::string> deprecated_prompt_suggestion) override;
+              mojom::InvocationSource source) override;
   void EnsurePreload() override;
   // Shuts down all hosts. Only call it before destruction of the instance
   // coordinator.
@@ -230,13 +231,10 @@ class GlicInstanceCoordinatorImpl
                            const std::vector<tabs::TabInterface*>& tabs,
                            GlicPinTrigger pin_trigger);
 
-  void ToggleFloaty(bool prevent_close,
-                    glic::mojom::InvocationSource source,
-                    std::optional<std::string> prompt_suggestion);
+  void ToggleFloaty(bool prevent_close, glic::mojom::InvocationSource source);
   void ToggleSidePanel(BrowserWindowInterface* browser,
                        bool prevent_close,
-                       glic::mojom::InvocationSource source,
-                       std::optional<std::string> prompt_suggestion);
+                       glic::mojom::InvocationSource source);
 
   void CloseFloaty(const CloseOptions& options = {});
 

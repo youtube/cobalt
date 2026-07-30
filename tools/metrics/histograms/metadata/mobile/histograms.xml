@@ -188,8 +188,6 @@ chromium-metrics-reviews@google.com.
         summary="Autofill manual fallback password entry"/>
     <variant name="AutofillManualFallbackPaymentEntry"
         summary="Autofill manual fallback payment entry"/>
-    <variant name="AutofillManualFallbackPlusAddressEntry"
-        summary="Autofill manual fallback plus address entry"/>
     <variant name="BookmarkEntry" summary="Bookmark entry"/>
     <variant name="BookmarkFolder" summary="Bookmark folder"/>
     <variant name="HistoryEntry" summary="History entry"/>
@@ -218,8 +216,6 @@ chromium-metrics-reviews@google.com.
     <variant name="TabGroupIndicatorEntry" summary="Tab Group Indicator Entry"/>
     <variant name="TabGroupIndicatorNTPEntry"
         summary="Tab Group Indicator on NTP Entry"/>
-    <variant name="TabGroupOverflowMenu"
-        summary="Tab Group button in the Overflow Menu"/>
     <variant name="TabGroupsPanelEntry" summary="Tab group panel entry"/>
     <variant name="TabGroupViewEntry"
         summary="Tab group view entry in tab grid"/>
@@ -344,7 +340,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Mobile.Messages.Banner.OnScreenTime" units="ms"
-    expires_after="2026-07-05">
+    expires_after="2027-07-05">
   <owner>thegreenfrog@chromium.org</owner>
   <owner>bling-team@google.com</owner>
   <summary>

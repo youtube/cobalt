@@ -15,18 +15,21 @@ export function getHtml(this: ContextualEntrypointAndMenuElement) {
           exportparts="context-menu-entrypoint-icon, entrypoint-button"
           .inputState="${this.inputState}"
           .sharedTabs="${this.sharedTabs}"
-          .restoredTabs="${this.restoredTabs_}"
+          .restoredTabs="${this.aimThreadRestoredTabs}"
+          .smartTabSharingActive="${this.smartTabSharingActive}"
           @context-menu-entrypoint-click="${this.onContextMenuEntrypointClick_}"
           ?upload-button-disabled="${this.uploadButtonDisabled}"
           ?show-context-menu-description="${this.showContextMenuDescription}"
-          glif-animation-state="${this.glifAnimationState}"
-          .energyEffectAnimationEnabled="${this.energyEffectAnimationEnabled}">
+          .glifAnimationState="${this.glifAnimationState}"
+          .energyEffectAnimationEnabled="${this.energyEffectAnimationEnabled}"
+          .disableFallbackGlifAnimation="${this.disableFallbackGlifAnimation}">
       </cr-composebox-contextual-entrypoint-button>
     ` : ''}
     <cr-composebox-contextual-action-menu id="menu"
         .fileNum="${this.fileNum}"
+        .isSidePanel="${this.isSidePanel}"
         .disabledTabIds="${this.disabledTabIds}"
-        .restoredTabIds="${this.restoredTabIds}"
+        .aimThreadRestoredTabs="${this.aimThreadRestoredTabs}"
         .tabSuggestions="${this.tabSuggestions}"
         .recentTabId="${this.recentTabId}"
         .inputState="${this.inputState}"

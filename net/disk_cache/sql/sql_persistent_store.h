@@ -89,7 +89,9 @@ class NET_EXPORT_PRIVATE SqlPersistentStore {
     kCheckSumError = 19,
     kDatabaseClosed = 20,
     kAbortedDueToBrowserActivity = 21,
-    kMaxValue = kAbortedDueToBrowserActivity
+    kFailedToSetAutoVacuum = 22,
+    kIncrementalVacuumDisabled = 23,
+    kMaxValue = kIncrementalVacuumDisabled
   };
   // LINT.ThenChange(//tools/metrics/histograms/metadata/net/enums.xml:SqlDiskCacheStoreError)
 
@@ -117,6 +119,22 @@ class NET_EXPORT_PRIVATE SqlPersistentStore {
     scoped_refptr<net::GrowableIOBuffer> head;
     // True if the entry was opened, false if it was newly created.
     bool opened = false;
+  };
+
+  // Holds approximate metadata about a cache entry.
+  struct NET_EXPORT_PRIVATE EntryMetadata {
+    EntryMetadata(ResId res_id,
+                  base::Time last_used,
+                  std::optional<int64_t> bytes_usage);
+    ~EntryMetadata();
+    EntryMetadata(const EntryMetadata&);
+    EntryMetadata& operator=(const EntryMetadata&);
+    EntryMetadata(EntryMetadata&&);
+    EntryMetadata& operator=(EntryMetadata&&);
+
+    ResId res_id;
+    base::Time last_used;
+    std::optional<int64_t> bytes_usage;
   };
 
   // Represents the result of a read operation.
@@ -226,14 +244,31 @@ class NET_EXPORT_PRIVATE SqlPersistentStore {
 
   // The result of an eviction operation.
   struct EvictionResult {
-    EvictionResult(HashAndResIdList deleted_hash_and_res_ids,
-                   EvictionTargetQueue pending_eviction_targets);
+    EvictionResult(Error error, size_t evicted_entry_count);
     ~EvictionResult();
     EvictionResult(EvictionResult&& other);
     EvictionResult& operator=(EvictionResult&& other);
 
-    HashAndResIdList deleted_hash_and_res_ids;
+    Error error;
+    size_t evicted_entry_count;
+  };
+
+  struct EvictionResultWithMetadata {
+    EvictionResultWithMetadata(
+        EvictionResult result,
+        EvictionTargetQueue pending_eviction_targets,
+        std::optional<SqlPersistentStoreInMemoryIndex> index,
+        StoreStatus store_status,
+        bool index_mismatch_detected);
+    ~EvictionResultWithMetadata();
+    EvictionResultWithMetadata(EvictionResultWithMetadata&& other);
+    EvictionResultWithMetadata& operator=(EvictionResultWithMetadata&& other);
+
+    EvictionResult result;
     EvictionTargetQueue pending_eviction_targets;
+    std::optional<SqlPersistentStoreInMemoryIndex> index;
+    StoreStatus store_status;
+    bool index_mismatch_detected;
   };
 
   // A helper struct to bundle an operation's result with a flag indicating
@@ -274,12 +309,18 @@ class NET_EXPORT_PRIVATE SqlPersistentStore {
   using Int64OrErrorCallback = base::OnceCallback<void(Int64OrError)>;
   using ResIdOrTime = std::variant<ResId, base::Time>;
 
+  using EntryMetadataOrError = base::expected<EntryMetadata, Error>;
+  using EntryMetadataOrErrorCallback =
+      base::OnceCallback<void(EntryMetadataOrError)>;
+
   using HashAndResIdListOrError = base::expected<HashAndResIdList, Error>;
   using HashAndResIdListOrErrorCallback =
       base::OnceCallback<void(HashAndResIdListOrError)>;
 
   using ErrorAndStoreStatus = ResultAndStoreStatus<Error>;
   using EntryInfoOrErrorAndStoreStatus = ResultAndStoreStatus<EntryInfoOrError>;
+  using EntryMetadataOrErrorAndStoreStatus =
+      ResultAndStoreStatus<EntryMetadataOrError>;
   using ReadResultOrErrorAndStoreStatus =
       ResultAndStoreStatus<ReadResultOrError>;
   using ResIdOrError = base::expected<ResId, Error>;
@@ -293,11 +334,9 @@ class NET_EXPORT_PRIVATE SqlPersistentStore {
     CacheEntryKey::Hash hash;
   };
   using UsageAndHashOrError = base::expected<UsageAndHash, Error>;
-  using EvictionResultOrError = base::expected<EvictionResult, Error>;
-  using EvictionResultOrErrorAndStoreStatus =
-      ResultAndStoreStatus<EvictionResultOrError>;
-  using EvictionResultOrErrorAndStoreStatusCallback =
-      base::OnceCallback<void(EvictionResultOrErrorAndStoreStatus)>;
+  using EvictionResultCallback = base::OnceCallback<void(EvictionResult)>;
+  using EvictionResultWithMetadataCallback =
+      base::OnceCallback<void(EvictionResultWithMetadata)>;
   using InMemoryIndexAndDoomedResIdsOrError =
       base::expected<InMemoryIndexAndDoomedResIds, Error>;
 
@@ -555,6 +594,15 @@ class NET_EXPORT_PRIVATE SqlPersistentStore {
   // kSqlDiskCacheIdleCheckpointThreshold, a checkpoint is executed.
   void MaybeRunCheckpoint(base::OnceCallback<void(bool)> callback);
 
+  // If the browser is idle and the database is configured with incremental
+  // vacuum, this method runs incremental vacuum to reclaim free pages. It
+  // vacuums up to N pages (controlled by feature param) at a time in a loop
+  // while the browser remains idle and `abort_flag` is not set. `callback` is
+  // invoked when the operation is complete on all shards.
+  void MaybeRunIncrementalVacuum(
+      scoped_refptr<base::RefCountedData<std::atomic_bool>> abort_flag,
+      base::OnceCallback<void(bool)> callback);
+
   enum class IndexState {
     // The in-memory index is not available (e.g., not yet loaded or
     // invalidated).
@@ -602,6 +650,13 @@ class NET_EXPORT_PRIVATE SqlPersistentStore {
 
   // Sets a hook to be called during eviction, allowing tests to control timing.
   void SetEvictionHookForTesting(base::RepeatingClosure hook);
+
+  BackendShard& GetShardForTesting(ShardId shard_id) const {
+    return *backend_shards_[shard_id.value()];
+  }
+  BackendShard& GetShardForTesting(CacheEntryKey::Hash hash) const {
+    return GetShard(hash);
+  }
 
  private:
   // The result of a successful initialization.
@@ -668,7 +723,7 @@ class NET_EXPORT_PRIVATE SqlPersistentStore {
       scoped_refptr<base::RefCountedData<std::atomic_bool>> eviction_abort_flag,
       base::TimeTicks start_time,
       ErrorCallback callback,
-      std::vector<HashAndResIdListOrError> results);
+      std::vector<EvictionResult> results);
   void StartNewEviction(
       std::vector<base::flat_set<SqlPersistentStore::ResId>>
           excluded_res_id_sets,
@@ -677,7 +732,7 @@ class NET_EXPORT_PRIVATE SqlPersistentStore {
       ErrorCallback callback);
   void OnEvictionFinished(bool is_idle_time_eviction,
                           base::TimeTicks start_time,
-                          std::vector<HashAndResIdListOrError> results);
+                          std::vector<EvictionResult> results);
 
   void RunNextCheckpoint(base::OnceCallback<void(bool)> callback,
                          std::vector<bool> results);

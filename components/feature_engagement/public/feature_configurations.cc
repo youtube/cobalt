@@ -698,6 +698,51 @@ std::optional<FeatureConfig> GetClientSideFeatureConfig(
 
 #if BUILDFLAG(IS_ANDROID)
   // CONFIGURATION_ANDROID_START
+  if (kIPHAndroidBottomBarGlic.name == feature->name) {
+    FeatureConfig config;
+    config.valid = true;
+
+    // IPH is always available at start-up.
+    config.availability = Comparator(ANY, 0);
+
+    // IPH only shows if no other IPH has shown this session.
+    config.session_rate = Comparator(EQUAL, 0);
+
+    // IPH only shows once per 360 days.
+    config.trigger = EventConfig("android_bottom_bar_glic_trigger",
+                                 Comparator(EQUAL, 0), 360, 360);
+
+    // IPH will not show if the user has interacted with the GLIC button.
+    config.used = EventConfig("android_bottom_bar_glic_used",
+                              Comparator(EQUAL, 0), 360, 360);
+    return config;
+  }
+
+  if (kIPHAndroidBottomBarNewTab.name == feature->name) {
+    FeatureConfig config;
+    config.valid = true;
+
+    // IPH is always available at start-up.
+    config.availability = Comparator(ANY, 0);
+
+    // IPH can show even if other IPHs have shown this session.
+    config.session_rate = Comparator(ANY, 0);
+
+    // IPH only shows once per 360 days.
+    config.trigger = EventConfig("android_bottom_bar_new_tab_trigger",
+                                 Comparator(EQUAL, 0), 360, 360);
+
+    // IPH will not show if the user has interacted with the New Tab button.
+    config.used = EventConfig("android_bottom_bar_new_tab_used",
+                              Comparator(EQUAL, 0), 360, 360);
+
+    // Require that the GLIC IPH has been shown at least once.
+    config.event_configs.insert(
+        EventConfig("android_bottom_bar_glic_trigger",
+                    Comparator(GREATER_THAN_OR_EQUAL, 1), 360, 360));
+    return config;
+  }
+
   if (kIPHFuseboxAttachmentFeature.name == feature->name) {
     // A config that allows measurement for user engagement on the fusebox
     // attachment button by checking:
@@ -1109,11 +1154,10 @@ std::optional<FeatureConfig> GetClientSideFeatureConfig(
     return config;
   }
 
-  if (kIPHAdaptiveButtonInTopToolbarCustomizationGlicFeature.name ==
-      feature->name) {
-    // A config that allows the Glic adaptive toolbar bottom sheet promo to be
-    // shown:
-    // * If any other adaptive toolbar button has been used in the last 90 days.
+  if (kIPHAdaptiveButtonPinGlicToolbarButtonFeature.name == feature->name) {
+    // A config that defines when the Glic adaptive toolbar button should be
+    // auto-pinned:
+    // * If no other adaptive toolbar button has been used in the last 90 days.
     // * If the Glic button itself hasn't been used.
     // * Only once in its lifetime.
     // * Other IPHs do not impact triggering.
@@ -1128,25 +1172,25 @@ std::optional<FeatureConfig> GetClientSideFeatureConfig(
                               Comparator(EQUAL, 0), 90, 360);
     config.event_configs.insert(
         EventConfig("adaptive_toolbar_customization_new_tab_opened",
-                    Comparator(GREATER_THAN, 0), 90, 360));
+                    Comparator(EQUAL, 0), 90, 360));
     config.event_configs.insert(
         EventConfig("adaptive_toolbar_customization_open_in_browser_opened",
-                    Comparator(GREATER_THAN, 0), 90, 360));
+                    Comparator(EQUAL, 0), 90, 360));
     config.event_configs.insert(
         EventConfig("adaptive_toolbar_customization_share_opened",
-                    Comparator(GREATER_THAN, 0), 90, 360));
+                    Comparator(EQUAL, 0), 90, 360));
     config.event_configs.insert(
         EventConfig("adaptive_toolbar_customization_voice_search_opened",
-                    Comparator(GREATER_THAN, 0), 90, 360));
+                    Comparator(EQUAL, 0), 90, 360));
     config.event_configs.insert(
         EventConfig("adaptive_toolbar_customization_translate_opened",
-                    Comparator(GREATER_THAN, 0), 90, 360));
+                    Comparator(EQUAL, 0), 90, 360));
     config.event_configs.insert(
         EventConfig("adaptive_toolbar_customization_read_aloud_clicked",
-                    Comparator(GREATER_THAN, 0), 90, 360));
+                    Comparator(EQUAL, 0), 90, 360));
     config.event_configs.insert(
         EventConfig("adaptive_toolbar_customization_add_to_bookmarks_opened",
-                    Comparator(GREATER_THAN, 0), 90, 360));
+                    Comparator(EQUAL, 0), 90, 360));
     return config;
   }
   if (kIPHMenuAddToGroup.name == feature->name) {

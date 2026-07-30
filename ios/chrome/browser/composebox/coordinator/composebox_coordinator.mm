@@ -159,14 +159,19 @@
     return;
   }
 
+  [_viewController.view endEditing:YES];
   [_viewController.presentingViewController
       dismissViewControllerAnimated:YES
                          completion:dismissComplete];
 }
 
 - (void)stop {
-  [_viewController.presentingViewController dismissViewControllerAnimated:NO
-                                                               completion:nil];
+  if (!_viewController.isBeingDismissed) {
+    [_viewController.view endEditing:YES];
+    [_viewController.presentingViewController
+        dismissViewControllerAnimated:NO
+                           completion:nil];
+  }
   [self cleanup];
 }
 

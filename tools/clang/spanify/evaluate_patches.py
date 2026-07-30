@@ -319,6 +319,15 @@ if __name__ == "__main__":
     rewrite_project = project
     submodule = PROJECTS[project].get('submodule', '.')
     standalone = submodule != '.'
+    run_gn_check = PROJECTS[project].get('run_gn_check', True)
+
+    print(f"Running evaluate_patches.py for project {project}...")
+
+    # Produce a full rewrite, and store individual patches below <scratch>/patch_*
+    run(f"./tools/clang/spanify/rewrite_multiple_platforms.py \
+        --platform={platform} \
+        --project={rewrite_project} \
+        ")
 
     # Record the starting branch/revision to restore it at the end.
     original_top_branch = get_current_branch()
@@ -337,10 +346,6 @@ if __name__ == "__main__":
     def report_failure(index, total_patches, error_msg, diff, final_file):
         report_case_result("fail", spreadsheet, spreadsheet_id, today, index,
                            total_patches, user, error_msg, diff, final_file)
-
-
-
-    print(f"Running evaluate_patches.py for project {project}...")
 
     cwd = submodule if standalone else None
 
@@ -398,17 +403,6 @@ if __name__ == "__main__":
         run(f"{gn_path} gen out/{platform}",
             f"Failed to generate out/{platform}.",
             cwd=cwd)
-
-
-
-
-
-    # Produce a full rewrite, and store individual patches below <scratch>/patch_*
-
-    run(f"./tools/clang/spanify/rewrite_multiple_platforms.py \
-        --platform={platform} \
-        --project={rewrite_project} \
-        ")
 
     run(f'git rev-parse HEAD > "{(scratch_dir() / "git_revision.txt")}"',
         cwd=submodule)
@@ -529,9 +523,9 @@ if __name__ == "__main__":
                     error_msg = analyze_error(stdout_clean, stderr_clean)
                     report_failure(index, total_patches_count, error_msg, diff,
                                    final_file)
-                elif not run(f'gn check out/{platform}',
-                             exit_on_error=False,
-                             cwd=cwd):
+                elif run_gn_check and not run(f'gn check out/{platform}',
+                                              exit_on_error=False,
+                                              cwd=cwd):
                     error_msg = "failed gn check"
                     report_failure(index, total_patches_count, error_msg, diff,
                                    final_file)

@@ -20,6 +20,7 @@ import android.view.ViewGroup;
 import androidx.annotation.ColorInt;
 import androidx.annotation.VisibleForTesting;
 import androidx.core.view.ViewCompat;
+import androidx.recyclerview.widget.RecyclerView;
 
 import org.chromium.base.CallbackController;
 import org.chromium.base.CallbackUtils;
@@ -36,8 +37,11 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.app.feed.FeedActionDelegateImpl;
+import org.chromium.chrome.browser.back_press.BackPressManager;
 import org.chromium.chrome.browser.bookmarks.BookmarkModel;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
+import org.chromium.chrome.browser.browser_controls.BrowserControlsUtils;
+import org.chromium.chrome.browser.browser_controls.BrowserControlsVisibilityManager;
 import org.chromium.chrome.browser.device_lock.DeviceLockActivityLauncherImpl;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
 import org.chromium.chrome.browser.feed.FeedActionDelegate;
@@ -64,6 +68,7 @@ import org.chromium.chrome.browser.ntp_customization.theme.chrome_colors.NtpThem
 import org.chromium.chrome.browser.ntp_customization.theme.upload_image.BackgroundImageInfo;
 import org.chromium.chrome.browser.omnibox.OmniboxStub;
 import org.chromium.chrome.browser.omnibox.voice.VoiceRecognitionHandler;
+import org.chromium.chrome.browser.omnibox.voice.VoiceRecognitionIntentHandler;
 import org.chromium.chrome.browser.privacy.settings.PrivacyPreferencesManagerImpl;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.readaloud.ReadAloudController;
@@ -86,6 +91,7 @@ import org.chromium.chrome.browser.tab_ui.InvalidationAwareThumbnailProvider;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tasks.HomeSurfaceTracker;
 import org.chromium.chrome.browser.toolbar.top.Toolbar;
+import org.chromium.chrome.browser.ui.bottombar.BottomBarConfigUtils;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeController;
 import org.chromium.chrome.browser.ui.edge_to_edge.TopInsetProvider;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
@@ -112,6 +118,7 @@ import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 
+import java.lang.ref.WeakReference;
 import java.util.List;
 import java.util.function.Supplier;
 
@@ -179,7 +186,7 @@ public class NewTabPage
     private final Activity mActivity;
     private boolean mSnapshotSingleTabCardChanged;
     private final boolean mIsInNightMode;
-    private final boolean mCanSupportEdgeToEdgeForCustomizedTheme;
+    private final boolean mSupportsEnableEdgeToEdgeOnTop;
     private final TopInsetProvider mTopInsetProvider;
     private TopInsetProvider.@Nullable Observer mTopInsetChangeObserver;
     private boolean mIsUseEdgeToEdgeForCustomizedTheme;
@@ -191,6 +198,8 @@ public class NewTabPage
     private boolean mUseLightIconTint;
 
     private @Nullable NtpSmoothTransitionDelegate mSmoothTransitionDelegate;
+
+    private RecyclerView.@Nullable OnScrollListener mNtpScrollListener;
 
     private final CallbackController mCallbackController = new CallbackController();
 
@@ -276,7 +285,7 @@ public class NewTabPage
                     feedReliabilityLogger.onVoiceSearch();
                 }
                 mVoiceRecognitionHandler.startVoiceRecognition(
-                        VoiceRecognitionHandler.VoiceInteractionSource.NTP,
+                        VoiceRecognitionIntentHandler.VoiceInteractionSource.NTP,
                         CallbackUtils.emptyRunnable());
                 mTracker.notifyEvent(EventConstants.NTP_VOICE_SEARCH_BUTTON_CLICKED);
             } else if (mOmniboxStub != null) {
@@ -389,7 +398,9 @@ public class NewTabPage
      * @param tabStripHeightSupplier Supplier for the tab strip height.
      * @param moduleRegistrySupplier Supplier for the {@link ModuleRegistry}.
      * @param edgeToEdgeControllerSupplier Supplier for the {@link EdgeToEdgeController}.
+     * @param topInsetProvider Provider for top insets.
      * @param startupMetricsTracker Used to record NTP startup metric.
+     * @param backPressManager Manages back press dispatching.
      */
     public NewTabPage(
             Activity activity,
@@ -415,7 +426,8 @@ public class NewTabPage
             OneshotSupplier<ModuleRegistry> moduleRegistrySupplier,
             MonotonicObservableSupplier<EdgeToEdgeController> edgeToEdgeControllerSupplier,
             TopInsetProvider topInsetProvider,
-            StartupMetricsTracker startupMetricsTracker) {
+            StartupMetricsTracker startupMetricsTracker,
+            BackPressManager backPressManager) {
         mConstructedTimeNs = System.nanoTime();
         TraceEvent.begin(TAG);
 
@@ -509,7 +521,8 @@ public class NewTabPage
                         snackbarManager,
                         mIsTablet,
                         mTabStripHeightSupplier,
-                        homeSurfaceTracker);
+                        homeSurfaceTracker,
+                        backPressManager);
 
         initializeFeedSurfaceProvider(
                 activity,
@@ -543,10 +556,9 @@ public class NewTabPage
         mToolbarHeight =
                 activity.getResources().getDimensionPixelSize(R.dimen.toolbar_height_no_shadow);
 
-        mCanSupportEdgeToEdgeForCustomizedTheme =
-                NtpCustomizationUtils.canEnableEdgeToEdgeForCustomizedTheme(
-                        windowAndroid, mIsTablet);
-        if (mCanSupportEdgeToEdgeForCustomizedTheme) {
+        mSupportsEnableEdgeToEdgeOnTop =
+                NtpCustomizationUtils.supportsEnableEdgeToEdgeOnTop(windowAndroid, mIsTablet);
+        if (mSupportsEnableEdgeToEdgeOnTop) {
             // Apply edge-to-edge adjustments exclusively to phones. These are not required for LFF
             // devices.
             initTopInsetProviderObserver();
@@ -574,6 +586,8 @@ public class NewTabPage
 
         sTotalCount++;
         NewTabPageUma.recordSimultaneousNtpCount(sTotalCount);
+
+        updateNtpScrollListener(true);
 
         TraceEvent.end(TAG);
     }
@@ -1053,6 +1067,8 @@ public class NewTabPage
             mHomepageStateListener = null;
         }
 
+        updateNtpScrollListener(false);
+
         sTotalCount--;
         mIsDestroyed = true;
     }
@@ -1223,7 +1239,7 @@ public class NewTabPage
     /** Sets whether the NTP is currently set as edge-to-edge. */
     private void setIsUseEdgeToEdgeForCustomizedTheme() {
         mIsUseEdgeToEdgeForCustomizedTheme =
-                mCanSupportEdgeToEdgeForCustomizedTheme
+                mSupportsEnableEdgeToEdgeOnTop
                         && !mIsTablet
                         && NtpCustomizationConfigManager.getInstance().getBackgroundType()
                                 != NtpBackgroundType.DEFAULT;
@@ -1253,5 +1269,84 @@ public class NewTabPage
 
     public void enableSearchBoxEditText(boolean enable) {
         mNewTabPageCoordinator.enableSearchBoxEditText(enable);
+    }
+
+    private void updateNtpScrollListener(boolean attach) {
+        if (!(mFeedSurfaceProvider instanceof FeedSurfaceCoordinator)) return;
+
+        if (!BottomBarConfigUtils.isNtpScrollOffEnabled(mTab, mContext)) return;
+
+        RecyclerView recyclerView =
+                ((FeedSurfaceCoordinator) mFeedSurfaceProvider).getRecyclerView();
+        if (recyclerView == null) {
+            if (mNtpScrollListener != null) {
+                mNtpScrollListener = null;
+            }
+            return;
+        }
+
+        if (attach && mNtpScrollListener == null) {
+            mNtpScrollListener = new NtpScrollListener(mBrowserControlsStateProvider, mContext);
+            recyclerView.addOnScrollListener(mNtpScrollListener);
+        } else if (!attach && mNtpScrollListener != null) {
+            recyclerView.removeOnScrollListener(mNtpScrollListener);
+            mNtpScrollListener = null;
+        }
+    }
+
+    private static class NtpScrollListener extends RecyclerView.OnScrollListener {
+        private static final int SCROLL_THRESHOLD_DP = 20;
+
+        private final WeakReference<BrowserControlsStateProvider> mControlsProviderRef;
+        private final WeakReference<Context> mContextRef;
+
+        private int mAccumulatedScrollY;
+
+        NtpScrollListener(BrowserControlsStateProvider controlsProvider, Context context) {
+            mControlsProviderRef = new WeakReference<>(controlsProvider);
+            mContextRef = new WeakReference<>(context);
+        }
+
+        @Override
+        public void onScrollStateChanged(RecyclerView recyclerView, int newState) {
+            if (newState == RecyclerView.SCROLL_STATE_IDLE) {
+                mAccumulatedScrollY = 0;
+            }
+        }
+
+        @Override
+        public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
+            BrowserControlsStateProvider provider = mControlsProviderRef.get();
+            Context context = mContextRef.get();
+            if (provider == null || context == null) return;
+            if (!(provider instanceof BrowserControlsVisibilityManager)) return;
+
+            BrowserControlsVisibilityManager manager = (BrowserControlsVisibilityManager) provider;
+            int bottomControlsHeight = manager.getBottomControlsHeight();
+            if (bottomControlsHeight <= 0) return;
+
+            float density = context.getResources().getDisplayMetrics().density;
+            int thresholdPx = (int) (SCROLL_THRESHOLD_DP * density);
+
+            if (Integer.signum(dy) != Integer.signum(mAccumulatedScrollY)
+                    && dy != 0
+                    && mAccumulatedScrollY != 0) {
+                mAccumulatedScrollY = 0;
+            }
+
+            mAccumulatedScrollY += dy;
+
+            if (mAccumulatedScrollY > thresholdPx) {
+                if (!BrowserControlsUtils.areBottomControlsOffScreen(manager)) {
+                    manager.hideAndroidControls(true);
+                }
+                mAccumulatedScrollY = 0;
+            } else if (mAccumulatedScrollY < -thresholdPx) {
+                if (!BrowserControlsUtils.areBottomControlsFullyVisible(manager)) {
+                    manager.showAndroidControls(true);
+                }
+                mAccumulatedScrollY = 0;
+            }
+        }
     }
 }

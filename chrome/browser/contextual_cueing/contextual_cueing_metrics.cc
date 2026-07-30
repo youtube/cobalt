@@ -39,6 +39,9 @@ void RecordCueShownMetrics(ukm::SourceId source_id,
                            std::string_view cuj,
                            const CueTabMetrics& tab_metrics,
                            base::TimeDelta latency) {
+  base::UmaHistogramSparse("ContextualCueing.V2.CueShown",
+                           base::HashMetricName(cuj));
+
   auto* ukm_recorder = ukm::UkmRecorder::Get();
   ukm::builders::ContextualCueing_CueShown(source_id)
       .SetSuggestedCujCategory(base::HashMetricName(cuj))
@@ -67,8 +70,10 @@ void RecordContextualCueingInteraction(
 
   auto* ukm_recorder = ukm::UkmRecorder::Get();
   ukm::builders::ContextualCueing_CueInteraction(source_id)
-      .SetProactiveCueShownDuration(ukm::GetExponentialBucketMinForUserTiming(
+      .SetProactiveCueShownDurationMs(ukm::GetExponentialBucketMinForUserTiming(
           shown_duration.InMilliseconds()))
+      .SetProactiveCueInteraction(
+          static_cast<int64_t>(contextual_cueing_interaction))
       .Record(ukm_recorder);
 }
 
@@ -87,6 +92,21 @@ void RecordContextualCueingDecision(
             static_cast<int64_t>(contextual_cueing_decision))
         .Record(ukm_recorder);
   }
+}
+
+void RecordCueFormFactorShown(CueFormFactor form_factor) {
+  base::UmaHistogramEnumeration("ContextualCueing.V2.CueFormFactor.Shown",
+                                form_factor);
+}
+
+void RecordCueFormFactorHidden(CueFormFactor form_factor) {
+  base::UmaHistogramEnumeration("ContextualCueing.V2.CueFormFactor.Hidden",
+                                form_factor);
+}
+
+void RecordChipClickedCollapsedDuration(base::TimeDelta collapsed_duration) {
+  base::UmaHistogramLongTimes(
+      "ContextualCueing.V2.ChipClicked.CollapsedDuration", collapsed_duration);
 }
 
 }  // namespace contextual_cueing

@@ -296,6 +296,14 @@ void FontCache::InvalidateFromAnyThread() {
   FontCache::Get().Invalidate();
 }
 
+bool FontCache::IsFontFamilyUnavailable(const AtomicString& family_name) const {
+  return unavailable_font_families_.Contains(family_name);
+}
+
+void FontCache::MarkFontFamilyAsUnavailable(const AtomicString& family_name) {
+  unavailable_font_families_.insert(family_name);
+}
+
 const SimpleFontData* FontCache::PlatformFallbackFontForCharacter(
     const FontDescription& font_description,
     UChar32 character,

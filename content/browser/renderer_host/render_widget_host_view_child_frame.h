@@ -98,7 +98,6 @@ class CONTENT_EXPORT RenderWidgetHostViewChildFrame
   void EnsureSurfaceSynchronizedForWebTest() override;
   void Hide() override;
   bool IsShowing() override;
-  void WasUnOccluded() override;
   void WasOccluded() override;
   gfx::Rect GetViewBounds() override;
   gfx::Size GetVisibleViewportSize() override;
@@ -253,6 +252,9 @@ class CONTENT_EXPORT RenderWidgetHostViewChildFrame
   bool GetTextRange(gfx::Range* range) const;
 
   RenderWidgetHostViewBase* GetRootRenderWidgetHostView() const;
+
+  // Shows the view.
+  void Show();
 
  protected:
   friend class RenderWidgetHostView;

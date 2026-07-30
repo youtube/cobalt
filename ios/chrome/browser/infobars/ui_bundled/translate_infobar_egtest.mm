@@ -25,6 +25,7 @@
 #import "ios/chrome/browser/reader_mode/model/features.h"
 #import "ios/chrome/browser/reader_mode/ui/constants.h"
 #import "ios/chrome/browser/shared/model/url/chrome_url_constants.h"
+#import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/translate/model/translate_app_interface.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ios/chrome/test/earl_grey/chrome_earl_grey.h"
@@ -1625,11 +1626,15 @@ class TestResponseProvider {
   GREYAssertTrue([self selectTranslateButton],
                  @"Could not tap on Translate banner action button");
 
+  id<GREYMatcher> translateAcceptedAccessibilityIdentifier =
+      grey_allOf(grey_accessibilityID(
+                     kBadgeButtonTranslateAcceptedAccessibilityIdentifier),
+                 grey_sufficientlyVisible(), nil);
+
   // Check that the translate badge is visible and accepted.
   [ChromeEarlGrey
       waitForUIElementToAppearWithMatcher:
-          grey_accessibilityID(
-              kBadgeButtonTranslateAcceptedAccessibilityIdentifier)
+          translateAcceptedAccessibilityIdentifier
                                   timeout:kWaitForUIElement3xTimeout];
 
   // Open Reader Mode.
@@ -1645,8 +1650,7 @@ class TestResponseProvider {
   // Check that the translate badge is visible and accepted.
   [ChromeEarlGrey
       waitForUIElementToAppearWithMatcher:
-          grey_accessibilityID(
-              kBadgeButtonTranslateAcceptedAccessibilityIdentifier)
+          translateAcceptedAccessibilityIdentifier
                                   timeout:kWaitForUIElement3xTimeout];
 
   // Close Reader Mode.
@@ -1660,8 +1664,7 @@ class TestResponseProvider {
   // Check that the translate badge is visible and accepted.
   [ChromeEarlGrey
       waitForUIElementToAppearWithMatcher:
-          grey_accessibilityID(
-              kBadgeButtonTranslateAcceptedAccessibilityIdentifier)
+          translateAcceptedAccessibilityIdentifier
                                   timeout:kWaitForUIElement3xTimeout];
 }
 

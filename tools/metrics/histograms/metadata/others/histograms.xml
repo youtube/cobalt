@@ -4106,26 +4106,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="FirstPartySets.Database.TransactionFailed" enum="BooleanError"
-    expires_after="2026-06-28">
-  <owner>shuuran@google.com</owner>
-  <owner>kaustubhag@google.com</owner>
-  <summary>
-    Records how often First-Party Sets database gets poisoned due to transaction
-    failure. Recorded when a subquery within a transaction happens.
-  </summary>
-</histogram>
-
-<histogram name="FirstPartySets.Initialization.ClearSiteDataOutcome"
-    enum="BooleanSuccess" expires_after="2026-03-01">
-  <owner>shuuran@google.com</owner>
-  <owner>kaustubhag@google.com</owner>
-  <summary>
-    Measures the outcome of site data clearing. Recorded when First-Party Sets
-    initialization triggers site data clearing for a given browser context.
-  </summary>
-</histogram>
-
 <histogram name="FirstRun.ImportBookmarksDict"
     enum="FirstRunImportBookmarksResult" expires_after="M150">
   <owner>atharvmaan@chromium.org</owner>
@@ -4951,6 +4931,19 @@ chromium-metrics-reviews@google.com.
     notification is received) respectively.
 
     Recorded when the channel gets unpaused.
+  </summary>
+</histogram>
+
+<histogram name="Mojo.Channel.WriteLatencyUs" units="microseconds"
+    expires_after="2027-05-22">
+  <owner>nafisabedin@google.com</owner>
+  <owner>pasko@chromium.org</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
+  <summary>
+    Measures the time taken to write a channel message to the underlying
+    transport in Mojo. The metric is downsampled to reduce its costs.
+
+    This is only recorded on clients with high-resolution clocks.
   </summary>
 </histogram>
 
@@ -5785,16 +5778,6 @@ chromium-metrics-reviews@google.com.
     unified consent throttle is used.
   </summary>
   <token key="ClientId" variants="PageImageServiceClientId"/>
-</histogram>
-
-<histogram name="PaintHolding.CommitTrigger2" enum="PaintHoldingCommitTrigger2"
-    expires_after="2023-08-08">
-  <owner>pdr@chromium.org</owner>
-  <owner>paint-dev@chromium.org</owner>
-  <summary>
-    Records the reason that a commit was triggered, to enable research into
-    which event (non-same-origin, FCP, timeout, etc) led to the first commit.
-  </summary>
 </histogram>
 
 <histogram name="PeriodicBackgroundSync.Event.BatchSize" units="events"

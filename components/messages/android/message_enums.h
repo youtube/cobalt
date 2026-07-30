@@ -158,10 +158,13 @@ enum class MessageIdentifier {
   SIGNIN_SURVEY = 68,
   EXTENSIONS_REQUEST_ACCESS = 69,
   KNOWN_INTERCEPTION_DISCLOSURE = 70,
+  SEND_TAB_TO_SELF = 71,
+  GLIC_WINDOW_RESIZED = 72,
   // Insert new values before this line.
   COUNT
 };
-// LINT.ThenChange(//tools/metrics/histograms/metadata/android/histograms.xml:MessageIdentifier)
+// LINT.ThenChange(//tools/metrics/histograms/metadata/android/histograms.xml:MessageIdentifier,
+// //components/messages/android/java/src/org/chromium/components/messages/MessagesMetrics.java:MessageIdentifierToHistogramSuffix)
 
 // The behavior the message should follow when the primary button is clicked,
 // after running the primary action callback.

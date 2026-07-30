@@ -71,15 +71,14 @@ class TestRenderWidgetHostView : public RenderWidgetHostViewBase,
 
   // RenderWidgetHostView:
   void InitAsChild(gfx::NativeView parent_view) override {}
-  void SetSize(const gfx::Size& size) override {}
-  void SetBounds(const gfx::Rect& rect) override {}
+  void SetSize(const gfx::Size& size) override;
+  void SetBounds(const gfx::Rect& rect) override;
   gfx::NativeView GetNativeView() override;
   gfx::NativeViewAccessible GetNativeViewAccessible() override;
   ui::TextInputClient* GetTextInputClient() override;
   bool HasFocus() override;
   void Hide() override;
   bool IsShowing() override;
-  void WasUnOccluded() override;
   void WasOccluded() override;
   gfx::Rect GetViewBounds() override;
 #if BUILDFLAG(IS_MAC)
@@ -217,6 +216,8 @@ class TestRenderWidgetHostView : public RenderWidgetHostViewBase,
   raw_ptr<ui::Compositor, DanglingUntriaged> compositor_ = nullptr;
 
   input::CursorManager cursor_manager_;
+
+  gfx::Rect bounds_;
 };
 
 // TestRenderWidgetHostViewChildFrame -----------------------------------------

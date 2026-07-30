@@ -15,6 +15,7 @@
 #import "ios/chrome/browser/bookmarks/test/bookmark_earl_grey.h"
 #import "ios/chrome/browser/bookmarks/test/bookmark_earl_grey_ui.h"
 #import "ios/chrome/browser/popup_menu/public/popup_menu_constants.h"
+#import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/public/snackbar/snackbar_constants.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ios/chrome/test/earl_grey/chrome_actions.h"
@@ -59,6 +60,11 @@ id<GREYMatcher> AddBookmarkButton() {
 @end
 
 @implementation BookmarksEntriesTestCase
+
+- (AppLaunchConfiguration)appConfigurationForTestCase {
+  AppLaunchConfiguration config = [super appConfigurationForTestCase];
+  return config;
+}
 
 - (void)setUp {
   [super setUp];
@@ -321,6 +327,7 @@ id<GREYMatcher> AddBookmarkButton() {
   [BookmarkEarlGreyUI closeContextBarEditMode];
 
   // Navigate to "Folder 1.1" and verify "Second URL" is under it.
+  [ChromeEarlGreyUI waitForAppToIdle];
   [[EarlGrey
       selectElementWithMatcher:TappableBookmarkNodeWithLabel(@"Folder 1.1")]
       performAction:grey_tap()];

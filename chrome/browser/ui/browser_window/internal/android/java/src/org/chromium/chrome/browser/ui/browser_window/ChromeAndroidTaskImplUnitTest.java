@@ -460,7 +460,6 @@ public class ChromeAndroidTaskImplUnitTest {
 
         // Act.
         pendingTask.addActivityScopedObjects(activityScopedObjects);
-        pendingTask.onActivityTopResumedChanged(true);
         pendingTask.onTopResumedActivityChangedWithNative(true);
 
         // Assert.
@@ -3096,7 +3095,6 @@ public class ChromeAndroidTaskImplUnitTest {
 
         // Act.
         pendingTask.addActivityScopedObjects(activityScopedObjects);
-        pendingTask.onActivityTopResumedChanged(true);
         pendingTask.onTopResumedActivityChangedWithNative(true);
 
         // Assert.
@@ -3125,7 +3123,6 @@ public class ChromeAndroidTaskImplUnitTest {
 
         // Act.
         pendingTask.addActivityScopedObjects(activityScopedObjects);
-        pendingTask.onActivityTopResumedChanged(true);
         pendingTask.onTopResumedActivityChangedWithNative(true);
 
         // Assert.
@@ -3153,7 +3150,6 @@ public class ChromeAndroidTaskImplUnitTest {
 
         // Act.
         pendingTask.addActivityScopedObjects(activityScopedObjects);
-        pendingTask.onActivityTopResumedChanged(true);
         pendingTask.onTopResumedActivityChangedWithNative(true);
 
         // Assert.
@@ -3180,7 +3176,6 @@ public class ChromeAndroidTaskImplUnitTest {
         // Act.
         chromeAndroidTask.addActivityScopedObjects(
                 chromeAndroidTaskWithMockDeps.mActivityScopedObjects);
-        chromeAndroidTask.onActivityTopResumedChanged(true);
         chromeAndroidTask.onTopResumedActivityChangedWithNative(true);
 
         // Assert.
@@ -3211,7 +3206,6 @@ public class ChromeAndroidTaskImplUnitTest {
 
         // Act.
         chromeAndroidTask.addActivityScopedObjects(activityScopedObjects);
-        chromeAndroidTask.onActivityTopResumedChanged(true);
         chromeAndroidTask.onTopResumedActivityChangedWithNative(true);
 
         // Assert.
@@ -3246,7 +3240,6 @@ public class ChromeAndroidTaskImplUnitTest {
         // Act.
         chromeAndroidTask.addActivityScopedObjects(
                 chromeAndroidTaskWithMockDeps.mActivityScopedObjects);
-        chromeAndroidTask.onActivityTopResumedChanged(true);
         chromeAndroidTask.onTopResumedActivityChangedWithNative(true);
 
         // Assert.
@@ -3310,7 +3303,6 @@ public class ChromeAndroidTaskImplUnitTest {
         // Act.
         chromeAndroidTask.addActivityScopedObjects(
                 chromeAndroidTaskWithMockDeps.mActivityScopedObjects);
-        chromeAndroidTask.onActivityTopResumedChanged(true);
         chromeAndroidTask.onTopResumedActivityChangedWithNative(true);
 
         // Assert.
@@ -3334,68 +3326,11 @@ public class ChromeAndroidTaskImplUnitTest {
 
         // Act.
         task.addActivityScopedObjects(activityScopedObjects);
-        task.onActivityTopResumedChanged(true);
         task.onTopResumedActivityChangedWithNative(true);
 
         // Assert.
         verify(pendingTaskInfo.mTaskCreationCallbackForNative)
                 .onResult(FAKE_NATIVE_ANDROID_BROWSER_WINDOW_PTR);
-    }
-
-    @Test
-    public void addActivityScopedObjects_fromPendingState_waitsForBothSignals() {
-        int existingTaskId = 2;
-        int pendingTaskId = 3;
-
-        // Arrange: Creating a pending task requires an existing task.
-        createChromeAndroidTaskWithMockDeps(existingTaskId);
-
-        // Arrange.
-        var chromeAndroidTaskWithMockDeps =
-                createChromeAndroidTaskWithMockDeps(pendingTaskId, /* isPendingTask= */ true);
-        var pendingTask = (ChromeAndroidTaskImpl) chromeAndroidTaskWithMockDeps.mChromeAndroidTask;
-        var activityScopedObjects = chromeAndroidTaskWithMockDeps.mActivityScopedObjects;
-
-        // Act & Assert 1: Add activity objects. Still pending.
-        pendingTask.addActivityScopedObjects(activityScopedObjects);
-        assertEquals(State.PENDING_CREATE, pendingTask.getState());
-
-        // Act & Assert 2: Only onActivityTopResumedChanged. Still pending.
-        pendingTask.onActivityTopResumedChanged(true);
-        assertEquals(State.PENDING_CREATE, pendingTask.getState());
-
-        // Act & Assert 3: onTopResumedActivityChangedWithNative. Now IDLE.
-        pendingTask.onTopResumedActivityChangedWithNative(true);
-        assertEquals(State.IDLE, pendingTask.getState());
-        assertEquals(pendingTaskId, (int) pendingTask.getId());
-    }
-
-    @Test
-    public void addActivityScopedObjects_fromPendingState_waitsForBothSignals_reverseOrder() {
-        int existingTaskId = 2;
-        int pendingTaskId = 3;
-
-        // Arrange: Creating a pending task requires an existing task.
-        createChromeAndroidTaskWithMockDeps(existingTaskId);
-
-        // Arrange.
-        var chromeAndroidTaskWithMockDeps =
-                createChromeAndroidTaskWithMockDeps(pendingTaskId, /* isPendingTask= */ true);
-        var pendingTask = (ChromeAndroidTaskImpl) chromeAndroidTaskWithMockDeps.mChromeAndroidTask;
-        var activityScopedObjects = chromeAndroidTaskWithMockDeps.mActivityScopedObjects;
-
-        // Act & Assert 1: Add activity objects. Still pending.
-        pendingTask.addActivityScopedObjects(activityScopedObjects);
-        assertEquals(State.PENDING_CREATE, pendingTask.getState());
-
-        // Act & Assert 2: Only onTopResumedActivityChangedWithNative. Still pending.
-        pendingTask.onTopResumedActivityChangedWithNative(true);
-        assertEquals(State.PENDING_CREATE, pendingTask.getState());
-
-        // Act & Assert 3: onActivityTopResumedChanged. Now IDLE.
-        pendingTask.onActivityTopResumedChanged(true);
-        assertEquals(State.IDLE, pendingTask.getState());
-        assertEquals(pendingTaskId, (int) pendingTask.getId());
     }
 
     @Test
@@ -4122,6 +4057,50 @@ public class ChromeAndroidTaskImplUnitTest {
         chromeAndroidTask.onTopResumedActivityChangedWithNative(true);
 
         // Assert: normal window is activated again.
+        verify(observer, times(2)).onBrowserWindowActivated(FAKE_NATIVE_ANDROID_BROWSER_WINDOW_PTR);
+    }
+
+    @Test
+    public void androidBrowserWindowObserver_notifiesOnSimulatedOverviewMode() {
+        // Start with the Chrome app active.
+        // Simulate opening overview mode, and then selecting the Chrome app again. The window
+        // should be deactivated and then activated again.
+
+        // Arrange
+        var chromeAndroidTaskWithMockDeps = createChromeAndroidTaskWithMockDeps(/* taskId= */ 1);
+        var chromeAndroidTask =
+                (ChromeAndroidTaskImpl) chromeAndroidTaskWithMockDeps.mChromeAndroidTask;
+        var activityWindowAndroidMocks = chromeAndroidTaskWithMockDeps.mActivityWindowAndroidMocks;
+
+        shadowOf(getMainLooper()).idle();
+
+        // Register observer.
+        var observer = mock(AndroidBrowserWindowObserver.class);
+        chromeAndroidTask.addAndroidBrowserWindowObserver(observer);
+
+        // 1. Start in foreground/active state.
+        when(activityWindowAndroidMocks.mMockActivityWindowAndroid.isTopResumedActivity())
+                .thenReturn(true);
+        chromeAndroidTask.onTopResumedActivityChangedWithNative(true);
+
+        // Verify normal window is immediately activated since it's in the foreground.
+        verify(observer, times(1)).onBrowserWindowActivated(FAKE_NATIVE_ANDROID_BROWSER_WINDOW_PTR);
+
+        // 2. Act: Move task to background. Event ordering is important.
+        when(activityWindowAndroidMocks.mMockActivityWindowAndroid.isTopResumedActivity())
+                .thenReturn(false);
+        chromeAndroidTask.onTopResumedActivityChangedWithNative(false);
+
+        // Assert: normal window is deactivated correctly.
+        verify(observer, times(1))
+                .onBrowserWindowDeactivated(FAKE_NATIVE_ANDROID_BROWSER_WINDOW_PTR);
+
+        // 3. Act: Move task back to foreground. Event ordering is important.
+        when(activityWindowAndroidMocks.mMockActivityWindowAndroid.isTopResumedActivity())
+                .thenReturn(true);
+        chromeAndroidTask.onTopResumedActivityChangedWithNative(true);
+
+        // Assert: normal window is activated again correctly.
         verify(observer, times(2)).onBrowserWindowActivated(FAKE_NATIVE_ANDROID_BROWSER_WINDOW_PTR);
     }
 

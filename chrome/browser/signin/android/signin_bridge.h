@@ -9,9 +9,11 @@
 
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/signin/core/browser/signin_header_helper.h"
+#include "components/signin/public/base/signin_deep_link_payload.h"
 #include "components/signin/public/base/signin_metrics.h"
 #include "google_apis/gaia/core_account_id.h"
 
+class Profile;
 class TabAndroid;
 
 namespace content {
@@ -32,7 +34,9 @@ class SigninBridge : public KeyedService {
   // the specified |continue_url| upon completion.
   virtual void StartAddAccountFlow(TabAndroid* tab,
                                    const std::string& prefilled_email,
-                                   const GURL& continue_url);
+                                   const GURL& continue_url,
+                                   bool is_web_signin,
+                                   signin_metrics::AccessPoint access_point);
 
   // Opens the account management screen.
   virtual void OpenAccountManagementScreen(
@@ -43,7 +47,9 @@ class SigninBridge : public KeyedService {
   virtual void OpenAccountPickerBottomSheet(
       content::WebContents* web_contents,
       const GURL& continue_url,
-      const std::optional<CoreAccountId>& account_id);
+      const std::optional<CoreAccountId>& account_id,
+      bool is_web_signin,
+      signin_metrics::AccessPoint access_point);
 
   // Opens the reauthentication flow.
   virtual void StartUpdateCredentialsFlow(TabAndroid* tab,
@@ -54,5 +60,11 @@ class SigninBridge : public KeyedService {
   virtual void WaitForCookiesAndRedirect(TabAndroid* tab,
                                          const GURL& continue_url,
                                          const CoreAccountId& account_id);
+
+  // Start the deep link sign-in flow based on the given payload.
+  virtual void StartSigninDeepLinkFlow(
+      ui::WindowAndroid* window,
+      Profile* profile,
+      const signin::SigninDeepLinkPayload& payload);
 };
 #endif  // CHROME_BROWSER_SIGNIN_ANDROID_SIGNIN_BRIDGE_H_

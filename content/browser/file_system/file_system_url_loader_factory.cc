@@ -111,9 +111,7 @@ class FileSystemEntryURLLoader : public network::mojom::URLLoader {
 
   // network::mojom::URLLoader:
   void FollowRedirect(
-      const std::vector<std::string>& removed_headers,
-      const net::HttpRequestHeaders& modified_headers,
-      const net::HttpRequestHeaders& modified_cors_exempt_headers,
+      network::HttpRequestHeadersUpdateParams headers_update_params,
       const std::optional<GURL>& new_url) override {}
   void SetPriority(net::RequestPriority priority,
                    int32_t intra_priority_value) override {}
@@ -218,17 +216,16 @@ class FileSystemEntryURLLoader : public network::mojom::URLLoader {
             request.headers.GetHeader(net::HttpRequestHeaders::kRange);
         range_header) {
       std::vector<net::HttpByteRange> ranges;
-      if (net::HttpUtil::ParseRangeHeader(*range_header, &ranges)) {
-        if (ranges.size() == 1) {
-          byte_range_ = ranges[0];
-        } else {
-          // We don't support multiple range requests in one single URL request.
-          // TODO(adamk): decide whether we want to support multiple range
-          // requests.
-          OnClientComplete(net::ERR_REQUEST_RANGE_NOT_SATISFIABLE);
-          return;
-        }
+      if (!net::HttpUtil::ParseRangeHeader(*range_header, &ranges) ||
+          ranges.size() != 1) {
+        // We don't support multiple range requests in one single URL request.
+        // TODO(adamk): decide whether we want to support multiple range
+        // requests.
+        // Fail if the header is malformed or contains multiple ranges.
+        OnClientComplete(net::ERR_REQUEST_RANGE_NOT_SATISFIABLE);
+        return;
       }
+      byte_range_ = ranges[0];
     }
     url_ =
         params_.file_system_context->CrackURL(request.url, params_.storage_key);

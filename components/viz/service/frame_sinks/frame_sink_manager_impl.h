@@ -445,18 +445,12 @@ class VIZ_SERVICE_EXPORT FrameSinkManagerImpl
 
   GpuServiceImpl* GetGpuService();
 
-#if BUILDFLAG(IS_ANDROID)
-  // Android: if true, opts the current ADPF session (held by viz) into
-  // power-efficient scheduling.
-  void SetPreferEfficientScheduling(bool prefer_efficient_scheduling) const;
-#endif
-
 #if BUILDFLAG(IS_MAC)
   // This is called after SetSupportedDisplayLinkId() in the browser process.
   // Forces every RootCompositorFrameSink associated with the specified display
   // to update its DisplayLinkMac. This ensures that frame sinks stay in sync
   // with the display configuration when displays are added or removed.
-  void UpdateVSyncDisplays(int64_t display_id);
+  void UpdateVSyncDisplays(int64_t display_id, bool is_browser_vsync_supported);
 #endif
 
  private:

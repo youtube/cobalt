@@ -12,7 +12,7 @@
 
 #include "base/containers/flat_map.h"
 #include "base/containers/span.h"
-#include "base/functional/callback_forward.h"
+#include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
@@ -173,6 +173,7 @@ class DevToolsSession : public protocol::FrontendChannel,
     int call_id;
     std::string method;
     std::vector<uint8_t> payload;
+    std::string fallthrough_data;
 
     PendingMessage() = delete;
     PendingMessage(const PendingMessage&) = delete;
@@ -181,7 +182,8 @@ class DevToolsSession : public protocol::FrontendChannel,
     PendingMessage(PendingMessage&&);
     PendingMessage(int call_id,
                    crdtp::span<uint8_t> method,
-                   crdtp::span<uint8_t> payload);
+                   crdtp::span<uint8_t> payload,
+                   std::string fallthrough_data);
     ~PendingMessage();
   };
 
@@ -206,9 +208,6 @@ class DevToolsSession : public protocol::FrontendChannel,
   void SendProtocolNotification(
       std::unique_ptr<protocol::Serializable> message) override;
   void FlushProtocolNotifications() override;
-  void FallThrough(int call_id,
-                   crdtp::span<uint8_t> method,
-                   crdtp::span<uint8_t> message) override;
 
   // content::DevToolsAgentHostClientChannel implementation.
   void DispatchProtocolMessageToClient(std::vector<uint8_t> message) override;
@@ -225,6 +224,11 @@ class DevToolsSession : public protocol::FrontendChannel,
   // DevToolsExternalAgentProxy implementation.
   void DispatchOnClientHost(base::span<const uint8_t> message) override;
   void ConnectionClosed() override;
+
+  void FallThrough(int call_id,
+                   crdtp::span<uint8_t> method,
+                   crdtp::span<uint8_t> message,
+                   std::string_view fallthrough_data);
 
   static void DispatchProtocolResponseOrNotification(
       DevToolsAgentHostClient* client,
@@ -300,6 +304,8 @@ class DevToolsSession : public protocol::FrontendChannel,
       child_observers_;
   mojo::Remote<network::mojom::DurableMessageCollector>
       durable_message_collector_;
+  base::RepeatingCallback<void(base::span<const uint8_t>)>
+      handle_command_callback_;
 
   base::WeakPtrFactory<DevToolsSession> weak_factory_{this};
 };

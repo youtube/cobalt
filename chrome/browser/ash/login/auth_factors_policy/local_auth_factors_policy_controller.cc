@@ -128,7 +128,7 @@ LocalAuthFactorsPolicyController::LocalAuthFactorsPolicyController(
     PrefService& local_state,
     Profile* profile,
     const AccountId& account_id)
-    : profile_(profile), account_id_(account_id) {
+    : local_state_(local_state), profile_(profile), account_id_(account_id) {
   pref_change_registrar_.Init(profile->GetPrefs());
   // `base::Unretained(this)` is safe as `this` outlives the registrar.
   pref_change_registrar_.Add(
@@ -217,7 +217,7 @@ void LocalAuthFactorsPolicyController::OnGetAuthFactorsConfiguration(
   if (has_local_auth_factors) {
     user_manager::UserManager::Get()->SaveForceOnlineSignin(
         user_context->GetAccountId(), /*force_online_signin=*/true);
-    ash::RecordReauthReason(user_context->GetAccountId(),
+    ash::RecordReauthReason(local_state_.get(), user_context->GetAccountId(),
                             ash::ReauthReason::kForcedByLocalAuthFactorsPolicy);
   }
   base::UmaHistogramBoolean("Enterprise.LocalAuthFactorsPolicy.ForcedReauth",
@@ -241,7 +241,13 @@ LocalAuthFactorsPolicyController::GetAllowedAuthFactors() {
   return ash::GetAuthFactorsSetFromPolicyList(&allowed_auth_factors);
 }
 
-void LocalAuthFactorsPolicyController::OnFactorChanged(AuthFactor factor) {
+void LocalAuthFactorsPolicyController::OnFactorChanged(
+    AuthFactor factor,
+    ash::auth::mojom::ConfigureResult result) {
+  if (result != ash::auth::mojom::ConfigureResult::kSuccess) {
+    return;
+  }
+
   const int enforced_complexity =
       prefs().GetInteger(ash::prefs::kLocalAuthFactorsComplexity);
 
@@ -369,8 +375,12 @@ void LocalAuthFactorsPolicyController::OnShowComplexityUpdateNotification(
 }
 
 void LocalAuthFactorsPolicyController::DismissComplexityUpdateNotification() {
-  NotificationDisplayServiceFactory::GetForProfile(profile_)->Close(
-      NotificationHandler::Type::TRANSIENT, kComplexityUpdateNotificationId);
+  auto* notification_display_service =
+      NotificationDisplayServiceFactory::GetForProfile(profile_);
+  if (notification_display_service) {
+    notification_display_service->Close(NotificationHandler::Type::TRANSIENT,
+                                        kComplexityUpdateNotificationId);
+  }
 }
 
 }  // namespace ash

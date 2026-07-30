@@ -388,11 +388,18 @@ enum class QuickActionsVisibility {
 // Verifies opening a new tab by long pressing the tab grid view and selecting
 // "New Tab" with the correct policy's New Tab Page Location URL.
 - (void)testNewTabByLongPressTabGridViewWithNTPLocation {
+  if ([ChromeEarlGrey isChromeNextEnabled] && [ChromeEarlGrey isIPadIdiom]) {
+    EARL_GREY_TEST_DISABLED(@"The button doesn't exist with Next.");
+  }
   GREYAssertTrue(self.testServer->Start(), @"Test server failed to start.");
   const GURL expectedURL = self.testServer->GetURL(kPageURL);
 
   // Set the policy's NTP Location value at runtime.
   [self setNTPPolicyValue:expectedURL.spec()];
+
+  // Open a new incognito tab to expose the "New Tab" item in the long press
+  // menu.
+  [ChromeEarlGrey openNewIncognitoTab];
 
   // Open tab via the UI.
   [[EarlGrey selectElementWithMatcher:chrome_test_util::ShowTabsButton()]
@@ -407,6 +414,8 @@ enum class QuickActionsVisibility {
       performAction:grey_tap()];
 
   [self validateNTPURL:expectedURL];
+
+  [ChromeEarlGrey closeAllIncognitoTabs];
 }
 
 // Verifies opening a new tab from the tab grid view by tapping on the New Tab

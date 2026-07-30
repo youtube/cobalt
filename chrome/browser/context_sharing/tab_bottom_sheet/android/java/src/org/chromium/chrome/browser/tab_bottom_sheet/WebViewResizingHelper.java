@@ -121,13 +121,17 @@ public class WebViewResizingHelper {
 
     private @Px int getDecorViewHeight() {
         Window window = mWindowAndroid.getWindow();
-        assert window != null;
+        if (window == null) {
+            return 0;
+        }
         return window.getDecorView().getHeight();
     }
 
     private @Px int getDecorViewWidth() {
         Window window = mWindowAndroid.getWindow();
-        assert window != null;
+        if (window == null) {
+            return 0;
+        }
         return window.getDecorView().getWidth();
     }
 
@@ -240,12 +244,17 @@ public class WebViewResizingHelper {
         @Px int height = mResizingContainer.getHeight();
 
         if (mWebContents == null
+                || mWebContents.isDestroyed()
                 || (width == mWebContents.getWidth() && height == mWebContents.getHeight())
                 || width == 0
                 || height == 0) {
             return;
         }
 
-        mWebContents.setSize(width, height);
+        if (mThinWebView != null) {
+            mThinWebView.resizeWebContents(width, height);
+        } else {
+            mWebContents.setSize(width, height);
+        }
     }
 }

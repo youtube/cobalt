@@ -472,9 +472,12 @@ class PDFiumEngine : public DocumentLoader::Client,
 
   // Loads the saved text annotations across the PDF document. Returns a map of
   // 0-based page indexes to the vector of reconstructed textboxes.
+  // `generate_text_id_callback` is called to generate a unique ID for each text
+  // annotation loaded.
   //
   // Virtual to support testing.
-  virtual DocumentInkTextBoxesMap LoadTextAnnotationsFromPdf();
+  virtual DocumentInkTextBoxesMap LoadTextAnnotationsFromPdf(
+      GenerateTextIdCallback generate_text_id_callback);
 
   // Modifies an existing shape identified by `id` on the page at `page_index`
   // to become either active or inactive. The caller must pass the same
@@ -1484,6 +1487,8 @@ class PDFiumEngine : public DocumentLoader::Client,
   // Data associated with text annotations, keyed by text IDs.
   std::map<InkTextId, InkTextData> ink_text_data_;
 #endif  // BUILDFLAG(ENABLE_PDF_INK2)
+
+  bool in_dtor_ = false;
 
   base::WeakPtrFactory<PDFiumEngine> weak_factory_{this};
 

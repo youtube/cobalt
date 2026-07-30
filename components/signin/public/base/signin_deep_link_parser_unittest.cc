@@ -11,6 +11,7 @@
 
 #include "base/strings/strcat.h"
 #include "base/test/scoped_feature_list.h"
+#include "components/signin/public/base/signin_deep_link_payload.h"
 #include "components/signin/public/base/signin_switches.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -204,33 +205,6 @@ TEST_F(CrossDeviceSigninDeepLinkParserFactoryTest, FeatureDisabled) {
   const auto parser =
       SigninDeepLinkParser::CreateForCrossDeviceSigninIfEnabled();
   ASSERT_FALSE(parser.has_value());
-}
-
-class SigninDeepLinkParserPayloadTest : public testing::Test {};
-
-TEST_F(SigninDeepLinkParserPayloadTest, HasAllRequiredFields) {
-  const SigninDeepLinkPayload payload = {
-      .entry_point_id = ExternalEntryPoint::kDesktopDefault,
-      .email = "test@gmail.com"};
-  EXPECT_TRUE(payload.HasAllRequiredFields());
-}
-
-TEST_F(SigninDeepLinkParserPayloadTest, MissingEntryPointId) {
-  const SigninDeepLinkPayload payload = {.entry_point_id = std::nullopt,
-                                         .email = "test@gmail.com"};
-  EXPECT_FALSE(payload.HasAllRequiredFields());
-}
-
-TEST_F(SigninDeepLinkParserPayloadTest, MissingEmail) {
-  const SigninDeepLinkPayload payload = {
-      .entry_point_id = ExternalEntryPoint::kDesktopDefault,
-      .email = std::nullopt};
-  EXPECT_FALSE(payload.HasAllRequiredFields());
-}
-
-TEST_F(SigninDeepLinkParserPayloadTest, MissingAllFields) {
-  const SigninDeepLinkPayload payload = {};
-  EXPECT_FALSE(payload.HasAllRequiredFields());
 }
 
 }  // namespace signin

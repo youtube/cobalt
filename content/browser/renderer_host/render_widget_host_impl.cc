@@ -377,13 +377,14 @@ RenderWidgetHostImpl* RenderWidgetHostImpl::CreateSelfOwned(
     RenderWidgetHostDelegate* delegate,
     base::SafeRef<SiteInstanceGroup> site_instance_group,
     int32_t routing_id,
-    bool hidden) {
+    bool hidden,
+    GlobalRenderFrameHostId popup_creator_frame_id) {
   viz::FrameSinkId frame_sink_id =
       DefaultFrameSinkId(*site_instance_group, routing_id);
-  return new RenderWidgetHostImpl(frame_tree, /*self_owned=*/true,
-                                  frame_sink_id, delegate,
-                                  std::move(site_instance_group), routing_id,
-                                  hidden, /*renderer_initiated_creation=*/true);
+  return new RenderWidgetHostImpl(
+      frame_tree, /*self_owned=*/true, frame_sink_id, delegate,
+      std::move(site_instance_group), routing_id, hidden,
+      /*renderer_initiated_creation=*/true, popup_creator_frame_id);
 }
 
 RenderWidgetHostImpl::InitialFrameSinkPipes::InitialFrameSinkPipes() = default;
@@ -402,7 +403,8 @@ RenderWidgetHostImpl::RenderWidgetHostImpl(
     base::SafeRef<SiteInstanceGroup> site_instance_group,
     int32_t routing_id,
     bool hidden,
-    bool renderer_initiated_creation)
+    bool renderer_initiated_creation,
+    std::optional<GlobalRenderFrameHostId> popup_creator_frame_id)
     : frame_tree_(frame_tree),
       self_owned_(self_owned),
       waiting_for_init_(renderer_initiated_creation),
@@ -427,7 +429,8 @@ RenderWidgetHostImpl::RenderWidgetHostImpl(
       compositor_metric_recorder_(
           (frame_tree && frame_tree->is_primary())
               ? std::make_unique<CompositorMetricRecorder>(this)
-              : nullptr) {
+              : nullptr),
+      popup_creator_frame_id_(popup_creator_frame_id) {
   base::ScopedUmaHistogramTimer histogram_timer(
       "Navigation.RenderWidgetHostConstructor");
 
@@ -624,6 +627,11 @@ RenderWidgetHostImpl::GetVisibleTimeRequestTrigger() {
 
 const viz::FrameSinkId& RenderWidgetHostImpl::GetFrameSinkId() {
   return frame_sink_id_;
+}
+
+std::optional<GlobalRenderFrameHostId>
+RenderWidgetHostImpl::GetPopupCreatorFrameId() const {
+  return popup_creator_frame_id_;
 }
 
 void RenderWidgetHostImpl::SendScreenRects() {
@@ -2062,6 +2070,9 @@ void RenderWidgetHostImpl::DragSourceEndedAt(const gfx::PointF& client_point,
 }
 
 void RenderWidgetHostImpl::DragSourceSystemDragEnded() {
+  if (delegate_) {
+    delegate_->OnDragSourceEnded();
+  }
   // TODO(crbug.com/40138933): Replace with a for_frame() check.
   if (!blink_frame_widget_) {
     return;
@@ -2171,12 +2182,17 @@ RenderWidgetHostImpl::GetWidgetInputHandler() {
   return GetRenderInputRouter()->GetWidgetInputHandler();
 }
 
-void RenderWidgetHostImpl::NotifyScreenInfoChanged() {
+void RenderWidgetHostImpl::NotifyScreenInfoChanged(bool ignore_ack) {
   // The resize message (which may not happen immediately) will carry with it
   // the screen info as well as the new size (if the screen has changed scale
   // factor). Force sending the new visual properties even if there is one in
-  // flight to ensure proper IPC ordering for features like the Fullscreen API.
-  SynchronizeVisualPropertiesIgnoringPendingAck();
+  // flight to ensure proper IPC ordering for features like the Fullscreen API
+  // if ignore_ack is true. Otherwise, respect the pending ACK throttle.
+  if (ignore_ack) {
+    SynchronizeVisualPropertiesIgnoringPendingAck();
+  } else {
+    SynchronizeVisualProperties();
+  }
 
   // The device scale factor will be same for all the views contained by the
   // primary main frame, so just set it once.
@@ -2914,6 +2930,9 @@ void RenderWidgetHostImpl::StartDragging(
     const gfx::Rect& drag_obj_rect_in_dip,
     blink::mojom::DragEventSourceInfoPtr event_info) {
   DropData drop_data = DragDataToDropData(*drag_data);
+  if (delegate_) {
+    delegate_->OnStartDragging(&drop_data, source_rfh.GetGlobalFrameToken());
+  }
   DropData filtered_data(drop_data);
   RenderProcessHost* process = GetProcess();
   ChildProcessSecurityPolicyImpl* policy =

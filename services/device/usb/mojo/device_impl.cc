@@ -211,15 +211,16 @@ bool DeviceImpl::HasControlTransferPermission(
     if (base::FeatureList::IsEnabled(
             features::kWebUsbEnforceStandardRequestAllowlist)) {
       // Reject all Standard requests except fundamental inspection and
-      // discovery commands (GET_STATUS, GET_DESCRIPTOR, GET_CONFIGURATION,
-      // GET_INTERFACE, SYNCH_FRAME). Legitimate configuration and feature
-      // management must be performed via dedicated WebIDL methods (e.g.,
-      // selectConfiguration).
-      if (request == kUsbRequestGetStatus ||
-          request == kUsbRequestGetDescriptor ||
-          request == kUsbRequestGetConfiguration ||
-          request == kUsbRequestGetInterface ||
-          request == kUsbRequestSynchFrame) {
+      // discovery inbound commands (GET_STATUS, GET_DESCRIPTOR,
+      // GET_CONFIGURATION, GET_INTERFACE, SYNCH_FRAME). Legitimate
+      // configuration and feature management must be performed via dedicated
+      // WebIDL methods (e.g., selectConfiguration).
+      if (direction == UsbTransferDirection::INBOUND &&
+          (request == kUsbRequestGetStatus ||
+           request == kUsbRequestGetDescriptor ||
+           request == kUsbRequestGetConfiguration ||
+           request == kUsbRequestGetInterface ||
+           request == kUsbRequestSynchFrame)) {
         base::UmaHistogramEnumeration(
             "WebUsb.ControlTransferPermissionOutcome",
             WebUsbControlTransferPermissionOutcome::kAllowed);
@@ -381,7 +382,7 @@ void DeviceImpl::Close(CloseCallback callback) {
 
 void DeviceImpl::SetConfiguration(uint8_t value,
                                   SetConfigurationCallback callback) {
-  if (device_state_change_in_progress_) {
+  if (device_->state_change_in_progress()) {
     mojo::ReportBadMessage("Device state change in progress.");
     std::move(callback).Run(false);
     return;
@@ -391,7 +392,7 @@ void DeviceImpl::SetConfiguration(uint8_t value,
     return;
   }
 
-  device_state_change_in_progress_ = true;
+  device_->set_state_change_in_progress(true);
   device_handle_->SetConfiguration(
       value, base::BindOnce(&DeviceImpl::OnSetConfigurationComplete,
                             weak_factory_.GetWeakPtr(), std::move(callback)));
@@ -399,7 +400,7 @@ void DeviceImpl::SetConfiguration(uint8_t value,
 
 void DeviceImpl::ClaimInterface(uint8_t interface_number,
                                 ClaimInterfaceCallback callback) {
-  if (device_state_change_in_progress_) {
+  if (device_->state_change_in_progress()) {
     mojo::ReportBadMessage("Device state change in progress.");
     std::move(callback).Run(mojom::UsbClaimInterfaceResult::kFailure);
     return;
@@ -438,7 +439,7 @@ void DeviceImpl::ClaimInterface(uint8_t interface_number,
 
 void DeviceImpl::ReleaseInterface(uint8_t interface_number,
                                   ReleaseInterfaceCallback callback) {
-  if (device_state_change_in_progress_) {
+  if (device_->state_change_in_progress()) {
     mojo::ReportBadMessage("Device state change in progress.");
     std::move(callback).Run(false);
     return;
@@ -455,7 +456,7 @@ void DeviceImpl::SetInterfaceAlternateSetting(
     uint8_t interface_number,
     uint8_t alternate_setting,
     SetInterfaceAlternateSettingCallback callback) {
-  if (device_state_change_in_progress_) {
+  if (device_->state_change_in_progress()) {
     mojo::ReportBadMessage("Device state change in progress.");
     std::move(callback).Run(false);
     return;
@@ -488,7 +489,7 @@ void DeviceImpl::SetInterfaceAlternateSetting(
 }
 
 void DeviceImpl::Reset(ResetCallback callback) {
-  if (device_state_change_in_progress_) {
+  if (device_->state_change_in_progress()) {
     mojo::ReportBadMessage("Device state change in progress.");
     std::move(callback).Run(false);
     return;
@@ -498,7 +499,7 @@ void DeviceImpl::Reset(ResetCallback callback) {
     return;
   }
 
-  device_state_change_in_progress_ = true;
+  device_->set_state_change_in_progress(true);
   device_handle_->ResetDevice(base::BindOnce(&DeviceImpl::OnResetComplete,
                                              weak_factory_.GetWeakPtr(),
                                              std::move(callback)));
@@ -678,12 +679,12 @@ void DeviceImpl::OnInterfaceClaimed(ClaimInterfaceCallback callback,
 
 void DeviceImpl::OnSetConfigurationComplete(SetConfigurationCallback callback,
                                             bool success) {
-  device_state_change_in_progress_ = false;
+  device_->set_state_change_in_progress(false);
   std::move(callback).Run(success);
 }
 
 void DeviceImpl::OnResetComplete(ResetCallback callback, bool success) {
-  device_state_change_in_progress_ = false;
+  device_->set_state_change_in_progress(false);
   std::move(callback).Run(success);
 }
 

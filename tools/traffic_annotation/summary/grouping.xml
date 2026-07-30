@@ -277,7 +277,6 @@ after discussions on the right group.
       <annotation id="wallpaper_search_handler_inspiration_image_downloader"/>
       <annotation id="model_quality_logging"/>
       <annotation id="wallpaper_create_themes_model_execution"/>
-      <annotation id="tab_organizer_model_execution"/>
       <annotation id="help_me_write_model_execution"/>
       <annotation id="controlled_frame_content_scripts_download"/>
       <annotation id="essential_search_manager"/>
@@ -406,6 +405,9 @@ after discussions on the right group.
       <annotation id="web_app_custom_icon_fetcher"/>
       <annotation id="suggestions_powered_by_ai"/>
       <annotation id="preload_activation_beacon"/>
+      <annotation id="ambient_autofill_request"/>
+      <annotation id="chrome_sync_preview_fetcher"/>
+      <annotation id="drive_thumbnail_source"/>
     </sender>
   </group>
   <group name="Admin Features" hidden="true">
@@ -517,6 +519,7 @@ after discussions on the right group.
       <annotation id="gaia_oauth_client_refresh_token"/>
       <annotation id="oauth2_access_token_fetcher"/>
       <annotation id="oauth2_mint_token_flow"/>
+      <annotation id="oauth2_upgrade_token_flow"/>
       <annotation id="safe_search_service"/>
     </sender>
     <sender name="Payments">

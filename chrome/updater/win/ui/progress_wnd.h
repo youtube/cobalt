@@ -59,6 +59,7 @@ class ProgressWnd : public CompleteWnd, public AppInstallProgress {
 
   CR_BEGIN_MSG_MAP_EX(ProgressWnd)
     CR_MESSAGE_HANDLER_EX(WM_INITDIALOG, OnInitDialog)
+    CR_MESSAGE_HANDLER_EX(WM_SIZE, OnSize)
     CR_MESSAGE_HANDLER_EX(WM_ERASEBKGND, OnEraseBkgnd)
     CR_MESSAGE_HANDLER_EX(WM_SYSCOLORCHANGE, OnSysColorChange)
     CR_MESSAGE_HANDLER_EX(WM_SETTINGCHANGE, OnSettingChange)
@@ -128,6 +129,7 @@ class ProgressWnd : public CompleteWnd, public AppInstallProgress {
   void OnComplete(const ObserverCompletionInfo& observer_info) override;
 
   LRESULT OnInitDialog(UINT msg, WPARAM wparam, LPARAM lparam);
+  LRESULT OnSize(UINT msg, WPARAM wparam, LPARAM lparam);
   void OnClickedButton(UINT notify_code, int id, HWND wnd_ctl);
   LRESULT OnEraseBkgnd(UINT msg, WPARAM wparam, LPARAM lparam);
   LRESULT OnSysColorChange(UINT msg, WPARAM wparam, LPARAM lparam);
@@ -143,6 +145,7 @@ class ProgressWnd : public CompleteWnd, public AppInstallProgress {
   HRESULT SetMarqueeMode(bool is_marquee);
 
   void HandleCancelRequest();
+  void UpdateWindowRgn();
 
   void DeterminePostInstallUrls(const ObserverCompletionInfo& info);
 
@@ -166,14 +169,14 @@ class ProgressWnd : public CompleteWnd, public AppInstallProgress {
 
   static const ControlState ctls_[];
 
-  // The speed by which the progress bar moves in marquee mode.
-  static constexpr int kMarqueeModeUpdatesMs = 75;
+  // Background image cache for both light and dark themes.
+  base::win::ScopedGDIObject<HBITMAP> light_bg_bmp_;
+  base::win::ScopedGDIObject<HBITMAP> dark_bg_bmp_;
 
-  // Cached brush used to fill the background of text static controls in
-  // dark mode (see `OnCtlColorStatic`). Created lazily on first use and
-  // reset whenever the system theme changes so the next paint picks up
-  // the new colors.
-  base::win::ScopedGDIObject<HBRUSH> dark_static_brush_;
+  HBITMAP GetBackgroundBitmap();
+
+  // The speed by which the progress bar moves in marquee mode.
+  static constexpr int kMarqueeModeUpdatesMs = 15;
 
   CR_MSG_MAP_CLASS_DECLARATIONS(ProgressWnd)
 };

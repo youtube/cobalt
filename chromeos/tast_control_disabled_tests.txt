@@ -142,4 +142,10 @@ tast.crash.ValidateFirmwareDumpGeneration.policy_wifi@brya
 # b/514426993
 tast.secagentd.AuthenticationEvents@octopus
 
+# b/505776070
+tast.hwsec.CrossVersionChromeLogin.ti50_r112
+tast.hwsec.CrossVersionChromeLogin.ti50_r114
+tast.hwsec.CrossVersionChromeLogin.ti50_r120
+tast.hwsec.CrossVersionChromeLogin.ti50_r125
+
 # READ COMMENT AT TOP BEFORE ADDING NEW TESTS HERE.

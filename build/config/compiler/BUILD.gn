@@ -96,8 +96,7 @@ declare_args() {
   # nonsensical for said projects.
   clang_use_default_sample_profile =
       chrome_pgo_phase == 0 && build_with_chromium && is_official_build &&
-      ((is_android && !is_high_end_android) || chromeos_is_browser_only) &&
-      !is_cronet_build
+      is_android && !is_high_end_android && !is_cronet_build
 
   # This configuration is used to select a default profile in Chrome OS based on
   # the microarchitectures we are using. This is only used if
@@ -1045,17 +1044,6 @@ config("linker") {
   if (!is_win) {
     if (linker_path != "") {
       inputs = [ linker_path ]
-
-      if (use_mold) {
-        # Wrapper needed to strip unsupported: --use-android-relr-tags
-        # https://github.com/rui314/mold/issues/1544
-        _wrapper = "//buildtools/third_party/mold/mold_wrapper.py"
-        inputs += [ _wrapper ]
-        ldflags +=
-            [ "-Wl,--linker-path=" + rebase_path(linker_path, root_build_dir) ]
-        linker_path = _wrapper
-      }
-
       ldflags += [ "--ld-path=" + rebase_path(linker_path, root_build_dir) ]
     } else if (use_lld) {
       ldflags += [ "-fuse-ld=lld" ]
@@ -1158,8 +1146,9 @@ config("linker") {
     ldflags += [ "-Wl,--no-rosegment" ]
   }
 
-  if (is_android && experimental_linker_path != "") {
+  if (is_android && linker_path != "") {
     # Wild linker does not support the default of android+relr.
+    # Mold has a bug: https://github.com/rui314/mold/issues/1595
     ldflags += [ "-Wl,--pack-dyn-relocs=relr" ]
   }
 
@@ -2461,7 +2450,9 @@ if (is_win) {
   if (is_android && (use_lld || use_mold)) {
     # TODO(jdduke) Re-enable on mips after resolving linking
     # issues with libc++ (crbug.com/456380).
-    if (current_cpu != "mipsel" && current_cpu != "mips64el") {
+    # ffmpeg x86 asm has textrels. See: https://crbug.com/911658#c19
+    if (current_cpu != "mipsel" && current_cpu != "mips64el" &&
+        current_cpu != "x86") {
       common_optimize_on_ldflags += [
         # Warn in case of text relocations.
         "-Wl,--warn-shared-textrel",
@@ -2530,6 +2521,7 @@ config("default_stack_frames") {
       cflags = [ "-fomit-frame-pointer" ]
     }
   }
+
   # On Windows, the flag to enable framepointers "/Oy-" must always come after
   # the optimization flag [e.g. "/O2"]. The optimization flag is set by one of
   # the "optimize" configs, see rest of this file. The ordering that cflags are
@@ -2539,6 +2531,10 @@ config("default_stack_frames") {
   # config into the "optimize" config. We always apply the "/Oy-" config in the
   # definition for common_optimize_on_cflags definition, even though this may
   # not be correct.
+
+  if (enable_frame_pointers) {
+    rustflags = [ "-Cforce-frame-pointers=yes" ]
+  }
 }
 
 # Default "optimization on" config.

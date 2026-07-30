@@ -181,8 +181,8 @@ declare namespace chrome {
 
     // Returns the AXTree mapping segments for the distilled block at the given
     // index. A segment links a character range within the block to its AXnode.
-    function getAxMapping(index: number):
-        Array<{axNodeId: number, start: number, end: number}>;
+    function getAxMapping(index: number): Array<
+        {axNodeId: number, start: number, end: number, axNodeOffset: number}>;
 
     // Returns whether the reading highlight is currently on.
     function isHighlightOn(): boolean;
@@ -334,6 +334,10 @@ declare namespace chrome {
 
     // Called when distillation completes with the word count.
     function onDistilled(wordCount: number): void;
+
+    // Reports a user selection attempt. A metric is logged if text mapping is
+    // still in progress. (One time per-navigation).
+    function attemptLogEarlySelection(fromSidePanel: boolean): void;
 
     // Called by the Read Anything app to provide the rendered text blocks from
     // the distilled content for AXTree mapping.

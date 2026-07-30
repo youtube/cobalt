@@ -286,8 +286,7 @@ const std::u16string LensOverlayController::GetFilenameForURL(const GURL& url) {
     return u"screenshot.png";
   }
 
-  return base::ASCIIToUTF16(
-      base::StrCat({"screenshot_", url.GetHost(), ".png"}));
+  return base::ASCIIToUTF16(base::StrCat({"screenshot_", url.host(), ".png"}));
 }
 
 void LensOverlayController::BindOverlay(
@@ -730,8 +729,7 @@ void LensOverlayController::ShowUI(
   }
   ShowModalUI();
   fullscreen_subscription_ =
-      tab_->GetBrowserWindowInterface()
-          ->GetExclusiveAccessManager()
+      ExclusiveAccessManager::From(tab_->GetBrowserWindowInterface())
           ->fullscreen_controller()
           ->RegisterOnFullscreenStateChanged(base::BindRepeating(
               &LensOverlayController::OnFullscreenStateChanged,
@@ -2052,7 +2050,7 @@ bool LensOverlayController::IsUrlEligibleForTutorialIPH(const GURL& url) {
   // the block matcher. If it does contain blocked words in its path, return
   // false to prevent the IPH from being shown.
   if (page_path_block_matcher_ && !page_path_block_matcher_->IsEmpty() &&
-      page_path_block_matcher_->Match(url.GetPath(), &matches)) {
+      page_path_block_matcher_->Match(url.path(), &matches)) {
     return false;
   }
 
@@ -2067,7 +2065,7 @@ bool LensOverlayController::IsUrlEligibleForTutorialIPH(const GURL& url) {
   // Finally, check if the URL matches any of the allowed patterns. If it
   // doesn't, return false to prevent the IPH from being shown.
   if (page_path_allow_matcher_ && !page_path_allow_matcher_->IsEmpty() &&
-      !page_path_allow_matcher_->Match(url.GetPath(), &matches)) {
+      !page_path_allow_matcher_->Match(url.path(), &matches)) {
     return false;
   }
 

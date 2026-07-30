@@ -6,11 +6,11 @@
 
 #include "ash/constants/ash_features.h"
 #include "ash/constants/ash_pref_names.h"
+#include "ash/constants/chrome_pref_names.h"
 #include "ash/webui/boca_ui/boca_ui.h"
 #include "base/version_info/channel.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/common/pref_names.h"
 #include "chromeos/ash/components/boca/boca_role_util.h"
 #include "chromeos/ash/components/browser_context_helper/browser_context_helper.h"
 #include "chromeos/ash/components/channel/channel_info.h"
@@ -67,11 +67,14 @@ class ChromeBocaUIDelegate : public ash::boca::BocaUIDelegate {
     source->AddBoolean("navSettingsDialog",
                        features::IsBocaNavSettingsDialogEnabled());
     source->AddBoolean("captionToggle", features::IsBocaCaptionToggleEnabled());
+    source->AddBoolean("materialTypeIndicator",
+                       features::IsBocaMaterialTypeUiIndicatorEnabled());
 
     source->AddBoolean("spotlightNativeClientUpdate",
                        features::IsBocaSpotlightRobotRequesterEnabled());
-    source->AddBoolean("userFeedbackAllowed",
-                       pref_service->GetBoolean(::prefs::kUserFeedbackAllowed));
+    source->AddBoolean(
+        "userFeedbackAllowed",
+        pref_service->GetBoolean(ash::chrome_prefs::kUserFeedbackAllowed));
     if (features::IsBocaConfigureMaxStudentsEnabled()) {
       source->AddInteger("maxNumStudentsAllowed",
                          features::kBocaMaxNumStudentsAllowed.Get());
@@ -83,11 +86,9 @@ class ChromeBocaUIDelegate : public ash::boca::BocaUIDelegate {
 
     source->AddBoolean("geminiIntegration",
                        features::IsBocaGeminiIntegrationEnabled());
-    if (features::IsBocaGeminiIntegrationEnabled()) {
-      source->AddString("geminiUrl", features::kBocaGeminiUrl.Get());
-      source->AddString("geminiGuidedLearningUrl",
-                        features::kBocaGeminiGuidedLearningUrl.Get());
-    }
+    source->AddString("geminiUrl", features::kBocaGeminiUrl.Get());
+    source->AddString("geminiGuidedLearningUrl",
+                      features::kBocaGeminiGuidedLearningUrl.Get());
   }
 
  private:

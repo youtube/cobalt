@@ -32,17 +32,17 @@ class BlobBytesProviderTest : public testing::Test {
     for (wtf_size_t i = 0; i < test_bytes1_.size(); ++i)
       test_bytes1_[i] = i % 191;
     test_data1_ = RawData::Create();
-    test_data1_->MutableData()->append_range(test_bytes1_);
+    test_data1_->MutableData().append_range(test_bytes1_);
     test_bytes2_.resize(64);
     for (wtf_size_t i = 0; i < test_bytes2_.size(); ++i)
       test_bytes2_[i] = i;
     test_data2_ = RawData::Create();
-    test_data2_->MutableData()->append_range(test_bytes2_);
+    test_data2_->MutableData().append_range(test_bytes2_);
     test_bytes3_.resize(32);
     for (wtf_size_t i = 0; i < test_bytes3_.size(); ++i)
       test_bytes3_[i] = (i + 10) % 137;
     test_data3_ = RawData::Create();
-    test_data3_->MutableData()->append_range(test_bytes3_);
+    test_data3_->MutableData().append_range(test_bytes3_);
 
     combined_bytes_.append_range(test_bytes1_);
     combined_bytes_.append_range(test_bytes2_);
@@ -78,15 +78,16 @@ TEST_F(BlobBytesProviderTest, Consolidation) {
   auto data = CreateProvider();
   DCHECK_CALLED_ON_VALID_SEQUENCE(data->sequence_checker_);
 
-  data->AppendData(base::span_from_cstring("abc"));
-  data->AppendData(base::span_from_cstring("def"));
-  data->AppendData(base::span_from_cstring("ps1"));
-  data->AppendData(base::span_from_cstring("ps2"));
+  data->AppendData(base::byte_span_from_cstring("abc"));
+  data->AppendData(base::byte_span_from_cstring("def"));
+  data->AppendData(base::byte_span_from_cstring("ps1"));
+  data->AppendData(base::byte_span_from_cstring("ps2"));
 
   EXPECT_EQ(1u, data->data_.size());
-  EXPECT_EQ(data->data_[0]->span(), base::span_from_cstring("abcdefps1ps2"));
+  EXPECT_EQ(base::span(*data->data_[0]),
+            base::span_from_cstring("abcdefps1ps2"));
 
-  auto large_data = base::HeapArray<char>::WithSize(
+  auto large_data = base::HeapArray<uint8_t>::WithSize(
       BlobBytesProvider::kMaxConsolidatedItemSizeInBytes);
   data->AppendData(large_data);
 

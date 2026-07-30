@@ -14,6 +14,7 @@
 #import "components/autofill/core/browser/form_import/payments/payments_form_data_importer.h"
 #import "components/autofill/ios/browser/autofill_client_ios.h"
 #import "components/autofill/ios/form_util/form_activity_params.h"
+#import "ios/chrome/browser/autofill/model/bottom_sheet/autofill_bottom_sheet_tab_helper.h"
 #import "ios/chrome/browser/autofill/scan_save_and_fill/ui/payments_scan_save_and_fill_offer_bottom_sheet_consumer.h"
 #import "ios/web/public/web_state.h"
 
@@ -58,36 +59,55 @@
     base::UmaHistogramTimes("IOS.ScanCardBottomSheet.TimeToSelection",
                             _viewDidAppearTimer->Elapsed());
   }
+}
 
-  if (!_provider) {
-    return;
-  }
+- (ProceduralBlock)postDismissBlock {
+  __weak id<FormInputSuggestionsProvider> weakProvider = _provider;
+  autofill::FormActivityParams params = _params;
+  return ^{
+    if (!weakProvider) {
+      return;
+    }
 
-  // Create a form suggestion containing and set the suggestion type as
-  // `kSaveAndFillCreditCardEntry` value so that the provider can identify it.
-  FormSuggestion* suggestion = [FormSuggestion
-              suggestionWithValue:nil
-                       minorValue:nil
-               displayDescription:nil
-                             icon:nil
-                             type:autofill::SuggestionType::
-                                      kSaveAndFillCreditCardEntry
-                          payload:autofill::Suggestion::AutofillProfilePayload(
-                                      autofill::Suggestion::Guid(""))
-      fieldByFieldFillingTypeUsed:autofill::EMPTY_TYPE
-                   requiresReauth:NO
-       acceptanceA11yAnnouncement:nil];
+    // Create a form suggestion containing and set the suggestion type as
+    // `kSaveAndFillCreditCardEntry` value so that the provider can identify it.
+    FormSuggestion* suggestion = [FormSuggestion
+                suggestionWithValue:nil
+                         minorValue:nil
+                 displayDescription:nil
+                               icon:nil
+                               type:autofill::SuggestionType::
+                                        kSaveAndFillCreditCardEntry
+                            payload:autofill::Suggestion::
+                                        AutofillProfilePayload(
+                                            autofill::Suggestion::Guid(""))
+        fieldByFieldFillingTypeUsed:autofill::EMPTY_TYPE
+                     requiresReauth:NO
+         acceptanceA11yAnnouncement:nil];
 
-  [_provider didSelectSuggestion:suggestion
-                         atIndex:0
-                          params:_params
-                      completion:nil];
+    [weakProvider didSelectSuggestion:suggestion
+                              atIndex:0
+                               params:params
+                           completion:nil];
+  };
 }
 
 - (void)didCancelScanCardSuggestion {
   // If the user explicitly cancel the scan card bottom sheet offer, we should
   // not offer save card promo after the user submit the same form.
   [self setCardSubmittedThroughScanSaveAndFill];
+  [self refocus];
+}
+
+- (void)refocus {
+  if (!_webState) {
+    return;
+  }
+  AutofillBottomSheetTabHelper* tabHelper =
+      AutofillBottomSheetTabHelper::FromWebState(_webState);
+  if (tabHelper) {
+    tabHelper->RefocusElementIfNeeded(_params.frame_id);
+  }
 }
 
 - (void)disconnect {

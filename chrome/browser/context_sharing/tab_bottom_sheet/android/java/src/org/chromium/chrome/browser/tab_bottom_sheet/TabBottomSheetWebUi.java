@@ -11,6 +11,7 @@ import static org.chromium.chrome.browser.tab_bottom_sheet.TabBottomSheetUtils.i
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.res.Configuration;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewTreeObserver;
 
@@ -68,7 +69,7 @@ public class TabBottomSheetWebUi {
     }
 
     @SuppressLint("ClickableViewAccessibility")
-    void setWebContents(@Nullable WebContents webContents) {
+    void setWebContents(@Nullable WebContents webContents, boolean requestFocus) {
         if (mWebContents == webContents) {
             return;
         }
@@ -105,6 +106,16 @@ public class TabBottomSheetWebUi {
                                     .getViewTreeObserver()
                                     .removeOnWindowFocusChangeListener(mListener);
                         }
+                    });
+
+            // Use OnTouchListener instead of OnClickListener to avoid consuming the click event,
+            // which would prevent it from reaching the web content.
+            contentView.setOnTouchListener(
+                    (v, event) -> {
+                        if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                            contentView.requestFocus();
+                        }
+                        return false;
                     });
 
             // Most systems assume ViewAndroidDelegate is created alongside WebContents and never
@@ -150,13 +161,17 @@ public class TabBottomSheetWebUi {
                                 == Configuration.ORIENTATION_LANDSCAPE);
             }
 
-            // Only request focus once the web contents have been attached to the activity's layout
-            // tree.
-            View currentFocus = assertNonNull(mWindowAndroid.getActivity().get()).getCurrentFocus();
-            if (currentFocus != null) {
-                currentFocus.clearFocus();
+            if (requestFocus) {
+                // Only request focus once the web contents have been attached to the activity's
+                // layout
+                // tree.
+                View currentlyFocusedView =
+                        assertNonNull(mWindowAndroid.getActivity().get()).getCurrentFocus();
+                if (currentlyFocusedView != null) {
+                    currentlyFocusedView.clearFocus();
+                }
+                contentView.requestFocus();
             }
-            contentView.requestFocus();
         } else {
             destroyThinWebView();
         }
@@ -226,6 +241,7 @@ public class TabBottomSheetWebUi {
         ThinWebViewConstraints constraints = new ThinWebViewConstraints();
         constraints.supportsOpacity = true;
         constraints.backgroundColor = mBackgroundColor;
+        constraints.ignoreSizeChanges = true;
         mThinWebView =
                 ThinWebViewFactory.create(
                         mContext,

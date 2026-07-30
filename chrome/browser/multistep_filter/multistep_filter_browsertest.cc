@@ -17,6 +17,7 @@
 #include "chrome/browser/multistep_filter/core/multistep_filter_service_factory.h"
 #include "chrome/browser/multistep_filter/ui/filter_ui_controller.h"
 #include "chrome/browser/multistep_filter/ui/filter_ui_controller_test_api.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
@@ -32,7 +33,9 @@
 #include "components/multistep_filter/core/multistep_filter_service.h"
 #include "components/multistep_filter/core/multistep_filter_service_test_api.h"
 #include "components/multistep_filter/core/switches.h"
+#include "components/prefs/pref_service.h"
 #include "components/signin/public/identity_manager/identity_test_utils.h"
+#include "components/unified_consent/pref_names.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/test_navigation_observer.h"
 #include "net/dns/mock_host_resolver.h"
@@ -73,7 +76,9 @@ class MultistepFilterBrowserTest
     scoped_feature_list_.InitAndEnableFeatureWithParameters(
         kMultistepFilter,
         {{kAllowedDomainsParam,
-          std::string(kTestAllowedDomain) + "," + kTestAllowedDomain2}});
+          std::string(kTestAllowedDomain) + "," + kTestAllowedDomain2},
+         {kCueTemplatesMap.name,
+          "{\"test_task\": {\"template\": \"Template\"}}"}});
   }
   ~MultistepFilterBrowserTest() override = default;
 
@@ -107,6 +112,9 @@ class MultistepFilterBrowserTest
         IdentityManagerFactory::GetForProfile(browser()->profile());
     signin::MakePrimaryAccountAvailable(identity_manager, kTestEmail,
                                         signin::ConsentLevel::kSignin);
+
+    browser()->profile()->GetPrefs()->SetBoolean(
+        unified_consent::prefs::kUrlKeyedAnonymizedDataCollectionEnabled, true);
 
     service_ =
         MultistepFilterServiceFactory::GetForProfile(browser()->profile());
@@ -190,10 +198,13 @@ IN_PROC_BROWSER_TEST_F(MultistepFilterBrowserTest,
   base::Uuid annotation_id = std::move(extraction_result).value();
   EXPECT_FALSE(suggestion_future_.Take().has_value());
 
-  fake_server().SetExecutionStrategiesResponse(
+  GetTaskExecutionStrategiesResponse execution_strategies_response =
       CreateTaskExecutionStrategiesResponse(
           suggestion_url, {{kTestAttributeKey, kTestAttributeValue},
-                           {kTestAttributeKey2, kTestAttributeValue2}}));
+                           {kTestAttributeKey2, kTestAttributeValue2}});
+  execution_strategies_response.mutable_execution_strategies(0)
+      ->set_candidate_id(annotation_id.AsLowercaseString());
+  fake_server().SetExecutionStrategiesResponse(execution_strategies_response);
   fake_server().SetExtractResponse(ExtractTaskAttributesResponse());
 
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), suggestion_trigger_url));

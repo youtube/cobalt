@@ -38,6 +38,7 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.robolectric.shadow.api.Shadow;
 
+import org.chromium.base.Callback;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.metrics.UmaRecorderHolder;
 import org.chromium.base.supplier.ObservableSuppliers;
@@ -51,6 +52,7 @@ import org.chromium.chrome.browser.omnibox.status.StatusProperties.StatusIconRes
 import org.chromium.chrome.browser.omnibox.suggestions.CachedZeroSuggestionsManager;
 import org.chromium.chrome.browser.omnibox.suggestions.CachedZeroSuggestionsManager.JumpStartContext;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.search_engines.SearchEngineType;
 import org.chromium.chrome.browser.search_engines.TemplateUrlServiceFactory;
 import org.chromium.chrome.browser.ui.favicon.FaviconHelper;
 import org.chromium.chrome.browser.url_constants.UrlConstantResolver;
@@ -60,6 +62,7 @@ import org.chromium.components.omnibox.AutocompleteRequestType;
 import org.chromium.components.omnibox.OmniboxFeatures;
 import org.chromium.components.omnibox.ToolConfigProto.ToolConfig;
 import org.chromium.components.omnibox.ToolModeProto.ToolMode;
+import org.chromium.components.search_engines.StarterPackId;
 import org.chromium.components.search_engines.TemplateUrl;
 import org.chromium.components.search_engines.TemplateUrlService;
 import org.chromium.url.GURL;
@@ -78,6 +81,7 @@ public class SearchEngineUtilsUnitTest {
     @Mock FaviconHelper mFaviconHelper;
     @Mock TemplateUrlService mTemplateUrlService;
     @Mock TemplateUrl mTemplateUrl;
+    @Mock Callback<StatusIconResource> mStarterPackCallback;
     @Mock LocaleManagerDelegate mLocaleManagerDelegate;
     @Mock Resources mResources;
     @Mock Profile mProfile;
@@ -104,6 +108,9 @@ public class SearchEngineUtilsUnitTest {
         doReturn(faviconUrl).when(mTemplateUrl).getFaviconURL();
         doReturn(mTemplateUrl).when(mTemplateUrlService).getDefaultSearchEngineTemplateUrl();
         doReturn(false).when(mTemplateUrlService).isDefaultSearchEngineGoogle();
+        doReturn(SearchEngineType.SEARCH_ENGINE_OTHER)
+                .when(mTemplateUrlService)
+                .getSearchEngineTypeFromTemplateUrl(any());
         doReturn(true)
                 .when(mFaviconHelper)
                 .getLocalFaviconImageForURL(any(), any(), anyInt(), anyBoolean(), any());
@@ -209,6 +216,9 @@ public class SearchEngineUtilsUnitTest {
 
         // Simulate DSE change to Google.
         doReturn(true).when(mTemplateUrlService).isDefaultSearchEngineGoogle();
+        doReturn(SearchEngineType.SEARCH_ENGINE_GOOGLE)
+                .when(mTemplateUrlService)
+                .getSearchEngineTypeFromTemplateUrl(any());
         searchEngineUtils.onTemplateURLServiceChanged();
 
         verify(mEngineIconObserver).onSearchEngineIconChanged(mStatusIconCaptor.capture());
@@ -219,6 +229,12 @@ public class SearchEngineUtilsUnitTest {
 
     private void configureSearchEngine(String keyword, String shortName) {
         doReturn("google".equals(keyword)).when(mTemplateUrlService).isDefaultSearchEngineGoogle();
+        doReturn(
+                        "google".equals(keyword)
+                                ? SearchEngineType.SEARCH_ENGINE_GOOGLE
+                                : SearchEngineType.SEARCH_ENGINE_OTHER)
+                .when(mTemplateUrlService)
+                .getSearchEngineTypeFromTemplateUrl(any());
         doReturn(keyword).when(mTemplateUrl).getKeyword();
         doReturn(shortName).when(mTemplateUrl).getShortName();
     }
@@ -707,5 +723,52 @@ public class SearchEngineUtilsUnitTest {
 
         // Reset for testing
         OmniboxFeatures.sUseAskHintForNtp.setForTesting(false);
+    }
+
+    @Test
+    public void testIsDefaultSearchEngineGoogle() {
+        var searchEngineUtils = new SearchEngineUtils(mProfile, mFaviconHelper);
+
+        doReturn(true).when(mTemplateUrlService).isDefaultSearchEngineGoogle();
+        assertTrue(searchEngineUtils.isDefaultSearchEngineGoogle());
+
+        doReturn(false).when(mTemplateUrlService).isDefaultSearchEngineGoogle();
+        assertFalse(searchEngineUtils.isDefaultSearchEngineGoogle());
+    }
+
+    @Test
+    public void testRetrieveFavicon_Gemini() {
+        checkStarterPackFavicon(StarterPackId.GEMINI, R.drawable.ic_spark_4c_16dp);
+    }
+
+    @Test
+    public void testRetrieveFavicon_Bookmarks() {
+        checkStarterPackFavicon(StarterPackId.BOOKMARKS, R.drawable.ic_star_24dp);
+    }
+
+    @Test
+    public void testRetrieveFavicon_History() {
+        checkStarterPackFavicon(StarterPackId.HISTORY, R.drawable.ic_history_24dp);
+    }
+
+    @Test
+    public void testRetrieveFavicon_Tabs() {
+        checkStarterPackFavicon(StarterPackId.TABS, R.drawable.switch_to_tab);
+    }
+
+    private void checkStarterPackFavicon(
+            @StarterPackId int starterPackId, int expectedDrawableRes) {
+        var searchEngineUtils = new SearchEngineUtils(mProfile, mFaviconHelper);
+        HistogramWatcher histograms =
+                HistogramWatcher.newBuilder()
+                        .expectIntRecord(EVENTS_HISTOGRAM, SearchEngineUtils.Events.FETCH_SUCCESS)
+                        .build();
+        doReturn(starterPackId).when(mTemplateUrl).getStarterPackId();
+
+        searchEngineUtils.retrieveFavicon(mTemplateUrl, mStarterPackCallback);
+
+        verify(mStarterPackCallback).onResult(mStatusIconCaptor.capture());
+        assertEquals(expectedDrawableRes, mStatusIconCaptor.getValue().getIconRes());
+        histograms.assertExpected();
     }
 }

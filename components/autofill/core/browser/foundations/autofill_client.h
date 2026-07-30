@@ -33,6 +33,7 @@
 #include "components/autofill/core/common/unique_ids.h"
 #include "components/profile_metrics/browser_profile_type.h"
 #include "components/security_state/core/security_state.h"
+#include "net/base/schemeful_site.h"
 #include "ui/gfx/geometry/rect_f.h"
 
 namespace net {
@@ -228,6 +229,14 @@ class AutofillClient {
     // accepted the edits.
     kEditAccepted = 6,
     kMaxValue = kEditAccepted
+  };
+
+  // Represents the user's decision or outcome in response to the email
+  // verification prompt.
+  enum class EmailVerificationPermissionUiResult {
+    kAccepted = 0,
+    kDeclined = 1,
+    kIgnored = 2,
   };
 
   // Describes the types of Iph shown by Autofill and anchored to a field.
@@ -587,8 +596,11 @@ class AutofillClient {
       AutofillSuggestionTriggerSource trigger_source,
       AutofillSuggestionsIgnoreFocusLoss ignore_focus_loss);
 
-  // Hides the Autofill suggestions UI if it is currently showing.
-  virtual void HideAutofillSuggestions(SuggestionHidingReason reason) = 0;
+  // Hides the suggestions UI if it is currently showing.
+  // If `product` is specified, only hides suggestions if they belong to that
+  // specific `FillingProduct`.
+  virtual void HideSuggestions(SuggestionHidingReason reason,
+                               std::optional<FillingProduct> product) = 0;
 
   // Maybe triggers a hats survey that measures the user's perception of
   // Autofill. When triggering happens, the survey dialog will be displayed with
@@ -775,18 +787,17 @@ class AutofillClient {
   // Notifies the user that operation to fetch data from Wallet failed.
   virtual void ShowAutofillAiFetchFromWalletFailureNotification();
 
-  virtual void ShowEmailVerifiedToast();
+  virtual void ShowEmailVerifiedToast(const GURL& issuer);
 
   // Shows a yes/no prompt asking the user to confirm that they want to verify
   // their email. The prompt is anchored on the field at `element_bounds`.
   // `issuer_site` is the site that issued the assertion.
-  // `callback` is called with the user's decision (true for yes, false for no).
-  // Dismissing the bubble is treated as no.
+  // `callback` is called with the user's decision (accept, decline, or ignore).
   virtual void ShowEmailVerificationPopup(
       const gfx::RectF& element_bounds,
       const net::SchemefulSite& issuer_site,
       const std::u16string& email,
-      base::OnceCallback<void(bool)> callback);
+      base::OnceCallback<void(EmailVerificationPermissionUiResult)> callback);
 
   // May return null on platforms where OTPs are not supported.
   virtual OtpFieldDetector* GetOtpFieldDetector();

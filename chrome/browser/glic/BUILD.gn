@@ -40,6 +40,8 @@ source_set("glic") {
     "host/context/glic_sharing_manager_provider.h",
     "host/glic_annotation_manager.h",
     "host/glic_cookie_synchronizer.h",
+    "host/glic_drag_and_drop_util.cc",
+    "host/glic_drag_and_drop_util.h",
     "host/glic_internals_page_handler.h",
     "host/glic_page_handler.h",
     "host/glic_skills_manager.h",
@@ -197,6 +199,7 @@ if (is_android) {
     sources =
         [ "android/java/src/org/chromium/chrome/browser/glic/GlicMetrics.java" ]
     deps = [
+      ":public_java",
       "//base:base_java",
       "//build/android:build_java",
       "//third_party/androidx:androidx_annotation_annotation_java",
@@ -250,6 +253,8 @@ source_set("glic_metrics") {
     "service/metrics/glic_instance_helper_metrics.h",
     "service/metrics/glic_instance_metrics.cc",
     "service/metrics/glic_instance_metrics.h",
+    "service/metrics/glic_invoke_metrics.cc",
+    "service/metrics/glic_invoke_metrics.h",
     "service/metrics/glic_metrics_session_manager.cc",
     "service/metrics/glic_metrics_session_manager.h",
   ]
@@ -266,6 +271,9 @@ source_set("glic_metrics") {
     "//content/public/browser",
     "//services/metrics/public/cpp:ukm_builders",
   ]
+  if (!is_android) {
+    deps += [ "//chrome/browser/glic/selection" ]
+  }
 }
 
 # TODO(b/430371855): This is the better target for resources only needed
@@ -403,6 +411,7 @@ source_set("impl") {
     "//chrome/browser/profiles:profile_util",
     "//chrome/browser/profiles/keep_alive",
     "//chrome/browser/resources/glic:resources",
+    "//chrome/browser/safe_browsing",
     "//chrome/browser/signin",
     "//chrome/browser/skills",
     "//chrome/browser/skills:public",
@@ -446,7 +455,10 @@ source_set("impl") {
     "//components/variations/service",
     "//components/webui/chrome_urls",
     "//extensions/buildflags",
+    "//net",
     "//third_party/metrics_proto",
+    "//ui/base",
+    "//ui/base/clipboard:file_info",
     "//ui/base/interaction",
     "//ui/gfx",
     "//ui/snapshot",
@@ -462,10 +474,14 @@ source_set("impl") {
       "experimental_opt_in/glic_experimental_opt_in_controller.h",
       "experimental_opt_in/glic_experimental_opt_in_dialog_view.cc",
       "experimental_opt_in/glic_experimental_opt_in_dialog_view.h",
+      "experimental_opt_in/glic_experimental_opt_in_metrics.cc",
+      "experimental_opt_in/glic_experimental_opt_in_metrics.h",
       "experimental_opt_in/glic_experimental_opt_in_page_handler.cc",
       "experimental_opt_in/glic_experimental_opt_in_page_handler.h",
       "experimental_opt_in/glic_experimental_opt_in_ui.cc",
       "experimental_opt_in/glic_experimental_opt_in_ui.h",
+      "experimental_opt_in/glic_experimental_opt_in_util.cc",
+      "experimental_opt_in/glic_experimental_opt_in_util.h",
       "gemini_spark_settings_policy_handler.cc",
       "glic_selection_observer.cc",
       "glic_settings_util_desktop.cc",
@@ -494,7 +510,7 @@ source_set("impl") {
 
     deps += [
       "//chrome/browser/actor/ui",
-      "//chrome/browser/glic/browser_ui",
+      "//chrome/browser/glic/browser_ui:impl",
       "//chrome/browser/glic/selection",
       "//chrome/browser/lens/region_search",
       "//chrome/browser/resources/glic/experimental_opt_in:resources",
@@ -534,6 +550,7 @@ source_set("impl") {
       ":actor_types_for_migration",
       "//chrome/browser/context_sharing/tab_bottom_sheet/android",
       "//chrome/browser/glic/android",
+      "//chrome/browser/glic/browser_ui:impl",
       "//chrome/browser/ui/side_panel",
       "//chrome/browser/ui/side_panel:side_panel_ui_provider",
       "//chrome/browser/ui/side_panel/android",
@@ -635,6 +652,8 @@ source_set("unit_tests") {
   sources = [
     "glic_settings_util_unittest.cc",
     "host/context/glic_sharing_utils_unittest.cc",
+    "host/glic_web_contents_warming_pool_unittest.cc",
+    "public/glic_enabling_unittest.cc",
     "service/glic_invoke_task_unittest.cc",
   ]
   deps = [
@@ -642,7 +661,10 @@ source_set("unit_tests") {
     ":glic_metrics",
     ":impl",
     "//base/test:test_support",
+    "//chrome/browser:global_features",
     "//chrome/browser/background/glic",
+    "//chrome/browser/glic/test_support",
+    "//chrome/browser/ui:ui_features",
     "//components/tabs:test_support",
     "//testing/gmock",
     "//testing/gtest",
@@ -662,11 +684,9 @@ source_set("unit_tests") {
       "host/context/glic_share_image_handler_unittest.cc",
       "host/context/glic_tab_data_unittest.cc",
       "host/glic_cookie_synchronizer_unittest.cc",
-      "host/glic_web_contents_warming_pool_unittest.cc",
       "host/guest_util_unittest.cc",
       "public/glic_context_menu_invocation_helper_unittest.cc",
       "public/glic_enabling_metrics_unittest.cc",
-      "public/glic_enabling_unittest.cc",
       "service/glic_instance_helper_unittest.cc",
       "service/metrics/glic_instance_coordinator_metrics_unittest.cc",
       "service/metrics/glic_instance_metrics_unittest.cc",
@@ -678,17 +698,14 @@ source_set("unit_tests") {
     ]
 
     deps += [
-      "//chrome/browser:global_features",
       "//chrome/browser/background",
       "//chrome/browser/glic/browser_ui:unit_tests",
       "//chrome/browser/glic/fre",
       "//chrome/browser/glic/fre:unit_tests",
       "//chrome/browser/glic/media:unit_tests",
       "//chrome/browser/glic/suggestions:test_support",
-      "//chrome/browser/glic/test_support",
       "//chrome/browser/prefs",
       "//chrome/browser/status_icons",
-      "//chrome/browser/ui:ui_features",
       "//chrome/common:chrome_features",
       "//chrome/test:test_support",
       "//components/live_caption",
@@ -720,6 +737,7 @@ source_set("browser_tests") {
     "host/glic_web_contents_warming_pool_browsertest.cc",
     "host/new_glic_api_browsertest.cc",
     "service/glic_instance_coordinator_browsertest.cc",
+    "service/glic_invoke_browsertest.cc",
     "service/metrics/glic_instance_coordinator_metrics_browsertest.cc",
   ]
 
@@ -786,7 +804,9 @@ source_set("browser_tests") {
       ":impl",
       "//base/test:test_support",
       "//chrome/browser:browser_process",
+      "//chrome/browser:chrome_browser_main",
       "//chrome/browser:global_features",
+      "//chrome/browser:main_extra_parts",
       "//chrome/browser/actor:test_support",
       "//chrome/browser/actor/ui",
       "//chrome/browser/actor/ui:test_support",
@@ -833,7 +853,13 @@ source_set("browser_tests") {
   }
 
   if (is_android) {
-    deps += [ "//chrome/test:test_support_ui_android" ]
+    sources += [ "widget/glic_side_panel_coordinator_android_browsertest.cc" ]
+    deps += [
+      "//chrome/browser/ui/side_panel",
+      "//chrome/browser/ui/side_panel/android",
+      "//chrome/test:test_support_ui_android",
+      "//components/messages/android:test_support",
+    ]
   }
 
   if (is_android && !is_desktop_android) {

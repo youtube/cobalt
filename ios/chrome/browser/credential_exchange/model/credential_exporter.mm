@@ -7,6 +7,7 @@
 #import "base/apple/foundation_util.h"
 #import "base/check.h"
 #import "base/strings/sys_string_conversions.h"
+#import "base/time/time.h"
 #import "components/password_manager/core/browser/ui/credential_ui_entry.h"
 #import "components/webauthn/core/browser/passkey_model_utils.h"
 #import "components/webauthn/ios/passkey_types.h"
@@ -84,11 +85,15 @@
     NSString* note = base::SysUTF16ToNSString(credential.note) ?: @"";
     NSURL* URL =
         net::NSURLWithGURL(credential.GetURL()) ?: [NSURL URLWithString:@""];
+    NSDate* creationDate = credential.creation_time.has_value()
+                               ? credential.creation_time->ToNSDate()
+                               : nil;
     CredentialExchangePassword* exportedPassword =
         [[CredentialExchangePassword alloc] initWithURL:URL
                                                username:username
                                                password:password
-                                                   note:note];
+                                                   note:note
+                                           creationDate:creationDate];
     [exportedPasswords addObject:exportedPassword];
   }
   return exportedPasswords;
@@ -119,6 +124,11 @@
     NSString* userName = base::SysUTF8ToNSString(passkey.user_name());
     NSString* userDisplayName =
         base::SysUTF8ToNSString(passkey.user_display_name());
+    NSDate* creationDate = passkey.has_creation_time()
+                               ? base::Time::FromMillisecondsSinceUnixEpoch(
+                                     passkey.creation_time())
+                                     .ToNSDate()
+                               : nil;
 
     CredentialExchangePasskey* exportedPasskey =
         [[CredentialExchangePasskey alloc] initWithCredentialId:credentialId
@@ -126,7 +136,8 @@
                                                        userName:userName
                                                 userDisplayName:userDisplayName
                                                          userId:userId
-                                                     privateKey:privateKey];
+                                                     privateKey:privateKey
+                                                   creationDate:creationDate];
     [exportedPasskeys addObject:exportedPasskey];
   }
   return exportedPasskeys;

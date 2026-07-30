@@ -90,6 +90,7 @@ import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.actor.ui.TabIndicatorStatus;
+import org.chromium.chrome.browser.bookmarks.TabBookmarker;
 import org.chromium.chrome.browser.collaboration.CollaborationServiceFactory;
 import org.chromium.chrome.browser.collaboration.messaging.MessagingBackendServiceFactory;
 import org.chromium.chrome.browser.compositor.LayerTitleCache;
@@ -161,6 +162,7 @@ import org.chromium.components.tab_group_sync.SavedTabGroupTab;
 import org.chromium.components.tab_group_sync.TabGroupSyncService;
 import org.chromium.components.tab_groups.TabGroupColorId;
 import org.chromium.components.tab_groups.TabGroupsFeatureMap;
+import org.chromium.ui.base.ActivityResultTracker;
 import org.chromium.ui.base.LocalizationUtils;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.dragdrop.DragDropGlobalState;
@@ -234,6 +236,8 @@ public class StripLayoutHelperTest {
     @Mock TabStripIphController mController;
     @Mock private TabStripContextMenuCoordinator mTabStripContextMenuCoordinator;
     @Mock private StripTabUnderlineManager.Natives mStripTabUnderlineMock;
+    @Mock private TabBookmarker mTabBookmarker;
+    @Mock private ActivityResultTracker mActivityResultTracker;
 
     @Captor private ArgumentCaptor<DataSharingService.Observer> mSharingObserverCaptor;
     @Captor private ArgumentCaptor<TabModelActionListener> mTabModelActionListenerCaptor;
@@ -4744,8 +4748,10 @@ public class StripLayoutHelperTest {
                         mBottomSheetController,
                         mMultiInstanceManager,
                         ObservableSuppliers.createMonotonic(mShareDelegate),
+                        () -> mTabBookmarker,
                         mBottomSheetCoordinatorFactory,
-                        mSnackbarManager);
+                        mSnackbarManager,
+                        mActivityResultTracker);
         // Inject the test IPH controller so that setTabModel doesn't try to construct a real one
         // (which would call into TrackerFactory native).
         helper.setTabStripIphControllerForTesting(mController);

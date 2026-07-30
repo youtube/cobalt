@@ -43,7 +43,7 @@
 #import "ios/chrome/browser/intelligence/proto_wrappers/page_context_wrapper_config.h"
 #import "ios/chrome/browser/intelligence/proto_wrappers/page_context_wrapper_metrics.h"
 #import "ios/chrome/browser/snapshots/model/snapshot_tab_helper.h"
-#import "ios/public/provider/chrome/browser/bwg/bwg_api.h"
+#import "ios/public/provider/chrome/browser/bwg/gemini_api.h"
 #import "ios/web/find_in_page/find_in_page_java_script_feature.h"
 #import "ios/web/public/js_messaging/content_world.h"
 #import "ios/web/public/js_messaging/web_frame.h"
@@ -585,7 +585,8 @@ result.links = linksArray;
         _config->use_rich_extraction(),
         _config->use_rich_extraction_with_actionable(),
         _config->extract_paid_content(),
-        _config->attempt_paid_content_json_fixing(), nonce, jsTimeout,
+        _config->attempt_paid_content_json_fixing(),
+        _config->include_sensitive_payments_for_redaction(), nonce, jsTimeout,
         base::BindOnce(
             callbackJson, weakSelf, annotatedPageContentBarrier, isMainFrame,
             frame->GetSecurityOrigin(),
@@ -614,7 +615,8 @@ result.links = linksArray;
         _config->use_rich_extraction(),
         _config->use_rich_extraction_with_actionable(),
         _config->extract_paid_content(),
-        _config->attempt_paid_content_json_fixing(), nonce, jsTimeout,
+        _config->attempt_paid_content_json_fixing(),
+        _config->include_sensitive_payments_for_redaction(), nonce, jsTimeout,
         base::BindOnce(
             callback, weakSelf, annotatedPageContentBarrier, isMainFrame,
             frame->GetSecurityOrigin(),

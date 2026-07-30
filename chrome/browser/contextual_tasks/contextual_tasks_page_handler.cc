@@ -37,6 +37,8 @@
 #include "components/contextual_tasks/public/features.h"
 #include "components/contextual_tasks/public/prefs.h"
 #include "components/lens/lens_url_utils.h"
+#include "components/omnibox/browser/searchbox.mojom.h"
+#include "components/omnibox/common/composebox_features.h"
 #include "components/omnibox/common/logger.h"
 #include "components/prefs/pref_service.h"
 #include "components/sessions/core/session_id.h"
@@ -490,15 +492,15 @@ void ContextualTasksPageHandler::OnWebviewMessage(
     web_ui_controller_->GetPageRemote()->LockInput();
   } else if (aim_to_client_message.has_unlock_input()) {
     web_ui_controller_->GetPageRemote()->UnlockInput();
-  } else if (aim_to_client_message.has_notify_link_clicked()) {
-    auto behavior = aim_to_client_message.notify_link_clicked().link_behavior();
-    if (behavior == lens::NotifyLinkClicked::LINK_BEHAVIOR_COBROWSE) {
-      tabs::TabInterface* tab = tabs::TabInterface::MaybeGetFromContents(
-          web_ui_controller_->GetWebUIWebContents());
-      BrowserWindowInterface* browser = web_ui_controller_->GetBrowser();
+  } else if (aim_to_client_message.has_open_link_in_side_panel_mode()) {
+    tabs::TabInterface* tab = tabs::TabInterface::MaybeGetFromContents(
+        web_ui_controller_->GetWebUIWebContents());
+    BrowserWindowInterface* browser = web_ui_controller_->GetBrowser();
+    GURL target_url(aim_to_client_message.open_link_in_side_panel_mode().url());
+    // Only accept valid URLs that are HTTP or HTTPS.
+    if (target_url.is_valid() && target_url.SchemeIsHTTPOrHTTPS()) {
       ui_service_->OnThreadLinkClicked(
-          GURL(aim_to_client_message.notify_link_clicked().url()),
-          web_ui_controller_->GetTaskId().value_or(base::Uuid()),
+          target_url, web_ui_controller_->GetTaskId().value_or(base::Uuid()),
           tab ? tab->GetWeakPtr() : nullptr,
           browser ? browser->GetWeakPtr() : nullptr);
     }
@@ -645,6 +647,36 @@ void ContextualTasksPageHandler::OnReceivedUpdatedThreadContextLibrary(
                                                            submitted_context);
   contextual_tasks_service_->SetUrlResourcesFromServer(*task_id,
                                                        committed_context);
+
+  // Populate restored tabs in the composebox.
+  if (contextual_tasks_service_ &&
+      base::FeatureList::IsEnabled(omnibox::kContextManagementInComposebox)) {
+    contextual_tasks_service_->GetContextForTask(
+        *task_id, {},
+        std::make_unique<contextual_tasks::ContextDecorationParams>(),
+        base::BindOnce(
+            [](base::WeakPtr<ContextualTasksPageHandler> self,
+               std::unique_ptr<contextual_tasks::ContextualTaskContext>
+                   context) {
+              if (self && self->web_ui_controller_) {
+                std::vector<contextual_tasks::mojom::ContextInfoPtr>
+                    context_items = PopulateContextualResources(context.get());
+
+                std::vector<searchbox::mojom::TabInfoPtr> tabs;
+                for (const auto& item : context_items) {
+                  if (item->is_tab()) {
+                    auto tab_info = searchbox::mojom::TabInfo::New();
+                    tab_info->url = item->get_tab()->url;
+                    tab_info->title = item->get_tab()->title;
+                    tabs.push_back(std::move(tab_info));
+                  }
+                }
+                self->web_ui_controller_->OnRestoredTabsFetched(
+                    std::move(tabs));
+              }
+            },
+            weak_ptr_factory_.GetWeakPtr()));
+  }
 }
 
 void ContextualTasksPageHandler::OnReceivedInjectInput(

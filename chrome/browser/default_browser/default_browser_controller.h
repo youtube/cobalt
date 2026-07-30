@@ -6,9 +6,11 @@
 #define CHROME_BROWSER_DEFAULT_BROWSER_DEFAULT_BROWSER_CONTROLLER_H_
 
 #include <memory>
+#include <string>
 
 #include "base/functional/callback_forward.h"
 #include "base/memory/weak_ptr.h"
+#include "base/time/time.h"
 #include "chrome/browser/default_browser/default_browser_setter.h"
 #include "chrome/browser/shell_integration.h"
 
@@ -53,6 +55,10 @@ enum class DefaultBrowserInteractionType {
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/ui/enums.xml:DefaultBrowserUserInteraction)
 
+std::string UiEntrypointTypeToString(
+    DefaultBrowserEntrypointType ui_entrypoint);
+std::string SetterTypeToString(DefaultBrowserSetterType setter_type);
+
 // DefaultBrowserController acts a bridge between UI and the setter, is
 // responsible for managing the setter based on user input, and recording
 // metrics.
@@ -70,7 +76,8 @@ class DefaultBrowserController {
   // Called by UI based on user interactions.
   void OnShown();
   void OnAccepted(
-      DefaultBrowserControllerCompletionCallback on_setter_completion_callback);
+      DefaultBrowserControllerCompletionCallback on_setter_completion_callback,
+      const DefaultBrowserSetter::ExecuteParams& params = {});
   void OnIgnored();
   void OnDismissed();
 
@@ -87,6 +94,8 @@ class DefaultBrowserController {
 
   // Stores the UI entrypoint type that requested this controller.
   const DefaultBrowserEntrypointType ui_entrypoint_;
+
+  base::TimeTicks setter_execution_start_time_;
 
   base::WeakPtrFactory<DefaultBrowserController> weak_ptr_factory_{this};
 };

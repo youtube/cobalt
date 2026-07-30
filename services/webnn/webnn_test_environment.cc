@@ -6,6 +6,8 @@
 
 #include "base/functional/bind.h"
 #include "base/run_loop.h"
+#include "base/task/thread_pool/thread_pool_instance.h"
+#include "base/test/run_until.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
@@ -13,6 +15,8 @@
 #include "services/viz/privileged/mojom/gl/gpu_host.mojom.h"
 #include "services/webnn/buildflags.h"
 #include "services/webnn/host/weights_file_provider.h"
+#include "services/webnn/webnn_context_impl.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 #if BUILDFLAG(WEBNN_USE_TFLITE) || BUILDFLAG(WEBNN_USE_LITERT)
 #include "services/webnn/host/weights_file_creator_impl.h"
@@ -23,12 +27,12 @@ namespace webnn::test {
 
 namespace {
 
-// Mimics the renderer-process behavior of falling back to the in-process
-// TFLite backend when the GPU-process `WebNNContextProvider` rejects a
-// request.
-class TFLiteFallbackContextProvider : public mojom::WebNNContextProvider {
+// Mimics the renderer-process behavior of falling back to an in-process
+// backend (TFLite, LiteRT, or ORT) when the GPU-process
+// `WebNNContextProvider` rejects a request.
+class InProcessFallbackContextProvider : public mojom::WebNNContextProvider {
  public:
-  TFLiteFallbackContextProvider(
+  InProcessFallbackContextProvider(
       mojo::PendingRemote<mojom::WebNNContextProvider> gpu_process_remote,
       bool is_incognito,
       scoped_refptr<base::SingleThreadTaskRunner> task_runner)
@@ -36,23 +40,24 @@ class TFLiteFallbackContextProvider : public mojom::WebNNContextProvider {
         is_incognito_(is_incognito),
         task_runner_(std::move(task_runner)) {}
 
-  ~TFLiteFallbackContextProvider() override = default;
+  ~InProcessFallbackContextProvider() override = default;
 
-  TFLiteFallbackContextProvider(const TFLiteFallbackContextProvider&) = delete;
-  TFLiteFallbackContextProvider& operator=(
-      const TFLiteFallbackContextProvider&) = delete;
+  InProcessFallbackContextProvider(const InProcessFallbackContextProvider&) =
+      delete;
+  InProcessFallbackContextProvider& operator=(
+      const InProcessFallbackContextProvider&) = delete;
 
   // mojom::WebNNContextProvider:
   void CreateWebNNContext(mojom::CreateContextOptionsPtr options,
                           CreateWebNNContextCallback callback) override {
     // Try the GPU-process provider first; on error,
     // `OnGpuProcessCreateContextResult` may fall back to the in-process
-    // TFLite provider with the same options.
+    // provider with the same options.
     auto options_clone = options.Clone();
     gpu_process_remote_->CreateWebNNContext(
         std::move(options),
         base::BindOnce(
-            &TFLiteFallbackContextProvider::OnGpuProcessCreateContextResult,
+            &InProcessFallbackContextProvider::OnGpuProcessCreateContextResult,
             base::Unretained(this), std::move(options_clone),
             std::move(callback)));
   }
@@ -62,13 +67,13 @@ class TFLiteFallbackContextProvider : public mojom::WebNNContextProvider {
                                        CreateWebNNContextCallback callback,
                                        mojom::CreateContextResultPtr result) {
 #if BUILDFLAG(WEBNN_USE_TFLITE) || BUILDFLAG(WEBNN_USE_LITERT)
-    // Fall back to the in-process TFLite provider on GPU-process failure,
-    // mirroring `ML::CreateInProcessTFLiteContext` in the renderer.
+    // Fall back to the in-process provider on GPU-process failure, mirroring
+    // `ML::CreateInProcessContext` in the renderer.
     if (result->is_error() &&
         !WebNNContextProviderImpl::HasBackendForTesting()) {
-      EnsureInProcessTFLiteConnection();
-      in_process_tflite_remote_->CreateWebNNContext(std::move(options),
-                                                    std::move(callback));
+      EnsureInProcessConnection();
+      in_process_remote_->CreateWebNNContext(std::move(options),
+                                             std::move(callback));
       return;
     }
 #endif  // BUILDFLAG(WEBNN_USE_TFLITE) || BUILDFLAG(WEBNN_USE_LITERT)
@@ -76,26 +81,25 @@ class TFLiteFallbackContextProvider : public mojom::WebNNContextProvider {
   }
 
 #if BUILDFLAG(WEBNN_USE_TFLITE) || BUILDFLAG(WEBNN_USE_LITERT)
-  // Lazily binds the in-process TFLite provider remote on first use, mirroring
-  // `ML::EnsureInProcessTFLiteConnection` in the renderer.
-  void EnsureInProcessTFLiteConnection() {
-    if (in_process_tflite_remote_.is_bound()) {
+  // Lazily binds the in-process provider remote on first use, mirroring
+  // `ML::EnsureInProcessConnection` in the renderer.
+  void EnsureInProcessConnection() {
+    if (in_process_remote_.is_bound()) {
       return;
     }
     mojo::PendingRemote<mojom::WebNNWeightsFileCreator> weights_file_creator;
     WeightsFileCreatorImpl::Create(
         weights_file_creator.InitWithNewPipeAndPassReceiver(), is_incognito_);
     mojo::ScopedMessagePipeHandle in_process_pipe =
-        tflite::CreateInProcessContextProvider(weights_file_creator.PassPipe(),
-                                               task_runner_);
-    in_process_tflite_remote_.Bind(
-        mojo::PendingRemote<mojom::WebNNContextProvider>(
-            std::move(in_process_pipe), 0u));
+        webnn::CreateInProcessContextProvider(weights_file_creator.PassPipe(),
+                                              task_runner_);
+    in_process_remote_.Bind(mojo::PendingRemote<mojom::WebNNContextProvider>(
+        std::move(in_process_pipe), 0u));
   }
 #endif  // BUILDFLAG(WEBNN_USE_TFLITE) || BUILDFLAG(WEBNN_USE_LITERT)
 
   mojo::Remote<mojom::WebNNContextProvider> gpu_process_remote_;
-  mojo::Remote<mojom::WebNNContextProvider> in_process_tflite_remote_;
+  mojo::Remote<mojom::WebNNContextProvider> in_process_remote_;
   [[maybe_unused]] const bool is_incognito_;
   [[maybe_unused]] const scoped_refptr<base::SingleThreadTaskRunner>
       task_runner_;
@@ -162,6 +166,14 @@ void FakeGpuHostForTesting::EnsureWebNNExecutionProvidersReady(
   // Initializes the execution providers used by the WebNN ORT backend.
   webnn::EnsureExecutionProvidersReady(std::move(callback));
 }
+
+void FakeGpuHostForTesting::RequestWebNNCompilerContext(
+    webnn::mojom::CreateContextOptionsPtr context_options,
+    const webnn::ContextProperties& context_properties,
+    base::flat_map<std::string, webnn::mojom::EpPackageInfoPtr> ep_package_info,
+    RequestWebNNCompilerContextCallback callback) {
+  std::move(callback).Run(mojo::NullRemote(), mojo::NullReceiver());
+}
 #endif
 
 void FakeGpuHostForTesting::CreateWebNNWeightsFile(
@@ -174,7 +186,11 @@ WebNNTestEnvironment::WebNNTestEnvironment(
     WebNNContextProviderImpl::LoseAllContextsCallback
         lose_all_contexts_callback,
     std::unique_ptr<base::test::TaskEnvironment> task_environment)
-    : task_environment_(std::move(task_environment)) {
+    : task_environment_(std::move(task_environment)),
+      destruction_callback_(
+          base::BindRepeating(&WebNNTestEnvironment::OnContextDestroyed,
+                              base::Unretained(this))) {
+  WebNNContextImpl::SetDestructionCallbackForTesting(&destruction_callback_);
   gpu::GpuFeatureInfo gpu_feature_info;
   gpu::GPUInfo gpu_info;
 
@@ -189,10 +205,6 @@ WebNNTestEnvironment::WebNNTestEnvironment(
   if (status == WebNNContextProviderImpl::WebNNStatus::kWebNNGpuDisabled) {
     gpu_feature_info.enabled_gpu_driver_bug_workarounds.push_back(
         DISABLE_WEBNN_FOR_GPU);
-  }
-  if (status == WebNNContextProviderImpl::WebNNStatus::kWebNNNpuDisabled) {
-    gpu_feature_info.enabled_gpu_driver_bug_workarounds.push_back(
-        DISABLE_WEBNN_FOR_NPU);
   }
 
   // Initialize a Gpu Scheduler so tests can also use a scheduler
@@ -212,6 +224,8 @@ WebNNTestEnvironment::WebNNTestEnvironment(
       std::move(lose_all_contexts_callback),
       task_environment_->GetMainThreadTaskRunner(), g_webnn_scheduler.get(),
       mojo::SharedRemote(std::move(gpu_host_proxy)));
+  context_provider_->SetDisconnectHandlerForTesting(base::BindRepeating(
+      &WebNNTestEnvironment::OnReceiverDisconnected, base::Unretained(this)));
 }
 
 void WebNNTestEnvironment::BindWebNNContextProvider(
@@ -227,12 +241,55 @@ void WebNNTestEnvironment::BindWebNNContextProvider(
       gpu_process_remote.InitWithNewPipeAndPassReceiver(),
       {is_incognito, kFakeClientIdForTesting, kFakeClientTracingIdForTesting});
 
-  mojo::MakeSelfOwnedReceiver(std::make_unique<TFLiteFallbackContextProvider>(
-                                  std::move(gpu_process_remote), is_incognito,
-                                  task_environment_->GetMainThreadTaskRunner()),
-                              std::move(pending_receiver));
+  mojo::MakeSelfOwnedReceiver(
+      std::make_unique<InProcessFallbackContextProvider>(
+          std::move(gpu_process_remote), is_incognito,
+          task_environment_->GetMainThreadTaskRunner()),
+      std::move(pending_receiver));
+  pending_receiver_count_++;
 }
 
-WebNNTestEnvironment::~WebNNTestEnvironment() = default;
+void WebNNTestEnvironment::OnReceiverDisconnected() {
+  CHECK_GT(pending_receiver_count_, 0u);
+  pending_receiver_count_--;
+}
+
+void WebNNTestEnvironment::OnContextDestroyed() {
+  destroyed_context_count_++;
+}
+
+void WebNNTestEnvironment::WaitForAllContextsToBeDestroyed() {
+  // Mojo pipe closure notifications are delivered by the IO thread (managed
+  // by ScopedMojoIoForTest inside TaskEnvironment). Flushing the thread pool
+  // ensures those notifications have been forwarded to the GPU scheduler,
+  // which then posts disconnect tasks to the main thread. Without this flush,
+  // RunUntil would never see the disconnect tasks arrive.
+  base::ThreadPoolInstance::Get()->FlushForTesting();
+
+  // Wait for all contexts to be fully destroyed (not just removed from the
+  // provider's map). After RemoveWebNNContextImpl erases a context,
+  // OnTaskRunnerDeleter posts the actual deletion to the SchedulerTaskRunner.
+  // The destructor explicitly resets gpu_task_scheduler_ (releasing
+  // MultiplexRouter refs) then fires our callback, incrementing
+  // destroyed_context_count_.
+  const size_t target_destroyed =
+      destroyed_context_count_ + context_provider_->GetContextCountForTesting();
+  EXPECT_TRUE(base::test::RunUntil(
+      [&]() { return destroyed_context_count_ >= target_destroyed; }));
+}
+
+void WebNNTestEnvironment::TearDown() {
+  // Flush the thread pool to drain MultiplexRouter bounced tasks that hold
+  // scoped_refptr<MultiplexRouter> via WrapRefCounted. In production these
+  // drain naturally, but in tests the thread pool may shut down first.
+  base::ThreadPoolInstance::Get()->FlushForTesting();
+
+  EXPECT_TRUE(
+      base::test::RunUntil([&]() { return pending_receiver_count_ == 0; }));
+}
+
+WebNNTestEnvironment::~WebNNTestEnvironment() {
+  WebNNContextImpl::SetDestructionCallbackForTesting(nullptr);
+}
 
 }  // namespace webnn::test

@@ -86,11 +86,12 @@ import org.chromium.chrome.browser.user_education.UserEducationHelper;
 import org.chromium.components.browser_ui.accessibility.PageZoomIndicatorCoordinator;
 import org.chromium.components.browser_ui.accessibility.PageZoomManager;
 import org.chromium.components.browser_ui.accessibility.PageZoomUtils;
-import org.chromium.components.browser_ui.widget.gesture.BackPressHandler;
 import org.chromium.components.feature_engagement.Tracker;
 import org.chromium.components.omnibox.AutocompleteInput;
+import org.chromium.components.omnibox.AutocompleteInput.AutocompleteState;
 import org.chromium.components.omnibox.AutocompleteMatch;
 import org.chromium.components.omnibox.OmniboxFeatures;
+import org.chromium.components.omnibox.OmniboxFocusReason;
 import org.chromium.components.search_engines.TemplateUrlService;
 import org.chromium.ui.KeyboardVisibilityDelegate;
 import org.chromium.ui.base.DeviceFormFactor;
@@ -256,7 +257,7 @@ public class LocationBarCoordinator
             OmniboxActionDelegateImpl omniboxActionDelegate,
             @Nullable BrowserStateBrowserControlsVisibilityDelegate
                     browserControlsVisibilityDelegate,
-            @Nullable BackPressManager backPressManager,
+            BackPressManager backPressManager,
             @Nullable OmniboxSuggestionsDropdownScrollListener
                     omniboxSuggestionsDropdownScrollListener,
             MonotonicObservableSupplier<TabModelSelector> tabModelSelectorSupplier,
@@ -385,9 +386,8 @@ public class LocationBarCoordinator
         if (mBackButton != null) {
             mBackButton.setOnClickListener(v -> mLocationBarMediator.onBackButtonClicked());
         }
-        if (backPressManager != null) {
-            backPressManager.addHandler(mLocationBarMediator, BackPressHandler.Type.LOCATION_BAR);
-        }
+        backPressManager.addHandler(
+                mLocationBarMediator, mLocationBarEmbedder.getBackPressHandlerType());
         mActivityLifecycleDispatcher.register(mLocationBarMediator);
         mUrlCoordinator =
                 new UrlBarCoordinator(
@@ -419,6 +419,7 @@ public class LocationBarCoordinator
                         activityTabSupplier,
                         shareDelegateSupplier,
                         locationBarDataProvider,
+                        mLocationBarEmbedder,
                         profileObservableSupplier,
                         bringTabGroupToFrontCallback,
                         bookmarkState,
@@ -441,7 +442,7 @@ public class LocationBarCoordinator
                         pageInfoAction,
                         browserControlsVisibilityDelegate,
                         fuseboxStateSupplier,
-                        mFuseboxCoordinator::plusButtonClicked,
+                        this::onPlusButtonClicked,
                         mLocationBarMediator.getExactMatchUrlSupplier());
         mLocationBarMediator.setCoordinators(
                 mUrlCoordinator, mAutocompleteCoordinator, mStatusCoordinator);
@@ -678,6 +679,19 @@ public class LocationBarCoordinator
     @Override
     public void updateVisualsForState() {
         mLocationBarMediator.updateVisualsForState();
+    }
+
+    private void onPlusButtonClicked() {
+        if (mLocationBarMediator == null) return;
+
+        if (mLocationBarMediator.isUrlBarFocused()) {
+            mFuseboxCoordinator.plusButtonClicked();
+        } else {
+            mLocationBarMediator.beginInput(
+                    new AutocompleteInput()
+                            .setFocusReason(OmniboxFocusReason.FAKE_BOX_PLUS_BUTTON_TAP)
+                            .setAutocompleteState(AutocompleteState.STANDBY_NO_FOCUS));
+        }
     }
 
     public void setBookmarkClickListener(OnClickListener listener) {

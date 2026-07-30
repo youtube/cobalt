@@ -38,6 +38,7 @@ import org.chromium.chrome.browser.omnibox.LocationBarDataProvider;
 import org.chromium.chrome.browser.omnibox.OmniboxMetrics;
 import org.chromium.chrome.browser.omnibox.R;
 import org.chromium.chrome.browser.omnibox.UrlBarEditingTextStateProvider;
+import org.chromium.chrome.browser.omnibox.UrlFocusChangeListener;
 import org.chromium.chrome.browser.omnibox.fusebox.ComposeboxQueryControllerBridge;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxAttachmentModelList;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxAttachmentModelList.FuseboxAttachmentChangeListener;
@@ -50,9 +51,8 @@ import org.chromium.chrome.browser.omnibox.suggestions.AutocompleteCoordinator.O
 import org.chromium.chrome.browser.omnibox.suggestions.AutocompleteDelegate.AutocompleteLoadCallback;
 import org.chromium.chrome.browser.omnibox.suggestions.action.OmniboxActionDelegateImpl;
 import org.chromium.chrome.browser.omnibox.suggestions.action.OmniboxActionFactory;
-import org.chromium.chrome.browser.omnibox.suggestions.action.OmniboxActionInSuggest;
 import org.chromium.chrome.browser.omnibox.suggestions.basic.BasicSuggestionProcessor.BookmarkState;
-import org.chromium.chrome.browser.omnibox.voice.VoiceRecognitionHandler;
+import org.chromium.chrome.browser.omnibox.voice.VoiceRecognitionIntentHandler;
 import org.chromium.chrome.browser.preloading.PreloadingFeatureMap;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.search_engines.TemplateUrlServiceFactory;
@@ -678,8 +678,7 @@ class AutocompleteMediator
     }
 
     /**
-     * @see
-     *     org.chromium.chrome.browser.omnibox.UrlFocusChangeListener#onUrlAnimationFinished(boolean)
+     * @see UrlFocusChangeListener#onUrlAnimationFinished(boolean)
      */
     void onUrlAnimationFinished() {
         if (!isInInputSession()) {
@@ -712,7 +711,7 @@ class AutocompleteMediator
     /**
      * @see AutocompleteController#onVoiceResults(List)
      */
-    void onVoiceResults(@Nullable List<VoiceRecognitionHandler.VoiceResult> results) {
+    void onVoiceResults(@Nullable List<VoiceRecognitionIntentHandler.VoiceResult> results) {
         if (!isInInputSession()) return;
         mAutocomplete.onVoiceResults(results);
     }
@@ -748,21 +747,12 @@ class AutocompleteMediator
                 switchToTabGroup(suggestion);
                 return;
             } else {
-                var actions = suggestion.getActions();
-                if (!actions.isEmpty()) {
-                    var action = actions.get(0);
-                    if (action instanceof OmniboxActionInSuggest omniboxActionInSuggest) {
-                        if (mOmniboxActionDelegate.switchToTab(omniboxActionInSuggest.tabId, url)) {
-                            // This bypasses the execution flow that captures histograms for all
-                            // other cases.
-                            recordMetrics(
-                                    suggestion,
-                                    null,
-                                    matchIndex,
-                                    WindowOpenDisposition.SWITCH_TO_TAB);
-                            return;
-                        }
-                    }
+                if (mOmniboxActionDelegate.switchToTab(suggestion.getAndroidTabId(), url)) {
+                    // This bypasses the execution flow that captures histograms for all
+                    // other cases.
+                    recordMetrics(
+                            suggestion, null, matchIndex, WindowOpenDisposition.SWITCH_TO_TAB);
+                    return;
                 }
             }
         }
@@ -864,6 +854,12 @@ class AutocompleteMediator
             if (isGestureUp) {
                 mLastActionUpTimestamp = timestamp;
             }
+        }
+    }
+
+    /* package */ void onSuggestionDropdownNavigation(boolean isParkedAtSentinel) {
+        if (isParkedAtSentinel && Boolean.TRUE.equals(mOmniboxInZeroPrefixState)) {
+            mDelegate.setOmniboxEditingText("");
         }
     }
 
@@ -1075,12 +1071,11 @@ class AutocompleteMediator
         // is final, which, in turn, may suppress certain functionality from getting invoked if the
         // subsequent push is immediately `final`.
         mListPropertyModel.set(SuggestionListProperties.LIST_IS_FINAL, false);
-
+        mIgnoreOmniboxItemSelection = true;
         boolean isInZeroPrefixContext = mAutocompleteInput.isInZeroPrefixContext();
         boolean allowParking =
                 isInZeroPrefixContext || !OmniboxCapabilities.hasDesktopExperience(mContext);
         mListPropertyModel.set(SuggestionListProperties.ALLOW_PARKING_AT_SENTINEL, allowParking);
-        mIgnoreOmniboxItemSelection = true;
         cancelAutocompleteRequests();
 
         // The user recently focused the Omnibox, began typing, or cleared the Omnibox.
@@ -1242,13 +1237,24 @@ class AutocompleteMediator
     private void onKeywordModeEntered(@Nullable SiteSearchData siteSearchData) {
         if (!isInInputSession()) return;
 
+        // Detect preview based on the item selection lock state.
+        // If mIgnoreOmniboxItemSelection is false, it means we are actively navigating
+        // suggestions (e.g. via DPAD/TAB) and focusing on the action button.
+        boolean isPreview = !mIgnoreOmniboxItemSelection && siteSearchData != null;
+
         // If explicitly requested to exit keyword mode (siteSearchData == null),
         // we should only do so if we are actively moving focus (mIgnoreOmniboxItemSelection is
         // false).
         // Otherwise, it might be the chip losing focus because the user started typing.
-        if (mIgnoreOmniboxItemSelection && siteSearchData == null) return;
+        // Bypass this check if we are exiting a preview.
+        if (mIgnoreOmniboxItemSelection
+                && siteSearchData == null
+                && !mAutocompleteInput.hasPreviewText()) {
+            return;
+        }
 
         mShouldPreventOmniboxAutocomplete = true;
+        boolean wasPreview = mAutocompleteInput.hasPreviewText();
 
         if (siteSearchData != null) {
             mIgnoreOmniboxItemSelection = true;
@@ -1269,18 +1275,37 @@ class AutocompleteMediator
                 query = currentText.substring(firstSpaceIndex + 1).trim();
             }
 
-            mAutocompleteInput.setUserText(query);
+            if (isPreview) {
+                mAutocompleteInput.setPreviewText(query);
+            } else {
+                mAutocompleteInput.setUserText(query);
+            }
             mAutocompleteInput.setSiteSearchData(siteSearchData);
-            mDelegate.setOmniboxEditingText(query);
+            mDelegate.setOmniboxEditingText(mAutocompleteInput.getPreviewText());
 
         } else {
             // When explicitly clearing keyword mode, we just update the data.
             // Do not clear the text. The text belongs to the user or the suggestion.
             mAutocompleteInput.setSiteSearchData(null);
+            if (wasPreview) {
+                mAutocompleteInput.resetPreviewText();
+                String restoredText = mAutocompleteInput.getPreviewText();
+                mDelegate.setOmniboxEditingText(restoredText);
+                mIgnoreOmniboxItemSelection = false;
+            }
         }
 
         mShouldPreventOmniboxAutocomplete = false;
-        onInputChanged();
+
+        if (siteSearchData != null) {
+            if (!isPreview) {
+                onInputChanged();
+            }
+        } else {
+            if (!wasPreview) {
+                onInputChanged();
+            }
+        }
     }
 
     private void onSiteSearchDataChanged(@Nullable SiteSearchData siteSearchData) {

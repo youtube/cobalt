@@ -14,9 +14,11 @@ namespace blink {
 
 namespace {
 
-bool MatchesPatterns(Document& document,
-                     const KURL& url,
+bool MatchesPatterns(const KURL& url,
                      const HeapVector<Member<URLPattern>>& patterns) {
+  if (url.IsEmpty()) {
+    return false;
+  }
   for (const URLPattern* pattern : patterns) {
     if (pattern->Match(url)) {
       return true;
@@ -25,49 +27,24 @@ bool MatchesPatterns(Document& document,
   return false;
 }
 
-bool GetParamValueFromComponent(
-    const Vector<std::pair<String, String>>& component,
-    const AtomicString& key,
-    String& value) {
-  for (const auto& param : component) {
-    if (param.first == key) {
-      value = param.second;
-      return true;
+bool MatchesAllPatternParams(const Vector<std::pair<String, String>>& params1,
+                             const Vector<std::pair<String, String>>& params2) {
+  if (params1.size() != params2.size()) {
+    return false;
+  }
+  for (wtf_size_t idx = 0; idx < params1.size(); idx++) {
+    if (params1[idx].first != params2[idx].first) {
+      return false;
+    }
+    if (params1[idx].first == "0") {
+      // Not a :param, but rather a wildcard etc.
+      continue;
+    }
+    if (params1[idx].second != params2[idx].second) {
+      return false;
     }
   }
-  return false;
-}
-
-bool GetParamValue(const URLPattern::MatchResult& result,
-                   const AtomicString& key,
-                   String& value) {
-  return GetParamValueFromComponent(result.protocol, key, value) ||
-         GetParamValueFromComponent(result.hostname, key, value) ||
-         GetParamValueFromComponent(result.port, key, value) ||
-         GetParamValueFromComponent(result.pathname, key, value) ||
-         GetParamValueFromComponent(result.search, key, value) ||
-         GetParamValueFromComponent(result.hash, key, value);
-}
-
-bool IsParamEqualTo(const URLPattern& url_pattern,
-                    const KURL& url,
-                    const AtomicString& key,
-                    const String& expected_value) {
-  if (url.IsNull()) {
-    return false;
-  }
-
-  URLPattern::MatchResult result;
-  if (!url_pattern.Match(url, &result)) {
-    return false;
-  }
-
-  String value;
-  if (!GetParamValue(result, key, value)) {
-    return false;
-  }
-
-  return value == expected_value;
+  return true;
 }
 
 }  // anonymous namespace
@@ -88,7 +65,7 @@ URLPattern* Route::pattern() const {
 }
 
 bool Route::MatchesUrl(const KURL& url) const {
-  return MatchesPatterns(*document_, url, patterns_);
+  return MatchesPatterns(url, patterns_);
 }
 
 void Route::AddPattern(URLPattern* pattern) {
@@ -96,68 +73,54 @@ void Route::AddPattern(URLPattern* pattern) {
   patterns_.push_back(pattern);
 }
 
-bool Route::UpdateMatchStatus(const KURL& previous_url, const KURL& next_url) {
-  bool matches_at = MatchesPatterns(*document_, document_->Url(), patterns_);
+bool Route::UpdateMatchStatus(const KURL& from_url,
+                              const KURL& to_url,
+                              NavigationPhase phase) {
+  bool committed = phase == NavigationPhase::kCommitted;
+  bool matches_at = MatchesPatterns(committed ? to_url : from_url, patterns_);
+  bool matches_from = MatchesPatterns(from_url, patterns_);
+  bool matches_to = MatchesPatterns(to_url, patterns_);
+  bool matches_with = MatchesPatterns(committed ? from_url : to_url, patterns_);
 
-  // If a previous/next URL are set, we're moving from one route to another.
-  // Both need to be set, or none of them should be set.
-  DCHECK_EQ(previous_url.IsNull(), next_url.IsNull());
-
-  bool matches_from = !previous_url.IsNull() &&
-                      MatchesPatterns(*document_, previous_url, patterns_);
-  bool matches_to =
-      !next_url.IsNull() && MatchesPatterns(*document_, next_url, patterns_);
+  bool at_changed = matches_at_ != matches_at;
   bool from_changed = matches_from_ != matches_from;
   bool to_changed = matches_to_ != matches_to;
-
-  matches_from_ = matches_from;
-  matches_to_ = matches_to;
-  if (matches_at_ == matches_at) {
-    return from_changed || to_changed;
-  }
+  bool with_changed = matches_with_ != matches_with;
 
   matches_at_ = matches_at;
-  return true;
+  matches_from_ = matches_from;
+  matches_to_ = matches_to;
+  matches_with_ = matches_with;
+
+  return at_changed || from_changed || to_changed || with_changed;
 }
 
-bool Route::FromOrToMatchesParamInHref(const KURL& from,
-                                       const KURL& to,
-                                       const AtomicString& key,
-                                       const KURL& href) const {
+bool Route::URLPatternMatchesURLAndHref(const KURL& active_navigation_url,
+                                        const KURL& href_url) const {
   const URLPattern* url_pattern = pattern();
   if (!url_pattern) {
     return false;
   }
 
-  URLPattern::MatchResult result;
-  if (!url_pattern->Match(href, &result)) {
+  URLPattern::MatchResult r1;
+  if (!url_pattern->Match(active_navigation_url, &r1)) {
     return false;
   }
 
-  String expected_value;
-  if (!GetParamValue(result, key, expected_value)) {
+  URLPattern::MatchResult r2;
+  if (!url_pattern->Match(href_url, &r2)) {
     return false;
   }
 
-  return IsParamEqualTo(*url_pattern, from, key, expected_value) ||
-         IsParamEqualTo(*url_pattern, to, key, expected_value);
-}
-
-bool Route::HrefMatchesParam(const KURL& href,
-                             const AtomicString& key,
-                             const AtomicString& expected_value) const {
-  const URLPattern* url_pattern = pattern();
-  if (!url_pattern) {
-    return false;
-  }
-
-  URLPattern::MatchResult result;
-  if (!url_pattern->Match(href, &result)) {
-    return false;
-  }
-
-  String value;
-  return GetParamValue(result, key, value) && value == expected_value;
+  // Certain components are deliberately omitted here.
+  //
+  // See https://drafts.csswg.org/css-navigation-1/#typedef-init-descriptor-name
+  return MatchesAllPatternParams(r1.protocol, r2.protocol) &&
+         MatchesAllPatternParams(r1.hostname, r2.hostname) &&
+         MatchesAllPatternParams(r1.port, r2.port) &&
+         MatchesAllPatternParams(r1.pathname, r2.pathname) &&
+         MatchesAllPatternParams(r1.search, r2.search) &&
+         MatchesAllPatternParams(r1.hash, r2.hash);
 }
 
 const AtomicString& Route::InterfaceName() const {

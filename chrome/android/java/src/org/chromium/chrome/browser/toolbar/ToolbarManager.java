@@ -11,6 +11,7 @@ import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.ADAPT
 import android.app.Activity;
 import android.content.ComponentCallbacks;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.content.res.ColorStateList;
 import android.content.res.Configuration;
 import android.graphics.Point;
@@ -1925,10 +1926,12 @@ public class ToolbarManager
 
         // TODO(crbug.com/448691376): Change ToolbarPositionController profileSupplier argument
         // to Supplier<@Nullable Profile> and updated the rest of the code.
+        @SuppressWarnings("UseSharedPreferencesManagerFromChromeCheck")
+        SharedPreferences sharedPreferences = ContextUtils.getAppSharedPreferences();
         mToolbarPositionController =
                 new ToolbarPositionController(
                         mBrowserControlsSizer,
-                        ContextUtils.getAppSharedPreferences(),
+                        sharedPreferences,
                         mIsNtpWithFakeboxShowingSupplier,
                         mIsIncognitoNtpShowingSupplier,
                         mIsTabSwitcherFinishedShowingSupplier,
@@ -2074,7 +2077,9 @@ public class ToolbarManager
 
         mHomepageStateListener =
                 () -> {
-                    mHomepageEnabledSupplier.set(HomepageManager.getInstance().isHomepageEnabled());
+                    mHomepageEnabledSupplier.set(
+                            HomepageManager.getInstance()
+                                    .shouldShowHomeButtonOnToolbar(isNewTabPage()));
                 };
 
         HomepageManager.getInstance().addListener(mHomepageStateListener);
@@ -2376,6 +2381,7 @@ public class ToolbarManager
                         mControlsVisibilityDelegate,
                         mFullscreenManager,
                         mEdgeToEdgeControllerSupplier,
+                        mActivityTabProvider.asObservable(),
                         (ScrollingBottomViewResourceFrameLayout) tabGroupUiContainer,
                         LayerType.TABSTRIP_TOOLBAR,
                         R.dimen.tab_group_ui_height,
@@ -2409,6 +2415,7 @@ public class ToolbarManager
         BottomBarContainerCoordinator bottomBarContainerCoordinator =
                 new BottomBarContainerCoordinator(
                         bottomAppBarContainer.findViewById(R.id.bottom_container_slot),
+                        mUserEducationHelper,
                         mBottomControlsStacker::requestLayerUpdate,
                         assumeNonNull(mActionRegistry),
                         mCurrentTabSupplier,
@@ -2433,6 +2440,7 @@ public class ToolbarManager
                         mControlsVisibilityDelegate,
                         mFullscreenManager,
                         mEdgeToEdgeControllerSupplier,
+                        mActivityTabProvider.asObservable(),
                         (ScrollingBottomViewResourceFrameLayout) bottomAppBarContainer,
                         LayerType.BOTTOM_APP_BAR,
                         R.dimen.bottom_bar_height,
@@ -2504,6 +2512,12 @@ public class ToolbarManager
             newTabModel.set(
                     ActionProperties.ON_PRESS_CALLBACK,
                     v -> {
+                        Tab currentTab = mActivityTabProvider.get();
+                        if (currentTab != null
+                                && BottomBarConfigUtils.isBottomBarEnabled(mActivity)) {
+                            TrackerFactory.getTrackerForProfile(currentTab.getProfile())
+                                    .notifyEvent(EventConstants.ANDROID_BOTTOM_BAR_NEW_TAB_USED);
+                        }
                         TabCreatorUtil.launchNtp(
                                 mTabCreatorManager.getTabCreator(
                                         tabModelSelector.isIncognitoSelected()));
@@ -2703,6 +2717,7 @@ public class ToolbarManager
 
     @Override
     public @Nullable View getMenuButtonView() {
+        if (mMenuButtonCoordinator == null) return null;
         MenuButton button = mMenuButtonCoordinator.getMenuButton();
         if (button == null) return null;
         return button.getImageButton();
@@ -3618,6 +3633,11 @@ public class ToolbarManager
     /** Returns {@link LocationBar}. */
     public LocationBar getLocationBar() {
         return mLocationBar;
+    }
+
+    /** Returns {@link WindowAndroid} */
+    public WindowAndroid getWindowAndroid() {
+        return mWindowAndroid;
     }
 
     /** Returns {@link LocationBarModel} for access in tests. */

@@ -33,7 +33,6 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.robolectric.Robolectric;
 
-import org.chromium.base.Callback;
 import org.chromium.base.MathUtils;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.DisableFeatures;
@@ -41,7 +40,6 @@ import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.actor.ActorKeyedService;
 import org.chromium.chrome.browser.actor.ActorKeyedServiceFactory;
-import org.chromium.chrome.browser.actor.ActorTask;
 import org.chromium.chrome.browser.compositor.LayerTitleCache;
 import org.chromium.chrome.browser.compositor.layouts.LayoutRenderHost;
 import org.chromium.chrome.browser.compositor.layouts.LayoutUpdateHost;
@@ -49,9 +47,9 @@ import org.chromium.chrome.browser.compositor.layouts.components.TintedComposito
 import org.chromium.chrome.browser.compositor.layouts.components.TintedCompositorTextButton;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutTrailingButtonsCoordinator.StripLayoutTrailingButtonsObserver;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.glic.GlicButtonDelegate;
 import org.chromium.chrome.browser.glic.GlicEnabling;
 import org.chromium.chrome.browser.glic.GlicKeyedService;
-import org.chromium.chrome.browser.glic.GlicKeyedService.GlobalShowHideObserver;
 import org.chromium.chrome.browser.glic.GlicPrefNames;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTask;
@@ -76,7 +74,7 @@ public class StripLayoutTrailingButtonsCoordinatorTest {
     @Mock private LayoutRenderHost mRenderHost;
     @Mock private LayerTitleCache mLayerTitleCache;
     @Mock private GlicKeyedService mGlicKeyedService;
-    @Mock private Callback<Boolean> mGlicClickHandler;
+    @Mock private GlicButtonDelegate mGlicClickHandler;
     @Mock private View mToolbarContainerView;
     @Mock private WindowAndroid mWindowAndroid;
     @Mock private Profile mProfile;
@@ -292,93 +290,6 @@ public class StripLayoutTrailingButtonsCoordinatorTest {
     }
 
     @Test
-    public void testGlicHighlightedState_GlicUiShowHide() {
-        assertNotNull("Glic button should be created.", mGlicButton);
-
-        ArgumentCaptor<GlobalShowHideObserver> observerCaptor =
-                ArgumentCaptor.forClass(GlobalShowHideObserver.class);
-        Mockito.verify(mGlicKeyedService).addGlobalShowHideObserver(observerCaptor.capture());
-
-        // Verify initial state: button is not highlighted.
-        assertFalse(
-                "Glic button should not be highlighted initially.", mGlicButton.isHighlighted());
-
-        // Simulate Glic UI opening event.
-        when(mGlicKeyedService.isPanelShowingForBrowser(mBwiPtr)).thenReturn(true);
-        observerCaptor.getValue().onGlobalShowHide();
-
-        // Verify button is in highlighted state.
-        assertTrue(
-                "Glic button should be highlighted when UI is shown globally.",
-                mGlicButton.isHighlighted());
-
-        // Simulate Glic UI hiding event.
-        when(mGlicKeyedService.isPanelShowingForBrowser(mBwiPtr)).thenReturn(false);
-        observerCaptor.getValue().onGlobalShowHide();
-
-        // Verify button returns to non-highlighted state.
-        assertFalse(
-                "Glic button should not be highlighted when UI is hidden globally.",
-                mGlicButton.isHighlighted());
-    }
-
-    @Test
-    public void testGlicActorHighlightedState_TaskMenuShowHide() {
-        assertNotNull("Glic Actor button should be created.", mGlicActorButton);
-
-        mCoordinator.setGlicActorButtonVisible(true);
-        assertFalse(
-                "Glic Actor button should not be highlighted initially.",
-                mGlicActorButton.isHighlighted());
-
-        // Mock active tasks to ensure the menu actually opens
-        ActorTask task = Mockito.mock(ActorTask.class);
-        when(task.getTitle()).thenReturn("Test Task");
-        when(mActorKeyedService.getActiveTasks())
-                .thenReturn(java.util.Collections.singletonList(task));
-
-        // Simulate clicking the actor button to open the task menu
-        float actorX = mGlicActorButton.getDrawX() + mGlicActorButton.getWidth() / 2;
-        float actorY = mGlicActorButton.getDrawY() + mGlicActorButton.getHeight() / 2;
-        mCoordinator.click(0L, actorX, actorY, 0, 0, /* tabWidthDp= */ 100f);
-
-        // Verify button is in highlighted state and task menu is showing
-        assertTrue(
-                "Glic Actor button should be highlighted after task menu is shown.",
-                mGlicActorButton.isHighlighted());
-        assertTrue("Glic task menu should be showing.", mCoordinator.isMenuShowing());
-
-        // Simulate dismissing the task menu
-        mCoordinator.dismissTrailingButtonsMenu();
-
-        // Verify button returns to non-highlighted state
-        assertFalse(
-                "Glic Actor button should not be highlighted after task menu is dismissed.",
-                mGlicActorButton.isHighlighted());
-    }
-
-    @Test
-    public void testGlicHighlightedState_WindowPtrZero() {
-        assertNotNull("Glic button should be created.", mGlicButton);
-
-        ArgumentCaptor<GlobalShowHideObserver> observerCaptor =
-                ArgumentCaptor.forClass(GlobalShowHideObserver.class);
-        Mockito.verify(mGlicKeyedService).addGlobalShowHideObserver(observerCaptor.capture());
-
-        // Simulate getNativeBrowserWindowPtr returning 0
-        when(mTask.getNativeBrowserWindowPtr(any(), any())).thenReturn(0L);
-
-        // Simulate Glic UI opening event.
-        when(mGlicKeyedService.isPanelShowingForBrowser(mBwiPtr)).thenReturn(true);
-        observerCaptor.getValue().onGlobalShowHide();
-
-        // Verify button is NOT highlighted because ptr was 0.
-        assertFalse(
-                "Glic button should not be highlighted when window ptr is 0.",
-                mGlicButton.isHighlighted());
-    }
-
-    @Test
     public void testGlicDismissNudgeButton() {
         mCoordinator.setGlicButtonText("Glic Nudge Text", /* isActor= */ false);
         mCoordinator.setGlicDismissNudgeButtonVisible(true);
@@ -452,7 +363,10 @@ public class StripLayoutTrailingButtonsCoordinatorTest {
         float glicY = mGlicButton.getDrawY() + mGlicButton.getHeight() / 2;
         boolean glicHandled = mCoordinator.click(0L, glicX, glicY, 0, 0, /* tabWidthDp= */ 100f);
         assertTrue("Click on Glic coordinates should be handled.", glicHandled);
-        verify(mGlicClickHandler, Mockito.times(1)).onResult(/* result= */ false);
+        verify(mGlicClickHandler, Mockito.times(1))
+                .onClick(
+                        /* preventClose= */ false,
+                        GlicKeyedService.GlicInvocationSource.TOP_CHROME_BUTTON);
 
         // 2. Test click routing on Glic Actor Button coordinates
         float actorX = mGlicActorButton.getDrawX() + mGlicActorButton.getWidth() / 2;

@@ -131,7 +131,6 @@
 #include "chrome/common/pref_names.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/common/webui_url_constants.h"
-#include "chrome/grit/generated_resources.h"
 #include "components/bookmarks/browser/bookmark_model.h"
 #include "components/bookmarks/browser/bookmark_node.h"
 #include "components/bookmarks/browser/bookmark_utils.h"
@@ -544,9 +543,12 @@ namespace {
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 const extensions::Extension* GetExtensionForBrowser(
     BrowserWindowInterface* browser) {
+  auto* controller = web_app::AppBrowserController::From(browser);
+  if (!controller) {
+    return nullptr;
+  }
   return extensions::ExtensionRegistry::Get(browser->GetProfile())
-      ->GetExtensionById(web_app::GetAppIdFromApplicationName(
-                             browser->GetBrowserForMigrationOnly()->app_name()),
+      ->GetExtensionById(controller->app_id(),
                          extensions::ExtensionRegistry::EVERYTHING);
 }
 #endif
@@ -1201,7 +1203,7 @@ content::WebContents& NewTab(BrowserWindowInterface* browser,
 
   if (browser->GetBrowserForMigrationOnly()->SupportsWindowFeature(
           Browser::WindowFeature::kFeatureTabStrip)) {
-    std::optional<tab_groups::TabGroupId> group_id = std::nullopt;
+    std::optional<tab_groups::TabGroupId> group_id;
 
     if (features::IsNewTabAddsToActiveGroupEnabled()) {
       const int index = browser->GetTabStripModel()->active_index();
@@ -1733,7 +1735,7 @@ void AddNewTabToRecentGroup(BrowserWindowInterface* browser) {
     return;
   }
 
-  std::optional<tab_groups::TabGroupId> group_id = std::nullopt;
+  std::optional<tab_groups::TabGroupId> group_id;
 
   // Add the new tab to the most recently active group.
   TabGroupModel* tab_group_model = tab_strip_model->group_model();

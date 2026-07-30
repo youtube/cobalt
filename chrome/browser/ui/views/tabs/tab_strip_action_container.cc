@@ -24,9 +24,11 @@
 #include "chrome/browser/glic/public/features.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_instance.h"
+#include "chrome/browser/glic/public/glic_invoke_options.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/resources/grit/glic_browser_resources.h"
+#include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
@@ -44,7 +46,6 @@
 #include "chrome/browser/ui/views/tabs/tab_strip_nudge_button.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/grit/branded_strings.h"
-#include "chrome/grit/generated_resources.h"
 #include "components/feature_engagement/public/feature_constants.h"
 #include "components/tabs/public/tab_interface.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -589,10 +590,21 @@ void TabStripActionContainer::OnGlicButtonClicked() {
                  : glic::mojom::InvocationSource::kTopChromeButton;
   }
 
-  glic::GlicKeyedServiceFactory::GetGlicKeyedService(
-      browser_window_interface_->GetProfile())
-      ->ToggleUI(browser_window_interface_,
-                 /*prevent_close=*/false, source, prompt_suggestion);
+  auto* glic_service = glic::GlicKeyedServiceFactory::GetGlicKeyedService(
+      browser_window_interface_->GetProfile());
+  const bool is_panel_showing =
+      glic_service->IsPanelShowingForBrowser(*browser_window_interface_);
+  if (!is_panel_showing && prompt_suggestion.has_value() &&
+      !prompt_suggestion->empty()) {
+    tabs::TabInterface* active_tab =
+        TabListInterface::From(browser_window_interface_)->GetActiveTab();
+    glic::GlicInvokeOptions options(glic::Target(active_tab), source);
+    options.prompts.push_back(std::move(*prompt_suggestion));
+    glic_service->Invoke(std::move(options));
+  } else {
+    glic_service->ToggleUI(browser_window_interface_,
+                           /*prevent_close=*/false, source);
+  }
 
   if (glic_button_->GetIsShowingNudge()) {
     glic_nudge_controller_->OnNudgeActivity(

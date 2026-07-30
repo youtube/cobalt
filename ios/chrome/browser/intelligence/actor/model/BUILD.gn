@@ -12,11 +12,12 @@ source_set("model") {
     "actor_service_factory.mm",
     "actor_task.h",
     "actor_task.mm",
+    "snackbar_actor_task_updates_observer.h",
+    "snackbar_actor_task_updates_observer.mm",
   ]
   deps = [
-    ":aggregated_journal",
-    ":snackbar_observer",
     "//base",
+    "//components/actor/core:journal",
     "//components/keyed_service/core",
     "//components/optimization_guide/proto:optimization_guide_proto",
     "//ios/chrome/browser/intelligence/actor/public:actor_task_ui_protocols",
@@ -33,38 +34,13 @@ source_set("model") {
     "//ios/chrome/browser/shared/model/profile:profile_keyed_service_factory",
     "//ios/chrome/browser/shared/model/web_state_list:utils",
     "//ios/web/public",
-  ]
-}
 
-# TODO(crbug.com/512521102): Clean up this source set and its dependencies once
-# temporary snackbar notifications are removed.
-source_set("snackbar_observer") {
-  sources = [
-    "snackbar_actor_task_updates_observer.h",
-    "snackbar_actor_task_updates_observer.mm",
-  ]
-  deps = [
-    "//base",
-    "//ios/chrome/browser/intelligence/actor/public:actor_task_ui_protocols",
-    "//ios/chrome/browser/intelligence/actor/tools/utils:actor_tool_utils",
-    "//ios/chrome/browser/shared/model/browser",
+    # TODO(crbug.com/512521102): Remove these deps once the snackbar prototype
+    # is removed.
+    "//ios/chrome/browser/intelligence/bwg/ui",
     "//ios/chrome/browser/shared/model/browser:utils",
-    "//ios/chrome/browser/shared/model/profile",
     "//ios/chrome/browser/shared/public/commands",
     "//ios/chrome/browser/shared/public/snackbar",
-  ]
-}
-
-source_set("aggregated_journal") {
-  sources = [
-    "aggregated_journal.h",
-    "aggregated_journal.mm",
-  ]
-  deps = [
-    "//base",
-    "//ios/chrome/browser/intelligence/actor/public:actor_types",
-    "//ios/chrome/browser/intelligence/features",
-    "//url",
   ]
 }
 
@@ -72,17 +48,14 @@ source_set("unit_tests") {
   testonly = true
   sources = [
     "actor_engine_unittest.mm",
-    "actor_service_journal_unittest.mm",
     "actor_service_unittest.mm",
     "actor_task_unittest.mm",
-    "aggregated_journal_unittest.mm",
     "snackbar_actor_task_updates_observer_unittest.mm",
   ]
   deps = [
-    ":aggregated_journal",
     ":model",
-    ":snackbar_observer",
     "//base/test:test_support",
+    "//components/actor/core:journal",
     "//components/optimization_guide/proto:optimization_guide_proto",
     "//ios/chrome/browser/intelligence/actor/public:actor_task_ui_protocols",
     "//ios/chrome/browser/intelligence/actor/public:actor_types",

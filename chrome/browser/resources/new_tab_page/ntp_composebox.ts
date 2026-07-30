@@ -3,13 +3,25 @@
 // found in the LICENSE file.
 
 import '//resources/cr_components/composebox/composebox_dropdown.js';
+import '//resources/cr_components/composebox/composebox_file_inputs.js';
+import '//resources/cr_components/composebox/contextual_entrypoint_and_menu.js';
 import '//resources/cr_components/composebox/composebox_input.js';
+import '//resources/cr_components/composebox/error_scrim.js';
+import '//resources/cr_components/composebox/file_carousel.js';
+import '//resources/cr_components/composebox/composebox_tool_chip.js';
+import '//resources/cr_elements/cr_icon_button/cr_icon_button.js';
 
 import type {PageHandlerRemote} from '//resources/cr_components/composebox/composebox.mojom-webui.js';
 import type {ComposeboxDropdownElement} from '//resources/cr_components/composebox/composebox_dropdown.js';
+import type {ComposeboxFileInputsElement} from '//resources/cr_components/composebox/composebox_file_inputs.js';
 import type {ComposeboxInputElement} from '//resources/cr_components/composebox/composebox_input.js';
 import {ComposeboxEmbedderMixin} from '//resources/cr_components/composebox/composebox_mixin.js';
 import {ComposeboxProxyImpl} from '//resources/cr_components/composebox/composebox_proxy.js';
+import type {ContextualEntrypointAndMenuElement} from '//resources/cr_components/composebox/contextual_entrypoint_and_menu.js';
+import type {ErrorScrimElement} from '//resources/cr_components/composebox/error_scrim.js';
+import type {ComposeboxFileCarouselElement} from '//resources/cr_components/composebox/file_carousel.js';
+import {DragAndDropHandler} from '//resources/cr_components/search/drag_drop_handler.js';
+import type {DragAndDropHost} from '//resources/cr_components/search/drag_drop_host.js';
 import {EventTracker} from '//resources/js/event_tracker.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import type {PageCallbackRouter as SearchboxPageCallbackRouter, PageHandlerRemote as SearchboxPageHandlerRemote} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
@@ -22,11 +34,14 @@ export interface NtpComposeboxElement {
     composeboxInput: ComposeboxInputElement,
     composebox: HTMLElement,
     matches: ComposeboxDropdownElement,
+    fileInputs: ComposeboxFileInputsElement,
+    carousel: ComposeboxFileCarouselElement,
+    errorScrim: ErrorScrimElement,
   };
 }
 
 export class NtpComposeboxElement extends ComposeboxEmbedderMixin
-(CrLitElement) {
+(CrLitElement) implements DragAndDropHost {
   static get is() {
     return 'ntp-composebox';
   }
@@ -43,6 +58,7 @@ export class NtpComposeboxElement extends ComposeboxEmbedderMixin
   private pageHandler_: PageHandlerRemote;
   private searchboxHandler_: SearchboxPageHandlerRemote;
   private eventTracker_: EventTracker = new EventTracker();
+  protected dragAndDropHandler_: DragAndDropHandler;
 
   override getPageHandler(): PageHandlerRemote {
     return this.pageHandler_;
@@ -68,12 +84,21 @@ export class NtpComposeboxElement extends ComposeboxEmbedderMixin
     return this.$.matches;
   }
 
+  override getContextEntrypointElement(): ContextualEntrypointAndMenuElement|
+      null {
+    return this.shadowRoot?.querySelector<ContextualEntrypointAndMenuElement>(
+               '#contextEntrypoint') ||
+        null;
+  }
+
   constructor() {
     super();
     this.pageHandler_ = ComposeboxProxyImpl.getInstance().handler;
     this.searchboxCallbackRouter_ =
         ComposeboxProxyImpl.getInstance().searchboxCallbackRouter;
     this.searchboxHandler_ = ComposeboxProxyImpl.getInstance().searchboxHandler;
+    this.dragAndDropHandler_ =
+        new DragAndDropHandler(this, this.dragAndDropEnabled);
   }
 
   override connectedCallback() {
@@ -86,10 +111,18 @@ export class NtpComposeboxElement extends ComposeboxEmbedderMixin
     this.eventTracker_.removeAll();
   }
 
-  protected computeCancelButtonTitle_() {
-    return this.input.trim().length > 0 || this.files.size > 0 ?
-        this.i18n('composeboxCancelButtonTitleInput') :
-        this.i18n('composeboxCancelButtonTitle');
+  /* Used by drag/drop host interface so the
+  drag and drop handler can access addDroppedFiles(). */
+  getDropTarget() {
+    return this;
+  }
+
+  override shouldShowDivider(): boolean {
+    const hasNonTabFiles = Array.from(this.files.values()).some(f => !f.url);
+    if (this.hasTabs() && !hasNonTabFiles) {
+      return this.showDropdown;
+    }
+    return super.shouldShowDivider();
   }
 }
 

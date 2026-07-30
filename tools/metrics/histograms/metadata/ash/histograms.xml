@@ -990,7 +990,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Ash.Birch.Bar.Impression" units="count"
-    expires_after="2026-11-01">
+    expires_after="2026-11-15">
   <owner>jamescook@chromium.org</owner>
   <owner>chromeos-launcher@google.com</owner>
   <summary>
@@ -1009,7 +1009,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Ash.Birch.Chip.ActivatedRanking" units="rank"
-    expires_after="2026-07-05">
+    expires_after="2026-11-15">
   <owner>jamescook@chromium.org</owner>
   <owner>chromeos-launcher@google.com</owner>
   <summary>
@@ -1019,7 +1019,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Ash.Birch.Chip.Activate{When}" enum="BirchItemType"
-    expires_after="2026-07-05">
+    expires_after="2026-11-15">
   <owner>jamescook@chromium.org</owner>
   <owner>chromeos-launcher@google.com</owner>
   <summary>
@@ -1304,6 +1304,26 @@ chromium-metrics-reviews@google.com.
     <variant name="SetViewScreenSessionActive"/>
     <variant name="ViewStudentScreen"/>
   </token>
+</histogram>
+
+<histogram name="Ash.Boca.StudentGeminiStatus.Enabled" enum="BooleanEnabled"
+    expires_after="2027-05-27">
+  <owner>anasr@google.com</owner>
+  <owner>cros-edu-eng@google.com</owner>
+  <summary>
+    Records whether Gemini status is enabled or disabled for the student.
+    Recorded once per session when the student joins.
+  </summary>
+</histogram>
+
+<histogram name="Ash.Boca.TeacherGetGeminiStatus.Enabled" enum="BooleanEnabled"
+    expires_after="2027-05-27">
+  <owner>anasr@google.com</owner>
+  <owner>cros-edu-eng@google.com</owner>
+  <summary>
+    Records whether Gemini status is enabled or disabled. Recorded when the
+    teacher requests the Gemini status.
+  </summary>
 </histogram>
 
 <histogram name="Ash.Boca.TokenRetrievalIsValidation" enum="Boolean"

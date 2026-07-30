@@ -34,6 +34,7 @@ import org.chromium.chrome.browser.omnibox.R;
 import org.chromium.chrome.browser.omnibox.SearchEngineUtils;
 import org.chromium.chrome.browser.omnibox.SearchEngineUtils.SearchEngineIconObserver;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxCoordinator.FuseboxState;
+import org.chromium.chrome.browser.omnibox.fusebox.FuseboxFeatureUtils;
 import org.chromium.chrome.browser.omnibox.status.StatusCoordinator.PageInfoAction;
 import org.chromium.chrome.browser.omnibox.status.StatusProperties.PermissionIconResource;
 import org.chromium.chrome.browser.omnibox.status.StatusProperties.StatusIconResource;
@@ -65,6 +66,7 @@ import org.chromium.components.search_engines.TemplateUrlService.TemplateUrlServ
 import org.chromium.components.security_state.ConnectionSecurityLevel;
 import org.chromium.content_public.browser.BrowserContextHandle;
 import org.chromium.content_public.browser.WebContents;
+import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.url.GURL;
@@ -205,6 +207,7 @@ public class StatusMediator
                     mSearchEngineUtils = SearchEngineUtils.getForProfile(p);
                     mSearchEngineUtils.addIconObserver(this);
                     mImageSupplier.setProfile(p);
+                    updateLocationBarIcon(IconTransitionType.CROSSFADE);
                 });
 
         updateColorTheme();
@@ -489,6 +492,16 @@ public class StatusMediator
                 && mLocationBarDataProvider.getNewTabPageDelegate().isCurrentlyVisible();
     }
 
+    private boolean shouldShowNtpPlusButton() {
+        Profile profile = mProfileSupplier.get();
+        TemplateUrlService templateUrlService = mTemplateUrlServiceSupplier.get();
+        return isNtpVisible()
+                && !mUrlHasFocus
+                && !DeviceFormFactor.isNonMultiDisplayContextOnTablet(mContext)
+                && FuseboxFeatureUtils.shouldShowNtpPlusButton(
+                        mContext, profile, templateUrlService);
+    }
+
     /**
      * Returns whether the Incognito NewTabPage is currently shown to the user.
      *
@@ -553,12 +566,10 @@ public class StatusMediator
             mPermissionStatusHandler.reset(/* shouldDismissNativePrompt= */ false);
             tintRes = mNavigationIconTintRes;
             iconRes = R.drawable.search_spark_black_24dp;
-            // TODO(crbug.com/497047954): remove the click listener when Fusebox reparenting is
-            // done.
-            clickListener = mFuseboxOnPlusButtonClicked;
             descRes = R.string.accessibility_omnibox_open_context_popup;
             doubleTapDescriptionRes = Resources.ID_NULL;
-        } else if (mFuseboxStateSupplier.get() == FuseboxState.COMPACT) {
+        } else if (mFuseboxStateSupplier.get() == FuseboxState.COMPACT
+                || shouldShowNtpPlusButton()) {
             mPermissionStatusHandler.reset(/* shouldDismissNativePrompt= */ false);
             tintRes = mNavigationIconTintRes;
             iconRes = R.drawable.ic_add_round_20dp_with_inset;
@@ -909,6 +920,7 @@ public class StatusMediator
             }
             mLastTabId = currentTab.getId();
         }
+        updateLocationBarIcon(IconTransitionType.CROSSFADE);
     }
 
     public void onTabCrashed() {

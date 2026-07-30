@@ -5,6 +5,7 @@
 package org.chromium.chrome.browser.ui.side_panel_container;
 
 import android.graphics.Rect;
+import android.view.View;
 
 import org.chromium.base.Callback;
 import org.chromium.build.annotations.NullMarked;
@@ -17,6 +18,16 @@ public interface SidePanelContainerCoordinator {
 
     /** Minimum window width for the side panel to have {@link #WIDE_SIDE_PANEL_WIDTH_DP}. */
     int MIN_WINDOW_WIDTH_DP_FOR_WIDE_SIDE_PANEL = 1200;
+
+    /**
+     * Minimum side panel width.
+     *
+     * <p>If the window width can't accommodate both (minimum side panel width) and (minimum {@code
+     * WebContents} width), the side panel will be closed.
+     *
+     * @see org.chromium.chrome.browser.ui.side_ui.SideUiCoordinator#MIN_WEB_CONTENTS_WIDTH_DP
+     */
+    int MIN_SIDE_PANEL_WIDTH_DP = 200;
 
     /**
      * Fixed, narrow side panel width for when the window can accommodate both the side panel and
@@ -82,6 +93,9 @@ public interface SidePanelContainerCoordinator {
 
     /** Returns whether the given {@link SidePanelContent} is shown in this side panel container. */
     boolean isShowing(SidePanelContent sidePanelContent);
+
+    /** Returns the content View currently shown in the side panel container, or null. */
+    @Nullable View getContentView();
 
     /** Destroys all objects owned by this coordinator. */
     void destroy();

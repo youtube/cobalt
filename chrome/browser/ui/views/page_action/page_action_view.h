@@ -19,6 +19,7 @@
 #include "chrome/browser/ui/page_action/page_action_model_observer.h"
 #include "chrome/browser/ui/views/location_bar/icon_label_bubble_view.h"
 #include "chrome/browser/ui/views/page_action/anchored_message_view.h"
+#include "third_party/skia/include/core/SkColor.h"
 #include "ui/actions/actions.h"
 #include "ui/base/interaction/element_identifier.h"
 #include "ui/base/models/image_model.h"
@@ -79,11 +80,13 @@ class PageActionView : public IconLabelBubbleView,
   // Reports the chip visibility change state at the end of the animation.
   void SetIsChipShowingChangedCallback(
       IsChipShowingChangedCallback callback) override;
+  void SetImageAnimationStartedCallback(
+      ImageAnimationStartedCallback callback) override;
   void SetAnchoredMessageCloseCallback(
       base::RepeatingClosure callback) override;
-  void SetAnchoredMessagePauseCallback(
+  void SetAnchoredMessageExpandCallback(
       base::RepeatingClosure callback) override;
-  void SetAnchoredMessageResumeCallback(
+  void SetAnchoredMessageCollapseCallback(
       base::RepeatingClosure callback) override;
   void SetClickCallback(
       base::RepeatingCallback<void(PageActionTrigger)> callback) override;
@@ -111,8 +114,8 @@ class PageActionView : public IconLabelBubbleView,
   // AnchoredMessageBubbleView::Delegate:
   void AnchoredMessageChipClick() override;
   void CloseAnchoredMessage() override;
-  void PauseAnchoredMessageTimeout() override;
-  void ResumeAnchoredMessageTimeout() override;
+  void AnchoredMessageExpanded() override;
+  void AnchoredMessageCollapsed() override;
 
   actions::ActionId GetActionId() const;
 
@@ -130,6 +133,8 @@ class PageActionView : public IconLabelBubbleView,
   // size needed for the location bar page action icon. Therefore, we should to
   // update the image size if needed.
   void UpdateIconImage();
+
+  void AnimateImage(int resource_id, SkColor icon_color);
 
   const gfx::Insets GetInsetsForNonVectorIcon() const;
 
@@ -175,6 +180,10 @@ class PageActionView : public IconLabelBubbleView,
   IsChipShowingChangedCallback is_chip_showing_changed_callback_ =
       base::DoNothing();
 
+  // Client-provided callbacks for when image animation starts.
+  ImageAnimationStartedCallback image_animation_started_callback_ =
+      base::DoNothing();
+
   // The last "chip showing" state that was sent for a notification.
   std::optional<bool> last_notified_is_chip_showing_;
 
@@ -190,8 +199,9 @@ class PageActionView : public IconLabelBubbleView,
   std::unique_ptr<views::Widget> anchored_message_widget_;
 
   base::RepeatingClosure anchored_message_close_callback_ = base::DoNothing();
-  base::RepeatingClosure anchored_message_pause_callback_ = base::DoNothing();
-  base::RepeatingClosure anchored_message_resume_callback_ = base::DoNothing();
+  base::RepeatingClosure anchored_message_expand_callback_ = base::DoNothing();
+  base::RepeatingClosure anchored_message_collapse_callback_ =
+      base::DoNothing();
   base::WeakPtrFactory<PageActionView> weak_factory_{this};
 };
 

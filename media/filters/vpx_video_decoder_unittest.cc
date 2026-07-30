@@ -22,12 +22,16 @@
 #include "media/base/test_data_util.h"
 #include "media/base/test_helpers.h"
 #include "media/base/video_frame.h"
-#include "media/ffmpeg/ffmpeg_common.h"
-#include "media/ffmpeg/scoped_av_packet.h"
-#include "media/filters/in_memory_url_protocol.h"
+#include "media/media_buildflags.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "third_party/skia/include/core/SkData.h"
 #include "ui/gfx/switches.h"
+
+#if BUILDFLAG(ENABLE_FFMPEG)
+#include "media/ffmpeg/ffmpeg_common.h"
+#include "media/ffmpeg/scoped_av_packet.h"
+#include "media/filters/in_memory_url_protocol.h"
+#endif  // BUILDFLAG(ENABLE_FFMPEG)
 
 using ::testing::_;
 
@@ -175,6 +179,7 @@ class VpxVideoDecoderTest : public testing::Test {
     output_frames_.push_back(std::move(frame));
   }
 
+#if BUILDFLAG(ENABLE_FFMPEG)
   // Extracts the compressed video data from the AVPacket and also checks for
   // side data containing an alpha channel. If found, it copies the alpha data
   // into the DecoderBuffer's side data. This is necessary because FFmpeg
@@ -196,6 +201,7 @@ class VpxVideoDecoderTest : public testing::Test {
     }
     return buffer;
   }
+#endif  // BUILDFLAG(ENABLE_FFMPEG)
 
   MOCK_METHOD1(DecodeDone, void(DecoderStatus));
 
@@ -314,6 +320,7 @@ TEST_F(VpxVideoDecoderTest, SimpleFrameReuse) {
   EXPECT_EQ(old_y_data, output_frames_.back()->data(VideoFrame::Plane::kY));
 }
 
+#if BUILDFLAG(ENABLE_FFMPEG)
 TEST_F(VpxVideoDecoderTest, SimpleAlphaFrameReuse) {
   VideoDecoderConfig config = TestVideoConfig::Normal(VideoCodec::kVP9);
   config.Initialize(
@@ -375,6 +382,7 @@ TEST_F(VpxVideoDecoderTest, SimpleAlphaFrameReuse) {
   EXPECT_TRUE(reused_y);
   EXPECT_TRUE(reused_a);
 }
+#endif  // BUILDFLAG(ENABLE_FFMPEG)
 
 TEST_F(VpxVideoDecoderTest, SimpleFormatChange) {
   scoped_refptr<DecoderBuffer> large_frame =
@@ -399,6 +407,7 @@ TEST_F(VpxVideoDecoderTest, FrameValidAfterPoolDestruction) {
       output_frames_.front()->writable_span(VideoFrame::Plane::kY), 0xff);
 }
 
+#if BUILDFLAG(ENABLE_FFMPEG)
 TEST_F(VpxVideoDecoderTest, AlphaFrameValidAfterPoolDestruction) {
   VideoDecoderConfig config = TestVideoConfig::Normal(VideoCodec::kVP9);
   config.Initialize(
@@ -431,11 +440,13 @@ TEST_F(VpxVideoDecoderTest, AlphaFrameValidAfterPoolDestruction) {
   std::ranges::fill(
       output_frames_.front()->writable_span(VideoFrame::Plane::kA), 0xff);
 }
+#endif  // BUILDFLAG(ENABLE_FFMPEG)
 
 // The test stream uses profile 2, which needs high bit depth support in libvpx.
 // On ARM we fail to decode the final, duplicate frame, so there is no point in
 // running this test (https://crbug.com/864458).
-#if !defined(LIBVPX_NO_HIGH_BIT_DEPTH) && !defined(ARCH_CPU_ARM_FAMILY)
+#if BUILDFLAG(ENABLE_FFMPEG) && !defined(LIBVPX_NO_HIGH_BIT_DEPTH) && \
+    !defined(ARCH_CPU_ARM_FAMILY)
 TEST_F(VpxVideoDecoderTest, MemoryPoolAllowsMultipleDisplay) {
   // Initialize with dummy data, we could read it from the test clip, but it's
   // not necessary for this test.
@@ -479,10 +490,11 @@ TEST_F(VpxVideoDecoderTest, MemoryPoolAllowsMultipleDisplay) {
   // ASAN will be very unhappy with this line if the above is incorrect.
   std::ranges::fill(last_frame->writable_span(VideoFrame::Plane::kY), 0);
 }
-#endif  // !defined(LIBVPX_NO_HIGH_BIT_DEPTH) && !defined(ARCH_CPU_ARM_FAMILY)
+#endif  // BUILDFLAG(ENABLE_FFMPEG) && !defined(LIBVPX_NO_HIGH_BIT_DEPTH) &&
+        // !defined(ARCH_CPU_ARM_FAMILY)
 
-// TODO(crbug.com/395659818): Enable after updating parsing in Chromium.
-TEST_F(VpxVideoDecoderTest, DISABLED_AgtmMetadata) {
+#if BUILDFLAG(ENABLE_FFMPEG)
+TEST_F(VpxVideoDecoderTest, AgtmMetadata) {
   base::test::ScopedFeatureList scoped_feature_list(features::kHdrAgtm);
   Initialize();
 
@@ -493,24 +505,18 @@ TEST_F(VpxVideoDecoderTest, DISABLED_AgtmMetadata) {
 
   auto packet = ScopedAVPacket::Allocate();
   ASSERT_GE(av_read_frame(glue.format_context(), packet.get()), 0);
-  ASSERT_EQ(packet->side_data_elems, 1);
+  skhdr::AdaptiveGlobalToneMap agtm;
   auto buffer = DecoderBuffer::CopyFrom(AVPacketData(*packet));
-  // SAFETY: The best we can do here is trust the size reported by ffmpeg.
-  auto side_data = UNSAFE_BUFFERS(
-      base::span(packet->side_data[0].data, packet->side_data[0].size));
-  ASSERT_EQ(base::U64FromBigEndian(side_data.first<8u>()), 4u);
-  auto agtm = GetAgtmFromT35(side_data.subspan(8u));
-  ASSERT_TRUE(agtm.has_value());
-  buffer->WritableSideData().hdr_metadata.SetSerializedAgtm(*agtm);
+  buffer->WritableSideData().hdr_metadata.SetAgtm(agtm);
   DecoderStatus decode_status = Decode(buffer);
   av_packet_unref(packet.get());
   ASSERT_TRUE(decode_status.is_ok());
 
   const auto& frame = output_frames_.front();
   ASSERT_TRUE(frame->hdr_metadata().HasAgtm());
-  EXPECT_EQ(frame->hdr_metadata().GetAgtm().fHdrReferenceWhite, 203.0f);
 
   Destroy();
 }
+#endif  // BUILDFLAG(ENABLE_FFMPEG)
 
 }  // namespace media

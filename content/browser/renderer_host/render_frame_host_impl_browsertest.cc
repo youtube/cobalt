@@ -97,6 +97,7 @@
 #include "net/test/embedded_test_server/controllable_http_response.h"
 #include "net/test/embedded_test_server/default_handlers.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
+#include "net/test/embedded_test_server/expectation_handler.h"
 #include "net/test/embedded_test_server/http_request.h"
 #include "net/test/embedded_test_server/request_handler_util.h"
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
@@ -5917,8 +5918,9 @@ IN_PROC_BROWSER_TEST_F(ContentBrowserTest, LoadingStateResetOnNavigation) {
 
 IN_PROC_BROWSER_TEST_F(ContentBrowserTest,
                        LoadingStateIsNotResetOnFailedNavigation) {
-  net::test_server::ControllableHttpResponse document2_response(
-      embedded_test_server(), "/document2");
+  net::test_server::ExpectationHandler handler(embedded_test_server());
+  handler.OnRequest("/document2")
+      .RespondWith(net::HTTP_NO_CONTENT, "text/html; charset=utf-8", "");
 
   EXPECT_TRUE(embedded_test_server()->Start());
   GURL url1(embedded_test_server()->GetURL("/title1.html"));
@@ -5944,12 +5946,6 @@ IN_PROC_BROWSER_TEST_F(ContentBrowserTest,
   shell()->LoadURL(url2);
   EXPECT_TRUE(navigation_manager.WaitForRequestStart());
   navigation_manager.ResumeNavigation();
-  document2_response.WaitForRequest();
-
-  document2_response.Send(
-      "HTTP/1.1 204 No Content\r\n"
-      "Content-Type: text/html; charset=utf-8\r\n"
-      "\r\n");
   ASSERT_TRUE(navigation_manager.WaitForNavigationFinished());
 
   EXPECT_TRUE(rfhi->IsDOMContentLoaded());
@@ -8230,6 +8226,44 @@ IN_PROC_BROWSER_TEST_F(
                   true,   // Delayed commit requests visible loading UI.
                   false   // Navigation completes.
                   ));
+}
+
+IN_PROC_BROWSER_TEST_F(RenderFrameHostImplBrowserTest,
+                       NavigationApiInterceptedPushStateAbortStopsLoading) {
+  GURL main_url = embedded_test_server()->GetURL("a.com", "/title1.html");
+  ASSERT_TRUE(NavigateToURL(shell(), main_url));
+
+  std::unique_ptr<ShouldShowLoadingUIDelegate> delegate =
+      std::make_unique<ShouldShowLoadingUIDelegate>();
+  web_contents()->SetDelegate(delegate.get());
+
+  EXPECT_TRUE(ExecJs(web_contents(), R"(
+      window.onunhandledrejection = e => e.preventDefault();
+      navigation.addEventListener('navigate', event => {
+        event.intercept({
+          precommitHandler() {
+            return new Promise((resolve, reject) => {
+              const timer = setTimeout(resolve, 1000);
+              event.signal.addEventListener('abort', () => {
+                clearTimeout(timer);
+                reject(event.signal.reason);
+              });
+            });
+          },
+        });
+      }, {once: true});
+
+      history.pushState(null, null, '?p=1');
+      setTimeout(() => history.pushState(null, null, '?p=2'), 100);
+      new Promise(resolve => setTimeout(resolve, 200));
+  )"));
+
+  EXPECT_FALSE(web_contents()->IsLoading());
+  EXPECT_EQ(main_url.Resolve("/title1.html?p=2"),
+            web_contents()->GetLastCommittedURL());
+  ASSERT_FALSE(delegate->is_loading_values().empty());
+  EXPECT_FALSE(delegate->is_loading_values().back());
+  EXPECT_FALSE(delegate->did_show_loading_ui_values().back());
 }
 
 // Ensure that navigating with a frame tree of A(B(A)) results in the right

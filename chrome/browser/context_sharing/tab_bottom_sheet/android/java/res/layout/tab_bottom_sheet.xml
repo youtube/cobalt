@@ -11,7 +11,9 @@ found in the LICENSE file.
     android:id="@+id/tab_bottom_sheet"
     tools:ignore="HardcodedText"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:focusable="true"
+    android:focusableInTouchMode="true">
 
     <!-- Tab Bottom Sheet Content: Appears when BottomSheet is expanded -->
     <FrameLayout
@@ -19,6 +21,18 @@ found in the LICENSE file.
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:visibility="visible">
+
+        <!-- Empty Placeholder View (renders behind web_ui_container) -->
+        <org.chromium.components.browser_ui.widget.text.TextViewWithCompoundDrawables
+            android:id="@+id/empty_placeholder_container"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:gravity="center"
+            android:drawablePadding="@dimen/tab_bottom_sheet_placeholder_drawable_padding"
+            android:padding="@dimen/tab_bottom_sheet_placeholder_padding"
+            android:textAppearance="@style/TextAppearance.TextMedium.Secondary"
+            android:visibility="gone" />
 
         <!-- Web UI Container -->
         <org.chromium.chrome.browser.tab_bottom_sheet.TabBottomSheetWebUiContainer
@@ -35,10 +49,10 @@ found in the LICENSE file.
             android:layout_gravity="bottom" />
     </FrameLayout>
 
-    <!-- Actor Control View: Appears when BottomSheet is collapsed -->
+    <!-- Peek View: Appears when BottomSheet is collapsed -->
     <!-- The content includes the actor control view and the drag handle bar frame. -->
     <FrameLayout
-        android:id="@+id/actor_control_container"
+        android:id="@+id/peek_view_container"
         android:layout_width="match_parent"
         android:layout_height="@dimen/tab_bottom_sheet_peek_height_total"
         android:layout_gravity="top"

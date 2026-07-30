@@ -1481,6 +1481,9 @@
       <message name="IDS_NTP_CUSTOMIZATION_THEME_TIP_CUSTOMIZE_BUTTON" desc="Button text for the NTP theme tip bottom sheet to go to customization.">
         Customize my homepage
       </message>
+      <message name="IDS_NTP_CUSTOMIZATION_THEME_SNACKBAR_TEXT" desc="A notification snackbar message advising the user that they can customize their homepage later from the three dots menu.">
+        Edit your homepage later via the 3-dots menu.
+      </message>
       <message name="IDS_NTP_CUSTOMIZATION_MAIN_BOTTOM_SHEET_OPENED_FULL" desc="Accessibility string that describes the new tab page customization main bottom sheet is fully opened.">
         Customize your new tab page bottom sheet opened at full height
       </message>
@@ -1519,6 +1522,12 @@
       </message>
       <message name="IDS_NTP_CUSTOMIZATION_MAIN_BOTTOM_SHEET_CLOSED" desc="Accessibility string that describes a new tab page customization bottom sheet is closed">
         Customize your new tab page bottom sheet closed
+      </message>
+      <message name="IDS_NTP_CUSTOMIZATION_THEME_TIP_BOTTOM_SHEET_OPENED_FULL" desc="Accessibility string that describes the new tab page customization theme tip bottom sheet is fully opened.">
+        Customize your homepage promo bottom sheet opened at full height
+      </message>
+      <message name="IDS_NTP_CUSTOMIZATION_THEME_TIP_BOTTOM_SHEET_OPENED_HALF" desc="Accessibility string that describes the new tab page customization theme tip bottom sheet is fully opened.">
+        Customize your homepage promo bottom sheet opened at half height
       </message>
       <message name="IDS_NTP_CUSTOMIZATION_FEED_SWITCH_DESCRIPTION" desc="Title of the list items in the new tab page customization discover feed bottom sheet">
         Get suggested articles on the New Tab page

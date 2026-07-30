@@ -63,8 +63,10 @@ namespace blink {
 class AnimationFrameTimingInfo;
 class InteractionContentfulPaint;
 class InteractiveDetector;
-class PerformanceTimingForReporting;
 class LocalDOMWindow;
+class PerformanceSoftNavigation;
+class PerformanceTimingForReporting;
+class SoftNavigationContext;
 
 class CORE_EXPORT WindowPerformance final : public Performance,
                                             public PerformanceMonitor::Client,
@@ -183,14 +185,10 @@ class CORE_EXPORT WindowPerformance final : public Performance,
 
   void AddLayoutShiftEntry(LayoutShift*);
   void AddVisibilityStateEntry(bool is_visible, base::TimeTicks start_time);
-  void AddSoftNavigationEntry(
-      const AtomicString& name,
+  PerformanceSoftNavigation* AddSoftNavigation(
       base::TimeTicks start_time,
       const DOMPaintTimingInfo& paint_timing_info,
-      uint32_t navigation_id,
-      V8NavigationType::Enum navigation_type,
-      uint64_t interaction_id,
-      InteractionContentfulPaint* largest_interaction_contentful_paint);
+      SoftNavigationContext* context);
 
   // For soft navigations and back-forward cache restoration. This increments
   // the navigation ID, as specified in

@@ -15,7 +15,6 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/browser/ui/webui/password_manager/promo_card.h"
-#include "chrome/grit/generated_resources.h"
 #include "components/password_manager/core/common/password_manager_pref_names.h"
 #include "components/prefs/scoped_user_pref_update.h"
 #include "components/signin/public/base/signin_buildflags.h"
@@ -26,12 +25,13 @@
 #include "chrome/browser/ui/webui/password_manager/promo_cards/password_checkup_promo.h"
 #include "chrome/browser/ui/webui/password_manager/promo_cards/password_manager_shortcut_promo.h"
 #include "chrome/browser/ui/webui/password_manager/promo_cards/web_password_manager_promo.h"
-#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+#if BUILDFLAG(ENABLE_DICE_SUPPORT) || BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/ui/webui/password_manager/promo_cards/move_passwords_promo.h"
-#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
+#endif
 #endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
 
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+#include "base/memory/scoped_refptr.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/ui/webui/password_manager/promo_cards/relaunch_chrome_promo.h"
 #include "components/os_crypt/async/browser/os_crypt_async.h"
@@ -69,13 +69,13 @@ PromoCardsHandler::PromoCardsHandler(Profile* profile) : profile_(profile) {
       std::make_unique<PasswordManagerShortcutPromo>(profile));
   promo_cards_.push_back(
       std::make_unique<AccessOnAnyDevicePromo>(profile->GetPrefs()));
-#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+#if BUILDFLAG(ENABLE_DICE_SUPPORT) || BUILDFLAG(IS_CHROMEOS)
   promo_cards_.push_back(std::make_unique<MovePasswordsPromo>(
       profile,
       extensions::PasswordsPrivateDelegateFactory::GetForBrowserContext(profile,
                                                                         false)
           .get()));
-#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
+#endif
 #endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
 
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
@@ -184,9 +184,9 @@ PasswordPromoCardBase* PromoCardsHandler::GetPromoToShowAndUpdatePref() {
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 void PromoCardsHandler::OnEncryptorReceived(
     base::Value callback_id,
-    os_crypt_async::Encryptor encryptor) {
+    scoped_refptr<os_crypt_async::Encryptor> encryptor) {
   relaunch_chrome_promo_->set_is_encryption_available(
-      encryptor.IsEncryptionAvailable());
+      encryptor->IsEncryptionAvailable());
   FinishGetAvailablePromoCard(callback_id);
 }
 #endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)

@@ -31,7 +31,6 @@
 #include "chrome/browser/ui/views/sub_apps_permission_explanation.h"
 #include "chrome/browser/vr/vr_tab_helper.h"
 #include "chrome/common/url_constants.h"
-#include "chrome/grit/generated_resources.h"
 #include "components/page_info/core/about_this_site_service.h"
 #include "components/page_info/core/features.h"
 #include "components/page_info/page_info_ui_delegate.h"
@@ -751,8 +750,7 @@ PageInfoMainView::CreateMerchantTrustSubpageButton(
     page_info::MerchantData value) {
   auto button = std::make_unique<RichHoverButton>(
       base::BindRepeating(&PageInfoNavigationHandler::OpenMerchantTrustPage,
-                          base::Unretained(navigation_handler_),
-                          page_info::MerchantBubbleOpenReferrer::kPageInfo),
+                          base::Unretained(navigation_handler_)),
       PageInfoViewFactory::GetImageModel(
           features::IsRoundedIconsEnabled() ? vector_icons::kStorefrontIcon
                                             : vector_icons::kStorefrontOldIcon),

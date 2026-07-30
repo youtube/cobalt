@@ -93,7 +93,8 @@ class AutofillPopupControllerImplTest
                     AutofillSuggestionTriggerSource::kAtMemory);
   }
 
-  // Simulates a user typing a query into the @memory search bar, mocking the
+  // Simulates a user typing a query into the @memory search bar and explicitly
+  // submitting the search (by accepting the search affordance), mocking the
   // backend response and updating the UI state.
   void SimulateAtMemoryQuery(const std::u16string& query,
                              const std::vector<std::u16string>& results) {
@@ -115,9 +116,18 @@ class AutofillPopupControllerImplTest
     }
 
     // 3. Trigger the search via the UI.
+    // First, simulate the user typing the query, which updates the input
+    // filter.
     client().suggestion_controller(manager()).SetFilter(
         AutofillPopupController::StringFilter(query),
         AutofillPopupController::FilterSource::kInputChanged);
+    // Explicitly submit the search (simulating hitting the Enter key in the
+    // search bar).
+    if (!query.empty()) {
+      client().suggestion_controller(manager()).SetFilter(
+          AutofillPopupController::StringFilter(query),
+          AutofillPopupController::FilterSource::kSearchSubmitted);
+    }
 
     // 4. Manually update the controller's suggestions to reflect the mock
     // results. This bypasses the full async callback chain to keep the test
@@ -1194,6 +1204,32 @@ TEST_F(AutofillPopupControllerImplTest,
 TEST_F(AutofillPopupControllerImplTest, UnselectingClearsPreview) {
   EXPECT_CALL(manager().external_delegate(), ClearPreviewedForm());
   client().suggestion_controller(manager()).UnselectSuggestion();
+}
+
+TEST_F(AutofillPopupControllerImplTest,
+       HasSuggestionsWebauthnHybridFlowStandalone) {
+  ShowSuggestions(manager(),
+                  {SuggestionType::kWebauthnSignInWithAnotherDevice});
+  AutofillPopupControllerImpl& controller =
+      static_cast<AutofillPopupControllerImpl&>(
+          client().suggestion_controller(manager()));
+
+  // kWebauthnSignInWithAnotherDevice should be classified as a standalone
+  // suggestion type on Desktop, so HasSuggestions() evaluates to true!
+  EXPECT_TRUE(test_api(controller).HasSuggestions());
+}
+
+TEST_F(AutofillPopupControllerImplTest,
+       HasSuggestionsSeparatorsAndNonStandaloneFootersAreNotStandalone) {
+  ShowSuggestions(manager(), {SuggestionType::kSeparator,
+                              SuggestionType::kAllSavedPasswordsEntry});
+  AutofillPopupControllerImpl& controller =
+      static_cast<AutofillPopupControllerImpl&>(
+          client().suggestion_controller(manager()));
+
+  // A list containing only a separator or a non-standalone settings footer
+  // (like kAllSavedPasswordsEntry) does NOT have any standalone suggestions!
+  EXPECT_FALSE(test_api(controller).HasSuggestions());
 }
 
 #if !BUILDFLAG(IS_CHROMEOS)

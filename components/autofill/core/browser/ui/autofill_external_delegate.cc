@@ -228,6 +228,7 @@ bool HasAutofillSuggestionsForA11y(SuggestionType type) {
     case SuggestionType::kOpenGemini:
     case SuggestionType::kAtMemoryNoConnection:
     case SuggestionType::kAtMemorySearchAffordance:
+    case SuggestionType::kPersonalContextNotice:
       return false;
   }
 }
@@ -323,6 +324,7 @@ bool AutofillExternalDelegate::IsAutofillAndFirstLayerSuggestionId(
     case SuggestionType::kOpenGemini:
     case SuggestionType::kAtMemoryNoConnection:
     case SuggestionType::kAtMemorySearchAffordance:
+    case SuggestionType::kPersonalContextNotice:
       return false;
   }
 }
@@ -430,8 +432,8 @@ void AutofillExternalDelegate::AttemptToDisplayAutofillSuggestions(
     if (!manager_->client().IsAndroidLargeFormFactor() ||
         !base::FeatureList::IsEnabled(
             features::kAutofillAndroidKeyboardAccessoryDynamicPositioning)) {
-      manager_->client().HideAutofillSuggestions(
-          SuggestionHidingReason::kNoSuggestions);
+      manager_->client().HideSuggestions(SuggestionHidingReason::kNoSuggestions,
+                                         /*product=*/std::nullopt);
       return;
     }
   }
@@ -689,6 +691,7 @@ void AutofillExternalDelegate::DidSelectSuggestion(
     case SuggestionType::kOpenGemini:
     case SuggestionType::kAtMemoryNoConnection:
     case SuggestionType::kAtMemorySearchAffordance:
+    case SuggestionType::kPersonalContextNotice:
     case SuggestionType::kComposeDisable:
     case SuggestionType::kComposeGoToSettings:
     case SuggestionType::kComposeNeverShowOnThisSiteAgain:
@@ -831,8 +834,9 @@ void AutofillExternalDelegate::DidAcceptSuggestion(
       const base::optional_ref<const EntityInstance> entity =
           GetEntityInstance(suggestion);
       if (!entity || !autofill_field || !form_structure) {
-        manager_->client().HideAutofillSuggestions(
-            SuggestionHidingReason::kAcceptSuggestion);
+        manager_->client().HideSuggestions(
+            SuggestionHidingReason::kAcceptSuggestion,
+            FillingProduct::kAutofillAi);
         return;
       }
       const bool will_fill_sensitive_info = WillFillSensitiveAttributes(
@@ -953,6 +957,10 @@ void AutofillExternalDelegate::DidAcceptSuggestion(
       manager_->DelegateAcceptToPasswordManager(suggestion, metadata,
                                                 query_field_);
       break;
+    case SuggestionType::kAtMemorySearchAffordance:
+      manager_->GetAtMemoryManager().OnSearchSubmitted(
+          suggestion.main_text.value);
+      break;
     case SuggestionType::kTitle:
     case SuggestionType::kSeparator:
     case SuggestionType::kPasswordEntry:
@@ -972,20 +980,23 @@ void AutofillExternalDelegate::DidAcceptSuggestion(
     case SuggestionType::kLoadingThrobber:
     case SuggestionType::kBnplFootnote:
     case SuggestionType::kAtMemoryNoConnection:
-    case SuggestionType::kAtMemorySearchAffordance:
+    case SuggestionType::kPersonalContextNotice:
       NOTREACHED();  // Should be handled elsewhere.
   }
 
-  if (suggestion.type == SuggestionType::kBnplEntry &&
-      base::FeatureList::IsEnabled(
-          features::kAutofillEnablePayNowPayLaterTabs)) {
-    // Return early to prevent the popup from hiding. Popup will instead be
-    // closed by `BnplManager`.
+  if (suggestion.type == SuggestionType::kAtMemorySearchAffordance ||
+      (suggestion.type == SuggestionType::kBnplEntry &&
+       base::FeatureList::IsEnabled(
+           features::kAutofillEnablePayNowPayLaterTabs))) {
+    // Return early to prevent the popup from hiding.
+    // For `kBnplEntry`, the popup will instead be closed by `BnplManager`.
+    // For `kAtMemorySearchAffordance`, the popup remains open to show search
+    // results once the query completes.
     return;
   }
 
-  manager_->client().HideAutofillSuggestions(
-      SuggestionHidingReason::kAcceptSuggestion);
+  manager_->client().HideSuggestions(SuggestionHidingReason::kAcceptSuggestion,
+                                     /*product=*/std::nullopt);
 }
 
 void AutofillExternalDelegate::DidPerformButtonActionForSuggestion(
@@ -1095,13 +1106,14 @@ bool AutofillExternalDelegate::RemoveSuggestion(const Suggestion& suggestion) {
     case SuggestionType::kOpenGemini:
     case SuggestionType::kAtMemoryNoConnection:
     case SuggestionType::kAtMemorySearchAffordance:
+    case SuggestionType::kPersonalContextNotice:
       return false;
   }
 }
 
 void AutofillExternalDelegate::DidEndTextFieldEditing() {
-  manager_->client().HideAutofillSuggestions(
-      SuggestionHidingReason::kEndEditing);
+  manager_->client().HideSuggestions(SuggestionHidingReason::kEndEditing,
+                                     /*product=*/std::nullopt);
 }
 
 void AutofillExternalDelegate::OnTabSelected(TabbedPaneTabType tab_type) {
@@ -1180,8 +1192,8 @@ void AutofillExternalDelegate::OnEntityInstanceFetched(
     manager_->client().ShowAutofillAiFetchFromWalletFailureNotification();
   }
 
-  manager_->client().HideAutofillSuggestions(
-      SuggestionHidingReason::kAcceptSuggestion);
+  manager_->client().HideSuggestions(SuggestionHidingReason::kAcceptSuggestion,
+                                     FillingProduct::kAutofillAi);
 }
 
 void AutofillExternalDelegate::PreviewAddressFieldByFieldFillingSuggestion(

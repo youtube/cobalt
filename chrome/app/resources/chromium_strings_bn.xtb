@@ -23,6 +23,7 @@
 <translation id="1203500561924088507">ইনস্টল করার জন্য ধন্যবাদ। <ph name="BUNDLE_NAME" /> ব্যবহার করার আগে আপনাকে অবশ্যই ব্রাউজার রিস্টার্ট করতে হবে।</translation>
 <translation id="1232234696885483911">আপনি 'ছবি সার্চ করা' ফিচার খুললে, পৃষ্ঠার টাইটেল, URL এবং পিডিএফ সহ কন্টেন্ট অটোমেটিক সার্ভারে পাঠানো হবে। <ph name="LEARN_MORE" /></translation>
 <translation id="123265588161106468">আপনি সাইন-ইন করার সময়, Chromium-এ আপনার Google অ্যাকাউন্ট থেকে পাসওয়ার্ড এবং আরও অনেক কিছু ব্যবহার করতে পারবেন। এটি পরিবর্তন করতে, “Chromium-এ আপনার অ্যাকাউন্ট” বিকল্পে যান।</translation>
+<translation id="1257483544893909270">Chromium-এ Gemini-তে স্ক্রিনের অংশ বেছে নিতে, কীবোর্ড শর্টকাট ব্যবহার করুন।</translation>
 <translation id="1262876892872089030">Chromium যাতে দ্রুত কাজ করে সেই জন্য এই ট্যাব বন্ধ থাকাকালীন মেমরি খালি করা হয়েছে। এই সাইটটি অ্যাক্টিভ রাখার বিকল্প সব সময় বেছে নিতে পারবেন।</translation>
 <translation id="1265577313130862557">এই ফাইলটি বিপজ্জনক, তাই Chromium এই ডাউনলোডটি ব্লক করে দিয়েছে</translation>
 <translation id="126567311906253476">Gmail বা YouTube-এর মতো Google পরিষেবায় <ph name="USER_EMAIL" /> দিয়ে সাইন-ইন করার সময় আপনি একই অ্যাকাউন্ট দিয়ে Chromium-এ অটোমেটিক সাইন-ইন করতে পারবেন</translation>
@@ -154,9 +155,11 @@
 <translation id="2620436844016719705">সিস্টেম</translation>
 <translation id="2629740064077610681">বুকমার্ক, ইতিহাস ও পাসওয়ার্ডের মতো ব্রাউজ করা ডেটা, আপনার সংস্থা দেখতে ও ম্যানেজ করতে পারে। এটি অন্যান্য Chromium-এর প্রোফাইলে ব্রাউজ করা ডেটা দেখতে পায় না</translation>
 <translation id="2635452620547538388">আপনার অ্যাকাউন্ট, <ph name="ACCOUNT_EMAIL" />-এ Chromium ডেটা ব্যবহার করার জন্য আপনার পরিচয় যাচাই করুন</translation>
+<translation id="2636783171884046627">Chromium-এ Gemini-র ফিচার ছেড়ে বেরিয়ে আসতে বা ফিরে যেতে, কীবোর্ড শর্টকাট ব্যবহার করুন।</translation>
 <translation id="2637732208198500597">{COUNT,plural, =0{উন্নত সুরক্ষা চালু করতে, আপডেট প্রয়োগ করার জন্য Chromium আবার চালু করতে হবে}=1{উন্নত সুরক্ষা চালু করতে, আপডেট প্রয়োগ করার জন্য Chromium আবার চালু করতে হবে। আপনার ছদ্মবেশী উইন্ডো আবার খুলবে না।}one{উন্নত সুরক্ষা চালু করতে, আপডেট প্রয়োগ করার জন্য Chromium আবার চালু করতে হবে। আপনার #টি ছদ্মবেশী উইন্ডো আবার খুলবে না।}other{উন্নত সুরক্ষা চালু করতে, আপডেট প্রয়োগ করার জন্য Chromium আবার চালু করতে হবে। আপনার #টি ছদ্মবেশী উইন্ডো আবার খুলবে না।}}</translation>
 <translation id="2648074677641340862">ইনস্টলেশনের সময় একটি অপারেটিং সিস্টেম ত্রুটি ঘটেছে৷ অনুগ্রহ করে Chromium আবার ডাউনলোড করুন৷</translation>
 <translation id="2661879430930417727">যদি আপনি কোনও ডিভাইস শেয়ার করেন, তাহলে বন্ধু ও পরিবারের লোকজন পৃথকভাবে ব্রাউজ করতে পারবেন এবং তাদের পছন্দ অনুযায়ী Chromium সেট-আপ করতে পারবেন</translation>
+<translation id="2676569452213089702">Chromium মিনিমাইজ করা থাকলেও, আপনার ডিভাইস জুড়ে Chromium ব্যবহার করার সহজ অ্যাক্সেস পান।</translation>
 <translation id="2711502716910134313">Chromium ট্যাব</translation>
 <translation id="2718390899429598676">অতিরিক্ত নিরাপত্তার জন্য Chromium আপনার ডেটা এনক্রিপ্ট করবে।</translation>
 <translation id="2721354645805494590">Chromium থেকে আপনার Google অ্যাকাউন্ট সরিয়ে দিতে, সাইন-আউট করুন</translation>
@@ -175,7 +178,6 @@
 <translation id="2885378588091291677">কার্য পরিচালক</translation>
 <translation id="2910007522516064972">&amp;Chromium সম্পর্কে</translation>
 <translation id="2915996080311180594">পরে একবার রিস্টার্ট করে নিন</translation>
-<translation id="2928420929544864228">ইনস্টলেশন শেষ হয়েছে।</translation>
 <translation id="2933336679234709858">পাসফ্রেজ ব্যবহার করে আপনার ডেটা এনক্রিপ্ট করা হয়েছে। আপনার Google অ্যাকাউন্টে Chromium ডেটা ব্যবহার ও সেভ করতে এটি লিখুন।</translation>
 <translation id="2945997411976714835">ইনস্টল সংক্রান্ত সমস্যা: ইনস্টলার প্রসেস শুরু করা যায়নি।</translation>
 <translation id="2948852018303413228">iOS-এ Chromium-এর জন্য সেভ করা পাসওয়ার্ড ব্যবহার করে সাইটে আরও দ্রুত সাইন-ইন করুন</translation>
@@ -272,6 +274,7 @@
 <translation id="3954172517175569325">পাসওয়ার্ড, পেমেন্ট পদ্ধতি এবং ঠিকানা যা আপনার Google অ্যাকাউন্টে সেভ করে রেখেছেন সেগুলি এই ডিভাইস থেকে সরিয়ে দেওয়া হবে। Chromium-এ সেগুলি পুনরায় ব্যবহার করতে, আবার সাইন-ইন করুন।</translation>
 <translation id="395904275706073188">সুরক্ষিত পৃষ্ঠা পড়া যাবে না। অন্য কোনও পৃষ্ঠা পড়ার চেষ্টা করুন।</translation>
 <translation id="3962647064319009959">Chromium কীভাবে আপনাকে সুরক্ষিত রাখে তা জানুন</translation>
+<translation id="3967822245660637423">ডাউনলোড সম্পূর্ণ</translation>
 <translation id="3971865010372729242">অ্যাড্রেস বার বা সার্চ বক্সে আপনি কিছু টাইপ করলে, সাজেশন পাওয়ার জন্য আপনি যা টাইপ করেন Chromium সেটি আপনার প্রতিষ্ঠানের সার্চ, AI ও এজেন্ট টুলে পাঠিয়ে দেয়।</translation>
 <translation id="3975724895399328945">Google Chrome for Testing সম্পর্কে</translation>
 <translation id="3997429360543082038">ChromiumOS সম্পর্কে</translation>
@@ -307,10 +310,9 @@
 <translation id="4298125729853015961">Chromium থেকে পাসওয়ার্ড এক্সপোর্ট করুন</translation>
 <translation id="4304713468139749426">পাসওয়ার্ড ম্যানেজার</translation>
 <translation id="4334241893986177674">এই স্ক্রিনশট সার্চ করুন</translation>
-<translation id="4334294535648607276">ডাউনলোড সম্পূর্ণ।</translation>
 <translation id="4384331407722351213">Windows চালু হলে Chromium লঞ্চ করুন</translation>
 <translation id="4384993550046411228">Chromium-কে আপনার ডিফল্ট ব্রাউজার হিসেবে সেট করে, আপনার পরিচিত, পছন্দের এবং বিশ্বস্ত ফিচারে সহজেই অ্যাক্সেস পান। দ্রুত অ্যাক্সেসের জন্য Chromium আপনার টাস্কবারে পিন করা হবে।</translation>
-<translation id="439358628917130594"><ph name="MANAGER" />-এ এই ডিভাইস ব্যবহার করার আগে আপনাকে নিম্নলিখিত পরিষেবার শর্তাবলী পড়ে নিতে হবে এবং তাতে সম্মতি দিতে হবে। এইসব শর্ত ChromiumOS-এর শর্তাবলীকে সম্প্রসারণ, পরিবর্তন বা সীমাবদ্ধ করে না।</translation>
+<translation id="4400772909124543403">কোনও আপডেট উপলভ্য নেই</translation>
 <translation id="4407044323746248786">তা স্বত্তেও Chromium ছেড়ে যাবেন?</translation>
 <translation id="4413205837991854510">ছবি সার্চ করা শর্টকাট সবসময় দেখুন</translation>
 <translation id="4415566066719264597">Chromium-কে ব্যাকগ্রাউন্ডে চলতে দিন</translation>
@@ -349,6 +351,7 @@
 <translation id="4746050847053251315">তা স্বত্তেও Chromium বন্ধ করবেন?</translation>
 <translation id="4748217263233248895">Chromium-এর জন্য একটি বিশেষ নিরাপত্তা আপডেট এইমাত্র প্রয়োগ করা হয়েছে। এখনি রিস্টার্ট করুন এবং আপনার ট্যাব আমরা রিস্টোর করব।</translation>
 <translation id="4771701986670315895">আপনি সম্প্রতি ভিজিট করেননি। Chromium <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> এবং আরও <ph name="COUNT" />টি অনুমতি সরিয়ে দিয়েছে।</translation>
+<translation id="4786083865378785874">Chromium-এ Gemini খোলা থাকলে, নতুন ট্যাব তৈরি করার সময় সাইড প্যানেল খোলা থাকে</translation>
 <translation id="479167709087336770">এটি Google সার্চ-এ যে বানান পরীক্ষা করার টুল ব্যবহার করা হয় সেটিই ব্যবহার করে। আপনি ব্রাউজারে যে টেক্সট লেখেন, সেটি Google-এ পাঠানো হয়। সেটিংস থেকে আপনি এটি পরিবর্তন করতে পারেন।</translation>
 <translation id="4814736265800133385">কোনও অ্যাকাউন্ট ছাড়াই Chromium ব্যবহার করুন</translation>
 <translation id="4888717733111232871">mDNS ট্রাফিকের অনুমতি দিতে Chromium এর জন্য ইনবাউন্ড নিয়ম।</translation>
@@ -361,7 +364,6 @@
 <translation id="4987820182225656817">অতিথিগণ কোনো কিছুর জন্য অভাব বোধ না করেই Chromium ব্যবহার করতে পারবেন৷</translation>
 <translation id="4992938037305302429">Chromium-এ আপনার অ্যাকাউন্ট</translation>
 <translation id="4994636714258228724">Chromium এর সাথে নিজেকে যোগ করুন</translation>
-<translation id="5083712646171654472">Gemini in Chromium আপনার ট্যাবে কাজ করতে ও আপনি তাকে যে টাস্ক দেন সেটি সম্পূর্ণ করতে অটোমেটিক ব্রাউজ ব্যবহার করে। <ph name="LINK_BEGIN" />আরও জানুন<ph name="LINK_END" /></translation>
 <translation id="5123973130450702873">আপনার হাত ট্র্যাক করতে Chromium-এর অনুমতি প্রয়োজন</translation>
 <translation id="5141988424377517949">আপনি সম্প্রতি ভিজিট করেননি। Chromium <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />, <ph name="PERMISSION_3" /> সম্পর্কিত অনুমতি সরিয়ে দিয়েছে।</translation>
 <translation id="5174969993834422967">আপনি সাধারণত বিজ্ঞপ্তি ব্লক করেন। এই সাইট থেকে বিজ্ঞপ্তি পেতে, আপনার লোকেশন বারের ডানদিকের কোণায় বিজ্ঞপ্তির আইকনে ক্লিক করুন।</translation>
@@ -369,6 +371,7 @@
 <translation id="5187123684706427865">Chromium অ্যাকাউন্ট আবার যাচাই করতে হবে</translation>
 <translation id="5231355151045086930">Chromium থেকে সাইন-আউট করুন</translation>
 <translation id="5234764350956374838">খারিজ</translation>
+<translation id="5249261924633168472">Chromium ছদ্ম&amp;বেশী উইন্ডোতে লিঙ্ক খুলুন</translation>
 <translation id="5254739261293693943">এই ভিডিওর ব্যাপারে জিজ্ঞাসা করুন</translation>
 <translation id="5276305953263010518">যে কোনও সময় পাসওয়ার্ড সেভ করার জন্য Chromium অ্যাপ ডাউনলোড করুন</translation>
 <translation id="5277894862589591112">আপনার পরিবর্তনগুলি প্রয়োগ করতে, Chromium রিলঞ্চ করুন</translation>
@@ -401,6 +404,7 @@
 <translation id="555970465369471303">নিরাপত্তার জন্য, আপনি কোনও সাইটে প্রথমবার ভিজিট করলে Chromium জাভাস্ক্রিপ্ট অপ্টিমাইজেশন বন্ধ করে দেয়।
 
 এই পৃষ্ঠা প্রত্যাশা অনুযায়ী কাজ না করলে, অপ্টিমাইজেশনের অনুমতি দিয়ে দেখুন।</translation>
+<translation id="5575874067957905201">Mac মেনু বারে Chromium-এ Gemini দেখানো এবং কীবোর্ড শর্টকাট চালু করা</translation>
 <translation id="5579324208890605088">স্টার্টআপ সম্পর্কিত এরর: নিয়মিত ব্যবহারকারী হিসেবে ইনস্টলার চালান, অ্যাডমিনিস্ট্রেটর হিসেবে নয়।</translation>
 <translation id="5580770360767802657">ডিফল্ট হিসেবে Chromium ব্যবহার করুন এবং এটি পিন করুন</translation>
 <translation id="5596627076506792578">আরও বিকল্পগুলি</translation>
@@ -472,7 +476,6 @@
 <translation id="6294831894865512704">এক্সটেনশন ব্যবহার করতে Chromium-এ সাইন-ইন করতে হবে</translation>
 <translation id="6295779123002464101"><ph name="FILE_NAME" /> বিপজ্জনক হতে পারে, তাই Chromium এটিকে অবরুদ্ধ করেছে।</translation>
 <translation id="6309712487085796862">Chromium আপনার ক্যামেরা ব্যবহার করছে৷</translation>
-<translation id="6327105987658262776">কোনও আপডেট উপলভ্য নেই।</translation>
 <translation id="6333502561965082103">Chromium এ আরেকটি ক্রিয়াকলাপ প্রক্রিয়ায় আছে। অনুগ্রহ করে পরে আবার চেষ্টা করুন।</translation>
 <translation id="6334986366598267305">এখন আপনার Google অ্যাকাউন্ট ও শেয়ার করা কম্পিউটারগুলিতে Chromium ব্যবহার করা আরো সহজ৷</translation>
 <translation id="6347002662287820329">Chromium-কে ডিফল্ট ব্রাউজার হিসেবে সেট করে আপনার পরিচিত, পছন্দের এবং বিশ্বস্ত ফিচারে সহজেই অ্যাক্সেস পান।</translation>
@@ -546,7 +549,6 @@
 <translation id="7003299027384820442">আপনার অ্যাকাউন্ট, <ph name="ACCOUNT_EMAIL" />-এ Chromium ডেটা ব্যবহার এবং সেভ করার জন্য পাসফ্রেজ লিখুন</translation>
 <translation id="7011190694940573312">ইনস্টলেশন করা যায়নি কারণ অপারেটিং সিস্টেমের এই ভার্সন কাজ করে না।</translation>
 <translation id="7024536598735240744">আনপ্যাক করার সময় সমস্যা হয়েছে: <ph name="UNPACK_ERROR" />।</translation>
-<translation id="7025789849649390912">ইনস্টলেশন বন্ধ হয়ে গেছে।</translation>
 <translation id="7045244423563602563">Chromium-এ সাইন-ইন করুন</translation>
 <translation id="7047386856539490735">এইসব ফলাফল কি সহায়ক?</translation>
 <translation id="705851970750939768">Chromium আপডেট করুন</translation>
@@ -601,7 +603,6 @@ Chromium আপনার সেটিংস পুনরুদ্ধার ক�
 <translation id="7624307931717240213">এই পরিষেবা উন্নত করতে আমরা তথ্য ব্যবহার করি। গোপনীয়তা নীতি ও পরিষেবার শর্তাবলী দেখুন।</translation>
 <translation id="7649070708921625228">সহায়তা</translation>
 <translation id="7650134251917003571">Chromium অ্যাপ ডাউনলোড করুন</translation>
-<translation id="7656340475565475526">Chromium-কে আপনার হয়ে ব্রাউজ করতে দিন</translation>
 <translation id="7658239707568436148">বাতিল</translation>
 <translation id="7686590090926151193">Chromium আপনার ডিফল্ট ব্রাউজার নয়</translation>
 <translation id="7689606757190482937">আপনার সব ডিভাইস জুড়ে Chromium সিঙ্ক করুন এবং নিজের মতো সাজিয়ে নিন</translation>
@@ -624,6 +625,7 @@ Chromium আপনার সেটিংস পুনরুদ্ধার ক�
 <translation id="7867198900892795913">Chromium লেটেস্ট ভার্সনে আপডেট করা যাচ্ছে না, তাই আপনি নতুন বৈশিষ্ট্য এবং সুরক্ষা সমাধানগুলি পাচ্ছেন না।</translation>
 <translation id="7872446069773932638">ডাউনলোড হচ্ছে... <ph name="SECONDS" /> সেকেন্ড বাকি আছে</translation>
 <translation id="7873537467422636035">আপনি নিজের পাসফ্রেজ ভুলে গেলে অথবা এই সেটিং পরিবর্তন করতে চাইলে, <ph name="BEGIN_LINK" />আপনার অ্যাকাউন্টে থাকা Chromium ডেটা মুছে দিন<ph name="END_LINK" /></translation>
+<translation id="7874369989024033742">প্রয়োজন হলেই, দ্রুত Chromium-এ Gemini খুলুন</translation>
 <translation id="7877212753140190672">এই ছবির ব্যাপারে জিজ্ঞাসা করুন</translation>
 <translation id="7888981273428720788">Chromium-কে ডিফল্ট ব্রাউজার হিসেবে সেট করুন</translation>
 <translation id="7934340546140346950">যখনই সম্ভব Chromium, HTTPS-এ অসুরক্ষিত কানেকশন অটোমেটিক আপগ্রেড করে</translation>
@@ -645,6 +647,7 @@ Chromium আপনার সেটিংস পুনরুদ্ধার ক�
 <translation id="8118331347066725040">Lens ব্যবহার করে সার্চ করা সংক্রান্ত মতামত পাঠান</translation>
 <translation id="8133124826068723441">আপনার ডোমেনে সিঙ্ক করার সুবিধা উপলভ্য না থাকার জন্য ChromiumOS আপনার ডেটা সিঙ্ক পারেনি।</translation>
 <translation id="813913629614996137">আরম্ভ হচ্ছে…</translation>
+<translation id="8161503455832158203">কীবোর্ড শর্টকাটের মাধ্যমে Chromium-এ Gemini খুলুন।</translation>
 <translation id="8164014945047474187">Chromium-এর অতিরিক্ত পরিষেবার শর্তাবলী</translation>
 <translation id="81770708095080097">এই ফাইলটি বিপজ্জনক, তাই Chromium এটিকে অবরুদ্ধ করেছে।</translation>
 <translation id="8177472873527554730">পৃষ্ঠায় কন্টেন্ট খুঁজে পাওয়া যাচ্ছে না</translation>
@@ -654,6 +657,7 @@ Chromium আপনার সেটিংস পুনরুদ্ধার ক�
 <translation id="8232193495299001329">এই এক্সটেনশন কোথা থেকে এসেছে তা Chromium যাচাই করতে পারে না এবং এটি নিরাপদ নাও হতে পারে। Chromium থেকে এটি সরান যাতে ব্যক্তিগত তথ্য সহ আপনার ভিজিট করা সাইটের ডেটা এটি আর দেখতে না পায় এবং তা পরিবর্তন করতে না পারে।</translation>
 <translation id="8248265253516264921">কোনও ছবিতে যদি প্রয়োজনীয় বিবরণ দেওয়া না থাকে, তাহলে Chromium আপনাকে একটি বিবরণ দেওয়ার চেষ্টা করবে। বিবরণ তৈরির জন্য, Google-এ ছবি পাঠানো হয়। সেটিংসে গিয়ে আপনি যেকোনও সময়ে এটি বন্ধ করতে পারেন।</translation>
 <translation id="8254601181414348851">নতুন প্রোফাইলের মাধ্যমে Chromium-এ সাইন-ইন করবেন?</translation>
+<translation id="8277334259226003205">সিস্টেম ট্রেতে Chromium-এ Gemini দেখানো এবং কীবোর্ড শর্টকাট চালু করা</translation>
 <translation id="8286943863733751221">নিরাপদ নয় এমন সাইট ও ডাউনলোড সম্পর্কে <ph name="BEGIN_LINK" />Chromium আপনাকে সতর্ক করে দেয়<ph name="END_LINK" /></translation>
 <translation id="8295827201165805317">আপনি সম্প্রতি ভিজিট করেননি। Chromium <ph name="PERMISSION" /> সম্পর্কিত অনুমতি সরিয়ে দিয়েছে।</translation>
 <translation id="8296236834352487533">Chromium iOS অ্যাপে আপনার ক্যামেরা ব্যবহার করে যা দেখেন তা কিনুন, অনুবাদ ও শনাক্ত করুন</translation>
@@ -682,6 +686,7 @@ Chromium আপনার সেটিংস পুনরুদ্ধার ক�
 <translation id="8493179195440786826">Chromium পুরানো হয়ে গেছে</translation>
 <translation id="850264194101621529">আপনার ডিফল্ট ব্রাউজার হিসেবে Chromium বেছে নেওয়ার জন্য ধন্যবাদ!</translation>
 <translation id="8522801943730206384">আপনি পাসওয়ার্ড সেভ করলে Chromium তা চেক করতে পারবে</translation>
+<translation id="8525579356836940628">ইনস্টল করার কাজ বন্ধ করা হয়েছে</translation>
 <translation id="8548787790260785208">সর্বজনীন ডেটা নিরাপত্তা লঙ্ঘনের কারণে Chromium আপনার কোনও পাসওয়ার্ড খুঁজে পেলে সতর্কতা পান</translation>
 <translation id="8555465886620020932">পরিষেবায় সমস্যা হয়েছে: <ph name="SERVICE_ERROR" />।</translation>
 <translation id="8556055872671007529">কিছু Chromium ফিচার ও এক্সটেনশনের শর্টকাট থাকে। আপনি চাইলে সেগুলি আবার চালু করতে পারবেন।</translation>
@@ -715,6 +720,7 @@ Chromium আপনার সেটিংস পুনরুদ্ধার ক�
 <translation id="897581876605952338">Chromium Enterprise লোগো</translation>
 <translation id="8981150672034878610">Chromium চালু করা যাচ্ছে না কারণ আপনার প্রোফাইল খোলার সময় কোনও সমস্যা হয়েছে। Chromium রিস্টার্ট করার চেষ্টা করুন।</translation>
 <translation id="8988036198400390003">Chromium প্রোফাইল ম্যানেজ করুন</translation>
+<translation id="9018218886431812662">ইনস্টল হয়ে গেছে</translation>
 <translation id="9019929317751753759">Chromium-কে আরও নিরাপদ করতে, আমরা নিচের এক্সটেনশনটি বন্ধ করেছি যা <ph name="IDS_EXTENSION_WEB_STORE_TITLE" />-এ তালিকাবদ্ধ করা হয়নি এবং হয়ত আপনাকে না জানিয়ে যোগ করা হয়েছিল৷</translation>
 <translation id="9022552996538154597">Chromium-এ সাইন-ইন করুন</translation>
 <translation id="904366664621834601">Chromium এটি ডাউনলোড করা বন্ধ করে দিয়েছে কারণ আর্কাইভ করা ফাইলে অন্যান্য এমন ফাইল রয়েছে যেটি ম্যালওয়্যার গোপন করতে পারে</translation>

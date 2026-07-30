@@ -203,7 +203,7 @@ class MediaStreamDevicesControllerTest : public testing::Test {
     // null.
     window_ = ui::WindowAndroid::CreateForTesting();
     window_.get()->get()->AddChild(web_contents_->GetNativeView());
-    web_contents_->GetRenderWidgetHostView()->Show();
+    web_contents_->WasShown();
 #endif
   }
 
@@ -291,7 +291,7 @@ class MediaStreamDevicesControllerTest : public testing::Test {
     }
 
     content::PermissionRequestDescription expected_description{
-        std::move(expected_permissions), false};
+        std::move(expected_permissions), false, origin_.GetURL()};
     expected_description.requested_audio_capture_device_ids =
         requested_audio_device_ids;
     expected_description.requested_video_capture_device_ids =
@@ -435,7 +435,7 @@ TEST_F(MediaStreamDevicesControllerTest,
 #if BUILDFLAG(IS_ANDROID)
 TEST_F(MediaStreamDevicesControllerTest, RequestBlockedWhenTabIsHidden) {
   // Hide the RenderWidgetHostView.
-  web_contents_->GetRenderWidgetHostView()->Hide();
+  web_contents_->WasHidden();
 
   // We expect that RequestPermissionsFromCurrentDocument will be called with
   // empty permissions (since they are blocked early).
@@ -472,7 +472,7 @@ TEST_F(MediaStreamDevicesControllerTest, RequestBlockedWhenTabIsHidden) {
 TEST_F(MediaStreamDevicesControllerTest,
        RequestAllowedWhenTabIsHiddenButHasPictureInPictureDocument) {
   // Hide the RenderWidgetHostView.
-  web_contents_->GetRenderWidgetHostView()->Hide();
+  web_contents_->WasHidden();
 
   // Mark that WebContents has a Picture-in-Picture document.
   content::WebContentsTester::For(web_contents_)

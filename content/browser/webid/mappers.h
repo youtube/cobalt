@@ -9,12 +9,14 @@
 #include <vector>
 
 #include "content/browser/renderer_host/render_frame_host_impl.h"
+#include "content/browser/webid/delegation/evt_verifier.h"
 #include "content/browser/webid/idp_network_request_manager.h"
 #include "content/browser/webid/metrics.h"
 #include "content/common/content_export.h"
 #include "content/public/browser/webid/federated_identity_api_permission_context_delegate.h"
 #include "content/public/browser/webid/identity_request_dialog_controller.h"
 #include "third_party/blink/public/mojom/devtools/inspector_issue.mojom-forward.h"
+#include "third_party/blink/public/mojom/webid/email_verification_request.mojom-forward.h"
 #include "third_party/blink/public/mojom/webid/federated_auth_request.mojom-forward.h"
 
 namespace content {
@@ -24,7 +26,6 @@ enum class FedCmLifecycleStateFailureReason;
 namespace webid {
 
 enum class FederatedLoginResult;
-enum class EvpRequestStatus;
 
 // This header file defines functions which convert between FedCM types. It also
 // defines some constants used in some of these conversions.
@@ -104,13 +105,28 @@ IdAssertionFetchStatusToRequestResultAndTokenStatus(FetchStatus status);
 
 // Converts a ParseStatus from a well-known fetch to an EvpRequestStatus.
 // Should not be invoked when parse_status is ParseStatus::kSuccess.
-CONTENT_EXPORT EvpRequestStatus
+CONTENT_EXPORT blink::mojom::EmailVerificationRequestResult
 WellKnownParseStatusToEvpRequestStatus(ParseStatus parse_status);
+
+// Converts a ParseStatus from an email verification well-known fetch to an
+// EvpRequestStatus.
+// Should not be invoked when parse_status is ParseStatus::kSuccess.
+CONTENT_EXPORT blink::mojom::EmailVerificationRequestResult
+EmailVerificationWellKnownParseStatusToEvpRequestStatus(
+    ParseStatus parse_status);
+
+// Converts a ParseStatus from an accounts list fetch to an EvpRequestStatus.
+// Should not be invoked when parse_status is ParseStatus::kSuccess.
+CONTENT_EXPORT blink::mojom::EmailVerificationRequestResult
+AccountsListParseStatusToEvpRequestStatus(ParseStatus parse_status);
 
 // Converts a ParseStatus from a token fetch to an EvpRequestStatus.
 // Should not be invoked when parse_status is ParseStatus::kSuccess.
-CONTENT_EXPORT EvpRequestStatus
+CONTENT_EXPORT blink::mojom::EmailVerificationRequestResult
 TokenParseStatusToEvpRequestStatus(ParseStatus parse_status);
+
+CONTENT_EXPORT blink::mojom::EmailVerificationRequestResult
+VerificationResultToEvpRequestStatus(EvtVerifier::Result result);
 
 // Returns a list of fields that we should mediate authorization for. If
 // empty, we should not show a permission request dialog.

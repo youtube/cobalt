@@ -2,7 +2,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/chromeos/ui_mode.gni")
 import("//chrome/common/features.gni")
 import("//crypto/features.gni")
 import("//ui/webui/resources/tools/build_webui.gni")
@@ -67,6 +66,7 @@ build_webui("build") {
     "ai_page/ai_suggestions_page.ts",
     "ai_page/history_search_page.ts",
     "ai_page/offer_writing_help_page.ts",
+    "ai_page/skills_page.ts",
     "appearance_page/appearance_fonts_page.ts",
     "appearance_page/appearance_page.ts",
     "appearance_page/appearance_page_index.ts",

@@ -217,13 +217,15 @@ class AutofillManager
     virtual void OnSuggestionsHidden(AutofillManager& manager,
                                      SuggestionHidingReason reason) {}
 
+    virtual void OnEmailVerificationTokenShared(AutofillManager& manager,
+                                                FieldGlobalId field_id) {}
+
     // Fired when an autofill of `filling_payload` is previewed or filled.
-    // This is not fired for autocomplete operations.
-    // `filled_field_ids` represents the IDs of the fields that were sent to the
-    // renderer to be filled: each corresponding `AutofillField` contains the
-    // field type information.
-    // `trigger_field_id` is the ID of the field that initiated/triggered the
-    // autofill action.
+    // This is not fired for single-field operations (see
+    // OnFillOrPreviewField()). `filled_field_ids` represents the IDs of the
+    // fields that were sent to the renderer to be filled: each corresponding
+    // `AutofillField` contains the field type information. `trigger_field_id`
+    // is the ID of the field that initiated/triggered the autofill action.
     // TODO(crbug.com/40280003): Consider removing the event in favor of
     // OnAfterDidAutofillForm(), which is fired by the renderer.
     // TODO(crbug.com/40227071): Consider removing `action_persistence` as the
@@ -235,6 +237,17 @@ class AutofillManager
         mojom::ActionPersistence action_persistence,
         const base::flat_set<FieldGlobalId>& filled_field_ids,
         const FillingPayload& filling_payload) {}
+
+    // Fired when a single field is previewed or filled.
+    // This is not fired for multi-field form fills (which trigger
+    // OnFillOrPreviewForm instead).
+    virtual void OnFillOrPreviewField(
+        AutofillManager& manager,
+        FormGlobalId form_id,
+        FieldGlobalId field_id,
+        mojom::ActionPersistence action_persistence,
+        const std::u16string& value,
+        std::optional<FieldType> field_type_used) {}
 
     // Fired when a form is submitted. A `FormData` is passed instead of a
     // `FormGlobalId` because the form structure cached inside `AutofillManager`
@@ -303,6 +316,8 @@ class AutofillManager
 
   // Invoked when the suggestions are actually hidden.
   virtual void OnSuggestionsHidden(SuggestionHidingReason reason);
+
+  virtual void OnEmailVerificationTokenShared(FieldGlobalId field_id);
 
   // Routes calls from external components to FormFiller::FillOrPreviewField.
   // Virtual for testing.
@@ -569,7 +584,6 @@ class AutofillManager
   // in that case).
   void UpdateFormCache(base::span<const FormData> forms,
                        base::optional_ref<const AsyncContext> context,
-                       FormStructure::RetrieveFromCacheReason reason,
                        bool preserve_signatures);
 
   std::unique_ptr<autofill_metrics::FormInteractionsUkmLogger>

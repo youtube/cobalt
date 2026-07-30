@@ -40,6 +40,11 @@ using ::chrome_test_util::SecondaryToolbar;
         @"present");
   }
 
+  if ([ChromeEarlGrey isChromeNextEnabled]) {
+    [ChromeEarlGrey setBoolValue:YES
+               forLocalStatePref:omnibox::kIsOmniboxInBottomPosition];
+  }
+
   [self checkSideSwipeOnToolbarMatcher:SecondaryToolbar()];
 }
 

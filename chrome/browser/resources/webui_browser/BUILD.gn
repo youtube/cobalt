@@ -16,10 +16,8 @@ build_webui("build") {
     "app.ts",
     "bookmark_bar.html.ts",
     "bookmark_bar.ts",
-    "bookmark_bar_browser_proxy.ts",
     "bookmark.html.ts",
     "bookmark.ts",
-    "browser_proxy.ts",
     "content_region.ts",
     "extension.html.ts",
     "extension.ts",
@@ -38,6 +36,8 @@ build_webui("build") {
     "tab_strip/tab_strip.html.ts",
     "tab_strip/tab_strip.ts",
     "webui_browser.ts",
+    "webui_browser_searchbox.html.ts",
+    "webui_browser_searchbox.ts",
     "webview.html.ts",
     "webview.ts",
   ]
@@ -52,6 +52,7 @@ build_webui("build") {
     "tab_strip/tab.css",
     "tab_strip/tab_group.css",
     "tab_strip/tab_strip.css",
+    "webui_browser_searchbox.css",
     "webview.css",
   ]
 
@@ -65,11 +66,13 @@ build_webui("build") {
     "$root_gen_dir/components/browser_apis/tab_strip/node_id_converter.ts",
     "$root_gen_dir/components/browser_apis/tab_strip/tab_strip_api_types.mojom-converters.ts",
     "$root_gen_dir/components/browser_apis/tab_strip/tab_strip_api_types.mojom-webui.ts",
+    "$root_gen_dir/components/browser_apis/tab_drag/tab_drag_api.mojom-webui.ts",
     "$root_gen_dir/components/tab_groups/public/mojom/tab_group_types.mojom-webui.ts",
   ]
 
   mojo_files_deps = [
     "//chrome/browser/ui/webui_browser:browser_mojo_bindings_ts__generator",
+    "//components/browser_apis/tab_drag:mojom_ts__generator",
     "//components/browser_apis/tab_strip:mojom_ts__copy_converters",
     "//components/browser_apis/tab_strip:mojom_ts__generator",
     "//components/browser_apis/ui_controllers/toolbar:mojom_ts__generator",

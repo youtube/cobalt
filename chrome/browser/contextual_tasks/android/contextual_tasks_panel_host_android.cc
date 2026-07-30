@@ -4,9 +4,12 @@
 
 #include "chrome/browser/contextual_tasks/android/contextual_tasks_panel_host_android.h"
 
+#include "base/android/jni_android.h"
+#include "base/android/scoped_java_ref.h"
 #include "chrome/browser/android/tab_android.h"
 #include "chrome/browser/context_sharing/tab_bottom_sheet/android/co_browse_views_bridge.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_panel_host.h"
+#include "chrome/browser/contextual_tasks/jni_headers/ContextualTaskBottomSheetContentProvider_jni.h"
 #include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "content/public/browser/web_contents.h"
@@ -86,7 +89,7 @@ void ContextualTasksPanelHostAndroid::SetWebContents(
 
   web_contents_->SetDelegate(this);
   if (auto* bridge = GetOrCreateBridge()) {
-    views_bridge_->SetWebContents(web_contents);
+    views_bridge_->SetWebContents(web_contents, /*request_focus=*/true);
     if (is_open_) {
       bridge->Show(views_bridge_->GetCoBrowseViews(), /*animate=*/false,
                    /*starts_expanded=*/true);
@@ -125,7 +128,9 @@ ContextualTasksPanelHostAndroid::GetOrCreateBridge() {
     }
     views_bridge_ = std::make_unique<context_sharing::CoBrowseViewsBridge>(
         *tab_android,
-        context_sharing::TabBottomSheetClientType::kContextualTasks);
+        context_sharing::TabBottomSheetClientType::kContextualTasks,
+        context_sharing::CoBrowseContainerType::kBottomSheet,
+        CreateBottomSheetContentProvider());
     tab_bottom_sheet_bridge_ =
         std::make_unique<context_sharing::TabBottomSheetBridge>(this,
                                                                 tab_android);
@@ -143,6 +148,12 @@ TabAndroid* ContextualTasksPanelHostAndroid::GetTabAndroid() const {
     return nullptr;
   }
   return TabAndroid::FromTabHandle(active_tab->GetHandle());
+}
+
+base::android::ScopedJavaLocalRef<jobject>
+ContextualTasksPanelHostAndroid::CreateBottomSheetContentProvider() {
+  JNIEnv* env = base::android::AttachCurrentThread();
+  return Java_ContextualTaskBottomSheetContentProvider_createProvider(env);
 }
 
 }  // namespace contextual_tasks

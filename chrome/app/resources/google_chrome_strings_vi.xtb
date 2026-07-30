@@ -9,6 +9,7 @@
 <translation id="1028061813283459617">Để xoá dữ liệu duyệt web chỉ trên thiết bị này mà không xoá trong Tài khoản Google, hãy <ph name="BEGIN_LINK" />đăng xuất khỏi Chrome<ph name="END_LINK" />.</translation>
 <translation id="1042270987544905725">Nhấp để đóng hộp thoại đăng nhập vào Chrome</translation>
 <translation id="1051793555070215510">Vui lòng dành một phút làm bản khảo sát này để giúp chúng tôi cải thiện chế độ ẩn danh.</translation>
+<translation id="1055295352198814912">Hiện Gemini trong Chrome trong thanh trình đơn của máy Mac và bật phím tắt</translation>
 <translation id="1059838145689930908">Để sử dụng tiện ích này bằng tài khoản <ph name="USER_EMAIL_ADDRESS" />, hãy đăng nhập vào Chrome.</translation>
 <translation id="1065672644894730302">Không thể đọc tùy chọn của bạn. Một số tính năng có thể không khả dụng và các thay đổi đối với tùy chọn sẽ không được lưu.</translation>
 <translation id="1070377999570795893">Một chương trình khác trên máy tính của bạn đã thêm một tiện ích có thể thay đổi cách Chrome hoạt động.
@@ -32,7 +33,6 @@
 <translation id="1290883685122687410">Lỗi thiết lập: <ph name="METAINSTALLER_EXIT_CODE" />. <ph name="WINDOWS_ERROR" /></translation>
 <translation id="1302523850133262269">Vui lòng đợi khi Chrome cài đặt các bản cập nhật hệ thống mới nhất.</translation>
 <translation id="1330562121671411446">Phát hiện ngôn ngữ</translation>
-<translation id="1335640173511558774"><ph name="MANAGER" /> yêu cầu bạn phải đọc và chấp nhận Điều khoản dịch vụ sau đây trước khi dùng thiết bị này. Những điều khoản này không mở rộng, sửa đổi hay giới hạn Điều khoản của Google ChromeOS Flex.</translation>
 <translation id="1341711321000856656">Bạn có thể chuyển để xem mật khẩu trong một hồ sơ Chrome khác</translation>
 <translation id="1343830902827845050">Đăng nhập vào Chrome</translation>
 <translation id="1356661055722410047">Mới! Bạn có thể dịch cả văn bản và hình ảnh trên màn hình</translation>
@@ -185,7 +185,6 @@ Nếu trang này không hoạt động như mong đợi, hãy thử cho phép t�
 <translation id="2915996080311180594">Khởi động lại sau</translation>
 <translation id="2916983411556218750">Hãy bắt đầu thiết lập Chrome</translation>
 <translation id="2926952073016206995">Chrome cần có quyền truy cập máy ảnh đối với trang web này</translation>
-<translation id="2928420929544864228">Đã cài đặt xong.</translation>
 <translation id="2945997411976714835">Lỗi cài đặt: Trình cài đặt không thể bắt đầu quá trình.</translation>
 <translation id="2969728957078202736"><ph name="PAGE_TITLE" /> – Đăng nhập vào mạng – Chrome</translation>
 <translation id="2970681950995291301">Để xoá Tài khoản Google của bạn khỏi Chrome, hãy vào trang Cài đặt rồi đăng xuất khỏi Chrome</translation>
@@ -241,6 +240,7 @@ Nếu trang này không hoạt động như mong đợi, hãy thử cho phép t�
 <translation id="345171907106878721">Thêm chính bạn vào Chrome</translation>
 <translation id="3453763134178591239">Điều khoản của ChromeOS</translation>
 <translation id="3503306920980160878">Chrome cần quyền truy cập vào vị trí của bạn để chia sẻ thông tin vị trí với trang web này</translation>
+<translation id="3539955434060988644">Mở đường liên kết trong cửa sổ ẩn d&amp;anh của Chrome</translation>
 <translation id="3576528680708590453">Quản trị viên hệ thống của bạn đã định cấu hình Google Chrome để mở một trình duyệt thay thế khi truy cập vào <ph name="TARGET_URL_HOSTNAME" />.</translation>
 <translation id="3582972582564653026">Đồng bộ hoá và cá nhân hoá Chrome trên các thiết bị của bạn</translation>
 <translation id="3583751698304738917">Bạn đã đăng nhập bằng <ph name="USER_EMAIL_ADDRESS" /> trong một hồ sơ Chrome khác</translation>
@@ -281,6 +281,8 @@ Nếu trang này không hoạt động như mong đợi, hãy thử cho phép t�
 <translation id="3892148308691398805">Sao chép văn bản</translation>
 <translation id="3941890832296813527">Lỗi cài đặt: Tên tệp của trình cài đặt không hợp lệ hoặc không được hỗ trợ.</translation>
 <translation id="395904275706073188">Không thể đọc các trang được bảo vệ. Hãy thử đọc một trang khác.</translation>
+<translation id="3965532487635448963">Hiện Gemini trong Chrome trong khay hệ thống và bật phím tắt</translation>
+<translation id="3967822245660637423">Đã tải xuống xong</translation>
 <translation id="3968962723676998462">Nhập cụm mật khẩu để sử dụng và lưu dữ liệu trên Chrome vào tài khoản <ph name="ACCOUNT_EMAIL" /> của bạn</translation>
 <translation id="3973161977468201858">Google Chrome muốn xoá dữ liệu của bạn trong Trình quản lý mật khẩu của Google. Nhập mật khẩu Windows của bạn để cho phép việc này.</translation>
 <translation id="400161754580828648">Để chia sẻ màn hình, hãy cho phép Chrome ghi màn hình trong phần Cài đặt hệ thống.</translation>
@@ -315,7 +317,6 @@ Nếu trang này không hoạt động như mong đợi, hãy thử cho phép t�
 <translation id="4328355335528187361">Google Chrome Dev (mDNS-In)</translation>
 <translation id="4329315893554541805">Để sử dụng chế độ cá nhân hoá và các tính năng khác, hãy thêm Chrome vào mục Hoạt động trên web và ứng dụng cũng như các dịch vụ của Google được liên kết</translation>
 <translation id="4334241893986177674">Tìm kiếm thông tin trên ảnh chụp màn hình này</translation>
-<translation id="4334294535648607276">Quá trình tải xuống hoàn tất.</translation>
 <translation id="4343195214584226067"><ph name="EXTENSION_NAME" /> đã được thêm vào Chrome</translation>
 <translation id="4344128547036991536">Khi bạn mở Google Ống kính, thì nội dung, URL và tiêu đề của trang, bao gồm cả tệp PDF, sẽ được tự động gửi đến Google. <ph name="LEARN_MORE" /></translation>
 <translation id="4348548358339558429">Để sử dụng chế độ cá nhân hoá, hãy thêm Chrome vào mục Hoạt động trên web và ứng dụng</translation>
@@ -323,6 +324,7 @@ Nếu trang này không hoạt động như mong đợi, hãy thử cho phép t�
 <translation id="4367027658822022112">Bạn có thể ghim Google Ống kính để tiện truy cập. Hãy nhấp vào nút Ghim ở đầu bảng điều khiển bên</translation>
 <translation id="4372389195695053189">Chrome đang là trình duyệt mặc định của bạn</translation>
 <translation id="4389991535395284064">Khi bạn duyệt web ở Chế độ ẩn danh, Chrome sẽ cảnh báo bạn trước khi tải một trang web bằng kết nối không an toàn</translation>
+<translation id="4400772909124543403">Hiện không có bản cập nhật nào</translation>
 <translation id="4427306783828095590">Chế độ bảo vệ tăng cường giúp chặn phần mềm độc hại và hành vi lừa đảo hiệu quả hơn</translation>
 <translation id="4434353761996769206">Lỗi trình cài đặt: <ph name="INSTALLER_ERROR" /></translation>
 <translation id="4450664632294415862">Chrome – Đăng nhập vào mạng – <ph name="PAGE_TITLE" /></translation>
@@ -361,6 +363,7 @@ Nếu trang này không hoạt động như mong đợi, hãy thử cho phép t�
 <translation id="4891791193823137474">Để Google Chrome chạy trên nền</translation>
 <translation id="4895437082222824641">Mở đường liên kết trong thẻ mới của Chrome</translation>
 <translation id="4896867431081882115">Dễ dàng sử dụng các tính năng mà bạn biết, yêu thích và tin tưởng bằng cách đặt Chrome làm trình duyệt mặc định. Chrome sẽ được ghim vào thanh tác vụ để bạn truy cập nhanh.</translation>
+<translation id="4904953848704395458">Mở Gemini trong Chrome bằng một phím tắt.</translation>
 <translation id="4918086044614829423">Chấp nhận</translation>
 <translation id="4918844574251943176">Đã sao chép hình ảnh</translation>
 <translation id="4926882258455737990">Để dùng Gemini trong Chrome với một Tài khoản Google khác, hãy <ph name="BEGIN_LINK" />tạo một hồ sơ mới<ph name="END_LINK" /> rồi đăng nhập bằng tài khoản bạn muốn</translation>
@@ -510,7 +513,6 @@ Một số tính năng có thể không khả dụng. Vui lòng chỉ định th
 <translation id="6319856120645568262">Chrome cần có quyền tạo bản đồ về các khu vực xung quanh và theo dõi tay bạn</translation>
 <translation id="6321592572353357376">Tiện ích "<ph name="EXTENSION_NAME" />" muốn bạn đăng nhập vào Chrome</translation>
 <translation id="6326175484149238433">Xóa khỏi Chrome</translation>
-<translation id="6327105987658262776">Hiện không có bản cập nhật nào.</translation>
 <translation id="6334815226785304306">Đặt Google Chrome làm trình duyệt mặc định và ghim vào thanh tác vụ</translation>
 <translation id="63540178978900677">Chrome không còn là trình duyệt mặc định của bạn. Đặt Chrome làm trình duyệt mặc định?</translation>
 <translation id="6360449101159168105">Mặc dù thẻ này không hoạt động nhưng bộ nhớ đã được giải phóng để giúp Chrome luôn hoạt động nhanh. Bạn có thể chọn luôn loại trừ trang web này khỏi trạng thái không hoạt động.</translation>
@@ -522,6 +524,7 @@ Một số tính năng có thể không khả dụng. Vui lòng chỉ định th
 <translation id="6434035853014503219">Cảm ơn bạn đã chọn Chrome làm trình duyệt mặc định!</translation>
 <translation id="6438015621983209660">Mở rộng phạm vi của tính năng Duyệt web an toàn có tăng cường bảo vệ với Chrome trên điện thoại</translation>
 <translation id="6442774133615368941">Mua sắm, dịch văn bản và nhận dạng những thứ bạn thấy bằng camera trên ứng dụng Chrome dành cho iOS</translation>
+<translation id="6448835208126432197">Để chọn một phần màn hình trong Gemini trong Chrome, hãy dùng phím tắt.</translation>
 <translation id="6473905796280459355">Chuyển đến trang Giới thiệu về Chrome</translation>
 <translation id="6481963882741794338">Liên kết Chrome và các dịch vụ khác của Google cho mục đích cá nhân hoá và các mục đích khác</translation>
 <translation id="648319183876919572">Tính năng Duyệt web an toàn có tăng cường bảo vệ hoạt động hiệu quả hơn để bảo vệ bạn khỏi các tệp đã tải xuống và trang web nguy hiểm</translation>
@@ -534,6 +537,7 @@ Một số tính năng có thể không khả dụng. Vui lòng chỉ định th
 <translation id="6520670145826811516">Để cho phép Chrome dùng thông tin vị trí, hãy cấp quyền sử dụng trong phần <ph name="BEGIN_LINK" />cài đặt hệ thống<ph name="END_LINK" /></translation>
 <translation id="652948702951888897">Nhật ký duyệt web trên Chrome</translation>
 <translation id="6532945796722480006">Mở Gemini trong Chrome Canary</translation>
+<translation id="6539493053177300926">Dễ dàng truy cập để sử dụng Gemini trong Chrome trên thiết bị của bạn, ngay cả khi Chrome đang ở trạng thái thu nhỏ.</translation>
 <translation id="6585124893636629274">Đóng Gemini trong Chrome</translation>
 <translation id="659498884637196217">Trong Trình quản lý mật khẩu của Google trên thiết bị này</translation>
 <translation id="6631524303639368205">Tiếp tục từ nơi bạn đã dừng lại: Chrome đã khôi phục các thẻ của bạn từ phiên trước đó. Bạn có thể tắt tính năng này trong phần</translation>
@@ -576,7 +580,6 @@ Một số tính năng có thể không khả dụng. Vui lòng chỉ định th
 <translation id="6999131147875565462">Chrome sẽ hoạt động nhanh hơn và các tính năng sử dụng JavaScript sẽ hoạt động như dự kiến</translation>
 <translation id="7011190694940573312">Cài đặt không thành công vì phiên bản hệ điều hành này không được hỗ trợ.</translation>
 <translation id="7024536598735240744">Lỗi khi giải nén: <ph name="UNPACK_ERROR" />.</translation>
-<translation id="7025789849649390912">Đã dừng cài đặt.</translation>
 <translation id="7025800014283535195">Bạn có thể chuyển đổi giữa các hồ sơ trên Chrome tại đây</translation>
 <translation id="7047386856539490735">Những kết quả này có hữu ích không?</translation>
 <translation id="7051685429025310665">Gần đây bạn không truy cập trang web này. Chrome đã xoá <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />, <ph name="PERMISSION_3" />.</translation>
@@ -594,6 +597,7 @@ Một số tính năng có thể không khả dụng. Vui lòng chỉ định th
 <translation id="7161904924553537242">Chào mừng bạn đến với Google Chrome</translation>
 <translation id="7193885263065350793">Tổ chức của bạn sẽ đóng Chrome khi Chrome không được dùng đến trong <ph name="TIMEOUT_DURATION" />.</translation>
 <translation id="7242029209006116544">Bạn đang đăng nhập bằng tài khoản được quản lý và cấp cho quản trị viên của tài khoản quyền kiểm soát cấu hình trên Google Chrome của bạn. Dữ liệu Chrome của bạn, chẳng hạn như ứng dụng, dấu trang, lịch sử, mật khẩu và các cài đặt khác sẽ vĩnh viễn được liên kết với <ph name="USER_NAME" />. Bạn có thể xóa dữ liệu này thông qua Trang tổng quan của tài khoản Google nhưng không thể liên kết dữ liệu này với tài khoản khác. Bạn có thể tùy chọn tạo một cấu hình mới để giữ cho dữ liệu Chrome hiện có của bạn riêng biệt. <ph name="LEARN_MORE" /></translation>
+<translation id="7257689164441568409">Để rời khỏi hoặc quay lại Gemini trong Chrome, hãy dùng phím tắt.</translation>
 <translation id="7274402351400635015">Bạn có thể sử dụng Chrome mỗi khi nhấp vào đường liên kết trong thư/tin nhắn, tài liệu và các ứng dụng khác. Chrome cũng sẽ được ghim vào thanh tác vụ.</translation>
 <translation id="7285616922384953075"><ph name="MANAGER" /> quản lý Chrome</translation>
 <translation id="7285990705317078173">Tải Chrome xuống điện thoại để theo dõi giá và nhận thông báo khi có chương trình giảm giá trên bất cứ trang web nào</translation>
@@ -632,7 +636,6 @@ Một số tính năng có thể không khả dụng. Vui lòng chỉ định th
 
 <ph name="EXTENSION_NAME" /></translation>
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
-<translation id="7626072681686626474"><ph name="MANAGER" /> yêu cầu bạn phải đọc và chấp nhận Điều khoản dịch vụ sau đây trước khi sử dụng thiết bị này. Những điều khoản này không mở rộng, sửa đổi hay giới hạn Điều khoản của Google ChromeOS.</translation>
 <translation id="7627609214560473136">Để bảo vệ dữ liệu của bạn, hãy cho phép Chrome loại bỏ quyền của các trang web mà gần đây bạn không truy cập.</translation>
 <translation id="7629695634924605473">Chrome cho bạn biết mật khẩu của bạn có bị đánh cắp hay không</translation>
 <translation id="7641148173327520642">Quản trị viên hệ thống đã định cấu hình Google Chrome để mở <ph name="ALTERNATIVE_BROWSER_NAME" /> khi truy cập vào <ph name="TARGET_URL_HOSTNAME" />.</translation>
@@ -703,6 +706,7 @@ Một số tính năng có thể không khả dụng. Vui lòng chỉ định th
 <translation id="8221491193165283816">Bạn thường chặn các thông báo. Để cho phép trang web này thông báo cho bạn, hãy nhấp vào đây.</translation>
 <translation id="8253851811470049684">Mở đường liên kết trong Chrome từ ứng dụng bất kỳ và giữ cho trình duyệt luôn có thể truy cập được trên thanh tác vụ</translation>
 <translation id="8255190535488645436">Google Chrome đang sử dụng máy ảnh và micrô của bạn.</translation>
+<translation id="8260086374035800939">Nếu Gemini trong Chrome đang mở, thì bảng điều khiển bên sẽ vẫn mở khi bạn tạo thẻ mới</translation>
 <translation id="8267953129876836456">Chrome có một số ý kiến đề xuất về sự an toàn cần bạn xem xét</translation>
 <translation id="8286862437124483331">Google Chrome đang cố gắng hiển thị mật khẩu. Hãy nhập mật khẩu Windows của bạn để cho phép việc này.</translation>
 <translation id="829923460755755423">Thêm lối tắt vào Trình quản lý mật khẩu của Google</translation>
@@ -714,6 +718,7 @@ Một số tính năng có thể không khả dụng. Vui lòng chỉ định th
 <translation id="8362914115861174987">Dịch sang</translation>
 <translation id="8366770919198174997">Làm giảm hiệu suất nhưng giúp Chrome tăng khả năng chống lại các cuộc tấn công</translation>
 <translation id="8367705492654390392">Đặt câu hỏi bất kỳ</translation>
+<translation id="8367950957770994118">Nhanh chóng mở Gemini trong Chrome bất cứ khi nào bạn cần</translation>
 <translation id="8370517070665726704">Bản quyền <ph name="YEAR" /> Google LLC. Mọi quyền được bảo lưu.</translation>
 <translation id="8377158135256176353">Bật/tắt Gemini trong Chrome Canary</translation>
 <translation id="8387459386171870978">Tiếp tục sử dụng Chrome</translation>
@@ -731,6 +736,7 @@ Bạn phải xoá bớt một số dấu trang thì mới có thể lưu dấu t
 <translation id="8498858610309223613">Google Chrome vừa áp dụng một bản cập nhật bảo mật đặc biệt. Vui lòng khởi động lại ngay bây giờ và chúng tôi sẽ khôi phục các thẻ của bạn.</translation>
 <translation id="8521348052903287641">Quy tắc kết nối để Google Chrome Dev cho phép lưu lượng truy cập mDNS.</translation>
 <translation id="852529348814672339">Hiển thị Chrome bằng ngôn ngữ này</translation>
+<translation id="8525579356836940628">Đã dừng cài đặt</translation>
 <translation id="8533056045953418157">Đặt Google Chrome làm trình xem PDF mặc định</translation>
 <translation id="8555465886620020932">Lỗi dịch vụ: <ph name="SERVICE_ERROR" />.</translation>
 <translation id="856656450041460113">Tìm kiếm trong danh sách ngôn ngữ</translation>
@@ -777,6 +783,8 @@ Bạn phải xoá bớt một số dấu trang thì mới có thể lưu dấu t
 <translation id="8999117580775242387">Khi không có giao thức HTTPS, Chrome sẽ sử dụng kết nối không an toàn mà không cảnh báo bạn</translation>
 <translation id="8999208279178790196">{0,plural, =0{Đã có bản cập nhật Chrome}=1{Đã có bản cập nhật Chrome}other{Đã có bản cập nhật Chrome từ # ngày trước}}</translation>
 <translation id="9014771989710951291">Nhiều tổ chức quản lý Chrome</translation>
+<translation id="9018218886431812662">Đã cài đặt xong</translation>
+<translation id="9024318700713112071">Đặt Chrome làm trình duyệt mặc định</translation>
 <translation id="9066987883552592250">Đóng Gemini trong Chrome Canary</translation>
 <translation id="9090566250983691233">Tìm hiểu lý do Chrome chặn một số tệp</translation>
 <translation id="9106236359747881194">Chọn văn bản bạn muốn tìm</translation>

@@ -13,6 +13,7 @@
 #import "base/check.h"
 #import "base/check_deref.h"
 #import "base/check_op.h"
+#import "base/feature_list.h"
 #import "base/functional/callback_helpers.h"
 #import "base/memory/raw_ptr.h"
 #import "base/memory/weak_ptr.h"
@@ -35,7 +36,6 @@
 #import "components/infobars/core/infobar_manager.h"
 #import "components/password_manager/core/browser/ui/credential_ui_entry.h"
 #import "components/password_manager/core/common/password_manager_features.h"
-#import "components/plus_addresses/core/common/features.h"
 #import "components/prefs/pref_service.h"
 #import "components/profile_metrics/browser_profile_type.h"
 #import "components/safe_browsing/core/common/features.h"
@@ -69,15 +69,15 @@
 #import "ios/chrome/browser/autofill/autofill_ai/error_dialog/model/autofill_ai_error_dialog_context.h"
 #import "ios/chrome/browser/autofill/autofill_ai/public/save_entity_params.h"
 #import "ios/chrome/browser/autofill/form_input_accessory/coordinator/form_input_accessory_coordinator.h"
+#import "ios/chrome/browser/autofill/manual_fill/coordinator/manual_fill_password_coordinator.h"
 #import "ios/chrome/browser/autofill/model/bottom_sheet/autofill_bottom_sheet_tab_helper.h"
+#import "ios/chrome/browser/autofill/payments/coordinator/payments_suggestion_bottom_sheet_coordinator.h"
 #import "ios/chrome/browser/autofill/scan_save_and_fill/coordinator/payments_scan_save_and_fill_offer_bottom_sheet_coordinator.h"
 #import "ios/chrome/browser/autofill/ui_bundled/address_editor/autofill_edit_profile_coordinator.h"
 #import "ios/chrome/browser/autofill/ui_bundled/bottom_sheet/infobar_autofill_edit_profile_bottom_sheet_handler.h"
-#import "ios/chrome/browser/autofill/ui_bundled/bottom_sheet/payments_suggestion_bottom_sheet_coordinator.h"
 #import "ios/chrome/browser/autofill/ui_bundled/bottom_sheet/save_card_bottom_sheet_coordinator.h"
 #import "ios/chrome/browser/autofill/ui_bundled/bottom_sheet/virtual_card_enrollment_bottom_sheet_coordinator.h"
 #import "ios/chrome/browser/autofill/ui_bundled/error_dialog/autofill_error_dialog_coordinator.h"
-#import "ios/chrome/browser/autofill/ui_bundled/manual_fill/manual_fill_password_coordinator.h"
 #import "ios/chrome/browser/autofill/ui_bundled/progress_dialog/autofill_progress_dialog_coordinator.h"
 #import "ios/chrome/browser/bookmarks/ui_bundled/home/bookmarks_coordinator.h"
 #import "ios/chrome/browser/browser_content/model/edit_menu_builder.h"
@@ -101,6 +101,7 @@
 #import "ios/chrome/browser/commerce/model/push_notification/push_notification_feature.h"
 #import "ios/chrome/browser/commerce/model/shopping_service_factory.h"
 #import "ios/chrome/browser/composebox/coordinator/composebox_coordinator.h"
+#import "ios/chrome/browser/composebox/menu/coordinator/composebox_menu_coordinator.h"
 #import "ios/chrome/browser/composebox/public/composebox_entrypoint.h"
 #import "ios/chrome/browser/composebox/public/composebox_focus_params.h"
 #import "ios/chrome/browser/content_settings/model/host_content_settings_map_factory.h"
@@ -859,6 +860,9 @@ const char kChromeAppStoreUrl[] =
 
   // The coordinator for Cobalt popups.
   ChromeCoordinator* _cobaltPopupCoordinator;
+
+  // The coordinator showing the multimodal composebox menu.
+  ComposeboxMenuCoordinator* _composeboxMenuCoordinator;
 }
 
 #pragma mark - SnackbarCoordinatorDelegate
@@ -2003,6 +2007,7 @@ const char kChromeAppStoreUrl[] =
   [self dismissDockingPromo];
   [self hideWelcomeBackPromo];
   [self hideComposeboxImmediately:YES completion:nil];
+  [self dismissMultimodalActionsMenu];
 }
 
 // Starts independent mediators owned by this coordinator.
@@ -3068,6 +3073,25 @@ const char kChromeAppStoreUrl[] =
   [_signinCoordinator start];
 }
 
+- (void)showMultimodalActionsMenu {
+  if (IsComposeboxPlusButtonBottomSheet()) {
+    [_composeboxMenuCoordinator stop];
+    _composeboxMenuCoordinator = [[ComposeboxMenuCoordinator alloc]
+        initWithBaseViewController:self.viewController
+                           browser:self.browser
+                        entrypoint:ComposeboxEntrypoint::kNTPPlusButton];
+    [_composeboxMenuCoordinator start];
+  } else {
+    [self showComposeboxFromEntrypoint:ComposeboxEntrypoint::kNTPPlusButton
+                             withQuery:nil];
+  }
+}
+
+- (void)dismissMultimodalActionsMenu {
+  [_composeboxMenuCoordinator stop];
+  _composeboxMenuCoordinator = nil;
+}
+
 - (void)showComposebox {
   [self exitFullscreen];
 
@@ -3245,7 +3269,7 @@ const char kChromeAppStoreUrl[] =
 
   [self cancelCollaborationFlows];
   [self.NTPCoordinator clearPresentedState];
-
+  [self dismissMultimodalActionsMenu];
   // The composebox replaces the omnibox.
   if (dismissOmnibox) {
     [self hideComposebox];
@@ -3864,6 +3888,21 @@ const char kChromeAppStoreUrl[] =
                          FREType:GeminiFREType::kNewUser
                completionHandler:completion];
   [_geminiFirstRunCoordinator start];
+}
+
+- (void)startGeminiLiveFREWithCompletion:(void (^)(BOOL success))completion {
+  // TODO(crbug.com/513889315): Implement this.
+  if (completion) {
+    completion(NO);
+  }
+}
+
+- (void)showGeminiLiveMicrophoneAlertWithCompletion:
+    (void (^)(BOOL granted))completion {
+  // TODO(crbug.com/513889315): Implement this.
+  if (completion) {
+    completion(NO);
+  }
 }
 
 - (void)hideFloatyIfInvokedAnimated:(BOOL)animated
@@ -5446,24 +5485,30 @@ const char kChromeAppStoreUrl[] =
 #pragma mark - MiniMapCommands
 
 - (void)presentMiniMapWithIPHForText:(NSString*)text {
+  MiniMapMode mode = base::FeatureList::IsEnabled(kIOSMiniMapLinkifiedAddress)
+                         ? MiniMapMode::kMapNativePreviewURL
+                         : MiniMapMode::kMap;
   self.miniMapCoordinator =
       [[MiniMapCoordinator alloc] initWithBaseViewController:self.viewController
                                                      browser:self.browser
                                                         text:text
                                                          URL:nil
                                                      withIPH:YES
-                                                        mode:MiniMapMode::kMap];
+                                                        mode:mode];
   [self.miniMapCoordinator start];
 }
 
 - (void)presentMiniMapForText:(NSString*)text {
+  MiniMapMode mode = base::FeatureList::IsEnabled(kIOSMiniMapLinkifiedAddress)
+                         ? MiniMapMode::kMapNativePreviewURL
+                         : MiniMapMode::kMap;
   self.miniMapCoordinator =
       [[MiniMapCoordinator alloc] initWithBaseViewController:self.viewController
                                                      browser:self.browser
                                                         text:text
                                                          URL:nil
                                                      withIPH:NO
-                                                        mode:MiniMapMode::kMap];
+                                                        mode:mode];
   [self.miniMapCoordinator start];
 }
 

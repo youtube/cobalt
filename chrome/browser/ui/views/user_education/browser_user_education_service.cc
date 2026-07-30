@@ -104,6 +104,7 @@
 #include "components/plus_addresses/core/common/features.h"
 #include "components/safe_browsing/core/common/safebrowsing_referral_methods.h"
 #include "components/saved_tab_groups/public/features.h"
+#include "components/send_tab_to_self/features.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/strings/grit/privacy_sandbox_strings.h"
 #include "components/supervised_user/core/common/supervised_user_constants.h"
@@ -1675,21 +1676,6 @@ void MaybeRegisterChromeFeaturePromos(
           .SetMetadata(120, "yuezhanggg@chromium.org",
                        "Triggered when a price tracking is enabled.")));
 
-  // kIPHMerchantTrustFeature
-  registry.RegisterFeature(
-      std::move(FeaturePromoSpecification::CreateForToastPromo(
-                    feature_engagement::kIPHMerchantTrustFeature,
-                    kMerchantTrustChipElementId, IDS_MERCHANT_TRUST_IPH_BODY,
-                    IDS_MERCHANT_TRUST_IPH_BODY_SCREEN_READER,
-                    FeaturePromoSpecification::AcceleratorInfo())
-                    .SetBubbleTitleText(IDS_MERCHANT_TRUST_IPH_TITLE)
-                    .SetBubbleIcon(&(features::IsRoundedIconsEnabled()
-                                         ? vector_icons::kStorefrontIcon
-                                         : vector_icons::kStorefrontOldIcon))
-                    .SetMetadata(134, "tommasin@chromium.org",
-                                 "Triggered when the merchant trust entry "
-                                 "point is shown and expanded.")));
-
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
   // kIPHDownloadEsbPromoFeature:
   registry.RegisterFeature(std::move(
@@ -2466,6 +2452,12 @@ void MaybeRegisterChromeNewBadges(user_education::NewBadgeRegistry& registry) {
                                "Show the new badge in the system context menu "
                                "to toggle the horizontal tab strip "
                                "to be a vertical tab strip")));
+
+  registry.RegisterFeature(user_education::NewBadgeSpecification(
+      send_tab_to_self::kSendTabToSelfEnhancedDesktopUI,
+      user_education::Metadata(
+          151, "mtatarski@google.com",
+          "Show the new badge on Send to Your Devices context menu items.")));
 }
 
 std::unique_ptr<user_education::FeaturePromoControllerImpl>

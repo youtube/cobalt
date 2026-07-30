@@ -33,7 +33,7 @@
 #include "third_party/blink/renderer/core/html/media/html_media_element.h"
 #include "third_party/blink/renderer/core/imagebitmap/image_bitmap_source.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_resource_provider.h"
-#include "third_party/blink/renderer/platform/graphics/canvas_snapshot_provider.h"
+#include "third_party/blink/renderer/platform/graphics/canvas_snapshot_info.h"
 #include "third_party/blink/renderer/platform/timer.h"
 
 namespace blink {
@@ -174,7 +174,7 @@ class CORE_EXPORT HTMLVideoElement final
   }
 
   // HTMLMediaElement overrides.
-  void OnEncryptedMediaInitData() final;
+  void OnCdmAttached(const media::CdmConfig& cdm_config) final;
 
   void RequestSaveVideoFrame();
 
@@ -293,7 +293,7 @@ class CORE_EXPORT HTMLVideoElement final
   // Used to fulfill blink::Image requests (CreateImage(),
   // GetSourceImageForCanvas(), etc). Created on demand.
   std::unique_ptr<CanvasNon2DResourceProviderSharedImage> snapshot_provider_;
-  std::optional<CanvasSnapshotProvider::Info> cached_draw_info_;
+  std::optional<CanvasSnapshotInfo> cached_draw_info_;
   HeapTaskRunnerTimer<HTMLVideoElement> cache_deleting_timer_;
 
   // Paint flags set based on CSS properties, which must be propagated to the

@@ -7,9 +7,12 @@
 #include "base/functional/callback.h"
 #include "base/task/single_thread_task_runner.h"
 #include "chrome/browser/context_sharing/tab_bottom_sheet/android/co_browse_views_bridge.h"
+#include "chrome/browser/glic/browser_ui/glic_toast.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
+#include "chrome/browser/glic/public/glic_instance.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
+#include "chrome/browser/glic/public/service/glic_instance_coordinator.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
@@ -21,9 +24,38 @@
 #include "chrome/browser/ui/side_panel/side_panel_ui_provider.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/common/chrome_features.h"
+#include "chrome/grit/generated_resources.h"
 #include "components/tabs/public/tab_interface.h"
 
 namespace glic {
+
+namespace {
+
+// TODO(crbug.com/515493573): Remove this once Glic transitions to using the
+// bottom sheet for narrow windows.
+std::unique_ptr<GlicToast> MaybeShowResizeToast(
+    tabs::TabInterface* tab,
+    GlicKeyedService* glic_service) {
+  content::WebContents* web_contents = tab->GetContents();
+  if (!web_contents || !glic_service) {
+    return nullptr;
+  }
+
+  bool is_actuating = false;
+  if (auto* instance =
+          glic_service->instance_coordinator().GetInstanceForTab(tab)) {
+    is_actuating = instance->IsActuating();
+  }
+
+  int title_res_id =
+      is_actuating ? IDS_GLIC_TASK_PAUSED_TITLE : IDS_GLIC_CHAT_HIDDEN_TITLE;
+  int description_res_id = is_actuating ? IDS_GLIC_TASK_PAUSED_DESCRIPTION
+                                        : IDS_GLIC_CHAT_HIDDEN_DESCRIPTION;
+  return GlicToast::Show(web_contents, title_res_id, description_res_id);
+}
+
+}  // namespace
+
 GlicSidePanelCoordinatorDesktopAndroid::GlicSidePanelCoordinatorDesktopAndroid(
     tabs::TabInterface* tab_interface,
     SidePanelRegistry* side_panel_registry,
@@ -32,6 +64,7 @@ GlicSidePanelCoordinatorDesktopAndroid::GlicSidePanelCoordinatorDesktopAndroid(
       tab_(tab_interface),
       side_panel_registry_(side_panel_registry),
       glic_service_(GlicKeyedServiceFactory::GetGlicKeyedService(profile)) {
+  CHECK(side_panel_registry_);
   if (glic_service_) {
     on_glic_enabled_changed_subscription_ =
         glic_service_->enabling().RegisterAllowedChanged(base::BindRepeating(
@@ -135,6 +168,9 @@ void GlicSidePanelCoordinatorDesktopAndroid::OnEntryHiddenWithReason(
   if (reason == SidePanelEntryHideReason::kBackgrounded ||
       reason == SidePanelEntryHideReason::kWindowResized) {
     SetState(State::kBackgrounded);
+    if (reason == SidePanelEntryHideReason::kWindowResized) {
+      resize_toast_ = MaybeShowResizeToast(tab_, glic_service_);
+    }
   } else {
     SetState(State::kClosed);
   }
@@ -143,6 +179,7 @@ void GlicSidePanelCoordinatorDesktopAndroid::OnEntryHiddenWithReason(
 void GlicSidePanelCoordinatorDesktopAndroid::OnEntryShown(
     SidePanelEntry* entry) {
   CHECK_EQ(entry->key().id(), SidePanelEntry::Id::kGlic);
+  resize_toast_.reset();
   SetState(State::kShown);
 }
 
@@ -158,7 +195,8 @@ SidePanelNativeView GlicSidePanelCoordinatorDesktopAndroid::CreateView(
   if (!cobrowse_views_bridge_) {
     cobrowse_views_bridge_ =
         std::make_unique<context_sharing::CoBrowseViewsBridge>(
-            *tab_, context_sharing::TabBottomSheetClientType::kGlic);
+            *tab_, context_sharing::TabBottomSheetClientType::kGlic,
+            context_sharing::CoBrowseContainerType::kSidePanel);
     cobrowse_views_bridge_->CreateCoBrowseViews(web_contents_.get());
   }
   auto view = context_sharing::CoBrowseViewsBridge::GetViewFromCoBrowseViews(
@@ -181,7 +219,8 @@ void GlicSidePanelCoordinatorDesktopAndroid::SetWebContents(
     content::WebContents* web_contents) {
   web_contents_ = web_contents;
   if (cobrowse_views_bridge_) {
-    cobrowse_views_bridge_->SetWebContents(web_contents);
+    cobrowse_views_bridge_->SetWebContents(web_contents,
+                                           /*request_focus=*/false);
   }
 }
 

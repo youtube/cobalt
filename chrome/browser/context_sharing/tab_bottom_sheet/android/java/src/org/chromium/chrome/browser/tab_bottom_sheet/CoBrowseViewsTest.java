@@ -16,6 +16,7 @@ import android.graphics.Color;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewGroup.MarginLayoutParams;
 
 import androidx.test.core.app.ApplicationProvider;
 
@@ -47,6 +48,7 @@ public class CoBrowseViewsTest {
     @Mock private View mPeekView;
     @Mock private WebContents mWebContents;
     @Mock private EventForwarder mEventForwarder;
+    @Mock private TabBottomSheetContentProvider mMockContentProvider;
 
     private Context mContext;
     private CoBrowseViews mCoBrowseViews;
@@ -63,9 +65,11 @@ public class CoBrowseViewsTest {
                 new CoBrowseViews(
                         rootView,
                         TabBottomSheetClientType.CONTEXTUAL_TASKS,
+                        CoBrowseContainerType.BOTTOM_SHEET,
                         mWebUi,
                         mFusebox,
-                        Color.WHITE);
+                        Color.WHITE,
+                        null);
     }
 
     @Test
@@ -75,12 +79,38 @@ public class CoBrowseViewsTest {
 
         ViewGroup webUiContainer = view.findViewById(R.id.web_ui_container);
         ViewGroup fuseboxContainer = view.findViewById(R.id.fusebox_container);
+        View handleBar = view.findViewById(R.id.handle_bar);
 
         assertEquals(1, webUiContainer.getChildCount());
         assertEquals(mWebUiView, webUiContainer.getChildAt(0));
 
         assertEquals(1, fuseboxContainer.getChildCount());
         assertEquals(mFuseboxView, fuseboxContainer.getChildAt(0));
+
+        assertEquals(View.VISIBLE, handleBar.getVisibility());
+        assertTrue(((ViewGroup.MarginLayoutParams) webUiContainer.getLayoutParams()).topMargin > 0);
+    }
+
+    @Test
+    public void testConstructor_SidePanel_HidesHandleBarAndRemovesMargin() {
+        // Create a new CoBrowseViews object with the desired container type (SIDE_PANEL).
+        View rootView = LayoutInflater.from(mContext).inflate(R.layout.tab_bottom_sheet, null);
+        CoBrowseViews coBrowseViews =
+                new CoBrowseViews(
+                        rootView,
+                        TabBottomSheetClientType.CONTEXTUAL_TASKS,
+                        CoBrowseContainerType.SIDE_PANEL,
+                        mWebUi,
+                        mFusebox,
+                        Color.WHITE,
+                        mMockContentProvider);
+
+        View view = coBrowseViews.getView();
+        View handleBar = view.findViewById(R.id.handle_bar);
+        ViewGroup webUiContainer = view.findViewById(R.id.web_ui_container);
+
+        assertEquals(View.GONE, handleBar.getVisibility());
+        assertEquals(0, ((MarginLayoutParams) webUiContainer.getLayoutParams()).topMargin);
     }
 
     @Test
@@ -112,7 +142,7 @@ public class CoBrowseViewsTest {
         assertTrue(mCoBrowseViews.hasPeekView());
 
         View view = mCoBrowseViews.getView();
-        ViewGroup peekContainer = view.findViewById(R.id.actor_control_container);
+        ViewGroup peekContainer = view.findViewById(R.id.peek_view_container);
         assertEquals(1, peekContainer.getChildCount());
         assertEquals(mPeekView, peekContainer.getChildAt(0));
 
@@ -122,9 +152,30 @@ public class CoBrowseViewsTest {
     }
 
     @Test
-    public void testSetWebContents() {
-        mCoBrowseViews.setWebContents(mWebContents);
-        verify(mWebUi).setWebContents(mWebContents);
+    public void testSetWebContents_withFocus() {
+        mCoBrowseViews.setWebContents(mWebContents, true);
+        verify(mWebUi).setWebContents(mWebContents, true);
+    }
+
+    @Test
+    public void testSetWebContents_withoutFocus() {
+        mCoBrowseViews.setWebContents(mWebContents, false);
+        verify(mWebUi).setWebContents(mWebContents, false);
+    }
+
+    @Test
+    public void testConstructor_WithContentProvider() {
+        View rootView = LayoutInflater.from(mContext).inflate(R.layout.tab_bottom_sheet, null);
+        CoBrowseViews coBrowseViews =
+                new CoBrowseViews(
+                        rootView,
+                        TabBottomSheetClientType.CONTEXTUAL_TASKS,
+                        CoBrowseContainerType.BOTTOM_SHEET,
+                        mWebUi,
+                        mFusebox,
+                        Color.WHITE,
+                        mMockContentProvider);
+        assertEquals(mMockContentProvider, coBrowseViews.getContentProvider());
     }
 
     @Test
@@ -132,7 +183,7 @@ public class CoBrowseViewsTest {
         View newWebUiView = new View(mContext);
         when(mWebUi.getWebUiView()).thenReturn(mWebUiView).thenReturn(newWebUiView);
 
-        mCoBrowseViews.setWebContents(mWebContents);
+        mCoBrowseViews.setWebContents(mWebContents, true);
 
         View view = mCoBrowseViews.getView();
         ViewGroup webUiContainer = view.findViewById(R.id.web_ui_container);

@@ -300,7 +300,7 @@ void ZoomBubbleView::Init() {
   // Add Zoom In ("+") button.
   zoom_in_button_ = AddChildView(CreateZoomButton(
       zoom_callback(content::PAGE_ZOOM_IN),
-      features::IsRoundedIconsEnabled() ? kAddIcon : kAddOldIcon,
+      features::IsRoundedIconsEnabled() ? kAdd2Icon : kAddOldIcon,
       IDS_ACCNAME_ZOOM_PLUS2));
   zoom_in_button_->SetProperty(views::kMarginsKey,
                                gfx::Insets(vector_button_margin));
@@ -373,12 +373,15 @@ void ZoomBubbleView::UpdateZoomPercent() {
   double default_zoom_level = zoom_controller->GetDefaultZoomLevel();
   std::vector<double> zoom_levels =
       zoom::PageZoom::PresetZoomLevels(default_zoom_level);
-  DCHECK(zoom_out_button_);
+  CHECK(zoom_out_button_);
   zoom_out_button_->SetEnabled(
       !blink::ZoomValuesEqual(zoom_levels.front(), current_zoom_level));
-  DCHECK(zoom_in_button_);
+  CHECK(zoom_in_button_);
   zoom_in_button_->SetEnabled(
       !blink::ZoomValuesEqual(zoom_levels.back(), current_zoom_level));
+  CHECK(reset_button_);
+  reset_button_->SetEnabled(
+      !blink::ZoomValuesEqual(current_zoom_level, default_zoom_level));
 }
 
 void ZoomBubbleView::StartTimerIfNecessary() {

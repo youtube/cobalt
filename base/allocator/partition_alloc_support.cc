@@ -1013,6 +1013,7 @@ void PartitionAllocSupport::ReconfigureEarlyish(std::string_view process_type) {
     // is earlier than ContentMain().
     if (called_for_tests_) {
       DCHECK(called_earlyish_);
+      established_process_type_ = process_type;
       return;
     }
 
@@ -1195,14 +1196,20 @@ void PartitionAllocSupport::ReconfigureAfterFeatureListInit(
               process_type_identifier,
               SchedulerLoopQuarantineBranchType::kAdvancedMemorySafetyChecks);
 
-  if (base::FeatureList::IsEnabled(
-          base::features::
-              kPartitionAllocSchedulerLoopQuarantineTaskControlledPurge) &&
-      ShouldEnableFeatureOnProcess(
-          base::features::
-              kPartitionAllocSchedulerLoopQuarantineTaskControlledPurgeEnabledProcessesParam
-                  .Get(),
-          process_type)) {
+  const auto scheduler_loop_quarantine_main_config =
+      GetSchedulerLoopQuarantineConfiguration(
+          process_type, SchedulerLoopQuarantineBranchType::kMain);
+  const auto scheduler_loop_quarantine_io_config =
+      GetSchedulerLoopQuarantineConfiguration(
+          process_type, SchedulerLoopQuarantineBranchType::kIO);
+
+  if (scheduler_loop_quarantine_thread_local_config
+          .enable_task_controlled_purge ||
+      scheduler_loop_quarantine_thread_local_config.pause_in_between_tasks ||
+      scheduler_loop_quarantine_main_config.enable_task_controlled_purge ||
+      scheduler_loop_quarantine_main_config.pause_in_between_tasks ||
+      scheduler_loop_quarantine_io_config.enable_task_controlled_purge ||
+      scheduler_loop_quarantine_io_config.pause_in_between_tasks) {
     base::EnableSchedulerLoopQuarantineTaskControlledPurge();
   }
 

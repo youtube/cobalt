@@ -323,13 +323,6 @@ void TestingBrowserProcess::Init() {
 #endif  // !BUILDFLAG(IS_ANDROID)
 }
 
-void TestingBrowserProcess::FlushLocalStateAndReply(base::OnceClosure reply) {
-  // This could be implemented the same way as in BrowserProcessImpl but it's
-  // not currently expected to be used by TestingBrowserProcess users so we
-  // don't bother.
-  NOTREACHED();
-}
-
 void TestingBrowserProcess::EndSession() {}
 
 metrics_services_manager::MetricsServicesManager*
@@ -639,7 +632,8 @@ TestingBrowserProcess::network_time_tracker() {
     network_time_tracker_ = std::make_unique<network_time::NetworkTimeTracker>(
         std::unique_ptr<base::Clock>(new base::DefaultClock()),
         std::unique_ptr<base::TickClock>(new base::DefaultTickClock()),
-        local_state(), nullptr, std::nullopt);
+        local_state(), nullptr,
+        network_time::NetworkTimeTracker::FETCHES_ON_DEMAND_ONLY);
   }
   return network_time_tracker_.get();
 }

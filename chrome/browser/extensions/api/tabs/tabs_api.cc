@@ -30,6 +30,7 @@
 #include "chrome/browser/resource_coordinator/utils.h"
 #include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/translate/chrome_translate_client.h"
+#include "chrome/browser/translate/translate_service.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/browser_window/public/create_browser_window.h"
@@ -107,6 +108,8 @@ namespace windows = api::windows;
 
 constexpr char kCannotDetermineLanguageOfUnloadedTab[] =
     "Cannot determine language: tab not loaded";
+constexpr char kLanguageDetectionNotSupported[] =
+    "Language detection is not supported for this page.";
 constexpr char kFrameNotFoundError[] = "No frame with id * in tab *.";
 constexpr char kCannotUpdateMuteCaptured[] =
     "Cannot update mute state for tab *, tab has audio or video currently "
@@ -322,8 +325,7 @@ bool MatchesBool(const std::optional<bool>& boolean, bool value) {
 // support on desktop android.
 bool IsLockedFullscreen(BrowserWindowInterface* browser) {
 #if BUILDFLAG(IS_CHROMEOS)
-  return platform_util::IsBrowserLockedFullscreen(
-      browser->GetBrowserForMigrationOnly());
+  return platform_util::IsBrowserLockedFullscreen(browser);
 #else
   return false;
 #endif
@@ -1243,12 +1245,16 @@ ExtensionFunction::ResponseValue WindowsCreateFunction::OnBrowserWindowCreated(
     if (registrar.AppMatches(iwa_id, web_app::WebAppFilter::IsIsolatedApp())) {
       NavigateParams navigate_params = create_nav_params(
           registrar.GetAppStartUrl(iwa_id), /*is_first_nav=*/true);
+      webapps::LaunchParams launch_params;
+      launch_params.app_id = iwa_id;
+      launch_params.target_url = original_url;
+      navigate_params.launch_params = std::move(launch_params);
+
+      // Navigate() takes care of enqueueing the launch params once the
+      // navigation commits.
       base::WeakPtr<content::NavigationHandle> handle =
           Navigate(&navigate_params);
       CHECK(handle);
-      web_app::EnqueueLaunchParams(
-          handle->GetWebContents(), iwa_id, original_url,
-          /*wait_for_navigation_to_complete=*/true, handle->NavigationStart());
     }
     navigated = true;
   }
@@ -1666,9 +1672,9 @@ ExtensionFunction::ResponseAction WindowsRemoveFunction::Run() {
   // TODO(https://crbug.com/432056907): Determine if we need locked-fullscreen
   // support on desktop android.
 #if !BUILDFLAG(IS_ANDROID)
-  if (window_controller->GetBrowser() &&
+  if (window_controller->GetBrowserWindowInterface() &&
       platform_util::IsBrowserLockedFullscreen(
-          window_controller->GetBrowser()) &&
+          window_controller->GetBrowserWindowInterface()) &&
       !tabs_internal::ExtensionHasLockedFullscreenPermission(extension())) {
     return RespondNow(
         Error(tabs_internal::kMissingLockWindowFullscreenPrivatePermission));
@@ -3460,6 +3466,10 @@ ExtensionFunction::ResponseAction TabsDetectLanguageFunction::Run() {
   if (contents->GetController().NeedsReload()) {
     // If the tab hasn't been loaded, don't wait for the tab to load.
     return RespondNow(Error(kCannotDetermineLanguageOfUnloadedTab));
+  }
+
+  if (!TranslateService::IsTranslatableURL(contents->GetLastCommittedURL())) {
+    return RespondNow(Error(kLanguageDetectionNotSupported));
   }
 
   // Language detection is asynchronous.

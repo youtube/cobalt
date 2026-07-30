@@ -345,6 +345,13 @@ chromium-metrics-reviews@google.com.
   <int value="3" label="SCROLLED_CLICKED"/>
 </enum>
 
+<enum name="SearchDuplicateKeyword">
+  <int value="0" label="No Duplicates"/>
+  <int value="1" label="Non-default keyword duplicated"/>
+  <int value="2" label="Default keyword duplicated"/>
+  <int value="3" label="Both Default and non-default duplicates"/>
+</enum>
+
 <enum name="SearchEngineChoiceDate">
   <summary>Year-Month</summary>
   <int value="100001" label="Before 2022"/>
@@ -504,6 +511,12 @@ chromium-metrics-reviews@google.com.
     offered on the choice screen set as default, while the program settings
     require to highlight the current default.
   </int>
+  <int value="24" label="UnavailableCurrentLocation">
+    The user's current location is unknown or invalid *and* the regional program
+    requires restricting to its associated countries. Note: it can be affected
+    by the client state (e.g. Desktop first run), leading to not emitting this
+    condition.
+  </int>
 </enum>
 
 <!-- LINT.ThenChange(/components/regional_capabilities/enums.h:SearchEngineChoiceScreenConditions) -->
@@ -571,6 +584,7 @@ chromium-metrics-reviews@google.com.
   <int value="6" label="Invalid choice metadata: Other"/>
   <int value="7" label="Missing default search engine"/>
   <int value="8" label="Choice remade after import"/>
+  <int value="9" label="Program changed"/>
 </enum>
 
 <!-- LINT.IfChange(SearchPolicyConflictType) -->

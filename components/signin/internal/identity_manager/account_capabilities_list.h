@@ -185,14 +185,30 @@ ACCOUNT_CAPABILITY_F(kCanSignInToChromeCapabilityName,
                      switches::kEnforceCanSignInToChromeCapability)
 #endif
 
-#if !defined(NDEBUG)
+#if !defined(NDEBUG) && !BUILDFLAG(IS_ANDROID)
 // This is a fake account capability, used for unit tests only.
 // To avoid additional fetches in production code, only define this in debug
 // builds.
+// Java codegen does not pick up the `NDEBUG` guard, so do not define this
+// capability and the corresponding tests on Android.
 ACCOUNT_CAPABILITY_F(kFakeCapabilityForTestingName,
                      FAKE_CAPABILITY_FOR_TESTING_NAME,
                      "accountcapabilities/fakecapabilityfortesting",
                      switches::kEnableFakeCapabilityForTesting)
+#endif
+
+#if BUILDFLAG(IS_IOS)
+ACCOUNT_CAPABILITY_F(kMustFetchAppleAgeRangeInChromeCapabilityName,
+                     MUST_FETCH_APPLE_AGE_RANGE_IN_CHROME_CAPABILITY_NAME,
+                     "accountcapabilities/gi3dkmbnmnqxa",
+                     switches::kEnforceMustFetchAppleAgeRangeInChromeCapability)
+#endif
+
+#if BUILDFLAG(IS_IOS)
+ACCOUNT_CAPABILITY_F(kMustSkipAppleAgeRangeInChromeCapabilityName,
+                     MUST_SKIP_APPLE_AGE_RANGE_IN_CHROME_CAPABILITY_NAME,
+                     "accountcapabilities/gi2tqnbnmnqxa",
+                     switches::kEnforceMustSkipAppleAgeRangeInChromeCapability)
 #endif
 
 // keep-sorted end

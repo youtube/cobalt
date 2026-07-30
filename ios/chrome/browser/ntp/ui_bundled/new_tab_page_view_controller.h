@@ -8,7 +8,7 @@
 #import <UIKit/UIKit.h>
 
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_consumer.h"
-#import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_header_view_controller_delegate.h"
+#import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_header_view_delegate.h"
 #import "ios/chrome/browser/shared/ui/util/ui_view_controller_with_display_tracing.h"
 
 @class ContentSuggestionsViewController;
@@ -21,7 +21,7 @@ typedef NS_ENUM(NSInteger, FeedLayoutUpdateType);
 @protocol NewTabPageCommands;
 @protocol NewTabPageContentDelegate;
 @protocol NewTabPageShortcutsHandler;
-@class NewTabPageHeaderViewController;
+@class NewTabPageHeaderView;
 @protocol NewTabPageMutator;
 @class NewTabPageViewController;
 @protocol OverscrollActionsControllerDelegate;
@@ -33,10 +33,9 @@ class Tracker;
 // View controller containing all the content presented on a standard,
 // non-incognito new tab page.
 @interface NewTabPageViewController
-    : UIViewControllerWithDisplayTracing <
-          NewTabPageConsumer,
-          NewTabPageHeaderViewControllerDelegate,
-          UIScrollViewDelegate>
+    : UIViewControllerWithDisplayTracing <NewTabPageConsumer,
+                                          NewTabPageHeaderViewDelegate,
+                                          UIScrollViewDelegate>
 
 // View controller wrapping the feed.
 @property(nonatomic, strong)
@@ -47,7 +46,7 @@ class Tracker;
     overscrollDelegate;
 
 // The NTP header, containing the fake omnibox and the doodle.
-@property(nonatomic, weak) NewTabPageHeaderViewController* headerViewController;
+@property(nonatomic, strong) NewTabPageHeaderView* headerView;
 
 // Delegate for actions relating to the NTP content.
 @property(nonatomic, weak) id<NewTabPageContentDelegate> NTPContentDelegate;

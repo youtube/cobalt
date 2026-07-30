@@ -8,6 +8,7 @@
 #include "base/feature_list.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/strcat.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/timer/elapsed_timer.h"
 #include "build/build_config.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks.mojom.h"
@@ -19,12 +20,16 @@
 #include "chrome/browser/search/search.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/common/webui_url_constants.h"
 #include "components/contextual_search/contextual_search_metrics_recorder.h"
 #include "components/contextual_search/contextual_search_session_handle.h"
 #include "components/contextual_tasks/public/features.h"
 #include "components/contextual_tasks/public/prefs.h"
+#include "components/omnibox/browser/location_bar_model_util.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui.h"
+#include "content/public/browser/web_ui_controller.h"
+#include "content/public/common/url_constants.h"
 #include "third_party/lens_server_proto/aim_communication.pb.h"
 #include "ui/base/device_form_factor.h"
 
@@ -36,6 +41,11 @@
 #endif
 
 namespace contextual_tasks {
+
+bool IsContextualTasksUrl(const GURL& url) {
+  return url.scheme() == content::kChromeUIScheme &&
+         url.host() == chrome::kChromeUIContextualTasksHost;
+}
 
 std::unique_ptr<
     contextual_search::ContextualSearchContextController::ConfigParams>
@@ -238,6 +248,16 @@ bool ShouldShowSidePanel() {
 #endif
 }
 
+GURL GetContextualTasksFunctionalURL(content::WebContents* web_contents) {
+  auto* ui = GetWebUiInterface(web_contents);
+  return ui ? ui->GetInnerFrameUrl() : GURL();
+}
+
+GURL GetContextualTasksDisplayURL(content::WebContents* web_contents) {
+  GURL inner_frame_url = GetContextualTasksFunctionalURL(web_contents);
+  return location_bar_model::GetContextualTasksDisplayURL(inner_frame_url);
+}
+
 // static
 std::unique_ptr<ContextualTasksPanelHost> ContextualTasksPanelHost::Create(
     BrowserWindowInterface* browser_window) {
@@ -249,8 +269,7 @@ std::unique_ptr<ContextualTasksPanelHost> ContextualTasksPanelHost::Create(
     return std::make_unique<ContextualTasksPanelHostAndroid>(browser_window);
   }
 #else
-  return std::make_unique<ContextualTasksPanelHostDesktop>(
-      browser_window, browser_window->GetFeatures().side_panel_ui());
+  return std::make_unique<ContextualTasksPanelHostDesktop>(browser_window);
 #endif
 }
 

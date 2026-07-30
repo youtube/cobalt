@@ -426,7 +426,9 @@ std::string SanitizeFrontendQueryParam(const std::string& key,
 
   if (key == "panel" &&
       (value == "elements" || value == "console" || value == "sources" ||
-       value == "network" || value == "resources" || value == "performance")) {
+       value == "network" || value == "resources" || value == "timeline" ||
+       value == "chrome-recorder" || value == "heap-profiler" ||
+         value == "lighthouse" || value == "security" )) {
     return value;
   }
 
@@ -1379,6 +1381,9 @@ void DevToolsUIBindings::OpenSearchResultsInNewTab(const std::string& query) {
 void DevToolsUIBindings::ShowItemInFolder(const std::string& file_system_path) {
   CHECK(IsValidFrontendURL(web_contents_->GetLastCommittedURL()) &&
         frontend_host_);
+  if (!file_helper_.IsFileInFileSystem(file_system_path)) {
+    return;
+  }
   file_helper_.ShowItemInFolder(file_system_path);
 }
 
@@ -1955,6 +1960,11 @@ base::DictValue DevToolsUIBindings::GetHostConfigDictionary(Profile* profile) {
                         "enabled", base::FeatureList::IsEnabled(
                                        ::features::kDevToolsAiAssistanceV2)));
 
+  response_dict.Set("devToolsAiV2Architecture",
+                    base::DictValue().Set(
+                        "enabled", base::FeatureList::IsEnabled(
+                                       ::features::kDevToolsAiV2Architecture)));
+
   if (base::FeatureList::IsEnabled(::features::kDevToolsAiCodeCompletion)) {
     base::DictValue ai_code_completion_dict;
     ai_code_completion_dict.Set(
@@ -2180,6 +2190,11 @@ base::DictValue DevToolsUIBindings::GetHostConfigDictionary(Profile* profile) {
       base::DictValue().Set("enabled",
                             base::FeatureList::IsEnabled(
                                 blink::features::kDevToolsWebMCPSupport)));
+
+  response_dict.Set("devToolsAdsPanel",
+                    base::DictValue().Set(
+                        "enabled", base::FeatureList::IsEnabled(
+                                       blink::features::kDevToolsAdsPanel)));
 
   response_dict.Set(
       "devToolsPlusButton",

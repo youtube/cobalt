@@ -5,27 +5,34 @@
 package org.chromium.chrome.browser.glic;
 
 import android.content.Context;
+import android.content.res.Resources;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.view.View;
-import android.widget.PopupWindow.OnDismissListener;
 
+import androidx.annotation.DrawableRes;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.actor.ActorTask;
+import org.chromium.chrome.browser.actor.ActorTaskState;
+import org.chromium.chrome.browser.glic.GlicKeyedService.GlicInvocationSource;
+import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tab.TabSelectionType;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tabmodel.TabModelUtils;
 import org.chromium.chrome.browser.ui.side_panel.AndroidSidePanelEnabledFn;
+import org.chromium.chrome.browser.url_constants.UrlConstantResolver;
 import org.chromium.components.browser_ui.widget.BrowserUiListMenuUtils;
 import org.chromium.components.browser_ui.widget.ListItemBuilder;
+import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.ui.listmenu.BasicListMenu;
 import org.chromium.ui.listmenu.ListMenu;
 import org.chromium.ui.listmenu.ListMenuItemProperties;
 import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
 import org.chromium.ui.modelutil.PropertyModel;
+import org.chromium.ui.util.AttrUtils;
 import org.chromium.ui.widget.AnchoredPopupWindow;
 import org.chromium.ui.widget.RectProvider;
 import org.chromium.ui.widget.ViewRectProvider;
@@ -44,17 +51,8 @@ public class GlicTaskMenuCoordinator {
 
     private final Supplier<@Nullable TabModelSelector> mTabModelSelectorSupplier;
     private final GlicButtonDelegate mToggleGlicCallback;
+    private final @GlicInvocationSource int mInvocationSource;
     private @Nullable AnchoredPopupWindow mMenuWindow;
-    private @Nullable OnDismissListener mOnDismiss;
-
-    /**
-     * Sets a listener to be called when the task menu is dismissed.
-     *
-     * @param onDismiss The listener to set.
-     */
-    public void setOnDismiss(@Nullable OnDismissListener onDismiss) {
-        mOnDismiss = onDismiss;
-    }
 
     /**
      * Constructs the task menu coordinator.
@@ -62,15 +60,18 @@ public class GlicTaskMenuCoordinator {
      * @param context The Android context.
      * @param tabModelSelectorSupplier Supplier for the active TabModelSelector.
      * @param toggleGlicCallback Callback to activate or open the Glic UI sheet panel.
+     * @param invocationSource The Glic invocation source.
      */
     public GlicTaskMenuCoordinator(
             Context context,
             Supplier<@Nullable TabModelSelector> tabModelSelectorSupplier,
-            GlicButtonDelegate toggleGlicCallback) {
+            GlicButtonDelegate toggleGlicCallback,
+            @GlicInvocationSource int invocationSource) {
         mContext = context;
 
         mTabModelSelectorSupplier = tabModelSelectorSupplier;
         mToggleGlicCallback = toggleGlicCallback;
+        mInvocationSource = invocationSource;
     }
 
     /**
@@ -134,12 +135,15 @@ public class GlicTaskMenuCoordinator {
         // Add gap to the right of the menu so it is not at the right edge of the screen.
         int endOffsetPx =
                 mContext.getResources().getDimensionPixelSize(R.dimen.glic_task_menu_end_offset);
-        int lateralPadding = contentView.getPaddingLeft() + contentView.getPaddingRight();
-        int widthPx = listMenu.getMaxItemWidth() + lateralPadding;
+        int maxWidthPx = AttrUtils.getDimensionPixelSize(mContext, R.attr.glicTaskMenuMaxWidth);
+        int widthPx;
 
-        int maxWidthPx =
-                mContext.getResources().getDimensionPixelSize(R.dimen.glic_task_menu_max_width);
-        widthPx = Math.min(widthPx, maxWidthPx);
+        if (AndroidSidePanelEnabledFn.isEnabled()) {
+            widthPx = maxWidthPx;
+        } else {
+            int lateralPadding = contentView.getPaddingLeft() + contentView.getPaddingRight();
+            widthPx = Math.min(listMenu.getMaxItemWidth() + lateralPadding, maxWidthPx);
+        }
 
         mMenuWindow =
                 new AnchoredPopupWindow.Builder(
@@ -161,9 +165,6 @@ public class GlicTaskMenuCoordinator {
                         .setAnimateFromAnchor(true)
                         .setAllowNonTouchableSize(true)
                         .build();
-        if (mOnDismiss != null) {
-            mMenuWindow.addOnDismissListener(mOnDismiss);
-        }
         mMenuWindow.show();
     }
 
@@ -171,7 +172,7 @@ public class GlicTaskMenuCoordinator {
     ModelList buildModelList(List<ActorTask> tasks) {
         ModelList modelList = new ModelList();
         int endIconWidthPx =
-                mContext.getResources().getDimensionPixelSize(R.dimen.glic_menu_dot_width);
+                AttrUtils.getDimensionPixelSize(mContext, R.attr.glicTaskMenuEndIconWidth);
 
         // TODO(crbug.com/498721993): Listen to the task and update menu item when needed.
         for (ActorTask task : tasks) {
@@ -183,18 +184,27 @@ public class GlicTaskMenuCoordinator {
                             .withClickListener(
                                     v -> {
                                         switchToActuatingTab(task.getLastActedTabs());
-                                        mToggleGlicCallback.onClick(/* preventClose= */ true);
+                                        mToggleGlicCallback.onClick(
+                                                /* preventClose= */ true, mInvocationSource);
                                         dismiss();
                                     });
 
-            if (GlicButtonStateController.mapTaskStateToButtonState(task.getState())
-                    == GlicButtonStateController.ButtonState.NEEDS_REVIEW) {
-                builder.withStartIconRes(R.drawable.ic_hourglass_empty_24dp)
-                        .withEndIconRes(R.drawable.glic_menu_dot)
-                        .withEndIconWidth(endIconWidthPx);
+            boolean needsReview =
+                    GlicButtonStateController.mapTaskStateToButtonState(task.getState())
+                            == GlicButtonStateController.ButtonState.NEEDS_REVIEW;
+
+            if (needsReview) {
+                builder.withStartIconRes(R.drawable.ic_hourglass_empty_24dp);
             } else {
                 builder.withStartIconRes(R.drawable.ic_arrow_selector_spark_24dp);
             }
+
+            if (AndroidSidePanelEnabledFn.isEnabled()) {
+                builder.withSubtitle(getTaskSubtitle(mContext, task));
+            }
+
+            int endIconRes = getEndIconRes(needsReview, AndroidSidePanelEnabledFn.isEnabled());
+            builder.withEndIconWidth(endIconWidthPx).withEndIconRes(endIconRes);
 
             modelList.add(builder.build());
         }
@@ -211,7 +221,8 @@ public class GlicTaskMenuCoordinator {
                             .withIsIncognito(false)
                             .withClickListener(
                                     v -> {
-                                        mToggleGlicCallback.onClick(/* preventClose= */ false);
+                                        mToggleGlicCallback.onClick(
+                                                /* preventClose= */ false, mInvocationSource);
                                         dismiss();
                                     })
                             .build());
@@ -219,17 +230,69 @@ public class GlicTaskMenuCoordinator {
         return modelList;
     }
 
-    private boolean shouldShowAskGemini() {
-        return !AndroidSidePanelEnabledFn.isEnabled();
+    private String getTaskSubtitle(Context context, ActorTask task) {
+        boolean hasTab = false;
+        TabModelSelector selector = mTabModelSelectorSupplier.get();
+        if (selector != null) {
+            for (int tabId : task.getLastActedTabs()) {
+                if (selector.getTabById(tabId) != null) {
+                    hasTab = true;
+                    break;
+                }
+            }
+        }
+
+        if (!hasTab) {
+            return context.getString(R.string.actor_task_list_bubble_row_tab_closed_subtitle);
+        }
+
+        switch (task.getState()) {
+            case ActorTaskState.WAITING_ON_USER:
+            case ActorTaskState.PAUSED_BY_ACTOR:
+                return context.getString(R.string.actor_task_list_bubble_row_check_task_subtitle);
+            case ActorTaskState.FINISHED:
+                return context.getString(
+                        R.string.actor_task_list_bubble_row_completed_task_subtitle);
+            case ActorTaskState.FAILED:
+                return context.getString(R.string.actor_task_list_bubble_row_failed_task_subtitle);
+            case ActorTaskState.PAUSED_BY_USER:
+                return context.getString(R.string.actor_task_list_bubble_row_paused_task_subtitle);
+            default:
+                return context.getString(R.string.actor_task_list_bubble_row_acting_task_subtitle);
+        }
     }
 
     private void switchToActuatingTab(Set<Integer> tabs) {
+        TabModelSelector selector = mTabModelSelectorSupplier.get();
+        if (selector == null) return;
+
         if (!tabs.isEmpty()) {
-            int tabId = tabs.iterator().next();
-            TabModelSelector selector = mTabModelSelectorSupplier.get();
-            if (selector != null) {
-                TabModelUtils.selectTabById(selector, tabId, TabSelectionType.FROM_USER);
+            for (int tabId : tabs) {
+                if (selector.getTabById(tabId) != null) {
+                    TabModelUtils.selectTabById(selector, tabId, TabSelectionType.FROM_USER);
+                    break;
+                }
             }
+        } else {
+            selector.openNewTab(
+                    new LoadUrlParams(UrlConstantResolver.getOriginalNativeNtpUrl()),
+                    TabLaunchType.FROM_CHROME_UI,
+                    /* parent= */ null,
+                    /* incognito= */ false);
         }
+    }
+
+    @DrawableRes
+    private static int getEndIconRes(boolean needsReview, boolean sidePanelEnabled) {
+        if (sidePanelEnabled) {
+            return needsReview
+                    ? R.drawable.glic_menu_end_icon_needs_review
+                    : R.drawable.glic_menu_end_icon_standard;
+        }
+        return needsReview ? R.drawable.glic_menu_dot : Resources.ID_NULL;
+    }
+
+    private boolean shouldShowAskGemini() {
+        return !AndroidSidePanelEnabledFn.isEnabled();
     }
 }

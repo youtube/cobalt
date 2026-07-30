@@ -15,6 +15,8 @@
 #include "chrome/browser/ui/views/toolbar/pinned_toolbar_actions.h"
 #include "components/send_tab_to_self/entry_point_display_reason.h"
 #include "components/send_tab_to_self/metrics_util.h"
+#include "components/send_tab_to_self/send_tab_to_self_model_observer.h"
+#include "components/sync_device_info/device_info.h"
 #include "content/public/browser/web_contents_user_data.h"
 #include "ui/views/widget/widget_observer.h"
 #include "url/gurl.h"
@@ -49,10 +51,14 @@ namespace send_tab_to_self {
 enum class SendTabToSelfResult;
 class SendTabToSelfBubbleView;
 struct TargetDeviceInfo;
+class SendTabToSelfEntry;
+
+class SendTabToSelfModel;
 
 class SendTabToSelfBubbleController
     : public content::WebContentsUserData<SendTabToSelfBubbleController>,
-      public views::WidgetObserver {
+      public views::WidgetObserver,
+      public send_tab_to_self::SendTabToSelfModelObserver {
  public:
   SendTabToSelfBubbleController(const SendTabToSelfBubbleController&) = delete;
   SendTabToSelfBubbleController& operator=(
@@ -110,7 +116,11 @@ class SendTabToSelfBubbleController
   friend class content::WebContentsUserData<SendTabToSelfBubbleController>;
 
   Profile* GetProfile();
+  send_tab_to_self::SendTabToSelfModel* GetModel();
   virtual std::optional<EntryPointDisplayReason> GetEntryPointDisplayReason();
+
+  // Prepares the anchor and initiates showing the bubble for a specific reason.
+  void ShowBubbleImpl(EntryPointDisplayReason reason);
 
   // Callback for GetBubbleAnchorAsync() that creates and shows the bubble once
   // the anchor is ready.
@@ -120,10 +130,26 @@ class SendTabToSelfBubbleController
 
   void HandleSendTabToDeviceResult(const GURL& url,
                                    std::string_view device_name,
+                                   syncer::DeviceInfo::FormFactor form_factor,
                                    SendTabToSelfResult result);
 
   // views::WidgetObserver:
   void OnWidgetDestroying(views::Widget* widget) override;
+
+  // send_tab_to_self::SendTabToSelfModelObserver:
+  void OnEntriesAddedRemotely(
+      const std::vector<const SendTabToSelfEntry*>& new_entries) override;
+  void OnEntriesRemovedRemotely(const std::vector<std::string>& guids) override;
+  void OnModelReady() override;
+
+  // Returns true if the user is signed in to their Chrome profile but the Send
+  // Tab to Self model is not yet ready, indicating the controller should wait
+  // and observe the model.
+  bool ShouldStartWaitingForModel();
+
+  // Registers the controller as an observer to listen for the
+  // Send Tab to Self model's readiness.
+  void StartWaitingForModel();
 
   // Weak reference. Will be nullptr if no bubble is currently shown.
   raw_ptr<SendTabToSelfBubbleView> send_tab_to_self_bubble_view_ = nullptr;
@@ -134,6 +160,10 @@ class SendTabToSelfBubbleController
 
   base::ScopedObservation<views::Widget, views::WidgetObserver>
       widget_observation_{this};
+
+  base::ScopedObservation<send_tab_to_self::SendTabToSelfModel,
+                          send_tab_to_self::SendTabToSelfModelObserver>
+      model_observation_{this};
 
   base::WeakPtrFactory<SendTabToSelfBubbleController> weak_ptr_factory_{this};
 

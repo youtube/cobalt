@@ -78,8 +78,7 @@ class EntriesBuilder {
 
 LaunchQueue::LaunchQueue(content::WebContents* web_contents,
                          std::unique_ptr<LaunchQueueDelegate> delegate)
-    : content::WebContentsObserver(web_contents),
-      delegate_(std::move(delegate)) {}
+    : web_contents_(web_contents), delegate_(std::move(delegate)) {}
 
 LaunchQueue::~LaunchQueue() = default;
 
@@ -87,62 +86,33 @@ void LaunchQueue::Enqueue(LaunchParams launch_params) {
   DCHECK(delegate_->IsInScope(launch_params, launch_params.target_url))
       << launch_params.target_url.spec();
 
-  DCHECK(delegate_->IsValidLaunchParams(launch_params));
-
-  // Drop the existing queue state if a new launch navigation was started.
-  if (launch_params.started_new_navigation) {
-    Reset();
-    queue_.push_back(std::move(launch_params));
-    pending_navigation_ = true;
-    return;
+  if (!delegate_->IsValidLaunchParams(launch_params)) {
+    launch_params.paths.clear();
+    launch_params.dir.clear();
   }
 
-  if (!queue_.empty()) {
-    DCHECK_EQ(launch_params.app_id, queue_.front().app_id);
-  }
-  queue_.push_back(std::move(launch_params));
-  if (!pending_navigation_) {
-    SendQueuedLaunchParams(web_contents()->GetLastCommittedURL());
-  }
+  last_sent_queued_launch_params_ = launch_params;
+  SendLaunchParams(std::move(launch_params),
+                   web_contents_->GetLastCommittedURL());
+}
+
+bool LaunchQueue::IsInScope(const LaunchParams& launch_params,
+                            const GURL& url) const {
+  return delegate_->IsInScope(launch_params, url);
 }
 
 void LaunchQueue::FlushForTesting() const {
   CHECK_IS_TEST();
   mojo::AssociatedRemote<blink::mojom::WebLaunchService> launch_service;
-  web_contents()
-      ->GetPrimaryMainFrame()
+  web_contents_->GetPrimaryMainFrame()
       ->GetRemoteAssociatedInterfaces()
       ->GetInterface(&launch_service);
   launch_service.FlushForTesting();  // IN-TEST
 }
 
-void LaunchQueue::Reset() {
-  queue_.clear();
-  pending_navigation_ = false;
-  last_sent_queued_launch_params_.reset();
-}
-
-const webapps::AppId* LaunchQueue::GetPendingLaunchAppId() const {
-  if (queue_.empty()) {
-    return nullptr;
-  }
-  return &(queue_.front().app_id);
-}
-
 void LaunchQueue::DidFinishNavigation(content::NavigationHandle* handle) {
   // Currently, launch data is only sent the primary main frame.
   if (!handle->IsInPrimaryMainFrame()) {
-    return;
-  }
-
-  if (pending_navigation_) {
-    if (!handle->HasCommitted() || handle->IsErrorPage() ||
-        !delegate_->IsInScope(queue_.front(), handle->GetURL())) {
-      Reset();
-      return;
-    }
-    pending_navigation_ = false;
-    SendQueuedLaunchParams(handle->GetURL());
     return;
   }
 
@@ -154,7 +124,7 @@ void LaunchQueue::DidFinishNavigation(content::NavigationHandle* handle) {
       handle->GetReloadType() != content::ReloadType::NONE) {
     if (!delegate_->IsInScope(*last_sent_queued_launch_params_,
                               handle->GetURL())) {
-      Reset();
+      last_sent_queued_launch_params_.reset();
       return;
     }
 
@@ -169,19 +139,9 @@ void LaunchQueue::DidFinishNavigation(content::NavigationHandle* handle) {
   }
 
   // Leaving the document resets all queue state.
-  if (!handle->IsSameDocument()) {
-    Reset();
+  if (handle->HasCommitted() && !handle->IsSameDocument()) {
+    last_sent_queued_launch_params_.reset();
   }
-}
-
-void LaunchQueue::SendQueuedLaunchParams(const GURL& current_url) {
-  for (LaunchParams& launch_params : queue_) {
-    if (&launch_params == &queue_.back()) {
-      last_sent_queued_launch_params_ = launch_params;
-    }
-    SendLaunchParams(std::move(launch_params), current_url);
-  }
-  queue_.clear();
 }
 
 void LaunchQueue::SendLaunchParams(LaunchParams launch_params,
@@ -192,8 +152,7 @@ void LaunchQueue::SendLaunchParams(LaunchParams launch_params,
       << current_url.spec();
   CHECK(launch_params.target_url.is_valid());
   mojo::AssociatedRemote<blink::mojom::WebLaunchService> launch_service;
-  web_contents()
-      ->GetPrimaryMainFrame()
+  web_contents_->GetPrimaryMainFrame()
       ->GetRemoteAssociatedInterfaces()
       ->GetInterface(&launch_service);
   DCHECK(launch_service);
@@ -201,7 +160,7 @@ void LaunchQueue::SendLaunchParams(LaunchParams launch_params,
   std::vector<blink::mojom::FileSystemAccessEntryPtr> files;
 
   if (!launch_params.paths.empty() || !launch_params.dir.empty()) {
-    EntriesBuilder entries_builder(web_contents(), launch_params.target_url,
+    EntriesBuilder entries_builder(web_contents_, launch_params.target_url,
                                    launch_params.paths.size() + 1);
     if (!launch_params.dir.empty()) {
       entries_builder.AddDirectoryEntry(

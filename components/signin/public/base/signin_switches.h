@@ -30,6 +30,9 @@ extern const char kClearTokenService[];
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 extern const char kForceFreDefaultBrowserStep[];
+
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+extern const char kForceFreFeatureShowcaseSteps[];
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
 // Feature declarations, sorted by the name of the BASE_DECLARE_FEATURE in each
@@ -288,7 +291,7 @@ BASE_DECLARE_FEATURE_PARAM(RefreshTokenBindingUpgradeType,
                            kRefreshTokenBindingUpgradeType);
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
-#if !defined(NDEBUG)
+#if !defined(NDEBUG) && !BUILDFLAG(IS_ANDROID)
 // A fake feature corresponding to the kFakeCapabilityForTestingName account
 // capability. This is only used in unit tests (and must be left disabled to
 // prevent fetching the fake capability).
@@ -372,6 +375,22 @@ BASE_DECLARE_FEATURE(kEnforceManagementDisclaimer);
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 extern const base::FeatureParam<base::TimeDelta>
     kPolicyDisclaimerRegistrationRetryDelay;
+#endif
+
+#if BUILDFLAG(IS_IOS)
+// Feature flag controlling whether the MustFetchAppleAgeRangeInChrome account
+// capability should be used to determine whether the client must fetch Apple's
+// age range.
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE(kEnforceMustFetchAppleAgeRangeInChromeCapability);
+#endif
+
+#if BUILDFLAG(IS_IOS)
+// Feature flag controlling whether the MustSkipAppleAgeRangeInChrome account
+// capability should be used to determine whether the client must skip Apple's
+// age range check.
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE(kEnforceMustSkipAppleAgeRangeInChromeCapability);
 #endif
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
@@ -525,12 +544,16 @@ BASE_DECLARE_FEATURE(kNoAccountWebSignin);
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kNonDefaultGaiaOriginCheck);
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
+    BUILDFLAG(IS_CHROMEOS)
 // Add new entry points for uploading passwords to account storage and update
 // existing ones.
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kPasswordUploadUiUpdate);
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
+        // BUILDFLAG(IS_CHROMEOS)
 
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 // Experimenting with changing the secondary CTA for FRE and new profile
 // creation.
 COMPONENT_EXPORT(SIGNIN_SWITCHES)

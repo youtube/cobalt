@@ -261,13 +261,14 @@ class SafeBrowsingUIManagerTest : public content::RenderViewHostTestHarness {
                 primary_main_frame->GetGlobalId().child_id.value(),
                 primary_main_frame->GetFrameToken().value()),
         /*navigation_id=*/std::nullopt,
-        SBThreatType::SB_THREAT_TYPE_URL_MALWARE);
+        SBThreatType::SB_THREAT_TYPE_URL_MALWARE,
+        safe_browsing::ThreatSource::UNKNOWN);
   }
 
   bool IsAllowlisted(security_interstitials::UnsafeResource resource) {
-    return ui_manager_->IsAllowlisted(resource.url, resource.rfh_locator,
-                                      resource.navigation_id,
-                                      resource.threat_type);
+    return ui_manager_->IsAllowlisted(
+        resource.url, resource.rfh_locator, resource.navigation_id,
+        resource.threat_type, resource.threat_source);
   }
 
   void AddToAllowlist(security_interstitials::UnsafeResource resource,
@@ -328,8 +329,9 @@ class SafeBrowsingUIManagerTest : public content::RenderViewHostTestHarness {
     GURL main_frame_url;
     content::NavigationEntry* entry =
         web_contents()->GetController().GetVisibleEntry();
-    if (entry)
+    if (entry) {
       main_frame_url = entry->GetURL();
+    }
 
     ui_manager_->OnBlockingPageDone(resources, proceed, web_contents(),
                                     main_frame_url,
@@ -465,6 +467,26 @@ TEST_F(SafeBrowsingUIManagerTest, AllowlistIgnoresThreatType) {
       MakeUnsafeResource(kBadURL);
   resource_phishing.threat_type = SBThreatType::SB_THREAT_TYPE_URL_PHISHING;
   EXPECT_TRUE(IsAllowlisted(resource_phishing));
+}
+
+// Regression test for crbug.com/502520875.
+TEST_F(SafeBrowsingUIManagerTest, AllowlistIgnoredForNonBypassableThreatType) {
+  security_interstitials::UnsafeResource resource =
+      MakeUnsafeResourceAndStartNavigation(kBadURL);
+  AddToAllowlist(resource, /*pending=*/false);
+  EXPECT_TRUE(IsAllowlisted(resource));
+
+  auto navigation = content::NavigationSimulator::CreateBrowserInitiated(
+      GURL(kBadURL), web_contents());
+  navigation->Start();
+
+  security_interstitials::UnsafeResource resource_policy_block =
+      MakeUnsafeResource(kBadURL);
+  resource_policy_block.threat_type =
+      SBThreatType::SB_THREAT_TYPE_MANAGED_POLICY_BLOCK;
+  resource_policy_block.navigation_id =
+      navigation->GetNavigationHandle()->GetNavigationId();
+  EXPECT_FALSE(IsAllowlisted(resource_policy_block));
 }
 
 TEST_F(SafeBrowsingUIManagerTest, CallbackProceed) {

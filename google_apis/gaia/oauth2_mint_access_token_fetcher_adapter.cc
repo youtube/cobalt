@@ -114,6 +114,8 @@ void OAuth2MintAccessTokenFetcherAdapter::Start(
       use_mtls_endpoints_for_fetching_tokens_);
   params.check_bound_token_upgrade_eligibility =
       !token_upgrade_callback_.is_null();
+  base::UmaHistogramBoolean("Signin.TokenBinding.UpgradeEligibility",
+                            params.check_bound_token_upgrade_eligibility);
   if (mint_token_flow_factory_for_testing_) {
     CHECK_IS_TEST();
     mint_token_flow_ =
@@ -196,10 +198,13 @@ void OAuth2MintAccessTokenFetcherAdapter::OnMintTokenSuccess(
       .WithExpirationTime(expiration_time);
   RecordFetchAuthError(GoogleServiceAuthError::AuthErrorNone(),
                        is_refresh_token_bound_, binding_key_assertion_);
+  base::UmaHistogramBoolean("Signin.TokenBinding.UpgradeRequested",
+                            !result.bound_token_upgrade_challenge.empty());
   if (!result.bound_token_upgrade_challenge.empty() &&
       token_upgrade_callback_) {
     std::move(token_upgrade_callback_)
-        .Run(result.bound_token_upgrade_challenge);
+        .Run(result.bound_token_upgrade_challenge,
+             result.bound_token_upgrade_supported_algorithms);
   }
   FireOnGetTokenSuccess(response_builder.build());
 }

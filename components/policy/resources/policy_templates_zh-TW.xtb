@@ -446,13 +446,6 @@
 <translation id="1340053691042184658">禁止透過瀏覽器訪客模式登入</translation>
 <translation id="1342918903685430097">設定裝置的最低 <ph name="PRODUCT_OS_NAME" /> 版本限制。</translation>
 <translation id="1343128241903870688">停用裝置應用程式資訊回報功能</translation>
-<translation id="1347198119056266798">這項政策已遭淘汰，請改用 <ph name="FORCE_GOOGLE_SAFE_SEARCH_POLICY_NAME" /> 和 <ph name="FORCE_YOUTUBE_RESTRICT_POLICY_NAME" />。如果設定 <ph name="FORCE_GOOGLE_SAFE_SEARCH_POLICY_NAME" />、<ph name="FORCE_YOUTUBE_RESTRICT_POLICY_NAME" /> 或 <ph name="FORCE_YOUTUBE_SAFETY_MODE_POLICY_NAME" /> 政策 (已淘汰)，系統會忽略這項政策。
-
-      將 Google 網頁搜尋中的「安全搜尋」功能強制設為啟用，並禁止使用者變更這項設定。這項設定也會強制執行中度的 YouTube 嚴格篩選模式。
-
-      如果啟用這項設定，系統會一律啟用 Google 搜尋中的「安全搜尋」功能，以及中度的 YouTube 嚴格篩選模式。
-
-      如果停用這項設定或不設定，則系統不會強制執行 Google 搜尋的「安全搜尋」功能和 YouTube 嚴格篩選模式。</translation>
 <translation id="134745581157553029">如果設定「DeviceArcDataSnapshotHours」政策，則系統會開啟 ARC 資料數據匯報機制，而且 ARC 資料數據匯報更新將可在自訂的時間間隔自動開始。當間隔開始時，如果需要執行 ARC 資料數據匯報更新，且沒有任何使用者處於登入狀態，系統會直接開始執行 ARC 資料數據匯報更新程序，不會通知使用者。如果使用者工作階段處於執行中狀態，系統會顯示使用者介面通知，使用者必須接受通知內容以重新啟動裝置，並開始執行 ARC 資料數據匯報更新程序。注意：ARC 資料數據匯報更新期間將無法使用裝置。</translation>
 <translation id="1348603614848418219">不允許將 <ph name="MS_AD_NAME" /> 管理的裝置遷移至雲端管理服務。</translation>
 <translation id="1352799151662469739">使用 AC 電源供電時的閒置時間長度 (以毫秒為單位)。如果使用者在這段時間內沒有任何動作，系統就會鎖定螢幕</translation>
@@ -1378,7 +1371,6 @@ Chrome 政策的優先順序高於這項政策，例如擴充功能是否列在 
 <translation id="1963986268950915756">允許使用者透過瀏覽器安裝網頁應用程式</translation>
 <translation id="1964191545419036999">媒體庫 (自 117 版起開始支援)</translation>
 <translation id="1964634611280150550">無痕模式已停用</translation>
-<translation id="1964802606569741174">這項政策對 Android YouTube 應用程式沒有影響。如要強制採用 YouTube 安全模式，則必須禁止下載 Android YouTube 應用程式。</translation>
 <translation id="1964985353230379667">為手動建立的新票證指定 <ph name="KRB5_CONFIG" /> 建議設定。
 
       如果啟用「KerberosUseCustomPrefilledConfig」政策，這項政策的值就會用於建議設定，並顯示在 Kerberos 驗證對話方塊的「進階」部分中。如果將這項政策留空或未設定，系統將刪除建議的 <ph name="PRODUCT_OS_NAME" /> 設定。
@@ -1725,7 +1717,6 @@ Chrome 政策的優先順序高於這項政策，例如擴充功能是否列在 
 
       如要進一步瞭解安全瀏覽功能，請前往 https://support.google.com/chrome?p=safe_browsing_preferences。</translation>
 <translation id="2177696016354404697">一律停用隱私保護功能</translation>
-<translation id="2178899310296064282">強制執行中度以上的 YouTube 嚴格篩選模式</translation>
 <translation id="2180260434916939385">允許使用 AI 輔助歷史記錄搜尋功能，並改善 AI 模型。</translation>
 <translation id="2180795125410219364">Home/End 設定已停用</translation>
 <translation id="2180958780733364832">控管無頭模式的使用權限</translation>
@@ -2094,6 +2085,7 @@ Chrome 政策的優先順序高於這項政策，例如擴充功能是否列在 
 
 如果未設定這項政策，系統預設會停用隱私保護畫面，但使用者可以自行變更。</translation>
 <translation id="2413899611035194909">顯示登入畫面系統匣選單的無障礙選項</translation>
+<translation id="2414712434655365347">針對特定網址模式設定 HTTP 標頭插入功能</translation>
 <translation id="2415715982424988916">探索 (自 91 版起開始支援)</translation>
 <translation id="2420958105721932612">指定應用程式的安裝方式。AVAILABLE：應用程式不會自動安裝，但使用者可自行安裝。如未指定這項政策，系統會預設採用這個值。FORCE_INSTALLED：系統會自動安裝應用程式，使用者無法解除安裝。BLOCKED：應用程式遭到封鎖且無法安裝。如果是依據先前的政策安裝該應用程式，系統會將其解除安裝。</translation>
 <translation id="2421400544595297401">不允許無關聯使用者使用 Android 應用程式</translation>
@@ -2810,6 +2802,7 @@ PAC 樣式的字串：
 <translation id="2853757230661166968">允許應用程式擷取及覆寫預設的系統快速鍵。</translation>
 <translation id="285480231336205327">啟用高反差模式</translation>
 <translation id="285627849510728211">設定日間進階充電模式配置</translation>
+<translation id="2856348870384508185">停用 Chrome 建議</translation>
 <translation id="2856932965866813330">允許與其他使用者共用使用者憑證</translation>
 <translation id="28600673996840076">允許使用 Google 個人資料相片或本機圖片自訂使用者顯示圖片。</translation>
 <translation id="2864207379891420023">設定擴充功能安裝許可清單</translation>
@@ -2818,13 +2811,13 @@ PAC 樣式的字串：
 <translation id="2866726566162790531">允許所有 HTTP 驗證機制的來源清單</translation>
 <translation id="2868756546751652023">允許使用者使用即時網路共用功能</translation>
 <translation id="286898786908566256">允許使用者將電話號碼從 Chrome 傳送到自己的 Android 裝置</translation>
-<translation id="287087426320717057">這項政策可讓使用者啟動任何類型的韌體更新。
+<translation id="287087426320717057">這項政策控管所有韌體更新類型的啟動權限，
 
-      如果將這項政策設為啟用或未設定，使用者 (例如裝置擁有者) 就能啟動韌體更新。
+      如果設為啟用或未設定，使用者 (例如裝置擁有者) 將可啟動韌體更新；
 
-      如果將這項政策設為停用，所有使用者都無法套用韌體更新。
+      如果設為停用，則所有使用者都無法套用韌體更新。
 
-      這項政策適用於 <ph name="PRODUCT_OS_FLEX_NAME" /> 裝置的外部周邊裝置韌體更新和內部元件韌體更新，不會影響 <ph name="PRODUCT_OS_NAME" /> 裝置的內部元件韌體更新。</translation>
+      這項韌體更新政策適用於 <ph name="PRODUCT_OS_FLEX_NAME" /> 裝置的外部周邊裝置及內部元件，不會影響 <ph name="PRODUCT_OS_NAME" /> 裝置的內部元件韌體更新。</translation>
 <translation id="2872098849906555324">停用 Google 雲端硬碟同步功能</translation>
 <translation id="2872189563975139803">企業設定檔區隔設定</translation>
 <translation id="2872961005593481000">關閉</translation>
@@ -2913,6 +2906,7 @@ PAC 樣式的字串：
 
 如要詳細瞭解各級別的 PIN 碼和密碼要求，請參閱說明中心文章。</translation>
 <translation id="2926813071464307947">停用轉譯器應用程式容器沙箱</translation>
+<translation id="2930792103747180259">停用：允許 Service Worker 執行背景擷取作業，不受任何限制。</translation>
 <translation id="2931888116345994552">如果將這項政策設為啟用或不設定，就會允許更新 <ph name="PRODUCT_NAME" /> 中的所有元件。
 
       如果將這項政策設為停用，則會禁止更新元件。不過，部分元件不受本政策規範：只要元件更新不含可執行的程式碼，且對瀏覽器安全性至關重要，就不會遭到禁止。
@@ -3025,6 +3019,7 @@ PAC 樣式的字串：
 <translation id="2976033779241323433">根據預設系統經驗法則啟用觸控虛擬鍵盤</translation>
 <translation id="2976429807269247880">舊版 <ph name="ATTRIBUTE_SAMESITE_NAME" /> Cookie 行為設定</translation>
 <translation id="2979696534869541158">強制使用舊實作</translation>
+<translation id="2984696342503554732">啟用：限制 Service Worker 的背景擷取作業。</translation>
 <translation id="2985927503455169394">使用 Google 助理入門使用體驗的預設模式</translation>
 <translation id="2987155890997901449">啟用 ARC</translation>
 <translation id="2987227569419001736">控制 Web Bluetooth API 使用權限</translation>
@@ -3919,6 +3914,21 @@ SwiftShader 曾在沒有 GPU 加速功能的系統 (例如無頭系統或虛擬�
 如果將這項政策設為停用或未設定，硬體 GPU 加速功能無法使用時，可能會無法建立 WebGL 環境。如果網頁未妥善處理 WebGL 環境無法建立的問題，可能會無法正常運作。
 
 這只是暫時性政策，日後將移除。</translation>
+<translation id="3607939601300521364">控制 <ph name="GEMINI_SPARK_PRODUCT_NAME" /> 代理程式是否可連線至 <ph name="PRODUCT_NAME" /> 並使用自動瀏覽功能。
+
+0 = 允許 <ph name="GEMINI_SPARK_PRODUCT_NAME" /> 連線至 <ph name="PRODUCT_NAME" /> 並使用自動瀏覽功能
+
+1 = 禁止 <ph name="GEMINI_SPARK_PRODUCT_NAME" /> 連線或使用 <ph name="PRODUCT_NAME" /> 自動瀏覽功能
+
+警告：如果允許 <ph name="GEMINI_SPARK_PRODUCT_NAME" /> 連線至 <ph name="PRODUCT_NAME" /> 並使用自動瀏覽功能，<ph name="GEMINI_SPARK_PRODUCT_NAME" /> 代理程式就能透過使用中的瀏覽器工作階段，在 <ph name="PRODUCT_NAME" /> 用戶端執行多步驟的自主動作。這會導致嚴重的安全風險，包括憑證外洩風險、區域網路連入 (Local Network Ingress) 以及內容認知信號遺失。現有的管理和安全控管機制可能無法發揮作用。
+
+建議管理員啟用這項功能前，先謹慎評估機構的網路威脅模型、法規遵循和隱私權規範。
+
+如果停用 <ph name="GOOGLE_GEMINI_PRODUCT_NAME" /> 應用程式或 <ph name="PRODUCT_NAME" /> 自動瀏覽政策，這項政策就沒有任何作用。例如，<ph name="GEMINI_SETTINGS_POLICY_NAME" /> 政策可能會停用 <ph name="GOOGLE_GEMINI_PRODUCT_NAME" /> 應用程式。如要進一步瞭解 <ph name="PRODUCT_NAME" /> 內建的 <ph name="GOOGLE_GEMINI_PRODUCT_NAME" />，請前往 https://support.google.com/chrome/a?p=gemini_in_chrome。
+
+<ph name="PRODUCT_NAME" /> 自動瀏覽和 <ph name="GEMINI_SPARK_PRODUCT_NAME" /> 目前只在部分國家/地區推出，且僅支援某些語言。將這項政策設為「0 - 啟用」並不保證一定會啟用此功能，實際情況仍須視適用情形而定。如要進一步瞭解推出情況，請參閱 Chrome Enterprise 版本資訊：https://chromeenterprise.google/resources/release-notes/
+
+如果未設定這項政策，系統會根據 <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> 政策決定其行為。</translation>
 <translation id="3608206578291537084">啟用加密報告管道</translation>
 <translation id="3608281460204780443">在 <ph name="PRODUCT_OS_NAME" /> 啟動器和新分頁顯示 Chrome 線上應用程式商店圖示</translation>
 <translation id="3612482251405108708">在螢幕鎖定畫面上自動啟動線上重新驗證</translation>
@@ -3952,12 +3962,6 @@ SwiftShader 曾在沒有 GPU 加速功能的系統 (例如無頭系統或虛擬�
 <translation id="3647212518036289905">你可以透過這項政策指定要用於 HTTP 驗證的 GSSAPI 程式庫。請將這項政策設為程式庫名稱或完整路徑。
 
       如果未設定這項政策，<ph name="PRODUCT_NAME" /> 會使用預設的程式庫名稱。</translation>
-<translation id="3647756189889410780">https://github.com/WICG/service-worker-auto-preload
-ServiceWorkerAutoPreload 功能會在開始執行 ServiceWorker 啟動程序時，一併分派主要資源的網路要求。
-
-如果將這項政策設為啟用或不設定，<ph name="PRODUCT_NAME" /> 會啟用 ServiceWorkerAutoPreload。在某些情況下 (例如 ServiceWorker 未執行)，系統會在啟動 ServiceWorker 時自動分派瀏覽要求。如果停用這項功能，<ph name="PRODUCT_NAME" />就不會啟用 ServiceWorkerAutoPreload。瀏覽要求一律會在 ServiceWorker 啟動後分派。
-
-這項政策只是控管此功能的暫時解決方案，並將在 M144 中移除。</translation>
 <translation id="3650122925429054129">在登入畫面上停用游標醒目顯示功能</translation>
 <translation id="365093517647222762">根據 <ph name="REPORT_WEBSITE_TELEMETRY_ALLOWLIST_POLICY_NAME" /> 政策指定的許可網址回報關聯使用者的網站遙測資料。
 
@@ -4397,9 +4401,9 @@ Protected Audience API 已淘汰，因此這項政策已在 <ph name="PRODUCT_NA
 <translation id="3937800910397007337">強制將所有分頁設為前景優先</translation>
 <translation id="3938885528378923718">設定 <ph name="PRODUCT_NAME" /> 如何下載基礎生成式 AI 模型，並在本機用於推論。
 
-如果將這項政策設為允許 (0) 或不設定，系統會自動下載模型並用於推論。
+如果將這項政策設為允許 (0) 或不設定，系統會自動下載模型並用於推論；
 
-如果將這項政策設為停用 (1)，系統就不會下載模型，並會刪除現有模型 (如果已下載)。
+如果設為停用 (1) 則不會下載模型，且會刪除已下載的現有模型。
 
 在電腦平台上，將 <ph name="COMPONENT_UPDATES_ENABLED_POLICY_NAME" /> 設為 false，也能停用模型下載功能。</translation>
 <translation id="3941289958028934630">在登入畫面上停用互動朗讀功能</translation>
@@ -4930,6 +4934,7 @@ Protected Audience API 已淘汰，因此這項政策已在 <ph name="PRODUCT_NA
 使用者無法覆寫管理員選取的項目。如果未設定這項政策，系統會採用預設值 <ph name="GLS_ALLOWED" />，使用者將可享有消費者體驗，也就是可自由修改系統位置資訊設定。
 
 注意：這項政策會淘汰 <ph name="ARC_GLS_POLICY_NAME" /> 政策。此外，設定這項政策後，<ph name="DEFAULT_GEO_SETTING_POLICY_NAME" /> 將不再影響 <ph name="PRODUCT_OS_NAME" /> 的 <ph name="ANDROID_NAME" /> 位置偏好設定。</translation>
+<translation id="4340826578810728651">允許 <ph name="GEMINI_SPARK_PRODUCT_NAME" /> 連線至 <ph name="PRODUCT_NAME" /> 並使用自動瀏覽功能</translation>
 <translation id="4341199399451274159">如果已啟用 <ph name="DEFAULT_SEARCH_PROVIDER_ENABLED_POLICY_NAME" /> 政策，你可以設定 <ph name="DEFAULT_SEARCH_PROVIDER_ENCODINGS_POLICY_NAME" /> 政策來指定搜尋引擎支援的字元編碼。編碼就是 UTF-8、GB2312 和 ISO-8859-1 等字碼頁名稱，系統會依提供的順序嘗試使用編碼。
 
       如果未設定 <ph name="DEFAULT_SEARCH_PROVIDER_ENCODINGS_POLICY_NAME" /> 政策，系統會使用 UTF-8。</translation>
@@ -5181,7 +5186,6 @@ Protected Audience API 已淘汰，因此這項政策已在 <ph name="PRODUCT_NA
 <translation id="4510923771103268849">允許使用者擁有 Crostini 容器的 Root 權限</translation>
 <translation id="4511848671760711978">禁止老師遠端查看學生的畫面。</translation>
 <translation id="4512407512989846472">允許禁止在特定網址上將資料複製到剪貼簿</translation>
-<translation id="4513691822411041977">不強制啟用 Google 搜尋的安全搜尋功能和中度以上的 YouTube 嚴格篩選模式</translation>
 <translation id="4515404363392014383">針對信任的來源啟用「安全瀏覽」</translation>
 <translation id="4517327050150780380">「幫我閱讀」功能的設定</translation>
 <translation id="4518251772179446575">詢問網站何時要追蹤使用者的實際位置</translation>
@@ -5656,6 +5660,13 @@ https://developers.google.com/privacy-sandbox/cookies/storage-partitioning。</t
 <translation id="4789450349513792856">封鎖這些網站的彈出式視窗</translation>
 <translation id="4790391579868456557">Google 搜尋可使用必要和非必要 Cookie。</translation>
 <translation id="4790588245699320140">允許 Google 助理存取畫面內容</translation>
+<translation id="4797001637482545491">這項設定可讓 Chrome 在適當時機提供 AI 功能建議。
+
+0/未設定 = 為使用者啟用 Chrome 建議。
+
+1 = 為使用者停用 Chrome 建議。
+
+詳情請參閱說明中心文章：https://support.google.com/chrome/a?p=chrome_suggestions</translation>
 <translation id="4799820756794591883">TLS 1.3 早期資料是 TLS 1.3 的擴充功能，可在 TLS 握手時傳送 HTTP 要求。
 
       如果未設定這項政策，<ph name="PRODUCT_NAME" /> 會遵循預設的 TLS 1.3 早期資料推出程序。
@@ -5806,6 +5817,7 @@ https://developers.google.com/privacy-sandbox/cookies/storage-partitioning。</t
       - 如果將這項政策設為 <ph name="SKIP_TOS_DIALOG" />，瀏覽器的功能將受到限制。
 
       - 如果將這項政策設為 <ph name="SKIP_TOS_DIALOG" />，管理員必須告知裝置使用者。</translation>
+<translation id="4896469165628792802"><ph name="GEMINI_SPARK_PRODUCT_NAME" /> 可連線至 <ph name="PRODUCT_NAME" /> 並使用自動瀏覽功能。</translation>
 <translation id="489760181463331251">這項政策會變更記憶體節省模式的節省程度。
 
 只有在透過設定或 <ph name="HIGH_EFFICIENCY_MODE_ENABLED_POLICY_NAME" /> 政策啟用記憶體節省模式時，這項政策才會生效。此外，這項政策會影響系統如何判斷將分頁設為閒置狀態的時機。舉例來說，減少分頁閒置時間雖然可以節省記憶體，但分頁重新載入的頻率也會提高，可能導致使用者體驗不佳、網路流量增加。
@@ -6297,13 +6309,6 @@ Attribution Reporting API 已淘汰，因此這項政策已在 <ph name="PRODUCT
 <translation id="5182483318861266793">將檔案櫃放在畫面的右側</translation>
 <translation id="51859390023061147">停用完整還原功能。</translation>
 <translation id="5189360528842591274">僅允許連接至清單中的藍牙服務</translation>
-<translation id="5190426551516379357">如果設定這項政策，系統會在 YouTube 上強制執行低度的嚴格篩選模式，並禁止使用者選擇更寬鬆的模式。這項政策可設定的選項如下：
-
-      * 高度：在 YouTube 上一律啟用高度嚴格篩選模式。
-
-      * 中度：使用者只能在 YouTube 上選擇中度或高度的嚴格篩選模式，但無法關閉嚴格篩選模式。
-
-      * 關閉或未設定值：Chrome 不會強制執行 YouTube 上的嚴格篩選模式，但外部政策 (例如 YouTube 政策) 可能仍會強制執行嚴格篩選模式。</translation>
 <translation id="5191007233343702012">使用標準分頁優先順序</translation>
 <translation id="5191476996923842491">setTimeout() 函式的預設行為出現延遲。</translation>
 <translation id="519247340330463721">設定安全瀏覽相關政策。</translation>
@@ -6614,6 +6619,7 @@ Attribution Reporting API 已淘汰，因此這項政策已在 <ph name="PRODUCT
 如果將值設為 True 或未設定，所選老師可以為講課內容加上字幕，並傳送語音轉錄稿給學生。
 
 如果設為 False，老師就無法存取這項功能。</translation>
+<translation id="5377484655498931153"><ph name="GEMINI_SPARK_PRODUCT_NAME" /> 不得連線或使用 <ph name="PRODUCT_NAME" /> 自動瀏覽功能。</translation>
 <translation id="5377606826822211923">控管使用者是否可使用來源不受信任的 Android 應用程式</translation>
 <translation id="537786648513450280">控管裝置是否可使用來源不受信任的 Android 應用程式</translation>
 <translation id="5378885577701865339">停用剪貼簿共用功能</translation>
@@ -7838,6 +7844,26 @@ IP 位址空間覆寫有兩種形式：
 <translation id="624219423122512710">閒置的瀏覽器動作</translation>
 <translation id="6244061205361004687">允許使用者手動中斷連線或修改 VPN</translation>
 <translation id="6244210204546589761">起始時開啟的網址</translation>
+<translation id="6244263962918757383">Chrome 建議設定</translation>
+<translation id="6245828368576563662">這項政策可讓你定義規則清單，將自訂 HTTP 標頭插入符合特定網址模式的網頁要求。這項政策設定的標頭優先順序高於要求中原有的標頭，也高於使用者或擴充功能所做的修改。
+
+這項政策的常見用途是插入自訂標頭 (例如 <ph name="EXAMPLE_HEADER_NAME" />)，強制執行租戶存取控管機制。
+
+這項政策接受規則清單。每項規則都包含：
+
+* <ph name="PATTERNS_KEY" />：要比對的網址模式清單。請參閱網址模式的格式設定說明 (https://support.google.com/chrome/a?p=url_blocklist_filter_format)。
+
+* <ph name="HEADERS_KEY" />：要插入的標頭物件清單，每個物件包含：
+
+  * <ph name="HEADER_NAME_KEY" />：要插入的標頭名稱。
+
+  * <ph name="HEADER_VALUE_KEY" />：要插入的標頭值。
+
+如果多項規則符合要求，系統會套用所有相符規則中的標頭。如有多個同名標頭，系統會套用網址模式最明確的標頭。如果網址模式的明確程度相同，系統會套用清單中最後一個標頭。
+
+標頭名稱必須符合 RFC 2616 (https://www.rfc-editor.org/rfc/rfc2616) 規定。標頭值不得含有 NUL、CR 或 LF 符號。個別標頭的大小不得超過 8 KB。系統會忽略無效的標頭和網址模式。
+
+在這項政策中，所有規則的網址模式數量上限不得超過 500 個，每項規則最多可有 20 個標頭。如果超過上述門檻，系統將忽略多出來的網址模式和標頭。</translation>
 <translation id="624595269193747921">是否僅限在特定一組印表機中搜尋相符的印表機。</translation>
 <translation id="6246290059248303618">顯示由區域網路中其他裝置啟動的 <ph name="PRODUCT_NAME" /> 工作階段媒體控制項</translation>
 <translation id="6247316685259031374">這項政策可控管音訊程序的沙箱機制。
@@ -8263,13 +8289,6 @@ Origin-Agent-Cluster HTTP 標頭會控制文件要在 origin-keyed 代理程式�
 <translation id="6483115462650732746">在 Kiosk 模式下顯示浮動式無障礙選單</translation>
 <translation id="6491139795995924304">允許在裝置上使用藍牙功能</translation>
 <translation id="6491305972928809525">不要在 Kiosk 模式下顯示浮動式無障礙選單</translation>
-<translation id="6491872498385040936">這項政策已遭到淘汰。建議你使用 <ph name="FORCE_YOUTUBE_RESTRICT_POLICY_NAME" /> 來覆寫這項政策，即可進一步微調各項設定。
-
-      強制執行中度的 YouTube 嚴格篩選模式，並禁止使用者變更這項設定。
-
-      如果啟用這項設定，系統將一律強制執行 YouTube 嚴格篩選模式，並將等級設為中度以上。
-
-      如果停用這項設定或不設定值，<ph name="PRODUCT_NAME" /> 就不會強制執行 YouTube 嚴格篩選模式。不過，外部政策 (例如 YouTube 政策) 可能仍會強制執行嚴格篩選模式。</translation>
 <translation id="6492177700737407141">註冊進階保護計畫的使用者只能使用標準消費者保護機制</translation>
 <translation id="6492737559291967859">你可以透過這項政策，指定 <ph name="PRODUCT_NAME" /> 使用的語言代碼。
 
@@ -8759,6 +8778,7 @@ Origin-Agent-Cluster HTTP 標頭會控制文件要在 origin-keyed 代理程式�
 如果將這項政策設為啟用或不設定，使用者可以透過內容選單將圖片儲存至 <ph name="GOOGLE_PHOTOS_PRODUCT_NAME" />；如果設為停用，使用者就無法在內容選單中看到這個選項。
 這項政策不會禁止使用者透過內容選單以外的方式將圖片儲存至 <ph name="GOOGLE_PHOTOS_PRODUCT_NAME" />。</translation>
 <translation id="6823711520976094072">如果設為 1 MB 以下的值或不設定，針對擁有多位使用者的單一裝置，<ph name="PRODUCT_OS_NAME" />會使用 256 MiB 的預設大小快取要安裝的應用程式和擴充功能，讓每位使用者不必重新下載每個應用程式和擴充功能。</translation>
+<translation id="6828918560681256273">限制從 Service Worker 呼叫 Background Fetch API</translation>
 <translation id="6829632070341067746">這項政策會控制 PPAPI 外掛程式中的 Graphics 3D API 近期重構作業。
 
 遷移作業只會影響內部實作詳細資料，且不應該變更任何行為。不過，如有任何 PPAPI 應用程式未正常運作，也可以使用這項政策。
@@ -8826,7 +8846,6 @@ Origin-Agent-Cluster HTTP 標頭會控制文件要在 origin-keyed 代理程式�
 <translation id="6857240169209507953">禁止在裝置上執行 <ph name="BOREALIS_NAME" /></translation>
 <translation id="6857372417233723544">設定這項政策後，系統就會在 <ph name="PRODUCT_OS_NAME" /> 上啟用北印度文 InScript 鍵盤配置。
 如果設為 False 或未設定，就無法使用該鍵盤配置。裝置必須重新啟動，政策設定才會生效。</translation>
-<translation id="685769593149966548">強制執行 YouTube 高度嚴格篩選模式</translation>
 <translation id="686079137349561371">Microsoft Windows 7 以上版本</translation>
 <translation id="6863927303509860338">設定新分頁中的捷徑</translation>
 <translation id="6866755486434471318">允許 <ph name="PEPPER_NAME" /> 使用分享的圖片解碼影片。</translation>
@@ -9144,12 +9163,6 @@ Origin-Agent-Cluster HTTP 標頭會控制文件要在 origin-keyed 代理程式�
           如果不設定這項政策，檔案櫃預設會顯示在畫面底部，且使用者可以變更檔案櫃的位置。</translation>
 <translation id="7039815268521168329">在初始設定期間顯示 Google 助理 Voice Match 流程</translation>
 <translation id="7040229947030068419">範例值：</translation>
-<translation id="7044626519138840387">遠端桌面用戶端應用程式來源清單，這些來源可執行來自遠端主機瀏覽工作階段的 WebAuthn API 要求。
-
-這項政策中設定的來源都能向依賴方 ID (RP ID) 提出 WebAuthn 要求。一般來說，系統並不允許來源提出這類要求。
-
-這項政策只允許有效的 HTTPS 來源，而且不支援萬用字元。
-系統會忽略無效的項目。</translation>
 <translation id="7044883996351280650">控制 Android 備份與還原服務</translation>
 <translation id="7045221780834308118">如果將這項政策設為啟用，第三方網頁應用程式將可使用 Desk API 控管 <ph name="PRODUCT_OS_NAME" /> 桌面；如果不設定或停用，就無法使用 <ph name="DESK_API_NAME" />。只有在已註冊的裝置上，這項政策才會生效。</translation>
 <translation id="7046113122884041950">不允許使用 Smart Lock</translation>
@@ -9165,6 +9178,13 @@ Origin-Agent-Cluster HTTP 標頭會控制文件要在 origin-keyed 代理程式�
 <translation id="7055022222176591388">禁止執行過期的 <ph name="FLASH_PLUGIN_NAME" /></translation>
 <translation id="7056040036973126753">系統可能會將網域可靠性資料傳送給 Google，實際情況取決於 Chrome 使用者指標 (UMA) 政策</translation>
 <translation id="7062803946218028349">允許啟用 Phone Hub</translation>
+<translation id="7063646777978847358">這項政策可控管是否要限制 Service Worker 的背景擷取要求。如果某項在背景下載檔案的功能受到影響，此政策就可能與其相關。
+
+如果將這項政策設為啟用或不設定，系統會啟用限制，並可能封鎖 Service Worker 環境的背景擷取要求。
+
+如果將這項政策設為停用，系統會略過限制，允許所有 Service Worker 提出背景擷取要求。
+
+這項企業政策只是臨時措施，將於 M152 版之後移除。</translation>
 <translation id="7066292150801784098">禁止遠端使用者在遠端協助工作階段中操控權限較高的視窗</translation>
 <translation id="706669471845501145">允許網站顯示桌面通知</translation>
 <translation id="7067419518071223152">設定這項政策後，你可以使用網址模式清單，指定要授予哪些網頁應用程式特定類型檔案的存取權。
@@ -9504,7 +9524,6 @@ Origin-Agent-Cluster HTTP 標頭會控制文件要在 origin-keyed 代理程式�
 <translation id="7238335422094660594">啟用 <ph name="UIA_NAME" />供應器。</translation>
 <translation id="7241007908714447207">允許隔離網頁應用程式來源要求連線到智慧卡讀卡機。</translation>
 <translation id="7241016798422122577">在登入畫面啟用人臉操控功能</translation>
-<translation id="7242191282517459095">YouTube (自 135 版開始支援)</translation>
 <translation id="7244600351241637530">如果啟用這項設定，已開啟 Phone Hub 的使用者將能夠透過 Chrome OS 查看及下載手機上最近拍攝的相片和影片。
 
       如果停用這項設定，使用者就無法使用這項功能。如果停用 <ph name="PHONE_HUB_ALLOWED_POLICY_NAME" /> 政策，使用者也將無法使用這項功能。
@@ -10735,7 +10754,6 @@ Topics API 已淘汰，因此這項政策已在 <ph name="PRODUCT_NAME" /> 144 �
 <translation id="8109762054721090517"><ph name="CLIENT_NAME_IPP_ATTRIBUTE" /> <ph name="INTERNET_PRINTING_PROTOCOL" /><ph name="IPP_ATTRIBUTE" />的範本</translation>
 <translation id="8111331908123507719">設定裝置進入閒置狀態之後，需要多久時間 (秒) 才會顯示鎖定畫面螢幕保護程式。有效值範圍介於 1 秒到 9999 秒之間。如未設定這項政策，<ph name="PRODUCT_OS_NAME" /> 會使用預設值 (7 秒)。如果將 <ph name="SCREENSAVER_LOCK_SCREEN_ENABLED_POLICY_NAME" /> 政策設為 False，這項政策將不會有任何作用。</translation>
 <translation id="8113731369695819720">在登入畫面上停用單聲道音訊模式</translation>
-<translation id="8114382167597081590">不強制執行 YouTube 嚴格篩選模式</translation>
 <translation id="8117662664312039036">不允許裝置使用 PluginVm</translation>
 <translation id="8117921351531866504">你可以設定網站是否能檢查使用者有沒有已儲存的付款方式。
 
@@ -11230,6 +11248,7 @@ Topics API 已淘汰，因此這項政策已在 <ph name="PRODUCT_NAME" /> 144 �
 
       如果設定這項政策，系統會視需要刪除較舊的快照，以避免超出限制。如果這項政策設為 0，則系統不會建立任何快照</translation>
 <translation id="8446679541472571487">在登入時顯示 AI 簡介畫面</translation>
+<translation id="8451205236854734195">允許 Chrome 建議</translation>
 <translation id="8451988835943702790">將新分頁設為首頁</translation>
 <translation id="8452787853105404870">將硬體資料傳送給 Google，協助改善 ChromeOS Flex</translation>
 <translation id="8453218444172088993">停用使用者的 <ph name="PRIVACY_SANDBOX_NAME" /> 廣告主題設定。</translation>
@@ -11249,7 +11268,6 @@ Topics API 已淘汰，因此這項政策已在 <ph name="PRODUCT_NAME" /> 144 �
 <translation id="846994437739309080">如果設為啟用 (或未設定)，平台信任存放區內由使用者新增的 TLS 憑證就會用於建立 TLS 伺服器驗證的路徑。
 
 如果設為停用，平台信任存放區內由使用者新增的 TLS 憑證就不會用於建立 TLS 伺服器驗證的路徑。</translation>
-<translation id="8470317291588703478">不強制執行 YouTube 嚴格篩選模式</translation>
 <translation id="8471117881949952479">這項政策已淘汰，最終會由 DataControlsRules 取代。
 
 這項政策可禁止在特定網址上將資料複製到剪貼簿。
@@ -11361,7 +11379,6 @@ Topics API 已淘汰，因此這項政策已在 <ph name="PRODUCT_NAME" /> 144 �
 
       警告：我們不建議設定版本限制，因為這可能導致使用者無法接收軟體更新和重大安全性修正項目。限制裝置更新至特定版本可能會讓使用者面臨風險。</translation>
 <translation id="8519617069657262768">啟用 Google 雲端硬碟同步功能</translation>
-<translation id="8520064498689833152">強制啟用 Google 搜尋的安全搜尋功能和中度以上的 YouTube 嚴格篩選模式</translation>
 <translation id="8520950040439618600">允許遠端存取主機使用 PIN 碼和配對驗證方式</translation>
 <translation id="8524334245528364388">含有印表機伺服器清單的 JSON 檔案的網址。</translation>
 <translation id="8525282442896658040">允許應用程式在 iOS 上使用暫時通知授權</translation>
@@ -11604,7 +11621,6 @@ Topics API 已淘汰，因此這項政策已在 <ph name="PRODUCT_NAME" /> 144 �
 <translation id="8676959842615154675">如果將這項政策設為啟用，遠端存取主機會比對與主機相關聯的本機使用者名稱，以及註冊為主機擁有者的 Google 帳戶名稱。舉例來說，如果主機擁有者是「johndoe@example.com」，則帳戶名稱為「johndoe」。如果主機擁有者的名稱與主機相關聯的本機使用者名稱不同，系統將不會啟動這個主機。如要強制將主機擁有者的 Google 帳戶與特定網域建立關聯，請搭配 <ph name="REMOTE_ACCESS_HOST_DOMAIN_POLICY_NAME" /> 使用這項政策。
 
       如果將這項政策設為停用或不設定，遠端存取主機即可與任何本機使用者建立關聯。</translation>
-<translation id="867708016260789630">強制執行中度以上的 YouTube 嚴格篩選模式</translation>
 <translation id="8677853537025397834">允許這些網站上的 WebHID API</translation>
 <translation id="8684000025871334499">在 <ph name="PRODUCT_OS_NAME" /> 上設定 Bruschetta VM 的安裝和執行階段政策。這樣做可以讓使用者安裝第三方 VM。這項功能預設為停用。
 
@@ -11667,7 +11683,6 @@ Topics API 已淘汰，因此這項政策已在 <ph name="PRODUCT_NAME" /> 144 �
       不過，「http://notexample.com/」、「http://example.com.invalid.com/」、「http://example.comabc/」只有在「Default」模式下才會是相符的結果；「http://acme.com/ABC」則只會在「IESiteListMode」模式下才會是相符的結果。</translation>
 <translation id="8728854710675158426">已啟用 TLS 握手程序中的不安全雜湊</translation>
 <translation id="8734543507835977857">工作階段開始時，才啟動電源管理延遲和工作階段長度限制</translation>
-<translation id="8736538322216687231">強制執行低度的 YouTube 嚴格篩選模式</translation>
 <translation id="873800217865395140">網站遙測資料收集率 (以毫秒為單位)。</translation>
 <translation id="8742596277791362306">這項政策可控管是否啟用相關網站集合功能。
 
@@ -11693,6 +11708,14 @@ Topics API 已淘汰，因此這項政策已在 <ph name="PRODUCT_NAME" /> 144 �
 <translation id="8757552286070680084">設定 Wilco DTC</translation>
 <translation id="8758831693895931466">啟用雲端管理強制註冊設定</translation>
 <translation id="8759829385824155666">允許的 Kerberos 加密類型</translation>
+<translation id="8762128467207353085">遠端桌面用戶端應用程式來源清單，這些來源可執行來自遠端主機瀏覽工作階段的 WebAuthn API 要求。
+
+這項政策中設定的來源都能向依賴方 ID (RP ID) 提出 WebAuthn 要求。一般來說，系統並不允許來源提出這類要求。
+
+這項政策只允許有效的 HTTPS 來源，而且不支援萬用字元。
+系統會忽略無效的項目。
+
+這項政策僅適用於關聯的使用者。</translation>
 <translation id="8765401957266318536">在 <ph name="PRODUCT_OS_NAME" /> 上啟用智慧鏡頭/媒體庫應用程式整合功能</translation>
 <translation id="8766308369516978190">如果將這項政策設為啟用，使用者將可在網站上使用 <ph name="ASSISTANT_PRODUCT_NAME" /> 執行多項操作，例如加快結帳和密碼變更的速度。使用 <ph name="ASSISTANT_PRODUCT_NAME" /> 時需另外徵求使用者同意。即使這項政策設已設為啟用，<ph name="ASSISTANT_PRODUCT_NAME" /> 仍須經使用者同意才能執行。
 
@@ -11818,7 +11841,6 @@ Topics API 已淘汰，因此這項政策已在 <ph name="PRODUCT_NAME" /> 144 �
 如果將這項政策設為啟用或不設定，將可使用防護等級較高的 Proxy 查詢。
 
 如果將這項政策設為停用，就無法使用防護等級較高的 Proxy 查詢。系統仍會將網址的部分雜湊直接上傳給 Google，但頻率大幅降低，防護品質也會因此下降。</translation>
-<translation id="8858642179038618439">強制採用 YouTube 安全模式</translation>
 <translation id="8860342862142842017">不針對列出的 subjectPublicKeyInfo 雜湊強制執行憑證透明化政策</translation>
 <translation id="8860894781631833477">使用者可能可以設定 <ph name="PRODUCT_OS_NAME" /> 發布版本</translation>
 <translation id="8862086508140571198">這項政策允許設定要盡快下載的可下載內容 (DLC) 清單。下載之後，裝置的所有使用者都使用 DLC。

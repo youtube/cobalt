@@ -2176,6 +2176,17 @@ Called by update_autofill_enums.py. This is a manual comment.-->
   </summary>
 </histogram>
 
+<histogram name="Autofill.AtMemory.Funnel.SuggestionFilled" enum="Boolean"
+    expires_after="2027-03-09">
+  <owner>sygiet@google.com</owner>
+  <owner>chrome-autofill-alerts@google.com</owner>
+  <summary>
+    Records whether a suggestion was filled after accepting the @memory
+    suggestion. Recorded after the popup is hidden and all fetching and
+    authentication calls finished.
+  </summary>
+</histogram>
+
 <histogram
     name="Autofill.Autocomplete.NotOff.EditedAutofilledFieldAtSubmission2{AutofillFormType}"
     enum="AutofilledFieldUserEditingStatus" expires_after="2027-04-12">
@@ -2517,7 +2528,6 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 <histogram name="Autofill.BetterAuth.OptInPromoNotOfferedReason"
     enum="WebauthnOptInPromoNotOfferedReason" expires_after="2027-04-30">
   <owner>vinnypersky@google.com</owner>
-  <owner>shgar@google.com</owner>
   <owner>payments-autofill-team@google.com</owner>
   <summary>
     Records when the Better Auth (FIDO) opt-in promo could have been offered on
@@ -5527,7 +5537,8 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 </histogram>
 
 <histogram name="Autofill.Message.{MessageType}.{Event}" enum="BooleanShown"
-    expires_after="2026-06-01">
+    expires_after="2027-05-01">
+  <owner>tchudakov@google.com</owner>
   <owner>darwinyang@google.com</owner>
   <owner>chrome-payments-eng@google.com</owner>
   <summary>
@@ -5711,6 +5722,16 @@ Called by update_autofill_enums.py. This is a manual comment.-->
   <summary>
     Records the duration of the OAuth token fetch for the Gmail OTP backend.
     Recorded when the access token fetch completes.
+  </summary>
+</histogram>
+
+<histogram name="Autofill.OneTimeTokens.Backend.Gmail.ErrorCode"
+    enum="GmailOneTimeTokensBackendErrorCode" expires_after="2027-05-01">
+  <owner>koerber@google.com</owner>
+  <owner>src/components/one_time_tokens/OWNERS</owner>
+  <summary>
+    Records the error encountered while attempting to retrieve Gmail one time
+    tokens. Recorded when a retrieval attempt fails.
   </summary>
 </histogram>
 
@@ -8673,8 +8694,8 @@ Called by update_autofill_enums.py. This is a manual comment.-->
   </summary>
 </histogram>
 
-<histogram name="Autofill.Timing.AddressRewriter.Rewrite" units="ms"
-    expires_after="2026-11-22">
+<histogram name="Autofill.Timing.AddressRewriter.Rewrite{RewriterType}"
+    units="ms" expires_after="2027-02-01">
   <owner>picarella@google.com</owner>
   <owner>mmaryia@google.com</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
@@ -8682,6 +8703,10 @@ Called by update_autofill_enums.py. This is a manual comment.-->
     Number of milliseconds passed between the start and end of
     AddressRewriter::Rewrite().
   </summary>
+  <token key="RewriterType">
+    <variant name=".CountrySpecific"/>
+    <variant name=".Global"/>
+  </token>
 </histogram>
 
 <histogram name="Autofill.Timing.ParseFormUntilInteraction2" units="ms"
@@ -8969,8 +8994,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 <histogram name="Autofill.TouchToFill.LoyaltyCard.Affiliated.SelectedIndex"
     units="index" expires_after="2027-06-01">
   <owner>tchudakov@google.com</owner>
-  <owner>osaul@google.com</owner>
-  <owner>payments-autofill-team@google.com</owner>
+  <owner>chrome-autofill-alerts@google.com</owner>
   <summary>
     The index of the selected loyalty card on the affiliated loyalty cards
     screen in the Touch To Fill bottom sheet. Recorded when user selects a
@@ -8981,8 +9005,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 <histogram name="Autofill.TouchToFill.LoyaltyCard.All.SelectedIndex"
     units="index" expires_after="2027-06-01">
   <owner>tchudakov@google.com</owner>
-  <owner>osaul@google.com</owner>
-  <owner>payments-autofill-team@google.com</owner>
+  <owner>chrome-autofill-alerts@google.com</owner>
   <summary>
     The index of the selected loyalty card on the all loyalty cards screen in
     the Touch To Fill bottom sheet. Recorded when user selects a loyalty card
@@ -8994,8 +9017,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
     name="Autofill.TouchToFill.LoyaltyCard.NumberOfAffiliatedLoyaltyCardsShown"
     units="loyalty cards" expires_after="2027-06-01">
   <owner>tchudakov@google.com</owner>
-  <owner>osaul@google.com</owner>
-  <owner>payments-autofill-team@google.com</owner>
+  <owner>chrome-autofill-alerts@google.com</owner>
   <summary>
     The number of affiliatd loyalty cards shown in the Touch To Fill bottom
     sheet. Recorded when showing the bottom sheet.
@@ -9005,8 +9027,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 <histogram name="Autofill.TouchToFill.LoyaltyCard.NumberOfLoyaltyCardsShown"
     units="loyalty cards" expires_after="2027-06-01">
   <owner>tchudakov@google.com</owner>
-  <owner>osaul@google.com</owner>
-  <owner>payments-autofill-team@google.com</owner>
+  <owner>chrome-autofill-alerts@google.com</owner>
   <summary>
     The number of all loyalty cards of a user shown in the Touch To Fill bottom
     sheet. All loyalty cards are shown on the second screen in the bottom sheet
@@ -9018,8 +9039,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 <histogram name="Autofill.TouchToFill.LoyaltyCard.Outcome"
     enum="TouchToFill.LoyaltyCard.Outcome" expires_after="2027-06-01">
   <owner>tchudakov@google.com</owner>
-  <owner>osaul@google.com</owner>
-  <owner>payments-autofill-team@google.com</owner>
+  <owner>chrome-autofill-alerts@google.com</owner>
   <summary>
     Records the user action on the Touch To Fill for loyalty cards. It is
     recorded when the Touch To Fill bottom sheet is closed.
@@ -9029,8 +9049,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 <histogram name="Autofill.TouchToFill.LoyaltyCard.Source"
     enum="TouchToFill.LoyaltyCard.Source" expires_after="2027-06-01">
   <owner>vizcay@google.com</owner>
-  <owner>osaul@google.com</owner>
-  <owner>payments-autofill-team@google.com</owner>
+  <owner>chrome-autofill-alerts@google.com</owner>
   <summary>
     Records the source that triggered the Touch To Fill for loyalty cards. It is
     recorded when the Touch To Fill bottom sheet is shown.
@@ -9040,8 +9059,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 <histogram name="Autofill.TouchToFill.LoyaltyCard.TriggerOutcome"
     enum="TouchToFill.PaymentMethod.TriggerOutcome" expires_after="2027-06-01">
   <owner>tchudakov@google.com</owner>
-  <owner>osaul@google.com</owner>
-  <owner>payments-autofill-team@google.com</owner>
+  <owner>chrome-autofill-alerts@google.com</owner>
   <summary>
     Records the outcome of the attempt to trigger Touch To Fill for loyalty
     cards. It is recorded only when the form is parsed as a loyalty card by
@@ -9978,11 +9996,12 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 
 <histogram name="Autofill.YourSavedInfoSettingsPage.CategoryLinkClick"
     enum="YourSavedInfoDataCategory" expires_after="2026-10-28">
-  <owner>ireneuszszulc@google.com</owner>
+  <owner>mikhe@google.com</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
   <summary>
     Records clicks on data categories in the 'Your saved info' settings page.
-    Emitted on every click on such a data category. Recorded on Desktop only.
+    Emitted on every click on such a data category. Recorded on Desktop and
+    Android.
   </summary>
 </histogram>
 
@@ -10015,13 +10034,14 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 
 <histogram name="Autofill.YourSavedInfoSettingsPage.VisitReferrer"
     enum="AutofillSettingsReferrer" expires_after="2026-10-28">
-  <owner>ireneuszszulc@google.com</owner>
+  <owner>mikhe@google.com</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
   <summary>
     Records the entry point (referrer) every time the user visits the 'Your
     saved info' settings page from a tracked entry point. This metric is emitted
     on navigation to the page, with the enum values distinguishing the entry
-    points (different ways of reaching the page). Only applicable on Desktop.
+    points (different ways of reaching the page). Recorded on Desktop and
+    Android.
   </summary>
 </histogram>
 

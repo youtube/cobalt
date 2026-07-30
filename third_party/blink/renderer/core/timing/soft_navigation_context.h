@@ -69,6 +69,11 @@ class CORE_EXPORT SoftNavigationContext
   // navigations are committed to the performance timeline.
   uint64_t NavigationId() const { return navigation_id_; }
 
+  LocalDOMWindow* DomWindow() const { return window_.Get(); }
+  uint64_t InteractionId() const {
+    return initial_event_timing_ ? initial_event_timing_->interactionId() : 0;
+  }
+
   // The soft navigation offset is an exact count of the soft navigations
   // emitted to UKM since the start of the page load. This is similar in spirit
   // to the navigation id, but has stricter requirements due to the usage for
@@ -143,6 +148,9 @@ class CORE_EXPORT SoftNavigationContext
 
   uint64_t PaintedArea() const { return painted_area_; }
   uint64_t ContextId() const { return context_id_; }
+  InteractionContentfulPaint* LargestIcpEntry() const {
+    return largest_icp_entry_.Get();
+  }
 
   // Reports a new contentful paint area to this context, and the Node painted.
   bool AddPaintedArea(PaintTimingRecord*);
@@ -169,23 +177,15 @@ class CORE_EXPORT SoftNavigationContext
   // Emits the soft navigation performance entry. The context must not have been
   // previously emitted. `WasEmitted()` returns true after this is called.
   //
-  // Note: There are several reasons why we might have an FCP but have not
+  // Note: There are a couple reasons why we might have an FCP but have not
   // emitted an ICP, all of which should be fixed:
-  //   1. crbug.com/383568320: For <video>, we set the paint timestamp for the
-  //      first video frame outside of paint, but require BeginMainFrame +
-  //      presentation feedback to emit the ICP entry. The soft nav entry can be
-  //      emitted in this gap.
+  //  1. crbug.com/383568320: For <video>, we set the paint timestamp for the
+  //     first video frame outside of paint, but require BeginMainFrame +
+  //     presentation feedback to emit the ICP entry. The soft nav entry can be
+  //     emitted in this gap.
   //  2. crbug.com/454082773: If the FCP element is detached from the DOM before
   //     its presentation feedback is processed, we won't emit an ICP entry for
   //     this.
-  //  3. crbug.com/454082771, crbug.com/434160944: We overwrite image and text
-  //     candidates during paint, which affects which candidates we emit when
-  //     processing presentation feedback. For example, if we paint a text node
-  //     (FCP) in frame 1 and a larger image in frame 2, and the feedback for
-  //     frame 1 arrives after frame 2, the image blocks emitting the ICP entry
-  //     for the text. Moving more logic into presentation time, like we do for
-  //     hard LCP, in conjunction with emitting largest presented image/text
-  //     (vs. pending image) would fix this.
   void EmitSoftNavigation();
   bool WasEmitted() const { return was_emitted_; }
 
@@ -220,6 +220,7 @@ class CORE_EXPORT SoftNavigationContext
   Member<PerformanceEventTiming> initial_event_timing_;
   Member<PaintTimingRecord> first_image_or_text_;
   Member<InteractionContentfulPaint> largest_icp_entry_;
+  Member<LargestContentfulPaint> current_lcp_entry_;
 
   size_t num_modified_dom_nodes_ = 0;
   uint64_t painted_area_ = 0;

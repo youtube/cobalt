@@ -15,6 +15,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/first_run/first_run.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/regional_capabilities/regional_capabilities_service_factory.h"
 #include "chrome/browser/search_engine_choice/search_engine_choice_dialog_service_factory.h"
@@ -60,6 +61,14 @@ bool IsBrowserTypeSupported(const Browser& browser) {
       return false;
   }
 }
+
+// Helper for `SearchEngineChoiceDialogService::BrowserRegistry` checks.
+bool HasOpenDialog(
+    const std::pair<raw_ref<Browser>, base::OnceClosure>& registration) {
+  // If the OnceCallback is null, then the dialog has already been closed.
+  return !registration.second.is_null();
+}
+
 }  // namespace
 
 // --- SearchEngineChoiceDialogService::BrowserRegistry -----------------------
@@ -121,8 +130,11 @@ bool SearchEngineChoiceDialogService::BrowserRegistry::HasOpenDialog(
     return false;
   }
 
-  // If the OnceCallback is null, then the dialog has already been closed.
-  return !entry_iterator->second.is_null();
+  return ::HasOpenDialog(*entry_iterator);
+}
+
+bool SearchEngineChoiceDialogService::BrowserRegistry::HasOpenDialog() const {
+  return std::ranges::any_of(registered_browsers_, &::HasOpenDialog);
 }
 
 void SearchEngineChoiceDialogService::BrowserRegistry::CloseAllDialogs() {
@@ -179,7 +191,8 @@ void SearchEngineChoiceDialogService::NotifyChoiceMade(
       "ChoiceService", "pre_record_condition",
       static_cast<int>(
           search_engine_choice_service_->GetDynamicChoiceScreenConditions(
-              *template_url_service_)));
+              *template_url_service_, {.allow_unknown_current_location =
+                                           first_run::IsChromeFirstRun()})));
 
   TemplateURL* selected_engine = nullptr;
   int selected_engine_index = -1;
@@ -339,6 +352,19 @@ SearchEngineChoiceDialogService::GetSearchEngines() {
 }
 
 SearchEngineChoiceScreenConditions
+SearchEngineChoiceDialogService::ComputeProfileManagementFlowConditions()
+    const {
+  // The profile management flow dialog is not supposed to be triggerable while
+  // there is any browser window open. Ineligibility conditions associated with
+  // browser windows are not relevant here.
+  CHECK(!browser_registry_.HasOpenDialog(), base::NotFatalUntil::M153);
+
+  return search_engine_choice_service_->GetDynamicChoiceScreenConditions(
+      *template_url_service_,
+      {.allow_unknown_current_location = first_run::IsChromeFirstRun()});
+}
+
+SearchEngineChoiceScreenConditions
 SearchEngineChoiceDialogService::ComputeDialogConditions(
     Browser& browser) const {
   if (g_dialog_disabled_for_testing) {
@@ -389,7 +415,8 @@ SearchEngineChoiceDialogService::ComputeDialogConditions(
 
   // Respect common conditions with other platforms.
   return search_engine_choice_service_->GetDynamicChoiceScreenConditions(
-      *template_url_service_);
+      *template_url_service_,
+      {.allow_unknown_current_location = first_run::IsChromeFirstRun()});
 }
 
 bool SearchEngineChoiceDialogService::CanSuppressPrivacySandboxPromo() const {
@@ -466,4 +493,9 @@ void SearchEngineChoiceDialogService::NotifyMoreButtonClicked(
 void SearchEngineChoiceDialogService::RecordChoiceScreenEvent(
     SearchEngineChoiceScreenEvents event) {
   search_engine_choice_service_->RecordChoiceScreenEvent(event);
+}
+
+void SearchEngineChoiceDialogService::RecordTriggeringEligibility(
+    SearchEngineChoiceScreenConditions conditions) {
+  search_engine_choice_service_->RecordTriggeringEligibility(conditions);
 }

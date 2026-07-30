@@ -30,9 +30,11 @@
 #include "components/search_engines/template_url_prepopulate_data.h"
 #include "components/search_engines/template_url_service.h"
 #include "components/signin/public/base/signin_switches.h"
+#include "components/variations/variations_switches.h"
 #include "content/public/browser/host_zoom_map.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/render_frame_host.h"
+#include "content/public/common/content_features.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/test_navigation_observer.h"
@@ -370,6 +372,8 @@ class SearchEngineChoiceUIPixelTest
     InProcessBrowserTest::SetUpInProcessBrowserTestFixture();
     base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(
         switches::kSearchEngineChoiceCountry, "BE");
+    base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(
+        variations::switches::kVariationsOverrideCountry, "be");
     create_services_subscription_ =
         BrowserContextDependencyManager::GetInstance()
             ->RegisterCreateServicesCallbackForTesting(
@@ -455,6 +459,13 @@ class SearchEngineChoiceUIPixelTest
 };
 
 IN_PROC_BROWSER_TEST_P(SearchEngineChoiceUIPixelTest, InvokeUi_default) {
+#if BUILDFLAG(IS_WIN)
+  if (GetParam().test_suffix == "NarrowSize" &&
+      base::FeatureList::IsEnabled(features::kInitialWebUI)) {
+    GTEST_SKIP() << "Skipping NarrowSize test on Windows with InitialWebUI "
+                    "enabled. See crbug.com/477426026.";
+  }
+#endif
   ShowAndVerifyUi();
 }
 

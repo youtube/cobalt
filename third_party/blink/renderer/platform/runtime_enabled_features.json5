@@ -229,12 +229,7 @@
       name: "AcceleratedSmallCanvases",
       status: "stable",
     },
-    {
-      name: "AccessibilityAriaVirtualContent",
-      public: true,
-      status: "experimental",
-      base_feature: "none",
-    },
+
     {
       name: "AccessibilityCustomElementRoleNone",
       public: true,
@@ -939,6 +934,10 @@
       status: "stable",
     },
     {
+      name: "BoxDecorationBreakCloneLineBreaking",
+      status: "test",
+    },
+    {
       name: "BrowserInitiatedAutomaticPictureInPicture",
       public: true,
       status: "experimental",
@@ -1054,6 +1053,12 @@
       // Kill switch for https://crbug.com/330506337.
       name: "CanvasUsesArcPaintOp",
       status: "stable",
+    },
+    {
+      // Enables capability delegation for the Digital Credentials API (both
+      // create and get requests).
+      // https://crbug.com/512747131
+      name: "CapabilityDelegationDigitalCredentials",
     },
     {
       name: "CapabilityDelegationDisplayCaptureRequest",
@@ -1307,6 +1312,12 @@
       }
     },
     {
+      // If enabled, allow concurrent animations via native paint worklets to
+      // run on the compositor thread.
+      name: "ConcurrentNativePaintWorklets",
+      status: "experimental",
+    },
+    {
       // When enabled, providing developers control over the resources loaded
       // into their pages' contexts and the endpoints to which their pages can
       // make requests.
@@ -1505,8 +1516,10 @@
       status: "test",
     },
     {
+      // https://chromestatus.com/feature/6234471210811392
+      // Ship in M150, should be removed in M152.
       name: "CSSBackgroundClipBorderArea",
-      status: "experimental",
+      status: "stable",
     },
     // https://chromestatus.com/feature/5459864205393920
     {
@@ -1661,10 +1674,11 @@
     {
       // image(<color>) functional notation, producing a solid-color image
       // with no natural dimensions.
+      // Ship in M150, should be removed in M152.
       // https://drafts.csswg.org/css-images-4/#funcdef-image
       // https://chromestatus.com/feature/5121011285622784
       name: "CSSImageFunction",
-      status: "experimental",
+      status: "stable",
     },
     {
       // The inherit() function works like var(), except that it grabs
@@ -1696,9 +1710,11 @@
     },
     {
       // light-dark() for image values (background-image, etc.)
+      // Ship in M150, should be removed in M152.
       // https://drafts.csswg.org/css-color-5/#light-dark
+      // https://chromestatus.com/feature/5123253146353664
       name: "CSSLightDarkImage",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "CSSLineClamp",
@@ -1771,8 +1787,10 @@
       // Support `polygon(round <length>, ...)` per CSS Shapes Level 1.
       // Spec: https://www.w3.org/TR/css-shapes-1/#typedef-basic-shape
       // Issue: https://crbug.com/329302249
+      // https://chromestatus.com/feature/6636392944893952
+      // Ship in M150, should be removed in M152.
       name: "CSSPolygonRounding",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "CSSPositionStickyStaticScrollPosition",
@@ -1958,12 +1976,9 @@
     },
     {
       // https://chromestatus.com/feature/5153932394102784
+      // Shipping in M150, so flag can be removed around M152.
       name: "CSSSupportsNamedFeatureFunction",
-      // TODO(https://crbug.com/353715317): Before shipping this feature, we
-      // should decide whether to remove the "align-content-on-display-block"
-      // named feature (which is so far the only CSSWG-resolved feature name)
-      // since it's probably too late for it to be useful.
-      status: "experimental",
+      status: "stable",
     },
     {
       // Allows the CSS "accent-color" property to support the system accent color as the default option.
@@ -2075,9 +2090,10 @@
     {
       // CSSWG resolution to make the `zoom` property continuously
       // interpolatable. https://github.com/w3c/csswg-drafts/issues/10872
+      // Ship in M150, should be removed in M152.
       // ChromeStatus: https://chromestatus.com/feature/5183671737909248
       name: "CSSZoomAnimation",
-      status: "experimental",
+      status: "stable",
     },
     {
       // Shipping in M148 (or backported earlier), can be removed in M150.
@@ -2361,7 +2377,7 @@
     // <template patchfor> etc.
     {
       name: "DocumentPatching",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "DocumentPictureInPictureAPI",
@@ -2514,7 +2530,14 @@
       public: true,
       origin_trial_feature_name: "EmailVerificationProtocol",
       origin_trial_allows_third_party: true,
-      status: "experimental",
+      origin_trial_os: ["win", "mac", "linux", "chromeos"],
+      status: {
+        "Win": "experimental",
+        "Mac": "experimental",
+        "Linux": "experimental",
+        "ChromeOS": "experimental",
+        "default": "",
+      },
       base_feature: "none",
       browser_process_read_access: true,
     },
@@ -2761,6 +2784,13 @@
       status: "stable",
     },
     {
+      // Consumes user activation when showing a picker via input.click() for
+      // file and color inputs to match input.showPicker() and avoid issues
+      // with multiple pickers trying to open at the same time.
+      name: "FileColorPickerConsumeActivation",
+      status: "stable",
+    },
+    {
       // Also enabled when blink::features::kFileHandlingAPI is overridden
       // on the command line (or via chrome://flags).
       name: "FileHandling",
@@ -2773,6 +2803,12 @@
       depends_on: ["FileHandling"],
       status: {"Android": "test", "default": "experimental"},
       base_feature: "none",
+    },
+    {
+      // For <input type=file>, fires change event when same file is chosen
+      // again, and retains files when cancel is pressed.
+      name: "FilePickerEventsFix",
+      status: "stable",
     },
     {
       name: "FileSystem",
@@ -3027,7 +3063,7 @@
     },
     {
       name: "FlexWrapBalance",
-      status: "experimental",
+      status: "stable",
     },
     {
       // https://open-ui.org/components/scoped-focusgroup.explainer/
@@ -3381,7 +3417,7 @@
     {
       // Parse processing instructions in HTML.
       name: "HTMLProcessingInstruction",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "ICUCapitalization",
@@ -4346,6 +4382,10 @@
       status: "stable",
     },
     {
+      name: "PaintCaretAfterInnerEditorPaint",
+      status: "stable",
+    },
+    {
       name: "PaintHoldingForIframes",
       status: "stable",
     },
@@ -4627,9 +4667,9 @@
     },
     {
       // When enabled, setting progress.max enforces a >0 constraint.
-      // This will be shipped in M146, and it can be removed in M148.
+      // This will be shipped in M150, and it can be removed in M152.
       name: "ProgressMaxIsPositive",
-      status: "experimental",
+      status: "stable",
     },
     {
       // Propagate overscroll-behavior from the root element rather than the
@@ -5208,6 +5248,15 @@
       base_feature: "none",
     },
     {
+      // Make select popup anchor stay within web contents to prevent
+      // overlapping browser UI.
+      // TODO(https://issues.chromium.org/issues/511869411): Remove this flag
+      // after it has been shipped for long enough.
+      // Shipped in M150, safe to remove in M152.
+      name: "SelectAnchorInViewport",
+      status: "stable",
+    },
+    {
       // SelectAudioOutput API
       // https://chromestatus.com/feature/5164535504437248
       name: "SelectAudioOutput",
@@ -5311,6 +5360,14 @@
       // https://issues.chromium.org/issues/40805967
       name: "SelectRemoveOverflowHidden",
       status: "stable",
+    },
+    {
+      // Removes a hack which allows select elements to be opened with a script
+      // dispatched mousedown event on WebView, as opposed to a real user
+      // click.
+      // https://issues.chromium.org/issues/41273490
+      name: "SelectWebViewUntrustedEventRemoval",
+      status: "experimental",
     },
     {
       name: "SendBeaconThrowForBlobWithNonSimpleType",
@@ -5766,10 +5823,6 @@
       status: "stable",
     },
     {
-      name: "SvgPartitionSVGDocumentResourcesInMemoryCache",
-      status: "stable",
-    },
-    {
       name: "SvgPathLengthCssProperty",
       status: "experimental",
     },
@@ -6013,6 +6066,11 @@
       status: "stable",
     },
 
+    {
+      // crbug.com/514448226
+      name: "TextStreamMethod",
+      status: "experimental",
+    },
     {
       name: "ThrottledHistoryAPIThrowsSecurityError",
       status: "test",
@@ -6549,6 +6607,12 @@
       name: "WebAuthenticationCmtgKey",
       status: "experimental",
     },
+    {
+      name: "WebAuthenticationCrossDeviceFallbackUrl",
+      status: {"Android": "", "default": "experimental"},
+      base_feature: "none",
+      public: true,
+    },
     // Enables `uiMode` enumeration field in CredentialRequestOptions struct.
     // and `get()` requests with `uiMode: 'immediate'`.
     // See https://github.com/w3c/webauthn/issues/2228.
@@ -6807,6 +6871,10 @@
       },
     },
     {
+      name: "WebSpeechUnspokenPunctuation",
+      status: "experimental",
+    },
+    {
       name: "WebTransportApplicationProtocol",
       status: "stable",
       base_feature: "none",
@@ -6957,6 +7025,13 @@
       name: "WebXRVisibilityMask",
       depends_on: ["WebXR"],
       status: "stable",
+    },
+    // Expose the momentum field in mouse wheel events that indicates whether an
+    // event is synthesized by the platform to simulate scroll inertia after the
+    // user has ended the physical scroll interaction.
+    // https://crbug.com/40704952
+    {
+      name: "WheelEventMomentum",
     },
     // If enabled, window.default[Ss]tatus will be supported. This is disabled
     // by default, and is here to allow this behavior to be re-enabled via Finch

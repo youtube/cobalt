@@ -133,7 +133,7 @@ chromium-metrics-reviews@google.com.
   <int value="3" label="Expanded"/>
 </enum>
 
-<!-- LINT.ThenChange(/ios/public/provider/chrome/browser/bwg/bwg_api.h:GeminiViewState) -->
+<!-- LINT.ThenChange(/ios/public/provider/chrome/browser/bwg/gemini_api.h:GeminiViewState) -->
 
 <enum name="GeolocationAPI">
   <int value="0" label="Clear Watch"/>
@@ -1392,7 +1392,7 @@ chromium-metrics-reviews@google.com.
   <int value="19" label="ReaderMode"/>
   <int value="20" label="AskGemini"/>
   <int value="21" label="HideToolbars"/>
-  <int value="22" label="TabGroup"/>
+  <int value="22" label="Obsolete in M150 - TabGroup"/>
   <int value="23" label="ShareThisPage"/>
 </enum>
 
@@ -2787,6 +2787,17 @@ chromium-metrics-reviews@google.com.
   </int>
   <int value="3" label="Seed used">Seed is applied by variations service</int>
 </enum>
+
+<!-- LINT.IfChange(WelcomeBackPromoRegistrationResult) -->
+
+<enum name="WelcomeBackPromoRegistrationResult">
+  <int value="0" label="Success"/>
+  <int value="1" label="Failure_TimeSinceActiveLimitNotMet"/>
+  <int value="2" label="Failure_MinEligibleFeaturesNotMet"/>
+  <int value="3" label="Failure_SessionEndTimeNil"/>
+</enum>
+
+<!-- LINT.ThenChange(/ios/chrome/browser/welcome_back/metrics/welcome_back_metrics.h:WelcomeBackPromoRegistrationResult) -->
 
 <enum name="WhatsNewType">
   <int value="-1" label="Error"/>

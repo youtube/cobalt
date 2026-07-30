@@ -45,7 +45,6 @@
 #import "ios/chrome/browser/shared/public/snackbar/snackbar_message.h"
 #import "ios/chrome/browser/signin/model/authentication_service_factory.h"
 #import "ios/chrome/grit/ios_strings.h"
-#import "ios/public/provider/chrome/browser/bwg/bwg_api.h"
 #import "ui/base/l10n/l10n_util.h"
 #import "url/gurl.h"
 
@@ -53,7 +52,8 @@
     AccountMenuCoordinatorDelegate,
     PageActionMenuViewControllerDelegate,
     UINavigationControllerDelegate,
-    UIAdaptivePresentationControllerDelegate>
+    UIAdaptivePresentationControllerDelegate,
+    ReaderModeOptionsCommands>
 @end
 
 namespace {
@@ -119,7 +119,9 @@ constexpr NSTimeInterval kEligibilityPollTimeout = 5.0;
   // This ensures eligibility data is available or loading by the time
   // the user interacts with Ask Gemini. The spinner handles the case
   // where the check is still in flight.
-  geminiService->CheckGeminiEnterpriseEligibilityIfNeeded();
+  if (geminiService) {
+    geminiService->CheckGeminiEnterpriseEligibilityIfNeeded();
+  }
 
   if (readerModeTabHelper) {
     DistillerService* distillerService =
@@ -130,6 +132,7 @@ constexpr NSTimeInterval kEligibilityPollTimeout = 5.0;
 
   _viewController.delegate = self;
   _viewController.mutator = _mediator;
+  _viewController.readerModeOptionsHandler = self;
 
   _viewController.readerModeHandler = HandlerForProtocol(
       self.browser->GetCommandDispatcher(), ReaderModeCommands);
@@ -212,21 +215,6 @@ constexpr NSTimeInterval kEligibilityPollTimeout = 5.0;
 }
 
 #pragma mark - PageActionMenuViewControllerDelegate
-
-- (void)viewControllerDidTapReaderModeOptionsButton:
-    (PageActionMenuViewController*)viewController {
-  _readerModeOptionsViewController =
-      [[ReaderModeOptionsViewController alloc] init];
-  [_readerModeOptionsViewController updateHideReaderModeButtonVisibility:NO];
-  _readerModeOptionsViewController.readerModeOptionsHandler =
-      HandlerForProtocol(self.browser->GetCommandDispatcher(),
-                         ReaderModeOptionsCommands);
-  _readerModeOptionsViewController.mutator = _readerModeOptionsMediator;
-  _readerModeOptionsViewController.controlsView.mutator =
-      _readerModeOptionsMediator;
-  [_navigationController pushViewController:_readerModeOptionsViewController
-                                   animated:YES];
-}
 
 - (void)viewControllerDidTapTranslateOptionsButton:
     (PageActionMenuViewController*)viewController {
@@ -556,6 +544,24 @@ constexpr NSTimeInterval kEligibilityPollTimeout = 5.0;
 
   [self stopEligibilityPolling];
   [_viewController updateGeminiLoadingState:NO];
+}
+
+#pragma mark - ReaderModeOptionsCommands
+
+- (void)showReaderModeOptions {
+  _readerModeOptionsViewController =
+      [[ReaderModeOptionsViewController alloc] init];
+  [_readerModeOptionsViewController updateHideReaderModeButtonVisibility:NO];
+  _readerModeOptionsViewController.readerModeOptionsHandler = self;
+  _readerModeOptionsViewController.mutator = _readerModeOptionsMediator;
+  _readerModeOptionsViewController.controlsView.mutator =
+      _readerModeOptionsMediator;
+  [_navigationController pushViewController:_readerModeOptionsViewController
+                                   animated:YES];
+}
+
+- (void)hideReaderModeOptions {
+  [self.pageActionMenuHandler dismissPageActionMenuWithCompletion:nil];
 }
 
 @end

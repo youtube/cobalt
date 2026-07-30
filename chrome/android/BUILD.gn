@@ -395,6 +395,7 @@ if (_is_default_toolchain) {
       "//chrome/browser/contextual_tasks/fusebox/android:java",
       "//chrome/browser/data_sharing:factory_java",
       "//chrome/browser/data_sharing:instant_message_delegate_factory_java",
+      "//chrome/browser/glic:metrics_java",
       "//chrome/browser/glic:public_java",
       "//chrome/browser/glic/android:common_java",
       "//chrome/browser/glic/android:java",
@@ -418,7 +419,7 @@ if (_is_default_toolchain) {
       "//chrome/browser/android/customtabs/branding:branding_common_java",
       "//chrome/browser/autofill/android:third_party_provider_java",
       "//chrome/browser/collaboration:utils_java",
-      "//chrome/browser/context_sharing/tab_bottom_sheet/android:manager_public_java",
+      "//chrome/browser/context_sharing/tab_bottom_sheet/public/android:java",
       "//chrome/browser/data_sharing:data_sharing_public_java",
       "//chrome/browser/data_sharing:internal_library_java",
       "//chrome/browser/data_sharing:java",
@@ -618,6 +619,7 @@ if (_is_default_toolchain) {
       "//components/autofill/android:autofill_features_java",
       "//components/autofill/android:autofill_java",
       "//components/autofill/android:payments_interfaces_java",
+      "//components/autofill/core/browser/data_model/payments:mojo_bindings_java",
       "//components/background_task_scheduler:background_task_scheduler_java",
       "//components/background_task_scheduler:background_task_scheduler_task_ids_java",
       "//components/bookmarks/common/android:bookmarks_java",
@@ -725,6 +727,7 @@ if (_is_default_toolchain) {
       "//components/paint_preview/player/android:java",
       "//components/password_manager/core/browser:password_manager_java_enums",
       "//components/payments/content/android:java",
+      "//components/payments/content/android:service_impl_java",
       "//components/payments/content/android:service_java",
       "//components/payments/content/android/spc:java",
       "//components/payments/content/android/ui:java",
@@ -817,7 +820,6 @@ if (_is_default_toolchain) {
       "//third_party/androidx:androidx_activity_activity_java",
       "//third_party/androidx:androidx_annotation_annotation_experimental_java",
       "//third_party/androidx:androidx_annotation_annotation_java",
-      "//third_party/androidx:androidx_asynclayoutinflater_asynclayoutinflater_appcompat_java",
       "//third_party/androidx:androidx_browser_browser_java",
       "//third_party/androidx:androidx_collection_collection_java",
       "//third_party/androidx:androidx_constraintlayout_constraintlayout_java",
@@ -852,6 +854,7 @@ if (_is_default_toolchain) {
       "//ui/android:ui_no_recycler_view_java",
       "//ui/base/ime/mojom:mojom_java",
       "//ui/base/mojom:mojom_java",
+      "//ui/color:ui_color_android_java",
       "//ui/edge_to_edge:java",
       "//ui/gfx/geometry/mojom:mojom_java",
       "//ui/native_theme:os_settings_provider_android_bridge_java",
@@ -1392,6 +1395,7 @@ if (_is_default_toolchain) {
       "//components/feature_engagement/public:public_java",
       "//components/payments/content/android:java",
       "//components/payments/content/android:java_resources",
+      "//components/payments/content/android:service_impl_java",
       "//components/payments/content/android:service_java",
       "//components/payments/content/android/ui:java",
       "//components/payments/content/android/ui:payments_java_test_support",
@@ -1461,6 +1465,7 @@ if (_is_default_toolchain) {
       "javatests:chrome_test_java_org.chromium.chrome.browser.contextualsearch",
       "javatests:chrome_test_java_org.chromium.chrome.browser.customtabs",
       "javatests:chrome_test_java_org.chromium.chrome.browser.device_dialog",
+      "javatests:chrome_test_java_org.chromium.chrome.browser.devtools",
       "javatests:chrome_test_java_org.chromium.chrome.browser.display_cutout",
       "javatests:chrome_test_java_org.chromium.chrome.browser.dom_distiller",
       "javatests:chrome_test_java_org.chromium.chrome.browser.download",
@@ -2068,6 +2073,10 @@ if (_is_default_toolchain) {
     # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
     # enable the diagnostic by removing this line.
     configs += [ "//build/config/compiler:no_exit_time_destructors" ]
+
+    if (is_android) {
+      deps += [ "//chrome/browser/android" ]
+    }
   }
 
   chrome_public_apk_or_module_tmpl("chrome_public_apk") {
@@ -2124,7 +2133,6 @@ if (_is_default_toolchain) {
       "java/src/org/chromium/chrome/browser/base/SplitCompatJobService.java",
       "java/src/org/chromium/chrome/browser/base/SplitCompatMinidumpUploadJobService.java",
       "java/src/org/chromium/chrome/browser/base/SplitCompatRemoteViewsService.java",
-      "java/src/org/chromium/chrome/browser/base/SplitCompatService.java",
       "java/src/org/chromium/chrome/browser/base/SplitCompatUtils.java",
       "java/src/org/chromium/chrome/browser/base/SplitPreloader.java",
       "java/src/org/chromium/chrome/browser/bookmarkswidget/BookmarkWidgetService.java",
@@ -2956,6 +2964,7 @@ if (_is_default_toolchain) {
       "../browser/share/android/java/src/org/chromium/chrome/browser/share/send_tab_to_self/SendTabToSelfMetricsRecorder.java",
       "../browser/share/android/java/src/org/chromium/chrome/browser/share/send_tab_to_self/TargetDeviceInfo.java",
       "java/src/org/chromium/chrome/browser/DevToolsServer.java",
+      "java/src/org/chromium/chrome/browser/ExternalIntentUrlChecker.java",
       "java/src/org/chromium/chrome/browser/IntentHandler.java",
       "java/src/org/chromium/chrome/browser/KeyboardShortcuts.java",
       "java/src/org/chromium/chrome/browser/PlayServicesVersionInfo.java",
@@ -3027,6 +3036,7 @@ if (_is_default_toolchain) {
       "java/src/org/chromium/chrome/browser/device_dialog/ChromeBluetoothScanningPromptAndroidDelegate.java",
       "java/src/org/chromium/chrome/browser/device_dialog/SerialChooserDialog.java",
       "java/src/org/chromium/chrome/browser/device_dialog/UsbChooserDialog.java",
+      "java/src/org/chromium/chrome/browser/devtools/DevToolsActivity.java",
       "java/src/org/chromium/chrome/browser/dom_distiller/DomDistillerServiceFactory.java",
       "java/src/org/chromium/chrome/browser/dom_distiller/DomDistillerTabUtils.java",
       "java/src/org/chromium/chrome/browser/dom_distiller/DomDistillerUiUtils.java",
@@ -3182,6 +3192,10 @@ if (_is_default_toolchain) {
       "//components/variations",
       "//url",
     ]
+
+    if (is_android) {
+      deps += [ "//chrome/browser/android" ]
+    }
   }
 
   # This is a list of all base module jni headers. New features should add their

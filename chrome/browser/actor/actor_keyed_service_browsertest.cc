@@ -37,6 +37,7 @@
 #include "net/dns/mock_host_resolver.h"
 
 #if BUILDFLAG(IS_ANDROID)
+#include "base/android/android_info.h"
 #include "chrome/browser/flags/android/chrome_feature_list.h"
 #else
 #include "chrome/browser/browser_process.h"
@@ -86,6 +87,13 @@ class ActorKeyedServiceBrowserTest : public PlatformBrowserTest {
   }
 
   void SetUpOnMainThread() override {
+#if BUILDFLAG(IS_ANDROID)
+    // TODO(crbug.com/517619366): Decouple test from Glic eligibility criteria.
+    if (base::android::android_info::sdk_int() <
+        base::android::android_info::SDK_VERSION_S) {
+      GTEST_SKIP() << "Actor requires Android S+ to run";
+    }
+#endif
     PlatformBrowserTest::SetUpOnMainThread();
     host_resolver()->AddRule("*", "127.0.0.1");
     ASSERT_TRUE(embedded_test_server()->Start());

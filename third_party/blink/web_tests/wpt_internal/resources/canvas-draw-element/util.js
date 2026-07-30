@@ -1,3 +1,8 @@
+function getPixelFromImageData(imageData, x, y) {
+  const index = (y * imageData.width + x) * 4;
+  return imageData.data.slice(index, index + 4);
+}
+
 function resizeToPixelGrid(canvas) {
   return new Promise(resolve => {
     new ResizeObserver(entries => {
@@ -127,35 +132,26 @@ void main(){
 
     gl.bindTexture(gl.TEXTURE_2D, this.tex);
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-    const level = 0;
-    const internalformat = gl.RGBA;
-    const format = gl.RGBA;
-    const type = gl.UNSIGNED_BYTE;
+    const internalformat = gl.RGBA8;
 
+    const config = {};
+    let hasConfig = false;
     if (explicitSourceRect) {
-      if (explicitScale) {
-        gl.texElementImage2D(
-          gl.TEXTURE_2D, level, internalformat,
-          sx, sy, swidth, sheight,
-          destWidth, destHeight,
-          format, type, target);
-      } else {
-        gl.texElementImage2D(
-          gl.TEXTURE_2D, level, internalformat,
-          sx, sy, swidth, sheight,
-          format, type, target);
-      }
+      config.sx = sx;
+      config.sy = sy;
+      config.swidth = swidth;
+      config.sheight = sheight;
+      hasConfig = true;
+    }
+    if (explicitScale) {
+      config.width = destWidth;
+      config.height = destHeight;
+      hasConfig = true;
+    }
+    if (hasConfig) {
+      gl.texElementImage2D(gl.TEXTURE_2D, internalformat, target, config);
     } else {
-      if (explicitScale) {
-        gl.texElementImage2D(
-          gl.TEXTURE_2D, level, internalformat,
-          destWidth, destHeight,
-          format, type, target);
-      } else {
-        gl.texElementImage2D(
-          gl.TEXTURE_2D, level, internalformat,
-          format, type, target);
-      }
+      gl.texElementImage2D(gl.TEXTURE_2D, internalformat, target);
     }
 
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
@@ -208,35 +204,29 @@ void main(){
     gl.bindTexture(gl.TEXTURE_2D, this.tex);
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
     const level = 0;
-    const internalformat = gl.RGBA;
+    const internalformat = gl.RGBA8;
     const format = gl.RGBA;
     const type = gl.UNSIGNED_BYTE;
 
     if (target instanceof Element) {
+      const config = {};
+      let hasConfig = false;
       if (explicitSourceRect) {
-        if (explicitScale) {
-          gl.texElementImage2D(
-            gl.TEXTURE_2D, level, internalformat,
-            sx, sy, swidth, sheight,
-            destWidth, destHeight,
-            format, type, target);
-        } else {
-          gl.texElementImage2D(
-            gl.TEXTURE_2D, level, internalformat,
-            sx, sy, swidth, sheight,
-            format, type, target);
-        }
+        config.sx = sx;
+        config.sy = sy;
+        config.swidth = swidth;
+        config.sheight = sheight;
+        hasConfig = true;
+      }
+      if (explicitScale) {
+        config.width = destWidth;
+        config.height = destHeight;
+        hasConfig = true;
+      }
+      if (hasConfig) {
+        gl.texElementImage2D(gl.TEXTURE_2D, internalformat, target, config);
       } else {
-        if (explicitScale) {
-          gl.texElementImage2D(
-            gl.TEXTURE_2D, level, internalformat,
-            destWidth, destHeight,
-            format, type, target);
-        } else {
-          gl.texElementImage2D(
-            gl.TEXTURE_2D, level, internalformat,
-            format, type, target);
-        }
+        gl.texElementImage2D(gl.TEXTURE_2D, internalformat, target);
       }
     }
 
@@ -256,31 +246,33 @@ void main(){
 
 function copyElementImageToWebGPUCanvas(queue, ctx, target, scaleX, scaleY,
                                         sx, sy, swidth, sheight) {
-  if (scaleX !== undefined && scaleY !== undefined &&
-      sx !== undefined && sy !== undefined &&
-      swidth !== undefined && sheight !== undefined) {
-    const cvs = ctx.canvas;
-    const destWidth = swidth * scaleX * (cvs.width / cvs.clientWidth);
-    const destHeight = sheight * scaleY * (cvs.height / cvs.clientHeight);
-    queue.copyElementImageToTexture(
-      target, sx, sy, swidth, sheight, destWidth, destHeight,
-      { texture: ctx.getCurrentTexture() });
-  } else if (scaleX !== undefined && scaleY !== undefined) {
-    const [destWidth, destHeight] =
-          computeScaledDestinationSize(ctx.canvas, target, scaleX, scaleY);
-    queue.copyElementImageToTexture(
-      target, destWidth, destHeight, { texture: ctx.getCurrentTexture() });
-  } else if (sx !== undefined && sy !== undefined &&
-             swidth !== undefined && sheight !== undefined) {
-    queue.copyElementImageToTexture(
-      target, sx, sy, swidth, sheight, { texture: ctx.getCurrentTexture() });
-  } else {
-    queue.copyElementImageToTexture(
-      target, { texture: ctx.getCurrentTexture() });
+  const sourceDict = { source: target };
+  if (sx !== undefined) sourceDict.sx = sx;
+  if (sy !== undefined) sourceDict.sy = sy;
+  if (swidth !== undefined) sourceDict.swidth = swidth;
+  if (sheight !== undefined) sourceDict.sheight = sheight;
+
+  const destDict = { destination: { texture: ctx.getCurrentTexture() } };
+
+  if (scaleX !== undefined && scaleY !== undefined) {
+    let destWidth, destHeight;
+    if (sx !== undefined && sy !== undefined && swidth !== undefined && sheight !== undefined) {
+      const cvs = ctx.canvas;
+      destWidth = swidth * scaleX * (cvs.width / cvs.clientWidth);
+      destHeight = sheight * scaleY * (cvs.height / cvs.clientHeight);
+    } else {
+      [destWidth, destHeight] =
+            computeScaledDestinationSize(ctx.canvas, target, scaleX, scaleY);
+    }
+    destDict.width = destWidth;
+    destDict.height = destHeight;
   }
+
+  queue.copyElementImageToTexture(sourceDict, destDict);
 }
 
-export { resizeToPixelGrid,
+export { getPixelFromImageData,
+         resizeToPixelGrid,
          computeScaledDestinationSize,
          computeExplicitDestinationSize,
          SimpleGLProgram,

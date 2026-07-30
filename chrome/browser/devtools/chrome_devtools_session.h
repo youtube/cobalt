@@ -20,6 +20,7 @@ namespace content {
 class DevToolsAgentHostClientChannel;
 }  // namespace content
 
+class AdsHandler;
 class AutofillHandler;
 class EmulationHandler;
 class BrowserHandler;
@@ -57,14 +58,8 @@ class ChromeDevToolsSession : public protocol::FrontendChannel {
   void SendProtocolNotification(
       std::unique_ptr<protocol::Serializable> message) override;
   void FlushProtocolNotifications() override;
-  void FallThrough(int call_id,
-                   crdtp::span<uint8_t> method,
-                   crdtp::span<uint8_t> message) override;
-
-  base::flat_map<int, content::DevToolsManagerDelegate::NotHandledCallback>
-      pending_commands_;
-
   protocol::UberDispatcher dispatcher_;
+  std::unique_ptr<AdsHandler> ads_handler_;
   std::unique_ptr<AutofillHandler> autofill_handler_;
   std::unique_ptr<ExtensionsHandler> extensions_handler_;
   std::unique_ptr<BrowserHandler> browser_handler_;

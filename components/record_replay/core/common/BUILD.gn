@@ -45,3 +45,16 @@ mojom("mojom") {
     },
   ]
 }
+
+static_library("test_support") {
+  testonly = true
+  sources = [
+    "test_support/mock_task_store.cc",
+    "test_support/mock_task_store.h",
+  ]
+  public_deps = [
+    "//components/record_replay/core/browser",
+    "//testing/gmock",
+  ]
+  deps = [ "//base" ]
+}

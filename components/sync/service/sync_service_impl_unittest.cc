@@ -12,6 +12,7 @@
 #include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/run_loop.h"
 #include "base/test/gmock_callback_support.h"
 #include "base/test/gtest_util.h"
@@ -524,6 +525,58 @@ TEST_F(SyncServiceImplTest, DisabledByPolicyBeforeInitThenPolicyRemoved) {
   EXPECT_TRUE(service()->IsSyncFeatureActive());
 }
 
+#if BUILDFLAG(IS_CHROMEOS)
+TEST_F(
+    SyncServiceImplTest,
+    DisabledByPolicyBeforeInit_DisablesOsTypesWhenFlagEnabledAndNoSyncConsent) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(syncer::kReplaceSyncPromosWithSignInPromos);
+
+  prefs()->SetManagedPref(prefs::internal::kSyncManaged, base::Value(true));
+  SignInWithoutSyncConsent();
+
+  InitializeService();
+  base::RunLoop().RunUntilIdle();
+
+  // Sync was disabled due to the policy.
+  ASSERT_EQ(SyncService::DisableReasonSet(
+                {SyncService::DISABLE_REASON_ENTERPRISE_POLICY}),
+            service()->GetDisableReasons());
+
+  // It should NOT set SyncFeatureDisabledViaDashboard.
+  EXPECT_FALSE(
+      service()->GetUserSettings()->IsSyncFeatureDisabledViaDashboard());
+
+  // But it should disable OS types.
+  EXPECT_FALSE(service()->GetUserSettings()->IsSyncAllOsTypesEnabled());
+  EXPECT_TRUE(service()->GetUserSettings()->GetSelectedOsTypes().empty());
+}
+
+TEST_F(SyncServiceImplTest,
+       DisabledByPolicyBeforeInit_DoesNotDisableOsTypesWithSyncConsent) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(syncer::kReplaceSyncPromosWithSignInPromos);
+
+  prefs()->SetManagedPref(prefs::internal::kSyncManaged, base::Value(true));
+  SignInWithSyncConsent();
+
+  InitializeService();
+  base::RunLoop().RunUntilIdle();
+
+  // Sync was disabled due to the policy.
+  ASSERT_EQ(SyncService::DisableReasonSet(
+                {SyncService::DISABLE_REASON_ENTERPRISE_POLICY}),
+            service()->GetDisableReasons());
+
+  // It should set SyncFeatureDisabledViaDashboard.
+  EXPECT_TRUE(
+      service()->GetUserSettings()->IsSyncFeatureDisabledViaDashboard());
+
+  // But it should NOT disable OS types.
+  EXPECT_TRUE(service()->GetUserSettings()->IsSyncAllOsTypesEnabled());
+}
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
 // Verify that disable by enterprise policy works even after the backend has
 // been initialized.
 TEST_F(SyncServiceImplTest, DisabledByPolicyAfterInit) {
@@ -782,7 +835,7 @@ TEST_F(
   // This call represents the initial passphrase type coming in from the server.
   service()->PassphraseTypeChanged(PassphraseType::kCustomPassphrase);
 
-#if !(BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX))
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
   // UserSelectableType::kAutofill should have been disabled.
   EXPECT_FALSE(service()->GetUserSettings()->GetSelectedTypes().Has(
       UserSelectableType::kAutofill));
@@ -833,7 +886,7 @@ TEST_F(
   // This call represents the initial passphrase type coming in from the server.
   service()->PassphraseTypeChanged(PassphraseType::kCustomPassphrase);
 
-#if !(BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX))
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
   // UserSelectableType::kAutofill should have been disabled.
   EXPECT_FALSE(service()->GetUserSettings()->GetSelectedTypes().Has(
       UserSelectableType::kAutofill));
@@ -1596,14 +1649,14 @@ TEST_F(SyncServiceImplTest, DisableSyncOnClientClearsPassphrasePrefForAccount) {
       identity_manager()
           ->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin)
           .gaia;
-  os_crypt_async::Encryptor encryptor =
+  scoped_refptr<os_crypt_async::Encryptor> encryptor =
       os_crypt_async::GetTestEncryptorForTesting();
   CustomPassphraseBootstrapToken token =
       CustomPassphraseBootstrapToken::CreateFakeForTesting(1);
 
-  sync_prefs.SetEncryptionBootstrapTokenForAccount(token, encryptor, gaia_id);
+  sync_prefs.SetEncryptionBootstrapTokenForAccount(token, *encryptor, gaia_id);
   ASSERT_THAT(
-      sync_prefs.GetEncryptionBootstrapTokenForAccount(encryptor, gaia_id),
+      sync_prefs.GetEncryptionBootstrapTokenForAccount(*encryptor, gaia_id),
       MatchesToken(token));
 
   // Clear sync from the dashboard.
@@ -1615,7 +1668,7 @@ TEST_F(SyncServiceImplTest, DisableSyncOnClientClearsPassphrasePrefForAccount) {
   // The passphrase for account pref cleared when sync is cleared from
   // dashboard.
   EXPECT_TRUE(
-      sync_prefs.GetEncryptionBootstrapTokenForAccount(encryptor, gaia_id)
+      sync_prefs.GetEncryptionBootstrapTokenForAccount(*encryptor, gaia_id)
           .IsEmpty());
 }
 
@@ -1641,14 +1694,14 @@ TEST_F(SyncServiceImplTest,
       identity_manager()
           ->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin)
           .gaia;
-  os_crypt_async::Encryptor encryptor =
+  scoped_refptr<os_crypt_async::Encryptor> encryptor =
       os_crypt_async::GetTestEncryptorForTesting();
   CustomPassphraseBootstrapToken token =
       CustomPassphraseBootstrapToken::CreateFakeForTesting(1);
 
-  sync_prefs.SetEncryptionBootstrapTokenForAccount(token, encryptor, gaia_id);
+  sync_prefs.SetEncryptionBootstrapTokenForAccount(token, *encryptor, gaia_id);
   ASSERT_THAT(
-      sync_prefs.GetEncryptionBootstrapTokenForAccount(encryptor, gaia_id),
+      sync_prefs.GetEncryptionBootstrapTokenForAccount(*encryptor, gaia_id),
       MatchesToken(token));
 
   // Clear sync from the dashboard.
@@ -1660,7 +1713,7 @@ TEST_F(SyncServiceImplTest,
   // The passphrase for account pref cleared when sync is cleared from
   // dashboard.
   EXPECT_TRUE(
-      sync_prefs.GetEncryptionBootstrapTokenForAccount(encryptor, gaia_id)
+      sync_prefs.GetEncryptionBootstrapTokenForAccount(*encryptor, gaia_id)
           .IsEmpty());
 }
 
@@ -1684,14 +1737,14 @@ TEST_F(SyncServiceImplTest, EncryptionObsoleteClearsPassphrasePrefForAccount) {
       identity_manager()
           ->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin)
           .gaia;
-  os_crypt_async::Encryptor encryptor =
+  scoped_refptr<os_crypt_async::Encryptor> encryptor =
       os_crypt_async::GetTestEncryptorForTesting();
   CustomPassphraseBootstrapToken token =
       CustomPassphraseBootstrapToken::CreateFakeForTesting(1);
 
-  sync_prefs.SetEncryptionBootstrapTokenForAccount(token, encryptor, gaia_id);
+  sync_prefs.SetEncryptionBootstrapTokenForAccount(token, *encryptor, gaia_id);
   ASSERT_THAT(
-      sync_prefs.GetEncryptionBootstrapTokenForAccount(encryptor, gaia_id),
+      sync_prefs.GetEncryptionBootstrapTokenForAccount(*encryptor, gaia_id),
       MatchesToken(token));
 
   SyncProtocolError client_cmd;
@@ -1701,7 +1754,7 @@ TEST_F(SyncServiceImplTest, EncryptionObsoleteClearsPassphrasePrefForAccount) {
 
   // The passphrase for account pref should be cleared.
   EXPECT_TRUE(
-      sync_prefs.GetEncryptionBootstrapTokenForAccount(encryptor, gaia_id)
+      sync_prefs.GetEncryptionBootstrapTokenForAccount(*encryptor, gaia_id)
           .IsEmpty());
 }
 

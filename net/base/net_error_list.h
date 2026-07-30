@@ -146,6 +146,12 @@ NET_ERROR(BLOCKED_IN_INCOGNITO_BY_ADMINISTRATOR, -35)
 // which is specifically for a CORS error code.
 NET_ERROR(LOCAL_NETWORK_PERMISSION_MISSING, -36)
 
+// The request was blocked because ECH is strictly required, but:
+//  - The client could not obtain a valid ECH configuration.
+//  - The server rejected the ECH, and the client failed to establish a new ECH
+//    connection after retrying with retry_configs.
+NET_ERROR(STRICT_ECH_REQUIRED, -37)
+
 // A connection was closed (corresponding to a TCP FIN).
 NET_ERROR(CONNECTION_CLOSED, -100)
 
@@ -924,6 +930,9 @@ NET_ERROR(CACHE_DOOM_FAILURE, -412)
 
 // The disk cache is unable to open or create this entry.
 NET_ERROR(CACHE_OPEN_OR_CREATE_FAILURE, -413)
+
+// Zstd compression of a cache entry body failed.
+NET_ERROR(CACHE_COMPRESSION_FAILURE, -414)
 
 // The server's response was insecure (e.g. there was a cert error).
 NET_ERROR(INSECURE_RESPONSE, -501)

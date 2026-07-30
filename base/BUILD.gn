@@ -116,12 +116,9 @@ if (is_fuchsia) {
 
 _build_date_header = "$target_gen_dir/generated_build_date.h"
 
-# mold does not support PROVIDE_HIDDEN.
-# https://github.com/rui314/mold/issues/1055
-_enable_code_ordering =
-    is_android && !is_component_build && linker_path == "" &&
-    (current_cpu == "arm" || current_cpu == "arm64" || current_cpu == "x86" ||
-     current_cpu == "x64")
+_enable_code_ordering = is_android && !is_component_build &&
+                        (current_cpu == "arm" || current_cpu == "arm64" ||
+                         current_cpu == "x86" || current_cpu == "x64")
 
 if (is_win) {
   # This is in a separate config so the flags can be applied to dependents.
@@ -2622,6 +2619,7 @@ component("base") {
 group("base_rust") {
   public_deps = [
     ":callback",
+    ":feature",
     ":run_loop",
     ":sequenced_task_runner",
   ]
@@ -2691,6 +2689,14 @@ rust_static_library("run_loop") {
     ":run_loop_shim",
     "//base",
   ]
+}
+
+rust_static_library("feature") {
+  sources = [ "feature.rs" ]
+  crate_root = "feature.rs"
+  cxx_bindings = [ "feature.rs" ]
+  allow_unsafe = true
+  deps = [ "//base" ]
 }
 
 rust_static_library("sequenced_task_runner") {
@@ -2765,6 +2771,19 @@ rust_static_library("rust_sequences_unittests") {
     ":sequenced_task_runner",
     ":sequenced_task_runner_test_bridge",
     "//base/test:task_environment",
+    "//testing/rust_gtest_interop",
+  ]
+}
+
+rust_static_library("rust_feature_unittests") {
+  testonly = true
+  is_gtest_unittests = true
+  allow_unsafe = true
+  sources = [ "feature_unittest.rs" ]
+  crate_root = "feature_unittest.rs"
+  deps = [
+    ":feature",
+    "//base/test:scoped_feature_list",
     "//testing/rust_gtest_interop",
   ]
 }
@@ -3109,6 +3128,7 @@ component("i18n") {
     "//base/i18n:base_i18n_export",
     "//base/i18n:language_code",
     "//base/i18n:time_formatting_types",
+    "//base/i18n/icubridge",
     "//third_party/ced",
     "//third_party/icu",
   ]
@@ -3655,7 +3675,6 @@ test("base_unittests") {
     "i18n/file_util_icu_unittest.cc",
     "i18n/icu_string_conversions_unittest.cc",
     "i18n/icu_util_unittest.cc",
-    "i18n/language_code_unittest.cc",
     "i18n/message_formatter_unittest.cc",
     "i18n/number_formatting_unittest.cc",
     "i18n/rtl_unittest.cc",
@@ -3994,9 +4013,12 @@ test("base_unittests") {
     ":hardening_tests",
     ":i18n",
     ":path_service_unittest",
+    ":rust_feature_unittests",
     ":rust_sequences_unittests",
     ":sanitizer_buildflags",
     "//base/allocator:buildflags",
+    "//base/i18n:unittests",
+    "//base/i18n/icubridge:unittests",
     "//base/logging/rust_logger:unittests",
     "//base/numerics:unittests",
     "//base/test:proto_test_support",
@@ -4357,6 +4379,7 @@ test("base_unittests") {
       "ios/crb_protocol_observers_unittest.mm",
       "ios/device_util_unittest.mm",
       "ios/scoped_critical_action_unittest.mm",
+      "message_loop/message_pump_ios_unittest.mm",
     ]
 
     bundle_deps = [ ":base_test_proto_bundle_data" ]
@@ -5030,6 +5053,7 @@ if (is_android) {
       ":promise_java",
       ":resetters_java",
       ":screen_state_receiver_java",
+      ":split_compat_java",
       ":stream_util_java",
       ":supplier_java",
       ":sys_utils_java",
@@ -5146,6 +5170,14 @@ if (is_android) {
       ":wrapped_class_loader_java",
       "//third_party/androidx:androidx_annotation_annotation_java",
       "//third_party/jni_zero:jni_zero_java",
+    ]
+  }
+
+  android_library("split_compat_java") {
+    sources = [ "android/java/src/org/chromium/base/SplitCompatService.java" ]
+    deps = [
+      ":bundle_utils_java",
+      "//third_party/androidx:androidx_annotation_annotation_java",
     ]
   }
 

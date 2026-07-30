@@ -465,27 +465,23 @@ TEST_F(GlicInstanceMetricsTest, InstanceEvents_LogsEventCountsAndHadEvent) {
       GlicInstanceEvent::kTurnCompleted, 1);
 }
 
-TEST_F(GlicInstanceMetricsTest, InstanceEvents_OpenAndOpen2) {
+TEST_F(GlicInstanceMetricsTest, InstanceEvents_Open) {
   ShowOptions show_options{FloatingShowOptions{}};
 
-  // Call OnOpen with should_log_old_metric = true (default)
   metrics_.OnOpen(mojom::InvocationSource::kTopChromeButton, show_options);
 
   histogram_tester_.ExpectBucketCount("Glic.Instance.EventCounts",
                                       GlicInstanceEvent::kOpen, 1);
-  histogram_tester_.ExpectBucketCount("Glic.Instance.EventCounts",
-                                      GlicInstanceEvent::kOpen2, 1);
 
-  // Call OnOpen with should_log_old_metric = false
-  metrics_.OnOpen(mojom::InvocationSource::kTopChromeButton, show_options,
-                  false);
+  EXPECT_EQ(user_action_tester_.GetActionCount("Glic.Instance.Open"), 1);
 
-  // kOpen should still be 1.
-  histogram_tester_.ExpectBucketCount("Glic.Instance.EventCounts",
-                                      GlicInstanceEvent::kOpen, 1);
-  // kOpen2 should be 2.
-  histogram_tester_.ExpectBucketCount("Glic.Instance.EventCounts",
-                                      GlicInstanceEvent::kOpen2, 2);
+  histogram_tester_.ExpectUniqueSample(
+      "Glic.Instance.InitialInvocationSource",
+      mojom::InvocationSource::kTopChromeButton, 1);
+
+  histogram_tester_.ExpectUniqueSample(
+      "Glic.Instance.Floaty.OpenSource",
+      mojom::InvocationSource::kTopChromeButton, 1);
 }
 
 TEST_F(GlicInstanceMetricsTest,
@@ -666,59 +662,6 @@ TEST_F(GlicInstanceMetricsTest, ScrollToMetrics) {
 
   histogram_tester_.ExpectUniqueTimeSample(
       "Glic.ScrollTo.UserPromptToScrollTime.Text", base::Milliseconds(400), 1);
-}
-
-TEST_F(GlicInstanceMetricsTest, SelectionUsed) {
-  metrics_.OnVisibilityChanged(true);
-  metrics_.OnSelectionAreasChanged(2);
-  metrics_.OnUserInputSubmitted(mojom::WebClientMode::kText);
-  histogram_tester_.ExpectBucketCount(
-      "Glic.Instance.InputSubmitted.SelectionCount", 2, 1);
-
-  // Check that it's NOT reset after submission.
-  metrics_.OnUserInputSubmitted(mojom::WebClientMode::kText);
-  histogram_tester_.ExpectBucketCount(
-      "Glic.Instance.InputSubmitted.SelectionCount", 2, 2);
-
-  // Check that it can be cleared.
-  metrics_.OnSelectionAreasChanged(0);
-  metrics_.OnUserInputSubmitted(mojom::WebClientMode::kText);
-  histogram_tester_.ExpectBucketCount(
-      "Glic.Instance.InputSubmitted.SelectionCount", 0, 1);
-  histogram_tester_.ExpectBucketCount(
-      "Glic.Instance.InputSubmitted.SelectionCount", 2, 2);
-}
-
-TEST_F(GlicInstanceMetricsTestWithPolyline, PolylineSelectionUsed) {
-  metrics_.OnVisibilityChanged(true);
-  metrics_.OnPolylinePointsChanged({4, 10});
-  metrics_.OnUserInputSubmitted(mojom::WebClientMode::kText);
-
-  histogram_tester_.ExpectBucketCount(
-      "Glic.Instance.InputSubmitted.Selection.PolylinePointCount", 4, 1);
-  histogram_tester_.ExpectBucketCount(
-      "Glic.Instance.InputSubmitted.Selection.PolylinePointCount", 10, 1);
-  histogram_tester_.ExpectTotalCount(
-      "Glic.Instance.InputSubmitted.Selection.PolylinePointCount", 2);
-
-  // Check that it's NOT reset after submission (Persistence)
-  metrics_.OnPolylinePointsChanged({4, 8, 8, 10});
-  metrics_.OnUserInputSubmitted(mojom::WebClientMode::kText);
-  histogram_tester_.ExpectBucketCount(
-      "Glic.Instance.InputSubmitted.Selection.PolylinePointCount", 4, 2);
-  histogram_tester_.ExpectBucketCount(
-      "Glic.Instance.InputSubmitted.Selection.PolylinePointCount", 8, 2);
-  histogram_tester_.ExpectBucketCount(
-      "Glic.Instance.InputSubmitted.Selection.PolylinePointCount", 10, 2);
-  histogram_tester_.ExpectTotalCount(
-      "Glic.Instance.InputSubmitted.Selection.PolylinePointCount", 6);
-
-  // Check that it can be cleared
-  metrics_.OnPolylinePointsChanged({});
-  metrics_.OnUserInputSubmitted(mojom::WebClientMode::kText);
-
-  histogram_tester_.ExpectTotalCount(
-      "Glic.Instance.InputSubmitted.Selection.PolylinePointCount", 6);
 }
 
 TEST_F(GlicInstanceMetricsTest, Floaty_OpenCloseClose_LogsError) {

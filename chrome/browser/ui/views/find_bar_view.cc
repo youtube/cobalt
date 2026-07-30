@@ -26,7 +26,6 @@
 #include "chrome/browser/ui/views/find_bar_host.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/user_education/user_education_service.h"
-#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/find_in_page/find_notification_details.h"
 #include "components/find_in_page/find_tab_helper.h"
@@ -276,19 +275,19 @@ FindBarView::FindBarView(FindBarHost* host) {
   // Theme-aware image models.
   views::SetImageFromVectorIconWithColor(
       find_previous_button_,
-      features::IsRoundedIconsEnabled() ? kKeyboardControlKeyIcon
+      features::IsRoundedIconsEnabled() ? kKeyboardArrowUpIcon
                                         : kKeyboardArrowUpChromeRefreshOldIcon,
       {kColorFindBarButtonIcon, kColorFindBarButtonIconDisabled});
   find_previous_button_->SetImageModel(
       views::Button::STATE_HOVERED,
       ui::ImageModel::FromVectorIcon(features::IsRoundedIconsEnabled()
-                                         ? kKeyboardControlKeyIcon
+                                         ? kKeyboardArrowUpIcon
                                          : kKeyboardArrowUpChromeRefreshOldIcon,
                                      kColorFindBarButtonIconHovered));
   find_previous_button_->SetImageModel(
       views::Button::STATE_PRESSED,
       ui::ImageModel::FromVectorIcon(features::IsRoundedIconsEnabled()
-                                         ? kKeyboardControlKeyIcon
+                                         ? kKeyboardArrowUpIcon
                                          : kKeyboardArrowUpChromeRefreshOldIcon,
                                      kColorFindBarButtonIconHovered));
 
@@ -315,19 +314,19 @@ FindBarView::FindBarView(FindBarHost* host) {
 
   views::SetImageFromVectorIconWithColor(
       close_button_,
-      features::IsRoundedIconsEnabled() ? kCloseIcon
+      features::IsRoundedIconsEnabled() ? kCloseSmallIcon
                                         : kCloseChromeRefreshOldIcon,
       {kColorFindBarButtonIcon, kColorFindBarButtonIconDisabled});
   close_button_->SetImageModel(
       views::Button::STATE_HOVERED,
       ui::ImageModel::FromVectorIcon(features::IsRoundedIconsEnabled()
-                                         ? kCloseIcon
+                                         ? kCloseSmallIcon
                                          : kCloseChromeRefreshOldIcon,
                                      kColorFindBarButtonIconHovered));
   close_button_->SetImageModel(
       views::Button::STATE_PRESSED,
       ui::ImageModel::FromVectorIcon(features::IsRoundedIconsEnabled()
-                                         ? kCloseIcon
+                                         ? kCloseSmallIcon
                                          : kCloseChromeRefreshOldIcon,
                                      kColorFindBarButtonIconHovered));
 

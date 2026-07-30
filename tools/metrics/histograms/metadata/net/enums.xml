@@ -138,18 +138,6 @@ chromium-metrics-reviews@google.com.
   </int>
 </enum>
 
-<!-- LINT.IfChange(CanaryDomainResult) -->
-
-<enum name="CanaryDomainResult">
-  <int value="0" label="Unknown result"/>
-  <int value="1" label="Positive"/>
-  <int value="2" label="Negative: NOERROR without records"/>
-  <int value="3" label="Negative: NXDOMAIN or other error"/>
-  <int value="4" label="Negative: other error"/>
-</enum>
-
-<!-- LINT.ThenChange(/net/dns/canary_domain_service.h:CanaryDomainResult) -->
-
 <enum name="CertificateChangeNotificationType">
   <int value="0" label="Trust"/>
   <int value="1" label="Client Cert"/>
@@ -3509,6 +3497,7 @@ Called by update_net_trust_anchors.py.-->
   <int value="5" label="DeleteLiveEntriesBetween"/>
   <int value="6" label="WriteEntryDataAndMetadata"/>
   <int value="7" label="WriteEntryData"/>
+  <int value="8" label="UpdateEntryLastUsedByKey"/>
 </enum>
 
 <!-- LINT.ThenChange(//net/disk_cache/sql/sql_persistent_store_backend_shard.h:IndexMismatchLocation) -->
@@ -3538,6 +3527,8 @@ Called by update_net_trust_anchors.py.-->
   <int value="19" label="CheckSumError"/>
   <int value="20" label="DatabaseClosed"/>
   <int value="21" label="AbortedDueToBrowserActivity"/>
+  <int value="22" label="FailedToSetAutoVacuum"/>
+  <int value="23" label="IncrementalVacuumDisabled"/>
 </enum>
 
 <!-- LINT.ThenChange(//net/disk_cache/sql/sql_persistent_store.h:SqlDiskCacheStoreError) -->

@@ -31,7 +31,6 @@
 #include "base/compiler_specific.h"
 #include "base/debug/alias.h"
 #include "base/memory/values_equivalent.h"
-#include "base/metrics/histogram_functions.h"
 #include "base/numerics/clamped_math.h"
 #include "build/build_config.h"
 #include "cc/input/overscroll_behavior.h"
@@ -605,34 +604,6 @@ bool ComputedStyle::HighlightPseudoElementStylesDependOnContainerUnits() const {
   return false;
 }
 
-bool ComputedStyle::HighlightPseudoElementStylesDependOnViewportUnits() const {
-  const StyleHighlightData& highlight_data = HighlightData();
-  if (highlight_data.Selection() &&
-      highlight_data.Selection()->HasViewportUnits()) {
-    return true;
-  }
-  if (highlight_data.TargetText() &&
-      highlight_data.TargetText()->HasViewportUnits()) {
-    return true;
-  }
-  if (highlight_data.SpellingError() &&
-      highlight_data.SpellingError()->HasViewportUnits()) {
-    return true;
-  }
-  if (highlight_data.GrammarError() &&
-      highlight_data.GrammarError()->HasViewportUnits()) {
-    return true;
-  }
-  const CustomHighlightsStyleMap& custom_highlights =
-      highlight_data.CustomHighlights();
-  for (const auto& custom_highlight : custom_highlights) {
-    if (custom_highlight.value->HasViewportUnits()) {
-      return true;
-    }
-  }
-
-  return false;
-}
 
 bool ComputedStyle::HighlightPseudoElementStylesHaveVariableReferences() const {
   const StyleHighlightData& highlight_data = HighlightData();
@@ -3128,13 +3099,6 @@ bool ComputedStyleBuilder::SetEffectiveZoom(float f) {
     return false;
   }
   SetEffectiveZoomInternal(clamped_effective_zoom);
-  // Record UMA for the effective zoom in order to assess the relative
-  // importance of sub-pixel behavior, and related features and bugs.
-  // Clamp to a max of 400%, to make the histogram behave better at no
-  // real cost to our understanding of the zooms in use.
-  base::UmaHistogramSparse(
-      "Blink.EffectiveZoom",
-      std::clamp<float>(clamped_effective_zoom * 100, 0, 400));
   return true;
 }
 

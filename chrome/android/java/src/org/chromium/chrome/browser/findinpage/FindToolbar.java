@@ -27,6 +27,7 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
+import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -45,6 +46,8 @@ import org.chromium.build.annotations.Initializer;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
+import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
+import org.chromium.chrome.browser.browser_controls.BrowserControlsUtils;
 import org.chromium.chrome.browser.tab.EmptyTabObserver;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabObserver;
@@ -52,6 +55,7 @@ import org.chromium.chrome.browser.tab.TabSelectionType;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelObserver;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
+import org.chromium.chrome.browser.ui.side_panel.AndroidSidePanelEnabledFn;
 import org.chromium.chrome.browser.ui.side_ui.SideUiCoordinator.SideUiSpecs;
 import org.chromium.chrome.browser.ui.side_ui.SideUiObserver;
 import org.chromium.components.browser_ui.styles.SemanticColorUtils;
@@ -103,6 +107,8 @@ public class FindToolbar extends LinearLayout implements BackPressHandler, SideU
     protected View mDivider;
 
     private @Nullable FindResultBar mResultBar;
+    private FrameLayout mSecondaryUiContainer;
+    private BrowserControlsStateProvider mBrowserControlsStateProvider;
 
     private TabModelSelector mTabModelSelector;
     private @Nullable Tab mCurrentTab;
@@ -374,6 +380,18 @@ public class FindToolbar extends LinearLayout implements BackPressHandler, SideU
     @Initializer
     public void setWindowAndroid(WindowAndroid windowAndroid) {
         mWindowAndroid = windowAndroid;
+    }
+
+    /** Sets the secondary UI container in which the find result bar will be shown. */
+    @Initializer
+    public void setSecondaryUiContainer(FrameLayout container) {
+        mSecondaryUiContainer = container;
+    }
+
+    /** Sets the BrowserControlsStateProvider. */
+    @Initializer
+    public void setBrowserControlsStateProvider(BrowserControlsStateProvider provider) {
+        mBrowserControlsStateProvider = provider;
     }
 
     @Override
@@ -769,9 +787,20 @@ public class FindToolbar extends LinearLayout implements BackPressHandler, SideU
             mResultBar =
                     new FindResultBar(
                             getContext(),
-                            assumeNonNull(mCurrentTab.getContentView()),
+                            AndroidSidePanelEnabledFn.isEnabled()
+                                    ? mSecondaryUiContainer
+                                    : assumeNonNull(mCurrentTab.getContentView()),
                             mWindowAndroid,
                             mFindInPageBridge);
+
+            if (AndroidSidePanelEnabledFn.isEnabled()) {
+                FrameLayout.LayoutParams lp =
+                        (FrameLayout.LayoutParams) mResultBar.getLayoutParams();
+                lp.topMargin = mBrowserControlsStateProvider.getContentOffset();
+                lp.bottomMargin =
+                        BrowserControlsUtils.getBottomContentOffset(mBrowserControlsStateProvider);
+                mResultBar.setLayoutParams(lp);
+            }
         } else if (!visibility) {
             if (mResultBar != null) {
                 mResultBar.dismiss();

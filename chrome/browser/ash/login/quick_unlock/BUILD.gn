@@ -51,8 +51,7 @@ static_library("quick_unlock") {
   deps = [
     "//ash/constants",
     "//ash/public/cpp",
-    "//chrome/app:generated_resources",
-    "//chrome/browser:browser_process",
+    "//ash/strings",
     "//chrome/browser:resources",
     "//chrome/browser/ash/profiles",
     "//chrome/browser/profiles:profile_manager",

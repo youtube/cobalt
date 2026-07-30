@@ -756,9 +756,15 @@ SubmitResult CompositorFrameSinkSupport::MaybeSubmitCompositorFrame(
             frame.metadata.begin_frame_ack.trace_id);
       });
 
-  DCHECK(local_surface_id.is_valid());
-  DCHECK(!frame.render_pass_list.empty());
-  DCHECK(!frame.size_in_pixels().IsEmpty());
+  if (!local_surface_id.is_valid() || frame.render_pass_list.empty() ||
+      frame.size_in_pixels().IsEmpty()) {
+    return SubmitResult::INVALID_FRAME;
+  }
+
+  if (!is_root_ &&
+      frame.metadata.display_transform_hint != gfx::OVERLAY_TRANSFORM_NONE) {
+    return SubmitResult::INVALID_DISPLAY_TRANSFORM;
+  }
 
   CHECK(callback_received_begin_frame_);
   CHECK(callback_received_receive_ack_);
@@ -772,13 +778,6 @@ SubmitResult CompositorFrameSinkSupport::MaybeSubmitCompositorFrame(
       std::make_unique<PendingFrameDetails>(
           now_time, frame.metadata.trees_in_viz_timing_details,
           surface_manager_));
-
-#if BUILDFLAG(IS_ANDROID)
-  // If the renderer thread has requested a temporary boost for
-  // interaction, we ask ADPF to temporarily lift CPU capacity restrictions.
-  frame_sink_manager_->SetPreferEfficientScheduling(
-      frame.metadata.prefer_efficient_scheduling);
-#endif
 
   // Override the has_damage flag (ignoring invalid data from clients).
   frame.metadata.begin_frame_ack.has_damage = true;
@@ -1466,6 +1465,10 @@ const char* CompositorFrameSinkSupport::GetSubmitResultAsString(
       return "Surface belongs to another client";
     case SubmitResult::HIT_TEST_DATA_INVALID:
       return "Invalid hit-test data";
+    case SubmitResult::INVALID_FRAME:
+      return "Invalid CompositorFrame";
+    case SubmitResult::INVALID_DISPLAY_TRANSFORM:
+      return "Invalid display transform hint";
   }
   NOTREACHED();
 }

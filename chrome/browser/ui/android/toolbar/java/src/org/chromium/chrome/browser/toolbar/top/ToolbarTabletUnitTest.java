@@ -115,6 +115,7 @@ import org.chromium.chrome.browser.toolbar.top.tab_strip.TabStripTransitionCoord
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
 import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 import org.chromium.components.omnibox.OmniboxFeatureList;
+import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.widget.ChromeImageButton;
 import org.chromium.ui.widget.ToastManager;
 
@@ -153,6 +154,7 @@ public final class ToolbarTabletUnitTest {
     @Mock private ToolbarWidthConsumer mLocationBarMicButtonWidthConsumer;
     @Mock private ToolbarWidthConsumer mLocationBarLensButtonWidthConsumer;
     @Mock private ToolbarWidthConsumer mLocationBarZoomButtonWidthConsumer;
+    @Mock private WindowAndroid mWindowAndroid;
 
     private Activity mActivity;
     private ToolbarTablet mToolbarTablet;
@@ -371,7 +373,8 @@ public final class ToolbarTabletUnitTest {
                 mSigninButtonCoordinator,
                 mThemeColorProvider,
                 mIncognitoStateProvider,
-                /* incognitoWindowCountSupplier= */ () -> 1);
+                /* incognitoWindowCountSupplier= */ () -> 1,
+                mWindowAndroid);
         when(mToolbarDataProvider.getNewTabPageDelegate()).thenReturn(mNewTabPageDelegate);
         when(mToolbarDataProvider.isIncognitoBranded()).thenReturn(true);
         mToolbarTablet.onTabOrModelChanged();
@@ -478,7 +481,8 @@ public final class ToolbarTabletUnitTest {
                 mSigninButtonCoordinator,
                 mThemeColorProvider,
                 mIncognitoStateProvider,
-                /* incognitoWindowCountSupplier= */ () -> 1);
+                /* incognitoWindowCountSupplier= */ () -> 1,
+                mWindowAndroid);
         when(mToolbarDataProvider.getNewTabPageDelegate()).thenReturn(mNewTabPageDelegate);
         when(mToolbarDataProvider.isIncognitoBranded()).thenReturn(true);
         mToolbarTablet.onTabOrModelChanged();
@@ -598,7 +602,8 @@ public final class ToolbarTabletUnitTest {
                 mSigninButtonCoordinator,
                 mThemeColorProvider,
                 mIncognitoStateProvider,
-                /* incognitoWindowCountSupplier= */ () -> 1);
+                /* incognitoWindowCountSupplier= */ () -> 1,
+                mWindowAndroid);
         ImageButton btn = mToolbarTablet.findViewById(R.id.forward_button);
 
         doReturn(null).when(mToolbarDataProvider).getTab();
@@ -919,7 +924,7 @@ public final class ToolbarTabletUnitTest {
                         padding + 7 * buttonWidth + locationBarMidWidth, EXACTLY),
                 UNSPECIFIED);
         assertToolbarComponentsReceivedWidth(
-                Set.of(PADDING, MENU, TAB_SWITCHER, BACK, INCOGNITO_INDICATOR, SIGNIN_BUTTON));
+                Set.of(PADDING, MENU, TAB_SWITCHER, BACK, INCOGNITO_INDICATOR, ADAPTIVE_BUTTON));
 
         mToolbarTablet.onMeasure(
                 MeasureSpec.makeMeasureSpec(
@@ -1146,7 +1151,7 @@ public final class ToolbarTabletUnitTest {
                         padding + 7 * buttonWidth + locationBarMidWidth, EXACTLY),
                 UNSPECIFIED);
         assertToolbarComponentsReceivedWidth(
-                Set.of(PADDING, MENU, TAB_SWITCHER, BACK, INCOGNITO_INDICATOR, SIGNIN_BUTTON));
+                Set.of(PADDING, MENU, TAB_SWITCHER, BACK, INCOGNITO_INDICATOR, ADAPTIVE_BUTTON));
 
         mToolbarTablet.onMeasure(
                 MeasureSpec.makeMeasureSpec(

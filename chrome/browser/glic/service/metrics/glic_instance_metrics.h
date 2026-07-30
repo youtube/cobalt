@@ -126,7 +126,7 @@ enum class GlicInstanceEvent {
   kShown = 47,
   kOpen = 48,
   kWebUiStateWarmed = 49,
-  kOpen2 = 50,
+  // kOpen2 = 50 - Only used in Canary M150
   kWebUiStateLocationMismatch = 51,
   kWebUiStateIneligibleAccount = 52,
   kMaxValue = kWebUiStateIneligibleAccount,
@@ -261,9 +261,7 @@ class GlicInstanceMetrics : public GlicInstanceMetricsBackwardsCompatibility {
 
   // Called when the UI is shown and it was not already showing for this
   // instance.
-  void OnOpen(glic::mojom::InvocationSource source,
-              const ShowOptions& options,
-              bool should_log_old_metric = true);
+  void OnOpen(glic::mojom::InvocationSource source, const ShowOptions& options);
 
   // Returns true if this is the first time this specific embedder is becoming
   // visible after being opened/closed.
@@ -306,9 +304,6 @@ class GlicInstanceMetrics : public GlicInstanceMetricsBackwardsCompatibility {
 
   void OnUserResizeStarted(const gfx::Size& start_size);
   void OnUserResizeEnded(const gfx::Size& end_size);
-
-  void OnSelectionAreasChanged(int count);
-  void OnPolylinePointsChanged(const std::vector<int>& counts);
 
   void OnZoomLevelChange();
 
@@ -449,10 +444,6 @@ class GlicInstanceMetrics : public GlicInstanceMetricsBackwardsCompatibility {
   // The number of scroll attempts (tracked per session and reset when the
   // session ends).
   int scroll_attempt_count_ = 0;
-
-  // Whether region selection is active.
-  int selection_areas_count_ = 0;
-  std::vector<int> polyline_point_counts_;
 
   // The number of zoom change attempts (tracked per instance and reset when
   // the instance is destroyed).

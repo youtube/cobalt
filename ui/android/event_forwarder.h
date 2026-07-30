@@ -90,6 +90,7 @@ class UI_ANDROID_EXPORT EventForwarder {
   void OnMouseWheelEvent(JNIEnv* env,
                          const base::android::JavaRef<jobject>& motion_event,
                          int64_t time_ns,
+                         int32_t action,
                          float x,
                          float y,
                          float raw_x,
@@ -125,6 +126,8 @@ class UI_ANDROID_EXPORT EventForwarder {
   void RemoveObserver(Observer* observer);
 
   gfx::PointF GetCurrentTouchSequenceOffset();
+
+  base::ObserverList<Observer>& GetObserversForTesting() { return observers_; }
 
  private:
   friend class ViewAndroid;

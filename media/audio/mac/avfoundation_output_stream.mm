@@ -69,8 +69,11 @@ base::apple::ScopedCFTypeRef<CMBlockBufferRef> CreateBlockBuffer(
     return base::apple::ScopedCFTypeRef<CMBlockBufferRef>(nullptr);
   }
 
-  bus.ToInterleaved<Float32SampleTypeTraits>(
-      frames_filled, reinterpret_cast<float*>(data_ptr));
+  // SAFETY: `data_ptr` points to a memory block in `block_buffer` which was
+  // allocated with size `data_size` in CMBlockBufferAppendMemoryBlock above.
+  auto data_span = UNSAFE_BUFFERS(base::span<char>(data_ptr, data_size));
+  bus.ToInterleavedBytes<Float32SampleTypeTraits>(
+      base::as_writable_bytes(data_span));
   return block_buffer;
 }
 
@@ -92,6 +95,7 @@ AVFoundationOutputStream::AVFoundationOutputStream(
       callback_(nullptr),
       objc_storage_(std::make_unique<ObjCStorage>()),
       audio_bus_(AudioBus::Create(params)) {
+  CHECK(params_.IsValid());
   DVLOG(1)
       << __func__
       << ": Initializing AVFoundationOutputStream with these AudioParameters:: "
@@ -144,6 +148,10 @@ bool AVFoundationOutputStream::Open() {
 
   auto scoped_layout = ChannelLayoutToAudioChannelLayout(
       params_.channel_layout(), params_.channels());
+  if (!scoped_layout) {
+    LOG(ERROR) << "Failed to create audio channel layout.";
+    return false;
+  }
 
   OSStatus status = CMAudioFormatDescriptionCreate(
       /*allocator=*/kCFAllocatorDefault,

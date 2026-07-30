@@ -10,6 +10,8 @@
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
+#include "chrome/app/vector_icons/vector_icons.h"
+#include "chrome/browser/autocomplete/chrome_autocomplete_scheme_classifier.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window.h"
@@ -20,21 +22,22 @@
 #include "chrome/browser/ui/omnibox/omnibox_edit_model.h"
 #include "chrome/browser/ui/omnibox/omnibox_next_features.h"
 #include "chrome/browser/ui/omnibox/omnibox_popup_state_manager.h"
-#include "chrome/browser/autocomplete/chrome_autocomplete_scheme_classifier.h"
-#include "components/omnibox/browser/autocomplete_input.h"
 #include "chrome/browser/ui/omnibox/test_omnibox_popup_file_selector.h"
+#include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/drive_picker_host/drive_picker_result_handler.mojom.h"
 #include "chrome/browser/ui/views/location_bar/omnibox_popup_file_selector.h"
 #include "chrome/browser/ui/webui/cr_components/composebox/composebox_handler.h"
 #include "chrome/browser/ui/webui/omnibox_popup/omnibox_popup_ui.h"
 #include "chrome/browser/ui/webui/omnibox_popup/omnibox_popup_web_contents_helper.h"
+#include "chrome/browser/ui/webui/searchbox/searchbox_test_utils.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/omnibox/browser/aim_eligibility_service_features.h"
+#include "components/omnibox/browser/autocomplete_input.h"
 #include "components/omnibox/common/omnibox_metrics_utils.h"
 #include "components/prefs/testing_pref_service.h"
 #include "content/public/browser/web_contents.h"
@@ -45,6 +48,7 @@
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "third_party/omnibox_proto/tool_mode.pb.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/gfx/native_ui_types.h"
 #include "ui/menus/simple_menu_model.h"
 
@@ -413,9 +417,9 @@ IN_PROC_BROWSER_TEST_F(OmniboxContextMenuControllerPecBrowserTest,
 
   omnibox::InputState test_state;
   // Explicitly allow Gemini Pro and Auto models.
-  test_state.allowed_models.push_back(
+  test_state.allowed_models.emplace_back(
       omnibox::ModelMode::MODEL_MODE_GEMINI_PRO);
-  test_state.allowed_models.push_back(
+  test_state.allowed_models.emplace_back(
       omnibox::ModelMode::MODEL_MODE_GEMINI_PRO_AUTOROUTE);
   handler->input_state_model()->set_state_for_testing(test_state);
 
@@ -475,8 +479,8 @@ IN_PROC_BROWSER_TEST_F(OmniboxContextMenuControllerPecBrowserTest,
   auto* handler = popup_ui->composebox_handler();
 
   omnibox::InputState test_state;
-  test_state.allowed_tools.push_back(omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH);
-  test_state.allowed_tools.push_back(omnibox::ToolMode::TOOL_MODE_IMAGE_GEN);
+  test_state.allowed_tools.emplace_back(omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH);
+  test_state.allowed_tools.emplace_back(omnibox::ToolMode::TOOL_MODE_IMAGE_GEN);
   handler->input_state_model()->set_state_for_testing(test_state);
 
   // Create the controller after the state is injected.
@@ -533,7 +537,7 @@ IN_PROC_BROWSER_TEST_F(OmniboxContextMenuControllerPecBrowserTest,
   ASSERT_TRUE(handler->input_state_model());
 
   omnibox::InputState test_state;
-  test_state.allowed_input_types.push_back(
+  test_state.allowed_input_types.emplace_back(
       omnibox::InputType::INPUT_TYPE_DRIVE);
   test_state.max_total_inputs = 5;
   handler->input_state_model()->set_state_for_testing(test_state);
@@ -575,7 +579,7 @@ IN_PROC_BROWSER_TEST_F(OmniboxContextMenuControllerPecBrowserTest,
   file->mime_type = "image/png";
   file->type = "photo";
   file->size_bytes = 1000;
-  files.push_back(std::move(file));
+  files.emplace_back(std::move(file));
 
   handler->OnSelection(std::move(files));
 
@@ -607,7 +611,7 @@ IN_PROC_BROWSER_TEST_F(OmniboxContextMenuControllerPecBrowserTest,
   ASSERT_TRUE(handler->input_state_model());
 
   omnibox::InputState test_state;
-  test_state.allowed_input_types.push_back(
+  test_state.allowed_input_types.emplace_back(
       omnibox::InputType::INPUT_TYPE_DRIVE);
   handler->input_state_model()->set_state_for_testing(test_state);
 
@@ -665,7 +669,7 @@ IN_PROC_BROWSER_TEST_F(OmniboxContextMenuControllerPecBrowserTest,
   ASSERT_TRUE(handler->input_state_model());
 
   omnibox::InputState test_state;
-  test_state.allowed_input_types.push_back(
+  test_state.allowed_input_types.emplace_back(
       omnibox::InputType::INPUT_TYPE_DRIVE);
   handler->input_state_model()->set_state_for_testing(test_state);
 
@@ -719,7 +723,7 @@ IN_PROC_BROWSER_TEST_F(OmniboxContextMenuControllerPecBrowserTest,
   ASSERT_TRUE(handler->input_state_model());
 
   omnibox::InputState test_state;
-  test_state.allowed_input_types.push_back(
+  test_state.allowed_input_types.emplace_back(
       omnibox::InputType::INPUT_TYPE_DRIVE);
   handler->input_state_model()->set_state_for_testing(test_state);
 
@@ -757,4 +761,475 @@ IN_PROC_BROWSER_TEST_F(OmniboxContextMenuControllerPecBrowserTest,
 
   EXPECT_EQ(OmniboxPopupState::kAim,
             omnibox_controller->popup_state_manager()->popup_state());
+}
+
+IN_PROC_BROWSER_TEST_F(OmniboxContextMenuControllerPecBrowserTest,
+                       ModelPickerCheckmark) {
+  // Navigate the initial tab to the popup URL.
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), GURL(chrome::kChromeUIOmniboxPopupAimURL)));
+  auto* web_contents = GetWebContents();
+
+  auto check_icon = ui::ImageModel::FromVectorIcon(
+      features::IsRoundedIconsEnabled() ? kCheckIcon : kCheckOldIcon,
+      ui::kColorMenuIcon, ui::SimpleMenuModel::kDefaultIconSize);
+
+  // Set the popup state to composebox AIM so that session handle and composebox
+  // handler are active.
+  auto* omnibox_controller =
+      OmniboxPopupWebContentsHelper::FromWebContents(web_contents)
+          ->get_omnibox_controller();
+  ASSERT_TRUE(omnibox_controller);
+  omnibox_controller->popup_state_manager()->SetPopupState(
+      OmniboxPopupState::kAim);
+
+  // Configure active and allowed AI models.
+  omnibox::InputState input_state;
+  input_state.allowed_models.emplace_back(
+      omnibox::ModelMode::MODEL_MODE_GEMINI_PRO);
+  input_state.allowed_models.emplace_back(
+      omnibox::ModelMode::MODEL_MODE_GEMINI_PRO_NO_GEN_UI);
+  input_state.active_model =
+      omnibox::ModelMode::MODEL_MODE_GEMINI_PRO_NO_GEN_UI;
+
+  // Set up the context menu with the allowed AI models in input state.
+  auto* web_ui = web_contents->GetWebUI();
+  auto* popup_ui = web_ui->GetController()->GetAs<OmniboxPopupUI>();
+  auto* handler = popup_ui->composebox_handler();
+  ASSERT_TRUE(handler);
+  ASSERT_TRUE(handler->input_state_model());
+  handler->input_state_model()->set_state_for_testing(input_state);
+
+  auto owning_window = browser()->window()->GetNativeWindow();
+  auto omnibox_popup_file_selector =
+      std::make_unique<OmniboxPopupFileSelector>(owning_window);
+
+  OmniboxContextMenuController controller(omnibox_popup_file_selector.get(),
+                                          web_contents);
+
+  ui::SimpleMenuModel* model = controller.menu_model();
+
+  // Find command ID for Pro AI mode.
+  int pro_command_id = -1;
+  for (const auto& pair : controller.model_for_command_id_) {
+    if (pair.second == omnibox::ModelMode::MODEL_MODE_GEMINI_PRO) {
+      pro_command_id = pair.first;
+      break;
+    }
+  }
+  ASSERT_NE(pro_command_id, -1);
+
+  // Find command ID for Fast AI mode.
+  int fast_command_id = -1;
+  for (const auto& pair : controller.model_for_command_id_) {
+    if (pair.second == omnibox::ModelMode::MODEL_MODE_GEMINI_PRO_NO_GEN_UI) {
+      fast_command_id = pair.first;
+      break;
+    }
+  }
+  ASSERT_NE(fast_command_id, -1);
+
+  // Verify AI Fast mode checkmark is on the right hand side.
+  {
+    std::optional<size_t> index = model->GetIndexOfCommandId(fast_command_id);
+    ASSERT_TRUE(index.has_value());
+    // Checkmark is not empty.
+    EXPECT_FALSE(model->GetMinorIconAt(index.value()).IsEmpty());
+    // LHS icon is still the model icon, not the checkmark.
+    EXPECT_FALSE(model->GetIconAt(index.value()).IsEmpty());
+    EXPECT_NE(model->GetIconAt(index.value()), check_icon);
+  }
+
+  // Verify AI Pro checkmark is not shown.
+  {
+    std::optional<size_t> index = model->GetIndexOfCommandId(pro_command_id);
+    ASSERT_TRUE(index.has_value());
+    EXPECT_TRUE(model->GetMinorIconAt(index.value()).IsEmpty());
+    // LHS icon is still the model icon.
+    EXPECT_FALSE(model->GetIconAt(index.value()).IsEmpty());
+    EXPECT_NE(model->GetIconAt(index.value()), check_icon);
+  }
+
+  // Assert internal browser process state is set to Fast mode.
+  EXPECT_EQ(omnibox::ModelMode::MODEL_MODE_GEMINI_PRO_NO_GEN_UI,
+            handler->input_state_model()->GetInputState().active_model);
+
+  // Select AI Pro model.
+  controller.ExecuteCommand(pro_command_id, 0);
+
+  // Verify the state is changed in the browser process internal state.
+  {
+    EXPECT_EQ(omnibox::ModelMode::MODEL_MODE_GEMINI_PRO,
+              handler->input_state_model()->GetInputState().active_model);
+
+    // Recreate controller to build menu with updated state.
+    OmniboxContextMenuController new_controller(
+        omnibox_popup_file_selector.get(), web_contents);
+    ui::SimpleMenuModel* new_model = new_controller.menu_model();
+
+    // Verify the checkmark exists for AI Pro mode.
+    std::optional<size_t> pro_index =
+        new_model->GetIndexOfCommandId(pro_command_id);
+    ASSERT_TRUE(pro_index.has_value());
+    EXPECT_FALSE(new_model->GetMinorIconAt(pro_index.value()).IsEmpty());
+    // LHS icon is still the model icon.
+    EXPECT_FALSE(new_model->GetIconAt(pro_index.value()).IsEmpty());
+    EXPECT_NE(new_model->GetIconAt(pro_index.value()), check_icon);
+
+    // Verify the checkmark does not exist for AI Fast mode.
+    std::optional<size_t> index =
+        new_model->GetIndexOfCommandId(fast_command_id);
+    ASSERT_TRUE(index.has_value());
+    EXPECT_TRUE(new_model->GetMinorIconAt(index.value()).IsEmpty());
+    // LHS icon is still the model icon.
+    EXPECT_FALSE(new_model->GetIconAt(index.value()).IsEmpty());
+    EXPECT_NE(new_model->GetIconAt(index.value()), check_icon);
+
+    // Select AI Fast Model.
+    new_controller.ExecuteCommand(fast_command_id, 0);
+  }
+
+  // Verify the state is changed in the internal state of the browser process.
+  {
+    EXPECT_EQ(omnibox::ModelMode::MODEL_MODE_GEMINI_PRO_NO_GEN_UI,
+              handler->input_state_model()->GetInputState().active_model);
+
+    // Recreate controller to update UI.
+    OmniboxContextMenuController final_controller(
+        omnibox_popup_file_selector.get(), web_contents);
+    ui::SimpleMenuModel* final_model = final_controller.menu_model();
+
+    // Verify the checkmark exists for AI Fast mode.
+    std::optional<size_t> index =
+        final_model->GetIndexOfCommandId(fast_command_id);
+    ASSERT_TRUE(index.has_value());
+    EXPECT_FALSE(final_model->GetMinorIconAt(index.value()).IsEmpty());
+    // LHS icon is still the model icon.
+    EXPECT_FALSE(final_model->GetIconAt(index.value()).IsEmpty());
+    EXPECT_NE(final_model->GetIconAt(index.value()), check_icon);
+
+    // Verify the checkmark does not exist for AI Pro mode.
+    std::optional<size_t> pro_index =
+        final_model->GetIndexOfCommandId(pro_command_id);
+    ASSERT_TRUE(pro_index.has_value());
+    EXPECT_TRUE(final_model->GetMinorIconAt(pro_index.value()).IsEmpty());
+    // LHS icon is still the model icon.
+    EXPECT_FALSE(final_model->GetIconAt(pro_index.value()).IsEmpty());
+    EXPECT_NE(final_model->GetIconAt(pro_index.value()), check_icon);
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(OmniboxContextMenuControllerBrowserTest,
+                       RecentTabsCheckmarkToggle) {
+  // Navigate the initial tab to the popup URL.
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), GURL(chrome::kChromeUIOmniboxPopupAimURL)));
+  auto* web_contents = GetWebContents();
+
+  // Set the popup state to composebox so that session handle and
+  // composebox handler are active.
+  auto* omnibox_controller =
+      OmniboxPopupWebContentsHelper::FromWebContents(web_contents)
+          ->get_omnibox_controller();
+  ASSERT_TRUE(omnibox_controller);
+  omnibox_controller->popup_state_manager()->SetPopupState(
+      OmniboxPopupState::kAim);
+
+  // Get the test URL.
+  GURL url(embedded_test_server()->GetURL("/title1.html"));
+
+  // Set up an override to construct `MockTabContextualizationController`
+  // to mock the context of the tab.
+  ui::UserDataFactory::ScopedOverride controller_override =
+      tabs::TabFeatures::GetUserDataFactoryForTesting().AddOverrideForTesting(
+          base::BindRepeating(
+              [](GURL url, tabs::TabInterface& tab)
+                  -> std::unique_ptr<lens::TabContextualizationController> {
+                auto mock =
+                    std::make_unique<MockTabContextualizationController>(&tab);
+                EXPECT_CALL(*mock, GetPageContext)
+                    .WillOnce([url](lens::TabContextualizationController::
+                                        GetPageContextCallback callback) {
+                      auto data = std::make_unique<lens::ContextualInputData>();
+                      data->is_page_context_eligible = true;
+                      data->page_url = url;
+                      data->page_title = "Title 1";
+                      data->primary_content_type =
+                          lens::MimeType::kAnnotatedPageContent;
+                      std::move(callback).Run(std::move(data));
+                    });
+                return mock;
+              },
+              url));
+
+  // Add a recent tab (created with the mock controller) in the background.
+  ASSERT_TRUE(AddTabAtIndexToBrowser(browser(), 1, url,
+                                     ui::PAGE_TRANSITION_TYPED,
+                                     /*check_navigation_success=*/false));
+
+  auto owning_window = browser()->window()->GetNativeWindow();
+  auto omnibox_popup_file_selector =
+      std::make_unique<OmniboxPopupFileSelector>(owning_window);
+
+  // Initial State: Tab is not added (unchecked).
+  {
+    auto* web_ui = web_contents->GetWebUI();
+    auto* popup_ui = web_ui->GetController()->GetAs<OmniboxPopupUI>();
+    auto* handler = popup_ui->composebox_handler();
+    ASSERT_TRUE(handler);
+    EXPECT_TRUE(handler->selected_tabs.empty());
+
+    OmniboxContextMenuController controller(omnibox_popup_file_selector.get(),
+                                            web_contents);
+    ui::SimpleMenuModel* model = controller.menu_model();
+
+    // Find the recent tab item in the menu.
+    std::optional<size_t> index =
+        model->GetIndexOfCommandId(kMinOmniboxContextMenuRecentTabsCommandId);
+    ASSERT_TRUE(index.has_value());
+
+    // Verify that the minor icon is empty (not checked).
+    EXPECT_TRUE(model->GetMinorIconAt(index.value()).IsEmpty());
+  }
+
+  // Select the tab -> This should add the tab to the context (stage it).
+  {
+    tabs::TabInterface* tab = browser()->tab_strip_model()->GetTabAtIndex(1);
+    ASSERT_TRUE(tab);
+    int32_t tab_id = tab->GetHandle().raw_value();
+
+    auto* web_ui = web_contents->GetWebUI();
+    auto* popup_ui = web_ui->GetController()->GetAs<OmniboxPopupUI>();
+    auto* handler = popup_ui->composebox_handler();
+    ASSERT_TRUE(handler);
+
+    // Stage the tab directly via C++ handler.
+    handler->AddTabContext(tab_id, /*delay_upload=*/false, base::DoNothing());
+
+    // Verify the tab is staged for upload in C++ tracking.
+    EXPECT_EQ(1u, handler->selected_tabs.size());
+    EXPECT_EQ(tab_id, handler->selected_tabs.begin()->second);
+  }
+
+  // Verify the tab is now checked (has minor icon).
+  {
+    OmniboxContextMenuController controller(omnibox_popup_file_selector.get(),
+                                            web_contents);
+    ui::SimpleMenuModel* model = controller.menu_model();
+
+    std::optional<size_t> index =
+        model->GetIndexOfCommandId(kMinOmniboxContextMenuRecentTabsCommandId);
+    ASSERT_TRUE(index.has_value());
+
+    // Verify that the minor icon is not empty (it has the checkmark),
+    EXPECT_FALSE(model->GetMinorIconAt(index.value()).IsEmpty());
+  }
+
+  // Select the tab again -> This should remove/uncheck it from the context.
+  {
+    OmniboxContextMenuController controller(omnibox_popup_file_selector.get(),
+                                            web_contents);
+    // Execute command on already checked tab should toggle it off
+    controller.ExecuteCommand(kMinOmniboxContextMenuRecentTabsCommandId, 0);
+  }
+
+  // Verify the tab is now unchecked again.
+  {
+    auto* web_ui = web_contents->GetWebUI();
+    auto* popup_ui = web_ui->GetController()->GetAs<OmniboxPopupUI>();
+    auto* handler = popup_ui->composebox_handler();
+    ASSERT_TRUE(handler);
+    // Verify the tab is removed from C++ tracking for staged uploads.
+    EXPECT_TRUE(handler->selected_tabs.empty());
+
+    OmniboxContextMenuController controller(omnibox_popup_file_selector.get(),
+                                            web_contents);
+    ui::SimpleMenuModel* model = controller.menu_model();
+
+    std::optional<size_t> index =
+        model->GetIndexOfCommandId(kMinOmniboxContextMenuRecentTabsCommandId);
+    ASSERT_TRUE(index.has_value());
+
+    // Verify that the minor icon is empty again.
+    EXPECT_TRUE(model->GetMinorIconAt(index.value()).IsEmpty());
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(OmniboxContextMenuControllerBrowserTest,
+                       SortTabsWithCheckedFirst) {
+  // Navigate the initial tab to the popup URL.
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), GURL(chrome::kChromeUIOmniboxPopupAimURL)));
+  auto* web_contents = GetWebContents();
+
+  // Set the popup state to composebox (AIM) so that session handle and
+  // composebox handler are active.
+  auto* omnibox_controller =
+      OmniboxPopupWebContentsHelper::FromWebContents(web_contents)
+          ->get_omnibox_controller();
+  ASSERT_TRUE(omnibox_controller);
+  omnibox_controller->popup_state_manager()->SetPopupState(
+      OmniboxPopupState::kAim);
+
+  // Set up an override to construct `MockTabContextualizationController`
+  // for all tabs in this test.
+  ui::UserDataFactory::ScopedOverride controller_override =
+      tabs::TabFeatures::GetUserDataFactoryForTesting().AddOverrideForTesting(
+          base::BindRepeating(
+              [](tabs::TabInterface& tab)
+                  -> std::unique_ptr<lens::TabContextualizationController> {
+                auto mock =
+                    std::make_unique<MockTabContextualizationController>(&tab);
+                EXPECT_CALL(*mock, GetPageContext)
+                    .WillRepeatedly([&tab](
+                                        lens::TabContextualizationController::
+                                            GetPageContextCallback callback) {
+                      auto data = std::make_unique<lens::ContextualInputData>();
+                      data->is_page_context_eligible = true;
+                      data->page_url = tab.GetContents()->GetLastCommittedURL();
+                      data->page_title = "Title";
+                      data->primary_content_type =
+                          lens::MimeType::kAnnotatedPageContent;
+                      std::move(callback).Run(std::move(data));
+                    });
+                return mock;
+              }));
+
+  // Add three tabs.
+  GURL url1(embedded_test_server()->GetURL("/title2.html"));
+  ASSERT_TRUE(AddTabAtIndexToBrowser(browser(), 1, url1,
+                                     ui::PAGE_TRANSITION_TYPED,
+                                     /*check_navigation_success=*/false));
+
+  GURL url2(embedded_test_server()->GetURL("/title3.html"));
+  ASSERT_TRUE(AddTabAtIndexToBrowser(browser(), 2, url2,
+                                     ui::PAGE_TRANSITION_TYPED,
+                                     /*check_navigation_success=*/false));
+
+  GURL url3(embedded_test_server()->GetURL("/simple.html"));
+  ASSERT_TRUE(AddTabAtIndexToBrowser(browser(), 3, url3,
+                                     ui::PAGE_TRANSITION_TYPED,
+                                     /*check_navigation_success=*/false));
+
+  // Order of activation/recency: 3, then 2, then 1 (making 1 active/most
+  // recent).
+  browser()->tab_strip_model()->ActivateTabAt(3);
+  browser()->tab_strip_model()->ActivateTabAt(2);
+  browser()->tab_strip_model()->ActivateTabAt(1);
+
+  tabs::TabInterface* tab2 = browser()->tab_strip_model()->GetTabAtIndex(2);
+  int32_t tab2_id = tab2->GetHandle().raw_value();
+  tabs::TabInterface* tab3 = browser()->tab_strip_model()->GetTabAtIndex(3);
+  int32_t tab3_id = tab3->GetHandle().raw_value();
+
+  auto owning_window = browser()->window()->GetNativeWindow();
+  auto omnibox_popup_file_selector =
+      std::make_unique<OmniboxPopupFileSelector>(owning_window);
+
+  auto* web_ui = web_contents->GetWebUI();
+  auto* popup_ui = web_ui->GetController()->GetAs<OmniboxPopupUI>();
+  auto* handler = popup_ui->composebox_handler();
+  ASSERT_TRUE(handler);
+
+  // Helper lambda to get tab items from the menu.
+  auto get_tab_items = [&]() {
+    OmniboxContextMenuController controller(omnibox_popup_file_selector.get(),
+                                            web_contents);
+    std::vector<std::pair<std::u16string, bool>> items;
+    ui::SimpleMenuModel* target_model =
+        controller.shared_tabs_menu_model()
+            ? controller.shared_tabs_menu_model()
+            : controller.menu_model();
+
+    for (size_t i = 0; i < target_model->GetItemCount(); ++i) {
+      int command_id = target_model->GetCommandIdAt(i);
+      if (command_id >= kMinOmniboxContextMenuRecentTabsCommandId &&
+          command_id < kMinOmniboxContextMenuRecentTabsCommandId +
+                           controller.GetMaxTabSuggestions()) {
+        bool has_checkmark = !target_model->GetMinorIconAt(i).IsEmpty();
+        items.emplace_back(target_model->GetLabelAt(i), has_checkmark);
+      }
+    }
+    return items;
+  };
+
+  // Initially, all tabs are unchecked. Sorting should be based on
+  // recency/active. Tab 1 is currently active/most recent.
+  {
+    auto tab_items = get_tab_items();
+    ASSERT_EQ(3u, tab_items.size());
+    EXPECT_EQ(tab_items[0].first, u"Title Of Awesomeness");  // Tab 1
+    EXPECT_FALSE(tab_items[0].second);
+    EXPECT_EQ(tab_items[1].first, u"Title Of More Awesomeness");  // Tab 2
+    EXPECT_FALSE(tab_items[1].second);
+    EXPECT_EQ(tab_items[2].first, u"OK");  // Tab 3
+    EXPECT_FALSE(tab_items[2].second);
+  }
+
+  // Click on tab 3, making its checkmark appear.
+  handler->AddTabContext(tab3_id, /*delay_upload=*/false, base::DoNothing());
+
+  // Now, Tab 3 should be sorted second since tab 2
+  // is also checked (selected) but more recent than tab 3. Tab 1 is most
+  // recent, but it is not checked (not selected), so it goes after the checked
+  // tabs.
+  {
+    auto tab_items = get_tab_items();
+    ASSERT_EQ(3u, tab_items.size());
+    // Tab 2: Checked and more recent:
+    EXPECT_EQ(tab_items[2].first, u"Title Of More Awesomeness");
+    EXPECT_FALSE(tab_items[2].second);
+    // Tab 3 (checked): Selected and less recent:
+    EXPECT_EQ(tab_items[0].first, u"OK");  // Tab 3 (checked)
+    EXPECT_TRUE(tab_items[0].second);
+    // Tab 1 (unchecked): Most recent but unselected:
+    EXPECT_EQ(tab_items[1].first, u"Title Of Awesomeness");
+    EXPECT_FALSE(tab_items[1].second);
+  }
+
+  // Stage (check/select) Tab 2 for upload as well.
+  handler->AddTabContext(tab2_id, /*delay_upload=*/false, base::DoNothing());
+
+  // Now, both Tab 2 and Tab 3 are checked.
+  // Tab 2 is more recent than Tab 3, so order should be: Tab 2, Tab 3, Tab 1.
+  {
+    auto tab_items = get_tab_items();
+    ASSERT_EQ(3u, tab_items.size());
+    // Tab 2 (checked, more recent):
+    EXPECT_EQ(tab_items[0].first, u"Title Of More Awesomeness");
+    EXPECT_TRUE(tab_items[0].second);
+    // Tab 3 (checked, less recent):
+    EXPECT_EQ(tab_items[1].first, u"OK");
+    EXPECT_TRUE(tab_items[1].second);
+    // Tab 1 (unchecked):
+    EXPECT_EQ(tab_items[2].first, u"Title Of Awesomeness");
+    EXPECT_FALSE(tab_items[2].second);
+  }
+
+  // Delete Tab 2 from staged tabs.
+  // Find token of Tab 2.
+  base::UnguessableToken tab2_token;
+  for (const auto& pair : handler->selected_tabs) {
+    if (pair.second == tab2_id) {
+      tab2_token = pair.first;
+      break;
+    }
+  }
+  ASSERT_FALSE(tab2_token.is_empty());
+  handler->DeleteContextFromBrowser(tab2_token, /*from_automatic_chip=*/false);
+
+  // Now only Tab 3 is checked. Order should be: Tab 3, Tab 1, Tab 2.
+  {
+    auto tab_items = get_tab_items();
+    ASSERT_EQ(3u, tab_items.size());
+    // Tab 3 (checked):
+    EXPECT_EQ(tab_items[0].first, u"OK");
+    EXPECT_TRUE(tab_items[0].second);
+    // Tab 1 (unchecked, more recent):
+    EXPECT_EQ(tab_items[1].first, u"Title Of Awesomeness");
+    EXPECT_FALSE(tab_items[1].second);
+    // Tab 2 (unchecked, less recent):
+    EXPECT_EQ(tab_items[2].first, u"Title Of More Awesomeness");
+    EXPECT_FALSE(tab_items[2].second);
+  }
 }

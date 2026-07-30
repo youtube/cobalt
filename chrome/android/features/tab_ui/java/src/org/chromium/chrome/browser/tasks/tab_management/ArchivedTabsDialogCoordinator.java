@@ -57,12 +57,13 @@ import org.chromium.chrome.browser.tabmodel.TabCreator;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelSelectorBase;
 import org.chromium.chrome.browser.tabmodel.TabModelUtils;
+import org.chromium.chrome.browser.tasks.tab_management.TabActionButtonData.TabActionButtonType;
 import org.chromium.chrome.browser.tasks.tab_management.TabListCoordinator.TabListItemSizeChangedObserver;
 import org.chromium.chrome.browser.tasks.tab_management.TabListCoordinator.TabListMode;
 import org.chromium.chrome.browser.tasks.tab_management.TabListEditorCoordinator.CreationMode;
 import org.chromium.chrome.browser.tasks.tab_management.TabListEditorCoordinator.NavigationProvider;
 import org.chromium.chrome.browser.tasks.tab_management.TabListEditorCoordinator.TabListEditorController;
-import org.chromium.chrome.browser.tasks.tab_management.TabListMediator.GridCardOnClickListenerProvider;
+import org.chromium.chrome.browser.tasks.tab_management.TabListMediator.TabListItemOnClickListenerProvider;
 import org.chromium.chrome.browser.tasks.tab_management.TabProperties.TabActionState;
 import org.chromium.chrome.browser.tasks.tab_management.TabProperties.UiType;
 import org.chromium.chrome.browser.tasks.tab_management.TabSwitcherMessageManager.MessageType;
@@ -225,8 +226,8 @@ public class ArchivedTabsDialogCoordinator implements SnackbarManager.SnackbarMa
             };
 
     /** Used to override the default tab click behavior to restore/open the tab. */
-    private final GridCardOnClickListenerProvider mGridCardOnClickListenerProvider =
-            new GridCardOnClickListenerProvider() {
+    private final TabListItemOnClickListenerProvider mTabListItemOnClickListenerProvider =
+            new TabListItemOnClickListenerProvider() {
                 @Nullable
                 @Override
                 public TabActionListener onTabGroupClicked(Tab tab) {
@@ -309,6 +310,22 @@ public class ArchivedTabsDialogCoordinator implements SnackbarManager.SnackbarMa
                                         });
                                 RecordUserAction.record("Tabs.RestoreSingleTab");
                             });
+                }
+
+                @Nullable
+                @Override
+                public Boolean isTabGroupSelected(Tab tab, PropertyModel model) {
+                    return null;
+                }
+
+                @Nullable
+                @Override
+                public TabActionButtonData getTabGroupActionButtonData(
+                        Tab tab,
+                        PropertyModel model,
+                        Supplier<TabActionListener> defaultOverflowListenerSupplier) {
+                    return new TabActionButtonData(
+                            TabActionButtonType.OVERFLOW, defaultOverflowListenerSupplier.get());
                 }
             };
 
@@ -820,7 +837,7 @@ public class ArchivedTabsDialogCoordinator implements SnackbarManager.SnackbarMa
                         mSnackbarManager,
                         /* bottomSheetController= */ null,
                         TabProperties.TabActionState.CLOSABLE,
-                        mGridCardOnClickListenerProvider,
+                        mTabListItemOnClickListenerProvider,
                         mModalDialogManager,
                         mDesktopWindowStateManager,
                         /* edgeToEdgeSupplier= */ null,
@@ -1061,8 +1078,8 @@ public class ArchivedTabsDialogCoordinator implements SnackbarManager.SnackbarMa
         return mDialogView;
     }
 
-    GridCardOnClickListenerProvider getGridCardOnClickListenerProviderForTesting() {
-        return mGridCardOnClickListenerProvider;
+    TabListItemOnClickListenerProvider getTabListItemOnClickListenerProviderForTesting() {
+        return mTabListItemOnClickListenerProvider;
     }
 
     /** Returns the Edge to edge pad adjuster. */

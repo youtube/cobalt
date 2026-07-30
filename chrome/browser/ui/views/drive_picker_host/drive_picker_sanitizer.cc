@@ -4,6 +4,8 @@
 
 #include "chrome/browser/ui/views/drive_picker_host/drive_picker_sanitizer.h"
 
+#include <string_view>
+
 #include "base/containers/fixed_flat_set.h"
 #include "base/logging.h"
 #include "base/strings/string_util.h"
@@ -59,21 +61,72 @@ std::optional<SanitizedDriveFileData> DrivePickerSanitizer::Sanitize(
   }
 
   // Validate Thumbnail URL: Strictly restrict to trusted Google Drive
-  // storage domains and only for photo types.
-  if (file->type == "photo" && file->thumbnail_url) {
+  // storage domains and only for photo and video types.
+  if ((file->type == "photo" || file->type == "video") && file->thumbnail_url) {
     if (IsThumbnailUrlAcceptable(file->thumbnail_url.value())) {
       sanitized.thumbnail_url = file->thumbnail_url;
     } else {
-      DLOG(WARNING) << "Untrusted thumbnail URL blocked: "
+      DLOG(WARNING) << "Untrusted thumbnail URL blocked by C++ sanitizer: "
                     << file->thumbnail_url->spec();
       sanitized.thumbnail_url = std::nullopt;
     }
   } else {
-    // Non-photo types or invalid/missing URLs are nulled out for security.
+    // Non-photo/video types or invalid/missing URLs are nulled out for
+    // security.
     sanitized.thumbnail_url = std::nullopt;
   }
 
+  if (file->icon_url) {
+    sanitized.icon_url = SanitizeDriveIconUrl(file->icon_url->spec());
+    if (sanitized.icon_url->is_empty()) {
+      sanitized.icon_url = std::nullopt;
+    }
+  }
+
   return sanitized;
+}
+
+// static
+GURL DrivePickerSanitizer::SanitizeDriveIconUrl(const std::string& url_string) {
+  GURL url(url_string);
+  if (!url.is_valid()) {
+    return GURL();
+  }
+  if (!url.SchemeIs(url::kHttpsScheme)) {
+    return GURL();
+  }
+
+  static constexpr auto kTrustedHosts =
+      base::MakeFixedFlatSet<std::string_view>({
+          "lh3.googleusercontent.com",
+          "lh4.googleusercontent.com",
+          "lh5.googleusercontent.com",
+          "lh6.googleusercontent.com",
+          "drive-thirdparty.googleusercontent.com",
+      });
+
+  if (!kTrustedHosts.contains(url.host())) {
+    return GURL();
+  }
+
+  // Path must start with /[size]/hype/ or /[size]/type/
+  std::string_view path = url.path();
+  if (path.empty() || path[0] != '/') {
+    return GURL();
+  }
+
+  size_t second_slash = path.find('/', 1);
+  if (second_slash == std::string::npos) {
+    return GURL();
+  }
+  std::string_view remaining_path = path.substr(second_slash + 1);
+
+  if (!base::StartsWith(remaining_path, "hype/") &&
+      !base::StartsWith(remaining_path, "type/")) {
+    return GURL();
+  }
+
+  return url;
 }
 
 // static
@@ -98,15 +151,28 @@ bool DrivePickerSanitizer::IsThumbnailUrlAcceptable(const GURL& url) {
           "lh4.googleusercontent.com",
           "lh5.googleusercontent.com",
           "lh6.googleusercontent.com",
+          "drive.google.com",
       });
 
   if (!kTrustedHosts.contains(url.host())) {
     return false;
   }
 
-  // Path must start with /drive-storage/
-  if (!base::StartsWith(url.path(), "/drive-storage/",
-                        base::CompareCase::SENSITIVE)) {
+  // For drive.google.com, path must be exactly /thumbnail
+  if (url.host() == "drive.google.com") {
+    return url.path() == "/thumbnail";
+  }
+
+  // Path must start with a valid Google Drive content/thumbnail prefix:
+  // - "/drive-storage/": Direct Drive content/thumbnail endpoint.
+  // - "/d/": Guessable FIFE URL path used to fetch/scale Google Drive files
+  //   (go/fife-urls).
+  //   (e.g., /d/<drive_file_id> or /d/<drive_file_id>=wXXX-hXXX).
+  // - "/rd-d/": Ephemeral redirect authentication path returned as a 302
+  //   when a client attempts to access a private /d/ asset without session
+  //   credentials.
+  if (!url.path().starts_with("/drive-storage/") &&
+      !url.path().starts_with("/d/") && !url.path().starts_with("/rd-d/")) {
     return false;
   }
 

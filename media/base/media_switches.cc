@@ -306,13 +306,15 @@ const char kSystemAecEnabled[] = "system-aec-enabled";
 const char kUseCras[] = "use-cras";
 #endif  // BUILDFLAG(USE_CRAS)
 
-#if BUILDFLAG(USE_V4L2_CODEC)
-// This is needed for V4L2 testing using VISL (virtual driver) on cros VM with
-// arm64-generic-vm. Minigbm buffer allocation is done using dumb driver with
+#if BUILDFLAG(USE_V4L2_CODEC) || BUILDFLAG(USE_VAAPI)
+// This is needed for V4L2/VAAPI testing using VISL or libfake (virtual drivers)
+// on cros VMs. Minigbm buffer allocation is done using the dumb driver with
 // vkms.
 const char kEnablePrimaryNodeAccessForVkmsTesting[] =
     "enable-primary-node-access-for-vkms-testing";
+#endif  // BUILDFLAG(USE_V4L2_CODEC) || BUILDFLAG(USE_VAAPI)
 
+#if BUILDFLAG(USE_V4L2_CODEC)
 // Some (Qualcomm only at the moment) V4L2 video decoders require setting the
 // framerate so that the hardware decoder can scale the clocks efficiently.
 // This provides a mechanism during testing to lock the decoder framerate
@@ -430,7 +432,7 @@ BASE_FEATURE(kUseSCContentSharingPicker, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables application audio capture for getDisplayMedia (gDM) window capture in
 // macOS.
-BASE_FEATURE(kApplicationAudioCaptureMac, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kApplicationAudioCaptureMac, base::FEATURE_ENABLED_BY_DEFAULT);
 
 #endif  // BUILDFLAG(IS_MAC)
 
@@ -763,11 +765,12 @@ BASE_FEATURE(kVaapiIgnoreDriverChecks, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // NVIDIA VA-API drivers do not support Chromium and can sometimes cause
 // crashes, disable VA-API on NVIDIA GPUs by default. See crbug.com/1492880.
-// NVIDIA has committed to helping support hardware acceleration for ARM64
-// linux devices, so on those devices we should enable this by default.
+// NVIDIA has been considering possibly supporting for an improved driver for
+// hardware acceleration for ARM64 linux devices, so we have separated out the
+// feature flag on that architecture.
 BASE_FEATURE(kVaapiOnNvidiaGPUs,
 #if defined(ARCH_CPU_ARM64) && BUILDFLAG(IS_LINUX)
-             base::FEATURE_ENABLED_BY_DEFAULT
+             base::FEATURE_DISABLED_BY_DEFAULT
 #else
              base::FEATURE_DISABLED_BY_DEFAULT
 #endif
@@ -1119,10 +1122,6 @@ BASE_FEATURE(kContextMenuPictureInPictureAndroid,
 // Enables fullscreen video Picture-in-Picture on Android.
 BASE_FEATURE(kFullscreenVideoPictureInPicture,
              base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Enables the use of a Surface (ANativeWindow) as the input for the
-// NdkVideoEncodeAccelerator on Android.
-BASE_FEATURE(kSurfaceInputForAndroidVEA, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables zero-copy video capture on Android.
 BASE_FEATURE(kAndroidZeroCopyVideoCapture, base::FEATURE_DISABLED_BY_DEFAULT);

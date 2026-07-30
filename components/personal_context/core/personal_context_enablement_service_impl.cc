@@ -154,13 +154,19 @@ const base::flat_set<int32_t>& GetPersonalContextEligibleTiers() {
   return true;
 }
 
-// Checks whether miscellaneous "other" requirements (e.g. Geo-IP)
+// Checks whether miscellaneous "other" requirements (e.g. Geo-IP, locale)
 // are satisfied.
 [[nodiscard]] bool SatisfiesMiscellaneousRequirements(
     GeoIpCountryCode country_code,
+    std::string_view locale,
     std::string* debug_message = nullptr) {
   if (country_code != GeoIpCountryCode("US")) {
     MaybeOutputReason(debug_message, "Unsupported GeoIp.");
+    return false;
+  }
+
+  if (locale != "en-US") {
+    MaybeOutputReason(debug_message, "Unsupported locale.");
     return false;
   }
 
@@ -178,13 +184,35 @@ const base::flat_set<int32_t>& GetPersonalContextEligibleTiers() {
     return kDisabledNotEligible;
   }
 
-  if (pref_service->GetBoolean(
-          prefs::kPersonalContextInAutofillNoticeShouldBeShown)) {
-    MaybeOutputReason(debug_message, "Notice not yet acknowledged.");
-    return kDisabledShouldShowNotice;
+  const bool notice_has_been_shown = pref_service->GetBoolean(
+      prefs::kPersonalContextInAutofillNoticeHasBeenShown);
+  const bool notice_should_be_shown = pref_service->GetBoolean(
+      prefs::kPersonalContextInAutofillNoticeShouldBeShown);
+  const bool toggle_is_on = pref_service->GetBoolean(
+      prefs::kPersonalContextInAutofillSettingsToggleStatus);
+
+  if (toggle_is_on) {
+    // The toggle can only be on from the notice having been shown or the user
+    // manually enabling the toggle from settings. If the notice should still
+    // be shown is the only remaining decision maker here.
+    if (notice_should_be_shown) {
+      MaybeOutputReason(debug_message, "Notice not yet acknowledged.");
+      return kEnabledShouldShowNotice;
+    }
+    return kEnabled;
   }
 
-  return kEnabled;
+  if (notice_has_been_shown) {
+    // The toggle being off after the notice has been shown means the feature
+    // was enabled at some point, and the user manually disabled it afterwards.
+    MaybeOutputReason(debug_message, "User disabled via toggle.");
+    return kDisabledViaPersonalIntelligenceInAutofillToggle;
+  }
+
+  // The toggle being off and the notice not having been shown yet means the
+  // feature was never enabled, and the notice should still be shown.
+  MaybeOutputReason(debug_message, "Notice not yet shown.");
+  return kDisabledShouldShowNotice;
 }
 }  // namespace
 
@@ -194,12 +222,14 @@ PersonalContextEnablementServiceImpl::PersonalContextEnablementServiceImpl(
     subscription_eligibility::SubscriptionEligibilityService*
         subscription_eligibility_service,
     PrefService* pref_service,
-    GeoIpCountryCode country_code)
+    GeoIpCountryCode country_code,
+    std::string locale)
     : account_settings_service_(account_settings_service),
       identity_manager_(identity_manager),
       subscription_eligibility_service_(subscription_eligibility_service),
       pref_service_(pref_service),
-      country_code_(std::move(country_code)) {
+      country_code_(std::move(country_code)),
+      locale_(std::move(locale)) {
   if (account_settings_service_) {
     account_settings_observation_.Observe(account_settings_service_);
   }
@@ -214,6 +244,16 @@ PersonalContextEnablementServiceImpl::PersonalContextEnablementServiceImpl(
     pref_registrar_.Init(pref_service_);
     pref_registrar_.Add(
         prefs::kPersonalContextInAutofillNoticeShouldBeShown,
+        base::BindRepeating(
+            &PersonalContextEnablementServiceImpl::UpdateEnablementState,
+            base::Unretained(this)));
+    pref_registrar_.Add(
+        prefs::kPersonalContextInAutofillNoticeHasBeenShown,
+        base::BindRepeating(
+            &PersonalContextEnablementServiceImpl::UpdateEnablementState,
+            base::Unretained(this)));
+    pref_registrar_.Add(
+        prefs::kPersonalContextInAutofillSettingsToggleStatus,
         base::BindRepeating(
             &PersonalContextEnablementServiceImpl::UpdateEnablementState,
             base::Unretained(this)));
@@ -258,7 +298,7 @@ PersonalContextEnablementServiceImpl::ComputeEnablementState() {
     return kDisabledNotEligible;
   }
 
-  if (!SatisfiesMiscellaneousRequirements(country_code_)) {
+  if (!SatisfiesMiscellaneousRequirements(country_code_, locale_)) {
     return kDisabledNotEligible;
   }
 
@@ -271,7 +311,9 @@ PersonalContextEnablementServiceImpl::ComputeEnablementState() {
                ? kDisabledNeedsOptIn
                : kDisabledNotEligible;
   }
-
+  // SatisfiesPreferenceRequirements() needs to be called last: Up to this
+  // point, general eligibility checks have been performed. Only if those are
+  // satifsied, autofill specific prefs should be evaluated.
   return SatisfiesPreferenceRequirements(pref_service_.get());
 }
 
@@ -292,6 +334,10 @@ void PersonalContextEnablementServiceImpl::OnPrimaryAccountChanged(
     if (pref_service_) {
       pref_service_->ClearPref(
           prefs::kPersonalContextInAutofillNoticeShouldBeShown);
+      pref_service_->ClearPref(
+          prefs::kPersonalContextInAutofillNoticeHasBeenShown);
+      pref_service_->ClearPref(
+          prefs::kPersonalContextInAutofillSettingsToggleStatus);
     }
   }
   UpdateEnablementState();

@@ -57,7 +57,7 @@
 #include "third_party/blink/renderer/modules/webcodecs/video_frame_rect_util.h"
 #include "third_party/blink/renderer/platform/geometry/geometry_hash_traits.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_resource_provider.h"
-#include "third_party/blink/renderer/platform/graphics/canvas_snapshot_provider.h"
+#include "third_party/blink/renderer/platform/graphics/canvas_snapshot_info.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/shared_gpu_context.h"
 #include "third_party/blink/renderer/platform/graphics/image.h"
 #include "third_party/blink/renderer/platform/graphics/skia/sk_image_info_hash.h"
@@ -364,7 +364,8 @@ class CanvasNon2DResourceProviderCache
     auto required_provider_info =
         CreateSnapshotProviderInfoForVideoFrame(frame);
     for (const auto& provider : providers_) {
-      if (required_provider_info.Matches(*provider)) {
+      if (provider->IsValid() &&
+          required_provider_info.Matches(provider->GetInfo())) {
         return provider.get();
       }
     }
@@ -1357,8 +1358,9 @@ VideoFrame::CopyToPromise VideoFrame::CopyToAsync(
           resolver->Reject();
         }
       };
-  auto done_cb = BindOnce(readback_done_handler, std::move(contents),
-                          WrapPersistent(resolver), dest_layout);
+  auto done_cb =
+      BindOnce(readback_done_handler, std::move(contents),
+               MakeUnwrappingCrossThreadHandle(resolver), dest_layout);
 
   auto buffer = AsSpan<uint8_t>(destination);
   background_readback->ReadbackTextureBackedFrameToBuffer(

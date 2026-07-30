@@ -256,8 +256,8 @@
     <message name="IDS_SETTINGS_SHOW_HOME_BUTTON" desc="Label for the checkbox which enables or disables showing the home button in the toolbar.">
       Show home button
     </message>
-    <message name="IDS_SETTINGS_CTRL_TAB_MRU" desc="Label for the checkbox which enables or disables switching between the two most recently used tabs with Ctrl-Tab.">
-      Switch between two most recently used tabs with Ctrl-tab
+    <message name="IDS_SETTINGS_CTRL_TAB_MRU" desc="Label for the checkbox which enables or disables switching between the two most recently used tabs with Ctrl+Tab.">
+      Switch between two most recently used tabs with Ctrl+Tab
     </message>
     <message name="IDS_SETTINGS_SHOW_BOOKMARKS_BAR" desc="Label for the checkbox which enables or disables showing the bookmarks bar in the toolbar.">
       Show bookmarks bar
@@ -301,14 +301,23 @@
     <message name="IDS_SETTINGS_SIDE_PANEL_POSITION" desc="Title for the side panel section. Allows the user to toggle which side the side panel is displayed on.">
       Side panel position
     </message>
+    <message name="IDS_SETTINGS_SIDE_PANEL_ALIGNMENT_GLIC" desc="Label for configuring Gemini side panel alignment.">
+      Gemini
+    </message>
+    <message name="IDS_SETTINGS_SIDE_PANEL_ALIGNMENT_CONTEXTUAL_TASKS" desc="Label for configuring Google Search AI Mode side panel alignment.">
+      Google Search AI Mode
+    </message>
+    <message name="IDS_SETTINGS_SIDE_PANEL_ALIGNMENT_CHROME_PANELS" desc="Label for the default Chrome Panels alignment setting.">
+      Chrome Panels
+    </message>
     <message name="IDS_SETTINGS_TAB_SEARCH_POSITION" desc="Title for the tab search section. Allows the user to toggle which side the side panel is displayed on.">
       Tab search position
     </message>
     <message name="IDS_SETTINGS_UI_FEATURE_ALIGN_LEFT" desc="Label for the button that configures a feature to appear on the left side of the browser. Translate this verbatim, do not localize for RTL languages.">
-      Show on left
+      Left
     </message>
     <message name="IDS_SETTINGS_UI_FEATURE_ALIGN_RIGHT" desc="Label for the button that configures a feature to appear on the right side of the browser. Translate this verbatim, do not localize for RTL languages.">
-      Show on right
+      Right
     </message>
     <message name="IDS_SETTINGS_UI_FEATURE_ALIGN_SIDE" desc="Label for the button that configures a feature to appear on the side of the browser.">
       Vertical
@@ -532,6 +541,15 @@
     </message>
     <message name="IDS_SETTINGS_ADDRESS_REMOVE" desc="Label for a context menu item that removes the selected address." meaning="Remove selected address.">
       Delete
+    </message>
+    <message name="IDS_SETTINGS_REMOVE_VERIFIED_EMAIL_PERMISSION" desc="Label for a menu item that removes the permission for a verified email address.">
+      Remove permission
+    </message>
+    <message name="IDS_SETTINGS_REMOVE_VERIFIED_EMAIL_PERMISSION_TITLE" desc="Title for the confirmation dialog when removing a verified email permission.">
+      Remove permission?
+    </message>
+    <message name="IDS_SETTINGS_REMOVE_VERIFIED_EMAIL_PERMISSION_BODY" desc="Body text for the confirmation dialog when removing a verified email permission.">
+      Going forward, <ph name="ISSUER">$1<ex>google.com</ex></ph> will stop automatically confirming this email
     </message>
     <message name="IDS_SETTINGS_ADDRESS_REMOVE_CONFIRMATION_TITLE" desc="Address remove dialog confirmation title.">
       Delete address
@@ -3831,6 +3849,12 @@
     <if expr="use_titlecase">
       <message name="IDS_SETTINGS_MANAGE_GOOGLE_ACCOUNT" desc="Label for the button that takes the user to the Google Account website.">
         Manage Your Google Account
+      </message>
+    </if>
+
+    <if expr="is_chromeos">
+      <message name="IDS_ACCOUNT_CHROMEOS_DEVICE_ACCOUNTS" desc="Title shown on the manage accounts on this device button item.">
+        Manage accounts on this device
       </message>
     </if>
 

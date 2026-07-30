@@ -8,9 +8,10 @@ import 'chrome://resources/cr_components/composebox/contextual_entrypoint_and_me
 import type {ContextualEntrypointAndMenuElement} from 'chrome://resources/cr_components/composebox/contextual_entrypoint_and_menu.js';
 import type {ContextualEntrypointButtonElement} from 'chrome://resources/cr_components/composebox/contextual_entrypoint_button.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
+import type {TabInfo} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import {ToolMode} from 'chrome://resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
 import type {InputState} from 'chrome://resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
-import {assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
+import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {$$, eventToPromise, microtasksFinished} from 'chrome://webui-test/test_util.js';
 
 import {createValidInputState} from './composebox_test_utils.js';
@@ -235,5 +236,42 @@ suite('ContextualEntrypointAndMenu', () => {
     assertFalse(innerActionMenu.disableAutoReposition);
     assertTrue(innerActionMenu.$.menu.hasAttribute('auto-reposition'));
     assertTrue(innerActionMenu.$.menu.autoReposition);
+  });
+
+  suite('aimThreadRestoredTabs', () => {
+    test(
+        'forwards aimThreadRestoredTabs to entrypoint button and action menu',
+        async () => {
+          const restoredTabs: TabInfo[] = [
+            {
+              tabId: 1,
+              title: 'Tab 1',
+              url: 'about:blank?1',
+              showInCurrentTabChip: false,
+              showInPreviousTabChip: false,
+              lastActive: {internalValue: 0n},
+            },
+            {
+              tabId: 2,
+              title: 'Tab 2',
+              url: 'about:blank?2',
+              showInCurrentTabChip: false,
+              showInPreviousTabChip: false,
+              lastActive: {internalValue: 0n},
+            },
+          ];
+
+          entrypointAndMenu.aimThreadRestoredTabs = restoredTabs;
+          await entrypointAndMenu.updateComplete;
+
+          const entrypointButton = $$(entrypointAndMenu, '#entrypointButton') as
+              ContextualEntrypointButtonElement;
+          assertTrue(!!entrypointButton);
+          assertEquals(restoredTabs, entrypointButton.restoredTabs);
+
+          const menu = entrypointAndMenu.$.menu;
+          assertTrue(!!menu);
+          assertEquals(restoredTabs, menu.aimThreadRestoredTabs);
+        });
   });
 });

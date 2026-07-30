@@ -815,8 +815,6 @@
   E_CPONLY(kColorSettingsColumnedSectionDescriptionHeader) \
   /* Settings info card colors. */ \
   E_CPONLY(kColorSettingsInfoCardBackground) \
-  /* Privacy Settings delete browsing dialog container colors. */ \
-  E_CPONLY(kColorSettingsPrivacyDbdContainerBackground) \
   /* Share-this-tab dialog colors. */ \
   E_CPONLY(kColorShareThisTabAudioToggleBackground) \
   E_CPONLY(kColorShareThisTabSourceViewBorder) \
@@ -888,6 +886,13 @@
   E_CPONLY(kColorSidePanelWallpaperSearchErrorButtonBackground) \
   E_CPONLY(kColorSidePanelWallpaperSearchErrorButtonText) \
   E_CPONLY(kColorSidePanelWallpaperSearchInspirationDescriptors) \
+  /* Slider colors. */ \
+  E_CPONLY(kColorSliderActive) \
+  E_CPONLY(kColorSliderActiveContainer) \
+  E_CPONLY(kColorSliderActiveRipple) \
+  E_CPONLY(kColorSliderActiveText) \
+  E_CPONLY(kColorSliderDisabled) \
+  E_CPONLY(kColorSliderDisabledContainer) \
   /* Split view colors. */ \
   E_CPONLY(kColorSplitViewBackground) \
   /* Star rating view colors. */ \
@@ -1102,6 +1107,11 @@
   E_CPONLY(kColorWebAuthnPinTextfieldBottomBorder) \
   E_CPONLY(kColorWebAuthnProgressRingBackground) \
   E_CPONLY(kColorWebAuthnProgressRingForeground) \
+  /* General WebUI page colors. */ \
+  E_CPONLY(kColorWebuiCardBackground) \
+  E_CPONLY(kColorWebuiDialogBackground) \
+  E_CPONLY(kColorWebuiDialogContainerBackground) \
+  E_CPONLY(kColorWebuiPageBackground) \
   /* Web contents colors. */ \
   E_CPONLY(kColorWebContentsBackground) \
   E_CPONLY(kColorWebContentsBackgroundLetterboxing) \

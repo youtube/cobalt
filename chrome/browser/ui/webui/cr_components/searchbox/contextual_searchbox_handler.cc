@@ -220,12 +220,8 @@ void ContextualSearchboxHandler::GetRecentTabs(GetRecentTabsCallback callback) {
     }
     bool is_internal_page = url.SchemeIs(content::kChromeUIScheme) ||
                             url.SchemeIs(content::kChromeUIUntrustedScheme);
-    bool is_different_contextual_task_thread =
-        url.spec().starts_with(chrome::kChromeUIContextualTasksURL) &&
-        (!active_web_contents ||
-         url != active_web_contents->GetLastCommittedURL());
 
-    if (!is_internal_page || is_different_contextual_task_thread) {
+    if (!is_internal_page) {
       tab_times.push_back({
           .tab = tab,
           .time = std::max(web_contents->GetLastActiveTimeTicks(),
@@ -531,7 +527,10 @@ void ContextualSearchboxHandler::SetSmartTabSharingActive(bool active) {
       // Don't process the default-on promo if STS is already default-on.
       const bool default_on = profile_->GetPrefs()->GetBoolean(
           contextual_tasks::kContextualTasksShareOpenTabsEveryThread);
-      if (!default_on) {
+      if (!default_on &&
+          base::FeatureList::IsEnabled(
+              contextual_tasks::
+                  kContextualTasksContextSmartTabSharingDefaultOnAvailability)) {
         if (feature_engagement::NonIphPromo::RequestPermissionToShow(
                 profile_,
                 feature_engagement::kIPHSmartTabSharingDefaultOnFeature)) {
@@ -880,6 +879,7 @@ void ContextualSearchboxHandler::OnSelection(
     success_file->mime_type = file.mime_type;
     success_file->thumbnail_url =
         file.thumbnail_url ? file.thumbnail_url->spec() : "";
+    success_file->icon_url = file.icon_url;
 
     response->files.push_back(std::move(success_file));
     valid_files_count++;
@@ -1223,6 +1223,15 @@ void ContextualSearchboxHandler::DeleteContext(
   if (input_state_model_) {
     input_state_model_->OnContextChanged();
   }
+}
+
+void ContextualSearchboxHandler::DeleteContextFromBrowser(
+    const base::UnguessableToken& context_token,
+    bool from_automatic_chip) {
+  DeleteContext(context_token, from_automatic_chip);
+  page_->OnContextualInputStatusChanged(
+      context_token, contextual_search::ContextUploadStatus::kUploadReplaced,
+      std::nullopt);
 }
 
 void ContextualSearchboxHandler::ClearFiles(

@@ -47,6 +47,7 @@
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 #include "third_party/blink/renderer/platform/wtf/hash_map.h"
+#include "third_party/blink/renderer/platform/wtf/hash_set.h"
 #include "third_party/blink/renderer/platform/wtf/std_lib_extras.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_uchar.h"
@@ -161,6 +162,8 @@ class PLATFORM_EXPORT FontCache final {
 #else
   static const AtomicString& LegacySystemFontFamily();
   static void InvalidateFromAnyThread();
+  bool IsFontFamilyUnavailable(const AtomicString& family_name) const;
+  void MarkFontFamilyAsUnavailable(const AtomicString& family_name);
 #endif
 
 #if !BUILDFLAG(IS_MAC)
@@ -321,6 +324,7 @@ class PLATFORM_EXPORT FontCache final {
 
 #if BUILDFLAG(IS_MAC)
   CharacterFallbackCache character_fallback_cache_;
+  HashSet<AtomicString> unavailable_font_families_;
 #endif
 
   friend class SimpleFontData;  // For fontDataFromFontPlatformData

@@ -50,11 +50,10 @@ class MockGlicInstance : public GlicInstance {
   MOCK_METHOD(std::string, conversation_title, (), (const, override));
   MOCK_METHOD(base::Time, GetLastActivationTimestamp, (), (const, override));
   MOCK_METHOD(base::TimeDelta, GetTimeSinceLastActive, (), (const, override));
-  MOCK_METHOD(void, OnSelectionAreasChanged, (int), (override));
-  MOCK_METHOD(void,
-              OnPolylinePointsChanged,
-              (const std::vector<int>&),
-              (override));
+  MOCK_METHOD(base::TimeDelta,
+              GetTimeSinceLastPromptSubmission,
+              (),
+              (const, override));
   MOCK_METHOD(GlicActorTaskManager*, GetActorTaskManager, (), (override));
   MOCK_METHOD(bool, IsActuating, (), (const, override));
   MOCK_METHOD(void, CancelTask, (), (override));

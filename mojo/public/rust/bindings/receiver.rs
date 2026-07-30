@@ -30,12 +30,8 @@
 chromium::import! {
   "//mojo/public/rust/system";
   "//base:sequenced_task_runner";
-  "//mojo/public/rust/mojom_value_parser";
-  "//mojo/public/rust/mojom_value_parser:mojom_value_parser_core";
 }
-use mojom_value_parser_core::{MojomType, MojomValue};
 
-use std::marker::PhantomData;
 // TODO(crbug.com/470438844): Replace some/all Arc/Mutexes with the
 // sequenced equivalents, where appropriate (maybe all of them?).
 // TODO(crbug.com/477584253): Replace std::sync with std::nonpoison once
@@ -83,13 +79,7 @@ pub struct Receiver<StateTy: MojomInterface> {
 ///
 /// This type represents a `Receiver` which has not yet been bound to a
 /// sequence, and is therefore unable to send messages.
-pub struct PendingReceiver<T>
-where
-    T: DynMojomInterface + ?Sized,
-{
-    endpoint: MessageEndpoint,
-    _phantom: PhantomData<T>,
-}
+pub type PendingReceiver<T> = crate::pending_endpoint::PendingReceiver<T>;
 
 /// This type is used to represent a self-owned receiver, which keeps itself
 /// alive until the other endpoint is disconnected.
@@ -100,24 +90,6 @@ impl<T> PendingReceiver<T>
 where
     T: DynMojomInterface + ?Sized,
 {
-    /// Create a new PendingReceiver from a raw pipe endpoint.
-    ///
-    /// If you want to create a new remote/receiver pair, use
-    /// `PendingRemote::new_pipe` instead. This function is mostly useful
-    /// for creating a new `Receiver` from an endpoint received via mojo or FFI.
-    ///
-    /// Note that the caller is responsible for ensuring that `Self` has the
-    /// right instantiation of `T` as the other endpoint, or else incoming
-    /// messages will be incomprehensible.
-    pub fn new(endpoint: MessageEndpoint) -> Self {
-        Self { endpoint, _phantom: PhantomData }
-    }
-
-    /// Consume this PendingReceiver and return the underlying endpoint.
-    pub fn into_endpoint(self) -> MessageEndpoint {
-        self.endpoint
-    }
-
     /// Bind this `PendingReceiver` to the provided state object and the
     /// current default sequence.
     pub fn bind<StateTy>(self, state: StateTy) -> Receiver<StateTy>
@@ -228,9 +200,14 @@ where
             Self::incoming_message_handler(raw_message, &state_weak, sender)
         };
 
-        let endpoint_watcher =
-            MessagePipeWatcher::new_with_runner(endpoint, runner, handler, disconnect_handler)
-                .expect("System ran out of resources to create new mojo objects.");
+        let endpoint_watcher = MessagePipeWatcher::new_with_runner(
+            endpoint,
+            runner,
+            handler,
+            disconnect_handler,
+            /* begin_processing_immediately = */ true,
+        )
+        .expect("System ran out of resources to create new mojo objects.");
 
         Self { _endpoint_watcher: endpoint_watcher, _state: state }
     }
@@ -240,17 +217,12 @@ where
     /// header, call the corresponding method on the state object, and then
     /// send a response back through the pipe (if the message expects one).
     fn incoming_message_handler(
-        mut raw_message: RawMojoMessage,
+        raw_message: RawMojoMessage,
         state_weak: &Weak<Mutex<StateTy>>,
         sender: ResponseSender,
     ) {
-        let message: MojomMessage = match MojomMessage::from_raw(&raw_message) {
-            Ok(msg) => msg,
-            Err(err) => {
-                // The error here is a reminder to return immediately, which we do
-                let _ = raw_message.report_bad_message(&err.to_string());
-                return;
-            }
+        let Some(message) = MojomMessage::parse_raw_or_report_bad_message(raw_message) else {
+            return;
         };
 
         let expects_response = message
@@ -296,38 +268,4 @@ where
     // We deliberately do not implement `From` and `Into` for
     // `Receiver/PendingReceiver` pairs, because binding and unbinding are
     // stateful operations that should be done explicitly.
-}
-
-impl<T: DynMojomInterface + ?Sized> std::fmt::Debug for PendingReceiver<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("PendingReceiver").field("endpoint", &self.endpoint).finish()
-    }
-}
-
-impl<T: DynMojomInterface + ?Sized> PartialEq for PendingReceiver<T> {
-    fn eq(&self, other: &Self) -> bool {
-        self.endpoint == other.endpoint
-    }
-}
-
-impl<T: DynMojomInterface + ?Sized> Eq for PendingReceiver<T> {}
-
-impl<Context, T> mojom_value_parser::MojomParse<Context> for PendingReceiver<T>
-where
-    T: DynMojomInterface + ?Sized + 'static,
-{
-    fn mojom_type() -> MojomType {
-        MojomType::PendingReceiver
-    }
-
-    fn into_mojom_value(self, _context: &Context) -> MojomValue {
-        MojomValue::PendingReceiver(self.into_endpoint())
-    }
-
-    fn try_from_mojom_value(value: MojomValue, _context: &Context) -> anyhow::Result<Self> {
-        match value {
-            MojomValue::PendingReceiver(handle) => Ok(PendingReceiver::new(handle)),
-            _ => anyhow::bail!("Expected PendingReceiver, got {:?}", value),
-        }
-    }
 }

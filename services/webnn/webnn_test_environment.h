@@ -54,6 +54,12 @@ class FakeGpuHostForTesting : public viz::mojom::GpuHost {
   void DidUpdateDXGIInfo(gfx::mojom::DXGIInfoPtr dxgi_info) override;
   void EnsureWebNNExecutionProvidersReady(
       EnsureWebNNExecutionProvidersReadyCallback callback) override;
+  void RequestWebNNCompilerContext(
+      webnn::mojom::CreateContextOptionsPtr context_options,
+      const webnn::ContextProperties& context_properties,
+      base::flat_map<std::string, webnn::mojom::EpPackageInfoPtr>
+          ep_package_info,
+      RequestWebNNCompilerContextCallback callback) override;
 #endif
   void CreateWebNNWeightsFile(CreateWebNNWeightsFileCallback callback) override;
 
@@ -75,14 +81,31 @@ class WebNNTestEnvironment {
 
   void RunUntilIdle() { task_environment_->RunUntilIdle(); }
 
+  // Waits until all WebNNContextImpl instances have been fully destroyed
+  // (destructor has run). Call after resetting context remotes to ensure
+  // service-side disconnect handlers, removal, and destruction all complete
+  // before closing additional pipes.
+  void WaitForAllContextsToBeDestroyed();
+
   void BindWebNNContextProvider(
       mojo::PendingReceiver<mojom::WebNNContextProvider> pending_receiver,
       bool is_incognito = false);
 
+  // Flushes thread pool tasks and waits for all receivers bound via
+  // BindWebNNContextProvider to disconnect. Call in test TearDown after
+  // resetting remotes to ensure deterministic cleanup.
+  void TearDown();
+
  private:
+  void OnReceiverDisconnected();
+  void OnContextDestroyed();
+
   FakeGpuHostForTesting fake_gpu_host_;
   std::unique_ptr<base::test::TaskEnvironment> task_environment_;
   std::unique_ptr<WebNNContextProviderImpl> context_provider_;
+  size_t pending_receiver_count_ = 0;
+  size_t destroyed_context_count_ = 0;
+  base::RepeatingClosure destruction_callback_;
 };
 
 }  // namespace webnn::test

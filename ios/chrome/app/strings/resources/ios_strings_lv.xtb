@@ -46,6 +46,7 @@
 <translation id="1147031633655575115">Pierakstījies kā <ph name="USER" /></translation>
 <translation id="1149401351239820326">Derīguma termiņa mēnesis</translation>
 <translation id="1150989369772528668">Kalendārs</translation>
+<translation id="1161444134753003495">Pierakstīties</translation>
 <translation id="1161663161838091892">Ciļņu un vēstures sinhronizēšana, lai turpinātu</translation>
 <translation id="1162834932051545794">{count,plural, =1{{count} kredītkarte}zero{{count} kredītkaršu}one{{count} kredītkarte}other{{count} kredītkartes}}</translation>
 <translation id="1164891049599601209">Ievadīta maldinošā vietnē</translation>
@@ -168,6 +169,7 @@
 <translation id="1554043146674176775">Izslēgt MI režīmu</translation>
 <translation id="1554477036522844996">Jauns logs</translation>
 <translation id="1558391695376153246">Aizvērt inkognito cilnes</translation>
+<translation id="1560153516220021659">Sakļautas sekundārās rīkjoslas poga</translation>
 <translation id="1565371473877914088">Jauna inkognito cilne</translation>
 <translation id="1567960978791353852">Rādīt lasīšanas režīmu</translation>
 <translation id="1571780780926010134">Inkognito režīma cilnes</translation>
@@ -175,6 +177,7 @@
 <translation id="1580783302095112590">E-pasts nosūtīts.</translation>
 <translation id="1582732959743469162">Šādi tiks pārtraukta pašreizējās lejupielādes norise.</translation>
 <translation id="1594034544529347967">Sākums</translation>
+<translation id="1598485494295307681">Notiek klausīšanās</translation>
 <translation id="1598751033135758830">Atvērt lietotnē…</translation>
 <translation id="1600571977391127696">Noteikts saturs var nebūt piemērots visiem.</translation>
 <translation id="1601560923496285236">Lietot</translation>
@@ -183,6 +186,7 @@
 <translation id="1605658421715042784">Kopēt attēlu</translation>
 <translation id="1606899876897213121">Aizvērt pēdējo darbību kopsavilkumu</translation>
 <translation id="1612754831519568745">Funkcija Droša pārlūkošana šobrīd ir izslēgta. Iegūstiet aizsardzību pret bīstamām vietnēm, lejupielādēm un paplašinājumiem.</translation>
+<translation id="1617300545081951343">Ir spēkā mūsu <ph name="BEGIN_LINK" />noteikumi<ph name="END_LINK" />, <ph name="BEGIN_LINK" />Korejas atrašanās vietu noteikumi<ph name="END_LINK" /> un <ph name="BEGIN_LINK" />konfidencialitātes paziņojums<ph name="END_LINK" />. Gemini ir MI un var pieļaut kļūdas, tostarp par personām.</translation>
 <translation id="1620510694547887537">Kamera</translation>
 <translation id="1622717322707146952">Atlasiet “Pievienot Google kalendāram” vai “Pievienot kalendāram Apple Calendar”.</translation>
 <translation id="1629162218487290695">Identitātes apstiprināšana</translation>
@@ -328,6 +332,7 @@
 <translation id="2078437078822043850">Varat ritināt pa labi, lai pārlūkotu inkognito režīmā.</translation>
 <translation id="2079545284768500474">Atsaukt</translation>
 <translation id="2085876078937250610">Saglabāt…</translation>
+<translation id="2089180529062519164">Mikrofona ieslēgšana</translation>
 <translation id="2096239473850415494">Nevarēja lejupielādēt</translation>
 <translation id="2096716221239095980">Dzēst visus datus</translation>
 <translation id="2104436223719117661">Populāri meklēšanas vaicājumi</translation>
@@ -536,6 +541,7 @@
 <translation id="2829172210806130158">Meklējiet ekrānā.</translation>
 <translation id="2831109159746537587">Lai meklētu, apvelciet objektu vai pieskarieties attēlam</translation>
 <translation id="2834399722155632105">3. Pieskarieties pogai Paroles iespējas.</translation>
+<translation id="2834418947367581526">Sveicināti! Esmu Gemini. Drīzumā tiks iespējota funkcija “Live”, kuras laikā varēsiet uzdot jautājumus par lapu, kurā atrodaties, vienkārši sarunājoties. Taču, pirms mēs sākam sarunu, apskatiet šo svarīgo informāciju.</translation>
 <translation id="2834956026595107950"><ph name="TITLE" />, <ph name="STATE" />, <ph name="URL" /></translation>
 <translation id="2841013758207633010">Laiks</translation>
 <translation id="284581348330507117">Izveidojiet unikālas paroles</translation>
@@ -603,6 +609,7 @@
 <translation id="3119874402040566234">Jūs tiksiet izrakstīts, un pārlūkošanas dati tiks dzēsti</translation>
 <translation id="3124568093781685165">Kopīgojiet savas paroles ar ģimenes locekļiem</translation>
 <translation id="3130863904455712965">Vēsture un cits saturs</translation>
+<translation id="3130973487775218359">Skatieties videoklipu: <ph name="BEGIN_LINK" />Piecas lietas, kas jāņem vērā, lai izmantotu ģeneratīvo MI<ph name="END_LINK" /></translation>
 <translation id="3132345256151444894">Kompensācijas numura saglabāšana</translation>
 <translation id="3132584647087998639">Datu importēšana</translation>
 <translation id="313283613037595347">Izveidot jaunu inkognito cilni</translation>
@@ -687,6 +694,7 @@
 <translation id="3447332786336558089">Pēc izrakstīšanās cilnes tiks aizvērtas, un nesaglabātie konta dati tiks dzēsti no šīs ierīces. Tie var ietvert paroles, vēsturi un citus datus.</translation>
 <translation id="3449029510150690417">Izveidojiet jaunu ciļņu grupu, piešķirot tai nosaukumu un krāsu.</translation>
 <translation id="345348365500626747">Adrese atrasta</translation>
+<translation id="3459644598174926977">Izmantojiet frāzi “Live ar Gemini”, lai uzdotu jautājumus par lapu, skaļi apspriestu idejas un sarunātos.</translation>
 <translation id="3464194322481586217">Nevarēja izsekot cenai.</translation>
 <translation id="3469117812148449995">Paroles saglabāšanas iespējas</translation>
 <translation id="3472469028191701821">Saite tiks atvērta jaunā cilnē</translation>
@@ -821,6 +829,7 @@
 <translation id="3931215329146376310">{count,plural, =1{Jauna parole šai vietnei}zero{Jaunas paroles šai vietnei}one{Jaunas paroles šai vietnei}other{Jaunas paroles šai vietnei}}</translation>
 <translation id="3933372629914873850">Jūs pierakstīsieties vietnē <ph name="URL" /></translation>
 <translation id="3934905113567851655">Savelciet, lai mainītu lielumu</translation>
+<translation id="393732545649378031">Konts</translation>
 <translation id="3940195383040445971">Cenu izsekošana cilnēs</translation>
 <translation id="3941941395924123592">{COUNT,plural, =1{Aizvērt {COUNT} cilni.}zero{Aizvērt {COUNT} cilnes}one{Aizvērt {COUNT} cilni}other{Aizvērt {COUNT} cilnes}}</translation>
 <translation id="3946483119107054883">Lejupielādēt CSV formātā</translation>
@@ -931,6 +940,7 @@
 <translation id="4306349443295056740">OCSP parakstīšana</translation>
 <translation id="4309403553630140242">Veiciet dubultskārienu, lai skatītu plašāku informāciju.</translation>
 <translation id="4310738531374808763">Sākumlapas pielāgošana</translation>
+<translation id="4316794575239200608">Pārskatītāji nepārskatīs ne jūsu sarunas ar Gemini, ne jūsu <ph name="BEGIN_LINK" />Google Workspace datus<ph name="END_LINK" /> un šīs sarunas un dati netiks izmantoti ģeneratīvā MI modeļu uzlabošanai.</translation>
 <translation id="4320848494125124980">Nesenie</translation>
 <translation id="4322394346347055525">Aizvērt citas cilnes</translation>
 <translation id="4323122584592971322">OID.</translation>
@@ -1016,6 +1026,7 @@
 <translation id="4631335160486397366">Atkārtoti izmantoto paroļu skaits: <ph name="COUNT" /></translation>
 <translation id="4632655012900268062">Pielāgot kartītes</translation>
 <translation id="4634124774493850572">Izmantot paroli</translation>
+<translation id="4634633632339959267">Tērzēšanas sarunas tiek pārskatītas un izmantotas Google MI uzlabošanai. <ph name="BEGIN_LINK" />Uzziniet par jums pieejamajām izvēles iespējām.<ph name="END_LINK" /> Kopā ar jūsu darbībām tiek glabāta arī <ph name="BEGIN_LINK" />informācija par jūsu atrašanās vietu<ph name="END_LINK" />.</translation>
 <translation id="4636930964841734540">Informācija</translation>
 <translation id="4641425577292284174">Uzziniet, vai izmantojat visdrošākos iestatījumus vai jums kaut kas jāpārskata</translation>
 <translation id="4642472735733036929">Cenu izsekošana ir apturēta.</translation>
@@ -1122,6 +1133,7 @@
 <translation id="4941089862236492464">Diemžēl, kopīgojot jūsu vienumu, radās problēma.</translation>
 <translation id="4944543191714094452">Atrast lapā…</translation>
 <translation id="4945756290001680296">Piekļūt paroles iestatījumiem</translation>
+<translation id="4946307855175300628">Notiek atbildēšana</translation>
 <translation id="4949302115427722371">Iestatījumu pārvaldīšana…</translation>
 <translation id="4958444002117714549">Izvērst sarakstu</translation>
 <translation id="496392417432935267">Atvērts citā logā</translation>
@@ -1469,6 +1481,7 @@ Funkcija Handoff ir jāiespējo arī iestatījumu sadaļā General (Vispārīgi)
 <translation id="6140948187512243695">Rādīt detaļas</translation>
 <translation id="6144589619057374135">Atvērt vietni ${url} inkognito režīmā</translation>
 <translation id="6146563240635539929">Videoklipi</translation>
+<translation id="6148392728478209113">Vai joprojām izmantojat Live? Pieskarieties pogai Live, lai turpinātu sarunu ar Gemini.</translation>
 <translation id="6151006591088192882">Atbloķēt inkognito cilnes, izmantojot šo autentifikācijas veidu: <ph name="BIOMETRIC_AUTHENITCATION_TYPE" /></translation>
 <translation id="6152340033632117531">Neaktīvas</translation>
 <translation id="6152406514676263192">Ieslēdziet sinhronizāciju, lai atrastu savām interesēm atbilstošāko saturu.</translation>
@@ -1506,6 +1519,7 @@ Funkcija Handoff ir jāiespējo arī iestatījumu sadaļā General (Vispārīgi)
 <translation id="6241132809279377987">Iegūstiet vairāk funkciju savam iPhone tālrunim, izmantojot Google lietotnes.</translation>
 <translation id="6247557882553405851">Google paroļu pārvaldnieks</translation>
 <translation id="6251835855431997163">Automātiskā aizpilde: <ph name="VALUE" /></translation>
+<translation id="6253686838150111720">Pierakstīšanās vietnē <ph name="URL" /></translation>
 <translation id="6254066287920239840">Atvērt saites lietotnē, nevis pārlūkā.</translation>
 <translation id="6259928806013786178">Neizdevās aktivizēt lasīšanas režīmu.</translation>
 <translation id="6268773951964630964">Meklēt kopēto attēlu</translation>
@@ -1541,6 +1555,7 @@ Funkcija Handoff ir jāiespējo arī iestatījumu sadaļā General (Vispārīgi)
 <translation id="6355820183143562453">Paslēpt kartīti “Cenu izsekošana”</translation>
 <translation id="6355820205320395730">Nedrošas paroles ir viegli uzminēt. Noteikti izveidojiet drošas paroles. <ph name="BEGIN_LINK" />Skatiet citus drošības padomus<ph name="END_LINK" />.</translation>
 <translation id="6357455205205567365">Pierakstieties, lai piekļūtu savam saturam, piemēram, parolēm, grāmatzīmēm un citiem datiem.</translation>
+<translation id="6364268785720100355">Pierakstieties, lai piekļūtu parolēm un citiem datiem visās savās ierīcēs.</translation>
 <translation id="6368038301482806847">Sarakstā izvēlieties meklētājprogrammu.</translation>
 <translation id="6368102751067608420">Lai dzēstu visus paroļu pārvaldnieka datus</translation>
 <translation id="6372558618707314581">Pārejiet uz jebkuru lapu.</translation>
@@ -1561,6 +1576,7 @@ Funkcija Handoff ir jāiespējo arī iestatījumu sadaļā General (Vispārīgi)
 <translation id="6435236283694032571">Pievienot lasīšanas sarakstam</translation>
 <translation id="6435307030888827407">Nepierakstīties</translation>
 <translation id="6436318499800111867">Ar mani kopīgots: <ph name="SHARED_WITH_ME_DATE" /></translation>
+<translation id="6442327260099531031"><ph name="BEGIN_LINK" />Cieniet citu personu konfidencialitāti<ph name="END_LINK" /> un lūdziet atļauju pirms ierakstīšanas vai viņu iesaistīšanas Live tērzēšanas sarunā.</translation>
 <translation id="6442697326824312960">Atcelt cilnes piespraušanu</translation>
 <translation id="6443118737398455446">Derīguma termiņš nav derīgs.</translation>
 <translation id="6444435711855078002">Citas opcijas</translation>
@@ -1669,6 +1685,7 @@ Funkcija Handoff ir jāiespējo arī iestatījumu sadaļā General (Vispārīgi)
 <translation id="6736243959894955139">Adrese</translation>
 <translation id="6746338529702829275">Pārskatīt konta datus</translation>
 <translation id="6750456911389438250">{count,plural, =1{Importēts {count} vēstures vienums}zero{Importēti {count} vēstures vienumi}one{Importēts {count} vēstures vienums}other{Importēti {count} vēstures vienumi}}</translation>
+<translation id="6751817018972413719">{count,plural, =1{Virs tastatūras ir pieejams {count} akreditācijas datu variants.}zero{Virs tastatūras ir pieejami {count} akreditācijas datu varianti.}one{Virs tastatūras ir pieejams {count} akreditācijas datu variants.}other{Virs tastatūras ir pieejami {count} akreditācijas datu varianti.}}</translation>
 <translation id="6755200887046212842">Pārvaldīt kontus</translation>
 <translation id="6757899787818440812">Vidējs augstums</translation>
 <translation id="6759709389246683070">Varat pieskarties šai cilnei un turēt to, lai iestatītu atgādinājumu par atkārtotu apmeklējumu vēlāk.</translation>
@@ -1803,6 +1820,7 @@ Funkcija Handoff ir jāiespējo arī iestatījumu sadaļā General (Vispārīgi)
 <translation id="7253951228444156601">Notiek paroļu pārbaude…</translation>
 <translation id="7261217796641151584">Kopīgot grupu</translation>
 <translation id="7266578100016339897">Tas palīdz jums saglabāt kārtību. Varat to jebkurā brīdī mainīt sadaļā Iestatījumi.</translation>
+<translation id="7270491814777319521">Ir spēkā <ph name="BEGIN_LINK" />Google noteikumi<ph name="END_LINK" /> un <ph name="BEGIN_LINK" />Gemini Apps konfidencialitātes paziņojums<ph name="END_LINK" />. Gemini ir MI un var pieļaut kļūdas, tostarp par personām.</translation>
 <translation id="7272437679830969316">Nevar apstiprināt jūsu identitāti. Parole nav nokopēta.</translation>
 <translation id="728025568708172005">Sākt apskati</translation>
 <translation id="7280980607183752256">Šo failu nevar importēt.</translation>
@@ -1861,6 +1879,7 @@ Funkcija Handoff ir jāiespējo arī iestatījumu sadaļā General (Vispārīgi)
 <translation id="7468373585447318060">Sekojiet līdzi cenu kritumam visiem izsekotajiem produktiem.</translation>
 <translation id="746872191028309255">Iepērcieties, izmantojot redzamos objektus vai fotoattēlu galeriju.</translation>
 <translation id="7471557245617580330">Izveidot jaunu cilni</translation>
+<translation id="7473555040328423550">Pievienot cilni</translation>
 <translation id="7476548258282096076">Šajā kartītē ir redzamas jūsu visbiežāk apmeklētās vietnes.</translation>
 <translation id="7484645889979462775">Nekad šai vietnei</translation>
 <translation id="7486006552035434095">Jūsu ierīču sinhonizēšana</translation>
@@ -2116,11 +2135,13 @@ Funkcija Handoff ir jāiespējo arī iestatījumu sadaļā General (Vispārīgi)
 <translation id="8319282042900445670">Atgādinājums iestatīts: <ph name="TIME" />, <ph name="DATE" /></translation>
 <translation id="8320212361750431956">Pēdējās darbības</translation>
 <translation id="8325455175867928593">Paslēpt sadaļu “Atsauksmes, kuru pamatā ir jūsu intereses”</translation>
+<translation id="8333459276976141586">Live izmantos jūsu mikrofonu. Pieskaroties Live režīma pogai, tiek ieslēgts mikrofons. Lai izslēgtu mikrofonu, pieskarieties pogai Pārtraukt vai aizveriet Gemini.</translation>
 <translation id="833647236762414178">Izveidojiet, saglabājiet un pārvaldiet paroles un piekļuves atslēgas, lai varētu ērti pierakstīties vietnēs un lietotnēs. <ph name="BEGIN_LINK" />Uzziniet vairāk<ph name="END_LINK" />.</translation>
 <translation id="8343993175958086504">Varat dublēt savus datus un izmantot tos jebkurā ierīcē.</translation>
 <translation id="8345328955902001853">{count,plural, =1{Izpildiet vēl 1 uzdevumu, lai pārietu uz nākamo līmeni.}zero{Izpildiet vēl {count} uzdevumus, lai pārietu uz nākamo līmeni.}one{Izpildiet vēl {count} uzdevumu, lai pārietu uz nākamo līmeni.}other{Izpildiet vēl {count} uzdevumus, lai pārietu uz nākamo līmeni.}}</translation>
 <translation id="8348530355586151720">Pieskarieties trīs punktu izvēlnei.</translation>
 <translation id="8349305172487531364">Grāmatzīmju josla</translation>
+<translation id="8360164927489392419">Jūsu mijiedarbības ieraksti ar funkciju Live un saturs, ko ar to kopīgojat, tiek saglabāts un apstrādāts atbilstoši <ph name="BEGIN_LINK" />Gemini Apps konfidencialitātes paziņojumam<ph name="END_LINK" />. <ph name="BEGIN_LINK" />Uzzināt vairāk<ph name="END_LINK" /></translation>
 <translation id="8361189290032177785">{count,plural, =1{Importēta {count} grāmatzīme}zero{Importētas {count} grāmatzīmes}one{Importēta {count} grāmatzīme}other{Importētas {count} grāmatzīmes}}</translation>
 <translation id="8363484128299778310">Pagaidu atkopšana problēmu gadījumā</translation>
 <translation id="8364563001733875155">Lai mainītu PIN, vispirms ierīcē iestatiet piekļuves kodu.</translation>
@@ -2192,6 +2213,7 @@ Funkcija Handoff ir jāiespējo arī iestatījumu sadaļā General (Vispārīgi)
 <translation id="8571019948162152515">Vai dzēst failu “<ph name="FILENAME" />”?</translation>
 <translation id="8571213806525832805">Pēdējās 4 nedēļas</translation>
 <translation id="8577056989960190117">Automātiski aizpildīt derīguma termiņa gadu: <ph name="YEAR" /></translation>
+<translation id="8582026929965253036">Sāciet Live sarunu ar Gemini</translation>
 <translation id="8587001564479545614">Atkopšanas PIN izveide</translation>
 <translation id="8588404856427128947">Izslēgts</translation>
 <translation id="8590286732816598906">Ciļņu grupa, <ph name="GROUP_TITLE" />, izvēlne.</translation>
@@ -2215,6 +2237,7 @@ Funkcija Handoff ir jāiespējo arī iestatījumu sadaļā General (Vispārīgi)
 <translation id="8643403533759285912">Dzēst grupu</translation>
 <translation id="8647280737650867362">Nevarēja pārtraukt cenas izsekošanu.</translation>
 <translation id="8654802032646794042">Atcelt</translation>
+<translation id="8659875081143553823">Uzgaidiet!</translation>
 <translation id="8660600697590740984">Pakalpojumā Lens nokopētais attēls</translation>
 <translation id="866266761389616183">Ak, vai!</translation>
 <translation id="8663764600409216912">Jūs izmantojat paroles, ko varētu būt grūti uzminēt</translation>
@@ -2266,6 +2289,7 @@ Funkcija Handoff ir jāiespējo arī iestatījumu sadaļā General (Vispārīgi)
 <translation id="8803526663383843427">Ja ieslēgta</translation>
 <translation id="8803639129939845298">Drošs</translation>
 <translation id="8813277370772331957">Atgādināt vēlāk</translation>
+<translation id="8814308045751067027">Lai izmantotu funkciju Live, iestatījumos piešķiriet pārlūkam Chrome piekļuvi mikrofonam.</translation>
 <translation id="8814719628147284151">Turpināt</translation>
 <translation id="881559332211266856">Kompensācijas numura atjaunināšana</translation>
 <translation id="8817524703470045896">Izsekojiet cenas un saņemiet brīdinājumus, kad kādā vietnē tiek konstatēts cenas kritums.</translation>

@@ -38,6 +38,11 @@ inline constexpr char kBrowserLockdownModeEnabled[] =
 // (serverID) and creation timestamp.
 inline constexpr char kBwgSessionMap[] = "ios.bwg.session_map";
 
+// Map of scene session IDs to booleans which indicates if a cobrowse session is
+// active.
+inline constexpr char kCobrowseSessionActiveMap[] =
+    "ios.cobrowse.session_active_map";
+
 // Number of times the "BWG" settings "new" IPH badge has been shown.
 // This is set to INT_MAX when the user visites the "BWG" settings page.
 inline constexpr char kBWGSettingsNewBadgeShownCount[] =
@@ -488,6 +493,15 @@ inline constexpr char kLinkPreviewEnabled[] = "ios.link_preview_enabled";
 inline constexpr char kLensOverlayConditionsAccepted[] =
     "ios.lens_overlay_conditions_accepted";
 
+// List of completed tasks in the Level Up feature.
+inline constexpr char kLevelUpCompletedTasks[] = "level_up.completed_tasks";
+
+// Highest level achieved in the Level Up feature.
+inline constexpr char kLevelUpHighestLevel[] = "level_up.highest_level";
+
+// Whether the Level Up feature UI is enabled.
+inline constexpr char kLevelUpUIEnabled[] = "level_up.ui_enabled";
+
 // Preference that holds a boolean indicating whether the suggestions on the NTP
 // are enabled.
 inline constexpr char kNTPContentSuggestionsEnabled[] =
@@ -552,9 +566,6 @@ inline constexpr char kOverflowMenuActionsOrder[] =
 
 // Boolean that is true when Suggest support is enabled.
 inline constexpr char kSearchSuggestEnabled[] = "search.suggest_enabled";
-
-// Boolean that is true when the TabPickup feature is enabled.
-inline constexpr char kTabPickupEnabled[] = "ios.tab_pickup_enabled";
 
 // Boolean indicating if displaying price drops for shopping URLs on Tabs
 // in the Tab Switching UI is enabled.

@@ -1,0 +1,30 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+component("private_insights") {
+  public = [
+    "private_insights_features.h",
+    "private_insights_service.h",
+  ]
+  sources = [
+    "private_insights_features.cc",
+    "private_insights_service.cc",
+  ]
+  defines = [ "IS_PRIVATE_INSIGHTS_IMPL" ]
+  deps = [
+    "//base",
+    "//components/keyed_service/core",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "private_insights_service_unittest.cc" ]
+  deps = [
+    ":private_insights",
+    "//base",
+    "//base/test:test_support",
+    "//testing/gtest",
+  ]
+}

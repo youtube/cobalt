@@ -19,7 +19,6 @@
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/public/glic_instance.h"
 #include "chrome/browser/glic/public/glic_instance_metrics_backwards_compatibility.h"
-#include "components/prefs/pref_change_registrar.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
 #include "ui/display/display.h"
 
@@ -156,7 +155,14 @@ enum class GlicTabPinnedForSharingResult {
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicTabPinnedForSharingResult)
 
-class GlicEnabling;
+// LINT.IfChange(GlicOptInFlowSource)
+enum class OptInFlow {
+  kGlicFre = 0,
+  kExperimentalTriggering = 1,
+  kMaxValue = kExperimentalTriggering,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicOptInFlowSource)
+
 class GlicSharingManager;
 
 namespace internal {
@@ -208,6 +214,16 @@ class GlicMetrics : public GlicInstanceMetricsBackwardsCompatibility {
   void OnInstanceClosed();
   // Called when the user clicks Accept in the FRE.
   void OnFreAccepted();
+  // Called when an opt-in dialog or onboarding flow is shown.
+  void OnOptInShown(OptInFlow flow);
+  // Called when an opt-in dialog or onboarding flow finishes loading content.
+  void OnOptInImpression(OptInFlow flow);
+  // Called when an opt-in dialog or onboarding flow is accepted.
+  void OnOptInAccepted(OptInFlow flow);
+  // Called when an opt-in dialog or onboarding flow is implicitly dismissed.
+  void OnOptInDismissed(OptInFlow flow);
+  // Called when an opt-in dialog or onboarding flow is explicitly rejected.
+  void OnOptInRejected(OptInFlow flow);
   // Called when the glic window starts to open.
   void OnGlicWindowStartedOpening(bool attached,
                                   mojom::InvocationSource source);
@@ -294,9 +310,6 @@ class GlicMetrics : public GlicInstanceMetricsBackwardsCompatibility {
   // Called when kGlicCompletedFre or GlicEnabling::IsAllowed() changes.
   void OnMaybeEnabledAndConsentForProfileChanged();
 
-  // Called when kGlicPinnedToTabstrip changes.
-  void OnPinningPrefChanged();
-
   // Records the time from startup until Glic was enabled for the profile.
   void RecordStartupEnablement();
 
@@ -370,11 +383,6 @@ class GlicMetrics : public GlicInstanceMetricsBackwardsCompatibility {
   bool recorded_startup_enablement_ = false;
 
   std::vector<base::CallbackListSubscription> subscriptions_;
-
-  // Cache the last value of the kGlicPinnedToTabstrip pref so that we only emit
-  // metrics for changes to the last value.
-  bool is_pinned_ = false;
-  PrefChangeRegistrar pref_registrar_;
 
   // The following two variables are used together for recording metrics and are
   // reset together after the metric is recorded.

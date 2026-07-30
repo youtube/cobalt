@@ -9,9 +9,11 @@ import static org.chromium.chrome.browser.flags.ChromeFeatureList.YOUR_SAVED_INF
 import android.content.Context;
 import android.os.Bundle;
 
+import androidx.annotation.IntDef;
 import androidx.lifecycle.Lifecycle;
 import androidx.preference.Preference;
 
+import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.OneshotSupplier;
@@ -47,6 +49,9 @@ import org.chromium.ui.base.ActivityResultTracker;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+
 /** Home of Transactions fragment, the main entry point for all Autofill and Passwords settings. */
 @NullMarked
 public class HomeOfTransactionsFragment extends ChromeBaseSettingsFragment {
@@ -58,6 +63,63 @@ public class HomeOfTransactionsFragment extends ChromeBaseSettingsFragment {
     public static final String PREF_AUTOFILL_IDENTITY_DOCS = "autofill_and_passwords_identity_docs";
     public static final String PREF_AUTOFILL_TRAVEL = "autofill_and_passwords_travel";
     public static final String PREF_AUTOFILL_SETTINGS = "autofill_and_passwords_settings";
+
+    public static final String EXTRA_REFERRER = "autofill_and_passwords_referrer";
+
+    // Represents different referrers when navigating to the Home of Transactions page.
+    //
+    // These values are persisted to logs. Entries should not be renumbered and
+    // numeric values should never be reused.
+    //
+    // Needs to stay in sync with AutofillSettingsReferrer in enums.xml. Clank currently uses only
+    // the SETTINGS_MENU value.
+    // LINT.IfChange(AutofillSettingsReferrer)
+    @IntDef({AutofillSettingsReferrer.SETTINGS_MENU, AutofillSettingsReferrer.COUNT})
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface AutofillSettingsReferrer {
+
+        // int PROFILE_MENU = 0,
+
+        /** Corresponds to Chrome's main settings menu. */
+        int SETTINGS_MENU = 1;
+
+        // int AUTOFILL_AND_PASSWORDS_PAGE = 2,
+        // int FILLING_FLOW_DROPDOWN = 3,
+
+        int COUNT = 4;
+    }
+
+    // LINT.ThenChange(//tools/metrics/histograms/metadata/autofill/enums.xml:AutofillSettingsReferrer)
+
+    /**
+     * These values are persisted to logs. Entries should not be renumbered and numeric values
+     * should never be reused.
+     *
+     * <p>Must be kept in sync with the YourSavedInfoDataCategory enum in
+     * histograms/metadata/autofill/enums.xml
+     */
+    // LINT.IfChange(YourSavedInfoDataCategory)
+    @IntDef({
+        YourSavedInfoDataCategory.PASSWORD_MANAGER,
+        YourSavedInfoDataCategory.PAYMENTS,
+        YourSavedInfoDataCategory.CONTACT_INFO,
+        YourSavedInfoDataCategory.IDENTITY_DOCS,
+        YourSavedInfoDataCategory.TRAVEL,
+        YourSavedInfoDataCategory.SHOPPING,
+        YourSavedInfoDataCategory.COUNT
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    @interface YourSavedInfoDataCategory {
+        int PASSWORD_MANAGER = 0;
+        int PAYMENTS = 1;
+        int CONTACT_INFO = 2;
+        int IDENTITY_DOCS = 3;
+        int TRAVEL = 4;
+        int SHOPPING = 5;
+        int COUNT = 6;
+    }
+
+    // LINT.ThenChange(//tools/metrics/histograms/metadata/autofill/enums.xml:YourSavedInfoDataCategory)
 
     private final SettableMonotonicObservableSupplier<String> mPageTitle =
             ObservableSuppliers.createMonotonic();
@@ -72,6 +134,20 @@ public class HomeOfTransactionsFragment extends ChromeBaseSettingsFragment {
     public void onCreatePreferences(@Nullable Bundle savedInstanceState, @Nullable String rootKey) {
         mPageTitle.set(getString(R.string.autofill_and_passwords_settings_title));
 
+        @AutofillSettingsReferrer
+        int referrer =
+                getArguments() != null
+                        ? getArguments()
+                                .getInt(EXTRA_REFERRER, AutofillSettingsReferrer.SETTINGS_MENU)
+                        : AutofillSettingsReferrer.SETTINGS_MENU;
+
+        if (savedInstanceState == null) {
+            RecordHistogram.recordEnumeratedHistogram(
+                    "Autofill.YourSavedInfoSettingsPage.VisitReferrer",
+                    referrer,
+                    AutofillSettingsReferrer.COUNT);
+        }
+
         requireActivity()
                 .addMenuProvider(new AutofillHelpMenuProvider(this), this, Lifecycle.State.RESUMED);
 
@@ -84,6 +160,7 @@ public class HomeOfTransactionsFragment extends ChromeBaseSettingsFragment {
         passwordsPreference.setManagedPreferenceDelegate(createManagedPreferenceDelegate());
         passwordsPreference.setOnPreferenceClickListener(
                 preference -> {
+                    recordCategoryLinkClick(YourSavedInfoDataCategory.PASSWORD_MANAGER);
                     PasswordManagerLauncher.showPasswordSettings(
                             getContext(),
                             getProfile(),
@@ -95,26 +172,35 @@ public class HomeOfTransactionsFragment extends ChromeBaseSettingsFragment {
 
         findPreference(PREF_AUTOFILL_PAYMENTS)
                 .setOnPreferenceClickListener(
-                        preference ->
-                                SettingsNavigationHelper.showAutofillCreditCardSettings(
-                                        getActivity(), /* addToBackStack= */ true));
+                        preference -> {
+                            recordCategoryLinkClick(YourSavedInfoDataCategory.PAYMENTS);
+                            return SettingsNavigationHelper.showAutofillCreditCardSettings(
+                                    getActivity(), /* addToBackStack= */ true);
+                        });
 
         findPreference(PREF_AUTOFILL_ADDRESSES)
                 .setOnPreferenceClickListener(
-                        preference ->
-                                SettingsNavigationHelper.showAutofillProfileSettings(
-                                        getActivity(), /* addToBackStack= */ true));
+                        preference -> {
+                            recordCategoryLinkClick(YourSavedInfoDataCategory.CONTACT_INFO);
+                            return SettingsNavigationHelper.showAutofillProfileSettings(
+                                    getActivity(), /* addToBackStack= */ true);
+                        });
 
         Preference identityDocsPref = findPreference(PREF_AUTOFILL_IDENTITY_DOCS);
         identityDocsPref.setVisible(shouldShowAutofillAiSettings());
         identityDocsPref.setOnPreferenceClickListener(
-                preference ->
-                        SettingsNavigationHelper.showAutofillIdentityDocsSettings(getActivity()));
+                preference -> {
+                    recordCategoryLinkClick(YourSavedInfoDataCategory.IDENTITY_DOCS);
+                    return SettingsNavigationHelper.showAutofillIdentityDocsSettings(getActivity());
+                });
 
         Preference travelPref = findPreference(PREF_AUTOFILL_TRAVEL);
         travelPref.setVisible(shouldShowAutofillAiSettings());
         travelPref.setOnPreferenceClickListener(
-                preference -> SettingsNavigationHelper.showAutofillTravelSettings(getActivity()));
+                preference -> {
+                    recordCategoryLinkClick(YourSavedInfoDataCategory.TRAVEL);
+                    return SettingsNavigationHelper.showAutofillTravelSettings(getActivity());
+                });
 
         findPreference(PREF_AUTOFILL_SETTINGS)
                 .setOnPreferenceClickListener(
@@ -232,6 +318,13 @@ public class HomeOfTransactionsFragment extends ChromeBaseSettingsFragment {
                 return super.isPreferenceClickDisabled(preference);
             }
         };
+    }
+
+    private void recordCategoryLinkClick(@YourSavedInfoDataCategory int category) {
+        RecordHistogram.recordEnumeratedHistogram(
+                "Autofill.YourSavedInfoSettingsPage.CategoryLinkClick",
+                category,
+                YourSavedInfoDataCategory.COUNT);
     }
 
     public static final ChromeBaseSearchIndexProvider SEARCH_INDEX_DATA_PROVIDER =

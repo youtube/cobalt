@@ -1500,6 +1500,10 @@ unsigned HTMLSelectElement::length() const {
 
 void HTMLSelectElement::FinishParsingChildren() {
   HTMLFormControlElementWithState::FinishParsingChildren();
+  if (RuntimeEnabledFeatures::SelectedcontentMultipleEnabled() &&
+      IsMultiple()) {
+    UpdateAllSelectedcontentsMultiple();
+  }
   if (UsesMenuList())
     return;
   select_type_->ScrollToOption(SelectedOption());
@@ -1950,6 +1954,10 @@ void HTMLSelectElement::SelectedContentElementRemoved(
       UpdateIndividualSelectedcontent(**descendant_selectedcontents_.begin());
     }
   }
+}
+
+bool HTMLSelectElement::HasDescendantSelectedcontentElements() const {
+  return !descendant_selectedcontents_.IsEmpty();
 }
 
 HTMLSelectElement::SelectAutofillPreviewElement*

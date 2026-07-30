@@ -64,6 +64,7 @@
 #include "components/saved_tab_groups/public/pref_names.h"
 #include "components/search_engines/default_search_manager.h"
 #include "components/signin/public/base/signin_pref_names.h"
+#include "components/skills/public/skills_prefs.h"
 #include "components/spellcheck/browser/pref_names.h"
 #include "components/supervised_user/core/common/pref_names.h"
 #include "components/themes/pref_names.h"
@@ -217,6 +218,10 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
       settings_api::PrefType::kBoolean;
   (*s_allowlist)[autofill::prefs::kAutofillCreditCardEnabled] =
       settings_api::PrefType::kBoolean;
+  (*s_allowlist)[autofill::prefs::kAutofillEmailVerificationEnabled] =
+      settings_api::PrefType::kBoolean;
+  (*s_allowlist)[autofill::prefs::kAutofillEmailVerificationState] =
+      settings_api::PrefType::kDictionary;
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
   (*s_allowlist)[autofill::prefs::kAutofillPaymentMethodsMandatoryReauth] =
       settings_api::PrefType::kBoolean;
@@ -249,6 +254,8 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
       settings_api::PrefType::kBoolean;
   (*s_allowlist)[::prefs::kSidePanelHorizontalAlignment] =
       settings_api::PrefType::kBoolean;
+  (*s_allowlist)[::prefs::kSidePanelAlignmentOverrides] =
+      settings_api::PrefType::kDictionary;
   (*s_allowlist)[::prefs::kVerticalTabsEnabled] =
       settings_api::PrefType::kBoolean;
   (*s_allowlist)[::prefs::kVerticalTabsExpandOnHoverEnabled] =
@@ -433,6 +440,8 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
       settings_api::PrefType::kBoolean;
   (*s_allowlist)[::kGeneratedHttpsFirstModePref] =
       settings_api::PrefType::kNumber;
+  (*s_allowlist)[::prefs::kHttpsFirstModeBundleToastQueued] =
+      settings_api::PrefType::kBoolean;
   (*s_allowlist)[::prefs::kSecuritySettingsBundle] =
       settings_api::PrefType::kNumber;
   (*s_allowlist)[::safe_browsing::kGeneratedSecuritySettingsBundlePref] =
@@ -1313,9 +1322,6 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
       optimization_guide::UserVisibleFeatureKey::kCompose)] =
       settings_api::PrefType::kNumber;
   (*s_allowlist)[optimization_guide::prefs::GetSettingEnabledPrefName(
-      optimization_guide::UserVisibleFeatureKey::kTabOrganization)] =
-      settings_api::PrefType::kNumber;
-  (*s_allowlist)[optimization_guide::prefs::GetSettingEnabledPrefName(
       optimization_guide::UserVisibleFeatureKey::kWallpaperSearch)] =
       settings_api::PrefType::kNumber;
   (*s_allowlist)[optimization_guide::prefs::GetSettingEnabledPrefName(
@@ -1332,10 +1338,10 @@ const PrefsUtil::TypedPrefMap& PrefsUtil::GetAllowlistedKeys() {
       optimization_guide::UserVisibleFeatureKey::kContextualCueing)] =
       settings_api::PrefType::kNumber;
 
+  (*s_allowlist)[skills::prefs::kChromeSkillsEnabled] =
+      settings_api::PrefType::kBoolean;
+
   // AI enterprise prefs
-  (*s_allowlist)
-      [optimization_guide::prefs::kTabOrganizationEnterprisePolicyAllowed] =
-          settings_api::PrefType::kNumber;
   (*s_allowlist)[optimization_guide::prefs::kComposeEnterprisePolicyAllowed] =
       settings_api::PrefType::kNumber;
   (*s_allowlist)

@@ -5,6 +5,7 @@
 package org.chromium.chrome.browser.ui.side_ui;
 
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.chrome.browser.ui.side_ui.SideUiCoordinator.SideUiId;
 import org.chromium.chrome.browser.ui.side_ui.SideUiCoordinator.SideUiSpecs;
 
 /** Provider for SideUi state. Primarily, the {@link SideUiSpecs} through observers and a getter. */
@@ -36,13 +37,6 @@ public interface SideUiStateProvider {
     /** Returns the current {@link SideUiSpecs}. */
     SideUiSpecs getCurrentSideUiSpecs();
 
-    /** Returns whether the start-anchored Side UI container is currently showing. */
-    default boolean isStartContainerShowing() {
-        return getCurrentSideUiSpecs().mStartContainerWidth > 0;
-    }
-
-    /** Returns whether the end-anchored Side UI container is currently showing. */
-    default boolean isEndContainerShowing() {
-        return getCurrentSideUiSpecs().mEndContainerWidth > 0;
-    }
+    /** Returns whether the SideUIContainer of the given ID is currently showing. */
+    boolean isSideUiShowing(@SideUiId int sideUidId);
 }

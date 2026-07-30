@@ -9,8 +9,8 @@ import {assertNotReachedCase} from 'chrome://resources/js/assert.js';
 
 import {getCss} from './app.css.js';
 import {getHtml} from './app.html.js';
-import {BrowserProxy} from './browser_proxy.js';
-import type {CombinedEligibility} from './indigo_internals.mojom-webui.js';
+import {browserProxyFactory} from './indigo_internals.mojom-webui.js';
+import type {CombinedEligibility, GlicPromptInfo, IndigoPrompt} from './indigo_internals.mojom-webui.js';
 import {LocalEligibility, OptimizationGuideStatus} from './indigo_internals.mojom-webui.js';
 
 export class IndigoInternalsAppElement extends CrLitElement {
@@ -32,6 +32,10 @@ export class IndigoInternalsAppElement extends CrLitElement {
       optimizationGuideStatus_: {type: Number},
       combinedEligibility_: {type: Object},
       lastUpdated_: {type: String},
+      loadedPrompts_: {type: Array},
+      currentPromptKey_: {type: String},
+      overridePrompt_: {type: String},
+      integrationEnabled_: {type: Boolean},
     };
   }
 
@@ -40,12 +44,16 @@ export class IndigoInternalsAppElement extends CrLitElement {
       null;
   protected accessor combinedEligibility_: CombinedEligibility|null = null;
   protected accessor lastUpdated_: string = '';
+  protected accessor loadedPrompts_: IndigoPrompt[] = [];
+  protected accessor currentPromptKey_: string = '';
+  protected accessor overridePrompt_: string = '';
+  protected accessor integrationEnabled_: boolean = false;
   private listenerIds_: number[] = [];
 
   override connectedCallback() {
     super.connectedCallback();
 
-    const proxy = BrowserProxy.getInstance();
+    const proxy = browserProxyFactory.getInstance();
 
     proxy.handler.getLocalEligibility().then(
         ({status}: {status: LocalEligibility}) => {
@@ -55,6 +63,12 @@ export class IndigoInternalsAppElement extends CrLitElement {
         ({status}: {status: OptimizationGuideStatus}) => {
           this.optimizationGuideStatus_ = status;
         });
+    proxy.handler.getGlicPromptInfo().then(({info}: {info: GlicPromptInfo}) => {
+      this.integrationEnabled_ = info.integrationEnabled;
+      this.currentPromptKey_ = info.currentKey;
+      this.overridePrompt_ = info.overridePrompt;
+      this.loadedPrompts_ = info.loadedPrompts;
+    });
 
     this.listenerIds_ = [
       proxy.callbackRouter.onLocalEligibilityChanged.addListener(
@@ -71,7 +85,8 @@ export class IndigoInternalsAppElement extends CrLitElement {
   override disconnectedCallback() {
     super.disconnectedCallback();
     this.listenerIds_.forEach(
-        id => BrowserProxy.getInstance().callbackRouter.removeListener(id));
+        id => browserProxyFactory.getInstance().callbackRouter.removeListener(
+            id));
     this.listenerIds_ = [];
   }
 
@@ -103,6 +118,8 @@ export class IndigoInternalsAppElement extends CrLitElement {
         return 'Disabled By Policy';
       case LocalEligibility.kMissingScript:
         return 'Missing Script';
+      case LocalEligibility.kRefreshTokenInPersistentErrorState:
+        return 'Refresh Token In Persistent Error State';
       default:
         assertNotReachedCase(this.localEligibility_);
     }
@@ -115,6 +132,7 @@ export class IndigoInternalsAppElement extends CrLitElement {
       case LocalEligibility.kEligible:
         return 'status-eligible';
       case LocalEligibility.kNotSignedIn:
+      case LocalEligibility.kRefreshTokenInPersistentErrorState:
       case LocalEligibility.kMissingCapabilities:
       case LocalEligibility.kDisabledByPolicy:
       case LocalEligibility.kMissingScript:
@@ -153,9 +171,17 @@ export class IndigoInternalsAppElement extends CrLitElement {
     }
   }
 
+  protected getIntegrationStatusText_(): string {
+    return this.integrationEnabled_ ? 'Enabled' : 'Disabled';
+  }
+
+  protected getIntegrationStatusClass_(): string {
+    return this.integrationEnabled_ ? 'status-eligible' : 'status-ineligible';
+  }
+
   protected async onFetchCombinedClick_() {
-    const {status} =
-        await BrowserProxy.getInstance().handler.getCombinedEligibility();
+    const {status} = await browserProxyFactory.getInstance()
+                         .handler.getCombinedEligibility();
     this.combinedEligibility_ = status;
     this.lastUpdated_ = new Date().toLocaleTimeString();
   }

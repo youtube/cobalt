@@ -1,0 +1,44 @@
+// Copyright 2026 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef COMPONENTS_PERSONAL_CONTEXT_FIRST_RUN_PERSONAL_CONTEXT_FIRST_RUN_TYPES_H_
+#define COMPONENTS_PERSONAL_CONTEXT_FIRST_RUN_PERSONAL_CONTEXT_FIRST_RUN_TYPES_H_
+
+namespace personal_context {
+
+// First run trigger result.
+enum class FirstRunTriggerResult {
+  kSuccess = 0,
+  kIgnoredNotEligible = 1,
+  kIgnoredAlreadyEnabled = 2,
+};
+
+// Notice action result. Used internally, not exposed to consuming features.
+enum class NoticeResult {
+  kAcknowledged = 0,     // User clicked "Got it"
+  kNotAcknowledged = 1,  // User hit 'ESC' or clicked elsewhere, closing the
+                         // notice without acknowledging.
+};
+
+// The outcome of a request to show the Personal Context notice dialog.
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+// LINT.IfChange(NoticeShowRequestResult)
+enum class NoticeShowRequestResult {
+  kShown = 0,
+  kAccepted = 1,
+  kDismissed = 2,
+  kMaxValue = kDismissed,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/personal_context/enums.xml:PersonalContextNoticeInteractions)
+
+// Source of the first run invocation.
+enum class FirstRunInvocationSource {
+  kAutofill = 0,
+  kAutoTriggerPromo = 1,
+};
+
+}  // namespace personal_context
+
+#endif  // COMPONENTS_PERSONAL_CONTEXT_FIRST_RUN_PERSONAL_CONTEXT_FIRST_RUN_TYPES_H_

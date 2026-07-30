@@ -10,6 +10,7 @@
 #include "third_party/blink/renderer/core/css/parser/css_parser_token_stream.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
+#include "third_party/blink/renderer/core/route_matching/navigation_phase.h"
 #include "third_party/blink/renderer/core/url_pattern/url_pattern.h"
 
 namespace blink {
@@ -61,6 +62,23 @@ URLPatternParseResult ParseURLPattern(CSSParserTokenStream& stream,
       pattern_str);
 }
 
+std::optional<NavigationPreposition> PrepositionFromIdent(
+    const AtomicString& ident) {
+  if (ident == "at") {
+    return NavigationPreposition::kAt;
+  }
+  if (ident == "from") {
+    return NavigationPreposition::kFrom;
+  }
+  if (ident == "to") {
+    return NavigationPreposition::kTo;
+  }
+  if (ident == "with") {
+    return NavigationPreposition::kWith;
+  }
+  return std::nullopt;
+}
+
 // https://drafts.csswg.org/css-navigation-1/#typedef-navigation-test
 // https://github.com/w3c/csswg-drafts/blob/main/css-view-transitions-2/two-phase-transition-explainer.md
 //
@@ -89,14 +107,7 @@ NavigationTestExpression* ParseNavigationTest(CSSParserTokenStream& stream,
     return nullptr;
   }
   stream.ConsumeIncludingWhitespace();
-  NavigationPreposition preposition;
-  if (ident == "at") {
-    preposition = NavigationPreposition::kAt;
-  } else if (ident == "from") {
-    preposition = NavigationPreposition::kFrom;
-  } else if (ident == "to") {
-    preposition = NavigationPreposition::kTo;
-  } else if (ident == "history") {
+  if (ident == "history") {
     // <navigation-type-test>
     if (stream.Peek().GetType() != kIdentToken) {
       return nullptr;
@@ -117,7 +128,32 @@ NavigationTestExpression* ParseNavigationTest(CSSParserTokenStream& stream,
       return nullptr;
     }
     return MakeGarbageCollected<NavigationTypeTestExpression>(type);
-  } else {
+  }
+
+  if (ident == "phase") {
+    // <navigation-phase-test>
+    if (stream.Peek().GetType() != kIdentToken) {
+      return nullptr;
+    }
+    AtomicString argument(
+        stream.ConsumeIncludingWhitespace().Value().ToString());
+    NavigationPhase phase;
+    if (argument == "loading") {
+      phase = NavigationPhase::kLoading;
+    } else if (argument == "ready") {
+      // TODO(crbug.com/436805487): Support "ready".
+      return nullptr;
+    } else if (argument == "committed") {
+      phase = NavigationPhase::kCommitted;
+    } else {
+      return nullptr;
+    }
+    return MakeGarbageCollected<NavigationPhaseTestExpression>(phase);
+  }
+
+  std::optional<NavigationPreposition> preposition =
+      PrepositionFromIdent(ident);
+  if (!preposition) {
     return nullptr;
   }
 
@@ -136,17 +172,17 @@ NavigationTestExpression* ParseNavigationTest(CSSParserTokenStream& stream,
     return nullptr;
   }
 
-  NavigationLocation* navigation_location;
+  RouteLocation* route_location;
   if (url_pattern_result.IsSuccess()) {
-    navigation_location = MakeGarbageCollected<NavigationLocation>(
+    route_location = MakeGarbageCollected<RouteLocation>(
         url_pattern_result.url_pattern, url_pattern_result.original_string);
   } else {
     DCHECK(!route_name.empty());
-    navigation_location = MakeGarbageCollected<NavigationLocation>(route_name);
+    route_location = MakeGarbageCollected<RouteLocation>(route_name);
   }
 
-  return MakeGarbageCollected<NavigationLocationTestExpression>(
-      *navigation_location, preposition);
+  return MakeGarbageCollected<NavigationLocationTestExpression>(*route_location,
+                                                                *preposition);
 }
 
 }  // anonymous namespace
@@ -161,20 +197,24 @@ NavigationQuery* NavigationParser::ParseQuery(CSSParserTokenStream& stream,
   return MakeGarbageCollected<NavigationQuery>(*root);
 }
 
-NavigationLocation* NavigationParser::ParseLocation(
-    CSSParserTokenStream& stream,
-    const Document& document) {
+RouteLocation* NavigationParser::ParseLocation(CSSParserTokenStream& stream,
+                                               const Document& document) {
   if (stream.Peek().GetType() == kIdentToken) {
     AtomicString route_name(
         stream.ConsumeIncludingWhitespace().Value().ToString());
-    return MakeGarbageCollected<NavigationLocation>(route_name);
+    return MakeGarbageCollected<RouteLocation>(route_name);
   }
   URLPatternParseResult result = ParseURLPattern(stream, document);
   if (result.IsSuccess()) {
-    return MakeGarbageCollected<NavigationLocation>(result.url_pattern,
-                                                    result.original_string);
+    return MakeGarbageCollected<RouteLocation>(result.url_pattern,
+                                               result.original_string);
   }
   return nullptr;
+}
+
+std::optional<NavigationPreposition> NavigationParser::ParsePrepositionIdent(
+    const AtomicString& ident) {
+  return PrepositionFromIdent(ident);
 }
 
 const ConditionalExpNode* NavigationParser::ConsumeLeaf(

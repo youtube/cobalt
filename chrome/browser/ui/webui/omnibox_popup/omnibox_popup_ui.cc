@@ -27,7 +27,6 @@
 #include "chrome/browser/ui/webui/searchbox/omnibox_composebox_handler.h"
 #include "chrome/browser/ui/webui/searchbox/webui_omnibox_handler.h"
 #include "chrome/common/webui_url_constants.h"
-#include "chrome/grit/generated_resources.h"
 #include "chrome/grit/omnibox_popup_resources.h"
 #include "chrome/grit/omnibox_popup_resources_map.h"
 #include "components/contextual_search/contextual_search_metrics_recorder.h"
@@ -39,6 +38,7 @@
 #include "components/omnibox/common/omnibox_features.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/pointer/touch_ui_controller.h"
 #include "ui/webui/webui_util.h"
 
 namespace {
@@ -92,6 +92,7 @@ OmniboxPopupUI::OmniboxPopupUI(content::WebUI* web_ui)
        .session_allows_drag_and_drop = session_allows_drag_and_drop}));
 
   source->AddBoolean("isTopChromeSearchbox", true);
+  source->AddBoolean("isTouchUi", ui::TouchUiController::Get()->touch_ui());
   source->AddBoolean("omniboxAimPopupEnabled",
                      omnibox::IsAimPopupFeatureEnabled());
   source->AddBoolean("omniboxShowContextButtonSuggestionLabel",
@@ -143,10 +144,6 @@ OmniboxPopupUI::OmniboxPopupUI(content::WebUI* web_ui)
   source->AddBoolean("composeboxShowLensSearchChip",
                      omnibox::IsAimPopupEnabled(profile_) &&
                          omnibox::kShowLensSearchChip.Get());
-  source->AddBoolean("addTabUploadDelayOnRecentTabChipClick",
-                     omnibox::kAddTabUploadDelayOnRecentTabChipClick.Get());
-  source->AddBoolean("composeboxShowRecentTabChip",
-                     omnibox::kShowRecentTabChip.Get());
   source->AddBoolean("composeboxShowTypedSuggest",
                      omnibox::kShowComposeboxTypedSuggest.Get());
   source->AddBoolean("composeboxShowZps", omnibox::kShowComposeboxZps.Get());
@@ -164,7 +161,10 @@ OmniboxPopupUI::OmniboxPopupUI(content::WebUI* web_ui)
   source->AddBoolean(
       "contextManagementInComposeboxEnabled",
       base::FeatureList::IsEnabled(omnibox::kContextManagementInComposebox));
-  source->AddBoolean("tabFaviconChipsToCoinsEnabled", false);
+  source->AddBoolean(
+      "tabFaviconChipsToCoinsEnabled",
+      base::FeatureList::IsEnabled(omnibox::kContextManagementInComposebox) &&
+          base::FeatureList::IsEnabled(omnibox::kTabFaviconChipsToCoins));
   auto searchbox_layout_mode = AddContextButtonVariantToSearchboxLayoutMode(
       omnibox::kWebUIOmniboxAimPopupAddContextButtonVariantParam.Get());
   source->AddString("searchboxLayoutMode", searchbox_layout_mode);

@@ -5,37 +5,62 @@
 import 'chrome://webnn-internals/app.js';
 
 import type {WebnnInternalsAppElement} from 'chrome://webnn-internals/app.js';
-import {BrowserProxy} from 'chrome://webnn-internals/browser_proxy.js';
 import type {WebnnInternalsContextsViewerElement} from 'chrome://webnn-internals/contexts_viewer.js';
+import {browserProxyFactory} from 'chrome://webnn-internals/webnn_internals.mojom-webui.js';
+import type {PageRemote} from 'chrome://webnn-internals/webnn_internals.mojom-webui.js';
+import {PageHandlerRemote} from 'chrome://webnn-internals/webnn_internals.mojom-webui.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
+import {TestMock} from 'chrome://webui-test/test_mock.js';
 import {microtasksFinished} from 'chrome://webui-test/test_util.js';
 
-import {TestWebnnInternalsBrowserProxy} from './test_webnn_internals_browser_proxy.js';
-
 suite('WebnnInternalsUITest', function() {
+  let handler: TestMock<PageHandlerRemote>&PageHandlerRemote;
+  let page: PageRemote;
   let app: WebnnInternalsAppElement;
   let contextsTab: WebnnInternalsContextsViewerElement;
-  let testProxy: TestWebnnInternalsBrowserProxy;
+  const testExecutionProviders = [
+    {
+      name: 'Test EP 1',
+      vendor: 'Vendor 1',
+      hardwareType: 'GPU',
+      version: '1.0',
+      firstSelected: true,
+    },
+    {
+      name: 'Test EP 2',
+      vendor: 'Vendor 2',
+      version: '',
+      hardwareType: 'CPU',
+      firstSelected: false,
+    },
+  ];
 
   setup(function() {
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
-    testProxy = new TestWebnnInternalsBrowserProxy();
-    testProxy.handler.setResultFor(
-        'requestExistingContextsDetails', Promise.resolve({
-          contextsInfo: [],
-        }));
+    handler = TestMock.fromClass(PageHandlerRemote);
+    const {instance, remote} = browserProxyFactory.createForTest(handler);
+    browserProxyFactory.setInstance(instance);
+    page = remote;
+
+    handler.setResultFor('requestExistingContextsDetails', Promise.resolve({
+      contextsInfo: [],
+    }));
     // <if expr="webnn_enable_graph_dump">
-    testProxy.handler.setResultFor('isGraphRecording', Promise.resolve({
+    handler.setResultFor('isGraphRecording', Promise.resolve({
       enabled: false,
     }));
     // </if>
-    BrowserProxy.setInstance(testProxy);
+    handler.setResultFor(
+        'requestAvailableExecutionProvidersDetails', Promise.resolve({
+          availableExecutionProviders: testExecutionProviders,
+        }));
     app = document.createElement('webnn-internals-app');
     document.body.appendChild(app);
     const viewer =
         app.shadowRoot.querySelector('webnn-internals-contexts-viewer');
     assertTrue(!!viewer);
     contextsTab = viewer;
+    return microtasksFinished();
   });
 
   test('InitialViewWithNoContexts', function() {
@@ -51,26 +76,11 @@ suite('WebnnInternalsUITest', function() {
 
   test('ShowActiveContexts', async function() {
     // Simulate the browser sending two active contexts.
-    testProxy.page.onUpdateExistingContextDetails([
+    page.onUpdateExistingContextDetails([
       {
         contextId: 1,
         contextBackend: 'Test Backend',
-        executionProviders: [
-          {
-            name: 'Test EP 1',
-            vendor: 'Vendor 1',
-            hardwareType: 'GPU',
-            version: '1.0',
-            firstSelected: true,
-          },
-          {
-            name: 'Test EP 2',
-            vendor: 'Vendor 2',
-            hardwareType: 'CPU',
-            version: '',
-            firstSelected: false,
-          },
-        ],
+        executionProviders: testExecutionProviders,
       },
       {contextId: 2, contextBackend: 'Test Backend 2', executionProviders: []},
     ]);
@@ -122,7 +132,7 @@ suite('WebnnInternalsUITest', function() {
 
   test('RemoveActiveContexts', async function() {
     // Simulate the browser removing all contexts.
-    testProxy.page.onUpdateExistingContextDetails([]);
+    page.onUpdateExistingContextDetails([]);
     await microtasksFinished();
     const gridContainer =
         contextsTab.shadowRoot.querySelector<HTMLElement>('.grid-container');
@@ -130,6 +140,88 @@ suite('WebnnInternalsUITest', function() {
     const noContextText =
         contextsTab.shadowRoot.querySelector<HTMLElement>('.no-context');
     assertTrue(!!noContextText);
+  });
+
+  function assertGridItemContent(gridItem: Element, expectedValues: string[]) {
+    const elements = gridItem.querySelectorAll('div');
+    assertEquals(expectedValues.length, elements.length);
+
+    expectedValues.forEach((expectedValue, index) => {
+      assertEquals(expectedValue, elements[index]!.textContent.trim());
+    });
+  }
+
+  test('AvailableExecutionProvidersDetails', function() {
+    const infoTab = app.shadowRoot.querySelector('webnn-internals-info-page');
+    assertTrue(!!infoTab);
+    const gridContainer = infoTab.shadowRoot.querySelector<HTMLElement>(
+        '.grid-container-available-eps');
+    assertTrue(!!gridContainer);
+    const epItems = gridContainer.querySelectorAll('.grid-item');
+    assertEquals(2, epItems.length);
+    assertGridItemContent(epItems[0]!, [
+      'Name:',
+      'Test EP 1',
+      'Vendor:',
+      'Vendor 1',
+      'Hardware Type:',
+      'GPU',
+      'Version:',
+      '1.0',
+    ]);
+    // Test EP 2 has no version so it should not be rendered.
+    assertGridItemContent(epItems[1]!, [
+      'Name:',
+      'Test EP 2',
+      'Vendor:',
+      'Vendor 2',
+      'Hardware Type:',
+      'CPU',
+    ]);
+  });
+
+  test('UpdateAvailableExecutionProvidersDetails', async function() {
+    // Simulate updating the available execution providers details.
+    page.onUpdateAvailableExecutionProvidersDetails([
+      {
+        name: 'Test EP 3',
+        vendor: 'Vendor 3',
+        version: '1.3',
+        hardwareType: 'NPU',
+        firstSelected: false,
+      },
+    ]);
+    await microtasksFinished();
+    const infoTab = app.shadowRoot.querySelector('webnn-internals-info-page');
+    assertTrue(!!infoTab);
+    const gridContainer = infoTab.shadowRoot.querySelector<HTMLElement>(
+        '.grid-container-available-eps');
+    assertTrue(!!gridContainer);
+    const epItems = gridContainer.querySelectorAll('.grid-item');
+    assertEquals(1, epItems.length);
+    assertGridItemContent(epItems[0]!, [
+      'Name:',
+      'Test EP 3',
+      'Vendor:',
+      'Vendor 3',
+      'Hardware Type:',
+      'NPU',
+      'Version:',
+      '1.3',
+    ]);
+  });
+
+  test('RemoveAllAvailableExecutionProvidersDetails', async function() {
+    // Simulate that there are no EPs available.
+    page.onUpdateAvailableExecutionProvidersDetails([]);
+    await microtasksFinished();
+    const infoTab = app.shadowRoot.querySelector('webnn-internals-info-page');
+    assertTrue(!!infoTab);
+    const gridContainer = infoTab.shadowRoot.querySelector<HTMLElement>(
+        '.grid-container-available-eps');
+    assertFalse(!!gridContainer);
+    const noEp = infoTab.shadowRoot.querySelectorAll('.grid-item');
+    assertEquals(1, noEp.length);
   });
 
   // <if expr="not webnn_enable_graph_dump">
@@ -147,7 +239,7 @@ suite('WebnnInternalsUITest', function() {
     assertTrue(!!toggle);
     assertFalse(toggle.checked);
 
-    testProxy.page.onGraphRecordEnabledChanged(true);
+    page.onGraphRecordEnabledChanged(true);
     await microtasksFinished();
     assertTrue(toggle.checked);
   });

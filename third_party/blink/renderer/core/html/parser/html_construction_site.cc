@@ -872,11 +872,10 @@ void HTMLConstructionSite::AdjustInsertionLocation(
       task.parent = parent_item->GetNode();
     }
 
+    // This can happen if the reference node moved right before closing the
+    // stream, and the stream close has some side effects (e.g. <head>
+    // processing). In this case, ignore the reference node and append.
     if (task.next_child && task.next_child->parentNode() != task.parent) {
-      // TODO(https://crbug.com/506629815): This is a rare case where some timing scenario causes a mismatch here.
-      // It is not easily reproducible, so making this a DUMP_WILL_CHECK to
-      // investigate given more cases. For now making this into an append.
-      DUMP_WILL_BE_CHECK(false) << "DOM state changed during parser tick";
       task.next_child = nullptr;
     }
   }
@@ -1114,7 +1113,10 @@ void HTMLConstructionSite::InsertScriptElement(AtomicHTMLToken* token) {
                          parser_content_policy_ !=
                              kAllowScriptingContentAndMarkAsParserInserted);
   HTMLScriptElement* element = nullptr;
-  if (const auto* is_attribute = token->GetAttributeItem(html_names::kIsAttr)) {
+  const auto* is_attribute = token->GetAttributeItem(html_names::kIsAttr);
+  bool sanitizer_allows_is_attribute =
+      !sanitizer_ || sanitizer_->AllowIsAttribute(html_names::kScriptTag);
+  if (is_attribute && sanitizer_allows_is_attribute) {
     element = To<HTMLScriptElement>(OwnerDocumentForCurrentNode().CreateElement(
         html_names::kScriptTag, flags, is_attribute->Value(),
         CustomElementRegistry::DefaultRegistry(OwnerDocumentForCurrentNode())));
@@ -1290,7 +1292,13 @@ Element* HTMLConstructionSite::CreateElement(
            : QualifiedName(g_null_atom, token->GetName(), namespace_uri));
   // "5. Let is be the value of the "is" attribute in the given token ..." etc.
   const Attribute* is_attribute = token->GetAttributeItem(html_names::kIsAttr);
-  const AtomicString& is = is_attribute ? is_attribute->Value() : g_null_atom;
+  // If sanitizer_ is set and if santizer_ would not allow the "is" attribute,
+  // then we will just pretend to not have seen it.
+  bool sanitizer_allows_is_attribute =
+      !sanitizer_ || sanitizer_->AllowIsAttribute(tag_name);
+  const AtomicString& is = (is_attribute && sanitizer_allows_is_attribute)
+                               ? is_attribute->Value()
+                               : g_null_atom;
   // "6. Let registry be the result of looking up a custom element registry
   // given intended parent."
   CustomElementRegistry* registry = custom_element_registry_;
